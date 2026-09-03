@@ -35,6 +35,11 @@ export function isCompact(def: NodeDef | undefined): boolean {
 	return def?.display === "compact";
 }
 
+/** A knot in a wire: a dot with one pin either side and no chrome at all. */
+export function isReroute(def: NodeDef | undefined): boolean {
+	return def?.display === "reroute";
+}
+
 /** The text a capsule shows, which is also what sets its width. */
 export function compactLabel(def: NodeDef, node: GraphNode): string {
 	return node.label || def.subtitle?.(node.config ?? {}) || def.title;
@@ -74,6 +79,9 @@ export function nodeHeight(
 export function nodeBounds(node: GraphNode, registry: Registry): Rect {
 	const def = registry.get(node.def);
 	if (!def) return { x: node.x, y: node.y, w: NODE.width, h: NODE.headerHeight + NODE.footer };
+	if (isReroute(def)) {
+		return { x: node.x, y: node.y, w: NODE.rerouteSize, h: NODE.rerouteSize };
+	}
 	if (isCompact(def)) {
 		return {
 			x: node.x, y: node.y,
@@ -97,6 +105,15 @@ export function pinPosition(
 	const list = side === "in" ? inputs : outputs;
 	const index = list.findIndex((p) => p.id === pinId);
 	if (index === -1) return null;
+
+	// Both pins of a knot sit at its centre, so a wire passes straight through
+	// it rather than jogging around a box.
+	if (isReroute(def)) {
+		return {
+			x: node.x + NODE.rerouteSize / 2,
+			y: node.y + NODE.rerouteSize / 2,
+		};
+	}
 
 	// A capsule has one pin, on the right, halfway down.
 	if (isCompact(def)) {

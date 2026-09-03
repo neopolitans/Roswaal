@@ -6,7 +6,9 @@ import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
 import { pinColor } from "./palette.js";
-import { compactLabel, compactWidth, headerHeight, isCompact, resolvePins } from "./geometry.js";
+import {
+	compactLabel, compactWidth, headerHeight, isCompact, isReroute, resolvePins,
+} from "./geometry.js";
 
 const NEWLINE = String.fromCharCode(10);
 
@@ -64,6 +66,7 @@ function NodeViewInner(props: NodeViewProps) {
 
 	const { inputs, outputs } = resolvePins(def, node.config);
 
+	if (isReroute(def)) return renderReroute(props, inputs[0], outputs[0]);
 	if (isCompact(def)) return renderCapsule(props, def, outputs[0]);
 
 	const rows = Math.max(inputs.length, outputs.length, 1);
@@ -132,6 +135,36 @@ function NodeViewInner(props: NodeViewProps) {
 					</div>
 				))}
 			</div>
+		</div>
+	);
+}
+
+/**
+ * A reroute knot: a dot the wire passes through. Both pins sit on top of each
+ * other at its centre, so the wire enters and leaves at the same point and the
+ * knot reads as a bend rather than a node.
+ */
+function renderReroute(
+	props: NodeViewProps, input: PinDef | undefined, output: PinDef | undefined,
+) {
+	const { node, selected } = props;
+	return (
+		<div
+			className={`node reroute${selected ? " selected" : ""}`}
+			data-node-id={node.id}
+			style={{
+				left: node.x,
+				top: node.y,
+				width: NODE.rerouteSize,
+				height: NODE.rerouteSize,
+				zIndex: selected ? LAYER.nodeSelected : LAYER.node,
+			}}
+			title={node.label || "Reroute"}
+			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
+			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
+		>
+			{input && renderPin(props, input, "in")}
+			{output && renderPin(props, output, "out")}
 		</div>
 	);
 }

@@ -403,6 +403,8 @@ you never wrote.
 | Drag from a pin | make a wire; drop on empty space to open the palette |
 | Drag a wired input | pick the existing wire up and rewire it |
 | Alt-click a wire | sever it |
+| Double-click a wire | add a reroute knot where you clicked |
+| Shift-click a pin | disconnect everything on it |
 | Middle-drag, or Alt-drag | pan |
 | Wheel | zoom about the cursor |
 | Drag on empty canvas | marquee select |
@@ -415,10 +417,17 @@ you never wrote.
 | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Ctrl+D` | copy, cut, paste, duplicate |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | undo, redo |
 | `Ctrl+A`, `Delete` | select all, delete |
+| `Ctrl+Shift+L` | tidy the graph into columns — selection only, if several are selected |
 | `Ctrl+S` | compile the open document |
 
 The **Help** button in the toolbar covers the same ground from inside the app,
 which is where the questions actually come up.
+
+A **reroute knot** is a bend in a wire and nothing else: it compiles to no code
+at all, and it is transparent to the hoisting rule, so inserting one never turns
+a value that was bound once into one evaluated twice. **Realign** ranks nodes by
+how far they are from something with no inputs and lays them out in columns,
+re-fitting comments around whatever they held.
 
 Comment membership is captured when a drag begins rather than tracked, which is
 how Unreal behaves: a node that was inside the comment travels with it, and one
@@ -463,7 +472,7 @@ Honest list of what the prototype does not do yet.
   its place.
 - **Wildcard pins do not propagate.** `wildcard` connects to anything but does
   not adopt the type it was wired to.
-- **No reroute nodes**, and no per-node breakpoints or debugging.
+- **No per-node breakpoints or debugging.**
 
 ## Development
 

@@ -486,6 +486,8 @@ class Emitter {
 		const id = r.node.id;
 		switch (handler) {
 			case "script.begin":
+			case "flow.rerouteExec":
+				// A reroute is a bend in the wire, not a step. Nothing is emitted.
 				return this.index.execTarget(id, "then");
 
 			case "script.end":
@@ -726,11 +728,42 @@ class Emitter {
 	}
 
 	/**
+	 * How many places actually read this output, seeing through reroute knots.
+	 *
+	 * A knot is meant to be invisible, and it would not be if inserting one
+	 * turned a value that was bound once into one evaluated twice. Counting
+	 * through it keeps the generated code identical either way.
+	 */
+	private effectiveConsumers(nodeId: string, pinId: string, depth = 0): number {
+		// A knot wired into itself is a graph error, not a reason to recurse
+		// forever; the cap is generous enough that no real chain reaches it.
+		if (depth > 64) return 2;
+
+		let total = 0;
+		for (const link of this.index.targetsOf(nodeId, pinId)) {
+			const target = this.index.get(link.to.node);
+			if (target?.def.id === "flow.reroute") {
+				total += this.effectiveConsumers(link.to.node, "out", depth + 1);
+			} else {
+				total += 1;
+			}
+		}
+		return total;
+	}
+
+	/**
 	 * A pure builtin's expression. These always resolve to a plain identifier,
 	 * which is why they bypass the hoisting rule entirely.
 	 */
-	private pureBuiltin(handler: string, src: ResolvedNode, consumer: ResolvedNode): string {
+	private pureBuiltin(
+		handler: string, src: ResolvedNode, consumer: ResolvedNode, scope: Scope,
+	): string {
 		switch (handler) {
+			case "flow.reroute":
+				// Passes its input through untouched, and is deliberately never
+				// hoisted: a knot that bound a local would stop being invisible.
+				return this.resolveInput(src, this.pin(src, "in", "in"), scope);
+
 			case "variable.get": {
 				const ref = (src.node.config ?? {}) as VariableRef;
 				const ident = ref.variable ? this.variableNames.get(ref.variable) : undefined;
@@ -901,7 +934,7 @@ class Emitter {
 		// hoisted: a variable read has to happen at its use site, or a Set
 		// between two Gets would be invisible to the second one.
 		if (spec.kind === "builtin") {
-			return this.pureBuiltin(spec.handler, src, consumer);
+			return this.pureBuiltin(spec.handler, src, consumer, scope);
 		}
 
 		if (spec.kind !== "expr") {
@@ -928,7 +961,7 @@ class Emitter {
 
 		// One consumer: splice it in. More: bind it once, so a side-effecting or
 		// merely expensive expression is not evaluated twice.
-		if (this.index.consumerCount(nodeId, pinId) <= 1) return expr;
+		if (this.effectiveConsumers(nodeId, pinId) <= 1) return expr;
 
 		const outPin = src.outputs.find((p) => p.id === pinId);
 		const ident = this.names.unique(src.node.label || outPin?.name || src.def.title, "value");

@@ -243,6 +243,8 @@ function Controls() {
 		["Drag a wired input", "Pick the existing wire up and rewire it"],
 		["Drop a wire on a node", "Grow it a new input and connect to it"],
 		["Alt-click a wire", "Cut it"],
+		["Double-click a wire", "Add a reroute knot where you clicked"],
+		["Shift-click a pin", "Disconnect everything on it"],
 		["Middle-drag, or Alt-drag", "Pan"],
 		["Wheel", "Zoom about the cursor"],
 		["Drag on empty canvas", "Marquee select"],
@@ -255,6 +257,7 @@ function Controls() {
 		["Ctrl+C / X / V / D", "Copy, cut, paste, duplicate"],
 		["Ctrl+Z / Ctrl+Shift+Z", "Undo, redo"],
 		["Ctrl+A, Delete", "Select all, delete"],
+		["Ctrl+Shift+L", "Tidy the graph into columns — selection only, if several are selected"],
 		["Ctrl+S", "Compile the open document"],
 	];
 

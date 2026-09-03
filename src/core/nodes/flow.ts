@@ -231,6 +231,37 @@ export const FLOW_NODES: NodeDef[] = [
 		compilesTo: { kind: "builtin", handler: "flow.continue" },
 	},
 	{
+		// A knot in a wire. Carries no meaning at all — it exists so a long wire
+		// can be routed around a node instead of through it, and it compiles to
+		// nothing whatsoever.
+		id: "flow.reroute",
+		title: "Reroute",
+		category: "Flow",
+		summary:
+			"A bend in a data wire. Purely visual: it passes its input straight through and emits no code. Double-click a wire to add one.",
+		pure: true,
+		display: "reroute",
+		inputs: [data("in", "", "any")],
+		outputs: [data("out", "", "any")],
+		compilesTo: { kind: "builtin", handler: "flow.reroute" },
+		derivePins(config: NodeConfig) {
+			const type = typeof config.type === "string" ? config.type : "any";
+			return { inputs: [data("in", "", type)], outputs: [data("out", "", type)] };
+		},
+	},
+	{
+		id: "flow.rerouteExec",
+		title: "Reroute (Execution)",
+		category: "Flow",
+		summary:
+			"A bend in an execution wire. Purely visual: it emits no code. Double-click a wire to add one.",
+		role: "flow",
+		display: "reroute",
+		inputs: [exec("in", "")],
+		outputs: [exec("then", "")],
+		compilesTo: { kind: "builtin", handler: "flow.rerouteExec" },
+	},
+	{
 		id: "event.connect",
 		title: "Connect Event",
 		category: "Events",

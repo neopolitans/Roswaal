@@ -20,16 +20,16 @@
   ],
   "nodes": [
     {
-      "id": "163cdd53-7e3f-48dc-992a-14a48a0320cd",
-      "def": "code.custom",
-      "x": 258,
-      "y": 620
+      "id": "13a5c553-604c-4034-a094-9f63467069db",
+      "def": "flow.sequence",
+      "x": 43.74,
+      "y": 180.74
     },
     {
       "id": "4e360814-1d98-41d1-ae9c-7c7168805c5b",
       "def": "code.custom",
-      "x": 1512.94,
-      "y": 954.83,
+      "x": 292.33,
+      "y": 875.36,
       "literals": {
         "code": {
           "t": "raw",
@@ -90,7 +90,7 @@
       "literals": {
         "as": {
           "t": "string",
-          "v": ""
+          "v": "Greeter"
         },
         "path": {
           "t": "string",
@@ -159,8 +159,8 @@
     {
       "id": "start",
       "def": "script.begin",
-      "x": 80,
-      "y": 200
+      "x": -342.12,
+      "y": 182.25
     },
     {
       "id": "svc",
@@ -177,13 +177,24 @@
   ],
   "links": [
     {
-      "id": "l1",
+      "id": "20459c65-a0ca-4571-aded-a8e54aedf188",
       "from": {
-        "node": "start",
-        "pin": "then"
+        "node": "13a5c553-604c-4034-a094-9f63467069db",
+        "pin": "s0"
       },
       "to": {
         "node": "conn",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "44b00f9a-b161-4003-be3e-47f910fde138",
+      "from": {
+        "node": "13a5c553-604c-4034-a094-9f63467069db",
+        "pin": "s1"
+      },
+      "to": {
+        "node": "4e360814-1d98-41d1-ae9c-7c7168805c5b",
         "pin": "in"
       }
     },
@@ -316,6 +327,17 @@
       },
       "to": {
         "node": "say",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "1b4032ff-6f88-4254-a5b3-f44f0d6bafa2",
+      "from": {
+        "node": "start",
+        "pin": "then"
+      },
+      "to": {
+        "node": "13a5c553-604c-4034-a094-9f63467069db",
         "pin": "in"
       }
     }

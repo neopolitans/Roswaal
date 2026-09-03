@@ -25,7 +25,8 @@ import { pinColor } from "./palette.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
 	addNode, bindNodeToVariable, canConnect, commentContents, commentsByArea, connect,
-	currentArity, growNode, growthRule, moveNodes, removeLink, setLiteral, updateComment,
+	currentArity, disconnectPin, growNode, growthRule, insertReroute, moveNodes,
+	pinLinkCount, removeLink, setLiteral, updateComment,
 } from "./edits.js";
 import { store, useEditor } from "./store.js";
 
@@ -308,6 +309,16 @@ export function Canvas({
 		if (e.button !== 0) return;
 		e.stopPropagation();
 
+		// Shift-click clears the pin. Cutting a wire otherwise means finding the
+		// curve and alt-clicking it, which is fiddly when several overlap near
+		// the pin they all end at.
+		if (e.shiftKey) {
+			if (pinLinkCount(script, nodeId, pin.id, side) > 0) {
+				store.edit((s) => disconnectPin(s, nodeId, pin.id, side));
+			}
+			return;
+		}
+
 		// Grabbing a wired input picks the existing wire up rather than making a
 		// second one, which is how you rewire without deleting first.
 		if (side === "in") {
@@ -559,6 +570,18 @@ export function Canvas({
 										if (!e.altKey) return;
 										e.stopPropagation();
 										store.edit((s) => removeLink(s, link.id));
+									}}
+									onDoubleClick={(e) => {
+										// Double-click puts a knot where you clicked, so a wire
+										// can be routed around a node instead of through it.
+										e.stopPropagation();
+										const world = toWorld(e.clientX, e.clientY);
+										store.edit((s) => {
+											const added = insertReroute(s, registry, link.id, world);
+											if (!added) return s;
+											queueMicrotask(() => store.select([added.id]));
+											return added.script;
+										});
 									}}
 								>
 									<title>

@@ -1861,3 +1861,30 @@ button.tb.with-icon {
 .code-body .cm-errorLine.cm-activeLine {
 	background: color-mix(in srgb, var(--danger) 17%, transparent);
 }
+
+/* A reroute knot: a dot the wire passes through, with both pins stacked at its
+   centre so the wire enters and leaves at the same point. */
+.node.reroute {
+	border-radius: 50%;
+	background: var(--capsule-bg);
+	border: 1px solid var(--capsule-border);
+	box-shadow: var(--node-shadow);
+	display: grid;
+	place-items: center;
+	cursor: grab;
+}
+
+.node.reroute .pin {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+}
+
+.node.reroute .pin-label {
+	display: none;
+}
+
+.node.reroute.selected {
+	border-color: var(--select);
+}

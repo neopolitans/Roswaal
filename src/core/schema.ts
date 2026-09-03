@@ -125,7 +125,7 @@ export interface NodeDef {
 	 * suits a node whose whole meaning is its name, and only those — anything
 	 * with inputs needs rows to put them in.
 	 */
-	display?: "normal" | "compact";
+	display?: "normal" | "compact" | "reroute";
 	/**
 	 * The node takes a variable number of inputs, numbered a0, a1, ... The count
 	 * lives in the node's own config, so two Add nodes in one graph can have

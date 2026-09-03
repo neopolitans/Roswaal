@@ -23,6 +23,7 @@ import { LAYER } from "./layers.js";
 import type { PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
 import { buildPresets, NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
+import { autoLayout } from "./layout.js";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
@@ -292,6 +293,21 @@ export function App() {
 		setMenu(null);
 	}, [registry]);
 
+	/**
+	 * Tidies the graph into ranked columns. Acts on the selection when there is
+	 * more than one node in it, so a corner can be straightened without moving
+	 * everything else.
+	 */
+	const realign = useCallback(() => {
+		const state = store.getSnapshot();
+		if (!state.script) return;
+		const selected = new Set(
+			[...state.selection].filter((id) => state.script!.nodes.some((n) => n.id === id)),
+		);
+		const only = selected.size > 1 ? selected : undefined;
+		store.edit((s) => autoLayout(s, registry, only));
+	}, [registry]);
+
 	// -- keyboard ----------------------------------------------------------
 
 	useEffect(() => {
@@ -316,6 +332,11 @@ export function App() {
 			if (mod && e.key.toLowerCase() === "s") {
 				e.preventDefault();
 				if (editor.path) void runCompile(editor.path, true);
+				return;
+			}
+			if (mod && e.shiftKey && e.key.toLowerCase() === "l") {
+				e.preventDefault();
+				realign();
 				return;
 			}
 			if (mod && e.key.toLowerCase() === "a") {
@@ -371,7 +392,7 @@ export function App() {
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [editor.path, runCompile, spawnComment]);
+	}, [editor.path, runCompile, spawnComment, realign]);
 
 	// -- render ------------------------------------------------------------
 
@@ -392,6 +413,15 @@ export function App() {
 				>
 					<Icon name="refresh" size={15} />
 					Refresh
+				</button>
+				<button
+					className="tb with-icon"
+					disabled={!editor.script}
+					title="Tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
+					onClick={realign}
+				>
+					<Icon name="layout" size={15} />
+					Realign
 				</button>
 				<button
 					className="tb with-icon"

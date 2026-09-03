@@ -412,3 +412,74 @@ describe("block termination", () => {
 		);
 	});
 });
+
+describe("reroute knots", () => {
+	/** A knot is a bend in a wire, so it must leave the output untouched. */
+	it("passes a data wire through and emits nothing", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const add = b.node("math.add");
+		const knot = b.node("flow.reroute", { config: { type: "number" } });
+		const print = b.node("debug.print");
+		b.lit(add, "a0", { t: "number", v: 2 }).lit(add, "a1", { t: "number", v: 3 });
+		b.link(start, "then", print, "in");
+		b.link(add, "result", knot, "in");
+		b.link(knot, "out", print, "value");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		// Identical to wiring the two directly: no local, no parentheses added.
+		expect(body(out.code)).toBe("print(2 + 3)");
+	});
+
+	it("passes an execution wire through and emits nothing", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const knot = b.node("flow.rerouteExec");
+		const print = b.node("debug.print");
+		b.link(start, "then", knot, "in");
+		b.link(knot, "then", print, "in");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(`print("Hello")`);
+	});
+
+	it("stays invisible through a chain of knots", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const value = b.node("value.number");
+		const first = b.node("flow.reroute", { config: { type: "number" } });
+		const second = b.node("flow.reroute", { config: { type: "number" } });
+		const print = b.node("debug.print");
+		b.lit(value, "value", { t: "number", v: 42 });
+		b.link(start, "then", print, "in");
+		b.link(value, "result", first, "in");
+		b.link(first, "out", second, "in");
+		b.link(second, "out", print, "value");
+
+		expect(body(compile(b.build(), registry).code)).toBe("print(42)");
+	});
+
+	/**
+	 * A knot must not become a hoisting point: two consumers of one value should
+	 * still bind that value once, not once per branch of the knot.
+	 */
+	it("does not change how a shared value is bound", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const add = b.node("math.add");
+		const knot = b.node("flow.reroute", { config: { type: "number" } });
+		const p1 = b.node("debug.print");
+		const p2 = b.node("debug.print");
+		b.lit(add, "a0", { t: "number", v: 1 }).lit(add, "a1", { t: "number", v: 1 });
+		b.link(start, "then", p1, "in");
+		b.link(p1, "then", p2, "in");
+		b.link(add, "result", knot, "in");
+		b.link(knot, "out", p1, "value");
+		b.link(knot, "out", p2, "value");
+
+		const code = body(compile(b.build(), registry).code);
+		expect(code.match(/1 \+ 1/g)).toHaveLength(1);
+	});
+});

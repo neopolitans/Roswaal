@@ -219,6 +219,84 @@ export function removeLink(script: NodeScript, linkId: string): NodeScript {
 	return { ...script, links: script.links.filter((l) => l.id !== linkId) };
 }
 
+/**
+ * Cuts every wire attached to one pin.
+ *
+ * An input has at most one, an execution output leads to one node, but a data
+ * output can feed many — and clearing all of them is what "disconnect this
+ * pin" means either way.
+ */
+export function disconnectPin(
+	script: NodeScript, nodeId: string, pinId: string, side: "in" | "out",
+): NodeScript {
+	const links = script.links.filter((l) => {
+		const end = side === "in" ? l.to : l.from;
+		return !(end.node === nodeId && end.pin === pinId);
+	});
+	return links.length === script.links.length ? script : { ...script, links };
+}
+
+/** How many wires a pin currently carries. */
+export function pinLinkCount(
+	script: NodeScript, nodeId: string, pinId: string, side: "in" | "out",
+): number {
+	return script.links.filter((l) => {
+		const end = side === "in" ? l.to : l.from;
+		return end.node === nodeId && end.pin === pinId;
+	}).length;
+}
+
+/**
+ * Splits a wire around a new reroute knot at `at`.
+ *
+ * The knot takes the type of the wire it replaces, so the two halves stay the
+ * same colour and the same rules apply either side of it. Nothing about the
+ * generated code changes; this is purely a place for the wire to bend.
+ */
+export function insertReroute(
+	script: NodeScript, registry: Registry, linkId: string, at: { x: number; y: number },
+): { script: NodeScript; id: string } | null {
+	const link = script.links.find((l) => l.id === linkId);
+	if (!link) return null;
+
+	const fromNode = script.nodes.find((n) => n.id === link.from.node);
+	const fromDef = fromNode && registry.get(fromNode.def);
+	if (!fromNode || !fromDef) return null;
+
+	const pin = pinsOf(fromDef, fromNode).outputs.find((p) => p.id === link.from.pin);
+	if (!pin) return null;
+
+	const isExec = pin.kind === "exec";
+	const def = registry.get(isExec ? "flow.rerouteExec" : "flow.reroute");
+	if (!def) return null;
+
+	const id = newId();
+	const half = 11;
+	const knot: GraphNode = {
+		id,
+		def: def.id,
+		x: Math.round(at.x - half),
+		y: Math.round(at.y - half),
+		...(isExec ? {} : { config: { type: pin.type ?? "any" } }),
+	};
+
+	const inPin = isExec ? "in" : "in";
+	const outPin = isExec ? "then" : "out";
+
+	return {
+		script: {
+			...script,
+			nodes: [...script.nodes, knot],
+			links: [
+				...script.links.filter((l) => l.id !== linkId),
+				{ id: newId(), from: link.from, to: { node: id, pin: inPin } },
+				{ id: newId(), from: { node: id, pin: outPin }, to: link.to },
+			],
+		},
+		id,
+	};
+}
+
 /** Removes wires whose pins no longer exist, e.g. after a signature change. */
 export function dropDanglingLinks(script: NodeScript): NodeScript {
 	const nodes = new Set(script.nodes.map((n) => n.id));

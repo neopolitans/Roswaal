@@ -43,6 +43,8 @@ export const NODE = {
 	compactMinWidth: 96,
 	compactCharWidth: 6.8,
 	compactPadding: 46,
+	/** A reroute knot is a dot with a pin either side. */
+	rerouteSize: 22,
 	/** Padding below the last pin row. */
 	footer: 10,
 	pinRadius: 5,
