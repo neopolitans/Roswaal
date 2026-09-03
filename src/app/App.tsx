@@ -746,6 +746,8 @@ export function App() {
 					value={codeEdit.value}
 					hint="Emitted verbatim into the generated file"
 					script={editor.script}
+					registry={registry}
+					nodeId={codeEdit.nodeId}
 					onClose={() => setCodeEdit(null)}
 					onCommit={(next) => {
 						store.edit((s) => setLiteral(s, codeEdit.nodeId, codeEdit.pin.id, { t: "raw", v: next }));

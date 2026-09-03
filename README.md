@@ -384,8 +384,11 @@ verbatim. Clicking the code preview on the node opens a pop-out editor with:
   and Luau's own globals are tinted apart from names you chose.
 - **Completion** over Luau's globals and libraries *and* the names this graph
   puts in scope — its variables, its functions, the services it hoists, the
-  modules it requires. Those are invisible from inside the box otherwise, which
-  is how a Custom Code node ends up referring to something that is not there.
+  modules it requires, and the locals declared by Custom Code blocks that run
+  before this one. Those are invisible from inside the box otherwise, which is
+  how a Custom Code node ends up referring to something that is not there.
+  Scope is worked out by walking execution wires backwards, so a local declared
+  in a sibling branch arm is correctly *not* offered.
 - **Errors marked three ways**, because each answers a different question at a
   different distance: a gutter marker says there is a problem, a wash across the
   line says which line, and a squiggle with a tooltip says what.

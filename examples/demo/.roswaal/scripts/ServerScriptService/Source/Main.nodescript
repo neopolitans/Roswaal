@@ -22,14 +22,26 @@
     {
       "id": "13a5c553-604c-4034-a094-9f63467069db",
       "def": "flow.sequence",
-      "x": 74.23,
-      "y": 183.37
+      "x": 72,
+      "y": 192
+    },
+    {
+      "id": "1b0880ee-a507-41d2-a9e3-fa722b301ee8",
+      "def": "code.custom",
+      "x": 698,
+      "y": 826,
+      "literals": {
+        "code": {
+          "t": "raw",
+          "v": "newPart.Material = Enum.Material.Neon"
+        }
+      }
     },
     {
       "id": "4e360814-1d98-41d1-ae9c-7c7168805c5b",
       "def": "code.custom",
-      "x": 391.14,
-      "y": 828.2,
+      "x": 396,
+      "y": 830,
       "literals": {
         "code": {
           "t": "raw",
@@ -40,8 +52,8 @@
     {
       "id": "a520f24f-70db-43a6-81f3-2c86ff7bce8d",
       "def": "flow.rerouteExec",
-      "x": 297.68,
-      "y": 860.34
+      "x": 119,
+      "y": 862
     },
     {
       "id": "conn",
@@ -60,8 +72,8 @@
     {
       "id": "count",
       "def": "variable.get",
-      "x": 1309.99,
-      "y": 392.5,
+      "x": 1463,
+      "y": 384,
       "config": {
         "name": "playersJoined",
         "type": "number",
@@ -71,8 +83,8 @@
     {
       "id": "countUp",
       "def": "variable.set",
-      "x": 1537,
-      "y": 241.96,
+      "x": 1966,
+      "y": 229,
       "config": {
         "name": "playersJoined",
         "type": "number",
@@ -80,16 +92,10 @@
       }
     },
     {
-      "id": "d4182d97-f040-4e42-ae25-0c6599d5ebc8",
-      "def": "flow.rerouteExec",
-      "x": -36,
-      "y": 214
-    },
-    {
       "id": "greet",
       "def": "call.function",
-      "x": 956.26,
-      "y": 243.33,
+      "x": 1277,
+      "y": 240,
       "config": {
         "args": 1
       }
@@ -97,8 +103,8 @@
     {
       "id": "greeterModule",
       "def": "module.requirePath",
-      "x": 673.42,
-      "y": 546.79,
+      "x": 660,
+      "y": 484,
       "literals": {
         "as": {
           "t": "string",
@@ -117,8 +123,8 @@
     {
       "id": "greetFn",
       "def": "value.field",
-      "x": 973.42,
-      "y": 546.79,
+      "x": 956,
+      "y": 483,
       "literals": {
         "field": {
           "t": "string",
@@ -129,8 +135,8 @@
     {
       "id": "increment",
       "def": "math.add",
-      "x": 1309.99,
-      "y": 473.55,
+      "x": 1671,
+      "y": 355,
       "literals": {
         "a1": {
           "t": "number",
@@ -141,8 +147,8 @@
     {
       "id": "pname",
       "def": "roblox.getProperty",
-      "x": 989.99,
-      "y": 393.55,
+      "x": 921,
+      "y": 303,
       "literals": {
         "property": {
           "t": "string",
@@ -153,8 +159,8 @@
     {
       "id": "say",
       "def": "debug.print",
-      "x": 1237.21,
-      "y": 259.52
+      "x": 1671,
+      "y": 247
     },
     {
       "id": "signal",
@@ -171,8 +177,8 @@
     {
       "id": "start",
       "def": "script.begin",
-      "x": -334.61,
-      "y": 182.74
+      "x": -336,
+      "y": 192
     },
     {
       "id": "svc",
@@ -200,17 +206,6 @@
       }
     },
     {
-      "id": "1b4032ff-6f88-4254-a5b3-f44f0d6bafa2",
-      "from": {
-        "node": "start",
-        "pin": "then"
-      },
-      "to": {
-        "node": "d4182d97-f040-4e42-ae25-0c6599d5ebc8",
-        "pin": "in"
-      }
-    },
-    {
       "id": "20459c65-a0ca-4571-aded-a8e54aedf188",
       "from": {
         "node": "13a5c553-604c-4034-a094-9f63467069db",
@@ -222,13 +217,13 @@
       }
     },
     {
-      "id": "348363fa-4300-440f-a295-642ef9ebcd7a",
+      "id": "5a9fcf20-45d2-4351-acb3-ca93b842ac1d",
       "from": {
-        "node": "d4182d97-f040-4e42-ae25-0c6599d5ebc8",
+        "node": "4e360814-1d98-41d1-ae9c-7c7168805c5b",
         "pin": "then"
       },
       "to": {
-        "node": "13a5c553-604c-4034-a094-9f63467069db",
+        "node": "1b0880ee-a507-41d2-a9e3-fa722b301ee8",
         "pin": "in"
       }
     },
@@ -240,6 +235,17 @@
       },
       "to": {
         "node": "4e360814-1d98-41d1-ae9c-7c7168805c5b",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "cce0ba09-991c-49ef-8839-212985373b35",
+      "from": {
+        "node": "start",
+        "pin": "then"
+      },
+      "to": {
+        "node": "13a5c553-604c-4034-a094-9f63467069db",
         "pin": "in"
       }
     },
@@ -381,15 +387,15 @@
       "id": "c1",
       "x": 613,
       "y": 155,
-      "w": 1166,
-      "h": 530,
+      "w": 1619.01,
+      "h": 499.03,
       "text": "Greet every player who joins",
       "color": "5f8f6a"
     },
     {
       "id": "c2",
-      "x": 647,
-      "y": 503,
+      "x": 630,
+      "y": 439,
       "w": 568,
       "h": 182,
       "text": "Shared module, required once at the top",

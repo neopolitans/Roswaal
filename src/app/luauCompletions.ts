@@ -11,7 +11,9 @@
 
 import type { CompletionContext, CompletionResult, Completion } from "@codemirror/autocomplete";
 import type { NodeScript } from "../core/schema.js";
+import type { Registry } from "../core/nodes/index.js";
 import { toIdentifier } from "../core/compiler/luau.js";
+import { collectLocalNames } from "../core/luauLocals.js";
 import { lastSegment } from "../core/roblox.js";
 
 /** Members of the standard libraries, for completion after a dot. */
@@ -144,4 +146,114 @@ export function luauCompletionSource(getScope: () => Completion[]) {
 			validFor: /^\w*$/,
 		};
 	};
+}
+
+// ---------------------------------------------------------------------------
+// Locals from earlier hand-written blocks
+// ---------------------------------------------------------------------------
+
+/** Nodes whose raw text is emitted as statements, and so can declare locals. */
+const RAW_STATEMENT_NODES = new Set(["code.custom"]);
+
+/**
+ * Locals declared by Custom Code blocks that run before this one.
+ *
+ * They are real locals in the generated file and genuinely in scope here, so
+ * not offering them was the completion list lying by omission.
+ *
+ * Scope is worked out by walking execution wires backwards, which lands on
+ * exactly the statements that ran before this one in this block or an
+ * enclosing one — a sibling branch arm is never an ancestor, so its locals are
+ * correctly not offered. Sequence is the exception worth handling: its outputs
+ * all run into the *same* block, so an earlier output's locals are in scope in
+ * a later one even though it is a sibling rather than an ancestor.
+ */
+export function precedingLocals(
+	script: NodeScript | null, registry: Registry, nodeId: string | null,
+): Completion[] {
+	if (!script || !nodeId) return [];
+
+	const execInputs = new Map<string, { node: string; pin: string }[]>();
+	for (const link of script.links) {
+		if (!isExecPin(script, registry, link.from.node, link.from.pin, "out")) continue;
+		const list = execInputs.get(link.to.node);
+		const entry = { node: link.from.node, pin: link.from.pin };
+		if (list) list.push(entry);
+		else execInputs.set(link.to.node, [entry]);
+	}
+
+	const out: Completion[] = [];
+	const seen = new Set<string>();
+	const visited = new Set<string>();
+
+	const collectFrom = (id: string) => {
+		const node = script.nodes.find((n) => n.id === id);
+		if (!node || !RAW_STATEMENT_NODES.has(node.def)) return;
+		const literal = node.literals?.code;
+		if (!literal || (literal.t !== "raw" && literal.t !== "string")) return;
+
+		for (const name of collectLocalNames(literal.v)) {
+			if (seen.has(name)) continue;
+			seen.add(name);
+			out.push({
+				label: name,
+				type: "variable",
+				detail: `local from ${node.label || "an earlier Custom Code block"}`,
+			});
+		}
+	};
+
+	/** Everything reachable forwards from an execution output, in this block. */
+	const walkForward = (fromNode: string, fromPin: string) => {
+		const queue = script.links
+			.filter((l) => l.from.node === fromNode && l.from.pin === fromPin)
+			.map((l) => l.to.node);
+		while (queue.length) {
+			const id = queue.pop()!;
+			if (visited.has(id)) continue;
+			visited.add(id);
+			collectFrom(id);
+			for (const link of script.links) {
+				if (link.from.node !== id) continue;
+				if (!isExecPin(script, registry, id, link.from.pin, "out")) continue;
+				queue.push(link.to.node);
+			}
+		}
+	};
+
+	// Backwards from the node being edited.
+	let current: string | null = nodeId;
+	const guard = new Set<string>();
+
+	while (current && !guard.has(current)) {
+		guard.add(current);
+		const incoming: { node: string; pin: string }[] = execInputs.get(current) ?? [];
+		const previous: { node: string; pin: string } | undefined = incoming[0];
+		if (!previous) break;
+
+		const node = script.nodes.find((n) => n.id === previous.node);
+
+		// Reached a Sequence from one of its outputs: everything under the
+		// earlier outputs ran first, in this same block.
+		if (node?.def === "flow.sequence") {
+			const index = Number(/^s(\d+)$/.exec(previous.pin)?.[1] ?? -1);
+			for (let i = 0; i < index; i++) walkForward(previous.node, `s${i}`);
+		}
+
+		collectFrom(previous.node);
+		current = previous.node;
+	}
+
+	return out;
+}
+
+function isExecPin(
+	script: NodeScript, registry: Registry, nodeId: string, pinId: string, side: "in" | "out",
+): boolean {
+	const node = script.nodes.find((n) => n.id === nodeId);
+	const def = node && registry.get(node.def);
+	if (!node || !def) return false;
+	const pins = def.derivePins?.(node.config ?? {}) ?? { inputs: def.inputs, outputs: def.outputs };
+	const list = side === "in" ? pins.inputs : pins.outputs;
+	return list.find((p) => p.id === pinId)?.kind === "exec";
 }

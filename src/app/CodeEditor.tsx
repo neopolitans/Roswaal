@@ -24,10 +24,13 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 
 import type { NodeScript } from "../core/schema.js";
+import type { Registry } from "../core/nodes/index.js";
 import { checkLuauBalance } from "../core/luauCheck.js";
 import { errorLineHighlight, luauLinter } from "./luauLint.js";
 import { luauLanguage } from "./luauMode.js";
-import { luauCompletionSource, scopeCompletions } from "./luauCompletions.js";
+import {
+	luauCompletionSource, precedingLocals, scopeCompletions,
+} from "./luauCompletions.js";
 import { LAYER } from "./layers.js";
 
 /**
@@ -73,11 +76,16 @@ export interface CodeEditorProps {
 	hint?: string;
 	/** The open graph, so completion can offer the names it puts in scope. */
 	script: NodeScript | null;
+	registry: Registry;
+	/** The node being edited, so locals from earlier blocks can be found. */
+	nodeId: string | null;
 	onCommit: (value: string) => void;
 	onClose: () => void;
 }
 
-export function CodeEditor({ title, value, hint, script, onCommit, onClose }: CodeEditorProps) {
+export function CodeEditor({
+	title, value, hint, script, registry, nodeId, onCommit, onClose,
+}: CodeEditorProps) {
 	const host = useRef<HTMLDivElement>(null);
 	const view = useRef<EditorView | null>(null);
 	const [text, setText] = useState(value);
@@ -85,7 +93,10 @@ export function CodeEditor({ title, value, hint, script, onCommit, onClose }: Co
 	const problems = useMemo(() => checkLuauBalance(text), [text]);
 	// Recomputed only when the graph changes, and read through a ref so the
 	// editor is built once rather than torn down on every keystroke.
-	const scope = useMemo(() => scopeCompletions(script), [script]);
+	const scope = useMemo(
+		() => [...precedingLocals(script, registry, nodeId), ...scopeCompletions(script)],
+		[script, registry, nodeId],
+	);
 	const scopeRef = useRef<Completion[]>(scope);
 	scopeRef.current = scope;
 
