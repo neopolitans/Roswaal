@@ -3,7 +3,7 @@
   "target": "roblox",
   "sourceDir": ".roswaal/scripts",
   "outDir": "src",
-  "compileMode": "manual",
+  "compileMode": "hot",
   "nodePaths": [
     ".roswaal/nodes"
   ],

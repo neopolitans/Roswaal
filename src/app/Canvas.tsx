@@ -25,8 +25,9 @@ import { pinColor } from "./palette.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
 	addNode, bindNodeToVariable, canConnect, commentContents, commentsByArea, connect,
-	currentArity, disconnectPin, growNode, growthRule, insertReroute, moveNodes,
-	pinLinkCount, removeLink, setLiteral, updateComment,
+	capturePlacements, currentArity, disconnectPin, growNode, growthRule,
+	insertReroute, pinLinkCount, placeNodes, removeLink, setLiteral, updateComment,
+	type Placement,
 } from "./edits.js";
 import { store, useEditor } from "./store.js";
 
@@ -46,7 +47,15 @@ type Gesture =
 	| { kind: "none" }
 	| { kind: "pan"; startView: View; origin: Vec }
 	| { kind: "marquee"; origin: Vec; additive: boolean }
-	| { kind: "move"; last: Vec; ids: ReadonlySet<string> }
+	| {
+			kind: "move";
+			origin: Vec;
+			ids: ReadonlySet<string>;
+			/** Positions at the moment the drag began, so snapping has an origin. */
+			start: Map<string, Placement>;
+			/** The thing actually grabbed; the group snaps relative to it. */
+			anchor: string;
+	  }
 	| { kind: "wire"; from: PinRef; side: "in" | "out"; pin: PinDef }
 	| { kind: "resize"; id: string; origin: Vec; start: { w: number; h: number } };
 
@@ -190,11 +199,20 @@ export function Canvas({
 					setMarquee(rectFromPoints(g.origin, world));
 					break;
 				case "move": {
-					const dx = world.x - g.last.x;
-					const dy = world.y - g.last.y;
-					if (dx === 0 && dy === 0) break;
-					g.last = world;
-					store.apply((s) => moveNodes(s, g.ids, dx, dy));
+					let dx = world.x - g.origin.x;
+					let dy = world.y - g.origin.y;
+
+					// Shift snaps the grabbed node to the grid, and everything else
+					// moves with it — so a selection keeps its shape and lands square
+					// rather than each node rounding to a different cell.
+					if (e.shiftKey) {
+						const anchor = g.start.get(g.anchor);
+						if (anchor) {
+							dx = snapToGrid(anchor.x + dx) - anchor.x;
+							dy = snapToGrid(anchor.y + dy) - anchor.y;
+						}
+					}
+					store.apply((s) => placeNodes(s, g.start, dx, dy));
 					break;
 				}
 				case "resize": {
@@ -300,7 +318,13 @@ export function Canvas({
 		const ids = new Set(store.getSnapshot().selection);
 		ids.add(nodeId);
 		store.begin();
-		gesture.current = { kind: "move", last: toWorld(e.clientX, e.clientY), ids };
+		gesture.current = {
+			kind: "move",
+			origin: toWorld(e.clientX, e.clientY),
+			ids,
+			start: capturePlacements(script, ids),
+			anchor: nodeId,
+		};
 	}
 
 	function onPinPointerDown(
@@ -404,7 +428,13 @@ export function Canvas({
 			}
 		}
 		store.begin();
-		gesture.current = { kind: "move", last: toWorld(e.clientX, e.clientY), ids };
+		gesture.current = {
+			kind: "move",
+			origin: toWorld(e.clientX, e.clientY),
+			ids,
+			start: capturePlacements(script, ids),
+			anchor: comment.id,
+		};
 	}
 
 	function onCommentResize(e: ReactPointerEvent, comment: Comment) {
@@ -437,7 +467,7 @@ export function Canvas({
 
 	return (
 		<div
-			className="canvas"
+			className={`canvas${wireDrag ? " wiring" : ""}`}
 			ref={surface}
 			tabIndex={0}
 			onPointerDown={onSurfacePointerDown}
@@ -769,6 +799,11 @@ function pinDefOf(
 	if (!node || !def) return undefined;
 	const derived = def.derivePins?.(node.config ?? {}) ?? { inputs: def.inputs, outputs: def.outputs };
 	return (side === "in" ? derived.inputs : derived.outputs).find((p) => p.id === ref.pin);
+}
+
+/** Rounds to the nearest grid intersection, which is what shift-drag lands on. */
+function snapToGrid(value: number): number {
+	return Math.round(value / GRID.fine) * GRID.fine;
 }
 
 function clamp(value: number, min: number, max: number): number {

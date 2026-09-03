@@ -409,6 +409,7 @@ you never wrote.
 | Wheel | zoom about the cursor |
 | Drag on empty canvas | marquee select |
 | Shift/Ctrl-click | add to or toggle the selection |
+| Shift-drag a node | snap it to the grid; a selection keeps its shape |
 | Drag a variable onto the canvas | Get node, or Set with Ctrl held |
 | Drag a comment bar | move the comment and everything inside it |
 | Double-click a comment bar | rename |

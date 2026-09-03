@@ -54,6 +54,43 @@ export function moveNodes(
 	};
 }
 
+/** Where a node or comment sat when a drag began. */
+export interface Placement {
+	x: number;
+	y: number;
+}
+
+export function capturePlacements(
+	script: NodeScript, ids: ReadonlySet<string>,
+): Map<string, Placement> {
+	const out = new Map<string, Placement>();
+	for (const node of script.nodes) if (ids.has(node.id)) out.set(node.id, { x: node.x, y: node.y });
+	for (const c of script.comments) if (ids.has(c.id)) out.set(c.id, { x: c.x, y: c.y });
+	return out;
+}
+
+/**
+ * Moves everything to its captured position plus one offset.
+ *
+ * Absolute rather than incremental: accumulating per-frame deltas drifts, and
+ * snapping needs a fixed origin to snap against anyway.
+ */
+export function placeNodes(
+	script: NodeScript, start: ReadonlyMap<string, Placement>, dx: number, dy: number,
+): NodeScript {
+	if (start.size === 0) return script;
+	const at = (id: string, current: { x: number; y: number }) => {
+		const from = start.get(id);
+		return from ? { x: Math.round(from.x + dx), y: Math.round(from.y + dy) } : current;
+	};
+
+	return {
+		...script,
+		nodes: script.nodes.map((n) => (start.has(n.id) ? { ...n, ...at(n.id, n) } : n)),
+		comments: script.comments.map((c) => (start.has(c.id) ? { ...c, ...at(c.id, c) } : c)),
+	};
+}
+
 export function deleteSelection(script: NodeScript, ids: ReadonlySet<string>): NodeScript {
 	if (ids.size === 0) return script;
 	const nodes = script.nodes.filter((n) => !ids.has(n.id));

@@ -249,6 +249,7 @@ function Controls() {
 		["Wheel", "Zoom about the cursor"],
 		["Drag on empty canvas", "Marquee select"],
 		["Shift / Ctrl-click", "Add to or toggle the selection"],
+		["Shift-drag a node", "Snap to the grid; a selection keeps its shape"],
 		["Drag a variable in", "Get node — hold Ctrl for a Set"],
 		["Drag a comment bar", "Moves the comment and everything inside it"],
 		["Double-click a comment bar", "Rename it"],

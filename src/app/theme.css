@@ -451,11 +451,21 @@ button.tb.primary:hover:not(:disabled) {
 	cursor: crosshair;
 }
 
-/* The visible dot is small; the hit area is not, so pins stay grabbable. */
+/* Asymmetric hit areas, on purpose.
+ *
+ * Starting a wire asks for aim: the grab area is the dot and a hair around it,
+ * so the rest of the row belongs to the node and can be dragged. Landing a wire
+ * asks for none: while one is in flight every pin widens, because by then you
+ * know which pin you want and fighting for the last three pixels is nobody's
+ * idea of a good time. */
 .node .pin::after {
 	content: "";
 	position: absolute;
-	inset: -6px;
+	inset: -2px;
+}
+
+.canvas.wiring .node .pin::after {
+	inset: -9px;
 }
 
 .node .pin .dot {
