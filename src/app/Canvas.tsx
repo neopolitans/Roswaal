@@ -479,11 +479,39 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 						const a = pinPosition(fromNode, registry, link.from.pin, "out");
 						const b = pinPosition(toNode, registry, link.to.pin, "in");
 						if (!a || !b) return null;
-						const pin = pinDefOf(registry, script, link.from, "out");
-						const isExec = pin?.kind === "exec";
+						const fromPin = pinDefOf(registry, script, link.from, "out");
+						const toPin = pinDefOf(registry, script, link.to, "in");
+						const isExec = fromPin?.kind === "exec";
 						const path = wirePath(a, b);
+
+						const fromColor = pinColor(fromPin?.type, "data");
+						const toColor = pinColor(toPin?.type, "data");
+						// A wire whose ends disagree about type is a coercion — an
+						// `any` landing on a function pin, say. Fading between the two
+						// colours says so on the wire itself, which is the only place
+						// you are looking when two `any` wires cross.
+						const coerces = !isExec && fromColor !== toColor;
+						const gradientId = `wire-${link.id}`;
+
 						return (
 							<g key={link.id}>
+								{coerces && (
+									<linearGradient
+										id={gradientId}
+										gradientUnits="userSpaceOnUse"
+										x1={a.x}
+										y1={a.y}
+										x2={b.x}
+										y2={b.y}
+									>
+										{/* Held flat near each end so a pin's own colour still
+										    reads there, with the blend in the middle. */}
+										<stop offset="0%" stopColor={fromColor} />
+										<stop offset="18%" stopColor={fromColor} />
+										<stop offset="82%" stopColor={toColor} />
+										<stop offset="100%" stopColor={toColor} />
+									</linearGradient>
+								)}
 								<path
 									className="hit"
 									d={path}
@@ -493,10 +521,24 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 										e.stopPropagation();
 										store.edit((s) => removeLink(s, link.id));
 									}}
-								/>
+								>
+									<title>
+										{isExec
+											? "Execution"
+											: coerces
+												? `${fromPin?.type ?? "any"} → ${toPin?.type ?? "any"}`
+												: (fromPin?.type ?? "any")}
+									</title>
+								</path>
 								<path
 									d={path}
-									stroke={isExec ? "var(--wire-exec)" : pinColor(pin?.type, "data")}
+									stroke={
+										isExec
+											? "var(--wire-exec)"
+											: coerces
+												? `url(#${gradientId})`
+												: fromColor
+									}
 									strokeWidth={isExec ? 2.4 : 1.8}
 									opacity={isExec ? 0.95 : 0.85}
 								/>

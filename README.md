@@ -110,6 +110,12 @@ Two kinds of wire, as in Unreal's Blueprints:
   without being told the mapping: red is a boolean, green a number, magenta a
   string, blue an object, gold a vector.
 
+A wire whose ends disagree about type is a coercion — an `any` landing on a
+function pin, say — and it is drawn as a gradient between the two colours, held
+flat near each end so the pins still read as themselves. Hovering names the
+conversion. Without it, two `any` wires crossing are indistinguishable and you
+are left guessing which one narrows to what.
+
 Nodes are **pure** (no exec pins, inlined at the use site) or **impure** (emits
 a statement). Two rules do most of the work in the emitter:
 
