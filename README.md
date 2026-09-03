@@ -7,15 +7,15 @@ source file.
 Roswaal is licensed **0BSD**: use it, modify it, ship it, train on it, no
 attribution required.
 
-> Prototype, built in a single session. The compiler and its tests are the
-> load-bearing parts and are solid; the editor is complete enough to build real
-> graphs with. See [Known gaps](#known-gaps) for what is not there yet.
+> Prototype. The compiler and its tests are the load-bearing parts and are
+> solid; the editor is complete enough to build real graphs with. See
+> [Known gaps](#known-gaps) for what is not there yet.
 
 ## Why it is not a Studio plugin
 
 Studio plugins have no filesystem access, and the whole design here is
 file-first — `.nodescript` files in the repository, a Rojo tree, custom node
-packs on disk. So Roswaal is an external editor that writes `.luau` into your
+packs on disk. So Roswaal is an external tool that writes `.luau` into your
 existing source tree and lets **Rojo** do the syncing it already does well.
 
 ```
@@ -25,20 +25,77 @@ existing source tree and lets **Rojo** do the syncing it already does well.
 Nothing has to be taught about Studio, and generated files behave like the rest
 of your repository: they diff, they review, they merge.
 
-## Running it
+## Install
 
 ```sh
+git clone https://github.com/neopolitans/Roswaal
+cd Roswaal
 npm install
-npm run dev      # daemon on :4471, editor on :4470
+npm run build
 ```
 
-Open <http://localhost:4470> and point it at a project directory. **Initialise**
-creates `roswaal.json` and `.roswaal/` in a repository that does not have them.
-There is a working example in [`examples/demo`](examples/demo).
+Then put `bin/` on your PATH:
+
+```powershell
+# Windows (PowerShell)
+$roswaal = "C:\path\to\Roswaal\bin"
+$path    = [Environment]::GetEnvironmentVariable('PATH','User')
+[Environment]::SetEnvironmentVariable('PATH', "$path;$roswaal", 'User')
+```
 
 ```sh
-npm test         # compiler golden tests
-npm run build    # production bundle
+# macOS / Linux
+export PATH="$PATH:/path/to/Roswaal/bin"
+```
+
+⚠️ PATH changes only apply to terminals opened afterwards.
+
+`bin/roswaal` and `bin/roswaal.cmd` are shell scripts that invoke Node, **not**
+a packaged executable — deliberately. Windows Smart App Control blocks unsigned
+binaries it has not seen before, so every rebuild of a `roswaal.exe` would be
+blocked afresh. A script calling an already-trusted interpreter sidesteps that
+entirely and costs nothing on the platforms that would not have cared.
+
+## Commands
+
+```
+roswaal init              create roswaal.json and .roswaal/ in this project
+roswaal serve             start the daemon and serve the editor. Blocks.
+roswaal stop              stop a running daemon
+roswaal restart           stop, then serve again
+roswaal status            is a daemon running here, and what is it serving?
+roswaal compile [path]    compile every graph and map once and exit
+roswaal watch             recompile on change, without the editor. Blocks.
+roswaal check             one-shot probe. Plain output, good for scripts.
+roswaal help
+```
+
+| Option | |
+| --- | --- |
+| `--root <path>` | Project directory. Default: the current directory. |
+| `--port <n>` | HTTP port for the daemon. Default: 4471. |
+| `--force` | For compile: overwrite generated files edited by hand. |
+| `--no-open` | For serve: skip the editor-URL hint. |
+
+Shaped after Rojo's CLI, and after beako's, on purpose: `roswaal serve` in a
+project directory should feel like `rojo serve` does, because it sits beside it
+in the same workflow and a tool that invents its own conventions makes you learn
+twice.
+
+`stop` and `restart` reach the daemon over HTTP rather than through a PID file:
+no stale pid to reason about when a daemon dies unexpectedly, and no divergence
+between Windows and everything else. `stop` never claims success it has not
+observed — success means the health probe went quiet, not that the request was
+sent.
+
+There is a working example in [`examples/demo`](examples/demo); `cd` into it and
+run `roswaal serve`.
+
+### For development
+
+```sh
+npm run dev      # daemon on :4471, editor on :4470 with hot module reload
+npm test         # compiler and parser tests
 ```
 
 ## The graph model
@@ -48,7 +105,10 @@ Two kinds of wire, as in Unreal's Blueprints:
 - **Execution** wires define statement order. Nodes that start or end a flow —
   Script Start, Script End, Function, Return, Module Exports, Break, Continue —
   are red, whatever category they belong to.
-- **Data** wires define expressions and are typed.
+- **Data** wires define expressions and are typed. Pin colours follow Unreal's
+  where the types line up, so a Blueprints developer can read a graph by colour
+  without being told the mapping: red is a boolean, green a number, magenta a
+  string, blue an object, gold a vector.
 
 Nodes are **pure** (no exec pins, inlined at the use site) or **impure** (emits
 a statement). Two rules do most of the work in the emitter:
@@ -64,16 +124,83 @@ Diagnostics come from running the real compiler in the browser against the
 in-memory graph, so they update as you wire. The daemon is asked only to put
 files on disk — same compiler, one source of truth.
 
-### ModuleScripts
+### Variables and locals
 
-A ModuleScript ends at a **Module Exports** node. Each of its input pins becomes
-a key on the returned table; a single pin left with its default name returns
-that value directly, which is what a module exporting one function or one class
-wants. Function nodes have a `Function` output so the function itself can be
-wired into an export or handed to `Connect`.
+Two different things, deliberately named apart:
 
-Editing a function's returns walks its execution subtree and updates the Return
-nodes it finds, so the signature and the graph cannot drift apart silently.
+- A **variable** is declared once in the Variables panel and read or written by
+  Get and Set nodes anywhere in the graph, exactly as in Blueprints. It compiles
+  to a file-level local, so functions and the main flow both see it. Drag one
+  onto the canvas for a Get node, or hold Ctrl for a Set.
+- A **local** (`Declare Local`) binds a value mid-flow and only exists inside
+  the block that declared it. You reach it by wiring its output, not by name.
+
+A variable read is never hoisted. Unlike a pure expression it has to happen at
+its use site, or a Set sitting between two Gets would be invisible to the
+second one.
+
+Getters — Get Variable, Get Function — are drawn as Unreal's compact capsule
+rather than a full node. The shape alone says "this is a value, not a step".
+Pure nodes of every kind carry a green left edge, the same signal Unreal's
+green tint gives.
+
+**Get Service** is pure, and hoisted. `GetService` is idempotent and cached by
+Roblox, so calling it mid-flow buys nothing; asking for a service anywhere in
+the graph produces one top-level local, below the flags, exactly where a
+hand-written Roblox file puts it:
+
+```lua
+--!strict
+-- Generated by Roswaal ...
+
+local Players = game:GetService("Players")
+
+Players.PlayerAdded:Connect(function(player: Instance)
+	print("Welcome, " .. player.Name)
+end)
+```
+
+Asking twice for the same service reuses the one local. The service name has to
+be typed in rather than wired, because it becomes a variable name in the
+generated file and so must be known before the script runs.
+
+### Functions and modules
+
+A Function node shows its name on the title line and its signature underneath.
+Editing its returns walks the function's execution subtree and updates the
+Return nodes it finds, so the signature and the graph cannot drift apart
+silently. **Get Function** gives you the function as a value from anywhere,
+with no wire back to the entry node.
+
+A ModuleScript ends at a **Module Exports** node. Each input pin becomes a key
+on the returned table; a single pin left with its default name returns that
+value directly, which is what a module exporting one function or one class
+wants.
+
+## The two file formats
+
+| Extension | Contents |
+| --- | --- |
+| `.nodescript` | one compiled unit: a Script, LocalScript, or ModuleScript |
+| `.nodemap` | an instance hierarchy, compiled to a Rojo project file |
+| `.nodedef.luau` / `.nodedef.json` | a custom node pack |
+
+A `.nodescript` is one compiled unit; a `.nodemap` is where those units live in
+the DataModel. The split earns itself because the two answer different questions
+and change at different rates — a graph changes constantly, the tree it sits in
+changes when the project is reorganised.
+
+A node map is edited as a tree with the generated project JSON shown beside it,
+since that JSON is the thing you would otherwise be hand-editing. Folders in the
+project tree are the other half of the same feature: a directory under
+`sourceDir` mirrors one under `outDir`, and Rojo turns that into a Folder
+instance.
+
+Unlike generated Luau, a project file is not hash-guarded — it is small,
+frequently hand-tuned, and Rojo rewrites it itself. An existing file Roswaal did
+not write is refused outright rather than compared, and a `$roswaalGeneratedFrom`
+key records ownership inside the document, since JSON has no comments and the
+marker has to survive Rojo rewriting the file.
 
 ## Generated output
 
@@ -98,7 +225,7 @@ return {
 deliberately excluded, so tidying up a layout never shows as a diff in compiled
 files. `roswaal-output` hashes the emitted body: if a generated file no longer
 matches its own hash, somebody edited it by hand, and Roswaal refuses to
-overwrite it until you say so.
+overwrite it until you pass `--force`.
 
 Emission also produces a line-to-node source map, so a runtime error at line 42
 can be traced back to the node that emitted it.
@@ -121,8 +248,8 @@ encoded in the output name:
 
 ## Compile modes
 
-**Manual** — compile the open graph (`Ctrl+S`, or *Compile script*) or the whole
-project (*Compile project*).
+**Manual** — compile the open document (`Ctrl+S`, or the toolbar) or the whole
+project.
 
 **Hot reload** — the daemon watches the graph directory and recompiles what
 changes. It is the same `compileScript()` the manual button calls, so the two
@@ -133,28 +260,38 @@ still refuses to overwrite hand-edited generated files.
 
 ## Custom nodes
 
-Node packs are `.nodedef.json` files in `.roswaal/nodes/` — data only. A pack
-declares pins and a `compilesTo` template:
+Node packs live in `.roswaal/nodes/` and may be written in **Luau** or JSON.
+Luau is the friendlier of the two — it is what you already write, and it can
+carry comments. `roswaal init` writes a commented example to start from.
 
-```json
-{
-  "id": "combat.knockback",
-  "title": "Apply Knockback",
-  "category": "Combat",
-  "inputs": [
-    { "id": "in", "kind": "exec" },
-    { "id": "character", "name": "Character", "kind": "data", "type": "Instance" },
-    { "id": "force", "name": "Force", "kind": "data", "type": "Vector3" }
-  ],
-  "outputs": [{ "id": "then", "kind": "exec" }],
-  "compilesTo": {
-    "kind": "statement",
-    "template": "$in.character.HumanoidRootPart:ApplyImpulse($in.force)"
-  }
+```lua
+return {
+	nodes = {
+		{
+			id = "combat.knockback",
+			title = "Apply Knockback",
+			category = "Combat",
+			inputs = {
+				{ id = "in", kind = "exec" },
+				{ id = "character", name = "Character", kind = "data", type = "Instance" },
+				{ id = "force", name = "Force", kind = "data", type = "Vector3" },
+			},
+			outputs = { { id = "then", kind = "exec" } },
+			compilesTo = {
+				kind = "statement",
+				template = "$in.character.HumanoidRootPart:ApplyImpulse($in.force)",
+			},
+		},
+	},
 }
 ```
 
-Three template kinds are available:
+**A Luau pack is parsed, never executed.** Only literal values are allowed —
+strings, numbers, booleans, nil and tables — so a function call in a pack is a
+parse error with a line number rather than somebody else's code running every
+time you open a project.
+
+Three template kinds:
 
 | kind | shape | emits |
 | --- | --- | --- |
@@ -171,15 +308,24 @@ Placeholders:
 | `$in.<pin>!ident` | an unconnected literal, sanitised to a Luau identifier |
 | `$in.<pin>!raw` | an unconnected literal, inserted verbatim |
 
-The `!ident` and `!raw` modifiers are for text that becomes part of the
-generated code rather than a runtime value — a property name, a method name, an
-escape hatch of hand-written Luau.
+Pin defaults may be written plainly — `default = 5`, `default = "Part"` — rather
+than as a tagged `{ t = "number", v = 5 }`. The tagged form is still there, and
+is the only way to write a `raw` default.
 
-Packs cannot use the fourth kind, `builtin`. That is reserved for the flow nodes
-that open blocks, and keeping it closed means loading a third-party node pack
-never executes third-party code. The entire standard library outside those flow
-nodes is written with the same three templates a pack gets, which is what keeps
-the template language honest.
+Packs cannot use the fourth compile kind, `builtin`. That is reserved for the
+flow nodes that open blocks, and keeping it closed means loading a third-party
+node pack never executes third-party code. The entire standard library outside
+those flow nodes is written with the same three templates a pack gets, which is
+what keeps the template language honest.
+
+## Hand-written Luau
+
+**Custom Code** and **Luau Expression** nodes hold code that is emitted
+verbatim. They open a pop-out editor with syntax highlighting, line numbers and
+a structural check that runs as you type — brackets, strings, comments and
+block keywords — because an unclosed string in a small box otherwise breaks the
+generated file somewhere you never wrote. The same check runs on every compile
+and reports against the node holding the code.
 
 ## Controls
 
@@ -193,13 +339,15 @@ the template language honest.
 | Wheel | zoom about the cursor |
 | Drag on empty canvas | marquee select |
 | Shift/Ctrl-click | add to or toggle the selection |
+| Drag a variable onto the canvas | Get node, or Set with Ctrl held |
 | Drag a comment bar | move the comment and everything inside it |
 | Double-click a comment bar | rename |
+| Right-click the project tree | new folder, rename, delete |
 | `C` | wrap the selection in a comment |
 | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Ctrl+D` | copy, cut, paste, duplicate |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | undo, redo |
 | `Ctrl+A`, `Delete` | select all, delete |
-| `Ctrl+S` | compile the open graph |
+| `Ctrl+S` | compile the open document |
 
 Comment membership is captured when a drag begins rather than tracked, which is
 how Unreal behaves: a node that was inside the comment travels with it, and one
@@ -222,25 +370,20 @@ dragged out is simply out — there is no stale membership list to reconcile.
 }
 ```
 
-Graphs live under `.roswaal/` so they never collide with the Rojo tree.
-
-| Extension | Contents |
-| --- | --- |
-| `.nodescript` | one compiled unit: a Script, LocalScript, or ModuleScript |
-| `.nodedef.json` | a custom node pack |
-| `.nodemap` | *reserved* — structure and hierarchy, the thing `project.json` describes |
+Graphs live under `.roswaal/` so they never collide with the Rojo tree. Unlike
+some tools' dot-directories, `.roswaal/` is **meant to be committed** — it is
+your source.
 
 ## Known gaps
 
 Honest list of what the prototype does not do yet.
 
-- **`.nodemap` is reserved, not implemented.** The extension is recognised by
-  the tree; there is no editor for it. The intent is that a `.nodescript` is one
-  compiled unit and a `.nodemap` describes a Model or Package hierarchy.
 - **No Luau import.** Existing `.luau` opens read-only in the tree. To bring
-  existing code into a graph, wrap it in a Custom Code node or a Luau Expression
-  node. Parsing Luau back into a graph is a parser plus a lowering pass and was
+  existing code into a graph, wrap it in a Custom Code or Luau Expression node.
+  Parsing Luau back into a graph is a parser plus a lowering pass and was
   deliberately out of scope.
+- **The node map editor has no drag-to-reparent** and its undo is a button
+  rather than `Ctrl+Z`; the graph canvas has the full history.
 - **The project tree has no marquee select.** Shift-range and Ctrl-toggle work,
   as does dragging files between directories.
 - **No source-map wiring in the UI.** The compiler emits a line-to-node map, but
@@ -255,7 +398,8 @@ Honest list of what the prototype does not do yet.
 
 ```
 src/core/       schema, node registry, compiler — no DOM, no Node APIs
-src/core/nodes/ flow builtins and the templated standard library
+src/core/nodes/ flow builtins, variables, and the templated standard library
+src/cli/        the roswaal command line
 src/server/     the daemon: filesystem, compile pipeline, hot reload
 src/app/        the React editor
 tests/          golden tests: graph in, Luau out

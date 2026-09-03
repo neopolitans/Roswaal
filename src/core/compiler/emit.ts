@@ -14,7 +14,7 @@
  */
 
 import {
-	indentBlock, isAtomic, literalToLuau, NameScope, paren, toIdentifier,
+	indentBlock, isAtomic, literalToLuau, NameScope, paren, quoteString, toIdentifier,
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import type { Literal, NodeScript, PinDef } from "../schema.js";
@@ -87,6 +87,13 @@ class Emitter {
 	private functionNames = new Map<string, string>();
 	/** ScriptVariable id -> the file-level local it was declared as. */
 	private variableNames = new Map<string, string>();
+	/**
+	 * Service name -> the local it was hoisted to. Services are discovered
+	 * while walking the graph but printed at the very top, which is what the
+	 * separate preamble buffer is for.
+	 */
+	private services = new Map<string, string>();
+	private preamble: OutLine[] = [];
 
 	constructor(
 		private script: NodeScript,
@@ -108,12 +115,17 @@ class Emitter {
 		this.emitMainFlow(root);
 		this.emitModuleReturn(root);
 
-		const body = this.render();
+		// Services were collected during the walk above; they belong at the top,
+		// below the flags, the way a hand-written Roblox file has them.
+		this.flushServices();
+
+		const lines = [...this.preamble, ...this.out];
+		const body = this.render(lines);
 		const outputHash = hashString(body);
 		const header = this.header(outputHash);
 		const headerLines = header.split("\n").length;
 
-		const sourceMap = this.out
+		const sourceMap = lines
 			.map((l, i) => (l.node ? { line: headerLines + i + 1, node: l.node } : null))
 			.filter((x): x is { line: number; node: string } => x !== null);
 
@@ -139,11 +151,26 @@ class Emitter {
 		}
 	}
 
-	private render(): string {
-		const body = this.out
+	private render(lines: OutLine[]): string {
+		const body = lines
 			.map((l) => (l.text === "" ? "" : "\t".repeat(l.indent) + l.text))
 			.join("\n");
 		return body.endsWith("\n") ? body : body + "\n";
+	}
+
+	/**
+	 * Writes the hoisted service locals into the preamble, in the order they
+	 * were first asked for. That order is deterministic because the walk is.
+	 */
+	private flushServices(): void {
+		if (this.services.size === 0) return;
+		for (const [service, ident] of this.services) {
+			this.preamble.push({
+				text: `local ${ident} = game:GetService(${quoteString(service)})`,
+				indent: 0,
+			});
+		}
+		this.preamble.push({ text: "", indent: 0 });
 	}
 
 	private header(outputHash: string): string {
@@ -447,6 +474,7 @@ class Emitter {
 
 			case "variable.get":
 			case "function.get":
+			case "service.get":
 				this.error(
 					`"${r.def.title}" is a pure node and cannot be placed in an execution chain.`,
 					id,
@@ -592,6 +620,35 @@ class Emitter {
 					);
 					return "nil";
 				}
+				return ident;
+			}
+
+			case "service.get": {
+				const pin = this.pin(src, "service", "in");
+				const link = this.index.sourceOf(src.node.id, "service");
+				if (link) {
+					this.error(
+						"Get Service needs the service typed in, not wired: the name becomes a variable in " +
+							"the generated file, so it has to be known before the script runs.",
+						src.node.id,
+						"service",
+					);
+					return "nil";
+				}
+
+				const literal = src.node.literals?.service ?? pin.default;
+				const name =
+					literal && (literal.t === "string" || literal.t === "raw") ? literal.v.trim() : "";
+				if (name === "") {
+					this.error("Get Service has no service name.", src.node.id, "service");
+					return "nil";
+				}
+
+				// One local per distinct service, however many nodes ask for it.
+				const existing = this.services.get(name);
+				if (existing) return existing;
+				const ident = this.names.unique(name, "service");
+				this.services.set(name, ident);
 				return ident;
 			}
 

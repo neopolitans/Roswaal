@@ -44,6 +44,7 @@ export const VARIABLE_NODES: NodeDef[] = [
 		inputs: [],
 		outputs: [data("value", "", "any")],
 		compilesTo: { kind: "builtin", handler: "variable.get" },
+		display: "compact",
 		derivePins(config: NodeConfig) {
 			const ref = config as VariableRef;
 			return { inputs: [], outputs: [data("value", "", ref.type ?? "any")] };
@@ -78,6 +79,7 @@ export const VARIABLE_NODES: NodeDef[] = [
 		inputs: [],
 		outputs: [data("fn", "", "function")],
 		compilesTo: { kind: "builtin", handler: "function.get" },
+		display: "compact",
 		subtitle: (config) => (config as FunctionRef).name,
 	},
 ];

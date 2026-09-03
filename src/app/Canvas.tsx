@@ -36,6 +36,7 @@ export interface CanvasProps {
 	registry: Registry;
 	diagnostics: Diagnostic[];
 	onRequestMenu: (screen: Vec, world: Vec) => void;
+	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
 }
 
 type Gesture =
@@ -46,7 +47,7 @@ type Gesture =
 	| { kind: "wire"; from: PinRef; side: "in" | "out"; pin: PinDef }
 	| { kind: "resize"; id: string; origin: Vec; start: { w: number; h: number } };
 
-export function Canvas({ script, registry, diagnostics, onRequestMenu }: CanvasProps) {
+export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCode }: CanvasProps) {
 	const { selection, view } = useEditor();
 	const surface = useRef<HTMLDivElement>(null);
 	const gesture = useRef<Gesture>({ kind: "none" });
@@ -478,6 +479,7 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu }: CanvasP
 						onPinPointerDown={onPinPointerDown}
 						onPinPointerUp={onPinPointerUp}
 						onLiteralChange={onLiteralChange}
+						onEditCode={onEditCode}
 						onContextMenu={(e, id) => {
 							if (!selection.has(id)) store.select([id]);
 							const box = surface.current!.getBoundingClientRect();

@@ -90,17 +90,6 @@
         "pin": "then"
       },
       "to": {
-        "node": "svc",
-        "pin": "in"
-      }
-    },
-    {
-      "id": "l2",
-      "from": {
-        "node": "svc",
-        "pin": "then"
-      },
-      "to": {
         "node": "conn",
         "pin": "in"
       }
@@ -109,7 +98,7 @@
       "id": "l3",
       "from": {
         "node": "svc",
-        "pin": "result"
+        "pin": "service"
       },
       "to": {
         "node": "signal",

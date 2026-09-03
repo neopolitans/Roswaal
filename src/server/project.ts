@@ -13,6 +13,7 @@ import path from "node:path";
 import {
 	compile, hashString, serialiseScript, type CompileResult,
 } from "../core/compiler/index.js";
+import { LuauParseError, parseLuauData } from "../core/luauData.js";
 import { migrateScript } from "../core/migrate.js";
 import {
 	compileNodeMap, serialiseMap, type MapDiagnostic, type NodeMap,
@@ -105,14 +106,25 @@ async function loadNodePacks(
 		const abs = path.join(root, dir);
 		const entries = await fs.readdir(abs, { withFileTypes: true }).catch(() => []);
 		for (const entry of entries) {
-			if (!entry.isFile() || !entry.name.endsWith(".nodedef.json")) continue;
+			if (!entry.isFile()) continue;
+			const isJson = entry.name.endsWith(".nodedef.json");
+			const isLuau = entry.name.endsWith(".nodedef.luau") || entry.name.endsWith(".nodedef.lua");
+			if (!isJson && !isLuau) continue;
+
 			const file = path.join(abs, entry.name);
 			try {
-				const parsed = parseNodePack(JSON.parse(await fs.readFile(file, "utf8")), entry.name);
+				const text = await fs.readFile(file, "utf8");
+				// Luau packs are parsed, never executed: a pack is data a project
+				// pulls in from somewhere, and running it would mean running a
+				// stranger's code every time a project is opened.
+				const source = isLuau ? parseLuauData(text) : JSON.parse(text);
+				const parsed = parseNodePack(source, entry.name);
 				defs.push(...parsed.defs);
 				errors.push(...parsed.errors);
 			} catch (err) {
-				errors.push(`${entry.name}: ${(err as Error).message}`);
+				const detail =
+					err instanceof LuauParseError ? err.message : (err as Error).message;
+				errors.push(`${entry.name}: ${detail}`);
 			}
 		}
 	}

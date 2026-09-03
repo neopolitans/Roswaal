@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "kind": "map",
+  "id": "demo-game-map",
+  "name": "roswaal-demo",
+  "output": "default.project.json",
+  "root": {
+    "id": "root",
+    "name": "DataModel",
+    "className": "DataModel",
+    "children": [
+      {
+        "id": "sss",
+        "name": "ServerScriptService",
+        "children": [
+          {
+            "id": "sss-source",
+            "name": "Source",
+            "className": "Folder",
+            "path": "src",
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "rs",
+        "name": "ReplicatedStorage",
+        "children": [
+          {
+            "id": "rs-shared",
+            "name": "Shared",
+            "className": "Folder",
+            "path": "src/shared",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

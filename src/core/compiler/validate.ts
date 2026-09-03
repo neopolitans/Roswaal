@@ -8,6 +8,7 @@
  */
 
 import type { NodeScript } from "../schema.js";
+import { checkLuauBalance } from "../luauCheck.js";
 import type { Registry } from "../nodes/index.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
@@ -170,6 +171,26 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 					severity: "error",
 					message: "This node points at a function that is no longer in the graph.",
 					node: node.id,
+				});
+			}
+		}
+	}
+
+	// -- hand-written Luau -------------------------------------------------
+	//
+	// Raw literals land in the output verbatim, so an unclosed string here
+	// breaks the generated file somewhere the developer never wrote. Catching
+	// it against the node that holds it is the difference between a useful
+	// error and a baffling one.
+	for (const node of script.nodes) {
+		for (const [pinId, literal] of Object.entries(node.literals ?? {})) {
+			if (literal.t !== "raw" || literal.v.trim() === "") continue;
+			for (const problem of checkLuauBalance(literal.v)) {
+				out.push({
+					severity: "error",
+					message: `${problem.message} (line ${problem.line} of this node's code)`,
+					node: node.id,
+					pin: pinId,
 				});
 			}
 		}

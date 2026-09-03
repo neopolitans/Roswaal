@@ -6,7 +6,9 @@ import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
 import { pinColor } from "./palette.js";
-import { headerHeight, resolvePins } from "./geometry.js";
+import { compactLabel, compactWidth, headerHeight, isCompact, resolvePins } from "./geometry.js";
+
+const NEWLINE = String.fromCharCode(10);
 
 export interface PinDragState {
 	from: { node: string; pin: string };
@@ -28,6 +30,8 @@ export interface NodeViewProps {
 	onPinPointerDown: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onPinPointerUp: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onLiteralChange: (nodeId: string, pinId: string, value: Literal) => void;
+	/** Opens the pop-out Luau editor for a raw literal. */
+	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
 	onContextMenu: (e: ReactPointerEvent, nodeId: string) => void;
 }
 
@@ -55,6 +59,9 @@ function NodeViewInner(props: NodeViewProps) {
 	}
 
 	const { inputs, outputs } = resolvePins(def, node.config);
+
+	if (isCompact(def)) return renderCapsule(props, def, outputs[0]);
+
 	const rows = Math.max(inputs.length, outputs.length, 1);
 	const subtitle = def.subtitle?.(node.config ?? {});
 	const head = headerHeight(def, node.config);
@@ -67,7 +74,12 @@ function NodeViewInner(props: NodeViewProps) {
 
 	return (
 		<div
-			className={`node${selected ? " selected" : ""}${props.errorCount ? " has-error" : ""}`}
+			className={[
+				"node",
+				def.pure ? "pure" : "",
+				selected ? "selected" : "",
+				props.errorCount ? "has-error" : "",
+			].filter(Boolean).join(" ")}
 			style={style}
 			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
@@ -95,6 +107,35 @@ function NodeViewInner(props: NodeViewProps) {
 					</div>
 				))}
 			</div>
+		</div>
+	);
+}
+
+/**
+ * The capsule getter. Unreal draws these as a plain dark pill with the
+ * variable's name and one coloured output, and the shape alone tells you it is
+ * a value rather than a step — which is exactly the read you want at a glance.
+ */
+function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | undefined) {
+	const { node, selected } = props;
+	const width = compactWidth(def, node);
+
+	return (
+		<div
+			className={`node capsule${selected ? " selected" : ""}${props.errorCount ? " has-error" : ""}`}
+			style={{
+				left: node.x,
+				top: node.y,
+				width,
+				height: NODE.compactHeight,
+				zIndex: selected ? LAYER.nodeSelected : LAYER.node,
+			}}
+			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
+			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
+		>
+			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
+			<span className="capsule-label">{compactLabel(def, node)}</span>
+			{output && renderPin(props, output, "out")}
 		</div>
 	);
 }
@@ -175,14 +216,20 @@ function renderLiteral(props: NodeViewProps, pin: PinDef) {
 		);
 	}
 	if (current.t === "raw") {
+		// Raw literals are Luau, not a value, and Luau does not fit in a text
+		// input. Show the first line and hand the rest to the pop-out editor.
+		const lines = current.v.split(NEWLINE);
+		const preview = lines[0].trim() || "(empty)";
 		return (
-			<input
-				className="literal wide"
-				value={current.v}
-				title="Inserted into the generated Luau verbatim"
+			<button
+				className="literal code"
+				title="Edit this Luau"
 				onPointerDown={stop}
-				onChange={(e) => set({ t: "raw", v: e.target.value })}
-			/>
+				onClick={() => props.onEditCode(props.node.id, pin, current.v)}
+			>
+				<span className="preview">{preview}</span>
+				{lines.length > 1 && <span className="more">+{lines.length - 1}</span>}
+			</button>
 		);
 	}
 	if (current.t === "string") {

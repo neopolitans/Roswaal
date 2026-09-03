@@ -15,13 +15,17 @@ import type { NodeDef, RoswaalConfig, ScriptClass } from "../core/schema.js";
 import { api, type CompileOutcome, type MapOutcome, type ProjectInfo, type TreeEntry } from "./api.js";
 import type { NodeMap } from "../core/nodemap.js";
 import { MapEditor } from "./MapEditor.jsx";
+import { CodeEditor } from "./CodeEditor.jsx";
+import { Dialog, type DialogRequest, type DialogResult, type PendingDialog } from "./Dialog.jsx";
+import type { PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
 import { NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
 import {
-	addComment, addNode, copySelection, deleteSelection, pasteClipping, type Clipping,
+	addComment, addNode, copySelection, deleteSelection, pasteClipping, setLiteral,
+	type Clipping,
 } from "./edits.js";
 import { store, useEditor } from "./store.js";
 
@@ -42,6 +46,28 @@ export function App() {
 	// rather than inside it. Nothing about undo or selection carries over.
 	const [mapDoc, setMapDoc] = useState<{ path: string; map: NodeMap; dirty: boolean } | null>(null);
 	const [mapOutcomes, setMapOutcomes] = useState<MapOutcome[]>([]);
+	const [codeEdit, setCodeEdit] = useState<
+		{ nodeId: string; pin: PinDef; value: string } | null
+	>(null);
+	const [dialog, setDialog] = useState<PendingDialog | null>(null);
+
+	/** Opens a modal and resolves with what the developer chose. */
+	const ask = useCallback((request: DialogRequest): Promise<DialogResult> => {
+		return new Promise((resolve) => {
+			setDialog({
+				request,
+				resolve: (result) => {
+					setDialog(null);
+					resolve(result);
+				},
+			});
+		});
+	}, []);
+
+	const notify = useCallback(
+		(title: string, message: string) => void ask({ kind: "notice", title, message }),
+		[ask],
+	);
 	const [busy, setBusy] = useState<string | null>(null);
 	// Deliberately in-memory rather than the system clipboard: a graph fragment
 	// is not text, and round-tripping it through one would lose pin identity.
@@ -64,15 +90,30 @@ export function App() {
 			localStorage.setItem(LAST_PROJECT_KEY, info.root);
 			setCustomNodes((await api.customNodes()).custom);
 		} catch (err) {
-			window.alert((err as Error).message);
+			notify("Something went wrong", (err as Error).message);
 		} finally {
 			setBusy(null);
 		}
 	}, []);
 
 	useEffect(() => {
-		const last = localStorage.getItem(LAST_PROJECT_KEY);
-		if (last) void loadProject(last);
+		// The daemon wins over the remembered path: if it was started with
+		// `roswaal serve` in a directory, that is the project the developer meant.
+		void (async () => {
+			try {
+				const existing = await api.currentProject();
+				if (existing.open) {
+					setProject(existing);
+					localStorage.setItem(LAST_PROJECT_KEY, existing.root);
+					setCustomNodes((await api.customNodes()).custom);
+					return;
+				}
+			} catch {
+				// No daemon yet, or an older one. Fall through to the last project.
+			}
+			const last = localStorage.getItem(LAST_PROJECT_KEY);
+			if (last) void loadProject(last);
+		})();
 	}, [loadProject]);
 
 	// Hot reload events, so a compile triggered by a branch switch or another
@@ -124,7 +165,7 @@ export function App() {
 		mapSaveTimer.current = window.setTimeout(() => {
 			void api.writeMap(path, map).then(
 				() => setMapDoc((d) => (d && d.path === path ? { ...d, dirty: false } : d)),
-				(err: Error) => window.alert(`Could not save: ${err.message}`),
+				(err: Error) => notify("Could not save", err.message),
 			);
 		}, AUTOSAVE_MS);
 		return () => {
@@ -146,7 +187,7 @@ export function App() {
 					store.markSaved();
 					if (project?.config.compileMode === "hot") void runCompile(path, true);
 				},
-				(err: Error) => window.alert(`Could not save: ${err.message}`),
+				(err: Error) => notify("Could not save", err.message),
 			);
 		}, AUTOSAVE_MS);
 		return () => {
@@ -166,7 +207,7 @@ export function App() {
 				setStatusOpen(true);
 				await refreshTree();
 			} catch (err) {
-				window.alert((err as Error).message);
+				notify("Something went wrong", (err as Error).message);
 			} finally {
 				setBusy(null);
 			}
@@ -183,7 +224,7 @@ export function App() {
 				setStatusOpen(true);
 				if (write) await refreshTree();
 			} catch (err) {
-				window.alert((err as Error).message);
+				notify("Something went wrong", (err as Error).message);
 			} finally {
 				setBusy(null);
 			}
@@ -339,8 +380,13 @@ export function App() {
 				<button
 					className="tb"
 					onClick={async () => {
-						const name = window.prompt("Name for the new graph", "Untitled");
-						if (!name) return;
+						const name = await ask({
+							kind: "prompt",
+							title: "New graph",
+							label: "Name",
+							value: "Untitled",
+						});
+						if (typeof name !== "string") return;
 						const created = await api.createScript(project.config.sourceDir, name, "Script");
 						await refreshTree();
 						store.open(created.path, created.script);
@@ -353,8 +399,13 @@ export function App() {
 					className="tb"
 					title="A node map describes where things live in the DataModel"
 					onClick={async () => {
-						const name = window.prompt("Name for the new node map", "Tree");
-						if (!name) return;
+						const name = await ask({
+							kind: "prompt",
+							title: "New node map",
+							label: "Name",
+							value: "Tree",
+						});
+						if (typeof name !== "string") return;
 						const created = await api.createMap(project.config.sourceDir, name);
 						await refreshTree();
 						store.close();
@@ -444,19 +495,30 @@ export function App() {
 							await refreshTree();
 						}}
 						onNewFolder={async (parentDir) => {
-							const name = window.prompt("Folder name", "NewFolder");
-							if (!name) return;
+							const name = await ask({
+								kind: "prompt",
+								title: "New folder",
+								label: "Name",
+								value: "NewFolder",
+							});
+							if (typeof name !== "string") return;
 							try {
 								await api.createFolder(`${parentDir}/${name}`.replace(/^\//, ""));
 								await refreshTree();
 							} catch (err) {
-								window.alert((err as Error).message);
+								notify("Something went wrong", (err as Error).message);
 							}
 						}}
 						onRename={async (target) => {
 							const currentName = target.split("/").pop() ?? "";
-							const name = window.prompt("New name", currentName);
-							if (!name || name === currentName) return;
+							const name = await ask({
+								kind: "prompt",
+								title: "Rename",
+								label: "New name",
+								value: currentName,
+								confirmLabel: "Rename",
+							});
+							if (typeof name !== "string" || name === currentName) return;
 							try {
 								const { path: renamed } = await api.renameEntry(target, name);
 								await refreshTree();
@@ -466,24 +528,37 @@ export function App() {
 									store.open(renamed, script);
 								}
 							} catch (err) {
-								window.alert((err as Error).message);
+								notify("Something went wrong", (err as Error).message);
 							}
 						}}
 						onDelete={async (paths) => {
 							const label = paths.length === 1 ? paths[0] : `${paths.length} items`;
-							if (!window.confirm(`Delete ${label}? This cannot be undone from Roswaal.`)) return;
+							const ok = await ask({
+								kind: "confirm",
+								title: "Delete",
+								message: `Delete ${label}? This cannot be undone from Roswaal.`,
+								confirmLabel: "Delete",
+								danger: true,
+							});
+							if (ok !== true) return;
 							try {
 								for (const target of paths) await api.deleteScript(target);
 								if (editor.path && paths.includes(editor.path)) store.close();
 								if (mapDoc && paths.includes(mapDoc.path)) setMapDoc(null);
 								await refreshTree();
 							} catch (err) {
-								window.alert((err as Error).message);
+								notify("Something went wrong", (err as Error).message);
 							}
 						}}
 					/>
 					{editor.script && !source && !mapDoc && (
-						<VariablesPanel script={editor.script} selection={editor.selection} />
+						<VariablesPanel
+							script={editor.script}
+							selection={editor.selection}
+							confirm={async (title, message, confirmLabel) =>
+								(await ask({ kind: "confirm", title, message, confirmLabel, danger: true })) === true
+							}
+						/>
 					)}
 				</div>
 
@@ -501,6 +576,7 @@ export function App() {
 						registry={registry}
 						diagnostics={diagnostics}
 						onRequestMenu={(screen, world) => setMenu({ screen, world })}
+						onEditCode={(nodeId, pin, value) => setCodeEdit({ nodeId, pin, value })}
 					/>
 				) : (
 					<div className="placeholder">
@@ -530,6 +606,21 @@ export function App() {
 				packErrors={project.packErrors}
 				onForce={(path) => void runCompile(path, true, true)}
 			/>
+
+			{dialog && <Dialog {...dialog} />}
+
+			{codeEdit && (
+				<CodeEditor
+					title={codeEdit.pin.name || "Luau"}
+					value={codeEdit.value}
+					hint="Emitted verbatim into the generated file"
+					onClose={() => setCodeEdit(null)}
+					onCommit={(next) => {
+						store.edit((s) => setLiteral(s, codeEdit.nodeId, codeEdit.pin.id, { t: "raw", v: next }));
+						setCodeEdit(null);
+					}}
+				/>
+			)}
 
 			{menu && editor.script && (
 				<NodeMenu

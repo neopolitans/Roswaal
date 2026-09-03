@@ -1,6 +1,6 @@
 /** Node registry: built-ins plus any custom packs loaded from disk. */
 
-import type { NodeDef, PinDef } from "../schema.js";
+import type { Literal, NodeDef, PinDef } from "../schema.js";
 import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES } from "./library.js";
 import { VARIABLE_NODES } from "./variables.js";
@@ -131,6 +131,28 @@ export function parseNodePack(source: unknown, origin: string): PackParseResult 
 	return { defs, errors };
 }
 
+/**
+ * Accepts a pin default written the short way.
+ *
+ *     "default": 5          instead of   { "t": "number", "v": 5 }
+ *     "default": "Part"     instead of   { "t": "string", "v": "Part" }
+ *
+ * The tagged form stays available and is the only way to write a `raw`
+ * default, which is emitted verbatim rather than quoted. Everything else is a
+ * value, and making a pack author spell out its type was ceremony.
+ */
+function coerceLiteral(value: unknown): Literal | undefined {
+	if (value === undefined) return undefined;
+	if (value === null) return { t: "nil" };
+	if (typeof value === "number") return { t: "number", v: value };
+	if (typeof value === "string") return { t: "string", v: value };
+	if (typeof value === "boolean") return { t: "boolean", v: value };
+
+	const tagged = value as Partial<Literal>;
+	if (typeof tagged.t === "string") return value as Literal;
+	return undefined;
+}
+
 function normalisePins(
 	value: unknown, where: string, nodeId: string, errors: string[],
 ): PinDef[] {
@@ -159,7 +181,7 @@ function normalisePins(
 			name: typeof p.name === "string" ? p.name : kind === "exec" ? "" : p.id,
 			kind,
 			type: typeof p.type === "string" ? p.type : "any",
-			default: p.default,
+			default: coerceLiteral(p.default),
 			required: p.required === true,
 			description: typeof p.description === "string" ? p.description : undefined,
 		});

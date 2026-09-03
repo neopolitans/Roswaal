@@ -37,6 +37,12 @@ export const NODE = {
 	/** Header height when a node shows a second line, e.g. a function signature. */
 	headerHeightTall: 46,
 	rowHeight: 24,
+	/** Height of a compact getter capsule. */
+	compactHeight: 28,
+	/** Minimum capsule width, and roughly the pixels one character adds. */
+	compactMinWidth: 96,
+	compactCharWidth: 6.8,
+	compactPadding: 46,
 	/** Padding below the last pin row. */
 	footer: 10,
 	pinRadius: 5,

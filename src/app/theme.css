@@ -1203,3 +1203,255 @@ button.tb.primary:hover:not(:disabled) {
 .tree-menu .item.danger {
 	color: var(--danger);
 }
+
+/* ------------------------------------------------------------ code editor */
+
+:root {
+	--code-keyword: #9a4f9a;
+	--code-string: #2f7f4f;
+	--code-number: #8a5a2f;
+	--code-comment: #7a8290;
+	--code-operator: #4a6fa5;
+	--code-property: #2c6f8f;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--code-keyword: #c98fd0;
+		--code-string: #8fce9b;
+		--code-number: #d9a86c;
+		--code-comment: #6b7280;
+		--code-operator: #86b3e0;
+		--code-property: #7fc4d6;
+	}
+}
+
+/* The raw-literal button on a node: a peek at the code, not the code. */
+.node .literal.code {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	max-width: 104px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	padding: 1px 5px;
+	font: 10px/1.5 "Cascadia Mono", Consolas, monospace;
+	cursor: pointer;
+	overflow: hidden;
+}
+
+.node .literal.code:hover {
+	border-color: var(--accent);
+}
+
+.node .literal.code .preview {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--fg-muted);
+}
+
+.node .literal.code .more {
+	flex: none;
+	color: var(--fg-faint);
+	border-left: 1px solid var(--border);
+	padding-left: 4px;
+}
+
+.code-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+	display: grid;
+	place-items: center;
+	padding: 40px;
+}
+
+.code-modal {
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+	width: min(880px, 100%);
+	height: min(600px, 100%);
+	display: grid;
+	grid-template-rows: auto 1fr auto;
+	overflow: hidden;
+}
+
+.code-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--border);
+}
+
+.code-head .title {
+	font-weight: 600;
+}
+
+.code-head .hint {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.code-body {
+	overflow: hidden;
+	min-height: 0;
+}
+
+.code-body .cm-editor {
+	height: 100%;
+}
+
+.code-body .cm-scroller {
+	overflow: auto;
+}
+
+.code-status {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 12px;
+	border-top: 1px solid var(--border);
+	font-size: 11px;
+	color: var(--fg-muted);
+}
+
+.code-status.bad {
+	color: var(--danger);
+}
+
+.code-status .where {
+	color: var(--fg-faint);
+}
+
+.code-status .keys {
+	color: var(--fg-faint);
+	font-size: 10px;
+}
+
+/* --------------------------------------------------------- capsule getters */
+
+/* Unreal's variable-getter shape: a dark pill, the name, one output. The form
+   itself says "this is a value", so it needs no header and no title row. */
+.node.capsule {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 10px 0 12px;
+	border-radius: 999px;
+	background: var(--capsule-bg);
+	border: 1px solid var(--capsule-border);
+	box-shadow: var(--node-shadow);
+	cursor: grab;
+}
+
+.node.capsule .capsule-label {
+	flex: 1;
+	min-width: 0;
+	font-size: 12px;
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node.capsule .pin-label {
+	display: none;
+}
+
+.node.capsule .pin {
+	flex: none;
+}
+
+:root {
+	--capsule-bg: #e9ebf0;
+	--capsule-border: #b3b9c4;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--capsule-bg: #2b3038;
+		--capsule-border: #3d434e;
+	}
+}
+
+/* ----------------------------------------------------------------- dialog */
+
+.dialog-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.4);
+	display: grid;
+	place-items: center;
+	padding: 40px;
+}
+
+.dialog {
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+	width: min(420px, 100%);
+	padding: 16px 18px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.dialog h3 {
+	margin: 0;
+	font-size: 14px;
+}
+
+.dialog p {
+	margin: 0;
+	color: var(--fg-muted);
+	line-height: 1.5;
+}
+
+.dialog .field {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.dialog .field > span {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.dialog .field input {
+	cursor: text;
+	width: 100%;
+}
+
+.dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+button.tb.primary.danger {
+	background: var(--danger);
+}
+
+/* A pure node has no execution pins and can be wired anywhere. Unreal tints
+   those green; a thin edge is enough to carry the same signal here without
+   fighting the category colour on the header. */
+.node.pure {
+	border-left: 3px solid var(--pure-edge);
+}
+
+:root {
+	--pure-edge: #6aa84f;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--pure-edge: #7fbf5f;
+	}
+}

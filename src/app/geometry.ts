@@ -28,6 +28,33 @@ export function resolvePins(def: NodeDef, config?: NodeConfig): { inputs: PinDef
 }
 
 /**
+ * The capsule form Unreal uses for a variable getter: no header, no rows, one
+ * output on the right. Only for nodes whose whole meaning is their name.
+ */
+export function isCompact(def: NodeDef | undefined): boolean {
+	return def?.display === "compact";
+}
+
+/** The text a capsule shows, which is also what sets its width. */
+export function compactLabel(def: NodeDef, node: GraphNode): string {
+	return node.label || def.subtitle?.(node.config ?? {}) || def.title;
+}
+
+/**
+ * Capsule width, estimated from the label rather than measured.
+ *
+ * Measuring would mean the wire router waiting on a DOM layout, and a wire
+ * arriving a frame late is worse than a capsule a few pixels wider than its
+ * text. The font is fixed, so the estimate is close.
+ */
+export function compactWidth(def: NodeDef, node: GraphNode): number {
+	const label = compactLabel(def, node);
+	return Math.round(
+		Math.max(NODE.compactMinWidth, label.length * NODE.compactCharWidth + NODE.compactPadding),
+	);
+}
+
+/**
  * Header height for one node. Nodes with a subtitle get a taller header, and
  * every pin below it shifts down, so this has to be the single source both the
  * renderer and the wire router consult.
@@ -47,6 +74,12 @@ export function nodeHeight(
 export function nodeBounds(node: GraphNode, registry: Registry): Rect {
 	const def = registry.get(node.def);
 	if (!def) return { x: node.x, y: node.y, w: NODE.width, h: NODE.headerHeight + NODE.footer };
+	if (isCompact(def)) {
+		return {
+			x: node.x, y: node.y,
+			w: compactWidth(def, node), h: NODE.compactHeight,
+		};
+	}
 	const { inputs, outputs } = resolvePins(def, node.config);
 	return {
 		x: node.x, y: node.y, w: NODE.width,
@@ -64,6 +97,14 @@ export function pinPosition(
 	const list = side === "in" ? inputs : outputs;
 	const index = list.findIndex((p) => p.id === pinId);
 	if (index === -1) return null;
+
+	// A capsule has one pin, on the right, halfway down.
+	if (isCompact(def)) {
+		return {
+			x: node.x + compactWidth(def, node),
+			y: node.y + NODE.compactHeight / 2,
+		};
+	}
 	return {
 		x: side === "in" ? node.x : node.x + NODE.width,
 		y:

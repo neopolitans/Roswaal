@@ -158,8 +158,22 @@ export const LIBRARY_NODES: NodeDef[] = [
 	]),
 
 	// -- Roblox ------------------------------------------------------------
-	call("roblox.getService", "Get Service", "Roblox", "game:GetService($in.service)",
-		[str("service", "Service", "Players")], "Service", "Instance", { targets: ["roblox"] }),
+	{
+		// Pure, and hoisted. GetService is idempotent and cached by Roblox, so
+		// calling it mid-flow buys nothing; every Roblox codebase pulls services
+		// into locals at the top of the file, and the generated output should
+		// read like one that was written by hand.
+		id: "roblox.getService",
+		title: "Get Service",
+		category: "Roblox",
+		summary:
+			"A Roblox service, as a top-level local. Pure: it needs no execution wire, and asking for the same service twice reuses one local.",
+		pure: true,
+		targets: ["roblox"],
+		inputs: [str("service", "Service", "Players")],
+		outputs: [d("service", "", "Instance")],
+		compilesTo: { kind: "builtin", handler: "service.get" },
+	},
 	call("roblox.instanceNew", "New Instance", "Roblox", "Instance.new($in.className)",
 		[str("className", "Class Name", "Part")], "Instance", "Instance", { targets: ["roblox"] }),
 	call("roblox.findFirstChild", "Find First Child", "Roblox",

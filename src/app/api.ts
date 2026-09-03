@@ -54,6 +54,9 @@ const post = <T>(url: string, body: unknown) =>
 export const api = {
 	health: () => request<{ ok: boolean; project: string | null }>("/api/health"),
 
+	/** What the daemon already has open, if `roswaal serve` opened one. */
+	currentProject: () =>
+		request<({ open: false } | ({ open: true } & ProjectInfo))>("/api/project"),
 	openProject: (root: string) => post<ProjectInfo>("/api/project/open", { root }),
 	initProject: (root: string) => post<ProjectInfo>("/api/project/init", { root }),
 	saveConfig: (config: RoswaalConfig) =>

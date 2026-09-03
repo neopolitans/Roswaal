@@ -113,6 +113,13 @@ export interface NodeDef {
 	 * the difference between reading the graph and hunting through an inspector.
 	 */
 	subtitle?: (config: NodeConfig) => string | undefined;
+	/**
+	 * How the node is drawn. "compact" is the small capsule Unreal uses for a
+	 * variable getter: no header bar, no title row, one output on the right. It
+	 * suits a node whose whole meaning is its name, and only those — anything
+	 * with inputs needs rows to put them in.
+	 */
+	display?: "normal" | "compact";
 }
 
 // ---------------------------------------------------------------------------

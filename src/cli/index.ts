@@ -24,9 +24,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { DEFAULT_PORT, startDaemon } from "../server/app.js";
-import { compileAll, compileScript, openProject, writeConfig } from "../server/project.js";
+import {
+	collectMaps, compileAll, compileMap, compileScript, openProject, writeConfig,
+} from "../server/project.js";
 import { defaultConfig } from "../core/schema.js";
 import { HotReloader } from "../server/watcher.js";
+import { EXAMPLE_PACK } from "./examplePack.js";
 import { banner, bold, cyan, dim, green, red, yellow } from "./style.js";
 import { VERSION } from "./version.js";
 
@@ -44,7 +47,7 @@ const COMMANDS = [
 	{ name: "stop", blurb: "Stop a running daemon on this port." },
 	{ name: "restart", blurb: "Stop a running daemon, then serve again." },
 	{ name: "status", blurb: "Is a daemon running here, and what is it serving?" },
-	{ name: "compile", blurb: "Compile every graph once and exit. Takes an optional path." },
+	{ name: "compile", blurb: "Compile every graph and map once and exit. Takes an optional path." },
 	{ name: "watch", blurb: "Recompile graphs as they change, without the editor. Blocks." },
 	{ name: "check", blurb: "One-shot health probe. Plain output, good for scripts." },
 	{ name: "help", blurb: "This list." },
@@ -226,8 +229,8 @@ async function commandInit(args: Args): Promise<number> {
 	await record(config.nodePaths[0], async () => {
 		await fs.mkdir(path.join(root, config.nodePaths[0]), { recursive: true });
 	});
-	await record(".roswaal/nodes/example.nodedef.json", () =>
-		fs.writeFile(path.join(root, ".roswaal/nodes/example.nodedef.json"), EXAMPLE_PACK, "utf8"),
+	await record(".roswaal/nodes/example.nodedef.luau", () =>
+		fs.writeFile(path.join(root, ".roswaal/nodes/example.nodedef.luau"), EXAMPLE_PACK, "utf8"),
 	);
 
 	for (const line of ledger) console.log(`  ${line}`);
@@ -340,11 +343,35 @@ async function commandCompile(args: Args): Promise<number> {
 		return 1;
 	}
 
-	const results = target
+	// A target ending in .nodemap compiles to a Rojo project file rather than
+	// Luau; with no target, both kinds are compiled.
+	const mapTargets = target
+		? target.endsWith(".nodemap") ? [target] : []
+		: await collectMaps(project);
+	const scriptResults = target && !target.endsWith(".nodemap")
 		? [await compileScript(project, target, { write: true, force })]
-		: await compileAll(project, { write: true, force });
+		: target
+			? []
+			: await compileAll(project, { write: true, force });
 
+	const results = scriptResults;
 	let failures = 0;
+
+	for (const mapPath of mapTargets) {
+		const outcome = await compileMap(project, mapPath, { write: true, force });
+		if (outcome.written) {
+			console.log(`${green("wrote   ")} ${outcome.outputPath}`);
+		} else {
+			failures++;
+			console.log(`${yellow("skipped ")} ${mapPath}`);
+			if (outcome.skipped) console.log(dim(`           ${outcome.skipped}`));
+		}
+		for (const diagnostic of outcome.diagnostics) {
+			if (diagnostic.severity !== "error") continue;
+			console.log(`${red("error   ")} ${mapPath}: ${diagnostic.message}`);
+		}
+	}
+
 	for (const result of results) {
 		const errors = result.diagnostics.filter((d) => d.severity === "error");
 		if (result.written) {
@@ -359,13 +386,14 @@ async function commandCompile(args: Args): Promise<number> {
 		}
 	}
 
-	if (results.length === 0) {
-		console.log(dim(`no graphs found in ${project.config.sourceDir}`));
+	if (results.length === 0 && mapTargets.length === 0) {
+		console.log(dim(`nothing to compile in ${project.config.sourceDir}`));
 		return 0;
 	}
 	const written = results.filter((r) => r.written).length;
+	const total = results.length + mapTargets.length;
 	console.log("");
-	console.log(dim(`  ${written} of ${results.length} written`));
+	console.log(dim(`  ${written + (mapTargets.length - failures)} of ${total} written`));
 	return failures > 0 ? 1 : 0;
 }
 
@@ -429,31 +457,6 @@ async function commandCheck(args: Args): Promise<number> {
 }
 
 // ---------------------------------------------------------------------------
-
-const EXAMPLE_PACK = `{
-  "$comment": "A custom node pack. Every node here is data: pins, plus a template saying how it becomes Luau. See the Roswaal README for the full template language.",
-  "nodes": [
-    {
-      "id": "example.logWithPrefix",
-      "title": "Log With Prefix",
-      "category": "Custom",
-      "summary": "print(), with a fixed prefix in front.",
-      "inputs": [
-        { "id": "in", "kind": "exec" },
-        { "id": "prefix", "name": "Prefix", "kind": "data", "type": "string",
-          "default": { "t": "string", "v": "[game]" } },
-        { "id": "message", "name": "Message", "kind": "data", "type": "string",
-          "default": { "t": "string", "v": "hello" } }
-      ],
-      "outputs": [{ "id": "then", "kind": "exec" }],
-      "compilesTo": {
-        "kind": "statement",
-        "template": "print($in.prefix, $in.message)"
-      }
-    }
-  ]
-}
-`;
 
 async function exists(abs: string): Promise<boolean> {
 	return fs.access(abs).then(() => true, () => false);

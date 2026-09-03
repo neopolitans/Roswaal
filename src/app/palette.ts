@@ -36,21 +36,31 @@ export function isFlowBoundary(def: NodeDef): boolean {
 	return def.role === "entry" || def.role === "terminal";
 }
 
+/**
+ * Pin colours, kept close to Unreal's where the types line up. A developer
+ * coming from Blueprints should be able to read a Roswaal graph by colour
+ * without being told the mapping: red is a boolean, green is a number, magenta
+ * is a string, blue is an object, gold is a vector.
+ */
 const TYPE_COLORS: Record<string, string> = {
-	exec: "#d8dce4",
+	exec: "#e2e6ec",
 	any: "#9aa2af",
 	wildcard: "#9aa2af",
-	boolean: "#a4433a",
-	number: "#4ba58a",
-	string: "#a4569b",
-	table: "#b08137",
-	function: "#7159a8",
-	Instance: "#4a80c0",
-	Vector3: "#c0a13a",
-	Vector2: "#c0a13a",
-	CFrame: "#c07a3a",
-	Color3: "#5aa8c0",
+	boolean: "#8f2f2a",
+	number: "#8fbf3f",
+	string: "#c14bb0",
+	// Luau tables are not Unreal arrays, so this one deliberately does not
+	// borrow a colour that would imply they behave alike.
+	table: "#c08a3a",
+	function: "#5a4b9c",
+	Instance: "#3fa0d8",
+	Vector3: "#d6ae3c",
+	Vector2: "#d6ae3c",
+	CFrame: "#d4772e",
+	Color3: "#48b8c4",
 	UDim2: "#7a9a4a",
+	RBXScriptSignal: "#c4453f",
+	RBXScriptConnection: "#9c5a55",
 };
 
 export function pinColor(type: string | undefined, kind: "exec" | "data"): string {

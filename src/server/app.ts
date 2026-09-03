@@ -99,6 +99,22 @@ app.get("/api/health", (_req, res) => {
 	res.json({ ok: true, project: current?.root ?? null, version: VERSION });
 });
 
+/**
+ * The project the daemon already has open, if any. `roswaal serve` opens one
+ * before listening, so the editor should adopt it rather than asking the
+ * developer to name a directory they are already standing in.
+ */
+app.get("/api/project", route(async () => {
+	if (!current) return { open: false as const };
+	return {
+		open: true as const,
+		root: current.root,
+		config: current.config,
+		packErrors: current.packErrors,
+		tree: await buildTree(current),
+	};
+}));
+
 app.post("/api/project/open", route(async (req) => {
 	const root = String((req.body as { root?: string }).root ?? "");
 	if (!root) throw new HttpError(400, "Provide a project root.");

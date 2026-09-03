@@ -195,19 +195,21 @@ describe("emitter", () => {
 		const print = b.node("debug.print");
 		b.lit(service, "service", { t: "string", v: "Players" });
 		b.lit(prop, "property", { t: "string", v: "PlayerAdded" });
-		b.link(start, "then", service, "in");
-		b.link(service, "then", connect, "in");
-		b.link(service, "result", prop, "instance");
+		b.link(start, "then", connect, "in");
+		b.link(service, "service", prop, "instance");
 		b.link(prop, "result", connect, "signal");
 		b.link(connect, "body", print, "in");
 		b.link(connect, "p0", print, "value");
 
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
+		// The service is hoisted to the top, below the flags, the way a
+		// hand-written Roblox file has it.
 		expect(body(out.code)).toBe(
 			[
-				`local Service: Instance = game:GetService("Players")`,
-				"Service.PlayerAdded:Connect(function(player: Instance)",
+				`local Players = game:GetService("Players")`,
+				"",
+				"Players.PlayerAdded:Connect(function(player: Instance)",
 				"\tprint(player)",
 				"end)",
 			].join("\n"),

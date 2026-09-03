@@ -1,9 +1,19 @@
 {
+  "$roswaalGeneratedFrom": ".roswaal/scripts/Game.nodemap",
   "name": "roswaal-demo",
   "tree": {
     "$className": "DataModel",
     "ServerScriptService": {
-      "$path": "src"
+      "Source": {
+        "$className": "Folder",
+        "$path": "src"
+      }
+    },
+    "ReplicatedStorage": {
+      "Shared": {
+        "$className": "Folder",
+        "$path": "src/shared"
+      }
     }
   }
 }

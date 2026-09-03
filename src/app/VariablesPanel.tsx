@@ -24,9 +24,11 @@ const TYPES = [
 export interface VariablesPanelProps {
 	script: NodeScript;
 	selection: ReadonlySet<string>;
+	/** Asks for confirmation; resolves true when the developer agrees. */
+	confirm: (title: string, message: string, confirmLabel: string) => Promise<boolean>;
 }
 
-export function VariablesPanel({ script }: VariablesPanelProps) {
+export function VariablesPanel({ script, confirm }: VariablesPanelProps) {
 	const [open, setOpen] = useState<string | null>(null);
 
 	return (
@@ -54,6 +56,7 @@ export function VariablesPanel({ script }: VariablesPanelProps) {
 						key={variable.id}
 						variable={variable}
 						script={script}
+						confirm={confirm}
 						expanded={open === variable.id}
 						onToggle={() => setOpen((id) => (id === variable.id ? null : variable.id))}
 					/>
@@ -74,9 +77,10 @@ interface VariableRowProps {
 	script: NodeScript;
 	expanded: boolean;
 	onToggle: () => void;
+	confirm: VariablesPanelProps["confirm"];
 }
 
-function VariableRow({ variable, script, expanded, onToggle }: VariableRowProps) {
+function VariableRow({ variable, script, expanded, onToggle, confirm }: VariableRowProps) {
 	const uses = variableUsageCount(script, variable.id);
 
 	function onDragStart(e: DragEvent) {
@@ -152,15 +156,15 @@ function VariableRow({ variable, script, expanded, onToggle }: VariableRowProps)
 						</span>
 						<button
 							className="tb"
-							onClick={() => {
+							onClick={async () => {
 								// Deleting leaves the Get/Set nodes behind as errors rather than
 								// removing work silently, so say what that will cost first.
 								const warning =
 									uses === 0
 										? `Delete "${variable.name}"?`
 										: `Delete "${variable.name}"? ${uses} node${uses === 1 ? "" : "s"} still ` +
-											`reference it and will report an error until repointed or removed.`;
-								if (window.confirm(warning)) {
+											`reference it, and will report an error until repointed or removed.`;
+								if (await confirm("Delete variable", warning, "Delete")) {
 									store.edit((s) => deleteVariable(s, variable.id));
 								}
 							}}
