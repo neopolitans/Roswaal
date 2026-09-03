@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "kind": "script",
+  "id": "demo-main",
+  "name": "Main",
+  "scriptClass": "Script",
+  "target": "roblox",
+  "strict": true,
+  "nodes": [
+    {
+      "id": "conn",
+      "def": "event.connect",
+      "x": 640,
+      "y": 140,
+      "config": {
+        "params": [
+          {
+            "name": "player",
+            "type": "Instance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "greeting",
+      "def": "string.concat",
+      "x": 900,
+      "y": 360,
+      "literals": {
+        "a": {
+          "t": "string",
+          "v": "Welcome, "
+        }
+      }
+    },
+    {
+      "id": "pname",
+      "def": "roblox.getProperty",
+      "x": 640,
+      "y": 360,
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Name"
+        }
+      }
+    },
+    {
+      "id": "say",
+      "def": "debug.print",
+      "x": 960,
+      "y": 180
+    },
+    {
+      "id": "signal",
+      "def": "roblox.getProperty",
+      "x": 340,
+      "y": 320,
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "PlayerAdded"
+        }
+      }
+    },
+    {
+      "id": "start",
+      "def": "script.begin",
+      "x": 80,
+      "y": 140
+    },
+    {
+      "id": "svc",
+      "def": "roblox.getService",
+      "x": 340,
+      "y": 140,
+      "literals": {
+        "service": {
+          "t": "string",
+          "v": "Players"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "start",
+        "pin": "then"
+      },
+      "to": {
+        "node": "svc",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "svc",
+        "pin": "then"
+      },
+      "to": {
+        "node": "conn",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "svc",
+        "pin": "result"
+      },
+      "to": {
+        "node": "signal",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "signal",
+        "pin": "result"
+      },
+      "to": {
+        "node": "conn",
+        "pin": "signal"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "conn",
+        "pin": "body"
+      },
+      "to": {
+        "node": "say",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "conn",
+        "pin": "p0"
+      },
+      "to": {
+        "node": "pname",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "pname",
+        "pin": "result"
+      },
+      "to": {
+        "node": "greeting",
+        "pin": "b"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "greeting",
+        "pin": "result"
+      },
+      "to": {
+        "node": "say",
+        "pin": "value"
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": "c1",
+      "x": 300,
+      "y": 60,
+      "w": 900,
+      "h": 260,
+      "text": "Greet every player who joins",
+      "color": "5f8f6a"
+    }
+  ]
+}

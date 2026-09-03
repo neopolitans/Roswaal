@@ -1,0 +1,32 @@
+{
+  "nodes": [
+    {
+      "id": "combat.knockback",
+      "title": "Apply Knockback",
+      "category": "Combat",
+      "summary": "Shoves a character's root part along a force vector.",
+      "inputs": [
+        { "id": "in", "kind": "exec" },
+        { "id": "character", "name": "Character", "kind": "data", "type": "Instance" },
+        { "id": "force", "name": "Force", "kind": "data", "type": "Vector3" }
+      ],
+      "outputs": [{ "id": "then", "kind": "exec" }],
+      "compilesTo": {
+        "kind": "statement",
+        "template": "$in.character.HumanoidRootPart:ApplyImpulse($in.force)"
+      }
+    },
+    {
+      "id": "combat.isAlive",
+      "title": "Is Alive",
+      "category": "Combat",
+      "summary": "True while the humanoid still has health.",
+      "inputs": [{ "id": "humanoid", "name": "Humanoid", "kind": "data", "type": "Instance" }],
+      "outputs": [{ "id": "alive", "name": "", "kind": "data", "type": "boolean" }],
+      "compilesTo": {
+        "kind": "expr",
+        "outputs": { "alive": "$in.humanoid.Health > 0" }
+      }
+    }
+  ]
+}

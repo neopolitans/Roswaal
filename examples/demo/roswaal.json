@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "target": "roblox",
+  "sourceDir": ".roswaal/scripts",
+  "outDir": "src",
+  "compileMode": "manual",
+  "nodePaths": [".roswaal/nodes"],
+  "format": true,
+  "rojoProject": "default.project.json"
+}

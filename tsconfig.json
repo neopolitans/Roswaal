@@ -15,7 +15,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["node"]
+    "types": ["node", "vite/client"]
   },
   "include": ["src", "tests", "vite.config.ts"]
 }

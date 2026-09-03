@@ -139,10 +139,12 @@ function normalisePins(
 			continue;
 		}
 		seen.add(p.id);
+		const kind = p.kind === "exec" ? "exec" : "data";
 		out.push({
 			id: p.id,
-			name: typeof p.name === "string" ? p.name : p.id,
-			kind: p.kind === "exec" ? "exec" : "data",
+			// Exec pins read better unlabelled; a data pin falls back to its id.
+			name: typeof p.name === "string" ? p.name : kind === "exec" ? "" : p.id,
+			kind,
 			type: typeof p.type === "string" ? p.type : "any",
 			default: p.default,
 			required: p.required === true,

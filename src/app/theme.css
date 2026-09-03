@@ -1,0 +1,880 @@
+/* Roswaal editor styling. Light and dark are the same layout with swapped
+   tokens; only the palette lives in the media query. */
+
+:root {
+	color-scheme: light dark;
+
+	--bg-app: #eceef2;
+	--bg-panel: #f6f7f9;
+	--bg-canvas: #d9dce3;
+	--bg-input: #ffffff;
+	--bg-hover: rgba(0, 0, 0, 0.06);
+	--bg-active: rgba(0, 0, 0, 0.12);
+
+	--fg: #1c1f24;
+	--fg-muted: #5c636e;
+	--fg-faint: #8b93a0;
+
+	--border: #c6cad2;
+	--border-strong: #a8aeb9;
+
+	--grid-fine: rgba(0, 0, 0, 0.07);
+	--grid-coarse: rgba(0, 0, 0, 0.14);
+	--watermark: rgba(0, 0, 0, 0.16);
+
+	--node-body: #fbfbfd;
+	--node-border: #b3b9c4;
+	--node-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+
+	--comment-fill: 0.1;
+	--comment-header-alpha: 0.75;
+
+	--wire-exec: #5a616d;
+	--wire-data: #7b8494;
+
+	--accent: #3b6ea5;
+	--danger: #c0392b;
+	--warning: #b8860b;
+	--ok: #2e7d47;
+
+	--select: #ff9c2e;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg-app: #16181d;
+		--bg-panel: #1b1e24;
+		--bg-canvas: #101216;
+		--bg-input: #23272f;
+		--bg-hover: rgba(255, 255, 255, 0.07);
+		--bg-active: rgba(255, 255, 255, 0.13);
+
+		--fg: #e4e7ec;
+		--fg-muted: #9aa2af;
+		--fg-faint: #6b7280;
+
+		--border: #2d323b;
+		--border-strong: #414855;
+
+		--grid-fine: rgba(255, 255, 255, 0.05);
+		--grid-coarse: rgba(255, 255, 255, 0.1);
+		--watermark: rgba(255, 255, 255, 0.14);
+
+		--node-body: #262a32;
+		--node-border: #3a404b;
+		--node-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+
+		--comment-fill: 0.14;
+
+		--wire-exec: #b9c0cc;
+		--wire-data: #8d97a6;
+
+		--accent: #5b9bd5;
+		--danger: #e06c5a;
+		--warning: #d8a83a;
+		--ok: #5cb87a;
+	}
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+	margin: 0;
+}
+
+body {
+	background: var(--bg-app);
+	color: var(--fg);
+	font: 13px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
+	overflow: hidden;
+	-webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+	color: inherit;
+}
+
+/* ------------------------------------------------------------------ shell */
+
+.app {
+	display: grid;
+	grid-template-rows: auto 1fr auto;
+	height: 100%;
+}
+
+.workspace {
+	display: grid;
+	grid-template-columns: 260px 1fr;
+	min-height: 0;
+}
+
+.workspace.no-sidebar {
+	grid-template-columns: 1fr;
+}
+
+/* ---------------------------------------------------------------- toolbar */
+
+.toolbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	background: var(--bg-panel);
+	border-bottom: 1px solid var(--border);
+	flex-wrap: wrap;
+}
+
+.toolbar .brand {
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	margin-right: 4px;
+}
+
+.toolbar .spacer {
+	flex: 1;
+}
+
+.toolbar .doc-name {
+	font-weight: 600;
+}
+
+.toolbar .dirty::after {
+	content: "•";
+	color: var(--warning);
+	margin-left: 5px;
+}
+
+button.tb,
+select.tb,
+input.tb {
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 4px 9px;
+	cursor: pointer;
+}
+
+button.tb:hover:not(:disabled),
+select.tb:hover {
+	background: var(--bg-hover);
+	border-color: var(--border-strong);
+}
+
+button.tb:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+
+button.tb.primary {
+	background: var(--accent);
+	border-color: transparent;
+	color: #fff;
+}
+
+button.tb.primary:hover:not(:disabled) {
+	filter: brightness(1.1);
+	background: var(--accent);
+}
+
+.segmented {
+	display: inline-flex;
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	overflow: hidden;
+}
+
+.segmented button {
+	background: var(--bg-input);
+	border: 0;
+	padding: 4px 10px;
+	cursor: pointer;
+}
+
+.segmented button.on {
+	background: var(--accent);
+	color: #fff;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+
+.sidebar {
+	background: var(--bg-panel);
+	border-right: 1px solid var(--border);
+	overflow: auto;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.sidebar h2 {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+	margin: 0;
+	padding: 10px 12px 6px;
+	position: sticky;
+	top: 0;
+	background: var(--bg-panel);
+	z-index: 1;
+}
+
+.tree {
+	padding: 0 6px 12px;
+	user-select: none;
+	flex: 1;
+}
+
+.tree-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 6px;
+	border-radius: 4px;
+	cursor: default;
+	white-space: nowrap;
+}
+
+.tree-row:hover {
+	background: var(--bg-hover);
+}
+
+.tree-row.selected {
+	background: var(--bg-active);
+}
+
+.tree-row.open-doc {
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.tree-row.drop-target {
+	outline: 1px dashed var(--accent);
+	outline-offset: -1px;
+}
+
+.tree-row .glyph {
+	width: 14px;
+	text-align: center;
+	color: var(--fg-faint);
+	flex: none;
+}
+
+.tree-row .label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.tree-row.readonly .label {
+	color: var(--fg-muted);
+	font-style: italic;
+}
+
+.tree-row .badge {
+	margin-left: auto;
+	font-size: 10px;
+	color: var(--fg-faint);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	padding: 0 4px;
+}
+
+/* ----------------------------------------------------------------- canvas */
+
+.canvas {
+	position: relative;
+	overflow: hidden;
+	background: var(--bg-canvas);
+	touch-action: none;
+	min-height: 0;
+	contain: strict;
+}
+
+.canvas:focus {
+	outline: none;
+}
+
+.canvas .grid {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.canvas .world {
+	position: absolute;
+	top: 0;
+	left: 0;
+	transform-origin: 0 0;
+	width: 0;
+	height: 0;
+}
+
+.canvas .watermark {
+	position: absolute;
+	right: 18px;
+	bottom: 14px;
+	font-size: 30px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	color: var(--watermark);
+	pointer-events: none;
+	user-select: none;
+	text-align: right;
+	line-height: 1.1;
+}
+
+.canvas .watermark small {
+	display: block;
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.canvas .wires {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 1px;
+	height: 1px;
+	overflow: visible;
+	pointer-events: none;
+}
+
+.canvas .wires path {
+	fill: none;
+	stroke-linecap: round;
+}
+
+.canvas .wires path.hit {
+	stroke: transparent;
+	stroke-width: 12;
+	pointer-events: stroke;
+	cursor: pointer;
+}
+
+.canvas .marquee {
+	position: absolute;
+	border: 1px solid var(--select);
+	background: color-mix(in srgb, var(--select) 14%, transparent);
+	pointer-events: none;
+}
+
+/* ------------------------------------------------------------------- node */
+
+.node {
+	position: absolute;
+	border-radius: 7px;
+	background: var(--node-body);
+	border: 1px solid var(--node-border);
+	box-shadow: var(--node-shadow);
+	user-select: none;
+}
+
+.node.selected {
+	border-color: var(--select);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--select) 55%, transparent), var(--node-shadow);
+}
+
+.node.has-error {
+	border-color: var(--danger);
+}
+
+.node .head {
+	height: 30px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 9px;
+	border-radius: 6px 6px 0 0;
+	color: #fff;
+	font-weight: 600;
+	font-size: 12px;
+	cursor: grab;
+	overflow: hidden;
+	text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+.node .head .title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node .head .marker {
+	font-size: 10px;
+	opacity: 0.85;
+}
+
+.node .rows {
+	position: relative;
+}
+
+.node .row {
+	height: 24px;
+	display: flex;
+	align-items: center;
+	position: relative;
+}
+
+.node .row .side {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	min-width: 0;
+}
+
+.node .row .side.left {
+	flex: 1;
+	padding-left: 6px;
+}
+
+.node .row .side.right {
+	margin-left: auto;
+	padding-right: 6px;
+	justify-content: flex-end;
+}
+
+.node .pin {
+	width: 12px;
+	height: 12px;
+	flex: none;
+	position: relative;
+	cursor: crosshair;
+}
+
+/* The visible dot is small; the hit area is not, so pins stay grabbable. */
+.node .pin::after {
+	content: "";
+	position: absolute;
+	inset: -6px;
+}
+
+.node .pin .dot {
+	position: absolute;
+	inset: 1px;
+	border-radius: 50%;
+	border: 2px solid currentColor;
+}
+
+.node .pin.connected .dot {
+	background: currentColor;
+}
+
+.node .pin.exec .dot {
+	border-radius: 2px;
+	clip-path: polygon(0 0, 62% 0, 100% 50%, 62% 100%, 0 100%);
+	border: 0;
+	background: transparent;
+	box-shadow: inset 0 0 0 12px currentColor;
+	opacity: 0.45;
+}
+
+.node .pin.exec.connected .dot {
+	opacity: 1;
+}
+
+.node .pin.compatible .dot {
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 45%, transparent);
+}
+
+.node .pin.incompatible {
+	opacity: 0.3;
+}
+
+.node .pin-label {
+	font-size: 11px;
+	color: var(--fg-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.node .literal {
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	padding: 1px 4px;
+	font-size: 11px;
+	width: 70px;
+	min-width: 0;
+}
+
+.node .literal.wide {
+	width: 92px;
+}
+
+.node .literal:focus {
+	outline: 1px solid var(--accent);
+}
+
+.node .badge-count {
+	position: absolute;
+	top: -7px;
+	right: -7px;
+	background: var(--danger);
+	color: #fff;
+	border-radius: 8px;
+	font-size: 10px;
+	padding: 0 5px;
+	line-height: 15px;
+}
+
+/* ---------------------------------------------------------------- comment */
+
+.comment {
+	position: absolute;
+	border-radius: 6px;
+	border: 1px solid color-mix(in srgb, var(--comment-color) 65%, transparent);
+	background: color-mix(in srgb, var(--comment-color) calc(var(--comment-fill) * 100%), transparent);
+	user-select: none;
+}
+
+.comment.selected {
+	border-color: var(--select);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--select) 45%, transparent);
+}
+
+.comment .bar {
+	height: 26px;
+	display: flex;
+	align-items: center;
+	padding: 0 8px;
+	font-weight: 600;
+	font-size: 12px;
+	color: #fff;
+	background: color-mix(in srgb, var(--comment-color) 82%, transparent);
+	border-radius: 5px 5px 0 0;
+	cursor: grab;
+	text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.comment .bar input {
+	background: rgba(0, 0, 0, 0.28);
+	border: 0;
+	border-radius: 3px;
+	color: #fff;
+	font: inherit;
+	width: 100%;
+	padding: 1px 4px;
+}
+
+.comment .bar input:focus {
+	outline: 1px solid #fff;
+}
+
+.comment .resize {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 16px;
+	height: 16px;
+	cursor: nwse-resize;
+}
+
+.comment .resize::after {
+	content: "";
+	position: absolute;
+	right: 3px;
+	bottom: 3px;
+	width: 8px;
+	height: 8px;
+	border-right: 2px solid color-mix(in srgb, var(--comment-color) 90%, transparent);
+	border-bottom: 2px solid color-mix(in srgb, var(--comment-color) 90%, transparent);
+}
+
+/* ------------------------------------------------------------------- menu */
+
+.menu {
+	position: fixed;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 7px;
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	max-height: 60vh;
+	width: 280px;
+}
+
+.menu input.search {
+	border: 0;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-input);
+	padding: 8px 10px;
+	outline: none;
+}
+
+.menu .items {
+	overflow: auto;
+	padding: 4px;
+}
+
+.menu .group {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+	padding: 6px 8px 3px;
+}
+
+.menu .item {
+	display: flex;
+	align-items: baseline;
+	gap: 7px;
+	padding: 4px 8px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.menu .item:hover,
+.menu .item.active {
+	background: var(--bg-active);
+}
+
+.menu .item .swatch {
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	flex: none;
+}
+
+.menu .item .hint {
+	margin-left: auto;
+	font-size: 10px;
+	color: var(--fg-faint);
+}
+
+.menu .empty {
+	padding: 12px;
+	color: var(--fg-faint);
+	text-align: center;
+}
+
+/* -------------------------------------------------------------- diagnostics */
+
+.status {
+	border-top: 1px solid var(--border);
+	background: var(--bg-panel);
+	max-height: 190px;
+	display: flex;
+	flex-direction: column;
+}
+
+.status .bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 4px 10px;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.status .bar .count {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.status .list {
+	overflow: auto;
+	border-top: 1px solid var(--border);
+	padding: 4px 0;
+}
+
+.status .entry {
+	display: flex;
+	gap: 8px;
+	padding: 3px 12px;
+	cursor: pointer;
+}
+
+.status .entry:hover {
+	background: var(--bg-hover);
+}
+
+.status .entry .sev {
+	flex: none;
+	font-weight: 600;
+	width: 62px;
+}
+
+.status .entry.error .sev {
+	color: var(--danger);
+}
+
+.status .entry.warning .sev {
+	color: var(--warning);
+}
+
+.status .entry .where {
+	color: var(--fg-faint);
+	margin-left: auto;
+	white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ misc */
+
+.placeholder {
+	display: grid;
+	place-content: center;
+	gap: 10px;
+	text-align: center;
+	color: var(--fg-muted);
+	padding: 40px;
+}
+
+.placeholder h1 {
+	font-size: 22px;
+	margin: 0;
+	color: var(--fg);
+}
+
+.placeholder code {
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	padding: 1px 5px;
+}
+
+.placeholder .row {
+	display: flex;
+	gap: 8px;
+	justify-content: center;
+}
+
+.source-view {
+	margin: 0;
+	padding: 14px 18px;
+	overflow: auto;
+	font: 12px/1.6 "Cascadia Mono", Consolas, monospace;
+	background: var(--bg-canvas);
+	height: 100%;
+}
+
+/* -------------------------------------------------------------- inspector */
+
+.workspace.with-inspector {
+	grid-template-columns: 260px 1fr 290px;
+}
+
+.inspector {
+	background: var(--bg-panel);
+	border-left: 1px solid var(--border);
+	overflow: auto;
+	min-height: 0;
+}
+
+.inspector h2 {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+	margin: 0;
+	padding: 10px 12px 6px;
+	position: sticky;
+	top: 0;
+	background: var(--bg-panel);
+}
+
+.inspector-body {
+	padding: 0 12px 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.inspector .node-heading {
+	border-radius: 5px;
+	padding: 6px 10px;
+	color: #fff;
+	font-weight: 600;
+	text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+.inspector .summary {
+	margin: 0;
+	font-size: 11px;
+	line-height: 1.5;
+	color: var(--fg-muted);
+}
+
+.inspector .field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.inspector .field > span {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.inspector .field input {
+	cursor: text;
+	width: 100%;
+}
+
+.inspector .list-editor {
+	border-top: 1px solid var(--border);
+	padding-top: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.inspector .list-title {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--fg-faint);
+}
+
+.inspector .list-title button {
+	padding: 1px 8px;
+	font-size: 11px;
+}
+
+.inspector .list-row {
+	display: grid;
+	grid-template-columns: 1fr 90px 24px;
+	gap: 4px;
+}
+
+.inspector .list-row input {
+	cursor: text;
+	min-width: 0;
+}
+
+.inspector .list-row button {
+	padding: 0;
+	text-align: center;
+}
+
+.inspector .pin-summary {
+	display: flex;
+	justify-content: space-between;
+	font-size: 11px;
+	color: var(--fg-muted);
+	padding: 1px 0;
+}
+
+.inspector .pin-summary .type {
+	color: var(--fg-faint);
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: 10px;
+}

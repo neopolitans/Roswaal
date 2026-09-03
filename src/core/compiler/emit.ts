@@ -87,7 +87,7 @@ class Emitter {
 
 	constructor(
 		private script: NodeScript,
-		private registry: Registry,
+		registry: Registry,
 		private sourceHash: string,
 	) {
 		this.index = new GraphIndex(script, registry);

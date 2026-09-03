@@ -1,0 +1,9 @@
+{
+  "name": "roswaal-demo",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$path": "src"
+    }
+  }
+}
