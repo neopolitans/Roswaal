@@ -8,6 +8,7 @@
  */
 
 import type { NodeDef, PinDef } from "../schema.js";
+import { PATH_ROOTS, ROBLOX_SERVICES } from "../roblox.js";
 
 const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
 const d = (id: string, name: string, type: string, def?: PinDef["default"]): PinDef => ({
@@ -55,6 +56,17 @@ function stmt(
 		outputs: [exec("then")],
 		compilesTo: { kind: "statement", template },
 	};
+}
+
+/**
+ * Argument pins for the call nodes. One by default, because most calls take
+ * one, and the count is stored per node rather than baked into the definition.
+ */
+function argPins(config: Record<string, unknown>): PinDef[] {
+	const count = Math.max(0, Math.min(8, Number(config.args ?? 1)));
+	return Array.from({ length: count }, (_, i) =>
+		d(`a${i}`, count === 1 ? "Argument" : `Arg ${i + 1}`, "any", { t: "nil" }),
+	);
 }
 
 export const LIBRARY_NODES: NodeDef[] = [
@@ -170,7 +182,13 @@ export const LIBRARY_NODES: NodeDef[] = [
 			"A Roblox service, as a top-level local. Pure: it needs no execution wire, and asking for the same service twice reuses one local.",
 		pure: true,
 		targets: ["roblox"],
-		inputs: [str("service", "Service", "Players")],
+		inputs: [
+			{
+				...str("service", "Service", "Players"),
+				options: [...ROBLOX_SERVICES],
+				description: "Pick a service, or type one the list has not caught up with.",
+			},
+		],
 		outputs: [d("service", "", "Instance")],
 		compilesTo: { kind: "builtin", handler: "service.get" },
 	},
@@ -200,17 +218,110 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("roblox.color3", "Color3", "Roblox", "Color3.fromRGB($in.r, $in.g, $in.b)",
 		[num("r", "R", 255), num("g", "G", 255), num("b", "B", 255)], "Color3"),
 
-	// -- Modules -----------------------------------------------------------
-	call("module.require", "Require", "Modules", "require($in.module)",
-		[d("module", "Module", "any")], "Exports", "any"),
+	// -- Instances and modules ---------------------------------------------
+	{
+		// Reaching a child by path rather than by a chain of FindFirstChild
+		// nodes. Pure, because indexing an instance is just an expression, and
+		// wiring three nodes to say `ReplicatedStorage.Modules.Combat` was the
+		// single most tedious thing about the earlier node set.
+		id: "roblox.instancePath",
+		title: "Instance",
+		category: "Roblox",
+		summary:
+			"An instance reached by path, e.g. Modules.Combat under ReplicatedStorage. Errors at runtime if it is not there yet — use Wait For Child when it might not be.",
+		pure: true,
+		targets: ["roblox"],
+		inputs: [
+			{
+				...str("root", "In", "ReplicatedStorage"),
+				options: PATH_ROOTS,
+				description: "Where the path starts: a service, or game / script / workspace.",
+			},
+			{
+				...str("path", "Path", "Modules.Combat"),
+				description: "Dotted path from the root. Names that are not identifiers are bracketed for you.",
+			},
+		],
+		outputs: [d("instance", "", "Instance")],
+		compilesTo: { kind: "builtin", handler: "instance.path" },
+	},
+	{
+		// Hoisted for the same reason services are: require is idempotent and
+		// cached by Roblox, so every Roblox codebase pulls modules into locals
+		// at the top of the file.
+		id: "module.requirePath",
+		title: "Require Module",
+		category: "Modules",
+		summary:
+			"Requires a module by path, as a top-level local. Pure: no execution wire, and requiring the same module twice reuses one local.",
+		pure: true,
+		targets: ["roblox"],
+		inputs: [
+			{
+				...str("root", "In", "ReplicatedStorage"),
+				options: PATH_ROOTS,
+				description: "Where the path starts: a service, or game / script / workspace.",
+			},
+			{
+				...str("path", "Path", "Modules.Combat"),
+				description: "Dotted path to the ModuleScript.",
+			},
+			{
+				...str("as", "As", ""),
+				description: "Name for the generated local. Defaults to the last path segment.",
+			},
+		],
+		outputs: [d("exports", "", "any")],
+		compilesTo: { kind: "builtin", handler: "module.requirePath" },
+	},
+	call("module.require", "Require (Dynamic)", "Modules", "require($in.module)",
+		[d("module", "Module", "any")], "Exports", "any",
+		{ summary: "Requires a module reached by a wire, for cases a fixed path cannot express." }),
+	pure("value.field", "Get Field", "Modules", "$in.object.$in.field!ident",
+		[d("object", "Object", "any"), str("field", "Field", "name")], "any",
+		"Reads a field off any value: a module's export, a table key, an instance property."),
+	{
+		// Argument count is per-instance rather than fixed, because a template
+		// is a static string and one-argument calls were the sharpest edge in
+		// the earlier node set.
+		id: "call.function",
+		title: "Call Function",
+		category: "Modules",
+		summary: "Calls a function value. Set the argument count in the inspector.",
+		inputs: [exec("in"), d("fn", "Function", "function"), d("a0", "Argument", "any", { t: "nil" })],
+		outputs: [exec("then"), d("result", "Result", "any")],
+		compilesTo: { kind: "builtin", handler: "call.invoke" },
+		derivePins: (config) => ({
+			inputs: [
+				exec("in"),
+				d("fn", "Function", "function"),
+				...argPins(config),
+			],
+			outputs: [exec("then"), d("result", "Result", "any")],
+		}),
+	},
 	{
 		id: "call.method",
 		title: "Call Method",
 		category: "Modules",
-		summary: "Calls a method on a value, with a single argument.",
-		inputs: [exec("in"), d("object", "Object", "any"), str("method", "Method", "Method"), d("arg", "Argument", "any", { t: "nil" })],
+		summary: "Calls a method on a value, colon-style. Set the argument count in the inspector.",
+		inputs: [
+			exec("in"),
+			d("object", "Object", "any"),
+			str("method", "Method", "Method"),
+			d("a0", "Argument", "any", { t: "nil" }),
+		],
 		outputs: [exec("then"), d("result", "Result", "any")],
-		compilesTo: { kind: "call", template: "$in.object:$in.method!ident($in.arg)", result: "result" },
+		compilesTo: { kind: "builtin", handler: "call.invoke" },
+		derivePins: (config) => ({
+			inputs: [
+				exec("in"),
+				d("object", "Object", "any"),
+				str("method", "Method", "Method"),
+				...argPins(config),
+			],
+			outputs: [exec("then"), d("result", "Result", "any")],
+		}),
 	},
 
 	// -- Time --------------------------------------------------------------

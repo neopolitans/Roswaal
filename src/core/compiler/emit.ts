@@ -20,6 +20,7 @@ import { GraphIndex, type ResolvedNode } from "./graph.js";
 import type { Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
 import type { FunctionRef, VariableRef } from "../nodes/variables.js";
+import { isService as isRobloxService, lastSegment, renderPath } from "../roblox.js";
 import type { Registry } from "../nodes/index.js";
 
 export interface Diagnostic {
@@ -93,6 +94,8 @@ class Emitter {
 	 * separate preamble buffer is for.
 	 */
 	private services = new Map<string, string>();
+	/** "root/path" -> the local a required module was hoisted to. */
+	private requires = new Map<string, { ident: string; expression: string }>();
 	private preamble: OutLine[] = [];
 
 	constructor(
@@ -117,7 +120,7 @@ class Emitter {
 
 		// Services were collected during the walk above; they belong at the top,
 		// below the flags, the way a hand-written Roblox file has them.
-		this.flushServices();
+		this.flushPreamble();
 
 		const lines = [...this.preamble, ...this.out];
 		const body = this.render(lines);
@@ -159,18 +162,50 @@ class Emitter {
 	}
 
 	/**
-	 * Writes the hoisted service locals into the preamble, in the order they
-	 * were first asked for. That order is deterministic because the walk is.
+	 * Writes the hoisted locals into the preamble, in the order they were first
+	 * asked for. That order is deterministic because the walk is.
+	 *
+	 * Services come before requires, because a required module's path usually
+	 * starts at a service and Luau reads a file top to bottom.
 	 */
-	private flushServices(): void {
-		if (this.services.size === 0) return;
+	private flushPreamble(): void {
+		if (this.services.size === 0 && this.requires.size === 0) return;
+
 		for (const [service, ident] of this.services) {
 			this.preamble.push({
 				text: `local ${ident} = game:GetService(${quoteString(service)})`,
 				indent: 0,
 			});
 		}
+		if (this.services.size > 0 && this.requires.size > 0) {
+			this.preamble.push({ text: "", indent: 0 });
+		}
+		for (const { ident, expression } of this.requires.values()) {
+			this.preamble.push({ text: `local ${ident} = require(${expression})`, indent: 0 });
+		}
 		this.preamble.push({ text: "", indent: 0 });
+	}
+
+	/**
+	 * The Luau expression a path node starts from, registering the service if
+	 * the root names one. `game`, `script` and `workspace` need no declaration.
+	 */
+	private resolveRoot(root: string): string {
+		if (!isRobloxService(root)) return root;
+		const existing = this.services.get(root);
+		if (existing) return existing;
+		const ident = this.names.unique(root, "service");
+		this.services.set(root, ident);
+		return ident;
+	}
+
+	/** Reads a pin's literal as plain text. Empty when the pin is wired. */
+	private literalText(r: ResolvedNode, pinId: string): string {
+		if (this.index.sourceOf(r.node.id, pinId)) return "";
+		const pin = this.pin(r, pinId, "in");
+		const literal = r.node.literals?.[pinId] ?? pin.default;
+		if (!literal) return "";
+		return literal.t === "string" || literal.t === "raw" ? literal.v.trim() : "";
 	}
 
 	private header(outputHash: string): string {
@@ -452,6 +487,41 @@ class Emitter {
 			case "module.exports":
 				return undefined;
 
+			case "call.invoke": {
+				// One handler for both call nodes: the only difference is whether
+				// the callee is a wired value or a method name on an object.
+				const args = r.inputs
+					.filter((p) => /^a\d+$/.test(p.id))
+					.map((p) => this.resolveInput(r, p, scope));
+
+				let callee: string;
+				if (r.def.id === "call.method") {
+					const object = paren(this.resolveInput(r, this.pin(r, "object", "in"), scope));
+					const method = toIdentifier(this.literalText(r, "method"), "method");
+					if (this.index.sourceOf(id, "method")) {
+						this.error(
+							"Call Method needs the method name typed in: it becomes part of the generated code.",
+							id,
+							"method",
+						);
+						return this.index.execTarget(id, "then");
+					}
+					callee = `${object}:${method}`;
+				} else {
+					callee = paren(this.resolveInput(r, this.pin(r, "fn", "in"), scope));
+				}
+
+				const expression = `${callee}(${args.join(", ")})`;
+				if (this.index.consumerCount(id, "result") > 0) {
+					const ident = this.names.unique(r.node.label || "result", "result");
+					this.push(`local ${ident} = ${expression}`, id);
+					scope.bindings.set(`${id}/result`, ident);
+				} else {
+					this.push(expression, id);
+				}
+				return this.index.execTarget(id, "then");
+			}
+
 			case "variable.set": {
 				const ref = (r.node.config ?? {}) as VariableRef;
 				const ident = ref.variable ? this.variableNames.get(ref.variable) : undefined;
@@ -475,6 +545,8 @@ class Emitter {
 			case "variable.get":
 			case "function.get":
 			case "service.get":
+			case "instance.path":
+			case "module.requirePath":
 				this.error(
 					`"${r.def.title}" is a pure node and cannot be placed in an execution chain.`,
 					id,
@@ -624,7 +696,6 @@ class Emitter {
 			}
 
 			case "service.get": {
-				const pin = this.pin(src, "service", "in");
 				const link = this.index.sourceOf(src.node.id, "service");
 				if (link) {
 					this.error(
@@ -636,19 +707,57 @@ class Emitter {
 					return "nil";
 				}
 
-				const literal = src.node.literals?.service ?? pin.default;
-				const name =
-					literal && (literal.t === "string" || literal.t === "raw") ? literal.v.trim() : "";
+				const name = this.literalText(src, "service");
 				if (name === "") {
 					this.error("Get Service has no service name.", src.node.id, "service");
 					return "nil";
 				}
-
 				// One local per distinct service, however many nodes ask for it.
+				// A name not on the built-in list still works: the list is a
+				// dropdown, not a gate.
 				const existing = this.services.get(name);
 				if (existing) return existing;
 				const ident = this.names.unique(name, "service");
 				this.services.set(name, ident);
+				return ident;
+			}
+
+			case "instance.path": {
+				const root = this.literalText(src, "root");
+				const path = this.literalText(src, "path");
+				if (root === "") {
+					this.error("Instance has no starting point chosen.", src.node.id, "root");
+					return "nil";
+				}
+				// Inline, not hoisted: indexing is cheap, and the ordinary
+				// multi-consumer rule already binds it to a local when it is read
+				// more than once.
+				return renderPath(this.resolveRoot(root), path);
+			}
+
+			case "module.requirePath": {
+				const root = this.literalText(src, "root");
+				const path = this.literalText(src, "path");
+				if (root === "" || path === "") {
+					this.error(
+						"Require Module needs both a starting point and a path.",
+						src.node.id,
+						path === "" ? "path" : "root",
+					);
+					return "nil";
+				}
+
+				// One local per distinct module, however many nodes require it.
+				const key = `${root}/${path}`;
+				const existing = this.requires.get(key);
+				if (existing) return existing.ident;
+
+				const hint = this.literalText(src, "as") || lastSegment(path) || "module";
+				const ident = this.names.unique(hint, "module");
+				this.requires.set(key, {
+					ident,
+					expression: renderPath(this.resolveRoot(root), path),
+				});
 				return ident;
 			}
 

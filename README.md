@@ -160,9 +160,47 @@ Players.PlayerAdded:Connect(function(player: Instance)
 end)
 ```
 
-Asking twice for the same service reuses the one local. The service name has to
-be typed in rather than wired, because it becomes a variable name in the
-generated file and so must be known before the script runs.
+Asking twice for the same service reuses the one local. The service is picked
+from a dropdown — Roblox adds them rarely — but the list is suggestions, not a
+gate: pick "Other..." and type a name the build has not caught up with, and it
+still compiles.
+
+### Reaching instances and modules
+
+Two path nodes, both pure, so neither needs an execution wire:
+
+- **Instance** takes a root (a service, or `game` / `script` / `workspace`) and
+  a dotted path, and compiles to plain indexing. Segments that are not valid
+  identifiers get bracketed for you, so `Main Menu.Button 1` becomes
+  `workspace["Main Menu"]["Button 1"]`.
+- **Require Module** takes the same root and path and is hoisted like a
+  service, because `require` is cached by Roblox too. Requiring the same module
+  from three nodes still produces one local.
+
+**Get Field** reads anything off a value — a module export, a table key, an
+instance property — and **Call Function** / **Call Method** invoke it, with the
+argument count set per node in the inspector rather than fixed at one.
+
+Together that is the whole shape of an ordinary Roblox script:
+
+```lua
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Greeter = require(ReplicatedStorage.Shared.Greeter)
+
+-- How many players have joined since the server started.
+local playersJoined: number = 0
+
+Players.PlayerAdded:Connect(function(player: Instance)
+	local result = Greeter.greet(player.Name)
+	print(result)
+	playersJoined = playersJoined + 1
+end)
+```
+
+That is the generated output of [`examples/demo`](examples/demo), start to
+finish.
 
 ### Functions and modules
 

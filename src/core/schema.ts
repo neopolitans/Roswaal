@@ -36,6 +36,12 @@ export interface PinDef {
 	default?: Literal;
 	/** Data inputs only: suppress the inline literal editor (must be wired). */
 	required?: boolean;
+	/**
+	 * Data inputs only: offer these values as a dropdown instead of a free text
+	 * field. Suggestions, not a closed set — anything not listed can still be
+	 * typed, so a value the list has not caught up with is never a dead end.
+	 */
+	options?: string[];
 	description?: string;
 }
 

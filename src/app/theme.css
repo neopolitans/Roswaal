@@ -1455,3 +1455,16 @@ button.tb.primary.danger {
 		--pure-edge: #7fbf5f;
 	}
 }
+
+/* A pin with a known value set gets a dropdown rather than a text field. */
+.node select.literal {
+	cursor: pointer;
+	appearance: none;
+	padding-right: 14px;
+	background-image: linear-gradient(45deg, transparent 50%, var(--fg-faint) 50%),
+		linear-gradient(135deg, var(--fg-faint) 50%, transparent 50%);
+	background-position: calc(100% - 8px) 6px, calc(100% - 4px) 6px;
+	background-size: 4px 4px, 4px 4px;
+	background-repeat: no-repeat;
+	text-overflow: ellipsis;
+}

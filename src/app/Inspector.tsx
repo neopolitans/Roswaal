@@ -80,7 +80,12 @@ export function Inspector({ script, registry, selection }: InspectorProps) {
 						hint="Whatever the signal passes to its listener."
 					/>
 				)}
-				{def.id === "flow.sequence" && <SequenceEditor node={node} />}
+				{def.id === "flow.sequence" && (
+					<CountEditor node={node} field="count" label="Outputs" min={2} max={12} fallback={2} />
+				)}
+				{(def.id === "call.function" || def.id === "call.method") && (
+					<CountEditor node={node} field="args" label="Arguments" min={0} max={8} fallback={1} />
+				)}
 				{(def.id === "variable.get" || def.id === "variable.set") && (
 					<VariablePicker script={script} node={node} />
 				)}
@@ -169,21 +174,32 @@ function FunctionPicker({ script, node }: { script: NodeScript; node: GraphNode 
 	);
 }
 
-function SequenceEditor({ node }: { node: GraphNode }) {
-	const count = Number((node.config ?? {}).count ?? 2);
+interface CountEditorProps {
+	node: GraphNode;
+	field: string;
+	label: string;
+	min: number;
+	max: number;
+	fallback: number;
+}
+
+/** A numeric config field that changes how many pins a node has. */
+function CountEditor({ node, field, label, min, max, fallback }: CountEditorProps) {
+	const value = Number((node.config ?? {})[field] ?? fallback);
 	return (
-		<Field label="Outputs">
+		<Field label={label}>
 			<input
 				className="tb"
 				type="number"
-				min={2}
-				max={12}
-				value={count}
-				onChange={(e) =>
+				min={min}
+				max={max}
+				value={value}
+				onChange={(e) => {
+					const next = Math.max(min, Math.min(max, Number(e.target.value)));
 					store.edit((s) =>
-						setConfig(s, node.id, { count: Math.max(2, Math.min(12, Number(e.target.value) || 2)) }),
-					)
-				}
+						setConfig(s, node.id, { [field]: Number.isFinite(next) ? next : fallback }),
+					);
+				}}
 			/>
 		</Field>
 	);

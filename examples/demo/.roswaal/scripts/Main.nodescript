@@ -6,12 +6,54 @@
   "scriptClass": "Script",
   "target": "roblox",
   "strict": true,
+  "variables": [
+    {
+      "id": "v-joined",
+      "name": "playersJoined",
+      "type": "number",
+      "default": {
+        "t": "number",
+        "v": 0
+      },
+      "description": "How many players have joined since the server started."
+    }
+  ],
   "nodes": [
+    {
+      "id": "start",
+      "def": "script.begin",
+      "x": 80,
+      "y": 200
+    },
+    {
+      "id": "svc",
+      "def": "roblox.getService",
+      "x": 80,
+      "y": 400,
+      "literals": {
+        "service": {
+          "t": "string",
+          "v": "Players"
+        }
+      }
+    },
+    {
+      "id": "signal",
+      "def": "roblox.getEvent",
+      "x": 340,
+      "y": 400,
+      "literals": {
+        "event": {
+          "t": "string",
+          "v": "PlayerAdded"
+        }
+      }
+    },
     {
       "id": "conn",
       "def": "event.connect",
-      "x": 674.29,
-      "y": 141.9,
+      "x": 640,
+      "y": 200,
       "config": {
         "params": [
           {
@@ -22,22 +64,42 @@
       }
     },
     {
-      "id": "greeting",
-      "def": "string.concat",
-      "x": 934.29,
-      "y": 361.9,
+      "id": "greeterModule",
+      "def": "module.requirePath",
+      "x": 340,
+      "y": 620,
       "literals": {
-        "a": {
+        "root": {
           "t": "string",
-          "v": "Welcome, "
+          "v": "ReplicatedStorage"
+        },
+        "path": {
+          "t": "string",
+          "v": "Shared.Greeter"
+        },
+        "as": {
+          "t": "string",
+          "v": ""
+        }
+      }
+    },
+    {
+      "id": "greetFn",
+      "def": "value.field",
+      "x": 640,
+      "y": 620,
+      "literals": {
+        "field": {
+          "t": "string",
+          "v": "greet"
         }
       }
     },
     {
       "id": "pname",
       "def": "roblox.getProperty",
-      "x": 674.29,
-      "y": 361.9,
+      "x": 640,
+      "y": 480,
       "literals": {
         "property": {
           "t": "string",
@@ -46,38 +108,51 @@
       }
     },
     {
-      "id": "say",
-      "def": "debug.print",
-      "x": 994.29,
-      "y": 181.9
-    },
-    {
-      "id": "signal",
-      "def": "roblox.getProperty",
-      "x": 374.29,
-      "y": 321.9,
-      "literals": {
-        "property": {
-          "t": "string",
-          "v": "PlayerAdded"
-        }
+      "id": "greet",
+      "def": "call.function",
+      "x": 960,
+      "y": 240,
+      "config": {
+        "args": 1
       }
     },
     {
-      "id": "start",
-      "def": "script.begin",
-      "x": 75.24,
-      "y": 141.9
+      "id": "say",
+      "def": "debug.print",
+      "x": 1240,
+      "y": 240
     },
     {
-      "id": "svc",
-      "def": "roblox.getService",
-      "x": 374.29,
-      "y": 141.9,
+      "id": "countUp",
+      "def": "variable.set",
+      "x": 1240,
+      "y": 380,
+      "config": {
+        "variable": "v-joined",
+        "name": "playersJoined",
+        "type": "number"
+      }
+    },
+    {
+      "id": "count",
+      "def": "variable.get",
+      "x": 960,
+      "y": 480,
+      "config": {
+        "variable": "v-joined",
+        "name": "playersJoined",
+        "type": "number"
+      }
+    },
+    {
+      "id": "increment",
+      "def": "math.add",
+      "x": 960,
+      "y": 560,
       "literals": {
-        "service": {
-          "t": "string",
-          "v": "Players"
+        "b": {
+          "t": "number",
+          "v": 1
         }
       }
     }
@@ -95,7 +170,7 @@
       }
     },
     {
-      "id": "l3",
+      "id": "l2",
       "from": {
         "node": "svc",
         "pin": "service"
@@ -106,7 +181,7 @@
       }
     },
     {
-      "id": "l4",
+      "id": "l3",
       "from": {
         "node": "signal",
         "pin": "result"
@@ -117,18 +192,18 @@
       }
     },
     {
-      "id": "l5",
+      "id": "l4",
       "from": {
         "node": "conn",
         "pin": "body"
       },
       "to": {
-        "node": "say",
+        "node": "greet",
         "pin": "in"
       }
     },
     {
-      "id": "l6",
+      "id": "l5",
       "from": {
         "node": "conn",
         "pin": "p0"
@@ -139,24 +214,90 @@
       }
     },
     {
+      "id": "l6",
+      "from": {
+        "node": "greeterModule",
+        "pin": "exports"
+      },
+      "to": {
+        "node": "greetFn",
+        "pin": "object"
+      }
+    },
+    {
       "id": "l7",
       "from": {
-        "node": "pname",
+        "node": "greetFn",
         "pin": "result"
       },
       "to": {
-        "node": "greeting",
-        "pin": "b"
+        "node": "greet",
+        "pin": "fn"
       }
     },
     {
       "id": "l8",
       "from": {
-        "node": "greeting",
+        "node": "pname",
+        "pin": "result"
+      },
+      "to": {
+        "node": "greet",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "l9",
+      "from": {
+        "node": "greet",
+        "pin": "then"
+      },
+      "to": {
+        "node": "say",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l10",
+      "from": {
+        "node": "greet",
         "pin": "result"
       },
       "to": {
         "node": "say",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "l11",
+      "from": {
+        "node": "say",
+        "pin": "then"
+      },
+      "to": {
+        "node": "countUp",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l12",
+      "from": {
+        "node": "count",
+        "pin": "value"
+      },
+      "to": {
+        "node": "increment",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "l13",
+      "from": {
+        "node": "increment",
+        "pin": "result"
+      },
+      "to": {
+        "node": "countUp",
         "pin": "value"
       }
     }
@@ -164,12 +305,21 @@
   "comments": [
     {
       "id": "c1",
-      "x": 334.29,
-      "y": 61.9,
-      "w": 900,
+      "x": 590,
+      "y": 130,
+      "w": 810,
       "h": 260,
       "text": "Greet every player who joins",
       "color": "5f8f6a"
+    },
+    {
+      "id": "c2",
+      "x": 300,
+      "y": 560,
+      "w": 500,
+      "h": 140,
+      "text": "Shared module, required once at the top",
+      "color": "6a8fbf"
     }
   ]
 }

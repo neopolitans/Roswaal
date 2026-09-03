@@ -12,6 +12,7 @@
  * when the project is reorganised.
  */
 
+import { ROBLOX_SERVICES } from "./roblox.js";
 import { SCHEMA_VERSION } from "./schema.js";
 
 /** Instances Rojo will create for us, beyond the services it already knows. */
@@ -20,14 +21,10 @@ export const CONTAINER_CLASSES = [
 ] as const;
 
 /**
- * Services that can sit directly under a DataModel. Not exhaustive — any name
- * is accepted — but this is what the editor offers.
+ * Services that can sit directly under a DataModel. Shared with the Get Service
+ * dropdown, so the two never disagree about what a service is.
  */
-export const COMMON_SERVICES = [
-	"ReplicatedStorage", "ServerScriptService", "ServerStorage", "StarterGui",
-	"StarterPlayer", "StarterPack", "Workspace", "Lighting", "SoundService",
-	"ReplicatedFirst", "Chat", "Teams", "TestService",
-] as const;
+export const COMMON_SERVICES = ROBLOX_SERVICES;
 
 export interface MapNode {
 	id: string;
@@ -173,6 +170,10 @@ function buildTree(node: MapNode, isRoot: boolean): RojoNode {
 	return out;
 }
 
+/**
+ * A node with no class is a service: Rojo infers the class from the key, and
+ * saying it again is something Rojo rejects.
+ */
 function isService(node: MapNode): boolean {
 	return node.className === undefined || node.className === "";
 }

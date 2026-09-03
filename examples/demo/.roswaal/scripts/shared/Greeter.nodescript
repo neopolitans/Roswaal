@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "kind": "script",
+  "id": "demo-greeter",
+  "name": "Greeter",
+  "scriptClass": "ModuleScript",
+  "target": "roblox",
+  "strict": true,
+  "variables": [
+    {
+      "id": "29751969-1b75-45e4-902e-01a6804c8284",
+      "name": "Accumulator",
+      "type": "number",
+      "default": {
+        "t": "number",
+        "v": 0
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "091a4b93-e238-446a-a258-c4fd3407507e",
+      "def": "math.add",
+      "x": 417.23,
+      "y": -128.29
+    },
+    {
+      "id": "271c0d44-4765-4974-868f-d8d1d44bad65",
+      "def": "module.require",
+      "x": 574.14,
+      "y": 445.67
+    },
+    {
+      "id": "2d5f6dbe-0ae5-49ad-bfb6-a4cb624995ae",
+      "def": "function.return",
+      "x": 1011.09,
+      "y": -199.3,
+      "config": {
+        "returns": []
+      }
+    },
+    {
+      "id": "3c8a9fb6-5950-4dc2-b6c1-e4124541bf6c",
+      "def": "roblox.getService",
+      "x": -45.71,
+      "y": 445.48,
+      "literals": {
+        "service": {
+          "t": "string",
+          "v": "ReplicatedStorage"
+        }
+      }
+    },
+    {
+      "id": "9f7806fd-3992-4c4f-8e8b-73eb443b9782",
+      "def": "variable.set",
+      "x": 708.33,
+      "y": -210.78,
+      "config": {
+        "name": "Accumulator",
+        "type": "number",
+        "variable": "29751969-1b75-45e4-902e-01a6804c8284"
+      }
+    },
+    {
+      "id": "a0e48503-7ed3-4988-a0a1-c7f15666bbb2",
+      "def": "variable.get",
+      "x": 207.24,
+      "y": -53.19,
+      "config": {
+        "name": "Accumulator",
+        "type": "number",
+        "variable": "29751969-1b75-45e4-902e-01a6804c8284"
+      }
+    },
+    {
+      "id": "a17d2f2d-90fc-4ad7-8260-2302e0aad281",
+      "def": "function.entry",
+      "x": 112.18,
+      "y": -213.06,
+      "label": "Accumulator",
+      "config": {
+        "name": "Adder",
+        "params": [
+          {
+            "name": "A",
+            "type": "number"
+          }
+        ],
+        "returns": [
+          {
+            "name": "result",
+            "type": "any"
+          }
+        ]
+      }
+    },
+    {
+      "id": "concat",
+      "def": "string.concat",
+      "x": 400,
+      "y": 300,
+      "literals": {
+        "a": {
+          "t": "string",
+          "v": "Hello, "
+        }
+      }
+    },
+    {
+      "id": "exports",
+      "def": "module.exports",
+      "x": 1070.5,
+      "y": 159.24,
+      "config": {
+        "exports": [
+          {
+            "name": "greet",
+            "type": "function"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fn",
+      "def": "function.entry",
+      "x": 95.27,
+      "y": 127.32,
+      "config": {
+        "name": "greet",
+        "params": [
+          {
+            "name": "who",
+            "type": "string"
+          }
+        ],
+        "returns": [
+          {
+            "name": "message",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ret",
+      "def": "function.return",
+      "x": 700,
+      "y": 140,
+      "config": {
+        "returns": [
+          {
+            "name": "message",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "11243744-db4a-45b3-bc82-622235c85eb8",
+      "from": {
+        "node": "a17d2f2d-90fc-4ad7-8260-2302e0aad281",
+        "pin": "p0"
+      },
+      "to": {
+        "node": "091a4b93-e238-446a-a258-c4fd3407507e",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "4b720e5e-a60f-46c9-b7e8-794e40e66b30",
+      "from": {
+        "node": "fn",
+        "pin": "self"
+      },
+      "to": {
+        "node": "exports",
+        "pin": "e0"
+      }
+    },
+    {
+      "id": "4c022a62-75b1-4599-87ff-d557c68bc7a1",
+      "from": {
+        "node": "a0e48503-7ed3-4988-a0a1-c7f15666bbb2",
+        "pin": "value"
+      },
+      "to": {
+        "node": "091a4b93-e238-446a-a258-c4fd3407507e",
+        "pin": "b"
+      }
+    },
+    {
+      "id": "ae19f7d7-90cf-4fb2-9516-2ba19411902f",
+      "from": {
+        "node": "9f7806fd-3992-4c4f-8e8b-73eb443b9782",
+        "pin": "then"
+      },
+      "to": {
+        "node": "2d5f6dbe-0ae5-49ad-bfb6-a4cb624995ae",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "d278e4d8-6785-4330-bcb1-ee1d356ac769",
+      "from": {
+        "node": "091a4b93-e238-446a-a258-c4fd3407507e",
+        "pin": "result"
+      },
+      "to": {
+        "node": "9f7806fd-3992-4c4f-8e8b-73eb443b9782",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "ec81dfa5-cf7d-4a35-9515-d156d0292ab0",
+      "from": {
+        "node": "a17d2f2d-90fc-4ad7-8260-2302e0aad281",
+        "pin": "then"
+      },
+      "to": {
+        "node": "9f7806fd-3992-4c4f-8e8b-73eb443b9782",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "g1",
+      "from": {
+        "node": "fn",
+        "pin": "then"
+      },
+      "to": {
+        "node": "ret",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "g2",
+      "from": {
+        "node": "fn",
+        "pin": "p0"
+      },
+      "to": {
+        "node": "concat",
+        "pin": "b"
+      }
+    },
+    {
+      "id": "g3",
+      "from": {
+        "node": "concat",
+        "pin": "result"
+      },
+      "to": {
+        "node": "ret",
+        "pin": "r0"
+      }
+    }
+  ],
+  "comments": []
+}
