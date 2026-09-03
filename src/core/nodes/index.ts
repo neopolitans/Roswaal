@@ -5,7 +5,7 @@ import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES } from "./library.js";
 import { VARIABLE_NODES } from "./variables.js";
 
-export { FLOW_NODES, signatureText } from "./flow.js";
+export { FLOW_NODES, continuesEnclosingBlock, signatureText } from "./flow.js";
 export { LIBRARY_NODES } from "./library.js";
 export { VARIABLE_NODES } from "./variables.js";
 export type { Signature } from "./flow.js";

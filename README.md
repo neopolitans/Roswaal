@@ -387,8 +387,10 @@ verbatim. Clicking the code preview on the node opens a pop-out editor with:
   modules it requires, and the locals declared by Custom Code blocks that run
   before this one. Those are invisible from inside the box otherwise, which is
   how a Custom Code node ends up referring to something that is not there.
-  Scope is worked out by walking execution wires backwards, so a local declared
-  in a sibling branch arm is correctly *not* offered.
+  Scope is worked out by walking execution wires backwards, and it respects
+  Luau's blocks: a local declared inside a loop body, a branch arm or a Connect
+  handler dies at its `end` and is not offered outside it, while an outer local
+  *is* offered inside one, because that is an upvalue.
 - **Errors marked three ways**, because each answers a different question at a
   different distance: a gutter marker says there is a problem, a wash across the
   line says which line, and a squiggle with a tooltip says what.

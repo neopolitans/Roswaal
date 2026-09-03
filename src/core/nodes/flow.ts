@@ -36,6 +36,37 @@ export function signatureText(sig: Signature): string {
 	return `(${params}) → ${result}`;
 }
 
+/**
+ * Whether an execution output carries on in the *same* Luau block as the
+ * node's input, rather than opening a nested one.
+ *
+ * This is the emitter's block structure stated as data. Anything that opens a
+ * block — a loop body, a branch arm, a connect handler — holds locals that do
+ * not survive its `end`, so nothing outside may assume they exist. Sequence is
+ * the odd one out: all of its outputs run into the one block, which is why a
+ * local under Then 0 really is in scope under Then 1.
+ */
+export function continuesEnclosingBlock(defId: string, pinId: string): boolean {
+	switch (defId) {
+		// Both arms open a block, and nothing follows the if-statement itself.
+		case "flow.branch":
+			return false;
+		case "flow.forRange":
+		case "flow.forEach":
+		case "flow.forIndex":
+		case "flow.while":
+			return pinId === "completed";
+		case "event.connect":
+			return pinId === "then";
+		// A function body is its own scope and has no enclosing block here.
+		case "function.entry":
+			return false;
+		default:
+			// A plain statement's "then", and every output of a Sequence.
+			return true;
+	}
+}
+
 export const FLOW_NODES: NodeDef[] = [
 	{
 		id: "script.begin",

@@ -11,7 +11,7 @@
 
 import type { CompletionContext, CompletionResult, Completion } from "@codemirror/autocomplete";
 import type { NodeScript } from "../core/schema.js";
-import type { Registry } from "../core/nodes/index.js";
+import { continuesEnclosingBlock, type Registry } from "../core/nodes/index.js";
 import { toIdentifier } from "../core/compiler/luau.js";
 import { collectLocalNames } from "../core/luauLocals.js";
 import { lastSegment } from "../core/roblox.js";
@@ -203,19 +203,30 @@ export function precedingLocals(
 		}
 	};
 
-	/** Everything reachable forwards from an execution output, in this block. */
+	/**
+	 * Everything reachable forwards from an execution output *without leaving
+	 * this block*. A loop body, a branch arm and a connect handler are all
+	 * nested blocks: their locals die at the matching `end`, so following those
+	 * outputs would offer names that are not in scope where you are typing.
+	 */
 	const walkForward = (fromNode: string, fromPin: string) => {
 		const queue = script.links
 			.filter((l) => l.from.node === fromNode && l.from.pin === fromPin)
 			.map((l) => l.to.node);
+
 		while (queue.length) {
 			const id = queue.pop()!;
 			if (visited.has(id)) continue;
 			visited.add(id);
 			collectFrom(id);
+
+			const node = script.nodes.find((n) => n.id === id);
+			if (!node) continue;
+
 			for (const link of script.links) {
 				if (link.from.node !== id) continue;
 				if (!isExecPin(script, registry, id, link.from.pin, "out")) continue;
+				if (!continuesEnclosingBlock(node.def, link.from.pin)) continue;
 				queue.push(link.to.node);
 			}
 		}
