@@ -1,10 +1,9 @@
 /**
  * The Roswaal daemon.
  *
- * It owns the filesystem and the compiler; the editor is a client. Keeping the
- * split here means hot reloading later is a file watcher calling the same
- * compileScript() the manual button already calls, rather than a second code
- * path.
+ * It owns the filesystem and the compiler; the editor is a client. That split
+ * is what lets hot reload be a file watcher calling the same compileScript()
+ * the manual button calls, rather than a second code path that can drift.
  */
 
 import cors from "cors";
@@ -16,6 +15,8 @@ import {
 	openProject, readScript, readText, writeConfig, writeScript,
 	type OpenProject,
 } from "./project.js";
+import { streamEvents } from "./events.js";
+import { HotReloader } from "./watcher.js";
 import { emptyScript, type NodeScript, type RoswaalConfig } from "../core/schema.js";
 
 const PORT = Number(process.env.ROSWAAL_PORT ?? 4471);
@@ -29,6 +30,14 @@ app.use(express.json({ limit: "32mb" }));
  * repository, so a session registry would be ceremony without a purpose.
  */
 let current: OpenProject | null = null;
+
+const hot = new HotReloader();
+
+/** Starts or stops the watcher to match the project's compile mode. */
+function syncHotReload(): void {
+	if (current?.config.compileMode === "hot") hot.start(current);
+	else hot.stop();
+}
 
 function project(): OpenProject {
 	if (!current) throw new HttpError(409, "No project is open. Open one first.");
@@ -74,6 +83,7 @@ app.post("/api/project/open", route(async (req) => {
 	const root = String((req.body as { root?: string }).root ?? "");
 	if (!root) throw new HttpError(400, "Provide a project root.");
 	current = await openProject(root);
+	syncHotReload();
 	return {
 		root: current.root,
 		config: current.config,
@@ -87,6 +97,7 @@ app.post("/api/project/init", route(async (req) => {
 	if (!root) throw new HttpError(400, "Provide a project root.");
 	await initProject(root);
 	current = await openProject(root);
+	syncHotReload();
 	return {
 		root: current.root,
 		config: current.config,
@@ -100,6 +111,7 @@ app.put("/api/project/config", route(async (req) => {
 	const config = req.body as RoswaalConfig;
 	await writeConfig(p.root, config);
 	current = await openProject(p.root);
+	syncHotReload();
 	return { config: current.config };
 }));
 
@@ -184,6 +196,16 @@ app.post("/api/compile", route(async (req) => {
 		: await compileAll(p, { write, force });
 	return { results };
 }));
+
+// ---------------------------------------------------------------------------
+// Hot reload
+// ---------------------------------------------------------------------------
+
+app.get("/api/events", (req, res) => streamEvents(hot, req, res));
+
+app.get("/api/hot/status", (_req, res) => {
+	res.json({ running: hot.running, mode: current?.config.compileMode ?? null });
+});
 
 app.listen(PORT, () => {
 	// eslint-disable-next-line no-console

@@ -17,7 +17,9 @@ import { Canvas } from "./Canvas.jsx";
 import { NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
-import { addComment, addNode, deleteSelection } from "./edits.js";
+import {
+	addComment, addNode, copySelection, deleteSelection, pasteClipping, type Clipping,
+} from "./edits.js";
 import { store, useEditor } from "./store.js";
 
 const LAST_PROJECT_KEY = "roswaal.lastProject";
@@ -34,6 +36,9 @@ export function App() {
 	const [statusOpen, setStatusOpen] = useState(true);
 	const [source, setSource] = useState<{ path: string; text: string } | null>(null);
 	const [busy, setBusy] = useState<string | null>(null);
+	// Deliberately in-memory rather than the system clipboard: a graph fragment
+	// is not text, and round-tripping it through one would lose pin identity.
+	const clipboard = useRef<Clipping | null>(null);
 
 	const registry = useMemo(() => createRegistry(customNodes), [customNodes]);
 
@@ -62,6 +67,21 @@ export function App() {
 		const last = localStorage.getItem(LAST_PROJECT_KEY);
 		if (last) void loadProject(last);
 	}, [loadProject]);
+
+	// Hot reload events, so a compile triggered by a branch switch or another
+	// editor shows up here rather than leaving the tree stale.
+	useEffect(() => {
+		if (!project || project.config.compileMode !== "hot") return;
+		const stream = new EventSource("/api/events");
+		stream.addEventListener("hot", (event) => {
+			const detail = JSON.parse((event as MessageEvent).data) as {
+				type: string; path: string; outcome?: CompileOutcome; message?: string;
+			};
+			if (detail.outcome) setOutcomes([detail.outcome]);
+			void api.tree().then(({ tree }) => setProject((p) => (p ? { ...p, tree } : p)));
+		});
+		return () => stream.close();
+	}, [project?.root, project?.config.compileMode]);
 
 	const refreshTree = useCallback(async () => {
 		const { tree } = await api.tree();
@@ -191,6 +211,40 @@ export function App() {
 				if (s) store.select([...s.nodes.map((n) => n.id), ...s.comments.map((c) => c.id)]);
 				return;
 			}
+			if (mod && (e.key.toLowerCase() === "c" || e.key.toLowerCase() === "x")) {
+				const state = store.getSnapshot();
+				if (!state.script || state.selection.size === 0) return;
+				e.preventDefault();
+				clipboard.current = copySelection(state.script, state.selection);
+				if (e.key.toLowerCase() === "x") {
+					const ids = state.selection;
+					store.edit((s) => deleteSelection(s, ids));
+				}
+				return;
+			}
+			if (mod && e.key.toLowerCase() === "v") {
+				const clip = clipboard.current;
+				if (!clip) return;
+				e.preventDefault();
+				store.edit((s) => {
+					const { script, ids } = pasteClipping(s, clip);
+					queueMicrotask(() => store.select(ids));
+					return script;
+				});
+				return;
+			}
+			if (mod && e.key.toLowerCase() === "d") {
+				const state = store.getSnapshot();
+				if (!state.script || state.selection.size === 0) return;
+				e.preventDefault();
+				const clip = copySelection(state.script, state.selection);
+				store.edit((s) => {
+					const { script, ids } = pasteClipping(s, clip);
+					queueMicrotask(() => store.select(ids));
+					return script;
+				});
+				return;
+			}
 			if (e.key === "Delete" || e.key === "Backspace") {
 				e.preventDefault();
 				const ids = store.getSnapshot().selection;
@@ -219,6 +273,20 @@ export function App() {
 			<div className="toolbar">
 				<span className="brand">ROSWAAL</span>
 				<button className="tb" onClick={() => void refreshTree()}>Refresh</button>
+				<button
+					className="tb"
+					disabled={!editor.script}
+					title="Add a node at the centre of the view"
+					onClick={() => {
+						const view = store.getSnapshot().view;
+						setMenu({
+							screen: { x: 320, y: 120 },
+							world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
+						});
+					}}
+				>
+					Add node
+				</button>
 				<button
 					className="tb"
 					onClick={async () => {

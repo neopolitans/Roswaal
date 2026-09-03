@@ -7,7 +7,7 @@
  */
 
 import type {
-	Comment, GraphNode, Literal, NodeDef, NodeScript, PinRef,
+	Comment, GraphNode, Link, Literal, NodeDef, NodeScript, PinRef,
 } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { nodeBounds, rectContains, type Rect } from "./geometry.js";
@@ -271,4 +271,68 @@ export function commentContents(
  */
 export function commentsByArea(comments: Comment[]): Comment[] {
 	return [...comments].sort((a, b) => b.w * b.h - a.w * a.h);
+}
+
+// ---------------------------------------------------------------------------
+// Clipboard
+// ---------------------------------------------------------------------------
+
+export interface Clipping {
+	nodes: GraphNode[];
+	links: Link[];
+	comments: Comment[];
+}
+
+/**
+ * Copies a selection, keeping only the wires with both ends inside it. A wire
+ * to something that was not copied has nothing to reconnect to on paste.
+ */
+export function copySelection(script: NodeScript, ids: ReadonlySet<string>): Clipping {
+	const nodes = script.nodes.filter((n) => ids.has(n.id));
+	const inside = new Set(nodes.map((n) => n.id));
+	return {
+		nodes: nodes.map((n) => ({ ...n })),
+		links: script.links.filter((l) => inside.has(l.from.node) && inside.has(l.to.node)),
+		comments: script.comments.filter((c) => ids.has(c.id)).map((c) => ({ ...c })),
+	};
+}
+
+/**
+ * Pastes a clipping with fresh ids, offset so it does not land exactly on top
+ * of whatever it was copied from.
+ */
+export function pasteClipping(
+	script: NodeScript, clip: Clipping, offset = 32,
+): { script: NodeScript; ids: string[] } {
+	const remap = new Map<string, string>();
+	for (const node of clip.nodes) remap.set(node.id, newId());
+	for (const comment of clip.comments) remap.set(comment.id, newId());
+
+	const nodes = clip.nodes.map((n) => ({
+		...n,
+		id: remap.get(n.id)!,
+		x: n.x + offset,
+		y: n.y + offset,
+	}));
+	const links = clip.links.map((l) => ({
+		id: newId(),
+		from: { node: remap.get(l.from.node)!, pin: l.from.pin },
+		to: { node: remap.get(l.to.node)!, pin: l.to.pin },
+	}));
+	const comments = clip.comments.map((c) => ({
+		...c,
+		id: remap.get(c.id)!,
+		x: c.x + offset,
+		y: c.y + offset,
+	}));
+
+	return {
+		script: {
+			...script,
+			nodes: [...script.nodes, ...nodes],
+			links: [...script.links, ...links],
+			comments: [...script.comments, ...comments],
+		},
+		ids: [...remap.values()],
+	};
 }
