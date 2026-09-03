@@ -1792,3 +1792,72 @@ button.tb.with-icon {
 	line-height: 1.5;
 	color: var(--fg-faint);
 }
+
+/* Extra token colours the Luau mode distinguishes. */
+:root {
+	--code-global: #2c6f8f;
+	--code-function: #7a5a2f;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--code-global: #7fc4d6;
+		--code-function: #d9b06c;
+	}
+}
+
+/* Lint squiggles and the completion popup, themed with the rest of the app. */
+.code-body .cm-lintRange-error {
+	background: none;
+	border-bottom: 2px wavy var(--danger);
+}
+
+.code-body .cm-diagnostic {
+	border-left-color: var(--danger);
+	background: var(--bg-panel);
+	color: var(--fg);
+	font-family: inherit;
+}
+
+.code-body .cm-tooltip {
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 6px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+	color: var(--fg);
+}
+
+.code-body .cm-tooltip-autocomplete > ul > li {
+	padding: 3px 8px;
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: 11px;
+}
+
+.code-body .cm-tooltip-autocomplete > ul > li[aria-selected] {
+	background: var(--accent);
+	color: #fff;
+}
+
+.code-body .cm-completionDetail {
+	margin-left: 10px;
+	font-style: normal;
+	opacity: 0.7;
+	font-size: 10px;
+}
+
+.code-body .cm-lint-marker-error {
+	content: none;
+}
+
+/* A wash across any line carrying a problem, so the bad line is findable
+   without reading the gutter. Kept faint: it marks the line, it does not
+   compete with the squiggle for attention. */
+.code-body .cm-errorLine {
+	background: color-mix(in srgb, var(--danger) 11%, transparent);
+	box-shadow: inset 2px 0 0 color-mix(in srgb, var(--danger) 65%, transparent);
+}
+
+/* The active line still reads as active when it is also the broken one. */
+.code-body .cm-errorLine.cm-activeLine {
+	background: color-mix(in srgb, var(--danger) 17%, transparent);
+}

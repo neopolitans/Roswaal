@@ -14,6 +14,9 @@
 export interface BalanceProblem {
 	message: string;
 	line: number;
+	/** Character offsets into the source, so an editor can underline it. */
+	from: number;
+	to: number;
 }
 
 /** Keywords that open a block, and the count each contributes. */
@@ -22,8 +25,15 @@ const CLOSERS = new Set(["end", "until"]);
 
 export function checkLuauBalance(source: string): BalanceProblem[] {
 	const problems: BalanceProblem[] = [];
-	const brackets: { char: string; line: number }[] = [];
-	let blocks = 0;
+	const brackets: { char: string; line: number; at: number }[] = [];
+
+	/** Marks a span, clamped so an empty range still shows a caret. */
+	const span = (start: number, end: number) => ({
+		from: Math.max(0, start),
+		to: Math.max(start + 1, Math.min(end, source.length)),
+	});
+	/** Open block keywords, so an unclosed one can be reported where it is. */
+	const blocks: { word: string; line: number; at: number }[] = [];
 	let pendingElseif = false;
 	let line = 1;
 	let i = 0;
@@ -41,6 +51,7 @@ export function checkLuauBalance(source: string): BalanceProblem[] {
 
 		// Comments. A long comment is skipped whole; a line comment to the end.
 		if (c === "-" && source[i + 1] === "-") {
+			const start = i;
 			i += 2;
 			if (source[i] === "[" && source[i + 1] === "[") {
 				i += 2;
@@ -49,7 +60,11 @@ export function checkLuauBalance(source: string): BalanceProblem[] {
 					i++;
 				}
 				if (i >= source.length) {
-					problems.push({ message: "This block comment is never closed.", line });
+					problems.push({
+						message: "This block comment is never closed.",
+						line,
+						...span(start, source.length),
+					});
 					return problems;
 				}
 				i += 2;
@@ -62,13 +77,18 @@ export function checkLuauBalance(source: string): BalanceProblem[] {
 		// Long strings share the bracket syntax but are not brackets.
 		if (c === "[" && source[i + 1] === "[") {
 			const startLine = line;
+			const start = i;
 			i += 2;
 			while (i < source.length && !(source[i] === "]" && source[i + 1] === "]")) {
 				if (source[i] === "\n") line++;
 				i++;
 			}
 			if (i >= source.length) {
-				problems.push({ message: "This long string is never closed.", line: startLine });
+				problems.push({
+					message: "This long string is never closed.",
+					line: startLine,
+					...span(start, source.length),
+				});
 				return problems;
 			}
 			i += 2;
@@ -77,6 +97,7 @@ export function checkLuauBalance(source: string): BalanceProblem[] {
 
 		if (c === '"' || c === "'") {
 			const startLine = line;
+			const start = i;
 			i++;
 			let closed = false;
 			while (i < source.length) {
@@ -93,25 +114,34 @@ export function checkLuauBalance(source: string): BalanceProblem[] {
 				i++;
 			}
 			if (!closed) {
-				problems.push({ message: "This string is never closed.", line: startLine });
+				problems.push({
+					message: "This string is never closed.",
+					line: startLine,
+					...span(start, i),
+				});
 				return problems;
 			}
 			continue;
 		}
 
 		if (c === "(" || c === "[" || c === "{") {
-			brackets.push({ char: c, line });
+			brackets.push({ char: c, line, at: i });
 			i++;
 			continue;
 		}
 		if (c === ")" || c === "]" || c === "}") {
 			const open = brackets.pop();
 			if (!open) {
-				problems.push({ message: `There is a "${c}" with nothing it closes.`, line });
+				problems.push({
+					message: `There is a "${c}" with nothing it closes.`,
+					line,
+					...span(i, i + 1),
+				});
 			} else if (open.char !== pairs[c]) {
 				problems.push({
 					message: `A "${open.char}" opened on line ${open.line} is closed by "${c}".`,
 					line,
+					...span(i, i + 1),
 				});
 			}
 			i++;
@@ -133,11 +163,18 @@ export function checkLuauBalance(source: string): BalanceProblem[] {
 				pendingElseif = false;
 				continue;
 			}
-			if (OPENERS.has(word)) blocks++;
-			else if (CLOSERS.has(word)) blocks--;
-			if (blocks < 0) {
-				problems.push({ message: `There is an "${word}" with no matching block.`, line });
-				blocks = 0;
+			if (OPENERS.has(word)) {
+				blocks.push({ word, line, at: start });
+			} else if (CLOSERS.has(word)) {
+				if (blocks.length === 0) {
+					problems.push({
+						message: `There is an "${word}" with no matching block.`,
+						line,
+						...span(start, i),
+					});
+				} else {
+					blocks.pop();
+				}
 			}
 			continue;
 		}
@@ -146,12 +183,20 @@ export function checkLuauBalance(source: string): BalanceProblem[] {
 	}
 
 	for (const open of brackets) {
-		problems.push({ message: `A "${open.char}" is never closed.`, line: open.line });
-	}
-	if (blocks > 0) {
 		problems.push({
-			message: `${blocks} block${blocks === 1 ? " is" : "s are"} never closed with "end".`,
-			line,
+			message: `A "${open.char}" is never closed.`,
+			line: open.line,
+			...span(open.at, open.at + 1),
+		});
+	}
+	// Reported at the keyword that opened the block, not at the end of the
+	// file. "This `if` is never closed" is a place you can go and look at.
+	for (const open of blocks) {
+		const closer = open.word === "repeat" ? "until" : "end";
+		problems.push({
+			message: `This "${open.word}" is never closed with "${closer}".`,
+			line: open.line,
+			...span(open.at, open.at + open.word.length),
 		});
 	}
 	return problems;

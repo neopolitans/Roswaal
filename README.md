@@ -377,11 +377,23 @@ what keeps the template language honest.
 ## Hand-written Luau
 
 **Custom Code** and **Luau Expression** nodes hold code that is emitted
-verbatim. They open a pop-out editor with syntax highlighting, line numbers and
-a structural check that runs as you type — brackets, strings, comments and
-block keywords — because an unclosed string in a small box otherwise breaks the
-generated file somewhere you never wrote. The same check runs on every compile
-and reports against the node holding the code.
+verbatim. Clicking the code preview on the node opens a pop-out editor with:
+
+- **Luau highlighting**, not Lua's. `continue`, `export type`, compound
+  assignment, integer division and backtick interpolation all colour correctly,
+  and Luau's own globals are tinted apart from names you chose.
+- **Completion** over Luau's globals and libraries *and* the names this graph
+  puts in scope — its variables, its functions, the services it hoists, the
+  modules it requires. Those are invisible from inside the box otherwise, which
+  is how a Custom Code node ends up referring to something that is not there.
+- **Errors marked three ways**, because each answers a different question at a
+  different distance: a gutter marker says there is a problem, a wash across the
+  line says which line, and a squiggle with a tooltip says what.
+
+The check is the same one that runs on every compile, so the editor cannot
+disagree with the build. It reports against the node holding the code, because
+an unclosed string in a small box otherwise breaks the generated file somewhere
+you never wrote.
 
 ## Controls
 

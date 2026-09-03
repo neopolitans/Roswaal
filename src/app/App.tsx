@@ -715,6 +715,7 @@ export function App() {
 					title={codeEdit.pin.name || "Luau"}
 					value={codeEdit.value}
 					hint="Emitted verbatim into the generated file"
+					script={editor.script}
 					onClose={() => setCodeEdit(null)}
 					onCommit={(next) => {
 						store.edit((s) => setLiteral(s, codeEdit.nodeId, codeEdit.pin.id, { t: "raw", v: next }));

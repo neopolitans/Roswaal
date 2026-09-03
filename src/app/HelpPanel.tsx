@@ -121,6 +121,19 @@ function Values() {
 				emitted as code that will not compile.
 			</p>
 
+			<h3>Doing things in order</h3>
+			<p>
+				<b>Sequence</b> runs each of its outputs to completion before starting the
+				next — one execution input, as many outputs as you add. It is how you fan a
+				single step out into several without nesting.
+			</p>
+			<p>
+				A <b>Return</b> ends the block it is in, and Luau will not accept anything
+				after one, so a Sequence output that returns cannot be followed by another.
+				Roswaal says so rather than emitting a file that will not parse. Put the
+				return inside a <b>Branch</b> if the later outputs should still run.
+			</p>
+
 			<h3>Nodes that grow</h3>
 			<p>
 				Add, Multiply, Concatenate, Min and the rest take as many inputs as you want.
@@ -132,9 +145,10 @@ function Values() {
 			<h3>Escaping to Luau</h3>
 			<p>
 				<b>Custom Code</b> and <b>Luau Expression</b> hold code emitted verbatim.
-				Click the code preview on the node to open a proper editor with highlighting
-				and a bracket check. It is the way to wrap code you already have rather than
-				rebuilding it as nodes.
+				Click the code preview on the node for a proper editor: Luau highlighting,
+				completion over both Luau's globals and the names this graph puts in scope,
+				and a structural check that marks a broken line as you type. It is the way
+				to wrap code you already have rather than rebuilding it as nodes.
 			</p>
 		</>
 	);

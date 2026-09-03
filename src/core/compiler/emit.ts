@@ -87,6 +87,15 @@ class Emitter {
 	private diagnostics: Diagnostic[] = [];
 	/** Guards against an exec wire looping back and emitting forever. */
 	private execStack = new Set<string>();
+	/**
+	 * Whether the statement just emitted ends its block.
+	 *
+	 * Luau requires `return`, `break` and `continue` to be the last statement in
+	 * a block, so anything that would follow one is not merely unreachable — it
+	 * does not parse. Tracked here rather than inferred afterwards, because by
+	 * the time the text exists the block structure is gone.
+	 */
+	private terminated = false;
 	/** function.entry node id -> the local it was bound to. */
 	private functionNames = new Map<string, string>();
 	/** ScriptVariable id -> the file-level local it was declared as. */
@@ -371,13 +380,15 @@ class Emitter {
 
 	// -- execution walk ----------------------------------------------------
 
-	private walk(startId: string | undefined, scope: Scope): void {
+	private walk(startId: string | undefined, scope: Scope): boolean {
 		// Nodes stay on the stack for the whole chain, not just their own
 		// emission, so a wire back into an earlier node is caught rather than
 		// emitted forever. Nested walks (branch and loop bodies) see the outer
 		// chain too, which is exactly the check we want there as well.
 		const entered: string[] = [];
 		let current = startId;
+		this.terminated = false;
+
 		while (current) {
 			if (this.execStack.has(current)) {
 				this.error(
@@ -393,9 +404,16 @@ class Emitter {
 			}
 			this.execStack.add(current);
 			entered.push(current);
+			this.terminated = false;
 			current = this.emitNode(resolved, scope);
+			// Nothing may follow a return, break or continue in the same block.
+			if (this.terminated) break;
 		}
+
 		for (const id of entered) this.execStack.delete(id);
+		const ended = this.terminated;
+		this.terminated = false;
+		return ended;
 	}
 
 	/** Emits one node and returns the next node in the chain, if any. */
@@ -471,6 +489,7 @@ class Emitter {
 				return this.index.execTarget(id, "then");
 
 			case "script.end":
+				this.terminated = true;
 				return undefined;
 
 			case "function.entry":
@@ -484,6 +503,7 @@ class Emitter {
 				const values = r.inputs.filter((p) => p.kind === "data");
 				const parts = values.map((p) => this.resolveInput(r, p, scope));
 				this.push(parts.length ? `return ${parts.join(", ")}` : "return", id);
+				this.terminated = true;
 				return undefined;
 			}
 
@@ -571,12 +591,35 @@ class Emitter {
 					this.indent--;
 				}
 				this.push("end", id);
+				// The if-statement is closed, so the enclosing block continues
+				// regardless of what happened inside it.
+				this.terminated = false;
 				return undefined;
 			}
 
 			case "flow.sequence": {
-				for (const pin of r.outputs.filter((p) => p.kind === "exec")) {
-					this.walk(this.index.execTarget(id, pin.id), scope);
+				// Every output runs in this same block, one after another, so a
+				// branch that returns really does end the block — and Luau will
+				// not accept anything after it.
+				const pins = r.outputs.filter((p) => p.kind === "exec");
+				for (let i = 0; i < pins.length; i++) {
+					const ended = this.walk(this.index.execTarget(id, pins[i].id), scope);
+					if (!ended) continue;
+
+					const remaining = pins
+						.slice(i + 1)
+						.filter((pin) => this.index.execTarget(id, pin.id) !== undefined);
+					if (remaining.length > 0) {
+						this.error(
+							`"${pins[i].name || pins[i].id}" ends the block, so the ${remaining.length} ` +
+								"output(s) after it could never run. Move them above it, or put the " +
+								"return inside a Branch.",
+							id,
+							pins[i].id,
+						);
+					}
+					this.terminated = true;
+					return undefined;
 				}
 				return undefined;
 			}
@@ -594,6 +637,7 @@ class Emitter {
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
 				this.push("end", id);
+				this.terminated = false;
 				return this.index.execTarget(id, "completed");
 			}
 
@@ -612,6 +656,7 @@ class Emitter {
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
 				this.push("end", id);
+				this.terminated = false;
 				return this.index.execTarget(id, "completed");
 			}
 
@@ -633,6 +678,7 @@ class Emitter {
 				this.walk(this.index.execTarget(id, "body"), new Scope(scope, true));
 				this.indent--;
 				this.push("end", id);
+				this.terminated = false;
 				return this.index.execTarget(id, "completed");
 			}
 
@@ -644,6 +690,7 @@ class Emitter {
 					return undefined;
 				}
 				this.push(keyword, id);
+				this.terminated = true;
 				return undefined;
 			}
 
@@ -668,6 +715,7 @@ class Emitter {
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
 				this.push("end)", id);
+				this.terminated = false;
 				return this.index.execTarget(id, "then");
 			}
 

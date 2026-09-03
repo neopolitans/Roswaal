@@ -318,3 +318,97 @@ describe("variadic operators", () => {
 		});
 	});
 });
+
+describe("block termination", () => {
+	/**
+	 * Luau requires return to be the last statement in a block, so a Sequence
+	 * output that returns cannot be followed by another. Emitting it anyway
+	 * produced a file that would not parse.
+	 */
+	it("refuses a Sequence output after one that returns", () => {
+		const b = new Builder();
+		const fn = b.node("function.entry", {
+			config: { name: "pick", params: [], returns: [{ name: "v", type: "number" }] },
+		});
+		const seq = b.node("flow.sequence", { config: { count: 2 } });
+		const ret = b.node("function.return", { config: { returns: [{ name: "v", type: "number" }] } });
+		const print = b.node("debug.print");
+		b.lit(ret, "r0", { t: "number", v: 1 });
+		b.link(fn, "then", seq, "in");
+		b.link(seq, "s0", ret, "in");
+		b.link(seq, "s1", print, "in");
+
+		const out = compile(b.build({ scriptClass: "ModuleScript" }), registry);
+		expect(errors(out).join(" ")).toContain("could never run");
+		// And the unreachable statement is not emitted after the return.
+		expect(body(out.code)).not.toContain("print");
+	});
+
+	it("allows a Sequence whose last output returns", () => {
+		const b = new Builder();
+		const fn = b.node("function.entry", {
+			config: { name: "pick", params: [], returns: [{ name: "v", type: "number" }] },
+		});
+		const seq = b.node("flow.sequence", { config: { count: 2 } });
+		const print = b.node("debug.print");
+		const ret = b.node("function.return", { config: { returns: [{ name: "v", type: "number" }] } });
+		b.lit(ret, "r0", { t: "number", v: 1 });
+		b.link(fn, "then", seq, "in");
+		b.link(seq, "s0", print, "in");
+		b.link(seq, "s1", ret, "in");
+
+		const out = compile(b.build({ scriptClass: "ModuleScript" }), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toContain("\treturn 1");
+	});
+
+	/** A return inside a branch closes only that arm's block. */
+	it("keeps emitting after a Branch whose arm returns", () => {
+		const b = new Builder();
+		const fn = b.node("function.entry", {
+			config: { name: "pick", params: [], returns: [{ name: "v", type: "number" }] },
+		});
+		const branch = b.node("flow.branch");
+		const early = b.node("function.return", { config: { returns: [{ name: "v", type: "number" }] } });
+		const seq = b.node("flow.sequence", { config: { count: 2 } });
+		const after = b.node("debug.print");
+		b.lit(early, "r0", { t: "number", v: 0 });
+		b.link(fn, "then", seq, "in");
+		b.link(seq, "s0", branch, "in");
+		b.link(branch, "true", early, "in");
+		b.link(seq, "s1", after, "in");
+
+		const out = compile(b.build({ scriptClass: "ModuleScript" }), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toContain("print");
+	});
+
+	it("stops a chain dead after Script End", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const stop = b.node("script.end");
+		const never = b.node("debug.print");
+		b.link(start, "then", stop, "in");
+		// Wiring past a terminal node is possible; emitting past it is not.
+		b.link(stop, "in", never, "in");
+
+		expect(body(compile(b.build(), registry).code)).not.toContain("print");
+	});
+
+	it("keeps emitting after a loop whose body breaks", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const loop = b.node("flow.forRange");
+		const brk = b.node("flow.break");
+		const after = b.node("debug.print");
+		b.link(start, "then", loop, "in");
+		b.link(loop, "body", brk, "in");
+		b.link(loop, "completed", after, "in");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(
+			["for i = 1, 10 do", "\tbreak", "end", `print("Hello")`].join("\n"),
+		);
+	});
+});

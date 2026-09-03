@@ -10,15 +10,24 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { StreamLanguage } from "@codemirror/language";
-import { lua } from "@codemirror/legacy-modes/mode/lua";
 import { EditorState } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine } from "@codemirror/view";
+import {
+	EditorView, keymap, lineNumbers, highlightActiveLine,
+} from "@codemirror/view";
+import {
+	closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap,
+	type Completion,
+} from "@codemirror/autocomplete";
+import { lintGutter } from "@codemirror/lint";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 
+import type { NodeScript } from "../core/schema.js";
 import { checkLuauBalance } from "../core/luauCheck.js";
+import { errorLineHighlight, luauLinter } from "./luauLint.js";
+import { luauLanguage } from "./luauMode.js";
+import { luauCompletionSource, scopeCompletions } from "./luauCompletions.js";
 import { LAYER } from "./layers.js";
 
 /**
@@ -34,6 +43,12 @@ const luauHighlight = HighlightStyle.define([
 	{ tag: tags.variableName, color: "var(--fg)" },
 	{ tag: tags.propertyName, color: "var(--code-property)" },
 	{ tag: tags.bool, color: "var(--code-keyword)" },
+	// Luau's own globals read as part of the language rather than as names the
+	// author chose, so they are tinted apart from ordinary variables.
+	{ tag: tags.standard(tags.variableName), color: "var(--code-global)" },
+	{ tag: tags.function(tags.variableName), color: "var(--code-function)" },
+	{ tag: tags.bracket, color: "var(--fg-muted)" },
+	{ tag: tags.punctuation, color: "var(--fg-muted)" },
 ]);
 
 const editorTheme = EditorView.theme({
@@ -56,16 +71,23 @@ export interface CodeEditorProps {
 	value: string;
 	/** One line of context, e.g. what the code is spliced into. */
 	hint?: string;
+	/** The open graph, so completion can offer the names it puts in scope. */
+	script: NodeScript | null;
 	onCommit: (value: string) => void;
 	onClose: () => void;
 }
 
-export function CodeEditor({ title, value, hint, onCommit, onClose }: CodeEditorProps) {
+export function CodeEditor({ title, value, hint, script, onCommit, onClose }: CodeEditorProps) {
 	const host = useRef<HTMLDivElement>(null);
 	const view = useRef<EditorView | null>(null);
 	const [text, setText] = useState(value);
 
 	const problems = useMemo(() => checkLuauBalance(text), [text]);
+	// Recomputed only when the graph changes, and read through a ref so the
+	// editor is built once rather than torn down on every keystroke.
+	const scope = useMemo(() => scopeCompletions(script), [script]);
+	const scopeRef = useRef<Completion[]>(scope);
+	scopeRef.current = scope;
 
 	useEffect(() => {
 		if (!host.current) return;
@@ -74,12 +96,29 @@ export function CodeEditor({ title, value, hint, onCommit, onClose }: CodeEditor
 			doc: value,
 			extensions: [
 				lineNumbers(),
+				lintGutter(),
 				highlightActiveLine(),
 				history(),
-				// indentWithTab last, so it does not shadow the default keymap.
-				keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
-				StreamLanguage.define(lua),
+				closeBrackets(),
+				autocompletion({
+					override: [luauCompletionSource(() => scopeRef.current)],
+					icons: false,
+				}),
+				// Completion and bracket keymaps first: they only claim keys while
+				// they are actually active, and indentWithTab must not shadow them.
+				keymap.of([
+					...closeBracketsKeymap,
+					...completionKeymap,
+					...defaultKeymap,
+					...historyKeymap,
+					indentWithTab,
+				]),
+				luauLanguage,
 				syntaxHighlighting(luauHighlight),
+				// The same structural check that runs on every compile, shown here
+				// as you type so a stray `end` is caught in the box you typed it in.
+				luauLinter,
+				errorLineHighlight,
 				editorTheme,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) setText(update.state.doc.toString());

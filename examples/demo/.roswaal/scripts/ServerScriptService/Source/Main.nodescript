@@ -20,10 +20,16 @@
   ],
   "nodes": [
     {
+      "id": "163cdd53-7e3f-48dc-992a-14a48a0320cd",
+      "def": "code.custom",
+      "x": 258,
+      "y": 620
+    },
+    {
       "id": "4e360814-1d98-41d1-ae9c-7c7168805c5b",
       "def": "code.custom",
-      "x": 1290.42,
-      "y": 699.64,
+      "x": 1512.94,
+      "y": 954.83,
       "literals": {
         "code": {
           "t": "raw",
@@ -34,8 +40,8 @@
     {
       "id": "conn",
       "def": "event.connect",
-      "x": 640,
-      "y": 200,
+      "x": 638.61,
+      "y": 198.61,
       "config": {
         "params": [
           {
@@ -48,8 +54,8 @@
     {
       "id": "count",
       "def": "variable.get",
-      "x": 960,
-      "y": 478.95,
+      "x": 1309.99,
+      "y": 392.5,
       "config": {
         "name": "playersJoined",
         "type": "number",
@@ -59,8 +65,8 @@
     {
       "id": "countUp",
       "def": "variable.set",
-      "x": 1240,
-      "y": 380,
+      "x": 1537,
+      "y": 241.96,
       "config": {
         "name": "playersJoined",
         "type": "number",
@@ -70,8 +76,8 @@
     {
       "id": "greet",
       "def": "call.function",
-      "x": 959.05,
-      "y": 223.81,
+      "x": 956.26,
+      "y": 243.33,
       "config": {
         "args": 1
       }
@@ -79,8 +85,8 @@
     {
       "id": "greeterModule",
       "def": "module.requirePath",
-      "x": 323.43,
-      "y": 633.24,
+      "x": 673.42,
+      "y": 546.79,
       "literals": {
         "as": {
           "t": "string",
@@ -99,8 +105,8 @@
     {
       "id": "greetFn",
       "def": "value.field",
-      "x": 623.43,
-      "y": 633.24,
+      "x": 973.42,
+      "y": 546.79,
       "literals": {
         "field": {
           "t": "string",
@@ -111,8 +117,8 @@
     {
       "id": "increment",
       "def": "math.add",
-      "x": 960,
-      "y": 560,
+      "x": 1309.99,
+      "y": 473.55,
       "literals": {
         "a1": {
           "t": "number",
@@ -123,8 +129,8 @@
     {
       "id": "pname",
       "def": "roblox.getProperty",
-      "x": 640,
-      "y": 480,
+      "x": 989.99,
+      "y": 393.55,
       "literals": {
         "property": {
           "t": "string",
@@ -135,8 +141,8 @@
     {
       "id": "say",
       "def": "debug.print",
-      "x": 1240,
-      "y": 240
+      "x": 1237.21,
+      "y": 259.52
     },
     {
       "id": "signal",
@@ -317,17 +323,17 @@
   "comments": [
     {
       "id": "c1",
-      "x": 590,
-      "y": 130,
-      "w": 902.54,
-      "h": 239.72,
+      "x": 588.61,
+      "y": 128.61,
+      "w": 1230.73,
+      "h": 633.7,
       "text": "Greet every player who joins",
       "color": "5f8f6a"
     },
     {
       "id": "c2",
-      "x": 305.43,
-      "y": 595.24,
+      "x": 655.42,
+      "y": 508.79,
       "w": 563.9,
       "h": 166.19,
       "text": "Shared module, required once at the top",

@@ -140,3 +140,36 @@ describe("Luau balance check", () => {
 		).toEqual([]);
 	});
 });
+
+describe("balance check offsets", () => {
+	it("points an unclosed block at the keyword that opened it", () => {
+		const source = 'if x then\n\tprint(1)\n';
+		const [problem] = checkLuauBalance(source);
+
+		expect(problem.message).toContain('This "then" is never closed');
+		expect(problem.line).toBe(1);
+		// The span covers the keyword itself, so an editor underlines that word.
+		expect(source.slice(problem.from, problem.to)).toBe("then");
+	});
+
+	it("points an unclosed string at its opening quote", () => {
+		const source = 'local a = 1\nlocal b = "oops';
+		const [problem] = checkLuauBalance(source);
+
+		expect(problem.line).toBe(2);
+		expect(source.slice(problem.from, problem.from + 1)).toBe('"');
+	});
+
+	it("points an unmatched bracket at the bracket", () => {
+		const source = "print(1))";
+		const [problem] = checkLuauBalance(source);
+
+		expect(source.slice(problem.from, problem.to)).toBe(")");
+	});
+
+	it("reports every unclosed block, innermost first", () => {
+		const problems = checkLuauBalance("function f()\n\tif x then\n");
+		expect(problems).toHaveLength(2);
+		expect(problems.map((p) => p.line)).toEqual([1, 2]);
+	});
+});
