@@ -25,7 +25,8 @@ import path from "node:path";
 
 import { DEFAULT_PORT, startDaemon } from "../server/app.js";
 import {
-	collectMaps, compileAll, compileMap, compileScript, openProject, writeConfig,
+	collectMaps, compileAll, compileMap, compileScript, findOrphanOutputs,
+	openProject, removeOutputs, writeConfig,
 } from "../server/project.js";
 import { defaultConfig } from "../core/schema.js";
 import { HotReloader } from "../server/watcher.js";
@@ -49,6 +50,7 @@ const COMMANDS = [
 	{ name: "status", blurb: "Is a daemon running here, and what is it serving?" },
 	{ name: "compile", blurb: "Compile every graph and map once and exit. Takes an optional path." },
 	{ name: "watch", blurb: "Recompile graphs as they change, without the editor. Blocks." },
+	{ name: "prune", blurb: "Remove generated files whose graph has moved or gone." },
 	{ name: "check", blurb: "One-shot health probe. Plain output, good for scripts." },
 	{ name: "help", blurb: "This list." },
 ];
@@ -428,6 +430,38 @@ async function commandWatch(args: Args): Promise<number> {
 	return 0;
 }
 
+async function commandPrune(args: Args): Promise<number> {
+	const root = resolveRoot(args);
+	let project;
+	try {
+		project = await openProject(root);
+	} catch (err) {
+		console.log(red((err as Error).message));
+		return 1;
+	}
+
+	const orphans = await findOrphanOutputs(project);
+	if (orphans.length === 0) {
+		console.log(dim("nothing to prune"));
+		return 0;
+	}
+
+	for (const orphan of orphans) console.log(`${yellow("orphan  ")} ${orphan}`);
+	console.log("");
+
+	// Deleting files is not something to do because a command was typed
+	// vaguely; --yes is the developer saying they read the list.
+	if (args.flags.yes !== true) {
+		console.log(dim(`  ${orphans.length} file(s) above have no graph behind them.`));
+		console.log(dim("  Run `roswaal prune --yes` to delete them."));
+		return 0;
+	}
+
+	const removed = await removeOutputs(project, orphans);
+	console.log(green(`removed ${removed} file(s)`));
+	return 0;
+}
+
 /**
  * Deliberately plain: aligned `key: value` lines, no colour, no box. This is
  * the command a script or an agent reads.
@@ -474,6 +508,7 @@ async function main(): Promise<number> {
 		case "status": return commandStatus(args);
 		case "compile": return commandCompile(args);
 		case "watch": return commandWatch(args);
+		case "prune": return commandPrune(args);
 		case "check": return commandCheck(args);
 		case "help":
 		case "--help":

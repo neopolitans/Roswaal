@@ -2,7 +2,7 @@
 
 import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass } from "../core/schema.js";
 import type { Diagnostic } from "../core/compiler/index.js";
-import type { MapDiagnostic, NodeMap } from "../core/nodemap.js";
+import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
 
 export interface TreeEntry {
 	path: string;
@@ -91,6 +91,14 @@ export const api = {
 		post<{ results: MapOutcome[] }>("/api/map/compile", opts),
 
 	createFolder: (path: string) => post<{ path: string }>("/api/folder/create", { path }),
+	/** Generated files whose graph has moved or gone. */
+	orphans: () => request<{ orphans: string[] }>("/api/orphans"),
+	removeOrphans: (paths: string[]) =>
+		post<{ removed: number }>("/api/orphans/remove", { paths }),
+
+	/** Where a file lands in the DataModel, per the project's node maps. */
+	resolve: (path: string) =>
+		request<{ location: InstanceLocation | null }>(`/api/resolve?path=${encodeURIComponent(path)}`),
 	/** Shows a file in the OS file manager. Empty path reveals the project root. */
 	reveal: (path?: string) => post<{ ok: true }>("/api/entry/reveal", { path }),
 	renameEntry: (path: string, name: string) =>

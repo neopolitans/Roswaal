@@ -15,14 +15,28 @@
       {
         "id": "sss",
         "name": "ServerScriptService",
-        "path": "src/ServerScriptService",
-        "children": []
+        "children": [
+          {
+            "id": "302d91bf-1945-4d44-9e6c-dd93fd6dfc16",
+            "name": "Source",
+            "className": "Folder",
+            "path": "src/ServerScriptService/Source",
+            "children": []
+          }
+        ]
       },
       {
         "id": "rs",
         "name": "ReplicatedStorage",
-        "path": "src/ReplicatedStorage",
-        "children": []
+        "children": [
+          {
+            "id": "00d0d6db-8c84-4043-9088-2aff7cacacc5",
+            "name": "Shared",
+            "className": "Folder",
+            "path": "src/ReplicatedStorage/Shared",
+            "children": []
+          }
+        ]
       }
     ]
   }

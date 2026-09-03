@@ -67,6 +67,7 @@ roswaal restart           stop, then serve again
 roswaal status            is a daemon running here, and what is it serving?
 roswaal compile [path]    compile every graph and map once and exit
 roswaal watch             recompile on change, without the editor. Blocks.
+roswaal prune             remove generated files whose graph has moved or gone
 roswaal check             one-shot probe. Plain output, good for scripts.
 roswaal help
 ```
@@ -77,6 +78,7 @@ roswaal help
 | `--port <n>` | HTTP port for the daemon. Default: 4471. |
 | `--force` | For compile: overwrite generated files edited by hand. |
 | `--no-open` | For serve: skip the editor-URL hint. |
+| `--yes` | For prune: actually delete, rather than just listing. |
 
 Shaped after Rojo's CLI, and after beako's, on purpose: `roswaal serve` in a
 project directory should feel like `rojo serve` does, because it sits beside it

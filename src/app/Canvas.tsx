@@ -37,6 +37,8 @@ export interface CanvasProps {
 	diagnostics: Diagnostic[];
 	onRequestMenu: (screen: Vec, world: Vec) => void;
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
+	/** A file dragged in from the project tree, dropped at this point. */
+	onDropFile: (path: string, screen: Vec, world: Vec) => void;
 }
 
 type Gesture =
@@ -47,7 +49,9 @@ type Gesture =
 	| { kind: "wire"; from: PinRef; side: "in" | "out"; pin: PinDef }
 	| { kind: "resize"; id: string; origin: Vec; start: { w: number; h: number } };
 
-export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCode }: CanvasProps) {
+export function Canvas({
+	script, registry, diagnostics, onRequestMenu, onEditCode, onDropFile,
+}: CanvasProps) {
 	const { selection, view } = useEditor();
 	const surface = useRef<HTMLDivElement>(null);
 	const gesture = useRef<Gesture>({ kind: "none" });
@@ -55,6 +59,13 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 	const [pointer, setPointer] = useState<Vec | null>(null);
 	const [marquee, setMarquee] = useState<Rect | null>(null);
 	const [wireDrag, setWireDrag] = useState<PinDragState | null>(null);
+	/**
+	 * Whether a pin took the wire. A drop that lands on a pin the wire cannot
+	 * join used to be swallowed silently — which is most of the pin column,
+	 * since a pin's hit area is deliberately larger than its dot. Now it falls
+	 * through to the node, which grows a pin for it.
+	 */
+	const wireHandled = useRef(false);
 	const [editingComment, setEditingComment] = useState<string | null>(null);
 
 	// -- derived -----------------------------------------------------------
@@ -200,15 +211,15 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 		const onUp = (e: PointerEvent) => {
 			const g = gesture.current;
 			if (g.kind === "marquee" && marquee) commitMarquee(marquee, g.additive);
-			if (g.kind === "wire") {
+			if (g.kind === "wire" && !wireHandled.current) {
 				const target = document.elementFromPoint(e.clientX, e.clientY);
-				const onPin = target?.closest(".pin");
 				const onNode = target?.closest<HTMLElement>(".node");
 
 				// Dropped on a node that can take another input: grow it and land
-				// on the pin that appears. This is how you widen an Add without
-				// hunting for the header buttons.
-				if (!onPin && onNode && g.side === "out" && g.pin.kind === "data") {
+				// on the pin that appears. Anywhere on the node counts, including
+				// the pin column — a pin that could not take the wire has already
+				// declined it by this point.
+				if (onNode && g.side === "out" && g.pin.kind === "data") {
 					const nodeId = onNode.dataset.nodeId;
 					if (nodeId && nodeId !== g.from.node && growth.get(nodeId)?.canAdd) {
 						store.edit((s) => {
@@ -226,7 +237,7 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 
 				// Released over nothing: offer the palette rather than silently
 				// dropping the wire.
-				if (!onPin && !onNode) {
+				if (!onNode) {
 					const box = surface.current!.getBoundingClientRect();
 					onRequestMenu(
 						{ x: e.clientX - box.left, y: e.clientY - box.top },
@@ -318,6 +329,7 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 			}
 		}
 
+		wireHandled.current = false;
 		gesture.current = { kind: "wire", from: { node: nodeId, pin: pin.id }, side, pin };
 		setWireDrag({ from: { node: nodeId, pin: pin.id }, side, kind: pin.kind, type: pin.type });
 		setPointer(toWorld(e.clientX, e.clientY));
@@ -328,13 +340,17 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 	) {
 		const g = gesture.current;
 		if (g.kind !== "wire" || g.side === side) return;
-		e.stopPropagation();
 
 		const from = side === "in" ? g.from : { node: nodeId, pin: pin.id };
 		const to = side === "in" ? { node: nodeId, pin: pin.id } : g.from;
-		if (canConnect(script, registry, from, to).ok) {
-			store.edit((s) => connect(s, registry, from, to));
-		}
+
+		// A pin that cannot take this wire does not consume the drop; the window
+		// handler decides what else to do with it.
+		if (!canConnect(script, registry, from, to).ok) return;
+
+		e.stopPropagation();
+		wireHandled.current = true;
+		store.edit((s) => connect(s, registry, from, to));
 		endGesture();
 	}
 
@@ -423,11 +439,34 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 				);
 			}}
 			onDragOver={(e) => {
-				if (!e.dataTransfer.types.includes("application/x-roswaal-variable")) return;
+				const kinds = e.dataTransfer.types;
+				if (
+					!kinds.includes("application/x-roswaal-variable") &&
+					!kinds.includes("application/x-roswaal")
+				) {
+					return;
+				}
 				e.preventDefault();
 				e.dataTransfer.dropEffect = "copy";
 			}}
 			onDrop={(e) => {
+				// A file from the project tree: the caller works out where it lives
+				// in the DataModel and offers what can be done with it.
+				const files = e.dataTransfer.getData("application/x-roswaal");
+				if (files) {
+					e.preventDefault();
+					const paths = JSON.parse(files) as string[];
+					const box = surface.current!.getBoundingClientRect();
+					if (paths[0]) {
+						onDropFile(
+							paths[0],
+							{ x: e.clientX - box.left, y: e.clientY - box.top },
+							toWorld(e.clientX, e.clientY),
+						);
+					}
+					return;
+				}
+
 				const raw = e.dataTransfer.getData("application/x-roswaal-variable");
 				if (!raw) return;
 				e.preventDefault();

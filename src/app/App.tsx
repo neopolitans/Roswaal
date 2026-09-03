@@ -13,12 +13,13 @@ import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { createRegistry } from "../core/nodes/index.js";
 import type { NodeDef, RoswaalConfig, ScriptClass } from "../core/schema.js";
 import { api, type CompileOutcome, type MapOutcome, type ProjectInfo, type TreeEntry } from "./api.js";
-import type { NodeMap } from "../core/nodemap.js";
+import type { InstanceLocation, NodeMap } from "../core/nodemap.js";
 import { MapEditor } from "./MapEditor.jsx";
 import { CodeEditor } from "./CodeEditor.jsx";
 import { Dialog, type DialogRequest, type DialogResult, type PendingDialog } from "./Dialog.jsx";
 import { HelpPanel } from "./HelpPanel.jsx";
 import { Icon } from "./icons.jsx";
+import { LAYER } from "./layers.js";
 import type { PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
 import { buildPresets, NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
@@ -48,11 +49,20 @@ export function App() {
 	// rather than inside it. Nothing about undo or selection carries over.
 	const [mapDoc, setMapDoc] = useState<{ path: string; map: NodeMap; dirty: boolean } | null>(null);
 	const [mapOutcomes, setMapOutcomes] = useState<MapOutcome[]>([]);
+	// Generated files whose graph has moved or gone. Rojo cannot tell they are
+	// stale, so it syncs them, and the same module turns up twice.
+	const [orphans, setOrphans] = useState<string[]>([]);
 	const [codeEdit, setCodeEdit] = useState<
 		{ nodeId: string; pin: PinDef; value: string } | null
 	>(null);
 	const [dialog, setDialog] = useState<PendingDialog | null>(null);
 	const [helpOpen, setHelpOpen] = useState(false);
+	// A file dropped on the canvas, once we know where it lives in the DataModel
+	// and therefore what can usefully be made from it.
+	const [dropMenu, setDropMenu] = useState<
+		{ screen: { x: number; y: number }; world: { x: number; y: number };
+		  name: string; location: InstanceLocation } | null
+	>(null);
 
 	/** Opens a modal and resolves with what the developer chose. */
 	const ask = useCallback((request: DialogRequest): Promise<DialogResult> => {
@@ -225,7 +235,10 @@ export function App() {
 				const { results } = await api.compile({ path, write, force });
 				setOutcomes(results);
 				setStatusOpen(true);
-				if (write) await refreshTree();
+				if (write) {
+					await refreshTree();
+					setOrphans((await api.orphans().catch(() => ({ orphans: [] }))).orphans);
+				}
 			} catch (err) {
 				notify("Something went wrong", (err as Error).message);
 			} finally {
@@ -616,6 +629,24 @@ export function App() {
 						diagnostics={diagnostics}
 						onRequestMenu={(screen, world) => setMenu({ screen, world })}
 						onEditCode={(nodeId, pin, value) => setCodeEdit({ nodeId, pin, value })}
+						onDropFile={async (dropped, screen, world) => {
+							const name = dropped.split("/").pop() ?? dropped;
+							try {
+								const { location } = await api.resolve(dropped);
+								if (!location) {
+									notify(
+										"Nothing to make from that",
+										`No node map says where ${name} ends up in the DataModel, so ` +
+											"there is no path to require it by. Add one, or point an " +
+											"existing map at the folder it is in.",
+									);
+									return;
+								}
+								setDropMenu({ screen, world, name, location });
+							} catch (err) {
+								notify("Could not resolve that file", (err as Error).message);
+							}
+						}}
 					/>
 				) : (
 					<div className="placeholder">
@@ -642,9 +673,38 @@ export function App() {
 				diagnostics={diagnostics}
 				outcomes={outcomes}
 				mapOutcomes={mapOutcomes}
+				orphans={orphans}
+				onRemoveOrphans={async () => {
+					const ok = await ask({
+						kind: "confirm",
+						title: "Remove stale files",
+						message:
+							`Delete ${orphans.length} generated file${orphans.length === 1 ? "" : "s"} ` +
+							"with no graph behind them? They are output, so nothing is lost that a " +
+							"compile cannot rebuild.",
+						confirmLabel: "Remove",
+						danger: true,
+					});
+					if (ok !== true) return;
+					await api.removeOrphans(orphans);
+					setOrphans([]);
+					await refreshTree();
+				}}
 				packErrors={project.packErrors}
 				onForce={(path) => void runCompile(path, true, true)}
 			/>
+
+			{dropMenu && (
+				<DropMenu
+					{...dropMenu}
+					onClose={() => setDropMenu(null)}
+					onPick={(defId, config) => {
+						const def = registry.get(defId);
+						if (def) spawn(def, dropMenu.world, config);
+						setDropMenu(null);
+					}}
+				/>
+			)}
 
 			{helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
 
@@ -679,6 +739,81 @@ export function App() {
 }
 
 // ---------------------------------------------------------------------------
+
+interface DropMenuProps {
+	screen: { x: number; y: number };
+	name: string;
+	location: InstanceLocation;
+	onPick: (defId: string, config: Record<string, unknown>) => void;
+	onClose: () => void;
+}
+
+/**
+ * What can be made from a file dropped on the canvas.
+ *
+ * The whole value is that the path is already worked out: you dragged the
+ * module in, so Roswaal knows it is ReplicatedStorage + Greeter and you do not
+ * have to type either.
+ */
+function DropMenu({ screen, name, location, onPick, onClose }: DropMenuProps) {
+	const root = useRef<HTMLDivElement>(null);
+	const config = { root: location.root, path: location.path };
+	const full = location.path ? `${location.root}.${location.path}` : location.root;
+
+	useEffect(() => {
+		const onDown = (e: MouseEvent) => {
+			if (!root.current?.contains(e.target as Node)) onClose();
+		};
+		const id = window.setTimeout(() => window.addEventListener("mousedown", onDown), 0);
+		return () => {
+			window.clearTimeout(id);
+			window.removeEventListener("mousedown", onDown);
+		};
+	}, [onClose]);
+
+	return (
+		<div
+			className="menu drop-menu"
+			ref={root}
+			style={{ zIndex: LAYER.menu, left: screen.x, top: screen.y + 40 }}
+		>
+			<div className="drop-head">
+				<strong>{name}</strong>
+				<code>{full}</code>
+			</div>
+			<div className="items">
+				{location.isModule && (
+					<div
+						className="item"
+						title="A hoisted require, with the path already filled in"
+						onClick={() =>
+							onPick("module.requirePath", { ...config, as: "" })
+						}
+					>
+						<span className="swatch" style={{ background: "#6f4f9b" }} />
+						<span>Require Module</span>
+						<span className="hint">pure</span>
+					</div>
+				)}
+				<div
+					className="item"
+					title="A reference to the instance itself"
+					onClick={() => onPick("roblox.instancePath", config)}
+				>
+					<span className="swatch" style={{ background: "#2c7676" }} />
+					<span>Instance</span>
+					<span className="hint">pure</span>
+				</div>
+				{!location.isModule && (
+					<p className="drop-note">
+						This compiles to a Script rather than a ModuleScript, so there is nothing to
+						require.
+					</p>
+				)}
+			</div>
+		</div>
+	);
+}
 
 function ProjectPicker({
 	onOpen, busy,
@@ -718,6 +853,8 @@ interface StatusPanelProps {
 	diagnostics: Diagnostic[];
 	outcomes: CompileOutcome[];
 	mapOutcomes: MapOutcome[];
+	orphans: string[];
+	onRemoveOrphans: () => void;
 	packErrors: string[];
 	onForce: (path: string) => void;
 }
@@ -745,6 +882,23 @@ function StatusPanel(props: StatusPanelProps) {
 
 			{props.open && (
 				<div className="list">
+					{props.orphans.length > 0 && (
+						<div className="entry warning">
+							<span className="sev">stale</span>
+							<span>
+								{props.orphans.length} generated file
+								{props.orphans.length === 1 ? "" : "s"} with no graph behind
+								{props.orphans.length === 1 ? " it" : " them"}: {props.orphans.join(", ")}
+							</span>
+							<span
+								className="where"
+								style={{ cursor: "pointer", textDecoration: "underline" }}
+								onClick={props.onRemoveOrphans}
+							>
+								remove
+							</span>
+						</div>
+					)}
 					{props.packErrors.map((message, i) => (
 						<div className="entry error" key={`pack${i}`}>
 							<span className="sev">pack</span>
@@ -787,7 +941,7 @@ function StatusPanel(props: StatusPanelProps) {
 						</div>
 					))}
 					{diagnostics.length === 0 && outcomes.length === 0 && props.mapOutcomes.length === 0 &&
-						props.packErrors.length === 0 && (
+						props.orphans.length === 0 && props.packErrors.length === 0 && (
 						<div className="entry">
 							<span className="sev" style={{ color: "var(--ok)" }}>ok</span>
 							<span>No problems found.</span>

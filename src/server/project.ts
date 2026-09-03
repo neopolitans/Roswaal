@@ -17,8 +17,8 @@ import { LuauParseError, parseLuauData } from "../core/luauData.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
 import { migrateScript } from "../core/migrate.js";
 import {
-	compileNodeMap, serialiseMap,
-	type MapDiagnostic, type MapNode, type NodeMap,
+	compileNodeMap, locateInDataModel, serialiseMap,
+	type InstanceLocation, type MapDiagnostic, type MapNode, type NodeMap,
 } from "../core/nodemap.js";
 import { createRegistry, parseNodePack, type Registry } from "../core/nodes/index.js";
 import {
@@ -402,6 +402,94 @@ export async function checkMapPaths(
 	}
 
 	return out;
+}
+
+/**
+ * Where a file in the project ends up in the DataModel.
+ *
+ * A graph resolves through its compiled output rather than its own path,
+ * because that is the file the node map actually points at. Both are tried, so
+ * a map aimed straight at the graphs directory works too.
+ */
+export async function locateFile(
+	project: OpenProject, relPath: string,
+): Promise<InstanceLocation | null> {
+	const candidates = [relPath];
+
+	if (relPath.endsWith(".nodescript")) {
+		try {
+			const script = await readScript(project, relPath);
+			const result = compile(script, project.registry);
+			const within = path.posix.dirname(
+				toPosix(path.relative(project.config.sourceDir, relPath)),
+			);
+			candidates.unshift(
+				path.posix.normalize(
+					path.posix.join(project.config.outDir, within, result.fileName),
+				),
+			);
+		} catch {
+			// A graph that will not compile still has a source path worth trying.
+		}
+	}
+
+	for (const mapPath of await collectMaps(project)) {
+		const map = await readMap(project, mapPath);
+		for (const candidate of candidates) {
+			const found = locateInDataModel(map, candidate);
+			if (found) return found;
+		}
+	}
+	return null;
+}
+
+/**
+ * Generated files with no graph behind them any more.
+ *
+ * Moving or renaming a graph writes its output somewhere new and leaves the old
+ * file sitting there. Rojo has no way to know it is stale, so it syncs it, and
+ * you get the same module in two places — which is confusing in exactly the way
+ * that is hard to trace back to a rename.
+ */
+export async function findOrphanOutputs(project: OpenProject): Promise<string[]> {
+	const expected = new Set<string>();
+	for (const relPath of await collectScripts(project)) {
+		try {
+			const script = await readScript(project, relPath);
+			const result = compile(script, project.registry);
+			const within = path.posix.dirname(
+				toPosix(path.relative(project.config.sourceDir, relPath)),
+			);
+			expected.add(
+				path.posix.normalize(
+					path.posix.join(project.config.outDir, within, result.fileName),
+				),
+			);
+		} catch {
+			// A graph that will not read cannot vouch for its output, so leave
+			// anything it might own alone.
+			return [];
+		}
+	}
+
+	const orphans: string[] = [];
+	for (const [output] of await generatedIndex(project)) {
+		if (!expected.has(output)) orphans.push(output);
+	}
+	return orphans.sort();
+}
+
+export async function removeOutputs(project: OpenProject, paths: string[]): Promise<number> {
+	let removed = 0;
+	for (const relPath of paths) {
+		// Only ever delete something we can still see is generated.
+		const abs = safeJoin(project.root, relPath);
+		const head = (await fs.readFile(abs, "utf8").catch(() => "")).slice(0, 512);
+		if (!head.includes("roswaal-graph:")) continue;
+		await fs.rm(abs, { force: true });
+		removed++;
+	}
+	return removed;
 }
 
 export async function collectMaps(project: OpenProject): Promise<string[]> {

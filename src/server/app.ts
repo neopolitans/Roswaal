@@ -18,7 +18,8 @@ import { fileURLToPath } from "node:url";
 import {
 	buildTree, collectMaps, compileAll, compileMap, compileScript, createFolder,
 	deleteEntry, initProject, moveEntry, openProject, readMap, readScript, readText,
-	renameEntry, safeJoin, writeConfig, writeMap, writeScript,
+	findOrphanOutputs, locateFile, removeOutputs, renameEntry, safeJoin,
+	writeConfig, writeMap, writeScript,
 	type OpenProject,
 } from "./project.js";
 import { streamEvents } from "./events.js";
@@ -265,6 +266,14 @@ app.post("/api/folder/create", route(async (req) => {
  * Shows a file in the OS file manager. The editor is a web page and cannot do
  * this itself, which is the whole reason the daemon owns it.
  */
+/**
+ * Where a file sits in the DataModel, so the editor can turn a file dragged
+ * onto the canvas into a require with the path already filled in.
+ */
+app.get("/api/resolve", route(async (req) => {
+	return { location: await locateFile(project(), requireQuery(req, "path")) };
+}));
+
 app.post("/api/entry/reveal", route(async (req) => {
 	const p = project();
 	const { path: relPath } = req.body as { path?: string };
@@ -295,6 +304,20 @@ app.post("/api/compile", route(async (req) => {
 		? [await compileScript(p, relPath, { write, force })]
 		: await compileAll(p, { write, force });
 	return { results };
+}));
+
+/**
+ * Generated files whose graph has moved or gone. Reported rather than removed:
+ * deleting files is not something to do behind somebody's back.
+ */
+app.get("/api/orphans", route(async () => {
+	return { orphans: await findOrphanOutputs(project()) };
+}));
+
+app.post("/api/orphans/remove", route(async (req) => {
+	const { paths } = req.body as { paths?: string[] };
+	const removed = await removeOutputs(project(), paths ?? []);
+	return { removed };
 }));
 
 // ---------------------------------------------------------------------------

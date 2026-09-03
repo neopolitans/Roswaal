@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { compileNodeMap, emptyMap, type NodeMap } from "../src/core/nodemap.js";
+import {
+	compileNodeMap, emptyMap, locateInDataModel, type NodeMap,
+} from "../src/core/nodemap.js";
 
 let counter = 0;
 const id = () => `id${++counter}`;
@@ -151,5 +153,85 @@ describe("ignore globs", () => {
 
 	it("omits the key entirely when there is nothing to ignore", () => {
 		expect(JSON.parse(compileNodeMap(makeMap()).json).globIgnorePaths).toBeUndefined();
+	});
+});
+
+describe("locating a file in the DataModel", () => {
+	/** The layout the demo uses: a folder per service, mapped straight at it. */
+	function serviceMap(): NodeMap {
+		return {
+			schemaVersion: 1,
+			kind: "map",
+			id: "m",
+			name: "demo",
+			output: "default.project.json",
+			root: {
+				id: "root",
+				name: "DataModel",
+				className: "DataModel",
+				children: [
+					{ id: "rs", name: "ReplicatedStorage", path: "src/ReplicatedStorage", children: [] },
+					{ id: "sss", name: "ServerScriptService", path: "src/ServerScriptService", children: [] },
+				],
+			},
+		};
+	}
+
+	it("resolves a module to its service and path", () => {
+		expect(locateInDataModel(serviceMap(), "src/ReplicatedStorage/Greeter.luau")).toEqual({
+			root: "ReplicatedStorage",
+			path: "Greeter",
+			isModule: true,
+		});
+	});
+
+	it("keeps intermediate folders as path segments", () => {
+		expect(
+			locateInDataModel(serviceMap(), "src/ReplicatedStorage/Modules/Combat/Damage.luau"),
+		).toEqual({ root: "ReplicatedStorage", path: "Modules.Combat.Damage", isModule: true });
+	});
+
+	it("knows a server script is not requirable", () => {
+		expect(locateInDataModel(serviceMap(), "src/ServerScriptService/Main.server.luau")).toEqual({
+			root: "ServerScriptService",
+			path: "Main",
+			isModule: false,
+		});
+	});
+
+	/** Rojo's init.luau is the folder itself, so it adds no segment. */
+	it("treats init.luau as the folder it sits in", () => {
+		expect(locateInDataModel(serviceMap(), "src/ReplicatedStorage/Combat/init.luau")).toEqual({
+			root: "ReplicatedStorage",
+			path: "Combat",
+			isModule: true,
+		});
+	});
+
+	it("resolves a graph as well as its compiled output", () => {
+		const map = serviceMap();
+		map.root.children[0].path = ".roswaal/scripts/ReplicatedStorage";
+		expect(
+			locateInDataModel(map, ".roswaal/scripts/ReplicatedStorage/Greeter.nodescript"),
+		).toEqual({ root: "ReplicatedStorage", path: "Greeter", isModule: true });
+	});
+
+	it("prefers the most specific mapping when one nests inside another", () => {
+		const map = serviceMap();
+		map.root.children[0].children.push({
+			id: "inner",
+			name: "Shared",
+			path: "src/ReplicatedStorage/Shared",
+			children: [],
+		});
+		expect(locateInDataModel(map, "src/ReplicatedStorage/Shared/Util.luau")).toEqual({
+			root: "ReplicatedStorage",
+			path: "Shared.Util",
+			isModule: true,
+		});
+	});
+
+	it("returns null for a file no mapping covers", () => {
+		expect(locateInDataModel(serviceMap(), "docs/notes.luau")).toBeNull();
 	});
 });

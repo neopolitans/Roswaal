@@ -3,10 +3,14 @@
   "tree": {
     "$className": "DataModel",
     "ServerScriptService": {
-      "$path": "src/ServerScriptService"
+      "Source": {
+        "$path": "src/ServerScriptService/Source"
+      }
     },
     "ReplicatedStorage": {
-      "$path": "src/ReplicatedStorage"
+      "Shared": {
+        "$path": "src/ReplicatedStorage/Shared"
+      }
     }
   },
   "globIgnorePaths": [

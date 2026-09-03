@@ -20,6 +20,18 @@
   ],
   "nodes": [
     {
+      "id": "4e360814-1d98-41d1-ae9c-7c7168805c5b",
+      "def": "code.custom",
+      "x": 1290.42,
+      "y": 699.64,
+      "literals": {
+        "code": {
+          "t": "raw",
+          "v": "-- your Luau here\n\nprint(\"This is from a custom code block.\")\n\nlocal newPart = Instance.New(\"Part\")\nnewPart.Parent = workspace\nnewPart.Anchored = true\nnewPart.Size = Vector3.new(5, 5, 5)"
+        }
+      }
+    },
+    {
       "id": "conn",
       "def": "event.connect",
       "x": 640,
@@ -76,7 +88,7 @@
         },
         "path": {
           "t": "string",
-          "v": "Greeter"
+          "v": "Shared.Greeter"
         },
         "root": {
           "t": "string",

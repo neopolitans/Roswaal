@@ -1765,3 +1765,30 @@ button.tb.with-icon {
 	padding: 0;
 	text-align: center;
 }
+
+/* The menu shown when a file is dragged from the tree onto the canvas. */
+.drop-menu {
+	width: 260px;
+	max-height: none;
+}
+
+.drop-head {
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.drop-head code {
+	font: 10px/1.4 "Cascadia Mono", Consolas, monospace;
+	color: var(--accent);
+	word-break: break-all;
+}
+
+.drop-note {
+	margin: 4px 8px 6px;
+	font-size: 11px;
+	line-height: 1.5;
+	color: var(--fg-faint);
+}

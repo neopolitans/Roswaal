@@ -25,12 +25,37 @@
       "y": -128.29
     },
     {
+      "id": "18e9cab5-80cf-4814-8997-9e445a7795ae",
+      "def": "function.get",
+      "x": 130,
+      "y": -461,
+      "config": {
+        "function": "a17d2f2d-90fc-4ad7-8260-2302e0aad281",
+        "name": "Adder"
+      }
+    },
+    {
+      "id": "1ad858dd-cb06-42e8-bb0c-71e44113e704",
+      "def": "function.get",
+      "x": 138.44,
+      "y": -517.09,
+      "config": {
+        "function": "fn",
+        "name": "greet"
+      }
+    },
+    {
       "id": "2d5f6dbe-0ae5-49ad-bfb6-a4cb624995ae",
       "def": "function.return",
       "x": 1011.09,
-      "y": -199.3,
+      "y": -196.16,
       "config": {
-        "returns": []
+        "returns": [
+          {
+            "name": "Accumulated",
+            "type": "number"
+          }
+        ]
       }
     },
     {
@@ -71,8 +96,8 @@
         ],
         "returns": [
           {
-            "name": "result",
-            "type": "any"
+            "name": "value1",
+            "type": "number"
           }
         ]
       }
@@ -92,12 +117,16 @@
     {
       "id": "exports",
       "def": "module.exports",
-      "x": 1070.5,
-      "y": 159.24,
+      "x": 343.58,
+      "y": -532.92,
       "config": {
         "exports": [
           {
             "name": "greet",
+            "type": "function"
+          },
+          {
+            "name": "export2",
             "type": "function"
           }
         ]
@@ -152,17 +181,6 @@
       }
     },
     {
-      "id": "4b720e5e-a60f-46c9-b7e8-794e40e66b30",
-      "from": {
-        "node": "fn",
-        "pin": "self"
-      },
-      "to": {
-        "node": "exports",
-        "pin": "e0"
-      }
-    },
-    {
       "id": "4c022a62-75b1-4599-87ff-d557c68bc7a1",
       "from": {
         "node": "a0e48503-7ed3-4988-a0a1-c7f15666bbb2",
@@ -171,6 +189,17 @@
       "to": {
         "node": "091a4b93-e238-446a-a258-c4fd3407507e",
         "pin": "a1"
+      }
+    },
+    {
+      "id": "4da6ffcc-91f9-4b0a-8de3-95d3eddaf7da",
+      "from": {
+        "node": "9f7806fd-3992-4c4f-8e8b-73eb443b9782",
+        "pin": "value"
+      },
+      "to": {
+        "node": "2d5f6dbe-0ae5-49ad-bfb6-a4cb624995ae",
+        "pin": "r0"
       }
     },
     {
@@ -196,6 +225,17 @@
       }
     },
     {
+      "id": "dc8beb62-f7d0-400d-8a18-406015c9a6c9",
+      "from": {
+        "node": "1ad858dd-cb06-42e8-bb0c-71e44113e704",
+        "pin": "fn"
+      },
+      "to": {
+        "node": "exports",
+        "pin": "e0"
+      }
+    },
+    {
       "id": "ec81dfa5-cf7d-4a35-9515-d156d0292ab0",
       "from": {
         "node": "a17d2f2d-90fc-4ad7-8260-2302e0aad281",
@@ -204,6 +244,17 @@
       "to": {
         "node": "9f7806fd-3992-4c4f-8e8b-73eb443b9782",
         "pin": "in"
+      }
+    },
+    {
+      "id": "fbad443f-7e67-41d6-bbf0-1688d234d201",
+      "from": {
+        "node": "18e9cab5-80cf-4814-8997-9e445a7795ae",
+        "pin": "fn"
+      },
+      "to": {
+        "node": "exports",
+        "pin": "e1"
       }
     },
     {
