@@ -25,30 +25,12 @@
       "y": -128.29
     },
     {
-      "id": "271c0d44-4765-4974-868f-d8d1d44bad65",
-      "def": "module.require",
-      "x": 574.14,
-      "y": 445.67
-    },
-    {
       "id": "2d5f6dbe-0ae5-49ad-bfb6-a4cb624995ae",
       "def": "function.return",
       "x": 1011.09,
       "y": -199.3,
       "config": {
         "returns": []
-      }
-    },
-    {
-      "id": "3c8a9fb6-5950-4dc2-b6c1-e4124541bf6c",
-      "def": "roblox.getService",
-      "x": -45.71,
-      "y": 445.48,
-      "literals": {
-        "service": {
-          "t": "string",
-          "v": "ReplicatedStorage"
-        }
       }
     },
     {
@@ -101,7 +83,7 @@
       "x": 400,
       "y": 300,
       "literals": {
-        "a": {
+        "a0": {
           "t": "string",
           "v": "Hello, "
         }
@@ -166,7 +148,7 @@
       },
       "to": {
         "node": "091a4b93-e238-446a-a258-c4fd3407507e",
-        "pin": "a"
+        "pin": "a0"
       }
     },
     {
@@ -188,7 +170,7 @@
       },
       "to": {
         "node": "091a4b93-e238-446a-a258-c4fd3407507e",
-        "pin": "b"
+        "pin": "a1"
       }
     },
     {
@@ -243,7 +225,7 @@
       },
       "to": {
         "node": "concat",
-        "pin": "b"
+        "pin": "a1"
       }
     },
     {

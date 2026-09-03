@@ -1693,3 +1693,75 @@ button.tb.with-icon {
 	color: var(--fg);
 	width: 44%;
 }
+
+/* Path field with a resolution hint: Rojo builds an empty instance for a path
+   that is not there, so an unresolved one has to be loud here. */
+.map-fields .path-field {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.map-fields .path-field input {
+	flex: 1;
+	min-width: 0;
+}
+
+.path-missing {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	flex: none;
+	font-size: 10px;
+	color: var(--danger);
+	white-space: nowrap;
+}
+
+.map-list {
+	border-top: 1px solid var(--border);
+	margin: 0 12px;
+	padding: 8px 0;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.map-list-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--fg-faint);
+}
+
+.map-list-head button {
+	padding: 1px 8px;
+	font-size: 11px;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.map-list .summary {
+	padding: 0;
+}
+
+.map-list-row {
+	display: grid;
+	grid-template-columns: 1fr 24px;
+	gap: 4px;
+}
+
+.map-list-row input {
+	cursor: text;
+	min-width: 0;
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: 11px;
+}
+
+.map-list-row button {
+	padding: 0;
+	text-align: center;
+}

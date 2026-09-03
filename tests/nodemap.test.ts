@@ -15,12 +15,14 @@ describe("node maps", () => {
 		const result = compileNodeMap(map);
 
 		expect(result.ok).toBe(true);
+		// No $className on Source: a $path pointing at a directory already means
+		// Folder, and saying it twice makes an empty result look intentional.
 		expect(JSON.parse(result.json)).toEqual({
 			name: "demo",
 			tree: {
 				$className: "DataModel",
 				ServerScriptService: {
-					Source: { $className: "Folder", $path: "src" },
+					Source: { $path: "src" },
 				},
 			},
 		});
@@ -30,12 +32,18 @@ describe("node maps", () => {
 	 * Rojo infers a service from its key and rejects a redundant $className, so
 	 * the emitter has to know which nodes are services and stay quiet for them.
 	 */
-	it("omits $className on services but keeps it on containers", () => {
+	it("omits $className where Rojo already knows the class", () => {
 		const map = makeMap();
-		const tree = JSON.parse(compileNodeMap(map).json).tree;
+		let tree = JSON.parse(compileNodeMap(map).json).tree;
 
+		// Services are named by their key; a folder is implied by its path.
 		expect(tree.ServerScriptService.$className).toBeUndefined();
-		expect(tree.ServerScriptService.Source.$className).toBe("Folder");
+		expect(tree.ServerScriptService.Source.$className).toBeUndefined();
+
+		// A class Rojo would not infer is still stated.
+		map.root.children[0].children[0].className = "Model";
+		tree = JSON.parse(compileNodeMap(map).json).tree;
+		expect(tree.ServerScriptService.Source.$className).toBe("Model");
 	});
 
 	it("passes properties and ignoreUnknown through", () => {
@@ -111,5 +119,37 @@ describe("Rojo compatibility", () => {
 		for (const key of seen) {
 			expect(ROJO_TREE_KEYS.has(key), `unexpected tree key "${key}"`).toBe(true);
 		}
+	});
+});
+
+describe("ignore globs", () => {
+	it("anchors a node's ignore paths to that node's path", () => {
+		const map = makeMap();
+		map.root.children[0].children[0].ignorePaths = ["shared/**", "*.spec.luau"];
+
+		const project = JSON.parse(compileNodeMap(map).json);
+		expect(project.globIgnorePaths).toEqual(["src/shared/**", "src/*.spec.luau"]);
+	});
+
+	it("leaves a leading-slash glob unanchored", () => {
+		const map = makeMap();
+		map.root.children[0].children[0].ignorePaths = ["/build/**"];
+
+		expect(JSON.parse(compileNodeMap(map).json).globIgnorePaths).toEqual(["build/**"]);
+	});
+
+	it("merges project-wide globs and drops duplicates", () => {
+		const map = makeMap();
+		map.globIgnorePaths = ["**/*.spec.luau"];
+		map.root.children[0].children[0].ignorePaths = ["/**/*.spec.luau", "shared/**"];
+
+		expect(JSON.parse(compileNodeMap(map).json).globIgnorePaths).toEqual([
+			"**/*.spec.luau",
+			"src/shared/**",
+		]);
+	});
+
+	it("omits the key entirely when there is nothing to ignore", () => {
+		expect(JSON.parse(compileNodeMap(makeMap()).json).globIgnorePaths).toBeUndefined();
 	});
 });

@@ -14,6 +14,8 @@ import {
 	COMMON_SERVICES, CONTAINER_CLASSES, compileNodeMap, findMapNode, mapNodeParent,
 	mapNodeRemove, mapNodeUpdate, type MapNode, type NodeMap,
 } from "../core/nodemap.js";
+import type { TreeEntry } from "./api.js";
+import { Icon } from "./icons.jsx";
 import { newId } from "./store.js";
 
 const HISTORY_LIMIT = 50;
@@ -21,16 +23,38 @@ const HISTORY_LIMIT = 50;
 export interface MapEditorProps {
 	map: NodeMap;
 	dirty: boolean;
+	/** The project tree, used to tell whether a $path actually resolves. */
+	tree: TreeEntry[];
 	onChange: (next: NodeMap) => void;
 }
 
-export function MapEditor({ map, dirty, onChange }: MapEditorProps) {
+/** Every path in the project, so a $path can be checked as it is typed. */
+function collectPaths(entries: TreeEntry[], into = new Set<string>()): Set<string> {
+	for (const entry of entries) {
+		into.add(entry.path);
+		if (entry.children) collectPaths(entry.children, into);
+	}
+	return into;
+}
+
+export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 	const [selected, setSelected] = useState<string>(map.root.id);
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	const [history, setHistory] = useState<NodeMap[]>([]);
 
 	const compiled = useMemo(() => compileNodeMap(map), [map]);
+	const known = useMemo(() => collectPaths(tree), [tree]);
 	const current = findMapNode(map.root, selected) ?? map.root;
+
+	/**
+	 * Rojo builds an empty instance for a path that is not there rather than
+	 * complaining, so an unresolved path has to be visible here or it is not
+	 * visible anywhere until you are staring at Studio.
+	 */
+	const pathResolves = (value: string | undefined): boolean | null => {
+		if (!value) return null;
+		return known.has(value.replace(/^\.\//, "").replace(/\/+$/, ""));
+	};
 
 	function commit(next: NodeMap) {
 		setHistory((h) => [...h.slice(-HISTORY_LIMIT), map]);
@@ -124,13 +148,21 @@ export function MapEditor({ map, dirty, onChange }: MapEditorProps) {
 
 					<label className="field">
 						<span>Path</span>
-						<input
-							className="tb"
-							placeholder="src/systems"
-							value={current.path ?? ""}
-							title="A directory or file on disk whose contents fill this instance"
-							onChange={(e) => updateNode(current.id, { path: e.target.value || undefined })}
-						/>
+						<span className="path-field">
+							<input
+								className="tb"
+								placeholder="src/systems"
+								value={current.path ?? ""}
+								title="A directory or file on disk whose contents fill this instance"
+								onChange={(e) => updateNode(current.id, { path: e.target.value || undefined })}
+							/>
+							{pathResolves(current.path) === false && (
+								<span className="path-missing" title="Nothing is at this path. Rojo will build an empty instance.">
+									<Icon name="warning" size={14} />
+									not found
+								</span>
+							)}
+						</span>
 					</label>
 
 					<label className="field">
@@ -144,6 +176,16 @@ export function MapEditor({ map, dirty, onChange }: MapEditorProps) {
 						/>
 					</label>
 				</div>
+
+				<ListField
+					label="Ignore paths"
+					hint="Globs under this instance's path that Rojo should skip, e.g. shared/** — how you stop a nested mapping syncing twice."
+					values={current.ignorePaths ?? []}
+					placeholder="shared/**"
+					onChange={(next) =>
+						updateNode(current.id, { ignorePaths: next.length ? next : undefined })
+					}
+				/>
 
 				<div className="map-actions">
 					<button className="tb" onClick={() => addChild(current.id, "Folder", "Folder")}>
@@ -182,6 +224,16 @@ export function MapEditor({ map, dirty, onChange }: MapEditorProps) {
 						onChange={(e) => commit({ ...map, output: e.target.value })}
 					/>
 				</label>
+				<ListField
+					label="Project-wide ignores"
+					hint="Passed to Rojo as globIgnorePaths, unanchored."
+					values={map.globIgnorePaths ?? []}
+					placeholder="**/*.spec.luau"
+					onChange={(next) =>
+						commit({ ...map, globIgnorePaths: next.length ? next : undefined })
+					}
+				/>
+
 				<pre className="map-preview">{compiled.json}</pre>
 
 				{compiled.diagnostics.length > 0 && (
@@ -195,6 +247,50 @@ export function MapEditor({ map, dirty, onChange }: MapEditorProps) {
 					</div>
 				)}
 			</div>
+		</div>
+	);
+}
+
+/** A small editable list of strings, for the two kinds of ignore glob. */
+function ListField({
+	label, hint, values, placeholder, onChange,
+}: {
+	label: string;
+	hint: string;
+	values: string[];
+	placeholder: string;
+	onChange: (next: string[]) => void;
+}) {
+	return (
+		<div className="map-list">
+			<div className="map-list-head">
+				<span>{label}</span>
+				<button className="tb" onClick={() => onChange([...values, ""])}>
+					Add
+				</button>
+			</div>
+			<p className="summary">{hint}</p>
+			{values.map((value, i) => (
+				<div className="map-list-row" key={i}>
+					<input
+						className="tb"
+						value={value}
+						placeholder={placeholder}
+						onChange={(e) => {
+							const next = [...values];
+							next[i] = e.target.value;
+							onChange(next);
+						}}
+					/>
+					<button
+						className="tb"
+						title="Remove"
+						onClick={() => onChange(values.filter((_, j) => j !== i))}
+					>
+						×
+					</button>
+				</div>
+			))}
 		</div>
 	);
 }

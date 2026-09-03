@@ -85,6 +85,7 @@ function NodeViewInner(props: NodeViewProps) {
 				props.errorCount ? "has-error" : "",
 			].filter(Boolean).join(" ")}
 			style={style}
+			data-node-id={node.id}
 			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
 		>
@@ -147,6 +148,7 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
 	return (
 		<div
 			className={`node capsule${selected ? " selected" : ""}${props.errorCount ? " has-error" : ""}`}
+			data-node-id={node.id}
 			style={{
 				left: node.x,
 				top: node.y,
@@ -271,7 +273,7 @@ function renderLiteral(props: NodeViewProps, pin: PinDef) {
 	return null;
 }
 
-const CUSTOM = " custom";
+const CUSTOM = "__roswaal_other__";
 
 /**
  * A dropdown for a pin with a known set of values, and an escape from it.

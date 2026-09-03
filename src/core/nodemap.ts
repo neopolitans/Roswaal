@@ -41,6 +41,15 @@ export interface MapNode {
 	properties?: Record<string, unknown>;
 	/** Marks the instance as ignored by Rojo's `$ignoreUnknownInstances`. */
 	ignoreUnknown?: boolean;
+	/**
+	 * Globs under this instance's path that Rojo should skip.
+	 *
+	 * Rojo has no per-instance ignore, only a project-level `globIgnorePaths`,
+	 * so a bare glob here is prefixed with this node's path on the way out.
+	 * That keeps the thing you are excluding next to the thing it belongs to,
+	 * which is where you are looking when you decide to exclude it.
+	 */
+	ignorePaths?: string[];
 	children: MapNode[];
 }
 
@@ -52,6 +61,8 @@ export interface NodeMap {
 	name: string;
 	/** Where the generated project file is written, relative to the root. */
 	output: string;
+	/** Project-wide ignore globs, passed through to Rojo untouched. */
+	globIgnorePaths?: string[];
 	/** The DataModel. Its children are services. */
 	root: MapNode;
 }
@@ -107,9 +118,11 @@ export function compileNodeMap(map: NodeMap): MapCompileResult {
 	}
 	validateNode(map.root, diagnostics, true);
 
+	const globs = collectGlobs(map);
 	const project = {
 		name: map.name,
 		tree: buildTree(map.root, true),
+		...(globs.length > 0 ? { globIgnorePaths: globs } : {}),
 	};
 
 	return {
@@ -148,14 +161,44 @@ function validateNode(node: MapNode, diagnostics: MapDiagnostic[], isRoot: boole
 	}
 }
 
+/**
+ * Every ignore glob in the map, with each node's own globs anchored to that
+ * node's path. Rojo only understands one project-level list.
+ */
+function collectGlobs(map: NodeMap): string[] {
+	const out: string[] = [...(map.globIgnorePaths ?? [])];
+
+	const visit = (node: MapNode) => {
+		for (const glob of node.ignorePaths ?? []) {
+			const trimmed = glob.trim();
+			if (trimmed === "") continue;
+			// An absolute-looking glob is the author being explicit; anything
+			// else is relative to the folder it was written on.
+			out.push(trimmed.startsWith("/") ? trimmed.slice(1) : joinGlob(node.path, trimmed));
+		}
+		node.children.forEach(visit);
+	};
+	visit(map.root);
+
+	return [...new Set(out)];
+}
+
+function joinGlob(base: string | undefined, glob: string): string {
+	if (!base) return glob;
+	return `${base.replace(/\/+$/, "")}/${glob}`;
+}
+
 type RojoNode = Record<string, unknown>;
 
 function buildTree(node: MapNode, isRoot: boolean): RojoNode {
 	const out: RojoNode = {};
 
 	// Services are named by their key alone; restating $className makes Rojo
-	// complain, so only non-services carry one.
-	if (node.className && (isRoot || !isService(node))) {
+	// complain, so only non-services carry one. A path that points at a
+	// directory already implies a Folder, so saying it again is noise that
+	// makes an empty result look intentional.
+	const impliedByPath = node.path !== undefined && node.className === "Folder";
+	if (node.className && !impliedByPath && (isRoot || !isService(node))) {
 		out.$className = node.className;
 	}
 	if (node.path) out.$path = node.path;
@@ -224,7 +267,10 @@ export function serialiseMap(map: NodeMap): string {
 			id: map.id,
 			name: map.name,
 			output: map.output,
-			root: cleanNode(map.root),
+			...(map.globIgnorePaths && map.globIgnorePaths.length
+			? { globIgnorePaths: map.globIgnorePaths }
+			: {}),
+		root: cleanNode(map.root),
 		},
 		null,
 		2,
@@ -241,6 +287,7 @@ function cleanNode(node: MapNode): Record<string, unknown> {
 			? { properties: node.properties }
 			: {}),
 		...(node.ignoreUnknown ? { ignoreUnknown: true } : {}),
+		...(node.ignorePaths && node.ignorePaths.length ? { ignorePaths: node.ignorePaths } : {}),
 		children: node.children.map(cleanNode),
 	};
 }

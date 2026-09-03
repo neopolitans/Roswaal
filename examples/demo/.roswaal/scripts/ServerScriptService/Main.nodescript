@@ -76,7 +76,7 @@
         },
         "path": {
           "t": "string",
-          "v": "Shared.Greeter"
+          "v": "Greeter"
         },
         "root": {
           "t": "string",
@@ -199,7 +199,7 @@
       },
       "to": {
         "node": "increment",
-        "pin": "a"
+        "pin": "a0"
       }
     },
     {

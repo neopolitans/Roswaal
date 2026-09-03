@@ -604,6 +604,7 @@ export function App() {
 					<MapEditor
 						map={mapDoc.map}
 						dirty={mapDoc.dirty}
+						tree={project.tree}
 						onChange={(next) => setMapDoc({ ...mapDoc, map: next, dirty: true })}
 					/>
 				) : source ? (

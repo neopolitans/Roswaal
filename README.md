@@ -236,7 +236,16 @@ and change at different rates — a graph changes constantly, the tree it sits i
 changes when the project is reorganised.
 
 A node map is edited as a tree with the generated project JSON shown beside it,
-since that JSON is the thing you would otherwise be hand-editing. Folders in the
+since that JSON is the thing you would otherwise be hand-editing. Each instance
+takes **ignore paths** — globs under its own path that Rojo should skip, which
+is how you stop a nested mapping syncing the same files twice. Rojo only has a
+project-level `globIgnorePaths`, so a glob written on a folder is anchored to
+that folder on the way out.
+
+A `$path` that points at nothing is the trap worth knowing about: Rojo builds an
+empty instance rather than complaining, so you find out in Studio. Roswaal
+flags an unresolved path in the editor as you type it, and refuses to compile
+the map without saying so. Folders in the
 project tree are the other half of the same feature: a directory under
 `sourceDir` mirrors one under `outDir`, and Rojo turns that into a Folder
 instance.

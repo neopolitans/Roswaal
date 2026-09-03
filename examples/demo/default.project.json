@@ -3,16 +3,13 @@
   "tree": {
     "$className": "DataModel",
     "ServerScriptService": {
-      "Source": {
-        "$className": "Folder",
-        "$path": "src"
-      }
+      "$path": "src/ServerScriptService"
     },
     "ReplicatedStorage": {
-      "Shared": {
-        "$className": "Folder",
-        "$path": "src/shared"
-      }
+      "$path": "src/ReplicatedStorage"
     }
-  }
+  },
+  "globIgnorePaths": [
+    "**/*.spec.luau"
+  ]
 }

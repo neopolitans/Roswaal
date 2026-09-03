@@ -17,7 +17,8 @@ import { LuauParseError, parseLuauData } from "../core/luauData.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
 import { migrateScript } from "../core/migrate.js";
 import {
-	compileNodeMap, serialiseMap, type MapDiagnostic, type NodeMap,
+	compileNodeMap, serialiseMap,
+	type MapDiagnostic, type MapNode, type NodeMap,
 } from "../core/nodemap.js";
 import { createRegistry, parseNodePack, type Registry } from "../core/nodes/index.js";
 import {
@@ -294,6 +295,7 @@ export async function compileMap(
 ): Promise<MapOutcome> {
 	const map = await readMap(project, relPath);
 	const result = compileNodeMap(map);
+	result.diagnostics.push(...(await checkMapPaths(project, map)));
 
 	const outcome: MapOutcome = {
 		mapPath: relPath,
@@ -333,6 +335,75 @@ export async function compileMap(
 	return outcome;
 }
 
+/**
+ * Checks that every `$path` in a map points at something.
+ *
+ * This is the difference between a map that works and one that looks like it
+ * does: Rojo does not complain about a path that is not there, it just builds
+ * an empty instance. You find out in Studio, staring at a folder with nothing
+ * in it and no idea why.
+ *
+ * Lives here rather than in compileNodeMap because it needs the filesystem,
+ * and the core compiler deliberately has none.
+ */
+export async function checkMapPaths(
+	project: OpenProject, map: NodeMap,
+): Promise<MapDiagnostic[]> {
+	const out: MapDiagnostic[] = [];
+	const paths: { node: MapNode; path: string }[] = [];
+
+	const visit = (node: MapNode) => {
+		if (node.path) paths.push({ node, path: node.path });
+		node.children.forEach(visit);
+	};
+	visit(map.root);
+
+	for (const { node, path: relPath } of paths) {
+		const abs = path.resolve(project.root, relPath);
+		const stat = await fs.stat(abs).catch(() => null);
+		if (!stat) {
+			out.push({
+				severity: "error",
+				message:
+					`"${node.name}" points at ${relPath}, which is not on disk. Rojo will build an ` +
+					"empty instance rather than complain, so this is the only warning you get.",
+				node: node.id,
+			});
+			continue;
+		}
+		if (stat.isDirectory()) {
+			const entries = await fs.readdir(abs).catch(() => []);
+			if (entries.length === 0) {
+				out.push({
+					severity: "warning",
+					message: `"${node.name}" points at ${relPath}, which is empty.`,
+					node: node.id,
+				});
+			}
+		}
+	}
+
+	// One path nested inside another means the inner content is synced twice,
+	// once under each instance. Usually a mistake, and always fixable with an
+	// ignore glob on the outer one.
+	for (const outer of paths) {
+		for (const inner of paths) {
+			if (outer === inner) continue;
+			if (!inner.path.startsWith(outer.path.replace(/\/+$/, "") + "/")) continue;
+			out.push({
+				severity: "warning",
+				message:
+					`"${inner.node.name}" (${inner.path}) sits inside "${outer.node.name}" ` +
+					`(${outer.path}), so its contents appear under both. Add an ignore path on ` +
+					`"${outer.node.name}" to keep them apart.`,
+				node: outer.node.id,
+			});
+		}
+	}
+
+	return out;
+}
+
 export async function collectMaps(project: OpenProject): Promise<string[]> {
 	const out: string[] = [];
 	const stack = [path.join(project.root, project.config.sourceDir)];
@@ -354,11 +425,32 @@ export async function collectMaps(project: OpenProject): Promise<string[]> {
 // ---------------------------------------------------------------------------
 
 /**
+ * Refuses a structural edit inside the output directory.
+ *
+ * Everything under outDir is generated: a folder made there is not a source
+ * folder, and a graph moved there is not moved at all — the next compile
+ * writes it back where it came from and leaves an orphan behind. Saying so is
+ * kinder than letting it look like it worked.
+ */
+function assertEditable(project: OpenProject, relPath: string, verb: string): void {
+	const out = project.config.outDir.replace(/\/+$/, "");
+	const normalised = toPosix(relPath).replace(/^\.\//, "");
+	if (normalised !== out && !normalised.startsWith(out + "/")) return;
+
+	throw new Error(
+		`${out} holds generated files, so there is nothing to ${verb} there. ` +
+			`Work in ${project.config.sourceDir}; the folders you make there appear under ` +
+			`${out} when you compile.`,
+	);
+}
+
+/**
  * Directories under sourceDir mirror directories under outDir, which Rojo turns
  * into Folder instances. Making one here is how you get a folder in the
  * DataModel without touching the project file.
  */
 export async function createFolder(project: OpenProject, relPath: string): Promise<string> {
+	assertEditable(project, relPath, "create a folder");
 	const abs = safeJoin(project.root, relPath);
 	if (await exists(abs)) throw new Error(`${relPath} already exists.`);
 	await fs.mkdir(abs, { recursive: true });
@@ -368,6 +460,7 @@ export async function createFolder(project: OpenProject, relPath: string): Promi
 export async function renameEntry(
 	project: OpenProject, relPath: string, newName: string,
 ): Promise<string> {
+	assertEditable(project, relPath, "rename anything");
 	const clean = newName.replace(/[\\/:*?"<>|]/g, "").trim();
 	if (clean === "") throw new Error("A name cannot be empty.");
 
@@ -383,6 +476,8 @@ export async function renameEntry(
 export async function moveEntry(
 	project: OpenProject, from: string, toDir: string,
 ): Promise<string> {
+	assertEditable(project, from, "move anything");
+	assertEditable(project, toDir, "move anything");
 	const source = safeJoin(project.root, from);
 	const name = path.basename(from);
 	const destRel = path.posix.join(toDir, name);

@@ -4,7 +4,9 @@
   "sourceDir": ".roswaal/scripts",
   "outDir": "src",
   "compileMode": "manual",
-  "nodePaths": [".roswaal/nodes"],
+  "nodePaths": [
+    ".roswaal/nodes"
+  ],
   "format": true,
   "rojoProject": "default.project.json"
 }
