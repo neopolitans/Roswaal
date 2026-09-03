@@ -1506,3 +1506,190 @@ button.tb.primary.danger {
 .node.grow-target {
 	box-shadow: 0 0 0 2px var(--ok), var(--node-shadow);
 }
+
+/* ------------------------------------------------------------------ icons */
+
+.icon {
+	flex: none;
+	display: block;
+	transition: transform 0.12s ease;
+}
+
+.tree-row .twist {
+	color: var(--fg-faint);
+	cursor: pointer;
+}
+
+.tree-row .kind {
+	color: var(--fg-muted);
+}
+
+/* Graphs are the editable thing here, so they carry the accent; generated
+   Luau sits back with the rest of the repository. */
+.tree-row .kind.nodescript {
+	color: var(--accent);
+}
+
+.tree-row .kind.nodemap {
+	color: var(--ok);
+}
+
+.tree-row .kind.luau {
+	color: var(--fg-faint);
+}
+
+.menu .item .icon {
+	color: var(--fg-muted);
+}
+
+.menu .item.danger .icon {
+	color: var(--danger);
+}
+
+button.tb .icon,
+.toolbar .icon {
+	color: currentColor;
+}
+
+/* A toolbar button that is an icon plus a label. */
+button.tb.with-icon {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* ------------------------------------------------------------------- help */
+
+.help-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+	display: grid;
+	place-items: center;
+	padding: 40px;
+}
+
+.help {
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+	width: min(720px, 100%);
+	height: min(640px, 100%);
+	display: grid;
+	grid-template-rows: auto 1fr;
+	overflow: hidden;
+}
+
+.help-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--border);
+}
+
+.help-head .sub {
+	color: var(--fg-faint);
+	font-size: 12px;
+}
+
+.help-body {
+	display: grid;
+	grid-template-columns: 150px 1fr;
+	min-height: 0;
+}
+
+.help-nav {
+	border-right: 1px solid var(--border);
+	padding: 10px 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.help-nav button {
+	background: none;
+	border: 0;
+	text-align: left;
+	padding: 6px 10px;
+	border-radius: 5px;
+	cursor: pointer;
+	color: var(--fg-muted);
+}
+
+.help-nav button:hover {
+	background: var(--bg-hover);
+}
+
+.help-nav button.on {
+	background: var(--bg-active);
+	color: var(--fg);
+	font-weight: 600;
+}
+
+.help-content {
+	overflow: auto;
+	padding: 16px 22px 28px;
+	line-height: 1.6;
+}
+
+.help-content h3 {
+	font-size: 13px;
+	margin: 22px 0 8px;
+	color: var(--fg);
+}
+
+.help-content h3:first-child {
+	margin-top: 0;
+}
+
+.help-content p {
+	margin: 0 0 10px;
+	color: var(--fg-muted);
+}
+
+.help-content b {
+	color: var(--fg);
+	font-weight: 600;
+}
+
+.help-content code,
+.help-content kbd {
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	padding: 0 4px;
+	font: 11px/1.6 "Cascadia Mono", Consolas, monospace;
+	color: var(--fg);
+}
+
+.help-content pre {
+	background: var(--bg-canvas);
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 10px 12px;
+	overflow-x: auto;
+	font: 11px/1.6 "Cascadia Mono", Consolas, monospace;
+	color: var(--fg);
+	margin: 0 0 10px;
+}
+
+.help-keys {
+	border-collapse: collapse;
+	width: 100%;
+	font-size: 12px;
+}
+
+.help-keys td {
+	padding: 4px 8px 4px 0;
+	vertical-align: top;
+	border-bottom: 1px solid var(--border);
+	color: var(--fg-muted);
+}
+
+.help-keys td:first-child {
+	white-space: nowrap;
+	color: var(--fg);
+	width: 44%;
+}

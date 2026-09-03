@@ -6,14 +6,15 @@
  * marked so it is obvious which Luau is Roswaal's to overwrite.
  */
 
-import { useMemo, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import type { TreeEntry } from "./api.js";
+import { Icon, type IconName } from "./icons.jsx";
+import { LAYER } from "./layers.js";
 
-const GLYPHS: Record<TreeEntry["kind"], string> = {
-	directory: "▸",
-	nodescript: "◆",
-	nodemap: "▦",
-	luau: "·",
+const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
+	nodescript: "document",
+	nodemap: "map",
+	luau: "document",
 };
 
 export interface ProjectTreeProps {
@@ -24,11 +25,28 @@ export interface ProjectTreeProps {
 	onNewFolder: (parentDir: string) => void;
 	onRename: (path: string) => void;
 	onDelete: (paths: string[]) => void;
+	onReveal: (path: string) => void;
 }
 
 export function ProjectTree(props: ProjectTreeProps) {
 	const { tree, openPath, onOpen, onMove } = props;
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
+	const menuRef = useRef<HTMLDivElement>(null);
+
+	// Closed by a click outside it, deferred by a tick — a right-click also
+	// delivers a click here, and without the delay the menu would close on the
+	// very gesture that opened it.
+	useEffect(() => {
+		if (!menu) return;
+		const onDown = (e: MouseEvent) => {
+			if (!menuRef.current?.contains(e.target as Node)) setMenu(null);
+		};
+		const id = window.setTimeout(() => window.addEventListener("mousedown", onDown), 0);
+		return () => {
+			window.clearTimeout(id);
+			window.removeEventListener("mousedown", onDown);
+		};
+	}, [menu]);
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 	const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -102,7 +120,7 @@ export function ProjectTree(props: ProjectTreeProps) {
 	}
 
 	return (
-		<div className="tree" onClick={() => menu && setMenu(null)}>
+		<div className="tree">
 			{rows.map(({ entry, depth }) => {
 				const isDir = entry.kind === "directory";
 				const readonly = entry.kind === "luau";
@@ -136,16 +154,23 @@ export function ProjectTree(props: ProjectTreeProps) {
 						}}
 						title={entry.path}
 					>
-						<span
-							className="glyph"
-							style={
-								isDir
-									? { transform: collapsed.has(entry.path) ? "none" : "rotate(90deg)" }
-									: undefined
-							}
-						>
-							{GLYPHS[entry.kind]}
-						</span>
+						{isDir ? (
+							<>
+								<Icon name="chevron" size={14} className="twist"
+									rotate={collapsed.has(entry.path) ? -90 : 0} />
+								<Icon
+									name={collapsed.has(entry.path) ? "folder" : "folderOpen"}
+									size={15}
+									className="kind"
+								/>
+							</>
+						) : (
+							<Icon
+								name={KIND_ICONS[entry.kind as keyof typeof KIND_ICONS]}
+								size={15}
+								className={`kind ${entry.kind}`}
+							/>
+						)}
 						<span className="label">{entry.name}</span>
 						{entry.generatedFrom && <span className="badge">generated</span>}
 					</div>
@@ -158,8 +183,22 @@ export function ProjectTree(props: ProjectTreeProps) {
 			)}
 
 			{menu && (
-				<div className="menu tree-menu" style={{ left: menu.x, top: menu.y }}>
+				<div
+					className="menu tree-menu"
+					ref={menuRef}
+					style={{ left: menu.x, top: menu.y, zIndex: LAYER.menu }}
+				>
 					<div className="items">
+						<div
+							className="item"
+							onClick={() => {
+								props.onReveal(menu.entry.path);
+								setMenu(null);
+							}}
+						>
+							<Icon name="external" size={15} />
+							<span>Show in file manager</span>
+						</div>
 						<div
 							className="item"
 							onClick={() => {
@@ -167,7 +206,8 @@ export function ProjectTree(props: ProjectTreeProps) {
 								setMenu(null);
 							}}
 						>
-							New folder
+							<Icon name="newFolder" size={15} />
+							<span>New folder</span>
 						</div>
 						<div
 							className="item"
@@ -176,7 +216,8 @@ export function ProjectTree(props: ProjectTreeProps) {
 								setMenu(null);
 							}}
 						>
-							Rename
+							<Icon name="rename" size={15} />
+							<span>Rename</span>
 						</div>
 						<div
 							className="item danger"
@@ -186,7 +227,8 @@ export function ProjectTree(props: ProjectTreeProps) {
 								setMenu(null);
 							}}
 						>
-							Delete
+							<Icon name="remove" size={15} />
+							<span>Delete</span>
 						</div>
 					</div>
 				</div>

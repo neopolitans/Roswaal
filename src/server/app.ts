@@ -18,10 +18,11 @@ import { fileURLToPath } from "node:url";
 import {
 	buildTree, collectMaps, compileAll, compileMap, compileScript, createFolder,
 	deleteEntry, initProject, moveEntry, openProject, readMap, readScript, readText,
-	renameEntry, writeConfig, writeMap, writeScript,
+	renameEntry, safeJoin, writeConfig, writeMap, writeScript,
 	type OpenProject,
 } from "./project.js";
 import { streamEvents } from "./events.js";
+import { revealInFileManager } from "./reveal.js";
 import { VERSION } from "../cli/version.js";
 import { HotReloader } from "./watcher.js";
 import { emptyMap, type NodeMap } from "../core/nodemap.js";
@@ -258,6 +259,17 @@ app.post("/api/folder/create", route(async (req) => {
 	const { path: relPath } = req.body as { path: string };
 	if (!relPath) throw new HttpError(400, "Provide a path.");
 	return { path: await createFolder(project(), relPath) };
+}));
+
+/**
+ * Shows a file in the OS file manager. The editor is a web page and cannot do
+ * this itself, which is the whole reason the daemon owns it.
+ */
+app.post("/api/entry/reveal", route(async (req) => {
+	const p = project();
+	const { path: relPath } = req.body as { path?: string };
+	await revealInFileManager(relPath ? safeJoin(p.root, relPath) : p.root);
+	return { ok: true };
 }));
 
 app.post("/api/entry/rename", route(async (req) => {

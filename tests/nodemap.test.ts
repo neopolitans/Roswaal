@@ -71,3 +71,45 @@ describe("node maps", () => {
 		expect(compileNodeMap(map).json).toBe(compileNodeMap(map).json);
 	});
 });
+
+/**
+ * Rojo deserialises its project file strictly: any key it does not recognise
+ * fails the whole parse. An earlier build stamped an ownership marker into the
+ * document and broke every project that used one, so this guards the shape.
+ */
+describe("Rojo compatibility", () => {
+	const ROJO_TOP_LEVEL = new Set([
+		"name", "tree", "servePort", "serveAddress", "servePlaceIds",
+		"placeId", "gameId", "globIgnorePaths", "emitLegacyScripts",
+	]);
+
+	const ROJO_TREE_KEYS = new Set([
+		"$className", "$path", "$properties", "$ignoreUnknownInstances", "$attributes",
+	]);
+
+	it("emits only top-level keys Rojo knows", () => {
+		const parsed = JSON.parse(compileNodeMap(makeMap()).json) as Record<string, unknown>;
+		for (const key of Object.keys(parsed)) {
+			expect(ROJO_TOP_LEVEL.has(key), `unexpected top-level key "${key}"`).toBe(true);
+		}
+	});
+
+	it("emits only tree directives Rojo knows", () => {
+		const map = makeMap();
+		map.root.children[0].children[0].properties = { Archivable: false };
+		map.root.children[0].children[0].ignoreUnknown = true;
+
+		const seen: string[] = [];
+		const walk = (node: Record<string, unknown>) => {
+			for (const [key, value] of Object.entries(node)) {
+				if (key.startsWith("$")) seen.push(key);
+				else walk(value as Record<string, unknown>);
+			}
+		};
+		walk((JSON.parse(compileNodeMap(map).json) as { tree: Record<string, unknown> }).tree);
+
+		for (const key of seen) {
+			expect(ROJO_TREE_KEYS.has(key), `unexpected tree key "${key}"`).toBe(true);
+		}
+	});
+});

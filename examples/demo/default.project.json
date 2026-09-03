@@ -1,5 +1,4 @@
 {
-  "$roswaalGeneratedFrom": ".roswaal/scripts/Game.nodemap",
   "name": "roswaal-demo",
   "tree": {
     "$className": "DataModel",

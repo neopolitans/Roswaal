@@ -17,6 +17,8 @@ import type { NodeMap } from "../core/nodemap.js";
 import { MapEditor } from "./MapEditor.jsx";
 import { CodeEditor } from "./CodeEditor.jsx";
 import { Dialog, type DialogRequest, type DialogResult, type PendingDialog } from "./Dialog.jsx";
+import { HelpPanel } from "./HelpPanel.jsx";
+import { Icon } from "./icons.jsx";
 import type { PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
 import { buildPresets, NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
@@ -50,6 +52,7 @@ export function App() {
 		{ nodeId: string; pin: PinDef; value: string } | null
 	>(null);
 	const [dialog, setDialog] = useState<PendingDialog | null>(null);
+	const [helpOpen, setHelpOpen] = useState(false);
 
 	/** Opens a modal and resolves with what the developer chose. */
 	const ask = useCallback((request: DialogRequest): Promise<DialogResult> => {
@@ -369,11 +372,18 @@ export function App() {
 		<div className="app">
 			<div className="toolbar">
 				<span className="brand">ROSWAAL</span>
-				<button className="tb" onClick={() => void refreshTree()}>Refresh</button>
 				<button
-					className="tb"
+					className="tb with-icon"
+					title="Re-read the project from disk"
+					onClick={() => void refreshTree()}
+				>
+					<Icon name="refresh" size={15} />
+					Refresh
+				</button>
+				<button
+					className="tb with-icon"
 					disabled={!editor.script}
-					title="Add a node at the centre of the view"
+					title="Add a node at the centre of the view. Right-clicking the canvas does the same, where you click."
 					onClick={() => {
 						const view = store.getSnapshot().view;
 						setMenu({
@@ -382,10 +392,12 @@ export function App() {
 						});
 					}}
 				>
+					<Icon name="search" size={15} />
 					Add node
 				</button>
 				<button
-					className="tb"
+					className="tb with-icon"
+					title="A new .nodescript: one Script, LocalScript or ModuleScript"
 					onClick={async () => {
 						const name = await ask({
 							kind: "prompt",
@@ -400,10 +412,11 @@ export function App() {
 						setSource(null);
 					}}
 				>
+					<Icon name="newFile" size={15} />
 					New graph
 				</button>
 				<button
-					className="tb"
+					className="tb with-icon"
 					title="A node map describes where things live in the DataModel"
 					onClick={async () => {
 						const name = await ask({
@@ -420,6 +433,7 @@ export function App() {
 						setMapDoc({ path: created.path, map: created.map, dirty: false });
 					}}
 				>
+					<Icon name="map" size={15} />
 					New map
 				</button>
 
@@ -469,17 +483,20 @@ export function App() {
 				</div>
 
 				<button
-					className="tb primary"
+					className="tb primary with-icon"
+					title="Compile just this document (Ctrl+S)"
 					disabled={(!editor.path && !mapDoc) || busy !== null}
 					onClick={() => {
 						if (mapDoc) void runCompileMap(mapDoc.path);
 						else if (editor.path) void runCompile(editor.path, true);
 					}}
 				>
+					<Icon name="build" size={15} />
 					{mapDoc ? "Write project file" : "Compile script"}
 				</button>
 				<button
 					className="tb"
+					title="Compile every graph and node map in the project"
 					disabled={busy !== null}
 					onClick={async () => {
 						await runCompile(undefined, true);
@@ -487,6 +504,13 @@ export function App() {
 					}}
 				>
 					Compile project
+				</button>
+				<button
+					className="tb"
+					title="How Roswaal works"
+					onClick={() => setHelpOpen(true)}
+				>
+					Help
 				</button>
 			</div>
 
@@ -500,6 +524,13 @@ export function App() {
 						onMove={async (from, toDir) => {
 							for (const path of from) await api.moveScript(path, toDir);
 							await refreshTree();
+						}}
+						onReveal={async (target) => {
+							try {
+								await api.reveal(target);
+							} catch (err) {
+								notify("Could not show that file", (err as Error).message);
+							}
 						}}
 						onNewFolder={async (parentDir) => {
 							const name = await ask({
@@ -613,6 +644,8 @@ export function App() {
 				packErrors={project.packErrors}
 				onForce={(path) => void runCompile(path, true, true)}
 			/>
+
+			{helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
 
 			{dialog && <Dialog {...dialog} />}
 

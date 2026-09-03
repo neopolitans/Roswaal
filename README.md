@@ -5,7 +5,8 @@ Visual scripting for Roblox Luau and Lune Luau. Graphs live on disk as
 source file.
 
 Roswaal is licensed **0BSD**: use it, modify it, ship it, train on it, no
-attribution required.
+attribution required. Two bundled things keep their own terms — the icons
+(Material Symbols, Apache-2.0) and CodeMirror (MIT); see [NOTICE.md](NOTICE.md).
 
 > Prototype. The compiler and its tests are the load-bearing parts and are
 > solid; the editor is complete enough to build real graphs with. See
@@ -386,12 +387,15 @@ and reports against the node holding the code.
 | Drag a variable onto the canvas | Get node, or Set with Ctrl held |
 | Drag a comment bar | move the comment and everything inside it |
 | Double-click a comment bar | rename |
-| Right-click the project tree | new folder, rename, delete |
+| Right-click the project tree | show in file manager, new folder, rename, delete |
 | `C` | wrap the selection in a comment |
 | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Ctrl+D` | copy, cut, paste, duplicate |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | undo, redo |
 | `Ctrl+A`, `Delete` | select all, delete |
 | `Ctrl+S` | compile the open document |
+
+The **Help** button in the toolbar covers the same ground from inside the app,
+which is where the questions actually come up.
 
 Comment membership is captured when a drag begins rather than tracked, which is
 how Unreal behaves: a node that was inside the comment travels with it, and one

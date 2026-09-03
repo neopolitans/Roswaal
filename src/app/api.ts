@@ -91,6 +91,8 @@ export const api = {
 		post<{ results: MapOutcome[] }>("/api/map/compile", opts),
 
 	createFolder: (path: string) => post<{ path: string }>("/api/folder/create", { path }),
+	/** Shows a file in the OS file manager. Empty path reveals the project root. */
+	reveal: (path?: string) => post<{ ok: true }>("/api/entry/reveal", { path }),
 	renameEntry: (path: string, name: string) =>
 		post<{ path: string }>("/api/entry/rename", { path, name }),
 
