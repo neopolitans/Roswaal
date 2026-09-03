@@ -3,12 +3,25 @@
 import type { NodeDef, PinDef } from "../schema.js";
 import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES } from "./library.js";
+import { VARIABLE_NODES } from "./variables.js";
 
-export { FLOW_NODES } from "./flow.js";
+export { FLOW_NODES, signatureText } from "./flow.js";
 export { LIBRARY_NODES } from "./library.js";
+export { VARIABLE_NODES } from "./variables.js";
 export type { Signature } from "./flow.js";
+export type { FunctionRef, VariableRef } from "./variables.js";
 
-export const BUILTIN_NODES: NodeDef[] = [...FLOW_NODES, ...LIBRARY_NODES];
+export const BUILTIN_NODES: NodeDef[] = [...FLOW_NODES, ...VARIABLE_NODES, ...LIBRARY_NODES];
+
+/**
+ * Node ids that have been renamed. Applied when a graph is read, so a file
+ * written by an earlier build still opens instead of showing a wall of
+ * "unknown node type".
+ */
+export const RENAMED_NODES: Record<string, string> = {
+	"var.declare": "local.declare",
+	"var.set": "local.set",
+};
 
 export type Registry = Map<string, NodeDef>;
 

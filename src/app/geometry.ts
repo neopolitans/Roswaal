@@ -27,16 +27,31 @@ export function resolvePins(def: NodeDef, config?: NodeConfig): { inputs: PinDef
 	return derived ?? { inputs: def.inputs, outputs: def.outputs };
 }
 
-export function nodeHeight(inputs: PinDef[], outputs: PinDef[]): number {
+/**
+ * Header height for one node. Nodes with a subtitle get a taller header, and
+ * every pin below it shifts down, so this has to be the single source both the
+ * renderer and the wire router consult.
+ */
+export function headerHeight(def: NodeDef | undefined, config?: NodeConfig): number {
+	const subtitle = def?.subtitle?.(config ?? {});
+	return subtitle ? NODE.headerHeightTall : NODE.headerHeight;
+}
+
+export function nodeHeight(
+	inputs: PinDef[], outputs: PinDef[], def?: NodeDef, config?: NodeConfig,
+): number {
 	const rows = Math.max(inputs.length, outputs.length, 1);
-	return NODE.headerHeight + rows * NODE.rowHeight + NODE.footer;
+	return headerHeight(def, config) + rows * NODE.rowHeight + NODE.footer;
 }
 
 export function nodeBounds(node: GraphNode, registry: Registry): Rect {
 	const def = registry.get(node.def);
 	if (!def) return { x: node.x, y: node.y, w: NODE.width, h: NODE.headerHeight + NODE.footer };
 	const { inputs, outputs } = resolvePins(def, node.config);
-	return { x: node.x, y: node.y, w: NODE.width, h: nodeHeight(inputs, outputs) };
+	return {
+		x: node.x, y: node.y, w: NODE.width,
+		h: nodeHeight(inputs, outputs, def, node.config),
+	};
 }
 
 /** World position of a pin's connection point. */
@@ -51,7 +66,11 @@ export function pinPosition(
 	if (index === -1) return null;
 	return {
 		x: side === "in" ? node.x : node.x + NODE.width,
-		y: node.y + NODE.headerHeight + index * NODE.rowHeight + NODE.rowHeight / 2,
+		y:
+			node.y +
+			headerHeight(def, node.config) +
+			index * NODE.rowHeight +
+			NODE.rowHeight / 2,
 	};
 }
 

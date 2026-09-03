@@ -10,8 +10,8 @@
     {
       "id": "conn",
       "def": "event.connect",
-      "x": 640,
-      "y": 140,
+      "x": 674.29,
+      "y": 141.9,
       "config": {
         "params": [
           {
@@ -24,8 +24,8 @@
     {
       "id": "greeting",
       "def": "string.concat",
-      "x": 900,
-      "y": 360,
+      "x": 934.29,
+      "y": 361.9,
       "literals": {
         "a": {
           "t": "string",
@@ -36,8 +36,8 @@
     {
       "id": "pname",
       "def": "roblox.getProperty",
-      "x": 640,
-      "y": 360,
+      "x": 674.29,
+      "y": 361.9,
       "literals": {
         "property": {
           "t": "string",
@@ -48,14 +48,14 @@
     {
       "id": "say",
       "def": "debug.print",
-      "x": 960,
-      "y": 180
+      "x": 994.29,
+      "y": 181.9
     },
     {
       "id": "signal",
       "def": "roblox.getProperty",
-      "x": 340,
-      "y": 320,
+      "x": 374.29,
+      "y": 321.9,
       "literals": {
         "property": {
           "t": "string",
@@ -66,14 +66,14 @@
     {
       "id": "start",
       "def": "script.begin",
-      "x": 80,
-      "y": 140
+      "x": 75.24,
+      "y": 141.9
     },
     {
       "id": "svc",
       "def": "roblox.getService",
-      "x": 340,
-      "y": 140,
+      "x": 374.29,
+      "y": 141.9,
       "literals": {
         "service": {
           "t": "string",
@@ -175,8 +175,8 @@
   "comments": [
     {
       "id": "c1",
-      "x": 300,
-      "y": 60,
+      "x": 334.29,
+      "y": 61.9,
       "w": 900,
       "h": 260,
       "text": "Greet every player who joins",

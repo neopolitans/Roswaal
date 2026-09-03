@@ -19,6 +19,7 @@ import {
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import type { Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
+import type { FunctionRef, VariableRef } from "../nodes/variables.js";
 import type { Registry } from "../nodes/index.js";
 
 export interface Diagnostic {
@@ -84,6 +85,8 @@ class Emitter {
 	private execStack = new Set<string>();
 	/** function.entry node id -> the local it was bound to. */
 	private functionNames = new Map<string, string>();
+	/** ScriptVariable id -> the file-level local it was declared as. */
+	private variableNames = new Map<string, string>();
 
 	constructor(
 		private script: NodeScript,
@@ -100,6 +103,7 @@ class Emitter {
 	run(): EmitResult {
 		const root = new Scope();
 
+		this.emitVariables();
 		this.emitFunctions(root);
 		this.emitMainFlow(root);
 		this.emitModuleReturn(root);
@@ -163,6 +167,36 @@ class Emitter {
 	}
 
 	// -- top-level sections ------------------------------------------------
+
+	/**
+	 * Script variables become file-level locals, declared before anything else
+	 * so that functions and the main flow can both see them. They are emitted in
+	 * declaration order rather than sorted, because the order is the author's
+	 * and shows up in the generated file.
+	 */
+	private emitVariables(): void {
+		const variables = this.script.variables ?? [];
+		if (variables.length === 0) return;
+
+		// Two passes: claim every name before emitting, so a variable declared
+		// later cannot be renamed out from under an earlier one.
+		for (const variable of variables) {
+			this.variableNames.set(
+				variable.id,
+				this.names.unique(variable.name || "variable", "variable"),
+			);
+		}
+		for (const variable of variables) {
+			const ident = this.variableNames.get(variable.id)!;
+			const annotation =
+				this.script.strict && variable.type && variable.type !== "any"
+					? `: ${luauType(variable.type)}`
+					: "";
+			if (variable.description) this.push(`-- ${variable.description}`);
+			this.push(`local ${ident}${annotation} = ${literalToLuau(variable.default)}`);
+		}
+		this.blank();
+	}
 
 	private emitFunctions(root: Scope): void {
 		const entries = this.index
@@ -391,6 +425,34 @@ class Emitter {
 			case "module.exports":
 				return undefined;
 
+			case "variable.set": {
+				const ref = (r.node.config ?? {}) as VariableRef;
+				const ident = ref.variable ? this.variableNames.get(ref.variable) : undefined;
+				const value = this.resolveInput(r, this.pin(r, "value", "in"), scope);
+				if (!ident) {
+					this.error(
+						ref.variable
+							? `Set Variable points at a variable that no longer exists.`
+							: `Set Variable has no variable chosen.`,
+						id,
+					);
+					return this.index.execTarget(id, "then");
+				}
+				this.push(`${ident} = ${value}`, id);
+				// The pass-through output is the variable itself, so a Set can sit
+				// mid-chain and feed the value onwards without a second read.
+				scope.bindings.set(`${id}/value`, ident);
+				return this.index.execTarget(id, "then");
+			}
+
+			case "variable.get":
+			case "function.get":
+				this.error(
+					`"${r.def.title}" is a pure node and cannot be placed in an execution chain.`,
+					id,
+				);
+				return undefined;
+
 			case "flow.branch": {
 				const cond = this.resolveInput(r, this.pin(r, "condition", "in"), scope);
 				const onTrue = this.index.execTarget(id, "true");
@@ -512,6 +574,51 @@ class Emitter {
 		}
 	}
 
+	/**
+	 * A pure builtin's expression. These always resolve to a plain identifier,
+	 * which is why they bypass the hoisting rule entirely.
+	 */
+	private pureBuiltin(handler: string, src: ResolvedNode, consumer: ResolvedNode): string {
+		switch (handler) {
+			case "variable.get": {
+				const ref = (src.node.config ?? {}) as VariableRef;
+				const ident = ref.variable ? this.variableNames.get(ref.variable) : undefined;
+				if (!ident) {
+					this.error(
+						ref.variable
+							? "Get Variable points at a variable that no longer exists."
+							: "Get Variable has no variable chosen.",
+						src.node.id,
+					);
+					return "nil";
+				}
+				return ident;
+			}
+
+			case "function.get": {
+				const ref = (src.node.config ?? {}) as FunctionRef;
+				const ident = ref.function ? this.functionNames.get(ref.function) : undefined;
+				if (!ident) {
+					this.error(
+						ref.function
+							? "Get Function points at a function that is no longer in this graph."
+							: "Get Function has no function chosen.",
+						src.node.id,
+					);
+					return "nil";
+				}
+				return ident;
+			}
+
+			default:
+				this.error(
+					`"${consumer.def.title}" reads "${src.def.title}", which has no value to give.`,
+					src.node.id,
+				);
+				return "nil";
+		}
+	}
+
 	// -- data resolution ---------------------------------------------------
 
 	private pin(r: ResolvedNode, pinId: string, dir: "in" | "out"): PinDef {
@@ -572,6 +679,14 @@ class Emitter {
 		}
 
 		const spec = src.def.compilesTo;
+
+		// Pure builtins resolve to a bare identifier. They are deliberately never
+		// hoisted: a variable read has to happen at its use site, or a Set
+		// between two Gets would be invisible to the second one.
+		if (spec.kind === "builtin") {
+			return this.pureBuiltin(spec.handler, src, consumer);
+		}
+
 		if (spec.kind !== "expr") {
 			this.error(`"${src.def.title}" is marked pure but has no expression template.`, nodeId);
 			return "nil";

@@ -22,8 +22,8 @@
     {
       "id": "exports",
       "def": "module.exports",
-      "x": 700,
-      "y": 460,
+      "x": 1070.5,
+      "y": 159.24,
       "config": {
         "exports": [
           {
@@ -36,7 +36,7 @@
     {
       "id": "fn",
       "def": "function.entry",
-      "x": 100,
+      "x": 98.73,
       "y": 140,
       "config": {
         "name": "greet",
@@ -71,6 +71,17 @@
   ],
   "links": [
     {
+      "id": "4b720e5e-a60f-46c9-b7e8-794e40e66b30",
+      "from": {
+        "node": "fn",
+        "pin": "self"
+      },
+      "to": {
+        "node": "exports",
+        "pin": "e0"
+      }
+    },
+    {
       "id": "g1",
       "from": {
         "node": "fn",
@@ -101,17 +112,6 @@
       "to": {
         "node": "ret",
         "pin": "r0"
-      }
-    },
-    {
-      "id": "g4",
-      "from": {
-        "node": "fn",
-        "pin": "self"
-      },
-      "to": {
-        "node": "exports",
-        "pin": "e0"
       }
     }
   ],

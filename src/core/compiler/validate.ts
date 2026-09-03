@@ -124,6 +124,57 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		}
 	}
 
+	// -- variables ---------------------------------------------------------
+	const variables = script.variables ?? [];
+	const variableIds = new Set(variables.map((v) => v.id));
+	const seenNames = new Set<string>();
+	for (const variable of variables) {
+		if (variable.name.trim() === "") {
+			out.push({ severity: "error", message: "A variable has no name." });
+		} else if (seenNames.has(variable.name)) {
+			out.push({
+				severity: "warning",
+				message: `Two variables are both called "${variable.name}". The generated locals will be given distinct names.`,
+			});
+		}
+		seenNames.add(variable.name);
+	}
+
+	const functionIds = new Set(
+		script.nodes.filter((n) => n.def === "function.entry").map((n) => n.id),
+	);
+
+	for (const node of script.nodes) {
+		if (node.def === "variable.get" || node.def === "variable.set") {
+			const ref = (node.config ?? {}) as { variable?: string };
+			if (!ref.variable) {
+				out.push({
+					severity: "error",
+					message: `${node.def === "variable.get" ? "Get" : "Set"} Variable has no variable chosen.`,
+					node: node.id,
+				});
+			} else if (!variableIds.has(ref.variable)) {
+				out.push({
+					severity: "error",
+					message: "This node points at a variable that has been deleted.",
+					node: node.id,
+				});
+			}
+		}
+		if (node.def === "function.get") {
+			const ref = (node.config ?? {}) as { function?: string };
+			if (!ref.function) {
+				out.push({ severity: "error", message: "Get Function has no function chosen.", node: node.id });
+			} else if (!functionIds.has(ref.function)) {
+				out.push({
+					severity: "error",
+					message: "This node points at a function that is no longer in the graph.",
+					node: node.id,
+				});
+			}
+		}
+	}
+
 	// -- entry points ------------------------------------------------------
 	const entries = index.entryNodes();
 	if (entries.length === 0 && script.nodes.length > 0) {

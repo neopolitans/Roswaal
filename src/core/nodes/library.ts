@@ -74,20 +74,24 @@ export const LIBRARY_NODES: NodeDef[] = [
 		compilesTo: { kind: "expr", outputs: { result: "$in.code!raw" } },
 	},
 
-	// -- Variables ---------------------------------------------------------
+	// -- Locals ------------------------------------------------------------
+	//
+	// Distinct from script variables: a local exists only inside the block that
+	// declared it, and is reached by wiring its output rather than by name.
 	{
-		id: "var.declare",
-		title: "Declare Variable",
+		id: "local.declare",
+		title: "Declare Local",
 		category: "Variables",
-		summary: "Binds a local. Wire the Variable output anywhere the value is needed.",
+		summary:
+			"Binds a local in the current block. Wire the Local output wherever the value is needed. For a value the whole script can reach, add a variable instead.",
 		inputs: [exec("in"), d("value", "Value", "any", { t: "nil" })],
-		outputs: [exec("then"), d("ref", "Variable", "any")],
+		outputs: [exec("then"), d("ref", "Local", "any")],
 		compilesTo: { kind: "call", template: "$in.value", result: "ref" },
 	},
-	stmt("var.set", "Set Variable", "Variables", "$in.variable = $in.value", [
-		d("variable", "Variable", "any", undefined),
+	stmt("local.set", "Set Local", "Variables", "$in.variable = $in.value", [
+		d("variable", "Local", "any", undefined),
 		d("value", "Value", "any", { t: "nil" }),
-	], { summary: "Assigns to a variable declared upstream." }),
+	], { summary: "Reassigns a local declared upstream." }),
 
 	// -- Math --------------------------------------------------------------
 	pure("math.add", "Add", "Math", "$in.a + $in.b", [num("a", "A"), num("b", "B")], "number"),
@@ -167,6 +171,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 		{ latent: true, targets: ["roblox"], summary: "Yields until the child exists." }),
 	pure("roblox.getProperty", "Get Property", "Roblox", "$in.instance.$in.property!ident",
 		[d("instance", "Instance", "Instance"), str("property", "Property", "Name")], "any"),
+	pure("roblox.getEvent", "Get Event", "Roblox", "$in.instance.$in.event!ident",
+		[d("instance", "Instance", "Instance"), str("event", "Event", "Touched")], "RBXScriptSignal",
+		"Reads a signal off an instance. Same access as Get Property, but typed as a signal so it wires straight into Connect Event."),
 	stmt("roblox.setProperty", "Set Property", "Roblox", "$in.instance.$in.property!ident = $in.value",
 		[d("instance", "Instance", "Instance"), str("property", "Property", "Name"), d("value", "Value", "any", { t: "nil" })],
 		{ targets: ["roblox"] }),

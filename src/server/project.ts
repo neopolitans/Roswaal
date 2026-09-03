@@ -13,9 +13,10 @@ import path from "node:path";
 import {
 	compile, hashString, serialiseScript, type CompileResult,
 } from "../core/compiler/index.js";
+import { migrateScript } from "../core/migrate.js";
 import { createRegistry, parseNodePack, type Registry } from "../core/nodes/index.js";
 import {
-	defaultConfig, emptyScript, SCHEMA_VERSION,
+	defaultConfig, SCHEMA_VERSION,
 	type NodeDef, type NodeScript, type RoswaalConfig,
 } from "../core/schema.js";
 
@@ -205,7 +206,7 @@ export async function readScript(project: OpenProject, relPath: string): Promise
 			`${relPath} was written by a newer version of Roswaal (schema ${parsed.schemaVersion}).`,
 		);
 	}
-	return { ...emptyScript(parsed.name, parsed.id), ...parsed };
+	return migrateScript(parsed).script;
 }
 
 export async function writeScript(
@@ -392,18 +393,26 @@ let styluaAvailable: boolean | null = null;
  */
 export function formatLuau(cwd: string, code: string): string {
 	if (styluaAvailable === false) return code;
-	const run = spawnSync("stylua", ["-"], {
-		cwd,
-		input: code,
-		encoding: "utf8",
-		shell: process.platform === "win32",
-	});
-	if (run.error || run.status !== 0 || typeof run.stdout !== "string" || run.stdout === "") {
-		styluaAvailable = false;
-		return code;
+
+	// Each candidate is tried without a shell. Going through one would resolve
+	// the .cmd shim for us, but it also means the arguments are concatenated
+	// rather than passed, which Node now warns about — and we do not need it.
+	const candidates =
+		process.platform === "win32" ? ["stylua.exe", "stylua.cmd", "stylua.bat"] : ["stylua"];
+
+	for (const command of candidates) {
+		const run = spawnSync(command, ["-"], { cwd, input: code, encoding: "utf8" });
+		if (run.error || run.status !== 0 || typeof run.stdout !== "string" || run.stdout === "") {
+			continue;
+		}
+		styluaAvailable = true;
+		return run.stdout;
 	}
-	styluaAvailable = true;
-	return run.stdout;
+
+	// Remembered, so a project without stylua does not pay for the lookup on
+	// every single file it compiles.
+	styluaAvailable = false;
+	return code;
 }
 
 // ---------------------------------------------------------------------------

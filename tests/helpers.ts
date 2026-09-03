@@ -1,4 +1,7 @@
-import { emptyScript, type GraphNode, type Link, type Literal, type NodeScript } from "../src/core/schema.js";
+import {
+	emptyScript,
+	type GraphNode, type Link, type Literal, type NodeScript, type ScriptVariable,
+} from "../src/core/schema.js";
 
 /** Terse graph construction, so the tests read like the graph they describe. */
 export class Builder {
@@ -19,6 +22,13 @@ export class Builder {
 			y: Math.floor(this.n / 6) * 160,
 			...opts,
 		});
+		return id;
+	}
+
+	variable(name: string, type: string, value: Literal): string {
+		const id = `v_${name}`;
+		const variable: ScriptVariable = { id, name, type, default: value };
+		this.script.variables.push(variable);
 		return id;
 	}
 

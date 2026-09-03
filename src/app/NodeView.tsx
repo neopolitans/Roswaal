@@ -6,7 +6,7 @@ import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
 import { pinColor } from "./palette.js";
-import { resolvePins } from "./geometry.js";
+import { headerHeight, resolvePins } from "./geometry.js";
 
 export interface PinDragState {
 	from: { node: string; pin: string };
@@ -56,6 +56,8 @@ function NodeViewInner(props: NodeViewProps) {
 
 	const { inputs, outputs } = resolvePins(def, node.config);
 	const rows = Math.max(inputs.length, outputs.length, 1);
+	const subtitle = def.subtitle?.(node.config ?? {});
+	const head = headerHeight(def, node.config);
 	const style: CSSProperties = {
 		left: node.x,
 		top: node.y,
@@ -71,8 +73,14 @@ function NodeViewInner(props: NodeViewProps) {
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
 		>
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
-			<div className="head" style={{ background: nodeColor(def) }}>
-				<span className="title">{node.label || def.title}</span>
+			<div
+				className={`head${subtitle ? " two-line" : ""}`}
+				style={{ background: nodeColor(def), height: head }}
+			>
+				<span className="lines">
+					<span className="title">{node.label || def.title}</span>
+					{subtitle && <span className="subtitle">{subtitle}</span>}
+				</span>
 				{def.latent && <span className="marker" title="This node yields">⏳</span>}
 			</div>
 			<div className="rows" style={{ height: rows * NODE.rowHeight + NODE.footer }}>

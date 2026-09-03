@@ -878,3 +878,144 @@ button.tb.primary:hover:not(:disabled) {
 	font-family: "Cascadia Mono", Consolas, monospace;
 	font-size: 10px;
 }
+
+/* Two-line node headers: a name on top, its signature or target underneath. */
+
+.node .head.two-line {
+	align-items: center;
+}
+
+.node .head .lines {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-width: 0;
+	line-height: 1.25;
+}
+
+.node .head .subtitle {
+	font-size: 10px;
+	font-weight: 500;
+	opacity: 0.78;
+	font-family: "Cascadia Mono", Consolas, monospace;
+	letter-spacing: -0.01em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* -------------------------------------------------------------- variables */
+
+.variables {
+	border-top: 1px solid var(--border);
+	flex: none;
+}
+
+.variables h2 {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	position: static;
+}
+
+.variables h2 button {
+	padding: 1px 8px;
+	font-size: 11px;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.variable-list {
+	padding: 0 6px 12px;
+}
+
+.variables .hint {
+	margin: 0;
+	padding: 2px 8px 6px;
+	font-size: 11px;
+	line-height: 1.5;
+	color: var(--fg-faint);
+}
+
+.variable-head {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 3px 6px;
+	border-radius: 4px;
+	cursor: grab;
+	user-select: none;
+	white-space: nowrap;
+}
+
+.variable-head:hover {
+	background: var(--bg-hover);
+}
+
+.variable.expanded .variable-head {
+	background: var(--bg-active);
+}
+
+.variable-head .swatch {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	flex: none;
+}
+
+.variable-head .name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.variable-head .type {
+	margin-left: auto;
+	font-size: 10px;
+	color: var(--fg-faint);
+	font-family: "Cascadia Mono", Consolas, monospace;
+}
+
+.variable-body {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	padding: 8px 8px 12px 22px;
+}
+
+.variable-body .field {
+	display: grid;
+	grid-template-columns: 84px 1fr;
+	align-items: center;
+	gap: 6px;
+}
+
+.variable-body .field > span {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.variable-body .field input[type="text"],
+.variable-body .field input:not([type]),
+.variable-body .field input[type="number"],
+.variable-body .field select {
+	cursor: text;
+	min-width: 0;
+	width: 100%;
+}
+
+.variable-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.variable-footer .hint {
+	padding: 0;
+}
+
+.variable-footer button {
+	padding: 1px 8px;
+	font-size: 11px;
+	color: var(--danger);
+}

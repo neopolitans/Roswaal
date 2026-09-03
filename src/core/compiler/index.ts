@@ -91,6 +91,10 @@ export function semanticJson(script: NodeScript): string {
 		runContext: script.runContext ?? null,
 		target: script.target,
 		strict: script.strict,
+		variables: (script.variables ?? []).map((v) => ({
+			id: v.id, name: v.name, type: v.type, default: v.default,
+			description: v.description ?? null,
+		})),
 		nodes,
 		links,
 	});
@@ -107,6 +111,15 @@ export function serialiseScript(script: NodeScript): string {
 		...(script.runContext ? { runContext: script.runContext } : {}),
 		target: script.target,
 		strict: script.strict,
+		// Declaration order is the author's and shows up in the generated file,
+		// so this is the one list that is not sorted on the way to disk.
+		variables: (script.variables ?? []).map((v) => ({
+			id: v.id,
+			name: v.name,
+			type: v.type,
+			default: v.default,
+			...(v.description ? { description: v.description } : {}),
+		})),
 		nodes: [...script.nodes]
 			.sort((a, b) => a.id.localeCompare(b.id))
 			.map((n) => ({

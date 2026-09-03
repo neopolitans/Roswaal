@@ -12,7 +12,10 @@ import type { Registry } from "../core/nodes/index.js";
 import type { Signature } from "../core/nodes/index.js";
 import { resolvePins } from "./geometry.js";
 import { nodeColor } from "./palette.js";
-import { renameNode, setConfig, syncFunctionReturns } from "./edits.js";
+import {
+	bindNodeToFunction, bindNodeToVariable, renameNode, setConfig,
+	syncFunctionRefs, syncFunctionReturns,
+} from "./edits.js";
 import { store } from "./store.js";
 
 const TYPES = [
@@ -78,6 +81,10 @@ export function Inspector({ script, registry, selection }: InspectorProps) {
 					/>
 				)}
 				{def.id === "flow.sequence" && <SequenceEditor node={node} />}
+				{(def.id === "variable.get" || def.id === "variable.set") && (
+					<VariablePicker script={script} node={node} />
+				)}
+				{def.id === "function.get" && <FunctionPicker script={script} node={node} />}
 
 				<PinSummary def={def} node={node} />
 			</div>
@@ -94,7 +101,9 @@ function FunctionEditor({ node }: { node: GraphNode }) {
 					className="tb"
 					value={sig.name ?? ""}
 					placeholder="doSomething"
-					onChange={(e) => store.edit((s) => setConfig(s, node.id, { name: e.target.value }))}
+					onChange={(e) =>
+						store.edit((s) => syncFunctionRefs(setConfig(s, node.id, { name: e.target.value })))
+					}
 				/>
 			</Field>
 			<ListEditor node={node} field="params" title="Parameters" />
@@ -105,6 +114,58 @@ function FunctionEditor({ node }: { node: GraphNode }) {
 				hint="Return nodes inside this function follow along automatically."
 			/>
 		</>
+	);
+}
+
+function VariablePicker({ script, node }: { script: NodeScript; node: GraphNode }) {
+	const current = (node.config as { variable?: string } | undefined)?.variable ?? "";
+	if (script.variables.length === 0) {
+		return (
+			<p className="summary">
+				This graph has no variables yet. Add one in the Variables panel and this node will be able
+				to point at it.
+			</p>
+		);
+	}
+	return (
+		<Field label="Variable">
+			<select
+				className="tb"
+				value={current}
+				onChange={(e) => store.edit((s) => bindNodeToVariable(s, node.id, e.target.value))}
+			>
+				{current === "" && <option value="">Choose a variable…</option>}
+				{script.variables.map((v) => (
+					<option key={v.id} value={v.id}>
+						{v.name} : {v.type}
+					</option>
+				))}
+			</select>
+		</Field>
+	);
+}
+
+function FunctionPicker({ script, node }: { script: NodeScript; node: GraphNode }) {
+	const current = (node.config as { function?: string } | undefined)?.function ?? "";
+	const functions = script.nodes.filter((n) => n.def === "function.entry");
+	if (functions.length === 0) {
+		return <p className="summary">This graph declares no functions yet.</p>;
+	}
+	return (
+		<Field label="Function">
+			<select
+				className="tb"
+				value={current}
+				onChange={(e) => store.edit((s) => bindNodeToFunction(s, node.id, e.target.value))}
+			>
+				{current === "" && <option value="">Choose a function…</option>}
+				{functions.map((fn) => (
+					<option key={fn.id} value={fn.id}>
+						{(fn.config as { name?: string } | undefined)?.name ?? "function"}
+					</option>
+				))}
+			</select>
+		</Field>
 	);
 }
 

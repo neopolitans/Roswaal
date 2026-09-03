@@ -24,8 +24,8 @@ import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
 import { pinColor } from "./palette.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
-	canConnect, commentContents, commentsByArea, connect, moveNodes, removeLink,
-	setLiteral, updateComment,
+	addNode, bindNodeToVariable, canConnect, commentContents, commentsByArea, connect,
+	moveNodes, removeLink, setLiteral, updateComment,
 } from "./edits.js";
 import { store, useEditor } from "./store.js";
 
@@ -371,6 +371,27 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu }: CanvasP
 					{ x: e.clientX - box.left, y: e.clientY - box.top },
 					toWorld(e.clientX, e.clientY),
 				);
+			}}
+			onDragOver={(e) => {
+				if (!e.dataTransfer.types.includes("application/x-roswaal-variable")) return;
+				e.preventDefault();
+				e.dataTransfer.dropEffect = "copy";
+			}}
+			onDrop={(e) => {
+				const raw = e.dataTransfer.getData("application/x-roswaal-variable");
+				if (!raw) return;
+				e.preventDefault();
+				const { id } = JSON.parse(raw) as { id: string };
+				const world = toWorld(e.clientX, e.clientY);
+				// Ctrl gives a Set instead of a Get, the way Blueprints do it.
+				const defId = e.ctrlKey ? "variable.set" : "variable.get";
+				const def = registry.get(defId);
+				if (!def) return;
+				store.edit((s) => {
+					const added = addNode(s, def, world.x - NODE.width / 2, world.y - 20);
+					queueMicrotask(() => store.select([added.id]));
+					return bindNodeToVariable(added.script, added.id, id);
+				});
 			}}
 		>
 			<GridLayer view={view} />

@@ -34,6 +34,8 @@ export type LayerName = keyof typeof LAYER;
 export const NODE = {
 	width: 216,
 	headerHeight: 30,
+	/** Header height when a node shows a second line, e.g. a function signature. */
+	headerHeightTall: 46,
 	rowHeight: 24,
 	/** Padding below the last pin row. */
 	footer: 10,

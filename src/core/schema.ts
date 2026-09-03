@@ -107,6 +107,12 @@ export interface NodeDef {
 	 * module exports) derive them here. Data-only custom nodes never set this.
 	 */
 	derivePins?: (config: NodeConfig) => { inputs: PinDef[]; outputs: PinDef[] };
+	/**
+	 * Second header line, smaller, under the title. For nodes whose identity is
+	 * not the whole story — a function's signature, a variable's type — this is
+	 * the difference between reading the graph and hunting through an inspector.
+	 */
+	subtitle?: (config: NodeConfig) => string | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +164,21 @@ export interface Comment {
 	color?: string;
 }
 
+/**
+ * A named value belonging to the whole graph, in the sense Unreal's Blueprints
+ * mean it: declared once in a list, then read and written by Get and Set nodes
+ * anywhere in the script. Distinct from a local declared mid-flow, which only
+ * exists inside the block that declared it.
+ */
+export interface ScriptVariable {
+	id: string;
+	name: string;
+	type: DataType;
+	/** Initial value. Every variable has one so the local is never left nil by accident. */
+	default: Literal;
+	description?: string;
+}
+
 export interface NodeScript {
 	schemaVersion: number;
 	kind: "script";
@@ -167,6 +188,7 @@ export interface NodeScript {
 	runContext?: RunContext;
 	target: Target;
 	strict: boolean;
+	variables: ScriptVariable[];
 	nodes: GraphNode[];
 	links: Link[];
 	comments: Comment[];
@@ -181,6 +203,7 @@ export function emptyScript(name: string, id: string): NodeScript {
 		scriptClass: "Script",
 		target: "roblox",
 		strict: true,
+		variables: [],
 		nodes: [],
 		links: [],
 		comments: [],

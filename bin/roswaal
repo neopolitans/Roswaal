@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# Roswaal launcher.
+#
+# A shell script invoking Node, NOT a packaged executable, and deliberately so:
+# Windows Smart App Control blocks unsigned binaries it has not seen before, so
+# every rebuild of a packaged roswaal.exe would be blocked afresh. A script that
+# calls an already-trusted interpreter sidesteps that entirely, and costs
+# nothing on the platforms that would not have cared.
+
+set -e
+
+ROSWAAL_CWD="$(pwd)"
+ROSWAAL_HOME="$(cd "$(dirname "$0")/.." && pwd)"
+export ROSWAAL_CWD ROSWAAL_HOME
+
+ENTRY="$ROSWAAL_HOME/dist-cli/roswaal.mjs"
+if [ ! -f "$ENTRY" ]; then
+  echo "roswaal: the CLI has not been built yet." >&2
+  echo "  Run:  npm install && npm run build" >&2
+  exit 1
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "roswaal: could not find Node." >&2
+  echo "  Install Node 20 or newer, or put it on your PATH." >&2
+  exit 1
+fi
+
+exec node "$ENTRY" "$@"

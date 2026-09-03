@@ -7,7 +7,7 @@
  */
 
 import type {
-	Comment, GraphNode, Link, Literal, NodeDef, NodeScript, PinRef,
+	Comment, GraphNode, Link, Literal, NodeDef, NodeScript, PinRef, ScriptVariable,
 } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { nodeBounds, rectContains, type Rect } from "./geometry.js";
@@ -22,6 +22,22 @@ export function addNode(
 	if (def.id === "function.entry") node.config = { name: "newFunction", params: [], returns: [] };
 	if (def.id === "function.return") node.config = { returns: [] };
 	if (def.id === "event.connect") node.config = { params: [] };
+
+	// Reference nodes are useless until they point at something, so default them
+	// to the first candidate rather than spawning an error.
+	if (def.id === "variable.get" || def.id === "variable.set") {
+		const first = script.variables[0];
+		node.config = first
+			? { variable: first.id, name: first.name, type: first.type }
+			: {};
+	}
+	if (def.id === "function.get") {
+		const first = script.nodes.find((n) => n.def === "function.entry");
+		node.config = first
+			? { function: first.id, name: (first.config as { name?: string } | undefined)?.name ?? "function" }
+			: {};
+	}
+
 	return { script: { ...script, nodes: [...script.nodes, node] }, id };
 }
 
@@ -271,6 +287,126 @@ export function commentContents(
  */
 export function commentsByArea(comments: Comment[]): Comment[] {
 	return [...comments].sort((a, b) => b.w * b.h - a.w * a.h);
+}
+
+// ---------------------------------------------------------------------------
+// Script variables
+// ---------------------------------------------------------------------------
+
+const DEFAULTS_BY_TYPE: Record<string, Literal> = {
+	boolean: { t: "boolean", v: false },
+	number: { t: "number", v: 0 },
+	string: { t: "string", v: "" },
+	table: { t: "raw", v: "{}" },
+};
+
+export function defaultLiteralFor(type: string): Literal {
+	return DEFAULTS_BY_TYPE[type] ?? { t: "nil" };
+}
+
+export function addVariable(
+	script: NodeScript, name = "newVariable", type = "number",
+): { script: NodeScript; id: string } {
+	const id = newId();
+	const taken = new Set(script.variables.map((v) => v.name));
+	let unique = name;
+	for (let i = 2; taken.has(unique); i++) unique = `${name}${i}`;
+
+	return {
+		script: {
+			...script,
+			variables: [...script.variables, { id, name: unique, type, default: defaultLiteralFor(type) }],
+		},
+		id,
+	};
+}
+
+/**
+ * Updates a variable and refreshes the copy of its name and type cached on
+ * every Get and Set node pointing at it. Pin derivation only sees a node's own
+ * config, so without this a rename would leave the graph showing stale labels.
+ */
+export function updateVariable(
+	script: NodeScript, id: string, patch: Partial<ScriptVariable>,
+): NodeScript {
+	const existing = script.variables.find((v) => v.id === id);
+	if (!existing) return script;
+
+	const updated: ScriptVariable = { ...existing, ...patch };
+	// Retyping invalidates the old default, so replace it unless one was given.
+	if (patch.type && patch.type !== existing.type && !patch.default) {
+		updated.default = defaultLiteralFor(patch.type);
+	}
+
+	return dropDanglingLinks({
+		...script,
+		variables: script.variables.map((v) => (v.id === id ? updated : v)),
+		nodes: script.nodes.map((node) => {
+			if (node.def !== "variable.get" && node.def !== "variable.set") return node;
+			if ((node.config as { variable?: string } | undefined)?.variable !== id) return node;
+			return { ...node, config: { ...node.config, name: updated.name, type: updated.type } };
+		}),
+	});
+}
+
+/** How many nodes read or write this variable. Shown before deleting one. */
+export function variableUsageCount(script: NodeScript, id: string): number {
+	return script.nodes.filter(
+		(n) =>
+			(n.def === "variable.get" || n.def === "variable.set") &&
+			(n.config as { variable?: string } | undefined)?.variable === id,
+	).length;
+}
+
+/**
+ * Removes a variable but leaves the nodes that referenced it in place. They
+ * report as errors, which is recoverable — silently deleting a user's nodes
+ * because a name went away is not.
+ */
+export function deleteVariable(script: NodeScript, id: string): NodeScript {
+	return { ...script, variables: script.variables.filter((v) => v.id !== id) };
+}
+
+/** Points a Get or Set node at a variable, caching what pin derivation needs. */
+export function bindNodeToVariable(
+	script: NodeScript, nodeId: string, variableId: string,
+): NodeScript {
+	const variable = script.variables.find((v) => v.id === variableId);
+	if (!variable) return script;
+	return setConfig(script, nodeId, {
+		variable: variable.id,
+		name: variable.name,
+		type: variable.type,
+	});
+}
+
+/** Points a Get Function node at a function entry node. */
+export function bindNodeToFunction(
+	script: NodeScript, nodeId: string, functionNodeId: string,
+): NodeScript {
+	const entry = script.nodes.find((n) => n.id === functionNodeId);
+	if (!entry || entry.def !== "function.entry") return script;
+	const name = (entry.config as { name?: string } | undefined)?.name ?? "function";
+	return setConfig(script, nodeId, { function: functionNodeId, name });
+}
+
+/** Refreshes the cached names on Get Function nodes after a rename. */
+export function syncFunctionRefs(script: NodeScript): NodeScript {
+	const names = new Map<string, string>();
+	for (const node of script.nodes) {
+		if (node.def !== "function.entry") continue;
+		names.set(node.id, (node.config as { name?: string } | undefined)?.name ?? "function");
+	}
+	return {
+		...script,
+		nodes: script.nodes.map((node) => {
+			if (node.def !== "function.get") return node;
+			const ref = node.config as { function?: string; name?: string } | undefined;
+			const name = ref?.function ? names.get(ref.function) : undefined;
+			if (!name || name === ref?.name) return node;
+			return { ...node, config: { ...node.config, name } };
+		}),
+	};
 }
 
 // ---------------------------------------------------------------------------

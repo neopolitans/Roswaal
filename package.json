@@ -1,6 +1,6 @@
 {
   "name": "roswaal",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "license": "0BSD",
   "type": "module",
@@ -9,9 +9,13 @@
     "dev": "concurrently -n server,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "tsx watch src/server/index.ts",
     "dev:web": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run build:web && npm run build:cli",
+    "build:web": "tsc --noEmit && vite build",
+    "build:cli": "node scripts/build-cli.mjs",
+    "roswaal": "node dist-cli/roswaal.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "chokidar": "^5.0.0",
@@ -28,9 +32,13 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "concurrently": "^10.0.5",
+    "esbuild": "^0.28.2",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^5.0.0"
+  },
+  "bin": {
+    "roswaal": "./bin/roswaal"
   }
 }

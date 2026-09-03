@@ -21,6 +21,21 @@ const data = (id: string, name: string, type: string, def?: PinDef["default"]): 
 	id, name, kind: "data", type, default: def,
 });
 
+/** Renders a signature the way it will read in the generated Luau. */
+export function signatureText(sig: Signature): string {
+	const params = (sig.params ?? [])
+		.map((p, i) => `${p.name || `arg${i + 1}`}: ${p.type ?? "any"}`)
+		.join(", ");
+	const returns = sig.returns ?? [];
+	const result =
+		returns.length === 0
+			? "()"
+			: returns.length === 1
+				? returns[0].type ?? "any"
+				: `(${returns.map((r) => r.type ?? "any").join(", ")})`;
+	return `(${params}) → ${result}`;
+}
+
 export const FLOW_NODES: NodeDef[] = [
 	{
 		id: "script.begin",
@@ -66,6 +81,9 @@ export const FLOW_NODES: NodeDef[] = [
 				],
 			};
 		},
+		// The name goes on the title line and the signature underneath it, so a
+		// graph full of functions can be read without opening any of them.
+		subtitle: (config) => signatureText(config as Signature),
 	},
 	{
 		id: "function.return",
@@ -218,17 +236,21 @@ export const FLOW_NODES: NodeDef[] = [
 		role: "flow",
 		summary: "Connects a handler to a signal. The Body pins run inside the handler.",
 		targets: ["roblox"],
-		inputs: [exec("in", ""), data("signal", "Signal", "any")],
-		outputs: [exec("then", ""), exec("body", "Body"), data("connection", "Connection", "any")],
+		inputs: [exec("in", ""), data("signal", "Signal", "RBXScriptSignal")],
+		outputs: [
+			exec("then", ""),
+			exec("body", "Body"),
+			data("connection", "Connection", "RBXScriptConnection"),
+		],
 		compilesTo: { kind: "builtin", handler: "event.connect" },
 		derivePins(config: NodeConfig) {
 			const sig = config as Signature;
 			return {
-				inputs: [exec("in", ""), data("signal", "Signal", "any")],
+				inputs: [exec("in", ""), data("signal", "Signal", "RBXScriptSignal")],
 				outputs: [
 					exec("then", ""),
 					exec("body", "Body"),
-					data("connection", "Connection", "any"),
+					data("connection", "Connection", "RBXScriptConnection"),
 					...(sig.params ?? []).map((p, i) => data(`p${i}`, p.name || `arg${i + 1}`, p.type ?? "any")),
 				],
 			};

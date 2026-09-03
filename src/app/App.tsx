@@ -17,6 +17,7 @@ import { Canvas } from "./Canvas.jsx";
 import { NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
+import { VariablesPanel } from "./VariablesPanel.jsx";
 import {
 	addComment, addNode, copySelection, deleteSelection, pasteClipping, type Clipping,
 } from "./edits.js";
@@ -371,6 +372,9 @@ export function App() {
 							await refreshTree();
 						}}
 					/>
+					{editor.script && !source && (
+						<VariablesPanel script={editor.script} selection={editor.selection} />
+					)}
 				</div>
 
 				{source ? (
