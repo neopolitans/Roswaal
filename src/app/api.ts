@@ -2,6 +2,7 @@
 
 import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass } from "../core/schema.js";
 import type { Diagnostic } from "../core/compiler/index.js";
+import type { MapDiagnostic, NodeMap } from "../core/nodemap.js";
 
 export interface TreeEntry {
 	path: string;
@@ -16,6 +17,15 @@ export interface ProjectInfo {
 	config: RoswaalConfig;
 	packErrors: string[];
 	tree: TreeEntry[];
+}
+
+export interface MapOutcome {
+	mapPath: string;
+	outputPath: string;
+	written: boolean;
+	skipped?: string;
+	diagnostics: MapDiagnostic[];
+	json: string;
 }
 
 export interface CompileOutcome {
@@ -67,6 +77,19 @@ export const api = {
 	moveScript: (from: string, toDir: string) =>
 		post<{ path: string }>("/api/script/move", { from, toDir }),
 	deleteScript: (path: string) => post<{ ok: true }>("/api/script/delete", { path }),
+
+	readMap: (path: string) =>
+		request<{ map: NodeMap }>(`/api/map?path=${encodeURIComponent(path)}`),
+	writeMap: (path: string, map: NodeMap) =>
+		request<{ ok: true }>("/api/map", { method: "PUT", body: JSON.stringify({ path, map }) }),
+	createMap: (dir: string, name: string) =>
+		post<{ path: string; map: NodeMap }>("/api/map/create", { dir, name }),
+	compileMap: (opts: { path?: string; write?: boolean; force?: boolean }) =>
+		post<{ results: MapOutcome[] }>("/api/map/compile", opts),
+
+	createFolder: (path: string) => post<{ path: string }>("/api/folder/create", { path }),
+	renameEntry: (path: string, name: string) =>
+		post<{ path: string }>("/api/entry/rename", { path, name }),
 
 	readSource: (path: string) =>
 		request<{ text: string }>(`/api/source?path=${encodeURIComponent(path)}`),

@@ -21,9 +21,14 @@ export interface ProjectTreeProps {
 	openPath: string | null;
 	onOpen: (entry: TreeEntry) => void;
 	onMove: (from: string[], toDir: string) => void;
+	onNewFolder: (parentDir: string) => void;
+	onRename: (path: string) => void;
+	onDelete: (paths: string[]) => void;
 }
 
-export function ProjectTree({ tree, openPath, onOpen, onMove }: ProjectTreeProps) {
+export function ProjectTree(props: ProjectTreeProps) {
+	const { tree, openPath, onOpen, onMove } = props;
+	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 	const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -89,8 +94,15 @@ export function ProjectTree({ tree, openPath, onOpen, onMove }: ProjectTreeProps
 		if (movable.length) onMove(movable, dir);
 	}
 
+	// A folder's own path is where a new folder goes; a file's parent is.
+	function parentDirOf(entry: TreeEntry): string {
+		if (entry.kind === "directory") return entry.path;
+		const slash = entry.path.lastIndexOf("/");
+		return slash === -1 ? "" : entry.path.slice(0, slash);
+	}
+
 	return (
-		<div className="tree">
+		<div className="tree" onClick={() => menu && setMenu(null)}>
 			{rows.map(({ entry, depth }) => {
 				const isDir = entry.kind === "directory";
 				const readonly = entry.kind === "luau";
@@ -117,6 +129,11 @@ export function ProjectTree({ tree, openPath, onOpen, onMove }: ProjectTreeProps
 						onDrop={(e) => isDir && onDrop(e, entry.path)}
 						onClick={(e) => click(e, entry)}
 						onDoubleClick={() => !isDir && onOpen(entry)}
+						onContextMenu={(e) => {
+							e.preventDefault();
+							if (!selected.has(entry.path)) setSelected(new Set([entry.path]));
+							setMenu({ x: e.clientX, y: e.clientY, entry });
+						}}
 						title={entry.path}
 					>
 						<span
@@ -137,6 +154,41 @@ export function ProjectTree({ tree, openPath, onOpen, onMove }: ProjectTreeProps
 			{rows.length === 0 && (
 				<div className="tree-row readonly">
 					<span className="label">Nothing to show yet.</span>
+				</div>
+			)}
+
+			{menu && (
+				<div className="menu tree-menu" style={{ left: menu.x, top: menu.y }}>
+					<div className="items">
+						<div
+							className="item"
+							onClick={() => {
+								props.onNewFolder(parentDirOf(menu.entry));
+								setMenu(null);
+							}}
+						>
+							New folder
+						</div>
+						<div
+							className="item"
+							onClick={() => {
+								props.onRename(menu.entry.path);
+								setMenu(null);
+							}}
+						>
+							Rename
+						</div>
+						<div
+							className="item danger"
+							onClick={() => {
+								const paths = selected.has(menu.entry.path) ? [...selected] : [menu.entry.path];
+								props.onDelete(paths);
+								setMenu(null);
+							}}
+						>
+							Delete
+						</div>
+					</div>
 				</div>
 			)}
 		</div>

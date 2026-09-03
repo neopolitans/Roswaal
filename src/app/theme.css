@@ -1019,3 +1019,187 @@ button.tb.primary:hover:not(:disabled) {
 	font-size: 11px;
 	color: var(--danger);
 }
+
+/* ------------------------------------------------------------- map editor */
+
+.map-editor {
+	display: grid;
+	grid-template-columns: 1fr 380px;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.map-tree {
+	overflow: auto;
+	background: var(--bg-canvas);
+	padding-bottom: 16px;
+}
+
+.map-bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-panel);
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	font-weight: 600;
+}
+
+.map-bar .dirty::after {
+	content: "•";
+	color: var(--warning);
+	margin-left: 5px;
+}
+
+.map-row {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 4px 10px;
+	cursor: default;
+	user-select: none;
+	white-space: nowrap;
+}
+
+.map-row:hover {
+	background: var(--bg-hover);
+}
+
+.map-row.selected {
+	background: var(--bg-active);
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.map-row .glyph {
+	width: 12px;
+	color: var(--fg-faint);
+	cursor: pointer;
+	flex: none;
+}
+
+.map-row .name {
+	font-weight: 500;
+}
+
+.map-row .class,
+.map-row .path {
+	font-size: 11px;
+	font-family: "Cascadia Mono", Consolas, monospace;
+	color: var(--fg-faint);
+}
+
+.map-row .path {
+	margin-left: auto;
+	color: var(--accent);
+}
+
+.map-side {
+	border-left: 1px solid var(--border);
+	background: var(--bg-panel);
+	overflow: auto;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.map-side h2 {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+	margin: 0;
+	padding: 10px 12px 6px;
+}
+
+.map-side .summary {
+	margin: 0;
+	padding: 0 12px 6px;
+	font-size: 11px;
+	color: var(--fg-muted);
+}
+
+.map-fields,
+.map-side > .field {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	padding: 0 12px 8px;
+}
+
+.map-fields .field,
+.map-side > .field {
+	display: grid;
+	grid-template-columns: 100px 1fr;
+	align-items: center;
+	gap: 6px;
+}
+
+.map-fields .field > span,
+.map-side > .field > span {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.map-fields input,
+.map-fields select,
+.map-side > .field input {
+	cursor: text;
+	min-width: 0;
+	width: 100%;
+}
+
+.map-actions {
+	display: flex;
+	gap: 6px;
+	padding: 0 12px 10px;
+	flex-wrap: wrap;
+}
+
+.map-preview {
+	margin: 0 12px 12px;
+	padding: 10px 12px;
+	background: var(--bg-canvas);
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	font: 11px/1.55 "Cascadia Mono", Consolas, monospace;
+	overflow: auto;
+	max-height: 340px;
+	white-space: pre;
+}
+
+.map-diagnostics {
+	padding: 0 12px 16px;
+}
+
+.map-diagnostics .entry {
+	display: flex;
+	gap: 8px;
+	font-size: 11px;
+	padding: 2px 0;
+}
+
+.map-diagnostics .entry .sev {
+	width: 56px;
+	flex: none;
+	font-weight: 600;
+}
+
+.map-diagnostics .entry.error .sev {
+	color: var(--danger);
+}
+
+.map-diagnostics .entry.warning .sev {
+	color: var(--warning);
+}
+
+.tree-menu {
+	width: 170px;
+	max-height: none;
+}
+
+.tree-menu .item.danger {
+	color: var(--danger);
+}

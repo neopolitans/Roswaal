@@ -16,13 +16,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-	buildTree, compileAll, compileScript, deleteEntry, initProject, moveEntry,
-	openProject, readScript, readText, writeConfig, writeScript,
+	buildTree, collectMaps, compileAll, compileMap, compileScript, createFolder,
+	deleteEntry, initProject, moveEntry, openProject, readMap, readScript, readText,
+	renameEntry, writeConfig, writeMap, writeScript,
 	type OpenProject,
 } from "./project.js";
 import { streamEvents } from "./events.js";
 import { VERSION } from "../cli/version.js";
 import { HotReloader } from "./watcher.js";
+import { emptyMap, type NodeMap } from "../core/nodemap.js";
 import { emptyScript, type NodeScript, type RoswaalConfig } from "../core/schema.js";
 
 export const DEFAULT_PORT = 4471;
@@ -194,6 +196,58 @@ app.post("/api/script/move", route(async (req) => {
 app.post("/api/script/delete", route(async (req) => {
 	await deleteEntry(project(), String((req.body as { path: string }).path));
 	return { ok: true };
+}));
+
+// ---------------------------------------------------------------------------
+// Node maps
+// ---------------------------------------------------------------------------
+
+app.get("/api/map", route(async (req) => {
+	return { map: await readMap(project(), requireQuery(req, "path")) };
+}));
+
+app.put("/api/map", route(async (req) => {
+	const { path: relPath, map } = req.body as { path: string; map: NodeMap };
+	if (!relPath || !map) throw new HttpError(400, "Provide both path and map.");
+	await writeMap(project(), relPath, map);
+	return { ok: true };
+}));
+
+app.post("/api/map/create", route(async (req) => {
+	const p = project();
+	const { dir, name } = req.body as { dir?: string; name?: string };
+	const safeName = (name ?? "Tree").replace(/[^A-Za-z0-9_ -]/g, "").trim() || "Tree";
+	const relPath = path.posix.join(dir ?? p.config.sourceDir, `${safeName}.nodemap`);
+	const map = emptyMap(safeName, cryptoId(), cryptoId);
+	await writeMap(p, relPath, map);
+	return { path: relPath, map };
+}));
+
+app.post("/api/map/compile", route(async (req) => {
+	const p = project();
+	const { path: relPath, write, force } = req.body as {
+		path?: string; write?: boolean; force?: boolean;
+	};
+	const targets = relPath ? [relPath] : await collectMaps(p);
+	const results = [];
+	for (const target of targets) results.push(await compileMap(p, target, { write, force }));
+	return { results };
+}));
+
+// ---------------------------------------------------------------------------
+// Folders
+// ---------------------------------------------------------------------------
+
+app.post("/api/folder/create", route(async (req) => {
+	const { path: relPath } = req.body as { path: string };
+	if (!relPath) throw new HttpError(400, "Provide a path.");
+	return { path: await createFolder(project(), relPath) };
+}));
+
+app.post("/api/entry/rename", route(async (req) => {
+	const { path: relPath, name } = req.body as { path: string; name: string };
+	if (!relPath || !name) throw new HttpError(400, "Provide both path and name.");
+	return { path: await renameEntry(project(), relPath, name) };
 }));
 
 app.get("/api/source", route(async (req) => {

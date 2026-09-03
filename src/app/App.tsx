@@ -12,7 +12,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { createRegistry } from "../core/nodes/index.js";
 import type { NodeDef, RoswaalConfig, ScriptClass } from "../core/schema.js";
-import { api, type CompileOutcome, type ProjectInfo, type TreeEntry } from "./api.js";
+import { api, type CompileOutcome, type MapOutcome, type ProjectInfo, type TreeEntry } from "./api.js";
+import type { NodeMap } from "../core/nodemap.js";
+import { MapEditor } from "./MapEditor.jsx";
 import { Canvas } from "./Canvas.jsx";
 import { NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
 import { Inspector } from "./Inspector.jsx";
@@ -36,6 +38,10 @@ export function App() {
 	const [outcomes, setOutcomes] = useState<CompileOutcome[]>([]);
 	const [statusOpen, setStatusOpen] = useState(true);
 	const [source, setSource] = useState<{ path: string; text: string } | null>(null);
+	// A node map is a tree, not a graph, so it lives beside the graph store
+	// rather than inside it. Nothing about undo or selection carries over.
+	const [mapDoc, setMapDoc] = useState<{ path: string; map: NodeMap; dirty: boolean } | null>(null);
+	const [mapOutcomes, setMapOutcomes] = useState<MapOutcome[]>([]);
 	const [busy, setBusy] = useState<string | null>(null);
 	// Deliberately in-memory rather than the system clipboard: a graph fragment
 	// is not text, and round-tripping it through one would lose pin identity.
@@ -93,13 +99,38 @@ export function App() {
 
 	const openEntry = useCallback(async (entry: TreeEntry) => {
 		if (entry.kind === "luau") {
+			setMapDoc(null);
 			setSource({ path: entry.path, text: (await api.readSource(entry.path)).text });
 			return;
 		}
 		setSource(null);
+		if (entry.kind === "nodemap") {
+			store.close();
+			const { map } = await api.readMap(entry.path);
+			setMapDoc({ path: entry.path, map, dirty: false });
+			return;
+		}
+		setMapDoc(null);
 		const { script } = await api.readScript(entry.path);
 		store.open(entry.path, script);
 	}, []);
+
+	// Node maps autosave on the same terms graphs do.
+	const mapSaveTimer = useRef<number | null>(null);
+	useEffect(() => {
+		if (!mapDoc?.dirty) return;
+		if (mapSaveTimer.current) window.clearTimeout(mapSaveTimer.current);
+		const { path, map } = mapDoc;
+		mapSaveTimer.current = window.setTimeout(() => {
+			void api.writeMap(path, map).then(
+				() => setMapDoc((d) => (d && d.path === path ? { ...d, dirty: false } : d)),
+				(err: Error) => window.alert(`Could not save: ${err.message}`),
+			);
+		}, AUTOSAVE_MS);
+		return () => {
+			if (mapSaveTimer.current) window.clearTimeout(mapSaveTimer.current);
+		};
+	}, [mapDoc]);
 
 	// Autosave. The graph on disk is the document; there is no separate "saved"
 	// copy to diverge from, so an explicit save button would only be ceremony.
@@ -125,6 +156,23 @@ export function App() {
 	}, [editor.dirty, editor.path, editor.script, project?.config.compileMode]);
 
 	// -- compiling ---------------------------------------------------------
+
+	const runCompileMap = useCallback(
+		async (path: string | undefined, force = false) => {
+			setBusy("Writing project file…");
+			try {
+				const { results } = await api.compileMap({ path, write: true, force });
+				setMapOutcomes(results);
+				setStatusOpen(true);
+				await refreshTree();
+			} catch (err) {
+				window.alert((err as Error).message);
+			} finally {
+				setBusy(null);
+			}
+		},
+		[refreshTree],
+	);
 
 	const runCompile = useCallback(
 		async (path: string | undefined, write: boolean, force = false) => {
@@ -265,7 +313,7 @@ export function App() {
 
 	if (!project) return <ProjectPicker onOpen={loadProject} busy={busy} />;
 
-	const showInspector = !source && editor.script !== null && editor.selection.size === 1;
+	const showInspector = !source && !mapDoc && editor.script !== null && editor.selection.size === 1;
 	const errorCount = diagnostics.filter((d) => d.severity === "error").length;
 	const warningCount = diagnostics.length - errorCount;
 
@@ -301,7 +349,25 @@ export function App() {
 				>
 					New graph
 				</button>
+				<button
+					className="tb"
+					title="A node map describes where things live in the DataModel"
+					onClick={async () => {
+						const name = window.prompt("Name for the new node map", "Tree");
+						if (!name) return;
+						const created = await api.createMap(project.config.sourceDir, name);
+						await refreshTree();
+						store.close();
+						setSource(null);
+						setMapDoc({ path: created.path, map: created.map, dirty: false });
+					}}
+				>
+					New map
+				</button>
 
+				{mapDoc && (
+					<span className={`doc-name${mapDoc.dirty ? " dirty" : ""}`}>{mapDoc.map.name}</span>
+				)}
 				{editor.script && (
 					<>
 						<span className={`doc-name${editor.dirty ? " dirty" : ""}`}>{editor.script.name}</span>
@@ -346,15 +412,21 @@ export function App() {
 
 				<button
 					className="tb primary"
-					disabled={!editor.path || busy !== null}
-					onClick={() => editor.path && void runCompile(editor.path, true)}
+					disabled={(!editor.path && !mapDoc) || busy !== null}
+					onClick={() => {
+						if (mapDoc) void runCompileMap(mapDoc.path);
+						else if (editor.path) void runCompile(editor.path, true);
+					}}
 				>
-					Compile script
+					{mapDoc ? "Write project file" : "Compile script"}
 				</button>
 				<button
 					className="tb"
 					disabled={busy !== null}
-					onClick={() => void runCompile(undefined, true)}
+					onClick={async () => {
+						await runCompile(undefined, true);
+						await runCompileMap(undefined);
+					}}
 				>
 					Compile project
 				</button>
@@ -371,13 +443,57 @@ export function App() {
 							for (const path of from) await api.moveScript(path, toDir);
 							await refreshTree();
 						}}
+						onNewFolder={async (parentDir) => {
+							const name = window.prompt("Folder name", "NewFolder");
+							if (!name) return;
+							try {
+								await api.createFolder(`${parentDir}/${name}`.replace(/^\//, ""));
+								await refreshTree();
+							} catch (err) {
+								window.alert((err as Error).message);
+							}
+						}}
+						onRename={async (target) => {
+							const currentName = target.split("/").pop() ?? "";
+							const name = window.prompt("New name", currentName);
+							if (!name || name === currentName) return;
+							try {
+								const { path: renamed } = await api.renameEntry(target, name);
+								await refreshTree();
+								// Keep the document open if it was the thing renamed.
+								if (editor.path === target) {
+									const { script } = await api.readScript(renamed);
+									store.open(renamed, script);
+								}
+							} catch (err) {
+								window.alert((err as Error).message);
+							}
+						}}
+						onDelete={async (paths) => {
+							const label = paths.length === 1 ? paths[0] : `${paths.length} items`;
+							if (!window.confirm(`Delete ${label}? This cannot be undone from Roswaal.`)) return;
+							try {
+								for (const target of paths) await api.deleteScript(target);
+								if (editor.path && paths.includes(editor.path)) store.close();
+								if (mapDoc && paths.includes(mapDoc.path)) setMapDoc(null);
+								await refreshTree();
+							} catch (err) {
+								window.alert((err as Error).message);
+							}
+						}}
 					/>
-					{editor.script && !source && (
+					{editor.script && !source && !mapDoc && (
 						<VariablesPanel script={editor.script} selection={editor.selection} />
 					)}
 				</div>
 
-				{source ? (
+				{mapDoc ? (
+					<MapEditor
+						map={mapDoc.map}
+						dirty={mapDoc.dirty}
+						onChange={(next) => setMapDoc({ ...mapDoc, map: next, dirty: true })}
+					/>
+				) : source ? (
 					<pre className="source-view">{source.text}</pre>
 				) : editor.script ? (
 					<Canvas
@@ -410,6 +526,7 @@ export function App() {
 				warningCount={warningCount}
 				diagnostics={diagnostics}
 				outcomes={outcomes}
+				mapOutcomes={mapOutcomes}
 				packErrors={project.packErrors}
 				onForce={(path) => void runCompile(path, true, true)}
 			/>
@@ -467,6 +584,7 @@ interface StatusPanelProps {
 	warningCount: number;
 	diagnostics: Diagnostic[];
 	outcomes: CompileOutcome[];
+	mapOutcomes: MapOutcome[];
 	packErrors: string[];
 	onForce: (path: string) => void;
 }
@@ -500,6 +618,14 @@ function StatusPanel(props: StatusPanelProps) {
 							<span>{message}</span>
 						</div>
 					))}
+					{props.mapOutcomes.map((outcome) => (
+						<div className={`entry ${outcome.written ? "" : "warning"}`} key={outcome.mapPath}>
+							<span className="sev" style={outcome.written ? { color: "var(--ok)" } : undefined}>
+								{outcome.written ? "wrote" : "skipped"}
+							</span>
+							<span>{outcome.skipped ?? outcome.outputPath}</span>
+						</div>
+					))}
 					{outcomes.map((outcome) => (
 						outcome.skipped ? (
 							<div className="entry warning" key={outcome.scriptPath}>
@@ -527,7 +653,8 @@ function StatusPanel(props: StatusPanelProps) {
 							{d.pin && <span className="where">{d.pin}</span>}
 						</div>
 					))}
-					{diagnostics.length === 0 && outcomes.length === 0 && props.packErrors.length === 0 && (
+					{diagnostics.length === 0 && outcomes.length === 0 && props.mapOutcomes.length === 0 &&
+						props.packErrors.length === 0 && (
 						<div className="entry">
 							<span className="sev" style={{ color: "var(--ok)" }}>ok</span>
 							<span>No problems found.</span>
