@@ -25,7 +25,7 @@ import { pinColor } from "./palette.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
 	addNode, bindNodeToVariable, canConnect, commentContents, commentsByArea, connect,
-	moveNodes, removeLink, setLiteral, updateComment,
+	currentArity, growNode, growthRule, moveNodes, removeLink, setLiteral, updateComment,
 } from "./edits.js";
 import { store, useEditor } from "./store.js";
 
@@ -59,11 +59,15 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 
 	// -- derived -----------------------------------------------------------
 
+	// Keyed by side as well as pin, because a node may legitimately have an
+	// input and an output with the same id -- Get Service takes a "service" and
+	// gives one back. Without the side, wiring the output would hide the input's
+	// editor.
 	const connectedPins = useMemo(() => {
 		const set = new Set<string>();
 		for (const link of script.links) {
-			set.add(`${link.from.node}/${link.from.pin}`);
-			set.add(`${link.to.node}/${link.to.pin}`);
+			set.add(`out:${link.from.node}/${link.from.pin}`);
+			set.add(`in:${link.to.node}/${link.to.pin}`);
 		}
 		return set;
 	}, [script.links]);
@@ -80,6 +84,29 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 	const nodesById = useMemo(
 		() => new Map(script.nodes.map((n) => [n.id, n])),
 		[script.nodes],
+	);
+
+	const growth = useMemo(() => {
+		const map = new Map<string, { canAdd: boolean; canRemove: boolean; label: string }>();
+		for (const node of script.nodes) {
+			const def = registry.get(node.def);
+			const rule = growthRule(def);
+			if (!rule) continue;
+			const count = currentArity(node, def, rule);
+			map.set(node.id, {
+				canAdd: count < rule.max,
+				canRemove: count > rule.min,
+				label: rule.label,
+			});
+		}
+		return map;
+	}, [script.nodes, registry]);
+
+	const onGrow = useCallback(
+		(nodeId: string, delta: number) => {
+			store.edit((s) => growNode(s, registry, nodeId, delta).script);
+		},
+		[registry],
 	);
 
 	// -- coordinate helpers ------------------------------------------------
@@ -174,10 +201,32 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 			const g = gesture.current;
 			if (g.kind === "marquee" && marquee) commitMarquee(marquee, g.additive);
 			if (g.kind === "wire") {
-				// Released over nothing: offer the palette, pre-filtered by the
-				// pin that was dragged, rather than silently dropping the wire.
 				const target = document.elementFromPoint(e.clientX, e.clientY);
-				if (!target?.closest(".pin")) {
+				const onPin = target?.closest(".pin");
+				const onNode = target?.closest<HTMLElement>(".node");
+
+				// Dropped on a node that can take another input: grow it and land
+				// on the pin that appears. This is how you widen an Add without
+				// hunting for the header buttons.
+				if (!onPin && onNode && g.side === "out" && g.pin.kind === "data") {
+					const nodeId = onNode.dataset.nodeId;
+					if (nodeId && nodeId !== g.from.node && growth.get(nodeId)?.canAdd) {
+						store.edit((s) => {
+							const grown = growNode(s, registry, nodeId, 1, {
+								name: g.pin.name || undefined,
+								type: g.pin.type,
+							});
+							if (!grown.pin) return grown.script;
+							return connect(grown.script, registry, g.from, { node: nodeId, pin: grown.pin });
+						});
+						endGesture();
+						return;
+					}
+				}
+
+				// Released over nothing: offer the palette rather than silently
+				// dropping the wire.
+				if (!onPin && !onNode) {
 					const box = surface.current!.getBoundingClientRect();
 					onRequestMenu(
 						{ x: e.clientX - box.left, y: e.clientY - box.top },
@@ -480,6 +529,8 @@ export function Canvas({ script, registry, diagnostics, onRequestMenu, onEditCod
 						onPinPointerUp={onPinPointerUp}
 						onLiteralChange={onLiteralChange}
 						onEditCode={onEditCode}
+						onGrow={onGrow}
+						growth={growth.get(node.id) ?? null}
 						onContextMenu={(e, id) => {
 							if (!selection.has(id)) store.select([id]);
 							const box = surface.current!.getBoundingClientRect();

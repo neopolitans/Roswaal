@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
+import { migrateScript } from "../src/core/migrate.js";
 import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
@@ -27,7 +28,7 @@ describe("emitter", () => {
 		const start = b.node("script.begin");
 		const add = b.node("math.add");
 		const print = b.node("debug.print");
-		b.lit(add, "a", { t: "number", v: 2 }).lit(add, "b", { t: "number", v: 3 });
+		b.lit(add, "a0", { t: "number", v: 2 }).lit(add, "a1", { t: "number", v: 3 });
 		b.link(start, "then", print, "in");
 		b.link(add, "result", print, "value");
 
@@ -42,7 +43,7 @@ describe("emitter", () => {
 		const add = b.node("math.add");
 		const p1 = b.node("debug.print");
 		const p2 = b.node("debug.print");
-		b.lit(add, "a", { t: "number", v: 2 }).lit(add, "b", { t: "number", v: 3 });
+		b.lit(add, "a0", { t: "number", v: 2 }).lit(add, "a1", { t: "number", v: 3 });
 		b.link(start, "then", p1, "in");
 		b.link(p1, "then", p2, "in");
 		b.link(add, "result", p1, "value");
@@ -60,9 +61,9 @@ describe("emitter", () => {
 		const add = b.node("math.add");
 		const mul = b.node("math.mul");
 		const print = b.node("debug.print");
-		b.lit(add, "a", { t: "number", v: 1 }).lit(add, "b", { t: "number", v: 2 });
-		b.lit(mul, "b", { t: "number", v: 10 });
-		b.link(add, "result", mul, "a");
+		b.lit(add, "a0", { t: "number", v: 1 }).lit(add, "a1", { t: "number", v: 2 });
+		b.lit(mul, "a1", { t: "number", v: 10 });
+		b.link(add, "result", mul, "a0");
 		b.link(mul, "result", print, "value");
 		b.link(start, "then", print, "in");
 
@@ -153,9 +154,9 @@ describe("emitter", () => {
 		const ret = b.node("function.return", { config: { returns: [{ name: "message", type: "string" }] } });
 		const concat = b.node("string.concat");
 		const exports = b.node("module.exports", { config: { exports: [{ name: "greet" }] } });
-		b.lit(concat, "a", { t: "string", v: "hi " });
+		b.lit(concat, "a0", { t: "string", v: "hi " });
 		b.link(fn, "then", ret, "in");
-		b.link(fn, "p0", concat, "b");
+		b.link(fn, "p0", concat, "a1");
 		b.link(concat, "result", ret, "r0");
 		b.link(fn, "self", exports, "e0");
 
@@ -238,5 +239,82 @@ describe("emitter", () => {
 
 		expect(second.code).toBe(first.code);
 		expect(second.sourceHash).toBe(first.sourceHash);
+	});
+});
+
+describe("variadic operators", () => {
+	it("defaults to two operands", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const add = b.node("math.add");
+		const print = b.node("debug.print");
+		b.lit(add, "a0", { t: "number", v: 1 }).lit(add, "a1", { t: "number", v: 2 });
+		b.link(start, "then", print, "in");
+		b.link(add, "result", print, "value");
+
+		expect(body(compile(b.build(), registry).code)).toBe("print(1 + 2)");
+	});
+
+	it("folds as many operands as the node is configured for", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const add = b.node("math.add", { config: { args: 4 } });
+		const print = b.node("debug.print");
+		for (let i = 0; i < 4; i++) b.lit(add, `a${i}`, { t: "number", v: i + 1 });
+		b.link(start, "then", print, "in");
+		b.link(add, "result", print, "value");
+
+		expect(body(compile(b.build(), registry).code)).toBe("print(1 + 2 + 3 + 4)");
+	});
+
+	it("parenthesises each operand so precedence survives the fold", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const inner = b.node("math.add");
+		const outer = b.node("math.mul", { config: { args: 3 } });
+		const print = b.node("debug.print");
+		b.lit(inner, "a0", { t: "number", v: 1 }).lit(inner, "a1", { t: "number", v: 2 });
+		b.lit(outer, "a1", { t: "number", v: 10 }).lit(outer, "a2", { t: "number", v: 3 });
+		b.link(inner, "result", outer, "a0");
+		b.link(outer, "result", print, "value");
+		b.link(start, "then", print, "in");
+
+		expect(body(compile(b.build(), registry).code)).toBe("print((1 + 2) * 10 * 3)");
+	});
+
+	it("folds a call-shaped operator into its argument list", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const min = b.node("math.min", { config: { args: 3 } });
+		const print = b.node("debug.print");
+		for (let i = 0; i < 3; i++) b.lit(min, `a${i}`, { t: "number", v: i + 5 });
+		b.link(start, "then", print, "in");
+		b.link(min, "result", print, "value");
+
+		expect(body(compile(b.build(), registry).code)).toBe("print(math.min(5, 6, 7))");
+	});
+
+	it("migrates the old a/b pins onto the numbered run", () => {
+		const b = new Builder();
+		const add = b.node("math.add", { id: "sum" });
+		const print = b.node("debug.print", { id: "p" });
+		b.link(add, "result", print, "value");
+		const raw = b.build();
+		raw.links.push({
+			id: "old",
+			from: { node: "src", pin: "result" },
+			to: { node: "sum", pin: "a" },
+		});
+		raw.nodes.push({ id: "src", def: "value.number", x: 0, y: 0 });
+
+		raw.nodes.find((n) => n.id === "sum")!.literals = { b: { t: "number", v: 7 } };
+
+		const { script } = migrateScript(raw);
+		expect(script.links.find((l) => l.id === "old")?.to.pin).toBe("a0");
+		// The value typed into the old pin moves with it, rather than reverting
+		// to the default while the wire quietly still works.
+		expect(script.nodes.find((n) => n.id === "sum")?.literals).toEqual({
+			a1: { t: "number", v: 7 },
+		});
 	});
 });

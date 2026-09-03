@@ -17,6 +17,14 @@ export interface MigrationResult {
 /** Pins that changed id, keyed by node type. */
 const RENAMED_PINS: Record<string, Record<string, string>> = {
 	"roblox.getService": { result: "service" },
+	// The operator nodes became variadic, so their two fixed pins became the
+	// first two of a numbered run.
+	...Object.fromEntries(
+		[
+			"math.add", "math.sub", "math.mul", "math.div",
+			"math.min", "math.max", "logic.and", "logic.or", "string.concat",
+		].map((id) => [id, { a: "a0", b: "a1" }]),
+	),
 };
 
 /**
@@ -54,6 +62,30 @@ export function migrateScript(raw: NodeScript): MigrationResult {
 	const byId = new Map(script.nodes.map((n) => [n.id, n]));
 
 	// -- pin renames -------------------------------------------------------
+	//
+	// Literals are keyed by pin id too, so renaming a pin has to move the value
+	// typed into it. Missing this leaves the wire connected and the typed-in
+	// number silently back at its default, which is worse than an error.
+	let literalFixes = 0;
+	script.nodes = script.nodes.map((node) => {
+		const renames = RENAMED_PINS[node.def];
+		if (!renames || !node.literals) return node;
+
+		const literals: typeof node.literals = {};
+		let changed = false;
+		for (const [pinId, value] of Object.entries(node.literals)) {
+			const replacement = renames[pinId];
+			if (replacement) changed = true;
+			literals[replacement ?? pinId] = value;
+		}
+		if (!changed) return node;
+		literalFixes++;
+		return { ...node, literals };
+	});
+	if (literalFixes > 0) {
+		notes.push(`Moved typed-in values on ${literalFixes} node${literalFixes === 1 ? "" : "s"} to renamed pins.`);
+	}
+
 	let pinFixes = 0;
 	script.links = script.links.map((link) => {
 		const fromDef = byId.get(link.from.node)?.def;

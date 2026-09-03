@@ -65,6 +65,9 @@ const LUAU_TYPES = new Set([
 	"BrickColor", "EnumItem", "RBXScriptSignal", "RBXScriptConnection",
 ]);
 
+/** Variadic input pins are numbered: a0, a1, a2. */
+export const VARIADIC_PIN = /^a\d+$/;
+
 function luauType(t: string | undefined): string {
 	if (!t) return "any";
 	if (t === "table") return "{ [any]: any }";
@@ -491,7 +494,7 @@ class Emitter {
 				// One handler for both call nodes: the only difference is whether
 				// the callee is a wired value or a method name on an object.
 				const args = r.inputs
-					.filter((p) => /^a\d+$/.test(p.id))
+					.filter((p) => VARIADIC_PIN.test(p.id))
 					.map((p) => this.resolveInput(r, p, scope));
 
 				let callee: string;
@@ -889,6 +892,16 @@ class Emitter {
 	// -- templates ---------------------------------------------------------
 
 	private renderTemplate(r: ResolvedNode, template: string, scope: Scope): string {
+		// `$args(<separator>)` folds every variadic input pin into one list, so a
+		// node whose arity is chosen per instance still compiles from a static
+		// template. Each operand is parenthesised, because the separator is
+		// usually an operator and precedence has to survive.
+		template = template.replace(/\$args\(([^)]*)\)/g, (_match, separator: string) => {
+			const args = r.inputs.filter((p) => VARIADIC_PIN.test(p.id));
+			if (args.length === 0) return "";
+			return args.map((p) => paren(this.resolveInput(r, p, scope))).join(separator);
+		});
+
 		const re = /\$(in|out)\.([A-Za-z_][A-Za-z0-9_]*)(?:!(ident|raw))?/g;
 		return template.replace(re, (match: string, side: string, pinId: string, modifier: string | undefined, offset: number) => {
 			if (side === "out") {

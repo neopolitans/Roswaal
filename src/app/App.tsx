@@ -19,13 +19,13 @@ import { CodeEditor } from "./CodeEditor.jsx";
 import { Dialog, type DialogRequest, type DialogResult, type PendingDialog } from "./Dialog.jsx";
 import type { PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
-import { NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
+import { buildPresets, NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
 import {
-	addComment, addNode, copySelection, deleteSelection, pasteClipping, setLiteral,
-	type Clipping,
+	addComment, addNode, copySelection, deleteSelection, pasteClipping,
+	setConfig as setNodeConfig, setLiteral, type Clipping,
 } from "./edits.js";
 import { store, useEditor } from "./store.js";
 
@@ -241,12 +241,19 @@ export function App() {
 
 	// -- canvas actions ----------------------------------------------------
 
+	// One palette entry per variable and per function in the open graph, so
+	// "Get health" is searchable by name rather than by node type.
+	const presets = useMemo(
+		() => (editor.script ? buildPresets(editor.script) : []),
+		[editor.script],
+	);
+
 	const spawn = useCallback(
-		(def: NodeDef, world: { x: number; y: number }) => {
+		(def: NodeDef, world: { x: number; y: number }, config?: Record<string, unknown>) => {
 			store.edit((s) => {
-				const { script, id } = addNode(s, def, world.x, world.y);
-				queueMicrotask(() => store.select([id]));
-				return script;
+				const added = addNode(s, def, world.x, world.y);
+				queueMicrotask(() => store.select([added.id]));
+				return config ? setNodeConfig(added.script, added.id, config) : added.script;
 			});
 			setMenu(null);
 		},
@@ -627,7 +634,8 @@ export function App() {
 					anchor={menu}
 					registry={registry}
 					target={editor.script.target}
-					onPick={(def) => spawn(def, menu.world)}
+					presets={presets}
+					onPick={(def, config) => spawn(def, menu.world, config)}
 					onAddComment={() => spawnComment(menu.world)}
 					onClose={() => setMenu(null)}
 				/>

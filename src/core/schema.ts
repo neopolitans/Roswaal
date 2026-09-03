@@ -126,6 +126,12 @@ export interface NodeDef {
 	 * with inputs needs rows to put them in.
 	 */
 	display?: "normal" | "compact";
+	/**
+	 * The node takes a variable number of inputs, numbered a0, a1, ... The count
+	 * lives in the node's own config, so two Add nodes in one graph can have
+	 * different arity. Templates fold them with `$args(<separator>)`.
+	 */
+	variadic?: { min: number; max: number; type?: DataType; default?: Literal };
 }
 
 // ---------------------------------------------------------------------------

@@ -231,6 +231,132 @@ function pinsOf(def: NodeDef, node: GraphNode) {
 }
 
 // ---------------------------------------------------------------------------
+// Growing a node
+// ---------------------------------------------------------------------------
+
+/**
+ * How a node gains and loses input pins.
+ *
+ * Three shapes end up in the same place — an operator's arity, a call's
+ * argument count, and a signature's list of entries — so they share one
+ * description rather than three special cases scattered through the UI.
+ */
+export interface GrowthRule {
+	/** Config key holding the count, or the list. */
+	field: string;
+	kind: "count" | "list";
+	min: number;
+	max: number;
+	/** Pin id prefix, used to find the newest pin after growing. */
+	prefix: string;
+	label: string;
+}
+
+export function growthRule(def: NodeDef | undefined): GrowthRule | null {
+	if (!def) return null;
+	if (def.variadic) {
+		return {
+			field: "args", kind: "count", prefix: "a", label: "operands",
+			min: def.variadic.min, max: def.variadic.max,
+		};
+	}
+	switch (def.id) {
+		case "call.function":
+		case "call.method":
+			return { field: "args", kind: "count", min: 0, max: 8, prefix: "a", label: "arguments" };
+		case "flow.sequence":
+			return { field: "count", kind: "count", min: 2, max: 12, prefix: "s", label: "outputs" };
+		case "function.return":
+			return { field: "returns", kind: "list", min: 0, max: 8, prefix: "r", label: "returns" };
+		case "module.exports":
+			return { field: "exports", kind: "list", min: 1, max: 16, prefix: "e", label: "exports" };
+		case "function.entry":
+			return { field: "params", kind: "list", min: 0, max: 8, prefix: "p", label: "parameters" };
+		default:
+			return null;
+	}
+}
+
+export function currentArity(node: GraphNode, def: NodeDef | undefined, rule: GrowthRule): number {
+	const config = (node.config ?? {}) as Record<string, unknown>;
+	if (rule.kind === "list") return (config[rule.field] as unknown[] | undefined)?.length ?? 0;
+	const fallback = def?.variadic?.min ?? rule.min;
+	return Math.max(rule.min, Math.min(rule.max, Number(config[rule.field] ?? fallback)));
+}
+
+/**
+ * Adds or removes one input. Returns the new script and, when one was added,
+ * the id of the pin that appeared — so a wire dropped on the node can land on
+ * it immediately.
+ */
+export function growNode(
+	script: NodeScript, registry: Registry, nodeId: string, delta: number,
+	hint?: { name?: string; type?: string },
+): { script: NodeScript; pin?: string } {
+	const node = script.nodes.find((n) => n.id === nodeId);
+	const def = node && registry.get(node.def);
+	const rule = growthRule(def);
+	if (!node || !def || !rule) return { script };
+
+	const count = currentArity(node, def, rule);
+	const next = Math.max(rule.min, Math.min(rule.max, count + delta));
+	if (next === count) return { script };
+
+	let updated: NodeScript;
+	if (rule.kind === "count") {
+		updated = setConfig(script, nodeId, { [rule.field]: next });
+	} else {
+		const list = ((node.config ?? {})[rule.field] as { name: string; type?: string }[]) ?? [];
+		const grown =
+			delta > 0
+				? [...list, { name: hint?.name ?? `${defaultEntryName(rule)}${list.length + 1}`, type: hint?.type ?? "any" }]
+				: list.slice(0, -1);
+		updated = setConfig(script, nodeId, { [rule.field]: grown });
+
+		// A Return node's pins mirror its function's signature, so growing one
+		// has to reach the entry rather than drifting from it.
+		if (def.id === "function.return") {
+			const owner = findOwningFunction(updated, nodeId);
+			if (owner) updated = setConfig(updated, owner, { returns: grown });
+		}
+		if (def.id === "function.entry") updated = syncFunctionReturns(updated, nodeId);
+	}
+
+	return { script: updated, pin: delta > 0 ? `${rule.prefix}${next - 1}` : undefined };
+}
+
+function defaultEntryName(rule: GrowthRule): string {
+	if (rule.field === "returns") return "value";
+	if (rule.field === "exports") return "export";
+	return "arg";
+}
+
+/**
+ * The function entry whose execution subtree contains this node. Walks the
+ * exec wires backwards, which is the only link a Return has to its function.
+ */
+export function findOwningFunction(script: NodeScript, nodeId: string): string | null {
+	const incoming = new Map<string, string[]>();
+	for (const link of script.links) {
+		const list = incoming.get(link.to.node);
+		if (list) list.push(link.from.node);
+		else incoming.set(link.to.node, [link.from.node]);
+	}
+
+	const seen = new Set<string>();
+	const queue = [nodeId];
+	while (queue.length) {
+		const id = queue.pop()!;
+		if (seen.has(id)) continue;
+		seen.add(id);
+		const node = script.nodes.find((n) => n.id === id);
+		if (node?.def === "function.entry") return id;
+		queue.push(...(incoming.get(id) ?? []));
+	}
+	return null;
+}
+
+// ---------------------------------------------------------------------------
 // Comments
 // ---------------------------------------------------------------------------
 

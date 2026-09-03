@@ -59,6 +59,37 @@ function stmt(
 }
 
 /**
+ * A pure node whose arity is chosen per instance: Add with three operands, a
+ * Concatenate with five. Unreal spells this "Add pin +"; the idea is the same,
+ * and it is the difference between one node and a chain of them.
+ */
+function variadic(
+	id: string, title: string, category: string, template: string,
+	type: string, value: PinDef["default"], resultType: string, summary?: string,
+	limits: { min?: number; max?: number } = {},
+): NodeDef {
+	const min = limits.min ?? 2;
+	const max = limits.max ?? 8;
+	const pins = (count: number): PinDef[] =>
+		Array.from({ length: count }, (_, i) => d(`a${i}`, LETTERS[i] ?? `A${i}`, type, value));
+
+	return {
+		id, title, category, summary,
+		pure: true,
+		variadic: { min, max, type, default: value },
+		inputs: pins(min),
+		outputs: [d("result", "", resultType)],
+		compilesTo: { kind: "expr", outputs: { result: template } },
+		derivePins: (config) => ({
+			inputs: pins(Math.max(min, Math.min(max, Number(config.args ?? min)))),
+			outputs: [d("result", "", resultType)],
+		}),
+	};
+}
+
+const LETTERS = "ABCDEFGH".split("");
+
+/**
  * Argument pins for the call nodes. One by default, because most calls take
  * one, and the count is stored per node rather than baked into the definition.
  */
@@ -106,10 +137,10 @@ export const LIBRARY_NODES: NodeDef[] = [
 	], { summary: "Reassigns a local declared upstream." }),
 
 	// -- Math --------------------------------------------------------------
-	pure("math.add", "Add", "Math", "$in.a + $in.b", [num("a", "A"), num("b", "B")], "number"),
-	pure("math.sub", "Subtract", "Math", "$in.a - $in.b", [num("a", "A"), num("b", "B")], "number"),
-	pure("math.mul", "Multiply", "Math", "$in.a * $in.b", [num("a", "A", 1), num("b", "B", 1)], "number"),
-	pure("math.div", "Divide", "Math", "$in.a / $in.b", [num("a", "A"), num("b", "B", 1)], "number"),
+	variadic("math.add", "Add", "Math", "$args( + )", "number", { t: "number", v: 0 }, "number"),
+	variadic("math.sub", "Subtract", "Math", "$args( - )", "number", { t: "number", v: 0 }, "number"),
+	variadic("math.mul", "Multiply", "Math", "$args( * )", "number", { t: "number", v: 1 }, "number"),
+	variadic("math.div", "Divide", "Math", "$args( / )", "number", { t: "number", v: 1 }, "number"),
 	pure("math.mod", "Modulo", "Math", "$in.a % $in.b", [num("a", "A"), num("b", "B", 1)], "number"),
 	pure("math.pow", "Power", "Math", "$in.a ^ $in.b", [num("a", "A"), num("b", "B", 2)], "number"),
 	pure("math.neg", "Negate", "Math", "-$in.a", [num("a", "A")], "number"),
@@ -117,8 +148,8 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("math.floor", "Floor", "Math", "math.floor($in.a)", [num("a", "A")], "number"),
 	pure("math.ceil", "Ceiling", "Math", "math.ceil($in.a)", [num("a", "A")], "number"),
 	pure("math.round", "Round", "Math", "math.round($in.a)", [num("a", "A")], "number"),
-	pure("math.min", "Min", "Math", "math.min($in.a, $in.b)", [num("a", "A"), num("b", "B")], "number"),
-	pure("math.max", "Max", "Math", "math.max($in.a, $in.b)", [num("a", "A"), num("b", "B")], "number"),
+	variadic("math.min", "Min", "Math", "math.min($args(, ))", "number", { t: "number", v: 0 }, "number"),
+	variadic("math.max", "Max", "Math", "math.max($args(, ))", "number", { t: "number", v: 0 }, "number"),
 	pure("math.clamp", "Clamp", "Math", "math.clamp($in.value, $in.min, $in.max)",
 		[num("value", "Value"), num("min", "Min"), num("max", "Max", 1)], "number"),
 	pure("math.random", "Random", "Math", "math.random($in.min, $in.max)",
@@ -132,12 +163,12 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("compare.lte", "Less Or Equal", "Logic", "$in.a <= $in.b", [num("a", "A"), num("b", "B")], "boolean"),
 	pure("compare.gt", "Greater Than", "Logic", "$in.a > $in.b", [num("a", "A"), num("b", "B")], "boolean"),
 	pure("compare.gte", "Greater Or Equal", "Logic", "$in.a >= $in.b", [num("a", "A"), num("b", "B")], "boolean"),
-	pure("logic.and", "And", "Logic", "$in.a and $in.b", [bool("a", "A"), bool("b", "B")], "boolean"),
-	pure("logic.or", "Or", "Logic", "$in.a or $in.b", [bool("a", "A"), bool("b", "B")], "boolean"),
+	variadic("logic.and", "And", "Logic", "$args( and )", "boolean", { t: "boolean", v: true }, "boolean"),
+	variadic("logic.or", "Or", "Logic", "$args( or )", "boolean", { t: "boolean", v: false }, "boolean"),
 	pure("logic.not", "Not", "Logic", "not $in.a", [bool("a", "A")], "boolean"),
 
 	// -- Strings -----------------------------------------------------------
-	pure("string.concat", "Concatenate", "Strings", "$in.a .. $in.b", [str("a", "A"), str("b", "B")], "string"),
+	variadic("string.concat", "Concatenate", "Strings", "$args( .. )", "string", { t: "string", v: "" }, "string"),
 	pure("string.format", "Format", "Strings", "string.format($in.format, $in.a)",
 		[str("format", "Format", "%s"), d("a", "Value", "any")], "string"),
 	pure("string.len", "Length", "Strings", "#$in.value", [str("value", "Value")], "number"),

@@ -1468,3 +1468,41 @@ button.tb.primary.danger {
 	background-repeat: no-repeat;
 	text-overflow: ellipsis;
 }
+
+/* Arity controls, for nodes that choose how many inputs they take. Unreal
+   spells this "Add pin +"; the header is where it fits without changing the
+   node's geometry. */
+.node .head .grow {
+	display: flex;
+	gap: 2px;
+	margin-left: auto;
+	flex: none;
+}
+
+.node .head .grow button {
+	width: 16px;
+	height: 16px;
+	padding: 0;
+	line-height: 14px;
+	text-align: center;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: 3px;
+	background: rgba(0, 0, 0, 0.2);
+	color: #fff;
+	cursor: pointer;
+	font-size: 12px;
+}
+
+.node .head .grow button:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.25);
+}
+
+.node .head .grow button:disabled {
+	opacity: 0.3;
+	cursor: default;
+}
+
+/* A node that a dragged wire can grow to accept. */
+.node.grow-target {
+	box-shadow: 0 0 0 2px var(--ok), var(--node-shadow);
+}
