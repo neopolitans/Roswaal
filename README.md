@@ -496,3 +496,12 @@ examples/demo/  a small project you can open
 a node, prefer the templated library over a `builtin` handler — if a template
 cannot express it, that is usually a sign the node wants to open a block, and
 those are the only ones that belong in `src/core/nodes/flow.ts`.
+
+Two further documents, for anyone picking this up:
+
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — the module map, the
+  invariants each layer holds, how one node becomes Luau, and where to cut in
+  to add a node or a canvas gesture.
+- **[NOTES.md](NOTES.md)** — the working state of the prototype: what is done,
+  what is next, decisions worth not re-litigating, and the traps that cost real
+  time to find.
