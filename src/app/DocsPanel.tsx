@@ -114,6 +114,24 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 								<div key={group} className="docs-group">
 									<div className="docs-group-head">{group}</div>
 									{sections.map((section) => {
+										// A section holding one page is that page. Making somebody
+										// open a drawer to reveal the single thing inside it is a
+										// click that buys nothing.
+										if (section.pages.length === 1) {
+											const only = section.pages[0];
+											return (
+												<button
+													key={section.slug}
+													className={`docs-section-head solo${
+														only.slug === slug ? " on" : ""
+													}`}
+													onClick={() => setSlug(only.slug)}
+												>
+													{section.title}
+												</button>
+											);
+										}
+
 										const expanded = open.has(section.slug);
 										return (
 											<div key={section.slug} className="docs-section">

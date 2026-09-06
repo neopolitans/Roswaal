@@ -584,6 +584,116 @@ const TYPES_GUIDE: DocPage = {
 				"not a closed list, so a pack declaring `Quaternion` gets a distinct pin that only " +
 				"connects to other `Quaternion` pins — without patching Roswaal.",
 		},
+		{ t: "h", level: 2, text: "If you know Unreal's types" },
+		{
+			t: "p",
+			text:
+				"Most of these are a rename. The rows worth reading slowly are the ones with a " +
+				"dash in the middle column: Luau has no Rotator, no Quat, and no typed containers, " +
+				"and those absences change how you write things rather than just what you call them.",
+		},
+		{
+			t: "table",
+			head: ["Unreal", "Luau / Roblox", "Roswaal pin", "Worth knowing"],
+			rows: [
+				["`bool`", "`boolean`", "`boolean`", ""],
+				[
+					"`int32`, `int64`",
+					"`number`",
+					"`number`",
+					"Luau has **one** number type, a 64-bit float. No integer type, so bitwise work goes through `bit32` and there is no integer overflow to reason about.",
+				],
+				["`float`, `double`", "`number`", "`number`", "The same type as the row above."],
+				[
+					"`FString`, `FName`, `FText`",
+					"`string`",
+					"`string`",
+					"One string type. No localisation type — Roblox handles that at the UI layer.",
+				],
+				[
+					"`FVector`",
+					"`Vector3`",
+					"`Vector3`",
+					"**Different conventions.** Unreal is centimetres and Z-up; Roblox is studs and **Y-up**. Vertical is `Y` here.",
+				],
+				["`FVector2D`", "`Vector2`", "`Vector2`", ""],
+				[
+					"`FRotator`",
+					"— nothing equivalent —",
+					"—",
+					"Roblox has no Euler rotation type. Rotation lives inside a `CFrame`; build one with **CFrame Angles** and read it back with `ToEulerAnglesXYZ`.",
+				],
+				[
+					"`FTransform`",
+					"`CFrame`",
+					"`CFrame`",
+					"A CFrame is position and rotation only — **no scale**. Scale is the part's `Size`, separately.",
+				],
+				[
+					"`FQuat`",
+					"— nothing equivalent —",
+					"—",
+					"No quaternion type. A CFrame carries the rotation matrix, and **From Axis Angle** covers most of what a quat was reached for.",
+				],
+				[
+					"`FLinearColor`, `FColor`",
+					"`Color3`",
+					"`Color3`",
+					"Components are 0–1. `Color3.fromRGB` takes 0–255 if that is what you have.",
+				],
+				[
+					"`TArray<T>`",
+					"`{ T }`",
+					"`table`",
+					"Luau has one table type for arrays and maps both, and the Roswaal pin does not carry the element type. **Cast Array** is how you say what is in it.",
+				],
+				["`TMap<K, V>`", "`{ [K]: V }`", "`table`", "The same type as an array."],
+				["`TSet<T>`", "`{ [T]: true }`", "`table`", "A table used as a set, by convention."],
+				["`UObject*`, `AActor*`", "`Instance`", "`Instance`", "Not narrowed by class — **Is A** asks."],
+				[
+					"`TSubclassOf<T>`",
+					"`string`",
+					"`string`",
+					"A class name is just text: `Instance.new(\"Part\")`, `:IsA(\"BasePart\")`.",
+				],
+				[
+					"`USTRUCT`",
+					"a table, or a Roblox value type",
+					"`table`",
+					"Luau has no struct declaration. The built-in value types are the exception.",
+				],
+				[
+					"`UENUM`",
+					"`Enum.X` for Roblox's own",
+					"`string`",
+					"No user-defined enums. A string pin with a dropdown is the usual stand-in.",
+				],
+				[
+					"Delegate, Event Dispatcher",
+					"`RBXScriptSignal`",
+					"`RBXScriptSignal`",
+					"**Connect Event** binds one.",
+				],
+				[
+					"`TOptional<T>`",
+					"`T?`",
+					"—",
+					"Optionality is a Luau type annotation rather than a pin type. Cast to `T?` where it matters.",
+				],
+				[
+					"`nullptr`",
+					"`nil`",
+					"the Nil node",
+					"A missing value, not a null pointer — there are no pointer types.",
+				],
+				[
+					"`TSharedPtr`, `UPROPERTY` lifetime",
+					"garbage collected",
+					"—",
+					"An instance survives while something references it **or** it is parented into the DataModel. Destroy severs both.",
+				],
+			],
+		},
 		{ t: "h", level: 2, text: "What connects to what" },
 		{
 			t: "ul",

@@ -177,6 +177,15 @@ function renderNav(site: DocSite, current: DocPage): string {
 		.map(([group, sections]) => {
 			const inner = sections
 				.map((section) => {
+					// A section holding one page is that page: a link, not a drawer.
+					if (section.pages.length === 1) {
+						const only = section.pages[0];
+						return (
+							`<a class="docs-section-head solo${only.slug === current.slug ? " on" : ""}" ` +
+							`href="${up}${pagePath(only.slug)}">${escapeHtml(section.title)}</a>`
+						);
+					}
+
 					// Open the section the reader is in; everything else is collapsed,
 					// because a flat list of every node is not a table of contents.
 					const isHere = section.pages.some((p) => p.slug === current.slug);

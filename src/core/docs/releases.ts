@@ -29,6 +29,17 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.8.1",
+		date: "2026-09-06",
+		headline: "An Unreal-to-Luau type table, and one fewer click in the nav.",
+		added: [
+			"**If you know Unreal's types** on the *Roswaal types* page — `FVector` to `Vector3`, `TArray<T>` to a plain table, and the ones with no counterpart at all: no `FRotator`, no `FQuat`, no typed containers. It also flags the two conventions that catch people out: Roblox is **Y-up** and in studs, and a `CFrame` carries **no scale**.",
+		],
+		changed: [
+			"A nav section holding one page — Release notes, Events — is now that page's link rather than a drawer you have to open to find the single thing inside it.",
+		],
+	},
+	{
 		version: "0.8.0",
 		date: "2026-09-06",
 		headline: "A static documentation site, a luau pin type, and Error.",

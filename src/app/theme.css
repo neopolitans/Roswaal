@@ -2822,3 +2822,18 @@ button.tb.with-icon {
 }
 
 .docs-static .docs-page-head .brand { text-decoration: none; color: inherit; }
+
+/* A nav section holding one page is rendered as that page's link. No chevron,
+   because there is nothing to unfold, and it takes the selected state a page
+   link would. */
+.docs-section-head.solo {
+	padding-left: 6px;
+	text-decoration: none;
+}
+
+.docs-static .docs-section-head.solo::before { content: none; }
+
+.docs-section-head.solo.on {
+	background: color-mix(in srgb, var(--accent) 20%, transparent);
+	color: var(--fg);
+}
