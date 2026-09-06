@@ -33,6 +33,34 @@ export function createRegistry(extra: NodeDef[] = []): Registry {
 	return map;
 }
 
+/**
+ * Input pins whose value is baked into the generated source rather than read at
+ * runtime — the `!ident` and `!raw` template modifiers.
+ *
+ * A pin like this cannot be wired. There is no expression to substitute, only
+ * text to paste, and `emit.ts` reports one that has been wired as an error.
+ * Anything that offers to connect a pin — a wire drag, the pin menu — should
+ * ask here first, so the offer is never made rather than made and then
+ * rejected at compile time.
+ */
+export function literalOnlyPins(def: NodeDef): Set<string> {
+	const spec = def.compilesTo;
+	const templates =
+		spec.kind === "expr"
+			? Object.values(spec.outputs)
+			: spec.kind === "call" || spec.kind === "statement"
+				? [spec.template]
+				: [];
+
+	const out = new Set<string>();
+	for (const template of templates) {
+		for (const match of template.matchAll(/\$in\.([A-Za-z_][A-Za-z0-9_]*)!(?:ident|raw)/g)) {
+			out.add(match[1]);
+		}
+	}
+	return out;
+}
+
 /** Every distinct category present in a registry, in display order. */
 export function categories(registry: Registry): string[] {
 	const order = ["Flow", "Events", "Variables", "Values", "Math", "Logic", "Strings", "Tables", "Roblox", "Modules", "Time", "Debug"];

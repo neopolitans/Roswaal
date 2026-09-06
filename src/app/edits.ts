@@ -7,10 +7,13 @@
  */
 
 import type {
-	Comment, GraphNode, Link, Literal, NodeDef, NodeScript, PinRef, ScriptVariable,
+	Comment, GraphNode, Link, Literal, NodeDef, NodeScript, PinDef, PinRef, ScriptVariable,
 } from "../core/schema.js";
+import { ANY, WILDCARD } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
-import { nodeBounds, rectContains, type Rect } from "./geometry.js";
+import { literalOnlyPins } from "../core/nodes/index.js";
+import { compactWidth, nodeBounds, pinPosition, rectContains, type Rect } from "./geometry.js";
+import { NODE } from "./layers.js";
 import { newId } from "./store.js";
 
 export function addNode(
@@ -209,6 +212,17 @@ export function canConnect(
 	}
 	if (outPin.kind === "data" && !typesCompatible(outPin.type, inPin.type)) {
 		return { ok: false, reason: `${outPin.type} does not fit a ${inPin.type} pin.` };
+	}
+	// Some inputs are pasted into the generated source rather than evaluated —
+	// a property name, a field. The emitter refuses a wired one, so refusing it
+	// here means the wire is never made instead of made and then reported.
+	if (literalOnlyPins(toDef).has(inPin.id)) {
+		return {
+			ok: false,
+			reason:
+				`"${inPin.name || inPin.id}" must be typed in directly; ` +
+				"it becomes part of the generated code, not a runtime value.",
+		};
 	}
 	return { ok: true };
 }
@@ -546,7 +560,7 @@ export function defaultLiteralFor(type: string): Literal {
 }
 
 export function addVariable(
-	script: NodeScript, name = "newVariable", type = "number",
+	script: NodeScript, name = "newVariable", type = "number", initial?: Literal,
 ): { script: NodeScript; id: string } {
 	const id = newId();
 	const taken = new Set(script.variables.map((v) => v.name));
@@ -556,7 +570,10 @@ export function addVariable(
 	return {
 		script: {
 			...script,
-			variables: [...script.variables, { id, name: unique, type, default: defaultLiteralFor(type) }],
+			variables: [
+				...script.variables,
+				{ id, name: unique, type, default: initial ?? defaultLiteralFor(type) },
+			],
 		},
 		id,
 	};
@@ -606,6 +623,108 @@ export function variableUsageCount(script: NodeScript, id: string): number {
  */
 export function deleteVariable(script: NodeScript, id: string): NodeScript {
 	return { ...script, variables: script.variables.filter((v) => v.id !== id) };
+}
+
+/** Gap left between a promoted getter and the pin it feeds. */
+const PROMOTE_GAP = 40;
+
+/**
+ * Whether a pin can be promoted to a script variable.
+ *
+ * Unconnected data inputs only. Unreal promotes outputs too, but that means
+ * splicing a Set node into the execution chain and guessing where it goes — a
+ * guess that changes what the script does. And promoting a pin that is already
+ * wired would silently discard the wire. An unconnected input cannot surprise
+ * anyone: the value it had is the value the variable starts with.
+ *
+ * A literal-only pin is excluded for the same reason it cannot be wired at all:
+ * its text is pasted into the generated source, so there is nothing for a
+ * variable to be read into.
+ */
+export function canPromoteToVariable(
+	script: NodeScript, registry: Registry, nodeId: string, pin: PinDef, side: "in" | "out",
+): boolean {
+	if (side !== "in" || pin.kind !== "data") return false;
+	if (!registry.has("variable.get")) return false;
+
+	const node = script.nodes.find((n) => n.id === nodeId);
+	const def = node && registry.get(node.def);
+	if (!def || literalOnlyPins(def).has(pin.id)) return false;
+
+	return pinLinkCount(script, nodeId, pin.id, "in") === 0;
+}
+
+/**
+ * Promotes an unconnected data input to a script variable.
+ *
+ * The most-used entry in Unreal's pin menu, and the detail that makes it worth
+ * having is that **the variable takes the value already typed into the pin**.
+ * Promoting a literal you have spent ten minutes tuning must not reset it to
+ * zero.
+ *
+ * The getter is placed so its output lands level with the pin it feeds rather
+ * than at the pointer, so the wire comes out flat and the graph needs no
+ * tidying afterwards.
+ */
+export function promoteToVariable(
+	script: NodeScript, registry: Registry, nodeId: string, pin: PinDef,
+): { script: NodeScript; variable: string; node: string } | null {
+	if (!canPromoteToVariable(script, registry, nodeId, pin, "in")) return null;
+
+	const target = script.nodes.find((n) => n.id === nodeId);
+	const getterDef = registry.get("variable.get");
+	if (!target || !getterDef) return null;
+
+	const anchor = pinPosition(target, registry, pin.id, "in");
+	if (!anchor) return null;
+
+	// `wildcard` means "adopts what it is wired to", which a variable cannot be.
+	const rawType = pin.type ?? ANY;
+	const type = rawType === WILDCARD ? ANY : rawType;
+	const initial = target.literals?.[pin.id] ?? pin.default;
+
+	const withVariable = addVariable(script, variableNameFor(pin), type, initial);
+	const variable = withVariable.script.variables.find((v) => v.id === withVariable.id)!;
+
+	const config = { variable: variable.id, name: variable.name, type: variable.type };
+	const getterId = newId();
+	// Built at the origin first because the capsule's width is a function of the
+	// label it ends up carrying, and the label comes from this config.
+	const probe: GraphNode = { id: getterId, def: "variable.get", x: 0, y: 0, config };
+	const width = compactWidth(getterDef, probe);
+
+	const getter: GraphNode = {
+		...probe,
+		x: Math.round(anchor.x - PROMOTE_GAP - width),
+		y: Math.round(anchor.y - NODE.compactHeight / 2),
+	};
+
+	const placed: NodeScript = {
+		...withVariable.script,
+		nodes: [...withVariable.script.nodes, getter],
+	};
+
+	const linked = connect(
+		placed, registry,
+		{ node: getterId, pin: "value" },
+		{ node: nodeId, pin: pin.id },
+	);
+
+	return { script: linked, variable: variable.id, node: getterId };
+}
+
+/**
+ * A variable name from a pin. The pin's display name reads better than its id
+ * ("Instance" over "instance"), but it is prose — it can carry spaces and
+ * punctuation that a Luau identifier cannot — so it is trimmed back to word
+ * characters and lowercased at the front to match how the rest of the graph
+ * names things.
+ */
+function variableNameFor(pin: PinDef): string {
+	const source = (pin.name || pin.id).replace(/[^A-Za-z0-9]+/g, "");
+	if (source === "") return "newVariable";
+	const named = /^[0-9]/.test(source) ? `v${source}` : source;
+	return named.charAt(0).toLowerCase() + named.slice(1);
 }
 
 /** Points a Get or Set node at a variable, caching what pin derivation needs. */

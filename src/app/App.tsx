@@ -23,13 +23,14 @@ import { LAYER } from "./layers.js";
 import type { PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
 import { buildPresets, NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
+import { PinMenu, type PinMenuTarget } from "./PinMenu.jsx";
 import { autoLayout } from "./layout.js";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
 import {
-	addComment, addNode, copySelection, deleteSelection, pasteClipping,
-	setConfig as setNodeConfig, setLiteral, type Clipping,
+	addComment, addNode, copySelection, deleteSelection, disconnectPin, pasteClipping,
+	promoteToVariable, setConfig as setNodeConfig, setLiteral, type Clipping,
 } from "./edits.js";
 import { store, useEditor } from "./store.js";
 
@@ -49,6 +50,7 @@ export function App() {
 	const [project, setProject] = useState<ProjectInfo | null>(null);
 	const [customNodes, setCustomNodes] = useState<NodeDef[]>([]);
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
+	const [pinMenu, setPinMenu] = useState<PinMenuTarget | null>(null);
 	const [outcomes, setOutcomes] = useState<CompileOutcome[]>([]);
 	const [statusOpen, setStatusOpen] = useState(true);
 	const [alignExec, setAlignExec] = useState(
@@ -316,6 +318,23 @@ export function App() {
 		const only = selected.size > 1 ? selected : undefined;
 		store.edit((s) => autoLayout(s, registry, { only, alignExec }));
 	}, [registry, alignExec]);
+
+	/**
+	 * Turns a pin's typed-in value into a script variable, then selects the
+	 * getter it made — the next thing you do is almost always to that getter,
+	 * and leaving the selection on the node behind it means going to find it.
+	 */
+	const promotePin = useCallback(
+		(pin: PinMenuTarget) => {
+			const state = store.getSnapshot();
+			if (!state.script) return;
+			const result = promoteToVariable(state.script, registry, pin.nodeId, pin.pin);
+			if (!result) return;
+			store.edit(() => result.script);
+			store.select([result.node]);
+		},
+		[registry],
+	);
 
 	const toggleAlignExec = useCallback(() => {
 		setAlignExec((on) => {
@@ -686,6 +705,9 @@ export function App() {
 						registry={registry}
 						diagnostics={diagnostics}
 						onRequestMenu={(screen, world) => setMenu({ screen, world })}
+						onRequestPinMenu={(screen, nodeId, pin, side) =>
+							setPinMenu({ screen, nodeId, pin, side })
+						}
 						onEditCode={(nodeId, pin, value) => setCodeEdit({ nodeId, pin, value })}
 						onDropFile={async (dropped, screen, world) => {
 							const name = dropped.split("/").pop() ?? dropped;
@@ -793,6 +815,21 @@ export function App() {
 					onPick={(def, config) => spawn(def, menu.world, config)}
 					onAddComment={() => spawnComment(menu.world)}
 					onClose={() => setMenu(null)}
+				/>
+			)}
+
+			{pinMenu && editor.script && (
+				<PinMenu
+					target={pinMenu}
+					script={editor.script}
+					registry={registry}
+					onPromote={() => promotePin(pinMenu)}
+					onBreakLinks={() =>
+						store.edit((s) =>
+							disconnectPin(s, pinMenu.nodeId, pinMenu.pin.id, pinMenu.side),
+						)
+					}
+					onClose={() => setPinMenu(null)}
 				/>
 			)}
 		</div>

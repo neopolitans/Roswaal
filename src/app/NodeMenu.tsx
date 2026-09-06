@@ -19,7 +19,8 @@ import { LAYER } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 
 export interface MenuAnchor {
-	/** Position within the canvas, in screen pixels. */
+	/** Viewport position. The menu is `position: fixed`, so it must not be
+	 *  canvas-relative — that opens it a sidebar's width off. */
 	screen: { x: number; y: number };
 	/** Where a spawned node should land, in world coordinates. */
 	world: { x: number; y: number };

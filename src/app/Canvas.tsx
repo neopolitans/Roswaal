@@ -38,6 +38,7 @@ export interface CanvasProps {
 	registry: Registry;
 	diagnostics: Diagnostic[];
 	onRequestMenu: (screen: Vec, world: Vec) => void;
+	onRequestPinMenu: (screen: Vec, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
 	/** A file dragged in from the project tree, dropped at this point. */
 	onDropFile: (path: string, screen: Vec, world: Vec) => void;
@@ -60,7 +61,7 @@ type Gesture =
 	| { kind: "resize"; id: string; origin: Vec; start: { w: number; h: number } };
 
 export function Canvas({
-	script, registry, diagnostics, onRequestMenu, onEditCode, onDropFile,
+	script, registry, diagnostics, onRequestMenu, onRequestPinMenu, onEditCode, onDropFile,
 }: CanvasProps) {
 	const { selection, view } = useEditor();
 	const surface = useRef<HTMLDivElement>(null);
@@ -473,11 +474,10 @@ export function Canvas({
 			onPointerDown={onSurfacePointerDown}
 			onContextMenu={(e) => {
 				e.preventDefault();
-				const box = surface.current!.getBoundingClientRect();
-				onRequestMenu(
-					{ x: e.clientX - box.left, y: e.clientY - box.top },
-					toWorld(e.clientX, e.clientY),
-				);
+				// Viewport coordinates, not canvas-relative: every menu is
+				// `position: fixed`, so subtracting the canvas origin here would
+				// open it a sidebar's width to the left of the pointer.
+				onRequestMenu({ x: e.clientX, y: e.clientY }, toWorld(e.clientX, e.clientY));
 			}}
 			onDragOver={(e) => {
 				const kinds = e.dataTransfer.types;
@@ -497,11 +497,10 @@ export function Canvas({
 				if (files) {
 					e.preventDefault();
 					const paths = JSON.parse(files) as string[];
-					const box = surface.current!.getBoundingClientRect();
 					if (paths[0]) {
 						onDropFile(
 							paths[0],
-							{ x: e.clientX - box.left, y: e.clientY - box.top },
+							{ x: e.clientX, y: e.clientY },
 							toWorld(e.clientX, e.clientY),
 						);
 					}
@@ -661,17 +660,16 @@ export function Canvas({
 						onNodePointerDown={onNodePointerDown}
 						onPinPointerDown={onPinPointerDown}
 						onPinPointerUp={onPinPointerUp}
+						onPinContextMenu={(e, id, pin, side) =>
+							onRequestPinMenu({ x: e.clientX, y: e.clientY }, id, pin, side)
+						}
 						onLiteralChange={onLiteralChange}
 						onEditCode={onEditCode}
 						onGrow={onGrow}
 						growth={growth.get(node.id) ?? null}
 						onContextMenu={(e, id) => {
 							if (!selection.has(id)) store.select([id]);
-							const box = surface.current!.getBoundingClientRect();
-							onRequestMenu(
-								{ x: e.clientX - box.left, y: e.clientY - box.top },
-								toWorld(e.clientX, e.clientY),
-							);
+							onRequestMenu({ x: e.clientX, y: e.clientY }, toWorld(e.clientX, e.clientY));
 						}}
 					/>
 				))}

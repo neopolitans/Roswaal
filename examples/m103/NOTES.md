@@ -67,6 +67,48 @@ The `Humanoid` and the two `PathfindingModifier`s on the tracks are residue
 from the cancelled project, where this was an NPC rather than something a
 player drove. Neither is wanted here.
 
+## Design intent, from the author — 6 September
+
+Recorded verbatim in substance, because it changes the reading of the survey
+above and it arrived before the work started rather than during it.
+
+- **The M103 was built for a mobile game, seen top-down.** The hull and turret
+  are deliberately simple because that is all the perspective ever shows.
+- **The tracks animate by scrolling their textures along U/V**, not by moving
+  geometry. That is what the four `Texture` objects on each track are for —
+  `OffsetStudsU` / `OffsetStudsV`, one per face. No track links, no wheels
+  turning, and nothing physical to simulate.
+- **The only rigidbody change wanted is the gun's pivot.** It needs re-addressing
+  so the gun rotates about its own trunnion.
+- **Projectiles get reworked to real armour penetration**, replacing the original
+  project's "projectiles bounce off walls" behaviour. `ProjectileRicochetCount`
+  in `TurretSettings` is a leftover of that older model and should be treated as
+  suspect rather than as a requirement.
+
+### What that changes
+
+**The gun is already jointed.** The survey above is right that nothing joins
+Hull to Turret, but the gun is a different case: the Motor6D named `Gun` under
+`Main` has `Part0 = Main`, `Part1 = Gun [MeshPart]`. So gun elevation does not
+need a new joint — it needs that Motor6D's **`C0` moved to the trunnion**, and
+then elevation is writing its `Transform`. Smaller than first assessed.
+
+**Approach C is confirmed as the right one,** and the top-down framing makes it
+more so. Nothing about the intended game wants suspension, wheel physics or
+vehicle constraints; the tracks are a shader trick. That removes the only real
+argument for approach B.
+
+**Track scrolling is a nice small graph.** Speed → `OffsetStudsV` accumulated
+per frame, one Texture at a time, sign flipped per side when turning. It reads
+well as a graph and it converts to Blueprints as a material-parameter scroll,
+which is a comparison worth having in the log.
+
+**Armour penetration replaces ricochet in the slice.** That is a bigger gameplay
+change than it sounds — a penetration model needs surface normal against shot
+vector, effective thickness, and a threshold — so it stays *out* of the vertical
+slice's first cycle and goes in only once driving and firing work. The slice
+fires and registers a hit; penetration is the first thing added after.
+
 ## What to do about it
 
 Three ways to make it drive, and they are not equally good for what this demo

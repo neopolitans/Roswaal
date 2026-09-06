@@ -31,6 +31,8 @@ export interface NodeViewProps {
 	onNodePointerDown: (e: ReactPointerEvent, nodeId: string) => void;
 	onPinPointerDown: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onPinPointerUp: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
+	/** Right-clicking a pin asks about that pin, not about what node comes next. */
+	onPinContextMenu: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onLiteralChange: (nodeId: string, pinId: string, value: Literal) => void;
 	/** Opens the pop-out Luau editor for a raw literal. */
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
@@ -218,6 +220,12 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 			title={pin.description ?? pin.type ?? pin.kind}
 			onPointerDown={(e) => props.onPinPointerDown(e, node.id, pin, side)}
 			onPointerUp={(e) => props.onPinPointerUp(e, node.id, pin, side)}
+			onContextMenu={(e) => {
+				// Stopped here, or the node's own handler opens the palette on top.
+				e.preventDefault();
+				e.stopPropagation();
+				props.onPinContextMenu(e as unknown as ReactPointerEvent, node.id, pin, side);
+			}}
 		>
 			<span className="dot" />
 		</span>

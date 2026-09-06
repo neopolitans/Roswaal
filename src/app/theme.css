@@ -723,6 +723,58 @@ button.tb.primary:hover:not(:disabled) {
 	text-align: center;
 }
 
+/* The pin menu is the node palette's small sibling: no search, a handful of
+   entries, and a header naming the pin so there is never a doubt about which
+   one was hit -- pin hit areas overlap their labels deliberately. */
+.menu.pin-menu {
+	width: 220px;
+	max-height: none;
+}
+
+.menu.pin-menu .pin-head {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 7px 10px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-input);
+}
+
+.menu.pin-menu .pin-head .swatch {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	flex: none;
+}
+
+/* An execution pin is drawn as its arrow here too, so the header matches the
+   thing that was clicked rather than describing it. */
+.menu.pin-menu .pin-head .swatch.exec {
+	border-radius: 0;
+	width: 10px;
+	clip-path: polygon(0 0, 58% 0, 100% 50%, 58% 100%, 0 100%);
+}
+
+.menu.pin-menu .pin-head .name {
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.menu.pin-menu .pin-head .type {
+	margin-left: auto;
+	font-size: 10px;
+	color: var(--fg-faint);
+	white-space: nowrap;
+}
+
+.menu.pin-menu .empty {
+	padding: 10px;
+	font-size: 11px;
+	text-align: left;
+}
+
 /* -------------------------------------------------------------- diagnostics */
 
 .status {
