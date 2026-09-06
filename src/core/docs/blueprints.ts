@@ -265,18 +265,44 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 			},
 			{
 				unreal: "Custom Event",
-				roswaal: null,
+				roswaal: "A BindableEvent",
+				nodes: ["bindable.fire", "bindable.event"],
 				note:
-					"No direct equivalent. A BindableEvent, or a function reference passed as a value — " +
-					"Get Function gives you one.",
+					"An instance you create, fired with **Fire Bindable** and listened to through its " +
+					"**Event** signal. In-process only — crossing between client and server is a " +
+					"remote, and deliberately a different thing to write.",
 			},
 			{
 				unreal: "Event Dispatcher / Bind Event",
-				roswaal: "Connect Event",
-				nodes: ["event.connect", "roblox.getEvent"],
+				roswaal: "Connect Event, Connect Once",
+				nodes: ["event.connect", "event.once", "roblox.getEvent"],
 				note:
-					"Roblox signals. Get Event reads a signal off an instance; Connect Event runs a body " +
-					"when it fires and gives you the connection back.",
+					"Get Event reads a signal off an instance; Connect Event runs a body when it fires " +
+					"and hands the connection back. **Connect Once** unbinds itself after one fire.",
+			},
+			{
+				unreal: "Unbind Event",
+				roswaal: "Disconnect",
+				nodes: ["connection.disconnect", "connection.isConnected"],
+				note:
+					"Roblox will not do this for you. A connection you never disconnect keeps its " +
+					"handler — and everything the handler captured — alive for as long as the signal " +
+					"is, which is the most common leak in a Roblox game.",
+			},
+			{
+				unreal: "Replicated function / RPC",
+				roswaal: "RemoteEvent and RemoteFunction",
+				nodes: [
+					"remote.fireServer", "remote.fireClient", "remote.fireAllClients",
+					"remote.invokeServer", "remote.onServerInvoke",
+				],
+				note:
+					"Unreal marks a function `Server` or `Client` and the engine routes it. Roblox makes " +
+					"the channel an **instance** you create and reference from both sides. A RemoteEvent " +
+					"is one-way and does not wait; a RemoteFunction waits for an answer and **raises the " +
+					"other side's error on the caller**. There is an UnreliableRemoteEvent for data you " +
+					"can afford to lose — same calls, weaker guarantees — and no unreliable equivalent " +
+					"for RemoteFunction, because waiting for an answer needs the answer to arrive.",
 			},
 			{
 				unreal: "BeginPlay",

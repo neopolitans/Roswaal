@@ -29,6 +29,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 	// the other.
 	Instances: "#2f6f6a",
 	Players: "#3d7a86",
+	// Networking sits apart from the rest of Roblox on purpose: a graph that
+	// crosses the client/server boundary is a graph to read carefully.
+	Networking: "#8a4a5e",
 	Modules: "#6f4f9b",
 	Time: "#65852c",
 	Debug: "#6d7480",

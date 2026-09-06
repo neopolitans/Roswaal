@@ -724,7 +724,12 @@ class Emitter {
 				return undefined;
 			}
 
-			case "event.connect": {
+			case "event.connect":
+			case "event.once": {
+				// Once is Connect that unbinds itself after one fire. Identical in
+				// every other respect, so it is the same handler with a different
+				// method name rather than a copy that can drift.
+				const method = handler === "event.once" ? "Once" : "Connect";
 				const signal = this.resolveInput(r, this.pin(r, "signal", "in"), scope);
 				const sig = (r.node.config ?? {}) as Signature;
 				const body = new Scope(scope);
@@ -740,7 +745,7 @@ class Emitter {
 					scope.bindings.set(`${id}/connection`, ident);
 					prefix = `local ${ident} = `;
 				}
-				this.push(`${prefix}${signal}:Connect(function(${params.join(", ")})`, id);
+				this.push(`${prefix}${signal}:${method}(function(${params.join(", ")})`, id);
 				this.indent++;
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
@@ -1100,6 +1105,15 @@ class Emitter {
 			const args = r.inputs.filter((p) => VARIADIC_PIN.test(p.id));
 			if (args.length === 0) return "";
 			return args.map((p) => paren(this.resolveInput(r, p, scope))).join(separator);
+		});
+
+		// `$more(<sep>)` is `$args` with a leading separator when there is anything
+		// to separate. It is what lets `Fire(player, a, b)` and `Fire(player)` come
+		// from one template instead of forcing a payload nobody asked for.
+		template = template.replace(/\$more\(([^)]*)\)/g, (_match, separator: string) => {
+			const args = r.inputs.filter((p) => VARIADIC_PIN.test(p.id));
+			if (args.length === 0) return "";
+			return separator + args.map((p) => paren(this.resolveInput(r, p, scope))).join(separator);
 		});
 
 		const re = /\$(in|out)\.([A-Za-z_][A-Za-z0-9_]*)(?:!(ident|raw))?/g;

@@ -251,6 +251,21 @@ export const CURATED: Record<string, () => NodeScript> = {
 		return g.out();
 	},
 
+	"event.once": () => {
+		const g = new G();
+		const begin = g.node("script.begin");
+		const players = g.node("roblox.getService", { literals: { service: str("Players") } });
+		const signal = g.node("roblox.getEvent", { literals: { event: str("PlayerAdded") } });
+		g.link(players, "service", signal, "instance");
+
+		const once = g.node("event.once", {
+			config: { params: [{ name: "player", type: "Instance" }] },
+		});
+		g.link(begin, "then", once, "in").link(signal, "result", once, "signal");
+		printAfter(g, once, "body", "First player is in");
+		return g.out();
+	},
+
 	"call.function": () => {
 		const g = new G();
 		const fn = g.node("function.entry", {

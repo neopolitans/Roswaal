@@ -29,6 +29,21 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.9.0",
+		date: "2026-09-06",
+		headline: "Signals you can let go of, and networking.",
+		added: [
+			"**Disconnect** and **Is Connected**. Connect was the only signal node, so a graph could take a connection out and had no way to put it back — the most common leak in a Roblox game had no node for its cure.",
+			"**Connect Once**, which unbinds itself after one fire, and **Wait For Signal**, which yields until one arrives.",
+			"**Networking**: Fire Server, Fire Client, Fire All Clients, On Server Event, On Client Event, Invoke Server, Invoke Client, and the two On-Invoke assignments.",
+			"**BindableEvent** and **BindableFunction** — the in-process pair, and the closest thing Roblox has to Unreal's Custom Event.",
+		],
+		changed: [
+			"One set of remote nodes covers **RemoteEvent and UnreliableRemoteEvent** both: the methods are identical, and the difference is a decision made when you create the instance rather than a different call to write. There is no unreliable RemoteFunction, because waiting for an answer needs the answer to arrive.",
+			"The *Coming from Blueprints* page gains rows for Custom Event, Unbind Event and RPCs — three places it previously had to say there was no equivalent, or said too little.",
+		],
+	},
+	{
 		version: "0.8.1",
 		date: "2026-09-06",
 		headline: "An Unreal-to-Luau type table, and one fewer click in the nav.",

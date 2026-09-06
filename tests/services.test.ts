@@ -72,6 +72,85 @@ describe("client-only nodes", () => {
 	});
 });
 
+describe("signals and networking", () => {
+	/** Once is Connect with a different method name and nothing else different. */
+	it("emits Once rather than Connect, with the same body", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const signal = b.node("roblox.getEvent");
+		b.lit(signal, "event", { t: "string", v: "Touched" });
+		const source = b.node("value.expression");
+		b.lit(source, "code", { t: "raw", v: "part" });
+		const once = b.node("event.once", { config: { params: [] } });
+		const print = b.node("debug.print");
+		b.lit(print, "value", { t: "string", v: "hit" });
+		b.link(source, "result", signal, "instance");
+		b.link(start, "then", once, "in");
+		b.link(signal, "result", once, "signal");
+		b.link(once, "body", print, "in");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(
+			["part.Touched:Once(function()", `\tprint("hit")`, "end)"].join("\n"),
+		);
+	});
+
+	/**
+	 * `$more` exists for exactly this: firing at a player with nothing to say
+	 * must not emit `FireClient(player, )`, and firing with a payload must not
+	 * lose the comma.
+	 */
+	it("fires at a player with no payload and no trailing comma", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const remote = b.node("value.expression");
+		b.lit(remote, "code", { t: "raw", v: "remote" });
+		const player = b.node("value.expression");
+		b.lit(player, "code", { t: "raw", v: "player" });
+		const fire = b.node("remote.fireClient");
+		b.link(start, "then", fire, "in");
+		b.link(remote, "result", fire, "remote");
+		b.link(player, "result", fire, "player");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe("remote:FireClient(player)");
+	});
+
+	it("separates a payload from the player it is sent to", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const remote = b.node("value.expression");
+		b.lit(remote, "code", { t: "raw", v: "remote" });
+		const player = b.node("value.expression");
+		b.lit(player, "code", { t: "raw", v: "player" });
+		const fire = b.node("remote.fireClient", { config: { args: 2 } });
+		b.lit(fire, "a0", { t: "number", v: 1 });
+		b.lit(fire, "a1", { t: "string", v: "go" });
+		b.link(start, "then", fire, "in");
+		b.link(remote, "result", fire, "remote");
+		b.link(player, "result", fire, "player");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(`remote:FireClient(player, 1, "go")`);
+	});
+
+	it("fires with no arguments at all", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const remote = b.node("value.expression");
+		b.lit(remote, "code", { t: "raw", v: "remote" });
+		const fire = b.node("remote.fireServer");
+		b.link(start, "then", fire, "in");
+		b.link(remote, "result", fire, "remote");
+
+		const out = compile(b.build(), registry);
+		expect(body(out.code)).toBe("remote:FireServer()");
+	});
+});
+
 describe("casts", () => {
 	/**
 	 * The reason Cast Array exists, in one test: Get Descendants is

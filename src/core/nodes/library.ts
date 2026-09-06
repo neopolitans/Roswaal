@@ -97,6 +97,60 @@ function variadic(
 
 const LETTERS = "ABCDEFGH".split("");
 
+/** Payload pins for a call whose argument count is chosen per node. */
+function payload(config: Record<string, unknown>, min: number, max = 8): PinDef[] {
+	const count = Math.max(min, Math.min(max, Number(config.args ?? min)));
+	return Array.from({ length: count }, (_, i) =>
+		d(`a${i}`, count === 1 ? "Value" : `Value ${i + 1}`, "any", { t: "nil" }),
+	);
+}
+
+/**
+ * An impure node taking a variable number of trailing arguments.
+ *
+ * `variadic` above only builds pure nodes, and firing a remote is the opposite
+ * of pure. The count lives in the node's own config, so one graph can fire two
+ * remotes with different payloads — and `min: 0` matters here, because firing
+ * with nothing to say is a normal thing to do.
+ */
+function variadicStmt(
+	id: string, title: string, category: string, template: string,
+	fixed: PinDef[], summary: string, opts: { min?: number; targets?: NodeDef["targets"] } = {},
+): NodeDef {
+	const min = opts.min ?? 0;
+	const shape = (config: Record<string, unknown>) => ({
+		inputs: [exec("in"), ...fixed, ...payload(config, min)],
+		outputs: [exec("then")],
+	});
+	return {
+		id, title, category, summary, targets: opts.targets ?? ["roblox"],
+		variadic: { min, max: 8, type: "any", default: { t: "nil" } },
+		...shape({}),
+		compilesTo: { kind: "statement", template },
+		derivePins: shape,
+	};
+}
+
+/** The same, for a call that hands a value back. */
+function variadicCall(
+	id: string, title: string, category: string, template: string,
+	fixed: PinDef[], resultName: string, summary: string,
+	opts: { min?: number; latent?: boolean } = {},
+): NodeDef {
+	const min = opts.min ?? 0;
+	const shape = (config: Record<string, unknown>) => ({
+		inputs: [exec("in"), ...fixed, ...payload(config, min)],
+		outputs: [exec("then"), d("result", resultName, "any")],
+	});
+	return {
+		id, title, category, summary, targets: ["roblox"], latent: opts.latent,
+		variadic: { min, max: 8, type: "any", default: { t: "nil" } },
+		...shape({}),
+		compilesTo: { kind: "call", template, result: "result" },
+		derivePins: shape,
+	};
+}
+
 /**
  * Argument pins for the call nodes. One by default, because most calls take
  * one, and the count is stored per node rather than baked into the definition.
@@ -256,6 +310,116 @@ export const LIBRARY_NODES: NodeDef[] = [
 		[num("x", "X"), num("y", "Y"), num("z", "Z")], "Vector3"),
 	pure("roblox.color3", "Color3", "Roblox", "Color3.fromRGB($in.r, $in.g, $in.b)",
 		[num("r", "R", 255), num("g", "G", 255), num("b", "B", 255)], "Color3"),
+
+	// -- Signals and connections -------------------------------------------
+	//
+	// Connect was the only node here, which meant a graph could take a connection
+	// out and had no way to put it back. Disconnect is the missing half.
+	{
+		id: "event.once",
+		title: "Connect Once",
+		category: "Events",
+		role: "flow",
+		summary:
+			"Runs the Body the next time the signal fires, then unbinds itself. No Disconnect needed, and no connection left behind if the thing never fires again.",
+		targets: ["roblox"],
+		inputs: [exec("in", ""), d("signal", "Signal", "RBXScriptSignal")],
+		outputs: [
+			exec("then", ""),
+			exec("body", "Body"),
+			d("connection", "Connection", "RBXScriptConnection"),
+		],
+		compilesTo: { kind: "builtin", handler: "event.once" },
+		derivePins(config) {
+			const sig = config as { params?: { name?: string; type?: string }[] };
+			return {
+				inputs: [exec("in", ""), d("signal", "Signal", "RBXScriptSignal")],
+				outputs: [
+					exec("then", ""),
+					exec("body", "Body"),
+					d("connection", "Connection", "RBXScriptConnection"),
+					...(sig.params ?? []).map((p, i) =>
+						d(`p${i}`, p.name || `arg${i + 1}`, p.type ?? "any"),
+					),
+				],
+			};
+		},
+	},
+	call("event.wait", "Wait For Signal", "Events", "$in.signal:Wait()",
+		[d("signal", "Signal", "RBXScriptSignal")], "Value", "any",
+		{
+			latent: true, targets: ["roblox"],
+			summary:
+				"Yields until the signal fires, then continues with what it carried. Nothing else in this script runs meanwhile — Connect when you want it to.",
+		}),
+	stmt("connection.disconnect", "Disconnect", "Events", "$in.connection:Disconnect()",
+		[d("connection", "Connection", "RBXScriptConnection")],
+		{
+			targets: ["roblox"],
+			summary:
+				"Stops a connection. A connection you never disconnect keeps its handler — and everything the handler captured — alive as long as the signal is.",
+		}),
+	pure("connection.isConnected", "Is Connected", "Events", "$in.connection.Connected",
+		[d("connection", "Connection", "RBXScriptConnection")], "boolean",
+		"False once it has been disconnected, or after Connect Once has fired."),
+
+	// -- Networking --------------------------------------------------------
+	//
+	// One set of nodes covers RemoteEvent and UnreliableRemoteEvent both: their
+	// methods are identical, and the difference is a decision made when the
+	// instance is created rather than a different call to write.
+	variadicStmt("remote.fireServer", "Fire Server", "Networking",
+		"$in.remote:FireServer($args(, ))", [d("remote", "Remote", "Instance")],
+		"Client to server. Works on a RemoteEvent or an UnreliableRemoteEvent — the call is the same; the guarantees are what differ."),
+	variadicStmt("remote.fireClient", "Fire Client", "Networking",
+		"$in.remote:FireClient($in.player$more(, ))",
+		[d("remote", "Remote", "Instance"), d("player", "Player", "Instance")],
+		"Server to one client. The player is not optional, and is not part of what they receive."),
+	variadicStmt("remote.fireAllClients", "Fire All Clients", "Networking",
+		"$in.remote:FireAllClients($args(, ))", [d("remote", "Remote", "Instance")],
+		"Server to everyone connected."),
+	pure("remote.onServerEvent", "On Server Event", "Networking", "$in.remote.OnServerEvent",
+		[d("remote", "Remote", "Instance")], "RBXScriptSignal",
+		"Fires on the server when a client fires this remote. The first argument is always the Player who sent it, added by Roblox — never trust anything after it."),
+	pure("remote.onClientEvent", "On Client Event", "Networking", "$in.remote.OnClientEvent",
+		[d("remote", "Remote", "Instance")], "RBXScriptSignal",
+		"Fires on the client when the server fires this remote."),
+
+	variadicCall("remote.invokeServer", "Invoke Server", "Networking",
+		"$in.remote:InvokeServer($args(, ))", [d("remote", "Remote", "Instance")], "Result",
+		"Client to server, and waits for the answer. Yields, and **raises the server's error on the caller** if the handler throws — a RemoteFunction couples the two sides in a way a RemoteEvent does not.",
+		{ latent: true }),
+	variadicCall("remote.invokeClient", "Invoke Client", "Networking",
+		"$in.remote:InvokeClient($in.player$more(, ))",
+		[d("remote", "Remote", "Instance"), d("player", "Player", "Instance")], "Result",
+		"Server to one client, waiting for the answer. Rarely the right tool: a client that never answers leaves the server yielding, and one that leaves raises an error.",
+		{ latent: true }),
+	stmt("remote.onServerInvoke", "Set On Server Invoke", "Networking",
+		"$in.remote.OnServerInvoke = $in.handler",
+		[d("remote", "Remote", "Instance"), d("handler", "Handler", "function")],
+		{
+			targets: ["roblox"],
+			summary:
+				"A RemoteFunction is answered by assigning one callback, not by connecting to a signal — so there is exactly one handler, and assigning again replaces it. Wire Get Function in.",
+		}),
+	stmt("remote.onClientInvoke", "Set On Client Invoke", "Networking",
+		"$in.remote.OnClientInvoke = $in.handler",
+		[d("remote", "Remote", "Instance"), d("handler", "Handler", "function")],
+		{ targets: ["roblox"], summary: "The client side of the same one-callback rule." }),
+
+	variadicStmt("bindable.fire", "Fire Bindable", "Networking",
+		"$in.event:Fire($args(, ))", [d("event", "Bindable Event", "Instance")],
+		"In-process, one machine, no network. The closest thing Roblox has to Unreal's Custom Event."),
+	pure("bindable.event", "Bindable Event Signal", "Networking", "$in.event.Event",
+		[d("event", "Bindable Event", "Instance")], "RBXScriptSignal",
+		"The signal a BindableEvent fires. Unlike a remote, no Player is prepended."),
+	variadicCall("bindable.invoke", "Invoke Bindable", "Networking",
+		"$in.fn:Invoke($args(, ))", [d("fn", "Bindable Function", "Instance")], "Result",
+		"Calls a BindableFunction and waits. Same one-callback rule as a RemoteFunction, without the network."),
+	stmt("bindable.onInvoke", "Set On Invoke", "Networking",
+		"$in.fn.OnInvoke = $in.handler",
+		[d("fn", "Bindable Function", "Instance"), d("handler", "Handler", "function")],
+		{ targets: ["roblox"] }),
 
 	// -- Instances ---------------------------------------------------------
 	//
