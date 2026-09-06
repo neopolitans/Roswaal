@@ -767,20 +767,24 @@ export const LIBRARY_NODES: NodeDef[] = [
 		}),
 	},
 
-	// -- Time --------------------------------------------------------------
-	call("task.wait", "Wait", "Time", "task.wait($in.seconds)",
+	// -- Threads -----------------------------------------------------------
+	//
+	// The `task` library, which is Roblox's scheduler, and Luau's `coroutine`
+	// library underneath it. Reach for `task` first: it is scheduler-aware, and
+	// the old globals `spawn`, `delay` and `wait` are deprecated in its favour.
+	//
+	// Wait leads, because it is the one everybody reaches for and because it is
+	// where the rest of the library becomes relevant: the moment a graph yields
+	// is the moment it has more than one thread to think about. It sat under
+	// Time for a while, which is a category about dates and durations rather
+	// than about the scheduler, so the node was in the wrong drawer.
+	call("task.wait", "Wait", "Threads", "task.wait($in.seconds)",
 		[num("seconds", "Seconds", 1)], "Elapsed", "number",
 		{
 			latent: true,
 			summary:
 				"Yields this thread for at least that long, and gives back how long it actually took. The global `wait()` is deprecated; this is its replacement.",
 		}),
-
-	// -- Threads -----------------------------------------------------------
-	//
-	// The `task` library, which is Roblox's scheduler, and Luau's `coroutine`
-	// library underneath it. Reach for `task` first: it is scheduler-aware, and
-	// the old globals `spawn`, `delay` and `wait` are deprecated in its favour.
 	variadicCall("task.spawn", "Spawn", "Threads", "task.spawn($in.fn$more(, ))",
 		[d("fn", "Function", "function")], "Thread",
 		"Runs the function on a new thread, **starting immediately** and continuing here when it yields or finishes. The thread is handed back so it can be cancelled."),

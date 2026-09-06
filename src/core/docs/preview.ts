@@ -128,7 +128,10 @@ export function previewOf(def: NodeDef): NodePreview {
 	const { inputs, outputs } = resolveNodePins(def, undefined);
 	return {
 		id: def.id,
-		title: def.title,
+		// The same rule the canvas uses, though with no config there is never a
+		// name to find: a preview shows what you get before you have configured
+		// anything, which for a Function node is "Function".
+		title: def.defaultLabel?.({}) || def.title,
 		subtitle: def.subtitle?.({}),
 		category: def.category,
 		role: def.role,

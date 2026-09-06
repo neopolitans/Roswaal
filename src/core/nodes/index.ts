@@ -1,6 +1,6 @@
 /** Node registry: built-ins plus any custom packs loaded from disk. */
 
-import type { Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
+import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
 import {
 	modeOf, partPinId, splitKey, splitsOf, STRUCTS,
 	type SplitMap, type StructRegistry,
@@ -138,6 +138,30 @@ export function literalOnlyPins(def: NodeDef): Set<string> {
 		}
 	}
 	return out;
+}
+
+/**
+ * What one node on the canvas is called.
+ *
+ * Three answers in order of authority, and the order is the whole point:
+ *
+ *  1. **The label somebody typed.** An explicit name always wins; that is what
+ *     the field is for.
+ *  2. **The name the node already carries in its config** — a function's name,
+ *     a variable's. Naming a function `greet` and reading "Function" on the
+ *     canvas made a graph with several functions in it unreadable at a glance,
+ *     with the answer only in the inspector, so a node that has a name uses it.
+ *  3. **The definition's title**, for everything with no name of its own.
+ *
+ * Every place that shows a node's name goes through here — the header, the
+ * capsule, the inspector's placeholder, and the diagnostics, which used to say
+ * "Function is not connected to anything that runs" whichever function it was.
+ */
+export function nodeTitle(def: NodeDef | undefined, node: GraphNode): string {
+	if (node.label) return node.label;
+	const named = def?.defaultLabel?.(node.config ?? {});
+	if (named) return named;
+	return def?.title ?? node.def;
 }
 
 /** Every distinct category present in a registry, in display order. */

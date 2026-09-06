@@ -49,7 +49,9 @@ export const VARIABLE_NODES: NodeDef[] = [
 			const ref = config as VariableRef;
 			return { inputs: [], outputs: [data("value", "", ref.type ?? "any")] };
 		},
-		subtitle: (config) => (config as VariableRef).name,
+		// A capsule has no second line to put a name on, and does not need one:
+		// the variable's name *is* the node.
+		defaultLabel: (config) => (config as VariableRef).name,
 	},
 	{
 		id: "variable.set",
@@ -80,6 +82,6 @@ export const VARIABLE_NODES: NodeDef[] = [
 		outputs: [data("fn", "", "function")],
 		compilesTo: { kind: "builtin", handler: "function.get" },
 		display: "compact",
-		subtitle: (config) => (config as FunctionRef).name,
+		defaultLabel: (config) => (config as FunctionRef).name,
 	},
 ];

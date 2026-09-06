@@ -9,7 +9,7 @@
 import { NODE } from "./layers.js";
 import type { GraphNode, NodeConfig, NodeDef, PinDef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
-import { resolveNodePins } from "../core/nodes/index.js";
+import { nodeTitle, resolveNodePins } from "../core/nodes/index.js";
 
 export interface Rect {
 	x: number;
@@ -45,9 +45,16 @@ export function isReroute(def: NodeDef | undefined): boolean {
 	return def?.display === "reroute";
 }
 
-/** The text a capsule shows, which is also what sets its width. */
+/**
+ * The text a capsule shows, which is also what sets its width.
+ *
+ * The same rule the header uses, so a getter and a full node answer "what is
+ * this called" identically — this used to reach for the subtitle instead, which
+ * happened to give the same answer and only because the two capsule nodes put
+ * their name there.
+ */
 export function compactLabel(def: NodeDef, node: GraphNode): string {
-	return node.label || def.subtitle?.(node.config ?? {}) || def.title;
+	return nodeTitle(def, node);
 }
 
 /**

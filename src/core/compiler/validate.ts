@@ -9,7 +9,7 @@
 
 import type { NodeScript } from "../schema.js";
 import { checkLuauBalance } from "../luauCheck.js";
-import type { Registry } from "../nodes/index.js";
+import { nodeTitle, type Registry } from "../nodes/index.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
 
@@ -252,7 +252,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		if (!reachable.has(r.node.id)) {
 			out.push({
 				severity: "warning",
-				message: `"${r.node.label || r.def.title}" is not connected to anything that runs.`,
+				message: `"${nodeTitle(r.def, r.node)}" is not connected to anything that runs.`,
 				node: r.node.id,
 			});
 		}

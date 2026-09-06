@@ -158,6 +158,25 @@ export interface NodeDef {
 	 */
 	subtitle?: (config: NodeConfig) => string | undefined;
 	/**
+	 * The name this instance already has, used as its label when nobody has
+	 * typed one.
+	 *
+	 * Some nodes are named twice. A Function node has a **function name**, which
+	 * is what it is called in the generated Luau and what everything else in the
+	 * graph refers to — and it also has a label, which is what the header shows.
+	 * Leaving those independent meant naming a function `greet` and still
+	 * reading "Function" on the canvas, so a graph with four functions in it
+	 * showed four nodes with the same title and the answer only in the
+	 * inspector.
+	 *
+	 * So the name wins by default, and an explicit label still overrides it —
+	 * see `nodeTitle`. Only set this where the config genuinely names the node.
+	 * A Set Variable node is *about* a variable rather than named after one, and
+	 * showing "Accumulator" where "Set Variable" was would lose the verb; that
+	 * belongs in `subtitle`, which is where it already is.
+	 */
+	defaultLabel?: (config: NodeConfig) => string | undefined;
+	/**
 	 * How the node is drawn. "compact" is the small capsule Unreal uses for a
 	 * variable getter: no header bar, no title row, one output on the right. It
 	 * suits a node whose whole meaning is its name, and only those — anything

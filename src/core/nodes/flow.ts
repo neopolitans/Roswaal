@@ -114,6 +114,7 @@ export const FLOW_NODES: NodeDef[] = [
 		},
 		// The name goes on the title line and the signature underneath it, so a
 		// graph full of functions can be read without opening any of them.
+		defaultLabel: (config) => (config as Signature).name,
 		subtitle: (config) => signatureText(config as Signature),
 	},
 	{

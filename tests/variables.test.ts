@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compile } from "../src/core/compiler/index.js";
-import { createRegistry } from "../src/core/nodes/index.js";
+import { createRegistry, nodeTitle } from "../src/core/nodes/index.js";
 import { migrateScript } from "../src/core/migrate.js";
 import { Builder, body } from "./helpers.js";
 
@@ -158,6 +158,62 @@ describe("function references", () => {
 
 		const out = compile(b.build({ scriptClass: "ModuleScript" }), registry);
 		expect(errors(out).join(" ")).toContain("no longer in the graph");
+	});
+});
+
+/**
+ * What a node is called on the canvas.
+ *
+ * A node can be named twice — a function has a name in the generated Luau and
+ * a label on its header — and the rule for which one shows is easy to get
+ * subtly wrong in one renderer and not another. It lives in one function, and
+ * this is that function's contract.
+ */
+describe("node titles", () => {
+	const named = (id: string, config: Record<string, unknown>, label?: string) => ({
+		id: "n", def: id, x: 0, y: 0, config, label,
+	});
+
+	it("uses a function's own name before the definition's title", () => {
+		const def = registry.get("function.entry")!;
+		expect(nodeTitle(def, named("function.entry", { name: "greet" }))).toBe("greet");
+	});
+
+	it("falls back to the title when the function has no name yet", () => {
+		const def = registry.get("function.entry")!;
+		expect(nodeTitle(def, named("function.entry", {}))).toBe("Function");
+		expect(nodeTitle(def, named("function.entry", { name: "" }))).toBe("Function");
+	});
+
+	it("lets a typed label win over the name", () => {
+		const def = registry.get("function.entry")!;
+		expect(nodeTitle(def, named("function.entry", { name: "greet" }, "Say hello")))
+			.toBe("Say hello");
+	});
+
+	it("names a capsule getter after what it holds", () => {
+		expect(nodeTitle(registry.get("variable.get")!, named("variable.get", { name: "Health" })))
+			.toBe("Health");
+		expect(nodeTitle(registry.get("function.get")!, named("function.get", { name: "tick" })))
+			.toBe("tick");
+	});
+
+	it("leaves a node that is only *about* a name alone", () => {
+		// Set Variable would lose its verb: "Accumulator" does not say it assigns.
+		// The variable's name is on its subtitle, which is where it belongs.
+		expect(nodeTitle(registry.get("variable.set")!, named("variable.set", { name: "Health" })))
+			.toBe("Set Variable");
+	});
+
+	it("calls a node by its name in a diagnostic about it", () => {
+		// The unreachable-node warning goes through the same rule, so it can
+		// never call a node something other than what the canvas calls it.
+		const b = new Builder();
+		b.node("debug.print", { label: "Log the score" });
+
+		const out = compile(b.build(), registry);
+		const about = out.diagnostics.map((d) => d.message).join(" ");
+		expect(about).toContain('"Log the score" is not connected to anything that runs.');
 	});
 });
 

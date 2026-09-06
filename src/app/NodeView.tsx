@@ -3,6 +3,7 @@
 import { memo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
+import { nodeTitle } from "../core/nodes/index.js";
 import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
 import { pinColor } from "./palette.js";
@@ -100,7 +101,7 @@ function NodeViewInner(props: NodeViewProps) {
 				style={{ background: nodeColor(def), height: head }}
 			>
 				<span className="lines">
-					<span className="title">{node.label || def.title}</span>
+					<span className="title">{nodeTitle(def, node)}</span>
 					{subtitle && <span className="subtitle">{subtitle}</span>}
 				</span>
 				{def.latent && <span className="marker" title="This node yields">⏳</span>}

@@ -8,7 +8,7 @@
  */
 
 import type { NodeDef, NodeScript, GraphNode } from "../core/schema.js";
-import type { Registry } from "../core/nodes/index.js";
+import { nodeTitle, type Registry } from "../core/nodes/index.js";
 import type { Signature } from "../core/nodes/index.js";
 import { resolvePins } from "./geometry.js";
 import { nodeColor } from "./palette.js";
@@ -46,10 +46,15 @@ export function Inspector({ script, registry, selection }: InspectorProps) {
 				</div>
 				{def.summary && <p className="summary">{def.summary}</p>}
 
+				{/* The placeholder is what the node is called *now*, which for a
+				    named node is its function or variable name rather than the
+				    definition's title — so an empty field reads as "this is
+				    already fine" instead of as a suggestion to type the name a
+				    second time. */}
 				<Field label="Label">
 					<input
 						className="tb"
-						placeholder={def.title}
+						placeholder={nodeTitle(def, node)}
 						value={node.label ?? ""}
 						onChange={(e) => store.edit((s) => renameNode(s, id, e.target.value))}
 					/>
