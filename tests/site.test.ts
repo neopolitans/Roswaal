@@ -10,8 +10,10 @@ import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import {
-	allPages, blockText, buildSearchIndex, buildSite, findPage, parseInline, searchDocs,
+	allPages, blockText, buildSearchIndex, buildSite, findPage, GROUPS, parseInline, searchDocs,
 } from "../src/core/docs/site.js";
+import { RELEASES } from "../src/core/docs/releases.js";
+import { VERSION } from "../src/cli/version.js";
 import type { NodeDef } from "../src/core/schema.js";
 
 const registry = createRegistry();
@@ -72,6 +74,77 @@ describe("the site", () => {
 		expect(nodeSections.map((s) => s.title)).toContain("CFrames");
 	});
 
+	/**
+	 * A pack's node used to be discoverable only by clicking into a category and
+	 * noticing the badge. Grouping them apart means you know before you click.
+	 */
+	it("keeps pack nodes in their own nav group", () => {
+		const pack: NodeDef = {
+			id: "mypack.thing", title: "Thing", category: "Math",
+			pure: true, inputs: [], outputs: [{ id: "result", name: "", kind: "data", type: "number" }],
+			compilesTo: { kind: "expr", outputs: { result: "1" } },
+		};
+		const withPack = buildSite(createRegistry([pack]), builtinIds);
+
+		const project = withPack.sections.filter((s) => s.group === GROUPS.project);
+		expect(project.flatMap((s) => s.pages.map((p) => p.nodeId))).toEqual(["mypack.thing"]);
+
+		// It shares a category name with built-ins, and still does not leak in.
+		const builtinMath = withPack.sections.find(
+			(s) => s.group === GROUPS.builtin && s.title === "Math",
+		)!;
+		expect(builtinMath.pages.every((p) => !p.custom)).toBe(true);
+	});
+
+	it("gives every section a group", () => {
+		for (const section of site.sections) {
+			expect(section.group, section.slug).toBeTruthy();
+		}
+	});
+
+	it("has no Project nodes group when the project has no packs", () => {
+		expect(site.sections.some((s) => s.group === GROUPS.project)).toBe(false);
+	});
+});
+
+describe("release notes", () => {
+	it("has a page, newest first", () => {
+		const page = findPage(site, "release-notes")!;
+		expect(page).toBeDefined();
+		const headings = page.blocks.filter((b) => b.t === "h" && b.level === 2);
+		expect(headings.length).toBe(RELEASES.length);
+		expect(blockText(headings[0])).toContain(RELEASES[0].version);
+	});
+
+	/**
+	 * The notes describe a release, so they must not fall behind the one people
+	 * are actually running. Hand-written prose plus an automatic check is the
+	 * only combination that stays both useful and true.
+	 */
+	it("documents the version that ships", () => {
+		expect(RELEASES[0].version).toBe(VERSION);
+	});
+
+	it("dates every release absolutely", () => {
+		for (const release of RELEASES) {
+			expect(release.date, release.version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+			expect(release.headline, release.version).not.toBe("");
+		}
+	});
+
+	it("says something in every entry it lists", () => {
+		for (const release of RELEASES) {
+			const bullets = [
+				...(release.added ?? []), ...(release.changed ?? []),
+				...(release.fixed ?? []), ...(release.watch ?? []),
+			];
+			expect(bullets.length, `${release.version} lists nothing`).toBeGreaterThan(0);
+			for (const line of bullets) expect(line.trim()).not.toBe("");
+		}
+	});
+});
+
+describe("node pages", () => {
 	/**
 	 * The reason the reference is generated in core rather than at build time: a
 	 * project's own pack gets documented by the same code, in the browser.

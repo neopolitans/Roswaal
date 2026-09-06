@@ -17,7 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
 import {
 	buildSearchIndex, buildSite, findPage, parseInline, searchDocs,
-	type Block, type DocPage, type Inline,
+	type Block, type DocPage, type DocSection, type Inline,
 } from "../core/docs/site.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
 import { Icon } from "./icons.jsx";
@@ -46,6 +46,21 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 	const page = findPage(site, slug) ?? findPage(site, HOME)!;
 	const results = useMemo(() => searchDocs(index, query), [index, query]);
 
+	/**
+	 * Follow the prop when it changes, not only at mount.
+	 *
+	 * The standalone window drives this from the address bar, so a link to
+	 * `#node/flow.forRange` and the browser's own back button both arrive as a
+	 * new `initialSlug`. Reading it once meant the hash moved and the page did
+	 * not — and then the page wrote its own slug back over the hash.
+	 *
+	 * There is no loop: the write below uses `replaceState`, which does not fire
+	 * `hashchange`.
+	 */
+	useEffect(() => {
+		if (initialSlug !== undefined) setSlug(initialSlug);
+	}, [initialSlug]);
+
 	// A new page starts at the top; keeping the old scroll position drops you
 	// into the middle of something you have not read.
 	useEffect(() => {
@@ -60,6 +75,7 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 
 	return (
 		<div className="docs-body">
+			{/* The nav, the page, and its outline. */}
 					<nav className="docs-nav">
 						<input
 							className="search"
@@ -91,50 +107,94 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 								))}
 							</div>
 						) : (
-							site.sections.map((section) => {
-								const expanded = open.has(section.slug);
-								return (
-									<div key={section.slug} className="docs-section">
-										<button
-											className="docs-section-head"
-											aria-expanded={expanded}
-											onClick={() =>
-												setOpen((prev) => {
-													const next = new Set(prev);
-													if (next.has(section.slug)) next.delete(section.slug);
-													else next.add(section.slug);
-													return next;
-												})
-											}
-										>
-											<Icon name="chevron" size={12} />
-											{section.title}
-											<span className="count">{section.pages.length}</span>
-										</button>
-										{expanded && (
-											<div className="docs-pages">
-												{section.pages.map((p) => (
-													<button
-														key={p.slug}
-														className={`docs-link${p.slug === slug ? " on" : ""}`}
-														onClick={() => setSlug(p.slug)}
-													>
-														{p.title}
-														{p.custom && <span className="badge">pack</span>}
-													</button>
-												))}
+							groupsOf(site.sections).map(([group, sections]) => (
+								<div key={group} className="docs-group">
+									<div className="docs-group-head">{group}</div>
+									{sections.map((section) => {
+										const expanded = open.has(section.slug);
+										return (
+											<div key={section.slug} className="docs-section">
+												<button
+													className="docs-section-head"
+													aria-expanded={expanded}
+													onClick={() =>
+														setOpen((prev) => {
+															const next = new Set(prev);
+															if (next.has(section.slug)) next.delete(section.slug);
+															else next.add(section.slug);
+															return next;
+														})
+													}
+												>
+													<Icon name="chevron" size={12} />
+													{section.title}
+													<span className="count">{section.pages.length}</span>
+												</button>
+												{expanded && (
+													<div className="docs-pages">
+														{section.pages.map((p) => (
+															<button
+																key={p.slug}
+																className={`docs-link${p.slug === slug ? " on" : ""}`}
+																onClick={() => setSlug(p.slug)}
+															>
+																{p.title}
+															</button>
+														))}
+													</div>
+												)}
 											</div>
-										)}
-									</div>
-								);
-							})
+										);
+									})}
+								</div>
+							))
 						)}
 					</nav>
 
 					<article className="docs-content" ref={body}>
 						<Page page={page} />
-			</article>
-		</div>
+					</article>
+
+					{/* "On this page", as Creator Hub and Epic both have. Long node
+					    pages and the Blueprint mapping are the ones that need it. */}
+					<aside className="docs-toc">
+						<PageOutline page={page} />
+					</aside>
+				</div>
+	);
+}
+
+/** Sections in nav order, bucketed by their group heading. */
+function groupsOf(sections: DocSection[]): [string, DocSection[]][] {
+	const out = new Map<string, DocSection[]>();
+	for (const section of sections) {
+		const list = out.get(section.group) ?? [];
+		list.push(section);
+		out.set(section.group, list);
+	}
+	return [...out];
+}
+
+/** A heading's anchor id, shared by the outline and the heading itself. */
+function headingId(text: string): string {
+	return `h-${text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+}
+
+function PageOutline({ page }: { page: DocPage }) {
+	const headings = page.blocks.filter((b) => b.t === "h" && b.level === 2);
+	if (headings.length < 2) return null;
+
+	return (
+		<>
+			<div className="docs-toc-head">On this page</div>
+			{headings.map((h, i) =>
+				h.t === "h" ? (
+					<a key={i} href={`#${headingId(h.text)}`} className="docs-toc-link">
+						{h.text}
+					</a>
+				) : null,
+			)}
+		</>
 	);
 }
 
@@ -153,10 +213,70 @@ function Page({ page }: { page: DocPage }) {
 	);
 }
 
+/**
+ * A code block you can read and copy but not edit.
+ *
+ * The generated Luau is the thing a reader most often wants out of a docs page
+ * and most often mistypes, so it gets a copy button rather than a careful
+ * three-line drag. Editable would be worse than useless: nothing here is wired
+ * to anything, so a change would look like it did something and would not.
+ */
+function CodeBlock({ lang, text }: { lang: string; text: string }) {
+	const [state, setState] = useState<"idle" | "copied" | "select">("idle");
+	const code = useRef<HTMLPreElement>(null);
+
+	useEffect(() => {
+		if (state === "idle") return;
+		const id = window.setTimeout(() => setState("idle"), 1800);
+		return () => window.clearTimeout(id);
+	}, [state]);
+
+	/**
+	 * The clipboard can refuse — an unfocused window, a browser that wants a
+	 * permission first. A button that then does nothing at all is worse than no
+	 * button, so the fallback selects the code and says to press Ctrl+C, which
+	 * is what the reader was going to do anyway.
+	 */
+	const copy = async () => {
+		try {
+			await navigator.clipboard.writeText(text);
+			setState("copied");
+		} catch {
+			const node = code.current;
+			if (node) {
+				const range = document.createRange();
+				range.selectNodeContents(node);
+				const selection = window.getSelection();
+				selection?.removeAllRanges();
+				selection?.addRange(range);
+			}
+			setState("select");
+		}
+	};
+
+	const label = state === "copied" ? "Copied" : state === "select" ? "Press Ctrl+C" : "Copy";
+
+	return (
+		<div className="docs-code">
+			<div className="docs-code-head">
+				<span className="lang">{lang}</span>
+				<button className="copy" onClick={() => void copy()}>
+					{label}
+				</button>
+			</div>
+			<pre ref={code}>{text}</pre>
+		</div>
+	);
+}
+
 function BlockView({ block }: { block: Block }) {
 	switch (block.t) {
 		case "h":
-			return block.level === 2 ? <h2><Rich text={block.text} /></h2> : <h3><Rich text={block.text} /></h3>;
+			return block.level === 2 ? (
+				<h2 id={headingId(block.text)}><Rich text={block.text} /></h2>
+			) : (
+				<h3><Rich text={block.text} /></h3>
+			);
 		case "p":
 			return <p><Rich text={block.text} /></p>;
 		case "ul":
@@ -168,7 +288,7 @@ function BlockView({ block }: { block: Block }) {
 				<ol>{block.items.map((item, i) => <li key={i}><Rich text={item} /></li>)}</ol>
 			);
 		case "code":
-			return <pre className={`lang-${block.lang}`}>{block.text}</pre>;
+			return <CodeBlock lang={block.lang} text={block.text} />;
 		case "table":
 			return (
 				<div className="docs-table">

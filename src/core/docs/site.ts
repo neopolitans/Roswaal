@@ -22,6 +22,7 @@ import type { Registry } from "../nodes/index.js";
 import { categories } from "../nodes/index.js";
 import { BLUEPRINT_MAP } from "./blueprints.js";
 import { documentRegistry, OMISSION_REASONS, type NodeDoc } from "./nodeReference.js";
+import { RELEASES } from "./releases.js";
 
 // ---------------------------------------------------------------------------
 // Blocks
@@ -55,7 +56,22 @@ export interface DocSection {
 	title: string;
 	slug: string;
 	pages: DocPage[];
+	/**
+	 * The nav heading this section sits under.
+	 *
+	 * Two levels rather than one because the node reference is the bulk of the
+	 * site and a pack's nodes are a different kind of thing from the built-in
+	 * library — finding out a node came from your own pack by clicking into a
+	 * category is finding out too late.
+	 */
+	group: string;
 }
+
+export const GROUPS = {
+	learn: "Learn",
+	builtin: "Built-in nodes",
+	project: "Project nodes",
+} as const;
 
 export interface DocSite {
 	sections: DocSection[];
@@ -231,6 +247,49 @@ function blueprintPage(): DocPage {
 		slug: "coming-from-blueprints",
 		title: "Coming from Blueprints",
 		summary: "What the thing you already know is called here, and what is genuinely missing.",
+		blocks,
+	};
+}
+
+function releasesPage(): DocPage {
+	const blocks: Block[] = [
+		{
+			t: "p",
+			text:
+				"What changed, and what it changes for you. An entry earns its place by " +
+				"altering what a reader would do — a refactor with no visible effect is not here.",
+		},
+	];
+
+	for (const release of RELEASES) {
+		blocks.push({ t: "h", level: 2, text: `${release.version} — ${release.date}` });
+		blocks.push({ t: "p", text: release.headline });
+
+		if (release.watch) {
+			blocks.push({
+				t: "note",
+				kind: "warn",
+				text: "**Worth knowing before you upgrade.** " + release.watch.join(" "),
+			});
+		}
+		if (release.added) {
+			blocks.push({ t: "h", level: 3, text: "Added" });
+			blocks.push({ t: "ul", items: release.added });
+		}
+		if (release.changed) {
+			blocks.push({ t: "h", level: 3, text: "Changed" });
+			blocks.push({ t: "ul", items: release.changed });
+		}
+		if (release.fixed) {
+			blocks.push({ t: "h", level: 3, text: "Fixed" });
+			blocks.push({ t: "ul", items: release.fixed });
+		}
+	}
+
+	return {
+		slug: "release-notes",
+		title: "Release notes",
+		summary: "What changed in each version, newest first.",
 		blocks,
 	};
 }
@@ -490,23 +549,35 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 		byCategory.set(doc.category, list);
 	}
 
-	const reference: DocSection[] = order
-		.filter((c) => byCategory.has(c))
-		.map((c) => ({ title: c, slug: `nodes/${slugify(c)}`, pages: byCategory.get(c)! }));
+	// Built-in and pack nodes are grouped apart rather than interleaved by
+	// category, so a pack's node is recognisable before you click it.
+	const reference = (group: string, custom: boolean): DocSection[] =>
+		order
+			.map((c) => ({ c, pages: (byCategory.get(c) ?? []).filter((p) => !!p.custom === custom) }))
+			.filter((x) => x.pages.length > 0)
+			.map((x) => ({
+				title: x.c,
+				slug: `${custom ? "pack" : "nodes"}/${slugify(x.c)}`,
+				pages: x.pages,
+				group,
+			}));
 
 	return {
 		sections: [
 			{
 				title: "Getting started",
 				slug: "start",
+				group: GROUPS.learn,
 				pages: [GETTING_STARTED, blueprintPage()],
 			},
 			{
 				title: "Guides",
 				slug: "guides",
-				pages: [TWO_KINDS_OF_WIRE, VARIABLES, BUILDING, ESCAPE_HATCHES],
+				group: GROUPS.learn,
+				pages: [TWO_KINDS_OF_WIRE, VARIABLES, BUILDING, ESCAPE_HATCHES, releasesPage()],
 			},
-			...reference,
+			...reference(GROUPS.builtin, false),
+			...reference(GROUPS.project, true),
 		],
 	};
 }
