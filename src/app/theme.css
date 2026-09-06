@@ -144,13 +144,17 @@ select optgroup {
 
 /* ------------------------------------------------------------------ shell */
 
+/* A column rather than a grid with named rows, because one of the rows comes
+   and goes: the document bar is only there when a document is open, and fixed
+   `grid-template-rows` would hand the workspace the wrong row when it is not. */
 .app {
-	display: grid;
-	grid-template-rows: auto 1fr auto;
+	display: flex;
+	flex-direction: column;
 	height: 100%;
 }
 
 .workspace {
+	flex: 1;
 	display: grid;
 	grid-template-columns: 260px 1fr;
 	min-height: 0;
@@ -195,11 +199,56 @@ select optgroup {
 	flex: 1;
 }
 
-.toolbar .doc-name {
-	font-weight: 600;
+/* ------------------------------------------------------- the document bar */
+
+/* The second row: the open document, its own settings, and the tools that only
+   mean anything while it is open.
+ *
+ * Quieter than the bar above it and separated by a rule, because it is a
+ * different kind of thing rather than more of the same — the top row acts on
+ * the project and is always there, this one acts on what you are looking at and
+ * disappears when you are not looking at anything. */
+.docbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 10px;
+	background: var(--bg-app);
+	border-bottom: 1px solid var(--border);
+	flex-wrap: wrap;
 }
 
-.toolbar .dirty::after {
+.docbar .spacer {
+	flex: 1;
+}
+
+/* Separates the document's own settings from the tools that act on it. */
+.docbar .divider {
+	width: 1px;
+	align-self: stretch;
+	margin: 3px 3px;
+	/* The strong border, not the ordinary one: this row sits on the app
+	   background rather than the panel, and `--border` against it is a line
+	   nobody can see. */
+	background: var(--border-strong);
+}
+
+.toolbar .doc-name,
+.docbar .doc-name {
+	font-weight: 600;
+	margin-right: 2px;
+}
+
+/* What kind of document this is, where it is not already obvious from the
+   controls beside it — a graph says so with its script class, a node map has
+   no settings of its own and would otherwise be a bare name. */
+.docbar .doc-kind {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.toolbar .dirty::after,
+.docbar .dirty::after {
 	content: "•";
 	color: var(--warning);
 	margin-left: 5px;

@@ -29,6 +29,15 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.12.1",
+		date: "2026-09-06",
+		headline: "The toolbar says what each control acts on.",
+		changed: [
+			"The top bar is **two rows now, split by what a control acts on**. Everything on the first is about the project — Refresh, New graph, New map, the compile mode, Compile project, Docs. Everything on the second is about the document you have open: its name, its script class, `strict`, the tools that only mean anything while it is open, and Compile script.",
+			"The document row is **absent when nothing is open**, so the empty editor is one clean bar rather than twelve controls that mostly do not apply.",
+		],
+	},
+	{
 		version: "0.12.0",
 		date: "2026-09-06",
 		headline: "The project shell, and Luau you can read.",

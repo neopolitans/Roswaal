@@ -615,6 +615,7 @@ export function App() {
 
 	return (
 		<div className="app">
+			{/* The application: what Roswaal is doing, whatever is open. */}
 			<div className="toolbar">
 				<span className="brand">
 					ROSWAAL
@@ -629,42 +630,6 @@ export function App() {
 				>
 					<Icon name="refresh" size={15} />
 					Refresh
-				</button>
-				<button
-					className="tb with-icon"
-					disabled={!editor.script}
-					title="Tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
-					onClick={realign}
-				>
-					<Icon name="layout" size={15} />
-					Realign
-				</button>
-				<button
-					className={`tb${alignExec ? " on" : ""}`}
-					aria-pressed={alignExec}
-					title={
-						alignExec
-							? "Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
-							: "Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
-					}
-					onClick={toggleAlignExec}
-				>
-					Straighten
-				</button>
-				<button
-					className="tb with-icon"
-					disabled={!editor.script}
-					title="Add a node at the centre of the view. Right-clicking the canvas does the same, where you click."
-					onClick={() => {
-						const view = store.getSnapshot().view;
-						setMenu({
-							screen: { x: 320, y: 120 },
-							world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
-						});
-					}}
-				>
-					<Icon name="search" size={15} />
-					Add node
 				</button>
 				<button
 					className="tb with-icon"
@@ -708,34 +673,6 @@ export function App() {
 					New map
 				</button>
 
-				{mapDoc && (
-					<span className={`doc-name${mapDoc.dirty ? " dirty" : ""}`}>{mapDoc.map.name}</span>
-				)}
-				{editor.script && (
-					<>
-						<span className={`doc-name${editor.dirty ? " dirty" : ""}`}>{editor.script.name}</span>
-						<select
-							className="tb"
-							value={editor.script.scriptClass}
-							onChange={(e) =>
-								store.edit((s) => ({ ...s, scriptClass: e.target.value as ScriptClass }))
-							}
-						>
-							<option>Script</option>
-							<option>LocalScript</option>
-							<option>ModuleScript</option>
-						</select>
-						<label className="tb" style={{ cursor: "pointer" }}>
-							<input
-								type="checkbox"
-								checked={editor.script.strict}
-								onChange={(e) => store.edit((s) => ({ ...s, strict: e.target.checked }))}
-							/>{" "}
-							strict
-						</label>
-					</>
-				)}
-
 				<span className="spacer" />
 
 				<div className="segmented" title="How generated Luau reaches disk">
@@ -752,19 +689,6 @@ export function App() {
 						Hot reload
 					</button>
 				</div>
-
-				<button
-					className="tb primary with-icon"
-					title="Compile just this document (Ctrl+S)"
-					disabled={(!editor.path && !mapDoc) || busy !== null}
-					onClick={() => {
-						if (mapDoc) void runCompileMap(mapDoc.path);
-						else if (editor.path) void runCompile(editor.path, true);
-					}}
-				>
-					<Icon name="build" size={15} />
-					{mapDoc ? "Write project file" : "Compile script"}
-				</button>
 				<button
 					className="tb"
 					title="Compile every graph and node map in the project"
@@ -784,6 +708,111 @@ export function App() {
 					Docs
 				</button>
 			</div>
+
+			{/* The document: its name, its own settings, and the tools that only
+			    mean anything while it is open.
+
+			    Split out because one flat row put "Refresh the project" next to
+			    "strict" and left you working out which of twelve controls acted on
+			    what. Two rows answer that by position: everything above is about the
+			    project, everything here is about the thing you are looking at, and
+			    the row is simply absent when you are not looking at anything. */}
+			{(editor.script || mapDoc) && (
+				<div className="docbar">
+					{mapDoc ? (
+						<>
+							<span className={`doc-name${mapDoc.dirty ? " dirty" : ""}`}>
+								{mapDoc.map.name}
+							</span>
+							<span className="doc-kind">node map</span>
+						</>
+					) : editor.script ? (
+						<>
+							<span className={`doc-name${editor.dirty ? " dirty" : ""}`}>
+								{editor.script.name}
+							</span>
+							<select
+								className="tb"
+								title="What this graph compiles to"
+								value={editor.script.scriptClass}
+								onChange={(e) =>
+									store.edit((s) => ({ ...s, scriptClass: e.target.value as ScriptClass }))
+								}
+							>
+								<option>Script</option>
+								<option>LocalScript</option>
+								<option>ModuleScript</option>
+							</select>
+							<label
+								className="tb"
+								title="Emit --!strict at the top of the generated file"
+								style={{ cursor: "pointer" }}
+							>
+								<input
+									type="checkbox"
+									checked={editor.script.strict}
+									onChange={(e) => store.edit((s) => ({ ...s, strict: e.target.checked }))}
+								/>{" "}
+								strict
+							</label>
+
+							<span className="divider" />
+
+							<button
+								className="tb with-icon"
+								disabled={!editor.script}
+								title="Add a node at the centre of the view. Right-clicking the canvas does the same, where you click."
+								onClick={() => {
+									const view = store.getSnapshot().view;
+									setMenu({
+										screen: { x: 320, y: 120 },
+										world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
+									});
+								}}
+							>
+								<Icon name="search" size={15} />
+								Add node
+							</button>
+							<button
+								className="tb with-icon"
+								disabled={!editor.script}
+								title="Tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
+								onClick={realign}
+							>
+								<Icon name="layout" size={15} />
+								Realign
+							</button>
+							<button
+								className={`tb${alignExec ? " on" : ""}`}
+								aria-pressed={alignExec}
+								title={
+									alignExec
+										? "Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
+										: "Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
+								}
+								onClick={toggleAlignExec}
+							>
+								Straighten
+							</button>
+						</>
+					) : null}
+
+					<span className="spacer" />
+
+					<button
+						className="tb primary with-icon"
+						title="Compile just this document (Ctrl+S)"
+						disabled={(!editor.path && !mapDoc) || busy !== null}
+						onClick={() => {
+							if (mapDoc) void runCompileMap(mapDoc.path);
+							else if (editor.path) void runCompile(editor.path, true);
+						}}
+					>
+						<Icon name="build" size={15} />
+						{mapDoc ? "Write project file" : "Compile script"}
+					</button>
+				</div>
+			)}
 
 			<div className={`workspace${showInspector ? " with-inspector" : ""}`}>
 				<div className="sidebar">
