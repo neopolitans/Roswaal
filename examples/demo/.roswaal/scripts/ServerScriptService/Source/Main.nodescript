@@ -20,6 +20,26 @@
   ],
   "nodes": [
     {
+      "id": "0151aec6-1e44-45ae-8a56-7ea5b0556e90",
+      "def": "cframe.lookAt",
+      "x": 374,
+      "y": -6,
+      "literals": {
+        "from": {
+          "t": "raw",
+          "v": "Vector3.new(0, 14, -7)"
+        },
+        "from.y": {
+          "t": "number",
+          "v": 14
+        },
+        "from.z": {
+          "t": "number",
+          "v": -7
+        }
+      }
+    },
+    {
       "id": "13a5c553-604c-4034-a094-9f63467069db",
       "def": "flow.sequence",
       "x": 72,
@@ -28,8 +48,8 @@
     {
       "id": "1b0880ee-a507-41d2-a9e3-fa722b301ee8",
       "def": "code.custom",
-      "x": 698,
-      "y": 826,
+      "x": 539,
+      "y": 840,
       "literals": {
         "code": {
           "t": "raw",
@@ -40,8 +60,8 @@
     {
       "id": "4e360814-1d98-41d1-ae9c-7c7168805c5b",
       "def": "code.custom",
-      "x": 396,
-      "y": 830,
+      "x": 233,
+      "y": 840,
       "literals": {
         "code": {
           "t": "raw",
@@ -52,8 +72,8 @@
     {
       "id": "a520f24f-70db-43a6-81f3-2c86ff7bce8d",
       "def": "flow.rerouteExec",
-      "x": 119,
-      "y": 862
+      "x": 121,
+      "y": 871
     },
     {
       "id": "conn",
@@ -165,8 +185,8 @@
     {
       "id": "signal",
       "def": "roblox.getEvent",
-      "x": 340,
-      "y": 400,
+      "x": -11,
+      "y": 396,
       "literals": {
         "event": {
           "t": "string",
@@ -183,8 +203,8 @@
     {
       "id": "svc",
       "def": "roblox.getService",
-      "x": 80,
-      "y": 400,
+      "x": -303,
+      "y": 396,
       "literals": {
         "service": {
           "t": "string",
@@ -387,17 +407,17 @@
       "id": "c1",
       "x": 613,
       "y": 155,
-      "w": 1619.01,
-      "h": 499.03,
+      "w": 1590.4,
+      "h": 520.68,
       "text": "Greet every player who joins",
       "color": "5f8f6a"
     },
     {
       "id": "c2",
-      "x": 630,
+      "x": 634,
       "y": 439,
-      "w": 568,
-      "h": 182,
+      "w": 564,
+      "h": 183,
       "text": "Shared module, required once at the top",
       "color": "6a8fbf"
     }

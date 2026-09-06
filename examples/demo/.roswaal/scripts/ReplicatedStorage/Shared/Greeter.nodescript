@@ -21,8 +21,8 @@
     {
       "id": "091a4b93-e238-446a-a258-c4fd3407507e",
       "def": "math.add",
-      "x": 417.23,
-      "y": -128.29
+      "x": 387,
+      "y": -37
     },
     {
       "id": "18e9cab5-80cf-4814-8997-9e445a7795ae",
@@ -31,7 +31,7 @@
       "y": -461,
       "config": {
         "function": "a17d2f2d-90fc-4ad7-8260-2302e0aad281",
-        "name": "Adder"
+        "name": "AccumulateNum"
       }
     },
     {
@@ -41,14 +41,14 @@
       "y": -517.09,
       "config": {
         "function": "fn",
-        "name": "greet"
+        "name": "GreetPlayer"
       }
     },
     {
       "id": "2d5f6dbe-0ae5-49ad-bfb6-a4cb624995ae",
       "def": "function.return",
-      "x": 1011.09,
-      "y": -196.16,
+      "x": 1030,
+      "y": -197,
       "config": {
         "returns": [
           {
@@ -61,8 +61,8 @@
     {
       "id": "9f7806fd-3992-4c4f-8e8b-73eb443b9782",
       "def": "variable.set",
-      "x": 708.33,
-      "y": -210.78,
+      "x": 724,
+      "y": -213,
       "config": {
         "name": "Accumulator",
         "type": "number",
@@ -72,8 +72,8 @@
     {
       "id": "a0e48503-7ed3-4988-a0a1-c7f15666bbb2",
       "def": "variable.get",
-      "x": 207.24,
-      "y": -53.19,
+      "x": 175,
+      "y": 15,
       "config": {
         "name": "Accumulator",
         "type": "number",
@@ -83,11 +83,10 @@
     {
       "id": "a17d2f2d-90fc-4ad7-8260-2302e0aad281",
       "def": "function.entry",
-      "x": 112.18,
-      "y": -213.06,
-      "label": "Accumulator",
+      "x": 112,
+      "y": -213,
       "config": {
-        "name": "Adder",
+        "name": "AccumulateNum",
         "params": [
           {
             "name": "A",
@@ -117,8 +116,8 @@
     {
       "id": "exports",
       "def": "module.exports",
-      "x": 343.58,
-      "y": -532.92,
+      "x": 344,
+      "y": -533,
       "config": {
         "exports": [
           {
@@ -135,10 +134,10 @@
     {
       "id": "fn",
       "def": "function.entry",
-      "x": 95.27,
-      "y": 127.32,
+      "x": 95,
+      "y": 127,
       "config": {
-        "name": "greet",
+        "name": "GreetPlayer",
         "params": [
           {
             "name": "who",
