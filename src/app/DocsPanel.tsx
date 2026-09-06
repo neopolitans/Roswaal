@@ -408,7 +408,8 @@ function PinTable({ title, pins }: { title: string; pins: PinDoc[] }) {
 								</span>
 							)}
 							{pin.required && <span className="badge warn">must be wired</span>}
-							{pin.literalOnly && <span className="badge warn">typed in, no wire</span>}
+							{pin.literalOnly && !pin.code && <span className="badge">literal</span>}
+							{pin.code && <span className="badge">code editor</span>}
 							{pin.splitModes.length > 0 && <span className="badge">splittable</span>}
 						</div>
 						{(pin.description || pin.splitModes.length > 0) && (

@@ -29,6 +29,23 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.8.0",
+		date: "2026-09-06",
+		headline: "A static documentation site, a luau pin type, and Error.",
+		added: [
+			"**`npm run build:docs`** writes the whole site to `dist-docs/` — 167 pages, syntax highlighted at build time, with client-side search. No daemon, and **no JavaScript needed to read a page**.",
+			"**Error**, **Assert** and **Traceback** in Debug.",
+			"**Cast Through Any**, because Luau refuses a cast between unrelated types and going through `any` is the documented way round it.",
+			"**Roswaal types** — a guide to what a pin's type means, what connects to what, and where it differs from Luau's own.",
+		],
+		changed: [
+			"Code pins are typed **`luau`** rather than `string`. They hold code, not text, and a type says that more plainly than the yellow warning badge they used to carry did.",
+			"That badge is gone. Neither a code pin nor a literal-only pin is a problem, so neither is coloured like one — they read **code editor** and **literal** now.",
+			"Release notes are their own nav section rather than the fifth page under Guides.",
+			"**Cast** already accepted any Luau type expression — intersections, unions, table types — and nothing said so. `Model & { Humanoid: Humanoid }` works, and the docs now show it.",
+		],
+	},
+	{
 		version: "0.7.1",
 		date: "2026-09-06",
 		headline: "The documentation reads like the editor does.",

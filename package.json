@@ -1,6 +1,6 @@
 {
   "name": "roswaal",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
   "license": "0BSD",
   "type": "module",
@@ -15,7 +15,8 @@
     "roswaal": "node dist-cli/roswaal.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:docs": "tsx scripts/build-docs.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

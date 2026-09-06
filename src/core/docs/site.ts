@@ -177,7 +177,9 @@ function nodePage(doc: NodeDoc): DocPage {
 		blocks.push({ t: "note", kind: "info", text: OMISSION_REASONS[doc.exampleOmitted] });
 	}
 
-	const pasted = [...doc.inputs].filter((p) => p.literalOnly);
+	// A code pin is literal-only too, but its type already says so and the node
+	// is named for it — warning about Custom Code's Code pin would be noise.
+	const pasted = [...doc.inputs].filter((p) => p.literalOnly && !p.code);
 	if (pasted.length > 0) {
 		blocks.push({
 			t: "note",
@@ -522,6 +524,151 @@ const BUILDING: DocPage = {
 	],
 };
 
+const TYPES_GUIDE: DocPage = {
+	slug: "types",
+	title: "Roswaal types",
+	summary: "What a pin's type means, and where it differs from Luau's.",
+	blocks: [
+		{
+			t: "p",
+			text:
+				"A pin's type does two jobs: it decides its colour, and it decides what will " +
+				"connect to what. It is **not** a Luau type annotation — it is a promise about " +
+				"the value, kept deliberately coarser than Luau's own type system so that wiring " +
+				"stays a yes-or-no question rather than a typechecking session.",
+		},
+		{ t: "h", level: 2, text: "The types" },
+		{
+			t: "table",
+			head: ["Type", "Holds", "Notes"],
+			rows: [
+				["`boolean`", "true or false", ""],
+				["`number`", "A Luau number", "No integer/float split; Luau has one number type."],
+				["`string`", "Text", "Quoted for you when it is emitted."],
+				[
+					"`table`",
+					"Any Luau table",
+					"One type for arrays, maps and sets, because Lua has one. Not an Unreal array.",
+				],
+				["`function`", "A function value", "Get Function produces one."],
+				["`Instance`", "Any Roblox instance", "Not narrowed by class — use Is A to ask."],
+				[
+					"`Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim`, `UDim2`",
+					"Roblox value types",
+					"All splittable — see below.",
+				],
+				["`RBXScriptSignal`", "A Roblox event", "Wires into Connect Event."],
+				["`RBXScriptConnection`", "A live connection", "What Connect Event hands back."],
+				[
+					"`luau`",
+					"Hand-written Luau",
+					"Only on Custom Code and Luau Expression. See below.",
+				],
+				[
+					"`any`",
+					"Anything",
+					"Connects both ways. What a node returns when it cannot say more.",
+				],
+				[
+					"`wildcard`",
+					"Anything, so far",
+					"Meant to adopt the type it is wired to. It does not yet — see Known gaps.",
+				],
+			],
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"A node pack can introduce its own type simply by naming one. Types are strings, " +
+				"not a closed list, so a pack declaring `Quaternion` gets a distinct pin that only " +
+				"connects to other `Quaternion` pins — without patching Roswaal.",
+		},
+		{ t: "h", level: 2, text: "What connects to what" },
+		{
+			t: "ul",
+			items: [
+				"The same type always connects.",
+				"`any` connects to anything, in both directions.",
+				"`number` and `string` connect either way, because Luau coerces them. The wire is drawn as a gradient between the two colours to say so.",
+				"Execution and data never connect.",
+				"Everything else is refused during the drag, rather than at compile time.",
+			],
+		},
+		{ t: "h", level: 2, text: "luau is a type, not a string" },
+		{
+			t: "p",
+			text:
+				"**Custom Code** and **Luau Expression** have a pin typed `luau`. It holds code you " +
+				"write, and clicking it opens a proper editor with highlighting and completion.",
+		},
+		{
+			t: "note",
+			kind: "good",
+			text:
+				"Those two pins are a **complete list** of where hand-written Luau can enter a " +
+				"graph. Everywhere else, a pin holding something like `Vector3.zero` is a constant " +
+				"Roswaal wrote and shows read-only. That is what makes reviewing a shared graph a " +
+				"matter of scanning for two node titles rather than opening every pin.",
+		},
+		{
+			t: "p",
+			text:
+				"It is a pin type rather than a badge on a string because it *is* a different kind " +
+				"of pin, and a type says that more plainly than a warning does.",
+		},
+		{ t: "h", level: 2, text: "Pins that are typed in, not wired" },
+		{
+			t: "p",
+			text:
+				"Some inputs become part of the generated source rather than a value it reads: a " +
+				"property name in `Get Property`, the type in `Cast`. They are marked **literal** " +
+				"in the reference, and the editor refuses a wire to one during the drag rather " +
+				"than letting the compile fail later.",
+		},
+		{
+			t: "code",
+			lang: "luau",
+			text: [
+				'-- Get Property, with Property typed in as "Name"',
+				"print(instance.Name)",
+				"",
+				"-- The name is part of the code, not a value it reads.",
+			].join("\n"),
+		},
+		{ t: "h", level: 2, text: "Splittable types" },
+		{
+			t: "p",
+			text:
+				"`Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim` and `UDim2` come apart into their " +
+				"components — right-click a pin and pick **Split Struct Pin**. `CFrame` offers " +
+				"three decompositions; the rest have one. Splitting and recombining never change " +
+				"what the graph compiles to.",
+		},
+		{ t: "h", level: 2, text: "Casting" },
+		{
+			t: "p",
+			text:
+				"A pin's type is Roswaal's; Luau has its own, richer one. **Cast** bridges them: " +
+				"its Type pin takes any Luau type expression verbatim, so intersections, unions, " +
+				"table types and optionals all work.",
+		},
+		{
+			t: "code",
+			lang: "luau",
+			text: "local humanoid = (character :: Model & { Humanoid: Humanoid }).Humanoid",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"`::` is a claim, not a check — there is no runtime test and being wrong is silent. " +
+				"Ask with **Is A** first. And Luau refuses a cast between unrelated types, which is " +
+				"what **Cast Through Any** is for.",
+		},
+	],
+};
+
 // ---------------------------------------------------------------------------
 // Assembly
 // ---------------------------------------------------------------------------
@@ -564,7 +711,13 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				title: "Guides",
 				slug: "guides",
 				group: GROUPS.learn,
-				pages: [TWO_KINDS_OF_WIRE, VARIABLES, BUILDING, ESCAPE_HATCHES, releasesPage()],
+				pages: [TWO_KINDS_OF_WIRE, TYPES_GUIDE, VARIABLES, BUILDING, ESCAPE_HATCHES],
+			},
+			{
+				title: "Release notes",
+				slug: "releases",
+				group: GROUPS.learn,
+				pages: [releasesPage()],
 			},
 			...reference(GROUPS.builtin, false),
 			...reference(GROUPS.project, true),

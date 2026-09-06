@@ -9,6 +9,7 @@
 
 import type { NodeDef, PinDef } from "../schema.js";
 import { PATH_ROOTS, ROBLOX_SERVICES } from "../roblox.js";
+import { LUAU } from "../schema.js";
 
 const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
 const d = (id: string, name: string, type: string, def?: PinDef["default"]): PinDef => ({
@@ -119,7 +120,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		category: "Values",
 		summary: "Escape hatch. The text is inserted verbatim as an expression.",
 		pure: true,
-		inputs: [{ ...d("code", "Code", "string", { t: "raw", v: "0" }), code: true }],
+		inputs: [{ ...d("code", "Code", LUAU, { t: "raw", v: "0" }), code: true }],
 		outputs: [d("result", "", "any")],
 		compilesTo: { kind: "expr", outputs: { result: "$in.code!raw" } },
 	},
@@ -393,10 +394,13 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// pin here, and Is A is the node for asking rather than asserting.
 	pure("cast.as", "Cast", "Values", "($in.value :: $in.type!raw)",
 		[d("value", "Value", "any"), str("type", "Type", "BasePart")], "any",
-		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first."),
+		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first. The Type pin takes any Luau type expression, so an intersection like `Model & { Humanoid: Humanoid }` is written here directly."),
 	pure("cast.array", "Cast Array", "Values", "($in.value :: { $in.type!raw })",
 		[d("value", "Value", "table"), str("type", "Type", "BasePart")], "table",
 		"For a collection you know more about than its type says: Get Descendants is { Instance }, and this is how you say they are all BaseParts."),
+	pure("cast.any", "Cast Through Any", "Values", "(($in.value :: any) :: $in.type!raw)",
+		[d("value", "Value", "any"), str("type", "Type", "BasePart")], "any",
+		"Luau refuses a cast between unrelated types. Going through `any` is the documented way round it, and the extra step is the point: it marks where you overrode the typechecker rather than agreed with it."),
 
 	// -- Vectors -----------------------------------------------------------
 	//
@@ -606,13 +610,28 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// -- Debug -------------------------------------------------------------
 	stmt("debug.print", "Print", "Debug", "print($in.value)", [d("value", "Value", "any", { t: "string", v: "Hello" })]),
 	stmt("debug.warn", "Warn", "Debug", "warn($in.value)", [d("value", "Value", "any", { t: "string", v: "Warning" })]),
+	stmt("debug.error", "Error", "Debug", "error($in.message, $in.level)",
+		[str("message", "Message", "Something went wrong"), num("level", "Level", 1)],
+		{
+			summary:
+				"Raises an error and stops the thread. Level 1 blames the caller, 2 blames the caller's caller, 0 attaches no position at all.",
+		}),
+	stmt("debug.assert", "Assert", "Debug", "assert($in.condition, $in.message)",
+		[bool("condition", "Condition", true), str("message", "Message", "assertion failed")],
+		{
+			summary:
+				"Errors when the condition is false or nil. The check runs in production too — it is a claim about your own code, not a debug-only guard.",
+		}),
+	pure("debug.traceback", "Traceback", "Debug", "debug.traceback($in.message, $in.level)",
+		[str("message", "Message", ""), num("level", "Level", 1)], "string",
+		"The call stack as a string, for logging a path to here without stopping."),
 	{
 		id: "code.custom",
 		title: "Custom Code",
 		category: "Debug",
 		summary:
 			"Escape hatch. The text is emitted verbatim as statements, so existing Luau can be wrapped rather than rebuilt.",
-		inputs: [exec("in"), { ...d("code", "Code", "string", { t: "raw", v: "-- your Luau here" }), code: true }],
+		inputs: [exec("in"), { ...d("code", "Code", LUAU, { t: "raw", v: "-- your Luau here" }), code: true }],
 		outputs: [exec("then")],
 		compilesTo: { kind: "statement", template: "$in.code!raw" },
 	},

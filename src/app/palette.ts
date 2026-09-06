@@ -62,6 +62,9 @@ const TYPE_COLORS: Record<string, string> = {
 	// borrow a colour that would imply they behave alike.
 	table: "#c08a3a",
 	function: "#5a4b9c",
+	// Hand-written Luau. Deliberately unlike `string`: the point of the type is
+	// that this pin is not one.
+	luau: "#b0763a",
 	Instance: "#3fa0d8",
 	Vector3: "#d6ae3c",
 	Vector2: "#d6ae3c",

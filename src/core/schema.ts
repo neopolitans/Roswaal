@@ -22,6 +22,19 @@ export type DataType = string;
 
 export const ANY: DataType = "any";
 export const WILDCARD: DataType = "wildcard";
+/**
+ * Hand-written Luau, as a pin type of its own.
+ *
+ * A code pin used to be typed `string`, which was true of the storage and
+ * useless as a description: the reference read "Code : string" with a yellow
+ * warning badge beside it, as though an ordinary string pin had gone wrong.
+ * It had not — it is a different kind of pin, and saying so as a type is
+ * clearer than saying so as a warning.
+ *
+ * Only the two escape hatches use it, so `luau` on a pin is also the signal
+ * that this is a place hand-written code enters the graph.
+ */
+export const LUAU: DataType = "luau";
 
 export type PinKind = "exec" | "data";
 

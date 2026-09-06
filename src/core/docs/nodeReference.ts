@@ -41,6 +41,8 @@ export interface PinDoc {
 	description?: string;
 	/** This pin's text is pasted into the source; it cannot be wired. */
 	literalOnly: boolean;
+	/** This pin takes hand-written Luau and opens an editor for it. */
+	code: boolean;
 	/** Decompositions this pin can be split into, by name. */
 	splitModes: string[];
 }
@@ -96,6 +98,7 @@ export function documentPin(
 		options: pin.options,
 		description: pin.description,
 		literalOnly: literalOnlyPins(def).has(pin.id),
+		code: pin.code === true,
 		splitModes: struct ? Object.values(struct.modes).map((m) => m.name) : [],
 	};
 }

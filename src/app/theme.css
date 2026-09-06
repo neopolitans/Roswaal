@@ -2782,3 +2782,43 @@ button.tb.with-icon {
 	.docs-page .docs-body { grid-template-columns: 288px minmax(0, 1fr) 240px; }
 	.docs-page .docs-article { max-width: 1040px; }
 }
+
+/* ------------------------------------------------- docs: the static build
+ *
+ * The same markup as the in-app panel, with two differences the browser
+ * supplies rather than React: the nav sections are <details>, and the links are
+ * anchors rather than buttons.
+ */
+.docs-static .docs-link,
+.docs-static .docs-hit { text-decoration: none; }
+
+.docs-static .docs-section-head {
+	list-style: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.docs-static .docs-section-head::-webkit-details-marker { display: none; }
+
+/* The chevron is an icon component in the app and cannot be here, so the
+   disclosure triangle is drawn in CSS and rotated the same way. */
+.docs-static .docs-section-head::before {
+	content: "";
+	width: 0;
+	height: 0;
+	border-left: 4px solid currentColor;
+	border-top: 3.5px solid transparent;
+	border-bottom: 3.5px solid transparent;
+	opacity: 0.55;
+	transition: transform 0.12s ease;
+	flex: none;
+}
+
+.docs-static details[open] > .docs-section-head::before { transform: rotate(90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+	.docs-static .docs-section-head::before { transition: none; }
+}
+
+.docs-static .docs-page-head .brand { text-decoration: none; color: inherit; }
