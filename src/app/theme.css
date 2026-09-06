@@ -2589,12 +2589,23 @@ button.tb.with-icon {
 	margin-bottom: 6px;
 }
 
+/* The rule belongs to the header block, which spans the article; the summary
+   inside it keeps a prose measure. Putting the rule on the summary made it stop
+   wherever the text did, which looked like a broken header rather than a
+   deliberate one. */
+.docs-page .docs-title {
+	border-bottom: 1px solid var(--border);
+	padding-bottom: 18px;
+	margin-bottom: 30px;
+}
+
 .docs-page .docs-content .summary {
 	font-size: 15px;
 	line-height: 1.55;
-	margin-bottom: 30px;
-	padding-bottom: 18px;
-	border-bottom: 1px solid var(--border);
+	max-width: 78ch;
+	margin: 0;
+	padding: 0;
+	border: 0;
 	color: var(--fg-muted);
 }
 
@@ -2649,3 +2660,125 @@ button.tb.with-icon {
 /* When a page has no outline the column still holds its place, so the reading
    measure does not jump between pages. It just has nothing in it. */
 .docs-toc:empty { border-left-color: transparent; }
+
+/* ------------------------------------------------- docs: code and pin lists */
+
+/* The same variables the Custom Code editor's HighlightStyle uses, so a snippet
+   in the docs and the same code in the editor are the same colours rather than
+   two opinions about Luau. */
+.docs-code .tok-keyword { color: var(--code-keyword); }
+.docs-code .tok-string { color: var(--code-string); }
+.docs-code .tok-number { color: var(--code-number); }
+.docs-code .tok-comment { color: var(--code-comment); font-style: italic; }
+.docs-code .tok-operator { color: var(--code-operator); }
+.docs-code .tok-global { color: var(--code-global); }
+.docs-code .tok-function { color: var(--code-function); }
+.docs-code .tok-bracket,
+.docs-code .tok-punctuation { color: var(--fg-muted); }
+
+/* Pin lists, in the shape Roblox's own reference uses for properties: one
+   bordered row per entry, the signature scannable down the left, detail
+   underneath rather than in a column that is empty on most rows. */
+.docs-pins {
+	list-style: none;
+	margin: 0 0 18px;
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.docs-pins li {
+	padding: 10px 14px;
+	margin: 0;
+	border-bottom: 1px solid var(--border);
+}
+
+.docs-pins li:last-child { border-bottom: 0; }
+.docs-pins li:nth-child(odd) { background: color-mix(in srgb, var(--fg) 2.5%, transparent); }
+
+.docs-pins .sig {
+	display: flex;
+	align-items: baseline;
+	gap: 7px;
+	flex-wrap: wrap;
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-size: 12.5px;
+}
+
+.docs-pins .sig .docs-swatch { align-self: center; flex: none; }
+.docs-pins .name { color: var(--fg); font-weight: 600; }
+.docs-pins .sep { color: var(--fg-faint); }
+
+/* Underlined the way Creator Hub underlines a linked type. Nothing to link to
+   yet, so it is not an anchor — the underline is the affordance the reader
+   already reads as "this is the type". */
+.docs-pins .type {
+	color: var(--code-global);
+	text-decoration: underline;
+	text-decoration-color: var(--border-strong);
+	text-underline-offset: 3px;
+}
+
+.docs-pins .def { color: var(--fg-faint); }
+.docs-pins .def code { border: 0; background: none; padding: 0; color: var(--fg-muted); }
+
+.docs-pins .badge {
+	font-family: "Segoe UI", system-ui, sans-serif;
+	font-size: 9.5px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--fg-faint);
+	background: var(--bg-hover);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	padding: 1px 5px;
+}
+
+.docs-pins .badge.warn { color: var(--warning); border-color: var(--warning); }
+
+.docs-pins .detail {
+	margin-top: 5px;
+	font-size: 12.5px;
+	line-height: 1.55;
+	color: var(--fg-muted);
+}
+
+/* ------------------------------------------------ docs: page measure
+ *
+ * Both Unreal's and Roblox's documentation centre the article in whatever room
+ * the window gives them rather than hugging the nav, and let it grow well past
+ * a prose measure — their pages are mostly tables and signatures, and so are
+ * ours. The nav and the outline stay pinned to the edges; only the middle
+ * column centres.
+ */
+.docs-page .docs-content {
+	display: flex;
+	justify-content: center;
+}
+
+.docs-page .docs-content > * {
+	max-width: none;
+}
+
+/* One wrapper holds the measure, so every block inside shares an edge and the
+   pin lists and tables line up with the prose above them. */
+.docs-page .docs-article {
+	width: 100%;
+	max-width: 940px;
+}
+
+/* Prose stays narrower than the tables it sits between: 100 characters of body
+   text is tiring, 100 characters of table is fine. */
+/* Structural lists — the pin reference — are not prose and want the full
+   measure, the same as a table does. */
+.docs-page .docs-article > p,
+.docs-page .docs-article > ul:not(.docs-pins),
+.docs-page .docs-article > ol {
+	max-width: 78ch;
+}
+
+@media (min-width: 1500px) {
+	.docs-page .docs-body { grid-template-columns: 288px minmax(0, 1fr) 240px; }
+	.docs-page .docs-article { max-width: 1040px; }
+}

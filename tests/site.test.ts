@@ -198,11 +198,10 @@ describe("node pages", () => {
 		expect(blockText(warning!)).toContain("Property");
 	});
 
-	it("lists the decompositions of a splittable pin", () => {
+	it("records the decompositions of a splittable pin", () => {
 		const page = findPage(site, "node/cframe.mul")!;
-		const table = page.blocks.find((b) => b.t === "table" && b.head[0] === "Pin");
-		expect(table).toBeDefined();
-		expect(blockText(table!)).toContain("Position, Rotation");
+		const inputs = page.blocks.find((b) => b.t === "pins" && b.title === "Inputs");
+		expect(inputs?.t === "pins" && inputs.pins[0].splitModes).toContain("Position, Rotation");
 	});
 });
 

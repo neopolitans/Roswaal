@@ -43,7 +43,7 @@ interface LuauState {
 	inInterpolation: boolean;
 }
 
-const luau: StreamParser<LuauState> = {
+export const luauParser: StreamParser<LuauState> = {
 	name: "luau",
 
 	startState(): LuauState {
@@ -170,4 +170,4 @@ function readUntilQuote(
 	}
 }
 
-export const luauLanguage = StreamLanguage.define(luau);
+export const luauLanguage = StreamLanguage.define(luauParser);

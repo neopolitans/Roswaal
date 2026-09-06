@@ -135,10 +135,12 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 			},
 			{
 				unreal: "Cast To <Class>",
-				roswaal: "Cast pins",
+				roswaal: "Is A, then Cast",
+				nodes: ["instance.isA", "cast.as", "cast.array"],
 				note:
-					"Planned, not built. Luau's `::` assertion is a compile-time claim with no runtime " +
-					"branch, so there is no Cast Failed pin to wire — the shapes genuinely differ.",
+					"Luau's `::` is a compile-time claim with no runtime branch, so there is no Cast " +
+					"Failed pin to wire. **Is A** is the runtime half. See *Getting at the world* below " +
+					"for the full picture.",
 			},
 			{
 				unreal: "Add pin +",

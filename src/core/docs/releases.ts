@@ -29,6 +29,20 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.7.1",
+		date: "2026-09-06",
+		headline: "The documentation reads like the editor does.",
+		changed: [
+			"Code in the docs is **syntax highlighted by the editor's own tokeniser**, in the editor's own colours — the same Luau should not look like two different languages one panel apart.",
+			"Pin lists are bordered rows in the shape Roblox's reference uses for properties: `Name : type`, with the default, badges for what is unusual, and the detail underneath rather than in a column that was empty on most rows.",
+			"Pages are centred and given room to grow, closer to how Unreal and Roblox set theirs.",
+		],
+		fixed: [
+			"An *On this page* link sent you back to Getting Started. The hash names the page, so a heading anchor was being read as a page slug that does not exist.",
+			"The Blueprints page still called cast pins \"planned, not built\" a release after they shipped.",
+		],
+	},
+	{
 		version: "0.7.0",
 		date: "2026-09-06",
 		headline: "Query Descendants, and the documentation reads like documentation.",

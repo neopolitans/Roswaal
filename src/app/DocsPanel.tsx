@@ -20,11 +20,14 @@ import {
 	type Block, type DocPage, type DocSection, type Inline,
 } from "../core/docs/site.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
+import { highlightLuau } from "./highlight.js";
 import { Icon } from "./icons.jsx";
 import { pinColor } from "./palette.js";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
 const HOME = "getting-started";
+/** Written as a code unit so the escape survives the JSX attribute. */
+const NEWLINE = String.fromCharCode(10);
 
 export interface DocsViewProps {
 	registry: Registry;
@@ -152,7 +155,11 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 					</nav>
 
 					<article className="docs-content" ref={body}>
-						<Page page={page} />
+						{/* The measure lives on an inner wrapper so the article itself
+						    can centre in whatever room the window gives it. */}
+						<div className="docs-article">
+							<Page page={page} />
+						</div>
 					</article>
 
 					{/* "On this page", as Creator Hub and Epic both have. Long node
@@ -189,7 +196,20 @@ function PageOutline({ page }: { page: DocPage }) {
 			<div className="docs-toc-head">On this page</div>
 			{headings.map((h, i) =>
 				h.t === "h" ? (
-					<a key={i} href={`#${headingId(h.text)}`} className="docs-toc-link">
+					<a
+						key={i}
+						href={`#${headingId(h.text)}`}
+						className="docs-toc-link"
+						onClick={(e) => {
+							// The hash is the *page*, so letting this link write to it
+							// navigated to a slug that does not exist and fell back to
+							// Getting Started. Scroll directly and leave the hash alone.
+							e.preventDefault();
+							document
+								.getElementById(headingId(h.text))
+								?.scrollIntoView({ behavior: "smooth", block: "start" });
+						}}
+					>
 						{h.text}
 					</a>
 				) : null,
@@ -201,11 +221,16 @@ function PageOutline({ page }: { page: DocPage }) {
 function Page({ page }: { page: DocPage }) {
 	return (
 		<>
-			<h1>
-				{page.title}
-				{page.custom && <span className="badge">from a node pack</span>}
-			</h1>
-			<p className="summary">{page.summary}</p>
+			{/* Title and standfirst are one block, so the rule under them spans the
+			    article rather than stopping at the prose measure the summary sits
+			    in — which read as a broken header. */}
+			<header className="docs-title">
+				<h1>
+					{page.title}
+					{page.custom && <span className="badge">from a node pack</span>}
+				</h1>
+				<p className="summary">{page.summary}</p>
+			</header>
 			{page.blocks.map((block, i) => (
 				<BlockView key={i} block={block} />
 			))}
@@ -264,8 +289,37 @@ function CodeBlock({ lang, text }: { lang: string; text: string }) {
 					{label}
 				</button>
 			</div>
-			<pre ref={code}>{text}</pre>
+			<pre ref={code}>
+				{lang === "luau" ? <Highlighted source={text} /> : text}
+			</pre>
 		</div>
+	);
+}
+
+/**
+ * Luau, coloured by the same tokeniser the Custom Code editor uses.
+ *
+ * Rendered line by line rather than as one blob so the newlines survive as
+ * text: a reader selecting the block and copying it should get the code, not
+ * the code run together.
+ */
+function Highlighted({ source }: { source: string }) {
+	const lines = highlightLuau(source);
+	return (
+		<>
+			{lines.map((tokens, i) => (
+				<span key={i}>
+					{tokens.map((token, j) =>
+						token.cls === "" ? (
+							<span key={j}>{token.text}</span>
+						) : (
+							<span key={j} className={token.cls}>{token.text}</span>
+						),
+					)}
+					{i < lines.length - 1 ? NEWLINE : null}
+				</span>
+			))}
+		</>
 	);
 }
 
@@ -319,38 +373,55 @@ function BlockView({ block }: { block: Block }) {
  * The swatch is the point: somebody reading this page is looking at a node, and
  * matching a row to a pin by colour is faster than matching it by name.
  */
+/**
+ * A node's pins, as a bordered list rather than a table.
+ *
+ * The shape Roblox's own reference uses for properties and methods, and it
+ * suits this better than columns did: the signature — `Name : type` — is the
+ * thing being scanned, the rest is detail that belongs underneath it rather
+ * than in a column that is empty on most rows.
+ *
+ * The swatch carries the colour the pin is drawn in on the canvas, because
+ * somebody reading this page is looking at a node, and matching a row to a pin
+ * by colour is faster than matching it by name.
+ */
 function PinTable({ title, pins }: { title: string; pins: PinDoc[] }) {
 	return (
 		<>
 			<h3>{title}</h3>
-			<div className="docs-table">
-				<table className="pins">
-					<thead>
-						<tr><th /><th>Pin</th><th>Type</th><th>Default</th><th>Notes</th></tr>
-					</thead>
-					<tbody>
-						{pins.map((pin) => (
-							<tr key={pin.id}>
-								<td className="swatch-cell">
-									<span
-										className={`docs-swatch ${pin.kind}`}
-										style={{ background: pinColor(pin.type, pin.kind) }}
-									/>
-								</td>
-								<td>{pin.name || pin.id}</td>
-								<td className="mono">{pin.kind === "exec" ? "execution" : pin.type ?? "any"}</td>
-								<td className="mono">{pin.default ?? (pin.required ? "must be wired" : "—")}</td>
-								<td>
-									{pin.description}
-									{/* Splittability is listed once, in its own table below, rather
-									    than repeated on every row that has it. */}
-									{pin.literalOnly && <em>Typed in directly; takes no wire.</em>}
-								</td>
-							</tr>
-						))}
-					</tbody>
-				</table>
-			</div>
+			<ul className="docs-pins">
+				{pins.map((pin) => (
+					<li key={pin.id}>
+						<div className="sig">
+							<span
+								className={`docs-swatch ${pin.kind}`}
+								style={{ background: pinColor(pin.type, pin.kind) }}
+							/>
+							<span className="name">{pin.name || pin.id}</span>
+							<span className="sep">:</span>
+							<span className="type">
+								{pin.kind === "exec" ? "execution" : pin.type ?? "any"}
+							</span>
+							{pin.default !== undefined && (
+								<span className="def">
+									= <code>{pin.default}</code>
+								</span>
+							)}
+							{pin.required && <span className="badge warn">must be wired</span>}
+							{pin.literalOnly && <span className="badge warn">typed in, no wire</span>}
+							{pin.splitModes.length > 0 && <span className="badge">splittable</span>}
+						</div>
+						{(pin.description || pin.splitModes.length > 0) && (
+							<div className="detail">
+								{pin.description}
+								{pin.splitModes.length > 0 && (
+									<> Splits into {pin.splitModes.join(", or ")}.</>
+								)}
+							</div>
+						)}
+					</li>
+				))}
+			</ul>
 		</>
 	);
 }

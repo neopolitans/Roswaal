@@ -177,16 +177,6 @@ function nodePage(doc: NodeDoc): DocPage {
 		blocks.push({ t: "note", kind: "info", text: OMISSION_REASONS[doc.exampleOmitted] });
 	}
 
-	const splittable = [...doc.inputs, ...doc.outputs].filter((p) => p.splitModes.length > 0);
-	if (splittable.length > 0) {
-		blocks.push({ t: "h", level: 3, text: "Pins you can split" });
-		blocks.push({
-			t: "table",
-			head: ["Pin", "Type", "Decompositions"],
-			rows: splittable.map((p) => [p.name || p.id, p.type ?? "", p.splitModes.join(", ")]),
-		});
-	}
-
 	const pasted = [...doc.inputs].filter((p) => p.literalOnly);
 	if (pasted.length > 0) {
 		blocks.push({
