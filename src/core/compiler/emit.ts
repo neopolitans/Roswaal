@@ -214,6 +214,25 @@ class Emitter {
 		return ident;
 	}
 
+	/**
+	 * Warns when a client-only node is used somewhere it will be nil.
+	 *
+	 * `Players.LocalPlayer` is not an error on the server — it is `nil`, and the
+	 * failure surfaces later as "attempt to index nil", a long way from the node
+	 * that caused it. Saying so at compile time is the whole value.
+	 *
+	 * A warning rather than an error, because a ModuleScript can legitimately be
+	 * written for the client and Roswaal cannot tell where it will be required.
+	 */
+	private requireClient(r: ResolvedNode, title: string): void {
+		if (this.script.scriptClass === "LocalScript") return;
+		const where =
+			this.script.scriptClass === "ModuleScript"
+				? "a ModuleScript, so this is only correct if it is required from the client"
+				: "a Script, which runs on the server, where it is always nil";
+		this.warn(`"${title}" is client-only. This graph is ${where}.`, r.node.id);
+	}
+
 	/** Reads a pin's literal as plain text. Empty when the pin is wired. */
 	private literalText(r: ResolvedNode, pinId: string): string {
 		if (this.index.sourceOf(r.node.id, pinId)) return "";
@@ -787,6 +806,18 @@ class Emitter {
 				}
 				return ident;
 			}
+
+			// Both reach the Players service themselves, through the same hoisting
+			// as Get Service — so a graph using either still gets exactly one
+			// `local Players = game:GetService("Players")` at the top, shared with
+			// any Get Service node that also asked for it.
+			case "players.localPlayer":
+				this.requireClient(src, "Local Player");
+				return `${this.resolveRoot("Players")}.LocalPlayer`;
+
+			case "players.localCharacter":
+				this.requireClient(src, "Local Character");
+				return `${this.resolveRoot("Players")}.LocalPlayer.Character`;
 
 			case "service.get": {
 				const link = this.index.sourceOf(src.node.id, "service");

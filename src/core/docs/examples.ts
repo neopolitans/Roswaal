@@ -290,6 +290,32 @@ export const CURATED: Record<string, () => NodeScript> = {
 		return g.out();
 	},
 
+	// A LocalScript, because these are client-only and compiling the example in a
+	// Script would attach the very warning the node exists to avoid.
+	"players.localPlayer": () => {
+		const g = new G({ scriptClass: "LocalScript" });
+		const begin = g.node("script.begin");
+		const me = g.node("players.localPlayer");
+		const name = g.node("roblox.getProperty", { literals: { property: str("Name") } });
+		g.link(me, "player", name, "instance");
+		const p = g.node("debug.print");
+		g.link(begin, "then", p, "in").link(name, "result", p, "value");
+		return g.out();
+	},
+
+	"players.localCharacter": () => {
+		const g = new G({ scriptClass: "LocalScript" });
+		const begin = g.node("script.begin");
+		const character = g.node("players.localCharacter");
+		const humanoid = g.node("instance.findFirstChildOfClass", {
+			literals: { className: str("Humanoid") },
+		});
+		g.link(character, "character", humanoid, "instance");
+		const p = g.node("debug.print");
+		g.link(begin, "then", p, "in").link(humanoid, "result", p, "value");
+		return g.out();
+	},
+
 	"roblox.getService": () => {
 		const g = new G();
 		const begin = g.node("script.begin");
@@ -365,6 +391,10 @@ export const EXAMPLE_NOTES: Record<string, string> = {
 		"A knot compiles to nothing at all — this is the same code you would get without it.",
 	"roblox.getService":
 		"Note where the service went: hoisted to the top of the file, as a hand-written Roblox script would have it.",
+	"players.localPlayer":
+		"The Players service is reached for you, and hoisted the same way — no Get Service node needed. Used in a Script rather than a LocalScript, this compiles fine and is nil at runtime, so Roswaal warns instead.",
+	"players.localCharacter":
+		"Nil until the character has spawned. Connect to CharacterAdded when you need to be sure, rather than reading this at the top of a script.",
 	"module.requirePath":
 		"Requires hoist alongside services, and asking twice reuses the one local.",
 	"script.end":

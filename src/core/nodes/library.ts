@@ -256,6 +256,140 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("roblox.color3", "Color3", "Roblox", "Color3.fromRGB($in.r, $in.g, $in.b)",
 		[num("r", "R", 255), num("g", "G", 255), num("b", "B", 255)], "Color3"),
 
+	// -- Instances ---------------------------------------------------------
+	//
+	// Roblox's Instance surface, minus what needs an execution wire. The line
+	// drawn here is **side effects, not method-versus-property**: `:IsA()` is a
+	// question about the value in front of you, and making you thread an
+	// execution wire through a question is what pushes people into Custom Code.
+	// Anything that allocates or mutates stays impure.
+	pure("instance.isA", "Is A", "Instances", "$in.instance:IsA($in.className)",
+		[d("instance", "Instance", "Instance"), str("className", "Class Name", "BasePart")], "boolean",
+		"True for the class itself and anything derived from it — the test you want when a Cast would be too strict."),
+	pure("instance.isDescendantOf", "Is Descendant Of", "Instances",
+		"$in.instance:IsDescendantOf($in.ancestor)",
+		[d("instance", "Instance", "Instance"), d("ancestor", "Ancestor", "Instance")], "boolean"),
+	pure("instance.getFullName", "Get Full Name", "Instances", "$in.instance:GetFullName()",
+		[d("instance", "Instance", "Instance")], "string"),
+	pure("instance.getChildren", "Get Children", "Instances", "$in.instance:GetChildren()",
+		[d("instance", "Instance", "Instance")], "table",
+		"A fresh array each call. Typed `{ Instance }` — use Cast Array when you know what is in it."),
+	pure("instance.getDescendants", "Get Descendants", "Instances",
+		"$in.instance:GetDescendants()", [d("instance", "Instance", "Instance")], "table",
+		"Everything below this instance, at any depth. Typed `{ Instance }`."),
+	pure("instance.findFirstChildOfClass", "Find First Child Of Class", "Instances",
+		"$in.instance:FindFirstChildOfClass($in.className)",
+		[d("instance", "Instance", "Instance"), str("className", "Class Name", "Humanoid")], "Instance"),
+	pure("instance.findFirstChildWhichIsA", "Find First Child Which Is A", "Instances",
+		"$in.instance:FindFirstChildWhichIsA($in.className, $in.recursive)",
+		[d("instance", "Instance", "Instance"), str("className", "Class Name", "BasePart"),
+			bool("recursive", "Recursive")], "Instance",
+		"Matches derived classes too, unlike Find First Child Of Class."),
+	pure("instance.findFirstDescendant", "Find First Descendant", "Instances",
+		"$in.instance:FindFirstDescendant($in.name)",
+		[d("instance", "Instance", "Instance"), str("name", "Name", "Handle")], "Instance",
+		"Searches the whole subtree by name. Slower than a path — reach for Instance when you know where it is."),
+	pure("instance.findFirstAncestor", "Find First Ancestor", "Instances",
+		"$in.instance:FindFirstAncestor($in.name)",
+		[d("instance", "Instance", "Instance"), str("name", "Name", "Model")], "Instance"),
+	pure("instance.findFirstAncestorOfClass", "Find First Ancestor Of Class", "Instances",
+		"$in.instance:FindFirstAncestorOfClass($in.className)",
+		[d("instance", "Instance", "Instance"), str("className", "Class Name", "Model")], "Instance"),
+	pure("instance.findFirstAncestorWhichIsA", "Find First Ancestor Which Is A", "Instances",
+		"$in.instance:FindFirstAncestorWhichIsA($in.className)",
+		[d("instance", "Instance", "Instance"), str("className", "Class Name", "Model")], "Instance"),
+	pure("instance.propertyChanged", "Get Property Changed Signal", "Instances",
+		"$in.instance:GetPropertyChangedSignal($in.property)",
+		[d("instance", "Instance", "Instance"), str("property", "Property", "Name")], "RBXScriptSignal",
+		"Fires only for that one property, unlike Changed. Wires straight into Connect Event."),
+	call("instance.clone", "Clone", "Instances", "$in.instance:Clone()",
+		[d("instance", "Instance", "Instance")], "Copy", "Instance",
+		{ targets: ["roblox"], summary: "The copy has no parent until you give it one." }),
+	stmt("instance.clearAllChildren", "Clear All Children", "Instances",
+		"$in.instance:ClearAllChildren()", [d("instance", "Instance", "Instance")],
+		{ targets: ["roblox"] }),
+
+	// -- Attributes --------------------------------------------------------
+	pure("instance.getAttribute", "Get Attribute", "Instances",
+		"$in.instance:GetAttribute($in.name)",
+		[d("instance", "Instance", "Instance"), str("name", "Name", "Health")], "any",
+		"Returns nil when the attribute is not set, which is how you test for one."),
+	pure("instance.getAttributes", "Get Attributes", "Instances",
+		"$in.instance:GetAttributes()", [d("instance", "Instance", "Instance")], "table",
+		"Every attribute as a table of name to value."),
+	stmt("instance.setAttribute", "Set Attribute", "Instances",
+		"$in.instance:SetAttribute($in.name, $in.value)",
+		[d("instance", "Instance", "Instance"), str("name", "Name", "Health"),
+			d("value", "Value", "any", { t: "nil" })],
+		{ targets: ["roblox"], summary: "Setting nil removes the attribute." }),
+	pure("instance.attributeChanged", "Get Attribute Changed Signal", "Instances",
+		"$in.instance:GetAttributeChangedSignal($in.name)",
+		[d("instance", "Instance", "Instance"), str("name", "Name", "Health")], "RBXScriptSignal"),
+
+	// -- Tags --------------------------------------------------------------
+	//
+	// The methods on Instance rather than the CollectionService calls they
+	// forward to: `part:AddTag("Enemy")` reads better than
+	// `CollectionService:AddTag(part, "Enemy")` and needs no service hoisted.
+	pure("instance.hasTag", "Has Tag", "Instances", "$in.instance:HasTag($in.tag)",
+		[d("instance", "Instance", "Instance"), str("tag", "Tag", "Enemy")], "boolean"),
+	pure("instance.getTags", "Get Tags", "Instances", "$in.instance:GetTags()",
+		[d("instance", "Instance", "Instance")], "table", "Typed `{ string }`."),
+	stmt("instance.addTag", "Add Tag", "Instances", "$in.instance:AddTag($in.tag)",
+		[d("instance", "Instance", "Instance"), str("tag", "Tag", "Enemy")], { targets: ["roblox"] }),
+	stmt("instance.removeTag", "Remove Tag", "Instances", "$in.instance:RemoveTag($in.tag)",
+		[d("instance", "Instance", "Instance"), str("tag", "Tag", "Enemy")], { targets: ["roblox"] }),
+
+	// -- Players -----------------------------------------------------------
+	//
+	// These reach the Players service themselves, so the common case does not
+	// need a Get Service node wired into every one of them. The service is still
+	// hoisted once, by the same mechanism.
+	{
+		id: "players.localPlayer",
+		title: "Local Player",
+		category: "Players",
+		summary:
+			"The player this client belongs to. Client-only: it is nil on the server, and Roswaal says so if the script is not a LocalScript.",
+		pure: true,
+		targets: ["roblox"],
+		inputs: [],
+		outputs: [d("player", "", "Instance")],
+		compilesTo: { kind: "builtin", handler: "players.localPlayer" },
+	},
+	{
+		id: "players.localCharacter",
+		title: "Local Character",
+		category: "Players",
+		summary:
+			"The local player's character model, or nil before it has spawned. Client-only.",
+		pure: true,
+		targets: ["roblox"],
+		inputs: [],
+		outputs: [d("character", "", "Instance")],
+		compilesTo: { kind: "builtin", handler: "players.localCharacter" },
+	},
+	pure("players.fromCharacter", "Get Player From Character", "Players",
+		"$in.players:GetPlayerFromCharacter($in.character)",
+		[d("players", "Players", "Instance"), d("character", "Character", "Instance")], "Instance",
+		"Wire Get Service (Players) in. Returns nil for a character with no player behind it."),
+	pure("players.all", "Get Players", "Players", "$in.players:GetPlayers()",
+		[d("players", "Players", "Instance")], "table",
+		"Every player currently connected. Typed `{ Player }`."),
+
+	// -- Casts -------------------------------------------------------------
+	//
+	// Luau's `::` assertion. It has no runtime behaviour at all: it tells the
+	// typechecker what you know and disappears. That is genuinely different from
+	// Unreal's Cast To, which branches at runtime — so there is no Cast Failed
+	// pin here, and Is A is the node for asking rather than asserting.
+	pure("cast.as", "Cast", "Values", "($in.value :: $in.type!raw)",
+		[d("value", "Value", "any"), str("type", "Type", "BasePart")], "any",
+		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first."),
+	pure("cast.array", "Cast Array", "Values", "($in.value :: { $in.type!raw })",
+		[d("value", "Value", "table"), str("type", "Type", "BasePart")], "table",
+		"For a collection you know more about than its type says: Get Descendants is { Instance }, and this is how you say they are all BaseParts."),
+
 	// -- Vectors -----------------------------------------------------------
 	//
 	// Every one of these is pure, so they compose into an expression without an

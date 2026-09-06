@@ -303,8 +303,43 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 		entries: [
 			{
 				unreal: "Get Player Character / Controller",
-				roswaal: "Players service, then the path",
-				nodes: ["roblox.getService", "roblox.instancePath"],
+				roswaal: "Local Player, Local Character",
+				nodes: ["players.localPlayer", "players.localCharacter", "players.fromCharacter"],
+				note:
+					"Both reach the Players service themselves, so the common case needs no Get " +
+					"Service wired in. **Client-only**: on the server they are nil, and Roswaal warns " +
+					"if the graph is not a LocalScript. There is no controller — a Player and its " +
+					"Character are separate instances, and Get Player From Character goes back.",
+			},
+			{
+				unreal: "Actor Tags",
+				roswaal: "Add Tag, Remove Tag, Has Tag, Get Tags",
+				nodes: ["instance.addTag", "instance.removeTag", "instance.hasTag", "instance.getTags"],
+				note:
+					"The methods on Instance rather than the CollectionService calls they forward to, " +
+					"so no service has to be hoisted. Roblox tags are strings and carry no data — the " +
+					"data goes in attributes.",
+			},
+			{
+				unreal: "Actor / Component variables set from the details panel",
+				roswaal: "Attributes",
+				nodes: ["instance.getAttribute", "instance.setAttribute"],
+				note:
+					"Per-instance values set in Studio and read at runtime, which is the closest thing " +
+					"to an exposed Blueprint variable. Get Attribute returns nil when unset, and that " +
+					"is how you test for one.",
+			},
+			{
+				unreal: "Get Components By Class / Get All Child Actors",
+				roswaal: "Get Children, Get Descendants, Find First Child Which Is A",
+				nodes: [
+					"instance.getChildren", "instance.getDescendants", "instance.findFirstChildWhichIsA",
+					"instance.findFirstDescendant",
+				],
+				note:
+					"Which Is A matches derived classes; Of Class is exact. Find First Descendant " +
+					"searches the whole subtree by name, which is slower than a path — reach for " +
+					"Instance when you already know where it lives.",
 			},
 			{
 				unreal: "Get Component / Get Child Actor",
@@ -335,9 +370,24 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 					"wired from a value. The pin says so.",
 			},
 			{
-				unreal: "Cast to a subclass to reach members",
-				roswaal: "Just index it",
-				note: "Luau is dynamically typed at runtime; there is no cast to perform first.",
+				unreal: "Cast To <Class>, to reach members",
+				roswaal: "Is A to ask, Cast to assert",
+				nodes: ["instance.isA", "cast.as"],
+				note:
+					"These are two halves of what Cast To does in one node, and keeping them apart is " +
+					"the important part. **Is A** is the runtime question and gives you a boolean to " +
+					"branch on — that is Cast To's execution pins. **Cast** is Luau's `::`, which tells " +
+					"the typechecker what you know and emits nothing; there is no runtime check, so " +
+					"being wrong is silent. Ask with Is A, then assert with Cast.",
+			},
+			{
+				unreal: "Cast an array of actors to a subclass",
+				roswaal: "Cast Array",
+				nodes: ["cast.array"],
+				note:
+					"Get Descendants and friends are typed `{ Instance }` even when you know every " +
+					"element is a BasePart. This is how you say so, and it is a step Unreal does not " +
+					"make you take because its containers are already typed.",
 			},
 		],
 	},

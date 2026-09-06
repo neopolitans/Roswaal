@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compile } from "../src/core/compiler/index.js";
-import { createRegistry } from "../src/core/nodes/index.js";
+import { createRegistry, literalOnlyPins } from "../src/core/nodes/index.js";
 import { migrateScript } from "../src/core/migrate.js";
 import { Builder, body } from "./helpers.js";
 
@@ -9,6 +9,100 @@ const registry = createRegistry();
 function errors(result: { diagnostics: { severity: string; message: string }[] }): string[] {
 	return result.diagnostics.filter((d) => d.severity === "error").map((d) => d.message);
 }
+
+describe("client-only nodes", () => {
+	function localPlayerGraph(scriptClass: "Script" | "LocalScript" | "ModuleScript") {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const me = b.node("players.localPlayer");
+		const print = b.node("debug.print");
+		b.link(start, "then", print, "in");
+		b.link(me, "player", print, "value");
+		return b.build({ scriptClass });
+	}
+
+	/** It reaches the service itself, through the same hoisting Get Service uses. */
+	it("hoists Players without a Get Service node", () => {
+		const out = compile(localPlayerGraph("LocalScript"), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(
+			[`local Players = game:GetService("Players")`, "", "print(Players.LocalPlayer)"].join("\n"),
+		);
+	});
+
+	/**
+	 * On the server `Players.LocalPlayer` is nil, and the failure surfaces later
+	 * as "attempt to index nil" a long way from the node that caused it. Saying
+	 * so at compile time is the whole point of the node knowing it is client-only.
+	 */
+	it("warns when a client-only node is used in a server Script", () => {
+		const out = compile(localPlayerGraph("Script"), registry);
+		const warnings = out.diagnostics.filter((d) => d.severity === "warning");
+		expect(warnings.map((w) => w.message).join(" ")).toContain("client-only");
+		// A warning, not an error: it compiles, it is just wrong at runtime.
+		expect(errors(out)).toEqual([]);
+	});
+
+	it("says nothing in a LocalScript", () => {
+		const out = compile(localPlayerGraph("LocalScript"), registry);
+		expect(out.diagnostics.filter((d) => d.severity === "warning")).toEqual([]);
+	});
+
+	/** A module cannot know where it will be required, so the wording softens. */
+	it("hedges in a ModuleScript rather than accusing it", () => {
+		const out = compile(localPlayerGraph("ModuleScript"), registry);
+		expect(out.diagnostics.map((d) => d.message).join(" ")).toContain("required from the client");
+	});
+
+	it("shares one hoisted Players local with Get Service", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const me = b.node("players.localPlayer");
+		const service = b.node("roblox.getService");
+		b.lit(service, "service", { t: "string", v: "Players" });
+		const a = b.node("debug.print");
+		const c = b.node("debug.print");
+		b.link(start, "then", a, "in");
+		b.link(a, "then", c, "in");
+		b.link(me, "player", a, "value");
+		b.link(service, "service", c, "value");
+
+		const out = compile(b.build({ scriptClass: "LocalScript" }), registry);
+		expect(body(out.code).match(/GetService/g)).toHaveLength(1);
+	});
+});
+
+describe("casts", () => {
+	/**
+	 * The reason Cast Array exists, in one test: Get Descendants is
+	 * `{ Instance }` however much you know about what is in it.
+	 */
+	it("asserts an element type on a collection", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const model = b.node("roblox.instancePath");
+		b.lit(model, "root", { t: "string", v: "Workspace" });
+		b.lit(model, "path", { t: "string", v: "Arena" });
+		const kids = b.node("instance.getDescendants");
+		const cast = b.node("cast.array");
+		b.lit(cast, "type", { t: "string", v: "BasePart" });
+		const print = b.node("debug.print");
+		b.link(model, "instance", kids, "instance");
+		b.link(kids, "result", cast, "value");
+		b.link(start, "then", print, "in");
+		b.link(cast, "result", print, "value");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toContain("(Workspace.Arena:GetDescendants() :: { BasePart })");
+	});
+
+	/** A cast's type is pasted into the source, so it cannot come from a wire. */
+	it("will not take its type from a wire", () => {
+		const cast = registry.get("cast.as")!;
+		expect(literalOnlyPins(cast).has("type")).toBe(true);
+	});
+});
 
 describe("service hoisting", () => {
 	it("lifts a service to a top-level local named after it", () => {

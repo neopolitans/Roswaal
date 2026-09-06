@@ -142,7 +142,7 @@ export function literalOnlyPins(def: NodeDef): Set<string> {
 
 /** Every distinct category present in a registry, in display order. */
 export function categories(registry: Registry): string[] {
-	const order = ["Flow", "Events", "Variables", "Values", "Math", "Vectors", "CFrames", "Logic", "Strings", "Tables", "Roblox", "Modules", "Time", "Debug"];
+	const order = ["Flow", "Events", "Variables", "Values", "Math", "Vectors", "CFrames", "Logic", "Strings", "Tables", "Roblox", "Instances", "Players", "Modules", "Time", "Debug"];
 	const seen = new Set<string>();
 	for (const def of registry.values()) seen.add(def.category);
 	const known = order.filter((c) => seen.has(c));

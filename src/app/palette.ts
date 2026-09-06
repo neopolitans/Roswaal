@@ -24,6 +24,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 	Strings: "#84509b",
 	Tables: "#9a6c36",
 	Roblox: "#2c7676",
+	// Near Roblox, because reaching an instance and asking it a question are the
+	// same job — but far enough apart that a graph full of one does not read as
+	// the other.
+	Instances: "#2f6f6a",
+	Players: "#3d7a86",
 	Modules: "#6f4f9b",
 	Time: "#65852c",
 	Debug: "#6d7480",
