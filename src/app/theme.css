@@ -147,6 +147,19 @@ textarea {
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	margin-right: 4px;
+	display: inline-flex;
+	align-items: baseline;
+	gap: 5px;
+}
+
+/* The version, deliberately quiet. It only matters when something is wrong —
+   and then it is the first thing anyone asks for. */
+.toolbar .brand .version {
+	font-weight: 400;
+	font-size: 10px;
+	letter-spacing: 0;
+	color: var(--fg-faint);
+	font-variant-numeric: tabular-nums;
 }
 
 .toolbar .spacer {
@@ -2019,11 +2032,34 @@ button.tb.with-icon {
 	cursor: grab;
 }
 
+/* A knot is 22px and cannot afford the slot a node's pin row uses.
+ *
+ * At 16px plus a 3px hit margin the pin covered the knot edge to edge, and the
+ * knot stopped being draggable — there was no ring left to grab, only pin. The
+ * slot shrinks back here so the two gestures stay separable: the middle starts
+ * a wire, the rim moves the knot. */
 .node.reroute .pin {
+	--pin-slot: 12px;
 	position: absolute;
 	left: 50%;
 	top: 50%;
 	transform: translate(-50%, -50%);
+}
+
+.node.reroute .pin::after {
+	inset: -1px;
+}
+
+.canvas.wiring .node.reroute .pin::after {
+	inset: -5px;
+}
+
+/* Both of a knot's pins sit at its centre, stacked. Drawing both means an
+   unwired output's hollow ring shows the wired input's fill through the middle,
+   which reads as a pin that will not let go of its colour. Only the first is
+   drawn; the second keeps its hit area, so a wire can still be dragged out. */
+.node.reroute .pin + .pin .dot {
+	display: none;
 }
 
 .node.reroute .pin-label {

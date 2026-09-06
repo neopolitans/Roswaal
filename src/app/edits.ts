@@ -12,7 +12,10 @@ import type {
 import { ANY, WILDCARD } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins, resolveNodePins } from "../core/nodes/index.js";
-import { modeOf, partPinId, splitKey, splitsOf, STRUCTS } from "../core/structs.js";
+import {
+	modeOf, partPinId, splitKey, splitsOf, STRUCTS, type StructMode,
+} from "../core/structs.js";
+import { literalToLuau } from "../core/compiler/luau.js";
 import { compactWidth, nodeBounds, pinPosition, rectContains, type Rect } from "./geometry.js";
 import { NODE } from "./layers.js";
 import { newId } from "./store.js";
@@ -687,19 +690,65 @@ export function recombinePin(
 	if (mode === undefined) return script;
 	delete splits[splitKey(side, pinId)];
 
-	const parts = modeOf(STRUCTS, basePinOf(registry, node, side, pinId)?.type, mode)?.parts ?? [];
+	const struct = modeOf(STRUCTS, basePinOf(registry, node, side, pinId)?.type, mode);
+	const parts = struct?.parts ?? [];
+
+	// Fold what was typed into the components back onto the whole pin. Without
+	// this, splitting a Vector3, setting it to (0, 12, -4) and recombining
+	// leaves you looking at Vector3.zero — which reads as the editor having
+	// thrown the work away, because it had.
+	const folded = side === "in" && struct ? foldComponents(node, pinId, struct) : undefined;
 
 	return dropLinksOn(
 		{
 			...script,
 			nodes: script.nodes.map((n) =>
 				n.id === nodeId
-					? { ...n, config: { ...n.config, split: Object.keys(splits).length ? splits : undefined } }
+					? {
+							...n,
+							config: { ...n.config, split: Object.keys(splits).length ? splits : undefined },
+							...(folded ? { literals: { ...n.literals, [pinId]: folded } } : {}),
+						}
 					: n,
 			),
 		},
 		nodeId, side, parts.map((p) => partPinId(pinId, p.id)),
 	);
+}
+
+/**
+ * One literal for the whole pin, built from the components' literals.
+ *
+ * Rendered through `literalToLuau`, the emitter's own function, so the text
+ * written onto the pin is exactly the text the emitter would have produced from
+ * the split — recombining changes how the value is presented, never what it
+ * compiles to.
+ *
+ * Two deliberate limits. A component that was **wired** contributes its default,
+ * because a wire is not a value the editor can read; that wire is being dropped
+ * either way, so folding what can be folded still beats losing everything. And
+ * if no component was touched at all, nothing is written — a pin left alone
+ * should come back reading `Vector3.zero`, not `Vector3.new(0, 0, 0)`.
+ */
+function foldComponents(
+	node: GraphNode, pinId: string, mode: StructMode,
+): Literal | undefined {
+	const values = new Map<string, string>();
+	let touched = false;
+
+	for (const part of mode.parts) {
+		const typed = node.literals?.[partPinId(pinId, part.id)];
+		if (typed !== undefined) touched = true;
+		values.set(part.id, literalToLuau(typed ?? part.default));
+	}
+	if (!touched) return undefined;
+
+	return {
+		t: "raw",
+		v: mode.make.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (match, id: string) =>
+			values.get(id) ?? match,
+		),
+	};
 }
 
 /** How many wires splitting or recombining this pin would drop. */

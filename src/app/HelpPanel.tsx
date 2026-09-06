@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "./icons.jsx";
+import { VERSION } from "../cli/version.js";
 import { LAYER } from "./layers.js";
 
 const SECTIONS = ["Basics", "Values", "Roblox", "Building", "Controls"] as const;
@@ -30,6 +31,7 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
 				<div className="help-head">
 					<strong>Roswaal</strong>
 					<span className="sub">Visual scripting that compiles to Luau</span>
+					<span className="sub version">{VERSION}</span>
 					<span style={{ flex: 1 }} />
 					<button className="tb" onClick={onClose} title="Close (Esc)">
 						<Icon name="close" size={15} />

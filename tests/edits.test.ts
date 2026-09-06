@@ -9,13 +9,14 @@
 import { describe, expect, it } from "vitest";
 
 import { createRegistry, literalOnlyPins } from "../src/core/nodes/index.js";
+import { compile } from "../src/core/compiler/index.js";
 import {
 	canConnect, canPromoteToVariable, connect, promoteToVariable, recombinePin,
 	setLiteral, splitCost, splitModesFor, splitPin,
 } from "../src/app/edits.js";
 import { pinPosition } from "../src/app/geometry.js";
 import type { NodeScript, PinDef } from "../src/core/schema.js";
-import { Builder } from "./helpers.js";
+import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
 
@@ -131,9 +132,70 @@ describe("splitting and recombining a pin", () => {
 			recombinePin(script, registry, look, "in", "from"),
 			look, "in", "from", "xyz",
 		);
-		expect(back.nodes.find((n) => n.id === look)!.literals).toEqual({
+		expect(back.nodes.find((n) => n.id === look)!.literals).toMatchObject({
 			"from.y": { t: "number", v: 7 },
 		});
+	});
+
+	/**
+	 * Reported from the editor: split a Vector3, set it to (0, 12, -4),
+	 * recombine, and the code went back to `Vector3.zero`. The values were being
+	 * kept but never folded onto the pin that came back.
+	 */
+	it("folds the components' values onto the pin it rebuilds", () => {
+		const b = new Builder();
+		const look = b.node("cframe.lookAt", { config: { split: { "in:from": "xyz" } } });
+		b.lit(look, "from.y", { t: "number", v: 12 });
+		b.lit(look, "from.z", { t: "number", v: -4 });
+
+		const after = recombinePin(b.build(), registry, look, "in", "from");
+		expect(after.nodes.find((n) => n.id === look)!.literals!["from"]).toEqual({
+			t: "raw",
+			v: "Vector3.new(0, 12, -4)",
+		});
+	});
+
+	it("folds a CFrame back through the mode it was split in", () => {
+		const b = new Builder();
+		const place = b.node("cframe.mul", { config: { split: { "in:a": "transform" } } });
+		b.lit(place, "a.position", { t: "raw", v: "Vector3.new(1, 2, 3)" });
+
+		const after = recombinePin(b.build(), registry, place, "in", "a");
+		expect(after.nodes.find((n) => n.id === place)!.literals!["a"]).toEqual({
+			t: "raw",
+			v: "(CFrame.identity + Vector3.new(1, 2, 3))",
+		});
+	});
+
+	/** An untouched pin should come back reading Vector3.zero, not (0, 0, 0). */
+	it("writes nothing when no component was touched", () => {
+		const b = new Builder();
+		const look = b.node("cframe.lookAt", { config: { split: { "in:from": "xyz" } } });
+
+		const after = recombinePin(b.build(), registry, look, "in", "from");
+		expect(after.nodes.find((n) => n.id === look)!.literals?.["from"]).toBeUndefined();
+	});
+
+	/**
+	 * Recombining changes how a value is presented, never what it compiles to.
+	 *
+	 * The *body* is compared, not the whole file: the header carries a hash of
+	 * the graph, and the graph genuinely did change.
+	 */
+	it("compiles to the same Luau either side of a recombine", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const look = b.node("cframe.lookAt", { config: { split: { "in:from": "xyz" } } });
+		const print = b.node("debug.print");
+		b.link(start, "then", print, "in");
+		b.link(look, "result", print, "value");
+		b.lit(look, "from.y", { t: "number", v: 12 });
+		b.lit(look, "from.z", { t: "number", v: -4 });
+
+		const split = b.build();
+		const whole = recombinePin(split, registry, look, "in", "from");
+
+		expect(body(compile(whole, registry).code)).toBe(body(compile(split, registry).code));
 	});
 
 	it("leaves the other side alone when both sides share a pin id", () => {

@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { compile, type Diagnostic } from "../core/compiler/index.js";
+import { VERSION } from "../cli/version.js";
 import { createRegistry } from "../core/nodes/index.js";
 import type { NodeDef, RoswaalConfig, ScriptClass } from "../core/schema.js";
 import { api, type CompileOutcome, type MapOutcome, type ProjectInfo, type TreeEntry } from "./api.js";
@@ -477,7 +478,12 @@ export function App() {
 	return (
 		<div className="app">
 			<div className="toolbar">
-				<span className="brand">ROSWAAL</span>
+				<span className="brand">
+					ROSWAAL
+					{/* Small, always there. Knowing which build you are looking at
+					    is the first question about any bug report. */}
+					<span className="version" title={`Roswaal ${VERSION}`}>{VERSION}</span>
+				</span>
 				<button
 					className="tb with-icon"
 					title="Re-read the project from disk"
