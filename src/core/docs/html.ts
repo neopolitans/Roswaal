@@ -88,7 +88,9 @@ function renderBlock(block: Block, options: RenderOptions): string {
 	switch (block.t) {
 		case "h":
 			return block.level === 2
-				? `<h2 id="${headingId(block.text)}">${inline(block.text)}</h2>`
+				? `<h2 id="${headingId(block.text)}">${inline(block.text)}` +
+					(block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "") +
+					`</h2>`
 				: `<h3>${inline(block.text)}</h3>`;
 		case "p":
 			return `<p>${inline(block.text)}</p>`;
@@ -244,7 +246,7 @@ export function renderPage(site: DocSite, page: DocPage, options: RenderOptions)
 <div class="docs-body">
 ${renderNav(site, page)}
 <article class="docs-content">
-<div class="docs-article">
+<div class="docs-article${page.narrow ? " narrow" : ""}">
 <header class="docs-title">
 <h1>${escapeHtml(page.title)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}</h1>
 <p class="summary">${escapeHtml(page.summary)}</p>

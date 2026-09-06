@@ -45,6 +45,27 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				node: node.id,
 			});
 		}
+
+		// A Luau Expression is spliced where a value goes, so a statement typed
+		// into one produces `print(local x = 1)` — emitted without complaint,
+		// because the text is raw and nothing checks it. This is the difference
+		// between the two escape hatches, and the one people get wrong.
+		if (node.def === "value.expression") {
+			const code = node.literals?.code;
+			const text = code?.t === "raw" || code?.t === "string" ? code.v.trimStart() : "";
+			const opener = /^(local|if|for|while|repeat|return|do|end|else|elseif)\b/.exec(text);
+			if (opener) {
+				out.push({
+					severity: "warning",
+					message:
+						`"${opener[1]}" starts a statement, and Luau Expression is substituted where a ` +
+						"value goes — this would emit something like `print(local x = 1)`. Use Custom " +
+						"Code for statements; it sits in the execution chain instead.",
+					node: node.id,
+					pin: "code",
+				});
+			}
+		}
 	}
 
 	// -- links -------------------------------------------------------------

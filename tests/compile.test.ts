@@ -51,6 +51,61 @@ describe("emitter", () => {
 		);
 	});
 
+	/**
+	 * The difference between the two escape hatches, asserted rather than
+	 * described: Custom Code lands where a statement goes, Luau Expression where
+	 * a value goes. Everything confusing about them follows from that.
+	 */
+	it("puts Custom Code in the flow and a Luau Expression at a use site", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const custom = b.node("code.custom");
+		const expr = b.node("value.expression");
+		const print = b.node("debug.print");
+		b.lit(custom, "code", { t: "raw", v: "local hits = 0" });
+		b.lit(expr, "code", { t: "raw", v: "os.clock()" });
+		b.link(start, "then", custom, "in");
+		b.link(custom, "then", print, "in");
+		b.link(expr, "result", print, "value");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(["local hits = 0", "print(os.clock())"].join("\n"));
+	});
+
+	/**
+	 * A statement in a Luau Expression emits `print(local x = 1)`. The text is
+	 * raw, so nothing rewrites it — the only defence is saying so, and this is
+	 * the mistake the two nodes exist to keep apart.
+	 */
+	it("warns when a Luau Expression is given a statement", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const expr = b.node("value.expression");
+		const print = b.node("debug.print");
+		b.lit(expr, "code", { t: "raw", v: "local x = 1" });
+		b.link(start, "then", print, "in");
+		b.link(expr, "result", print, "value");
+
+		const out = compile(b.build(), registry);
+		const warnings = out.diagnostics.filter((d) => d.severity === "warning");
+		expect(warnings.map((w) => w.message).join(" ")).toContain("Custom Code");
+	});
+
+	it("says nothing about an expression that really is one", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const expr = b.node("value.expression");
+		const print = b.node("debug.print");
+		b.lit(expr, "code", { t: "raw", v: "localise(x)" });
+		b.link(start, "then", print, "in");
+		b.link(expr, "result", print, "value");
+
+		// `localise` starts with "local" as text but not as a word, so the check
+		// must be on word boundaries or it cries wolf on ordinary names.
+		expect(compile(b.build(), registry).diagnostics).toEqual([]);
+	});
+
 	it("emits a straight-line script", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");

@@ -175,7 +175,7 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 					<article className="docs-content" ref={body}>
 						{/* The measure lives on an inner wrapper so the article itself
 						    can centre in whatever room the window gives it. */}
-						<div className="docs-article">
+						<div className={`docs-article${page.narrow ? " narrow" : ""}`}>
 							<Page page={page} />
 						</div>
 					</article>
@@ -345,7 +345,10 @@ function BlockView({ block }: { block: Block }) {
 	switch (block.t) {
 		case "h":
 			return block.level === 2 ? (
-				<h2 id={headingId(block.text)}><Rich text={block.text} /></h2>
+				<h2 id={headingId(block.text)}>
+					<Rich text={block.text} />
+					{block.aside && <span className="aside">{block.aside}</span>}
+				</h2>
 			) : (
 				<h3><Rich text={block.text} /></h3>
 			);

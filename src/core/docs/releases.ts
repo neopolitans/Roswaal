@@ -29,6 +29,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.9.1",
+		date: "2026-09-06",
+		headline: "Custom Code versus Luau Expression, answered properly.",
+		added: [
+			"A warning when a **Luau Expression** is given a statement. It is substituted where a value goes, so `local x = 1` in one emits `print(local x = 1)` — raw text, nothing to rewrite it.",
+		],
+		changed: [
+			"**Hand-written Luau** is rewritten. The difference between the two nodes is *where the code lands* — Custom Code where a statement goes, Luau Expression where a value goes — and not how long it is. Everything else about them follows from that, and the page led with the wrong thing.",
+			"A release entry now shows its version bold on the left and its date quietly on the right.",
+			"Prose pages set their measure once, so the rules, notes and paragraphs share one right edge instead of three.",
+		],
+	},
+	{
 		version: "0.9.0",
 		date: "2026-09-06",
 		headline: "Signals you can let go of, and networking.",

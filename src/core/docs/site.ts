@@ -29,7 +29,8 @@ import { RELEASES } from "./releases.js";
 // ---------------------------------------------------------------------------
 
 export type Block =
-	| { t: "h"; level: 2 | 3; text: string }
+	/** `aside` sits at the right of the heading: a date, a version, a status. */
+	| { t: "h"; level: 2 | 3; text: string; aside?: string }
 	| { t: "p"; text: string }
 	| { t: "ul"; items: string[] }
 	| { t: "ol"; items: string[] }
@@ -50,6 +51,17 @@ export interface DocPage {
 	nodeId?: string;
 	/** True for a page documenting a node from this project's own packs. */
 	custom?: boolean;
+	/**
+	 * Set on a page that is mostly prose.
+	 *
+	 * A wide page caps its paragraphs at a reading measure while its tables run
+	 * full width, which is right for a reference and wrong for an essay: on a
+	 * page with no tables it leaves the text hugging the left of a box whose
+	 * rules and notes span the whole thing, and reads as three different right
+	 * edges. A narrow page sets the measure once, on the article, so everything
+	 * shares an edge.
+	 */
+	narrow?: boolean;
 }
 
 export interface DocSection {
@@ -129,6 +141,7 @@ export function parseInline(text: string): Inline[] {
 export function blockText(block: Block): string {
 	switch (block.t) {
 		case "h":
+			return [block.text, block.aside ?? ""].join(" ").trim();
 		case "p":
 			return parseInline(block.text).map((i) => i.text).join("");
 		case "ul":
@@ -254,7 +267,7 @@ function releasesPage(): DocPage {
 	];
 
 	for (const release of RELEASES) {
-		blocks.push({ t: "h", level: 2, text: `${release.version} — ${release.date}` });
+		blocks.push({ t: "h", level: 2, text: release.version, aside: release.date });
 		blocks.push({ t: "p", text: release.headline });
 
 		if (release.watch) {
@@ -282,6 +295,7 @@ function releasesPage(): DocPage {
 		slug: "release-notes",
 		title: "Release notes",
 		summary: "What changed in each version, newest first.",
+		narrow: true,
 		blocks,
 	};
 }
@@ -292,6 +306,7 @@ function releasesPage(): DocPage {
 
 const GETTING_STARTED: DocPage = {
 	slug: "getting-started",
+	narrow: true,
 	title: "Getting started",
 	summary: "From an empty folder to a script running in Studio.",
 	blocks: [
@@ -357,6 +372,7 @@ const GETTING_STARTED: DocPage = {
 
 const TWO_KINDS_OF_WIRE: DocPage = {
 	slug: "wires-and-pins",
+	narrow: true,
 	title: "Wires and pins",
 	summary: "Execution versus data, pure nodes, and why a wire will not connect.",
 	blocks: [
@@ -413,6 +429,7 @@ const TWO_KINDS_OF_WIRE: DocPage = {
 
 const VARIABLES: DocPage = {
 	slug: "variables-and-locals",
+	narrow: true,
 	title: "Variables and locals",
 	summary: "Two different things, deliberately named apart.",
 	blocks: [
@@ -448,46 +465,145 @@ const VARIABLES: DocPage = {
 
 const ESCAPE_HATCHES: DocPage = {
 	slug: "hand-written-luau",
+	narrow: true,
 	title: "Hand-written Luau",
-	summary: "The two nodes that take code, and why there are only two.",
+	summary: "The two nodes that take code, what they emit, and why there are only two.",
 	blocks: [
 		{
 			t: "p",
 			text:
-				"**Custom Code** emits its text verbatim as statements. **Luau Expression** does the " +
-				"same for a single expression. Click the code preview on either for a real editor: " +
-				"Luau highlighting, completion over both Luau's globals and the names this graph puts " +
-				"in scope, and a structural check that marks a broken line as you type.",
+				"Not everything is worth wiring. A regular expression, a table literal, a bit of " +
+				"maths you already have — these are shorter as code, and Roswaal has two nodes that " +
+				"take it.",
 		},
+
+		{ t: "h", level: 2, text: "Which one, and why" },
+		{
+			t: "p",
+			text:
+				"The difference is **where the code lands in the generated file**, not how long it " +
+				"is. It is the one thing about these two nodes that is worth getting straight, " +
+				"because everything else follows from it.",
+		},
+		{
+			t: "table",
+			head: ["", "Custom Code", "Luau Expression"],
+			rows: [
+				["Lands where", "a **statement** goes", "a **value** goes"],
+				["Execution pins", "Yes — it is a step in the flow", "None. It is pure"],
+				["Hands a value back", "No output pin", "Its output, wired anywhere"],
+				["Length", "As many statements as you like", "One expression, however many lines that takes"],
+				["Reach for it when", "you are *doing* something", "you are *computing* something"],
+			],
+		},
+		{
+			t: "code",
+			lang: "luau",
+			text: [
+				"-- Custom Code, three statements, wired into the flow.",
+				"-- Whatever runs next follows them.",
+				"local hits = 0",
+				"hits += 1",
+				"print(hits)",
+				"",
+				"-- Luau Expression, wired into Print's Value pin.",
+				"-- The text is substituted inside the call.",
+				"print(os.clock() * 2)",
+			].join("\n"),
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"**Typing a statement into a Luau Expression is the mistake this distinction " +
+				"exists to prevent.** `local x = 1` in one emits `print(local x = 1)` — the text " +
+				"is raw, so nothing rewrites it into something valid. Roswaal now warns when an " +
+				"expression starts with a statement keyword, but the general case is yours to get " +
+				"right: if it would not fit inside brackets, it belongs in Custom Code.",
+		},
+		{
+			t: "p",
+			text:
+				"Custom Code has no output pin, so it cannot hand a value onward. To get one out, " +
+				"write to a script variable, or use **Declare Local** before it and assign in the " +
+				"code — the completion list will offer that local by name.",
+		},
+		{
+			t: "p",
+			text:
+				"Both pins are typed `luau` rather than `string`, and clicking one opens a real " +
+				"editor: Luau highlighting, a structural check that marks a broken line as you type, " +
+				"and completion over Luau's globals **and the names this graph puts in scope**.",
+		},
+
+		{ t: "h", level: 2, text: "What is in scope" },
+		{
+			t: "p",
+			text:
+				"Completion offers the locals a Custom Code block can actually see: the script's " +
+				"variables, any local declared upstream in the same block, and a function's " +
+				"parameters when the block is inside one. A local declared in a sibling branch is " +
+				"not offered, because it does not exist there.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"The scope check reads the graph, not your code. If you declare a local **inside** a " +
+				"Custom Code block, later blocks can see it — Roswaal knows, because it scans for " +
+				"`local` — but a local declared inside an `if` within one snippet is still offered " +
+				"after that `if` has closed. That is a known limit of scanning rather than parsing.",
+		},
+
 		{ t: "h", level: 2, text: "There are exactly two" },
 		{
 			t: "note",
 			kind: "good",
 			text:
-				"Those two node titles are a **complete list** of where hand-written Luau can enter a " +
-				"graph. Every other pin that defaults to something like `Vector3.zero` displays that " +
-				"constant and will not accept typed code.",
+				"Those two node titles are a **complete list** of where hand-written Luau can enter " +
+				"a graph. Every other pin that defaults to something like `Vector3.zero` displays " +
+				"that constant and will not accept typed code.",
 		},
 		{
 			t: "p",
 			text:
-				"That guarantee is the point. Plenty of ordinary pins default to a raw Luau constant " +
-				"because their type has no literal form — a `Vector3` input cannot sensibly default to " +
-				"`nil`. If every one of those opened a code editor, a graph shared with you could hide " +
-				"arbitrary code inside a node whose title says *Look At*, and reviewing it would mean " +
-				"opening every pin rather than scanning for two node names.",
+				"That guarantee is the point, and it is why a code pin has its own type. Plenty of " +
+				"ordinary pins default to a raw Luau constant because their type has no literal " +
+				"form — a `Vector3` input cannot sensibly default to `nil`. If every one of those " +
+				"opened a code editor, a graph shared with you could hide arbitrary code inside a " +
+				"node whose title says *Look At*, and reviewing it would mean opening every pin " +
+				"rather than scanning for two node names.",
 		},
 		{
 			t: "p",
 			text:
 				"To change a constant on an ordinary pin, wire a node into it or split it into its " +
-				"components.",
+				"components. Both got considerably easier than they were.",
+		},
+
+		{ t: "h", level: 2, text: "When to reach for something else" },
+		{
+			t: "ul",
+			items: [
+				"**A missing node.** Write it as a node pack instead — declarative, documented automatically, and reusable across graphs. Custom Code is a one-off.",
+				"**A whole system.** Put it in a ModuleScript and use *Require Module* and *Call Function*. Roswaal is happy to call into Luau it did not write.",
+				"**Something you cannot express.** Say so — a gap in the node library is worth filing, and this month several were closed that way.",
+			],
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"Code inside these nodes is **not** checked by the compiler beyond bracket balance. " +
+				"It reaches the generated file exactly as typed, so a mistake surfaces in Studio " +
+				"rather than in the editor.",
 		},
 	],
 };
 
 const BUILDING: DocPage = {
 	slug: "building-and-rojo",
+	narrow: true,
 	title: "Building, and node maps",
 	summary: "How graphs become files, and files become instances.",
 	blocks: [

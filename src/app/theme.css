@@ -2837,3 +2837,41 @@ button.tb.with-icon {
 	background: color-mix(in srgb, var(--accent) 20%, transparent);
 	color: var(--fg);
 }
+
+/* ------------------------------------------------ docs: headings and measure */
+
+/* A heading can carry a right-aligned aside — a version's date, a status. The
+   heading stays the thing you read; the aside is the thing you check. */
+.docs-page .docs-content h2 {
+	display: flex;
+	align-items: baseline;
+	gap: 14px;
+}
+
+.docs-page .docs-content h2 .aside {
+	margin-left: auto;
+	font-size: 12px;
+	font-weight: 400;
+	color: var(--fg-faint);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* A page that is mostly prose sets its measure once, on the article, so the
+   rules, notes and paragraphs all share one right edge. A wide page caps its
+   paragraphs individually instead, because its tables want the full width. */
+.docs-page .docs-article.narrow { max-width: 78ch; }
+
+.docs-page .docs-article.narrow > p,
+.docs-page .docs-article.narrow > ul,
+.docs-page .docs-article.narrow > ol { max-width: none; }
+
+/* Release entries are ruled apart, the way Roblox rules its own. The version is
+   the heading; the date is the aside. */
+.docs-page .docs-content h2 {
+	border-top: 1px solid var(--border);
+	padding-top: 20px;
+	margin-top: 34px;
+}
+
+.docs-page .docs-content h2:first-of-type { border-top: 0; padding-top: 0; }
