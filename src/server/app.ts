@@ -22,8 +22,8 @@ import {
 	writeConfig, writeMap, writeScript,
 	type OpenProject,
 } from "./project.js";
-import { streamEvents } from "./events.js";
-import { revealInFileManager } from "./reveal.js";
+import { broadcastProject, streamEvents } from "./events.js";
+import { openInEditor, revealInFileManager } from "./reveal.js";
 import { VERSION } from "../cli/version.js";
 import { HotReloader } from "./watcher.js";
 import { emptyMap, type NodeMap } from "../core/nodemap.js";
@@ -93,6 +93,73 @@ function requireQuery(req: express.Request, name: string): string {
 	return value;
 }
 
+/**
+ * The project a request believes it is talking to.
+ *
+ * One editor tab, one daemon, one project — and the daemon can be pointed at a
+ * different project while a tab is still open on the old one. When that
+ * happened the tab went on autosaving its document against whatever root the
+ * daemon now served, and the graph was written into the wrong repository. Two
+ * stray files turned up in `examples/demo` that way, and nothing had gone
+ * wrong from either side's point of view.
+ *
+ * So every request that writes carries the root it thinks is open, and a
+ * mismatch is refused rather than obeyed. The header is what the daemon itself
+ * handed the client, so an exact comparison is right: normalising here would
+ * only invent ways for two spellings of the same path to disagree.
+ *
+ * A client that sends no header is an older one, and is let through — the guard
+ * is a safety net for a race, not an authentication scheme.
+ */
+const PROJECT_HEADER = "x-roswaal-project";
+
+/**
+ * Deliberately changes the project, so it cannot be asked to match the old one.
+ *
+ * Paths are relative to the `/api` mount, because that is what `req.path` is
+ * inside the middleware — spelling them in full here would have matched nothing
+ * and quietly locked the editor out of switching projects at all.
+ */
+const SWITCHES_PROJECT = new Set(["/project/open", "/project/init"]);
+
+/**
+ * Whether this request must be refused because it belongs to another project.
+ *
+ * A pure decision, exported so it can be tested: an integration test would have
+ * to bind a port, and what is actually worth pinning down is which requests the
+ * guard lets through. Getting that wrong in either direction is bad — too
+ * strict and the editor cannot switch projects at all, too loose and the bug it
+ * exists for comes back.
+ */
+export function refusesRequest(
+	method: string, routePath: string, claimed: string | undefined, open: string | null,
+): boolean {
+	// Reading is harmless: the worst case is showing the new project's files,
+	// which is what the tab is about to be told to do anyway.
+	if (method === "GET" || method === "HEAD") return false;
+	// The two routes whose whole job is to change the answer, and shutdown,
+	// which is not about a project at all.
+	if (SWITCHES_PROJECT.has(routePath) || routePath === "/shutdown") return false;
+	// No claim means an older client. The guard is a safety net for a race, not
+	// an authentication scheme, so it does not lock anyone out.
+	if (!claimed || !open) return false;
+	return claimed !== open;
+}
+
+app.use("/api", (req, res, next) => {
+	const claimed = req.header(PROJECT_HEADER);
+	if (!refusesRequest(req.method, req.path, claimed, current?.root ?? null)) return next();
+
+	res.status(409).json({
+		code: "project-changed",
+		root: current!.root,
+		error:
+			`This editor is open on ${claimed}, and the daemon is now serving ` +
+			`${current!.root}. Nothing was written. Reload to follow the daemon, or ` +
+			`point it back at the project you were working in.`,
+	});
+});
+
 // ---------------------------------------------------------------------------
 // Project
 // ---------------------------------------------------------------------------
@@ -117,11 +184,31 @@ app.get("/api/project", route(async () => {
 	};
 }));
 
+/**
+ * What is at a path, before anything is opened.
+ *
+ * The picker used to offer Open and Initialise side by side and let the
+ * developer guess which one their directory wanted. Asking first means one
+ * button that says the right thing, and a typo reported as a typo rather than
+ * as a failure to open.
+ */
+app.get("/api/project/inspect", route(async (req) => {
+	const root = path.resolve(requireQuery(req, "root"));
+	const stat = await fs.promises.stat(root).catch(() => null);
+	if (!stat) return { root, exists: false as const, directory: false, initialised: false };
+	if (!stat.isDirectory()) {
+		return { root, exists: true as const, directory: false, initialised: false };
+	}
+	const initialised = fs.existsSync(path.join(root, "roswaal.json"));
+	return { root, exists: true as const, directory: true, initialised };
+}));
+
 app.post("/api/project/open", route(async (req) => {
 	const root = String((req.body as { root?: string }).root ?? "");
 	if (!root) throw new HttpError(400, "Provide a project root.");
 	current = await openProject(root);
 	syncHotReload();
+	broadcastProject(current.root);
 	return {
 		root: current.root,
 		config: current.config,
@@ -136,6 +223,7 @@ app.post("/api/project/init", route(async (req) => {
 	await initProject(root);
 	current = await openProject(root);
 	syncHotReload();
+	broadcastProject(current.root);
 	return {
 		root: current.root,
 		config: current.config,
@@ -279,6 +367,23 @@ app.post("/api/entry/reveal", route(async (req) => {
 	const { path: relPath } = req.body as { path?: string };
 	await revealInFileManager(relPath ? safeJoin(p.root, relPath) : p.root);
 	return { ok: true };
+}));
+
+/**
+ * Hands a file to the developer's own editor.
+ *
+ * Roswaal owns the graphs; it does not want to own the Luau somebody wrote by
+ * hand, and showing that file read-only while offering no way out of the
+ * read-only view is a dead end. The daemon is the only part that can reach the
+ * shell, and it resolves the path against the project root before spawning
+ * anything — see `openInEditor`, which never goes through a shell.
+ */
+app.post("/api/entry/edit", route(async (req) => {
+	const p = project();
+	const relPath = String((req.body as { path?: string }).path ?? "");
+	if (!relPath) throw new HttpError(400, "Provide a path.");
+	const editor = await openInEditor(safeJoin(p.root, relPath));
+	return { editor };
 }));
 
 app.post("/api/entry/rename", route(async (req) => {

@@ -52,6 +52,8 @@
 
 @media (prefers-color-scheme: dark) {
 	:root {
+		color-scheme: dark;
+
 		--bg-app: #16181d;
 		--bg-panel: #1b1e24;
 		--bg-canvas: #101216;
@@ -111,6 +113,33 @@ select,
 textarea {
 	font: inherit;
 	color: inherit;
+}
+
+/* The list a <select> opens is a browser widget, not part of this page, and it
+ * was rendering light under a dark app — unhovered entries close to invisible,
+ * because only the hovered one got a system highlight to rescue it.
+ *
+ * **The colours here are literals on purpose.** Chromium paints that popup
+ * outside the document, and custom properties do not resolve there: with
+ * `var(--bg-input)` the popup stays light, and with the same colour written out
+ * it does not. The computed style on the option is correct either way, so this
+ * is invisible to devtools and only shows up by opening the thing and looking.
+ *
+ * Which means these four values are a copy of four tokens and will not follow
+ * them. They are the input surface in each theme; change one, change the other.
+ */
+select option,
+select optgroup {
+	background-color: #ffffff;
+	color: #1c1f24;
+}
+
+@media (prefers-color-scheme: dark) {
+	select option,
+	select optgroup {
+		background-color: #23272f;
+		color: #e4e7ec;
+	}
 }
 
 /* ------------------------------------------------------------------ shell */
@@ -950,13 +979,160 @@ button.tb.primary:hover:not(:disabled) {
 	justify-content: center;
 }
 
-.source-view {
+/* ------------------------------------------------------------------ shell */
+
+.placeholder.shell {
+	place-content: start center;
+	padding-top: 12vh;
+	max-width: 640px;
+	margin: 0 auto;
+}
+
+.placeholder.shell .shell-note {
 	margin: 0;
-	padding: 14px 18px;
-	overflow: auto;
-	font: 12px/1.6 "Cascadia Mono", Consolas, monospace;
-	background: var(--bg-canvas);
+	font-size: 12px;
+	color: var(--fg-faint);
+	min-height: 18px;
+}
+
+.shell-recent {
+	margin-top: 18px;
+	text-align: left;
+	border-top: 1px solid var(--border);
+	padding-top: 14px;
+}
+
+.shell-recent-head {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+	margin-bottom: 6px;
+}
+
+.shell-recent-row {
+	display: flex;
+	align-items: stretch;
+	gap: 4px;
+}
+
+.shell-recent-open {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	align-items: flex-start;
+	background: none;
+	border: 1px solid transparent;
+	border-radius: 5px;
+	padding: 6px 8px;
+	cursor: pointer;
+	text-align: left;
+	color: inherit;
+	font: inherit;
+}
+
+.shell-recent-open:hover {
+	background: var(--bg-hover);
+	border-color: var(--border);
+}
+
+.shell-recent-open .name {
+	font-size: 13px;
+	color: var(--fg);
+}
+
+/* The full path is the thing that disambiguates two folders with the same
+   name, so it is shown rather than hidden behind a tooltip — and truncated at
+   the left, because the end of a path is the part that identifies it. */
+.shell-recent-open .path {
+	font-size: 11px;
+	color: var(--fg-faint);
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	direction: rtl;
+	text-align: left;
+}
+
+.shell-recent-forget {
+	flex: none;
+	background: none;
+	border: 1px solid transparent;
+	border-radius: 5px;
+	padding: 0 8px;
+	color: var(--fg-faint);
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.shell-recent-forget:hover {
+	background: var(--bg-hover);
+	border-color: var(--border);
+	color: var(--fg);
+}
+
+/* ------------------------------------------------------- .luau source view */
+
+.source {
+	display: grid;
+	grid-template-rows: auto auto 1fr;
+	min-height: 0;
 	height: 100%;
+	background: var(--bg-canvas);
+}
+
+.source-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	background: var(--bg-panel);
+	border-bottom: 1px solid var(--border);
+}
+
+.source-head .name {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--fg);
+}
+
+.source-head .badge {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 1px 7px;
+	color: var(--fg-muted);
+}
+
+/* Generated files are Roswaal's, and saying so in the accent colour it uses
+   for its own output everywhere else saves reading the word. */
+.source-head .badge.generated {
+	border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+	color: var(--accent);
+}
+
+.source-head .meta {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.source-note {
+	margin: 0;
+	padding: 6px 12px;
+	font-size: 11px;
+	color: var(--fg-faint);
+	background: var(--bg-panel);
+	border-bottom: 1px solid var(--border);
+}
+
+.source-body {
+	min-height: 0;
+	overflow: hidden;
 }
 
 /* -------------------------------------------------------------- inspector */

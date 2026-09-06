@@ -16,6 +16,22 @@ function frame(event: string, data: unknown): string {
 	return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
+/**
+ * Every open stream, so a change to which project is open can be pushed to all
+ * of them.
+ *
+ * A hot-reload event is about one file and comes from the watcher; this is
+ * about the daemon as a whole, and every tab needs it at once. Pointing the
+ * daemon at another project used to leave a tab quietly editing a document that
+ * no longer belonged to it, and the tab had no way to find out.
+ */
+const streams = new Set<Response>();
+
+/** Tells every open editor that the daemon now serves a different project. */
+export function broadcastProject(root: string | null): void {
+	for (const res of streams) res.write(frame("project", { root }));
+}
+
 export function streamEvents(hot: HotReloader, req: Request, res: Response): void {
 	res.writeHead(200, {
 		"Content-Type": "text/event-stream",

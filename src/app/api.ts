@@ -38,13 +38,42 @@ export interface CompileOutcome {
 	code: string;
 }
 
+/**
+ * The project this tab believes is open, sent with every request that writes.
+ *
+ * The daemon serves one project at a time and can be pointed at another one
+ * while this tab is still open on the old one. Without this the tab went on
+ * autosaving into whatever repository the daemon had moved to, which is how two
+ * stray graphs ended up in `examples/demo`. The daemon refuses a mismatch, so
+ * the worst case is a save that does not happen and says why.
+ */
+let projectRoot: string | null = null;
+
+/** Thrown when the daemon has moved to a different project under this tab. */
+export class ProjectChangedError extends Error {
+	constructor(message: string, readonly root: string) {
+		super(message);
+		this.name = "ProjectChangedError";
+	}
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
 	const response = await fetch(url, {
-		headers: { "Content-Type": "application/json" },
 		...init,
+		headers: {
+			"Content-Type": "application/json",
+			...(projectRoot ? { "X-Roswaal-Project": projectRoot } : {}),
+			...init?.headers,
+		},
 	});
 	const payload = await response.json().catch(() => ({ error: response.statusText }));
-	if (!response.ok) throw new Error((payload as { error?: string }).error ?? "Request failed");
+	if (!response.ok) {
+		const body = payload as { error?: string; code?: string; root?: string };
+		if (body.code === "project-changed") {
+			throw new ProjectChangedError(body.error ?? "The project changed.", body.root ?? "");
+		}
+		throw new Error(body.error ?? "Request failed");
+	}
 	return payload as T;
 }
 
@@ -52,11 +81,21 @@ const post = <T>(url: string, body: unknown) =>
 	request<T>(url, { method: "POST", body: JSON.stringify(body) });
 
 export const api = {
+	/** Called whenever a project is opened, so writes can be guarded. */
+	setProjectRoot: (root: string | null) => {
+		projectRoot = root;
+	},
+
 	health: () => request<{ ok: boolean; project: string | null }>("/api/health"),
 
 	/** What the daemon already has open, if `roswaal serve` opened one. */
 	currentProject: () =>
 		request<({ open: false } | ({ open: true } & ProjectInfo))>("/api/project"),
+	/** What is at a path, before committing to opening it. */
+	inspectProject: (root: string) =>
+		request<{ root: string; exists: boolean; directory: boolean; initialised: boolean }>(
+			`/api/project/inspect?root=${encodeURIComponent(root)}`,
+		),
 	openProject: (root: string) => post<ProjectInfo>("/api/project/open", { root }),
 	initProject: (root: string) => post<ProjectInfo>("/api/project/init", { root }),
 	saveConfig: (config: RoswaalConfig) =>
@@ -101,6 +140,8 @@ export const api = {
 		request<{ location: InstanceLocation | null }>(`/api/resolve?path=${encodeURIComponent(path)}`),
 	/** Shows a file in the OS file manager. Empty path reveals the project root. */
 	reveal: (path?: string) => post<{ ok: true }>("/api/entry/reveal", { path }),
+	/** Hands a file to VS Code. Resolves with the editor it found. */
+	openInEditor: (path: string) => post<{ editor: string }>("/api/entry/edit", { path }),
 	renameEntry: (path: string, name: string) =>
 		post<{ path: string }>("/api/entry/rename", { path, name }),
 

@@ -13,10 +13,14 @@ import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { VERSION } from "../cli/version.js";
 import { createRegistry } from "../core/nodes/index.js";
 import type { NodeDef, RoswaalConfig, ScriptClass } from "../core/schema.js";
-import { api, type CompileOutcome, type MapOutcome, type ProjectInfo, type TreeEntry } from "./api.js";
+import {
+	api, ProjectChangedError,
+	type CompileOutcome, type MapOutcome, type ProjectInfo, type TreeEntry,
+} from "./api.js";
 import type { InstanceLocation, NodeMap } from "../core/nodemap.js";
 import { MapEditor } from "./MapEditor.jsx";
 import { CodeEditor } from "./CodeEditor.jsx";
+import { SourceView, type SourceDoc } from "./SourceView.jsx";
 import { Dialog, type DialogRequest, type DialogResult, type PendingDialog } from "./Dialog.jsx";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
@@ -36,6 +40,38 @@ import {
 import { store, useEditor } from "./store.js";
 
 const LAST_PROJECT_KEY = "roswaal.lastProject";
+/**
+ * Projects opened before, most recent first.
+ *
+ * Typing an absolute path into a text field is fine once and tiresome the
+ * fourth time, and a repository you work in is a repository you come back to.
+ * Per-browser rather than in the config: which projects *you* have open is not
+ * something to commit.
+ */
+const RECENT_KEY = "roswaal.recentProjects";
+const RECENT_LIMIT = 6;
+
+function recentProjects(): string[] {
+	try {
+		const raw = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]") as unknown;
+		return Array.isArray(raw) ? raw.filter((r): r is string => typeof r === "string") : [];
+	} catch {
+		return [];
+	}
+}
+
+/** Moves a root to the front of the list, keeping it short and unique. */
+function remember(root: string): void {
+	localStorage.setItem(LAST_PROJECT_KEY, root);
+	const next = [root, ...recentProjects().filter((r) => r !== root)].slice(0, RECENT_LIMIT);
+	localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+}
+
+/** Drops one from the list, for a path that is no longer there. */
+function forget(root: string): void {
+	localStorage.setItem(RECENT_KEY, JSON.stringify(recentProjects().filter((r) => r !== root)));
+	if (localStorage.getItem(LAST_PROJECT_KEY) === root) localStorage.removeItem(LAST_PROJECT_KEY);
+}
 /**
  * Whether Realign straightens the execution spine. A per-developer preference
  * rather than a document one: it is a habit of reading, not a property of the
@@ -57,7 +93,7 @@ export function App() {
 	const [alignExec, setAlignExec] = useState(
 		() => localStorage.getItem(ALIGN_EXEC_KEY) !== "off",
 	);
-	const [source, setSource] = useState<{ path: string; text: string } | null>(null);
+	const [source, setSource] = useState<SourceDoc | null>(null);
 	// A node map is a tree, not a graph, so it lives beside the graph store
 	// rather than inside it. Nothing about undo or selection carries over.
 	const [mapDoc, setMapDoc] = useState<{ path: string; map: NodeMap; dirty: boolean } | null>(null);
@@ -111,8 +147,9 @@ export function App() {
 		setBusy("Opening project…");
 		try {
 			const info = init ? await api.initProject(root) : await api.openProject(root);
+			api.setProjectRoot(info.root);
 			setProject(info);
-			localStorage.setItem(LAST_PROJECT_KEY, info.root);
+			remember(info.root);
 			setCustomNodes((await api.customNodes()).custom);
 		} catch (err) {
 			notify("Something went wrong", (err as Error).message);
@@ -128,8 +165,9 @@ export function App() {
 			try {
 				const existing = await api.currentProject();
 				if (existing.open) {
+					api.setProjectRoot(existing.root);
 					setProject(existing);
-					localStorage.setItem(LAST_PROJECT_KEY, existing.root);
+					remember(existing.root);
 					setCustomNodes((await api.customNodes()).custom);
 					return;
 				}
@@ -141,11 +179,21 @@ export function App() {
 		})();
 	}, [loadProject]);
 
-	// Hot reload events, so a compile triggered by a branch switch or another
-	// editor shows up here rather than leaving the tree stale.
+	/**
+	 * The daemon's event stream.
+	 *
+	 * Open whenever a project is, rather than only in hot mode, because it now
+	 * carries two kinds of news. Hot-reload events say a compile happened that
+	 * this tab did not ask for — a branch switch, a pull, another editor — and
+	 * only ever arrive when the watcher is running. The `project` event says the
+	 * daemon has been pointed somewhere else, and a tab that does not hear that
+	 * goes on editing a document belonging to a project it is no longer serving.
+	 */
 	useEffect(() => {
-		if (!project || project.config.compileMode !== "hot") return;
+		if (!project) return;
+		const open = project.root;
 		const stream = new EventSource("/api/events");
+
 		stream.addEventListener("hot", (event) => {
 			const detail = JSON.parse((event as MessageEvent).data) as {
 				type: string; path: string; outcome?: CompileOutcome; message?: string;
@@ -153,8 +201,24 @@ export function App() {
 			if (detail.outcome) setOutcomes([detail.outcome]);
 			void api.tree().then(({ tree }) => setProject((p) => (p ? { ...p, tree } : p)));
 		});
+
+		stream.addEventListener("project", (event) => {
+			const { root } = JSON.parse((event as MessageEvent).data) as { root: string | null };
+			// The tab that asked for the switch has already followed it.
+			if (!root || root === open) return;
+			store.close();
+			setSource(null);
+			setMapDoc(null);
+			notify(
+				"Following the daemon to another project",
+				`The daemon is now serving ${root}. Anything open here belonged to ${open}, ` +
+					"so it has been closed rather than saved into the new one.",
+			);
+			void loadProject(root);
+		});
+
 		return () => stream.close();
-	}, [project?.root, project?.config.compileMode]);
+	}, [project?.root, notify, loadProject]);
 
 	const refreshTree = useCallback(async () => {
 		const { tree } = await api.tree();
@@ -166,7 +230,11 @@ export function App() {
 	const openEntry = useCallback(async (entry: TreeEntry) => {
 		if (entry.kind === "luau") {
 			setMapDoc(null);
-			setSource({ path: entry.path, text: (await api.readSource(entry.path)).text });
+			setSource({
+				path: entry.path,
+				text: (await api.readSource(entry.path)).text,
+				generatedFrom: entry.generatedFrom,
+			});
 			return;
 		}
 		setSource(null);
@@ -181,6 +249,24 @@ export function App() {
 		store.open(entry.path, script);
 	}, []);
 
+	/**
+	 * Opens a graph by path rather than by tree entry.
+	 *
+	 * A generated file knows the graph it came from as a path and nothing more,
+	 * and hunting for that entry in the tree to open it the long way round would
+	 * be work for its own sake.
+	 */
+	const openGraphPath = useCallback(async (path: string) => {
+		try {
+			const { script } = await api.readScript(path);
+			setSource(null);
+			setMapDoc(null);
+			store.open(path, script);
+		} catch (err) {
+			notify("Could not open that graph", (err as Error).message);
+		}
+	}, [notify]);
+
 	// Node maps autosave on the same terms graphs do.
 	const mapSaveTimer = useRef<number | null>(null);
 	useEffect(() => {
@@ -190,13 +276,44 @@ export function App() {
 		mapSaveTimer.current = window.setTimeout(() => {
 			void api.writeMap(path, map).then(
 				() => setMapDoc((d) => (d && d.path === path ? { ...d, dirty: false } : d)),
-				(err: Error) => notify("Could not save", err.message),
+				onWriteFailed,
 			);
 		}, AUTOSAVE_MS);
 		return () => {
 			if (mapSaveTimer.current) window.clearTimeout(mapSaveTimer.current);
 		};
 	}, [mapDoc]);
+
+	/**
+	 * A write the daemon refused because it is now serving a different project.
+	 *
+	 * Nothing was written, which is the point — before the guard existed this
+	 * was a silent success into the wrong repository. The document is closed
+	 * rather than kept open over a project it no longer belongs to, because the
+	 * next keystroke would try to save it again.
+	 */
+	const onProjectChanged = useCallback(
+		async (err: ProjectChangedError) => {
+			store.close();
+			setSource(null);
+			setMapDoc(null);
+			notify(
+				"The daemon moved to another project",
+				`${err.message} Nothing was written to either project.`,
+			);
+			if (err.root) await loadProject(err.root);
+		},
+		[notify, loadProject],
+	);
+
+	/** Reports a failed write, telling a moved project apart from a real error. */
+	const onWriteFailed = useCallback(
+		(err: Error) => {
+			if (err instanceof ProjectChangedError) void onProjectChanged(err);
+			else notify("Could not save", err.message);
+		},
+		[notify, onProjectChanged],
+	);
 
 	// Autosave. The graph on disk is the document; there is no separate "saved"
 	// copy to diverge from, so an explicit save button would only be ceremony.
@@ -212,7 +329,7 @@ export function App() {
 					store.markSaved();
 					if (project?.config.compileMode === "hot") void runCompile(path, true);
 				},
-				(err: Error) => notify("Could not save", err.message),
+				onWriteFailed,
 			);
 		}, AUTOSAVE_MS);
 		return () => {
@@ -762,7 +879,19 @@ export function App() {
 						onChange={(next) => setMapDoc({ ...mapDoc, map: next, dirty: true })}
 					/>
 				) : source ? (
-					<pre className="source-view">{source.text}</pre>
+					<SourceView
+						doc={source}
+						onOpenGraph={(path) => void openGraphPath(path)}
+						onEdit={async (path) => {
+							try {
+								const { editor: found } = await api.openInEditor(path);
+								notify("Handed over", `Opened ${path.split("/").pop()} in ${found}.`);
+							} catch (err) {
+								notify("Could not open it", (err as Error).message);
+							}
+						}}
+						onReveal={(path) => void api.reveal(path)}
+					/>
 				) : editor.script ? (
 					<Canvas
 						script={editor.script}
@@ -978,30 +1107,111 @@ function DropMenu({ screen, name, location, onPick, onClose }: DropMenuProps) {
 	);
 }
 
+/**
+ * The shell: what Roswaal is before it has a project.
+ *
+ * Two changes from typing a path into a box and hoping. The path is **inspected
+ * before it is opened**, so one button says the right thing — Open a project
+ * that is already one, Initialise a directory that is not, and a typo is
+ * reported as a typo rather than as a failure to open. And projects you have
+ * opened before are listed, because a repository you work in is one you come
+ * back to and an absolute path is not something to retype.
+ */
 function ProjectPicker({
 	onOpen, busy,
 }: { onOpen: (root: string, init?: boolean) => void; busy: string | null }) {
 	const [root, setRoot] = useState("");
+	const [recent, setRecent] = useState<string[]>(() => recentProjects());
+	const [look, setLook] = useState<
+		{ exists: boolean; directory: boolean; initialised: boolean } | null
+	>(null);
+
+	// Asked as you type, and only about what you have typed — the daemon reads
+	// one directory entry, so there is nothing to debounce harder than this.
+	const typed = root.trim();
+	useEffect(() => {
+		if (typed === "") {
+			setLook(null);
+			return;
+		}
+		let live = true;
+		const id = window.setTimeout(() => {
+			void api.inspectProject(typed).then(
+				(info) => live && setLook(info),
+				() => live && setLook(null),
+			);
+		}, 250);
+		return () => {
+			live = false;
+			window.clearTimeout(id);
+		};
+	}, [typed]);
+
+	const verdict =
+		typed === "" ? null
+		: look === null ? { can: false, label: "Open", note: "" }
+		: !look.exists ? { can: false, label: "Open", note: "There is nothing at that path." }
+		: !look.directory ? { can: false, label: "Open", note: "That is a file, not a directory." }
+		: look.initialised
+			? { can: true, label: "Open", note: "A Roswaal project. Opens where you left it." }
+			: {
+				can: true, label: "Initialise",
+				note: "Not a Roswaal project yet. Initialising writes a roswaal.json and nothing else.",
+			};
+
+	const go = () => {
+		if (verdict?.can) onOpen(typed, verdict.label === "Initialise");
+	};
+
 	return (
-		<div className="placeholder">
+		<div className="placeholder shell">
 			<h1>Roswaal</h1>
 			<p>Open a Roblox or Lune repository. Roswaal writes Luau into it; Rojo does the rest.</p>
+
 			<div className="row">
 				<input
 					className="tb"
 					style={{ width: 420, cursor: "text" }}
 					placeholder={"C:" + SEP + "path" + SEP + "to" + SEP + "project"}
 					value={root}
+					autoFocus
 					onChange={(e) => setRoot(e.target.value)}
-					onKeyDown={(e) => e.key === "Enter" && root && onOpen(root)}
+					onKeyDown={(e) => e.key === "Enter" && go()}
 				/>
-				<button className="tb primary" disabled={!root || !!busy} onClick={() => onOpen(root)}>
-					Open
-				</button>
-				<button className="tb" disabled={!root || !!busy} onClick={() => onOpen(root, true)}>
-					Initialise
+				<button
+					className="tb primary"
+					disabled={!verdict?.can || !!busy}
+					onClick={go}
+				>
+					{verdict?.label ?? "Open"}
 				</button>
 			</div>
+			{verdict?.note && <p className="shell-note">{verdict.note}</p>}
+
+			{recent.length > 0 && (
+				<div className="shell-recent">
+					<div className="shell-recent-head">Recent</div>
+					{recent.map((path) => (
+						<div key={path} className="shell-recent-row">
+							<button className="shell-recent-open" disabled={!!busy} onClick={() => onOpen(path)}>
+								<span className="name">{path.split(/[\/]/).filter(Boolean).pop()}</span>
+								<span className="path">{path}</span>
+							</button>
+							<button
+								className="shell-recent-forget"
+								title="Remove from this list"
+								onClick={() => {
+									forget(path);
+									setRecent(recentProjects());
+								}}
+							>
+								×
+							</button>
+						</div>
+					))}
+				</div>
+			)}
+
 			{busy && <p>{busy}</p>}
 		</div>
 	);
