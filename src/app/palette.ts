@@ -16,6 +16,10 @@ const CATEGORY_COLORS: Record<string, string> = {
 	Variables: "#2f6f8f",
 	Values: "#3a7a5c",
 	Math: "#43689b",
+	// Close to Math, because vector arithmetic is arithmetic — but distinct
+	// enough that a maths graph and a transform graph do not read as one thing.
+	Vectors: "#3c7f8f",
+	CFrames: "#8a5a2c",
 	Logic: "#575a9e",
 	Strings: "#84509b",
 	Tables: "#9a6c36",

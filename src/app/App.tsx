@@ -30,7 +30,8 @@ import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
 import {
 	addComment, addNode, copySelection, deleteSelection, disconnectPin, pasteClipping,
-	promoteToVariable, setConfig as setNodeConfig, setLiteral, type Clipping,
+	promoteToVariable, recombinePin, setConfig as setNodeConfig, setLiteral, splitCost,
+	splitPin, type Clipping,
 } from "./edits.js";
 import { store, useEditor } from "./store.js";
 
@@ -334,6 +335,42 @@ export function App() {
 			store.select([result.node]);
 		},
 		[registry],
+	);
+
+	/**
+	 * Breaks a struct pin into components, or puts one back.
+	 *
+	 * Either direction can strand wires — there is nowhere for them to land on
+	 * the other side of the change. Unreal drops them without asking; here more
+	 * than one gets a confirmation, because a graph you cannot see all at once
+	 * should not lose wiring silently.
+	 */
+	const splitOrRecombine = useCallback(
+		async (target: PinMenuTarget, parent: string | undefined, mode: string | undefined) => {
+			const state = store.getSnapshot();
+			if (!state.script) return;
+
+			const pinId = parent ?? target.pin.id;
+			const stranded = splitCost(state.script, registry, target.nodeId, target.side, pinId);
+			if (stranded > 1) {
+				const ok = await ask({
+					kind: "confirm",
+					title: mode ? "Split this pin?" : "Recombine this pin?",
+					message:
+						`${stranded} wires are attached and cannot follow the change. ` +
+						"They will be disconnected; the values typed into the pins are kept.",
+					confirmLabel: mode ? "Split" : "Recombine",
+				});
+				if (ok !== true) return;
+			}
+
+			store.edit((s) =>
+				mode !== undefined
+					? splitPin(s, target.nodeId, target.side, pinId, mode)
+					: recombinePin(s, registry, target.nodeId, target.side, pinId),
+			);
+		},
+		[registry, ask],
 	);
 
 	const toggleAlignExec = useCallback(() => {
@@ -829,6 +866,8 @@ export function App() {
 							disconnectPin(s, pinMenu.nodeId, pinMenu.pin.id, pinMenu.side),
 						)
 					}
+					onSplit={(mode) => void splitOrRecombine(pinMenu, undefined, mode)}
+					onRecombine={(parent) => void splitOrRecombine(pinMenu, parent, undefined)}
 					onClose={() => setPinMenu(null)}
 				/>
 			)}

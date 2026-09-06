@@ -10,7 +10,8 @@ import { describe, expect, it } from "vitest";
 
 import { createRegistry, literalOnlyPins } from "../src/core/nodes/index.js";
 import {
-	canConnect, canPromoteToVariable, connect, promoteToVariable, setLiteral,
+	canConnect, canPromoteToVariable, connect, promoteToVariable, recombinePin,
+	setLiteral, splitCost, splitModesFor, splitPin,
 } from "../src/app/edits.js";
 import { pinPosition } from "../src/app/geometry.js";
 import type { NodeScript, PinDef } from "../src/core/schema.js";
@@ -61,6 +62,90 @@ describe("literal-only pins", () => {
 			{ node: get, pin: "property" },
 		);
 		expect(after.links).toHaveLength(0);
+	});
+});
+
+describe("splitting and recombining a pin", () => {
+	it("offers a mode per decomposition the type has", () => {
+		const from = inputPin("cframe.lookAt", "from");
+		expect(splitModesFor(from).map((m) => m.id)).toEqual(["xyz"]);
+
+		const cf = inputPin("cframe.mul", "a");
+		expect(splitModesFor(cf).map((m) => m.id)).toEqual(["transform", "axes", "components"]);
+
+		// Not every type comes apart.
+		expect(splitModesFor(inputPin("debug.print", "value"))).toEqual([]);
+	});
+
+	it("records the split against the side as well as the pin", () => {
+		const b = new Builder();
+		const look = b.node("cframe.lookAt");
+
+		const after = splitPin(b.build(), look, "in", "from", "xyz");
+		const node = after.nodes.find((n) => n.id === look)!;
+		expect(node.config).toEqual({ split: { "in:from": "xyz" } });
+	});
+
+	/** The whole pin is gone, so a wire to it has nowhere to land. */
+	it("drops the wire that was on the pin being split", () => {
+		const b = new Builder();
+		const look = b.node("cframe.lookAt");
+		const zero = b.node("vector3.zero");
+		b.link(zero, "result", look, "from");
+
+		const script = b.build();
+		expect(splitCost(script, registry, look, "in", "from")).toBe(1);
+
+		const after = splitPin(script, look, "in", "from", "xyz");
+		expect(after.links).toHaveLength(0);
+	});
+
+	it("drops the components' wires when putting a pin back together", () => {
+		const b = new Builder();
+		const look = b.node("cframe.lookAt", { config: { split: { "in:from": "xyz" } } });
+		const a = b.node("math.add");
+		const c = b.node("math.add");
+		b.link(a, "result", look, "from.x");
+		b.link(c, "result", look, "from.z");
+
+		const script = b.build();
+		expect(splitCost(script, registry, look, "in", "from")).toBe(2);
+
+		const after = recombinePin(script, registry, look, "in", "from");
+		expect(after.links).toHaveLength(0);
+		expect(after.nodes.find((n) => n.id === look)!.config?.split).toBeUndefined();
+	});
+
+	/**
+	 * Splitting again should bring the numbers straight back, so the values are
+	 * kept even though the pins holding them have gone. They cost nothing to
+	 * carry and losing them is the annoying half of a mis-click.
+	 */
+	it("keeps the values typed into the components", () => {
+		const b = new Builder();
+		const look = b.node("cframe.lookAt", { config: { split: { "in:from": "xyz" } } });
+		b.lit(look, "from.y", { t: "number", v: 7 });
+
+		const script = b.build();
+		const back = splitPin(
+			recombinePin(script, registry, look, "in", "from"),
+			look, "in", "from", "xyz",
+		);
+		expect(back.nodes.find((n) => n.id === look)!.literals).toEqual({
+			"from.y": { t: "number", v: 7 },
+		});
+	});
+
+	it("leaves the other side alone when both sides share a pin id", () => {
+		const b = new Builder();
+		const service = b.node("roblox.getService");
+
+		// Get Service takes a `service` and gives one back; splitting is keyed by
+		// side so touching one cannot disturb the other.
+		const after = splitPin(b.build(), service, "out", "service", "xyz");
+		expect(after.nodes.find((n) => n.id === service)!.config).toEqual({
+			split: { "out:service": "xyz" },
+		});
 	});
 });
 

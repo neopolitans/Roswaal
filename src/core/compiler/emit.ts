@@ -22,6 +22,9 @@ import type { Signature } from "../nodes/flow.js";
 import type { FunctionRef, VariableRef } from "../nodes/variables.js";
 import { isService as isRobloxService, lastSegment, renderPath } from "../roblox.js";
 import type { Registry } from "../nodes/index.js";
+import {
+	modeOf, partPinId, splitKey, splitPinId, splitsOf, STRUCTS, type StructMode,
+} from "../structs.js";
 
 export interface Diagnostic {
 	severity: "error" | "warning";
@@ -442,7 +445,7 @@ class Emitter {
 	}
 
 	private emitCall(r: ResolvedNode, template: string, resultPin: string, scope: Scope): string | undefined {
-		const pin = r.outputs.find((p) => p.id === resultPin);
+		const pin = r.baseOutputs.find((p) => p.id === resultPin);
 		const consumed = this.index.consumerCount(r.node.id, resultPin) > 0;
 		const rendered = this.renderTemplate(r, template, scope);
 
@@ -464,7 +467,7 @@ class Emitter {
 	}
 
 	private emitStatement(r: ResolvedNode, template: string, scope: Scope): string | undefined {
-		const outs = r.outputs.filter(
+		const outs = r.baseOutputs.filter(
 			(p) => p.kind === "data" && this.index.consumerCount(r.node.id, p.id) > 0,
 		);
 		for (const pin of outs) {
@@ -871,11 +874,73 @@ class Emitter {
 
 	// -- data resolution ---------------------------------------------------
 
+	/**
+	 * A pin as the node's own templates name it — the shape before splitting.
+	 * `$in.position` still means the whole Vector3 even when the instance has
+	 * broken it into three wireable component pins.
+	 */
 	private pin(r: ResolvedNode, pinId: string, dir: "in" | "out"): PinDef {
-		const list = dir === "in" ? r.inputs : r.outputs;
+		const list = dir === "in" ? r.baseInputs : r.baseOutputs;
 		const found = list.find((p) => p.id === pinId);
 		if (found) return found;
 		return { id: pinId, name: pinId, kind: "data", type: "any" };
+	}
+
+	/** The split mode applied to one of a node's pins, if any. */
+	private splitOf(r: ResolvedNode, pinId: string, dir: "in" | "out"): StructMode | undefined {
+		const mode = splitsOf(r.node.config)[splitKey(dir, pinId)];
+		if (mode === undefined) return undefined;
+		return modeOf(STRUCTS, this.pin(r, pinId, dir).type, mode);
+	}
+
+	/**
+	 * Rebuilds a split input from its components.
+	 *
+	 * Total by construction: a part left unwired contributes its literal, so
+	 * there is no way to ask for half a Vector3. That is what lets splitting be
+	 * purely presentational as far as the rest of the emitter is concerned —
+	 * the template still gets one expression for `$in.position`.
+	 */
+	private buildSplitInput(
+		r: ResolvedNode, parent: PinDef, mode: StructMode, scope: Scope,
+	): string {
+		const values = new Map<string, string>();
+		for (const part of mode.parts) {
+			const id = partPinId(parent.id, part.id);
+			const child =
+				r.inputs.find((p) => p.id === id) ??
+				({ id, name: part.name, kind: "data", type: part.type, default: part.default } as PinDef);
+			values.set(part.id, paren(this.resolveInput(r, child, scope)));
+		}
+		return mode.make.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (match, id: string) =>
+			values.get(id) ?? match,
+		);
+	}
+
+	/**
+	 * The whole value behind a split output, guaranteed to be an identifier.
+	 *
+	 * Always bound to a local, never inlined. A split output exists to have its
+	 * parts read separately, so inlining would rebuild the value once per part —
+	 * and it is the invariant every `get` template relies on, which is why `$v.X`
+	 * needs no defensive parentheses.
+	 */
+	private bindWhole(
+		src: ResolvedNode, parentPin: string, scope: Scope, consumer: ResolvedNode,
+	): string {
+		const existing = scope.lookup(`${src.node.id}/${parentPin}`);
+		if (existing) return existing;
+
+		const expr = this.resolveOutput(src.node.id, parentPin, scope, consumer);
+		if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(expr)) return expr;
+
+		// Named after the node, not the pin. A split output's pin is usually
+		// named for its type ("CFrame"), which both reads poorly as a local and
+		// collides with the global of that name — `local CFrame2 = ...`.
+		const ident = this.names.unique(src.node.label || src.def.title, "value");
+		this.push(`local ${ident} = ${expr}`, src.node.id);
+		scope.bindings.set(`${src.node.id}/${parentPin}`, ident);
+		return ident;
 	}
 
 	/**
@@ -883,6 +948,11 @@ class Emitter {
 	 * wired, otherwise the literal typed into it.
 	 */
 	private resolveInput(r: ResolvedNode, pin: PinDef, scope: Scope): string {
+		// Split into components: there is no wire and no literal on the pin
+		// itself any more, so the value is assembled from the parts.
+		const split = this.splitOf(r, pin.id, "in");
+		if (split) return this.buildSplitInput(r, pin, split, scope);
+
 		const link = this.index.sourceOf(r.node.id, pin.id);
 		if (!link) {
 			const lit = r.node.literals?.[pin.id] ?? pin.default;
@@ -911,6 +981,18 @@ class Emitter {
 		if (!src) {
 			this.error(`"${consumer.def.title}" reads from a node that no longer exists.`, consumer.node.id);
 			return "nil";
+		}
+
+		// Reading one component of a split output: bind the whole value once,
+		// then take the part off it.
+		const ref = splitPinId(pinId);
+		if (ref) {
+			const mode = this.splitOf(src, ref.parent, "out");
+			const part = mode?.parts.find((p) => p.id === ref.part);
+			if (part) {
+				const whole = this.bindWhole(src, ref.parent, scope, consumer);
+				return part.get.replace(/\$v\b/g, whole);
+			}
 		}
 
 		// A function entry's own name, so a function can be passed as a value.

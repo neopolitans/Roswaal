@@ -43,6 +43,14 @@ export interface PinDef {
 	 */
 	options?: string[];
 	description?: string;
+	/**
+	 * Set only on a pin produced by splitting a struct pin, never declared by a
+	 * `NodeDef`. Says which pin this is a component of, so the emitter can put
+	 * the value back together and the canvas can draw it as a child row.
+	 *
+	 * The pin's own id is `parent.id` — see `partPinId` in `structs.ts`.
+	 */
+	part?: { parent: string; mode: string; id: string };
 }
 
 // ---------------------------------------------------------------------------
@@ -143,7 +151,15 @@ export type Target = "roblox" | "lune";
 export type ScriptClass = "Script" | "LocalScript" | "ModuleScript";
 export type RunContext = "Server" | "Client" | "Legacy";
 
-/** Free-form per-node configuration (function signature, exports list, ...). */
+/**
+ * Free-form per-node configuration (function signature, exports list, ...).
+ *
+ * One key is understood by the registry rather than by any one node:
+ * `split` is a `SplitMap` — `{ "in:position": "xyz" }` — recording which struct
+ * pins this instance has broken into components, and in which mode. It is
+ * per-instance because two Vector nodes in one graph may want different
+ * answers. See `structs.ts`.
+ */
 export type NodeConfig = Record<string, unknown>;
 
 export interface GraphNode {

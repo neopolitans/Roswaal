@@ -9,6 +9,7 @@
 import { NODE } from "./layers.js";
 import type { GraphNode, NodeConfig, NodeDef, PinDef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
+import { resolveNodePins } from "../core/nodes/index.js";
 
 export interface Rect {
 	x: number;
@@ -22,9 +23,13 @@ export interface Vec {
 	y: number;
 }
 
+/**
+ * Re-exported through geometry because everything drawing a node already
+ * imports from here. The resolution itself lives in the registry, which is the
+ * only place that knows about splitting.
+ */
 export function resolvePins(def: NodeDef, config?: NodeConfig): { inputs: PinDef[]; outputs: PinDef[] } {
-	const derived = def.derivePins?.(config ?? {});
-	return derived ?? { inputs: def.inputs, outputs: def.outputs };
+	return resolveNodePins(def, config);
 }
 
 /**

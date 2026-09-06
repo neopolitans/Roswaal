@@ -11,7 +11,8 @@ import type {
 } from "../core/schema.js";
 import { ANY, WILDCARD } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
-import { literalOnlyPins } from "../core/nodes/index.js";
+import { literalOnlyPins, resolveNodePins } from "../core/nodes/index.js";
+import { modeOf, partPinId, splitKey, splitsOf, STRUCTS } from "../core/structs.js";
 import { compactWidth, nodeBounds, pinPosition, rectContains, type Rect } from "./geometry.js";
 import { NODE } from "./layers.js";
 import { newId } from "./store.js";
@@ -356,7 +357,7 @@ export function dropDanglingLinks(script: NodeScript): NodeScript {
 }
 
 function pinsOf(def: NodeDef, node: GraphNode) {
-	return def.derivePins?.(node.config ?? {}) ?? { inputs: def.inputs, outputs: def.outputs };
+	return resolveNodePins(def, node.config);
 }
 
 // ---------------------------------------------------------------------------
@@ -623,6 +624,123 @@ export function variableUsageCount(script: NodeScript, id: string): number {
  */
 export function deleteVariable(script: NodeScript, id: string): NodeScript {
 	return { ...script, variables: script.variables.filter((v) => v.id !== id) };
+}
+
+// ---------------------------------------------------------------------------
+// Splitting struct pins
+// ---------------------------------------------------------------------------
+
+/** The modes a pin can be split into, or empty if it is not a struct. */
+export function splitModesFor(pin: PinDef): { id: string; name: string }[] {
+	if (pin.kind !== "data" || pin.part) return [];
+	const struct = STRUCTS.get(pin.type ?? "");
+	if (!struct) return [];
+	return Object.entries(struct.modes).map(([id, mode]) => ({ id, name: mode.name }));
+}
+
+/** The split currently applied to a pin, if any. */
+export function splitModeOf(node: GraphNode, side: "in" | "out", pinId: string): string | undefined {
+	return splitsOf(node.config)[splitKey(side, pinId)];
+}
+
+/**
+ * Breaks a struct pin into one pin per component.
+ *
+ * The wire on the pin itself is dropped, because there is no longer a pin for
+ * it to land on. That is worth doing loudly rather than quietly, so the caller
+ * confirms first — see `splitCost`.
+ */
+export function splitPin(
+	script: NodeScript, nodeId: string, side: "in" | "out", pinId: string, mode: string,
+): NodeScript {
+	const node = script.nodes.find((n) => n.id === nodeId);
+	if (!node) return script;
+
+	const splits = { ...splitsOf(node.config), [splitKey(side, pinId)]: mode };
+	return dropLinksOn(
+		{
+			...script,
+			nodes: script.nodes.map((n) =>
+				n.id === nodeId ? { ...n, config: { ...n.config, split: splits } } : n,
+			),
+		},
+		nodeId, side, [pinId],
+	);
+}
+
+/**
+ * Puts a split pin back together.
+ *
+ * Wires on the components are dropped: the whole pin takes one wire and there
+ * is no sensible way to fold three sources into it. Unreal does the same. The
+ * literals typed into the components are kept, though — they cost nothing to
+ * carry and splitting again brings them straight back.
+ */
+export function recombinePin(
+	script: NodeScript, registry: Registry, nodeId: string, side: "in" | "out", pinId: string,
+): NodeScript {
+	const node = script.nodes.find((n) => n.id === nodeId);
+	if (!node) return script;
+
+	const splits = { ...splitsOf(node.config) };
+	const mode = splits[splitKey(side, pinId)];
+	if (mode === undefined) return script;
+	delete splits[splitKey(side, pinId)];
+
+	const parts = modeOf(STRUCTS, basePinOf(registry, node, side, pinId)?.type, mode)?.parts ?? [];
+
+	return dropLinksOn(
+		{
+			...script,
+			nodes: script.nodes.map((n) =>
+				n.id === nodeId
+					? { ...n, config: { ...n.config, split: Object.keys(splits).length ? splits : undefined } }
+					: n,
+			),
+		},
+		nodeId, side, parts.map((p) => partPinId(pinId, p.id)),
+	);
+}
+
+/** How many wires splitting or recombining this pin would drop. */
+export function splitCost(
+	script: NodeScript, registry: Registry, nodeId: string, side: "in" | "out", pinId: string,
+): number {
+	const node = script.nodes.find((n) => n.id === nodeId);
+	if (!node) return 0;
+
+	const mode = splitModeOf(node, side, pinId);
+	if (mode === undefined) return pinLinkCount(script, nodeId, pinId, side);
+
+	const parts = modeOf(STRUCTS, basePinOf(registry, node, side, pinId)?.type, mode)?.parts ?? [];
+	return parts.reduce(
+		(total, p) => total + pinLinkCount(script, nodeId, partPinId(pinId, p.id), side),
+		0,
+	);
+}
+
+/**
+ * A pin as the node declares it, before splitting — which is where a struct
+ * pin's type still lives once its components have replaced it.
+ */
+function basePinOf(
+	registry: Registry, node: GraphNode, side: "in" | "out", pinId: string,
+): PinDef | undefined {
+	const def = registry.get(node.def);
+	if (!def) return undefined;
+	const pins = resolveNodePins(def, node.config);
+	return (side === "in" ? pins.baseInputs : pins.baseOutputs).find((p) => p.id === pinId);
+}
+
+function dropLinksOn(
+	script: NodeScript, nodeId: string, side: "in" | "out", pinIds: string[],
+): NodeScript {
+	const drop = new Set(pinIds);
+	const links = script.links.filter((l) => {
+		const end = side === "in" ? l.to : l.from;
+		return !(end.node === nodeId && drop.has(end.pin));
+	});
+	return links.length === script.links.length ? script : { ...script, links };
 }
 
 /** Gap left between a promoted getter and the pin it feeds. */

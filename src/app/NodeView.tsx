@@ -231,7 +231,12 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 		</span>
 	);
 
-	const label = pin.name ? <span className="pin-label">{pin.name}</span> : null;
+	// A component of a split pin is indented under it, the way Unreal nests the
+	// children of a split struct pin — without that, three number pins called X,
+	// Y and Z read as three unrelated inputs.
+	const label = pin.name ? (
+		<span className={`pin-label${pin.part ? " part" : ""}`}>{pin.name}</span>
+	) : null;
 
 	// An unwired data input is edited in place, which is what keeps simple
 	// graphs from filling up with literal nodes.

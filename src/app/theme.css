@@ -559,6 +559,35 @@ button.tb.primary:hover:not(:disabled) {
 	text-overflow: ellipsis;
 }
 
+/* A component of a split struct pin. The rule is the tell: without something
+   joining them, X, Y and Z read as three unrelated inputs rather than one
+   Vector taken apart. */
+.node .pin-label.part {
+	position: relative;
+	padding-left: 9px;
+	color: var(--fg-faint);
+}
+
+.node .pin-label.part::before {
+	content: "";
+	position: absolute;
+	left: 2px;
+	top: 50%;
+	width: 4px;
+	height: 1px;
+	background: var(--border-strong);
+}
+
+.node .side.right .pin-label.part {
+	padding-left: 0;
+	padding-right: 9px;
+}
+
+.node .side.right .pin-label.part::before {
+	left: auto;
+	right: 2px;
+}
+
 .node .literal {
 	background: var(--bg-input);
 	border: 1px solid var(--border);

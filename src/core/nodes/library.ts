@@ -17,6 +17,13 @@ const d = (id: string, name: string, type: string, def?: PinDef["default"]): Pin
 const num = (id: string, name: string, v = 0) => d(id, name, "number", { t: "number", v });
 const str = (id: string, name: string, v = "") => d(id, name, "string", { t: "string", v });
 const bool = (id: string, name: string, v = false) => d(id, name, "boolean", { t: "boolean", v });
+/**
+ * A Vector3 or CFrame pin. Both default to a raw constant rather than nil, so
+ * an unwired one compiles to something valid — and, since these are the types
+ * that split, so each component has a sane starting value to fall back on.
+ */
+const vec = (id: string, name: string) => d(id, name, "Vector3", { t: "raw", v: "Vector3.zero" });
+const cf = (id: string, name: string) => d(id, name, "CFrame", { t: "raw", v: "CFrame.identity" });
 
 /** Shorthand for a pure node with a single `result` output. */
 function pure(
@@ -248,6 +255,101 @@ export const LIBRARY_NODES: NodeDef[] = [
 		[num("x", "X"), num("y", "Y"), num("z", "Z")], "Vector3"),
 	pure("roblox.color3", "Color3", "Roblox", "Color3.fromRGB($in.r, $in.g, $in.b)",
 		[num("r", "R", 255), num("g", "G", 255), num("b", "B", 255)], "Color3"),
+
+	// -- Vectors -----------------------------------------------------------
+	//
+	// Every one of these is pure, so they compose into an expression without an
+	// execution wire threading through the arithmetic -- which is the difference
+	// between a readable maths graph and a staircase.
+	pure("vector3.zero", "Vector3 Zero", "Vectors", "Vector3.zero", [], "Vector3"),
+	pure("vector3.one", "Vector3 One", "Vectors", "Vector3.one", [], "Vector3"),
+	pure("vector3.axis", "Vector3 Axis", "Vectors", "Vector3.$in.axis!ident",
+		[{ ...str("axis", "Axis", "yAxis"), options: ["xAxis", "yAxis", "zAxis"] }], "Vector3",
+		"A unit vector along one axis."),
+	pure("vector3.add", "Vector3 +", "Vectors", "$in.a + $in.b", [vec("a", "A"), vec("b", "B")], "Vector3"),
+	pure("vector3.sub", "Vector3 −", "Vectors", "$in.a - $in.b", [vec("a", "A"), vec("b", "B")], "Vector3"),
+	pure("vector3.scale", "Vector3 × Scalar", "Vectors", "$in.v * $in.scalar",
+		[vec("v", "Vector"), num("scalar", "Scalar", 1)], "Vector3"),
+	pure("vector3.dot", "Dot", "Vectors", "$in.a:Dot($in.b)", [vec("a", "A"), vec("b", "B")], "number"),
+	pure("vector3.cross", "Cross", "Vectors", "$in.a:Cross($in.b)", [vec("a", "A"), vec("b", "B")], "Vector3"),
+	pure("vector3.magnitude", "Magnitude", "Vectors", "$in.v.Magnitude", [vec("v", "Vector")], "number"),
+	pure("vector3.unit", "Unit", "Vectors", "$in.v.Unit", [vec("v", "Vector")], "Vector3",
+		"The vector scaled to length one. Undefined for a zero vector, as in Luau."),
+	pure("vector3.lerp", "Vector3 Lerp", "Vectors", "$in.a:Lerp($in.b, $in.alpha)",
+		[vec("a", "A"), vec("b", "B"), num("alpha", "Alpha", 0.5)], "Vector3"),
+	pure("vector3.distance", "Distance", "Vectors", "($in.a - $in.b).Magnitude",
+		[vec("a", "A"), vec("b", "B")], "number"),
+	pure("vector2.new", "Vector2", "Vectors", "Vector2.new($in.x, $in.y)",
+		[num("x", "X"), num("y", "Y")], "Vector2"),
+
+	// -- CFrames -----------------------------------------------------------
+	pure("cframe.identity", "CFrame Identity", "CFrames", "CFrame.identity", [], "CFrame"),
+	pure("cframe.new", "CFrame", "CFrames", "CFrame.new($in.position)",
+		[vec("position", "Position")], "CFrame", "A CFrame at a position, with no rotation."),
+	pure("cframe.lookAt", "Look At", "CFrames", "CFrame.lookAt($in.from, $in.to, $in.up)",
+		[vec("from", "From"), vec("to", "To"), { ...vec("up", "Up"), default: { t: "raw", v: "Vector3.yAxis" } }],
+		"CFrame", "Positioned at From, facing To. The workhorse for aiming anything."),
+	pure("cframe.angles", "CFrame Angles", "CFrames", "CFrame.Angles($in.rx, $in.ry, $in.rz)",
+		[num("rx", "X (rad)"), num("ry", "Y (rad)"), num("rz", "Z (rad)")], "CFrame",
+		"Rotation only, in radians. Pair with Rad to work in degrees."),
+	pure("cframe.fromAxisAngle", "From Axis Angle", "CFrames",
+		"CFrame.fromAxisAngle($in.axis, $in.angle)",
+		[{ ...vec("axis", "Axis"), default: { t: "raw", v: "Vector3.yAxis" } }, num("angle", "Angle (rad)")],
+		"CFrame"),
+	pure("cframe.mul", "CFrame ×", "CFrames", "$in.a * $in.b", [cf("a", "A"), cf("b", "B")], "CFrame",
+		"Composes two CFrames. Order matters: A then B, in A's space."),
+	pure("cframe.translate", "CFrame + Vector3", "CFrames", "$in.cframe + $in.offset",
+		[cf("cframe", "CFrame"), vec("offset", "Offset")], "CFrame",
+		"Moves in world space, leaving the rotation alone."),
+	pure("cframe.inverse", "Inverse", "CFrames", "$in.cframe:Inverse()", [cf("cframe", "CFrame")], "CFrame"),
+	pure("cframe.lerp", "CFrame Lerp", "CFrames", "$in.a:Lerp($in.b, $in.alpha)",
+		[cf("a", "A"), cf("b", "B"), num("alpha", "Alpha", 0.5)], "CFrame"),
+	pure("cframe.toWorldSpace", "To World Space", "CFrames", "$in.cframe:ToWorldSpace($in.offset)",
+		[cf("cframe", "CFrame"), cf("offset", "Offset")], "CFrame"),
+	pure("cframe.toObjectSpace", "To Object Space", "CFrames", "$in.cframe:ToObjectSpace($in.other)",
+		[cf("cframe", "CFrame"), cf("other", "Other")], "CFrame"),
+	pure("cframe.pointToWorldSpace", "Point To World Space", "CFrames",
+		"$in.cframe:PointToWorldSpace($in.point)",
+		[cf("cframe", "CFrame"), vec("point", "Point")], "Vector3"),
+	pure("cframe.pointToObjectSpace", "Point To Object Space", "CFrames",
+		"$in.cframe:PointToObjectSpace($in.point)",
+		[cf("cframe", "CFrame"), vec("point", "Point")], "Vector3"),
+	pure("cframe.vectorToWorldSpace", "Vector To World Space", "CFrames",
+		"$in.cframe:VectorToWorldSpace($in.vector)",
+		[cf("cframe", "CFrame"), vec("vector", "Vector")], "Vector3"),
+	pure("cframe.position", "CFrame Position", "CFrames", "$in.cframe.Position",
+		[cf("cframe", "CFrame")], "Vector3"),
+	pure("cframe.rotation", "CFrame Rotation", "CFrames", "$in.cframe.Rotation",
+		[cf("cframe", "CFrame")], "CFrame"),
+	pure("cframe.lookVector", "Look Vector", "CFrames", "$in.cframe.LookVector",
+		[cf("cframe", "CFrame")], "Vector3"),
+	pure("cframe.rightVector", "Right Vector", "CFrames", "$in.cframe.RightVector",
+		[cf("cframe", "CFrame")], "Vector3"),
+	pure("cframe.upVector", "Up Vector", "CFrames", "$in.cframe.UpVector",
+		[cf("cframe", "CFrame")], "Vector3"),
+
+	// -- DateTime ----------------------------------------------------------
+	call("datetime.now", "Now", "Time", "DateTime.now()", [], "Now", "any",
+		{ targets: ["roblox"], summary: "The current moment. Impure: it differs every call." }),
+	pure("datetime.fromUnix", "From Unix Timestamp", "Time",
+		"DateTime.fromUnixTimestamp($in.seconds)", [num("seconds", "Seconds")], "any"),
+	pure("datetime.fromIso", "From ISO Date", "Time", "DateTime.fromIsoDate($in.iso)",
+		[str("iso", "ISO 8601", "2026-09-06T00:00:00Z")], "any",
+		"Returns nil if the string does not parse, which is Roblox's behaviour rather than an error."),
+	pure("datetime.toIso", "To ISO Date", "Time", "$in.moment:ToIsoDate()",
+		[d("moment", "DateTime", "any")], "string"),
+	pure("datetime.unixTimestamp", "Unix Timestamp", "Time", "$in.moment.UnixTimestamp",
+		[d("moment", "DateTime", "any")], "number"),
+	pure("datetime.unixMillis", "Unix Timestamp (ms)", "Time",
+		"$in.moment.UnixTimestampMillis", [d("moment", "DateTime", "any")], "number"),
+	pure("datetime.formatUniversal", "Format (UTC)", "Time",
+		"$in.moment:FormatUniversalTime($in.format, $in.locale)",
+		[d("moment", "DateTime", "any"), str("format", "Format", "LLL"), str("locale", "Locale", "en-us")],
+		"string"),
+	pure("datetime.formatLocal", "Format (Local)", "Time",
+		"$in.moment:FormatLocalTime($in.format, $in.locale)",
+		[d("moment", "DateTime", "any"), str("format", "Format", "LLL"), str("locale", "Locale", "en-us")],
+		"string"),
 
 	// -- Instances and modules ---------------------------------------------
 	{

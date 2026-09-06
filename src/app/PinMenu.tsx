@@ -17,7 +17,7 @@ import { useEffect, useRef } from "react";
 import type { NodeScript, PinDef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins } from "../core/nodes/index.js";
-import { canPromoteToVariable, pinLinkCount } from "./edits.js";
+import { canPromoteToVariable, pinLinkCount, splitModesFor } from "./edits.js";
 import { LAYER } from "./layers.js";
 import { pinColor } from "./palette.js";
 
@@ -35,6 +35,10 @@ export interface PinMenuProps {
 	registry: Registry;
 	onPromote: () => void;
 	onBreakLinks: () => void;
+	/** Break this pin into components, in the named mode. */
+	onSplit: (mode: string) => void;
+	/** Put the named parent pin back together. */
+	onRecombine: (parent: string) => void;
 	onClose: () => void;
 }
 
@@ -76,6 +80,37 @@ export function PinMenu(props: PinMenuProps) {
 			label: "Promote to Variable",
 			onPick: () => {
 				props.onPromote();
+				onClose();
+			},
+		});
+	}
+
+	// Split and Recombine, worded as Unreal words them. A pin is only ever one
+	// or the other, so they never both appear.
+	const node = script.nodes.find((n) => n.id === target.nodeId);
+	const parent = target.pin.part?.parent;
+
+	if (node && parent === undefined) {
+		for (const mode of splitModesFor(target.pin)) {
+			entries.push({
+				key: `split:${mode.id}`,
+				label: "Split Struct Pin",
+				// Only worth naming the mode when there is a choice to make.
+				hint: splitModesFor(target.pin).length > 1 ? mode.name : undefined,
+				onPick: () => {
+					props.onSplit(mode.id);
+					onClose();
+				},
+			});
+		}
+	}
+
+	if (node && parent !== undefined) {
+		entries.push({
+			key: "recombine",
+			label: "Recombine Struct Pin",
+			onPick: () => {
+				props.onRecombine(parent);
 				onClose();
 			},
 		});

@@ -1,12 +1,24 @@
 /** Indexed, query-friendly view over a NodeScript. Built once per compile. */
 
 import type { GraphNode, Link, NodeDef, NodeScript, PinDef } from "../schema.js";
+import { resolveNodePins } from "../nodes/index.js";
+import { partPinId } from "../structs.js";
 
 export interface ResolvedNode {
 	node: GraphNode;
 	def: NodeDef;
+	/** The pins wires attach to: split struct pins appear as their components. */
 	inputs: PinDef[];
 	outputs: PinDef[];
+	/**
+	 * The pins the node's own templates talk about, before any splitting.
+	 *
+	 * `$in.position` names a pin that may no longer be wireable, because the
+	 * instance split it into `position.x`, `position.y`, `position.z`. The
+	 * emitter resolves values against these and wires against the pair above.
+	 */
+	baseInputs: PinDef[];
+	baseOutputs: PinDef[];
 }
 
 export class GraphIndex {
@@ -22,13 +34,7 @@ export class GraphIndex {
 		for (const node of script.nodes) {
 			const def = defs.get(node.def);
 			if (!def) continue; // reported by validate()
-			const derived = def.derivePins?.(node.config ?? {});
-			this.byId.set(node.id, {
-				node,
-				def,
-				inputs: derived?.inputs ?? def.inputs,
-				outputs: derived?.outputs ?? def.outputs,
-			});
+			this.byId.set(node.id, { node, def, ...resolveNodePins(def, node.config) });
 		}
 		for (const link of script.links) {
 			this.inLink.set(key(link.to.node, link.to.pin), link);
@@ -67,9 +73,18 @@ export class GraphIndex {
 	 * How many inputs read this output. Drives the inline-vs-hoist decision:
 	 * a pure value with one consumer is spliced in place, two or more is bound
 	 * to a local so the expression is evaluated exactly once.
+	 *
+	 * Counts the components too. When an output is split, nothing wires to the
+	 * pin itself — the wires are on `position.x` and friends — and an output
+	 * whose parts are all being read is emphatically consumed.
 	 */
 	consumerCount(nodeId: string, pinId: string): number {
-		return this.targetsOf(nodeId, pinId).length;
+		let total = this.targetsOf(nodeId, pinId).length;
+		const prefix = partPinId(pinId, "");
+		for (const [k, links] of this.outLinks) {
+			if (k.startsWith(`${nodeId}/${prefix}`)) total += links.length;
+		}
+		return total;
 	}
 
 	/** The node fed by an exec output, if the pin is wired. */

@@ -14,7 +14,7 @@ import {
 } from "react";
 
 import type { Comment, Literal, NodeScript, PinDef, PinRef } from "../core/schema.js";
-import type { Registry } from "../core/nodes/index.js";
+import { resolveNodePins, type Registry } from "../core/nodes/index.js";
 import type { Diagnostic } from "../core/compiler/index.js";
 import {
 	nodeBounds, pinPosition, rectFromPoints, rectsIntersect, screenToWorld, wirePath,
@@ -795,7 +795,7 @@ function pinDefOf(
 	const node = script.nodes.find((n) => n.id === ref.node);
 	const def = node && registry.get(node.def);
 	if (!node || !def) return undefined;
-	const derived = def.derivePins?.(node.config ?? {}) ?? { inputs: def.inputs, outputs: def.outputs };
+	const derived = resolveNodePins(def, node.config);
 	return (side === "in" ? derived.inputs : derived.outputs).find((p) => p.id === ref.pin);
 }
 

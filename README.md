@@ -174,6 +174,41 @@ from a dropdown — Roblox adds them rarely — but the list is suggestions, not
 gate: pick "Other..." and type a name the build has not caught up with, and it
 still compiles.
 
+### Splitting a value into its parts
+
+Right-click a pin for the things you can do to *that pin*, rather than the node
+palette. The wording is Unreal's, because the entry you already know should be
+called what you already call it:
+
+| Entry | When it shows |
+| --- | --- |
+| **Promote to Variable** | On an unwired data input. The new variable takes the value already typed into the pin, so tuning is not thrown away. |
+| **Split Struct Pin** | On a `Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim` or `UDim2` pin. |
+| **Recombine Struct Pin** | On any component of a split pin. |
+| **Break Link(s)** | When the pin is wired. |
+
+Splitting replaces one pin with one per component, named after their parent —
+`Look At` split on both positions reads `From X`, `From Y`, `From Z`, `To X`…
+rather than six anonymous numbers. Components take their own type's colour, so
+a split `CFrame` shows a gold `Position` and an orange `Rotation`.
+
+`CFrame` offers three decompositions: **Position, Rotation** (the usual one),
+**Position and axes** (position with Right and Up — what aiming a turret wants),
+and **12 components**, which is what `CFrame.new` and `GetComponents()` actually
+take.
+
+Two things worth knowing about how it compiles:
+
+- A split **input** is rebuilt from its components, and a component left alone
+  contributes its default — there is no half a `Vector3`.
+- A split **output** is bound to a local first, then each component is read off
+  it. Reading three parts calls the source once, not three times.
+
+Splitting is per-node configuration, so two `Look At` nodes in one graph can be
+split differently. It is also applied by the registry rather than by a node, so
+a **custom node pack gets it for free** — a pack's `Vector3` input splits like
+any built-in, without the pack knowing splitting exists.
+
 ### Reaching instances and modules
 
 Two path nodes, both pure, so neither needs an execution wire:

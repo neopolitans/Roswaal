@@ -1,6 +1,10 @@
 /** Node registry: built-ins plus any custom packs loaded from disk. */
 
-import type { Literal, NodeDef, PinDef } from "../schema.js";
+import type { Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
+import {
+	modeOf, partPinId, splitKey, splitsOf, STRUCTS,
+	type SplitMap, type StructRegistry,
+} from "../structs.js";
 import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES } from "./library.js";
 import { VARIABLE_NODES } from "./variables.js";
@@ -34,6 +38,81 @@ export function createRegistry(extra: NodeDef[] = []): Registry {
 }
 
 /**
+ * The pins a node actually shows, for one node instance.
+ *
+ * Two passes, in this order:
+ *
+ * 1. `derivePins`, for builtins whose shape follows their config — a function's
+ *    signature, a Sequence's arity.
+ * 2. **splitting**, which replaces a struct pin with one pin per component.
+ *
+ * Splitting has to be the second pass and it has to live *here* rather than on
+ * `NodeDef`. `derivePins` is documented as builtin-only, and deliberately so:
+ * it is a function, and a node pack is data that never executes. But a pack's
+ * node has a `Vector3` input like anything else and must be splittable too. So
+ * splitting is applied by the registry to every node, after whatever the def
+ * itself had to say.
+ *
+ * This is the one place pins are resolved. Every caller — the canvas, the wire
+ * validator, the compiler's index, completions — goes through it, because six
+ * copies of `def.derivePins?.() ?? def.inputs` is six places to forget.
+ */
+export function resolveNodePins(
+	def: NodeDef,
+	config: NodeConfig | undefined,
+	structs: StructRegistry = STRUCTS,
+): { inputs: PinDef[]; outputs: PinDef[]; baseInputs: PinDef[]; baseOutputs: PinDef[] } {
+	const derived = def.derivePins?.(config ?? {});
+	const baseInputs = derived?.inputs ?? def.inputs;
+	const baseOutputs = derived?.outputs ?? def.outputs;
+
+	const splits = splitsOf(config);
+	if (Object.keys(splits).length === 0) {
+		return { inputs: baseInputs, outputs: baseOutputs, baseInputs, baseOutputs };
+	}
+
+	return {
+		inputs: applySplits(baseInputs, "in", splits, structs),
+		outputs: applySplits(baseOutputs, "out", splits, structs),
+		baseInputs,
+		baseOutputs,
+	};
+}
+
+function applySplits(
+	pins: PinDef[], side: "in" | "out", splits: SplitMap, structs: StructRegistry,
+): PinDef[] {
+	const out: PinDef[] = [];
+	for (const pin of pins) {
+		const mode = splits[splitKey(side, pin.id)];
+		const struct = mode === undefined ? undefined : modeOf(structs, pin.type, mode);
+		if (!struct) {
+			out.push(pin);
+			continue;
+		}
+		for (const part of struct.parts) {
+			out.push({
+				id: partPinId(pin.id, part.id),
+				// Prefixed with the parent, the way Unreal names a split struct
+				// pin's children. Look At takes two Vector3s; without this the
+				// node reads "X Y Z X Y Z" and you have to count rows to find out
+				// which three are the target. An unnamed parent — a pure node's
+				// lone `result` — adds nothing, so it is left off.
+				name: pin.name ? `${pin.name} ${part.name}` : part.name,
+				kind: "data",
+				type: part.type,
+				// An input part keeps an editable literal; an output part has no
+				// value of its own to type in.
+				default: side === "in" ? part.default : undefined,
+				description: `${pin.name || pin.id} · ${part.name}`,
+				part: { parent: pin.id, mode, id: part.id },
+			});
+		}
+	}
+	return out;
+}
+
+/**
  * Input pins whose value is baked into the generated source rather than read at
  * runtime — the `!ident` and `!raw` template modifiers.
  *
@@ -63,7 +142,7 @@ export function literalOnlyPins(def: NodeDef): Set<string> {
 
 /** Every distinct category present in a registry, in display order. */
 export function categories(registry: Registry): string[] {
-	const order = ["Flow", "Events", "Variables", "Values", "Math", "Logic", "Strings", "Tables", "Roblox", "Modules", "Time", "Debug"];
+	const order = ["Flow", "Events", "Variables", "Values", "Math", "Vectors", "CFrames", "Logic", "Strings", "Tables", "Roblox", "Modules", "Time", "Debug"];
 	const seen = new Set<string>();
 	for (const def of registry.values()) seen.add(def.category);
 	const known = order.filter((c) => seen.has(c));

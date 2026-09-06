@@ -6,7 +6,27 @@
  */
 
 import { RENAMED_NODES } from "./nodes/index.js";
+import { parseSplitKey, partPinId, splitKey, splitPinId, splitsOf } from "./structs.js";
 import { emptyScript, SCHEMA_VERSION, type Link, type NodeScript } from "./schema.js";
+
+/**
+ * Applies a pin rename, following it into the components of a split pin.
+ *
+ * A split pin exposes `position.x`, `position.y`, `position.z`. Renaming
+ * `position` has to carry all three with it; handling only the exact id would
+ * leave three wires pointing at a pin that no longer exists.
+ */
+function renamePin(
+	renames: Record<string, string> | undefined, pinId: string,
+): string | undefined {
+	if (!renames) return undefined;
+	const direct = renames[pinId];
+	if (direct) return direct;
+
+	const ref = splitPinId(pinId);
+	const parent = ref ? renames[ref.parent] : undefined;
+	return ref && parent ? partPinId(parent, ref.part) : undefined;
+}
 
 export interface MigrationResult {
 	script: NodeScript;
@@ -69,18 +89,47 @@ export function migrateScript(raw: NodeScript): MigrationResult {
 	let literalFixes = 0;
 	script.nodes = script.nodes.map((node) => {
 		const renames = RENAMED_PINS[node.def];
-		if (!renames || !node.literals) return node;
-
-		const literals: typeof node.literals = {};
+		if (!renames) return node;
 		let changed = false;
-		for (const [pinId, value] of Object.entries(node.literals)) {
-			const replacement = renames[pinId];
-			if (replacement) changed = true;
-			literals[replacement ?? pinId] = value;
+		let next = node;
+
+		if (node.literals) {
+			const literals: typeof node.literals = {};
+			for (const [pinId, value] of Object.entries(node.literals)) {
+				const replacement = renamePin(renames, pinId);
+				if (replacement) changed = true;
+				literals[replacement ?? pinId] = value;
+			}
+			if (changed) next = { ...next, literals };
 		}
+
+		// The record of which pins are split is keyed by pin id as well, so a
+		// rename has to move it too — otherwise the pin comes back whole and the
+		// wires to its components are left pointing at nothing.
+		const splits = splitsOf(node.config);
+		const keys = Object.entries(splits);
+		if (keys.length > 0) {
+			const moved: Record<string, string> = {};
+			let splitChanged = false;
+			for (const [k, mode] of keys) {
+				const parsed = parseSplitKey(k);
+				const replacement = parsed ? renames[parsed.pin] : undefined;
+				if (parsed && replacement) {
+					moved[splitKey(parsed.side, replacement)] = mode;
+					splitChanged = true;
+				} else {
+					moved[k] = mode;
+				}
+			}
+			if (splitChanged) {
+				changed = true;
+				next = { ...next, config: { ...next.config, split: moved } };
+			}
+		}
+
 		if (!changed) return node;
 		literalFixes++;
-		return { ...node, literals };
+		return next;
 	});
 	if (literalFixes > 0) {
 		notes.push(`Moved typed-in values on ${literalFixes} node${literalFixes === 1 ? "" : "s"} to renamed pins.`);
@@ -90,8 +139,8 @@ export function migrateScript(raw: NodeScript): MigrationResult {
 	script.links = script.links.map((link) => {
 		const fromDef = byId.get(link.from.node)?.def;
 		const toDef = byId.get(link.to.node)?.def;
-		const fromPin = fromDef ? RENAMED_PINS[fromDef]?.[link.from.pin] : undefined;
-		const toPin = toDef ? RENAMED_PINS[toDef]?.[link.to.pin] : undefined;
+		const fromPin = fromDef ? renamePin(RENAMED_PINS[fromDef], link.from.pin) : undefined;
+		const toPin = toDef ? renamePin(RENAMED_PINS[toDef], link.to.pin) : undefined;
 		if (!fromPin && !toPin) return link;
 		pinFixes++;
 		return {

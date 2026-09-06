@@ -11,7 +11,7 @@
 
 import type { CompletionContext, CompletionResult, Completion } from "@codemirror/autocomplete";
 import type { NodeScript } from "../core/schema.js";
-import { continuesEnclosingBlock, type Registry } from "../core/nodes/index.js";
+import { continuesEnclosingBlock, resolveNodePins, type Registry } from "../core/nodes/index.js";
 import { toIdentifier } from "../core/compiler/luau.js";
 import { collectLocalNames } from "../core/luauLocals.js";
 import { lastSegment } from "../core/roblox.js";
@@ -264,7 +264,7 @@ function isExecPin(
 	const node = script.nodes.find((n) => n.id === nodeId);
 	const def = node && registry.get(node.def);
 	if (!node || !def) return false;
-	const pins = def.derivePins?.(node.config ?? {}) ?? { inputs: def.inputs, outputs: def.outputs };
+	const pins = resolveNodePins(def, node.config);
 	const list = side === "in" ? pins.inputs : pins.outputs;
 	return list.find((p) => p.id === pinId)?.kind === "exec";
 }
