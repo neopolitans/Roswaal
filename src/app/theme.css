@@ -478,6 +478,14 @@ button.tb.primary:hover:not(:disabled) {
 	margin-left: auto;
 	padding-right: 6px;
 	justify-content: flex-end;
+	/* One pin's worth, reserved whether or not this row has an output.
+	 *
+	 * Without it every row is measured independently, so the one row that
+	 * happens to carry the node's output gets a narrower left side and its value
+	 * sits further left than the rows below it. Reserving the column makes the
+	 * input values line up down the node instead of stepping around the output
+	 * pin. 16px slot plus the 6px padding. */
+	min-width: 22px;
 }
 
 .node .pin {
@@ -623,6 +631,15 @@ button.tb.primary:hover:not(:disabled) {
 	max-width: 140px;
 	text-align: right;
 	cursor: default;
+}
+
+/* Every inline value sits in one column at the right of the input side, whether
+   it is a field, a dropdown, a code button or a constant. Mixing left-aligned
+   fields with right-aligned constants read as two unrelated things on the same
+   node; one column reads as a value column. */
+.node .row .side.left > .literal,
+.node .row .side.left > input[type="checkbox"] {
+	margin-left: auto;
 }
 
 .node .literal {
