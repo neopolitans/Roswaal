@@ -80,7 +80,7 @@ export interface NodeDoc {
 // ---------------------------------------------------------------------------
 
 export function documentPin(
-	def: NodeDef, pin: PinDef, structs: StructRegistry = STRUCTS,
+	def: NodeDef, pin: PinDef, side: "in" | "out", structs: StructRegistry = STRUCTS,
 ): PinDoc {
 	const struct = pin.kind === "data" ? structs.get(pin.type ?? "") : undefined;
 	return {
@@ -89,8 +89,10 @@ export function documentPin(
 		kind: pin.kind,
 		type: pin.type,
 		default: pin.default ? literalToLuau(pin.default) : undefined,
-		// A data input with neither a default nor an editor has to be wired.
-		required: pin.kind === "data" && (pin.required === true || pin.default === undefined),
+		// Only an input can be "required": an output is a value the node hands
+		// back, so it has neither a default to fall back on nor a wire to demand.
+		required:
+			side === "in" && pin.kind === "data" && (pin.required === true || pin.default === undefined),
 		options: pin.options,
 		description: pin.description,
 		literalOnly: literalOnlyPins(def).has(pin.id),
@@ -115,8 +117,8 @@ export function documentNode(
 		role: def.role,
 		targets: def.targets ? [...def.targets] : undefined,
 		variadic: def.variadic ? { min: def.variadic.min, max: def.variadic.max } : undefined,
-		inputs: inputs.map((p) => documentPin(def, p)),
-		outputs: outputs.map((p) => documentPin(def, p)),
+		inputs: inputs.map((p) => documentPin(def, p, "in")),
+		outputs: outputs.map((p) => documentPin(def, p, "out")),
 		custom: !builtinIds.has(def.id),
 		example: example.luau,
 		exampleNote: example.note,

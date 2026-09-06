@@ -2110,3 +2110,347 @@ button.tb.with-icon {
 .node.reroute.selected {
 	border-color: var(--select);
 }
+
+/* ------------------------------------------------------------------- docs
+ *
+ * The Docs panel. Wider and taller than the old Help dialog because it now
+ * holds the whole reference — a nav of fourteen sections and a page per node —
+ * rather than five prose panes.
+ */
+
+.docs-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: grid;
+	place-items: center;
+	padding: 32px;
+}
+
+.docs {
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+	width: min(1080px, 100%);
+	height: min(820px, 100%);
+	display: grid;
+	grid-template-rows: auto 1fr;
+	overflow: hidden;
+}
+
+.docs-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--border);
+}
+
+.docs-head .sub {
+	color: var(--fg-faint);
+	font-size: 12px;
+}
+
+.docs-body {
+	display: grid;
+	grid-template-columns: 232px 1fr;
+	min-height: 0;
+}
+
+/* ----------------------------------------------------------------- docs nav */
+
+.docs-nav {
+	border-right: 1px solid var(--border);
+	padding: 10px 8px;
+	overflow: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.docs-nav .search {
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 5px 8px;
+	margin-bottom: 8px;
+	outline: none;
+	font: inherit;
+	color: inherit;
+}
+
+.docs-nav .search:focus {
+	border-color: var(--accent);
+}
+
+.docs-section-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	background: none;
+	border: 0;
+	text-align: left;
+	padding: 5px 6px;
+	border-radius: 5px;
+	cursor: pointer;
+	color: var(--fg);
+	font-weight: 600;
+	font-size: 12px;
+}
+
+.docs-section-head:hover { background: var(--bg-hover); }
+
+/* Rotated rather than swapped for an icon, so the two states are obviously the
+   same control in two positions. */
+.docs-section-head .icon {
+	transition: transform 0.12s ease;
+	transform: rotate(-90deg);
+	flex: none;
+}
+
+.docs-section-head[aria-expanded="true"] .icon { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+	.docs-section-head .icon { transition: none; }
+}
+
+.docs-section-head .count {
+	margin-left: auto;
+	font-weight: 400;
+	font-size: 10px;
+	color: var(--fg-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+.docs-pages {
+	display: flex;
+	flex-direction: column;
+	padding: 1px 0 4px 14px;
+}
+
+.docs-link,
+.docs-hit {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	width: 100%;
+	background: none;
+	border: 0;
+	text-align: left;
+	padding: 4px 8px;
+	border-radius: 4px;
+	cursor: pointer;
+	color: var(--fg-muted);
+	font-size: 12px;
+}
+
+.docs-link:hover,
+.docs-hit:hover { background: var(--bg-hover); color: var(--fg); }
+
+.docs-link.on,
+.docs-hit.on {
+	background: color-mix(in srgb, var(--accent) 20%, transparent);
+	color: var(--fg);
+}
+
+.docs-hit { flex-direction: column; gap: 0; align-items: stretch; }
+.docs-hit .title { color: inherit; }
+.docs-hit .where { font-size: 10px; color: var(--fg-faint); }
+
+.docs-results { display: flex; flex-direction: column; gap: 1px; }
+.docs-results .empty { padding: 12px 8px; color: var(--fg-faint); font-size: 12px; }
+
+.docs .badge {
+	font-size: 9px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--fg-faint);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	padding: 0 4px;
+	white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- docs content */
+
+.docs-content {
+	overflow: auto;
+	padding: 22px 30px 60px;
+	/* Long-form reading, so the measure is capped rather than filling the pane. */
+	max-width: 74ch;
+}
+
+.docs-content h1 {
+	font-size: 22px;
+	margin: 0 0 4px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.docs-content .summary {
+	margin: 0 0 22px;
+	color: var(--fg-faint);
+}
+
+.docs-content h2 {
+	font-size: 15px;
+	margin: 28px 0 8px;
+	padding-top: 14px;
+	border-top: 1px solid var(--border);
+}
+
+.docs-content h3 { font-size: 13px; margin: 20px 0 6px; }
+.docs-content p { margin: 0 0 12px; line-height: 1.6; }
+.docs-content ul,
+.docs-content ol { margin: 0 0 12px; padding-left: 20px; line-height: 1.6; }
+.docs-content li { margin-bottom: 4px; }
+.docs-content li::marker { color: var(--fg-faint); }
+
+.docs-content code {
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	padding: 0 4px;
+	font-size: 11px;
+}
+
+.docs-content pre {
+	background: var(--bg-canvas);
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 10px 12px;
+	overflow-x: auto;
+	font-size: 11.5px;
+	line-height: 1.55;
+	margin: 0 0 14px;
+}
+
+.docs-table { overflow-x: auto; margin: 0 0 14px; }
+
+.docs-content table {
+	border-collapse: collapse;
+	width: 100%;
+	font-size: 12px;
+}
+
+.docs-content th {
+	text-align: left;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--fg-faint);
+	padding: 0 10px 5px 0;
+	border-bottom: 1px solid var(--border);
+	white-space: nowrap;
+}
+
+.docs-content td {
+	padding: 7px 10px 7px 0;
+	border-bottom: 1px solid var(--border);
+	vertical-align: top;
+	line-height: 1.5;
+}
+
+.docs-content td.mono { font-size: 11px; color: var(--fg-muted); white-space: nowrap; }
+.docs-content td em { color: var(--fg-faint); font-style: normal; }
+
+.docs-content table.pins td.swatch-cell { width: 14px; padding-right: 6px; }
+
+.docs-swatch {
+	display: inline-block;
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+}
+
+/* Execution pins keep their arrow here too, so the table matches the canvas. */
+.docs-swatch.exec {
+	border-radius: 0;
+	width: 10px;
+	clip-path: polygon(0 0, 58% 0, 100% 50%, 58% 100%, 0 100%);
+}
+
+.docs-note {
+	border-left: 3px solid var(--border-strong);
+	background: var(--bg-input);
+	border-radius: 0 4px 4px 0;
+	padding: 9px 12px;
+	margin: 0 0 14px;
+	line-height: 1.55;
+}
+
+.docs-note.warn { border-left-color: var(--warning); }
+.docs-note.good { border-left-color: var(--ok); }
+.docs-note.info { border-left-color: var(--accent); }
+
+/* The docs as their own window, at /docs. Fills the viewport rather than
+   floating over a canvas, because there is no canvas behind it. */
+.docs-page {
+	display: grid;
+	grid-template-rows: auto 1fr;
+	height: 100%;
+	background: var(--bg-app);
+}
+
+.docs-page-head {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	padding: 8px 14px;
+	background: var(--bg-panel);
+	border-bottom: 1px solid var(--border);
+}
+
+.docs-page-head .brand {
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	display: inline-flex;
+	align-items: baseline;
+	gap: 5px;
+}
+
+.docs-page-head .brand .version {
+	font-weight: 400;
+	font-size: 10px;
+	letter-spacing: 0;
+	color: var(--fg-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+.docs-page-head .sub { color: var(--fg-faint); font-size: 12px; }
+
+.docs-page-head .warn {
+	font-size: 11px;
+	color: var(--warning);
+	border: 1px solid var(--warning);
+	border-radius: 3px;
+	padding: 0 6px;
+}
+
+.docs-page-head a.tb { text-decoration: none; color: inherit; }
+
+.docs-page .docs-body {
+	min-height: 0;
+	grid-template-columns: 260px 1fr;
+}
+
+/* Full window, so the reading column can be centred rather than left-hugging. */
+.docs-page .docs-content {
+	max-width: none;
+	padding: 26px 40px 80px;
+}
+
+.docs-page .docs-content > * {
+	max-width: 78ch;
+}
+
+/* A capsule getter redeclares border and box-shadow further down this file than
+   .node.selected, so it was quietly winning and the selection ring vanished on
+   every Get Variable and Get Function node. Restated at the right specificity. */
+.node.capsule.selected {
+	border-color: var(--select);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--select) 55%, transparent), var(--node-shadow);
+}

@@ -18,7 +18,6 @@ import type { InstanceLocation, NodeMap } from "../core/nodemap.js";
 import { MapEditor } from "./MapEditor.jsx";
 import { CodeEditor } from "./CodeEditor.jsx";
 import { Dialog, type DialogRequest, type DialogResult, type PendingDialog } from "./Dialog.jsx";
-import { HelpPanel } from "./HelpPanel.jsx";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 import type { PinDef } from "../core/schema.js";
@@ -70,7 +69,6 @@ export function App() {
 		{ nodeId: string; pin: PinDef; value: string } | null
 	>(null);
 	const [dialog, setDialog] = useState<PendingDialog | null>(null);
-	const [helpOpen, setHelpOpen] = useState(false);
 	// A file dropped on the canvas, once we know where it lives in the DataModel
 	// and therefore what can usefully be made from it.
 	const [dropMenu, setDropMenu] = useState<
@@ -663,10 +661,10 @@ export function App() {
 				</button>
 				<button
 					className="tb"
-					title="How Roswaal works"
-					onClick={() => setHelpOpen(true)}
+					title="Guides, and a reference page for every node — including this project's own packs. Opens in its own window so it does not cover the graph."
+					onClick={() => window.open("/docs", "roswaal-docs")}
 				>
-					Help
+					Docs
 				</button>
 			</div>
 
@@ -852,7 +850,6 @@ export function App() {
 				/>
 			)}
 
-			{helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
 
 			{dialog && <Dialog {...dialog} />}
 
