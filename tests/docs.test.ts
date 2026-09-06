@@ -12,9 +12,11 @@ import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import {
-	documentNode, documentRegistry, exampleFor, OMISSION_REASONS,
+	documentNode, documentRegistry, exampleFor, OMISSION_REASONS, stripHeader,
 } from "../src/core/docs/nodeReference.js";
 import { BLUEPRINT_MAP, referencedNodeIds } from "../src/core/docs/blueprints.js";
+import { CURATED } from "../src/core/docs/examples.js";
+import { compile } from "../src/core/compiler/index.js";
 import type { NodeDef } from "../src/core/schema.js";
 
 const registry = createRegistry();
@@ -95,6 +97,22 @@ describe("node reference", () => {
 				.filter((d) => d.exampleOmitted === "did-not-compile")
 				.map((d) => d.id);
 			expect(broken).toEqual([]);
+		});
+
+		/**
+		 * The curated graphs are hand-authored, so this is the check that stops
+		 * them drifting: every one still compiles, cleanly, and produces output.
+		 */
+		it("compiles every curated graph without errors", () => {
+			for (const id of Object.keys(CURATED)) {
+				const def = registry.get(id);
+				expect(def, `curated example for a node that does not exist: ${id}`).toBeDefined();
+
+				const result = compile(CURATED[id](), registry);
+				const errors = result.diagnostics.filter((d) => d.severity === "error");
+				expect(errors.map((e) => e.message), `${id} example`).toEqual([]);
+				expect(stripHeader(result.code), `${id} example`).not.toBe("");
+			}
 		});
 
 		it("never produces an example containing the generated header", () => {

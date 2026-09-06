@@ -11,6 +11,46 @@ function errors(result: { diagnostics: { severity: string; message: string }[] }
 }
 
 describe("emitter", () => {
+	/**
+	 * Found while writing the documentation's Branch example: a false arm whose
+	 * nodes all compile to nothing left a bare `else` before the `end`. Valid
+	 * Luau, but nobody writes it, and the generated file is meant to be read.
+	 */
+	it("drops a false arm that produces no statements", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const branch = b.node("flow.branch");
+		const yes = b.node("debug.print");
+		// Script End emits nothing; it only marks the arm as finished.
+		const stop = b.node("script.end");
+		b.lit(yes, "value", { t: "string", v: "yes" });
+		b.link(start, "then", branch, "in");
+		b.link(branch, "true", yes, "in");
+		b.link(branch, "false", stop, "in");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(["if true then", `\tprint("yes")`, "end"].join("\n"));
+	});
+
+	it("keeps a false arm that does produce statements", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const branch = b.node("flow.branch");
+		const yes = b.node("debug.print");
+		const no = b.node("debug.print");
+		b.lit(yes, "value", { t: "string", v: "yes" });
+		b.lit(no, "value", { t: "string", v: "no" });
+		b.link(start, "then", branch, "in");
+		b.link(branch, "true", yes, "in");
+		b.link(branch, "false", no, "in");
+
+		const out = compile(b.build(), registry);
+		expect(body(out.code)).toBe(
+			["if true then", `\tprint("yes")`, "else", `\tprint("no")`, "end"].join("\n"),
+		);
+	});
+
 	it("emits a straight-line script", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");

@@ -25,6 +25,7 @@ import { emptyScript } from "../schema.js";
 import type { Registry } from "../nodes/index.js";
 import { literalOnlyPins, resolveNodePins } from "../nodes/index.js";
 import { STRUCTS, type StructRegistry } from "../structs.js";
+import { CURATED, EXAMPLE_NOTES } from "./examples.js";
 
 export interface PinDoc {
 	id: string;
@@ -70,6 +71,8 @@ export interface NodeDoc {
 	custom: boolean;
 	/** The Luau a minimal graph using this node compiles to. */
 	example?: string;
+	/** A note that belongs with the example rather than with the node. */
+	exampleNote?: string;
 	/** Why there is no example, when there is not one. */
 	exampleOmitted?: ExampleOmission;
 }
@@ -116,6 +119,7 @@ export function documentNode(
 		outputs: outputs.map((p) => documentPin(def, p)),
 		custom: !builtinIds.has(def.id),
 		example: example.luau,
+		exampleNote: example.note,
 		exampleOmitted: example.omitted,
 	};
 }
@@ -149,7 +153,20 @@ export function documentRegistry(
  */
 export function exampleFor(
 	def: NodeDef, registry: Registry,
-): { luau?: string; omitted?: ExampleOmission } {
+): { luau?: string; note?: string; omitted?: ExampleOmission } {
+	// Control flow needs a scene rather than a bare node: a Branch with nothing
+	// inside it emits an empty `if`. Those graphs are hand-authored, and still
+	// compiled here like every other example.
+	const curated = CURATED[def.id];
+	if (curated) {
+		const result = compile(curated(), registry);
+		if (result.diagnostics.some((d) => d.severity === "error")) {
+			return { omitted: "did-not-compile" };
+		}
+		const luau = stripHeader(result.code);
+		return luau === "" ? { omitted: "did-not-compile" } : { luau, note: EXAMPLE_NOTES[def.id] };
+	}
+
 	if (def.compilesTo.kind === "builtin") return { omitted: "opens-a-block" };
 
 	// A node whose pins follow its configuration is documented at its default

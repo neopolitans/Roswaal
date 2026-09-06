@@ -590,10 +590,16 @@ class Emitter {
 				this.walk(onTrue, new Scope(scope));
 				this.indent--;
 				if (onFalse) {
+					const mark = this.out.length;
 					this.push("else", id);
 					this.indent++;
 					this.walk(onFalse, new Scope(scope));
 					this.indent--;
+					// A false arm that produces no statements — a lone Script End,
+					// or a chain of nodes that all compile to nothing — would leave
+					// a bare `else` before the `end`. Valid Luau, but nobody writes
+					// it, and the generated file is meant to be read.
+					if (this.out.length === mark + 1) this.out.length = mark;
 				}
 				this.push("end", id);
 				// The if-statement is closed, so the enclosing block continues
