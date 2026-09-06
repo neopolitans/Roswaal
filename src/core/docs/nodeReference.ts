@@ -262,18 +262,40 @@ function addPlaceholders(script: NodeScript, def: NodeDef, inputs: PinDef[]): vo
 }
 
 /**
- * Luau globals a stand-in must not be called, or the example would read as
- * indexing the standard library rather than a value you supplied.
+ * Names a stand-in must not take.
+ *
+ * The globals are here so an example does not read as indexing the standard
+ * library rather than using a value you supplied. The **keywords** are here
+ * because a pin called "Function" produced a stand-in called `function`, and
+ * `coroutine.create(function)` opens a block that is never closed — caught by
+ * the compiler's own bracket check, and only because every node's example is
+ * compiled rather than assumed.
  */
-const SHADOWS = new Set([
+const RESERVED = new Set([
+	// Globals.
 	"table", "string", "math", "os", "task", "game", "script", "workspace",
-	"type", "select", "next", "print", "require", "shared",
+	"type", "select", "next", "print", "require", "shared", "coroutine",
+	// Keywords.
+	"and", "break", "do", "else", "elseif", "end", "false", "for", "function",
+	"if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true",
+	"until", "while", "continue", "export",
 ]);
 
+/**
+ * A readable name for a stand-in: the pin's display name, falling back to its
+ * id when that is reserved. The id is usually the shorter, more code-like form
+ * anyway — a pin named "Function" has the id `fn`, and `coroutine.create(fn)`
+ * reads better than any suffix would.
+ */
 function placeholderName(pin: PinDef): string {
-	const base = (pin.name || pin.id).replace(/[^A-Za-z0-9]+/g, "");
-	const named = base === "" ? "value" : base.charAt(0).toLowerCase() + base.slice(1);
-	return SHADOWS.has(named) ? `${named}Value` : named;
+	const candidates = [pin.name, pin.id, "value"];
+	for (const candidate of candidates) {
+		const base = (candidate ?? "").replace(/[^A-Za-z0-9]+/g, "");
+		if (base === "") continue;
+		const named = base.charAt(0).toLowerCase() + base.slice(1);
+		if (!RESERVED.has(named)) return named;
+	}
+	return "given";
 }
 
 /** Everything after the generated header, which carries volatile hashes. */

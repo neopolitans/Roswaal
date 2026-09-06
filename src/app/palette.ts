@@ -34,6 +34,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 	Networking: "#8a4a5e",
 	Modules: "#6f4f9b",
 	Time: "#65852c",
+	Threads: "#4a6f8a",
 	Debug: "#6d7480",
 	Custom: "#4f6480",
 };
@@ -65,6 +66,8 @@ const TYPE_COLORS: Record<string, string> = {
 	// borrow a colour that would imply they behave alike.
 	table: "#c08a3a",
 	function: "#5a4b9c",
+	// A thread is a function that remembers where it was.
+	thread: "#7a5fae",
 	// Hand-written Luau. Deliberately unlike `string`: the point of the type is
 	// that this pin is not one.
 	luau: "#b0763a",

@@ -56,10 +56,10 @@ function call(
 function stmt(
 	id: string, title: string, category: string, template: string,
 	inputs: PinDef[],
-	opts: { targets?: NodeDef["targets"]; summary?: string } = {},
+	opts: { targets?: NodeDef["targets"]; summary?: string; latent?: boolean } = {},
 ): NodeDef {
 	return {
-		id, title, category, summary: opts.summary, targets: opts.targets,
+		id, title, category, summary: opts.summary, targets: opts.targets, latent: opts.latent,
 		inputs: [exec("in"), ...inputs],
 		outputs: [exec("then")],
 		compilesTo: { kind: "statement", template },
@@ -769,7 +769,76 @@ export const LIBRARY_NODES: NodeDef[] = [
 
 	// -- Time --------------------------------------------------------------
 	call("task.wait", "Wait", "Time", "task.wait($in.seconds)",
-		[num("seconds", "Seconds", 1)], "Elapsed", "number", { latent: true }),
+		[num("seconds", "Seconds", 1)], "Elapsed", "number",
+		{
+			latent: true,
+			summary:
+				"Yields this thread for at least that long, and gives back how long it actually took. The global `wait()` is deprecated; this is its replacement.",
+		}),
+
+	// -- Threads -----------------------------------------------------------
+	//
+	// The `task` library, which is Roblox's scheduler, and Luau's `coroutine`
+	// library underneath it. Reach for `task` first: it is scheduler-aware, and
+	// the old globals `spawn`, `delay` and `wait` are deprecated in its favour.
+	variadicCall("task.spawn", "Spawn", "Threads", "task.spawn($in.fn$more(, ))",
+		[d("fn", "Function", "function")], "Thread",
+		"Runs the function on a new thread, **starting immediately** and continuing here when it yields or finishes. The thread is handed back so it can be cancelled."),
+	variadicCall("task.defer", "Defer", "Threads", "task.defer($in.fn$more(, ))",
+		[d("fn", "Function", "function")], "Thread",
+		"Like Spawn, but the function does not start until the engine next resumes — use it when you want the current frame's work to finish first."),
+	variadicCall("task.delay", "Delay", "Threads",
+		"task.delay($in.seconds, $in.fn$more(, ))",
+		[num("seconds", "Seconds", 1), d("fn", "Function", "function")], "Thread",
+		"Runs the function after a delay, without yielding here. `delay()` the global is deprecated in favour of this."),
+	stmt("task.cancel", "Cancel Thread", "Threads", "task.cancel($in.thread)",
+		[d("thread", "Thread", "thread")],
+		{
+			targets: ["roblox"],
+			summary:
+				"Stops a thread from Spawn, Defer or Delay. Errors if the thread has already finished, so keep the reference only while it is live.",
+		}),
+	stmt("task.desynchronize", "Desynchronize", "Threads", "task.desynchronize()", [],
+		{
+			targets: ["roblox"], latent: true,
+			summary:
+				"Moves this thread into the parallel phase, where it may not write to the DataModel. Only meaningful inside an Actor. Yields.",
+		}),
+	stmt("task.synchronize", "Synchronize", "Threads", "task.synchronize()", [],
+		{
+			targets: ["roblox"], latent: true,
+			summary: "Moves back to the serial phase, where writing is allowed again. Yields.",
+		}),
+
+	call("coroutine.create", "Create Coroutine", "Threads", "coroutine.create($in.fn)",
+		[d("fn", "Function", "function")], "Thread", "thread",
+		{
+			summary:
+				"A thread that does not start until it is resumed — the difference from Spawn, which starts at once. Luau's own primitive; `task` is the scheduler built on it.",
+		}),
+	call("coroutine.wrap", "Wrap Coroutine", "Threads", "coroutine.wrap($in.fn)",
+		[d("fn", "Function", "function")], "Resume", "function",
+		{
+			summary:
+				"A coroutine as a plain function: calling it resumes the thread. Errors inside propagate to the caller rather than coming back as a false, which Resume does instead.",
+		}),
+	variadicCall("coroutine.resume", "Resume Coroutine", "Threads",
+		"coroutine.resume($in.thread$more(, ))",
+		[d("thread", "Thread", "thread")], "Succeeded",
+		"Runs a coroutine until it yields or finishes. Returns whether it survived — an error inside comes back as false rather than being raised here. **Only the first return value is captured**; for the rest, use Custom Code.",
+		{ latent: true }),
+	variadicStmt("coroutine.yield", "Yield", "Threads", "coroutine.yield($args(, ))", [],
+		"Hands control back to whoever resumed this coroutine, passing values out. What comes back in on the next resume needs Custom Code to catch."),
+	pure("coroutine.status", "Coroutine Status", "Threads", "coroutine.status($in.thread)",
+		[d("thread", "Thread", "thread")], "string",
+		"One of running, suspended, normal or dead."),
+	pure("coroutine.running", "Running Coroutine", "Threads", "coroutine.running()", [], "thread",
+		"The thread this code is on."),
+	pure("coroutine.isYieldable", "Is Yieldable", "Threads", "coroutine.isyieldable()", [], "boolean",
+		"False at the top level of a script, where there is nothing to yield to."),
+	call("coroutine.close", "Close Coroutine", "Threads", "coroutine.close($in.thread)",
+		[d("thread", "Thread", "thread")], "Closed", "boolean",
+		{ summary: "Kills a suspended coroutine and releases what it was holding." }),
 
 	// -- Debug -------------------------------------------------------------
 	stmt("debug.print", "Print", "Debug", "print($in.value)", [d("value", "Value", "any", { t: "string", v: "Hello" })]),

@@ -29,6 +29,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.10.0",
+		date: "2026-09-06",
+		headline: "The task and coroutine libraries — 189 nodes.",
+		added: [
+			"**Threads**: Spawn, Defer, Delay and Cancel Thread from Roblox's `task` scheduler, plus Synchronize and Desynchronize for parallel Luau.",
+			"The **coroutine** library underneath it — Create, Wrap, Resume, Yield, Status, Running, Is Yieldable and Close.",
+			"A `thread` pin type, with its own colour.",
+		],
+		changed: [
+			"`Wait` now says what it is: the replacement for the deprecated `wait()` global, and it hands back how long it actually took.",
+		],
+		watch: [
+			"**Resume Coroutine captures only the first return value.** A coroutine that yields several needs Custom Code to catch the rest — the node says so rather than quietly dropping them.",
+		],
+	},
+	{
 		version: "0.9.1",
 		date: "2026-09-06",
 		headline: "Custom Code versus Luau Expression, answered properly.",
