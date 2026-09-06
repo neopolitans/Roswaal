@@ -2525,6 +2525,53 @@ button.tb.with-icon {
 
 /* ------------------------------------------------------------ code blocks */
 
+/* ------------------------------------------------- node previews in docs */
+
+/* A node picture sits on the canvas colour rather than the page colour, so it
+   reads as "this is what you will see over there" instead of as an illustration
+   drawn for the page. The grid is the canvas's own fine grid at rest, which is
+   what puts the node in a place rather than on a background. */
+.docs-preview {
+	margin: 0 0 18px;
+	padding: 18px 16px;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: var(--bg-canvas);
+	background-image:
+		linear-gradient(var(--grid-fine) 1px, transparent 1px),
+		linear-gradient(90deg, var(--grid-fine) 1px, transparent 1px);
+	background-size: 24px 24px;
+}
+
+/* Wraps, so two nodes sit side by side on a wide page and stack on a narrow
+   one. Aligned to the top: comparing two nodes means comparing their headers,
+   and centring a tall one against a short one puts those on different lines. */
+.docs-preview .row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 20px;
+}
+
+.docs-preview .node-preview-frame {
+	filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18));
+}
+
+.docs-preview svg.node-preview {
+	display: block;
+	/* The canvas font, so a title in a preview is set the way the title on the
+	   node is. `font-family: inherit` inside the SVG picks this up. */
+	font-family: inherit;
+}
+
+.docs-preview figcaption {
+	margin-top: 14px;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--fg-muted);
+	max-width: 62ch;
+}
+
 .docs-code {
 	border: 1px solid var(--border);
 	border-radius: 6px;

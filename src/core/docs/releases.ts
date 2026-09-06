@@ -29,6 +29,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.11.0",
+		date: "2026-09-06",
+		headline: "Every node page opens with a picture of the node.",
+		added: [
+			"A **node preview** at the top of all 189 reference pages — the node drawn exactly as the canvas draws it, with its header colour, its rows, its pin colours and the values it starts with. Recognising the node you are looking for is now a glance rather than a read.",
+			"Previews in the guides too, where the useful thing is a comparison: **Custom Code beside Luau Expression** on *Hand-written Luau*, and an impure node beside a pure one on *Wires and pins*.",
+		],
+		changed: [
+			"Previews are drawn from the canvas's own geometry and palette rather than from a second set of numbers, and a test holds their size and every pin row against `nodeBounds` and `pinPosition`. A change to how a node is laid out that the previews do not follow fails the build instead of quietly misinforming a reader.",
+			"They follow your theme, and need no JavaScript — they are SVG in the page, in the static site as much as in the editor.",
+		],
+		watch: [
+			"**A preview shows the node, not the editor.** The −/+ buttons on a variadic node, the error badge and the selection ring are left out on purpose: they appear when you interact with a node, and a picture of them would be a picture of something you cannot do on a page.",
+		],
+	},
+	{
 		version: "0.10.0",
 		date: "2026-09-06",
 		headline: "The task and coroutine libraries — 189 nodes.",

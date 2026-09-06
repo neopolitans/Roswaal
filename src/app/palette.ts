@@ -39,7 +39,14 @@ const CATEGORY_COLORS: Record<string, string> = {
 	Custom: "#4f6480",
 };
 
-export function nodeColor(def: NodeDef): string {
+/**
+ * Takes the two fields it actually reads rather than a whole `NodeDef`, so the
+ * documentation's node previews — which hold a description of a node, not the
+ * definition itself — can be coloured by this function instead of by a copy of
+ * this table. A `NodeDef` satisfies the shape, so every existing call still
+ * passes one.
+ */
+export function nodeColor(def: { category: string; role?: string }): string {
 	if (def.role === "entry" || def.role === "terminal") return FLOW_RED;
 	return CATEGORY_COLORS[def.category] ?? CATEGORY_COLORS.Custom;
 }

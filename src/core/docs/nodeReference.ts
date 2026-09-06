@@ -25,6 +25,7 @@ import { emptyScript } from "../schema.js";
 import type { Registry } from "../nodes/index.js";
 import { literalOnlyPins, resolveNodePins } from "../nodes/index.js";
 import { STRUCTS, type StructRegistry } from "../structs.js";
+import { previewOf, type NodePreview } from "./preview.js";
 import { CURATED, EXAMPLE_NOTES } from "./examples.js";
 
 export interface PinDoc {
@@ -71,6 +72,11 @@ export interface NodeDoc {
 	outputs: PinDoc[];
 	/** True when this node came from a pack rather than the built-in library. */
 	custom: boolean;
+	/**
+	 * The node as the canvas draws it, so a page can show the shape a reader is
+	 * actually looking for rather than only describe it.
+	 */
+	preview: NodePreview;
 	/** The Luau a minimal graph using this node compiles to. */
 	example?: string;
 	/** A note that belongs with the example rather than with the node. */
@@ -123,6 +129,7 @@ export function documentNode(
 		inputs: inputs.map((p) => documentPin(def, p, "in")),
 		outputs: outputs.map((p) => documentPin(def, p, "out")),
 		custom: !builtinIds.has(def.id),
+		preview: previewOf(def),
 		example: example.luau,
 		exampleNote: example.note,
 		exampleOmitted: example.omitted,

@@ -18,6 +18,7 @@
 
 import type { Block, DocPage, DocSection, DocSite } from "./site.js";
 import { allPages, parseInline } from "./site.js";
+import { previewSvg, type PreviewOptions } from "./preview.js";
 
 export interface RenderOptions {
 	/** Turns Luau into HTML. Returns escaped text when absent. */
@@ -30,6 +31,12 @@ export interface RenderOptions {
 	 * which is how the first build shipped them.
 	 */
 	pinColor?: (type: string | undefined, kind: "exec" | "data") => string;
+	/**
+	 * Canvas geometry and colours for node previews, passed in for the same
+	 * reason. Without it the previews are left out rather than drawn wrong — a
+	 * page with no picture is honest, a picture at invented sizes is not.
+	 */
+	preview?: PreviewOptions;
 	/** Shown in the header, next to the name. */
 	version: string;
 }
@@ -124,6 +131,16 @@ function renderBlock(block: Block, options: RenderOptions): string {
 			return `<div class="docs-note ${block.kind}">${inline(block.text)}</div>`;
 		case "pins":
 			return renderPins(block, options);
+		case "preview": {
+			if (!options.preview) return "";
+			const svgs = block.nodes
+				.map((node) => `<div class="node-preview-frame">${previewSvg(node, options.preview!)}</div>`)
+				.join("");
+			const caption = block.caption
+				? `<figcaption>${inline(block.caption)}</figcaption>`
+				: "";
+			return `<figure class="docs-preview"><div class="row">${svgs}</div>${caption}</figure>`;
+		}
 	}
 }
 

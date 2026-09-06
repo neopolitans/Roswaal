@@ -48,6 +48,18 @@ export const NODE = {
 	/** Padding below the last pin row. */
 	footer: 10,
 	pinRadius: 5,
+	/**
+	 * The square a pin is drawn in, and the gap between it and the node's edge.
+	 *
+	 * These three are also written in `theme.css` — as `--pin-slot`, the row's
+	 * side padding, and the node's `border-radius` — because CSS cannot read
+	 * this file. They live here as well so the documentation's node previews are
+	 * drawn from the same numbers the canvas is, rather than from a second
+	 * guess at them. Change one and change the other.
+	 */
+	pinSlot: 16,
+	rowPadding: 6,
+	radius: 7,
 	/** How far a bezier control point reaches horizontally. */
 	wireSlack: 70,
 } as const;

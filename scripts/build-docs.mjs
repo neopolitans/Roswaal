@@ -20,7 +20,8 @@ import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
 import { buildSearchIndex, buildSite } from "../src/core/docs/site.ts";
 import { escapeHtml, renderSite } from "../src/core/docs/html.ts";
 import { highlightLuau } from "../src/app/highlight.ts";
-import { pinColor } from "../src/app/palette.ts";
+import { nodeColor, pinColor } from "../src/app/palette.ts";
+import { NODE } from "../src/app/layers.ts";
 import { VERSION } from "../src/cli/version.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -114,7 +115,8 @@ async function main() {
 	const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
 	const site = buildSite(registry, builtinIds);
 
-	const files = renderSite(site, { highlight, pinColor, version: VERSION });
+	const preview = { geometry: NODE, nodeColor, pinColor };
+	const files = renderSite(site, { highlight, pinColor, preview, version: VERSION });
 
 	for (const file of files) {
 		const target = join(out, file.path);

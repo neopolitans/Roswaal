@@ -22,6 +22,7 @@ import type { Registry } from "../nodes/index.js";
 import { categories } from "../nodes/index.js";
 import { BLUEPRINT_MAP } from "./blueprints.js";
 import { documentRegistry, OMISSION_REASONS, type NodeDoc } from "./nodeReference.js";
+import { previewOf, type NodePreview } from "./preview.js";
 import { RELEASES } from "./releases.js";
 
 // ---------------------------------------------------------------------------
@@ -39,7 +40,16 @@ export type Block =
 	/** A pulled-out aside. `warn` for a trap, `good` for a promise being kept. */
 	| { t: "note"; kind: "info" | "warn" | "good"; text: string }
 	/** Pin tables on a node page, which want their own rendering. */
-	| { t: "pins"; title: string; pins: NodeDoc["inputs"] };
+	| { t: "pins"; title: string; pins: NodeDoc["inputs"] }
+	/**
+	 * One or more nodes drawn as they appear on the canvas.
+	 *
+	 * A list rather than a single node because the useful case is nearly always
+	 * a comparison — Custom Code beside Luau Expression, a getter beside a
+	 * setter — and two pictures side by side answer "which one do I want" in a
+	 * way that two pictures a paragraph apart do not.
+	 */
+	| { t: "preview"; nodes: NodePreview[]; caption?: string };
 
 export interface DocPage {
 	slug: string;
@@ -155,12 +165,29 @@ export function blockText(block: Block): string {
 			return parseInline(block.text).map((i) => i.text).join("");
 		case "pins":
 			return block.pins.map((p) => `${p.name} ${p.type ?? ""}`).join(" ");
+		case "preview":
+			return [...block.nodes.map((n) => n.title), block.caption ?? ""].join(" ").trim();
 	}
 }
 
 // ---------------------------------------------------------------------------
 // Generated pages
 // ---------------------------------------------------------------------------
+
+/**
+ * A preview block for named nodes, in the order they are named.
+ *
+ * A node that is not in this registry is skipped rather than drawn as a gap: a
+ * guide is written against the built-in library, and a project that has trimmed
+ * it should lose the picture, not the page.
+ */
+function previews(registry: Registry, ids: string[], caption?: string): Block[] {
+	const nodes = ids
+		.map((id) => registry.get(id))
+		.filter((def): def is NonNullable<typeof def> => def !== undefined)
+		.map(previewOf);
+	return nodes.length > 0 ? [{ t: "preview", nodes, caption }] : [];
+}
 
 function nodePage(doc: NodeDoc): DocPage {
 	const blocks: Block[] = [];
@@ -177,6 +204,11 @@ function nodePage(doc: NodeDoc): DocPage {
 
 	// The summary is already the page's standfirst; repeating it as the first
 	// paragraph just makes the reader check whether the two differ.
+	// Before anything else: somebody arriving here from a search is usually
+	// checking they have the right node, and the shape answers that faster than
+	// the first paragraph does.
+	blocks.push({ t: "preview", nodes: [doc.preview] });
+
 	if (traits.length > 0) blocks.push({ t: "ul", items: traits });
 
 	if (doc.inputs.length > 0) blocks.push({ t: "pins", title: "Inputs", pins: doc.inputs });
@@ -370,7 +402,7 @@ const GETTING_STARTED: DocPage = {
 	],
 };
 
-const TWO_KINDS_OF_WIRE: DocPage = {
+const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 	slug: "wires-and-pins",
 	narrow: true,
 	title: "Wires and pins",
@@ -389,6 +421,12 @@ const TWO_KINDS_OF_WIRE: DocPage = {
 				"pure value used once is spliced into its use site; used twice it is bound to a local " +
 				"first, so the work happens once however many wires leave the pin.",
 		},
+		...previews(
+			registry,
+			["debug.print", "math.add"],
+			"Print sits in the execution line, so it has a white pin either side. Add is pure — " +
+				"no execution pins at all, and its value goes wherever a value is wanted.",
+		),
 		{ t: "h", level: 2, text: "Reading the colours" },
 		{
 			t: "p",
@@ -425,7 +463,7 @@ const TWO_KINDS_OF_WIRE: DocPage = {
 				"than a constant — Roswaal says so before it changes anything, instead of guessing.",
 		},
 	],
-};
+});
 
 const VARIABLES: DocPage = {
 	slug: "variables-and-locals",
@@ -463,7 +501,7 @@ const VARIABLES: DocPage = {
 	],
 };
 
-const ESCAPE_HATCHES: DocPage = {
+const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 	slug: "hand-written-luau",
 	narrow: true,
 	title: "Hand-written Luau",
@@ -496,6 +534,12 @@ const ESCAPE_HATCHES: DocPage = {
 				["Reach for it when", "you are *doing* something", "you are *computing* something"],
 			],
 		},
+		...previews(
+			registry,
+			["code.custom", "value.expression"],
+			"The shape says which is which before you read the title: Custom Code has execution " +
+				"pins and no output, Luau Expression has an output and no execution pins.",
+		),
 		{
 			t: "code",
 			lang: "luau",
@@ -599,7 +643,7 @@ const ESCAPE_HATCHES: DocPage = {
 				"rather than in the editor.",
 		},
 	],
-};
+});
 
 const BUILDING: DocPage = {
 	slug: "building-and-rojo",
@@ -937,7 +981,10 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				title: "Guides",
 				slug: "guides",
 				group: GROUPS.learn,
-				pages: [TWO_KINDS_OF_WIRE, TYPES_GUIDE, VARIABLES, BUILDING, ESCAPE_HATCHES],
+				pages: [
+					TWO_KINDS_OF_WIRE(registry), TYPES_GUIDE, VARIABLES, BUILDING,
+					ESCAPE_HATCHES(registry),
+				],
 			},
 			{
 				title: "Release notes",
