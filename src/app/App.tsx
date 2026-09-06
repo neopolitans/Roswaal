@@ -34,6 +34,12 @@ import {
 import { store, useEditor } from "./store.js";
 
 const LAST_PROJECT_KEY = "roswaal.lastProject";
+/**
+ * Whether Realign straightens the execution spine. A per-developer preference
+ * rather than a document one: it is a habit of reading, not a property of the
+ * graph, and two people sharing a repository should not fight over it.
+ */
+const ALIGN_EXEC_KEY = "roswaal.alignExec";
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
 const AUTOSAVE_MS = 600;
@@ -45,6 +51,9 @@ export function App() {
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
 	const [outcomes, setOutcomes] = useState<CompileOutcome[]>([]);
 	const [statusOpen, setStatusOpen] = useState(true);
+	const [alignExec, setAlignExec] = useState(
+		() => localStorage.getItem(ALIGN_EXEC_KEY) !== "off",
+	);
 	const [source, setSource] = useState<{ path: string; text: string } | null>(null);
 	// A node map is a tree, not a graph, so it lives beside the graph store
 	// rather than inside it. Nothing about undo or selection carries over.
@@ -305,8 +314,15 @@ export function App() {
 			[...state.selection].filter((id) => state.script!.nodes.some((n) => n.id === id)),
 		);
 		const only = selected.size > 1 ? selected : undefined;
-		store.edit((s) => autoLayout(s, registry, only));
-	}, [registry]);
+		store.edit((s) => autoLayout(s, registry, { only, alignExec }));
+	}, [registry, alignExec]);
+
+	const toggleAlignExec = useCallback(() => {
+		setAlignExec((on) => {
+			localStorage.setItem(ALIGN_EXEC_KEY, on ? "off" : "on");
+			return !on;
+		});
+	}, []);
 
 	// -- keyboard ----------------------------------------------------------
 
@@ -422,6 +438,18 @@ export function App() {
 				>
 					<Icon name="layout" size={15} />
 					Realign
+				</button>
+				<button
+					className={`tb${alignExec ? " on" : ""}`}
+					aria-pressed={alignExec}
+					title={
+						alignExec
+							? "Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
+							: "Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
+					}
+					onClick={toggleAlignExec}
+				>
+					Straighten
 				</button>
 				<button
 					className="tb with-icon"

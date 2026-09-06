@@ -26,6 +26,16 @@
 	--node-border: #b3b9c4;
 	--node-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
 
+	/* Pin geometry. One slot size for every pin, because the slot is what lines
+	   the labels up down the side of a node; the dot inside it varies by kind.
+	   Not in layers.ts with the rest of the geometry, because nothing outside
+	   the stylesheet consults it — a wire attaches at the node edge and the row
+	   centre, never at the pin's own size. */
+	--pin-slot: 16px;
+	/* What shows through a hollow execution arrow. The node's own body, so the
+	   arrow reads as empty rather than as a lighter shade of itself. */
+	--pin-hollow: var(--node-body);
+
 	--comment-fill: 0.1;
 	--comment-header-alpha: 0.75;
 
@@ -172,6 +182,20 @@ select.tb:hover {
 button.tb:disabled {
 	opacity: 0.45;
 	cursor: default;
+}
+
+/* A toolbar button that is a mode rather than an action. Held-down rather than
+   filled, because it sits beside real buttons and should not read as the one
+   thing on the bar you are meant to press. */
+button.tb.on {
+	background: color-mix(in srgb, var(--accent) 18%, var(--bg-input));
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+button.tb.on:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--accent) 26%, var(--bg-input));
+	border-color: var(--accent);
 }
 
 button.tb.primary {
@@ -444,8 +468,8 @@ button.tb.primary:hover:not(:disabled) {
 }
 
 .node .pin {
-	width: 12px;
-	height: 12px;
+	width: var(--pin-slot);
+	height: var(--pin-slot);
 	flex: none;
 	position: relative;
 	cursor: crosshair;
@@ -457,20 +481,26 @@ button.tb.primary:hover:not(:disabled) {
  * so the rest of the row belongs to the node and can be dragged. Landing a wire
  * asks for none: while one is in flight every pin widens, because by then you
  * know which pin you want and fighting for the last three pixels is nobody's
- * idea of a good time. */
+ * idea of a good time.
+ *
+ * The resting inset stops one pixel short of the next row: a 16px slot plus 3px
+ * either side is 22px inside a 24px row, so no click is ever answered by two
+ * pins at once. Widen the slot and this number has to come down with it. */
 .node .pin::after {
 	content: "";
 	position: absolute;
-	inset: -2px;
+	inset: -3px;
 }
 
 .canvas.wiring .node .pin::after {
 	inset: -9px;
 }
 
+/* A data pin is a 10px circle centred in the slot — the size it has always
+   been. The slot grew around it, not it. */
 .node .pin .dot {
 	position: absolute;
-	inset: 1px;
+	inset: 3px;
 	border-radius: 50%;
 	border: 2px solid currentColor;
 }
@@ -479,17 +509,38 @@ button.tb.primary:hover:not(:disabled) {
 	background: currentColor;
 }
 
+/* An execution pin fills the whole slot, because it is the thing you aim at
+   most and it was previously the same size as a value pin while carrying more
+   traffic.
+ *
+ * Empty versus wired is drawn the way Unreal draws it — outline, then solid.
+ * That used to be a half-opacity fill, which reads as "disabled" rather than
+ * "nothing here yet"; a hollow arrow says the same thing at full colour, so an
+ * unwired exec pin stays as easy to find as a wired one.
+ *
+ * The hollow is a second arrow in the node's own body colour rather than a
+ * border, because clip-path cuts straight through a border and leaves the point
+ * blunt on the diagonal. */
 .node .pin.exec .dot {
-	border-radius: 2px;
-	clip-path: polygon(0 0, 62% 0, 100% 50%, 62% 100%, 0 100%);
+	position: absolute;
+	inset: 0;
 	border: 0;
-	background: transparent;
-	box-shadow: inset 0 0 0 12px currentColor;
-	opacity: 0.45;
+	border-radius: 0;
+	background: currentColor;
+	clip-path: polygon(0 0, 58% 0, 100% 50%, 58% 100%, 0 100%);
 }
 
-.node .pin.exec.connected .dot {
-	opacity: 1;
+.node .pin.exec .dot::after {
+	content: "";
+	position: absolute;
+	/* Tighter on the right so the wall stays even where the point narrows. */
+	inset: 2.5px 4px 2.5px 2.5px;
+	background: var(--pin-hollow);
+	clip-path: polygon(0 0, 58% 0, 100% 50%, 58% 100%, 0 100%);
+}
+
+.node .pin.exec.connected .dot::after {
+	display: none;
 }
 
 .node .pin.compatible .dot {
@@ -1877,6 +1928,9 @@ button.tb.with-icon {
 .node.reroute {
 	border-radius: 50%;
 	background: var(--capsule-bg);
+	/* An exec knot draws a hollow arrow, and the hollow has to be the colour it
+	   is actually sitting on — the capsule, not a node body. */
+	--pin-hollow: var(--capsule-bg);
 	border: 1px solid var(--capsule-border);
 	box-shadow: var(--node-shadow);
 	display: grid;

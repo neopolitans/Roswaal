@@ -13,9 +13,9 @@
  * something readable, without moving it somewhere you have to go and find.
  */
 
-import type { NodeScript } from "../core/schema.js";
+import type { GraphNode, NodeScript, PinKind } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
-import { nodeBounds } from "./geometry.js";
+import { nodeBounds, pinPosition, resolvePins } from "./geometry.js";
 import { commentContents } from "./edits.js";
 
 /** Horizontal gap between ranks, and vertical gap between nodes in a rank. */
@@ -25,16 +25,25 @@ const GAP_Y = 34;
 const COMMENT_PAD = 26;
 const COMMENT_HEADER = 44;
 
-/**
- * Repositions nodes into ranked columns.
- *
- * Pass `only` to tidy a selection and leave the rest of the graph alone; the
- * laid-out block is placed back over the space the selection occupied, so a
- * partial tidy does not fling those nodes across the canvas.
- */
+export interface LayoutOptions {
+	/**
+	 * Tidy only these nodes and leave the rest of the graph alone. The laid-out
+	 * block is placed back over the space the selection occupied, so a partial
+	 * tidy does not fling those nodes across the canvas.
+	 */
+	only?: ReadonlySet<string>;
+	/**
+	 * Line each node up with the execution wire arriving at it, so a run of
+	 * steps reads as one horizontal line rather than a staircase.
+	 */
+	alignExec?: boolean;
+}
+
+/** Repositions nodes into ranked columns. */
 export function autoLayout(
-	script: NodeScript, registry: Registry, only?: ReadonlySet<string>,
+	script: NodeScript, registry: Registry, options: LayoutOptions = {},
 ): NodeScript {
+	const { only, alignExec = false } = options;
 	const subject = script.nodes.filter((n) => !only || only.has(n.id));
 	if (subject.length < 2) return script;
 
@@ -90,6 +99,8 @@ export function autoLayout(
 			placed.set(id, { x: at.x, y: at.y + offset });
 		}
 	});
+
+	if (alignExec) alignToExecPins(columns, placed, script, registry, rank);
 
 	const nodes = script.nodes.map((node) => {
 		const at = placed.get(node.id);
@@ -195,6 +206,93 @@ function orderWithinColumns(
 		});
 		column.forEach((id, index) => positionIn.set(id, index));
 	}
+}
+
+/**
+ * Straightens the execution spine.
+ *
+ * Ranked columns put a node in the right column but at whatever height the
+ * stacking happened to leave it, so a run of steps reads as a staircase. Unreal
+ * lines the execution pins up instead, and the flow through a graph becomes one
+ * horizontal line the eye can follow without hopping.
+ *
+ * This runs after placement rather than replacing it. Each node asks to sit
+ * where its incoming execution wire would come out flat; a downward sweep then
+ * resolves the overlaps that asking creates, so the request is a preference and
+ * not a promise. A node with no execution input keeps the height its column
+ * gave it.
+ *
+ * Both pin positions come from `pinPosition`, the same function the wire router
+ * uses — so "flat" here means exactly what a flat wire means when one is drawn,
+ * and a change to header or row height cannot make the two disagree.
+ */
+function alignToExecPins(
+	columns: string[][],
+	placed: Map<string, { x: number; y: number }>,
+	script: NodeScript,
+	registry: Registry,
+	rank: Map<string, number>,
+): void {
+	const byId = new Map(script.nodes.map((n) => [n.id, n]));
+
+	for (let i = 1; i < columns.length; i++) {
+		const wanted = new Map<string, number>();
+
+		for (const id of columns[i]) {
+			const node = byId.get(id);
+			const at = placed.get(id);
+			if (!node || !at) continue;
+
+			const link = script.links.find(
+				(l) =>
+					l.to.node === id &&
+					placed.has(l.from.node) &&
+					// A loop-back points rightwards, and following one would drag a
+					// node up onto something it feeds. Only settled columns count.
+					(rank.get(l.from.node) ?? 0) < i &&
+					pinKind(node, registry, l.to.pin, "in") === "exec",
+			);
+			if (!link) continue;
+
+			const source = byId.get(link.from.node);
+			const sourceAt = placed.get(link.from.node);
+			if (!source || !sourceAt) continue;
+
+			const out = pinPosition({ ...source, ...sourceAt }, registry, link.from.pin, "out");
+			const into = pinPosition({ ...node, ...at }, registry, link.to.pin, "in");
+			if (out && into) wanted.set(id, at.y + (out.y - into.y));
+		}
+
+		if (wanted.size === 0) continue;
+
+		// Sweep downward: each node takes the height it asked for, or the first
+		// one below that clears its neighbour. Ordering by the request rather
+		// than by the old position is what stops the sweep from shunting an
+		// eager node past the one it was trying to line up with.
+		const order = [...columns[i]].sort(
+			(a, b) => (wanted.get(a) ?? placed.get(a)!.y) - (wanted.get(b) ?? placed.get(b)!.y),
+		);
+
+		let cursor = -Infinity;
+		for (const id of order) {
+			const at = placed.get(id)!;
+			const node = byId.get(id);
+			if (!node) continue;
+			const y = Math.max(wanted.get(id) ?? at.y, cursor);
+			placed.set(id, { x: at.x, y });
+			cursor = y + nodeBounds(node, registry).h + GAP_Y;
+		}
+	}
+}
+
+/** The kind of one named pin, or undefined if the node has no such pin. */
+function pinKind(
+	node: GraphNode, registry: Registry, pinId: string, side: "in" | "out",
+): PinKind | undefined {
+	const def = registry.get(node.def);
+	if (!def) return undefined;
+	const { inputs, outputs } = resolvePins(def, node.config);
+	return (side === "in" ? inputs : outputs).find((p) => p.id === pinId)?.kind;
 }
 
 /** Grows each comment back around the nodes it held before the tidy-up. */
