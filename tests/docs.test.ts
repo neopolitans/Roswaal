@@ -1,0 +1,139 @@
+/**
+ * The documentation, and the two promises it makes.
+ *
+ * The node reference is generated, so it cannot go stale — but "generated" only
+ * buys that if the generator is exercised against the whole registry rather
+ * than a couple of convenient nodes. And the Blueprint mapping is hand-written
+ * prose that names node ids, which is exactly the kind of thing that rots
+ * silently when a node is renamed. So it is checked.
+ */
+
+import { describe, expect, it } from "vitest";
+
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
+import {
+	documentNode, documentRegistry, exampleFor, OMISSION_REASONS,
+} from "../src/core/docs/nodeReference.js";
+import { BLUEPRINT_MAP, referencedNodeIds } from "../src/core/docs/blueprints.js";
+import type { NodeDef } from "../src/core/schema.js";
+
+const registry = createRegistry();
+const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
+
+describe("node reference", () => {
+	it("documents every node in the registry", () => {
+		const docs = documentRegistry(registry, builtinIds);
+		expect(docs).toHaveLength(registry.size);
+		for (const doc of docs) {
+			expect(doc.title).not.toBe("");
+			expect(doc.category).not.toBe("");
+		}
+	});
+
+	it("carries a pin's type, default and whether it must be wired", () => {
+		const look = documentNode(registry.get("cframe.lookAt")!, registry, builtinIds);
+		const from = look.inputs.find((p) => p.id === "from")!;
+
+		expect(from.type).toBe("Vector3");
+		expect(from.default).toBe("Vector3.zero");
+		expect(from.required).toBe(false);
+		expect(from.splitModes).toEqual(["X, Y, Z"]);
+	});
+
+	it("marks the pins that cannot be wired", () => {
+		const get = documentNode(registry.get("roblox.getProperty")!, registry, builtinIds);
+		expect(get.inputs.find((p) => p.id === "property")!.literalOnly).toBe(true);
+		expect(get.inputs.find((p) => p.id === "instance")!.literalOnly).toBe(false);
+	});
+
+	it("tells a pack's node apart from a built-in", () => {
+		const pack: NodeDef = {
+			id: "pack.thing", title: "Thing", category: "Custom",
+			pure: true, inputs: [], outputs: [{ id: "result", name: "", kind: "data", type: "number" }],
+			compilesTo: { kind: "expr", outputs: { result: "1" } },
+		};
+		const withPack = createRegistry([pack]);
+		const docs = documentRegistry(withPack, builtinIds);
+
+		expect(docs.find((d) => d.id === "pack.thing")!.custom).toBe(true);
+		expect(docs.find((d) => d.id === "math.add")!.custom).toBe(false);
+	});
+
+	describe("worked examples", () => {
+		/** The whole point: a page cannot claim output the emitter would not produce. */
+		it("compiles a pure node into the position it would really appear in", () => {
+			const example = exampleFor(registry.get("cframe.lookAt")!, registry);
+			expect(example.luau).toBe(
+				"print(CFrame.lookAt(Vector3.zero, Vector3.zero, Vector3.yAxis))",
+			);
+		});
+
+		it("hangs an impure node off Script Start", () => {
+			const example = exampleFor(registry.get("debug.print")!, registry);
+			expect(example.luau).toBe(`print("Hello")`);
+		});
+
+		/**
+		 * No example beats a wrong one. Every omission has to name a reason a
+		 * reader can act on, so a page never just goes quiet.
+		 */
+		it("gives a reason whenever it declines to show one", () => {
+			for (const doc of documentRegistry(registry, builtinIds)) {
+				if (doc.example !== undefined) continue;
+				expect(doc.exampleOmitted).toBeDefined();
+				expect(OMISSION_REASONS[doc.exampleOmitted!]).toBeTruthy();
+			}
+		});
+
+		/**
+		 * "did-not-compile" is the one omission that is a bug rather than a
+		 * decision — it means a node cannot be used on its own at all. If this
+		 * ever fails, the node is broken, not the documentation.
+		 */
+		it("has no node that fails to compile in isolation", () => {
+			const broken = documentRegistry(registry, builtinIds)
+				.filter((d) => d.exampleOmitted === "did-not-compile")
+				.map((d) => d.id);
+			expect(broken).toEqual([]);
+		});
+
+		it("never produces an example containing the generated header", () => {
+			for (const doc of documentRegistry(registry, builtinIds)) {
+				expect(doc.example ?? "").not.toContain("roswaal-graph:");
+			}
+		});
+	});
+});
+
+describe("coming from Blueprints", () => {
+	/**
+	 * The reason this table is data. Prose naming `flow.forRange` would keep
+	 * naming it long after a rename, and nobody re-reads a mapping table.
+	 */
+	it("only names nodes that exist", () => {
+		const missing = referencedNodeIds().filter((id) => !registry.has(id));
+		expect(missing).toEqual([]);
+	});
+
+	it("says something about every entry it cannot map", () => {
+		for (const section of BLUEPRINT_MAP) {
+			for (const entry of section.entries) {
+				if (entry.roswaal === null) {
+					// An absence with no explanation is worse than no entry: the
+					// reader is left assuming they failed to find it.
+					expect(entry.note, `"${entry.unreal}" has no equivalent and no note`).toBeTruthy();
+				}
+			}
+		}
+	});
+
+	it("covers the concepts a Blueprint developer reaches for first", () => {
+		const covered = BLUEPRINT_MAP.flatMap((s) => s.entries.map((e) => e.unreal.toLowerCase()));
+		for (const concept of ["branch", "sequence", "event graph", "tick", "cast to"]) {
+			expect(
+				covered.some((c) => c.includes(concept)),
+				`nothing in the map mentions "${concept}"`,
+			).toBe(true);
+		}
+	});
+});
