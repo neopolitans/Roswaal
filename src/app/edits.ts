@@ -13,7 +13,7 @@ import { ANY, WILDCARD } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins, resolveNodePins } from "../core/nodes/index.js";
 import {
-	modeOf, partPinId, splitKey, splitsOf, STRUCTS, type StructMode,
+	decompose, modeOf, partPinId, splitKey, splitsOf, STRUCTS, type StructMode,
 } from "../core/structs.js";
 import { literalToLuau } from "../core/compiler/luau.js";
 import { compactWidth, nodeBounds, pinPosition, rectContains, type Rect } from "./geometry.js";
@@ -654,21 +654,86 @@ export function splitModeOf(node: GraphNode, side: "in" | "out", pinId: string):
  * confirms first — see `splitCost`.
  */
 export function splitPin(
-	script: NodeScript, nodeId: string, side: "in" | "out", pinId: string, mode: string,
+	script: NodeScript, registry: Registry, nodeId: string, side: "in" | "out",
+	pinId: string, mode: string,
 ): NodeScript {
 	const node = script.nodes.find((n) => n.id === nodeId);
 	if (!node) return script;
 
 	const splits = { ...splitsOf(node.config), [splitKey(side, pinId)]: mode };
+	// Carry the value across where it can be read back, so splitting a pin set
+	// to (0, 12, -4) does not quietly start emitting (0, 0, 0).
+	const spread = side === "in" ? spreadToComponents(registry, node, side, pinId, mode) : undefined;
+
 	return dropLinksOn(
 		{
 			...script,
 			nodes: script.nodes.map((n) =>
-				n.id === nodeId ? { ...n, config: { ...n.config, split: splits } } : n,
+				n.id === nodeId
+					? {
+							...n,
+							config: { ...n.config, split: splits },
+							...(spread ? { literals: { ...n.literals, ...spread } } : {}),
+						}
+					: n,
 			),
 		},
 		nodeId, side, [pinId],
 	);
+}
+
+/** The component literals a pin's current value decomposes into, if it can. */
+function spreadToComponents(
+	registry: Registry, node: GraphNode, side: "in" | "out", pinId: string, mode: string,
+): Record<string, Literal> | undefined {
+	const pin = basePinOf(registry, node, side, pinId);
+	const struct = modeOf(STRUCTS, pin?.type, mode);
+	if (!pin || !struct) return undefined;
+
+	const current = node.literals?.[pinId] ?? pin.default;
+	if (!current || current.t !== "raw") return undefined;
+
+	const parts = decompose(struct, current.v);
+	if (!parts) return undefined;
+
+	const out: Record<string, Literal> = {};
+	for (const [id, v] of Object.entries(parts)) {
+		out[partPinId(pinId, id)] = { t: "number", v };
+	}
+	return out;
+}
+
+/**
+ * Why splitting this pin would change what the graph does, or null if it would
+ * not.
+ *
+ * Three cases. A pin still holding the value its node declared splits into
+ * components chosen to mean the same thing, so nothing changes. A value that
+ * decomposes is carried across exactly. Anything else — an expression someone
+ * wired in from a Luau Expression node, a constant nobody here wrote — cannot
+ * be taken apart, and the honest thing is to say so before doing it rather than
+ * after.
+ */
+export function splitValueWarning(
+	script: NodeScript, registry: Registry, nodeId: string, side: "in" | "out",
+	pinId: string, mode: string,
+): string | null {
+	if (side !== "in") return null;
+
+	const node = script.nodes.find((n) => n.id === nodeId);
+	if (!node) return null;
+
+	const pin = basePinOf(registry, node, side, pinId);
+	const struct = modeOf(STRUCTS, pin?.type, mode);
+	if (!pin || !struct) return null;
+
+	const typed = node.literals?.[pinId];
+	// Untouched: the components' defaults were chosen to mean the same thing.
+	if (!typed || typed.t !== "raw") return null;
+	if (pin.default?.t === "raw" && pin.default.v === typed.v) return null;
+	if (decompose(struct, typed.v)) return null;
+
+	return typed.v;
 }
 
 /**

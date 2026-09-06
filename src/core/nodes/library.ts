@@ -119,7 +119,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		category: "Values",
 		summary: "Escape hatch. The text is inserted verbatim as an expression.",
 		pure: true,
-		inputs: [d("code", "Code", "string", { t: "raw", v: "0" })],
+		inputs: [{ ...d("code", "Code", "string", { t: "raw", v: "0" }), code: true }],
 		outputs: [d("result", "", "any")],
 		compilesTo: { kind: "expr", outputs: { result: "$in.code!raw" } },
 	},
@@ -470,7 +470,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		category: "Debug",
 		summary:
 			"Escape hatch. The text is emitted verbatim as statements, so existing Luau can be wrapped rather than rebuilt.",
-		inputs: [exec("in"), d("code", "Code", "string", { t: "raw", v: "-- your Luau here" })],
+		inputs: [exec("in"), { ...d("code", "Code", "string", { t: "raw", v: "-- your Luau here" }), code: true }],
 		outputs: [exec("then")],
 		compilesTo: { kind: "statement", template: "$in.code!raw" },
 	},

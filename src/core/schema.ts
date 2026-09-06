@@ -44,6 +44,23 @@ export interface PinDef {
 	options?: string[];
 	description?: string;
 	/**
+	 * This pin accepts hand-written Luau, and opens a code editor for it.
+	 *
+	 * **A `raw` default does not imply this, and must not.** Plenty of ordinary
+	 * pins default to a raw constant simply because their type has no literal
+	 * form — a `Vector3` input defaults to `Vector3.zero` because `nil` would be
+	 * wrong. If that alone opened a code editor, every vector pin in the library
+	 * would be a place to hide arbitrary code inside a node that looks like a
+	 * constructor, and a reviewer scanning a shared graph for Custom Code nodes
+	 * would never find it.
+	 *
+	 * So this is opt-in, and only the two deliberate escape hatches set it:
+	 * Custom Code and Luau Expression. Their node titles say what they are.
+	 * Everywhere else a raw default is displayed and not editable — author the
+	 * value by wiring a node, or by splitting the pin.
+	 */
+	code?: boolean;
+	/**
 	 * Set only on a pin produced by splitting a struct pin, never declared by a
 	 * `NodeDef`. Says which pin this is a component of, so the emitter can put
 	 * the value back together and the canvas can draw it as a child row.

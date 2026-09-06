@@ -360,8 +360,21 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<void> {
 	// and proxies /api here, so this is simply absent.
 	const staticDir = options.staticDir ?? defaultStaticDir();
 	if (staticDir && fs.existsSync(path.join(staticDir, "index.html"))) {
-		app.use(express.static(staticDir));
+		/**
+		 * The asset filenames carry a content hash, so they can be cached hard.
+		 * `index.html` is the one file that must not be: it is what names the
+		 * current hashes, and a cached copy pins the browser to whichever build
+		 * it was fetched with. Rebuilding then changes nothing on screen — the
+		 * editor keeps running an old bundle and reports an old version number,
+		 * which is a confusing way to find out you are debugging yesterday.
+		 */
+		const noCacheHtml = (res: express.Response, filePath: string) => {
+			if (filePath.endsWith(".html")) res.setHeader("Cache-Control", "no-cache");
+		};
+
+		app.use(express.static(staticDir, { setHeaders: noCacheHtml }));
 		app.get(/^(?!\/api\/).*/, (_req, res) => {
+			res.setHeader("Cache-Control", "no-cache");
 			res.sendFile(path.join(staticDir, "index.html"));
 		});
 	}

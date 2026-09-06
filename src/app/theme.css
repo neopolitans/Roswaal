@@ -601,6 +601,30 @@ button.tb.primary:hover:not(:disabled) {
 	right: 2px;
 }
 
+/* A constant the node declared, or one Roswaal folded back when a split pin was
+   recombined. Shown flat and unboxed, because it is not a field: nothing here
+   takes typing, and a box that cannot be typed in is a lie. */
+.node .literal.constant {
+	background: none;
+	border: 1px solid transparent;
+	color: var(--fg-faint);
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: 10px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	/* Pushed to the right edge and given its natural width. The label beside it
+	   is short and known ("Up"); the value is the part worth reading, and
+	   "Vector3.z…" does not distinguish `zero` from anything else. No padding,
+	   because this is text rather than a field. */
+	flex: none;
+	margin-left: auto;
+	padding: 0;
+	max-width: 140px;
+	text-align: right;
+	cursor: default;
+}
+
 .node .literal {
 	background: var(--bg-input);
 	border: 1px solid var(--border);

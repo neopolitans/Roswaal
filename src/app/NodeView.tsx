@@ -287,10 +287,25 @@ function renderLiteral(props: NodeViewProps, pin: PinDef) {
 		);
 	}
 	if (current.t === "raw") {
-		// Raw literals are Luau, not a value, and Luau does not fit in a text
-		// input. Show the first line and hand the rest to the pop-out editor.
 		const lines = current.v.split(NEWLINE);
 		const preview = lines[0].trim() || "(empty)";
+
+		// Only a pin that declares itself a code pin gets the editor. Everywhere
+		// else a raw value is a constant Roswaal wrote — a Vector3.zero default,
+		// or the value folded back when a split pin was recombined — and it is
+		// shown rather than offered for editing. See PinDef.code: an ordinary
+		// pin that opened a Luau editor would be somewhere to hide arbitrary
+		// code inside a node whose title says "Look At".
+		if (!pin.code) {
+			return (
+				<span className="literal constant" title={`${current.v}${NEWLINE}${NEWLINE}A constant. Wire a node in, or split the pin, to change it.`}>
+					{preview}
+				</span>
+			);
+		}
+
+		// Raw literals are Luau, not a value, and Luau does not fit in a text
+		// input. Show the first line and hand the rest to the pop-out editor.
 		return (
 			<button
 				className="literal code"

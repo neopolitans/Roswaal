@@ -12,7 +12,7 @@ import { createRegistry, literalOnlyPins } from "../src/core/nodes/index.js";
 import { compile } from "../src/core/compiler/index.js";
 import {
 	canConnect, canPromoteToVariable, connect, promoteToVariable, recombinePin,
-	setLiteral, splitCost, splitModesFor, splitPin,
+	setLiteral, splitCost, splitModesFor, splitPin, splitValueWarning,
 } from "../src/app/edits.js";
 import { pinPosition } from "../src/app/geometry.js";
 import type { NodeScript, PinDef } from "../src/core/schema.js";
@@ -82,7 +82,7 @@ describe("splitting and recombining a pin", () => {
 		const b = new Builder();
 		const look = b.node("cframe.lookAt");
 
-		const after = splitPin(b.build(), look, "in", "from", "xyz");
+		const after = splitPin(b.build(), registry, look, "in", "from", "xyz");
 		const node = after.nodes.find((n) => n.id === look)!;
 		expect(node.config).toEqual({ split: { "in:from": "xyz" } });
 	});
@@ -97,7 +97,7 @@ describe("splitting and recombining a pin", () => {
 		const script = b.build();
 		expect(splitCost(script, registry, look, "in", "from")).toBe(1);
 
-		const after = splitPin(script, look, "in", "from", "xyz");
+		const after = splitPin(script, registry, look, "in", "from", "xyz");
 		expect(after.links).toHaveLength(0);
 	});
 
@@ -130,7 +130,7 @@ describe("splitting and recombining a pin", () => {
 		const script = b.build();
 		const back = splitPin(
 			recombinePin(script, registry, look, "in", "from"),
-			look, "in", "from", "xyz",
+			registry, look, "in", "from", "xyz",
 		);
 		expect(back.nodes.find((n) => n.id === look)!.literals).toMatchObject({
 			"from.y": { t: "number", v: 7 },
@@ -198,13 +198,74 @@ describe("splitting and recombining a pin", () => {
 		expect(body(compile(whole, registry).code)).toBe(body(compile(split, registry).code));
 	});
 
+	/**
+	 * Reported from the editor, the other half of the recombine bug: splitting a
+	 * pin holding (0, 12, -4) started emitting (0, 0, 0), because the components
+	 * came up at their defaults. Splitting shows a value differently; it must
+	 * never change it.
+	 */
+	it("carries a decomposable value into the components", () => {
+		const b = new Builder();
+		const look = b.node("cframe.lookAt");
+		b.lit(look, "from", { t: "raw", v: "Vector3.new(0, 12, -4)" });
+
+		const after = splitPin(b.build(), registry, look, "in", "from", "xyz");
+		expect(after.nodes.find((n) => n.id === look)!.literals).toMatchObject({
+			"from.x": { t: "number", v: 0 },
+			"from.y": { t: "number", v: 12 },
+			"from.z": { t: "number", v: -4 },
+		});
+	});
+
+	it("round-trips a value through a split and back", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const look = b.node("cframe.lookAt");
+		const print = b.node("debug.print");
+		b.link(start, "then", print, "in");
+		b.link(look, "result", print, "value");
+		b.lit(look, "from", { t: "raw", v: "Vector3.new(3, 4, 5)" });
+
+		const original = b.build();
+		const split = splitPin(original, registry, look, "in", "from", "xyz");
+		const back = recombinePin(split, registry, look, "in", "from");
+
+		const emitted = (s: typeof original) => body(compile(s, registry).code);
+		expect(emitted(split)).toBe(emitted(original));
+		expect(emitted(back)).toBe(emitted(original));
+	});
+
+	/**
+	 * The honest limit. An expression cannot be taken apart without evaluating
+	 * it, so rather than guess, splitting reports what it would lose and the
+	 * caller asks first.
+	 */
+	it("reports a value it cannot take apart, and stays quiet otherwise", () => {
+		const b = new Builder();
+		const look = b.node("cframe.lookAt");
+		b.lit(look, "from", { t: "raw", v: "workspace.Origin.Position" });
+		const opaque = b.build();
+
+		expect(splitValueWarning(opaque, registry, look, "in", "from", "xyz")).toBe(
+			"workspace.Origin.Position",
+		);
+
+		// A pin still holding what its node declared loses nothing: the
+		// components' defaults were chosen to mean the same thing.
+		const untouched = new Builder();
+		const plain = untouched.node("cframe.lookAt");
+		expect(
+			splitValueWarning(untouched.build(), registry, plain, "in", "from", "xyz"),
+		).toBeNull();
+	});
+
 	it("leaves the other side alone when both sides share a pin id", () => {
 		const b = new Builder();
 		const service = b.node("roblox.getService");
 
 		// Get Service takes a `service` and gives one back; splitting is keyed by
 		// side so touching one cannot disturb the other.
-		const after = splitPin(b.build(), service, "out", "service", "xyz");
+		const after = splitPin(b.build(), registry, service, "out", "service", "xyz");
 		expect(after.nodes.find((n) => n.id === service)!.config).toEqual({
 			split: { "out:service": "xyz" },
 		});

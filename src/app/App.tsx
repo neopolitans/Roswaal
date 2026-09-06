@@ -32,7 +32,7 @@ import { VariablesPanel } from "./VariablesPanel.jsx";
 import {
 	addComment, addNode, copySelection, deleteSelection, disconnectPin, pasteClipping,
 	promoteToVariable, recombinePin, setConfig as setNodeConfig, setLiteral, splitCost,
-	splitPin, type Clipping,
+	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
 import { store, useEditor } from "./store.js";
 
@@ -365,9 +365,32 @@ export function App() {
 				if (ok !== true) return;
 			}
 
+			// Splitting is meant to change how a value is shown, never what it
+			// is. When the value cannot be taken apart, that promise breaks —
+			// so say so first rather than letting the graph quietly compile to
+			// something else.
+			const lost =
+				mode !== undefined
+					? splitValueWarning(state.script, registry, target.nodeId, target.side, pinId, mode)
+					: null;
+			if (lost !== null) {
+				const ok = await ask({
+					kind: "confirm",
+					title: "This value cannot be split",
+					message:
+						`"${target.pin.name || pinId}" holds ${lost}, which Roswaal cannot take apart. ` +
+						"The components would start at their defaults, so the script would compile " +
+						"differently. Wire a node in instead, or split anyway and set the components " +
+						"by hand.",
+					confirmLabel: "Split anyway",
+					danger: true,
+				});
+				if (ok !== true) return;
+			}
+
 			store.edit((s) =>
 				mode !== undefined
-					? splitPin(s, target.nodeId, target.side, pinId, mode)
+					? splitPin(s, registry, target.nodeId, target.side, pinId, mode)
 					: recombinePin(s, registry, target.nodeId, target.side, pinId),
 			);
 		},

@@ -229,6 +229,48 @@ export function splitKey(side: "in" | "out", pinId: string): string {
 	return `${side}:${pinId}`;
 }
 
+/**
+ * Reads a literal back into components — the inverse of `make`.
+ *
+ * Splitting a pin must not change what the graph compiles to. Without this it
+ * does: a pin holding `Vector3.new(0, 12, -4)` splits into three components at
+ * their defaults and starts emitting `Vector3.new(0, 0, 0)`, silently.
+ *
+ * Deliberately narrow. The regex is built from the mode's own `make` template,
+ * so it can only ever read back a string that template could have written, and
+ * it is attempted **only for modes whose parts are all numbers** — where an
+ * argument cannot itself contain a comma or a bracket. `Vector3.new(0, 12, -4)`
+ * and nothing cleverer.
+ *
+ * Anything else returns null, and the caller says so rather than guessing.
+ * Guessing wrong here would change behaviour without telling anyone, which is
+ * worse than refusing.
+ */
+export function decompose(mode: StructMode, text: string): Record<string, number> | null {
+	if (!mode.parts.every((p) => p.type === "number")) return null;
+
+	const order: string[] = [];
+	const pattern = mode.make
+		.replace(/[.*+?^${}()|[\]\\]/g, (c) => (c === "$" ? "$" : `\\${c}`))
+		.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (_m, id: string) => {
+			order.push(id);
+			return "\\s*([^,()]+?)\\s*";
+		});
+
+	const match = new RegExp(`^\\s*${pattern}\\s*$`).exec(text);
+	if (!match || order.length !== mode.parts.length) return null;
+
+	const out: Record<string, number> = {};
+	for (let i = 0; i < order.length; i++) {
+		// Every captured argument must be a plain number. A wired-looking
+		// expression means this is not a literal we wrote, so take none of it.
+		const value = Number(match[i + 1]);
+		if (!Number.isFinite(value)) return null;
+		out[order[i]] = value;
+	}
+	return out;
+}
+
 export function parseSplitKey(key: string): { side: "in" | "out"; pin: string } | null {
 	const colon = key.indexOf(":");
 	if (colon <= 0) return null;
