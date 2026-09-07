@@ -444,6 +444,45 @@ export const CURATED: Record<string, () => NodeScript> = {
 };
 
 /** Notes that belong with a curated example rather than with the node itself. */
+/**
+ * Scenes a guide draws, keyed by nothing in the registry.
+ *
+ * `CURATED` is keyed by node id because those scenes document a node. These
+ * illustrate a *rule*, so they live apart — and they are still real graphs,
+ * still compiled by the same emitter when a page asks for their output, so a
+ * picture in a guide cannot show a graph that would not build.
+ */
+export const GUIDE_SCENES: Record<string, () => NodeScript> = {
+	/**
+	 * Why a local declared in one branch arm is not visible in the other.
+	 *
+	 * The two Custom Code nodes are siblings: each is inside its own `if` arm,
+	 * so the `local` the first declares has died at the `end` before the second
+	 * one runs. Completion knows this — see `precedingLocals` — and offers the
+	 * name in neither.
+	 */
+	localScope: () => {
+		const g = new G();
+		const begin = g.node("script.begin");
+		const ready = g.stand("isReady");
+		const branch = g.node("flow.branch");
+		g.link(begin, "then", branch, "in").link(ready, "result", branch, "condition");
+
+		const declares = g.node("code.custom", {
+			literals: { code: { t: "raw", v: "local total = 1\nprint(total)" } },
+			column: g.rightOf(branch),
+			row: 0,
+		});
+		const cannotSee = g.node("code.custom", {
+			literals: { code: { t: "raw", v: "-- `total` is not in scope here" } },
+			column: g.rightOf(branch),
+			row: 1,
+		});
+		g.link(branch, "true", declares, "in").link(branch, "false", cannotSee, "in");
+		return g.out();
+	},
+};
+
 export const EXAMPLE_NOTES: Record<string, string> = {
 	"flow.reroute":
 		"A knot compiles to nothing at all — this is the same code you would get without it.",

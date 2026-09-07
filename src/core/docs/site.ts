@@ -25,6 +25,7 @@ import { documentRegistry, OMISSION_REASONS, type NodeDoc } from "./nodeReferenc
 import { previewOf, type NodePreview } from "./preview.js";
 import type { NodeScript } from "../schema.js";
 import { DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, type Attribution } from "./attributions.js";
+import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release } from "./releases.js";
 
 // ---------------------------------------------------------------------------
@@ -642,34 +643,120 @@ const VARIABLES: DocPage = {
 	slug: "variables-and-locals",
 	narrow: true,
 	title: "Variables and locals",
-	summary: "Two different things, deliberately named apart.",
+	summary: "Two different things, deliberately named apart — and what the code editor can see of each.",
 	blocks: [
 		{
 			t: "p",
 			text:
-				"A **variable** is declared once in the Variables panel and read or written by Get and " +
-				"Set nodes anywhere in the graph, exactly as in Blueprints. It compiles to a " +
-				"file-level local, so functions and the main flow both see it. Drag one onto the " +
-				"canvas for a Get, hold Ctrl for a Set.",
+				"Roswaal has two ways to hold a value, and they are named apart because they behave " +
+				"differently. The short version: a **variable** is yours to name and reach from " +
+				"anywhere; a **local** exists for the length of a block and is reached by wire.",
 		},
+
+		{ t: "h", level: 2, text: "Variables" },
 		{
 			t: "p",
 			text:
-				"A **local** (`Declare Local`) binds a value mid-flow and only exists inside the block " +
-				"that declared it. You reach it by wiring its output, not by name.",
+				"Declared once in the **Variables panel** — a name, a type and a starting value — " +
+				"and read or written by Get and Set nodes anywhere in the graph, exactly as in " +
+				"Blueprints. A variable compiles to a **file-level local**, so the main flow and " +
+				"every function in the graph see the same one.",
+		},
+		{
+			t: "ul",
+			items: [
+				"Drag one from the panel onto the canvas for a **Get**; hold **Ctrl** while you drop " +
+					"for a **Set**.",
+				"Right-click any unwired input pin and choose **Promote to Variable**. The new " +
+					"variable takes the pin's type and whatever value was already typed into it, and " +
+					"a Get is wired in where the literal was — so promoting never loses the value you " +
+					"had.",
+				"Renaming a variable in the panel renames every Get and Set of it at once. They " +
+					"carry its id, not its name.",
+			],
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"**A variable read is never hoisted.** Unlike a pure expression it has to happen at " +
+				"its use site — otherwise a Set sitting between two Gets would be invisible to the " +
+				"second one, and the graph would compile to something that does not match what it " +
+				"draws.",
+		},
+
+		{ t: "h", level: 2, text: "Locals" },
+		{
+			t: "p",
+			text:
+				"**Declare Local** binds a value mid-flow. It exists only inside the block that " +
+				"declared it, and you reach it by wiring its output rather than by name — which is " +
+				"the whole difference: a variable is addressed by name from anywhere, a local is " +
+				"handed onward by a wire.",
 		},
 		{
 			t: "note",
 			kind: "warn",
 			text:
-				"Reading a local from a sibling block is reported as an error rather than emitted as " +
-				"code that will not compile. The local genuinely is not in scope there.",
+				"Reading a local from a **sibling block** is reported as an error rather than " +
+				"emitted as code that will not compile. The local genuinely is not in scope there, " +
+				"and finding that out from Roswaal beats finding it out from Studio.",
+		},
+
+		{ t: "h", level: 2, text: "What the code editor can see" },
+		{
+			t: "p",
+			text:
+				"Open a **Custom Code** or **Luau Expression** pin and the completion list is not " +
+				"just Luau's globals. It is what the *generated file* will actually have in scope at " +
+				"that point, worked out from the graph:",
+		},
+		{
+			t: "table",
+			head: ["Offered", "Because the emitter makes it"],
+			rows: [
+				["Your variables", "a file-level local, visible everywhere"],
+				["Your functions", "a named local, visible after it is declared"],
+				["Get Service and Require Module results", "hoisted to the top of the file"],
+				[
+					"Locals declared by **earlier Custom Code**",
+					"real `local` statements in the same block, still alive when this one runs",
+				],
+			],
 		},
 		{
 			t: "p",
 			text:
-				"A variable read is never hoisted. Unlike a pure expression it has to happen at its " +
-				"use site, or a Set sitting between two Gets would be invisible to the second one.",
+				"That last row is the interesting one, and it follows the block structure rather " +
+				"than the drawing order. A local from an earlier **Sequence** output *is* offered, " +
+				"because those outputs run into the same block. One declared inside a loop body, a " +
+				"connect handler, or the other arm of a Branch is *not* — it has died at its `end` " +
+				"before this node runs. An outer local is still visible from inside a handler, " +
+				"which is the direction that does work.",
+		},
+		{
+			t: "graph",
+			script: GUIDE_SCENES.localScope(),
+			caption:
+				"Sibling arms. The `local total` on the True side has gone out of scope by the time " +
+				"the False side runs, so completion offers it in neither.",
+		},
+		{
+			t: "note",
+			kind: "good",
+			text:
+				"The scanner errs towards offering **slightly too much** rather than too little: a " +
+				"name declared inside an `if` within one Custom Code block is still offered after " +
+				"it, in the same block. Suggesting a name that turns out to be out of scope costs " +
+				"you a compile error; hiding one that is in scope costs you the feature.",
+		},
+		{
+			t: "p",
+			text:
+				"Custom Code has no output pin, so it cannot hand a value onward by wire. To get " +
+				"one out, write to a variable — or put **Declare Local** before it and assign to " +
+				"that local in the code, which the completion list will offer by name. See " +
+				"[Hand-written Luau](hand-written-luau) for what each of the two code nodes emits.",
 		},
 	],
 };

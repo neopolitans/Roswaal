@@ -15,7 +15,7 @@ import {
 	documentNode, documentRegistry, exampleFor, OMISSION_REASONS, stripHeader,
 } from "../src/core/docs/nodeReference.js";
 import { BLUEPRINT_MAP, referencedNodeIds } from "../src/core/docs/blueprints.js";
-import { CURATED } from "../src/core/docs/examples.js";
+import { CURATED, GUIDE_SCENES } from "../src/core/docs/examples.js";
 import { compile } from "../src/core/compiler/index.js";
 import type { NodeDef } from "../src/core/schema.js";
 
@@ -112,6 +112,32 @@ describe("node reference", () => {
 				const errors = result.diagnostics.filter((d) => d.severity === "error");
 				expect(errors.map((e) => e.message), `${id} example`).toEqual([]);
 				expect(stripHeader(result.code), `${id} example`).not.toBe("");
+			}
+		});
+
+		/**
+		 * The scenes a guide draws are held to the same bar. They are only
+		 * *drawn* today, not compiled for their output, which is exactly why this
+		 * matters: without it a guide could show a picture of a graph that does
+		 * not build, and nothing would ever say so.
+		 */
+		it("compiles every guide scene without errors", () => {
+			const ids = Object.keys(GUIDE_SCENES);
+			expect(ids.length, "no guide scenes to check").toBeGreaterThan(0);
+
+			for (const id of ids) {
+				const result = compile(GUIDE_SCENES[id](), registry);
+				const errors = result.diagnostics.filter((d) => d.severity === "error");
+				expect(errors.map((e) => e.message), `${id} scene`).toEqual([]);
+			}
+		});
+
+		/** Every node a scene names has to still exist in the registry. */
+		it("draws guide scenes only from nodes that exist", () => {
+			for (const [id, build] of Object.entries(GUIDE_SCENES)) {
+				for (const node of build().nodes) {
+					expect(registry.get(node.def), `${id} uses a missing node: ${node.def}`).toBeDefined();
+				}
 			}
 		});
 

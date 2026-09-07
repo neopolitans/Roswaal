@@ -3443,6 +3443,12 @@ button.tb.with-icon {
 .docs-preview.graph .graph-viewport.interactive {
 	cursor: grab;
 	touch-action: none;
+	/* The graph is full of `<text>`, so a drag across it would otherwise start a
+	   text selection and the reader would highlight node titles instead of
+	   panning. Nothing in a diagram is worth selecting — the Luau underneath is
+	   the copyable part, and it still is. */
+	user-select: none;
+	-webkit-user-select: none;
 }
 
 .docs-preview.graph .graph-viewport.panning {

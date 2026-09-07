@@ -90,6 +90,12 @@ export function attachGraphView(
 		// Left button only. A right-click is the browser's menu, and a middle
 		// click is the reader's own scroll gesture.
 		if (event.button !== 0) return;
+		// The graph is full of `<text>`, so without this a drag across it starts
+		// a text selection and the reader ends up highlighting node titles
+		// instead of panning. The CSS `user-select: none` covers the same ground;
+		// both are here because the CSS can be absent — this file is delivered to
+		// a page that may be styled by something else.
+		event.preventDefault();
 		dragging = true;
 		lastX = event.clientX;
 		lastY = event.clientY;
