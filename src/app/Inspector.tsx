@@ -24,12 +24,18 @@ const TYPES = [
 ];
 
 export interface InspectorProps {
+	/**
+	 * The graph is being compiled and refuses edits. The store is what actually
+	 * refuses them -- see `EditorState.locked` -- so this exists so the panel
+	 * does not sit there looking like it accepted one.
+	 */
+	locked?: boolean;
 	script: NodeScript;
 	registry: Registry;
 	selection: ReadonlySet<string>;
 }
 
-export function Inspector({ script, registry, selection }: InspectorProps) {
+export function Inspector({ script, registry, selection, locked }: InspectorProps) {
 	if (selection.size !== 1) return null;
 	const id = [...selection][0];
 	const node = script.nodes.find((n) => n.id === id);
@@ -38,7 +44,7 @@ export function Inspector({ script, registry, selection }: InspectorProps) {
 	if (!def) return null;
 
 	return (
-		<div className="inspector">
+		<div className={`inspector${locked ? " editing-locked" : ""}`}>
 			<h2>Node</h2>
 			<div className="inspector-body">
 				<div className="node-heading" style={{ background: nodeColor(def) }}>

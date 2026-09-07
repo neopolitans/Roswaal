@@ -357,14 +357,22 @@ async function commandCompile(args: Args): Promise<number> {
 			: await compileAll(project, { write: true, force });
 
 	const results = scriptResults;
-	let failures = 0;
+	/**
+	 * Counted apart, because the summary needs them apart. They used to share
+	 * one `failures`, which was then subtracted from the *map* count — so a
+	 * skipped script quietly took a written map off the total, and a compile
+	 * that wrote two files could report "0 of 5 written". Invisible while skips
+	 * were rare; the output-collision refusal made them ordinary.
+	 */
+	let mapFailures = 0;
+	let scriptFailures = 0;
 
 	for (const mapPath of mapTargets) {
 		const outcome = await compileMap(project, mapPath, { write: true, force });
 		if (outcome.written) {
 			console.log(`${green("wrote   ")} ${outcome.outputPath}`);
 		} else {
-			failures++;
+			mapFailures++;
 			console.log(`${yellow("skipped ")} ${mapPath}`);
 			if (outcome.skipped) console.log(dim(`           ${outcome.skipped}`));
 		}
@@ -379,7 +387,7 @@ async function commandCompile(args: Args): Promise<number> {
 		if (result.written) {
 			console.log(`${green("wrote   ")} ${result.outputPath}`);
 		} else if (result.skipped) {
-			failures++;
+			scriptFailures++;
 			console.log(`${yellow("skipped ")} ${result.scriptPath}`);
 			console.log(dim(`           ${result.skipped}`));
 		}
@@ -392,11 +400,11 @@ async function commandCompile(args: Args): Promise<number> {
 		console.log(dim(`nothing to compile in ${project.config.sourceDir}`));
 		return 0;
 	}
-	const written = results.filter((r) => r.written).length;
+	const written = results.filter((r) => r.written).length + (mapTargets.length - mapFailures);
 	const total = results.length + mapTargets.length;
 	console.log("");
-	console.log(dim(`  ${written + (mapTargets.length - failures)} of ${total} written`));
-	return failures > 0 ? 1 : 0;
+	console.log(dim(`  ${written} of ${total} written`));
+	return mapFailures + scriptFailures > 0 ? 1 : 0;
 }
 
 async function commandWatch(args: Args): Promise<number> {

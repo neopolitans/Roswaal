@@ -24,6 +24,13 @@ export const LAYER = {
 	nodeSelected: 55,
 	/** Marquee selection rectangle. */
 	marquee: 60,
+	/**
+	 * The read-only cover while the graph is being compiled. Above everything
+	 * drawn on the canvas, because its whole job is to swallow the pointer, and
+	 * below the menus, which are `position: fixed` and outside this stack
+	 * anyway.
+	 */
+	lock: 65,
 	/** Context menus and popovers, above everything on the canvas. */
 	menu: 70,
 } as const;

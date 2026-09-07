@@ -262,7 +262,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		d("table", "Table", "table"), num("index", "Index", 1),
 	]),
 
-	// -- Roblox ------------------------------------------------------------
+	// -- Engine ------------------------------------------------------------
 	{
 		// Pure, and hoisted. GetService is idempotent and cached by Roblox, so
 		// calling it mid-flow buys nothing; every Roblox codebase pulls services
@@ -270,7 +270,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		// read like one that was written by hand.
 		id: "roblox.getService",
 		title: "Get Service",
-		category: "Roblox",
+		category: "Engine",
 		summary:
 			"A Roblox service, as a top-level local. Pure: it needs no execution wire, and asking for the same service twice reuses one local.",
 		pure: true,
@@ -285,30 +285,30 @@ export const LIBRARY_NODES: NodeDef[] = [
 		outputs: [d("service", "", "Instance")],
 		compilesTo: { kind: "builtin", handler: "service.get" },
 	},
-	call("roblox.instanceNew", "New Instance", "Roblox", "Instance.new($in.className)",
+	call("roblox.instanceNew", "New Instance", "Engine", "Instance.new($in.className)",
 		[str("className", "Class Name", "Part")], "Instance", "Instance", { targets: ["roblox"] }),
-	call("roblox.findFirstChild", "Find First Child", "Roblox",
+	call("roblox.findFirstChild", "Find First Child", "Engine",
 		"$in.parent:FindFirstChild($in.name)",
 		[d("parent", "Parent", "Instance"), str("name", "Name")], "Child", "Instance", { targets: ["roblox"] }),
-	call("roblox.waitForChild", "Wait For Child", "Roblox",
+	call("roblox.waitForChild", "Wait For Child", "Engine",
 		"$in.parent:WaitForChild($in.name)",
 		[d("parent", "Parent", "Instance"), str("name", "Name")], "Child", "Instance",
 		{ latent: true, targets: ["roblox"], summary: "Yields until the child exists." }),
-	pure("roblox.getProperty", "Get Property", "Roblox", "$in.instance.$in.property!ident",
+	pure("roblox.getProperty", "Get Property", "Engine", "$in.instance.$in.property!ident",
 		[d("instance", "Instance", "Instance"), str("property", "Property", "Name")], "any"),
-	pure("roblox.getEvent", "Get Event", "Roblox", "$in.instance.$in.event!ident",
+	pure("roblox.getEvent", "Get Event", "Engine", "$in.instance.$in.event!ident",
 		[d("instance", "Instance", "Instance"), str("event", "Event", "Touched")], "RBXScriptSignal",
 		"Reads a signal off an instance. Same access as Get Property, but typed as a signal so it wires straight into Connect Event."),
-	stmt("roblox.setProperty", "Set Property", "Roblox", "$in.instance.$in.property!ident = $in.value",
+	stmt("roblox.setProperty", "Set Property", "Engine", "$in.instance.$in.property!ident = $in.value",
 		[d("instance", "Instance", "Instance"), str("property", "Property", "Name"), d("value", "Value", "any", { t: "nil" })],
 		{ targets: ["roblox"] }),
-	stmt("roblox.setParent", "Set Parent", "Roblox", "$in.instance.Parent = $in.parent",
+	stmt("roblox.setParent", "Set Parent", "Engine", "$in.instance.Parent = $in.parent",
 		[d("instance", "Instance", "Instance"), d("parent", "Parent", "Instance")], { targets: ["roblox"] }),
-	stmt("roblox.destroy", "Destroy", "Roblox", "$in.instance:Destroy()",
+	stmt("roblox.destroy", "Destroy", "Engine", "$in.instance:Destroy()",
 		[d("instance", "Instance", "Instance")], { targets: ["roblox"] }),
-	pure("roblox.vector3", "Vector3", "Roblox", "Vector3.new($in.x, $in.y, $in.z)",
+	pure("roblox.vector3", "Vector3", "Engine", "Vector3.new($in.x, $in.y, $in.z)",
 		[num("x", "X"), num("y", "Y"), num("z", "Z")], "Vector3"),
-	pure("roblox.color3", "Color3", "Roblox", "Color3.fromRGB($in.r, $in.g, $in.b)",
+	pure("roblox.color3", "Color3", "Engine", "Color3.fromRGB($in.r, $in.g, $in.b)",
 		[num("r", "R", 255), num("g", "G", 255), num("b", "B", 255)], "Color3"),
 
 	// -- Signals and connections -------------------------------------------
@@ -669,7 +669,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		// single most tedious thing about the earlier node set.
 		id: "roblox.instancePath",
 		title: "Instance",
-		category: "Roblox",
+		category: "Engine",
 		summary:
 			"An instance reached by path, e.g. Modules.Combat under ReplicatedStorage. Errors at runtime if it is not there yet — use Wait For Child when it might not be.",
 		pure: true,

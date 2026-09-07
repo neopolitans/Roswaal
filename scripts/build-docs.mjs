@@ -21,6 +21,7 @@ import { buildSearchIndex, buildSite } from "../src/core/docs/site.ts";
 import { escapeHtml, renderSite } from "../src/core/docs/html.ts";
 import { highlightLuau } from "../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../src/app/palette.ts";
+import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
 import { NODE } from "../src/app/layers.ts";
 import { VERSION } from "../src/cli/version.ts";
 
@@ -116,7 +117,8 @@ async function main() {
 	const site = buildSite(registry, builtinIds);
 
 	const preview = { geometry: NODE, nodeColor, pinColor };
-	const files = renderSite(site, { highlight, pinColor, preview, version: VERSION });
+	const logo = { mark: logoMarkup(18), icon: faviconHref() };
+	const files = renderSite(site, { highlight, pinColor, preview, logo, version: VERSION });
 
 	for (const file of files) {
 		const target = join(out, file.path);

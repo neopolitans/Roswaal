@@ -18,3 +18,6 @@ dist-docs/
 # their own licences -- which is not something to pull into a 0BSD repository by
 # accident.
 .obsidian/
+
+# Affinity keeps a lock file beside a document while it is open.
+*~lock~

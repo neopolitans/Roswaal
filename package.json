@@ -1,6 +1,6 @@
 {
   "name": "roswaal",
-  "version": "0.12.1",
+  "version": "0.13.0",
   "private": true,
   "license": "0BSD",
   "type": "module",
@@ -29,13 +29,11 @@
     "@lezer/highlight": "^1.2.3",
     "chokidar": "^5.0.0",
     "codemirror": "^6.0.2",
-    "cors": "^2.8.6",
     "express": "^5.2.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",

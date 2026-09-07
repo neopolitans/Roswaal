@@ -12,6 +12,24 @@ attribution required. Two bundled things keep their own terms — the icons
 > solid; the editor is complete enough to build real graphs with. See
 > [Known gaps](#known-gaps) for what is not there yet.
 
+## Who this is for
+
+Developers moving from Unreal Engine to Roblox — a move people have been making
+for years, usually by putting down a visual scripting tool they were fluent in
+and picking up a text editor. Roswaal exists to shorten that.
+
+So where it can be familiar without being worse, it is: two kinds of wire, pin
+colours that line up with the ones you know, and menu wording taken from
+Unreal's because the entry you already know should be the entry you find. Every
+place that happens is deliberate, and the [Coming from Blueprints](docs) page
+exists to make the mapping explicit rather than something you have to discover.
+
+**Unreal Engine, Unreal and Blueprint are trademarks of Epic Games, Inc.** They
+appear here to name Epic's product while explaining this one, which is the only
+thing they are used for. Roswaal is not affiliated with, endorsed by, or derived
+from Epic Games; it contains no Unreal Engine code and is not built with Unreal
+Engine. See [NOTICE.md](NOTICE.md).
+
 ## Why it is not a Studio plugin
 
 Studio plugins have no filesystem access, and the whole design here is

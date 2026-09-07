@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Roswaal mark — concept D, two pins and a faceted wire</title>
+  <desc>Concept B with the wire faceted rather than curved, so it echoes the
+  angular eye makeup instead of a smooth sweep. The mitre on the two corners is
+  the character of this one — soften it and it becomes B. Strokes are left live
+  rather than expanded so weights and the mitre can be adjusted.</desc>
+
+  <g id="mark-d">
+    <path id="wire"
+          d="M120,372 L232,372 L300,168 L348,168"
+          fill="none" stroke="#111111" stroke-width="36"
+          stroke-linejoin="miter" stroke-miterlimit="8" stroke-linecap="butt"/>
+    <circle id="pin-wired" cx="120" cy="372" r="62" fill="#111111"/>
+    <circle id="pin-unwired" cx="392" cy="168" r="62"
+            fill="none" stroke="#111111" stroke-width="34"/>
+  </g>
+</svg>

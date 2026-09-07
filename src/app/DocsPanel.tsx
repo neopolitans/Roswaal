@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
 import {
-	buildSearchIndex, buildSite, findPage, parseInline, searchDocs,
+	buildSearchIndex, buildSite, findPage, parseInline, searchDocs, TAG_LABELS,
 	type Block, type DocPage, type DocSection, type Inline,
 } from "../core/docs/site.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
@@ -379,11 +379,15 @@ function BlockView({ block }: { block: Block }) {
 			return <CodeBlock lang={block.lang} text={block.text} />;
 		case "table":
 			return (
-				<div className="docs-table">
+				<div className={`docs-table${block.head ? "" : " bare"}`}>
 					<table>
-						<thead>
-							<tr>{block.head.map((h, i) => <th key={i}>{h}</th>)}</tr>
-						</thead>
+						{/* No head at all rather than an empty one: a blank header row
+						    still draws a rule and still takes the space. */}
+						{block.head && (
+							<thead>
+								<tr>{block.head.map((h, i) => <th key={i}>{h}</th>)}</tr>
+							</thead>
+						)}
 						<tbody>
 							{block.rows.map((row, i) => (
 								<tr key={i}>
@@ -393,6 +397,14 @@ function BlockView({ block }: { block: Block }) {
 						</tbody>
 					</table>
 				</div>
+			);
+		case "tags":
+			return (
+				<p className="docs-tags">
+					{block.tags.map((tag) => (
+						<span className={`docs-tag ${tag}`} key={tag}>{TAG_LABELS[tag]}</span>
+					))}
+				</p>
 			);
 		case "note":
 			return <div className={`docs-note ${block.kind}`}><Rich text={block.text} /></div>;

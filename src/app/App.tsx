@@ -15,7 +15,7 @@ import { createRegistry } from "../core/nodes/index.js";
 import type { NodeDef, RoswaalConfig, ScriptClass } from "../core/schema.js";
 import {
 	api, ProjectChangedError,
-	type CompileOutcome, type MapOutcome, type ProjectInfo, type TreeEntry,
+	type CompileOutcome, type CompileStep, type MapOutcome, type ProjectInfo, type TreeEntry,
 } from "./api.js";
 import type { InstanceLocation, NodeMap } from "../core/nodemap.js";
 import { MapEditor } from "./MapEditor.jsx";
@@ -23,6 +23,7 @@ import { CodeEditor } from "./CodeEditor.jsx";
 import { SourceView, type SourceDoc } from "./SourceView.jsx";
 import { Dialog, type DialogRequest, type DialogResult, type PendingDialog } from "./Dialog.jsx";
 import { Icon } from "./icons.jsx";
+import { Logo } from "./logo.jsx";
 import { LAYER } from "./layers.js";
 import type { PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
@@ -89,6 +90,13 @@ export function App() {
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
 	const [pinMenu, setPinMenu] = useState<PinMenuTarget | null>(null);
 	const [outcomes, setOutcomes] = useState<CompileOutcome[]>([]);
+	// The walk of the current project compile, one entry per file. Empty
+	// between compiles, and it holds the last walk until the next one starts.
+	const [progress, setProgress] = useState<CompileStep[]>([]);
+	// A compile this tab asked for is in flight. Narrower than `busy`, which is
+	// also set for opening a project and writing a node map — neither of which
+	// is a reason to stop editing the graph.
+	const [compiling, setCompiling] = useState(false);
 	const [statusOpen, setStatusOpen] = useState(true);
 	const [alignExec, setAlignExec] = useState(
 		() => localStorage.getItem(ALIGN_EXEC_KEY) !== "off",
@@ -183,11 +191,13 @@ export function App() {
 	 * The daemon's event stream.
 	 *
 	 * Open whenever a project is, rather than only in hot mode, because it now
-	 * carries two kinds of news. Hot-reload events say a compile happened that
+	 * carries three kinds of news. Hot-reload events say a compile happened that
 	 * this tab did not ask for — a branch switch, a pull, another editor — and
 	 * only ever arrive when the watcher is running. The `project` event says the
 	 * daemon has been pointed somewhere else, and a tab that does not hear that
 	 * goes on editing a document belonging to a project it is no longer serving.
+	 * And `compile` events narrate a project compile while it runs, because the
+	 * POST that asked for it does not answer until the whole walk is done.
 	 */
 	useEffect(() => {
 		if (!project) return;
@@ -200,6 +210,26 @@ export function App() {
 			};
 			if (detail.outcome) setOutcomes([detail.outcome]);
 			void api.tree().then(({ tree }) => setProject((p) => (p ? { ...p, tree } : p)));
+		});
+
+		/**
+		 * The walk of a project compile, file by file, while it is running.
+		 *
+		 * A fresh walk announces itself by starting at 1, which is what resets
+		 * the list — rather than the compile button clearing it, because the
+		 * compile may have been started in another tab or by the watcher, and
+		 * this tab wants to show that one too.
+		 */
+		stream.addEventListener("compile", (event) => {
+			const step = JSON.parse((event as MessageEvent).data) as CompileStep;
+			setProgress((steps) => {
+				if (step.index === 1 && step.state === "working") return [step];
+				const next = steps.slice();
+				const at = next.findIndex((s) => s.index === step.index);
+				if (at === -1) next.push(step);
+				else next[at] = step;
+				return next;
+			});
 		});
 
 		stream.addEventListener("project", (event) => {
@@ -360,6 +390,7 @@ export function App() {
 	const runCompile = useCallback(
 		async (path: string | undefined, write: boolean, force = false) => {
 			setBusy(write ? "Compiling…" : "Checking…");
+			setCompiling(true);
 			try {
 				const { results } = await api.compile({ path, write, force });
 				setOutcomes(results);
@@ -372,6 +403,7 @@ export function App() {
 				notify("Something went wrong", (err as Error).message);
 			} finally {
 				setBusy(null);
+				setCompiling(false);
 			}
 		},
 		[refreshTree],
@@ -519,6 +551,26 @@ export function App() {
 		});
 	}, []);
 
+	/**
+	 * The graph is read-only because it is being compiled.
+	 *
+	 * Only outside hot reload. In hot mode a compile follows every autosave, so
+	 * locking on one would lock the canvas roughly whenever you stopped typing —
+	 * the mode exists precisely so that compiling is not a thing you think about.
+	 * Outside it a compile is something you asked for and then wait for, and an
+	 * edit made during the walk lands in the written file or does not, depending
+	 * on where the walk had got to. That file then disagrees with the graph and
+	 * nothing says so.
+	 */
+	const locked = compiling && project?.config.compileMode !== "hot";
+
+	// The policy is decided here, because the compile mode is; the refusal
+	// happens in the store, because that is the one place every edit goes
+	// through. Disabling the controls below is the courtesy on top of it.
+	useEffect(() => {
+		store.setLocked(locked);
+	}, [locked]);
+
 	// -- keyboard ----------------------------------------------------------
 
 	useEffect(() => {
@@ -528,6 +580,12 @@ export function App() {
 				return;
 			}
 			const mod = e.ctrlKey || e.metaKey;
+
+			// Selecting and copying are reading. Everything else below changes
+			// the graph, and while it is locked none of it may.
+			if (locked && !(mod && (e.key.toLowerCase() === "a" || e.key.toLowerCase() === "c"))) {
+				return;
+			}
 
 			if (mod && e.key.toLowerCase() === "z") {
 				e.preventDefault();
@@ -603,7 +661,95 @@ export function App() {
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [editor.path, runCompile, spawnComment, realign]);
+	}, [editor.path, runCompile, spawnComment, realign, locked]);
+
+	// -- project tree ------------------------------------------------------
+
+	/**
+	 * The tree's handlers are hoisted out of the render, and `ProjectTree` is
+	 * memoised, because otherwise **the tree re-renders on every frame of a
+	 * drag**. This component subscribes to the document store, so moving a node
+	 * re-renders it sixty times a second, and it renders the tree — which with
+	 * a folder of 1200 graphs open cost 16ms a frame on its own: 4.2ms became
+	 * 20.7ms, and dragging visibly stuttered.
+	 *
+	 * Memoising only works if every prop is stable, which is what these are
+	 * for. They depend on `editor.path` and `mapDoc`, which change when you open
+	 * a document and not while you are dragging in one.
+	 */
+	const onTreeOpen = useCallback((entry: TreeEntry) => void openEntry(entry), [openEntry]);
+
+	const onTreeMove = useCallback(async (from: string[], toDir: string) => {
+		for (const path of from) await api.moveScript(path, toDir);
+		await refreshTree();
+	}, [refreshTree]);
+
+	const onTreeReveal = useCallback(async (target: string) => {
+		try {
+			await api.reveal(target);
+		} catch (err) {
+			notify("Could not show that file", (err as Error).message);
+		}
+	}, [notify]);
+
+	const onTreeNewFolder = useCallback(async (parentDir: string) => {
+		const name = await ask({
+			kind: "prompt",
+			title: "New folder",
+			label: "Name",
+			value: "NewFolder",
+		});
+		if (typeof name !== "string") return;
+		try {
+			await api.createFolder(`${parentDir}/${name}`.replace(/^\//, ""));
+			await refreshTree();
+		} catch (err) {
+			notify("Something went wrong", (err as Error).message);
+		}
+	}, [ask, notify, refreshTree]);
+
+	const onTreeRename = useCallback(async (target: string) => {
+		const currentName = target.split("/").pop() ?? "";
+		const name = await ask({
+			kind: "prompt",
+			title: "Rename",
+			label: "New name",
+			value: currentName,
+			confirmLabel: "Rename",
+		});
+		if (typeof name !== "string" || name === currentName) return;
+		try {
+			const { path: renamed } = await api.renameEntry(target, name);
+			await refreshTree();
+			// Keep the document open if it was the thing renamed.
+			if (editor.path === target) {
+				const { script } = await api.readScript(renamed);
+				store.open(renamed, script);
+			}
+		} catch (err) {
+			notify("Something went wrong", (err as Error).message);
+		}
+	}, [ask, notify, refreshTree, editor.path]);
+
+	const onTreeDelete = useCallback(async (paths: string[]) => {
+		const label = paths.length === 1 ? paths[0] : `${paths.length} items`;
+		const ok = await ask({
+			kind: "confirm",
+			title: "Delete",
+			message: `Delete ${label}? This cannot be undone from Roswaal.`,
+			confirmLabel: "Delete",
+			danger: true,
+		});
+		if (ok !== true) return;
+		try {
+			for (const target of paths) await api.deleteScript(target);
+			if (editor.path && paths.includes(editor.path)) store.close();
+			if (mapDoc && paths.includes(mapDoc.path)) setMapDoc(null);
+			await refreshTree();
+		} catch (err) {
+			notify("Something went wrong", (err as Error).message);
+		}
+	}, [ask, notify, refreshTree, editor.path, mapDoc]);
 
 	// -- render ------------------------------------------------------------
 
@@ -617,8 +763,11 @@ export function App() {
 		<div className="app">
 			{/* The application: what Roswaal is doing, whatever is open. */}
 			<div className="toolbar">
-				<span className="brand">
-					ROSWAAL
+				{/* The mark alone. The name is on it as a tooltip rather than in
+				    text, because the toolbar is the one screen you are only on
+				    once you have already opened the thing. */}
+				<span className="logo">
+					<Logo height={17} title={`Roswaal ${VERSION}`} />
 					{/* Small, always there. Knowing which build you are looking at
 					    is the first question about any bug report. */}
 					<span className="version" title={`Roswaal ${VERSION}`}>{VERSION}</span>
@@ -751,6 +900,7 @@ export function App() {
 								<input
 									type="checkbox"
 									checked={editor.script.strict}
+									disabled={locked}
 									onChange={(e) => store.edit((s) => ({ ...s, strict: e.target.checked }))}
 								/>{" "}
 								strict
@@ -760,10 +910,10 @@ export function App() {
 
 							<button
 								className="tb with-icon"
-								disabled={!editor.script}
+								disabled={!editor.script || locked}
 								title="Add a node at the centre of the view. Right-clicking the canvas does the same, where you click."
 								onClick={() => {
-									const view = store.getSnapshot().view;
+									const view = store.getView();
 									setMenu({
 										screen: { x: 320, y: 120 },
 										world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
@@ -775,7 +925,7 @@ export function App() {
 							</button>
 							<button
 								className="tb with-icon"
-								disabled={!editor.script}
+								disabled={!editor.script || locked}
 								title="Tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
 								onClick={realign}
 							>
@@ -820,77 +970,16 @@ export function App() {
 					<ProjectTree
 						tree={project.tree}
 						openPath={editor.path ?? source?.path ?? null}
-						onOpen={(entry) => void openEntry(entry)}
-						onMove={async (from, toDir) => {
-							for (const path of from) await api.moveScript(path, toDir);
-							await refreshTree();
-						}}
-						onReveal={async (target) => {
-							try {
-								await api.reveal(target);
-							} catch (err) {
-								notify("Could not show that file", (err as Error).message);
-							}
-						}}
-						onNewFolder={async (parentDir) => {
-							const name = await ask({
-								kind: "prompt",
-								title: "New folder",
-								label: "Name",
-								value: "NewFolder",
-							});
-							if (typeof name !== "string") return;
-							try {
-								await api.createFolder(`${parentDir}/${name}`.replace(/^\//, ""));
-								await refreshTree();
-							} catch (err) {
-								notify("Something went wrong", (err as Error).message);
-							}
-						}}
-						onRename={async (target) => {
-							const currentName = target.split("/").pop() ?? "";
-							const name = await ask({
-								kind: "prompt",
-								title: "Rename",
-								label: "New name",
-								value: currentName,
-								confirmLabel: "Rename",
-							});
-							if (typeof name !== "string" || name === currentName) return;
-							try {
-								const { path: renamed } = await api.renameEntry(target, name);
-								await refreshTree();
-								// Keep the document open if it was the thing renamed.
-								if (editor.path === target) {
-									const { script } = await api.readScript(renamed);
-									store.open(renamed, script);
-								}
-							} catch (err) {
-								notify("Something went wrong", (err as Error).message);
-							}
-						}}
-						onDelete={async (paths) => {
-							const label = paths.length === 1 ? paths[0] : `${paths.length} items`;
-							const ok = await ask({
-								kind: "confirm",
-								title: "Delete",
-								message: `Delete ${label}? This cannot be undone from Roswaal.`,
-								confirmLabel: "Delete",
-								danger: true,
-							});
-							if (ok !== true) return;
-							try {
-								for (const target of paths) await api.deleteScript(target);
-								if (editor.path && paths.includes(editor.path)) store.close();
-								if (mapDoc && paths.includes(mapDoc.path)) setMapDoc(null);
-								await refreshTree();
-							} catch (err) {
-								notify("Something went wrong", (err as Error).message);
-							}
-						}}
+						onOpen={onTreeOpen}
+						onMove={onTreeMove}
+						onReveal={onTreeReveal}
+						onNewFolder={onTreeNewFolder}
+						onRename={onTreeRename}
+						onDelete={onTreeDelete}
 					/>
 					{editor.script && !source && !mapDoc && (
 						<VariablesPanel
+							locked={locked}
 							script={editor.script}
 							selection={editor.selection}
 							confirm={async (title, message, confirmLabel) =>
@@ -926,6 +1015,7 @@ export function App() {
 						script={editor.script}
 						registry={registry}
 						diagnostics={diagnostics}
+						locked={locked}
 						onRequestMenu={(screen, world) => setMenu({ screen, world })}
 						onRequestPinMenu={(screen, nodeId, pin, side) =>
 							setPinMenu({ screen, nodeId, pin, side })
@@ -959,11 +1049,16 @@ export function App() {
 
 				{showInspector && editor.script && (
 					<Inspector
+						locked={locked}
 						script={editor.script}
 						registry={registry}
 						selection={editor.selection}
 					/>
 				)}
+
+				{/* Floats over the bottom-right of the graph. Last child so it
+				    draws above the canvas without needing a z-index of its own. */}
+				<CompileToast progress={progress} />
 			</div>
 
 			<StatusPanel
@@ -1154,6 +1249,16 @@ function ProjectPicker({
 	const [look, setLook] = useState<
 		{ exists: boolean; directory: boolean; initialised: boolean } | null
 	>(null);
+	/**
+	 * Browse is offered until the daemon says it cannot do it.
+	 *
+	 * Not probed up front: finding out costs a round trip on a screen whose
+	 * whole job is to be instant, and the answer only matters once. So the
+	 * button is there, and a machine with no dialog — a daemon over SSH, a
+	 * container — replaces it with the reason the first time you press it.
+	 */
+	const [noPicker, setNoPicker] = useState<string | null>(null);
+	const [browsing, setBrowsing] = useState(false);
 
 	// Asked as you type, and only about what you have typed — the daemon reads
 	// one directory entry, so there is nothing to debounce harder than this.
@@ -1192,9 +1297,29 @@ function ProjectPicker({
 		if (verdict?.can) onOpen(typed, verdict.label === "Initialise");
 	};
 
+	/**
+	 * The daemon opens the dialog, because a browser cannot produce a path —
+	 * see `src/server/browse.ts`. It fills the field rather than opening the
+	 * project: choosing a folder and opening it are two decisions, and the
+	 * verdict below the field is what belongs between them.
+	 */
+	const browse = async () => {
+		setBrowsing(true);
+		try {
+			const { path: chosen } = await api.browseForProject(typed || undefined);
+			if (chosen) setRoot(chosen);
+		} catch (err) {
+			setNoPicker((err as Error).message);
+		} finally {
+			setBrowsing(false);
+		}
+	};
+
 	return (
 		<div className="placeholder shell">
-			<h1>Roswaal</h1>
+			{/* Here the name stays in text beside the mark. This is the first
+			    screen, and it is the one place that has to say what it is. */}
+			<h1 className="logo"><Logo height={26} /> Roswaal</h1>
 			<p>Open a Roblox or Lune repository. Roswaal writes Luau into it; Rojo does the rest.</p>
 
 			<div className="row">
@@ -1207,6 +1332,16 @@ function ProjectPicker({
 					onChange={(e) => setRoot(e.target.value)}
 					onKeyDown={(e) => e.key === "Enter" && go()}
 				/>
+				{noPicker === null && (
+					<button
+						className="tb"
+						disabled={browsing || !!busy}
+						title="Choose a folder using the file dialog"
+						onClick={() => void browse()}
+					>
+						{browsing ? "Choosing…" : "Browse…"}
+					</button>
+				)}
 				<button
 					className="tb primary"
 					disabled={!verdict?.can || !!busy}
@@ -1215,7 +1350,8 @@ function ProjectPicker({
 					{verdict?.label ?? "Open"}
 				</button>
 			</div>
-			{verdict?.note && <p className="shell-note">{verdict.note}</p>}
+			{noPicker !== null && <p className="shell-note">{noPicker}</p>}
+			{noPicker === null && verdict?.note && <p className="shell-note">{verdict.note}</p>}
 
 			{recent.length > 0 && (
 				<div className="shell-recent">
@@ -1242,6 +1378,87 @@ function ProjectPicker({
 			)}
 
 			{busy && <p>{busy}</p>}
+		</div>
+	);
+}
+
+/** The last segment of a path, which is what identifies a file at a glance. */
+function fileName(path: string): string {
+	return path.slice(path.lastIndexOf("/") + 1);
+}
+
+/** How long a finished compile stays on screen before it takes itself away. */
+const TOAST_LINGER_MS = 4000;
+
+/**
+ * A project compile, narrated in the corner of the graph.
+ *
+ * Deliberately *not* in the status panel, which is the script analysis view —
+ * that panel answers "what is wrong with this graph", and a compile's progress
+ * is neither about this graph nor about anything being wrong. Unreal keeps the
+ * two apart for the same reason, and putting the walk in the panel meant a
+ * thousand rows of good news burying the one diagnostic you opened it for.
+ *
+ * It floats over the canvas rather than taking space from it, because it is
+ * temporary and the graph underneath is what you were looking at.
+ */
+function CompileToast({ progress }: { progress: CompileStep[] }) {
+	const [showing, setShowing] = useState(false);
+
+	const walking = progress.find((step) => step.state === "working");
+	const settled = progress.filter((step) => step.state !== "working");
+	const total = progress[0]?.total ?? 0;
+
+	useEffect(() => {
+		if (progress.length === 0) return;
+		setShowing(true);
+		// While a file is still being compiled there is no timer to start: the
+		// next event will run this again, and the last one to arrive is the one
+		// that has no `working` step and therefore starts the countdown.
+		if (walking) return;
+		const timer = window.setTimeout(() => setShowing(false), TOAST_LINGER_MS);
+		return () => window.clearTimeout(timer);
+	}, [progress, walking]);
+
+	if (!showing || progress.length === 0) return null;
+
+	const wrote = settled.filter((step) => step.state === "wrote").length;
+	const failed = settled.filter((step) => step.state === "failed").length;
+	const skipped = settled.filter((step) => step.state === "skipped").length;
+
+	// What actually happened, in the order it matters. A compile that wrote
+	// nothing because nothing needed writing is not worth a line of its own.
+	const summary = [
+		wrote > 0 ? `${wrote} written` : null,
+		skipped > 0 ? `${skipped} skipped` : null,
+		failed > 0 ? `${failed} failed` : null,
+	].filter(Boolean).join(" · ") || `${settled.length} checked`;
+
+	return (
+		<div
+			className={`compile-toast${failed > 0 && !walking ? " has-failures" : ""}`}
+			// Dismissable, because it covers the bottom-right corner of the graph
+			// and four seconds is a long time if that is where you were working.
+			onClick={() => setShowing(false)}
+			title="Dismiss"
+			role="status"
+			aria-live="polite"
+		>
+			<div className="head">
+				<span className="what">{walking ? "Compiling project" : "Compiled"}</span>
+				<span className="count">
+					{walking ? `${walking.index} of ${total}` : `${settled.length} files`}
+				</span>
+			</div>
+			{/* The file, while there is one. Its name rather than its path: the
+			    path is the same for a thousand of them and the name is not. */}
+			<div className="detail">{walking ? fileName(walking.scriptPath) : summary}</div>
+			<div className="track">
+				<span
+					className="fill"
+					style={{ width: `${(settled.length / Math.max(total, 1)) * 100}%` }}
+				/>
+			</div>
 		</div>
 	);
 }

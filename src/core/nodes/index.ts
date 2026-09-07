@@ -166,7 +166,7 @@ export function nodeTitle(def: NodeDef | undefined, node: GraphNode): string {
 
 /** Every distinct category present in a registry, in display order. */
 export function categories(registry: Registry): string[] {
-	const order = ["Flow", "Events", "Variables", "Values", "Math", "Vectors", "CFrames", "Logic", "Strings", "Tables", "Roblox", "Instances", "Players", "Networking", "Modules", "Time", "Threads", "Debug"];
+	const order = ["Flow", "Events", "Variables", "Values", "Math", "Vectors", "CFrames", "Logic", "Strings", "Tables", "Engine", "Instances", "Players", "Networking", "Modules", "Time", "Threads", "Debug"];
 	const seen = new Set<string>();
 	for (const def of registry.values()) seen.add(def.category);
 	const known = order.filter((c) => seen.has(c));

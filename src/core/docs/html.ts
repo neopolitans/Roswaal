@@ -17,7 +17,7 @@
  */
 
 import type { Block, DocPage, DocSection, DocSite } from "./site.js";
-import { allPages, parseInline } from "./site.js";
+import { allPages, parseInline, TAG_LABELS } from "./site.js";
 import { previewSvg, type PreviewOptions } from "./preview.js";
 
 export interface RenderOptions {
@@ -37,8 +37,22 @@ export interface RenderOptions {
 	 * page with no picture is honest, a picture at invented sizes is not.
 	 */
 	preview?: PreviewOptions;
+	/**
+	 * The mark, in the header and in the tab, passed in for the same reason —
+	 * the artwork lives in `src/app/logo.tsx`. Absent, the header falls back to
+	 * the name in text, which is the honest degradation: a header that says
+	 * what this is beats a gap where a picture should be.
+	 */
+	logo?: LogoOptions;
 	/** Shown in the header, next to the name. */
 	version: string;
+}
+
+export interface LogoOptions {
+	/** SVG markup, inlined into the header. Inherits the header's colour. */
+	mark: string;
+	/** A `data:` URI for `<link rel="icon">`, which cannot inherit anything. */
+	icon: string;
 }
 
 export function escapeHtml(text: string): string {
@@ -121,12 +135,21 @@ function renderBlock(block: Block, options: RenderOptions): string {
 			);
 		}
 		case "table": {
-			const head = block.head.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
+			// No `head` means no `<thead>` at all, rather than an empty one: a
+			// blank header row still draws a rule and still takes the space.
+			const head = block.head
+				? `<thead><tr>${block.head.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>`
+				: "";
 			const rows = block.rows
 				.map((row) => `<tr>${row.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`)
 				.join("");
-			return `<div class="docs-table"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+			const bare = block.head ? "" : " bare";
+			return `<div class="docs-table${bare}"><table>${head}<tbody>${rows}</tbody></table></div>`;
 		}
+		case "tags":
+			return `<p class="docs-tags">${block.tags
+				.map((tag) => `<span class="docs-tag ${tag}">${escapeHtml(TAG_LABELS[tag])}</span>`)
+				.join("")}</p>`;
 		case "note":
 			return `<div class="docs-note ${block.kind}">${inline(block.text)}</div>`;
 		case "pins":
@@ -252,13 +275,12 @@ export function renderPage(site: DocSite, page: DocPage, options: RenderOptions)
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(page.title)} · Roswaal docs</title>
 <meta name="description" content="${escapeHtml(page.summary)}">
-<link rel="stylesheet" href="${up}theme.css">
+${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(options.logo.icon)}">\n` : ""}<link rel="stylesheet" href="${up}theme.css">
 </head>
 <body class="docs-static">
 <div class="docs-page">
 <header class="docs-page-head">
-<a class="brand" href="${up}index.html">ROSWAAL<span class="version">${escapeHtml(options.version)}</span></a>
-<span class="sub">Documentation</span>
+<a class="logo" href="${up}index.html">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a>
 </header>
 <div class="docs-body">
 ${renderNav(site, page)}

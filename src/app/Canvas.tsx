@@ -29,7 +29,7 @@ import {
 	insertReroute, pinLinkCount, placeNodes, removeLink, setLiteral, updateComment,
 	type Placement,
 } from "./edits.js";
-import { store, useEditor } from "./store.js";
+import { store, useEditor, useView } from "./store.js";
 
 const COMMENT_DEFAULT_COLOR = "6a8fbf";
 
@@ -42,6 +42,15 @@ export interface CanvasProps {
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
 	/** A file dragged in from the project tree, dropped at this point. */
 	onDropFile: (path: string, screen: Vec, world: Vec) => void;
+	/**
+	 * The graph is being compiled and must not be edited.
+	 *
+	 * A change made while the walk is running lands in the written file or does
+	 * not, depending on where the walk had got to when you made it — and the
+	 * file then disagrees with the graph with nothing to say so. Locking is the
+	 * cheap half of the fix; the compile is a second or two.
+	 */
+	locked?: boolean;
 }
 
 type Gesture =
@@ -62,8 +71,10 @@ type Gesture =
 
 export function Canvas({
 	script, registry, diagnostics, onRequestMenu, onRequestPinMenu, onEditCode, onDropFile,
+	locked = false,
 }: CanvasProps) {
-	const { selection, view } = useEditor();
+	const { selection } = useEditor();
+	const view = useView();
 	const surface = useRef<HTMLDivElement>(null);
 	const gesture = useRef<Gesture>({ kind: "none" });
 
@@ -136,7 +147,7 @@ export function Canvas({
 	const toWorld = useCallback(
 		(clientX: number, clientY: number): Vec => {
 			const box = surface.current?.getBoundingClientRect();
-			const v = store.getSnapshot().view;
+			const v = store.getView();
 			return screenToWorld(v, clientX - (box?.left ?? 0), clientY - (box?.top ?? 0));
 		},
 		[],
@@ -153,7 +164,7 @@ export function Canvas({
 			const box = element.getBoundingClientRect();
 			const sx = e.clientX - box.left;
 			const sy = e.clientY - box.top;
-			const current = store.getSnapshot().view;
+			const current = store.getView();
 
 			const factor = e.deltaY < 0 ? ZOOM.step : 1 / ZOOM.step;
 			const zoom = clamp(current.zoom * factor, ZOOM.min, ZOOM.max);
@@ -294,7 +305,7 @@ export function Canvas({
 			const box = surface.current!.getBoundingClientRect();
 			gesture.current = {
 				kind: "pan",
-				startView: store.getSnapshot().view,
+				startView: store.getView(),
 				origin: { x: e.clientX - box.left, y: e.clientY - box.top },
 			};
 			e.preventDefault();
@@ -468,7 +479,7 @@ export function Canvas({
 
 	return (
 		<div
-			className={`canvas${wireDrag ? " wiring" : ""}`}
+			className={`canvas${wireDrag ? " wiring" : ""}${locked ? " locked" : ""}`}
 			ref={surface}
 			tabIndex={0}
 			onPointerDown={onSurfacePointerDown}
@@ -686,6 +697,16 @@ export function Canvas({
 						height: marquee.h * view.zoom,
 					}}
 				/>
+			)}
+
+			{/* Over everything, so it swallows the pointer rather than relying on
+			    each handler below to check. The border is on the canvas itself —
+			    see `.canvas.locked` — because a border drawn by this element
+			    would disappear with it. */}
+			{locked && (
+				<div className="canvas-lock" style={{ zIndex: LAYER.lock }}>
+					<span>Compiling — the graph is read-only until it finishes</span>
+				</div>
 			)}
 		</div>
 	);

@@ -6,7 +6,7 @@
  * marked so it is obvious which Luau is Roswaal's to overwrite.
  */
 
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import type { TreeEntry } from "./api.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { LAYER } from "./layers.js";
@@ -28,7 +28,19 @@ export interface ProjectTreeProps {
 	onReveal: (path: string) => void;
 }
 
-export function ProjectTree(props: ProjectTreeProps) {
+/**
+ * Memoised, and it has to stay that way.
+ *
+ * `App` subscribes to the document store, so it re-renders on every frame of a
+ * node drag — and it renders this. With a folder of 1200 graphs open that cost
+ * 16ms a frame on its own and the drag stuttered. Nothing here depends on the
+ * graph being edited, so none of those renders was ever going to change a row.
+ *
+ * The catch is that memoising is only worth anything while every prop is
+ * stable. `App` hoists all six handlers into `useCallback` for that reason; a
+ * new inline arrow in the JSX would quietly undo this.
+ */
+export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 	const { tree, openPath, onOpen, onMove } = props;
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
@@ -235,7 +247,7 @@ export function ProjectTree(props: ProjectTreeProps) {
 			)}
 		</div>
 	);
-}
+});
 
 interface Row {
 	entry: TreeEntry;

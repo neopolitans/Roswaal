@@ -19,8 +19,21 @@ export interface EditorState {
 	script: NodeScript | null;
 	/** Node and comment ids. They share a namespace because selection does. */
 	selection: ReadonlySet<string>;
-	view: View;
 	dirty: boolean;
+	/**
+	 * The graph refuses edits, because it is being compiled.
+	 *
+	 * Enforced here rather than at each of the places you can edit from. The
+	 * canvas has a cover over it, but the inspector and the variables panel have
+	 * twelve more edit paths between them and neither is under that cover — and
+	 * an edit from any of them lands in the written file or does not, depending
+	 * on where the compiler had got to.
+	 *
+	 * Whoever sets it decides the policy: `App` locks only outside hot reload.
+	 * This is the enforcement, and the disabled panels are the courtesy, so
+	 * anything either of us forgets to disable still cannot get through.
+	 */
+	locked: boolean;
 }
 
 type Listener = () => void;
@@ -30,9 +43,24 @@ class Store {
 		path: null,
 		script: null,
 		selection: new Set(),
-		view: { x: 80, y: 80, zoom: 1 },
 		dirty: false,
+		locked: false,
 	};
+
+	/**
+	 * Where the canvas is looking. Its own slice, with its own listeners.
+	 *
+	 * It used to live in `EditorState`, which meant a pan or a zoom notified
+	 * everything subscribed to the document — and the project tree is rendered
+	 * by the same component that subscribes to it. With a folder of 1200 graphs
+	 * open, one zoom re-rendered 1200 rows: 4.2ms a frame became 19.8ms.
+	 *
+	 * Keeping it apart is also the honest description. The viewport is not part
+	 * of the document: it is not saved, not undoable, and not something anyone
+	 * but the canvas has an opinion about.
+	 */
+	private viewState: View = { x: 80, y: 80, zoom: 1 };
+	private viewListeners = new Set<Listener>();
 
 	private listeners = new Set<Listener>();
 	private past: NodeScript[] = [];
@@ -89,10 +117,16 @@ class Store {
 		this.push(before);
 	}
 
+	/** Refuses every edit until it is unset. See `EditorState.locked`. */
+	setLocked(locked: boolean): void {
+		if (this.state.locked === locked) return;
+		this.set({ locked });
+	}
+
 	/** Applies a change. Outside a transaction this is its own undo entry. */
 	apply(fn: (script: NodeScript) => NodeScript): void {
 		const script = this.state.script;
-		if (!script) return;
+		if (!script || this.state.locked) return;
 		const next = fn(script);
 		if (next === script) return;
 		if (!this.pending) this.push(script);
@@ -111,6 +145,7 @@ class Store {
 	}
 
 	undo(): void {
+		if (this.state.locked) return;
 		const previous = this.past.pop();
 		if (!previous || !this.state.script) return;
 		this.future.push(this.state.script);
@@ -118,6 +153,7 @@ class Store {
 	}
 
 	redo(): void {
+		if (this.state.locked) return;
 		const next = this.future.pop();
 		if (!next || !this.state.script) return;
 		this.past.push(this.state.script);
@@ -150,8 +186,16 @@ class Store {
 
 	// -- view --------------------------------------------------------------
 
+	subscribeView = (listener: Listener): (() => void) => {
+		this.viewListeners.add(listener);
+		return () => this.viewListeners.delete(listener);
+	};
+
+	getView = (): View => this.viewState;
+
 	setView(view: View): void {
-		this.set({ view });
+		this.viewState = view;
+		for (const listener of this.viewListeners) listener();
 	}
 }
 
@@ -168,6 +212,16 @@ export const store = new Store();
 
 export function useEditor(): EditorState {
 	return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}
+
+/**
+ * The viewport, subscribed to separately.
+ *
+ * Only the canvas should call this. Anything else that does is signing itself
+ * up to re-render on every frame of a pan.
+ */
+export function useView(): View {
+	return useSyncExternalStore(store.subscribeView, store.getView, store.getView);
 }
 
 export function newId(): string {

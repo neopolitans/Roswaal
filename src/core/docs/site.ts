@@ -23,11 +23,28 @@ import { categories } from "../nodes/index.js";
 import { BLUEPRINT_MAP } from "./blueprints.js";
 import { documentRegistry, OMISSION_REASONS, type NodeDoc } from "./nodeReference.js";
 import { previewOf, type NodePreview } from "./preview.js";
-import { RELEASES } from "./releases.js";
+import { ATTRIBUTIONS, NAME_NOTICE } from "./attributions.js";
+import { RELEASES, type Release } from "./releases.js";
 
 // ---------------------------------------------------------------------------
 // Blocks
 // ---------------------------------------------------------------------------
+
+/**
+ * The kinds of change a release can carry.
+ *
+ * `breaking` is the one that cannot be derived from the entries — whether a
+ * change breaks somebody is a judgement about their code, not a property of
+ * ours — so it is the one a release states for itself.
+ */
+export type ReleaseTag = "feature" | "change" | "fix" | "breaking";
+
+export const TAG_LABELS: Record<ReleaseTag, string> = {
+	feature: "Feature",
+	change: "Change",
+	fix: "Bugfix",
+	breaking: "Breaking change",
+};
 
 export type Block =
 	/** `aside` sits at the right of the heading: a date, a version, a status. */
@@ -36,7 +53,21 @@ export type Block =
 	| { t: "ul"; items: string[] }
 	| { t: "ol"; items: string[] }
 	| { t: "code"; lang: "luau" | "sh" | "json"; text: string }
-	| { t: "table"; head: string[]; rows: string[][] }
+	/**
+	 * `head` is optional. A comparison table wants column names; a list of
+	 * release entries wants the *shape* of a table — ruled rows, one thing per
+	 * row — and a header saying "Note" over a single column of notes is a row of
+	 * furniture that tells the reader nothing.
+	 */
+	| { t: "table"; head?: string[]; rows: string[][] }
+	/**
+	 * What kind of release this was, at a glance, under its version number.
+	 *
+	 * Derived rather than written, everywhere it can be: a release with a
+	 * `fixed` list is a Bugfix whether or not anyone remembered to say so, and a
+	 * tag that can disagree with the entries beneath it is worse than no tag.
+	 */
+	| { t: "tags"; tags: ReleaseTag[] }
 	/** A pulled-out aside. `warn` for a trap, `good` for a promise being kept. */
 	| { t: "note"; kind: "info" | "warn" | "good"; text: string }
 	/** Pin tables on a node page, which want their own rendering. */
@@ -160,7 +191,9 @@ export function blockText(block: Block): string {
 		case "code":
 			return block.text;
 		case "table":
-			return [...block.head, ...block.rows.flat()].join(" ");
+			return [...(block.head ?? []), ...block.rows.flat()].join(" ");
+		case "tags":
+			return block.tags.map((tag) => TAG_LABELS[tag]).join(" ");
 		case "note":
 			return parseInline(block.text).map((i) => i.text).join("");
 		case "pins":
@@ -264,6 +297,15 @@ function blueprintPage(): DocPage {
 				"Construction Scripts do not exist here is worth more than forty minutes spent " +
 				"looking for them.",
 		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"Unreal Engine, Unreal and Blueprint are trademarks of Epic Games, Inc. They are " +
+				"used on this page to name Epic's product while explaining Roswaal's, which is the " +
+				"only thing they are used for here. Roswaal is not affiliated with or endorsed by " +
+				"Epic Games and contains no Unreal Engine code.",
+		},
 	];
 
 	for (const section of BLUEPRINT_MAP) {
@@ -288,6 +330,83 @@ function blueprintPage(): DocPage {
 	};
 }
 
+/**
+ * Who made what Roswaal is built on, and what it is named after.
+ *
+ * A page rather than only `NOTICE.md`, because the people who need to read it
+ * are not all reading the repository — and because the naming statement is a
+ * thing to say where users are, not to file where auditors are.
+ */
+function attributionsPage(): DocPage {
+	const blocks: Block[] = [
+		{
+			t: "p",
+			text:
+				"Roswaal is 0BSD — see the end of this page — but it stands on work " +
+				"that is not, and it is named after characters that are not ours. " +
+				"Both are listed here.",
+		},
+		{ t: "h", level: 2, text: NAME_NOTICE.title },
+	];
+
+	for (const line of NAME_NOTICE.body) blocks.push({ t: "p", text: line });
+
+	blocks.push({ t: "h", level: 2, text: "What Roswaal is built on" });
+	blocks.push({
+		t: "table",
+		head: ["Project", "By", "Licence"],
+		rows: ATTRIBUTIONS.map((a) => [
+			a.url ? `[${a.name}](${a.url})` : a.name,
+			a.holder ?? "—",
+			a.licence ?? "not licensed to us",
+		]),
+	});
+
+	for (const entry of ATTRIBUTIONS) {
+		blocks.push({ t: "h", level: 3, text: entry.name });
+		blocks.push({ t: "p", text: entry.note });
+		blocks.push({ t: "p", text: `**Where:** ${entry.where}` });
+		if (entry.quote) {
+			blocks.push({ t: "note", kind: "info", text: `"${entry.quote}"` });
+		}
+	}
+
+	blocks.push({ t: "h", level: 2, text: "Roswaal itself" });
+	blocks.push({
+		t: "note",
+		kind: "good",
+		text:
+			"Everything in this repository that is Roswaal's own is **0BSD**: use it, " +
+			"modify it, ship it, train on it, no attribution required. The list above " +
+			"is what that does *not* cover.",
+	});
+
+	return {
+		slug: "attributions",
+		title: "Attributions",
+		summary: "What Roswaal is built on, who made it, and what the names are.",
+		narrow: true,
+		blocks,
+	};
+}
+
+/**
+ * What to tag a release, from what it actually contains.
+ *
+ * Derived, so a tag cannot claim something the entries below it do not show.
+ * `breaking` is the exception and comes from the release, because whether a
+ * change breaks somebody is a judgement about their code rather than a fact
+ * about ours.
+ */
+export function releaseTags(release: Release): ReleaseTag[] {
+	const tags: ReleaseTag[] = [];
+	if (release.breaking) tags.push("breaking");
+	if (release.added?.length) tags.push("feature");
+	if (release.changed?.length) tags.push("change");
+	if (release.fixed?.length) tags.push("fix");
+	return tags;
+}
+
 function releasesPage(): DocPage {
 	const blocks: Block[] = [
 		{
@@ -300,6 +419,10 @@ function releasesPage(): DocPage {
 
 	for (const release of RELEASES) {
 		blocks.push({ t: "h", level: 2, text: release.version, aside: release.date });
+
+		const tags = releaseTags(release);
+		if (tags.length > 0) blocks.push({ t: "tags", tags });
+
 		blocks.push({ t: "p", text: release.headline });
 
 		if (release.watch) {
@@ -309,17 +432,17 @@ function releasesPage(): DocPage {
 				text: "**Worth knowing before you upgrade.** " + release.watch.join(" "),
 			});
 		}
-		if (release.added) {
-			blocks.push({ t: "h", level: 3, text: "Added" });
-			blocks.push({ t: "ul", items: release.added });
-		}
-		if (release.changed) {
-			blocks.push({ t: "h", level: 3, text: "Changed" });
-			blocks.push({ t: "ul", items: release.changed });
-		}
-		if (release.fixed) {
-			blocks.push({ t: "h", level: 3, text: "Fixed" });
-			blocks.push({ t: "ul", items: release.fixed });
+		// One entry per row rather than per bullet. A release note is a list of
+		// separate claims, and a rule between them reads as separate in a way a
+		// dot does not once an entry runs to four lines — which they do.
+		for (const [heading, entries] of [
+			["Added", release.added],
+			["Changed", release.changed],
+			["Fixed", release.fixed],
+		] as const) {
+			if (!entries || entries.length === 0) continue;
+			blocks.push({ t: "h", level: 3, text: heading });
+			blocks.push({ t: "table", rows: entries.map((entry) => [entry]) });
 		}
 	}
 
@@ -991,6 +1114,12 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				slug: "releases",
 				group: GROUPS.learn,
 				pages: [releasesPage()],
+			},
+			{
+				title: "Attributions",
+				slug: "attributions",
+				group: GROUPS.learn,
+				pages: [attributionsPage()],
 			},
 			...reference(GROUPS.builtin, false),
 			...reference(GROUPS.project, true),

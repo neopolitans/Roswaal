@@ -9,20 +9,20 @@
  * of shelling out to a second copy of itself.
  */
 
-import cors from "cors";
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-	buildTree, collectMaps, compileAll, compileMap, compileScript, createFolder,
+	buildTree, collectMaps, compileAll, compileMap, compileScript, createFolder, graphName,
 	deleteEntry, initProject, moveEntry, openProject, readMap, readScript, readText,
 	findOrphanOutputs, locateFile, removeOutputs, renameEntry, safeJoin,
 	writeConfig, writeMap, writeScript,
 	type OpenProject,
 } from "./project.js";
-import { broadcastProject, streamEvents } from "./events.js";
+import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
+import { chooseDirectory, NoPickerError } from "./browse.js";
 import { openInEditor, revealInFileManager } from "./reveal.js";
 import { VERSION } from "../cli/version.js";
 import { HotReloader } from "./watcher.js";
@@ -43,8 +43,87 @@ export interface DaemonOptions {
 	onListening?: (port: number) => void;
 }
 
+/**
+ * Loopback names. Everything the daemon will answer to, and nothing else.
+ *
+ * `localhost` is in here because that is what Vite serves the editor on in
+ * development, and it resolves to loopback everywhere that matters.
+ */
+const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+
+/** The host part of a `Host:` or an `Origin:`, without its port or scheme. */
+function hostnameOf(value: string): string {
+	const withoutScheme = value.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+	// An IPv6 literal keeps its brackets; everything else splits on the colon.
+	const bracketed = withoutScheme.match(/^\[[^\]]+\]/);
+	return (bracketed ? bracketed[0] : withoutScheme.split(":")[0]).toLowerCase();
+}
+
+/**
+ * Whether to refuse a request outright, and why. `null` means let it through.
+ *
+ * The daemon listens on 127.0.0.1, which stops anything on the network reaching
+ * it — but not the browser already running on this machine. Every page the
+ * developer has open can reach a loopback port, and `cors()` used to answer all
+ * of them with "yes, read the response". That was enough for any website to run
+ * this against a developer with the daemon up:
+ *
+ *     POST /api/project/init  { root: "C:/Users/someone" }
+ *     GET  /api/source?path=...
+ *
+ * `safeJoin` keeps every path inside the project root, but the *root* is
+ * whatever the caller asked for, so that pair is an arbitrary file read — and
+ * `init` writes a `roswaal.json` wherever it is pointed. Roswaal is a local
+ * tool; nothing needs cross-origin access, so nothing gets it.
+ *
+ * Two checks, because they stop different things:
+ *
+ *  - **Host**, against DNS rebinding. A page on `evil.com` whose DNS is made to
+ *    answer 127.0.0.1 is *same-origin* with the daemon as far as the browser is
+ *    concerned, so it sends no `Origin` at all and an origin check never fires.
+ *    What it cannot forge is `Host`, which still says `evil.com`.
+ *  - **Origin**, against the ordinary cross-origin case. A browser always sends
+ *    it on a cross-origin request and a page cannot suppress or spoof it.
+ *
+ * A request with no `Origin` is allowed: that is curl, the CLI, and anything
+ * else that is not a browser, none of which a hostile page can impersonate.
+ *
+ * Residual, and deliberate: any *loopback* origin is accepted, so a different
+ * server on the developer's own machine is trusted. Pinning the port would
+ * break Vite on 4470 talking to the daemon on 4471, and a hostile server
+ * already running locally is a threat this cannot answer anyway.
+ */
+export function refusesConnection(
+	host: string | undefined, origin: string | undefined,
+): string | null {
+	if (host !== undefined && !LOOPBACK.has(hostnameOf(host))) {
+		return `Roswaal only answers on localhost. This request asked for "${host}".`;
+	}
+	if (origin !== undefined && origin !== "" && !LOOPBACK.has(hostnameOf(origin))) {
+		return `Roswaal does not serve other origins. This request came from "${origin}".`;
+	}
+	return null;
+}
+
 const app = express();
-app.use(cors());
+
+/**
+ * Before anything is parsed, so a refused request costs a header read.
+ *
+ * This replaced `cors()`, which was not merely loose but unnecessary: in
+ * development Vite proxies `/api` to the daemon server-side, and in production
+ * the daemon serves the editor itself. The browser never makes a cross-origin
+ * request to it, so there was never anything for CORS to permit.
+ */
+app.use((req, res, next) => {
+	const refusal = refusesConnection(req.headers.host, req.headers.origin);
+	if (refusal) {
+		res.status(403).json({ error: refusal });
+		return;
+	}
+	next();
+});
+
 app.use(express.json({ limit: "32mb" }));
 
 /**
@@ -217,6 +296,29 @@ app.post("/api/project/open", route(async (req) => {
 	};
 }));
 
+/**
+ * Opens the operating system's folder picker and returns what was chosen.
+ *
+ * On the daemon because a browser cannot produce a filesystem path — see
+ * `browse.ts`. Answers `{ path: null }` on cancel, which is an ordinary
+ * outcome and not a 4xx; the editor simply does nothing.
+ *
+ * Deliberately does not open the project. Choosing a folder and opening it are
+ * two decisions, and the picker's own inspection — Open versus Initialise —
+ * belongs between them.
+ */
+app.post("/api/project/browse", route(async (req) => {
+	const { startIn } = req.body as { startIn?: string };
+	try {
+		return { path: await chooseDirectory(typeof startIn === "string" ? startIn : undefined) };
+	} catch (err) {
+		// 501: the machine cannot do this, which is not the caller's fault and
+		// not worth retrying. The editor drops the button and says why.
+		if (err instanceof NoPickerError) throw new HttpError(501, err.message);
+		throw err;
+	}
+}));
+
 app.post("/api/project/init", route(async (req) => {
 	const root = String((req.body as { root?: string }).root ?? "");
 	if (!root) throw new HttpError(400, "Provide a project root.");
@@ -275,7 +377,9 @@ app.post("/api/script/create", route(async (req) => {
 	const { dir, name, scriptClass } = req.body as {
 		dir?: string; name?: string; scriptClass?: NodeScript["scriptClass"];
 	};
-	const safeName = (name ?? "Untitled").replace(/[^A-Za-z0-9_ -]/g, "").trim() || "Untitled";
+	// The same function renaming uses, so a graph created as "My Graph" and one
+	// renamed to it end up called the same thing.
+	const safeName = graphName(name ?? "Untitled") || "Untitled";
 	const targetDir = dir ?? p.config.sourceDir;
 	const relPath = path.posix.join(targetDir, `${safeName}.nodescript`);
 
@@ -405,9 +509,11 @@ app.post("/api/compile", route(async (req) => {
 	const { path: relPath, write, force } = req.body as {
 		path?: string; write?: boolean; force?: boolean;
 	};
+	// Only the whole-project walk narrates itself. One file has nothing to
+	// report a position in, and the POST answering is the news.
 	const results = relPath
 		? [await compileScript(p, relPath, { write, force })]
-		: await compileAll(p, { write, force });
+		: await compileAll(p, { write, force }, broadcastCompile);
 	return { results };
 }));
 

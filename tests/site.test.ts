@@ -10,7 +10,8 @@ import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import {
-	allPages, blockText, buildSearchIndex, buildSite, findPage, GROUPS, parseInline, searchDocs,
+	allPages, blockText, buildSearchIndex, buildSite, findPage, GROUPS, parseInline,
+	releaseTags, searchDocs, TAG_LABELS,
 } from "../src/core/docs/site.js";
 import { RELEASES } from "../src/core/docs/releases.js";
 import { VERSION } from "../src/cli/version.js";
@@ -246,5 +247,58 @@ describe("search", () => {
 
 	it("respects the limit", () => {
 		expect(searchDocs(index, "e", 5).length).toBeLessThanOrEqual(5);
+	});
+});
+
+/**
+ * The tags under a version number.
+ *
+ * Derived from what the release actually contains, so a tag cannot claim
+ * something the entries beneath it do not show — a release with a `fixed` list
+ * is a Bugfix whether or not anyone remembered to say so. `breaking` is the one
+ * exception and is stated by the release, because whether a change breaks
+ * somebody is a judgement about their code rather than a fact about ours.
+ */
+describe("release tags", () => {
+	it("says nothing about a release with no entries", () => {
+		expect(releaseTags({ version: "0.0.1", date: "2026-01-01", headline: "" })).toEqual([]);
+	});
+
+	it("names each kind of section it finds", () => {
+		const base = { version: "1.0.0", date: "2026-01-01", headline: "" };
+		expect(releaseTags({ ...base, added: ["a"] })).toEqual(["feature"]);
+		expect(releaseTags({ ...base, changed: ["a"] })).toEqual(["change"]);
+		expect(releaseTags({ ...base, fixed: ["a"] })).toEqual(["fix"]);
+	});
+
+	/** An empty list is not a section. It would otherwise tag a release Feature
+	 *  for an `added: []` somebody left behind while editing. */
+	it("ignores a section that is present but empty", () => {
+		expect(releaseTags({ version: "1.0.0", date: "2026-01-01", headline: "", added: [] }))
+			.toEqual([]);
+	});
+
+	it("puts breaking first, where it will be read first", () => {
+		const tags = releaseTags({
+			version: "1.0.0", date: "2026-01-01", headline: "",
+			breaking: true, added: ["a"], changed: ["b"], fixed: ["c"],
+		});
+		expect(tags).toEqual(["breaking", "feature", "change", "fix"]);
+	});
+
+	/** `watch` is often just worth knowing; it must not imply a break. */
+	it("does not treat a watch note as breaking", () => {
+		expect(releaseTags({
+			version: "1.0.0", date: "2026-01-01", headline: "", watch: ["mind this"],
+		})).toEqual([]);
+	});
+
+	it("has a label for every tag it can produce", () => {
+		for (const tag of releaseTags({
+			version: "1.0.0", date: "2026-01-01", headline: "",
+			breaking: true, added: ["a"], changed: ["b"], fixed: ["c"],
+		})) {
+			expect(TAG_LABELS[tag]).toBeTruthy();
+		}
 	});
 });

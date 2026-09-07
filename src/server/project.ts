@@ -558,6 +558,30 @@ export async function renameEntry(
 	if (source === dest) return destRel;
 	if (await exists(dest)) throw new Error(`${destRel} already exists.`);
 	await fs.rename(source, dest);
+
+	/**
+	 * A graph carries its own name, and that name — not the file's — is what the
+	 * compiler writes out. Renaming the file alone left the two disagreeing with
+	 * nothing to say so: `Hello.nodescript` went on producing `Greeter.luau`, and
+	 * if some other graph was already called Hello, they silently shared a file.
+	 *
+	 * Only for graphs. A `.nodemap` takes its output from the map, a `.luau` is
+	 * not ours to edit, and a folder has no inside to update.
+	 */
+	if (destRel.endsWith(".nodescript")) {
+		const wanted = graphName(path.posix.basename(destRel, ".nodescript"));
+		// An empty result means the new file name was punctuation all the way
+		// down. Leaving the old name is worse than nothing, but inventing
+		// "Untitled" here would rename the graph behind the developer's back.
+		if (wanted !== "") {
+			const script = await readScript(project, destRel);
+			if (script.name !== wanted) {
+				script.name = wanted;
+				await writeScript(project, destRel, script);
+			}
+		}
+	}
+
 	return destRel;
 }
 
@@ -597,8 +621,47 @@ export interface CompileOutcome {
 	code: string;
 }
 
+/**
+ * The name a graph carries inside itself, from a file or folder name.
+ *
+ * One function, because the two places that decide it used to be two places:
+ * creating a graph sanitised the name it was given, and renaming the file did
+ * not touch the name at all. A graph's own name is what the compiler writes
+ * out — see `outputFileName` — so the second of those meant `Hello.nodescript`
+ * went on compiling to `Greeter.luau` with nothing anywhere saying so.
+ *
+ * Returns "" when nothing survives sanitising; the caller decides what to do
+ * about that, because creating and renaming want different answers.
+ */
+export function graphName(raw: string): string {
+	return raw.replace(/[^A-Za-z0-9_ -]/g, "").trim();
+}
+
+/**
+ * The graph that already wrote this file in the current compile, if any.
+ *
+ * Two graphs with the same name compile to the same path, and the second used
+ * to overwrite the first and report `wrote` for both — the compile said
+ * "1202 of 1202 written" while 1200 of them were the same file. Pure, so the
+ * decision is testable without a filesystem; the map is threaded through
+ * `compileAll` so a single-file compile has no opinion about it.
+ */
+export function outputCollision(
+	claimed: Map<string, string> | undefined, outputPath: string, relPath: string,
+): string | null {
+	const owner = claimed?.get(outputPath);
+	return owner !== undefined && owner !== relPath ? owner : null;
+}
+
 export async function compileScript(
-	project: OpenProject, relPath: string, opts: { write?: boolean; force?: boolean } = {},
+	project: OpenProject,
+	relPath: string,
+	opts: {
+		write?: boolean;
+		force?: boolean;
+		/** Output paths already written this compile, keyed to the graph that did. */
+		claimed?: Map<string, string>;
+	} = {},
 ): Promise<CompileOutcome> {
 	const script = await readScript(project, relPath);
 	const result = compile(script, project.registry);
@@ -629,6 +692,24 @@ export async function compileScript(
 		return outcome;
 	}
 
+	// Checked before the hand-edit guard, because a file the last graph wrote
+	// thirty milliseconds ago passes that guard perfectly.
+	const clash = outputCollision(opts.claimed, outcome.outputPath, relPath);
+	if (clash) {
+		outcome.skipped =
+			`${outcome.outputPath} was already written by ${clash} in this compile. ` +
+			`Both graphs are named "${script.name}", and a graph's own name is what it ` +
+			"compiles to — rename one of them.";
+		// An error rather than a skip, so it is counted with the failures and the
+		// panel does not offer to overwrite: overwriting is what already happened,
+		// and doing it again just picks a different winner.
+		outcome.diagnostics = [
+			...outcome.diagnostics,
+			{ severity: "error", message: outcome.skipped },
+		];
+		return outcome;
+	}
+
 	const abs = safeJoin(project.root, outcome.outputPath);
 	const guard = await checkHandEdited(abs);
 	if (guard && !opts.force) {
@@ -639,27 +720,97 @@ export async function compileScript(
 	await fs.mkdir(path.dirname(abs), { recursive: true });
 	await fs.writeFile(abs, code, "utf8");
 	outcome.written = true;
+	// Claimed only once it is actually on disk, so a graph that was refused does
+	// not take the name away from the next one.
+	opts.claimed?.set(outcome.outputPath, relPath);
 	return outcome;
 }
 
+/**
+ * One file's turn in a project compile, reported as it happens.
+ *
+ * `compileAll` returns everything at once, at the end, which makes a slow
+ * project look exactly like a stuck one. These are pushed per file so the
+ * status panel can show the walk rather than only its result — and the useful
+ * part is *which file* and *what happened to it*, not that something is
+ * happening, which is why this carries a path and a verdict rather than a
+ * percentage.
+ */
+export interface CompileStep {
+	/** 1-based position in the walk, and how long the walk is. */
+	index: number;
+	total: number;
+	scriptPath: string;
+	/**
+	 * `working` is sent before the file is compiled and is the only state that
+	 * is not a verdict. It is the one that distinguishes slow from stuck, so it
+	 * is sent even though the verdict usually follows within milliseconds.
+	 */
+	state: "working" | "wrote" | "skipped" | "failed" | "checked";
+	/** Why, on `skipped` and `failed`. Nothing to add on the other three. */
+	note?: string;
+}
+
+/**
+ * What a finished outcome should be called.
+ *
+ * Split out and exported because the alternative is the editor deciding for
+ * itself what "written: false, no skip reason" means, and the two would
+ * disagree the first time a case was added here. Pure, so it is tested
+ * directly rather than through a compile.
+ *
+ * The distinction that matters is **skipped versus failed**: a skipped file has
+ * something the developer can do about it — overwrite the hand edit — and the
+ * panel offers that. A failed one has an error in the graph, and offering to
+ * overwrite it would write nothing.
+ */
+export function describeOutcome(outcome: CompileOutcome): Pick<CompileStep, "state" | "note"> {
+	if (outcome.written) return { state: "wrote" };
+
+	const error = outcome.diagnostics.find((d) => d.severity === "error");
+	if (error) return { state: "failed", note: outcome.skipped ?? error.message };
+	if (outcome.skipped) return { state: "skipped", note: outcome.skipped };
+
+	// Nothing written, nothing wrong: this was a check rather than a compile.
+	return { state: "checked" };
+}
+
 export async function compileAll(
-	project: OpenProject, opts: { write?: boolean; force?: boolean } = {},
+	project: OpenProject,
+	opts: { write?: boolean; force?: boolean } = {},
+	onStep?: (step: CompileStep) => void,
 ): Promise<CompileOutcome[]> {
 	const scripts = await collectScripts(project);
 	const out: CompileOutcome[] = [];
-	for (const rel of scripts) {
+	const total = scripts.length;
+	/**
+	 * What each output file was written by, so the second graph to claim a path
+	 * is refused rather than quietly overwriting the first. Per compile, not per
+	 * project: a file left over from last time is the hand-edit guard's problem.
+	 */
+	const claimed = new Map<string, string>();
+
+	for (const [i, rel] of scripts.entries()) {
+		const where = { index: i + 1, total, scriptPath: rel };
+		onStep?.({ ...where, state: "working" });
 		try {
-			out.push(await compileScript(project, rel, opts));
+			const outcome = await compileScript(project, rel, { ...opts, claimed });
+			out.push(outcome);
+			onStep?.({ ...where, ...describeOutcome(outcome) });
 		} catch (err) {
+			const message = (err as Error).message;
 			out.push({
 				scriptPath: rel,
 				outputPath: "",
 				written: false,
-				skipped: (err as Error).message,
-				diagnostics: [{ severity: "error", message: (err as Error).message }],
+				skipped: message,
+				diagnostics: [{ severity: "error", message }],
 				sourceMap: [],
 				code: "",
 			});
+			// Reported rather than derived from the outcome above: a throw is a
+			// failure whatever the synthesised outcome happens to look like.
+			onStep?.({ ...where, state: "failed", note: message });
 		}
 	}
 	return out;
@@ -694,7 +845,7 @@ async function checkHandEdited(abs: string): Promise<string | null> {
 	if (!parts) {
 		return `${path.basename(abs)} was not generated by Roswaal. Delete it, or point outDir elsewhere.`;
 	}
-	if (hashString(parts.body) !== parts.declaredHash) {
+	if (hashBody(parts.body) !== parts.declaredHash) {
 		return `${path.basename(abs)} has been edited by hand since it was generated. Recompile with force to overwrite it.`;
 	}
 	return null;
@@ -711,13 +862,31 @@ export function splitGenerated(text: string): { declaredHash: string; body: stri
 	};
 }
 
+/**
+ * The hash of a generated file's body, ignoring how its lines happen to end.
+ *
+ * Roswaal writes LF. Git on Windows checks the same file out as CRLF, and the
+ * hash in the header no longer described the bytes on disk — so cloning a
+ * repository and compiling it refused every generated file as "edited by hand",
+ * on a file nobody had touched. The hash is meant to answer "has someone
+ * changed this code", and a line ending applied by version control is not
+ * someone changing the code.
+ *
+ * Normalising rather than re-stamping, because the file on disk is not ours to
+ * rewrite just to make our own hash agree with it. Existing hashes are
+ * unaffected: they were computed over LF, and this is a no-op on LF.
+ */
+function hashBody(body: string): string {
+	return hashString(body.replace(/\r\n/g, "\n"));
+}
+
 /** Recomputes the output hash after formatting and rewrites the header line. */
 export function stampOutputHash(code: string): string {
 	const parts = splitGenerated(code);
 	if (!parts) return code;
 	return code.replace(
 		/^-- roswaal-output: .*$/m,
-		`-- roswaal-output: ${hashString(parts.body)}`,
+		`-- roswaal-output: ${hashBody(parts.body)}`,
 	);
 }
 

@@ -1,0 +1,155 @@
+/**
+ * Attributions: what Roswaal is built on and named after, and on what terms.
+ *
+ * Data rather than prose, for the same reason `blueprints.ts` is: a page that
+ * lists obligations is a page that goes stale silently. As data it can be
+ * checked — `tests/attributions.test.ts` asserts every entry names a licence
+ * and says where the thing actually lives, so an entry cannot rot into a name
+ * with nothing behind it.
+ *
+ * `NOTICE.md` is the copy of record for anyone reading the repository; this is
+ * the copy for anyone reading the documentation, and neither is allowed to be
+ * the only one. They are kept in step by hand, deliberately: the two answer
+ * different questions and a generated file would flatten that.
+ *
+ * ## The rule for adding an entry
+ *
+ * Something goes here when **a reader would be misled by its absence** — code
+ * that ships inside Roswaal under someone else's terms, a name that is not
+ * ours, or a project we would be free-riding on if we said nothing. A build
+ * tool that never reaches the user does not go here; it is not in the thing
+ * being distributed.
+ */
+
+export interface Attribution {
+	/** What it is called. */
+	name: string;
+	/** Who holds it. Omitted only when genuinely unowned. */
+	holder?: string;
+	/**
+	 * The licence, by its usual short name, or `null` where the thing is not
+	 * licensed to us at all — a name used as homage is the case that matters,
+	 * and writing `null` rather than leaving it blank forces that to be said
+	 * out loud rather than implied by a gap.
+	 */
+	licence: string | null;
+	/** Where it is in the repository, or how it reaches a user. */
+	where: string;
+	/** Why it is listed: what we use, and what we are not claiming. */
+	note: string;
+	/** Canonical home, so a reader can check any of this for themselves. */
+	url?: string;
+	/** Licence text worth quoting, kept short. */
+	quote?: string;
+}
+
+/**
+ * Code and assets that ship inside Roswaal, or that it could not exist without.
+ */
+export const ATTRIBUTIONS: Attribution[] = [
+	{
+		name: "Luau",
+		holder: "Roblox Corporation",
+		licence: "MIT",
+		where: "Not bundled. Roswaal writes Luau; Luau runs it.",
+		note:
+			"The language this tool exists to produce. Luau's own README asks that " +
+			"projects integrating it carry an attribution in user-facing " +
+			"documentation, and this page is where Roswaal does that. Luau and the " +
+			"Luau logo belong to Roblox; Roswaal is not affiliated with or endorsed " +
+			"by Roblox.",
+		url: "https://luau.org/",
+		quote:
+			"When Luau is integrated into external projects, we ask that you honor " +
+			"the license agreement and include Luau attribution into the user-facing " +
+			"product documentation.",
+	},
+	{
+		name: "Unreal Engine",
+		holder: "Epic Games, Inc.",
+		licence: null,
+		where: "Not used, and not bundled. Named in *Coming from Blueprints*.",
+		note:
+			"Roswaal exists partly to shorten the move from Unreal to Roblox, so it " +
+			"is deliberately familiar where it can be: two kinds of wire, pin colours " +
+			"that line up, and menu wording taken from Unreal's, because the entry " +
+			"you already know should be the entry you find. Naming Epic's terms is " +
+			"how that mapping is explained, and it is the only thing the names are " +
+			"used for — they describe Epic's product, never this one. Unreal Engine, " +
+			"Unreal and Blueprint are Epic's; Roswaal is not affiliated with, " +
+			"endorsed by, or derived from Epic Games, uses no Unreal Engine code, " +
+			"and is not bound by the Unreal Engine EULA.",
+		url: "https://www.unrealengine.com/",
+	},
+	{
+		name: "Material Symbols",
+		holder: "Google LLC",
+		licence: "Apache-2.0",
+		where: "`src/app/icons.tsx`, inlined as SVG path data.",
+		note:
+			"Every icon in the editor. Inlined rather than fetched, because the " +
+			"daemon runs on machines that are offline and a font request to Google " +
+			"would be both a dependency and a privacy surprise.",
+		url: "https://fonts.google.com/icons",
+	},
+	{
+		name: "CodeMirror 6",
+		holder: "Marijn Haverbeke and contributors",
+		licence: "MIT",
+		where: "A runtime dependency; see `package.json`.",
+		note:
+			"The pop-out Luau editor, the read-only source view, and the syntax " +
+			"highlighting shared between the editor and this documentation.",
+		url: "https://codemirror.net/",
+	},
+	{
+		name: "Lua",
+		holder: "PUC-Rio",
+		licence: "MIT",
+		where: "Not bundled. Luau is based on the Lua 5.x implementation.",
+		note:
+			"Listed because Luau is built on it and the chain would otherwise stop " +
+			"one link short of where it started.",
+		url: "https://www.lua.org/",
+	},
+	{
+		name: "Rojo",
+		holder: "rojo-rbx and contributors",
+		licence: "MPL-2.0",
+		where: "Not bundled. Roswaal writes files Rojo syncs.",
+		note:
+			"Not a dependency, and listed anyway: the whole workflow assumes it, " +
+			"and a tool whose documentation tells you to run `rojo serve` should say " +
+			"whose work that is.",
+		url: "https://rojo.space/",
+	},
+];
+
+/**
+ * Names Roswaal uses that belong to somebody else.
+ *
+ * Separated from the list above because it is a different kind of statement.
+ * Everything above is licensed to us and we are honouring the terms. Nothing
+ * here is licensed to us at all — it is used as homage, and the only honest
+ * thing to do is say so plainly, in the documentation rather than in a file
+ * nobody opens.
+ */
+export const NAME_NOTICE = {
+	title: "The names",
+	body: [
+		"**Roswaal** and its sibling tool **Beako** are named after characters " +
+			"from *Re:Zero − Starting Life in Another World* — Roswaal L. Mathers and " +
+			"Beatrice — created by Tappei Nagatsuki and published by KADOKAWA. The " +
+			"names are a fan's homage, chosen because each character suited what each " +
+			"tool does.",
+		"**This project is not affiliated with, endorsed by, or approved by " +
+			"KADOKAWA, Tappei Nagatsuki, or the Re:Zero project**, and claims no " +
+			"rights in those names or in anything from that work.",
+		"Nothing from Re:Zero is distributed here: no artwork, no likenesses, no " +
+			"text, and not the series title. The mark in `assets/` is original work.",
+		"Roswaal is released under 0BSD and is not sold by its authors. 0BSD places " +
+			"no restriction on what anyone else does with it, commercially or " +
+			"otherwise — those choices, and any obligations that follow from them, " +
+			"belong to whoever makes them.",
+	],
+} as const;

@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./App.jsx";
 import { DocsPage } from "./DocsPage.jsx";
+import { installFavicon } from "./logo.jsx";
 import "./theme.css";
 
 const container = document.getElementById("root");
@@ -19,6 +20,10 @@ if (!container) throw new Error("Missing #root");
 const isDocs = window.location.pathname.replace(/\/+$/, "") === "/docs";
 
 document.title = isDocs ? "Roswaal docs" : "Roswaal";
+
+// Set here rather than in `index.html` so the artwork has one home. Both entry
+// points are the same document, so both get it.
+installFavicon();
 
 createRoot(container).render(
 	<StrictMode>{isDocs ? <DocsPage /> : <App />}</StrictMode>,

@@ -158,6 +158,12 @@ select optgroup {
 	display: grid;
 	grid-template-columns: 260px 1fr;
 	min-height: 0;
+	/* Declared here and used by the grid below and by the compile toast, which
+	   has to clear it. Two copies of one number is one copy too many. */
+	--inspector-width: 290px;
+	/* The compile toast anchors to this rather than to the canvas cell, which
+	   is a different element for a graph, a node map and a source file. */
+	position: relative;
 }
 
 .workspace.no-sidebar {
@@ -176,18 +182,21 @@ select optgroup {
 	flex-wrap: wrap;
 }
 
-.toolbar .brand {
+/* The mark, and whatever sits with it. Centred rather than baseline-aligned:
+   an SVG has no baseline, so `baseline` drops it to the bottom of the line box
+   and it rides low against the text next to it. */
+.toolbar .logo {
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	margin-right: 4px;
 	display: inline-flex;
-	align-items: baseline;
-	gap: 5px;
+	align-items: center;
+	gap: 6px;
 }
 
 /* The version, deliberately quiet. It only matters when something is wrong —
    and then it is the first thing anyone asks for. */
-.toolbar .brand .version {
+.toolbar .logo .version {
 	font-weight: 400;
 	font-size: 10px;
 	letter-spacing: 0;
@@ -992,6 +1001,7 @@ button.tb.primary:hover:not(:disabled) {
 	color: var(--warning);
 }
 
+
 .status .entry .where {
 	color: var(--fg-faint);
 	margin-left: auto;
@@ -1013,6 +1023,16 @@ button.tb.primary:hover:not(:disabled) {
 	font-size: 22px;
 	margin: 0;
 	color: var(--fg);
+}
+
+/* The opening screen keeps the name in text beside the mark, so this is the
+   one heading that has to lay two things out. The container is centred by the
+   grid above, so the flex box centres its own contents rather than stretching. */
+.placeholder h1.logo {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
 }
 
 .placeholder code {
@@ -1187,7 +1207,7 @@ button.tb.primary:hover:not(:disabled) {
 /* -------------------------------------------------------------- inspector */
 
 .workspace.with-inspector {
-	grid-template-columns: 260px 1fr 290px;
+	grid-template-columns: 260px 1fr var(--inspector-width);
 }
 
 .inspector {
@@ -1936,6 +1956,13 @@ button.tb.primary.danger {
 	transition: transform 0.12s ease;
 }
 
+/* The mark. It takes the colour of whatever it sits in — see logo.tsx — so it
+   needs no colour of its own here, only the same layout the icons get. */
+.logo-mark {
+	flex: none;
+	display: block;
+}
+
 .tree-row .twist {
 	color: var(--fg-faint);
 	cursor: pointer;
@@ -2620,24 +2647,28 @@ button.tb.with-icon {
 	background: var(--bg-app);
 }
 
+/* Centred rather than baseline-aligned. This bar holds a mark, a version, a
+ * warning chip and a link, and only two of those are text — an SVG's baseline
+ * is its bottom edge, so `baseline` dropped the mark to the floor of the line
+ * box and hung everything else off that. */
 .docs-page-head {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	gap: 10px;
 	padding: 8px 14px;
 	background: var(--bg-panel);
 	border-bottom: 1px solid var(--border);
 }
 
-.docs-page-head .brand {
+.docs-page-head .logo {
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	display: inline-flex;
-	align-items: baseline;
-	gap: 5px;
+	align-items: center;
+	gap: 6px;
 }
 
-.docs-page-head .brand .version {
+.docs-page-head .logo .version {
 	font-weight: 400;
 	font-size: 10px;
 	letter-spacing: 0;
@@ -3093,7 +3124,7 @@ button.tb.with-icon {
 	.docs-static .docs-section-head::before { transition: none; }
 }
 
-.docs-static .docs-page-head .brand { text-decoration: none; color: inherit; }
+.docs-static .docs-page-head .logo { text-decoration: none; color: inherit; }
 
 /* A nav section holding one page is rendered as that page's link. No chevron,
    because there is nothing to unfold, and it takes the selected state a page
@@ -3147,3 +3178,219 @@ button.tb.with-icon {
 }
 
 .docs-page .docs-content h2:first-of-type { border-top: 0; padding-top: 0; }
+
+/* ---------------------------------------------------------- compile toast */
+
+/* A project compile, in the bottom-right corner of the graph.
+ *
+ * Separate from the status panel on purpose: that panel is script analysis and
+ * answers "what is wrong with this graph". A compile's progress is neither
+ * about the open graph nor about anything being wrong, and a thousand rows of
+ * good news in there buries the one diagnostic the panel exists for.
+ *
+ * It floats rather than taking a row of its own, because it is temporary — the
+ * graph underneath is what you were looking at and will be again in a moment. */
+.compile-toast {
+	position: absolute;
+	right: 16px;
+	bottom: 16px;
+	width: 260px;
+	padding: 8px 10px 9px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	box-shadow: 0 4px 16px rgb(0 0 0 / 28%);
+	font-size: 11px;
+	cursor: pointer;
+	z-index: 5;
+}
+
+/* Clear of the inspector, so "bottom right of the graph" stays true when the
+   graph is not the rightmost thing on screen. */
+.workspace.with-inspector .compile-toast {
+	right: calc(var(--inspector-width) + 16px);
+}
+
+.compile-toast .head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.compile-toast .what {
+	font-weight: 600;
+	color: var(--fg);
+}
+
+.compile-toast .count {
+	margin-left: auto;
+	color: var(--fg-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+/* The file being written, or what happened once none is. One line, and clipped
+   rather than wrapped: a toast that changes height as it counts is a toast
+   that draws the eye every time a file finishes. */
+.compile-toast .detail {
+	margin-top: 2px;
+	color: var(--fg-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.compile-toast.has-failures .detail {
+	color: var(--danger);
+}
+
+/* Determinate, because the number of files is known before the walk starts.
+   An indeterminate spinner would throw away the one thing that tells slow
+   apart from stuck, which is the whole reason this exists. */
+.compile-toast .track {
+	margin-top: 7px;
+	height: 3px;
+	border-radius: 2px;
+	background: var(--bg-input);
+	overflow: hidden;
+}
+
+.compile-toast .track .fill {
+	display: block;
+	height: 100%;
+	background: var(--accent);
+	transition: width 0.12s linear;
+}
+
+.compile-toast.has-failures .track .fill {
+	background: var(--danger);
+}
+
+/* ------------------------------------------------------- the compile lock */
+
+/* The graph while it is being compiled, outside hot reload.
+ *
+ * The border is on the canvas rather than on the overlay because `inset` on an
+ * absolutely positioned child sits *inside* the scroll box and would slide
+ * under the status panel; drawn here it frames the graph exactly. */
+.canvas.locked {
+	box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* Swallows the pointer for the whole canvas, so no handler underneath has to
+   check whether it is allowed to run. A second or two, and then it is gone. */
+.canvas-lock {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	cursor: progress;
+	/* No dimming. The graph is what you are waiting to get back, and greying it
+	   out to say "wait" hides the thing the waiting is about. */
+	background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.canvas-lock span {
+	margin-top: 12px;
+	padding: 4px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--bg-panel);
+	background: var(--accent);
+	border-radius: 0 0 4px 4px;
+	box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+}
+
+/* A panel that edits the graph, while the graph is refusing edits.
+ *
+ * The store is what actually refuses them; this is so the panel does not sit
+ * there looking like it took one. Inert rather than disabled control by
+ * control: there are eighteen of them across the two panels, and the one
+ * somebody forgets to add `disabled` to next year is the bug. */
+.editing-locked {
+	pointer-events: none;
+	opacity: 0.5;
+}
+
+/* ------------------------------------------- release notes: tags and rows */
+
+/* What kind of release this was, under its version number.
+ *
+ * Derived from what the release contains — see `releaseTags` — so a tag cannot
+ * claim something the entries below it do not show. Breaking is the exception
+ * and the only one a release states for itself, so it is the only one that
+ * borrows the warning colour. */
+.docs-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: -4px 0 12px;
+}
+
+.docs-tag {
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	padding: 2px 8px;
+	border-radius: 3px;
+	border: 1px solid color-mix(in srgb, var(--fg-faint) 40%, transparent);
+	color: var(--fg-muted);
+	white-space: nowrap;
+}
+
+.docs-tag.feature {
+	color: var(--ok);
+	border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+	background: color-mix(in srgb, var(--ok) 10%, transparent);
+}
+
+.docs-tag.fix {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+	background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.docs-tag.breaking {
+	color: var(--danger);
+	border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+	background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+/* A table with no header row: one release entry per row.
+ *
+ * A dot in front of four lines of prose stops separating them — the eye loses
+ * which sentence started where. A ruled row is the same information with the
+ * boundary drawn, and the box around it says these belong together without
+ * needing a heading over a single column to say "Note". */
+.docs-table.bare {
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	overflow: hidden;
+	margin-bottom: 16px;
+}
+
+.docs-table.bare td {
+	padding: 10px 12px;
+	font-size: 12px;
+	line-height: 1.55;
+}
+
+/* The last row's rule would sit on top of the container's own border. */
+.docs-table.bare tr:last-child td {
+	border-bottom: none;
+}
+
+/* A rule between releases.
+ *
+ * Scoped by `:has(+ .docs-tags)` — a heading immediately followed by tags is a
+ * release heading, and nothing else on the site is. That avoids inventing a
+ * page-level class to carry one border, and a browser without `:has()` loses
+ * the rule and nothing else.
+ *
+ * Not on the first: the article's own title rule is directly above it, and two
+ * lines a paragraph apart read as a mistake. */
+.docs-content h2:has(+ .docs-tags):not(:first-of-type) {
+	border-top: 1px solid var(--border);
+	padding-top: 26px;
+	margin-top: 34px;
+}

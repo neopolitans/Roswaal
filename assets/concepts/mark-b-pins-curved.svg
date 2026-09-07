@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Roswaal mark — concept B, two pins and a curved wire</title>
+  <desc>A filled pin and a hollow pin joined by a wire. The two pins are his
+  heterochromia, and they are also the editor's own grammar: a wired pin is
+  filled, an unwired pin is an outline. Strokes are left live rather than
+  expanded so weights can be adjusted; expand them last.</desc>
+
+  <g id="mark-b">
+    <path id="wire"
+          d="M120,368 C210,368 250,150 348,150"
+          fill="none" stroke="#111111" stroke-width="36" stroke-linecap="round"/>
+    <circle id="pin-wired" cx="120" cy="368" r="62" fill="#111111"/>
+    <circle id="pin-unwired" cx="392" cy="150" r="62"
+            fill="none" stroke="#111111" stroke-width="34"/>
+  </g>
+</svg>

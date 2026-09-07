@@ -39,6 +39,23 @@ export interface CompileOutcome {
 }
 
 /**
+ * One file's turn in a project compile, pushed over the event stream while the
+ * compile is still running rather than returned when it finishes.
+ *
+ * Declared here rather than imported from `src/server`: this file is the whole
+ * description of the wire, and the editor bundle does not depend on the daemon's
+ * source. The daemon's copy is in `src/server/project.ts`, where the states are
+ * documented and decided.
+ */
+export interface CompileStep {
+	index: number;
+	total: number;
+	scriptPath: string;
+	state: "working" | "wrote" | "skipped" | "failed" | "checked";
+	note?: string;
+}
+
+/**
  * The project this tab believes is open, sent with every request that writes.
  *
  * The daemon serves one project at a time and can be pointed at another one
@@ -96,6 +113,16 @@ export const api = {
 		request<{ root: string; exists: boolean; directory: boolean; initialised: boolean }>(
 			`/api/project/inspect?root=${encodeURIComponent(root)}`,
 		),
+	/**
+	 * Asks the daemon to open the OS folder picker. Resolves with `null` when
+	 * the developer cancels, which is an answer rather than a failure.
+	 *
+	 * Rejects with a 501 on a machine that has no dialog to show — a daemon over
+	 * SSH, or a Linux box with neither zenity nor kdialog. The caller drops the
+	 * button rather than offering something that cannot work twice.
+	 */
+	browseForProject: (startIn?: string) =>
+		post<{ path: string | null }>("/api/project/browse", { startIn }),
 	openProject: (root: string) => post<ProjectInfo>("/api/project/open", { root }),
 	initProject: (root: string) => post<ProjectInfo>("/api/project/init", { root }),
 	saveConfig: (config: RoswaalConfig) =>

@@ -18,6 +18,7 @@ import { createRegistry } from "../core/nodes/index.js";
 import type { NodeDef } from "../core/schema.js";
 import { api } from "./api.js";
 import { DocsView } from "./DocsPanel.jsx";
+import { Logo } from "./logo.jsx";
 import { VERSION } from "../cli/version.js";
 
 /** The slug in the address bar, so a docs page can be linked and bookmarked. */
@@ -50,11 +51,13 @@ export function DocsPage() {
 	return (
 		<div className="docs-page">
 			<header className="docs-page-head">
-				<span className="brand">
-					ROSWAAL
+				{/* The mark and what this window is. "Roswaal Documentation" said
+				    both of those in six syllables and neither of them quickly. */}
+				<span className="logo">
+					<Logo height={17} title="Roswaal" />
+					Docs
 					<span className="version">{VERSION}</span>
 				</span>
-				<span className="sub">Documentation</span>
 				{packsFailed && (
 					<span className="warn" title="Start the daemon and reload to include them">
 						built-in nodes only — no daemon

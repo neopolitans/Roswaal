@@ -22,17 +22,23 @@ const TYPES = [
 ];
 
 export interface VariablesPanelProps {
+	/**
+	 * The graph is being compiled and refuses edits. The store is what actually
+	 * refuses them -- see `EditorState.locked` -- so this exists so the panel
+	 * does not sit there looking like it accepted one.
+	 */
+	locked?: boolean;
 	script: NodeScript;
 	selection: ReadonlySet<string>;
 	/** Asks for confirmation; resolves true when the developer agrees. */
 	confirm: (title: string, message: string, confirmLabel: string) => Promise<boolean>;
 }
 
-export function VariablesPanel({ script, confirm }: VariablesPanelProps) {
+export function VariablesPanel({ script, confirm, locked }: VariablesPanelProps) {
 	const [open, setOpen] = useState<string | null>(null);
 
 	return (
-		<div className="variables">
+		<div className={`variables${locked ? " editing-locked" : ""}`}>
 			<h2>
 				<span>Variables</span>
 				<button
