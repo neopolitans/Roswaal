@@ -22,8 +22,10 @@ import { escapeHtml, renderSite } from "../src/core/docs/html.ts";
 import { highlightLuau } from "../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../src/app/palette.ts";
 import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
-import { NODE } from "../src/app/layers.ts";
+
 import { wirePath } from "../src/app/geometry.ts";
+import { attachGraphView } from "../src/app/graphView.ts";
+import { NODE, ZOOM } from "../src/app/layers.ts";
 import { VERSION } from "../src/cli/version.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -138,7 +140,27 @@ async function main() {
 		body: e.body,
 	}));
 	await writeFile(join(out, "search.json"), JSON.stringify(index), "utf8");
-	await writeFile(join(out, "docs.js"), CLIENT, "utf8");
+	/**
+	 * The graph viewer, serialised from the module the editor uses.
+	 *
+	 * `toString()` rather than a second copy: `attachGraphView` takes no imports
+	 * precisely so it survives the trip, and a hand-written twin here would
+	 * drift from the canvas the first time either moved. The limits travel as a
+	 * literal because they are `ZOOM`, the canvas's own.
+	 */
+	// Written as a code unit, the way the rest of this repository writes a
+	// newline that has to survive being pasted through a build step.
+	const NL = String.fromCharCode(10);
+	const viewer = [
+		attachGraphView.toString(),
+		"(function () {",
+		"  var limits = " + JSON.stringify(ZOOM) + ";",
+		"  var boxes = document.querySelectorAll('.graph-viewport');",
+		"  for (var i = 0; i < boxes.length; i++) attachGraphView(boxes[i], limits);",
+		"})();",
+	].join(NL) + NL;
+
+	await writeFile(join(out, "docs.js"), CLIENT + viewer, "utf8");
 
 	// The editor's own stylesheet, so the site and the in-app window are styled
 	// by one file rather than by two that have to be kept in step.

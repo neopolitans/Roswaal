@@ -167,7 +167,10 @@ function renderBlock(block: Block, options: RenderOptions): string {
 			const svg = graphSvg(block.script, options.registry, options.preview);
 			if (svg === "") return "";
 			const caption = block.caption ? `<figcaption>${inline(block.caption)}</figcaption>` : "";
-			return `<figure class="docs-preview graph"><div class="row">${svg}</div>${caption}</figure>`;
+			// The viewport clips; the script that makes it pan and zoom is an
+			// enhancement, and without it this is still a readable picture.
+			return `<figure class="docs-preview graph">` +
+				`<div class="graph-viewport">${svg}</div>${caption}</figure>`;
 		}
 		case "preview": {
 			if (!options.preview) return "";

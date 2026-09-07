@@ -26,9 +26,10 @@ import {
 } from "../core/docs/preview.js";
 import { highlightLuau } from "./highlight.js";
 import { Icon } from "./icons.jsx";
-import { NODE } from "./layers.js";
+import { NODE, ZOOM } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { wirePath } from "./geometry.js";
+import { attachGraphView } from "./graphView.js";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
 
@@ -468,12 +469,23 @@ function PreviewFigure({ nodes, caption }: { nodes: NodePreview[]; caption?: str
 function GraphFigure({ script, caption }: { script: NodeScript; caption?: string }) {
 	const registry = useContext(RegistryContext);
 	const svg = registry ? graphSvg(script, registry, PREVIEW) : "";
+	const viewport = useRef<HTMLDivElement>(null);
+
+	// The same function the static site runs, so a graph behaves identically in
+	// both — and the same ZOOM limits the canvas uses.
+	useEffect(() => {
+		if (!viewport.current || svg === "") return;
+		return attachGraphView(viewport.current, ZOOM);
+	}, [svg]);
+
 	if (svg === "") return null;
 	return (
 		<figure className="docs-preview graph">
-			<div className="row">
-				<div className="node-preview-frame" dangerouslySetInnerHTML={{ __html: svg }} />
-			</div>
+			<div
+				className="graph-viewport"
+				ref={viewport}
+				dangerouslySetInnerHTML={{ __html: svg }}
+			/>
 			{caption && <figcaption><Rich text={caption} /></figcaption>}
 		</figure>
 	);

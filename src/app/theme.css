@@ -3401,25 +3401,60 @@ button.tb.with-icon {
  * thing being shown and squeezing it to a reading measure would fold the wires
  * back on themselves. The frame is the same one a single node preview uses, so
  * the two read as the same kind of illustration. */
-/* Scaled to fit, rather than scrolled.
+/* A graph you can move around in, rather than one squashed to fit.
  *
- * The first cut let the graph overflow and put a scrollbar under it, which is
- * two problems: a scrollbar is chrome in the middle of a page that has none,
- * and a graph you have to drag to see is a graph you cannot take in. The SVG
- * carries a viewBox, so giving it a width and letting the height follow scales
- * the whole thing down until it fits — no script, which the static site
- * requires, and nothing to pan. */
-.docs-preview.graph .row {
-	justify-content: center;
+ * Fit-to-width was the first answer and the wrong one: a graph of any size
+ * becomes unreadable, and the scrollbar it replaced was chrome on a page that
+ * has none. This is a window onto the graph instead — `graphView.ts` gives it
+ * the canvas's own wheel-zoom and drag-pan, and double-click refits.
+ *
+ * Everything here works without that script. The viewport clips, the graph
+ * renders at its natural size, and the page is still readable — which is what
+ * the static site promises. `interactive` is added by the script, so the
+ * cursor only claims to be draggable once something is listening. */
+.docs-preview.graph .graph-viewport {
+	position: relative;
+	overflow: hidden;
+	height: 260px;
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	background: var(--bg-canvas);
+	/* The canvas's grid, at rest, so the frame reads as a piece of the editor. */
+	background-image:
+		linear-gradient(to right, color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px),
+		linear-gradient(to bottom, color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px);
+	background-size: 24px 24px;
 }
 
-.docs-preview.graph .node-preview-frame {
-	max-width: 100%;
-	width: 100%;
+.docs-preview.graph .graph-viewport.interactive {
+	cursor: grab;
+	touch-action: none;
 }
 
-.docs-preview.graph svg {
-	width: 100%;
-	height: auto;
-	max-width: 100%;
+.docs-preview.graph .graph-viewport.panning {
+	cursor: grabbing;
+}
+
+.docs-preview.graph .graph-viewport svg {
+	display: block;
+	/* Positioned by `transform`; the script owns both. */
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+
+/* Says what the frame does, without a row of buttons. Hidden until the script
+   claims the frame, because otherwise it would promise something static
+   markup cannot do. */
+.docs-preview.graph .graph-viewport.interactive::after {
+	content: "scroll to zoom · drag to pan · double-click to fit";
+	position: absolute;
+	right: 8px;
+	bottom: 6px;
+	font-size: 10px;
+	color: var(--fg-faint);
+	background: color-mix(in srgb, var(--bg-panel) 80%, transparent);
+	border-radius: 3px;
+	padding: 1px 6px;
+	pointer-events: none;
 }
