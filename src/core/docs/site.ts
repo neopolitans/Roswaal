@@ -23,7 +23,8 @@ import { categories } from "../nodes/index.js";
 import { BLUEPRINT_MAP } from "./blueprints.js";
 import { documentRegistry, OMISSION_REASONS, type NodeDoc } from "./nodeReference.js";
 import { previewOf, type NodePreview } from "./preview.js";
-import { ATTRIBUTIONS, NAME_NOTICE } from "./attributions.js";
+import type { NodeScript } from "../schema.js";
+import { DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, type Attribution } from "./attributions.js";
 import { RELEASES, type Release } from "./releases.js";
 
 // ---------------------------------------------------------------------------
@@ -80,7 +81,22 @@ export type Block =
 	 * setter — and two pictures side by side answer "which one do I want" in a
 	 * way that two pictures a paragraph apart do not.
 	 */
-	| { t: "preview"; nodes: NodePreview[]; caption?: string };
+	| { t: "preview"; nodes: NodePreview[]; caption?: string }
+	/**
+	 * A whole graph — nodes where they were placed, and the wires between
+	 * them.
+	 *
+	 * A `preview` block is a row of separate nodes, which answers "which one
+	 * is it" but not "how do they go together". A guide explaining Branch is
+	 * explaining the shape: which pin the false arm leaves from, where the
+	 * wire lands. Two pictures side by side leave the reader to do the joining
+	 * the picture was meant to do for them.
+	 *
+	 * It carries a real `NodeScript`, so the same graph can be drawn here and
+	 * compiled for the code block underneath it — the picture and the Luau
+	 * cannot describe different graphs.
+	 */
+	| { t: "graph"; script: NodeScript; caption?: string };
 
 export interface DocPage {
 	slug: string;
@@ -200,6 +216,11 @@ export function blockText(block: Block): string {
 			return block.pins.map((p) => `${p.name} ${p.type ?? ""}`).join(" ");
 		case "preview":
 			return [...block.nodes.map((n) => n.title), block.caption ?? ""].join(" ").trim();
+		case "graph":
+			// The node ids rather than their titles: titles need a registry, and
+			// an id is what somebody searching for a node in a guide will type.
+			return [...block.script.nodes.map((n) => n.def), block.caption ?? ""]
+				.join(" ").trim();
 	}
 }
 
@@ -249,6 +270,15 @@ function nodePage(doc: NodeDoc): DocPage {
 
 	blocks.push({ t: "h", level: 3, text: "What it compiles to" });
 	if (doc.example) {
+		// The scene first, then its output. Both come from one graph, so the
+		// picture cannot show a wiring the Luau underneath does not have.
+		if (doc.exampleGraph) {
+			blocks.push({
+				t: "graph",
+				script: doc.exampleGraph,
+				caption: "The graph this output was compiled from.",
+			});
+		}
 		blocks.push({ t: "code", lang: "luau", text: doc.example });
 		if (doc.exampleNote) blocks.push({ t: "note", kind: "info", text: doc.exampleNote });
 	} else if (doc.exampleOmitted) {
@@ -351,25 +381,45 @@ function attributionsPage(): DocPage {
 
 	for (const line of NAME_NOTICE.body) blocks.push({ t: "p", text: line });
 
-	blocks.push({ t: "h", level: 2, text: "What Roswaal is built on" });
-	blocks.push({
-		t: "table",
-		head: ["Project", "By", "Licence"],
-		rows: ATTRIBUTIONS.map((a) => [
-			a.url ? `[${a.name}](${a.url})` : a.name,
-			a.holder ?? "—",
-			a.licence ?? "not licensed to us",
-		]),
-	});
-
-	for (const entry of ATTRIBUTIONS) {
-		blocks.push({ t: "h", level: 3, text: entry.name });
-		blocks.push({ t: "p", text: entry.note });
-		blocks.push({ t: "p", text: `**Where:** ${entry.where}` });
-		if (entry.quote) {
-			blocks.push({ t: "note", kind: "info", text: `"${entry.quote}"` });
+	/**
+	 * Two headings, because they are two different claims. Everything under the
+	 * first ships inside Roswaal or is something it could not run without; the
+	 * second is work it only learned from. Putting Unreal Engine under "built on"
+	 * said Roswaal was built on Epic's engine, which it is not.
+	 */
+	const group = (heading: string, lede: string, entries: Attribution[]) => {
+		if (entries.length === 0) return;
+		blocks.push({ t: "h", level: 2, text: heading });
+		blocks.push({ t: "p", text: lede });
+		blocks.push({
+			t: "table",
+			head: ["Project", "By", "Licence"],
+			rows: entries.map((a) => [
+				a.url ? `[${a.name}](${a.url})` : a.name,
+				a.holder ?? "—",
+				a.licence ?? "not licensed to us",
+			]),
+		});
+		for (const entry of entries) {
+			blocks.push({ t: "h", level: 3, text: entry.name });
+			blocks.push({ t: "p", text: entry.note });
+			blocks.push({ t: "p", text: `**Where:** ${entry.where}` });
+			if (entry.quote) blocks.push({ t: "note", kind: "info", text: `"${entry.quote}"` });
 		}
-	}
+	};
+
+	group(
+		"What Roswaal is built on",
+		"Code and assets that ship inside Roswaal, or that it could not run without.",
+		DEPENDENCIES,
+	);
+	group(
+		"What Roswaal is inspired by",
+		"Work Roswaal learned from and does **not** use. No code, no assets, no " +
+			"dependency — only conventions a reader might recognise, named here so " +
+			"the resemblance is explained rather than left to be guessed at.",
+		INSPIRATIONS,
+	);
 
 	blocks.push({ t: "h", level: 2, text: "Roswaal itself" });
 	blocks.push({

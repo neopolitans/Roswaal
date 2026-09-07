@@ -30,7 +30,11 @@ class G {
 
 	node(def: string, opts: { config?: NodeConfig; literals?: Record<string, Literal> } = {}): string {
 		const id = `n${this.n++}`;
-		this.script.nodes.push({ id, def, x: this.n * 200, y: 0, ...opts });
+		// 200 used to be arbitrary: nothing drew these graphs, so the only thing
+		// the coordinates had to do was exist. They are drawn now — a node page
+		// shows the scene above the Luau it compiled to — and at 200 the nodes
+		// overlapped, because a node is 216 wide. Wide enough to leave a gap.
+		this.script.nodes.push({ id, def, x: this.n * 280, y: 0, ...opts });
 		return id;
 	}
 

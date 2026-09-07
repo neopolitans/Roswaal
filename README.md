@@ -104,7 +104,7 @@ roswaal help
 | `--no-open` | For serve: skip the editor-URL hint. |
 | `--yes` | For prune: actually delete, rather than just listing. |
 
-Shaped after Rojo's CLI, and after beako's, on purpose: `roswaal serve` in a
+Shaped after Rojo's CLI, and after [Beako](https://github.com/neopolitans/Beako)'s, on purpose: `roswaal serve` in a
 project directory should feel like `rojo serve` does, because it sits beside it
 in the same workflow and a tool that invents its own conventions makes you learn
 twice.

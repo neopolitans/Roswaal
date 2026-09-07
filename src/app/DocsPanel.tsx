@@ -12,7 +12,7 @@
  * already documented, with its real compiled output.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
 import {
@@ -20,15 +20,27 @@ import {
 	type Block, type DocPage, type DocSection, type Inline,
 } from "../core/docs/site.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
+import type { NodeScript } from "../core/schema.js";
 import {
-	previewSvg, type NodePreview, type PreviewOptions,
+	graphSvg, previewSvg, type NodePreview, type PreviewOptions,
 } from "../core/docs/preview.js";
 import { highlightLuau } from "./highlight.js";
 import { Icon } from "./icons.jsx";
 import { NODE } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
+import { wirePath } from "./geometry.js";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
+
+/**
+ * The live registry, for the one block that needs it.
+ *
+ * A graph stores node *ids*; the definitions behind them are what say how
+ * each one is drawn, and a project's own packs have to draw too. Context
+ * rather than a prop threaded through every block renderer, because exactly
+ * one of eleven block kinds wants it.
+ */
+const RegistryContext = createContext<Registry | null>(null);
 
 /**
  * The canvas's own geometry and palette, handed to the preview generator.
@@ -37,7 +49,7 @@ const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
  * because they are the same objects the canvas uses, a node in the docs and the
  * same node on the canvas are drawn from one set of numbers.
  */
-const PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor };
+const PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor, wirePath };
 const HOME = "getting-started";
 /** Written as a code unit so the escape survives the JSX attribute. */
 const NEWLINE = String.fromCharCode(10);
@@ -90,6 +102,7 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 	};
 
 	return (
+		<RegistryContext.Provider value={registry}>
 		<div className="docs-body">
 			{/* The nav, the page, and its outline. */}
 					<nav className="docs-nav">
@@ -199,6 +212,7 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 						<PageOutline page={page} />
 					</aside>
 				</div>
+		</RegistryContext.Provider>
 	);
 }
 
@@ -412,6 +426,8 @@ function BlockView({ block }: { block: Block }) {
 			return <PinTable title={block.title} pins={block.pins} />;
 		case "preview":
 			return <PreviewFigure nodes={block.nodes} caption={block.caption} />;
+		case "graph":
+			return <GraphFigure script={block.script} caption={block.caption} />;
 	}
 }
 
@@ -435,6 +451,28 @@ function PreviewFigure({ nodes, caption }: { nodes: NodePreview[]; caption?: str
 						dangerouslySetInnerHTML={{ __html: previewSvg(node, PREVIEW) }}
 					/>
 				))}
+			</div>
+			{caption && <figcaption><Rich text={caption} /></figcaption>}
+		</figure>
+	);
+}
+
+/**
+ * A whole graph, wires and all.
+ *
+ * Same arrangement as `PreviewFigure`: the SVG comes from `src/core/docs`, so
+ * the panel and the static site render the identical string and cannot disagree
+ * about what a graph looks like. The registry comes from context because a
+ * graph stores node ids, and a project's own packs have to draw too.
+ */
+function GraphFigure({ script, caption }: { script: NodeScript; caption?: string }) {
+	const registry = useContext(RegistryContext);
+	const svg = registry ? graphSvg(script, registry, PREVIEW) : "";
+	if (svg === "") return null;
+	return (
+		<figure className="docs-preview graph">
+			<div className="row">
+				<div className="node-preview-frame" dangerouslySetInnerHTML={{ __html: svg }} />
 			</div>
 			{caption && <figcaption><Rich text={caption} /></figcaption>}
 		</figure>

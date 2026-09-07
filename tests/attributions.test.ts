@@ -18,7 +18,9 @@ import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { ATTRIBUTIONS, NAME_NOTICE } from "../src/core/docs/attributions.js";
+import {
+	ATTRIBUTIONS, DEPENDENCIES, INSPIRATIONS, NAME_NOTICE,
+} from "../src/core/docs/attributions.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import { blockText, buildSite, findPage } from "../src/core/docs/site.js";
 
@@ -109,5 +111,43 @@ describe("NOTICE.md and the attributions page", () => {
 		expect(NOTICE).toContain("Luau");
 		expect(NOTICE).toContain("Roblox");
 		expect(pageText).toContain("Roblox");
+	});
+});
+
+/**
+ * ## Built on versus inspired by
+ *
+ * These are two different claims and the page makes them separately. Unreal
+ * Engine sat under "What Roswaal is built on" for a release, which said Roswaal
+ * was built on Epic's engine — no code, no assets, no dependency, only
+ * conventions. Overstating a debt is its own kind of inaccuracy.
+ */
+describe("what Roswaal uses and what it only learned from", () => {
+	it("puts every entry in exactly one of the two", () => {
+		expect(DEPENDENCIES.length + INSPIRATIONS.length).toBe(ATTRIBUTIONS.length);
+		for (const entry of ATTRIBUTIONS) {
+			expect(["uses", "inspired-by"], entry.name).toContain(entry.relation);
+		}
+	});
+
+	/**
+	 * The specific mistake this guards. Unreal Engine is not a dependency, and
+	 * an entry with no licence granted to us is not something we can be built on.
+	 */
+	it("never calls something a dependency that is not licensed to us", () => {
+		for (const entry of DEPENDENCIES) {
+			expect(entry.licence, `${entry.name} is listed as used but has no licence`).not.toBeNull();
+		}
+	});
+
+	it("keeps Unreal Engine on the inspiration side", () => {
+		expect(INSPIRATIONS.map((a) => a.name)).toContain("Unreal Engine");
+		expect(DEPENDENCIES.map((a) => a.name)).not.toContain("Unreal Engine");
+	});
+
+	/** Both headings have to exist in the other copy of record too. */
+	it("says the same in NOTICE.md", () => {
+		expect(NOTICE).toContain("What Roswaal is built on");
+		expect(NOTICE).toContain("What Roswaal is inspired by");
 	});
 });

@@ -33,6 +33,16 @@ export interface Attribution {
 	 * out loud rather than implied by a gap.
 	 */
 	licence: string | null;
+	/**
+	 * Whether Roswaal **uses** this or only **learned** from it.
+	 *
+	 * The distinction is the point of having it. Listing Unreal Engine beside
+	 * CodeMirror under one heading said Roswaal was built on Epic's engine, which
+	 * it is not — no code, no assets, no dependency, only a set of conventions a
+	 * reader might recognise. Overstating a debt is its own kind of inaccuracy,
+	 * and this one had us claiming a relationship nobody wanted to claim.
+	 */
+	relation: "uses" | "inspired-by";
 	/** Where it is in the repository, or how it reaches a user. */
 	where: string;
 	/** Why it is listed: what we use, and what we are not claiming. */
@@ -49,6 +59,7 @@ export interface Attribution {
 export const ATTRIBUTIONS: Attribution[] = [
 	{
 		name: "Luau",
+		relation: "uses",
 		holder: "Roblox Corporation",
 		licence: "MIT",
 		where: "Not bundled. Roswaal writes Luau; Luau runs it.",
@@ -66,6 +77,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Unreal Engine",
+		relation: "inspired-by",
 		holder: "Epic Games, Inc.",
 		licence: null,
 		where: "Not used, and not bundled. Named in *Coming from Blueprints*.",
@@ -83,6 +95,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Material Symbols",
+		relation: "uses",
 		holder: "Google LLC",
 		licence: "Apache-2.0",
 		where: "`src/app/icons.tsx`, inlined as SVG path data.",
@@ -94,6 +107,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "CodeMirror 6",
+		relation: "uses",
 		holder: "Marijn Haverbeke and contributors",
 		licence: "MIT",
 		where: "A runtime dependency; see `package.json`.",
@@ -104,6 +118,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Lua",
+		relation: "uses",
 		holder: "PUC-Rio",
 		licence: "MIT",
 		where: "Not bundled. Luau is based on the Lua 5.x implementation.",
@@ -114,6 +129,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Rojo",
+		relation: "uses",
 		holder: "rojo-rbx and contributors",
 		licence: "MPL-2.0",
 		where: "Not bundled. Roswaal writes files Rojo syncs.",
@@ -137,7 +153,8 @@ export const ATTRIBUTIONS: Attribution[] = [
 export const NAME_NOTICE = {
 	title: "The names",
 	body: [
-		"**Roswaal** and its sibling tool **Beako** are named after characters " +
+		"**Roswaal** and its sibling tool **[Beako](https://github.com/neopolitans/Beako)** " +
+			"are named after characters " +
 			"from *Re:Zero − Starting Life in Another World* — Roswaal L. Mathers and " +
 			"Beatrice — created by Tappei Nagatsuki and published by KADOKAWA. The " +
 			"names are a fan's homage, chosen because each character suited what each " +
@@ -153,3 +170,14 @@ export const NAME_NOTICE = {
 			"belong to whoever makes them.",
 	],
 } as const;
+
+/** The ones Roswaal actually ships or stands on. */
+export const DEPENDENCIES = ATTRIBUTIONS.filter((a) => a.relation === "uses");
+
+/**
+ * The ones it only learned from.
+ *
+ * Separate because "built on" and "inspired by" are different claims, and the
+ * weaker one is the true one here.
+ */
+export const INSPIRATIONS = ATTRIBUTIONS.filter((a) => a.relation === "inspired-by");

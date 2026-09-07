@@ -17,16 +17,17 @@ import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import {
-	previewOf, previewRowY, previewSize, previewSvg, describe as describePreview,
-	type PreviewOptions,
+	graphSvg, placeGraph, placedPinAnchor, previewOf, previewRowY, previewSize, previewSvg,
+	describe as describePreview, type PreviewOptions,
 } from "../src/core/docs/preview.js";
 import { buildSite } from "../src/core/docs/site.js";
 import { documentRegistry } from "../src/core/docs/nodeReference.js";
+import { CURATED } from "../src/core/docs/examples.js";
 import { renderPage } from "../src/core/docs/html.js";
-import { nodeBounds, pinPosition } from "../src/app/geometry.js";
+import { nodeBounds, pinPosition, wirePath } from "../src/app/geometry.js";
 import { NODE } from "../src/app/layers.js";
 import { nodeColor, pinColor } from "../src/app/palette.js";
-import type { GraphNode, NodeDef } from "../src/core/schema.js";
+import { emptyScript, type GraphNode, type NodeDef, type NodeScript } from "../src/core/schema.js";
 
 const registry = createRegistry();
 const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
@@ -188,5 +189,119 @@ describe("previews in the documentation", () => {
 		const with_ = renderPage(site, page, { version: "test", preview: options });
 		expect(with_).toContain("docs-preview");
 		expect(with_).toContain("<svg class=\"node-preview\"");
+	});
+});
+
+/**
+ * Graph previews, held against the canvas the same way.
+ *
+ * A graph picture has two more chances to drift than a node picture: where each
+ * node sits, and where a wire meets it. Both are asserted against the editor's
+ * own `nodeBounds` and `pinPosition`, and the curve against `wirePath`, so a
+ * change to any of the three fails here rather than quietly redrawing the
+ * documentation wrong.
+ */
+describe("graph preview geometry", () => {
+	const graphOptions: PreviewOptions = { ...options, wirePath };
+
+	/** Every curated scene the node pages draw, which is the real exposure. */
+	const scenes = Object.entries(CURATED).map(([id, build]) => [id, build()] as const);
+
+	it("has scenes to check", () => {
+		expect(scenes.length).toBeGreaterThan(0);
+	});
+
+	it("places every node where the canvas would place it", () => {
+		for (const [id, script] of scenes) {
+			for (const entry of placeGraph(script, registry, graphOptions)) {
+				const bounds = nodeBounds(entry.node, registry);
+				expect([id, entry.node.def, "x"]).toBeDefined();
+				expect(entry.x, `${id}/${entry.node.def} x`).toBe(bounds.x);
+				expect(entry.y, `${id}/${entry.node.def} y`).toBe(bounds.y);
+				expect(entry.width, `${id}/${entry.node.def} width`).toBe(bounds.w);
+				expect(entry.height, `${id}/${entry.node.def} height`).toBe(bounds.h);
+			}
+		}
+	});
+
+	it("meets every wire where the canvas meets it", () => {
+		let checked = 0;
+		for (const [id, script] of scenes) {
+			const placedNodes = placeGraph(script, registry, graphOptions);
+			const byId = new Map(placedNodes.map((p) => [p.node.id, p]));
+
+			for (const link of script.links) {
+				const from = byId.get(link.from.node);
+				const to = byId.get(link.to.node);
+				if (!from || !to) continue;
+
+				const a = placedPinAnchor(from, link.from.pin, "out", NODE);
+				const b = placedPinAnchor(to, link.to.pin, "in", NODE);
+				const canvasA = pinPosition(from.node, registry, link.from.pin, "out");
+				const canvasB = pinPosition(to.node, registry, link.to.pin, "in");
+				if (!canvasA || !canvasB) continue;
+
+				expect(a, `${id} ${link.from.pin}`).toEqual(canvasA);
+				expect(b, `${id} ${link.to.pin}`).toEqual(canvasB);
+				checked++;
+			}
+		}
+		// A pass that checked nothing is not a pass.
+		expect(checked).toBeGreaterThan(0);
+	});
+
+	/**
+	 * Nodes must not overlap. Their coordinates were arbitrary while nothing
+	 * drew them, and at a 200px step against a 216px node they overlapped —
+	 * which looked exactly like a bug in the renderer.
+	 */
+	it("draws scenes whose nodes do not overlap", () => {
+		for (const [id, script] of scenes) {
+			const placedNodes = placeGraph(script, registry, graphOptions);
+			for (let i = 0; i < placedNodes.length; i++) {
+				for (let j = i + 1; j < placedNodes.length; j++) {
+					const a = placedNodes[i], b = placedNodes[j];
+					const overlaps =
+						a.x < b.x + b.width && a.x + a.width > b.x &&
+						a.y < b.y + b.height && a.y + a.height > b.y;
+					expect(overlaps, `${id}: ${a.node.def} overlaps ${b.node.def}`).toBe(false);
+				}
+			}
+		}
+	});
+
+	it("draws no wires at all rather than invented ones", () => {
+		// Without `wirePath` the curve would be this file's own opinion, so the
+		// nodes are drawn and the lines are left out.
+		const scene = scenes.find(([, s]) => s.links.length > 0)!;
+		const withoutWires = graphSvg(scene[1], registry, options);
+		const withWires = graphSvg(scene[1], registry, graphOptions);
+		expect(withoutWires).not.toContain("<path d=\"M ");
+		expect(withWires).toContain("<path d=\"M ");
+	});
+
+	/**
+	 * `graphSvg` adds one surface the node previews do not have: an aria-label
+	 * built from the node titles. A pack can title a node anything at all.
+	 */
+	it("escapes a hostile node title in the label it builds", () => {
+		const hostile: NodeDef = {
+			id: "pack.evil",
+			title: '</text><script>alert(1)</script>',
+			category: "Debug",
+			inputs: [],
+			outputs: [],
+			compilesTo: { kind: "expression", template: "nil" },
+		} as unknown as NodeDef;
+
+		const withPack = createRegistry([hostile]);
+		const script: NodeScript = {
+			...emptyScript("Hostile", "hostile"),
+			nodes: [{ id: "n0", def: "pack.evil", x: 0, y: 0 }],
+		};
+
+		const svg = graphSvg(script, withPack, graphOptions);
+		expect(svg).not.toContain("<script>");
+		expect(svg).toContain("&lt;");
 	});
 });

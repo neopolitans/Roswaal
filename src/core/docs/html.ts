@@ -17,8 +17,9 @@
  */
 
 import type { Block, DocPage, DocSection, DocSite } from "./site.js";
+import type { Registry } from "../nodes/index.js";
 import { allPages, parseInline, TAG_LABELS } from "./site.js";
-import { previewSvg, type PreviewOptions } from "./preview.js";
+import { graphSvg, previewSvg, type PreviewOptions } from "./preview.js";
 
 export interface RenderOptions {
 	/** Turns Luau into HTML. Returns escaped text when absent. */
@@ -44,6 +45,11 @@ export interface RenderOptions {
 	 * what this is beats a gap where a picture should be.
 	 */
 	logo?: LogoOptions;
+	/**
+	 * The node registry, needed to draw a graph: a graph stores node ids and
+	 * the definitions behind them are what say how each one looks.
+	 */
+	registry?: Registry;
 	/** Shown in the header, next to the name. */
 	version: string;
 }
@@ -154,6 +160,15 @@ function renderBlock(block: Block, options: RenderOptions): string {
 			return `<div class="docs-note ${block.kind}">${inline(block.text)}</div>`;
 		case "pins":
 			return renderPins(block, options);
+		case "graph": {
+			// No geometry passed in means no picture, rather than one at invented
+			// sizes — the same bargain the node previews make.
+			if (!options.preview || !options.registry) return "";
+			const svg = graphSvg(block.script, options.registry, options.preview);
+			if (svg === "") return "";
+			const caption = block.caption ? `<figcaption>${inline(block.caption)}</figcaption>` : "";
+			return `<figure class="docs-preview graph"><div class="row">${svg}</div>${caption}</figure>`;
+		}
 		case "preview": {
 			if (!options.preview) return "";
 			const svgs = block.nodes

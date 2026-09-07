@@ -11,7 +11,8 @@ the other is missing.
 
 ## The names
 
-**Roswaal** and its sibling tool **Beako** are named after characters from
+**Roswaal** and its sibling tool **[Beako](https://github.com/neopolitans/Beako)** are named after
+characters from
 *Re:Zero − Starting Life in Another World* — Roswaal L. Mathers and Beatrice —
 created by Tappei Nagatsuki and published by KADOKAWA. The names are a fan's
 homage, chosen because each character suited what each tool does.
@@ -28,7 +29,13 @@ restriction on what anyone else does with it, commercially or otherwise — thos
 choices, and any obligations that follow from them, belong to whoever makes
 them.
 
-## Unreal Engine
+## What Roswaal is inspired by
+
+Work Roswaal learned from and does **not** use. No code, no assets, no
+dependency — only conventions a reader might recognise, named here so the
+resemblance is explained rather than left to be guessed at.
+
+### Unreal Engine
 
 **Unreal Engine**, **Unreal** and **Blueprint** are trademarks of **Epic Games,
 Inc.** They appear in Roswaal's documentation — chiefly *Coming from
@@ -41,7 +48,11 @@ bound by the Unreal Engine EULA.
 
 Source: <https://www.unrealengine.com/>
 
-## Luau
+## What Roswaal is built on
+
+Code and assets that ship inside Roswaal, or that it could not run without.
+
+### Luau
 
 Roswaal writes **Luau**, the language by **Roblox Corporation**, which is MIT
 licensed. Luau is not bundled here; Roswaal produces it and Luau runs it.
@@ -59,7 +70,7 @@ endorsed by Roblox.
 
 Source: <https://luau.org/>
 
-## Lua
+### Lua
 
 Luau is based on the **Lua** 5.x implementation by **PUC-Rio**, MIT licensed.
 Listed because the chain would otherwise stop one link short of where it
@@ -67,7 +78,7 @@ started.
 
 Source: <https://www.lua.org/>
 
-## Rojo
+### Rojo
 
 **Rojo** by **rojo-rbx and contributors**, MPL-2.0. Not a dependency, and listed
 anyway: the whole workflow assumes it, and a tool whose documentation tells you
@@ -75,10 +86,11 @@ to run `rojo serve` should say whose work that is.
 
 Source: <https://rojo.space/>
 
-## Material Symbols
+### Material Symbols
 
 The icons in `src/app/icons.tsx` are **Material Symbols** by Google, inlined as
-SVG path data. They reached Roswaal by way of the icon set used in beako, a
+SVG path data. They reached Roswaal by way of the icon set used in
+[Beako](https://github.com/neopolitans/Beako), a
 sibling tool in the same workflow.
 
 Material Symbols is licensed under the **Apache License, Version 2.0**:
@@ -99,7 +111,7 @@ Material Symbols is licensed under the **Apache License, Version 2.0**:
 
 Source: <https://fonts.google.com/icons>
 
-## CodeMirror
+### CodeMirror
 
 The pop-out Luau editor is built on **CodeMirror 6**, which is MIT licensed.
 It is a runtime dependency rather than vendored source; see `package.json` and

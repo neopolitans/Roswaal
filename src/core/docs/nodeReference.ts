@@ -81,6 +81,12 @@ export interface NodeDoc {
 	example?: string;
 	/** A note that belongs with the example rather than with the node. */
 	exampleNote?: string;
+	/**
+	 * The graph the example was compiled from, when it was a hand-authored
+	 * scene. Drawn above the code, so the reader sees the shape that produced
+	 * the output rather than having to build it in their head.
+	 */
+	exampleGraph?: NodeScript;
 	/** Why there is no example, when there is not one. */
 	exampleOmitted?: ExampleOmission;
 }
@@ -132,6 +138,7 @@ export function documentNode(
 		preview: previewOf(def),
 		example: example.luau,
 		exampleNote: example.note,
+		exampleGraph: example.graph,
 		exampleOmitted: example.omitted,
 	};
 }
@@ -165,18 +172,24 @@ export function documentRegistry(
  */
 export function exampleFor(
 	def: NodeDef, registry: Registry,
-): { luau?: string; note?: string; omitted?: ExampleOmission } {
+): { luau?: string; note?: string; omitted?: ExampleOmission; graph?: NodeScript } {
 	// Control flow needs a scene rather than a bare node: a Branch with nothing
 	// inside it emits an empty `if`. Those graphs are hand-authored, and still
 	// compiled here like every other example.
 	const curated = CURATED[def.id];
 	if (curated) {
-		const result = compile(curated(), registry);
+		const graph = curated();
+		const result = compile(graph, registry);
 		if (result.diagnostics.some((d) => d.severity === "error")) {
 			return { omitted: "did-not-compile" };
 		}
 		const luau = stripHeader(result.code);
-		return luau === "" ? { omitted: "did-not-compile" } : { luau, note: EXAMPLE_NOTES[def.id] };
+		// The graph travels with the code so the page can *draw* the scene it is
+		// about to show the output of. One graph, two renderings: the picture and
+		// the Luau cannot end up describing different things.
+		return luau === ""
+			? { omitted: "did-not-compile" }
+			: { luau, note: EXAMPLE_NOTES[def.id], graph };
 	}
 
 	if (def.compilesTo.kind === "builtin") return { omitted: "opens-a-block" };

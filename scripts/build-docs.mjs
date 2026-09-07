@@ -23,6 +23,7 @@ import { highlightLuau } from "../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../src/app/palette.ts";
 import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
 import { NODE } from "../src/app/layers.ts";
+import { wirePath } from "../src/app/geometry.ts";
 import { VERSION } from "../src/cli/version.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -116,9 +117,9 @@ async function main() {
 	const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
 	const site = buildSite(registry, builtinIds);
 
-	const preview = { geometry: NODE, nodeColor, pinColor };
+	const preview = { geometry: NODE, nodeColor, pinColor, wirePath };
 	const logo = { mark: logoMarkup(18), icon: faviconHref() };
-	const files = renderSite(site, { highlight, pinColor, preview, logo, version: VERSION });
+	const files = renderSite(site, { highlight, pinColor, preview, logo, registry, version: VERSION });
 
 	for (const file of files) {
 		const target = join(out, file.path);

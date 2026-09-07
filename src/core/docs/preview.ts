@@ -35,8 +35,8 @@
  * with it.
  */
 
-import type { NodeDef, PinDef } from "../schema.js";
-import { resolveNodePins } from "../nodes/index.js";
+import type { GraphNode, NodeDef, NodeScript, PinDef } from "../schema.js";
+import { nodeTitle, resolveNodePins, type Registry } from "../nodes/index.js";
 
 // ---------------------------------------------------------------------------
 // The model
@@ -59,6 +59,15 @@ export interface PreviewPin {
 	name: string;
 	kind: "exec" | "data";
 	type?: string;
+	/**
+	 * Something is connected to this pin.
+	 *
+	 * Only ever true in a graph preview: a node from the palette has nothing
+	 * wired into it. It matters because filled-versus-hollow is the editor's
+	 * whole grammar for connected — drawing every pin hollow in a picture of
+	 * a *wired* graph would contradict the wires running into them.
+	 */
+	wired?: boolean;
 	/** The inline editor this pin shows when nothing is wired into it. */
 	value?: PreviewValue;
 }
@@ -110,6 +119,16 @@ export interface PreviewOptions {
 	/** Header colour. Takes the two fields it reads, not a whole `NodeDef`. */
 	nodeColor: (node: { category: string; role?: string }) => string;
 	pinColor: (type: string | undefined, kind: "exec" | "data") => string;
+	/**
+	 * The curve a wire takes between two points, for graph previews.
+	 *
+	 * Passed in for the reason everything else here is: it is the canvas's
+	 * `wirePath`, and a second cubic written here would be a second opinion
+	 * about the one shape a reader uses to recognise a graph. Absent, a graph
+	 * preview draws its nodes and leaves the wires out rather than inventing
+	 * them — a picture missing a line is honest, a wrong curve is not.
+	 */
+	wirePath?: (from: { x: number; y: number }, to: { x: number; y: number }) => string;
 }
 
 // ---------------------------------------------------------------------------
@@ -502,19 +521,22 @@ function pinAt(
 
 	if (pin.kind === "exec") {
 		const top = y - slot / 2;
-		return (
-			`<path d="${arrow(x, top, slot, slot)}" fill="${colour}"/>` +
-			// `inset: 2.5px 4px 2.5px 2.5px` — tighter on the right so the wall
-			// stays even where the point narrows.
-			`<path d="${arrow(x + 2.5, top + 2.5, slot - 6.5, slot - 5)}" fill="${hollow}"/>`
-		);
+		const solid = `<path d="${arrow(x, top, slot, slot)}" fill="${colour}"/>`;
+		// A wired arrow is solid all the way through; an unwired one keeps its
+		// hollow. `inset: 2.5px 4px 2.5px 2.5px` — tighter on the right so the
+		// wall stays even where the point narrows.
+		return pin.wired
+			? solid
+			: solid +
+				`<path d="${arrow(x + 2.5, top + 2.5, slot - 6.5, slot - 5)}" fill="${hollow}"/>`;
 	}
 
 	// A 10px circle centred in the slot: `inset: 3px` with a 2px border, so a
-	// radius of 4 with the stroke centred on it spans 3 to 5.
+	// radius of 4 with the stroke centred on it spans 3 to 5. Filled when wired,
+	// which is how the canvas says a value is arriving from somewhere.
 	return (
 		`<circle cx="${n(x + slot / 2)}" cy="${n(y)}" r="4" ` +
-		`fill="${hollow}" stroke="${colour}" stroke-width="2"/>`
+		`fill="${pin.wired ? colour : hollow}" stroke="${colour}" stroke-width="2"/>`
 	);
 }
 
@@ -617,4 +639,214 @@ function text(x: number, y: number, body: string, options: TextOptions): string 
 		`fill="${options.fill}"`,
 	].filter(Boolean);
 	return `<text ${attrs.join(" ")}>${escapeXml(body)}</text>`;
+}
+
+// ---------------------------------------------------------------------------
+// A whole graph
+// ---------------------------------------------------------------------------
+
+/**
+ * A node as it is drawn *where it was placed*, rather than as it comes out of
+ * the palette.
+ *
+ * `previewOf` shows a definition: minimum arity, nothing split, nothing typed
+ * into it. A guide showing a worked example needs the opposite — the node with
+ * the config it was given, the values that were typed, and the label it ended
+ * up with. The rules for all three are the editor's own: `resolveNodePins` for
+ * the pins, `nodeTitle` for the name, and a literal from the node falling back
+ * to the pin's default exactly as `NodeView` does.
+ */
+export function previewOfPlaced(
+	node: GraphNode, def: NodeDef, wired?: ReadonlySet<string>,
+): NodePreview {
+	const config = node.config ?? {};
+	const { inputs, outputs } = resolveNodePins(def, node.config);
+	const isWired = (side: "in" | "out", pin: string) => wired?.has(`${side}:${node.id}:${pin}`) === true;
+
+	return {
+		id: def.id,
+		title: nodeTitle(def, node),
+		subtitle: def.subtitle?.(config),
+		category: def.category,
+		role: def.role,
+		display: def.display ?? "normal",
+		latent: def.latent === true,
+		inputs: inputs.map((pin) => ({
+			id: pin.id,
+			name: pin.name,
+			kind: pin.kind,
+			type: pin.type,
+			wired: isWired("in", pin.id),
+			// A wired input shows no value: the wire is the value, and drawing a
+			// field behind a connected pin is the one thing the canvas never does.
+			// Otherwise the graph's own literal wins over the pin's default —
+			// a Print in a worked example should show the string it prints.
+			value: isWired("in", pin.id)
+				? undefined
+				: valueOf({ ...pin, default: node.literals?.[pin.id] ?? pin.default }),
+		})),
+		outputs: outputs.map((pin) => ({ ...previewPin(pin, "out"), wired: isWired("out", pin.id) })),
+	};
+}
+
+/** Where a node sits and how big it is, in the graph's own coordinates. */
+export interface PlacedPreview {
+	node: GraphNode;
+	preview: NodePreview;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+/**
+ * The graph, laid out from the nodes' own coordinates.
+ *
+ * Nothing is re-positioned. A graph in the documentation was authored on a
+ * canvas and its `x`/`y` are what the author saw, so laying it out again here
+ * would be this file having an opinion about composition that the author
+ * already settled.
+ */
+export function placeGraph(
+	script: NodeScript, registry: Registry, options: PreviewOptions,
+): PlacedPreview[] {
+	// One pass over the links, so every node can ask "is this pin connected"
+	// without walking them again.
+	const wired = new Set<string>();
+	for (const link of script.links) {
+		wired.add(`out:${link.from.node}:${link.from.pin}`);
+		wired.add(`in:${link.to.node}:${link.to.pin}`);
+	}
+
+	const out: PlacedPreview[] = [];
+	for (const node of script.nodes) {
+		const def = registry.get(node.def);
+		if (!def) continue;
+		const preview = previewOfPlaced(node, def, wired);
+		const { width, height } = previewSize(preview, options.geometry);
+		out.push({ node, preview, x: node.x, y: node.y, width, height });
+	}
+	return out;
+}
+
+/**
+ * Where a wire meets a node, in graph coordinates.
+ *
+ * The mirror of `pinPosition` in `src/app/geometry.ts`, and asserted equal to
+ * it by `tests/preview.test.ts` — the same arrangement the node sizes already
+ * have. Returns null for a pin the node does not have, which happens when a
+ * link outlives the pin it was attached to.
+ */
+export function placedPinAnchor(
+	placed: PlacedPreview, pinId: string, side: "in" | "out", g: PreviewGeometry,
+): { x: number; y: number } | null {
+	const pins = side === "in" ? placed.preview.inputs : placed.preview.outputs;
+	const index = pins.findIndex((pin) => pin.id === pinId);
+	if (index === -1) return null;
+
+	// A knot's two pins both sit at its centre, so a wire passes straight
+	// through rather than jogging around a box.
+	if (placed.preview.display === "reroute") {
+		return { x: placed.x + placed.width / 2, y: placed.y + placed.height / 2 };
+	}
+
+	// A capsule has one pin and it is on the right, whichever side asked. A
+	// getter is a value: nothing wires *into* it.
+	if (placed.preview.display === "compact") {
+		return { x: placed.x + placed.width, y: placed.y + placed.height / 2 };
+	}
+
+	return {
+		x: side === "in" ? placed.x : placed.x + placed.width,
+		y: placed.y + previewRowY(placed.preview, g, index),
+	};
+}
+
+/**
+ * A whole graph as one SVG, wires and all.
+ *
+ * The reason this exists rather than a row of separate node pictures: a guide
+ * explaining Branch is explaining the *shape* — which pin the false arm leaves
+ * from, where the wire goes. Two nodes side by side with no line between them
+ * is a picture of two nodes, and the reader has to do the joining that the
+ * picture was supposed to do for them.
+ *
+ * The viewBox is fitted to the drawn content with a small margin, so a graph
+ * authored anywhere on an infinite canvas crops to itself.
+ */
+export function graphSvg(
+	script: NodeScript, registry: Registry, options: PreviewOptions,
+): string {
+	const g = options.geometry;
+	const placed = placeGraph(script, registry, options);
+	if (placed.length === 0) return "";
+
+	const byId = new Map(placed.map((entry) => [entry.node.id, entry]));
+	const MARGIN = 12;
+
+	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+	for (const entry of placed) {
+		minX = Math.min(minX, entry.x);
+		minY = Math.min(minY, entry.y);
+		maxX = Math.max(maxX, entry.x + entry.width);
+		maxY = Math.max(maxY, entry.y + entry.height);
+	}
+
+	// Wires first, so a curve passes behind the nodes it joins rather than over
+	// their headers — the same order the canvas stacks them in.
+	const wires: string[] = [];
+	if (options.wirePath) {
+		for (const link of script.links) {
+			const from = byId.get(link.from.node);
+			const to = byId.get(link.to.node);
+			if (!from || !to) continue;
+			const a = placedPinAnchor(from, link.from.pin, "out", g);
+			const b = placedPinAnchor(to, link.to.pin, "in", g);
+			if (!a || !b) continue;
+
+			const pin = from.preview.outputs.find((p) => p.id === link.from.pin);
+			const exec = pin?.kind === "exec";
+			wires.push(
+				`<path d="${escapeXml(options.wirePath(a, b))}" fill="none" ` +
+				`stroke="${escapeXml(exec ? "var(--wire-exec, #d8dbe0)" : options.pinColor(pin?.type, "data"))}" ` +
+				`stroke-width="${exec ? 2.4 : 1.8}" opacity="${exec ? 0.95 : 0.85}"/>`,
+			);
+		}
+	}
+
+	const bodies = placed.map((entry) => {
+		const body =
+			entry.preview.display === "reroute"
+				? drawReroute(entry.preview, options)
+				: entry.preview.display === "compact"
+					? drawCapsule(entry.preview, options)
+					: drawNode(entry.preview, options);
+		return `<g transform="translate(${n(entry.x)} ${n(entry.y)})">${body}</g>`;
+	});
+
+	const width = maxX - minX + MARGIN * 2;
+	const height = maxY - minY + MARGIN * 2;
+
+	return (
+		`<svg class="node-preview graph-preview" width="${n(width)}" height="${n(height)}" ` +
+		`viewBox="${n(minX - MARGIN)} ${n(minY - MARGIN)} ${n(width)} ${n(height)}" ` +
+		`xmlns="http://www.w3.org/2000/svg" role="img" ` +
+		`aria-label="${escapeXml(describeGraph(script, placed))}">` +
+		wires.join("") + bodies.join("") +
+		`</svg>`
+	);
+}
+
+/** The alt text: a screen reader gets the graph in words, not a blank box. */
+export function describeGraph(script: NodeScript, placed: PlacedPreview[]): string {
+	const names = placed.map((entry) => entry.preview.title);
+	const wires = script.links.length;
+	const joined =
+		names.length === 1
+			? names[0]
+			: `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+	return (
+		`A graph of ${names.length} node${names.length === 1 ? "" : "s"} — ${joined}` +
+		`${wires > 0 ? `, joined by ${wires} wire${wires === 1 ? "" : "s"}` : ""}.`
+	);
 }

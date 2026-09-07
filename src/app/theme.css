@@ -3394,3 +3394,32 @@ button.tb.with-icon {
 	padding-top: 26px;
 	margin-top: 34px;
 }
+
+/* A whole graph, rather than a row of separate nodes.
+ *
+ * It gets to run the full width and scroll, because a graph's shape is the
+ * thing being shown and squeezing it to a reading measure would fold the wires
+ * back on themselves. The frame is the same one a single node preview uses, so
+ * the two read as the same kind of illustration. */
+/* Scaled to fit, rather than scrolled.
+ *
+ * The first cut let the graph overflow and put a scrollbar under it, which is
+ * two problems: a scrollbar is chrome in the middle of a page that has none,
+ * and a graph you have to drag to see is a graph you cannot take in. The SVG
+ * carries a viewBox, so giving it a width and letting the height follow scales
+ * the whole thing down until it fits — no script, which the static site
+ * requires, and nothing to pan. */
+.docs-preview.graph .row {
+	justify-content: center;
+}
+
+.docs-preview.graph .node-preview-frame {
+	max-width: 100%;
+	width: 100%;
+}
+
+.docs-preview.graph svg {
+	width: 100%;
+	height: auto;
+	max-width: 100%;
+}

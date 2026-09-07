@@ -54,7 +54,7 @@ export const RELEASES: Release[] = [
 			"**The graph is read-only while it is being compiled**, framed and labelled so it is obvious why. An edit made during the walk landed in the written file or did not, depending on where the walk had got to when you made it — and the file then disagreed with the graph, with nothing to say so.",
 		],
 		changed: [
-			"**The node category called \"Roblox\" is now called \"Engine\".** Get Service, New Instance, Find First Child, Destroy and the rest are unchanged and so are their node ids, so nothing in your graphs moves — only the drawer they sit in is named differently. Naming one of our own categories after somebody else's platform reads as their category, and it is not.",
+			"**The node category called \"Roblox\" is now called \"Engine\".** It holds Get Service, New Instance, Find First Child, Destroy and the rest — engine and DataModel work — and *Engine* says what they do, where the old name said only which platform they were for. The nodes and their ids are unchanged, so nothing in your graphs moves; only the drawer they sit in is labelled differently.",
 			"The toolbar, the opening screen and the docs window carry **the Roswaal mark** — a file, a wire leaving it, and an empty pin. It takes the colour of the text beside it, so it works in both themes, and it is the tab's icon as well; the browser tab was still showing a default.",
 		],
 		fixed: [
