@@ -3412,6 +3412,20 @@ button.tb.with-icon {
  * renders at its natural size, and the page is still readable — which is what
  * the static site promises. `interactive` is added by the script, so the
  * cursor only claims to be draggable once something is listening. */
+/* The graph figure carries no frame of its own: the viewport below has one,
+   and nesting them put a grid and a second border behind the caption, which
+   read as part of the canvas when it is a sentence about it. */
+.docs-preview.graph {
+	padding: 0;
+	border: none;
+	border-radius: 0;
+	background: none;
+}
+
+.docs-preview.graph figcaption {
+	padding: 8px 2px 0;
+}
+
 .docs-preview.graph .graph-viewport {
 	position: relative;
 	overflow: hidden;
@@ -3443,10 +3457,15 @@ button.tb.with-icon {
 	left: 0;
 }
 
-/* Says what the frame does, without a row of buttons. Hidden until the script
-   claims the frame, because otherwise it would promise something static
-   markup cannot do. */
+/* Says what the frame does, without a row of buttons.
+ *
+ * Only once the script has claimed the frame, because otherwise it would
+ * promise something static markup cannot do — and only on hover, because a
+ * permanent label sits over the bottom-right of every graph whether or not
+ * anybody is looking for it. The `grab` cursor is the always-on affordance. */
 .docs-preview.graph .graph-viewport.interactive::after {
+	opacity: 0;
+	transition: opacity 0.12s ease;
 	content: "scroll to zoom · drag to pan · double-click to fit";
 	position: absolute;
 	right: 8px;
@@ -3457,4 +3476,12 @@ button.tb.with-icon {
 	border-radius: 3px;
 	padding: 1px 6px;
 	pointer-events: none;
+}
+
+.docs-preview.graph .graph-viewport.interactive:hover::after {
+	opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.docs-preview.graph .graph-viewport.interactive::after { transition: none; }
 }

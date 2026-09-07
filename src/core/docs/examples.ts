@@ -20,22 +20,53 @@ import type { NodeScript, Literal, NodeConfig } from "../schema.js";
 import { emptyScript } from "../schema.js";
 
 /** Terse graph construction, so an example reads like the graph it describes. */
+/**
+ * Where a node sits in the drawn scene.
+ *
+ * Columns run left to right with execution; rows are the arms of a fan-out. A
+ * Branch's two consumers on one row look like a sequence — the reader cannot
+ * tell which Print belongs to True — so a scene that splits says so by putting
+ * the arms on different rows, which is what a person would do on the canvas.
+ */
+const COLUMN = 280;
+const ROW = 150;
+
+interface Place {
+	/** Left to right. Defaults to the order nodes were created in. */
+	column?: number;
+	/** Which arm of a fan-out. 0 unless the scene branches. */
+	row?: number;
+}
+
 class G {
 	readonly script: NodeScript;
 	private n = 0;
+	/** Each node's column, so a consumer can be placed one to the right of it. */
+	private columns = new Map<string, number>();
 
 	constructor(patch: Partial<NodeScript> = {}) {
 		this.script = { ...emptyScript("Example", "docs-example"), ...patch };
 	}
 
-	node(def: string, opts: { config?: NodeConfig; literals?: Record<string, Literal> } = {}): string {
+	node(
+		def: string,
+		opts: { config?: NodeConfig; literals?: Record<string, Literal> } & Place = {},
+	): string {
+		const { column, row, ...rest } = opts;
 		const id = `n${this.n++}`;
-		// 200 used to be arbitrary: nothing drew these graphs, so the only thing
-		// the coordinates had to do was exist. They are drawn now — a node page
-		// shows the scene above the Luau it compiled to — and at 200 the nodes
-		// overlapped, because a node is 216 wide. Wide enough to leave a gap.
-		this.script.nodes.push({ id, def, x: this.n * 280, y: 0, ...opts });
+		const at = column ?? this.n;
+		this.columns.set(id, at);
+		// These coordinates used to be arbitrary, because nothing drew them. They
+		// are drawn now — a node page shows the scene above the Luau it compiled
+		// to — so a column has to clear a 216px node, and an arm has to clear the
+		// node above it.
+		this.script.nodes.push({ id, def, x: at * COLUMN, y: (row ?? 0) * ROW, ...rest });
 		return id;
+	}
+
+	/** The column just right of a node, for placing what it feeds. */
+	rightOf(id: string): number {
+		return (this.columns.get(id) ?? 0) + 1;
 	}
 
 	/** A Luau Expression standing in for a value the reader would supply. */
@@ -66,9 +97,19 @@ class G {
 const str = (v: string): Literal => ({ t: "string", v });
 const num = (v: number): Literal => ({ t: "number", v });
 
-/** A Print wired to run after `from`'s named exec pin. */
-function printAfter(g: G, from: string, pin: string, text: string): string {
-	const p = g.node("debug.print", { literals: { value: str(text) } });
+/**
+ * A Print wired to run after `from`'s named exec pin.
+ *
+ * `row` is what makes a fan-out readable: both consumers of a Branch sit one
+ * column right of it, on different rows, so the True and False wires visibly
+ * separate instead of running along one line past each other.
+ */
+function printAfter(g: G, from: string, pin: string, text: string, row = 0): string {
+	const p = g.node("debug.print", {
+		literals: { value: str(text) },
+		column: g.rightOf(from),
+		row,
+	});
 	g.link(from, pin, p, "in");
 	return p;
 }
@@ -103,8 +144,8 @@ export const CURATED: Record<string, () => NodeScript> = {
 		const alive = g.stand("isAlive");
 		const branch = g.node("flow.branch");
 		g.link(begin, "then", branch, "in").link(alive, "result", branch, "condition");
-		printAfter(g, branch, "true", "Still going");
-		printAfter(g, branch, "false", "Gone");
+		printAfter(g, branch, "true", "Still going", 0);
+		printAfter(g, branch, "false", "Gone", 1);
 		return g.out();
 	},
 
@@ -113,8 +154,8 @@ export const CURATED: Record<string, () => NodeScript> = {
 		const begin = g.node("script.begin");
 		const seq = g.node("flow.sequence");
 		g.link(begin, "then", seq, "in");
-		printAfter(g, seq, "s0", "First");
-		printAfter(g, seq, "s1", "Second");
+		printAfter(g, seq, "s0", "First", 0);
+		printAfter(g, seq, "s1", "Second", 1);
 		return g.out();
 	},
 
@@ -168,7 +209,7 @@ export const CURATED: Record<string, () => NodeScript> = {
 		const found = g.stand("found");
 		const branch = g.node("flow.branch");
 		g.link(loop, "body", branch, "in").link(found, "result", branch, "condition");
-		const stop = g.node("flow.break");
+		const stop = g.node("flow.break", { column: g.rightOf(branch), row: 0 });
 		g.link(branch, "true", stop, "in");
 		return g.out();
 	},
@@ -181,9 +222,9 @@ export const CURATED: Record<string, () => NodeScript> = {
 		const skip = g.stand("shouldSkip");
 		const branch = g.node("flow.branch");
 		g.link(loop, "body", branch, "in").link(skip, "result", branch, "condition");
-		const next = g.node("flow.continue");
+		const next = g.node("flow.continue", { column: g.rightOf(branch), row: 0 });
 		g.link(branch, "true", next, "in");
-		printAfter(g, branch, "false", "Handled");
+		printAfter(g, branch, "false", "Handled", 1);
 		return g.out();
 	},
 
