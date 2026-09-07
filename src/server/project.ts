@@ -235,7 +235,43 @@ export async function readScript(project: OpenProject, relPath: string): Promise
 			`${relPath} was written by a newer version of Roswaal (schema ${parsed.schemaVersion}).`,
 		);
 	}
-	return migrateScript(parsed).script;
+
+	const script = migrateScript(parsed).script;
+
+	/**
+	 * **The file name is the name.**
+	 *
+	 * `name` is still stored — it is what a graph loaded without a path is
+	 * called, and what `outputFileName` reads — but the value on disk is no
+	 * longer *trusted*. Whenever a graph is read from a path, the path wins.
+	 *
+	 * This is what makes the two impossible to disagree rather than merely kept
+	 * in step. 0.13.0 fixed the drift by having `renameEntry` write the new name
+	 * into the file, which works but leaves the invariant depending on every
+	 * future code path remembering to maintain it; deriving it here means there
+	 * is nothing to remember. It also matches Rojo, which takes an instance's
+	 * name from the file name and never from anything inside it.
+	 *
+	 * A consequence worth noticing: two graphs can no longer share a name within
+	 * a folder, because two files cannot. The collision check in `compileScript`
+	 * becomes a net under a floor rather than something you can walk off.
+	 */
+	const derived = graphNameFor(relPath);
+	if (derived !== "") script.name = derived;
+
+	return script;
+}
+
+/**
+ * What the graph stored at this path is called.
+ *
+ * Split out so the rule is testable without a filesystem: the path wins, and
+ * this is the whole of how it wins. Empty when the file name is punctuation all
+ * the way down, at which point the stored name is kept — a graph with no name
+ * at all would compile to `.luau`.
+ */
+export function graphNameFor(relPath: string): string {
+	return graphName(path.posix.basename(toPosix(relPath), ".nodescript"));
 }
 
 export async function writeScript(

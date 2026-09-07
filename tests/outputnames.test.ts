@@ -19,7 +19,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { graphName, outputCollision } from "../src/server/project.js";
+import { graphName, graphNameFor, outputCollision } from "../src/server/project.js";
 import { outputFileName } from "../src/core/compiler/index.js";
 import type { NodeScript } from "../src/core/schema.js";
 
@@ -114,5 +114,49 @@ describe("two graphs claiming one output file", () => {
 		expect(asModule).not.toBe(asScript);
 		claimed.set(asModule, "a.nodescript");
 		expect(outputCollision(claimed, asScript, "b.nodescript")).toBeNull();
+	});
+});
+
+/**
+ * The path wins.
+ *
+ * 0.13.0 kept the graph's stored name in step by having `renameEntry` rewrite
+ * it. That works, but leaves the invariant depending on every future code path
+ * remembering to maintain it — and on the rename going through Roswaal at all,
+ * which it does not when somebody uses a file manager, `git mv`, or a branch
+ * switch. Deriving the name from the path when the graph is read means there is
+ * nothing to remember and nothing to route around.
+ *
+ * It also matches Rojo, which takes an instance's name from the file name and
+ * never from anything inside the file.
+ */
+describe("the name a graph gets from where it lives", () => {
+	it("is the file name, without the extension", () => {
+		expect(graphNameFor("scripts/Shared/Greeter.nodescript")).toBe("Greeter");
+		expect(graphNameFor(".roswaal/scripts/A/B/Player_Controller.nodescript"))
+			.toBe("Player_Controller");
+	});
+
+	it("takes a rename made outside Roswaal, which is the point", () => {
+		// A file manager, `git mv`, or a branch switch. None of them run our
+		// rename, and all of them used to leave the output name behind.
+		expect(graphNameFor("scripts/Hello.nodescript")).toBe("Hello");
+	});
+
+	it("sanitises what a file name may hold and a graph name may not", () => {
+		expect(graphNameFor("scripts/Greeter.v2.nodescript")).toBe("Greeterv2");
+	});
+
+	/**
+	 * Nothing survives sanitising, so the stored name is kept instead. Deriving
+	 * "" here would compile the graph to a file called `.luau`.
+	 */
+	it("gives nothing back rather than an empty name", () => {
+		expect(graphNameFor("scripts/....nodescript")).toBe("");
+	});
+
+	/** Windows paths reach the daemon too; the separator must not survive. */
+	it("reads a backslash path the same as a forward-slash one", () => {
+		expect(graphNameFor("scripts\\Shared\\Greeter.nodescript")).toBe("Greeter");
 	});
 });

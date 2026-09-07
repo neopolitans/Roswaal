@@ -14,15 +14,21 @@ attribution required. Two bundled things keep their own terms — the icons
 
 ## Who this is for
 
-Developers moving from Unreal Engine to Roblox — a move people have been making
-for years, usually by putting down a visual scripting tool they were fluent in
-and picking up a text editor. Roswaal exists to shorten that.
+Developers moving from Unreal Engine to Roblox. Many arrive fluent in a
+language already — C++, or Verse — but a good number come over with primarily
+*visual scripting* experience and land in front of a text editor. Roswaal
+exists to shorten that gap.
+
+It is also meant to be something you can move off. The Luau it writes is
+ordinary Luau, so switching to writing it by hand is a step you take when you
+are ready rather than one forced on you at the start.
 
 So where it can be familiar without being worse, it is: two kinds of wire, pin
-colours that line up with the ones you know, and menu wording taken from
-Unreal's because the entry you already know should be the entry you find. Every
-place that happens is deliberate, and the [Coming from Blueprints](docs) page
-exists to make the mapping explicit rather than something you have to discover.
+colours that line up with the ones you know, and menu wording you would
+recognise from Unreal — the entry you already know should be the entry you
+find. Every place that happens is deliberate, and the
+[Coming from Blueprints](docs) page exists to make the mapping explicit rather
+than something you have to discover.
 
 **Unreal Engine, Unreal and Blueprint are trademarks of Epic Games, Inc.** They
 appear here to name Epic's product while explaining this one, which is the only
