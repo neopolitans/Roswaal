@@ -69,6 +69,23 @@ export const NODE = {
 	radius: 7,
 	/** How far a bezier control point reaches horizontally. */
 	wireSlack: 70,
+	/**
+	 * How far a rigid wire runs straight out of a pin before it may turn.
+	 *
+	 * Smaller than `wireSlack`, because a bezier's control point is a pull
+	 * rather than a distance travelled: the curve leaves the pin horizontally
+	 * and is already turning, where a rigid wire genuinely goes this far before
+	 * bending. Matching the two numbers made the rigid styles look padded.
+	 */
+	wireStub: 22,
+	/**
+	 * How far a backwards wire drops before running back, when its two pins are
+	 * at nearly the same height. Without it the detour collapses onto a single
+	 * line straight through both nodes.
+	 */
+	wireBackstep: 40,
+	/** The 45-degree cut taken off each corner in the angular wire style. */
+	wireChamfer: 14,
 } as const;
 
 export const GRID = {

@@ -1055,11 +1055,30 @@ function settingsPage(): DocPage {
 						"Whether Realign straightens the execution spine or tidies into plain columns. A habit of reading rather than a property of the graph, which is why two people sharing a repository do not have to agree about it.",
 					],
 					[
+						"Wires",
+						"**Curved** is a bezier out of each pin, and the default. **Rigid** is right angles only. **Angular** is the same route with each corner cut to a 45-degree slope. The two rigid styles are one router drawn two ways, so switching between them restyles a wire rather than moving it.",
+					],
+					[
+						"Node corners",
+						"Rounded or square. Capsule getters and reroute knots keep their shapes either way — a pill and a circle are what say *this is a value* and *this is a bend in the wire*, and neither has a title to say it instead.",
+					],
+					[
 						"Write a graph",
 						"How long after your last edit a graph is written. A delay, not a switch — there is no unsaved copy of a graph, so switching it off would give you a document that quietly stops matching itself rather than a buffer.",
 					],
 					["On opening Roswaal", "Reopen the last project, or start at the picker."],
 				],
+			},
+
+			{
+				t: "note",
+				kind: "info",
+				text:
+					"**Wires and node corners are here because people have already forked " +
+					"Unreal's Blueprint UI to get them.** Neither changes what a graph means " +
+					"or what it compiles to — they are how it looks while you read it, which " +
+					"is exactly the kind of thing worth having a setting for rather than a " +
+					"patch.",
 			},
 
 			{ t: "h", level: 2, text: "Themes" },

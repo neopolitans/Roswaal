@@ -25,6 +25,8 @@
 
 import { themeTokens, type Theme } from "../core/theme.js";
 import { BUILTIN_THEMES } from "../core/themeData.js";
+import { NODE } from "./layers.js";
+import type { Preferences } from "./preferences.js";
 
 export { BUILTIN_THEMES };
 
@@ -92,6 +94,24 @@ export function applyTheme(theme: Theme | undefined): void {
 	// in devtools and in a screenshot of a bug report, which is the cheapest
 	// possible answer to "which theme were you on".
 	root.setAttribute("data-theme", theme.name);
+}
+
+/**
+ * The preferences that are a shape rather than a colour.
+ *
+ * Separate from `applyTheme` because they are a different kind of thing and
+ * outlive a scheme: switching theme must not square off somebody's corners, and
+ * switching to *Follow the system* removes a palette without touching them.
+ *
+ * Only the node corner so far. Wire style is not here because a wire is drawn
+ * by `Canvas.tsx` from the path `geometry.ts` builds — it is a route, not a
+ * paint, and CSS cannot express it.
+ */
+export function applyChrome(prefs: Preferences): void {
+	document.documentElement.style.setProperty(
+		"--node-radius",
+		prefs.roundedNodes ? `${NODE.radius}px` : "0px",
+	);
 }
 
 /**

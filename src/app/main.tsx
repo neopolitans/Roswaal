@@ -5,7 +5,7 @@ import { App } from "./App.jsx";
 import { DocsPage } from "./DocsPage.jsx";
 import { installFavicon } from "./logo.jsx";
 import { readPreferences } from "./preferences.js";
-import { applyTheme, findTheme } from "./theme.js";
+import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import "./theme.css";
 
 const container = document.getElementById("root");
@@ -36,7 +36,9 @@ installFavicon();
  * window is the same document, and a developer on Nord who opens the reference
  * should not find it in slate blue.
  */
-applyTheme(findTheme(readPreferences().theme));
+const preferences = readPreferences();
+applyTheme(findTheme(preferences.theme));
+applyChrome(preferences);
 
 createRoot(container).render(
 	<StrictMode>{isDocs ? <DocsPage /> : <App />}</StrictMode>,

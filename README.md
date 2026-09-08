@@ -525,6 +525,19 @@ visibly apart, because they behave differently: `roswaal.json` is committed and
 shared by everyone on the repository, while preferences live in your browser and
 never appear in a diff.
 
+## How the graph looks
+
+Two preferences that change nothing about what a graph means, and exist because
+people have already modified Unreal's Blueprint UI to get them:
+
+- **Wire style** — *Curved* (the default bezier), *Rigid* (right angles only),
+  or *Angular* (the same route with each corner cut to a 45-degree slope). The
+  two rigid styles are one router drawn two ways, so switching restyles a wire
+  rather than moving it.
+- **Node corners** — rounded or square. Capsule getters and reroute knots keep
+  their shapes either way: a pill and a circle are what say *this is a value*
+  and *this is a bend in the wire*, and neither has a title to say it instead.
+
 ## Themes
 
 Seven schemes ship: Roswaal Light and Dark, Tokyo Night, Tokyo Night Storm,

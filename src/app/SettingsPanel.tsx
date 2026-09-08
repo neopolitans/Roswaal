@@ -24,7 +24,7 @@ import {
 } from "../core/theme.js";
 import { LICENCE_TEXTS } from "../core/themeData.js";
 import { BUILTIN_THEMES } from "./theme.js";
-import { AUTOSAVE_CHOICES, type Preferences } from "./preferences.js";
+import { AUTOSAVE_CHOICES, WIRE_STYLES, type Preferences } from "./preferences.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
@@ -239,6 +239,44 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 						onClick={() => onPrefs({ alignExec: false })}
 					>
 						Columns
+					</button>
+				</div>
+			</Row>
+
+			<Row
+				label="Wires"
+				help={WIRE_STYLES.find((w) => w.style === prefs.wireStyle)?.what ?? ""}
+			>
+				<div className="segmented">
+					{WIRE_STYLES.map((w) => (
+						<button
+							key={w.style}
+							className={prefs.wireStyle === w.style ? "on" : ""}
+							title={w.what}
+							onClick={() => onPrefs({ wireStyle: w.style })}
+						>
+							{w.label}
+						</button>
+					))}
+				</div>
+			</Row>
+
+			<Row
+				label="Node corners"
+				help="Capsule getters and reroute knots keep their shapes either way — a pill and a circle are what say “this is a value” and “this is a bend in the wire”, and they have no title to say it instead."
+			>
+				<div className="segmented">
+					<button
+						className={prefs.roundedNodes ? "on" : ""}
+						onClick={() => onPrefs({ roundedNodes: true })}
+					>
+						Rounded
+					</button>
+					<button
+						className={!prefs.roundedNodes ? "on" : ""}
+						onClick={() => onPrefs({ roundedNodes: false })}
+					>
+						Square
 					</button>
 				</div>
 			</Row>

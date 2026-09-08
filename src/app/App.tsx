@@ -35,7 +35,7 @@ import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
 import { SettingsPanel } from "./SettingsPanel.jsx";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
-import { applyTheme, findTheme } from "./theme.js";
+import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
 	addComment, addNode, copySelection, deleteSelection, disconnectPin, pasteClipping,
 	promoteToVariable, recombinePin, setConfig as setNodeConfig, setLiteral, splitCost,
@@ -111,6 +111,7 @@ export function App() {
 			const next = { ...current, ...patch };
 			writePreferences(next);
 			if ("theme" in patch) applyTheme(findTheme(next.theme));
+			if ("roundedNodes" in patch) applyChrome(next);
 			return next;
 		});
 	}, []);
@@ -1057,6 +1058,7 @@ export function App() {
 						registry={registry}
 						diagnostics={diagnostics}
 						locked={locked}
+						wireStyle={prefs.wireStyle}
 						onRequestMenu={(screen, world) => setMenu({ screen, world })}
 						onRequestPinMenu={(screen, nodeId, pin, side) =>
 							setPinMenu({ screen, nodeId, pin, side })

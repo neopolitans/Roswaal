@@ -27,7 +27,7 @@
  * place a theme can be stored and have the docs honour it too.
  *
  * The cost is that preferences do not follow a developer to another browser,
- * which is the right thing to give up: they are small, and there are four.
+ * which is the right thing to give up: they are small, and there are a handful.
  *
  * ## One key
  *
@@ -36,6 +36,8 @@
  * later does not need a migration, and reading them is one parse rather than a
  * lookup per field.
  */
+
+import type { WireStyle } from "./geometry.js";
 
 const KEY = "roswaal.preferences";
 
@@ -67,6 +69,25 @@ export interface Preferences {
 	autosaveMs: number;
 	/** Reopen the last project on load, rather than starting at the picker. */
 	reopenLastProject: boolean;
+	/**
+	 * How wires are drawn: curved, rigid, or rigid with its corners cut.
+	 *
+	 * Purely how the graph looks — nothing about what it means or what it
+	 * compiles to — which is why it is here and not in the document. People have
+	 * modified Unreal's Blueprint UI to get the two rigid styles; shipping them
+	 * saves anyone that.
+	 */
+	wireStyle: WireStyle;
+	/**
+	 * Rounded corners on ordinary nodes.
+	 *
+	 * **Capsules and reroute knots keep their shapes.** A getter is a pill and a
+	 * knot is a circle because the *form* is what says "this is a value" and
+	 * "this is just a bend in the wire" — they have no header and no title to
+	 * say it instead. Squaring those off would not be a style preference, it
+	 * would delete the signal.
+	 */
+	roundedNodes: boolean;
 }
 
 export const AUTOSAVE_CHOICES = [
@@ -76,11 +97,19 @@ export const AUTOSAVE_CHOICES = [
 	{ ms: 5000, label: "After five seconds" },
 ];
 
+export const WIRE_STYLES: { style: WireStyle; label: string; what: string }[] = [
+	{ style: "curved", label: "Curved", what: "A bezier out of each pin. The default, and what Blueprints does." },
+	{ style: "rigid", label: "Rigid", what: "Right angles only — horizontal and vertical runs, square corners." },
+	{ style: "angular", label: "Angular", what: "The same route, with each corner cut to a 45-degree slope." },
+];
+
 export const DEFAULTS: Preferences = {
 	theme: null,
 	alignExec: true,
 	autosaveMs: 600,
 	reopenLastProject: true,
+	wireStyle: "curved",
+	roundedNodes: true,
 };
 
 /**
@@ -113,6 +142,11 @@ export function readPreferences(): Preferences {
 			typeof stored.reopenLastProject === "boolean"
 				? stored.reopenLastProject
 				: DEFAULTS.reopenLastProject,
+		wireStyle: WIRE_STYLES.some((w) => w.style === stored.wireStyle)
+			? (stored.wireStyle as WireStyle)
+			: DEFAULTS.wireStyle,
+		roundedNodes:
+			typeof stored.roundedNodes === "boolean" ? stored.roundedNodes : DEFAULTS.roundedNodes,
 	};
 	return prefs;
 }

@@ -50,6 +50,8 @@ export const RELEASES: Release[] = [
 			"The theme applies to **the docs window too**, which is the same document, and it is applied before anything renders rather than corrected a frame later.",
 			"**Settings → Licences** shows the full text of the three borrowed schemes' licences, compiled in from files copied byte for byte out of each upstream project. MIT requires the notice to travel with the work, and a link is not the notice travelling.",
 			"Two preferences that were previously not settings at all: **how long after your last edit a graph is written**, and **whether Roswaal reopens the last project** or starts at the picker.",
+			"**Three wire styles.** *Curved* is the bezier you have, and stays the default. *Rigid* bends at right angles and nowhere else. *Angular* is the same route with each corner cut to a 45-degree slope — a slope between two rigid runs. People have modified Unreal's Blueprint UI to get both of those, so they are here rather than being a reason to fork this.",
+			"**Square node corners**, for the same reason. Capsule getters and reroute knots keep their shapes either way: a pill and a circle are what say *this is a value* and *this is a bend in the wire*, and neither has a title to say it instead.",
 		],
 		changed: [
 			"**Straighten is a preference rather than a stray `localStorage` key.** It behaves exactly as before; it is now in the settings panel with everything else, and reading it does not require knowing the key's name.",
@@ -60,6 +62,7 @@ export const RELEASES: Release[] = [
 		],
 		watch: [
 			"**A theme cannot recolour a pin or a node category, and that is deliberate.** Red is a boolean, green is a number, gold is a vector; that mapping is most of what makes a graph readable to somebody arriving from Blueprints, and it is worth more than the ability to restyle it.",
+			"The rigid wire router has **no obstacle avoidance**, deliberately. A router that dodged nodes would reroute every wire in the graph whenever one node moved, and a wire that takes a different path each time you nudge something is harder to follow than one that crosses a node.",
 			"Hover, the grid, the watermark and the node shadow are **derived from whether a scheme is dark**, not authored. An overlay is the one token an author gets wrong without seeing it — the mistake is invisible on whichever surface they happened to be looking at — so a palette cannot ship a hover state that does not show.",
 			"Preferences live in this browser and do not follow you to another machine. There are four of them; the alternative was a per-developer file in a shared checkout.",
 		],

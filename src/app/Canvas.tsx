@@ -18,6 +18,7 @@ import { resolveNodePins, type Registry } from "../core/nodes/index.js";
 import type { Diagnostic } from "../core/compiler/index.js";
 import {
 	nodeBounds, pinPosition, rectFromPoints, rectsIntersect, screenToWorld, wirePath,
+	type WireStyle,
 	type Rect, type Vec, type View,
 } from "./geometry.js";
 import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
@@ -51,6 +52,12 @@ export interface CanvasProps {
 	 * cheap half of the fix; the compile is a second or two.
 	 */
 	locked?: boolean;
+	/**
+	 * How wires are drawn. A preference, threaded in rather than read here, so
+	 * the canvas stays a component that renders what it is given — and so the
+	 * live wire being dragged uses the same style as the ones already placed.
+	 */
+	wireStyle?: WireStyle;
 }
 
 type Gesture =
@@ -71,7 +78,7 @@ type Gesture =
 
 export function Canvas({
 	script, registry, diagnostics, onRequestMenu, onRequestPinMenu, onEditCode, onDropFile,
-	locked = false,
+	locked = false, wireStyle = "curved",
 }: CanvasProps) {
 	const { selection } = useEditor();
 	const view = useView();
@@ -474,7 +481,9 @@ export function Canvas({
 		if (!node) return null;
 		const anchor = pinPosition(node, registry, g.from.pin, g.side);
 		if (!anchor) return null;
-		return g.side === "out" ? wirePath(anchor, pointer) : wirePath(pointer, anchor);
+		return g.side === "out"
+			? wirePath(anchor, pointer, wireStyle)
+			: wirePath(pointer, anchor, wireStyle);
 	})();
 
 	return (
@@ -572,7 +581,7 @@ export function Canvas({
 						const fromPin = pinDefOf(registry, script, link.from, "out");
 						const toPin = pinDefOf(registry, script, link.to, "in");
 						const isExec = fromPin?.kind === "exec";
-						const path = wirePath(a, b);
+						const path = wirePath(a, b, wireStyle);
 
 						const fromColor = pinColor(fromPin?.type, "data");
 						const toColor = pinColor(toPin?.type, "data");

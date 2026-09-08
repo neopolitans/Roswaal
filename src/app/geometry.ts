@@ -144,12 +144,121 @@ export function pinPosition(
 	};
 }
 
-/** Cubic bezier that leaves an output rightwards and enters an input leftwards. */
-export function wirePath(from: Vec, to: Vec): string {
-	// Slack grows with distance so short hops stay tight and long ones still
-	// leave the pin horizontally instead of cutting across the node.
-	const slack = Math.max(NODE.wireSlack, Math.abs(to.x - from.x) * 0.4);
-	return `M ${from.x} ${from.y} C ${from.x + slack} ${from.y}, ${to.x - slack} ${to.y}, ${to.x} ${to.y}`;
+/**
+ * How a wire is drawn between two pins.
+ *
+ * A preference rather than a property of the graph: it changes nothing about
+ * what the graph means or what it compiles to, and two people sharing a
+ * repository should not have to agree about it. People have modified Unreal's
+ * Blueprint UI to get the two rigid styles before now, which is the argument
+ * for having them here rather than making somebody fork this to get them.
+ */
+export type WireStyle = "curved" | "rigid" | "angular";
+
+/**
+ * Where a wire is allowed to bend, before any style is applied.
+ *
+ * `rigid` and `angular` are the *same route* — this one — drawn two ways, which
+ * is the whole reason they are built together. If each style had its own router
+ * they could disagree about which side of a node a wire passes, and switching
+ * style would move wires rather than restyle them.
+ *
+ * There is deliberately no obstacle avoidance. A router that dodged nodes would
+ * reroute every wire in the graph whenever one node moved, and a wire that
+ * takes a different path each time you nudge something is harder to follow than
+ * one that crosses a node.
+ */
+function manhattan(from: Vec, to: Vec): Vec[] {
+	const stub = NODE.wireStub;
+
+	// The ordinary case: output on the left of its input. One vertical run,
+	// halfway between them, so two wires between the same pair of columns do
+	// not sit on top of each other's corners.
+	if (to.x - from.x >= stub * 2) {
+		if (from.y === to.y) return [from, to];
+		const midX = (from.x + to.x) / 2;
+		return [from, { x: midX, y: from.y }, { x: midX, y: to.y }, to];
+	}
+
+	// Backwards — a loop, or a node dragged to the left of its source. The wire
+	// has to leave rightwards and enter leftwards regardless, so it goes out,
+	// along a lane, and back.
+	const outX = from.x + stub;
+	const inX = to.x - stub;
+	// Two pins at the same height would put the lane straight through both
+	// nodes and the whole detour would collapse onto one invisible line.
+	const midY =
+		Math.abs(to.y - from.y) < NODE.rowHeight
+			? from.y + NODE.wireBackstep
+			: (from.y + to.y) / 2;
+
+	return [
+		from,
+		{ x: outX, y: from.y },
+		{ x: outX, y: midY },
+		{ x: inX, y: midY },
+		{ x: inX, y: to.y },
+		to,
+	];
+}
+
+/**
+ * A polyline, with each corner optionally cut at 45 degrees.
+ *
+ * `chamfer` of zero gives square corners; anything else gives the slope between
+ * two axis-aligned runs. The cut is clamped to half of the shorter adjoining
+ * segment, so a corner between two short runs shrinks its own chamfer rather
+ * than overshooting into the next one and drawing a wire that doubles back.
+ */
+function polyline(points: Vec[], chamfer: number): string {
+	const round = (n: number) => Math.round(n * 100) / 100;
+	let d = `M ${round(points[0].x)} ${round(points[0].y)}`;
+
+	for (let i = 1; i < points.length - 1; i++) {
+		const prev = points[i - 1];
+		const corner = points[i];
+		const next = points[i + 1];
+
+		const inLength = Math.hypot(corner.x - prev.x, corner.y - prev.y);
+		const outLength = Math.hypot(next.x - corner.x, next.y - corner.y);
+		const cut = Math.min(chamfer, inLength / 2, outLength / 2);
+
+		if (cut <= 0) {
+			d += ` L ${round(corner.x)} ${round(corner.y)}`;
+			continue;
+		}
+
+		const back = {
+			x: corner.x - ((corner.x - prev.x) / inLength) * cut,
+			y: corner.y - ((corner.y - prev.y) / inLength) * cut,
+		};
+		const forward = {
+			x: corner.x + ((next.x - corner.x) / outLength) * cut,
+			y: corner.y + ((next.y - corner.y) / outLength) * cut,
+		};
+		d += ` L ${round(back.x)} ${round(back.y)} L ${round(forward.x)} ${round(forward.y)}`;
+	}
+
+	const end = points[points.length - 1];
+	return `${d} L ${round(end.x)} ${round(end.y)}`;
+}
+
+/**
+ * The path between two pins, in the developer's chosen style.
+ *
+ * `curved` is the default, and is what every caller that does not care gets —
+ * the documentation's node previews among them, because a reference page should
+ * draw a wire the way the reference draws a wire rather than the way whoever
+ * last built the site happened to have their editor set.
+ */
+export function wirePath(from: Vec, to: Vec, style: WireStyle = "curved"): string {
+	if (style === "curved") {
+		// Slack grows with distance so short hops stay tight and long ones still
+		// leave the pin horizontally instead of cutting across the node.
+		const slack = Math.max(NODE.wireSlack, Math.abs(to.x - from.x) * 0.4);
+		return `M ${from.x} ${from.y} C ${from.x + slack} ${from.y}, ${to.x - slack} ${to.y}, ${to.x} ${to.y}`;
+	}
+	return polyline(manhattan(from, to), style === "angular" ? NODE.wireChamfer : 0);
 }
 
 export function rectsIntersect(a: Rect, b: Rect): boolean {

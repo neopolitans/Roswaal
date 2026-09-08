@@ -32,6 +32,12 @@
 	   the stylesheet consults it — a wire attaches at the node edge and the row
 	   centre, never at the pin's own size. */
 	--pin-slot: 16px;
+	/* A node's corner. A preference rather than a theme token — `theme.ts` sets
+	   it to 0 when square corners are chosen — which is why it is a variable at
+	   all rather than the literal it used to be. Capsules and reroute knots
+	   deliberately do not read it: their shapes are what say "value" and "just a
+	   bend", and squaring those would delete the signal rather than restyle it. */
+	--node-radius: 7px;
 	/* What shows through a hollow execution arrow. The node's own body, so the
 	   arrow reads as empty rather than as a lighter shade of itself. */
 	--pin-hollow: var(--node-body);
@@ -494,7 +500,7 @@ button.tb.primary:hover:not(:disabled) {
 
 .node {
 	position: absolute;
-	border-radius: 7px;
+	border-radius: var(--node-radius);
 	background: var(--node-body);
 	border: 1px solid var(--node-border);
 	box-shadow: var(--node-shadow);
@@ -516,7 +522,10 @@ button.tb.primary:hover:not(:disabled) {
 	align-items: center;
 	gap: 6px;
 	padding: 0 9px;
-	border-radius: 6px 6px 0 0;
+	/* One pixel inside the body's own corner, so the header's arc sits within
+	   the border rather than crossing it. `max()` keeps it at zero when corners
+	   are square, instead of going negative and being ignored. */
+	border-radius: max(0px, calc(var(--node-radius) - 1px)) max(0px, calc(var(--node-radius) - 1px)) 0 0;
 	color: #fff;
 	font-weight: 600;
 	font-size: 12px;
