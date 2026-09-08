@@ -1,5 +1,6 @@
 /** Node registry: built-ins plus any custom packs loaded from disk. */
 
+import { ENGINE_TYPES } from "../schema.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
 import {
 	modeOf, partPinId, splitKey, splitsOf, STRUCTS,
@@ -164,13 +165,52 @@ export function nodeTitle(def: NodeDef | undefined, node: GraphNode): string {
 	return def?.title ?? node.def;
 }
 
+const CATEGORY_ORDER = [
+	"Flow", "Events", "Variables", "Values", "Math", "Logic", "Strings", "Tables",
+	ENGINE_TYPES, "Engine", "Instances", "Players", "Networking", "Modules",
+	"Time", "Threads", "Debug",
+];
+
+/**
+ * Datatypes in the order a developer meets them, not alphabetically.
+ *
+ * Vectors first because almost everything positional starts there, then the
+ * things built out of them, then colour, then the UI units, then tweening —
+ * which is last because a tween is the only one of these that does something
+ * rather than describes something.
+ */
+const SUBCATEGORY_ORDER = [
+	"Vector3", "Vector2", "CFrame", "Color3", "BrickColor", "UDim", "UDim2",
+	"TweenInfo", "Tween",
+];
+
 /** Every distinct category present in a registry, in display order. */
 export function categories(registry: Registry): string[] {
-	const order = ["Flow", "Events", "Variables", "Values", "Math", "Vectors", "CFrames", "Logic", "Strings", "Tables", "Engine", "Instances", "Players", "Networking", "Modules", "Time", "Threads", "Debug"];
 	const seen = new Set<string>();
 	for (const def of registry.values()) seen.add(def.category);
-	const known = order.filter((c) => seen.has(c));
-	const rest = [...seen].filter((c) => !order.includes(c)).sort();
+	const known = CATEGORY_ORDER.filter((c) => seen.has(c));
+	const rest = [...seen].filter((c) => !CATEGORY_ORDER.includes(c)).sort();
+	return [...known, ...rest];
+}
+
+/**
+ * The subcategories present in one category, in display order.
+ *
+ * Empty for a category whose nodes do not use them, which is every category but
+ * one — so a caller can branch on `length === 0` and keep its existing flat
+ * rendering rather than growing a second code path for the common case.
+ *
+ * A node in a subcategorised category that names no subcategory is not an
+ * error; it simply does not appear here, and the caller shows it alongside the
+ * groups. Nothing built-in does that, but a pack might.
+ */
+export function subcategories(registry: Registry, category: string): string[] {
+	const seen = new Set<string>();
+	for (const def of registry.values()) {
+		if (def.category === category && def.subcategory) seen.add(def.subcategory);
+	}
+	const known = SUBCATEGORY_ORDER.filter((c) => seen.has(c));
+	const rest = [...seen].filter((c) => !SUBCATEGORY_ORDER.includes(c)).sort();
 	return [...known, ...rest];
 }
 
@@ -248,6 +288,11 @@ export function parseNodePack(source: unknown, origin: string): PackParseResult 
 			id: n.id,
 			title: n.title,
 			category: typeof n.category === "string" && n.category ? n.category : "Custom",
+			// A pack may group its own nodes too. Nothing validates the name
+			// against the built-in list: a pack's subcategories are its own
+			// business, and its nodes sit under its own category anyway.
+			subcategory:
+				typeof n.subcategory === "string" && n.subcategory ? n.subcategory : undefined,
 			summary: typeof n.summary === "string" ? n.summary : undefined,
 			role: n.role === "flow" ? "flow" : "normal",
 			pure: isPure,

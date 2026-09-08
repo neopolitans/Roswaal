@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { NodeConfig, NodeDef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
-import { categories } from "../core/nodes/index.js";
+import { categories, subcategories } from "../core/nodes/index.js";
 import { LAYER } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 
@@ -42,6 +42,8 @@ interface MenuItem {
 	key: string;
 	title: string;
 	category: string;
+	/** Set only for the datatypes, which group one level deeper. */
+	subcategory?: string;
 	summary?: string;
 	color: string;
 	pure: boolean;
@@ -72,6 +74,7 @@ export function NodeMenu(props: NodeMenuProps) {
 				key: def.id,
 				title: def.title,
 				category: def.category,
+				subcategory: def.subcategory,
 				summary: def.summary,
 				color: nodeColor(def),
 				pure: def.pure === true,
@@ -108,6 +111,18 @@ export function NodeMenu(props: NodeMenuProps) {
 			.map((x) => x.item);
 	}, [query, items]);
 
+	/**
+	 * Categories, each holding either a flat list or a list of datatype groups.
+	 *
+	 * Nested rather than flattened into "Engine Types · Vector3" headings,
+	 * because the point of the grouping is that Vector3 and Color3 are *inside*
+	 * one thing rather than beside eleven others — and a heading that repeats
+	 * the same eleven characters nine times says the opposite.
+	 *
+	 * A subcategorised item still sorts under its category, so searching is
+	 * unaffected: `groups` is empty for every category but the datatypes, and
+	 * the renderer falls back to the flat list it always drew.
+	 */
 	const grouped = useMemo(() => {
 		const byCategory = new Map<string, MenuItem[]>();
 		for (const item of matches) {
@@ -117,11 +132,28 @@ export function NodeMenu(props: NodeMenuProps) {
 		}
 		const order = categories(registry).filter((c) => byCategory.has(c));
 		const extra = [...byCategory.keys()].filter((c) => !order.includes(c)).sort();
-		return [...order, ...extra].map((category) => ({ category, items: byCategory.get(category)! }));
+
+		return [...order, ...extra].map((category) => {
+			const all = byCategory.get(category)!;
+			const subs = subcategories(registry, category);
+			if (subs.length === 0) return { category, loose: all, groups: [] };
+
+			// An item in a subcategorised category that names no subcategory is
+			// not an error — nothing built-in does it, but a pack might — so it
+			// is drawn straight under the category heading rather than dropped.
+			const loose = all.filter((item) => !item.subcategory);
+			const groups = subs
+				.map((sub) => ({ sub, items: all.filter((item) => item.subcategory === sub) }))
+				.filter((g) => g.items.length > 0);
+			return { category, loose, groups };
+		});
 	}, [matches, registry]);
 
 	/** Flat order, so arrow keys move through the list the eye reads. */
-	const flat = useMemo(() => grouped.flatMap((g) => g.items), [grouped]);
+	const flat = useMemo(
+		() => grouped.flatMap((g) => [...g.loose, ...g.groups.flatMap((sub) => sub.items)]),
+		[grouped],
+	);
 
 	useEffect(() => setActive(0), [query]);
 
@@ -175,24 +207,33 @@ export function NodeMenu(props: NodeMenuProps) {
 						<span className="hint">C</span>
 					</div>
 				)}
-				{grouped.map((group) => (
-					<div key={group.category}>
-						<div className="group">{group.category}</div>
-						{group.items.map((item) => (
-							<div
-								key={item.key}
-								className={`item${flat[active]?.key === item.key ? " active" : ""}`}
-								title={item.summary}
-								onMouseEnter={() => setActive(flat.indexOf(item))}
-								onClick={() => onPick(item.def, item.config)}
-							>
-								<span className="swatch" style={{ background: item.color }} />
-								<span>{item.title}</span>
-								{item.pure && <span className="hint">pure</span>}
-							</div>
-						))}
-					</div>
-				))}
+				{grouped.map((group) => {
+					const row = (item: MenuItem) => (
+						<div
+							key={item.key}
+							className={`item${flat[active]?.key === item.key ? " active" : ""}`}
+							title={item.summary}
+							onMouseEnter={() => setActive(flat.indexOf(item))}
+							onClick={() => onPick(item.def, item.config)}
+						>
+							<span className="swatch" style={{ background: item.color }} />
+							<span>{item.title}</span>
+							{item.pure && <span className="hint">pure</span>}
+						</div>
+					);
+					return (
+						<div key={group.category}>
+							<div className="group">{group.category}</div>
+							{group.loose.map(row)}
+							{group.groups.map((sub) => (
+								<div key={sub.sub}>
+									<div className="subgroup">{sub.sub}</div>
+									{sub.items.map(row)}
+								</div>
+							))}
+						</div>
+					);
+				})}
 				{flat.length === 0 && <div className="empty">Nothing matches “{query}”.</div>}
 			</div>
 		</div>

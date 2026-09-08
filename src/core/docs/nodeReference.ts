@@ -58,6 +58,8 @@ export interface NodeDoc {
 	id: string;
 	title: string;
 	category: string;
+	/** The datatype grouping, for the categories that have one. */
+	subcategory?: string;
 	summary?: string;
 	/** "expr" | "call" | "statement" | "builtin". */
 	compiles: string;
@@ -125,6 +127,7 @@ export function documentNode(
 		id: def.id,
 		title: def.title,
 		category: def.category,
+		subcategory: def.subcategory,
 		summary: def.summary,
 		compiles: def.compilesTo.kind,
 		pure: def.pure === true,

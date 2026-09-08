@@ -70,9 +70,31 @@ describe("the site", () => {
 	});
 
 	it("orders the node sections the way the palette does", () => {
-		const nodeSections = site.sections.filter((s) => s.slug.startsWith("nodes/"));
+		const nodeSections = site.sections.filter(
+			(s) => s.slug.startsWith("nodes/") && !s.slug.startsWith("nodes/engine-types/"),
+		);
 		expect(nodeSections[0].title).toBe("Flow");
-		expect(nodeSections.map((s) => s.title)).toContain("CFrames");
+		expect(nodeSections.map((s) => s.title)).toContain("Math");
+	});
+
+	/**
+	 * The datatypes are their own nav group, one section per type. The failure
+	 * this guards is a Vector3 page appearing under both "Engine types" and a
+	 * flat "Engine Types" section in the built-in group — which is what happens
+	 * if the category is left in the ordinary reference as well.
+	 */
+	it("gives every datatype its own section, and lists each node once", () => {
+		const engine = site.sections.filter((s) => s.group === GROUPS.engineTypes);
+		expect(engine.map((s) => s.title)).toEqual([
+			"Vector3", "Vector2", "CFrame", "Color3", "BrickColor", "UDim", "UDim2",
+			"TweenInfo", "Tween",
+		]);
+
+		const builtin = site.sections.filter((s) => s.group === GROUPS.builtin);
+		expect(builtin.map((s) => s.title)).not.toContain("Engine Types");
+
+		const ids = allPages(site).map((p) => p.nodeId).filter(Boolean);
+		expect(new Set(ids).size, "a node is documented on exactly one page").toBe(ids.length);
 	});
 
 	/**

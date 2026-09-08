@@ -19,11 +19,11 @@
  */
 
 import type { Registry } from "../nodes/index.js";
-import { categories } from "../nodes/index.js";
+import { categories, subcategories } from "../nodes/index.js";
 import { BLUEPRINT_MAP } from "./blueprints.js";
 import { documentRegistry, OMISSION_REASONS, type NodeDoc } from "./nodeReference.js";
 import { previewOf, type NodePreview } from "./preview.js";
-import { defaultConfig, type NodeScript } from "../schema.js";
+import { defaultConfig, ENGINE_TYPES, type NodeScript } from "../schema.js";
 import { CODE_ROLES, ROLES } from "../theme.js";
 import { BUILTIN_THEMES } from "../themeData.js";
 import { DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, type Attribution } from "./attributions.js";
@@ -142,6 +142,18 @@ export interface DocSection {
 export const GROUPS = {
 	learn: "Learn",
 	builtin: "Built-in nodes",
+	/**
+	 * The Roblox datatypes, lifted out of the built-in list into their own
+	 * heading.
+	 *
+	 * They are built-in nodes like any other, and they get a group of their own
+	 * because the useful unit for them is the *type* rather than the category:
+	 * somebody looking for a Color3 operation is looking for Color3, not
+	 * scrolling a hundred-entry "Engine Types" section hoping to recognise one.
+	 * The nav already nests group inside section inside page, so this needed no
+	 * new level — only the right thing put on each one.
+	 */
+	engineTypes: "Engine types",
 	project: "Project nodes",
 } as const;
 
@@ -1221,7 +1233,17 @@ const TYPES_GUIDE: DocPage = {
 				[
 					"`Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim`, `UDim2`",
 					"Roblox value types",
-					"All splittable — see below.",
+					"All splittable — see below. Every operation on them is under **Engine types**.",
+				],
+				[
+					"`BrickColor`",
+					"A colour from Roblox's fixed palette",
+					"**Not a `Color3`**, and not interchangeable with one. Read `.Color` to get the Color3 behind the name.",
+				],
+				[
+					"`TweenInfo`, `Tween`",
+					"How a tween moves, and a running one",
+					"A TweenInfo is a description and can drive any number of tweens; a Tween is the thing that plays.",
 				],
 				["`RBXScriptSignal`", "A Roblox event", "Wires into Connect Event."],
 				["`RBXScriptConnection`", "A live connection", "What Connect Event hands back."],
@@ -1456,16 +1478,27 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	// somebody hunting for a node looks in the place they already look.
 	const order = categories(registry);
 	const byCategory = new Map<string, DocPage[]>();
+	const bySubcategory = new Map<string, DocPage[]>();
 	for (const doc of nodes) {
+		const page = nodePage(doc);
 		const list = byCategory.get(doc.category) ?? [];
-		list.push(nodePage(doc));
+		list.push(page);
 		byCategory.set(doc.category, list);
+
+		if (doc.category === ENGINE_TYPES && doc.subcategory) {
+			const sub = bySubcategory.get(doc.subcategory) ?? [];
+			sub.push(page);
+			bySubcategory.set(doc.subcategory, sub);
+		}
 	}
 
 	// Built-in and pack nodes are grouped apart rather than interleaved by
 	// category, so a pack's node is recognisable before you click it.
 	const reference = (group: string, custom: boolean): DocSection[] =>
 		order
+			// Engine types get their own group, one section per datatype, built
+			// below. Leaving them here as well would list every one of them twice.
+			.filter((c) => custom || c !== ENGINE_TYPES)
 			.map((c) => ({ c, pages: (byCategory.get(c) ?? []).filter((p) => !!p.custom === custom) }))
 			.filter((x) => x.pages.length > 0)
 			.map((x) => ({
@@ -1473,6 +1506,24 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				slug: `${custom ? "pack" : "nodes"}/${slugify(x.c)}`,
 				pages: x.pages,
 				group,
+			}));
+
+	/**
+	 * One section per datatype.
+	 *
+	 * Built from the registry rather than a list, so a pack that adds nodes to
+	 * an existing datatype lands in that datatype's section — and a pack that
+	 * introduces one of its own gets a section without anything here changing.
+	 */
+	const engineTypeSections = (): DocSection[] =>
+		subcategories(registry, ENGINE_TYPES)
+			.map((sub) => ({ sub, pages: bySubcategory.get(sub) ?? [] }))
+			.filter((x) => x.pages.length > 0)
+			.map((x) => ({
+				title: x.sub,
+				slug: `nodes/engine-types/${slugify(x.sub)}`,
+				pages: x.pages,
+				group: GROUPS.engineTypes,
 			}));
 
 	return {
@@ -1505,6 +1556,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				pages: [attributionsPage()],
 			},
 			...reference(GROUPS.builtin, false),
+			...engineTypeSections(),
 			...reference(GROUPS.project, true),
 		],
 	};

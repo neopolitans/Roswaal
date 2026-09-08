@@ -16,10 +16,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 	Variables: "#2f6f8f",
 	Values: "#3a7a5c",
 	Math: "#43689b",
-	// Close to Math, because vector arithmetic is arithmetic — but distinct
-	// enough that a maths graph and a transform graph do not read as one thing.
-	Vectors: "#3c7f8f",
-	CFrames: "#8a5a2c",
+	/**
+	 * The fallback for a datatype with no colour of its own below. Close to
+	 * Math, because constructing a value is arithmetic's neighbour.
+	 */
+	"Engine Types": "#3c7f8f",
 	Logic: "#575a9e",
 	Strings: "#84509b",
 	Tables: "#9a6c36",
@@ -40,14 +41,46 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 /**
- * Takes the two fields it actually reads rather than a whole `NodeDef`, so the
+ * Datatype colours, which beat the category colour when a node has one.
+ *
+ * Engine Types gathers every Roblox datatype under one heading, and grouping
+ * them must not make them *look* like one thing — a graph doing CFrame work and
+ * a graph doing colour work should still read differently at a glance. Vector3
+ * and CFrame keep exactly the colours they had when Vectors and CFrames were
+ * separate categories, so nobody's existing graph changed appearance when they
+ * were folded in.
+ *
+ * Each is near its type's pin colour without matching it, so a node reads as
+ * "about vectors" while the pin still reads as "is a vector".
+ */
+const SUBCATEGORY_COLORS: Record<string, string> = {
+	Vector3: "#3c7f8f",
+	Vector2: "#35707e",
+	CFrame: "#8a5a2c",
+	Color3: "#2f7f7a",
+	// Warmer than Color3: a BrickColor is a name from a fixed palette, and the
+	// two are constantly confused for each other in Roblox code.
+	BrickColor: "#8a4f6b",
+	UDim: "#5e7a3f",
+	UDim2: "#6b8a45",
+	// Tweening is the one group here that *does* something rather than
+	// describing a value, so it sits apart from the rest.
+	TweenInfo: "#7a5a9b",
+	Tween: "#6a4f9b",
+};
+
+/**
+ * Takes the fields it actually reads rather than a whole `NodeDef`, so the
  * documentation's node previews — which hold a description of a node, not the
  * definition itself — can be coloured by this function instead of by a copy of
- * this table. A `NodeDef` satisfies the shape, so every existing call still
+ * these tables. A `NodeDef` satisfies the shape, so every existing call still
  * passes one.
  */
-export function nodeColor(def: { category: string; role?: string }): string {
+export function nodeColor(def: { category: string; subcategory?: string; role?: string }): string {
 	if (def.role === "entry" || def.role === "terminal") return FLOW_RED;
+	if (def.subcategory && SUBCATEGORY_COLORS[def.subcategory]) {
+		return SUBCATEGORY_COLORS[def.subcategory];
+	}
 	return CATEGORY_COLORS[def.category] ?? CATEGORY_COLORS.Custom;
 }
 
@@ -83,7 +116,15 @@ const TYPE_COLORS: Record<string, string> = {
 	Vector2: "#d6ae3c",
 	CFrame: "#d4772e",
 	Color3: "#48b8c4",
+	// A BrickColor is not a Color3 and mixing them up is a common Roblox
+	// mistake, so the two are deliberately not the same colour.
+	BrickColor: "#c46a9c",
+	UDim: "#7a9a4a",
 	UDim2: "#7a9a4a",
+	// A TweenInfo is a description; a Tween is a running thing. Near each other,
+	// because they are always used together, and not identical.
+	TweenInfo: "#a07fd0",
+	Tween: "#8a63c4",
 	RBXScriptSignal: "#c4453f",
 	RBXScriptConnection: "#9c5a55",
 };

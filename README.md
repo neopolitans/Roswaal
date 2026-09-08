@@ -283,6 +283,33 @@ on the returned table; a single pin left with its default name returns that
 value directly, which is what a module exporting one function or one class
 wants.
 
+## Engine types
+
+Every Roblox datatype lives under one category, **Engine types**, with a
+subcategory for each: `Vector3`, `Vector2`, `CFrame`, `Color3`, `BrickColor`,
+`UDim`, `UDim2`, `TweenInfo` and `Tween`. The node menu groups two levels deep
+there, and the documentation gives each type its own section.
+
+Grouping them does not make them look alike — a node is coloured by its
+*datatype*, so a graph doing CFrame work and a graph doing colour work still
+read differently at a glance.
+
+A few things worth knowing:
+
+- **Colour converts both ways between all four forms.** RGB 0–255, RGB float
+  0–1, HSV and hex, in and out. `Color3 To RGB` rounds to whole channels;
+  `Color3 To RGB Float` gives you what the engine actually stores.
+- **`BrickColor` is not a `Color3`** and the two are not interchangeable. Read
+  `.Color` to get the Color3 behind the name. Its float constructor takes 0–1,
+  not 0–255 — the one place BrickColor disagrees with the colour picker.
+- **Tweening goes end to end**: a TweenInfo, Create Tween, Play / Pause /
+  Cancel, and the Completed signal, so a graph can wait for a tween rather than
+  guessing at a delay. **Tween Property** is the shorthand for animating one
+  property; for several, wire in a table.
+- **Break nodes** exist for Vector3, Vector2, UDim and CFrame's Euler angles.
+  Splitting the pin does the same job in less room — these are here because a
+  Break node is what a Blueprints hand reaches for first.
+
 ## The two file formats
 
 | Extension | Contents |

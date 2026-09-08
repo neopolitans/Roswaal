@@ -39,6 +39,32 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.15.0",
+		date: "2026-09-08",
+		headline: "Every Roblox datatype, in one place, with a lot more of them.",
+		added: [
+			"**A category called Engine types**, holding every Roblox datatype with a subcategory per type: Vector3, Vector2, CFrame, Color3, BrickColor, UDim, UDim2, TweenInfo and Tween. The node menu groups two levels deep now, and the documentation gives each type its own nav section.",
+			"**Vector3 gained the rest of its API** — divide, component-wise multiply, negate, Angle, Max, Min, Abs, Ceil, Floor, Sign, FuzzyEq and a Break node — and **Vector2 now has all of it too**, where before it had only a constructor.",
+			"**Color3 converts both ways between all four forms you actually have**: RGB 0–255, RGB float 0–1, HSV, and hex. `Color3 To RGB` rounds to whole channels; `Color3 To RGB Float` gives you what the engine actually stores.",
+			"**BrickColor**, which is *not* a Color3 and now says so — by name, from a Color3, from float channels, by palette index, or random, plus `.Color`, `.Name` and `.Number` to get back out.",
+			"**UDim and UDim2**, with construction from scale or offset, arithmetic, Lerp, and the X / Y / Width / Height accessors.",
+			"**Tweening, end to end.** A TweenInfo with easing style and direction as dropdowns, Create Tween, Play, Pause and Cancel, and the Completed signal — so a graph can wait for a tween to finish rather than guessing at a delay.",
+			"**Tween Property**, a one-property shorthand so the common case does not need a table built by hand. For several at once, wire in a table from New Table and Set Index.",
+			"**Break nodes** for Vector3, Vector2, UDim and CFrame's Euler angles. Splitting a pin already did this and takes less room; these exist because a Break node is what a Blueprints hand reaches for first.",
+		],
+		changed: [
+			"**Vectors and CFrames are no longer top-level categories**, and the two datatype nodes that sat under Engine have moved out of it. Everything is under Engine types, grouped by the type it belongs to.",
+			"**Nodes are coloured by their datatype now**, not by the category. Vector3 and CFrame nodes keep exactly the colours they had, so grouping them together did not make a vector graph and a transform graph read as the same thing.",
+			"`BrickColor`, `TweenInfo` and `Tween` are pin types of their own with their own colours. BrickColor is deliberately not near Color3's: mixing the two up is a common Roblox mistake and the colours should not encourage it.",
+		],
+		watch: [
+			"**No node changed its id, so no graph moved.** A graph stores ids; this release changed how nodes are *found* and not what they are called. `roblox.vector3` and `roblox.color3` kept theirs even though both were retitled — the latter is now `Color3 from RGB`, because there are four ways to make one.",
+			"`Color3 To HSV` and `To Euler Angles XYZ` call the underlying method **once per output you wire**. A pure node is one expression per output, and the alternative was making a colour conversion into an execution step. Wiring one component costs one call; wiring all three costs three.",
+			"BrickColor's float constructor takes channels from **0 to 1**, not 0 to 255. That is the engine's signature, and it is the one place BrickColor disagrees with the colour picker.",
+			"The easing and BrickColor dropdowns are **suggestions, not closed lists** — anything not offered can still be typed, so a value Roblox adds later is never a dead end.",
+		],
+	},
+	{
 		version: "0.14.0",
 		date: "2026-09-08",
 		headline: "Settings you can find, and seven colour schemes.",

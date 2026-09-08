@@ -9,7 +9,7 @@
 
 import type { NodeDef, PinDef } from "../schema.js";
 import { PATH_ROOTS, ROBLOX_SERVICES } from "../roblox.js";
-import { LUAU } from "../schema.js";
+import { ENGINE_TYPES, LUAU } from "../schema.js";
 
 const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
 const d = (id: string, name: string, type: string, def?: PinDef["default"]): PinDef => ({
@@ -162,6 +162,94 @@ function argPins(config: Record<string, unknown>): PinDef[] {
 	);
 }
 
+// ---------------------------------------------------------------------------
+// Engine types
+// ---------------------------------------------------------------------------
+
+/**
+ * A Roblox datatype's block of nodes.
+ *
+ * The category and subcategory are stamped on here rather than repeated on
+ * every entry, which is what keeps ninety datatype nodes readable as a list of
+ * operations rather than a column of the same two strings.
+ */
+function datatype(subcategory: string, defs: NodeDef[]): NodeDef[] {
+	return defs.map((def) => ({ ...def, category: ENGINE_TYPES, subcategory }));
+}
+
+/** `pure`, with the category left to `datatype` to fill in. */
+const p = (
+	id: string, title: string, template: string,
+	inputs: PinDef[], resultType: string, summary?: string,
+): NodeDef => pure(id, title, ENGINE_TYPES, template, inputs, resultType, summary);
+
+/**
+ * A pure node that takes one value apart into several.
+ *
+ * Unreal calls this Break; here it is one node per datatype with an output per
+ * component. Splitting the pin does the same job — see `structs.ts` — but a
+ * Break node is what somebody arriving from Blueprints reaches for first, and
+ * having both costs one definition.
+ *
+ * Each output carries its **own** expression, because that is what `expr` is.
+ * For a component that is a plain field read that is exactly right. For one
+ * that comes out of a multiple-return call it means the call is written once
+ * per output actually wired — see `Color3 To HSV`, which is the only case here
+ * where that is true and where it is said on the node itself.
+ */
+function breakInto(
+	id: string, title: string, inputs: PinDef[],
+	outputs: { id: string; name: string; type: string; expr: string }[],
+	summary?: string,
+): NodeDef {
+	return {
+		id, title, category: ENGINE_TYPES, summary, pure: true, inputs,
+		outputs: outputs.map((o) => d(o.id, o.name, o.type)),
+		compilesTo: {
+			kind: "expr",
+			outputs: Object.fromEntries(outputs.map((o) => [o.id, o.expr])),
+		},
+	};
+}
+
+/** Datatype pins, each defaulting to a real value rather than nil. */
+const v2 = (id: string, name: string) => d(id, name, "Vector2", { t: "raw", v: "Vector2.zero" });
+const col = (id: string, name: string) =>
+	d(id, name, "Color3", { t: "raw", v: "Color3.new(1, 1, 1)" });
+const bcol = (id: string, name: string) =>
+	d(id, name, "BrickColor", { t: "raw", v: 'BrickColor.new("Medium stone grey")' });
+const ud = (id: string, name: string) => d(id, name, "UDim", { t: "raw", v: "UDim.new(0, 0)" });
+const ud2 = (id: string, name: string) => d(id, name, "UDim2", { t: "raw", v: "UDim2.new()" });
+const tinfo = (id: string, name: string) =>
+	d(id, name, "TweenInfo", { t: "raw", v: "TweenInfo.new()" });
+
+/**
+ * Easing, as suggestions rather than a closed set.
+ *
+ * `options` on a pin is a dropdown you can still type into, which is the right
+ * shape for an engine enum: these are the styles Roblox ships today, and a
+ * value the list has not caught up with should not be a dead end.
+ */
+const EASING_STYLES = [
+	"Linear", "Sine", "Quad", "Cubic", "Quart", "Quint",
+	"Back", "Bounce", "Elastic", "Exponential", "Circular",
+];
+const EASING_DIRECTIONS = ["Out", "In", "InOut"];
+
+/**
+ * The BrickColor names worth offering, out of the many hundreds the engine
+ * knows.
+ *
+ * Suggestions only, for the same reason as the easing lists. A full list would
+ * be a dropdown nobody could scan and a large table to carry; these are the
+ * ones that actually turn up in code.
+ */
+const BRICK_COLORS = [
+	"Medium stone grey", "Institutional white", "White", "Black", "Really black",
+	"Bright red", "Really red", "Bright blue", "Bright yellow", "Bright green",
+	"Bright orange", "Dark stone grey", "Earth green", "Deep blue", "Reddish brown",
+];
+
 export const LIBRARY_NODES: NodeDef[] = [
 	// -- Values ------------------------------------------------------------
 	pure("value.number", "Number", "Values", "$in.value", [num("value", "")], "number"),
@@ -306,10 +394,6 @@ export const LIBRARY_NODES: NodeDef[] = [
 		[d("instance", "Instance", "Instance"), d("parent", "Parent", "Instance")], { targets: ["roblox"] }),
 	stmt("roblox.destroy", "Destroy", "Engine", "$in.instance:Destroy()",
 		[d("instance", "Instance", "Instance")], { targets: ["roblox"] }),
-	pure("roblox.vector3", "Vector3", "Engine", "Vector3.new($in.x, $in.y, $in.z)",
-		[num("x", "X"), num("y", "Y"), num("z", "Z")], "Vector3"),
-	pure("roblox.color3", "Color3", "Engine", "Color3.fromRGB($in.r, $in.g, $in.b)",
-		[num("r", "R", 255), num("g", "G", 255), num("b", "B", 255)], "Color3"),
 
 	// -- Signals and connections -------------------------------------------
 	//
@@ -566,77 +650,319 @@ export const LIBRARY_NODES: NodeDef[] = [
 		[d("value", "Value", "any"), str("type", "Type", "BasePart")], "any",
 		"Luau refuses a cast between unrelated types. Going through `any` is the documented way round it, and the extra step is the point: it marks where you overrode the typechecker rather than agreed with it."),
 
-	// -- Vectors -----------------------------------------------------------
+	// -- Engine types ------------------------------------------------------
 	//
-	// Every one of these is pure, so they compose into an expression without an
-	// execution wire threading through the arithmetic -- which is the difference
-	// between a readable maths graph and a staircase.
-	pure("vector3.zero", "Vector3 Zero", "Vectors", "Vector3.zero", [], "Vector3"),
-	pure("vector3.one", "Vector3 One", "Vectors", "Vector3.one", [], "Vector3"),
-	pure("vector3.axis", "Vector3 Axis", "Vectors", "Vector3.$in.axis!ident",
-		[{ ...str("axis", "Axis", "yAxis"), options: ["xAxis", "yAxis", "zAxis"] }], "Vector3",
-		"A unit vector along one axis."),
-	pure("vector3.add", "Vector3 +", "Vectors", "$in.a + $in.b", [vec("a", "A"), vec("b", "B")], "Vector3"),
-	pure("vector3.sub", "Vector3 −", "Vectors", "$in.a - $in.b", [vec("a", "A"), vec("b", "B")], "Vector3"),
-	pure("vector3.scale", "Vector3 × Scalar", "Vectors", "$in.v * $in.scalar",
-		[vec("v", "Vector"), num("scalar", "Scalar", 1)], "Vector3"),
-	pure("vector3.dot", "Dot", "Vectors", "$in.a:Dot($in.b)", [vec("a", "A"), vec("b", "B")], "number"),
-	pure("vector3.cross", "Cross", "Vectors", "$in.a:Cross($in.b)", [vec("a", "A"), vec("b", "B")], "Vector3"),
-	pure("vector3.magnitude", "Magnitude", "Vectors", "$in.v.Magnitude", [vec("v", "Vector")], "number"),
-	pure("vector3.unit", "Unit", "Vectors", "$in.v.Unit", [vec("v", "Vector")], "Vector3",
-		"The vector scaled to length one. Undefined for a zero vector, as in Luau."),
-	pure("vector3.lerp", "Vector3 Lerp", "Vectors", "$in.a:Lerp($in.b, $in.alpha)",
-		[vec("a", "A"), vec("b", "B"), num("alpha", "Alpha", 0.5)], "Vector3"),
-	pure("vector3.distance", "Distance", "Vectors", "($in.a - $in.b).Magnitude",
-		[vec("a", "A"), vec("b", "B")], "number"),
-	pure("vector2.new", "Vector2", "Vectors", "Vector2.new($in.x, $in.y)",
-		[num("x", "X"), num("y", "Y")], "Vector2"),
+	// Every Roblox datatype, one subcategory per type. Almost all of it is pure,
+	// so the values compose into an expression without an execution wire
+	// threading through the arithmetic -- which is the difference between a
+	// readable maths graph and a staircase.
+	//
+	// Node ids are unchanged from when these lived under Vectors, CFrames and
+	// Engine. A graph stores ids, so folding three categories into one moved
+	// nothing anybody had already placed.
 
-	// -- CFrames -----------------------------------------------------------
-	pure("cframe.identity", "CFrame Identity", "CFrames", "CFrame.identity", [], "CFrame"),
-	pure("cframe.new", "CFrame", "CFrames", "CFrame.new($in.position)",
-		[vec("position", "Position")], "CFrame", "A CFrame at a position, with no rotation."),
-	pure("cframe.lookAt", "Look At", "CFrames", "CFrame.lookAt($in.from, $in.to, $in.up)",
-		[vec("from", "From"), vec("to", "To"), { ...vec("up", "Up"), default: { t: "raw", v: "Vector3.yAxis" } }],
-		"CFrame", "Positioned at From, facing To. The workhorse for aiming anything."),
-	pure("cframe.angles", "CFrame Angles", "CFrames", "CFrame.Angles($in.rx, $in.ry, $in.rz)",
-		[num("rx", "X (rad)"), num("ry", "Y (rad)"), num("rz", "Z (rad)")], "CFrame",
-		"Rotation only, in radians. Pair with Rad to work in degrees."),
-	pure("cframe.fromAxisAngle", "From Axis Angle", "CFrames",
-		"CFrame.fromAxisAngle($in.axis, $in.angle)",
-		[{ ...vec("axis", "Axis"), default: { t: "raw", v: "Vector3.yAxis" } }, num("angle", "Angle (rad)")],
-		"CFrame"),
-	pure("cframe.mul", "CFrame ×", "CFrames", "$in.a * $in.b", [cf("a", "A"), cf("b", "B")], "CFrame",
-		"Composes two CFrames. Order matters: A then B, in A's space."),
-	pure("cframe.translate", "CFrame + Vector3", "CFrames", "$in.cframe + $in.offset",
-		[cf("cframe", "CFrame"), vec("offset", "Offset")], "CFrame",
-		"Moves in world space, leaving the rotation alone."),
-	pure("cframe.inverse", "Inverse", "CFrames", "$in.cframe:Inverse()", [cf("cframe", "CFrame")], "CFrame"),
-	pure("cframe.lerp", "CFrame Lerp", "CFrames", "$in.a:Lerp($in.b, $in.alpha)",
-		[cf("a", "A"), cf("b", "B"), num("alpha", "Alpha", 0.5)], "CFrame"),
-	pure("cframe.toWorldSpace", "To World Space", "CFrames", "$in.cframe:ToWorldSpace($in.offset)",
-		[cf("cframe", "CFrame"), cf("offset", "Offset")], "CFrame"),
-	pure("cframe.toObjectSpace", "To Object Space", "CFrames", "$in.cframe:ToObjectSpace($in.other)",
-		[cf("cframe", "CFrame"), cf("other", "Other")], "CFrame"),
-	pure("cframe.pointToWorldSpace", "Point To World Space", "CFrames",
-		"$in.cframe:PointToWorldSpace($in.point)",
-		[cf("cframe", "CFrame"), vec("point", "Point")], "Vector3"),
-	pure("cframe.pointToObjectSpace", "Point To Object Space", "CFrames",
-		"$in.cframe:PointToObjectSpace($in.point)",
-		[cf("cframe", "CFrame"), vec("point", "Point")], "Vector3"),
-	pure("cframe.vectorToWorldSpace", "Vector To World Space", "CFrames",
-		"$in.cframe:VectorToWorldSpace($in.vector)",
-		[cf("cframe", "CFrame"), vec("vector", "Vector")], "Vector3"),
-	pure("cframe.position", "CFrame Position", "CFrames", "$in.cframe.Position",
-		[cf("cframe", "CFrame")], "Vector3"),
-	pure("cframe.rotation", "CFrame Rotation", "CFrames", "$in.cframe.Rotation",
-		[cf("cframe", "CFrame")], "CFrame"),
-	pure("cframe.lookVector", "Look Vector", "CFrames", "$in.cframe.LookVector",
-		[cf("cframe", "CFrame")], "Vector3"),
-	pure("cframe.rightVector", "Right Vector", "CFrames", "$in.cframe.RightVector",
-		[cf("cframe", "CFrame")], "Vector3"),
-	pure("cframe.upVector", "Up Vector", "CFrames", "$in.cframe.UpVector",
-		[cf("cframe", "CFrame")], "Vector3"),
+	...datatype("Vector3", [
+		p("roblox.vector3", "Vector3", "Vector3.new($in.x, $in.y, $in.z)",
+			[num("x", "X"), num("y", "Y"), num("z", "Z")], "Vector3"),
+		p("vector3.zero", "Vector3 Zero", "Vector3.zero", [], "Vector3"),
+		p("vector3.one", "Vector3 One", "Vector3.one", [], "Vector3"),
+		p("vector3.axis", "Vector3 Axis", "Vector3.$in.axis!ident",
+			[{ ...str("axis", "Axis", "yAxis"), options: ["xAxis", "yAxis", "zAxis"] }], "Vector3",
+			"A unit vector along one axis."),
+
+		p("vector3.add", "Vector3 +", "$in.a + $in.b", [vec("a", "A"), vec("b", "B")], "Vector3"),
+		p("vector3.sub", "Vector3 −", "$in.a - $in.b", [vec("a", "A"), vec("b", "B")], "Vector3"),
+		p("vector3.scale", "Vector3 × Scalar", "$in.v * $in.scalar",
+			[vec("v", "Vector"), num("scalar", "Scalar", 1)], "Vector3"),
+		p("vector3.divide", "Vector3 ÷ Scalar", "$in.v / $in.scalar",
+			[vec("v", "Vector"), num("scalar", "Scalar", 1)], "Vector3"),
+		p("vector3.mul", "Vector3 × Vector3", "$in.a * $in.b",
+			[vec("a", "A"), vec("b", "B")], "Vector3",
+			"Component by component, not a dot or cross product. Useful as a per-axis scale."),
+		p("vector3.negate", "Vector3 Negate", "-$in.v", [vec("v", "Vector")], "Vector3"),
+
+		p("vector3.dot", "Dot", "$in.a:Dot($in.b)", [vec("a", "A"), vec("b", "B")], "number"),
+		p("vector3.cross", "Cross", "$in.a:Cross($in.b)", [vec("a", "A"), vec("b", "B")], "Vector3"),
+		p("vector3.angle", "Vector3 Angle", "$in.a:Angle($in.b)",
+			[vec("a", "A"), vec("b", "B")], "number",
+			"The unsigned angle between two vectors, in radians."),
+		p("vector3.lerp", "Vector3 Lerp", "$in.a:Lerp($in.b, $in.alpha)",
+			[vec("a", "A"), vec("b", "B"), num("alpha", "Alpha", 0.5)], "Vector3"),
+		p("vector3.max", "Vector3 Max", "$in.a:Max($in.b)",
+			[vec("a", "A"), vec("b", "B")], "Vector3", "The larger of each component."),
+		p("vector3.min", "Vector3 Min", "$in.a:Min($in.b)",
+			[vec("a", "A"), vec("b", "B")], "Vector3", "The smaller of each component."),
+		p("vector3.fuzzyEq", "Vector3 Fuzzy Equals", "$in.a:FuzzyEq($in.b, $in.epsilon)",
+			[vec("a", "A"), vec("b", "B"), num("epsilon", "Epsilon", 0.00001)], "boolean",
+			"Equality within a tolerance. What you want instead of `=` on anything that came out of arithmetic."),
+
+		p("vector3.abs", "Vector3 Abs", "$in.v:Abs()", [vec("v", "Vector")], "Vector3"),
+		p("vector3.ceil", "Vector3 Ceil", "$in.v:Ceil()", [vec("v", "Vector")], "Vector3"),
+		p("vector3.floor", "Vector3 Floor", "$in.v:Floor()", [vec("v", "Vector")], "Vector3"),
+		p("vector3.sign", "Vector3 Sign", "$in.v:Sign()", [vec("v", "Vector")], "Vector3",
+			"-1, 0 or 1 per component."),
+
+		p("vector3.magnitude", "Magnitude", "$in.v.Magnitude", [vec("v", "Vector")], "number"),
+		p("vector3.unit", "Unit", "$in.v.Unit", [vec("v", "Vector")], "Vector3",
+			"The vector scaled to length one. Undefined for a zero vector, as in Luau."),
+		p("vector3.distance", "Distance", "($in.a - $in.b).Magnitude",
+			[vec("a", "A"), vec("b", "B")], "number"),
+		breakInto("vector3.break", "Break Vector3", [vec("v", "Vector")], [
+			{ id: "x", name: "X", type: "number", expr: "$in.v.X" },
+			{ id: "y", name: "Y", type: "number", expr: "$in.v.Y" },
+			{ id: "z", name: "Z", type: "number", expr: "$in.v.Z" },
+		], "Splitting the pin does the same job and takes up less room; this is here because it is what a Blueprints hand reaches for."),
+	]),
+
+	...datatype("Vector2", [
+		p("vector2.new", "Vector2", "Vector2.new($in.x, $in.y)",
+			[num("x", "X"), num("y", "Y")], "Vector2"),
+		p("vector2.zero", "Vector2 Zero", "Vector2.zero", [], "Vector2"),
+		p("vector2.one", "Vector2 One", "Vector2.one", [], "Vector2"),
+		p("vector2.axis", "Vector2 Axis", "Vector2.$in.axis!ident",
+			[{ ...str("axis", "Axis", "yAxis"), options: ["xAxis", "yAxis"] }], "Vector2"),
+
+		p("vector2.add", "Vector2 +", "$in.a + $in.b", [v2("a", "A"), v2("b", "B")], "Vector2"),
+		p("vector2.sub", "Vector2 −", "$in.a - $in.b", [v2("a", "A"), v2("b", "B")], "Vector2"),
+		p("vector2.scale", "Vector2 × Scalar", "$in.v * $in.scalar",
+			[v2("v", "Vector"), num("scalar", "Scalar", 1)], "Vector2"),
+		p("vector2.divide", "Vector2 ÷ Scalar", "$in.v / $in.scalar",
+			[v2("v", "Vector"), num("scalar", "Scalar", 1)], "Vector2"),
+		p("vector2.negate", "Vector2 Negate", "-$in.v", [v2("v", "Vector")], "Vector2"),
+
+		p("vector2.dot", "Vector2 Dot", "$in.a:Dot($in.b)", [v2("a", "A"), v2("b", "B")], "number"),
+		p("vector2.cross", "Vector2 Cross", "$in.a:Cross($in.b)",
+			[v2("a", "A"), v2("b", "B")], "number",
+			"In two dimensions the cross product is a single number, not a vector."),
+		p("vector2.angle", "Vector2 Angle", "$in.a:Angle($in.b)",
+			[v2("a", "A"), v2("b", "B")], "number"),
+		p("vector2.lerp", "Vector2 Lerp", "$in.a:Lerp($in.b, $in.alpha)",
+			[v2("a", "A"), v2("b", "B"), num("alpha", "Alpha", 0.5)], "Vector2"),
+		p("vector2.max", "Vector2 Max", "$in.a:Max($in.b)", [v2("a", "A"), v2("b", "B")], "Vector2"),
+		p("vector2.min", "Vector2 Min", "$in.a:Min($in.b)", [v2("a", "A"), v2("b", "B")], "Vector2"),
+		p("vector2.fuzzyEq", "Vector2 Fuzzy Equals", "$in.a:FuzzyEq($in.b, $in.epsilon)",
+			[v2("a", "A"), v2("b", "B"), num("epsilon", "Epsilon", 0.00001)], "boolean"),
+
+		p("vector2.abs", "Vector2 Abs", "$in.v:Abs()", [v2("v", "Vector")], "Vector2"),
+		p("vector2.ceil", "Vector2 Ceil", "$in.v:Ceil()", [v2("v", "Vector")], "Vector2"),
+		p("vector2.floor", "Vector2 Floor", "$in.v:Floor()", [v2("v", "Vector")], "Vector2"),
+		p("vector2.sign", "Vector2 Sign", "$in.v:Sign()", [v2("v", "Vector")], "Vector2"),
+
+		p("vector2.magnitude", "Vector2 Magnitude", "$in.v.Magnitude", [v2("v", "Vector")], "number"),
+		p("vector2.unit", "Vector2 Unit", "$in.v.Unit", [v2("v", "Vector")], "Vector2"),
+		p("vector2.distance", "Vector2 Distance", "($in.a - $in.b).Magnitude",
+			[v2("a", "A"), v2("b", "B")], "number"),
+		breakInto("vector2.break", "Break Vector2", [v2("v", "Vector")], [
+			{ id: "x", name: "X", type: "number", expr: "$in.v.X" },
+			{ id: "y", name: "Y", type: "number", expr: "$in.v.Y" },
+		]),
+	]),
+
+	...datatype("CFrame", [
+		p("cframe.identity", "CFrame Identity", "CFrame.identity", [], "CFrame"),
+		p("cframe.new", "CFrame", "CFrame.new($in.position)",
+			[vec("position", "Position")], "CFrame", "A CFrame at a position, with no rotation."),
+		p("cframe.lookAt", "Look At", "CFrame.lookAt($in.from, $in.to, $in.up)",
+			[vec("from", "From"), vec("to", "To"), { ...vec("up", "Up"), default: { t: "raw", v: "Vector3.yAxis" } }],
+			"CFrame", "Positioned at From, facing To. The workhorse for aiming anything."),
+		p("cframe.angles", "CFrame Angles", "CFrame.Angles($in.rx, $in.ry, $in.rz)",
+			[num("rx", "X (rad)"), num("ry", "Y (rad)"), num("rz", "Z (rad)")], "CFrame",
+			"Rotation only, in radians. Pair with Rad to work in degrees."),
+		p("cframe.fromAxisAngle", "From Axis Angle", "CFrame.fromAxisAngle($in.axis, $in.angle)",
+			[{ ...vec("axis", "Axis"), default: { t: "raw", v: "Vector3.yAxis" } }, num("angle", "Angle (rad)")],
+			"CFrame"),
+
+		p("cframe.mul", "CFrame ×", "$in.a * $in.b", [cf("a", "A"), cf("b", "B")], "CFrame",
+			"Composes two CFrames. Order matters: A then B, in A's space."),
+		p("cframe.translate", "CFrame + Vector3", "$in.cframe + $in.offset",
+			[cf("cframe", "CFrame"), vec("offset", "Offset")], "CFrame",
+			"Moves in world space, leaving the rotation alone."),
+		p("cframe.inverse", "Inverse", "$in.cframe:Inverse()", [cf("cframe", "CFrame")], "CFrame"),
+		p("cframe.lerp", "CFrame Lerp", "$in.a:Lerp($in.b, $in.alpha)",
+			[cf("a", "A"), cf("b", "B"), num("alpha", "Alpha", 0.5)], "CFrame"),
+
+		p("cframe.toWorldSpace", "To World Space", "$in.cframe:ToWorldSpace($in.offset)",
+			[cf("cframe", "CFrame"), cf("offset", "Offset")], "CFrame"),
+		p("cframe.toObjectSpace", "To Object Space", "$in.cframe:ToObjectSpace($in.other)",
+			[cf("cframe", "CFrame"), cf("other", "Other")], "CFrame"),
+		p("cframe.pointToWorldSpace", "Point To World Space", "$in.cframe:PointToWorldSpace($in.point)",
+			[cf("cframe", "CFrame"), vec("point", "Point")], "Vector3"),
+		p("cframe.pointToObjectSpace", "Point To Object Space", "$in.cframe:PointToObjectSpace($in.point)",
+			[cf("cframe", "CFrame"), vec("point", "Point")], "Vector3"),
+		p("cframe.vectorToWorldSpace", "Vector To World Space", "$in.cframe:VectorToWorldSpace($in.vector)",
+			[cf("cframe", "CFrame"), vec("vector", "Vector")], "Vector3"),
+		p("cframe.vectorToObjectSpace", "Vector To Object Space", "$in.cframe:VectorToObjectSpace($in.vector)",
+			[cf("cframe", "CFrame"), vec("vector", "Vector")], "Vector3",
+			"A direction expressed in this CFrame's own axes. Rotation only, so a translation does not move it."),
+
+		p("cframe.position", "CFrame Position", "$in.cframe.Position", [cf("cframe", "CFrame")], "Vector3"),
+		p("cframe.rotation", "CFrame Rotation", "$in.cframe.Rotation", [cf("cframe", "CFrame")], "CFrame"),
+		p("cframe.lookVector", "Look Vector", "$in.cframe.LookVector", [cf("cframe", "CFrame")], "Vector3"),
+		p("cframe.rightVector", "Right Vector", "$in.cframe.RightVector", [cf("cframe", "CFrame")], "Vector3"),
+		p("cframe.upVector", "Up Vector", "$in.cframe.UpVector", [cf("cframe", "CFrame")], "Vector3"),
+		breakInto("cframe.toEulerAngles", "To Euler Angles XYZ", [cf("cframe", "CFrame")], [
+			{ id: "x", name: "X (rad)", type: "number", expr: "(select(1, $in.cframe:ToEulerAnglesXYZ()))" },
+			{ id: "y", name: "Y (rad)", type: "number", expr: "(select(2, $in.cframe:ToEulerAnglesXYZ()))" },
+			{ id: "z", name: "Z (rad)", type: "number", expr: "(select(3, $in.cframe:ToEulerAnglesXYZ()))" },
+		], "The inverse of CFrame Angles. Each output wired calls ToEulerAnglesXYZ once, because a pure node is one expression per output."),
+	]),
+
+	...datatype("Color3", [
+		// `Color3.fromRGB` keeps the id it had as the old Engine-category
+		// "Color3" node, because a graph stores ids: renaming it would have
+		// broken every project that already had one.
+		p("roblox.color3", "Color3 from RGB", "Color3.fromRGB($in.r, $in.g, $in.b)",
+			[num("r", "R", 255), num("g", "G", 255), num("b", "B", 255)], "Color3",
+			"Channels from 0 to 255, the numbers a colour picker shows you."),
+		p("color3.new", "Color3 from RGB Float", "Color3.new($in.r, $in.g, $in.b)",
+			[num("r", "R", 1), num("g", "G", 1), num("b", "B", 1)], "Color3",
+			"Channels from 0 to 1, which is how the engine actually stores them."),
+		p("color3.fromHSV", "Color3 from HSV", "Color3.fromHSV($in.h, $in.s, $in.v)",
+			[num("h", "Hue", 0), num("s", "Saturation", 1), num("v", "Value", 1)], "Color3",
+			"All three from 0 to 1 — hue included, so a hue in degrees wants dividing by 360."),
+		p("color3.fromHex", "Color3 from Hex", "Color3.fromHex($in.hex)",
+			[str("hex", "Hex", "#ffffff")], "Color3",
+			"With or without the leading #. Three-digit shorthand works too."),
+
+		p("color3.toHex", "Color3 To Hex", "$in.color:ToHex()", [col("color", "Colour")], "string",
+			"Six lowercase digits, with no leading #."),
+		breakInto("color3.toHSV", "Color3 To HSV", [col("color", "Colour")], [
+			{ id: "h", name: "Hue", type: "number", expr: "(select(1, $in.color:ToHSV()))" },
+			{ id: "s", name: "Saturation", type: "number", expr: "(select(2, $in.color:ToHSV()))" },
+			{ id: "v", name: "Value", type: "number", expr: "(select(3, $in.color:ToHSV()))" },
+		], "All three from 0 to 1. Each output wired calls ToHSV once — a pure node is one expression per output, and the alternative was making a colour conversion into an execution step."),
+		breakInto("color3.toRGB", "Color3 To RGB", [col("color", "Colour")], [
+			{ id: "r", name: "R", type: "number", expr: "math.round($in.color.R * 255)" },
+			{ id: "g", name: "G", type: "number", expr: "math.round($in.color.G * 255)" },
+			{ id: "b", name: "B", type: "number", expr: "math.round($in.color.B * 255)" },
+		], "Rounded to whole 0-255 channels. Round-tripping through this is lossy; To RGB Float is not."),
+		breakInto("color3.toRGBFloat", "Color3 To RGB Float", [col("color", "Colour")], [
+			{ id: "r", name: "R", type: "number", expr: "$in.color.R" },
+			{ id: "g", name: "G", type: "number", expr: "$in.color.G" },
+			{ id: "b", name: "B", type: "number", expr: "$in.color.B" },
+		], "The stored channels, 0 to 1, exactly as the engine holds them."),
+
+		p("color3.lerp", "Color3 Lerp", "$in.a:Lerp($in.b, $in.alpha)",
+			[col("a", "A"), col("b", "B"), num("alpha", "Alpha", 0.5)], "Color3",
+			"Blends in RGB, which is what the engine does. Fading through HSV instead means converting, lerping the hue, and converting back."),
+	]),
+
+	...datatype("BrickColor", [
+		p("brickcolor.new", "BrickColor", "BrickColor.new($in.name)",
+			[{ ...str("name", "Name", "Medium stone grey"), options: BRICK_COLORS }], "BrickColor",
+			"By name. An unknown name does not error — the engine quietly gives you the nearest one it has."),
+		p("brickcolor.fromColor3", "BrickColor from Colour", "BrickColor.new($in.color)",
+			[col("color", "Colour")], "BrickColor",
+			"The nearest BrickColor to an arbitrary colour. Lossy, and deliberately so: the palette is fixed."),
+		p("brickcolor.fromRGB", "BrickColor from RGB Float", "BrickColor.new($in.r, $in.g, $in.b)",
+			[num("r", "R", 1), num("g", "G", 1), num("b", "B", 1)], "BrickColor",
+			"Channels from 0 to 1, not 0 to 255 — the one place BrickColor disagrees with the colour picker."),
+		p("brickcolor.palette", "BrickColor Palette", "BrickColor.palette($in.index)",
+			[num("index", "Index", 1)], "BrickColor", "By position in the Studio palette."),
+		call("brickcolor.random", "Random BrickColor", ENGINE_TYPES, "BrickColor.random()",
+			[], "Colour", "BrickColor",
+			{ summary: "Impure: it differs every call, so it is an execution step rather than a value." }),
+
+		p("brickcolor.color", "BrickColor Colour", "$in.brickColor.Color",
+			[bcol("brickColor", "BrickColor")], "Color3",
+			"The Color3 behind the name. A BrickColor is not a Color3 and cannot be used where one is wanted."),
+		p("brickcolor.name", "BrickColor Name", "$in.brickColor.Name",
+			[bcol("brickColor", "BrickColor")], "string"),
+		p("brickcolor.number", "BrickColor Number", "$in.brickColor.Number",
+			[bcol("brickColor", "BrickColor")], "number"),
+	]),
+
+	...datatype("UDim", [
+		p("udim.new", "UDim", "UDim.new($in.scale, $in.offset)",
+			[num("scale", "Scale"), num("offset", "Offset")], "UDim",
+			"Scale is a fraction of the parent; offset is pixels. A UDim is one axis of a UDim2."),
+		p("udim.add", "UDim +", "$in.a + $in.b", [ud("a", "A"), ud("b", "B")], "UDim"),
+		p("udim.sub", "UDim −", "$in.a - $in.b", [ud("a", "A"), ud("b", "B")], "UDim"),
+		breakInto("udim.break", "Break UDim", [ud("udim", "UDim")], [
+			{ id: "scale", name: "Scale", type: "number", expr: "$in.udim.Scale" },
+			{ id: "offset", name: "Offset", type: "number", expr: "$in.udim.Offset" },
+		]),
+	]),
+
+	...datatype("UDim2", [
+		p("udim2.new", "UDim2", "UDim2.new($in.xScale, $in.xOffset, $in.yScale, $in.yOffset)",
+			[num("xScale", "X Scale"), num("xOffset", "X Offset"),
+			 num("yScale", "Y Scale"), num("yOffset", "Y Offset")], "UDim2"),
+		p("udim2.fromScale", "UDim2 from Scale", "UDim2.fromScale($in.x, $in.y)",
+			[num("x", "X"), num("y", "Y")], "UDim2", "Fractions of the parent, with no pixel offset."),
+		p("udim2.fromOffset", "UDim2 from Offset", "UDim2.fromOffset($in.x, $in.y)",
+			[num("x", "X"), num("y", "Y")], "UDim2", "Pixels, with no scaling."),
+
+		p("udim2.add", "UDim2 +", "$in.a + $in.b", [ud2("a", "A"), ud2("b", "B")], "UDim2"),
+		p("udim2.sub", "UDim2 −", "$in.a - $in.b", [ud2("a", "A"), ud2("b", "B")], "UDim2"),
+		p("udim2.lerp", "UDim2 Lerp", "$in.a:Lerp($in.b, $in.alpha)",
+			[ud2("a", "A"), ud2("b", "B"), num("alpha", "Alpha", 0.5)], "UDim2"),
+
+		p("udim2.x", "UDim2 X", "$in.udim2.X", [ud2("udim2", "UDim2")], "UDim"),
+		p("udim2.y", "UDim2 Y", "$in.udim2.Y", [ud2("udim2", "UDim2")], "UDim"),
+		p("udim2.width", "UDim2 Width", "$in.udim2.Width", [ud2("udim2", "UDim2")], "UDim",
+			"The same UDim as X. Both names exist because a size and a position read differently."),
+		p("udim2.height", "UDim2 Height", "$in.udim2.Height", [ud2("udim2", "UDim2")], "UDim"),
+	]),
+
+	...datatype("TweenInfo", [
+		{
+			id: "tweeninfo.new",
+			title: "TweenInfo",
+			category: ENGINE_TYPES,
+			summary:
+				"How a tween moves, without saying what it moves. One TweenInfo can drive " +
+				"any number of tweens.",
+			pure: true,
+			inputs: [
+				num("time", "Time", 1),
+				{ ...str("style", "Easing Style", "Quad"), options: EASING_STYLES },
+				{ ...str("direction", "Easing Direction", "Out"), options: EASING_DIRECTIONS },
+				num("repeatCount", "Repeat Count", 0),
+				bool("reverses", "Reverses", false),
+				num("delayTime", "Delay", 0),
+			],
+			outputs: [d("result", "", "TweenInfo")],
+			compilesTo: {
+				kind: "expr",
+				outputs: {
+					result:
+						"TweenInfo.new($in.time, Enum.EasingStyle.$in.style!ident, " +
+						"Enum.EasingDirection.$in.direction!ident, $in.repeatCount, " +
+						"$in.reverses, $in.delayTime)",
+				},
+			},
+		},
+	]),
+
+	...datatype("Tween", [
+		p("tween.property", "Tween Property", "{ [$in.name] = $in.value }",
+			[str("name", "Property", "Position"), d("value", "To", "any", { t: "nil" })], "table",
+			"One property and the value to reach. For several at once, build a table with New Table and Set Index and wire that in instead — this is the shorthand for the common case."),
+		call("tween.create", "Create Tween", ENGINE_TYPES,
+			'game:GetService("TweenService"):Create($in.instance, $in.info, $in.properties)',
+			[d("instance", "Instance", "Instance"), tinfo("info", "Tween Info"),
+			 d("properties", "Properties", "table")],
+			"Tween", "Tween",
+			{
+				targets: ["roblox"],
+				summary:
+					"Builds the tween but does not start it. Nothing moves until Play, which " +
+					"is what lets you create one and keep it.",
+			}),
+		stmt("tween.play", "Play Tween", ENGINE_TYPES, "$in.tween:Play()",
+			[d("tween", "Tween", "Tween")],
+			{ targets: ["roblox"], summary: "Returns immediately; the tween runs on its own. Wait on Completed to know it has finished." }),
+		stmt("tween.pause", "Pause Tween", ENGINE_TYPES, "$in.tween:Pause()",
+			[d("tween", "Tween", "Tween")],
+			{ targets: ["roblox"], summary: "Stops where it is. Playing again carries on rather than restarting." }),
+		stmt("tween.cancel", "Cancel Tween", ENGINE_TYPES, "$in.tween:Cancel()",
+			[d("tween", "Tween", "Tween")],
+			{ targets: ["roblox"], summary: "Stops and resets its progress, leaving the property wherever it had reached." }),
+		p("tween.completed", "Tween Completed", "$in.tween.Completed",
+			[d("tween", "Tween", "Tween")], "RBXScriptSignal",
+			"Wire into Connect Event to run something afterwards, or Wait For Signal to hold the thread until it finishes."),
+	]),
 
 	// -- DateTime ----------------------------------------------------------
 	call("datetime.now", "Now", "Time", "DateTime.now()", [], "Now", "any",

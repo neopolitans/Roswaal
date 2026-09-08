@@ -127,6 +127,17 @@ export type CompileSpec =
 	/** Control flow implemented by the emitter. */
 	| { kind: "builtin"; handler: string };
 
+/**
+ * The category holding every Roblox datatype, one subcategory per type.
+ *
+ * Here rather than beside the category ordering in `nodes/index.ts` because
+ * the library needs it too, and the library is what `nodes/index.ts` imports —
+ * putting it there makes a cycle whose failure mode is a module-initialisation
+ * error rather than a compile one. `schema.ts` imports nothing, so nothing can
+ * cycle through it.
+ */
+export const ENGINE_TYPES = "Engine Types";
+
 /** Drives node colour and the "this can start or end a flow" rule. */
 export type NodeRole = "entry" | "terminal" | "flow" | "normal";
 
@@ -135,6 +146,24 @@ export interface NodeDef {
 	id: string;
 	title: string;
 	category: string;
+	/**
+	 * A second level of grouping inside a category.
+	 *
+	 * Exists for one shape in particular: **Engine types**, where the category
+	 * is "every Roblox datatype" and the useful grouping is per type. Twelve
+	 * Vector3 nodes and eleven Color3 nodes in one flat list is a list you scan
+	 * rather than a place you look.
+	 *
+	 * Optional, and most nodes do not set it. A category with no subcategories
+	 * behaves exactly as it did before this existed — which is why adding it
+	 * moved no node anybody had already placed.
+	 *
+	 * It is also what a node is **coloured** by when present, so Vector3 and
+	 * CFrame nodes stay the two different colours they were when those were
+	 * separate categories. Grouping them together should not make them look
+	 * like the same thing.
+	 */
+	subcategory?: string;
 	summary?: string;
 	role?: NodeRole;
 	/** No exec pins. Pure nodes are inlined at their use site when possible. */
