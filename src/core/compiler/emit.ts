@@ -322,7 +322,7 @@ class Emitter {
 	 * is the honest one here rather than a shortcut.
 	 */
 	private emitTypes(): void {
-		const nodes = this.index.all().filter((r) => r.def.id === "type.define");
+		const nodes = this.index.all().filter((r) => r.def.id === "type.declare");
 		if (nodes.length === 0) return;
 
 		const declared = new Set<string>();
@@ -335,7 +335,7 @@ class Emitter {
 			const definition = (config.definition ?? "").trim();
 			if (name === "" || definition === "") {
 				this.error(
-					"Define Type needs both a name and a definition before it can be written.",
+					"Declare Type needs both a name and a definition before it can be written.",
 					r.node.id,
 				);
 				continue;

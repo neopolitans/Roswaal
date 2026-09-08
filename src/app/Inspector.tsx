@@ -97,7 +97,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				{(def.id === "call.function" || def.id === "call.method") && (
 					<CountEditor node={node} field="args" label="Arguments" min={0} max={8} fallback={1} />
 				)}
-				{def.id === "type.define" && <TypeEditor node={node} />}
+				{def.id === "type.declare" && <TypeEditor node={node} />}
 				{(def.id === "variable.get"
 					|| def.id === "variable.set"
 					|| def.id === "variable.init") && (
@@ -137,7 +137,7 @@ function FunctionEditor({ node }: { node: GraphNode }) {
 }
 
 /**
- * The Luau type a Define Type node writes out.
+ * The Luau type a Declare Type node writes out.
  *
  * The definition is a textarea rather than a set of pins, and that is the
  * honest shape: a type is not built out of values, so there is nothing for a

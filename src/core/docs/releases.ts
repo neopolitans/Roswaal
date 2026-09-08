@@ -46,6 +46,14 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.19.3",
+		date: "2026-09-08",
+		headline: "Define Type is called Declare Type.",
+		changed: [
+			"**Define Type is now Declare Type**, which is what the node beside it — Declare Local — is called, and what people go looking for. Graphs using the old one are converted when they open.",
+		],
+	},
+	{
 		version: "0.19.2",
 		date: "2026-09-08",
 		headline: "Declare Luau types, and make a variable without leaving the node.",

@@ -26,6 +26,10 @@ export const BUILTIN_NODES: NodeDef[] = [...FLOW_NODES, ...VARIABLE_NODES, ...LI
 export const RENAMED_NODES: Record<string, string> = {
 	"var.declare": "local.declare",
 	"var.set": "local.set",
+	// Shipped as "Define Type" in 0.19.2 and renamed the same day, because the
+	// author went looking for "Declare Type" -- which is what the node beside it
+	// is called, and the better evidence about a name than the one who chose it.
+	"type.define": "type.declare",
 };
 
 export type Registry = Map<string, NodeDef>;

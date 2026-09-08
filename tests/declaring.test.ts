@@ -197,11 +197,11 @@ describe("how big a dictionary can be", () => {
  * for that reason rather than as a shortcut — `{ speed: number }` describes
  * something no wire can carry.
  */
-describe("Define Type", () => {
+describe("Declare Type", () => {
 	function typeNode(config: Record<string, unknown>): NodeScript {
 		const b = new Builder();
 		b.node("script.begin");
-		b.node("type.define", { config });
+		b.node("type.declare", { config });
 		return b.build();
 	}
 
@@ -226,7 +226,7 @@ describe("Define Type", () => {
 		const b = new Builder();
 		b.variable("speed", "number", { t: "number", v: 44 });
 		b.node("script.begin");
-		b.node("type.define", { config: { name: "Speed", definition: "number" } });
+		b.node("type.declare", { config: { name: "Speed", definition: "number" } });
 		const out = code(b.build());
 		expect(out.indexOf("export type Speed")).toBeLessThan(out.indexOf("local speed"));
 	});
@@ -237,11 +237,11 @@ describe("Define Type", () => {
 	});
 });
 
-describe("what Define Type refuses", () => {
+describe("what Declare Type refuses", () => {
 	const only = (config: Record<string, unknown>) => {
 		const b = new Builder();
 		b.node("script.begin");
-		b.node("type.define", { config });
+		b.node("type.declare", { config });
 		return errors(b.build()).join(" ");
 	};
 
@@ -259,8 +259,8 @@ describe("what Define Type refuses", () => {
 	it("will not declare the same type twice", () => {
 		const b = new Builder();
 		b.node("script.begin");
-		b.node("type.define", { config: { name: "Config", definition: "number" } });
-		b.node("type.define", { config: { name: "Config", definition: "string" } });
+		b.node("type.declare", { config: { name: "Config", definition: "number" } });
+		b.node("type.declare", { config: { name: "Config", definition: "string" } });
 		expect(errors(b.build()).join(" ")).toContain("declared more than once");
 	});
 });

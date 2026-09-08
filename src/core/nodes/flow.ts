@@ -140,8 +140,8 @@ export const FLOW_NODES: NodeDef[] = [
 		},
 	},
 	{
-		id: "type.define",
-		title: "Define Type",
+		id: "type.declare",
+		title: "Declare Type",
 		category: "Flow",
 		summary:
 			"Declares a Luau type at the top of the generated file. Export it and other modules can " +
@@ -151,7 +151,7 @@ export const FLOW_NODES: NodeDef[] = [
 		role: "terminal",
 		inputs: [],
 		outputs: [],
-		compilesTo: { kind: "builtin", handler: "type.define" },
+		compilesTo: { kind: "builtin", handler: "type.declare" },
 		subtitle: (config) => (config.name as string) || undefined,
 	},
 	{
