@@ -5,9 +5,10 @@ directly rather than opening Studio. Written down because the rig is not the
 shape a vehicle controller usually assumes, and finding that out in week 3
 would be finding it out late.
 
-**Re-read 8 September**, after the author's Studio pass — see
-[The rig as it stands](#the-rig-as-it-stands--8-september). Two claims in the
-survey below stopped being true that day and are marked where they appear.
+**Re-read twice on 8 September**, after each of the author's two Studio passes —
+see [The rig as it stands](#the-rig-as-it-stands--8-september), which is the
+current state and the section to trust. Three claims in the survey below stopped
+being true that day and are marked where they appear.
 
 ## Licensing
 
@@ -19,24 +20,27 @@ asset travels with it, so it ships **0BSD** with the rest of the repository.
 
 | File | Instances | Contents |
 | --- | --- | --- |
-| `M103_Model.rbxm` | 76 | The tank alone |
-| `place.rbxl` | 159 | Baseplate, SpawnLocation, the same tank, stock services |
+| `M103_Model.rbxm` | 77 | The tank alone |
+| `place.rbxl` | 160 | Baseplate, SpawnLocation, the same tank, stock services |
 
-Each was one lighter before the 8 September pass added the turret joint.
+Each was two lighter before the 8 September passes, which added the turret
+joint and the `Weapon` model.
 
 ## The hierarchy
 
 ```
 M103                     Model, no PrimaryPart
 ├─ Hull                  Model, PrimaryPart = Hull
-│  ├─ Hull               MeshPart, ANCHORED — 10 cosmetic Motor6Ds hang off it
+│  ├─ Hull               MeshPart, ANCHORED — 10 cosmetic Motor6Ds + Main joint
 │  │  └─ TurretPosition  Attachment
 │  ├─ LeftTrack          MeshPart — 4 Textures, VFXPosition, PathfindingModifier
 │  └─ RightTrack         MeshPart — 4 Textures, VFXPosition, PathfindingModifier
 ├─ Turret                Model, PrimaryPart = Main
-│  ├─ Main               Part, ANCHORED — 12 cosmetic Motor6Ds hang off it
-│  └─ Gun                MeshPart
-│     └─ FiringPoint     Attachment
+│  ├─ Main               Part — 10 cosmetic Motor6Ds + Mantlet joint
+│  └─ Weapon             Model, PrimaryPart = Mantlet
+│     ├─ Mantlet         MeshPart — the Gun joint hangs off it
+│     └─ Gun             MeshPart
+│        └─ FiringPoint  Attachment
 ├─ HullSettings          Configuration
 │  ├─ MovementSpeed      NumberValue
 │  └─ HP                 NumberValue
@@ -57,7 +61,9 @@ M103                     Model, no PrimaryPart
 join a piece of hull decoration; twelve have `Part0 = Main` and join a piece of
 turret decoration. Not one of them joins a moving part to another moving part.
 Mechanically this is **two rigid bodies wearing a lot of trim**, not an
-articulated rig.
+articulated rig. **Three of the 23 now move something** — the turret joint added
+on 8 September, and the `Mantlet` and `Gun` joints the same day's second pass
+rebuilt into a chain.
 
 **2. Nothing joins the Hull to the Turret.** ~~There is no Motor6D, weld or
 constraint between `Hull` and `Turret.Main`.~~ **Built on 8 September** — the
@@ -117,8 +123,9 @@ fires and registers a hit; penetration is the first thing added after.
 
 ## The rig as it stands — 8 September
 
-The author's Studio pass, read back out of both files. **The turret joint is
-done; the gun's pivot is not.**
+Two Studio passes, each read back out of both files. **Everything approach C
+wanted from the model is now there:** the turret joint, and a gun that elevates
+about its trunnion. Nothing in the rig is waiting on Studio.
 
 ### Done
 
@@ -147,37 +154,55 @@ were the wrong ones.
 
 **In the place, the model was renamed `M` → `M103`.**
 
-### Not done — the gun's pivot
+### The gun elevates about its trunnion, via a `Weapon` model
 
-The `Gun` Motor6D still reads
+Solved on the second pass, and **not the way suggested above** — better. Rather
+than re-basing the gun's own joint onto the trunnion, the mantlet and gun were
+grouped into a `Weapon` model and the chain lengthened by one:
 
 ```
-Part0 = Turret.Main, Part1 = Turret.Gun
-C0 = (0, 1.705, -14.344), C1 = identity
+Hull.Hull ──[Motor6D "Main"]──▶ Turret.Main
+                                    │
+                       [Motor6D "Mantlet"]  C0 = (0.006, 1.915, -5.371)
+                                    ▼
+                          Turret.Weapon.Mantlet          ◀── elevation drives this
+                                    │
+                          [Motor6D "Gun"]  C0 = (-0.006, -0.21, -8.973)
+                                    ▼
+                          Turret.Weapon.Gun
 ```
 
-and `-14.344` is the **gun's own centre**, not the trunnion. The barrel is
-18.501 studs long, so the joint sits half a barrel — 9.25 studs — ahead of
-where it should be. `FiringPoint` corroborates it: the muzzle attachment is at
-`z = -9.33` in the gun's own space, a hair past the front face at `-9.25`, so
-the gun's origin is indeed its middle. Writing elevation to that joint's `Transform` swings the
-gun about its middle: the breech rises as the muzzle drops, and the whole gun
-pulls out of the mantlet on the way.
+**Elevation is now the `Mantlet` joint's `Transform`,** and its `C0` is the
+trunnion. The gun hangs off the mantlet at a fixed offset and rides along.
 
-The trunnion is where the `Mantlet` joint already points, `z = -5.371` relative
-to `Main`. Moving the pivot there without moving the gun means setting both
-halves of the joint:
+Why this beats re-basing the gun's joint: it moves the **mantlet too**. The
+suggestion above would have swung the gun about the right point while leaving
+the mantlet bolted to the turret face, so the barrel would have elevated
+*through* a mantlet that never moved. On a real tank the mantlet is what the gun
+elevates with, and now it is here.
 
-```lua
-Gun.C0 = CFrame.new(0, 1.705, -5.371)
-Gun.C1 = CFrame.new(0, 0, 8.973)
-```
+**Nothing moved in the process.** The two `C0`s compose to
+`(0.006, 1.915, -5.371) + (-0.006, -0.21, -8.973) = (0, 1.705, -14.344)`, which
+is exactly where the gun sat before, and both parts' world CFrames are unchanged.
+The restructure is geometrically a no-op, which is what a restructure should be.
 
-`C1` is the 8.973-stud difference between the old pivot and the new one, in the
-gun's own space, and it is what keeps the gun exactly where it is now while the
-pivot moves behind it. Keeping the gun's `y` of `1.705` rather than the
-mantlet's `1.915` puts the axis on the barrel's centre line instead of a fifth
-of a stud above it.
+`Weapon.PrimaryPart` is `Mantlet`, matching the part the joint drives. Both
+parts stay unanchored and massless.
+
+### Two things to look at in Studio
+
+Neither is certainly wrong; both are the kind of thing the binary cannot settle.
+
+- **`MantletViewports` is still jointed to `Main`,** not to the mantlet, so it
+  will not elevate. Its `C0` of `(0.027, 2.38, -6.265)` puts it inside the
+  mantlet's own depth — which spans `-4.07` to `-6.67` — so if those are the
+  viewports *in* the mantlet they will be left behind by the gun. If they are on
+  the turret's front plate around the mantlet, they are right where they are.
+- **The mantlet's `PivotOffset` is `(0, -0.19, 0.403)`**, which is about 0.45
+  studs from the joint's `C0`. `PivotOffset` is Studio's editing handle and has
+  no effect on a Motor6D, so this changes nothing at runtime — worth knowing
+  only so that a later "the pivot looks wrong in Studio" is not read as a bug in
+  the rig.
 
 Nothing else in the model is waiting on Studio.
 

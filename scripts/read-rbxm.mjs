@@ -18,9 +18,9 @@
  * **Not a general reader, and not a writer.** It knows the property types the
  * tank happens to use. An unknown type ends *that one* `PROP` chunk and nothing
  * else — chunk lengths are in the file, so the parse walks on and the skipped
- * property is listed in the output rather than swallowed. `Tags`,
- * `Capabilities` and the mesh blobs come out that way and none of them matter
- * here.
+ * property is counted in the output rather than swallowed (`--skipped` names
+ * them). `Tags`, `Capabilities` and the mesh blobs come out that way and none of
+ * them matter here.
  *
  * ## The format, briefly
  *
@@ -268,6 +268,7 @@ export function parse(path) {
 	const inst = new Map(); // referent -> { class, props }
 	const parent = new Map(); // referent -> parent referent
 	const skipped = [];
+	const refProps = new Set(); // property names that hold a referent
 
 	let o = 32;
 	while (o + 16 <= buf.length) {
@@ -305,6 +306,10 @@ export function parse(path) {
 			if (!cls) continue;
 			try {
 				const values = readValues(r, type, cls.refs.length);
+				// Remembered by name so the printers can turn `PrimaryPart = 75`
+				// into a path. The value stays a plain referent, because that is
+				// what `--joints` compares against.
+				if (type === 19) refProps.add(prop);
 				cls.refs.forEach((ref, i) => {
 					inst.get(ref).props[prop] = values[i];
 				});
@@ -319,7 +324,7 @@ export function parse(path) {
 			for (let i = 0; i < count; i++) parent.set(child[i], par[i]);
 		}
 	}
-	return { inst, parent, skipped };
+	return { inst, parent, skipped, refProps };
 }
 
 function fullName({ inst, parent }, ref) {
@@ -337,7 +342,7 @@ const num = (v) => (Math.abs(v) < 1e-4 ? 0 : Math.round(v * 1000) / 1000);
 function main() {
 	const [file, ...flags] = process.argv.slice(2);
 	if (!file) {
-		console.error("usage: node scripts/read-rbxm.mjs <file.rbxm|.rbxl> [--tree] [--joints] [--props [name]]");
+		console.error("usage: node scripts/read-rbxm.mjs <file.rbxm|.rbxl> [--tree] [--joints] [--props [name]] [--skipped]");
 		process.exit(2);
 	}
 	const doc = parse(file);
@@ -346,7 +351,15 @@ function main() {
 
 	console.log(`# ${file}`);
 	console.log(`${inst.size} instances`);
-	if (doc.skipped.length) console.log(`unread properties: ${doc.skipped.join(", ")}`);
+	// One line, because a place skips three hundred of these and the list would
+	// bury the survey. `--skipped` prints them when one is actually in question.
+	if (doc.skipped.length) {
+		console.log(
+			want.has("--skipped")
+				? `unread properties: ${doc.skipped.join(", ")}`
+				: `${doc.skipped.length} properties of types this does not read (--skipped to list)`,
+		);
+	}
 
 	const byClass = new Map();
 	for (const [, i] of inst) byClass.set(i.class, (byClass.get(i.class) ?? 0) + 1);
@@ -418,7 +431,11 @@ function main() {
 			console.log(`${name}  [${i.class}]`);
 			for (const [k, v] of Object.entries(i.props)) {
 				if (k === "Name") continue;
-				const shown = Array.isArray(v)
+				const shown = doc.refProps.has(k)
+					? inst.has(v)
+						? fullName(doc, v)
+						: "nil"
+					: Array.isArray(v)
 					? `(${v.map(num).join(", ")})`
 					: typeof v === "object" && v?.pos
 						? `(${v.pos.map(num).join(", ")})`

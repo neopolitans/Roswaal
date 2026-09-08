@@ -21,3 +21,9 @@ dist-docs/
 
 # Affinity keeps a lock file beside a document while it is open.
 *~lock~
+
+# Roblox Studio's MCP server, for reading the M103 demo out of a live Studio
+# session. The path in it is this machine's, and a committed .mcp.json asks
+# everyone who clones the repository to approve a server they have no use for --
+# Roswaal itself never talks to Studio. Local setup, not part of the project.
+.mcp.json
