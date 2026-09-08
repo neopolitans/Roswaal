@@ -1,6 +1,6 @@
 {
   "name": "roswaal",
-  "version": "0.18.3",
+  "version": "0.18.4",
   "private": true,
   "license": "0BSD",
   "type": "module",
@@ -48,6 +48,6 @@
     "vitest": "^5.0.0"
   },
   "bin": {
-    "roswaal": "./bin/roswaal"
+    "roswaal": "./bin/roswaal.mjs"
   }
 }

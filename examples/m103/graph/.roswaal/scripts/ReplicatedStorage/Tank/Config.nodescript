@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "script",
+  "id": "5ce7d6b2-8323-40f0-919d-591bf97ac43c",
+  "name": "Config",
+  "scriptClass": "Script",
+  "target": "roblox",
+  "typecheck": "strict",
+  "variables": [],
+  "nodes": [
+    {
+      "id": "23c82e84-70bc-4e24-9982-835c66ccf087",
+      "def": "script.begin",
+      "x": 120,
+      "y": 160
+    }
+  ],
+  "links": [],
+  "comments": []
+}

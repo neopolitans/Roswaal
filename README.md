@@ -59,7 +59,16 @@ npm install
 npm run build
 ```
 
-Then put `bin/` on your PATH:
+Then put `roswaal` on your PATH. Either way, it keeps pointing at this checkout,
+so a rebuild takes effect without reinstalling.
+
+```sh
+npm link
+```
+
+One command, works in the terminal you are already in, and `npm unlink -g
+roswaal` undoes it. If you would rather not install anything globally, add
+`bin/` to your PATH instead:
 
 ```powershell
 # Windows (PowerShell)
@@ -73,13 +82,20 @@ $path    = [Environment]::GetEnvironmentVariable('PATH','User')
 export PATH="$PATH:/path/to/Roswaal/bin"
 ```
 
-⚠️ PATH changes only apply to terminals opened afterwards.
+⚠️ PATH changes only apply to terminals opened afterwards. `npm link` does not
+have that problem.
 
-`bin/roswaal` and `bin/roswaal.cmd` are shell scripts that invoke Node, **not**
-a packaged executable — deliberately. Windows Smart App Control blocks unsigned
-binaries it has not seen before, so every rebuild of a `roswaal.exe` would be
-blocked afresh. A script calling an already-trusted interpreter sidesteps that
-entirely and costs nothing on the platforms that would not have cared.
+Every launcher in `bin/` is a script that invokes Node, **not** a packaged
+executable — deliberately. Windows Smart App Control blocks unsigned binaries it
+has not seen before, so every rebuild of a `roswaal.exe` would be blocked
+afresh. A script calling an already-trusted interpreter sidesteps that entirely
+and costs nothing on the platforms that would not have cared.
+
+There are three of them because they answer two different questions.
+`bin/roswaal` and `bin/roswaal.cmd` are for putting the folder on your PATH, one
+per platform. `bin/roswaal.mjs` is the one npm installs, and it exists because
+npm reads the `#!/bin/sh` line off the shell script and writes a wrapper that
+calls `sh` — which a Windows machine does not have.
 
 ## Commands
 

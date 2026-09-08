@@ -46,6 +46,17 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.18.4",
+		date: "2026-09-08",
+		headline: "`npm link` puts roswaal on your PATH.",
+		fixed: [
+			"**Installing Roswaal through npm produced a `roswaal` command that did not run on Windows.** npm read the `#!/bin/sh` line off the launcher and wrote a wrapper calling `sh`, which a Windows machine has no reason to have — the command failed with \"the term '/bin/sh.exe' is not recognized\". npm now installs a launcher it can wrap on every platform.",
+		],
+		changed: [
+			"The install instructions offer `npm link` first. It is one command, it works in the terminal you are already in rather than the next one you open, and `npm unlink -g roswaal` undoes it. Putting `bin/` on your PATH still works and is still documented.",
+		],
+	},
+	{
 		version: "0.18.3",
 		date: "2026-09-08",
 		headline: "Opening a Luau file with a block comment no longer blanks the editor.",

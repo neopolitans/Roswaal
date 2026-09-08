@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "script",
+  "id": "74f00890-a514-4d37-ada1-4a2637d0df47",
+  "name": "ReplicatedStorageTankConfig",
+  "scriptClass": "Script",
+  "target": "roblox",
+  "typecheck": "strict",
+  "variables": [],
+  "nodes": [
+    {
+      "id": "c4566296-ad9a-40f5-bfd1-90e488524eb2",
+      "def": "script.begin",
+      "x": 120,
+      "y": 160
+    }
+  ],
+  "links": [],
+  "comments": []
+}
