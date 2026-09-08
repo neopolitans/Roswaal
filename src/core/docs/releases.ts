@@ -46,6 +46,21 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.19.0",
+		date: "2026-09-08",
+		headline: "A moved graph takes its generated file with it, and the tree says which half is which.",
+		fixed: [
+			"**Renaming, moving or reclassing a graph left its old generated file behind** and wrote a new one beside it. Rojo went on syncing both, so the game ended up with two copies of the module and nothing maintaining one of them. The file a graph used to write is now removed when it writes a different one, and the compile report names what went.",
+			"The count of stale generated files was only refreshed by a compile, so renaming or deleting a graph left it describing whatever the last compile saw. It updates whenever the tree does.",
+		],
+		added: [
+			"**The project tree is split into *Graph content* and *Compile content*.** One half you author and Roswaal reads; the other Roswaal writes and you do not edit. Each collapses, and an empty one says so.",
+		],
+		watch: [
+			"Only a file whose own header names the graph that just moved is removed. A generated file with no graph behind it at all is still reported rather than deleted — that is the *stale* line in the compile panel, and it still asks first.",
+		],
+	},
+	{
 		version: "0.18.5",
 		date: "2026-09-08",
 		headline: "Make a graph in the folder you are looking at.",

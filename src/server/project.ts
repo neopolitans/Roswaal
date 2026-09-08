@@ -652,6 +652,14 @@ export interface CompileOutcome {
 	written: boolean;
 	/** Set when the write was refused, e.g. the target was edited by hand. */
 	skipped?: string;
+	/**
+	 * Files this graph used to produce and no longer does, now deleted.
+	 *
+	 * Reported rather than silent. Deleting is deleting even when it is
+	 * obviously right, and "moved Config.luau to Tank/Config.luau" is a line
+	 * somebody may need to find later.
+	 */
+	superseded?: string[];
 	diagnostics: CompileResult["diagnostics"];
 	sourceMap: CompileResult["sourceMap"];
 	code: string;
@@ -687,6 +695,46 @@ export function outputCollision(
 ): string | null {
 	const owner = claimed?.get(outputPath);
 	return owner !== undefined && owner !== relPath ? owner : null;
+}
+
+/**
+ * Files this graph used to write and no longer does.
+ *
+ * Renaming a graph, dragging it into another folder, or switching it between
+ * Script and ModuleScript all change **where** it compiles to while leaving the
+ * graph itself the same graph. Without this the old file stays exactly where it
+ * was, Rojo goes on syncing it, and the game ends up with two copies of the
+ * module — one of which nothing is maintaining.
+ *
+ * Safe to act on without asking, unlike `findOrphanOutputs`, and the difference
+ * is worth being precise about. That one looks for anything unaccounted for,
+ * which can catch a file somebody put there deliberately, so it reports and
+ * waits. This only names files whose own header says **this exact graph**
+ * produced them, at the moment that graph has just produced a different one.
+ * There is no judgement in it: the file says who owns it, and the owner moved.
+ *
+ * Pure, and exported, for the reason the rest of this file's decisions are: the
+ * consequence is a deleted file, and a rule with that consequence should be
+ * checkable without a temporary directory and a project to put in it.
+ */
+export function supersededOutputs(
+	generated: Map<string, string>, graphId: string, keepPath: string,
+): string[] {
+	const out: string[] = [];
+	for (const [outPath, owner] of generated) {
+		if (owner === graphId && outPath !== keepPath) out.push(outPath);
+	}
+	return out.sort();
+}
+
+async function removeSupersededOutputs(
+	project: OpenProject, graphId: string, keepPath: string,
+): Promise<string[]> {
+	const stale = supersededOutputs(await generatedIndex(project), graphId, keepPath);
+	for (const relPath of stale) {
+		await fs.rm(safeJoin(project.root, relPath), { force: true });
+	}
+	return stale;
 }
 
 export async function compileScript(
@@ -756,6 +804,9 @@ export async function compileScript(
 	await fs.mkdir(path.dirname(abs), { recursive: true });
 	await fs.writeFile(abs, code, "utf8");
 	outcome.written = true;
+	// After the write, not before: if writing fails, the file the graph used to
+	// produce is the only one left and deleting it first would lose both.
+	outcome.superseded = await removeSupersededOutputs(project, script.id, outcome.outputPath);
 	// Claimed only once it is actually on disk, so a graph that was refused does
 	// not take the name away from the next one.
 	opts.claimed?.set(outcome.outputPath, relPath);

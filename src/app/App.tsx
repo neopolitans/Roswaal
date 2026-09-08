@@ -464,6 +464,10 @@ export function App() {
 	const refreshTree = useCallback(async () => {
 		const { tree } = await api.tree();
 		setProject((p) => (p ? { ...p, tree } : p));
+		// Asked here rather than only after a compile. Renaming, moving and
+		// deleting all change what is stale, and none of them compiles anything —
+		// so the count went on describing whatever the last compile saw.
+		setOrphans((await api.orphans().catch(() => ({ orphans: [] }))).orphans);
 	}, []);
 
 	// -- documents ---------------------------------------------------------
@@ -617,10 +621,7 @@ export function App() {
 				const { results } = await api.compile({ path, write, force });
 				setOutcomes(results);
 				setStatusOpen(true);
-				if (write) {
-					await refreshTree();
-					setOrphans((await api.orphans().catch(() => ({ orphans: [] }))).orphans);
-				}
+				if (write) await refreshTree();
 			} catch (err) {
 				notify("Something went wrong", (err as Error).message);
 			} finally {
@@ -1197,6 +1198,7 @@ export function App() {
 								tree={project.tree}
 								openPath={editor.path ?? source?.path ?? null}
 								sourceDir={project.config.sourceDir}
+								nodePaths={project.config.nodePaths}
 								targetDir={targetDir}
 								onOpen={onTreeOpen}
 								onMove={onTreeMove}

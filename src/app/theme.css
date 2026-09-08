@@ -1211,6 +1211,50 @@ button.tb.primary:hover:not(:disabled) {
 	text-align: center;
 }
 
+/* The two halves of a project: what you author, and what Roswaal writes. Styled
+   as a heading rather than as a folder, because it is not one -- there is no
+   such directory, and making it look like a row would invite you to right-click
+   it and wonder why nothing is offered. */
+.tree-section {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px 6px;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-muted);
+	cursor: pointer;
+	user-select: none;
+	/* A band rather than a line of small text. These are the only dividers in
+	   the tree and they have to survive being read past -- a heading that looks
+	   like a very quiet row is one the eye scrolls straight over. */
+	background: var(--bg-hover);
+	border-top: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+}
+
+/* The first sits against the panel heading, which is already a boundary. */
+.tree-section:first-child {
+	border-top: none;
+}
+
+.tree-section:hover {
+	color: var(--fg);
+	background: var(--bg-active);
+}
+
+.tree-section .twist {
+	font-size: 9px;
+}
+
+.tree-section .empty {
+	margin-left: auto;
+	text-transform: none;
+	letter-spacing: 0;
+	opacity: 0.7;
+}
+
 /* The folder a new graph would go into. Quieter than a selection -- it is
    context, not a choice you made, and it has to sit under the selected and
    open-document styles without fighting them. */

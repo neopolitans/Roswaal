@@ -22,6 +22,8 @@ export interface ProjectTreeProps {
 	openPath: string | null;
 	/** Where graphs live. Only folders under it can hold a new one. */
 	sourceDir: string;
+	/** Where node packs live. Roswaal's, but not somewhere a graph can go. */
+	nodePaths: string[];
 	/** The folder new documents go into, or null for the source root. */
 	targetDir: string | null;
 	onOpen: (entry: TreeEntry) => void;
@@ -49,7 +51,7 @@ export interface ProjectTreeProps {
  * new inline arrow in the JSX would quietly undo this.
  */
 export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
-	const { tree, openPath, sourceDir, targetDir, onOpen, onMove, onTargetDir } = props;
+	const { tree, openPath, sourceDir, nodePaths, targetDir, onOpen, onMove, onTargetDir } = props;
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
 
@@ -71,8 +73,39 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 	const [dropTarget, setDropTarget] = useState<string | null>(null);
 
+	/**
+	 * The two halves of a Roswaal project, which the tree used to show as a flat
+	 * repository listing with `.roswaal` and `src` sitting beside each other as
+	 * though they were the same kind of thing.
+	 *
+	 * They are not. One half you author and Roswaal reads; the other half
+	 * Roswaal writes and you do not edit. Everything about how a file behaves —
+	 * whether it can be renamed, whether a new graph can go beside it, whether
+	 * the next compile will overwrite it — follows from which half it is in, and
+	 * the tree said none of that.
+	 */
+	const groups = useMemo(() => {
+		const owned = [sourceDir, ...nodePaths].filter(Boolean);
+		// Overlap in either direction: `.roswaal` contains `sourceDir`, and a
+		// top-level `scripts` folder would be inside it. Either way it is ours.
+		const isOurs = (p: string) =>
+			owned.some((dir) => dir === p || dir.startsWith(p + "/") || p.startsWith(dir + "/"));
+		return {
+			graph: tree.filter((e) => isOurs(e.path)),
+			compiled: tree.filter((e) => !isOurs(e.path)),
+		};
+	}, [tree, sourceDir, nodePaths]);
+
 	/** Visible rows in display order, which is what shift-range needs. */
-	const rows = useMemo(() => flatten(tree, collapsed, 0), [tree, collapsed]);
+	const rows = useMemo(() => {
+		const out: Row[] = [];
+		for (const section of SECTIONS) {
+			out.push({ section, entry: SECTION_ENTRY, depth: 0 });
+			if (collapsed.has(sectionKey(section.id))) continue;
+			out.push(...flatten(groups[section.id], collapsed, 1));
+		}
+		return out;
+	}, [groups, collapsed]);
 	const [anchor, setAnchor] = useState<string | null>(null);
 
 	// A folder's own path is where a new document goes; a file's parent is.
@@ -156,7 +189,26 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 
 	return (
 		<div className="tree">
-			{rows.map(({ entry, depth }) => {
+			{rows.map(({ entry, depth, section }) => {
+				if (section) {
+					const shut = collapsed.has(sectionKey(section.id));
+					const count = groups[section.id].length;
+					return (
+						<div
+							key={sectionKey(section.id)}
+							className={`tree-section${shut ? " shut" : ""}`}
+							title={section.hint}
+							onClick={() => toggle(sectionKey(section.id))}
+						>
+							<span className="twist">{shut ? "▸" : "▾"}</span>
+							<span className="label">{section.label}</span>
+							{/* Only when there is nothing, because a count beside every
+							    heading is a number nobody reads. Empty is the state
+							    worth explaining -- a compile has not run yet. */}
+							{count === 0 && <span className="empty">empty</span>}
+						</div>
+					);
+				}
 				const isDir = entry.kind === "directory";
 				const readonly = entry.kind === "luau";
 				return (
@@ -311,7 +363,38 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 interface Row {
 	entry: TreeEntry;
 	depth: number;
+	/** Set on a section heading, which is a row without a file behind it. */
+	section?: Section;
 }
+
+interface Section {
+	id: "graph" | "compiled";
+	label: string;
+	hint: string;
+}
+
+/**
+ * Graphs first, output second, because that is the direction the work goes and
+ * because the top of a list is where the thing you touch every minute belongs.
+ */
+const SECTIONS: readonly Section[] = [
+	{
+		id: "graph",
+		label: "Graph content",
+		hint: "Graphs, node maps and node packs. Yours to edit; Roswaal reads these.",
+	},
+	{
+		id: "compiled",
+		label: "Compile content",
+		hint: "Everything Roswaal does not author, including the Luau it writes out.",
+	},
+];
+
+/** A stand-in so a heading row can share the row type without a file. */
+const SECTION_ENTRY: TreeEntry = { path: "", name: "", kind: "directory" };
+
+/** Sections collapse through the same set as folders, so one key space. */
+const sectionKey = (id: Section["id"]) => `::section:${id}`;
 
 function flatten(entries: TreeEntry[], collapsed: ReadonlySet<string>, depth: number): Row[] {
 	const out: Row[] = [];
