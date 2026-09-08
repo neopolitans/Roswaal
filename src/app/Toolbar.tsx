@@ -11,10 +11,10 @@
  * ## Why two components rather than one
  *
  * The split is not cosmetic and predates this file. One flat row put "Refresh
- * the project" next to "strict" and left you working out which of twelve
- * controls acted on what. Two rows answer that by position: **everything in
- * `ProjectBar` is about the project**, everything in `DocumentBar` is about the
- * thing you have open, and the document row is simply absent when you have
+ * the project" next to the typechecking mode and left you working out which of
+ * twelve controls acted on what. Two rows answer that by position: **everything
+ * in `ProjectBar` is about the project**, everything in `DocumentBar` is about
+ * the thing you have open, and the document row is simply absent when you have
  * nothing open.
  *
  * Splitting them into two components keeps that honest, because a control can
@@ -29,7 +29,7 @@
  * layout changes underneath them.
  */
 
-import type { RoswaalConfig, ScriptClass } from "../core/schema.js";
+import type { RoswaalConfig, ScriptClass, TypecheckMode } from "../core/schema.js";
 import { VERSION } from "../cli/version.js";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
@@ -150,7 +150,7 @@ export type DocumentBarProps =
 			dirty: boolean;
 			busy: string | null;
 			scriptClass: ScriptClass;
-			strict: boolean;
+			typecheck: TypecheckMode;
 			/** The graph is being compiled and must not be edited. */
 			locked: boolean;
 			alignExec: boolean;
@@ -158,7 +158,7 @@ export type DocumentBarProps =
 			selected: number;
 			hasPath: boolean;
 			onScriptClass: (value: ScriptClass) => void;
-			onStrict: (value: boolean) => void;
+			onTypecheck: (value: TypecheckMode) => void;
 			onAddNode: () => void;
 			onRealign: () => void;
 			onToggleAlignExec: () => void;
@@ -199,19 +199,20 @@ export function DocumentBar(props: DocumentBarProps) {
 				<option>LocalScript</option>
 				<option>ModuleScript</option>
 			</select>
-			<label
+			<select
 				className="tb"
-				title="Emit --!strict at the top of the generated file"
-				style={{ cursor: "pointer" }}
+				title={
+					"Which Luau typechecking mode the generated file declares. Default writes no" +
+					" mode line; the other two also annotate the types of generated locals."
+				}
+				value={props.typecheck}
+				disabled={props.locked}
+				onChange={(e) => props.onTypecheck(e.target.value as TypecheckMode)}
 			>
-				<input
-					type="checkbox"
-					checked={props.strict}
-					disabled={props.locked}
-					onChange={(e) => props.onStrict(e.target.checked)}
-				/>{" "}
-				strict
-			</label>
+				<option value="default">Default</option>
+				<option value="nonstrict">Nonstrict Mode</option>
+				<option value="strict">Strict Mode</option>
+			</select>
 
 			<span className="divider" />
 

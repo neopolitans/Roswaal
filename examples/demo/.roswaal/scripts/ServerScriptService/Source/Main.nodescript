@@ -5,7 +5,7 @@
   "name": "Main",
   "scriptClass": "Script",
   "target": "roblox",
-  "strict": true,
+  "typecheck": "strict",
   "variables": [
     {
       "id": "v-joined",

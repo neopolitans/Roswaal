@@ -251,6 +251,23 @@ export type ScriptClass = "Script" | "LocalScript" | "ModuleScript";
 export type RunContext = "Server" | "Client" | "Legacy";
 
 /**
+ * Which Luau typechecking mode the generated file declares.
+ *
+ * `default` writes no mode line at all, leaving the file to whatever the
+ * enclosing project says — which in Roblox means nonstrict. The other two write
+ * `--!nonstrict` or `--!strict` on the first line.
+ *
+ * The mode also decides whether generated locals and function parameters carry
+ * **type annotations**. Without them `--!nonstrict` would be almost
+ * indistinguishable from `default` on Roblox, where nonstrict is already the
+ * default; with them it is the gradual middle ground Luau intends — the types
+ * are written down and checked loosely.
+ */
+export type TypecheckMode = "default" | "nonstrict" | "strict";
+
+export const TYPECHECK_MODES: readonly TypecheckMode[] = ["default", "nonstrict", "strict"];
+
+/**
  * Free-form per-node configuration (function signature, exports list, ...).
  *
  * One key is understood by the registry rather than by any one node:
@@ -321,7 +338,7 @@ export interface NodeScript {
 	scriptClass: ScriptClass;
 	runContext?: RunContext;
 	target: Target;
-	strict: boolean;
+	typecheck: TypecheckMode;
 	variables: ScriptVariable[];
 	nodes: GraphNode[];
 	links: Link[];
@@ -336,7 +353,7 @@ export function emptyScript(name: string, id: string): NodeScript {
 		name,
 		scriptClass: "Script",
 		target: "roblox",
-		strict: true,
+		typecheck: "strict",
 		variables: [],
 		nodes: [],
 		links: [],

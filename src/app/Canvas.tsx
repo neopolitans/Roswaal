@@ -625,8 +625,13 @@ export function Canvas({
 									className="hit"
 									d={path}
 									onPointerDown={(e) => {
-										// Alt-click severs a wire without a menu round trip.
-										if (!e.altKey) return;
+										// Shift- or alt-click severs a wire without a menu round
+										// trip. Two modifiers because neither is obviously the
+										// one: shift is what already clears a pin, and alt is
+										// what Blueprints uses. Both land on the same idea of
+										// "take this connection away", and a wire is not
+										// selectable, so neither modifier had another job here.
+										if (!e.shiftKey && !e.altKey) return;
 										e.stopPropagation();
 										store.edit((s) => removeLink(s, link.id));
 									}}
@@ -644,11 +649,13 @@ export function Canvas({
 									}}
 								>
 									<title>
-										{isExec
+										{(isExec
 											? "Execution"
 											: coerces
 												? `${fromPin?.type ?? "any"} → ${toPin?.type ?? "any"}`
-												: (fromPin?.type ?? "any")}
+												: (fromPin?.type ?? "any")) +
+												"\nShift-click or alt-click to disconnect" +
+												"\nDouble-click to add a reroute knot"}
 									</title>
 								</path>
 								<path

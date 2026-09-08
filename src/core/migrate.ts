@@ -7,7 +7,10 @@
 
 import { RENAMED_NODES } from "./nodes/index.js";
 import { parseSplitKey, partPinId, splitKey, splitPinId, splitsOf } from "./structs.js";
-import { emptyScript, SCHEMA_VERSION, type Link, type NodeScript } from "./schema.js";
+import {
+	emptyScript, SCHEMA_VERSION, TYPECHECK_MODES,
+	type Link, type NodeScript, type TypecheckMode,
+} from "./schema.js";
 
 /**
  * Applies a pin rename, following it into the components of a split pin.
@@ -54,6 +57,26 @@ const RENAMED_PINS: Record<string, Record<string, string>> = {
  */
 const BECAME_PURE = new Set(["roblox.getService"]);
 
+/**
+ * Which typechecking mode a graph on disk asks for.
+ *
+ * Until 0.18.1 this was a `strict` checkbox, and the two states map exactly onto
+ * two of the three modes — ticked wrote `--!strict`, unticked wrote no mode line
+ * at all. So the conversion loses nothing and is done silently; there is no
+ * decision for the author to be told about.
+ *
+ * A file with neither key is taken as `strict`, which is what a graph made in
+ * the editor gets. A file naming a mode this build has never heard of falls back
+ * to `default` instead — something written by a later build should emit *less*,
+ * not have checking the author did not ask for silently turned on.
+ */
+function typecheckOf(raw: NodeScript): TypecheckMode {
+	if (TYPECHECK_MODES.includes(raw.typecheck)) return raw.typecheck;
+	const legacy = (raw as { strict?: boolean }).strict;
+	if (typeof legacy === "boolean") return legacy ? "strict" : "default";
+	return raw.typecheck === undefined ? "strict" : "default";
+}
+
 export function migrateScript(raw: NodeScript): MigrationResult {
 	const notes: string[] = [];
 
@@ -65,7 +88,12 @@ export function migrateScript(raw: NodeScript): MigrationResult {
 		comments: raw.comments ?? [],
 		links: raw.links ?? [],
 		nodes: raw.nodes ?? [],
+		typecheck: typecheckOf(raw),
 	};
+	// The spread above copies whatever the file had, and a graph written before
+	// 0.18.1 had a `strict` key that nothing reads now. Left in place it would be
+	// written back out on every save, so old files would never stop carrying it.
+	delete (script as { strict?: boolean }).strict;
 
 	const renamed = new Map<string, number>();
 	script.nodes = script.nodes.map((node) => {

@@ -46,6 +46,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.18.1",
+		date: "2026-09-08",
+		headline: "Three typechecking modes, and a second way to cut a wire.",
+		added: [
+			"**Shift-click a wire to disconnect it.** Alt-click already did, and still does.",
+		],
+		changed: [
+			"**The `strict` checkbox is now a typechecking mode**, with three settings. *Default* writes no mode line at all, leaving the generated file to whatever the project says. *Nonstrict Mode* writes `--!nonstrict`, and *Strict Mode* writes `--!strict`.",
+			"**Both checked modes annotate the types** of generated locals and function parameters. *Default* leaves them off, which is what an unticked `strict` did.",
+			"`.nodescript` files record `typecheck` where they recorded `strict`. Older graphs convert on open — a ticked box becomes *Strict Mode* and an unticked one becomes *Default* — and the old key is dropped on the next save.",
+		],
+		watch: [
+			"A graph naming a mode this build does not know, which means one written by a later Roswaal, opens as *Default* rather than keeping a setting it cannot honour.",
+		],
+	},
+	{
 		version: "0.18.0",
 		date: "2026-09-08",
 		headline: "Panels you can move, and more than one graph open.",

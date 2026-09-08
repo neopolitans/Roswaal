@@ -992,13 +992,13 @@ export function App() {
 					dirty={editor.dirty}
 					busy={busy}
 					scriptClass={editor.script.scriptClass}
-					strict={editor.script.strict}
+					typecheck={editor.script.typecheck}
 					locked={locked}
 					alignExec={alignExec}
 					selected={editor.selection.size}
 					hasPath={editor.path !== null}
 					onScriptClass={(value) => store.edit((s) => ({ ...s, scriptClass: value }))}
-					onStrict={(value) => store.edit((s) => ({ ...s, strict: value }))}
+					onTypecheck={(value) => store.edit((s) => ({ ...s, typecheck: value }))}
 					onAddNode={() => {
 						const view = store.getView();
 						setMenu({

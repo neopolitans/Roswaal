@@ -189,15 +189,14 @@ The restructure is geometrically a no-op, which is what a restructure should be.
 `Weapon.PrimaryPart` is `Mantlet`, matching the part the joint drives. Both
 parts stay unanchored and massless.
 
-### Two things to look at in Studio
+### One thing left, and it is cosmetic
 
-Neither is certainly wrong; both are the kind of thing the binary cannot settle.
-
-- **`MantletViewports` is still jointed to `Main`,** not to the mantlet, so it
-  will not elevate. Its `C0` of `(0.027, 2.38, -6.265)` puts it inside the
-  mantlet's own depth — which spans `-4.07` to `-6.67` — so if those are the
-  viewports *in* the mantlet they will be left behind by the gun. If they are on
-  the turret's front plate around the mantlet, they are right where they are.
+- ~~**`MantletViewports` is still jointed to `Main`**~~ — **moved on 8
+  September.** The part and its joint both live under `Weapon` now, with
+  `Part0 = Weapon.Mantlet` and `C0 = (0.022, 0.464, -0.894)`, so the viewports
+  elevate with the gun. Nothing moved doing it: that offset added to the
+  mantlet's own comes back to `(0.028, 2.379, -6.265)`, which is where the part
+  already was.
 - **The mantlet's `PivotOffset` is `(0, -0.19, 0.403)`**, which is about 0.45
   studs from the joint's `C0`. `PivotOffset` is Studio's editing handle and has
   no effect on a Motor6D, so this changes nothing at runtime — worth knowing

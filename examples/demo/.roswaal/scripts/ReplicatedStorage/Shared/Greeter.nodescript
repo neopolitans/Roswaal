@@ -5,7 +5,7 @@
   "name": "Greeter",
   "scriptClass": "ModuleScript",
   "target": "roblox",
-  "strict": true,
+  "typecheck": "strict",
   "variables": [
     {
       "id": "29751969-1b75-45e4-902e-01a6804c8284",
