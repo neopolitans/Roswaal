@@ -171,8 +171,9 @@ select optgroup {
 	flex: 1;
 	display: grid;
 	grid-template-areas:
-		"left centre right"
-		"bottom bottom bottom";
+		"left        split-left   centre        split-right  right"
+		"split-bottom split-bottom split-bottom split-bottom split-bottom"
+		"bottom      bottom       bottom        bottom       bottom";
 	min-height: 0;
 	min-width: 0;
 }
@@ -194,7 +195,6 @@ select optgroup {
 
 .dock.left {
 	background: var(--bg-panel);
-	border-right: 1px solid var(--border);
 	overflow: auto;
 }
 
@@ -217,6 +217,42 @@ select optgroup {
 	flex: 1;
 	overflow: hidden;
 }
+
+/* The grab handle between a dock and the centre. Five pixels wide, with a
+   larger hit area pushed out either side by a transparent border — a strip you
+   can see is thinner than a strip you can reliably hit, and making the visible
+   one wider costs space from the graph. */
+.splitter {
+	background: var(--border);
+	position: relative;
+	z-index: 1;
+	touch-action: none;
+}
+
+.splitter:hover,
+.splitter:active {
+	background: var(--accent);
+}
+
+.splitter.col {
+	cursor: col-resize;
+	border-left: 3px solid transparent;
+	border-right: 3px solid transparent;
+	background-clip: padding-box;
+	margin: 0 -3px;
+}
+
+.splitter.row {
+	cursor: row-resize;
+	border-top: 3px solid transparent;
+	border-bottom: 3px solid transparent;
+	background-clip: padding-box;
+	margin: -3px 0;
+}
+
+.splitter.left { grid-area: split-left; }
+.splitter.right { grid-area: split-right; }
+.splitter.bottom { grid-area: split-bottom; }
 
 /* The centre always exists and is what the docks surround. Relative so the
    compile toast anchors to the graph area itself — which makes "bottom right
@@ -389,18 +425,15 @@ button.tb.primary:hover:not(:disabled) {
 	color: #fff;
 }
 
-/* ---------------------------------------------------------------- sidebar */
+/* ------------------------------------------------------------ panel headings */
 
-.sidebar {
-	background: var(--bg-panel);
-	border-right: 1px solid var(--border);
-	overflow: auto;
-	display: flex;
-	flex-direction: column;
-	min-height: 0;
-}
-
-.sidebar h2 {
+/* Scoped to any dock rather than to one of them, because a panel keeps its
+   look wherever it is docked -- which is the whole point of being able to move
+   it. This was `.sidebar h2` until the sidebar became `.dock.left`, and the
+   rename orphaned it: the project name and the Variables heading both fell
+   back to the browser's default 2em bold, because `.variables h2` only sets
+   its own flex properties and inherited everything else from here. */
+.dock h2 {
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
@@ -2135,142 +2168,6 @@ button.tb.with-icon {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-}
-
-/* ------------------------------------------------------------------- help */
-
-.help-backdrop {
-	position: fixed;
-	inset: 0;
-	background: rgba(0, 0, 0, 0.45);
-	display: grid;
-	place-items: center;
-	padding: 40px;
-}
-
-.help {
-	background: var(--bg-panel);
-	border: 1px solid var(--border-strong);
-	border-radius: 8px;
-	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-	width: min(720px, 100%);
-	height: min(640px, 100%);
-	display: grid;
-	grid-template-rows: auto 1fr;
-	overflow: hidden;
-}
-
-.help-head {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 10px 14px;
-	border-bottom: 1px solid var(--border);
-}
-
-.help-head .sub {
-	color: var(--fg-faint);
-	font-size: 12px;
-}
-
-.help-body {
-	display: grid;
-	grid-template-columns: 150px 1fr;
-	min-height: 0;
-}
-
-.help-nav {
-	border-right: 1px solid var(--border);
-	padding: 10px 8px;
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-}
-
-.help-nav button {
-	background: none;
-	border: 0;
-	text-align: left;
-	padding: 6px 10px;
-	border-radius: 5px;
-	cursor: pointer;
-	color: var(--fg-muted);
-}
-
-.help-nav button:hover {
-	background: var(--bg-hover);
-}
-
-.help-nav button.on {
-	background: var(--bg-active);
-	color: var(--fg);
-	font-weight: 600;
-}
-
-.help-content {
-	overflow: auto;
-	padding: 16px 22px 28px;
-	line-height: 1.6;
-}
-
-.help-content h3 {
-	font-size: 13px;
-	margin: 22px 0 8px;
-	color: var(--fg);
-}
-
-.help-content h3:first-child {
-	margin-top: 0;
-}
-
-.help-content p {
-	margin: 0 0 10px;
-	color: var(--fg-muted);
-}
-
-.help-content b {
-	color: var(--fg);
-	font-weight: 600;
-}
-
-.help-content code,
-.help-content kbd {
-	background: var(--bg-input);
-	border: 1px solid var(--border);
-	border-radius: 3px;
-	padding: 0 4px;
-	font: 11px/1.6 "Cascadia Mono", Consolas, monospace;
-	color: var(--fg);
-}
-
-.help-content pre {
-	background: var(--bg-canvas);
-	border: 1px solid var(--border);
-	border-radius: 5px;
-	padding: 10px 12px;
-	overflow-x: auto;
-	font: 11px/1.6 "Cascadia Mono", Consolas, monospace;
-	color: var(--fg);
-	margin: 0 0 10px;
-}
-
-.help-keys {
-	border-collapse: collapse;
-	width: 100%;
-	font-size: 12px;
-}
-
-.help-keys td {
-	padding: 4px 8px 4px 0;
-	vertical-align: top;
-	border-bottom: 1px solid var(--border);
-	color: var(--fg-muted);
-}
-
-.help-keys td:first-child {
-	white-space: nowrap;
-	color: var(--fg);
-	width: 44%;
 }
 
 /* Path field with a resolution hint: Rojo builds an empty instance for a path

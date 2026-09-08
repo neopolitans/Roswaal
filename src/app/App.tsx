@@ -32,7 +32,10 @@ import { VariablesPanel } from "./VariablesPanel.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays } from "./Overlays.jsx";
 import { Workspace } from "./Workspace.jsx";
-import { DEFAULT_LAYOUT, type Layout } from "./panels.js";
+import {
+	clampLayout, DEFAULT_LAYOUT, resizeDock, toggleDock,
+	type DockSide, type Layout,
+} from "./panels.js";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
@@ -110,7 +113,33 @@ export function App() {
 	 * survives a reload. Keeping it here first means the grid can be proven
 	 * before anything is persisted, and a layout bug cannot be stored.
 	 */
-	const [layout] = useState<Layout>(DEFAULT_LAYOUT);
+	const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
+
+	/**
+	 * The window got smaller, so the docks give way.
+	 *
+	 * Without this a layout that was fine on a wide window keeps its dock sizes
+	 * when the window narrows, and the centre is squeezed to nothing -- with the
+	 * splitters that would fix it pushed off the edge. Clamping on resize means
+	 * the editor cannot be put into a state it has no way out of.
+	 */
+	useEffect(() => {
+		const onResize = () =>
+			setLayout((current) => clampLayout(current, window.innerWidth, window.innerHeight));
+		onResize();
+		window.addEventListener("resize", onResize);
+		return () => window.removeEventListener("resize", onResize);
+	}, []);
+
+	const onDockResize = useCallback((side: DockSide, size: number) => {
+		setLayout((current) =>
+			resizeDock(current, side, size, window.innerWidth, window.innerHeight),
+		);
+	}, []);
+
+	const onDockToggle = useCallback((side: DockSide) => {
+		setLayout((current) => toggleDock(current, side));
+	}, []);
 	/** The selection preview, which is opened deliberately and never sits open. */
 	const [previewOpen, setPreviewOpen] = useState(false);
 	const alignExec = prefs.alignExec;
@@ -930,6 +959,8 @@ export function App() {
 
 			<Workspace
 				layout={layout}
+				onResize={onDockResize}
+				onToggle={onDockToggle}
 				contents={{
 					tree: (
 						<>

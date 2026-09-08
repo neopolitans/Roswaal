@@ -96,6 +96,15 @@ export const PANEL_TITLES: Record<PanelId, string> = {
 export const MIN_DOCK = 140;
 
 /**
+ * The graph's share, which nothing may take.
+ *
+ * A dock size restored from a larger monitor can otherwise leave no centre pane
+ * at all -- and that puts the splitter that would fix it off screen, making the
+ * editor unusable in a way that survives a reload.
+ */
+const MIN_CENTRE = 320;
+
+/**
  * The panels in one dock, in order, open ones only.
  *
  * Ordering is by `order` and then by id, so two panels that somehow share an
@@ -118,40 +127,85 @@ export function dockVisible(layout: Layout, side: DockSide): boolean {
 	return layout.docks[side].open && panelsIn(layout, side).length > 0;
 }
 
+/** How thick a splitter is, in pixels. Its hit area is larger; see the CSS. */
+export const SPLITTER = 5;
+
 /**
- * The grid tracks for the workspace.
+ * The grid tracks for the workspace: five columns and three rows.
  *
- * **Every track is `minmax(0, …)`.** A grid item's automatic minimum size is
- * its *content*, so a dock holding one long path otherwise refuses to shrink
+ * Each dock is followed (or preceded) by its splitter's own track, so the
+ * splitter is a real grid item on a boundary rather than something positioned
+ * over one. A splitter that floated on top would need the dock's size in two
+ * places and would drift from it by a pixel at some zoom level.
+ *
+ * **Every dock track is `minmax(0, …)`.** A grid item's automatic minimum size
+ * is its *content*, so a dock holding one long path otherwise refuses to shrink
  * below the width of that path — the splitter drags outwards freely and will
  * not come back. This is the single most likely thing to be removed by accident
  * while tidying, and it is why the numbers are built here rather than written
  * in the stylesheet.
  */
 export function gridTemplate(layout: Layout): { columns: string; rows: string } {
-	const left = dockVisible(layout, "left") ? `minmax(0, ${layout.docks.left.size}px)` : "0px";
-	const right = dockVisible(layout, "right") ? `minmax(0, ${layout.docks.right.size}px)` : "0px";
-	const bottom = dockVisible(layout, "bottom") ? `minmax(0, ${layout.docks.bottom.size}px)` : "0px";
+	const track = (side: DockSide) =>
+		dockVisible(layout, side) ? `minmax(0, ${layout.docks[side].size}px)` : "0px";
+	// A splitter with no dock beside it is not a thin grabbable strip at the
+	// edge of the graph; it is nothing.
+	const bar = (side: DockSide) => (dockVisible(layout, side) ? `${SPLITTER}px` : "0px");
 
 	return {
-		columns: `${left} minmax(0, 1fr) ${right}`,
-		rows: `minmax(0, 1fr) ${bottom}`,
+		columns: `${track("left")} ${bar("left")} minmax(0, 1fr) ${bar("right")} ${track("right")}`,
+		// The bottom dock is sized by its content, not by `docks.bottom.size`,
+		// and has no splitter. Its one panel -- script analysis -- already owns
+		// its height: it collapses to a summary bar with its own chevron and
+		// caps itself below that. A fixed track fights both, and a dock stretched
+		// to 190px around a 60px panel is a slab of empty background under the
+		// graph.
+		//
+		// `docks.bottom.size` is still carried and still persisted, because slice
+		// 4 turns analysis into a panel that fills its dock like the others and
+		// this becomes a track like the others.
+		rows: `minmax(0, 1fr) 0px ${dockVisible(layout, "bottom") ? "auto" : "0px"}`,
 	};
 }
 
 /**
- * Keeps a restored layout inside the window it is being restored into.
+ * The largest a dock may be dragged to, so the centre keeps `MIN_CENTRE`.
  *
- * A dock size remembered from a larger monitor can otherwise leave no centre
- * pane at all — which puts the splitter that would fix it off screen, and makes
- * the editor unusable in a way that survives a reload.
- *
- * The centre keeps at least `MIN_CENTRE`; the side docks give up whatever is
- * needed, proportionally, before the bottom does. Horizontal space is the
- * scarcer of the two on the machines this runs on.
+ * The opposite dock is subtracted first: two docks that could each take the
+ * whole window would leave the centre at nothing between them, and the splitter
+ * that would fix it under the other dock's edge.
  */
-const MIN_CENTRE = 320;
+export function maxDockSize(layout: Layout, side: DockSide, width: number, height: number): number {
+	if (side === "bottom") return Math.max(MIN_DOCK, height - MIN_CENTRE);
+	const other: DockSide = side === "left" ? "right" : "left";
+	const taken = dockVisible(layout, other) ? layout.docks[other].size : 0;
+	return Math.max(MIN_DOCK, width - taken - MIN_CENTRE);
+}
 
+/** A dock resized by dragging, clamped to something usable. */
+export function resizeDock(
+	layout: Layout, side: DockSide, size: number, width: number, height: number,
+): Layout {
+	const clamped = Math.round(
+		Math.min(maxDockSize(layout, side, width, height), Math.max(MIN_DOCK, size)),
+	);
+	return { ...layout, docks: { ...layout.docks, [side]: { ...layout.docks[side], size: clamped } } };
+}
+
+/** Collapses a dock, or brings it back. */
+export function toggleDock(layout: Layout, side: DockSide): Layout {
+	const dock = layout.docks[side];
+	return { ...layout, docks: { ...layout.docks, [side]: { ...dock, open: !dock.open } } };
+}
+
+/**
+ * Keeps a layout inside the window it is being shown in.
+ *
+ * Runs on restore and on every window resize. The centre keeps at least
+ * `MIN_CENTRE`; the side docks give up whatever is needed, proportionally,
+ * before the bottom does -- horizontal space is the scarcer of the two on the
+ * machines this runs on.
+ */
 export function clampLayout(layout: Layout, width: number, height: number): Layout {
 	const docks = { ...layout.docks };
 

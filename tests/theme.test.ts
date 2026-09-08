@@ -38,16 +38,30 @@ const css = readFileSync(join(root, "src", "app", "theme.css"), "utf8");
  * look like a dead token to a test that only opened `theme.css`. The guarantee
  * being made is "somewhere in the app", so that is what gets searched.
  */
-function sources(dir: string, found: string[] = []): string[] {
+function sources(dir: string, match: RegExp, found: string[] = []): string[] {
 	for (const entry of readdirSync(dir)) {
 		const path = join(dir, entry);
-		if (statSync(path).isDirectory()) sources(path, found);
-		else if (/\.(ts|tsx|css)$/.test(entry)) found.push(readFileSync(path, "utf8"));
+		if (statSync(path).isDirectory()) sources(path, match, found);
+		else if (match.test(entry)) found.push(readFileSync(path, "utf8"));
 	}
 	return found;
 }
 
-const appSource = sources(join(root, "src")).join("\n");
+const appSource = sources(join(root, "src"), /\.(ts|tsx|css)$/).join("\n");
+
+/**
+ * The same source with comments stripped.
+ *
+ * The ancestor check below searches for a class name, and prose mentions one as
+ * readily as code does. The comment explaining that `.sidebar` *became*
+ * `.dock.left` was enough to convince a substring search the sidebar still
+ * existed — so the check passed on exactly the regression it was written for,
+ * which is the most expensive way for a test to be wrong.
+ */
+const appCode = sources(join(root, "src"), /\.(ts|tsx)$/)
+	.join("\n")
+	.replace(/\/\*[\s\S]*?\*\//g, " ")
+	.replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
 
 /** A deep copy, so a test that breaks a theme cannot break the next test. */
 function clone(name: string): Theme {
@@ -224,6 +238,47 @@ describe("every token class is coloured somewhere", () => {
 			expect(
 				selectors.includes(container),
 				`${container} renders highlighted Luau but is not in the token palette's selector`,
+			).toBe(true);
+		}
+	});
+});
+
+/**
+ * ## A rule scoped to a container that is no longer rendered
+ *
+ * The fourth variety of silent CSS, and the one that has bitten most often. A
+ * rule like `.sidebar h2` keeps working right up until the container is
+ * renamed, and then it simply stops applying — no error, and the element falls
+ * back to the browser's default. Renaming `.sidebar` to `.dock.left` during
+ * panelisation left the project name and the Variables heading at 2em bold,
+ * because `.variables h2` set only its own flex properties and inherited its
+ * size, case and colour from the rule that had just been orphaned.
+ *
+ * Restricted to **ancestor** selectors on purpose. Checking every class in the
+ * stylesheet reports fifty-odd false positives — classes assembled from
+ * template literals, CodeMirror's own — and a check nobody trusts is worse than
+ * none. An ancestor is the dangerous shape, and there are few enough of them
+ * for the answer to be exact.
+ *
+ * It does not replace looking at the page. Beako's equivalent drives a headless
+ * browser and asserts the centre fills the workspace, because no test of the
+ * state could catch a layout fault while the state is correct; that is the
+ * eventual answer here too. See `docs/PANELS.md`.
+ */
+describe("no rule is scoped to a container that does not exist", () => {
+	it("finds every ancestor class in the source", () => {
+		const ancestors = new Set(
+			[...css.matchAll(/^\s*\.([a-z][a-z0-9-]*)(?:\.[a-z0-9-]+)?\s+[.a-z]/gm)].map((m) => m[1]),
+		);
+		expect(ancestors.size, "the stylesheet has ancestor-scoped rules at all")
+			.toBeGreaterThan(20);
+
+		for (const cls of ancestors) {
+			expect(
+				appCode.includes(cls),
+				`theme.css scopes rules to .${cls}, which nothing in src renders — ` +
+					"either the container was renamed and those rules are now dead, " +
+					"or the rules are left over from something removed",
 			).toBe(true);
 		}
 	});

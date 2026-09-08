@@ -28,7 +28,7 @@
  * like tidiness and is not.
  */
 
-import type { ReactNode } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import {
 	dockVisible, gridTemplate, panelsIn, PANEL_IDS,
@@ -49,9 +49,15 @@ export interface WorkspaceProps {
 	 * thing beside it.
 	 */
 	floating?: ReactNode;
+	/** A dock was dragged to a new size. Absent means the splitters are inert. */
+	onResize?: (side: DockSide, size: number) => void;
+	/** A splitter was double-clicked: collapse the dock, or bring it back. */
+	onToggle?: (side: DockSide) => void;
 }
 
-export function Workspace({ layout, contents, centre, floating }: WorkspaceProps) {
+export function Workspace({
+	layout, contents, centre, floating, onResize, onToggle,
+}: WorkspaceProps) {
 	/**
 	 * A panel with nothing to draw is not open.
 	 *
@@ -88,6 +94,20 @@ export function Workspace({ layout, contents, centre, floating }: WorkspaceProps
 			{(["left", "right", "bottom"] as DockSide[]).map((side) =>
 				dockVisible(effective, side) ? (
 					<Dock key={side} side={side} layout={effective} contents={contents} />
+				) : null,
+			)}
+
+			{/* Side docks only. The bottom is content-sized -- see `gridTemplate`
+			    -- so there is nothing for a splitter there to drag. */}
+			{(["left", "right"] as DockSide[]).map((side) =>
+				dockVisible(effective, side) && onResize && onToggle ? (
+					<Splitter
+						key={`split-${side}`}
+						side={side}
+						size={effective.docks[side].size}
+						onResize={(size) => onResize(side, size)}
+						onToggle={() => onToggle(side)}
+					/>
 				) : null,
 			)}
 
@@ -129,5 +149,71 @@ function Dock({
 				</div>
 			))}
 		</div>
+	);
+}
+
+/**
+ * The grab handle between a dock and the centre.
+ *
+ * Drag to resize; **double-click to collapse the dock, and again to bring it
+ * back**. The double-click is how a dock is closed for now: closing belongs on
+ * a panel, and a panel has no chrome to put a button in until slice 4 gives it
+ * a tab strip. A splitter is the one piece of dock furniture that exists today,
+ * so it carries the gesture rather than adding a title bar early purely to hang
+ * a button from.
+ *
+ * The pointer is captured for the duration, so a fast drag that outruns the
+ * handle keeps resizing instead of stopping the moment the cursor leaves a
+ * five-pixel strip.
+ */
+function Splitter({
+	side, size, onResize, onToggle,
+}: {
+	side: DockSide;
+	size: number;
+	onResize: (size: number) => void;
+	onToggle: () => void;
+}) {
+	const axis = side === "bottom" ? "row" : "col";
+
+	function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+		if (e.button !== 0) return;
+		e.preventDefault();
+		const handle = e.currentTarget;
+		handle.setPointerCapture(e.pointerId);
+
+		const startX = e.clientX;
+		const startY = e.clientY;
+
+		const move = (move: PointerEvent) => {
+			// Each side grows in a different direction: the left dock follows the
+			// pointer, the right and bottom grow as it moves back towards them.
+			const delta =
+				side === "left" ? move.clientX - startX
+				: side === "right" ? startX - move.clientX
+				: startY - move.clientY;
+			onResize(size + delta);
+		};
+		const up = () => {
+			handle.removeEventListener("pointermove", move);
+			handle.removeEventListener("pointerup", up);
+			handle.removeEventListener("pointercancel", up);
+		};
+
+		handle.addEventListener("pointermove", move);
+		handle.addEventListener("pointerup", up);
+		handle.addEventListener("pointercancel", up);
+	}
+
+	return (
+		<div
+			className={`splitter ${side} ${axis}`}
+			style={{ gridArea: `split-${side}` }}
+			role="separator"
+			aria-orientation={axis === "col" ? "vertical" : "horizontal"}
+			title="Drag to resize. Double-click to collapse."
+			onPointerDown={onPointerDown}
+			onDoubleClick={onToggle}
+		/>
 	);
 }
