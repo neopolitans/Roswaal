@@ -46,6 +46,20 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.21.1",
+		date: "2026-09-09",
+		headline: "Name the value a node gives you, without renaming the node.",
+		added: [
+			"**Result name**, on every node that returns a value. It is the local the result lands in — a Find First Child with the result name `value` emits `local value = ...` — and it shows under the node's header the way Declare Type shows the type it declares.",
+		],
+		changed: [
+			"**A named node keeps its own name on the canvas.** Setting the result name leaves the header alone and adds the name beneath it; a label still replaces the header, as it always has.",
+		],
+		watch: [
+			"A label on such a node still names the result when no result name is set, so graphs built before this emit exactly what they did.",
+		],
+	},
+	{
 		version: "0.21.0",
 		date: "2026-09-09",
 		headline: "Conditions take any value, the way Luau does.",

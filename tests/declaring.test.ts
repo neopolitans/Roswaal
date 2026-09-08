@@ -596,10 +596,10 @@ describe("laying a dictionary out", () => {
  * was in before it got a pin.
  */
 describe("naming a node's result", () => {
-	function findChild(label?: string) {
+	function findChild(config: Record<string, unknown> = {}, label?: string) {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const find = b.node("roblox.findFirstChild", label ? { label } : {});
+		const find = b.node("roblox.findFirstChild", { config, ...(label ? { label } : {}) });
 		b.lit(find, "parent", { t: "raw", v: "workspace" });
 		const print = b.node("debug.print");
 		b.link(start, "then", find, "in");
@@ -612,23 +612,32 @@ describe("naming a node's result", () => {
 		expect(findChild()).toMatch(/^local Child(: \w+)? = /m);
 	});
 
-	it("uses the label, so there is no second local to rename it", () => {
-		const out = findChild("value");
+	/** The field that exists for it, and what the node shows under its header. */
+	it("uses the result name, so there is no second local to rename it", () => {
+		const out = findChild({ resultName: "value" });
 		expect(out).toMatch(/^local value(: \w+)? = .*FindFirstChild/m);
-		// One declaration, not a call bound to `Child` and then copied to `value`.
 		expect(out.match(/^local /gm)).toHaveLength(1);
 	});
 
-	/** Two nodes labelled the same still cannot end up as one local. */
-	it("keeps two results with the same label apart", () => {
+	/**
+	 * The label named results before there was a field for it. A graph built
+	 * that way has to go on emitting what it always did.
+	 */
+	it("still honours a label, for graphs built before the field existed", () => {
+		expect(findChild({}, "value")).toMatch(/^local value(: \w+)? = /m);
+	});
+
+	it("prefers the result name over the label when both are set", () => {
+		expect(findChild({ resultName: "chosen" }, "ignored")).toMatch(/^local chosen(: \w+)? = /m);
+	});
+
+	/** Two nodes named the same still cannot end up as one local. */
+	it("keeps two results with the same name apart", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const first = b.node("roblox.findFirstChild", { label: "value" });
-		b.lit(first, "parent", { t: "raw", v: "workspace" });
-		const second = b.node("roblox.findFirstChild", { label: "value" });
-		b.lit(second, "parent", { t: "raw", v: "workspace" });
-		// Both results are read, or the emitter has no reason to bind either to a
-		// local and there is nothing for the names to collide over.
+		const first = b.node("roblox.findFirstChild", { config: { resultName: "value" } });
+		const second = b.node("roblox.findFirstChild", { config: { resultName: "value" } });
+		for (const n of [first, second]) b.lit(n, "parent", { t: "raw", v: "workspace" });
 		const printFirst = b.node("debug.print");
 		const printSecond = b.node("debug.print");
 		b.link(start, "then", first, "in");
@@ -641,6 +650,19 @@ describe("naming a node's result", () => {
 		const declared = code(b.build()).match(/^local (\w+)/gm) ?? [];
 		expect(declared).toHaveLength(2);
 		expect(new Set(declared).size).toBe(2);
+	});
+
+	/**
+	 * The node goes on saying what it does. Naming the result used to be done
+	 * with the label, which *replaced* the header — so a named Find First Child
+	 * stopped saying it was one.
+	 */
+	it("shows the name under the header rather than instead of it", () => {
+		const registry2 = createRegistry();
+		const def = registry2.get("roblox.findFirstChild")!;
+		expect(def.subtitle?.({ resultName: "value" })).toBe("value");
+		expect(def.subtitle?.({})).toBeUndefined();
+		expect(def.title).toBe("Find First Child");
 	});
 });
 

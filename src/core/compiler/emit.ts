@@ -670,7 +670,16 @@ class Emitter {
 		const rendered = this.renderTemplate(r, template, scope);
 
 		if (consumed) {
-			const hint = r.node.label || pin?.name || r.def.title;
+			/**
+			 * What to call the local this result lands in.
+			 *
+			 * `resultName` first, which is the field that says so. The label is
+			 * still honoured behind it: it named results before there was a field
+			 * for it, and a graph built that way should go on emitting what it
+			 * always did.
+			 */
+			const named = (r.node.config as { resultName?: string } | undefined)?.resultName;
+			const hint = named || r.node.label || pin?.name || r.def.title;
 			const ident = this.names.unique(hint, "value");
 			const annotation = this.annotates && pin?.type && pin.type !== "any"
 				? `: ${luauType(pin.type)}`

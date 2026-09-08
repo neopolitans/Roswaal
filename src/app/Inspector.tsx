@@ -126,14 +126,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				    definition's title — so an empty field reads as "this is
 				    already fine" instead of as a suggestion to type the name a
 				    second time. */}
-				<Field
-					label={namesResult(def) ? "Label and result name" : "Label"}
-					hint={
-						namesResult(def)
-							? "Shown on the node, and the name of the local this result lands in."
-							: undefined
-					}
-				>
+				<Field label="Label">
 					<input
 						className="tb"
 						placeholder={nodeTitle(def, node)}
@@ -142,6 +135,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 					/>
 				</Field>
 
+				{namesResult(def) && <ResultName node={node} />}
 				{def.id === "function.entry" && <FunctionEditor node={node} />}
 				{def.id === "function.return" && (
 					<ListEditor
@@ -190,6 +184,28 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				<PinSummary def={def} node={node} />
 			</div>
 		</div>
+	);
+}
+
+/**
+ * What the local holding this node's result is called.
+ *
+ * Its own field rather than the node's label, which used to do both jobs and
+ * so could only do one at a time: labelling a Find First Child `value` made
+ * the node stop saying Find First Child. It shows under the header, the way
+ * Declare Type shows the type it declares.
+ */
+function ResultName({ node }: { node: GraphNode }) {
+	const current = (node.config as { resultName?: string } | undefined)?.resultName ?? "";
+	return (
+		<Field label="Result name" hint="The local this node's result lands in.">
+			<input
+				className="tb"
+				value={current}
+				placeholder="chosen for you"
+				onChange={(e) => store.edit((s) => setConfig(s, node.id, { resultName: e.target.value }))}
+			/>
+		</Field>
 	);
 }
 

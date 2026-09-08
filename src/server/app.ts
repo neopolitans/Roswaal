@@ -347,14 +347,20 @@ app.get("/api/tree", route(async () => ({ tree: await buildTree(project()) })));
 
 /**
  * Custom node packs only. The editor bundles the built-in definitions, because
- * their pin derivation is code and cannot survive a round trip through JSON.
+ * their pin derivation and display rules are code and cannot survive a round
+ * trip through JSON.
+ *
+ * **The project says which ones are packs; this does not work it out.** It used
+ * to, with a filter for definitions that were not builtin-handled and had no
+ * pin derivation — which is most of the built-in library. So the editor was
+ * handed 215 function-less copies of nodes it already had, they shadowed the
+ * real ones by loading last, and every field that was a function quietly
+ * stopped existing for exactly those nodes. It cost an afternoon to find,
+ * because the copies are correct in every way a reader would check.
  */
 app.get("/api/nodes", route(async () => {
 	const p = project();
-	const custom = [...p.registry.values()].filter(
-		(def) => def.compilesTo.kind !== "builtin" && !def.derivePins,
-	);
-	return { custom, errors: p.packErrors };
+	return { custom: p.packs, errors: p.packErrors };
 }));
 
 // ---------------------------------------------------------------------------

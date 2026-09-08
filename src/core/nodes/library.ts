@@ -54,6 +54,10 @@ function call(
 		inputs: [exec("in"), ...inputs],
 		outputs: [exec("then"), d("result", resultName, resultType)],
 		compilesTo: { kind: "call", template, result: "result" },
+		// The local this result lands in, under the node's own name rather than
+		// replacing it — a node has to go on saying what it does after you have
+		// named what it gives you.
+		subtitle: (config) => (config.resultName as string) || undefined,
 	};
 }
 
@@ -168,6 +172,10 @@ function variadicCall(
 		variadic: { min, max: MAX_ARGS, type: "any", default: { t: "nil" } },
 		...shape({}),
 		compilesTo: { kind: "call", template, result: "result" },
+		// The local this result lands in, under the node's own name rather than
+		// replacing it — a node has to go on saying what it does after you have
+		// named what it gives you.
+		subtitle: (config) => (config.resultName as string) || undefined,
 		derivePins: shape,
 	};
 }
@@ -405,6 +413,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		inputs: [exec("in")],
 		outputs: [exec("then"), d("result", "Table", "table")],
 		compilesTo: { kind: "call", template: "{}", result: "result" },
+		subtitle: (config) => (config.resultName as string) || undefined,
 	},
 	pure("table.get", "Get Index", "Tables", "$index(table, key)",
 		[d("table", "Table", "table"), d("key", "Key", "any", { t: "number", v: 1 })], "any"),

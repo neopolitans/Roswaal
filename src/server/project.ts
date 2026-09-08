@@ -51,6 +51,18 @@ export interface OpenProject {
 	root: string;
 	config: RoswaalConfig;
 	registry: Registry;
+	/**
+	 * The definitions this project's node packs contributed, on their own.
+	 *
+	 * Kept apart from the registry because the editor has to be told which ones
+	 * are packs — it bundles the built-ins itself, and their pin derivation and
+	 * display rules are code that cannot survive a round trip through JSON.
+	 * Working that out by inspecting the registry is what went wrong before: a
+	 * filter for "looks like data" matched most of the built-in library, so the
+	 * editor was handed 215 function-less copies of nodes it already had, and
+	 * they shadowed the real ones.
+	 */
+	packs: NodeDef[];
 	packErrors: string[];
 	packCount: number;
 }
@@ -71,6 +83,7 @@ export async function openProject(root: string): Promise<OpenProject> {
 		root: resolved,
 		config,
 		registry: createRegistry(defs),
+		packs: defs,
 		packErrors: errors,
 		packCount: defs.length,
 	};
