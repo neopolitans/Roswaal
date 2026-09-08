@@ -34,16 +34,12 @@ export type Tank = {
 	turret: BasePart,
 	mantlet: BasePart,
 	gun: BasePart,
-	--- Muzzle. Its LookVector is where a shell goes.
-	firingPoint: Attachment,
 	--- Rotated about Y to traverse.
 	traverse: Motor6D,
-	--- Rotated about X to elevate. The gun follows it.
+	--- Rotated about X to elevate. The mantlet and the gun both follow it.
 	elevate: Motor6D,
 	leftTrack: BasePart,
 	rightTrack: BasePart,
-	--- Query-only volume around the hull. Shells test against this.
-	hitbox: BasePart,
 	--[[
 		How far the hull's centre sits above the bottom of its tracks.
 
@@ -88,12 +84,10 @@ function Rig.resolve(model: Model): Tank
 		turret = turret,
 		mantlet = mantlet,
 		gun = gun,
-		firingPoint = need(gun, "FiringPoint", "Attachment") :: Attachment,
 		traverse = need(hull, "Main", "Motor6D") :: Motor6D,
 		elevate = need(turret, "Mantlet", "Motor6D") :: Motor6D,
 		leftTrack = leftTrack,
 		rightTrack = rightTrack,
-		hitbox = need(hullModel, "CollisionBox", "BasePart") :: BasePart,
 		rideHeight = (hull.Position.Y - leftTrack.Position.Y) + leftTrack.Size.Y / 2,
 		halfTrackWidth = (rightTrack.Position - leftTrack.Position).Magnitude / 2,
 		-- Which side each track is on comes from the hull's own axes rather than
@@ -115,6 +109,16 @@ function Rig.resolve(model: Model): Tank
 	if rig.elevate.Part1 ~= mantlet then
 		error(`the Mantlet joint drives {drives(rig.elevate)}, not Weapon.Mantlet`, 0)
 	end
+
+	-- The chain's last link, which nothing writes to and everything depends on.
+	-- It was wrong once — the gun hung off `Main` and pivoted about its own
+	-- middle — and the symptom was a barrel that swung out of its mantlet, which
+	-- reads as an elevation bug rather than as a parenting one.
+	local gunJoint = need(mantlet, "Gun", "Motor6D") :: Motor6D
+	if gunJoint.Part0 ~= mantlet or gunJoint.Part1 ~= gun then
+		error(`the Gun joint does not hang Weapon.Gun off Weapon.Mantlet`, 0)
+	end
+
 	if not hull.Anchored then
 		error(`{hull:GetFullName()} must stay anchored — approach C writes its CFrame directly`, 0)
 	end
@@ -125,10 +129,10 @@ end
 --[[
 	What the tank's own raycasts should pass through: all of it.
 
-	The whole model rather than a list of parts, because the tank carries a
-	query-only `CollisionBox` around the hull and a shell leaving the muzzle
-	starts inside it. Filtering the parts by name would miss that one, and the
-	symptom is a gun that hits something at zero range every time it fires.
+	The whole model rather than a list of parts, because it carries a query-only
+	`CollisionBox` around the hull as well as the parts you can see. The ground
+	probe drops from above the tank, so anything of the tank's left in the filter
+	is something the probe lands on — and the tank then rides on its own turret.
 ]]
 function Rig.ownParts(rig: Tank): { Instance }
 	return { rig.model }

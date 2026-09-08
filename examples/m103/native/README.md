@@ -6,29 +6,40 @@ graph version has something to be compared against — without it, "the graph
 works" means only "the graph does something", and the conversion test measures
 nothing.
 
-Started 8 September 2026. Nothing in it has been run yet; see
+Started 8 September 2026; reworked the same day around getting in and driving.
+Nothing in it has been run yet; see
 [the conversion log](../../../docs/demo/CONVERSION-LOG.md).
 
 ## What it does
 
-Approach C, settled in [`../NOTES.md`](../NOTES.md):
+Walk up to the tank, press **E**, and you are driving it. **W/A/S/D** move the
+hull, the mouse swings a third-person camera around the tank, and the turret and
+gun follow where you look. **E** again gets out.
+
+That shape is the point. It is the tank demo everybody has already played, and
+being recognisable comes before being interesting — a developer evaluating
+Roswaal should not have to be told how to drive.
+
+Underneath, approach C as settled in [`../NOTES.md`](../NOTES.md):
 
 - **The hull is anchored and CFrame-driven.** Each frame it yaws, moves along
   its own heading, then a downward raycast puts it on the ground and aligns it
   to the slope.
-- **The turret traverses** by writing the `Main` joint's `Transform`.
+- **The turret traverses** by writing the `Main` joint's `Transform`, toward the
+  bearing of the camera's look direction in the hull's own space.
 - **The gun elevates** by writing the `Mantlet` joint's `Transform`, clamped to
   the real M103's −8° to +15°. The barrel rides the mantlet, which is why the
   mantlet is in the joint chain at all.
+- Both are **rate-limited rather than snapped**, and that limit is most of what
+  makes a turret feel like it weighs sixty tons: the camera arrives instantly,
+  the gun takes a moment, and the lag between them is the tank.
 - **The tracks scroll** their tread textures by the distance each side actually
   covered, so a tank pivoting on the spot runs one track forward and one back.
-- **The gun fires** a stepped projectile at `ProjectileSpeed`, and whatever it
-  hits first takes `ProjectileDamage`.
 
-Tunables come from the model's own `HullSettings` and `TurretSettings`
-`Configuration` folders, because a number hard-coded in one version and read
-from a `NumberValue` in the other would make the two programs different in a way
-that has nothing to do with graphs.
+`MovementSpeed` comes from the model's own `HullSettings` `Configuration`,
+because a number hard-coded in one version and read from a `NumberValue` in the
+other would make the two programs different in a way that has nothing to do with
+graphs.
 
 ## Running it
 
@@ -36,21 +47,20 @@ that has nothing to do with graphs.
 rojo serve examples/m103/native/default.project.json
 ```
 
-into the place, which already has the tank. Then W/A/S/D to drive, the mouse to
-aim, left mouse to fire. The camera looks straight down and stays world-aligned;
-the tank turns under it rather than it turning with the tank.
+into the place, which already has the tank.
 
 ## Layout
 
 ```
 src/ReplicatedStorage/Tank/
-  Config.luau     reads the Configuration folders; holds the tunables the model has no home for
+  Config.luau     reads HullSettings; holds the tunables the model has no home for
   Rig.luau        finds the parts and joints once, and fails loudly when one is missing
-  Remotes.luau    the single input RemoteEvent, and the check on what arrives through it
+  Occupancy.luau  the Occupant value, and hiding the driver's character
+  Remotes.luau    the input and exit events, and the check on what arrives
 src/ServerScriptService/
-  TankServer.server.luau    everything the tank does
+  TankServer.server.luau    the prompt, who is driving, and everything the tank does
 src/StarterPlayer/StarterPlayerScripts/
-  TankClient.client.luau    input, aim, and the top-down camera
+  TankClient.client.luau    the orbit camera and the controls
 ```
 
 The server owns the tank. Its hull is anchored and both turret joints replicate
@@ -58,29 +68,43 @@ on their own, so there is no physics, no network ownership and no prediction —
 worth knowing before the same tank is attempted in Unreal, where the equivalent
 is a replicated movement component and is not free.
 
+Three decisions in there are worth naming, because each has an obvious-looking
+alternative that is wrong:
+
+- **Getting in is a `ProximityPrompt`, not a remote.** The prompt is already a
+  server-side event with the player attached. An enter remote would be a second
+  way to do something the engine does properly, and one that trusts the client.
+- **Who is driving is an `ObjectValue`, not an event.** One replicated property
+  instead of an enter event, an exit event, and a late-joiner catch-up — and you
+  can see who is in the tank in the explorer while it runs.
+- **The client sends a look *direction*, not an aim point.** A camera pointed at
+  the sky is not looking at anything, and a point would send the gun to the
+  horizon every time the view cleared the scenery.
+
 ## What is deliberately missing
 
-- **Armour penetration.** The plan holds it back until driving and firing work.
-  The slice registers a hit and applies flat damage; penetration is the first
-  thing added after.
-- **Ricochet.** `ProjectileRicochetCount` is a leftover of the cancelled project
-  and [the survey](../NOTES.md) marks it suspect, so nothing reads it.
-- **Shell drop.** Shells fly straight.
-- **A seat, and more than one tank.** One model, and the first player to join
-  drives it.
+- **Firing, damage and armour penetration.** Cut on the author's call. The demo
+  is about getting in and driving; a gun would be a second system to convert
+  that repeats what the turret already proves.
+- **Client-side prediction.** A shipping game would drive the hull locally and
+  reconcile. That is a networking exercise, it roughly doubles the code, and
+  none of it says anything about whether a node graph can express a tank.
+- **A second tank, and a second seat.** One model, one driver.
+- **Shell drop, ricochet, and the rest of `TurretSettings`.** Nothing reads
+  them, so nothing pretends to.
 
 ## For the conversion — what a graph will have to answer
 
-Kept here as it is written, rather than reconstructed afterwards. Each of these
-is a place the hand-written version does something a node graph may or may not
-be able to express, and the answers belong in the conversion log.
+Kept here as it is written, rather than reconstructed afterwards. Each is a
+place the hand-written version does something a node graph may or may not be
+able to express, and the answers belong in the conversion log.
 
-1. **Per-frame accumulated state.** `turretYaw`, `gunPitch`, the two track
-   offsets and the reload timer are all "last frame's value, adjusted". Script
-   variables should cover it — this is the first real test of them.
-2. **A list that is added to and removed from mid-iteration.** Shells in flight
-   are stepped backwards so a removal does not skip the next one. Roswaal has
-   loops; whether it has a comfortable reverse loop with removal is unknown.
+1. **Per-frame accumulated state.** `turretYaw`, `gunPitch` and the two track
+   offsets are all "last frame's value, adjusted". Script variables should cover
+   it — this is the first real test of them.
+2. **A state machine with two sides.** Entering binds actions, takes the camera,
+   locks the mouse; leaving undoes each one. Every acquire needs its release, and
+   a graph that makes the pair easy to separate will leak one of them.
 3. **The framerate-independent ease**, `1 - 0.5^(dt/halfLife)`. Needs a power
    operator with a fractional exponent in the middle of an expression.
 4. **Shortest-path angle wrapping**, `(target - current + π) % 2π - π`. Four
@@ -95,3 +119,11 @@ be able to express, and the answers belong in the conversion log.
    has to express that without becoming a staircase.
 8. **Reading a `Texture` out of a part's children by class.** A typed loop over
    `GetChildren` with an `IsA` test, twice per frame per track.
+9. **Remembering a value to put it back.** `Occupancy` records every
+   transparency and collision flag it changes so exiting can restore them. A
+   graph needs somewhere to keep a table keyed by instance, which is a different
+   thing from a script variable holding a number.
+10. **Instances created at runtime**, not authored in the model: the
+    `ProximityPrompt`, the `WeldConstraint`, the `RemoteEvent`s. Each is
+    `Instance.new`, some properties, and a parent — the parenting last, and a
+    graph that lets you parent first has changed what the code does.

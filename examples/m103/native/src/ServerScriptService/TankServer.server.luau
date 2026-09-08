@@ -12,22 +12,30 @@
 	material for `docs/demo/CONVERSION-LOG.md` and are the actual point of the
 	exercise.
 
+	## The shape a developer expects
+
+	Walk up, a prompt appears, press E, and you are behind the tank with the gun
+	pointed where you look. That is the tank demo everybody has already played,
+	and matching it is deliberate: the demo has to be recognisable before
+	anything it demonstrates is worth reading.
+
 	## Why the server
 
 	The hull is anchored, so the server writing its `CFrame` replicates for free,
-	and so do the two joints. No physics, no ownership handoff, no prediction.
-	That is worth knowing before the same tank is attempted in Unreal, where the
-	equivalent is a replicated movement component and distinctly not free.
+	and so do the two joints. No physics, no ownership handoff.
+
+	**There is no client-side prediction, on purpose.** A shipping game would
+	drive the hull locally and reconcile; that is a networking exercise, it
+	roughly doubles the code, and none of it says anything about whether a node
+	graph can express a tank. In Studio, where this runs, the round trip is not
+	visible.
 
 	## What is deliberately not here
 
-	- **Armour penetration.** The plan holds it back until driving and firing
-	  work; the slice registers a hit and applies flat damage.
-	- **Ricochet.** `TurretSettings.ProjectileRicochetCount` is a leftover of the
-	  cancelled project and the notes mark it suspect, so nothing reads it.
-	- **Shell drop.** Shells fly straight. `ProjectileSpeed` of 56 would arc
-	  hard under gravity and that is a tuning conversation, not a slice one.
-	- **More than one tank.** One model, one driver, named below.
+	- **Firing, damage and armour penetration.** Cut on the author's call: the
+	  demo is about getting in and driving, and a gun would be a second system to
+	  convert that repeats what the turret already proves.
+	- **More than one tank, and more than one seat.** One model, one driver.
 ]]
 
 local Players = game:GetService("Players")
@@ -40,10 +48,12 @@ local RunService = game:GetService("RunService")
 -- every annotation below into a comment.
 local Tank = ReplicatedStorage:WaitForChild("Tank")
 Tank:WaitForChild("Config")
+Tank:WaitForChild("Occupancy")
 Tank:WaitForChild("Remotes")
 Tank:WaitForChild("Rig")
 
 local Config = require(ReplicatedStorage.Tank.Config)
+local Occupancy = require(ReplicatedStorage.Tank.Occupancy)
 local Remotes = require(ReplicatedStorage.Tank.Remotes)
 local Rig = require(ReplicatedStorage.Tank.Rig)
 
@@ -61,7 +71,9 @@ local rig = Rig.resolve(model)
 local config = Config.read(model)
 local tuning = Config.tuning
 
-local remote = Remotes.input()
+local inputRemote = Remotes.input()
+local exitRemote = Remotes.exit()
+local occupantValue = Occupancy.value(model)
 
 -- ---------------------------------------------------------------------------
 -- State
@@ -75,61 +87,110 @@ local gunPitch = 0
 local leftScroll = 0
 local rightScroll = 0
 
---- Counts down; the gun fires at zero.
-local reload = 0
-
 --- The surface normal the hull is currently sitting on, eased toward the real one.
 local groundNormal = Vector3.yAxis
 
-local latest: Remotes.Input = {
+local idle: Remotes.Input = {
 	throttle = 0,
 	steer = 0,
-	aim = rig.hull.Position - rig.hull.CFrame.LookVector * 100,
-	fire = false,
+	aim = rig.hull.CFrame.LookVector,
 }
-
-type Shell = {
-	position: Vector3,
-	direction: Vector3,
-	travelled: number,
-}
-
-local shells: { Shell } = {}
+local latest = idle
 
 -- ---------------------------------------------------------------------------
--- Input
+-- Getting in and out
 -- ---------------------------------------------------------------------------
 
---[[
-	One driver: whoever joined first and has not left.
+local prompt = Instance.new("ProximityPrompt")
+prompt.Name = "EnterTank"
+prompt.ActionText = "Drive"
+prompt.ObjectText = "M103"
+prompt.KeyboardKeyCode = Enum.KeyCode.E
+prompt.HoldDuration = 0
+prompt.MaxActivationDistance = tuning.promptDistance
+-- The hull is a mesh wearing a turret and a lot of trim, so half the places you
+-- would stand have something between you and the prompt's anchor. Requiring
+-- line of sight makes it flicker as you walk around the tank.
+prompt.RequiresLineOfSight = false
+prompt.Parent = rig.hull
 
-	A seat would be the real answer and the model has none — see the survey. For
-	a slice measuring whether a graph can express a tank controller, a
-	`VehicleSeat` would add a whole occupancy state machine and measure nothing.
-]]
+--- The `Player` driving, or nil. `occupantValue` is the copy clients can see.
 local driver: Player? = nil
 
-local function claim(player: Player)
-	if driver == nil then
-		driver = player
+local function characterOf(player: Player): Model?
+	local character = player.Character
+	return if character and character:FindFirstChildWhichIsA("Humanoid") then character else nil
+end
+
+--- Beside the left track, facing away, on the ground the tank is standing on.
+local function exitCFrame(): CFrame
+	local beside = rig.hull.CFrame * CFrame.new(-(rig.halfTrackWidth + 4), 0, 0)
+	return CFrame.lookAt(beside.Position, beside.Position - rig.hull.CFrame.RightVector * 10)
+end
+
+local function leave()
+	local player = driver
+	driver = nil
+	latest = idle
+	occupantValue.Value = nil
+	prompt.Enabled = true
+	if not player then
+		return
+	end
+	local character = characterOf(player)
+	if character then
+		Occupancy.show(character, exitCFrame())
 	end
 end
 
-for _, player in Players:GetPlayers() do
-	claim(player)
-end
-Players.PlayerAdded:Connect(claim)
-Players.PlayerRemoving:Connect(function(player)
-	if driver == player then
-		driver = nil
-		latest = { throttle = 0, steer = 0, aim = latest.aim, fire = false }
+prompt.Triggered:Connect(function(player: Player)
+	if driver ~= nil then
+		return
+	end
+	local character = characterOf(player)
+	if not character then
+		return
+	end
+	if not Occupancy.hide(character, rig.hull) then
+		return
+	end
+	driver = player
+	latest = idle
+	occupantValue.Value = player
+	prompt.Enabled = false
+end)
+
+exitRemote.OnServerEvent:Connect(function(player: Player)
+	if player == driver then
+		leave()
 	end
 end)
 
-remote.OnServerEvent:Connect(function(player, packet)
-	-- graph: every remote handler needs this pair of guards, and a graph that
-	-- omits either is exploitable rather than merely wrong. Worth watching
-	-- whether the node version makes them easy to forget.
+-- Every way a driver stops being one without pressing anything. Missing any of
+-- these leaves a tank nobody can get into and a prompt that never comes back.
+Players.PlayerRemoving:Connect(function(player)
+	if player == driver then
+		leave()
+	end
+end)
+
+local function watch(player: Player)
+	player.CharacterRemoving:Connect(function()
+		if player == driver then
+			leave()
+		end
+	end)
+end
+
+for _, player in Players:GetPlayers() do
+	watch(player)
+end
+Players.PlayerAdded:Connect(watch)
+
+inputRemote.OnServerEvent:Connect(function(player, packet)
+	-- graph: two guards, and a graph that omits either is exploitable rather
+	-- than merely wrong. Worth watching whether the node version makes them easy
+	-- to forget.
 	if player ~= driver then
 		return
 	end
@@ -140,8 +201,7 @@ remote.OnServerEvent:Connect(function(player, packet)
 	latest = {
 		throttle = math.clamp(input.throttle, -1, 1),
 		steer = math.clamp(input.steer, -1, 1),
-		aim = input.aim,
-		fire = input.fire,
+		aim = input.aim.Unit,
 	}
 end)
 
@@ -181,7 +241,7 @@ local function drive(dt: number): number
 	-- is better than normalising a zero vector into NaN and losing the model.
 	flat = if flat.Magnitude > 1e-4 then flat.Unit else hullCF.LookVector
 
-	local nextPos = hullCF.Position + flat * (latest.throttle * config.hull.movementSpeed * dt)
+	local nextPos = hullCF.Position + flat * (latest.throttle * config.movementSpeed * dt)
 
 	local hit = workspace:Raycast(
 		nextPos + Vector3.yAxis * PROBE_UP,
@@ -218,20 +278,26 @@ local function drive(dt: number): number
 	return yawRate
 end
 
+--[[
+	Turns the turret and raises the gun toward where the camera is looking.
+
+	Both are rate-limited rather than snapped, and that limit is most of what
+	makes a turret feel like it has mass: the camera arrives instantly, the gun
+	takes a moment to catch up, and the lag between them *is* the tank.
+]]
 local function aimTurret(dt: number)
 	local hullCF = rig.hull.CFrame
 
-	-- Traverse: the bearing of the aim point in the hull's own space.
-	local toAim = latest.aim - rig.turret.Position
-	local localAim = hullCF:VectorToObjectSpace(toAim)
+	-- Traverse: the aim direction's bearing in the hull's own space.
+	local localAim = hullCF:VectorToObjectSpace(latest.aim)
 	local desiredYaw = math.atan2(-localAim.X, -localAim.Z)
 	turretYaw = stepAngle(turretYaw, desiredYaw, math.rad(tuning.traverseRate) * dt)
 	rig.traverse.Transform = CFrame.Angles(0, turretYaw, 0)
 
-	-- Elevation: the same point, measured in the *turret's* space, so the
+	-- Elevation: the same direction, measured in the *turret's* space, so the
 	-- traverse the gun has already been given is not counted twice.
 	local turretCF = hullCF * CFrame.Angles(0, turretYaw, 0)
-	local localGun = turretCF:VectorToObjectSpace(latest.aim - rig.mantlet.Position)
+	local localGun = turretCF:VectorToObjectSpace(latest.aim)
 	local flatRange = math.sqrt(localGun.X * localGun.X + localGun.Z * localGun.Z)
 	local desiredPitch = math.clamp(
 		math.atan2(localGun.Y, flatRange),
@@ -282,79 +348,23 @@ end
 	track running forward and the other back, and that reads instantly as a tank.
 ]]
 local function scrollTracks(dt: number, yawRate: number)
-	local forward = latest.throttle * config.hull.movementSpeed
+	local forward = latest.throttle * config.movementSpeed
 	-- A track offset +X from the hull's centre gains speed from a positive yaw
 	-- rate, and `leftSign` says which of the two named tracks that is.
 	local swing = yawRate * rig.halfTrackWidth * rig.leftSign
-	local leftSpeed = forward - swing
-	local rightSpeed = forward + swing
-
-	leftScroll = scroll(rig.leftTrack, leftSpeed * dt, leftScroll)
-	rightScroll = scroll(rig.rightTrack, rightSpeed * dt, rightScroll)
-end
-
--- ---------------------------------------------------------------------------
--- The gun
--- ---------------------------------------------------------------------------
-
-local function fire()
-	local muzzle = rig.firingPoint.WorldCFrame
-	table.insert(shells, {
-		position = muzzle.Position,
-		direction = muzzle.LookVector,
-		travelled = 0,
-	})
-	print(`M103 fired {config.turret.projectileType}`)
-end
-
---[[
-	Advances every shell in flight and resolves the first thing each one hits.
-
-	Stepped rather than hitscan because `ProjectileSpeed` is a real number in the
-	model and a shell that arrives instantly makes it meaningless. Stepping is
-	also where penetration goes when it arrives: the step that hits armour is the
-	one that has the surface normal and the shot vector in hand.
-]]
-local function stepShells(dt: number)
-	-- Backwards, so removing one does not skip the next.
-	for i = #shells, 1, -1 do
-		local shell = shells[i]
-		local step = config.turret.projectileSpeed * dt
-		local hit = workspace:Raycast(shell.position, shell.direction * step, raycast)
-
-		if hit then
-			local character = hit.Instance:FindFirstAncestorWhichIsA("Model")
-			local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
-			if humanoid then
-				humanoid:TakeDamage(config.turret.projectileDamage)
-			end
-			print(`hit {hit.Instance:GetFullName()} at {math.round(shell.travelled)} studs`)
-			table.remove(shells, i)
-			continue
-		end
-
-		shell.position += shell.direction * step
-		shell.travelled += step
-		if shell.travelled >= tuning.maxRange then
-			table.remove(shells, i)
-		end
-	end
+	leftScroll = scroll(rig.leftTrack, (forward - swing) * dt, leftScroll)
+	rightScroll = scroll(rig.rightTrack, (forward + swing) * dt, rightScroll)
 end
 
 -- ---------------------------------------------------------------------------
 
+-- Runs whether or not anyone is driving: an empty tank still settles onto the
+-- ground under it, so getting out on a slope does not leave it standing at the
+-- angle of the last slope it was on.
 RunService.Heartbeat:Connect(function(dt)
 	local yawRate = drive(dt)
 	aimTurret(dt)
 	scrollTracks(dt, yawRate)
-
-	reload = math.max(reload - dt, 0)
-	if latest.fire and reload <= 0 then
-		fire()
-		reload = config.turret.reloadSpeed
-	end
-
-	stepShells(dt)
 end)
 
-print(`M103 ready — {config.hull.hp} HP, {config.hull.movementSpeed} studs/s`)
+print(`M103 ready — walk up and press {prompt.KeyboardKeyCode.Name} to drive`)

@@ -1,18 +1,29 @@
 --!strict
 --[[
-	Input, and the top-down camera the tank was modelled for.
+	The camera, the controls, and knowing when you are driving.
 
-	Everything here is presentation and intent. The server decides what the tank
-	actually does with it — see `TankServer.server.luau` — which is why this
-	sends an aim *point* rather than an angle: the turret's traverse rate is the
-	server's business, and a client sending an angle would be claiming to know
-	what the turret could already reach.
+	Everything here is intent. The server decides what the tank does with it —
+	see `TankServer.server.luau` — which is why this sends the direction the
+	camera is *looking* rather than an angle for the turret: how fast the turret
+	can get there is the server's business, and a client sending an angle would
+	be claiming it already had.
 
 	## The camera
 
-	Straight down, following the hull. The hull and turret are deliberately
-	simple because that is all a top-down mobile game ever shows, so a demo shot
-	from behind would be judging the model on a view it was never built for.
+	A third-person orbit: the mouse swings it around the tank, and the turret and
+	gun follow where it points. This is the control scheme of every tank game
+	anyone has played, and it is the reason the demo reads as a tank rather than
+	as a box that moves.
+
+	Two details do most of the work.
+
+	**The camera orbits the turret, not the hull.** Steering would otherwise drag
+	the whole view around with the hull, so turning on the spot would swing the
+	world instead of the tank. Orbiting a point that does not yaw with the hull
+	keeps the camera where you put it and lets the tank turn underneath it.
+
+	**It pulls in when something is behind it.** Reversing into a wall otherwise
+	puts the camera inside the wall and the screen fills with backface.
 ]]
 
 local ContextActionService = game:GetService("ContextActionService")
@@ -23,39 +34,70 @@ local UserInputService = game:GetService("UserInputService")
 
 -- Waited for, then indexed directly, so `Remotes.Input` survives as a type. See
 -- the same note in TankServer.
-ReplicatedStorage:WaitForChild("Tank"):WaitForChild("Remotes")
+local Tank = ReplicatedStorage:WaitForChild("Tank")
+Tank:WaitForChild("Occupancy")
+Tank:WaitForChild("Remotes")
+
+local Occupancy = require(ReplicatedStorage.Tank.Occupancy)
 local Remotes = require(ReplicatedStorage.Tank.Remotes)
 
 local localPlayer = Players.LocalPlayer :: Player
-local remote = Remotes.input()
 local camera = workspace.CurrentCamera :: Camera
+
 local model = workspace:WaitForChild("M103") :: Model
-local hull = (model:WaitForChild("Hull") :: Model):WaitForChild("Hull") :: BasePart
+local hullModel = model:WaitForChild("Hull") :: Model
+local hull = hullModel:WaitForChild("Hull") :: BasePart
+local turret = (model:WaitForChild("Turret") :: Model):WaitForChild("Main") :: BasePart
+local occupantValue = model:WaitForChild(Occupancy.VALUE_NAME) :: ObjectValue
 
---- Studs above the hull. Far enough to see what the gun is pointed at.
-local CAMERA_HEIGHT = 140
+local inputRemote = Remotes.input()
+local exitRemote = Remotes.exit()
 
---- Which world direction is up the screen. Any axis will do; it must not be Y.
-local SCREEN_UP = Vector3.new(0, 0, -1)
+--- How far back the camera sits, and how far above the turret it looks.
+local DISTANCE = 55
+local FOCUS_HEIGHT = 6
+
+--- Radians per pixel of mouse movement.
+local SENSITIVITY = 0.005
+
+--- How far the camera can look down and up. Not the gun's limits — the camera
+--- may look somewhere the gun cannot reach, and the gun simply stops at its own.
+local MIN_PITCH = math.rad(-60)
+local MAX_PITCH = math.rad(35)
+
+--- Keep the camera this far off whatever it would otherwise be inside.
+local CAMERA_MARGIN = 1.5
 
 --- Don't spend a remote call on a packet that says what the last one said.
 local SEND_EPSILON = 0.01
 
-local throttle = 0
-local steer = 0
-local firing = false
+-- ---------------------------------------------------------------------------
+-- State
+-- ---------------------------------------------------------------------------
 
+local driving = false
+local yaw = 0
+local pitch = math.rad(-12)
+
+-- Held per key rather than as one axis, so pressing W and S together and
+-- releasing one does not leave the tank driving the way you let go of.
+local forwardHeld, backHeld, leftHeld, rightHeld = 0, 0, 0, 0
 local sent: Remotes.Input? = nil
 
+local cameraCast = RaycastParams.new()
+cameraCast.FilterType = Enum.RaycastFilterType.Exclude
+cameraCast.FilterDescendantsInstances = { model }
+cameraCast.IgnoreWater = true
+
 -- ---------------------------------------------------------------------------
--- Keys
+-- Controls
 -- ---------------------------------------------------------------------------
 
 --[[
 	Bound through `ContextActionService` rather than read from
-	`UserInputService.InputBegan`, because it takes a mobile button for free —
-	`ContextActionService:BindAction` with a touch button is the same call — and
-	the tank is a mobile game's tank.
+	`UserInputService.InputBegan`, for two reasons that both matter here: an
+	action can be unbound again when you get out, so W does not drive a tank you
+	have left; and `createTouchButton` gives mobile the same control for free.
 ]]
 local function bindAxis(name: string, key: Enum.KeyCode, apply: (number) -> ())
 	ContextActionService:BindAction(name, function(_, state: Enum.UserInputState)
@@ -64,62 +106,102 @@ local function bindAxis(name: string, key: Enum.KeyCode, apply: (number) -> ())
 		elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
 			apply(0)
 		end
-		return Enum.ContextActionResult.Pass
-	end, false, key)
+		return Enum.ContextActionResult.Sink
+	end, true, key)
 end
 
--- Held separately per key, so pressing both does not leave the tank stuck on
--- whichever was released last.
-local forwardHeld, backHeld, leftHeld, rightHeld = 0, 0, 0, 0
+local ACTIONS = { "TankForward", "TankBack", "TankLeft", "TankRight", "TankExit" }
 
-bindAxis("TankForward", Enum.KeyCode.W, function(v)
-	forwardHeld = v
-end)
-bindAxis("TankBack", Enum.KeyCode.S, function(v)
-	backHeld = v
-end)
-bindAxis("TankLeft", Enum.KeyCode.A, function(v)
-	leftHeld = v
-end)
-bindAxis("TankRight", Enum.KeyCode.D, function(v)
-	rightHeld = v
-end)
+local function bindControls()
+	bindAxis("TankForward", Enum.KeyCode.W, function(v)
+		forwardHeld = v
+	end)
+	bindAxis("TankBack", Enum.KeyCode.S, function(v)
+		backHeld = v
+	end)
+	bindAxis("TankLeft", Enum.KeyCode.A, function(v)
+		leftHeld = v
+	end)
+	bindAxis("TankRight", Enum.KeyCode.D, function(v)
+		rightHeld = v
+	end)
 
--- `true` here asks for a touch button on mobile, which is the platform the
--- tank was built for; the mouse binding is what makes it testable in Studio.
-ContextActionService:BindAction("TankFire", function(_, state: Enum.UserInputState)
-	firing = state == Enum.UserInputState.Begin
-	return Enum.ContextActionResult.Pass
-end, true, Enum.UserInputType.MouseButton1)
+	ContextActionService:BindAction("TankExit", function(_, state: Enum.UserInputState)
+		if state == Enum.UserInputState.Begin then
+			exitRemote:FireServer()
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.E)
+	ContextActionService:SetTitle("TankExit", "Exit")
+end
+
+local function unbindControls()
+	for _, name in ACTIONS do
+		ContextActionService:UnbindAction(name)
+	end
+	forwardHeld, backHeld, leftHeld, rightHeld = 0, 0, 0, 0
+end
+
+UserInputService.InputChanged:Connect(function(input, processed)
+	if not driving or processed then
+		return
+	end
+	if input.UserInputType ~= Enum.UserInputType.MouseMovement then
+		return
+	end
+	yaw -= input.Delta.X * SENSITIVITY
+	pitch = math.clamp(pitch - input.Delta.Y * SENSITIVITY, MIN_PITCH, MAX_PITCH)
+end)
 
 -- ---------------------------------------------------------------------------
--- Aim
+-- Getting in and out
 -- ---------------------------------------------------------------------------
 
 --[[
-	Where the cursor is, on the plane the tank is standing on.
+	Everything that changes when you take the tank, and unchanges when you leave.
 
-	A plane rather than a raycast into the scene. Raycasting would put the aim
-	point on whatever the cursor happens to be over, so passing the cursor across
-	a wall would throw the gun's elevation at the top of it and back — and the
-	gun has eight degrees of depression to play with, so that reads as the turret
-	twitching rather than as aiming.
+	Driven by the `Occupant` value rather than by the button press, so a client
+	that joined while somebody was already driving ends up in the same state as
+	one that watched them get in — and so losing the character to a respawn,
+	which the server treats as getting out, gives the camera back here too.
 ]]
-local function aimPoint(): Vector3
-	local mouse = UserInputService:GetMouseLocation()
-	local ray = camera:ViewportPointToRay(mouse.X, mouse.Y)
-	local planeY = hull.Position.Y
-	local denominator = ray.Direction.Y
-	if math.abs(denominator) < 1e-6 then
-		return hull.Position - hull.CFrame.LookVector * 100
+local function setDriving(now: boolean)
+	if now == driving then
+		return
 	end
-	local distance = (planeY - ray.Origin.Y) / denominator
-	if distance <= 0 then
-		return hull.Position - hull.CFrame.LookVector * 100
+	driving = now
+
+	if driving then
+		-- Start the camera behind the tank rather than wherever it was left, so
+		-- getting in always faces the way the tank is pointed.
+		local look = hull.CFrame.LookVector
+		yaw = math.atan2(-look.X, -look.Z)
+		pitch = math.rad(-12)
+		camera.CameraType = Enum.CameraType.Scriptable
+		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+		UserInputService.MouseIconEnabled = false
+		bindControls()
+	else
+		unbindControls()
+		sent = nil
+		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+		UserInputService.MouseIconEnabled = true
+		camera.CameraType = Enum.CameraType.Custom
+		local character = localPlayer.Character
+		local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+		if humanoid then
+			camera.CameraSubject = humanoid
+		end
 	end
-	return ray.Origin + ray.Direction * distance
 end
 
+occupantValue:GetPropertyChangedSignal("Value"):Connect(function()
+	setDriving(occupantValue.Value == localPlayer)
+end)
+setDriving(occupantValue.Value == localPlayer)
+
+-- ---------------------------------------------------------------------------
+-- The frame
 -- ---------------------------------------------------------------------------
 
 local function changed(a: Remotes.Input?, b: Remotes.Input): boolean
@@ -128,42 +210,36 @@ local function changed(a: Remotes.Input?, b: Remotes.Input): boolean
 	end
 	return math.abs(a.throttle - b.throttle) > SEND_EPSILON
 		or math.abs(a.steer - b.steer) > SEND_EPSILON
-		or (a.aim - b.aim).Magnitude > 0.5
-		or a.fire ~= b.fire
+		-- A direction, so the threshold is an angle rather than a distance:
+		-- about half a degree, below which the turret would not visibly move.
+		or a.aim:Dot(b.aim) < 0.99996
 end
 
-camera.CameraType = Enum.CameraType.Scriptable
-
 RunService.RenderStepped:Connect(function()
-	throttle = forwardHeld - backHeld
-	steer = rightHeld - leftHeld
+	if not driving then
+		return
+	end
 
-	-- World-aligned rather than following the hull's heading. A top-down camera
-	-- that yaws with the tank turns every steering input into the whole world
-	-- rotating, which is unreadable at this height — the tank turns, the map
-	-- does not.
-	camera.CFrame = CFrame.lookAt(
-		hull.Position + Vector3.yAxis * CAMERA_HEIGHT,
-		hull.Position,
-		SCREEN_UP
-	)
+	local focus = turret.Position + Vector3.yAxis * FOCUS_HEIGHT
+	local rotation = CFrame.fromEulerAnglesYXZ(pitch, yaw, 0)
+	local wanted = focus + rotation * Vector3.new(0, 0, DISTANCE)
+
+	-- Pulled in to whatever is in the way, so reversing into a wall does not put
+	-- the camera inside it.
+	local blocked = workspace:Raycast(focus, wanted - focus, cameraCast)
+	local eye = if blocked then blocked.Position + blocked.Normal * CAMERA_MARGIN else wanted
+	camera.CFrame = CFrame.lookAt(eye, focus)
 
 	local packet: Remotes.Input = {
-		throttle = throttle,
-		steer = steer,
-		aim = aimPoint(),
-		fire = firing,
+		throttle = forwardHeld - backHeld,
+		steer = rightHeld - leftHeld,
+		-- The camera's own direction rather than one rebuilt from yaw and pitch:
+		-- if the camera was pulled in, this is still where it is looking, and the
+		-- gun should agree with what is on screen.
+		aim = camera.CFrame.LookVector,
 	}
 	if changed(sent, packet) then
-		remote:FireServer(packet)
+		inputRemote:FireServer(packet)
 		sent = packet
 	end
-end)
-
-localPlayer.CharacterAdded:Connect(function(character)
-	-- The driver is not walking around; parking the character out of the way
-	-- keeps it from being run over by the tank it is driving.
-	local root = character:WaitForChild("HumanoidRootPart") :: BasePart
-	root.CFrame = hull.CFrame * CFrame.new(0, 40, 0)
-	root.Anchored = true
 end)

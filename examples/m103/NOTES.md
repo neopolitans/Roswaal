@@ -86,6 +86,20 @@ above and it arrived before the work started rather than during it.
 
 - **The M103 was built for a mobile game, seen top-down.** The hull and turret
   are deliberately simple because that is all the perspective ever shows.
+  **Superseded for the demo on 8 September** — see below. The model's origin is
+  unchanged and it still explains why the geometry is plain.
+
+  > **The demo is third-person, not top-down.** The author's call, and the
+  > reasoning is about audience rather than about the tank: this demo's job is to
+  > be a *recognisable tank demo* to a developer weighing up Roswaal, and the
+  > control scheme everyone has already played is orbit-camera with the turret
+  > following the view. A top-down camera would have been faithful to the
+  > original game and would have made the demo look like something else.
+  >
+  > It does mean the camera now shows detail the model was not built to be seen
+  > at. That is a cost worth paying and worth knowing about: if the tank reads as
+  > plain up close, it is the perspective that changed, not the model that
+  > regressed.
 - **The tracks animate by scrolling their textures along U/V**, not by moving
   geometry. That is what the four `Texture` objects on each track are for —
   `OffsetStudsU` / `OffsetStudsV`, one per face. No track links, no wheels
@@ -95,7 +109,9 @@ above and it arrived before the work started rather than during it.
 - **Projectiles get reworked to real armour penetration**, replacing the original
   project's "projectiles bounce off walls" behaviour. `ProjectileRicochetCount`
   in `TurretSettings` is a leftover of that older model and should be treated as
-  suspect rather than as a requirement.
+  suspect rather than as a requirement. **The demo does not fire at all** as of
+  8 September — cut so the slice is getting in and driving, which is the part
+  that exercises the joints.
 
 ### What that changes
 
