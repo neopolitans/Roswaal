@@ -3577,6 +3577,26 @@ button.tb.with-icon {
 	width: 100%;
 }
 
+/* A segmented control is `inline-flex` everywhere else, because on the toolbar
+   it should be exactly as wide as its labels. Here it sits in a fixed column
+   beside a select and a checkbox, so it takes the column — and its buttons have
+   to take the control, or the border stretches to the full width while the two
+   halves huddle at the left end of it and the empty remainder reads as a third,
+   broken option.
+
+   `flex: 1` rather than natural widths, so the two halves are equal whatever
+   they are labelled: "Manually" and "On every change" are very different
+   lengths, and a divider that lands in a different place on every row is a
+   worse answer than one that is always in the middle. */
+.setting-control .segmented {
+	display: flex;
+}
+
+.setting-control .segmented button {
+	flex: 1;
+	text-align: center;
+}
+
 .settings-toggle {
 	display: flex;
 	align-items: center;

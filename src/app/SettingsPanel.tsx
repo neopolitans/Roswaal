@@ -225,17 +225,20 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				help="Straighten places each node where the execution wire arriving at it comes out flat, so a run of nodes reads as one line. Columns is the plain grid."
 			>
 				<div className="segmented">
+					{/* The same word the toolbar button uses. One name for one thing —
+					    and it is short enough not to wrap, which a two-line half of a
+					    segmented control does at this column width. */}
 					<button
 						className={prefs.alignExec ? "on" : ""}
 						onClick={() => onPrefs({ alignExec: true })}
 					>
-						Straighten the spine
+						Straighten
 					</button>
 					<button
 						className={!prefs.alignExec ? "on" : ""}
 						onClick={() => onPrefs({ alignExec: false })}
 					>
-						Plain columns
+						Columns
 					</button>
 				</div>
 			</Row>
