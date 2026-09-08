@@ -310,6 +310,19 @@ A few things worth knowing:
   Splitting the pin does the same job in less room — these are here because a
   Break node is what a Blueprints hand reaches for first.
 
+## Seeing what a selection compiles to
+
+Select some nodes and press `P`, or use the **Preview** button that appears on
+the toolbar when something is selected. It shows the Luau those nodes produced,
+picked out of the real generated file with a couple of lines of context.
+
+It reads the **actual output** rather than compiling the selection on its own —
+a selection is usually a subgraph with no entry point and inputs from outside
+it, and compiling that standalone would show you Luau the file does not contain.
+
+A pure node is spliced into whatever uses it and has no line of its own, so the
+preview follows its wires forward to the statement it ends up in and says so.
+
 ## Optional arguments
 
 Some inputs read **default** in a dashed box rather than showing a value. Those
@@ -515,6 +528,7 @@ you never wrote.
 | Right-click canvas | node palette, spawns at the cursor |
 | Drag from a pin | make a wire; drop on empty space to pick a node, which arrives wired |
 | Drag a wired input | pick the existing wire up and rewire it |
+| `P` with a selection | preview the Luau those nodes produced |
 | Alt-click a wire | sever it |
 | Double-click a wire | add a reroute knot where you clicked |
 | Shift-click a pin | disconnect everything on it |
@@ -620,10 +634,11 @@ Honest list of what the prototype does not do yet.
   rather than `Ctrl+Z`; the graph canvas has the full history.
 - **The project tree has no marquee select.** Shift-range and Ctrl-toggle work,
   as does dragging files between directories.
-- **No source-map wiring in the UI.** The compiler emits a line-to-node map, but
-  nothing yet feeds Studio's runtime errors back into the canvas. That is the
-  natural next step, and the reason a thin Studio plugin might eventually earn
-  its place.
+- **Studio's runtime errors do not reach the canvas.** The compiler's
+  line-to-node map is correct and is read by the selection preview, but nothing
+  yet carries an error at `Main.server.luau:42` back to the node that produced
+  line 42. That is the natural next step, and the reason a thin Studio plugin
+  might eventually earn its place.
 - **Wildcard pins do not propagate.** `wildcard` connects to anything but does
   not adopt the type it was wired to.
 - **No per-node breakpoints or debugging.**

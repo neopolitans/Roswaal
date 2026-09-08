@@ -59,6 +59,37 @@ describe("optional arguments", () => {
 		expect(shows(b, info)).toContain("Enum.EasingDirection.Out, nil, nil, 0.5)");
 	});
 
+	/**
+	 * Every combination, because the rule is positional and the interesting
+	 * cases are the ones with a hole in the middle.
+	 *
+	 * Setting only the *last* optional argument is the case worth being sure
+	 * about: both pins before it have to be written out as `nil`, or the delay
+	 * arrives where the repeat count was expected. Testing one arrangement
+	 * would have left three of these eight untried.
+	 */
+	it.each([
+		[[], ""],
+		[["repeatCount"], ", 2"],
+		[["reverses"], ", nil, true"],
+		[["repeatCount", "reverses"], ", 2, true"],
+		[["delayTime"], ", nil, nil, 0.5"],
+		[["repeatCount", "delayTime"], ", 2, nil, 0.5"],
+		[["reverses", "delayTime"], ", nil, true, 0.5"],
+		[["repeatCount", "reverses", "delayTime"], ", 2, true, 0.5"],
+	])("emits %j as %j", (set, tail) => {
+		const values: Record<string, { t: "number"; v: number } | { t: "boolean"; v: boolean }> = {
+			repeatCount: { t: "number", v: 2 },
+			reverses: { t: "boolean", v: true },
+			delayTime: { t: "number", v: 0.5 },
+		};
+		const b = new Builder();
+		const info = b.node("tweeninfo.new");
+		for (const pin of set as string[]) b.lit(info, pin, values[pin]);
+
+		expect(shows(b, info)).toContain(`Enum.EasingDirection.Out${tail})`);
+	});
+
 	/** A wire counts as setting it, exactly as typing a value does. */
 	it("treats a wired optional pin as set", () => {
 		const b = new Builder();

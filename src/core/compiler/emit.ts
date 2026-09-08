@@ -141,7 +141,20 @@ class Emitter {
 		const body = this.render(lines);
 		const outputHash = hashString(body);
 		const header = this.header(outputHash);
-		const headerLines = header.split("\n").length;
+		/**
+		 * How many lines the header occupies.
+		 *
+		 * `split("\n").length` is one too many: the header ends with a newline,
+		 * so splitting leaves a trailing empty string that is not a line. That
+		 * off-by-one put every entry in the source map one line late — the first
+		 * statement was attributed to the line below it, and the last node to the
+		 * blank line at the end of the file.
+		 *
+		 * It survived from the day the map was written until the day something
+		 * finally read it, which is the argument for building a consumer rather
+		 * than trusting a mapping nothing exercises.
+		 */
+		const headerLines = header.split("\n").length - 1;
 
 		const sourceMap = lines
 			.map((l, i) => (l.node ? { line: headerLines + i + 1, node: l.node } : null))

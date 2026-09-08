@@ -34,6 +34,7 @@ import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
 import { SettingsPanel } from "./SettingsPanel.jsx";
+import { SelectionPreview } from "./SelectionPreview.jsx";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
@@ -104,6 +105,8 @@ export function App() {
 	 */
 	const [prefs, setPrefs] = useState<Preferences>(readPreferences);
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	/** The selection preview, which is opened deliberately and never sits open. */
+	const [previewOpen, setPreviewOpen] = useState(false);
 	const alignExec = prefs.alignExec;
 
 	const updatePrefs = useCallback((patch: Partial<Preferences>) => {
@@ -158,10 +161,19 @@ export function App() {
 
 	const registry = useMemo(() => createRegistry(customNodes), [customNodes]);
 
-	const diagnostics: Diagnostic[] = useMemo(() => {
-		if (!editor.script) return [];
-		return compile(editor.script, registry).diagnostics;
-	}, [editor.script, registry]);
+	/**
+	 * The in-browser compile of the open graph.
+	 *
+	 * Was `.diagnostics` alone; the whole result is kept now because the
+	 * selection preview needs the code and the source map, and they come from
+	 * the same call that was already running on every edit. Nothing extra is
+	 * compiled to support it.
+	 */
+	const compiled = useMemo(
+		() => (editor.script ? compile(editor.script, registry) : null),
+		[editor.script, registry],
+	);
+	const diagnostics: Diagnostic[] = compiled?.diagnostics ?? [];
 
 	// -- project -----------------------------------------------------------
 
@@ -646,9 +658,12 @@ export function App() {
 
 			// Selecting and copying are reading. Everything else below changes
 			// the graph, and while it is locked none of it may.
-			if (locked && !(mod && (e.key.toLowerCase() === "a" || e.key.toLowerCase() === "c"))) {
-				return;
-			}
+			// Selecting, copying and previewing are reading. Everything else below
+			// changes the graph, and while it is locked none of it may.
+			const reading =
+				(mod && (e.key.toLowerCase() === "a" || e.key.toLowerCase() === "c")) ||
+				e.key.toLowerCase() === "p";
+			if (locked && !reading) return;
 
 			if (mod && e.key.toLowerCase() === "z") {
 				e.preventDefault();
@@ -720,6 +735,12 @@ export function App() {
 			if (e.key.toLowerCase() === "c" && !mod && store.getSnapshot().selection.size > 0) {
 				e.preventDefault();
 				spawnComment({ x: 0, y: 0 });
+			}
+			// Unmodified, like C for comment, and only with something selected —
+			// so it stays out of the way until it has a question to answer.
+			if (e.key.toLowerCase() === "p" && !mod && store.getSnapshot().selection.size > 0) {
+				e.preventDefault();
+				setPreviewOpen(true);
 			}
 		};
 		window.addEventListener("keydown", onKey);
@@ -1015,6 +1036,21 @@ export function App() {
 							>
 								Straighten
 							</button>
+
+							{/* Only with a selection, which is the whole design: an
+							    advanced tool that appears when it has a question to
+							    answer and is not chrome the rest of the time. `P`
+							    does the same thing without reaching for it. */}
+							{editor.selection.size > 0 && (
+								<button
+									className="tb with-icon"
+									title="Show the Luau these nodes produced, in the generated file (P)"
+									onClick={() => setPreviewOpen(true)}
+								>
+									<Icon name="terminal" size={15} />
+									Preview
+								</button>
+							)}
 						</>
 					) : null}
 
@@ -1175,6 +1211,17 @@ export function App() {
 				/>
 			)}
 
+
+			{previewOpen && editor.script && compiled && (
+				<SelectionPreview
+					script={editor.script}
+					registry={registry}
+					selection={editor.selection}
+					code={compiled.code}
+					sourceMap={compiled.sourceMap}
+					onClose={() => setPreviewOpen(false)}
+				/>
+			)}
 
 			{settingsOpen && (
 				<SettingsPanel

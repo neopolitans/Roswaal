@@ -3844,3 +3844,94 @@ button.tb.with-icon {
 	max-height: 260px;
 	overflow: auto;
 }
+
+/* ------------------------------------------------- selection preview */
+
+/* Deliberately narrower than the docs window: this is one column of code, and
+   a wide box would set the eye scanning for a second column that is not there. */
+.preview-luau {
+	width: min(760px, 100%);
+	height: min(620px, 100%);
+	grid-template-rows: auto 1fr;
+}
+
+.preview-luau .docs-head .spacer {
+	flex: 1;
+}
+
+.preview-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+	color: var(--fg-muted);
+	cursor: pointer;
+}
+
+.preview-body {
+	overflow: auto;
+	padding: 12px 14px 20px;
+	min-height: 0;
+}
+
+.preview-note {
+	margin: 0 0 12px;
+	padding: 9px 11px;
+	background: var(--capsule-bg);
+	border: 1px solid var(--capsule-border);
+	border-radius: 6px;
+	color: var(--fg-muted);
+	line-height: 1.55;
+}
+
+.preview-code {
+	margin: 0;
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-size: 12px;
+	line-height: 1.6;
+	white-space: pre;
+	overflow-x: auto;
+}
+
+.preview-code .ln {
+	display: block;
+}
+
+.preview-code .num {
+	display: inline-block;
+	width: 3.5ch;
+	margin-right: 12px;
+	text-align: right;
+	color: var(--fg-faint);
+	user-select: none;
+}
+
+/* The lines these nodes actually produced. A left rule rather than a fill,
+   because the code is already carrying colour and a highlight behind it would
+   fight the syntax rather than frame it. */
+.preview-code .ln.mine {
+	background: color-mix(in srgb, var(--accent) 14%, transparent);
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.preview-code .ln.mine .num {
+	color: var(--accent);
+}
+
+/* Where an inlined pure node's value ended up. Marked differently from a line
+   the node produced, because it is a different claim. */
+.preview-code .ln.downstream {
+	background: color-mix(in srgb, var(--ok) 12%, transparent);
+	box-shadow: inset 2px 0 0 var(--ok);
+}
+
+.preview-code .ln.downstream .num {
+	color: var(--ok);
+}
+
+.preview-code .fold {
+	display: block;
+	color: var(--fg-faint);
+	padding-left: 4.5ch;
+	user-select: none;
+}

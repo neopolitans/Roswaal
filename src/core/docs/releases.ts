@@ -39,6 +39,24 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.17.0",
+		date: "2026-09-08",
+		headline: "See what a selection compiles to, and the source map finally works.",
+		added: [
+			"**Selection preview.** Select some nodes and press `P`, or use the **Preview** button that appears on the toolbar when something is selected. It shows the Luau those nodes produced, picked out of the real generated file with a few lines of context either side.",
+			"It reads the **actual output** rather than compiling the selection on its own. A selection is an arbitrary subgraph, usually with no entry point and with inputs from outside it — compiling that standalone would produce a page of diagnostics about a script nobody wrote, and Luau the file does not contain.",
+			"**A pure node gets a straight answer too.** A pure value with one consumer is spliced into its use site and has no line of its own, so the preview follows its wires forward to the statement it ends up in and says so, rather than reporting nothing.",
+			"Deliberately not always on screen: the button appears only with a selection, and the panel is opened rather than docked.",
+		],
+		fixed: [
+			"**The compiler's line-to-node source map was off by one, and always had been.** The header's line count came from splitting on newlines, which counts the empty string after the trailing newline as a line — so every entry pointed one line late: the first statement at the line below it, the last node at the blank line ending the file. Nothing had ever read the map, which is exactly why nobody noticed. Found by writing the first thing that consumes it.",
+		],
+		watch: [
+			"`P` opens the preview when nodes are selected, with no modifier — the same shape as `C` for a comment. It works while a compile has the graph locked, because it only reads.",
+			"The map is what a future Studio integration would use to point a runtime error back at a node. That lookup now starts from a mapping something exercises and three tests check against the real text, rather than one nothing had tried.",
+		],
+	},
+	{
 		version: "0.16.0",
 		date: "2026-09-08",
 		headline: "Arguments you can leave out, and a wire that finishes the thought.",
