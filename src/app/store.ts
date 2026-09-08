@@ -258,6 +258,27 @@ class Store {
 	}
 
 	/**
+	 * Every open graph with edits that have not reached disk.
+	 *
+	 * Autosave is debounced and runs against the document you are *looking at*,
+	 * so switching tabs inside that window leaves the one you left dirty until
+	 * you come back to it. Nothing noticed while the only way out of a project
+	 * was to close the tab — but closing every document at once, which is what
+	 * changing project does, would take those edits with it.
+	 *
+	 * Returned as paths and scripts rather than acted on here: the store does
+	 * not know how to write a file, and giving it an opinion about that is how a
+	 * state container turns into an application.
+	 */
+	unsaved(): { path: string; script: NodeScript }[] {
+		const out: { path: string; script: NodeScript }[] = [];
+		for (const [path, doc] of this.docs) {
+			if (doc.dirty && doc.script) out.push({ path, script: doc.script });
+		}
+		return out;
+	}
+
+	/**
 	 * A document whose file was renamed keeps its tab, its history and its view.
 	 *
 	 * Closing and reopening would be simpler and would throw all three away for

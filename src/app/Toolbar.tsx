@@ -45,6 +45,8 @@ export interface ProjectBarProps {
 	onCompileProject: () => void;
 	onOpenDocs: () => void;
 	onOpenSettings: () => void;
+	/** Opens the project menu, anchored under the mark. */
+	onOpenProjectMenu: (anchor: { x: number; y: number }) => void;
 }
 
 export function ProjectBar(props: ProjectBarProps) {
@@ -52,13 +54,23 @@ export function ProjectBar(props: ProjectBarProps) {
 		<div className="toolbar">
 			{/* The mark alone. The name is on it as a tooltip rather than in
 			    text, because the toolbar is the one screen you are only on
-			    once you have already opened the thing. */}
-			<span className="logo">
-				<Logo height={17} title={`Roswaal ${VERSION}`} />
+			    once you have already opened the thing.
+
+			    It is also the way back out: the mark opens the project menu,
+			    which is where an application's own icon is looked for. */}
+			<button
+				className="logo"
+				title={`Roswaal ${VERSION} — switch project`}
+				onClick={(e) => {
+					const box = e.currentTarget.getBoundingClientRect();
+					props.onOpenProjectMenu({ x: box.left, y: box.bottom + 4 });
+				}}
+			>
+				<Logo height={17} />
 				{/* Small, always there. Knowing which build you are looking at
 				    is the first question about any bug report. */}
-				<span className="version" title={`Roswaal ${VERSION}`}>{VERSION}</span>
-			</span>
+				<span className="version">{VERSION}</span>
+			</button>
 
 			<button
 				className="tb with-icon"

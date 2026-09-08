@@ -46,6 +46,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.18.2",
+		date: "2026-09-08",
+		headline: "Switch projects from the toolbar.",
+		added: [
+			"**The Roswaal mark in the toolbar opens a project menu.** It names the project you have open, lists the ones you opened before, and offers the folder dialog for anything else. Changing project no longer means restarting the daemon.",
+			"A project in the recent list can be removed from it. The project itself is untouched.",
+			"Choosing a directory that is not a Roswaal project yet offers to initialise it, on the same terms the first-run screen does — a `roswaal.json` is written and nothing else.",
+		],
+		changed: [
+			"**Every open graph is written to disk before the project changes**, and a write that fails cancels the switch rather than closing the tab it failed on.",
+		],
+	},
+	{
 		version: "0.18.1",
 		date: "2026-09-08",
 		headline: "Three typechecking modes, and a second way to cut a wire.",

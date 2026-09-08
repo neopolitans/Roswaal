@@ -29,6 +29,7 @@ import { autoLayout } from "./layout.js";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
+import { ProjectMenu } from "./ProjectMenu.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays } from "./Overlays.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
@@ -207,6 +208,10 @@ export function App() {
 		{ nodeId: string; pin: PinDef; value: string } | null
 	>(null);
 	const [dialog, setDialog] = useState<PendingDialog | null>(null);
+	/** Where the project menu is anchored, and the recents it was opened with. */
+	const [projectMenu, setProjectMenu] = useState<
+		{ anchor: { x: number; y: number }; recent: string[] } | null
+	>(null);
 	// A file dropped on the canvas, once we know where it lives in the DataModel
 	// and therefore what can usefully be made from it.
 	const [dropMenu, setDropMenu] = useState<
@@ -268,6 +273,95 @@ export function App() {
 			setBusy(null);
 		}
 	}, []);
+
+	/**
+	 * Leaves the project that is open and opens another.
+	 *
+	 * The daemon has always been able to do this — `POST /api/project/open`, and
+	 * a 409 guard so a tab left on the old project cannot write into the new one.
+	 * What was missing was any way to ask, once the first-run shell was behind
+	 * you, and the workaround was to restart the daemon.
+	 *
+	 * **Unsaved work is written first, and a failure cancels the switch.**
+	 * Autosave is debounced and follows the document you are looking at, so an
+	 * edit from the last few hundred milliseconds — or one in a tab you moved
+	 * away from inside that window — may not be on disk yet. Closing every
+	 * document, which is what changing project does, would take it with it.
+	 */
+	const switchProject = useCallback(
+		async (root: string) => {
+			try {
+				for (const { path, script } of store.unsaved()) {
+					await api.writeScript(path, script);
+				}
+				if (mapDoc?.dirty) await api.writeMap(mapDoc.path, mapDoc.map);
+			} catch (err) {
+				notify(
+					"Staying where we are",
+					`Something still had unsaved changes and they could not be written: ${
+						(err as Error).message
+					}. Nothing was closed and the project has not changed.`,
+				);
+				return;
+			}
+
+			store.closeAll();
+			setMapDoc(null);
+			setSource(null);
+			await loadProject(root);
+		},
+		[loadProject, mapDoc, notify],
+	);
+
+	/**
+	 * The folder dialog, then whatever comes back.
+	 *
+	 * A directory that is not a project yet is offered rather than refused, on
+	 * the same terms the first-run shell offers it: initialising writes a
+	 * `roswaal.json` and nothing else. Asked rather than assumed, because
+	 * choosing a folder and creating a project in it are two decisions and only
+	 * one of them was made by picking it.
+	 */
+	const browseForProject = useCallback(async () => {
+		let chosen: string | null;
+		try {
+			chosen = (await api.browseForProject()).path;
+		} catch (err) {
+			// No dialog on this machine — a daemon over SSH, a container. Typing
+			// the path is the fallback the shell has always had.
+			const typed = await ask({
+				kind: "prompt",
+				title: "Open a project",
+				label: `This machine has no folder dialog (${(err as Error).message})`,
+				placeholder: "C:" + SEP + "path" + SEP + "to" + SEP + "project",
+			});
+			chosen = typeof typed === "string" && typed.trim() !== "" ? typed.trim() : null;
+		}
+		if (!chosen) return;
+
+		const look = await api.inspectProject(chosen).catch(() => null);
+		if (!look || !look.exists || !look.directory) {
+			notify("Nothing to open", `There is no directory at ${chosen}.`);
+			return;
+		}
+		if (!look.initialised) {
+			const yes = await ask({
+				kind: "confirm",
+				title: "Not a Roswaal project yet",
+				message:
+					`${chosen} has no roswaal.json. Initialising writes one and nothing else — ` +
+					"no files are moved and nothing existing is changed.",
+				confirmLabel: "Initialise",
+			});
+			if (yes !== true) return;
+			store.closeAll();
+			setMapDoc(null);
+			setSource(null);
+			await loadProject(chosen, true);
+			return;
+		}
+		await switchProject(chosen);
+	}, [ask, loadProject, notify, switchProject]);
 
 	useEffect(() => {
 		// The daemon wins over the remembered path: if it was started with
@@ -971,7 +1065,30 @@ export function App() {
 				}}
 				onOpenDocs={() => window.open("/docs", "roswaal-docs")}
 				onOpenSettings={() => setSettingsOpen(true)}
+				onOpenProjectMenu={(anchor) =>
+					setProjectMenu({ anchor, recent: recentProjects() })
+				}
 			/>
+
+			{/* Rendered here rather than in the overlay stack: it is about the
+			    project, not about the graph, and Overlays takes the script. It
+			    is `position: fixed`, so where it sits in the tree is invisible. */}
+			{projectMenu && (
+				<ProjectMenu
+					anchor={projectMenu.anchor}
+					current={project.root}
+					recent={projectMenu.recent}
+					onOpen={(root) => void switchProject(root)}
+					onForget={(root) => {
+						forget(root);
+						setProjectMenu((m) =>
+							m ? { ...m, recent: m.recent.filter((r) => r !== root) } : m,
+						);
+					}}
+					onBrowse={() => void browseForProject()}
+					onClose={() => setProjectMenu(null)}
+				/>
+			)}
 
 			{/* The document row. Absent when nothing is open, which is what
 			    keeps "everything above is the project, everything here is the

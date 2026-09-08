@@ -420,6 +420,25 @@ select optgroup {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
+	/* A <button> since 0.18.2, so the browser's own button paint has to be
+	   taken off before it looks like the mark it replaced. */
+	background: none;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	padding: 3px 6px;
+	color: inherit;
+	font-family: inherit;
+	cursor: pointer;
+}
+
+/* It does something now, so it has to look like it can. Left invisible until
+   the pointer is on it: a bordered button sitting where the mark used to be
+   reads as the toolbar having grown a control, rather than as the mark having
+   gained a menu. */
+.toolbar .logo:hover,
+.toolbar .logo:focus-visible {
+	background: var(--bg-hover);
+	border-color: var(--border);
 }
 
 /* The version, deliberately quiet. It only matters when something is wrong —
@@ -1190,6 +1209,73 @@ button.tb.primary:hover:not(:disabled) {
 	padding: 12px;
 	color: var(--fg-faint);
 	text-align: center;
+}
+
+/* The project menu: what is open, what was open before, and the way out. Narrow
+   like the pin menu, because every row is one path and a wide menu of short
+   names reads as mostly empty. */
+.menu.project-menu {
+	width: 260px;
+	max-height: none;
+}
+
+.menu.project-menu .current {
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-hover);
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.menu.project-menu .current .name {
+	font-weight: 600;
+	font-size: 12px;
+}
+
+/* The path is the disambiguator, not the label -- two projects called `src` are
+   ordinary. Truncated from the left in the markup, so what survives is the end.
+   `direction: rtl` would do it in CSS and puts the ellipsis on the wrong side of
+   a Windows path. */
+.menu.project-menu .current .path,
+.menu.project-menu .item .path {
+	font-size: 10px;
+	color: var(--fg-faint);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.menu.project-menu .item {
+	align-items: center;
+}
+
+.menu.project-menu .item .name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Only on the row the pointer is on. A column of crosses beside a list of
+   projects makes deleting look like the point of the menu. */
+.menu.project-menu .item .forget {
+	margin-left: auto;
+	background: none;
+	border: none;
+	color: var(--fg-faint);
+	cursor: pointer;
+	padding: 0 2px;
+	font-size: 13px;
+	line-height: 1;
+	visibility: hidden;
+}
+
+.menu.project-menu .item:hover .forget {
+	visibility: visible;
+}
+
+.menu.project-menu .item .forget:hover {
+	color: var(--danger);
 }
 
 /* The pin menu is the node palette's small sibling: no search, a handful of
