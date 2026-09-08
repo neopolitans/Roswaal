@@ -31,6 +31,8 @@ import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays } from "./Overlays.jsx";
+import { Workspace } from "./Workspace.jsx";
+import { DEFAULT_LAYOUT, type Layout } from "./panels.js";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
@@ -101,6 +103,14 @@ export function App() {
 	 */
 	const [prefs, setPrefs] = useState<Preferences>(readPreferences);
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	/**
+	 * Where the panels are.
+	 *
+	 * Local state for now; slice 3 moves it into `preferences.ts` so it
+	 * survives a reload. Keeping it here first means the grid can be proven
+	 * before anything is persisted, and a layout bug cannot be stored.
+	 */
+	const [layout] = useState<Layout>(DEFAULT_LAYOUT);
 	/** The selection preview, which is opened deliberately and never sits open. */
 	const [previewOpen, setPreviewOpen] = useState(false);
 	const alignExec = prefs.alignExec;
@@ -918,132 +928,137 @@ export function App() {
 				/>
 			)}
 
-			<div className={`workspace${showInspector ? " with-inspector" : ""}`}>
-				<div className="sidebar">
-					<h2>{project.root.split(/[\\/]/).pop()}</h2>
-					<ProjectTree
-						tree={project.tree}
-						openPath={editor.path ?? source?.path ?? null}
-						onOpen={onTreeOpen}
-						onMove={onTreeMove}
-						onReveal={onTreeReveal}
-						onNewFolder={onTreeNewFolder}
-						onRename={onTreeRename}
-						onDelete={onTreeDelete}
-					/>
-					{editor.script && !source && !mapDoc && (
-						<VariablesPanel
-							locked={locked}
-							script={editor.script}
-							selection={editor.selection}
-							confirm={async (title, message, confirmLabel) =>
-								(await ask({ kind: "confirm", title, message, confirmLabel, danger: true })) === true
-							}
-						/>
-					)}
-				</div>
-
-				{mapDoc ? (
-					<MapEditor
-						map={mapDoc.map}
-						dirty={mapDoc.dirty}
-						tree={project.tree}
-						onChange={(next) => setMapDoc({ ...mapDoc, map: next, dirty: true })}
-					/>
-				) : source ? (
-					<SourceView
-						doc={source}
-						onOpenGraph={(path) => void openGraphPath(path)}
-						onEdit={async (path) => {
-							try {
-								const { editor: found } = await api.openInEditor(path);
-								notify("Handed over", `Opened ${path.split("/").pop()} in ${found}.`);
-							} catch (err) {
-								notify("Could not open it", (err as Error).message);
-							}
-						}}
-						onReveal={(path) => void api.reveal(path)}
-					/>
-				) : editor.script ? (
-					<Canvas
-						script={editor.script}
-						registry={registry}
-						diagnostics={diagnostics}
-						locked={locked}
-						wireStyle={prefs.wireStyle}
-						onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
-						onRequestPinMenu={(screen, nodeId, pin, side) =>
-							setPinMenu({ screen, nodeId, pin, side })
-						}
-						onEditCode={(nodeId, pin, value) => setCodeEdit({ nodeId, pin, value })}
-						onDropFile={async (dropped, screen, world) => {
-							const name = dropped.split("/").pop() ?? dropped;
-							try {
-								const { location } = await api.resolve(dropped);
-								if (!location) {
-									notify(
-										"Nothing to make from that",
-										`No node map says where ${name} ends up in the DataModel, so ` +
-											"there is no path to require it by. Add one, or point an " +
-											"existing map at the folder it is in.",
-									);
-									return;
+			<Workspace
+				layout={layout}
+				contents={{
+					tree: (
+						<>
+							<h2>{project.root.split(/[\\/]/).pop()}</h2>
+							<ProjectTree
+								tree={project.tree}
+								openPath={editor.path ?? source?.path ?? null}
+								onOpen={onTreeOpen}
+								onMove={onTreeMove}
+								onReveal={onTreeReveal}
+								onNewFolder={onTreeNewFolder}
+								onRename={onTreeRename}
+								onDelete={onTreeDelete}
+							/>
+						</>
+					),
+					variables:
+						editor.script && !source && !mapDoc ? (
+							<VariablesPanel
+								locked={locked}
+								script={editor.script}
+								selection={editor.selection}
+								confirm={async (title, message, confirmLabel) =>
+									(await ask({ kind: "confirm", title, message, confirmLabel, danger: true })) === true
 								}
-								setDropMenu({ screen, world, name, location });
-							} catch (err) {
-								notify("Could not resolve that file", (err as Error).message);
-							}
-						}}
-					/>
-				) : (
-					<div className="placeholder">
-						<h1>No graph open</h1>
-						<p>Double-click a <code>.nodescript</code> in the tree, or make a new one.</p>
-					</div>
-				)}
-
-				{showInspector && editor.script && (
-					<Inspector
-						locked={locked}
-						script={editor.script}
-						registry={registry}
-						selection={editor.selection}
-					/>
-				)}
-
-				{/* Floats over the bottom-right of the graph. Last child so it
-				    draws above the canvas without needing a z-index of its own. */}
-				<CompileToast progress={progress} />
-			</div>
-
-			<StatusPanel
-				open={statusOpen}
-				onToggle={() => setStatusOpen((v) => !v)}
-				busy={busy}
-				errorCount={errorCount}
-				warningCount={warningCount}
-				diagnostics={diagnostics}
-				outcomes={outcomes}
-				mapOutcomes={mapOutcomes}
-				orphans={orphans}
-				onRemoveOrphans={async () => {
-					const ok = await ask({
-						kind: "confirm",
-						title: "Remove stale files",
-						message:
-							`Delete ${orphans.length} generated file${orphans.length === 1 ? "" : "s"} ` +
-							"with no graph behind them? They are output, so nothing is lost that a " +
-							"compile cannot rebuild.",
-						confirmLabel: "Remove",
-						danger: true,
-					});
-					if (ok !== true) return;
-					await api.removeOrphans(orphans);
-					setOrphans([]);
-					await refreshTree();
+							/>
+						) : undefined,
+					inspector:
+						showInspector && editor.script ? (
+							<Inspector
+								locked={locked}
+								script={editor.script}
+								registry={registry}
+								selection={editor.selection}
+							/>
+						) : undefined,
+					analysis: (
+						<StatusPanel
+							open={statusOpen}
+							onToggle={() => setStatusOpen((v) => !v)}
+							busy={busy}
+							errorCount={errorCount}
+							warningCount={warningCount}
+							diagnostics={diagnostics}
+							outcomes={outcomes}
+							mapOutcomes={mapOutcomes}
+							orphans={orphans}
+							onRemoveOrphans={async () => {
+								const ok = await ask({
+									kind: "confirm",
+									title: "Remove stale files",
+									message:
+										`Delete ${orphans.length} generated file${orphans.length === 1 ? "" : "s"} ` +
+										"with no graph behind them? They are output, so nothing is lost that a " +
+										"compile cannot rebuild.",
+									confirmLabel: "Remove",
+									danger: true,
+								});
+								if (ok !== true) return;
+								await api.removeOrphans(orphans);
+								setOrphans([]);
+								await refreshTree();
+							}}
+							packErrors={project.packErrors}
+							onForce={(path) => void runCompile(path, true, true)}
+						/>
+					),
 				}}
-				packErrors={project.packErrors}
-				onForce={(path) => void runCompile(path, true, true)}
+				floating={<CompileToast progress={progress} />}
+				centre={
+					mapDoc ? (
+						<MapEditor
+							map={mapDoc.map}
+							dirty={mapDoc.dirty}
+							tree={project.tree}
+							onChange={(next) => setMapDoc({ ...mapDoc, map: next, dirty: true })}
+						/>
+					) : source ? (
+						<SourceView
+							doc={source}
+							onOpenGraph={(path) => void openGraphPath(path)}
+							onEdit={async (path) => {
+								try {
+									const { editor: found } = await api.openInEditor(path);
+									notify("Handed over", `Opened ${path.split("/").pop()} in ${found}.`);
+								} catch (err) {
+									notify("Could not open it", (err as Error).message);
+								}
+							}}
+							onReveal={(path) => void api.reveal(path)}
+						/>
+					) : editor.script ? (
+						<Canvas
+							script={editor.script}
+							registry={registry}
+							diagnostics={diagnostics}
+							locked={locked}
+							wireStyle={prefs.wireStyle}
+							onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
+							onRequestPinMenu={(screen, nodeId, pin, side) =>
+								setPinMenu({ screen, nodeId, pin, side })
+							}
+							onEditCode={(nodeId, pin, value) => setCodeEdit({ nodeId, pin, value })}
+							onDropFile={async (dropped, screen, world) => {
+								const name = dropped.split("/").pop() ?? dropped;
+								try {
+									const { location } = await api.resolve(dropped);
+									if (!location) {
+										notify(
+											"Nothing to make from that",
+											`No node map says where ${name} ends up in the DataModel, so ` +
+												"there is no path to require it by. Add one, or point an " +
+												"existing map at the folder it is in.",
+										);
+										return;
+									}
+									setDropMenu({ screen, world, name, location });
+								} catch (err) {
+									notify("Could not resolve that file", (err as Error).message);
+								}
+							}}
+						/>
+					) : (
+						<div className="placeholder">
+							<h1>No graph open</h1>
+							<p>Double-click a <code>.nodescript</code> in the tree, or make a new one.</p>
+						</div>
+					)
+				}
 			/>
 
 			<Overlays

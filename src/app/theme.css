@@ -157,21 +157,78 @@ select optgroup {
 	height: 100%;
 }
 
+/* ------------------------------------------------------------- workspace */
+
+/* Three docks around a centre. The track sizes come from `gridTemplate()` as
+   inline styles, because they are state; only the *shape* is here.
+
+   Every area is named, and every child names the area it sits in. That is not
+   tidiness: `display: none` stops an element being a grid item, and
+   auto-placement then closes up behind it — with both docks hidden, an
+   unpinned centre lands in the left dock's track and takes its width, while
+   every piece of state remains correct. See docs/PANELS.md. */
 .workspace {
 	flex: 1;
 	display: grid;
-	grid-template-columns: 260px 1fr;
+	grid-template-areas:
+		"left centre right"
+		"bottom bottom bottom";
 	min-height: 0;
-	/* Declared here and used by the grid below and by the compile toast, which
-	   has to clear it. Two copies of one number is one copy too many. */
-	--inspector-width: 290px;
-	/* The compile toast anchors to this rather than to the canvas cell, which
-	   is a different element for a graph, a node map and a source file. */
-	position: relative;
+	min-width: 0;
 }
 
-.workspace.no-sidebar {
-	grid-template-columns: 1fr;
+/* A dock is a container and nothing more: its panels carry their own look, so
+   moving one between docks does not change how it is drawn. The exception is
+   the left dock, below, which inherited the old sidebar's surface. */
+.dock {
+	display: flex;
+	flex-direction: column;
+	/* Both of these are load-bearing. A grid item's automatic minimum size is
+	   its content, so a dock holding one long path would refuse to shrink below
+	   the width of that path — the splitter would drag outwards and never come
+	   back. */
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.dock.left {
+	background: var(--bg-panel);
+	border-right: 1px solid var(--border);
+	overflow: auto;
+}
+
+.panel {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+
+/* The tree grows; the variables panel takes what it needs. Without this the
+   two split the column evenly and the tree gets half a screen it does not
+   want. */
+.dock.left .panel-tree {
+	flex: 1;
+}
+
+.dock.right .panel,
+.dock.bottom .panel {
+	flex: 1;
+	overflow: hidden;
+}
+
+/* The centre always exists and is what the docks surround. Relative so the
+   compile toast anchors to the graph area itself — which makes "bottom right
+   of the graph" true by construction rather than by subtracting the
+   inspector's width from the workspace. */
+.centre {
+	grid-area: centre;
+	position: relative;
+	display: grid;
+	grid-template-rows: minmax(0, 1fr);
+	min-width: 0;
+	min-height: 0;
 }
 
 /* ---------------------------------------------------------------- toolbar */
@@ -1283,10 +1340,6 @@ button.tb.primary:hover:not(:disabled) {
 }
 
 /* -------------------------------------------------------------- inspector */
-
-.workspace.with-inspector {
-	grid-template-columns: 260px 1fr var(--inspector-width);
-}
 
 .inspector {
 	background: var(--bg-panel);
@@ -3305,12 +3358,6 @@ button.tb.with-icon {
 	font-size: 11px;
 	cursor: pointer;
 	z-index: 5;
-}
-
-/* Clear of the inspector, so "bottom right of the graph" stays true when the
-   graph is not the rightmost thing on screen. */
-.workspace.with-inspector .compile-toast {
-	right: calc(var(--inspector-width) + 16px);
 }
 
 .compile-toast .head {
