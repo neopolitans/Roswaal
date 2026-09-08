@@ -197,11 +197,11 @@ describe("how big a dictionary can be", () => {
  * for that reason rather than as a shortcut — `{ speed: number }` describes
  * something no wire can carry.
  */
-describe("Declare Type", () => {
+describe("Declare Type at Top", () => {
 	function typeNode(config: Record<string, unknown>): NodeScript {
 		const b = new Builder();
 		b.node("script.begin");
-		b.node("type.declare", { config });
+		b.node("type.declareTop", { config });
 		return b.build();
 	}
 
@@ -226,7 +226,7 @@ describe("Declare Type", () => {
 		const b = new Builder();
 		b.variable("speed", "number", { t: "number", v: 44 });
 		b.node("script.begin");
-		b.node("type.declare", { config: { name: "Speed", definition: "number" } });
+		b.node("type.declareTop", { config: { name: "Speed", definition: "number" } });
 		const out = code(b.build());
 		expect(out.indexOf("export type Speed")).toBeLessThan(out.indexOf("local speed"));
 	});
@@ -237,11 +237,11 @@ describe("Declare Type", () => {
 	});
 });
 
-describe("what Declare Type refuses", () => {
+describe("what Declare Type at Top refuses", () => {
 	const only = (config: Record<string, unknown>) => {
 		const b = new Builder();
 		b.node("script.begin");
-		b.node("type.declare", { config });
+		b.node("type.declareTop", { config });
 		return errors(b.build()).join(" ");
 	};
 
@@ -259,8 +259,8 @@ describe("what Declare Type refuses", () => {
 	it("will not declare the same type twice", () => {
 		const b = new Builder();
 		b.node("script.begin");
-		b.node("type.declare", { config: { name: "Config", definition: "number" } });
-		b.node("type.declare", { config: { name: "Config", definition: "string" } });
+		b.node("type.declareTop", { config: { name: "Config", definition: "number" } });
+		b.node("type.declareTop", { config: { name: "Config", definition: "string" } });
 		expect(errors(b.build()).join(" ")).toContain("declared more than once");
 	});
 });
@@ -278,5 +278,108 @@ describe("Type Of", () => {
 		b.link(kind, "result", declare, "value");
 
 		expect(code(b.build())).toMatch(/local kind = typeof\(/);
+	});
+});
+
+/**
+ * The in-flow one, which exists because of a single line in the M103's
+ * hand-written Config module:
+ *
+ *     local TUNING = { ... }
+ *     export type Tuning = typeof(TUNING)
+ *
+ * A type built from `typeof` has to come *after* the thing it is the type of,
+ * and a node that always hoists to the top of the file can never do that.
+ * Splitting it in two was the author's suggestion and is the right shape: one
+ * node hoists, the other sits where you put it.
+ *
+ * The value arrives by wire rather than as typed text, so the identifier in the
+ * generated file is the one the compiler actually chose — renaming the local
+ * later cannot leave the type pointing at a name that is gone.
+ */
+describe("Declare Type, in the flow", () => {
+	function afterLocal(config: Record<string, unknown>, localName = "Tuning") {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const declare = b.node("local.declare");
+		const type = b.node("type.declareHere", { config });
+		b.lit(declare, "name", { t: "string", v: localName });
+		b.lit(declare, "value", { t: "raw", v: "{ turnRate = 45 }" });
+		b.link(start, "then", declare, "in");
+		b.link(declare, "then", type, "in");
+		b.link(declare, "ref", type, "value");
+		return b.build();
+	}
+
+	/** The exact pair of lines the native module opens with. */
+	it("names the type of the local above it", () => {
+		const out = code(afterLocal({ name: "Tuning" }));
+		expect(out).toContain("local Tuning = { turnRate = 45 }");
+		expect(out).toContain("export type Tuning = typeof(Tuning)");
+	});
+
+	it("comes after the value, not at the top", () => {
+		const out = code(afterLocal({ name: "Tuning" }));
+		expect(out.indexOf("local Tuning")).toBeLessThan(out.indexOf("export type Tuning"));
+	});
+
+	/** The identifier is the compiler's, so a renamed local cannot strand it. */
+	it("follows the identifier the compiler chose, not the one you typed", () => {
+		expect(code(afterLocal({ name: "Config" }, "settings")))
+			.toContain("export type Config = typeof(settings)");
+	});
+
+	it("keeps it to the module when export is off", () => {
+		const out = code(afterLocal({ name: "Tuning", export: false }));
+		expect(out).toContain("type Tuning = typeof(Tuning)");
+		expect(out).not.toContain("export type");
+	});
+
+	it("wants a name", () => {
+		expect(errors(afterLocal({})).join(" ")).toContain("needs a name");
+	});
+
+	/**
+	 * `export type` is only legal at the top level of a module. A plain `type`
+	 * inside a block is fine and stays scoped to it, so only the export is
+	 * refused — the node is still useful in there.
+	 */
+	it("will not export from inside a branch", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const branch = b.node("flow.branch");
+		const value = b.node("value.number");
+		const type = b.node("type.declareHere", { config: { name: "Inner" } });
+		b.link(start, "then", branch, "in");
+		b.link(branch, "true", type, "in");
+		b.link(value, "result", type, "value");
+
+		expect(errors(b.build()).join(" ")).toContain("only allows that at the top level");
+	});
+
+	it("allows a plain type inside a branch", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const branch = b.node("flow.branch");
+		const value = b.node("value.number");
+		const type = b.node("type.declareHere", { config: { name: "Inner", export: false } });
+		b.link(start, "then", branch, "in");
+		b.link(branch, "true", type, "in");
+		b.link(value, "result", type, "value");
+
+		expect(errors(b.build())).toEqual([]);
+	});
+
+	/** One namespace, whichever node declared it. */
+	it("collides with a type declared at the top", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const value = b.node("value.number");
+		const type = b.node("type.declareHere", { config: { name: "Config" } });
+		b.node("type.declareTop", { config: { name: "Config", definition: "number" } });
+		b.link(start, "then", type, "in");
+		b.link(value, "result", type, "value");
+
+		expect(errors(b.build()).join(" ")).toContain("declared more than once");
 	});
 });

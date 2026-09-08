@@ -231,9 +231,11 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	const reachable = new Set<string>();
 	const queue = entries.map((e) => e.node.id);
 	// Terminal nodes are roots too: Module Exports is not wired into exec, and a
-	// Declare Type has no pins at all -- it declares, it does not run.
+	// Declare Type at Top has no pins at all -- it declares, it does not run.
+	// The in-flow Declare Type is not a root: it is reached by its exec wire, and
+	// one left dangling should be reported like any other stranded node.
 	for (const r of index.all()) {
-		if (r.def.id === "module.exports" || r.def.id === "type.declare") queue.push(r.node.id);
+		if (r.def.id === "module.exports" || r.def.id === "type.declareTop") queue.push(r.node.id);
 	}
 	while (queue.length) {
 		const id = queue.pop()!;

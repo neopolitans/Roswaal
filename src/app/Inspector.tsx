@@ -97,7 +97,9 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				{(def.id === "call.function" || def.id === "call.method") && (
 					<CountEditor node={node} field="args" label="Arguments" min={0} max={8} fallback={1} />
 				)}
-				{def.id === "type.declare" && <TypeEditor node={node} />}
+				{(def.id === "type.declareTop" || def.id === "type.declareHere") && (
+					<TypeEditor node={node} />
+				)}
 				{(def.id === "variable.get"
 					|| def.id === "variable.set"
 					|| def.id === "variable.init") && (
@@ -145,6 +147,9 @@ function FunctionEditor({ node }: { node: GraphNode }) {
  */
 function TypeEditor({ node }: { node: GraphNode }) {
 	const config = (node.config ?? {}) as { name?: string; definition?: string; export?: boolean };
+	// Only the hoisted one is written out. The in-flow one names the type of a
+	// value wired into it, so its definition is the wire.
+	const written = node.def === "type.declareTop";
 	return (
 		<>
 			<Field label="Type name">
@@ -155,16 +160,26 @@ function TypeEditor({ node }: { node: GraphNode }) {
 					onChange={(e) => store.edit((s) => setConfig(s, node.id, { name: e.target.value }))}
 				/>
 			</Field>
-			<Field label="Definition">
-				<textarea
-					className="tb type-definition"
-					rows={3}
-					spellCheck={false}
-					value={config.definition ?? ""}
-					placeholder="{ movementSpeed: number }"
-					onChange={(e) => store.edit((s) => setConfig(s, node.id, { definition: e.target.value }))}
-				/>
-			</Field>
+			{written ? (
+				<Field label="Definition">
+					<textarea
+						className="tb type-definition"
+						rows={3}
+						spellCheck={false}
+						value={config.definition ?? ""}
+						placeholder="{ movementSpeed: number }"
+						onChange={(e) =>
+							store.edit((s) => setConfig(s, node.id, { definition: e.target.value }))
+						}
+					/>
+				</Field>
+			) : (
+				<p className="summary">
+					The definition is whatever you wire into <strong>Value</strong>:{" "}
+					<code>type {config.name || "Name"} = typeof(that value)</code>. Put the node after
+					the thing it describes.
+				</p>
+			)}
 			<Field label="Export">
 				<label style={{ cursor: "pointer" }}>
 					<input

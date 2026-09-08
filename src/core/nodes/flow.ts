@@ -140,18 +140,34 @@ export const FLOW_NODES: NodeDef[] = [
 		},
 	},
 	{
-		id: "type.declare",
-		title: "Declare Type",
+		id: "type.declareTop",
+		title: "Declare Type at Top",
 		category: "Flow",
 		summary:
-			"Declares a Luau type at the top of the generated file. Export it and other modules can " +
-			"use it with `require`. The definition is written as Luau, the way Custom Code is, " +
-			"because a type is not built from values and there are no nodes to build one from — " +
-			"`{ speed: number }`, `\"a\" | \"b\"`, or `typeof(Tuning)` to follow a variable.",
+			"Declares a Luau type above everything else in the generated file. Export it and other " +
+			"modules can use it with `require`. The definition is written as Luau, the way Custom " +
+			"Code is, because a type is not built from values and there are no nodes to build one " +
+			"from — `{ speed: number }`, or `\"a\" | \"b\"`. For a type that has to come *after* " +
+			"something, use Declare Type.",
 		role: "terminal",
 		inputs: [],
 		outputs: [],
-		compilesTo: { kind: "builtin", handler: "type.declare" },
+		compilesTo: { kind: "builtin", handler: "type.declareTop" },
+		subtitle: (config) => (config.name as string) || undefined,
+	},
+	{
+		id: "type.declareHere",
+		title: "Declare Type",
+		category: "Flow",
+		summary:
+			"Names the type of a value, where the node sits: `export type Tuning = typeof(Tuning)`. " +
+			"In the flow rather than hoisted, because that is the whole point — a type built from " +
+			"`typeof` has to come after the thing it is the type of, and Luau reads a file in order. " +
+			"Wire the value in and the identifier is filled in for you, so renaming it later cannot " +
+			"leave the type pointing at a name that is gone.",
+		inputs: [exec("in", ""), data("value", "Value", "any")],
+		outputs: [exec("then", "")],
+		compilesTo: { kind: "builtin", handler: "type.declareHere" },
 		subtitle: (config) => (config.name as string) || undefined,
 	},
 	{

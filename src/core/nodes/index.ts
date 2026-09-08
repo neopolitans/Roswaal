@@ -26,10 +26,12 @@ export const BUILTIN_NODES: NodeDef[] = [...FLOW_NODES, ...VARIABLE_NODES, ...LI
 export const RENAMED_NODES: Record<string, string> = {
 	"var.declare": "local.declare",
 	"var.set": "local.set",
-	// Shipped as "Define Type" in 0.19.2 and renamed the same day, because the
-	// author went looking for "Declare Type" -- which is what the node beside it
-	// is called, and the better evidence about a name than the one who chose it.
-	"type.define": "type.declare",
+	// Shipped as "Define Type" in 0.19.2, renamed to "Declare Type" the same day
+	// because the author went looking for that -- and then split, because one
+	// node cannot both hoist to the top and sit after the value it describes.
+	// Both older ids meant the hoisting one, so that is where they land.
+	"type.define": "type.declareTop",
+	"type.declare": "type.declareTop",
 };
 
 export type Registry = Map<string, NodeDef>;

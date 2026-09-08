@@ -113,6 +113,8 @@ class Emitter {
 	 * that happens before the declaration it depends on, which Luau would
 	 * otherwise compile into a reference to a global that is always nil.
 	 */
+	/** Type names already written, from either kind of declaration node. */
+	private declaredTypes = new Set<string>();
 	private initialisedLater = new Set<string>();
 	private declaredSoFar = new Set<string>();
 	/**
@@ -322,10 +324,9 @@ class Emitter {
 	 * is the honest one here rather than a shortcut.
 	 */
 	private emitTypes(): void {
-		const nodes = this.index.all().filter((r) => r.def.id === "type.declare");
+		const nodes = this.index.all().filter((r) => r.def.id === "type.declareTop");
 		if (nodes.length === 0) return;
 
-		const declared = new Set<string>();
 		let written = 0;
 		for (const r of nodes) {
 			const config = (r.node.config ?? {}) as {
@@ -335,7 +336,7 @@ class Emitter {
 			const definition = (config.definition ?? "").trim();
 			if (name === "" || definition === "") {
 				this.error(
-					"Declare Type needs both a name and a definition before it can be written.",
+					"Declare Type at Top needs both a name and a definition before it can be written.",
 					r.node.id,
 				);
 				continue;
@@ -348,11 +349,11 @@ class Emitter {
 				);
 				continue;
 			}
-			if (declared.has(name)) {
+			if (this.declaredTypes.has(name)) {
 				this.error(`The type "${name}" is declared more than once.`, r.node.id);
 				continue;
 			}
-			declared.add(name);
+			this.declaredTypes.add(name);
 			// Reserved so a variable or local can never be given the same
 			// identifier: Luau keeps types and values apart, but a reader does not.
 			this.names.reserve(name);
@@ -704,6 +705,46 @@ class Emitter {
 				} else {
 					this.push(expression, id);
 				}
+				return this.index.execTarget(id, "then");
+			}
+
+			case "type.declareHere": {
+				const config = (r.node.config ?? {}) as {
+					name?: string; export?: boolean;
+				};
+				const name = (config.name ?? "").trim();
+				const value = this.resolveInput(r, this.pin(r, "value", "in"), scope);
+				if (name === "") {
+					this.error("Declare Type needs a name before it can be written.", id);
+					return this.index.execTarget(id, "then");
+				}
+				if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+					this.error(
+						`"${name}" is not a name Luau will take for a type. Letters, digits and ` +
+						"underscores, not starting with a digit.",
+						id,
+					);
+					return this.index.execTarget(id, "then");
+				}
+				if (this.declaredTypes.has(name)) {
+					this.error(`The type "${name}" is declared more than once.`, id);
+					return this.index.execTarget(id, "then");
+				}
+				// `export type` is only legal at the top level of a module. A plain
+				// `type` inside a block is fine and stays scoped to it, so only the
+				// export is refused rather than the whole node.
+				const exported = config.export !== false;
+				if (exported && scope.parent !== undefined) {
+					this.error(
+						`"${name}" is exported, and Luau only allows that at the top level of a ` +
+						"module. Move it out of the branch, loop or function, or untick Export.",
+						id,
+					);
+					return this.index.execTarget(id, "then");
+				}
+				this.declaredTypes.add(name);
+				this.names.reserve(name);
+				this.push(`${exported ? "export type" : "type"} ${name} = typeof(${value})`, id);
 				return this.index.execTarget(id, "then");
 			}
 

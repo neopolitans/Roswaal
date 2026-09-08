@@ -46,6 +46,21 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.19.4",
+		date: "2026-09-08",
+		headline: "Declare a type after the value it describes.",
+		added: [
+			"**Declare Type** sits in the execution flow and names the type of a value wired into it: `export type Tuning = typeof(Tuning)`. It goes where you put it, which is the point — a type built from `typeof` has to come *after* the thing it is the type of, and Luau reads a file in order. The identifier comes from the wire, so renaming the value later cannot leave the type pointing at a name that is gone.",
+		],
+		changed: [
+			"**The node that hoists is now Declare Type at Top**, and still writes its definition out as Luau. Graphs using the older one are converted to it when they open.",
+		],
+		watch: [
+			"`export type` is only legal at the top level of a module, so an exported Declare Type inside a branch, loop or function is refused. A plain one — Export unticked — is fine there and stays scoped to that block.",
+			"Both nodes share one set of type names; declaring the same name twice is an error whichever pair of nodes did it.",
+		],
+	},
+	{
 		version: "0.19.3",
 		date: "2026-09-08",
 		headline: "Define Type is called Declare Type.",
