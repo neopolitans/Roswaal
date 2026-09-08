@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "outputs": {
+    "default.project.json": ".roswaal/scripts/Tank.nodemap"
+  }
+}

@@ -33,9 +33,11 @@ local TUNING = {
 	turnRate = 45,
 	--- Seconds from a standstill to full speed. Sixty tons does not leap.
 	accelerationTime = 5,
-	--- Seconds from full speed back to a standstill. Shorter than accelerating:
-	--- a tank has brakes and does not have much power.
-	brakingTime = 2.5,
+	--- Seconds from full speed back to a standstill. Much shorter than
+	--- accelerating: a tank has brakes and does not have much power. Was 2.5,
+	--- which coasted about two and a half tank lengths after letting go and felt
+	--- like ice rather than like weight.
+	brakingTime = 1.2,
 	--- Reverse tops out at this fraction of forward speed.
 	reverseFraction = 0.45,
 	--- Degrees per second the turret traverses. Slow on purpose: a turret that

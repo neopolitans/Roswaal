@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "kind": "map",
+  "id": "m103-tank-map",
+  "name": "m103-graph",
+  "output": "default.project.json",
+  "root": {
+    "id": "root",
+    "name": "DataModel",
+    "className": "DataModel",
+    "children": [
+      {
+        "id": "rs",
+        "name": "ReplicatedStorage",
+        "children": [
+          {
+            "id": "rs-tank",
+            "name": "Tank",
+            "className": "Folder",
+            "path": "src/ReplicatedStorage/Tank",
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "sss",
+        "name": "ServerScriptService",
+        "path": "src/ServerScriptService",
+        "children": []
+      },
+      {
+        "id": "sp",
+        "name": "StarterPlayer",
+        "children": [
+          {
+            "id": "sp-scripts",
+            "name": "StarterPlayerScripts",
+            "className": "StarterPlayerScripts",
+            "path": "src/StarterPlayer/StarterPlayerScripts",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

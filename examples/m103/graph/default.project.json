@@ -1,0 +1,20 @@
+{
+  "name": "m103-graph",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Tank": {
+        "$path": "src/ReplicatedStorage/Tank"
+      }
+    },
+    "ServerScriptService": {
+      "$path": "src/ServerScriptService"
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "src/StarterPlayer/StarterPlayerScripts"
+      }
+    }
+  }
+}
