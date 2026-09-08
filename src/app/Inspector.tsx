@@ -18,6 +18,53 @@ import {
 } from "./edits.js";
 import { store } from "./store.js";
 
+/**
+ * Abbreviations whose full stop is not the end of a sentence.
+ *
+ * One `e.g.` in the whole library today, which is exactly the sort of thing
+ * that is fine until the day somebody writes another and the panel starts
+ * truncating a node's description to four words.
+ */
+const NOT_A_FULL_STOP = /(?:\be\.g|\bi\.e|\betc|\bvs|\bcf|\bapprox)\.$/i;
+
+/**
+ * The opening of a node's summary, short enough for a side panel.
+ *
+ * Summaries are written for the reference page, where a paragraph is right —
+ * what the node does, when to reach for it, what it refuses. Beside the graph
+ * that paragraph is a wall, and the rest of it is one click away.
+ *
+ * **Sentences until it has said something, rather than one sentence.** Plenty
+ * of summaries open with a label instead of a description — "Escape hatch.",
+ * "if / else.", "By name." — and stopping at the first full stop would put
+ * those in the panel alone, which is worse than the wall. So it keeps taking
+ * sentences until what it has is long enough to be a description.
+ *
+ * Splitting prose into sentences is famously not solvable in general. This has
+ * to be right only about what occurs here: abbreviations, and full stops inside
+ * code spans — `Vector3.new` must not end a sentence, and a stop between
+ * backticks is never a boundary.
+ */
+const ENOUGH_SAID = 45;
+
+export function briefSummary(text: string): string {
+	const boundaries = /[.!?](?=\s)/g;
+	let match: RegExpExecArray | null;
+	while ((match = boundaries.exec(text)) !== null) {
+		const upto = text.slice(0, match.index + 1);
+		if (NOT_A_FULL_STOP.test(upto)) continue;
+		// An odd number of backticks means the stop is inside a code span.
+		if ((upto.match(/`/g) ?? []).length % 2 === 1) continue;
+		if (upto.length >= ENOUGH_SAID) return upto;
+	}
+	return text;
+}
+
+/** Where a node's page lives in the docs window. */
+function docsHref(nodeId: string): string {
+	return `/docs#${encodeURIComponent(`node/${nodeId}`)}`;
+}
+
 const TYPES = [
 	"any", "boolean", "number", "string", "table", "function",
 	"Instance", "Vector3", "Vector2", "CFrame", "Color3", "UDim2",
@@ -50,7 +97,16 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				<div className="node-heading" style={{ background: nodeColor(def) }}>
 					{def.title}
 				</div>
-				{def.summary && <p className="summary">{def.summary}</p>}
+				{def.summary && (
+					<p className="summary">
+						{briefSummary(def.summary)}{" "}
+						{/* Named window, so it reuses the docs the toolbar opens rather
+						    than stacking up a tab per node. */}
+						<a className="docs-link" href={docsHref(def.id)} target="roswaal-docs">
+							See docs page
+						</a>
+					</p>
+				)}
 
 				{/* The placeholder is what the node is called *now*, which for a
 				    named node is its function or variable name rather than the
@@ -335,8 +391,8 @@ function KeyStyle({ node }: { node: GraphNode }) {
 				value={current}
 				onChange={(e) => store.edit((s) => setConfig(s, node.id, { keys: e.target.value }))}
 			>
-				<option value="plain">Plain where Luau allows — t.name</option>
-				<option value="brackets">Always brackets — t["name"]</option>
+				<option value="plain">Property-like — t.name</option>
+				<option value="brackets">Bracketed — t["name"]</option>
 			</select>
 		</Field>
 	);

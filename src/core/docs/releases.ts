@@ -46,6 +46,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.20.2",
+		date: "2026-09-08",
+		headline: "Node descriptions in the panel are short, with the rest a click away.",
+		changed: [
+			"**The Node panel shows the opening of a description rather than all of it**, and ends it with a *See docs page* link to that node's reference entry. Summaries are written for the reference, where a paragraph is right; beside the graph it was a wall.",
+			"**Make Dictionary, Get Index and Set Index** call their key styles *Property-like — t.name* and *Bracketed — t[\"name\"]*.",
+		],
+		watch: [
+			"It takes sentences until it has said something rather than exactly one, because plenty of nodes open with a label — *Escape hatch.*, *if / else.* — and one of those alone says less than nothing.",
+		],
+	},
+	{
 		version: "0.20.1",
 		date: "2026-09-08",
 		headline: "The export checkbox says what it is on its own line.",
