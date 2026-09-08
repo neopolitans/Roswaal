@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./App.jsx";
 import { DocsPage } from "./DocsPage.jsx";
+import { ErrorBoundary } from "./ErrorBoundary.jsx";
 import { installFavicon } from "./logo.jsx";
 import { readPreferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
@@ -41,5 +42,9 @@ applyTheme(findTheme(preferences.theme));
 applyChrome(preferences);
 
 createRoot(container).render(
-	<StrictMode>{isDocs ? <DocsPage /> : <App />}</StrictMode>,
+	<StrictMode>
+		<ErrorBoundary what={isDocs ? "The documentation" : "Roswaal"}>
+			{isDocs ? <DocsPage /> : <App />}
+		</ErrorBoundary>
+	</StrictMode>,
 );

@@ -46,6 +46,21 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.18.3",
+		date: "2026-09-08",
+		headline: "Opening a Luau file with a block comment no longer blanks the editor.",
+		fixed: [
+			"**Opening a `.luau` file containing a `--[[ ]]` comment or a `[[ ]]` string emptied the whole page.** The syntax highlighter threw, React unmounted, and what was left was a black rectangle with no message. Every `.luau` file opens correctly now, generated or hand-written.",
+			"**A number's exponent was split in two.** `1e-9` was coloured as `1e`, an operator, and `9`; hex and binary literals were read a character at a time and could come apart the same way.",
+		],
+		added: [
+			"**A crash screen.** If something does throw, the editor now says what and offers the error to copy, rather than leaving an empty page. Nothing is lost by reloading — every graph is on disk.",
+		],
+		watch: [
+			"The highlighter had been doing this since it was written. It went unnoticed because the only Luau anyone opened was Roswaal's own generated output, which contains no block comments.",
+		],
+	},
+	{
 		version: "0.18.2",
 		date: "2026-09-08",
 		headline: "Switch projects from the toolbar.",

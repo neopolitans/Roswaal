@@ -1211,6 +1211,47 @@ button.tb.primary:hover:not(:disabled) {
 	text-align: center;
 }
 
+/* What is left when a render throws. Deliberately plain: it has to work when
+   whatever it is reporting has already gone wrong, so it uses nothing but the
+   colour tokens. */
+.crash {
+	max-width: 780px;
+	margin: 0 auto;
+	padding: 48px 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.crash h1 {
+	font-size: 20px;
+	margin: 0;
+}
+
+.crash p {
+	margin: 0;
+	color: var(--fg-muted);
+}
+
+.crash-detail {
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	padding: 12px;
+	max-height: 40vh;
+	overflow: auto;
+	font-size: 11px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	word-break: break-word;
+	margin: 0;
+}
+
+.crash-actions {
+	display: flex;
+	gap: 8px;
+}
+
 /* The project menu: what is open, what was open before, and the way out. Narrow
    like the pin menu, because every row is one path and a wide menu of short
    names reads as mostly empty. */
