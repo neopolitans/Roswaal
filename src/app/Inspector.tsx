@@ -294,20 +294,19 @@ function TypeEditor({ node }: { node: GraphNode }) {
 				</p>
 			)}
 
-			{/* A checkbox belongs beside its own words, not under a heading with the
-			    words orphaned below it — which is what a <label> nested inside the
-			    <Field> label produced. */}
-			<div className="field">
+			{/* One line: the box and what it is called. A checkbox does not need a
+			    heading above it as well — the heading and the label were two ways
+			    of saying the same thing, and reading them as a pair suggested they
+			    were two different settings. What it *means* is a tooltip, which is
+			    where an explanation belongs once the name is clear enough. */}
+			<label className="check-row" title="Can other scripts see or use this type definition?">
+				<input
+					type="checkbox"
+					checked={config.export !== false}
+					onChange={(e) => store.edit((s) => setConfig(s, node.id, { export: e.target.checked }))}
+				/>
 				<span>Is Export Type</span>
-				<label className="check-row">
-					<input
-						type="checkbox"
-						checked={config.export !== false}
-						onChange={(e) => store.edit((s) => setConfig(s, node.id, { export: e.target.checked }))}
-					/>
-					<span>other modules can use it</span>
-				</label>
-			</div>
+			</label>
 		</>
 	);
 }

@@ -46,6 +46,14 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.20.1",
+		date: "2026-09-08",
+		headline: "The export checkbox says what it is on its own line.",
+		fixed: [
+			"**Declare Type at Top's export control read as two settings.** It had a heading, *Is Export Type*, and then a checkbox labelled *other modules can use it* — two ways of saying one thing, stacked. It is one line now: the box, and *Is Export Type* beside it. What it means is on hover.",
+		],
+	},
+	{
 		version: "0.20.0",
 		date: "2026-09-08",
 		headline: "String keys are written the way you would write them.",
