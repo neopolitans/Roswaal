@@ -3044,18 +3044,30 @@ button.tb.with-icon {
 
 /* ------------------------------------------------- docs: code and pin lists */
 
-/* The same variables the Custom Code editor's HighlightStyle uses, so a snippet
-   in the docs and the same code in the editor are the same colours rather than
-   two opinions about Luau. */
-.docs-code .tok-keyword { color: var(--code-keyword); }
-.docs-code .tok-string { color: var(--code-string); }
-.docs-code .tok-number { color: var(--code-number); }
-.docs-code .tok-comment { color: var(--code-comment); font-style: italic; }
-.docs-code .tok-operator { color: var(--code-operator); }
-.docs-code .tok-global { color: var(--code-global); }
-.docs-code .tok-function { color: var(--code-function); }
-.docs-code .tok-bracket,
-.docs-code .tok-punctuation { color: var(--fg-muted); }
+/* Luau, wherever it is shown as text.
+ *
+ * `highlightLuau` emits these classes from anywhere; what makes a block
+ * coloured is being inside one of the containers listed here. That caught the
+ * selection preview out on the day it was written -- the highlighter ran, the
+ * spans carried the right classes, and every one of them inherited body text,
+ * because the palette was scoped to the docs and nothing said so.
+ *
+ * So the container list is the thing to extend when a fourth place shows Luau,
+ * and it is `:is()` rather than eight comma-separated pairs so that adding one
+ * is a single edit rather than eight.
+ *
+ * The variables are the ones the Custom Code editor's HighlightStyle uses, so a
+ * snippet in the docs, the same code in the editor and the same code in the
+ * preview are one opinion about Luau rather than three. */
+:is(.docs-code, .preview-code) .tok-keyword { color: var(--code-keyword); }
+:is(.docs-code, .preview-code) .tok-string { color: var(--code-string); }
+:is(.docs-code, .preview-code) .tok-number { color: var(--code-number); }
+:is(.docs-code, .preview-code) .tok-comment { color: var(--code-comment); font-style: italic; }
+:is(.docs-code, .preview-code) .tok-operator { color: var(--code-operator); }
+:is(.docs-code, .preview-code) .tok-global { color: var(--code-global); }
+:is(.docs-code, .preview-code) .tok-function { color: var(--code-function); }
+:is(.docs-code, .preview-code) .tok-bracket,
+:is(.docs-code, .preview-code) .tok-punctuation { color: var(--fg-muted); }
 
 /* Pin lists, in the shape Roblox's own reference uses for properties: one
    bordered row per entry, the signature scannable down the left, detail

@@ -181,6 +181,54 @@ describe("every role reaches the stylesheet", () => {
 	});
 });
 
+/**
+ * ## Highlighted Luau that is not actually coloured
+ *
+ * The third variety of the silent-CSS failure this file exists for, and the one
+ * that actually shipped: the selection preview ran the highlighter, emitted
+ * spans carrying the right `tok-` classes, and rendered every one of them in
+ * plain body text — because the palette was scoped to `.docs-code` and nothing
+ * anywhere said so.
+ *
+ * No error, in the browser or the build. A class nobody styles is legal HTML.
+ */
+describe("every token class is coloured somewhere", () => {
+	/** The classes `highlightLuau` can emit, read from its own map. */
+	const emitted = [
+		...readFileSync(join(root, "src", "app", "highlight.ts"), "utf8")
+			.matchAll(/"(tok-[a-z]+)"/g),
+	].map((m) => m[1]);
+
+	it("styles each one", () => {
+		expect(emitted.length, "the highlighter emits classes at all").toBeGreaterThan(5);
+		for (const cls of new Set(emitted)) {
+			expect(css.includes(`.${cls}`), `${cls} is emitted but theme.css never colours it`)
+				.toBe(true);
+		}
+	});
+
+	/**
+	 * Every container that renders those spans has to be in the rule's selector
+	 * list. Asserted by name rather than by counting, because the failure is a
+	 * container *missing* from the list and a count cannot see that.
+	 */
+	it("colours them in every place that shows Luau", () => {
+		// Whatever stands to the left of `.tok-keyword` in every rule that
+		// styles it — flat selectors and `:is(...)` groups alike.
+		const selectors = [...css.matchAll(/^(.*)\.tok-keyword\s*\{/gm)]
+			.map((m) => m[1])
+			.join(" ");
+		expect(selectors, "nothing styles .tok-keyword at all").not.toBe("");
+
+		for (const container of [".docs-code", ".preview-code"]) {
+			expect(
+				selectors.includes(container),
+				`${container} renders highlighted Luau but is not in the token palette's selector`,
+			).toBe(true);
+		}
+	});
+});
+
 describe("applying a theme", () => {
 	it("produces a value for every role and every derived token", () => {
 		const tokens = themeTokens(clone("Roswaal Dark"));

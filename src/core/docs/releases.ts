@@ -11,6 +11,13 @@
  * reader would do.** A refactor with no visible effect does not go here. A
  * behaviour that used to be one thing and is now another always does, even when
  * the change was a fix, because somebody has built a habit on the old one.
+ *
+ * And an entry **describes the change, it does not argue for it**. Saying a
+ * behaviour is intentional is fair when a reader would otherwise report it as a
+ * bug; explaining why it was chosen, what the alternative was, or what the
+ * trade-off cost is not. That reasoning lives in `NOTES.md`, which is where
+ * somebody goes when they want it — rather than being put in front of everyone
+ * who opened a changelog to find out what is different.
  */
 
 export interface Release {
@@ -39,21 +46,31 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.17.1",
+		date: "2026-09-08",
+		headline: "The selection preview is syntax highlighted.",
+		fixed: [
+			"**The selection preview showed Luau in plain body text.** It was running the highlighter and emitting the right classes all along; the colours were scoped to the documentation and applied nowhere else, so keywords, strings, comments and numbers all came out the same colour as everything around them.",
+		],
+		changed: [
+			"The Luau token colours now apply in every place Luau is shown as text, rather than in the documentation alone. The editor, the docs and the preview were already meant to share one palette.",
+		],
+	},
+	{
 		version: "0.17.0",
 		date: "2026-09-08",
 		headline: "See what a selection compiles to, and the source map finally works.",
 		added: [
-			"**Selection preview.** Select some nodes and press `P`, or use the **Preview** button that appears on the toolbar when something is selected. It shows the Luau those nodes produced, picked out of the real generated file with a few lines of context either side.",
-			"It reads the **actual output** rather than compiling the selection on its own. A selection is an arbitrary subgraph, usually with no entry point and with inputs from outside it — compiling that standalone would produce a page of diagnostics about a script nobody wrote, and Luau the file does not contain.",
-			"**A pure node gets a straight answer too.** A pure value with one consumer is spliced into its use site and has no line of its own, so the preview follows its wires forward to the statement it ends up in and says so, rather than reporting nothing.",
-			"Deliberately not always on screen: the button appears only with a selection, and the panel is opened rather than docked.",
+			"**Selection preview.** Select some nodes and press `P`, or use the **Preview** button that appears on the toolbar when something is selected. It shows the Luau those nodes produced, picked out of the real generated file with a few lines of context either side, syntax highlighted.",
+			"A **Whole file** switch in its header swaps between the extract and the complete output.",
+			"**A pure node is handled too.** A pure value with one consumer has no line of its own, so the preview names it and highlights the statement its value ends up in.",
 		],
 		fixed: [
-			"**The compiler's line-to-node source map was off by one, and always had been.** The header's line count came from splitting on newlines, which counts the empty string after the trailing newline as a line — so every entry pointed one line late: the first statement at the line below it, the last node at the blank line ending the file. Nothing had ever read the map, which is exactly why nobody noticed. Found by writing the first thing that consumes it.",
+			"**The compiler's line-to-node source map was off by one, and always had been.** Every entry pointed one line late: the first statement at the line below it, the last node at the blank line ending the file.",
 		],
 		watch: [
-			"`P` opens the preview when nodes are selected, with no modifier — the same shape as `C` for a comment. It works while a compile has the graph locked, because it only reads.",
-			"The map is what a future Studio integration would use to point a runtime error back at a node. That lookup now starts from a mapping something exercises and three tests check against the real text, rather than one nothing had tried.",
+			"`P` opens the preview when nodes are selected, with no modifier — the same shape as `C` for a comment. It works while a compile has the graph locked.",
+			"The map is what a future Studio integration would use to point a runtime error back at a node. Anything already built against it was reading lines one out.",
 		],
 	},
 	{
@@ -61,20 +78,20 @@ export const RELEASES: Release[] = [
 		date: "2026-09-08",
 		headline: "Arguments you can leave out, and a wire that finishes the thought.",
 		added: [
-			"**Optional input pins.** A pin marked optional and left alone is *not passed at all*, rather than passed as a default Roswaal picked. That is a real difference: plenty of Roblox constructors reject an explicit `nil` where they are perfectly happy with a missing argument, so the two are different calls and only one of them works.",
-			"`TweenInfo` is the case that asked for it, and now compiles to `TweenInfo.new(1, style, direction)` instead of six arguments, three of which were the engine's own defaults handed back to it. `Look At` and both `Fuzzy Equals` nodes lost their trailing argument the same way.",
+			"**Optional input pins.** A pin marked optional and left alone is *not passed at all*, rather than passed as a default Roswaal picked.",
+			"`TweenInfo` now compiles to `TweenInfo.new(1, style, direction)` instead of six arguments, three of which were the engine's own defaults handed back to it. `Look At` and both `Fuzzy Equals` nodes lost their trailing argument the same way.",
 			"On the canvas an untouched optional pin reads **default** in a dashed box; click it to set a value, and the **×** beside a set one puts it back. Setting it and clearing it again leaves the graph byte for byte as it was.",
-			"**Dragging a wire into empty space and picking a node now connects it.** The palette narrows to nodes that can actually take the wire, says which pin it is holding, and joins the two up when you pick — Blueprints' behaviour, and the half of this gesture that was missing.",
-			"**Make Dictionary**, a table of key/value pairs in one pure node. The general answer to a call that wants a table, of which `TweenService:Create` was the case that forced it — a one-property tween used to be New Table, Set Index and an execution wire to say `{ x = 1 }`.",
+			"**Dragging a wire into empty space and picking a node now connects it.** The palette narrows to nodes that can take the wire, names the pin it is holding, and joins the two up when you pick.",
+			"**Make Dictionary**, a table of key/value pairs in one pure node. A one-property tween used to be New Table, Set Index and an execution wire to say `{ x = 1 }`.",
 		],
 		fixed: [
-			"**A statement node with several outputs assigned the unwired ones to globals.** The emitter declared only the outputs something read, leaving the rest as bare names on the left of an assignment — which in Luau creates a global, silently, visible to every other script. Nothing in the library did this yet; the machinery now works for whoever writes the first node that needs it, rather than being a trap laid for them.",
+			"**A statement node with several outputs assigned the unwired ones to globals.** The emitter declared only the outputs something read, leaving the rest as bare names on the left of an assignment — which in Luau creates a global, silently, visible to every other script. No built-in node did this; the machinery is now correct for one that does.",
 		],
 		watch: [
 			"An optional pin's **default is still there** and is what you get when you click to set it. What changed is that leaving it alone no longer emits it.",
-			"An unset optional pin with a set one *after* it is passed as `nil`, because dropping it would shift every argument left and argument four would arrive as argument three. Only trailing ones disappear.",
+			"An unset optional pin with a set one *after* it is passed as `nil`. Only trailing ones disappear.",
 			"The palette **filters** rather than reorders when a wire is in flight, so a node with no compatible pin is not offered. Opening the palette any other way still lists everything.",
-			"`table.remove`'s index was deliberately left alone. Making it optional would change what an existing graph emits — `table.remove(t)` removes the *last* element where `table.remove(t, 1)` removes the first — and a silent change of meaning in graphs people already have is not worth the tidier output.",
+			"`table.remove`'s index is not optional, and was left as it was: `table.remove(t)` removes the *last* element where `table.remove(t, 1)` removes the first, so changing it would alter what existing graphs do.",
 		],
 	},
 	{
@@ -84,23 +101,24 @@ export const RELEASES: Release[] = [
 		added: [
 			"**A category called Engine types**, holding every Roblox datatype with a subcategory per type: Vector3, Vector2, CFrame, Color3, BrickColor, UDim, UDim2, TweenInfo and Tween. The node menu groups two levels deep now, and the documentation gives each type its own nav section.",
 			"**Vector3 gained the rest of its API** — divide, component-wise multiply, negate, Angle, Max, Min, Abs, Ceil, Floor, Sign, FuzzyEq and a Break node — and **Vector2 now has all of it too**, where before it had only a constructor.",
-			"**Color3 converts both ways between all four forms you actually have**: RGB 0–255, RGB float 0–1, HSV, and hex. `Color3 To RGB` rounds to whole channels; `Color3 To RGB Float` gives you what the engine actually stores.",
-			"**BrickColor**, which is *not* a Color3 and now says so — by name, from a Color3, from float channels, by palette index, or random, plus `.Color`, `.Name` and `.Number` to get back out.",
+			"**Color3 converts both ways between all four forms**: RGB 0–255, RGB float 0–1, HSV, and hex. `Color3 To RGB` rounds to whole channels; `Color3 To RGB Float` gives you what the engine stores.",
+			"**BrickColor** — by name, from a Color3, from float channels, by palette index, or random, plus `.Color`, `.Name` and `.Number` to get back out.",
 			"**UDim and UDim2**, with construction from scale or offset, arithmetic, Lerp, and the X / Y / Width / Height accessors.",
-			"**Tweening, end to end.** A TweenInfo with easing style and direction as dropdowns, Create Tween, Play, Pause and Cancel, and the Completed signal — so a graph can wait for a tween to finish rather than guessing at a delay.",
-			"**Tween Property**, a one-property shorthand so the common case does not need a table built by hand. For several at once, wire in a table from New Table and Set Index.",
-			"**Break nodes** for Vector3, Vector2, UDim and CFrame's Euler angles. Splitting a pin already did this and takes less room; these exist because a Break node is what a Blueprints hand reaches for first.",
+			"**Tweening, end to end.** A TweenInfo with easing style and direction as dropdowns, Create Tween, Play, Pause and Cancel, and the Completed signal to wait on.",
+			"**Tween Property**, a one-property shorthand. For several at once, wire in a table.",
+			"**Break nodes** for Vector3, Vector2, UDim and CFrame's Euler angles.",
 		],
 		changed: [
 			"**Vectors and CFrames are no longer top-level categories**, and the two datatype nodes that sat under Engine have moved out of it. Everything is under Engine types, grouped by the type it belongs to.",
-			"**Nodes are coloured by their datatype now**, not by the category. Vector3 and CFrame nodes keep exactly the colours they had, so grouping them together did not make a vector graph and a transform graph read as the same thing.",
-			"`BrickColor`, `TweenInfo` and `Tween` are pin types of their own with their own colours. BrickColor is deliberately not near Color3's: mixing the two up is a common Roblox mistake and the colours should not encourage it.",
+			"**Nodes are coloured by their datatype now**, not by the category. Vector3 and CFrame nodes keep exactly the colours they had.",
+			"`BrickColor`, `TweenInfo` and `Tween` are pin types of their own, with their own colours. BrickColor's is not near Color3's.",
 		],
 		watch: [
-			"**No node changed its id, so no graph moved.** A graph stores ids; this release changed how nodes are *found* and not what they are called. `roblox.vector3` and `roblox.color3` kept theirs even though both were retitled — the latter is now `Color3 from RGB`, because there are four ways to make one.",
-			"`Color3 To HSV` and `To Euler Angles XYZ` call the underlying method **once per output you wire**. A pure node is one expression per output, and the alternative was making a colour conversion into an execution step. Wiring one component costs one call; wiring all three costs three.",
-			"BrickColor's float constructor takes channels from **0 to 1**, not 0 to 255. That is the engine's signature, and it is the one place BrickColor disagrees with the colour picker.",
-			"The easing and BrickColor dropdowns are **suggestions, not closed lists** — anything not offered can still be typed, so a value Roblox adds later is never a dead end.",
+			"**No node changed its id, so no graph moved.** `roblox.vector3` and `roblox.color3` kept theirs even though both were retitled — the latter is now `Color3 from RGB`.",
+			"`Color3 To HSV` and `To Euler Angles XYZ` call the underlying method **once per output you wire**. Wiring one component costs one call; wiring all three costs three.",
+			"A `BrickColor` is not a `Color3` and the two are not interchangeable. Read `.Color` for the Color3 behind the name.",
+			"BrickColor's float constructor takes channels from **0 to 1**, not 0 to 255.",
+			"The easing and BrickColor dropdowns are **suggestions, not closed lists** — anything not offered can still be typed.",
 		],
 	},
 	{
@@ -109,27 +127,27 @@ export const RELEASES: Release[] = [
 		headline: "Settings you can find, and seven colour schemes.",
 		added: [
 			"**A settings panel**, from the toolbar. It covers everything in `roswaal.json` — target, where graphs live, where Luau is written, compile mode, node pack directories, formatting, the Rojo project file — none of which could previously be changed without opening the file by hand.",
-			"It **says where each setting is stored**, because there are two kinds and they behave differently. Project settings are committed and shared by everyone on the repository; preferences are yours, live in your browser, and never appear in a diff. The one mistake worth designing against here is a personal colour scheme turning up in somebody's pull request.",
+			"It **says where each setting is stored**. Project settings are committed and shared by everyone on the repository; preferences are yours, live in your browser, and never appear in a diff.",
 			"**Seven colour schemes**: Roswaal Light and Dark, Tokyo Night and Tokyo Night Storm, Catppuccin Mocha, Nord, and Aquatic. Each is one JSON file in `themes/`, in the same format [Beako](https://github.com/neopolitans/Beako) uses, so a theme written for one tool reads in the other.",
-			"**Follow the system** is still the default and is the *absence* of a theme rather than an eighth scheme — it removes the palette rather than pinning a light or dark one, so the app goes on changing with your OS the way it always did.",
-			"The theme applies to **the docs window too**, which is the same document, and it is applied before anything renders rather than corrected a frame later.",
-			"**Settings → Licences** shows the full text of the three borrowed schemes' licences, compiled in from files copied byte for byte out of each upstream project. MIT requires the notice to travel with the work, and a link is not the notice travelling.",
+			"**Follow the system** is still the default, and is the *absence* of a theme rather than an eighth scheme: it removes the palette, so the app goes on changing with your OS.",
+			"The theme applies to **the docs window too**, before anything renders rather than a frame later.",
+			"**Settings → Licences** shows the full text of the three borrowed schemes' licences, compiled in from files copied byte for byte out of each upstream project.",
 			"Two preferences that were previously not settings at all: **how long after your last edit a graph is written**, and **whether Roswaal reopens the last project** or starts at the picker.",
-			"**Three wire styles.** *Curved* is the bezier you have, and stays the default. *Rigid* bends at right angles and nowhere else. *Angular* is the same route with each corner cut to a 45-degree slope — a slope between two rigid runs. People have modified Unreal's Blueprint UI to get both of those, so they are here rather than being a reason to fork this.",
-			"**Square node corners**, for the same reason. Capsule getters and reroute knots keep their shapes either way: a pill and a circle are what say *this is a value* and *this is a bend in the wire*, and neither has a title to say it instead.",
+			"**Three wire styles.** *Curved* is the bezier you have, and stays the default. *Rigid* bends at right angles and nowhere else. *Angular* is the same route with each corner cut to a 45-degree slope.",
+			"**Square node corners.** Capsule getters and reroute knots keep their shapes either way.",
 		],
 		changed: [
-			"**Straighten is a preference rather than a stray `localStorage` key.** It behaves exactly as before; it is now in the settings panel with everything else, and reading it does not require knowing the key's name.",
-			"A **project setting that the daemon refuses now says so.** Writing `roswaal.json` used to be a promise nobody checked — survivable while the only control was a two-position toggle that could not really fail, and not survivable now that you can type a path into it.",
+			"**Straighten is a preference rather than a stray `localStorage` key.** It behaves exactly as before, and is now in the settings panel with everything else.",
+			"A **project setting that the daemon refuses now says so.** Writing `roswaal.json` was previously a promise nobody checked.",
 		],
 		fixed: [
-			"**The `<select>` popup follows the theme.** Chromium paints that list outside the document, where `var(…)` does not resolve, so its colours were four literals copied out of the built-in schemes — which meant that under any other palette they were four colours that had stopped following it.",
+			"**The `<select>` popup follows the theme.** Chromium paints that list outside the document, where `var(…)` does not resolve, so its colours were four literals copied out of the built-in schemes and stopped following any other palette.",
 		],
 		watch: [
-			"**A theme cannot recolour a pin or a node category, and that is deliberate.** Red is a boolean, green is a number, gold is a vector; that mapping is most of what makes a graph readable to somebody arriving from Blueprints, and it is worth more than the ability to restyle it.",
-			"The rigid wire router has **no obstacle avoidance**, deliberately. A router that dodged nodes would reroute every wire in the graph whenever one node moved, and a wire that takes a different path each time you nudge something is harder to follow than one that crosses a node.",
-			"Hover, the grid, the watermark and the node shadow are **derived from whether a scheme is dark**, not authored. An overlay is the one token an author gets wrong without seeing it — the mistake is invisible on whichever surface they happened to be looking at — so a palette cannot ship a hover state that does not show.",
-			"Preferences live in this browser and do not follow you to another machine. There are four of them; the alternative was a per-developer file in a shared checkout.",
+			"**A theme cannot recolour a pin or a node category.** Red is a boolean, green is a number, gold is a vector, whatever scheme you are on.",
+			"The rigid wire router has **no obstacle avoidance**: a wire may cross a node rather than route around it.",
+			"Hover, the grid, the watermark and the node shadow are **derived from whether a scheme is dark**, not authored, so a theme file does not set them.",
+			"Preferences live in this browser and do not follow you to another machine.",
 		],
 	},
 	{
