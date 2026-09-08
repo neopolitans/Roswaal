@@ -214,9 +214,19 @@ class Emitter {
 
 	// -- output plumbing ---------------------------------------------------
 
+	/**
+	 * One statement, which may run to several lines.
+	 *
+	 * Leading tabs in the text are **relative** indentation, added to the
+	 * statement's own rather than left in the line to be indented again. A
+	 * multi-line expression — a table written one key to a line — can then
+	 * indent its own body without knowing how deep the statement it lands in
+	 * happens to be.
+	 */
 	private push(text: string, node?: string): void {
 		for (const line of text.split("\n")) {
-			this.out.push({ text: line, indent: this.indent, node });
+			const inner = line.length - line.replace(/^\t+/, "").length;
+			this.out.push({ text: line.slice(inner), indent: this.indent + inner, node });
 		}
 	}
 
@@ -1540,7 +1550,19 @@ class Emitter {
 				const written = plain ?? `[${key}]`;
 				entries.push(`${written} = ${this.resolveInput(r, value, scope)}`);
 			}
-			return entries.length === 0 ? "" : ` ${entries.join(separator)} `;
+			if (entries.length === 0) return "";
+			/**
+			 * One key to a line, when the node asks for it.
+			 *
+			 * A trailing comma on the last entry, which is what Luau takes and
+			 * what stylua writes — it makes adding a key a one-line diff rather
+			 * than a two-line one. The leading tab is relative: `push` adds it to
+			 * whatever indentation the statement itself is at.
+			 */
+			if ((r.node.config as { layout?: string } | undefined)?.layout === "lines") {
+				return `\n${entries.map((entry) => `\t${entry},`).join("\n")}\n`;
+			}
+			return ` ${entries.join(separator)} `;
 		});
 
 		/**

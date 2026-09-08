@@ -46,6 +46,17 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.20.3",
+		date: "2026-09-08",
+		headline: "Tables can be written one key to a line.",
+		added: [
+			"**Make Dictionary has a Layout setting**: *Inline*, or *One per line*. Inline is right for two or three keys and unreadable for ten, which is the length a settings table actually is.",
+		],
+		watch: [
+			"stylua breaks a long table for you, but only when it is installed. What the generated file looks like should not depend on whether an optional tool is on PATH, so this does not.",
+		],
+	},
+	{
 		version: "0.20.2",
 		date: "2026-09-08",
 		headline: "Node descriptions in the panel are short, with the rest a click away.",

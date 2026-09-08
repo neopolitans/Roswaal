@@ -522,3 +522,63 @@ describe("string keys, plain or bracketed", () => {
 		expect(setIndex(null)).toContain("[");
 	});
 });
+
+/**
+ * A table written one key to a line.
+ *
+ * Inline is right for two or three keys and unreadable for ten, which is the
+ * length a settings table actually is. stylua would break a long one for you,
+ * but only if it is installed — and what the generated file looks like should
+ * not depend on whether an optional tool happens to be on PATH.
+ */
+describe("laying a dictionary out", () => {
+	function tuning(layout?: string) {
+		const b = new Builder();
+		const dict = b.node("table.dictionary", { config: { args: 2, ...(layout ? { layout } : {}) } });
+		b.lit(dict, "k0", { t: "string", v: "turnRate" });
+		b.lit(dict, "a0", { t: "number", v: 45 });
+		b.lit(dict, "k1", { t: "string", v: "brakingTime" });
+		b.lit(dict, "a1", { t: "number", v: 1.2 });
+		const start = b.node("script.begin");
+		const declare = b.node("local.declare");
+		b.lit(declare, "name", { t: "string", v: "TUNING" });
+		b.link(start, "then", declare, "in");
+		b.link(dict, "result", declare, "value");
+		return code(b.build());
+	}
+
+	it("stays on one line by default", () => {
+		expect(tuning()).toContain("local TUNING = { turnRate = 45, brakingTime = 1.2 }");
+	});
+
+	/** The shape the hand-written module has. */
+	it("puts one key on each line when asked", () => {
+		expect(tuning("lines")).toContain(
+			["local TUNING = {", "\tturnRate = 45,", "\tbrakingTime = 1.2,", "}"].join("\n"),
+		);
+	});
+
+	/**
+	 * The body is indented relative to the statement, not to the file — so the
+	 * same table inside a function comes out one tab deeper, not flat against
+	 * the margin.
+	 */
+	it("indents the body relative to wherever the statement is", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const branch = b.node("flow.branch");
+		const dict = b.node("table.dictionary", { config: { args: 1, layout: "lines" } });
+		b.lit(dict, "k0", { t: "string", v: "turnRate" });
+		b.lit(dict, "a0", { t: "number", v: 45 });
+		const declare = b.node("local.declare");
+		b.lit(declare, "name", { t: "string", v: "TUNING" });
+		b.link(start, "then", branch, "in");
+		b.link(branch, "true", declare, "in");
+		b.link(dict, "result", declare, "value");
+
+		const out = code(b.build());
+		expect(out).toContain("\tlocal TUNING = {");
+		expect(out).toContain("\t\tturnRate = 45,");
+		expect(out).toContain("\n\t}");
+	});
+});

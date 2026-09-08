@@ -5,6 +5,11 @@
  * `statement` templates available to custom node packs -- there is nothing a
  * built-in can do that a `.nodedef.json` cannot. That is deliberate: it keeps
  * the template language honest.
+ *
+ * **Summaries are shortened for the Inspector**, which shows the opening and
+ * links to the reference page — so the first sentence has to stand on its own.
+ * See docs/WORDING.md; the short version is that a description says what the
+ * node does, and everything else belongs on the page.
  */
 
 import type { NodeDef, PinDef } from "../schema.js";

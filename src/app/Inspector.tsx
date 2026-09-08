@@ -150,6 +150,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				{(def.id === "table.dictionary"
 					|| def.id === "table.get"
 					|| def.id === "table.set") && <KeyStyle node={node} />}
+				{def.id === "table.dictionary" && <TableLayout node={node} />}
 				{def.id === "flow.sequence" && (
 					<CountEditor node={node} field="count" label="Outputs" min={2} max={12} fallback={2} />
 				)}
@@ -380,6 +381,32 @@ function TypeEditor({ node }: { node: GraphNode }) {
  * plainly at all; a computed key, a number, or anything with a space in it
  * stays bracketed whatever this says.
  */
+/**
+ * Whether a table is written on one line or one key to a line.
+ *
+ * Inline is right for two or three keys and unreadable for ten, which is the
+ * length a settings table actually is. stylua would break a long one for you,
+ * but only if it is installed -- and what the generated file looks like should
+ * not depend on whether an optional tool happens to be on PATH.
+ */
+function TableLayout({ node }: { node: GraphNode }) {
+	const current = (node.config as { layout?: string } | undefined)?.layout === "lines"
+		? "lines"
+		: "inline";
+	return (
+		<Field label="Layout">
+			<select
+				className="tb"
+				value={current}
+				onChange={(e) => store.edit((s) => setConfig(s, node.id, { layout: e.target.value }))}
+			>
+				<option value="inline">Inline</option>
+				<option value="lines">One per line</option>
+			</select>
+		</Field>
+	);
+}
+
 function KeyStyle({ node }: { node: GraphNode }) {
 	const current = (node.config as { keys?: string } | undefined)?.keys === "brackets"
 		? "brackets"
