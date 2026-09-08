@@ -97,8 +97,24 @@ function variadic(
 
 const LETTERS = "ABCDEFGH".split("");
 
+/**
+ * How many trailing pins a variadic node will grow to.
+ *
+ * Named, and in one place, because the number lived in three: the `variadic`
+ * block on each definition, and the two functions that derive the pins. Raising
+ * the dictionary's cap by editing only its definition changed the *offer* and
+ * not the pins, so the node claimed twenty-four pairs and still made eight.
+ *
+ * Eight is plenty of operands for `+`. A dictionary is a different question:
+ * it is how you write a table literal, a settings table of ten entries is
+ * ordinary, and there is no way to say "a table with ten keys" by adding more
+ * nodes — it is one node or it is not that table.
+ */
+const MAX_ARGS = 8;
+const MAX_PAIRS = 24;
+
 /** Payload pins for a call whose argument count is chosen per node. */
-function payload(config: Record<string, unknown>, min: number, max = 8): PinDef[] {
+function payload(config: Record<string, unknown>, min: number, max = MAX_ARGS): PinDef[] {
 	const count = Math.max(min, Math.min(max, Number(config.args ?? min)));
 	return Array.from({ length: count }, (_, i) =>
 		d(`a${i}`, count === 1 ? "Value" : `Value ${i + 1}`, "any", { t: "nil" }),
@@ -124,7 +140,7 @@ function variadicStmt(
 	});
 	return {
 		id, title, category, summary, targets: opts.targets ?? ["roblox"],
-		variadic: { min, max: 8, type: "any", default: { t: "nil" } },
+		variadic: { min, max: MAX_ARGS, type: "any", default: { t: "nil" } },
 		...shape({}),
 		compilesTo: { kind: "statement", template },
 		derivePins: shape,
@@ -144,7 +160,7 @@ function variadicCall(
 	});
 	return {
 		id, title, category, summary, targets: ["roblox"], latent: opts.latent,
-		variadic: { min, max: 8, type: "any", default: { t: "nil" } },
+		variadic: { min, max: MAX_ARGS, type: "any", default: { t: "nil" } },
 		...shape({}),
 		compilesTo: { kind: "call", template, result: "result" },
 		derivePins: shape,
@@ -159,7 +175,7 @@ function variadicCall(
  * already knows how to find, so the node's + and − work without a second rule.
  */
 function dictionaryPins(config: Record<string, unknown>): { inputs: PinDef[]; outputs: PinDef[] } {
-	const count = Math.max(1, Math.min(8, Number(config.args ?? 1)));
+	const count = Math.max(1, Math.min(MAX_PAIRS, Number(config.args ?? 1)));
 	const inputs: PinDef[] = [];
 	for (let i = 0; i < count; i++) {
 		inputs.push(str(`k${i}`, count === 1 ? "Key" : `Key ${i + 1}`, ""));
@@ -173,7 +189,7 @@ function dictionaryPins(config: Record<string, unknown>): { inputs: PinDef[]; ou
  * one, and the count is stored per node rather than baked into the definition.
  */
 function argPins(config: Record<string, unknown>): PinDef[] {
-	const count = Math.max(0, Math.min(8, Number(config.args ?? 1)));
+	const count = Math.max(0, Math.min(MAX_ARGS, Number(config.args ?? 1)));
 	return Array.from({ length: count }, (_, i) =>
 		d(`a${i}`, count === 1 ? "Argument" : `Arg ${i + 1}`, "any", { t: "nil" }),
 	);
@@ -293,10 +309,23 @@ export const LIBRARY_NODES: NodeDef[] = [
 		title: "Declare Local",
 		category: "Variables",
 		summary:
-			"Binds a local in the current block. Wire the Local output wherever the value is needed. For a value the whole script can reach, add a variable instead.",
-		inputs: [exec("in"), d("value", "Value", "any", { t: "nil" })],
+			"Binds a local in the current block. Wire the Local output wherever the value is needed. Name is optional — leave it blank and one is chosen. For a value the whole script can reach, add a variable instead.",
+		inputs: [
+			exec("in"),
+			/**
+			 * Optional, and typed rather than derived from the node's label.
+			 *
+			 * The label already fed the generated identifier, which worked and
+			 * was findable only by opening the Inspector and guessing that a
+			 * cosmetic field was load-bearing. A name that ends up in the emitted
+			 * Luau belongs on the node face, where it is read at the same moment
+			 * as the value it names.
+			 */
+			d("name", "Name", "string", { t: "string", v: "" }),
+			d("value", "Value", "any", { t: "nil" }),
+		],
 		outputs: [exec("then"), d("ref", "Local", "any")],
-		compilesTo: { kind: "call", template: "$in.value", result: "ref" },
+		compilesTo: { kind: "builtin", handler: "local.declare" },
 	},
 	stmt("local.set", "Set Local", "Variables", "$in.variable = $in.value", [
 		d("variable", "Local", "any", undefined),
@@ -387,7 +416,16 @@ export const LIBRARY_NODES: NodeDef[] = [
 			"A table of key/value pairs, built in one node. Use the + and − on the node " +
 			"to change how many. A pair with an empty key is left out.",
 		pure: true,
-		variadic: { min: 1, max: 8, type: "any", default: { t: "nil" } },
+		/**
+		 * Room for a settings table, which is what this node is mostly for.
+		 *
+		 * Eight was the cap every variadic node shared, and eight operands is
+		 * plenty for `+` — but a tank's tuning table has ten entries and a
+		 * `TweenInfo` map can have more, and there is no way to say "a table with
+		 * eleven keys" by adding more nodes. It has to be one node or it is not
+		 * that table. Twenty-four is tall on the canvas and still finite.
+		 */
+		variadic: { min: 1, max: MAX_PAIRS, type: "any", default: { t: "nil" } },
 		...dictionaryPins({}),
 		outputs: [d("result", "", "table")],
 		compilesTo: { kind: "expr", outputs: { result: "{$pairs(, )}" } },

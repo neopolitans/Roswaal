@@ -72,6 +72,25 @@ export const VARIABLE_NODES: NodeDef[] = [
 		subtitle: (config) => (config as VariableRef).name,
 	},
 	{
+		id: "variable.init",
+		title: "Initialize Variable",
+		category: "Variables",
+		summary:
+			"Gives a script variable its first value, and *is* its declaration — the variable is not declared separately above. Use it when the starting value has to be built from nodes rather than typed into the variables panel. Must sit in the main flow, before anything reads the variable.",
+		inputs: [exec("in"), data("value", "Value", "any")],
+		outputs: [exec("then"), data("value", "", "any")],
+		compilesTo: { kind: "builtin", handler: "variable.init" },
+		derivePins(config: NodeConfig) {
+			const ref = config as VariableRef;
+			const type = ref.type ?? "any";
+			return {
+				inputs: [exec("in"), data("value", "Value", type)],
+				outputs: [exec("then"), data("value", "", type)],
+			};
+		},
+		subtitle: (config) => (config as VariableRef).name,
+	},
+	{
 		id: "function.get",
 		title: "Get Function",
 		category: "Flow",

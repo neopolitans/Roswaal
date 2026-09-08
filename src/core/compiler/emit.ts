@@ -104,6 +104,18 @@ class Emitter {
 	/** ScriptVariable id -> the file-level local it was declared as. */
 	private variableNames = new Map<string, string>();
 	/**
+	 * Variables whose declaration is an `Initialize Variable` node rather than
+	 * the block at the top of the file.
+	 *
+	 * Two sets rather than one, because "will be declared later" and "has been
+	 * declared by now" are different questions and both get asked. The first
+	 * decides whether to skip the top-of-file line; the second catches a read
+	 * that happens before the declaration it depends on, which Luau would
+	 * otherwise compile into a reference to a global that is always nil.
+	 */
+	private initialisedLater = new Set<string>();
+	private declaredSoFar = new Set<string>();
+	/**
 	 * Service name -> the local it was hoisted to. Services are discovered
 	 * while walking the graph but printed at the very top, which is what the
 	 * separate preamble buffer is for.
@@ -299,6 +311,15 @@ class Emitter {
 		const variables = this.script.variables ?? [];
 		if (variables.length === 0) return;
 
+		// Which variables an Initialize node is going to declare. Collected
+		// before anything is written, because the decision is whether to write
+		// the line at all.
+		for (const r of this.index.all()) {
+			if (r.def.id !== "variable.init") continue;
+			const ref = (r.node.config ?? {}) as { variable?: string };
+			if (ref.variable) this.initialisedLater.add(ref.variable);
+		}
+
 		// Two passes: claim every name before emitting, so a variable declared
 		// later cannot be renamed out from under an earlier one.
 		for (const variable of variables) {
@@ -307,7 +328,9 @@ class Emitter {
 				this.names.unique(variable.name || "variable", "variable"),
 			);
 		}
+		let written = 0;
 		for (const variable of variables) {
+			if (this.initialisedLater.has(variable.id)) continue;
 			const ident = this.variableNames.get(variable.id)!;
 			const annotation =
 				this.annotates && variable.type && variable.type !== "any"
@@ -315,8 +338,10 @@ class Emitter {
 					: "";
 			if (variable.description) this.push(`-- ${variable.description}`);
 			this.push(`local ${ident}${annotation} = ${literalToLuau(variable.default)}`);
+			this.declaredSoFar.add(variable.id);
+			written++;
 		}
-		this.blank();
+		if (written > 0) this.blank();
 	}
 
 	private emitFunctions(root: Scope): void {
@@ -626,6 +651,73 @@ class Emitter {
 				return this.index.execTarget(id, "then");
 			}
 
+			case "local.declare": {
+				const value = this.resolveInput(r, this.pin(r, "value", "in"), scope);
+				// A name is an identifier, decided when the file is written, so it
+				// cannot come down a wire — the wire carries a runtime value and
+				// there is nothing sensible to do with one here. Said rather than
+				// ignored, because a wired Name that quietly did nothing would be
+				// a name you had to test to discover was not being used.
+				if (this.index.sourceOf(id, "name")) {
+					this.error(
+						"Declare Local's Name is written into the generated Luau, so it has to be " +
+						"typed in rather than wired. Leave it blank for an automatic one.",
+						id,
+					);
+				}
+				const wanted = this.literalText(r, "name") || r.node.label || "local";
+				const ident = this.names.unique(wanted, "local");
+				this.push(`local ${ident} = ${value}`, id);
+				scope.bindings.set(`${id}/ref`, ident);
+				return this.index.execTarget(id, "then");
+			}
+
+			case "variable.init": {
+				const ref = (r.node.config ?? {}) as VariableRef;
+				const ident = ref.variable ? this.variableNames.get(ref.variable) : undefined;
+				const value = this.resolveInput(r, this.pin(r, "value", "in"), scope);
+				if (!ident || !ref.variable) {
+					this.error(
+						ref.variable
+							? "Initialize Variable points at a variable that no longer exists."
+							: "Initialize Variable has no variable chosen.",
+						id,
+					);
+					return this.index.execTarget(id, "then");
+				}
+				// The whole point of this node is that the declaration lands here
+				// rather than at the top of the file — so it has to land somewhere
+				// the rest of the script can still see. A `local` inside a branch,
+				// a loop or a function body is gone by the time anything else
+				// looks for it, and Luau would read the name as a nil global.
+				if (scope.parent !== undefined) {
+					this.error(
+						`Initialize Variable declares "${ref.name ?? "the variable"}", so it has to sit ` +
+						"in the main flow. Inside a branch, a loop or a function the declaration " +
+						"would go out of scope. Use Set Variable there instead.",
+						id,
+					);
+					return this.index.execTarget(id, "then");
+				}
+				if (this.declaredSoFar.has(ref.variable)) {
+					this.error(
+						`"${ref.name ?? "That variable"}" is initialised more than once. A variable is ` +
+						"declared once; the later ones should be Set Variable.",
+						id,
+					);
+					return this.index.execTarget(id, "then");
+				}
+				const variable = (this.script.variables ?? []).find((v) => v.id === ref.variable);
+				const annotation =
+					this.annotates && variable?.type && variable.type !== "any"
+						? `: ${luauType(variable.type)}`
+						: "";
+				this.push(`local ${ident}${annotation} = ${value}`, id);
+				this.declaredSoFar.add(ref.variable);
+				scope.bindings.set(`${id}/value`, ident);
+				return this.index.execTarget(id, "then");
+			}
+
 			case "variable.set": {
 				const ref = (r.node.config ?? {}) as VariableRef;
 				const ident = ref.variable ? this.variableNames.get(ref.variable) : undefined;
@@ -862,6 +954,21 @@ class Emitter {
 						ref.variable
 							? "Get Variable points at a variable that no longer exists."
 							: "Get Variable has no variable chosen.",
+						src.node.id,
+					);
+					return "nil";
+				}
+				// Reading a variable whose declaration has not been emitted yet.
+				// Only reachable when an Initialize Variable node owns it, since
+				// everything else is declared before the first line of flow — and
+				// the usual way in is a function defined above the initialisation
+				// that reads it. Luau would take the name for a global and hand
+				// back nil for the life of the script.
+				if (this.initialisedLater.has(ref.variable!) && !this.declaredSoFar.has(ref.variable!)) {
+					this.error(
+						`"${ref.name ?? "That variable"}" is read here, before the Initialize Variable ` +
+						"node that declares it. Move the initialisation earlier, or give the " +
+						"variable a value in the variables panel and use Set Variable.",
 						src.node.id,
 					);
 					return "nil";

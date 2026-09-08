@@ -46,6 +46,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.19.1",
+		date: "2026-09-08",
+		headline: "Declare a variable where you build its value.",
+		added: [
+			"**Initialize Variable.** Gives a script variable its first value *and* is its declaration, so there is no empty one above it — `local Tuning = { … }` rather than `local Tuning = {}` followed by an assignment. For a starting value that has to be built from nodes rather than typed into the variables panel.",
+			"**Declare Local has a Name.** An optional input on the node face; leave it blank and one is chosen. The Inspector's Label did this already and was findable only by guessing that a cosmetic field was load-bearing.",
+		],
+		changed: [
+			"**Make Dictionary goes up to 24 pairs**, from 8. A settings table of ten entries is ordinary, and there is no way to say \"a table with ten keys\" by adding more nodes.",
+		],
+		watch: [
+			"Initialize Variable has to sit in the main flow. Inside a branch, a loop or a function the declaration would go out of scope and every later mention would read as an empty global, so it is refused with an error naming Set Variable as the alternative. Reading the variable before the node that declares it is refused for the same reason.",
+			"Declare Local's Name is typed in, not wired. It becomes an identifier in the generated file, which is decided before anything runs.",
+		],
+	},
+	{
 		version: "0.19.0",
 		date: "2026-09-08",
 		headline: "A moved graph takes its generated file with it, and the tree says which half is which.",
