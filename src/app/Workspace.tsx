@@ -28,10 +28,10 @@
  * like tidiness and is not.
  */
 
-import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 
 import {
-	dockVisible, gridTemplate, panelsIn, PANEL_IDS,
+	dockVisible, dropZone, gridTemplate, panelsIn, PANEL_IDS, PANEL_TITLES,
 	type DockSide, type Layout, type PanelId,
 } from "./panels.js";
 
@@ -61,11 +61,19 @@ export interface WorkspaceProps {
 	onResizeEnd?: () => void;
 	/** A splitter was double-clicked: collapse the dock, or bring it back. */
 	onToggle?: (side: DockSide) => void;
+	/** A panel was dragged into another dock. */
+	onMovePanel?: (panel: PanelId, side: DockSide) => void;
 }
 
+/** How far the pointer must travel before a press becomes a drag. */
+const DRAG_THRESHOLD = 4;
+
 export function Workspace({
-	layout, contents, centre, floating, onResize, onResizeEnd, onToggle,
+	layout, contents, centre, floating, onResize, onResizeEnd, onToggle, onMovePanel,
 }: WorkspaceProps) {
+	const surface = useRef<HTMLDivElement>(null);
+	/** The panel under the pointer, and where it would land if released now. */
+	const [dragging, setDragging] = useState<{ panel: PanelId; over: DockSide | null } | null>(null);
 	/**
 	 * A panel with nothing to draw is not open.
 	 *
@@ -96,12 +104,19 @@ export function Workspace({
 
 	return (
 		<div
-			className="workspace"
+			className={`workspace${dragging ? " dragging" : ""}`}
+			ref={surface}
 			style={{ gridTemplateColumns: tracks.columns, gridTemplateRows: tracks.rows }}
 		>
 			{(["left", "right", "bottom"] as DockSide[]).map((side) =>
 				dockVisible(effective, side) ? (
-					<Dock key={side} side={side} layout={effective} contents={contents} />
+					<Dock
+						key={side}
+						side={side}
+						layout={effective}
+						contents={contents}
+						onDragPanel={onMovePanel ? startDrag : undefined}
+					/>
 				) : null,
 			)}
 
@@ -124,8 +139,92 @@ export function Workspace({
 				{centre}
 				{floating}
 			</div>
+
+			{/* The preview, drawn over everything and hit by nothing. It has to be
+			    `pointer-events: none` or `elementFromPoint` would answer "the
+			    overlay" for every position under it, which is every position. */}
+			{dragging?.over && <DropPreview side={dragging.over} layout={effective} />}
 		</div>
 	);
+
+	/**
+	 * A press on a panel's own heading, which may become a drag.
+	 *
+	 * The heading is the handle rather than a bar the dock adds, because every
+	 * panel already has one — the project name, "Variables", "Node", the
+	 * diagnostics summary — and a second title strip above those would be a row
+	 * of chrome repeating what is directly beneath it.
+	 *
+	 * Nothing happens until the pointer has moved `DRAG_THRESHOLD`. That is what
+	 * lets the headings keep the jobs they already had: the Add button inside
+	 * the Variables heading still adds, and clicking the diagnostics bar still
+	 * collapses it, because neither is a drag until you move.
+	 */
+	function startDrag(panel: PanelId, event: ReactPointerEvent<HTMLElement>) {
+		if (event.button !== 0) return;
+		const target = event.target as HTMLElement;
+		// Only the heading is the handle. Without this, dragging a file in the
+		// project tree would also be dragging the tree out of its dock — and the
+		// tree's own drag-and-drop would be fighting this one for the gesture.
+		if (!target.closest("h2, .bar")) return;
+		// A control inside a heading belongs to the panel, not to the dock.
+		if (target.closest("button, input, select, textarea, a")) return;
+
+		const startX = event.clientX;
+		const startY = event.clientY;
+		let started = false;
+
+		const move = (e: PointerEvent) => {
+			if (!started) {
+				if (Math.hypot(e.clientX - startX, e.clientY - startY) < DRAG_THRESHOLD) return;
+				started = true;
+				// A press-and-move over text is a selection gesture as far as the
+				// browser is concerned, so without this the drag leaves half the
+				// editor highlighted behind it. Cleared once, here, rather than
+				// suppressed on the way down -- a press that never becomes a drag
+				// must still be able to select and to focus.
+				window.getSelection()?.removeAllRanges();
+			}
+			const rect = surface.current?.getBoundingClientRect();
+			setDragging({ panel, over: rect ? dropZone(rect, e.clientX, e.clientY) : null });
+		};
+
+		const up = (e: PointerEvent) => {
+			window.removeEventListener("pointermove", move);
+			window.removeEventListener("pointerup", up);
+			window.removeEventListener("pointercancel", up);
+			setDragging(null);
+			if (!started) return;
+			const rect = surface.current?.getBoundingClientRect();
+			const side = rect ? dropZone(rect, e.clientX, e.clientY) : null;
+			if (side) onMovePanel?.(panel, side);
+		};
+
+		window.addEventListener("pointermove", move);
+		window.addEventListener("pointerup", up);
+		window.addEventListener("pointercancel", up);
+	}
+}
+
+/**
+ * Where the panel would land, drawn over the dock it would land in.
+ *
+ * A rectangle rather than a highlight on the dock itself, because the dock it
+ * would land in may not exist yet — dropping into an empty side has to show
+ * where that side *would* be, and a dock with no width cannot be highlighted.
+ */
+function DropPreview({ side, layout }: { side: DockSide; layout: Layout }) {
+	// The dock's remembered size, whether or not it is currently on screen: an
+	// empty side has to show where it *would* be.
+	const size = layout.docks[side].size;
+	const style =
+		side === "bottom"
+			? { left: 0, right: 0, bottom: 0, height: size }
+			: side === "left"
+				? { left: 0, top: 0, bottom: 0, width: size }
+				: { right: 0, top: 0, bottom: 0, width: size };
+
+	return <div className="drop-preview" style={style} />;
 }
 
 /**
@@ -141,11 +240,12 @@ export function Workspace({
  * per dock and a strip has something to say.
  */
 function Dock({
-	side, layout, contents,
+	side, layout, contents, onDragPanel,
 }: {
 	side: DockSide;
 	layout: Layout;
 	contents: Partial<Record<PanelId, ReactNode>>;
+	onDragPanel?: (panel: PanelId, event: ReactPointerEvent<HTMLElement>) => void;
 }) {
 	const ids = panelsIn(layout, side).filter((id) => contents[id] !== undefined);
 	if (ids.length === 0) return null;
@@ -153,7 +253,12 @@ function Dock({
 	return (
 		<div className={`dock ${side}`} style={{ gridArea: side }}>
 			{ids.map((id) => (
-				<div className={`panel panel-${id}`} key={id}>
+				<div
+					className={`panel panel-${id}`}
+					key={id}
+					title={onDragPanel ? `Drag ${PANEL_TITLES[id]} by its heading to another edge` : undefined}
+					onPointerDown={onDragPanel ? (e) => onDragPanel(id, e) : undefined}
+				>
 					{contents[id]}
 				</div>
 			))}

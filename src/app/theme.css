@@ -170,6 +170,7 @@ select optgroup {
 .workspace {
 	flex: 1;
 	display: grid;
+	position: relative;
 	grid-template-areas:
 		"left        split-left   centre        split-right  right"
 		"split-bottom split-bottom split-bottom split-bottom split-bottom"
@@ -195,6 +196,18 @@ select optgroup {
 
 .dock.left {
 	background: var(--bg-panel);
+	overflow: auto;
+}
+
+/* The bottom dock is sized by its content -- see `gridTemplate` -- which was
+   safe while its only panel capped its own height. Once panels can be dragged
+   into it, anything can be down there: a graph with thirty variables would grow
+   the row until the centre had nothing left, and the centre's minimum is only
+   enforced for sizes the layout stores.
+   
+   So the row is content-sized up to a share of the window, and scrolls past it. */
+.dock.bottom {
+	max-height: 45vh;
 	overflow: auto;
 }
 
@@ -276,6 +289,39 @@ select optgroup {
 	grid-template-rows: minmax(0, 1fr);
 	min-width: 0;
 	min-height: 0;
+}
+
+/* While a panel is in flight, nothing in the workspace is selectable. The
+   selection is also cleared once when the drag begins; this stops a new one
+   starting under the pointer as it travels. */
+.workspace.dragging {
+	user-select: none;
+	cursor: grabbing;
+}
+
+/* Where a dragged panel would land. Over everything, hit by nothing — an
+   overlay that accepted pointer events would be the answer `elementFromPoint`
+   gave for every position under it, which is every position. */
+.drop-preview {
+	position: absolute;
+	z-index: 30;
+	pointer-events: none;
+	background: color-mix(in srgb, var(--accent) 22%, transparent);
+	border: 2px solid var(--accent);
+}
+
+/* A panel heading is a handle, so it says so on the way past. The panels'
+   headings keep every job they already had — the Add button still adds, the
+   diagnostics bar still collapses — because nothing is a drag until the
+   pointer has actually moved. */
+.dock h2,
+.dock .bar {
+	cursor: grab;
+}
+
+.dock h2:active,
+.dock .bar:active {
+	cursor: grabbing;
 }
 
 /* ------------------------------------------------------------- graph tabs */

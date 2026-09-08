@@ -267,3 +267,67 @@ export function readLayout(stored: unknown): Layout {
 
 	return { panels, docks };
 }
+
+// ---------------------------------------------------------------------------
+// Moving a panel
+// ---------------------------------------------------------------------------
+
+/**
+ * Which dock a drop at this point lands in, or `null` for "leave it alone".
+ *
+ * Blunt on purpose: the left 22%, the right 22%, the lower 30% of what remains,
+ * and the middle changes nothing. Edges win by axis, so a corner is never
+ * ambiguous.
+ *
+ * Proximity-weighted rules — nearest edge, weighted by distance — describe
+ * better and behave worse. The answer flips under small movements near a
+ * corner, and there is no way to predict where a drop will land without trying
+ * it. The blunt version is predictable, and the preview rectangle drawn during
+ * the drag makes it visible, so it does not also have to be memorable.
+ *
+ * Releasing over the middle meaning "no change" matters as much as the bands: a
+ * drag you thought better of has somewhere safe to end, and it is the largest
+ * target on screen.
+ */
+export function dropZone(
+	rect: { x: number; y: number; width: number; height: number },
+	x: number,
+	y: number,
+): DockSide | null {
+	const across = (x - rect.x) / rect.width;
+	const down = (y - rect.y) / rect.height;
+	if (across < 0 || across > 1 || down < 0 || down > 1) return null;
+
+	if (across < 0.22) return "left";
+	if (across > 0.78) return "right";
+	if (down > 0.7) return "bottom";
+	return null;
+}
+
+/**
+ * Moves a panel into a dock, at the end of whatever is already there.
+ *
+ * Orders are renumbered wholesale rather than nudged, so they cannot drift into
+ * duplicates or gaps however many times a panel is moved.
+ */
+export function movePanel(layout: Layout, panel: PanelId, side: DockSide): Layout {
+	if (layout.panels[panel].dock === side) return layout;
+
+	const panels = { ...layout.panels, [panel]: { ...layout.panels[panel], dock: side, open: true } };
+	const renumbered = { ...panels };
+	for (const dock of DOCK_SIDES) {
+		PANEL_IDS.filter((id) => panels[id].dock === dock)
+			.sort((a, b) => panels[a].order - panels[b].order || a.localeCompare(b))
+			.forEach((id, i) => {
+				renumbered[id] = { ...panels[id], order: i };
+			});
+	}
+
+	// A dock somebody has just dropped a panel into has to be open, or the
+	// panel vanishes and the gesture reads as having deleted it.
+	return {
+		...layout,
+		panels: renumbered,
+		docks: { ...layout.docks, [side]: { ...layout.docks[side], open: true } },
+	};
+}

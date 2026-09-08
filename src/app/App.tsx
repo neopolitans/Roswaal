@@ -33,7 +33,10 @@ import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays } from "./Overlays.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
 import { Workspace } from "./Workspace.jsx";
-import { clampLayout, resizeDock, toggleDock, type DockSide } from "./panels.js";
+import {
+	clampLayout, movePanel, resizeDock, toggleDock,
+	type DockSide, type PanelId,
+} from "./panels.js";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
@@ -152,6 +155,15 @@ export function App() {
 		setPrefs((current) => {
 			writePreferences(current);
 			return current;
+		});
+	}, []);
+
+	/** A panel dropped into another dock. One decision, so it is written at once. */
+	const onMovePanel = useCallback((panel: PanelId, side: DockSide) => {
+		setPrefs((current) => {
+			const next = { ...current, layout: movePanel(current.layout, panel, side) };
+			writePreferences(next);
+			return next;
 		});
 	}, []);
 
@@ -1008,6 +1020,7 @@ export function App() {
 				onResize={onDockResize}
 				onResizeEnd={onDockResizeEnd}
 				onToggle={onDockToggle}
+				onMovePanel={onMovePanel}
 				contents={{
 					tree: (
 						<>

@@ -16,8 +16,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	clampLayout, DEFAULT_LAYOUT, dockVisible, gridTemplate, maxDockSize, MIN_DOCK,
-	panelsIn, readLayout, resizeDock, toggleDock, type Layout,
+	clampLayout, DEFAULT_LAYOUT, dockVisible, dropZone, gridTemplate, maxDockSize,
+	MIN_DOCK, movePanel, panelsIn, readLayout, resizeDock, toggleDock, type Layout,
 } from "../src/app/panels.js";
 
 /** A copy, so a test that moves a panel cannot move it for the next one. */
@@ -204,5 +204,86 @@ describe("reading a stored layout", () => {
 	it("survives a panel that no longer exists", () => {
 		const read = readLayout({ panels: { ghost: { dock: "left", open: true, order: 9 } } });
 		expect(read).toEqual(DEFAULT_LAYOUT);
+	});
+});
+
+/**
+ * ## Where a drop lands
+ *
+ * Blunt bands rather than nearest-edge, because a rule you can predict without
+ * trying it is worth more than one that describes the geometry better. These
+ * assert the corners in particular: a proximity-weighted rule flips its answer
+ * under small movements there, and that is exactly what this avoids.
+ */
+describe("the drop zones", () => {
+	const rect = { x: 0, y: 0, width: 1000, height: 1000 };
+	const at = (x: number, y: number) => dropZone(rect, x, y);
+
+	it("takes the left and right edges", () => {
+		expect(at(100, 500)).toBe("left");
+		expect(at(900, 500)).toBe("right");
+	});
+
+	it("takes the bottom of what is left over", () => {
+		expect(at(500, 900)).toBe("bottom");
+	});
+
+	/** The largest target on screen, and the one a drag you thought better of needs. */
+	it("changes nothing in the middle", () => {
+		expect(at(500, 500)).toBeNull();
+		expect(at(500, 100)).toBeNull();
+	});
+
+	/**
+	 * The reason the bands are ordered rather than weighted. In a corner both a
+	 * side and the bottom are true, and the side wins every time — so the answer
+	 * cannot flip while the pointer jitters.
+	 */
+	it("gives a corner to the side, consistently", () => {
+		expect(at(50, 950)).toBe("left");
+		expect(at(950, 950)).toBe("right");
+		expect(at(10, 990)).toBe("left");
+	});
+
+	it("declines a point outside the workspace", () => {
+		expect(at(-20, 500)).toBeNull();
+		expect(at(500, 1400)).toBeNull();
+	});
+});
+
+describe("moving a panel", () => {
+	it("puts it in the dock it was dropped on", () => {
+		const layout = movePanel(base(), "tree", "right");
+		expect(layout.panels.tree.dock).toBe("right");
+		expect(panelsIn(layout, "left")).toEqual(["variables"]);
+	});
+
+	/**
+	 * A dock somebody has just dropped a panel into has to be open, or the panel
+	 * vanishes and the gesture reads as having deleted it.
+	 */
+	it("opens a dock that had been collapsed", () => {
+		const collapsed = toggleDock(base(), "right");
+		expect(dockVisible(collapsed, "right")).toBe(false);
+
+		const layout = movePanel(collapsed, "tree", "right");
+		expect(dockVisible(layout, "right")).toBe(true);
+	});
+
+	/** Renumbered wholesale, so orders cannot drift into duplicates or gaps. */
+	it("leaves the orders in each dock contiguous from zero", () => {
+		let layout = movePanel(base(), "inspector", "left");
+		layout = movePanel(layout, "analysis", "left");
+
+		// tree and variables were already there, so all four end up in the left.
+		const orders = panelsIn(layout, "left").map((id) => layout.panels[id].order);
+		expect(orders).toEqual([0, 1, 2, 3]);
+		expect(panelsIn(layout, "right"), "and the docks they left are empty").toEqual([]);
+		expect(panelsIn(layout, "bottom")).toEqual([]);
+	});
+
+	it("does nothing when the panel is already there", () => {
+		const layout = base();
+		expect(movePanel(layout, "tree", "left")).toBe(layout);
 	});
 });
