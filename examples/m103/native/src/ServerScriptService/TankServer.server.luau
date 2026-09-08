@@ -97,6 +97,33 @@ local idle: Remotes.Input = {
 }
 local latest = idle
 
+local raycast = RaycastParams.new()
+raycast.FilterType = Enum.RaycastFilterType.Exclude
+raycast.IgnoreWater = true
+
+--[[
+	The tank, and whoever is riding in it.
+
+	The driver is welded at the hull's centre, which is directly under the ground
+	probe — so as far as this raycast is concerned they *are* part of the tank.
+	`Occupancy` also turns their `CanQuery` off, and either measure alone is
+	enough; both are here because the first thing anyone will want back is a
+	driver you can shoot, and turning `CanQuery` on again should not silently
+	make the tank fly.
+
+	Reassigned rather than mutated: `FilterDescendantsInstances` hands back a
+	copy, so appending to what it returns changes nothing at all.
+]]
+local function filterOut(rider: Model?)
+	local list = Rig.ownParts(rig)
+	if rider then
+		table.insert(list, rider)
+	end
+	raycast.FilterDescendantsInstances = list
+end
+
+filterOut(nil)
+
 -- ---------------------------------------------------------------------------
 -- Getting in and out
 -- ---------------------------------------------------------------------------
@@ -134,6 +161,7 @@ local function leave()
 	latest = idle
 	occupantValue.Value = nil
 	prompt.Enabled = true
+	filterOut(nil)
 	if not player then
 		return
 	end
@@ -158,6 +186,7 @@ prompt.Triggered:Connect(function(player: Player)
 	latest = idle
 	occupantValue.Value = player
 	prompt.Enabled = false
+	filterOut(character)
 end)
 
 exitRemote.OnServerEvent:Connect(function(player: Player)
@@ -220,11 +249,6 @@ local function stepAngle(current: number, target: number, maxStep: number): numb
 	local delta = (target - current + math.pi) % (2 * math.pi) - math.pi
 	return current + math.clamp(delta, -maxStep, maxStep)
 end
-
-local raycast = RaycastParams.new()
-raycast.FilterType = Enum.RaycastFilterType.Exclude
-raycast.FilterDescendantsInstances = Rig.ownParts(rig)
-raycast.IgnoreWater = true
 
 -- ---------------------------------------------------------------------------
 -- The frame

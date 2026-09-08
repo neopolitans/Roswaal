@@ -86,8 +86,25 @@ local sent: Remotes.Input? = nil
 
 local cameraCast = RaycastParams.new()
 cameraCast.FilterType = Enum.RaycastFilterType.Exclude
-cameraCast.FilterDescendantsInstances = { model }
 cameraCast.IgnoreWater = true
+
+--[[
+	The tank, and your own hidden body inside it.
+
+	Same reasoning as the server's ground probe: the driver is welded at the
+	hull's centre, a stud or two below where the camera is looking, and a camera
+	that collides with an invisible passenger slams into the tank for no visible
+	reason.
+]]
+local function aimCameraPast(rider: Model?)
+	local list: { Instance } = { model }
+	if rider then
+		table.insert(list, rider)
+	end
+	cameraCast.FilterDescendantsInstances = list
+end
+
+aimCameraPast(nil)
 
 -- ---------------------------------------------------------------------------
 -- Controls
@@ -180,9 +197,11 @@ local function setDriving(now: boolean)
 		camera.CameraType = Enum.CameraType.Scriptable
 		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
 		UserInputService.MouseIconEnabled = false
+		aimCameraPast(localPlayer.Character)
 		bindControls()
 	else
 		unbindControls()
+		aimCameraPast(nil)
 		sent = nil
 		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 		UserInputService.MouseIconEnabled = true

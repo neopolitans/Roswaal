@@ -16,6 +16,9 @@
 
 	## Hiding rather than replacing
 
+	Hidden means invisible, non-colliding **and unqueryable** — see `hide` for why
+	the third one is not cosmetic.
+
 	The character is hidden and welded to the hull, not deleted and not swapped
 	for a rig. Deleting it means respawning on exit, with everything that hangs
 	off `CharacterAdded` running again; a driver rig means building one. Hiding
@@ -32,6 +35,7 @@ Occupancy.VALUE_NAME = "Occupant"
 type Restore = {
 	transparency: { [Instance]: number },
 	collide: { [BasePart]: boolean },
+	query: { [BasePart]: boolean },
 	walkSpeed: number,
 	jumpHeight: number,
 	nameDisplay: Enum.HumanoidDisplayDistanceType,
@@ -73,6 +77,7 @@ function Occupancy.hide(character: Model, hull: BasePart): boolean
 	local restore: Restore = {
 		transparency = {},
 		collide = {},
+		query = {},
 		walkSpeed = humanoid.WalkSpeed,
 		jumpHeight = humanoid.JumpHeight,
 		nameDisplay = humanoid.DisplayDistanceType,
@@ -83,8 +88,17 @@ function Occupancy.hide(character: Model, hull: BasePart): boolean
 		if part:IsA("BasePart") then
 			restore.transparency[part] = part.Transparency
 			restore.collide[part] = part.CanCollide
+			restore.query[part] = part.CanQuery
 			part.Transparency = 1
 			part.CanCollide = false
+			-- `CanQuery`, and not only `CanCollide`. A raycast hits a part with
+			-- collisions off — the two flags answer different questions — and the
+			-- tank drops a probe from above itself every frame to find the ground.
+			-- With the driver welded at the hull's centre, that probe lands on
+			-- their head, the hull is placed a ride height above *that*, and the
+			-- driver rises with it: the tank climbs about five studs a frame and
+			-- flies into the sky with the player still in it.
+			part.CanQuery = false
 		elseif part:IsA("Decal") or part:IsA("Texture") then
 			restore.transparency[part] = part.Transparency
 			part.Transparency = 1
@@ -133,6 +147,11 @@ function Occupancy.show(character: Model, exitAt: CFrame)
 	for part, value in restore.collide do
 		if part.Parent then
 			part.CanCollide = value
+		end
+	end
+	for part, value in restore.query do
+		if part.Parent then
+			part.CanQuery = value
 		end
 	end
 

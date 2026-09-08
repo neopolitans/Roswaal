@@ -7,7 +7,7 @@ works" means only "the graph does something", and the conversion test measures
 nothing.
 
 Started 8 September 2026; reworked the same day around getting in and driving.
-Nothing in it has been run yet; see
+First run the same day, which found one bug immediately — see
 [the conversion log](../../../docs/demo/CONVERSION-LOG.md).
 
 ## What it does
@@ -119,11 +119,15 @@ able to express, and the answers belong in the conversion log.
    has to express that without becoming a staircase.
 8. **Reading a `Texture` out of a part's children by class.** A typed loop over
    `GetChildren` with an `IsA` test, twice per frame per track.
-9. **Remembering a value to put it back.** `Occupancy` records every
+9. **Two flags that look like one.** Hiding the driver needs `CanCollide` *and*
+   `CanQuery` off; the first alone let the tank's own ground probe land on its
+   driver's head and fly the tank into the sky. A graph that offers one obvious
+   "hide this" node had better turn off both.
+10. **Remembering a value to put it back.** `Occupancy` records every
    transparency and collision flag it changes so exiting can restore them. A
    graph needs somewhere to keep a table keyed by instance, which is a different
    thing from a script variable holding a number.
-10. **Instances created at runtime**, not authored in the model: the
+11. **Instances created at runtime**, not authored in the model: the
     `ProximityPrompt`, the `WeldConstraint`, the `RemoteEvent`s. Each is
     `Instance.new`, some properties, and a parent — the parenting last, and a
     graph that lets you parent first has changed what the code does.
