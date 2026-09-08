@@ -582,3 +582,136 @@ describe("laying a dictionary out", () => {
 		expect(out).toContain("\n\t}");
 	});
 });
+
+/**
+ * Naming the local a node's result lands in.
+ *
+ * A `call` node binds its result to a local, and the name comes from the node's
+ * **Label** — so labelling a Find First Child "value" emits
+ * `local value = parent:FindFirstChild("x")` rather than `local Child = ...`
+ * followed by a second local to rename it.
+ *
+ * The mechanism already existed and was findable only by guessing that a field
+ * called Label was load-bearing, which is the same trap Declare Local's name
+ * was in before it got a pin.
+ */
+describe("naming a node's result", () => {
+	function findChild(label?: string) {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const find = b.node("roblox.findFirstChild", label ? { label } : {});
+		b.lit(find, "parent", { t: "raw", v: "workspace" });
+		const print = b.node("debug.print");
+		b.link(start, "then", find, "in");
+		b.link(find, "then", print, "in");
+		b.link(find, "result", print, "value");
+		return code(b.build());
+	}
+
+	it("falls back to the pin's name when nothing says otherwise", () => {
+		expect(findChild()).toMatch(/^local Child(: \w+)? = /m);
+	});
+
+	it("uses the label, so there is no second local to rename it", () => {
+		const out = findChild("value");
+		expect(out).toMatch(/^local value(: \w+)? = .*FindFirstChild/m);
+		// One declaration, not a call bound to `Child` and then copied to `value`.
+		expect(out.match(/^local /gm)).toHaveLength(1);
+	});
+
+	/** Two nodes labelled the same still cannot end up as one local. */
+	it("keeps two results with the same label apart", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const first = b.node("roblox.findFirstChild", { label: "value" });
+		b.lit(first, "parent", { t: "raw", v: "workspace" });
+		const second = b.node("roblox.findFirstChild", { label: "value" });
+		b.lit(second, "parent", { t: "raw", v: "workspace" });
+		// Both results are read, or the emitter has no reason to bind either to a
+		// local and there is nothing for the names to collide over.
+		const printFirst = b.node("debug.print");
+		const printSecond = b.node("debug.print");
+		b.link(start, "then", first, "in");
+		b.link(first, "then", second, "in");
+		b.link(second, "then", printFirst, "in");
+		b.link(printFirst, "then", printSecond, "in");
+		b.link(first, "result", printFirst, "value");
+		b.link(second, "result", printSecond, "value");
+
+		const declared = code(b.build()).match(/^local (\w+)/gm) ?? [];
+		expect(declared).toHaveLength(2);
+		expect(new Set(declared).size).toBe(2);
+	});
+});
+
+/**
+ * Truthiness. Luau has no boolean-only operators: `nil` and `false` are false,
+ * every other value is true, and `and`/`or` hand back one of their operands
+ * rather than a boolean.
+ *
+ * Typing these pins `boolean` blocked `if not part then` — the most common line
+ * in Roblox code — and would have annotated `local x: boolean = part or default`
+ * in strict mode, which does not compile.
+ */
+describe("conditions take any value", () => {
+	function wire(nodeId: string, pin: string) {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const find = b.node("roblox.findFirstChild", { label: "part" });
+		b.lit(find, "parent", { t: "raw", v: "workspace" });
+		const target = b.node(nodeId);
+		b.link(start, "then", find, "in");
+		b.link(find, "then", target, "in");
+		b.link(find, "result", target, pin);
+		return b.build();
+	}
+
+	it("lets an Instance be a Branch condition", () => {
+		const out = compile(wire("flow.branch", "condition"), registry);
+		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+		expect(body(out.code)).toMatch(/if part then/);
+	});
+
+	it("lets an Instance be a While condition", () => {
+		expect(errors(wire("flow.while", "condition"))).toEqual([]);
+	});
+
+	/** The line that prompted all of this. */
+	it("inverts an Instance with Not", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const find = b.node("roblox.findFirstChild", { label: "part" });
+		b.lit(find, "parent", { t: "raw", v: "workspace" });
+		const not = b.node("logic.not");
+		const branch = b.node("flow.branch");
+		b.link(start, "then", find, "in");
+		b.link(find, "then", branch, "in");
+		b.link(find, "result", not, "a");
+		b.link(not, "result", branch, "condition");
+
+		const out = compile(b.build(), registry);
+		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+		expect(body(out.code)).toContain("if not part then");
+	});
+
+	/** `value or fallback` is how a default is written, and it is not a boolean. */
+	it("lets Or take and return a value rather than a boolean", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const find = b.node("roblox.findFirstChild", { label: "part" });
+		b.lit(find, "parent", { t: "raw", v: "workspace" });
+		const or = b.node("logic.or", { config: { args: 2 } });
+		const declare = b.node("local.declare");
+		b.lit(declare, "name", { t: "string", v: "chosen" });
+		b.lit(or, "a1", { t: "raw", v: "workspace" });
+		b.link(start, "then", find, "in");
+		b.link(find, "then", declare, "in");
+		b.link(find, "result", or, "a0");
+		b.link(or, "result", declare, "value");
+
+		const out = compile(b.build(), registry);
+		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+		// No `: boolean` on it, because the value is a part or the workspace.
+		expect(body(out.code)).toContain("local chosen = part or workspace");
+	});
+});

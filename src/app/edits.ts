@@ -954,8 +954,24 @@ export function promoteToVariable(
 
 	// `wildcard` means "adopts what it is wired to", which a variable cannot be.
 	const rawType = pin.type ?? ANY;
-	const type = rawType === WILDCARD ? ANY : rawType;
+	const declared = rawType === WILDCARD ? ANY : rawType;
 	const initial = target.literals?.[pin.id] ?? pin.default;
+
+	/**
+	 * What the value in the pin says, when the pin itself will not say.
+	 *
+	 * Some pins are `any` because Luau lets them be, not because nothing is
+	 * known: a Branch condition takes any value because `nil` and `false` are
+	 * the only false ones, and it still defaults to a boolean. Promoting one
+	 * used to make a `boolean` variable and would now make an `any`, which is a
+	 * worse variable for no reason — the literal sitting in the pin is better
+	 * evidence than the pin's own type in exactly this case.
+	 */
+	const fromLiteral =
+		initial?.t === "boolean" || initial?.t === "number" || initial?.t === "string"
+			? initial.t
+			: null;
+	const type = declared === ANY && fromLiteral ? fromLiteral : declared;
 
 	const withVariable = addVariable(script, variableNameFor(pin), type, initial);
 	const variable = withVariable.script.variables.find((v) => v.id === withVariable.id)!;

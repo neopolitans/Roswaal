@@ -46,6 +46,21 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.21.0",
+		date: "2026-09-09",
+		headline: "Conditions take any value, the way Luau does.",
+		changed: [
+			"**Not, And, Or, Branch and While take any value, not just a boolean.** Luau has no boolean-only operators: `nil` and `false` are false and everything else is true, so `if not part then` on an `Instance?` is ordinary code and could not be built before.",
+			"**And and Or hand back a value rather than a boolean**, which is what they do in Luau: `value or fallback` is the value when there is one. Typing the result `boolean` also annotated it as one in Strict Mode, which does not compile.",
+		],
+		fixed: [
+			"Promote to Variable takes its type from the value sitting in the pin when the pin itself accepts anything, so promoting a Branch condition still gives a boolean.",
+		],
+		watch: [
+			"A node that returns a value names the local it lands in after the node's **Label** — labelling a Find First Child `value` gives `local value = ...` with no second local to rename it. That always worked; the field says so now.",
+		],
+	},
+	{
 		version: "0.20.3",
 		date: "2026-09-08",
 		headline: "Tables can be written one key to a line.",

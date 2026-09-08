@@ -195,8 +195,10 @@ export const FLOW_NODES: NodeDef[] = [
 		title: "Branch",
 		category: "Flow",
 		role: "flow",
-		summary: "if / else.",
-		inputs: [exec("in", ""), data("condition", "Condition", "boolean", { t: "boolean", v: true })],
+		summary:
+			"if / else. Any value can be the condition — only `nil` and `false` take the " +
+			"False branch, so an `Instance?` can be tested directly.",
+		inputs: [exec("in", ""), data("condition", "Condition", "any", { t: "boolean", v: true })],
 		outputs: [exec("true", "True"), exec("false", "False")],
 		compilesTo: { kind: "builtin", handler: "flow.branch" },
 	},
@@ -268,8 +270,10 @@ export const FLOW_NODES: NodeDef[] = [
 		title: "While Loop",
 		category: "Flow",
 		role: "flow",
-		summary: "Repeats the body while the condition holds.",
-		inputs: [exec("in", ""), data("condition", "Condition", "boolean", { t: "boolean", v: true })],
+		summary:
+			"Repeats the body while the condition holds. Any value can be the condition; only " +
+			"`nil` and `false` stop it.",
+		inputs: [exec("in", ""), data("condition", "Condition", "any", { t: "boolean", v: true })],
 		outputs: [exec("body", "Body"), exec("completed", "Completed")],
 		compilesTo: { kind: "builtin", handler: "flow.while" },
 	},

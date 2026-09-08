@@ -60,6 +60,19 @@ export function briefSummary(text: string): string {
 	return text;
 }
 
+/**
+ * Whether this node's label also names something in the generated Luau.
+ *
+ * A `call` node binds its result to a local and takes the name from the label,
+ * so labelling a Find First Child "value" emits `local value = ...` instead of
+ * `local Child = ...` followed by a second local to rename it. That worked
+ * already and was findable only by guessing that a field called Label was
+ * load-bearing — the same trap Declare Local's name was in.
+ */
+function namesResult(def: NodeDef): boolean {
+	return def.compilesTo.kind === "call";
+}
+
 /** Where a node's page lives in the docs window. */
 function docsHref(nodeId: string): string {
 	return `/docs#${encodeURIComponent(`node/${nodeId}`)}`;
@@ -113,7 +126,14 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				    definition's title — so an empty field reads as "this is
 				    already fine" instead of as a suggestion to type the name a
 				    second time. */}
-				<Field label="Label">
+				<Field
+					label={namesResult(def) ? "Label and result name" : "Label"}
+					hint={
+						namesResult(def)
+							? "Shown on the node, and the name of the local this result lands in."
+							: undefined
+					}
+				>
 					<input
 						className="tb"
 						placeholder={nodeTitle(def, node)}
@@ -620,9 +640,12 @@ function PinSummary({ def, node }: { def: NodeDef; node: GraphNode }) {
 	);
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field(
+	{ label, hint, children }:
+		{ label: string; hint?: string; children: React.ReactNode },
+) {
 	return (
-		<label className="field">
+		<label className="field" title={hint}>
 			<span>{label}</span>
 			{children}
 		</label>

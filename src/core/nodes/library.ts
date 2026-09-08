@@ -369,9 +369,22 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("compare.lte", "Less Or Equal", "Logic", "$in.a <= $in.b", [num("a", "A"), num("b", "B")], "boolean"),
 	pure("compare.gt", "Greater Than", "Logic", "$in.a > $in.b", [num("a", "A"), num("b", "B")], "boolean"),
 	pure("compare.gte", "Greater Or Equal", "Logic", "$in.a >= $in.b", [num("a", "A"), num("b", "B")], "boolean"),
-	variadic("logic.and", "And", "Logic", "$args( and )", "boolean", { t: "boolean", v: true }, "boolean"),
-	variadic("logic.or", "Or", "Logic", "$args( or )", "boolean", { t: "boolean", v: false }, "boolean"),
-	pure("logic.not", "Not", "Logic", "not $in.a", [bool("a", "A")], "boolean"),
+	// Luau has no boolean-only operators: `nil` and `false` are false, every other
+	// value is true, and `and`/`or` hand back one of their operands rather than a
+	// boolean. Typing these pins `boolean` blocked `if not part then` -- the most
+	// common line in Roblox code -- and would have annotated `local x: boolean =
+	// part or default` in strict mode, which does not compile.
+	variadic("logic.and", "And", "Logic", "$args( and )", "any", { t: "boolean", v: true }, "any",
+		"The last operand, or the first that is falsy. Not a boolean: `a and b` hands back " +
+		"one of the two, which is what Luau's `and` does."),
+	variadic("logic.or", "Or", "Logic", "$args( or )", "any", { t: "boolean", v: false }, "any",
+		"The first operand that is not `nil` or `false`. This is how a default is written: " +
+		"`value or fallback` is the value when there is one and the fallback when there is not."),
+	pure("logic.not", "Not", "Logic", "not $in.a", [d("a", "A", "any", { t: "boolean", v: false })],
+		"boolean",
+		"True when the value is `nil` or `false`, and false for everything else. Takes any " +
+		"value, so `not part` on an `Instance?` is the usual way to ask whether it is there. " +
+		"Note that 0 and an empty string are true in Luau."),
 
 	// -- Strings -----------------------------------------------------------
 	variadic("string.concat", "Concatenate", "Strings", "$args( .. )", "string", { t: "string", v: "" }, "string"),
