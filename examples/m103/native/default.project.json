@@ -1,0 +1,21 @@
+{
+  "name": "m103-native",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Tank": {
+        "$path": "src/ReplicatedStorage/Tank"
+      }
+    },
+    "ServerScriptService": {
+      "$path": "src/ServerScriptService"
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "src/StarterPlayer/StarterPlayerScripts"
+      }
+    }
+  }
+}
