@@ -46,6 +46,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.19.5",
+		date: "2026-09-08",
+		headline: "Build a table type from a list of fields.",
+		added: [
+			"**Declare Type at Top can be a list of fields** instead of typed-out Luau — a name and a type per row, giving `{ movementSpeed: number, hp: number }`. Field types are free text with suggestions, because a closed list could not offer `Instance?` or `{ Player }` or a type declared in the same file.",
+			"**Written out as Luau** is still there, as the other half of a Shape dropdown. It is what says the things a list of pairs cannot — a union, a function type, a generic.",
+		],
+		fixed: [
+			"**The Export checkbox sat under its own heading with its explanation orphaned below it.** The checkbox and the words that explain it are one line now, and it reads *Is Export Type*.",
+		],
+	},
+	{
 		version: "0.19.4",
 		date: "2026-09-08",
 		headline: "Declare a type after the value it describes.",

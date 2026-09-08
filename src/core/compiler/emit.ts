@@ -323,6 +323,48 @@ class Emitter {
 	 * meaning to wire up. This is the same escape hatch Custom Code is, and it
 	 * is the honest one here rather than a shortcut.
 	 */
+	/**
+	 * The Luau on the right of a type declaration.
+	 *
+	 * Two shapes rather than one. A table of fields is a list of pairs, which is
+	 * what the editor can lay out and check — and it is what most exported types
+	 * in a Roblox module actually are. Everything else Luau can say about a type
+	 * is written out, because building a grammar for unions, generics and
+	 * function types would be building a second language inside the first.
+	 */
+	private typeDefinition(
+		config: { definition?: string; shape?: string; fields?: { name?: string; type?: string }[] },
+		nodeId: string,
+	): string {
+		if (config.shape === "written") return (config.definition ?? "").trim();
+
+		const fields = config.fields ?? [];
+		// No shape recorded and no fields is a node that was made before the
+		// field list existed, or one somebody typed into and then switched away
+		// from; either way its written definition is what it means.
+		if (fields.length === 0) return (config.definition ?? "").trim();
+
+		const parts: string[] = [];
+		for (const field of fields) {
+			const fieldName = (field.name ?? "").trim();
+			const fieldType = (field.type ?? "").trim();
+			if (fieldName === "" || fieldType === "") {
+				this.error("A field in this type has no name or no type.", nodeId);
+				return "";
+			}
+			if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(fieldName)) {
+				this.error(
+					`"${fieldName}" is not a name Luau will take for a field. Letters, digits and ` +
+					"underscores, not starting with a digit.",
+					nodeId,
+				);
+				return "";
+			}
+			parts.push(`${fieldName}: ${fieldType}`);
+		}
+		return `{ ${parts.join(", ")} }`;
+	}
+
 	private emitTypes(): void {
 		const nodes = this.index.all().filter((r) => r.def.id === "type.declareTop");
 		if (nodes.length === 0) return;
@@ -331,9 +373,10 @@ class Emitter {
 		for (const r of nodes) {
 			const config = (r.node.config ?? {}) as {
 				name?: string; definition?: string; export?: boolean;
+				shape?: string; fields?: { name?: string; type?: string }[];
 			};
 			const name = (config.name ?? "").trim();
-			const definition = (config.definition ?? "").trim();
+			const definition = this.typeDefinition(config, r.node.id);
 			if (name === "" || definition === "") {
 				this.error(
 					"Declare Type at Top needs both a name and a definition before it can be written.",

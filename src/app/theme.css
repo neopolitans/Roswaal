@@ -1221,6 +1221,47 @@ button.tb.primary:hover:not(:disabled) {
 	min-width: 0;
 }
 
+/* A checkbox and the words that explain it, on one line. They were two: the
+   control sat under its own heading and its text under that again, because a
+   <label> nested inside the field's own <label> is not a row. */
+.inspector .check-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	/* Both needed. Without the first, a long explanation refuses to wrap and
+	   widens the whole panel until it scrolls sideways; without the second, the
+	   text has nowhere to go when the dock is dragged narrow. */
+	min-width: 0;
+	flex-wrap: wrap;
+}
+
+/* `.inspector .field input` sets width:100% for the text fields, and a checkbox
+   inherited it: 265px wide, which renders the tick centred in a box the width of
+   the panel and pushes its own label onto the next line. That was the whole of
+   the misalignment -- the row was a row all along. */
+.inspector .check-row input[type="checkbox"] {
+	margin: 0;
+	flex: none;
+	width: auto;
+	cursor: pointer;
+}
+
+.inspector .check-row span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+/* The list rows are three controls wide and the dock can be dragged to 140px.
+   Left alone they push the panel wider than it is and it scrolls sideways. */
+.inspector .list-row {
+	min-width: 0;
+}
+
+.inspector .list-row input {
+	min-width: 0;
+}
+
 /* A Luau type, typed rather than wired. Monospace because it is code, and
    resizable vertically because a union of six string literals is a real type
    and three rows is not enough for it. */

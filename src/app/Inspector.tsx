@@ -145,11 +145,103 @@ function FunctionEditor({ node }: { node: GraphNode }) {
  * honest shape: a type is not built out of values, so there is nothing for a
  * node to be. `{ speed: number }` describes something no wire can carry.
  */
+/** Suggestions for a Luau field type. Free text — the list is a shortcut. */
+const LUAU_TYPE_HINTS = [
+	"number", "string", "boolean", "any",
+	"Vector3", "Vector2", "CFrame", "Color3", "UDim2", "Instance", "BasePart",
+	"{ [string]: number }", "{ number }", "string?",
+];
+
+/**
+ * The fields of a table type, as rows rather than as typed-out Luau.
+ *
+ * `{ movementSpeed: number, hp: number }` is a list of pairs written in one
+ * line, and a list of pairs is what an editor is good at: it lines the names up,
+ * it cannot lose a brace, and adding a field is a button rather than finding
+ * the right comma. The written-out box stays for everything this shape cannot
+ * say — a union, a function type, a generic — which is most of Luau's type
+ * language and not worth building a second grammar for.
+ *
+ * The type of each field is free text with suggestions rather than a dropdown.
+ * A closed list would be wrong within a week: `Instance?`, `{ Player }` and
+ * every type declared in the same file are all valid and none could be offered.
+ */
+function TypeFields({ node }: { node: GraphNode }) {
+	const fields = ((node.config ?? {}).fields as { name: string; type: string }[]) ?? [];
+	const write = (next: { name: string; type: string }[]) =>
+		store.edit((s) => setConfig(s, node.id, { fields: next }));
+
+	return (
+		<div className="list-editor">
+			<div className="list-title">
+				<span>Fields</span>
+				<button
+					className="tb"
+					onClick={() => write([...fields, { name: `field${fields.length + 1}`, type: "number" }])}
+				>
+					Add
+				</button>
+			</div>
+			{fields.map((entry, i) => (
+				<div className="list-row" key={i}>
+					<input
+						className="tb"
+						value={entry.name}
+						placeholder="name"
+						onChange={(e) => {
+							const next = [...fields];
+							next[i] = { ...entry, name: e.target.value };
+							write(next);
+						}}
+					/>
+					<input
+						className="tb"
+						list="luau-type-hints"
+						value={entry.type}
+						placeholder="number"
+						onChange={(e) => {
+							const next = [...fields];
+							next[i] = { ...entry, type: e.target.value };
+							write(next);
+						}}
+					/>
+					<button className="tb" title="Remove" onClick={() => write(fields.filter((_, j) => j !== i))}>
+						×
+					</button>
+				</div>
+			))}
+			{fields.length === 0 && <p className="summary">No fields yet.</p>}
+			<datalist id="luau-type-hints">
+				{LUAU_TYPE_HINTS.map((t) => (
+					<option key={t} value={t} />
+				))}
+			</datalist>
+		</div>
+	);
+}
+
 function TypeEditor({ node }: { node: GraphNode }) {
-	const config = (node.config ?? {}) as { name?: string; definition?: string; export?: boolean };
+	const config = (node.config ?? {}) as {
+		name?: string; definition?: string; export?: boolean; shape?: string;
+	};
 	// Only the hoisted one is written out. The in-flow one names the type of a
 	// value wired into it, so its definition is the wire.
 	const written = node.def === "type.declareTop";
+	/**
+	 * Which half of the editor to show, when the node has not said.
+	 *
+	 * A node made before the field list existed has a definition and no fields,
+	 * and the compiler falls back to that definition — so the dropdown has to say
+	 * "written out" or it claims to be showing a shape the file is not using.
+	 */
+	const fields = (config as { fields?: unknown[] }).fields ?? [];
+	const shape =
+		config.shape === "written" || config.shape === "fields"
+			? config.shape
+			: (config.definition ?? "") !== "" && fields.length === 0
+				? "written"
+				: "fields";
+
 	return (
 		<>
 			<Field label="Type name">
@@ -160,36 +252,59 @@ function TypeEditor({ node }: { node: GraphNode }) {
 					onChange={(e) => store.edit((s) => setConfig(s, node.id, { name: e.target.value }))}
 				/>
 			</Field>
-			{written ? (
+
+			{written && (
+				<Field label="Shape">
+					<select
+						className="tb"
+						value={shape}
+						onChange={(e) => store.edit((s) => setConfig(s, node.id, { shape: e.target.value }))}
+					>
+						<option value="fields">A table of fields</option>
+						<option value="written">Written out as Luau</option>
+					</select>
+				</Field>
+			)}
+
+			{written && shape === "fields" && <TypeFields node={node} />}
+
+			{written && shape === "written" && (
 				<Field label="Definition">
 					<textarea
 						className="tb type-definition"
 						rows={3}
 						spellCheck={false}
 						value={config.definition ?? ""}
-						placeholder="{ movementSpeed: number }"
+						placeholder={'"idle" | "driving"'}
 						onChange={(e) =>
 							store.edit((s) => setConfig(s, node.id, { definition: e.target.value }))
 						}
 					/>
 				</Field>
-			) : (
+			)}
+
+			{!written && (
 				<p className="summary">
 					The definition is whatever you wire into <strong>Value</strong>:{" "}
 					<code>type {config.name || "Name"} = typeof(that value)</code>. Put the node after
 					the thing it describes.
 				</p>
 			)}
-			<Field label="Export">
-				<label style={{ cursor: "pointer" }}>
+
+			{/* A checkbox belongs beside its own words, not under a heading with the
+			    words orphaned below it — which is what a <label> nested inside the
+			    <Field> label produced. */}
+			<div className="field">
+				<span>Is Export Type</span>
+				<label className="check-row">
 					<input
 						type="checkbox"
 						checked={config.export !== false}
 						onChange={(e) => store.edit((s) => setConfig(s, node.id, { export: e.target.checked }))}
-					/>{" "}
-					other modules can use it
+					/>
+					<span>other modules can use it</span>
 				</label>
-			</Field>
+			</div>
 		</>
 	);
 }

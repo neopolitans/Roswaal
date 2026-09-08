@@ -383,3 +383,64 @@ describe("Declare Type, in the flow", () => {
 		expect(errors(b.build()).join(" ")).toContain("declared more than once");
 	});
 });
+
+/**
+ * A table type built from a list of fields rather than typed out.
+ *
+ * `{ movementSpeed: number, hp: number }` is a list of pairs written on one
+ * line, and a list of pairs is what an editor is good at. The written-out box
+ * stays for everything the shape cannot say — unions, function types, generics
+ * — which is most of Luau's type language and not worth a second grammar.
+ */
+describe("a type built from fields", () => {
+	const fromFields = (fields: { name: string; type: string }[], extra = {}) => {
+		const b = new Builder();
+		b.node("script.begin");
+		b.node("type.declareTop", { config: { name: "Config", fields, ...extra } });
+		return b.build();
+	};
+
+	it("writes the pairs out as a table type", () => {
+		expect(code(fromFields([
+			{ name: "movementSpeed", type: "number" },
+			{ name: "hp", type: "number" },
+		]))).toContain("export type Config = { movementSpeed: number, hp: number }");
+	});
+
+	/** Free text, because a closed list could not offer `Instance?` or `{ Player }`. */
+	it("takes any Luau type text for a field", () => {
+		expect(code(fromFields([{ name: "parts", type: "{ BasePart }" }])))
+			.toContain("export type Config = { parts: { BasePart } }");
+	});
+
+	it("refuses a field name Luau would not take", () => {
+		expect(errors(fromFields([{ name: "2fast", type: "number" }])).join(" "))
+			.toContain("not a name Luau will take for a field");
+	});
+
+	it("refuses a field with half of itself missing", () => {
+		expect(errors(fromFields([{ name: "speed", type: "" }])).join(" "))
+			.toContain("no name or no type");
+	});
+
+	/**
+	 * The escape hatch has to win when it is chosen, or a node that has both —
+	 * because you filled in fields and then switched — would emit the wrong one.
+	 */
+	it("uses the written definition when that shape is chosen", () => {
+		const out = code(fromFields(
+			[{ name: "speed", type: "number" }],
+			{ shape: "written", definition: '"idle" | "driving"' },
+		));
+		expect(out).toContain('export type Config = "idle" | "driving"');
+		expect(out).not.toContain("speed");
+	});
+
+	/** Nodes made before the field list existed carry only a definition. */
+	it("still writes a definition from a node with no fields at all", () => {
+		const b = new Builder();
+		b.node("script.begin");
+		b.node("type.declareTop", { config: { name: "Config", definition: "number" } });
+		expect(code(b.build())).toContain("export type Config = number");
+	});
+});
