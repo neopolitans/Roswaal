@@ -41,8 +41,8 @@ import {
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
-	acceptsWire, addComment, addNode, connect, copySelection, deleteSelection, disconnectPin, pasteClipping,
-	promoteToVariable, recombinePin, setConfig as setNodeConfig, setLiteral, splitCost,
+	acceptsWire, addComment, addNode, alignToAnchor, connect, copySelection, deleteSelection, disconnectPin, pasteClipping,
+	promoteToVariable, recombinePin, selectionAnchor, setConfig as setNodeConfig, setLiteral, splitCost,
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
 import { store, useDocuments, useEditor } from "./store.js";
@@ -924,6 +924,18 @@ export function App() {
 				if (ids.size) store.edit((s) => deleteSelection(s, ids));
 				return;
 			}
+			// Two or more, because one node is already aligned with itself.
+			if (e.key.toLowerCase() === "a" && !mod && store.getSnapshot().selection.size > 1) {
+				const state = store.getSnapshot();
+				const script = state.script;
+				if (!script) return;
+				const anchor = selectionAnchor(script, state.selection);
+				if (!anchor) return;
+				e.preventDefault();
+				const ids = state.selection;
+				store.edit((s) => alignToAnchor(s, registry, ids, anchor));
+				return;
+			}
 			if (e.key.toLowerCase() === "c" && !mod && store.getSnapshot().selection.size > 0) {
 				e.preventDefault();
 				spawnComment({ x: 0, y: 0 });
@@ -937,7 +949,7 @@ export function App() {
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [editor.path, runCompile, spawnComment, realign, locked]);
+	}, [editor.path, runCompile, spawnComment, realign, locked, registry]);
 
 	// -- project tree ------------------------------------------------------
 

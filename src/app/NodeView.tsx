@@ -24,6 +24,15 @@ export interface NodeViewProps {
 	node: GraphNode;
 	def: NodeDef | undefined;
 	selected: boolean;
+	/**
+	 * This is the node the rest of the selection lines up on.
+	 *
+	 * Only ever set with two or more selected, because a lone node is the one
+	 * it would be anchored to and saying so adds nothing. Without the marker
+	 * "the first one you picked" is a fact about the past that the canvas does
+	 * not show, and aligning becomes a guess you undo.
+	 */
+	anchor: boolean;
 	errorCount: number;
 	/** Wired pin keys, as "in:node/pin" or "out:node/pin". */
 	connected: ReadonlySet<string>;
@@ -89,6 +98,7 @@ function NodeViewInner(props: NodeViewProps) {
 				"node",
 				def.pure ? "pure" : "",
 				selected ? "selected" : "",
+				props.anchor ? "anchor" : "",
 				props.errorCount ? "has-error" : "",
 			].filter(Boolean).join(" ")}
 			style={style}
@@ -154,7 +164,7 @@ function renderReroute(
 	const { node, selected } = props;
 	return (
 		<div
-			className={`node reroute${selected ? " selected" : ""}`}
+			className={`node reroute${selected ? " selected" : ""}${props.anchor ? " anchor" : ""}`}
 			data-node-id={node.id}
 			style={{
 				left: node.x,
@@ -184,7 +194,7 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
 
 	return (
 		<div
-			className={`node capsule${selected ? " selected" : ""}${props.errorCount ? " has-error" : ""}`}
+			className={`node capsule${selected ? " selected" : ""}${props.anchor ? " anchor" : ""}${props.errorCount ? " has-error" : ""}`}
 			data-node-id={node.id}
 			style={{
 				left: node.x,

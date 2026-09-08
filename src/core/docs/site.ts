@@ -664,6 +664,145 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 	],
 });
 
+/**
+ * Every control the editor has, in one place.
+ *
+ * Written from the two files that bind one — `App.tsx`'s key handler and
+ * `Canvas.tsx`'s pointer handlers — so the page can be checked against them
+ * rather than remembered. It has to exist: the canvas has no menu bar to browse
+ * and no tooltip on empty space, so a gesture nobody wrote down is a gesture
+ * nobody has.
+ */
+const CONTROLS: DocPage = {
+	slug: "controls",
+	title: "Controls",
+	summary: "Every key and mouse gesture the canvas understands.",
+	blocks: [
+		{
+			t: "p",
+			text:
+				"Keys act on the canvas, and do nothing while you are typing in a field. **Ctrl** is " +
+				"**⌘** on a Mac. **Escape** closes whatever is open — a menu, a panel, the preview.",
+		},
+		{ t: "h", level: 2, text: "Keyboard" },
+		{
+			t: "table",
+			head: ["Key", "What it does"],
+			rows: [
+				["`Ctrl` + `Z`", "Undo"],
+				["`Ctrl` + `Shift` + `Z`, `Ctrl` + `Y`", "Redo"],
+				["`Ctrl` + `S`", "Compile the open graph"],
+				["`Ctrl` + `A`", "Select everything"],
+				["`Ctrl` + `C`, `Ctrl` + `X`, `Ctrl` + `V`", "Copy, cut, paste"],
+				["`Ctrl` + `D`", "Duplicate the selection in place"],
+				["`Ctrl` + `Shift` + `L`", "Realign the whole graph"],
+				["`Delete`, `Backspace`", "Delete the selection"],
+				["`A`", "Align the selection, walking it in the order you picked it"],
+				["`C`", "Comment around the selection"],
+				["`P`", "Preview the Luau the selection compiles to"],
+			],
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"While a compile is running outside hot reload the canvas is locked, and only the " +
+				"controls that read rather than change it work: `Ctrl` + `A`, `Ctrl` + `C` and `P`.",
+		},
+		{ t: "h", level: 2, text: "Aligning" },
+		{
+			t: "p",
+			text:
+				"`A` lines a selection up, walking it in the order you picked it. The first node — " +
+				"the **anchor**, drawn with a heavier ring — never moves.",
+		},
+		{
+			t: "p",
+			text:
+				"Each node after it lines up on the most recently picked node before it that it is " +
+				"**wired to**, and failing that on the one immediately before it. So a chain " +
+				"straightens hop by hop: pick the source, then the knot, then the node the knot " +
+				"feeds, and all of it comes out flat — even though the far end was never wired to " +
+				"the anchor.",
+		},
+		{
+			t: "p",
+			text:
+				"Where two nodes are wired, the **pins** line up rather than the boxes. That is the " +
+				"difference that matters at a reroute knot: a knot is a dot with both pins at its " +
+				"centre and the node it feeds has its input some way down a header, so levelling " +
+				"the boxes would leave every wire through it bent.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"Nothing moves sideways. A node's column says when it happens, so a tidy-up that " +
+				"shifted one would be changing what the graph says. Use **Realign** to rebuild the " +
+				"columns. Comments stay put too.",
+		},
+		{ t: "h", level: 2, text: "The canvas" },
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				["Wheel", "Zoom, towards the pointer"],
+				["Middle-drag, or `Alt` + drag", "Pan"],
+				["Drag on empty space", "Marquee select"],
+				["`Shift` or `Ctrl` + drag on empty space", "Marquee adds to the selection"],
+				["Click empty space", "Clear the selection"],
+				["Right-click empty space", "Node menu, at the point you clicked"],
+			],
+		},
+		{ t: "h", level: 2, text: "Nodes" },
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				["Drag", "Move it, and everything selected with it"],
+				["`Shift` while dragging", "Snap to the grid; the rest keep their offsets"],
+				["`Shift` or `Ctrl` + click", "Add to or remove from the selection"],
+				["Right-click", "Node menu"],
+			],
+		},
+		{ t: "h", level: 2, text: "Pins and wires" },
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				["Drag from a pin", "Start a wire; everything it cannot reach dims"],
+				["Drop a wire on empty space", "Node menu, showing only what can take that wire"],
+				["Drag from a wired input", "Pick that wire up and move it somewhere else"],
+				["`Shift` + click a pin", "Disconnect everything on it"],
+				["Right-click a pin", "Pin menu — split a struct, promote to a variable"],
+				["`Shift` or `Alt` + click a wire", "Disconnect it"],
+				["Double-click a wire", "Add a reroute knot where you clicked"],
+			],
+		},
+		{ t: "h", level: 2, text: "Comments" },
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				["Drag", "Move it, and the nodes that were inside it when you grabbed it"],
+				["Double-click", "Edit the text"],
+				["Drag the bottom-right corner", "Resize"],
+			],
+		},
+		{ t: "h", level: 2, text: "Dragging things in" },
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				["Drag a variable from the panel", "Get Variable"],
+				["`Ctrl` while dropping it", "Set Variable instead"],
+				["Drag a file from the project tree", "Offers what can be done with it"],
+				["Double-click a `.nodescript` in the tree", "Open it"],
+			],
+		},
+	],
+};
+
 const VARIABLES: DocPage = {
 	slug: "variables-and-locals",
 	narrow: true,
@@ -1583,7 +1722,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				title: "Getting started",
 				slug: "start",
 				group: GROUPS.learn,
-				pages: [GETTING_STARTED, blueprintPage()],
+				pages: [GETTING_STARTED, CONTROLS, blueprintPage()],
 			},
 			{
 				title: "Guides",

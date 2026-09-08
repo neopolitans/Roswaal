@@ -46,6 +46,16 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.22.0",
+		date: "2026-09-09",
+		headline: "Straighten two nodes without relaying the whole graph.",
+		added: [
+			"**Align**, on `A`. Lines a selection up, walking it in the order you picked it. The first node — the anchor, drawn with a heavier ring — does not move; each one after it lines up on the most recently picked node before it that it is wired to, and failing that on the one immediately before it. Where two nodes are wired the pins line up rather than the boxes, so the wire comes out flat. Nothing moves sideways, and comments do not move.",
+			"**A Controls page**, under Getting started: every key and mouse gesture the canvas has.",
+			"**Get Class Name**, a pure node giving `instance.ClassName` as a `string`.",
+		],
+	},
+	{
 		version: "0.21.2",
 		date: "2026-09-09",
 		headline: "Declare Type says when a Type Of is one too many.",

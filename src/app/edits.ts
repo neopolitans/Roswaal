@@ -98,6 +98,103 @@ export function placeNodes(
 	};
 }
 
+/**
+ * The node a selection is anchored on: the first one that went into it.
+ *
+ * A selection is a `Set`, and a `Set` remembers the order things were added —
+ * so this is the node you clicked before shift-clicking the rest, with no
+ * separate bookkeeping to fall out of step with it. Comments are skipped: they
+ * are in the same selection but have no pins to line anything up on.
+ */
+export function selectionAnchor(script: NodeScript, ids: ReadonlySet<string>): string | null {
+	for (const id of ids) if (script.nodes.some((n) => n.id === id)) return id;
+	return null;
+}
+
+/**
+ * Lines a selection up, walking it in the order it was picked.
+ *
+ * The first node — the anchor — never moves. Each one after it lines up on the
+ * **most recently picked node before it that it is wired to**; failing that, on
+ * the one immediately before it. So a chain straightens link by link: select
+ * the source, the knot and the node the knot feeds, and each hop lands flat
+ * even though the far end was never wired to the anchor. A fan-out works too,
+ * because the knot is still the most recent thing each of its consumers is
+ * wired to.
+ *
+ * Where two nodes are wired, the **pins** are what line up, not the boxes — so
+ * the wire between them comes out flat, which is what "level" meant when you
+ * asked for it. A reroute knot is the case that needs it: it is a dot with both
+ * pins at its centre, and its neighbour's input sits some way down a header, so
+ * matching the boxes would leave every wire through it bent.
+ *
+ * Each node moves before the next one is considered, so a node aligning to its
+ * predecessor aligns to where that predecessor has just been *put*, not where
+ * it started. That is what makes the chain a chain rather than three
+ * independent moves.
+ *
+ * **Only Y moves.** Wires run left to right, so a node's column is information
+ * — shifting one sideways to tidy it up would say it happens somewhere it does
+ * not. Comments do not move at all: one is a box drawn around nodes, and
+ * sliding it off them to line it up with a node is not a tidy-up.
+ */
+export function alignToAnchor(
+	script: NodeScript, registry: Registry, ids: ReadonlySet<string>, anchorId: string,
+): NodeScript {
+	const byId = new Map(script.nodes.map((n) => [n.id, n]));
+	const anchor = byId.get(anchorId);
+	if (!anchor) return script;
+
+	// Where each node has been put so far, most recent last. A later node reads
+	// these rather than the original script, so the chain compounds.
+	const settled: GraphNode[] = [anchor];
+	const moved = new Map<string, GraphNode>();
+
+	for (const id of ids) {
+		if (id === anchorId) continue;
+		const node = byId.get(id);
+		if (!node) continue; // a comment, or something already gone
+
+		let placed: GraphNode | null = null;
+		for (let i = settled.length - 1; i >= 0 && !placed; i--) {
+			const dy = wiredOffset(script, registry, settled[i], node);
+			if (dy !== null) placed = { ...node, y: Math.round(node.y + dy) };
+		}
+		// Wired to none of them: take the top edge of the one just before it,
+		// which is the only reading of "line these up" left.
+		placed ??= { ...node, y: settled[settled.length - 1].y };
+
+		settled.push(placed);
+		if (placed.y !== node.y) moved.set(id, placed);
+	}
+
+	if (moved.size === 0) return script;
+	return { ...script, nodes: script.nodes.map((n) => moved.get(n.id) ?? n) };
+}
+
+/**
+ * How far `node` moves to sit level with `onto`, or null if they are not wired.
+ *
+ * The first wire between the two decides it. Two nodes are rarely joined more
+ * than once, and when they are, one of the wires has to win — taking the first
+ * makes which one repeatable rather than picking by a rule nobody would guess.
+ */
+function wiredOffset(
+	script: NodeScript, registry: Registry, onto: GraphNode, node: GraphNode,
+): number | null {
+	const link = script.links.find(
+		(l) =>
+			(l.from.node === onto.id && l.to.node === node.id) ||
+			(l.from.node === node.id && l.to.node === onto.id),
+	);
+	if (!link) return null;
+
+	const out = link.from.node === onto.id;
+	const here = pinPosition(onto, registry, out ? link.from.pin : link.to.pin, out ? "out" : "in");
+	const there = pinPosition(node, registry, out ? link.to.pin : link.from.pin, out ? "in" : "out");
+	return here && there ? here.y - there.y : null;
+}
+
 export function deleteSelection(script: NodeScript, ids: ReadonlySet<string>): NodeScript {
 	if (ids.size === 0) return script;
 	const nodes = script.nodes.filter((n) => !ids.has(n.id));

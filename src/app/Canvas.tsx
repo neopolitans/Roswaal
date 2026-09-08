@@ -27,7 +27,7 @@ import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
 	addNode, bindNodeToVariable, canConnect, commentContents, commentsByArea, connect,
 	capturePlacements, currentArity, disconnectPin, growNode, growthRule,
-	insertReroute, pinLinkCount, placeNodes, removeLink, setLiteral, updateComment,
+	insertReroute, pinLinkCount, placeNodes, removeLink, selectionAnchor, setLiteral, updateComment,
 	type Placement,
 } from "./edits.js";
 import { store, useEditor, useView } from "./store.js";
@@ -127,6 +127,17 @@ export function Canvas({
 		}
 		return map;
 	}, [diagnostics]);
+
+	/**
+	 * The node the rest of a selection would line up on, marked on the canvas.
+	 *
+	 * Null with fewer than two selected: one node is already where it would be
+	 * put, so calling it the anchor is a badge with nothing behind it.
+	 */
+	const anchorId = useMemo(
+		() => (selection.size > 1 ? selectionAnchor(script, selection) : null),
+		[script, selection],
+	);
 
 	const nodesById = useMemo(
 		() => new Map(script.nodes.map((n) => [n.id, n])),
@@ -690,6 +701,7 @@ export function Canvas({
 						node={node}
 						def={registry.get(node.def)}
 						selected={selection.has(node.id)}
+						anchor={node.id === anchorId}
 						errorCount={errorsByNode.get(node.id) ?? 0}
 						connected={connectedPins}
 						drag={wireDrag}

@@ -752,6 +752,15 @@ button.tb.primary:hover:not(:disabled) {
 	box-shadow: 0 0 0 2px color-mix(in srgb, var(--select) 55%, transparent), var(--node-shadow);
 }
 
+/* The node a selection is anchored on -- the one Align lines the rest up
+   with. A heavier ring rather than a second colour: it is a stronger case of
+   being selected, not a different state, and a new hue on the canvas is one
+   more thing to learn the meaning of. Restated for the capsule and the knot
+   further down, where their own rules would otherwise win. */
+.node.selected.anchor {
+	box-shadow: 0 0 0 4px var(--select), var(--node-shadow);
+}
+
 .node.has-error {
 	border-color: var(--danger);
 }
@@ -3130,6 +3139,11 @@ button.tb.with-icon {
 .node.capsule.selected {
 	border-color: var(--select);
 	box-shadow: 0 0 0 2px color-mix(in srgb, var(--select) 55%, transparent), var(--node-shadow);
+}
+
+.node.capsule.selected.anchor,
+.node.reroute.selected.anchor {
+	box-shadow: 0 0 0 4px var(--select), var(--node-shadow);
 }
 
 /* ----------------------------------------------------- docs, second pass

@@ -626,6 +626,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// question about the value in front of you, and making you thread an
 	// execution wire through a question is what pushes people into Custom Code.
 	// Anything that allocates or mutates stays impure.
+	pure("instance.getClassName", "Get Class Name", "Instances", "$in.instance.ClassName",
+		[d("instance", "Instance", "Instance")], "string",
+		"The exact class, as a string. Comparing against it misses derived classes — Is A is the test for those."),
 	pure("instance.isA", "Is A", "Instances", "$in.instance:IsA($in.className)",
 		[d("instance", "Instance", "Instance"), str("className", "Class Name", "BasePart")], "boolean",
 		"True for the class itself and anything derived from it — the test you want when a Cast would be too strict."),
