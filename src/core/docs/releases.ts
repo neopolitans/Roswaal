@@ -46,6 +46,26 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.18.0",
+		date: "2026-09-08",
+		headline: "Panels you can move, and more than one graph open.",
+		added: [
+			"**Several graphs open at once, in tabs.** Each keeps its own undo history, its own selection and its own viewport, so switching between them lands you where you left off rather than at the top of the file. Middle-click a tab to close it.",
+			"**The sidebars resize.** Drag the divider beside a dock; double-click it to collapse the dock, and again to bring it back.",
+			"**Panels can be moved between the three docks.** Drag a panel by its heading — the project name, *Variables*, *Node*, the diagnostics bar — and drop it on the left, right or bottom edge. A rectangle shows where it will land, and releasing over the middle leaves it where it was.",
+			"**The layout is remembered**, alongside the theme and wire style. Dock sizes and which panel sits where; not which documents were open.",
+		],
+		fixed: [
+			"**The project name and the *Variables* heading had grown to twice their size.** They took their size, case and colour from a rule scoped to the old sidebar, which the dock work renamed out from under them.",
+			"The compiler's line-to-node source map had been off by one since it was written, so anything reading it — currently the selection preview — pointed one line late.",
+		],
+		watch: [
+			"A layout is remembered per browser, not per project. Dock sizes restored on a smaller screen are brought back inside it, so a layout arranged on a wide monitor cannot leave the graph with no room.",
+			"Renaming a graph keeps its tab, its history and its viewport. Deleting one closes its tab and leaves the others alone.",
+			"A dock holds its panels stacked rather than tabbed. Two panels side by side within one dock, and two graphs side by side in the centre, are not built yet.",
+		],
+	},
+	{
 		version: "0.17.2",
 		date: "2026-09-08",
 		headline: "Worth-knowing notes are a list.",
