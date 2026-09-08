@@ -31,6 +31,7 @@ import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays } from "./Overlays.jsx";
+import { GraphTabs } from "./GraphTabs.jsx";
 import { Workspace } from "./Workspace.jsx";
 import { clampLayout, resizeDock, toggleDock, type DockSide } from "./panels.js";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
@@ -40,7 +41,7 @@ import {
 	promoteToVariable, recombinePin, setConfig as setNodeConfig, setLiteral, splitCost,
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
-import { store, useEditor } from "./store.js";
+import { store, useDocuments, useEditor } from "./store.js";
 
 const LAST_PROJECT_KEY = "roswaal.lastProject";
 /**
@@ -80,6 +81,7 @@ const SEP = String.fromCharCode(92);
 
 export function App() {
 	const editor = useEditor();
+	const documents = useDocuments();
 	const [project, setProject] = useState<ProjectInfo | null>(null);
 	const [customNodes, setCustomNodes] = useState<NodeDef[]>([]);
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
@@ -330,7 +332,7 @@ export function App() {
 			const { root } = JSON.parse((event as MessageEvent).data) as { root: string | null };
 			// The tab that asked for the switch has already followed it.
 			if (!root || root === open) return;
-			store.close();
+			store.closeAll();
 			setSource(null);
 			setMapDoc(null);
 			notify(
@@ -369,6 +371,13 @@ export function App() {
 			return;
 		}
 		setMapDoc(null);
+		// Already open: go to that tab rather than re-reading. Reopening would
+		// throw away its undo history and where it was scrolled to, for a file
+		// the editor is already showing.
+		if (store.isOpen(entry.path)) {
+			store.activate(entry.path);
+			return;
+		}
 		const { script } = await api.readScript(entry.path);
 		store.open(entry.path, script);
 	}, []);
@@ -382,9 +391,13 @@ export function App() {
 	 */
 	const openGraphPath = useCallback(async (path: string) => {
 		try {
-			const { script } = await api.readScript(path);
 			setSource(null);
 			setMapDoc(null);
+			if (store.isOpen(path)) {
+				store.activate(path);
+				return;
+			}
+			const { script } = await api.readScript(path);
 			store.open(path, script);
 		} catch (err) {
 			notify("Could not open that graph", (err as Error).message);
@@ -418,7 +431,7 @@ export function App() {
 	 */
 	const onProjectChanged = useCallback(
 		async (err: ProjectChangedError) => {
-			store.close();
+			store.closeAll();
 			setSource(null);
 			setMapDoc(null);
 			notify(
@@ -868,10 +881,13 @@ export function App() {
 		try {
 			const { path: renamed } = await api.renameEntry(target, name);
 			await refreshTree();
-			// Keep the document open if it was the thing renamed.
-			if (editor.path === target) {
+			// Keep the tab, its history and its viewport: the file was renamed,
+			// the graph was not touched. Closing and reopening would be simpler
+			// and would throw all three away for an operation that changed
+			// nothing about the document.
+			if (store.isOpen(target)) {
 				const { script } = await api.readScript(renamed);
-				store.open(renamed, script);
+				store.rename(target, renamed, script);
 			}
 		} catch (err) {
 			notify("Something went wrong", (err as Error).message);
@@ -890,7 +906,9 @@ export function App() {
 		if (ok !== true) return;
 		try {
 			for (const target of paths) await api.deleteScript(target);
-			if (editor.path && paths.includes(editor.path)) store.close();
+			// Only the tabs whose files went. A deleted file elsewhere in the
+			// tree is no reason to close the graph somebody is looking at.
+			for (const path of paths) store.closeDocument(path);
 			if (mapDoc && paths.includes(mapDoc.path)) setMapDoc(null);
 			await refreshTree();
 		} catch (err) {
@@ -1060,7 +1078,22 @@ export function App() {
 				}}
 				floating={<CompileToast progress={progress} />}
 				centre={
-					mapDoc ? (
+					<>
+						{/* Above the centre's content, and only when there is a
+						    choice to make. A node map or a source file is not a
+						    graph and has no tab, so the strip shows what would
+						    come back if you left them. */}
+						<GraphTabs
+							documents={documents}
+							onActivate={(path) => {
+								setSource(null);
+								setMapDoc(null);
+								store.activate(path);
+							}}
+							onClose={(path) => store.closeDocument(path)}
+						/>
+						<div className="centre-body">
+						{mapDoc ? (
 						<MapEditor
 							map={mapDoc.map}
 							dirty={mapDoc.dirty}
@@ -1112,12 +1145,14 @@ export function App() {
 								}
 							}}
 						/>
-					) : (
-						<div className="placeholder">
-							<h1>No graph open</h1>
-							<p>Double-click a <code>.nodescript</code> in the tree, or make a new one.</p>
+						) : (
+							<div className="placeholder">
+								<h1>No graph open</h1>
+								<p>Double-click a <code>.nodescript</code> in the tree, or make a new one.</p>
+							</div>
+						)}
 						</div>
-					)
+					</>
 				}
 			/>
 
