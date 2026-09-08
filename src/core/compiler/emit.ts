@@ -817,6 +817,20 @@ class Emitter {
 				};
 				const name = (config.name ?? "").trim();
 				const value = this.resolveInput(r, this.pin(r, "value", "in"), scope);
+				// The node writes `typeof(...)` itself, so a Type Of on the way in
+				// makes `typeof(typeof(x))`. That is not a mistake Luau catches: the
+				// inner call is an expression giving a string, so the type quietly
+				// becomes `string`. Wiring one in is the obvious reading of the
+				// native code this mirrors, so it is worth saying rather than fixing
+				// silently.
+				if (this.feederOf(id, "value")?.def.id === "value.typeof") {
+					this.error(
+						"Declare Type already takes the type of what you wire in, so the Type Of " +
+						"node makes it the type of a string. Wire the value in directly.",
+						id,
+					);
+					return this.index.execTarget(id, "then");
+				}
 				if (name === "") {
 					this.error("Declare Type needs a name before it can be written.", id);
 					return this.index.execTarget(id, "then");
@@ -1137,6 +1151,24 @@ class Emitter {
 	 * A pure builtin's expression. These always resolve to a plain identifier,
 	 * which is why they bypass the hoisting rule entirely.
 	 */
+	/**
+	 * The node actually feeding an input, seeing through reroute knots.
+	 *
+	 * A knot is a bend in the wire and never changes what travels down it, so
+	 * asking "what is on the other end of this" has to walk past one.
+	 */
+	private feederOf(nodeId: string, pinId: string): ResolvedNode | undefined {
+		let at = { node: nodeId, pin: pinId };
+		for (let hops = 0; hops < 64; hops++) {
+			const link = this.index.sourceOf(at.node, at.pin);
+			if (!link) return undefined;
+			const from = this.index.get(link.from.node);
+			if (from?.def.id !== "flow.reroute") return from;
+			at = { node: from.node.id, pin: "in" };
+		}
+		return undefined;
+	}
+
 	private pureBuiltin(
 		handler: string, src: ResolvedNode, consumer: ResolvedNode, scope: Scope,
 	): string {

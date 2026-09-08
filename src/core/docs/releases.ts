@@ -46,6 +46,14 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.21.2",
+		date: "2026-09-09",
+		headline: "Declare Type says when a Type Of is one too many.",
+		fixed: [
+			"**Declare Type with a Type Of wired into it** now reports an error instead of emitting `typeof(typeof(x))`, which compiles and gives the type `string`.",
+		],
+	},
+	{
 		version: "0.21.1",
 		date: "2026-09-09",
 		headline: "Name the value a node gives you, without renaming the node.",

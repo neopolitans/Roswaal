@@ -329,6 +329,71 @@ describe("Declare Type, in the flow", () => {
 			.toContain("export type Config = typeof(settings)");
 	});
 
+	/**
+	 * Found in the M103's Config graph, which emitted
+	 * `export type Tuning = typeof(typeof(Tuning))`.
+	 *
+	 * That compiles. `typeof` in a type takes an *expression*, and the inner
+	 * call is one — it gives a string — so the exported type silently became
+	 * `string`. Wiring Type Of in is the obvious reading of the native line it
+	 * mirrors, `export type Tuning = typeof(TUNING)`, so the node has to say so.
+	 */
+	it("refuses a Type Of on the way in, rather than taking the type of a string", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const declare = b.node("local.declare");
+		const of = b.node("value.typeof");
+		const type = b.node("type.declareHere", { config: { name: "Tuning" } });
+		b.lit(declare, "name", { t: "string", v: "Tuning" });
+		b.lit(declare, "value", { t: "raw", v: "{ turnRate = 45 }" });
+		b.link(start, "then", declare, "in");
+		b.link(declare, "then", type, "in");
+		b.link(declare, "ref", of, "value");
+		b.link(of, "result", type, "value");
+		const script = b.build();
+
+		expect(errors(script).join(" ")).toMatch(/already takes the type/);
+		expect(code(script)).not.toContain("typeof(typeof(");
+	});
+
+	/** A knot in the wire is not a way round it. */
+	it("sees the Type Of through a reroute", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const declare = b.node("local.declare");
+		const of = b.node("value.typeof");
+		const knot = b.node("flow.reroute", { config: { type: "any" } });
+		const type = b.node("type.declareHere", { config: { name: "Tuning" } });
+		b.lit(declare, "name", { t: "string", v: "Tuning" });
+		b.lit(declare, "value", { t: "raw", v: "{ turnRate = 45 }" });
+		b.link(start, "then", declare, "in");
+		b.link(declare, "then", type, "in");
+		b.link(declare, "ref", of, "value");
+		b.link(of, "result", knot, "in");
+		b.link(knot, "out", type, "value");
+
+		expect(errors(b.build()).join(" ")).toMatch(/already takes the type/);
+	});
+
+	/** And a knot on its own still passes the value through. */
+	it("still takes a value that only travels through a reroute", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const declare = b.node("local.declare");
+		const knot = b.node("flow.reroute", { config: { type: "any" } });
+		const type = b.node("type.declareHere", { config: { name: "Tuning" } });
+		b.lit(declare, "name", { t: "string", v: "Tuning" });
+		b.lit(declare, "value", { t: "raw", v: "{ turnRate = 45 }" });
+		b.link(start, "then", declare, "in");
+		b.link(declare, "then", type, "in");
+		b.link(declare, "ref", knot, "in");
+		b.link(knot, "out", type, "value");
+		const script = b.build();
+
+		expect(errors(script)).toEqual([]);
+		expect(code(script)).toContain("export type Tuning = typeof(Tuning)");
+	});
+
 	it("keeps it to the module when export is off", () => {
 		const out = code(afterLocal({ name: "Tuning", export: false }));
 		expect(out).toContain("type Tuning = typeof(Tuning)");
