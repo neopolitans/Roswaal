@@ -117,6 +117,34 @@ The pop-out Luau editor is built on **CodeMirror 6**, which is MIT licensed.
 It is a runtime dependency rather than vendored source; see `package.json` and
 the licence text in `node_modules/@codemirror/*/LICENSE`.
 
+### The borrowed colour schemes
+
+Three of the seven themes in `themes/` are somebody else's design, all MIT
+licensed. Each one's licence is copied **byte for byte** into
+`notices/upstream/` and compiled into the editor, where it is shown in full
+under **Settings → Licences**.
+
+- **Tokyo Night** and **Tokyo Night Storm** — Copyright (c) 2018-present Enkia.
+  <https://github.com/tokyo-night/tokyo-night-vscode-theme>
+- **Catppuccin Mocha** — Copyright (c) 2021 Catppuccin.
+  <https://github.com/catppuccin/catppuccin>
+- **Nord** — Copyright (c) 2016-present Sven Greb.
+  <https://github.com/nordtheme/nord>
+
+A palette of hex values is not itself a copyrightable work, so this is courtesy
+rather than obligation, and saying so is not conceding a claim that has not been
+made. It costs nothing and these are recognisably someone's design.
+
+The licences are **copied, never reconstructed from a template.** Of these three
+MIT files, one is headed `MIT License`, one `MIT License (MIT)` and one
+`The MIT License (MIT)`, and one copyright line carries an email address and a
+homepage. A filled-in template would produce something that is *nearly* each
+author's licence, and nearly is the one thing an attribution may not be.
+
+**Roswaal Light**, **Roswaal Dark** and **Aquatic** are the maintainer's own
+work and carry no third-party claim; they are 0BSD with the rest of the
+repository.
+
 ---
 
 Everything else in this repository is Roswaal's own and is 0BSD: use it, modify

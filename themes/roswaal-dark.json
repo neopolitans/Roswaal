@@ -1,0 +1,40 @@
+{
+  "name": "Roswaal Dark",
+  "builtin": true,
+  "order": 1,
+  "dark": true,
+  "credit": "neopolitans",
+  "source": "https://github.com/neopolitans/Roswaal",
+  "colors": {
+    "app": "#16181d",
+    "panel": "#1b1e24",
+    "canvas": "#101216",
+    "input": "#23272f",
+    "text": "#e4e7ec",
+    "subText": "#9aa2af",
+    "dimText": "#6b7280",
+    "border": "#2d323b",
+    "borderStrong": "#414855",
+    "nodeBody": "#262a32",
+    "nodeBorder": "#3a404b",
+    "wireExec": "#b9c0cc",
+    "accent": "#5b9bd5",
+    "danger": "#e06c5a",
+    "warning": "#d8a83a",
+    "ok": "#5cb87a",
+    "select": "#ff9c2e",
+    "pure": "#7fbf5f",
+    "capsule": "#2b3038",
+    "capsuleBorder": "#3d434e"
+  },
+  "code": {
+    "keyword": "#c98fd0",
+    "string": "#8fce9b",
+    "number": "#d9a86c",
+    "comment": "#6b7280",
+    "operator": "#86b3e0",
+    "property": "#7fc4d6",
+    "global": "#7fc4d6",
+    "function": "#d9b06c"
+  }
+}

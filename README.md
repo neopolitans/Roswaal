@@ -519,6 +519,33 @@ Graphs live under `.roswaal/` so they never collide with the Rojo tree. Unlike
 some tools' dot-directories, `.roswaal/` is **meant to be committed** — it is
 your source.
 
+Everything in that file is editable from **Settings** in the toolbar, alongside
+the preferences that are *yours* rather than the project's. The two are kept
+visibly apart, because they behave differently: `roswaal.json` is committed and
+shared by everyone on the repository, while preferences live in your browser and
+never appear in a diff.
+
+## Themes
+
+Seven schemes ship: Roswaal Light and Dark, Tokyo Night, Tokyo Night Storm,
+Catppuccin Mocha, Nord, and Aquatic. The default follows your operating system.
+
+Each is one JSON file in [`themes/`](themes), in the same format
+[Beako](https://github.com/neopolitans/Beako) uses, so a theme written for one
+tool reads in the other. `npm run build:themes` compiles them in and refuses a
+palette that would not work — an unreadable text colour, a node the same colour
+as the canvas, or a scheme whose `dark` flag disagrees with its own background,
+which would make every hover state invisible.
+
+Three of the seven are somebody else's design and are MIT licensed. Their
+licences are copied byte for byte into [`notices/upstream/`](notices/upstream)
+and shown in full under **Settings → Licences**; see [NOTICE.md](NOTICE.md).
+
+**A theme cannot recolour a pin or a node category, on purpose.** Red is a
+boolean, green is a number, gold is a vector — that mapping is most of what
+makes a graph readable to somebody arriving from Blueprints, and it is worth
+more than the ability to restyle it.
+
 ## Known gaps
 
 Honest list of what the prototype does not do yet.
@@ -547,6 +574,8 @@ src/core/nodes/ flow builtins, variables, and the templated standard library
 src/cli/        the roswaal command line
 src/server/     the daemon: filesystem, compile pipeline, hot reload
 src/app/        the React editor
+themes/         one JSON file per colour scheme
+notices/        vendored upstream licences, copied byte for byte
 tests/          golden tests: graph in, Luau out
 examples/demo/  a small project you can open
 ```

@@ -1,0 +1,45 @@
+{
+  "name": "Nord",
+  "builtin": true,
+  "order": 5,
+  "dark": true,
+  "credit": "Sven Greb — MIT",
+  "source": "https://github.com/nordtheme/nord",
+  "licence": {
+    "spdx": "MIT",
+    "holder": "Copyright (c) 2016-present Sven Greb <development@svengreb.de> (https://www.svengreb.de)",
+    "textFile": "upstream/nord.txt"
+  },
+  "colors": {
+    "app": "#2e3440",
+    "panel": "#272c36",
+    "canvas": "#21262f",
+    "input": "#2e3440",
+    "text": "#eceff4",
+    "subText": "#d8dee9",
+    "dimText": "#7b8494",
+    "border": "#3b4252",
+    "borderStrong": "#4c566a",
+    "nodeBody": "#3b4252",
+    "nodeBorder": "#4c566a",
+    "wireExec": "#d8dee9",
+    "accent": "#88c0d0",
+    "danger": "#bf616a",
+    "warning": "#ebcb8b",
+    "ok": "#a3be8c",
+    "select": "#d08770",
+    "pure": "#a3be8c",
+    "capsule": "#3b4252",
+    "capsuleBorder": "#4c566a"
+  },
+  "code": {
+    "keyword": "#81a1c1",
+    "string": "#a3be8c",
+    "number": "#b48ead",
+    "comment": "#616e88",
+    "operator": "#81a1c1",
+    "property": "#d8dee9",
+    "global": "#8fbcbb",
+    "function": "#88c0d0"
+  }
+}

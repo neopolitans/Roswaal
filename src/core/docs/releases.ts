@@ -39,6 +39,32 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.14.0",
+		date: "2026-09-08",
+		headline: "Settings you can find, and seven colour schemes.",
+		added: [
+			"**A settings panel**, from the toolbar. It covers everything in `roswaal.json` — target, where graphs live, where Luau is written, compile mode, node pack directories, formatting, the Rojo project file — none of which could previously be changed without opening the file by hand.",
+			"It **says where each setting is stored**, because there are two kinds and they behave differently. Project settings are committed and shared by everyone on the repository; preferences are yours, live in your browser, and never appear in a diff. The one mistake worth designing against here is a personal colour scheme turning up in somebody's pull request.",
+			"**Seven colour schemes**: Roswaal Light and Dark, Tokyo Night and Tokyo Night Storm, Catppuccin Mocha, Nord, and Aquatic. Each is one JSON file in `themes/`, in the same format [Beako](https://github.com/neopolitans/Beako) uses, so a theme written for one tool reads in the other.",
+			"**Follow the system** is still the default and is the *absence* of a theme rather than an eighth scheme — it removes the palette rather than pinning a light or dark one, so the app goes on changing with your OS the way it always did.",
+			"The theme applies to **the docs window too**, which is the same document, and it is applied before anything renders rather than corrected a frame later.",
+			"**Settings → Licences** shows the full text of the three borrowed schemes' licences, compiled in from files copied byte for byte out of each upstream project. MIT requires the notice to travel with the work, and a link is not the notice travelling.",
+			"Two preferences that were previously not settings at all: **how long after your last edit a graph is written**, and **whether Roswaal reopens the last project** or starts at the picker.",
+		],
+		changed: [
+			"**Straighten is a preference rather than a stray `localStorage` key.** It behaves exactly as before; it is now in the settings panel with everything else, and reading it does not require knowing the key's name.",
+			"A **project setting that the daemon refuses now says so.** Writing `roswaal.json` used to be a promise nobody checked — survivable while the only control was a two-position toggle that could not really fail, and not survivable now that you can type a path into it.",
+		],
+		fixed: [
+			"**The `<select>` popup follows the theme.** Chromium paints that list outside the document, where `var(…)` does not resolve, so its colours were four literals copied out of the built-in schemes — which meant that under any other palette they were four colours that had stopped following it.",
+		],
+		watch: [
+			"**A theme cannot recolour a pin or a node category, and that is deliberate.** Red is a boolean, green is a number, gold is a vector; that mapping is most of what makes a graph readable to somebody arriving from Blueprints, and it is worth more than the ability to restyle it.",
+			"Hover, the grid, the watermark and the node shadow are **derived from whether a scheme is dark**, not authored. An overlay is the one token an author gets wrong without seeing it — the mistake is invisible on whichever surface they happened to be looking at — so a palette cannot ship a hover state that does not show.",
+			"Preferences live in this browser and do not follow you to another machine. There are four of them; the alternative was a per-developer file in a shared checkout.",
+		],
+	},
+	{
 		version: "0.13.0",
 		date: "2026-09-07",
 		headline: "You can watch a compile happen.",

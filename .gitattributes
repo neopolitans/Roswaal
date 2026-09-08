@@ -1,0 +1,10 @@
+# The vendored upstream licences are copies, and `notices/upstream/README.md`
+# says they are copied byte for byte. On Windows, Git's line-ending conversion
+# would quietly make that untrue — the file checked out is not the file that was
+# fetched, and an attribution that has been reformatted is exactly what vendoring
+# these instead of rendering a template was meant to avoid.
+#
+# This is the same trap 0.13.0 hit from the other side: Roswaal writes LF, Git
+# checked the generated file out as CRLF, and every generated file was then
+# reported as edited by hand.
+notices/upstream/*.txt -text

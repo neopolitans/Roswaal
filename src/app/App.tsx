@@ -33,6 +33,9 @@ import { autoLayout } from "./layout.js";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
+import { SettingsPanel } from "./SettingsPanel.jsx";
+import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
+import { applyTheme, findTheme } from "./theme.js";
 import {
 	addComment, addNode, copySelection, deleteSelection, disconnectPin, pasteClipping,
 	promoteToVariable, recombinePin, setConfig as setNodeConfig, setLiteral, splitCost,
@@ -73,15 +76,8 @@ function forget(root: string): void {
 	localStorage.setItem(RECENT_KEY, JSON.stringify(recentProjects().filter((r) => r !== root)));
 	if (localStorage.getItem(LAST_PROJECT_KEY) === root) localStorage.removeItem(LAST_PROJECT_KEY);
 }
-/**
- * Whether Realign straightens the execution spine. A per-developer preference
- * rather than a document one: it is a habit of reading, not a property of the
- * graph, and two people sharing a repository should not fight over it.
- */
-const ALIGN_EXEC_KEY = "roswaal.alignExec";
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
-const AUTOSAVE_MS = 600;
 
 export function App() {
 	const editor = useEditor();
@@ -98,9 +94,26 @@ export function App() {
 	// is a reason to stop editing the graph.
 	const [compiling, setCompiling] = useState(false);
 	const [statusOpen, setStatusOpen] = useState(true);
-	const [alignExec, setAlignExec] = useState(
-		() => localStorage.getItem(ALIGN_EXEC_KEY) !== "off",
-	);
+	/**
+	 * This browser's preferences, read once and written back on every change.
+	 *
+	 * State rather than a read at each use, so a change made in the settings
+	 * panel reaches the toolbar toggle and the autosave timer in the same
+	 * render. `main.tsx` has already applied the theme by the time this runs —
+	 * this is the copy that keeps it applied as it changes.
+	 */
+	const [prefs, setPrefs] = useState<Preferences>(readPreferences);
+	const [settingsOpen, setSettingsOpen] = useState(false);
+	const alignExec = prefs.alignExec;
+
+	const updatePrefs = useCallback((patch: Partial<Preferences>) => {
+		setPrefs((current) => {
+			const next = { ...current, ...patch };
+			writePreferences(next);
+			if ("theme" in patch) applyTheme(findTheme(next.theme));
+			return next;
+		});
+	}, []);
 	const [source, setSource] = useState<SourceDoc | null>(null);
 	// A node map is a tree, not a graph, so it lives beside the graph store
 	// rather than inside it. Nothing about undo or selection carries over.
@@ -182,6 +195,11 @@ export function App() {
 			} catch {
 				// No daemon yet, or an older one. Fall through to the last project.
 			}
+			// Only this branch is a preference. A project the daemon already has
+			// open is the one `roswaal serve` was pointed at, and starting at the
+			// picker instead would be ignoring an instruction rather than
+			// honouring a setting.
+			if (!readPreferences().reopenLastProject) return;
 			const last = localStorage.getItem(LAST_PROJECT_KEY);
 			if (last) void loadProject(last);
 		})();
@@ -308,11 +326,11 @@ export function App() {
 				() => setMapDoc((d) => (d && d.path === path ? { ...d, dirty: false } : d)),
 				onWriteFailed,
 			);
-		}, AUTOSAVE_MS);
+		}, prefs.autosaveMs);
 		return () => {
 			if (mapSaveTimer.current) window.clearTimeout(mapSaveTimer.current);
 		};
-	}, [mapDoc]);
+	}, [mapDoc, prefs.autosaveMs]);
 
 	/**
 	 * A write the daemon refused because it is now serving a different project.
@@ -361,12 +379,12 @@ export function App() {
 				},
 				onWriteFailed,
 			);
-		}, AUTOSAVE_MS);
+		}, prefs.autosaveMs);
 		return () => {
 			if (saveTimer.current) window.clearTimeout(saveTimer.current);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [editor.dirty, editor.path, editor.script, project?.config.compileMode]);
+	}, [editor.dirty, editor.path, editor.script, project?.config.compileMode, prefs.autosaveMs]);
 
 	// -- compiling ---------------------------------------------------------
 
@@ -409,12 +427,30 @@ export function App() {
 		[refreshTree],
 	);
 
+	/**
+	 * Writes `roswaal.json` and takes the daemon's answer as the truth.
+	 *
+	 * A rejection used to be an unhandled promise, which was survivable while
+	 * the only caller was a two-position toggle that could not really fail. The
+	 * settings panel writes paths, and a path the daemon refuses has to say so —
+	 * otherwise the field goes on showing the value that was not saved.
+	 */
 	const setConfig = useCallback(async (patch: Partial<RoswaalConfig>) => {
 		if (!project) return;
 		const config = { ...project.config, ...patch };
-		await api.saveConfig(config);
-		setProject({ ...project, config });
-	}, [project]);
+		try {
+			const saved = await api.saveConfig(config);
+			setProject({ ...project, config: saved.config });
+			// Only the settings that decide what is on disk, and where. A
+			// compile-mode toggle changes nothing the tree shows, and it is the
+			// one of these that gets pressed repeatedly.
+			const rereads = ["sourceDir", "outDir", "nodePaths", "rojoProject"];
+			if (rereads.some((key) => key in patch)) await refreshTree();
+		} catch (err) {
+			if (err instanceof ProjectChangedError) void onProjectChanged(err);
+			else notify("That setting was not saved", (err as Error).message);
+		}
+	}, [project, refreshTree, notify, onProjectChanged]);
 
 	// -- canvas actions ----------------------------------------------------
 
@@ -545,11 +581,8 @@ export function App() {
 	);
 
 	const toggleAlignExec = useCallback(() => {
-		setAlignExec((on) => {
-			localStorage.setItem(ALIGN_EXEC_KEY, on ? "off" : "on");
-			return !on;
-		});
-	}, []);
+		updatePrefs({ alignExec: !alignExec });
+	}, [alignExec, updatePrefs]);
 
 	/**
 	 * The graph is read-only because it is being compiled.
@@ -856,6 +889,14 @@ export function App() {
 				>
 					Docs
 				</button>
+				<button
+					className="tb with-icon"
+					title="Project settings, editor preferences and themes"
+					onClick={() => setSettingsOpen(true)}
+				>
+					<Icon name="settings" size={15} />
+					Settings
+				</button>
 			</div>
 
 			{/* The document: its name, its own settings, and the tools that only
@@ -1103,6 +1144,17 @@ export function App() {
 				/>
 			)}
 
+
+			{settingsOpen && (
+				<SettingsPanel
+					root={project.root}
+					config={project.config}
+					prefs={prefs}
+					onConfig={(patch) => void setConfig(patch)}
+					onPrefs={updatePrefs}
+					onClose={() => setSettingsOpen(false)}
+				/>
+			)}
 
 			{dialog && <Dialog {...dialog} />}
 

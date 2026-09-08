@@ -1,0 +1,40 @@
+{
+  "name": "Aquatic",
+  "builtin": true,
+  "order": 6,
+  "dark": true,
+  "credit": "neopolitans",
+  "source": "https://github.com/neopolitans/Beako",
+  "colors": {
+    "app": "#161523",
+    "panel": "#0a181e",
+    "canvas": "#0a0f16",
+    "input": "#141c29",
+    "text": "#c0caf5",
+    "subText": "#6e7596",
+    "dimText": "#42808f",
+    "border": "#143a4a",
+    "borderStrong": "#19688a",
+    "nodeBody": "#1a2436",
+    "nodeBorder": "#19688a",
+    "wireExec": "#a9b1d6",
+    "accent": "#607ebe",
+    "danger": "#f7768e",
+    "warning": "#e0af68",
+    "ok": "#9ece6a",
+    "select": "#ff9e64",
+    "pure": "#9ece6a",
+    "capsule": "#141c29",
+    "capsuleBorder": "#19688a"
+  },
+  "code": {
+    "keyword": "#bb9af7",
+    "string": "#9ece6a",
+    "number": "#ff9e64",
+    "comment": "#565f89",
+    "operator": "#7dcfff",
+    "property": "#73daca",
+    "global": "#2ac3de",
+    "function": "#607ebe"
+  }
+}

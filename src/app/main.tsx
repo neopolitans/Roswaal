@@ -4,6 +4,8 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.jsx";
 import { DocsPage } from "./DocsPage.jsx";
 import { installFavicon } from "./logo.jsx";
+import { readPreferences } from "./preferences.js";
+import { applyTheme, findTheme } from "./theme.js";
 import "./theme.css";
 
 const container = document.getElementById("root");
@@ -24,6 +26,17 @@ document.title = isDocs ? "Roswaal docs" : "Roswaal";
 // Set here rather than in `index.html` so the artwork has one home. Both entry
 // points are the same document, so both get it.
 installFavicon();
+
+/**
+ * The colour scheme, before anything renders.
+ *
+ * Here rather than in an effect so the app opens in the developer's theme
+ * instead of painting the default one and correcting itself a frame later. Both
+ * entry points get it for the same reason they both get the favicon — the docs
+ * window is the same document, and a developer on Nord who opens the reference
+ * should not find it in slate blue.
+ */
+applyTheme(findTheme(readPreferences().theme));
 
 createRoot(container).render(
 	<StrictMode>{isDocs ? <DocsPage /> : <App />}</StrictMode>,

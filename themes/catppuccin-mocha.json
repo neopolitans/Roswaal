@@ -1,0 +1,45 @@
+{
+  "name": "Catppuccin Mocha",
+  "builtin": true,
+  "order": 4,
+  "dark": true,
+  "credit": "Catppuccin — MIT",
+  "source": "https://github.com/catppuccin/catppuccin",
+  "licence": {
+    "spdx": "MIT",
+    "holder": "Copyright (c) 2021 Catppuccin",
+    "textFile": "upstream/catppuccin.txt"
+  },
+  "colors": {
+    "app": "#1e1e2e",
+    "panel": "#181825",
+    "canvas": "#11111b",
+    "input": "#313244",
+    "text": "#cdd6f4",
+    "subText": "#bac2de",
+    "dimText": "#6c7086",
+    "border": "#313244",
+    "borderStrong": "#45475a",
+    "nodeBody": "#313244",
+    "nodeBorder": "#585b70",
+    "wireExec": "#bac2de",
+    "accent": "#89b4fa",
+    "danger": "#f38ba8",
+    "warning": "#f9e2af",
+    "ok": "#a6e3a1",
+    "select": "#fab387",
+    "pure": "#a6e3a1",
+    "capsule": "#45475a",
+    "capsuleBorder": "#585b70"
+  },
+  "code": {
+    "keyword": "#cba6f7",
+    "string": "#a6e3a1",
+    "number": "#fab387",
+    "comment": "#6c7086",
+    "operator": "#89dceb",
+    "property": "#b4befe",
+    "global": "#94e2d5",
+    "function": "#89b4fa"
+  }
+}

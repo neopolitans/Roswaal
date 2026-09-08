@@ -1,0 +1,45 @@
+{
+  "name": "Tokyo Night",
+  "builtin": true,
+  "order": 2,
+  "dark": true,
+  "credit": "Enkia — MIT",
+  "source": "https://github.com/tokyo-night/tokyo-night-vscode-theme",
+  "licence": {
+    "spdx": "MIT",
+    "holder": "Copyright (c) 2018-present Enkia",
+    "textFile": "upstream/tokyo-night.txt"
+  },
+  "colors": {
+    "app": "#1a1b26",
+    "panel": "#16161e",
+    "canvas": "#101019",
+    "input": "#1f2335",
+    "text": "#c0caf5",
+    "subText": "#a9b1d6",
+    "dimText": "#565f89",
+    "border": "#292e42",
+    "borderStrong": "#3b4261",
+    "nodeBody": "#24283b",
+    "nodeBorder": "#3b4261",
+    "wireExec": "#a9b1d6",
+    "accent": "#7aa2f7",
+    "danger": "#f7768e",
+    "warning": "#e0af68",
+    "ok": "#9ece6a",
+    "select": "#ff9e64",
+    "pure": "#9ece6a",
+    "capsule": "#292e42",
+    "capsuleBorder": "#3b4261"
+  },
+  "code": {
+    "keyword": "#bb9af7",
+    "string": "#9ece6a",
+    "number": "#ff9e64",
+    "comment": "#565f89",
+    "operator": "#89ddff",
+    "property": "#7dcfff",
+    "global": "#2ac3de",
+    "function": "#7aa2f7"
+  }
+}

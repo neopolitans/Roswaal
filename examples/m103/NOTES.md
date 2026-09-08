@@ -137,9 +137,16 @@ physics-tuning rabbit hole. And driving a joint's `Transform` is precisely how
 Blueprints rotates a bone on a skeletal mesh, which makes the most conceptually
 awkward part of the tank the part that translates *best*.
 
-**The open decision is which of the three**, and it is the author's to make —
-it is their model, and B in particular is a legitimate choice if the goal
-shifts from translatability to a shippable vehicle.
+**Settled, 8 September 2026: C.** The author's call, and it agrees with the
+recommendation above and with the design intent recorded further up — nothing
+about a top-down mobile game wants suspension or wheel physics, and the tracks
+are a shader trick, which removes the only real argument for B.
+
+So week 3 is no longer blocked on a decision. What it needs from the model is
+one new `Motor6D` — `Part0 = Hull`, `Part1 = Main`, `C0` at the
+`TurretPosition` attachment — plus the existing `Gun` Motor6D's `C0` moved to
+the trunnion. Traverse and elevation are then both writing a joint's
+`Transform`, which is the part that translates best to Blueprints.
 
 ## Free gifts
 

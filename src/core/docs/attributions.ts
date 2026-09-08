@@ -128,6 +128,46 @@ export const ATTRIBUTIONS: Attribution[] = [
 		url: "https://www.lua.org/",
 	},
 	{
+		name: "Tokyo Night",
+		relation: "uses",
+		holder: "Enkia",
+		licence: "MIT",
+		where: "`themes/tokyo-night.json` and `themes/tokyo-night-storm.json`.",
+		note:
+			"Two of the colour schemes. A palette of hex values is not itself a " +
+			"copyrightable work, so carrying the licence is courtesy rather than " +
+			"obligation — but these are recognisably somebody's design, and the " +
+			"cost of saying whose is nothing. The upstream licence is vendored " +
+			"byte for byte in `notices/upstream/` and shown in full under " +
+			"Settings → Licences.",
+		url: "https://github.com/tokyo-night/tokyo-night-vscode-theme",
+	},
+	{
+		name: "Catppuccin",
+		relation: "uses",
+		holder: "Catppuccin",
+		licence: "MIT",
+		where: "`themes/catppuccin-mocha.json`.",
+		note:
+			"The Mocha flavour, as one of the colour schemes. Same posture as the " +
+			"other borrowed palettes: the licence travels because the design is " +
+			"someone's, not because a claim has been conceded.",
+		url: "https://github.com/catppuccin/catppuccin",
+	},
+	{
+		name: "Nord",
+		relation: "uses",
+		holder: "Sven Greb",
+		licence: "MIT",
+		where: "`themes/nord.json`.",
+		note:
+			"One of the colour schemes, including its syntax colours. Its licence " +
+			"carries an email address and a homepage that no MIT template would " +
+			"have produced, which is exactly why the file is copied rather than " +
+			"reconstructed.",
+		url: "https://github.com/nordtheme/nord",
+	},
+	{
 		name: "Rojo",
 		relation: "uses",
 		holder: "rojo-rbx and contributors",

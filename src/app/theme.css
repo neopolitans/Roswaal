@@ -40,7 +40,6 @@
 	--comment-header-alpha: 0.75;
 
 	--wire-exec: #5a616d;
-	--wire-data: #7b8494;
 
 	--accent: #3b6ea5;
 	--danger: #c0392b;
@@ -79,7 +78,6 @@
 		--comment-fill: 0.14;
 
 		--wire-exec: #b9c0cc;
-		--wire-data: #8d97a6;
 
 		--accent: #5b9bd5;
 		--danger: #e06c5a;
@@ -3490,4 +3488,259 @@ button.tb.with-icon {
 
 @media (prefers-reduced-motion: reduce) {
 	.docs-preview.graph .graph-viewport.interactive::after { transition: none; }
+}
+
+/* ------------------------------------------------------------- settings */
+
+/* Settings borrows the Docs window's frame — same backdrop, same nav down the
+   left — because a third overlay shape would be one too many. What it adds is
+   the row: a label and its explanation on the left, the control on the right,
+   at a fixed column so a column of controls lines up and can be scanned. */
+
+.settings {
+	width: min(900px, 100%);
+	height: min(720px, 100%);
+}
+
+.settings .docs-head .spacer {
+	flex: 1;
+}
+
+.settings-tab {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 1px;
+	text-align: left;
+}
+
+.settings-tab-sub {
+	font-size: 10px;
+	color: var(--fg-faint);
+}
+
+.settings-page {
+	overflow: auto;
+	padding: 18px 22px 40px;
+}
+
+.settings-page h2 {
+	margin: 0 0 4px;
+	font-size: 15px;
+}
+
+.settings-page h3 {
+	margin: 26px 0 4px;
+	font-size: 13px;
+}
+
+.settings-note {
+	margin: 0 0 14px;
+	color: var(--fg-muted);
+	line-height: 1.55;
+	max-width: 64ch;
+}
+
+.settings-note code {
+	background: var(--capsule-bg);
+	border: 1px solid var(--capsule-border);
+	border-radius: 3px;
+	padding: 0 4px;
+}
+
+.setting {
+	display: grid;
+	grid-template-columns: 1fr 260px;
+	gap: 16px;
+	align-items: start;
+	padding: 11px 0;
+	border-top: 1px solid var(--border);
+}
+
+.setting-label {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.setting-label span {
+	color: var(--fg-faint);
+	line-height: 1.5;
+}
+
+.setting-control {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.setting-control > * {
+	width: 100%;
+}
+
+.settings-toggle {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 4px 9px;
+	cursor: pointer;
+}
+
+.settings-toggle:hover {
+	border-color: var(--border-strong);
+}
+
+.path-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	max-width: 520px;
+}
+
+.path-row {
+	display: flex;
+	gap: 6px;
+}
+
+.path-row input {
+	flex: 1;
+}
+
+/* ----------------------------------------------------------- theme cards */
+
+.theme-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	gap: 10px;
+	margin-bottom: 16px;
+}
+
+.theme-card {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	cursor: pointer;
+	text-align: left;
+	color: inherit;
+	font: inherit;
+}
+
+.theme-card:hover {
+	border-color: var(--border-strong);
+}
+
+/* The chosen scheme is outlined rather than filled: the card's whole job is to
+   show you a palette, and painting our accent across it would be showing you
+   ours instead. */
+.theme-card.on {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 1px var(--accent);
+}
+
+.theme-swatch,
+.theme-swatch-pair {
+	display: block;
+	width: 100%;
+	aspect-ratio: 160 / 78;
+	border-radius: 4px;
+	overflow: hidden;
+	border: 1px solid var(--border);
+}
+
+/* Follow-the-system has two palettes and no single answer, so it shows both,
+   split down the middle the way the setting actually behaves. */
+.theme-swatch-pair {
+	position: relative;
+}
+
+.theme-swatch-pair .half {
+	position: absolute;
+	inset: 0;
+	width: 50%;
+	overflow: hidden;
+}
+
+.theme-swatch-pair .half svg {
+	width: 200%;
+	height: 100%;
+}
+
+.theme-swatch-pair .half.right {
+	left: 50%;
+}
+
+.theme-swatch-pair .half.right svg {
+	margin-left: -100%;
+}
+
+.theme-name {
+	font-weight: 600;
+	padding: 0 2px;
+}
+
+.theme-credit {
+	font-size: 11px;
+	color: var(--fg-faint);
+	padding: 0 2px 2px;
+	min-height: 14px;
+}
+
+.role-table {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 2px 16px;
+}
+
+.role {
+	display: grid;
+	grid-template-columns: 14px 118px 1fr;
+	gap: 8px;
+	align-items: center;
+	padding: 3px 0;
+}
+
+.role .chip {
+	width: 14px;
+	height: 14px;
+	border-radius: 3px;
+	border: 1px solid var(--border-strong);
+}
+
+.role span:last-child {
+	color: var(--fg-faint);
+}
+
+/* -------------------------------------------------------------- licences */
+
+.licence h3 .spdx {
+	font-weight: 400;
+	font-size: 11px;
+	color: var(--fg-faint);
+	border: 1px solid var(--capsule-border);
+	background: var(--capsule-bg);
+	border-radius: 3px;
+	padding: 1px 5px;
+	margin-left: 6px;
+	vertical-align: middle;
+}
+
+.licence-text {
+	margin: 0 0 18px;
+	padding: 12px 14px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-size: 11px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	color: var(--fg-muted);
+	max-height: 260px;
+	overflow: auto;
 }
