@@ -140,6 +140,21 @@ export const FLOW_NODES: NodeDef[] = [
 		},
 	},
 	{
+		id: "type.define",
+		title: "Define Type",
+		category: "Flow",
+		summary:
+			"Declares a Luau type at the top of the generated file. Export it and other modules can " +
+			"use it with `require`. The definition is written as Luau, the way Custom Code is, " +
+			"because a type is not built from values and there are no nodes to build one from — " +
+			"`{ speed: number }`, `\"a\" | \"b\"`, or `typeof(Tuning)` to follow a variable.",
+		role: "terminal",
+		inputs: [],
+		outputs: [],
+		compilesTo: { kind: "builtin", handler: "type.define" },
+		subtitle: (config) => (config.name as string) || undefined,
+	},
+	{
 		id: "module.exports",
 		title: "Module Exports",
 		category: "Flow",

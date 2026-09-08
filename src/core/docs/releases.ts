@@ -46,6 +46,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.19.2",
+		date: "2026-09-08",
+		headline: "Declare Luau types, and make a variable without leaving the node.",
+		added: [
+			"**Define Type.** Writes `export type Name = …` at the top of the generated file, above the variables. Untick Export and it stays inside the module. The definition is written as Luau — a type is not built out of values, so `{ speed: number }` describes something no wire can carry.",
+			"**Type Of**, Roblox's `typeof`. A `Vector3` answers `\"Vector3\"` where Lua's `type` only says `\"userdata\"`. For `typeof(x)` *inside* a type, write it in a Define Type definition — that one is a type expression, not a call.",
+			"**New…** beside the variable picker on Get, Set and Initialize Variable. Initialize Variable could not be used at all until you had been to the Variables panel and made one first.",
+		],
+		fixed: [
+			"**Renaming a variable left an Initialize Variable node showing the old name**, the usage count did not include those nodes, and deleting a variable only used by one gave no warning. Every node that points at a variable is now counted the same way.",
+		],
+		watch: [
+			"A type name is reserved against variables and locals. Luau keeps types and values in separate namespaces and would allow both; a reader would not thank you for it.",
+		],
+	},
+	{
 		version: "0.19.1",
 		date: "2026-09-08",
 		headline: "Declare a variable where you build its value.",

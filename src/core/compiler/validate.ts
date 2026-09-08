@@ -230,9 +230,10 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	// -- reachability ------------------------------------------------------
 	const reachable = new Set<string>();
 	const queue = entries.map((e) => e.node.id);
-	// Terminal nodes are roots too: Module Exports is not wired into exec.
+	// Terminal nodes are roots too: Module Exports is not wired into exec, and a
+	// Define Type has no pins at all -- it declares, it does not run.
 	for (const r of index.all()) {
-		if (r.def.id === "module.exports") queue.push(r.node.id);
+		if (r.def.id === "module.exports" || r.def.id === "type.define") queue.push(r.node.id);
 	}
 	while (queue.length) {
 		const id = queue.pop()!;

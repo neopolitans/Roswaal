@@ -187,3 +187,96 @@ describe("how big a dictionary can be", () => {
 		expect(out).toContain('["key9"] = 9');
 	});
 });
+
+/**
+ * Type declarations, which have no runtime form at all.
+ *
+ * A ModuleScript that hands back a table usually hands back a type with it, and
+ * `export type Config = { movementSpeed: number }` was not expressible: it is
+ * not a value, so there was nothing to wire. The definition is written as Luau
+ * for that reason rather than as a shortcut — `{ speed: number }` describes
+ * something no wire can carry.
+ */
+describe("Define Type", () => {
+	function typeNode(config: Record<string, unknown>): NodeScript {
+		const b = new Builder();
+		b.node("script.begin");
+		b.node("type.define", { config });
+		return b.build();
+	}
+
+	it("writes an export type at the top of the file", () => {
+		expect(code(typeNode({ name: "Config", definition: "{ movementSpeed: number }" })))
+			.toContain("export type Config = { movementSpeed: number }");
+	});
+
+	/** The case that prompted it: a type following a variable it cannot see. */
+	it("takes a typeof as its definition, because the definition is Luau", () => {
+		expect(code(typeNode({ name: "Tuning", definition: "typeof(Tuning)" })))
+			.toContain("export type Tuning = typeof(Tuning)");
+	});
+
+	it("keeps it to the module when export is off", () => {
+		const out = code(typeNode({ name: "Internal", definition: "number", export: false }));
+		expect(out).toContain("type Internal = number");
+		expect(out).not.toContain("export type");
+	});
+
+	it("comes before the variables, which may be annotated with it", () => {
+		const b = new Builder();
+		b.variable("speed", "number", { t: "number", v: 44 });
+		b.node("script.begin");
+		b.node("type.define", { config: { name: "Speed", definition: "number" } });
+		const out = code(b.build());
+		expect(out.indexOf("export type Speed")).toBeLessThan(out.indexOf("local speed"));
+	});
+
+	it("is not reported as unconnected, having nothing to connect to", () => {
+		const out = compile(typeNode({ name: "Config", definition: "number" }), registry);
+		expect(out.diagnostics.map((d) => d.message).join(" ")).not.toContain("not connected");
+	});
+});
+
+describe("what Define Type refuses", () => {
+	const only = (config: Record<string, unknown>) => {
+		const b = new Builder();
+		b.node("script.begin");
+		b.node("type.define", { config });
+		return errors(b.build()).join(" ");
+	};
+
+	it("wants both halves before it writes anything", () => {
+		expect(only({ name: "Config" })).toContain("needs both a name and a definition");
+		expect(only({ definition: "number" })).toContain("needs both a name and a definition");
+	});
+
+	/** Whatever is typed here lands in the file verbatim, so the name is checked. */
+	it("will not take a name Luau would reject", () => {
+		expect(only({ name: "2Fast", definition: "number" })).toContain("not a name Luau will take");
+		expect(only({ name: "has space", definition: "number" })).toContain("not a name Luau will take");
+	});
+
+	it("will not declare the same type twice", () => {
+		const b = new Builder();
+		b.node("script.begin");
+		b.node("type.define", { config: { name: "Config", definition: "number" } });
+		b.node("type.define", { config: { name: "Config", definition: "string" } });
+		expect(errors(b.build()).join(" ")).toContain("declared more than once");
+	});
+});
+
+describe("Type Of", () => {
+	it("is Roblox's typeof, not Lua's type", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const value = b.node("value.string");
+		const kind = b.node("value.typeof");
+		const declare = b.node("local.declare");
+		b.lit(declare, "name", { t: "string", v: "kind" });
+		b.link(start, "then", declare, "in");
+		b.link(value, "result", kind, "value");
+		b.link(kind, "result", declare, "value");
+
+		expect(code(b.build())).toMatch(/local kind = typeof\(/);
+	});
+});

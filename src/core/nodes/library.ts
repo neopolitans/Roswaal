@@ -289,6 +289,11 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("value.string", "String", "Values", "$in.value", [str("value", "")], "string"),
 	pure("value.boolean", "Boolean", "Values", "$in.value", [bool("value", "")], "boolean"),
 	pure("value.nil", "Nil", "Values", "nil", [], "any"),
+	pure("value.typeof", "Type Of", "Values", "typeof($in.value)",
+		[d("value", "Value", "any")], "string",
+		"Roblox's `typeof`, which knows its own datatypes -- a Vector3 answers \"Vector3\" where " +
+		"Lua's `type` only says \"userdata\". This is the runtime one; for `typeof(x)` inside a " +
+		"type, write it in a Define Type node's definition."),
 	{
 		id: "value.expression",
 		title: "Luau Expression",

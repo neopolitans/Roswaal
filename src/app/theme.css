@@ -1211,6 +1211,27 @@ button.tb.primary:hover:not(:disabled) {
 	text-align: center;
 }
 
+/* A field whose control has something beside it -- the variable picker and its
+   "New..." button. The select takes the room and the button takes what it
+   needs, so a long variable name does not push the button off the panel. */
+.inspector .field-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+/* A Luau type, typed rather than wired. Monospace because it is code, and
+   resizable vertically because a union of six string literals is a real type
+   and three rows is not enough for it. */
+.inspector textarea.type-definition {
+	width: 100%;
+	font-family: var(--mono);
+	font-size: 11px;
+	line-height: 1.5;
+	resize: vertical;
+}
+
 /* The two halves of a project: what you author, and what Roswaal writes. Styled
    as a heading rather than as a folder, because it is not one -- there is no
    such directory, and making it look like a row would invite you to right-click

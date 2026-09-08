@@ -594,6 +594,17 @@ export function defaultLiteralFor(type: string): Literal {
 	return DEFAULTS_BY_TYPE[type] ?? { t: "nil" };
 }
 
+/**
+ * Every node that points at a script variable by id.
+ *
+ * One set rather than a condition repeated at each site, because it was three
+ * of them and `variable.init` arriving made every one of them wrong at once: a
+ * rename left the node showing the old name, the usage count said a variable
+ * nothing used was safe to delete, and deleting it left a node pointing at
+ * nothing.
+ */
+const VARIABLE_NODES = new Set(["variable.get", "variable.set", "variable.init"]);
+
 export function addVariable(
 	script: NodeScript, name = "newVariable", type = "number", initial?: Literal,
 ): { script: NodeScript; id: string } {
@@ -635,7 +646,7 @@ export function updateVariable(
 		...script,
 		variables: script.variables.map((v) => (v.id === id ? updated : v)),
 		nodes: script.nodes.map((node) => {
-			if (node.def !== "variable.get" && node.def !== "variable.set") return node;
+			if (!VARIABLE_NODES.has(node.def)) return node;
 			if ((node.config as { variable?: string } | undefined)?.variable !== id) return node;
 			return { ...node, config: { ...node.config, name: updated.name, type: updated.type } };
 		}),
@@ -646,7 +657,7 @@ export function updateVariable(
 export function variableUsageCount(script: NodeScript, id: string): number {
 	return script.nodes.filter(
 		(n) =>
-			(n.def === "variable.get" || n.def === "variable.set") &&
+			VARIABLE_NODES.has(n.def) &&
 			(n.config as { variable?: string } | undefined)?.variable === id,
 	).length;
 }

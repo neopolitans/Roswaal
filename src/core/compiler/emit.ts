@@ -140,6 +140,7 @@ class Emitter {
 	run(): EmitResult {
 		const root = new Scope();
 
+		this.emitTypes();
 		this.emitVariables();
 		this.emitFunctions(root);
 		this.emitMainFlow(root);
@@ -307,6 +308,61 @@ class Emitter {
 	 * declaration order rather than sorted, because the order is the author's
 	 * and shows up in the generated file.
 	 */
+	/**
+	 * `type` and `export type` declarations, at the very top.
+	 *
+	 * Before the variables, because a variable may well be annotated with one
+	 * and Luau reads a file in order. They are not part of any flow — a type
+	 * declares nothing that runs — so they are collected from the graph rather
+	 * than reached by walking it, the same way Module Exports is.
+	 *
+	 * The definition is written as Luau. A type is not built out of values, so
+	 * there is nothing for a node to be: `{ speed: number }` has no runtime
+	 * meaning to wire up. This is the same escape hatch Custom Code is, and it
+	 * is the honest one here rather than a shortcut.
+	 */
+	private emitTypes(): void {
+		const nodes = this.index.all().filter((r) => r.def.id === "type.define");
+		if (nodes.length === 0) return;
+
+		const declared = new Set<string>();
+		let written = 0;
+		for (const r of nodes) {
+			const config = (r.node.config ?? {}) as {
+				name?: string; definition?: string; export?: boolean;
+			};
+			const name = (config.name ?? "").trim();
+			const definition = (config.definition ?? "").trim();
+			if (name === "" || definition === "") {
+				this.error(
+					"Define Type needs both a name and a definition before it can be written.",
+					r.node.id,
+				);
+				continue;
+			}
+			if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+				this.error(
+					`"${name}" is not a name Luau will take for a type. Letters, digits and ` +
+					"underscores, not starting with a digit.",
+					r.node.id,
+				);
+				continue;
+			}
+			if (declared.has(name)) {
+				this.error(`The type "${name}" is declared more than once.`, r.node.id);
+				continue;
+			}
+			declared.add(name);
+			// Reserved so a variable or local can never be given the same
+			// identifier: Luau keeps types and values apart, but a reader does not.
+			this.names.reserve(name);
+			const prefix = config.export === false ? "type" : "export type";
+			this.push(`${prefix} ${name} = ${definition}`, r.node.id);
+			written++;
+		}
+		if (written > 0) this.blank();
+	}
+
 	private emitVariables(): void {
 		const variables = this.script.variables ?? [];
 		if (variables.length === 0) return;

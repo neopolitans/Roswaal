@@ -13,7 +13,7 @@ import type { Signature } from "../core/nodes/index.js";
 import { resolvePins } from "./geometry.js";
 import { nodeColor } from "./palette.js";
 import {
-	bindNodeToFunction, bindNodeToVariable, renameNode, setConfig,
+	addVariable, bindNodeToFunction, bindNodeToVariable, renameNode, setConfig,
 	syncFunctionRefs, syncFunctionReturns,
 } from "./edits.js";
 import { store } from "./store.js";
@@ -97,7 +97,10 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				{(def.id === "call.function" || def.id === "call.method") && (
 					<CountEditor node={node} field="args" label="Arguments" min={0} max={8} fallback={1} />
 				)}
-				{(def.id === "variable.get" || def.id === "variable.set") && (
+				{def.id === "type.define" && <TypeEditor node={node} />}
+				{(def.id === "variable.get"
+					|| def.id === "variable.set"
+					|| def.id === "variable.init") && (
 					<VariablePicker script={script} node={node} />
 				)}
 				{def.id === "function.get" && <FunctionPicker script={script} node={node} />}
@@ -133,30 +136,95 @@ function FunctionEditor({ node }: { node: GraphNode }) {
 	);
 }
 
+/**
+ * The Luau type a Define Type node writes out.
+ *
+ * The definition is a textarea rather than a set of pins, and that is the
+ * honest shape: a type is not built out of values, so there is nothing for a
+ * node to be. `{ speed: number }` describes something no wire can carry.
+ */
+function TypeEditor({ node }: { node: GraphNode }) {
+	const config = (node.config ?? {}) as { name?: string; definition?: string; export?: boolean };
+	return (
+		<>
+			<Field label="Type name">
+				<input
+					className="tb"
+					value={config.name ?? ""}
+					placeholder="Config"
+					onChange={(e) => store.edit((s) => setConfig(s, node.id, { name: e.target.value }))}
+				/>
+			</Field>
+			<Field label="Definition">
+				<textarea
+					className="tb type-definition"
+					rows={3}
+					spellCheck={false}
+					value={config.definition ?? ""}
+					placeholder="{ movementSpeed: number }"
+					onChange={(e) => store.edit((s) => setConfig(s, node.id, { definition: e.target.value }))}
+				/>
+			</Field>
+			<Field label="Export">
+				<label style={{ cursor: "pointer" }}>
+					<input
+						type="checkbox"
+						checked={config.export !== false}
+						onChange={(e) => store.edit((s) => setConfig(s, node.id, { export: e.target.checked }))}
+					/>{" "}
+					other modules can use it
+				</label>
+			</Field>
+		</>
+	);
+}
+
 function VariablePicker({ script, node }: { script: NodeScript; node: GraphNode }) {
 	const current = (node.config as { variable?: string } | undefined)?.variable ?? "";
-	if (script.variables.length === 0) {
-		return (
-			<p className="summary">
-				This graph has no variables yet. Add one in the Variables panel and this node will be able
-				to point at it.
-			</p>
-		);
-	}
+
+	/**
+	 * Making the variable from here, rather than sending you to the panel.
+	 *
+	 * Initialize Variable is the node that showed this up: it exists to give a
+	 * variable its first value, and it could not be used at all until you had
+	 * been somewhere else and made one. The name is asked for rather than typed
+	 * into a pin because a pin's literal is inert data — a literal that created
+	 * a variable as a side effect would put the name in two places and leave
+	 * them to drift.
+	 */
+	const create = () => {
+		const name = window.prompt("Name the new variable", "newVariable");
+		if (name === null || name.trim() === "") return;
+		store.edit((s) => {
+			const added = addVariable(s, name.trim(), "any");
+			return bindNodeToVariable(added.script, node.id, added.id);
+		});
+	};
+
 	return (
 		<Field label="Variable">
-			<select
-				className="tb"
-				value={current}
-				onChange={(e) => store.edit((s) => bindNodeToVariable(s, node.id, e.target.value))}
-			>
-				{current === "" && <option value="">Choose a variable…</option>}
-				{script.variables.map((v) => (
-					<option key={v.id} value={v.id}>
-						{v.name} : {v.type}
-					</option>
-				))}
-			</select>
+			<div className="field-row">
+				<select
+					className="tb"
+					style={{ flex: 1 }}
+					value={current}
+					onChange={(e) => store.edit((s) => bindNodeToVariable(s, node.id, e.target.value))}
+				>
+					{current === "" && (
+						<option value="">
+							{script.variables.length === 0 ? "No variables yet…" : "Choose a variable…"}
+						</option>
+					)}
+					{script.variables.map((v) => (
+						<option key={v.id} value={v.id}>
+							{v.name} : {v.type}
+						</option>
+					))}
+				</select>
+				<button className="tb" title="Make a variable and point this node at it" onClick={create}>
+					New…
+				</button>
+			</div>
 		</Field>
 	);
 }
