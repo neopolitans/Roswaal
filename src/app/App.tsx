@@ -32,10 +32,7 @@ import { VariablesPanel } from "./VariablesPanel.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays } from "./Overlays.jsx";
 import { Workspace } from "./Workspace.jsx";
-import {
-	clampLayout, DEFAULT_LAYOUT, resizeDock, toggleDock,
-	type DockSide, type Layout,
-} from "./panels.js";
+import { clampLayout, resizeDock, toggleDock, type DockSide } from "./panels.js";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
@@ -106,48 +103,79 @@ export function App() {
 	 */
 	const [prefs, setPrefs] = useState<Preferences>(readPreferences);
 	const [settingsOpen, setSettingsOpen] = useState(false);
-	/**
-	 * Where the panels are.
-	 *
-	 * Local state for now; slice 3 moves it into `preferences.ts` so it
-	 * survives a reload. Keeping it here first means the grid can be proven
-	 * before anything is persisted, and a layout bug cannot be stored.
-	 */
-	const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
+	const layout = prefs.layout;
 
 	/**
 	 * The window got smaller, so the docks give way.
 	 *
 	 * Without this a layout that was fine on a wide window keeps its dock sizes
 	 * when the window narrows, and the centre is squeezed to nothing -- with the
-	 * splitters that would fix it pushed off the edge. Clamping on resize means
-	 * the editor cannot be put into a state it has no way out of.
+	 * splitters that would fix it pushed off the edge. It runs once on mount
+	 * too, which is where a layout restored from a wider monitor is brought back
+	 * inside this one.
+	 *
+	 * Not persisted as it goes. A window being dragged smaller fires this
+	 * continuously, and a narrow window is usually temporary -- writing each
+	 * step would trade the sizes somebody chose for the ones a resize happened
+	 * to end on.
 	 */
 	useEffect(() => {
 		const onResize = () =>
-			setLayout((current) => clampLayout(current, window.innerWidth, window.innerHeight));
+			setPrefs((current) => ({
+				...current,
+				layout: clampLayout(current.layout, window.innerWidth, window.innerHeight),
+			}));
 		onResize();
 		window.addEventListener("resize", onResize);
 		return () => window.removeEventListener("resize", onResize);
 	}, []);
 
+	/**
+	 * A splitter is being dragged: update, but do not write.
+	 *
+	 * This fires on every pointer move, and `writePreferences` serialises the
+	 * whole blob and hits `localStorage` synchronously. Sixty of those a second
+	 * to store an intermediate width nobody asked to keep is work done for a
+	 * value that is about to be replaced.
+	 */
 	const onDockResize = useCallback((side: DockSide, size: number) => {
-		setLayout((current) =>
-			resizeDock(current, side, size, window.innerWidth, window.innerHeight),
-		);
+		setPrefs((current) => ({
+			...current,
+			layout: resizeDock(current.layout, side, size, window.innerWidth, window.innerHeight),
+		}));
 	}, []);
 
+	/** The drag finished, so the size somebody chose is worth keeping. */
+	const onDockResizeEnd = useCallback(() => {
+		setPrefs((current) => {
+			writePreferences(current);
+			return current;
+		});
+	}, []);
+
+	/** Collapsing is one decision rather than a stream, so it is written at once. */
 	const onDockToggle = useCallback((side: DockSide) => {
-		setLayout((current) => toggleDock(current, side));
+		setPrefs((current) => {
+			const next = { ...current, layout: toggleDock(current.layout, side) };
+			writePreferences(next);
+			return next;
+		});
 	}, []);
 	/** The selection preview, which is opened deliberately and never sits open. */
 	const [previewOpen, setPreviewOpen] = useState(false);
 	const alignExec = prefs.alignExec;
 
-	const updatePrefs = useCallback((patch: Partial<Preferences>) => {
+	/**
+	 * Changes a preference, and by default stores it.
+	 *
+	 * `persist` is the exception for a value that arrives as a stream rather
+	 * than as a decision -- a dock size mid-drag, or a clamp while a window is
+	 * being resized. Those update the editor and are written when they settle.
+	 */
+	const updatePrefs = useCallback((patch: Partial<Preferences>, persist = true) => {
 		setPrefs((current) => {
 			const next = { ...current, ...patch };
-			writePreferences(next);
+			if (persist) writePreferences(next);
 			if ("theme" in patch) applyTheme(findTheme(next.theme));
 			if ("roundedNodes" in patch) applyChrome(next);
 			return next;
@@ -960,6 +988,7 @@ export function App() {
 			<Workspace
 				layout={layout}
 				onResize={onDockResize}
+				onResizeEnd={onDockResizeEnd}
 				onToggle={onDockToggle}
 				contents={{
 					tree: (

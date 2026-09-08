@@ -38,6 +38,7 @@
  */
 
 import type { WireStyle } from "./geometry.js";
+import { DEFAULT_LAYOUT, readLayout, type Layout } from "./panels.js";
 
 const KEY = "roswaal.preferences";
 
@@ -88,6 +89,19 @@ export interface Preferences {
 	 * would delete the signal.
 	 */
 	roundedNodes: boolean;
+	/**
+	 * Where the panels are: which dock each is in, and how big each dock is.
+	 *
+	 * Only the **shape**. Which documents were open is deliberately not stored:
+	 * a graph may have moved since, and restoring four of them means four
+	 * fetches before the editor is usable, to arrive at yesterday's windows.
+	 *
+	 * One layout rather than one per project. `localStorage` is per origin and
+	 * the daemon serves one project at a time, so this is very nearly
+	 * per-project already, and the alternative is a map keyed by absolute path
+	 * that grows every time somebody opens a repository once.
+	 */
+	layout: Layout;
 }
 
 export const AUTOSAVE_CHOICES = [
@@ -110,6 +124,7 @@ export const DEFAULTS: Preferences = {
 	reopenLastProject: true,
 	wireStyle: "curved",
 	roundedNodes: true,
+	layout: DEFAULT_LAYOUT,
 };
 
 /**
@@ -147,6 +162,10 @@ export function readPreferences(): Preferences {
 			: DEFAULTS.wireStyle,
 		roundedNodes:
 			typeof stored.roundedNodes === "boolean" ? stored.roundedNodes : DEFAULTS.roundedNodes,
+		// `readLayout` keeps whatever is valid and defaults the rest, field by
+		// field, so a layout written by an older version loses only what it got
+		// wrong rather than being thrown away whole.
+		layout: readLayout(stored.layout),
 	};
 	return prefs;
 }

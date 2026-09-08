@@ -51,12 +51,20 @@ export interface WorkspaceProps {
 	floating?: ReactNode;
 	/** A dock was dragged to a new size. Absent means the splitters are inert. */
 	onResize?: (side: DockSide, size: number) => void;
+	/**
+	 * The drag finished.
+	 *
+	 * Separate from `onResize` so a caller can update as the pointer moves and
+	 * store the result only once, rather than writing sixty intermediate widths
+	 * a second that nobody asked to keep.
+	 */
+	onResizeEnd?: () => void;
 	/** A splitter was double-clicked: collapse the dock, or bring it back. */
 	onToggle?: (side: DockSide) => void;
 }
 
 export function Workspace({
-	layout, contents, centre, floating, onResize, onToggle,
+	layout, contents, centre, floating, onResize, onResizeEnd, onToggle,
 }: WorkspaceProps) {
 	/**
 	 * A panel with nothing to draw is not open.
@@ -106,6 +114,7 @@ export function Workspace({
 						side={side}
 						size={effective.docks[side].size}
 						onResize={(size) => onResize(side, size)}
+						onResizeEnd={onResizeEnd}
 						onToggle={() => onToggle(side)}
 					/>
 				) : null,
@@ -167,11 +176,12 @@ function Dock({
  * five-pixel strip.
  */
 function Splitter({
-	side, size, onResize, onToggle,
+	side, size, onResize, onResizeEnd, onToggle,
 }: {
 	side: DockSide;
 	size: number;
 	onResize: (size: number) => void;
+	onResizeEnd?: () => void;
 	onToggle: () => void;
 }) {
 	const axis = side === "bottom" ? "row" : "col";
@@ -198,6 +208,7 @@ function Splitter({
 			handle.removeEventListener("pointermove", move);
 			handle.removeEventListener("pointerup", up);
 			handle.removeEventListener("pointercancel", up);
+			onResizeEnd?.();
 		};
 
 		handle.addEventListener("pointermove", move);
