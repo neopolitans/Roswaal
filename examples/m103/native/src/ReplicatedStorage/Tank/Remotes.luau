@@ -59,9 +59,9 @@ end
 	Whether a packet is the shape this build expects.
 
 	A client can send anything at all, so every field is checked before it
-	reaches the controller. `aim` in particular ends up in the turret's
-	`Transform`, and a NaN there leaves the model drawn at no position anybody
-	can find — `v ~= v` is the only test for one.
+	reaches the controller. `aim` in particular ends up in the turret joint's
+	`C0`, and a NaN there leaves the model drawn at no position anybody can
+	find — `v ~= v` is the only test for one.
 ]]
 function Remotes.valid(packet: unknown): boolean
 	if typeof(packet) ~= "table" then

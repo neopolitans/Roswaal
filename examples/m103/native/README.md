@@ -25,11 +25,18 @@ Underneath, approach C as settled in [`../NOTES.md`](../NOTES.md):
 - **The hull is anchored and CFrame-driven.** Each frame it yaws, moves along
   its own heading, then a downward raycast puts it on the ground and aligns it
   to the slope.
-- **The turret traverses** by writing the `Main` joint's `Transform`, toward the
-  bearing of the camera's look direction in the hull's own space.
-- **The gun elevates** by writing the `Mantlet` joint's `Transform`, clamped to
-  the real M103's −8° to +15°. The barrel rides the mantlet, which is why the
-  mantlet is in the joint chain at all.
+- **The throttle is a throttle, not a speed.** Five seconds to full pace and two
+  and a half to lose it, so letting go of W coasts rather than stops, and
+  reverse tops out at under half of forward. That ramp is most of what makes
+  sixty tons feel like sixty tons.
+- **The turret traverses** by turning the `Main` joint, toward the bearing of
+  the camera's look direction in the hull's own space.
+- **The gun elevates** by turning the `Mantlet` joint, clamped to +10°/−7°. The
+  barrel rides the mantlet, which is why the mantlet is in the joint chain.
+- Both are turned by writing **`C0`**, not `Transform`. `Transform` is the
+  property that exists for this and is what the animation system uses — and it
+  does not replicate, so a turret turned that way on the server may not move for
+  anyone watching.
 - Both are **rate-limited rather than snapped**, and that limit is most of what
   makes a turret feel like it weighs sixty tons: the camera arrives instantly,
   the gun takes a moment, and the lag between them is the tank.

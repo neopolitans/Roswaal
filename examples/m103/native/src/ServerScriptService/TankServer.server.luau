@@ -3,7 +3,7 @@
 	The M103, driven server-side. Approach C, as settled in
 	`examples/m103/NOTES.md`: the hull stays anchored and has its `CFrame`
 	written each frame onto whatever a downward raycast finds, and the turret and
-	gun are joints whose `Transform` is written.
+	gun are joints whose rotation is written.
 
 	**This is the baseline.** It exists to be rebuilt as a Roswaal graph and
 	compared — so it is written the way a competent Roblox developer would write
@@ -90,6 +90,12 @@ local rightScroll = 0
 --- The surface normal the hull is currently sitting on, eased toward the real one.
 local groundNormal = Vector3.yAxis
 
+--- Studs per second along the hull's forward. Signed; negative is reverse.
+local speed = 0
+
+--- What an unoccupied tank is asking for: nothing. The aim is never read while
+--- there is no driver — the turret holds where it was left — but the field has
+--- to hold a direction rather than a zero vector.
 local idle: Remotes.Input = {
 	throttle = 0,
 	steer = 0,
@@ -254,6 +260,36 @@ end
 -- The frame
 -- ---------------------------------------------------------------------------
 
+--[[
+	Winds `speed` toward what the throttle is asking for.
+
+	A tank does not have a speed, it has a *throttle*, and the difference is the
+	whole feel of driving one: sixty tons takes five seconds to reach full pace
+	and rather less to lose it, so letting go of W coasts rather than stops.
+
+	Two rates rather than one, because accelerating and braking are different
+	systems on a real vehicle and behave differently — and because a tank that
+	slowed as reluctantly as it sped up would be miserable to park.
+]]
+local function accelerate(dt: number): number
+	local top = config.movementSpeed
+		* (if latest.throttle < 0 then tuning.reverseFraction else 1)
+	local target = latest.throttle * top
+
+	-- Braking is anything that reduces the gap to zero: letting off, and also
+	-- pushing the other way, which on a tank is the same set of brakes before it
+	-- is a gear change.
+	local closing = math.abs(target) < math.abs(speed) or target * speed < 0
+	local seconds = if closing then tuning.brakingTime else tuning.accelerationTime
+	local rate = config.movementSpeed / math.max(seconds, 1e-3)
+
+	local step = rate * dt
+	if math.abs(target - speed) <= step then
+		return target
+	end
+	return speed + (if target > speed then step else -step)
+end
+
 local function drive(dt: number): number
 	local hullCF = rig.hull.CFrame
 
@@ -265,7 +301,8 @@ local function drive(dt: number): number
 	-- is better than normalising a zero vector into NaN and losing the model.
 	flat = if flat.Magnitude > 1e-4 then flat.Unit else hullCF.LookVector
 
-	local nextPos = hullCF.Position + flat * (latest.throttle * config.movementSpeed * dt)
+	speed = accelerate(dt)
+	local nextPos = hullCF.Position + flat * (speed * dt)
 
 	local hit = workspace:Raycast(
 		nextPos + Vector3.yAxis * PROBE_UP,
@@ -316,7 +353,7 @@ local function aimTurret(dt: number)
 	local localAim = hullCF:VectorToObjectSpace(latest.aim)
 	local desiredYaw = math.atan2(-localAim.X, -localAim.Z)
 	turretYaw = stepAngle(turretYaw, desiredYaw, math.rad(tuning.traverseRate) * dt)
-	rig.traverse.Transform = CFrame.Angles(0, turretYaw, 0)
+	rig.traverse.C0 = rig.traverseRest * CFrame.Angles(0, turretYaw, 0)
 
 	-- Elevation: the same direction, measured in the *turret's* space, so the
 	-- traverse the gun has already been given is not counted twice.
@@ -329,7 +366,7 @@ local function aimTurret(dt: number)
 		math.rad(tuning.maxElevation)
 	)
 	gunPitch = stepAngle(gunPitch, desiredPitch, math.rad(tuning.elevationRate) * dt)
-	rig.elevate.Transform = CFrame.Angles(gunPitch, 0, 0)
+	rig.elevate.C0 = rig.elevateRest * CFrame.Angles(gunPitch, 0, 0)
 end
 
 --[[
@@ -372,7 +409,10 @@ end
 	track running forward and the other back, and that reads instantly as a tank.
 ]]
 local function scrollTracks(dt: number, yawRate: number)
-	local forward = latest.throttle * config.movementSpeed
+	-- The speed the tank is actually doing, not the one the throttle is asking
+	-- for. Scrolling by the request would run the treads at full pelt while the
+	-- tank was still pulling away, which reads as the tracks slipping.
+	local forward = speed
 	-- A track offset +X from the hull's centre gains speed from a positive yaw
 	-- rate, and `leftSign` says which of the two named tracks that is.
 	local swing = yawRate * rig.halfTrackWidth * rig.leftSign
@@ -387,7 +427,12 @@ end
 -- angle of the last slope it was on.
 RunService.Heartbeat:Connect(function(dt)
 	local yawRate = drive(dt)
-	aimTurret(dt)
+	-- Only while somebody is looking. An empty tank holds the turret where its
+	-- last driver left it, rather than creeping back toward a heading nothing is
+	-- asking for.
+	if driver then
+		aimTurret(dt)
+	end
 	scrollTracks(dt, yawRate)
 end)
 

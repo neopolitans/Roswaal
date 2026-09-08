@@ -31,14 +31,22 @@ export type Config = {
 local TUNING = {
 	--- Degrees per second the hull yaws at full steer.
 	turnRate = 45,
+	--- Seconds from a standstill to full speed. Sixty tons does not leap.
+	accelerationTime = 5,
+	--- Seconds from full speed back to a standstill. Shorter than accelerating:
+	--- a tank has brakes and does not have much power.
+	brakingTime = 2.5,
+	--- Reverse tops out at this fraction of forward speed.
+	reverseFraction = 0.45,
 	--- Degrees per second the turret traverses. Slow on purpose: a turret that
 	--- snaps to the camera is a turret nobody believes weighs sixty tons.
 	traverseRate = 30,
 	--- Degrees per second the gun elevates.
 	elevationRate = 16,
-	--- The real M103 depressed 8 degrees and elevated 15.
-	minElevation = -8,
-	maxElevation = 15,
+	--- The gun's own limits, in degrees. Set by the author for the demo rather
+	--- than taken from the real vehicle.
+	minElevation = -7,
+	maxElevation = 10,
 	--- How far above the ground the tracks sit, to stop them clipping into it.
 	groundClearance = 0.05,
 	--- How close you have to be for the prompt to appear. The tank is 22 studs

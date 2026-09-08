@@ -11,9 +11,16 @@
 		                                                     |
 		                                                  [Gun] --> Weapon.Gun
 
-	Traverse writes `Main.Transform`, elevation writes `Mantlet.Transform`, and
-	the `Gun` joint is never written — the barrel rides the mantlet, which is the
+	Traverse turns the `Main` joint, elevation turns the `Mantlet` joint, and the
+	`Gun` joint is never touched — the barrel rides the mantlet, which is the
 	whole reason the mantlet is in the chain.
+
+	Both are turned by writing **`C0`**, composed onto the rest pose captured
+	here. The obvious property is `Transform`, which exists for exactly this and
+	which the animation system uses — but `Transform` is not a replicated
+	property, so a turret turned that way on the server is a turret the people
+	watching may not see move. `C0` replicates, and a demo that only works in one
+	window is not a demo.
 
 	## Why this is a separate module
 
@@ -38,6 +45,16 @@ export type Tank = {
 	traverse: Motor6D,
 	--- Rotated about X to elevate. The mantlet and the gun both follow it.
 	elevate: Motor6D,
+	--[[
+		Each joint's `C0` as the model was built, before anything turned it.
+
+		Aiming multiplies the rotation onto these rather than onto whatever the
+		joint currently holds, so the angles are absolute and a frame that is
+		skipped or repeated cannot make the turret drift. Composing onto the
+		current value would integrate every rounding error the run produces.
+	]]
+	traverseRest: CFrame,
+	elevateRest: CFrame,
 	leftTrack: BasePart,
 	rightTrack: BasePart,
 	--[[
@@ -77,6 +94,8 @@ function Rig.resolve(model: Model): Tank
 	local gun = need(weapon, "Gun", "BasePart") :: BasePart
 	local leftTrack = need(hullModel, "LeftTrack", "BasePart") :: BasePart
 	local rightTrack = need(hullModel, "RightTrack", "BasePart") :: BasePart
+	local traverse = need(hull, "Main", "Motor6D") :: Motor6D
+	local elevate = need(turret, "Mantlet", "Motor6D") :: Motor6D
 
 	local rig: Tank = {
 		model = model,
@@ -84,8 +103,10 @@ function Rig.resolve(model: Model): Tank
 		turret = turret,
 		mantlet = mantlet,
 		gun = gun,
-		traverse = need(hull, "Main", "Motor6D") :: Motor6D,
-		elevate = need(turret, "Mantlet", "Motor6D") :: Motor6D,
+		traverse = traverse,
+		elevate = elevate,
+		traverseRest = traverse.C0,
+		elevateRest = elevate.C0,
 		leftTrack = leftTrack,
 		rightTrack = rightTrack,
 		rideHeight = (hull.Position.Y - leftTrack.Position.Y) + leftTrack.Size.Y / 2,

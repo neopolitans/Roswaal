@@ -188,8 +188,10 @@ Hull.Hull ──[Motor6D "Main"]──▶ Turret.Main
                           Turret.Weapon.Gun
 ```
 
-**Elevation is now the `Mantlet` joint's `Transform`,** and its `C0` is the
-trunnion. The gun hangs off the mantlet at a fixed offset and rides along.
+**Elevation is now the `Mantlet` joint**, whose rest `C0` is the trunnion. The
+gun hangs off the mantlet at a fixed offset and rides along. *(The demo turns
+the joint by writing `C0` rather than `Transform` — see the conversion log for
+why.)*
 
 Why this beats re-basing the gun's joint: it moves the **mantlet too**. The
 suggestion above would have swung the gun about the right point while leaving
