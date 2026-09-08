@@ -485,18 +485,50 @@ class Emitter {
 		return this.index.execTarget(r.node.id, "then");
 	}
 
+	/**
+	 * A statement node, whose data outputs are locals the template assigns to.
+	 *
+	 * ## Why every *referenced* output is declared, not every consumed one
+	 *
+	 * A node returning several values assigns to all of them at once —
+	 * `$out.h, $out.s, $out.v = $in.color:ToHSV()` — whether or not anything is
+	 * wired to each. Declaring only the consumed ones left the rest as bare
+	 * names on the left of an assignment, which in Luau creates **globals**:
+	 * silent, and the sort of bug that turns up as one script writing over
+	 * another's state weeks later.
+	 *
+	 * So the template is scanned, and an output it mentions is declared even
+	 * when nothing reads it. An unread one binds to `_`, which is the Lua idiom
+	 * for a value being deliberately dropped and keeps the positions lined up —
+	 * `local value, _, _` is exactly as long as the assignment needs to be.
+	 *
+	 * Nothing in the built-in library relies on this yet: the datatype nodes
+	 * that return several values are pure and use `select`, because a colour
+	 * conversion should not be an execution step. It is here so that the next
+	 * node that does need it finds working machinery rather than a trap.
+	 */
 	private emitStatement(r: ResolvedNode, template: string, scope: Scope): string | undefined {
-		const outs = r.baseOutputs.filter(
-			(p) => p.kind === "data" && this.index.consumerCount(r.node.id, p.id) > 0,
+		const referenced = new Set(
+			[...template.matchAll(/\$out\.([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]),
 		);
+		const outs = r.baseOutputs.filter(
+			(p) =>
+				p.kind === "data" &&
+				(this.index.consumerCount(r.node.id, p.id) > 0 || referenced.has(p.id)),
+		);
+
+		const idents: string[] = [];
 		for (const pin of outs) {
-			const ident = this.names.unique(pin.name || pin.id, "value");
+			const consumed = this.index.consumerCount(r.node.id, pin.id) > 0;
+			const ident = consumed ? this.names.unique(pin.name || pin.id, "value") : "_";
+			// Bound either way. An unconsumed one still has to resolve to
+			// something the template can assign to, and leaving it unbound is
+			// what sent it to a global in the first place.
 			scope.bindings.set(`${r.node.id}/${pin.id}`, ident);
+			idents.push(ident);
 		}
-		if (outs.length > 0) {
-			const idents = outs.map((p) => scope.bindings.get(`${r.node.id}/${p.id}`)!);
-			this.push(`local ${idents.join(", ")}`, r.node.id);
-		}
+		if (idents.length > 0) this.push(`local ${idents.join(", ")}`, r.node.id);
+
 		const rendered = this.renderTemplate(r, template, scope);
 		if (rendered.trim() !== "") this.push(rendered, r.node.id);
 		return this.index.execTarget(r.node.id, "then");
@@ -989,6 +1021,21 @@ class Emitter {
 	 * The Luau expression for a data input: the upstream value if the pin is
 	 * wired, otherwise the literal typed into it.
 	 */
+	/**
+	 * Has this pin been given a value, as opposed to merely having a default?
+	 *
+	 * Only `$opt` asks, and the distinction is the whole point of an optional
+	 * pin: a literal the developer typed counts, a wire counts, a split counts,
+	 * and the definition's own `default` does not. A default is what the *call*
+	 * would have used anyway, so passing it explicitly is the thing an optional
+	 * pin exists to avoid.
+	 */
+	private isSet(r: ResolvedNode, pin: PinDef): boolean {
+		if (this.index.sourceOf(r.node.id, pin.id)) return true;
+		if (this.splitOf(r, pin.id, "in")) return true;
+		return r.node.literals?.[pin.id] !== undefined;
+	}
+
 	private resolveInput(r: ResolvedNode, pin: PinDef, scope: Scope): string {
 		// Split into components: there is no wire and no literal on the pin
 		// itself any more, so the value is assembled from the parts.
@@ -1116,13 +1163,85 @@ class Emitter {
 			return separator + args.map((p) => paren(this.resolveInput(r, p, scope))).join(separator);
 		});
 
+		/**
+		 * `$opt(<sep>)` folds the optional trailing arguments of a call.
+		 *
+		 * An optional pin the developer has not touched is *not passed*, rather
+		 * than passed as its default or as `nil` — because plenty of Roblox
+		 * constructors reject an explicit `nil` where they accept a missing
+		 * argument, so the two are different calls and only one works.
+		 *
+		 * Trailing unset pins therefore disappear entirely. An unset pin with a
+		 * set one *after* it cannot disappear — the positions would shift and
+		 * argument four would arrive as argument three — so it is passed as
+		 * `nil`, which is the only honest thing left and is what a hand-written
+		 * call would do in the same spot.
+		 *
+		 *     TweenInfo.new(1, style, dir)                     nothing set
+		 *     TweenInfo.new(1, style, dir, 2)                   repeat set
+		 *     TweenInfo.new(1, style, dir, nil, nil, 0.5)       only delay set
+		 *
+		 * The leading separator comes from the group, as `$more` does, so a
+		 * call with no optional arguments does not end in a stray comma.
+		 */
+		template = template.replace(/\$opt\(([^)]*)\)/g, (_match, separator: string) => {
+			const optional = r.inputs.filter((pin) => pin.optional === true);
+			const set = optional.map((pin) => this.isSet(r, pin));
+			const last = set.lastIndexOf(true);
+			if (last === -1) return "";
+			const args = optional
+				.slice(0, last + 1)
+				.map((pin, i) => (set[i] ? this.resolveInput(r, pin, scope) : "nil"));
+			return separator + args.join(separator);
+		});
+
+		/**
+		 * `$pairs(<sep>)` folds `k0`/`a0`, `k1`/`a1`, … into `[key] = value`.
+		 *
+		 * `$args` cannot do this: variadic pins are all one type, and a
+		 * dictionary entry is two pins that mean different things. A node
+		 * wanting pairs derives them itself and folds them here, which keeps
+		 * "how many" in the node's own config exactly as `$args` does.
+		 *
+		 * A pair whose key is left empty is skipped rather than emitted as
+		 * `[""] = v`. Growing the node gives you a blank row, and a blank row
+		 * you have not filled in yet should not be a table entry.
+		 *
+		 * The fold carries its own surrounding spaces, so the template writes
+		 * `{$pairs(, )}` and an empty one comes out as `{}` rather than `{  }`.
+		 * That is a formatting decision living slightly further from the
+		 * template than it might, and the alternative is a stray double space in
+		 * generated code that a reader is meant to be able to read — and that
+		 * only stylua would tidy, which is optional.
+		 */
+		template = template.replace(/\$pairs\(([^)]*)\)/g, (_match, separator: string) => {
+			const entries: string[] = [];
+			for (const pin of r.inputs) {
+				const match = /^k(\d+)$/.exec(pin.id);
+				if (!match) continue;
+				const value = r.inputs.find((v) => v.id === `a${match[1]}`);
+				if (!value) continue;
+				const key = this.resolveInput(r, pin, scope);
+				if (key === '""' || key === "nil") continue;
+				entries.push(`[${key}] = ${this.resolveInput(r, value, scope)}`);
+			}
+			return entries.length === 0 ? "" : ` ${entries.join(separator)} `;
+		});
+
 		const re = /\$(in|out)\.([A-Za-z_][A-Za-z0-9_]*)(?:!(ident|raw))?/g;
 		return template.replace(re, (match: string, side: string, pinId: string, modifier: string | undefined, offset: number) => {
 			if (side === "out") {
 				const bound = scope.lookup(`${r.node.id}/${pinId}`);
 				if (bound) return bound;
-				// Not consumed by anything, so nothing was bound. Discard safely.
-				return this.names.temp();
+				/**
+				 * Nothing bound it. `_` rather than a fresh unique name, because
+				 * a unique name here is *undeclared* — on the left of an
+				 * assignment that makes a global, which is the failure
+				 * `emitStatement` now declares its referenced outputs to avoid.
+				 * This is the last line of defence for a spec that reaches here
+				 * some other way, and it should discard rather than leak.
+				 */
+				return "_";
 			}
 			const pin = this.pin(r, pinId, "in");
 

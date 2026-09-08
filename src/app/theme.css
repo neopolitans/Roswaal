@@ -736,6 +736,47 @@ button.tb.primary:hover:not(:disabled) {
 	margin-left: auto;
 }
 
+/* An optional pin nobody has set. Reads as the word rather than as a value,
+   because the argument is genuinely not passed and showing a number here would
+   claim otherwise. Dashed, so it looks like a placeholder rather than a field
+   somebody already filled in. */
+.node .literal.unset {
+	background: none;
+	border: 1px dashed var(--border-strong);
+	color: var(--fg-faint);
+	font-size: 10px;
+	font-style: italic;
+	padding: 0 5px;
+	cursor: pointer;
+}
+
+.node .literal.unset:hover {
+	border-color: var(--accent);
+	color: var(--fg-muted);
+}
+
+/* A set optional pin: its editor, and the way back to unset. */
+.node .optional-value {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+}
+
+.node .optional-value .clear {
+	background: none;
+	border: 0;
+	color: var(--fg-faint);
+	cursor: pointer;
+	font-size: 12px;
+	line-height: 1;
+	padding: 0 1px;
+}
+
+.node .optional-value .clear:hover {
+	color: var(--danger);
+}
+
 .node .literal {
 	background: var(--bg-input);
 	border: 1px solid var(--border);
@@ -844,6 +885,26 @@ button.tb.primary:hover:not(:disabled) {
 	flex-direction: column;
 	max-height: 60vh;
 	width: 280px;
+}
+
+/* Shown only when the palette was opened by dragging a wire. Above the search
+   box, because it is the reason the list is short. */
+.menu-from {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 7px 10px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-hover);
+	font-size: 11px;
+	color: var(--fg-muted);
+}
+
+.menu-from .dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex: none;
 }
 
 .menu input.search {

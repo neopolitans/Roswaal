@@ -310,6 +310,28 @@ A few things worth knowing:
   Splitting the pin does the same job in less room — these are here because a
   Break node is what a Blueprints hand reaches for first.
 
+## Optional arguments
+
+Some inputs read **default** in a dashed box rather than showing a value. Those
+are optional: left alone, the argument is *not passed at all*, and the call uses
+whatever it would have used anyway. Click one to set a value; the **×** beside a
+value you set puts it back.
+
+That is not the same as a pin with a default. A default is a value, and leaving
+that pin alone emits it. An optional pin left alone emits nothing — which
+matters because plenty of Roblox constructors reject an explicit `nil` where
+they accept a missing argument, so the two are different calls and only one
+works.
+
+```luau
+TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 2)
+TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, nil, nil, 0.5)
+```
+
+Only *trailing* unset arguments disappear. One with a set argument after it is
+passed as `nil`, because dropping it would shift everything left.
+
 ## The two file formats
 
 | Extension | Contents |
@@ -491,7 +513,7 @@ you never wrote.
 | | |
 | --- | --- |
 | Right-click canvas | node palette, spawns at the cursor |
-| Drag from a pin | make a wire; drop on empty space to open the palette |
+| Drag from a pin | make a wire; drop on empty space to pick a node, which arrives wired |
 | Drag a wired input | pick the existing wire up and rewire it |
 | Alt-click a wire | sever it |
 | Double-click a wire | add a reroute knot where you clicked |

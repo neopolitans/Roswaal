@@ -152,6 +152,23 @@ function variadicCall(
 }
 
 /**
+ * Key and value pins for Make Dictionary, two per entry.
+ *
+ * `k<i>` and `a<i>` rather than one list, because `$pairs` in the emitter folds
+ * exactly that shape — and the value pins keep the `a<i>` names the growth rule
+ * already knows how to find, so the node's + and − work without a second rule.
+ */
+function dictionaryPins(config: Record<string, unknown>): { inputs: PinDef[]; outputs: PinDef[] } {
+	const count = Math.max(1, Math.min(8, Number(config.args ?? 1)));
+	const inputs: PinDef[] = [];
+	for (let i = 0; i < count; i++) {
+		inputs.push(str(`k${i}`, count === 1 ? "Key" : `Key ${i + 1}`, ""));
+		inputs.push(d(`a${i}`, count === 1 ? "Value" : `Value ${i + 1}`, "any", { t: "nil" }));
+	}
+	return { inputs, outputs: [d("result", "", "table")] };
+}
+
+/**
  * Argument pins for the call nodes. One by default, because most calls take
  * one, and the count is stored per node rather than baked into the definition.
  */
@@ -349,6 +366,33 @@ export const LIBRARY_NODES: NodeDef[] = [
 	stmt("table.remove", "Remove", "Tables", "table.remove($in.table, $in.index)", [
 		d("table", "Table", "table"), num("index", "Index", 1),
 	]),
+
+	/**
+	 * A dictionary written out in one node.
+	 *
+	 * The general answer to "this call wants a table of things", of which
+	 * tweening is the case that forced it: `TweenService:Create` takes a map of
+	 * property names to target values, and building one with New Table and a
+	 * chain of Set Index is three nodes and an execution wire to say `{ x = 1 }`.
+	 *
+	 * Pure, so it composes into the call rather than sitting in front of it.
+	 * Keys are pins rather than config so a key can be computed, which config
+	 * could not do.
+	 */
+	{
+		id: "table.dictionary",
+		title: "Make Dictionary",
+		category: "Tables",
+		summary:
+			"A table of key/value pairs, built in one node. Use the + and − on the node " +
+			"to change how many. A pair with an empty key is left out.",
+		pure: true,
+		variadic: { min: 1, max: 8, type: "any", default: { t: "nil" } },
+		...dictionaryPins({}),
+		outputs: [d("result", "", "table")],
+		compilesTo: { kind: "expr", outputs: { result: "{$pairs(, )}" } },
+		derivePins: dictionaryPins,
+	},
 
 	// -- Engine ------------------------------------------------------------
 	{
@@ -692,8 +736,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 			[vec("a", "A"), vec("b", "B")], "Vector3", "The larger of each component."),
 		p("vector3.min", "Vector3 Min", "$in.a:Min($in.b)",
 			[vec("a", "A"), vec("b", "B")], "Vector3", "The smaller of each component."),
-		p("vector3.fuzzyEq", "Vector3 Fuzzy Equals", "$in.a:FuzzyEq($in.b, $in.epsilon)",
-			[vec("a", "A"), vec("b", "B"), num("epsilon", "Epsilon", 0.00001)], "boolean",
+		p("vector3.fuzzyEq", "Vector3 Fuzzy Equals", "$in.a:FuzzyEq($in.b$opt(, ))",
+			[vec("a", "A"), vec("b", "B"),
+			 { ...num("epsilon", "Epsilon", 0.00001), optional: true }], "boolean",
 			"Equality within a tolerance. What you want instead of `=` on anything that came out of arithmetic."),
 
 		p("vector3.abs", "Vector3 Abs", "$in.v:Abs()", [vec("v", "Vector")], "Vector3"),
@@ -740,8 +785,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 			[v2("a", "A"), v2("b", "B"), num("alpha", "Alpha", 0.5)], "Vector2"),
 		p("vector2.max", "Vector2 Max", "$in.a:Max($in.b)", [v2("a", "A"), v2("b", "B")], "Vector2"),
 		p("vector2.min", "Vector2 Min", "$in.a:Min($in.b)", [v2("a", "A"), v2("b", "B")], "Vector2"),
-		p("vector2.fuzzyEq", "Vector2 Fuzzy Equals", "$in.a:FuzzyEq($in.b, $in.epsilon)",
-			[v2("a", "A"), v2("b", "B"), num("epsilon", "Epsilon", 0.00001)], "boolean"),
+		p("vector2.fuzzyEq", "Vector2 Fuzzy Equals", "$in.a:FuzzyEq($in.b$opt(, ))",
+			[v2("a", "A"), v2("b", "B"),
+			 { ...num("epsilon", "Epsilon", 0.00001), optional: true }], "boolean"),
 
 		p("vector2.abs", "Vector2 Abs", "$in.v:Abs()", [v2("v", "Vector")], "Vector2"),
 		p("vector2.ceil", "Vector2 Ceil", "$in.v:Ceil()", [v2("v", "Vector")], "Vector2"),
@@ -762,9 +808,10 @@ export const LIBRARY_NODES: NodeDef[] = [
 		p("cframe.identity", "CFrame Identity", "CFrame.identity", [], "CFrame"),
 		p("cframe.new", "CFrame", "CFrame.new($in.position)",
 			[vec("position", "Position")], "CFrame", "A CFrame at a position, with no rotation."),
-		p("cframe.lookAt", "Look At", "CFrame.lookAt($in.from, $in.to, $in.up)",
-			[vec("from", "From"), vec("to", "To"), { ...vec("up", "Up"), default: { t: "raw", v: "Vector3.yAxis" } }],
-			"CFrame", "Positioned at From, facing To. The workhorse for aiming anything."),
+		p("cframe.lookAt", "Look At", "CFrame.lookAt($in.from, $in.to$opt(, ))",
+			[vec("from", "From"), vec("to", "To"),
+			 { ...vec("up", "Up"), default: { t: "raw", v: "Vector3.yAxis" }, optional: true }],
+			"CFrame", "Positioned at From, facing To. The workhorse for aiming anything. Up is the engine's own default unless you set it."),
 		p("cframe.angles", "CFrame Angles", "CFrame.Angles($in.rx, $in.ry, $in.rz)",
 			[num("rx", "X (rad)"), num("ry", "Y (rad)"), num("rz", "Z (rad)")], "CFrame",
 			"Rotation only, in radians. Pair with Rad to work in degrees."),
@@ -918,9 +965,12 @@ export const LIBRARY_NODES: NodeDef[] = [
 				num("time", "Time", 1),
 				{ ...str("style", "Easing Style", "Quad"), options: EASING_STYLES },
 				{ ...str("direction", "Easing Direction", "Out"), options: EASING_DIRECTIONS },
-				num("repeatCount", "Repeat Count", 0),
-				bool("reverses", "Reverses", false),
-				num("delayTime", "Delay", 0),
+				// Optional rather than defaulted, which is the difference
+				// between `TweenInfo.new(1, style, dir)` and the same call with
+				// three arguments the engine was going to supply itself.
+				{ ...num("repeatCount", "Repeat Count", 0), optional: true },
+				{ ...bool("reverses", "Reverses", false), optional: true },
+				{ ...num("delayTime", "Delay", 0), optional: true },
 			],
 			outputs: [d("result", "", "TweenInfo")],
 			compilesTo: {
@@ -928,8 +978,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 				outputs: {
 					result:
 						"TweenInfo.new($in.time, Enum.EasingStyle.$in.style!ident, " +
-						"Enum.EasingDirection.$in.direction!ident, $in.repeatCount, " +
-						"$in.reverses, $in.delayTime)",
+						"Enum.EasingDirection.$in.direction!ident$opt(, ))",
 				},
 			},
 		},

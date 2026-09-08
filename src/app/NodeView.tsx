@@ -34,7 +34,8 @@ export interface NodeViewProps {
 	onPinPointerUp: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	/** Right-clicking a pin asks about that pin, not about what node comes next. */
 	onPinContextMenu: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
-	onLiteralChange: (nodeId: string, pinId: string, value: Literal) => void;
+	/** `undefined` clears the pin back to unset, which only an optional pin uses. */
+	onLiteralChange: (nodeId: string, pinId: string, value: Literal | undefined) => void;
 	/** Opens the pop-out Luau editor for a raw literal. */
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
 	onContextMenu: (e: ReactPointerEvent, nodeId: string) => void;
@@ -260,7 +261,65 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	);
 }
 
+/**
+ * The inline editor for a pin's value, and the two extra states an optional pin
+ * has.
+ *
+ * An optional pin is either *unset*, meaning the argument is not passed at all,
+ * or set to something. Both directions have to be reachable: a pin you can set
+ * but never clear is a one-way door, and going back would otherwise mean
+ * deleting the node and placing another.
+ */
 function renderLiteral(props: NodeViewProps, pin: PinDef) {
+	const typed = props.node.literals?.[pin.id];
+	const set = (value: Literal | undefined) =>
+		props.onLiteralChange(props.node.id, pin.id, value);
+	const stop = (e: ReactPointerEvent) => e.stopPropagation();
+
+	/**
+	 * An optional pin nobody has touched.
+	 *
+	 * Drawn as the word "default" rather than as its default *value*, because
+	 * the two are different things here and showing the value would be a lie:
+	 * the argument is not passed at all, and what the call does instead is the
+	 * engine's business rather than ours. Clicking adopts the default as a
+	 * starting point, which is the only sensible thing a click can mean.
+	 */
+	if (pin.optional === true && typed === undefined) {
+		return (
+			<button
+				className="literal unset"
+				title={
+					"Not passed — the call uses its own default." +
+					`${NEWLINE}${NEWLINE}Click to set a value.`
+				}
+				onPointerDown={stop}
+				onClick={() => set(pin.default ?? { t: "nil" })}
+			>
+				default
+			</button>
+		);
+	}
+
+	const editor = renderLiteralEditor(props, pin);
+	if (pin.optional !== true || editor === null) return editor;
+
+	return (
+		<span className="optional-value">
+			{editor}
+			<button
+				className="clear"
+				title="Stop passing this argument"
+				onPointerDown={stop}
+				onClick={() => set(undefined)}
+			>
+				×
+			</button>
+		</span>
+	);
+}
+
+function renderLiteralEditor(props: NodeViewProps, pin: PinDef) {
 	const current = props.node.literals?.[pin.id] ?? pin.default;
 	if (!current) return null;
 	const set = (value: Literal) => props.onLiteralChange(props.node.id, pin.id, value);

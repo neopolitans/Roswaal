@@ -12,9 +12,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { NodeConfig, NodeDef } from "../core/schema.js";
+import type { NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { categories, subcategories } from "../core/nodes/index.js";
+import { acceptsWire } from "./edits.js";
 import { LAYER } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 
@@ -24,6 +25,15 @@ export interface MenuAnchor {
 	screen: { x: number; y: number };
 	/** Where a spawned node should land, in world coordinates. */
 	world: { x: number; y: number };
+	/**
+	 * The pin this menu was dragged off, if it was.
+	 *
+	 * Set when a wire is released over empty canvas. It does two things: the
+	 * list is narrowed to nodes that could actually take the wire, and the node
+	 * you pick is wired up on arrival — which is the whole point, and what
+	 * Blueprints has done for a decade.
+	 */
+	from?: { ref: PinRef; side: "in" | "out"; pin: PinDef };
 }
 
 /** A named instance of a node type: "Get health", "Set health", "Get greet". */
@@ -67,7 +77,7 @@ export function NodeMenu(props: NodeMenuProps) {
 	const [active, setActive] = useState(0);
 	const root = useRef<HTMLDivElement>(null);
 
-	const items = useMemo((): MenuItem[] => {
+	const allItems = useMemo((): MenuItem[] => {
 		const fromDefs = [...registry.values()]
 			.filter((def) => !def.targets || def.targets.includes(target))
 			.map((def) => ({
@@ -100,6 +110,38 @@ export function NodeMenu(props: NodeMenuProps) {
 		// it is an instance of.
 		return [...fromPresets, ...fromDefs];
 	}, [registry, target, presets]);
+
+	/**
+	 * The pin a wire was dragged off, and what could receive it.
+	 *
+	 * Filtering rather than merely sorting, because a wire in flight is a
+	 * question with a much smaller set of answers than "which node" — offering
+	 * Branch when you dragged off a Vector3 output is offering something that
+	 * cannot be picked. A node qualifies if it declares *any* pin on the
+	 * opposite side that the wire would fit, using the same compatibility rule
+	 * the canvas uses when you drop on a pin directly, so the menu cannot offer
+	 * a node the connection would then refuse.
+	 *
+	 * Pins are read from the definition rather than resolved per instance,
+	 * since the node does not exist yet. For a node whose pins depend on its
+	 * config that is the shape it will arrive with, which is the right answer.
+	 */
+	const reachable = useMemo(() => {
+		const from = anchor.from;
+		if (!from) return null;
+		const wanted = from.side === "out" ? "inputs" : "outputs";
+		const ok = new Set<string>();
+		for (const def of registry.values()) {
+			const pins = wanted === "inputs" ? def.inputs : def.outputs;
+			if (pins.some((pin) => acceptsWire(from.pin, pin))) ok.add(def.id);
+		}
+		return ok;
+	}, [anchor.from, registry]);
+
+	const items = useMemo(
+		() => (reachable === null ? allItems : allItems.filter((item) => reachable.has(item.def.id))),
+		[allItems, reachable],
+	);
 
 	const matches = useMemo(() => {
 		const q = query.trim().toLowerCase();
@@ -178,10 +220,23 @@ export function NodeMenu(props: NodeMenuProps) {
 
 	return (
 		<div className="menu" ref={root} style={style}>
+			{anchor.from && (
+				/* The list is narrowed to what the wire can reach, and that is a
+				   surprising thing for a search box to do without saying so. It
+				   also answers "which pin am I still holding" after a drag
+				   across the graph. */
+				<div className="menu-from">
+					<span className="dot" style={{ background: pinColor(anchor.from.pin.type, anchor.from.pin.kind) }} />
+					<span>
+						{anchor.from.side === "out" ? "Wire from" : "Wire into"}{" "}
+						<strong>{anchor.from.pin.name || anchor.from.pin.id}</strong>
+					</span>
+				</div>
+			)}
 			<input
 				className="search"
 				autoFocus
-				placeholder="Search nodes and variables"
+				placeholder={anchor.from ? "Search what can take this wire" : "Search nodes and variables"}
 				value={query}
 				onChange={(e) => setQuery(e.target.value)}
 				onKeyDown={(e) => {

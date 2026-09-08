@@ -66,7 +66,7 @@ describe("node reference", () => {
 		it("compiles a pure node into the position it would really appear in", () => {
 			const example = exampleFor(registry.get("cframe.lookAt")!, registry);
 			expect(example.luau).toBe(
-				"print(CFrame.lookAt(Vector3.zero, Vector3.zero, Vector3.yAxis))",
+				"print(CFrame.lookAt(Vector3.zero, Vector3.zero))",
 			);
 		});
 

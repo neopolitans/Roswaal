@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { VERSION } from "../cli/version.js";
-import { createRegistry } from "../core/nodes/index.js";
+import { createRegistry, resolveNodePins } from "../core/nodes/index.js";
 import type { NodeDef, RoswaalConfig, ScriptClass } from "../core/schema.js";
 import {
 	api, ProjectChangedError,
@@ -37,7 +37,7 @@ import { SettingsPanel } from "./SettingsPanel.jsx";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
-	addComment, addNode, copySelection, deleteSelection, disconnectPin, pasteClipping,
+	acceptsWire, addComment, addNode, connect, copySelection, deleteSelection, disconnectPin, pasteClipping,
 	promoteToVariable, recombinePin, setConfig as setNodeConfig, setLiteral, splitCost,
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
@@ -462,16 +462,45 @@ export function App() {
 		[editor.script],
 	);
 
+	/**
+	 * Places a node, and — when the menu was opened by dragging a wire off a pin
+	 * — joins it up.
+	 *
+	 * The pin chosen is the **first** compatible one in declaration order, which
+	 * is not a heuristic so much as the node author's own answer: pins are
+	 * declared in the order they matter, so the first that fits is the one the
+	 * node is mostly about. Unreal picks the same way, and picking differently
+	 * would mean a wire that lands somewhere surprising and has to be redone.
+	 *
+	 * A node with nothing compatible still gets placed. The menu narrows itself
+	 * to nodes that can take the wire, so this is only reachable for a pack node
+	 * whose derived pins disagree with its declared ones — and placing it
+	 * unconnected is better than refusing a pick with no explanation.
+	 */
 	const spawn = useCallback(
 		(def: NodeDef, world: { x: number; y: number }, config?: Record<string, unknown>) => {
+			const from = menu?.from;
 			store.edit((s) => {
 				const added = addNode(s, def, world.x, world.y);
 				queueMicrotask(() => store.select([added.id]));
-				return config ? setNodeConfig(added.script, added.id, config) : added.script;
+				let next = config ? setNodeConfig(added.script, added.id, config) : added.script;
+				if (!from) return next;
+
+				const placed = next.nodes.find((n) => n.id === added.id);
+				const pins = placed ? resolveNodePins(def, placed.config) : { inputs: [], outputs: [] };
+				const candidates = from.side === "out" ? pins.inputs : pins.outputs;
+				const landing = candidates.find((pin) => acceptsWire(from.pin, pin));
+				if (!landing) return next;
+
+				const target = { node: added.id, pin: landing.id };
+				next = from.side === "out"
+					? connect(next, registry, from.ref, target)
+					: connect(next, registry, target, from.ref);
+				return next;
 			});
 			setMenu(null);
 		},
-		[],
+		[menu, registry],
 	);
 
 	const spawnComment = useCallback((world: { x: number; y: number }) => {
@@ -1059,7 +1088,7 @@ export function App() {
 						diagnostics={diagnostics}
 						locked={locked}
 						wireStyle={prefs.wireStyle}
-						onRequestMenu={(screen, world) => setMenu({ screen, world })}
+						onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
 						onRequestPinMenu={(screen, nodeId, pin, side) =>
 							setPinMenu({ screen, nodeId, pin, side })
 						}

@@ -110,14 +110,28 @@ export function deleteSelection(script: NodeScript, ids: ReadonlySet<string>): N
 	};
 }
 
+/**
+ * Types a value into a pin, or — with `undefined` — takes it back out.
+ *
+ * Clearing matters for an **optional** pin, where "no literal" is a value in
+ * its own right: the argument is dropped from the generated call rather than
+ * passed as anything. Storing the default instead would emit it, which is the
+ * one thing an optional pin exists to avoid. So the key is deleted rather than
+ * set to the default, and a graph that never touched the pin and a graph that
+ * touched it and changed its mind end up identical on disk.
+ */
 export function setLiteral(
-	script: NodeScript, nodeId: string, pinId: string, value: Literal,
+	script: NodeScript, nodeId: string, pinId: string, value: Literal | undefined,
 ): NodeScript {
 	return {
 		...script,
-		nodes: script.nodes.map((n) =>
-			n.id === nodeId ? { ...n, literals: { ...(n.literals ?? {}), [pinId]: value } } : n,
-		),
+		nodes: script.nodes.map((n) => {
+			if (n.id !== nodeId) return n;
+			const literals = { ...(n.literals ?? {}) };
+			if (value === undefined) delete literals[pinId];
+			else literals[pinId] = value;
+			return { ...n, literals };
+		}),
 	};
 }
 
@@ -194,6 +208,24 @@ export interface ConnectionCheck {
 }
 
 /** Whether a wire may be created, with a reason the UI can show if not. */
+/**
+ * Could a wire from one pin land on another, judged from the pins alone?
+ *
+ * The half of `canConnect` that needs no graph, so it can be asked about a node
+ * that does not exist yet — which is what narrowing the palette to nodes a
+ * dragged wire could actually reach requires. `canConnect` calls it too, so the
+ * menu cannot offer a node the canvas would then refuse.
+ *
+ * Side is implied by the caller: `from` is whichever end is being dragged and
+ * `to` is the candidate. Kind and type are symmetric, so this does not need to
+ * know which is which.
+ */
+export function acceptsWire(from: PinDef, to: PinDef): boolean {
+	if (from.kind !== to.kind) return false;
+	if (from.kind === "exec") return true;
+	return typesCompatible(from.type, to.type);
+}
+
 export function canConnect(
 	script: NodeScript, registry: Registry, from: PinRef, to: PinRef,
 ): ConnectionCheck {
@@ -211,11 +243,10 @@ export function canConnect(
 	const inPin = pinsOf(toDef, toNode).inputs.find((p) => p.id === to.pin);
 	if (!outPin || !inPin) return { ok: false, reason: "Missing pin." };
 
-	if (outPin.kind !== inPin.kind) {
-		return { ok: false, reason: "Execution and data wires cannot be joined." };
-	}
-	if (outPin.kind === "data" && !typesCompatible(outPin.type, inPin.type)) {
-		return { ok: false, reason: `${outPin.type} does not fit a ${inPin.type} pin.` };
+	if (!acceptsWire(outPin, inPin)) {
+		return outPin.kind !== inPin.kind
+			? { ok: false, reason: "Execution and data wires cannot be joined." }
+			: { ok: false, reason: `${outPin.type} does not fit a ${inPin.type} pin.` };
 	}
 	// Some inputs are pasted into the generated source rather than evaluated —
 	// a property name, a field. The emitter refuses a wired one, so refusing it

@@ -181,7 +181,7 @@ describe("on the built-in library", () => {
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
 		expect(body(out.code)).toBe(
-			"print(CFrame.lookAt(Vector3.new(0, 10, 0), Vector3.new(0, 0, -5), Vector3.yAxis))",
+			"print(CFrame.lookAt(Vector3.new(0, 10, 0), Vector3.new(0, 0, -5)))",
 		);
 	});
 

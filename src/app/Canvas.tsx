@@ -38,7 +38,14 @@ export interface CanvasProps {
 	script: NodeScript;
 	registry: Registry;
 	diagnostics: Diagnostic[];
-	onRequestMenu: (screen: Vec, world: Vec) => void;
+	/**
+	 * Opens the palette. `from` is set when a wire was released over empty
+	 * canvas, so the node picked can be wired up rather than the wire dropped.
+	 */
+	onRequestMenu: (
+		screen: Vec, world: Vec,
+		from?: { ref: PinRef; side: "in" | "out"; pin: PinDef },
+	) => void;
 	onRequestPinMenu: (screen: Vec, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
 	/** A file dragged in from the project tree, dropped at this point. */
@@ -273,13 +280,16 @@ export function Canvas({
 					}
 				}
 
-				// Released over nothing: offer the palette rather than silently
-				// dropping the wire.
+				// Released over nothing: offer the palette, and carry the pin with
+				// it so whatever is picked arrives already wired. Dropping a wire
+				// into space and getting an unconnected node was the one part of
+				// this gesture that did not finish the thought.
 				if (!onNode) {
 					const box = surface.current!.getBoundingClientRect();
 					onRequestMenu(
 						{ x: e.clientX - box.left, y: e.clientY - box.top },
 						toWorld(e.clientX, e.clientY),
+						{ ref: g.from, side: g.side, pin: g.pin },
 					);
 				}
 			}
@@ -424,7 +434,7 @@ export function Canvas({
 		[wireDrag],
 	);
 
-	const onLiteralChange = useCallback((nodeId: string, pinId: string, value: Literal) => {
+	const onLiteralChange = useCallback((nodeId: string, pinId: string, value: Literal | undefined) => {
 		store.edit((s) => setLiteral(s, nodeId, pinId, value));
 	}, []);
 

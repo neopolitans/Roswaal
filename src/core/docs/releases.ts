@@ -39,6 +39,27 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.16.0",
+		date: "2026-09-08",
+		headline: "Arguments you can leave out, and a wire that finishes the thought.",
+		added: [
+			"**Optional input pins.** A pin marked optional and left alone is *not passed at all*, rather than passed as a default Roswaal picked. That is a real difference: plenty of Roblox constructors reject an explicit `nil` where they are perfectly happy with a missing argument, so the two are different calls and only one of them works.",
+			"`TweenInfo` is the case that asked for it, and now compiles to `TweenInfo.new(1, style, direction)` instead of six arguments, three of which were the engine's own defaults handed back to it. `Look At` and both `Fuzzy Equals` nodes lost their trailing argument the same way.",
+			"On the canvas an untouched optional pin reads **default** in a dashed box; click it to set a value, and the **×** beside a set one puts it back. Setting it and clearing it again leaves the graph byte for byte as it was.",
+			"**Dragging a wire into empty space and picking a node now connects it.** The palette narrows to nodes that can actually take the wire, says which pin it is holding, and joins the two up when you pick — Blueprints' behaviour, and the half of this gesture that was missing.",
+			"**Make Dictionary**, a table of key/value pairs in one pure node. The general answer to a call that wants a table, of which `TweenService:Create` was the case that forced it — a one-property tween used to be New Table, Set Index and an execution wire to say `{ x = 1 }`.",
+		],
+		fixed: [
+			"**A statement node with several outputs assigned the unwired ones to globals.** The emitter declared only the outputs something read, leaving the rest as bare names on the left of an assignment — which in Luau creates a global, silently, visible to every other script. Nothing in the library did this yet; the machinery now works for whoever writes the first node that needs it, rather than being a trap laid for them.",
+		],
+		watch: [
+			"An optional pin's **default is still there** and is what you get when you click to set it. What changed is that leaving it alone no longer emits it.",
+			"An unset optional pin with a set one *after* it is passed as `nil`, because dropping it would shift every argument left and argument four would arrive as argument three. Only trailing ones disappear.",
+			"The palette **filters** rather than reorders when a wire is in flight, so a node with no compatible pin is not offered. Opening the palette any other way still lists everything.",
+			"`table.remove`'s index was deliberately left alone. Making it optional would change what an existing graph emits — `table.remove(t)` removes the *last* element where `table.remove(t, 1)` removes the first — and a silent change of meaning in graphs people already have is not worth the tidier output.",
+		],
+	},
+	{
 		version: "0.15.0",
 		date: "2026-09-08",
 		headline: "Every Roblox datatype, in one place, with a lot more of them.",

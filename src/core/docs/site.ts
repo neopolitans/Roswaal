@@ -1434,6 +1434,46 @@ const TYPES_GUIDE: DocPage = {
 				"-- The name is part of the code, not a value it reads.",
 			].join("\n"),
 		},
+		{ t: "h", level: 2, text: "Optional arguments" },
+		{
+			t: "p",
+			text:
+				"Some inputs read **default** in a dashed box rather than showing a value. " +
+				"Those are optional: left alone, the argument is *not passed at all*, and the " +
+				"call uses whatever it would have used anyway. Click one to set a value; the " +
+				"**×** beside a value you set puts it back.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"This is not the same as a pin with a default. A default is a **value**, and " +
+				"leaving that pin alone emits it. An optional pin left alone emits nothing — " +
+				"which matters because plenty of Roblox constructors reject an explicit `nil` " +
+				"where they accept a missing argument, so the two are different calls and only " +
+				"one of them works.",
+		},
+		{
+			t: "code",
+			lang: "luau",
+			text: [
+				"-- nothing set",
+				"TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)",
+				"",
+				"-- repeat count set to 2",
+				"TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 2)",
+				"",
+				"-- only the delay set: the gap before it has to be held open",
+				"TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, nil, nil, 0.5)",
+			].join("\n"),
+		},
+		{
+			t: "p",
+			text:
+				"Only *trailing* unset arguments disappear. One with a set argument after it is " +
+				"passed as `nil`, because dropping it would shift everything left and the delay " +
+				"would arrive as the repeat count.",
+		},
 		{ t: "h", level: 2, text: "Splittable types" },
 		{
 			t: "p",

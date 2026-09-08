@@ -50,6 +50,27 @@ export interface PinDef {
 	/** Data inputs only: suppress the inline literal editor (must be wired). */
 	required?: boolean;
 	/**
+	 * Data inputs only: the underlying call takes this argument or nothing.
+	 *
+	 * The difference from a pin with a `default` is what reaches the generated
+	 * Luau. A default is a *value* — leave the pin alone and that value is
+	 * emitted. An optional pin left alone emits **nothing at all**, and the
+	 * argument is dropped from the call.
+	 *
+	 * That distinction is not cosmetic. Plenty of Roblox constructors reject an
+	 * explicit `nil` where they are perfectly happy with a missing argument, so
+	 * "pass the default" and "do not pass it" are genuinely different calls and
+	 * only one of them works. It also means a node stops having to invent a
+	 * default it has no business choosing: `TweenInfo.new` decides what its own
+	 * repeat count is, and Roswaal guessing `0` on its behalf is a guess that
+	 * silently becomes wrong the day the engine changes its mind.
+	 *
+	 * Only meaningful inside a `$opt(<sep>)` group in the template, which is
+	 * what knows where the argument list ends. An optional pin outside one is a
+	 * pin whose emptiness nothing acts on.
+	 */
+	optional?: boolean;
+	/**
 	 * Data inputs only: offer these values as a dropdown instead of a free text
 	 * field. Suggestions, not a closed set — anything not listed can still be
 	 * typed, so a value the list has not caught up with is never a dead end.
