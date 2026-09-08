@@ -72,8 +72,16 @@ export type Block =
 	 * tag that can disagree with the entries beneath it is worse than no tag.
 	 */
 	| { t: "tags"; tags: ReleaseTag[] }
-	/** A pulled-out aside. `warn` for a trap, `good` for a promise being kept. */
-	| { t: "note"; kind: "info" | "warn" | "good"; text: string }
+	/**
+	 * A pulled-out aside. `warn` for a trap, `good` for a promise being kept.
+	 *
+	 * `items` carries a list inside the box. Release notes want it: "Worth
+	 * knowing before you upgrade" is four separate claims, and run together as
+	 * one paragraph they were a wall to be read rather than a list to be
+	 * scanned. Optional, because most notes are a single thought and a bullet
+	 * with nothing to be distinguished from is furniture.
+	 */
+	| { t: "note"; kind: "info" | "warn" | "good"; text: string; items?: string[] }
 	/** Pin tables on a node page, which want their own rendering. */
 	| { t: "pins"; title: string; pins: NodeDoc["inputs"] }
 	/**
@@ -226,7 +234,9 @@ export function blockText(block: Block): string {
 		case "tags":
 			return block.tags.map((tag) => TAG_LABELS[tag]).join(" ");
 		case "note":
-			return parseInline(block.text).map((i) => i.text).join("");
+			return [block.text, ...(block.items ?? [])]
+				.map((t) => parseInline(t).map((i) => i.text).join(""))
+				.join(" ");
 		case "pins":
 			return block.pins.map((p) => `${p.name} ${p.type ?? ""}`).join(" ");
 		case "preview":
@@ -494,7 +504,8 @@ function releasesPage(): DocPage {
 			blocks.push({
 				t: "note",
 				kind: "warn",
-				text: "**Worth knowing before you upgrade.** " + release.watch.join(" "),
+				text: "**Worth knowing before you upgrade.**",
+				items: release.watch,
 			});
 		}
 		// One entry per row rather than per bullet. A release note is a list of

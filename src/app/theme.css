@@ -2712,6 +2712,18 @@ button.tb.with-icon {
 	line-height: 1.55;
 }
 
+/* A list inside a note: several separate claims rather than one thought.
+   Tightened against the paragraph above it, so the sentence introducing them
+   and the points themselves read as one block rather than two. */
+.docs-note ul {
+	margin: 6px 0 0;
+	padding-left: 18px;
+}
+
+.docs-note li {
+	margin: 3px 0;
+}
+
 .docs-note.warn { border-left-color: var(--warning); }
 .docs-note.good { border-left-color: var(--ok); }
 .docs-note.info { border-left-color: var(--accent); }

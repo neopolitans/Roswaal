@@ -46,6 +46,15 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.17.2",
+		date: "2026-09-08",
+		headline: "Worth-knowing notes are a list.",
+		changed: [
+			"**\"Worth knowing before you upgrade\" is bulleted**, one point per bullet. It was one run-on paragraph, so telling its separate claims apart meant reading the whole thing.",
+			"A few entries that carried two claims have been split into two.",
+		],
+	},
+	{
 		version: "0.17.1",
 		date: "2026-09-08",
 		headline: "The selection preview is syntax highlighted.",
@@ -69,8 +78,10 @@ export const RELEASES: Release[] = [
 			"**The compiler's line-to-node source map was off by one, and always had been.** Every entry pointed one line late: the first statement at the line below it, the last node at the blank line ending the file.",
 		],
 		watch: [
-			"`P` opens the preview when nodes are selected, with no modifier — the same shape as `C` for a comment. It works while a compile has the graph locked.",
-			"The map is what a future Studio integration would use to point a runtime error back at a node. Anything already built against it was reading lines one out.",
+			"`P` opens the preview when nodes are selected, with no modifier — the same shape as `C` for a comment.",
+			"The preview works while a compile has the graph locked.",
+			"The source map is what a future Studio integration would use to point a runtime error back at a node.",
+			"Anything already built against the map was reading lines one out.",
 		],
 	},
 	{

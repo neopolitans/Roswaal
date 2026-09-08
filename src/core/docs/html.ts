@@ -156,8 +156,12 @@ function renderBlock(block: Block, options: RenderOptions): string {
 			return `<p class="docs-tags">${block.tags
 				.map((tag) => `<span class="docs-tag ${tag}">${escapeHtml(TAG_LABELS[tag])}</span>`)
 				.join("")}</p>`;
-		case "note":
-			return `<div class="docs-note ${block.kind}">${inline(block.text)}</div>`;
+		case "note": {
+			const items = block.items
+				? `<ul>${block.items.map((i) => `<li>${inline(i)}</li>`).join("")}</ul>`
+				: "";
+			return `<div class="docs-note ${block.kind}">${inline(block.text)}${items}</div>`;
+		}
 		case "pins":
 			return renderPins(block, options);
 		case "graph": {

@@ -422,7 +422,18 @@ function BlockView({ block }: { block: Block }) {
 				</p>
 			);
 		case "note":
-			return <div className={`docs-note ${block.kind}`}><Rich text={block.text} /></div>;
+			return (
+				<div className={`docs-note ${block.kind}`}>
+					<Rich text={block.text} />
+					{block.items && (
+						<ul>
+							{block.items.map((item, i) => (
+								<li key={i}><Rich text={item} /></li>
+							))}
+						</ul>
+					)}
+				</div>
+			);
 		case "pins":
 			return <PinTable title={block.title} pins={block.pins} />;
 		case "preview":
