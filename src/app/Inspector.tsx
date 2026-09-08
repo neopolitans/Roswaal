@@ -91,6 +91,9 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 						hint="Whatever the signal passes to its listener."
 					/>
 				)}
+				{(def.id === "table.dictionary"
+					|| def.id === "table.get"
+					|| def.id === "table.set") && <KeyStyle node={node} />}
 				{def.id === "flow.sequence" && (
 					<CountEditor node={node} field="count" label="Outputs" min={2} max={12} fallback={2} />
 				)}
@@ -260,8 +263,8 @@ function TypeEditor({ node }: { node: GraphNode }) {
 						value={shape}
 						onChange={(e) => store.edit((s) => setConfig(s, node.id, { shape: e.target.value }))}
 					>
-						<option value="fields">A table of fields</option>
-						<option value="written">Written out as Luau</option>
+						<option value="fields">Table of Fields</option>
+						<option value="written">Custom Luau</option>
 					</select>
 				</Field>
 			)}
@@ -306,6 +309,37 @@ function TypeEditor({ node }: { node: GraphNode }) {
 				</label>
 			</div>
 		</>
+	);
+}
+
+/**
+ * Whether a string key is written plainly or in brackets.
+ *
+ * `t.tuning` and `t["tuning"]` are the same access and Luau takes both, so this
+ * is a setting rather than a rule — the generated file is meant to be read
+ * beside hand-written Luau, and which one reads better depends on the table. A
+ * settings table wants `tuning.turnRate`. A table keyed by names that only
+ * happen to be identifiers today wants the brackets it will need tomorrow.
+ *
+ * Only a key that is a literal string and a valid Luau name can be written
+ * plainly at all; a computed key, a number, or anything with a space in it
+ * stays bracketed whatever this says.
+ */
+function KeyStyle({ node }: { node: GraphNode }) {
+	const current = (node.config as { keys?: string } | undefined)?.keys === "brackets"
+		? "brackets"
+		: "plain";
+	return (
+		<Field label="String keys">
+			<select
+				className="tb"
+				value={current}
+				onChange={(e) => store.edit((s) => setConfig(s, node.id, { keys: e.target.value }))}
+			>
+				<option value="plain">Plain where Luau allows — t.name</option>
+				<option value="brackets">Always brackets — t["name"]</option>
+			</select>
+		</Field>
 	);
 }
 

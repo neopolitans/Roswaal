@@ -127,8 +127,10 @@ describe("Make Dictionary", () => {
 		b.lit(dict, "a1", { t: "number", v: 0 });
 
 		const luau = shows(b, dict);
-		expect(luau).toContain('["Position"] = 1');
-		expect(luau).toContain('["Transparency"] = 0');
+		// Plain keys, as anybody would write them. `["Position"]` is the same
+		// access and is what this emitted until the key style became a setting.
+		expect(luau).toContain("Position = 1");
+		expect(luau).toContain("Transparency = 0");
 	});
 
 	/**
@@ -142,7 +144,7 @@ describe("Make Dictionary", () => {
 		b.lit(dict, "a0", { t: "number", v: 5 });
 
 		const luau = shows(b, dict);
-		expect(luau).toContain('["Size"] = 5');
+		expect(luau).toContain("Size = 5");
 		expect(luau).not.toContain('[""]');
 	});
 
@@ -174,7 +176,7 @@ describe("Make Dictionary", () => {
 
 		const result = compile(b.build(), registry);
 		expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
-		expect(body(result.code)).toContain('{ ["Transparency"] = 1 }');
+		expect(body(result.code)).toContain("{ Transparency = 1 }");
 	});
 });
 

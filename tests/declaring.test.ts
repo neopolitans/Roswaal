@@ -183,8 +183,8 @@ describe("how big a dictionary can be", () => {
 		b.link(dict, "result", declare, "value");
 
 		const out = code(b.build());
-		expect(out).toContain('["key0"] = 0');
-		expect(out).toContain('["key9"] = 9');
+		expect(out).toContain("key0 = 0");
+		expect(out).toContain("key9 = 9");
 	});
 });
 
@@ -442,5 +442,83 @@ describe("a type built from fields", () => {
 		b.node("script.begin");
 		b.node("type.declareTop", { config: { name: "Config", definition: "number" } });
 		expect(code(b.build())).toContain("export type Config = number");
+	});
+});
+
+/**
+ * How a string key is written.
+ *
+ * `TankConfig["tuning"] = TUNING` and `TankConfig.tuning = TUNING` are the same
+ * assignment and Luau takes both — but only one of them is what anybody writes,
+ * and the generated file is read beside hand-written Luau. Which one reads
+ * better depends on the table, so it is a setting on the node rather than a
+ * rule in the compiler.
+ *
+ * The cases that must stay bracketed matter more than the ones that shorten:
+ * getting those wrong emits Luau that does not compile.
+ */
+describe("string keys, plain or bracketed", () => {
+	function dictionary(key: string, keys?: string) {
+		const b = new Builder();
+		const dict = b.node("table.dictionary", { config: { args: 1, ...(keys ? { keys } : {}) } });
+		b.lit(dict, "k0", { t: "string", v: key });
+		b.lit(dict, "a0", { t: "number", v: 1 });
+		const start = b.node("script.begin");
+		const declare = b.node("local.declare");
+		b.lit(declare, "name", { t: "string", v: "t" });
+		b.link(start, "then", declare, "in");
+		b.link(dict, "result", declare, "value");
+		return code(b.build());
+	}
+
+	it("writes a plain name plainly", () => {
+		expect(dictionary("turnRate")).toContain("{ turnRate = 1 }");
+	});
+
+	it("brackets it when asked to", () => {
+		expect(dictionary("turnRate", "brackets")).toContain('{ ["turnRate"] = 1 }');
+	});
+
+	it("brackets a key with a space in it, whatever the setting", () => {
+		expect(dictionary("turn rate")).toContain('["turn rate"] = 1');
+	});
+
+	it("brackets a key that starts with a digit", () => {
+		expect(dictionary("2fast")).toContain('["2fast"] = 1');
+	});
+
+	/** `t.end` does not compile. */
+	it("brackets a reserved word", () => {
+		expect(dictionary("end")).toContain('["end"] = 1');
+	});
+
+	function setIndex(keyLiteral: { t: string; v: unknown } | null, keys?: string) {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const table = b.node("table.new");
+		const set = b.node("table.set", { config: keys ? { keys } : {} });
+		b.link(start, "then", table, "in");
+		b.link(table, "then", set, "in");
+		b.link(table, "result", set, "table");
+		if (keyLiteral) b.lit(set, "key", keyLiteral as never);
+		else {
+			const computed = b.node("value.string");
+			b.link(computed, "result", set, "key");
+		}
+		b.lit(set, "value", { t: "number", v: 1 });
+		return code(b.build());
+	}
+
+	it("writes Set Index as a dot", () => {
+		expect(setIndex({ t: "string", v: "tuning" })).toMatch(/\.tuning = 1$/m);
+	});
+
+	it("brackets Set Index when asked to", () => {
+		expect(setIndex({ t: "string", v: "tuning" }, "brackets")).toContain('["tuning"] = 1');
+	});
+
+	/** A key that is worked out at runtime has no name to write. */
+	it("brackets a computed key, which has no plain form", () => {
+		expect(setIndex(null)).toContain("[");
 	});
 });

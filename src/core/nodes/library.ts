@@ -388,10 +388,10 @@ export const LIBRARY_NODES: NodeDef[] = [
 		outputs: [exec("then"), d("result", "Table", "table")],
 		compilesTo: { kind: "call", template: "{}", result: "result" },
 	},
-	pure("table.get", "Get Index", "Tables", "$in.table[$in.key]",
+	pure("table.get", "Get Index", "Tables", "$index(table, key)",
 		[d("table", "Table", "table"), d("key", "Key", "any", { t: "number", v: 1 })], "any"),
 	pure("table.length", "Table Length", "Tables", "#$in.table", [d("table", "Table", "table")], "number"),
-	stmt("table.set", "Set Index", "Tables", "$in.table[$in.key] = $in.value", [
+	stmt("table.set", "Set Index", "Tables", "$index(table, key) = $in.value", [
 		d("table", "Table", "table"), d("key", "Key", "any", { t: "number", v: 1 }), d("value", "Value", "any", { t: "nil" }),
 	]),
 	stmt("table.insert", "Insert", "Tables", "table.insert($in.table, $in.value)", [

@@ -62,6 +62,35 @@ class Scope {
 	}
 }
 
+/**
+ * Lua's reserved words, which cannot be a field name written plainly.
+ *
+ * `continue` is in here and is not actually reserved in Luau — it is
+ * contextual, and `t.continue` compiles. Bracketing it anyway costs three
+ * characters in a file nobody will notice, and the alternative is being subtly
+ * wrong about a keyword list if Luau ever tightens one.
+ */
+const LUAU_RESERVED = new Set([
+	"and", "break", "do", "else", "elseif", "end", "false", "for", "function",
+	"if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true",
+	"until", "while", "continue",
+]);
+
+/**
+ * The name inside a rendered key, when the key can be written without brackets.
+ *
+ * `t["tuning"]` and `t.tuning` are the same table access, and Luau accepts
+ * both — but only one of them is what anybody writes, and the generated file is
+ * meant to be read beside hand-written Luau. Returns null whenever the short
+ * form would change the meaning or not compile: a computed key, a key with a
+ * space in it, a number, a reserved word.
+ */
+function plainKey(rendered: string): string | null {
+	const match = /^"([A-Za-z_][A-Za-z0-9_]*)"$/.exec(rendered);
+	if (!match) return null;
+	return LUAU_RESERVED.has(match[1]) ? null : match[1];
+}
+
 const LUAU_TYPES = new Set([
 	"any", "boolean", "number", "string", "thread",
 	"Instance", "Vector3", "Vector2", "CFrame", "Color3", "UDim", "UDim2",
@@ -277,6 +306,18 @@ class Emitter {
 	 * already what an unmarked file gets, so `--!nonstrict` with no annotations
 	 * would be a setting that changes one comment and nothing else.
 	 */
+	/**
+	 * Whether this node was told to write every key in brackets.
+	 *
+	 * A setting rather than a rule, because both forms are ordinary Luau and
+	 * which one reads better depends on the table: a settings table wants
+	 * `tuning.turnRate`, and a table keyed by names that only happen to be
+	 * identifiers today wants the brackets it will still need tomorrow.
+	 */
+	private bracketsOnly(r: ResolvedNode): boolean {
+		return (r.node.config as { keys?: string } | undefined)?.keys === "brackets";
+	}
+
 	private get annotates(): boolean {
 		return this.script.typecheck !== "default";
 	}
@@ -1495,10 +1536,29 @@ class Emitter {
 				if (!value) continue;
 				const key = this.resolveInput(r, pin, scope);
 				if (key === '""' || key === "nil") continue;
-				entries.push(`[${key}] = ${this.resolveInput(r, value, scope)}`);
+				const plain = this.bracketsOnly(r) ? null : plainKey(key);
+				const written = plain ?? `[${key}]`;
+				entries.push(`${written} = ${this.resolveInput(r, value, scope)}`);
 			}
 			return entries.length === 0 ? "" : ` ${entries.join(separator)} `;
 		});
+
+		/**
+		 * `$index(<table pin>, <key pin>)` — `t.name` or `t[expr]`.
+		 *
+		 * A placeholder rather than two templates on each node, because Get Index
+		 * and Set Index differ only in what surrounds the access and both have to
+		 * make the same decision about the key.
+		 */
+		template = template.replace(
+			/\$index\(([A-Za-z_][A-Za-z0-9_]*),\s*([A-Za-z_][A-Za-z0-9_]*)\)/g,
+			(_match, tablePin: string, keyPin: string) => {
+				const table = this.resolveInput(r, this.pin(r, tablePin, "in"), scope);
+				const key = this.resolveInput(r, this.pin(r, keyPin, "in"), scope);
+				const plain = this.bracketsOnly(r) ? null : plainKey(key);
+				return plain ? `${table}.${plain}` : `${table}[${key}]`;
+			},
+		);
 
 		const re = /\$(in|out)\.([A-Za-z_][A-Za-z0-9_]*)(?:!(ident|raw))?/g;
 		return template.replace(re, (match: string, side: string, pinId: string, modifier: string | undefined, offset: number) => {
