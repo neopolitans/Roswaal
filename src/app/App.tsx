@@ -208,6 +208,15 @@ export function App() {
 		{ nodeId: string; pin: PinDef; value: string } | null
 	>(null);
 	const [dialog, setDialog] = useState<PendingDialog | null>(null);
+	/**
+	 * The folder a new graph or map goes into.
+	 *
+	 * Set by clicking anything in the tree — a folder is itself, a file is its
+	 * parent — and shown in the dialog before anything is created, so it is
+	 * never a hidden setting. `null` means the project's source root, which is
+	 * where everything went before this existed.
+	 */
+	const [targetDir, setTargetDir] = useState<string | null>(null);
 	/** Where the project menu is anchored, and the recents it was opened with. */
 	const [projectMenu, setProjectMenu] = useState<
 		{ anchor: { x: number; y: number }; recent: string[] } | null
@@ -958,6 +967,67 @@ export function App() {
 		}
 	}, [notify]);
 
+	/**
+	 * Where a new document lands, and how the dialog says so.
+	 *
+	 * A "New graph" button that silently drops the file into a folder you
+	 * clicked ten minutes ago is worse than one that always uses the root, so
+	 * the destination goes in the dialog's label. Then there is no state to
+	 * remember and no surprise to undo.
+	 */
+	const inDir = useCallback(
+		(dir: string | null) => {
+			const source = project?.config.sourceDir ?? "";
+			// The tree shows the compiled output as well as the graphs, and
+			// clicking about in it sets the target like anything else. A graph
+			// written into `outDir` would be deleted by the next compile, so
+			// anything outside the source directory falls back to its root.
+			// The check belongs here rather than in the tree: this is the one
+			// place both the button and the menu pass through.
+			const usable = dir !== null && (dir === source || dir.startsWith(source + "/"));
+			return usable ? dir : source;
+		},
+		[project],
+	);
+
+	const createGraphIn = useCallback(async (dir: string) => {
+		const name = await ask({
+			kind: "prompt",
+			title: "New graph",
+			label: `Name — created in ${dir}`,
+			value: "Untitled",
+		});
+		if (typeof name !== "string") return;
+		try {
+			const created = await api.createScript(dir, name, "Script");
+			await refreshTree();
+			store.open(created.path, created.script);
+			setSource(null);
+			setMapDoc(null);
+		} catch (err) {
+			notify("Could not create that graph", (err as Error).message);
+		}
+	}, [ask, notify, refreshTree]);
+
+	const createMapIn = useCallback(async (dir: string) => {
+		const name = await ask({
+			kind: "prompt",
+			title: "New node map",
+			label: `Name — created in ${dir}`,
+			value: "Tree",
+		});
+		if (typeof name !== "string") return;
+		try {
+			const created = await api.createMap(dir, name);
+			await refreshTree();
+			store.close();
+			setSource(null);
+			setMapDoc({ path: created.path, map: created.map, dirty: false });
+		} catch (err) {
+			notify("Could not create that map", (err as Error).message);
+		}
+	}, [ask, notify, refreshTree]);
+
 	const onTreeNewFolder = useCallback(async (parentDir: string) => {
 		const name = await ask({
 			kind: "prompt",
@@ -1037,27 +1107,8 @@ export function App() {
 				config={project.config}
 				busy={busy}
 				onRefresh={() => void refreshTree()}
-				onNewGraph={async () => {
-					const name = await ask({
-						kind: "prompt", title: "New graph", label: "Name", value: "Untitled",
-					});
-					if (typeof name !== "string") return;
-					const created = await api.createScript(project.config.sourceDir, name, "Script");
-					await refreshTree();
-					store.open(created.path, created.script);
-					setSource(null);
-				}}
-				onNewMap={async () => {
-					const name = await ask({
-						kind: "prompt", title: "New node map", label: "Name", value: "Tree",
-					});
-					if (typeof name !== "string") return;
-					const created = await api.createMap(project.config.sourceDir, name);
-					await refreshTree();
-					store.close();
-					setSource(null);
-					setMapDoc({ path: created.path, map: created.map, dirty: false });
-				}}
+				onNewGraph={() => void createGraphIn(inDir(targetDir))}
+				onNewMap={() => void createMapIn(inDir(targetDir))}
 				onCompileMode={(mode) => void setConfig({ compileMode: mode })}
 				onCompileProject={async () => {
 					await runCompile(undefined, true);
@@ -1145,9 +1196,14 @@ export function App() {
 							<ProjectTree
 								tree={project.tree}
 								openPath={editor.path ?? source?.path ?? null}
+								sourceDir={project.config.sourceDir}
+								targetDir={targetDir}
 								onOpen={onTreeOpen}
 								onMove={onTreeMove}
 								onReveal={onTreeReveal}
+								onTargetDir={setTargetDir}
+								onNewGraph={createGraphIn}
+								onNewMap={createMapIn}
 								onNewFolder={onTreeNewFolder}
 								onRename={onTreeRename}
 								onDelete={onTreeDelete}

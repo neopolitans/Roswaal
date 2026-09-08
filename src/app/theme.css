@@ -1211,6 +1211,13 @@ button.tb.primary:hover:not(:disabled) {
 	text-align: center;
 }
 
+/* The folder a new graph would go into. Quieter than a selection -- it is
+   context, not a choice you made, and it has to sit under the selected and
+   open-document styles without fighting them. */
+.tree-row.target-dir {
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
 /* What is left when a render throws. Deliberately plain: it has to work when
    whatever it is reporting has already gone wrong, so it uses nothing but the
    colour tokens. */

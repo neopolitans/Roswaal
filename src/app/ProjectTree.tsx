@@ -20,8 +20,16 @@ const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
 export interface ProjectTreeProps {
 	tree: TreeEntry[];
 	openPath: string | null;
+	/** Where graphs live. Only folders under it can hold a new one. */
+	sourceDir: string;
+	/** The folder new documents go into, or null for the source root. */
+	targetDir: string | null;
 	onOpen: (entry: TreeEntry) => void;
 	onMove: (from: string[], toDir: string) => void;
+	/** A row was clicked: a folder is itself, a file is its parent. */
+	onTargetDir: (dir: string) => void;
+	onNewGraph: (parentDir: string) => void;
+	onNewMap: (parentDir: string) => void;
 	onNewFolder: (parentDir: string) => void;
 	onRename: (path: string) => void;
 	onDelete: (paths: string[]) => void;
@@ -41,7 +49,7 @@ export interface ProjectTreeProps {
  * new inline arrow in the JSX would quietly undo this.
  */
 export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
-	const { tree, openPath, onOpen, onMove } = props;
+	const { tree, openPath, sourceDir, targetDir, onOpen, onMove, onTargetDir } = props;
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
 
@@ -67,6 +75,24 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 	const rows = useMemo(() => flatten(tree, collapsed, 0), [tree, collapsed]);
 	const [anchor, setAnchor] = useState<string | null>(null);
 
+	// A folder's own path is where a new document goes; a file's parent is.
+	function parentDirOf(entry: TreeEntry): string {
+		if (entry.kind === "directory") return entry.path;
+		const slash = entry.path.lastIndexOf("/");
+		return slash === -1 ? "" : entry.path.slice(0, slash);
+	}
+
+	/**
+	 * Whether a new graph or map can go here at all.
+	 *
+	 * Only under `sourceDir`. The tree also shows the compiled output, and
+	 * offering "New graph" inside a folder Roswaal regenerates would be offering
+	 * to write a file the next compile deletes.
+	 */
+	function holdsGraphs(dir: string): boolean {
+		return dir === sourceDir || dir.startsWith(sourceDir + "/");
+	}
+
 	function toggle(path: string) {
 		const next = new Set(collapsed);
 		if (next.has(path)) next.delete(path);
@@ -75,6 +101,10 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 	}
 
 	function click(e: React.MouseEvent, entry: TreeEntry) {
+		// Clicking anywhere in the tree says where you are working, which is what
+		// the toolbar's New graph then uses. A folder is itself; a file is the
+		// folder it is in, because that is where its siblings go.
+		onTargetDir(parentDirOf(entry));
 		if (entry.kind === "directory") {
 			toggle(entry.path);
 			return;
@@ -124,13 +154,6 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		if (movable.length) onMove(movable, dir);
 	}
 
-	// A folder's own path is where a new folder goes; a file's parent is.
-	function parentDirOf(entry: TreeEntry): string {
-		if (entry.kind === "directory") return entry.path;
-		const slash = entry.path.lastIndexOf("/");
-		return slash === -1 ? "" : entry.path.slice(0, slash);
-	}
-
 	return (
 		<div className="tree">
 			{rows.map(({ entry, depth }) => {
@@ -142,6 +165,12 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						className={[
 							"tree-row",
 							selected.has(entry.path) ? "selected" : "",
+							// The folder the toolbar's New graph would use. Marked
+							// rather than left implicit, because a button that acts
+							// on something you clicked earlier has to show what.
+							isDir && entry.path === targetDir && holdsGraphs(entry.path)
+								? "target-dir"
+								: "",
 							openPath === entry.path ? "open-doc" : "",
 							readonly ? "readonly" : "",
 							dropTarget === entry.path ? "drop-target" : "",
@@ -162,6 +191,9 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						onContextMenu={(e) => {
 							e.preventDefault();
 							if (!selected.has(entry.path)) setSelected(new Set([entry.path]));
+							// Right-clicking is a way of saying where you are working
+							// too, so the toolbar agrees with the menu you just used.
+							onTargetDir(parentDirOf(entry));
 							setMenu({ x: e.clientX, y: e.clientY, entry });
 						}}
 						title={entry.path}
@@ -201,16 +233,33 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 					style={{ left: menu.x, top: menu.y, zIndex: LAYER.menu }}
 				>
 					<div className="items">
-						<div
-							className="item"
-							onClick={() => {
-								props.onReveal(menu.entry.path);
-								setMenu(null);
-							}}
-						>
-							<Icon name="external" size={15} />
-							<span>Show in file manager</span>
-						</div>
+						{/* Making things first, then finding them, then destroying
+						    them. A menu opened on a folder is nearly always opened
+						    to put something in it. */}
+						{holdsGraphs(parentDirOf(menu.entry)) && (
+							<>
+								<div
+									className="item"
+									onClick={() => {
+										props.onNewGraph(parentDirOf(menu.entry));
+										setMenu(null);
+									}}
+								>
+									<Icon name="newFile" size={15} />
+									<span>New graph here</span>
+								</div>
+								<div
+									className="item"
+									onClick={() => {
+										props.onNewMap(parentDirOf(menu.entry));
+										setMenu(null);
+									}}
+								>
+									<Icon name="map" size={15} />
+									<span>New map here</span>
+								</div>
+							</>
+						)}
 						<div
 							className="item"
 							onClick={() => {
@@ -220,6 +269,16 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						>
 							<Icon name="newFolder" size={15} />
 							<span>New folder</span>
+						</div>
+						<div
+							className="item"
+							onClick={() => {
+								props.onReveal(menu.entry.path);
+								setMenu(null);
+							}}
+						>
+							<Icon name="external" size={15} />
+							<span>Show in file manager</span>
 						</div>
 						<div
 							className="item"

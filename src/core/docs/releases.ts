@@ -46,6 +46,21 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.18.5",
+		date: "2026-09-08",
+		headline: "Make a graph in the folder you are looking at.",
+		added: [
+			"**Right-click a folder for *New graph here* and *New map here*.** They appear only for folders under the project's source directory — a graph written into the compiled output would be deleted by the next compile.",
+		],
+		changed: [
+			"**New graph and New map use the folder you last clicked in the tree**, rather than always the top of the source directory. A folder counts as itself, a file counts as the folder it is in, and the folder is marked in the tree.",
+			"Both dialogs name the folder the document will be created in.",
+		],
+		fixed: [
+			"Creating a graph or a map that fails now says so, instead of leaving the tree unchanged with no explanation.",
+		],
+	},
+	{
 		version: "0.18.4",
 		date: "2026-09-08",
 		headline: "`npm link` puts roswaal on your PATH.",
