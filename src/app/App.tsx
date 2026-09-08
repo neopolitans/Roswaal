@@ -10,31 +10,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { compile, type Diagnostic } from "../core/compiler/index.js";
-import { VERSION } from "../cli/version.js";
 import { createRegistry, resolveNodePins } from "../core/nodes/index.js";
-import type { NodeDef, RoswaalConfig, ScriptClass } from "../core/schema.js";
+import type { NodeDef, RoswaalConfig } from "../core/schema.js";
 import {
 	api, ProjectChangedError,
 	type CompileOutcome, type CompileStep, type MapOutcome, type ProjectInfo, type TreeEntry,
 } from "./api.js";
 import type { InstanceLocation, NodeMap } from "../core/nodemap.js";
 import { MapEditor } from "./MapEditor.jsx";
-import { CodeEditor } from "./CodeEditor.jsx";
 import { SourceView, type SourceDoc } from "./SourceView.jsx";
-import { Dialog, type DialogRequest, type DialogResult, type PendingDialog } from "./Dialog.jsx";
-import { Icon } from "./icons.jsx";
+import type { DialogRequest, DialogResult, PendingDialog } from "./Dialog.jsx";
 import { Logo } from "./logo.jsx";
-import { LAYER } from "./layers.js";
 import type { PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
-import { buildPresets, NodeMenu, type MenuAnchor } from "./NodeMenu.jsx";
-import { PinMenu, type PinMenuTarget } from "./PinMenu.jsx";
+import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
+import type { PinMenuTarget } from "./PinMenu.jsx";
 import { autoLayout } from "./layout.js";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { VariablesPanel } from "./VariablesPanel.jsx";
-import { SettingsPanel } from "./SettingsPanel.jsx";
-import { SelectionPreview } from "./SelectionPreview.jsx";
+import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
+import { Overlays } from "./Overlays.jsx";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
@@ -846,229 +842,80 @@ export function App() {
 	return (
 		<div className="app">
 			{/* The application: what Roswaal is doing, whatever is open. */}
-			<div className="toolbar">
-				{/* The mark alone. The name is on it as a tooltip rather than in
-				    text, because the toolbar is the one screen you are only on
-				    once you have already opened the thing. */}
-				<span className="logo">
-					<Logo height={17} title={`Roswaal ${VERSION}`} />
-					{/* Small, always there. Knowing which build you are looking at
-					    is the first question about any bug report. */}
-					<span className="version" title={`Roswaal ${VERSION}`}>{VERSION}</span>
-				</span>
-				<button
-					className="tb with-icon"
-					title="Re-read the project from disk"
-					onClick={() => void refreshTree()}
-				>
-					<Icon name="refresh" size={15} />
-					Refresh
-				</button>
-				<button
-					className="tb with-icon"
-					title="A new .nodescript: one Script, LocalScript or ModuleScript"
-					onClick={async () => {
-						const name = await ask({
-							kind: "prompt",
-							title: "New graph",
-							label: "Name",
-							value: "Untitled",
+			<ProjectBar
+				config={project.config}
+				busy={busy}
+				onRefresh={() => void refreshTree()}
+				onNewGraph={async () => {
+					const name = await ask({
+						kind: "prompt", title: "New graph", label: "Name", value: "Untitled",
+					});
+					if (typeof name !== "string") return;
+					const created = await api.createScript(project.config.sourceDir, name, "Script");
+					await refreshTree();
+					store.open(created.path, created.script);
+					setSource(null);
+				}}
+				onNewMap={async () => {
+					const name = await ask({
+						kind: "prompt", title: "New node map", label: "Name", value: "Tree",
+					});
+					if (typeof name !== "string") return;
+					const created = await api.createMap(project.config.sourceDir, name);
+					await refreshTree();
+					store.close();
+					setSource(null);
+					setMapDoc({ path: created.path, map: created.map, dirty: false });
+				}}
+				onCompileMode={(mode) => void setConfig({ compileMode: mode })}
+				onCompileProject={async () => {
+					await runCompile(undefined, true);
+					await runCompileMap(undefined);
+				}}
+				onOpenDocs={() => window.open("/docs", "roswaal-docs")}
+				onOpenSettings={() => setSettingsOpen(true)}
+			/>
+
+			{/* The document row. Absent when nothing is open, which is what
+			    keeps "everything above is the project, everything here is the
+			    document" true rather than aspirational. */}
+			{mapDoc && (
+				<DocumentBar
+					kind="map"
+					name={mapDoc.map.name}
+					dirty={mapDoc.dirty}
+					busy={busy}
+					onCompile={() => void runCompileMap(mapDoc.path)}
+				/>
+			)}
+			{!mapDoc && editor.script && (
+				<DocumentBar
+					kind="graph"
+					name={editor.script.name}
+					dirty={editor.dirty}
+					busy={busy}
+					scriptClass={editor.script.scriptClass}
+					strict={editor.script.strict}
+					locked={locked}
+					alignExec={alignExec}
+					selected={editor.selection.size}
+					hasPath={editor.path !== null}
+					onScriptClass={(value) => store.edit((s) => ({ ...s, scriptClass: value }))}
+					onStrict={(value) => store.edit((s) => ({ ...s, strict: value }))}
+					onAddNode={() => {
+						const view = store.getView();
+						setMenu({
+							screen: { x: 320, y: 120 },
+							world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
 						});
-						if (typeof name !== "string") return;
-						const created = await api.createScript(project.config.sourceDir, name, "Script");
-						await refreshTree();
-						store.open(created.path, created.script);
-						setSource(null);
 					}}
-				>
-					<Icon name="newFile" size={15} />
-					New graph
-				</button>
-				<button
-					className="tb with-icon"
-					title="A node map describes where things live in the DataModel"
-					onClick={async () => {
-						const name = await ask({
-							kind: "prompt",
-							title: "New node map",
-							label: "Name",
-							value: "Tree",
-						});
-						if (typeof name !== "string") return;
-						const created = await api.createMap(project.config.sourceDir, name);
-						await refreshTree();
-						store.close();
-						setSource(null);
-						setMapDoc({ path: created.path, map: created.map, dirty: false });
+					onRealign={realign}
+					onToggleAlignExec={toggleAlignExec}
+					onPreview={() => setPreviewOpen(true)}
+					onCompile={() => {
+						if (editor.path) void runCompile(editor.path, true);
 					}}
-				>
-					<Icon name="map" size={15} />
-					New map
-				</button>
-
-				<span className="spacer" />
-
-				<div className="segmented" title="How generated Luau reaches disk">
-					<button
-						className={project.config.compileMode === "manual" ? "on" : ""}
-						onClick={() => void setConfig({ compileMode: "manual" })}
-					>
-						Manual
-					</button>
-					<button
-						className={project.config.compileMode === "hot" ? "on" : ""}
-						onClick={() => void setConfig({ compileMode: "hot" })}
-					>
-						Hot reload
-					</button>
-				</div>
-				<button
-					className="tb"
-					title="Compile every graph and node map in the project"
-					disabled={busy !== null}
-					onClick={async () => {
-						await runCompile(undefined, true);
-						await runCompileMap(undefined);
-					}}
-				>
-					Compile project
-				</button>
-				<button
-					className="tb"
-					title="Guides, and a reference page for every node — including this project's own packs. Opens in its own window so it does not cover the graph."
-					onClick={() => window.open("/docs", "roswaal-docs")}
-				>
-					Docs
-				</button>
-				<button
-					className="tb with-icon"
-					title="Project settings, editor preferences and themes"
-					onClick={() => setSettingsOpen(true)}
-				>
-					<Icon name="settings" size={15} />
-					Settings
-				</button>
-			</div>
-
-			{/* The document: its name, its own settings, and the tools that only
-			    mean anything while it is open.
-
-			    Split out because one flat row put "Refresh the project" next to
-			    "strict" and left you working out which of twelve controls acted on
-			    what. Two rows answer that by position: everything above is about the
-			    project, everything here is about the thing you are looking at, and
-			    the row is simply absent when you are not looking at anything. */}
-			{(editor.script || mapDoc) && (
-				<div className="docbar">
-					{mapDoc ? (
-						<>
-							<span className={`doc-name${mapDoc.dirty ? " dirty" : ""}`}>
-								{mapDoc.map.name}
-							</span>
-							<span className="doc-kind">node map</span>
-						</>
-					) : editor.script ? (
-						<>
-							<span className={`doc-name${editor.dirty ? " dirty" : ""}`}>
-								{editor.script.name}
-							</span>
-							<select
-								className="tb"
-								title="What this graph compiles to"
-								value={editor.script.scriptClass}
-								onChange={(e) =>
-									store.edit((s) => ({ ...s, scriptClass: e.target.value as ScriptClass }))
-								}
-							>
-								<option>Script</option>
-								<option>LocalScript</option>
-								<option>ModuleScript</option>
-							</select>
-							<label
-								className="tb"
-								title="Emit --!strict at the top of the generated file"
-								style={{ cursor: "pointer" }}
-							>
-								<input
-									type="checkbox"
-									checked={editor.script.strict}
-									disabled={locked}
-									onChange={(e) => store.edit((s) => ({ ...s, strict: e.target.checked }))}
-								/>{" "}
-								strict
-							</label>
-
-							<span className="divider" />
-
-							<button
-								className="tb with-icon"
-								disabled={!editor.script || locked}
-								title="Add a node at the centre of the view. Right-clicking the canvas does the same, where you click."
-								onClick={() => {
-									const view = store.getView();
-									setMenu({
-										screen: { x: 320, y: 120 },
-										world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
-									});
-								}}
-							>
-								<Icon name="search" size={15} />
-								Add node
-							</button>
-							<button
-								className="tb with-icon"
-								disabled={!editor.script || locked}
-								title="Tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
-								onClick={realign}
-							>
-								<Icon name="layout" size={15} />
-								Realign
-							</button>
-							<button
-								className={`tb${alignExec ? " on" : ""}`}
-								aria-pressed={alignExec}
-								title={
-									alignExec
-										? "Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
-										: "Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
-								}
-								onClick={toggleAlignExec}
-							>
-								Straighten
-							</button>
-
-							{/* Only with a selection, which is the whole design: an
-							    advanced tool that appears when it has a question to
-							    answer and is not chrome the rest of the time. `P`
-							    does the same thing without reaching for it. */}
-							{editor.selection.size > 0 && (
-								<button
-									className="tb with-icon"
-									title="Show the Luau these nodes produced, in the generated file (P)"
-									onClick={() => setPreviewOpen(true)}
-								>
-									<Icon name="terminal" size={15} />
-									Preview
-								</button>
-							)}
-						</>
-					) : null}
-
-					<span className="spacer" />
-
-					<button
-						className="tb primary with-icon"
-						title="Compile just this document (Ctrl+S)"
-						disabled={(!editor.path && !mapDoc) || busy !== null}
-						onClick={() => {
-							if (mapDoc) void runCompileMap(mapDoc.path);
-							else if (editor.path) void runCompile(editor.path, true);
-						}}
-					>
-						<Icon name="build" size={15} />
-						{mapDoc ? "Write project file" : "Compile script"}
-					</button>
-				</div>
+				/>
 			)}
 
 			<div className={`workspace${showInspector ? " with-inspector" : ""}`}>
@@ -1199,167 +1046,60 @@ export function App() {
 				onForce={(path) => void runCompile(path, true, true)}
 			/>
 
-			{dropMenu && (
-				<DropMenu
-					{...dropMenu}
-					onClose={() => setDropMenu(null)}
-					onPick={(defId, config) => {
-						const def = registry.get(defId);
-						if (def) spawn(def, dropMenu.world, config);
-						setDropMenu(null);
-					}}
-				/>
-			)}
+			<Overlays
+				registry={registry}
+				script={editor.script}
+				selection={editor.selection}
 
+				drop={dropMenu}
+				onDropPick={(defId, config) => {
+					const def = registry.get(defId);
+					if (def && dropMenu) spawn(def, dropMenu.world, config);
+					setDropMenu(null);
+				}}
+				onDropClose={() => setDropMenu(null)}
 
-			{previewOpen && editor.script && compiled && (
-				<SelectionPreview
-					script={editor.script}
-					registry={registry}
-					selection={editor.selection}
-					code={compiled.code}
-					sourceMap={compiled.sourceMap}
-					onClose={() => setPreviewOpen(false)}
-				/>
-			)}
+				menu={menu}
+				presets={presets}
+				onMenuPick={(def, config) => menu && spawn(def, menu.world, config)}
+				onAddComment={() => menu && spawnComment(menu.world)}
+				onMenuClose={() => setMenu(null)}
 
-			{settingsOpen && (
-				<SettingsPanel
-					root={project.root}
-					config={project.config}
-					prefs={prefs}
-					onConfig={(patch) => void setConfig(patch)}
-					onPrefs={updatePrefs}
-					onClose={() => setSettingsOpen(false)}
-				/>
-			)}
+				pinMenu={pinMenu}
+				onPromote={() => pinMenu && promotePin(pinMenu)}
+				onBreakLinks={() =>
+					pinMenu &&
+					store.edit((s) => disconnectPin(s, pinMenu.nodeId, pinMenu.pin.id, pinMenu.side))
+				}
+				onSplit={(mode) => pinMenu && void splitOrRecombine(pinMenu, undefined, mode)}
+				onRecombine={(parent) => pinMenu && void splitOrRecombine(pinMenu, parent, undefined)}
+				onPinMenuClose={() => setPinMenu(null)}
 
-			{dialog && <Dialog {...dialog} />}
+				preview={previewOpen && compiled ? compiled : null}
+				onPreviewClose={() => setPreviewOpen(false)}
 
-			{codeEdit && (
-				<CodeEditor
-					title={codeEdit.pin.name || "Luau"}
-					value={codeEdit.value}
-					hint="Emitted verbatim into the generated file"
-					script={editor.script}
-					registry={registry}
-					nodeId={codeEdit.nodeId}
-					onClose={() => setCodeEdit(null)}
-					onCommit={(next) => {
-						store.edit((s) => setLiteral(s, codeEdit.nodeId, codeEdit.pin.id, { t: "raw", v: next }));
-						setCodeEdit(null);
-					}}
-				/>
-			)}
+				settings={
+					settingsOpen ? { root: project.root, config: project.config, prefs } : null
+				}
+				onConfig={(patch) => void setConfig(patch)}
+				onPrefs={updatePrefs}
+				onSettingsClose={() => setSettingsOpen(false)}
 
-			{menu && editor.script && (
-				<NodeMenu
-					anchor={menu}
-					registry={registry}
-					target={editor.script.target}
-					presets={presets}
-					onPick={(def, config) => spawn(def, menu.world, config)}
-					onAddComment={() => spawnComment(menu.world)}
-					onClose={() => setMenu(null)}
-				/>
-			)}
+				dialog={dialog}
 
-			{pinMenu && editor.script && (
-				<PinMenu
-					target={pinMenu}
-					script={editor.script}
-					registry={registry}
-					onPromote={() => promotePin(pinMenu)}
-					onBreakLinks={() =>
-						store.edit((s) =>
-							disconnectPin(s, pinMenu.nodeId, pinMenu.pin.id, pinMenu.side),
-						)
-					}
-					onSplit={(mode) => void splitOrRecombine(pinMenu, undefined, mode)}
-					onRecombine={(parent) => void splitOrRecombine(pinMenu, parent, undefined)}
-					onClose={() => setPinMenu(null)}
-				/>
-			)}
+				codeEdit={codeEdit}
+				onCodeCommit={(next) => {
+					if (!codeEdit) return;
+					store.edit((s) => setLiteral(s, codeEdit.nodeId, codeEdit.pin.id, { t: "raw", v: next }));
+					setCodeEdit(null);
+				}}
+				onCodeClose={() => setCodeEdit(null)}
+			/>
 		</div>
 	);
 }
 
 // ---------------------------------------------------------------------------
-
-interface DropMenuProps {
-	screen: { x: number; y: number };
-	name: string;
-	location: InstanceLocation;
-	onPick: (defId: string, config: Record<string, unknown>) => void;
-	onClose: () => void;
-}
-
-/**
- * What can be made from a file dropped on the canvas.
- *
- * The whole value is that the path is already worked out: you dragged the
- * module in, so Roswaal knows it is ReplicatedStorage + Greeter and you do not
- * have to type either.
- */
-function DropMenu({ screen, name, location, onPick, onClose }: DropMenuProps) {
-	const root = useRef<HTMLDivElement>(null);
-	const config = { root: location.root, path: location.path };
-	const full = location.path ? `${location.root}.${location.path}` : location.root;
-
-	useEffect(() => {
-		const onDown = (e: MouseEvent) => {
-			if (!root.current?.contains(e.target as Node)) onClose();
-		};
-		const id = window.setTimeout(() => window.addEventListener("mousedown", onDown), 0);
-		return () => {
-			window.clearTimeout(id);
-			window.removeEventListener("mousedown", onDown);
-		};
-	}, [onClose]);
-
-	return (
-		<div
-			className="menu drop-menu"
-			ref={root}
-			style={{ zIndex: LAYER.menu, left: screen.x, top: screen.y + 40 }}
-		>
-			<div className="drop-head">
-				<strong>{name}</strong>
-				<code>{full}</code>
-			</div>
-			<div className="items">
-				{location.isModule && (
-					<div
-						className="item"
-						title="A hoisted require, with the path already filled in"
-						onClick={() =>
-							onPick("module.requirePath", { ...config, as: "" })
-						}
-					>
-						<span className="swatch" style={{ background: "#6f4f9b" }} />
-						<span>Require Module</span>
-						<span className="hint">pure</span>
-					</div>
-				)}
-				<div
-					className="item"
-					title="A reference to the instance itself"
-					onClick={() => onPick("roblox.instancePath", config)}
-				>
-					<span className="swatch" style={{ background: "#2c7676" }} />
-					<span>Instance</span>
-					<span className="hint">pure</span>
-				</div>
-				{!location.isModule && (
-					<p className="drop-note">
-						This compiles to a Script rather than a ModuleScript, so there is nothing to
-						require.
-					</p>
-				)}
-			</div>
-		</div>
-	);
-}
 
 /**
  * The shell: what Roswaal is before it has a project.
