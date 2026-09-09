@@ -112,15 +112,22 @@ export function selectionAnchor(script: NodeScript, ids: ReadonlySet<string>): s
 }
 
 /**
- * Lines a selection up, walking it in the order it was picked.
+ * Lines a selection up by following its wires out from the anchor.
  *
- * The first node — the anchor — never moves. Each one after it lines up on the
- * **most recently picked node before it that it is wired to**; failing that, on
- * the one immediately before it. So a chain straightens link by link: select
- * the source, the knot and the node the knot feeds, and each hop lands flat
- * even though the far end was never wired to the anchor. A fan-out works too,
- * because the knot is still the most recent thing each of its consumers is
- * wired to.
+ * The anchor — the first node picked — never moves. From there this walks the
+ * wires between selected nodes, nearest first, and each node it reaches lines
+ * up on the neighbour it was reached *from*. So a chain straightens hop by hop:
+ * select a source, a knot and the node the knot feeds, and all of it comes out
+ * flat even though the far end was never wired to the anchor.
+ *
+ * **It follows wires rather than the order you clicked**, which was the first
+ * attempt and was wrong. Aligning each node to the most recent one already
+ * placed means a chain only straightens if you happen to click it in order: with
+ * source → knot → consumer picked as consumer, knot, source, the knot is placed
+ * before the source is, so the source finds a wired neighbour and the consumer
+ * never does. A marquee makes it worse, because then the order is whatever the
+ * file happens to list. Which node is the anchor is the only thing the order
+ * decides now.
  *
  * Where two nodes are wired, the **pins** are what line up, not the boxes — so
  * the wire between them comes out flat, which is what "level" meant when you
@@ -128,10 +135,8 @@ export function selectionAnchor(script: NodeScript, ids: ReadonlySet<string>): s
  * pins at its centre, and its neighbour's input sits some way down a header, so
  * matching the boxes would leave every wire through it bent.
  *
- * Each node moves before the next one is considered, so a node aligning to its
- * predecessor aligns to where that predecessor has just been *put*, not where
- * it started. That is what makes the chain a chain rather than three
- * independent moves.
+ * A selected node with no wired path to the anchor has no pin to agree with, so
+ * it takes the anchor's top edge.
  *
  * **Only Y moves.** Wires run left to right, so a node's column is information
  * — shifting one sideways to tidy it up would say it happens somewhere it does
@@ -145,66 +150,73 @@ export function alignToAnchor(
 	const anchor = byId.get(anchorId);
 	if (!anchor) return script;
 
-	// Where each node has been put so far, most recent last. A later node reads
-	// these rather than the original script, so the chain compounds.
-	const settled: GraphNode[] = [anchor];
-	const moved = new Map<string, GraphNode>();
+	// Breadth-first, so a node reached two ways lines up on whichever neighbour
+	// is closer to the anchor — the shorter the path, the less it has drifted.
+	const placed = new Map<string, GraphNode>([[anchorId, anchor]]);
+	const queue: string[] = [anchorId];
 
-	for (const id of ids) {
-		if (id === anchorId) continue;
-		const node = byId.get(id);
-		if (!node) continue; // a comment, or something already gone
+	while (queue.length > 0) {
+		const id = queue.shift()!;
+		const onto = placed.get(id)!;
 
-		let placed: GraphNode | null = null;
-		for (let i = settled.length - 1; i >= 0 && !placed; i--) {
-			const dy = wiredOffset(script, registry, settled[i], node);
-			if (dy !== null) placed = { ...node, y: Math.round(node.y + dy) };
+		// Link order decides which neighbour is taken when two nodes are joined
+		// more than once. Rare, and one of them has to win.
+		for (const link of script.links) {
+			const other =
+				link.from.node === id ? link.to.node
+				: link.to.node === id ? link.from.node
+				: null;
+			if (other === null || other === id || placed.has(other) || !ids.has(other)) continue;
+
+			const node = byId.get(other);
+			if (!node) continue;
+
+			const dy = wiredOffset(onto, node, link, registry);
+			placed.set(other, dy === null ? node : { ...node, y: Math.round(node.y + dy) });
+			queue.push(other);
 		}
-		// Wired to none of them: take the top edge of the one just before it,
-		// which is the only reading of "line these up" left.
-		placed ??= { ...node, y: settled[settled.length - 1].y };
-
-		settled.push(placed);
-		if (placed.y !== node.y) moved.set(id, placed);
 	}
 
+	for (const id of ids) {
+		if (placed.has(id)) continue;
+		const node = byId.get(id); // a comment, or something already gone
+		if (node) placed.set(id, { ...node, y: anchor.y });
+	}
+
+	const moved = new Map(
+		[...placed].filter(([id, node]) => node.y !== byId.get(id)!.y),
+	);
 	if (moved.size === 0) return script;
 	return { ...script, nodes: script.nodes.map((n) => moved.get(n.id) ?? n) };
 }
 
 /**
- * How far `node` moves to sit level with `onto`, or null if they are not wired.
+ * How far `node` moves for one wire to `onto` to come out flat.
  *
- * The first wire between the two decides it. Two nodes are rarely joined more
- * than once, and when they are, one of the wires has to win — taking the first
- * makes which one repeatable rather than picking by a rule nobody would guess.
+ * Null when either end has no pin to measure — a link naming a pin the node no
+ * longer has, which is a graph mid-repair rather than something to guess at.
  */
 function wiredOffset(
-	script: NodeScript, registry: Registry, onto: GraphNode, node: GraphNode,
+	onto: GraphNode, node: GraphNode, link: Link, registry: Registry,
 ): number | null {
-	const link = script.links.find(
-		(l) =>
-			(l.from.node === onto.id && l.to.node === node.id) ||
-			(l.from.node === node.id && l.to.node === onto.id),
-	);
-	if (!link) return null;
-
 	const out = link.from.node === onto.id;
 	const here = pinPosition(onto, registry, out ? link.from.pin : link.to.pin, out ? "out" : "in");
 	const there = pinPosition(node, registry, out ? link.to.pin : link.from.pin, out ? "in" : "out");
 	return here && there ? here.y - there.y : null;
 }
 
-export function deleteSelection(script: NodeScript, ids: ReadonlySet<string>): NodeScript {
+export function deleteSelection(
+	script: NodeScript, ids: ReadonlySet<string>, registry: Registry,
+): NodeScript {
 	if (ids.size === 0) return script;
 	const nodes = script.nodes.filter((n) => !ids.has(n.id));
 	const live = new Set(nodes.map((n) => n.id));
-	return {
+	return retypeReroutes({
 		...script,
 		nodes,
 		links: script.links.filter((l) => live.has(l.from.node) && live.has(l.to.node)),
 		comments: script.comments.filter((c) => !ids.has(c.id)),
-	};
+	}, registry);
 }
 
 /**
@@ -388,7 +400,7 @@ export function connect(
 		return true;
 	});
 
-	return { ...script, links: [...links, { id: newId(), from, to }] };
+	return retypeReroutes({ ...script, links: [...links, { id: newId(), from, to }] }, registry);
 }
 
 export function disconnectInput(script: NodeScript, to: PinRef): NodeScript {
@@ -398,8 +410,13 @@ export function disconnectInput(script: NodeScript, to: PinRef): NodeScript {
 	};
 }
 
-export function removeLink(script: NodeScript, linkId: string): NodeScript {
-	return { ...script, links: script.links.filter((l) => l.id !== linkId) };
+export function removeLink(
+	script: NodeScript, linkId: string, registry: Registry,
+): NodeScript {
+	return retypeReroutes(
+		{ ...script, links: script.links.filter((l) => l.id !== linkId) },
+		registry,
+	);
 }
 
 /**
@@ -410,13 +427,15 @@ export function removeLink(script: NodeScript, linkId: string): NodeScript {
  * pin" means either way.
  */
 export function disconnectPin(
-	script: NodeScript, nodeId: string, pinId: string, side: "in" | "out",
+	script: NodeScript, nodeId: string, pinId: string, side: "in" | "out", registry: Registry,
 ): NodeScript {
 	const links = script.links.filter((l) => {
 		const end = side === "in" ? l.to : l.from;
 		return !(end.node === nodeId && end.pin === pinId);
 	});
-	return links.length === script.links.length ? script : { ...script, links };
+	return links.length === script.links.length
+		? script
+		: retypeReroutes({ ...script, links }, registry);
 }
 
 /** How many wires a pin currently carries. */
@@ -485,6 +504,50 @@ export function dropDanglingLinks(script: NodeScript): NodeScript {
 	const nodes = new Set(script.nodes.map((n) => n.id));
 	const links = script.links.filter((l) => nodes.has(l.from.node) && nodes.has(l.to.node));
 	return links.length === script.links.length ? script : { ...script, links };
+}
+
+/**
+ * Gives every reroute knot the type of whatever is wired into it, or `any`
+ * when nothing is.
+ *
+ * A knot's type was decided once, when it was made, and then kept for good.
+ * Disconnect the wire feeding a knot that carried a string and the knot went on
+ * being a string knot — so it refused every output but a string, and the only
+ * way to rewire it was to delete it and cut the wire again. A knot is a bend in
+ * a wire: it has no type of its own, it has the type of what it is carrying.
+ *
+ * Run after anything that adds or removes a link, and repeated until it
+ * settles, because a knot feeding a knot only learns its type once the one
+ * before it has. Bounded by the number of knots, which is how long the longest
+ * possible chain of them is.
+ */
+export function retypeReroutes(script: NodeScript, registry: Registry): NodeScript {
+	const knots = script.nodes.filter((n) => n.def === "flow.reroute");
+	if (knots.length === 0) return script;
+
+	let current = script;
+	for (let pass = 0; pass <= knots.length; pass++) {
+		let changed = false;
+
+		const nodes = current.nodes.map((node) => {
+			if (node.def !== "flow.reroute") return node;
+
+			const link = current.links.find((l) => l.to.node === node.id && l.to.pin === "in");
+			const source = link && current.nodes.find((n) => n.id === link.from.node);
+			const def = source && registry.get(source.def);
+			const pin = def && pinsOf(def, source).outputs.find((x) => x.id === link.from.pin);
+			const type = pin?.type ?? ANY;
+
+			const config = (node.config ?? {}) as { type?: string };
+			if ((config.type ?? ANY) === type) return node;
+			changed = true;
+			return { ...node, config: { ...config, type } };
+		});
+
+		if (!changed) return current;
+		current = { ...current, nodes };
+	}
+	return current;
 }
 
 function pinsOf(def: NodeDef, node: GraphNode) {

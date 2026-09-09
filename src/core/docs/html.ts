@@ -313,6 +313,7 @@ ${renderNav(site, page)}
 <p class="summary">${escapeHtml(page.summary)}</p>
 </header>
 ${body}
+<div class="docs-tail" aria-hidden="true"></div>
 </div>
 </article>
 ${renderOutline(page)}

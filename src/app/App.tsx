@@ -891,7 +891,7 @@ export function App() {
 				clipboard.current = copySelection(state.script, state.selection);
 				if (e.key.toLowerCase() === "x") {
 					const ids = state.selection;
-					store.edit((s) => deleteSelection(s, ids));
+					store.edit((s) => deleteSelection(s, ids, registry));
 				}
 				return;
 			}
@@ -921,7 +921,7 @@ export function App() {
 			if (e.key === "Delete" || e.key === "Backspace") {
 				e.preventDefault();
 				const ids = store.getSnapshot().selection;
-				if (ids.size) store.edit((s) => deleteSelection(s, ids));
+				if (ids.size) store.edit((s) => deleteSelection(s, ids, registry));
 				return;
 			}
 			// Two or more, because one node is already aligned with itself.
@@ -1379,7 +1379,7 @@ export function App() {
 				onPromote={() => pinMenu && promotePin(pinMenu)}
 				onBreakLinks={() =>
 					pinMenu &&
-					store.edit((s) => disconnectPin(s, pinMenu.nodeId, pinMenu.pin.id, pinMenu.side))
+					store.edit((s) => disconnectPin(s, pinMenu.nodeId, pinMenu.pin.id, pinMenu.side, registry))
 				}
 				onSplit={(mode) => pinMenu && void splitOrRecombine(pinMenu, undefined, mode)}
 				onRecombine={(parent) => pinMenu && void splitOrRecombine(pinMenu, parent, undefined)}

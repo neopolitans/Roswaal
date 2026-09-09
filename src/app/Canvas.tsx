@@ -17,7 +17,7 @@ import type { Comment, Literal, NodeScript, PinDef, PinRef } from "../core/schem
 import { resolveNodePins, type Registry } from "../core/nodes/index.js";
 import type { Diagnostic } from "../core/compiler/index.js";
 import {
-	nodeBounds, pinPosition, rectFromPoints, rectsIntersect, screenToWorld, wirePath,
+	isReroute, nodeBounds, pinPosition, rectFromPoints, rectsIntersect, screenToWorld, wirePath,
 	type WireStyle,
 	type Rect, type Vec, type View,
 } from "./geometry.js";
@@ -373,12 +373,23 @@ export function Canvas({
 		if (e.button !== 0) return;
 		e.stopPropagation();
 
+		// A knot is 22px across and its two pins are stacked at its centre, so a
+		// click meant for the knot lands on a pin more often than not. With a
+		// modifier held that is unambiguous -- nobody shift-clicks a knot to cut
+		// the wire they can see, and cutting it is what used to happen -- so it
+		// goes to the selection instead. The wire is still severed by shift- or
+		// alt-clicking the wire itself, which is where it is visible.
+		if ((e.shiftKey || e.ctrlKey) && isReroute(registry.get(nodesById.get(nodeId)?.def ?? ""))) {
+			onNodePointerDown(e, nodeId);
+			return;
+		}
+
 		// Shift-click clears the pin. Cutting a wire otherwise means finding the
 		// curve and alt-clicking it, which is fiddly when several overlap near
 		// the pin they all end at.
 		if (e.shiftKey) {
 			if (pinLinkCount(script, nodeId, pin.id, side) > 0) {
-				store.edit((s) => disconnectPin(s, nodeId, pin.id, side));
+				store.edit((s) => disconnectPin(s, nodeId, pin.id, side, registry));
 			}
 			return;
 		}
@@ -389,7 +400,7 @@ export function Canvas({
 			const existing = script.links.find((l) => l.to.node === nodeId && l.to.pin === pin.id);
 			if (existing) {
 				const sourcePin = pinDefOf(registry, script, existing.from, "out");
-				store.edit((s) => removeLink(s, existing.id));
+				store.edit((s) => removeLink(s, existing.id, registry));
 				if (sourcePin) {
 					gesture.current = { kind: "wire", from: existing.from, side: "out", pin: sourcePin };
 					setWireDrag({
@@ -644,7 +655,7 @@ export function Canvas({
 										// selectable, so neither modifier had another job here.
 										if (!e.shiftKey && !e.altKey) return;
 										e.stopPropagation();
-										store.edit((s) => removeLink(s, link.id));
+										store.edit((s) => removeLink(s, link.id, registry));
 									}}
 									onDoubleClick={(e) => {
 										// Double-click puts a knot where you clicked, so a wire

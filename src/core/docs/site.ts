@@ -719,11 +719,11 @@ const CONTROLS: DocPage = {
 		{
 			t: "p",
 			text:
-				"Each node after it lines up on the most recently picked node before it that it is " +
-				"**wired to**, and failing that on the one immediately before it. So a chain " +
-				"straightens hop by hop: pick the source, then the knot, then the node the knot " +
-				"feeds, and all of it comes out flat — even though the far end was never wired to " +
-				"the anchor.",
+				"From there it follows the **wires** through the rest of the selection, and each " +
+				"node lines up on the neighbour it was reached from. So a chain straightens hop " +
+				"by hop — a source, a knot and the node the knot feeds all come out flat, even " +
+				"though the far end was never wired to the anchor, and whatever order you picked " +
+				"them in. A selected node with no wired path to the anchor takes its top edge.",
 		},
 		{
 			t: "p",

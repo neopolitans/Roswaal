@@ -204,6 +204,7 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 						    can centre in whatever room the window gives it. */}
 						<div className={`docs-article${page.narrow ? " narrow" : ""}`}>
 							<Page page={page} />
+							<div className="docs-tail" aria-hidden="true" />
 						</div>
 					</article>
 

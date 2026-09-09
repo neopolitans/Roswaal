@@ -272,8 +272,12 @@ describe("aligning to the anchor", () => {
 		expect(pinY(out, second, "value", "in")).toBeCloseTo(level, 5);
 	});
 
-	/** Wired to nothing already picked: it takes the top edge of the one before. */
-	it("falls back to the node immediately before it", () => {
+	/**
+	 * No wired path to the anchor means no pin to agree with, so it takes the
+	 * anchor's top edge. The anchor rather than whatever happened to be picked
+	 * before it, because pick order is the thing this stopped depending on.
+	 */
+	it("falls back to the anchor's top edge when no wire reaches it", () => {
 		const b = new Builder();
 		const source = b.node("value.string", { x: 0, y: 100 });
 		const knot = b.node("flow.reroute", { x: 240, y: 500, config: { type: "string" } });
@@ -282,7 +286,9 @@ describe("aligning to the anchor", () => {
 		const script = b.build();
 
 		const out = alignToAnchor(script, registry, new Set([source, knot, loose]), source);
-		expect(at(out, loose).y).toBe(at(out, knot).y);
+		expect(at(out, loose).y).toBe(100);
+		// The knot still straightens; being unreachable is per node, not per run.
+		expect(pinY(out, knot, "in", "in")).toBeCloseTo(pinY(out, source, "result", "out"), 5);
 	});
 
 	/** Which node you picked first is the whole input, so it has to matter. */
@@ -318,6 +324,70 @@ describe("aligning to the anchor", () => {
 
 		const once = alignToAnchor(script, registry, ids, source);
 		expect(alignToAnchor(once, registry, ids, source).nodes).toEqual(once.nodes);
+	});
+
+	/**
+	 * The bug that made this follow wires instead of pick order.
+	 *
+	 * A knot feeding Get Full Name feeding Concatenate, with Concatenate picked
+	 * first. Aligning each node to the most recently placed one put the knot
+	 * down before Get Full Name, so Get Full Name found a wired neighbour and
+	 * Concatenate — wired only to Get Full Name, which had not been placed yet
+	 * — found none and fell back to a top edge. The first two hops came out
+	 * flat and the last one did not, which is exactly what it looked like.
+	 */
+	it("straightens the whole chain however it was picked", () => {
+		const b = new Builder();
+		const knot = b.node("flow.reroute", { x: 0, y: 60, config: { type: "Instance" } });
+		const full = b.node("instance.getFullName", { x: 200, y: 20 });
+		const cat = b.node("string.concat", { x: 460, y: 55 });
+		b.link(knot, "out", full, "instance");
+		b.link(full, "result", cat, "a0");
+		const script = b.build();
+
+		for (const order of [
+			[knot, full, cat], [cat, knot, full], [full, cat, knot],
+			[cat, full, knot], [knot, cat, full], [full, knot, cat],
+		]) {
+			const out = alignToAnchor(script, registry, new Set(order), order[0]);
+			expect(pinY(out, full, "instance", "in"), order.join(","))
+				.toBeCloseTo(pinY(out, knot, "out", "out"), 5);
+			expect(pinY(out, cat, "a0", "in"), order.join(","))
+				.toBeCloseTo(pinY(out, full, "result", "out"), 5);
+		}
+	});
+
+	/**
+	 * Which node is the anchor is the one thing pick order still decides — a
+	 * marquee hands over a set in file order, and that has to stay harmless.
+	 */
+	it("gives the same shape from any order, anchored wherever it starts", () => {
+		const b = new Builder();
+		const knot = b.node("flow.reroute", { x: 0, y: 60, config: { type: "Instance" } });
+		const full = b.node("instance.getFullName", { x: 200, y: 20 });
+		const cat = b.node("string.concat", { x: 460, y: 55 });
+		b.link(knot, "out", full, "instance");
+		b.link(full, "result", cat, "a0");
+		const script = b.build();
+
+		// Same anchor, different order behind it: identical result.
+		const a = alignToAnchor(script, registry, new Set([knot, full, cat]), knot);
+		const c = alignToAnchor(script, registry, new Set([knot, cat, full]), knot);
+		expect(c.nodes).toEqual(a.nodes);
+	});
+
+	/** Reached two ways, aligned on the shorter path — not on whichever was last. */
+	it("takes the neighbour nearest the anchor when a node is reachable twice", () => {
+		const b = new Builder();
+		const source = b.node("value.string", { x: 0, y: 100 });
+		const near = b.node("string.concat", { x: 240, y: 400 });
+		b.link(source, "result", near, "a0");
+		b.link(source, "result", near, "a1");
+		const script = b.build();
+
+		const out = alignToAnchor(script, registry, new Set([source, near]), source);
+		// The first link wins, so A is the pin that goes flat.
+		expect(pinY(out, near, "a0", "in")).toBeCloseTo(pinY(out, source, "result", "out"), 5);
 	});
 
 	/** Whole coordinates: half a pixel of node position helps nobody. */

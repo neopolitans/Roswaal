@@ -46,6 +46,21 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.22.1",
+		date: "2026-09-09",
+		headline: "Align reads the wires, and a knot stops keeping a type it lost.",
+		added: [
+			"**Get Name**, a pure node giving `instance.Name` as a `string`.",
+		],
+		fixed: [
+			"**Align follows the wires out from the anchor** rather than the order you clicked. A chain picked out of order left its last hop bent — with a knot, a Get Full Name and a Concatenate, the first two came out flat and Concatenate did not. A selected node with no wired path to the anchor takes the anchor's top edge.",
+			"**A knot takes the type of whatever is wired into it, and `any` when nothing is.** Its type was fixed when it was made, so cutting the wire into a string knot left a knot that still refused everything but a string — and the only way to rewire it was to delete it.",
+			"**Shift- or ctrl-clicking a knot adds it to the selection.** Its pins cover most of it, so the click landed on a pin and cut the wire instead. Cutting still works on the wire itself, where you can see it.",
+			"**A knot is easier to hit.** Its pins took 14 of its 22 pixels, leaving a 4px ring to click for selecting or moving it. The ring is 6px wider all round; starting a wire from the pin is unchanged.",
+			"**Docs pages scroll past their last line**, so the end of a page can be read somewhere other than the bottom edge of the screen.",
+		],
+	},
+	{
 		version: "0.22.0",
 		date: "2026-09-09",
 		headline: "Straighten two nodes without relaying the whole graph.",

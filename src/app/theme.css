@@ -2761,6 +2761,20 @@ button.tb.with-icon {
 	inset: -1px;
 }
 
+/* A knot is 22px across and its stacked pins take 14 of them, which left a
+   4px ring of node to grab -- less than that zoomed out. Selecting or moving
+   a knot was a precision task, and both are as common as dragging a new wire
+   off one. The ring grows outwards rather than taking from the pin, so
+   starting a wire is exactly as easy as it was. Behind everything, so it
+   catches only what would have hit the canvas. */
+.node.reroute::before {
+	content: "";
+	position: absolute;
+	inset: -6px;
+	border-radius: 50%;
+	z-index: -1;
+}
+
 .canvas.wiring .node.reroute .pin::after {
 	inset: -5px;
 }
@@ -2945,6 +2959,12 @@ button.tb.with-icon {
 
 /* ------------------------------------------------------------- docs content */
 
+/* The last line of a page has to be able to reach the middle of the screen.
+   With a bottom padding the height of the text, the end of a page sits at the
+   very bottom of the window when you have scrolled as far as you can -- which
+   is where a taskbar is, and is the worst place to read the paragraph you
+   scrolled down for. A viewport-relative pad gives the same room on a laptop
+   and a large display, and is capped so it does not become a page of nothing. */
 .docs-content {
 	overflow: auto;
 	padding: 22px 30px 60px;
@@ -3513,6 +3533,20 @@ button.tb.with-icon {
 
 /* One wrapper holds the measure, so every block inside shares an edge and the
    pin lists and tables line up with the prose above them. */
+/* The last line of a page has to be able to reach the middle of the screen.
+   Without this, scrolling as far as it goes leaves the end of a page at the very
+   bottom of the window -- which is where a taskbar is, and the worst place to
+   read the paragraph you scrolled down for.
+
+   An empty box rather than bottom padding, on either the article or the scroll
+   container. Both were tried and measured: 510px of padding between them bought
+   a single pixel of anything to scroll past. A box with a height cannot be
+   argued with. */
+.docs-tail {
+	height: min(45vh, 420px);
+	flex: none;
+}
+
 .docs-page .docs-article {
 	width: 100%;
 	max-width: 940px;
