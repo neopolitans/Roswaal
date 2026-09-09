@@ -3,18 +3,1537 @@
   "kind": "script",
   "id": "5ce7d6b2-8323-40f0-919d-591bf97ac43c",
   "name": "Config",
-  "scriptClass": "Script",
+  "scriptClass": "ModuleScript",
   "target": "roblox",
   "typecheck": "strict",
-  "variables": [],
-  "nodes": [
+  "variables": [
     {
-      "id": "23c82e84-70bc-4e24-9982-835c66ccf087",
-      "def": "script.begin",
-      "x": 120,
-      "y": 160
+      "id": "2bf42467-7d99-4cb6-880b-4e8dea465ee5",
+      "name": "TankConfig",
+      "type": "table",
+      "default": {
+        "t": "raw",
+        "v": "{}"
+      }
     }
   ],
-  "links": [],
-  "comments": []
+  "nodes": [
+    {
+      "id": "022e7c83-1e40-41fb-85de-d78f142a44ba",
+      "def": "value.number",
+      "x": 35,
+      "y": 619,
+      "label": "maxElevation",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 10
+        }
+      }
+    },
+    {
+      "id": "03a9d116-5117-4bc5-bee7-3dffb0d61bed",
+      "def": "flow.branch",
+      "x": 434,
+      "y": 1563
+    },
+    {
+      "id": "058205a0-a73b-4e3a-8b1d-7fcf53a17e97",
+      "def": "string.concat",
+      "x": 480,
+      "y": 2496,
+      "literals": {
+        "a1": {
+          "t": "string",
+          "v": "is missing HullSettings."
+        }
+      }
+    },
+    {
+      "id": "07d5883b-1166-4a33-98f5-6763f3d0ed08",
+      "def": "value.string",
+      "x": 3,
+      "y": 2874,
+      "literals": {
+        "value": {
+          "t": "string",
+          "v": "MovementSpeed"
+        }
+      }
+    },
+    {
+      "id": "09dc8591-7974-43fd-a5a6-a56e9d24b9cf",
+      "def": "function.return",
+      "x": 80,
+      "y": 2033,
+      "config": {
+        "returns": [
+          {
+            "name": "Value",
+            "type": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "0a80d7c8-0573-475d-b37f-cd436bbcd77e",
+      "def": "script.begin",
+      "x": -1777,
+      "y": -113
+    },
+    {
+      "id": "0a9e04f5-05da-4235-bdda-cbfa4937b4d4",
+      "def": "variable.get",
+      "x": -1988,
+      "y": 3,
+      "config": {
+        "name": "TankConfig",
+        "type": "table",
+        "variable": "2bf42467-7d99-4cb6-880b-4e8dea465ee5"
+      }
+    },
+    {
+      "id": "0b34d140-35f6-4ebe-9e9f-988f1211287a",
+      "def": "flow.rerouteExec",
+      "x": -203,
+      "y": 2065
+    },
+    {
+      "id": "0bc8cd68-a891-45ec-ad28-ab57c52149c6",
+      "def": "debug.error",
+      "x": 995,
+      "y": 2384,
+      "literals": {
+        "level": {
+          "t": "number",
+          "v": 1
+        }
+      }
+    },
+    {
+      "id": "11472c92-1561-4efa-a977-4108449714fd",
+      "def": "value.string",
+      "x": 1109,
+      "y": -5,
+      "literals": {
+        "value": {
+          "t": "string",
+          "v": "tuning"
+        }
+      }
+    },
+    {
+      "id": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+      "def": "table.dictionary",
+      "x": 446,
+      "y": 0,
+      "literals": {
+        "k0": {
+          "t": "string",
+          "v": "turnRate"
+        },
+        "k1": {
+          "t": "string",
+          "v": "accelerationTime"
+        },
+        "k2": {
+          "t": "string",
+          "v": "brakingTime"
+        },
+        "k3": {
+          "t": "string",
+          "v": "reverseFraction"
+        },
+        "k4": {
+          "t": "string",
+          "v": "traverseRate"
+        },
+        "k5": {
+          "t": "string",
+          "v": "elevationRate"
+        },
+        "k6": {
+          "t": "string",
+          "v": "minElevation"
+        },
+        "k7": {
+          "t": "string",
+          "v": "maxElevation"
+        },
+        "k8": {
+          "t": "string",
+          "v": "groundClearance"
+        },
+        "k9": {
+          "t": "string",
+          "v": "promptDistance"
+        }
+      },
+      "config": {
+        "args": 10,
+        "layout": "lines"
+      }
+    },
+    {
+      "id": "176d867b-3362-41ab-a56d-b62f7fcb7de4",
+      "def": "flow.branch",
+      "x": 483,
+      "y": 2385
+    },
+    {
+      "id": "18d344ab-b037-4fac-b44e-592a853a7ff4",
+      "def": "string.concat",
+      "x": 355,
+      "y": 1295,
+      "literals": {
+        "a1": {
+          "t": "string",
+          "v": " has no child called "
+        }
+      },
+      "config": {
+        "args": 3
+      }
+    },
+    {
+      "id": "1b4cd2fd-9057-43e6-b81c-47dfdc621792",
+      "def": "instance.getClassName",
+      "x": 59,
+      "y": 1870
+    },
+    {
+      "id": "1fedbcf0-5eca-4de9-ab2c-b3f090e7bac7",
+      "def": "logic.not",
+      "x": -210,
+      "y": 2462
+    },
+    {
+      "id": "26e7a136-e510-4e36-94b6-94882d89f316",
+      "def": "instance.isA",
+      "x": -153,
+      "y": 1671,
+      "literals": {
+        "className": {
+          "t": "string",
+          "v": "NumberValue"
+        }
+      }
+    },
+    {
+      "id": "3d4d9073-1264-45fd-a2e5-ea671cba2771",
+      "def": "string.concat",
+      "x": 433,
+      "y": 1786,
+      "literals": {
+        "a1": {
+          "t": "string",
+          "v": " is a "
+        },
+        "a3": {
+          "t": "string",
+          "v": " not a NumberValue."
+        }
+      },
+      "config": {
+        "args": 4
+      }
+    },
+    {
+      "id": "3db6aa90-70ae-46da-94f2-550b46e92ba8",
+      "def": "flow.sequence",
+      "x": 25,
+      "y": 2385
+    },
+    {
+      "id": "42d88c42-3429-4db9-a71a-3c5d5cb9650c",
+      "def": "variable.get",
+      "x": 1348,
+      "y": -59,
+      "config": {
+        "name": "TankConfig",
+        "type": "table",
+        "variable": "2bf42467-7d99-4cb6-880b-4e8dea465ee5"
+      }
+    },
+    {
+      "id": "4cbf8d70-fb6d-4f5e-896e-90a50a01c425",
+      "def": "table.dictionary",
+      "x": 630,
+      "y": 2755,
+      "literals": {
+        "k0": {
+          "t": "string",
+          "v": "movementSpeed"
+        }
+      }
+    },
+    {
+      "id": "4e05b6e6-ef3d-4681-b592-1a6d0c070226",
+      "def": "value.number",
+      "x": 31,
+      "y": 55,
+      "label": "turnRate",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 45
+        }
+      }
+    },
+    {
+      "id": "502a3fdc-9f79-4778-8d54-23455c65a9c6",
+      "def": "value.number",
+      "x": 32,
+      "y": 540,
+      "label": "minElevation",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": -7
+        }
+      }
+    },
+    {
+      "id": "591fcee4-1907-41e8-8a03-6e728c52a243",
+      "def": "function.return",
+      "x": 1001,
+      "y": 2697,
+      "config": {
+        "returns": [
+          {
+            "name": "Config",
+            "type": "table"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6299963a-04cb-4698-bccc-5e2610ee67cb",
+      "def": "logic.not",
+      "x": -77,
+      "y": 1166
+    },
+    {
+      "id": "652694a3-9ea3-4e4e-a7a0-652b16c6ee61",
+      "def": "variable.init",
+      "x": -302,
+      "y": -127,
+      "config": {
+        "name": "TankConfig",
+        "type": "table",
+        "variable": "2bf42467-7d99-4cb6-880b-4e8dea465ee5"
+      }
+    },
+    {
+      "id": "7ee57110-a905-4092-bb97-713e2e6f1401",
+      "def": "function.declareHere",
+      "x": -909,
+      "y": 2383,
+      "config": {
+        "name": "read",
+        "params": [
+          {
+            "name": "tank",
+            "type": "Model"
+          }
+        ],
+        "returns": [
+          {
+            "name": "Config",
+            "type": "Config"
+          },
+          {
+            "name": "value2",
+            "type": "table"
+          }
+        ]
+      }
+    },
+    {
+      "id": "8489ec9d-a71a-4de9-933d-78703acf801c",
+      "def": "local.declare",
+      "x": 724,
+      "y": -111,
+      "literals": {
+        "name": {
+          "t": "string",
+          "v": " Tuning"
+        }
+      }
+    },
+    {
+      "id": "8fe95d87-f60e-459b-9cf6-eaedd12d29fb",
+      "def": "value.number",
+      "x": 33,
+      "y": 699,
+      "label": "groundClearance",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 0.05
+        }
+      }
+    },
+    {
+      "id": "93eb20b2-c93f-47cb-aabc-964d1420b936",
+      "def": "instance.getFullName",
+      "x": -552,
+      "y": 2509
+    },
+    {
+      "id": "982c487a-07d0-4a02-83dc-4e62968ba81d",
+      "def": "type.declareTop",
+      "x": -1776,
+      "y": -216,
+      "config": {
+        "definition": "{movementSpeed: number}",
+        "export": true,
+        "fields": [],
+        "name": "Config"
+      }
+    },
+    {
+      "id": "98811269-437f-47c2-bbb6-ac88c001ce3c",
+      "def": "value.number",
+      "x": 31,
+      "y": 384,
+      "label": "traverseRate",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 30
+        }
+      }
+    },
+    {
+      "id": "9fec0044-075b-46f0-8ce7-b4ed33d5e046",
+      "def": "value.number",
+      "x": 34,
+      "y": 216,
+      "label": "brakingTime",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 1.2
+        }
+      }
+    },
+    {
+      "id": "a5155de2-c913-4319-877e-2b871ecd1513",
+      "def": "flow.reroute",
+      "x": -744,
+      "y": 1326,
+      "config": {
+        "type": "Instance"
+      }
+    },
+    {
+      "id": "a774024d-7441-4b1e-8d07-692841461374",
+      "def": "roblox.getProperty",
+      "x": -461,
+      "y": 2057,
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Value"
+        }
+      }
+    },
+    {
+      "id": "a8beff3e-bc55-45bf-ac20-e7b512403450",
+      "def": "roblox.findFirstChild",
+      "x": -777,
+      "y": 1074,
+      "config": {
+        "resultName": "value"
+      }
+    },
+    {
+      "id": "ade2c009-b6d5-4ef4-9ebd-6e07be00cd9c",
+      "def": "debug.error",
+      "x": 635,
+      "y": 1088,
+      "literals": {
+        "message": {
+          "t": "string",
+          "v": ""
+        }
+      }
+    },
+    {
+      "id": "afa92753-5f03-4173-a8fb-94d3cb92e23e",
+      "def": "flow.sequence",
+      "x": -1491,
+      "y": -113,
+      "config": {
+        "count": 3
+      }
+    },
+    {
+      "id": "b02a83fd-7985-4667-95c7-24a5f6b62167",
+      "def": "value.number",
+      "x": 32,
+      "y": 303,
+      "label": "reverseFraction",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 0.45
+        }
+      }
+    },
+    {
+      "id": "b0f3bfae-e544-485b-aa2f-d81b63c8cac4",
+      "def": "roblox.findFirstChild",
+      "x": -552,
+      "y": 2369,
+      "literals": {
+        "name": {
+          "t": "string",
+          "v": "HullSettings"
+        }
+      },
+      "config": {
+        "resultName": "hullSettings"
+      }
+    },
+    {
+      "id": "b3254f1c-422b-42e4-a082-d287118a8172",
+      "def": "flow.reroute",
+      "x": -736,
+      "y": 1374,
+      "config": {
+        "type": "string"
+      }
+    },
+    {
+      "id": "b3a30c04-65fd-4e73-8642-261a099fa99d",
+      "def": "flow.reroute",
+      "x": -761,
+      "y": 1691,
+      "config": {
+        "type": "Instance"
+      }
+    },
+    {
+      "id": "b4c69f36-8b71-4a13-9b7e-c60aa1e686a1",
+      "def": "call.function",
+      "x": 328,
+      "y": 2697,
+      "config": {
+        "args": 2
+      }
+    },
+    {
+      "id": "b62ded0e-3f24-4aab-8623-117257eef274",
+      "def": "value.number",
+      "x": 37,
+      "y": 780,
+      "label": "promptDistance",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 18
+        }
+      }
+    },
+    {
+      "id": "bc0a79bd-0108-465e-963c-b9e46c429b3d",
+      "def": "module.exports",
+      "x": -1777,
+      "y": -26
+    },
+    {
+      "id": "c559a46f-84d8-4790-8087-ae2a6e15e932",
+      "def": "value.number",
+      "x": 31,
+      "y": 462,
+      "label": "elevationRate",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 16
+        }
+      }
+    },
+    {
+      "id": "c6a055f6-775a-42e1-85a0-e56fe64b77eb",
+      "def": "table.set",
+      "x": 1521,
+      "y": -111,
+      "literals": {
+        "key": {
+          "t": "number",
+          "v": 0
+        }
+      }
+    },
+    {
+      "id": "caf1580c-fcb5-4bee-a539-152a3903094a",
+      "def": "value.number",
+      "x": 31,
+      "y": 137,
+      "label": "accelerationTime",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 5
+        }
+      }
+    },
+    {
+      "id": "cca65f7c-6889-457b-8467-a23ea862fa55",
+      "def": "variable.get",
+      "x": -1083,
+      "y": 2435,
+      "config": {
+        "name": "TankConfig",
+        "type": "table",
+        "variable": "2bf42467-7d99-4cb6-880b-4e8dea465ee5"
+      }
+    },
+    {
+      "id": "cd408f72-2b84-4f54-a43a-3b62ed622704",
+      "def": "type.declareHere",
+      "x": 1104,
+      "y": -127,
+      "config": {
+        "name": "Tuning"
+      }
+    },
+    {
+      "id": "cd9f9fc5-d691-4768-888e-11a137c1c62f",
+      "def": "flow.sequence",
+      "x": -485,
+      "y": 1089,
+      "config": {
+        "count": 3
+      }
+    },
+    {
+      "id": "d0c6d659-9f09-4c5e-9c0d-14bdbe515f65",
+      "def": "flow.reroute",
+      "x": -168,
+      "y": 2776,
+      "config": {
+        "type": "Instance"
+      }
+    },
+    {
+      "id": "d1c65065-bae4-49d5-b7e6-e7dcf14c2fb0",
+      "def": "instance.getFullName",
+      "x": 57,
+      "y": 1786
+    },
+    {
+      "id": "d7aada93-c698-4ea4-b562-6861cca6484a",
+      "def": "table.dictionary",
+      "x": -605,
+      "y": -5
+    },
+    {
+      "id": "d9af5e8a-2988-4172-8e0c-9e7d7abff148",
+      "def": "logic.not",
+      "x": 119,
+      "y": 1671
+    },
+    {
+      "id": "da242fef-5b26-4ea5-9aa0-77a7163b29d2",
+      "def": "debug.error",
+      "x": 815,
+      "y": 1568
+    },
+    {
+      "id": "e640294e-cd98-4227-b9b0-f472e279774b",
+      "def": "flow.rerouteExec",
+      "x": -179,
+      "y": 1593
+    },
+    {
+      "id": "e6ba45da-77d1-431d-8855-66e3369aa006",
+      "def": "flow.branch",
+      "x": 249,
+      "y": 1088
+    },
+    {
+      "id": "ef65d85c-4000-45d5-9fe9-c5fe1a40ec85",
+      "def": "function.get",
+      "x": 155,
+      "y": 2748,
+      "config": {
+        "function": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
+        "name": "readNumbers"
+      }
+    },
+    {
+      "id": "f3f98ccf-ce8d-4eca-837c-173ec79da32b",
+      "def": "instance.getFullName",
+      "x": -50,
+      "y": 1295
+    },
+    {
+      "id": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
+      "def": "function.declareHere",
+      "x": -1058,
+      "y": 1067,
+      "config": {
+        "name": "readNumbers",
+        "params": [
+          {
+            "name": "container",
+            "type": "Instance"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          }
+        ],
+        "returns": []
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "067570ba-a6af-4ad5-8c0d-20b737e7b94c",
+      "from": {
+        "node": "11472c92-1561-4efa-a977-4108449714fd",
+        "pin": "result"
+      },
+      "to": {
+        "node": "c6a055f6-775a-42e1-85a0-e56fe64b77eb",
+        "pin": "key"
+      }
+    },
+    {
+      "id": "0a0c8dac-172e-4f6b-8236-9a866e1a39db",
+      "from": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "result"
+      },
+      "to": {
+        "node": "8489ec9d-a71a-4de9-933d-78703acf801c",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "0a8462fe-00df-463f-ad6f-100ddb8a5153",
+      "from": {
+        "node": "b3254f1c-422b-42e4-a082-d287118a8172",
+        "pin": "out"
+      },
+      "to": {
+        "node": "18d344ab-b037-4fac-b44e-592a853a7ff4",
+        "pin": "a2"
+      }
+    },
+    {
+      "id": "0ce2b266-bd2e-43eb-8a37-2729a4fafc0b",
+      "from": {
+        "node": "03a9d116-5117-4bc5-bee7-3dffb0d61bed",
+        "pin": "true"
+      },
+      "to": {
+        "node": "da242fef-5b26-4ea5-9aa0-77a7163b29d2",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "0ffa6ee5-692e-4bd2-999b-2036b21bbaba",
+      "from": {
+        "node": "022e7c83-1e40-41fb-85de-d78f142a44ba",
+        "pin": "result"
+      },
+      "to": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "a7"
+      }
+    },
+    {
+      "id": "20625db5-8af4-498f-952c-a4cdbe6746b2",
+      "from": {
+        "node": "b62ded0e-3f24-4aab-8623-117257eef274",
+        "pin": "result"
+      },
+      "to": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "a9"
+      }
+    },
+    {
+      "id": "224f1884-2738-4fde-991c-0d69c1e2cc52",
+      "from": {
+        "node": "b4c69f36-8b71-4a13-9b7e-c60aa1e686a1",
+        "pin": "then"
+      },
+      "to": {
+        "node": "591fcee4-1907-41e8-8a03-6e728c52a243",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "2a00ef13-7eea-4057-892c-dae10f8c38ee",
+      "from": {
+        "node": "cd9f9fc5-d691-4768-888e-11a137c1c62f",
+        "pin": "s2"
+      },
+      "to": {
+        "node": "0b34d140-35f6-4ebe-9e9f-988f1211287a",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "2c0bdbb0-57db-4e18-92b1-92adba89785f",
+      "from": {
+        "node": "b0f3bfae-e544-485b-aa2f-d81b63c8cac4",
+        "pin": "then"
+      },
+      "to": {
+        "node": "3db6aa90-70ae-46da-94f2-550b46e92ba8",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "2d976034-5b23-444b-b112-a3717f03836e",
+      "from": {
+        "node": "e640294e-cd98-4227-b9b0-f472e279774b",
+        "pin": "then"
+      },
+      "to": {
+        "node": "03a9d116-5117-4bc5-bee7-3dffb0d61bed",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "2f32e88b-d7e1-4464-8fc9-ebe5df7e641a",
+      "from": {
+        "node": "8fe95d87-f60e-459b-9cf6-eaedd12d29fb",
+        "pin": "result"
+      },
+      "to": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "a8"
+      }
+    },
+    {
+      "id": "30e998fb-12ca-4d35-9c5a-f94f1d0bd7ce",
+      "from": {
+        "node": "98811269-437f-47c2-bbb6-ac88c001ce3c",
+        "pin": "result"
+      },
+      "to": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "a4"
+      }
+    },
+    {
+      "id": "37f0acd5-6d00-4075-bbe2-340cb8605791",
+      "from": {
+        "node": "b3a30c04-65fd-4e73-8642-261a099fa99d",
+        "pin": "out"
+      },
+      "to": {
+        "node": "d1c65065-bae4-49d5-b7e6-e7dcf14c2fb0",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "3806ba09-0301-42ba-9f44-b45ec3d12fe4",
+      "from": {
+        "node": "d9af5e8a-2988-4172-8e0c-9e7d7abff148",
+        "pin": "result"
+      },
+      "to": {
+        "node": "03a9d116-5117-4bc5-bee7-3dffb0d61bed",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "38fa6cbf-8dc6-4c62-9ed7-5a91cb890cf4",
+      "from": {
+        "node": "cd9f9fc5-d691-4768-888e-11a137c1c62f",
+        "pin": "s1"
+      },
+      "to": {
+        "node": "e640294e-cd98-4227-b9b0-f472e279774b",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "39452356-9cba-42ff-8083-c940f4182b3d",
+      "from": {
+        "node": "cd9f9fc5-d691-4768-888e-11a137c1c62f",
+        "pin": "s0"
+      },
+      "to": {
+        "node": "e6ba45da-77d1-431d-8855-66e3369aa006",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "3e6d2910-21a8-4cbb-b11a-6c180de0b4f4",
+      "from": {
+        "node": "d0c6d659-9f09-4c5e-9c0d-14bdbe515f65",
+        "pin": "out"
+      },
+      "to": {
+        "node": "b4c69f36-8b71-4a13-9b7e-c60aa1e686a1",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "3ee3749b-7134-4dd3-8d3d-9775769183cf",
+      "from": {
+        "node": "b3a30c04-65fd-4e73-8642-261a099fa99d",
+        "pin": "out"
+      },
+      "to": {
+        "node": "26e7a136-e510-4e36-94b6-94882d89f316",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "3eef47f6-5e5e-4441-b3e3-17298d9ea357",
+      "from": {
+        "node": "a8beff3e-bc55-45bf-ac20-e7b512403450",
+        "pin": "then"
+      },
+      "to": {
+        "node": "cd9f9fc5-d691-4768-888e-11a137c1c62f",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "4b45c2ba-e1ad-4848-8e16-0abc42f1d681",
+      "from": {
+        "node": "4e05b6e6-ef3d-4681-b592-1a6d0c070226",
+        "pin": "result"
+      },
+      "to": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "4d76fd3b-1ea2-4a70-b6b4-8e22e7b27863",
+      "from": {
+        "node": "cd408f72-2b84-4f54-a43a-3b62ed622704",
+        "pin": "then"
+      },
+      "to": {
+        "node": "c6a055f6-775a-42e1-85a0-e56fe64b77eb",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "524bb095-5911-4284-8049-f75430132aab",
+      "from": {
+        "node": "afa92753-5f03-4173-a8fb-94d3cb92e23e",
+        "pin": "s0"
+      },
+      "to": {
+        "node": "652694a3-9ea3-4e4e-a7a0-652b16c6ee61",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "559cd648-8652-4d90-90ea-8083798f6849",
+      "from": {
+        "node": "b0f3bfae-e544-485b-aa2f-d81b63c8cac4",
+        "pin": "result"
+      },
+      "to": {
+        "node": "d0c6d659-9f09-4c5e-9c0d-14bdbe515f65",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "56031877-c63c-4af3-9537-09d7ac89c985",
+      "from": {
+        "node": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
+        "pin": "p1"
+      },
+      "to": {
+        "node": "b3254f1c-422b-42e4-a082-d287118a8172",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "564aa92a-521a-42a3-9cfc-55b070ea9bb5",
+      "from": {
+        "node": "afa92753-5f03-4173-a8fb-94d3cb92e23e",
+        "pin": "s2"
+      },
+      "to": {
+        "node": "7ee57110-a905-4092-bb97-713e2e6f1401",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "683af627-7267-4530-b6f3-cd55f090acd8",
+      "from": {
+        "node": "a8beff3e-bc55-45bf-ac20-e7b512403450",
+        "pin": "result"
+      },
+      "to": {
+        "node": "b3a30c04-65fd-4e73-8642-261a099fa99d",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "6c18f786-ce70-4b5e-8ff0-35da9fe960f6",
+      "from": {
+        "node": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
+        "pin": "p0"
+      },
+      "to": {
+        "node": "a5155de2-c913-4319-877e-2b871ecd1513",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "6c82f32c-5d1c-4e8a-8242-300ab9189140",
+      "from": {
+        "node": "ef65d85c-4000-45d5-9fe9-c5fe1a40ec85",
+        "pin": "fn"
+      },
+      "to": {
+        "node": "b4c69f36-8b71-4a13-9b7e-c60aa1e686a1",
+        "pin": "fn"
+      }
+    },
+    {
+      "id": "6d52d98f-96b7-46d6-aaf4-7659c8a888dc",
+      "from": {
+        "node": "42d88c42-3429-4db9-a71a-3c5d5cb9650c",
+        "pin": "value"
+      },
+      "to": {
+        "node": "c6a055f6-775a-42e1-85a0-e56fe64b77eb",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "7226e823-84db-4c9b-a772-886913386697",
+      "from": {
+        "node": "502a3fdc-9f79-4778-8d54-23455c65a9c6",
+        "pin": "result"
+      },
+      "to": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "a6"
+      }
+    },
+    {
+      "id": "740ca125-446d-4b5e-867b-31012ea3dd90",
+      "from": {
+        "node": "7ee57110-a905-4092-bb97-713e2e6f1401",
+        "pin": "p0"
+      },
+      "to": {
+        "node": "b0f3bfae-e544-485b-aa2f-d81b63c8cac4",
+        "pin": "parent"
+      }
+    },
+    {
+      "id": "740d0963-1d3c-44f3-9f9c-231c2e789e1d",
+      "from": {
+        "node": "18d344ab-b037-4fac-b44e-592a853a7ff4",
+        "pin": "result"
+      },
+      "to": {
+        "node": "ade2c009-b6d5-4ef4-9ebd-6e07be00cd9c",
+        "pin": "message"
+      }
+    },
+    {
+      "id": "78565c0d-1fc5-44ab-9e5c-88fd688b8f10",
+      "from": {
+        "node": "b3a30c04-65fd-4e73-8642-261a099fa99d",
+        "pin": "out"
+      },
+      "to": {
+        "node": "a774024d-7441-4b1e-8d07-692841461374",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "7a361cc5-c82b-4780-a394-da33437e98ec",
+      "from": {
+        "node": "1fedbcf0-5eca-4de9-ab2c-b3f090e7bac7",
+        "pin": "result"
+      },
+      "to": {
+        "node": "176d867b-3362-41ab-a56d-b62f7fcb7de4",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "7adc2e6d-953c-403b-85ab-1af46ca25746",
+      "from": {
+        "node": "3db6aa90-70ae-46da-94f2-550b46e92ba8",
+        "pin": "s0"
+      },
+      "to": {
+        "node": "176d867b-3362-41ab-a56d-b62f7fcb7de4",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "80bdd3b1-2f05-42d0-b1c8-88ccf24daf9f",
+      "from": {
+        "node": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
+        "pin": "body"
+      },
+      "to": {
+        "node": "a8beff3e-bc55-45bf-ac20-e7b512403450",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "835ab9b1-f3fb-4774-bba3-3583fbb1a3cf",
+      "from": {
+        "node": "7ee57110-a905-4092-bb97-713e2e6f1401",
+        "pin": "body"
+      },
+      "to": {
+        "node": "b0f3bfae-e544-485b-aa2f-d81b63c8cac4",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "8803cf85-fcd2-45c4-ab5c-101d268ba217",
+      "from": {
+        "node": "652694a3-9ea3-4e4e-a7a0-652b16c6ee61",
+        "pin": "then"
+      },
+      "to": {
+        "node": "8489ec9d-a71a-4de9-933d-78703acf801c",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "96094bff-75c7-4633-bf6a-6506304d5be2",
+      "from": {
+        "node": "a5155de2-c913-4319-877e-2b871ecd1513",
+        "pin": "out"
+      },
+      "to": {
+        "node": "f3f98ccf-ce8d-4eca-837c-173ec79da32b",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "9d3d4173-151d-4822-b49d-6473c8202b3d",
+      "from": {
+        "node": "0a9e04f5-05da-4235-bdda-cbfa4937b4d4",
+        "pin": "value"
+      },
+      "to": {
+        "node": "bc0a79bd-0108-465e-963c-b9e46c429b3d",
+        "pin": "e0"
+      }
+    },
+    {
+      "id": "a0a3d2e6-c033-4936-a35a-f8cf30312737",
+      "from": {
+        "node": "8489ec9d-a71a-4de9-933d-78703acf801c",
+        "pin": "ref"
+      },
+      "to": {
+        "node": "cd408f72-2b84-4f54-a43a-3b62ed622704",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "a0bebd2b-95be-48fb-8cfb-c1c1c50d4f65",
+      "from": {
+        "node": "4cbf8d70-fb6d-4f5e-896e-90a50a01c425",
+        "pin": "result"
+      },
+      "to": {
+        "node": "591fcee4-1907-41e8-8a03-6e728c52a243",
+        "pin": "r0"
+      }
+    },
+    {
+      "id": "a9299249-1767-4d27-a38c-eb4038e34ef4",
+      "from": {
+        "node": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
+        "pin": "p0"
+      },
+      "to": {
+        "node": "a8beff3e-bc55-45bf-ac20-e7b512403450",
+        "pin": "parent"
+      }
+    },
+    {
+      "id": "aa6d712d-6d23-4fae-8496-02d4611e7a2d",
+      "from": {
+        "node": "d1c65065-bae4-49d5-b7e6-e7dcf14c2fb0",
+        "pin": "result"
+      },
+      "to": {
+        "node": "3d4d9073-1264-45fd-a2e5-ea671cba2771",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "abc6e6e5-3161-44d8-8ffa-e9dd568f3407",
+      "from": {
+        "node": "b3a30c04-65fd-4e73-8642-261a099fa99d",
+        "pin": "out"
+      },
+      "to": {
+        "node": "1b4cd2fd-9057-43e6-b81c-47dfdc621792",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "ae0b1f32-7749-475a-bbf9-d270e58ae26b",
+      "from": {
+        "node": "26e7a136-e510-4e36-94b6-94882d89f316",
+        "pin": "result"
+      },
+      "to": {
+        "node": "d9af5e8a-2988-4172-8e0c-9e7d7abff148",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "b1a63c0d-db72-4119-a3ae-c3668bdc7c69",
+      "from": {
+        "node": "caf1580c-fcb5-4bee-a539-152a3903094a",
+        "pin": "result"
+      },
+      "to": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "a1"
+      }
+    },
+    {
+      "id": "b1f75318-561f-478c-95f9-489888af517d",
+      "from": {
+        "node": "b0f3bfae-e544-485b-aa2f-d81b63c8cac4",
+        "pin": "result"
+      },
+      "to": {
+        "node": "1fedbcf0-5eca-4de9-ab2c-b3f090e7bac7",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "b3181a11-a2a9-45e8-9426-bccc1fd1091c",
+      "from": {
+        "node": "3d4d9073-1264-45fd-a2e5-ea671cba2771",
+        "pin": "result"
+      },
+      "to": {
+        "node": "da242fef-5b26-4ea5-9aa0-77a7163b29d2",
+        "pin": "message"
+      }
+    },
+    {
+      "id": "b9a2cf0b-3ae1-40ba-a998-d33ff70db9d1",
+      "from": {
+        "node": "f3f98ccf-ce8d-4eca-837c-173ec79da32b",
+        "pin": "result"
+      },
+      "to": {
+        "node": "18d344ab-b037-4fac-b44e-592a853a7ff4",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "bbcd9a93-e453-42bf-99d0-03b1ac5f1548",
+      "from": {
+        "node": "b02a83fd-7985-4667-95c7-24a5f6b62167",
+        "pin": "result"
+      },
+      "to": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "a3"
+      }
+    },
+    {
+      "id": "bd2d0967-e134-49b5-95cc-40f2caad6461",
+      "from": {
+        "node": "0b34d140-35f6-4ebe-9e9f-988f1211287a",
+        "pin": "then"
+      },
+      "to": {
+        "node": "09dc8591-7974-43fd-a5a6-a56e9d24b9cf",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "bdaa654f-045b-420a-b4e5-0a374a470514",
+      "from": {
+        "node": "8489ec9d-a71a-4de9-933d-78703acf801c",
+        "pin": "then"
+      },
+      "to": {
+        "node": "cd408f72-2b84-4f54-a43a-3b62ed622704",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "c5a88bc8-68c7-4867-a4fb-224bc7cf1359",
+      "from": {
+        "node": "a774024d-7441-4b1e-8d07-692841461374",
+        "pin": "result"
+      },
+      "to": {
+        "node": "09dc8591-7974-43fd-a5a6-a56e9d24b9cf",
+        "pin": "r0"
+      }
+    },
+    {
+      "id": "c6606cae-6ad0-489a-8255-4d44cefe6cbd",
+      "from": {
+        "node": "1b4cd2fd-9057-43e6-b81c-47dfdc621792",
+        "pin": "result"
+      },
+      "to": {
+        "node": "3d4d9073-1264-45fd-a2e5-ea671cba2771",
+        "pin": "a2"
+      }
+    },
+    {
+      "id": "c7addb73-cb01-4cd2-a762-dbbecb1eb682",
+      "from": {
+        "node": "a8beff3e-bc55-45bf-ac20-e7b512403450",
+        "pin": "result"
+      },
+      "to": {
+        "node": "6299963a-04cb-4698-bccc-5e2610ee67cb",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "c8e9f773-33d0-4b7a-8739-190dd7ffa4ad",
+      "from": {
+        "node": "0a80d7c8-0573-475d-b37f-cd436bbcd77e",
+        "pin": "then"
+      },
+      "to": {
+        "node": "afa92753-5f03-4173-a8fb-94d3cb92e23e",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "ce26691c-838e-432f-ac56-7c644a56cb0c",
+      "from": {
+        "node": "d7aada93-c698-4ea4-b562-6861cca6484a",
+        "pin": "result"
+      },
+      "to": {
+        "node": "652694a3-9ea3-4e4e-a7a0-652b16c6ee61",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "d06b1647-775a-4a17-91b8-71de37a60e86",
+      "from": {
+        "node": "afa92753-5f03-4173-a8fb-94d3cb92e23e",
+        "pin": "s1"
+      },
+      "to": {
+        "node": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "d37d6f81-7514-4048-a255-8dcb7886dfd8",
+      "from": {
+        "node": "cca65f7c-6889-457b-8467-a23ea862fa55",
+        "pin": "value"
+      },
+      "to": {
+        "node": "7ee57110-a905-4092-bb97-713e2e6f1401",
+        "pin": "owner"
+      }
+    },
+    {
+      "id": "d77d9ea3-a68f-4e60-b07d-2ee89a8e0ee2",
+      "from": {
+        "node": "3db6aa90-70ae-46da-94f2-550b46e92ba8",
+        "pin": "s1"
+      },
+      "to": {
+        "node": "b4c69f36-8b71-4a13-9b7e-c60aa1e686a1",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "dff44971-28cc-4350-ba3d-87ebd6f30bb4",
+      "from": {
+        "node": "6299963a-04cb-4698-bccc-5e2610ee67cb",
+        "pin": "result"
+      },
+      "to": {
+        "node": "e6ba45da-77d1-431d-8855-66e3369aa006",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "e335b2e6-a325-4fe9-84d3-b16189d9ece9",
+      "from": {
+        "node": "c559a46f-84d8-4790-8087-ae2a6e15e932",
+        "pin": "result"
+      },
+      "to": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "a5"
+      }
+    },
+    {
+      "id": "e777c522-8c6a-42fb-b501-4497eb812b0e",
+      "from": {
+        "node": "93eb20b2-c93f-47cb-aabc-964d1420b936",
+        "pin": "result"
+      },
+      "to": {
+        "node": "058205a0-a73b-4e3a-8b1d-7fcf53a17e97",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "e895b3f2-b96b-46b6-84ad-9ec7720ae988",
+      "from": {
+        "node": "058205a0-a73b-4e3a-8b1d-7fcf53a17e97",
+        "pin": "result"
+      },
+      "to": {
+        "node": "0bc8cd68-a891-45ec-ad28-ab57c52149c6",
+        "pin": "message"
+      }
+    },
+    {
+      "id": "eb3ea234-efb5-437a-afea-22f558ce2641",
+      "from": {
+        "node": "9fec0044-075b-46f0-8ce7-b4ed33d5e046",
+        "pin": "result"
+      },
+      "to": {
+        "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
+        "pin": "a2"
+      }
+    },
+    {
+      "id": "f3ca2727-25fc-429a-b478-dc62371bfd2e",
+      "from": {
+        "node": "e6ba45da-77d1-431d-8855-66e3369aa006",
+        "pin": "true"
+      },
+      "to": {
+        "node": "ade2c009-b6d5-4ef4-9ebd-6e07be00cd9c",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "f46b41f3-a2fe-43a6-89af-e70269e0073d",
+      "from": {
+        "node": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
+        "pin": "p1"
+      },
+      "to": {
+        "node": "a8beff3e-bc55-45bf-ac20-e7b512403450",
+        "pin": "name"
+      }
+    },
+    {
+      "id": "f710d17f-b5f5-4371-bcd6-bf1dba4509f2",
+      "from": {
+        "node": "b4c69f36-8b71-4a13-9b7e-c60aa1e686a1",
+        "pin": "result"
+      },
+      "to": {
+        "node": "4cbf8d70-fb6d-4f5e-896e-90a50a01c425",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "fda8f945-4aa6-4894-b43b-5da16f843be6",
+      "from": {
+        "node": "176d867b-3362-41ab-a56d-b62f7fcb7de4",
+        "pin": "true"
+      },
+      "to": {
+        "node": "0bc8cd68-a891-45ec-ad28-ab57c52149c6",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "fe5e9f99-f69a-4523-88d6-f288b8c70f9f",
+      "from": {
+        "node": "07d5883b-1166-4a33-98f5-6763f3d0ed08",
+        "pin": "result"
+      },
+      "to": {
+        "node": "b4c69f36-8b71-4a13-9b7e-c60aa1e686a1",
+        "pin": "a1"
+      }
+    },
+    {
+      "id": "ffc34f1b-0aee-4442-8817-106f57ac0ec1",
+      "from": {
+        "node": "7ee57110-a905-4092-bb97-713e2e6f1401",
+        "pin": "p0"
+      },
+      "to": {
+        "node": "93eb20b2-c93f-47cb-aabc-964d1420b936",
+        "pin": "instance"
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": "4702015d-325e-42ed-bd9a-20f0e3920c05",
+      "x": -101,
+      "y": 1033,
+      "w": 987.71,
+      "h": 406.14,
+      "text": "First check if the child exists"
+    },
+    {
+      "id": "4b2e23cd-c5cf-43e7-8c86-0e1d16655af4",
+      "x": -1137,
+      "y": 2316,
+      "w": 2372,
+      "h": 646,
+      "text": "Return the model's Hull Settings"
+    },
+    {
+      "id": "94bd2a15-8d14-493e-97c6-7e4e8870a07f",
+      "x": -192,
+      "y": 1514,
+      "w": 1270.94,
+      "h": 437.68,
+      "text": "Then check if it is a NumberValue"
+    },
+    {
+      "id": "c4a61e50-f56a-4f91-992a-9368108ec290",
+      "x": 5,
+      "y": -154,
+      "w": 961,
+      "h": 1024,
+      "text": "Create the Tuning local table first"
+    },
+    {
+      "id": "dae2e8a9-d29e-4487-8f99-1182b67d01de",
+      "x": -485,
+      "y": 1981,
+      "w": 805,
+      "h": 188,
+      "text": "Return the NumberValue.Value property"
+    },
+    {
+      "id": "f91b6450-6501-45e6-94ab-d913f0d02b55",
+      "x": -627,
+      "y": -174,
+      "w": 570,
+      "h": 280,
+      "text": "New Table node results in a new value, Make Dictionary doesn't"
+    }
+  ]
 }
