@@ -9,6 +9,7 @@
 
 import type { NodeScript } from "../schema.js";
 import { checkLuauBalance } from "../luauCheck.js";
+import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
@@ -162,8 +163,12 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		seenNames.add(variable.name);
 	}
 
+	// Both nodes that declare a function, not just the hoisted one. A Get
+	// Function pointing at a Declare Function was reported as pointing at a
+	// function that is no longer in the graph -- about a node plainly on the
+	// canvas, which sends you looking for the wrong thing entirely.
 	const functionIds = new Set(
-		script.nodes.filter((n) => n.def === "function.entry").map((n) => n.id),
+		script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id),
 	);
 
 	for (const node of script.nodes) {

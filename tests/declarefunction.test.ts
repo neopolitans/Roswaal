@@ -19,12 +19,18 @@
 
 import { describe, expect, it } from "vitest";
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { bindNodeToFunction, syncFunctionRefs } from "../src/app/edits.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { FUNCTION_NODES } from "../src/core/nodes/flow.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { Builder, body } from "./helpers.js";
 
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const registry = createRegistry();
 
 const code = (script: NodeScript) => body(compile(script, registry).code);
@@ -320,6 +326,131 @@ describe("its function, as a value", () => {
 
 		expect(errors(b.build())).toEqual([]);
 		expect(code(b.build())).toContain("print(early)");
+	});
+});
+
+describe("Get Function can point at one", () => {
+	/**
+	 * The tenth place written against `"function.entry"`, and the one the other
+	 * nine did not cover: the validator built its set of valid targets from that
+	 * string alone. A Get Function pointing at a Declare Function was reported as
+	 * pointing at "a function that is no longer in the graph" — about a node
+	 * plainly on the canvas, which sends you looking for the wrong thing.
+	 */
+	it("does not call it a function that is no longer in the graph", () => {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const fn = b.node("function.declareHere", { config: { name: "readNumber", params: [], returns: [] } });
+		const inner = b.node("debug.print");
+		b.lit(inner, "value", { t: "string", v: "x" });
+		const ref = b.node("function.get");
+		const call = b.node("call.function", { config: { args: 0 } });
+
+		b.link(begin, "then", fn, "in");
+		b.link(fn, "body", inner, "in");
+		b.link(fn, "then", call, "in");
+		b.link(ref, "fn", call, "fn");
+
+		const script = b.build();
+		script.nodes.find((n) => n.id === ref)!.config = { function: fn, name: "readNumber" };
+
+		expect(errors(script)).toEqual([]);
+		expect(code(script)).toMatch(/^readNumber\(\)$/m);
+	});
+
+	/** A reference to something genuinely gone is still reported. */
+	it("still reports one that really is gone", () => {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const ref = b.node("function.get", { config: { function: "deleted-id", name: "gone" } });
+		const call = b.node("call.function", { config: { args: 0 } });
+		b.link(begin, "then", call, "in");
+		b.link(ref, "fn", call, "fn");
+
+		expect(errors(b.build()).join(" ")).toMatch(/no longer in the graph/);
+	});
+});
+
+/**
+ * Everywhere that has to mean "a function".
+ *
+ * These went wrong one at a time. Nine places compared `def.id` against the
+ * string `"function.entry"`, `FUNCTION_NODES` replaced those, and then three
+ * more turned up — the validator, which reported a live Declare Function as one
+ * "no longer in the graph"; `bindNodeToFunction`, so choosing one in the
+ * inspector was taken and silently discarded; and `syncFunctionRefs`, so
+ * renaming one left every reference showing the old name.
+ *
+ * The reason all three were missed is worth writing down: the grep that found
+ * the first nine was piped through `head`. So this asks the *source* rather
+ * than trusting a search — a comparison against that string, anywhere outside
+ * the places that legitimately mean the hoisted node alone, is a bug waiting
+ * for someone to build a graph that hits it.
+ */
+describe("nothing still means only the hoisted node", () => {
+	const SOURCES = [
+		"src/app/edits.ts",
+		"src/app/Inspector.tsx",
+		"src/app/NodeMenu.tsx",
+		"src/app/luauCompletions.ts",
+		"src/core/compiler/validate.ts",
+	];
+
+	it("compares against the string in none of the places that mean any function", () => {
+		const offenders: string[] = [];
+		for (const file of SOURCES) {
+			const text = readFileSync(path.join(ROOT, file), "utf8");
+			text.split("\n").forEach((line, i) => {
+				if (!line.includes('"function.entry"')) return;
+				// A `case` in a switch is fine: the sibling case is right beside it
+				// and a reader sees both at once.
+				if (line.trim().startsWith("case ")) return;
+				offenders.push(`${file}:${i + 1} ${line.trim()}`);
+			});
+		}
+		expect(offenders).toEqual([]);
+	});
+
+	/** And the switch cases that are fine are fine because both are listed. */
+	it("lists both wherever it switches on one", () => {
+		for (const file of SOURCES) {
+			const text = readFileSync(path.join(ROOT, file), "utf8");
+			if (!text.includes('case "function.entry":')) continue;
+			expect(text, file).toContain('case "function.declareHere":');
+		}
+	});
+});
+
+describe("choosing one, and renaming it", () => {
+	/** The inspector offered it, took the click, and did nothing. */
+	it("can be bound to a Get Function", () => {
+		const b = new Builder();
+		const fn = b.node("function.declareHere", { config: { name: "readNumbers", params: [], returns: [] } });
+		const ref = b.node("function.get");
+		const bound = bindNodeToFunction(b.build(), ref, fn);
+
+		expect((bound.nodes.find((n) => n.id === ref)!.config as Record<string, unknown>))
+			.toEqual({ function: fn, name: "readNumbers" });
+	});
+
+	it("still refuses a node that is not a function at all", () => {
+		const b = new Builder();
+		const print = b.node("debug.print");
+		const ref = b.node("function.get");
+		const script = b.build();
+
+		expect(bindNodeToFunction(script, ref, print)).toBe(script);
+	});
+
+	/** A rename has to reach the references, or they show a name that is gone. */
+	it("keeps a reference's cached name in step with a rename", () => {
+		const b = new Builder();
+		const fn = b.node("function.declareHere", { config: { name: "readNumbers", params: [], returns: [] } });
+		const ref = b.node("function.get", { config: { function: fn, name: "oldName" } });
+
+		const synced = syncFunctionRefs(b.build());
+		expect((synced.nodes.find((n) => n.id === ref)!.config as { name?: string }).name)
+			.toBe("readNumbers");
 	});
 });
 

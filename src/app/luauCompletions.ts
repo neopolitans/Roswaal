@@ -85,6 +85,7 @@ export function scopeCompletions(script: NodeScript | null): Completion[] {
 		const config = (node.config ?? {}) as Record<string, unknown>;
 		switch (node.def) {
 			case "function.entry":
+			case "function.declareHere":
 				add(String(config.name ?? "fn"), "function", "function in this graph");
 				break;
 			case "roblox.getService": {

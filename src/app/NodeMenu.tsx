@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { categories, subcategories } from "../core/nodes/index.js";
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { acceptsWire } from "./edits.js";
 import { LAYER } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
@@ -340,7 +341,7 @@ export function buildPresets(script: {
 	}
 
 	for (const node of script.nodes) {
-		if (node.def !== "function.entry") continue;
+		if (!FUNCTION_NODES.has(node.def)) continue;
 		const name = (node.config as { name?: string } | undefined)?.name ?? "function";
 		out.push({
 			key: `fn:${node.id}`,

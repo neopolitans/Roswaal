@@ -46,6 +46,16 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.24.2",
+		date: "2026-09-09",
+		headline: "Declare Function counts as a function everywhere.",
+		fixed: [
+			"**A graph with only Declare Function nodes compiles.** Every Get Function was reported as pointing at a function no longer in the graph, because the check only counted the hoisted node.",
+			"**Declare Function can be chosen in a Get Function.** The dropdown listed it, took the click and discarded it, so the selection snapped back with nothing said.",
+			"**Renaming one updates the references to it**, and it now appears in the palette as Get <name> and in hand-written Luau completions.",
+		],
+	},
+	{
 		version: "0.24.1",
 		date: "2026-09-09",
 		headline: "Declare Function hands its function over.",

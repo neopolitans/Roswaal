@@ -1202,7 +1202,10 @@ export function bindNodeToFunction(
 	script: NodeScript, nodeId: string, functionNodeId: string,
 ): NodeScript {
 	const entry = script.nodes.find((n) => n.id === functionNodeId);
-	if (!entry || entry.def !== "function.entry") return script;
+	// Either node that declares a function. Refusing a Declare Function here
+	// meant the inspector offered it, took the click, and did nothing -- the
+	// dropdown snapped back and there was no way to find out why.
+	if (!entry || !FUNCTION_NODES.has(entry.def)) return script;
 	const name = (entry.config as { name?: string } | undefined)?.name ?? "function";
 	return setConfig(script, nodeId, { function: functionNodeId, name });
 }
@@ -1211,7 +1214,7 @@ export function bindNodeToFunction(
 export function syncFunctionRefs(script: NodeScript): NodeScript {
 	const names = new Map<string, string>();
 	for (const node of script.nodes) {
-		if (node.def !== "function.entry") continue;
+		if (!FUNCTION_NODES.has(node.def)) continue;
 		names.set(node.id, (node.config as { name?: string } | undefined)?.name ?? "function");
 	}
 	return {
