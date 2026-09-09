@@ -1174,6 +1174,42 @@ export const LIBRARY_NODES: NodeDef[] = [
 		[d("object", "Object", "any"), str("field", "Field", "name")], "any",
 		"Reads a field off any value: a module's export, a table key, an instance property."),
 	{
+		/**
+		 * A call where a *value* is wanted, rather than a step.
+		 *
+		 * Call Function sits on the execution wire, so its result binds to a
+		 * local and is used from there. That is right for a call that does
+		 * something, and it makes one line impossible to write:
+		 *
+		 * ```lua
+		 * return { movementSpeed = readNumber(hullSettings, "MovementSpeed") }
+		 * ```
+		 *
+		 * There is nowhere inside a table literal to put an execution wire, so
+		 * the call came out above it as `local result = ...` and the table
+		 * referred to that. Correct, and not the line.
+		 *
+		 * Pure, so it splices into whatever reads it. The line drawn is the one
+		 * the Instances section draws -- **side effects, not syntax**: this says
+		 * the call is a question. A call that changes something stays on the
+		 * wire, where its order is visible.
+		 */
+		id: "call.value",
+		title: "Call For Value",
+		category: "Modules",
+		summary:
+			"Calls a function where a value is wanted — inside a table, an argument, an " +
+			"expression. No execution wire, so use Call Function when the call changes something.",
+		pure: true,
+		inputs: [d("fn", "Function", "function"), d("a0", "Argument", "any", { t: "nil" })],
+		outputs: [d("result", "", "any")],
+		compilesTo: { kind: "expr", outputs: { result: "$in.fn($args(, ))" } },
+		derivePins: (config) => ({
+			inputs: [d("fn", "Function", "function"), ...argPins(config)],
+			outputs: [d("result", "", "any")],
+		}),
+	},
+	{
 		// Argument count is per-instance rather than fixed, because a template
 		// is a static string and one-argument calls were the sharpest edge in
 		// the earlier node set.

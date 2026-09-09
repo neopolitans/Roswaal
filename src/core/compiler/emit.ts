@@ -91,20 +91,39 @@ function plainKey(rendered: string): string | null {
 	return LUAU_RESERVED.has(match[1]) ? null : match[1];
 }
 
-const LUAU_TYPES = new Set([
-	"any", "boolean", "number", "string", "thread",
-	"Instance", "Vector3", "Vector2", "CFrame", "Color3", "UDim", "UDim2",
-	"BrickColor", "EnumItem", "RBXScriptSignal", "RBXScriptConnection",
-]);
+/**
+ * Pin types that describe the editor rather than the program.
+ *
+ * `wildcard` is "adopts whatever it is wired to" and `luau` is "hand-written
+ * source", neither of which is a type Luau has ever heard of.
+ */
+const EDITOR_ONLY_TYPES = new Set(["any", "wildcard", "luau", "code"]);
+
+/** A name Luau will accept in a type position, including `a.B` for a module's. */
+const TYPE_NAME = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/;
 
 /** Variadic input pins are numbered: a0, a1, a2. */
 export const VARIADIC_PIN = /^a\d+$/;
 
+/**
+ * The Luau a pin's type is written as.
+ *
+ * This used to check the name against a list of fifteen and write `any` for
+ * everything else, which meant a parameter typed `Model` came out `any` and so
+ * did one typed `Config` -- a type the same file had just declared. Neither was
+ * a mistake anybody could see: the graph said `Model`, the file said `any`, and
+ * nothing said why.
+ *
+ * Now anything shaped like a type name is written as itself. A name Luau does
+ * not know is an error it reports, naming the line, which is a better answer
+ * than silently having no type at all.
+ */
 function luauType(t: string | undefined): string {
 	if (!t) return "any";
 	if (t === "table") return "{ [any]: any }";
 	if (t === "function") return "(...any) -> ...any";
-	return LUAU_TYPES.has(t) ? t : "any";
+	if (EDITOR_ONLY_TYPES.has(t)) return "any";
+	return TYPE_NAME.test(t) ? t : "any";
 }
 
 export function emit(script: NodeScript, registry: Registry, sourceHash: string): EmitResult {

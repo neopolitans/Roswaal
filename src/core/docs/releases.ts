@@ -46,6 +46,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.23.0",
+		date: "2026-09-09",
+		headline: "Say Model, and put a call where a value goes.",
+		added: [
+			"**Call For Value**, a pure call. It has no execution wire, so a call can sit where a value goes — inside a table, an argument, an expression: `return { movementSpeed = readNumber(hullSettings, \"MovementSpeed\") }`. Call Function still binds its result to a local, which is what you want when the call changes something.",
+			"**Any Luau type can be typed into a type field.** The dropdown of twelve is now a list attached to a text field: the same names, the Instance classes under them, and the types this graph declares above them.",
+		],
+		changed: [
+			"**A pin's type is written as itself.** It used to be checked against a list of fifteen names, and anything else became `any` — so a parameter typed `Model` came out `any`, and so did one typed `Config`, a type the same file had just declared.",
+			"**An Instance class fits an Instance pin.** A `Model` goes wherever an `Instance` is wanted. The other way round is a claim about the value rather than a fact about its type, so it still wants a Cast.",
+		],
+		watch: [
+			"A graph with a pin typed as something the old list did not know was emitting `any` for it, and now emits the name. If that name is not a real Luau type, Luau will say so — which it could not do while the type was being thrown away.",
+		],
+	},
+	{
 		version: "0.22.1",
 		date: "2026-09-09",
 		headline: "Align reads the wires, and a knot stops keeping a type it lost.",

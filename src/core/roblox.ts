@@ -93,3 +93,34 @@ export function lastSegment(path: string): string {
 	const segments = path.split(".").map((s) => s.trim()).filter((s) => s !== "");
 	return segments[segments.length - 1] ?? "";
 }
+
+/**
+ * Instance classes a pin may be typed as.
+ *
+ * Partial on purpose: Roblox has hundreds and a graph needs the handful you
+ * actually hold a reference to. It exists so `Model` can be told apart from
+ * `Config` -- one fits an `Instance` pin and the other does not -- which is a
+ * question no amount of looking at the name can answer. Add to it freely; a
+ * class missing from here still *works* as a type, it just is not offered in
+ * the type list and will not satisfy an `Instance` pin without a Cast.
+ */
+export const INSTANCE_CLASSES: string[] = [
+	"Accessory", "Animation", "AnimationTrack", "Animator", "Attachment",
+	"BasePart", "BillboardGui", "BindableEvent", "BindableFunction", "BoolValue",
+	"Camera", "CFrameValue", "ClickDetector", "Configuration", "Decal",
+	"Folder", "Frame", "GuiButton", "GuiObject", "Highlight", "Humanoid",
+	"HumanoidDescription", "ImageLabel", "IntValue", "Model", "Motor6D",
+	"MeshPart", "NumberValue", "ObjectValue", "Part", "ParticleEmitter",
+	"Player", "PlayerGui", "PointLight", "ProximityPrompt", "RemoteEvent",
+	"RemoteFunction", "ScreenGui", "ScriptSignal", "Seat", "Sound", "Sparkles",
+	"StringValue", "SurfaceGui", "TextBox", "TextButton", "TextLabel", "Tool",
+	"Trail", "UICorner", "UIListLayout", "UIPadding", "Vector3Value",
+	"VehicleSeat", "WeldConstraint",
+];
+
+const CLASSES = new Set(INSTANCE_CLASSES);
+
+/** Whether a type name is an Instance class, and so fits an `Instance` pin. */
+export function isInstanceClass(type: string | undefined): boolean {
+	return type !== undefined && CLASSES.has(type);
+}

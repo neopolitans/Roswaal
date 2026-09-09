@@ -15,11 +15,7 @@ import {
 } from "./edits.js";
 import { pinColor } from "./palette.js";
 import { store } from "./store.js";
-
-const TYPES = [
-	"boolean", "number", "string", "table", "function",
-	"Instance", "Vector3", "Vector2", "CFrame", "Color3", "UDim2", "any",
-];
+import { TypePicker } from "./TypePicker.jsx";
 
 export interface VariablesPanelProps {
 	/**
@@ -60,8 +56,8 @@ export function VariablesPanel({ script, confirm, locked }: VariablesPanelProps)
 				{script.variables.map((variable) => (
 					<VariableRow
 						key={variable.id}
-						variable={variable}
 						script={script}
+						variable={variable}
 						confirm={confirm}
 						expanded={open === variable.id}
 						onToggle={() => setOpen((id) => (id === variable.id ? null : variable.id))}
@@ -120,17 +116,12 @@ function VariableRow({ variable, script, expanded, onToggle, confirm }: Variable
 					</label>
 					<label className="field">
 						<span>Type</span>
-						<select
-							className="tb"
+						<TypePicker
 							value={variable.type}
-							onChange={(e) =>
-								store.edit((s) => updateVariable(s, variable.id, { type: e.target.value }))
+							onChange={(type) =>
+								store.edit((s) => updateVariable(s, variable.id, { type }))
 							}
-						>
-							{TYPES.map((t) => (
-								<option key={t}>{t}</option>
-							))}
-						</select>
+						/>
 					</label>
 					<label className="field">
 						<span>Initial value</span>

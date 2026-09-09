@@ -16,6 +16,7 @@ import {
 	decompose, modeOf, partPinId, splitKey, splitsOf, STRUCTS, type StructMode,
 } from "../core/structs.js";
 import { literalToLuau } from "../core/compiler/luau.js";
+import { isInstanceClass } from "../core/roblox.js";
 import { compactWidth, nodeBounds, pinPosition, rectContains, type Rect } from "./geometry.js";
 import { NODE } from "./layers.js";
 import { newId } from "./store.js";
@@ -377,6 +378,10 @@ function typesCompatible(a: string | undefined, b: string | undefined): boolean 
 	if (from === to) return true;
 	if (from === "any" || to === "any" || from === "wildcard" || to === "wildcard") return true;
 	if ((from === "number" && to === "string") || (from === "string" && to === "number")) return true;
+	// A Model is an Instance, so it goes anywhere an Instance is wanted. The
+	// other way round is a claim about what the value *is* rather than a fact
+	// about its type, and Cast is the node that makes that claim out loud.
+	if (to === "Instance" && isInstanceClass(from)) return true;
 	return false;
 }
 

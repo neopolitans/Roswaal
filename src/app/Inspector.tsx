@@ -17,6 +17,7 @@ import {
 	syncFunctionRefs, syncFunctionReturns,
 } from "./edits.js";
 import { store } from "./store.js";
+import { TypePicker } from "./TypePicker.jsx";
 
 /**
  * Abbreviations whose full stop is not the end of a sentence.
@@ -77,11 +78,6 @@ function namesResult(def: NodeDef): boolean {
 function docsHref(nodeId: string): string {
 	return `/docs#${encodeURIComponent(`node/${nodeId}`)}`;
 }
-
-const TYPES = [
-	"any", "boolean", "number", "string", "table", "function",
-	"Instance", "Vector3", "Vector2", "CFrame", "Color3", "UDim2",
-];
 
 export interface InspectorProps {
 	/**
@@ -610,19 +606,14 @@ function ListEditor({ node, field, title, hint }: ListEditorProps) {
 							write(next);
 						}}
 					/>
-					<select
-						className="tb"
-						value={entry.type ?? "any"}
-						onChange={(e) => {
+					<TypePicker
+						value={entry.type}
+						onChange={(type) => {
 							const next = [...list];
-							next[i] = { ...entry, type: e.target.value };
+							next[i] = { ...entry, type };
 							write(next);
 						}}
-					>
-						{TYPES.map((t) => (
-							<option key={t}>{t}</option>
-						))}
-					</select>
+					/>
 					<button
 						className="tb"
 						title="Remove"
