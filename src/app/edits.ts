@@ -16,6 +16,7 @@ import {
 	decompose, modeOf, partPinId, splitKey, splitsOf, STRUCTS, type StructMode,
 } from "../core/structs.js";
 import { literalToLuau } from "../core/compiler/luau.js";
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { isInstanceClass } from "../core/roblox.js";
 import { compactWidth, nodeBounds, pinPosition, rectContains, type Rect } from "./geometry.js";
 import { NODE } from "./layers.js";
@@ -27,7 +28,7 @@ export function addNode(
 	const id = newId();
 	const node: GraphNode = { id, def: def.id, x: Math.round(x), y: Math.round(y) };
 	// Function and Connect nodes are useless with no signature, so seed one.
-	if (def.id === "function.entry") node.config = { name: "newFunction", params: [], returns: [] };
+	if (FUNCTION_NODES.has(def.id)) node.config = { name: "newFunction", params: [], returns: [] };
 	if (def.id === "function.return") node.config = { returns: [] };
 	if (def.id === "event.connect") node.config = { params: [] };
 
@@ -40,7 +41,7 @@ export function addNode(
 			: {};
 	}
 	if (def.id === "function.get") {
-		const first = script.nodes.find((n) => n.def === "function.entry");
+		const first = script.nodes.find((n) => FUNCTION_NODES.has(n.def));
 		node.config = first
 			? { function: first.id, name: (first.config as { name?: string } | undefined)?.name ?? "function" }
 			: {};
@@ -287,7 +288,7 @@ export function syncFunctionReturns(script: NodeScript, entryId: string): NodeSc
 		seen.add(id);
 		const node = script.nodes.find((n) => n.id === id);
 		// A nested Function node starts its own scope; stop before crossing in.
-		if (node?.def === "function.entry" && id !== entryId) continue;
+		if (node && FUNCTION_NODES.has(node.def) && id !== entryId) continue;
 		if (node?.def === "function.return") targets.add(id);
 		queue.push(...(execLinks.get(id) ?? []));
 	}
@@ -600,6 +601,7 @@ export function growthRule(def: NodeDef | undefined): GrowthRule | null {
 		case "module.exports":
 			return { field: "exports", kind: "list", min: 1, max: 16, prefix: "e", label: "exports" };
 		case "function.entry":
+		case "function.declareHere":
 			return { field: "params", kind: "list", min: 0, max: 8, prefix: "p", label: "parameters" };
 		default:
 			return null;
@@ -648,7 +650,7 @@ export function growNode(
 			const owner = findOwningFunction(updated, nodeId);
 			if (owner) updated = setConfig(updated, owner, { returns: grown });
 		}
-		if (def.id === "function.entry") updated = syncFunctionReturns(updated, nodeId);
+		if (FUNCTION_NODES.has(def.id)) updated = syncFunctionReturns(updated, nodeId);
 	}
 
 	return { script: updated, pin: delta > 0 ? `${rule.prefix}${next - 1}` : undefined };
@@ -679,7 +681,7 @@ export function findOwningFunction(script: NodeScript, nodeId: string): string |
 		if (seen.has(id)) continue;
 		seen.add(id);
 		const node = script.nodes.find((n) => n.id === id);
-		if (node?.def === "function.entry") return id;
+		if (node && FUNCTION_NODES.has(node.def)) return id;
 		queue.push(...(incoming.get(id) ?? []));
 	}
 	return null;

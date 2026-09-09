@@ -46,6 +46,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.24.0",
+		date: "2026-09-09",
+		headline: "Declare a function where it belongs, or onto a table.",
+		added: [
+			"**Declare Function**, which declares a function where the node sits rather than at the top — the other half of Function, the way Declare Type is the other half of Declare Type at Top. Wire a table into **On Table** and it becomes `function TankConfig.read(tank: Model): Config`; leave it unwired for a plain `local function` at that point in the flow.",
+		],
+		watch: [
+			"On Table has to resolve to a name — a variable or a local. Luau has no syntax for attaching a function to an expression, so anything else is refused rather than half-written.",
+			"The function is named where it is declared, so a Get Function above it reports that it does not exist yet rather than naming a local that has not been reached.",
+		],
+	},
+	{
 		version: "0.23.1",
 		date: "2026-09-09",
 		headline: "Common types in one click, anything else one click further.",

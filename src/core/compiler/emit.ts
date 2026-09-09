@@ -830,6 +830,77 @@ class Emitter {
 				return this.index.execTarget(id, "then");
 			}
 
+			case "function.declareHere": {
+				const sig = (r.node.config ?? {}) as Signature;
+				const name = (sig.name || r.node.label || "").trim();
+				if (name === "") {
+					this.error("Declare Function needs a name before it can be written.", id);
+					return this.index.execTarget(id, "then");
+				}
+				if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+					this.error(
+						`"${name}" is not a name Luau will take for a function. Letters, digits and ` +
+						"underscores, not starting with a digit.",
+						id,
+					);
+					return this.index.execTarget(id, "then");
+				}
+
+				/**
+				 * The table it hangs off, if any.
+				 *
+				 * `function T.name()` needs `T` to be a name -- Luau has no syntax
+				 * for attaching a function to an expression, and `(expr).name = ...`
+				 * is a different statement with different semantics. A variable or a
+				 * local resolves to a bare identifier and works; anything else is
+				 * refused rather than half-written.
+				 */
+				let owner: string | undefined;
+				if (this.index.sourceOf(id, "owner")) {
+					const resolved = this.resolveInput(r, this.pin(r, "owner", "in"), scope);
+					if (!/^[A-Za-z_][A-Za-z0-9_.]*$/.test(resolved)) {
+						this.error(
+							"On Table has to be a name Luau can attach a function to — a variable or " +
+							`a local, not an expression. This one came out as \`${resolved}\`.`,
+							id,
+						);
+						return this.index.execTarget(id, "then");
+					}
+					owner = resolved;
+				}
+
+				// An owned function is a field, not a local, so it takes no name of
+				// its own and cannot collide with one.
+				const ident = owner ? `${owner}.${name}` : this.names.unique(name, "fn");
+				// Set before the body is walked, so the function can call itself and
+				// so a Get Function inside it resolves.
+				this.functionNames.set(id, ident);
+
+				const body = new Scope(scope);
+				const params = (sig.params ?? []).map((p, i) => {
+					const arg = this.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
+					body.bindings.set(`${id}/p${i}`, arg);
+					return this.annotates ? `${arg}: ${luauType(p.type)}` : arg;
+				});
+
+				const returns = sig.returns ?? [];
+				const retType =
+					returns.length === 0
+						? "()"
+						: returns.length === 1
+							? luauType(returns[0].type)
+							: `(${returns.map((x) => luauType(x.type)).join(", ")})`;
+				const signature = this.annotates ? `: ${retType}` : "";
+
+				this.push(`${owner ? "" : "local "}function ${ident}(${params.join(", ")})${signature}`, id);
+				this.indent++;
+				this.walk(this.index.execTarget(id, "body"), body);
+				this.indent--;
+				this.push("end", id);
+				this.terminated = false;
+				return this.index.execTarget(id, "then");
+			}
+
 			case "type.declareHere": {
 				const config = (r.node.config ?? {}) as {
 					name?: string; export?: boolean;
@@ -1309,10 +1380,21 @@ class Emitter {
 				const ref = (src.node.config ?? {}) as FunctionRef;
 				const ident = ref.function ? this.functionNames.get(ref.function) : undefined;
 				if (!ident) {
+					// A hoisted function is named before anything is emitted, so a
+					// missing name means the node is gone -- except for Declare
+					// Function, which is named where it sits. Reading one above its
+					// own declaration is a real mistake with a different fix, and
+					// saying "no longer in this graph" about a node plainly on the
+					// canvas sends you looking for the wrong thing.
+					const target = ref.function ? this.index.get(ref.function) : undefined;
 					this.error(
-						ref.function
-							? "Get Function points at a function that is no longer in this graph."
-							: "Get Function has no function chosen.",
+						!ref.function
+							? "Get Function has no function chosen."
+							: target?.def.id === "function.declareHere"
+								? `"${(target.node.config as Signature)?.name || "That function"}" is declared ` +
+									"further down the flow than this, so it does not exist yet. Move the " +
+									"Declare Function above this, or use the hoisted Function node."
+								: "Get Function points at a function that is no longer in this graph.",
 						src.node.id,
 					);
 					return "nil";

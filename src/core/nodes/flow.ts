@@ -57,6 +57,9 @@ export function continuesEnclosingBlock(defId: string, pinId: string): boolean {
 		case "flow.while":
 			return pinId === "completed";
 		case "event.connect":
+		// Declare Function is the same shape: "then" carries on in the block the
+		// node sits in, and "body" opens the function's own.
+		case "function.declareHere":
 			return pinId === "then";
 		// A function body is its own scope and has no enclosing block here.
 		case "function.entry":
@@ -66,6 +69,20 @@ export function continuesEnclosingBlock(defId: string, pinId: string): boolean {
 			return true;
 	}
 }
+
+/**
+ * The nodes that declare a function.
+ *
+ * Two of them: one hoisted to the top, one where it sits. Everything that
+ * treats a function as a function -- the signature editor, Get Function's list,
+ * keeping Return nodes in step, finding which function a node is inside -- has
+ * to mean both, and each of those was written against the string
+ * `"function.entry"` before there was a second one.
+ */
+export const FUNCTION_NODES: ReadonlySet<string> = new Set([
+	"function.entry",
+	"function.declareHere",
+]);
 
 export const FLOW_NODES: NodeDef[] = [
 	{
@@ -116,6 +133,53 @@ export const FLOW_NODES: NodeDef[] = [
 		// graph full of functions can be read without opening any of them.
 		defaultLabel: (config) => (config as Signature).name,
 		subtitle: (config) => signatureText(config as Signature),
+	},
+	{
+		/**
+		 * A function declared where the node sits, rather than hoisted.
+		 *
+		 * The other half of Function, the way Declare Type is the other half of
+		 * Declare Type at Top. Hoisting is right when a function is a thing the
+		 * script *has*; it is wrong when the function has to come after
+		 * something. `Config.luau` ends on both cases at once:
+		 *
+		 * ```lua
+		 * function TankConfig.read(tank: Model): Config
+		 * ```
+		 *
+		 * — which has to be below `TankConfig`, and is not a local at all.
+		 * Wiring a table into **On Table** attaches it there; leaving it unwired
+		 * gives `local function name(...)` at that point in the flow.
+		 */
+		id: "function.declareHere",
+		title: "Declare Function",
+		category: "Flow",
+		summary:
+			"Declares a function where the node sits, instead of at the top. Wire a table into " +
+			"On Table for `function Table.name(...)`.",
+		role: "flow",
+		inputs: [exec("in", ""), data("owner", "On Table", "table", undefined)],
+		outputs: [
+			exec("then", ""),
+			exec("body", "Body"),
+			data("self", "Function", "function"),
+		],
+		compilesTo: { kind: "builtin", handler: "function.declareHere" },
+		derivePins(config: NodeConfig) {
+			const sig = config as Signature;
+			return {
+				inputs: [exec("in", ""), data("owner", "On Table", "table", undefined)],
+				outputs: [
+					exec("then", ""),
+					exec("body", "Body"),
+					data("self", "Function", "function"),
+					...(sig.params ?? []).map((p, i) =>
+						data(`p${i}`, p.name || `arg${i + 1}`, p.type ?? "any"),
+					),
+				],
+			};
+		},
+		defaultLabel: (config) => (config as Signature).name,
 	},
 	{
 		id: "function.return",

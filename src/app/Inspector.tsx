@@ -16,6 +16,7 @@ import {
 	addVariable, bindNodeToFunction, bindNodeToVariable, renameNode, setConfig,
 	syncFunctionRefs, syncFunctionReturns,
 } from "./edits.js";
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { store } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
 
@@ -132,7 +133,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				</Field>
 
 				{namesResult(def) && <ResultName node={node} />}
-				{def.id === "function.entry" && <FunctionEditor node={node} />}
+				{FUNCTION_NODES.has(def.id) && <FunctionEditor node={node} />}
 				{def.id === "function.return" && (
 					<ListEditor
 						node={node}
@@ -509,7 +510,7 @@ function VariablePicker({ script, node }: { script: NodeScript; node: GraphNode 
 
 function FunctionPicker({ script, node }: { script: NodeScript; node: GraphNode }) {
 	const current = (node.config as { function?: string } | undefined)?.function ?? "";
-	const functions = script.nodes.filter((n) => n.def === "function.entry");
+	const functions = script.nodes.filter((n) => FUNCTION_NODES.has(n.def));
 	if (functions.length === 0) {
 		return <p className="summary">This graph declares no functions yet.</p>;
 	}
@@ -577,7 +578,7 @@ function ListEditor({ node, field, title, hint }: ListEditorProps) {
 			const updated = setConfig(s, node.id, { [field]: next });
 			// Changing a function's returns has to reach its Return nodes, or the
 			// graph and the signature drift apart silently.
-			return field === "returns" && node.def === "function.entry"
+			return field === "returns" && FUNCTION_NODES.has(node.def)
 				? syncFunctionReturns(updated, node.id)
 				: updated;
 		});
