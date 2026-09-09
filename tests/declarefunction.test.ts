@@ -454,6 +454,80 @@ describe("choosing one, and renaming it", () => {
 	});
 });
 
+describe("room around a declaration", () => {
+	/** Two functions run together read as one block with an `end` in the middle. */
+	function twoFunctions() {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const first = b.node("function.declareHere", { config: { name: "one", params: [], returns: [] } });
+		const firstBody = b.node("debug.print");
+		b.lit(firstBody, "value", { t: "string", v: "a" });
+		const second = b.node("function.declareHere", { config: { name: "two", params: [], returns: [] } });
+		const secondBody = b.node("debug.print");
+		b.lit(secondBody, "value", { t: "string", v: "b" });
+
+		b.link(begin, "then", first, "in");
+		b.link(first, "body", firstBody, "in");
+		b.link(first, "then", second, "in");
+		b.link(second, "body", secondBody, "in");
+		return b.build();
+	}
+
+	it("puts a blank line between two of them", () => {
+		expect(code(twoFunctions())).toContain("end\n\nlocal function two()");
+	});
+
+	/** One line, not two — `blank` does not stack. */
+	it("does not stack blank lines", () => {
+		expect(code(twoFunctions())).not.toMatch(/\n\n\n/);
+	});
+
+	it("separates it from the statement above it", () => {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const before = b.node("debug.print");
+		b.lit(before, "value", { t: "string", v: "x" });
+		const fn = b.node("function.declareHere", { config: { name: "after", params: [], returns: [] } });
+		const inner = b.node("debug.print");
+		b.lit(inner, "value", { t: "string", v: "y" });
+		b.link(begin, "then", before, "in");
+		b.link(before, "then", fn, "in");
+		b.link(fn, "body", inner, "in");
+
+		expect(code(b.build())).toContain('print("x")\n\nlocal function after()');
+	});
+
+	it("separates it from the statement below it", () => {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const fn = b.node("function.declareHere", { config: { name: "before", params: [], returns: [] } });
+		const inner = b.node("debug.print");
+		b.lit(inner, "value", { t: "string", v: "y" });
+		const after = b.node("debug.print");
+		b.lit(after, "value", { t: "string", v: "z" });
+		b.link(begin, "then", fn, "in");
+		b.link(fn, "body", inner, "in");
+		b.link(fn, "then", after, "in");
+
+		expect(code(b.build())).toContain('end\n\nprint("z")');
+	});
+
+	/** The hoisted node already did this, and still does. */
+	it("matches what a hoisted Function gets", () => {
+		const b = new Builder();
+		const first = b.node("function.entry", { config: { name: "one", params: [], returns: [] } });
+		const firstBody = b.node("debug.print");
+		b.lit(firstBody, "value", { t: "string", v: "a" });
+		const second = b.node("function.entry", { config: { name: "two", params: [], returns: [] } });
+		const secondBody = b.node("debug.print");
+		b.lit(secondBody, "value", { t: "string", v: "b" });
+		b.link(first, "then", firstBody, "in");
+		b.link(second, "then", secondBody, "in");
+
+		expect(code(b.build())).toContain("end\n\nlocal function two()");
+	});
+});
+
 describe("what the node says it is", () => {
 	/**
 	 * Function gives its name away to the header, because a node headed

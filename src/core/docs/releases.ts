@@ -46,6 +46,14 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.24.3",
+		date: "2026-09-09",
+		headline: "Room around a function declared in the flow.",
+		fixed: [
+			"**A Declare Function gets a blank line either side**, the same as a hoisted one. Two run together read as a single block with an end somewhere in the middle of it.",
+		],
+	},
+	{
 		version: "0.24.2",
 		date: "2026-09-09",
 		headline: "Declare Function counts as a function everywhere.",

@@ -893,11 +893,17 @@ class Emitter {
 							: `(${returns.map((x) => luauType(x.type)).join(", ")})`;
 				const signature = this.annotates ? `: ${retType}` : "";
 
+				// A blank line either side, the same as a hoisted function gets. A
+				// declaration is a change of subject, and two of them run together read
+				// as one long block with an `end` somewhere in the middle of it.
+				// `blank` will not double up, so a run of them gets one line each.
+				this.blank();
 				this.push(`${owner ? "" : "local "}function ${ident}(${params.join(", ")})${signature}`, id);
 				this.indent++;
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
 				this.push("end", id);
+				this.blank();
 				this.terminated = false;
 				return this.index.execTarget(id, "then");
 			}
