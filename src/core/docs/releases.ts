@@ -46,6 +46,14 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.23.1",
+		date: "2026-09-09",
+		headline: "Common types in one click, anything else one click further.",
+		changed: [
+			"**The type field is a list again, with Other… at the bottom of it.** The list holds this graph's own types, the basic ones, Roblox's values and the instance classes worth a click; Other… opens a field that takes any Luau type, suggesting every class. A type already set to something the list does not hold opens in the field.",
+		],
+	},
+	{
 		version: "0.23.0",
 		date: "2026-09-09",
 		headline: "Say Model, and put a call where a value goes.",
