@@ -215,6 +215,139 @@ describe("Declare Function, where it sits", () => {
 	});
 });
 
+describe("its function, as a value", () => {
+	/**
+	 * The bug: `self` was special-cased to the hoisted node, so Declare
+	 * Function's fell through to the impure check and was reported as out of
+	 * scope. Which is what an impure node's *output* is outside its block, and
+	 * is not what a function's name is anywhere.
+	 */
+	it("wires into Call Function", () => {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const fn = b.node("function.declareHere", {
+			config: { name: "readNumber", params: [], returns: [{ name: "n", type: "number" }] },
+		});
+		const inner = b.node("function.return", { config: { returns: [{ name: "n", type: "number" }] } });
+		b.lit(inner, "r0", { t: "number", v: 1 });
+		const call = b.node("call.function", { config: { args: 0 } });
+
+		b.link(begin, "then", fn, "in");
+		b.link(fn, "body", inner, "in");
+		b.link(fn, "then", call, "in");
+		b.link(fn, "self", call, "fn");
+
+		const script = b.build();
+		expect(errors(script)).toEqual([]);
+		// Nothing reads the result, so it is a statement rather than a local —
+		// the ordinary rule for a call, and nothing to do with the wire.
+		expect(code(script)).toMatch(/^readNumber\(\)$/m);
+	});
+
+	it("wires into Call For Value, where a value is wanted", () => {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const fn = b.node("function.declareHere", {
+			config: { name: "roll", params: [], returns: [{ name: "n", type: "number" }] },
+		});
+		const inner = b.node("function.return", { config: { returns: [{ name: "n", type: "number" }] } });
+		b.lit(inner, "r0", { t: "number", v: 1 });
+		const call = b.node("call.value", { config: { args: 0 } });
+		const print = b.node("debug.print");
+
+		b.link(begin, "then", fn, "in");
+		b.link(fn, "body", inner, "in");
+		b.link(fn, "then", print, "in");
+		b.link(fn, "self", call, "fn");
+		b.link(call, "result", print, "value");
+
+		expect(errors(b.build())).toEqual([]);
+		expect(code(b.build())).toContain("print(roll())");
+	});
+
+	/** An owned function is a value too: `TankConfig.read` is a name. */
+	it("gives the table-qualified name when it has an owner", () => {
+		const b = new Builder();
+		const table = b.variable("TankConfig", "table", { t: "raw", v: "{}" });
+		const begin = b.node("script.begin");
+		const get = b.node("variable.get", { config: { variable: table, name: "TankConfig", type: "table" } });
+		const fn = b.node("function.declareHere", { config: { name: "read", params: [], returns: [] } });
+		const inner = b.node("debug.print");
+		b.lit(inner, "value", { t: "string", v: "x" });
+		const print = b.node("debug.print");
+
+		b.link(begin, "then", fn, "in");
+		b.link(get, "value", fn, "owner");
+		b.link(fn, "body", inner, "in");
+		b.link(fn, "then", print, "in");
+		b.link(fn, "self", print, "value");
+
+		expect(code(b.build())).toContain("print(TankConfig.read)");
+	});
+
+	/**
+	 * Read above its own declaration it does not exist yet, which is a different
+	 * mistake from a function that is not in the graph and has a different fix.
+	 */
+	it("says so when it is read above its own declaration", () => {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const print = b.node("debug.print");
+		const fn = b.node("function.declareHere", { config: { name: "later", params: [], returns: [] } });
+		const inner = b.node("debug.print");
+		b.lit(inner, "value", { t: "string", v: "x" });
+
+		b.link(begin, "then", print, "in");
+		b.link(print, "then", fn, "in");
+		b.link(fn, "body", inner, "in");
+		b.link(fn, "self", print, "value");
+
+		expect(errors(b.build()).join(" ")).toMatch(/does not exist yet/);
+	});
+
+	/** The hoisted node's own `self` still works, which is what it was for. */
+	it("has not changed for the hoisted Function", () => {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const fn = b.node("function.entry", { config: { name: "early", params: [], returns: [] } });
+		const inner = b.node("debug.print");
+		b.lit(inner, "value", { t: "string", v: "x" });
+		const print = b.node("debug.print");
+
+		b.link(fn, "then", inner, "in");
+		b.link(begin, "then", print, "in");
+		b.link(fn, "self", print, "value");
+
+		expect(errors(b.build())).toEqual([]);
+		expect(code(b.build())).toContain("print(early)");
+	});
+});
+
+describe("what the node says it is", () => {
+	/**
+	 * Function gives its name away to the header, because a node headed
+	 * `readNumber` is obviously a function. This one is one of *two* kinds of
+	 * declaration, and which kind is what you are looking at it to find out.
+	 */
+	it("keeps its own name beside the function's", () => {
+		const def = registry.get("function.declareHere")!;
+		expect(def.defaultLabel?.({ name: "read" })).toBe("Declare Function (read)");
+	});
+
+	it("has no name to show until one is typed", () => {
+		const def = registry.get("function.declareHere")!;
+		expect(def.defaultLabel?.({})).toBeUndefined();
+		expect(def.defaultLabel?.({ name: "" })).toBeUndefined();
+	});
+
+	it("shows the signature underneath, like the hoisted one", () => {
+		const def = registry.get("function.declareHere")!;
+		const sig = { name: "read", params: [{ name: "tank", type: "Model" }], returns: [{ name: "c", type: "Config" }] };
+		expect(def.subtitle?.(sig)).toBe("(tank: Model) → Config");
+		expect(def.subtitle?.(sig)).toBe(registry.get("function.entry")!.subtitle?.(sig));
+	});
+});
+
 describe("both nodes count as a function", () => {
 	it("is what FUNCTION_NODES is for", () => {
 		expect([...FUNCTION_NODES].sort()).toEqual(["function.declareHere", "function.entry"]);

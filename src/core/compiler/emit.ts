@@ -17,11 +17,12 @@ import {
 	indentBlock, isAtomic, literalToLuau, NameScope, paren, quoteString, toIdentifier,
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
+import { FUNCTION_NODES } from "../nodes/flow.js";
 import type { Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
 import type { FunctionRef, VariableRef } from "../nodes/variables.js";
 import { isService as isRobloxService, lastSegment, renderPath } from "../roblox.js";
-import type { Registry } from "../nodes/index.js";
+import { nodeTitle, type Registry } from "../nodes/index.js";
 import {
 	modeOf, partPinId, splitKey, splitPinId, splitsOf, STRUCTS, type StructMode,
 } from "../structs.js";
@@ -1549,9 +1550,27 @@ class Emitter {
 			}
 		}
 
-		// A function entry's own name, so a function can be passed as a value.
-		if (src.def.id === "function.entry" && pinId === "self") {
-			return this.functionNames.get(nodeId) ?? "nil";
+		/**
+		 * A function's own name, so it can be passed as a value.
+		 *
+		 * Both nodes that declare one, not just the hoisted node this was
+		 * written for. Declare Function fell through to the check below and was
+		 * reported as out of scope -- which is what an impure node's output *is*
+		 * outside its block, and is not what a function's name is anywhere.
+		 */
+		if (FUNCTION_NODES.has(src.def.id) && pinId === "self") {
+			const named = this.functionNames.get(nodeId);
+			if (named) return named;
+			// Only Declare Function can get here: a hoisted function is named
+			// before anything is emitted. Reading one above its own declaration
+			// is a real mistake, and a different one from "not in the graph".
+			this.error(
+				`"${nodeTitle(src.def, src.node)}" is declared further down the flow than this, ` +
+				"so it does not exist yet. Move the Declare Function above this, or use the " +
+				"hoisted Function node.",
+				consumer.node.id,
+			);
+			return "nil";
 		}
 
 		if (!src.def.pure) {

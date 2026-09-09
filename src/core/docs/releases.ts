@@ -46,6 +46,15 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.24.1",
+		date: "2026-09-09",
+		headline: "Declare Function hands its function over.",
+		fixed: [
+			"**A Declare Function node's function can be wired into a call.** Its `Function` output was reported as out of scope, because passing a function as a value was special-cased to the hoisted node.",
+			"**Its header reads `Declare Function (name)`**, with the signature underneath, instead of replacing the node's name with the function's.",
+		],
+	},
+	{
 		version: "0.24.0",
 		date: "2026-09-09",
 		headline: "Declare a function where it belongs, or onto a table.",

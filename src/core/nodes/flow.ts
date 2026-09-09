@@ -179,7 +179,19 @@ export const FLOW_NODES: NodeDef[] = [
 				],
 			};
 		},
-		defaultLabel: (config) => (config as Signature).name,
+		/**
+		 * The name goes *beside* the node's own, not instead of it.
+		 *
+		 * Function can give its name away to the header, because a node whose
+		 * header reads `readNumber` is obviously a function. This one is one of
+		 * two kinds of function declaration, and which kind it is -- hoisted, or
+		 * here -- is the thing you are looking at it to find out.
+		 */
+		defaultLabel: (config) => {
+			const name = (config as Signature).name;
+			return name ? `Declare Function (${name})` : undefined;
+		},
+		subtitle: (config) => signatureText(config as Signature),
 	},
 	{
 		id: "function.return",
