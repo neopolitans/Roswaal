@@ -19,6 +19,7 @@ import {
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import { FUNCTION_NODES, typeShapeOf } from "../nodes/flow.js";
 import { checkLuauBalance } from "../luauCheck.js";
+import { PAIR } from "../schema.js";
 import type { Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
 import type { FunctionRef, LocalRef, VariableRef } from "../nodes/variables.js";
@@ -1551,6 +1552,19 @@ class Emitter {
 	private buildSplitInput(
 		r: ResolvedNode, parent: PinDef, mode: StructMode, scope: Scope,
 	): string {
+		// A pair splits into a key and a value, and there is nothing to rebuild
+		// those into: `{ walkSpeed = 16 }` is syntax, not a value. Make
+		// Dictionary's fold reads the parts where there is a table for them to
+		// be an entry of; reaching here means something else was handed one.
+		if (parent.type === PAIR) {
+			this.error(
+				"A Key Value Pair is one entry of a table, so it only goes into Make Dictionary.",
+				r.node.id,
+				parent.id,
+			);
+			return "nil";
+		}
+
 		const values = new Map<string, string>();
 		for (const part of mode.parts) {
 			const id = partPinId(parent.id, part.id);
@@ -1804,7 +1818,12 @@ class Emitter {
 		});
 
 		/**
-		 * `$pairs(<sep>)` folds `k0`/`a0`, `k1`/`a1`, … into `[key] = value`.
+		 * `$pairs(<sep>)` folds `p0`, `p1`, … into `[key] = value`.
+		 *
+		 * Each row is one pair pin, in one of two states. Split, it is a Key and
+		 * a Value read from its parts. Whole, it takes a Key Value Pair, which
+		 * brings its own key — and is read here, where there is a table for the
+		 * entry to belong to, rather than as an expression it cannot be.
 		 *
 		 * `$args` cannot do this: variadic pins are all one type, and a
 		 * dictionary entry is two pins that mean different things. A node
@@ -1824,26 +1843,45 @@ class Emitter {
 		 */
 		template = template.replace(/\$pairs\(([^)]*)\)/g, (_match, separator: string) => {
 			const entries: string[] = [];
-			for (const pin of r.inputs) {
-				const match = /^k(\d+)$/.exec(pin.id);
+			// The rows as the node declares them, before splitting — a split row
+			// is two part pins and would otherwise be counted twice or not at all.
+			for (const pin of r.baseInputs) {
+				const match = /^p(\d+)$/.exec(pin.id);
 				if (!match) continue;
-				const value = r.inputs.find((v) => v.id === `a${match[1]}`);
-				if (!value) continue;
-				// A Key Value Pair on the value pin brings its own key, and the
-				// row's key is not used. It is read here, where there is a table
-				// for it to be an entry of, rather than as an expression.
-				const pair = this.feederOf(r.node.id, value.id);
-				const from = pair?.def.id === "table.pair" ? pair : undefined;
-				const key = from
-					? this.resolveInput(from, this.pin(from, "key", "in"), scope)
-					: this.resolveInput(r, pin, scope);
+
+				let key: string;
+				let entry: string;
+
+				const split = this.splitOf(r, pin.id, "in");
+				if (split) {
+					/**
+					 * Read the parts directly rather than resolving the row.
+					 *
+					 * Resolving it would send a split input to `buildSplitInput`,
+					 * which rebuilds a value from `make` — and a pair is syntax
+					 * rather than a value, so there is nothing to rebuild it into.
+					 * Here there is a table for the entry to belong to, which is
+					 * the only place a key and a value mean anything together.
+					 */
+					const keyPin = r.inputs.find((p) => p.id === partPinId(pin.id, "key"));
+					const valuePin = r.inputs.find((p) => p.id === partPinId(pin.id, "value"));
+					if (!keyPin || !valuePin) continue;
+					key = this.resolveInput(r, keyPin, scope);
+					entry = this.resolveInput(r, valuePin, scope);
+				} else {
+					// Whole: the row takes a Key Value Pair, which brings its own
+					// key. An empty row is left out rather than reported — growing
+					// the node gives you one, and a row you have not filled in yet
+					// should not be a table entry.
+					const from = this.feederOf(r.node.id, pin.id);
+					if (from?.def.id !== "table.pair") continue;
+					key = this.resolveInput(from, this.pin(from, "key", "in"), scope);
+					entry = this.resolveInput(from, this.pin(from, "value", "in"), scope);
+				}
+
 				if (key === '""' || key === "nil") continue;
 				const plain = this.bracketsOnly(r) ? null : plainKey(key);
-				const written = plain ?? `[${key}]`;
-				const entry = from
-					? this.resolveInput(from, this.pin(from, "value", "in"), scope)
-					: this.resolveInput(r, value, scope);
-				entries.push(`${written} = ${entry}`);
+				entries.push(`${plain ?? `[${key}]`} = ${entry}`);
 			}
 			if (entries.length === 0) return "";
 			/**

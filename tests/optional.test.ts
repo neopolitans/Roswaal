@@ -120,11 +120,13 @@ describe("optional arguments", () => {
 describe("Make Dictionary", () => {
 	it("builds a table literal in one node", () => {
 		const b = new Builder();
-		const dict = b.node("table.dictionary", { config: { args: 2 } });
-		b.lit(dict, "k0", { t: "string", v: "Position" });
-		b.lit(dict, "a0", { t: "number", v: 1 });
-		b.lit(dict, "k1", { t: "string", v: "Transparency" });
-		b.lit(dict, "a1", { t: "number", v: 0 });
+		const dict = b.node("table.dictionary", {
+			config: { args: 2, split: { "in:p0": "keyValue", "in:p1": "keyValue" } },
+		});
+		b.lit(dict, "p0.key", { t: "string", v: "Position" });
+		b.lit(dict, "p0.value", { t: "number", v: 1 });
+		b.lit(dict, "p1.key", { t: "string", v: "Transparency" });
+		b.lit(dict, "p1.value", { t: "number", v: 0 });
 
 		const luau = shows(b, dict);
 		// Plain keys, as anybody would write them. `["Position"]` is the same
@@ -139,9 +141,11 @@ describe("Make Dictionary", () => {
 	 */
 	it("leaves out a pair whose key is still blank", () => {
 		const b = new Builder();
-		const dict = b.node("table.dictionary", { config: { args: 2 } });
-		b.lit(dict, "k0", { t: "string", v: "Size" });
-		b.lit(dict, "a0", { t: "number", v: 5 });
+		const dict = b.node("table.dictionary", {
+			config: { args: 2, split: { "in:p0": "keyValue", "in:p1": "keyValue" } },
+		});
+		b.lit(dict, "p0.key", { t: "string", v: "Size" });
+		b.lit(dict, "p0.value", { t: "number", v: 5 });
 
 		const luau = shows(b, dict);
 		expect(luau).toContain("Size = 5");
@@ -160,9 +164,9 @@ describe("Make Dictionary", () => {
 		const start = b.node("script.begin");
 		const target = b.node("value.expression");
 		b.lit(target, "code", { t: "raw", v: "workspace.Part" });
-		const dict = b.node("table.dictionary");
-		b.lit(dict, "k0", { t: "string", v: "Transparency" });
-		b.lit(dict, "a0", { t: "number", v: 1 });
+		const dict = b.node("table.dictionary", { config: { split: { "in:p0": "keyValue" } } });
+		b.lit(dict, "p0.key", { t: "string", v: "Transparency" });
+		b.lit(dict, "p0.value", { t: "number", v: 1 });
 		const info = b.node("tweeninfo.new");
 		const create = b.node("tween.create");
 		const play = b.node("tween.play");

@@ -54,6 +54,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.31.3",
+		date: "2026-09-12",
+		headline: "A dictionary's row is a pair you can split.",
+		changed: [
+			"**Make Dictionary's rows are Key Value Pairs.** A row is one pin: split it for the Key and Value you type into, or leave it whole and wire a pair in. Rows arrive split, so a placed node reads as it always did.",
+			"**A pair dropped on the node takes a whole row**, instead of landing on a Value pin beside a Key it would not use.",
+			"**The + and − call them pairs**, and add one row rather than two pins.",
+		],
+		watch: [
+			"An existing Make Dictionary opens with its rows split, keeping every key, value and wire. A row that was fed by a Key Value Pair stays whole, with the wire on the row itself.",
+		],
+	},
+	{
 		version: "0.31.2",
 		date: "2026-09-12",
 		headline: "A result keeps the name you gave it.",

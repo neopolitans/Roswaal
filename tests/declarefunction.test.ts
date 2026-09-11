@@ -97,8 +97,8 @@ describe("Declare Function, onto a table", () => {
 	it("refuses a table that is not a name", () => {
 		const b = new Builder();
 		const begin = b.node("script.begin");
-		const dict = b.node("table.dictionary", { config: { args: 1 } });
-		b.lit(dict, "k0", { t: "string", v: "a" });
+		const dict = b.node("table.dictionary", { config: { args: 1, split: { "in:p0": "keyValue" } } });
+		b.lit(dict, "p0.key", { t: "string", v: "a" });
 		const fn = b.node("function.declareHere", { config: { name: "read", params: [], returns: [] } });
 		b.link(begin, "then", fn, "in");
 		b.link(dict, "result", fn, "owner");

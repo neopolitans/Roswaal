@@ -58,14 +58,14 @@ function readerAndCaller(callDef: string) {
 	});
 	const ref = b.node("function.get", { config: { function: reader, name: "readNumber" } });
 	const call = b.node(callDef, { config: { args: 2 } });
-	const dict = b.node("table.dictionary", { config: { args: 1 } });
+	const dict = b.node("table.dictionary", { config: { args: 1, split: { "in:p0": "keyValue" } } });
 	const ret = b.node("function.return", { config: { returns: [{ name: "cfg", type: "Config" }] } });
 
 	b.link(ref, "fn", call, "fn");
 	b.link(read, "p0", call, "a0");
 	b.lit(call, "a1", { t: "string", v: "MovementSpeed" });
-	b.lit(dict, "k0", { t: "string", v: "movementSpeed" });
-	b.link(call, "result", dict, "a0");
+	b.lit(dict, "p0.key", { t: "string", v: "movementSpeed" });
+	b.link(call, "result", dict, "p0.value");
 	b.link(dict, "result", ret, "r0");
 
 	// The impure one needs threading onto the wire; the pure one must not be.

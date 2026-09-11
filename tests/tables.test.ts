@@ -17,7 +17,7 @@ import { canConnect, landingPins } from "../src/app/edits.js";
 import { compile } from "../src/core/compiler/index.js";
 import { pinsCompatible } from "../src/core/compiler/validate.js";
 import { migrateScript } from "../src/core/migrate.js";
-import { createRegistry } from "../src/core/nodes/index.js";
+import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import type { Literal, NodeScript, PinDef } from "../src/core/schema.js";
 import { Builder, body } from "./helpers.js";
 
@@ -128,17 +128,22 @@ describe("an Index keyed by a name, from an earlier build", () => {
 });
 
 describe("Key Value Pair", () => {
-	/** A dictionary with one typed row and one row fed by a pair. */
-	function dictionary(rowKey = "") {
+	/**
+	 * A dictionary with one row split and typed into, and one left whole to
+	 * take a pair — the two states a row has, side by side in one node.
+	 */
+	function dictionary() {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const pair = b.node("table.pair");
 		b.lit(pair, "key", { t: "string", v: "walkSpeed" }).lit(pair, "value", { t: "number", v: 16 });
-		const dict = b.node("table.dictionary", { config: { args: 2 } });
-		b.lit(dict, "k0", { t: "string", v: "jumpHeight" }).lit(dict, "a0", { t: "number", v: 7.2 });
-		if (rowKey) b.lit(dict, "k1", { t: "string", v: rowKey });
+		const dict = b.node("table.dictionary", {
+			config: { args: 2, split: { "in:p0": "keyValue" } },
+		});
+		b.lit(dict, "p0.key", { t: "string", v: "jumpHeight" });
+		b.lit(dict, "p0.value", { t: "number", v: 7.2 });
 		const print = b.node("debug.print");
-		b.link(pair, "result", dict, "a1");
+		b.link(pair, "result", dict, "p1");
 		b.link(start, "then", print, "in").link(dict, "result", print, "value");
 		return b.build();
 	}
@@ -148,9 +153,11 @@ describe("Key Value Pair", () => {
 		expect(code(dictionary())).toContain("print({ jumpHeight = 7.2, walkSpeed = 16 })");
 	});
 
-	it("brings its own key, over whatever the row says", () => {
-		expect(code(dictionary("ignored"))).toContain("walkSpeed = 16");
-		expect(code(dictionary("ignored"))).not.toContain("ignored");
+	/** A whole row has no key of its own, which is why the pair brings one. */
+	it("is the whole row, so there is no row key to disagree with", () => {
+		const dict = registry.get("table.dictionary")!;
+		const whole = resolveNodePins(dict, { args: 2, split: { "in:p0": "keyValue" } });
+		expect(whole.inputs.map((p) => p.id)).toEqual(["p0.key", "p0.value", "p1"]);
 	});
 
 	it("is an error anywhere else", () => {
@@ -162,23 +169,26 @@ describe("Key Value Pair", () => {
 		expect(errors(b.build()).join(" ")).toMatch(/only goes into Make Dictionary/);
 	});
 
-	it("fits a dictionary's value pins and nothing else, not even any", () => {
+	it("fits a dictionary's rows and nothing else, not even any", () => {
 		const pair: PinDef = { id: "result", name: "", kind: "data", type: "pair" };
 		const dict = registry.get("table.dictionary")!;
-		const pins = dict.derivePins!({ args: 2 }).inputs;
+		const rows = dict.derivePins!({ args: 2 }).inputs;
 
 		expect(pinsCompatible(pair, { type: "any" })).toBe(false);
-		expect(pinsCompatible(pair, pins.find((p) => p.id === "a0")!)).toBe(true);
-		expect(pinsCompatible({ type: "string" }, pins.find((p) => p.id === "a0")!)).toBe(true);
-		expect(landingPins(dict, pins, pair, "in").map((p) => p.id)).toEqual(["a0", "a1"]);
+		expect(pinsCompatible(pair, rows.find((p) => p.id === "p0")!)).toBe(true);
+		// A plain value goes on a split row's Value, never on the row itself.
+		expect(pinsCompatible({ type: "string" }, rows.find((p) => p.id === "p0")!)).toBe(false);
+		const split = resolveNodePins(dict, { args: 1, split: { "in:p0": "keyValue" } }).inputs;
+		expect(pinsCompatible({ type: "string" }, split.find((p) => p.id === "p0.value")!)).toBe(true);
+		expect(landingPins(dict, rows, pair, "in").map((p) => p.id)).toEqual(["p0", "p1"]);
 
 		const print = registry.get("debug.print")!;
 		expect(landingPins(print, print.inputs, pair, "in")).toEqual([]);
 	});
 
-	it("is offered when a wire is dragged back out of a dictionary's value pin", () => {
+	it("is offered when a wire is dragged back out of a dictionary's row", () => {
 		const def = registry.get("table.pair")!;
-		const into = registry.get("table.dictionary")!.derivePins!({ args: 1 }).inputs.find((p) => p.id === "a0")!;
+		const into = registry.get("table.dictionary")!.derivePins!({ args: 1 }).inputs.find((p) => p.id === "p0")!;
 		expect(landingPins(def, def.outputs, into, "out").map((p) => p.id)).toEqual(["result"]);
 	});
 

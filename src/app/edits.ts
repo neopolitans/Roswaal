@@ -9,7 +9,7 @@
 import type {
 	Comment, GraphNode, Link, Literal, NodeDef, NodeScript, PinDef, PinRef, ScriptVariable,
 } from "../core/schema.js";
-import { ANY, WILDCARD } from "../core/schema.js";
+import { ANY, PAIR, WILDCARD } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins, resolveNodePins } from "../core/nodes/index.js";
 import {
@@ -51,6 +51,13 @@ export function addNode(
 	if (def.id === "local.get") {
 		const first = script.nodes.find((n) => n.def === "local.declare");
 		node.config = first ? { ...localRefFor(first) } : {};
+	}
+
+	// A dictionary's row is a Key Value Pair pin, and a pair pin has no literal
+	// — so an unsplit row is one you cannot type into until you have found the
+	// pin menu. Placed split, it reads as the Key and Value it always did.
+	if (def.id === "table.dictionary") {
+		node.config = { split: { [splitKey("in", "p0")]: "keyValue" } };
 	}
 
 	return { script: { ...script, nodes: [...script.nodes, node] }, id };
@@ -686,8 +693,21 @@ export function growNode(
 	if (next === count) return { script };
 
 	let updated: NodeScript;
+	// A dictionary's new row arrives split, for the reason a placed one does.
+	// The exception is a Key Value Pair being dropped on the node: that wire
+	// wants the whole row, so the row stays whole and takes it — which is how
+	// the drop gesture keeps working without the canvas knowing about pairs.
+	const wholePair = def.id === "table.dictionary" && hint?.type === PAIR;
+	const splitRow = def.id === "table.dictionary" && delta > 0 && !wholePair;
+
 	if (rule.kind === "count") {
-		updated = setConfig(script, nodeId, { [rule.field]: next });
+		const patch: Record<string, unknown> = { [rule.field]: next };
+		if (splitRow) {
+			const splits = { ...splitsOf(node.config) };
+			for (let i = count; i < next; i++) splits[splitKey("in", `p${i}`)] = "keyValue";
+			patch.split = splits;
+		}
+		updated = setConfig(script, nodeId, patch);
 	} else {
 		const list = ((node.config ?? {})[rule.field] as { name: string; type?: string }[]) ?? [];
 		const grown =
@@ -705,7 +725,12 @@ export function growNode(
 		if (FUNCTION_NODES.has(def.id)) updated = syncFunctionReturns(updated, nodeId);
 	}
 
-	return { script: updated, pin: delta > 0 ? `${rule.prefix}${next - 1}` : undefined };
+	if (delta <= 0) return { script: updated };
+
+	// A split row has no pin under its own id — only its parts — so a wire
+	// dropped on the node lands on the new row's Value.
+	const added = `${rule.prefix}${next - 1}`;
+	return { script: updated, pin: splitRow ? partPinId(added, "value") : added };
 }
 
 function defaultEntryName(rule: GrowthRule): string {
@@ -1018,14 +1043,20 @@ export function recombinePin(
 	if (mode === undefined) return script;
 	delete splits[splitKey(side, pinId)];
 
-	const struct = modeOf(STRUCTS, basePinOf(registry, node, side, pinId)?.type, mode);
+	const basePin = basePinOf(registry, node, side, pinId);
+	const struct = modeOf(STRUCTS, basePin?.type, mode);
 	const parts = struct?.parts ?? [];
+	// A pair has no literal of its own to fold back into: its `make` is
+	// deliberately unreachable, so folding would write an error expression onto
+	// the pin. The key and value typed into the parts are kept either way, and
+	// splitting the row again brings them straight back.
+	const foldable = struct !== undefined && basePin?.type !== PAIR;
 
 	// Fold what was typed into the components back onto the whole pin. Without
 	// this, splitting a Vector3, setting it to (0, 12, -4) and recombining
 	// leaves you looking at Vector3.zero — which reads as the editor having
 	// thrown the work away, because it had.
-	const folded = side === "in" && struct ? foldComponents(node, pinId, struct) : undefined;
+	const folded = side === "in" && foldable ? foldComponents(node, pinId, struct!) : undefined;
 
 	return dropLinksOn(
 		{

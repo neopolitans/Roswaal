@@ -465,12 +465,14 @@ export const CURATED: Record<string, () => NodeScript> = {
 		const pair = g.node("table.pair", {
 			column: 0, row: 1, literals: { key: str("walkSpeed"), value: num(16) },
 		});
+		// The first row split, so it shows a key typed in beside one arriving as
+		// a pair; the second left whole, which is the pin the pair lands on.
 		const dict = g.node("table.dictionary", {
-			column: 1, row: 1, config: { args: 2 },
-			literals: { k0: str("jumpHeight"), a0: num(7.2) },
+			column: 1, row: 1, config: { args: 2, split: { "in:p0": "keyValue" } },
+			literals: { "p0.key": str("jumpHeight"), "p0.value": num(7.2) },
 		});
 		const p = g.node("debug.print", { column: 2 });
-		g.link(pair, "result", dict, "a1");
+		g.link(pair, "result", dict, "p1");
 		g.link(begin, "then", p, "in").link(dict, "result", p, "value");
 		return g.out();
 	},

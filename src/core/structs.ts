@@ -22,6 +22,7 @@
  * its literal, so recombining is total — there is no "half a Vector3".
  */
 
+import { PAIR } from "./schema.js";
 import type { DataType, Literal } from "./schema.js";
 
 export interface StructPart {
@@ -52,6 +53,12 @@ export interface StructType {
 const num = (id: string, name: string, get: string, v = 0): StructPart => ({
 	id, name, type: "number", get, default: { t: "number", v },
 });
+
+/**
+ * For a split whose templates must never run — see the pair below. Valid Luau,
+ * so nothing downstream chokes on it, and loud if it is ever reached.
+ */
+const UNREACHABLE = `error("a key/value pair is not a value", 0)`;
 
 /**
  * A rotation matrix component. Roblox exposes these only through
@@ -173,6 +180,39 @@ export const BUILTIN_STRUCTS: StructType[] = [
 				name: "Scale, Offset",
 				parts: [num("scale", "Scale", "$v.Scale"), num("offset", "Offset", "$v.Offset")],
 				make: "UDim.new($scale, $offset)",
+			},
+		},
+	},
+	/**
+	 * One entry of a table, as its Key and its Value.
+	 *
+	 * The odd one out here, and deliberately so. Every other struct splits a
+	 * *value*: a Vector3 is a thing you can hold, bind to a local and read `.X`
+	 * off. A pair is not — `{ walkSpeed = 16 }` is syntax — so the `get` and
+	 * `make` templates below are never evaluated. Make Dictionary's fold reads
+	 * the two part pins directly, and a split pair that reaches the emitter any
+	 * other way is refused rather than rebuilt.
+	 *
+	 * They are written as a `error(...)` rather than as something plausible on
+	 * purpose: a path that did reach them would fail where it happened instead
+	 * of emitting a line that looks fine and means nothing.
+	 */
+	{
+		type: PAIR,
+		modes: {
+			keyValue: {
+				name: "Key, Value",
+				parts: [
+					{
+						id: "key", name: "Key", type: "string",
+						get: UNREACHABLE, default: { t: "string", v: "" },
+					},
+					{
+						id: "value", name: "Value", type: "any",
+						get: UNREACHABLE, default: { t: "nil" },
+					},
+				],
+				make: UNREACHABLE,
 			},
 		},
 	},

@@ -204,19 +204,26 @@ function variadicCall(
 }
 
 /**
- * Key and value pins for Make Dictionary, two per entry.
+ * One pin per entry for Make Dictionary, each a Key Value Pair.
  *
- * `k<i>` and `a<i>` rather than one list, because `$pairs` in the emitter folds
- * exactly that shape — and the value pins keep the `a<i>` names the growth rule
- * already knows how to find, so the node's + and − work without a second rule.
+ * A row used to be two pins — `k<i>` for the key and `a<i>` for the value, with
+ * the value pin also accepting a whole pair. That is two shapes for one idea,
+ * and it meant a pair wired in from elsewhere sat on a pin labelled Value with
+ * the row's own Key silently unused.
+ *
+ * Now a row *is* a pair, and **splitting it gives the Key and Value back**. The
+ * two states are exclusive on purpose: split, you type the key and value in;
+ * whole, you wire a Key Value Pair into it. Rows arrive split, because a pair
+ * pin has no literal and a node you cannot type into until you have found a
+ * context menu is a node that does nothing when you place it.
  */
 function dictionaryPins(config: Record<string, unknown>): { inputs: PinDef[]; outputs: PinDef[] } {
 	const count = Math.max(1, Math.min(MAX_PAIRS, Number(config.args ?? 1)));
 	const inputs: PinDef[] = [];
 	for (let i = 0; i < count; i++) {
-		inputs.push(str(`k${i}`, count === 1 ? "Key" : `Key ${i + 1}`, ""));
-		// A value pin also takes a Key Value Pair, which brings its own key.
-		inputs.push({ ...d(`a${i}`, count === 1 ? "Value" : `Value ${i + 1}`, "any", { t: "nil" }), pairs: true });
+		// Unnamed at one row, so its split parts read "Key" and "Value" rather
+		// than repeating a number the node does not need. See `applySplits`.
+		inputs.push(d(`p${i}`, count === 1 ? "" : `Pair ${i + 1}`, PAIR));
 	}
 	return { inputs, outputs: [d("result", "", "table")] };
 }
@@ -491,8 +498,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 		title: "Make Dictionary",
 		category: "Tables",
 		summary:
-			"A table of key/value pairs, built in one node. Use the + and − on the node " +
-			"to change how many. A pair with an empty key is left out.",
+			"A table built in one node. Each row is a Key Value Pair: split it to type a key " +
+			"and value in, or leave it whole to wire one in. Use + and − for how many rows; a " +
+			"row with an empty key is left out.",
 		pure: true,
 		/**
 		 * Room for a settings table, which is what this node is mostly for.

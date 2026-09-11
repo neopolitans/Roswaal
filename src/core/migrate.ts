@@ -38,8 +38,21 @@ export interface MigrationResult {
 }
 
 /** Pins that changed id, keyed by node type. */
+/** Make Dictionary's cap, and so how many rows a rename has to cover. */
+const DICTIONARY_ROWS = 24;
+
 const RENAMED_PINS: Record<string, Record<string, string>> = {
 	"roblox.getService": { result: "service" },
+	// A dictionary's rows are one Key Value Pair pin each now, split into Key
+	// and Value. The wires and the typed-in values move onto the split parts;
+	// the split itself is written further down, because renaming a pin cannot
+	// create one and the parts do not exist until it does.
+	"table.dictionary": Object.fromEntries(
+		Array.from({ length: DICTIONARY_ROWS }, (_, i) => [
+			[`k${i}`, `p${i}.key`],
+			[`a${i}`, `p${i}.value`],
+		]).flat(),
+	),
 	// The operator nodes became variadic, so their two fixed pins became the
 	// first two of a numbered run.
 	...Object.fromEntries(
@@ -214,6 +227,64 @@ export function migrateScript(raw: NodeScript): MigrationResult {
 		};
 	});
 	if (pinFixes > 0) notes.push(`Repointed ${pinFixes} wire${pinFixes === 1 ? "" : "s"} to renamed pins.`);
+
+	// -- a dictionary's rows became pair pins ------------------------------
+	//
+	// The renames above moved each row's key and value onto the parts of a split
+	// pin. The split itself has to be written here, because renaming a pin
+	// cannot create one and the parts do not exist until it does.
+	//
+	// A row that was fed by a Key Value Pair wants the opposite. Its old value
+	// pin accepted a whole pair, which is exactly what the row now *is* — so it
+	// stays unsplit and the wire moves back onto the row itself, rather than
+	// onto a Value that would be holding an entry instead of a value.
+	let dictionaries = 0;
+	script.nodes = script.nodes.map((node) => {
+		if (node.def !== "table.dictionary") return node;
+
+		const rows = Math.max(1, Number((node.config as { args?: unknown } | undefined)?.args ?? 1));
+		const whole = new Set<string>();
+		for (const link of script.links) {
+			if (link.to.node !== node.id) continue;
+			const ref = splitPinId(link.to.pin);
+			if (ref?.part === "value" && byId.get(link.from.node)?.def === "table.pair") {
+				whole.add(ref.parent);
+			}
+			// A wire already sitting on the row itself means this graph has been
+			// through here before and that row is meant to be whole. Without it
+			// a second pass finds an unsplit row, no longer sees the evidence it
+			// left — the wire has moved off `.value` — and splits it back.
+			if (!ref && /^p\d+$/.test(link.to.pin)) whole.add(link.to.pin);
+		}
+
+		const splits = { ...splitsOf(node.config) };
+		let changed = false;
+		for (let i = 0; i < rows; i++) {
+			const key = splitKey("in", `p${i}`);
+			if (whole.has(`p${i}`) || splits[key] !== undefined) continue;
+			splits[key] = "keyValue";
+			changed = true;
+		}
+
+		if (!changed) return node;
+		dictionaries++;
+		return { ...node, config: { ...node.config, split: splits } };
+	});
+
+	script.links = script.links.map((link) => {
+		const ref = splitPinId(link.to.pin);
+		if (!ref || ref.part !== "value") return link;
+		if (byId.get(link.to.node)?.def !== "table.dictionary") return link;
+		if (byId.get(link.from.node)?.def !== "table.pair") return link;
+		return { ...link, to: { ...link.to, pin: ref.parent } };
+	});
+
+	if (dictionaries > 0) {
+		notes.push(
+			`${dictionaries} Make Dictionary node${dictionaries === 1 ? " now takes" : "s now take"} ` +
+			"one Key Value Pair per row, split into Key and Value.",
+		);
+	}
 
 	// -- nodes that became pure --------------------------------------------
 	const splicedByDef = new Map<string, number>();

@@ -171,10 +171,12 @@ describe("Declare Local", () => {
 describe("how big a dictionary can be", () => {
 	it("takes more pairs than the old limit of eight", () => {
 		const b = new Builder();
-		const dict = b.node("table.dictionary", { config: { args: 10 } });
+		const split: Record<string, string> = {};
+		for (let i = 0; i < 10; i++) split[`in:p${i}`] = "keyValue";
+		const dict = b.node("table.dictionary", { config: { args: 10, split } });
 		for (let i = 0; i < 10; i++) {
-			b.lit(dict, `k${i}`, { t: "string", v: `key${i}` });
-			b.lit(dict, `a${i}`, { t: "number", v: i });
+			b.lit(dict, `p${i}.key`, { t: "string", v: `key${i}` });
+			b.lit(dict, `p${i}.value`, { t: "number", v: i });
 		}
 		const start = b.node("script.begin");
 		const declare = b.node("local.declare");
@@ -525,9 +527,11 @@ describe("a type built from fields", () => {
 describe("string keys, plain or bracketed", () => {
 	function dictionary(key: string, keys?: string) {
 		const b = new Builder();
-		const dict = b.node("table.dictionary", { config: { args: 1, ...(keys ? { keys } : {}) } });
-		b.lit(dict, "k0", { t: "string", v: key });
-		b.lit(dict, "a0", { t: "number", v: 1 });
+		const dict = b.node("table.dictionary", {
+			config: { args: 1, split: { "in:p0": "keyValue" }, ...(keys ? { keys } : {}) },
+		});
+		b.lit(dict, "p0.key", { t: "string", v: key });
+		b.lit(dict, "p0.value", { t: "number", v: 1 });
 		const start = b.node("script.begin");
 		const declare = b.node("local.declare");
 		b.lit(declare, "name", { t: "string", v: "t" });
@@ -599,11 +603,17 @@ describe("string keys, plain or bracketed", () => {
 describe("laying a dictionary out", () => {
 	function tuning(layout?: string) {
 		const b = new Builder();
-		const dict = b.node("table.dictionary", { config: { args: 2, ...(layout ? { layout } : {}) } });
-		b.lit(dict, "k0", { t: "string", v: "turnRate" });
-		b.lit(dict, "a0", { t: "number", v: 45 });
-		b.lit(dict, "k1", { t: "string", v: "brakingTime" });
-		b.lit(dict, "a1", { t: "number", v: 1.2 });
+		const dict = b.node("table.dictionary", {
+			config: {
+				args: 2,
+				split: { "in:p0": "keyValue", "in:p1": "keyValue" },
+				...(layout ? { layout } : {}),
+			},
+		});
+		b.lit(dict, "p0.key", { t: "string", v: "turnRate" });
+		b.lit(dict, "p0.value", { t: "number", v: 45 });
+		b.lit(dict, "p1.key", { t: "string", v: "brakingTime" });
+		b.lit(dict, "p1.value", { t: "number", v: 1.2 });
 		const start = b.node("script.begin");
 		const declare = b.node("local.declare");
 		b.lit(declare, "name", { t: "string", v: "TUNING" });
@@ -632,9 +642,11 @@ describe("laying a dictionary out", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const branch = b.node("flow.branch");
-		const dict = b.node("table.dictionary", { config: { args: 1, layout: "lines" } });
-		b.lit(dict, "k0", { t: "string", v: "turnRate" });
-		b.lit(dict, "a0", { t: "number", v: 45 });
+		const dict = b.node("table.dictionary", {
+			config: { args: 1, layout: "lines", split: { "in:p0": "keyValue" } },
+		});
+		b.lit(dict, "p0.key", { t: "string", v: "turnRate" });
+		b.lit(dict, "p0.value", { t: "number", v: 45 });
 		const declare = b.node("local.declare");
 		b.lit(declare, "name", { t: "string", v: "TUNING" });
 		b.link(start, "then", branch, "in");

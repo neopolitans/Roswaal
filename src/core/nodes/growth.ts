@@ -27,6 +27,15 @@ export interface GrowthRule {
 
 export function growthRule(def: NodeDef | undefined): GrowthRule | null {
 	if (!def) return null;
+	// Before the variadic rule, which would call these rows "operands" and look
+	// for the newest one under `a`. A dictionary's rows are pairs, and the cap
+	// still comes from the definition so it lives in one place.
+	if (def.id === "table.dictionary" && def.variadic) {
+		return {
+			field: "args", kind: "count", prefix: "p", label: "pairs",
+			min: def.variadic.min, max: def.variadic.max,
+		};
+	}
 	if (def.variadic) {
 		return {
 			field: "args", kind: "count", prefix: "a", label: "operands",
