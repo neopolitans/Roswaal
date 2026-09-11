@@ -78,15 +78,15 @@ describe("definitions carry code the wire cannot", () => {
 	});
 
 	it("keeps the result-name subtitle on a node that returns a value", () => {
-		const find = BUILTIN_NODES.find((def) => def.id === "roblox.findFirstChild");
-		expect(find?.subtitle?.({ resultName: "value" })).toBe("value");
-		expect(find?.subtitle?.({})).toBeUndefined();
+		const clone = BUILTIN_NODES.find((def) => def.id === "instance.clone");
+		expect(clone?.subtitle?.({ resultName: "value" })).toBe("value");
+		expect(clone?.subtitle?.({})).toBeUndefined();
 	});
 
 	/** A JSON round trip is exactly what the daemon used to do to these. */
 	it("loses that subtitle through JSON, which is the whole reason for the rule", () => {
-		const find = BUILTIN_NODES.find((def) => def.id === "roblox.findFirstChild")!;
-		const throughTheWire = JSON.parse(JSON.stringify(find));
+		const clone = BUILTIN_NODES.find((def) => def.id === "instance.clone")!;
+		const throughTheWire = JSON.parse(JSON.stringify(clone));
 		expect(throughTheWire.subtitle).toBeUndefined();
 	});
 });

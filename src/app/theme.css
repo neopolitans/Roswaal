@@ -3724,34 +3724,116 @@ button.tb.icon-only.on {
 	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
 }
 
-/* --------------------------------------------------------- proposing an edit */
+/* --------------------------------------------------------- editing a page */
 
-/* At the foot of every page: the reading and the fixing are the same sitting. */
-.docs-propose {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	margin-top: 28px;
-	padding-top: 14px;
-	border-top: 1px solid var(--border);
+/* The pencil sits with the title, where a page's own controls are looked for. */
+.docs-title h1 .docs-edit {
+	margin-left: 10px;
+	vertical-align: middle;
 }
 
-.docs-propose .hint {
-	font-size: 11px;
-	color: var(--fg-faint);
-}
-
-.docs-propose.open {
+.page-editor {
 	display: flex;
 	flex-direction: column;
-	align-items: stretch;
-	gap: 8px;
+	gap: 6px;
 }
 
-.docs-propose textarea {
+/* Stays in reach while you work down a long page. */
+.page-editor-bar {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	padding: 8px 10px;
+	margin-bottom: 8px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+
+.page-editor .hint,
+.page-editor-said {
+	font-size: 11px;
+	line-height: 1.6;
+	color: var(--fg-faint);
+	margin: 0;
+}
+
+.page-editor-said {
+	color: var(--ok);
+}
+
+/* Every block keeps its place; only the one being changed becomes a field. */
+.page-block {
+	position: relative;
+	border: 1px dashed transparent;
+	border-radius: 6px;
+	padding: 2px 8px;
+}
+
+.page-block:hover {
+	border-color: var(--border);
+}
+
+.page-block-tools {
+	position: absolute;
+	top: 2px;
+	right: 4px;
+	display: none;
+	gap: 4px;
+	z-index: 1;
+}
+
+.page-block:hover .page-block-tools {
+	display: flex;
+}
+
+.page-block-tools button.tb {
+	padding: 2px 6px;
+	line-height: 1.2;
+}
+
+.page-block-add {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 6px 0;
+}
+
+.page-block-add.end {
+	border-top: 1px solid var(--border);
+	margin-top: 10px;
+}
+
+.page-block-shown {
+	cursor: text;
+}
+
+.block-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 6px 0;
+}
+
+.block-row {
+	display: flex;
+	gap: 6px;
+	padding: 6px 0;
+}
+
+.block-row > input,
+.block-row > select {
+	flex: 1;
+	min-width: 0;
+}
+
+.block-field {
 	width: 100%;
-	min-height: 320px;
-	padding: 10px 12px;
+	padding: 8px 10px;
 	background: var(--bg-input);
 	color: var(--fg);
 	border: 1px solid var(--border);
@@ -3761,11 +3843,31 @@ button.tb.icon-only.on {
 	resize: vertical;
 }
 
-.docs-propose-actions {
+.block-field.mono {
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: 12px;
+}
+
+.block-matches,
+.block-chips,
+.block-preview-row {
 	display: flex;
-	align-items: center;
-	gap: 8px;
 	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+}
+
+.page-editor-source {
+	max-height: 320px;
+	overflow: auto;
+	padding: 10px 12px;
+	background: var(--bg-canvas);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: 11px;
+	line-height: 1.5;
+	white-space: pre;
 }
 
 /* ------------------------------------------------------------ node designer */

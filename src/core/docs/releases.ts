@@ -54,6 +54,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.31.1",
+		date: "2026-09-11",
+		headline: "A question is pure, and a page you can edit in place.",
+		added: [
+			"**Pictures in a proposal**: add a node picture from the palette, or a graph picture from a script in the open project, and the proposal carries it as source.",
+		],
+		changed: [
+			"**Suggest an edit is the pencil** beside a page's title, and edits the page where it stands — every block stays rendered, and clicking one opens that block's editor. Blocks can be added, moved and removed.",
+			"**Find First Child is pure**, like the other questions in Engine. Wire Child into Declare Local and the result is one line.",
+			"**Recursive is optional** on Find First Child and Find First Child Which Is A. Leave it empty and Roswaal writes the call without it.",
+		],
+		watch: [
+			"An existing Find First Child opens without its execution wires, which are joined past it, and without its Result name. The local now comes from a Declare Local wired to Child; before, the node wrote one itself and a Declare Local after it wrote a second.",
+		],
+	},
+	{
 		version: "0.31.0",
 		date: "2026-09-11",
 		headline: "A form over a node, and a toolbar that says less.",

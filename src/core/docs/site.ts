@@ -811,6 +811,16 @@ const CONTRIBUTING: DocPage = {
 				"When a page changes enough to need reading again, take its entry out.",
 			],
 		},
+		{
+			t: "note",
+			kind: "good",
+			text:
+				"**Every page carries a Suggest an edit button at its foot**, which opens the page's " +
+				"own text to rewrite and sends the result as a prefilled issue. It is the way in for " +
+				"somebody who is *reading* the documentation rather than building Roswaal — the " +
+				"pages are TypeScript in this repository, so there is nothing on a reader's machine " +
+				"for them to edit — and it works from the published site as well as from the editor.",
+		},
 
 		{ t: "h", level: 2, text: "Where help is wanted" },
 		{
@@ -1114,8 +1124,9 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 			registry,
 			["tweeninfo.new", "instance.findFirstChildWhichIsA", "cframe.lookAt"],
 			"TweenInfo has a number, two dropdowns, and three optional arguments left at " +
-				"**default**. Find First Child Which Is A has text and a checkbox. Look At's " +
-				"`Vector3.zero` is fixed until something is wired in.",
+				"**default**. Find First Child Which Is A has text, and a Recursive left at " +
+				"**default** — so it is not passed at all. Look At's `Vector3.zero` is fixed " +
+				"until something is wired in.",
 		),
 
 		{ t: "h", level: 2, text: "Adding and removing pins" },
@@ -2160,12 +2171,22 @@ const TYPES_GUIDE: DocPage = {
  * and a type that is more than a name is written into the file as itself. That
  * is a page, not a footnote.
  */
-const CASTING: DocPage = {
-	slug: "casting",
-	title: "Casting and annotations",
-	summary: "Where a pin's type ends and Luau's begins: casts, declared types, and what gets written.",
-	narrow: true,
-	blocks: [
+function castingPage(registry: Registry): DocPage {
+	return {
+		slug: "casting",
+		title: "Casting and annotations",
+		summary: "Where a pin's type ends and Luau's begins: casts, declared types, and what gets written.",
+		narrow: true,
+		blocks: castingBlocks(registry),
+	};
+}
+
+/**
+ * Its blocks, which need the registry: the pictures are drawn from the live
+ * definitions, so a node that changes shape changes here too.
+ */
+function castingBlocks(registry: Registry): Block[] {
+	return [
 		{
 			t: "p",
 			text:
@@ -2184,6 +2205,12 @@ const CASTING: DocPage = {
 				"table type all work — its Type pin is typed in rather than wired, because the text " +
 				"becomes part of the generated code.",
 		},
+		...previews(
+			registry,
+			["cast.as", "cast.array", "cast.any"],
+			"The three of them. Each takes its type as typed-in text, because that text becomes " +
+			"part of the generated file rather than a value at runtime.",
+		),
 		{
 			t: "code",
 			lang: "luau",
@@ -2210,6 +2237,12 @@ const CASTING: DocPage = {
 				"silent. Ask with **Is A** first, which is a real test and narrows the type for " +
 				"the branch it guards.",
 		},
+		...previews(
+			registry,
+			["instance.isA"],
+			"Is A asks the question a cast assumes the answer to. Branch on it, and cast inside " +
+			"the arm where it is true.",
+		),
 
 		{ t: "h", level: 2, text: "Declaring a type" },
 		{
@@ -2219,6 +2252,12 @@ const CASTING: DocPage = {
 				"the node sits, which is what a type built from `typeof` needs, because Luau reads a " +
 				"file in order. Both take three shapes:",
 		},
+		...previews(
+			registry,
+			["type.declareTop", "type.declareHere"],
+			"The hoisted one has no pins at all — it declares rather than runs. The in-flow one " +
+			"sits in the execution chain, and shows a Value pin only for the typeof shape.",
+		),
 		{
 			t: "table",
 			head: ["Shape", "Writes", "When"],
@@ -2251,6 +2290,12 @@ const CASTING: DocPage = {
 				"both. So a type you set is a type that appears — in the two modes that asked for " +
 				"types at all.",
 		},
+		...previews(
+			registry,
+			["local.declare", "local.get"],
+			"Declare Local carries the type, and shows it under its title once set. Get Local " +
+			"reads the value by name, with its pin taking the type's own colour.",
+		),
 		{
 			t: "table",
 			head: ["Set on", "Comes out as"],
@@ -2308,8 +2353,8 @@ const CASTING: DocPage = {
 				"**Cast** is for, and why it is a node you can see in the graph rather than a rule " +
 				"that quietly lets it through.",
 		},
-	],
-};
+	];
+}
 
 /**
  * Making a node of your own, by whichever of the three routes suits you.
@@ -2670,7 +2715,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 		ESCAPE_HATCHES(registry), settingsPage(), CUSTOM_NODES, CLI_PAGE,
 	];
 	// Beside the types page it was split out of, rather than at the end.
-	guides.splice(guides.indexOf(TYPES_GUIDE) + 1, 0, CASTING);
+	guides.splice(guides.indexOf(TYPES_GUIDE) + 1, 0, castingPage(registry));
 	const attributions = attributionsPage();
 	// Every page's title by slug, so the release notes can name the articles
 	// they list without holding a second copy of each title.

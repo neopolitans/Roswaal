@@ -57,11 +57,15 @@ const KEYED: Record<string, string> = {
 };
 
 /**
- * Nodes that used to sit in the execution chain and are now pure. Their exec
- * pins are gone, so the wires either side are spliced together rather than
- * dropped — otherwise a graph would silently lose the rest of its flow.
+ * Nodes that used to sit in the execution chain and are now pure, and what to
+ * call each one when saying so. Their exec pins are gone, so the wires either
+ * side are spliced together rather than dropped — otherwise a graph would
+ * silently lose the rest of its flow.
  */
-const BECAME_PURE = new Set(["roblox.getService"]);
+const BECAME_PURE: Record<string, string> = {
+	"roblox.getService": "Get Service",
+	"roblox.findFirstChild": "Find First Child",
+};
 
 /**
  * Which typechecking mode a graph on disk asks for.
@@ -212,9 +216,9 @@ export function migrateScript(raw: NodeScript): MigrationResult {
 	if (pinFixes > 0) notes.push(`Repointed ${pinFixes} wire${pinFixes === 1 ? "" : "s"} to renamed pins.`);
 
 	// -- nodes that became pure --------------------------------------------
-	let spliced = 0;
+	const splicedByDef = new Map<string, number>();
 	for (const node of script.nodes) {
-		if (!BECAME_PURE.has(node.def)) continue;
+		if (!(node.def in BECAME_PURE)) continue;
 
 		const incoming = script.links.find((l) => l.to.node === node.id && l.to.pin === "in");
 		const outgoing = script.links.find((l) => l.from.node === node.id && l.from.pin === "then");
@@ -232,11 +236,11 @@ export function migrateScript(raw: NodeScript): MigrationResult {
 			};
 			script.links.push(joined);
 		}
-		spliced++;
+		splicedByDef.set(node.def, (splicedByDef.get(node.def) ?? 0) + 1);
 	}
-	if (spliced > 0) {
+	for (const [def, count] of splicedByDef) {
 		notes.push(
-			`${spliced} Get Service node${spliced === 1 ? " is" : "s are"} now pure; ` +
+			`${count} ${BECAME_PURE[def]} node${count === 1 ? " is" : "s are"} now pure; ` +
 				"the execution wires around them were joined up.",
 		);
 	}

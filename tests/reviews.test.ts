@@ -143,7 +143,10 @@ describe("the last-reviewed line", () => {
 		const html = renderPage(site, { ...page, review: { status: "reviewed", date: "2026-09-11" } }, {
 			version: "test",
 		});
-		expect(html).toContain("<h1>Wires and pins</h1>");
+		// The heading opens with the title; what follows it inside the h1 is the
+		// page's own controls — the pack badge, and the pencil that proposes an
+		// edit — which is where the badge has always been.
+		expect(html).toContain("<h1>Wires and pins");
 		expect(html).toMatch(
 			/<p class="summary">[^<]*<\/p>\n<p class="docs-status"><span class="badge review reviewed"[^>]*>Reviewed<\/span><\/p>/,
 		);

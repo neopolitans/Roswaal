@@ -652,35 +652,38 @@ describe("laying a dictionary out", () => {
  * Naming the local a node's result lands in.
  *
  * A `call` node binds its result to a local, and the name comes from the node's
- * **Label** — so labelling a Find First Child "value" emits
- * `local value = parent:FindFirstChild("x")` rather than `local Child = ...`
- * followed by a second local to rename it.
+ * **Label** — so labelling a Clone "copy" emits `local copy = model:Clone()`
+ * rather than `local Copy = ...` followed by a second local to rename it.
  *
  * The mechanism already existed and was findable only by guessing that a field
  * called Label was load-bearing, which is the same trap Declare Local's name
  * was in before it got a pin.
+ *
+ * Written against Find First Child until 0.31.1, when that became pure — a pure
+ * node is named by the Declare Local that reads it. Clone is the same shape it
+ * was: an impure call with one value.
  */
 describe("naming a node's result", () => {
-	function findChild(config: Record<string, unknown> = {}, label?: string) {
+	function cloned(config: Record<string, unknown> = {}, label?: string) {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const find = b.node("roblox.findFirstChild", { config, ...(label ? { label } : {}) });
-		b.lit(find, "parent", { t: "raw", v: "workspace" });
+		const clone = b.node("instance.clone", { config, ...(label ? { label } : {}) });
+		b.lit(clone, "instance", { t: "raw", v: "workspace.Model" });
 		const print = b.node("debug.print");
-		b.link(start, "then", find, "in");
-		b.link(find, "then", print, "in");
-		b.link(find, "result", print, "value");
+		b.link(start, "then", clone, "in");
+		b.link(clone, "then", print, "in");
+		b.link(clone, "result", print, "value");
 		return code(b.build());
 	}
 
 	it("falls back to the pin's name when nothing says otherwise", () => {
-		expect(findChild()).toMatch(/^local Child(: \w+)? = /m);
+		expect(cloned()).toMatch(/^local Copy(: \w+)? = /m);
 	});
 
 	/** The field that exists for it, and what the node shows under its header. */
 	it("uses the result name, so there is no second local to rename it", () => {
-		const out = findChild({ resultName: "value" });
-		expect(out).toMatch(/^local value(: \w+)? = .*FindFirstChild/m);
+		const out = cloned({ resultName: "value" });
+		expect(out).toMatch(/^local value(: \w+)? = .*:Clone\(\)/m);
 		expect(out.match(/^local /gm)).toHaveLength(1);
 	});
 
@@ -689,20 +692,20 @@ describe("naming a node's result", () => {
 	 * that way has to go on emitting what it always did.
 	 */
 	it("still honours a label, for graphs built before the field existed", () => {
-		expect(findChild({}, "value")).toMatch(/^local value(: \w+)? = /m);
+		expect(cloned({}, "value")).toMatch(/^local value(: \w+)? = /m);
 	});
 
 	it("prefers the result name over the label when both are set", () => {
-		expect(findChild({ resultName: "chosen" }, "ignored")).toMatch(/^local chosen(: \w+)? = /m);
+		expect(cloned({ resultName: "chosen" }, "ignored")).toMatch(/^local chosen(: \w+)? = /m);
 	});
 
 	/** Two nodes named the same still cannot end up as one local. */
 	it("keeps two results with the same name apart", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const first = b.node("roblox.findFirstChild", { config: { resultName: "value" } });
-		const second = b.node("roblox.findFirstChild", { config: { resultName: "value" } });
-		for (const n of [first, second]) b.lit(n, "parent", { t: "raw", v: "workspace" });
+		const first = b.node("instance.clone", { config: { resultName: "value" } });
+		const second = b.node("instance.clone", { config: { resultName: "value" } });
+		for (const n of [first, second]) b.lit(n, "instance", { t: "raw", v: "workspace.Model" });
 		const printFirst = b.node("debug.print");
 		const printSecond = b.node("debug.print");
 		b.link(start, "then", first, "in");
@@ -719,15 +722,15 @@ describe("naming a node's result", () => {
 
 	/**
 	 * The node goes on saying what it does. Naming the result used to be done
-	 * with the label, which *replaced* the header — so a named Find First Child
-	 * stopped saying it was one.
+	 * with the label, which *replaced* the header — so a named Clone stopped
+	 * saying it was one.
 	 */
 	it("shows the name under the header rather than instead of it", () => {
 		const registry2 = createRegistry();
-		const def = registry2.get("roblox.findFirstChild")!;
+		const def = registry2.get("instance.clone")!;
 		expect(def.subtitle?.({ resultName: "value" })).toBe("value");
 		expect(def.subtitle?.({})).toBeUndefined();
-		expect(def.title).toBe("Find First Child");
+		expect(def.title).toBe("Clone");
 	});
 });
 
@@ -741,14 +744,15 @@ describe("naming a node's result", () => {
  * in strict mode, which does not compile.
  */
 describe("conditions take any value", () => {
+	/** Find First Child is pure, so its value is read where the condition is. */
 	function wire(nodeId: string, pin: string) {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const find = b.node("roblox.findFirstChild", { label: "part" });
+		const find = b.node("roblox.findFirstChild");
 		b.lit(find, "parent", { t: "raw", v: "workspace" });
+		b.lit(find, "name", { t: "string", v: "Handle" });
 		const target = b.node(nodeId);
-		b.link(start, "then", find, "in");
-		b.link(find, "then", target, "in");
+		b.link(start, "then", target, "in");
 		b.link(find, "result", target, pin);
 		return b.build();
 	}
@@ -756,7 +760,7 @@ describe("conditions take any value", () => {
 	it("lets an Instance be a Branch condition", () => {
 		const out = compile(wire("flow.branch", "condition"), registry);
 		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
-		expect(body(out.code)).toMatch(/if part then/);
+		expect(body(out.code)).toMatch(/if workspace:FindFirstChild\("Handle"\) then/);
 	});
 
 	it("lets an Instance be a While condition", () => {
@@ -767,38 +771,39 @@ describe("conditions take any value", () => {
 	it("inverts an Instance with Not", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const find = b.node("roblox.findFirstChild", { label: "part" });
+		const find = b.node("roblox.findFirstChild");
 		b.lit(find, "parent", { t: "raw", v: "workspace" });
+		b.lit(find, "name", { t: "string", v: "Handle" });
 		const not = b.node("logic.not");
 		const branch = b.node("flow.branch");
-		b.link(start, "then", find, "in");
-		b.link(find, "then", branch, "in");
+		b.link(start, "then", branch, "in");
 		b.link(find, "result", not, "a");
 		b.link(not, "result", branch, "condition");
 
 		const out = compile(b.build(), registry);
 		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
-		expect(body(out.code)).toContain("if not part then");
+		expect(body(out.code)).toContain('if not workspace:FindFirstChild("Handle") then');
 	});
 
 	/** `value or fallback` is how a default is written, and it is not a boolean. */
 	it("lets Or take and return a value rather than a boolean", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const find = b.node("roblox.findFirstChild", { label: "part" });
+		const find = b.node("roblox.findFirstChild");
 		b.lit(find, "parent", { t: "raw", v: "workspace" });
+		b.lit(find, "name", { t: "string", v: "Handle" });
 		const or = b.node("logic.or", { config: { args: 2 } });
 		const declare = b.node("local.declare");
 		b.lit(declare, "name", { t: "string", v: "chosen" });
 		b.lit(or, "a1", { t: "raw", v: "workspace" });
-		b.link(start, "then", find, "in");
-		b.link(find, "then", declare, "in");
+		b.link(start, "then", declare, "in");
 		b.link(find, "result", or, "a0");
 		b.link(or, "result", declare, "value");
 
 		const out = compile(b.build(), registry);
 		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
 		// No `: boolean` on it, because the value is a part or the workspace.
-		expect(body(out.code)).toContain("local chosen = part or workspace");
+		expect(body(out.code))
+			.toContain('local chosen = workspace:FindFirstChild("Handle") or workspace');
 	});
 });

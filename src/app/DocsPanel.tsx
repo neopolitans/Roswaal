@@ -18,7 +18,7 @@ import {
 
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
 import {
-	blockText, buildSearchIndex, buildSite, findPage, isPageLink, parseInline, searchDocs, TAG_LABELS,
+	buildSearchIndex, buildSite, findPage, isPageLink, parseInline, searchDocs, TAG_LABELS,
 	type Block, type DocPage, type DocSection, type Inline,
 } from "../core/docs/site.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
@@ -35,20 +35,7 @@ import { wirePath } from "./geometry.js";
 import { attachGraphView } from "./graphView.js";
 import type { Preferences } from "./preferences.js";
 import { growthState } from "../core/nodes/growth.js";
-import { VERSION } from "../cli/version.js";
-
-/**
- * Where a proposed edit goes.
- *
- * The pages are TypeScript rather than files, so there is nothing on disk for a
- * reader to send back — and the static site has no server behind it to receive
- * anything either. A prefilled issue is the one route that works from both, and
- * it lands where the page is actually written.
- */
-const REPOSITORY = "https://github.com/neopolitans/Roswaal";
-
-/** How much of a proposal fits in a URL. GitHub stops reading long before this. */
-const PROPOSAL_LIMIT = 6000;
+import { PageEditor } from "./PageEditor.jsx";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
 
@@ -332,6 +319,14 @@ function PageOutline({ page }: { page: DocPage }) {
 }
 
 function Page({ page }: { page: DocPage }) {
+	const registry = useContext(RegistryContext);
+	const preview = useContext(PreviewContext);
+	const [editing, setEditing] = useState(false);
+
+	// A different page is a different document; leaving edit mode on would show
+	// somebody else's blocks under this page's title.
+	useEffect(() => setEditing(false), [page.slug]);
+
 	return (
 		<>
 			{/* Title and standfirst are one block, so the rule under them spans the
@@ -341,6 +336,17 @@ function Page({ page }: { page: DocPage }) {
 				<h1>
 					{page.title}
 					{page.custom && <span className="badge">from a node pack</span>}
+					{/* The way in, where a page's own controls are looked for. It was a
+					    button at the foot, which is where you are once you have
+					    finished reading rather than where you notice the mistake. */}
+					<button
+						className="tb icon-only docs-edit"
+						title={editing ? "Stop editing this page" : "Suggest an edit — change this page and propose it"}
+						aria-label="Suggest an edit"
+						onClick={() => setEditing((on) => !on)}
+					>
+						<Icon name="rename" size={15} />
+					</button>
 				</h1>
 				<p className="summary">{page.summary}</p>
 				{page.review && (
@@ -349,92 +355,29 @@ function Page({ page }: { page: DocPage }) {
 					</p>
 				)}
 			</header>
-			{page.blocks.map((block, i) => (
-				<BlockView key={i} block={block} />
-			))}
-			{page.review && (
+			{editing && registry ? (
+				<PageEditor
+					page={page}
+					registry={registry}
+					preview={preview}
+					render={(block, key) => <BlockView key={key} block={block} />}
+					onClose={() => setEditing(false)}
+				/>
+			) : (
+				page.blocks.map((block, i) => <BlockView key={i} block={block} />)
+			)}
+			{!editing && page.review && (
 				<p className="docs-reviewed"><Rich text={reviewLine(page.review)} /></p>
 			)}
-			{page.review?.verify && (
+			{!editing && page.review?.verify && (
 				<p className="docs-verify">
 					<strong>To verify:</strong> <Rich text={page.review.verify} />
 				</p>
 			)}
-			<ProposeEdit page={page} />
 		</>
 	);
 }
 
-/**
- * Rewrite the page, and send the rewrite where the page is written.
- *
- * The reading and the fixing are the same sitting — you notice a sentence is
- * wrong *while* reading it — so the text opens in place, seeded with what the
- * page currently says. What it cannot do is save: these pages are TypeScript in
- * the repository rather than files on this machine, so the proposal goes to an
- * issue with the slug and the version already filled in.
- */
-function ProposeEdit({ page }: { page: DocPage }) {
-	const [open, setOpen] = useState(false);
-	const [text, setText] = useState("");
-
-	// Seeded when it opens rather than on every render: the reader's edits are
-	// the point, and a page they have not opened costs nothing to skip.
-	const start = () => {
-		setText(page.blocks.map(blockText).filter((t) => t !== "").join(`${NEWLINE}${NEWLINE}`));
-		setOpen(true);
-	};
-
-	const body = [
-		`Page: ${page.title} (\`${page.slug}\`)`,
-		`Roswaal ${VERSION}`,
-		"",
-		text,
-	].join(NEWLINE).slice(0, PROPOSAL_LIMIT);
-
-	const href =
-		`${REPOSITORY}/issues/new?title=${encodeURIComponent(`Docs: ${page.title}`)}` +
-		`&body=${encodeURIComponent(body)}`;
-
-	if (!open) {
-		return (
-			<p className="docs-propose">
-				<button className="tb" onClick={start}>
-					Suggest an edit
-				</button>
-				<span className="hint">Rewrite this page and send it as an issue.</span>
-			</p>
-		);
-	}
-
-	return (
-		<div className="docs-propose open">
-			<label className="hint" htmlFor="docs-proposal">
-				This page as it reads now. Change what is wrong with it — the proposal opens as a
-				GitHub issue with the page and version filled in.
-			</label>
-			<textarea
-				id="docs-proposal"
-				value={text}
-				spellCheck
-				onChange={(e) => setText(e.target.value)}
-			/>
-			<div className="docs-propose-actions">
-				<a className="tb primary" href={href} target="_blank" rel="noreferrer noopener">
-					Propose the change
-				</a>
-				<button className="tb" onClick={() => setOpen(false)}>
-					Cancel
-				</button>
-				{text.length > PROPOSAL_LIMIT && (
-					<span className="hint">
-						Longer than a URL carries — the first {PROPOSAL_LIMIT} characters go.
-					</span>
-				)}
-			</div>
-		</div>
-	);
-}
 
 /** Pending, Reviewed or Verified, with what that means on hover. */
 function ReviewBadge({ review }: { review: Review }) {

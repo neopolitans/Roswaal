@@ -336,6 +336,21 @@ function renderOutline(page: DocPage): string {
 	return `<aside class="docs-toc"><div class="docs-toc-head">On this page</div>${links}</aside>`;
 }
 
+/**
+ * Where a suggested edit goes from the published site.
+ *
+ * The editor's version opens the page for editing and hands back its blocks;
+ * this one cannot — there is no bundle here and no daemon behind it — so it
+ * does the half that still works: an issue with the page already named.
+ */
+function proposeHref(page: DocPage): string {
+	const body = `Page: ${page.title} (\`${page.slug}\`)\n\nWhat should it say instead?\n`;
+	return (
+		"https://github.com/neopolitans/Roswaal/issues/new" +
+		`?title=${encodeURIComponent(`Docs: ${page.title}`)}&body=${encodeURIComponent(body)}`
+	);
+}
+
 /** Pending, Reviewed or Verified, with what that means on hover. */
 function reviewBadge(review: Review): string {
 	return (
@@ -367,7 +382,7 @@ ${renderNav(site, page)}
 <article class="docs-content">
 <div class="docs-article${page.narrow ? " narrow" : ""}">
 <header class="docs-title">
-<h1>${escapeHtml(page.title)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}</h1>
+<h1>${escapeHtml(page.title)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}<a class="tb icon-only docs-edit" href="${escapeHtml(proposeHref(page))}" rel="noreferrer noopener" title="Suggest an edit — opens an issue for this page" aria-label="Suggest an edit">✎</a></h1>
 <p class="summary">${escapeHtml(page.summary)}</p>
 ${page.review ? `<p class="docs-status">${reviewBadge(page.review)}</p>\n` : ""}</header>
 ${body}

@@ -553,12 +553,34 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// Recursive is how Roblox searches a whole subtree by name, now that
 	// FindFirstDescendant is deprecated. Optional, so a Find First Child that
 	// does not set it compiles to exactly the call it always did.
-	call("roblox.findFirstChild", "Find First Child", "Engine",
-		"$in.parent:FindFirstChild($in.name$opt(, ))",
-		[d("parent", "Parent", "Instance"), str("name", "Name"),
-			{ ...bool("recursive", "Recursive"), optional: true }],
-		"Child", "Instance",
-		{ targets: ["roblox"], summary: "Set Recursive to search every descendant, not only the children." }),
+	/**
+	 * Pure, as every sibling asking the same question already is: Find First
+	 * Child Which Is A, the three Find First Ancestors, Get Children, Is A. It
+	 * asks and changes nothing.
+	 *
+	 * On the execution wire it could not be read into a local without making
+	 * two: one from the node itself, and one from the Declare Local reading it.
+	 * Wait For Child stays impure, and the difference is real rather than a
+	 * matter of taste — it yields.
+	 */
+	{
+		id: "roblox.findFirstChild",
+		title: "Find First Child",
+		category: "Engine",
+		targets: ["roblox"],
+		summary: "Set Recursive to search every descendant, not only the children.",
+		pure: true,
+		inputs: [
+			d("parent", "Parent", "Instance"),
+			str("name", "Name"),
+			{ ...bool("recursive", "Recursive"), optional: true },
+		],
+		outputs: [d("result", "Child", "Instance")],
+		compilesTo: {
+			kind: "expr",
+			outputs: { result: "$in.parent:FindFirstChild($in.name$opt(, ))" },
+		},
+	},
 	call("roblox.waitForChild", "Wait For Child", "Engine",
 		"$in.parent:WaitForChild($in.name)",
 		[d("parent", "Parent", "Instance"), str("name", "Name")], "Child", "Instance",
@@ -788,10 +810,13 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("instance.findFirstChildOfClass", "Find First Child Of Class", "Instances",
 		"$in.instance:FindFirstChildOfClass($in.className)",
 		[d("instance", "Instance", "Instance"), str("className", "Class Name", "Humanoid")], "Instance"),
+	// Recursive is optional here for the reason it is on Find First Child: left
+	// alone it is not passed at all, so the line reads as the one somebody would
+	// have written by hand. Roblox's own default is false either way.
 	pure("instance.findFirstChildWhichIsA", "Find First Child Which Is A", "Instances",
-		"$in.instance:FindFirstChildWhichIsA($in.className, $in.recursive)",
+		"$in.instance:FindFirstChildWhichIsA($in.className$opt(, ))",
 		[d("instance", "Instance", "Instance"), str("className", "Class Name", "BasePart"),
-			bool("recursive", "Recursive")], "Instance",
+			{ ...bool("recursive", "Recursive"), optional: true }], "Instance",
 		"Matches derived classes too, unlike Find First Child Of Class."),
 	pure("instance.findFirstAncestor", "Find First Ancestor", "Instances",
 		"$in.instance:FindFirstAncestor($in.name)",
