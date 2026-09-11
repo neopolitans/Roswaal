@@ -130,25 +130,63 @@ describe("the site", () => {
 	});
 });
 
+describe("inline markup in the pages themselves", () => {
+	/**
+	 * Inline markup does not nest. A link inside bold prints its brackets —
+	 * which is how the Beako link on Attributions shipped — and italics inside
+	 * bold print their asterisks, which is how the note announcing the fix did.
+	 * So every string a page carries goes through the real parser, and fails
+	 * on what a reader would see as broken: an asterisk left in plain text, or
+	 * link syntax inside bold or italics. A pattern over the raw string was
+	 * tried first and matched across two separate bold spans.
+	 */
+	it("never nests markup: no link or italics inside bold", () => {
+		const strings = (blocks: Block[]): string[] =>
+			blocks.flatMap((b) => {
+				switch (b.t) {
+					case "h": case "p": return [b.text];
+					case "ul": case "ol": return b.items;
+					case "table": return b.rows.flat();
+					case "note": return [b.text, ...(b.items ?? [])];
+					case "graph": case "preview": return b.caption ? [b.caption] : [];
+					case "details": return [b.summary, ...strings(b.blocks)];
+					default: return [];
+				}
+			});
+		for (const page of allPages(site)) {
+			for (const text of strings(page.blocks)) {
+				const where = `${page.slug}: ${text.slice(0, 60)}`;
+				for (const run of parseInline(text)) {
+					if (run.t === "text") expect(run.text, where).not.toContain("*");
+					if (run.t === "strong" || run.t === "em") expect(run.text, where).not.toContain("](");
+				}
+			}
+		}
+	});
+});
+
 describe("release notes", () => {
 	/**
 	 * The newest release is read; the rest are looked up, by major and minor
 	 * first. So one in full, and every other inside its minor version's fold.
 	 */
-	it("shows the newest release in full, and folds the rest by minor version", () => {
+	it("folds every release into its minor version, the newest open with Latest marked", () => {
 		const page = findPage(site, "release-notes")!;
-		const headings = page.blocks.filter((b) => b.t === "h" && b.level === 2);
-		expect(headings).toHaveLength(1);
-		expect(blockText(headings[0])).toContain(RELEASES[0].version);
-
 		const minor = (v: string) => v.split(".").slice(0, 2).join(".") + ".x";
 		const folds = page.blocks.filter((b): b is Block & { t: "details" } => b.t === "details");
-		expect(folds.map((f) => f.summary))
-			.toEqual([...new Set(RELEASES.slice(1).map((r) => minor(r.version)))]);
-		for (const release of RELEASES.slice(1)) {
+
+		expect(folds.map((f) => f.summary)).toEqual([...new Set(RELEASES.map((r) => minor(r.version)))]);
+		for (const release of RELEASES) {
 			const fold = folds.find((f) => f.summary === minor(release.version))!;
 			expect(blockText(fold), release.version).toContain(release.version);
 		}
+		// Only the newest minor version starts open, and nothing sits outside a fold.
+		expect(folds.map((f) => f.open === true)).toEqual(folds.map((_, i) => i === 0));
+		expect(page.blocks.some((b) => b.t === "h")).toBe(false);
+
+		const marked = folds.flatMap((f) => f.blocks).filter((b) => b.t === "h" && b.badge === "Latest");
+		expect(marked).toHaveLength(1);
+		expect(blockText(marked[0])).toContain(RELEASES[0].version);
 	});
 
 	/**

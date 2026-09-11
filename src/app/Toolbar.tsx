@@ -204,22 +204,6 @@ export function DocumentBar(props: DocumentBarProps) {
 	return (
 		<div className="docbar">
 			<span className={`doc-name${props.dirty ? " dirty" : ""}`}>{props.name}</span>
-			{/* What the graph compiles for, always in view: a Roblox-only node in
-			    a Lune graph is an error, and that is the fact that explains it. */}
-			<select
-				className={`tb doc-target ${props.target}`}
-				title={
-					props.target === "lune"
-						? "Compiles for Lune, which is experimental. Roblox-only nodes are errors here."
-						: "Compiles for Roblox."
-				}
-				value={props.target}
-				disabled={props.locked}
-				onChange={(e) => props.onTarget(e.target.value as Target)}
-			>
-				<option value="roblox">Roblox</option>
-				<option value="lune">Lune (experimental)</option>
-			</select>
 			<select
 				className="tb"
 				title="What this graph compiles to"
@@ -294,6 +278,23 @@ export function DocumentBar(props: DocumentBarProps) {
 
 			<span className="spacer" />
 
+			{/* What the graph compiles for, beside the button that compiles it:
+			    it is a compilation setting, and a Roblox-only node in a Lune graph
+			    being an error is the fact it explains. */}
+			<select
+				className={`tb doc-target ${props.target}`}
+				title={
+					props.target === "lune"
+						? "Compiles for Lune, which is experimental. Roblox-only nodes are errors here."
+						: "Compiles for Roblox."
+				}
+				value={props.target}
+				disabled={props.locked}
+				onChange={(e) => props.onTarget(e.target.value as Target)}
+			>
+				<option value="roblox">Roblox</option>
+				<option value="lune">Lune (experimental)</option>
+			</select>
 			<button
 				className="tb primary with-icon"
 				title="Compile just this document (Ctrl+S)"

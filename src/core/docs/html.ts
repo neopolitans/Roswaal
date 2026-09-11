@@ -121,9 +121,10 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 	switch (block.t) {
 		case "h": {
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
+			const badge = block.badge ? `<span class="badge latest">${escapeHtml(block.badge)}</span>` : "";
 			return block.level === 2
-				? `<h2 id="${headingId(block.text)}">${inline(block.text, up)}${aside}</h2>`
-				: `<h${block.level}>${inline(block.text, up)}${aside}</h${block.level}>`;
+				? `<h2 id="${headingId(block.text)}">${inline(block.text, up)}${badge}${aside}</h2>`
+				: `<h${block.level}>${inline(block.text, up)}${badge}${aside}</h${block.level}>`;
 		}
 		case "p":
 			return `<p>${inline(block.text, up)}</p>`;
@@ -197,7 +198,8 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
 			const inner = block.blocks.map((b) => renderBlock(b, options, up)).join("\n");
 			return (
-				`<details class="docs-details"><summary>${inline(block.summary, up)}${aside}</summary>\n` +
+				`<details class="docs-details"${block.open ? " open" : ""}>` +
+				`<summary>${inline(block.summary, up)}${aside}</summary>\n` +
 				`${inner}\n</details>`
 			);
 		}
@@ -336,7 +338,7 @@ ${renderNav(site, page)}
 <p class="summary">${escapeHtml(page.summary)}</p>
 ${page.review ? `<p class="docs-status">${reviewBadge(page.review)}</p>\n` : ""}</header>
 ${body}
-${page.review ? `<p class="docs-reviewed">${escapeHtml(reviewLine(page.review))}</p>\n` : ""}${page.review?.verify ? `<p class="docs-verify"><strong>To verify:</strong> ${inline(page.review.verify, up)}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>
+${page.review ? `<p class="docs-reviewed">${inline(reviewLine(page.review), up)}</p>\n` : ""}${page.review?.verify ? `<p class="docs-verify"><strong>To verify:</strong> ${inline(page.review.verify, up)}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>
 </div>
 </article>
 ${renderOutline(page)}

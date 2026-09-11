@@ -3579,7 +3579,21 @@ button.tb.with-icon {
 	flex: none;
 }
 
-/* What the open graph compiles for, beside its name, and where it is changed.
+/* What a confirmation is about, listed under its message. Capped, so a graph
+   with forty of something scrolls rather than pushing the buttons off screen. */
+.dialog-list {
+	margin: 0 0 14px;
+	padding: 6px 10px 6px 26px;
+	max-height: 180px;
+	overflow: auto;
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	background: var(--bg-input);
+	font-size: 12.5px;
+	line-height: 1.6;
+}
+
+/* What the open graph compiles for, beside the button that compiles it.
    Lune takes the warning colour, because it is experimental and it is where
    Roblox nodes fail. */
 .docbar select.doc-target.lune {
@@ -3628,6 +3642,19 @@ button.tb.with-icon {
 	font-size: 12px;
 	font-weight: 400;
 	color: var(--fg-faint);
+}
+
+/* The current release, right beside its version number. */
+.docs-content .badge.latest {
+	padding: 1px 7px;
+	border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+	border-radius: 999px;
+	color: var(--accent);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	white-space: nowrap;
 }
 
 .docs-content details.docs-details h3 {

@@ -26,6 +26,20 @@ export function offTargetNodes(script: NodeScript, registry: Registry, target: T
 	});
 }
 
+/**
+ * The same nodes as a reader wants them listed: by name, once each, with a
+ * count where a graph has several — "Get Service ×3" rather than three lines
+ * of it. The editor shows this before a switch that would break them.
+ */
+export function offTargetNames(script: NodeScript, registry: Registry, target: Target): string[] {
+	const counts = new Map<string, number>();
+	for (const node of offTargetNodes(script, registry, target)) {
+		const name = nodeTitle(registry.get(node.def), node);
+		counts.set(name, (counts.get(name) ?? 0) + 1);
+	}
+	return [...counts].map(([name, count]) => (count > 1 ? `${name} ×${count}` : name));
+}
+
 /** How a target is named in a message. */
 const TARGET_NAMES: Record<Target, string> = { roblox: "Roblox", lune: "Lune" };
 

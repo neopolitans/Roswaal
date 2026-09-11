@@ -15,7 +15,7 @@ the other is missing.
 characters from
 *Re:Zero − Starting Life in Another World* — Roswaal L. Mathers and Beatrice —
 created by Tappei Nagatsuki and published by KADOKAWA. The names are a fan's
-homage, chosen because each character suited what each tool does.
+homage.
 
 **This project is not affiliated with, endorsed by, or approved by KADOKAWA,
 Tappei Nagatsuki, or the Re:Zero project**, and claims no rights in those names

@@ -118,8 +118,8 @@ export function logoMarkup(height: number, fill = "currentColor"): string {
  * Violet rather than the obvious blue. A mid blue was the first choice and was
  * the wrong one: Roswaal is a tool *for* Luau, whose own mark is a blue tilted
  * square, and a blue icon in the tab strip made the resemblance a claim nobody
- * meant to make. This is drawn from the character the tool is named after
- * instead, which is both more distinctive and less presumptuous.
+ * meant to make. Violet reads as clearly on a light strip as on a dark one, and
+ * resembles nothing else likely to sit beside it.
  */
 const FAVICON_FILL = "#7b4fa8";
 

@@ -338,7 +338,9 @@ function Page({ page }: { page: DocPage }) {
 			{page.blocks.map((block, i) => (
 				<BlockView key={i} block={block} />
 			))}
-			{page.review && <p className="docs-reviewed">{reviewLine(page.review)}</p>}
+			{page.review && (
+				<p className="docs-reviewed"><Rich text={reviewLine(page.review)} /></p>
+			)}
 			{page.review?.verify && (
 				<p className="docs-verify">
 					<strong>To verify:</strong> <Rich text={page.review.verify} />
@@ -446,20 +448,22 @@ function BlockView({ block }: { block: Block }) {
 	switch (block.t) {
 		case "h": {
 			const aside = block.aside && <span className="aside">{block.aside}</span>;
+			const badge = block.badge && <span className="badge latest">{block.badge}</span>;
 			if (block.level === 2) {
 				return (
 					<h2 id={headingId(block.text)}>
 						<Rich text={block.text} />
+						{badge}
 						{aside}
 					</h2>
 				);
 			}
 			const Heading = block.level === 3 ? "h3" : "h4";
-			return <Heading><Rich text={block.text} />{aside}</Heading>;
+			return <Heading><Rich text={block.text} />{badge}{aside}</Heading>;
 		}
 		case "details":
 			return (
-				<details className="docs-details">
+				<details className="docs-details" open={block.open}>
 					<summary>
 						<Rich text={block.summary} />
 						{block.aside && <span className="aside">{block.aside}</span>}

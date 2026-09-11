@@ -54,6 +54,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.29.1",
+		date: "2026-09-11",
+		headline: "Know what a target switch breaks, and where the target lives.",
+		changed: [
+			"**Switching a graph's target lists the nodes that would become errors**, by name and with a count for repeats, before asking.",
+			"**The target picker sits beside Compile script**, with the other compilation controls, rather than beside the graph's name.",
+			"**A review can credit its reviewers** by GitHub account, linked at the foot of the page, and *Contributing* lists everyone credited.",
+			"**Release notes open on the newest minor version**, with the current release inside it and marked **Latest**, instead of showing that release apart from its siblings.",
+		],
+		fixed: [
+			"**The Beako link on Attributions is a link again**, rather than its raw text.",
+			"**Five older release notes print their emphasis** instead of stray asterisks.",
+		],
+		verified: ["controls"],
+	},
+	{
 		version: "0.29.0",
 		date: "2026-09-11",
 		headline: "Change a graph's target, and a shorter history.",
@@ -115,7 +131,7 @@ export const RELEASES: Release[] = [
 			"**Settings opens from the Docs window**, and has a **Docs** tab: the font the docs are read in — System, Serif, Wide or Monospace — and a preview size from 50% to 300%.",
 		],
 		changed: [
-			"**The inspiration entry on *Attributions* carries its owner's trademark notice**, and says what Roswaal takes from it and what it does not. *NOTICE.md* says the same.",
+			"**The inspiration entry on Attributions carries its owner's trademark notice**, and says what Roswaal takes from it and what it does not. *NOTICE.md* says the same.",
 			"**Node pictures in the docs follow your Wires and Node corners settings**, and show **+** and **−** on nodes that take a list and **default** on optional inputs left unset, as the canvas does. The static docs site draws the defaults.",
 			"**Summaries, captions and paragraphs in the docs use the full width of the page.**",
 			"**Release notes list the articles reviewed and verified in each release.**",
@@ -414,7 +430,7 @@ export const RELEASES: Release[] = [
 			"The count of stale generated files was only refreshed by a compile, so renaming or deleting a graph left it describing whatever the last compile saw. It updates whenever the tree does.",
 		],
 		added: [
-			"**The project tree is split into *Graph content* and *Compile content*.** One half you author and Roswaal reads; the other Roswaal writes and you do not edit. Each collapses, and an empty one says so.",
+			"**The project tree is split into Graph content and Compile content.** One half you author and Roswaal reads; the other Roswaal writes and you do not edit. Each collapses, and an empty one says so.",
 		],
 		watch: [
 			"Only a file whose own header names the graph that just moved is removed. A generated file with no graph behind it at all is still reported rather than deleted — that is the *stale* line in the compile panel, and it still asks first.",
@@ -425,7 +441,7 @@ export const RELEASES: Release[] = [
 		date: "2026-09-08",
 		headline: "Make a graph in the folder you are looking at.",
 		added: [
-			"**Right-click a folder for *New graph here* and *New map here*.** They appear only for folders under the project's source directory — a graph written into the compiled output would be deleted by the next compile.",
+			"**Right-click a folder for New graph here and New map here.** They appear only for folders under the project's source directory — a graph written into the compiled output would be deleted by the next compile.",
 		],
 		changed: [
 			"**New graph and New map use the folder you last clicked in the tree**, rather than always the top of the source directory. A folder counts as itself, a file counts as the folder it is in, and the folder is marked in the tree.",
@@ -501,7 +517,7 @@ export const RELEASES: Release[] = [
 			"**The layout is remembered**, alongside the theme and wire style. Dock sizes and which panel sits where; not which documents were open.",
 		],
 		fixed: [
-			"**The project name and the *Variables* heading had grown to twice their size.** They took their size, case and colour from a rule scoped to the old sidebar, which the dock work renamed out from under them.",
+			"**The project name and the Variables heading had grown to twice their size.** They took their size, case and colour from a rule scoped to the old sidebar, which the dock work renamed out from under them.",
 			"The compiler's line-to-node source map had been off by one since it was written, so anything reading it — currently the selection preview — pointed one line late.",
 		],
 		watch: [

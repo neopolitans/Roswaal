@@ -23,6 +23,8 @@ export type DialogRequest =
 			kind: "confirm";
 			title: string;
 			message: string;
+			/** Listed under the message: what the confirmation is about, by name. */
+			items?: string[];
 			confirmLabel?: string;
 			danger?: boolean;
 	  }
@@ -89,7 +91,14 @@ export function Dialog({ request, resolve }: PendingDialog) {
 						/>
 					</label>
 				) : (
-					<p>{request.message}</p>
+					<>
+						<p>{request.message}</p>
+						{request.kind === "confirm" && request.items && request.items.length > 0 && (
+							<ul className="dialog-list">
+								{request.items.map((item) => <li key={item}>{item}</li>)}
+							</ul>
+						)}
+					</>
 				)}
 
 				<div className="dialog-actions">

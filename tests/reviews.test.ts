@@ -9,10 +9,10 @@
 import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import { allPages, buildSite, findPage, type Block } from "../src/core/docs/site.js";
+import { allPages, blockText, buildSite, findPage, type Block } from "../src/core/docs/site.js";
 import { renderPage } from "../src/core/docs/html.js";
 import {
-	formatReviewDate, REVIEW_DETAILS, REVIEW_LABELS, REVIEWS, reviewLine, reviewOf,
+	formatReviewDate, GITHUB_HANDLE, REVIEW_DETAILS, REVIEW_LABELS, REVIEWS, reviewLine, reviewOf,
 } from "../src/core/docs/reviews.js";
 import { RELEASES } from "../src/core/docs/releases.js";
 import type { NodeDef } from "../src/core/schema.js";
@@ -93,6 +93,39 @@ describe("page reviews", () => {
 	});
 });
 
+describe("reviewers", () => {
+	it("names every reviewer by a real GitHub account name", () => {
+		for (const [slug, review] of Object.entries(REVIEWS)) {
+			for (const handle of review.reviewers ?? []) {
+				expect(handle, `${slug} credits "${handle}"`).toMatch(GITHUB_HANDLE);
+			}
+		}
+	});
+
+	it("credits them in the foot of the page, as links", () => {
+		expect(reviewLine({ status: "reviewed", date: "2026-09-11", reviewers: ["octocat"] }))
+			.toBe("Last reviewed 11 September 2026 by [@octocat](https://github.com/octocat)");
+		expect(reviewLine({ status: "verified", date: "2026-09-11", reviewers: ["a", "b", "c"] }))
+			.toContain("[@a](https://github.com/a), [@b](https://github.com/b) and [@c](https://github.com/c)");
+	});
+
+	it("renders the credit as a link on the static site", () => {
+		const page = findPage(site, "wires-and-pins")!;
+		const html = renderPage(
+			site,
+			{ ...page, review: { status: "verified", date: "2026-09-11", reviewers: ["octocat"] } },
+			{ version: "test" },
+		);
+		expect(html).toContain(`<a href="https://github.com/octocat" rel="noreferrer noopener">@octocat</a>`);
+	});
+
+	it("lists reviewers on Contributing, or says there are none yet", () => {
+		const text = blockText({ t: "p", text: "" }) + findPage(site, "contributing")!.blocks.map(blockText).join(" ");
+		expect(text).toContain("Reviewers");
+		expect(text).toMatch(/Nobody is credited yet|@\w/);
+	});
+});
+
 describe("the last-reviewed line", () => {
 	it("writes a date the way GOV.UK does", () => {
 		expect(formatReviewDate("2026-09-11")).toBe("11 September 2026");
@@ -122,7 +155,7 @@ describe("the last-reviewed line", () => {
 		const page = findPage(site, "coming-from-blueprints")!;
 		const html = renderPage(site, page, { version: "test" });
 		expect(html).toMatch(
-			/<p class="docs-reviewed">[^<]*<\/p>\n<p class="docs-verify"><strong>To verify:<\/strong> [^\n]*Networking/,
+			/<p class="docs-reviewed">.*?<\/p>\n<p class="docs-verify"><strong>To verify:<\/strong> [^\n]*Networking/,
 		);
 	});
 });

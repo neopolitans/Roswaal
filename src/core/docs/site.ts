@@ -30,7 +30,7 @@ import { BUILTIN_THEMES } from "../themeData.js";
 import { DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, type Attribution } from "./attributions.js";
 import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release } from "./releases.js";
-import { reviewOf, type Review } from "./reviews.js";
+import { reviewerCounts, reviewerLink, reviewOf, type Review } from "./reviews.js";
 
 // ---------------------------------------------------------------------------
 // Blocks
@@ -54,7 +54,8 @@ export const TAG_LABELS: Record<ReleaseTag, string> = {
 
 export type Block =
 	/** `aside` sits at the right of the heading: a date, a version, a status. */
-	| { t: "h"; level: 2 | 3 | 4; text: string; aside?: string }
+	/** `badge` sits right beside the heading's text: "Latest", on the current release. */
+	| { t: "h"; level: 2 | 3 | 4; text: string; aside?: string; badge?: string }
 	| { t: "p"; text: string }
 	| { t: "ul"; items: string[] }
 	| { t: "ol"; items: string[] }
@@ -114,9 +115,9 @@ export type Block =
 	 * A fold: a summary line that opens onto more blocks. `<details>` in both
 	 * renderers, so a page can hold a long history without making every reader
 	 * scroll past all of it. `aside` sits at the right of the summary, as a
-	 * heading's does.
+	 * heading's does. `open` starts it unfolded; a reader can still close it.
 	 */
-	| { t: "details"; summary: string; aside?: string; blocks: Block[] };
+	| { t: "details"; summary: string; aside?: string; open?: boolean; blocks: Block[] };
 
 export interface DocPage {
 	slug: string;
@@ -250,7 +251,7 @@ export function isPageLink(href: string): boolean {
 export function blockText(block: Block): string {
 	switch (block.t) {
 		case "h":
-			return [block.text, block.aside ?? ""].join(" ").trim();
+			return [block.text, block.badge ?? "", block.aside ?? ""].join(" ").trim();
 		case "p":
 			return parseInline(block.text).map((i) => i.text).join("");
 		case "ul":
@@ -634,10 +635,13 @@ export function releaseTags(release: Release): ReleaseTag[] {
  * 2 and 3 for the release shown in full; 3 and 4 inside a fold.
  */
 function releaseBlocks(
-	release: Release, titles: ReadonlyMap<string, string>, level: 2 | 3,
+	release: Release, titles: ReadonlyMap<string, string>, level: 2 | 3, latest = false,
 ): Block[] {
 	const sub = level === 2 ? 3 : 4;
-	const blocks: Block[] = [{ t: "h", level, text: release.version, aside: release.date }];
+	const blocks: Block[] = [{
+		t: "h", level, text: release.version, aside: release.date,
+		...(latest ? { badge: "Latest" } : {}),
+	}];
 
 	const tags = releaseTags(release);
 	if (tags.length > 0) blocks.push({ t: "tags", tags });
@@ -689,26 +693,27 @@ function releasesPage(titles: ReadonlyMap<string, string>): DocPage {
 		},
 	];
 
-	// The newest release in full, where it will be read. Every other one folds
-	// into its minor version — 0.28.x, 0.27.x — newest first: a reader after a
-	// particular version finds it by major and minor, and scrolling past twenty
-	// patch releases to get there had become most of the page.
-	const [latest, ...older] = RELEASES;
-	if (latest) blocks.push(...releaseBlocks(latest, titles, 2));
-
+	// Every release folds into its minor version — 0.29.x, 0.28.x — newest
+	// first: a reader after a particular version finds it by major and minor,
+	// and scrolling past twenty patch releases to get there had become most of
+	// the page. The newest minor version starts open, so the current release is
+	// read beside its siblings rather than apart from them, marked Latest.
 	const minors = new Map<string, Release[]>();
-	for (const release of older) {
+	for (const release of RELEASES) {
 		const minor = release.version.split(".").slice(0, 2).join(".") + ".x";
 		minors.set(minor, [...(minors.get(minor) ?? []), release]);
 	}
-	for (const [minor, releases] of minors) {
+	[...minors].forEach(([minor, releases], index) => {
 		blocks.push({
 			t: "details",
 			summary: minor,
 			aside: `${releases.length} ${releases.length === 1 ? "release" : "releases"} · ${releases[0].date}`,
-			blocks: releases.flatMap((release) => releaseBlocks(release, titles, 3)),
+			open: index === 0,
+			blocks: releases.flatMap((release) =>
+				releaseBlocks(release, titles, 3, release === RELEASES[0]),
+			),
 		});
-	}
+	});
 
 	return {
 		slug: "release-notes",
@@ -789,12 +794,39 @@ const CONTRIBUTING: DocPage = {
 			t: "ul",
 			items: [
 				"**Lune.** The Lune target is experimental, and has not yet been tested by an experienced Lune developer.",
-				"**Networking on *Coming from Blueprints*.** The rows on replicated functions need checking by someone who has shipped multiplayer.",
+				"**Networking on Coming from Blueprints.** The rows on replicated functions need checking by someone who has shipped multiplayer.",
 				"**Node reference pages.** Every one is still pending review.",
 			],
 		},
+
+		{ t: "h", level: 2, text: "Reviewers" },
+		...reviewerBlocks(),
 	],
 };
+
+/**
+ * Everyone credited with a review, as links to their GitHub accounts. Built
+ * from the ledger, so a new reviewer appears here the moment their name is on
+ * a review rather than when somebody remembers to add them.
+ */
+function reviewerBlocks(): Block[] {
+	const reviewers = reviewerCounts();
+	const how =
+		"Credit a review by adding your GitHub account name to its `reviewers` in " +
+		"`src/core/docs/reviews.ts`.";
+	if (reviewers.length === 0) {
+		return [{ t: "p", text: `Nobody is credited yet. ${how}` }];
+	}
+	return [
+		{
+			t: "ul",
+			items: reviewers.map(
+				(r) => `${reviewerLink(r.handle)} — ${r.pages} ${r.pages === 1 ? "page" : "pages"}`,
+			),
+		},
+		{ t: "p", text: how },
+	];
+}
 
 const GETTING_STARTED: DocPage = {
 	slug: "getting-started",

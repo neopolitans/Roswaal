@@ -31,6 +31,20 @@ export interface Review {
 	 * reviewed page that needs nothing in particular leaves it out.
 	 */
 	verify?: string;
+	/**
+	 * Who reviewed it, as GitHub account names — `neopolitans`, not a display
+	 * name — so the credit is a link to a person anyone can find. Listed in the
+	 * page's foot and gathered on *Contributing*.
+	 */
+	reviewers?: string[];
+}
+
+/** A GitHub account name: letters, digits and single hyphens, up to 39. */
+export const GITHUB_HANDLE = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
+
+/** A handle as a link to its GitHub profile, in the docs' inline markup. */
+export function reviewerLink(handle: string): string {
+	return `[@${handle}](https://github.com/${handle})`;
 }
 
 export const REVIEW_LABELS: Record<ReviewStatus, string> = {
@@ -49,23 +63,26 @@ export const REVIEW_DETAILS: Record<ReviewStatus, string> = {
 /** Newest first within each status, to keep additions easy to find. */
 export const REVIEWS: Record<
 	string,
-	{ status: Exclude<ReviewStatus, "pending">; date: string; verify?: string }
+	{ status: Exclude<ReviewStatus, "pending">; date: string; verify?: string; reviewers?: string[] }
 > = {
+	// Verified by the author for 0.29.1.
+	"controls": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	// Verified with the author, once it had pictures for every section.
-	"wires-and-pins": { status: "verified", date: "2026-09-11" },
+	"wires-and-pins": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	// Verified with the author. Settings once its rojoProject line said what
 	// the setting does; Hand-written Luau once each code node had its own
 	// graph and the Luau it compiles to. Lune is marked experimental on the
 	// pages that mention it, which is what verifying them covers.
-	"types": { status: "verified", date: "2026-09-11" },
-	"variables-and-locals": { status: "verified", date: "2026-09-11" },
-	"building-and-rojo": { status: "verified", date: "2026-09-11" },
-	"hand-written-luau": { status: "verified", date: "2026-09-11" },
-	"settings": { status: "verified", date: "2026-09-11" },
+	"types": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
+	"variables-and-locals": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
+	"building-and-rojo": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
+	"hand-written-luau": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
+	"settings": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	// Read by the author, who has not shipped the networking side.
 	"coming-from-blueprints": {
 		status: "reviewed",
 		date: "2026-09-11",
+		reviewers: ["neopolitans"],
 		verify:
 			"someone who has shipped multiplayer in Unreal should check the **Networking** rows — " +
 			"replicated functions (RPCs) especially — against real use.",
@@ -92,7 +109,35 @@ export function formatReviewDate(iso: string): string {
 	return `${day} ${MONTHS[month - 1]} ${year}`;
 }
 
-/** The line at the foot of a page. */
+/**
+ * The line at the foot of a page, in the docs' inline markup: reviewers are
+ * links, so a renderer passes this through its inline formatting.
+ */
 export function reviewLine(review: Review): string {
-	return review.date ? `Last reviewed ${formatReviewDate(review.date)}` : "Not reviewed yet";
+	if (!review.date) return "Not reviewed yet";
+	const by = review.reviewers?.length
+		? ` by ${joinNames(review.reviewers.map(reviewerLink))}`
+		: "";
+	return `Last reviewed ${formatReviewDate(review.date)}${by}`;
+}
+
+/**
+ * Everyone credited with a review, most pages first and then by name, with
+ * the number of pages each has reviewed. For *Contributing*.
+ */
+export function reviewerCounts(): { handle: string; pages: number }[] {
+	const counts = new Map<string, number>();
+	for (const entry of Object.values(REVIEWS)) {
+		for (const handle of entry.reviewers ?? []) counts.set(handle, (counts.get(handle) ?? 0) + 1);
+	}
+	return [...counts]
+		.map(([handle, pages]) => ({ handle, pages }))
+		.sort((a, b) => b.pages - a.pages || a.handle.localeCompare(b.handle));
+}
+
+/** "a", "a and b", "a, b and c". */
+function joinNames(names: string[]): string {
+	return names.length <= 1
+		? names.join("")
+		: `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }

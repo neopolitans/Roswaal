@@ -10,7 +10,7 @@
 import { describe, expect, it } from "vitest";
 
 import { compile } from "../src/core/compiler/index.js";
-import { offTargetNodes } from "../src/core/compiler/validate.js";
+import { offTargetNames, offTargetNodes } from "../src/core/compiler/validate.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { buildSite, findPage } from "../src/core/docs/site.js";
 import { BUILTIN_NODES } from "../src/core/nodes/index.js";
@@ -50,6 +50,18 @@ describe("switching a graph's target", () => {
 		const { script, service } = withService("roblox");
 		expect(offTargetNodes(script, registry, "lune").map((n) => n.id)).toEqual([service]);
 		expect(offTargetNodes(script, registry, "roblox")).toEqual([]);
+	});
+
+	it("lists them by name, once each, counting repeats", () => {
+		const b = new Builder();
+		for (let i = 0; i < 2; i++) {
+			b.node("roblox.getService", { literals: { service: { t: "string", v: "Players" } } });
+		}
+		b.node("instance.getName");
+		b.node("debug.print");
+		const names = offTargetNames(b.build(), registry, "lune");
+		expect(names).toContain("Get Service ×2");
+		expect(names).not.toContain("Print");
 	});
 });
 

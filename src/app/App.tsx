@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { compile, type Diagnostic } from "../core/compiler/index.js";
-import { offTargetNodes } from "../core/compiler/validate.js";
+import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
 import { createRegistry, resolveNodePins } from "../core/nodes/index.js";
 import type { NodeDef, RoswaalConfig } from "../core/schema.js";
 import {
@@ -1193,8 +1193,9 @@ export function App() {
 								kind: "confirm",
 								title: `Compile this graph for ${name}?`,
 								message:
-									`${off.length} node${off.length === 1 ? " is" : "s are"} ` +
-									`not available for ${name}, and will show as errors until removed.`,
+									`${off.length === 1 ? "This node is" : `These ${off.length} nodes are`} ` +
+									`not available for ${name}, and will show as errors until removed:`,
+								items: offTargetNames(editor.script!, registry, value),
 								confirmLabel: `Switch to ${name}`,
 							});
 							if (ok !== true) return;

@@ -192,12 +192,11 @@ export const ATTRIBUTIONS: Attribution[] = [
 export const NAME_NOTICE = {
 	title: "The names",
 	body: [
-		"**Roswaal** and its sibling tool **[Beako](https://github.com/neopolitans/Beako)** " +
+		"**Roswaal** and its sibling tool [Beako](https://github.com/neopolitans/Beako) " +
 			"are named after characters " +
 			"from *Re:Zero − Starting Life in Another World* — Roswaal L. Mathers and " +
 			"Beatrice — created by Tappei Nagatsuki and published by KADOKAWA. The " +
-			"names are a fan's homage, chosen because each character suited what each " +
-			"tool does.",
+			"names are a fan's homage.",
 		"**This project is not affiliated with, endorsed by, or approved by " +
 			"KADOKAWA, Tappei Nagatsuki, or the Re:Zero project**, and claims no " +
 			"rights in those names or in anything from that work.",
