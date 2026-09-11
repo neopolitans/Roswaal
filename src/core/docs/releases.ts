@@ -54,6 +54,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.31.4",
+		date: "2026-09-12",
+		headline: "A local says its name, and a node can be as wide as its header.",
+		added: [
+			"**Long names**, in Settings. Keep cutting a header short when it does not fit — what nodes have always done — or widen the node to it instead. Widening moves pins, so wires and the pictures in the documentation are drawn from the same width.",
+		],
+		changed: [
+			"**Declare Local shows the local's name** beside its title: `Declare Local (restores)`, with the declared type still underneath. One you have not named reads as it did.",
+			"**Casting and annotations describes the type picker**: the grouped list, the field **Other…** opens, and when to declare a type once instead of typing it into three pickers.",
+		],
+		verified: ["casting", "settings"],
+	},
+	{
 		version: "0.31.3",
 		date: "2026-09-12",
 		headline: "A dictionary's row is a pair you can split.",

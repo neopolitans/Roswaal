@@ -189,6 +189,9 @@ export function App() {
 	/** The selection preview, which is opened deliberately and never sits open. */
 	const [previewOpen, setPreviewOpen] = useState(false);
 	const alignExec = prefs.alignExec;
+	// Laying out has to use the width the canvas is drawing, or columns spaced
+	// by the fixed width overlap the wider nodes sitting in them.
+	const wideNodes = prefs.wideNodes;
 
 	/**
 	 * Changes a preference, and by default stores it.
@@ -751,8 +754,8 @@ export function App() {
 			[...state.selection].filter((id) => state.script!.nodes.some((n) => n.id === id)),
 		);
 		const only = selected.size > 1 ? selected : undefined;
-		store.edit((s) => autoLayout(s, registry, { only, alignExec }));
-	}, [registry, alignExec]);
+		store.edit((s) => autoLayout(s, registry, { only, alignExec, wideNodes }));
+	}, [registry, alignExec, wideNodes]);
 
 	/**
 	 * Turns a pin's typed-in value into a script variable, then selects the
@@ -1409,6 +1412,7 @@ export function App() {
 							diagnostics={diagnostics}
 							locked={locked}
 							wireStyle={prefs.wireStyle}
+							wideNodes={prefs.wideNodes}
 							onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
 							onRequestPinMenu={(screen, nodeId, pin, side) =>
 								setPinMenu({ screen, nodeId, pin, side })

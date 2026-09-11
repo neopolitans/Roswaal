@@ -28,9 +28,19 @@ export interface LocalRef {
  * label, else the emitter's own fallback. The same order the emitter uses.
  */
 export function localNameOf(node: Pick<GraphNode, "literals" | "label">): string {
+	return typedLocalName(node) || node.label?.trim() || "local";
+}
+
+/**
+ * Just the name typed into the Name pin, or nothing.
+ *
+ * Separate from `localNameOf` because the header wants only this half: a node
+ * nobody has named should read "Declare Local", not "Declare Local (local)"
+ * announcing the fallback as though it were a choice.
+ */
+export function typedLocalName(node: Pick<GraphNode, "literals">): string {
 	const typed = node.literals?.name;
-	const text = typed && (typed.t === "string" || typed.t === "raw") ? typed.v.trim() : "";
-	return text || node.label?.trim() || "local";
+	return typed && (typed.t === "string" || typed.t === "raw") ? typed.v.trim() : "";
 }
 
 /**

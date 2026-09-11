@@ -239,7 +239,17 @@ export interface NodeDef {
 	 * showing "Accumulator" where "Set Variable" was would lose the verb; that
 	 * belongs in `subtitle`, which is where it already is.
 	 */
-	defaultLabel?: (config: NodeConfig) => string | undefined;
+	/**
+	 * The node itself is passed as well, because not everything that names a
+	 * node lives in its config. A Declare Local's name is a literal on its Name
+	 * pin -- typed on the node face, where you would expect to type a name --
+	 * and a header that could not read it was a header that could not say which
+	 * local this is.
+	 */
+	defaultLabel?: (
+		config: NodeConfig,
+		node?: Pick<GraphNode, "literals" | "label">,
+	) => string | undefined;
 	/**
 	 * How the node is drawn. "compact" is the small capsule node editors use for
 	 * a variable getter: no header bar, no title row, one output on the right.

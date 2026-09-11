@@ -94,6 +94,28 @@ export function compactWidth(def: NodeDef, node: GraphNode): number {
 }
 
 /**
+ * How wide an ordinary node is drawn.
+ *
+ * `NODE.width` unless the reader asked for wide nodes, in which case the header
+ * sets it — a title the node cannot show is the thing that option exists to
+ * fix. Measured from the *header*, which is two lines with the title above the
+ * subtitle, so the wider of the two decides. Deliberately not `compactLabel`'s
+ * "subtitle or title" rule: that is for a capsule, which shows one line.
+ *
+ * Never narrower than `NODE.width`. A node that shrank to fit a short title
+ * would leave every graph ragged, and this is about names that do not fit
+ * rather than about packing.
+ */
+export function nodeWidth(
+	def: NodeDef | undefined, node: GraphNode, wide = false,
+): number {
+	if (!wide || !def) return NODE.width;
+	const subtitle = def.subtitle?.(node.config ?? {}) ?? "";
+	const longest = Math.max(nodeTitle(def, node).length, subtitle.length);
+	return Math.round(Math.max(NODE.width, longest * NODE.titleCharWidth + NODE.headerPadding));
+}
+
+/**
  * Header height for one node. Nodes with a subtitle get a taller header, and
  * every pin below it shifts down, so this has to be the single source both the
  * renderer and the wire router consult.
@@ -110,7 +132,7 @@ export function nodeHeight(
 	return headerHeight(def, config) + rows * NODE.rowHeight + NODE.footer;
 }
 
-export function nodeBounds(node: GraphNode, registry: Registry): Rect {
+export function nodeBounds(node: GraphNode, registry: Registry, wide = false): Rect {
 	const def = registry.get(node.def);
 	if (!def) return { x: node.x, y: node.y, w: NODE.width, h: NODE.headerHeight + NODE.footer };
 	if (isReroute(def)) {
@@ -128,14 +150,14 @@ export function nodeBounds(node: GraphNode, registry: Registry): Rect {
 	}
 	const { inputs, outputs } = resolvePins(def, node.config);
 	return {
-		x: node.x, y: node.y, w: NODE.width,
+		x: node.x, y: node.y, w: nodeWidth(def, node, wide),
 		h: nodeHeight(inputs, outputs, def, node.config),
 	};
 }
 
 /** World position of a pin's connection point. */
 export function pinPosition(
-	node: GraphNode, registry: Registry, pinId: string, side: "in" | "out",
+	node: GraphNode, registry: Registry, pinId: string, side: "in" | "out", wide = false,
 ): Vec | null {
 	const def = registry.get(node.def);
 	if (!def) return null;
@@ -170,7 +192,7 @@ export function pinPosition(
 			: { x: node.x + layout.width, y: node.y + layout.height / 2 };
 	}
 	return {
-		x: side === "in" ? node.x : node.x + NODE.width,
+		x: side === "in" ? node.x : node.x + nodeWidth(def, node, wide),
 		y:
 			node.y +
 			headerHeight(def, node.config) +

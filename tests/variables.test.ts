@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry, nodeTitle } from "../src/core/nodes/index.js";
 import { migrateScript } from "../src/core/migrate.js";
+import type { Literal } from "../src/core/schema.js";
 import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
@@ -170,9 +171,14 @@ describe("function references", () => {
  * this is that function's contract.
  */
 describe("node titles", () => {
-	const named = (id: string, config: Record<string, unknown>, label?: string) => ({
-		id: "n", def: id, x: 0, y: 0, config, label,
-	});
+	// Literals as well as config, because not every name lives in config: a
+	// Declare Local's is typed into its Name pin, on the node face.
+	const named = (
+		id: string,
+		config: Record<string, unknown>,
+		label?: string,
+		literals?: Record<string, Literal>,
+	) => ({ id: "n", def: id, x: 0, y: 0, config, label, literals });
 
 	it("uses a function's own name before the definition's title", () => {
 		const def = registry.get("function.entry")!;
@@ -203,6 +209,47 @@ describe("node titles", () => {
 		// The variable's name is on its subtitle, which is where it belongs.
 		expect(nodeTitle(registry.get("variable.set")!, named("variable.set", { name: "Health" })))
 			.toBe("Set Variable");
+	});
+
+	/**
+	 * A local's name goes beside Declare Local rather than replacing it, the way
+	 * Declare Function's does: this node is one of two ways to hold a value, and
+	 * which one it is is the thing you are looking at it to find out.
+	 *
+	 * The name is a literal on the Name pin rather than config, which is the
+	 * whole reason `defaultLabel` is handed the node.
+	 */
+	it("shows a local's name beside Declare Local, not instead of it", () => {
+		const def = registry.get("local.declare")!;
+		const withName = named("local.declare", {}, undefined, { name: { t: "string", v: "restores" } });
+		expect(nodeTitle(def, withName)).toBe("Declare Local (restores)");
+	});
+
+	it("says only Declare Local until a name is typed", () => {
+		const def = registry.get("local.declare")!;
+		expect(nodeTitle(def, named("local.declare", {}))).toBe("Declare Local");
+		// Not "Declare Local (local)": the emitter's fallback is not a name
+		// anybody chose, and announcing it would read as one.
+		const blank = named("local.declare", {}, undefined, { name: { t: "string", v: "  " } });
+		expect(nodeTitle(def, blank)).toBe("Declare Local");
+	});
+
+	it("lets a typed label win over the local's name, as everywhere else", () => {
+		const def = registry.get("local.declare")!;
+		const both = named("local.declare", {}, "Restores", { name: { t: "string", v: "restores" } });
+		expect(nodeTitle(def, both)).toBe("Restores");
+	});
+
+	/** A documentation preview has a definition and no node to read. */
+	it("has no name to show when there is no node", () => {
+		expect(registry.get("local.declare")!.defaultLabel?.({})).toBeUndefined();
+	});
+
+	/** The type keeps its own line, so the name and the type do not compete. */
+	it("keeps showing the declared type underneath", () => {
+		const def = registry.get("local.declare")!;
+		expect(def.subtitle?.({ type: "{ [Model]: Restore }" })).toBe("{ [Model]: Restore }");
+		expect(def.subtitle?.({})).toBeUndefined();
 	});
 
 	it("calls a node by its name in a diagnostic about it", () => {

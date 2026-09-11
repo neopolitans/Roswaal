@@ -37,18 +37,27 @@ export interface LayoutOptions {
 	 * steps reads as one horizontal line rather than a staircase.
 	 */
 	alignExec?: boolean;
+	/**
+	 * Nodes are being drawn wide enough for their headers.
+	 *
+	 * Columns are spaced by the widest node in them, so laying out at the fixed
+	 * width while the canvas draws a wider one would overlap them. Only the
+	 * width matters here: a pin's height, and so every vertical decision below,
+	 * is the same either way.
+	 */
+	wideNodes?: boolean;
 }
 
 /** Repositions nodes into ranked columns. */
 export function autoLayout(
 	script: NodeScript, registry: Registry, options: LayoutOptions = {},
 ): NodeScript {
-	const { only, alignExec = false } = options;
+	const { only, alignExec = false, wideNodes = false } = options;
 	const subject = script.nodes.filter((n) => !only || only.has(n.id));
 	if (subject.length < 2) return script;
 
 	const ids = new Set(subject.map((n) => n.id));
-	const original = boundsOf(subject, registry);
+	const original = boundsOf(subject, registry, wideNodes);
 
 	// Comment membership is captured before anything moves, so each comment can
 	// be re-fitted around the same nodes afterwards rather than being left
@@ -75,7 +84,7 @@ export function autoLayout(
 		let widest = 0;
 		for (const id of column) {
 			const node = script.nodes.find((n) => n.id === id)!;
-			const box = nodeBounds(node, registry);
+			const box = nodeBounds(node, registry, wideNodes);
 			placed.set(id, { x, y });
 			y += box.h + GAP_Y;
 			widest = Math.max(widest, box.w);
@@ -113,7 +122,7 @@ export function autoLayout(
 	});
 
 	const moved: NodeScript = { ...script, nodes };
-	return { ...moved, comments: refitComments(moved, registry, members) };
+	return { ...moved, comments: refitComments(moved, registry, members, wideNodes) };
 }
 
 // ---------------------------------------------------------------------------
@@ -295,9 +304,16 @@ function pinKind(
 	return (side === "in" ? inputs : outputs).find((p) => p.id === pinId)?.kind;
 }
 
-/** Grows each comment back around the nodes it held before the tidy-up. */
+/**
+ * Grows each comment back around the nodes it held before the tidy-up.
+ *
+ * Takes the width the canvas is drawing at for the reason the columns do: a
+ * comment re-fitted around wide nodes using the fixed width would be drawn too
+ * small and clip the very nodes it is meant to enclose.
+ */
 function refitComments(
 	script: NodeScript, registry: Registry, members: Map<string, Set<string>>,
+	wide = false,
 ): NodeScript["comments"] {
 	return script.comments.map((comment) => {
 		const held = members.get(comment.id);
@@ -306,7 +322,7 @@ function refitComments(
 		const inside = script.nodes.filter((n) => held.has(n.id));
 		if (inside.length === 0) return comment;
 
-		const box = boundsOf(inside, registry);
+		const box = boundsOf(inside, registry, wide);
 		return {
 			...comment,
 			x: Math.round(box.x - COMMENT_PAD),
@@ -317,10 +333,10 @@ function refitComments(
 	});
 }
 
-function boundsOf(nodes: NodeScript["nodes"], registry: Registry) {
+function boundsOf(nodes: NodeScript["nodes"], registry: Registry, wide = false) {
 	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 	for (const node of nodes) {
-		const box = nodeBounds(node, registry);
+		const box = nodeBounds(node, registry, wide);
 		minX = Math.min(minX, box.x);
 		minY = Math.min(minY, box.y);
 		maxX = Math.max(maxX, box.x + box.w);

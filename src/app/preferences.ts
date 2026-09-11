@@ -89,6 +89,20 @@ export interface Preferences {
 	 * would delete the signal.
 	 */
 	roundedNodes: boolean;
+	/**
+	 * What a node does when its header is longer than the node is wide.
+	 *
+	 * `false` truncates, which is what a node has always done: the title
+	 * ellipsises and the whole of it is in the tooltip and the Inspector. `true`
+	 * widens the node instead, so `Declare Local (restores)` is readable on the
+	 * canvas without hovering it.
+	 *
+	 * A preference rather than a property of the graph — it changes nothing
+	 * about what the graph means — but unlike the other looks it moves *pins*,
+	 * so the wire router and the documentation's pictures are computed from the
+	 * same width. A node and its picture are never two different sizes.
+	 */
+	wideNodes: boolean;
 	/** The typeface the docs are read in. Code keeps its own monospace either way. */
 	docsFont: DocsFont;
 	/**
@@ -149,6 +163,9 @@ export const DEFAULTS: Preferences = {
 	reopenLastProject: true,
 	wireStyle: "curved",
 	roundedNodes: true,
+	// Truncating is what nodes already did, so the default changes nothing for
+	// anybody who does not go looking for it.
+	wideNodes: false,
 	docsFont: "system",
 	docsPreviewScale: 1,
 	layout: DEFAULT_LAYOUT,
@@ -196,6 +213,8 @@ export function readPreferences(): Preferences {
 			: DEFAULTS.wireStyle,
 		roundedNodes:
 			typeof stored.roundedNodes === "boolean" ? stored.roundedNodes : DEFAULTS.roundedNodes,
+		wideNodes:
+			typeof stored.wideNodes === "boolean" ? stored.wideNodes : DEFAULTS.wideNodes,
 		docsFont: DOCS_FONTS.some((f) => f.font === stored.docsFont)
 			? (stored.docsFont as DocsFont)
 			: DEFAULTS.docsFont,

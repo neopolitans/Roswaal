@@ -299,6 +299,26 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			</Row>
 
 			<Row
+				label="Long names"
+				help="A node's header is fixed at one width, so a long name is cut short with the whole of it in the tooltip. Widening instead moves the node's pins, so wires and the pictures in the documentation are drawn from the same width."
+			>
+				<div className="segmented">
+					<button
+						className={!prefs.wideNodes ? "on" : ""}
+						onClick={() => onPrefs({ wideNodes: false })}
+					>
+						Truncate
+					</button>
+					<button
+						className={prefs.wideNodes ? "on" : ""}
+						onClick={() => onPrefs({ wideNodes: true })}
+					>
+						Widen
+					</button>
+				</div>
+			</Row>
+
+			<Row
 				label="Write a graph"
 				help="There is no unsaved copy of a graph — the file is the document — so this is how long after your last edit it is written, not whether it is."
 			>

@@ -147,6 +147,18 @@ export interface PreviewGeometry {
 	 * are: the shape is what says the node is an expression.
 	 */
 	operatorRadius: number;
+	/** One character of a header title, and the space beside it. See `NODE`. */
+	titleCharWidth: number;
+	headerPadding: number;
+	/**
+	 * Draw a node wide enough for its header rather than truncating it.
+	 *
+	 * The reader's own setting, arriving the way the square-corner one does. It
+	 * belongs here rather than being read from preferences because `src/core`
+	 * cannot see them — and because a pin's position follows from the width, so
+	 * the picture and the canvas have to be computed from the same answer.
+	 */
+	wideNodes?: boolean;
 	fieldWidth: number;
 	fieldWide: number;
 	checkWidth: number;
@@ -323,9 +335,27 @@ export function previewSize(preview: NodePreview, g: PreviewGeometry): PreviewSi
 	}
 	const rows = Math.max(preview.inputs.length, preview.outputs.length, 1);
 	return {
-		width: g.width,
+		width: headerWidth(preview, g),
 		height: headHeight(preview, g) + rows * g.rowHeight + g.footer,
 	};
+}
+
+/**
+ * An ordinary node's width: the fixed one, or the header's when the reader has
+ * asked for wide nodes.
+ *
+ * The mirror of `nodeWidth` in `src/app/geometry.ts`, computed from the same
+ * constants — `titleCharWidth` and `headerPadding` come in on the geometry
+ * precisely so there is one estimate rather than two that differ by a fraction
+ * of a pixel. A pin's position follows from this, and `tests/preview.test.ts`
+ * holds the two against each other for every node in the library.
+ *
+ * The header is two lines, so the wider of the title and the subtitle decides.
+ */
+function headerWidth(preview: NodePreview, g: PreviewGeometry): number {
+	if (!g.wideNodes) return g.width;
+	const longest = Math.max(preview.title.length, (preview.subtitle ?? "").length);
+	return Math.round(Math.max(g.width, longest * g.titleCharWidth + g.headerPadding));
 }
 
 function headHeight(preview: NodePreview, g: PreviewGeometry): number {

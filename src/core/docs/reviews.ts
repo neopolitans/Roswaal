@@ -74,10 +74,18 @@ export const REVIEWS: Record<
 	// graph and the Luau it compiles to. Lune is marked experimental on the
 	// pages that mention it, which is what verifying them covers.
 	"types": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
+	// Verified for 0.31.4, once it described the picker itself rather than only
+	// the nodes: the grouped list, the field Other… opens for a type the list
+	// cannot show, and the two Declare Type shapes for a type that is a
+	// declaration rather than a name.
+	"casting": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
 	"variables-and-locals": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	"building-and-rojo": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	"hand-written-luau": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
-	"settings": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
+	// Read again for 0.31.4, when Long names was added to its table of
+	// preferences: a badge that covered text nobody had checked would be the
+	// one thing the ledger exists to prevent.
+	"settings": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
 	// Read by the author, who has not shipped the networking side.
 	"coming-from-blueprints": {
 		status: "reviewed",

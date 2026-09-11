@@ -178,7 +178,7 @@ export function literalOnlyPins(def: NodeDef): Set<string> {
  */
 export function nodeTitle(def: NodeDef | undefined, node: GraphNode): string {
 	if (node.label) return node.label;
-	const named = def?.defaultLabel?.(node.config ?? {});
+	const named = def?.defaultLabel?.(node.config ?? {}, node);
 	if (named) return named;
 	return def?.title ?? node.def;
 }

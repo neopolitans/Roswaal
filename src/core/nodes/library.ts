@@ -14,7 +14,7 @@
 
 import type { NodeDef, PinDef } from "../schema.js";
 import { PATH_ROOTS, ROBLOX_SERVICES } from "../roblox.js";
-import { pinTypeOf } from "./variables.js";
+import { pinTypeOf, typedLocalName } from "./variables.js";
 import { ENGINE_TYPES, LUAU, PAIR } from "../schema.js";
 
 /** The category for coordinates brought across from a Z-up tool. */
@@ -383,6 +383,20 @@ export const LIBRARY_NODES: NodeDef[] = [
 			inputs: LOCAL_INPUTS,
 			outputs: [exec("then"), d("ref", "Local", pinTypeOf(config.type as string | undefined))],
 		}),
+		/**
+		 * The name in brackets after the title, the way Declare Function shows
+		 * its own -- so a graph with four locals in it can be read without
+		 * opening any of them.
+		 *
+		 * Beside the title rather than instead of it: this node is one of two
+		 * ways to hold a value, and which one it is is the thing you are looking
+		 * at it to find out. Only when a name has been typed; an unnamed one
+		 * still reads "Declare Local" rather than announcing its fallback.
+		 */
+		defaultLabel: (_config, node) => {
+			const name = node ? typedLocalName(node) : "";
+			return name ? `Declare Local (${name})` : undefined;
+		},
 		// The type under the title, the way Declare Type shows the name it declares.
 		subtitle: (config) => (config.type as string | undefined)?.trim() || undefined,
 	},

@@ -50,6 +50,25 @@ export const NODE = {
 	compactMinWidth: 96,
 	compactCharWidth: 6.8,
 	compactPadding: 46,
+	/**
+	 * One character of a node's header title, and the space around it.
+	 *
+	 * Estimated rather than measured, for the reason `compactWidth` estimates:
+	 * the wire router cannot wait on a DOM layout, and a node a few pixels wider
+	 * than its text is better than a wire that arrives a frame late.
+	 *
+	 * **One number, used by both sides.** The canvas and the documentation's
+	 * pictures each compute a widened node's size, and a pin's position follows
+	 * from it — so two estimates that differed by a fraction of a pixel would
+	 * put a node and its own picture out of step. `PreviewGeometry` takes this
+	 * field for exactly that reason.
+	 */
+	titleCharWidth: 6.8,
+	/**
+	 * The header's own padding, plus room for what sits beside the title: the
+	 * latent hourglass, and the − / + a growable node carries.
+	 */
+	headerPadding: 54,
 	/** A reroute knot is a dot with a pin either side. */
 	rerouteSize: 22,
 	/**

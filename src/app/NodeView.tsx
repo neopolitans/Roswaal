@@ -9,7 +9,7 @@ import { nodeColor } from "./palette.js";
 import { pinColor } from "./palette.js";
 import {
 	compactLabel, compactWidth, headerHeight, isCompact, isOperator, isReroute,
-	operatorLayoutOf, resolvePins,
+	nodeWidth, operatorLayoutOf, resolvePins,
 } from "./geometry.js";
 
 const NEWLINE = String.fromCharCode(10);
@@ -25,6 +25,12 @@ export interface NodeViewProps {
 	node: GraphNode;
 	def: NodeDef | undefined;
 	selected: boolean;
+	/**
+	 * Widen the node to fit its header instead of cutting the title short.
+	 * The same answer the wire router is given, so the pins stay on the edge
+	 * the wires are drawn to.
+	 */
+	wideNodes?: boolean;
 	/**
 	 * This is the node the rest of the selection lines up on.
 	 *
@@ -90,7 +96,7 @@ function NodeViewInner(props: NodeViewProps) {
 	const style: CSSProperties = {
 		left: node.x,
 		top: node.y,
-		width: NODE.width,
+		width: nodeWidth(def, node, props.wideNodes),
 		zIndex: selected ? LAYER.nodeSelected : LAYER.node,
 	};
 

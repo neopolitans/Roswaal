@@ -1889,6 +1889,10 @@ function settingsPage(): DocPage {
 						"Rounded or square. Capsule getters and reroute knots keep their shapes either way — a pill and a circle are what say *this is a value* and *this is a bend in the wire*, and neither has a title to say it instead.",
 					],
 					[
+						"Long names",
+						"**Truncate** cuts a header too long for its node short, with the whole of it in the tooltip — what nodes have always done. **Widen** draws the node wide enough for its header instead. It is the one of these looks that moves *pins*, so the wire router and the pictures on these pages are computed from the same width: a node and its own picture are never two different sizes.",
+					],
+					[
 						"Write a graph",
 						"How long after your last edit a graph is written. A delay, not a switch — there is no unsaved copy of a graph, so switching it off would give you a document that quietly stops matching itself rather than a buffer.",
 					],
@@ -2369,6 +2373,33 @@ function castingBlocks(registry: Registry): Block[] {
 				"first, then the types **a required module exports**, written as you would write " +
 				"them (`Config.Tuning`), then the primitives, Roblox's values, and the instance " +
 				"classes. **Other…** takes any Luau type at all.",
+		},
+		{
+			t: "p",
+			text:
+				"You meet it in the **Inspector**, on the right, and it is two controls rather " +
+				"than one. While the type is a name the list holds, it is a **dropdown** grouped " +
+				"in that order. Choose **Other…** and it becomes a **text field** taking any Luau " +
+				"type at all, with the instance classes the list left out offered as suggestions " +
+				"behind it.",
+		},
+		{
+			t: "p",
+			text:
+				"A type the list cannot show — `{ [Model]: Restore }`, `Model?`, " +
+				"`(number) -> string` — opens that field **by itself**. That is the control saying " +
+				"this type is not one of the everyday ones, rather than a dropdown quietly unable " +
+				"to display its own value. Clearing the field means `any`.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"**Other… is not the only way out.** Where a type is a whole declaration rather " +
+				"than a name, declare it once and pick it by name afterwards: **Custom Luau** on a " +
+				"Declare Type node for a union or a function type, or **Type of a Value** for " +
+				"`typeof(Tuning)`. It then appears under *This graph* in every picker in the " +
+				"graph, which beats typing the same type expression into three of them.",
 		},
 		{
 			t: "p",

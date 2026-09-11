@@ -14,7 +14,7 @@ import { addNode, bindNodeToLocal, setLiteral, surfacesIn } from "../src/app/edi
 import { precedingLocals } from "../src/app/luauCompletions.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
-import { localNameOf } from "../src/core/nodes/variables.js";
+import { localNameOf, typedLocalName } from "../src/core/nodes/variables.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { Builder, body } from "./helpers.js";
 
@@ -136,6 +136,23 @@ describe("Get Local", () => {
 		expect(localNameOf({ literals: { name: { t: "string", v: "  " } } })).toBe("local");
 		expect(localNameOf({ label: "cache" })).toBe("cache");
 		expect(localNameOf({ label: "cache", literals: { name: { t: "string", v: "saved" } } })).toBe("saved");
+	});
+
+	/**
+	 * The node's header wants only the half that was typed.
+	 *
+	 * `localNameOf` answers "what will this local be called", and always has an
+	 * answer -- the label, else `local`. The header is asking something else:
+	 * "has this been named", where the fallback is not a name anybody chose and
+	 * showing it would read as one.
+	 */
+	it("separates the name that was typed from the one fallen back to", () => {
+		expect(typedLocalName({ literals: { name: { t: "string", v: "saved" } } })).toBe("saved");
+		expect(typedLocalName({ literals: { name: { t: "string", v: "  " } } })).toBe("");
+		expect(typedLocalName({})).toBe("");
+		// A label names the local for the emitter without being a typed name.
+		expect(typedLocalName({ literals: {} })).toBe("");
+		expect(localNameOf({ label: "cache" })).toBe("cache");
 	});
 });
 

@@ -66,6 +66,14 @@ export interface CanvasProps {
 	 * live wire being dragged uses the same style as the ones already placed.
 	 */
 	wireStyle?: WireStyle;
+	/**
+	 * Draw a node wide enough for its header rather than truncating it.
+	 *
+	 * Threaded in for the reason `wireStyle` is — but this one moves pins, so
+	 * the same answer has to reach the wire router and the node itself, or a
+	 * wire would end where the node used to be.
+	 */
+	wideNodes?: boolean;
 }
 
 type Gesture =
@@ -86,7 +94,7 @@ type Gesture =
 
 export function Canvas({
 	script, registry, diagnostics, onRequestMenu, onRequestPinMenu, onEditCode, onDropFile,
-	locked = false, wireStyle = "curved",
+	locked = false, wireStyle = "curved", wideNodes = false,
 }: CanvasProps) {
 	const { selection } = useEditor();
 	const view = useView();
@@ -326,7 +334,7 @@ export function Canvas({
 	function commitMarquee(box: Rect, additive: boolean) {
 		const hits: string[] = [];
 		for (const node of script.nodes) {
-			if (rectsIntersect(box, nodeBounds(node, registry))) hits.push(node.id);
+			if (rectsIntersect(box, nodeBounds(node, registry, wideNodes))) hits.push(node.id);
 		}
 		for (const c of script.comments) {
 			if (rectsIntersect(box, { x: c.x, y: c.y, w: c.w, h: c.h })) hits.push(c.id);
@@ -523,7 +531,7 @@ export function Canvas({
 		if (g.kind !== "wire" || !pointer) return null;
 		const node = nodesById.get(g.from.node);
 		if (!node) return null;
-		const anchor = pinPosition(node, registry, g.from.pin, g.side);
+		const anchor = pinPosition(node, registry, g.from.pin, g.side, wideNodes);
 		if (!anchor) return null;
 		return g.side === "out"
 			? wirePath(anchor, pointer, wireStyle)
@@ -662,8 +670,8 @@ export function Canvas({
 						const fromNode = nodesById.get(link.from.node);
 						const toNode = nodesById.get(link.to.node);
 						if (!fromNode || !toNode) return null;
-						const a = pinPosition(fromNode, registry, link.from.pin, "out");
-						const b = pinPosition(toNode, registry, link.to.pin, "in");
+						const a = pinPosition(fromNode, registry, link.from.pin, "out", wideNodes);
+						const b = pinPosition(toNode, registry, link.to.pin, "in", wideNodes);
 						if (!a || !b) return null;
 						const fromPin = pinDefOf(registry, script, link.from, "out");
 						const toPin = pinDefOf(registry, script, link.to, "in");
@@ -768,6 +776,7 @@ export function Canvas({
 						node={node}
 						def={registry.get(node.def)}
 						selected={selection.has(node.id)}
+						wideNodes={wideNodes}
 						anchor={node.id === anchorId}
 						errorCount={errorsByNode.get(node.id) ?? 0}
 						connected={connectedPins}

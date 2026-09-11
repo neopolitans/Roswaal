@@ -66,7 +66,11 @@ const DEFAULT_PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor, w
  */
 function previewFor(prefs: Preferences, registry: Registry): PreviewOptions {
 	return {
-		geometry: prefs.roundedNodes ? NODE : { ...NODE, radius: 0 },
+		geometry: {
+			...NODE,
+			...(prefs.roundedNodes ? {} : { radius: 0 }),
+			wideNodes: prefs.wideNodes,
+		},
 		nodeColor,
 		pinColor,
 		wirePath: (from, to) => wirePath(from, to, prefs.wireStyle),

@@ -47,6 +47,39 @@ describe("preview geometry", () => {
 		}
 	});
 
+	/**
+	 * And at the width the reader asked for.
+	 *
+	 * Widening is the one look that moves *pins*, so the picture and the canvas
+	 * have to agree about it as well. Each computes the header's width itself —
+	 * `nodeWidth` here, `headerWidth` there — and two estimates a fraction of a
+	 * pixel apart would put every wide node's wires out of step with its own
+	 * drawing. They are held to one constant on `NODE`, and this is what says so.
+	 */
+	it("is that size when nodes are widened too", () => {
+		const wide = { ...NODE, wideNodes: true };
+		for (const def of BUILTIN_NODES) {
+			const box = nodeBounds(placed(def), registry, true);
+			const size = previewSize(previewOf(def), wide);
+			expect(size, def.id).toEqual({ width: box.w, height: box.h });
+		}
+	});
+
+	/** A node whose header fits is left exactly as wide as it always was. */
+	it("widens only the nodes that need it", () => {
+		const short = registry.get("debug.print")!;
+		expect(nodeBounds(placed(short), registry, true).w).toBe(NODE.width);
+
+		// A Declare Local showing a long name is the case the option exists for.
+		const declare = registry.get("local.declare")!;
+		const named = {
+			id: "n", def: declare.id, x: 0, y: 0,
+			literals: { name: { t: "string", v: "restoresByCharacterModel" } },
+		} as const;
+		expect(nodeBounds(named, registry, true).w).toBeGreaterThan(NODE.width);
+		expect(nodeBounds(named, registry, false).w).toBe(NODE.width);
+	});
+
 	it("puts every pin row where a wire would attach to it", () => {
 		for (const def of BUILTIN_NODES) {
 			// A capsule, a knot and a pill put their pins somewhere other than a
