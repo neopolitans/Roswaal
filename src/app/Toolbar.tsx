@@ -162,7 +162,7 @@ export type DocumentBarProps =
 			dirty: boolean;
 			busy: string | null;
 			scriptClass: ScriptClass;
-			/** What the graph compiles for. Fixed when the graph was made. */
+			/** What the graph compiles for. A new graph takes the project's. */
 			target: Target;
 			typecheck: TypecheckMode;
 			/** The graph is being compiled and must not be edited. */
@@ -172,6 +172,7 @@ export type DocumentBarProps =
 			selected: number;
 			hasPath: boolean;
 			onScriptClass: (value: ScriptClass) => void;
+			onTarget: (value: Target) => void;
 			onTypecheck: (value: TypecheckMode) => void;
 			onAddNode: () => void;
 			onRealign: () => void;
@@ -205,16 +206,20 @@ export function DocumentBar(props: DocumentBarProps) {
 			<span className={`doc-name${props.dirty ? " dirty" : ""}`}>{props.name}</span>
 			{/* What the graph compiles for, always in view: a Roblox-only node in
 			    a Lune graph is an error, and that is the fact that explains it. */}
-			<span
-				className={`doc-target ${props.target}`}
+			<select
+				className={`tb doc-target ${props.target}`}
 				title={
 					props.target === "lune"
-						? "Compiles for Lune. Lune support is experimental, and Roblox-only nodes are errors here."
+						? "Compiles for Lune, which is experimental. Roblox-only nodes are errors here."
 						: "Compiles for Roblox."
 				}
+				value={props.target}
+				disabled={props.locked}
+				onChange={(e) => props.onTarget(e.target.value as Target)}
 			>
-				{props.target === "lune" ? "Lune · experimental" : "Roblox"}
-			</span>
+				<option value="roblox">Roblox</option>
+				<option value="lune">Lune (experimental)</option>
+			</select>
 			<select
 				className="tb"
 				title="What this graph compiles to"

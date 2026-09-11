@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { compile, type Diagnostic } from "../core/compiler/index.js";
+import { offTargetNodes } from "../core/compiler/validate.js";
 import { createRegistry, resolveNodePins } from "../core/nodes/index.js";
 import type { NodeDef, RoswaalConfig } from "../core/schema.js";
 import {
@@ -1181,6 +1182,25 @@ export function App() {
 					selected={editor.selection.size}
 					hasPath={editor.path !== null}
 					onScriptClass={(value) => store.edit((s) => ({ ...s, scriptClass: value }))}
+					onTarget={async (value) => {
+						// Nodes written only for the other target would all become
+						// errors, so say how many and ask before switching. The same
+						// test `validate` reports them with.
+						const off = offTargetNodes(editor.script!, registry, value);
+						if (off.length > 0) {
+							const name = value === "lune" ? "Lune" : "Roblox";
+							const ok = await ask({
+								kind: "confirm",
+								title: `Compile this graph for ${name}?`,
+								message:
+									`${off.length} node${off.length === 1 ? " is" : "s are"} ` +
+									`not available for ${name}, and will show as errors until removed.`,
+								confirmLabel: `Switch to ${name}`,
+							});
+							if (ok !== true) return;
+						}
+						store.edit((s) => ({ ...s, target: value }));
+					}}
 					onTypecheck={(value) => store.edit((s) => ({ ...s, typecheck: value }))}
 					onAddNode={() => {
 						const view = store.getView();

@@ -54,7 +54,7 @@ export const TAG_LABELS: Record<ReleaseTag, string> = {
 
 export type Block =
 	/** `aside` sits at the right of the heading: a date, a version, a status. */
-	| { t: "h"; level: 2 | 3; text: string; aside?: string }
+	| { t: "h"; level: 2 | 3 | 4; text: string; aside?: string }
 	| { t: "p"; text: string }
 	| { t: "ul"; items: string[] }
 	| { t: "ol"; items: string[] }
@@ -109,7 +109,14 @@ export type Block =
 	 * compiled for the code block underneath it — the picture and the Luau
 	 * cannot describe different graphs.
 	 */
-	| { t: "graph"; script: NodeScript; caption?: string };
+	| { t: "graph"; script: NodeScript; caption?: string }
+	/**
+	 * A fold: a summary line that opens onto more blocks. `<details>` in both
+	 * renderers, so a page can hold a long history without making every reader
+	 * scroll past all of it. `aside` sits at the right of the summary, as a
+	 * heading's does.
+	 */
+	| { t: "details"; summary: string; aside?: string; blocks: Block[] };
 
 export interface DocPage {
 	slug: string;
@@ -268,6 +275,8 @@ export function blockText(block: Block): string {
 			// an id is what somebody searching for a node in a guide will type.
 			return [...block.script.nodes.map((n) => n.def), block.caption ?? ""]
 				.join(" ").trim();
+		case "details":
+			return [block.summary, block.aside ?? "", ...block.blocks.map(blockText)].join(" ").trim();
 	}
 }
 
@@ -620,6 +629,56 @@ export function releaseTags(release: Release): ReleaseTag[] {
 	return tags;
 }
 
+/**
+ * One release: its version headed at `level`, and its sections a level below.
+ * 2 and 3 for the release shown in full; 3 and 4 inside a fold.
+ */
+function releaseBlocks(
+	release: Release, titles: ReadonlyMap<string, string>, level: 2 | 3,
+): Block[] {
+	const sub = level === 2 ? 3 : 4;
+	const blocks: Block[] = [{ t: "h", level, text: release.version, aside: release.date }];
+
+	const tags = releaseTags(release);
+	if (tags.length > 0) blocks.push({ t: "tags", tags });
+
+	blocks.push({ t: "p", text: release.headline });
+
+	if (release.watch) {
+		blocks.push({
+			t: "note",
+			kind: "warn",
+			text: "**Worth knowing before you upgrade.**",
+			items: release.watch,
+		});
+	}
+	// One entry per row rather than per bullet. A release note is a list of
+	// separate claims, and a rule between them reads as separate in a way a
+	// dot does not once an entry runs to four lines — which they do.
+	for (const [heading, entries] of [
+		["Added", release.added],
+		["Changed", release.changed],
+		["Fixed", release.fixed],
+	] as const) {
+		if (!entries || entries.length === 0) continue;
+		blocks.push({ t: "h", level: sub, text: heading });
+		blocks.push({ t: "table", rows: entries.map((entry) => [entry]) });
+	}
+	// Articles a person read, or checked end to end, in this release.
+	for (const [heading, slugs] of [
+		["Reviewed Articles", release.reviewed],
+		["Verified Articles", release.verified],
+	] as const) {
+		if (!slugs || slugs.length === 0) continue;
+		blocks.push({ t: "h", level: sub, text: heading });
+		blocks.push({
+			t: "table",
+			rows: slugs.map((slug) => [`[${titles.get(slug) ?? slug}](${slug})`]),
+		});
+	}
+	return blocks;
+}
+
 function releasesPage(titles: ReadonlyMap<string, string>): DocPage {
 	const blocks: Block[] = [
 		{
@@ -630,46 +689,25 @@ function releasesPage(titles: ReadonlyMap<string, string>): DocPage {
 		},
 	];
 
-	for (const release of RELEASES) {
-		blocks.push({ t: "h", level: 2, text: release.version, aside: release.date });
+	// The newest release in full, where it will be read. Every other one folds
+	// into its minor version — 0.28.x, 0.27.x — newest first: a reader after a
+	// particular version finds it by major and minor, and scrolling past twenty
+	// patch releases to get there had become most of the page.
+	const [latest, ...older] = RELEASES;
+	if (latest) blocks.push(...releaseBlocks(latest, titles, 2));
 
-		const tags = releaseTags(release);
-		if (tags.length > 0) blocks.push({ t: "tags", tags });
-
-		blocks.push({ t: "p", text: release.headline });
-
-		if (release.watch) {
-			blocks.push({
-				t: "note",
-				kind: "warn",
-				text: "**Worth knowing before you upgrade.**",
-				items: release.watch,
-			});
-		}
-		// One entry per row rather than per bullet. A release note is a list of
-		// separate claims, and a rule between them reads as separate in a way a
-		// dot does not once an entry runs to four lines — which they do.
-		for (const [heading, entries] of [
-			["Added", release.added],
-			["Changed", release.changed],
-			["Fixed", release.fixed],
-		] as const) {
-			if (!entries || entries.length === 0) continue;
-			blocks.push({ t: "h", level: 3, text: heading });
-			blocks.push({ t: "table", rows: entries.map((entry) => [entry]) });
-		}
-		// Articles a person read, or checked end to end, in this release.
-		for (const [heading, slugs] of [
-			["Reviewed Articles", release.reviewed],
-			["Verified Articles", release.verified],
-		] as const) {
-			if (!slugs || slugs.length === 0) continue;
-			blocks.push({ t: "h", level: 3, text: heading });
-			blocks.push({
-				t: "table",
-				rows: slugs.map((slug) => [`[${titles.get(slug) ?? slug}](${slug})`]),
-			});
-		}
+	const minors = new Map<string, Release[]>();
+	for (const release of older) {
+		const minor = release.version.split(".").slice(0, 2).join(".") + ".x";
+		minors.set(minor, [...(minors.get(minor) ?? []), release]);
+	}
+	for (const [minor, releases] of minors) {
+		blocks.push({
+			t: "details",
+			summary: minor,
+			aside: `${releases.length} ${releases.length === 1 ? "release" : "releases"} · ${releases[0].date}`,
+			blocks: releases.flatMap((release) => releaseBlocks(release, titles, 3)),
+		});
 	}
 
 	return {
@@ -684,6 +722,79 @@ function releasesPage(titles: ReadonlyMap<string, string>): DocPage {
 // ---------------------------------------------------------------------------
 // Hand-written pages
 // ---------------------------------------------------------------------------
+
+/**
+ * How to work on Roswaal itself. Written from the repository's own scripts
+ * and rules — `package.json`, the release-notes test, the review ledger — so
+ * every instruction here is one a reader can check against the code.
+ */
+const CONTRIBUTING: DocPage = {
+	slug: "contributing",
+	narrow: true,
+	title: "Contributing",
+	summary: "Building Roswaal, what a change brings with it, and where help is wanted.",
+	blocks: [
+		{
+			t: "p",
+			text:
+				"Roswaal lives at [github.com/neopolitans/Roswaal](https://github.com/neopolitans/Roswaal). " +
+				"It is 0BSD, and so is anything contributed to it.",
+		},
+
+		{ t: "h", level: 2, text: "Building it" },
+		{
+			t: "code",
+			lang: "sh",
+			text: [
+				"npm install",
+				"npm run dev          # the daemon and the editor, reloading as you edit",
+				"npm test             # the test suite",
+				"npm run typecheck",
+				"npm run build        # themes, the editor and the command line",
+				"npm run build:docs   # these docs, as a static site",
+			].join("\n"),
+		},
+
+		{ t: "h", level: 2, text: "What a change brings with it" },
+		{
+			t: "ul",
+			items: [
+				"**Tests**, in `tests/`, run with `npm test`.",
+				"**A release-notes entry** in `src/core/docs/releases.ts`, saying what changed, and the version bumped in `version.json` and `package.json`. A test fails when the notes and the version disagree.",
+				"**The reasoning**, in `NOTES.md`, for anything a later reader would otherwise have to work out again.",
+				"**Words that name the result.** `docs/WORDING.md` has the rules, and `docs/ARCHITECTURE.md` says where things live.",
+			],
+		},
+
+		{ t: "h", level: 2, text: "Reviewing the docs" },
+		{
+			t: "p",
+			text:
+				"Every page starts as **Pending review**. Someone who has read it marks it " +
+				"**Reviewed**; someone who has checked it against the editor end to end marks it " +
+				"**Verified**. Both are dated entries in `src/core/docs/reviews.ts`, and a reviewed " +
+				"page can say what a verified pass still needs.",
+		},
+		{
+			t: "ul",
+			items: [
+				"`npm run docs:reviews` lists where every page stands, oldest review first.",
+				"List the page under **Reviewed Articles** or **Verified Articles** in that release's notes. A test holds the two together.",
+				"When a page changes enough to need reading again, take its entry out.",
+			],
+		},
+
+		{ t: "h", level: 2, text: "Where help is wanted" },
+		{
+			t: "ul",
+			items: [
+				"**Lune.** The Lune target is experimental, and has not yet been tested by an experienced Lune developer.",
+				"**Networking on *Coming from Blueprints*.** The rows on replicated functions need checking by someone who has shipped multiplayer.",
+				"**Node reference pages.** Every one is still pending review.",
+			],
+		},
+	],
+};
 
 const GETTING_STARTED: DocPage = {
 	slug: "getting-started",
@@ -1424,9 +1535,9 @@ const BUILDING: DocPage = {
 		{
 			t: "p",
 			text:
-				"The same bar shows what the graph compiles for — **Roblox**, or **Lune** — which is " +
-				"set when the graph is made. A Roblox-only node in a Lune graph is an error on that " +
-				"node, and nothing is written.",
+				"The same bar shows what the graph compiles for — **Roblox**, or **Lune** — and " +
+				"changes it. A new graph takes the project's **Target** setting. A Roblox-only node in " +
+				"a Lune graph is an error on that node, and nothing is written.",
 		},
 		{
 			t: "note",
@@ -2075,7 +2186,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	// Every page's title by slug, so the release notes can name the articles
 	// they list without holding a second copy of each title.
 	const titles = new Map<string, string>([
-		...[...start, ...guides, attributions].map((p) => [p.slug, p.title] as const),
+		...[...start, ...guides, attributions, CONTRIBUTING].map((p) => [p.slug, p.title] as const),
 		...nodes.map((doc) => [`node/${doc.id}`, doc.title] as const),
 	]);
 
@@ -2090,6 +2201,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				pages: [releasesPage(titles)],
 			},
 			{ title: "Attributions", slug: "attributions", group: GROUPS.learn, pages: [attributions] },
+			{ title: "Contributing", slug: "contributing", group: GROUPS.learn, pages: [CONTRIBUTING] },
 			...reference(GROUPS.builtin, false),
 			...engineTypeSections(),
 			...conversionSections(),
@@ -2099,7 +2211,9 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 }
 
 /**
- * Every page but a pack's, carrying its review.
+ * Every page but a pack's and the release notes, carrying its review. The
+ * release notes are a record of what changed, written as each release is made,
+ * not an article a person reads through and vouches for.
  *
  * Copies rather than writes, because the hand-written pages are module
  * constants shared by every build of the site.
@@ -2108,7 +2222,9 @@ function withReviews(sections: DocSection[]): DocSection[] {
 	return sections.map((section) => ({
 		...section,
 		pages: section.pages.map((page) =>
-			page.custom ? page : { ...page, review: reviewOf(page.slug) },
+			page.custom || page.slug === "release-notes"
+				? page
+				: { ...page, review: reviewOf(page.slug) },
 		),
 	}));
 }

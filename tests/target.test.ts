@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 
 import { compile } from "../src/core/compiler/index.js";
+import { offTargetNodes } from "../src/core/compiler/validate.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { buildSite, findPage } from "../src/core/docs/site.js";
 import { BUILTIN_NODES } from "../src/core/nodes/index.js";
@@ -41,6 +42,14 @@ describe("a node for the other target", () => {
 		const { script } = withService("roblox");
 		const messages = compile(script, registry).diagnostics.map((d) => d.message);
 		expect(messages.join("\n")).not.toContain("only works in");
+	});
+});
+
+describe("switching a graph's target", () => {
+	it("names the nodes that would become errors, and only those", () => {
+		const { script, service } = withService("roblox");
+		expect(offTargetNodes(script, registry, "lune").map((n) => n.id)).toEqual([service]);
+		expect(offTargetNodes(script, registry, "roblox")).toEqual([]);
 	});
 });
 

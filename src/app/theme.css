@@ -3579,20 +3579,70 @@ button.tb.with-icon {
 	flex: none;
 }
 
-/* What the open graph compiles for, beside its name. Lune takes the warning
-   colour, because it is experimental and it is where Roblox nodes fail. */
-.docbar .doc-target {
-	font-size: 11px;
-	color: var(--fg-muted);
-	border: 1px solid var(--border);
-	border-radius: 999px;
-	padding: 1px 8px;
-	white-space: nowrap;
-}
-
-.docbar .doc-target.lune {
+/* What the open graph compiles for, beside its name, and where it is changed.
+   Lune takes the warning colour, because it is experimental and it is where
+   Roblox nodes fail. */
+.docbar select.doc-target.lune {
 	color: var(--warning);
 	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+/* Release history, folded by minor version: one summary line per fold, its
+   count and date at the right where a heading keeps its aside. */
+.docs-content details.docs-details {
+	border-top: 1px solid var(--border);
+	padding: 10px 0;
+}
+
+.docs-content details.docs-details:last-child {
+	border-bottom: 1px solid var(--border);
+}
+
+.docs-content details.docs-details > summary {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	cursor: pointer;
+	list-style: none;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.docs-content details.docs-details > summary::-webkit-details-marker {
+	display: none;
+}
+
+.docs-content details.docs-details > summary::before {
+	content: "▸";
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.docs-content details.docs-details[open] > summary::before {
+	content: "▾";
+}
+
+.docs-content details.docs-details > summary .aside,
+.docs-content h3 .aside {
+	margin-left: auto;
+	font-size: 12px;
+	font-weight: 400;
+	color: var(--fg-faint);
+}
+
+.docs-content details.docs-details h3 {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin-top: 22px;
+}
+
+.docs-page .docs-content h4 {
+	margin: 14px 0 6px;
+	font-size: 11.5px;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--fg-muted);
 }
 
 /* The reader's chosen face for the docs, from Settings → Docs. Headings and

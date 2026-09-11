@@ -444,14 +444,28 @@ function Highlighted({ source }: { source: string }) {
 
 function BlockView({ block }: { block: Block }) {
 	switch (block.t) {
-		case "h":
-			return block.level === 2 ? (
-				<h2 id={headingId(block.text)}>
-					<Rich text={block.text} />
-					{block.aside && <span className="aside">{block.aside}</span>}
-				</h2>
-			) : (
-				<h3><Rich text={block.text} /></h3>
+		case "h": {
+			const aside = block.aside && <span className="aside">{block.aside}</span>;
+			if (block.level === 2) {
+				return (
+					<h2 id={headingId(block.text)}>
+						<Rich text={block.text} />
+						{aside}
+					</h2>
+				);
+			}
+			const Heading = block.level === 3 ? "h3" : "h4";
+			return <Heading><Rich text={block.text} />{aside}</Heading>;
+		}
+		case "details":
+			return (
+				<details className="docs-details">
+					<summary>
+						<Rich text={block.summary} />
+						{block.aside && <span className="aside">{block.aside}</span>}
+					</summary>
+					{block.blocks.map((inner, i) => <BlockView key={i} block={inner} />)}
+				</details>
 			);
 		case "p":
 			return <p><Rich text={block.text} /></p>;

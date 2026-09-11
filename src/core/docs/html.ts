@@ -119,12 +119,12 @@ export function headingId(text: string): string {
 
 function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 	switch (block.t) {
-		case "h":
+		case "h": {
+			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
 			return block.level === 2
-				? `<h2 id="${headingId(block.text)}">${inline(block.text, up)}` +
-					(block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "") +
-					`</h2>`
-				: `<h3>${inline(block.text, up)}</h3>`;
+				? `<h2 id="${headingId(block.text)}">${inline(block.text, up)}${aside}</h2>`
+				: `<h${block.level}>${inline(block.text, up)}${aside}</h${block.level}>`;
+		}
 		case "p":
 			return `<p>${inline(block.text, up)}</p>`;
 		case "ul":
@@ -191,6 +191,15 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				? `<figcaption>${inline(block.caption, up)}</figcaption>`
 				: "";
 			return `<figure class="docs-preview"><div class="row">${svgs}</div>${caption}</figure>`;
+		}
+		case "details": {
+			// A plain `<details>`: it opens and closes with no script at all.
+			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
+			const inner = block.blocks.map((b) => renderBlock(b, options, up)).join("\n");
+			return (
+				`<details class="docs-details"><summary>${inline(block.summary, up)}${aside}</summary>\n` +
+				`${inner}\n</details>`
+			);
 		}
 	}
 }

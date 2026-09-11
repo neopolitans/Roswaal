@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import {
 	allPages, blockText, buildSearchIndex, buildSite, findPage, GROUPS, parseInline,
-	releaseTags, searchDocs, TAG_LABELS,
+	releaseTags, searchDocs, TAG_LABELS, type Block,
 } from "../src/core/docs/site.js";
 import { RELEASES } from "../src/core/docs/releases.js";
 import { VERSION } from "../src/cli/version.js";
@@ -131,12 +131,24 @@ describe("the site", () => {
 });
 
 describe("release notes", () => {
-	it("has a page, newest first", () => {
+	/**
+	 * The newest release is read; the rest are looked up, by major and minor
+	 * first. So one in full, and every other inside its minor version's fold.
+	 */
+	it("shows the newest release in full, and folds the rest by minor version", () => {
 		const page = findPage(site, "release-notes")!;
-		expect(page).toBeDefined();
 		const headings = page.blocks.filter((b) => b.t === "h" && b.level === 2);
-		expect(headings.length).toBe(RELEASES.length);
+		expect(headings).toHaveLength(1);
 		expect(blockText(headings[0])).toContain(RELEASES[0].version);
+
+		const minor = (v: string) => v.split(".").slice(0, 2).join(".") + ".x";
+		const folds = page.blocks.filter((b): b is Block & { t: "details" } => b.t === "details");
+		expect(folds.map((f) => f.summary))
+			.toEqual([...new Set(RELEASES.slice(1).map((r) => minor(r.version)))]);
+		for (const release of RELEASES.slice(1)) {
+			const fold = folds.find((f) => f.summary === minor(release.version))!;
+			expect(blockText(fold), release.version).toContain(release.version);
+		}
 	});
 
 	/**

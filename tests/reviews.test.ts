@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import { allPages, buildSite, findPage } from "../src/core/docs/site.js";
+import { allPages, buildSite, findPage, type Block } from "../src/core/docs/site.js";
 import { renderPage } from "../src/core/docs/html.js";
 import {
 	formatReviewDate, REVIEW_DETAILS, REVIEW_LABELS, REVIEWS, reviewLine, reviewOf,
@@ -21,10 +21,19 @@ const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
 const site = buildSite(createRegistry(), builtinIds);
 
 describe("page reviews", () => {
-	it("gives every built-in page a review", () => {
+	it("gives every built-in page a review but the release notes", () => {
 		for (const page of allPages(site)) {
+			if (page.slug === "release-notes") continue;
 			expect(page.review, page.slug).toBeDefined();
 		}
+	});
+
+	it("leaves the release notes without a badge or a footer", () => {
+		const notes = findPage(site, "release-notes")!;
+		expect(notes.review).toBeUndefined();
+		const html = renderPage(site, notes, { version: "test" });
+		expect(html).not.toContain("docs-status");
+		expect(html).not.toContain("docs-reviewed");
 	});
 
 	it("leaves a node pack's pages out", () => {
@@ -67,7 +76,11 @@ describe("page reviews", () => {
 
 	it("lists the articles as links in the release notes", () => {
 		const notes = findPage(site, "release-notes")!;
-		const rows = notes.blocks.flatMap((b) => (b.t === "table" ? b.rows.flat() : []));
+		const tableRows = (blocks: Block[]): string[] =>
+			blocks.flatMap((b) =>
+				b.t === "table" ? b.rows.flat() : b.t === "details" ? tableRows(b.blocks) : [],
+			);
+		const rows = tableRows(notes.blocks);
 		expect(rows).toContain("[Wires and pins](wires-and-pins)");
 		expect(rows).toContain("[Coming from Blueprints](coming-from-blueprints)");
 	});

@@ -54,6 +54,20 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.29.0",
+		date: "2026-09-11",
+		headline: "Change a graph's target, and a shorter history.",
+		added: [
+			"**A graph's target can be changed** from the bar above the canvas. Switching to Lune asks first when the graph has Roblox-only nodes, which would become errors.",
+			"**Contributing**, a page on building Roswaal, what a change brings with it, and where help is wanted.",
+		],
+		changed: [
+			"**Release notes show the latest release in full** and fold every other one into its minor version — 0.28.x, 0.27.x — to open when wanted.",
+			"**Release notes carry no review badge.**",
+			"**The README says Lune support is experimental.**",
+		],
+	},
+	{
 		version: "0.28.0",
 		date: "2026-09-11",
 		headline: "The target in view, and five pages verified.",

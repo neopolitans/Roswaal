@@ -7,12 +7,24 @@
  * context.
  */
 
-import type { NodeScript, Target } from "../schema.js";
+import type { GraphNode, NodeScript, Target } from "../schema.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
+
+/**
+ * The nodes in a graph written only for targets other than `target`: what
+ * would become errors if the graph compiled for it. The editor asks before a
+ * switch that would make any.
+ */
+export function offTargetNodes(script: NodeScript, registry: Registry, target: Target): GraphNode[] {
+	return script.nodes.filter((node) => {
+		const def = registry.get(node.def);
+		return def?.targets !== undefined && !def.targets.includes(target);
+	});
+}
 
 /** How a target is named in a message. */
 const TARGET_NAMES: Record<Target, string> = { roblox: "Roblox", lune: "Lune" };

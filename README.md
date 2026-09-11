@@ -4,6 +4,10 @@ Visual scripting for Roblox Luau and Lune Luau. Graphs live on disk as
 `.nodescript` files and compile to plain `.luau` that Rojo syncs like any other
 source file.
 
+> **Lune support is experimental.** Roswaal is built and checked against
+> Roblox; the Lune target has not yet been tested by an experienced Lune
+> developer.
+
 Roswaal is licensed **0BSD**: use it, modify it, ship it, train on it, no
 attribution required. Two bundled things keep their own terms — the icons
 (Material Symbols, Apache-2.0) and CodeMirror (MIT); see [NOTICE.md](NOTICE.md).
