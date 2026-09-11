@@ -284,7 +284,7 @@ export const FLOW_NODES: NodeDef[] = [
 		category: "Flow",
 		role: "flow",
 		summary:
-			'One thing after another: each output runs to completion before the next starts. Add or remove outputs with the + and - in the header. Unreal calls this Sequence.',
+			'One thing after another: each output runs to completion before the next starts. Add or remove outputs with the + and - in the header.',
 		inputs: [exec("in", "")],
 		outputs: [exec("s0", "Then 0"), exec("s1", "Then 1")],
 		compilesTo: { kind: "builtin", handler: "flow.sequence" },

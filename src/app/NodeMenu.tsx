@@ -6,8 +6,7 @@
  * Alongside the node types it lists *presets*: one entry per variable and per
  * function in the open graph, so "Get health" and "Set health" are things you
  * search for by name rather than dropping a generic node and then pointing it
- * at something. Blueprints does the same, and for the same reason — the name
- * is what you have in mind, not the node type.
+ * at something, because the name is what you have in mind, not the node type.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -32,7 +31,7 @@ export interface MenuAnchor {
 	 * Set when a wire is released over empty canvas. It does two things: the
 	 * list is narrowed to nodes that could actually take the wire, and the node
 	 * you pick is wired up on arrival — which is the whole point, and what
-	 * Blueprints has done for a decade.
+	 * anyone who already knows node graphs will expect.
 	 */
 	from?: { ref: PinRef; side: "in" | "out"; pin: PinDef };
 }

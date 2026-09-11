@@ -564,7 +564,7 @@ export function Canvas({
 				e.preventDefault();
 				const { id } = JSON.parse(raw) as { id: string };
 				const world = toWorld(e.clientX, e.clientY);
-				// Ctrl gives a Set instead of a Get, the way Blueprints do it.
+				// Ctrl gives a Set instead of a Get, the convention node editors use.
 				const defId = e.ctrlKey ? "variable.set" : "variable.get";
 				const def = registry.get(defId);
 				if (!def) return;
@@ -650,9 +650,10 @@ export function Canvas({
 										// Shift- or alt-click severs a wire without a menu round
 										// trip. Two modifiers because neither is obviously the
 										// one: shift is what already clears a pin, and alt is
-										// what Blueprints uses. Both land on the same idea of
-										// "take this connection away", and a wire is not
-										// selectable, so neither modifier had another job here.
+										// what node editors conventionally use. Both land on
+										// the same idea of "take this connection away", and a
+										// wire is not selectable, so neither modifier had
+										// another job here.
 										if (!e.shiftKey && !e.altKey) return;
 										e.stopPropagation();
 										store.edit((s) => removeLink(s, link.id, registry));

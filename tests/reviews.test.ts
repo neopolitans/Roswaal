@@ -14,6 +14,7 @@ import { renderPage } from "../src/core/docs/html.js";
 import {
 	formatReviewDate, REVIEW_DETAILS, REVIEW_LABELS, REVIEWS, reviewLine, reviewOf,
 } from "../src/core/docs/reviews.js";
+import { RELEASES } from "../src/core/docs/releases.js";
 import type { NodeDef } from "../src/core/schema.js";
 
 const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
@@ -47,6 +48,30 @@ describe("page reviews", () => {
 		}
 	});
 
+	/**
+	 * A release that says it verified a page has to be telling the truth about
+	 * the ledger, or the two will drift the first time either is edited.
+	 */
+	it("agrees with the release notes about what was reviewed and verified", () => {
+		for (const release of RELEASES) {
+			for (const slug of release.reviewed ?? []) {
+				expect(findPage(site, slug), `${release.version} reviewed "${slug}"`).toBeDefined();
+				expect(["reviewed", "verified"], slug).toContain(REVIEWS[slug]?.status);
+			}
+			for (const slug of release.verified ?? []) {
+				expect(findPage(site, slug), `${release.version} verified "${slug}"`).toBeDefined();
+				expect(REVIEWS[slug]?.status, slug).toBe("verified");
+			}
+		}
+	});
+
+	it("lists the articles as links in the release notes", () => {
+		const notes = findPage(site, "release-notes")!;
+		const rows = notes.blocks.flatMap((b) => (b.t === "table" ? b.rows.flat() : []));
+		expect(rows).toContain("[Wires and pins](wires-and-pins)");
+		expect(rows).toContain("[Coming from Blueprints](coming-from-blueprints)");
+	});
+
 	it("has a label and a meaning for every status", () => {
 		for (const status of ["pending", "reviewed", "verified"] as const) {
 			expect(REVIEW_LABELS[status]).not.toBe("");
@@ -67,12 +92,24 @@ describe("the last-reviewed line", () => {
 			.toBe("Last reviewed 11 September 2026");
 	});
 
-	it("puts the badge by the title and the line at the foot of a static page", () => {
+	it("puts the badge under the summary and the line at the foot of a static page", () => {
 		const page = findPage(site, "wires-and-pins")!;
 		const html = renderPage(site, { ...page, review: { status: "reviewed", date: "2026-09-11" } }, {
 			version: "test",
 		});
-		expect(html).toMatch(/<h1>Wires and pins<span class="badge review reviewed"[^>]*>Reviewed<\/span><\/h1>/);
+		expect(html).toContain("<h1>Wires and pins</h1>");
+		expect(html).toMatch(
+			/<p class="summary">[^<]*<\/p>\n<p class="docs-status"><span class="badge review reviewed"[^>]*>Reviewed<\/span><\/p>/,
+		);
 		expect(html).toContain(`<p class="docs-reviewed">Last reviewed 11 September 2026</p>`);
+		expect(html).not.toContain("docs-verify");
+	});
+
+	it("says what a verified pass still needs, under the date", () => {
+		const page = findPage(site, "coming-from-blueprints")!;
+		const html = renderPage(site, page, { version: "test" });
+		expect(html).toMatch(
+			/<p class="docs-reviewed">[^<]*<\/p>\n<p class="docs-verify"><strong>To verify:<\/strong> [^\n]*Networking/,
+		);
 	});
 });

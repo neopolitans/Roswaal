@@ -28,14 +28,17 @@
  *
  * ## What is deliberately not drawn
  *
- * The editor's affordances: the +/− buttons on a variadic node, the error
- * badge, the selection ring, the hover states. This is a picture of a node, not
- * a picture of the editor, and a reader hunting for a node they can see in
- * their own graph is not helped by chrome that only appears when they interact
- * with it.
+ * The editor's affordances that come and go: the error badge, the selection
+ * ring, the hover states. This is a picture of a node, not a picture of the
+ * editor, and a reader hunting for a node they can see in their own graph is
+ * not helped by chrome that only appears when they interact with it.
+ *
+ * The − and + on a node that takes a list *are* drawn, and so is the dashed
+ * **default** on an optional input. The canvas shows both on every such node,
+ * all the time, so they are part of what the node looks like.
  */
 
-import type { GraphNode, NodeDef, NodeScript, PinDef } from "../schema.js";
+import type { GraphNode, Literal, NodeConfig, NodeDef, NodeScript, PinDef } from "../schema.js";
 import { nodeTitle, resolveNodePins, type Registry } from "../nodes/index.js";
 
 // ---------------------------------------------------------------------------
@@ -49,10 +52,15 @@ import { nodeTitle, resolveNodePins, type Registry } from "../nodes/index.js";
  * checkbox, and `constant` the plain right-aligned Luau a pin falls back to
  * when its type has no literal form — `Vector3.zero` and its like, which the
  * canvas shows and does not let you edit.
+ *
+ * `unset` is an optional pin nobody has set: the dashed **default**, meaning
+ * the argument is not passed. `clearable` is a set optional pin, which carries
+ * the × that unsets it.
  */
 export type PreviewValue =
-	| { shape: "field" | "choice" | "constant"; text: string }
-	| { shape: "check"; on: boolean };
+	| { shape: "field" | "choice" | "constant"; text: string; clearable?: boolean }
+	| { shape: "check"; on: boolean; clearable?: boolean }
+	| { shape: "unset" };
 
 export interface PreviewPin {
 	id: string;
@@ -90,6 +98,11 @@ export interface NodePreview {
 	latent: boolean;
 	inputs: PreviewPin[];
 	outputs: PreviewPin[];
+	/**
+	 * A placed node's own config, so the header buttons can say whether another
+	 * pin would fit. Absent on a palette preview, which is at its minimum.
+	 */
+	config?: NodeConfig;
 }
 
 /**
@@ -129,6 +142,19 @@ export interface PreviewOptions {
 	 * them — a picture missing a line is honest, a wrong curve is not.
 	 */
 	wirePath?: (from: { x: number; y: number }, to: { x: number; y: number }) => string;
+	/**
+	 * Which of a node's header buttons are live, or null for a node that cannot
+	 * grow. Passed in with the colours; the rule is `growthState`, shared with
+	 * the editor. Absent, no buttons are drawn.
+	 */
+	growth?: (preview: NodePreview) => { canAdd: boolean; canRemove: boolean } | null;
+	/**
+	 * How large a single node picture is drawn, as a multiple of canvas size.
+	 * Only the outer size changes; the drawing inside is the same numbers,
+	 * stretched by its viewBox. A whole graph ignores this: its frame is sized by
+	 * whoever shows it, and the pan-and-zoom viewer does the scaling.
+	 */
+	scale?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,10 +197,22 @@ function previewPin(pin: PinDef, side: "in" | "out"): PreviewPin {
 	};
 }
 
-/** Mirrors `renderLiteral` in `NodeView`: which editor a pin actually shows. */
-function valueOf(pin: PinDef): PreviewValue | undefined {
+/**
+ * Mirrors `renderLiteral` in `NodeView`: which editor a pin actually shows.
+ *
+ * `typed` is the node's own value for the pin, if it has one. It matters for an
+ * optional pin, which reads **default** until something is typed into it.
+ */
+function valueOf(pin: PinDef, typed?: Literal): PreviewValue | undefined {
 	if (pin.kind !== "data" || pin.required === true) return undefined;
-	const literal = pin.default;
+	if (pin.optional === true && typed === undefined) return { shape: "unset" };
+	const value = editorOf(pin, typed ?? pin.default);
+	return value && pin.optional === true ? { ...value, clearable: true } : value;
+}
+
+function editorOf(
+	pin: PinDef, literal: Literal | undefined,
+): Exclude<PreviewValue, { shape: "unset" }> | undefined {
 	if (!literal) return undefined;
 
 	switch (literal.t) {
@@ -276,6 +314,7 @@ const TYPE = {
 	label: 11,
 	value: 11,
 	constant: 10,
+	unset: 10,
 	/** Roughly the width of one character, as a fraction of the font size. */
 	ratio: 0.55,
 	/** Monospace is wider and more even. */
@@ -334,8 +373,9 @@ export function previewSvg(preview: NodePreview, options: PreviewOptions): strin
 				? drawCapsule(preview, options)
 				: drawNode(preview, options);
 
+	const scale = options.scale ?? 1;
 	return (
-		`<svg class="node-preview" width="${n(width)}" height="${n(height)}" ` +
+		`<svg class="node-preview" width="${n(width * scale)}" height="${n(height * scale)}" ` +
 		`viewBox="0 0 ${n(width)} ${n(height)}" ` +
 		`xmlns="http://www.w3.org/2000/svg" role="img" ` +
 		`aria-label="${escapeXml(describe(preview))}">${body}</svg>`
@@ -373,7 +413,9 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	// Header text. White with no shadow: the shadow on the canvas is there to
 	// survive a header colour picked by a pack, and the palette's own are all
 	// dark enough not to need it at this size.
-	const titleRoom = width - 18 - (preview.latent ? 14 : 0);
+	const growth = options.growth?.(preview) ?? null;
+	const buttons = growth ? GROW.size * 2 + GROW.gap + 4 : 0;
+	const titleRoom = width - 18 - (preview.latent ? 14 : 0) - buttons;
 	if (preview.subtitle) {
 		parts.push(
 			text(9, 16.75, fit(preview.title, titleRoom, TYPE.title), {
@@ -394,11 +436,12 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	}
 	if (preview.latent) {
 		parts.push(
-			text(width - 9, head / 2, "⏳", {
+			text(width - 9 - buttons, head / 2, "⏳", {
 				size: TYPE.subtitle, fill: "#fff", opacity: 0.85, anchor: "end",
 			}),
 		);
 	}
+	if (growth) parts.push(drawGrowth(width, head, growth));
 
 	const rows = Math.max(preview.inputs.length, preview.outputs.length, 1);
 	for (let i = 0; i < rows; i++) {
@@ -448,9 +491,32 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	return parts.join("");
 }
 
+/** `.node .head .grow button`: 16px squares, 2px apart, 8px in from the edge. */
+const GROW = { size: 16, gap: 2, inset: 8 } as const;
+
 /**
- * The capsule getter: a pill with its name and one output, which is how Unreal
- * draws a variable getter and why the shape alone says "value, not a step".
+ * The − and + a node that takes a list carries in its header. A button that
+ * would take the node past its limit fades to 0.3, which is how the canvas
+ * shows it disabled.
+ */
+function drawGrowth(
+	width: number, head: number, growth: { canAdd: boolean; canRemove: boolean },
+): string {
+	const y = (head - GROW.size) / 2;
+	const button = (x: number, glyph: string, live: boolean) =>
+		`<g${live ? "" : ` opacity="0.3"`}>` +
+		`<rect x="${n(x + 0.5)}" y="${n(y + 0.5)}" width="${GROW.size - 1}" height="${GROW.size - 1}" ` +
+		`rx="3" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.35)"/>` +
+		text(x + GROW.size / 2, y + GROW.size / 2, glyph, { size: 12, fill: "#fff", anchor: "middle" }) +
+		`</g>`;
+	const plus = width - GROW.inset - GROW.size;
+	return button(plus - GROW.gap - GROW.size, "−", growth.canRemove) + button(plus, "+", growth.canAdd);
+}
+
+/**
+ * The capsule getter: a pill with its name and one output, which is how node
+ * editors usually draw a variable getter, and why the shape alone says "value,
+ * not a step".
  */
 function drawCapsule(preview: NodePreview, options: PreviewOptions): string {
 	const g = options.geometry;
@@ -558,6 +624,32 @@ function arrow(x: number, y: number, w: number, h: number): string {
  * the pin's label knows how much room is left for it.
  */
 function drawValue(value: PreviewValue, right: number, y: number): { svg: string; left: number } {
+	// `.node .literal.unset`: a dashed box, the word in italics, nothing behind it.
+	if (value.shape === "unset") {
+		const label = "default";
+		const w = Math.round(textWidth(label, TYPE.unset) + 12);
+		const x = right - w;
+		const box =
+			`<rect x="${n(x + 0.5)}" y="${n(y - FIELD.height / 2 + 0.5)}" width="${n(w - 1)}" ` +
+			`height="${n(FIELD.height - 1)}" rx="3" fill="none" ` +
+			`stroke="var(--border-strong, #9aa2af)" stroke-dasharray="3 2"/>`;
+		return {
+			svg: box + text(x + 6, y, label, { size: TYPE.unset, fill: "var(--fg-faint, #8b93a0)", italic: true }),
+			left: x,
+		};
+	}
+
+	// A set optional pin: its editor, with the × that unsets it at the right.
+	if (value.clearable) {
+		const inner = drawValue({ ...value, clearable: false }, right - 12, y);
+		return {
+			svg: inner.svg + text(right - 5, y, "×", {
+				size: 12, fill: "var(--fg-faint, #8b93a0)", anchor: "middle",
+			}),
+			left: inner.left,
+		};
+	}
+
 	if (value.shape === "check") {
 		const size = FIELD.check;
 		const x = right - size;
@@ -612,8 +704,9 @@ interface TextOptions {
 	fill: string;
 	weight?: number;
 	opacity?: number;
-	anchor?: "start" | "end";
+	anchor?: "start" | "middle" | "end";
 	mono?: boolean;
+	italic?: boolean;
 }
 
 /**
@@ -634,7 +727,8 @@ function text(x: number, y: number, body: string, options: TextOptions): string 
 			? `font-family="Cascadia Mono, Consolas, ui-monospace, monospace"`
 			: `font-family="inherit"`,
 		options.weight ? `font-weight="${options.weight}"` : "",
-		options.anchor === "end" ? `text-anchor="end"` : "",
+		options.anchor === "end" || options.anchor === "middle" ? `text-anchor="${options.anchor}"` : "",
+		options.italic ? `font-style="italic"` : "",
 		options.opacity !== undefined ? `opacity="${options.opacity}"` : "",
 		`fill="${options.fill}"`,
 	].filter(Boolean);
@@ -681,11 +775,10 @@ export function previewOfPlaced(
 			// field behind a connected pin is the one thing the canvas never does.
 			// Otherwise the graph's own literal wins over the pin's default —
 			// a Print in a worked example should show the string it prints.
-			value: isWired("in", pin.id)
-				? undefined
-				: valueOf({ ...pin, default: node.literals?.[pin.id] ?? pin.default }),
+			value: isWired("in", pin.id) ? undefined : valueOf(pin, node.literals?.[pin.id]),
 		})),
 		outputs: outputs.map((pin) => ({ ...previewPin(pin, "out"), wired: isWired("out", pin.id) })),
+		config: node.config,
 	};
 }
 
@@ -795,6 +888,7 @@ export function graphSvg(
 	// Wires first, so a curve passes behind the nodes it joins rather than over
 	// their headers — the same order the canvas stacks them in.
 	const wires: string[] = [];
+	const key = graphKey(script);
 	if (options.wirePath) {
 		for (const link of script.links) {
 			const from = byId.get(link.from.node);
@@ -805,10 +899,32 @@ export function graphSvg(
 			if (!a || !b) continue;
 
 			const pin = from.preview.outputs.find((p) => p.id === link.from.pin);
+			const target = to.preview.inputs.find((p) => p.id === link.to.pin);
 			const exec = pin?.kind === "exec";
+			const fromColour = options.pinColor(pin?.type, "data");
+			const toColour = options.pinColor(target?.type, "data");
+
+			// A data wire whose ends are different colours fades from one to the
+			// other, with the same stops the canvas uses — a wire that changes type
+			// on the way is exactly what a picture of wiring has to show.
+			let stroke = exec ? "var(--wire-exec, #d8dbe0)" : fromColour;
+			let gradient = "";
+			if (!exec && fromColour !== toColour) {
+				const id = `wire-${key}-${link.id.replace(/[^A-Za-z0-9_-]/g, "_")}`;
+				gradient =
+					`<linearGradient id="${id}" gradientUnits="userSpaceOnUse" ` +
+					`x1="${n(a.x)}" y1="${n(a.y)}" x2="${n(b.x)}" y2="${n(b.y)}">` +
+					`<stop offset="0%" stop-color="${escapeXml(fromColour)}"/>` +
+					`<stop offset="18%" stop-color="${escapeXml(fromColour)}"/>` +
+					`<stop offset="82%" stop-color="${escapeXml(toColour)}"/>` +
+					`<stop offset="100%" stop-color="${escapeXml(toColour)}"/>` +
+					`</linearGradient>`;
+				stroke = `url(#${id})`;
+			}
 			wires.push(
+				gradient +
 				`<path d="${escapeXml(options.wirePath(a, b))}" fill="none" ` +
-				`stroke="${escapeXml(exec ? "var(--wire-exec, #d8dbe0)" : options.pinColor(pin?.type, "data"))}" ` +
+				`stroke="${escapeXml(stroke)}" ` +
 				`stroke-width="${exec ? 2.4 : 1.8}" opacity="${exec ? 0.95 : 0.85}"/>`,
 			);
 		}
@@ -835,6 +951,20 @@ export function graphSvg(
 		wires.join("") + bodies.join("") +
 		`</svg>`
 	);
+}
+
+/**
+ * A short name for a graph, stable across builds, so the gradient ids of two
+ * graphs on one page cannot collide. Taken from the graph's contents rather
+ * than a counter, which would change with render order.
+ */
+function graphKey(script: NodeScript): string {
+	const text =
+		script.nodes.map((node) => `${node.id}:${node.def}`).join(",") + "|" +
+		script.links.map((link) => link.id).join(",");
+	let hash = 5381;
+	for (let i = 0; i < text.length; i++) hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+	return (hash >>> 0).toString(36);
 }
 
 /** The alt text: a screen reader gets the graph in words, not a blank box. */

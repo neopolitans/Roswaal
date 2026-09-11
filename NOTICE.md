@@ -37,14 +37,17 @@ resemblance is explained rather than left to be guessed at.
 
 ### Unreal Engine
 
-**Unreal Engine**, **Unreal** and **Blueprint** are trademarks of **Epic Games,
-Inc.** They appear in Roswaal's documentation — chiefly *Coming from
-Blueprints* — to name Epic's product while explaining this one. That is the
-only use they are put to: they describe Epic's software, never Roswaal's.
+**Unreal**, **Unreal Engine** and **Blueprint** are trademarks or registered
+trademarks of **Epic Games, Inc.** in the United States of America and
+elsewhere.
 
-Roswaal is **not affiliated with, endorsed by, or derived from Epic Games**. It
-contains no Unreal Engine code, is not built with Unreal Engine, and is not
-bound by the Unreal Engine EULA.
+Unreal Engine is an inspiration for how Roswaal reads to someone who already
+knows visual scripting. Roswaal contains no code, assets or content from it,
+and was not made with it. The names appear in Roswaal's documentation only on
+*Coming from Blueprints*, to map Epic's terms to Roswaal's.
+
+Roswaal is **not affiliated with, sponsored by, or endorsed by Epic Games,
+Inc.**
 
 Source: <https://www.unrealengine.com/>
 

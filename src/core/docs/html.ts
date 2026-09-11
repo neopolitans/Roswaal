@@ -18,7 +18,7 @@
 
 import type { Block, DocPage, DocSection, DocSite } from "./site.js";
 import type { Registry } from "../nodes/index.js";
-import { allPages, parseInline, TAG_LABELS } from "./site.js";
+import { allPages, isPageLink, parseInline, TAG_LABELS } from "./site.js";
 import { graphSvg, previewSvg, type PreviewOptions } from "./preview.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
 
@@ -84,7 +84,8 @@ function upTo(slug: string): string {
 // Blocks
 // ---------------------------------------------------------------------------
 
-function inline(text: string): string {
+/** `up` climbs from the page being written to the site root, for page links. */
+function inline(text: string, up = ""): string {
 	return parseInline(text)
 		.map((run) => {
 			const body = escapeHtml(run.text);
@@ -94,7 +95,11 @@ function inline(text: string): string {
 				case "strong": return `<strong>${body}</strong>`;
 				case "em": return `<em>${body}</em>`;
 				case "link":
-					return `<a href="${escapeHtml(run.href)}" rel="noreferrer noopener">${body}</a>`;
+					// Another page of these docs is a file beside this one; written
+					// as its bare slug, it resolved to an address that did not exist.
+					return isPageLink(run.href)
+						? `<a href="${escapeHtml(up + pagePath(run.href))}">${body}</a>`
+						: `<a href="${escapeHtml(run.href)}" rel="noreferrer noopener">${body}</a>`;
 			}
 		})
 		.join("");
@@ -112,20 +117,20 @@ export function headingId(text: string): string {
 	return `h-${text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 }
 
-function renderBlock(block: Block, options: RenderOptions): string {
+function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 	switch (block.t) {
 		case "h":
 			return block.level === 2
-				? `<h2 id="${headingId(block.text)}">${inline(block.text)}` +
+				? `<h2 id="${headingId(block.text)}">${inline(block.text, up)}` +
 					(block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "") +
 					`</h2>`
-				: `<h3>${inline(block.text)}</h3>`;
+				: `<h3>${inline(block.text, up)}</h3>`;
 		case "p":
-			return `<p>${inline(block.text)}</p>`;
+			return `<p>${inline(block.text, up)}</p>`;
 		case "ul":
-			return `<ul>${block.items.map((i) => `<li>${inline(i)}</li>`).join("")}</ul>`;
+			return `<ul>${block.items.map((i) => `<li>${inline(i, up)}</li>`).join("")}</ul>`;
 		case "ol":
-			return `<ol>${block.items.map((i) => `<li>${inline(i)}</li>`).join("")}</ol>`;
+			return `<ol>${block.items.map((i) => `<li>${inline(i, up)}</li>`).join("")}</ol>`;
 		case "code": {
 			const body =
 				block.lang === "luau" && options.highlight
@@ -148,7 +153,7 @@ function renderBlock(block: Block, options: RenderOptions): string {
 				? `<thead><tr>${block.head.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>`
 				: "";
 			const rows = block.rows
-				.map((row) => `<tr>${row.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`)
+				.map((row) => `<tr>${row.map((c) => `<td>${inline(c, up)}</td>`).join("")}</tr>`)
 				.join("");
 			const bare = block.head ? "" : " bare";
 			return `<div class="docs-table${bare}"><table>${head}<tbody>${rows}</tbody></table></div>`;
@@ -159,9 +164,9 @@ function renderBlock(block: Block, options: RenderOptions): string {
 				.join("")}</p>`;
 		case "note": {
 			const items = block.items
-				? `<ul>${block.items.map((i) => `<li>${inline(i)}</li>`).join("")}</ul>`
+				? `<ul>${block.items.map((i) => `<li>${inline(i, up)}</li>`).join("")}</ul>`
 				: "";
-			return `<div class="docs-note ${block.kind}">${inline(block.text)}${items}</div>`;
+			return `<div class="docs-note ${block.kind}">${inline(block.text, up)}${items}</div>`;
 		}
 		case "pins":
 			return renderPins(block, options);
@@ -171,7 +176,7 @@ function renderBlock(block: Block, options: RenderOptions): string {
 			if (!options.preview || !options.registry) return "";
 			const svg = graphSvg(block.script, options.registry, options.preview);
 			if (svg === "") return "";
-			const caption = block.caption ? `<figcaption>${inline(block.caption)}</figcaption>` : "";
+			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
 			// The viewport clips; the script that makes it pan and zoom is an
 			// enhancement, and without it this is still a readable picture.
 			return `<figure class="docs-preview graph">` +
@@ -183,7 +188,7 @@ function renderBlock(block: Block, options: RenderOptions): string {
 				.map((node) => `<div class="node-preview-frame">${previewSvg(node, options.preview!)}</div>`)
 				.join("");
 			const caption = block.caption
-				? `<figcaption>${inline(block.caption)}</figcaption>`
+				? `<figcaption>${inline(block.caption, up)}</figcaption>`
 				: "";
 			return `<figure class="docs-preview"><div class="row">${svgs}</div>${caption}</figure>`;
 		}
@@ -297,7 +302,7 @@ function reviewBadge(review: Review): string {
 
 export function renderPage(site: DocSite, page: DocPage, options: RenderOptions): string {
 	const up = upTo(page.slug);
-	const body = page.blocks.map((b) => renderBlock(b, options)).join("\n");
+	const body = page.blocks.map((b) => renderBlock(b, options, up)).join("\n");
 
 	return `<!doctype html>
 <html lang="en" data-slug="${escapeHtml(page.slug)}">
@@ -318,11 +323,11 @@ ${renderNav(site, page)}
 <article class="docs-content">
 <div class="docs-article${page.narrow ? " narrow" : ""}">
 <header class="docs-title">
-<h1>${escapeHtml(page.title)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}${page.review ? reviewBadge(page.review) : ""}</h1>
+<h1>${escapeHtml(page.title)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}</h1>
 <p class="summary">${escapeHtml(page.summary)}</p>
-</header>
+${page.review ? `<p class="docs-status">${reviewBadge(page.review)}</p>\n` : ""}</header>
 ${body}
-${page.review ? `<p class="docs-reviewed">${escapeHtml(reviewLine(page.review))}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>
+${page.review ? `<p class="docs-reviewed">${escapeHtml(reviewLine(page.review))}</p>\n` : ""}${page.review?.verify ? `<p class="docs-verify"><strong>To verify:</strong> ${inline(page.review.verify, up)}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>
 </div>
 </article>
 ${renderOutline(page)}

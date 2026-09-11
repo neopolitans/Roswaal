@@ -160,6 +160,7 @@ describe("release notes", () => {
 			const bullets = [
 				...(release.added ?? []), ...(release.changed ?? []),
 				...(release.fixed ?? []), ...(release.watch ?? []),
+				...(release.reviewed ?? []), ...(release.verified ?? []),
 			];
 			expect(bullets.length, `${release.version} lists nothing`).toBeGreaterThan(0);
 			for (const line of bullets) expect(line.trim()).not.toBe("");

@@ -206,7 +206,7 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 			"Blueprints has one kind of variable. Roswaal has two, and the distinction is worth " +
 			"learning early because it is the one thing that is genuinely different rather than " +
 			"merely renamed. For the value types themselves — where FVector, FRotator and TArray " +
-			"land — see the Unreal comparison on the Roswaal types page.",
+			"land — see **Types** at the end of this page.",
 		entries: [
 			{
 				unreal: "Blueprint variable",

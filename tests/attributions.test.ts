@@ -117,9 +117,9 @@ describe("NOTICE.md and the attributions page", () => {
 /**
  * ## Built on versus inspired by
  *
- * These are two different claims and the page makes them separately. Unreal
- * Engine sat under "What Roswaal is built on" for a release, which said Roswaal
- * was built on Epic's engine — no code, no assets, no dependency, only
+ * These are two different claims and the page makes them separately. An
+ * inspiration sat under "What Roswaal is built on" for a release, which claimed
+ * a relationship that did not exist — no code, no assets, no dependency, only
  * conventions. Overstating a debt is its own kind of inaccuracy.
  */
 describe("what Roswaal uses and what it only learned from", () => {
@@ -131,8 +131,8 @@ describe("what Roswaal uses and what it only learned from", () => {
 	});
 
 	/**
-	 * The specific mistake this guards. Unreal Engine is not a dependency, and
-	 * an entry with no licence granted to us is not something we can be built on.
+	 * The specific mistake this guards. An entry with no licence granted to us
+	 * is not something we can be built on.
 	 */
 	it("never calls something a dependency that is not licensed to us", () => {
 		for (const entry of DEPENDENCIES) {

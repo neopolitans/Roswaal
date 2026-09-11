@@ -33,8 +33,8 @@ export function resolvePins(def: NodeDef, config?: NodeConfig): { inputs: PinDef
 }
 
 /**
- * The capsule form Unreal uses for a variable getter: no header, no rows, one
- * output on the right. Only for nodes whose whole meaning is their name.
+ * The capsule form node editors use for a variable getter: no header, no rows,
+ * one output on the right. Only for nodes whose whole meaning is their name.
  */
 export function isCompact(def: NodeDef | undefined): boolean {
 	return def?.display === "compact";
@@ -149,8 +149,8 @@ export function pinPosition(
  *
  * A preference rather than a property of the graph: it changes nothing about
  * what the graph means or what it compiles to, and two people sharing a
- * repository should not have to agree about it. People have modified Unreal's
- * Blueprint UI to get the two rigid styles before now, which is the argument
+ * repository should not have to agree about it. People have modified other
+ * node editors to get the two rigid styles before now, which is the argument
  * for having them here rather than making somebody fork this to get them.
  */
 export type WireStyle = "curved" | "rigid" | "angular";
@@ -174,7 +174,12 @@ function manhattan(from: Vec, to: Vec): Vec[] {
 	// The ordinary case: output on the left of its input. One vertical run,
 	// halfway between them, so two wires between the same pair of columns do
 	// not sit on top of each other's corners.
-	if (to.x - from.x >= stub * 2) {
+	//
+	// Any forward gap counts, however short. This used to ask for two stubs'
+	// worth of room, and nodes set closer than that took the backwards detour
+	// below — a loop out and around, for a wire whose input was plainly to the
+	// right. The vertical run just sits closer to both pins.
+	if (to.x > from.x) {
 		if (from.y === to.y) return [from, to];
 		const midX = (from.x + to.x) / 2;
 		return [from, { x: midX, y: from.y }, { x: midX, y: to.y }, to];
@@ -247,9 +252,8 @@ function polyline(points: Vec[], chamfer: number): string {
  * The path between two pins, in the developer's chosen style.
  *
  * `curved` is the default, and is what every caller that does not care gets —
- * the documentation's node previews among them, because a reference page should
- * draw a wire the way the reference draws a wire rather than the way whoever
- * last built the site happened to have their editor set.
+ * the static docs site among them, which has no preferences to read. The Docs
+ * window passes the reader's own style, so its pictures match their canvas.
  */
 export function wirePath(from: Vec, to: Vec, style: WireStyle = "curved"): string {
 	if (style === "curved") {

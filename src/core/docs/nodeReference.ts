@@ -2,9 +2,8 @@
  * The node reference, derived from the registry.
  *
  * Every page in the node reference is generated from the same `NodeDef` the
- * editor and the compiler use. Epic generate their Blueprint node reference the
- * same way and for the same reason: a hand-written reference to 124 nodes is
- * wrong within a month, and wrong in the places nobody re-reads.
+ * editor and the compiler use. A hand-written reference to 124 nodes is wrong
+ * within a month, and wrong in the places nobody re-reads.
  *
  * Two things follow from living in `src/core` rather than in a build script.
  *

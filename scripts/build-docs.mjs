@@ -17,6 +17,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
+import { growthState } from "../src/core/nodes/growth.ts";
 import { buildSearchIndex, buildSite } from "../src/core/docs/site.ts";
 import { escapeHtml, renderSite } from "../src/core/docs/html.ts";
 import { highlightLuau } from "../src/app/highlight.ts";
@@ -119,7 +120,12 @@ async function main() {
 	const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
 	const site = buildSite(registry, builtinIds);
 
-	const preview = { geometry: NODE, nodeColor, pinColor, wirePath };
+	// The defaults for everything a reader can change in the editor: this site
+	// has no preferences to read, so it draws what a fresh install draws.
+	const preview = {
+		geometry: NODE, nodeColor, pinColor, wirePath,
+		growth: (p) => growthState(registry.get(p.id), p.config),
+	};
 	const logo = { mark: logoMarkup(18), icon: faviconHref() };
 	const files = renderSite(site, { highlight, pinColor, preview, logo, registry, version: VERSION });
 

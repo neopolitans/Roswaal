@@ -29,7 +29,7 @@
  * layout changes underneath them.
  */
 
-import type { RoswaalConfig, ScriptClass, TypecheckMode } from "../core/schema.js";
+import type { RoswaalConfig, ScriptClass, Target, TypecheckMode } from "../core/schema.js";
 import { VERSION } from "../cli/version.js";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
@@ -162,6 +162,8 @@ export type DocumentBarProps =
 			dirty: boolean;
 			busy: string | null;
 			scriptClass: ScriptClass;
+			/** What the graph compiles for. Fixed when the graph was made. */
+			target: Target;
 			typecheck: TypecheckMode;
 			/** The graph is being compiled and must not be edited. */
 			locked: boolean;
@@ -201,6 +203,18 @@ export function DocumentBar(props: DocumentBarProps) {
 	return (
 		<div className="docbar">
 			<span className={`doc-name${props.dirty ? " dirty" : ""}`}>{props.name}</span>
+			{/* What the graph compiles for, always in view: a Roblox-only node in
+			    a Lune graph is an error, and that is the fact that explains it. */}
+			<span
+				className={`doc-target ${props.target}`}
+				title={
+					props.target === "lune"
+						? "Compiles for Lune. Lune support is experimental, and Roblox-only nodes are errors here."
+						: "Compiles for Roblox."
+				}
+			>
+				{props.target === "lune" ? "Lune · experimental" : "Roblox"}
+			</span>
 			<select
 				className="tb"
 				title="What this graph compiles to"

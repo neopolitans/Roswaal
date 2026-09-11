@@ -25,6 +25,12 @@ export interface Review {
 	status: ReviewStatus;
 	/** ISO date of the last review. Absent while the page is pending. */
 	date?: string;
+	/**
+	 * What a verified pass still needs, shown under the date — usually the one
+	 * part of the page the reviewer could not vouch for, and who could. A
+	 * reviewed page that needs nothing in particular leaves it out.
+	 */
+	verify?: string;
 }
 
 export const REVIEW_LABELS: Record<ReviewStatus, string> = {
@@ -41,7 +47,30 @@ export const REVIEW_DETAILS: Record<ReviewStatus, string> = {
 };
 
 /** Newest first within each status, to keep additions easy to find. */
-export const REVIEWS: Record<string, { status: Exclude<ReviewStatus, "pending">; date: string }> = {};
+export const REVIEWS: Record<
+	string,
+	{ status: Exclude<ReviewStatus, "pending">; date: string; verify?: string }
+> = {
+	// Verified with the author, once it had pictures for every section.
+	"wires-and-pins": { status: "verified", date: "2026-09-11" },
+	// Verified with the author. Settings once its rojoProject line said what
+	// the setting does; Hand-written Luau once each code node had its own
+	// graph and the Luau it compiles to. Lune is marked experimental on the
+	// pages that mention it, which is what verifying them covers.
+	"types": { status: "verified", date: "2026-09-11" },
+	"variables-and-locals": { status: "verified", date: "2026-09-11" },
+	"building-and-rojo": { status: "verified", date: "2026-09-11" },
+	"hand-written-luau": { status: "verified", date: "2026-09-11" },
+	"settings": { status: "verified", date: "2026-09-11" },
+	// Read by the author, who has not shipped the networking side.
+	"coming-from-blueprints": {
+		status: "reviewed",
+		date: "2026-09-11",
+		verify:
+			"someone who has shipped multiplayer in Unreal should check the **Networking** rows — " +
+			"replicated functions (RPCs) especially — against real use.",
+	},
+};
 
 export function reviewOf(slug: string): Review {
 	return REVIEWS[slug] ?? { status: "pending" };

@@ -7,12 +7,15 @@
  * context.
  */
 
-import type { NodeScript } from "../schema.js";
+import type { NodeScript, Target } from "../schema.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
+
+/** How a target is named in a message. */
+const TARGET_NAMES: Record<Target, string> = { roblox: "Roblox", lune: "Lune" };
 
 /** Data types that flow into anything, in either direction. */
 const UNIVERSAL = new Set(["any", "wildcard"]);
@@ -45,6 +48,23 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				message:
 					REMOVED_NODES[node.def] ??
 					`Unknown node type "${node.def}". Is a node pack missing from roswaal.json?`,
+				node: node.id,
+			});
+		}
+
+		// A node written for the other target compiles to calls that do not
+		// exist there, so the file would fail the moment it ran. An error, on
+		// the node, rather than the warning it was: a warning let the file be
+		// written anyway. Checked here because every node passes through —
+		// the emitter only sees the execution chain, and a pure Get Service
+		// never walked it.
+		const def = registry.get(node.def);
+		if (def?.targets && !def.targets.includes(script.target)) {
+			out.push({
+				severity: "error",
+				message:
+					`"${def.title}" only works in ${def.targets.map((t) => TARGET_NAMES[t]).join(" and ")}, ` +
+					`and this graph compiles for ${TARGET_NAMES[script.target]}.`,
 				node: node.id,
 			});
 		}

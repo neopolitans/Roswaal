@@ -26,6 +26,7 @@ for (const status of ["pending", "reviewed", "verified"]) {
 	for (const page of [...guides, ...(listNodes ? nodes : [])]) {
 		const when = page.review.date ? `  ${page.review.date}` : "";
 		console.log(`  ${page.slug.padEnd(34)} ${page.title}${when}`);
+		if (page.review.verify) console.log(`  ${"".padEnd(34)} to verify: ${page.review.verify}`);
 	}
 	console.log("");
 }

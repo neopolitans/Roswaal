@@ -673,8 +673,9 @@ export function App() {
 	 * The pin chosen is the **first** compatible one in declaration order, which
 	 * is not a heuristic so much as the node author's own answer: pins are
 	 * declared in the order they matter, so the first that fits is the one the
-	 * node is mostly about. Unreal picks the same way, and picking differently
-	 * would mean a wire that lands somewhere surprising and has to be redone.
+	 * node is mostly about. It is also what someone who knows node graphs will
+	 * expect, and picking differently would mean a wire that lands somewhere
+	 * surprising and has to be redone.
 	 *
 	 * A node with nothing compatible still gets placed. The menu narrows itself
 	 * to nodes that can take the wire, so this is only reachable for a pack node
@@ -759,9 +760,9 @@ export function App() {
 	 * Breaks a struct pin into components, or puts one back.
 	 *
 	 * Either direction can strand wires — there is nowhere for them to land on
-	 * the other side of the change. Unreal drops them without asking; here more
-	 * than one gets a confirmation, because a graph you cannot see all at once
-	 * should not lose wiring silently.
+	 * the other side of the change. The simple thing is to drop them without
+	 * asking; here more than one gets a confirmation, because a graph you cannot
+	 * see all at once should not lose wiring silently.
 	 */
 	const splitOrRecombine = useCallback(
 		async (target: PinMenuTarget, parent: string | undefined, mode: string | undefined) => {
@@ -1173,6 +1174,7 @@ export function App() {
 					dirty={editor.dirty}
 					busy={busy}
 					scriptClass={editor.script.scriptClass}
+					target={editor.script.target}
 					typecheck={editor.script.typecheck}
 					locked={locked}
 					alignExec={alignExec}
@@ -1500,7 +1502,7 @@ function ProjectPicker({
 			{/* Here the name stays in text beside the mark. This is the first
 			    screen, and it is the one place that has to say what it is. */}
 			<h1 className="logo"><Logo height={26} /> Roswaal</h1>
-			<p>Open a Roblox or Lune repository. Roswaal writes Luau into it; Rojo does the rest.</p>
+			<p>Open a Roblox repository, or a Lune one (experimental). Roswaal writes Luau into it; Rojo does the rest.</p>
 
 			<div className="row">
 				<input
@@ -1575,9 +1577,9 @@ const TOAST_LINGER_MS = 4000;
  *
  * Deliberately *not* in the status panel, which is the script analysis view —
  * that panel answers "what is wrong with this graph", and a compile's progress
- * is neither about this graph nor about anything being wrong. Unreal keeps the
- * two apart for the same reason, and putting the walk in the panel meant a
- * thousand rows of good news burying the one diagnostic you opened it for.
+ * is neither about this graph nor about anything being wrong. Putting the walk
+ * in the panel meant a thousand rows of good news burying the one diagnostic
+ * you opened it for.
  *
  * It floats over the canvas rather than taking space from it, because it is
  * temporary and the graph underneath is what you were looking at.

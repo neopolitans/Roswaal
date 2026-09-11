@@ -19,9 +19,10 @@
  */
 
 import type { Registry } from "../nodes/index.js";
-import { categories, subcategories } from "../nodes/index.js";
+import { categories, subcategories, ZUP_CONVERSIONS } from "../nodes/index.js";
 import { BLUEPRINT_MAP } from "./blueprints.js";
-import { documentRegistry, OMISSION_REASONS, type NodeDoc } from "./nodeReference.js";
+import { documentRegistry, OMISSION_REASONS, stripHeader, type NodeDoc } from "./nodeReference.js";
+import { compile } from "../compiler/index.js";
 import { previewOf, type NodePreview } from "./preview.js";
 import { defaultConfig, ENGINE_TYPES, type NodeScript } from "../schema.js";
 import { CODE_ROLES, ROLES } from "../theme.js";
@@ -168,6 +169,12 @@ export const GROUPS = {
 	 * new level — only the right thing put on each one.
 	 */
 	engineTypes: "Engine types",
+	/**
+	 * Nodes for bringing values across from another tool's coordinates. A
+	 * heading of their own, so somebody arriving with data to convert finds
+	 * them without guessing which category a conversion would be filed under.
+	 */
+	conversions: "Conversions",
 	project: "Project nodes",
 } as const;
 
@@ -221,6 +228,15 @@ export function parseInline(text: string): Inline[] {
 
 	if (last < text.length) out.push({ t: "text", text: text.slice(last) });
 	return out;
+}
+
+/**
+ * True when a link points at another page of these docs rather than off-site:
+ * a bare slug, like `types` or `node/math.add`. A slug is not a URL in any of
+ * the three renderers, so each turns one into its own kind of navigation.
+ */
+export function isPageLink(href: string): boolean {
+	return !/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith("#") && !href.startsWith("/");
 }
 
 /** The words in a block, with markup removed. Feeds the search index. */
@@ -362,10 +378,11 @@ function blueprintPage(): DocPage {
 			t: "note",
 			kind: "info",
 			text:
-				"Unreal Engine, Unreal and Blueprint are trademarks of Epic Games, Inc. They are " +
-				"used on this page to name Epic's product while explaining Roswaal's, which is the " +
-				"only thing they are used for here. Roswaal is not affiliated with or endorsed by " +
-				"Epic Games and contains no Unreal Engine code.",
+				"Unreal, Unreal Engine and Blueprint are trademarks or registered trademarks of " +
+				"Epic Games, Inc. in the United States of America and elsewhere. They are used on " +
+				"this page to name Epic's product while explaining Roswaal's. Roswaal is not " +
+				"affiliated with, sponsored by, or endorsed by Epic Games, Inc., and contains no " +
+				"code or content from Unreal Engine.",
 		},
 	];
 
@@ -382,6 +399,121 @@ function blueprintPage(): DocPage {
 			]),
 		});
 	}
+
+	// Types last: the sections above are about doing things, this one about
+	// what the values are.
+	blocks.push(
+		{ t: "h", level: 2, text: "Types" },
+		{
+			t: "p",
+			text:
+				"Most of these are a rename. The rows worth reading slowly are the ones with a " +
+				"dash in the middle column: Luau has no Rotator, no Quat, and no typed containers, " +
+				"and those absences change how you write things rather than just what you call them.",
+		},
+		{
+			t: "table",
+			head: ["In Unreal", "Luau / Roblox", "Roswaal pin", "Notes"],
+			rows: [
+				["`bool`", "`boolean`", "`boolean`", ""],
+				[
+					"`int32`, `int64`",
+					"`number`",
+					"`number`",
+					"Luau has **one** number type, a 64-bit float. No integer type, so bitwise work goes through `bit32` and there is no integer overflow to reason about.",
+				],
+				["`float`, `double`", "`number`", "`number`", "The same type as the row above."],
+				[
+					"`FString`, `FName`, `FText`",
+					"`string`",
+					"`string`",
+					"One string type. No localisation type — Roblox handles that at the UI layer.",
+				],
+				[
+					"`FVector`",
+					"`Vector3`",
+					"`Vector3`",
+					"**Different conventions.** Unreal is centimetres and Z-up; Roblox is studs and **Y-up**. Vertical is `Y` here. [Vector3 from Z-Up](node/zup.vector3) converts a position across.",
+				],
+				["`FVector2D`", "`Vector2`", "`Vector2`", ""],
+				[
+					"`FRotator`",
+					"a `CFrame`'s rotation",
+					"`CFrame`",
+					"Roblox has no Euler rotation type; rotation lives inside a `CFrame`. [CFrame from Z-Up Rotator](node/zup.rotator) converts a rotator across, degrees and axes both.",
+				],
+				[
+					"`FTransform`",
+					"`CFrame`",
+					"`CFrame`",
+					"A CFrame is position and rotation only — **no scale**. [CFrame from Z-Up Transform](node/zup.transform) converts one and hands its scale back, for the part's `Size`.",
+				],
+				[
+					"`FQuat`",
+					"a `CFrame`'s rotation",
+					"`CFrame`",
+					"No quaternion type, but a CFrame can be built from one. [CFrame from Z-Up Rotation](node/zup.rotation) converts a quat across, and **From Axis Angle** covers most of what one was reached for.",
+				],
+				[
+					"`FLinearColor`, `FColor`",
+					"`Color3`",
+					"`Color3`",
+					"Components are 0–1. `Color3.fromRGB` takes 0–255 if that is what you have.",
+				],
+				[
+					"`TArray<T>`",
+					"`{ T }`",
+					"`table`",
+					"Luau has one table type for arrays and maps both, and the Roswaal pin does not carry the element type. **Cast Array** is how you say what is in it.",
+				],
+				["`TMap<K, V>`", "`{ [K]: V }`", "`table`", "The same type as an array."],
+				["`TSet<T>`", "`{ [T]: true }`", "`table`", "A table used as a set, by convention."],
+				["`UObject*`, `AActor*`", "`Instance`", "`Instance`", "A class such as `Model` narrows it. **Is A** asks at runtime."],
+				[
+					"`TSubclassOf<T>`",
+					"`string`",
+					"`string`",
+					"A class name is just text: `Instance.new(\"Part\")`, `:IsA(\"BasePart\")`.",
+				],
+				[
+					"`USTRUCT`",
+					"a table, or a Roblox value type",
+					"`table`",
+					"Luau has no struct declaration. The built-in value types are the exception.",
+				],
+				[
+					"`UENUM`",
+					"`Enum.X` for Roblox's own",
+					"`string`",
+					"No user-defined enums. A string pin with a dropdown is the usual stand-in.",
+				],
+				[
+					"Delegate, Event Dispatcher",
+					"`RBXScriptSignal`",
+					"`RBXScriptSignal`",
+					"**Connect Event** binds one.",
+				],
+				[
+					"`TOptional<T>`",
+					"`T?`",
+					"—",
+					"Optionality is a Luau type annotation rather than a pin type. Cast to `T?` where it matters.",
+				],
+				[
+					"`nullptr`",
+					"`nil`",
+					"the Nil node",
+					"A missing value, not a null pointer — there are no pointer types.",
+				],
+				[
+					"`TSharedPtr`, `UPROPERTY` lifetime",
+					"garbage collected",
+					"—",
+					"An instance survives while something references it **or** it is parented into the DataModel. Destroy severs both.",
+				],
+			],
+		},
+	);
 
 	return {
 		slug: "coming-from-blueprints",
@@ -415,8 +547,8 @@ function attributionsPage(): DocPage {
 	/**
 	 * Two headings, because they are two different claims. Everything under the
 	 * first ships inside Roswaal or is something it could not run without; the
-	 * second is work it only learned from. Putting Unreal Engine under "built on"
-	 * said Roswaal was built on Epic's engine, which it is not.
+	 * second is work it only learned from. Listing an inspiration under "built
+	 * on" would claim a relationship that does not exist.
 	 */
 	const group = (heading: string, lede: string, entries: Attribution[]) => {
 		if (entries.length === 0) return;
@@ -488,7 +620,7 @@ export function releaseTags(release: Release): ReleaseTag[] {
 	return tags;
 }
 
-function releasesPage(): DocPage {
+function releasesPage(titles: ReadonlyMap<string, string>): DocPage {
 	const blocks: Block[] = [
 		{
 			t: "p",
@@ -525,6 +657,18 @@ function releasesPage(): DocPage {
 			if (!entries || entries.length === 0) continue;
 			blocks.push({ t: "h", level: 3, text: heading });
 			blocks.push({ t: "table", rows: entries.map((entry) => [entry]) });
+		}
+		// Articles a person read, or checked end to end, in this release.
+		for (const [heading, slugs] of [
+			["Reviewed Articles", release.reviewed],
+			["Verified Articles", release.verified],
+		] as const) {
+			if (!slugs || slugs.length === 0) continue;
+			blocks.push({ t: "h", level: 3, text: heading });
+			blocks.push({
+				t: "table",
+				rows: slugs.map((slug) => [`[${titles.get(slug) ?? slug}](${slug})`]),
+			});
 		}
 	}
 
@@ -632,8 +776,15 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 			t: "ul",
 			items: [
 				"An execution output takes one wire. To do two things in turn, use **Sequence**.",
-				"An execution input takes one wire too. Unlike Unreal, two flows cannot join at one node.",
+				"An execution input takes one wire too, so two flows cannot join at one node.",
 			],
+		},
+		{
+			t: "graph",
+			script: GUIDE_SCENES.wireExecution(),
+			caption:
+				"An execution output takes one wire, so Sequence is how one step leads to two. " +
+				"Its outputs run top to bottom.",
 		},
 
 		{ t: "h", level: 2, text: "Data wires" },
@@ -657,9 +808,17 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 		{
 			t: "p",
 			text:
-				"A pin's colour is its type, close to Unreal's: red boolean, green number, magenta " +
-				"string, blue instance, gold vector, orange CFrame. Grey is `any`, and any type " +
-				"without a colour of its own, such as `Model`.",
+				"A pin's colour is its type: red boolean, green number, magenta string, blue " +
+				"instance, gold vector, orange CFrame. Grey is `any`, and any type without a " +
+				"colour of its own, such as `Model`.",
+		},
+		{
+			t: "graph",
+			script: GUIDE_SCENES.wireColours(),
+			caption:
+				"Each wire joins two pins of one type, so it is that type's colour: gold `Vector3`, " +
+				"orange `CFrame`, green `number`, blue `Instance`, magenta `string`. Greater " +
+				"Than's output is red, a `boolean`.",
 		},
 		{
 			t: "p",
@@ -667,6 +826,13 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 				"A data wire takes the colour of the pin it leaves. Where it lands on a pin of " +
 				"another colour, it fades from one to the other. Hover a wire to see its type, or " +
 				"both types when it fades.",
+		},
+		{
+			t: "graph",
+			script: GUIDE_SCENES.wireFades(),
+			caption:
+				"Add's number lands on a string pin, and Concatenate's string on Print's Value, " +
+				"which takes anything — so each wire fades from one colour to the other.",
 		},
 
 		{ t: "h", level: 2, text: "What connects" },
@@ -700,7 +866,10 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 		},
 		{
 			t: "p",
-			text: "Wires are curved by default. **Settings → Wires** makes them rigid or angular.",
+			text:
+				"Wires are drawn one of three ways, set under **Settings → Wires**: **Curved**, the " +
+				"default, **Rigid**, or **Angular**. The pictures in these docs follow that setting, " +
+				"and your **Node corners** too.",
 		},
 
 		{ t: "h", level: 2, text: "Reroute knots" },
@@ -710,6 +879,13 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 				"Double-click a wire to put a knot in it, then drag the knot to route the wire where " +
 				"you want it. A knot compiles to nothing. It takes the type of whatever is wired " +
 				"into it, and changes when that does. `Shift` or `Ctrl` + click a knot to select it.",
+		},
+		{
+			t: "graph",
+			script: GUIDE_SCENES.wireKnots(),
+			caption:
+				"Each wire rises to a knot and runs flat into the pin it feeds — an execution " +
+				"wire above, a data wire below. The knots compile to nothing.",
 		},
 
 		{ t: "h", level: 2, text: "The pin menu" },
@@ -728,6 +904,14 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 				["Recombine Struct Pin", "On a component. Puts the pin back together"],
 				["Break Link", "Disconnect the pin, the same as `Shift` + click"],
 			],
+		},
+		{
+			t: "graph",
+			script: GUIDE_SCENES.pinMenu(),
+			caption:
+				"**Split Struct Pin** broke the lower CFrame's Position into X, Y and Z; the one " +
+				"above is whole. **Promote to Variable** turned Y's value into **Height** and wired " +
+				"its Get in.",
 		},
 		{
 			t: "note",
@@ -760,6 +944,13 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 				"at all. Click it to set a value, and **×** to clear it. [Roswaal types](types) " +
 				"explains when that matters.",
 		},
+		...previews(
+			registry,
+			["tweeninfo.new", "instance.findFirstChildWhichIsA", "cframe.lookAt"],
+			"TweenInfo has a number, two dropdowns, and three optional arguments left at " +
+				"**default**. Find First Child Which Is A has text and a checkbox. Look At's " +
+				"`Vector3.zero` is fixed until something is wired in.",
+		),
 
 		{ t: "h", level: 2, text: "Adding and removing pins" },
 		{
@@ -768,6 +959,13 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 				"A node that takes a list has **+** and **−** in its header: the maths and logic " +
 				"operators, Make Dictionary, calls, Sequence, Return, Module Exports, and a " +
 				"function's parameters.",
+		},
+		{
+			t: "graph",
+			script: GUIDE_SCENES.growPins(),
+			caption:
+				"Add at three operands and Sequence at three outputs. **+** adds one and **−** " +
+				"takes the last away; each greys out at the node's limit.",
 		},
 	],
 });
@@ -930,8 +1128,8 @@ const VARIABLES: DocPage = {
 			t: "p",
 			text:
 				"Declared once in the **Variables panel** — a name, a type and a starting value — " +
-				"and read or written by Get and Set nodes anywhere in the graph, exactly as in " +
-				"Blueprints. A variable compiles to a **file-level local**, so the main flow and " +
+				"and read or written by Get and Set nodes anywhere in the graph. A variable " +
+				"compiles to a **file-level local**, so the main flow and " +
 				"every function in the graph see the same one.",
 		},
 		{
@@ -1033,6 +1231,14 @@ const VARIABLES: DocPage = {
 	],
 };
 
+/**
+ * A guide scene's generated Luau, without its header. Compiled rather than
+ * written out by hand, so the code under a picture is the code the picture makes.
+ */
+function compiledBody(script: NodeScript, registry: Registry): string {
+	return stripHeader(compile(script, registry).code);
+}
+
 const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 	slug: "hand-written-luau",
 	narrow: true,
@@ -1072,21 +1278,22 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 			"The shape says which is which before you read the title: Custom Code has execution " +
 				"pins and no output, Luau Expression has an output and no execution pins.",
 		),
+		{ t: "h", level: 3, text: "Custom Code" },
 		{
-			t: "code",
-			lang: "luau",
-			text: [
-				"-- Custom Code, three statements, wired into the flow.",
-				"-- Whatever runs next follows them.",
-				"local hits = 0",
-				"hits += 1",
-				"print(hits)",
-				"",
-				"-- Luau Expression, wired into Print's Value pin.",
-				"-- The text is substituted inside the call.",
-				"print(os.clock() * 2)",
-			].join("\n"),
+			t: "graph",
+			script: GUIDE_SCENES.customCode(),
+			caption:
+				"A step in the flow. Its statements run in order, and whatever is wired after it " +
+				"runs next.",
 		},
+		{ t: "code", lang: "luau", text: compiledBody(GUIDE_SCENES.customCode(), registry) },
+		{ t: "h", level: 3, text: "Luau Expression" },
+		{
+			t: "graph",
+			script: GUIDE_SCENES.luauExpression(),
+			caption: "A value. Its text is written where the value is used — here, inside the Print.",
+		},
+		{ t: "code", lang: "luau", text: compiledBody(GUIDE_SCENES.luauExpression(), registry) },
 		{
 			t: "note",
 			kind: "warn",
@@ -1203,7 +1410,7 @@ const BUILDING: DocPage = {
 			t: "p",
 			text:
 				"The file is named after the graph, and its ending comes from the script kind, " +
-				"chosen in the bar above the canvas. A Lune project always writes `.luau`.",
+				"chosen in the bar above the canvas. A Lune graph always writes `.luau`.",
 		},
 		{
 			t: "table",
@@ -1213,6 +1420,20 @@ const BUILDING: DocPage = {
 				["LocalScript", "`Greeter.client.luau`"],
 				["ModuleScript", "`Greeter.luau`"],
 			],
+		},
+		{
+			t: "p",
+			text:
+				"The same bar shows what the graph compiles for — **Roblox**, or **Lune** — which is " +
+				"set when the graph is made. A Roblox-only node in a Lune graph is an error on that " +
+				"node, and nothing is written.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"**Lune support is experimental.** It has not yet been tested by an experienced " +
+				"Lune developer, so treat what it writes as a starting point.",
 		},
 
 		{ t: "h", level: 2, text: "Compiling" },
@@ -1360,7 +1581,8 @@ function settingsPage(): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"Both are edited from **Settings** in the toolbar. The panel labels each " +
+					"Both are edited from **Settings** in the toolbar, and preferences from the " +
+					"Docs window's **Settings** too. The panel labels each " +
 					"section with where it is stored, because the one mistake worth designing " +
 					"against here is a personal colour scheme turning up in somebody's pull " +
 					"request.",
@@ -1380,7 +1602,7 @@ function settingsPage(): DocPage {
 					[
 						"`target`",
 						`\`${defaults.target}\``,
-						"Which flavour of Luau to emit. `lune` drops the Roblox globals and the DataModel nodes.",
+						"Which flavour of Luau new graphs compile for. `lune` is **experimental**, and not yet tested by an experienced Lune developer; it drops the Roblox globals and nodes.",
 					],
 					[
 						"`sourceDir`",
@@ -1410,7 +1632,7 @@ function settingsPage(): DocPage {
 					[
 						"`rojoProject`",
 						`\`${defaults.rojoProject ?? ""}\``,
-						"The Rojo project file, used to resolve where a file lands in the DataModel. Nothing is written to it.",
+						"Left for Rojo. Where a file lands in the DataModel comes from your node maps, and nothing is written to this file.",
 					],
 					["`schemaVersion`", "set for you", "Which schema the file was written against. `migrate.ts` reads it."],
 				],
@@ -1421,8 +1643,8 @@ function settingsPage(): DocPage {
 				t: "p",
 				text:
 					"Stored in this browser under one key, and nowhere else. They do not follow " +
-					"you to another machine, which is the right thing to give up: there are four " +
-					"of them, and the alternative is a per-developer file in a shared checkout.",
+					"you to another machine, which is the right thing to give up: the " +
+					"alternative is a per-developer file in a shared checkout.",
 			},
 			{
 				t: "table",
@@ -1449,6 +1671,14 @@ function settingsPage(): DocPage {
 						"How long after your last edit a graph is written. A delay, not a switch — there is no unsaved copy of a graph, so switching it off would give you a document that quietly stops matching itself rather than a buffer.",
 					],
 					["On opening Roswaal", "Reopen the last project, or start at the picker."],
+					[
+						"Docs font",
+						"The face the docs are read in: **System**, **Serif**, **Wide** or **Monospace**. Code keeps its own.",
+					],
+					[
+						"Preview size",
+						"How large node and graph pictures are drawn in the docs, from 50% to 300%. A graph bigger than its frame can be dragged around.",
+					],
 				],
 			},
 
@@ -1456,11 +1686,9 @@ function settingsPage(): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"**Wires and node corners are here because people have already forked " +
-					"Unreal's Blueprint UI to get them.** Neither changes what a graph means " +
-					"or what it compiles to — they are how it looks while you read it, which " +
-					"is exactly the kind of thing worth having a setting for rather than a " +
-					"patch.",
+					"**Wires and node corners change how a graph looks, never what it means** " +
+					"or what it compiles to — which is exactly the kind of thing worth a " +
+					"setting rather than a patch.",
 			},
 
 			{ t: "h", level: 2, text: "Themes" },
@@ -1545,7 +1773,7 @@ function settingsPage(): DocPage {
 				text:
 					"**Node category colours and pin type colours are fixed.** Red is a boolean, " +
 					"green is a number, gold is a vector — that mapping is most of what makes a " +
-					"Roswaal graph readable to somebody arriving from Blueprints, and a scheme " +
+					"Roswaal graph readable at a glance, and a scheme " +
 					"that moved it would be trading the one thing the colours are for against a " +
 					"matter of taste. They live in `palette.ts` and stay there.",
 			},
@@ -1596,10 +1824,10 @@ const TYPES_GUIDE: DocPage = {
 				[
 					"`table`",
 					"Any Luau table",
-					"One type for arrays, maps and sets, because Lua has one. Not an Unreal array.",
+					"One type for arrays, maps and sets, because Lua has one.",
 				],
 				["`function`", "A function value", "Get Function produces one."],
-				["`Instance`", "Any Roblox instance", "Not narrowed by class — use Is A to ask."],
+				["`Instance`", "Any Roblox instance", "A class such as `Model` narrows it. **Is A** asks at runtime."],
 				[
 					"`Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim`, `UDim2`",
 					"Roblox value types",
@@ -1641,116 +1869,6 @@ const TYPES_GUIDE: DocPage = {
 				"A node pack can introduce its own type simply by naming one. Types are strings, " +
 				"not a closed list, so a pack declaring `Quaternion` gets a distinct pin that only " +
 				"connects to other `Quaternion` pins — without patching Roswaal.",
-		},
-		{ t: "h", level: 2, text: "If you know Unreal's types" },
-		{
-			t: "p",
-			text:
-				"Most of these are a rename. The rows worth reading slowly are the ones with a " +
-				"dash in the middle column: Luau has no Rotator, no Quat, and no typed containers, " +
-				"and those absences change how you write things rather than just what you call them.",
-		},
-		{
-			t: "table",
-			head: ["Unreal", "Luau / Roblox", "Roswaal pin", "Worth knowing"],
-			rows: [
-				["`bool`", "`boolean`", "`boolean`", ""],
-				[
-					"`int32`, `int64`",
-					"`number`",
-					"`number`",
-					"Luau has **one** number type, a 64-bit float. No integer type, so bitwise work goes through `bit32` and there is no integer overflow to reason about.",
-				],
-				["`float`, `double`", "`number`", "`number`", "The same type as the row above."],
-				[
-					"`FString`, `FName`, `FText`",
-					"`string`",
-					"`string`",
-					"One string type. No localisation type — Roblox handles that at the UI layer.",
-				],
-				[
-					"`FVector`",
-					"`Vector3`",
-					"`Vector3`",
-					"**Different conventions.** Unreal is centimetres and Z-up; Roblox is studs and **Y-up**. Vertical is `Y` here.",
-				],
-				["`FVector2D`", "`Vector2`", "`Vector2`", ""],
-				[
-					"`FRotator`",
-					"— nothing equivalent —",
-					"—",
-					"Roblox has no Euler rotation type. Rotation lives inside a `CFrame`; build one with **CFrame Angles** and read it back with `ToEulerAnglesXYZ`.",
-				],
-				[
-					"`FTransform`",
-					"`CFrame`",
-					"`CFrame`",
-					"A CFrame is position and rotation only — **no scale**. Scale is the part's `Size`, separately.",
-				],
-				[
-					"`FQuat`",
-					"— nothing equivalent —",
-					"—",
-					"No quaternion type. A CFrame carries the rotation matrix, and **From Axis Angle** covers most of what a quat was reached for.",
-				],
-				[
-					"`FLinearColor`, `FColor`",
-					"`Color3`",
-					"`Color3`",
-					"Components are 0–1. `Color3.fromRGB` takes 0–255 if that is what you have.",
-				],
-				[
-					"`TArray<T>`",
-					"`{ T }`",
-					"`table`",
-					"Luau has one table type for arrays and maps both, and the Roswaal pin does not carry the element type. **Cast Array** is how you say what is in it.",
-				],
-				["`TMap<K, V>`", "`{ [K]: V }`", "`table`", "The same type as an array."],
-				["`TSet<T>`", "`{ [T]: true }`", "`table`", "A table used as a set, by convention."],
-				["`UObject*`, `AActor*`", "`Instance`", "`Instance`", "Not narrowed by class — **Is A** asks."],
-				[
-					"`TSubclassOf<T>`",
-					"`string`",
-					"`string`",
-					"A class name is just text: `Instance.new(\"Part\")`, `:IsA(\"BasePart\")`.",
-				],
-				[
-					"`USTRUCT`",
-					"a table, or a Roblox value type",
-					"`table`",
-					"Luau has no struct declaration. The built-in value types are the exception.",
-				],
-				[
-					"`UENUM`",
-					"`Enum.X` for Roblox's own",
-					"`string`",
-					"No user-defined enums. A string pin with a dropdown is the usual stand-in.",
-				],
-				[
-					"Delegate, Event Dispatcher",
-					"`RBXScriptSignal`",
-					"`RBXScriptSignal`",
-					"**Connect Event** binds one.",
-				],
-				[
-					"`TOptional<T>`",
-					"`T?`",
-					"—",
-					"Optionality is a Luau type annotation rather than a pin type. Cast to `T?` where it matters.",
-				],
-				[
-					"`nullptr`",
-					"`nil`",
-					"the Nil node",
-					"A missing value, not a null pointer — there are no pointer types.",
-				],
-				[
-					"`TSharedPtr`, `UPROPERTY` lifetime",
-					"garbage collected",
-					"—",
-					"An instance survives while something references it **or** it is parented into the DataModel. Destroy severs both.",
-				],
-			],
 		},
 		{ t: "h", level: 2, text: "What connects to what" },
 		{
@@ -1908,7 +2026,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 		order
 			// Engine types get their own group, one section per datatype, built
 			// below. Leaving them here as well would list every one of them twice.
-			.filter((c) => custom || c !== ENGINE_TYPES)
+			.filter((c) => custom || (c !== ENGINE_TYPES && c !== ZUP_CONVERSIONS))
 			.map((c) => ({ c, pages: (byCategory.get(c) ?? []).filter((p) => !!p.custom === custom) }))
 			.filter((x) => x.pages.length > 0)
 			.map((x) => ({
@@ -1936,37 +2054,45 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				group: GROUPS.engineTypes,
 			}));
 
+	/** The Z-up conversions, under their own heading rather than among the rest. */
+	const conversionSections = (): DocSection[] => {
+		const pages = (byCategory.get(ZUP_CONVERSIONS) ?? []).filter((p) => !p.custom);
+		if (pages.length === 0) return [];
+		return [{
+			title: ZUP_CONVERSIONS,
+			slug: `nodes/${slugify(ZUP_CONVERSIONS)}`,
+			pages,
+			group: GROUPS.conversions,
+		}];
+	};
+
+	const start = [GETTING_STARTED, CONTROLS, blueprintPage()];
+	const guides = [
+		TWO_KINDS_OF_WIRE(registry), TYPES_GUIDE, VARIABLES, BUILDING,
+		ESCAPE_HATCHES(registry), settingsPage(),
+	];
+	const attributions = attributionsPage();
+	// Every page's title by slug, so the release notes can name the articles
+	// they list without holding a second copy of each title.
+	const titles = new Map<string, string>([
+		...[...start, ...guides, attributions].map((p) => [p.slug, p.title] as const),
+		...nodes.map((doc) => [`node/${doc.id}`, doc.title] as const),
+	]);
+
 	return {
 		sections: withReviews([
-			{
-				title: "Getting started",
-				slug: "start",
-				group: GROUPS.learn,
-				pages: [GETTING_STARTED, CONTROLS, blueprintPage()],
-			},
-			{
-				title: "Guides",
-				slug: "guides",
-				group: GROUPS.learn,
-				pages: [
-					TWO_KINDS_OF_WIRE(registry), TYPES_GUIDE, VARIABLES, BUILDING,
-					ESCAPE_HATCHES(registry), settingsPage(),
-				],
-			},
+			{ title: "Getting started", slug: "start", group: GROUPS.learn, pages: start },
+			{ title: "Guides", slug: "guides", group: GROUPS.learn, pages: guides },
 			{
 				title: "Release notes",
 				slug: "releases",
 				group: GROUPS.learn,
-				pages: [releasesPage()],
+				pages: [releasesPage(titles)],
 			},
-			{
-				title: "Attributions",
-				slug: "attributions",
-				group: GROUPS.learn,
-				pages: [attributionsPage()],
-			},
+			{ title: "Attributions", slug: "attributions", group: GROUPS.learn, pages: [attributions] },
 			...reference(GROUPS.builtin, false),
 			...engineTypeSections(),
+			...conversionSections(),
 			...reference(GROUPS.project, true),
 		]),
 	};

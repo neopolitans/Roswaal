@@ -7,11 +7,11 @@ import {
 	type SplitMap, type StructRegistry,
 } from "../structs.js";
 import { FLOW_NODES } from "./flow.js";
-import { LIBRARY_NODES } from "./library.js";
+import { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
 import { VARIABLE_NODES } from "./variables.js";
 
 export { FLOW_NODES, continuesEnclosingBlock, signatureText } from "./flow.js";
-export { LIBRARY_NODES } from "./library.js";
+export { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
 export { VARIABLE_NODES } from "./variables.js";
 export type { Signature } from "./flow.js";
 export type { FunctionRef, VariableRef } from "./variables.js";
@@ -112,7 +112,7 @@ function applySplits(
 		for (const part of struct.parts) {
 			out.push({
 				id: partPinId(pin.id, part.id),
-				// Prefixed with the parent, the way Unreal names a split struct
+				// Prefixed with the parent, the usual convention for a split struct
 				// pin's children. Look At takes two Vector3s; without this the
 				// node reads "X Y Z X Y Z" and you have to count rows to find out
 				// which three are the target. An unnamed parent — a pure node's
@@ -186,7 +186,7 @@ export function nodeTitle(def: NodeDef | undefined, node: GraphNode): string {
 const CATEGORY_ORDER = [
 	"Flow", "Events", "Variables", "Values", "Math", "Logic", "Strings", "Tables",
 	ENGINE_TYPES, "Engine", "Instances", "Players", "Networking", "Modules",
-	"Time", "Threads", "Debug",
+	"Time", "Threads", "Debug", ZUP_CONVERSIONS,
 ];
 
 /**

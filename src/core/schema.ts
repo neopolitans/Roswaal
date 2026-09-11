@@ -227,9 +227,9 @@ export interface NodeDef {
 	 */
 	defaultLabel?: (config: NodeConfig) => string | undefined;
 	/**
-	 * How the node is drawn. "compact" is the small capsule Unreal uses for a
-	 * variable getter: no header bar, no title row, one output on the right. It
-	 * suits a node whose whole meaning is its name, and only those — anything
+	 * How the node is drawn. "compact" is the small capsule node editors use for
+	 * a variable getter: no header bar, no title row, one output on the right.
+	 * It suits a node whose whole meaning is its name, and only those — anything
 	 * with inputs needs rows to put them in.
 	 */
 	display?: "normal" | "compact" | "reroute";
@@ -316,10 +316,10 @@ export interface Comment {
 }
 
 /**
- * A named value belonging to the whole graph, in the sense Unreal's Blueprints
- * mean it: declared once in a list, then read and written by Get and Set nodes
- * anywhere in the script. Distinct from a local declared mid-flow, which only
- * exists inside the block that declared it.
+ * A named value belonging to the whole graph, in the sense visual-scripting
+ * tools mean it: declared once in a list, then read and written by Get and Set
+ * nodes anywhere in the script. Distinct from a local declared mid-flow, which
+ * only exists inside the block that declared it.
  */
 export interface ScriptVariable {
 	id: string;

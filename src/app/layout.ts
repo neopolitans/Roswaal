@@ -1,7 +1,7 @@
 /**
  * Tidying a graph up.
  *
- * A layered left-to-right layout, which is the shape a Blueprint-style graph
+ * A layered left-to-right layout, which is the shape a visual-scripting graph
  * already wants: values flow rightwards into the things that consume them, and
  * execution reads like a sentence. Nodes are ranked by how far they are from
  * something with no inputs, then ordered within each rank to keep wires from
@@ -212,8 +212,8 @@ function orderWithinColumns(
  * Straightens the execution spine.
  *
  * Ranked columns put a node in the right column but at whatever height the
- * stacking happened to leave it, so a run of steps reads as a staircase. Unreal
- * lines the execution pins up instead, and the flow through a graph becomes one
+ * stacking happened to leave it, so a run of steps reads as a staircase.
+ * Lining the execution pins up instead turns the flow through a graph into one
  * horizontal line the eye can follow without hopping.
  *
  * This runs after placement rather than replacing it. Each node asks to sit

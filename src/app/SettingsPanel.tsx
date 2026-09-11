@@ -24,7 +24,9 @@ import {
 } from "../core/theme.js";
 import { LICENCE_TEXTS } from "../core/themeData.js";
 import { BUILTIN_THEMES } from "./theme.js";
-import { AUTOSAVE_CHOICES, WIRE_STYLES, type Preferences } from "./preferences.js";
+import {
+	AUTOSAVE_CHOICES, DOCS_FONTS, PREVIEW_SCALE, previewScaleOf, WIRE_STYLES, type Preferences,
+} from "./preferences.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
@@ -33,23 +35,32 @@ const TABS = [
 	{ id: "project", title: "Project", sub: "roswaal.json" },
 	{ id: "editor", title: "Editor", sub: "This browser" },
 	{ id: "themes", title: "Themes", sub: "This browser" },
+	{ id: "docs", title: "Docs", sub: "This browser" },
 	{ id: "licences", title: "Licences", sub: "What themes carry" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
 export interface SettingsPanelProps {
-	root: string;
-	config: RoswaalConfig;
+	/**
+	 * The project's root and settings. Absent where there is no project to
+	 * change — the Docs window — and then the Project tab is not offered.
+	 */
+	root?: string;
+	config?: RoswaalConfig;
 	prefs: Preferences;
 	/** Patches `roswaal.json`. Writes through the daemon, so it can fail. */
-	onConfig: (patch: Partial<RoswaalConfig>) => void;
+	onConfig?: (patch: Partial<RoswaalConfig>) => void;
 	onPrefs: (patch: Partial<Preferences>) => void;
 	onClose: () => void;
+	/** Which tab to open on. The first one offered, otherwise. */
+	initialTab?: TabId;
 }
 
 export function SettingsPanel(props: SettingsPanelProps) {
-	const [tab, setTab] = useState<TabId>("project");
+	const { config, onConfig } = props;
+	const tabs = TABS.filter((t) => t.id !== "project" || config !== undefined);
+	const [tab, setTab] = useState<TabId>(props.initialTab ?? tabs[0].id);
 	const panel = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -77,7 +88,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 				<div className="docs-head">
 					<Icon name="settings" size={16} />
 					<strong>Settings</strong>
-					<span className="sub">{props.root}</span>
+					<span className="sub">{props.root ?? "Preferences for this browser"}</span>
 					<span className="spacer" />
 					<button className="tb" onClick={props.onClose} title="Close (Esc)">
 						<Icon name="close" size={15} />
@@ -86,7 +97,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
 				<div className="docs-body">
 					<nav className="docs-nav">
-						{TABS.map((t) => (
+						{tabs.map((t) => (
 							<button
 								key={t.id}
 								className={`docs-link settings-tab${tab === t.id ? " on" : ""}`}
@@ -99,9 +110,12 @@ export function SettingsPanel(props: SettingsPanelProps) {
 					</nav>
 
 					<div className="settings-page">
-						{tab === "project" && <ProjectSettings {...props} />}
+						{tab === "project" && config && onConfig && (
+							<ProjectSettings config={config} onConfig={onConfig} />
+						)}
 						{tab === "editor" && <EditorSettings {...props} />}
 						{tab === "themes" && <ThemeSettings {...props} />}
+						{tab === "docs" && <DocsSettings {...props} />}
 						{tab === "licences" && <Licences />}
 					</div>
 				</div>
@@ -114,7 +128,10 @@ export function SettingsPanel(props: SettingsPanelProps) {
 // Project
 // ---------------------------------------------------------------------------
 
-function ProjectSettings({ config, onConfig }: SettingsPanelProps) {
+function ProjectSettings({ config, onConfig }: {
+	config: RoswaalConfig;
+	onConfig: (patch: Partial<RoswaalConfig>) => void;
+}) {
 	return (
 		<>
 			<h2>Project</h2>
@@ -125,7 +142,7 @@ function ProjectSettings({ config, onConfig }: SettingsPanelProps) {
 
 			<Row
 				label="Target"
-				help="Which flavour of Luau to emit. Lune drops the Roblox globals and the DataModel nodes."
+				help="Which flavour of Luau new graphs compile for. Lune is experimental and drops the Roblox nodes."
 			>
 				<select
 					className="tb"
@@ -133,7 +150,7 @@ function ProjectSettings({ config, onConfig }: SettingsPanelProps) {
 					onChange={(e) => onConfig({ target: e.target.value as Target })}
 				>
 					<option value="roblox">Roblox</option>
-					<option value="lune">Lune</option>
+					<option value="lune">Lune (experimental)</option>
 				</select>
 			</Row>
 
@@ -153,7 +170,7 @@ function ProjectSettings({ config, onConfig }: SettingsPanelProps) {
 
 			<Row
 				label="Rojo project file"
-				help="Used to resolve where a file lands in the DataModel. Nothing is written to it."
+				help="Left for Rojo. Where a file lands in the DataModel comes from your node maps, and nothing is written to this file."
 			>
 				<TextSetting
 					value={config.rojoProject ?? ""}
@@ -313,6 +330,55 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Docs
+// ---------------------------------------------------------------------------
+
+function DocsSettings({ prefs, onPrefs }: SettingsPanelProps) {
+	const percent = Math.round(prefs.docsPreviewScale * 100);
+	return (
+		<>
+			<h2>Docs</h2>
+			<p className="settings-note">
+				How the documentation reads. Stored in this browser, like the editor's settings.
+			</p>
+
+			<Row label="Font" help={DOCS_FONTS.find((f) => f.font === prefs.docsFont)?.what ?? ""}>
+				<div className="segmented">
+					{DOCS_FONTS.map((f) => (
+						<button
+							key={f.font}
+							className={prefs.docsFont === f.font ? "on" : ""}
+							title={f.what}
+							onClick={() => onPrefs({ docsFont: f.font })}
+						>
+							{f.label}
+						</button>
+					))}
+				</div>
+			</Row>
+
+			<Row
+				label="Preview size"
+				help="How large node and graph pictures are drawn. A graph bigger than its frame can be dragged around."
+			>
+				<div className="settings-range">
+					<input
+						type="range"
+						aria-label="Preview size"
+						min={PREVIEW_SCALE.min * 100}
+						max={PREVIEW_SCALE.max * 100}
+						step={PREVIEW_SCALE.step * 100}
+						value={percent}
+						onChange={(e) => onPrefs({ docsPreviewScale: previewScaleOf(Number(e.target.value) / 100) })}
+					/>
+					<span className="value">{percent}%</span>
+				</div>
+			</Row>
+		</>
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Themes
 // ---------------------------------------------------------------------------
 
@@ -377,8 +443,8 @@ function ThemeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			<p className="settings-note">
 				Node category colours and pin type colours are fixed and no theme changes
 				them. Red is a boolean, green is a number, gold is a vector — that mapping
-				is most of what makes a Roswaal graph readable to somebody arriving from
-				Blueprints, and a scheme that moved it would be trading the one thing the
+				is most of what makes a Roswaal graph readable at a glance, and a scheme
+				that moved it would be trading the one thing the
 				colours are for against a matter of taste.
 			</p>
 			<p className="settings-note">

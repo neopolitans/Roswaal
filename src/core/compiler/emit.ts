@@ -661,12 +661,8 @@ class Emitter {
 
 	/** Emits one node and returns the next node in the chain, if any. */
 	private emitNode(r: ResolvedNode, scope: Scope): string | undefined {
-		if (r.def.targets && !r.def.targets.includes(this.script.target)) {
-			this.warn(
-				`"${r.def.title}" is not available for the ${this.script.target} target.`,
-				r.node.id,
-			);
-		}
+		// A node for the other target is an error, reported by `validate` for
+		// every node rather than here, where only the execution chain passes.
 		const spec = r.def.compilesTo;
 		switch (spec.kind) {
 			case "builtin":

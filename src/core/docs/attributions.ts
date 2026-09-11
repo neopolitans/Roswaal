@@ -36,11 +36,10 @@ export interface Attribution {
 	/**
 	 * Whether Roswaal **uses** this or only **learned** from it.
 	 *
-	 * The distinction is the point of having it. Listing Unreal Engine beside
-	 * CodeMirror under one heading said Roswaal was built on Epic's engine, which
-	 * it is not — no code, no assets, no dependency, only a set of conventions a
-	 * reader might recognise. Overstating a debt is its own kind of inaccuracy,
-	 * and this one had us claiming a relationship nobody wanted to claim.
+	 * The distinction is the point of having it. Listing something Roswaal only
+	 * learned from under "built on" claims a relationship that does not exist —
+	 * no code, no assets, no dependency, only conventions a reader might
+	 * recognise. Overstating a debt is its own kind of inaccuracy.
 	 */
 	relation: "uses" | "inspired-by";
 	/** Where it is in the repository, or how it reaches a user. */
@@ -80,17 +79,17 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "inspired-by",
 		holder: "Epic Games, Inc.",
 		licence: null,
-		where: "Not used, and not bundled. Named in *Coming from Blueprints*.",
+		where: "Not used, and not bundled. Named only on *Coming from Blueprints*.",
 		note:
-			"Roswaal exists partly to shorten the move from Unreal to Roblox, so it " +
-			"is deliberately familiar where it can be: two kinds of wire, pin colours " +
-			"that line up, and menu wording taken from Unreal's, because the entry " +
-			"you already know should be the entry you find. Naming Epic's terms is " +
-			"how that mapping is explained, and it is the only thing the names are " +
-			"used for — they describe Epic's product, never this one. Unreal Engine, " +
-			"Unreal and Blueprint are Epic's; Roswaal is not affiliated with, " +
-			"endorsed by, or derived from Epic Games, uses no Unreal Engine code, " +
-			"and is not bound by the Unreal Engine EULA.",
+			"An inspiration for how Roswaal reads to someone who already knows visual " +
+			"scripting: execution and data wires, pins coloured by type, and names for " +
+			"common actions that such a person will recognise. Roswaal contains no " +
+			"code, assets or content from Unreal Engine, and was not made with it. " +
+			"*Coming from Blueprints* names Epic's terms to map each one to Roswaal's, " +
+			"and is the only page that does. Unreal, Unreal Engine and Blueprint are " +
+			"trademarks or registered trademarks of Epic Games, Inc. in the United " +
+			"States of America and elsewhere. Roswaal is not affiliated with, " +
+			"sponsored by, or endorsed by Epic Games, Inc.",
 		url: "https://www.unrealengine.com/",
 	},
 	{

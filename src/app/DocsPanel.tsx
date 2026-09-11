@@ -12,11 +12,13 @@
  * already documented, with its real compiled output.
  */
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+	createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties,
+} from "react";
 
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
 import {
-	buildSearchIndex, buildSite, findPage, parseInline, searchDocs, TAG_LABELS,
+	buildSearchIndex, buildSite, findPage, isPageLink, parseInline, searchDocs, TAG_LABELS,
 	type Block, type DocPage, type DocSection, type Inline,
 } from "../core/docs/site.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
@@ -31,6 +33,8 @@ import { NODE, ZOOM } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { wirePath } from "./geometry.js";
 import { attachGraphView } from "./graphView.js";
+import type { Preferences } from "./preferences.js";
+import { growthState } from "../core/nodes/growth.js";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
 
@@ -51,22 +55,65 @@ const RegistryContext = createContext<Registry | null>(null);
  * because they are the same objects the canvas uses, a node in the docs and the
  * same node on the canvas are drawn from one set of numbers.
  */
-const PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor, wirePath };
+const DEFAULT_PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor, wirePath };
+
+/**
+ * The same, bent to the reader's own settings, so a picture in the docs looks
+ * like their canvas. Square corners are a radius of nothing, and a wire takes
+ * the style the canvas draws with; capsules and knots keep their shapes either
+ * way, as they do there.
+ */
+function previewFor(prefs: Preferences, registry: Registry): PreviewOptions {
+	return {
+		geometry: prefs.roundedNodes ? NODE : { ...NODE, radius: 0 },
+		nodeColor,
+		pinColor,
+		wirePath: (from, to) => wirePath(from, to, prefs.wireStyle),
+		growth: (preview) => growthState(registry.get(preview.id), preview.config),
+		scale: prefs.docsPreviewScale,
+	};
+}
+
+/** `.graph-viewport`'s height in `theme.css`, before the reader's preview size. */
+const GRAPH_FRAME_HEIGHT = 260;
+
+/**
+ * A figure at more than 100% may grow past the article column, into the room
+ * the page has — `.docs-preview.breakout` in `theme.css` does the arithmetic.
+ * At 100% or less it keeps the column's width, and its pictures shrink inside.
+ */
+function breakout(scale: number | undefined): { className: string; style?: CSSProperties } {
+	if (!scale || scale <= 1) return { className: "" };
+	return { className: " breakout", style: { ["--preview-scale" as string]: String(scale) } };
+}
+
+/** The preview options in force for this window. */
+const PreviewContext = createContext<PreviewOptions>(DEFAULT_PREVIEW);
+
+/**
+ * Opens another docs page. A link written as a bare slug is a page of these
+ * docs, not an address, so following it means this rather than a new tab.
+ */
+const NavigateContext = createContext<(slug: string) => void>(() => {});
 const HOME = "getting-started";
 /** Written as a code unit so the escape survives the JSX attribute. */
 const NEWLINE = String.fromCharCode(10);
 
 export interface DocsViewProps {
 	registry: Registry;
+	/** The reader's preferences, for pictures that look like their canvas. */
+	prefs: Preferences;
 	/** Opens on this page, so "what is this node" can jump straight there. */
 	initialSlug?: string;
 	/** Reflects the current page outwards, for the address bar or a title. */
 	onNavigate?: (slug: string) => void;
 }
 
-export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
+export function DocsView({ registry, prefs, initialSlug, onNavigate }: DocsViewProps) {
 	const site = useMemo(() => buildSite(registry, BUILTIN_IDS), [registry]);
 	const index = useMemo(() => buildSearchIndex(site), [site]);
+
+	const preview = useMemo(() => previewFor(prefs, registry), [prefs, registry]);
 
 	const [slug, setSlug] = useState(initialSlug ?? HOME);
 	const [query, setQuery] = useState("");
@@ -105,6 +152,8 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 
 	return (
 		<RegistryContext.Provider value={registry}>
+		<PreviewContext.Provider value={preview}>
+		<NavigateContext.Provider value={go}>
 		<div className="docs-body">
 			{/* The nav, the page, and its outline. */}
 					<nav className="docs-nav">
@@ -209,12 +258,14 @@ export function DocsView({ registry, initialSlug, onNavigate }: DocsViewProps) {
 						</div>
 					</article>
 
-					{/* "On this page", as Creator Hub and Epic both have. Long node
-					    pages and the Blueprint mapping are the ones that need it. */}
+					{/* "On this page", as reference documentation usually has. Long
+					    node pages and the longer guides are the ones that need it. */}
 					<aside className="docs-toc">
 						<PageOutline page={page} />
 					</aside>
 				</div>
+		</NavigateContext.Provider>
+		</PreviewContext.Provider>
 		</RegistryContext.Provider>
 	);
 }
@@ -276,14 +327,23 @@ function Page({ page }: { page: DocPage }) {
 				<h1>
 					{page.title}
 					{page.custom && <span className="badge">from a node pack</span>}
-					{page.review && <ReviewBadge review={page.review} />}
 				</h1>
 				<p className="summary">{page.summary}</p>
+				{page.review && (
+					<p className="docs-status">
+						<ReviewBadge review={page.review} />
+					</p>
+				)}
 			</header>
 			{page.blocks.map((block, i) => (
 				<BlockView key={i} block={block} />
 			))}
 			{page.review && <p className="docs-reviewed">{reviewLine(page.review)}</p>}
+			{page.review?.verify && (
+				<p className="docs-verify">
+					<strong>To verify:</strong> <Rich text={page.review.verify} />
+				</p>
+			)}
 		</>
 	);
 }
@@ -466,14 +526,16 @@ function BlockView({ block }: { block: Block }) {
  * every value passes through `escapeXml` on the way in.
  */
 function PreviewFigure({ nodes, caption }: { nodes: NodePreview[]; caption?: string }) {
+	const preview = useContext(PreviewContext);
+	const wide = breakout(preview.scale);
 	return (
-		<figure className="docs-preview">
+		<figure className={`docs-preview${wide.className}`} style={wide.style}>
 			<div className="row">
 				{nodes.map((node) => (
 					<div
 						key={node.id}
 						className="node-preview-frame"
-						dangerouslySetInnerHTML={{ __html: previewSvg(node, PREVIEW) }}
+						dangerouslySetInnerHTML={{ __html: previewSvg(node, preview) }}
 					/>
 				))}
 			</div>
@@ -492,23 +554,31 @@ function PreviewFigure({ nodes, caption }: { nodes: NodePreview[]; caption?: str
  */
 function GraphFigure({ script, caption }: { script: NodeScript; caption?: string }) {
 	const registry = useContext(RegistryContext);
-	const svg = registry ? graphSvg(script, registry, PREVIEW) : "";
+	const preview = useContext(PreviewContext);
+	const svg = registry ? graphSvg(script, registry, preview) : "";
 	const viewport = useRef<HTMLDivElement>(null);
+	// One object per graph, not per render. A new `{ __html }` object is a new
+	// prop, and a re-render with one writes the markup again -- a fresh <svg>,
+	// with the pan and zoom still holding the one it replaced.
+	const html = useMemo(() => ({ __html: svg }), [svg]);
 
 	// The same function the static site runs, so a graph behaves identically in
 	// both — and the same ZOOM limits the canvas uses.
+	const scale = preview.scale ?? 1;
 	useEffect(() => {
 		if (!viewport.current || svg === "") return;
-		return attachGraphView(viewport.current, ZOOM);
-	}, [svg]);
+		return attachGraphView(viewport.current, { ...ZOOM, scale });
+	}, [svg, scale]);
 
 	if (svg === "") return null;
+	const wide = breakout(scale);
 	return (
-		<figure className="docs-preview graph">
+		<figure className={`docs-preview graph${wide.className}`} style={wide.style}>
 			<div
 				className="graph-viewport"
 				ref={viewport}
-				dangerouslySetInnerHTML={{ __html: svg }}
+				style={{ height: GRAPH_FRAME_HEIGHT * scale }}
+				dangerouslySetInnerHTML={html}
 			/>
 			{caption && <figcaption><Rich text={caption} /></figcaption>}
 		</figure>
@@ -586,13 +656,26 @@ function Rich({ text }: { text: string }) {
 }
 
 function Run({ run }: { run: Inline }) {
+	const navigate = useContext(NavigateContext);
 	switch (run.t) {
 		case "text": return <>{run.text}</>;
 		case "code": return <code>{run.text}</code>;
 		case "strong": return <strong>{run.text}</strong>;
 		case "em": return <em>{run.text}</em>;
 		case "link":
-			return (
+			// Another page of these docs opens here. As a plain link it opened a
+			// new tab at the slug, which is not an address the daemon serves.
+			return isPageLink(run.href) ? (
+				<a
+					href={`#${run.href}`}
+					onClick={(e) => {
+						e.preventDefault();
+						navigate(run.href);
+					}}
+				>
+					{run.text}
+				</a>
+			) : (
 				<a href={run.href} target="_blank" rel="noreferrer noopener">
 					{run.text}
 				</a>

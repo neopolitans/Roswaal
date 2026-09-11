@@ -42,6 +42,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 	Time: "#65852c",
 	Threads: "#4a6f8a",
 	Debug: "#6d7480",
+	// Olive, away from the teals of the datatypes it produces: these are a
+	// crossing point, not another kind of value.
+	"Z-Up Conversions": "#6b7a3a",
 	Custom: "#4f6480",
 };
 
@@ -98,10 +101,11 @@ export function isFlowBoundary(def: NodeDef): boolean {
 }
 
 /**
- * Pin colours, kept close to Unreal's where the types line up. A developer
- * coming from Blueprints should be able to read a Roswaal graph by colour
- * without being told the mapping: red is a boolean, green is a number, magenta
- * is a string, blue is an object, gold is a vector.
+ * Pin colours, kept close to the conventional node-graph ones where the types
+ * line up. A developer arriving from another visual-scripting tool should be
+ * able to read a Roswaal graph by colour without being told the mapping: red
+ * is a boolean, green is a number, magenta is a string, blue is an object,
+ * gold is a vector.
  */
 const TYPE_COLORS: Record<string, string> = {
 	exec: "#e2e6ec",
@@ -110,8 +114,9 @@ const TYPE_COLORS: Record<string, string> = {
 	boolean: "#8f2f2a",
 	number: "#8fbf3f",
 	string: "#c14bb0",
-	// Luau tables are not Unreal arrays, so this one deliberately does not
-	// borrow a colour that would imply they behave alike.
+	// Luau tables are not the arrays of other visual-scripting tools, so this
+	// one deliberately does not borrow a colour that would imply they behave
+	// alike.
 	table: "#c08a3a",
 	function: "#5a4b9c",
 	// A thread is a function that remembers where it was.

@@ -112,6 +112,9 @@ export function applyChrome(prefs: Preferences): void {
 		"--node-radius",
 		prefs.roundedNodes ? `${NODE.radius}px` : "0px",
 	);
+	// The docs' reading face, as an attribute the stylesheet keys its font
+	// stacks on. Every window sets it; only the docs have text that reads it.
+	document.documentElement.dataset.docsFont = prefs.docsFont;
 }
 
 /**

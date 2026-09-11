@@ -10,6 +10,11 @@
  * reference here documents the same registry the canvas is using, packs and all.
  * If the daemon is not reachable it still opens, with the built-in library only,
  * and says so rather than showing an empty page.
+ *
+ * It also holds its own copy of the preferences, and opens Settings for them.
+ * The pictures follow the reader's Wires, Node corners and Docs settings, so
+ * the window has to hear about a change wherever it was made: here directly, or
+ * in the editor's window as a `storage` event.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -18,7 +23,11 @@ import { createRegistry } from "../core/nodes/index.js";
 import type { NodeDef } from "../core/schema.js";
 import { api } from "./api.js";
 import { DocsView } from "./DocsPanel.jsx";
+import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
+import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
+import { SettingsPanel } from "./SettingsPanel.jsx";
+import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import { VERSION } from "../cli/version.js";
 
 /** The slug in the address bar, so a docs page can be linked and bookmarked. */
@@ -31,6 +40,8 @@ export function DocsPage() {
 	const [packs, setPacks] = useState<NodeDef[]>([]);
 	const [packsFailed, setPacksFailed] = useState(false);
 	const [slug, setSlug] = useState<string | undefined>(slugFromHash);
+	const [prefs, setPrefs] = useState<Preferences>(readPreferences);
+	const [settingsOpen, setSettingsOpen] = useState(false);
 
 	useEffect(() => {
 		void api
@@ -46,9 +57,33 @@ export function DocsPage() {
 		return () => window.removeEventListener("hashchange", onHash);
 	}, []);
 
+	// The editor wrote a preference in its own window. Take all of them again
+	// rather than guessing which one moved.
+	useEffect(() => {
+		const onStorage = () => {
+			const next = readPreferences();
+			setPrefs(next);
+			applyTheme(findTheme(next.theme));
+			applyChrome(next);
+		};
+		window.addEventListener("storage", onStorage);
+		return () => window.removeEventListener("storage", onStorage);
+	}, []);
+
+	const updatePrefs = (patch: Partial<Preferences>) => {
+		setPrefs((current) => {
+			const next = { ...current, ...patch };
+			writePreferences(next);
+			if ("theme" in patch) applyTheme(findTheme(next.theme));
+			applyChrome(next);
+			return next;
+		});
+	};
+
 	const registry = useMemo(() => createRegistry(packs), [packs]);
 
 	return (
+		<>
 		<div className="docs-page">
 			<header className="docs-page-head">
 				{/* The mark and what this window is. "Roswaal Documentation" said
@@ -64,6 +99,10 @@ export function DocsPage() {
 					</span>
 				)}
 				<span style={{ flex: 1 }} />
+				<button className="tb" onClick={() => setSettingsOpen(true)} title="Settings">
+					<Icon name="settings" size={15} />
+					Settings
+				</button>
 				<a className="tb" href="/" target="_blank" rel="noreferrer">
 					Open the editor
 				</a>
@@ -71,6 +110,7 @@ export function DocsPage() {
 
 			<DocsView
 				registry={registry}
+				prefs={prefs}
 				initialSlug={slug}
 				onNavigate={(next) => {
 					// replaceState rather than a hash assignment: navigating the docs
@@ -80,5 +120,21 @@ export function DocsPage() {
 				}}
 			/>
 		</div>
+
+		{/* Outside `.docs-page`, as it is outside the editor's shell: the
+		    panel borrows the docs' class names for its frame, so inside this
+		    window's rules it picked up the reading layout and cramped every row.
+
+		    No project here, so no Project tab: those settings are the
+		    repository's, and they are changed from the editor. */}
+		{settingsOpen && (
+			<SettingsPanel
+				prefs={prefs}
+				onPrefs={updatePrefs}
+				onClose={() => setSettingsOpen(false)}
+				initialTab="docs"
+			/>
+		)}
+		</>
 	);
 }

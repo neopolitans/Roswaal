@@ -1,10 +1,10 @@
 /**
  * Splittable value types.
  *
- * Unreal calls this splitting a struct pin: one Vector pin becomes three float
- * pins, and recombining puts them back. The same idea fits Luau's value types
- * exactly — a `Vector3` input is a `Vector3.new(x, y, z)` waiting to happen,
- * and a `CFrame` output is a position and a rotation you usually want
+ * Node editors call this splitting a struct pin: one Vector pin becomes three
+ * float pins, and recombining puts them back. The same idea fits Luau's value
+ * types exactly — a `Vector3` input is a `Vector3.new(x, y, z)` waiting to
+ * happen, and a `CFrame` output is a position and a rotation you usually want
  * separately.
  *
  * This is **data**, in the same spirit as `compilesTo`: a node pack can declare

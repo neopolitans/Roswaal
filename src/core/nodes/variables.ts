@@ -1,10 +1,11 @@
 /**
  * Variable and function reference nodes.
  *
- * These are Blueprint-style getters and setters: the variable is declared once
- * in the script's variable list, and Get/Set nodes refer to it by id from
- * anywhere in the graph. That is a different thing from `local.declare`, which
- * binds a value mid-flow and only exists inside the block that declared it.
+ * These are getters and setters in the usual visual-scripting style: the
+ * variable is declared once in the script's variable list, and Get/Set nodes
+ * refer to it by id from anywhere in the graph. That is a different thing from
+ * `local.declare`, which binds a value mid-flow and only exists inside the
+ * block that declared it.
  *
  * Pin derivation cannot see the script, only the node's own config, so each
  * reference node caches the variable's name and type alongside its id. The

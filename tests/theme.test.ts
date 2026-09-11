@@ -394,8 +394,8 @@ describe("what a theme is not allowed to reach", () => {
 	/**
 	 * Node category and pin type colours are fixed. This is a design decision —
 	 * red is a boolean and gold is a vector, and that mapping is most of what
-	 * makes a graph readable to somebody arriving from Blueprints — so it is
-	 * asserted rather than left as a comment somebody later takes for an
+	 * makes a graph readable to somebody who already knows node graphs — so it
+	 * is asserted rather than left as a comment somebody later takes for an
 	 * oversight.
 	 */
 	it("cannot recolour a pin or a node category", () => {

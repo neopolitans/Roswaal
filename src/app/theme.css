@@ -877,7 +877,8 @@ button.tb.primary:hover:not(:disabled) {
    most and it was previously the same size as a value pin while carrying more
    traffic.
  *
- * Empty versus wired is drawn the way Unreal draws it — outline, then solid.
+ * Empty versus wired is drawn the way node editors usually draw it — outline,
+ * then solid.
  * That used to be a half-opacity fill, which reads as "disabled" rather than
  * "nothing here yet"; a hollow arrow says the same thing at full colour, so an
  * unwired exec pin stays as easy to find as a wired one.
@@ -2330,8 +2331,9 @@ button.tb.primary:hover:not(:disabled) {
 
 /* --------------------------------------------------------- capsule getters */
 
-/* Unreal's variable-getter shape: a dark pill, the name, one output. The form
-   itself says "this is a value", so it needs no header and no title row. */
+/* The usual node-editor shape for a variable getter: a dark pill, the name, one
+   output. The form itself says "this is a value", so it needs no header and no
+   title row. */
 .node.capsule {
 	display: flex;
 	align-items: center;
@@ -2434,9 +2436,9 @@ button.tb.primary.danger {
 	background: var(--danger);
 }
 
-/* A pure node has no execution pins and can be wired anywhere. Unreal tints
-   those green; a thin edge is enough to carry the same signal here without
-   fighting the category colour on the header. */
+/* A pure node has no execution pins and can be wired anywhere. Green is the
+   usual signal for that; a thin edge carries it here without fighting the
+   category colour on the header. */
 .node.pure {
 	border-left: 3px solid var(--pure-edge);
 }
@@ -2464,9 +2466,8 @@ button.tb.primary.danger {
 	text-overflow: ellipsis;
 }
 
-/* Arity controls, for nodes that choose how many inputs they take. Unreal
-   spells this "Add pin +"; the header is where it fits without changing the
-   node's geometry. */
+/* Arity controls, for nodes that choose how many inputs they take. The header
+   is where they fit without changing the node's geometry. */
 .node .head .grow {
 	display: flex;
 	gap: 2px;
@@ -3138,6 +3139,13 @@ button.tb.with-icon {
 
 .docs-page-head a.tb { text-decoration: none; color: inherit; }
 
+/* An icon is a block, so an icon and a word in one button stack by default. */
+.docs-page-head button.tb {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
 .docs-page .docs-body {
 	min-height: 0;
 	grid-template-columns: 260px 1fr;
@@ -3168,7 +3176,7 @@ button.tb.with-icon {
 
 /* ----------------------------------------------------- docs, second pass
  *
- * Closer to Roblox's Creator Hub and Epic's documentation: three columns —
+ * Closer to Roblox's Creator Hub and other engine documentation: three columns —
  * nav, a capped reading measure, and an outline of the page — with code blocks
  * that carry their language and a copy button rather than being bare <pre>.
  */
@@ -3280,7 +3288,6 @@ button.tb.with-icon {
 	font-size: 12px;
 	line-height: 1.5;
 	color: var(--fg-muted);
-	max-width: 62ch;
 }
 
 .docs-code {
@@ -3360,7 +3367,7 @@ button.tb.with-icon {
 .docs-page .docs-content .summary {
 	font-size: 15px;
 	line-height: 1.55;
-	max-width: 78ch;
+	max-width: none;
 	margin: 0;
 	padding: 0;
 	border: 0;
@@ -3516,15 +3523,40 @@ button.tb.with-icon {
 
 /* ------------------------------------------------ docs: page measure
  *
- * Both Unreal's and Roblox's documentation centre the article in whatever room
- * the window gives them rather than hugging the nav, and let it grow well past
- * a prose measure — their pages are mostly tables and signatures, and so are
+ * Engine documentation, Roblox's included, centres the article in whatever
+ * room the window gives it rather than hugging the nav, and lets it grow well
+ * past a prose measure — those pages are mostly tables and signatures, and so are
  * ours. The nav and the outline stay pinned to the edges; only the middle
  * column centres.
  */
 .docs-page .docs-content {
 	display: flex;
 	justify-content: center;
+	/* So a figure can measure the room the page has, not only its column. */
+	container-type: inline-size;
+}
+
+/* A picture at more than 100% grows past the article column, centred on it, up
+   to the width of the pane it scrolls in. `--preview-scale` is set on the
+   figure by the Docs window; the static site never sets it. */
+.docs-preview.breakout {
+	--frame: min(calc(100% * var(--preview-scale)), calc(100cqw - 48px));
+	box-sizing: border-box;
+	width: var(--frame);
+	margin-left: calc((100% - var(--frame)) / 2);
+}
+
+/* A node picture never outgrows its frame: at a size the frame cannot hold, it
+   shrinks to fit rather than spilling past the border. A graph's own SVG is
+   left alone — the pan-and-zoom viewer positions that one. */
+.docs-preview .node-preview-frame {
+	min-width: 0;
+	max-width: 100%;
+}
+
+.docs-preview svg.node-preview:not(.graph-preview) {
+	max-width: 100%;
+	height: auto;
 }
 
 .docs-page .docs-content > * {
@@ -3547,6 +3579,55 @@ button.tb.with-icon {
 	flex: none;
 }
 
+/* What the open graph compiles for, beside its name. Lune takes the warning
+   colour, because it is experimental and it is where Roblox nodes fail. */
+.docbar .doc-target {
+	font-size: 11px;
+	color: var(--fg-muted);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 1px 8px;
+	white-space: nowrap;
+}
+
+.docbar .doc-target.lune {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+/* The reader's chosen face for the docs, from Settings → Docs. Headings and
+   prose follow it; code keeps its own monospace, which it sets for itself.
+   Stacks of fonts an operating system already has — the docs run offline. */
+:root[data-docs-font="serif"] .docs-article {
+	font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+}
+
+:root[data-docs-font="wide"] .docs-article {
+	font-family: Verdana, Tahoma, "DejaVu Sans", sans-serif;
+}
+
+:root[data-docs-font="mono"] .docs-article {
+	font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+}
+
+/* A slider and the value it is at, for Settings → Docs → Preview size. */
+.settings-range {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.settings-range input[type="range"] {
+	width: 180px;
+	accent-color: var(--accent);
+}
+
+.settings-range .value {
+	min-width: 4ch;
+	color: var(--fg-muted);
+	font-variant-numeric: tabular-nums;
+}
+
 /* A badge beside a page's title: a pack's page, or how far a page has been
    reviewed. Pending takes the warning colour because it is the one asking the
    reader to take care; Verified takes the colour the notes use for a promise
@@ -3563,6 +3644,16 @@ button.tb.with-icon {
 	border-radius: 999px;
 	padding: 1px 8px;
 	white-space: nowrap;
+}
+
+/* The review badge has a line of its own, under the summary. */
+.docs-title p.docs-status {
+	margin: 10px 0 0;
+	line-height: 1;
+}
+
+.docs-title .docs-status .badge {
+	margin-left: 0;
 }
 
 .docs-title .badge.review.pending {
@@ -3589,6 +3680,14 @@ button.tb.with-icon {
 	color: var(--fg-faint);
 }
 
+/* What a verified pass still needs, under the date. */
+.docs-content p.docs-verify {
+	margin: 4px 0 0;
+	font-size: 12.5px;
+	line-height: 1.55;
+	color: var(--fg-faint);
+}
+
 .docs-page .docs-article {
 	width: 100%;
 	max-width: 940px;
@@ -3601,7 +3700,10 @@ button.tb.with-icon {
 .docs-page .docs-article > p,
 .docs-page .docs-article > ul:not(.docs-pins),
 .docs-page .docs-article > ol {
-	max-width: 78ch;
+	/* The article's own width is the measure. Capping prose inside it left
+	   sentences wrapping at half the column beside tables that ran the full
+	   width, which read as unfinished rather than as a reading measure. */
+	max-width: none;
 }
 
 @media (min-width: 1500px) {

@@ -35,11 +35,11 @@
  * ## What a theme does not get to set
  *
  * Node category colours and pin type colours are **not** themeable, and that is
- * a design decision rather than an omission. Roswaal tells a Blueprints
- * developer that red is a boolean, green is a number and gold is a vector, and
- * that promise is worth more than the ability to recolour it — a scheme that
- * moved those hues would break the one thing the colours are for. `palette.ts`
- * owns them and stays fixed.
+ * a design decision rather than an omission. Roswaal tells a developer who
+ * already knows node graphs that red is a boolean, green is a number and gold
+ * is a vector, and that promise is worth more than the ability to recolour
+ * it — a scheme that moved those hues would break the one thing the colours
+ * are for. `palette.ts` owns them and stays fixed.
  *
  * Geometry is not themeable either: `--pin-slot` is a measurement, not a
  * colour, and a scheme has no business changing where a wire attaches.

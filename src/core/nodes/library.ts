@@ -16,6 +16,9 @@ import type { NodeDef, PinDef } from "../schema.js";
 import { PATH_ROOTS, ROBLOX_SERVICES } from "../roblox.js";
 import { ENGINE_TYPES, LUAU } from "../schema.js";
 
+/** The category for coordinates brought across from a Z-up tool. */
+export const ZUP_CONVERSIONS = "Z-Up Conversions";
+
 const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
 const d = (id: string, name: string, type: string, def?: PinDef["default"]): PinDef => ({
 	id, name, kind: "data", type, default: def,
@@ -77,8 +80,8 @@ function stmt(
 
 /**
  * A pure node whose arity is chosen per instance: Add with three operands, a
- * Concatenate with five. Unreal spells this "Add pin +"; the idea is the same,
- * and it is the difference between one node and a chain of them.
+ * Concatenate with five. That is the difference between one node and a chain
+ * of them.
  */
 function variadic(
 	id: string, title: string, category: string, template: string,
@@ -232,10 +235,10 @@ const p = (
 /**
  * A pure node that takes one value apart into several.
  *
- * Unreal calls this Break; here it is one node per datatype with an output per
- * component. Splitting the pin does the same job — see `structs.ts` — but a
- * Break node is what somebody arriving from Blueprints reaches for first, and
- * having both costs one definition.
+ * The usual name for this is Break; here it is one node per datatype with an
+ * output per component. Splitting the pin does the same job — see
+ * `structs.ts` — but a Break node is what somebody who already knows node
+ * graphs reaches for first, and having both costs one definition.
  *
  * Each output carries its **own** expression, because that is what `expr` is.
  * For a component that is a plain field read that is exactly right. For one
@@ -613,7 +616,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 
 	variadicStmt("bindable.fire", "Fire Bindable", "Networking",
 		"$in.event:Fire($args(, ))", [d("event", "Bindable Event", "Instance")],
-		"In-process, one machine, no network. The closest thing Roblox has to Unreal's Custom Event."),
+		"In-process, one machine, no network: how one script signals another."),
 	pure("bindable.event", "Bindable Event Signal", "Networking", "$in.event.Event",
 		[d("event", "Bindable Event", "Instance")], "RBXScriptSignal",
 		"The signal a BindableEvent fires. Unlike a remote, no Player is prepended."),
@@ -624,6 +627,72 @@ export const LIBRARY_NODES: NodeDef[] = [
 		"$in.fn.OnInvoke = $in.handler",
 		[d("fn", "Bindable Function", "Instance"), d("handler", "Handler", "function")],
 		{ targets: ["roblox"] }),
+
+	// -- Z-up conversions --------------------------------------------------
+	//
+	// Coordinates from a tool that is X forward, Y right and Z up -- left-handed,
+	// and in centimetres unless told otherwise. Roblox is X right, Y up and Z
+	// back, in studs, so a position becomes `Vector3.new(y, z, -x)`, scaled.
+	//
+	// A rotation is the same change of axes applied to a quaternion. The change
+	// flips handedness, which the quaternion's vector part absorbs as a sign:
+	// (x, y, z) goes to (-y, -z, x), and w is untouched. tests/zup.test.ts
+	// checks that against the rotation matrices it is shorthand for.
+	//
+	// Negation is written `-($in.x)`, never `-$in.x`: a negative literal spliced
+	// after a minus would emit `--3`, which Luau reads as a comment.
+	//
+	// Named for the convention rather than for any one tool that uses it.
+	pure("zup.vector3", "Vector3 from Z-Up", ZUP_CONVERSIONS,
+		"Vector3.new($in.y, $in.z, -($in.x)) / $in.units",
+		[num("x", "X (forward)"), num("y", "Y (right)"), num("z", "Z (up)"),
+			num("units", "Units Per Stud", 28)],
+		"Vector3",
+		"A position from X-forward, Y-right, Z-up coordinates. Units Per Stud is 28 for centimetres; set it to 1 for a direction."),
+	pure("zup.rotation", "CFrame from Z-Up Rotation", ZUP_CONVERSIONS,
+		"CFrame.new(0, 0, 0, -($in.y), -($in.z), $in.x, $in.w)",
+		[num("x", "X"), num("y", "Y"), num("z", "Z"), num("w", "W", 1)],
+		"CFrame",
+		"A rotation from an X-forward, Y-right, Z-up quaternion, as a CFrame at the origin."),
+	// Pitch, yaw and roll in degrees, in the source's sense of each: yaw turns
+	// forward towards right, pitch tilts it up, roll tips the right side down.
+	// The source's own formula applies roll, then pitch, then yaw, with pitch
+	// and roll against the right-hand rule. Carried across the axes, that is
+	// Roblox's Y, X, Z order -- `fromEulerAnglesYXZ` -- with yaw and roll
+	// negated. tests/zup.test.ts checks it against the quaternion the source
+	// itself would compute.
+	pure("zup.rotator", "CFrame from Z-Up Rotator", ZUP_CONVERSIONS,
+		"CFrame.fromEulerAnglesYXZ(math.rad($in.pitch), -math.rad($in.yaw), -math.rad($in.roll))",
+		[num("pitch", "Pitch"), num("yaw", "Yaw"), num("roll", "Roll")],
+		"CFrame",
+		"A rotation from pitch, yaw and roll in degrees, as an X-forward, Z-up tool gives them, as a CFrame at the origin."),
+	{
+		id: "zup.transform",
+		title: "CFrame from Z-Up Transform",
+		category: ZUP_CONVERSIONS,
+		summary:
+			"A location and rotation from X-forward, Y-right, Z-up coordinates, as one CFrame. " +
+			"Scale comes out on its own, because a CFrame has none — use it for a part's Size.",
+		pure: true,
+		inputs: [
+			num("lx", "Location X"), num("ly", "Location Y"), num("lz", "Location Z"),
+			num("qx", "Rotation X"), num("qy", "Rotation Y"), num("qz", "Rotation Z"),
+			num("qw", "Rotation W", 1),
+			num("sx", "Scale X", 1), num("sy", "Scale Y", 1), num("sz", "Scale Z", 1),
+			num("units", "Units Per Stud", 28),
+		],
+		outputs: [d("cframe", "CFrame", "CFrame"), d("scale", "Scale", "Vector3")],
+		compilesTo: {
+			kind: "expr",
+			outputs: {
+				cframe:
+					"CFrame.new($in.ly / $in.units, $in.lz / $in.units, -($in.lx) / $in.units, " +
+					"-($in.qy), -($in.qz), $in.qx, $in.qw)",
+				// Scale is a size per axis, so it swaps axes and never changes sign.
+				scale: "Vector3.new($in.sy, $in.sz, $in.sx)",
+			},
+		},
+	},
 
 	// -- Instances ---------------------------------------------------------
 	//
@@ -759,8 +828,8 @@ export const LIBRARY_NODES: NodeDef[] = [
 	//
 	// Luau's `::` assertion. It has no runtime behaviour at all: it tells the
 	// typechecker what you know and disappears. That is genuinely different from
-	// Unreal's Cast To, which branches at runtime — so there is no Cast Failed
-	// pin here, and Is A is the node for asking rather than asserting.
+	// a checked cast, which branches at runtime — so there is no Cast Failed pin
+	// here, and Is A is the node for asking rather than asserting.
 	pure("cast.as", "Cast", "Values", "($in.value :: $in.type!raw)",
 		[d("value", "Value", "any"), str("type", "Type", "BasePart")], "any",
 		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first. The Type pin takes any Luau type expression, so an intersection like `Model & { Humanoid: Humanoid }` is written here directly."),
@@ -833,7 +902,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 			{ id: "x", name: "X", type: "number", expr: "$in.v.X" },
 			{ id: "y", name: "Y", type: "number", expr: "$in.v.Y" },
 			{ id: "z", name: "Z", type: "number", expr: "$in.v.Z" },
-		], "Splitting the pin does the same job and takes up less room; this is here because it is what a Blueprints hand reaches for."),
+		], "Splitting the pin does the same job and takes up less room."),
 	]),
 
 	...datatype("Vector2", [

@@ -184,9 +184,9 @@ function renderReroute(
 }
 
 /**
- * The capsule getter. Unreal draws these as a plain dark pill with the
- * variable's name and one coloured output, and the shape alone tells you it is
- * a value rather than a step — which is exactly the read you want at a glance.
+ * The capsule getter, drawn as a plain dark pill with the variable's name and
+ * one coloured output. The shape alone tells you it is a value rather than a
+ * step — which is exactly the read you want at a glance.
  */
 function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | undefined) {
 	const { node, selected } = props;
@@ -243,7 +243,7 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 		</span>
 	);
 
-	// A component of a split pin is indented under it, the way Unreal nests the
+	// A component of a split pin is indented under it, the usual way to nest the
 	// children of a split struct pin — without that, three number pins called X,
 	// Y and Z read as three unrelated inputs.
 	const label = pin.name ? (

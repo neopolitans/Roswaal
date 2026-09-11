@@ -30,7 +30,7 @@
  */
 export function attachGraphView(
 	viewport: HTMLElement,
-	limits: { min: number; max: number; step: number },
+	limits: { min: number; max: number; step: number; scale?: number },
 ): () => void {
 	const svg = viewport.querySelector("svg");
 	if (!svg) return () => {};
@@ -50,17 +50,26 @@ export function attachGraphView(
 	const clamp = (value: number, low: number, high: number) =>
 		value < low ? low : value > high ? high : value;
 
+	// The <svg> is looked up each time rather than held: if whatever owns the
+	// viewport writes its markup again, the transform has to land on the
+	// element on the page, not the one that was there when this attached.
 	const apply = () => {
-		svg.style.transformOrigin = "0 0";
-		svg.style.transform = "translate(" + x + "px," + y + "px) scale(" + zoom + ")";
+		const current = viewport.querySelector("svg");
+		if (!current) return;
+		current.style.transformOrigin = "0 0";
+		current.style.transform = "translate(" + x + "px," + y + "px) scale(" + zoom + ")";
 	};
 
-	/** The whole graph, centred. Never magnified past 1: a two-node scene blown
-	 *  up to fill a wide page looks like a mistake rather than a diagram. */
+	/** The whole graph, centred, and never bigger than its frame. Not magnified
+	 *  past `scale` either — the reader's preview size, 1 unless they chose
+	 *  otherwise: a two-node scene blown up to fill a wide page looks like a
+	 *  mistake rather than a diagram. The frame itself grows with the preview
+	 *  size, so a larger size is a larger picture that still fits. */
 	const fit = () => {
 		const box = viewport.getBoundingClientRect();
 		if (box.width === 0 || natural.w === 0) return;
-		zoom = clamp(Math.min(box.width / natural.w, box.height / natural.h, 1), limits.min, limits.max);
+		const cap = limits.scale ?? 1;
+		zoom = clamp(Math.min(box.width / natural.w, box.height / natural.h, cap), limits.min, limits.max);
 		x = (box.width - natural.w * zoom) / 2;
 		y = (box.height - natural.h * zoom) / 2;
 		apply();

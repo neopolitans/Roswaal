@@ -75,8 +75,8 @@ export interface Preferences {
 	 *
 	 * Purely how the graph looks — nothing about what it means or what it
 	 * compiles to — which is why it is here and not in the document. People have
-	 * modified Unreal's Blueprint UI to get the two rigid styles; shipping them
-	 * saves anyone that.
+	 * patched other node editors to get the two rigid styles; shipping them saves
+	 * anyone that.
 	 */
 	wireStyle: WireStyle;
 	/**
@@ -89,6 +89,14 @@ export interface Preferences {
 	 * would delete the signal.
 	 */
 	roundedNodes: boolean;
+	/** The typeface the docs are read in. Code keeps its own monospace either way. */
+	docsFont: DocsFont;
+	/**
+	 * How large node and graph pictures are drawn in the docs, from 0.5 to 3.
+	 * A graph's frame grows with it, and a graph that outgrows the column is
+	 * panned rather than shrunk back.
+	 */
+	docsPreviewScale: number;
 	/**
 	 * Where the panels are: which dock each is in, and how big each dock is.
 	 *
@@ -112,10 +120,27 @@ export const AUTOSAVE_CHOICES = [
 ];
 
 export const WIRE_STYLES: { style: WireStyle; label: string; what: string }[] = [
-	{ style: "curved", label: "Curved", what: "A bezier out of each pin. The default, and what Blueprints does." },
+	{ style: "curved", label: "Curved", what: "A bezier out of each pin. The default." },
 	{ style: "rigid", label: "Rigid", what: "Right angles only — horizontal and vertical runs, square corners." },
 	{ style: "angular", label: "Angular", what: "The same route, with each corner cut to a 45-degree slope." },
 ];
+
+export type DocsFont = "system" | "serif" | "wide" | "mono";
+
+/**
+ * The docs' reading faces. Stacks of fonts an operating system already has,
+ * because the docs run offline and a web font would be a network request.
+ * The stacks themselves live in `theme.css`, keyed by `data-docs-font`.
+ */
+export const DOCS_FONTS: { font: DocsFont; label: string; what: string }[] = [
+	{ font: "system", label: "System", what: "Your system's interface font. The default." },
+	{ font: "serif", label: "Serif", what: "Georgia or the nearest serif, for long reading." },
+	{ font: "wide", label: "Wide", what: "Verdana or similar: wide letters and generous spacing." },
+	{ font: "mono", label: "Mono", what: "The monospace face the code blocks use." },
+];
+
+/** The preview size slider's range, as a scale. */
+export const PREVIEW_SCALE = { min: 0.5, max: 3, step: 0.25 } as const;
 
 export const DEFAULTS: Preferences = {
 	theme: null,
@@ -124,8 +149,17 @@ export const DEFAULTS: Preferences = {
 	reopenLastProject: true,
 	wireStyle: "curved",
 	roundedNodes: true,
+	docsFont: "system",
+	docsPreviewScale: 1,
 	layout: DEFAULT_LAYOUT,
 };
+
+/** A preview size snapped to the slider's steps and held in its range; anything else is 1. */
+export function previewScaleOf(value: unknown): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULTS.docsPreviewScale;
+	const snapped = Math.round(value / PREVIEW_SCALE.step) * PREVIEW_SCALE.step;
+	return Math.min(PREVIEW_SCALE.max, Math.max(PREVIEW_SCALE.min, snapped));
+}
 
 /**
  * Reads preferences, filling in anything missing.
@@ -162,6 +196,10 @@ export function readPreferences(): Preferences {
 			: DEFAULTS.wireStyle,
 		roundedNodes:
 			typeof stored.roundedNodes === "boolean" ? stored.roundedNodes : DEFAULTS.roundedNodes,
+		docsFont: DOCS_FONTS.some((f) => f.font === stored.docsFont)
+			? (stored.docsFont as DocsFont)
+			: DEFAULTS.docsFont,
+		docsPreviewScale: previewScaleOf(stored.docsPreviewScale),
 		// `readLayout` keeps whatever is valid and defaults the rest, field by
 		// field, so a layout written by an older version loses only what it got
 		// wrong rather than being thrown away whole.

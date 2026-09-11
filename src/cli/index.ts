@@ -63,7 +63,7 @@ const OPTIONS = [
 ];
 
 function printHelp(): void {
-	console.log(`${bold("roswaal")} — visual scripting for Roblox Luau and Lune Luau`);
+	console.log(`${bold("roswaal")} — visual scripting for Roblox Luau, and Lune Luau (experimental)`);
 	console.log(dim(`v${VERSION}`));
 	console.log("");
 	console.log(bold("USAGE"));

@@ -1,15 +1,15 @@
 /**
  * The pin context menu.
  *
- * Right-clicking a pin in Unreal offers what can be done to *that pin*, which
- * is a different question from "what node do I want next" — and answering the
+ * Right-clicking a pin asks what can be done to *that pin*, which is a
+ * different question from "what node do I want next" — and answering the
  * second when you asked the first is why the node palette opening on a pin
  * felt wrong. This is the small menu; the palette is still what the node body
  * and the canvas open.
  *
- * The wording is Unreal's on purpose. A developer arriving from Blueprints
- * should find the entry they already know by the name they already know, and
- * "Promote to Variable" is not a phrase to improve on.
+ * The wording is the familiar one on purpose. A developer who already knows
+ * node graphs should find the entry they already know by the name they already
+ * know, and "Promote to Variable" is not a phrase to improve on.
  */
 
 import { useEffect, useRef } from "react";
@@ -85,7 +85,7 @@ export function PinMenu(props: PinMenuProps) {
 		});
 	}
 
-	// Split and Recombine, worded as Unreal words them. A pin is only ever one
+	// Split and Recombine, in the familiar wording. A pin is only ever one
 	// or the other, so they never both appear.
 	const node = script.nodes.find((n) => n.id === target.nodeId);
 	const parent = target.pin.part?.parent;

@@ -112,6 +112,17 @@ describe("rigid", () => {
 	 * *through* both nodes — which reads as a wire passing behind them rather
 	 * than as one going back.
 	 */
+	/**
+	 * Nodes set close together still wire straight across. A gap shorter than
+	 * two stubs used to take the backwards detour, and drew a loop between two
+	 * nodes whose pins faced each other.
+	 */
+	it("takes a short forward gap directly rather than round a loop", () => {
+		const p = points(wirePath({ x: 0, y: 0 }, { x: 24, y: 60 }, "rigid"));
+		expect(p).toHaveLength(4);
+		for (let i = 1; i < p.length; i++) expect(p[i].x).toBeGreaterThanOrEqual(p[i - 1].x);
+	});
+
 	it("steps a backwards wire out of line even when its pins are level", () => {
 		const level = points(wirePath({ x: 400, y: 100 }, { x: 80, y: 100 }, "rigid"));
 		expect(level.length).toBeGreaterThan(2);

@@ -32,6 +32,14 @@ export interface Release {
 	/** Behaviour somebody may have relied on that now works differently. */
 	watch?: string[];
 	/**
+	 * Slugs of documentation pages marked Reviewed or Verified in this release,
+	 * listed under their own headings as links. Slugs rather than titles so a
+	 * renamed page cannot leave an entry naming something that is gone; a test
+	 * holds each one against `REVIEWS`.
+	 */
+	reviewed?: string[];
+	verified?: string[];
+	/**
 	 * Set when upgrading can break working code, which is the one thing the tags
 	 * on a release cannot work out for themselves: Feature, Change and Bugfix
 	 * follow from whether `added`, `changed` and `fixed` have entries, but
@@ -45,6 +53,87 @@ export interface Release {
 
 /** Newest first. */
 export const RELEASES: Release[] = [
+	{
+		version: "0.28.0",
+		date: "2026-09-11",
+		headline: "The target in view, and five pages verified.",
+		added: [
+			"**The bar above the canvas shows what the graph compiles for**: Roblox, or Lune.",
+			"**Hand-written Luau draws Custom Code and Luau Expression separately**, each with the Luau it compiles to underneath.",
+		],
+		changed: [
+			"**A Roblox-only node in a Lune graph is an error on that node**, and the file is not written. It was a warning, and the file was written anyway.",
+			"**Lune support is marked experimental**, in Settings and in the docs. It has not yet been tested by an experienced Lune developer.",
+		],
+		fixed: [
+			"**Settings and the Settings page no longer say the Rojo project file locates files.** Nothing reads it for that; node maps do.",
+		],
+		watch: [
+			"A Lune graph with a Roblox-only node in it no longer compiles. Remove the node, or make the graph a Roblox one.",
+		],
+		verified: [
+			"types", "variables-and-locals", "building-and-rojo", "hand-written-luau", "settings",
+		],
+	},
+	{
+		version: "0.27.0",
+		date: "2026-09-11",
+		headline: "Rotators across, and pictures that stay in their frames.",
+		added: [
+			"**CFrame from Z-Up Rotator**: pitch, yaw and roll in degrees, from an X-forward, Z-up tool, as a CFrame. The conversion is written into the call it compiles to.",
+			"**A reviewed page can say what a verified pass still needs**, under its last-reviewed date.",
+		],
+		changed: [
+			"**Above 100%, a picture in the docs grows past the column** into the room the page has, and a graph fits the larger frame rather than spilling out of it.",
+		],
+		fixed: [
+			"**Rigid and angular wires no longer loop between nodes set close together.** A forward gap shorter than two wire stubs was routed as if the input were behind the output.",
+			"**Node pictures at large preview sizes stay inside their frame.**",
+		],
+	},
+	{
+		version: "0.26.0",
+		date: "2026-09-11",
+		headline: "Z-up conversions, and docs pictures that match your editor.",
+		added: [
+			"**Z-Up Conversions**: Vector3 from Z-Up, CFrame from Z-Up Rotation and CFrame from Z-Up Transform, for coordinates that are X forward, Y right and Z up. Positions divide by Units Per Stud, 28 by default for centimetres. A transform's scale comes out separately, because a CFrame has none. *Coming from Blueprints* links each one from its type.",
+			"**Wires and pins has pictures** for the pin menu, values on unwired inputs, and adding and removing pins.",
+			"**Settings opens from the Docs window**, and has a **Docs** tab: the font the docs are read in — System, Serif, Wide or Monospace — and a preview size from 50% to 300%.",
+		],
+		changed: [
+			"**The inspiration entry on *Attributions* carries its owner's trademark notice**, and says what Roswaal takes from it and what it does not. *NOTICE.md* says the same.",
+			"**Node pictures in the docs follow your Wires and Node corners settings**, and show **+** and **−** on nodes that take a list and **default** on optional inputs left unset, as the canvas does. The static docs site draws the defaults.",
+			"**Summaries, captions and paragraphs in the docs use the full width of the page.**",
+			"**Release notes list the articles reviewed and verified in each release.**",
+		],
+		fixed: [
+			"**A link from one docs page to another opens that page**, in the Docs window and on the static site. It opened a new tab at an address that did not exist.",
+		],
+		verified: ["wires-and-pins"],
+	},
+	{
+		version: "0.25.2",
+		date: "2026-09-11",
+		headline: "Knots that tidy, and the first reviewed page.",
+		changed: [
+			"**The reroute knot picture shows knots at work**: two wires rise from nodes lower down, each to a knot, and run flat into the pins they feed.",
+		],
+		reviewed: ["coming-from-blueprints"],
+	},
+	{
+		version: "0.25.1",
+		date: "2026-09-11",
+		headline: "Wires and pins, drawn.",
+		changed: [
+			"**Wires and pins shows its rules as graphs**: execution wires and Sequence, a wire in each pin colour, wires that fade where the type changes, and reroute knots.",
+			"**A graph in the docs fades a wire from one colour to the other** where it joins pins of different types, as the canvas does.",
+			"**The review badge sits under a page's summary** rather than beside its title.",
+			"**The table of engine types moved** from *Roswaal types* to *Coming from Blueprints*. Outside that page and *Attributions*, the docs and the editor no longer name another engine.",
+		],
+		fixed: [
+			"**A graph in the editor's Docs window fits its frame**, instead of opening at full size with its right-hand side cut off. Scroll, drag and double-click work on it again.",
+		],
+	},
 	{
 		version: "0.25.0",
 		date: "2026-09-11",
@@ -649,7 +738,7 @@ export const RELEASES: Release[] = [
 			"**Disconnect** and **Is Connected**. Connect was the only signal node, so a graph could take a connection out and had no way to put it back — the most common leak in a Roblox game had no node for its cure.",
 			"**Connect Once**, which unbinds itself after one fire, and **Wait For Signal**, which yields until one arrives.",
 			"**Networking**: Fire Server, Fire Client, Fire All Clients, On Server Event, On Client Event, Invoke Server, Invoke Client, and the two On-Invoke assignments.",
-			"**BindableEvent** and **BindableFunction** — the in-process pair, and the closest thing Roblox has to Unreal's Custom Event.",
+			"**BindableEvent** and **BindableFunction** — the in-process pair, for one script to signal another.",
 		],
 		changed: [
 			"One set of remote nodes covers **RemoteEvent and UnreliableRemoteEvent** both: the methods are identical, and the difference is a decision made when you create the instance rather than a different call to write. There is no unreliable RemoteFunction, because waiting for an answer needs the answer to arrive.",
@@ -659,9 +748,9 @@ export const RELEASES: Release[] = [
 	{
 		version: "0.8.1",
 		date: "2026-09-06",
-		headline: "An Unreal-to-Luau type table, and one fewer click in the nav.",
+		headline: "A type table for newcomers, and one fewer click in the nav.",
 		added: [
-			"**If you know Unreal's types** on the *Roswaal types* page — `FVector` to `Vector3`, `TArray<T>` to a plain table, and the ones with no counterpart at all: no `FRotator`, no `FQuat`, no typed containers. It also flags the two conventions that catch people out: Roblox is **Y-up** and in studs, and a `CFrame` carries **no scale**.",
+			"**A table of engine types and their Luau counterparts**, now on the *Coming from Blueprints* page — `FVector` to `Vector3`, `TArray<T>` to a plain table, and the ones with no counterpart at all: no `FRotator`, no `FQuat`, no typed containers. It also flags the two conventions that catch people out: Roblox is **Y-up** and in studs, and a `CFrame` carries **no scale**.",
 		],
 		changed: [
 			"A nav section holding one page — Release notes, Events — is now that page's link rather than a drawer you have to open to find the single thing inside it.",
@@ -691,11 +780,11 @@ export const RELEASES: Release[] = [
 		changed: [
 			"Code in the docs is **syntax highlighted by the editor's own tokeniser**, in the editor's own colours — the same Luau should not look like two different languages one panel apart.",
 			"Pin lists are bordered rows in the shape Roblox's reference uses for properties: `Name : type`, with the default, badges for what is unusual, and the detail underneath rather than in a column that was empty on most rows.",
-			"Pages are centred and given room to grow, closer to how Unreal and Roblox set theirs.",
+			"Pages are centred and given room to grow, closer to how Roblox's Creator Hub sets its own.",
 		],
 		fixed: [
 			"An *On this page* link sent you back to Getting Started. The hash names the page, so a heading anchor was being read as a page slug that does not exist.",
-			"The Blueprints page still called cast pins \"planned, not built\" a release after they shipped.",
+			"The *Coming from Blueprints* page still called cast pins \"planned, not built\" a release after they shipped.",
 		],
 	},
 	{
@@ -724,7 +813,7 @@ export const RELEASES: Release[] = [
 			"**Cast** and **Cast Array** — Luau's `::`. `Get Descendants` is `{ Instance }` however much you know about it, and Cast Array is how you say what is really in there.",
 		],
 		changed: [
-			"The *Coming from Blueprints* page said Cast To maps to \"just index it\", which was wrong. It is two halves of one Unreal node: **Is A** asks at runtime and gives you a boolean to branch on, **Cast** asserts to the typechecker and emits nothing. Ask, then assert.",
+			"The *Coming from Blueprints* page said Cast To maps to \"just index it\", which was wrong. It is two halves of one node: **Is A** asks at runtime and gives you a boolean to branch on, **Cast** asserts to the typechecker and emits nothing. Ask, then assert.",
 		],
 	},
 	{
@@ -757,7 +846,7 @@ export const RELEASES: Release[] = [
 		date: "2026-09-06",
 		headline: "Split struct pins, and the Vector and CFrame libraries.",
 		added: [
-			"**Split Struct Pin** and **Recombine Struct Pin** on `Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim` and `UDim2`, with Unreal's wording. `CFrame` offers three decompositions.",
+			"**Split Struct Pin** and **Recombine Struct Pin** on `Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim` and `UDim2`. `CFrame` offers three decompositions.",
 			"**Promote to Variable**, which takes the value already typed into the pin rather than resetting it.",
 			"Vectors, CFrames and DateTime — 40 nodes.",
 			"Realign can **straighten the execution spine**, placing each node where its incoming exec wire comes out flat.",
