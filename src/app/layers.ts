@@ -52,6 +52,21 @@ export const NODE = {
 	compactPadding: 46,
 	/** A reroute knot is a dot with a pin either side. */
 	rerouteSize: 22,
+	/**
+	 * The operator pill: space above and below its rows, and the middle column
+	 * its symbol sits in. The character width is for 13px bold monospace, in the
+	 * same spirit as `compactCharWidth` — estimated rather than measured, so a
+	 * wire can be routed to a node that has not rendered yet.
+	 */
+	operatorPad: 2,
+	operatorCharWidth: 8,
+	operatorMinSymbol: 30,
+	/** `.node .literal`'s two widths and a checkbox, which set a pill's width. */
+	fieldWidth: 70,
+	fieldWide: 92,
+	checkWidth: 13,
+	/** One of the − / + buttons a variadic pill carries beside its symbol. */
+	growButton: 14,
 	/** Padding below the last pin row. */
 	footer: 10,
 	pinRadius: 5,

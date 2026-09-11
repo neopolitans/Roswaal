@@ -14,7 +14,8 @@
 
 import type { NodeDef, PinDef } from "../schema.js";
 import { PATH_ROOTS, ROBLOX_SERVICES } from "../roblox.js";
-import { ENGINE_TYPES, LUAU } from "../schema.js";
+import { pinTypeOf } from "./variables.js";
+import { ENGINE_TYPES, LUAU, PAIR } from "../schema.js";
 
 /** The category for coordinates brought across from a Z-up tool. */
 export const ZUP_CONVERSIONS = "Z-Up Conversions";
@@ -110,6 +111,18 @@ function variadic(
 const LETTERS = "ABCDEFGH".split("");
 
 /**
+ * A pure node drawn as an operator pill, with its operator in the middle.
+ *
+ * For the nodes whose whole meaning is one symbol: a comparison, `and`, `or`,
+ * `not`, and `nil`. A full node spends a header on a title that says what the
+ * symbol says, and two rows on pins called A and B — so a graph of conditions
+ * reads as a column of boxes rather than as the expressions it is.
+ */
+const pill = (def: NodeDef, operator: string): NodeDef => ({
+	...def, display: "operator", operator,
+});
+
+/**
  * How many trailing pins a variadic node will grow to.
  *
  * Named, and in one place, because the number lived in three: the `variadic`
@@ -195,7 +208,8 @@ function dictionaryPins(config: Record<string, unknown>): { inputs: PinDef[]; ou
 	const inputs: PinDef[] = [];
 	for (let i = 0; i < count; i++) {
 		inputs.push(str(`k${i}`, count === 1 ? "Key" : `Key ${i + 1}`, ""));
-		inputs.push(d(`a${i}`, count === 1 ? "Value" : `Value ${i + 1}`, "any", { t: "nil" }));
+		// A value pin also takes a Key Value Pair, which brings its own key.
+		inputs.push({ ...d(`a${i}`, count === 1 ? "Value" : `Value ${i + 1}`, "any", { t: "nil" }), pairs: true });
 	}
 	return { inputs, outputs: [d("result", "", "table")] };
 }
@@ -299,12 +313,27 @@ const BRICK_COLORS = [
 	"Bright orange", "Dark stone grey", "Earth green", "Deep blue", "Reddish brown",
 ];
 
+/** Declare Local's inputs, shared by the definition and its pin derivation. */
+const LOCAL_INPUTS: PinDef[] = [
+	exec("in"),
+	/**
+	 * Optional, and typed rather than derived from the node's label.
+	 *
+	 * The label already fed the generated identifier, which worked and was
+	 * findable only by opening the Inspector and guessing that a cosmetic field
+	 * was load-bearing. A name that ends up in the emitted Luau belongs on the
+	 * node face, where it is read at the same moment as the value it names.
+	 */
+	d("name", "Name", "string", { t: "string", v: "" }),
+	d("value", "Value", "any", { t: "nil" }),
+];
+
 export const LIBRARY_NODES: NodeDef[] = [
 	// -- Values ------------------------------------------------------------
 	pure("value.number", "Number", "Values", "$in.value", [num("value", "")], "number"),
 	pure("value.string", "String", "Values", "$in.value", [str("value", "")], "string"),
 	pure("value.boolean", "Boolean", "Values", "$in.value", [bool("value", "")], "boolean"),
-	pure("value.nil", "Nil", "Values", "nil", [], "any"),
+	pill(pure("value.nil", "Nil", "Values", "nil", [], "any"), "nil"),
 	pure("value.typeof", "Type Of", "Values", "typeof($in.value)",
 		[d("value", "Value", "any")], "string",
 		"Roblox's `typeof`, which knows its own datatypes -- a Vector3 answers \"Vector3\" where " +
@@ -330,23 +359,18 @@ export const LIBRARY_NODES: NodeDef[] = [
 		title: "Declare Local",
 		category: "Variables",
 		summary:
-			"Binds a local in the current block. Wire the Local output wherever the value is needed. Name is optional — leave it blank and one is chosen. For a value the whole script can reach, add a variable instead.",
-		inputs: [
-			exec("in"),
-			/**
-			 * Optional, and typed rather than derived from the node's label.
-			 *
-			 * The label already fed the generated identifier, which worked and
-			 * was findable only by opening the Inspector and guessing that a
-			 * cosmetic field was load-bearing. A name that ends up in the emitted
-			 * Luau belongs on the node face, where it is read at the same moment
-			 * as the value it names.
-			 */
-			d("name", "Name", "string", { t: "string", v: "" }),
-			d("value", "Value", "any", { t: "nil" }),
-		],
+			"Binds a local in the current block. Wire the Local output onward, or drag it from the Locals list as a Get Local. Name and type are optional.",
+		inputs: LOCAL_INPUTS,
 		outputs: [exec("then"), d("ref", "Local", "any")],
 		compilesTo: { kind: "builtin", handler: "local.declare" },
+		// The Local pin takes the declared type, so a table local is a table
+		// wire and a `Model` local fits an `Instance` pin.
+		derivePins: (config) => ({
+			inputs: LOCAL_INPUTS,
+			outputs: [exec("then"), d("ref", "Local", pinTypeOf(config.type as string | undefined))],
+		}),
+		// The type under the title, the way Declare Type shows the name it declares.
+		subtitle: (config) => (config.type as string | undefined)?.trim() || undefined,
 	},
 	stmt("local.set", "Set Local", "Variables", "$in.variable = $in.value", [
 		d("variable", "Local", "any", undefined),
@@ -374,28 +398,28 @@ export const LIBRARY_NODES: NodeDef[] = [
 		"Not referentially transparent, but safe to inline: it has no observable ordering."),
 
 	// -- Comparison and logic ----------------------------------------------
-	pure("compare.eq", "Equal", "Logic", "$in.a == $in.b", [d("a", "A", "any"), d("b", "B", "any")], "boolean"),
-	pure("compare.neq", "Not Equal", "Logic", "$in.a ~= $in.b", [d("a", "A", "any"), d("b", "B", "any")], "boolean"),
-	pure("compare.lt", "Less Than", "Logic", "$in.a < $in.b", [num("a", "A"), num("b", "B")], "boolean"),
-	pure("compare.lte", "Less Or Equal", "Logic", "$in.a <= $in.b", [num("a", "A"), num("b", "B")], "boolean"),
-	pure("compare.gt", "Greater Than", "Logic", "$in.a > $in.b", [num("a", "A"), num("b", "B")], "boolean"),
-	pure("compare.gte", "Greater Or Equal", "Logic", "$in.a >= $in.b", [num("a", "A"), num("b", "B")], "boolean"),
+	pill(pure("compare.eq", "Equal", "Logic", "$in.a == $in.b", [d("a", "A", "any"), d("b", "B", "any")], "boolean"), "=="),
+	pill(pure("compare.neq", "Not Equal", "Logic", "$in.a ~= $in.b", [d("a", "A", "any"), d("b", "B", "any")], "boolean"), "~="),
+	pill(pure("compare.lt", "Less Than", "Logic", "$in.a < $in.b", [num("a", "A"), num("b", "B")], "boolean"), "<"),
+	pill(pure("compare.lte", "Less Or Equal", "Logic", "$in.a <= $in.b", [num("a", "A"), num("b", "B")], "boolean"), "<="),
+	pill(pure("compare.gt", "Greater Than", "Logic", "$in.a > $in.b", [num("a", "A"), num("b", "B")], "boolean"), ">"),
+	pill(pure("compare.gte", "Greater Or Equal", "Logic", "$in.a >= $in.b", [num("a", "A"), num("b", "B")], "boolean"), ">="),
 	// Luau has no boolean-only operators: `nil` and `false` are false, every other
 	// value is true, and `and`/`or` hand back one of their operands rather than a
 	// boolean. Typing these pins `boolean` blocked `if not part then` -- the most
 	// common line in Roblox code -- and would have annotated `local x: boolean =
 	// part or default` in strict mode, which does not compile.
-	variadic("logic.and", "And", "Logic", "$args( and )", "any", { t: "boolean", v: true }, "any",
+	pill(variadic("logic.and", "And", "Logic", "$args( and )", "any", { t: "boolean", v: true }, "any",
 		"The last operand, or the first that is falsy. Not a boolean: `a and b` hands back " +
-		"one of the two, which is what Luau's `and` does."),
-	variadic("logic.or", "Or", "Logic", "$args( or )", "any", { t: "boolean", v: false }, "any",
+		"one of the two, which is what Luau's `and` does."), "and"),
+	pill(variadic("logic.or", "Or", "Logic", "$args( or )", "any", { t: "boolean", v: false }, "any",
 		"The first operand that is not `nil` or `false`. This is how a default is written: " +
-		"`value or fallback` is the value when there is one and the fallback when there is not."),
-	pure("logic.not", "Not", "Logic", "not $in.a", [d("a", "A", "any", { t: "boolean", v: false })],
+		"`value or fallback` is the value when there is one and the fallback when there is not."), "or"),
+	pill(pure("logic.not", "Not", "Logic", "not $in.a", [d("a", "A", "any", { t: "boolean", v: false })],
 		"boolean",
 		"True when the value is `nil` or `false`, and false for everything else. Takes any " +
 		"value, so `not part` on an `Instance?` is the usual way to ask whether it is there. " +
-		"Note that 0 and an empty string are true in Luau."),
+		"Note that 0 and an empty string are true in Luau."), "not"),
 
 	// -- Strings -----------------------------------------------------------
 	variadic("string.concat", "Concatenate", "Strings", "$args( .. )", "string", { t: "string", v: "" }, "string"),
@@ -418,12 +442,24 @@ export const LIBRARY_NODES: NodeDef[] = [
 		compilesTo: { kind: "call", template: "{}", result: "result" },
 		subtitle: (config) => (config.resultName as string) || undefined,
 	},
+	// Index and Key are two nodes, because an index is a number to anyone who
+	// has written code, and one node for both left `t.name` behind a pin called
+	// Index. The template is the same; what differs is what the pin takes.
 	pure("table.get", "Get Index", "Tables", "$index(table, key)",
-		[d("table", "Table", "table"), d("key", "Key", "any", { t: "number", v: 1 })], "any"),
+		[d("table", "Table", "table"), num("key", "Index", 1)], "any",
+		"Reads `t[i]` for a numeric index. For a named or computed key, use Get Key."),
+	pure("table.getKey", "Get Key", "Tables", "$index(table, key)",
+		[d("table", "Table", "table"), d("key", "Key", "any", { t: "string", v: "name" })], "any",
+		"Reads `t.name`, or `t[key]` for any key wired in. For a numeric index, use Get Index."),
 	pure("table.length", "Table Length", "Tables", "#$in.table", [d("table", "Table", "table")], "number"),
 	stmt("table.set", "Set Index", "Tables", "$index(table, key) = $in.value", [
-		d("table", "Table", "table"), d("key", "Key", "any", { t: "number", v: 1 }), d("value", "Value", "any", { t: "nil" }),
-	]),
+		d("table", "Table", "table"), num("key", "Index", 1), d("value", "Value", "any", { t: "nil" }),
+	], { summary: "Assigns `t[i]` for a numeric index. For a named or computed key, use Set Key." }),
+	stmt("table.setKey", "Set Key", "Tables", "$index(table, key) = $in.value", [
+		d("table", "Table", "table"),
+		d("key", "Key", "any", { t: "string", v: "name" }),
+		d("value", "Value", "any", { t: "nil" }),
+	], { summary: "Assigns `t.name`, or `t[key]` for any key wired in. For a numeric index, use Set Index." }),
 	stmt("table.insert", "Insert", "Tables", "table.insert($in.table, $in.value)", [
 		d("table", "Table", "table"), d("value", "Value", "any", { t: "nil" }),
 	]),
@@ -465,6 +501,28 @@ export const LIBRARY_NODES: NodeDef[] = [
 		outputs: [d("result", "", "table")],
 		compilesTo: { kind: "expr", outputs: { result: "{$pairs(, )}" } },
 		derivePins: dictionaryPins,
+	},
+
+	/**
+	 * One entry of a dictionary, as a wire.
+	 *
+	 * Make Dictionary's rows are key and value side by side on one node, which
+	 * is the right shape until the values come from all over the graph. This
+	 * gathers a key and its value where the value is made, and one wire takes
+	 * the pair to the table. Builtin, because it has no expression of its own:
+	 * the emitter reads it from inside `$pairs`, and anywhere else it is an
+	 * error rather than a guess.
+	 */
+	{
+		id: "table.pair",
+		title: "Key Value Pair",
+		category: "Tables",
+		summary:
+			"One entry for Make Dictionary: a key and its value, wired in together. Set the key on the node or in the Inspector.",
+		pure: true,
+		inputs: [str("key", "Key", "name"), d("value", "Value", "any", { t: "string", v: "" })],
+		outputs: [d("result", "", PAIR)],
+		compilesTo: { kind: "builtin", handler: "table.pair" },
 	},
 
 	// -- Engine ------------------------------------------------------------
@@ -1133,7 +1191,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 	...datatype("Tween", [
 		p("tween.property", "Tween Property", "{ [$in.name] = $in.value }",
 			[str("name", "Property", "Position"), d("value", "To", "any", { t: "nil" })], "table",
-			"One property and the value to reach. For several at once, build a table with New Table and Set Index and wire that in instead — this is the shorthand for the common case."),
+			"One property and the value to reach. For several at once, wire a Make Dictionary in instead — this is the shorthand for the common case."),
 		call("tween.create", "Create Tween", ENGINE_TYPES,
 			'game:GetService("TweenService"):Create($in.instance, $in.info, $in.properties)',
 			[d("instance", "Instance", "Instance"), tinfo("info", "Tween Info"),

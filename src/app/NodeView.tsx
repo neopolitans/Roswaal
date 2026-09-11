@@ -8,7 +8,8 @@ import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
 import { pinColor } from "./palette.js";
 import {
-	compactLabel, compactWidth, headerHeight, isCompact, isReroute, resolvePins,
+	compactLabel, compactWidth, headerHeight, isCompact, isOperator, isReroute,
+	operatorLayoutOf, resolvePins,
 } from "./geometry.js";
 
 const NEWLINE = String.fromCharCode(10);
@@ -37,7 +38,7 @@ export interface NodeViewProps {
 	/** Wired pin keys, as "in:node/pin" or "out:node/pin". */
 	connected: ReadonlySet<string>;
 	drag: PinDragState | null;
-	canAccept: (pin: PinDef, side: "in" | "out") => boolean;
+	canAccept: (nodeId: string, pin: PinDef, side: "in" | "out") => boolean;
 	onNodePointerDown: (e: ReactPointerEvent, nodeId: string) => void;
 	onPinPointerDown: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onPinPointerUp: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
@@ -81,6 +82,7 @@ function NodeViewInner(props: NodeViewProps) {
 
 	if (isReroute(def)) return renderReroute(props, inputs[0], outputs[0]);
 	if (isCompact(def)) return renderCapsule(props, def, outputs[0]);
+	if (isOperator(def)) return renderOperator(props, def, inputs, outputs[0]);
 
 	const rows = Math.max(inputs.length, outputs.length, 1);
 	const subtitle = def.subtitle?.(node.config ?? {});
@@ -213,6 +215,89 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
 	);
 }
 
+/**
+ * A comparison or a logical operator, drawn as the expression it is: the inputs
+ * down the left with their values, the Luau operator in the middle, and the
+ * result on the right.
+ *
+ * No header, for the reason a capsule has none: the shape and the symbol say
+ * what it is, and a title bar reading "Not Equal" over a `~=` says it twice.
+ */
+function renderOperator(
+	props: NodeViewProps, def: NodeDef, inputs: PinDef[], output: PinDef | undefined,
+) {
+	const { node, selected } = props;
+	const layout = operatorLayoutOf(def, node.config);
+	const rows = inputs.filter((pin) => pin.kind === "data");
+
+	return (
+		<div
+			className={[
+				"node", "operator",
+				selected ? "selected" : "",
+				props.anchor ? "anchor" : "",
+				props.errorCount ? "has-error" : "",
+			].filter(Boolean).join(" ")}
+			data-node-id={node.id}
+			style={{
+				left: node.x,
+				top: node.y,
+				width: layout.width,
+				height: layout.height,
+				zIndex: selected ? LAYER.nodeSelected : LAYER.node,
+			}}
+			title={nodeTitle(def, node)}
+			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
+			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
+		>
+			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
+
+			<div className="operator-rows" style={{ top: layout.rowsTop }}>
+				{rows.map((pin) => (
+					<div className="row" key={pin.id}>
+						<span className="side left">{renderPin(props, pin, "in")}</span>
+					</div>
+				))}
+			</div>
+
+			<span
+				className="operator-symbol"
+				style={{ left: layout.symbolLeft, width: layout.symbolWidth }}
+			>
+				{def.operator ?? def.title}
+			</span>
+
+			{/* Beside the symbol rather than in a header, because there is none. */}
+			{props.growth && (
+				<span className="operator-grow" style={{ left: layout.growLeft }}>
+					<button
+						disabled={!props.growth.canAdd}
+						title={`One more ${props.growth.label} — or drop a wire on this node`}
+						onPointerDown={(e) => e.stopPropagation()}
+						onClick={() => props.onGrow(node.id, 1)}
+					>
+						+
+					</button>
+					<button
+						disabled={!props.growth.canRemove}
+						title={`One fewer ${props.growth.label}`}
+						onPointerDown={(e) => e.stopPropagation()}
+						onClick={() => props.onGrow(node.id, -1)}
+					>
+						−
+					</button>
+				</span>
+			)}
+
+			{output && (
+				<span className="operator-out" style={{ top: layout.height / 2 - NODE.pinSlot / 2 }}>
+					{renderPin(props, output, "out")}
+				</span>
+			)}
+		</div>
+	);
+}
+
 function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	const { node } = props;
 	const wired = props.connected.has(`${side}:${node.id}/${pin.id}`);
@@ -222,7 +307,7 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	if (drag) {
 		// While a wire is in flight, dim everything it cannot land on so the
 		// legal targets are the only thing that reads as clickable.
-		state = props.canAccept(pin, side) ? " compatible" : " incompatible";
+		state = props.canAccept(node.id, pin, side) ? " compatible" : " incompatible";
 	}
 
 	const dot = (

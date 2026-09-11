@@ -50,7 +50,8 @@ export const BUILTIN_THEMES: Theme[] = [
 			"operator": "#4a6fa5",
 			"property": "#2c6f8f",
 			"global": "#2c6f8f",
-			"function": "#7a5a2f"
+			"function": "#7a5a2f",
+			"type": "#2f7a6a"
 		}
 	},
 	{
@@ -90,7 +91,8 @@ export const BUILTIN_THEMES: Theme[] = [
 			"operator": "#86b3e0",
 			"property": "#7fc4d6",
 			"global": "#7fc4d6",
-			"function": "#d9b06c"
+			"function": "#d9b06c",
+			"type": "#6fc2a8"
 		}
 	},
 	{
@@ -135,7 +137,8 @@ export const BUILTIN_THEMES: Theme[] = [
 			"operator": "#89ddff",
 			"property": "#7dcfff",
 			"global": "#2ac3de",
-			"function": "#7aa2f7"
+			"function": "#7aa2f7",
+			"type": "#0db9d7"
 		}
 	},
 	{
@@ -180,7 +183,8 @@ export const BUILTIN_THEMES: Theme[] = [
 			"operator": "#89ddff",
 			"property": "#7dcfff",
 			"global": "#2ac3de",
-			"function": "#7aa2f7"
+			"function": "#7aa2f7",
+			"type": "#0db9d7"
 		}
 	},
 	{
@@ -225,7 +229,8 @@ export const BUILTIN_THEMES: Theme[] = [
 			"operator": "#89dceb",
 			"property": "#b4befe",
 			"global": "#94e2d5",
-			"function": "#89b4fa"
+			"function": "#89b4fa",
+			"type": "#f9e2af"
 		}
 	},
 	{
@@ -270,7 +275,8 @@ export const BUILTIN_THEMES: Theme[] = [
 			"operator": "#81a1c1",
 			"property": "#d8dee9",
 			"global": "#8fbcbb",
-			"function": "#88c0d0"
+			"function": "#88c0d0",
+			"type": "#8fbcbb"
 		}
 	},
 	{
@@ -310,7 +316,8 @@ export const BUILTIN_THEMES: Theme[] = [
 			"operator": "#7dcfff",
 			"property": "#73daca",
 			"global": "#2ac3de",
-			"function": "#607ebe"
+			"function": "#607ebe",
+			"type": "#7fd6c2"
 		}
 	}
 ];

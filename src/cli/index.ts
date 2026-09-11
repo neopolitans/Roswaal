@@ -60,6 +60,7 @@ const OPTIONS = [
 	{ flag: "--port <n>", blurb: `HTTP port for the daemon. Default: ${DEFAULT_PORT}.` },
 	{ flag: "--force", blurb: "For compile: overwrite generated files edited by hand." },
 	{ flag: "--no-open", blurb: "For serve: do not print the editor URL as a hint." },
+	{ flag: "--yes", blurb: "For prune: delete the files it lists, rather than only listing them." },
 ];
 
 function printHelp(): void {
@@ -405,6 +406,7 @@ async function commandCompile(args: Args): Promise<number> {
 		const errors = result.diagnostics.filter((d) => d.severity === "error");
 		if (result.written) {
 			console.log(`${green("wrote   ")} ${result.outputPath}`);
+			for (const gone of result.superseded ?? []) console.log(`${dim("removed ")} ${gone}`);
 		} else if (result.skipped) {
 			scriptFailures++;
 			console.log(`${yellow("skipped ")} ${result.scriptPath}`);
@@ -445,6 +447,9 @@ async function commandWatch(args: Args): Promise<number> {
 			console.log(`${stamp} ${dim("gone")}   ${event.path}`);
 		} else if (event.outcome?.written) {
 			console.log(`${stamp} ${green("wrote")}  ${event.outcome.outputPath}`);
+			for (const gone of event.outcome.superseded ?? []) {
+				console.log(`${stamp} ${dim("gone")}   ${gone}`);
+			}
 		} else if (event.outcome?.skipped) {
 			console.log(`${stamp} ${yellow("skip")}   ${event.path}: ${event.outcome.skipped}`);
 		}

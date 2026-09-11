@@ -107,7 +107,7 @@ export type ColorRole =
 
 export type CodeRole =
 	| "keyword" | "string" | "number" | "comment"
-	| "operator" | "property" | "global" | "function";
+	| "operator" | "property" | "global" | "function" | "type";
 
 /**
  * Every colour role, the CSS variable it sets, and what it is for.
@@ -163,6 +163,7 @@ export const CODE_ROLES: { role: CodeRole; css: string; what: string }[] = [
 	{ role: "property", css: "--code-property", what: "Fields after a dot" },
 	{ role: "global", css: "--code-global", what: "game, workspace, script" },
 	{ role: "function", css: "--code-function", what: "Called names" },
+	{ role: "type", css: "--code-type", what: "Types in annotations: x: Model" },
 ];
 
 export const COLOR_ROLES: ColorRole[] = ROLES.map((r) => r.role);

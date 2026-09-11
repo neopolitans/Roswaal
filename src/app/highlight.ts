@@ -45,6 +45,8 @@ const CLASSES: Record<string, string> = {
 	variableName: "",
 	"variableName.standard": "tok-global",
 	"variableName.function": "tok-function",
+	typeName: "tok-type",
+	propertyName: "tok-property",
 };
 
 /** One array of tokens per line, so a renderer can keep the line structure. */

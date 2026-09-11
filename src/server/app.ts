@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import {
 	buildTree, collectMaps, compileAll, compileMap, compileScript, createFolder, graphName,
-	deleteEntry, initProject, moveEntry, openProject, readMap, readScript, readText,
+	deleteEntry, exportedTypes, initProject, moveEntry, openProject, readMap, readScript, readText,
 	findOrphanOutputs, locateFile, removeOutputs, renameEntry, safeJoin,
 	writeConfig, writeMap, writeScript,
 	type OpenProject,
@@ -468,6 +468,9 @@ app.post("/api/folder/create", route(async (req) => {
  * Where a file sits in the DataModel, so the editor can turn a file dragged
  * onto the canvas into a require with the path already filled in.
  */
+/** The types the project's modules export, for the editor to offer by name. */
+app.get("/api/types", route(async () => ({ types: await exportedTypes(project()) })));
+
 app.get("/api/resolve", route(async (req) => {
 	return { location: await locateFile(project(), requireQuery(req, "path")) };
 }));

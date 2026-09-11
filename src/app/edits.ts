@@ -16,9 +16,10 @@ import {
 	decompose, modeOf, partPinId, splitKey, splitsOf, STRUCTS, type StructMode,
 } from "../core/structs.js";
 import { literalToLuau } from "../core/compiler/luau.js";
+import { pinsCompatible } from "../core/compiler/validate.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import { localNameOf, pinTypeOf, type LocalRef } from "../core/nodes/variables.js";
 import { currentArity, growthRule, type GrowthRule } from "../core/nodes/growth.js";
-import { isInstanceClass } from "../core/roblox.js";
 import { compactWidth, nodeBounds, pinPosition, rectContains, type Rect } from "./geometry.js";
 import { NODE } from "./layers.js";
 import { newId } from "./store.js";
@@ -47,8 +48,100 @@ export function addNode(
 			? { function: first.id, name: (first.config as { name?: string } | undefined)?.name ?? "function" }
 			: {};
 	}
+	if (def.id === "local.get") {
+		const first = script.nodes.find((n) => n.def === "local.declare");
+		node.config = first ? { ...localRefFor(first) } : {};
+	}
 
 	return { script: { ...script, nodes: [...script.nodes, node] }, id };
+}
+
+/** What a Get Local caches about the Declare Local it reads. */
+export function localRefFor(node: Pick<GraphNode, "id" | "literals" | "label" | "config">): LocalRef {
+	const declared = (node.config as { type?: string } | undefined)?.type;
+	return { local: node.id, name: localNameOf(node), type: pinTypeOf(declared) };
+}
+
+/** Points a Get Local at a Declare Local. */
+export function bindNodeToLocal(script: NodeScript, nodeId: string, localId: string): NodeScript {
+	const target = script.nodes.find((n) => n.id === localId && n.def === "local.declare");
+	if (!target) return script;
+	return setConfig(script, nodeId, { ...localRefFor(target) });
+}
+
+/**
+ * Refreshes the name and type cached on every Get Local.
+ *
+ * A capsule's label comes from its own config, the way a variable getter's
+ * does, so renaming or retyping the Declare Local has to reach it or the graph
+ * goes on showing what the local used to be called.
+ */
+export function syncLocalRefs(script: NodeScript): NodeScript {
+	const locals = new Map(
+		script.nodes.filter((n) => n.def === "local.declare").map((n) => [n.id, n]),
+	);
+	let changed = false;
+	const nodes = script.nodes.map((node) => {
+		if (node.def !== "local.get") return node;
+		const ref = (node.config ?? {}) as LocalRef;
+		const target = ref.local ? locals.get(ref.local) : undefined;
+		if (!target) return node;
+		const next = localRefFor(target);
+		if (next.name === ref.name && next.type === ref.type) return node;
+		changed = true;
+		return { ...node, config: { ...node.config, ...next } };
+	});
+	return changed ? { ...script, nodes } : script;
+}
+
+/** Whether an edit to this node could change what a Get Local shows. */
+function touchesLocal(script: NodeScript, nodeId: string): boolean {
+	return script.nodes.some((n) => n.id === nodeId && n.def === "local.declare");
+}
+
+/**
+ * The nodes whose statements an inlined value actually surfaces in.
+ *
+ * The walk goes forward along data wires and **stops at the first node that is
+ * not pure**, because that node is the one with a line — its statement is where
+ * the expression was spliced. A chain of pure nodes is walked through, since
+ * none of them emitted anything either.
+ *
+ * Following every link instead would run off down the execution chain and mark
+ * every statement after the one that used the value, which is a much larger and
+ * quite untrue answer: the value does not appear in any of them.
+ *
+ * Visited-set guarded because this runs on the graph as it is — mid-edit, and
+ * possibly containing the data-wire loop the compiler would refuse.
+ *
+ * Used by the selection preview, to find a pure node's line, and by completion,
+ * to find where a Luau Expression runs.
+ */
+export function surfacesIn(script: NodeScript, registry: Registry, start: string): Set<string> {
+	const found = new Set<string>();
+	const walked = new Set<string>([start]);
+	const queue = [start];
+
+	while (queue.length > 0) {
+		const id = queue.pop()!;
+		for (const link of script.links) {
+			if (link.from.node !== id) continue;
+
+			const consumer = script.nodes.find((n) => n.id === link.to.node);
+			if (!consumer) continue;
+			const def = registry.get(consumer.def);
+
+			if (def?.pure) {
+				// Also inlined, so keep going: its own consumer holds the line.
+				if (walked.has(consumer.id)) continue;
+				walked.add(consumer.id);
+				queue.push(consumer.id);
+			} else {
+				found.add(consumer.id);
+			}
+		}
+	}
+	return found;
 }
 
 export function moveNodes(
@@ -235,7 +328,7 @@ export function deleteSelection(
 export function setLiteral(
 	script: NodeScript, nodeId: string, pinId: string, value: Literal | undefined,
 ): NodeScript {
-	return {
+	const next = {
 		...script,
 		nodes: script.nodes.map((n) => {
 			if (n.id !== nodeId) return n;
@@ -245,6 +338,7 @@ export function setLiteral(
 			return { ...n, literals };
 		}),
 	};
+	return touchesLocal(script, nodeId) ? syncLocalRefs(next) : next;
 }
 
 export function setConfig(
@@ -254,10 +348,11 @@ export function setConfig(
 	if (!node) return script;
 	const next = { ...(node.config ?? {}), ...config };
 	// Pins can disappear when a signature shrinks; their wires have to go too.
-	return dropDanglingLinks({
+	const updated = dropDanglingLinks({
 		...script,
 		nodes: script.nodes.map((n) => (n.id === nodeId ? { ...n, config: next } : n)),
 	});
+	return node.def === "local.declare" ? syncLocalRefs(updated) : updated;
 }
 
 /**
@@ -304,10 +399,12 @@ export function syncFunctionReturns(script: NodeScript, entryId: string): NodeSc
 }
 
 export function renameNode(script: NodeScript, nodeId: string, label: string): NodeScript {
-	return {
+	const next = {
 		...script,
 		nodes: script.nodes.map((n) => (n.id === nodeId ? { ...n, label: label || undefined } : n)),
 	};
+	// An unnamed Declare Local takes its label as its name.
+	return touchesLocal(script, nodeId) ? syncLocalRefs(next) : next;
 }
 
 // ---------------------------------------------------------------------------
@@ -319,23 +416,22 @@ export interface ConnectionCheck {
 	reason?: string;
 }
 
-/** Whether a wire may be created, with a reason the UI can show if not. */
 /**
- * Could a wire from one pin land on another, judged from the pins alone?
+ * Could a wire from an output land on an input, judged from the pins alone?
  *
  * The half of `canConnect` that needs no graph, so it can be asked about a node
  * that does not exist yet — which is what narrowing the palette to nodes a
  * dragged wire could actually reach requires. `canConnect` calls it too, so the
  * menu cannot offer a node the canvas would then refuse.
  *
- * Side is implied by the caller: `from` is whichever end is being dragged and
- * `to` is the candidate. Kind and type are symmetric, so this does not need to
- * know which is which.
+ * `from` is the output and `to` the input. It used to be whichever end was
+ * dragged, which was fine while the rule was symmetric; a `Model` fitting an
+ * `Instance` pin, and a pair fitting only a dictionary, are not.
  */
 export function acceptsWire(from: PinDef, to: PinDef): boolean {
 	if (from.kind !== to.kind) return false;
 	if (from.kind === "exec") return true;
-	return typesCompatible(from.type, to.type);
+	return pinsCompatible(from, to);
 }
 
 export function canConnect(
@@ -374,17 +470,19 @@ export function canConnect(
 	return { ok: true };
 }
 
-function typesCompatible(a: string | undefined, b: string | undefined): boolean {
-	const from = a ?? "any";
-	const to = b ?? "any";
-	if (from === to) return true;
-	if (from === "any" || to === "any" || from === "wildcard" || to === "wildcard") return true;
-	if ((from === "number" && to === "string") || (from === "string" && to === "number")) return true;
-	// A Model is an Instance, so it goes anywhere an Instance is wanted. The
-	// other way round is a claim about what the value *is* rather than a fact
-	// about its type, and Cast is the node that makes that claim out loud.
-	if (to === "Instance" && isInstanceClass(from)) return true;
-	return false;
+/**
+ * Every input on a node a dragged wire could land on, in declaration order.
+ *
+ * `acceptsWire` judges two pins and knows nothing about the node, so on its own
+ * it offered pins whose text is pasted into the source — a property name, a
+ * method name — which `canConnect` then refused. The palette and the landing
+ * rule both ask here, so neither offers a pin the canvas would turn down.
+ */
+export function landingPins(def: NodeDef, pins: PinDef[], from: PinDef, side: "in" | "out"): PinDef[] {
+	const literal = side === "in" ? literalOnlyPins(def) : new Set<string>();
+	return pins.filter(
+		(pin) => !literal.has(pin.id) && (side === "in" ? acceptsWire(from, pin) : acceptsWire(pin, from)),
+	);
 }
 
 /**

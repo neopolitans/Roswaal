@@ -49,9 +49,11 @@ describe("preview geometry", () => {
 
 	it("puts every pin row where a wire would attach to it", () => {
 		for (const def of BUILTIN_NODES) {
-			// A capsule and a knot put their pins somewhere other than a row, and
-			// are covered by their own cases below.
-			if (def.display === "compact" || def.display === "reroute") continue;
+			// A capsule, a knot and a pill put their pins somewhere other than a
+			// row, and are covered by their own cases below.
+			if (def.display === "compact" || def.display === "reroute" || def.display === "operator") {
+				continue;
+			}
 
 			const preview = previewOf(def);
 			const node = placed(def);
@@ -76,6 +78,31 @@ describe("preview geometry", () => {
 		const size = previewSize(previewOf(def!), NODE);
 		expect(size.height).toBe(NODE.compactHeight);
 		expect(size.width).toBe(nodeBounds(placed(def!), registry).w);
+	});
+
+	/**
+	 * A pill's result is level with the middle of the pill rather than with a
+	 * row, so its anchor cannot be checked by row index like the others.
+	 */
+	it("meets a pill's pins where the canvas meets them", () => {
+		const pills = BUILTIN_NODES.filter((d) => d.display === "operator");
+		expect(pills.length, "the library still has operator pills").toBeGreaterThan(0);
+
+		for (const def of pills) {
+			const node = placed(def);
+			const preview = previewOf(def);
+			const entry = { node, preview, x: 0, y: 0, ...previewSize(preview, NODE) };
+
+			for (const [side, pins] of [
+				["in", preview.inputs] as const,
+				["out", preview.outputs] as const,
+			]) {
+				for (const pin of pins) {
+					expect(placedPinAnchor(entry, pin.id, side, NODE), `${def.id} ${side}:${pin.id}`)
+						.toEqual(pinPosition(node, registry, pin.id, side));
+				}
+			}
+		}
 	});
 
 	it("draws a knot at the knot's size", () => {

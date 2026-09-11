@@ -7,7 +7,7 @@
  * one source of truth.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
@@ -42,10 +42,11 @@ import {
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
-	acceptsWire, addComment, addNode, alignToAnchor, connect, copySelection, deleteSelection, disconnectPin, pasteClipping,
+	addComment, addNode, alignToAnchor, landingPins, connect, copySelection, deleteSelection, disconnectPin, pasteClipping,
 	promoteToVariable, recombinePin, selectionAnchor, setConfig as setNodeConfig, setLiteral, splitCost,
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
+import { setProjectTypes } from "./projectTypes.js";
 import { store, useDocuments, useEditor } from "./store.js";
 
 const LAST_PROJECT_KEY = "roswaal.lastProject";
@@ -83,6 +84,14 @@ function forget(root: string): void {
 }
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
+
+/**
+ * Asks the daemon which types the project's modules export. Best effort: a
+ * daemon from before 0.30.0 has no answer, and the lists simply go without.
+ */
+function refreshTypes(): void {
+	void api.exportedTypes().then(({ types }) => setProjectTypes(types), () => setProjectTypes([]));
+}
 
 export function App() {
 	const editor = useEditor();
@@ -277,6 +286,7 @@ export function App() {
 			setProject(info);
 			remember(info.root);
 			setCustomNodes((await api.customNodes()).custom);
+			refreshTypes();
 		} catch (err) {
 			notify("Something went wrong", (err as Error).message);
 		} finally {
@@ -384,6 +394,7 @@ export function App() {
 					setProject(existing);
 					remember(existing.root);
 					setCustomNodes((await api.customNodes()).custom);
+					refreshTypes();
 					return;
 				}
 			} catch {
@@ -422,6 +433,7 @@ export function App() {
 			};
 			if (detail.outcome) setOutcomes([detail.outcome]);
 			void api.tree().then(({ tree }) => setProject((p) => (p ? { ...p, tree } : p)));
+			refreshTypes();
 		});
 
 		/**
@@ -469,6 +481,7 @@ export function App() {
 		// deleting all change what is stale, and none of them compiles anything —
 		// so the count went on describing whatever the last compile saw.
 		setOrphans((await api.orphans().catch(() => ({ orphans: [] }))).orphans);
+		refreshTypes();
 	}, []);
 
 	// -- documents ---------------------------------------------------------
@@ -694,8 +707,9 @@ export function App() {
 
 				const placed = next.nodes.find((n) => n.id === added.id);
 				const pins = placed ? resolveNodePins(def, placed.config) : { inputs: [], outputs: [] };
-				const candidates = from.side === "out" ? pins.inputs : pins.outputs;
-				const landing = candidates.find((pin) => acceptsWire(from.pin, pin));
+				const side = from.side === "out" ? "in" : "out";
+				const candidates = side === "in" ? pins.inputs : pins.outputs;
+				const landing = landingPins(def, candidates, from.pin, side)[0];
 				if (!landing) return next;
 
 				const target = { node: added.id, pin: landing.id };
@@ -870,9 +884,12 @@ export function App() {
 				store.redo();
 				return;
 			}
+			// Compiles what is on screen. A node map open over a graph tab used to
+			// compile the graph behind it, which is not what its button says.
 			if (mod && e.key.toLowerCase() === "s") {
 				e.preventDefault();
-				if (editor.path) void runCompile(editor.path, true);
+				if (mapDoc) void runCompileMap(mapDoc.path);
+				else if (!source && editor.path) void runCompile(editor.path, true);
 				return;
 			}
 			if (mod && e.shiftKey && e.key.toLowerCase() === "l") {
@@ -951,7 +968,7 @@ export function App() {
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [editor.path, runCompile, spawnComment, realign, locked, registry]);
+	}, [editor.path, mapDoc, source, runCompile, runCompileMap, spawnComment, realign, locked, registry]);
 
 	// -- project tree ------------------------------------------------------
 
@@ -969,10 +986,59 @@ export function App() {
 	 */
 	const onTreeOpen = useCallback((entry: TreeEntry) => void openEntry(entry), [openEntry]);
 
+	/**
+	 * Writes every open graph at or under `path` that has edits not yet on disk.
+	 *
+	 * Before a move or a rename, so the file that moves is the graph on screen.
+	 * Autosave follows the tab you are looking at, and a graph in another tab can
+	 * be dirty with nothing scheduled to write it.
+	 */
+	const flushUnder = useCallback(async (path: string) => {
+		for (const { path: open, script } of store.unsaved()) {
+			if (open === path || open.startsWith(path + "/")) await api.writeScript(open, script);
+		}
+	}, []);
+
+	/**
+	 * Points every open document at where its file went.
+	 *
+	 * A tab kept its old path when a graph was moved, so its next autosave wrote
+	 * the graph back where it had been. A folder move carries every tab under it;
+	 * a graph moved or renamed itself is read back, because its name comes from
+	 * its file name.
+	 */
+	const followMove = useCallback(async (from: string, to: string) => {
+		const moved = (path: string) =>
+			path === from ? to : path.startsWith(from + "/") ? to + path.slice(from.length) : null;
+
+		for (const path of store.openPaths()) {
+			const next = moved(path);
+			if (next === null) continue;
+			const script = path === from ? (await api.readScript(next)).script : undefined;
+			store.rename(path, next, script);
+		}
+		setMapDoc((doc) => {
+			const next = doc && moved(doc.path);
+			return doc && next ? { ...doc, path: next } : doc;
+		});
+		setSource((doc) => {
+			const next = doc && moved(doc.path);
+			return doc && next ? { ...doc, path: next } : doc;
+		});
+	}, []);
+
 	const onTreeMove = useCallback(async (from: string[], toDir: string) => {
-		for (const path of from) await api.moveScript(path, toDir);
+		try {
+			for (const path of from) {
+				await flushUnder(path);
+				const { path: moved } = await api.moveScript(path, toDir);
+				await followMove(path, moved);
+			}
+		} catch (err) {
+			notify("Could not move that", (err as Error).message);
+		}
 		await refreshTree();
-	}, [refreshTree]);
+	}, [refreshTree, flushUnder, followMove, notify]);
 
 	const onTreeReveal = useCallback(async (target: string) => {
 		try {
@@ -1070,20 +1136,18 @@ export function App() {
 		});
 		if (typeof name !== "string" || name === currentName) return;
 		try {
+			await flushUnder(target);
 			const { path: renamed } = await api.renameEntry(target, name);
 			await refreshTree();
 			// Keep the tab, its history and its viewport: the file was renamed,
 			// the graph was not touched. Closing and reopening would be simpler
 			// and would throw all three away for an operation that changed
-			// nothing about the document.
-			if (store.isOpen(target)) {
-				const { script } = await api.readScript(renamed);
-				store.rename(target, renamed, script);
-			}
+			// nothing about the document. A folder takes its open graphs with it.
+			await followMove(target, renamed);
 		} catch (err) {
 			notify("Something went wrong", (err as Error).message);
 		}
-	}, [ask, notify, refreshTree, editor.path]);
+	}, [ask, notify, refreshTree, flushUnder, followMove]);
 
 	const onTreeDelete = useCallback(async (paths: string[]) => {
 		const label = paths.length === 1 ? paths[0] : `${paths.length} items`;
@@ -1735,26 +1799,45 @@ function StatusPanel(props: StatusPanelProps) {
 							<span>{outcome.skipped ?? outcome.outputPath}</span>
 						</div>
 					))}
-					{outcomes.map((outcome) => (
-						outcome.skipped ? (
-							<div className="entry warning" key={outcome.scriptPath}>
-								<span className="sev">skipped</span>
-								<span>{outcome.skipped}</span>
-								<span
-									className="where"
-									style={{ cursor: "pointer", textDecoration: "underline" }}
-									onClick={() => props.onForce(outcome.scriptPath)}
-								>
-									overwrite
-								</span>
-							</div>
-						) : outcome.written ? (
-							<div className="entry" key={outcome.scriptPath}>
-								<span className="sev" style={{ color: "var(--ok)" }}>wrote</span>
-								<span>{outcome.outputPath}</span>
-							</div>
-						) : null
-					))}
+					{outcomes.map((outcome) => {
+						// A graph with errors was held back by them, and overwriting
+						// would write nothing. Only a file edited by hand, or one Roswaal
+						// did not make, has anything to overwrite.
+						const failed = outcome.diagnostics.some((d) => d.severity === "error");
+						if (outcome.skipped) {
+							return (
+								<div className={`entry ${failed ? "error" : "warning"}`} key={outcome.scriptPath}>
+									<span className="sev">{failed ? "failed" : "skipped"}</span>
+									<span>{outcome.skipped}</span>
+									{!failed && (
+										<span
+											className="where"
+											style={{ cursor: "pointer", textDecoration: "underline" }}
+											onClick={() => props.onForce(outcome.scriptPath)}
+										>
+											overwrite
+										</span>
+									)}
+								</div>
+							);
+						}
+						if (!outcome.written) return null;
+						return (
+							<Fragment key={outcome.scriptPath}>
+								<div className="entry">
+									<span className="sev" style={{ color: "var(--ok)" }}>wrote</span>
+									<span>{outcome.outputPath}</span>
+								</div>
+								{/* Deleted because this graph now writes somewhere else. */}
+								{(outcome.superseded ?? []).map((gone) => (
+									<div className="entry" key={gone}>
+										<span className="sev">removed</span>
+										<span>{gone} → {outcome.outputPath}</span>
+									</div>
+								))}
+							</Fragment>
+						);
+					})}
 					{diagnostics.map((d, i) => (
 						<div className={`entry ${d.severity}`} key={i} onClick={() => d.node && store.select([d.node])}>
 							<span className="sev">{d.severity}</span>

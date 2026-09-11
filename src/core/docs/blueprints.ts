@@ -219,11 +219,11 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 			{
 				unreal: "Local variable (function-scoped)",
 				roswaal: "Declare Local",
-				nodes: ["local.declare", "local.set"],
+				nodes: ["local.declare", "local.get", "local.set"],
 				note:
-					"Binds a value mid-flow and only exists inside the block that declared it. You reach " +
-					"it by wiring its output, not by name. Reading one from a sibling block is an error, " +
-					"not silently broken code.",
+					"Binds a value mid-flow and only exists inside the block that declared it. Wire its " +
+					"output, or drag it from the Locals list for a Get Local. Reading one outside its " +
+					"block is an error, not silently broken code.",
 			},
 			{
 				unreal: "Struct",
@@ -240,7 +240,7 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 			{
 				unreal: "Array / Map / Set",
 				roswaal: "Table",
-				nodes: ["table.get", "table.insert"],
+				nodes: ["table.get", "table.getKey", "table.insert"],
 				note:
 					"One type for all three, as in Lua. There is no separate array node set, because " +
 					"there is no separate array.",

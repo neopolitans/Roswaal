@@ -1234,7 +1234,7 @@ const CONTROLS: DocPage = {
 			head: ["Gesture", "What it does"],
 			rows: [
 				["Drag", "Move it, and the nodes that were inside it when you grabbed it"],
-				["Double-click", "Edit the text"],
+				["Double-click", "Edit the text. Enter adds a line; Esc, Ctrl+Enter or a click away saves"],
 				["Drag the bottom-right corner", "Resize"],
 			],
 		},
@@ -1303,9 +1303,10 @@ const VARIABLES: DocPage = {
 			t: "p",
 			text:
 				"**Declare Local** binds a value mid-flow. It exists only inside the block that " +
-				"declared it, and you reach it by wiring its output rather than by name — which is " +
-				"the whole difference: a variable is addressed by name from anywhere, a local is " +
-				"handed onward by a wire.",
+				"declared it — which is the whole difference: a variable is reachable from anywhere, " +
+				"a local only from inside its block. Wire its output onward, or drag it from the " +
+				"**Locals** list in the Variables panel as a **Get Local**. Give it a type in the " +
+				"Inspector and it is written after the name: `local restores: { [Model]: Restore } = {}`.",
 		},
 		{
 			t: "note",

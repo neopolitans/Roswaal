@@ -17,7 +17,7 @@
  * in the editor's window as a `storage` event.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createRegistry } from "../core/nodes/index.js";
 import type { NodeDef } from "../core/schema.js";
@@ -82,6 +82,22 @@ export function DocsPage() {
 
 	const registry = useMemo(() => createRegistry(packs), [packs]);
 
+	/**
+	 * A page change made inside the docs, written to the address bar and kept
+	 * here too.
+	 *
+	 * `replaceState` rather than a hash assignment: navigating the docs should
+	 * not stack up history entries you have to walk back out of. And the slug is
+	 * remembered, because the address bar is what this window follows — left on
+	 * the page it opened at, going back to that page's link set the same slug
+	 * again, changed nothing, and left the page you had clicked to on screen.
+	 */
+	const onNavigate = useCallback((next: string) => {
+		const url = `${window.location.pathname}#${encodeURIComponent(next)}`;
+		window.history.replaceState(null, "", url);
+		setSlug(next);
+	}, []);
+
 	return (
 		<>
 		<div className="docs-page">
@@ -112,12 +128,7 @@ export function DocsPage() {
 				registry={registry}
 				prefs={prefs}
 				initialSlug={slug}
-				onNavigate={(next) => {
-					// replaceState rather than a hash assignment: navigating the docs
-					// should not stack up history entries you have to walk back out of.
-					const url = `${window.location.pathname}#${encodeURIComponent(next)}`;
-					window.history.replaceState(null, "", url);
-				}}
+				onNavigate={onNavigate}
 			/>
 		</div>
 

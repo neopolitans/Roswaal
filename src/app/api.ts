@@ -19,6 +19,13 @@ export interface ProjectInfo {
 	tree: TreeEntry[];
 }
 
+/** A type a module graph exports. The daemon's copy is in `src/server/project.ts`. */
+export interface ExportedType {
+	graph: string;
+	name: string;
+	location: InstanceLocation | null;
+}
+
 export interface MapOutcome {
 	mapPath: string;
 	outputPath: string;
@@ -33,6 +40,8 @@ export interface CompileOutcome {
 	outputPath: string;
 	written: boolean;
 	skipped?: string;
+	/** Files this graph used to write and no longer does, now deleted. */
+	superseded?: string[];
 	diagnostics: Diagnostic[];
 	sourceMap: { line: number; node: string }[];
 	code: string;
@@ -162,6 +171,8 @@ export const api = {
 	removeOrphans: (paths: string[]) =>
 		post<{ removed: number }>("/api/orphans/remove", { paths }),
 
+	/** Every type the project's module graphs export, and where each module lands. */
+	exportedTypes: () => request<{ types: ExportedType[] }>("/api/types"),
 	/** Where a file lands in the DataModel, per the project's node maps. */
 	resolve: (path: string) =>
 		request<{ location: InstanceLocation | null }>(`/api/resolve?path=${encodeURIComponent(path)}`),

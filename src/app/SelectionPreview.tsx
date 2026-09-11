@@ -36,6 +36,7 @@ import { useMemo, useState } from "react";
 import type { NodeScript } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { nodeTitle } from "../core/nodes/index.js";
+import { surfacesIn } from "./edits.js";
 import { highlightLuau } from "./highlight.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
@@ -209,48 +210,6 @@ export function analyse(props: SelectionPreviewProps): {
 	}));
 
 	return { rows, direct: mineLines.size, inlined };
-}
-
-/**
- * The nodes whose statements an inlined value actually surfaces in.
- *
- * The walk goes forward along data wires and **stops at the first node that is
- * not pure**, because that node is the one with a line — its statement is where
- * the expression was spliced. A chain of pure nodes is walked through, since
- * none of them emitted anything either.
- *
- * Following every link instead would run off down the execution chain and mark
- * every statement after the one that used the value, which is a much larger and
- * quite untrue answer: the value does not appear in any of them.
- *
- * Visited-set guarded because this runs on the graph as it is — mid-edit, and
- * possibly containing the data-wire loop the compiler would refuse.
- */
-function surfacesIn(script: NodeScript, registry: Registry, start: string): Set<string> {
-	const found = new Set<string>();
-	const walked = new Set<string>([start]);
-	const queue = [start];
-
-	while (queue.length > 0) {
-		const id = queue.pop()!;
-		for (const link of script.links) {
-			if (link.from.node !== id) continue;
-
-			const consumer = script.nodes.find((n) => n.id === link.to.node);
-			if (!consumer) continue;
-			const def = registry.get(consumer.def);
-
-			if (def?.pure) {
-				// Also inlined, so keep going: its own consumer holds the line.
-				if (walked.has(consumer.id)) continue;
-				walked.add(consumer.id);
-				queue.push(consumer.id);
-			} else {
-				found.add(consumer.id);
-			}
-		}
-	}
-	return found;
 }
 
 /**

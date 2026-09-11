@@ -35,6 +35,14 @@ export const WILDCARD: DataType = "wildcard";
  * that this is a place hand-written code enters the graph.
  */
 export const LUAU: DataType = "luau";
+/**
+ * One entry of a table: a key and its value, travelling as one wire.
+ *
+ * Not a value Luau has — `{ walkSpeed = 16 }` is syntax, not a thing you can
+ * hold — so a pair goes only into a pin that takes entries, and `any` does not.
+ * See `PinDef.pairs`.
+ */
+export const PAIR: DataType = "pair";
 
 export type PinKind = "exec" | "data";
 
@@ -70,6 +78,12 @@ export interface PinDef {
 	 * pin whose emptiness nothing acts on.
 	 */
 	optional?: boolean;
+	/**
+	 * Data inputs only: also takes a Key Value Pair, whose key then names the
+	 * entry. Make Dictionary's value pins set it, and nothing else does, because
+	 * a pair means nothing outside a table constructor.
+	 */
+	pairs?: boolean;
 	/**
 	 * Data inputs only: offer these values as a dropdown instead of a free text
 	 * field. Suggestions, not a closed set — anything not listed can still be
@@ -232,7 +246,15 @@ export interface NodeDef {
 	 * It suits a node whose whole meaning is its name, and only those — anything
 	 * with inputs needs rows to put them in.
 	 */
-	display?: "normal" | "compact" | "reroute";
+	display?: "normal" | "compact" | "reroute" | "operator";
+	/**
+	 * The operator an `operator` pill shows in its middle — `==`, `and`, `nil`.
+	 *
+	 * Luau's own spelling rather than a word or a glyph: `~=` is what the
+	 * generated file will say, and a graph is easier to read against its output
+	 * when the two agree. Ignored by every other display.
+	 */
+	operator?: string;
 	/**
 	 * The node takes a variable number of inputs, numbered a0, a1, ... The count
 	 * lives in the node's own config, so two Add nodes in one graph can have

@@ -27,6 +27,10 @@ export const luauHighlight = HighlightStyle.define([
 	// author chose, so they are tinted apart from ordinary variables.
 	{ tag: tags.standard(tags.variableName), color: "var(--code-global)" },
 	{ tag: tags.function(tags.variableName), color: "var(--code-function)" },
+	// A name in a type annotation, which is a different thing from the same
+	// name as a value: `Model` after `x:` is a type, `Instance` in
+	// `Instance.new` is the global.
+	{ tag: tags.typeName, color: "var(--code-type)" },
 	{ tag: tags.bracket, color: "var(--fg-muted)" },
 	{ tag: tags.punctuation, color: "var(--fg-muted)" },
 ]);

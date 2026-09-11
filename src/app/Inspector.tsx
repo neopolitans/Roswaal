@@ -7,16 +7,17 @@
  * because the pins are what they define.
  */
 
-import type { NodeDef, NodeScript, GraphNode } from "../core/schema.js";
+import type { GraphNode, Literal, NodeDef, NodeScript } from "../core/schema.js";
 import { nodeTitle, type Registry } from "../core/nodes/index.js";
 import type { Signature } from "../core/nodes/index.js";
 import { resolvePins } from "./geometry.js";
 import { nodeColor } from "./palette.js";
 import {
-	addVariable, bindNodeToFunction, bindNodeToVariable, renameNode, setConfig,
-	syncFunctionRefs, syncFunctionReturns,
+	addVariable, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, disconnectInput, renameNode,
+	setConfig, setLiteral, syncFunctionRefs, syncFunctionReturns,
 } from "./edits.js";
-import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import { FUNCTION_NODES, typeShapeOf } from "../core/nodes/flow.js";
+import { localNameOf } from "../core/nodes/variables.js";
 import { store } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
 
@@ -159,8 +160,9 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 					/>
 				)}
 				{(def.id === "table.dictionary"
-					|| def.id === "table.get"
-					|| def.id === "table.set") && <KeyStyle node={node} />}
+					|| def.id === "table.getKey"
+					|| def.id === "table.setKey") && <KeyStyle node={node} />}
+				{def.id === "table.pair" && <PairEditor node={node} def={def} />}
 				{def.id === "table.dictionary" && <TableLayout node={node} />}
 				{def.id === "flow.sequence" && (
 					<CountEditor node={node} field="count" label="Outputs" min={2} max={12} fallback={2} />
@@ -177,6 +179,8 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 					<VariablePicker script={script} node={node} />
 				)}
 				{def.id === "function.get" && <FunctionPicker script={script} node={node} />}
+				{def.id === "local.get" && <LocalPicker script={script} node={node} />}
+				{def.id === "local.declare" && <LocalType node={node} />}
 
 				<PinSummary def={def} node={node} />
 			</div>
@@ -317,23 +321,21 @@ function TypeEditor({ node }: { node: GraphNode }) {
 	const config = (node.config ?? {}) as {
 		name?: string; definition?: string; export?: boolean; shape?: string;
 	};
-	// Only the hoisted one is written out. The in-flow one names the type of a
-	// value wired into it, so its definition is the wire.
-	const written = node.def === "type.declareTop";
+	// The in-flow node can also be the type of a wired value; the hoisted one is
+	// written above every value there is, so it cannot.
+	const inFlow = node.def === "type.declareHere";
 	/**
-	 * Which half of the editor to show, when the node has not said.
-	 *
-	 * A node made before the field list existed has a definition and no fields,
-	 * and the compiler falls back to that definition — so the dropdown has to say
-	 * "written out" or it claims to be showing a shape the file is not using.
+	 * Which shape to show, when the node has not said. The same rule the
+	 * compiler uses, so the dropdown cannot claim a shape the file is not using.
 	 */
-	const fields = (config as { fields?: unknown[] }).fields ?? [];
-	const shape =
-		config.shape === "written" || config.shape === "fields"
-			? config.shape
-			: (config.definition ?? "") !== "" && fields.length === 0
-				? "written"
-				: "fields";
+	const shape = typeShapeOf(node.def, node.config ?? {});
+	const setShape = (next: string) =>
+		store.edit((s) => {
+			const shaped = setConfig(s, node.id, { shape: next });
+			// The Value pin goes with the typeof shape, and a wire left on it
+			// would point at a pin that is no longer there.
+			return next === "typeof" ? shaped : disconnectInput(shaped, { node: node.id, pin: "value" });
+		});
 
 	return (
 		<>
@@ -346,22 +348,17 @@ function TypeEditor({ node }: { node: GraphNode }) {
 				/>
 			</Field>
 
-			{written && (
-				<Field label="Shape">
-					<select
-						className="tb"
-						value={shape}
-						onChange={(e) => store.edit((s) => setConfig(s, node.id, { shape: e.target.value }))}
-					>
-						<option value="fields">Table of Fields</option>
-						<option value="written">Custom Luau</option>
-					</select>
-				</Field>
-			)}
+			<Field label="Shape">
+				<select className="tb" value={shape} onChange={(e) => setShape(e.target.value)}>
+					{inFlow && <option value="typeof">Type of a Value</option>}
+					<option value="fields">Table of Fields</option>
+					<option value="written">Custom Luau</option>
+				</select>
+			</Field>
 
-			{written && shape === "fields" && <TypeFields node={node} />}
+			{shape === "fields" && <TypeFields node={node} />}
 
-			{written && shape === "written" && (
+			{shape === "written" && (
 				<Field label="Definition">
 					<textarea
 						className="tb type-definition"
@@ -376,7 +373,7 @@ function TypeEditor({ node }: { node: GraphNode }) {
 				</Field>
 			)}
 
-			{!written && (
+			{shape === "typeof" && (
 				<p className="summary">
 					The definition is whatever you wire into <strong>Value</strong>:{" "}
 					<code>type {config.name || "Name"} = typeof(that value)</code>. Put the node after
@@ -458,6 +455,84 @@ function KeyStyle({ node }: { node: GraphNode }) {
 	);
 }
 
+/** An empty value of each kind the Value field offers. */
+const BLANK: Record<string, Literal> = {
+	string: { t: "string", v: "" },
+	number: { t: "number", v: 0 },
+	boolean: { t: "boolean", v: false },
+	raw: { t: "raw", v: "nil" },
+	nil: { t: "nil" },
+};
+
+/**
+ * A Key Value Pair's key and value, in the panel as well as on the node.
+ *
+ * The same two literals the node's rows edit, so neither place can disagree
+ * with the other. The rows are quicker for a short key; the panel has room to
+ * say what kind of value it is, which a row's one field cannot.
+ */
+function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
+	const fallback = (pin: string) => def.inputs.find((p) => p.id === pin)?.default;
+	const key = node.literals?.key ?? fallback("key");
+	const value = node.literals?.value ?? fallback("value") ?? BLANK.nil;
+	const set = (pin: string, literal: Literal) => store.edit((s) => setLiteral(s, node.id, pin, literal));
+
+	return (
+		<>
+			<Field label="Key">
+				<input
+					className="tb"
+					value={key?.t === "string" ? key.v : ""}
+					placeholder="name"
+					onChange={(e) => set("key", { t: "string", v: e.target.value })}
+				/>
+			</Field>
+			<Field label="Value" hint="Ignored while a wire is plugged into Value.">
+				<div className="field-row">
+					<select
+						className="tb"
+						value={value.t}
+						onChange={(e) => set("value", BLANK[e.target.value] ?? BLANK.nil)}
+					>
+						<option value="string">String</option>
+						<option value="number">Number</option>
+						<option value="boolean">Boolean</option>
+						<option value="raw">Luau</option>
+						<option value="nil">nil</option>
+					</select>
+					{value.t === "string" && (
+						<input className="tb" value={value.v} onChange={(e) => set("value", { t: "string", v: e.target.value })} />
+					)}
+					{value.t === "number" && (
+						<input
+							className="tb"
+							type="number"
+							value={value.v}
+							onChange={(e) => set("value", { t: "number", v: Number(e.target.value) || 0 })}
+						/>
+					)}
+					{value.t === "boolean" && (
+						<input
+							type="checkbox"
+							checked={value.v}
+							onChange={(e) => set("value", { t: "boolean", v: e.target.checked })}
+						/>
+					)}
+					{value.t === "raw" && (
+						<input
+							className="tb"
+							spellCheck={false}
+							value={value.v}
+							placeholder="Vector3.zero"
+							onChange={(e) => set("value", { t: "raw", v: e.target.value })}
+						/>
+					)}
+				</div>
+			</Field>
+		</>
+	);
+}
+
 function VariablePicker({ script, node }: { script: NodeScript; node: GraphNode }) {
 	const current = (node.config as { variable?: string } | undefined)?.variable ?? "";
 
@@ -525,6 +600,50 @@ function FunctionPicker({ script, node }: { script: NodeScript; node: GraphNode 
 				{functions.map((fn) => (
 					<option key={fn.id} value={fn.id}>
 						{(fn.config as { name?: string } | undefined)?.name ?? "function"}
+					</option>
+				))}
+			</select>
+		</Field>
+	);
+}
+
+/**
+ * The type a Declare Local is annotated with.
+ *
+ * Any Luau type, the way a parameter's is: the list for the everyday ones and
+ * Other… for `{ [Model]: Restore }`.
+ */
+function LocalType({ node }: { node: GraphNode }) {
+	const current = (node.config as { type?: string } | undefined)?.type;
+	return (
+		<Field label="Type" hint="Written after the name when the graph is Nonstrict or Strict.">
+			<TypePicker
+				value={current ?? "any"}
+				onChange={(type) =>
+					store.edit((s) => setConfig(s, node.id, { type: type === "any" ? undefined : type }))
+				}
+			/>
+		</Field>
+	);
+}
+
+function LocalPicker({ script, node }: { script: NodeScript; node: GraphNode }) {
+	const current = (node.config as { local?: string } | undefined)?.local ?? "";
+	const locals = script.nodes.filter((n) => n.def === "local.declare");
+	if (locals.length === 0) {
+		return <p className="summary">This graph declares no locals yet.</p>;
+	}
+	return (
+		<Field label="Local">
+			<select
+				className="tb"
+				value={current}
+				onChange={(e) => store.edit((s) => bindNodeToLocal(s, node.id, e.target.value))}
+			>
+				{current === "" && <option value="">Choose a local…</option>}
+				{locals.map((local) => (
+					<option key={local.id} value={local.id}>
+						{localNameOf(local)}
 					</option>
 				))}
 			</select>

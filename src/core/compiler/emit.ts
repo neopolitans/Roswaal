@@ -17,10 +17,11 @@ import {
 	indentBlock, isAtomic, literalToLuau, NameScope, paren, quoteString, toIdentifier,
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
-import { FUNCTION_NODES } from "../nodes/flow.js";
+import { FUNCTION_NODES, typeShapeOf } from "../nodes/flow.js";
+import { checkLuauBalance } from "../luauCheck.js";
 import type { Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
-import type { FunctionRef, VariableRef } from "../nodes/variables.js";
+import type { FunctionRef, LocalRef, VariableRef } from "../nodes/variables.js";
 import { isService as isRobloxService, lastSegment, renderPath } from "../roblox.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
 import {
@@ -124,7 +125,29 @@ function luauType(t: string | undefined): string {
 	if (t === "table") return "{ [any]: any }";
 	if (t === "function") return "(...any) -> ...any";
 	if (EDITOR_ONLY_TYPES.has(t)) return "any";
-	return TYPE_NAME.test(t) ? t : "any";
+	if (TYPE_NAME.test(t)) return t;
+	return isTypeExpression(t) ? t.trim() : "any";
+}
+
+/**
+ * Whether text reads as a Luau type rather than as anything else.
+ *
+ * The same argument as for names, one step further: `{ [Model]: Restore }` typed
+ * for a local or a parameter was written `any`, and nothing said so. So a type
+ * made of types — braces, brackets, `?`, `|`, `->`, names with dots — is written
+ * as it was typed, and a mistake in it is Luau's to report, with a line number.
+ *
+ * What is refused is text that is plainly not a type: unclosed brackets, more
+ * than one line, a comment, an assignment, or two words side by side, which no
+ * type has and `2 bad` does.
+ */
+function isTypeExpression(t: string): boolean {
+	const text = t.trim();
+	if (text === "" || text.includes("\n") || text.includes("--")) return false;
+	if (!/^[A-Za-z_{("']/.test(text)) return false;
+	if (/=(?!>)/.test(text.replace(/->/g, ""))) return false;
+	if (/[A-Za-z0-9_]\s+[A-Za-z0-9_]/.test(text)) return false;
+	return checkLuauBalance(text).length === 0;
 }
 
 export function emit(script: NodeScript, registry: Registry, sourceHash: string): EmitResult {
@@ -407,7 +430,17 @@ class Emitter {
 		config: { definition?: string; shape?: string; fields?: { name?: string; type?: string }[] },
 		nodeId: string,
 	): string {
-		if (config.shape === "written") return (config.definition ?? "").trim();
+		// Written out is pasted in as it stands, so an unclosed brace here breaks
+		// the file somewhere after it. Said against the node, like Custom Code.
+		if (config.shape === "written") {
+			const text = (config.definition ?? "").trim();
+			const problem = checkLuauBalance(text)[0];
+			if (problem) {
+				this.error(`${problem.message} (line ${problem.line} of this type's definition)`, nodeId);
+				return "";
+			}
+			return text;
+		}
 
 		const fields = config.fields ?? [];
 		// No shape recorded and no fields is a node that was made before the
@@ -906,23 +939,40 @@ class Emitter {
 
 			case "type.declareHere": {
 				const config = (r.node.config ?? {}) as {
-					name?: string; export?: boolean;
+					name?: string; export?: boolean; shape?: string; definition?: string;
+					fields?: { name?: string; type?: string }[];
 				};
 				const name = (config.name ?? "").trim();
-				const value = this.resolveInput(r, this.pin(r, "value", "in"), scope);
-				// The node writes `typeof(...)` itself, so a Type Of on the way in
-				// makes `typeof(typeof(x))`. That is not a mistake Luau catches: the
-				// inner call is an expression giving a string, so the type quietly
-				// becomes `string`. Wiring one in is the obvious reading of the
-				// native code this mirrors, so it is worth saying rather than fixing
-				// silently.
-				if (this.feederOf(id, "value")?.def.id === "value.typeof") {
-					this.error(
-						"Declare Type already takes the type of what you wire in, so the Type Of " +
-						"node makes it the type of a string. Wire the value in directly.",
-						id,
-					);
-					return this.index.execTarget(id, "then");
+				const shape = typeShapeOf(r.def.id, config);
+
+				let definition: string;
+				if (shape === "typeof") {
+					const value = this.resolveInput(r, this.pin(r, "value", "in"), scope);
+					// The node writes `typeof(...)` itself, so a Type Of on the way in
+					// makes `typeof(typeof(x))`. That is not a mistake Luau catches:
+					// the inner call is an expression giving a string, so the type
+					// quietly becomes `string`. Wiring one in is the obvious reading
+					// of the native code this mirrors, so it is worth saying rather
+					// than fixing silently.
+					if (this.feederOf(id, "value")?.def.id === "value.typeof") {
+						this.error(
+							"Declare Type already takes the type of what you wire in, so the Type Of " +
+							"node makes it the type of a string. Wire the value in directly.",
+							id,
+						);
+						return this.index.execTarget(id, "then");
+					}
+					definition = `typeof(${value})`;
+				} else {
+					const before = this.diagnostics.length;
+					definition = this.typeDefinition({ ...config, shape }, id);
+					if (definition === "") {
+						// A field with no type has already said what is wrong.
+						if (this.diagnostics.length === before) {
+							this.error("Declare Type needs a definition before it can be written.", id);
+						}
+						return this.index.execTarget(id, "then");
+					}
 				}
 				if (name === "") {
 					this.error("Declare Type needs a name before it can be written.", id);
@@ -954,7 +1004,7 @@ class Emitter {
 				}
 				this.declaredTypes.add(name);
 				this.names.reserve(name);
-				this.push(`${exported ? "export type" : "type"} ${name} = typeof(${value})`, id);
+				this.push(`${exported ? "export type" : "type"} ${name} = ${definition}`, id);
 				return this.index.execTarget(id, "then");
 			}
 
@@ -974,7 +1024,22 @@ class Emitter {
 				}
 				const wanted = this.literalText(r, "name") || r.node.label || "local";
 				const ident = this.names.unique(wanted, "local");
-				this.push(`local ${ident} = ${value}`, id);
+				// The type, when one was given, on the terms every other annotation
+				// has: written when the mode line asks for annotations.
+				const declared = ((r.node.config as { type?: string } | undefined)?.type ?? "").trim();
+				let annotation = "";
+				if (this.annotates && declared !== "" && declared !== "any") {
+					const written = luauType(declared);
+					if (written === "any") {
+						this.error(
+							`"${declared}" is not a type Roswaal can write. Check its brackets are closed.`,
+							id,
+						);
+					} else {
+						annotation = `: ${written}`;
+					}
+				}
+				this.push(`local ${ident}${annotation} = ${value}`, id);
 				scope.bindings.set(`${id}/ref`, ident);
 				return this.index.execTarget(id, "then");
 			}
@@ -1299,6 +1364,46 @@ class Emitter {
 					return "nil";
 				}
 				return ident;
+			}
+
+			// Only Make Dictionary can read a pair, from inside `$pairs`. Reaching
+			// here means something else was handed one.
+			case "table.pair":
+				this.error(
+					"A Key Value Pair is one entry of a table, so it only goes into Make Dictionary.",
+					src.node.id,
+				);
+				return "nil";
+
+			/**
+			 * The local a Declare Local bound, looked up in the reader's scope.
+			 *
+			 * The same lookup a wire from Declare Local's output gets, so the two
+			 * cannot disagree about where a local exists: after its declaration,
+			 * inside the block that made it and anything nested in that block —
+			 * a branch, a loop, a function declared further down.
+			 */
+			case "local.get": {
+				const ref = (src.node.config ?? {}) as LocalRef;
+				const declared = ref.local ? this.index.get(ref.local) : undefined;
+				if (!ref.local || declared?.def.id !== "local.declare") {
+					this.error(
+						ref.local
+							? "Get Local points at a Declare Local that is no longer in this graph."
+							: "Get Local has no local chosen.",
+						src.node.id,
+					);
+					return "nil";
+				}
+				const bound = scope.lookup(`${ref.local}/ref`);
+				if (bound) return bound;
+				this.error(
+					`"${ref.name ?? "That local"}" is not in scope here. A local exists after its ` +
+					"Declare Local runs, and only inside the block that declared it. For a value the " +
+					"whole script reads, use a variable.",
+					src.node.id,
+				);
+				return "nil";
 			}
 
 			// Both reach the Players service themselves, through the same hoisting
@@ -1707,11 +1812,21 @@ class Emitter {
 				if (!match) continue;
 				const value = r.inputs.find((v) => v.id === `a${match[1]}`);
 				if (!value) continue;
-				const key = this.resolveInput(r, pin, scope);
+				// A Key Value Pair on the value pin brings its own key, and the
+				// row's key is not used. It is read here, where there is a table
+				// for it to be an entry of, rather than as an expression.
+				const pair = this.feederOf(r.node.id, value.id);
+				const from = pair?.def.id === "table.pair" ? pair : undefined;
+				const key = from
+					? this.resolveInput(from, this.pin(from, "key", "in"), scope)
+					: this.resolveInput(r, pin, scope);
 				if (key === '""' || key === "nil") continue;
 				const plain = this.bracketsOnly(r) ? null : plainKey(key);
 				const written = plain ?? `[${key}]`;
-				entries.push(`${written} = ${this.resolveInput(r, value, scope)}`);
+				const entry = from
+					? this.resolveInput(from, this.pin(from, "value", "in"), scope)
+					: this.resolveInput(r, value, scope);
+				entries.push(`${written} = ${entry}`);
 			}
 			if (entries.length === 0) return "";
 			/**

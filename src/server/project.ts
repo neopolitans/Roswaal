@@ -345,6 +345,10 @@ export async function compileMap(
 	const map = await readMap(project, relPath);
 	const result = compileNodeMap(map);
 	result.diagnostics.push(...(await checkMapPaths(project, map)));
+	// Worked out after the path check, not before. `result.ok` is the map's own
+	// verdict, and a `$path` that is not on disk is an error the map cannot see —
+	// counting it only in the list let the file be written anyway.
+	const ok = result.ok && !result.diagnostics.some((d) => d.severity === "error");
 
 	const outcome: MapOutcome = {
 		mapPath: relPath,
@@ -355,7 +359,7 @@ export async function compileMap(
 	};
 
 	if (!opts.write) return outcome;
-	if (!result.ok) {
+	if (!ok) {
 		outcome.skipped = "The map has errors, so no project file was written.";
 		return outcome;
 	}
@@ -526,6 +530,44 @@ export async function findOrphanOutputs(project: OpenProject): Promise<string[]>
 		if (!expected.has(output)) orphans.push(output);
 	}
 	return orphans.sort();
+}
+
+/** A type a module in the project exports, and where that module lands. */
+export interface ExportedType {
+	/** The graph declaring it. */
+	graph: string;
+	name: string;
+	/** Where the graph's module sits in the DataModel, when a node map says. */
+	location: InstanceLocation | null;
+}
+
+/**
+ * Every type a ModuleScript graph in the project exports.
+ *
+ * What another graph can name after requiring that module — `Config.Tuning` —
+ * so the editor can offer it rather than leave it to be remembered and typed.
+ * Only module graphs declaring an exported type are located, since locating
+ * one means compiling it to learn its file name.
+ */
+export async function exportedTypes(project: OpenProject): Promise<ExportedType[]> {
+	const out: ExportedType[] = [];
+	for (const relPath of await collectScripts(project)) {
+		const script = await readScript(project, relPath).catch(() => null);
+		if (!script || script.scriptClass !== "ModuleScript") continue;
+
+		const names = new Set<string>();
+		for (const node of script.nodes) {
+			if (node.def !== "type.declareTop" && node.def !== "type.declareHere") continue;
+			const config = (node.config ?? {}) as { name?: string; export?: boolean };
+			const name = (config.name ?? "").trim();
+			if (config.export !== false && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) names.add(name);
+		}
+		if (names.size === 0) continue;
+
+		const location = await locateFile(project, relPath).catch(() => null);
+		for (const name of names) out.push({ graph: relPath, name, location });
+	}
+	return out;
 }
 
 export async function removeOutputs(project: OpenProject, paths: string[]): Promise<number> {
@@ -994,7 +1036,11 @@ export function stampOutputHash(code: string): string {
 // Formatting
 // ---------------------------------------------------------------------------
 
-let styluaAvailable: boolean | null = null;
+/**
+ * The stylua command that starts, once one has: `null` when none does, and
+ * `undefined` until somebody has looked.
+ */
+let styluaCommand: string | null | undefined;
 
 /**
  * Runs stylua over generated code when it is available.
@@ -1002,28 +1048,34 @@ let styluaAvailable: boolean | null = null;
  * The emitter deliberately does not try to be a pretty-printer; it produces
  * correct Luau and lets the formatter the project already uses make it look
  * like the rest of the codebase.
+ *
+ * **Absent and refusing are different answers.** This used to treat stylua
+ * exiting non-zero the same as stylua not existing, so one file it could not
+ * parse turned formatting off for every file after it until the daemon was
+ * restarted. Now only a command that will not start counts as absent; one that
+ * ran and refused leaves that file as emitted and formats the next.
  */
 export function formatLuau(cwd: string, code: string): string {
-	if (styluaAvailable === false) return code;
+	if (styluaCommand === null) return code;
 
 	// Each candidate is tried without a shell. Going through one would resolve
 	// the .cmd shim for us, but it also means the arguments are concatenated
 	// rather than passed, which Node now warns about — and we do not need it.
-	const candidates =
-		process.platform === "win32" ? ["stylua.exe", "stylua.cmd", "stylua.bat"] : ["stylua"];
+	const candidates = styluaCommand
+		? [styluaCommand]
+		: process.platform === "win32" ? ["stylua.exe", "stylua.cmd", "stylua.bat"] : ["stylua"];
 
 	for (const command of candidates) {
 		const run = spawnSync(command, ["-"], { cwd, input: code, encoding: "utf8" });
-		if (run.error || run.status !== 0 || typeof run.stdout !== "string" || run.stdout === "") {
-			continue;
-		}
-		styluaAvailable = true;
-		return run.stdout;
+		if (run.error) continue;
+		styluaCommand = command;
+		if (run.status === 0 && typeof run.stdout === "string" && run.stdout !== "") return run.stdout;
+		return code;
 	}
 
 	// Remembered, so a project without stylua does not pay for the lookup on
 	// every single file it compiles.
-	styluaAvailable = false;
+	if (styluaCommand === undefined) styluaCommand = null;
 	return code;
 }
 

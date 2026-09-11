@@ -40,6 +40,10 @@
 
 import type { GraphNode, Literal, NodeConfig, NodeDef, NodeScript, PinDef } from "../schema.js";
 import { nodeTitle, resolveNodePins, type Registry } from "../nodes/index.js";
+import {
+	operatorEditorWidth, operatorFields, operatorLayout,
+	type OperatorField, type OperatorLayout,
+} from "../operatorLayout.js";
 
 // ---------------------------------------------------------------------------
 // The model
@@ -93,7 +97,14 @@ export interface NodePreview {
 	subtitle?: string;
 	category: string;
 	role?: string;
-	display: "normal" | "compact" | "reroute";
+	display: "normal" | "compact" | "reroute" | "operator";
+	/**
+	 * What an operator pill shows in its middle, and what its rows carry.
+	 *
+	 * Field *kinds* rather than a width: a preview is built without geometry and
+	 * measured with it, and the widths belong to whoever is drawing.
+	 */
+	operator?: { symbol: string; growable: boolean; fields: OperatorField[] };
 	/** Drawn as the hourglass the canvas puts in the header. */
 	latent: boolean;
 	inputs: PreviewPin[];
@@ -125,6 +136,14 @@ export interface PreviewGeometry {
 	pinSlot: number;
 	rowPadding: number;
 	radius: number;
+	/** The operator pill's own numbers — see `operatorLayout`. */
+	operatorPad: number;
+	operatorCharWidth: number;
+	operatorMinSymbol: number;
+	fieldWidth: number;
+	fieldWide: number;
+	checkWidth: number;
+	growButton: number;
 }
 
 export interface PreviewOptions {
@@ -181,10 +200,34 @@ export function previewOf(def: NodeDef): NodePreview {
 		category: def.category,
 		role: def.role,
 		display: def.display ?? "normal",
+		operator: operatorOf(def, inputs),
 		latent: def.latent === true,
 		inputs: inputs.map((p) => previewPin(p, "in")),
 		outputs: outputs.map((p) => previewPin(p, "out")),
 	};
+}
+
+/** What a pill needs to be drawn, or nothing for a node that is not one. */
+function operatorOf(def: NodeDef, inputs: PinDef[]): NodePreview["operator"] {
+	if (def.display !== "operator") return undefined;
+	return {
+		symbol: def.operator ?? def.title,
+		growable: def.variadic !== undefined,
+		fields: operatorFields(inputs),
+	};
+}
+
+/** The pill's layout, from a preview and whoever is drawing it. */
+function operatorLayoutOf(preview: NodePreview, g: PreviewGeometry): OperatorLayout {
+	return operatorLayout(
+		{
+			symbol: preview.operator?.symbol ?? "",
+			editor: operatorEditorWidth(preview.operator?.fields ?? [], g),
+			rows: preview.inputs.filter((pin) => pin.kind === "data").length,
+			growable: preview.operator?.growable === true,
+		},
+		g,
+	);
 }
 
 function previewPin(pin: PinDef, side: "in" | "out"): PreviewPin {
@@ -267,6 +310,10 @@ export function previewSize(preview: NodePreview, g: PreviewGeometry): PreviewSi
 	if (preview.display === "compact") {
 		return { width: compactWidth(preview, g), height: g.compactHeight };
 	}
+	if (preview.display === "operator") {
+		const layout = operatorLayoutOf(preview, g);
+		return { width: layout.width, height: layout.height };
+	}
 	const rows = Math.max(preview.inputs.length, preview.outputs.length, 1);
 	return {
 		width: g.width,
@@ -288,6 +335,11 @@ function headHeight(preview: NodePreview, g: PreviewGeometry): number {
  * not checked at all.
  */
 export function previewRowY(preview: NodePreview, g: PreviewGeometry, index: number): number {
+	// A pill has no header, and its rows are centred in it rather than hung
+	// below one. Its result is not on a row at all — see `placedPinAnchor`.
+	if (preview.display === "operator") {
+		return operatorLayoutOf(preview, g).rowsTop + index * g.rowHeight + g.rowHeight / 2;
+	}
 	return headHeight(preview, g) + index * g.rowHeight + g.rowHeight / 2;
 }
 
@@ -366,12 +418,7 @@ function n(value: number): string {
 export function previewSvg(preview: NodePreview, options: PreviewOptions): string {
 	const g = options.geometry;
 	const { width, height } = previewSize(preview, g);
-	const body =
-		preview.display === "reroute"
-			? drawReroute(preview, options)
-			: preview.display === "compact"
-				? drawCapsule(preview, options)
-				: drawNode(preview, options);
+	const body = drawBody(preview, options);
 
 	const scale = options.scale ?? 1;
 	return (
@@ -380,6 +427,65 @@ export function previewSvg(preview: NodePreview, options: PreviewOptions): strin
 		`xmlns="http://www.w3.org/2000/svg" role="img" ` +
 		`aria-label="${escapeXml(describe(preview))}">${body}</svg>`
 	);
+}
+
+/** Whichever shape this node is drawn as. */
+function drawBody(preview: NodePreview, options: PreviewOptions): string {
+	if (preview.display === "reroute") return drawReroute(preview, options);
+	if (preview.display === "compact") return drawCapsule(preview, options);
+	if (preview.display === "operator") return drawOperator(preview, options);
+	return drawNode(preview, options);
+}
+
+/**
+ * An operator pill: the inputs and their values down the left, the symbol in
+ * the middle, the result on the right. The canvas's own layout, so the picture
+ * and the node cannot be a few pixels apart.
+ */
+function drawOperator(preview: NodePreview, options: PreviewOptions): string {
+	const g = options.geometry;
+	const layout = operatorLayoutOf(preview, g);
+	const parts: string[] = [
+		`<rect x="0.5" y="0.5" width="${n(layout.width - 1)}" height="${n(layout.height - 1)}" ` +
+		`rx="${n(layout.height / 2 - 0.5)}" fill="var(--node-body, #fbfbfd)" ` +
+		`stroke="var(--node-border, #b3b9c4)"/>`,
+	];
+
+	preview.inputs.filter((pin) => pin.kind === "data").forEach((pin, i) => {
+		const y = layout.rowsTop + i * g.rowHeight + g.rowHeight / 2;
+		parts.push(pinAt(pin, g.rowPadding, y, g.pinSlot, options, "node"));
+		if (pin.value) parts.push(drawValue(pin.value, layout.symbolLeft - 5, y).svg);
+	});
+
+	parts.push(
+		text(layout.symbolLeft + layout.symbolWidth / 2, layout.height / 2, preview.operator?.symbol ?? "", {
+			size: 13, weight: 700, fill: "var(--fg, #1c1f24)", anchor: "middle", mono: true,
+		}),
+	);
+
+	const growth = options.growth?.(preview) ?? null;
+	if (growth) {
+		const x = layout.growLeft + 3;
+		const size = g.growButton;
+		const button = (y: number, glyph: string, live: boolean) =>
+			`<g${live ? "" : ` opacity="0.3"`}>` +
+			`<rect x="${n(x + 0.5)}" y="${n(y + 0.5)}" width="${size - 1}" height="${size - 1}" ` +
+			`rx="3" fill="var(--bg-input, #fff)" stroke="var(--border, #c6cad2)"/>` +
+			text(x + size / 2, y + size / 2, glyph, {
+				size: 10, fill: "var(--fg-muted, #5c636e)", anchor: "middle",
+			}) +
+			`</g>`;
+		const top = layout.height / 2 - size - 1;
+		parts.push(button(top, "+", growth.canAdd) + button(top + size + 2, "−", growth.canRemove));
+	}
+
+	const output = preview.outputs.find((pin) => pin.kind === "data");
+	if (output) {
+		parts.push(
+			pinAt(output, layout.width - g.rowPadding - g.pinSlot, layout.height / 2, g.pinSlot, options, "node"),
+		);
+	}
+	return parts.join("");
 }
 
 /** The alt text. A screen reader gets the shape in words, not a blank box. */
@@ -764,6 +870,7 @@ export function previewOfPlaced(
 		category: def.category,
 		role: def.role,
 		display: def.display ?? "normal",
+		operator: operatorOf(def, inputs),
 		latent: def.latent === true,
 		inputs: inputs.map((pin) => ({
 			id: pin.id,
@@ -849,6 +956,15 @@ export function placedPinAnchor(
 		return { x: placed.x + placed.width, y: placed.y + placed.height / 2 };
 	}
 
+	// A pill's inputs run down its left; its result sits level with the middle
+	// of the pill rather than with a row.
+	if (placed.preview.display === "operator") {
+		const layout = operatorLayoutOf(placed.preview, g);
+		return side === "in"
+			? { x: placed.x, y: placed.y + layout.rowsTop + index * g.rowHeight + g.rowHeight / 2 }
+			: { x: placed.x + layout.width, y: placed.y + layout.height / 2 };
+	}
+
 	return {
 		x: side === "in" ? placed.x : placed.x + placed.width,
 		y: placed.y + previewRowY(placed.preview, g, index),
@@ -930,15 +1046,9 @@ export function graphSvg(
 		}
 	}
 
-	const bodies = placed.map((entry) => {
-		const body =
-			entry.preview.display === "reroute"
-				? drawReroute(entry.preview, options)
-				: entry.preview.display === "compact"
-					? drawCapsule(entry.preview, options)
-					: drawNode(entry.preview, options);
-		return `<g transform="translate(${n(entry.x)} ${n(entry.y)})">${body}</g>`;
-	});
+	const bodies = placed.map(
+		(entry) => `<g transform="translate(${n(entry.x)} ${n(entry.y)})">${drawBody(entry.preview, options)}</g>`,
+	);
 
 	const width = maxX - minX + MARGIN * 2;
 	const height = maxY - minY + MARGIN * 2;

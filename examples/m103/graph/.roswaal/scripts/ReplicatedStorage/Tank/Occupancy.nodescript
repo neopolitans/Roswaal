@@ -1,0 +1,374 @@
+{
+  "schemaVersion": 1,
+  "kind": "script",
+  "id": "7509f2c7-2054-400b-a0bf-fd6d8f53b2cf",
+  "name": "Occupancy",
+  "scriptClass": "ModuleScript",
+  "target": "roblox",
+  "typecheck": "strict",
+  "variables": [
+    {
+      "id": "0964078f-bed9-4aca-acf8-aed15d514de3",
+      "name": "Occupancy",
+      "type": "table",
+      "default": {
+        "t": "raw",
+        "v": "{}"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "00dc4866-e7c2-4e06-a476-a2c4f39633ad",
+      "def": "table.set",
+      "x": 1089,
+      "y": 152
+    },
+    {
+      "id": "06ad3d6a-0d21-4a95-8994-d65cfb30b380",
+      "def": "variable.get",
+      "x": 548,
+      "y": 930,
+      "config": {
+        "name": "Occupancy",
+        "type": "table",
+        "variable": "0964078f-bed9-4aca-acf8-aed15d514de3"
+      }
+    },
+    {
+      "id": "34763fec-4ce7-49ac-a747-0c6b07799f85",
+      "def": "value.nil",
+      "x": 975,
+      "y": 1159
+    },
+    {
+      "id": "519e9cca-063e-4040-a589-116873be960e",
+      "def": "table.get",
+      "x": 977,
+      "y": 1054
+    },
+    {
+      "id": "58b8241b-b006-4929-9f76-0a7506adcee9",
+      "def": "flow.rerouteExec",
+      "x": 758,
+      "y": 580
+    },
+    {
+      "id": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "def": "function.declareHere",
+      "x": 718,
+      "y": 862,
+      "config": {
+        "name": "hide",
+        "params": [
+          {
+            "name": "character",
+            "type": "Model"
+          },
+          {
+            "name": "hull",
+            "type": "BasePart"
+          }
+        ],
+        "returns": [
+          {
+            "name": "success",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "7754cfb4-76d4-4f49-8c2a-0a6dccea2582",
+      "def": "flow.sequence",
+      "x": 515,
+      "y": 153,
+      "config": {
+        "count": 3
+      }
+    },
+    {
+      "id": "8eaa8197-2c47-43c7-8c8e-17f4b052fb0b",
+      "def": "variable.get",
+      "x": 886,
+      "y": 204,
+      "config": {
+        "name": "Occupancy",
+        "type": "table",
+        "variable": "0964078f-bed9-4aca-acf8-aed15d514de3"
+      }
+    },
+    {
+      "id": "aede63b4-dc63-4db8-bdec-720dfa70bad0",
+      "def": "local.declare",
+      "x": 1264,
+      "y": 549,
+      "literals": {
+        "name": {
+          "t": "string",
+          "v": "restores"
+        }
+      }
+    },
+    {
+      "id": "af6ffd82-8b2c-4f9f-882c-2b2e3b106429",
+      "def": "compare.neq",
+      "x": 1261,
+      "y": 1096
+    },
+    {
+      "id": "b2fa9e82-5989-49aa-8b46-63028eff38c8",
+      "def": "value.string",
+      "x": 810,
+      "y": 337,
+      "literals": {
+        "value": {
+          "t": "string",
+          "v": "Occupant"
+        }
+      }
+    },
+    {
+      "id": "c23cf121-6997-4f35-9911-0e18c0fa811c",
+      "def": "value.string",
+      "x": 809,
+      "y": 262,
+      "literals": {
+        "value": {
+          "t": "string",
+          "v": "VALUE_NAME"
+        }
+      }
+    },
+    {
+      "id": "cce1540b-4363-4633-a50d-48cd4159178a",
+      "def": "flow.branch",
+      "x": 1307,
+      "y": 902,
+      "literals": {
+        "condition": {
+          "t": "boolean",
+          "v": false
+        }
+      }
+    },
+    {
+      "id": "f0ee73f2-d603-4a32-b066-29f1e751fce4",
+      "def": "value.expression",
+      "x": 1397,
+      "y": 224,
+      "literals": {
+        "code": {
+          "t": "raw",
+          "v": "{\n  transparency: { [Instance] : number },\n  collide: { [BasePart] : boolean },\n  query: { [BasePart] : boolean },\n  walkSpeed: number,\n  jumpHeight: number,\n  nameDisplay: Enum.HumanoidDisplayDistanceType\n  weld: WeldConstraint?\n}"
+        }
+      }
+    },
+    {
+      "id": "f12240e1-4056-4a89-9c70-0bcc88224608",
+      "def": "table.dictionary",
+      "x": 970,
+      "y": 597
+    },
+    {
+      "id": "f8bfd510-4695-49c2-b9cd-dd589c1040f6",
+      "def": "script.begin",
+      "x": 120,
+      "y": 154
+    },
+    {
+      "id": "fb088a2d-3ea0-470a-98a2-bb46510a6f60",
+      "def": "type.declareHere",
+      "x": 1698,
+      "y": 136,
+      "config": {
+        "name": "Restore"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "0b7fb332-e4b7-4db4-a196-a67e18ac01a1",
+      "from": {
+        "node": "58b8241b-b006-4929-9f76-0a7506adcee9",
+        "pin": "then"
+      },
+      "to": {
+        "node": "aede63b4-dc63-4db8-bdec-720dfa70bad0",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "245406bd-4f63-4fcf-8918-fe08ec487326",
+      "from": {
+        "node": "7754cfb4-76d4-4f49-8c2a-0a6dccea2582",
+        "pin": "s1"
+      },
+      "to": {
+        "node": "58b8241b-b006-4929-9f76-0a7506adcee9",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "5379564d-1b55-402d-9819-5baf6df674f5",
+      "from": {
+        "node": "519e9cca-063e-4040-a589-116873be960e",
+        "pin": "result"
+      },
+      "to": {
+        "node": "af6ffd82-8b2c-4f9f-882c-2b2e3b106429",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "6c94c220-5ba5-4de9-8e64-f8849bc44f11",
+      "from": {
+        "node": "c23cf121-6997-4f35-9911-0e18c0fa811c",
+        "pin": "result"
+      },
+      "to": {
+        "node": "00dc4866-e7c2-4e06-a476-a2c4f39633ad",
+        "pin": "key"
+      }
+    },
+    {
+      "id": "8a7cc035-38a3-4686-91ec-a1dfdddb1ede",
+      "from": {
+        "node": "7754cfb4-76d4-4f49-8c2a-0a6dccea2582",
+        "pin": "s0"
+      },
+      "to": {
+        "node": "00dc4866-e7c2-4e06-a476-a2c4f39633ad",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "8b5c4227-1946-4593-8b04-87045940e78e",
+      "from": {
+        "node": "34763fec-4ce7-49ac-a747-0c6b07799f85",
+        "pin": "result"
+      },
+      "to": {
+        "node": "af6ffd82-8b2c-4f9f-882c-2b2e3b106429",
+        "pin": "b"
+      }
+    },
+    {
+      "id": "95f4fd1a-7f58-48dd-b5db-d133350d700f",
+      "from": {
+        "node": "f12240e1-4056-4a89-9c70-0bcc88224608",
+        "pin": "result"
+      },
+      "to": {
+        "node": "aede63b4-dc63-4db8-bdec-720dfa70bad0",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "9c3a4217-6749-490d-8402-dde3ce400ebe",
+      "from": {
+        "node": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+        "pin": "body"
+      },
+      "to": {
+        "node": "cce1540b-4363-4633-a50d-48cd4159178a",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "ac66d236-99e4-41f4-870e-3ac2e6b9cd96",
+      "from": {
+        "node": "7754cfb4-76d4-4f49-8c2a-0a6dccea2582",
+        "pin": "s2"
+      },
+      "to": {
+        "node": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "b1914e77-0dcc-4eec-8525-2ec4e86ab165",
+      "from": {
+        "node": "f0ee73f2-d603-4a32-b066-29f1e751fce4",
+        "pin": "result"
+      },
+      "to": {
+        "node": "fb088a2d-3ea0-470a-98a2-bb46510a6f60",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "b74f662d-e990-4b3e-a13a-4c2a3b5c3c19",
+      "from": {
+        "node": "b2fa9e82-5989-49aa-8b46-63028eff38c8",
+        "pin": "result"
+      },
+      "to": {
+        "node": "00dc4866-e7c2-4e06-a476-a2c4f39633ad",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "caa5a842-f1ca-4da9-a4a9-eab9feabe4d0",
+      "from": {
+        "node": "8eaa8197-2c47-43c7-8c8e-17f4b052fb0b",
+        "pin": "value"
+      },
+      "to": {
+        "node": "00dc4866-e7c2-4e06-a476-a2c4f39633ad",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "ce81a2cf-2bf2-436d-ac0d-9bf8cec8a47e",
+      "from": {
+        "node": "00dc4866-e7c2-4e06-a476-a2c4f39633ad",
+        "pin": "then"
+      },
+      "to": {
+        "node": "fb088a2d-3ea0-470a-98a2-bb46510a6f60",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "ee897c27-98b5-4b35-adfc-740caa8f705d",
+      "from": {
+        "node": "f8bfd510-4695-49c2-b9cd-dd589c1040f6",
+        "pin": "then"
+      },
+      "to": {
+        "node": "7754cfb4-76d4-4f49-8c2a-0a6dccea2582",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "f70194db-462f-4a4d-bb9c-ab70ef7f6350",
+      "from": {
+        "node": "06ad3d6a-0d21-4a95-8994-d65cfb30b380",
+        "pin": "value"
+      },
+      "to": {
+        "node": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+        "pin": "owner"
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": "5632e5e2-8351-414b-b44a-254287e772e8",
+      "x": 946,
+      "y": 497,
+      "w": 558,
+      "h": 212,
+      "text": "Defines restores table"
+    },
+    {
+      "id": "bc8895fa-1534-400e-bf9e-632e5f913b20",
+      "x": 785,
+      "y": 84,
+      "w": 1153,
+      "h": 341,
+      "text": "Defines"
+    }
+  ]
+}

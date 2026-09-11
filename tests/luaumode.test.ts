@@ -130,6 +130,61 @@ describe("the things Lua's own mode gets wrong", () => {
 });
 
 /**
+ * Types, which read as ordinary names until 0.30.0 unless they happened to be
+ * globals too. `Occupancy.luau` is where it showed: a `Restore` type, a
+ * `{ [Model]: Restore }` local, and parameters typed `Model` and `BasePart`.
+ */
+describe("types", () => {
+	const typed = (source: string) =>
+		tokenise(source).filter((t) => t.style === "typeName").map((t) => t.text);
+
+	it("colours the names in an annotation, and not the value after it", () => {
+		expect(typed("local restores: { [Model]: Restore } = {}")).toEqual(["Model", "Restore"]);
+	});
+
+	it("colours parameters and the return type", () => {
+		expect(typed("function Occupancy.hide(character: Model, hull: BasePart): boolean"))
+			.toEqual(["Model", "BasePart", "boolean"]);
+	});
+
+	it("does not take a method call for an annotation", () => {
+		expect(typed('character:FindFirstChild("Humanoid")')).toEqual([]);
+	});
+
+	it("colours a cast, and stops at its bracket", () => {
+		const found = tokenise("(instance :: any).Transparency = value");
+		expect(found.find((t) => t.text === "any")?.style).toBe("typeName");
+		expect(found.find((t) => t.text === "Transparency")?.style).toBe("variableName");
+	});
+
+	it("tells a table type's fields from its types", () => {
+		const source = "export type Restore = { walkSpeed: number, weld: WeldConstraint? }";
+		const found = tokenise(source);
+		expect(found.find((t) => t.text === "walkSpeed")?.style).toBe("propertyName");
+		expect(typed(source)).toEqual(["Restore", "number", "WeldConstraint"]);
+	});
+
+	it("carries a table type over several lines, and ends with it", () => {
+		const source = "type Restore = {\n\ttransparency: { [Instance]: number },\n\twalkSpeed: number,\n}\nlocal x = 1";
+		expect(typed(source)).toEqual(["Restore", "Instance", "number", "number"]);
+		expect(tokenise(source).find((t) => t.text === "x")?.style).toBe("variableName");
+	});
+
+	it("ends an annotation at the end of its line", () => {
+		const found = tokenise("local n: number\nprint(n)");
+		expect(found.filter((t) => t.text === "n").map((t) => t.style)).toEqual(["variableName", "variableName"]);
+	});
+
+	it("reads a function type through its arrow", () => {
+		expect(typed("local f: (number) -> string = g")).toEqual(["number", "string"]);
+	});
+
+	it("still reads type() as the global function", () => {
+		expect(tokenise("type(x)")[0].style).toBe("variableName.standard");
+	});
+});
+
+/**
  * The property that matters more than any single colour: whatever it is given,
  * it advances and it returns. A tokeniser that stalls hangs the tab, and one
  * that throws takes the editor with it.

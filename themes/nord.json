@@ -40,6 +40,7 @@
     "operator": "#81a1c1",
     "property": "#d8dee9",
     "global": "#8fbcbb",
-    "function": "#88c0d0"
+    "function": "#88c0d0",
+    "type": "#8fbcbb"
   }
 }

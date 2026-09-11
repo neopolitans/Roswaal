@@ -50,6 +50,12 @@ const RENAMED_PINS: Record<string, Record<string, string>> = {
 	),
 };
 
+/** The Index nodes, and the Key node each becomes when its key is a name. */
+const KEYED: Record<string, string> = {
+	"table.set": "table.setKey",
+	"table.get": "table.getKey",
+};
+
 /**
  * Nodes that used to sit in the execution chain and are now pure. Their exec
  * pins are gone, so the wires either side are spliced together rather than
@@ -105,6 +111,32 @@ export function migrateScript(raw: NodeScript): MigrationResult {
 
 	for (const [from, count] of renamed) {
 		notes.push(`Renamed ${count} × "${from}" to "${RENAMED_NODES[from]}".`);
+	}
+
+	// -- an index that was a name ------------------------------------------
+	//
+	// Until 0.30.0 one node set `t[1]` and `t.name` alike, and its pin was
+	// called Key while its title said Index. Index takes a number now, so a
+	// graph keyed by a name — typed in, or wired from a String — is a Key. A
+	// key wired from anything else could be either and is left alone; a string
+	// still fits a number pin, so it compiles to what it always did.
+	let keyed = 0;
+	script.nodes = script.nodes.map((node) => {
+		const next = KEYED[node.def];
+		if (!next) return node;
+		const wire = script.links.find((l) => l.to.node === node.id && l.to.pin === "key");
+		const named = wire
+			? script.nodes.find((n) => n.id === wire.from.node)?.def === "value.string"
+			: node.literals?.key?.t === "string";
+		if (!named) return node;
+		keyed++;
+		return { ...node, def: next };
+	});
+	if (keyed > 0) {
+		notes.push(
+			`${keyed} Index node${keyed === 1 ? " was" : "s were"} keyed by a name, so ` +
+			`${keyed === 1 ? "it is" : "they are"} now Set Key or Get Key.`,
+		);
 	}
 
 	const byId = new Map(script.nodes.map((n) => [n.id, n]));

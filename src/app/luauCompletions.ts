@@ -11,10 +11,14 @@
 
 import type { CompletionContext, CompletionResult, Completion } from "@codemirror/autocomplete";
 import type { NodeScript } from "../core/schema.js";
-import { continuesEnclosingBlock, resolveNodePins, type Registry } from "../core/nodes/index.js";
+import {
+	continuesEnclosingBlock, resolveNodePins, type Registry, type Signature,
+} from "../core/nodes/index.js";
+import { localNameOf } from "../core/nodes/variables.js";
 import { toIdentifier } from "../core/compiler/luau.js";
 import { collectLocalNames } from "../core/luauLocals.js";
 import { lastSegment } from "../core/roblox.js";
+import { surfacesIn } from "./edits.js";
 
 /** Members of the standard libraries, for completion after a dot. */
 const LIBRARY_MEMBERS: Record<string, string[]> = {
@@ -187,20 +191,28 @@ export function precedingLocals(
 	const seen = new Set<string>();
 	const visited = new Set<string>();
 
+	const add = (name: string, detail: string) => {
+		if (name === "" || seen.has(name)) return;
+		seen.add(name);
+		out.push({ label: name, type: "variable", detail });
+	};
+
 	const collectFrom = (id: string) => {
 		const node = script.nodes.find((n) => n.id === id);
-		if (!node || !RAW_STATEMENT_NODES.has(node.def)) return;
+		if (!node) return;
+		// A Declare Local makes a local exactly as one typed into Custom Code
+		// does. Leaving it out is what made `restores` unreachable from a
+		// function declared after it.
+		if (node.def === "local.declare") {
+			add(toIdentifier(localNameOf(node), "local"), "local from Declare Local");
+			return;
+		}
+		if (!RAW_STATEMENT_NODES.has(node.def)) return;
 		const literal = node.literals?.code;
 		if (!literal || (literal.t !== "raw" && literal.t !== "string")) return;
 
 		for (const name of collectLocalNames(literal.v)) {
-			if (seen.has(name)) continue;
-			seen.add(name);
-			out.push({
-				label: name,
-				type: "variable",
-				detail: `local from ${node.label || "an earlier Custom Code block"}`,
-			});
+			add(name, `local from ${node.label || "an earlier Custom Code block"}`);
 		}
 	};
 
@@ -233,8 +245,14 @@ export function precedingLocals(
 		}
 	};
 
-	// Backwards from the node being edited.
+	// Backwards from the node being edited. A Luau Expression has no execution
+	// wire of its own: it is spliced into the first statement that reads it, so
+	// that statement is where it runs and where its scope is.
 	let current: string | null = nodeId;
+	const self = script.nodes.find((n) => n.id === nodeId);
+	if (self && registry.get(self.def)?.pure) {
+		current = [...surfacesIn(script, registry, nodeId)][0] ?? null;
+	}
 	const guard = new Set<string>();
 
 	while (current && !guard.has(current)) {
@@ -244,6 +262,16 @@ export function precedingLocals(
 		if (!previous) break;
 
 		const node = script.nodes.find((n) => n.id === previous.node);
+
+		// Walked out of a block the node opened. When that node takes
+		// parameters — a function, a Connect handler — they are locals here:
+		// `character` inside `Occupancy.hide(character, hull)`.
+		if (node && !continuesEnclosingBlock(node.def, previous.pin)) {
+			const params = (node.config as Signature | undefined)?.params ?? [];
+			params.forEach((param, i) => {
+				add(toIdentifier(param.name || `arg${i + 1}`, `arg${i + 1}`), "parameter");
+			});
+		}
 
 		// Reached a Sequence from one of its outputs: everything under the
 		// earlier outputs ran first, in this same block.

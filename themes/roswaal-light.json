@@ -35,6 +35,7 @@
     "operator": "#4a6fa5",
     "property": "#2c6f8f",
     "global": "#2c6f8f",
-    "function": "#7a5a2f"
+    "function": "#7a5a2f",
+    "type": "#2f7a6a"
   }
 }

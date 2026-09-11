@@ -7,10 +7,11 @@
  * context.
  */
 
-import type { GraphNode, NodeScript, Target } from "../schema.js";
+import { PAIR, type GraphNode, type NodeScript, type PinDef, type Target } from "../schema.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
+import { isInstanceClass } from "../roblox.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
 
@@ -46,7 +47,15 @@ const TARGET_NAMES: Record<Target, string> = { roblox: "Roblox", lune: "Lune" };
 /** Data types that flow into anything, in either direction. */
 const UNIVERSAL = new Set(["any", "wildcard"]);
 
-function compatible(from: string | undefined, to: string | undefined): boolean {
+/**
+ * Whether a value of one type may be wired into a pin of another.
+ *
+ * The one rule, used by the canvas when a wire is dropped and by the compile
+ * when it checks the wires already there. They were two copies until 0.30.0,
+ * and the canvas's had learned that a `Model` fits an `Instance` pin while this
+ * one had not — so a wire the editor accepted was warned about at compile.
+ */
+export function typesCompatible(from: string | undefined, to: string | undefined): boolean {
 	const a = from ?? "any";
 	const b = to ?? "any";
 	if (a === b) return true;
@@ -54,7 +63,27 @@ function compatible(from: string | undefined, to: string | undefined): boolean {
 	// Numbers stringify implicitly in Luau, and it is more annoying than useful
 	// to flag it.
 	if ((a === "number" && b === "string") || (a === "string" && b === "number")) return true;
+	// A Model is an Instance, so it goes anywhere an Instance is wanted. The
+	// other way round is a claim about what the value *is* rather than a fact
+	// about its type, and Cast is the node that makes that claim out loud.
+	if (b === "Instance" && isInstanceClass(a)) return true;
 	return false;
+}
+
+/**
+ * Whether a wire from an output may land on an input: the type rule, and the
+ * one exception that belongs to the pin rather than the type.
+ *
+ * A Key Value Pair is an entry rather than a value, so it goes only where an
+ * entry is taken — a pair pin, or one marked `pairs` — and `any` is not one of
+ * those. Everything else is `typesCompatible`.
+ */
+export function pinsCompatible(
+	from: Pick<PinDef, "type">, to: Pick<PinDef, "type" | "pairs">,
+): boolean {
+	if (from.type === PAIR) return to.type === PAIR || to.pairs === true;
+	if (to.type === PAIR) return false;
+	return typesCompatible(from.type, to.type);
 }
 
 export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
@@ -162,7 +191,9 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		if (fromPin.kind === "exec") {
 			const outKey = `${link.from.node}/${link.from.pin}`;
 			execOutUsed.set(outKey, (execOutUsed.get(outKey) ?? 0) + 1);
-		} else if (!compatible(fromPin.type, toPin.type)) {
+		} else if (!pinsCompatible(fromPin, toPin) && fromPin.type !== PAIR) {
+			// A misplaced pair is the emitter's to report, as an error on the
+			// pair, where the reason can be said properly.
 			out.push({
 				severity: "warning",
 				message: `"${fromPin.name || fromPin.id}" is a ${fromPin.type}, but "${toPin.name || toPin.id}" expects a ${toPin.type}.`,

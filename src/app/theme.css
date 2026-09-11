@@ -1072,33 +1072,41 @@ button.tb.primary:hover:not(:disabled) {
 	box-shadow: 0 0 0 2px color-mix(in srgb, var(--select) 45%, transparent);
 }
 
+/* The header holds as much as it is given: a long line wraps and several lines
+   each take one, so a comment can say what it is for rather than name it. */
 .comment .bar {
-	height: 26px;
+	min-height: 26px;
 	display: flex;
-	align-items: center;
-	padding: 0 8px;
+	align-items: flex-start;
+	padding: 5px 8px;
 	font-weight: 600;
 	font-size: 12px;
+	line-height: 16px;
 	color: #fff;
 	background: color-mix(in srgb, var(--comment-color) 82%, transparent);
 	border-radius: 5px 5px 0 0;
 	cursor: grab;
 	text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
-	white-space: nowrap;
-	overflow: hidden;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
 }
 
-.comment .bar input {
+.comment .bar textarea {
 	background: rgba(0, 0, 0, 0.28);
 	border: 0;
 	border-radius: 3px;
 	color: #fff;
 	font: inherit;
+	line-height: inherit;
 	width: 100%;
 	padding: 1px 4px;
+	/* Sized by its content from the keystroke, so the header grows as you type
+	   rather than scrolling inside a box the size of one line. */
+	resize: none;
+	overflow: hidden;
 }
 
-.comment .bar input:focus {
+.comment .bar textarea:focus {
 	outline: 1px solid #fff;
 }
 
@@ -1933,6 +1941,17 @@ button.tb.primary:hover:not(:disabled) {
 	color: var(--fg-faint);
 }
 
+/* A second list under the variables: the graph's locals, and its types. */
+.variables-sub {
+	margin: 10px 0 2px;
+	padding: 0 6px;
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fg-faint);
+}
+
 .variable-head {
 	display: flex;
 	align-items: center;
@@ -1962,6 +1981,13 @@ button.tb.primary:hover:not(:disabled) {
 .variable-head .name {
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+/* A type has no pin colour, so it takes the colour types have in code. Square,
+   because it is not a value. */
+.variable-head .type-swatch {
+	border-radius: 2px;
+	background: var(--code-type);
 }
 
 .variable-head .type {
@@ -2329,6 +2355,76 @@ button.tb.primary:hover:not(:disabled) {
 	font-size: 10px;
 }
 
+/* ---------------------------------------------------------- operator pills */
+
+/* A comparison is `a == b`, and a full node says that in three rows under a
+   header repeating what the symbol already says. The pill is the same node
+   drawn as the expression, which is how a graph of conditions reads best. */
+.node.operator {
+	border-radius: 999px;
+	cursor: grab;
+}
+
+.node.operator .operator-rows {
+	position: absolute;
+	left: 0;
+	right: 0;
+}
+
+/* A and B say nothing the symbol between them has not. */
+.node.operator .pin-label {
+	display: none;
+}
+
+.node.operator .operator-symbol {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--fg);
+	/* The pill is dragged by its middle like any other node. */
+	pointer-events: none;
+}
+
+.node.operator .operator-out {
+	position: absolute;
+	right: 6px;
+	display: flex;
+}
+
+.node.operator .operator-grow {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 2px;
+}
+
+.node.operator .operator-grow button {
+	width: 14px;
+	height: 14px;
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	background: var(--bg-input);
+	color: var(--fg-muted);
+	font-size: 10px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.node.operator .operator-grow button:disabled {
+	opacity: 0.3;
+	cursor: default;
+}
+
 /* --------------------------------------------------------- capsule getters */
 
 /* The usual node-editor shape for a variable getter: a dark pill, the name, one
@@ -2664,12 +2760,14 @@ button.tb.with-icon {
 :root {
 	--code-global: #2c6f8f;
 	--code-function: #7a5a2f;
+	--code-type: #2f7a6a;
 }
 
 @media (prefers-color-scheme: dark) {
 	:root {
 		--code-global: #7fc4d6;
 		--code-function: #d9b06c;
+		--code-type: #6fc2a8;
 	}
 }
 
@@ -3450,6 +3548,8 @@ button.tb.with-icon {
 :is(.docs-code, .preview-code) .tok-operator { color: var(--code-operator); }
 :is(.docs-code, .preview-code) .tok-global { color: var(--code-global); }
 :is(.docs-code, .preview-code) .tok-function { color: var(--code-function); }
+:is(.docs-code, .preview-code) .tok-type { color: var(--code-type); }
+:is(.docs-code, .preview-code) .tok-property { color: var(--code-property); }
 :is(.docs-code, .preview-code) .tok-bracket,
 :is(.docs-code, .preview-code) .tok-punctuation { color: var(--fg-muted); }
 

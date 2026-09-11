@@ -9,6 +9,15 @@
  *
  * This is highlighting, not parsing. It has no opinion about whether the code
  * is correct — that is the linter's job.
+ *
+ * ## Types
+ *
+ * A type annotation is the one place a name means something else: `Model` after
+ * `x:` is a type, where the same word elsewhere would be a variable. So the mode
+ * keeps track of where a type starts — after `x: `, `::`, `->`, and `type X =` —
+ * and where it ends: a comma, `=` or closing bracket at its own depth, or the
+ * end of the line. Before this only the handful of type names that are also
+ * globals were coloured, and every other annotation read as ordinary names.
  */
 
 import { StreamLanguage, type StreamParser, type StringStream } from "@codemirror/language";
@@ -35,12 +44,25 @@ const GLOBALS = new Set([
 	"require", "tick", "time", "delay", "spawn", "wait", "newproxy",
 ]);
 
+const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** What a type can end a line on and still carry on to the next. */
+const CONTINUES = new Set(["=", "|", "&", "->", ":", "::", "{", "(", "[", "<"]);
+
 interface LuauState {
 	/** Nesting depth of a long string or comment, or -1 when in neither. */
 	longLevel: number;
 	inLongComment: boolean;
 	/** The quote character of an unterminated interpolated string, if any. */
 	inInterpolation: boolean;
+	/** Bracket depth inside a type, or -1 outside one. */
+	typeDepth: number;
+	/** `type` was just read as a declaration, so the next name is the type's. */
+	declaring: boolean;
+	/** The declared name was read, so the next `=` starts the definition. */
+	aliasPending: boolean;
+	/** The last token that was not whitespace, for telling `x: T` from `obj:Method()`. */
+	last: string;
 }
 
 /**
@@ -54,6 +76,16 @@ interface LuauState {
  * whole fix.
  */
 function tokenLuau(stream: StringStream, state: LuauState): string | null {
+	const style = readLuau(stream, state);
+	const text = stream.current();
+	if (style !== null && text.trim() !== "") state.last = text;
+	// A type on one line ends with it, unless the line stops inside brackets or
+	// on something that has to be continued.
+	if (state.typeDepth === 0 && stream.eol() && !CONTINUES.has(state.last)) state.typeDepth = -1;
+	return style;
+}
+
+function readLuau(stream: StringStream, state: LuauState): string | null {
 	// Long strings and long comments span lines, so they are resumed here
 	// before anything else is considered.
 	if (state.longLevel >= 0) {
@@ -76,7 +108,7 @@ function tokenLuau(stream: StringStream, state: LuauState): string | null {
 		if (long !== null) {
 			state.longLevel = long;
 			state.inLongComment = true;
-			return tokenLuau(stream, state);
+			return readLuau(stream, state);
 		}
 		stream.skipToEnd();
 		return "comment";
@@ -87,7 +119,7 @@ function tokenLuau(stream: StringStream, state: LuauState): string | null {
 	if (long !== null) {
 		state.longLevel = long;
 		state.inLongComment = false;
-		return tokenLuau(stream, state);
+		return readLuau(stream, state);
 	}
 
 	const ch = stream.peek();
@@ -126,6 +158,23 @@ function tokenLuau(stream: StringStream, state: LuauState): string | null {
 	if (/[A-Za-z_]/.test(ch ?? "")) {
 		stream.eatWhile(/[A-Za-z0-9_]/);
 		const word = stream.current();
+		if (state.typeDepth >= 0) return typeWord(stream, state, word);
+
+		// `type` and `export` are contextual. Followed by a name they begin a
+		// declaration; otherwise `type` is the global function and `export` a
+		// name like any other.
+		if (word === "type" || word === "export") {
+			if (stream.match(/^\s+[A-Za-z_]/, false)) {
+				if (word === "type") state.declaring = true;
+				return "keyword";
+			}
+			return word === "type" ? "variableName.standard" : "variableName";
+		}
+		if (state.declaring) {
+			state.declaring = false;
+			state.aliasPending = true;
+			return "typeName";
+		}
 		if (KEYWORDS.has(word)) return "keyword";
 		if (GLOBALS.has(word)) return "variableName.standard";
 		// A name immediately followed by "(" is being called.
@@ -135,23 +184,110 @@ function tokenLuau(stream: StringStream, state: LuauState): string | null {
 		return "variableName";
 	}
 
+	// The three that open a type.
+	if (stream.match("::")) {
+		state.typeDepth = 0;
+		return "operator";
+	}
+	if (stream.match("->")) {
+		if (state.typeDepth < 0) state.typeDepth = 0;
+		return "operator";
+	}
+	if (state.aliasPending && ch === "=" && stream.string[stream.pos + 1] !== "=") {
+		stream.next();
+		state.aliasPending = false;
+		state.typeDepth = 0;
+		return "operator";
+	}
+
+	if (state.typeDepth >= 0) {
+		const typed = typePunctuation(stream, state);
+		if (typed !== undefined) return typed;
+	}
+
 	// Compound assignment and the two-character operators Luau adds.
-	if (stream.match(/^(\.\.\.|\.\.=|\/\/=|[+\-*/%^]=|\.\.|==|~=|<=|>=|::|\/\/)/)) {
+	if (stream.match(/^(\.\.\.|\.\.=|\/\/=|[+\-*/%^]=|\.\.|==|~=|<=|>=|\/\/)/)) {
 		return "operator";
 	}
 	if (stream.match(/^[+\-*/%^#<>=&|~?]/)) return "operator";
 	if (stream.match(/^[[\](){}]/)) return "bracket";
-	if (stream.match(/^[.,;:]/)) return "punctuation";
 
-stream.next();
-return null;
+	// `x: T` is an annotation and `obj:Method()` is a call. The space after the
+	// colon is what tells them apart in code anyone actually writes.
+	if (ch === ":") {
+		stream.next();
+		const after = stream.peek();
+		const annotates = NAME.test(state.last) || state.last === ")" || state.last === "...";
+		if (state.typeDepth < 0 && annotates && after !== undefined && /\s/.test(after)) {
+			state.typeDepth = 0;
+		}
+		return "punctuation";
+	}
+	if (stream.match(/^[.,;]/)) return "punctuation";
+
+	stream.next();
+	return null;
+}
+
+/** A name inside a type. */
+function typeWord(stream: StringStream, state: LuauState, word: string): string {
+	if (word === "typeof" || word === "nil" || word === "true" || word === "false") return "keyword";
+	// A field of a table type — `{ weld: WeldConstraint? }` — names the field.
+	if (state.typeDepth > 0 && stream.match(/^\s*:(?!:)/, false)) return "propertyName";
+	// A keyword at the type's own level means it ended with nothing to say so:
+	// `function f(): number end`.
+	if (state.typeDepth === 0 && KEYWORDS.has(word)) {
+		state.typeDepth = -1;
+		return "keyword";
+	}
+	return "typeName";
+}
+
+/**
+ * Brackets and separators inside a type, or `undefined` for anything the
+ * ordinary rules should take — including whatever ends the type.
+ */
+function typePunctuation(stream: StringStream, state: LuauState): string | undefined {
+	const ch = stream.peek();
+	if (ch === "{" || ch === "(" || ch === "[" || ch === "<") {
+		stream.next();
+		state.typeDepth++;
+		return "bracket";
+	}
+	if (ch === "}" || ch === ")" || ch === "]" || ch === ">") {
+		// Closes something the type sits inside — a parameter list.
+		if (state.typeDepth === 0) {
+			state.typeDepth = -1;
+			return undefined;
+		}
+		stream.next();
+		state.typeDepth--;
+		return "bracket";
+	}
+	// The next parameter, or the value after `local x: T =`.
+	if ((ch === "," || ch === "=" || ch === ";") && state.typeDepth === 0) {
+		state.typeDepth = -1;
+		return undefined;
+	}
+	if (ch === "|" || ch === "&" || ch === "?") {
+		stream.next();
+		return "operator";
+	}
+	if (ch === ":") {
+		stream.next();
+		return "punctuation";
+	}
+	return undefined;
 }
 
 export const luauParser: StreamParser<LuauState> = {
 	name: "luau",
 
 	startState(): LuauState {
-		return { longLevel: -1, inLongComment: false, inInterpolation: false };
+		return {
+			longLevel: -1, inLongComment: false, inInterpolation: false,
+			typeDepth: -1, declaring: false, aliasPending: false, last: "",
+		};
 	},
 
 	token: tokenLuau,

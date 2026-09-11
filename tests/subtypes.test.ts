@@ -77,10 +77,23 @@ describe("a type the emitter has not heard of", () => {
 		}
 	});
 
-	/** A pin type that is not a name cannot go in a type position. */
-	it("writes any for something that is not a type name", () => {
-		expect(signature("{ Instance }", "any")).toContain("(tank: any)");
+	/**
+	 * A type that is more than a name is written as itself too, for the same
+	 * reason: `{ [Model]: Restore }` came out `any` and nothing said so.
+	 */
+	it("writes a type expression as itself", () => {
+		expect(signature("{ Instance }", "any")).toContain("(tank: { Instance })");
+		expect(signature("{ [Model]: Restore }", "any")).toContain("(tank: { [Model]: Restore })");
+		expect(signature("Model?", "any")).toContain("(tank: Model?)");
+		expect(signature("(number) -> string", "any")).toContain("(tank: (number) -> string)");
+	});
+
+	/** Text that is plainly not a type cannot go in a type position. */
+	it("writes any for something that is not a type", () => {
 		expect(signature("2 bad", "any")).toContain("(tank: any)");
+		expect(signature("hello world", "any")).toContain("(tank: any)");
+		expect(signature("{ unclosed", "any")).toContain("(tank: any)");
+		expect(signature("x = 1", "any")).toContain("(tank: any)");
 	});
 
 	/** A module's type: `Tank.Config`. */

@@ -7,6 +7,9 @@
  */
 
 import { NODE } from "./layers.js";
+import {
+	operatorEditorWidth, operatorFields, operatorLayout, type OperatorLayout,
+} from "../core/operatorLayout.js";
 import type { GraphNode, NodeConfig, NodeDef, PinDef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { nodeTitle, resolveNodePins } from "../core/nodes/index.js";
@@ -43,6 +46,25 @@ export function isCompact(def: NodeDef | undefined): boolean {
 /** A knot in a wire: a dot with one pin either side and no chrome at all. */
 export function isReroute(def: NodeDef | undefined): boolean {
 	return def?.display === "reroute";
+}
+
+/** A comparison or a logical operator, drawn as its expression. */
+export function isOperator(def: NodeDef | undefined): boolean {
+	return def?.display === "operator";
+}
+
+/** Where everything on an operator pill goes, from the node's own pins. */
+export function operatorLayoutOf(def: NodeDef, config?: NodeConfig): OperatorLayout {
+	const { inputs } = resolvePins(def, config);
+	return operatorLayout(
+		{
+			symbol: def.operator ?? def.title,
+			editor: operatorEditorWidth(operatorFields(inputs), NODE),
+			rows: inputs.filter((p) => p.kind === "data").length,
+			growable: def.variadic !== undefined,
+		},
+		NODE,
+	);
 }
 
 /**
@@ -100,6 +122,10 @@ export function nodeBounds(node: GraphNode, registry: Registry): Rect {
 			w: compactWidth(def, node), h: NODE.compactHeight,
 		};
 	}
+	if (isOperator(def)) {
+		const layout = operatorLayoutOf(def, node.config);
+		return { x: node.x, y: node.y, w: layout.width, h: layout.height };
+	}
 	const { inputs, outputs } = resolvePins(def, node.config);
 	return {
 		x: node.x, y: node.y, w: NODE.width,
@@ -133,6 +159,15 @@ export function pinPosition(
 			x: node.x + compactWidth(def, node),
 			y: node.y + NODE.compactHeight / 2,
 		};
+	}
+
+	// A pill's inputs run down its left; its one result sits on the right, level
+	// with the middle of the pill rather than with a row.
+	if (isOperator(def)) {
+		const layout = operatorLayoutOf(def, node.config);
+		return side === "in"
+			? { x: node.x, y: node.y + layout.rowsTop + index * NODE.rowHeight + NODE.rowHeight / 2 }
+			: { x: node.x + layout.width, y: node.y + layout.height / 2 };
 	}
 	return {
 		x: side === "in" ? node.x : node.x + NODE.width,

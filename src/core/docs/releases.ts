@@ -54,6 +54,46 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.30.0",
+		date: "2026-09-11",
+		headline: "Reach a local by name, and key a table by anything.",
+		added: [
+			"**Get Local** reads a Declare Local's value wherever it is in scope — inside a function declared further down, without a wire back across the graph.",
+			"**The Variables panel lists this graph's locals and types.** Drag a local out for a Get Local; drag a type out for a local of that type, or a Cast with Ctrl held.",
+			"**Set Key and Get Key** take a name, or any key wired in — `restores[character]`. Set Index and Get Index take a number.",
+			"**Key Value Pair**, one entry for Make Dictionary with its key and value wired in together.",
+			"**Declare Type takes a table of fields, or Luau written out**, as well as the type of a wired value.",
+			"**Declare Local takes a type**, written after the name: `local restores: { [Model]: Restore } = {}`.",
+			"**Types are coloured as types** in Custom Code and Luau Expression — annotations, casts and type declarations — and every theme carries a colour for them.",
+			"**Comment headers hold several lines** and grow to fit what they say.",
+			"**Custom Code is offered the locals a Declare Local made** and the parameters of the function it sits in. A Luau Expression is offered the scope of wherever it is read.",
+			"**The types a required module exports** are offered wherever a type is chosen, as `Config.Tuning`.",
+		],
+		changed: [
+			"**Comparisons, And, Or, Not and Nil are drawn as pills**, with the Luau operator in the middle rather than a header above two pins.",
+			"**A type that is more than a name is written as itself.** `{ [Model]: Restore }` on a parameter or a local used to come out `any`.",
+			"**Escape in a comment header saves.** Enter adds a line; clicking anywhere else saves too.",
+		],
+		fixed: [
+			"**A pin lights up while a wire is in flight exactly when it would take the drop.** A number dimmed a string pin it would then accept, and a typed-in-only pin lit up and then refused.",
+			"**A Model wired into an Instance pin no longer warns at compile.** The editor allowed it and the compile disagreed.",
+			"**Dropping a data wire on a Sequence or a function no longer leaves an empty pin behind** that nothing could connect to.",
+			"**The palette no longer offers a node whose only matching pin must be typed in.**",
+			"**A node map whose `$path` is not on disk is no longer written.** The error was reported and the file went out anyway.",
+			"**Ctrl+S with a node map open writes the map**, rather than compiling the graph behind it.",
+			"**Moving or renaming a graph keeps its tab pointed at the file.** The next save used to write it back where it had been.",
+			"**One file StyLua cannot parse no longer turns formatting off** for every file after it.",
+			"**The overwrite link shows only where overwriting would do something** — not on a graph held back by its own errors.",
+			"**Files deleted because a graph moved are listed**, in the status panel and on the command line.",
+			"**`--yes` is in `roswaal help`.**",
+			"**The docs window follows a link back to the page it was opened on.**",
+		],
+		watch: [
+			"A Set Index or Get Index keyed by a name becomes Set Key or Get Key when the graph is opened. The Luau is unchanged; the node's id in the file is not.",
+			"A Key Value Pair connects only to Make Dictionary's value pins, `any` included.",
+		],
+	},
+	{
 		version: "0.29.1",
 		date: "2026-09-11",
 		headline: "Know what a target switch breaks, and where the target lives.",

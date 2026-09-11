@@ -118,6 +118,8 @@ const TYPE_COLORS: Record<string, string> = {
 	// one deliberately does not borrow a colour that would imply they behave
 	// alike.
 	table: "#c08a3a",
+	// One entry of a table: the table's colour, lighter, because it is part of one.
+	pair: "#dcb27a",
 	function: "#5a4b9c",
 	// A thread is a function that remembers where it was.
 	thread: "#7a5fae",

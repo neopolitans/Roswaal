@@ -25,9 +25,10 @@ import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
 import { pinColor } from "./palette.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
-	addNode, bindNodeToVariable, canConnect, commentContents, commentsByArea, connect,
+	addNode, bindNodeToLocal, bindNodeToVariable, canConnect, commentContents, commentsByArea, connect,
 	capturePlacements, currentArity, disconnectPin, growNode, growthRule,
-	insertReroute, pinLinkCount, placeNodes, removeLink, selectionAnchor, setLiteral, updateComment,
+	insertReroute, pinLinkCount, placeNodes, removeLink, selectionAnchor, setConfig, setLiteral,
+	updateComment,
 	type Placement,
 } from "./edits.js";
 import { store, useEditor, useView } from "./store.js";
@@ -275,6 +276,11 @@ export function Canvas({
 				// on the pin that appears. Anywhere on the node counts, including
 				// the pin column — a pin that could not take the wire has already
 				// declined it by this point.
+				//
+				// Only when the new pin could take the wire. A Sequence grows an
+				// execution output and a function grows a parameter, which is an
+				// output too, so dropping a data wire on either used to add a pin
+				// nothing could connect to and leave it there.
 				if (onNode && g.side === "out" && g.pin.kind === "data") {
 					const nodeId = onNode.dataset.nodeId;
 					if (nodeId && nodeId !== g.from.node && growth.get(nodeId)?.canAdd) {
@@ -283,8 +289,10 @@ export function Canvas({
 								name: g.pin.name || undefined,
 								type: g.pin.type,
 							});
-							if (!grown.pin) return grown.script;
-							return connect(grown.script, registry, g.from, { node: nodeId, pin: grown.pin });
+							if (!grown.pin) return s;
+							const target = { node: nodeId, pin: grown.pin };
+							if (!canConnect(grown.script, registry, g.from, target).ok) return s;
+							return connect(grown.script, registry, g.from, target);
 						});
 						endGesture();
 						return;
@@ -440,20 +448,24 @@ export function Canvas({
 		endGesture();
 	}
 
+	/**
+	 * Whether the wire being dragged could land on this pin.
+	 *
+	 * The same question the drop asks, through the same function. This used to
+	 * keep its own shorter list of what fits — same type, `any`, `wildcard` — so
+	 * a number dimmed a string pin it would then connect to, and a pin whose
+	 * text is pasted into the source lit up and then refused the drop.
+	 */
 	const canAccept = useCallback(
-		(pin: PinDef, side: "in" | "out"): boolean => {
+		(nodeId: string, pin: PinDef, side: "in" | "out"): boolean => {
 			const drag = wireDrag;
 			if (!drag || drag.side === side) return false;
-			if (drag.kind !== pin.kind) return false;
-			if (pin.kind === "exec") return true;
-			const from = drag.type ?? "any";
-			const to = pin.type ?? "any";
-			return (
-				from === to || from === "any" || to === "any" ||
-				from === "wildcard" || to === "wildcard"
-			);
+			const here = { node: nodeId, pin: pin.id };
+			return drag.side === "out"
+				? canConnect(script, registry, drag.from, here).ok
+				: canConnect(script, registry, here, drag.from).ok;
 		},
-		[wireDrag],
+		[wireDrag, script, registry],
 	);
 
 	const onLiteralChange = useCallback((nodeId: string, pinId: string, value: Literal | undefined) => {
@@ -535,6 +547,8 @@ export function Canvas({
 				const kinds = e.dataTransfer.types;
 				if (
 					!kinds.includes("application/x-roswaal-variable") &&
+					!kinds.includes("application/x-roswaal-local") &&
+					!kinds.includes("application/x-roswaal-type") &&
 					!kinds.includes("application/x-roswaal")
 				) {
 					return;
@@ -556,6 +570,43 @@ export function Canvas({
 							toWorld(e.clientX, e.clientY),
 						);
 					}
+					return;
+				}
+
+				// A type from the Types list. A local of that type is what a type is
+				// reached for most; Ctrl gives a Cast to it, as it gives a Set for a
+				// variable.
+				const typed = e.dataTransfer.getData("application/x-roswaal-type");
+				if (typed) {
+					e.preventDefault();
+					const { type } = JSON.parse(typed) as { type: string };
+					const cast = e.ctrlKey;
+					const def = registry.get(cast ? "cast.as" : "local.declare");
+					if (!def) return;
+					const world = toWorld(e.clientX, e.clientY);
+					store.edit((s) => {
+						const added = addNode(s, def, world.x - NODE.width / 2, world.y - 20);
+						queueMicrotask(() => store.select([added.id]));
+						return cast
+							? setLiteral(added.script, added.id, "type", { t: "string", v: type })
+							: setConfig(added.script, added.id, { type });
+					});
+					return;
+				}
+
+				// A local from the Locals list: a Get Local pointed at it.
+				const local = e.dataTransfer.getData("application/x-roswaal-local");
+				if (local) {
+					e.preventDefault();
+					const { id } = JSON.parse(local) as { id: string };
+					const def = registry.get("local.get");
+					if (!def) return;
+					const world = toWorld(e.clientX, e.clientY);
+					store.edit((s) => {
+						const added = addNode(s, def, world.x - NODE.compactMinWidth / 2, world.y - NODE.compactHeight / 2);
+						queueMicrotask(() => store.select([added.id]));
+						return bindNodeToLocal(added.script, added.id, id);
+					});
 					return;
 				}
 
@@ -595,9 +646,13 @@ export function Canvas({
 						onPointerDown={onCommentPointerDown}
 						onResize={onCommentResize}
 						onStartEdit={() => setEditingComment(comment.id)}
-						onCommit={(text) => {
+						onCommit={(text, barHeight) => {
 							setEditingComment(null);
-							store.edit((s) => updateComment(s, comment.id, { text }));
+							// The box grows to keep its header inside it: a header taller
+							// than the comment would cover the nodes it is drawn around.
+							const h = Math.max(comment.h, Math.round(barHeight) + 40);
+							if (text === comment.text && h === comment.h) return;
+							store.edit((s) => updateComment(s, comment.id, { text, h }));
 						}}
 					/>
 				))}
@@ -813,12 +868,20 @@ interface CommentViewProps {
 	onPointerDown: (e: ReactPointerEvent, comment: Comment) => void;
 	onResize: (e: ReactPointerEvent, comment: Comment) => void;
 	onStartEdit: () => void;
-	onCommit: (text: string) => void;
+	/** The text, and how tall the header ended up, so the box can fit it. */
+	onCommit: (text: string, barHeight: number) => void;
 }
 
 function CommentView(props: CommentViewProps) {
 	const { comment } = props;
 	const color = `#${comment.color ?? COMMENT_DEFAULT_COLOR}`;
+	const bar = useRef<HTMLDivElement>(null);
+
+	/** Keeps the field exactly as tall as what it holds. */
+	const fit = (field: HTMLTextAreaElement) => {
+		field.style.height = "auto";
+		field.style.height = `${field.scrollHeight}px`;
+	};
 
 	return (
 		<div
@@ -834,19 +897,27 @@ function CommentView(props: CommentViewProps) {
 		>
 			<div
 				className="bar"
+				ref={bar}
 				style={{ zIndex: LAYER.commentHeader }}
 				onPointerDown={(e) => props.onPointerDown(e, comment)}
 				onDoubleClick={props.onStartEdit}
 			>
 				{props.editing ? (
-					<input
+					<textarea
 						autoFocus
 						defaultValue={comment.text}
 						onPointerDown={(e) => e.stopPropagation()}
-						onBlur={(e) => props.onCommit(e.target.value)}
+						onFocus={(e) => fit(e.currentTarget)}
+						onInput={(e) => fit(e.currentTarget)}
+						onBlur={(e) => props.onCommit(e.target.value, bar.current?.offsetHeight ?? 0)}
 						onKeyDown={(e) => {
-							if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-							if (e.key === "Escape") props.onCommit(comment.text);
+							// Enter is a new line in here. Escape and Ctrl+Enter finish, and
+							// so does clicking anywhere else — every way out keeps what was
+							// typed, because a header is a label rather than a dialog.
+							if (e.key === "Escape" || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) {
+								e.preventDefault();
+								e.currentTarget.blur();
+							}
 						}}
 					/>
 				) : (

@@ -11,11 +11,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
+import type { GraphNode, NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { categories, subcategories } from "../core/nodes/index.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
-import { acceptsWire } from "./edits.js";
+import { landingPins, localRefFor } from "./edits.js";
 import { LAYER } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 
@@ -129,11 +129,11 @@ export function NodeMenu(props: NodeMenuProps) {
 	const reachable = useMemo(() => {
 		const from = anchor.from;
 		if (!from) return null;
-		const wanted = from.side === "out" ? "inputs" : "outputs";
+		const side = from.side === "out" ? "in" : "out";
 		const ok = new Set<string>();
 		for (const def of registry.values()) {
-			const pins = wanted === "inputs" ? def.inputs : def.outputs;
-			if (pins.some((pin) => acceptsWire(from.pin, pin))) ok.add(def.id);
+			const pins = side === "in" ? def.inputs : def.outputs;
+			if (landingPins(def, pins, from.pin, side).length > 0) ok.add(def.id);
 		}
 		return ok;
 	}, [anchor.from, registry]);
@@ -312,7 +312,7 @@ function score(item: MenuItem, query: string): number {
  */
 export function buildPresets(script: {
 	variables: { id: string; name: string; type: string }[];
-	nodes: { id: string; def: string; config?: NodeConfig }[];
+	nodes: Pick<GraphNode, "id" | "def" | "config" | "literals" | "label">[];
 }): Preset[] {
 	const out: Preset[] = [];
 
@@ -336,6 +336,22 @@ export function buildPresets(script: {
 			defId: "variable.set",
 			config,
 			color,
+		});
+	}
+
+	// A local by its name, the same way a variable is. Whether it is in scope
+	// where it lands is the compiler's to say.
+	for (const node of script.nodes) {
+		if (node.def !== "local.declare") continue;
+		const ref = localRefFor(node);
+		out.push({
+			key: `local:${node.id}`,
+			title: `Get ${ref.name}`,
+			category: "Variables",
+			summary: `Reads the local "${ref.name}" wherever it is in scope.`,
+			defId: "local.get",
+			config: { ...ref },
+			color: pinColor(ref.type, "data"),
 		});
 	}
 

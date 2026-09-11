@@ -557,11 +557,11 @@ describe("string keys, plain or bracketed", () => {
 		expect(dictionary("end")).toContain('["end"] = 1');
 	});
 
-	function setIndex(keyLiteral: { t: string; v: unknown } | null, keys?: string) {
+	function setKey(keyLiteral: { t: string; v: unknown } | null, keys?: string) {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const table = b.node("table.new");
-		const set = b.node("table.set", { config: keys ? { keys } : {} });
+		const set = b.node("table.setKey", { config: keys ? { keys } : {} });
 		b.link(start, "then", table, "in");
 		b.link(table, "then", set, "in");
 		b.link(table, "result", set, "table");
@@ -574,17 +574,17 @@ describe("string keys, plain or bracketed", () => {
 		return code(b.build());
 	}
 
-	it("writes Set Index as a dot", () => {
-		expect(setIndex({ t: "string", v: "tuning" })).toMatch(/\.tuning = 1$/m);
+	it("writes Set Key as a dot", () => {
+		expect(setKey({ t: "string", v: "tuning" })).toMatch(/\.tuning = 1$/m);
 	});
 
-	it("brackets Set Index when asked to", () => {
-		expect(setIndex({ t: "string", v: "tuning" }, "brackets")).toContain('["tuning"] = 1');
+	it("brackets Set Key when asked to", () => {
+		expect(setKey({ t: "string", v: "tuning" }, "brackets")).toContain('["tuning"] = 1');
 	});
 
 	/** A key that is worked out at runtime has no name to write. */
 	it("brackets a computed key, which has no plain form", () => {
-		expect(setIndex(null)).toContain("[");
+		expect(setKey(null)).toContain("[");
 	});
 });
 

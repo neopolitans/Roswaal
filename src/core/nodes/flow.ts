@@ -7,6 +7,7 @@
  */
 
 import type { NodeConfig, NodeDef, PinDef } from "../schema.js";
+import { pinTypeOf } from "./variables.js";
 
 /** Config shape for function entry/return and connect bodies. */
 export interface Signature {
@@ -84,6 +85,28 @@ export const FUNCTION_NODES: ReadonlySet<string> = new Set([
 	"function.declareHere",
 ]);
 
+/**
+ * How a Declare Type node gives its definition.
+ *
+ * Declare Type at Top has always had two: a table of fields, or Luau written
+ * out. Declare Type had one — the type of a wired value — and a table type in
+ * the flow could only be had by wiring a Luau Expression into it, which wrote
+ * `typeof({ field: Type })`: not a type Luau accepts. Both nodes take all three
+ * now, except that a hoisted type cannot be the type of a value, because it is
+ * written above every value there is.
+ *
+ * A node that has not said keeps what it meant before there was a choice: the
+ * in-flow one is a `typeof`, and a hoisted one with a definition and no fields
+ * was written out.
+ */
+export function typeShapeOf(defId: string, config: NodeConfig): "typeof" | "fields" | "written" {
+	if (config.shape === "fields" || config.shape === "written") return config.shape;
+	if (defId === "type.declareHere") return "typeof";
+	const fields = (config.fields as unknown[] | undefined) ?? [];
+	const definition = typeof config.definition === "string" ? config.definition : "";
+	return definition !== "" && fields.length === 0 ? "written" : "fields";
+}
+
 export const FLOW_NODES: NodeDef[] = [
 	{
 		id: "script.begin",
@@ -124,7 +147,7 @@ export const FLOW_NODES: NodeDef[] = [
 					exec("then", ""),
 					data("self", "Function", "function"),
 					...(sig.params ?? []).map((p, i) =>
-						data(`p${i}`, p.name || `arg${i + 1}`, p.type ?? "any"),
+						data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type)),
 					),
 				],
 			};
@@ -174,7 +197,7 @@ export const FLOW_NODES: NodeDef[] = [
 					exec("body", "Body"),
 					data("self", "Function", "function"),
 					...(sig.params ?? []).map((p, i) =>
-						data(`p${i}`, p.name || `arg${i + 1}`, p.type ?? "any"),
+						data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type)),
 					),
 				],
 			};
@@ -208,7 +231,7 @@ export const FLOW_NODES: NodeDef[] = [
 				inputs: [
 					exec("in", ""),
 					...(sig.returns ?? []).map((r, i) =>
-						data(`r${i}`, r.name || `value${i + 1}`, r.type ?? "any"),
+						data(`r${i}`, r.name || `value${i + 1}`, pinTypeOf(r.type)),
 					),
 				],
 				outputs: [],
@@ -236,14 +259,21 @@ export const FLOW_NODES: NodeDef[] = [
 		title: "Declare Type",
 		category: "Flow",
 		summary:
-			"Names the type of a value, where the node sits: `export type Tuning = typeof(Tuning)`. " +
-			"In the flow rather than hoisted, because that is the whole point — a type built from " +
-			"`typeof` has to come after the thing it is the type of, and Luau reads a file in order. " +
-			"Wire the value in and the identifier is filled in for you, so renaming it later cannot " +
-			"leave the type pointing at a name that is gone.",
+			"Declares a Luau type where the node sits: the type of a wired value, a table of " +
+			"fields, or Luau written out.",
 		inputs: [exec("in", ""), data("value", "Value", "any")],
 		outputs: [exec("then", "")],
 		compilesTo: { kind: "builtin", handler: "type.declareHere" },
+		// The Value pin belongs to the typeof shape. The other two are written in
+		// the Inspector, and a pin nothing reads would be one to wire by mistake.
+		derivePins(config: NodeConfig) {
+			return {
+				inputs: typeShapeOf("type.declareHere", config) === "typeof"
+					? [exec("in", ""), data("value", "Value", "any")]
+					: [exec("in", "")],
+				outputs: [exec("then", "")],
+			};
+		},
 		subtitle: (config) => (config.name as string) || undefined,
 	},
 	{
@@ -261,7 +291,7 @@ export const FLOW_NODES: NodeDef[] = [
 				{ name: "value" },
 			];
 			return {
-				inputs: exports.map((e, i) => data(`e${i}`, e.name || `export${i + 1}`, e.type ?? "any")),
+				inputs: exports.map((e, i) => data(`e${i}`, e.name || `export${i + 1}`, pinTypeOf(e.type))),
 				outputs: [],
 			};
 		},
@@ -426,7 +456,7 @@ export const FLOW_NODES: NodeDef[] = [
 					exec("then", ""),
 					exec("body", "Body"),
 					data("connection", "Connection", "RBXScriptConnection"),
-					...(sig.params ?? []).map((p, i) => data(`p${i}`, p.name || `arg${i + 1}`, p.type ?? "any")),
+					...(sig.params ?? []).map((p, i) => data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type))),
 				],
 			};
 		},

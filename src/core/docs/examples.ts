@@ -444,6 +444,37 @@ export const CURATED: Record<string, () => NodeScript> = {
 		return g.out();
 	},
 
+	"local.get": () => {
+		const g = new G();
+		const begin = g.node("script.begin", { column: 0 });
+		const declare = g.node("local.declare", {
+			column: 1, literals: { name: str("greeting"), value: str("Hello") },
+		});
+		const get = g.node("local.get", {
+			column: 1, row: 1, config: { local: declare, name: "greeting" },
+		});
+		const p = g.node("debug.print", { column: 2 });
+		g.link(begin, "then", declare, "in").link(declare, "then", p, "in").link(get, "value", p, "value");
+		return g.out();
+	},
+
+	// The pair's key names the entry, so the row it lands on needs none.
+	"table.pair": () => {
+		const g = new G();
+		const begin = g.node("script.begin", { column: 0 });
+		const pair = g.node("table.pair", {
+			column: 0, row: 1, literals: { key: str("walkSpeed"), value: num(16) },
+		});
+		const dict = g.node("table.dictionary", {
+			column: 1, row: 1, config: { args: 2 },
+			literals: { k0: str("jumpHeight"), a0: num(7.2) },
+		});
+		const p = g.node("debug.print", { column: 2 });
+		g.link(pair, "result", dict, "a1");
+		g.link(begin, "then", p, "in").link(dict, "result", p, "value");
+		return g.out();
+	},
+
 	// The two knots exist to show that they leave no trace. The example is the
 	// same code you would get without them, which is the whole claim.
 	"flow.reroute": () => {

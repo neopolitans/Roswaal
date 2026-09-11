@@ -9,11 +9,12 @@
 
 import { useState, type DragEvent } from "react";
 
-import type { Literal, NodeScript, ScriptVariable } from "../core/schema.js";
+import type { GraphNode, Literal, NodeScript, ScriptVariable } from "../core/schema.js";
 import {
-	addVariable, defaultLiteralFor, deleteVariable, updateVariable, variableUsageCount,
+	addVariable, defaultLiteralFor, deleteVariable, localRefFor, updateVariable, variableUsageCount,
 } from "./edits.js";
 import { pinColor } from "./palette.js";
+import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { store } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
 
@@ -32,6 +33,13 @@ export interface VariablesPanelProps {
 
 export function VariablesPanel({ script, confirm, locked }: VariablesPanelProps) {
 	const [open, setOpen] = useState<string | null>(null);
+	const locals = script.nodes.filter((n) => n.def === "local.declare");
+	const declaredTypes = script.nodes.filter(
+		(n) =>
+			(n.def === "type.declareTop" || n.def === "type.declareHere") &&
+			((n.config as { name?: string } | undefined)?.name ?? "").trim() !== "",
+	);
+	const required = requiredTypes(script, useProjectTypes());
 
 	return (
 		<div className={`variables${locked ? " editing-locked" : ""}`}>
@@ -69,6 +77,97 @@ export function VariablesPanel({ script, confirm, locked }: VariablesPanelProps)
 						local, which only exists inside the block that declared it.
 					</p>
 				)}
+
+				{/* The graph's Declare Locals, so one can be dragged out as a Get
+				    Local instead of wired from where it was made. */}
+				{locals.length > 0 && (
+					<>
+						<h3 className="variables-sub">Locals</h3>
+						{locals.map((node) => (
+							<LocalRow key={node.id} node={node} />
+						))}
+					</>
+				)}
+
+				{/* The types this graph declares, and the ones its requires bring
+				    in. Dragged out, a type becomes a local of that type. */}
+				{(declaredTypes.length > 0 || required.length > 0) && (
+					<>
+						<h3 className="variables-sub">Types</h3>
+						{declaredTypes.map((node) => {
+							const config = (node.config ?? {}) as { name?: string; export?: boolean };
+							return (
+								<TypeRow
+									key={node.id}
+									type={config.name!.trim()}
+									detail={config.export === false ? "type" : "export"}
+									onClick={() => store.select([node.id])}
+								/>
+							);
+						})}
+						{required.map((entry) => (
+							<TypeRow
+								key={entry.type}
+								type={entry.type}
+								detail="required"
+								title={`Exported by ${entry.graph}`}
+							/>
+						))}
+					</>
+				)}
+			</div>
+		</div>
+	);
+}
+
+/** One type: drag it for a Declare Local of that type, or a Cast with Ctrl. */
+function TypeRow({
+	type, detail, title, onClick,
+}: { type: string; detail: string; title?: string; onClick?: () => void }) {
+	function onDragStart(e: DragEvent) {
+		e.dataTransfer.setData("application/x-roswaal-type", JSON.stringify({ type }));
+		e.dataTransfer.effectAllowed = "copy";
+	}
+
+	return (
+		<div className="variable">
+			<div
+				className="variable-head"
+				draggable
+				title={`${title ? `${title}. ` : ""}Drag onto the canvas for a local of this type, or a Cast with Ctrl.`}
+				onDragStart={onDragStart}
+				onClick={onClick}
+			>
+				<span className="swatch type-swatch" />
+				<span className="name">{type}</span>
+				<span className="type">{detail}</span>
+			</div>
+		</div>
+	);
+}
+
+/** One Declare Local: drag it for a Get Local, click it to find the node. */
+function LocalRow({ node }: { node: GraphNode }) {
+	const ref = localRefFor(node);
+	const declared = (node.config as { type?: string } | undefined)?.type?.trim();
+
+	function onDragStart(e: DragEvent) {
+		e.dataTransfer.setData("application/x-roswaal-local", JSON.stringify({ id: node.id }));
+		e.dataTransfer.effectAllowed = "copy";
+	}
+
+	return (
+		<div className="variable">
+			<div
+				className="variable-head"
+				draggable
+				title="Drag onto the canvas for a Get Local. Click to select its Declare Local."
+				onDragStart={onDragStart}
+				onClick={() => store.select([node.id])}
+			>
+				<span className="swatch" style={{ background: pinColor(ref.type, "data") }} />
+				<span className="name">{ref.name}</span>
+				<span className="type">{declared || "any"}</span>
 			</div>
 		</div>
 	);

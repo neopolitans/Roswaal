@@ -257,6 +257,11 @@ class Store {
 		return this.docs.has(path);
 	}
 
+	/** Every open graph's path, in tab order. */
+	openPaths(): string[] {
+		return [...this.order];
+	}
+
 	/**
 	 * Every open graph with edits that have not reached disk.
 	 *
@@ -284,11 +289,11 @@ class Store {
 	 * Closing and reopening would be simpler and would throw all three away for
 	 * an operation that changed nothing about the graph.
 	 */
-	rename(from: string, to: string, script: NodeScript): void {
+	rename(from: string, to: string, script?: NodeScript): void {
 		const doc = this.docs.get(from);
 		if (!doc) return;
 		this.docs.delete(from);
-		this.docs.set(to, { ...doc, path: to, script });
+		this.docs.set(to, { ...doc, path: to, script: script ?? doc.script });
 		this.order = this.order.map((p) => (p === from ? to : p));
 		if (this.activePath === from) this.activePath = to;
 		this.changed();
