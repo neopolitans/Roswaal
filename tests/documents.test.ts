@@ -54,7 +54,7 @@ describe("opening and switching", () => {
 	});
 
 	/**
-	 * Hot reload calls `open` for a file that changed on disk. Keeping the old
+	 * Dynamic compiling calls `open` for a file that changed on disk. Keeping the old
 	 * content because the tab happened to exist would leave the editor showing
 	 * something the file no longer says.
 	 */

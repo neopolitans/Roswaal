@@ -416,8 +416,8 @@ export function App() {
 	/**
 	 * The daemon's event stream.
 	 *
-	 * Open whenever a project is, rather than only in hot mode, because it now
-	 * carries three kinds of news. Hot-reload events say a compile happened that
+	 * Open whenever a project is, rather than only on Dynamic, because it now
+	 * carries three kinds of news. Dynamic-compile events say one happened that
 	 * this tab did not ask for — a branch switch, a pull, another editor — and
 	 * only ever arrive when the watcher is running. The `project` event says the
 	 * daemon has been pointed somewhere else, and a tab that does not hear that
@@ -840,7 +840,7 @@ export function App() {
 	/**
 	 * The graph is read-only because it is being compiled.
 	 *
-	 * Only outside hot reload. In hot mode a compile follows every autosave, so
+	 * Only outside Dynamic. On Dynamic a compile follows every autosave, so
 	 * locking on one would lock the canvas roughly whenever you stopped typing —
 	 * the mode exists precisely so that compiling is not a thing you think about.
 	 * Outside it a compile is something you asked for and then wait for, and an

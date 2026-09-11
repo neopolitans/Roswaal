@@ -41,7 +41,7 @@ export interface EmitResult {
 	diagnostics: Diagnostic[];
 	/** 1-based output line -> the node that produced it. Powers error mapping. */
 	sourceMap: { line: number; node: string }[];
-	/** Hash of the emitted body, so hot reload can spot hand edits. */
+	/** Hash of the emitted body, so dynamic compiling can spot hand edits. */
 	outputHash: string;
 }
 

@@ -181,20 +181,20 @@ function ProjectSettings({ config, onConfig }: {
 
 			<Row
 				label="Compile"
-				help="Hot reload recompiles a graph every time it is saved, which is every edit. Manual waits to be asked."
+				help="Dynamic recompiles a graph every time it is saved, which is every edit. Manual waits to be asked. Written into roswaal.json, where Dynamic is stored as “hot”."
 			>
 				<div className="segmented">
 					<button
 						className={config.compileMode === "manual" ? "on" : ""}
 						onClick={() => onConfig({ compileMode: "manual" })}
 					>
-						Manually
+						Manual
 					</button>
 					<button
 						className={config.compileMode === "hot" ? "on" : ""}
 						onClick={() => onConfig({ compileMode: "hot" })}
 					>
-						On every change
+						Dynamic
 					</button>
 				</div>
 			</Row>

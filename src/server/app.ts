@@ -2,7 +2,7 @@
  * The Roswaal daemon.
  *
  * It owns the filesystem and the compiler; the editor is a client. That split
- * is what lets hot reload be a file watcher calling the same compileScript()
+ * is what lets dynamic compiling be a file watcher calling the same compileScript()
  * the manual button calls, rather than a second code path that can drift.
  *
  * Exported rather than self-starting, so the CLI can run it in-process instead
@@ -26,7 +26,7 @@ import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
 import { openInEditor, revealInFileManager } from "./reveal.js";
 import { VERSION } from "../cli/version.js";
-import { HotReloader } from "./watcher.js";
+import { DynamicCompiler } from "./watcher.js";
 import { emptyMap, type NodeMap } from "../core/nodemap.js";
 import { emptyScript, type NodeDef, type NodeScript, type RoswaalConfig } from "../core/schema.js";
 
@@ -133,12 +133,17 @@ app.use(express.json({ limit: "32mb" }));
  */
 let current: OpenProject | null = null;
 
-const hot = new HotReloader();
+const dynamic = new DynamicCompiler();
 
-/** Starts or stops the watcher to match the project's compile mode. */
-function syncHotReload(): void {
-	if (current?.config.compileMode === "hot") hot.start(current);
-	else hot.stop();
+/**
+ * Starts or stops the watcher to match the project's compile mode.
+ *
+ * The stored value is still `"hot"` — what a person reads changed, what a
+ * committed `roswaal.json` holds did not.
+ */
+function syncDynamicCompile(): void {
+	if (current?.config.compileMode === "hot") dynamic.start(current);
+	else dynamic.stop();
 }
 
 function project(): OpenProject {
@@ -287,7 +292,7 @@ app.post("/api/project/open", route(async (req) => {
 	const root = String((req.body as { root?: string }).root ?? "");
 	if (!root) throw new HttpError(400, "Provide a project root.");
 	current = await openProject(root);
-	syncHotReload();
+	syncDynamicCompile();
 	broadcastProject(current.root);
 	return {
 		root: current.root,
@@ -325,7 +330,7 @@ app.post("/api/project/init", route(async (req) => {
 	if (!root) throw new HttpError(400, "Provide a project root.");
 	await initProject(root);
 	current = await openProject(root);
-	syncHotReload();
+	syncDynamicCompile();
 	broadcastProject(current.root);
 	return {
 		root: current.root,
@@ -340,7 +345,7 @@ app.put("/api/project/config", route(async (req) => {
 	const config = req.body as RoswaalConfig;
 	await writeConfig(p.root, config);
 	current = await openProject(p.root);
-	syncHotReload();
+	syncDynamicCompile();
 	return { config: current.config };
 }));
 
@@ -491,7 +496,7 @@ app.put("/api/packs/node", route(async (req) => {
 
 	const written = await savePackNode(project(), relPath, def);
 	current = await openProject(current!.root);
-	syncHotReload();
+	syncDynamicCompile();
 	return { pack: written, packs: current.packs };
 }));
 
@@ -568,13 +573,16 @@ app.post("/api/orphans/remove", route(async (req) => {
 }));
 
 // ---------------------------------------------------------------------------
-// Hot reload
+// Dynamic compiling
 // ---------------------------------------------------------------------------
 
-app.get("/api/events", (req, res) => streamEvents(hot, req, res));
+app.get("/api/events", (req, res) => streamEvents(dynamic, req, res));
 
+// The route keeps its path, and the reply its field names: both are the
+// contract a running editor is already speaking. Only what a person reads
+// changed.
 app.get("/api/hot/status", (_req, res) => {
-	res.json({ running: hot.running, mode: current?.config.compileMode ?? null });
+	res.json({ running: dynamic.running, mode: current?.config.compileMode ?? null });
 });
 
 /**
@@ -600,7 +608,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<void> {
 
 	if (options.root) {
 		current = await openProject(options.root);
-		syncHotReload();
+		syncDynamicCompile();
 	}
 
 	// The built editor, when there is one. In development Vite serves it instead

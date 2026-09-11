@@ -10,7 +10,7 @@ Empty as of 8 September 2026. Scaffolding only — no graphs yet.
 ## What is here
 
 ```
-roswaal.json                    hot reload, graphs in .roswaal/scripts, Luau out to src
+roswaal.json                    dynamic compiling, graphs in .roswaal/scripts, Luau out to src
 .roswaal/scripts/Tank.nodemap   the DataModel tree; generates default.project.json
 .roswaal/nodes/                 empty, for node packs this project needs
 ```

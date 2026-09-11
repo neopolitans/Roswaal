@@ -54,6 +54,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.31.5",
+		date: "2026-09-12",
+		headline: "Hot reload is Dynamic compiling.",
+		changed: [
+			"**Compile is Manual or Dynamic.** Roswaal compiles a graph and Rojo syncs it — nothing is reloaded — and *Dynamic* reads as the opposite of *Manual* in a way the old name never did.",
+			"**The toolbar names what the buttons set**, reading Compile: Manual | Dynamic rather than leaving it to a hover title. Settings says the same two words, where it used to say Manually and On every change.",
+		],
+		watch: [
+			"**`roswaal.json` is untouched.** The setting is still stored as `compileMode: \"hot\"`, so every existing project keeps working and an older Roswaal can still read a file this one writes. The settings page names both, for anyone editing that file by hand.",
+		],
+	},
+	{
 		version: "0.31.4",
 		date: "2026-09-12",
 		headline: "A local says its name, and a node can be as wide as its header.",
@@ -795,7 +807,7 @@ export const RELEASES: Release[] = [
 		],
 		watch: [
 			"If you had scripts driving the daemon's HTTP API **from a web page on some other origin**, they stop working, and that is the point of the change. From a terminal — curl, a shell script, anything that is not a browser — nothing is different.",
-			"The read-only lock is **only outside hot reload**. In hot mode a compile follows every autosave, so locking on one would lock the canvas roughly whenever you stopped typing — and that mode exists precisely so that compiling is not something you think about. Outside it a compile is something you asked for and then wait for.",
+			"The read-only lock is **only outside dynamic compiling**. On Dynamic a compile follows every autosave, so locking on one would lock the canvas roughly whenever you stopped typing — and that mode exists precisely so that compiling is not something you think about. Outside it a compile is something you asked for and then wait for.",
 			"If you have been on 0.12.x with two editor windows open on the same daemon, **the second window was never actually following a project switch**. It kept editing the project it was opened on, which is what the 0.12.0 guard then refused to save — so the symptom was a save that would not go through rather than a graph in the wrong repository. Both halves work now.",
 		],
 	},

@@ -105,6 +105,10 @@ export function ProjectBar(props: ProjectBarProps) {
 
 			<span className="spacer" />
 
+			{/* The axis, named. Two buttons reading "Manual | Dynamic" say nothing
+			    about what they are manual and dynamic *about*, and the answer was
+			    only ever in a hover title. */}
+			<span className="group-label">Compile</span>
 			<div className="segmented" title="How generated Luau reaches disk">
 				<button
 					className={props.config.compileMode === "manual" ? "on" : ""}
@@ -116,7 +120,7 @@ export function ProjectBar(props: ProjectBarProps) {
 					className={props.config.compileMode === "hot" ? "on" : ""}
 					onClick={() => props.onCompileMode("hot")}
 				>
-					Hot reload
+					Dynamic
 				</button>
 			</div>
 			<button

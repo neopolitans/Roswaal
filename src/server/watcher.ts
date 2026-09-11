@@ -1,9 +1,14 @@
 /**
- * Hot reload.
+ * Dynamic compiling.
  *
  * Watches the graph directory and recompiles what changed. This is the same
- * compileScript() the manual button calls — hot mode is a trigger, not a
+ * compileScript() the manual button calls — Dynamic is a trigger, not a
  * second code path, which is why the two cannot drift.
+ *
+ * The stored setting is still `compileMode: "hot"`, because a `roswaal.json` is
+ * committed and shared: renaming what a person reads costs nothing, renaming
+ * what is written to disk would invalidate every project file already out
+ * there. The two names meet here and nowhere else.
  *
  * The watcher matters even though the editor already compiles on save: it
  * catches changes Roswaal did not make. Switching branches, pulling, or
@@ -19,21 +24,21 @@ import { compileScript, type CompileOutcome, type OpenProject } from "./project.
 /** Long enough to coalesce a save, short enough to feel immediate. */
 const DEBOUNCE_MS = 200;
 
-export type HotListener = (event: HotEvent) => void;
+export type WatchListener = (event: WatchEvent) => void;
 
-export interface HotEvent {
+export interface WatchEvent {
 	type: "compiled" | "removed" | "error";
 	path: string;
 	outcome?: CompileOutcome;
 	message?: string;
 }
 
-export class HotReloader {
+export class DynamicCompiler {
 	private watcher: FSWatcher | null = null;
 	private timers = new Map<string, NodeJS.Timeout>();
-	private listeners = new Set<HotListener>();
+	private listeners = new Set<WatchListener>();
 
-	subscribe(listener: HotListener): () => void {
+	subscribe(listener: WatchListener): () => void {
 		this.listeners.add(listener);
 		return () => this.listeners.delete(listener);
 	}
@@ -97,7 +102,7 @@ export class HotReloader {
 		}
 	}
 
-	private emit(event: HotEvent): void {
+	private emit(event: WatchEvent): void {
 		for (const listener of this.listeners) listener(event);
 	}
 }

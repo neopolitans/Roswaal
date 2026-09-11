@@ -59,7 +59,7 @@ export interface EditorState {
 	 * an edit from any of them lands in the written file or does not, depending
 	 * on where the compiler had got to.
 	 *
-	 * Whoever sets it decides the policy: `App` locks only outside hot reload.
+	 * Whoever sets it decides the policy: `App` locks only outside Dynamic.
 	 * This is the enforcement, and the disabled panels are the courtesy, so
 	 * anything either of us forgets to disable still cannot get through.
 	 */
@@ -186,14 +186,14 @@ class Store {
 	 * Opens a graph with the content given, and makes it active.
 	 *
 	 * Replaces whatever was there, history and all, **including for a path that
-	 * is already open**. That is not an oversight: hot reload calls this when a
+	 * is already open**. That is not an oversight: dynamic compiling calls this when a
 	 * file changed on disk, and quietly keeping the old content because the tab
 	 * existed would leave the editor showing something the file no longer says.
 	 * An undo stack built on a version that is gone is not worth keeping.
 	 *
 	 * "The tab is already open, just go to it" is a different question, and one
 	 * only the caller can answer — see `isOpen` and `activate`. The project tree
-	 * asks it; hot reload must not.
+	 * asks it; a dynamic compile must not.
 	 */
 	open(path: string, script: NodeScript): void {
 		const at = this.order.indexOf(path);

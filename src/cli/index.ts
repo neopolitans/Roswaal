@@ -30,7 +30,7 @@ import {
 } from "../server/project.js";
 import { CLI_COMMANDS, CLI_OPTIONS } from "../core/docs/cli.js";
 import { defaultConfig } from "../core/schema.js";
-import { HotReloader } from "../server/watcher.js";
+import { DynamicCompiler } from "../server/watcher.js";
 import { EXAMPLE_PACK } from "./examplePack.js";
 import { banner, bold, cyan, dim, green, red, yellow } from "./style.js";
 import { VERSION } from "./version.js";
@@ -432,8 +432,8 @@ async function commandWatch(args: Args): Promise<number> {
 		return 1;
 	}
 
-	const hot = new HotReloader();
-	hot.subscribe((event) => {
+	const dynamic = new DynamicCompiler();
+	dynamic.subscribe((event) => {
 		const stamp = dim(new Date().toTimeString().slice(0, 8));
 		if (event.type === "error") {
 			console.log(`${stamp} ${red("error")}  ${event.path}: ${event.message}`);
@@ -448,7 +448,7 @@ async function commandWatch(args: Args): Promise<number> {
 			console.log(`${stamp} ${yellow("skip")}   ${event.path}: ${event.outcome.skipped}`);
 		}
 	});
-	hot.start(project);
+	dynamic.start(project);
 
 	console.log(`${bold("roswaal watch")} ${dim(project.config.sourceDir)}`);
 	console.log(dim("  Ctrl+C to stop"));

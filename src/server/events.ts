@@ -8,7 +8,7 @@
 
 import type { Request, Response } from "express";
 import type { CompileStep } from "./project.js";
-import type { HotEvent, HotReloader } from "./watcher.js";
+import type { DynamicCompiler, WatchEvent } from "./watcher.js";
 
 /** Some proxies drop an idle stream; a periodic comment keeps it open. */
 const PING_MS = 25_000;
@@ -21,7 +21,7 @@ function frame(event: string, data: unknown): string {
  * Every open stream, so a change to which project is open can be pushed to all
  * of them.
  *
- * A hot-reload event is about one file and comes from the watcher; this is
+ * A dynamic-compile event is about one file and comes from the watcher; this is
  * about the daemon as a whole, and every tab needs it at once. Pointing the
  * daemon at another project used to leave a tab quietly editing a document that
  * no longer belonged to it, and the tab had no way to find out.
@@ -78,7 +78,7 @@ export function broadcastCompile(step: CompileStep): void {
 	broadcast("compile", step);
 }
 
-export function streamEvents(hot: HotReloader, req: Request, res: Response): void {
+export function streamEvents(dynamic: DynamicCompiler, req: Request, res: Response): void {
 	res.writeHead(200, {
 		"Content-Type": "text/event-stream",
 		"Cache-Control": "no-cache",
@@ -86,17 +86,22 @@ export function streamEvents(hot: HotReloader, req: Request, res: Response): voi
 		// Nginx and friends buffer by default, which defeats the point.
 		"X-Accel-Buffering": "no",
 	});
-	res.write(frame("ready", { hot: hot.running }));
+	// The field keeps its name for the same reason the event does: a browser
+	// already listening reads `hot`.
+	res.write(frame("ready", { hot: dynamic.running }));
 
 	// Registered here, and dropped on close, so the broadcasters above can find
 	// it. This was missing, and its absence is invisible from the outside: the
-	// stream still delivers hot-reload events, because those go through the
+	// stream still delivers dynamic-compile events, because those go through the
 	// watcher's own subscriber list, so only the daemon-wide messages went
 	// nowhere — a project switch told nobody, silently, for a whole release.
 	streams.add(res);
 
-	const send = (event: HotEvent) => res.write(frame("hot", event));
-	const unsubscribe = hot.subscribe(send);
+	// The event name on the wire stays "hot": it is the contract a browser
+	// already open is listening on, and renaming it would break live updates
+	// for anyone who had not reloaded the tab.
+	const send = (event: WatchEvent) => res.write(frame("hot", event));
+	const unsubscribe = dynamic.subscribe(send);
 	const ping = setInterval(() => res.write(": ping\n\n"), PING_MS);
 
 	req.on("close", () => {

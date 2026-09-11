@@ -936,8 +936,8 @@ const GETTING_STARTED: DocPage = {
 		{
 			t: "p",
 			text:
-				"That is the whole loop: edit the graph, compile, Rojo syncs. Turn on **Hot reload** " +
-				"and the compile step happens as you work.",
+				"That is the whole loop: edit the graph, compile, Rojo syncs. Set **Compile** to " +
+				"**Dynamic** and the compile step happens as you work.",
 		},
 	],
 };
@@ -1204,7 +1204,7 @@ const CONTROLS: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"While a compile is running outside hot reload the canvas is locked, and only the " +
+				"While a compile is running outside Dynamic the canvas is locked, and only the " +
 				"controls that read rather than change it work: `Ctrl` + `A`, `Ctrl` + `C` and `P`.",
 		},
 		{ t: "h", level: 2, text: "Aligning" },
@@ -1665,9 +1665,9 @@ const BUILDING: DocPage = {
 			rows: [
 				["**Compile script**, or `Ctrl` + `S`", "The open graph"],
 				["**Compile project**", "Every graph, then every node map"],
-				["**Hot reload**", "Each graph as you edit it, and any that change on disk — after a `git pull`, say"],
+				["**Compile: Dynamic**", "Each graph as you edit it, and any that change on disk — after a `git pull`, say"],
 				["`roswaal compile`", "Everything, or the one graph or map you give it"],
-				["`roswaal watch`", "Hot reload, without the editor"],
+				["`roswaal watch`", "The same, without the editor"],
 			],
 		},
 		{
@@ -1754,7 +1754,7 @@ const BUILDING: DocPage = {
 			kind: "info",
 			text:
 				"A map is written only when you ask: **Write project file**, **Compile project**, " +
-				"or `roswaal compile`. Hot reload leaves maps alone. A project file Roswaal did not " +
+				"or `roswaal compile`. Dynamic compiling leaves maps alone. A project file Roswaal did not " +
 				"write is not overwritten; `roswaal compile --force` takes it over.",
 		},
 
@@ -1839,7 +1839,7 @@ function settingsPage(): DocPage {
 					[
 						"`compileMode`",
 						`\`${defaults.compileMode}\``,
-						"`hot` recompiles a graph every time it is written, which is every edit. `manual` waits to be asked.",
+						"`hot` recompiles a graph every time it is written, which is every edit; `manual` waits to be asked. The editor shows these as **Dynamic** and **Manual** — the stored name is `hot` for the sake of every `roswaal.json` already written.",
 					],
 					[
 						"`nodePaths`",

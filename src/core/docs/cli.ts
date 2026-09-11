@@ -39,8 +39,8 @@ export const CLI_COMMANDS: CliCommand[] = [
 		blurb: "Start the daemon and serve the editor. Blocks.",
 		blocks: true,
 		detail:
-			"The editor at `http://127.0.0.1:4471`, the documentation at `/docs`, and — in hot " +
-			"mode — a watcher recompiling graphs as they change.",
+			"The editor at `http://127.0.0.1:4471`, the documentation at `/docs`, and — when " +
+			"Compile is set to Dynamic — a watcher recompiling graphs as they change.",
 	},
 	{ name: "stop", blurb: "Stop a running daemon on this port.", detail: "Over HTTP rather than a PID file, and it reports success only once the daemon has actually gone quiet." },
 	{ name: "restart", blurb: "Stop a running daemon, then serve again.", blocks: true, detail: "What to run after rebuilding: `serve` loads the CLI bundle once, so a rebuild does not reach a daemon that is already up." },

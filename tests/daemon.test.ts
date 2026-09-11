@@ -22,7 +22,7 @@ import type { Request, Response } from "express";
 import { refusesConnection, refusesRequest } from "../src/server/app.js";
 import { describeOutcome, type CompileOutcome } from "../src/server/project.js";
 import { streamCount, streamEvents } from "../src/server/events.js";
-import type { HotReloader } from "../src/server/watcher.js";
+import type { DynamicCompiler } from "../src/server/watcher.js";
 
 const HERE = "/projects/one";
 const THERE = "/projects/two";
@@ -137,7 +137,7 @@ describe("a compile step's verdict", () => {
 /**
  * ## The event stream's own subscriber list
  *
- * Two kinds of message go out over `/api/events`. Hot-reload events go through
+ * Two kinds of message go out over `/api/events`. Dynamic-compile events go through
  * the watcher's subscriber list; the daemon-wide ones — a project switch, and
  * now a compile's progress — go through a set of open responses in `events.ts`.
  *
@@ -150,24 +150,24 @@ describe("the event stream", () => {
 	/** Only the three members `streamEvents` touches. */
 	function fakes() {
 		const closers: (() => void)[] = [];
-		const hot = { running: false, subscribe: () => () => {} } as unknown as HotReloader;
+		const dynamic = { running: false, subscribe: () => () => {} } as unknown as DynamicCompiler;
 		const req = {
 			on: (name: string, fn: () => void) => {
 				if (name === "close") closers.push(fn);
 			},
 		} as unknown as Request;
 		const res = { writeHead: () => {}, write: () => true } as unknown as Response;
-		return { hot, req, res, close: () => closers.forEach((fn) => fn()) };
+		return { dynamic, req, res, close: () => closers.forEach((fn) => fn()) };
 	}
 
 	it("registers an open stream, and forgets it when it closes", () => {
 		const before = streamCount();
 		const a = fakes();
-		streamEvents(a.hot, a.req, a.res);
+		streamEvents(a.dynamic, a.req, a.res);
 		expect(streamCount()).toBe(before + 1);
 
 		const b = fakes();
-		streamEvents(b.hot, b.req, b.res);
+		streamEvents(b.dynamic, b.req, b.res);
 		expect(streamCount()).toBe(before + 2);
 
 		// A tab closing must not take the other tab's stream with it, and must

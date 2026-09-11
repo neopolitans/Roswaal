@@ -455,6 +455,16 @@ select optgroup {
 	flex: 1;
 }
 
+/* Names what a segmented control sets, where the buttons alone cannot. Quiet,
+   because it is a caption rather than a control: it should be readable when
+   you are looking for it and invisible when you are not. */
+.toolbar .group-label {
+	font-size: 11px;
+	color: var(--fg-muted);
+	margin-right: -3px;
+	white-space: nowrap;
+}
+
 /* ------------------------------------------------------- the document bar */
 
 /* The second row: the open document, its own settings, and the tools that only
