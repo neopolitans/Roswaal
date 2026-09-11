@@ -35,6 +35,18 @@ const bool = (id: string, name: string, v = false) => d(id, name, "boolean", { t
 const vec = (id: string, name: string) => d(id, name, "Vector3", { t: "raw", v: "Vector3.zero" });
 const cf = (id: string, name: string) => d(id, name, "CFrame", { t: "raw", v: "CFrame.identity" });
 
+/**
+ * The local this node's result lands in, shown under the node's own name
+ * rather than replacing it — a node has to go on saying what it does after
+ * you have named what it gives you.
+ *
+ * Pure nodes show it too. One binds a local as soon as anything reads its
+ * value twice, so the name is just as load-bearing there; it was only ever
+ * an impure node's field because binding used to be an impure node's job.
+ */
+const resultSubtitle = (config: Record<string, unknown>): string | undefined =>
+	(config.resultName as string) || undefined;
+
 /** Shorthand for a pure node with a single `result` output. */
 function pure(
 	id: string, title: string, category: string, template: string,
@@ -44,6 +56,7 @@ function pure(
 		id, title, category, summary, pure: true, inputs,
 		outputs: [d("result", "", resultType)],
 		compilesTo: { kind: "expr", outputs: { result: template } },
+		subtitle: resultSubtitle,
 	};
 }
 
@@ -58,10 +71,7 @@ function call(
 		inputs: [exec("in"), ...inputs],
 		outputs: [exec("then"), d("result", resultName, resultType)],
 		compilesTo: { kind: "call", template, result: "result" },
-		// The local this result lands in, under the node's own name rather than
-		// replacing it — a node has to go on saying what it does after you have
-		// named what it gives you.
-		subtitle: (config) => (config.resultName as string) || undefined,
+		subtitle: resultSubtitle,
 	};
 }
 
@@ -188,10 +198,7 @@ function variadicCall(
 		variadic: { min, max: MAX_ARGS, type: "any", default: { t: "nil" } },
 		...shape({}),
 		compilesTo: { kind: "call", template, result: "result" },
-		// The local this result lands in, under the node's own name rather than
-		// replacing it — a node has to go on saying what it does after you have
-		// named what it gives you.
-		subtitle: (config) => (config.resultName as string) || undefined,
+		subtitle: resultSubtitle,
 		derivePins: shape,
 	};
 }
@@ -550,37 +557,6 @@ export const LIBRARY_NODES: NodeDef[] = [
 	},
 	call("roblox.instanceNew", "New Instance", "Engine", "Instance.new($in.className)",
 		[str("className", "Class Name", "Part")], "Instance", "Instance", { targets: ["roblox"] }),
-	// Recursive is how Roblox searches a whole subtree by name, now that
-	// FindFirstDescendant is deprecated. Optional, so a Find First Child that
-	// does not set it compiles to exactly the call it always did.
-	/**
-	 * Pure, as every sibling asking the same question already is: Find First
-	 * Child Which Is A, the three Find First Ancestors, Get Children, Is A. It
-	 * asks and changes nothing.
-	 *
-	 * On the execution wire it could not be read into a local without making
-	 * two: one from the node itself, and one from the Declare Local reading it.
-	 * Wait For Child stays impure, and the difference is real rather than a
-	 * matter of taste — it yields.
-	 */
-	{
-		id: "roblox.findFirstChild",
-		title: "Find First Child",
-		category: "Engine",
-		targets: ["roblox"],
-		summary: "Set Recursive to search every descendant, not only the children.",
-		pure: true,
-		inputs: [
-			d("parent", "Parent", "Instance"),
-			str("name", "Name"),
-			{ ...bool("recursive", "Recursive"), optional: true },
-		],
-		outputs: [d("result", "Child", "Instance")],
-		compilesTo: {
-			kind: "expr",
-			outputs: { result: "$in.parent:FindFirstChild($in.name$opt(, ))" },
-		},
-	},
 	call("roblox.waitForChild", "Wait For Child", "Engine",
 		"$in.parent:WaitForChild($in.name)",
 		[d("parent", "Parent", "Instance"), str("name", "Name")], "Child", "Instance",
@@ -810,6 +786,41 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("instance.findFirstChildOfClass", "Find First Child Of Class", "Instances",
 		"$in.instance:FindFirstChildOfClass($in.className)",
 		[d("instance", "Instance", "Instance"), str("className", "Class Name", "Humanoid")], "Instance"),
+	/**
+	 * Pure, as every sibling asking the same question already is: Find First
+	 * Child Which Is A, the three Find First Ancestors, Get Children, Is A. It
+	 * asks and changes nothing.
+	 *
+	 * Here rather than in Engine, with the questions it belongs beside. It sat
+	 * in Engine from when it was impure and lived next to Wait For Child, which
+	 * is the one of the pair that genuinely belongs there: Wait For Child
+	 * yields, and yielding is an engine concern rather than a question about an
+	 * instance. Its id stays `roblox.findFirstChild`, because an id is what a
+	 * saved graph refers to and a category is not.
+	 *
+	 * Recursive is how Roblox searches a whole subtree by name, now that
+	 * FindFirstDescendant is deprecated. Optional, so a Find First Child that
+	 * does not set it compiles to exactly the call it always did.
+	 */
+	{
+		id: "roblox.findFirstChild",
+		title: "Find First Child",
+		category: "Instances",
+		targets: ["roblox"],
+		summary: "Set Recursive to search every descendant, not only the children.",
+		pure: true,
+		inputs: [
+			d("parent", "Parent", "Instance"),
+			str("name", "Name"),
+			{ ...bool("recursive", "Recursive"), optional: true },
+		],
+		outputs: [d("result", "Child", "Instance")],
+		compilesTo: {
+			kind: "expr",
+			outputs: { result: "$in.parent:FindFirstChild($in.name$opt(, ))" },
+		},
+		subtitle: resultSubtitle,
+	},
 	// Recursive is optional here for the reason it is on Find First Child: left
 	// alone it is not passed at all, so the line reads as the one somebody would
 	// have written by hand. Roblox's own default is false either way.

@@ -54,6 +54,26 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.31.2",
+		date: "2026-09-12",
+		headline: "A result keeps the name you gave it.",
+		added: [
+			"**Naming a result**, on Variables and locals: what Result name does, and why naming a result *and* declaring a local gives you two locals.",
+			"**Every node that returns a value says so on its page**, with the same note.",
+		],
+		changed: [
+			"**A pure node binds under the name you typed.** Result name was read only on nodes with an execution wire, so a Find First Child named `value` came out as `local Child`.",
+			"**A result name binds even where one place reads it.** It used to take two readers before the name was used at all.",
+			"**Result name is offered on pure nodes** in the Inspector, and shows under the node's header.",
+			"**Find First Child is in Instances**, beside the other questions. Its id is unchanged, so saved graphs open as they did.",
+			"**A Return's and a Module Exports' pins can be typed into** where the type has a value to type: number, string, boolean, table. An untyped pin still asks for a wire.",
+		],
+		fixed: [
+			"An operator pill's corners scaled with its height, so a three-input pill was an ellipse with its pins outside it.",
+			"The error count on a pill or a capsule sat off the shape rather than on its corner.",
+		],
+	},
+	{
 		version: "0.31.1",
 		date: "2026-09-11",
 		headline: "A question is pure, and a page you can edit in place.",

@@ -18,7 +18,7 @@ import {
 import { literalToLuau } from "../core/compiler/luau.js";
 import { pinsCompatible } from "../core/compiler/validate.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
-import { localNameOf, pinTypeOf, type LocalRef } from "../core/nodes/variables.js";
+import { localNameOf, pinDefaultFor, pinTypeOf, type LocalRef } from "../core/nodes/variables.js";
 import { currentArity, growthRule, type GrowthRule } from "../core/nodes/growth.js";
 import { compactWidth, nodeBounds, pinPosition, rectContains, type Rect } from "./geometry.js";
 import { NODE } from "./layers.js";
@@ -802,15 +802,17 @@ export function commentsByArea(comments: Comment[]): Comment[] {
 // Script variables
 // ---------------------------------------------------------------------------
 
-const DEFAULTS_BY_TYPE: Record<string, Literal> = {
-	boolean: { t: "boolean", v: false },
-	number: { t: "number", v: 0 },
-	string: { t: "string", v: "" },
-	table: { t: "raw", v: "{}" },
-};
-
+/**
+ * A variable's starting value.
+ *
+ * Every variable has one, so a type with no literal of its own falls back to
+ * `nil` here. The rule underneath — `pinDefaultFor` — answers "nothing" for
+ * those instead, because a *pin* with no default is a value the compiler asks
+ * for rather than one it invents. Shared so a Return pin and a variable of the
+ * same type start from the same literal.
+ */
 export function defaultLiteralFor(type: string): Literal {
-	return DEFAULTS_BY_TYPE[type] ?? { t: "nil" };
+	return pinDefaultFor(type) ?? { t: "nil" };
 }
 
 /**

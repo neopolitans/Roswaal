@@ -73,7 +73,13 @@ export function briefSummary(text: string): string {
  * load-bearing — the same trap Declare Local's name was in.
  */
 function namesResult(def: NodeDef): boolean {
-	return def.compilesTo.kind === "call";
+	if (def.compilesTo.kind === "call") return true;
+	// A pure node binds a local too, as soon as anything reads its value twice
+	// -- and since Find First Child became one, the field was hidden on exactly
+	// the node that prompted it. A pure *builtin* stays out: it resolves to a
+	// bare identifier and is never bound, so a name there would do nothing.
+	return def.compilesTo.kind === "expr"
+		&& (def.outputs ?? []).some((pin) => pin.kind === "data");
 }
 
 /** Where a node's page lives in the docs window. */

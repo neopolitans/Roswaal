@@ -140,6 +140,13 @@ export interface PreviewGeometry {
 	operatorPad: number;
 	operatorCharWidth: number;
 	operatorMinSymbol: number;
+	/**
+	 * The pill's corner. A constant rather than half its height, so a tall pill
+	 * is a rounded rectangle instead of an ellipse curving away from its pins.
+	 * Unaffected by a reader's square-corner preference, as capsules and knots
+	 * are: the shape is what says the node is an expression.
+	 */
+	operatorRadius: number;
 	fieldWidth: number;
 	fieldWide: number;
 	checkWidth: number;
@@ -447,7 +454,7 @@ function drawOperator(preview: NodePreview, options: PreviewOptions): string {
 	const layout = operatorLayoutOf(preview, g);
 	const parts: string[] = [
 		`<rect x="0.5" y="0.5" width="${n(layout.width - 1)}" height="${n(layout.height - 1)}" ` +
-		`rx="${n(layout.height / 2 - 0.5)}" fill="var(--node-body, #fbfbfd)" ` +
+		`rx="${n(g.operatorRadius - 0.5)}" fill="var(--node-body, #fbfbfd)" ` +
 		`stroke="var(--node-border, #b3b9c4)"/>`,
 	];
 

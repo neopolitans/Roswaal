@@ -244,6 +244,7 @@ function renderOperator(
 				top: node.y,
 				width: layout.width,
 				height: layout.height,
+				borderRadius: NODE.operatorRadius,
 				zIndex: selected ? LAYER.nodeSelected : LAYER.node,
 			}}
 			title={nodeTitle(def, node)}

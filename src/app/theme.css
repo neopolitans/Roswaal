@@ -1045,6 +1045,14 @@ button.tb.primary:hover:not(:disabled) {
 	outline: 1px solid var(--accent);
 }
 
+/* A pill's corner is rounded away from where a square node's corner is, so a
+   badge hung at -7px sits off the shape entirely rather than on its edge. */
+.node.operator .badge-count,
+.node.capsule .badge-count {
+	top: -6px;
+	right: -1px;
+}
+
 .node .badge-count {
 	position: absolute;
 	top: -7px;
@@ -2360,8 +2368,10 @@ button.tb.primary:hover:not(:disabled) {
 /* A comparison is `a == b`, and a full node says that in three rows under a
    header repeating what the symbol already says. The pill is the same node
    drawn as the expression, which is how a graph of conditions reads best. */
+/* The corner comes from `NODE.operatorRadius`, set inline: the wire router and
+   the documentation previews measure the same constant, and a second opinion
+   here would put the shape and the pins a few pixels apart. */
 .node.operator {
-	border-radius: 999px;
 	cursor: grab;
 }
 

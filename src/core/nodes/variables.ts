@@ -12,7 +12,7 @@
  * editor keeps that cache in step when a variable is renamed or retyped.
  */
 
-import type { GraphNode, NodeConfig, NodeDef, PinDef } from "../schema.js";
+import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
 
 /** Config shape for Get Local. */
 export interface LocalRef {
@@ -48,6 +48,30 @@ export function pinTypeOf(luauType: string | undefined): string {
 	if (named) return named[1];
 	if (t.startsWith("{")) return "table";
 	return "any";
+}
+
+/**
+ * The starting literal for a pin of this type, or nothing when the type has
+ * none to offer.
+ *
+ * Nothing is a real answer here rather than a gap. A pin with no wire and no
+ * default is reported by the compiler as a value it needs, which is the right
+ * outcome for one Roswaal cannot invent — an Instance, a function, an untyped
+ * `any`. Handing those a `nil` instead would trade a clear error for a silent
+ * `nil` in the generated file.
+ *
+ * Derived pins use it so that a Return or a Module Exports pin can be typed
+ * into rather than only wired: without a default there is no literal to edit,
+ * and the only way to give the node a value was to wire a node in for it.
+ */
+export function pinDefaultFor(pinType: string | undefined): Literal | undefined {
+	switch (pinType) {
+		case "boolean": return { t: "boolean", v: false };
+		case "number": return { t: "number", v: 0 };
+		case "string": return { t: "string", v: "" };
+		case "table": return { t: "raw", v: "{}" };
+		default: return undefined;
+	}
 }
 
 /** Config shape shared by the variable Get and Set nodes. */

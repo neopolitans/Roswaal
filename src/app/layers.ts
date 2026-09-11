@@ -61,6 +61,18 @@ export const NODE = {
 	operatorPad: 2,
 	operatorCharWidth: 8,
 	operatorMinSymbol: 30,
+	/**
+	 * The pill's corner: a constant, rather than half of whatever the pill's
+	 * height happens to be.
+	 *
+	 * `border-radius: 999px` clamps to half the shorter side, which is a capsule
+	 * at one row and an *ellipse* at three -- and an ellipse's sides curve away
+	 * from the pins sitting against them, so a wire ends at a point outside the
+	 * shape it is meant to touch. At exactly half of `compactHeight` this is the
+	 * same capsule for a one-row pill and a rounded rectangle for a taller one.
+	 * It scales with the canvas for free, because the canvas scales in pixels.
+	 */
+	operatorRadius: 14,
 	/** `.node .literal`'s two widths and a checkbox, which set a pill's width. */
 	fieldWidth: 70,
 	fieldWide: 92,

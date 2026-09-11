@@ -1721,12 +1721,29 @@ class Emitter {
 		const expr = this.renderTemplate(src, template, scope);
 		this.execStack.delete(`pure:${nodeId}`);
 
+		/**
+		 * What to call the local, when there is one.
+		 *
+		 * `resultName` first, exactly as the impure path reads it. A node that
+		 * bound its result under a name you typed has to go on doing so now the
+		 * binding happens here instead — otherwise making a node pure silently
+		 * orphans the name already sitting in the file, and the local comes back
+		 * as the pin's name with a number stuck on it.
+		 */
+		const named = (src.node.config as { resultName?: string } | undefined)?.resultName;
+
 		// One consumer: splice it in. More: bind it once, so a side-effecting or
 		// merely expensive expression is not evaluated twice.
-		if (this.effectiveConsumers(nodeId, pinId) <= 1) return expr;
+		//
+		// A name you typed is the exception. Naming the result is a request for
+		// the local, not a suggestion about what to call one if it happens to
+		// appear — and a field that does nothing until some second reader shows
+		// up is a field you have to experiment on to understand.
+		if (!named && this.effectiveConsumers(nodeId, pinId) <= 1) return expr;
 
 		const outPin = src.outputs.find((p) => p.id === pinId);
-		const ident = this.names.unique(src.node.label || outPin?.name || src.def.title, "value");
+		const hint = named || src.node.label || outPin?.name || src.def.title;
+		const ident = this.names.unique(hint, "value");
 		this.push(`local ${ident} = ${expr}`, nodeId);
 		scope.bindings.set(`${nodeId}/${pinId}`, ident);
 		return ident;

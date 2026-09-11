@@ -7,7 +7,7 @@
  */
 
 import type { NodeConfig, NodeDef, PinDef } from "../schema.js";
-import { pinTypeOf } from "./variables.js";
+import { pinDefaultFor, pinTypeOf } from "./variables.js";
 
 /** Config shape for function entry/return and connect bodies. */
 export interface Signature {
@@ -230,9 +230,12 @@ export const FLOW_NODES: NodeDef[] = [
 			return {
 				inputs: [
 					exec("in", ""),
-					...(sig.returns ?? []).map((r, i) =>
-						data(`r${i}`, r.name || `value${i + 1}`, pinTypeOf(r.type)),
-					),
+					// With a default the pin can be typed into; without one the only
+					// way to give a Return a value was to wire a node in for it.
+					...(sig.returns ?? []).map((r, i) => {
+						const type = pinTypeOf(r.type);
+						return data(`r${i}`, r.name || `value${i + 1}`, type, pinDefaultFor(type));
+					}),
 				],
 				outputs: [],
 			};
@@ -291,7 +294,10 @@ export const FLOW_NODES: NodeDef[] = [
 				{ name: "value" },
 			];
 			return {
-				inputs: exports.map((e, i) => data(`e${i}`, e.name || `export${i + 1}`, pinTypeOf(e.type))),
+				inputs: exports.map((e, i) => {
+					const type = pinTypeOf(e.type);
+					return data(`e${i}`, e.name || `export${i + 1}`, type, pinDefaultFor(type));
+				}),
 				outputs: [],
 			};
 		},

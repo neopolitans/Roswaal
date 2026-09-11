@@ -57,6 +57,19 @@ describe("a pill's size", () => {
 		expect(nodeBounds(node("logic.not"), registry).h).toBe(NODE.compactHeight);
 	});
 
+	/**
+	 * A constant, not half the height. `border-radius: 999px` clamps to half the
+	 * shorter side: a capsule at one row, an *ellipse* at three — and an
+	 * ellipse's sides curve away from the pins sitting against them, so a wire
+	 * ends at a point outside the shape it is meant to touch.
+	 */
+	it("keeps one corner size whatever its height", () => {
+		// Half a capsule's height, so a one-row pill is still exactly a capsule.
+		expect(NODE.operatorRadius).toBe(NODE.compactHeight / 2);
+		expect(nodeBounds(node("logic.and", { args: 4 }), registry).h)
+			.toBeGreaterThan(NODE.operatorRadius * 2);
+	});
+
 	it("takes a row for each operand", () => {
 		expect(nodeBounds(node("compare.lt"), registry).h)
 			.toBe(2 * NODE.rowHeight + NODE.operatorPad * 2);

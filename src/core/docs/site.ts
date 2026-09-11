@@ -335,6 +335,21 @@ function nodePage(doc: NodeDoc): DocPage {
 	if (doc.variadic) {
 		traits.push(`takes ${doc.variadic.min} to ${doc.variadic.max} inputs, set per node`);
 	}
+	// Anything that hands back a value can name the local it binds. Said on the
+	// node's own page rather than only on Variables and locals, because the
+	// place somebody wonders what to call a result is the node giving them one
+	// -- and the pairing with Declare Local is worth saying before they find
+	// two locals where they wanted one.
+	if (
+		(doc.compiles === "call" || doc.compiles === "expr")
+		&& doc.outputs.some((pin) => pin.kind === "data")
+	) {
+		traits.push(
+			"names its result — **Result name** in the Inspector is the local it binds, and a " +
+			"Declare Local reading that result makes a second one: see " +
+			"[Variables and locals](variables-and-locals)",
+		);
+	}
 
 	// The summary is already the page's standfirst; repeating it as the first
 	// paragraph just makes the reader check whether the two differ.
@@ -1349,6 +1364,35 @@ const VARIABLES: DocPage = {
 				"Reading a local from a **sibling block** is reported as an error rather than " +
 				"emitted as code that will not compile. The local genuinely is not in scope there, " +
 				"and finding that out from Roswaal beats finding it out from Studio.",
+		},
+
+		{ t: "h", level: 2, text: "Naming a result" },
+		{
+			t: "p",
+			text:
+				"A node that hands back a value has a **Result name** in the Inspector: the local " +
+				"its result lands in. A Find First Child named `value` emits " +
+				"`local value = parent:FindFirstChild(name)`. The name shows under the node's " +
+				"header rather than replacing it, so the node goes on saying what it does.",
+		},
+		{
+			t: "p",
+			text:
+				"Leave it blank and the name comes from the output pin. A **pure** node read in " +
+				"one place is spliced into that place instead, binding nothing at all — naming " +
+				"its result is how you ask for the local anyway.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"**A result name and a Declare Local make two locals, and that is deliberate.** " +
+				"Naming the result asks for a local; wiring that result into a Declare Local asks " +
+				"for a second, so you get `local child = parent:FindFirstChild(name)` followed by " +
+				"`local named = child`. Roswaal does not quietly collapse them, because which of " +
+				"the two names you meant to keep is not a question it can answer for you. Use one " +
+				"or the other: the **Result name** to name the value where it comes from, or a " +
+				"**Declare Local** to name it where you want the name to appear.",
 		},
 
 		{ t: "h", level: 2, text: "What the code editor can see" },
