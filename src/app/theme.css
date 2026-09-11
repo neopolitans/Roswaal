@@ -2657,6 +2657,29 @@ button.tb.with-icon {
 	gap: 6px;
 }
 
+/* An icon on its own, which is most of the toolbar: the label is the tooltip,
+   and the row keeps its width for the two buttons that say what they do. A
+   square rather than a pill, so a row of them reads as a set of tools. */
+button.tb.icon-only {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 5px;
+	width: 28px;
+	height: 28px;
+	color: var(--fg-muted);
+}
+
+button.tb.icon-only:hover:not(:disabled) {
+	color: var(--fg);
+}
+
+button.tb.icon-only.on {
+	background: var(--bg-active);
+	color: var(--fg);
+	border-color: var(--border-strong);
+}
+
 /* Path field with a resolution hint: Rojo builds an empty instance for a path
    that is not there, so an unresolved one has to be loud here. */
 .map-fields .path-field {
@@ -3699,6 +3722,264 @@ button.tb.with-icon {
 .docbar select.doc-target.lune {
 	color: var(--warning);
 	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+/* --------------------------------------------------------- proposing an edit */
+
+/* At the foot of every page: the reading and the fixing are the same sitting. */
+.docs-propose {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 28px;
+	padding-top: 14px;
+	border-top: 1px solid var(--border);
+}
+
+.docs-propose .hint {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.docs-propose.open {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+}
+
+.docs-propose textarea {
+	width: 100%;
+	min-height: 320px;
+	padding: 10px 12px;
+	background: var(--bg-input);
+	color: var(--fg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	font: inherit;
+	line-height: 1.6;
+	resize: vertical;
+}
+
+.docs-propose-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------------ node designer */
+
+/* A form over a node definition, with the node drawn beside it. Its own page,
+   like the docs: it is a thing you sit down to do rather than a panel you keep
+   open while wiring. */
+.designer {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	background: var(--bg-app);
+	color: var(--fg);
+}
+
+.designer-body {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 360px;
+	gap: 18px;
+	padding: 18px;
+	overflow: auto;
+	align-items: start;
+}
+
+.designer-form,
+.designer-side {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+}
+
+.designer-side {
+	position: sticky;
+	top: 0;
+}
+
+.designer h2 {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+	margin: 8px 0 0;
+}
+
+.designer .field {
+	display: grid;
+	grid-template-columns: 96px 1fr;
+	align-items: center;
+	gap: 8px;
+}
+
+.designer .field > span {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.designer .field textarea {
+	font-family: "Cascadia Mono", Consolas, monospace;
+	resize: vertical;
+}
+
+.designer-pins {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	border-top: 1px solid var(--border);
+	padding-top: 10px;
+}
+
+.designer-pin {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	border-left: 2px solid var(--border);
+	padding-left: 8px;
+}
+
+.designer-row {
+	display: flex;
+	gap: 6px;
+}
+
+.designer-row > * {
+	min-width: 0;
+	flex: 1;
+}
+
+.designer-row > button.tb {
+	flex: none;
+}
+
+/* The node as the canvas will draw it, from the documentation's own generator. */
+.designer-preview {
+	display: flex;
+	justify-content: center;
+	padding: 14px;
+	background: var(--bg-canvas);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+
+.designer-problems {
+	margin: 0;
+	padding-left: 18px;
+	color: var(--danger);
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.designer-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.designer-said {
+	margin: 0;
+	color: var(--ok);
+	font-size: 12px;
+}
+
+.designer-failed {
+	margin: 0;
+	color: var(--danger);
+	font-size: 12px;
+}
+
+.designer .hint {
+	margin: 0;
+	font-size: 11px;
+	line-height: 1.6;
+	color: var(--fg-faint);
+}
+
+/* ---------------------------------------------------------------- docs tabs */
+
+/* One switch over several routes through the same subject — three ways to
+   define a custom node. The static site switches with radios and no script;
+   the panel renders the chosen one. Both use these rules. */
+.docs-tabs {
+	margin: 16px 0;
+}
+
+.docs-tabs > input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.docs-tabs-label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+	margin-bottom: 6px;
+}
+
+.docs-tab-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	border-bottom: 1px solid var(--border);
+	padding-bottom: 8px;
+}
+
+.docs-tab-bar label,
+.docs-tab-bar button {
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 4px 12px;
+	font: inherit;
+	font-size: 12px;
+	color: var(--fg);
+	cursor: pointer;
+}
+
+.docs-tab-bar label:hover,
+.docs-tab-bar button:hover {
+	background: var(--bg-hover);
+}
+
+.docs-tab-bar button.on {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: #fff;
+}
+
+/* Hidden by default so the static site can show one; the panel renders only
+   the chosen panel and marks it, so it is never hidden by these rules. */
+.docs-tab-panel {
+	display: none;
+	padding-top: 14px;
+}
+
+.docs-tab-panel.on {
+	display: block;
+}
+
+.docs-tabs > input:nth-of-type(1):checked ~ .docs-tab-panels > .docs-tab-panel:nth-child(1),
+.docs-tabs > input:nth-of-type(2):checked ~ .docs-tab-panels > .docs-tab-panel:nth-child(2),
+.docs-tabs > input:nth-of-type(3):checked ~ .docs-tab-panels > .docs-tab-panel:nth-child(3),
+.docs-tabs > input:nth-of-type(4):checked ~ .docs-tab-panels > .docs-tab-panel:nth-child(4) {
+	display: block;
+}
+
+.docs-tabs > input:nth-of-type(1):checked ~ .docs-tab-bar > label:nth-child(1),
+.docs-tabs > input:nth-of-type(2):checked ~ .docs-tab-bar > label:nth-child(2),
+.docs-tabs > input:nth-of-type(3):checked ~ .docs-tab-bar > label:nth-child(3),
+.docs-tabs > input:nth-of-type(4):checked ~ .docs-tab-bar > label:nth-child(4) {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: #fff;
 }
 
 /* Release history, folded by minor version: one summary line per fold, its

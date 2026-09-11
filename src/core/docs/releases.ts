@@ -54,6 +54,27 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.31.0",
+		date: "2026-09-11",
+		headline: "A form over a node, and a toolbar that says less.",
+		added: [
+			"**The node designer**: a form over a node definition, with the node drawn beside it as you fill it in. From the toolbar, or at `/designer`.",
+			"**The designer saves into a pack you choose** — an existing one or a new one — and reopens the project, so the node is in the palette straight away. It also copies the node as JSON or as Luau.",
+			"**Creating custom nodes**, a page that switches between the three routes to one: the designer, a Luau pack, and Roswaal's own library.",
+			"**Command line**, a page listing every command and option, built from the same list `roswaal help` prints.",
+			"**Casting and annotations**, its own page: the three cast nodes, declaring a type in three shapes, what Roswaal writes into the file, and where types are offered.",
+			"**Suggest an edit**, at the foot of every documentation page. Rewrite the page and it opens as an issue with the page and version filled in.",
+			"**`roswaal version`** is in `roswaal help`. It has always worked and appeared in no list.",
+			"**The daemon prints the documentation's address** under the editor's.",
+		],
+		changed: [
+			"**The toolbar is icons**, with the label as the tooltip. Compile keeps its words in both bars, and so do the controls that show a setting rather than doing something.",
+			"**The README is a front door**: install, start, where the documentation is, and the licence. Everything else it described is in the documentation, which stays in step with the code.",
+			"**Casting moved off Roswaal types** onto the new page, with the type features added since it was written.",
+			"**The daemon's hint says Ctrl+Click** to open the editor URL, which is what PowerShell and cmd.exe need and neither says.",
+		],
+	},
+	{
 		version: "0.30.0",
 		date: "2026-09-11",
 		headline: "Reach a local by name, and key a table by anything.",

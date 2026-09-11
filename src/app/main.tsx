@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App.jsx";
+import { DesignerPage } from "./DesignerPage.jsx";
 import { DocsPage } from "./DocsPage.jsx";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
 import { installFavicon } from "./logo.jsx";
@@ -20,9 +21,11 @@ if (!container) throw new Error("Missing #root");
  * the docs a genuinely separate window — openable on a second monitor, readable
  * while you wire — without a second build, a second server route, or a router.
  */
-const isDocs = window.location.pathname.replace(/\/+$/, "") === "/docs";
+const route = window.location.pathname.replace(/\/+$/, "");
+const isDocs = route === "/docs";
+const isDesigner = route === "/designer";
 
-document.title = isDocs ? "Roswaal docs" : "Roswaal";
+document.title = isDocs ? "Roswaal docs" : isDesigner ? "Node designer" : "Roswaal";
 
 // Set here rather than in `index.html` so the artwork has one home. Both entry
 // points are the same document, so both get it.
@@ -43,8 +46,10 @@ applyChrome(preferences);
 
 createRoot(container).render(
 	<StrictMode>
-		<ErrorBoundary what={isDocs ? "The documentation" : "Roswaal"}>
-			{isDocs ? <DocsPage /> : <App />}
+		<ErrorBoundary
+			what={isDocs ? "The documentation" : isDesigner ? "The node designer" : "Roswaal"}
+		>
+			{isDocs ? <DocsPage /> : isDesigner ? <DesignerPage /> : <App />}
 		</ErrorBoundary>
 	</StrictMode>,
 );

@@ -378,7 +378,7 @@
       "id": "93eb20b2-c93f-47cb-aabc-964d1420b936",
       "def": "instance.getFullName",
       "x": -552,
-      "y": 2509
+      "y": 2533
     },
     {
       "id": "982c487a-07d0-4a02-83dc-4e62968ba81d",
@@ -558,7 +558,7 @@
     },
     {
       "id": "c6a055f6-775a-42e1-85a0-e56fe64b77eb",
-      "def": "table.set",
+      "def": "table.setKey",
       "x": 1521,
       "y": -111,
       "literals": {
@@ -634,8 +634,8 @@
     {
       "id": "d9af5e8a-2988-4172-8e0c-9e7d7abff148",
       "def": "logic.not",
-      "x": 119,
-      "y": 1671
+      "x": 149,
+      "y": 1699
     },
     {
       "id": "da242fef-5b26-4ea5-9aa0-77a7163b29d2",

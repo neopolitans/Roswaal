@@ -28,6 +28,7 @@ import {
 	collectMaps, compileAll, compileMap, compileScript, findOrphanOutputs,
 	openProject, removeOutputs, writeConfig,
 } from "../server/project.js";
+import { CLI_COMMANDS, CLI_OPTIONS } from "../core/docs/cli.js";
 import { defaultConfig } from "../core/schema.js";
 import { HotReloader } from "../server/watcher.js";
 import { EXAMPLE_PACK } from "./examplePack.js";
@@ -42,26 +43,14 @@ const STOP_POLL_MS = 150;
 // Help
 // ---------------------------------------------------------------------------
 
-const COMMANDS = [
-	{ name: "init", blurb: "Create roswaal.json and .roswaal/ in this project. Like `rojo init`." },
-	{ name: "serve", blurb: "Start the daemon and serve the editor. Blocks." },
-	{ name: "stop", blurb: "Stop a running daemon on this port." },
-	{ name: "restart", blurb: "Stop a running daemon, then serve again." },
-	{ name: "status", blurb: "Is a daemon running here, and what is it serving?" },
-	{ name: "compile", blurb: "Compile every graph and map once and exit. Takes an optional path." },
-	{ name: "watch", blurb: "Recompile graphs as they change, without the editor. Blocks." },
-	{ name: "prune", blurb: "Remove generated files whose graph has moved or gone." },
-	{ name: "check", blurb: "One-shot health probe. Plain output, good for scripts." },
-	{ name: "help", blurb: "This list." },
-];
-
-const OPTIONS = [
-	{ flag: "--root <path>", blurb: "Project directory. Default: the current directory." },
-	{ flag: "--port <n>", blurb: `HTTP port for the daemon. Default: ${DEFAULT_PORT}.` },
-	{ flag: "--force", blurb: "For compile: overwrite generated files edited by hand." },
-	{ flag: "--no-open", blurb: "For serve: do not print the editor URL as a hint." },
-	{ flag: "--yes", blurb: "For prune: delete the files it lists, rather than only listing them." },
-];
+/**
+ * The commands and options, from the one list the documentation renders too.
+ *
+ * They were written out here and described again on no page at all, which is
+ * how `--yes` came to be missing from this output while the tool had it.
+ */
+const COMMANDS = CLI_COMMANDS;
+const OPTIONS = CLI_OPTIONS;
 
 function printHelp(): void {
 	console.log(`${bold("roswaal")} — visual scripting for Roblox Luau, and Lune Luau (experimental)`);
@@ -292,12 +281,17 @@ async function commandServe(args: Args): Promise<number> {
 		`graphs    ${project.config.sourceDir}  →  ${project.config.outDir}`,
 		`mode      ${project.config.compileMode}`,
 		`editor    ${cyan(url)}`,
+		// The documentation is the same daemon, and nothing said so: it was
+		// reachable only from a button inside the editor you had not opened yet.
+		`docs      ${cyan(`${url}/docs`)}`,
 	]);
 	if (project.packErrors.length > 0) {
 		for (const message of project.packErrors) console.log(yellow(`  node pack: ${message}`));
 	}
 	if (args.flags["no-open"] !== true) {
-		console.log(dim("  open the editor URL above; Ctrl+C stops the daemon"));
+		// Windows terminals want Ctrl+Click for a link, and neither PowerShell nor
+		// cmd.exe says so anywhere.
+		console.log(dim("  Ctrl+Click to open the editor URL above; Ctrl+C stops the daemon"));
 	}
 
 	exitOnInterrupt(`stopped the daemon on :${port}`);

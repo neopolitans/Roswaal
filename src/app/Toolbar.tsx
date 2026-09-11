@@ -44,6 +44,8 @@ export interface ProjectBarProps {
 	onCompileMode: (mode: RoswaalConfig["compileMode"]) => void;
 	onCompileProject: () => void;
 	onOpenDocs: () => void;
+	/** The node designer, in its own window: a form over a node definition. */
+	onOpenDesigner: () => void;
 	onOpenSettings: () => void;
 	/** Opens the project menu, anchored under the mark. */
 	onOpenProjectMenu: (anchor: { x: number; y: number }) => void;
@@ -72,29 +74,33 @@ export function ProjectBar(props: ProjectBarProps) {
 				<span className="version">{VERSION}</span>
 			</button>
 
+			{/* Icons, with the label as the tooltip. A toolbar is read by shape
+			    once it is known, and the words were costing most of the row —
+			    which is why every creative tool spends them only where a click
+			    is consequential. Compile keeps its own. */}
 			<button
-				className="tb with-icon"
-				title="Re-read the project from disk"
+				className="tb icon-only"
+				title="Refresh — re-read the project from disk"
+				aria-label="Refresh the project"
 				onClick={props.onRefresh}
 			>
-				<Icon name="refresh" size={15} />
-				Refresh
+				<Icon name="refresh" size={16} />
 			</button>
 			<button
-				className="tb with-icon"
-				title="A new .nodescript: one Script, LocalScript or ModuleScript"
+				className="tb icon-only"
+				title="New graph — a .nodescript: one Script, LocalScript or ModuleScript"
+				aria-label="New graph"
 				onClick={props.onNewGraph}
 			>
-				<Icon name="newFile" size={15} />
-				New graph
+				<Icon name="newFile" size={16} />
 			</button>
 			<button
-				className="tb with-icon"
-				title="A node map describes where things live in the DataModel"
+				className="tb icon-only"
+				title="New node map — where things live in the DataModel"
+				aria-label="New node map"
 				onClick={props.onNewMap}
 			>
-				<Icon name="map" size={15} />
-				New map
+				<Icon name="map" size={16} />
 			</button>
 
 			<span className="spacer" />
@@ -122,19 +128,28 @@ export function ProjectBar(props: ProjectBarProps) {
 				Compile project
 			</button>
 			<button
-				className="tb"
-				title="Guides, and a reference page for every node — including this project's own packs. Opens in its own window so it does not cover the graph."
+				className="tb icon-only"
+				title="Docs — guides, and a page for every node including this project's packs. Opens in its own window."
+				aria-label="Open the documentation"
 				onClick={props.onOpenDocs}
 			>
-				Docs
+				<Icon name="document" size={16} />
 			</button>
 			<button
-				className="tb with-icon"
-				title="Project settings, editor preferences and themes"
+				className="tb icon-only"
+				title="Node designer — make a node of your own, into one of this project's packs"
+				aria-label="Open the node designer"
+				onClick={props.onOpenDesigner}
+			>
+				<Icon name="palette" size={16} />
+			</button>
+			<button
+				className="tb icon-only"
+				title="Settings — the project's, this browser's, and themes"
+				aria-label="Settings"
 				onClick={props.onOpenSettings}
 			>
-				<Icon name="settings" size={15} />
-				Settings
+				<Icon name="settings" size={16} />
 			</button>
 		</div>
 	);
@@ -232,22 +247,22 @@ export function DocumentBar(props: DocumentBarProps) {
 			<span className="divider" />
 
 			<button
-				className="tb with-icon"
+				className="tb icon-only"
 				disabled={props.locked}
-				title="Add a node at the centre of the view. Right-clicking the canvas does the same, where you click."
+				title="Add node — at the centre of the view. Right-clicking the canvas does the same, where you click."
+				aria-label="Add a node"
 				onClick={props.onAddNode}
 			>
-				<Icon name="search" size={15} />
-				Add node
+				<Icon name="search" size={16} />
 			</button>
 			<button
-				className="tb with-icon"
+				className="tb icon-only"
 				disabled={props.locked}
-				title="Tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
+				title="Realign — tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
+				aria-label="Realign the graph"
 				onClick={props.onRealign}
 			>
-				<Icon name="layout" size={15} />
-				Realign
+				<Icon name="layout" size={16} />
 			</button>
 			<button
 				className={`tb${props.alignExec ? " on" : ""}`}
@@ -267,12 +282,12 @@ export function DocumentBar(props: DocumentBarProps) {
 			    the rest of the time. `P` does the same without reaching for it. */}
 			{props.selected > 0 && (
 				<button
-					className="tb with-icon"
-					title="Show the Luau these nodes produced, in the generated file (P)"
+					className="tb icon-only"
+					title="Preview — the Luau these nodes produced, in the generated file (P)"
+					aria-label="Preview the selection's Luau"
 					onClick={props.onPreview}
 				>
-					<Icon name="terminal" size={15} />
-					Preview
+					<Icon name="terminal" size={16} />
 				</button>
 			)}
 

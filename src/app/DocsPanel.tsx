@@ -18,7 +18,7 @@ import {
 
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
 import {
-	buildSearchIndex, buildSite, findPage, isPageLink, parseInline, searchDocs, TAG_LABELS,
+	blockText, buildSearchIndex, buildSite, findPage, isPageLink, parseInline, searchDocs, TAG_LABELS,
 	type Block, type DocPage, type DocSection, type Inline,
 } from "../core/docs/site.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
@@ -35,6 +35,20 @@ import { wirePath } from "./geometry.js";
 import { attachGraphView } from "./graphView.js";
 import type { Preferences } from "./preferences.js";
 import { growthState } from "../core/nodes/growth.js";
+import { VERSION } from "../cli/version.js";
+
+/**
+ * Where a proposed edit goes.
+ *
+ * The pages are TypeScript rather than files, so there is nothing on disk for a
+ * reader to send back — and the static site has no server behind it to receive
+ * anything either. A prefilled issue is the one route that works from both, and
+ * it lands where the page is actually written.
+ */
+const REPOSITORY = "https://github.com/neopolitans/Roswaal";
+
+/** How much of a proposal fits in a URL. GitHub stops reading long before this. */
+const PROPOSAL_LIMIT = 6000;
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
 
@@ -346,7 +360,79 @@ function Page({ page }: { page: DocPage }) {
 					<strong>To verify:</strong> <Rich text={page.review.verify} />
 				</p>
 			)}
+			<ProposeEdit page={page} />
 		</>
+	);
+}
+
+/**
+ * Rewrite the page, and send the rewrite where the page is written.
+ *
+ * The reading and the fixing are the same sitting — you notice a sentence is
+ * wrong *while* reading it — so the text opens in place, seeded with what the
+ * page currently says. What it cannot do is save: these pages are TypeScript in
+ * the repository rather than files on this machine, so the proposal goes to an
+ * issue with the slug and the version already filled in.
+ */
+function ProposeEdit({ page }: { page: DocPage }) {
+	const [open, setOpen] = useState(false);
+	const [text, setText] = useState("");
+
+	// Seeded when it opens rather than on every render: the reader's edits are
+	// the point, and a page they have not opened costs nothing to skip.
+	const start = () => {
+		setText(page.blocks.map(blockText).filter((t) => t !== "").join(`${NEWLINE}${NEWLINE}`));
+		setOpen(true);
+	};
+
+	const body = [
+		`Page: ${page.title} (\`${page.slug}\`)`,
+		`Roswaal ${VERSION}`,
+		"",
+		text,
+	].join(NEWLINE).slice(0, PROPOSAL_LIMIT);
+
+	const href =
+		`${REPOSITORY}/issues/new?title=${encodeURIComponent(`Docs: ${page.title}`)}` +
+		`&body=${encodeURIComponent(body)}`;
+
+	if (!open) {
+		return (
+			<p className="docs-propose">
+				<button className="tb" onClick={start}>
+					Suggest an edit
+				</button>
+				<span className="hint">Rewrite this page and send it as an issue.</span>
+			</p>
+		);
+	}
+
+	return (
+		<div className="docs-propose open">
+			<label className="hint" htmlFor="docs-proposal">
+				This page as it reads now. Change what is wrong with it — the proposal opens as a
+				GitHub issue with the page and version filled in.
+			</label>
+			<textarea
+				id="docs-proposal"
+				value={text}
+				spellCheck
+				onChange={(e) => setText(e.target.value)}
+			/>
+			<div className="docs-propose-actions">
+				<a className="tb primary" href={href} target="_blank" rel="noreferrer noopener">
+					Propose the change
+				</a>
+				<button className="tb" onClick={() => setOpen(false)}>
+					Cancel
+				</button>
+				{text.length > PROPOSAL_LIMIT && (
+					<span className="hint">
+						Longer than a URL carries — the first {PROPOSAL_LIMIT} characters go.
+					</span>
+				)}
+			</div>
+		</div>
 	);
 }
 
@@ -531,7 +617,47 @@ function BlockView({ block }: { block: Block }) {
 			return <PreviewFigure nodes={block.nodes} caption={block.caption} />;
 		case "graph":
 			return <GraphFigure script={block.script} caption={block.caption} />;
+		case "tabs":
+			return <Tabs block={block} />;
 	}
+}
+
+/**
+ * One switch over several routes through the same subject.
+ *
+ * The static site renders all of them and switches with a radio; here the
+ * chosen one is rendered and the rest are not, which is the same page either
+ * way. Keyed by the tab's id rather than its position, so a tab added above it
+ * does not move the reader.
+ */
+function Tabs({ block }: { block: Block & { t: "tabs" } }) {
+	const [on, setOn] = useState(block.tabs[0]?.id ?? "");
+	const current = block.tabs.find((tab) => tab.id === on) ?? block.tabs[0];
+	if (!current) return null;
+
+	return (
+		<div className="docs-tabs">
+			{block.label && <div className="docs-tabs-label"><Rich text={block.label} /></div>}
+			<div className="docs-tab-bar" role="tablist">
+				{block.tabs.map((tab) => (
+					<button
+						key={tab.id}
+						role="tab"
+						aria-selected={tab.id === current.id}
+						className={tab.id === current.id ? "on" : ""}
+						onClick={() => setOn(tab.id)}
+					>
+						{tab.title}
+					</button>
+				))}
+			</div>
+			<div className="docs-tab-panels">
+				<section className="docs-tab-panel on">
+					{current.blocks.map((inner, i) => <BlockView key={i} block={inner} />)}
+				</section>
+			</div>
+		</div>
+	);
 }
 
 /**

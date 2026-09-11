@@ -19,6 +19,15 @@ export interface ProjectInfo {
 	tree: TreeEntry[];
 }
 
+/** A node pack on disk. The daemon's copy is in `src/server/project.ts`. */
+export interface PackFile {
+	path: string;
+	name: string;
+	format: "json" | "luau";
+	nodes: string[];
+	errors: string[];
+}
+
 /** A type a module graph exports. The daemon's copy is in `src/server/project.ts`. */
 export interface ExportedType {
 	graph: string;
@@ -170,6 +179,15 @@ export const api = {
 	orphans: () => request<{ orphans: string[] }>("/api/orphans"),
 	removeOrphans: (paths: string[]) =>
 		post<{ removed: number }>("/api/orphans/remove", { paths }),
+
+	/** The project's node packs, and the directory a new one belongs in. */
+	packs: () => request<{ packs: PackFile[]; dir: string }>("/api/packs"),
+	/** Adds a designed node to a JSON pack, or replaces the one with its id. */
+	savePackNode: (path: string, def: NodeDef) =>
+		request<{ pack: PackFile; packs: NodeDef[] }>("/api/packs/node", {
+			method: "PUT",
+			body: JSON.stringify({ path, def }),
+		}),
 
 	/** Every type the project's module graphs export, and where each module lands. */
 	exportedTypes: () => request<{ types: ExportedType[] }>("/api/types"),

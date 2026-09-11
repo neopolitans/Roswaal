@@ -28,6 +28,7 @@ import { defaultConfig, ENGINE_TYPES, type NodeScript } from "../schema.js";
 import { CODE_ROLES, ROLES } from "../theme.js";
 import { BUILTIN_THEMES } from "../themeData.js";
 import { DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, type Attribution } from "./attributions.js";
+import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release } from "./releases.js";
 import { reviewerCounts, reviewerLink, reviewOf, type Review } from "./reviews.js";
@@ -59,7 +60,7 @@ export type Block =
 	| { t: "p"; text: string }
 	| { t: "ul"; items: string[] }
 	| { t: "ol"; items: string[] }
-	| { t: "code"; lang: "luau" | "sh" | "json"; text: string }
+	| { t: "code"; lang: "luau" | "sh" | "json" | "ts"; text: string }
 	/**
 	 * `head` is optional. A comparison table wants column names; a list of
 	 * release entries wants the *shape* of a table — ruled rows, one thing per
@@ -117,7 +118,8 @@ export type Block =
 	 * scroll past all of it. `aside` sits at the right of the summary, as a
 	 * heading's does. `open` starts it unfolded; a reader can still close it.
 	 */
-	| { t: "details"; summary: string; aside?: string; open?: boolean; blocks: Block[] };
+	| { t: "details"; summary: string; aside?: string; open?: boolean; blocks: Block[] }
+	| { t: "tabs"; label?: string; tabs: DocTab[] };
 
 export interface DocPage {
 	slug: string;
@@ -145,6 +147,22 @@ export interface DocPage {
 	 * every page but a pack's; see `reviews.ts`.
 	 */
 	review?: Review;
+}
+
+/**
+ * One switch, several answers to the same question.
+ *
+ * For a page whose subject has more than one route through it — three ways to
+ * define a custom node — where the reader wants *their* route rather than all
+ * of them in a row. Everything stays in the page: the static site renders every
+ * panel and switches with a radio, so the text is there with no script, and the
+ * search index walks into every tab rather than only the open one.
+ */
+export interface DocTab {
+	/** Stable, and part of the radio's name in the static build. */
+	id: string;
+	title: string;
+	blocks: Block[];
 }
 
 export interface DocSection {
@@ -278,6 +296,11 @@ export function blockText(block: Block): string {
 				.join(" ").trim();
 		case "details":
 			return [block.summary, block.aside ?? "", ...block.blocks.map(blockText)].join(" ").trim();
+		case "tabs":
+			return [
+				block.label ?? "",
+				...block.tabs.flatMap((tab) => [tab.title, ...tab.blocks.map(blockText)]),
+			].join(" ").trim();
 	}
 }
 
@@ -2115,13 +2138,51 @@ const TYPES_GUIDE: DocPage = {
 				"three decompositions; the rest have one. Splitting and recombining never change " +
 				"what the graph compiles to.",
 		},
+		{ t: "h", level: 2, text: "Where Luau's types come in" },
+		{
+			t: "p",
+			text:
+				"This page is about the types a **pin** has: what may be wired to what, and the " +
+				"colour it is drawn in. Luau's own type system is richer, and everything that " +
+				"crosses between the two — casts, declared types, and the annotations Roswaal " +
+				"writes into the generated file — is on [Casting and annotations](casting).",
+		},
+	],
+};
+
+/**
+ * Luau's types, where a graph meets them.
+ *
+ * Split out of *Roswaal types* in 0.31.0. It was three paragraphs at the foot
+ * of that page, written when casting was the only place the two type systems
+ * touched — and by 0.30.0 it was not: a type can be declared in three shapes, a
+ * local and a variable can carry one, a required module's types can be named,
+ * and a type that is more than a name is written into the file as itself. That
+ * is a page, not a footnote.
+ */
+const CASTING: DocPage = {
+	slug: "casting",
+	title: "Casting and annotations",
+	summary: "Where a pin's type ends and Luau's begins: casts, declared types, and what gets written.",
+	narrow: true,
+	blocks: [
+		{
+			t: "p",
+			text:
+				"There are two type systems here and they are not the same size. A **pin type** is " +
+				"Roswaal's: one name, used to decide what may be wired to what and what colour to " +
+				"draw it. A **Luau type** is whatever Luau can say — unions, optionals, table " +
+				"types, functions, generics. Everything on this page is one of the places the " +
+				"second one reaches the file.",
+		},
+
 		{ t: "h", level: 2, text: "Casting" },
 		{
 			t: "p",
 			text:
-				"A pin's type is Roswaal's; Luau has its own, richer one. **Cast** bridges them: " +
-				"its Type pin takes any Luau type expression verbatim, so intersections, unions, " +
-				"table types and optionals all work.",
+				"**Cast** takes any Luau type expression verbatim, so an intersection, a union or a " +
+				"table type all work — its Type pin is typed in rather than wired, because the text " +
+				"becomes part of the generated code.",
 		},
 		{
 			t: "code",
@@ -2129,12 +2190,405 @@ const TYPES_GUIDE: DocPage = {
 			text: "local humanoid = (character :: Model & { Humanoid: Humanoid }).Humanoid",
 		},
 		{
+			t: "table",
+			head: ["Node", "Writes", "For"],
+			rows: [
+				["**Cast**", "`(value :: T)`", "Saying what a value is, when you know and the typechecker does not."],
+				["**Cast Array**", "`(value :: { T })`", "A collection you know more about than its type says — Get Descendants is `{ Instance }`."],
+				[
+					"**Cast Through Any**",
+					"`((value :: any) :: T)`",
+					"Two types Luau will not convert between directly. The `any` in the middle is the claim being made twice.",
+				],
+			],
+		},
+		{
 			t: "note",
 			kind: "warn",
 			text:
-				"`::` is a claim, not a check — there is no runtime test and being wrong is silent. " +
-				"Ask with **Is A** first. And Luau refuses a cast between unrelated types, which is " +
-				"what **Cast Through Any** is for.",
+				"`::` is a **claim, not a check** — there is no runtime test and being wrong is " +
+				"silent. Ask with **Is A** first, which is a real test and narrows the type for " +
+				"the branch it guards.",
+		},
+
+		{ t: "h", level: 2, text: "Declaring a type" },
+		{
+			t: "p",
+			text:
+				"**Declare Type at Top** writes above everything else; **Declare Type** writes where " +
+				"the node sits, which is what a type built from `typeof` needs, because Luau reads a " +
+				"file in order. Both take three shapes:",
+		},
+		{
+			t: "table",
+			head: ["Shape", "Writes", "When"],
+			rows: [
+				["**Table of Fields**", "`{ walkSpeed: number, weld: WeldConstraint? }`", "A record. The fields are rows in the Inspector, so a brace cannot go missing."],
+				["**Custom Luau**", "Whatever you type", "A union, a function type, a generic — everything the row editor cannot say."],
+				[
+					"**Type of a Value**",
+					"`typeof(Tuning)`",
+					"The type of something the file already has. Declare Type only, since a hoisted type is written above every value there is.",
+				],
+			],
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"A declared type is **exported** unless you untick it, which is what lets another " +
+				"graph name it after requiring the module. `export type` is only legal at the top " +
+				"level, so an exported one inside a branch, a loop or a function is refused rather " +
+				"than written where Luau will not take it.",
+		},
+
+		{ t: "h", level: 2, text: "What Roswaal writes for you" },
+		{
+			t: "p",
+			text:
+				"Annotations follow the graph's **typechecking mode**, in the bar above the canvas. " +
+				"*Default* writes no mode line and no annotations; *Nonstrict* and *Strict* write " +
+				"both. So a type you set is a type that appears — in the two modes that asked for " +
+				"types at all.",
+		},
+		{
+			t: "table",
+			head: ["Set on", "Comes out as"],
+			rows: [
+				["A variable, in the Variables panel", "`local health: number = 100`"],
+				["A **Declare Local**, in the Inspector", "`local restores: { [Model]: Restore } = {}`"],
+				["A function's parameters and returns", "`local function read(tank: Model): Config`"],
+				["A node that produces a value", "`local part: BasePart = ...`"],
+			],
+		},
+		{
+			t: "p",
+			text:
+				"**A type that is more than a name is written as itself.** `{ [Model]: Restore }`, " +
+				"`Model?` and `(number) -> string` used to come out as `any` with nothing said about " +
+				"it; they are written as typed now, and a mistake in one is Luau's to report with a " +
+				"line number. Text that is plainly not a type — two words, an unclosed brace — still " +
+				"becomes `any`, because writing it would break the file rather than the line.",
+		},
+
+		{ t: "h", level: 2, text: "Choosing one" },
+		{
+			t: "p",
+			text:
+				"Everywhere a type is chosen — a variable, a parameter, a local — the list is " +
+				"ordered by how close to hand each group is: **this graph's own** declared types " +
+				"first, then the types **a required module exports**, written as you would write " +
+				"them (`Config.Tuning`), then the primitives, Roblox's values, and the instance " +
+				"classes. **Other…** takes any Luau type at all.",
+		},
+		{
+			t: "p",
+			text:
+				"The Variables panel lists those same types under **Types**. Drag one onto the " +
+				"canvas for a **Declare Local** of that type, or hold Ctrl for a **Cast** to it — " +
+				"the same Get-or-Set convention a variable follows.",
+		},
+
+		{ t: "h", level: 2, text: "What a pin type still decides" },
+		{
+			t: "p",
+			text:
+				"A wire is allowed when the two pins agree, when either is `any` or `wildcard`, " +
+				"between `number` and `string` because Luau converts those itself, and from an " +
+				"**instance class to an `Instance` pin** — a `Model` goes anywhere an `Instance` is " +
+				"wanted. The editor and the compiler ask the same question, so a wire the canvas " +
+				"accepts is never one the compile complains about.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"The other direction is refused. An `Instance` into a `Model` pin is a claim about " +
+				"what the value *is* rather than a fact about its type — which is exactly what " +
+				"**Cast** is for, and why it is a node you can see in the graph rather than a rule " +
+				"that quietly lets it through.",
+		},
+	],
+};
+
+/**
+ * Making a node of your own, by whichever of the three routes suits you.
+ *
+ * The routes are the thing this page exists for. They were documented in three
+ * places that did not know about each other — a paragraph in the README, an
+ * example pack written by `roswaal init`, and the library's own source — so
+ * which of them applied to you was the hard part, and it was nobody's job to
+ * say. The switch at the top is that answer, made explicit.
+ */
+const CUSTOM_NODES: DocPage = {
+	slug: "creating-custom-nodes",
+	title: "Creating custom nodes",
+	summary: "Three ways to define a node of your own, and what they have in common.",
+	narrow: true,
+	blocks: [
+		{
+			t: "p",
+			text:
+				"A node is **data**: an id, some pins, and a template saying what it compiles to. " +
+				"Nodes of your own live in *packs* under `.roswaal/nodes`, which the daemon loads " +
+				"when it opens the project — so a pack is committed with the repository and " +
+				"everybody working in it has the same palette.",
+		},
+		{
+			t: "note",
+			kind: "good",
+			text:
+				"**A pack is never executed.** A Luau pack is *parsed*, and only literal values are " +
+				"allowed, so loading somebody else's pack cannot run their code. That is why the " +
+				"template language exists rather than a callback.",
+		},
+		{
+			t: "tabs",
+			label: "Definition support",
+			tabs: [
+				{
+					id: "designer",
+					title: "Node Designer",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"**The form, with the node drawn beside it.** Open it from the toolbar, or at " +
+								"`/designer` on the daemon. Fill in the id, the pins and the template, and the " +
+								"node is drawn as it will appear on the canvas — by the same generator this " +
+								"documentation uses, so it is the node rather than an impression of one.",
+						},
+						{
+							t: "ul",
+							items: [
+								"**It asks where the node goes**: an existing pack, or a new one. A node belongs beside the others of its kind.",
+								"**It writes JSON**, and reopens the project, so the node is in the palette immediately rather than after a restart.",
+								"**It checks with the loader**, not with a second opinion — what it accepts is what the project will load.",
+								"**It will not rewrite a Luau pack.** Those are hand-written and carry comments; Copy Luau gives you the node to paste into one.",
+							],
+						},
+						{
+							t: "note",
+							kind: "info",
+							text:
+								"Saving needs a project open, because a pack is a file in one. With no daemon " +
+								"the form still works and still copies.",
+						},
+					],
+				},
+				{
+					id: "luau",
+					title: "Luau",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"**A `.nodedef.luau` file, written by hand.** The friendlier of the two file " +
+								"formats: it is the language you already write, and it can carry comments — " +
+								"which is the reason to choose it over JSON. `roswaal init` writes a commented " +
+								"example to start from.",
+						},
+						{
+							t: "code",
+							lang: "luau",
+							text:
+								"return {\n" +
+								"\tnodes = {\n" +
+								"\t\t{\n" +
+								'\t\t\tid = "combat.knockback",\n' +
+								'\t\t\ttitle = "Apply Knockback",\n' +
+								'\t\t\tcategory = "Combat",\n' +
+								"\t\t\tinputs = {\n" +
+								'\t\t\t\t{ id = "in", kind = "exec" },\n' +
+								'\t\t\t\t{ id = "character", name = "Character", kind = "data", type = "Instance" },\n' +
+								'\t\t\t\t{ id = "force", name = "Force", kind = "data", type = "Vector3" },\n' +
+								"\t\t\t},\n" +
+								'\t\t\toutputs = { { id = "then", kind = "exec" } },\n' +
+								"\t\t\tcompilesTo = {\n" +
+								'\t\t\t\tkind = "statement",\n' +
+								'\t\t\t\ttemplate = "$in.character.HumanoidRootPart:ApplyImpulse($in.force)",\n' +
+								"\t\t\t},\n" +
+								"\t\t},\n" +
+								"\t},\n" +
+								"}",
+						},
+						{
+							t: "p",
+							text:
+								"A pin default may be written plainly — `default = 5`, `default = \"Part\"` — " +
+								"rather than as a tagged `{ t = \"number\", v = 5 }`. The tagged form is still " +
+								"there, and is the only way to write a `raw` default, which is emitted verbatim " +
+								"rather than quoted.",
+						},
+						{
+							t: "note",
+							kind: "warn",
+							text:
+								"A function call anywhere in a pack is a **parse error with a line number**, not " +
+								"something that runs. `.nodedef.json` is the same shape with no comments.",
+						},
+					],
+				},
+				{
+					id: "typescript",
+					title: "TypeScript",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"**A node in Roswaal's own library**, in `src/core/nodes/library.ts`. This is how " +
+								"every built-in node is written, and it is the route for a node that belongs to " +
+								"*Roswaal* rather than to one game — a missing Roblox call, an operator the " +
+								"library should have had.",
+						},
+						{
+							t: "code",
+							lang: "ts",
+							text:
+								'pure("math.lerp", "Lerp", "Math",\n' +
+								'\t"($in.a + ($in.b - $in.a) * $in.t)",\n' +
+								'\t[num("a", "A"), num("b", "B"), num("t", "Alpha")], "number"),',
+						},
+						{
+							t: "p",
+							text:
+								"`pure`, `call`, `stmt` and `variadic` at the top of that file are shorthands over " +
+								"the same three templates a pack writes by hand. There is deliberately **nothing " +
+								"a built-in can express that a pack cannot**, which is what keeps the template " +
+								"language honest — so a node written here could equally be shipped as a pack.",
+						},
+						{
+							t: "p",
+							text:
+								"**Which is the question to answer first.** A node written in TypeScript is part " +
+								"of Roswaal and arrives when somebody upgrades it; a node in a pack is part of " +
+								"your project and arrives with a `git pull`. The designer asks which pack a node " +
+								"goes in for the same reason: where a node lives decides who gets it.",
+						},
+						{
+							t: "note",
+							kind: "info",
+							text:
+								"Adding one to the library means building Roswaal and running its tests — see " +
+								"[Contributing](contributing). A node that opens a block is the one kind a pack " +
+								"cannot write, and it needs emitter work as well.",
+						},
+					],
+				},
+			],
+		},
+		{ t: "h", level: 2, text: "What every route shares" },
+		{
+			t: "p",
+			text:
+				"Whichever way a node is defined, it is the same three fields underneath — and the " +
+				"compile kind is the decision that matters most, because it settles whether the node " +
+				"sits in the execution chain at all.",
+		},
+		{
+			t: "table",
+			head: ["Kind", "Shape", "Emits"],
+			rows: [
+				["`expr`", "Pure, no execution pins", "One expression per output pin, spliced into whatever reads it"],
+				["`call`", "Impure, produces one value", "`local x = <template>`"],
+				["`statement`", "Impure, any outputs", "The template, as statements"],
+			],
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"**`builtin` is reserved** for the flow nodes that open blocks — branches, loops, " +
+				"function bodies. A pack declaring one is rejected when it loads, and that refusal is " +
+				"the boundary that lets a project depend on somebody else's pack.",
+		},
+		{ t: "h", level: 2, text: "Placeholders" },
+		{
+			t: "table",
+			head: ["Placeholder", "Meaning"],
+			rows: [
+				["`$in.<pin>`", "The input's expression — the wired source, or the value typed into it — parenthesised where precedence needs it"],
+				["`$out.<pin>`", "The local this output was bound to"],
+				["`$in.<pin>!ident`", "An unconnected literal, sanitised to a Luau identifier. The pin cannot be wired"],
+				["`$in.<pin>!raw`", "An unconnected literal, inserted verbatim"],
+				["`$args(<sep>)`", "A variadic node's inputs, folded with that separator"],
+				["`$opt(<sep>)`", "The optional trailing arguments, dropping the ones nobody set"],
+			],
+		},
+		{
+			t: "p",
+			text:
+				"A pin gets **splitting for free**: a pack's `Vector3` input breaks into components " +
+				"exactly as a built-in's does, without the pack knowing splitting exists. Every node " +
+				"in a project's packs also gets its own reference page in these docs, built from the " +
+				"live registry — including the Luau it compiles to.",
+		},
+	],
+};
+
+/**
+ * The command line, rendered from the same list `roswaal help` prints.
+ *
+ * There was no page for it at all: the commands were described in the README
+ * and in the help output, and the two had already drifted — `--yes` existed in
+ * one and not the other. One list, two renderings.
+ */
+const CLI_PAGE: DocPage = {
+	slug: "command-line",
+	title: "Command line",
+	summary: "Every roswaal command, what it does, and which of them keep running.",
+	narrow: true,
+	blocks: [
+		{
+			t: "p",
+			text:
+				"`roswaal` is shaped after `rojo`'s command line on purpose: it sits beside Rojo in " +
+				"the same workflow, and a tool that invents its own conventions makes you learn " +
+				"twice. Run it in the project directory, or point it at one with `--root`.",
+		},
+		{
+			t: "code",
+			lang: "sh",
+			text: "cd path/to/your/roblox/project\nroswaal init      # once per project\nroswaal serve     # editor on http://127.0.0.1:4471, docs at /docs",
+		},
+		{ t: "h", level: 2, text: "Commands" },
+		{
+			t: "table",
+			head: ["Command", "What it does"],
+			rows: CLI_COMMANDS.map((command) => [
+				`\`roswaal ${command.name}\``,
+				[command.blurb, command.detail].filter(Boolean).join(" "),
+			]),
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"**Three of them block**: `serve`, `watch` and `restart` keep running until you stop " +
+				"them with Ctrl+C. Everything else does its work and exits, which is what makes " +
+				"`check` and `compile` usable from a script.",
+		},
+		{ t: "h", level: 2, text: "Options" },
+		{
+			t: "table",
+			head: ["Option", "What it does"],
+			rows: CLI_OPTIONS.map((option) => [`\`${option.flag}\``, option.blurb]),
+		},
+		{ t: "h", level: 2, text: "Two things worth knowing" },
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"**Restart the daemon after rebuilding Roswaal.** `serve` loads the CLI bundle once, " +
+				"so a rebuild does not reach a daemon that is already up: the browser picks up the " +
+				"new editor on reload while the server keeps running the old code.",
+		},
+		{
+			t: "p",
+			text:
+				"**`stop` and `restart` reach the daemon over HTTP** rather than through a PID file, " +
+				"so there is no stale pid to reason about when one dies unexpectedly. `stop` reports " +
+				"success only once the health probe has gone quiet — not when the request was sent.",
 		},
 	],
 };
@@ -2213,8 +2667,10 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	const start = [GETTING_STARTED, CONTROLS, blueprintPage()];
 	const guides = [
 		TWO_KINDS_OF_WIRE(registry), TYPES_GUIDE, VARIABLES, BUILDING,
-		ESCAPE_HATCHES(registry), settingsPage(),
+		ESCAPE_HATCHES(registry), settingsPage(), CUSTOM_NODES, CLI_PAGE,
 	];
+	// Beside the types page it was split out of, rather than at the end.
+	guides.splice(guides.indexOf(TYPES_GUIDE) + 1, 0, CASTING);
 	const attributions = attributionsPage();
 	// Every page's title by slug, so the release notes can name the articles
 	// they list without holding a second copy of each title.

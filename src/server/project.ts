@@ -154,6 +154,121 @@ async function loadNodePacks(
 }
 
 // ---------------------------------------------------------------------------
+// Node packs
+// ---------------------------------------------------------------------------
+
+/** One node pack on disk, and what it defines. */
+export interface PackFile {
+	/** Project-relative, with forward slashes. */
+	path: string;
+	/** The file's name without its extension, which is what a reader calls it. */
+	name: string;
+	format: "json" | "luau";
+	/** The ids it defines, in file order. */
+	nodes: string[];
+	/** Anything wrong with it, said the way the status panel says it. */
+	errors: string[];
+}
+
+/** The extension a pack the designer can write carries. */
+const PACK_SUFFIX = ".nodedef.json";
+
+/**
+ * Every node pack in the project, listed so the designer can ask where a node
+ * should go rather than choosing for you.
+ *
+ * Luau packs are listed too, and marked: they are read like any other, and the
+ * designer will not write one — see `savePackNode`.
+ */
+export async function listPacks(project: OpenProject): Promise<PackFile[]> {
+	const out: PackFile[] = [];
+
+	for (const dir of project.config.nodePaths) {
+		const abs = path.join(project.root, dir);
+		const entries = await fs.readdir(abs, { withFileTypes: true }).catch(() => []);
+		for (const entry of entries) {
+			if (!entry.isFile()) continue;
+			const isJson = entry.name.endsWith(PACK_SUFFIX);
+			const isLuau = entry.name.endsWith(".nodedef.luau") || entry.name.endsWith(".nodedef.lua");
+			if (!isJson && !isLuau) continue;
+
+			const relPath = toPosix(path.join(dir, entry.name));
+			const file: PackFile = {
+				path: relPath,
+				name: entry.name.replace(/\.nodedef\.(json|luau|lua)$/, ""),
+				format: isJson ? "json" : "luau",
+				nodes: [],
+				errors: [],
+			};
+			try {
+				const text = await fs.readFile(path.join(abs, entry.name), "utf8");
+				const parsed = parseNodePack(isJson ? JSON.parse(text) : parseLuauData(text), entry.name);
+				file.nodes = parsed.defs.map((def) => def.id);
+				file.errors = parsed.errors;
+			} catch (err) {
+				file.errors = [(err as Error).message];
+			}
+			out.push(file);
+		}
+	}
+	return out.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/**
+ * Adds a node to a JSON pack, or replaces the one with its id.
+ *
+ * **JSON only, and that is not an oversight.** A `.nodedef.luau` pack is
+ * hand-written and carries comments — the reason to choose Luau for one — and a
+ * generator rewriting the file would take them out. The designer offers the
+ * Luau form to copy instead, so a node can be added to one by hand.
+ *
+ * The whole file is parsed again after the change, by `parseNodePack`, which is
+ * the same check loading it performs: a pack that would not load is refused
+ * before it reaches disk rather than after.
+ */
+export async function savePackNode(
+	project: OpenProject, relPath: string, def: NodeDef,
+): Promise<PackFile> {
+	const target = toPosix(relPath);
+	if (!target.endsWith(PACK_SUFFIX)) {
+		throw new Error(`A pack the designer writes is a ${PACK_SUFFIX} file. This one is ${target}.`);
+	}
+	const dirs = project.config.nodePaths.map((d) => toPosix(d).replace(/\/+$/, ""));
+	if (!dirs.some((dir) => target.startsWith(dir + "/"))) {
+		throw new Error(
+			`${target} is not in a node path. This project loads packs from ${dirs.join(", ")}.`,
+		);
+	}
+
+	const abs = safeJoin(project.root, target);
+	const existing = await fs.readFile(abs, "utf8").catch(() => null);
+	let nodes: NodeDef[] = [];
+	if (existing !== null) {
+		const parsed = JSON.parse(existing) as { nodes?: NodeDef[] } | NodeDef[];
+		nodes = Array.isArray(parsed) ? parsed : parsed.nodes ?? [];
+	}
+
+	const at = nodes.findIndex((node) => node.id === def.id);
+	if (at === -1) nodes.push(def);
+	else nodes[at] = def;
+
+	const document = { nodes };
+	const check = parseNodePack(document, path.posix.basename(target));
+	if (check.errors.length > 0) throw new Error(check.errors.join(" "));
+
+	await fs.mkdir(path.dirname(abs), { recursive: true });
+	await fs.writeFile(abs, JSON.stringify(document, null, 2) + "\n", "utf8");
+
+	return {
+		path: target,
+		name: path.posix.basename(target).replace(/\.nodedef\.json$/, ""),
+		format: "json",
+		nodes: check.defs.map((d) => d.id),
+		errors: [],
+	};
+}
+
+// ---------------------------------------------------------------------------
 // Tree
 // ---------------------------------------------------------------------------
 

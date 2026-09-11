@@ -1194,6 +1194,7 @@ export function App() {
 					await runCompileMap(undefined);
 				}}
 				onOpenDocs={() => window.open("/docs", "roswaal-docs")}
+				onOpenDesigner={() => window.open("/designer", "roswaal-designer")}
 				onOpenSettings={() => setSettingsOpen(true)}
 				onOpenProjectMenu={(anchor) =>
 					setProjectMenu({ anchor, recent: recentProjects() })

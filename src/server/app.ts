@@ -16,7 +16,8 @@ import { fileURLToPath } from "node:url";
 
 import {
 	buildTree, collectMaps, compileAll, compileMap, compileScript, createFolder, graphName,
-	deleteEntry, exportedTypes, initProject, moveEntry, openProject, readMap, readScript, readText,
+	deleteEntry, exportedTypes, initProject, listPacks, moveEntry, openProject, readMap, readScript,
+	readText, savePackNode,
 	findOrphanOutputs, locateFile, removeOutputs, renameEntry, safeJoin,
 	writeConfig, writeMap, writeScript,
 	type OpenProject,
@@ -27,7 +28,7 @@ import { openInEditor, revealInFileManager } from "./reveal.js";
 import { VERSION } from "../cli/version.js";
 import { HotReloader } from "./watcher.js";
 import { emptyMap, type NodeMap } from "../core/nodemap.js";
-import { emptyScript, type NodeScript, type RoswaalConfig } from "../core/schema.js";
+import { emptyScript, type NodeDef, type NodeScript, type RoswaalConfig } from "../core/schema.js";
 
 export const DEFAULT_PORT = 4471;
 
@@ -468,6 +469,32 @@ app.post("/api/folder/create", route(async (req) => {
  * Where a file sits in the DataModel, so the editor can turn a file dragged
  * onto the canvas into a require with the path already filled in.
  */
+/**
+ * The node packs on disk, and where a new one would go.
+ *
+ * The designer asks so it can offer a destination rather than choosing one: a
+ * node belongs in a pack somebody named, beside the other nodes of its kind.
+ */
+app.get("/api/packs", route(async () => {
+	const p = project();
+	return { packs: await listPacks(p), dir: p.config.nodePaths[0] ?? ".roswaal/nodes" };
+}));
+
+/**
+ * Writes one designed node into a pack, and reopens the project so the editor
+ * has it immediately — a node you cannot place until you restart the daemon is
+ * a node you have to take on trust.
+ */
+app.put("/api/packs/node", route(async (req) => {
+	const { path: relPath, def } = req.body as { path?: string; def?: NodeDef };
+	if (!relPath || !def) throw new HttpError(400, "Provide both path and def.");
+
+	const written = await savePackNode(project(), relPath, def);
+	current = await openProject(current!.root);
+	syncHotReload();
+	return { pack: written, packs: current.packs };
+}));
+
 /** The types the project's modules export, for the editor to offer by name. */
 app.get("/api/types", route(async () => ({ types: await exportedTypes(project()) })));
 

@@ -193,6 +193,39 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				: "";
 			return `<figure class="docs-preview"><div class="row">${svgs}</div>${caption}</figure>`;
 		}
+		case "tabs": {
+			// Radios and labels, so the switch works with no script at all — the
+			// promise the whole static site makes. Every panel is in the page, so
+			// the text is readable and findable whichever one is showing.
+			const name = `tabs-${block.tabs.map((t) => t.id).join("-")}`;
+			const inputs = block.tabs
+				.map(
+					(tab, i) =>
+						`<input type="radio" name="${escapeHtml(name)}" id="${escapeHtml(`${name}-${tab.id}`)}"` +
+						`${i === 0 ? " checked" : ""}>`,
+				)
+				.join("");
+			const labels = block.tabs
+				.map(
+					(tab) =>
+						`<label for="${escapeHtml(`${name}-${tab.id}`)}">${escapeHtml(tab.title)}</label>`,
+				)
+				.join("");
+			const panels = block.tabs
+				.map(
+					(tab) =>
+						`<section class="docs-tab-panel">` +
+						tab.blocks.map((b) => renderBlock(b, options, up)).join("\n") +
+						`</section>`,
+				)
+				.join("");
+			const label = block.label ? `<div class="docs-tabs-label">${inline(block.label, up)}</div>` : "";
+			return (
+				`<div class="docs-tabs">${label}${inputs}` +
+				`<div class="docs-tab-bar" role="tablist">${labels}</div>` +
+				`<div class="docs-tab-panels">${panels}</div></div>`
+			);
+		}
 		case "details": {
 			// A plain `<details>`: it opens and closes with no script at all.
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
