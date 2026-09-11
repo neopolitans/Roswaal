@@ -3547,6 +3547,48 @@ button.tb.with-icon {
 	flex: none;
 }
 
+/* A badge beside a page's title: a pack's page, or how far a page has been
+   reviewed. Pending takes the warning colour because it is the one asking the
+   reader to take care; Verified takes the colour the notes use for a promise
+   being kept. */
+.docs-title .badge {
+	margin-left: 10px;
+	vertical-align: middle;
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fg-muted);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 1px 8px;
+	white-space: nowrap;
+}
+
+.docs-title .badge.review.pending {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+.docs-title .badge.review.reviewed {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.docs-title .badge.review.verified {
+	color: var(--ok);
+	border-color: color-mix(in srgb, var(--ok) 60%, transparent);
+}
+
+/* "Last reviewed", at the foot of the page where GOV.UK puts it. */
+.docs-content p.docs-reviewed {
+	margin: 44px 0 0;
+	padding-top: 12px;
+	border-top: 1px solid var(--border);
+	font-size: 12.5px;
+	color: var(--fg-faint);
+}
+
 .docs-page .docs-article {
 	width: 100%;
 	max-width: 940px;

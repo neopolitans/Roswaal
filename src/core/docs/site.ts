@@ -29,6 +29,7 @@ import { BUILTIN_THEMES } from "../themeData.js";
 import { DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, type Attribution } from "./attributions.js";
 import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release } from "./releases.js";
+import { reviewOf, type Review } from "./reviews.js";
 
 // ---------------------------------------------------------------------------
 // Blocks
@@ -130,6 +131,11 @@ export interface DocPage {
 	 * shares an edge.
 	 */
 	narrow?: boolean;
+	/**
+	 * Whether a person has read this page, and when. Set by `buildSite` on
+	 * every page but a pack's; see `reviews.ts`.
+	 */
+	review?: Review;
 }
 
 export interface DocSection {
@@ -605,61 +611,163 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 	slug: "wires-and-pins",
 	narrow: true,
 	title: "Wires and pins",
-	summary: "Execution versus data, pure nodes, and why a wire will not connect.",
+	summary: "Execution and data, what connects to what, and what a pin can do.",
 	blocks: [
 		{
 			t: "p",
 			text:
-				"White **execution** wires say what happens in what order. Coloured **data** wires say " +
-				"what a value is. A node either sits in the execution line or it does not.",
-		},
-		{
-			t: "p",
-			text:
-				"Nodes with a green left edge are **pure**: no execution pins, wire them anywhere. A " +
-				"pure value used once is spliced into its use site; used twice it is bound to a local " +
-				"first, so the work happens once however many wires leave the pin.",
+				"**Execution** wires say what happens in what order. **Data** wires carry values. An " +
+				"execution pin is an arrow and a data pin is a circle, and both are hollow until " +
+				"something is wired to them.",
 		},
 		...previews(
 			registry,
 			["debug.print", "math.add"],
-			"Print sits in the execution line, so it has a white pin either side. Add is pure — " +
-				"no execution pins at all, and its value goes wherever a value is wanted.",
+			"Print is a step, so it has an execution pin either side. Add is **pure** — no " +
+				"execution pins, and its value goes wherever a value is wanted.",
 		),
-		{ t: "h", level: 2, text: "Reading the colours" },
-		{
-			t: "p",
-			text:
-				"Pin colour is the type, kept close to Unreal's where the types line up: red boolean, " +
-				"green number, magenta string, blue instance, gold vector. A wire that fades between " +
-				"two colours is a coercion — an `any` landing on a typed pin. Hover it to see which.",
-		},
-		{ t: "h", level: 2, text: "When it will not connect" },
+
+		{ t: "h", level: 2, text: "Execution wires" },
 		{
 			t: "ul",
 			items: [
-				"Dragging from a pin dims everything it cannot reach.",
-				"Execution and data wires never join.",
-				"An input takes one wire; connecting a second replaces the first.",
-				"Drag *from* a wired input to pick that wire up and move it.",
-				"Some inputs are typed in and pasted into the generated source — a property name, a field. Those take no wire at all, and the pin menu says so.",
+				"An execution output takes one wire. To do two things in turn, use **Sequence**.",
+				"An execution input takes one wire too. Unlike Unreal, two flows cannot join at one node.",
 			],
 		},
-		{ t: "h", level: 2, text: "Splitting a value" },
+
+		{ t: "h", level: 2, text: "Data wires" },
+		{
+			t: "ul",
+			items: [
+				"A data output can feed any number of inputs.",
+				"An input takes one wire. Connecting a second replaces the first.",
+			],
+		},
 		{
 			t: "p",
 			text:
-				"Right-click a `Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim` or `UDim2` pin and pick " +
-				"**Split Struct Pin**, exactly as in Unreal. The pin becomes one pin per component, " +
-				"named after its parent.",
+				"Pure nodes have a green left edge, and a variable's Get is a pill with no header. A " +
+				"pure value used once is written where it is used; used twice or more, it is bound " +
+				"to a local first, so the work happens once. A variable is the exception — it is " +
+				"read where it is used, every time, so a Set between two reads is never missed.",
+		},
+
+		{ t: "h", level: 2, text: "Colours" },
+		{
+			t: "p",
+			text:
+				"A pin's colour is its type, close to Unreal's: red boolean, green number, magenta " +
+				"string, blue instance, gold vector, orange CFrame. Grey is `any`, and any type " +
+				"without a colour of its own, such as `Model`.",
+		},
+		{
+			t: "p",
+			text:
+				"A data wire takes the colour of the pin it leaves. Where it lands on a pin of " +
+				"another colour, it fades from one to the other. Hover a wire to see its type, or " +
+				"both types when it fades.",
+		},
+
+		{ t: "h", level: 2, text: "What connects" },
+		{
+			t: "ul",
+			items: [
+				"The same type.",
+				"`any`, to and from anything.",
+				"`number` and `string`, either way — Luau converts between them.",
+				"An instance class such as `Model` into an `Instance` pin. The other way round needs a **Cast**.",
+				"Never execution to data.",
+				"Some inputs are typed in and become part of the code, like Get Property's Property. They take no wire, and the pin menu says so.",
+			],
+		},
+		{ t: "p", text: "[Roswaal types](types) lists every type and what it holds." },
+
+		{ t: "h", level: 2, text: "Working with wires" },
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				["Drag from a pin", "Start a wire. Pins of other types dim"],
+				["Drop it on empty space", "The node menu, showing only nodes that can take it. Picking one connects it"],
+				["Drop a value on Add, Make Dictionary or a call", "Adds an input for it and connects it"],
+				["Drag from a wired input", "Pick the wire up and move it"],
+				["`Shift` + click a pin", "Disconnect everything on it"],
+				["`Shift` or `Alt` + click a wire", "Disconnect it"],
+				["Double-click a wire", "Add a reroute knot"],
+				["Right-click a pin", "The pin menu"],
+			],
+		},
+		{
+			t: "p",
+			text: "Wires are curved by default. **Settings → Wires** makes them rigid or angular.",
+		},
+
+		{ t: "h", level: 2, text: "Reroute knots" },
+		{
+			t: "p",
+			text:
+				"Double-click a wire to put a knot in it, then drag the knot to route the wire where " +
+				"you want it. A knot compiles to nothing. It takes the type of whatever is wired " +
+				"into it, and changes when that does. `Shift` or `Ctrl` + click a knot to select it.",
+		},
+
+		{ t: "h", level: 2, text: "The pin menu" },
+		{
+			t: "table",
+			head: ["Item", "What it does"],
+			rows: [
+				[
+					"Promote to Variable",
+					"On an unwired input. Makes a variable with the pin's type and value, and wires its Get in",
+				],
+				[
+					"Split Struct Pin",
+					"One pin per component, on a `Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim` or `UDim2` input or output. `CFrame` splits three ways: position and rotation, position and axes, or 12 numbers",
+				],
+				["Recombine Struct Pin", "On a component. Puts the pin back together"],
+				["Break Link", "Disconnect the pin, the same as `Shift` + click"],
+			],
 		},
 		{
 			t: "note",
 			kind: "good",
 			text:
-				"Splitting and recombining are **value-preserving**: what the graph compiles to does " +
-				"not change either way. Where a value cannot be taken apart — an expression rather " +
-				"than a constant — Roswaal says so before it changes anything, instead of guessing.",
+				"Splitting and recombining do not change what the graph compiles to. Where a value " +
+				"cannot be carried across — an expression rather than numbers — Roswaal says so " +
+				"before it changes anything.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"Wires on a pin you split or recombine are removed. If there is more than one, " +
+				"Roswaal asks first.",
+		},
+
+		{ t: "h", level: 2, text: "Values on unwired inputs" },
+		{
+			t: "p",
+			text:
+				"An input with nothing wired in shows its value: a checkbox, a number, text, or a " +
+				"dropdown. A value written as Luau, like `Vector3.zero`, is fixed — wire a node in, " +
+				"or split the pin, to change it.",
+		},
+		{
+			t: "p",
+			text:
+				"**default** in a dashed box is an optional argument. Left alone, it is not passed " +
+				"at all. Click it to set a value, and **×** to clear it. [Roswaal types](types) " +
+				"explains when that matters.",
+		},
+
+		{ t: "h", level: 2, text: "Adding and removing pins" },
+		{
+			t: "p",
+			text:
+				"A node that takes a list has **+** and **−** in its header: the maths and logic " +
+				"operators, Make Dictionary, calls, Sequence, Return, Module Exports, and a " +
+				"function's parameters.",
 		},
 	],
 });
@@ -1073,37 +1181,149 @@ const BUILDING: DocPage = {
 	slug: "building-and-rojo",
 	narrow: true,
 	title: "Building, and node maps",
-	summary: "How graphs become files, and files become instances.",
+	summary: "How a graph becomes a file, and a file becomes an instance in Studio.",
 	blocks: [
 		{
 			t: "p",
 			text:
-				"Graphs live in `.roswaal/scripts` and compile to `.luau` under the out directory. " +
-				"Folders under the scripts directory mirror folders under the out directory, and Rojo " +
-				"turns those into Folder instances.",
+				"A graph is a `.nodescript` under `.roswaal/scripts`. Compiling it writes a `.luau` " +
+				"file to the same place under `src`, and [Rojo](https://rojo.space) syncs that into " +
+				"Studio. Roswaal never talks to Studio itself.",
 		},
+		{
+			t: "p",
+			text:
+				"Folders carry across: `.roswaal/scripts/ReplicatedStorage/Shared/Greeter.nodescript` " +
+				"writes `src/ReplicatedStorage/Shared/Greeter.luau`. Both directories are project " +
+				"[settings](settings).",
+		},
+
+		{ t: "h", level: 2, text: "What a graph compiles to" },
+		{
+			t: "p",
+			text:
+				"The file is named after the graph, and its ending comes from the script kind, " +
+				"chosen in the bar above the canvas. A Lune project always writes `.luau`.",
+		},
+		{
+			t: "table",
+			head: ["Kind", "File"],
+			rows: [
+				["Script", "`Greeter.server.luau`"],
+				["LocalScript", "`Greeter.client.luau`"],
+				["ModuleScript", "`Greeter.luau`"],
+			],
+		},
+
+		{ t: "h", level: 2, text: "Compiling" },
+		{
+			t: "table",
+			head: ["", "What it compiles"],
+			rows: [
+				["**Compile script**, or `Ctrl` + `S`", "The open graph"],
+				["**Compile project**", "Every graph, then every node map"],
+				["**Hot reload**", "Each graph as you edit it, and any that change on disk — after a `git pull`, say"],
+				["`roswaal compile`", "Everything, or the one graph or map you give it"],
+				["`roswaal watch`", "Hot reload, without the editor"],
+			],
+		},
+		{
+			t: "p",
+			text:
+				"A graph with errors writes nothing; warnings do not stop it. With `format` on and " +
+				"[StyLua](https://github.com/JohnnyMorganz/StyLua) on your PATH, the file is " +
+				"formatted as it is written.",
+		},
+
+		{ t: "h", level: 2, text: "Generated files" },
+		{
+			t: "p",
+			text:
+				"A generated file starts with a header naming its graph and a hash of what was " +
+				"written. Roswaal will not overwrite a file whose hash no longer matches — one " +
+				"edited by hand — or a file it did not write.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"To overwrite one anyway, click **overwrite** beside it in the compile results, or " +
+				"run `roswaal compile --force`. Either way the hand edit is lost.",
+		},
+
+		{ t: "h", level: 2, text: "Moving and deleting graphs" },
+		{
+			t: "p",
+			text:
+				"Rename a graph, move it or change its kind, and its next compile removes the file " +
+				"it used to write.",
+		},
+		{
+			t: "p",
+			text:
+				"A generated file whose graph is gone is **stale**, and Rojo goes on syncing it. The " +
+				"compile results list stale files with a **remove** link. From the command line, " +
+				"`roswaal prune` lists them and `roswaal prune --yes` removes them.",
+		},
+
 		{ t: "h", level: 2, text: "Node maps" },
 		{
 			t: "p",
 			text:
-				"A `.nodemap` describes an instance hierarchy and compiles to a Rojo project file, so " +
-				"the tree is authored in Roswaal rather than hand-edited into `default.project.json` " +
-				"and kept in step by memory.",
+				"A `.nodemap` says where your files land in the DataModel, and compiles to a Rojo " +
+				"project file — `default.project.json` unless you change it. You edit the tree in " +
+				"Roswaal rather than the JSON by hand.",
 		},
 		{
 			t: "p",
 			text:
-				"The map is also what makes `Require Module` work: the disk path says " +
-				"`src/ReplicatedStorage/Shared/Greeter.luau` and the require needs " +
-				"`ReplicatedStorage.Shared.Greeter`. Only the map knows how one becomes the other.",
+				"Make one with **New map** in the toolbar, or by right-clicking a folder in the " +
+				"project tree. It starts with `src` in ServerScriptService. Select an instance to " +
+				"edit it:",
 		},
-		{ t: "h", level: 2, text: "Stale output" },
+		{
+			t: "table",
+			head: ["Field", "What it does"],
+			rows: [
+				["Name", "The instance's name in the DataModel"],
+				[
+					"Class",
+					"Blank for a service, because Rojo already knows what ServerScriptService is. Otherwise Folder, Model, Configuration, ScreenGui, Part or Tool",
+				],
+				["Path", "The folder or file on disk that fills the instance. Marked when Roswaal cannot find it"],
+				["Ignore unknown", "Rojo leaves alone anything in Studio that it did not put there"],
+				[
+					"Ignore paths",
+					"Files under the path that Rojo should skip. Start one with `/` to write it from the project root",
+				],
+			],
+		},
 		{
 			t: "p",
 			text:
-				"Move a graph and its old generated file stays behind. Rojo cannot tell it is stale " +
-				"and syncs both, so the same module turns up twice. `roswaal prune` removes them, and " +
-				"the editor offers to when it notices.",
+				"**Add folder** and **Add service** build the tree. Under **Project file**, " +
+				"**Output** is where the file is written and **Project-wide ignores** go to Rojo as " +
+				"written. The JSON it will write is shown underneath, with anything wrong — an " +
+				"instance with no name, or two with the same one.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"A map is written only when you ask: **Write project file**, **Compile project**, " +
+				"or `roswaal compile`. Hot reload leaves maps alone. A project file Roswaal did not " +
+				"write is not overwritten; `roswaal compile --force` takes it over.",
+		},
+
+		{ t: "h", level: 2, text: "Requiring a module" },
+		{
+			t: "p",
+			text:
+				"A map is also how Roswaal knows where a file ends up. Drag a graph or a `.luau` " +
+				"from the project tree onto the canvas, and it offers **Require Module** with the " +
+				"path filled in — `src/ReplicatedStorage/Shared/Greeter.luau` becomes " +
+				"`ReplicatedStorage.Shared.Greeter` — or **Instance** for a reference to it. If no " +
+				"map covers the file, it says so.",
 		},
 	],
 };
@@ -1717,7 +1937,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 			}));
 
 	return {
-		sections: [
+		sections: withReviews([
 			{
 				title: "Getting started",
 				slug: "start",
@@ -1748,8 +1968,23 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 			...reference(GROUPS.builtin, false),
 			...engineTypeSections(),
 			...reference(GROUPS.project, true),
-		],
+		]),
 	};
+}
+
+/**
+ * Every page but a pack's, carrying its review.
+ *
+ * Copies rather than writes, because the hand-written pages are module
+ * constants shared by every build of the site.
+ */
+function withReviews(sections: DocSection[]): DocSection[] {
+	return sections.map((section) => ({
+		...section,
+		pages: section.pages.map((page) =>
+			page.custom ? page : { ...page, review: reviewOf(page.slug) },
+		),
+	}));
 }
 
 function slugify(text: string): string {

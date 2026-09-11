@@ -4,8 +4,13 @@
  * Category drives the header colour, with one override that matters: anything
  * that starts or ends a flow of logic is red, whatever category it is in. That
  * is the fastest way to read a graph — you find the entry points first.
+ *
+ * A function declaration is red wherever it sits. Declare Function is a step in
+ * the flow rather than an entry point, but its Body is where a function starts,
+ * and a graph read for its functions should find both kinds by colour.
  */
 
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import type { NodeDef } from "../core/schema.js";
 
 const FLOW_RED = "#a93b2c";
@@ -76,8 +81,11 @@ const SUBCATEGORY_COLORS: Record<string, string> = {
  * these tables. A `NodeDef` satisfies the shape, so every existing call still
  * passes one.
  */
-export function nodeColor(def: { category: string; subcategory?: string; role?: string }): string {
+export function nodeColor(
+	def: { id?: string; category: string; subcategory?: string; role?: string },
+): string {
 	if (def.role === "entry" || def.role === "terminal") return FLOW_RED;
+	if (def.id !== undefined && FUNCTION_NODES.has(def.id)) return FLOW_RED;
 	if (def.subcategory && SUBCATEGORY_COLORS[def.subcategory]) {
 		return SUBCATEGORY_COLORS[def.subcategory];
 	}

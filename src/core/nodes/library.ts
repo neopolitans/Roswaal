@@ -489,9 +489,15 @@ export const LIBRARY_NODES: NodeDef[] = [
 	},
 	call("roblox.instanceNew", "New Instance", "Engine", "Instance.new($in.className)",
 		[str("className", "Class Name", "Part")], "Instance", "Instance", { targets: ["roblox"] }),
+	// Recursive is how Roblox searches a whole subtree by name, now that
+	// FindFirstDescendant is deprecated. Optional, so a Find First Child that
+	// does not set it compiles to exactly the call it always did.
 	call("roblox.findFirstChild", "Find First Child", "Engine",
-		"$in.parent:FindFirstChild($in.name)",
-		[d("parent", "Parent", "Instance"), str("name", "Name")], "Child", "Instance", { targets: ["roblox"] }),
+		"$in.parent:FindFirstChild($in.name$opt(, ))",
+		[d("parent", "Parent", "Instance"), str("name", "Name"),
+			{ ...bool("recursive", "Recursive"), optional: true }],
+		"Child", "Instance",
+		{ targets: ["roblox"], summary: "Set Recursive to search every descendant, not only the children." }),
 	call("roblox.waitForChild", "Wait For Child", "Engine",
 		"$in.parent:WaitForChild($in.name)",
 		[d("parent", "Parent", "Instance"), str("name", "Name")], "Child", "Instance",
@@ -660,10 +666,6 @@ export const LIBRARY_NODES: NodeDef[] = [
 		[d("instance", "Instance", "Instance"), str("className", "Class Name", "BasePart"),
 			bool("recursive", "Recursive")], "Instance",
 		"Matches derived classes too, unlike Find First Child Of Class."),
-	pure("instance.findFirstDescendant", "Find First Descendant", "Instances",
-		"$in.instance:FindFirstDescendant($in.name)",
-		[d("instance", "Instance", "Instance"), str("name", "Name", "Handle")], "Instance",
-		"Searches the whole subtree by name. Slower than a path — reach for Instance when you know where it is."),
 	pure("instance.findFirstAncestor", "Find First Ancestor", "Instances",
 		"$in.instance:FindFirstAncestor($in.name)",
 		[d("instance", "Instance", "Instance"), str("name", "Name", "Model")], "Instance"),

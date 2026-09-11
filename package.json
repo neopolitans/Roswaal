@@ -1,6 +1,6 @@
 {
   "name": "roswaal",
-  "version": "0.24.3",
+  "version": "0.25.0",
   "private": true,
   "license": "0BSD",
   "type": "module",
@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "build:themes": "tsx scripts/build-themes.mjs",
-    "build:docs": "tsx scripts/build-docs.mjs"
+    "build:docs": "tsx scripts/build-docs.mjs",
+    "docs:reviews": "tsx scripts/docs-reviews.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

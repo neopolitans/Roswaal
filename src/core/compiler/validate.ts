@@ -10,7 +10,7 @@
 import type { NodeScript } from "../schema.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
-import { nodeTitle, type Registry } from "../nodes/index.js";
+import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
 
@@ -42,7 +42,9 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		if (!registry.has(node.def)) {
 			out.push({
 				severity: "error",
-				message: `Unknown node type "${node.def}". Is a node pack missing from roswaal.json?`,
+				message:
+					REMOVED_NODES[node.def] ??
+					`Unknown node type "${node.def}". Is a node pack missing from roswaal.json?`,
 				node: node.id,
 			});
 		}

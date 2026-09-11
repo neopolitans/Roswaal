@@ -34,6 +34,18 @@ export const RENAMED_NODES: Record<string, string> = {
 	"type.declare": "type.declareTop",
 };
 
+/**
+ * Node ids taken out of the library, and what to say to a graph still using one.
+ *
+ * Such a graph does not compile either way. This is what makes it say why,
+ * rather than asking after a node pack that was never missing.
+ */
+export const REMOVED_NODES: Record<string, string> = {
+	"instance.findFirstDescendant":
+		"Find First Descendant was removed in 0.25.0, because Roblox has deprecated it. " +
+		"Use Find First Child with Recursive set.",
+};
+
 export type Registry = Map<string, NodeDef>;
 
 export function createRegistry(extra: NodeDef[] = []): Registry {

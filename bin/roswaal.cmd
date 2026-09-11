@@ -9,9 +9,7 @@ rem  calls an already-trusted interpreter sidesteps that entirely.
 rem
 setlocal
 
-rem  Where the user actually is, and where the tool lives. The CLI reads
-rem  ROSWAAL_CWD rather than trusting the process working directory.
-set "ROSWAAL_CWD=%CD%"
+rem  Where the tool lives.
 pushd "%~dp0.."
 set "ROSWAAL_HOME=%CD%"
 popd
@@ -31,7 +29,14 @@ if errorlevel 1 (
   exit /b 1
 )
 
-node "%ROSWAAL_ENTRY%" %*
-rem  Capture the exit code before anything else can clobber ERRORLEVEL.
-set "ROSWAAL_EXIT=%ERRORLEVEL%"
-exit /b %ROSWAAL_EXIT%
+rem  Node runs *after* this batch file has ended. A goto with no label ends
+rem  the batch on the spot, and the rest of the line -- already read, with
+rem  every variable in it already expanded -- carries on as a plain command.
+rem  So Ctrl+C reaches Node alone, and cmd has no batch job left to ask
+rem  "Terminate batch job (Y/N)?" about, or to echo ^C over.
+rem
+rem  Ending the batch ends its setlocal too, so nothing set above reaches
+rem  Node, and nothing leaks into a cmd that called this. Node needs nothing
+rem  from here: the working directory is still the user's, and the exit code
+rem  is Node's, because it is the last thing that runs.
+(goto) 2>nul & node "%ROSWAAL_ENTRY%" %*

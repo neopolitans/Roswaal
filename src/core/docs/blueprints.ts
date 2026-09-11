@@ -363,12 +363,12 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 				roswaal: "Get Children, Get Descendants, Find First Child Which Is A",
 				nodes: [
 					"instance.getChildren", "instance.getDescendants", "instance.findFirstChildWhichIsA",
-					"instance.findFirstDescendant",
+					"roblox.findFirstChild",
 				],
 				note:
-					"Which Is A matches derived classes; Of Class is exact. Find First Descendant " +
-					"searches the whole subtree by name, which is slower than a path — reach for " +
-					"Instance when you already know where it lives.",
+					"Which Is A matches derived classes; Of Class is exact. Find First Child with " +
+					"Recursive set searches the whole subtree by name, which is slower than a path — " +
+					"reach for Instance when you already know where it lives.",
 			},
 			{
 				unreal: "Get Component / Get Child Actor",

@@ -116,8 +116,8 @@ export interface PreviewGeometry {
 
 export interface PreviewOptions {
 	geometry: PreviewGeometry;
-	/** Header colour. Takes the two fields it reads, not a whole `NodeDef`. */
-	nodeColor: (node: { category: string; role?: string }) => string;
+	/** Header colour. Takes the fields it reads, not a whole `NodeDef`. */
+	nodeColor: (node: { id?: string; category: string; role?: string }) => string;
 	pinColor: (type: string | undefined, kind: "exec" | "data") => string;
 	/**
 	 * The curve a wire takes between two points, for graph previews.

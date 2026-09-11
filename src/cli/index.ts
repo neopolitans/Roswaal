@@ -203,6 +203,23 @@ function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Ctrl+C ends a blocking command, and says so on a line of its own.
+ *
+ * Left to the default, Node dies of the signal, and a Windows shell above it
+ * sees a process killed by Ctrl+C -- which is what prints `^C` over the last
+ * line of output. Stopping is how `serve` and `watch` are meant to end, so it
+ * exits cleanly instead. Unix terminals echo `^C` themselves with no newline
+ * after it, hence the leading one there.
+ */
+function exitOnInterrupt(message: string): void {
+	process.once("SIGINT", () => {
+		const lead = process.platform === "win32" ? "" : "\n";
+		process.stdout.write(`${lead}${dim(message)}\n`);
+		process.exit(0);
+	});
+}
+
 // ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
@@ -281,6 +298,8 @@ async function commandServe(args: Args): Promise<number> {
 	if (args.flags["no-open"] !== true) {
 		console.log(dim("  open the editor URL above; Ctrl+C stops the daemon"));
 	}
+
+	exitOnInterrupt(`stopped the daemon on :${port}`);
 
 	// startDaemon resolves once the socket is listening, but the process should
 	// stay alive; the open server handle does that on its own.
@@ -434,6 +453,7 @@ async function commandWatch(args: Args): Promise<number> {
 
 	console.log(`${bold("roswaal watch")} ${dim(project.config.sourceDir)}`);
 	console.log(dim("  Ctrl+C to stop"));
+	exitOnInterrupt("stopped watching");
 	await new Promise<never>(() => {});
 	return 0;
 }

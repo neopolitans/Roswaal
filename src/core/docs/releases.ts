@@ -46,6 +46,26 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.25.0",
+		date: "2026-09-11",
+		headline: "Review badges on the docs, and Ctrl+C without a prompt.",
+		breaking: true,
+		added: [
+			"**Every documentation page says whether a person has read it.** A badge beside the title reads Pending review, Reviewed or Verified, and the foot of the page says when it was last reviewed. Every page starts as Pending review. `npm run docs:reviews` lists where each one stands.",
+			"**Find First Child has Recursive**, an optional input that searches every descendant rather than only the children: `part:FindFirstChild(\"Handle\", true)`. Left unset, the call is unchanged.",
+		],
+		changed: [
+			"**Wires and pins** and **Building, and node maps** are rewritten to match the current editor.",
+			"**Declare Function has a red header**, the same as Function.",
+		],
+		fixed: [
+			"**Ctrl+C stops `roswaal serve` and `roswaal watch` without a `Terminate batch job (Y/N)?` prompt** or a `^C` over the last line, when run through `bin/roswaal.cmd`.",
+		],
+		watch: [
+			"**Find First Descendant is removed**, because Roblox has deprecated `FindFirstDescendant`. A graph using it no longer compiles, and the error says to use Find First Child with Recursive set.",
+		],
+	},
+	{
 		version: "0.24.3",
 		date: "2026-09-09",
 		headline: "Room around a function declared in the flow.",

@@ -20,6 +20,7 @@ import type { Block, DocPage, DocSection, DocSite } from "./site.js";
 import type { Registry } from "../nodes/index.js";
 import { allPages, parseInline, TAG_LABELS } from "./site.js";
 import { graphSvg, previewSvg, type PreviewOptions } from "./preview.js";
+import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
 
 export interface RenderOptions {
 	/** Turns Luau into HTML. Returns escaped text when absent. */
@@ -286,6 +287,14 @@ function renderOutline(page: DocPage): string {
 	return `<aside class="docs-toc"><div class="docs-toc-head">On this page</div>${links}</aside>`;
 }
 
+/** Pending, Reviewed or Verified, with what that means on hover. */
+function reviewBadge(review: Review): string {
+	return (
+		`<span class="badge review ${review.status}" title="${escapeHtml(REVIEW_DETAILS[review.status])}">` +
+		`${escapeHtml(REVIEW_LABELS[review.status])}</span>`
+	);
+}
+
 export function renderPage(site: DocSite, page: DocPage, options: RenderOptions): string {
 	const up = upTo(page.slug);
 	const body = page.blocks.map((b) => renderBlock(b, options)).join("\n");
@@ -309,11 +318,11 @@ ${renderNav(site, page)}
 <article class="docs-content">
 <div class="docs-article${page.narrow ? " narrow" : ""}">
 <header class="docs-title">
-<h1>${escapeHtml(page.title)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}</h1>
+<h1>${escapeHtml(page.title)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}${page.review ? reviewBadge(page.review) : ""}</h1>
 <p class="summary">${escapeHtml(page.summary)}</p>
 </header>
 ${body}
-<div class="docs-tail" aria-hidden="true"></div>
+${page.review ? `<p class="docs-reviewed">${escapeHtml(reviewLine(page.review))}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>
 </div>
 </article>
 ${renderOutline(page)}

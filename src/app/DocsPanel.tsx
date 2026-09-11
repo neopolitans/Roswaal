@@ -20,6 +20,7 @@ import {
 	type Block, type DocPage, type DocSection, type Inline,
 } from "../core/docs/site.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
+import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "../core/docs/reviews.js";
 import type { NodeScript } from "../core/schema.js";
 import {
 	graphSvg, previewSvg, type NodePreview, type PreviewOptions,
@@ -275,13 +276,24 @@ function Page({ page }: { page: DocPage }) {
 				<h1>
 					{page.title}
 					{page.custom && <span className="badge">from a node pack</span>}
+					{page.review && <ReviewBadge review={page.review} />}
 				</h1>
 				<p className="summary">{page.summary}</p>
 			</header>
 			{page.blocks.map((block, i) => (
 				<BlockView key={i} block={block} />
 			))}
+			{page.review && <p className="docs-reviewed">{reviewLine(page.review)}</p>}
 		</>
+	);
+}
+
+/** Pending, Reviewed or Verified, with what that means on hover. */
+function ReviewBadge({ review }: { review: Review }) {
+	return (
+		<span className={`badge review ${review.status}`} title={REVIEW_DETAILS[review.status]}>
+			{REVIEW_LABELS[review.status]}
+		</span>
 	);
 }
 
