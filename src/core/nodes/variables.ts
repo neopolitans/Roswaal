@@ -100,6 +100,23 @@ export interface FunctionRef {
 	name?: string;
 }
 
+/**
+ * Config shape for Get Parameter.
+ *
+ * Keyed by the parameter's **name**, not its position: dragging a parameter up
+ * the list in the Inspector would otherwise silently repoint every node reading
+ * it, and the graph would go on compiling while meaning something else. The
+ * emitter's key is still `p{i}`, so the index is resolved when it is needed.
+ */
+export interface ParamRef {
+	/** Node id of the function or handler whose parameter this reads. */
+	function?: string;
+	/** The parameter's name, which is its identity. */
+	param?: string;
+	/** Cached for the capsule's pin colour, as a local's type is. */
+	type?: string;
+}
+
 const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
 const data = (id: string, name: string, type: string): PinDef => ({
 	id, name, kind: "data", type,
@@ -199,5 +216,32 @@ export const VARIABLE_NODES: NodeDef[] = [
 		compilesTo: { kind: "builtin", handler: "function.get" },
 		display: "compact",
 		defaultLabel: (config) => (config as FunctionRef).name,
+	},
+	{
+		/**
+		 * A parameter, read where it is used rather than wired from the
+		 * declaration.
+		 *
+		 * The parameter pins on a Function node work and are not going away, but
+		 * they mean a wire from the declaration to every node that reads one --
+		 * and in a function of any size those wires cross the whole body. This
+		 * is the same trade Get Local makes against wiring a Declare Local's
+		 * output everywhere.
+		 */
+		id: "function.getParam",
+		title: "Get Parameter",
+		category: "Flow",
+		summary:
+			"A parameter of the function or handler this node sits inside, as a value. Pure, and read by name rather than by a wire back to the declaration.",
+		pure: true,
+		inputs: [],
+		outputs: [data("value", "", "any")],
+		compilesTo: { kind: "builtin", handler: "function.getParam" },
+		display: "compact",
+		derivePins(config: NodeConfig) {
+			const ref = config as ParamRef;
+			return { inputs: [], outputs: [data("value", "", pinTypeOf(ref.type))] };
+		},
+		defaultLabel: (config) => (config as ParamRef).param,
 	},
 ];

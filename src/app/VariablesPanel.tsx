@@ -13,6 +13,7 @@ import type { GraphNode, Literal, NodeScript, ScriptVariable } from "../core/sch
 import {
 	addVariable, defaultLiteralFor, deleteVariable, localRefFor, updateVariable, variableUsageCount,
 } from "./edits.js";
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { pinColor } from "./palette.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { store } from "./store.js";
@@ -34,6 +35,9 @@ export interface VariablesPanelProps {
 export function VariablesPanel({ script, confirm, locked }: VariablesPanelProps) {
 	const [open, setOpen] = useState<string | null>(null);
 	const locals = script.nodes.filter((n) => n.def === "local.declare");
+	// Both kinds, because a graph's functions are its functions: which one is
+	// hoisted is a property of each, shown on the row rather than sorted on.
+	const functions = script.nodes.filter((n) => FUNCTION_NODES.has(n.def));
 	const declaredTypes = script.nodes.filter(
 		(n) =>
 			(n.def === "type.declareTop" || n.def === "type.declareHere") &&
@@ -85,6 +89,18 @@ export function VariablesPanel({ script, confirm, locked }: VariablesPanelProps)
 						<h3 className="variables-sub">Locals</h3>
 						{locals.map((node) => (
 							<LocalRow key={node.id} node={node} />
+						))}
+					</>
+				)}
+
+				{/* The functions this graph declares. In a graph of any size the
+				    declaration is somewhere off screen, and this is the list that
+				    says what there is and takes you to one. */}
+				{functions.length > 0 && (
+					<>
+						<h3 className="variables-sub">Functions</h3>
+						{functions.map((node) => (
+							<FunctionRow key={node.id} node={node} />
 						))}
 					</>
 				)}
@@ -168,6 +184,38 @@ function LocalRow({ node }: { node: GraphNode }) {
 				<span className="swatch" style={{ background: pinColor(ref.type, "data") }} />
 				<span className="name">{ref.name}</span>
 				<span className="type">{declared || "any"}</span>
+			</div>
+		</div>
+	);
+}
+
+/**
+ * One function: drag it for a Get Function, click it to find the declaration.
+ *
+ * The detail says which of the two it is, because that is the thing you cannot
+ * tell from the name and the thing that decides where its body runs — hoisted
+ * to the top of the file, or declared where the node sits.
+ */
+function FunctionRow({ node }: { node: GraphNode }) {
+	const sig = (node.config ?? {}) as { name?: string };
+
+	function onDragStart(e: DragEvent) {
+		e.dataTransfer.setData("application/x-roswaal-function", JSON.stringify({ id: node.id }));
+		e.dataTransfer.effectAllowed = "copy";
+	}
+
+	return (
+		<div className="variable">
+			<div
+				className="variable-head"
+				draggable
+				title="Drag onto the canvas for a Get Function. Click to select the declaration."
+				onDragStart={onDragStart}
+				onClick={() => store.select([node.id])}
+			>
+				<span className="swatch" style={{ background: pinColor("function", "data") }} />
+				<span className="name">{sig.name || "function"}</span>
+				<span className="type">{node.def === "function.entry" ? "hoisted" : "here"}</span>
 			</div>
 		</div>
 	);

@@ -54,6 +54,23 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.32.0",
+		date: "2026-09-12",
+		headline: "Read a parameter where you use it.",
+		added: [
+			"**Get Parameter**: a function's parameter as a value, read by name rather than by a wire back to the declaration. In a function of any size those wires cross the whole body — this is the trade Get Local already makes against wiring a Declare Local everywhere. The pins are still there.",
+			"**It works in an event handler too.** Connect binds its handler's parameters exactly as a function does, so a Get Parameter inside one reads them the same way.",
+			"**Functions in the Variables panel**, beside Locals and Types. Click one to select its declaration — useful when it is somewhere off screen in a large graph — or drag it onto the canvas for a Get Function.",
+		],
+		changed: [
+			"**Renaming a parameter carries its readers with it.** Reordering leaves them alone, because a Get Parameter holds the name rather than the position. Removing one leaves the node saying which parameter is gone, rather than quietly reading whichever took its place.",
+		],
+		watch: [
+			"A Get Parameter only resolves **inside the body it belongs to** — that is what a parameter is. Outside one it reports that it is not inside the function, naming both.",
+		],
+		verified: ["variables-and-locals"],
+	},
+	{
 		version: "0.31.6",
 		date: "2026-09-12",
 		headline: "A comment about nothing in particular.",

@@ -81,7 +81,9 @@ export const REVIEWS: Record<
 	// cannot show, and the two Declare Type shapes for a type that is a
 	// declaration rather than a name.
 	"casting": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
-	"variables-and-locals": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
+	// Read again for 0.32.0, when Get Parameter joined the locals it sits
+	// beside: the same idea of reading something by name instead of by a wire.
+	"variables-and-locals": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
 	"building-and-rojo": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	"hand-written-luau": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	// Read again for 0.31.4, when Long names was added to its table of

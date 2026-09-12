@@ -14,7 +14,7 @@ import { resolvePins } from "./geometry.js";
 import { nodeColor } from "./palette.js";
 import {
 	addVariable, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, disconnectInput, renameNode,
-	setConfig, setLiteral, syncFunctionRefs, syncFunctionReturns,
+	setConfig, setLiteral, syncFunctionRefs, syncFunctionReturns, syncParamRefs,
 } from "./edits.js";
 import { FUNCTION_NODES, typeShapeOf } from "../core/nodes/flow.js";
 import { localNameOf } from "../core/nodes/variables.js";
@@ -185,6 +185,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 					<VariablePicker script={script} node={node} />
 				)}
 				{def.id === "function.get" && <FunctionPicker script={script} node={node} />}
+				{def.id === "function.getParam" && <ParamPicker script={script} node={node} />}
 				{def.id === "local.get" && <LocalPicker script={script} node={node} />}
 				{def.id === "local.declare" && <LocalType node={node} />}
 
@@ -633,6 +634,88 @@ function LocalType({ node }: { node: GraphNode }) {
 	);
 }
 
+/**
+ * Which parameter a Get Parameter reads: whose, and then which.
+ *
+ * Two steps rather than one flat list, because parameter names repeat across
+ * functions — a list of bare names would offer three called `character` with
+ * nothing to tell them apart.
+ *
+ * The owners are a **wider** set than `FunctionPicker`'s. Connect and Once bind
+ * their handler's parameters exactly as the two declarations do, so a handler
+ * is a legitimate thing to read a parameter from, and offering only functions
+ * here would make a working graph unbuildable from the Inspector.
+ */
+function ParamPicker({ script, node }: { script: NodeScript; node: GraphNode }) {
+	const ref = (node.config ?? {}) as { function?: string; param?: string };
+	const owners = script.nodes.filter(
+		(n) => FUNCTION_NODES.has(n.def) || n.def === "event.connect" || n.def === "event.once",
+	);
+	if (owners.length === 0) {
+		return <p className="summary">This graph has no functions or handlers with parameters yet.</p>;
+	}
+
+	const owner = owners.find((n) => n.id === ref.function);
+	const params =
+		((owner?.config as { params?: { name: string; type?: string }[] } | undefined)?.params) ?? [];
+
+	/** Picking an owner clears a parameter that owner does not have. */
+	const chooseOwner = (id: string) => {
+		const next = owners.find((n) => n.id === id);
+		const list =
+			((next?.config as { params?: { name: string }[] } | undefined)?.params) ?? [];
+		const keep = list.some((p) => p.name === ref.param) ? ref.param : list[0]?.name;
+		store.edit((s) => setConfig(s, node.id, { function: id, param: keep, type: undefined }));
+	};
+
+	const chooseParam = (name: string) => {
+		const found = params.find((p) => p.name === name);
+		store.edit((s) => setConfig(s, node.id, { param: name, type: found?.type }));
+	};
+
+	return (
+		<>
+			<Field label="From">
+				<select
+					className="tb"
+					value={ref.function ?? ""}
+					onChange={(e) => chooseOwner(e.target.value)}
+				>
+					{ref.function === undefined && <option value="">Choose a function…</option>}
+					{owners.map((fn) => (
+						<option key={fn.id} value={fn.id}>
+							{/* A handler has no name of its own — it is identified by the
+						    signal it listens to, which is a wire rather than a
+						    label — so it is named by what it is. */}
+						{(fn.config as { name?: string } | undefined)?.name
+								|| (FUNCTION_NODES.has(fn.def) ? "function" : "handler")}
+						</option>
+					))}
+				</select>
+			</Field>
+
+			<Field label="Parameter" hint="Reads it wherever this node sits inside that body.">
+				{params.length === 0 ? (
+					<p className="summary">That one has no parameters yet.</p>
+				) : (
+					<select
+						className="tb"
+						value={ref.param ?? ""}
+						onChange={(e) => chooseParam(e.target.value)}
+					>
+						{ref.param === undefined && <option value="">Choose a parameter…</option>}
+						{params.map((p) => (
+							<option key={p.name} value={p.name}>
+								{p.name}
+							</option>
+						))}
+					</select>
+				)}
+			</Field>
+		</>
+	);
+}
+
 function LocalPicker({ script, node }: { script: NodeScript; node: GraphNode }) {
 	const current = (node.config as { local?: string } | undefined)?.local ?? "";
 	const locals = script.nodes.filter((n) => n.def === "local.declare");
@@ -703,9 +786,14 @@ function ListEditor({ node, field, title, hint }: ListEditorProps) {
 			const updated = setConfig(s, node.id, { [field]: next });
 			// Changing a function's returns has to reach its Return nodes, or the
 			// graph and the signature drift apart silently.
-			return field === "returns" && FUNCTION_NODES.has(node.def)
-				? syncFunctionReturns(updated, node.id)
-				: updated;
+			if (field === "returns" && FUNCTION_NODES.has(node.def)) {
+				return syncFunctionReturns(updated, node.id);
+			}
+			// And renaming a parameter has to reach every Get Parameter reading
+			// it. The whole array is rewritten on each keystroke, so the sync is
+			// handed both versions and works out what actually happened.
+			if (field === "params") return syncParamRefs(updated, node.id, list, next);
+			return updated;
 		});
 	};
 

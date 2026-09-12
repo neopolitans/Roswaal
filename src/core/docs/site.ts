@@ -1337,6 +1337,9 @@ const VARIABLES: DocPage = {
 					"had.",
 				"Renaming a variable in the panel renames every Get and Set of it at once. They " +
 					"carry its id, not its name.",
+				"The panel also lists this graph's **Locals**, **Functions** and **Types**. Click a " +
+					"function to select its declaration — which in a large graph is usually off " +
+					"screen — or drag it out for a **Get Function**.",
 			],
 		},
 		{
@@ -1366,6 +1369,42 @@ const VARIABLES: DocPage = {
 				"Reading a local from a **sibling block** is reported as an error rather than " +
 				"emitted as code that will not compile. The local genuinely is not in scope there, " +
 				"and finding that out from Roswaal beats finding it out from Studio.",
+		},
+
+		{ t: "h", level: 2, text: "Parameters" },
+		{
+			t: "p",
+			text:
+				"A function's parameters are output pins on its declaration, and wiring one to " +
+				"whatever reads it works. In a function of any size those wires cross the whole " +
+				"body — so **Get Parameter** reads one by name instead, the way Get Local reads a " +
+				"local rather than wiring the Declare Local's output everywhere. Pick the function " +
+				"and the parameter in the Inspector. The pins are still there; this is the other way.",
+		},
+		{
+			t: "p",
+			text:
+				"It works inside an **event handler** as well as a function: Connect binds its " +
+				"handler's parameters in the same way, so a Get Parameter in the handler's body " +
+				"reads them just as it would a function's.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"A parameter exists only **where the function runs**, so a Get Parameter outside " +
+				"the body it belongs to is an error naming both. That is the same rule a local " +
+				"follows, for the same reason — and it is the compiler's own scope rule rather " +
+				"than a separate check, so the editor and the generated file cannot disagree " +
+				"about it.",
+		},
+		{
+			t: "p",
+			text:
+				"Renaming a parameter carries every node reading it along. **Reordering** them " +
+				"leaves those nodes alone, because a Get Parameter holds the parameter's name and " +
+				"not its position. **Removing** one leaves the node saying which parameter is " +
+				"gone, rather than quietly reading whichever moved into its place.",
 		},
 
 		{ t: "h", level: 2, text: "Naming a result" },

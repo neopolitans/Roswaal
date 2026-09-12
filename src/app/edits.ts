@@ -723,6 +723,12 @@ export function growNode(
 			if (owner) updated = setConfig(updated, owner, { returns: grown });
 		}
 		if (FUNCTION_NODES.has(def.id)) updated = syncFunctionReturns(updated, nodeId);
+		// The other way a signature's parameters change: the − on the node's own
+		// header drops the last one, which the Inspector never sees. Taking a
+		// parameter away leaves the nodes reading it pointing at nothing, which
+		// `syncParamRefs` deliberately does not repair — `validate` names it
+		// against the node instead of silently attaching it to a neighbour.
+		if (rule.field === "params") updated = syncParamRefs(updated, nodeId, list, grown);
 	}
 
 	if (delta <= 0) return { script: updated };
@@ -1312,6 +1318,71 @@ export function syncFunctionRefs(script: NodeScript): NodeScript {
 			return { ...node, config: { ...node.config, name } };
 		}),
 	};
+}
+
+/**
+ * Keeps Get Parameter nodes pointing at the right parameter when a signature
+ * is edited, and their cached types current.
+ *
+ * `ListEditor` rewrites the whole `params` array on every keystroke, so there
+ * is no rename *event* to react to — only a before and an after. Rename,
+ * reorder and deletion therefore have to be told apart by inference, and
+ * getting that wrong is the worst shape of bug available here: the graph goes
+ * on compiling and means something else.
+ *
+ * Comparing by position alone is not enough. Swapping two parameters looks
+ * exactly like two renames, and acting on it would cross-repoint every
+ * reference. So the discriminator is what became of the *names*:
+ *
+ * - **Renamed** — the old name is gone from the new list, and the name now at
+ *   that position is one the old list did not have. Repoint.
+ * - **Reordered** — every old name is still somewhere in the new list. Nothing
+ *   to do: references are by name and are already right.
+ * - **Deleted** — the old name is gone, but the position now holds a name that
+ *   existed before. Left dangling on purpose, so `validate` reports it against
+ *   the node instead of it silently attaching to a neighbour.
+ */
+export function syncParamRefs(
+	script: NodeScript,
+	ownerId: string,
+	before: { name: string; type?: string }[],
+	after: { name: string; type?: string }[],
+): NodeScript {
+	const wasNamed = new Set(before.map((p) => p.name));
+	const isNamed = new Set(after.map((p) => p.name));
+
+	const renames = new Map<string, string>();
+	for (let i = 0; i < before.length; i++) {
+		const was = before[i]?.name;
+		const now = after[i]?.name;
+		if (was === undefined || now === undefined || was === now) continue;
+		// Still in the list somewhere: a reorder, and by-name references hold.
+		if (isNamed.has(was)) continue;
+		// This position now holds a name that already existed: a deletion shifted
+		// the list up, and the two are not the same parameter.
+		if (wasNamed.has(now)) continue;
+		renames.set(was, now);
+	}
+
+	const typeOf = new Map(after.map((p) => [p.name, p.type]));
+
+	let changed = false;
+	const nodes = script.nodes.map((node) => {
+		if (node.def !== "function.getParam") return node;
+		const ref = (node.config ?? {}) as { function?: string; param?: string; type?: string };
+		if (ref.function !== ownerId || ref.param === undefined) return node;
+
+		const param = renames.get(ref.param) ?? ref.param;
+		// Refreshed even when the name did not move: a parameter's *type* can
+		// change on its own, and the capsule takes its pin colour from this.
+		const type = typeOf.has(param) ? pinTypeOf(typeOf.get(param)) : ref.type;
+		if (param === ref.param && type === ref.type) return node;
+
+		changed = true;
+		return { ...node, config: { ...node.config, param, type } };
+	});
+
+	return changed ? { ...script, nodes } : script;
 }
 
 // ---------------------------------------------------------------------------

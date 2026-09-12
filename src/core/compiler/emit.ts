@@ -22,7 +22,7 @@ import { checkLuauBalance } from "../luauCheck.js";
 import { PAIR } from "../schema.js";
 import type { Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
-import type { FunctionRef, LocalRef, VariableRef } from "../nodes/variables.js";
+import type { FunctionRef, LocalRef, ParamRef, VariableRef } from "../nodes/variables.js";
 import { isService as isRobloxService, lastSegment, renderPath } from "../roblox.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
 import {
@@ -1384,6 +1384,55 @@ class Emitter {
 			 * inside the block that made it and anything nested in that block —
 			 * a branch, a loop, a function declared further down.
 			 */
+			/**
+			 * A parameter of the function or handler this node sits inside.
+			 *
+			 * The same shape as Get Local, against a key three binders already
+			 * write: `function.entry`, `function.declareHere` and `event.connect`
+			 * each bind `${id}/p${i}` into the body's **own** scope before
+			 * walking it. So "this node has to be inside the body" is not a rule
+			 * implemented here — it is what the scope chain already means, and a
+			 * node outside simply finds nothing and is told so.
+			 *
+			 * Looked up by name and resolved to an index, because the name is
+			 * what the node stores: see `ParamRef`.
+			 */
+			case "function.getParam": {
+				const ref = (src.node.config ?? {}) as ParamRef;
+				const owner = ref.function ? this.index.get(ref.function) : undefined;
+				if (!ref.function || !owner) {
+					this.error(
+						ref.function
+							? "Get Parameter points at a function that is no longer in this graph."
+							: "Get Parameter has no function chosen.",
+						src.node.id,
+					);
+					return "nil";
+				}
+
+				const signature = (owner.node.config ?? {}) as Signature;
+				const owning = signature.name || owner.node.label || "that function";
+				const index = (signature.params ?? []).findIndex((p) => p.name === ref.param);
+				if (index === -1) {
+					this.error(
+						`"${ref.param ?? "That parameter"}" is not a parameter of "${owning}".`,
+						src.node.id,
+					);
+					return "nil";
+				}
+
+				const bound = scope.lookup(`${ref.function}/p${index}`);
+				if (bound) return bound;
+				this.error(
+					`"${ref.param}" is a parameter of "${owning}", and this node is not inside its ` +
+					"body. A parameter exists only where the function runs — wire this into " +
+					"something on the function's Body, or use a variable for a value the whole " +
+					"script reads.",
+					src.node.id,
+				);
+				return "nil";
+			}
+
 			case "local.get": {
 				const ref = (src.node.config ?? {}) as LocalRef;
 				const declared = ref.local ? this.index.get(ref.local) : undefined;

@@ -25,7 +25,8 @@ import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
 import { pinColor } from "./palette.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
-	addNode, bindNodeToLocal, bindNodeToVariable, canConnect, commentContents, commentsByArea, connect,
+	addNode, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, canConnect, commentContents,
+	commentsByArea, connect,
 	capturePlacements, currentArity, disconnectPin, growNode, growthRule,
 	insertReroute, pinLinkCount, placeNodes, removeLink, selectionAnchor, setConfig, setLiteral,
 	updateComment,
@@ -614,6 +615,24 @@ export function Canvas({
 						const added = addNode(s, def, world.x - NODE.compactMinWidth / 2, world.y - NODE.compactHeight / 2);
 						queueMicrotask(() => store.select([added.id]));
 						return bindNodeToLocal(added.script, added.id, id);
+					});
+					return;
+				}
+
+				// A function from the Functions list: a Get Function pointed at it.
+				// The same shape as a local, because it is the same idea — a
+				// reference to something declared elsewhere in this graph.
+				const fn = e.dataTransfer.getData("application/x-roswaal-function");
+				if (fn) {
+					e.preventDefault();
+					const { id } = JSON.parse(fn) as { id: string };
+					const def = registry.get("function.get");
+					if (!def) return;
+					const world = toWorld(e.clientX, e.clientY);
+					store.edit((s) => {
+						const added = addNode(s, def, world.x - NODE.compactMinWidth / 2, world.y - NODE.compactHeight / 2);
+						queueMicrotask(() => store.select([added.id]));
+						return bindNodeToFunction(added.script, added.id, id);
 					});
 					return;
 				}

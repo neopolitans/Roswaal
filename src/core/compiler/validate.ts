@@ -250,6 +250,19 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id),
 	);
 
+	/**
+	 * Everything that binds parameters, which is a wider set than the two that
+	 * declare a function: Connect and Once bind their handler's parameters the
+	 * same way, into the same `p{i}` keys. Get Parameter works inside a handler
+	 * for that reason, so checking it against `functionIds` would report a
+	 * working graph as pointing at something that is not there.
+	 */
+	const paramOwnerIds = new Set(
+		script.nodes
+			.filter((n) => FUNCTION_NODES.has(n.def) || n.def === "event.connect" || n.def === "event.once")
+			.map((n) => n.id),
+	);
+
 	for (const node of script.nodes) {
 		if (node.def === "variable.get" || node.def === "variable.set") {
 			const ref = (node.config ?? {}) as { variable?: string };
@@ -277,6 +290,46 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 					message: "This node points at a function that is no longer in the graph.",
 					node: node.id,
 				});
+			}
+		}
+		/**
+		 * Get Parameter, which can point at a *handler* as well as a function:
+		 * Connect binds its parameters exactly as the two declarations do, so
+		 * `FUNCTION_NODES` is the wrong set here and would report a working
+		 * graph as broken.
+		 *
+		 * The second check is the one the others do not need. A function that
+		 * still exists can stop having a parameter by that name, and the node
+		 * left behind is pointing at something real that no longer has what it
+		 * asked for — which deserves to say so rather than fail at compile.
+		 */
+		if (node.def === "function.getParam") {
+			const ref = (node.config ?? {}) as { function?: string; param?: string };
+			const owner = ref.function
+				? script.nodes.find((n) => n.id === ref.function && paramOwnerIds.has(n.id))
+				: undefined;
+			if (!ref.function) {
+				out.push({ severity: "error", message: "Get Parameter has no function chosen.", node: node.id });
+			} else if (!owner) {
+				out.push({
+					severity: "error",
+					message: "This node points at a function that is no longer in the graph.",
+					node: node.id,
+				});
+			} else {
+				const signature = (owner.config ?? {}) as {
+					name?: string; params?: { name?: string }[];
+				};
+				const named = (signature.params ?? []).some((p) => p.name === ref.param);
+				if (!named) {
+					out.push({
+						severity: "error",
+						message:
+							`"${ref.param ?? "That parameter"}" is not a parameter of ` +
+							`"${signature.name ?? "that function"}" any more.`,
+						node: node.id,
+					});
+				}
 			}
 		}
 	}
