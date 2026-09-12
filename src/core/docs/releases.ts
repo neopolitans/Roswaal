@@ -54,6 +54,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.31.6",
+		date: "2026-09-12",
+		headline: "A comment about nothing in particular.",
+		changed: [
+			"**`C` no longer needs a selection.** With nodes picked it still draws a comment around them; with nothing picked you get an empty one, placed where the canvas is looking rather than at the far corner of the graph.",
+		],
+		added: [
+			"**The Controls page says how to make a comment** — by key and by right-click — which it never did.",
+		],
+		verified: ["controls"],
+	},
+	{
 		version: "0.31.5",
 		date: "2026-09-12",
 		headline: "Hot reload is Dynamic compiling.",

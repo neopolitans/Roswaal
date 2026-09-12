@@ -1196,7 +1196,7 @@ const CONTROLS: DocPage = {
 				["`Ctrl` + `Shift` + `L`", "Realign the whole graph"],
 				["`Delete`, `Backspace`", "Delete the selection"],
 				["`A`", "Align the selection, walking it in the order you picked it"],
-				["`C`", "Comment around the selection"],
+				["`C`", "Comment around the selection, or an empty one if nothing is selected"],
 				["`P`", "Preview the Luau the selection compiles to"],
 			],
 		},
@@ -1282,6 +1282,8 @@ const CONTROLS: DocPage = {
 			t: "table",
 			head: ["Gesture", "What it does"],
 			rows: [
+				["`C`", "A new comment: around the selection, or empty where you are looking"],
+				["Right-click the canvas", "**Add comment**, placed where you clicked"],
 				["Drag", "Move it, and the nodes that were inside it when you grabbed it"],
 				["Double-click", "Edit the text. Enter adds a line; Esc, Ctrl+Enter or a click away saves"],
 				["Drag the bottom-right corner", "Resize"],

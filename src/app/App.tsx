@@ -39,6 +39,7 @@ import {
 	clampLayout, movePanel, resizeDock, toggleDock,
 	type DockSide, type PanelId,
 } from "./panels.js";
+import { screenToWorld } from "./geometry.js";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
@@ -730,7 +731,10 @@ export function App() {
 		const selected = store.getSnapshot().selection;
 		store.edit((s) => {
 			// Wrapping a selection is the common case, so a comment created with
-			// nodes selected sizes itself to enclose them.
+			// nodes selected sizes itself to enclose them. With nothing selected
+			// it is a plain box at the point given: a comment is a note on the
+			// canvas, and one about nothing in particular — a heading, a reminder,
+			// a space left for work not done yet — is a fair thing to write.
 			const box = boundsOf(s, selected, registry);
 			const rect = box
 				? { x: box.x - 24, y: box.y - 52, w: box.w + 48, h: box.h + 76 }
@@ -958,12 +962,24 @@ export function App() {
 				store.edit((s) => alignToAnchor(s, registry, ids, anchor));
 				return;
 			}
-			if (e.key.toLowerCase() === "c" && !mod && store.getSnapshot().selection.size > 0) {
+			if (e.key.toLowerCase() === "c" && !mod) {
 				e.preventDefault();
-				spawnComment({ x: 0, y: 0 });
+				/**
+				 * Where the canvas is looking, rather than world origin.
+				 *
+				 * With a selection the point is ignored — the comment sizes
+				 * itself around what is selected. Without one it is the whole
+				 * answer, and `(0, 0)` would drop the comment at the world's
+				 * origin, which is usually nowhere near the screen. The view's
+				 * offset and zoom say where its top-left corner is without
+				 * anyone needing to know how big the canvas is.
+				 */
+				const inset = 64;
+				spawnComment(screenToWorld(store.getView(), inset, inset));
 			}
-			// Unmodified, like C for comment, and only with something selected —
-			// so it stays out of the way until it has a question to answer.
+			// Unmodified, and only with something selected: with nothing picked
+			// there is nothing to preview, so it stays out of the way until it
+			// has a question to answer.
 			if (e.key.toLowerCase() === "p" && !mod && store.getSnapshot().selection.size > 0) {
 				e.preventDefault();
 				setPreviewOpen(true);
