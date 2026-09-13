@@ -15,9 +15,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-	buildTree, collectMaps, compileAll, compileMap, compileScript, createFolder, graphName,
-	deleteEntry, exportedTypes, initProject, listPacks, moveEntry, openProject, readMap, readScript,
-	readText, savePackNode,
+	buildTree, collectMaps, compileAll, compileMap, compileScript, copyPackBetween, createFolder,
+	createPack, deletePackNode,
+	deleteEntry, deletePack, duplicatePack, exportedTypes, graphName, initProject, listPacks,
+	moveEntry, openProject, packUsage, readConfig, readMap, readPack, readScript, readText,
+	savePackNode, scanProjectPacks, setPackRequires,
 	findOrphanOutputs, locateFile, removeOutputs, renameEntry, safeJoin,
 	writeConfig, writeMap, writeScript,
 	type OpenProject,
@@ -482,7 +484,78 @@ app.post("/api/folder/create", route(async (req) => {
  */
 app.get("/api/packs", route(async () => {
 	const p = project();
-	return { packs: await listPacks(p), dir: p.config.nodePaths[0] ?? ".roswaal/nodes" };
+	return {
+		packs: await listPacks(p),
+		dir: p.config.nodePaths[0] ?? ".roswaal/nodes",
+		// What a pack's targets are checked against on its card.
+		target: p.config.target,
+	};
+}));
+
+/** One pack's nodes, as the file writes them, for the designer to open. */
+app.get("/api/packs/read", route(async (req) => {
+	const { pack, nodes } = await readPack(project(), requireQuery(req, "path"));
+	return { pack, nodes };
+}));
+
+/** Reopens the project after a pack changed, so the editor's palette follows. */
+async function reloadPacks(): Promise<void> {
+	current = await openProject(current!.root);
+	syncDynamicCompile();
+}
+
+app.post("/api/packs/create", route(async (req) => {
+	const { name } = req.body as { name?: string };
+	const pack = await createPack(project(), name ?? "");
+	await reloadPacks();
+	return { pack };
+}));
+
+/** A copy beside it, in its own namespace. For a Luau pack, the editable JSON copy. */
+app.post("/api/packs/duplicate", route(async (req) => {
+	const { path: relPath } = req.body as { path?: string };
+	if (!relPath) throw new HttpError(400, "Provide a path.");
+	const pack = await duplicatePack(project(), relPath);
+	await reloadPacks();
+	return { pack };
+}));
+
+/** Which graphs use a pack's nodes, asked before deleting it. */
+app.get("/api/packs/usage", route(async (req) => {
+	return { usage: await packUsage(project(), requireQuery(req, "path")) };
+}));
+
+app.post("/api/packs/delete", route(async (req) => {
+	const { path: relPath } = req.body as { path?: string };
+	if (!relPath) throw new HttpError(400, "Provide a path.");
+	await deletePack(project(), relPath);
+	await reloadPacks();
+	return { ok: true };
+}));
+
+/** Another project's packs, to import from. Reading, so harmless for any folder. */
+app.get("/api/packs/scan", route(async (req) => {
+	return scanProjectPacks(requireQuery(req, "root"));
+}));
+
+/** Copies a pack from another project into this one. */
+app.post("/api/packs/import", route(async (req) => {
+	const { root, path: relPath } = req.body as { root?: string; path?: string };
+	if (!root || !relPath) throw new HttpError(400, "Provide both root and path.");
+	const from = await scanProjectPacks(root);
+	const fromConfig = await readConfig(from.root);
+	const pack = await copyPackBetween({ root: from.root, config: fromConfig }, relPath, project());
+	await reloadPacks();
+	return { pack };
+}));
+
+/** Copies one of this project's packs into another project. */
+app.post("/api/packs/export", route(async (req) => {
+	const { root, path: relPath } = req.body as { root?: string; path?: string };
+	if (!root || !relPath) throw new HttpError(400, "Provide both root and path.");
+	const to = await scanProjectPacks(root);
+	const toConfig = await readConfig(to.root);
+	return { pack: await copyPackBetween(project(), relPath, { root: to.root, config: toConfig }) };
 }));
 
 /**
@@ -491,13 +564,30 @@ app.get("/api/packs", route(async () => {
  * a node you have to take on trust.
  */
 app.put("/api/packs/node", route(async (req) => {
-	const { path: relPath, def } = req.body as { path?: string; def?: NodeDef };
+	const { path: relPath, def, replaces } = req.body as { path?: string; def?: NodeDef; replaces?: string };
 	if (!relPath || !def) throw new HttpError(400, "Provide both path and def.");
 
-	const written = await savePackNode(project(), relPath, def);
+	const written = await savePackNode(project(), relPath, def, replaces);
 	current = await openProject(current!.root);
 	syncDynamicCompile();
 	return { pack: written, packs: current.packs };
+}));
+
+/** The packs a pack's logic can be built from, by name. */
+app.post("/api/packs/requires", route(async (req) => {
+	const { path: relPath, requires } = req.body as { path?: string; requires?: string[] };
+	if (!relPath || !Array.isArray(requires)) throw new HttpError(400, "Provide a path and a requires list.");
+	const pack = await setPackRequires(project(), relPath, requires);
+	await reloadPacks();
+	return { pack };
+}));
+
+app.post("/api/packs/node/delete", route(async (req) => {
+	const { path: relPath, id } = req.body as { path?: string; id?: string };
+	if (!relPath || !id) throw new HttpError(400, "Provide both path and id.");
+	const pack = await deletePackNode(project(), relPath, id);
+	await reloadPacks();
+	return { pack };
 }));
 
 /** The types the project's modules export, for the editor to offer by name. */

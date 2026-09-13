@@ -54,6 +54,38 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.34.0",
+		date: "2026-09-13",
+		headline: "Design a node by building it.",
+		added: [
+			"**Node Design is a visual editor.** It opens on the project's packs and the built-in library, as cards or a list.",
+			"**Pack actions**: New pack, Import from a project, Duplicate, Copy to another project, Copy JSON, Show in file manager and Delete. A Luau pack opens read-only, with Save as JSON pack.",
+			"**A node is built on a canvas of its own.** Drag a pin type onto either side, click a pin to edit it, type the title on the header, and draw a pure node with no inputs and one output as a pill.",
+			"**Logic in Luau, or built from nodes.** The Nodes tab builds a node's logic between Node Inputs and Node Outputs, and compiles it to Luau as you go.",
+			"**A pack can require other packs**, whose nodes its logic can use. A required pack the project does not have is marked.",
+			"**Runs on**, in a node's details: Roblox, Lune, or both. Logic built from nodes narrows it, and a node that would run on nothing cannot be saved.",
+			"**Name in the graph tools**, in Settings, shows the graph's name at the start of the tools over the canvas.",
+			"**Creating custom nodes has Node Design - Visual and Node Design - Luau tabs**, with worked examples of each kind of template.",
+		],
+		changed: [
+			"**The graph's tools float over the canvas** in three groups, instead of taking a row above it.",
+			"**The node designer is called Node Design**, and its header has help and Docs buttons. Both headers say Open Editor.",
+			"**A node pack can draw a pure node as a pill**, with `\"display\": \"compact\"`.",
+		],
+		watch: [
+			"**A step node with no execution input loads with a warning**: nothing can run it.",
+			"**The designer form is gone.** Nodes are made in Node Design's editor.",
+		],
+	},
+	{
+		version: "0.33.1",
+		date: "2026-09-13",
+		headline: "Preview the function you are in.",
+		fixed: [
+			"**`P` in a function's tab with nothing selected previews that function**, not the whole script. The nodescript's own graph still previews the whole script.",
+		],
+	},
+	{
 		version: "0.33.0",
 		date: "2026-09-13",
 		headline: "Every function opens in its own graph.",

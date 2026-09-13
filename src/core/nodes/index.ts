@@ -239,6 +239,12 @@ export function subcategories(registry: Registry, category: string): string[] {
 export interface PackParseResult {
 	defs: NodeDef[];
 	errors: string[];
+	/**
+	 * Things wrong with a node that still loads. A pack that loaded before a
+	 * check existed has to go on loading, so a new check about something that
+	 * never broke the file is a warning, not a refusal.
+	 */
+	warnings: string[];
 }
 
 /**
@@ -250,12 +256,17 @@ export interface PackParseResult {
  */
 export function parseNodePack(source: unknown, origin: string): PackParseResult {
 	const errors: string[] = [];
+	const warnings: string[] = [];
 	const defs: NodeDef[] = [];
 
 	const raw = source as { nodes?: unknown };
 	const list = Array.isArray(source) ? source : Array.isArray(raw?.nodes) ? raw.nodes : null;
 	if (!list) {
-		return { defs, errors: [`${origin}: expected an array of nodes, or an object with a "nodes" array.`] };
+		return {
+			defs,
+			errors: [`${origin}: expected an array of nodes, or an object with a "nodes" array.`],
+			warnings,
+		};
 	}
 
 	list.forEach((entry, i) => {
@@ -302,6 +313,22 @@ export function parseNodePack(source: unknown, origin: string): PackParseResult 
 			}
 		}
 
+		// A pill has nowhere to draw an input, so only a getter's shape may be one.
+		const display = n.display === "compact" ? "compact" : undefined;
+		if (display === "compact" && (!isPure || inputs.length > 0 || outputs.length !== 1)) {
+			errors.push(`${where} (${n.id}): a pill ("display": "compact") is a pure node with no inputs and one output.`);
+			return;
+		}
+
+		// Nothing walks into a step with no execution input, so it is never
+		// compiled at all. Loaded anyway: a pack like this loaded before the check.
+		if (!isPure && !inputs.some((p) => p.kind === "exec")) {
+			warnings.push(
+				`${where} (${n.id}): a "${spec.kind}" node with no execution input is never run. ` +
+				'Give it an "in" pin, or make it "expr".',
+			);
+		}
+
 		defs.push({
 			id: n.id,
 			title: n.title,
@@ -316,13 +343,14 @@ export function parseNodePack(source: unknown, origin: string): PackParseResult 
 			pure: isPure,
 			latent: n.latent === true,
 			targets: Array.isArray(n.targets) ? n.targets : undefined,
+			display,
 			inputs,
 			outputs,
 			compilesTo: spec,
 		});
 	});
 
-	return { defs, errors };
+	return { defs, errors, warnings };
 }
 
 /**

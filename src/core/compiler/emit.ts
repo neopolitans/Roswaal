@@ -155,6 +155,52 @@ export function emit(script: NodeScript, registry: Registry, sourceHash: string)
 	return new Emitter(script, registry, sourceHash).run();
 }
 
+/**
+ * How the emitter is asked to write, when what it writes is not a file.
+ *
+ * A custom node's logic built from nodes compiles to that node's **template**,
+ * and a template is spliced into somebody else's file — so it has no top of the
+ * file to hoist to, and a pure node's template is one expression with nowhere to
+ * put a local. These two switches are those two facts.
+ */
+export interface EmitOptions {
+	/** Write Get Service and Require Module where they are used, not at the top. */
+	inline?: boolean;
+	/**
+	 * Never bind a pure value to a local, however many places read it. For a
+	 * pure node's logic, which is one expression per output.
+	 */
+	expressionsOnly?: boolean;
+}
+
+/** What a node's logic compiles to, before the placeholders are put back. */
+export interface LogicEmit {
+	/** An impure node's body, one statement to a line. */
+	body: string;
+	/** A pure node's expression per output pin. */
+	expressions: Record<string, string>;
+	diagnostics: Diagnostic[];
+}
+
+/** The identifier an input pin is bound to while its logic compiles. */
+export const logicInputName = (pinId: string) => `__rsw_in_${pinId}`;
+/** The identifier an output pin is assigned to while its logic compiles. */
+export const logicOutputName = (pinId: string) => `__rsw_out_${pinId}`;
+
+/**
+ * Emits a node's logic graph: from its Node Inputs to its Node Outputs.
+ *
+ * See `compileLogic` in `logic.ts`, which is the only caller and the place the
+ * rules about what a logic graph may hold are kept.
+ */
+export function emitLogic(
+	script: NodeScript,
+	registry: Registry,
+	shape: { inputsId: string; outputsId: string; pure: boolean; inputs: string[]; outputs: string[] },
+): LogicEmit {
+	return new Emitter(script, registry, "", { inline: true, expressionsOnly: shape.pure }).runLogic(shape);
+}
+
 class Emitter {
 	private index: GraphIndex;
 	private names = new NameScope();
@@ -204,6 +250,7 @@ class Emitter {
 		private script: NodeScript,
 		registry: Registry,
 		private sourceHash: string,
+		private options: EmitOptions = {},
 	) {
 		this.index = new GraphIndex(script, registry);
 		// Anything Luau itself provides must not be shadowed by a generated name.
@@ -254,6 +301,46 @@ class Emitter {
 			sourceMap,
 			outputHash,
 		};
+	}
+
+	/**
+	 * A node's logic rather than a file: no header, no types, no module return.
+	 *
+	 * Each input pin is bound in the root scope to a placeholder identifier, the
+	 * same way a function binds its parameters, so every read of Node Inputs
+	 * resolves to it — `resolveOutput` asks the scope before anything else. An
+	 * impure node walks from Node Inputs' execution pin and Node Outputs assigns
+	 * the output placeholders; a pure node resolves each of Node Outputs' inputs
+	 * to one expression, and anything that needed a line of its own is an error.
+	 */
+	runLogic(shape: { inputsId: string; outputsId: string; pure: boolean; inputs: string[]; outputs: string[] }): LogicEmit {
+		const root = new Scope();
+		for (const id of shape.inputs) {
+			this.names.reserve(logicInputName(id));
+			root.bindings.set(`${shape.inputsId}/${id}`, logicInputName(id));
+		}
+		for (const id of shape.outputs) this.names.reserve(logicOutputName(id));
+
+		const expressions: Record<string, string> = {};
+		if (shape.pure) {
+			const outputs = this.index.get(shape.outputsId);
+			if (outputs) {
+				for (const id of shape.outputs) {
+					const pin = outputs.baseInputs.find((p) => p.id === id);
+					if (pin) expressions[id] = this.resolveInput(outputs, pin, root);
+				}
+			}
+			if (this.out.length > 0) {
+				this.error(
+					"A pure node's logic is one expression per output, and something here needs a line of its own.",
+					this.out.find((l) => l.node)?.node,
+				);
+			}
+			return { body: "", expressions, diagnostics: this.diagnostics };
+		}
+
+		this.walk(this.index.execTarget(shape.inputsId, "then"), root);
+		return { body: this.out.length > 0 ? this.render(this.out) : "", expressions, diagnostics: this.diagnostics };
 	}
 
 	// -- output plumbing ---------------------------------------------------
@@ -318,6 +405,8 @@ class Emitter {
 	 */
 	private resolveRoot(root: string): string {
 		if (!isRobloxService(root)) return root;
+		// A template has no top of the file to hoist a service to.
+		if (this.options.inline) return `game:GetService(${quoteString(root)})`;
 		const existing = this.services.get(root);
 		if (existing) return existing;
 		const ident = this.names.unique(root, "service");
@@ -807,6 +896,19 @@ class Emitter {
 			case "script.end":
 				this.terminated = true;
 				return undefined;
+
+			// A custom node's logic. See `runLogic`.
+			case "logic.inputs":
+				this.error("Node Inputs is where the logic starts, so nothing can run into it.", id);
+				return undefined;
+
+			case "logic.outputs": {
+				for (const pin of r.baseInputs) {
+					if (pin.kind !== "data") continue;
+					this.push(`${logicOutputName(pin.id)} = ${this.resolveInput(r, pin, scope)}`, id);
+				}
+				return undefined;
+			}
 
 			case "function.entry":
 				this.error(
@@ -1488,6 +1590,7 @@ class Emitter {
 				// One local per distinct service, however many nodes ask for it.
 				// A name not on the built-in list still works: the list is a
 				// dropdown, not a gate.
+				if (this.options.inline) return `game:GetService(${quoteString(name)})`;
 				const existing = this.services.get(name);
 				if (existing) return existing;
 				const ident = this.names.unique(name, "service");
@@ -1520,6 +1623,7 @@ class Emitter {
 					return "nil";
 				}
 
+				if (this.options.inline) return `require(${renderPath(this.resolveRoot(root), path)})`;
 				// One local per distinct module, however many nodes require it.
 				const key = `${root}/${path}`;
 				const existing = this.requires.get(key);
@@ -1802,6 +1906,8 @@ class Emitter {
 		// the local, not a suggestion about what to call one if it happens to
 		// appear — and a field that does nothing until some second reader shows
 		// up is a field you have to experiment on to understand.
+		// A pure node's logic is one expression, with nowhere to put the local.
+		if (this.options.expressionsOnly) return expr;
 		if (!named && this.effectiveConsumers(nodeId, pinId) <= 1) return expr;
 
 		const outPin = src.outputs.find((p) => p.id === pinId);

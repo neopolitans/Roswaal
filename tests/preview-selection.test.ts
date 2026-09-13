@@ -12,7 +12,40 @@ import { describe, expect, it } from "vitest";
 
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
-import { analyse, fold, type Row } from "../src/app/SelectionPreview.js";
+import { analyse, fold, previewSelection, type Row } from "../src/app/SelectionPreview.js";
+
+/**
+ * `P` with nothing selected previews what is on screen. In a function's tab
+ * that is the function, not the file.
+ */
+describe("previewing with nothing selected", () => {
+	function withFunction() {
+		const b = new Builder();
+		b.node("script.begin");
+		const fn = b.node("function.declareHere", { config: { name: "hide", params: [], returns: [] } });
+		const inside = b.node("debug.print", { graph: fn });
+		const outside = b.node("debug.print");
+		return { script: b.build(), fn, inside, outside };
+	}
+
+	it("is the function, declaration and graph, in a function's tab", () => {
+		const { script, fn, inside, outside } = withFunction();
+		const picked = previewSelection(script, fn, new Set());
+		expect([...picked].sort()).toEqual([fn, inside].sort());
+		expect(picked.has(outside)).toBe(false);
+	});
+
+	it("is the whole script in the nodescript's own graph", () => {
+		const { script } = withFunction();
+		expect(previewSelection(script, null, new Set()).size).toBe(0);
+	});
+
+	it("is the selection whenever there is one", () => {
+		const { script, fn, outside } = withFunction();
+		const selection = new Set([outside]);
+		expect(previewSelection(script, fn, selection)).toBe(selection);
+	});
+});
 import { Builder } from "./helpers.js";
 
 const registry = createRegistry();

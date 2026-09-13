@@ -1206,7 +1206,7 @@ const CONTROLS: DocPage = {
 				["`Delete`, `Backspace`", "Delete the selection. A function takes its graph, and asks first"],
 				["`A`", "Align the selection, walking it in the order you picked it"],
 				["`C`", "Comment around the selection, or an empty one if nothing is selected"],
-				["`P`", "Preview the Luau the selection compiles to, or the whole script with nothing selected"],
+				["`P`", "Preview the Luau the selection compiles to. With nothing selected: the function on screen, or the whole script"],
 			],
 		},
 		{
@@ -1282,6 +1282,18 @@ const CONTROLS: DocPage = {
 				["Double-click a function in the tree", "Open its graph in a tab"],
 				["Click a function in the Variables panel", "Open its graph"],
 				["Middle-click a tab", "Close it"],
+			],
+		},
+		{ t: "h", level: 2, text: "Node Design" },
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				["Drag a type from the palette onto the node", "Add a pin: the left half an input, the right half an output"],
+				["Click a pin, or its label", "Edit its name, type, default and tooltip"],
+				["`Ctrl` + `S`", "Save the node"],
+				["Right-click the logic canvas", "Add a node to the node's logic"],
+				["`A`, `Ctrl` + `Shift` + `L`", "Align and realign in the logic canvas, as on a graph"],
 			],
 		},
 		{ t: "h", level: 2, text: "Pins and wires" },
@@ -1694,7 +1706,7 @@ const BUILDING: DocPage = {
 			t: "p",
 			text:
 				"The file is named after the graph, and its ending comes from the script kind, " +
-				"chosen in the bar above the canvas. A Lune graph always writes `.luau`.",
+				"chosen in the tools along the top of the canvas. A Lune graph always writes `.luau`.",
 		},
 		{
 			t: "table",
@@ -1953,6 +1965,10 @@ function settingsPage(): DocPage {
 					[
 						"Long names",
 						"**Truncate** cuts a header too long for its node short, with the whole of it in the tooltip — what nodes have always done. **Widen** draws the node wide enough for its header instead. It is the one of these looks that moves *pins*, so the wire router and the pictures on these pages are computed from the same width: a node and its own picture are never two different sizes.",
+					],
+					[
+						"Name in the graph tools",
+						"**Show** puts the graph's name at the start of the tools over the canvas — `ƒ hide (Occupancy)` in a function's graph. Hidden by default, since the tab and the watermark say it already; unsaved edits are marked with a dot either way.",
 					],
 					[
 						"Shorten function tabs",
@@ -2509,7 +2525,7 @@ function castingBlocks(registry: Registry): Block[] {
 		{
 			t: "p",
 			text:
-				"Annotations follow the graph's **typechecking mode**, in the bar above the canvas. " +
+				"Annotations follow the graph's **typechecking mode**, in the tools along the top of the canvas. " +
 				"*Default* writes no mode line and no annotations; *Nonstrict* and *Strict* write " +
 				"both. So a type you set is a type that appears — in the two modes that asked for " +
 				"types at all.",
@@ -2619,7 +2635,7 @@ function castingBlocks(registry: Registry): Block[] {
 const CUSTOM_NODES: DocPage = {
 	slug: "creating-custom-nodes",
 	title: "Creating custom nodes",
-	summary: "Three ways to define a node of your own, and what they have in common.",
+	summary: "Node Design, pack files and TypeScript: the ways to define a node of your own, and what they share.",
 	narrow: true,
 	blocks: [
 		{
@@ -2643,46 +2659,134 @@ const CUSTOM_NODES: DocPage = {
 			label: "Definition support",
 			tabs: [
 				{
-					id: "designer",
-					title: "Node Designer",
+					id: "visual",
+					title: "Node Design - Visual",
 					blocks: [
 						{
 							t: "p",
 							text:
-								"**The form, with the node drawn beside it.** Open it from the toolbar, or at " +
-								"`/designer` on the daemon. Fill in the id, the pins and the template, and the " +
-								"node is drawn as it will appear on the canvas — by the same generator this " +
-								"documentation uses, so it is the node rather than an impression of one.",
+								"**Build the node by handling it.** Open **Node Design** from the toolbar, or " +
+								"`/designer` on the daemon. It opens on the packs: the project's first, then the " +
+								"built-in library, one card per category, to look at.",
 						},
 						{
 							t: "ul",
 							items: [
-								"**It asks where the node goes**: an existing pack, or a new one. A node belongs beside the others of its kind.",
-								"**It writes JSON**, and reopens the project, so the node is in the palette immediately rather than after a restart.",
-								"**It checks with the loader**, not with a second opinion — what it accepts is what the project will load.",
-								"**It will not rewrite a Luau pack.** Those are hand-written and carry comments; Copy Luau gives you the node to paste into one.",
+								"**New pack** makes an empty one. **Import from a project…** copies a pack from another Roswaal project.",
+								"On a pack's card: **Duplicate**, **Copy to another project**, **Copy JSON**, **Show in file manager** and **Delete**, which says which graphs use the pack's nodes first.",
+								"A Luau pack opens read-only. **Save as JSON pack** makes an editable copy.",
+								"A card says what its nodes run on, and marks it when the project compiles for something else.",
+							],
+						},
+						{ t: "h", level: 3, text: "Building a node" },
+						{
+							t: "ul",
+							items: [
+								"**New node** starts with an empty header and one execution pin each side.",
+								"**Drag a type** from the palette onto the node: the left half adds an input, the right half an output. **Execution** adds that side's execution pin.",
+								"**Click a pin**, or its label, for its name, type, default and tooltip. Its name is what the logic reads: a pin named Force is `$in.force`.",
+								"**Type the title** on the header. **Details** holds the id, category, what it runs on, and the summary its documentation reads.",
+								"**Pure is decided by the pins**: no execution pins makes a value, an execution input makes a step. A pure node with no inputs and one output can be drawn as a **pill**.",
+								"**Save** (`Ctrl` + `S`) is off while anything is in the problems list, so a node that saves is a node the project loads.",
+							],
+						},
+						{ t: "h", level: 3, text: "Logic built from nodes" },
+						{
+							t: "p",
+							text:
+								"The Logic panel's **Nodes** tab builds the logic on a canvas of its own, between " +
+								"**Node Inputs** — the node's inputs — and **Node Outputs** — its outputs. " +
+								"Right-click for nodes. It compiles to Luau as you build it, shown beside the graph, " +
+								"and that Luau is what the node is saved as.",
+						},
+						{
+							t: "ul",
+							items: [
+								"**It can use** the built-in nodes, the rest of its pack, and the nodes of the packs listed under **Requires**.",
+								"**It cannot use** what belongs to a whole script: Script Start, functions, Return, script variables, Module Exports and Declare Type at Top.",
+								"**An input read twice** is read once into a local, so a wired call does not run twice.",
+								"**What it uses narrows where it runs.** A node built from Get Service runs on Roblox only, whatever it declares.",
 							],
 						},
 						{
 							t: "note",
-							kind: "info",
+							kind: "good",
 							text:
-								"Saving needs a project open, because a pack is a file in one. With no daemon " +
-								"the form still works and still copies.",
+								"**The pack stays data.** The logic is compiled when you save, not when a project " +
+								"opens, and the loader only ever reads the Luau. A node built from another pack's " +
+								"nodes has their Luau written into its own, so the other pack is needed to edit " +
+								"the node again, not to use it.",
+						},
+					],
+				},
+				{
+					id: "luau-logic",
+					title: "Node Design - Luau",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"**Write the logic as a template**, in the Logic panel's **Luau** tab. The node's " +
+								"pins decide what kind of template it is, and every placeholder is filled in where " +
+								"the node is placed. Each example below is the template, then the Luau it becomes.",
+						},
+						{ t: "h", level: 3, text: "A step" },
+						{
+							t: "p",
+							text:
+								"An execution input and output. The template is statements, run where the node " +
+								"sits. `$in.force` is whatever is wired into Force, or the value typed into it.",
+						},
+						{ t: "code", lang: "luau", text: "$in.character.HumanoidRootPart:ApplyImpulse($in.force)" },
+						{ t: "code", lang: "luau", text: "character.HumanoidRootPart:ApplyImpulse(Vector3.new(0, 50, 0))" },
+						{ t: "h", level: 3, text: "A step that sets an output" },
+						{
+							t: "p",
+							text:
+								"Give the node a data output and **assign** it. Roswaal declares the local before " +
+								"the template runs, so the template sets it rather than declaring it.",
+						},
+						{ t: "code", lang: "luau", text: "$out.hit = workspace:Raycast($in.origin, $in.direction)" },
+						{ t: "code", lang: "luau", text: "local hit\nhit = workspace:Raycast(origin, direction)" },
+						{ t: "h", level: 3, text: "A call with a result" },
+						{
+							t: "p",
+							text:
+								"Click an output and tick **The call's result**. The template is then one " +
+								"expression, and its value lands in that pin.",
+						},
+						{ t: "code", lang: "luau", text: '$in.character:FindFirstChildOfClass("Tool")' },
+						{ t: "code", lang: "luau", text: 'local tool = character:FindFirstChildOfClass("Tool")' },
+						{ t: "h", level: 3, text: "A pure node" },
+						{
+							t: "p",
+							text:
+								"No execution pins: a value. The template is **one expression per output**, " +
+								"written into whatever reads it.",
+						},
+						{ t: "code", lang: "luau", text: "$in.humanoid.Health > 0" },
+						{ t: "code", lang: "luau", text: "if humanoid.Health > 0 then" },
+						{
+							t: "note",
+							kind: "warn",
+							text:
+								"**A placeholder is filled in every time it appears.** A template that reads " +
+								"`$in.character` twice evaluates a wired call twice. Read it once into a local: " +
+								"`local character = $in.character`. Logic built from nodes does this for you.",
 						},
 					],
 				},
 				{
 					id: "luau",
-					title: "Luau",
+					title: "Pack file",
 					blocks: [
 						{
 							t: "p",
 							text:
-								"**A `.nodedef.luau` file, written by hand.** The friendlier of the two file " +
-								"formats: it is the language you already write, and it can carry comments — " +
-								"which is the reason to choose it over JSON. `roswaal init` writes a commented " +
-								"example to start from.",
+								"**A `.nodedef.luau` or `.nodedef.json` file, written by hand.** Luau is the " +
+								"friendlier of the two: it is the language you already write, and it can carry " +
+								"comments — which is the reason to choose it, and why Node Design opens one " +
+								"read-only. `roswaal init` writes a commented example to start from.",
 						},
 						{
 							t: "code",
@@ -2715,6 +2819,15 @@ const CUSTOM_NODES: DocPage = {
 								"rather than as a tagged `{ t = \"number\", v = 5 }`. The tagged form is still " +
 								"there, and is the only way to write a `raw` default, which is emitted verbatim " +
 								"rather than quoted.",
+						},
+						{
+							t: "p",
+							text:
+								"Two more keys, both optional. **`requires`**, beside `nodes`, lists the packs " +
+								"whose nodes this pack's logic is built from. **`logic`**, on a node saved from " +
+								"Node Design, is the graph its logic was built from — the loader ignores it and " +
+								"reads `compilesTo`. **`display = \"compact\"`** draws a pure node with no inputs " +
+								"and one output as a pill.",
 						},
 						{
 							t: "note",
