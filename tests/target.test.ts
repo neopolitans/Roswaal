@@ -28,6 +28,34 @@ function withService(target: "roblox" | "lune") {
 	return { script: b.build({ target }), service };
 }
 
+/**
+ * Lune has no script classes. Every file is `.luau`, and a file is a module
+ * when it has something to return — so a Module Exports node decides, and
+ * whatever class the graph was left with is not read.
+ */
+describe("a Lune graph", () => {
+	function lune(scriptClass: "Script" | "ModuleScript", exports: boolean) {
+		const b = new Builder("Tools");
+		b.node("script.begin");
+		if (exports) b.node("module.exports");
+		return b.build({ target: "lune", scriptClass });
+	}
+	const returns = (script: ReturnType<typeof lune>) =>
+		compile(script, registry).code.split("\n").some((line) => line.startsWith("return "));
+
+	it("is a module when it has Module Exports, whatever its class says", () => {
+		expect(returns(lune("Script", true))).toBe(true);
+		expect(compile(lune("Script", true), registry).fileName).toBe("Tools.luau");
+	});
+
+	it("is a plain script without, and is not told it needs one", () => {
+		const script = lune("ModuleScript", false);
+		expect(returns(script)).toBe(false);
+		const messages = compile(script, registry).diagnostics.map((d) => d.message);
+		expect(messages.join("\n")).not.toContain("Module Exports");
+	});
+});
+
 describe("a node for the other target", () => {
 	it("is an error on the node in a Lune graph, even when it is pure", () => {
 		const { script, service } = withService("lune");

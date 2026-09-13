@@ -48,7 +48,8 @@ import {
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
 import { setProjectTypes } from "./projectTypes.js";
-import { store, useDocuments, useEditor } from "./store.js";
+import { store, useDocuments, useEditor, useOutline } from "./store.js";
+import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
 
 const LAST_PROJECT_KEY = "roswaal.lastProject";
 /**
@@ -97,6 +98,7 @@ function refreshTypes(): void {
 export function App() {
 	const editor = useEditor();
 	const documents = useDocuments();
+	const outline = useOutline();
 	const [project, setProject] = useState<ProjectInfo | null>(null);
 	const [customNodes, setCustomNodes] = useState<NodeDef[]>([]);
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
@@ -703,11 +705,19 @@ export function App() {
 	const spawn = useCallback(
 		(def: NodeDef, world: { x: number; y: number }, config?: Record<string, unknown>) => {
 			const from = menu?.from;
+			// A hoisted Function is in no flow, so it goes straight into a graph of
+			// its own, and that graph opens.
+			const hoisted = def.id === "function.entry";
+			const path = store.getSnapshot().path;
 			store.edit((s) => {
-				const added = addNode(s, def, world.x, world.y);
-				queueMicrotask(() => store.select([added.id]));
+				const at = hoisted ? ENTRY_HOME : world;
+				const added = addNode(s, def, at.x, at.y);
+				queueMicrotask(() => {
+					if (hoisted && path) store.openFunction(path, added.id);
+					store.select([added.id]);
+				});
 				let next = config ? setNodeConfig(added.script, added.id, config) : added.script;
-				if (!from) return next;
+				if (!from || hoisted) return next;
 
 				const placed = next.nodes.find((n) => n.id === added.id);
 				const pins = placed ? resolveNodePins(def, placed.config) : { inputs: [], outputs: [] };
@@ -754,12 +764,42 @@ export function App() {
 	const realign = useCallback(() => {
 		const state = store.getSnapshot();
 		if (!state.script) return;
+		// The graph on screen, and only that: laying out the whole file would
+		// arrange every function's nodes around each other.
+		const graph = state.graph;
+		const view = viewOf(state.script, graph);
 		const selected = new Set(
-			[...state.selection].filter((id) => state.script!.nodes.some((n) => n.id === id)),
+			[...state.selection].filter((id) => view.nodes.some((n) => n.id === id)),
 		);
 		const only = selected.size > 1 ? selected : undefined;
-		store.edit((s) => autoLayout(s, registry, { only, alignExec, wideNodes }));
+		store.edit((s) =>
+			mergeLayout(s, graph, autoLayout(viewOf(s, graph), registry, { only, alignExec, wideNodes })),
+		);
 	}, [registry, alignExec, wideNodes]);
+
+	/**
+	 * Deletes a selection, asking first when a function in it takes its graph
+	 * along — nodes that are not on screen. A delete that only ever removes what
+	 * you can see needs no question.
+	 */
+	const removeSelection = useCallback(async (ids: ReadonlySet<string>) => {
+		const script = store.getSnapshot().script;
+		if (!script || ids.size === 0) return;
+		const inside = [...withFunctionGraphs(script, ids)].filter(
+			(id) => !ids.has(id) && script.nodes.some((n) => n.id === id),
+		).length;
+		if (inside > 0) {
+			const ok = await ask({
+				kind: "confirm",
+				title: "Delete the function's graph too?",
+				message: `${inside} node${inside === 1 ? " is" : "s are"} inside it, and go${inside === 1 ? "es" : ""} with it.`,
+				confirmLabel: "Delete",
+				danger: true,
+			});
+			if (ok !== true) return;
+		}
+		store.edit((s) => deleteSelection(s, ids, registry));
+	}, [ask, registry]);
 
 	/**
 	 * Turns a pin's typed-in value into a script variable, then selects the
@@ -906,8 +946,13 @@ export function App() {
 			}
 			if (mod && e.key.toLowerCase() === "a") {
 				e.preventDefault();
-				const s = store.getSnapshot().script;
-				if (s) store.select([...s.nodes.map((n) => n.id), ...s.comments.map((c) => c.id)]);
+				const state = store.getSnapshot();
+				// Everything in the graph on screen. Selecting nodes you cannot see
+				// is how the next Delete removes them.
+				if (state.script) {
+					const s = viewOf(state.script, state.graph);
+					store.select([...s.nodes.map((n) => n.id), ...s.comments.map((c) => c.id)]);
+				}
 				return;
 			}
 			if (mod && (e.key.toLowerCase() === "c" || e.key.toLowerCase() === "x")) {
@@ -915,10 +960,7 @@ export function App() {
 				if (!state.script || state.selection.size === 0) return;
 				e.preventDefault();
 				clipboard.current = copySelection(state.script, state.selection);
-				if (e.key.toLowerCase() === "x") {
-					const ids = state.selection;
-					store.edit((s) => deleteSelection(s, ids, registry));
-				}
+				if (e.key.toLowerCase() === "x") void removeSelection(state.selection);
 				return;
 			}
 			if (mod && e.key.toLowerCase() === "v") {
@@ -946,8 +988,7 @@ export function App() {
 			}
 			if (e.key === "Delete" || e.key === "Backspace") {
 				e.preventDefault();
-				const ids = store.getSnapshot().selection;
-				if (ids.size) store.edit((s) => deleteSelection(s, ids, registry));
+				void removeSelection(store.getSnapshot().selection);
 				return;
 			}
 			// Two or more, because one node is already aligned with itself.
@@ -959,7 +1000,8 @@ export function App() {
 				if (!anchor) return;
 				e.preventDefault();
 				const ids = state.selection;
-				store.edit((s) => alignToAnchor(s, registry, ids, anchor));
+				const graph = state.graph;
+				store.edit((s) => mergeLayout(s, graph, alignToAnchor(viewOf(s, graph), registry, ids, anchor)));
 				return;
 			}
 			if (e.key.toLowerCase() === "c" && !mod) {
@@ -977,17 +1019,16 @@ export function App() {
 				const inset = 64;
 				spawnComment(screenToWorld(store.getView(), inset, inset));
 			}
-			// Unmodified, and only with something selected: with nothing picked
-			// there is nothing to preview, so it stays out of the way until it
-			// has a question to answer.
-			if (e.key.toLowerCase() === "p" && !mod && store.getSnapshot().selection.size > 0) {
+			// Unmodified. With a selection it picks out what those nodes produced;
+			// with nothing picked it is the whole script.
+			if (e.key.toLowerCase() === "p" && !mod && store.getSnapshot().script) {
 				e.preventDefault();
 				setPreviewOpen(true);
 			}
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [editor.path, mapDoc, source, runCompile, runCompileMap, spawnComment, realign, locked, registry]);
+	}, [editor.path, mapDoc, source, runCompile, runCompileMap, spawnComment, realign, removeSelection, locked, registry]);
 
 	// -- project tree ------------------------------------------------------
 
@@ -1004,6 +1045,23 @@ export function App() {
 	 * a document and not while you are dragging in one.
 	 */
 	const onTreeOpen = useCallback((entry: TreeEntry) => void openEntry(entry), [openEntry]);
+
+	/** A function under a graph in the tree: its file first, then its graph. */
+	const onTreeOpenFunction = useCallback(async (path: string, id: string) => {
+		try {
+			setSource(null);
+			setMapDoc(null);
+			if (!store.isOpen(path)) {
+				const { script } = await api.readScript(path);
+				store.open(path, script);
+			}
+			if (!store.openFunction(path, id)) {
+				notify("Could not open that function", "It is no longer in the graph.");
+			}
+		} catch (err) {
+			notify("Could not open that graph", (err as Error).message);
+		}
+	}, [notify]);
 
 	/**
 	 * Writes every open graph at or under `path` that has edits not yet on disk.
@@ -1316,6 +1374,9 @@ export function App() {
 							<ProjectTree
 								tree={project.tree}
 								openPath={editor.path ?? source?.path ?? null}
+								openGraph={source || mapDoc ? null : editor.graph}
+								outline={outline}
+								onOpenFunction={onTreeOpenFunction}
 								sourceDir={project.config.sourceDir}
 								nodePaths={project.config.nodePaths}
 								targetDir={targetDir}
@@ -1392,12 +1453,13 @@ export function App() {
 						    come back if you left them. */}
 						<GraphTabs
 							documents={documents}
-							onActivate={(path) => {
+							functionTabs={prefs.functionTabs}
+							onActivate={(key) => {
 								setSource(null);
 								setMapDoc(null);
-								store.activate(path);
+								store.activate(key);
 							}}
-							onClose={(path) => store.closeDocument(path)}
+							onClose={(key) => store.closeDocument(key)}
 						/>
 						<div className="centre-body">
 						{mapDoc ? (
@@ -1424,6 +1486,7 @@ export function App() {
 					) : editor.script ? (
 						<Canvas
 							script={editor.script}
+							graph={editor.graph}
 							registry={registry}
 							diagnostics={diagnostics}
 							locked={locked}
@@ -1860,7 +1923,7 @@ function StatusPanel(props: StatusPanelProps) {
 						);
 					})}
 					{diagnostics.map((d, i) => (
-						<div className={`entry ${d.severity}`} key={i} onClick={() => d.node && store.select([d.node])}>
+						<div className={`entry ${d.severity}`} key={i} onClick={() => d.node && store.reveal(d.node)}>
 							<span className="sev">{d.severity}</span>
 							<span>{d.message}</span>
 							{d.pin && <span className="where">{d.pin}</span>}

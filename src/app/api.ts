@@ -3,12 +3,15 @@
 import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass } from "../core/schema.js";
 import type { Diagnostic } from "../core/compiler/index.js";
 import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
+import type { FunctionInfo } from "../core/functionGraph.js";
 
 export interface TreeEntry {
 	path: string;
 	name: string;
 	kind: "directory" | "nodescript" | "nodemap" | "luau";
 	generatedFrom?: string;
+	/** A graph's functions, as the file on disk has them. */
+	functions?: FunctionInfo[];
 	children?: TreeEntry[];
 }
 

@@ -5,7 +5,8 @@
  * historical shapes, so the rest of the codebase can assume the current one.
  */
 
-import { RENAMED_NODES } from "./nodes/index.js";
+import { assignMembership } from "./functionGraph.js";
+import { RENAMED_NODES, type Registry } from "./nodes/index.js";
 import { parseSplitKey, partPinId, splitKey, splitPinId, splitsOf } from "./structs.js";
 import {
 	emptyScript, SCHEMA_VERSION, TYPECHECK_MODES,
@@ -100,7 +101,7 @@ function typecheckOf(raw: NodeScript): TypecheckMode {
 	return raw.typecheck === undefined ? "strict" : "default";
 }
 
-export function migrateScript(raw: NodeScript): MigrationResult {
+export function migrateScript(raw: NodeScript, registry?: Registry): MigrationResult {
 	const notes: string[] = [];
 
 	// Defaults for fields added after this file was written.
@@ -319,6 +320,26 @@ export function migrateScript(raw: NodeScript): MigrationResult {
 	if (script.schemaVersion < SCHEMA_VERSION) {
 		notes.push(`Updated from schema ${script.schemaVersion} to ${SCHEMA_VERSION}.`);
 		script.schemaVersion = SCHEMA_VERSION;
+	}
+
+	// -- functions opened into their own graphs -----------------------------
+	//
+	// Needs the registry to walk execution wires, so only a caller that has one
+	// does it. The daemon does, and is the only reader of a file on disk.
+	if (registry) {
+		const graphs = assignMembership(script, registry);
+		if (graphs.moved > 0) {
+			notes.push(
+				`${graphs.moved} function${graphs.moved === 1 ? " now opens in its" : "s now open in their"} own graph.`,
+			);
+		}
+		if (graphs.crossings > 0) {
+			notes.push(
+				`${graphs.crossings} wire${graphs.crossings === 1 ? " crosses" : "s cross"} between graphs, and ` +
+				`${graphs.crossings === 1 ? "is" : "are"} marked as an error.`,
+			);
+		}
+		return { script: graphs.script, notes };
 	}
 
 	return { script, notes };

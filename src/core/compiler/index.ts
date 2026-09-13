@@ -127,6 +127,8 @@ export function serialiseScript(script: NodeScript): string {
 				def: n.def,
 				x: round(n.x),
 				y: round(n.y),
+				...(n.graph ? { graph: n.graph } : {}),
+				...(n.inner ? { inner: { x: round(n.inner.x), y: round(n.inner.y) } } : {}),
 				...(n.label ? { label: n.label } : {}),
 				...(n.literals && Object.keys(n.literals).length ? { literals: sortKeys(n.literals) } : {}),
 				...(n.config && Object.keys(n.config).length ? { config: sortKeys(n.config as Record<string, unknown>) } : {}),
@@ -139,6 +141,7 @@ export function serialiseScript(script: NodeScript): string {
 			.map((c) => ({
 				id: c.id, x: round(c.x), y: round(c.y), w: round(c.w), h: round(c.h),
 				text: c.text, ...(c.color ? { color: c.color } : {}),
+				...(c.graph ? { graph: c.graph } : {}),
 			})),
 	};
 	return JSON.stringify(ordered, null, 2) + "\n";

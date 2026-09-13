@@ -69,8 +69,11 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 
 	const { rows, direct, inlined } = useMemo(() => analyse(props), [props]);
 
+	// Nothing selected is a question about the whole script, so there is nothing
+	// to pick out and nothing to fold away.
+	const whole = props.selection.size === 0;
 	const anything = rows.some((r) => r.mine || r.downstream);
-	const shown = showAll ? rows : fold(rows);
+	const shown = showAll || whole ? rows : fold(rows);
 
 	return (
 		<div className="docs-backdrop" style={{ zIndex: LAYER.menu + 1 }} onPointerDown={props.onClose}>
@@ -88,27 +91,31 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 			>
 				<div className="docs-head">
 					<Icon name="terminal" size={16} />
-					<strong>Selection preview</strong>
+					<strong>{whole ? "Script preview" : "Selection preview"}</strong>
 					<span className="sub">
-						{props.selection.size} node{props.selection.size === 1 ? "" : "s"}
-						{direct > 0 && ` · ${direct} line${direct === 1 ? "" : "s"}`}
+						{whole
+							? `${rows.length} line${rows.length === 1 ? "" : "s"}`
+							: `${props.selection.size} node${props.selection.size === 1 ? "" : "s"}`}
+						{!whole && direct > 0 && ` · ${direct} line${direct === 1 ? "" : "s"}`}
 					</span>
 					<span className="spacer" />
-					<label className="preview-toggle" title="Show the whole generated file, not just what these nodes produced">
-						<input
-							type="checkbox"
-							checked={showAll}
-							onChange={(e) => setShowAll(e.target.checked)}
-						/>
-						Whole file
-					</label>
+					{!whole && (
+						<label className="preview-toggle" title="Show the whole generated file, not just what these nodes produced">
+							<input
+								type="checkbox"
+								checked={showAll}
+								onChange={(e) => setShowAll(e.target.checked)}
+							/>
+							Whole file
+						</label>
+					)}
 					<button className="tb" onClick={props.onClose} title="Close (Esc)">
 						<Icon name="close" size={15} />
 					</button>
 				</div>
 
 				<div className="preview-body">
-					{!anything && (
+					{!anything && !whole && (
 						<p className="preview-note">
 							These nodes produced no lines of their own, and nothing they feed into
 							did either. That usually means they are not reachable from Script Start

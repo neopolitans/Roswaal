@@ -54,8 +54,8 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 			},
 			{
 				unreal: "Event Graph",
-				roswaal: "The graph itself",
-				note: "A nodescript has one canvas. Functions live on it too, as their own entry nodes.",
+				roswaal: "The nodescript's own graph",
+				note: "Each function has a graph of its own, listed under the nodescript in the project tree.",
 			},
 			{
 				unreal: "Construction Script",
@@ -255,13 +255,26 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 				unreal: "Function",
 				roswaal: "Function",
 				nodes: ["function.entry", "function.return"],
-				note: "Its own entry node on the same canvas, with the signature in the node's subtitle.",
+				note:
+					"Its own graph, in a tab of its own. A hoisted Function is that graph's entry node. " +
+					"A Declare Function sits in a flow and opens its graph on a double-click.",
 			},
 			{
 				unreal: "Call Function",
 				roswaal: "Call Function",
 				nodes: ["call.function", "call.method"],
 				note: "Call Method is the colon form, for calling a method on an instance or module.",
+			},
+			{
+				unreal: "Macro",
+				roswaal: null,
+				note:
+					"No equivalent, but Luau has what a macro is for, and Roswaal writes it. **In one " +
+					"script**, on Roblox or Lune, a local function — or a function stored in a table — can " +
+					"be called anywhere below its declaration, or anywhere the table holding it is in " +
+					"scope. **Across scripts**, a ModuleScript on Roblox or a module on Lune, required " +
+					"from somewhere it is visible: a ModuleScript in ServerScriptService cannot be " +
+					"required by a client.",
 			},
 			{
 				unreal: "Custom Event",

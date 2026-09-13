@@ -9,6 +9,7 @@
 
 import { PAIR, type GraphNode, type NodeScript, type PinDef, type Target } from "../schema.js";
 import { checkLuauBalance } from "../luauCheck.js";
+import { crossingLinks, graphExists } from "../functionGraph.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { isInstanceClass } from "../roblox.js";
@@ -89,6 +90,29 @@ export function pinsCompatible(
 export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	const out: Diagnostic[] = [];
 	const index = new GraphIndex(script, registry);
+
+	// -- graphs ------------------------------------------------------------
+	//
+	// Only a hand-edited file or a bad merge gets here: one graph is on screen at
+	// a time, so a wire between two cannot be drawn.
+	for (const link of crossingLinks(script)) {
+		out.push({
+			severity: "error",
+			message:
+				"This wire runs between two graphs. A value reaches a function through a " +
+				"parameter, a local or a variable.",
+			node: link.to.node,
+		});
+	}
+	for (const node of script.nodes) {
+		if (node.graph !== undefined && !graphExists(script, node.graph)) {
+			out.push({
+				severity: "error",
+				message: "This node is in the graph of a function that is no longer there.",
+				node: node.id,
+			});
+		}
+	}
 
 	// -- nodes -------------------------------------------------------------
 	const seenIds = new Set<string>();

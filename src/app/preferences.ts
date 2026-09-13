@@ -103,6 +103,11 @@ export interface Preferences {
 	 * same width. A node and its picture are never two different sizes.
 	 */
 	wideNodes: boolean;
+	/**
+	 * What a function's tab says. In full it is `ƒ hide (Occupancy)`; shortened,
+	 * one of the two names. The tooltip keeps both either way.
+	 */
+	functionTabs: FunctionTabs;
 	/** The typeface the docs are read in. Code keeps its own monospace either way. */
 	docsFont: DocsFont;
 	/**
@@ -139,6 +144,14 @@ export const WIRE_STYLES: { style: WireStyle; label: string; what: string }[] = 
 	{ style: "angular", label: "Angular", what: "The same route, with each corner cut to a 45-degree slope." },
 ];
 
+export type FunctionTabs = "full" | "function" | "script";
+
+export const FUNCTION_TAB_CHOICES: { value: FunctionTabs; label: string; what: string }[] = [
+	{ value: "full", label: "None", what: "ƒ hide (Occupancy)" },
+	{ value: "function", label: "Function name", what: "ƒ hide" },
+	{ value: "script", label: "Script name", what: "ƒ Occupancy" },
+];
+
 export type DocsFont = "system" | "serif" | "wide" | "mono";
 
 /**
@@ -166,6 +179,7 @@ export const DEFAULTS: Preferences = {
 	// Truncating is what nodes already did, so the default changes nothing for
 	// anybody who does not go looking for it.
 	wideNodes: false,
+	functionTabs: "full",
 	docsFont: "system",
 	docsPreviewScale: 1,
 	layout: DEFAULT_LAYOUT,
@@ -215,6 +229,9 @@ export function readPreferences(): Preferences {
 			typeof stored.roundedNodes === "boolean" ? stored.roundedNodes : DEFAULTS.roundedNodes,
 		wideNodes:
 			typeof stored.wideNodes === "boolean" ? stored.wideNodes : DEFAULTS.wideNodes,
+		functionTabs: FUNCTION_TAB_CHOICES.some((c) => c.value === stored.functionTabs)
+			? (stored.functionTabs as FunctionTabs)
+			: DEFAULTS.functionTabs,
 		docsFont: DOCS_FONTS.some((f) => f.font === stored.docsFont)
 			? (stored.docsFont as DocsFont)
 			: DEFAULTS.docsFont,

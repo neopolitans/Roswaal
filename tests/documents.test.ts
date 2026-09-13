@@ -205,6 +205,106 @@ describe("renaming the file under a document", () => {
 });
 
 /**
+ * A function's graph is a tab of its own, and part of its file. The tab owns
+ * where you are — selection, viewport — and the file owns what it says:
+ * history, dirtiness, and the script itself.
+ */
+describe("function graphs", () => {
+	function withFunction() {
+		const b = new Builder("A");
+		b.node("script.begin");
+		b.node("function.entry", { id: "fn", config: { name: "hide", params: [], returns: [] } });
+		return b.build();
+	}
+
+	beforeEach(() => {
+		store.open(A, withFunction());
+		store.openFunction(A, "fn");
+	});
+
+	it("opens beside its file, named for the function and the script", () => {
+		const tabs = store.getTabs();
+		expect(tabs.map((t) => t.key)).toEqual([A, `${A}#fn`]);
+		expect(tabs[1]).toMatchObject({ name: "hide", scriptName: "A", graph: "fn", active: true });
+		expect(store.getSnapshot().graph).toBe("fn");
+	});
+
+	it("goes next to its file's other tabs, not at the end", () => {
+		store.open(B, graph("B"));
+		store.activate(A);
+		store.closeDocument(`${A}#fn`);
+		store.openFunction(A, "fn");
+		expect(store.getTabs().map((t) => t.key)).toEqual([A, `${A}#fn`, B]);
+	});
+
+	it("shares one history with its file", () => {
+		store.edit((s) => ({ ...s, name: "edited in the function" }));
+		store.activate(A);
+		expect(store.getSnapshot().script?.name).toBe("edited in the function");
+		store.undo();
+		expect(store.getSnapshot().script?.name).toBe("A");
+	});
+
+	it("keeps its own selection and viewport", () => {
+		store.select(["fn"]);
+		store.setView({ x: -300, y: 0, zoom: 1 });
+		store.activate(A);
+		expect(store.getSnapshot().selection.size).toBe(0);
+		expect(store.getView()).toEqual({ x: 80, y: 80, zoom: 1 });
+		store.activate(`${A}#fn`);
+		expect([...store.getSnapshot().selection]).toEqual(["fn"]);
+	});
+
+	/** Every way of making a node goes through `apply`, so this covers them all. */
+	it("puts what is added in its tab into its graph", () => {
+		store.edit((s) => ({ ...s, nodes: [...s.nodes, { id: "new", def: "debug.print", x: 0, y: 0 }] }));
+		expect(store.getSnapshot().script?.nodes.find((n) => n.id === "new")?.graph).toBe("fn");
+		store.activate(A);
+		store.edit((s) => ({ ...s, nodes: [...s.nodes, { id: "outer", def: "debug.print", x: 0, y: 0 }] }));
+		expect(store.getSnapshot().script?.nodes.find((n) => n.id === "outer")?.graph).toBeUndefined();
+	});
+
+	it("closes when its function is deleted, and leaves you in the file", () => {
+		store.edit((s) => ({ ...s, nodes: s.nodes.filter((n) => n.id !== "fn") }));
+		expect(store.getTabs().map((t) => t.key)).toEqual([A]);
+		expect(store.getSnapshot()).toMatchObject({ path: A, graph: null });
+	});
+
+	it("comes back as the file's own tab when an undo takes its function away", () => {
+		store.closeDocument(A);
+		store.edit((s) => ({ ...s, nodes: s.nodes.filter((n) => n.id !== "fn") }));
+		expect(store.getTabs().map((t) => t.key)).toEqual([A]);
+	});
+
+	it("keeps the file open while any of its tabs is", () => {
+		store.closeDocument(A);
+		expect(store.isOpen(A)).toBe(true);
+		store.closeDocument(`${A}#fn`);
+		expect(store.isOpen(A)).toBe(false);
+	});
+
+	it("follows its file when the file is renamed", () => {
+		store.rename(A, B);
+		expect(store.getTabs().map((t) => t.key)).toEqual([B, `${B}#fn`]);
+		expect(store.getSnapshot()).toMatchObject({ path: B, graph: "fn" });
+	});
+
+	it("goes to the graph a node is in when something outside the canvas points at it", () => {
+		store.activate(A);
+		store.reveal("fn");
+		expect(store.getSnapshot()).toMatchObject({ graph: "fn" });
+		expect([...store.getSnapshot().selection]).toEqual(["fn"]);
+		store.reveal("n1");
+		expect(store.getSnapshot()).toMatchObject({ graph: null });
+	});
+
+	it("will not open a function the file does not have", () => {
+		expect(store.openFunction(A, "missing")).toBe(false);
+		expect(store.openFunction(B, "fn")).toBe(false);
+	});
+});
+
+/**
  * `useSyncExternalStore` compares snapshots by identity and re-renders whenever
  * it gets a new object. Returning a fresh one from every read would re-render
  * the whole editor on any unrelated event — and in the worst case loop.

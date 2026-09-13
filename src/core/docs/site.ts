@@ -839,6 +839,15 @@ const CONTRIBUTING: DocPage = {
 
 		{ t: "h", level: 2, text: "Where help is wanted" },
 		{
+			t: "note",
+			kind: "good",
+			text:
+				"**Lune comes first.** Where possible and feasible, Bugfixes and Features for Lune " +
+				"will be prioritized. ROBLOX Studio documentation and developer resources are rich " +
+				"enough at this time to sustain development, but fixes and features will still be " +
+				"considered.",
+		},
+		{
 			t: "ul",
 			items: [
 				"**Lune.** The Lune target is experimental, and has not yet been tested by an experienced Lune developer.",
@@ -1190,14 +1199,14 @@ const CONTROLS: DocPage = {
 				["`Ctrl` + `Z`", "Undo"],
 				["`Ctrl` + `Shift` + `Z`, `Ctrl` + `Y`", "Redo"],
 				["`Ctrl` + `S`", "Compile the open graph"],
-				["`Ctrl` + `A`", "Select everything"],
-				["`Ctrl` + `C`, `Ctrl` + `X`, `Ctrl` + `V`", "Copy, cut, paste"],
+				["`Ctrl` + `A`", "Select everything in the graph on screen"],
+				["`Ctrl` + `C`, `Ctrl` + `X`, `Ctrl` + `V`", "Copy, cut, paste. A function brings its graph"],
 				["`Ctrl` + `D`", "Duplicate the selection in place"],
-				["`Ctrl` + `Shift` + `L`", "Realign the whole graph"],
-				["`Delete`, `Backspace`", "Delete the selection"],
+				["`Ctrl` + `Shift` + `L`", "Realign the graph on screen"],
+				["`Delete`, `Backspace`", "Delete the selection. A function takes its graph, and asks first"],
 				["`A`", "Align the selection, walking it in the order you picked it"],
 				["`C`", "Comment around the selection, or an empty one if nothing is selected"],
-				["`P`", "Preview the Luau the selection compiles to"],
+				["`P`", "Preview the Luau the selection compiles to, or the whole script with nothing selected"],
 			],
 		},
 		{
@@ -1261,6 +1270,18 @@ const CONTROLS: DocPage = {
 				["`Shift` while dragging", "Snap to the grid; the rest keep their offsets"],
 				["`Shift` or `Ctrl` + click", "Add to or remove from the selection"],
 				["Right-click", "Node menu"],
+				["Double-click a Declare Function, or its **ƒ**", "Open the function's graph"],
+			],
+		},
+		{ t: "h", level: 2, text: "Functions and tabs" },
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				["The arrow beside a `.nodescript` in the tree", "List its functions"],
+				["Double-click a function in the tree", "Open its graph in a tab"],
+				["Click a function in the Variables panel", "Open its graph"],
+				["Middle-click a tab", "Close it"],
 			],
 		},
 		{ t: "h", level: 2, text: "Pins and wires" },
@@ -1338,8 +1359,8 @@ const VARIABLES: DocPage = {
 				"Renaming a variable in the panel renames every Get and Set of it at once. They " +
 					"carry its id, not its name.",
 				"The panel also lists this graph's **Locals**, **Functions** and **Types**. Click a " +
-					"function to select its declaration — which in a large graph is usually off " +
-					"screen — or drag it out for a **Get Function**.",
+					"function to open its graph, or drag it out for a **Get Function**. Clicking a " +
+					"local or a type goes to the graph its node is in.",
 			],
 		},
 		{
@@ -1375,8 +1396,8 @@ const VARIABLES: DocPage = {
 		{
 			t: "p",
 			text:
-				"A function's parameters are output pins on its declaration, and wiring one to " +
-				"whatever reads it works. In a function of any size those wires cross the whole " +
+				"A function's parameters are output pins on its entry node, in its " +
+				"[graph](functions), and wiring one to whatever reads it works. In a function of any size those wires cross the whole " +
 				"body — so **Get Parameter** reads one by name instead, the way Get Local reads a " +
 				"local rather than wiring the Declare Local's output everywhere. Pick the function " +
 				"and the parameter in the Inspector. The pins are still there; this is the other way.",
@@ -1934,6 +1955,10 @@ function settingsPage(): DocPage {
 						"**Truncate** cuts a header too long for its node short, with the whole of it in the tooltip — what nodes have always done. **Widen** draws the node wide enough for its header instead. It is the one of these looks that moves *pins*, so the wire router and the pictures on these pages are computed from the same width: a node and its own picture are never two different sizes.",
 					],
 					[
+						"Shorten function tabs",
+						"What a function's tab says. **None** keeps `ƒ hide (Occupancy)`; **Function name** and **Script name** keep one of the two. The tooltip has both.",
+					],
+					[
 						"Write a graph",
 						"How long after your last edit a graph is written. A delay, not a switch — there is no unsaved copy of a graph, so switching it off would give you a document that quietly stops matching itself rather than a buffer.",
 					],
@@ -2260,6 +2285,116 @@ const TYPES_GUIDE: DocPage = {
  * and a type that is more than a name is written into the file as itself. That
  * is a page, not a footnote.
  */
+/** Functions, and the graph each one opens in. */
+function functionsPage(registry: Registry): DocPage {
+	return {
+		slug: "functions",
+		title: "Functions",
+		summary: "The two ways to declare one, the graph each opens in, and what can reach inside.",
+		narrow: true,
+		blocks: [
+			{
+				t: "p",
+				text:
+					"Every function in a nodescript has a **graph of its own**. Its body is built there, " +
+					"it opens in a tab, and the nodescript's own graph stays about the script's flow.",
+			},
+
+			{ t: "h", level: 2, text: "Two ways to declare one" },
+			{
+				t: "table",
+				head: ["Node", "Written", "Drawn in"],
+				rows: [
+					["**Function**", "At the top of the file, so anything can call it", "Its own graph only, as the entry node"],
+					["**Declare Function**", "Where the node sits in the flow, or onto a table with **On Table**", "The flow, and its own graph as the entry node"],
+				],
+			},
+			...previews(
+				registry,
+				["function.entry", "function.declareHere"],
+				"As the reference draws them, with every pin. On the canvas Declare Function shows " +
+				"half of these in each of its two graphs.",
+			),
+			{
+				t: "p",
+				text:
+					"Reach for **Declare Function** when the function has to come after something — " +
+					"`function TankConfig.read(tank: Model)` needs `TankConfig` to exist first — and " +
+					"for **Function** when it is simply something the script has.",
+			},
+
+			{ t: "h", level: 2, text: "A function's graph" },
+			{
+				t: "p",
+				text:
+					"It opens in a tab marked **ƒ** and named for the function and its script: " +
+					"`hide (Occupancy)`. **Shorten function tabs** in [settings](settings) keeps one of " +
+					"the two names. The entry node carries **Body** and the parameters, and the " +
+					"function's **Return** nodes go in this graph too.",
+			},
+			{
+				t: "ul",
+				items: [
+					"In the project tree, the arrow beside a `.nodescript` lists its functions. Double-click one to open it.",
+					"Click a function in the **Variables panel**.",
+					"Double-click a **Declare Function** in the flow, or click the **ƒ** on its header.",
+					"Adding a **Function** opens its graph straight away.",
+				],
+			},
+
+			{ t: "h", level: 2, text: "Declare Function, in two graphs" },
+			{
+				t: "table",
+				head: ["Graph", "Its pins there"],
+				rows: [
+					["The flow it is declared in", "In, Then, On Table, and Function — the function as a value"],
+					["Its own graph", "Body, and one output per parameter"],
+				],
+			},
+			{
+				t: "p",
+				text:
+					"It is one node with a place in each. Moving it in one graph does not move it in " +
+					"the other, and renaming it or changing its parameters shows in both.",
+			},
+
+			{ t: "h", level: 2, text: "What reaches inside" },
+			{
+				t: "p",
+				text:
+					"**A wire cannot run between two graphs.** A value reaches a function through a " +
+					"parameter — wired from the entry node, or read with [Get Parameter](variables-and-locals) — " +
+					"through a local declared before it, or through a script variable. Anything you add " +
+					"in a function's tab goes in that function's graph.",
+			},
+			{
+				t: "note",
+				kind: "warn",
+				text:
+					"A wire between two graphs can only come from a hand-edited file or a bad merge, " +
+					"and it is an error on the node it runs into.",
+			},
+
+			{ t: "h", level: 2, text: "Editing a function as a whole" },
+			{
+				t: "ul",
+				items: [
+					"**Select all**, marquee select, **Realign** and align act on the graph on screen, and only that.",
+					"**Deleting** a function deletes its graph, and asks first when there are nodes in it. Its tab closes.",
+					"**Copying** a function copies its graph, so the paste is a working function.",
+				],
+			},
+			{
+				t: "note",
+				kind: "info",
+				text:
+					"**A graph made before 0.33.0 is split when it is opened.** Each function's nodes " +
+					"move into its graph, and the Luau it compiles to does not change.",
+			},
+		],
+	};
+}
+
 function castingPage(registry: Registry): DocPage {
 	return {
 		slug: "casting",
@@ -2832,6 +2967,8 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	];
 	// Beside the types page it was split out of, rather than at the end.
 	guides.splice(guides.indexOf(TYPES_GUIDE) + 1, 0, castingPage(registry));
+	// After locals, whose Get Parameter it leans on.
+	guides.splice(guides.indexOf(VARIABLES) + 1, 0, functionsPage(registry));
 	const attributions = attributionsPage();
 	// Every page's title by slug, so the release notes can name the articles
 	// they list without holding a second copy of each title.

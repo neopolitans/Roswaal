@@ -22,9 +22,10 @@ import {
 } from "../core/nodemap.js";
 import { createRegistry, parseNodePack, type Registry } from "../core/nodes/index.js";
 import {
-	defaultConfig, SCHEMA_VERSION,
+	defaultConfig, isModuleScript, SCHEMA_VERSION,
 	type NodeDef, type NodeScript, type RoswaalConfig,
 } from "../core/schema.js";
+import { functionOutline, type FunctionInfo } from "../core/functionGraph.js";
 
 /**
  * Ownership key written into project files by an earlier build. Rojo refuses
@@ -44,6 +45,8 @@ export interface TreeEntry {
 	kind: "directory" | "nodescript" | "nodemap" | "luau";
 	/** Set on generated Luau: the graph it came from. */
 	generatedFrom?: string;
+	/** Set on a graph with functions, which the tree lists under it. */
+	functions?: FunctionInfo[];
 	children?: TreeEntry[];
 }
 
@@ -302,11 +305,13 @@ async function walk(
 		}
 		const kind = classify(entry.name);
 		if (!kind) continue;
+		const functions = kind === "nodescript" ? await functionsIn(abs) : [];
 		out.push({
 			path: rel,
 			name: entry.name,
 			kind,
 			...(generated.has(rel) ? { generatedFrom: generated.get(rel) } : {}),
+			...(functions.length > 0 ? { functions } : {}),
 		});
 	}
 
@@ -316,6 +321,19 @@ async function walk(
 		return a.name.localeCompare(b.name);
 	});
 	return out;
+}
+
+/**
+ * A graph's functions, for the tree. A file that will not parse has none here;
+ * opening it is where that gets reported.
+ */
+async function functionsIn(abs: string): Promise<FunctionInfo[]> {
+	try {
+		const parsed = JSON.parse(await fs.readFile(abs, "utf8")) as Partial<NodeScript>;
+		return Array.isArray(parsed.nodes) ? functionOutline({ nodes: parsed.nodes }) : [];
+	} catch {
+		return [];
+	}
 }
 
 function classify(name: string): TreeEntry["kind"] | null {
@@ -364,7 +382,7 @@ export async function readScript(project: OpenProject, relPath: string): Promise
 		);
 	}
 
-	const script = migrateScript(parsed).script;
+	const script = migrateScript(parsed, project.registry).script;
 
 	/**
 	 * **The file name is the name.**
@@ -668,7 +686,7 @@ export async function exportedTypes(project: OpenProject): Promise<ExportedType[
 	const out: ExportedType[] = [];
 	for (const relPath of await collectScripts(project)) {
 		const script = await readScript(project, relPath).catch(() => null);
-		if (!script || script.scriptClass !== "ModuleScript") continue;
+		if (!script || !isModuleScript(script)) continue;
 
 		const names = new Set<string>();
 		for (const node of script.nodes) {

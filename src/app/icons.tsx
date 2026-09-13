@@ -17,6 +17,12 @@ const VIEW_BOX = "0 -960 960 960";
 export const ICONS = {
 	chevron: "M480-345 240-585l56-56 184 184 184-184 56 56-240 240Z",
 
+	/**
+	 * ƒ, for a function graph. Drawn here rather than taken from Material, and
+	 * drawn as a stroke — see `STROKED`.
+	 */
+	function: "M720-790C660-860 540-850 515-730L430-235C410-120 310-100 235-160M330-560H630",
+
 	folder:
 		"M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z",
 	folderOpen:
@@ -91,7 +97,20 @@ export function Icon({ name, size = 16, className, rotate, title }: IconProps) {
 			style={rotate ? { transform: `rotate(${rotate}deg)` } : undefined}
 		>
 			{title && <title>{title}</title>}
-			<path d={ICONS[name]} fill="currentColor" />
+			{STROKED[name] ? (
+				<path
+					d={ICONS[name]}
+					fill="none"
+					stroke="currentColor"
+					strokeWidth={STROKED[name]}
+					strokeLinecap="round"
+				/>
+			) : (
+				<path d={ICONS[name]} fill="currentColor" />
+			)}
 		</svg>
 	);
 }
+
+/** Glyphs drawn as a centre line, by stroke width in the 960 grid. */
+const STROKED: Partial<Record<IconName, number>> = { function: 80 };

@@ -54,6 +54,35 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.33.0",
+		date: "2026-09-13",
+		headline: "Every function opens in its own graph.",
+		added: [
+			"**Function graphs.** A function's nodes are in a graph of its own, in a tab marked **ƒ** and named for the function and its script: `hide (Occupancy)`.",
+			"**Functions in the project tree.** A graph with functions has an arrow that lists them. Double-click one to open its graph.",
+			"**Double-click a Declare Function** to open its graph, or use the **ƒ** on its header.",
+			"**Shorten function tabs**, in Settings: **None**, **Function name** or **Script name**.",
+			"**Coming from Blueprints has a Macro row**: no counterpart, and the Luau that does the job instead.",
+			"**A Functions guide**: the two declarations, a function's graph, and what can reach inside one.",
+			"**`P` with nothing selected previews the whole script.** The preview button is in the bar whether or not anything is selected.",
+			"**Contributing says Lune comes first.** Where possible and feasible, Lune bugfixes and features are prioritized. Roblox Studio fixes and features are still considered.",
+		],
+		changed: [
+			"**A hoisted Function is drawn only in its own graph**, which opens when you add one.",
+			"**Declare Function is drawn in two graphs.** In the flow it has In, Then, On Table and Function; in its own graph it is the entry, with Body and its parameters.",
+			"**Select all, marquee select, Realign and align act on the graph on screen.**",
+			"**Deleting a function deletes its graph**, and asks first when there are nodes in it. Copying a function copies its graph.",
+			"**Clicking a function in the Variables panel opens its graph.** Clicking a local, a type or a diagnostic goes to the graph its node is in.",
+			"**A Lune graph has no script class.** Its bar has no class picker, and a Module Exports node is what makes it a module.",
+			"**Get Parameter lists the function it is inside first.**",
+			"**Function and Declare Function's descriptions** say which graph each is drawn in.",
+		],
+		watch: [
+			"**A graph with functions is split into function graphs when it is opened.** The Luau it compiles to does not change. A wire between two graphs is an error.",
+			"**A Lune graph with Module Exports now returns its exports**, whatever class it had. One without is a plain script.",
+		],
+	},
+	{
 		version: "0.32.0",
 		date: "2026-09-12",
 		headline: "Read a parameter where you use it.",

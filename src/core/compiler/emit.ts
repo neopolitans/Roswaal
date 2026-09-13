@@ -19,7 +19,7 @@ import {
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import { FUNCTION_NODES, typeShapeOf } from "../nodes/flow.js";
 import { checkLuauBalance } from "../luauCheck.js";
-import { PAIR } from "../schema.js";
+import { isModuleScript, PAIR } from "../schema.js";
 import type { Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
 import type { FunctionRef, LocalRef, ParamRef, VariableRef } from "../nodes/variables.js";
@@ -614,7 +614,7 @@ class Emitter {
 	private emitModuleReturn(root: Scope): void {
 		const exportsNodes = this.index.all().filter((r) => r.def.id === "module.exports");
 
-		if (this.script.scriptClass !== "ModuleScript") {
+		if (!isModuleScript(this.script)) {
 			if (exportsNodes.length > 0) {
 				this.warn(
 					"Module Exports only has an effect in a ModuleScript. This graph compiles to a " +

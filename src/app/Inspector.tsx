@@ -648,9 +648,11 @@ function LocalType({ node }: { node: GraphNode }) {
  */
 function ParamPicker({ script, node }: { script: NodeScript; node: GraphNode }) {
 	const ref = (node.config ?? {}) as { function?: string; param?: string };
-	const owners = script.nodes.filter(
-		(n) => FUNCTION_NODES.has(n.def) || n.def === "event.connect" || n.def === "event.once",
-	);
+	// The function whose graph this node is in comes first: it is nearly always
+	// the one meant.
+	const owners = script.nodes
+		.filter((n) => FUNCTION_NODES.has(n.def) || n.def === "event.connect" || n.def === "event.once")
+		.sort((a, b) => Number(b.id === node.graph) - Number(a.id === node.graph));
 	if (owners.length === 0) {
 		return <p className="summary">This graph has no functions or handlers with parameters yet.</p>;
 	}

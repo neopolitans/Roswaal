@@ -25,7 +25,8 @@ import {
 import { LICENCE_TEXTS } from "../core/themeData.js";
 import { BUILTIN_THEMES } from "./theme.js";
 import {
-	AUTOSAVE_CHOICES, DOCS_FONTS, PREVIEW_SCALE, previewScaleOf, WIRE_STYLES, type Preferences,
+	AUTOSAVE_CHOICES, DOCS_FONTS, FUNCTION_TAB_CHOICES, PREVIEW_SCALE, previewScaleOf, WIRE_STYLES,
+	type Preferences,
 } from "./preferences.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
@@ -315,6 +316,24 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 					>
 						Widen
 					</button>
+				</div>
+			</Row>
+
+			<Row
+				label="Shorten function tabs"
+				help="A function's tab reads ƒ hide (Occupancy): the function, then its script. The tooltip keeps both names."
+			>
+				<div className="segmented">
+					{FUNCTION_TAB_CHOICES.map((choice) => (
+						<button
+							key={choice.value}
+							className={prefs.functionTabs === choice.value ? "on" : ""}
+							title={choice.what}
+							onClick={() => onPrefs({ functionTabs: choice.value })}
+						>
+							{choice.label}
+						</button>
+					))}
 				</div>
 			</Row>
 

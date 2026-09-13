@@ -16,6 +16,7 @@ import {
 import type { Comment, Literal, NodeScript, PinDef, PinRef } from "../core/schema.js";
 import { resolveNodePins, type Registry } from "../core/nodes/index.js";
 import type { Diagnostic } from "../core/compiler/index.js";
+import { viewOf, type GraphId } from "../core/functionGraph.js";
 import {
 	isReroute, nodeBounds, pinPosition, rectFromPoints, rectsIntersect, screenToWorld, wirePath,
 	type WireStyle,
@@ -37,7 +38,10 @@ import { store, useEditor, useView } from "./store.js";
 const COMMENT_DEFAULT_COLOR = "6a8fbf";
 
 export interface CanvasProps {
+	/** The whole script. The canvas draws one graph of it. */
 	script: NodeScript;
+	/** Which graph: a function's id, or null for the nodescript's own. */
+	graph?: GraphId;
 	registry: Registry;
 	diagnostics: Diagnostic[];
 	/**
@@ -94,10 +98,26 @@ type Gesture =
 	| { kind: "resize"; id: string; origin: Vec; start: { w: number; h: number } };
 
 export function Canvas({
-	script, registry, diagnostics, onRequestMenu, onRequestPinMenu, onEditCode, onDropFile,
-	locked = false, wireStyle = "curved", wideNodes = false,
+	script: whole, graph = null, registry, diagnostics, onRequestMenu, onRequestPinMenu, onEditCode,
+	onDropFile, locked = false, wireStyle = "curved", wideNodes = false,
 }: CanvasProps) {
-	const { selection } = useEditor();
+	const { selection, path } = useEditor();
+	/**
+	 * The graph on screen, as a script of its own.
+	 *
+	 * Everything below that reads, draws or hit-tests reads this; everything that
+	 * edits goes through `store.edit` against the whole script, by id. That split
+	 * is what keeps select-all, marquee and delete to what you can see.
+	 */
+	const script = useMemo(() => viewOf(whole, graph), [whole, graph]);
+	const functionName = useMemo(() => {
+		if (graph === null) return null;
+		const fn = whole.nodes.find((n) => n.id === graph);
+		return (fn?.config as { name?: string } | undefined)?.name?.trim() || "function";
+	}, [whole, graph]);
+	const openFunction = useCallback((id: string) => {
+		if (path) store.openFunction(path, id);
+	}, [path]);
 	const view = useView();
 	const surface = useRef<HTMLDivElement>(null);
 	const gesture = useRef<Gesture>({ kind: "none" });
@@ -259,7 +279,7 @@ export function Canvas({
 							dy = snapToGrid(anchor.y + dy) - anchor.y;
 						}
 					}
-					store.apply((s) => placeNodes(s, g.start, dx, dy));
+					store.apply((s) => placeNodes(s, g.start, dx, dy, graph));
 					break;
 				}
 				case "resize": {
@@ -656,8 +676,17 @@ export function Canvas({
 			<GridLayer view={view} />
 
 			<div className="watermark" style={{ zIndex: LAYER.watermark }}>
-				<small>{script.scriptClass}</small>
-				{script.name}
+				{functionName === null ? (
+					<>
+						<small>{script.target === "lune" ? "Lune" : script.scriptClass}</small>
+						{script.name}
+					</>
+				) : (
+					<>
+						<small>{script.name}</small>
+						ƒ {functionName}
+					</>
+				)}
 			</div>
 
 			<div className="world" style={worldStyle}>
@@ -811,6 +840,11 @@ export function Canvas({
 						onEditCode={onEditCode}
 						onGrow={onGrow}
 						growth={growth.get(node.id) ?? null}
+						onOpen={
+							(node.config as { presence?: string } | undefined)?.presence === "outer"
+								? openFunction
+								: undefined
+						}
 						onContextMenu={(e, id) => {
 							if (!selection.has(id)) store.select([id]);
 							onRequestMenu({ x: e.clientX, y: e.clientY }, toWorld(e.clientX, e.clientY));

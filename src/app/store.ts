@@ -1,5 +1,5 @@
 /**
- * Editor state: several documents, one of them active.
+ * Editor state: several documents, open in tabs, one tab in front.
  *
  * A deliberately small store. The whole graph is replaced on every edit and
  * undo is a stack of snapshots — at the scale a single script reaches that is
@@ -14,27 +14,35 @@
  * *the document I am looking at*.
  *
  * So documents are added **underneath** the existing surface: the old methods
- * all act on the **active** document, and none of those call sites moved. Only
- * something that must address a *named* document — the tab strip, and
- * eventually a second canvas — needs the new API.
+ * all act on the **active** tab's document, and none of those call sites moved.
+ * Only something that must address a *named* tab — the tab strip, the tree —
+ * needs the new API.
  *
- * The viewport works the same way. `getView()` and `setView()` still take no
- * path and still mean "the one on screen", which is why `Canvas.tsx` did not
- * change at all. When two graphs can be visible at once the canvas will take a
- * path and these will grow one; until then, adding it would be a parameter with
- * exactly one possible value.
+ * ## Tabs and documents are not the same thing
  *
- * ## What is per document and what is not
+ * Since 0.33.0 a function opens in a graph of its own, in a tab of its own, and
+ * that graph is part of its nodescript's file. So a **document** is a file —
+ * its script, its undo history, whether it is dirty — and a **tab** is one graph
+ * of it, with its own selection and viewport. A file with two function tabs open
+ * has one history across all three: undo is about the file, and a delete in the
+ * outer graph can take a function's whole graph with it.
  *
- * Undo, selection, dirtiness and the viewport are per document — all four were
- * already per document in meaning, and only accidentally global in storage.
+ * A file's main tab is keyed by its path, exactly as before, so `activate(path)`
+ * still means what it did. A function's tab is `path#functionId`. A document is
+ * kept while any of its tabs is open.
  *
- * `locked` is not. A compile locks the *project*: a graph you are not looking
- * at is still being written to disk, and an edit to it would land in the file
- * or not depending on where the walk had got to.
+ * ## What is per tab and what is not
+ *
+ * Selection and the viewport are per tab: both are *where you are* in a graph.
+ * `locked` is per project. A compile locks the project: a graph you are not
+ * looking at is still being written to disk, and an edit to it would land in the
+ * file or not depending on where the walk had got to.
  */
 
 import { useSyncExternalStore } from "react";
+import {
+	functionOutline, graphExists, graphOf, positionIn, type FunctionInfo, type GraphId,
+} from "../core/functionGraph.js";
 import type { NodeScript } from "../core/schema.js";
 import type { View } from "./geometry.js";
 
@@ -46,7 +54,10 @@ const HOME: View = { x: 80, y: 80, zoom: 1 };
 export interface EditorState {
 	/** Project-relative path of the open graph, or null when nothing is open. */
 	path: string | null;
+	/** The whole script: every graph in the file. */
 	script: NodeScript | null;
+	/** Which graph of it the tab shows: a function's id, or null for the file's own. */
+	graph: GraphId;
 	/** Node and comment ids. They share a namespace because selection does. */
 	selection: ReadonlySet<string>;
 	dirty: boolean;
@@ -66,20 +77,27 @@ export interface EditorState {
 	locked: boolean;
 }
 
-/** One open graph, and everything that belongs to it alone. */
+/** One open file, and everything that belongs to the file rather than a tab. */
 interface Doc {
 	path: string;
 	script: NodeScript;
-	selection: ReadonlySet<string>;
 	dirty: boolean;
 	past: NodeScript[];
 	future: NodeScript[];
 	/** Snapshot taken at the start of a multi-step interaction, e.g. a drag. */
 	pending: NodeScript | null;
+}
+
+/** One graph on screen. */
+interface Tab {
+	key: string;
+	path: string;
+	graph: GraphId;
+	selection: ReadonlySet<string>;
 	/**
-	 * Where this document's canvas is looking.
+	 * Where this tab's canvas is looking.
 	 *
-	 * Per document because it is part of *where you were* in that graph, and
+	 * Per tab because it is part of *where you were* in that graph, and
 	 * switching tabs to find the view scrolled to somebody else's corner is the
 	 * kind of small wrongness that makes tabs feel unreliable.
 	 */
@@ -88,8 +106,12 @@ interface Doc {
 
 /** What the tab strip needs, without handing it the undo stacks. */
 export interface OpenDocument {
+	key: string;
 	path: string;
+	/** The function's name on a function tab; otherwise the script's. */
 	name: string;
+	scriptName: string;
+	graph: GraphId;
 	dirty: boolean;
 	active: boolean;
 }
@@ -99,20 +121,25 @@ type Listener = () => void;
 const NOTHING_OPEN: EditorState = {
 	path: null,
 	script: null,
+	graph: null,
 	selection: new Set(),
 	dirty: false,
 	locked: false,
 };
 
+/** A tab's key: the path for a file's own graph, `path#id` for a function's. */
+export function tabKey(path: string, graph: GraphId): string {
+	return graph === null ? path : `${path}#${graph}`;
+}
+
 class Store {
 	private docs = new Map<string, Doc>();
-	/** Tab order. Separate from the map because insertion order is not order. */
-	private order: string[] = [];
-	private activePath: string | null = null;
+	private tabList: Tab[] = [];
+	private activeKey: string | null = null;
 	private locked = false;
 
 	/**
-	 * The derived view of the active document, cached.
+	 * The derived view of the active tab, cached.
 	 *
 	 * `useSyncExternalStore` compares snapshots by identity and will loop
 	 * forever if handed a fresh object every time it asks. So this is rebuilt
@@ -120,6 +147,9 @@ class Store {
 	 */
 	private snapshot: EditorState = NOTHING_OPEN;
 	private tabs: OpenDocument[] = [];
+	/** Each open file's functions, rebuilt only when a name or the set changes. */
+	private outline = new Map<string, FunctionInfo[]>();
+	private outlineKeys = new Map<string, string>();
 
 	private listeners = new Set<Listener>();
 	private viewListeners = new Set<Listener>();
@@ -140,14 +170,18 @@ class Store {
 
 	getTabs = (): OpenDocument[] => this.tabs;
 
+	getOutline = (): ReadonlyMap<string, FunctionInfo[]> => this.outline;
+
 	/** Rebuilds the derived state and tells everyone. */
 	private changed(): void {
-		const doc = this.active();
-		this.snapshot = doc
+		const tab = this.activeTab();
+		const doc = tab ? this.docs.get(tab.path) : undefined;
+		this.snapshot = tab && doc
 			? {
 					path: doc.path,
 					script: doc.script,
-					selection: doc.selection,
+					graph: tab.graph,
+					selection: tab.selection,
 					dirty: doc.dirty,
 					locked: this.locked,
 				}
@@ -155,29 +189,80 @@ class Store {
 				? NOTHING_OPEN
 				: { ...NOTHING_OPEN, locked: this.locked };
 
-		this.tabs = this.order.map((path) => {
-			const open = this.docs.get(path)!;
+		this.tabs = this.tabList.map((t) => {
+			const open = this.docs.get(t.path)!;
+			const fn = t.graph === null ? undefined : open.script.nodes.find((n) => n.id === t.graph);
+			const fnName = (fn?.config as { name?: string } | undefined)?.name?.trim();
 			return {
-				path,
-				name: open.script.name,
+				key: t.key,
+				path: t.path,
+				name: t.graph === null ? open.script.name : fnName || "function",
+				scriptName: open.script.name,
+				graph: t.graph,
 				dirty: open.dirty,
-				active: path === this.activePath,
+				active: t.key === this.activeKey,
 			};
 		});
+
+		let outlineChanged = this.outline.size !== this.docs.size;
+		const outline = new Map<string, FunctionInfo[]>();
+		for (const [path, doc] of this.docs) {
+			const list = functionOutline(doc.script);
+			const key = list.map((f) => `${f.id}:${f.name}:${f.depth}`).join("|");
+			if (this.outlineKeys.get(path) !== key) outlineChanged = true;
+			this.outlineKeys.set(path, key);
+			outline.set(path, list);
+		}
+		if (outlineChanged) {
+			for (const path of [...this.outlineKeys.keys()]) if (!this.docs.has(path)) this.outlineKeys.delete(path);
+			this.outline = outline;
+		}
 
 		for (const listener of this.listeners) listener();
 	}
 
-	private active(): Doc | null {
-		return this.activePath === null ? null : (this.docs.get(this.activePath) ?? null);
+	private activeTab(): Tab | null {
+		return this.activeKey === null ? null : (this.tabList.find((t) => t.key === this.activeKey) ?? null);
 	}
 
-	/** Replaces fields on the active document. No active document, no change. */
-	private patch(fields: Partial<Doc>): void {
-		const doc = this.active();
+	private active(): Doc | null {
+		const tab = this.activeTab();
+		return tab ? (this.docs.get(tab.path) ?? null) : null;
+	}
+
+	private setDoc(doc: Doc): void {
+		this.docs.set(doc.path, doc);
+	}
+
+	private patchTab(fields: Partial<Tab>): void {
+		const tab = this.activeTab();
+		if (!tab) return;
+		this.tabList = this.tabList.map((t) => (t === tab ? { ...t, ...fields } : t));
+	}
+
+	private newTab(path: string, graph: GraphId): Tab {
+		return { key: tabKey(path, graph), path, graph, selection: new Set(), view: { ...HOME } };
+	}
+
+	/**
+	 * Closes the tabs of functions that are gone, after an edit or an undo took
+	 * one away. A tab in front moves to its file's own graph rather than to a
+	 * neighbour: the file is what you were working in.
+	 */
+	private reconcile(path: string): void {
+		const doc = this.docs.get(path);
 		if (!doc) return;
-		this.docs.set(doc.path, { ...doc, ...fields });
-		this.changed();
+		const dead = this.tabList.filter((t) => t.path === path && !graphExists(doc.script, t.graph));
+		if (dead.length === 0) return;
+		const activeDied = dead.some((t) => t.key === this.activeKey);
+		const at = this.tabList.findIndex((t) => t === dead[0]);
+		this.tabList = this.tabList.filter((t) => !dead.includes(t));
+		if (activeDied) {
+			if (!this.tabList.some((t) => t.key === path)) {
+				this.tabList.splice(Math.min(at, this.tabList.length), 0, this.newTab(path, null));
+			}
+			this.activeKey = path;
+		}
 	}
 
 	// -- documents ---------------------------------------------------------
@@ -191,55 +276,74 @@ class Store {
 	 * existed would leave the editor showing something the file no longer says.
 	 * An undo stack built on a version that is gone is not worth keeping.
 	 *
+	 * A function tab of the same file already in front stays in front.
+	 *
 	 * "The tab is already open, just go to it" is a different question, and one
 	 * only the caller can answer — see `isOpen` and `activate`. The project tree
 	 * asks it; a dynamic compile must not.
 	 */
 	open(path: string, script: NodeScript): void {
-		const at = this.order.indexOf(path);
-		if (at === -1) this.order.push(path);
-		this.docs.set(path, {
-			path,
-			script,
-			selection: new Set(),
-			dirty: false,
-			past: [],
-			future: [],
-			pending: null,
-			view: { ...HOME },
-		});
-		this.activePath = path;
+		this.setDoc({ path, script, dirty: false, past: [], future: [], pending: null });
+		if (!this.tabList.some((t) => t.key === path)) this.tabList.push(this.newTab(path, null));
+		if (this.activeTab()?.path !== path) this.activeKey = path;
+		this.reconcile(path);
 		this.changed();
-	}
-
-	/** Brings an already-open document to the front. */
-	activate(path: string): void {
-		if (!this.docs.has(path) || this.activePath === path) return;
-		this.activePath = path;
-		this.changed();
-	}
-
-	/** Closes the active document, if there is one. */
-	close(): void {
-		if (this.activePath !== null) this.closeDocument(this.activePath);
 	}
 
 	/**
-	 * Closes one document by path.
+	 * Opens a function's graph in a tab of its own, beside the file's other tabs.
+	 * The file has to be open already. False when it is not, or the function is
+	 * not there.
+	 */
+	openFunction(path: string, functionId: string): boolean {
+		const doc = this.docs.get(path);
+		if (!doc || !graphExists(doc.script, functionId)) return false;
+		const key = tabKey(path, functionId);
+		if (!this.tabList.some((t) => t.key === key)) {
+			let at = -1;
+			this.tabList.forEach((t, i) => {
+				if (t.path === path) at = i;
+			});
+			// Opens looking at the entry node, which in a graph split out of an
+			// older file sits wherever the body always did.
+			const tab = this.newTab(path, functionId);
+			const entry = doc.script.nodes.find((n) => n.id === functionId)!;
+			const at0 = positionIn(entry, functionId);
+			tab.view = { x: HOME.x - at0.x + 40, y: HOME.y - at0.y + 120, zoom: 1 };
+			this.tabList.splice(at + 1, 0, tab);
+		}
+		this.activeKey = key;
+		this.changed();
+		return true;
+	}
+
+	/** Brings an open tab to the front, by its key. */
+	activate(key: string): void {
+		if (!this.tabList.some((t) => t.key === key) || this.activeKey === key) return;
+		this.activeKey = key;
+		this.changed();
+	}
+
+	/** Closes the active tab, if there is one. */
+	close(): void {
+		if (this.activeKey !== null) this.closeDocument(this.activeKey);
+	}
+
+	/**
+	 * Closes one tab by key.
 	 *
 	 * The next tab to the right becomes active, falling back to the left —
 	 * which is what every editor does, and what stops closing the last tab in a
-	 * row leaving you somewhere unrelated.
+	 * row leaving you somewhere unrelated. The file closes with its last tab.
 	 */
-	closeDocument(path: string): void {
-		const index = this.order.indexOf(path);
+	closeDocument(key: string): void {
+		const index = this.tabList.findIndex((t) => t.key === key);
 		if (index === -1) return;
+		const [tab] = this.tabList.splice(index, 1);
 
-		this.docs.delete(path);
-		this.order.splice(index, 1);
-
-		if (this.activePath === path) {
-			this.activePath = this.order[index] ?? this.order[index - 1] ?? null;
+		if (!this.tabList.some((t) => t.path === tab.path)) this.docs.delete(tab.path);
+		if (this.activeKey === key) {
+			this.activeKey = (this.tabList[index] ?? this.tabList[index - 1])?.key ?? null;
 		}
 		this.changed();
 	}
@@ -247,19 +351,19 @@ class Store {
 	/** Closes everything. For a project switching underneath the editor. */
 	closeAll(): void {
 		this.docs.clear();
-		this.order = [];
-		this.activePath = null;
+		this.tabList = [];
+		this.activeKey = null;
 		this.changed();
 	}
 
-	/** Is this graph open in a tab? */
+	/** Is this file open, in any tab? */
 	isOpen(path: string): boolean {
 		return this.docs.has(path);
 	}
 
-	/** Every open graph's path, in tab order. */
+	/** Every open file's path, in the order their first tabs appear. */
 	openPaths(): string[] {
-		return [...this.order];
+		return [...new Set(this.tabList.map((t) => t.path))];
 	}
 
 	/**
@@ -284,7 +388,7 @@ class Store {
 	}
 
 	/**
-	 * A document whose file was renamed keeps its tab, its history and its view.
+	 * A document whose file was renamed keeps its tabs, its history and its views.
 	 *
 	 * Closing and reopening would be simpler and would throw all three away for
 	 * an operation that changed nothing about the graph.
@@ -293,14 +397,21 @@ class Store {
 		const doc = this.docs.get(from);
 		if (!doc) return;
 		this.docs.delete(from);
-		this.docs.set(to, { ...doc, path: to, script: script ?? doc.script });
-		this.order = this.order.map((p) => (p === from ? to : p));
-		if (this.activePath === from) this.activePath = to;
+		this.setDoc({ ...doc, path: to, script: script ?? doc.script });
+		const activeGraph = this.activeTab()?.path === from ? this.activeTab()!.graph : undefined;
+		this.tabList = this.tabList.map((t) =>
+			t.path === from ? { ...t, path: to, key: tabKey(to, t.graph) } : t,
+		);
+		if (activeGraph !== undefined) this.activeKey = tabKey(to, activeGraph);
+		this.reconcile(to);
 		this.changed();
 	}
 
 	markSaved(): void {
-		this.patch({ dirty: false });
+		const doc = this.active();
+		if (!doc) return;
+		this.setDoc({ ...doc, dirty: false });
+		this.changed();
 	}
 
 	// -- editing -----------------------------------------------------------
@@ -312,7 +423,8 @@ class Store {
 	begin(): void {
 		const doc = this.active();
 		if (!doc || doc.pending) return;
-		this.patch({ pending: doc.script });
+		this.setDoc({ ...doc, pending: doc.script });
+		this.changed();
 	}
 
 	end(): void {
@@ -320,15 +432,13 @@ class Store {
 		if (!doc) return;
 		const before = doc.pending;
 		if (!before || before === doc.script) {
-			if (before) this.patch({ pending: null });
+			if (before) {
+				this.setDoc({ ...doc, pending: null });
+				this.changed();
+			}
 			return;
 		}
-		this.docs.set(doc.path, {
-			...doc,
-			pending: null,
-			past: trim([...doc.past, before]),
-			future: [],
-		});
+		this.setDoc({ ...doc, pending: null, past: trim([...doc.past, before]), future: [] });
 		this.changed();
 	}
 
@@ -339,20 +449,30 @@ class Store {
 		this.changed();
 	}
 
-	/** Applies a change. Outside a transaction this is its own undo entry. */
+	/**
+	 * Applies a change. Outside a transaction this is its own undo entry.
+	 *
+	 * Anything the change **added** without saying which graph it is in goes in
+	 * the graph on screen. That is the one rule every way of making a node needs
+	 * — the menu, a paste, a dropped wire, a knot, a promoted pin — and having it
+	 * here means none of them has to know graphs exist.
+	 */
 	apply(fn: (script: NodeScript) => NodeScript): void {
 		const doc = this.active();
 		if (!doc || this.locked) return;
-		const next = fn(doc.script);
+		let next = fn(doc.script);
 		if (next === doc.script) return;
+		const graph = this.activeTab()!.graph;
+		if (graph !== null) next = adopt(doc.script, next, graph);
 
-		this.docs.set(doc.path, {
+		this.setDoc({
 			...doc,
 			script: next,
 			dirty: true,
 			past: doc.pending ? doc.past : trim([...doc.past, doc.script]),
 			future: doc.pending ? doc.future : [],
 		});
+		this.reconcile(doc.path);
 		this.changed();
 	}
 
@@ -366,14 +486,15 @@ class Store {
 		if (!doc || this.locked) return;
 		const previous = doc.past[doc.past.length - 1];
 		if (!previous) return;
-		this.docs.set(doc.path, {
+		this.setDoc({
 			...doc,
 			past: doc.past.slice(0, -1),
 			future: [...doc.future, doc.script],
 			script: previous,
 			dirty: true,
-			selection: prune(doc.selection, previous),
 		});
+		this.pruneSelections(doc.path, previous);
+		this.reconcile(doc.path);
 		this.changed();
 	}
 
@@ -382,14 +503,15 @@ class Store {
 		if (!doc || this.locked) return;
 		const next = doc.future[doc.future.length - 1];
 		if (!next) return;
-		this.docs.set(doc.path, {
+		this.setDoc({
 			...doc,
 			future: doc.future.slice(0, -1),
 			past: [...doc.past, doc.script],
 			script: next,
 			dirty: true,
-			selection: prune(doc.selection, next),
 		});
+		this.pruneSelections(doc.path, next);
+		this.reconcile(doc.path);
 		this.changed();
 	}
 
@@ -401,23 +523,55 @@ class Store {
 		return (this.active()?.future.length ?? 0) > 0;
 	}
 
+	/** Undo cannot leave a phantom selection in any tab of the file. */
+	private pruneSelections(path: string, script: NodeScript): void {
+		this.tabList = this.tabList.map((t) =>
+			t.path === path ? { ...t, selection: prune(t.selection, script) } : t,
+		);
+	}
+
 	// -- selection ---------------------------------------------------------
 
 	select(ids: Iterable<string>, mode: "replace" | "add" | "toggle" = "replace"): void {
-		const doc = this.active();
-		if (!doc) return;
-		const next = mode === "replace" ? new Set<string>() : new Set(doc.selection);
+		const tab = this.activeTab();
+		if (!tab) return;
+		const next = mode === "replace" ? new Set<string>() : new Set(tab.selection);
 		for (const id of ids) {
 			if (mode === "toggle" && next.has(id)) next.delete(id);
 			else next.add(id);
 		}
-		this.patch({ selection: next });
+		this.patchTab({ selection: next });
+		this.changed();
 	}
 
 	clearSelection(): void {
+		const tab = this.activeTab();
+		if (!tab || tab.selection.size === 0) return;
+		this.patchTab({ selection: new Set() });
+		this.changed();
+	}
+
+	/**
+	 * Selects a node or comment in the graph it is drawn in, going to that
+	 * graph's tab first. For anything that points at a node from outside the
+	 * canvas: a diagnostic, a row in a list.
+	 */
+	reveal(id: string): void {
 		const doc = this.active();
-		if (!doc || doc.selection.size === 0) return;
-		this.patch({ selection: new Set() });
+		if (!doc) return;
+		const node = doc.script.nodes.find((n) => n.id === id);
+		const comment = node ? undefined : doc.script.comments.find((c) => c.id === id);
+		if (!node && !comment) return;
+		let graph = node?.def === "function.entry" ? node.id : graphOf((node ?? comment)!);
+		if (!graphExists(doc.script, graph)) graph = null;
+
+		if (graph === null) {
+			if (!this.tabList.some((t) => t.key === doc.path)) this.tabList.push(this.newTab(doc.path, null));
+			this.activeKey = doc.path;
+		} else {
+			this.openFunction(doc.path, graph);
+		}
+		this.select([id]);
 	}
 
 	// -- view --------------------------------------------------------------
@@ -428,19 +582,38 @@ class Store {
 	};
 
 	/**
-	 * The active document's viewport.
+	 * The active tab's viewport.
 	 *
 	 * Returns the same object until it changes, so a canvas subscribed to it
-	 * does not re-render because some other document panned.
+	 * does not re-render because some other tab panned.
 	 */
-	getView = (): View => this.active()?.view ?? HOME;
+	getView = (): View => this.activeTab()?.view ?? HOME;
 
 	setView(view: View): void {
-		const doc = this.active();
-		if (!doc) return;
-		this.docs.set(doc.path, { ...doc, view });
+		if (!this.activeTab()) return;
+		this.patchTab({ view });
 		for (const listener of this.viewListeners) listener();
 	}
+}
+
+/** Puts what an edit added, with no graph of its own, into `graph`. */
+function adopt(before: NodeScript, after: NodeScript, graph: string): NodeScript {
+	const grew = after.nodes.length > before.nodes.length || after.comments.length > before.comments.length;
+	if (!grew && after.nodes === before.nodes && after.comments === before.comments) return after;
+	const had = new Set<string>([...before.nodes.map((n) => n.id), ...before.comments.map((c) => c.id)]);
+	let changed = false;
+	const nodes = after.nodes.map((n) => {
+		// A hoisted function is in no flow, so it is in no graph but its own.
+		if (had.has(n.id) || n.graph !== undefined || n.def === "function.entry") return n;
+		changed = true;
+		return { ...n, graph };
+	});
+	const comments = after.comments.map((c) => {
+		if (had.has(c.id) || c.graph !== undefined) return c;
+		changed = true;
+		return { ...c, graph };
+	});
+	return changed ? { ...after, nodes, comments } : after;
 }
 
 /** Keeps an undo stack from growing without limit. */
@@ -463,9 +636,14 @@ export function useEditor(): EditorState {
 	return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 }
 
-/** Every open graph, in tab order. */
+/** Every open tab, in order. */
 export function useDocuments(): OpenDocument[] {
 	return useSyncExternalStore(store.subscribeTabs, store.getTabs, store.getTabs);
+}
+
+/** Each open file's functions, for the project tree. */
+export function useOutline(): ReadonlyMap<string, FunctionInfo[]> {
+	return useSyncExternalStore(store.subscribe, store.getOutline, store.getOutline);
 }
 
 /**

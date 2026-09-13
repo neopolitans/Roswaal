@@ -4,6 +4,7 @@ import { memo, useState, type CSSProperties, type PointerEvent as ReactPointerEv
 
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { nodeTitle } from "../core/nodes/index.js";
+import { Icon } from "./icons.jsx";
 import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
 import { pinColor } from "./palette.js";
@@ -59,6 +60,8 @@ export interface NodeViewProps {
 	onGrow: (nodeId: string, delta: number) => void;
 	/** How many inputs this node can gain or lose, if any. */
 	growth: { canAdd: boolean; canRemove: boolean; label: string } | null;
+	/** Set on a Declare Function in the flow: opens the graph it declares. */
+	onOpen?: (nodeId: string) => void;
 }
 
 function NodeViewInner(props: NodeViewProps) {
@@ -112,6 +115,7 @@ function NodeViewInner(props: NodeViewProps) {
 			style={style}
 			data-node-id={node.id}
 			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
+			onDoubleClick={props.onOpen ? () => props.onOpen!(node.id) : undefined}
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
 		>
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
@@ -124,6 +128,17 @@ function NodeViewInner(props: NodeViewProps) {
 					{subtitle && <span className="subtitle">{subtitle}</span>}
 				</span>
 				{def.latent && <span className="marker" title="This node yields">⏳</span>}
+				{props.onOpen && (
+					<button
+						className="open-graph"
+						title="Open its graph — or double-click the node"
+						aria-label="Open the function's graph"
+						onPointerDown={(e) => e.stopPropagation()}
+						onClick={() => props.onOpen!(node.id)}
+					>
+						<Icon name="function" size={13} />
+					</button>
+				)}
 				{props.growth && (
 					<span className="grow">
 						<button

@@ -321,6 +321,17 @@ export interface GraphNode {
 	config?: NodeConfig;
 	/** Optional per-instance title override. */
 	label?: string;
+	/**
+	 * The function whose graph this node is drawn in, by the declaration's id.
+	 * Absent for the nodescript's own graph. Layout only: what compiles is still
+	 * decided by the wires. See `functionGraph.ts`.
+	 */
+	graph?: string;
+	/**
+	 * Where a Declare Function sits in the graph it opens, as its entry node.
+	 * `x` and `y` are where it sits in the flow it is declared in.
+	 */
+	inner?: { x: number; y: number };
 }
 
 export interface PinRef {
@@ -345,6 +356,8 @@ export interface Comment {
 	text: string;
 	/** Hex, without the leading hash. */
 	color?: string;
+	/** The function graph it is drawn in, as for `GraphNode.graph`. */
+	graph?: string;
 }
 
 /**
@@ -375,6 +388,18 @@ export interface NodeScript {
 	nodes: GraphNode[];
 	links: Link[];
 	comments: Comment[];
+}
+
+/**
+ * Whether a graph compiles to a module that returns its exports.
+ *
+ * Lune has no script classes: every file is `.luau`, and a file is a module
+ * when it has something to return. So on Lune a Module Exports node is what
+ * decides, and `scriptClass` is not read at all.
+ */
+export function isModuleScript(script: Pick<NodeScript, "target" | "scriptClass" | "nodes">): boolean {
+	if (script.target === "lune") return script.nodes.some((n) => n.def === "module.exports");
+	return script.scriptClass === "ModuleScript";
 }
 
 export function emptyScript(name: string, id: string): NodeScript {

@@ -132,7 +132,8 @@ export const FLOW_NODES: NodeDef[] = [
 		id: "function.entry",
 		title: "Function",
 		category: "Flow",
-		summary: "Declares a function. Parameters become data outputs.",
+		summary:
+			"Declares a function, written at the top of the file. It is the entry node of the function's own graph, and its parameters are data outputs there.",
 		role: "entry",
 		inputs: [],
 		// "self" is the function as a value, so it can be exported from a module
@@ -179,7 +180,8 @@ export const FLOW_NODES: NodeDef[] = [
 		category: "Flow",
 		summary:
 			"Declares a function where the node sits, instead of at the top. Wire a table into " +
-			"On Table for `function Table.name(...)`.",
+			"On Table for `function Table.name(...)`. Double-click it to open the function's graph, " +
+			"where it is the entry node with Body and the parameters.",
 		role: "flow",
 		inputs: [exec("in", ""), data("owner", "On Table", "table", undefined)],
 		outputs: [
@@ -190,15 +192,26 @@ export const FLOW_NODES: NodeDef[] = [
 		compilesTo: { kind: "builtin", handler: "function.declareHere" },
 		derivePins(config: NodeConfig) {
 			const sig = config as Signature;
+			const params = (sig.params ?? []).map((p, i) =>
+				data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type)),
+			);
+			// Drawn in two graphs, with each one's half. See `functionGraph.ts`.
+			if (config.presence === "outer") {
+				return {
+					inputs: [exec("in", ""), data("owner", "On Table", "table", undefined)],
+					outputs: [exec("then", ""), data("self", "Function", "function")],
+				};
+			}
+			if (config.presence === "entry") {
+				return { inputs: [], outputs: [exec("body", "Body"), ...params] };
+			}
 			return {
 				inputs: [exec("in", ""), data("owner", "On Table", "table", undefined)],
 				outputs: [
 					exec("then", ""),
 					exec("body", "Body"),
 					data("self", "Function", "function"),
-					...(sig.params ?? []).map((p, i) =>
-						data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type)),
-					),
+					...params,
 				],
 			};
 		},

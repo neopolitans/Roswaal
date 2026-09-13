@@ -117,7 +117,7 @@ export function VariablesPanel({ script, confirm, locked }: VariablesPanelProps)
 									key={node.id}
 									type={config.name!.trim()}
 									detail={config.export === false ? "type" : "export"}
-									onClick={() => store.select([node.id])}
+									onClick={() => store.reveal(node.id)}
 								/>
 							);
 						})}
@@ -179,7 +179,7 @@ function LocalRow({ node }: { node: GraphNode }) {
 				draggable
 				title="Drag onto the canvas for a Get Local. Click to select its Declare Local."
 				onDragStart={onDragStart}
-				onClick={() => store.select([node.id])}
+				onClick={() => store.reveal(node.id)}
 			>
 				<span className="swatch" style={{ background: pinColor(ref.type, "data") }} />
 				<span className="name">{ref.name}</span>
@@ -190,7 +190,7 @@ function LocalRow({ node }: { node: GraphNode }) {
 }
 
 /**
- * One function: drag it for a Get Function, click it to find the declaration.
+ * One function: drag it for a Get Function, click it to open its graph.
  *
  * The detail says which of the two it is, because that is the thing you cannot
  * tell from the name and the thing that decides where its body runs — hoisted
@@ -209,9 +209,12 @@ function FunctionRow({ node }: { node: GraphNode }) {
 			<div
 				className="variable-head"
 				draggable
-				title="Drag onto the canvas for a Get Function. Click to select the declaration."
+				title="Drag onto the canvas for a Get Function. Click to open its graph."
 				onDragStart={onDragStart}
-				onClick={() => store.select([node.id])}
+				onClick={() => {
+					const path = store.getSnapshot().path;
+					if (path) store.openFunction(path, node.id);
+				}}
 			>
 				<span className="swatch" style={{ background: pinColor("function", "data") }} />
 				<span className="name">{sig.name || "function"}</span>

@@ -8,6 +8,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import type { TreeEntry } from "./api.js";
+import type { FunctionInfo } from "../core/functionGraph.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 
@@ -20,6 +21,14 @@ const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
 export interface ProjectTreeProps {
 	tree: TreeEntry[];
 	openPath: string | null;
+	/** The function graph on screen, marked under its file. */
+	openGraph: string | null;
+	/**
+	 * Functions of the graphs that are open, which win over what the file on
+	 * disk said: a function added a moment ago is listed before autosave runs.
+	 */
+	outline: ReadonlyMap<string, FunctionInfo[]>;
+	onOpenFunction: (path: string, functionId: string) => void;
 	/** Where graphs live. Only folders under it can hold a new one. */
 	sourceDir: string;
 	/** Where node packs live. Roswaal's, but not somewhere a graph can go. */
@@ -70,8 +79,11 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		};
 	}, [menu]);
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+	/** Graphs whose functions are listed. Shut until asked, unlike folders. */
+	const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 	const [dropTarget, setDropTarget] = useState<string | null>(null);
+	const { outline } = props;
 
 	/**
 	 * The two halves of a Roswaal project, which the tree used to show as a flat
@@ -98,14 +110,15 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 
 	/** Visible rows in display order, which is what shift-range needs. */
 	const rows = useMemo(() => {
+		const fnsOf = (entry: TreeEntry) => outline.get(entry.path) ?? entry.functions ?? [];
 		const out: Row[] = [];
 		for (const section of SECTIONS) {
 			out.push({ section, entry: SECTION_ENTRY, depth: 0 });
 			if (collapsed.has(sectionKey(section.id))) continue;
-			out.push(...flatten(groups[section.id], collapsed, 1));
+			out.push(...flatten(groups[section.id], collapsed, 1, fnsOf, expanded));
 		}
 		return out;
-	}, [groups, collapsed]);
+	}, [groups, collapsed, outline, expanded]);
 	const [anchor, setAnchor] = useState<string | null>(null);
 
 	// A folder's own path is where a new document goes; a file's parent is.
@@ -150,7 +163,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 				setSelected(
 					new Set(
 						rows.slice(lo, hi + 1)
-							.filter((r) => r.entry.kind !== "directory")
+							.filter((r) => r.entry.kind !== "directory" && !r.fn)
 							.map((r) => r.entry.path),
 					),
 				);
@@ -189,7 +202,22 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 
 	return (
 		<div className="tree">
-			{rows.map(({ entry, depth, section }) => {
+			{rows.map(({ entry, depth, section, fn }) => {
+				if (fn) {
+					const open = props.openPath === entry.path && props.openGraph === fn.id;
+					return (
+						<div
+							key={`${entry.path}#${fn.id}`}
+							className={`tree-row function-row${open ? " open-doc" : ""}`}
+							style={{ paddingLeft: 6 + (depth + fn.depth) * 13 }}
+							title={`${fn.name} in ${entry.name}. Double-click to open its graph.`}
+							onDoubleClick={() => props.onOpenFunction(entry.path, fn.id)}
+						>
+							<Icon name="function" size={15} className="kind function" />
+							<span className="label">{fn.name}</span>
+						</div>
+					);
+				}
 				if (section) {
 					const shut = collapsed.has(sectionKey(section.id));
 					const count = groups[section.id].length;
@@ -261,11 +289,31 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 								/>
 							</>
 						) : (
-							<Icon
-								name={KIND_ICONS[entry.kind as keyof typeof KIND_ICONS]}
-								size={15}
-								className={`kind ${entry.kind}`}
-							/>
+							<>
+								{/* A graph with functions opens like a folder, onto them. */}
+								{(outline.get(entry.path) ?? entry.functions ?? []).length > 0 && (
+									<span
+										className="function-twist"
+										title={expanded.has(entry.path) ? "Hide its functions" : "Show its functions"}
+										onClick={(e) => {
+											e.stopPropagation();
+											const next = new Set(expanded);
+											if (next.has(entry.path)) next.delete(entry.path);
+											else next.add(entry.path);
+											setExpanded(next);
+										}}
+										onDoubleClick={(e) => e.stopPropagation()}
+									>
+										<Icon name="chevron" size={14} className="twist"
+											rotate={expanded.has(entry.path) ? 0 : -90} />
+									</span>
+								)}
+								<Icon
+									name={KIND_ICONS[entry.kind as keyof typeof KIND_ICONS]}
+									size={15}
+									className={`kind ${entry.kind}`}
+								/>
+							</>
 						)}
 						<span className="label">{entry.name}</span>
 						{entry.generatedFrom && <span className="badge">generated</span>}
@@ -365,6 +413,8 @@ interface Row {
 	depth: number;
 	/** Set on a section heading, which is a row without a file behind it. */
 	section?: Section;
+	/** Set on a function listed under its graph, which `entry` is. */
+	fn?: FunctionInfo;
 }
 
 interface Section {
@@ -396,12 +446,21 @@ const SECTION_ENTRY: TreeEntry = { path: "", name: "", kind: "directory" };
 /** Sections collapse through the same set as folders, so one key space. */
 const sectionKey = (id: Section["id"]) => `::section:${id}`;
 
-function flatten(entries: TreeEntry[], collapsed: ReadonlySet<string>, depth: number): Row[] {
+function flatten(
+	entries: TreeEntry[],
+	collapsed: ReadonlySet<string>,
+	depth: number,
+	fnsOf: (entry: TreeEntry) => FunctionInfo[],
+	expanded: ReadonlySet<string>,
+): Row[] {
 	const out: Row[] = [];
 	for (const entry of entries) {
 		out.push({ entry, depth });
 		if (entry.children && !collapsed.has(entry.path)) {
-			out.push(...flatten(entry.children, collapsed, depth + 1));
+			out.push(...flatten(entry.children, collapsed, depth + 1, fnsOf, expanded));
+		}
+		if (entry.kind === "nodescript" && expanded.has(entry.path)) {
+			for (const fn of fnsOf(entry)) out.push({ entry, depth: depth + 1, fn });
 		}
 	}
 	return out;

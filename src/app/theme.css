@@ -374,6 +374,11 @@ select optgroup {
 	margin-left: 5px;
 }
 
+.graph-tab .tab-fn {
+	flex: none;
+	color: var(--accent);
+}
+
 .graph-tab .close {
 	background: none;
 	border: 0;
@@ -2614,6 +2619,31 @@ button.tb.primary.danger {
 	cursor: default;
 }
 
+/* Opens a Declare Function's graph. Beside the grow buttons, and drawn like them. */
+.node .head .open-graph {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+	width: 18px;
+	height: 18px;
+	margin-left: auto;
+	padding: 0;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: 3px;
+	background: rgba(0, 0, 0, 0.2);
+	color: #fff;
+	cursor: pointer;
+}
+
+.node .head .open-graph:hover {
+	background: rgba(255, 255, 255, 0.25);
+}
+
+.node .head .open-graph + .grow {
+	margin-left: 4px;
+}
+
 /* A node that a dragged wire can grow to accept. */
 .node.grow-target {
 	box-shadow: 0 0 0 2px var(--ok), var(--node-shadow);
@@ -2647,6 +2677,15 @@ button.tb.primary.danger {
    Luau sits back with the rest of the repository. */
 .tree-row .kind.nodescript {
 	color: var(--accent);
+}
+
+.tree-row .kind.function {
+	color: var(--accent);
+}
+
+.tree-row .function-twist {
+	display: inline-flex;
+	margin-left: -14px;
 }
 
 .tree-row .kind.nodemap {

@@ -18,6 +18,9 @@ import {
 import { literalToLuau } from "../core/compiler/luau.js";
 import { pinsCompatible } from "../core/compiler/validate.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import {
+	placeIn, positionIn, withFunctionGraphs, type GraphId,
+} from "../core/functionGraph.js";
 import { localNameOf, pinDefaultFor, pinTypeOf, type LocalRef } from "../core/nodes/variables.js";
 import { currentArity, growthRule, type GrowthRule } from "../core/nodes/growth.js";
 import { compactWidth, nodeBounds, pinPosition, rectContains, type Rect } from "./geometry.js";
@@ -187,6 +190,7 @@ export function capturePlacements(
  */
 export function placeNodes(
 	script: NodeScript, start: ReadonlyMap<string, Placement>, dx: number, dy: number,
+	graph: GraphId = null,
 ): NodeScript {
 	if (start.size === 0) return script;
 	const at = (id: string, current: { x: number; y: number }) => {
@@ -196,7 +200,9 @@ export function placeNodes(
 
 	return {
 		...script,
-		nodes: script.nodes.map((n) => (start.has(n.id) ? { ...n, ...at(n.id, n) } : n)),
+		// A declaration is placed in the graph being dragged in, which for the
+		// graph it opens is its second position.
+		nodes: script.nodes.map((n) => (start.has(n.id) ? placeIn(n, graph, at(n.id, positionIn(n, graph))) : n)),
 		comments: script.comments.map((c) => (start.has(c.id) ? { ...c, ...at(c.id, c) } : c)),
 	};
 }
@@ -308,10 +314,18 @@ function wiredOffset(
 	return here && there ? here.y - there.y : null;
 }
 
+/**
+ * Deletes a selection, and the graph of every function in it.
+ *
+ * A function's graph is part of the function, so the two go together — a
+ * graph left behind with no declaration would be nodes nothing can reach or
+ * open. The editor asks first when that is more than the selection itself.
+ */
 export function deleteSelection(
-	script: NodeScript, ids: ReadonlySet<string>, registry: Registry,
+	script: NodeScript, picked: ReadonlySet<string>, registry: Registry,
 ): NodeScript {
-	if (ids.size === 0) return script;
+	if (picked.size === 0) return script;
+	const ids = withFunctionGraphs(script, picked);
 	const nodes = script.nodes.filter((n) => !ids.has(n.id));
 	const live = new Set(nodes.map((n) => n.id));
 	return retypeReroutes({
@@ -1398,8 +1412,12 @@ export interface Clipping {
 /**
  * Copies a selection, keeping only the wires with both ends inside it. A wire
  * to something that was not copied has nothing to reconnect to on paste.
+ *
+ * A function carries its graph, or pasting it would give a declaration with
+ * nothing inside.
  */
-export function copySelection(script: NodeScript, ids: ReadonlySet<string>): Clipping {
+export function copySelection(script: NodeScript, picked: ReadonlySet<string>): Clipping {
+	const ids = withFunctionGraphs(script, picked);
 	const nodes = script.nodes.filter((n) => ids.has(n.id));
 	const inside = new Set(nodes.map((n) => n.id));
 	return {
@@ -1420,23 +1438,39 @@ export function pasteClipping(
 	for (const node of clip.nodes) remap.set(node.id, newId());
 	for (const comment of clip.comments) remap.set(comment.id, newId());
 
-	const nodes = clip.nodes.map((n) => ({
-		...n,
-		id: remap.get(n.id)!,
-		x: n.x + offset,
-		y: n.y + offset,
-	}));
+	// Inside a pasted function stays inside the copy. Anything else was copied
+	// from the graph on screen and lands in the one on screen, which the store
+	// fills in for a node with no graph.
+	const graphFor = (graph: string | undefined) => (graph !== undefined ? remap.get(graph) : undefined);
+	const nodes = clip.nodes.map((n) => {
+		const { graph: _graph, ...rest } = n;
+		const graph = graphFor(n.graph);
+		const inside = graph !== undefined;
+		return {
+			...rest,
+			...(graph !== undefined ? { graph } : {}),
+			id: remap.get(n.id)!,
+			x: n.x + (inside ? 0 : offset),
+			y: n.y + (inside ? 0 : offset),
+		};
+	});
 	const links = clip.links.map((l) => ({
 		id: newId(),
 		from: { node: remap.get(l.from.node)!, pin: l.from.pin },
 		to: { node: remap.get(l.to.node)!, pin: l.to.pin },
 	}));
-	const comments = clip.comments.map((c) => ({
-		...c,
-		id: remap.get(c.id)!,
-		x: c.x + offset,
-		y: c.y + offset,
-	}));
+	const comments = clip.comments.map((c) => {
+		const { graph: _graph, ...rest } = c;
+		const graph = graphFor(c.graph);
+		const inside = graph !== undefined;
+		return {
+			...rest,
+			...(graph !== undefined ? { graph } : {}),
+			id: remap.get(c.id)!,
+			x: c.x + (inside ? 0 : offset),
+			y: c.y + (inside ? 0 : offset),
+		};
+	});
 
 	return {
 		script: {

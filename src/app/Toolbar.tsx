@@ -223,16 +223,20 @@ export function DocumentBar(props: DocumentBarProps) {
 	return (
 		<div className="docbar">
 			<span className={`doc-name${props.dirty ? " dirty" : ""}`}>{props.name}</span>
-			<select
-				className="tb"
-				title="What this graph compiles to"
-				value={props.scriptClass}
-				onChange={(e) => props.onScriptClass(e.target.value as ScriptClass)}
-			>
-				<option>Script</option>
-				<option>LocalScript</option>
-				<option>ModuleScript</option>
-			</select>
+			{/* Lune has no script classes: every file is .luau, and a Module
+			    Exports node is what makes one a module. */}
+			{props.target !== "lune" && (
+				<select
+					className="tb"
+					title="What this graph compiles to"
+					value={props.scriptClass}
+					onChange={(e) => props.onScriptClass(e.target.value as ScriptClass)}
+				>
+					<option>Script</option>
+					<option>LocalScript</option>
+					<option>ModuleScript</option>
+				</select>
+			)}
 			<select
 				className="tb"
 				title={
@@ -281,19 +285,20 @@ export function DocumentBar(props: DocumentBarProps) {
 				Straighten
 			</button>
 
-			{/* Only with a selection, which is the whole design: an advanced tool
-			    that appears when it has a question to answer and is not chrome
-			    the rest of the time. `P` does the same without reaching for it. */}
-			{props.selected > 0 && (
-				<button
-					className="tb icon-only"
-					title="Preview — the Luau these nodes produced, in the generated file (P)"
-					aria-label="Preview the selection's Luau"
-					onClick={props.onPreview}
-				>
-					<Icon name="terminal" size={16} />
-				</button>
-			)}
+			{/* With a selection it picks out what those nodes produced; without
+			    one it is the whole script. `P` does the same. */}
+			<button
+				className="tb icon-only"
+				title={
+					props.selected > 0
+						? "Preview — the Luau these nodes produced, in the generated file (P)"
+						: "Preview — the whole script's Luau (P)"
+				}
+				aria-label={props.selected > 0 ? "Preview the selection's Luau" : "Preview the script's Luau"}
+				onClick={props.onPreview}
+			>
+				<Icon name="terminal" size={16} />
+			</button>
 
 			<span className="spacer" />
 
