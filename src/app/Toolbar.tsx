@@ -31,6 +31,7 @@
 
 import type { RoswaalConfig, ScriptClass, Target, TypecheckMode } from "../core/schema.js";
 import { VERSION } from "../cli/version.js";
+import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
 
@@ -141,8 +142,8 @@ export function ProjectBar(props: ProjectBarProps) {
 			</button>
 			<button
 				className="tb icon-only"
-				title="Node designer — make a node of your own, into one of this project's packs"
-				aria-label="Open the node designer"
+				title="Node Design — make a node of your own, into one of this project's packs"
+				aria-label="Open Node Design"
 				onClick={props.onOpenDesigner}
 			>
 				<Icon name="palette" size={16} />
@@ -187,8 +188,14 @@ export type DocumentBarProps =
 			/** The graph is being compiled and must not be edited. */
 			locked: boolean;
 			alignExec: boolean;
-			/** Nothing selected means nothing to preview. */
+			/** How many nodes are selected; none previews the graph on screen. */
 			selected: number;
+			/** A function's graph is on screen, so an empty selection previews it. */
+			inFunction: boolean;
+			/** Show the name at the start of the tools. A preference. */
+			showName: boolean;
+			/** The function on screen, when it is a function's graph. */
+			functionName?: string;
 			hasPath: boolean;
 			onScriptClass: (value: ScriptClass) => void;
 			onTarget: (value: Target) => void;
@@ -220,9 +227,25 @@ export function DocumentBar(props: DocumentBarProps) {
 		);
 	}
 
+	// Floats over the canvas's top edge in three groups — the document's own
+	// settings, the tools that act on the graph, and compiling — rather than
+	// taking a row above it. See FloatingTools.tsx.
 	return (
-		<div className="docbar">
-			<span className={`doc-name${props.dirty ? " dirty" : ""}`}>{props.name}</span>
+		<FloatingTools label="Graph">
+			<ToolGroup>
+			{/* The name is a preference; the tab and the watermark already say it.
+			    Unsaved edits are marked either way. */}
+			{props.showName ? (
+				<span className={`doc-name${props.dirty ? " dirty" : ""}`}>
+					{props.functionName ? (
+						<>ƒ {props.functionName} <span className="doc-of">({props.name})</span></>
+					) : (
+						props.name
+					)}
+				</span>
+			) : (
+				props.dirty && <span className="doc-dirty" title="Edits not written yet" />
+			)}
 			{/* Lune has no script classes: every file is .luau, and a Module
 			    Exports node is what makes one a module. */}
 			{props.target !== "lune" && (
@@ -251,8 +274,9 @@ export function DocumentBar(props: DocumentBarProps) {
 				<option value="nonstrict">Nonstrict Mode</option>
 				<option value="strict">Strict Mode</option>
 			</select>
+			</ToolGroup>
 
-			<span className="divider" />
+			<ToolGroup>
 
 			<button
 				className="tb icon-only"
@@ -292,16 +316,20 @@ export function DocumentBar(props: DocumentBarProps) {
 				title={
 					props.selected > 0
 						? "Preview — the Luau these nodes produced, in the generated file (P)"
-						: "Preview — the whole script's Luau (P)"
+						: props.inFunction
+							? "Preview — this function's Luau (P)"
+							: "Preview — the whole script's Luau (P)"
 				}
 				aria-label={props.selected > 0 ? "Preview the selection's Luau" : "Preview the script's Luau"}
 				onClick={props.onPreview}
 			>
 				<Icon name="terminal" size={16} />
 			</button>
+			</ToolGroup>
 
 			<span className="spacer" />
 
+			<ToolGroup>
 			{/* What the graph compiles for, beside the button that compiles it:
 			    it is a compilation setting, and a Roblox-only node in a Lune graph
 			    being an error is the fact it explains. */}
@@ -328,6 +356,7 @@ export function DocumentBar(props: DocumentBarProps) {
 				<Icon name="build" size={15} />
 				Compile script
 			</button>
-		</div>
+			</ToolGroup>
+		</FloatingTools>
 	);
 }

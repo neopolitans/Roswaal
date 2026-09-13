@@ -289,6 +289,79 @@ select optgroup {
 	grid-template-rows: minmax(0, 1fr);
 	min-width: 0;
 	min-height: 0;
+	/* The floating tools are positioned against this, over whatever it shows. */
+	position: relative;
+}
+
+/* ---------------------------------------------------------- floating tools */
+
+/* Along the top edge of the view. The container takes no pointer events, so
+   the gaps between groups are still the canvas. See FloatingTools.tsx. */
+.floating-tools {
+	position: absolute;
+	top: 8px;
+	left: 10px;
+	right: 10px;
+	z-index: 5;
+	display: flex;
+	align-items: flex-start;
+	flex-wrap: wrap;
+	gap: 8px;
+	pointer-events: none;
+}
+
+.floating-tools .spacer {
+	flex: 1;
+}
+
+.tool-group {
+	pointer-events: auto;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 4px 6px;
+	background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	box-shadow: 0 4px 14px rgb(0 0 0 / 28%);
+}
+
+.tool-group .divider {
+	width: 1px;
+	align-self: stretch;
+	margin: 3px 2px;
+	background: var(--border-strong);
+}
+
+.tool-group .doc-name {
+	font-weight: 600;
+	margin: 0 2px 0 4px;
+}
+
+.tool-group .dirty::after {
+	content: "•";
+	color: var(--warning);
+	margin-left: 5px;
+}
+
+.tool-group .doc-of {
+	font-weight: 400;
+	color: var(--fg-muted);
+}
+
+/* Unsaved edits, when the name that would carry the dot is hidden. */
+.tool-group .doc-dirty {
+	width: 6px;
+	height: 6px;
+	margin: 0 2px 0 4px;
+	border-radius: 50%;
+	background: var(--warning);
+}
+
+.tool-group select.doc-target.lune {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
 }
 
 /* While a panel is in flight, nothing in the workspace is selectable. The
@@ -3317,13 +3390,44 @@ button.tb.icon-only.on {
 	padding: 0 6px;
 }
 
-.docs-page-head a.tb { text-decoration: none; color: inherit; }
+/* A link in the header is drawn as the button it acts as — Docs, Open Editor —
+   so a row of them reads as one set of controls rather than buttons beside
+   underlined text. */
+.docs-page-head a.tb {
+	text-decoration: none;
+	color: inherit;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 4px 9px;
+}
+
+/* One height for every control in the header, links and buttons alike. A link
+   given its own font size came out two pixels shorter than Settings beside it,
+   and the row stopped lining up. */
+.docs-page-head a.tb,
+.docs-page-head button.tb {
+	height: 29px;
+	box-sizing: border-box;
+}
+
+.docs-page-head a.tb:hover {
+	background: var(--bg-hover);
+}
 
 /* An icon is a block, so an icon and a word in one button stack by default. */
-.docs-page-head button.tb {
+.docs-page-head button.tb,
+.docs-page-head a.tb {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
+}
+
+.docs-page-head a.tb.icon-only {
+	justify-content: center;
+	padding: 4px;
+	width: 29px;
+	color: var(--fg-muted);
 }
 
 .docs-page .docs-body {
@@ -4062,6 +4166,719 @@ button.tb.icon-only.on {
 	color: var(--fg-faint);
 }
 
+/* ------------------------------------------------------------ pack browser */
+
+/* A toast in the corner, not a bar under the header: a bar took a row from the
+   pack view and the node editor every time something was saved. */
+.designer-notice {
+	position: fixed;
+	right: 18px;
+	bottom: 18px;
+	z-index: 80;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	max-width: min(440px, calc(100vw - 36px));
+	padding: 8px 8px 8px 14px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	font-size: 12px;
+	background: var(--bg-panel);
+	box-shadow: 0 8px 28px rgb(0 0 0 / 40%);
+	animation: designer-toast-in 140ms ease-out;
+}
+
+@keyframes designer-toast-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+}
+
+.designer-notice.ok {
+	border-color: color-mix(in srgb, var(--ok) 50%, transparent);
+}
+
+.designer-notice.failed {
+	border-color: color-mix(in srgb, var(--danger) 60%, transparent);
+	color: var(--danger);
+}
+
+.designer-notice span {
+	flex: 1;
+}
+
+.pack-browser {
+	padding: 16px 24px 32px;
+	overflow: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-height: 0;
+}
+
+.pack-toolbar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.pack-toolbar h1,
+.pack-nodes h1 {
+	font-size: 18px;
+	margin: 0;
+}
+
+.pack-toolbar .spacer,
+.pack-import .spacer {
+	flex: 1;
+}
+
+.pack-naming {
+	display: flex;
+	gap: 6px;
+}
+
+.pack-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 10px;
+}
+
+.pack-grid.list {
+	grid-template-columns: 1fr;
+	gap: 6px;
+}
+
+.pack-card {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 10px 12px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	cursor: pointer;
+	min-width: 0;
+}
+
+.pack-card:hover,
+.pack-card:focus-visible {
+	border-color: var(--accent);
+	outline: none;
+}
+
+.pack-grid.list .pack-card {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 14px;
+}
+
+.pack-card-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pack-card h3 {
+	margin: 0;
+	font-size: 14px;
+}
+
+.pack-path {
+	font-size: 11px;
+	color: var(--fg-faint);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pack-badges {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+}
+
+.designer .badge {
+	padding: 1px 7px;
+	font-size: 11px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	color: var(--fg-muted);
+	white-space: nowrap;
+}
+
+.designer .badge.warn {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+.designer .count {
+	color: var(--fg-faint);
+}
+
+/* The button that destroys something, when it is not already in a menu. */
+button.tb.danger {
+	color: var(--danger);
+	border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+}
+
+.pack-actions,
+.pack-confirm {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+}
+
+.pack-grid:not(.list) .pack-actions,
+.pack-grid:not(.list) .pack-confirm {
+	margin-top: auto;
+	padding-top: 4px;
+}
+
+.pack-grid.list .pack-actions,
+.pack-grid.list .pack-confirm {
+	margin-left: auto;
+}
+
+.pack-actions .tb {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 12px;
+}
+
+.pack-confirm p {
+	margin: 0 6px 0 0;
+	font-size: 12px;
+	flex-basis: 100%;
+}
+
+.pack-import {
+	width: min(720px, 92vw);
+	max-height: 80vh;
+	overflow: auto;
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 12px 14px;
+	box-shadow: 0 12px 40px rgb(0 0 0 / 40%);
+}
+
+.pack-import-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pack-import ul {
+	list-style: none;
+	margin: 10px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.pack-import li {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	font-size: 12px;
+}
+
+.pack-import .name {
+	font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- pack view */
+
+.pack-view {
+	flex: 1;
+	display: grid;
+	grid-template-columns: 280px minmax(0, 1fr);
+	/* One row, held to the window, so the editor's logic panel stays on screen. */
+	grid-template-rows: minmax(0, 1fr);
+	min-height: 0;
+}
+
+.pack-nodes {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 14px;
+	border-right: 1px solid var(--border);
+	background: var(--bg-panel);
+	overflow: auto;
+}
+
+.pack-back {
+	align-self: flex-start;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.pack-nodes ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.pack-node {
+	display: grid;
+	grid-template-columns: 8px 1fr;
+	grid-template-rows: auto auto;
+	column-gap: 8px;
+	width: 100%;
+	text-align: left;
+	padding: 5px 8px;
+	background: none;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	color: var(--fg);
+	cursor: pointer;
+}
+
+.pack-node:hover {
+	background: var(--bg-hover);
+}
+
+.pack-node.on {
+	background: var(--bg-active);
+	border-color: var(--border);
+}
+
+.pack-node .swatch {
+	grid-row: 1 / 3;
+	width: 8px;
+	border-radius: 2px;
+}
+
+.pack-node .id {
+	font-size: 11px;
+	color: var(--fg-faint);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.designer-stage {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	padding: 24px;
+	background: var(--bg-canvas);
+	overflow: auto;
+	position: relative;
+}
+
+/* ------------------------------------------------------------- node editor */
+
+.node-editor {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+
+/* The canvas the node sits on, with the graph's grid so it reads as one. */
+.node-editor-stage {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+	background-color: var(--bg-canvas);
+	background-image:
+		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
+		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
+	background-size: 38px 38px;
+}
+
+.node-editor-world {
+	position: absolute;
+	top: 0;
+	left: 0;
+	transform-origin: 0 0;
+}
+
+.node-plate {
+	position: absolute;
+	box-sizing: border-box;
+	background: color-mix(in srgb, var(--bg-panel) 70%, transparent);
+	border: 1px dashed var(--border-strong);
+	border-radius: 14px;
+	pointer-events: none;
+}
+
+/* The header's own title is hidden, and this input is typed into in its place. */
+.node-editor-world .node .head .title {
+	visibility: hidden;
+}
+
+.node-title-edit {
+	position: absolute;
+	top: 0;
+	left: 0;
+	/* Above the node, which sits at LAYER.node (50), or the header covers it. */
+	z-index: 60;
+	box-sizing: border-box;
+	padding: 0 10px;
+	background: transparent;
+	border: 0;
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	font-size: 12.5px;
+	outline: none;
+}
+
+.node-title-edit::placeholder {
+	color: rgb(255 255 255 / 55%);
+}
+
+/* In the designer a pin is something you edit, so what is drawn for it — dot,
+   label, value — is a target: a tint on hover, and a stronger one with an
+   outline while it is the pin the popover is about. Sized to that content with
+   a little padding, which the negative margin gives back, so nothing moves.
+   Only the designer draws `pin-target`. */
+.node .pin-target {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	/* No max-width. An output's side is one pin wide (22px), and capping the
+	   target to it with 12px of padding left the pin 4px, so it overflowed the
+	   node's edge. `min-width: 0` is enough for a long label to shrink. */
+	min-width: 0;
+	padding: 2px 6px;
+	margin: -2px -6px;
+	border-radius: 5px;
+	cursor: pointer;
+	transition: background-color 80ms ease;
+}
+
+.node .pin-target:hover {
+	background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.node .pin-target.pin-selected,
+.node .pin-target.pin-selected:hover {
+	background: color-mix(in srgb, var(--accent) 30%, transparent);
+	box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.node .pin-target.pin-selected .pin-label {
+	color: var(--fg);
+}
+
+/* A checkbox value sits beside its label, as it does in a row, rather than
+   pushed to the edge of a side the target no longer fills. */
+.node .pin-target > input[type="checkbox"] {
+	margin-left: 4px;
+}
+
+.node .pin.highlighted .dot {
+	box-shadow: 0 0 0 2px var(--accent);
+}
+
+.pin-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 8px;
+	font-size: 12px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--bg-input);
+	cursor: grab;
+	user-select: none;
+}
+
+.chip-dot {
+	width: 9px;
+	height: 9px;
+	border: 2px solid currentColor;
+	border-radius: 50%;
+	box-sizing: border-box;
+}
+
+.chip-dot.exec {
+	border-radius: 1px;
+	transform: rotate(45deg) scale(0.85);
+}
+
+.tool-group .tool-label {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.tool-group .badge {
+	padding: 1px 7px;
+	font-size: 11px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	color: var(--fg-muted);
+}
+
+.tool-group .badge.warn {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+.node-details,
+.node-problems {
+	position: absolute;
+	bottom: 10px;
+	z-index: 5;
+	padding: 8px 10px;
+	background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	box-shadow: 0 4px 14px rgb(0 0 0 / 28%);
+	font-size: 12px;
+}
+
+/* Expands out under the floating tools, from their Details button. */
+.node-details {
+	left: 10px;
+	top: 56px;
+	bottom: auto;
+	display: grid;
+	gap: 6px;
+	width: min(380px, 45%);
+}
+
+.node-details-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 2px;
+}
+
+.node-details textarea.tb {
+	resize: vertical;
+	min-height: 54px;
+	font: inherit;
+	line-height: 1.45;
+}
+
+/* A choice fills its row the way the fields above and below it do, its options
+   sharing the width, rather than stopping at the length of its labels. */
+.node-details .segmented {
+	display: flex;
+	width: 100%;
+}
+
+/* Each option starts from its own label and they share what is left, so the
+   row is filled without cutting a long label into two lines, which equal thirds
+   did to "Roblox and Lune". */
+.node-details .segmented button {
+	flex: 1 1 auto;
+	text-align: center;
+	white-space: nowrap;
+}
+
+.node-details label.summary {
+	align-items: start;
+}
+
+.node-details label.summary > span {
+	padding-top: 5px;
+}
+
+.node-details label,
+.pin-popover label {
+	display: grid;
+	grid-template-columns: 70px minmax(0, 1fr);
+	align-items: center;
+	gap: 8px;
+}
+
+.node-details label > span,
+.pin-popover label > span {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.node-problems {
+	right: 10px;
+	max-width: min(420px, 45%);
+	color: var(--ok);
+}
+
+.node-problems.bad {
+	color: var(--danger);
+}
+
+.node-problems ul {
+	margin: 0;
+	padding-left: 16px;
+	line-height: 1.6;
+}
+
+.pin-popover {
+	position: absolute;
+	z-index: 6;
+	width: 270px;
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	padding: 8px 10px 10px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	box-shadow: 0 8px 24px rgb(0 0 0 / 38%);
+	font-size: 12px;
+}
+
+.pin-popover-head,
+.pin-popover-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.pin-popover label.check {
+	grid-template-columns: auto 1fr;
+}
+
+.pin-popover .hint code {
+	font-size: 11px;
+}
+
+.logic-splitter {
+	height: 5px;
+	flex: none;
+	cursor: row-resize;
+	background: var(--border);
+}
+
+.logic-splitter:hover {
+	background: var(--accent);
+}
+
+.node-logic {
+	flex: none;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	background: var(--bg-panel);
+}
+
+.logic-head {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px;
+	padding: 6px 12px;
+	border-bottom: 1px solid var(--border);
+}
+
+.logic-tab {
+	padding: 2px 10px;
+	font-size: 12px;
+	border-radius: 999px;
+	border: 1px solid var(--border);
+}
+
+.logic-tab.on {
+	border-color: var(--accent);
+	color: var(--fg);
+}
+
+.luau-field {
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+
+/* Logic built from nodes: the graph, and beside it the Luau it compiles to. */
+.logic-split {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(220px, 30%);
+}
+
+.logic-canvas {
+	position: relative;
+	min-width: 0;
+	min-height: 0;
+}
+
+.logic-canvas > .canvas {
+	position: absolute;
+	inset: 0;
+}
+
+/* A logic graph is not a script, so the script's name and class say nothing. */
+.logic-canvas .watermark {
+	display: none;
+}
+
+.logic-compiled {
+	margin: 0;
+	padding: 8px 12px;
+	overflow: auto;
+	border-left: 1px solid var(--border);
+	background: var(--bg-canvas);
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: 12px;
+	line-height: 1.5;
+	white-space: pre;
+	color: var(--fg-muted);
+}
+
+.node-problems ul.warnings {
+	color: var(--warning);
+	margin-top: 4px;
+}
+
+.pack-requires {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 5px;
+}
+
+.pack-requires .tool-label {
+	font-size: 11px;
+	color: var(--fg-faint);
+	margin-right: 2px;
+}
+
+.pack-requires select.tb {
+	padding: 1px 6px;
+	font-size: 11px;
+}
+
+.badge .badge-remove {
+	margin-left: 4px;
+	padding: 0;
+	background: none;
+	border: 0;
+	color: inherit;
+	cursor: pointer;
+	font-size: 11px;
+}
+
+.logic-empty {
+	padding: 12px;
+}
+
 /* ---------------------------------------------------------------- docs tabs */
 
 /* One switch over several routes through the same subject — three ways to
@@ -4529,7 +5346,8 @@ button.tb.icon-only.on {
 }
 
 .canvas-lock span {
-	margin-top: 12px;
+	/* Below the floating tools along the canvas's top edge, not under them. */
+	margin-top: 52px;
 	padding: 4px 12px;
 	font-size: 11px;
 	font-weight: 600;

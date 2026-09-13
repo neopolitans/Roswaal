@@ -1,6 +1,8 @@
 /** One node on the canvas: header, pin rows, and inline literal editors. */
 
-import { memo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import {
+	memo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode,
+} from "react";
 
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { nodeTitle } from "../core/nodes/index.js";
@@ -62,6 +64,40 @@ export interface NodeViewProps {
 	growth: { canAdd: boolean; canRemove: boolean; label: string } | null;
 	/** Set on a Declare Function in the flow: opens the graph it declares. */
 	onOpen?: (nodeId: string) => void;
+	/**
+	 * The node designer's selected pin, as `in:id` or `out:id`, drawn
+	 * highlighted. The graph canvas never sets it.
+	 */
+	highlightPin?: string | null;
+	/**
+	 * Set by the node designer, where a pin is something you edit: clicking
+	 * anywhere on a pin's row — its label as well as its dot — picks it, and the
+	 * row shows it can be picked. On a graph a row is not a target, so the
+	 * canvas leaves this unset.
+	 */
+	onPinRowPointerDown?: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
+}
+
+/**
+ * A pin's visible content — dot, label, value — as one target, when the
+ * designer is picking pins.
+ *
+ * Its own element rather than the row's side, because the side is deliberately
+ * wide: it fills the node so values line up down the rows. A highlight on the
+ * side covered half the node for a pin whose label is one word. This one is the
+ * size of what is drawn, and the row's layout does not change.
+ */
+function pinTarget(props: NodeViewProps, pin: PinDef, side: "in" | "out", content: ReactNode) {
+	if (!props.onPinRowPointerDown) return content;
+	const picked = props.highlightPin === `${side}:${pin.id}`;
+	return (
+		<span
+			className={`pin-target${picked ? " pin-selected" : ""}`}
+			onPointerDown={(e) => props.onPinRowPointerDown!(e, props.node.id, pin, side)}
+		>
+			{content}
+		</span>
+	);
 }
 
 function NodeViewInner(props: NodeViewProps) {
@@ -164,10 +200,10 @@ function NodeViewInner(props: NodeViewProps) {
 				{Array.from({ length: rows }, (_, i) => (
 					<div className="row" key={i}>
 						<span className="side left">
-							{inputs[i] && renderPin(props, inputs[i], "in")}
+							{inputs[i] && pinTarget(props, inputs[i], "in", renderPin(props, inputs[i], "in"))}
 						</span>
 						<span className="side right">
-							{outputs[i] && renderPin(props, outputs[i], "out")}
+							{outputs[i] && pinTarget(props, outputs[i], "out", renderPin(props, outputs[i], "out"))}
 						</span>
 					</div>
 				))}
@@ -332,9 +368,11 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 		state = props.canAccept(node.id, pin, side) ? " compatible" : " incompatible";
 	}
 
+	// Marked on the pin itself as well as its row, for the pill, which has no rows.
+	const highlighted = props.highlightPin === `${side}:${pin.id}` ? " highlighted" : "";
 	const dot = (
 		<span
-			className={`pin ${pin.kind}${wired ? " connected" : ""}${state}`}
+			className={`pin ${pin.kind}${wired ? " connected" : ""}${state}${highlighted}`}
 			style={{ color: pinColor(pin.type, pin.kind) }}
 			title={pin.description ?? pin.type ?? pin.kind}
 			onPointerDown={(e) => props.onPinPointerDown(e, node.id, pin, side)}

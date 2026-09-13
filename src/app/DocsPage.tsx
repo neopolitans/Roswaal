@@ -120,7 +120,7 @@ export function DocsPage() {
 					Settings
 				</button>
 				<a className="tb" href="/" target="_blank" rel="noreferrer">
-					Open the editor
+					Open Editor
 				</a>
 			</header>
 

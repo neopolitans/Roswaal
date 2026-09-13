@@ -1,6 +1,6 @@
 /** Thin wrapper over the daemon's HTTP API. */
 
-import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass } from "../core/schema.js";
+import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "../core/schema.js";
 import type { Diagnostic } from "../core/compiler/index.js";
 import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
@@ -29,6 +29,9 @@ export interface PackFile {
 	format: "json" | "luau";
 	nodes: string[];
 	errors: string[];
+	/** The targets all of its nodes run on, or null when they run on both. */
+	targets: Target[] | null;
+	requires: string[];
 }
 
 /** A type a module graph exports. The daemon's copy is in `src/server/project.ts`. */
@@ -183,14 +186,44 @@ export const api = {
 	removeOrphans: (paths: string[]) =>
 		post<{ removed: number }>("/api/orphans/remove", { paths }),
 
-	/** The project's node packs, and the directory a new one belongs in. */
-	packs: () => request<{ packs: PackFile[]; dir: string }>("/api/packs"),
+	/** The project's node packs, the directory a new one belongs in, and its target. */
+	packs: () => request<{ packs: PackFile[]; dir: string; target: Target }>("/api/packs"),
+	/** One pack's nodes as its file writes them. */
+	readPack: (path: string) =>
+		request<{ pack: PackFile; nodes: Record<string, unknown>[] }>(
+			`/api/packs/read?path=${encodeURIComponent(path)}`,
+		),
+	/** A new, empty JSON pack in the project's first node path. */
+	createPack: (name: string) => post<{ pack: PackFile }>("/api/packs/create", { name }),
+	/** A copy beside it in its own namespace; for a Luau pack, the editable JSON copy. */
+	duplicatePack: (path: string) => post<{ pack: PackFile }>("/api/packs/duplicate", { path }),
+	/** The graphs placing this pack's nodes, for the question before deleting it. */
+	packUsage: (path: string) =>
+		request<{ usage: { graph: string; count: number }[] }>(
+			`/api/packs/usage?path=${encodeURIComponent(path)}`,
+		),
+	deletePack: (path: string) => post<{ ok: true }>("/api/packs/delete", { path }),
+	/** Another project's packs, and what that project compiles for. */
+	scanPacks: (root: string) =>
+		request<{ root: string; target: Target; packs: PackFile[] }>(
+			`/api/packs/scan?root=${encodeURIComponent(root)}`,
+		),
+	importPack: (root: string, path: string) =>
+		post<{ pack: PackFile }>("/api/packs/import", { root, path }),
+	exportPack: (path: string, root: string) =>
+		post<{ pack: PackFile }>("/api/packs/export", { root, path }),
 	/** Adds a designed node to a JSON pack, or replaces the one with its id. */
-	savePackNode: (path: string, def: NodeDef) =>
+	savePackNode: (path: string, def: NodeDef, replaces?: string) =>
 		request<{ pack: PackFile; packs: NodeDef[] }>("/api/packs/node", {
 			method: "PUT",
-			body: JSON.stringify({ path, def }),
+			body: JSON.stringify({ path, def, replaces }),
 		}),
+	/** The packs a pack's logic can be built from, by name. */
+	setPackRequires: (path: string, requires: string[]) =>
+		post<{ pack: PackFile }>("/api/packs/requires", { path, requires }),
+	/** Takes one node out of a JSON pack. */
+	deletePackNode: (path: string, id: string) =>
+		post<{ pack: PackFile }>("/api/packs/node/delete", { path, id }),
 
 	/** Every type the project's module graphs export, and where each module lands. */
 	exportedTypes: () => request<{ types: ExportedType[] }>("/api/types"),

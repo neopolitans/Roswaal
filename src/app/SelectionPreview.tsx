@@ -33,6 +33,7 @@
 
 import { useMemo, useState } from "react";
 
+import { graphMembers, type GraphId } from "../core/functionGraph.js";
 import type { NodeScript } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { nodeTitle } from "../core/nodes/index.js";
@@ -44,10 +45,28 @@ import { LAYER } from "./layers.js";
 /** Unattributed lines longer than this are folded away. */
 const CONTEXT = 2;
 
+/**
+ * What `P` previews: the selection, or with nothing selected, everything on
+ * screen that has lines to show.
+ *
+ * In a function's tab that is the function — its declaration and its graph —
+ * rather than the file. Previewing the whole script from inside `hide` answers
+ * a question nobody in that tab asked. The nodescript's own graph has nothing
+ * narrower than the file, so it keeps meaning the whole script.
+ */
+export function previewSelection(
+	script: NodeScript, graph: GraphId, selection: ReadonlySet<string>,
+): ReadonlySet<string> {
+	if (selection.size > 0 || graph === null) return selection;
+	return new Set([graph, ...graphMembers(script, graph)]);
+}
+
 export interface SelectionPreviewProps {
 	script: NodeScript;
 	registry: Registry;
 	selection: ReadonlySet<string>;
+	/** Set when the preview is of a whole function rather than a selection. */
+	functionName?: string;
 	/** The generated file, exactly as it would be written. */
 	code: string;
 	sourceMap: { line: number; node: string }[];
@@ -91,12 +110,16 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 			>
 				<div className="docs-head">
 					<Icon name="terminal" size={16} />
-					<strong>{whole ? "Script preview" : "Selection preview"}</strong>
+					<strong>
+						{whole ? "Script preview" : props.functionName ? `ƒ ${props.functionName}` : "Selection preview"}
+					</strong>
 					<span className="sub">
 						{whole
 							? `${rows.length} line${rows.length === 1 ? "" : "s"}`
-							: `${props.selection.size} node${props.selection.size === 1 ? "" : "s"}`}
-						{!whole && direct > 0 && ` · ${direct} line${direct === 1 ? "" : "s"}`}
+							: props.functionName
+								? `${direct} line${direct === 1 ? "" : "s"}`
+								: `${props.selection.size} node${props.selection.size === 1 ? "" : "s"}`}
+						{!whole && !props.functionName && direct > 0 && ` · ${direct} line${direct === 1 ? "" : "s"}`}
 					</span>
 					<span className="spacer" />
 					{!whole && (

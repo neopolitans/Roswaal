@@ -25,7 +25,7 @@ const route = window.location.pathname.replace(/\/+$/, "");
 const isDocs = route === "/docs";
 const isDesigner = route === "/designer";
 
-document.title = isDocs ? "Roswaal docs" : isDesigner ? "Node designer" : "Roswaal";
+document.title = isDocs ? "Roswaal docs" : isDesigner ? "Node Design" : "Roswaal";
 
 // Set here rather than in `index.html` so the artwork has one home. Both entry
 // points are the same document, so both get it.
@@ -47,7 +47,7 @@ applyChrome(preferences);
 createRoot(container).render(
 	<StrictMode>
 		<ErrorBoundary
-			what={isDocs ? "The documentation" : isDesigner ? "The node designer" : "Roswaal"}
+			what={isDocs ? "The documentation" : isDesigner ? "Node Design" : "Roswaal"}
 		>
 			{isDocs ? <DocsPage /> : isDesigner ? <DesignerPage /> : <App />}
 		</ErrorBoundary>

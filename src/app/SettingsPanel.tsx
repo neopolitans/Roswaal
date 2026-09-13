@@ -320,6 +320,26 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			</Row>
 
 			<Row
+				label="Name in the graph tools"
+				help="The graph's name at the start of the tools over the canvas. In a function's graph it reads ƒ hide (Occupancy)."
+			>
+				<div className="segmented">
+					<button
+						className={!prefs.toolbarName ? "on" : ""}
+						onClick={() => onPrefs({ toolbarName: false })}
+					>
+						Hide
+					</button>
+					<button
+						className={prefs.toolbarName ? "on" : ""}
+						onClick={() => onPrefs({ toolbarName: true })}
+					>
+						Show
+					</button>
+				</div>
+			</Row>
+
+			<Row
 				label="Shorten function tabs"
 				help="A function's tab reads ƒ hide (Occupancy): the function, then its script. The tooltip keeps both names."
 			>

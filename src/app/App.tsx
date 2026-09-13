@@ -24,6 +24,7 @@ import type { DialogRequest, DialogResult, PendingDialog } from "./Dialog.jsx";
 import { Logo } from "./logo.jsx";
 import type { PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
+import { previewSelection } from "./SelectionPreview.jsx";
 import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
 import type { PinMenuTarget } from "./PinMenu.jsx";
 import { autoLayout } from "./layout.js";
@@ -281,6 +282,19 @@ export function App() {
 		[editor.script, registry],
 	);
 	const diagnostics: Diagnostic[] = compiled?.diagnostics ?? [];
+
+	/** What `P` previews, and the function's name when that is a whole function. */
+	const previewScope = useMemo(() => {
+		if (!editor.script) return { selection: editor.selection, functionName: undefined };
+		const selection = previewSelection(editor.script, editor.graph, editor.selection);
+		const fn = selection === editor.selection
+			? undefined
+			: editor.script.nodes.find((n) => n.id === editor.graph);
+		const functionName = fn
+			? (fn.config as { name?: string } | undefined)?.name?.trim() || "function"
+			: undefined;
+		return { selection, functionName };
+	}, [editor.script, editor.graph, editor.selection]);
 
 	// -- project -----------------------------------------------------------
 
@@ -1310,56 +1324,6 @@ export function App() {
 					onCompile={() => void runCompileMap(mapDoc.path)}
 				/>
 			)}
-			{!mapDoc && editor.script && (
-				<DocumentBar
-					kind="graph"
-					name={editor.script.name}
-					dirty={editor.dirty}
-					busy={busy}
-					scriptClass={editor.script.scriptClass}
-					target={editor.script.target}
-					typecheck={editor.script.typecheck}
-					locked={locked}
-					alignExec={alignExec}
-					selected={editor.selection.size}
-					hasPath={editor.path !== null}
-					onScriptClass={(value) => store.edit((s) => ({ ...s, scriptClass: value }))}
-					onTarget={async (value) => {
-						// Nodes written only for the other target would all become
-						// errors, so say how many and ask before switching. The same
-						// test `validate` reports them with.
-						const off = offTargetNodes(editor.script!, registry, value);
-						if (off.length > 0) {
-							const name = value === "lune" ? "Lune" : "Roblox";
-							const ok = await ask({
-								kind: "confirm",
-								title: `Compile this graph for ${name}?`,
-								message:
-									`${off.length === 1 ? "This node is" : `These ${off.length} nodes are`} ` +
-									`not available for ${name}, and will show as errors until removed:`,
-								items: offTargetNames(editor.script!, registry, value),
-								confirmLabel: `Switch to ${name}`,
-							});
-							if (ok !== true) return;
-						}
-						store.edit((s) => ({ ...s, target: value }));
-					}}
-					onTypecheck={(value) => store.edit((s) => ({ ...s, typecheck: value }))}
-					onAddNode={() => {
-						const view = store.getView();
-						setMenu({
-							screen: { x: 320, y: 120 },
-							world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
-						});
-					}}
-					onRealign={realign}
-					onToggleAlignExec={toggleAlignExec}
-					onPreview={() => setPreviewOpen(true)}
-					onCompile={() => {
-						if (editor.path) void runCompile(editor.path, true);
-					}}
-				/>
-			)}
 
 			<Workspace
 				layout={layout}
@@ -1484,6 +1448,67 @@ export function App() {
 							onReveal={(path) => void api.reveal(path)}
 						/>
 					) : editor.script ? (
+						<>
+						{/* The graph's own tools, floating over the canvas's top edge
+						    rather than a row above it. A node map keeps its bar: it
+						    has no canvas to float over. */}
+						<DocumentBar
+							kind="graph"
+							name={editor.script.name}
+							dirty={editor.dirty}
+							busy={busy}
+							scriptClass={editor.script.scriptClass}
+							target={editor.script.target}
+							typecheck={editor.script.typecheck}
+							locked={locked}
+							alignExec={alignExec}
+							selected={editor.selection.size}
+							inFunction={editor.graph !== null}
+							showName={prefs.toolbarName}
+							functionName={
+								editor.graph === null
+									? undefined
+									: (editor.script.nodes.find((n) => n.id === editor.graph)?.config as
+										| { name?: string }
+										| undefined)?.name?.trim() || "function"
+							}
+							hasPath={editor.path !== null}
+							onScriptClass={(value) => store.edit((s) => ({ ...s, scriptClass: value }))}
+							onTarget={async (value) => {
+								// Nodes written only for the other target would all become
+								// errors, so say how many and ask before switching. The same
+								// test `validate` reports them with.
+								const off = offTargetNodes(editor.script!, registry, value);
+								if (off.length > 0) {
+									const name = value === "lune" ? "Lune" : "Roblox";
+									const ok = await ask({
+										kind: "confirm",
+										title: `Compile this graph for ${name}?`,
+										message:
+											`${off.length === 1 ? "This node is" : `These ${off.length} nodes are`} ` +
+											`not available for ${name}, and will show as errors until removed:`,
+										items: offTargetNames(editor.script!, registry, value),
+										confirmLabel: `Switch to ${name}`,
+									});
+									if (ok !== true) return;
+								}
+								store.edit((s) => ({ ...s, target: value }));
+							}}
+							onTypecheck={(value) => store.edit((s) => ({ ...s, typecheck: value }))}
+							onAddNode={() => {
+								const view = store.getView();
+								setMenu({
+									screen: { x: 320, y: 120 },
+									world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
+								});
+							}}
+							onRealign={realign}
+							onToggleAlignExec={toggleAlignExec}
+							onPreview={() => setPreviewOpen(true)}
+							onCompile={() => {
+								if (editor.path) void runCompile(editor.path, true);
+							}}
+						/>
 						<Canvas
 							script={editor.script}
 							graph={editor.graph}
@@ -1516,6 +1541,7 @@ export function App() {
 								}
 							}}
 						/>
+						</>
 						) : (
 							<div className="placeholder">
 								<h1>No graph open</h1>
@@ -1531,6 +1557,8 @@ export function App() {
 				registry={registry}
 				script={editor.script}
 				selection={editor.selection}
+				previewSelection={previewScope.selection}
+				previewFunction={previewScope.functionName}
 
 				drop={dropMenu}
 				onDropPick={(defId, config) => {

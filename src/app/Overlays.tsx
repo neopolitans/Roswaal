@@ -84,6 +84,10 @@ export interface OverlaysProps {
 
 	// -- windows -----------------------------------------------------------
 	preview: { code: string; sourceMap: { line: number; node: string }[] } | null;
+	/** What the preview picks out: the selection, or the function on screen. */
+	previewSelection: ReadonlySet<string>;
+	/** Set when that is a whole function rather than a selection. */
+	previewFunction?: string;
 	onPreviewClose: () => void;
 
 	settings: { root: string; config: RoswaalConfig; prefs: Preferences } | null;
@@ -116,7 +120,8 @@ export function Overlays(props: OverlaysProps) {
 				<SelectionPreview
 					script={props.script}
 					registry={props.registry}
-					selection={props.selection}
+					selection={props.previewSelection}
+					functionName={props.previewFunction}
 					code={props.preview.code}
 					sourceMap={props.preview.sourceMap}
 					onClose={props.onPreviewClose}
