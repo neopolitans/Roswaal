@@ -54,6 +54,15 @@ interface Place {
  */
 const TIGHT = { column: 240, row: 125 };
 
+/**
+ * How far a stand-in value sits below its row's execution line.
+ *
+ * A one-row node is 64px tall and the exec line runs 42px down, so anything
+ * under 62 still crosses it. 68 clears it with a little air and still leaves the
+ * node inside its own row band, including the tight spacing above.
+ */
+const STAND_DROP = 68;
+
 class G {
 	readonly script: NodeScript;
 	private n = 0;
@@ -93,9 +102,22 @@ class G {
 		return (this.columns.get(id) ?? 0) + 1;
 	}
 
-	/** A Luau Expression standing in for a value the reader would supply. */
-	stand(text: string): string {
-		return this.node("value.expression", { literals: { code: { t: "raw", v: text } } });
+	/**
+	 * A Luau Expression standing in for a value the reader would supply.
+	 *
+	 * Dropped below the execution line by default. A stand-in sits between two
+	 * step nodes in the column order, so on the line it lands square across the
+	 * exec wire running past it — and since 0.35.0 that wire ends in a triangle
+	 * hung outside the node it feeds, close enough to the stand-in's own output
+	 * to read as one pin. Below it, the exec wire runs clear overhead and the
+	 * value climbs into the pin it feeds, which is how a person would place it.
+	 */
+	stand(text: string, place: Place = {}): string {
+		return this.node("value.expression", {
+			literals: { code: { t: "raw", v: text } },
+			dy: STAND_DROP,
+			...place,
+		});
 	}
 
 	link(from: string, fromPin: string, to: string, toPin: string): this {

@@ -1,0 +1,94 @@
+# Attributions
+
+Roswaal itself is licensed 0BSD; see [LICENSE](LICENSE). What follows is what
+that does not cover: work by other people that Roswaal ships or stands on, and
+names that are not ours.
+
+The same list is a page in the documentation — **Attributions**, under Learn —
+because the people who need to read it are not all reading the repository. This
+file is the short form; the page carries the reasoning behind each entry. The
+two are kept in step by hand, and `tests/attributions.test.ts` checks that
+neither has gained an entry the other is missing.
+
+## The names
+
+**Roswaal** and its sibling tool **[Beako](https://github.com/neopolitans/Beako)**
+are named after characters from *Re:Zero − Starting Life in Another World* —
+Roswaal L. Mathers and Beatrice — created by Tappei Nagatsuki and published by
+KADOKAWA. The names are a fan's homage.
+
+**This project is not affiliated with, endorsed by, or approved by KADOKAWA,
+Tappei Nagatsuki, or the Re:Zero project**, and claims no rights in those names
+or in anything from that work.
+
+Nothing from Re:Zero is distributed here: no artwork, no likenesses, no text,
+and not the series title. The mark in `assets/` is original work.
+
+Roswaal is released under 0BSD and is not sold by its authors. 0BSD places no
+restriction on what anyone else does with it, commercially or otherwise — those
+choices, and any obligations that follow from them, belong to whoever makes
+them.
+
+## What Roswaal is built on
+
+Code and assets that ship inside Roswaal, or that it could not run without.
+
+| Project | By | Licence | Where |
+| --- | --- | --- | --- |
+| [Luau](https://luau.org/) | Roblox Corporation | MIT | Not bundled. Roswaal writes Luau; Luau runs it. |
+| [Lua](https://www.lua.org/) | PUC-Rio | MIT | Not bundled. Luau is based on the Lua 5.x implementation. |
+| [Material Symbols](https://fonts.google.com/icons) | Google LLC | Apache-2.0 | `src/app/icons.tsx`, inlined as SVG path data. |
+| [CodeMirror 6](https://codemirror.net/) | Marijn Haverbeke and contributors | MIT | A runtime dependency; see `package.json`. |
+| [Tokyo Night](https://github.com/tokyo-night/tokyo-night-vscode-theme) | Enkia | MIT | `themes/tokyo-night.json`, `themes/tokyo-night-storm.json`. |
+| [Catppuccin](https://github.com/catppuccin/catppuccin) | Catppuccin | MIT | `themes/catppuccin-mocha.json`, the Mocha flavour. |
+| [Nord](https://github.com/nordtheme/nord) | Sven Greb | MIT | `themes/nord.json`. |
+| [Rojo](https://rojo.space/) | rojo-rbx and contributors | MPL-2.0 | Not bundled. Roswaal writes the files Rojo syncs. |
+
+Luau's own README asks that projects integrating it carry an attribution in
+user-facing documentation, which is what this file and the Attributions page
+are:
+
+> When Luau is integrated into external projects, we ask that you honor the
+> license agreement and include Luau attribution into the user-facing product
+> documentation.
+
+Luau and the Luau logo belong to Roblox. Roswaal is not affiliated with or
+endorsed by Roblox.
+
+The three borrowed colour schemes keep their own licences, copied **byte for
+byte** into `notices/upstream/` and compiled into the editor, where each is
+shown in full under **Settings → Licences**. A palette of hex values is not
+itself a copyrightable work, so carrying them is courtesy rather than
+obligation — and saying so is not conceding a claim that has not been made.
+They are copied, never rebuilt from a template: of the three MIT files, one is
+headed `MIT License`, one `MIT License (MIT)` and one `The MIT License (MIT)`,
+and one copyright line carries an email address and a homepage.
+
+**Roswaal Light**, **Roswaal Dark** and **Aquatic** are the maintainer's own
+work, carry no third-party claim, and ship 0BSD with the rest of the
+repository.
+
+## What Roswaal is inspired by
+
+Work Roswaal learned from and does **not** use. No code, no assets, no
+dependency — only conventions a reader might recognise, named here so the
+resemblance is explained rather than left to be guessed at. None of it is
+licensed to us, and none of it needs to be.
+
+| Project | By | What Roswaal took |
+| --- | --- | --- |
+| [Unreal Engine](https://www.unrealengine.com/) | Epic Games, Inc. | How a graph reads to someone who already knows visual scripting: execution and data wires, pins coloured by type, familiar names for common actions. Named in the documentation only on *Coming from Blueprints*, to map Epic's terms to Roswaal's. |
+| [Unity Visual Scripting (Bolt)](https://unity.com/features/unity-visual-scripting) | Unity Technologies | An execution pin drawn as a triangle hung outside the node, so a run of steps reads as a chain rather than as a row of boxes. |
+| [Blender](https://www.blender.org/) | Blender Foundation | Sockets balanced on the node's border rather than set inside it, which is what puts a pin where its wire actually ends. |
+
+Unreal, Unreal Engine and Blueprint are trademarks or registered trademarks of
+Epic Games, Inc. in the United States of America and elsewhere. Unity and Bolt
+are trademarks or registered trademarks of Unity Technologies. Blender is a
+registered trademark of the Blender Foundation. Roswaal is **not affiliated
+with, sponsored by, or endorsed by** any of them, was not made with any of
+them, and contains no code, assets or content from any of them.
+
+---
+
+Everything else in this repository is Roswaal's own and is 0BSD: use it, modify
+it, ship it, train on it, no attribution required.

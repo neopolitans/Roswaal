@@ -40,6 +40,7 @@
 
 import type { GraphNode, Literal, NodeConfig, NodeDef, NodeScript, PinDef } from "../schema.js";
 import { nodeTitle, resolveNodePins, type Registry } from "../nodes/index.js";
+import { execReach, execWidth } from "../pinLayout.js";
 import {
 	operatorEditorWidth, operatorFields, operatorLayout,
 	type OperatorField, type OperatorLayout,
@@ -135,7 +136,19 @@ export interface PreviewGeometry {
 	footer: number;
 	pinSlot: number;
 	rowPadding: number;
+	/** How much of a row a pin's layout still takes. See `NODE.pinLane`. */
+	pinLane: number;
+	/** The node's own border, which a row is laid out inside. See `NODE`. */
+	nodeStroke: number;
 	radius: number;
+	/**
+	 * An execution pin's triangle is as tall as the slot and this fraction of
+	 * that wide. It is also how far such a pin hangs past the node's edge, which
+	 * is what `pinOverhang` turns into a viewBox margin.
+	 */
+	execAspect: number;
+	/** The daylight between that triangle and the node's edge. See `NODE`. */
+	execGap: number;
 	/** The operator pill's own numbers — see `operatorLayout`. */
 	operatorPad: number;
 	operatorCharWidth: number;
@@ -457,13 +470,32 @@ export function previewSvg(preview: NodePreview, options: PreviewOptions): strin
 	const { width, height } = previewSize(preview, g);
 	const body = drawBody(preview, options);
 
+	// The node is `width` across; the picture is wider, because its pins are not
+	// inside it. Only the viewBox grows -- `previewSize` is still the node, and
+	// the test holding it against `nodeBounds` still holds.
+	const gutter = pinOverhang(preview, g);
 	const scale = options.scale ?? 1;
+	const frame = width + gutter * 2;
 	return (
-		`<svg class="node-preview" width="${n(width * scale)}" height="${n(height * scale)}" ` +
-		`viewBox="0 0 ${n(width)} ${n(height)}" ` +
+		`<svg class="node-preview" width="${n(frame * scale)}" height="${n(height * scale)}" ` +
+		`viewBox="${n(-gutter)} 0 ${n(frame)} ${n(height)}" ` +
 		`xmlns="http://www.w3.org/2000/svg" role="img" ` +
 		`aria-label="${escapeXml(describe(preview))}">${body}</svg>`
 	);
+}
+
+/**
+ * How far this node's pins reach past its own bounds.
+ *
+ * A pin is drawn on the node's edge rather than inside it, so a picture cropped
+ * to `previewSize` would slice every pin in half. An execution triangle hangs
+ * clear of the border and is the widest case; a data pin is balanced over it and
+ * needs half a slot. A knot keeps both pins at its centre and needs nothing.
+ */
+export function pinOverhang(preview: NodePreview, g: PreviewGeometry): number {
+	if (preview.display === "reroute") return 0;
+	const exec = [...preview.inputs, ...preview.outputs].some((pin) => pin.kind === "exec");
+	return Math.ceil(exec ? execWidth(g) + g.execGap : g.pinSlot / 2);
 }
 
 /** Whichever shape this node is drawn as. */
@@ -490,7 +522,7 @@ function drawOperator(preview: NodePreview, options: PreviewOptions): string {
 
 	preview.inputs.filter((pin) => pin.kind === "data").forEach((pin, i) => {
 		const y = layout.rowsTop + i * g.rowHeight + g.rowHeight / 2;
-		parts.push(pinAt(pin, g.rowPadding, y, g.pinSlot, options, "node"));
+		parts.push(pinAt(pin, 0, y, g.pinSlot, options, "node", "in"));
 		if (pin.value) parts.push(drawValue(pin.value, layout.symbolLeft - 5, y).svg);
 	});
 
@@ -518,9 +550,7 @@ function drawOperator(preview: NodePreview, options: PreviewOptions): string {
 
 	const output = preview.outputs.find((pin) => pin.kind === "data");
 	if (output) {
-		parts.push(
-			pinAt(output, layout.width - g.rowPadding - g.pinSlot, layout.height / 2, g.pinSlot, options, "node"),
-		);
+		parts.push(pinAt(output, layout.width, layout.height / 2, g.pinSlot, options, "node", "out"));
 	}
 	return parts.join("");
 }
@@ -586,18 +616,31 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	}
 	if (growth) parts.push(drawGrowth(width, head, growth));
 
+	// The border, before the rows and after the header.
+	//
+	// The order is the DOM's, and it has to be: `.node` paints its background
+	// and border, `.head` paints inside that border, and the pins are children
+	// and land on top of all of it. Drawn last -- which it was until 0.35.0 --
+	// the stroke runs straight through every pin now that a pin sits on the edge
+	// rather than inside it, and the docs showed a border cutting each dot in
+	// half while the canvas did not.
+	parts.push(
+		`<rect x="0.5" y="0.5" width="${n(width - 1)}" height="${n(height - 1)}" rx="${n(r - 0.5)}" ` +
+		`fill="none" stroke="var(--node-border, #b3b9c4)"/>`,
+	);
+
 	const rows = Math.max(preview.inputs.length, preview.outputs.length, 1);
 	for (let i = 0; i < rows; i++) {
 		const y = previewRowY(preview, g, i);
 		const input = preview.inputs[i];
 		const output = preview.outputs[i];
 
-		// The right side reserves a pin's worth whether or not this row has an
-		// output, which is what keeps the input values in one column down the
-		// node rather than stepping around the output pin.
-		let rightEdge = width - (g.rowPadding + g.pinSlot);
+		// The right side reserves a lane whether or not this row has an output,
+		// which is what keeps the input values in one column down the node
+		// rather than stepping around the output pin.
+		let rightEdge = width - g.pinLane - g.nodeStroke;
 		if (output) {
-			parts.push(drawPin(output, "out", y, options));
+			parts.push(drawPin(output, "out", y, width, options));
 			if (output.name) {
 				const room = width / 2;
 				const label = fit(output.name, room, TYPE.label);
@@ -609,7 +652,7 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 		}
 
 		if (!input) continue;
-		parts.push(drawPin(input, "in", y, options));
+		parts.push(drawPin(input, "in", y, 0, options));
 
 		let labelEnd = rightEdge;
 		if (input.value) {
@@ -619,7 +662,7 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 		}
 
 		if (input.name) {
-			const labelX = g.rowPadding + g.pinSlot + 5;
+			const labelX = g.pinLane + g.nodeStroke + 5;
 			const label = fit(input.name, labelEnd - labelX - 4, TYPE.label);
 			if (label !== "") {
 				parts.push(text(labelX, y, label, { size: TYPE.label, fill: "var(--fg-muted, #5c636e)" }));
@@ -627,10 +670,6 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 		}
 	}
 
-	parts.push(
-		`<rect x="0.5" y="0.5" width="${n(width - 1)}" height="${n(height - 1)}" rx="${n(r - 0.5)}" ` +
-		`fill="none" stroke="var(--node-border, #b3b9c4)"/>`,
-	);
 	return parts.join("");
 }
 
@@ -679,7 +718,7 @@ function drawCapsule(preview: NodePreview, options: PreviewOptions): string {
 		}),
 	);
 	if (output) {
-		parts.push(pinAt(output, width - 10 - g.pinSlot, height / 2, g.pinSlot, options, "capsule"));
+		parts.push(pinAt(output, width, height / 2, g.pinSlot, options, "capsule", "out"));
 	}
 	return parts.join("");
 }
@@ -695,7 +734,7 @@ function drawReroute(preview: NodePreview, options: PreviewOptions): string {
 	];
 	// A knot's slot shrinks to 12px so the rim stays grabbable; the preview
 	// shrinks with it, or the dot would cover the ring that says it is a knot.
-	if (pin) parts.push(pinAt(pin, size / 2 - 6, size / 2, 12, options, "capsule"));
+	if (pin) parts.push(pinAt(pin, size / 2, size / 2, 12, options, "capsule", "centre"));
 	return parts.join("");
 }
 
@@ -704,58 +743,90 @@ function drawReroute(preview: NodePreview, options: PreviewOptions): string {
 // ---------------------------------------------------------------------------
 
 function drawPin(
-	pin: PreviewPin, side: "in" | "out", y: number, options: PreviewOptions,
+	pin: PreviewPin, side: "in" | "out", y: number, edge: number, options: PreviewOptions,
 ): string {
-	const g = options.geometry;
-	const x = side === "in" ? g.rowPadding : g.width - g.rowPadding - g.pinSlot;
-	return pinAt(pin, x, y, g.pinSlot, options, "node");
+	return pinAt(pin, edge, y, options.geometry.pinSlot, options, "node", side);
 }
 
 /**
- * One pin, drawn hollow.
+ * How much smaller the hollow inside an unwired execution pin is than the
+ * triangle around it. `--exec-shrink` in `theme.css`, and the same arithmetic:
+ * the triangle shrinks towards its own centre, so the wall comes out even all
+ * the way round instead of thinning at the point.
+ */
+const EXEC_SHRINK = 0.433;
+
+/**
+ * One pin, drawn where the canvas draws it: on the node's edge.
+ *
+ * `edge` is that edge — the x a wire attaches at — and `side` says which way the
+ * pin hangs off it. A data pin is balanced halfway over it; an execution pin
+ * clears it altogether and sits outside the node, which is why `pinOverhang`
+ * exists and why every viewBox here leaves room for it. A knot passes
+ * `"centre"`, because a bend in a wire has no sides.
  *
  * Nothing in a preview is wired, and hollow is how the canvas draws an
- * unconnected pin — an outlined circle for a value, an outlined arrow for
+ * unconnected pin — an outlined circle for a value, an outlined triangle for
  * execution. The hollow takes the colour of whatever the pin is sitting on,
- * which is why the surface is a parameter: a knot's arrow cut out in the node
+ * which is why the surface is a parameter: a knot's triangle cut out in the node
  * body colour would show a pale notch against the capsule it is actually on.
  */
 function pinAt(
-	pin: PreviewPin, x: number, y: number, slot: number,
-	options: PreviewOptions, surface: "node" | "capsule",
+	pin: PreviewPin, edge: number, y: number, slot: number,
+	options: PreviewOptions, surface: "node" | "capsule", side: "in" | "out" | "centre",
 ): string {
 	const colour = escapeXml(options.pinColor(pin.type, pin.kind));
 	const hollow =
 		surface === "node" ? "var(--node-body, #fbfbfd)" : "var(--capsule-bg, #e9ebf0)";
 
 	if (pin.kind === "exec") {
+		const g = options.geometry;
+		// A knot shrinks its slot, so the triangle is measured from the slot it
+		// was handed rather than from the geometry's own.
+		const w = execWidth({ ...g, pinSlot: slot });
+		// An input's point faces the node and its base faces the wire; an
+		// output's base faces the node and its point leads the wire away. Both
+		// stand clear of the edge, so the wire is visible arriving at them.
+		const x =
+			side === "in" ? edge - w - g.execGap
+			: side === "out" ? edge + g.execGap
+			: edge - w / 2;
 		const top = y - slot / 2;
-		const solid = `<path d="${arrow(x, top, slot, slot)}" fill="${colour}"/>`;
-		// A wired arrow is solid all the way through; an unwired one keeps its
-		// hollow. `inset: 2.5px 4px 2.5px 2.5px` — tighter on the right so the
-		// wall stays even where the point narrows.
-		return pin.wired
-			? solid
-			: solid +
-				`<path d="${arrow(x + 2.5, top + 2.5, slot - 6.5, slot - 5)}" fill="${hollow}"/>`;
+		const solid = `<path d="${arrow(x, top, w, slot)}" fill="${colour}"/>`;
+		if (pin.wired) return solid;
+
+		// The same triangle shrunk about its centre, which sits a third of the
+		// way in from the base.
+		const inner = arrow(
+			x + (w / 3) * EXEC_SHRINK,
+			top + (slot / 2) * EXEC_SHRINK,
+			w * (1 - EXEC_SHRINK),
+			slot * (1 - EXEC_SHRINK),
+		);
+		return solid + `<path d="${inner}" fill="${hollow}"/>`;
 	}
 
-	// A 10px circle centred in the slot: `inset: 3px` with a 2px border, so a
+	// A 10px circle, centred on the edge: `inset: 3px` with a 2px border, so a
 	// radius of 4 with the stroke centred on it spans 3 to 5. Filled when wired,
-	// which is how the canvas says a value is arriving from somewhere.
+	// which is how the canvas says a value is arriving from somewhere; otherwise
+	// the dark well the canvas gives it, which belongs to neither surface it
+	// straddles -- see `--pin-well`.
+	//
+	// The r=6 disc behind it is that same well carried 1px past the coloured
+	// ring, which is the `box-shadow` on `.node .pin .dot`: it separates the pin
+	// from the node body on one side and the canvas on the other, so the ring
+	// keeps its colour against both.
+	const well = "var(--pin-well, #2a2f37)";
 	return (
-		`<circle cx="${n(x + slot / 2)}" cy="${n(y)}" r="4" ` +
-		`fill="${pin.wired ? colour : hollow}" stroke="${colour}" stroke-width="2"/>`
+		`<circle cx="${n(edge)}" cy="${n(y)}" r="6" fill="${well}"/>` +
+		`<circle cx="${n(edge)}" cy="${n(y)}" r="4" ` +
+		`fill="${pin.wired ? colour : well}" stroke="${colour}" stroke-width="2"/>`
 	);
 }
 
-/** `polygon(0 0, 58% 0, 100% 50%, 58% 100%, 0 100%)`, as a path. */
+/** An equilateral triangle pointing right, in the box `x, y, w, h`. */
 function arrow(x: number, y: number, w: number, h: number): string {
-	const notch = x + w * 0.58;
-	return (
-		`M${n(x)} ${n(y)}H${n(notch)}L${n(x + w)} ${n(y + h / 2)}` +
-		`L${n(notch)} ${n(y + h)}H${n(x)}Z`
-	);
+	return `M${n(x)} ${n(y)}L${n(x + w)} ${n(y + h / 2)}L${n(x)} ${n(y + h)}Z`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1002,8 +1073,11 @@ export function placedPinAnchor(
 			: { x: placed.x + layout.width, y: placed.y + layout.height / 2 };
 	}
 
+	// An execution wire ends on the triangle hanging outside the node, not on
+	// the border. `execReach` is the canvas's, and the test holds the two equal.
+	const reach = pins[index].kind === "exec" ? execReach(g) : 0;
 	return {
-		x: side === "in" ? placed.x : placed.x + placed.width,
+		x: side === "in" ? placed.x - reach : placed.x + placed.width + reach,
 		y: placed.y + previewRowY(placed.preview, g, index),
 	};
 }
@@ -1028,7 +1102,9 @@ export function graphSvg(
 	if (placed.length === 0) return "";
 
 	const byId = new Map(placed.map((entry) => [entry.node.id, entry]));
-	const MARGIN = 12;
+	// Wide enough for a pin hung off the node at the edge of the graph, which is
+	// outside every node's own bounds and so outside the box measured below.
+	const MARGIN = Math.max(12, Math.ceil(execWidth(g) + g.execGap));
 
 	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 	for (const entry of placed) {

@@ -27,20 +27,63 @@
 	--node-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
 
 	/* Pin geometry. One slot size for every pin, because the slot is what lines
-	   the labels up down the side of a node; the dot inside it varies by kind.
-	   Not in layers.ts with the rest of the geometry, because nothing outside
-	   the stylesheet consults it — a wire attaches at the node edge and the row
-	   centre, never at the pin's own size. */
+	   the labels up down the side of a node; the shape inside it varies by kind.
+	   The slot is also what the row *reserves*: a pin is drawn on the node's
+	   edge rather than inside it, and the space it used to occupy stays, so the
+	   labels and value fields keep their columns. `--pin-pad` is the row's own
+	   side padding, which is how far the slot starts in from the edge.
+
+	   `NODE.pinSlot`, `NODE.rowPadding` and `NODE.execAspect` in layers.ts are
+	   the same three numbers; the documentation's node previews are drawn from
+	   those. Change one and change the other. */
 	--pin-slot: 16px;
+	--pin-pad: 6px;
+	/* The node's own border, named because a pin has to be placed *through* it.
+	   A wire ends on the outside of the border; a row is laid out inside it, so
+	   every offset below carries this back or the pin lands a pixel off the
+	   thing it is wired to. One pixel, and visible: the border shows as a sliver
+	   down one side of the dot. */
+	--node-stroke: 1px;
+	/* How much of the row a pin still takes, now that most of it is outside the
+	   node. The dot reaches 6px in from the border; this is that plus air, and
+	   the label starts where the pin visibly stops rather than where the old
+	   16px slot used to end. It is the *layout*, not the pin: the pin is still
+	   drawn `--pin-slot` across. */
+	--pin-lane: 10px;
+	/* An execution pin's triangle: equilateral, pointing right, as tall as the
+	   slot -- so √3/2 as wide. This plus the gap below is how far it hangs past
+	   the node. */
+	--exec-width: calc(var(--pin-slot) * 0.866);
+	/* Daylight between the triangle and the node it belongs to. Touching, the
+	   two read as one shape with a bite out of it; apart, the pin reads as
+	   something hung on the node, and the wire is visible arriving at it. */
+	--exec-gap: 5px;
+	/* How much smaller the hollow inside an unwired execution pin is than the
+	   arrow around it. An equilateral triangle shrinks towards its centre, which
+	   sits a third of the way in from the base, so the four insets differ while
+	   the wall they leave does not; 0.433 is a 2px wall at a 16px slot. */
+	--exec-shrink: 0.433;
 	/* A node's corner. A preference rather than a theme token — `theme.ts` sets
 	   it to 0 when square corners are chosen — which is why it is a variable at
 	   all rather than the literal it used to be. Capsules and reroute knots
 	   deliberately do not read it: their shapes are what say "value" and "just a
 	   bend", and squaring those would delete the signal rather than restyle it. */
 	--node-radius: 7px;
-	/* What shows through a hollow execution arrow. The node's own body, so the
-	   arrow reads as empty rather than as a lighter shade of itself. */
+	/* What shows through an unwired execution triangle: the surface it is drawn
+	   against, so it reads as empty rather than as a lighter shade of itself.
+	   A knot and a capsule override it, because they are not a node body. */
 	--pin-hollow: var(--node-body);
+	/* The well a data pin sits in, and the thin ring of it drawn just outside
+	   the pin's coloured edge.
+	 *
+	   Darker than the canvas in both themes, and deliberately not either surface
+	   the pin touches: the pin straddles the node's border, so a fill taken from
+	   the body or the canvas would change shade across the middle of the dot.
+	   The ring does the same job on the outside — the pin keeps its colour
+	   against a pale node body and a dark canvas alike — and is thinner than the
+	   coloured edge, so it reads as a socket the pin is set into rather than as
+	   a second outline competing with the first. */
+	--pin-well: #2a2f37;
 
 	--comment-fill: 0.1;
 	--comment-header-alpha: 0.75;
@@ -80,6 +123,8 @@
 		--node-body: #262a32;
 		--node-border: #3a404b;
 		--node-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+		/* Still darker than the canvas, or the well stops reading as one. */
+		--pin-well: #06080b;
 
 		--comment-fill: 0.14;
 
@@ -830,7 +875,7 @@ button.tb.primary:hover:not(:disabled) {
 	position: absolute;
 	border-radius: var(--node-radius);
 	background: var(--node-body);
-	border: 1px solid var(--node-border);
+	border: var(--node-stroke) solid var(--node-border);
 	box-shadow: var(--node-shadow);
 	user-select: none;
 }
@@ -902,12 +947,12 @@ button.tb.primary:hover:not(:disabled) {
 
 .node .row .side.left {
 	flex: 1;
-	padding-left: 6px;
+	padding-left: var(--pin-pad);
 }
 
 .node .row .side.right {
 	margin-left: auto;
-	padding-right: 6px;
+	padding-right: var(--pin-pad);
 	justify-content: flex-end;
 	/* One pin's worth, reserved whether or not this row has an output.
 	 *
@@ -915,8 +960,8 @@ button.tb.primary:hover:not(:disabled) {
 	 * happens to carry the node's output gets a narrower left side and its value
 	 * sits further left than the rows below it. Reserving the column makes the
 	 * input values line up down the node instead of stepping around the output
-	 * pin. 16px slot plus the 6px padding. */
-	min-width: 22px;
+	 * pin. The lane is the whole footprint, padding included. */
+	min-width: var(--pin-lane);
 }
 
 .node .pin {
@@ -925,6 +970,43 @@ button.tb.primary:hover:not(:disabled) {
 	flex: none;
 	position: relative;
 	cursor: crosshair;
+}
+
+/* A pin sits *on* the node's edge rather than inside it.
+ *
+ * `left` on a relatively positioned element moves what is drawn and leaves the
+ * layout alone, which is the whole trick: the row still reserves the slot, so
+ * the labels and the value column do not move, and only the pin travels.
+ *
+ * A data pin is balanced halfway off the edge — its centre is exactly where a
+ * wire attaches, which it never was before: the wire used to stop at the border
+ * with the dot 14px inside it. An execution pin clears the edge altogether and
+ * hangs beside the node, point first. */
+.node .row .side .pin {
+	/* Up by the border, for the same reason the sideways offsets carry it: a
+	   row sits inside the border and a wire attaches outside it. */
+	top: calc(-1 * var(--node-stroke));
+	/* And the row gives back the space the pin no longer occupies, so the label
+	   beside it starts at `--pin-lane` rather than a slot and a half in. */
+	margin: 0 calc(var(--pin-lane) - var(--pin-pad) - var(--pin-slot));
+}
+
+.node .row .side.left .pin {
+	left: calc(-1 * (var(--pin-pad) + var(--pin-slot) / 2 + var(--node-stroke)));
+	margin-left: 0;
+}
+
+.node .row .side.right .pin {
+	left: calc(var(--pin-pad) + var(--pin-slot) / 2 + var(--node-stroke));
+	margin-right: 0;
+}
+
+.node .row .side.left .pin.exec {
+	left: calc(-1 * (var(--pin-pad) + var(--exec-width) + var(--exec-gap) + var(--node-stroke)));
+}
+
+.node .row .side.right .pin.exec {
+	left: calc(var(--pin-pad) + var(--pin-slot) + var(--exec-gap) + var(--node-stroke));
 }
 
 /* Asymmetric hit areas, on purpose.
@@ -949,21 +1031,33 @@ button.tb.primary:hover:not(:disabled) {
 }
 
 /* A data pin is a 10px circle centred in the slot — the size it has always
-   been. The slot grew around it, not it. */
+   been. The slot grew around it, not it.
+ *
+ * Filled with the surface behind it rather than left transparent, because the
+ * circle now straddles the node's border: half of it is over the body and half
+ * over the canvas, and a see-through middle would show the seam running through
+ * the pin. One fill makes it read as a ring sitting on the edge. */
 .node .pin .dot {
 	position: absolute;
 	inset: 3px;
 	border-radius: 50%;
 	border: 2px solid currentColor;
+	background: var(--pin-well);
+	box-shadow: 0 0 0 1px var(--pin-well);
 }
 
 .node .pin.connected .dot {
 	background: currentColor;
 }
 
-/* An execution pin fills the whole slot, because it is the thing you aim at
-   most and it was previously the same size as a value pin while carrying more
-   traffic.
+/* An execution pin is an equilateral triangle pointing right, as tall as the
+   slot, hung outside the node's border.
+ *
+ * It used to be a house-shaped arrow drawn inside the node, the shape Blueprints
+ * uses. The triangle is the shape Bolt and Blender give a flow socket, and
+ * putting it outside the border is what makes a run of steps read as a chain:
+ * the pin belongs to the wire rather than to the box, and the eye follows it out
+ * of one node and into the next instead of stopping at two walls.
  *
  * Empty versus wired is drawn the way node editors usually draw it — outline,
  * then solid.
@@ -971,33 +1065,42 @@ button.tb.primary:hover:not(:disabled) {
  * "nothing here yet"; a hollow arrow says the same thing at full colour, so an
  * unwired exec pin stays as easy to find as a wired one.
  *
- * The hollow is a second arrow in the node's own body colour rather than a
- * border, because clip-path cuts straight through a border and leaves the point
- * blunt on the diagonal. */
+ * The hollow is a second triangle in the surface colour rather than a border,
+ * because clip-path cuts straight through a border and leaves the point blunt
+ * on the diagonal. */
 .node .pin.exec .dot {
 	position: absolute;
-	inset: 0;
+	inset: 0 auto 0 0;
+	width: var(--exec-width);
 	border: 0;
 	border-radius: 0;
 	background: currentColor;
-	clip-path: polygon(0 0, 58% 0, 100% 50%, 58% 100%, 0 100%);
+	clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 .node .pin.exec .dot::after {
 	content: "";
 	position: absolute;
-	/* Tighter on the right so the wall stays even where the point narrows. */
-	inset: 2.5px 4px 2.5px 2.5px;
+	/* The same triangle shrunk towards its centre — see `--exec-shrink`. The
+	   right inset is twice the left because the centre is a third of the way in
+	   from the base, which is what keeps the wall even all round. */
+	inset:
+		calc(var(--pin-slot) / 2 * var(--exec-shrink))
+		calc(var(--exec-width) * 2 / 3 * var(--exec-shrink))
+		calc(var(--pin-slot) / 2 * var(--exec-shrink))
+		calc(var(--exec-width) / 3 * var(--exec-shrink));
 	background: var(--pin-hollow);
-	clip-path: polygon(0 0, 58% 0, 100% 50%, 58% 100%, 0 100%);
+	clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 .node .pin.exec.connected .dot::after {
 	display: none;
 }
 
+/* The well's ring stays under it, or a legal target loses the outline every
+   other pin has while a wire is in flight. */
 .node .pin.compatible .dot {
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 45%, transparent);
+	box-shadow: 0 0 0 1px var(--pin-well), 0 0 0 4px color-mix(in srgb, var(--ok) 45%, transparent);
 }
 
 .node .pin.incompatible {
@@ -1580,12 +1683,12 @@ button.tb.primary:hover:not(:disabled) {
 	flex: none;
 }
 
-/* An execution pin is drawn as its arrow here too, so the header matches the
+/* An execution pin is drawn as its triangle here too, so the header matches the
    thing that was clicked rather than describing it. */
 .menu.pin-menu .pin-head .swatch.exec {
 	border-radius: 0;
-	width: 10px;
-	clip-path: polygon(0 0, 58% 0, 100% 50%, 58% 100%, 0 100%);
+	width: 8px;
+	clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 .menu.pin-menu .pin-head .name {
@@ -2491,8 +2594,15 @@ button.tb.primary:hover:not(:disabled) {
 
 .node.operator .operator-out {
 	position: absolute;
-	right: 6px;
+	right: var(--pin-pad);
 	display: flex;
+}
+
+/* A pill's result is not on a row, so it misses the rule that puts a data pin on
+   the node's edge. Same offset, stated once more for the one pin outside a row.
+   The pill's inputs are in rows and are already covered. */
+.node.operator .operator-out .pin {
+	left: calc(var(--pin-pad) + var(--pin-slot) / 2 + var(--node-stroke));
 }
 
 .node.operator .operator-grow {
@@ -2533,6 +2643,9 @@ button.tb.primary:hover:not(:disabled) {
 	align-items: center;
 	gap: 8px;
 	padding: 0 10px 0 12px;
+	/* A capsule's pin sits on the capsule, not on a node body, so its hollow has
+	   to be the capsule's colour -- the same reason a knot sets this. */
+	--pin-hollow: var(--capsule-bg);
 	border-radius: 999px;
 	background: var(--capsule-bg);
 	border: 1px solid var(--capsule-border);
@@ -2554,8 +2667,11 @@ button.tb.primary:hover:not(:disabled) {
 	display: none;
 }
 
+/* Balanced on the capsule's right edge, where the wire attaches, the same way
+   a data pin sits on a node's. The 10px is the capsule's own right padding. */
 .node.capsule .pin {
 	flex: none;
+	left: calc(10px + var(--pin-slot) / 2 + var(--node-stroke));
 }
 
 :root {
@@ -3015,6 +3131,14 @@ button.tb.icon-only.on {
 	inset: -1px;
 }
 
+/* A knot's pins stay at its centre -- it is a bend in a wire, not a node with
+   sides to hang anything off. An execution triangle is narrower than its slot,
+   so centre it in the slot rather than leaving it against the left edge, where
+   the rows want it. */
+.node.reroute .pin.exec .dot {
+	left: calc((var(--pin-slot) - var(--exec-width)) / 2);
+}
+
 /* A knot is 22px across and its stacked pins take 14 of them, which left a
    4px ring of node to grab -- less than that zoomed out. Selecting or moving
    a knot was a precision task, and both are as common as dragging a new wire
@@ -3310,11 +3434,11 @@ button.tb.icon-only.on {
 	border-radius: 50%;
 }
 
-/* Execution pins keep their arrow here too, so the table matches the canvas. */
+/* Execution pins keep their triangle here too, so the table matches the canvas. */
 .docs-swatch.exec {
 	border-radius: 0;
-	width: 10px;
-	clip-path: polygon(0 0, 58% 0, 100% 50%, 58% 100%, 0 100%);
+	width: 8px;
+	clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 .docs-note {
@@ -4591,7 +4715,7 @@ button.tb.danger {
 }
 
 .node .pin.highlighted .dot {
-	box-shadow: 0 0 0 2px var(--accent);
+	box-shadow: 0 0 0 1px var(--pin-well), 0 0 0 3px var(--accent);
 }
 
 .pin-chip {

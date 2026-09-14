@@ -64,18 +64,19 @@ Roswaal is **0BSD**: use it, modify it, ship it, train on it, no attribution
 required. Two bundled things keep their own terms — the icons (Material Symbols,
 Apache-2.0) and CodeMirror (MIT) — and three of the seven colour schemes are
 somebody else's design, MIT licensed and credited in full. See
-[NOTICE.md](NOTICE.md).
+[ATTRIBUTIONS.md](ATTRIBUTIONS.md).
 
-Unreal Engine, Unreal and Blueprint are trademarks of Epic Games, Inc. They
-appear in the documentation to name Epic's product while explaining this one.
-Roswaal is not affiliated with, endorsed by, or derived from Epic Games.
+Unreal Engine and Blueprint are trademarks of Epic Games, Inc.; Unity and Bolt
+of Unity Technologies; Blender of the Blender Foundation. They appear in the
+documentation to name someone else's product while explaining this one. Roswaal
+is not affiliated with, endorsed by, or derived from any of them.
 
 ## For anyone picking this up
 
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — the module map, the
-  invariants each layer holds, how one node becomes Luau, and where to cut in to
-  add a node or a canvas gesture.
-- **[NOTES.md](NOTES.md)** — the working state: what is done, what is next, the
-  decisions worth not re-litigating, and the traps that cost real time to find.
-- **Contributing** — in the docs, built from this repository's own scripts and
-  tests, including where help is wanted.
+**Contributing** is in the docs, built from this repository's own scripts and
+tests: how to build it, what a change brings with it, how the documentation is
+reviewed, and where help is wanted.
+
+The architecture map, the wording rules and the release working notes are
+written for the maintainer and are kept out of the repository until they have
+been read through for publication.

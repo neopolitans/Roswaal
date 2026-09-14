@@ -574,7 +574,7 @@ function blueprintPage(): DocPage {
 /**
  * Who made what Roswaal is built on, and what it is named after.
  *
- * A page rather than only `NOTICE.md`, because the people who need to read it
+ * A page rather than only `ATTRIBUTIONS.md`, because the people who need to read it
  * are not all reading the repository — and because the naming statement is a
  * thing to say where users are, not to file where auditors are.
  */
@@ -804,8 +804,8 @@ const CONTRIBUTING: DocPage = {
 			items: [
 				"**Tests**, in `tests/`, run with `npm test`.",
 				"**A release-notes entry** in `src/core/docs/releases.ts`, saying what changed, and the version bumped in `version.json` and `package.json`. A test fails when the notes and the version disagree.",
-				"**The reasoning**, in `NOTES.md`, for anything a later reader would otherwise have to work out again.",
-				"**Words that name the result.** `docs/WORDING.md` has the rules, and `docs/ARCHITECTURE.md` says where things live.",
+				"**The reasoning**, where a later reader will find it: a comment on the code it explains, and the pull request. The maintainer's working notes, the architecture map and the wording rules are kept out of the repository until they have been read through for publication.",
+				"**Words that name the result.** A label, a heading or a message says what happened, not which rule produced it.",
 			],
 		},
 
@@ -961,8 +961,8 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 			t: "p",
 			text:
 				"**Execution** wires say what happens in what order. **Data** wires carry values. An " +
-				"execution pin is an arrow and a data pin is a circle, and both are hollow until " +
-				"something is wired to them.",
+				"execution pin is a triangle hung outside the node; a data pin is a circle " +
+				"balanced on its edge. Both are hollow until something is wired to them.",
 		},
 		...previews(
 			registry,

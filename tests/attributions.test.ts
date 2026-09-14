@@ -1,10 +1,12 @@
 /**
  * The attributions list, and the two copies of it staying in step.
  *
- * There are two on purpose. `NOTICE.md` is for whoever is reading the
+ * There are two on purpose. `ATTRIBUTIONS.md` is for whoever is reading the
  * repository — a packager, an auditor, someone deciding whether they can use
- * this. The **Attributions** page is for whoever is using the editor and will
- * never open the repository at all. Neither is allowed to be the only one.
+ * this, and it is the short form: tables, and the statements that have to be
+ * made in full. The **Attributions** page is for whoever is using the editor,
+ * will never open the repository at all, and wants the reasoning behind an
+ * entry. Neither is allowed to be the only one.
  *
  * The failure mode is not a wrong entry; it is a *missing* one, added to
  * whichever copy the author happened to have open. Nothing about the shape of
@@ -25,7 +27,7 @@ import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import { blockText, buildSite, findPage } from "../src/core/docs/site.js";
 
 const NOTICE = readFileSync(
-	join(dirname(fileURLToPath(import.meta.url)), "..", "NOTICE.md"),
+	join(dirname(fileURLToPath(import.meta.url)), "..", "ATTRIBUTIONS.md"),
 	"utf8",
 );
 
@@ -89,14 +91,14 @@ describe("the attributions page", () => {
 	});
 });
 
-describe("NOTICE.md and the attributions page", () => {
+describe("ATTRIBUTIONS.md and the attributions page", () => {
 	/**
 	 * The cross-check this file exists for. Add a dependency to one copy and
 	 * forget the other, and this is what says so.
 	 */
 	it("list the same projects", () => {
 		for (const entry of ATTRIBUTIONS) {
-			expect(NOTICE, `${entry.name} is on the page but not in NOTICE.md`).toContain(entry.name);
+			expect(NOTICE, `${entry.name} is on the page but not in ATTRIBUTIONS.md`).toContain(entry.name);
 		}
 	});
 
@@ -146,7 +148,7 @@ describe("what Roswaal uses and what it only learned from", () => {
 	});
 
 	/** Both headings have to exist in the other copy of record too. */
-	it("says the same in NOTICE.md", () => {
+	it("says the same in ATTRIBUTIONS.md", () => {
 		expect(NOTICE).toContain("What Roswaal is built on");
 		expect(NOTICE).toContain("What Roswaal is inspired by");
 	});

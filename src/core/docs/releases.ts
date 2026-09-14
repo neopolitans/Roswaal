@@ -54,6 +54,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.35.0",
+		date: "2026-09-14",
+		headline: "Pins sit on the edge they wire to.",
+		changed: [
+			"**An execution pin is an equilateral triangle**, pointing right, hung just outside the node's border instead of drawn inside it.",
+			"**Every other pin is balanced halfway over the border**, which is where its wire ends. Pin names and inline value fields have not moved.",
+			"**An unwired pin sits in a dark well** rather than taking the colour of whatever is behind it.",
+			"**Node pictures in the docs show the same pins**, and a worked example's stand-in value sits below the execution line rather than across it.",
+			"**`NOTICE.md` is now `ATTRIBUTIONS.md`**, and mirrors the Attributions page as tables.",
+			"**Attributions names two more inspirations**: Unity Visual Scripting (Bolt) and Blender.",
+		],
+	},
+	{
 		version: "0.34.0",
 		date: "2026-09-13",
 		headline: "Design a node by building it.",

@@ -105,6 +105,73 @@ describe("preview geometry", () => {
 		}
 	});
 
+	/**
+	 * Pins moved onto the node's edge in 0.35.0, and this is what says so.
+	 *
+	 * The point of the change is that a pin is now where its wire ends: a data
+	 * pin's centre *is* `pinPosition`. Before, the dot sat 14px inside the border
+	 * and the wire stopped at the border, and nothing caught that because both
+	 * halves were separately correct.
+	 */
+	it("draws a data pin centred on the edge its wire attaches to", () => {
+		for (const def of BUILTIN_NODES) {
+			if ((def.display ?? "normal") !== "normal") continue;
+			const preview = previewOf(def);
+			const { width } = previewSize(preview, NODE);
+			const svg = previewSvg(preview, options);
+			for (const match of svg.matchAll(/<circle cx="(-?[\d.]+)"/g)) {
+				expect([0, width], `${def.id} pin at x=${match[1]}`).toContain(Number(match[1]));
+			}
+		}
+	});
+
+	/** An execution pin clears the border entirely, on whichever side it is on. */
+	it("hangs an execution pin outside the node", () => {
+		const def = BUILTIN_NODES.find(
+			(d) =>
+				(d.display ?? "normal") === "normal" &&
+				d.inputs.some((p) => p.kind === "exec") &&
+				d.outputs.some((p) => p.kind === "exec"),
+		);
+		expect(def, "the library still has a step node").toBeDefined();
+
+		const preview = previewOf(def!);
+		const { width } = previewSize(preview, NODE);
+		const svg = previewSvg(preview, options);
+		const xs = [...svg.matchAll(/[ML](-?[\d.]+) /g)].map((m) => Number(m[1]));
+
+		expect(Math.min(...xs), "the input triangle is left of the node").toBeLessThan(0);
+		expect(Math.max(...xs), "the output triangle is right of it").toBeGreaterThan(width);
+
+		// And the picture is cropped wide enough to hold both, or the reader sees
+		// two half pins.
+		const box = svg.match(/viewBox="(-?[\d.]+) 0 ([\d.]+)/);
+		expect(box).not.toBeNull();
+		expect(Number(box![1])).toBeLessThanOrEqual(Math.min(...xs));
+		expect(Number(box![1]) + Number(box![2])).toBeGreaterThanOrEqual(Math.max(...xs));
+	});
+
+	/**
+	 * Paint order, which only matters because a pin is on the edge now.
+	 *
+	 * The DOM gets this for free: `.node` paints its border, and a pin is a
+	 * child, so it lands on top. The SVG has to be told, and was not — the
+	 * border rect was the last thing drawn, so in the documentation a stroke ran
+	 * straight through the middle of every pin while the canvas beside it looked
+	 * fine.
+	 */
+	it("draws the node's border under its pins, as the canvas does", () => {
+		for (const def of BUILTIN_NODES) {
+			if ((def.display ?? "normal") !== "normal") continue;
+			const svg = previewSvg(previewOf(def), options);
+			const border = svg.indexOf('stroke="var(--node-border');
+			const pin = svg.search(/<circle |<path d="M-?[\d.]+ [\d.]+L/);
+			if (pin === -1) continue;
+			expect(border, `${def.id} draws its border`).toBeGreaterThan(-1);
+			expect(border, `${def.id} draws the border before its pins`).toBeLessThan(pin);
+		}
+	});
+
 	it("gives a capsule getter the capsule's width", () => {
 		const def = BUILTIN_NODES.find((d) => d.display === "compact");
 		expect(def, "the library still has a capsule getter").toBeDefined();

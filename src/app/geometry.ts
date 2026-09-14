@@ -7,6 +7,7 @@
  */
 
 import { NODE } from "./layers.js";
+import { execReach } from "../core/pinLayout.js";
 import {
 	operatorEditorWidth, operatorFields, operatorLayout, type OperatorLayout,
 } from "../core/operatorLayout.js";
@@ -191,8 +192,9 @@ export function pinPosition(
 			? { x: node.x, y: node.y + layout.rowsTop + index * NODE.rowHeight + NODE.rowHeight / 2 }
 			: { x: node.x + layout.width, y: node.y + layout.height / 2 };
 	}
+	const reach = list[index].kind === "exec" ? execReach(NODE) : 0;
 	return {
-		x: side === "in" ? node.x : node.x + nodeWidth(def, node, wide),
+		x: side === "in" ? node.x - reach : node.x + nodeWidth(def, node, wide) + reach,
 		y:
 			node.y +
 			headerHeight(def, node.config) +

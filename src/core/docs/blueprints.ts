@@ -96,7 +96,9 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 			{
 				unreal: "Exec pins",
 				roswaal: "Execution pins",
-				note: "Same idea, same white arrow, same rule that a node is either in the line or pure.",
+				note:
+					"Same idea, same white pins, same rule that a node is either in the line or pure. " +
+					"Drawn as a triangle outside the node rather than an arrow inside it.",
 			},
 			{
 				unreal: "Pure node (green)",

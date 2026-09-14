@@ -7,10 +7,12 @@
  * and says where the thing actually lives, so an entry cannot rot into a name
  * with nothing behind it.
  *
- * `NOTICE.md` is the copy of record for anyone reading the repository; this is
- * the copy for anyone reading the documentation, and neither is allowed to be
- * the only one. They are kept in step by hand, deliberately: the two answer
- * different questions and a generated file would flatten that.
+ * `ATTRIBUTIONS.md` is the copy of record for anyone reading the repository,
+ * and is the short form -- tables, and the statements that have to be made in
+ * full. This is the copy for anyone reading the documentation, and carries the
+ * reasoning behind each entry. Neither is allowed to be the only one. They are
+ * kept in step by hand, deliberately: the two answer different questions and a
+ * generated file would flatten that.
  *
  * ## The rule for adding an entry
  *
@@ -91,6 +93,40 @@ export const ATTRIBUTIONS: Attribution[] = [
 			"States of America and elsewhere. Roswaal is not affiliated with, " +
 			"sponsored by, or endorsed by Epic Games, Inc.",
 		url: "https://www.unrealengine.com/",
+	},
+	{
+		name: "Unity Visual Scripting (Bolt)",
+		relation: "inspired-by",
+		holder: "Unity Technologies",
+		licence: null,
+		where: "Not used, and not bundled. Named on this page and nowhere else.",
+		note:
+			"How an execution pin is drawn: a triangle hung on the outside of the " +
+			"node rather than an arrow set inside it, so a run of steps reads as a " +
+			"chain rather than as a row of boxes. Roswaal's pins took that shape in " +
+			"0.35.0. Roswaal contains no code, assets or content from Unity or from " +
+			"Bolt, has no dependency on either, and was not made with either. Unity " +
+			"and Bolt are trademarks or registered trademarks of Unity Technologies. " +
+			"Roswaal is not affiliated with, sponsored by, or endorsed by Unity " +
+			"Technologies.",
+		url: "https://unity.com/features/unity-visual-scripting",
+	},
+	{
+		name: "Blender",
+		relation: "inspired-by",
+		holder: "Blender Foundation",
+		licence: null,
+		where: "Not used, and not bundled. Named on this page and nowhere else.",
+		note:
+			"Sockets balanced on a node's border rather than set inside it, which is " +
+			"what puts a pin where its wire actually ends — Roswaal's used to sit " +
+			"14px in from the edge the wire stopped at. The 5.x node editor is where " +
+			"that reading came from. Blender is GPL and none of it is here: no code, " +
+			"no assets, no dependency, and nothing derived from it — a convention a " +
+			"reader might recognise is not a derivative work. Blender is a registered " +
+			"trademark of the Blender Foundation. Roswaal is not affiliated with, " +
+			"sponsored by, or endorsed by the Blender Foundation.",
+		url: "https://www.blender.org/",
 	},
 	{
 		name: "Material Symbols",

@@ -104,15 +104,54 @@ export const NODE = {
 	/**
 	 * The square a pin is drawn in, and the gap between it and the node's edge.
 	 *
-	 * These three are also written in `theme.css` — as `--pin-slot`, the row's
-	 * side padding, and the node's `border-radius` — because CSS cannot read
-	 * this file. They live here as well so the documentation's node previews are
-	 * drawn from the same numbers the canvas is, rather than from a second
-	 * guess at them. Change one and change the other.
+	 * These three are also written in `theme.css` — as `--pin-slot`, `--pin-pad`
+	 * and the node's `border-radius` — because CSS cannot read this file. They
+	 * live here as well so the documentation's node previews are drawn from the
+	 * same numbers the canvas is, rather than from a second guess at them.
+	 * Change one and change the other.
+	 *
+	 * `rowPadding` is now the pin's *layout* slot rather than where the pin is
+	 * drawn: a pin hangs on the node's edge, and the row keeps the space it used
+	 * to sit in so labels and values stay in their columns. See `execAspect`.
 	 */
 	pinSlot: 16,
 	rowPadding: 6,
 	radius: 7,
+	/**
+	 * How much of a row a pin still takes once it is drawn on the edge instead
+	 * of inside it — `--pin-lane` in `theme.css`.
+	 *
+	 * The *layout*, not the pin: the pin is still `pinSlot` across. Only its
+	 * inner half is inside the node, so the row reserves that much plus air and
+	 * the label starts where the pin visibly stops, which is what gives a long
+	 * pin name the room the old slot was holding for a dot that has moved out.
+	 */
+	pinLane: 10,
+	/**
+	 * The node's own border — `--node-stroke` in `theme.css`.
+	 *
+	 * Named because a pin has to be placed *through* it. A wire attaches on the
+	 * outside of the border and a pin row is laid out inside it, so anything
+	 * measured from the row is one pixel in from where the wire is, and the
+	 * border shows as a sliver down the side of the dot.
+	 */
+	nodeStroke: 1,
+	/**
+	 * An execution pin is an equilateral triangle pointing right, as tall as the
+	 * pin slot — so its width is √3⁄2 of that, and this is the only place that
+	 * number is written. `theme.css` reads it as `--exec-width`.
+	 *
+	 * It matters outside the stylesheet because an exec pin hangs *outside* the
+	 * node: its width is how far a node's drawing reaches past its own bounds,
+	 * which is what a preview's viewBox has to leave room for.
+	 */
+	execAspect: 0.866,
+	/**
+	 * Daylight between an execution triangle and the node it hangs off.
+	 * `--exec-gap` in `theme.css`. Touching, the two read as one shape with a
+	 * bite out of it; apart, the pin reads as something hung on the node.
+	 */
+	execGap: 5,
 	/** How far a bezier control point reaches horizontally. */
 	wireSlack: 70,
 	/**

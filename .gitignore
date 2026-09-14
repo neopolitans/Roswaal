@@ -22,6 +22,17 @@ dist-docs/
 # Affinity keeps a lock file beside a document while it is open.
 *~lock~
 
+# The working notes and the internal documents.
+#
+# NOTES.md is the reasoning behind every release -- what was tried, what broke,
+# what was decided and why -- and docs/ holds the plans, the architecture map
+# and the wording rules. Both are written for us, at the speed of thinking, and
+# neither has been read through for anything that should not be public: names,
+# half-finished opinions about other people's tools, decisions not taken yet.
+# They stay on disk and out of the repository until they have had that pass.
+NOTES.md
+/docs/
+
 # Roblox Studio's MCP server, for reading the M103 demo out of a live Studio
 # session. The path in it is this machine's, and a committed .mcp.json asks
 # everyone who clones the repository to approve a server they have no use for --

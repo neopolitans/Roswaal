@@ -661,7 +661,7 @@ function Licences() {
 			<p className="settings-note">
 				The schemes credited to <strong>neopolitans</strong> are the maintainer's own
 				and carry no third-party claim. Everything Roswaal ships is listed on the
-				Attributions page in the docs, and in <code>NOTICE.md</code>.
+				Attributions page in the docs, and in <code>ATTRIBUTIONS.md</code>.
 			</p>
 		</>
 	);

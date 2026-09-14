@@ -6,7 +6,7 @@
  * is served from the daemon on a machine that may be offline, and a font
  * request to Google would be both a dependency and a privacy surprise.
  *
- * Material Symbols is Apache-2.0 — see NOTICE.md.
+ * Material Symbols is Apache-2.0 — see ATTRIBUTIONS.md.
  *
  * Every glyph uses Material's own 960 grid with a bottom-left origin, which is
  * why the viewBox looks odd. Leave it alone; the paths are authored for it.
