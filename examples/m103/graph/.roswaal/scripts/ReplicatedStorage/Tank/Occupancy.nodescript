@@ -21,14 +21,64 @@
     {
       "id": "00dc4866-e7c2-4e06-a476-a2c4f39633ad",
       "def": "table.setKey",
-      "x": 1089,
-      "y": 152
+      "x": 1576,
+      "y": 140
+    },
+    {
+      "id": "0182dfb8-4b98-4514-9cc7-982f3c2d129f",
+      "def": "roblox.getProperty",
+      "x": 3049,
+      "y": 2293,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "CanCollide"
+        }
+      }
+    },
+    {
+      "id": "02a89996-c640-43bc-a8f5-d997237aa2fd",
+      "def": "roblox.setProperty",
+      "x": 2804,
+      "y": 3119,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "DisplayDistanceType"
+        }
+      }
+    },
+    {
+      "id": "03b7fed5-0d02-44dc-b24c-f55633212541",
+      "def": "table.dictionary",
+      "x": 550,
+      "y": 2213,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "split": {
+          "in:p0": "keyValue"
+        }
+      }
+    },
+    {
+      "id": "03f0dd5e-f6b9-4c94-adf2-a834c66d6718",
+      "def": "local.get",
+      "x": 392,
+      "y": 2353,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "local": "62ccb591-0188-4eeb-ae23-801c8a58379d",
+        "name": "humanoid",
+        "type": "any"
+      }
     },
     {
       "id": "06ad3d6a-0d21-4a95-8994-d65cfb30b380",
       "def": "variable.get",
-      "x": 478,
-      "y": 1186,
+      "x": 762,
+      "y": 987,
       "config": {
         "name": "Occupancy",
         "type": "table",
@@ -36,10 +86,305 @@
       }
     },
     {
+      "id": "0a7c5dbe-5386-4d7e-8f4b-58983c202344",
+      "def": "function.getParam",
+      "x": 1734,
+      "y": 1735,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "function": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+        "param": "character"
+      }
+    },
+    {
+      "id": "0d009615-cc3a-4bef-83b6-ff24410f7efa",
+      "def": "function.getParam",
+      "x": 3144,
+      "y": 3048,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "function": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+        "param": "hull",
+        "type": "BasePart"
+      }
+    },
+    {
+      "id": "0f03810c-2d2f-483e-aa5e-5f8d545ea8e1",
+      "def": "flow.reroute",
+      "x": 2367,
+      "y": 3058,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
+      "id": "126f3be2-79ea-452e-8a61-51c3a54803c9",
+      "def": "roblox.getProperty",
+      "x": 4265,
+      "y": 2597,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Transparency"
+        }
+      }
+    },
+    {
+      "id": "143a6e0e-2b68-47d3-ac17-8ef9dcb7c97b",
+      "def": "roblox.getProperty",
+      "x": 3049,
+      "y": 2388,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "CanQuery"
+        }
+      }
+    },
+    {
+      "id": "14443248-3029-4832-aece-4fe15ff3210f",
+      "def": "flow.reroute",
+      "x": 4810,
+      "y": 2125,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
+      "id": "1910ade0-6065-4ca2-9d43-6bb88d60471f",
+      "def": "value.nil",
+      "x": 775,
+      "y": 2725,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "20ed53ef-cbbb-4921-8086-91a4ac987586",
+      "def": "flow.reroute",
+      "x": 5284,
+      "y": 3307,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
+      "id": "22485446-ce1a-44af-90e5-777eb92741ff",
+      "def": "instance.isA",
+      "x": 2685,
+      "y": 1638,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "22611841-d5fe-48e4-b8b9-fc2a649b9186",
+      "def": "roblox.instanceNew",
+      "x": 3891,
+      "y": 3103,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "className": {
+          "t": "string",
+          "v": "WeldConstraint"
+        }
+      },
+      "config": {
+        "resultName": "weld"
+      }
+    },
+    {
+      "id": "27e1da50-7593-4b59-9ac8-2dc238be92d2",
+      "def": "table.setKey",
+      "x": 6286,
+      "y": 3119,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "299d647d-5a39-42d9-85bf-d338abf1cf91",
+      "def": "table.getKey",
+      "x": 3050,
+      "y": 2581,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "collide"
+        }
+      }
+    },
+    {
+      "id": "2cc9b554-df8c-4da6-b5b4-4a511b47b141",
+      "def": "local.get",
+      "x": 2876,
+      "y": 2609,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "local": "3a8accb9-02c2-489b-90d6-e8ec03958033",
+        "name": "restore",
+        "type": "table"
+      }
+    },
+    {
+      "id": "2e2f62b0-714f-48e6-861f-13d71b3ae9ca",
+      "def": "function.getParam",
+      "x": 6086,
+      "y": 3206,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "function": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+        "param": "character"
+      }
+    },
+    {
+      "id": "32bc3a9c-f025-43db-b771-a9509da5717e",
+      "def": "flow.branch",
+      "x": 3330,
+      "y": 1525,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "399a674a-ba64-4fe7-8a58-987c6e873260",
+      "def": "flow.forEach",
+      "x": 2371,
+      "y": 1914,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "39a7c421-1bfd-43f0-b975-ccd6beb0b24c",
+      "def": "flow.reroute",
+      "x": 4488,
+      "y": 2420,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
+      "id": "3a0574cd-bd64-4e23-a2a6-172d26bf3149",
+      "def": "local.declare",
+      "x": 2437,
+      "y": 1525,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "name": {
+          "t": "string",
+          "v": "root"
+        }
+      }
+    },
+    {
+      "id": "3a8accb9-02c2-489b-90d6-e8ec03958033",
+      "def": "local.declare",
+      "x": 1557,
+      "y": 1898,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "name": {
+          "t": "string",
+          "v": "restore"
+        }
+      },
+      "config": {
+        "type": "table"
+      }
+    },
+    {
+      "id": "3a98dfa0-ff95-421e-b0e0-816d19d2f300",
+      "def": "logic.not",
+      "x": 2955,
+      "y": 1614,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "3bbec220-48bf-4c3f-ab24-73da19d346bc",
+      "def": "table.getKey",
+      "x": 3051,
+      "y": 2677,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "query"
+        }
+      }
+    },
+    {
+      "id": "4176fb0f-17b6-40ee-9ef0-89e81b1163f7",
+      "def": "roblox.getProperty",
+      "x": 594,
+      "y": 2563,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "DisplayDistanceType"
+        }
+      }
+    },
+    {
+      "id": "429b07c0-d4e1-4ad5-8780-db0751e0c0b8",
+      "def": "flow.reroute",
+      "x": 4140,
+      "y": 2420,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
+      "id": "44149528-ab11-4688-92c9-ad2e1405722e",
+      "def": "instance.isA",
+      "x": 3728,
+      "y": 2470,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "className": {
+          "t": "string",
+          "v": "Decal"
+        }
+      }
+    },
+    {
+      "id": "44cb8077-2682-4bf6-9a57-d276ccc5c28b",
+      "def": "roblox.getProperty",
+      "x": 3290,
+      "y": 3221,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "CFrame"
+        }
+      }
+    },
+    {
+      "id": "46dfb389-7b87-46c8-8d1d-f927d45d04b7",
+      "def": "instance.isA",
+      "x": 3727,
+      "y": 2572,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "className": {
+          "t": "string",
+          "v": "Texture"
+        }
+      }
+    },
+    {
+      "id": "4bfc46e0-0e51-48c4-9414-558225c2ac72",
+      "def": "flow.branch",
+      "x": 2998,
+      "y": 1914,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
       "id": "4e2b49c4-570a-466f-9485-1d4b81aa0d15",
       "def": "function.return",
-      "x": 2304,
-      "y": 1080,
+      "x": 2497,
+      "y": 1220,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
       "config": {
         "returns": [
           {
@@ -50,16 +395,117 @@
       }
     },
     {
+      "id": "4f2fabda-1bdd-4eeb-8671-eb1ba4222f41",
+      "def": "function.getParam",
+      "x": 1741,
+      "y": 1354,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "function": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+        "param": "character"
+      }
+    },
+    {
+      "id": "5115ba7d-aba2-47bb-a2c3-d296d2962563",
+      "def": "logic.or",
+      "x": 3126,
+      "y": 1618,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "args": 3
+      }
+    },
+    {
+      "id": "535740c3-3988-4e17-b341-db9ba5c4034e",
+      "def": "roblox.setProperty",
+      "x": 2445,
+      "y": 3120,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "JumpHeight"
+        }
+      }
+    },
+    {
+      "id": "53638704-4075-4a27-8d71-d25d9cf7c144",
+      "def": "flow.rerouteExec",
+      "x": 1665,
+      "y": 1556,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "545b500e-d7aa-4128-98df-725906301f5d",
+      "def": "logic.or",
+      "x": 4017,
+      "y": 2498,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "559fd1f1-d60c-4045-9215-92fe92f425f7",
+      "def": "roblox.setProperty",
+      "x": 5081,
+      "y": 2458,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Transparency"
+        }
+      }
+    },
+    {
       "id": "58b8241b-b006-4929-9f76-0a7506adcee9",
       "def": "flow.rerouteExec",
-      "x": 758,
-      "y": 580
+      "x": 1222,
+      "y": 506
+    },
+    {
+      "id": "59636464-0ae4-4405-95d9-3c79fae2a811",
+      "def": "flow.reroute",
+      "x": 3930,
+      "y": 2125,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
+      "id": "59674712-3d1b-462c-852d-0f55271cd7b8",
+      "def": "roblox.getProperty",
+      "x": 595,
+      "y": 2446,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "JumpHeight"
+        }
+      }
+    },
+    {
+      "id": "5a5b3d8e-e106-473e-aba7-e5a1404f63e0",
+      "def": "value.string",
+      "x": 3888,
+      "y": 3231,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "value": {
+          "t": "string",
+          "v": "TankOccupant"
+        }
+      }
     },
     {
       "id": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
       "def": "function.declareHere",
-      "x": 666,
-      "y": 1040,
+      "x": 929,
+      "y": 919,
+      "inner": {
+        "x": 92,
+        "y": 1220
+      },
       "config": {
         "name": "hide",
         "params": [
@@ -81,10 +527,65 @@
       }
     },
     {
+      "id": "60192ccf-399d-428c-899d-204bdb30f444",
+      "def": "table.setKey",
+      "x": 4549,
+      "y": 2458,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": ""
+        }
+      }
+    },
+    {
+      "id": "612644ce-3a85-4706-bbe6-b8a7dbaf14b6",
+      "def": "logic.not",
+      "x": 2959,
+      "y": 1666,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "61a12126-3b6c-47c4-a7be-c86db98ca20a",
+      "def": "function.return",
+      "x": 6640,
+      "y": 3119,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "r0": {
+          "t": "boolean",
+          "v": true
+        }
+      },
+      "config": {
+        "returns": [
+          {
+            "name": "success",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6235ed62-acd0-4c68-b5a8-47fc8631b20f",
+      "def": "table.pair",
+      "x": 898,
+      "y": 1962,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "transparency"
+        }
+      }
+    },
+    {
       "id": "62ccb591-0188-4eeb-ae23-801c8a58379d",
       "def": "local.declare",
-      "x": 1608,
-      "y": 1344,
+      "x": 2165,
+      "y": 1525,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
       "literals": {
         "name": {
           "t": "string",
@@ -93,22 +594,40 @@
       }
     },
     {
+      "id": "6999e2ee-f422-4503-870e-53228e559bda",
+      "def": "table.pair",
+      "x": 893,
+      "y": 2673,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "weld"
+        }
+      }
+    },
+    {
       "id": "6a2d4bbe-f5a0-4799-8030-2a12a9391da9",
       "def": "instance.findFirstChildWhichIsA",
-      "x": 1303,
-      "y": 1392,
+      "x": 1860,
+      "y": 1573,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
       "literals": {
         "className": {
           "t": "string",
           "v": "Humanoid"
         }
+      },
+      "config": {
+        "resultName": ""
       }
     },
     {
       "id": "6ba98fc6-3d82-4a55-b0d7-ee192fca96ed",
       "def": "local.get",
-      "x": 1308,
-      "y": 1177,
+      "x": 1749,
+      "y": 1317,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
       "config": {
         "local": "aede63b4-dc63-4db8-bdec-720dfa70bad0",
         "name": "restores",
@@ -116,19 +635,163 @@
       }
     },
     {
+      "id": "6c3424bb-3b1b-46f3-9c85-8bd88c078c39",
+      "def": "function.return",
+      "x": 3583,
+      "y": 1525,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "returns": [
+          {
+            "name": "success",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6d573203-12fe-4908-8073-82725733294b",
+      "def": "roblox.getProperty",
+      "x": 3049,
+      "y": 2196,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Transparency"
+        }
+      }
+    },
+    {
+      "id": "70a12695-09d2-452b-8994-86ee28716d8b",
+      "def": "value.number",
+      "x": 1598,
+      "y": 3192,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "71e29e8d-7668-4caa-bdab-25ec66d86d63",
+      "def": "flow.reroute",
+      "x": 4835,
+      "y": 2420,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
+      "id": "724193ae-2728-4794-a124-28e6461612ea",
+      "def": "flow.reroute",
+      "x": 4920,
+      "y": 3355,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "Instance"
+      }
+    },
+    {
+      "id": "72566421-eced-4a1b-b369-22a6dbe9ff76",
+      "def": "table.getKey",
+      "x": 4265,
+      "y": 2697,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "transparency"
+        }
+      }
+    },
+    {
       "id": "7754cfb4-76d4-4f49-8c2a-0a6dccea2582",
       "def": "flow.sequence",
       "x": 515,
-      "y": 153,
+      "y": 140,
       "config": {
         "count": 4
       }
     },
     {
+      "id": "7be24b01-b1a8-443f-b308-2b39e68758b4",
+      "def": "flow.reroute",
+      "x": 2733,
+      "y": 3058,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
+      "id": "83869daa-7e71-493c-8891-b06144a63512",
+      "def": "local.get",
+      "x": 4103,
+      "y": 2725,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "local": "3a8accb9-02c2-489b-90d6-e8ec03958033",
+        "name": "restore",
+        "type": "table"
+      }
+    },
+    {
+      "id": "87d66af6-f878-48c7-b67b-69297adf59bc",
+      "def": "local.get",
+      "x": 5714,
+      "y": 3171,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "local": "3a8accb9-02c2-489b-90d6-e8ec03958033",
+        "name": "restore",
+        "type": "table"
+      }
+    },
+    {
+      "id": "8903aa6f-be86-4bed-9f9d-ec17cf6fb7f2",
+      "def": "roblox.setProperty",
+      "x": 5050,
+      "y": 3119,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Part1"
+        }
+      }
+    },
+    {
+      "id": "8e4859ef-a996-43eb-aabb-67d1d8a53403",
+      "def": "roblox.setProperty",
+      "x": 1856,
+      "y": 3120,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "WalkSpeed"
+        }
+      }
+    },
+    {
+      "id": "8ea9552a-123e-4295-bb9a-ffea43ba00e1",
+      "def": "roblox.findFirstChild",
+      "x": 2156,
+      "y": 1675,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "name": {
+          "t": "string",
+          "v": "HumanoidRootPart"
+        }
+      },
+      "config": {
+        "resultName": ""
+      }
+    },
+    {
       "id": "8eaa8197-2c47-43c7-8c8e-17f4b052fb0b",
       "def": "variable.get",
-      "x": 886,
-      "y": 204,
+      "x": 1373,
+      "y": 192,
       "config": {
         "name": "Occupancy",
         "type": "table",
@@ -136,10 +799,144 @@
       }
     },
     {
+      "id": "8f075613-4184-4c20-9f1d-3f73dec19926",
+      "def": "roblox.setProperty",
+      "x": 4626,
+      "y": 1914,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Transparency"
+        }
+      }
+    },
+    {
+      "id": "9269453b-ceb5-40c3-b258-df239be14ced",
+      "def": "roblox.setProperty",
+      "x": 3574,
+      "y": 3119,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "CFrame"
+        }
+      }
+    },
+    {
+      "id": "9749274d-5f90-4974-b97a-91c81889dc3e",
+      "def": "table.getKey",
+      "x": 3049,
+      "y": 2485,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "transparency"
+        }
+      }
+    },
+    {
+      "id": "990ff54f-c360-4190-858d-ec8520d7d54a",
+      "def": "table.dictionary",
+      "x": 546,
+      "y": 1986,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "split": {
+          "in:p0": "keyValue"
+        }
+      }
+    },
+    {
+      "id": "9c2dbbe2-0130-40aa-8b6f-806f59e05024",
+      "def": "value.number",
+      "x": 2146,
+      "y": 3192,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "9f3c7b0b-3982-4d55-9f87-13b7962f2c14",
+      "def": "table.pair",
+      "x": 899,
+      "y": 2422,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "jumpHeight"
+        }
+      }
+    },
+    {
+      "id": "9ff9e42b-3c35-4ad0-be46-182aab499b10",
+      "def": "roblox.setProperty",
+      "x": 5288,
+      "y": 1914,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "CanCollide"
+        }
+      }
+    },
+    {
+      "id": "a0eab645-bf34-4f01-a1ee-feb32391dded",
+      "def": "table.setKey",
+      "x": 3380,
+      "y": 1914,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": ""
+        }
+      }
+    },
+    {
+      "id": "a673641b-aea7-4446-9d7b-67549b01c5da",
+      "def": "cast.as",
+      "x": 2703,
+      "y": 2094,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "ab771981-367e-44ae-ab0a-0a140a75f513",
+      "def": "flow.reroute",
+      "x": 4927,
+      "y": 3051,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "BasePart"
+      }
+    },
+    {
+      "id": "abed080b-07f0-4087-ab9f-0aad1d004cf5",
+      "def": "table.pair",
+      "x": 901,
+      "y": 2301,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "walkSpeed"
+        }
+      }
+    },
+    {
+      "id": "ac7eb4a9-3c70-42f1-a99d-85f807938168",
+      "def": "value.boolean",
+      "x": 4941,
+      "y": 1986,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
       "id": "aede63b4-dc63-4db8-bdec-720dfa70bad0",
       "def": "local.declare",
-      "x": 1264,
-      "y": 536,
+      "x": 1587,
+      "y": 459,
       "literals": {
         "name": {
           "t": "string",
@@ -151,10 +948,30 @@
       }
     },
     {
+      "id": "af780fc9-9ef4-47ce-8b60-98db95871b3b",
+      "def": "instance.isA",
+      "x": 2699,
+      "y": 1985,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "b01119e7-7e97-4176-9ed3-8387357a6452",
+      "def": "value.number",
+      "x": 4818,
+      "y": 2530,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 1
+        }
+      }
+    },
+    {
       "id": "b2fa9e82-5989-49aa-8b46-63028eff38c8",
       "def": "value.string",
-      "x": 810,
-      "y": 337,
+      "x": 1296,
+      "y": 312,
       "literals": {
         "value": {
           "t": "string",
@@ -163,16 +980,91 @@
       }
     },
     {
+      "id": "b3e92258-5f90-4321-b152-25b46d2db8af",
+      "def": "local.get",
+      "x": 4511,
+      "y": 3304,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "local": "3a0574cd-bd64-4e23-a2a6-172d26bf3149",
+        "name": "root",
+        "type": "any"
+      }
+    },
+    {
+      "id": "b5edb6eb-3c82-4b4d-b7ff-7154b0a9a717",
+      "def": "roblox.getProperty",
+      "x": 597,
+      "y": 2325,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "WalkSpeed"
+        }
+      }
+    },
+    {
+      "id": "b756e300-ab5a-45f2-b20c-673950fe1a05",
+      "def": "flow.reroute",
+      "x": 3624,
+      "y": 2420,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
       "id": "b8e4e4f9-7608-47ec-be11-4c79644cfa5d",
       "def": "table.getKey",
-      "x": 1461,
-      "y": 1149
+      "x": 1902,
+      "y": 1289,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "b97f90ce-ba31-4cf9-85d4-5d673487fb9c",
+      "def": "table.pair",
+      "x": 902,
+      "y": 2189,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "query"
+        }
+      }
+    },
+    {
+      "id": "bb04917f-3ba2-4b8f-a48c-39a8381127e7",
+      "def": "value.boolean",
+      "x": 5577,
+      "y": 1989,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "be394519-3e46-4819-8dbe-aba87597f181",
+      "def": "logic.not",
+      "x": 2957,
+      "y": 1477,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "beb7ebcd-7b17-4a42-a850-b841b6f33a10",
+      "def": "table.dictionary",
+      "x": 549,
+      "y": 2102,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "split": {
+          "in:p0": "keyValue"
+        }
+      }
     },
     {
       "id": "c23cf121-6997-4f35-9911-0e18c0fa811c",
       "def": "value.string",
-      "x": 809,
-      "y": 262,
+      "x": 1296,
+      "y": 240,
       "literals": {
         "value": {
           "t": "string",
@@ -184,13 +1076,31 @@
       "id": "c7208f83-f902-4ef9-a8d6-33e98578823a",
       "def": "flow.sequence",
       "x": 1010,
-      "y": 1080
+      "y": 1220,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "count": 4
+      }
+    },
+    {
+      "id": "c7b08c51-b64a-4378-b971-de1be1897e07",
+      "def": "table.setKey",
+      "x": 5857,
+      "y": 3119,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "weld"
+        }
+      }
     },
     {
       "id": "cce1540b-4363-4633-a50d-48cd4159178a",
       "def": "flow.branch",
-      "x": 1780,
-      "y": 1080,
+      "x": 2221,
+      "y": 1220,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
       "literals": {
         "condition": {
           "t": "boolean",
@@ -199,16 +1109,135 @@
       }
     },
     {
-      "id": "ed532014-9414-4c4c-a289-e6358dae28ab",
-      "def": "value.boolean",
-      "x": 2031,
-      "y": 1141
+      "id": "d04ff97d-1e00-441c-bc82-ba886d27dcf8",
+      "def": "instance.getDescendants",
+      "x": 2015,
+      "y": 1973,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "d9c0926e-2364-4e48-a38b-6bc5d7a64006",
+      "def": "roblox.setProperty",
+      "x": 5420,
+      "y": 3119,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Parent"
+        }
+      }
+    },
+    {
+      "id": "da3488a2-e82d-4131-bf1d-a7b4da03d205",
+      "def": "table.dictionary",
+      "x": 1243,
+      "y": 1962,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "args": 7,
+        "layout": "lines"
+      }
+    },
+    {
+      "id": "db022ae8-1a10-4e97-9467-e75e6de46e83",
+      "def": "local.get",
+      "x": 6086,
+      "y": 3241,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "local": "3a8accb9-02c2-489b-90d6-e8ec03958033",
+        "name": "restore",
+        "type": "table"
+      }
+    },
+    {
+      "id": "db367514-8133-4f17-89ec-cb51a7d7fa6b",
+      "def": "flow.reroute",
+      "x": 2449,
+      "y": 1480,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
+      "id": "e0b1db23-272b-4269-bf3b-be362e7b708e",
+      "def": "table.pair",
+      "x": 901,
+      "y": 2078,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "collide"
+        }
+      }
+    },
+    {
+      "id": "e105f7e1-1261-458c-8920-debb2758fcc8",
+      "def": "flow.branch",
+      "x": 4262,
+      "y": 2458,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "e555097e-9868-40da-a652-142bcf9e0557",
+      "def": "table.pair",
+      "x": 898,
+      "y": 2539,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "jumpHeight"
+        }
+      }
+    },
+    {
+      "id": "e85f3e79-31c4-418a-9199-38cf9aee1f01",
+      "def": "table.setKey",
+      "x": 4083,
+      "y": 1914,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "e8e55498-68b5-45a9-82ad-ca0441cd6d72",
+      "def": "value.expression",
+      "x": 2449,
+      "y": 3290,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "code": {
+          "t": "raw",
+          "v": "Enum.HumanoidDisplayDistanceType.None"
+        }
+      }
+    },
+    {
+      "id": "ea6b9a86-2a49-4d2b-b60e-f1756d975ea5",
+      "def": "local.get",
+      "x": 6085,
+      "y": 3171,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "local": "aede63b4-dc63-4db8-bdec-720dfa70bad0",
+        "name": "restores",
+        "type": "table"
+      }
+    },
+    {
+      "id": "eebf0021-80ba-4ff0-ac38-d0d1985b87f1",
+      "def": "table.setKey",
+      "x": 3710,
+      "y": 1914,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
     },
     {
       "id": "f0ee73f2-d603-4a32-b066-29f1e751fce4",
       "def": "value.expression",
-      "x": 1397,
-      "y": 224,
+      "x": 1884,
+      "y": 212,
       "literals": {
         "code": {
           "t": "raw",
@@ -219,26 +1248,154 @@
     {
       "id": "f12240e1-4056-4a89-9c70-0bcc88224608",
       "def": "table.dictionary",
-      "x": 970,
-      "y": 600
+      "x": 1293,
+      "y": 523
+    },
+    {
+      "id": "f1bcfb36-e132-447a-a4d6-dec4195b2020",
+      "def": "value.number",
+      "x": 4363,
+      "y": 1986,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "value": {
+          "t": "number",
+          "v": 1
+        }
+      }
+    },
+    {
+      "id": "f4c6964d-ac8d-4360-8abc-d477f2d608ab",
+      "def": "flow.reroute",
+      "x": 3625,
+      "y": 2125,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "any"
+      }
+    },
+    {
+      "id": "f5843bac-dd1a-4d8a-b256-c1cd6450b37a",
+      "def": "flow.reroute",
+      "x": 5299,
+      "y": 3355,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "Instance"
+      }
+    },
+    {
+      "id": "f653fbe9-61a2-436b-b918-48886346bf30",
+      "def": "roblox.setProperty",
+      "x": 5924,
+      "y": 1917,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "CanQuery"
+        }
+      }
     },
     {
       "id": "f8bfd510-4695-49c2-b9cd-dd589c1040f6",
       "def": "script.begin",
       "x": 120,
-      "y": 154
+      "y": 140
+    },
+    {
+      "id": "f8c346d5-e775-4264-a5ba-79ade2a55d2c",
+      "def": "roblox.setProperty",
+      "x": 4673,
+      "y": 3119,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Part0"
+        }
+      }
+    },
+    {
+      "id": "f998c026-589a-4ccd-b88f-884532687e47",
+      "def": "roblox.setProperty",
+      "x": 4212,
+      "y": 3119,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Name"
+        }
+      }
+    },
+    {
+      "id": "fa2f0d8c-0a07-4e41-a300-9e3bdd9f7abc",
+      "def": "flow.reroute",
+      "x": 4240,
+      "y": 3355,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "type": "Instance"
+      }
     },
     {
       "id": "fb088a2d-3ea0-470a-98a2-bb46510a6f60",
       "def": "type.declareHere",
-      "x": 1698,
-      "y": 136,
+      "x": 2185,
+      "y": 124,
       "config": {
         "name": "Restore"
+      }
+    },
+    {
+      "id": "fb376b96-d724-4a29-8a08-e7216ac07f1f",
+      "def": "local.get",
+      "x": 1581,
+      "y": 3055,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "local": "62ccb591-0188-4eeb-ae23-801c8a58379d",
+        "name": "humanoid",
+        "type": "any"
+      }
+    },
+    {
+      "id": "fe14ea5a-e06f-4a29-9cbb-f3d57be0c527",
+      "def": "local.get",
+      "x": 3114,
+      "y": 3172,
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+      "config": {
+        "local": "3a0574cd-bd64-4e23-a2a6-172d26bf3149",
+        "name": "root",
+        "type": "any"
       }
     }
   ],
   "links": [
+    {
+      "id": "00b0b52e-63fe-4573-8bf4-76dcca5f47f0",
+      "from": {
+        "node": "bb04917f-3ba2-4b8f-a48c-39a8381127e7",
+        "pin": "result"
+      },
+      "to": {
+        "node": "f653fbe9-61a2-436b-b918-48886346bf30",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "045cdcbc-925b-4299-84cd-e3b149840487",
+      "from": {
+        "node": "44149528-ab11-4688-92c9-ad2e1405722e",
+        "pin": "result"
+      },
+      "to": {
+        "node": "545b500e-d7aa-4128-98df-725906301f5d",
+        "pin": "a0"
+      }
+    },
     {
       "id": "060db0a3-7bef-49da-8733-53ca829fbd9e",
       "from": {
@@ -251,14 +1408,14 @@
       }
     },
     {
-      "id": "09bc4610-3c45-406b-8321-f14ee39ffc7b",
+      "id": "0b617fa5-a8d2-499f-b13e-78d9d4be3a45",
       "from": {
-        "node": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
-        "pin": "p0"
+        "node": "83869daa-7e71-493c-8891-b06144a63512",
+        "pin": "value"
       },
       "to": {
-        "node": "b8e4e4f9-7608-47ec-be11-4c79644cfa5d",
-        "pin": "key"
+        "node": "72566421-eced-4a1b-b369-22a6dbe9ff76",
+        "pin": "table"
       }
     },
     {
@@ -273,6 +1430,204 @@
       }
     },
     {
+      "id": "0cf26442-606f-4fdd-8805-915f7f690711",
+      "from": {
+        "node": "7be24b01-b1a8-443f-b308-2b39e68758b4",
+        "pin": "out"
+      },
+      "to": {
+        "node": "02a89996-c640-43bc-a8f5-d997237aa2fd",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "0e5be289-3d78-40f3-9953-e193c5094e3f",
+      "from": {
+        "node": "b756e300-ab5a-45f2-b20c-673950fe1a05",
+        "pin": "out"
+      },
+      "to": {
+        "node": "429b07c0-d4e1-4ad5-8780-db0751e0c0b8",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "0ee689f5-84d5-4bba-b51a-209696982fb3",
+      "from": {
+        "node": "a673641b-aea7-4446-9d7b-67549b01c5da",
+        "pin": "result"
+      },
+      "to": {
+        "node": "143a6e0e-2b68-47d3-ac17-8ef9dcb7c97b",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "1037a9fa-e194-48ac-9521-72cc1c25eb7a",
+      "from": {
+        "node": "f4c6964d-ac8d-4360-8abc-d477f2d608ab",
+        "pin": "out"
+      },
+      "to": {
+        "node": "eebf0021-80ba-4ff0-ac38-d0d1985b87f1",
+        "pin": "key"
+      }
+    },
+    {
+      "id": "10a1947b-efa2-4ebc-82e3-98b1c03a3cf2",
+      "from": {
+        "node": "03b7fed5-0d02-44dc-b24c-f55633212541",
+        "pin": "result"
+      },
+      "to": {
+        "node": "b97f90ce-ba31-4cf9-85d4-5d673487fb9c",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "1122df70-177f-4531-8325-97e84ffd4d0c",
+      "from": {
+        "node": "9f3c7b0b-3982-4d55-9f87-13b7962f2c14",
+        "pin": "result"
+      },
+      "to": {
+        "node": "da3488a2-e82d-4131-bf1d-a7b4da03d205",
+        "pin": "p4"
+      }
+    },
+    {
+      "id": "11d99883-b32c-4e94-a330-1a1e88b8f054",
+      "from": {
+        "node": "62ccb591-0188-4eeb-ae23-801c8a58379d",
+        "pin": "then"
+      },
+      "to": {
+        "node": "3a0574cd-bd64-4e23-a2a6-172d26bf3149",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "11ddf832-2d8d-4a47-b7ef-fa0d89c2bcf0",
+      "from": {
+        "node": "abed080b-07f0-4087-ab9f-0aad1d004cf5",
+        "pin": "result"
+      },
+      "to": {
+        "node": "da3488a2-e82d-4131-bf1d-a7b4da03d205",
+        "pin": "p3"
+      }
+    },
+    {
+      "id": "12fc4a43-2924-4cf3-8bf5-ba5709f376d9",
+      "from": {
+        "node": "b3e92258-5f90-4321-b152-25b46d2db8af",
+        "pin": "value"
+      },
+      "to": {
+        "node": "f8c346d5-e775-4264-a5ba-79ade2a55d2c",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "148f0dff-705d-41eb-a6bc-2813bbc1859c",
+      "from": {
+        "node": "5a5b3d8e-e106-473e-aba7-e5a1404f63e0",
+        "pin": "result"
+      },
+      "to": {
+        "node": "f998c026-589a-4ccd-b88f-884532687e47",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "162c2fb6-55bb-4bfb-99a0-a847fae184e1",
+      "from": {
+        "node": "3a8accb9-02c2-489b-90d6-e8ec03958033",
+        "pin": "then"
+      },
+      "to": {
+        "node": "399a674a-ba64-4fe7-8a58-987c6e873260",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "16384d05-3f17-4841-8137-864f6c5b2c9a",
+      "from": {
+        "node": "b756e300-ab5a-45f2-b20c-673950fe1a05",
+        "pin": "out"
+      },
+      "to": {
+        "node": "46dfb389-7b87-46c8-8d1d-f927d45d04b7",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "185674b9-f118-4c37-ad51-feb4dc2a1c2a",
+      "from": {
+        "node": "70a12695-09d2-452b-8994-86ee28716d8b",
+        "pin": "result"
+      },
+      "to": {
+        "node": "8e4859ef-a996-43eb-aabb-67d1d8a53403",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "1aabd727-878d-4c57-8dfa-1360df11492a",
+      "from": {
+        "node": "0a7c5dbe-5386-4d7e-8f4b-58983c202344",
+        "pin": "value"
+      },
+      "to": {
+        "node": "d04ff97d-1e00-441c-bc82-ba886d27dcf8",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "1c81e816-dd7a-44c9-ba88-ee8a5f4b5be9",
+      "from": {
+        "node": "22611841-d5fe-48e4-b8b9-fc2a649b9186",
+        "pin": "result"
+      },
+      "to": {
+        "node": "f998c026-589a-4ccd-b88f-884532687e47",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "1caceacc-c6fc-4595-975d-87e2dc0259fd",
+      "from": {
+        "node": "53638704-4075-4a27-8d71-d25d9cf7c144",
+        "pin": "then"
+      },
+      "to": {
+        "node": "62ccb591-0188-4eeb-ae23-801c8a58379d",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "1d8a5a2b-06f5-42ce-97c5-69c94bb5a9cf",
+      "from": {
+        "node": "db367514-8133-4f17-89ec-cb51a7d7fa6b",
+        "pin": "out"
+      },
+      "to": {
+        "node": "be394519-3e46-4819-8dbe-aba87597f181",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "1dab9971-00e3-419c-ba6d-a76387c9f1f9",
+      "from": {
+        "node": "5115ba7d-aba2-47bb-a2c3-d296d2962563",
+        "pin": "result"
+      },
+      "to": {
+        "node": "32bc3a9c-f025-43db-b771-a9509da5717e",
+        "pin": "condition"
+      }
+    },
+    {
       "id": "245406bd-4f63-4fcf-8918-fe08ec487326",
       "from": {
         "node": "7754cfb4-76d4-4f49-8c2a-0a6dccea2582",
@@ -281,6 +1636,50 @@
       "to": {
         "node": "58b8241b-b006-4929-9f76-0a7506adcee9",
         "pin": "in"
+      }
+    },
+    {
+      "id": "255fb437-3d11-44c1-ad2d-4e46b5bb03aa",
+      "from": {
+        "node": "af780fc9-9ef4-47ce-8b60-98db95871b3b",
+        "pin": "result"
+      },
+      "to": {
+        "node": "4bfc46e0-0e51-48c4-9414-558225c2ac72",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "256c0b21-d7d4-40ab-99ad-c63d51d5517e",
+      "from": {
+        "node": "f5843bac-dd1a-4d8a-b256-c1cd6450b37a",
+        "pin": "out"
+      },
+      "to": {
+        "node": "d9c0926e-2364-4e48-a38b-6bc5d7a64006",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "261f2eb6-6962-4e29-90c4-b1ec4224e909",
+      "from": {
+        "node": "535740c3-3988-4e17-b341-db9ba5c4034e",
+        "pin": "then"
+      },
+      "to": {
+        "node": "02a89996-c640-43bc-a8f5-d997237aa2fd",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "2875f708-13aa-4555-8a69-12ff5ce901e1",
+      "from": {
+        "node": "545b500e-d7aa-4128-98df-725906301f5d",
+        "pin": "result"
+      },
+      "to": {
+        "node": "e105f7e1-1261-458c-8920-debb2758fcc8",
+        "pin": "condition"
       }
     },
     {
@@ -295,6 +1694,138 @@
       }
     },
     {
+      "id": "2c3590d9-2d65-45df-b571-cb89faaec33a",
+      "from": {
+        "node": "724193ae-2728-4794-a124-28e6461612ea",
+        "pin": "out"
+      },
+      "to": {
+        "node": "f5843bac-dd1a-4d8a-b256-c1cd6450b37a",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "2ce0e81f-0479-41e1-a1fb-4eba1fcd3a51",
+      "from": {
+        "node": "44cb8077-2682-4bf6-9a57-d276ccc5c28b",
+        "pin": "result"
+      },
+      "to": {
+        "node": "9269453b-ceb5-40c3-b258-df239be14ced",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "2d3f505c-4de9-480a-a4f1-ac60b9735e23",
+      "from": {
+        "node": "429b07c0-d4e1-4ad5-8780-db0751e0c0b8",
+        "pin": "out"
+      },
+      "to": {
+        "node": "39a7c421-1bfd-43f0-b975-ccd6beb0b24c",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "2e66c655-eab4-428d-b9b4-7a9090953f4b",
+      "from": {
+        "node": "39a7c421-1bfd-43f0-b975-ccd6beb0b24c",
+        "pin": "out"
+      },
+      "to": {
+        "node": "60192ccf-399d-428c-899d-204bdb30f444",
+        "pin": "key"
+      }
+    },
+    {
+      "id": "2f7d4bfd-ebe6-4007-945a-8f36474b5be0",
+      "from": {
+        "node": "32bc3a9c-f025-43db-b771-a9509da5717e",
+        "pin": "true"
+      },
+      "to": {
+        "node": "6c3424bb-3b1b-46f3-9c85-8bd88c078c39",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "30b7cab6-4774-4982-8094-137992e49ab3",
+      "from": {
+        "node": "62ccb591-0188-4eeb-ae23-801c8a58379d",
+        "pin": "ref"
+      },
+      "to": {
+        "node": "db367514-8133-4f17-89ec-cb51a7d7fa6b",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "32169001-f3e6-4499-ad8a-593dc3d0c47a",
+      "from": {
+        "node": "27e1da50-7593-4b59-9ac8-2dc238be92d2",
+        "pin": "then"
+      },
+      "to": {
+        "node": "61a12126-3b6c-47c4-a7be-c86db98ca20a",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "33a56245-65dc-41a1-b41c-1c5c65677c33",
+      "from": {
+        "node": "14443248-3029-4832-aece-4fe15ff3210f",
+        "pin": "out"
+      },
+      "to": {
+        "node": "9ff9e42b-3c35-4ad0-be46-182aab499b10",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "34d0b108-d65f-4def-a98d-dedf71c9246c",
+      "from": {
+        "node": "6235ed62-acd0-4c68-b5a8-47fc8631b20f",
+        "pin": "result"
+      },
+      "to": {
+        "node": "da3488a2-e82d-4131-bf1d-a7b4da03d205",
+        "pin": "p0"
+      }
+    },
+    {
+      "id": "38795bed-b2ee-4389-953a-75e97b48e47f",
+      "from": {
+        "node": "2cc9b554-df8c-4da6-b5b4-4a511b47b141",
+        "pin": "value"
+      },
+      "to": {
+        "node": "299d647d-5a39-42d9-85bf-d338abf1cf91",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "3d55eabd-56ab-495a-bf2b-ac7179856726",
+      "from": {
+        "node": "724193ae-2728-4794-a124-28e6461612ea",
+        "pin": "out"
+      },
+      "to": {
+        "node": "8903aa6f-be86-4bed-9f9d-ec17cf6fb7f2",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "42f26805-938d-4ce2-acc5-ad75f4d74d1a",
+      "from": {
+        "node": "e555097e-9868-40da-a652-142bcf9e0557",
+        "pin": "result"
+      },
+      "to": {
+        "node": "da3488a2-e82d-4131-bf1d-a7b4da03d205",
+        "pin": "p5"
+      }
+    },
+    {
       "id": "4581573f-c16b-4e77-babd-efaab2cbb247",
       "from": {
         "node": "7754cfb4-76d4-4f49-8c2a-0a6dccea2582",
@@ -302,6 +1833,248 @@
       },
       "to": {
         "node": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "45cdf847-5ff1-4712-9ccb-decbab1baa35",
+      "from": {
+        "node": "399a674a-ba64-4fe7-8a58-987c6e873260",
+        "pin": "value"
+      },
+      "to": {
+        "node": "b756e300-ab5a-45f2-b20c-673950fe1a05",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "4736ad48-6704-413d-ab28-66793306e502",
+      "from": {
+        "node": "f5843bac-dd1a-4d8a-b256-c1cd6450b37a",
+        "pin": "out"
+      },
+      "to": {
+        "node": "c7b08c51-b64a-4378-b971-de1be1897e07",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "47e67021-0ea3-4502-a502-60700cf0acdf",
+      "from": {
+        "node": "b01119e7-7e97-4176-9ed3-8387357a6452",
+        "pin": "result"
+      },
+      "to": {
+        "node": "559fd1f1-d60c-4045-9215-92fe92f425f7",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "48e2d20c-a233-4193-b1fd-11c2e74897a8",
+      "from": {
+        "node": "4bfc46e0-0e51-48c4-9414-558225c2ac72",
+        "pin": "false"
+      },
+      "to": {
+        "node": "e105f7e1-1261-458c-8920-debb2758fcc8",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "49a50a2f-dcf0-4f5a-a1b3-dc03d877516c",
+      "from": {
+        "node": "b3e92258-5f90-4321-b152-25b46d2db8af",
+        "pin": "value"
+      },
+      "to": {
+        "node": "20ed53ef-cbbb-4921-8086-91a4ac987586",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "49e425f7-61f0-454b-93a7-293685ebdfd2",
+      "from": {
+        "node": "da3488a2-e82d-4131-bf1d-a7b4da03d205",
+        "pin": "result"
+      },
+      "to": {
+        "node": "3a8accb9-02c2-489b-90d6-e8ec03958033",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "4a414c3c-4deb-4ea5-a97d-232944037c48",
+      "from": {
+        "node": "22485446-ce1a-44af-90e5-777eb92741ff",
+        "pin": "result"
+      },
+      "to": {
+        "node": "612644ce-3a85-4706-bbe6-b8a7dbaf14b6",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "4bc72096-0da4-49b1-a517-799dee9c593c",
+      "from": {
+        "node": "d9c0926e-2364-4e48-a38b-6bc5d7a64006",
+        "pin": "then"
+      },
+      "to": {
+        "node": "c7b08c51-b64a-4378-b971-de1be1897e07",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "4bd9f33b-ce8b-409e-81e0-1ad5c54dbed1",
+      "from": {
+        "node": "ea6b9a86-2a49-4d2b-b60e-f1756d975ea5",
+        "pin": "value"
+      },
+      "to": {
+        "node": "27e1da50-7593-4b59-9ac8-2dc238be92d2",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "4fcdc269-8220-47c0-a6c2-e5af0c0e0d85",
+      "from": {
+        "node": "2e2f62b0-714f-48e6-861f-13d71b3ae9ca",
+        "pin": "value"
+      },
+      "to": {
+        "node": "27e1da50-7593-4b59-9ac8-2dc238be92d2",
+        "pin": "key"
+      }
+    },
+    {
+      "id": "507ed652-d0be-434b-a1cf-4744a2514066",
+      "from": {
+        "node": "eebf0021-80ba-4ff0-ac38-d0d1985b87f1",
+        "pin": "then"
+      },
+      "to": {
+        "node": "e85f3e79-31c4-418a-9199-38cf9aee1f01",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "51fc907c-fe0c-409e-a998-0a40b9551530",
+      "from": {
+        "node": "2cc9b554-df8c-4da6-b5b4-4a511b47b141",
+        "pin": "value"
+      },
+      "to": {
+        "node": "3bbec220-48bf-4c3f-ab24-73da19d346bc",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "546fcbbe-3272-453a-a418-9104d9a5b378",
+      "from": {
+        "node": "e8e55498-68b5-45a9-82ad-ca0441cd6d72",
+        "pin": "result"
+      },
+      "to": {
+        "node": "02a89996-c640-43bc-a8f5-d997237aa2fd",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "56f89275-a798-4c2e-9f04-c29189ac8424",
+      "from": {
+        "node": "399a674a-ba64-4fe7-8a58-987c6e873260",
+        "pin": "body"
+      },
+      "to": {
+        "node": "4bfc46e0-0e51-48c4-9414-558225c2ac72",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "575a9173-b066-4f98-9eb7-5b46295039ce",
+      "from": {
+        "node": "59636464-0ae4-4405-95d9-3c79fae2a811",
+        "pin": "out"
+      },
+      "to": {
+        "node": "e85f3e79-31c4-418a-9199-38cf9aee1f01",
+        "pin": "key"
+      }
+    },
+    {
+      "id": "57bc4fc8-abbb-45a9-85c8-188398a62bbd",
+      "from": {
+        "node": "429b07c0-d4e1-4ad5-8780-db0751e0c0b8",
+        "pin": "out"
+      },
+      "to": {
+        "node": "126f3be2-79ea-452e-8a61-51c3a54803c9",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "57cfaa40-a6ac-44b5-835b-91638301d278",
+      "from": {
+        "node": "20ed53ef-cbbb-4921-8086-91a4ac987586",
+        "pin": "out"
+      },
+      "to": {
+        "node": "d9c0926e-2364-4e48-a38b-6bc5d7a64006",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "58aa0885-d364-4065-a08e-2a11b41c23b8",
+      "from": {
+        "node": "c7208f83-f902-4ef9-a8d6-33e98578823a",
+        "pin": "s3"
+      },
+      "to": {
+        "node": "8e4859ef-a996-43eb-aabb-67d1d8a53403",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "591abcaa-7cff-4e79-979a-7e15535e85a0",
+      "from": {
+        "node": "2cc9b554-df8c-4da6-b5b4-4a511b47b141",
+        "pin": "value"
+      },
+      "to": {
+        "node": "9749274d-5f90-4974-b97a-91c81889dc3e",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "5966d8e6-0cd0-48df-a79c-56fbc7ce4dc4",
+      "from": {
+        "node": "a673641b-aea7-4446-9d7b-67549b01c5da",
+        "pin": "result"
+      },
+      "to": {
+        "node": "6d573203-12fe-4908-8073-82725733294b",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "5a365c8e-ea73-4c9e-9aab-d31866d0af17",
+      "from": {
+        "node": "f4c6964d-ac8d-4360-8abc-d477f2d608ab",
+        "pin": "out"
+      },
+      "to": {
+        "node": "59636464-0ae4-4405-95d9-3c79fae2a811",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "5e2e50a6-096d-4dc4-9a51-175460ac111d",
+      "from": {
+        "node": "3a0574cd-bd64-4e23-a2a6-172d26bf3149",
+        "pin": "then"
+      },
+      "to": {
+        "node": "32bc3a9c-f025-43db-b771-a9509da5717e",
         "pin": "in"
       }
     },
@@ -317,6 +2090,39 @@
       }
     },
     {
+      "id": "625c93ef-9c34-4699-acd8-df3ff1e68365",
+      "from": {
+        "node": "8ea9552a-123e-4295-bb9a-ffea43ba00e1",
+        "pin": "result"
+      },
+      "to": {
+        "node": "3a0574cd-bd64-4e23-a2a6-172d26bf3149",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "657438ed-588c-4174-b35d-99c857456630",
+      "from": {
+        "node": "a673641b-aea7-4446-9d7b-67549b01c5da",
+        "pin": "result"
+      },
+      "to": {
+        "node": "a0eab645-bf34-4f01-a1ee-feb32391dded",
+        "pin": "key"
+      }
+    },
+    {
+      "id": "6c65173a-2940-4f92-8ef3-7b4046496532",
+      "from": {
+        "node": "8f075613-4184-4c20-9f1d-3f73dec19926",
+        "pin": "then"
+      },
+      "to": {
+        "node": "9ff9e42b-3c35-4ad0-be46-182aab499b10",
+        "pin": "in"
+      }
+    },
+    {
       "id": "6c94c220-5ba5-4de9-8e64-f8849bc44f11",
       "from": {
         "node": "c23cf121-6997-4f35-9911-0e18c0fa811c",
@@ -325,6 +2131,116 @@
       "to": {
         "node": "00dc4866-e7c2-4e06-a476-a2c4f39633ad",
         "pin": "key"
+      }
+    },
+    {
+      "id": "72aac028-9d70-45ca-9d23-4c552107be05",
+      "from": {
+        "node": "3a0574cd-bd64-4e23-a2a6-172d26bf3149",
+        "pin": "ref"
+      },
+      "to": {
+        "node": "3a98dfa0-ff95-421e-b0e0-816d19d2f300",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "73de6cb8-ebe4-405c-b8b5-1cab5b9b7ad3",
+      "from": {
+        "node": "fa2f0d8c-0a07-4e41-a300-9e3bdd9f7abc",
+        "pin": "out"
+      },
+      "to": {
+        "node": "724193ae-2728-4794-a124-28e6461612ea",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "747fc21d-ec4c-4f81-9aef-250140530842",
+      "from": {
+        "node": "f998c026-589a-4ccd-b88f-884532687e47",
+        "pin": "then"
+      },
+      "to": {
+        "node": "f8c346d5-e775-4264-a5ba-79ade2a55d2c",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "76e3e96a-134c-45c2-b702-a35cfbb4a180",
+      "from": {
+        "node": "22611841-d5fe-48e4-b8b9-fc2a649b9186",
+        "pin": "result"
+      },
+      "to": {
+        "node": "fa2f0d8c-0a07-4e41-a300-9e3bdd9f7abc",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "7b9870e0-a5c7-4a66-8856-fb7a780b8bbb",
+      "from": {
+        "node": "b5edb6eb-3c82-4b4d-b7ff-7154b0a9a717",
+        "pin": "result"
+      },
+      "to": {
+        "node": "abed080b-07f0-4087-ab9f-0aad1d004cf5",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "7c79f0a3-0985-4db9-ad79-2d36faf2526a",
+      "from": {
+        "node": "4bfc46e0-0e51-48c4-9414-558225c2ac72",
+        "pin": "true"
+      },
+      "to": {
+        "node": "a0eab645-bf34-4f01-a1ee-feb32391dded",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "7cb9b1ce-f47c-446d-accf-4508ab2ed956",
+      "from": {
+        "node": "399a674a-ba64-4fe7-8a58-987c6e873260",
+        "pin": "value"
+      },
+      "to": {
+        "node": "af780fc9-9ef4-47ce-8b60-98db95871b3b",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "7cede30f-f85f-4194-a717-95c14641bf8d",
+      "from": {
+        "node": "59674712-3d1b-462c-852d-0f55271cd7b8",
+        "pin": "result"
+      },
+      "to": {
+        "node": "9f3c7b0b-3982-4d55-9f87-13b7962f2c14",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "806201b8-3bc5-4528-a0e8-c9fcfc0084f8",
+      "from": {
+        "node": "02a89996-c640-43bc-a8f5-d997237aa2fd",
+        "pin": "then"
+      },
+      "to": {
+        "node": "9269453b-ceb5-40c3-b258-df239be14ced",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "8819a372-f16f-400a-83f3-f6a64439a6b3",
+      "from": {
+        "node": "46dfb389-7b87-46c8-8d1d-f927d45d04b7",
+        "pin": "result"
+      },
+      "to": {
+        "node": "545b500e-d7aa-4128-98df-725906301f5d",
+        "pin": "a1"
       }
     },
     {
@@ -339,14 +2255,58 @@
       }
     },
     {
-      "id": "9350dcb9-f6c3-4ed6-ad0d-dacd20bfe718",
+      "id": "8dee9952-9680-46d7-b378-48bc724d44e6",
       "from": {
-        "node": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
-        "pin": "p0"
+        "node": "22611841-d5fe-48e4-b8b9-fc2a649b9186",
+        "pin": "then"
       },
       "to": {
-        "node": "6a2d4bbe-f5a0-4799-8030-2a12a9391da9",
+        "node": "f998c026-589a-4ccd-b88f-884532687e47",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "8fb2a2dc-eab0-426e-b5ed-722f29eaf490",
+      "from": {
+        "node": "3bbec220-48bf-4c3f-ab24-73da19d346bc",
+        "pin": "result"
+      },
+      "to": {
+        "node": "e85f3e79-31c4-418a-9199-38cf9aee1f01",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "9183b080-fb2e-4afc-ae0e-a80425d0c344",
+      "from": {
+        "node": "e0b1db23-272b-4269-bf3b-be362e7b708e",
+        "pin": "result"
+      },
+      "to": {
+        "node": "da3488a2-e82d-4131-bf1d-a7b4da03d205",
+        "pin": "p1"
+      }
+    },
+    {
+      "id": "9226a603-c95a-4982-980e-36e3da68b322",
+      "from": {
+        "node": "fb376b96-d724-4a29-8a08-e7216ac07f1f",
+        "pin": "value"
+      },
+      "to": {
+        "node": "8e4859ef-a996-43eb-aabb-67d1d8a53403",
         "pin": "instance"
+      }
+    },
+    {
+      "id": "95885df3-2da2-4187-9285-abcbbf6a2a2a",
+      "from": {
+        "node": "ac7eb4a9-3c70-42f1-a99d-85f807938168",
+        "pin": "result"
+      },
+      "to": {
+        "node": "9ff9e42b-3c35-4ad0-be46-182aab499b10",
+        "pin": "value"
       }
     },
     {
@@ -361,14 +2321,14 @@
       }
     },
     {
-      "id": "97a68cce-0f7a-4483-a4ab-5f96ed101bc9",
+      "id": "9b0b50da-ba89-430d-938a-c78cdd47b458",
       "from": {
-        "node": "ed532014-9414-4c4c-a289-e6358dae28ab",
-        "pin": "result"
+        "node": "59636464-0ae4-4405-95d9-3c79fae2a811",
+        "pin": "out"
       },
       "to": {
-        "node": "4e2b49c4-570a-466f-9485-1d4b81aa0d15",
-        "pin": "r0"
+        "node": "14443248-3029-4832-aece-4fe15ff3210f",
+        "pin": "in"
       }
     },
     {
@@ -383,6 +2343,105 @@
       }
     },
     {
+      "id": "9eafa5bf-0b92-41db-90d6-08dbe32a51ae",
+      "from": {
+        "node": "3a0574cd-bd64-4e23-a2a6-172d26bf3149",
+        "pin": "ref"
+      },
+      "to": {
+        "node": "22485446-ce1a-44af-90e5-777eb92741ff",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "a02c24fe-75e1-4e89-974a-6d0b08b37dcc",
+      "from": {
+        "node": "a0eab645-bf34-4f01-a1ee-feb32391dded",
+        "pin": "then"
+      },
+      "to": {
+        "node": "eebf0021-80ba-4ff0-ac38-d0d1985b87f1",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "a0587677-18de-401f-a85b-ef6f6e0f6366",
+      "from": {
+        "node": "6999e2ee-f422-4503-870e-53228e559bda",
+        "pin": "result"
+      },
+      "to": {
+        "node": "da3488a2-e82d-4131-bf1d-a7b4da03d205",
+        "pin": "p6"
+      }
+    },
+    {
+      "id": "a0b44286-3a52-4d34-b78b-8a8a6510531e",
+      "from": {
+        "node": "4176fb0f-17b6-40ee-9ef0-89e81b1163f7",
+        "pin": "result"
+      },
+      "to": {
+        "node": "e555097e-9868-40da-a652-142bcf9e0557",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "a3c1ba5d-a38f-43b6-a1ba-66c4732e088a",
+      "from": {
+        "node": "1910ade0-6065-4ca2-9d43-6bb88d60471f",
+        "pin": "result"
+      },
+      "to": {
+        "node": "6999e2ee-f422-4503-870e-53228e559bda",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "a3f9088a-5830-4f0b-84f5-6acc7d9495bb",
+      "from": {
+        "node": "9269453b-ceb5-40c3-b258-df239be14ced",
+        "pin": "then"
+      },
+      "to": {
+        "node": "22611841-d5fe-48e4-b8b9-fc2a649b9186",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "a748956e-9820-4aab-ba8a-0e224b1de472",
+      "from": {
+        "node": "14443248-3029-4832-aece-4fe15ff3210f",
+        "pin": "out"
+      },
+      "to": {
+        "node": "f653fbe9-61a2-436b-b918-48886346bf30",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "afdcec12-09ac-45c8-8a62-00feea180c22",
+      "from": {
+        "node": "03f0dd5e-f6b9-4c94-adf2-a834c66d6718",
+        "pin": "value"
+      },
+      "to": {
+        "node": "4176fb0f-17b6-40ee-9ef0-89e81b1163f7",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "afee632a-71ed-41ce-9220-09ea4e5bfd79",
+      "from": {
+        "node": "f1bcfb36-e132-447a-a4d6-dec4195b2020",
+        "pin": "result"
+      },
+      "to": {
+        "node": "8f075613-4184-4c20-9f1d-3f73dec19926",
+        "pin": "value"
+      }
+    },
+    {
       "id": "b1914e77-0dcc-4eec-8525-2ec4e86ab165",
       "from": {
         "node": "f0ee73f2-d603-4a32-b066-29f1e751fce4",
@@ -390,6 +2449,17 @@
       },
       "to": {
         "node": "fb088a2d-3ea0-470a-98a2-bb46510a6f60",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "b57464d8-7acf-49ba-b426-c23ec4204e19",
+      "from": {
+        "node": "db022ae8-1a10-4e97-9467-e75e6de46e83",
+        "pin": "value"
+      },
+      "to": {
+        "node": "27e1da50-7593-4b59-9ac8-2dc238be92d2",
         "pin": "value"
       }
     },
@@ -405,6 +2475,127 @@
       }
     },
     {
+      "id": "b7905e15-4a54-433b-870d-0529a771ce30",
+      "from": {
+        "node": "be394519-3e46-4819-8dbe-aba87597f181",
+        "pin": "result"
+      },
+      "to": {
+        "node": "5115ba7d-aba2-47bb-a2c3-d296d2962563",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "b8bd8916-de07-4893-a453-6bebd59c0a27",
+      "from": {
+        "node": "0f03810c-2d2f-483e-aa5e-5f8d545ea8e1",
+        "pin": "out"
+      },
+      "to": {
+        "node": "7be24b01-b1a8-443f-b308-2b39e68758b4",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "b9f8be64-2650-4f8f-b603-736c90dff167",
+      "from": {
+        "node": "03f0dd5e-f6b9-4c94-adf2-a834c66d6718",
+        "pin": "value"
+      },
+      "to": {
+        "node": "b5edb6eb-3c82-4b4d-b7ff-7154b0a9a717",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "bfc7b5e0-7471-49d4-b571-a2e624e0cfd8",
+      "from": {
+        "node": "8e4859ef-a996-43eb-aabb-67d1d8a53403",
+        "pin": "then"
+      },
+      "to": {
+        "node": "535740c3-3988-4e17-b341-db9ba5c4034e",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "c19d11a9-4fad-4f4e-a5b5-8749a4b5c191",
+      "from": {
+        "node": "9749274d-5f90-4974-b97a-91c81889dc3e",
+        "pin": "result"
+      },
+      "to": {
+        "node": "a0eab645-bf34-4f01-a1ee-feb32391dded",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "c6060717-c3a0-48b6-9af3-fb22a51bae90",
+      "from": {
+        "node": "a673641b-aea7-4446-9d7b-67549b01c5da",
+        "pin": "result"
+      },
+      "to": {
+        "node": "0182dfb8-4b98-4514-9cc7-982f3c2d129f",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "c716314b-7638-4fdc-a5ef-00a7d3907364",
+      "from": {
+        "node": "c7208f83-f902-4ef9-a8d6-33e98578823a",
+        "pin": "s1"
+      },
+      "to": {
+        "node": "53638704-4075-4a27-8d71-d25d9cf7c144",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "c7859261-4bb1-4b7f-8267-1cc22d23eb01",
+      "from": {
+        "node": "0182dfb8-4b98-4514-9cc7-982f3c2d129f",
+        "pin": "result"
+      },
+      "to": {
+        "node": "eebf0021-80ba-4ff0-ac38-d0d1985b87f1",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "c78d9fd1-3e32-4abf-9415-d6a1c2dae6ca",
+      "from": {
+        "node": "72566421-eced-4a1b-b369-22a6dbe9ff76",
+        "pin": "result"
+      },
+      "to": {
+        "node": "60192ccf-399d-428c-899d-204bdb30f444",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "c9d93da1-fa24-476e-a4ad-92cc0fbba783",
+      "from": {
+        "node": "399a674a-ba64-4fe7-8a58-987c6e873260",
+        "pin": "value"
+      },
+      "to": {
+        "node": "a673641b-aea7-4446-9d7b-67549b01c5da",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "ca0c1197-1a1f-4013-a32e-eb1f327df131",
+      "from": {
+        "node": "fa2f0d8c-0a07-4e41-a300-9e3bdd9f7abc",
+        "pin": "out"
+      },
+      "to": {
+        "node": "f8c346d5-e775-4264-a5ba-79ade2a55d2c",
+        "pin": "instance"
+      }
+    },
+    {
       "id": "caa5a842-f1ca-4da9-a4a9-eab9feabe4d0",
       "from": {
         "node": "8eaa8197-2c47-43c7-8c8e-17f4b052fb0b",
@@ -413,6 +2604,28 @@
       "to": {
         "node": "00dc4866-e7c2-4e06-a476-a2c4f39633ad",
         "pin": "table"
+      }
+    },
+    {
+      "id": "cade4673-f3b3-452d-8990-6cf8a0c3080f",
+      "from": {
+        "node": "990ff54f-c360-4190-858d-ec8520d7d54a",
+        "pin": "result"
+      },
+      "to": {
+        "node": "6235ed62-acd0-4c68-b5a8-47fc8631b20f",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "cbd6e946-8868-4246-8395-a3c47955db55",
+      "from": {
+        "node": "0d009615-cc3a-4bef-83b6-ff24410f7efa",
+        "pin": "value"
+      },
+      "to": {
+        "node": "ab771981-367e-44ae-ab0a-0a140a75f513",
+        "pin": "in"
       }
     },
     {
@@ -427,6 +2640,72 @@
       }
     },
     {
+      "id": "d2609e5c-1832-4de8-b7ae-5b85a68effdb",
+      "from": {
+        "node": "0a7c5dbe-5386-4d7e-8f4b-58983c202344",
+        "pin": "value"
+      },
+      "to": {
+        "node": "8ea9552a-123e-4295-bb9a-ffea43ba00e1",
+        "pin": "parent"
+      }
+    },
+    {
+      "id": "d3b9940e-eb69-4f82-ba07-81ac7c31bae0",
+      "from": {
+        "node": "b97f90ce-ba31-4cf9-85d4-5d673487fb9c",
+        "pin": "result"
+      },
+      "to": {
+        "node": "da3488a2-e82d-4131-bf1d-a7b4da03d205",
+        "pin": "p2"
+      }
+    },
+    {
+      "id": "d6edd2d8-3faf-43ab-9f09-87fafd445edb",
+      "from": {
+        "node": "39a7c421-1bfd-43f0-b975-ccd6beb0b24c",
+        "pin": "out"
+      },
+      "to": {
+        "node": "71e29e8d-7668-4caa-bdab-25ec66d86d63",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "d746861a-fb48-41b5-b2c0-f5ec11ab8d3d",
+      "from": {
+        "node": "fe14ea5a-e06f-4a29-9cbb-f3d57be0c527",
+        "pin": "value"
+      },
+      "to": {
+        "node": "9269453b-ceb5-40c3-b258-df239be14ced",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "d82140a4-c750-4207-be1a-3753afe46aec",
+      "from": {
+        "node": "0a7c5dbe-5386-4d7e-8f4b-58983c202344",
+        "pin": "value"
+      },
+      "to": {
+        "node": "6a2d4bbe-f5a0-4799-8030-2a12a9391da9",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "d9d70abd-ea0f-49f0-93b5-b7bfda724b01",
+      "from": {
+        "node": "3a98dfa0-ff95-421e-b0e0-816d19d2f300",
+        "pin": "result"
+      },
+      "to": {
+        "node": "5115ba7d-aba2-47bb-a2c3-d296d2962563",
+        "pin": "a1"
+      }
+    },
+    {
       "id": "dbcc21be-a3a5-4c00-8145-f432538836fb",
       "from": {
         "node": "6ba98fc6-3d82-4a55-b0d7-ee192fca96ed",
@@ -435,6 +2714,138 @@
       "to": {
         "node": "b8e4e4f9-7608-47ec-be11-4c79644cfa5d",
         "pin": "table"
+      }
+    },
+    {
+      "id": "ddef7f43-d07b-49e2-9764-f74801e97d58",
+      "from": {
+        "node": "e85f3e79-31c4-418a-9199-38cf9aee1f01",
+        "pin": "then"
+      },
+      "to": {
+        "node": "8f075613-4184-4c20-9f1d-3f73dec19926",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "e22f73a3-645e-47fa-9e4f-db86a41617af",
+      "from": {
+        "node": "f8c346d5-e775-4264-a5ba-79ade2a55d2c",
+        "pin": "then"
+      },
+      "to": {
+        "node": "8903aa6f-be86-4bed-9f9d-ec17cf6fb7f2",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "e2e72e47-b473-48b0-b511-62478c989859",
+      "from": {
+        "node": "03f0dd5e-f6b9-4c94-adf2-a834c66d6718",
+        "pin": "value"
+      },
+      "to": {
+        "node": "59674712-3d1b-462c-852d-0f55271cd7b8",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "e4c792c6-0771-4944-8841-e42beb2179aa",
+      "from": {
+        "node": "299d647d-5a39-42d9-85bf-d338abf1cf91",
+        "pin": "result"
+      },
+      "to": {
+        "node": "eebf0021-80ba-4ff0-ac38-d0d1985b87f1",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "e705ec1a-a801-4518-b8ff-7df94d88d342",
+      "from": {
+        "node": "126f3be2-79ea-452e-8a61-51c3a54803c9",
+        "pin": "result"
+      },
+      "to": {
+        "node": "60192ccf-399d-428c-899d-204bdb30f444",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "e921747e-6bbb-4666-95d8-f3855bab9057",
+      "from": {
+        "node": "0f03810c-2d2f-483e-aa5e-5f8d545ea8e1",
+        "pin": "out"
+      },
+      "to": {
+        "node": "535740c3-3988-4e17-b341-db9ba5c4034e",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "e943037c-30c7-4b70-9a3d-277cbc13fb8a",
+      "from": {
+        "node": "c7208f83-f902-4ef9-a8d6-33e98578823a",
+        "pin": "s2"
+      },
+      "to": {
+        "node": "3a8accb9-02c2-489b-90d6-e8ec03958033",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "e963ecea-211c-4168-aecc-8e30503d38c2",
+      "from": {
+        "node": "60192ccf-399d-428c-899d-204bdb30f444",
+        "pin": "then"
+      },
+      "to": {
+        "node": "559fd1f1-d60c-4045-9215-92fe92f425f7",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "e99a7f71-9763-413c-93f5-9ec57d2054f7",
+      "from": {
+        "node": "612644ce-3a85-4706-bbe6-b8a7dbaf14b6",
+        "pin": "result"
+      },
+      "to": {
+        "node": "5115ba7d-aba2-47bb-a2c3-d296d2962563",
+        "pin": "a2"
+      }
+    },
+    {
+      "id": "ecf58eaf-e283-4bcb-b72a-fa5964327514",
+      "from": {
+        "node": "b756e300-ab5a-45f2-b20c-673950fe1a05",
+        "pin": "out"
+      },
+      "to": {
+        "node": "44149528-ab11-4688-92c9-ad2e1405722e",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "ed579d10-c4d8-4e69-bb7f-c7d504e7146a",
+      "from": {
+        "node": "71e29e8d-7668-4caa-bdab-25ec66d86d63",
+        "pin": "out"
+      },
+      "to": {
+        "node": "559fd1f1-d60c-4045-9215-92fe92f425f7",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "ee71c4dc-23ea-4fc8-9dc3-71190f1544ab",
+      "from": {
+        "node": "a673641b-aea7-4446-9d7b-67549b01c5da",
+        "pin": "result"
+      },
+      "to": {
+        "node": "f4c6964d-ac8d-4360-8abc-d477f2d608ab",
+        "pin": "in"
       }
     },
     {
@@ -449,6 +2860,72 @@
       }
     },
     {
+      "id": "eeb767e5-b3fb-4443-bb38-6ff1310f1981",
+      "from": {
+        "node": "59636464-0ae4-4405-95d9-3c79fae2a811",
+        "pin": "out"
+      },
+      "to": {
+        "node": "8f075613-4184-4c20-9f1d-3f73dec19926",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "f11dc7c3-a253-46af-8113-213bc3de9dd5",
+      "from": {
+        "node": "8903aa6f-be86-4bed-9f9d-ec17cf6fb7f2",
+        "pin": "then"
+      },
+      "to": {
+        "node": "d9c0926e-2364-4e48-a38b-6bc5d7a64006",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "f18decf9-dec3-44cd-979a-557821f4d841",
+      "from": {
+        "node": "9ff9e42b-3c35-4ad0-be46-182aab499b10",
+        "pin": "then"
+      },
+      "to": {
+        "node": "f653fbe9-61a2-436b-b918-48886346bf30",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "f31630ab-1ed1-4e92-b003-a985be7ebaa5",
+      "from": {
+        "node": "ab771981-367e-44ae-ab0a-0a140a75f513",
+        "pin": "out"
+      },
+      "to": {
+        "node": "8903aa6f-be86-4bed-9f9d-ec17cf6fb7f2",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "f684dbc4-d227-4599-9972-477dfce7ad4a",
+      "from": {
+        "node": "0d009615-cc3a-4bef-83b6-ff24410f7efa",
+        "pin": "value"
+      },
+      "to": {
+        "node": "44cb8077-2682-4bf6-9a57-d276ccc5c28b",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "f69225ff-9114-40f7-9df4-796de5c3ef46",
+      "from": {
+        "node": "9c2dbbe2-0130-40aa-8b6f-806f59e05024",
+        "pin": "result"
+      },
+      "to": {
+        "node": "535740c3-3988-4e17-b341-db9ba5c4034e",
+        "pin": "value"
+      }
+    },
+    {
       "id": "f70194db-462f-4a4d-bb9c-ab70ef7f6350",
       "from": {
         "node": "06ad3d6a-0d21-4a95-8994-d65cfb30b380",
@@ -457,6 +2934,28 @@
       "to": {
         "node": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f",
         "pin": "owner"
+      }
+    },
+    {
+      "id": "f760d474-6e21-4412-88e1-36f87103ffe0",
+      "from": {
+        "node": "c7b08c51-b64a-4378-b971-de1be1897e07",
+        "pin": "then"
+      },
+      "to": {
+        "node": "27e1da50-7593-4b59-9ac8-2dc238be92d2",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "f800a7b8-55e8-4236-8d97-44a4a965df6d",
+      "from": {
+        "node": "87d66af6-f878-48c7-b67b-69297adf59bc",
+        "pin": "value"
+      },
+      "to": {
+        "node": "c7b08c51-b64a-4378-b971-de1be1897e07",
+        "pin": "table"
       }
     },
     {
@@ -469,32 +2968,173 @@
         "node": "cce1540b-4363-4633-a50d-48cd4159178a",
         "pin": "condition"
       }
+    },
+    {
+      "id": "f8f8eee8-db6b-4107-bbff-fc74ff2615b7",
+      "from": {
+        "node": "4f2fabda-1bdd-4eeb-8671-eb1ba4222f41",
+        "pin": "value"
+      },
+      "to": {
+        "node": "b8e4e4f9-7608-47ec-be11-4c79644cfa5d",
+        "pin": "key"
+      }
+    },
+    {
+      "id": "f90734f9-c500-42bd-b574-c8f1eedf24d3",
+      "from": {
+        "node": "beb7ebcd-7b17-4a42-a850-b841b6f33a10",
+        "pin": "result"
+      },
+      "to": {
+        "node": "e0b1db23-272b-4269-bf3b-be362e7b708e",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "fb32dc09-50c6-48f3-babc-37f01a361a65",
+      "from": {
+        "node": "6d573203-12fe-4908-8073-82725733294b",
+        "pin": "result"
+      },
+      "to": {
+        "node": "a0eab645-bf34-4f01-a1ee-feb32391dded",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "fb635372-eefb-4f48-be69-873671d788d7",
+      "from": {
+        "node": "143a6e0e-2b68-47d3-ac17-8ef9dcb7c97b",
+        "pin": "result"
+      },
+      "to": {
+        "node": "e85f3e79-31c4-418a-9199-38cf9aee1f01",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "fb86515f-2fe5-4f48-a2c5-4bda47cbe477",
+      "from": {
+        "node": "e105f7e1-1261-458c-8920-debb2758fcc8",
+        "pin": "true"
+      },
+      "to": {
+        "node": "60192ccf-399d-428c-899d-204bdb30f444",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "fc4dfb7b-0dae-4be0-9b74-8485d3903cf6",
+      "from": {
+        "node": "fb376b96-d724-4a29-8a08-e7216ac07f1f",
+        "pin": "value"
+      },
+      "to": {
+        "node": "0f03810c-2d2f-483e-aa5e-5f8d545ea8e1",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "fe08fa2f-f642-4628-bb5f-879bfbdd517a",
+      "from": {
+        "node": "d04ff97d-1e00-441c-bc82-ba886d27dcf8",
+        "pin": "result"
+      },
+      "to": {
+        "node": "399a674a-ba64-4fe7-8a58-987c6e873260",
+        "pin": "table"
+      }
     }
   ],
   "comments": [
     {
       "id": "5632e5e2-8351-414b-b44a-254287e772e8",
-      "x": 946,
-      "y": 497,
+      "x": 1269,
+      "y": 421,
       "w": 558,
       "h": 212,
       "text": "Defines restores table"
     },
     {
+      "id": "5b8d1357-f57c-4e83-ad08-b145ce6c6f68",
+      "x": 2347,
+      "y": 1862,
+      "w": 3824.67,
+      "h": 974.55,
+      "text": "Go through all instances in the array and cache it's original state. Decals and Textures only have their initial transparency cached, while BaseParts also have their CanCollide and CanQuery state cached.\n",
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
       "id": "60881935-67ee-4380-b288-2185d0dd6ee5",
-      "x": 1284,
-      "y": 1028,
-      "w": 1260,
-      "h": 237,
-      "text": "First check if the restores table already has"
+      "x": 1725,
+      "y": 1168,
+      "w": 1004.38,
+      "h": 234.9,
+      "text": "First check if the restores table already has",
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "69a8f24d-d8c2-4bc7-bcd1-d9f9a2c52dee",
+      "x": 368,
+      "y": 1846,
+      "w": 1429,
+      "h": 967,
+      "text": "Create the initial \"restore\" table for the player",
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "75d11c49-54c3-4e75-8129-106005abd4b3",
+      "x": 1716,
+      "y": 1425,
+      "w": 2107,
+      "h": 386,
+      "text": "Check if there's a Humanoid and a HumaoidRootPart on the player character.",
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "8a530344-32fb-427f-9c0c-c9b23914c0c2",
+      "x": 3090,
+      "y": 2916,
+      "w": 2581.79,
+      "h": 533.84,
+      "text": "Create the binding weld here for the player to be connected to the hull.",
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "ab2cff97-73bc-4d84-832b-ed2c9f4fe1e2",
+      "x": 1557,
+      "y": 3003,
+      "w": 1487,
+      "h": 375,
+      "text": "Handle Humanoid settings that can't be iterated over",
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
     },
     {
       "id": "bc8895fa-1534-400e-bf9e-632e5f913b20",
-      "x": 785,
-      "y": 84,
+      "x": 1272,
+      "y": 72,
       "w": 1153,
       "h": 341,
       "text": "Defines"
+    },
+    {
+      "id": "d2b196df-5bfa-415f-ab9e-be3feea1de57",
+      "x": 5690,
+      "y": 3067,
+      "w": 836,
+      "h": 240,
+      "text": "Finish handling the character restore points and bind the new restore table to the global restores table.",
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
+    },
+    {
+      "id": "f8385ada-27d5-4726-87f0-65c08be31057",
+      "x": 3703,
+      "y": 2368,
+      "w": 1618,
+      "h": 445,
+      "text": "Handle Decals and Textures here",
+      "graph": "5ba2fcc4-c3fa-4c9c-a926-46000c9cc22f"
     }
   ]
 }
