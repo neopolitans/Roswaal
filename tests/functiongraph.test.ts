@@ -185,11 +185,38 @@ describe("a graph written before function graphs", () => {
 		"examples/m103/graph/.roswaal/scripts/ReplicatedStorage/Tank/Occupancy.nodescript",
 	];
 
+	/**
+	 * The fixture as it was before 0.33.0: no membership anywhere.
+	 *
+	 * **Comments as well as nodes.** `hasMembership` asks whether a node *or a
+	 * comment* names a graph, and `assignMembership` treats a yes as "already
+	 * migrated" and does nothing. Stripping only the nodes left eight of
+	 * Occupancy's ten comments still carrying `graph`, so the migration these
+	 * tests exist to exercise never ran on it -- every node stayed at the root,
+	 * a Declare Function's `body` pin reported its own graph as it always does,
+	 * and the wire between them read as a crossing. The test failed for two
+	 * releases against a script that was never legacy in the first place.
+	 */
+	const legacyOf = (file: string): NodeScript => {
+		const raw = JSON.parse(readFileSync(path.join(ROOT, file), "utf8")) as NodeScript;
+		return {
+			...raw,
+			nodes: raw.nodes.map(({ graph: _g, inner: _i, ...n }) => n),
+			comments: raw.comments.map(({ graph: _g, ...c }) => c),
+		};
+	};
+
 	for (const file of files) {
-		const raw = () => JSON.parse(readFileSync(path.join(ROOT, file), "utf8")) as NodeScript;
+		it(`${path.basename(file)} has no membership left to strip`, () => {
+			// The guard on the helper above: if this ever finds membership, the
+			// three tests below are quietly checking nothing.
+			const legacy = legacyOf(file);
+			expect(legacy.nodes.some((n) => n.graph !== undefined)).toBe(false);
+			expect(legacy.comments.some((c) => c.graph !== undefined)).toBe(false);
+		});
 
 		it(`${path.basename(file)} splits into function graphs with no wire between two`, () => {
-			const legacy = { ...raw(), nodes: raw().nodes.map(({ graph: _g, inner: _i, ...n }) => n) };
+			const legacy = legacyOf(file);
 			const { script, notes } = migrateScript(legacy, registry);
 			expect(hasMembership(script)).toBe(true);
 			expect(crossingLinks(script)).toEqual([]);
@@ -202,14 +229,14 @@ describe("a graph written before function graphs", () => {
 		});
 
 		it(`${path.basename(file)} compiles to the same Luau afterwards`, () => {
-			const legacy = { ...raw(), nodes: raw().nodes.map(({ graph: _g, inner: _i, ...n }) => n) };
+			const legacy = legacyOf(file);
 			const before = migrateScript(legacy).script;
 			const after = migrateScript(legacy, registry).script;
 			expect(body(compile(after, registry).code)).toBe(body(compile(before, registry).code));
 		});
 
 		it(`${path.basename(file)} is left alone the second time`, () => {
-			const legacy = { ...raw(), nodes: raw().nodes.map(({ graph: _g, inner: _i, ...n }) => n) };
+			const legacy = legacyOf(file);
 			const once = migrateScript(legacy, registry).script;
 			expect(migrateScript(once, registry).script.nodes).toEqual(once.nodes);
 		});
