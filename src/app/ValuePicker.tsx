@@ -43,6 +43,17 @@ export interface ValuePickerProps {
 	value: string;
 	/** Group each value under a heading. Absent shows one ungrouped run. */
 	groupOf?: (value: string) => string;
+	/**
+	 * Headings to put first, in this order.
+	 *
+	 * Groups are otherwise ordered by size, which is right for the classes —
+	 * where the big families are the ones you are most likely to be looking
+	 * through — and wrong when a small group is the answer most of the time.
+	 * `any`, `number` and `string` are three of eight Luau types and are what a
+	 * type field is set to nine times in ten; sorted by size they are at the
+	 * bottom of six hundred classes.
+	 */
+	groupsFirst?: readonly string[];
 	/** A line under the highlighted value. Absent shows nothing. */
 	detailOf?: (value: string) => string;
 	onPick: (value: string) => void;
@@ -65,7 +76,7 @@ export function classDetail(name: string): string {
 }
 
 export function ValuePicker(props: ValuePickerProps) {
-	const { options, groupOf, detailOf } = props;
+	const { options, groupOf, detailOf, groupsFirst } = props;
 	const [query, setQuery] = useState("");
 	const [active, setActive] = useState(props.value);
 	const root = useRef<HTMLDivElement>(null);
@@ -104,8 +115,17 @@ export function ValuePicker(props: ValuePickerProps) {
 			list.push(name);
 			byGroup.set(label, list);
 		}
-		return [...byGroup].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
-	}, [options, matches, groupOf]);
+		const lead = (label: string) => {
+			const at = groupsFirst?.indexOf(label) ?? -1;
+			return at === -1 ? Number.MAX_SAFE_INTEGER : at;
+		};
+		return [...byGroup].sort(
+			(a, b) =>
+				lead(a[0]) - lead(b[0])
+				|| b[1].length - a[1].length
+				|| a[0].localeCompare(b[0]),
+		);
+	}, [options, matches, groupOf, groupsFirst]);
 
 	/** Every value in the order it is drawn, which is what the arrow keys walk. */
 	const order = useMemo(

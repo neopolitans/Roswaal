@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.48.0",
+		date: "2026-09-15",
+		headline: "One picker for every type.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Choosing a type opens the picker** — the one the Class Name pins and the casts use — wherever a type is chosen: a variable, a local, a parameter, a return, a field of a declared type. It was a dropdown of forty names with **Other…** at the bottom opening a text field, which is three controls for one question.",
+			"**The headings lead with what is closest to hand**: this graph's own types, then a required module's, then Luau's own and Roblox's values, and the instance classes after them grouped the way the engine groups them. Groups were ordered by size, which put `any` and `number` below six hundred classes.",
+		],
+		watch: [
+			"Whatever you type is still committed, listed or not — `Model?`, `(number) -> string`, `{ [Model]: Restore }` — and clearing it still means `any`. **Other…** is gone because the search box is the field it used to open.",
+		],
+	},
+	{
 		version: "0.47.0",
 		date: "2026-09-15",
 		headline: "Angular is a diagonal.",

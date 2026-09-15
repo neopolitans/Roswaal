@@ -2936,34 +2936,31 @@ function castingBlocks(registry: Registry): Block[] {
 		{
 			t: "p",
 			text:
-				"Everywhere a type is chosen — a variable, a parameter, a local — the list is " +
-				"ordered by how close to hand each group is: **this graph's own** declared types " +
-				"first, then the types **a required module exports**, written as you would write " +
-				"them (`Config.Tuning`), then the primitives, Roblox's values, and the instance " +
-				"classes. **Other…** takes any Luau type at all.",
+				"Everywhere a type is chosen — a variable, a parameter, a local, a field of a " +
+				"declared type — the control is the **picker**: the same window the Class Name " +
+				"pins and the casts open. Search at the top, everything under it, grouped by " +
+				"where each type comes from.",
 		},
 		{
 			t: "p",
 			text:
-				"You meet it in the **Inspector**, on the right, and it is two controls rather " +
-				"than one. While the type is a name the list holds, it is a **dropdown** grouped " +
-				"in that order. Choose **Other…** and it becomes a **text field** taking any Luau " +
-				"type at all, with the instance classes the list left out offered as suggestions " +
-				"behind it.",
+				"The headings are ordered by how close to hand they are: **this graph's own** " +
+				"declared types first, then the types **a required module exports**, written as " +
+				"you would write them (`Config.Tuning`), then Luau's own, then Roblox's values — " +
+				"and after those the instance classes, grouped the way the engine groups them.",
 		},
 		{
 			t: "p",
 			text:
-				"A type the list cannot show — `{ [Model]: Restore }`, `Model?`, " +
-				"`(number) -> string` — opens that field **by itself**. That is the control saying " +
-				"this type is not one of the everyday ones, rather than a dropdown quietly unable " +
-				"to display its own value. Clearing the field means `any`.",
+				"**Whatever you type is taken**, listed or not, which is how a type the list " +
+				"could never hold is set: `{ [Model]: Restore }`, `Model?`, `(number) -> string`. " +
+				"Clearing it means `any`.",
 		},
 		{
 			t: "note",
 			kind: "info",
 			text:
-				"**Other… is not the only way out.** Where a type is a whole declaration rather " +
+				"**Typing it in is not the only way out.** Where a type is a whole declaration rather " +
 				"than a name, declare it once and pick it by name afterwards: **Custom Luau** on a " +
 				"Declare Type node for a union or a function type, or **Type of a Value** for " +
 				"`typeof(Tuning)`. It then appears under *This graph* in every picker in the " +

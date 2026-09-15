@@ -827,6 +827,24 @@ select optgroup {
 	border-bottom: 2px solid var(--border-strong);
 }
 
+/* The type control: what it holds, and a chevron saying the list is there. The
+   same shape as a pin's class picker, because it opens the same window. */
+.tb.type-picker {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px;
+	width: 100%;
+	min-width: 0;
+	text-align: left;
+}
+
+.tb.type-picker .preview {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 /* ---------------------------------------------------------------- toolbar */
 
 .toolbar {
