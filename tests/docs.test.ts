@@ -15,6 +15,7 @@ import {
 	documentNode, documentRegistry, exampleFor, OMISSION_REASONS, stripHeader,
 } from "../src/core/docs/nodeReference.js";
 import { BLUEPRINT_MAP, referencedNodeIds } from "../src/core/docs/blueprints.js";
+import { buildSearchIndex, buildSite, rankDocs } from "../src/core/docs/site.js";
 import { CURATED, GUIDE_SCENES } from "../src/core/docs/examples.js";
 import { compile } from "../src/core/compiler/index.js";
 import type { NodeDef } from "../src/core/schema.js";
@@ -179,5 +180,46 @@ describe("coming from Blueprints", () => {
 				`nothing in the map mentions "${concept}"`,
 			).toBe(true);
 		}
+	});
+});
+
+/**
+ * How the palette splits its results.
+ *
+ * "Best match" is a page called what you typed; "Related" is one that merely
+ * says it somewhere. The split is a fact about the score, so it is asserted
+ * here rather than in the component — the component's job is to draw two lists
+ * when it is given two.
+ */
+describe("ranking a docs search", () => {
+	const index = buildSearchIndex(buildSite(createRegistry(), new Set()));
+	const hits = (query: string) => rankDocs(index, query, 30);
+
+	it("calls a title match a name match", () => {
+		const branch = hits("branch").find((hit) => hit.entry.nodeId === "flow.branch");
+		expect(branch?.named).toBe(true);
+	});
+
+	/** The node's id is its name as much as its title is. */
+	it("calls a node id a name match", () => {
+		const byId = hits("flow.forrange").find((hit) => hit.entry.nodeId === "flow.forRange");
+		expect(byId?.named).toBe(true);
+	});
+
+	it("calls a page that only mentions the word related", () => {
+		const related = hits("branch").filter((hit) => !hit.named);
+		expect(related.length).toBeGreaterThan(0);
+		for (const hit of related) {
+			expect(hit.entry.title.toLowerCase(), hit.entry.slug).not.toContain("branch");
+		}
+	});
+
+	it("puts every name match above every related one", () => {
+		const order = hits("cast").map((hit) => hit.named);
+		expect(order.slice(0, order.lastIndexOf(true) + 1).every(Boolean)).toBe(true);
+	});
+
+	it("finds nothing for an empty query", () => {
+		expect(rankDocs(index, "   ")).toEqual([]);
 	});
 });

@@ -3690,7 +3690,10 @@ button.tb.icon-only.on {
 	color: var(--fg);
 }
 
-/* Article or Node, in a fixed column so the titles line up down the list. */
+/* Article or Node, in a fixed column so the titles line up down the list, and
+   coloured so the two kinds separate before you have read either. Yellow is a
+   node, blue is an article -- tinted rather than filled, because the row's own
+   highlight is the accent and two solid blocks would compete for it. */
 .docs-palette-hit .kind {
 	flex: none;
 	width: 52px;
@@ -3703,6 +3706,32 @@ button.tb.icon-only.on {
 	padding: 1px 0;
 	text-align: center;
 	margin-top: 2px;
+}
+
+.docs-palette-hit .kind-node {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 55%, transparent);
+	background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+.docs-palette-hit .kind-article {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* A heading each, so "Best match" and "Related" read as two lists rather than
+   as one list with a line in it. */
+.docs-palette-section {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.docs-palette-section + .docs-palette-section {
+	margin-top: 6px;
+	border-top: 1px solid var(--border);
+	padding-top: 4px;
 }
 
 .docs-palette-hit .body {

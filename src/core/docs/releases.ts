@@ -76,6 +76,16 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.45.1",
+		date: "2026-09-15",
+		headline: "Best match, then Related — and the kinds are coloured.",
+		affects: ["docs"],
+		changed: [
+			"**The search palette splits its results.** *Best match* is the pages called what you typed; *Related* is the ones that mention it somewhere. The arrows still walk both top to bottom.",
+			"**Node and Article are coloured** — yellow for a node's reference page, blue for an article — so the two kinds separate before you have read either.",
+		],
+	},
+	{
 		version: "0.45.0",
 		date: "2026-09-15",
 		headline: "Ctrl+K in the docs, and Luau typed into the node search.",

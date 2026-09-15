@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { searchDocs, type SearchEntry } from "../core/docs/site.js";
+import { rankDocs, type DocsHit, type SearchEntry } from "../core/docs/site.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 
@@ -55,23 +55,47 @@ export function DocsSearch({ index, recent, onPick, onClose }: DocsSearchProps) 
 
 	const bySlug = useMemo(() => new Map(index.map((e) => [e.slug, e])), [index]);
 
-	const hits = useMemo(() => {
+	const hits = useMemo((): DocsHit[] => {
 		if (query.trim() === "") {
-			return recent.map((slug) => bySlug.get(slug)).filter((e): e is SearchEntry => !!e);
+			return recent
+				.map((slug) => bySlug.get(slug))
+				.filter((e): e is SearchEntry => !!e)
+				.map((entry) => ({ entry, score: 0, named: false }));
 		}
-		return searchDocs(index, query, LIMIT);
+		return rankDocs(index, query, LIMIT);
 	}, [index, bySlug, query, recent]);
+
+	/**
+	 * Two lists, in one order.
+	 *
+	 * **Best match** is the pages called what you typed; **Related** is the ones
+	 * that merely say it somewhere. Splitting them is what makes the second half
+	 * skippable — and the arrows still walk the whole thing top to bottom,
+	 * because a heading between two rows is not a reason to stop.
+	 */
+	const sections = useMemo(() => {
+		if (query.trim() === "") return [{ head: "Recently visited", hits }];
+		const best = hits.filter((hit) => hit.named);
+		const related = hits.filter((hit) => !hit.named);
+		return [
+			...(best.length > 0 ? [{ head: "Best match", hits: best }] : []),
+			...(related.length > 0 ? [{ head: "Related", hits: related }] : []),
+		];
+	}, [hits, query]);
+
+	/** The rows as the arrows walk them, which is the sections flattened. */
+	const flat = useMemo(() => sections.flatMap((section) => section.hits), [sections]);
 
 	useEffect(() => setActive(0), [query]);
 
 	// Keep the highlighted row on screen while the arrows walk past the fold.
 	useEffect(() => {
 		list.current?.querySelector(".on")?.scrollIntoView({ block: "nearest" });
-	}, [active, hits]);
+	}, [active, flat]);
 
 	const move = (by: number) => {
-		if (hits.length === 0) return;
-		setActive((at) => (at + by + hits.length) % hits.length);
+		if (flat.length === 0) return;
+		setActive((at) => (at + by + flat.length) % flat.length);
 	};
 
 	return createPortal(
@@ -102,8 +126,8 @@ export function DocsSearch({ index, recent, onPick, onClose }: DocsSearchProps) 
 								move(-1);
 							} else if (e.key === "Enter") {
 								e.preventDefault();
-								const hit = hits[active];
-								if (hit) onPick(hit.slug);
+								const hit = flat[active];
+								if (hit) onPick(hit.entry.slug);
 							} else if (e.key === "Escape") {
 								e.preventDefault();
 								e.stopPropagation();
@@ -117,30 +141,41 @@ export function DocsSearch({ index, recent, onPick, onClose }: DocsSearchProps) 
 				</div>
 
 				<div className="docs-palette-list" ref={list}>
-					<div className="docs-palette-head">
-						{query.trim() === "" ? "Recently visited" : `Results for “${query.trim()}”`}
-					</div>
-					{hits.length === 0 && (
+					{flat.length === 0 && (
 						<div className="empty">
 							{query.trim() === ""
 								? "Pages you open are listed here."
 								: `Nothing matches “${query.trim()}”.`}
 						</div>
 					)}
-					{hits.map((hit, i) => (
-						<button
-							key={hit.slug}
-							className={`docs-palette-hit${i === active ? " on" : ""}`}
-							onPointerEnter={() => setActive(i)}
-							onClick={() => onPick(hit.slug)}
-						>
-							<span className="kind">{hit.nodeId ? "Node" : "Article"}</span>
-							<span className="body">
-								<span className="title">{hit.title}</span>
-								<span className="where">{hit.section}</span>
-								<span className="summary">{hit.summary}</span>
-							</span>
-						</button>
+					{sections.map((section) => (
+						<div key={section.head} className="docs-palette-section">
+							<div className="docs-palette-head">{section.head}</div>
+							{section.hits.map((hit) => {
+								const i = flat.indexOf(hit);
+								const kind = hit.entry.nodeId ? "node" : "article";
+								return (
+									<button
+										key={hit.entry.slug}
+										className={`docs-palette-hit${i === active ? " on" : ""}`}
+										onPointerEnter={() => setActive(i)}
+										onClick={() => onPick(hit.entry.slug)}
+									>
+										{/* `kind-node`, not `node`: `.node` is the canvas node, and a bare
+										    modifier class in a six-thousand-line stylesheet finds it.
+										    This one came out `position: absolute`, under the title. */}
+										<span className={`kind kind-${kind}`}>
+											{kind === "node" ? "Node" : "Article"}
+										</span>
+										<span className="body">
+											<span className="title">{hit.entry.title}</span>
+											<span className="where">{hit.entry.section}</span>
+											<span className="summary">{hit.entry.summary}</span>
+										</span>
+									</button>
+								);
+							})}
+						</div>
 					))}
 				</div>
 
