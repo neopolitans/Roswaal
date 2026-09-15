@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.45.0",
+		date: "2026-09-15",
+		headline: "Ctrl+K in the docs, and Luau typed into the node search.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Ctrl+K opens a search palette over the documentation**: the whole width of the window, a line of each page's own summary under its title, the section it belongs to, and a mark saying whether it is an article or a node. Arrows move, Enter opens, Escape closes; with nothing typed it lists the pages you have been reading. The sidebar's field says the shortcut, and on the published site Ctrl+K puts the cursor in it.",
+			"**Luau typed into the node search finds the node that writes it.** `not` is Not rather than Not Equal, `==` is Equal, `..` is Concatenate, `if` is Branch, `for` is the three loops in the order you mean them. The pill's own symbol is searchable too.",
+		],
+		fixed: [
+			"**The node menu's categories are ordered by their best match while you search**, instead of always by the library's own order. The scores were right and nothing was reading them: a Flow node matching on a word in its summary was drawn above the Logic pill the query named outright, so typing `not` offered Branch.",
+		],
+	},
+	{
 		version: "0.44.0",
 		date: "2026-09-15",
 		headline: "A service or a class, by its own name.",

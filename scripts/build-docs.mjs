@@ -91,6 +91,17 @@ const CLIENT = `
     });
   });
 
+  // Ctrl+K puts the cursor in the search field. The published site has one
+  // column and one list, so the shortcut has somewhere obvious to land -- the
+  // editor's docs window opens a palette instead, which is the shape a window
+  // that wide can afford.
+  document.addEventListener("keydown", function (e) {
+    if ((e.key !== "k" && e.key !== "K") || !(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    box.focus();
+    box.select();
+  });
+
   document.addEventListener("click", function (e) {
     var button = e.target.closest("[data-copy]");
     if (!button) return;

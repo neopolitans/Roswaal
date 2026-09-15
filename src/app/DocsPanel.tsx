@@ -27,6 +27,7 @@ import type { NodeScript } from "../core/schema.js";
 import {
 	graphSvg, previewSvg, type NodePreview, type PreviewOptions,
 } from "../core/docs/preview.js";
+import { DocsSearch } from "./DocsSearch.jsx";
 import { highlightLuau } from "./highlight.js";
 import { Icon } from "./icons.jsx";
 import { NODE, ZOOM } from "./layers.js";
@@ -122,6 +123,15 @@ export function DocsView({ registry, prefs, initialSlug, onNavigate }: DocsViewP
 
 	const [slug, setSlug] = useState(initialSlug ?? HOME);
 	const [query, setQuery] = useState("");
+	const [palette, setPalette] = useState(false);
+	/**
+	 * Where the reader has been, newest first.
+	 *
+	 * Only for the palette's empty state, and only for this session — a docs
+	 * window that remembered what you read last week would be keeping a record
+	 * of your reading, which is a bigger thing to do than the feature is worth.
+	 */
+	const [recent, setRecent] = useState<string[]>([]);
 	const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(["start", "guides"]));
 	const body = useRef<HTMLDivElement>(null);
 
@@ -153,18 +163,46 @@ export function DocsView({ registry, prefs, initialSlug, onNavigate }: DocsViewP
 	const go = (next: string) => {
 		setSlug(next);
 		setQuery("");
+		setPalette(false);
+		setRecent((was) => [next, ...was.filter((slug) => slug !== next)].slice(0, 8));
 	};
+
+	/**
+	 * Ctrl+K, the shortcut every documentation site has trained people to try.
+	 *
+	 * On the window rather than on the panel, because the point is that it works
+	 * wherever you are on the page — and captured, so the browser's own "search
+	 * the page" does not take it first.
+	 */
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key !== "k" && e.key !== "K") return;
+			if (!e.ctrlKey && !e.metaKey) return;
+			e.preventDefault();
+			setPalette(true);
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, []);
 
 	return (
 		<RegistryContext.Provider value={registry}>
 		<PreviewContext.Provider value={preview}>
 		<NavigateContext.Provider value={go}>
 		<div className="docs-body">
+			{palette && (
+				<DocsSearch
+					index={index}
+					recent={recent}
+					onPick={go}
+					onClose={() => setPalette(false)}
+				/>
+			)}
 			{/* The nav, the page, and its outline. */}
 					<nav className="docs-nav">
 						<input
 							className="search"
-							placeholder="Search the docs"
+							placeholder="Search the docs (Ctrl+K)"
 							value={query}
 							autoFocus
 							onChange={(e) => setQuery(e.target.value)}

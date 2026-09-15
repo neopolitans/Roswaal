@@ -348,7 +348,7 @@ function renderNav(site: DocSite, current: DocPage): string {
 		})
 		.join("");
 
-	return `<nav class="docs-nav"><input class="search" id="q" placeholder="Search the docs" autocomplete="off">
+	return `<nav class="docs-nav"><input class="search" id="q" placeholder="Search the docs (Ctrl+K)" autocomplete="off">
 <div class="docs-results" id="results" hidden></div><div id="tree">${html}</div></nav>`;
 }
 

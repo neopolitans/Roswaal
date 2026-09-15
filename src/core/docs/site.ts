@@ -1375,6 +1375,19 @@ const CONTROLS: DocPage = {
 				["Double-click a wire", "Add a reroute knot where you clicked"],
 			],
 		},
+		{ t: "h", level: 2, text: "Searching" },
+		{
+			t: "table",
+			head: ["Typed", "What you get"],
+			rows: [
+				["`and`, `or`, `not`, `==`, `..`, `#`", "The node that writes that Luau, first in the list"],
+				["`if`, `else`, `elseif`", "Branch"],
+				["`for`, `while`, `break`, `return`", "The loop or the flow node that writes it"],
+				["A service or class name", "Get Service or New Instance, filled in"],
+				["A method name", "`RunService:IsServer` and the rest of that service's methods"],
+				["`Ctrl` + `K`, in the docs", "The search palette, over the page"],
+			],
+		},
 		{ t: "h", level: 2, text: "Comments" },
 		{
 			t: "table",

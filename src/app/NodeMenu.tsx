@@ -19,6 +19,7 @@ import {
 	hoistedFunctions, paramsVisibleFrom, visibleFrom, type GraphId,
 } from "../core/functionGraph.js";
 import { landingPins, localRefFor } from "./edits.js";
+import { keywordNodes } from "../core/keywords.js";
 import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
 import { LAYER } from "./layers.js";
 import { COMMENT_DEFAULT_COLOR, nodeColor, pinColor } from "./palette.js";
@@ -303,7 +304,24 @@ export function NodeMenu(props: NodeMenuProps) {
 			if (list) list.push(item);
 			else byCategory.set(item.category, [item]);
 		}
-		const order = categories(registry).filter((c) => byCategory.has(c));
+		/**
+		 * Browsing keeps the library's own order; searching puts the best match
+		 * first.
+		 *
+		 * The scores were already right and nothing was reading them: the list is
+		 * drawn category by category in registry order, so a Flow node matched on
+		 * a word in its summary was drawn above the Logic pill the query named
+		 * outright. Typing `not` offered Branch.
+		 *
+		 * `matches` is sorted by score, so a category's first appearance in it is
+		 * that category's best hit — which makes this a stable sort by best hit
+		 * and keeps each category's own items in score order underneath.
+		 */
+		const searching = query.trim() !== "";
+		const seen = [...new Set(matches.map((item) => item.category))];
+		const order = searching
+			? seen
+			: categories(registry).filter((c) => byCategory.has(c));
 		const extra = [...byCategory.keys()].filter((c) => !order.includes(c)).sort();
 		// The service you dragged off goes first. It is the answer to the gesture;
 		// everything under it is what else the graph could do with that wire.
@@ -325,7 +343,7 @@ export function NodeMenu(props: NodeMenuProps) {
 				.filter((g) => g.items.length > 0);
 			return { category, loose, groups };
 		});
-	}, [matches, registry, anchor.from?.service]);
+	}, [matches, query, registry, anchor.from?.service]);
 
 	/** Flat order, so arrow keys move through the list the eye reads. */
 	const flat = useMemo(
@@ -431,9 +449,29 @@ export function NodeMenu(props: NodeMenuProps) {
 	);
 }
 
-/** Prefix matches on the title beat substring matches, which beat the id. */
-function score(item: MenuItem, query: string): number {
+/**
+ * Prefix matches on the title beat substring matches, which beat the id — with
+ * two things ahead of all of it.
+ *
+ * **A query that is Luau** is answered by the node that writes it: `not` is Not
+ * rather than Not Equal, `==` is Equal rather than nothing at all. The keyword
+ * table is the whole of that rule and is in core, since the documentation has
+ * the same question to answer.
+ *
+ * **An exact title** comes next, because "Print" typed in full and matched
+ * against Print and Print Table is not an ambiguous question.
+ */
+export function score(item: MenuItem, query: string): number {
+	const keywords = keywordNodes(query);
+	const at = keywords.indexOf(item.def.id);
+	// Ordered within the keyword's own answer: `for` offers For Range, then For
+	// Each, then For Each (Array), which is the order somebody means them in.
+	if (at >= 0) return 1000 - at;
+
 	const title = item.title.toLowerCase();
+	if (title === query) return 500;
+	// The symbol a pill wears is a name for it: typing `~=` finds Not Equal.
+	if (item.def.operator?.toLowerCase() === query) return 400;
 	if (title.startsWith(query)) return 100;
 	if (title.includes(query)) return 60;
 	if (item.category.toLowerCase().includes(query)) return 30;
