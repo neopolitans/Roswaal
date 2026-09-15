@@ -16,6 +16,7 @@ import { DesignerPage } from "./DesignerPage.jsx";
 import { DocsPage } from "./DocsPage.jsx";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
 import { installFavicon } from "./logo.jsx";
+import { currentPage } from "./pages.js";
 import { readPreferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import "./theme.css";
@@ -25,17 +26,17 @@ export function bootEditor(): void {
 	if (!container) throw new Error("Missing #root");
 
 	/**
-	 * Two entry points, one bundle.
+	 * Three pages, one bundle.
 	 *
-	 * The daemon serves `index.html` for every path that is not `/api`, so
-	 * `/docs` arrives here like any other route and is decided on the pathname.
-	 * That keeps the docs a genuinely separate window — openable on a second
-	 * monitor, readable while you wire — without a second build, a second server
-	 * route, or a router.
+	 * Decided on the pathname rather than by a router, which keeps the docs and
+	 * Node Design genuinely separate windows — openable on a second monitor,
+	 * readable while you wire — without a second build or a second server route.
+	 * Where those paths are depends on what is serving them, which is `pages.ts`
+	 * and not this file's business.
 	 */
-	const route = window.location.pathname.replace(/\/+$/, "");
-	const isDocs = route === "/docs";
-	const isDesigner = route === "/designer";
+	const page = currentPage();
+	const isDocs = page === "docs";
+	const isDesigner = page === "designer";
 
 	document.title = isDocs ? "Roswaal docs" : isDesigner ? "Node Design" : "Roswaal";
 

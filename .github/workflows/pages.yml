@@ -1,0 +1,73 @@
+# Publishes the website: the editor over a volume in memory, and the docs.
+#
+# Deliberate rather than automatic. `main` carries work in progress -- most of
+# this repository's commits are not releases -- and the site is a public preview
+# that people are being asked to try, so it publishes when somebody says to
+# rather than on every push. Add a `push:` trigger below when that stops being
+# the right trade.
+name: Site
+
+on:
+  workflow_dispatch:
+
+# The token is minted for this run and scoped to publishing. Nothing here needs
+# to write to the repository.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and a newer one waits rather than cancelling: a
+# half-finished deploy that loses to a cancellation leaves the site as it was,
+# which is fine, but the run reads as a failure and the next person re-runs it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # Where the site is mounted. A project site on github.io is served from
+  # `/<repo>/`; change this to `/` on the day a custom domain points here, and
+  # add the CNAME to the artifact. It is the only place this is written down --
+  # `build-pages.mjs` reads the base back out of what Vite built.
+  ROSWAAL_BASE: /Roswaal/
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Before building, not after. A broken build is cheap to fix and a broken
+      # deploy is a public URL that people have been told to try.
+      - name: Test
+        run: npm test
+
+      - name: Build the editor
+        run: npm run build:site
+
+      - name: Build the documentation
+        run: npm run build:docs
+
+      - name: Assemble the site
+        run: npm run build:pages
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist-pages
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

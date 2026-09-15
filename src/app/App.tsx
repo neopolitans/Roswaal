@@ -54,6 +54,7 @@ import {
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
 import { setProjectTypes } from "./projectTypes.js";
+import { PAGE_TARGET, pageHref } from "./pages.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
 import { SERVICE_CALL, SERVICE_VALUE } from "../core/serviceCalls.js";
@@ -1444,8 +1445,8 @@ export function App() {
 					await runCompile(undefined, true);
 					await runCompileMap(undefined);
 				}}
-				onOpenDocs={() => window.open("/docs", "roswaal-docs")}
-				onOpenDesigner={() => window.open("/designer", "roswaal-designer")}
+				onOpenDocs={() => window.open(pageHref("docs"), PAGE_TARGET.docs)}
+				onOpenDesigner={() => window.open(pageHref("designer"), PAGE_TARGET.designer)}
 				onOpenSettings={() => setSettingsOpen(true)}
 				onOpenProjectMenu={(anchor) =>
 					setProjectMenu({ anchor, recent: recentProjects() })
@@ -1746,7 +1747,7 @@ export function App() {
 					index={docsIndex}
 					recent={[]}
 					onPick={(slug) => {
-						window.open(`/docs#${slug}`, "roswaal-docs");
+						window.open(pageHref("docs", slug), PAGE_TARGET.docs);
 						setDocsJump(false);
 					}}
 					onClose={() => setDocsJump(false)}

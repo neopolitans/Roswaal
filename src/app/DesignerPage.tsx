@@ -20,6 +20,7 @@ import type { Target } from "../core/schema.js";
 import { api, type PackFile } from "./api.js";
 import { PackBrowser, type OpenPack } from "./designer/PackBrowser.jsx";
 import { PackView } from "./designer/PackView.jsx";
+import { PAGE_TARGET, pageHref } from "./pages.js";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
 import { VERSION } from "../cli/version.js";
@@ -69,18 +70,18 @@ export function DesignerPage() {
 				<span style={{ flex: 1 }} />
 				<a
 					className="tb icon-only"
-					href="/docs#creating-custom-nodes"
+					href={pageHref("docs", "creating-custom-nodes")}
 					target="roswaal-docs"
 					title="How custom nodes work"
 					aria-label="How custom nodes work"
 				>
 					<Icon name="help" size={16} />
 				</a>
-				<a className="tb with-icon" href="/docs" target="roswaal-docs" title="The documentation">
+				<a className="tb with-icon" href={pageHref("docs")} target={PAGE_TARGET.docs} title="The documentation">
 					<Icon name="document" size={15} />
 					Docs
 				</a>
-				<a className="tb" href="/" target="_blank" rel="noreferrer">
+				<a className="tb" href={pageHref("editor")} target="_blank" rel="noreferrer">
 					Open Editor
 				</a>
 			</header>

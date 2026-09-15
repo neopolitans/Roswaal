@@ -60,14 +60,47 @@ function roswaalWebHost(): Plugin {
 }
 
 export default defineConfig({
+	/**
+	 * Where the site is mounted.
+	 *
+	 * A project site on github.io is served from `/<repo>/`, an apex domain from
+	 * `/`. Vite writes it into every asset URL, and `pages.ts` reads it back out
+	 * of `import.meta.env.BASE_URL` for the links between the three pages -- so
+	 * moving the site is this one variable and nothing else.
+	 */
+	base: process.env.ROSWAAL_BASE ?? "/",
+	/**
+	 * There is no server here to fall back to `index.html`, so a page is a file
+	 * and the documentation is the static site rather than the editor's own
+	 * docs window. `pages.ts` is the only thing that reads this.
+	 */
+	define: { __ROSWAAL_STATIC__: "true" },
 	plugins: [react(), roswaalWebHost(), demoSeedPlugin(DEMO)],
 	// Module workers, so the worker can import the route table rather than being
 	// handed a bundled copy of it.
 	worker: { format: "es", plugins: () => [roswaalWebHost(), demoSeedPlugin(DEMO)] },
-	server: { port: 4472 },
+	server: {
+		port: 4472,
+		/**
+		 * Build output is not source. `dist-pages/` is assembled by deleting and
+		 * rewriting a tree inside the project root, and the dev server's watcher
+		 * followed it in and died on a half-written file with EBUSY. Vite ignores
+		 * a config's own `outDir` for exactly this reason; this directory is no
+		 * config's outDir, so it has to be named.
+		 */
+		watch: {
+			ignored: [
+				"**/node_modules/**", "**/.git/**",
+				"**/dist/**", "**/dist-site/**", "**/dist-docs/**",
+				"**/dist-cli/**", "**/dist-pages/**",
+			],
+		},
+	},
 	build: {
 		outDir: "dist-site",
 		emptyOutDir: true,
-		rollupOptions: { input: here + "try.html" },
+		// Two pages, one bundle: the editor and Node Design, which share every
+		// chunk and differ only in what `pages.ts` reports they are.
+		rollupOptions: { input: [here + "try.html", here + "designer.html"] },
 	},
 });
