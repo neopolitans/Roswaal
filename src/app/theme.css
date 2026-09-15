@@ -790,25 +790,46 @@ button.tb.icon-only.panel-float {
 	z-index: 2;
 }
 
+/* How far down the button sits, so it is centred on the row it shares.
+
+   One value per shape of header, because there are two. Every panel heads
+   itself with an `h2`, 32px tall; the diagnostics panel heads itself with the
+   errors-and-warnings bar, which is 25px with a rule above it. This was a flat
+   10px, measured off the `h2` and applied to both -- so on the bar the button
+   sat 6px low and hung four pixels out of the bottom of the row it belongs to.
+
+   Written as the offset rather than derived from a row height, so each number
+   says what it is for instead of being the output of arithmetic that would
+   also need explaining. */
+.panel,
+.float-panel {
+	--dock-button-top: 6px;
+}
+.panel-analysis,
+.float-analysis {
+	--dock-button-top: 3px;
+}
+
 /* Over the heading, level with the button already in it. */
 .float-panel .float-dock {
 	position: absolute;
-	top: 10px;
+	top: var(--dock-button-top);
 	right: 8px;
 }
 
 /* The same button in a dock, pointing the other way.
-   
+
    Sticky rather than absolute, and above the heading in the flow with a
    negative margin pulling the heading back up under it: the dock scrolls, the
    heading is sticky, and a button pinned to the panel would scroll away from
-   the heading it belongs to. The margins put it on the heading's own line --
-   ten down for the heading's padding, and its whole height back again. */
+   the heading it belongs to. The bottom margin is the button's whole block
+   height -- its own 20px and the offset above it -- so the heading lands where
+   it would have without it, whatever that offset is. */
 .panel .panel-float {
 	position: sticky;
-	top: 10px;
+	top: var(--dock-button-top);
 	align-self: flex-end;
-	margin: 10px 8px -30px 0;
+	margin: var(--dock-button-top) 8px calc(-20px - var(--dock-button-top)) 0;
 }
 
 

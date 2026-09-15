@@ -76,6 +76,15 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.50.3",
+		date: "2026-09-15",
+		headline: "The dock and undock buttons sit on the row they belong to.",
+		affects: ["editor"],
+		fixed: [
+			"**The buttons that move a panel between a dock and a window are centred on the heading they sit over.** On the diagnostics panel, whose heading is the errors-and-warnings bar rather than a title, the button sat six pixels low and hung out of the bottom of the bar; on every other panel it sat four pixels low.",
+		],
+	},
+	{
 		version: "0.50.2",
 		date: "2026-09-15",
 		headline: "A window resizes from either corner, and draws what it holds.",

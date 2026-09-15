@@ -413,3 +413,40 @@ describe("what a theme is not allowed to reach", () => {
 		expect(Object.keys(themeTokens(clone("Nord")))).not.toContain("--pin-slot");
 	});
 });
+
+describe("the buttons that move a panel between a dock and a window", () => {
+	/**
+	 * Both were placed a flat `10px` from the top of their panel, which is where
+	 * an `h2` heading's text starts. The diagnostics panel does not head itself
+	 * with an `h2` — it heads itself with the errors-and-warnings bar, which is
+	 * a shorter row — so on that one the button sat low and hung out of the
+	 * bottom of the row it belongs to.
+	 *
+	 * The offset is a variable now, one value per shape of heading. Asserted
+	 * because the failure is a few pixels in one panel of four: it does not
+	 * break anything, it is invisible in every other panel, and the next person
+	 * to reach for a literal here will be measuring off an `h2` again.
+	 */
+	const rule = (selector: string): string => {
+		const at = css.indexOf(selector);
+		expect([selector, at === -1]).toEqual([selector, false]);
+		return css.slice(at, css.indexOf("}", at));
+	};
+
+	it("offsets both buttons by a variable, not a measurement", () => {
+		for (const selector of [".float-panel .float-dock", ".panel .panel-float"]) {
+			const body = rule(selector);
+			expect([selector, /top:\s*var\(--dock-button-top\)/.test(body)])
+				.toEqual([selector, true]);
+			expect([selector, /top:\s*-?\d/.test(body)]).toEqual([selector, false]);
+		}
+	});
+
+	/** A heading and a bar are different heights, so they take different values. */
+	it("gives the panel whose heading is a bar its own offset", () => {
+		expect(css).toMatch(/--dock-button-top:/);
+		const override = css.indexOf(".panel-analysis");
+		expect(override).toBeGreaterThan(-1);
+		expect(css.slice(override, css.indexOf("}", override))).toMatch(/--dock-button-top:/);
+	});
+});
