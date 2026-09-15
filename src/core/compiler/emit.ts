@@ -18,7 +18,7 @@ import {
 	quoteString, templatePrecedence, toIdentifier,
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
-import { FUNCTION_NODES, typeShapeOf } from "../nodes/flow.js";
+import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../nodes/flow.js";
 import { CAST_NODES, castModeOf } from "../nodes/library.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { isModuleScript, PAIR } from "../schema.js";
@@ -1477,7 +1477,21 @@ class Emitter {
 				const v = this.names.unique(names.valueName?.trim() || "value", "value");
 				body.bindings.set(`${id}/${keyPin}`, k);
 				body.bindings.set(`${id}/value`, v);
-				this.push(`for ${k}, ${v} in ${isArray ? "ipairs" : "pairs"}(${source}) do`, id);
+				/**
+				 * Luau takes an annotation on a `for` binding, so a typed loop
+				 * variable is said where it is introduced rather than cast on the
+				 * first line of the body.
+				 *
+				 * An array's index is not offered one: `ipairs` hands back a
+				 * number and writing `i: number` is saying what the loop already
+				 * said. On the terms every other annotation has -- written only
+				 * when the mode line asks for them.
+				 */
+				const types = loopTypes(r.node.config ?? {});
+				const bind = (ident: string, type: string | undefined) =>
+					this.annotates && type ? `${ident}: ${luauType(type)}` : ident;
+				const keyBinding = isArray ? k : bind(k, types.key);
+				this.push(`for ${keyBinding}, ${bind(v, types.value)} in ${isArray ? "ipairs" : "pairs"}(${source}) do`, id);
 				this.indent++;
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;

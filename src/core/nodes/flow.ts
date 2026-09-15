@@ -22,6 +22,33 @@ const data = (id: string, name: string, type: string, def?: PinDef["default"]): 
 	id, name, kind: "data", type, default: def,
 });
 
+/**
+ * The Luau types a loop's two bindings are annotated with.
+ *
+ * Luau takes an annotation on a `for` binding -- `for part: BasePart in ...` --
+ * which is what makes this worth having. Without it the only way to give a loop
+ * variable a type was to cast it on the first line of the body, which puts the
+ * claim a line below where a reader looks for it, and costs a node to say what
+ * the loop already knew.
+ *
+ * Free text, as every other type field here is: `{ [Model]: Restore }` and
+ * `BasePart?` are types no dropdown could offer, and what a project has declared
+ * is not knowable from a node definition. Blank means no annotation at all
+ * rather than `any`, so a loop nobody has typed compiles to exactly the line it
+ * always did.
+ */
+export interface LoopTypes {
+	key?: string;
+	value?: string;
+}
+
+export function loopTypes(config: NodeConfig): LoopTypes {
+	const c = config as { keyType?: unknown; valueType?: unknown };
+	const read = (v: unknown) =>
+		typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
+	return { key: read(c.keyType), value: read(c.valueType) };
+}
+
 /** Renders a signature the way it will read in the generated Luau. */
 export function signatureText(sig: Signature): string {
 	const params = (sig.params ?? [])
@@ -370,7 +397,7 @@ export const FLOW_NODES: NodeDef[] = [
 		summary:
 			"Generic for over a table (pairs). Key name and Value name in the Inspector decide " +
 			"what the two loop variables are called in the generated Luau; left blank they are " +
-			"`key` and `value`.",
+			"`key` and `value`. Key type and Value type annotate them, and type their pins.",
 		inputs: [exec("in", ""), data("table", "Table", "table")],
 		outputs: [
 			exec("body", "Body"),
@@ -379,6 +406,18 @@ export const FLOW_NODES: NodeDef[] = [
 			data("value", "Value", "any"),
 		],
 		compilesTo: { kind: "builtin", handler: "flow.forEach" },
+		derivePins(config: NodeConfig) {
+			const types = loopTypes(config);
+			return {
+				inputs: [exec("in", ""), data("table", "Table", "table")],
+				outputs: [
+					exec("body", "Body"),
+					exec("completed", "Completed"),
+					data("key", "Key", pinTypeOf(types.key)),
+					data("value", "Value", pinTypeOf(types.value)),
+				],
+			};
+		},
 	},
 	{
 		id: "flow.forIndex",
@@ -387,7 +426,9 @@ export const FLOW_NODES: NodeDef[] = [
 		role: "flow",
 		summary:
 			"Generic for over an array (ipairs). Index name and Value name in the Inspector " +
-			"decide what the two loop variables are called; left blank they are `i` and `value`.",
+			"decide what the two loop variables are called; left blank they are `i` and `value`. " +
+			"Value type annotates the value and types its pin — an array's index is a number " +
+			"and has nothing to choose.",
 		inputs: [exec("in", ""), data("table", "Array", "table")],
 		outputs: [
 			exec("body", "Body"),
@@ -396,6 +437,17 @@ export const FLOW_NODES: NodeDef[] = [
 			data("value", "Value", "any"),
 		],
 		compilesTo: { kind: "builtin", handler: "flow.forIndex" },
+		derivePins(config: NodeConfig) {
+			return {
+				inputs: [exec("in", ""), data("table", "Array", "table")],
+				outputs: [
+					exec("body", "Body"),
+					exec("completed", "Completed"),
+					data("index", "Index", "number"),
+					data("value", "Value", pinTypeOf(loopTypes(config).value)),
+				],
+			};
+		},
 	},
 	{
 		id: "flow.while",

@@ -18,7 +18,7 @@ import {
 	addVariable, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, disconnectInput, renameNode,
 	setConfig, setLiteral, syncFunctionRefs, syncFunctionReturns, syncParamRefs, updateComment,
 } from "./edits.js";
-import { FUNCTION_NODES, typeShapeOf } from "../core/nodes/flow.js";
+import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../core/nodes/flow.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
 import { localNameOf } from "../core/nodes/variables.js";
 import { store } from "./store.js";
@@ -597,6 +597,11 @@ function CastMode({ node }: { node: GraphNode }) {
  */
 function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
 	const config = (node.config ?? {}) as { keyName?: string; valueName?: string };
+	const types = loopTypes(node.config ?? {});
+	/** Blank clears the annotation rather than writing `any`. */
+	const setType = (field: "keyType" | "valueType") => (type: string) =>
+		store.edit((s) => setConfig(s, node.id, { [field]: type === "any" ? undefined : type }));
+
 	return (
 		<>
 			<Field label={array ? "Index name" : "Key name"}>
@@ -607,6 +612,16 @@ function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
 					onChange={(e) => store.edit((s) => setConfig(s, node.id, { keyName: e.target.value }))}
 				/>
 			</Field>
+			{/* An array's index is a number and has nothing to choose, so the
+			    picker is only offered for a table's key. */}
+			{!array && (
+				<Field
+					label="Key type"
+					hint="Written after the name when the graph is Nonstrict or Strict, and types the Key pin either way."
+				>
+					<TypePicker value={types.key ?? "any"} onChange={setType("keyType")} />
+				</Field>
+			)}
 			<Field label="Value name">
 				<input
 					className="tb"
@@ -614,6 +629,12 @@ function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
 					placeholder="value"
 					onChange={(e) => store.edit((s) => setConfig(s, node.id, { valueName: e.target.value }))}
 				/>
+			</Field>
+			<Field
+				label="Value type"
+				hint="Written after the name when the graph is Nonstrict or Strict, and types the Value pin either way."
+			>
+				<TypePicker value={types.value ?? "any"} onChange={setType("valueType")} />
 			</Field>
 		</>
 	);

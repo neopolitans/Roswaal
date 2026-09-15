@@ -1,17 +1,22 @@
 /**
- * `elseif`, and the two things that decide whether a chain forms.
+ * The two block-openers a graph spells differently from the file it produces:
+ * a chain of Branches, and a loop's bindings.
  *
  * A Branch on another Branch's False pin is how every node editor spells
  * "otherwise, if", and it used to compile to a nested `if` inside an `else`.
  * The programs are identical; the files are not, and the difference compounds —
  * five conditions cost five levels of indentation and five `end`s.
+ *
+ * A loop's two variables were `key` and `value` of type `any`, which is a
+ * placeholder rather than a name and a shrug rather than a type. Both are now
+ * the node's to say, and Luau takes the annotation on the binding itself.
  */
 
 import { describe, expect, it } from "vitest";
 
 import { body, Builder } from "./helpers.js";
 import { compile } from "../src/core/compiler/index.js";
-import { createRegistry } from "../src/core/nodes/index.js";
+import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 
 const registry = createRegistry();
 
@@ -155,5 +160,62 @@ describe("a loop variable's name", () => {
 		b.link(table, "result", loop, "table");
 
 		expect(body(compile(b.build(), registry).code)).toContain("for key, value in pairs(");
+	});
+});
+
+describe("a loop variable's type", () => {
+	/** A graph whose loop can be given types, wired up ready to compile. */
+	function loop(def: string, config: Record<string, unknown>) {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const table = b.node("table.new");
+		const node = b.node(def, { config });
+		b.link(start, "then", table, "in");
+		b.link(table, "then", node, "in");
+		b.link(table, "result", node, "table");
+		return { b, node };
+	}
+
+	it("annotates both bindings of a For Each", () => {
+		const { b } = loop("flow.forEach", {
+			keyName: "part", valueName: "transparency",
+			keyType: "BasePart", valueType: "number",
+		});
+		expect(body(compile(b.build(), registry).code)).toContain(
+			"for part: BasePart, transparency: number in pairs(",
+		);
+	});
+
+	it("annotates only the one that is set", () => {
+		const { b } = loop("flow.forEach", { valueType: "BasePart" });
+		expect(body(compile(b.build(), registry).code)).toContain(
+			"for key, value: BasePart in pairs(",
+		);
+	});
+
+	/** `ipairs` hands back a number; saying so would repeat the loop. */
+	it("leaves an array's index alone and annotates its value", () => {
+		const { b } = loop("flow.forIndex", { valueType: "BasePart" });
+		expect(body(compile(b.build(), registry).code)).toContain(
+			"for i, value: BasePart in ipairs(",
+		);
+	});
+
+	it("writes nothing when the graph asks for no annotations", () => {
+		const { b } = loop("flow.forEach", { keyType: "string", valueType: "BasePart" });
+		const out = body(compile(b.build({ typecheck: "default" }), registry).code);
+		expect(out).toContain("for key, value in pairs(");
+		expect(out).not.toContain(":");
+	});
+
+	it("types the pins whether or not the annotation is written", () => {
+		for (const typecheck of ["strict", "default"] as const) {
+			const { b, node } = loop("flow.forEach", { keyType: "string", valueType: "BasePart" });
+			const script = b.build({ typecheck });
+			const placed = script.nodes.find((n) => n.id === node)!;
+			const pins = resolveNodePins(registry.get("flow.forEach")!, placed.config);
+			expect(pins.outputs.find((p) => p.id === "key")?.type, typecheck).toBe("string");
+			expect(pins.outputs.find((p) => p.id === "value")?.type, typecheck).toBe("BasePart");
+		}
 	});
 });

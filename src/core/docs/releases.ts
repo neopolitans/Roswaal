@@ -54,6 +54,20 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.36.3",
+		date: "2026-09-15",
+		headline: "A loop says what it is looping over.",
+		added: [
+			"**Key type and Value type on For Each**, in the Inspector, and **Value type** on For Each (Array). Luau takes an annotation on a `for` binding, so it is written where the variable is introduced: `for part: BasePart, transparency: number in pairs(parts) do`.",
+			"**The types reach the pins too.** A Value typed `BasePart` gives a `BasePart` pin — coloured as one, and wired to things that want one — whether or not the annotation is written.",
+		],
+		watch: [
+			"**An array's index is not offered a type.** `ipairs` hands back a number, and writing `i: number` says what the loop already said.",
+			"**The annotation follows the graph's typecheck mode**, as every other one does: Strict and Nonstrict write it, Default does not. The pin is typed either way.",
+			"**Blank means no annotation**, not `any`, so a loop nobody has typed compiles to exactly the line it always did.",
+		],
+	},
+	{
 		version: "0.36.2",
 		date: "2026-09-15",
 		headline: "A field read twice is written twice.",
