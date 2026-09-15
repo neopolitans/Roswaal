@@ -76,6 +76,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.57.0",
+		date: "2026-09-15",
+		headline: "Ctrl+K opens the documentation from Node Design too.",
+		affects: ["designer", "docs"],
+		added: [
+			"**Ctrl+K searches the documentation from Node Design**, the way it already did from the graph. Designing a node is where the reference for the one you are copying is most wanted, and it was the one place the shortcut did nothing.",
+		],
+		changed: [
+			"The front page says what the editor is actually like to use: the two ways to search for a node, the two ways to write one in Node Design, and the colour schemes.",
+		],
+	},
+	{
 		version: "0.56.0",
 		date: "2026-09-15",
 		headline: "Drawn graphs line their wires up.",

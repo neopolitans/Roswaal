@@ -30,6 +30,7 @@ import { wirePath } from "../../src/app/geometry.ts";
 import { NODE } from "../../src/app/layers.ts";
 import { faviconHref, logoMarkup } from "../../src/app/logo.tsx";
 import { ICONS } from "../../src/app/icons.tsx";
+import { BUILTIN_THEMES } from "../../src/core/themeData.ts";
 
 /**
  * Which example to show.
@@ -341,8 +342,21 @@ export function landingPage(version) {
     </div>
   </div>
 
-  <h2 class="landing-h2">When a node is not the answer</h2>
+  <h2 class="landing-h2">Inside the editor</h2>
   <div class="landing-points">
+    <div class="landing-card" style="--edge: ${colourOf("roblox.getEvent")}">
+      <div class="icon">${icon("search")}</div>
+      <div>
+        <h3>Search literally, or visually</h3>
+        <p>
+          Right-click the canvas to search nodes by name. <strong>Ctrl</strong>
+          and right-click asks the same question the other way — a picker that
+          draws each node as you walk the list. One for when you know the name,
+          one for when you know the shape.
+        </p>
+      </div>
+    </div>
+
     <div class="landing-card" style="--edge: ${colourOf("code.custom")}">
       <div class="icon">${icon("function")}</div>
       <div>
@@ -355,13 +369,26 @@ export function landingPage(version) {
       </div>
     </div>
     <div class="landing-card" style="--edge: ${colourOf("value.expression")}">
-      <div class="icon">${icon("palette")}</div>
+      <div class="icon">${icon("build")}</div>
+      <div>
+        <h3>Design a node in Luau, or in nodes</h3>
+        <p>
+          Node Design writes the logic either way, and switches between them:
+          wire it from nodes and watch the Luau appear beside it, or write the
+          template by hand. Leaving nodes for an empty Luau field starts you
+          from what the nodes compiled to.
+        </p>
+      </div>
+    </div>
+
+    <div class="landing-card" style="--edge: ${colourOf("table.insert")}">
+      <div class="icon">${icon("duplicate")}</div>
       <div>
         <h3>Nodes of your own</h3>
         <p>
           A node pack is a file — JSON, or Luau with comments — that defines
-          nodes the way the built-in library defines its own. Design them in the
-          editor, commit them, and share them between projects.
+          nodes the way the built-in library defines its own. Commit them, and
+          share them between projects.
         </p>
       </div>
     </div>
@@ -370,9 +397,22 @@ export function landingPage(version) {
       <div>
         <h3>Documented, node by node</h3>
         <p>
-          A reference page for every node in the library, with the graph and the
-          Luau it compiles to on each one, plus a guide for anyone
+          A reference page for every node, with the graph and the Luau it
+          compiles to on each one, and <strong>Ctrl</strong>+<strong>K</strong>
+          to it from anywhere in the editor. Plus a guide for anyone
           <a href="docs/coming-from-blueprints.html">Coming from Blueprints</a>.
+        </p>
+      </div>
+    </div>
+
+    <div class="landing-card" style="--edge: ${colourOf("string.concat")}">
+      <div class="icon">${icon("palette")}</div>
+      <div>
+        <h3>${BUILTIN_THEMES.length} colour schemes</h3>
+        <p>
+          ${BUILTIN_THEMES.map((theme) => theme.name).slice(0, 4).join(", ")} and more,
+          switchable in settings. Three of them are somebody else's design,
+          <a href="docs/attributions.html">credited in full</a>.
         </p>
       </div>
     </div>
