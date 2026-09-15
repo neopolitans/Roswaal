@@ -277,6 +277,13 @@ export function App() {
 
 	const registry = useMemo(() => createRegistry(customNodes), [customNodes]);
 
+	// The store needs it for the rules that resolve a node's pins -- see
+	// `Store.apply`. Set here rather than passed to every edit, because every
+	// edit goes through the store and none of them should have to remember.
+	useEffect(() => {
+		store.setRegistry(registry);
+	}, [registry]);
+
 	/**
 	 * The in-browser compile of the open graph.
 	 *

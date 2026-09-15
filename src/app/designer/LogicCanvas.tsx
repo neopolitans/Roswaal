@@ -199,6 +199,12 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 	const clipboard = useRef<Clipping | null>(null);
 	const pointerAt = useRef<{ x: number; y: number } | null>(null);
 
+	// As the editor does: the store resolves pins against this while the designer
+	// is open, which is the whole page -- `/designer` is its own route.
+	useEffect(() => {
+		store.setRegistry(registry);
+	}, [registry]);
+
 	const paste = useCallback((clip: Clipping) => {
 		const at = pointerAt.current ?? undefined;
 		store.edit((s) => {

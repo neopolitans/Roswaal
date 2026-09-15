@@ -16,6 +16,7 @@ import {
 	decompose, modeOf, partPinId, splitKey, splitsOf, STRUCTS, type StructMode,
 } from "../core/structs.js";
 import { literalToLuau } from "../core/compiler/luau.js";
+import { retypeReroutes } from "../core/reroutes.js";
 import { pinsCompatible } from "../core/compiler/validate.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import {
@@ -24,7 +25,7 @@ import {
 import { localNameOf, pinDefaultFor, pinTypeOf, type LocalRef } from "../core/nodes/variables.js";
 import { currentArity, growthRule, type GrowthRule } from "../core/nodes/growth.js";
 import {
-	compactWidth, nodeBounds, pinPosition, rectContains, type Rect, type Vec,
+	compactWidth, isReroute, nodeBounds, pinPosition, rectContains, type Rect, type Vec,
 } from "./geometry.js";
 import { NODE } from "./layers.js";
 import { newId } from "./store.js";
@@ -494,6 +495,43 @@ export function canConnect(
 }
 
 /**
+ * The pin a wire dropped on this one really means.
+ *
+ * Usually itself. The exception is a **knot**, whose two pins are stacked at its
+ * centre so that the wire enters and leaves at the same point. The drop lands on
+ * whichever is painted last — which is the output, since that is the one drawn
+ * second — whatever you were aiming at.
+ *
+ * So dragging an *output* onto a knot arrived at the knot's output, the sides
+ * matched, and the drop was refused with nothing said. Dragging an input onto
+ * the same knot worked, because it happened to land on the pin it needed. The
+ * bug was therefore invisible half the time and looked like "knots sometimes do
+ * not take wires" the rest.
+ *
+ * A knot has exactly one pin on each side and no choice to make, so the pin that
+ * can take the wire is the pin that was meant. **Anything else keeps the pin you
+ * dropped on**: a node with rows has pins you can aim at, and quietly landing a
+ * wire on a different one is worse than refusing it.
+ *
+ * `null` means the drop is not this node's to take.
+ */
+export function wireLanding(
+	node: GraphNode | undefined,
+	registry: Registry,
+	pin: PinDef,
+	side: "in" | "out",
+	from: "in" | "out",
+): { pin: PinDef; side: "in" | "out" } | null {
+	if (side !== from) return { pin, side };
+	const def = node && registry.get(node.def);
+	if (!node || !def || !isReroute(def)) return null;
+	const wanted = from === "out" ? "in" : "out";
+	const pins = resolveNodePins(def, node.config);
+	const other = (wanted === "in" ? pins.inputs : pins.outputs)[0];
+	return other ? { pin: other, side: wanted } : null;
+}
+
+/**
  * Every input on a node a dragged wire could land on, in declaration order.
  *
  * `acceptsWire` judges two pins and knows nothing about the node, so on its own
@@ -635,49 +673,12 @@ export function dropDanglingLinks(script: NodeScript): NodeScript {
 }
 
 /**
- * Gives every reroute knot the type of whatever is wired into it, or `any`
- * when nothing is.
- *
- * A knot's type was decided once, when it was made, and then kept for good.
- * Disconnect the wire feeding a knot that carried a string and the knot went on
- * being a string knot — so it refused every output but a string, and the only
- * way to rewire it was to delete it and cut the wire again. A knot is a bend in
- * a wire: it has no type of its own, it has the type of what it is carrying.
- *
- * Run after anything that adds or removes a link, and repeated until it
- * settles, because a knot feeding a knot only learns its type once the one
- * before it has. Bounded by the number of knots, which is how long the longest
- * possible chain of them is.
+ * A knot's type follows what it is carrying. The rule itself lives in core, so
+ * the documentation's drawn graphs colour a knot the same way the canvas does.
  */
-export function retypeReroutes(script: NodeScript, registry: Registry): NodeScript {
-	const knots = script.nodes.filter((n) => n.def === "flow.reroute");
-	if (knots.length === 0) return script;
+export { retypeReroutes } from "../core/reroutes.js";
 
-	let current = script;
-	for (let pass = 0; pass <= knots.length; pass++) {
-		let changed = false;
-
-		const nodes = current.nodes.map((node) => {
-			if (node.def !== "flow.reroute") return node;
-
-			const link = current.links.find((l) => l.to.node === node.id && l.to.pin === "in");
-			const source = link && current.nodes.find((n) => n.id === link.from.node);
-			const def = source && registry.get(source.def);
-			const pin = def && pinsOf(def, source).outputs.find((x) => x.id === link.from.pin);
-			const type = pin?.type ?? ANY;
-
-			const config = (node.config ?? {}) as { type?: string };
-			if ((config.type ?? ANY) === type) return node;
-			changed = true;
-			return { ...node, config: { ...config, type } };
-		});
-
-		if (!changed) return current;
-		current = { ...current, nodes };
-	}
-	return current;
-}
-
+/** A node's pins as its config derives them. */
 function pinsOf(def: NodeDef, node: GraphNode) {
 	return resolveNodePins(def, node.config);
 }

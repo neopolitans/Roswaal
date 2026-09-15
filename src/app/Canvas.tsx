@@ -27,6 +27,7 @@ import { commentColor, pinColor } from "./palette.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
 	addNode, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, canConnect, commentContents,
+	wireLanding,
 	commentsByArea, connect,
 	capturePlacements, currentArity, disconnectPin, growNode, growthRule,
 	insertReroute, pinLinkCount, placeNodes, removeLink, selectionAnchor, setConfig, setLiteral,
@@ -468,11 +469,20 @@ export function Canvas({
 		setPointer(toWorld(e.clientX, e.clientY));
 	}
 
+	const dropTarget = useCallback(
+		(nodeId: string, pin: PinDef, side: "in" | "out", from: "in" | "out") =>
+			wireLanding(nodesById.get(nodeId), registry, pin, side, from),
+		[nodesById, registry],
+	);
+
 	function onPinPointerUp(
 		e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out",
 	) {
 		const g = gesture.current;
-		if (g.kind !== "wire" || g.side === side) return;
+		if (g.kind !== "wire") return;
+		const target = dropTarget(nodeId, pin, side, g.side);
+		if (!target) return;
+		({ pin, side } = target);
 
 		const from = side === "in" ? g.from : { node: nodeId, pin: pin.id };
 		const to = side === "in" ? { node: nodeId, pin: pin.id } : g.from;
@@ -498,13 +508,18 @@ export function Canvas({
 	const canAccept = useCallback(
 		(nodeId: string, pin: PinDef, side: "in" | "out"): boolean => {
 			const drag = wireDrag;
-			if (!drag || drag.side === side) return false;
-			const here = { node: nodeId, pin: pin.id };
+			if (!drag) return false;
+			// A knot's far pin lights up for a drop aimed at its near one, because
+			// that is where the drop will actually go. Anything else answers only
+			// for itself.
+			const target = dropTarget(nodeId, pin, side, drag.side);
+			if (!target) return false;
+			const here = { node: nodeId, pin: target.pin.id };
 			return drag.side === "out"
 				? canConnect(script, registry, drag.from, here).ok
 				: canConnect(script, registry, here, drag.from).ok;
 		},
-		[wireDrag, script, registry],
+		[wireDrag, script, registry, dropTarget],
 	);
 
 	const onLiteralChange = useCallback((nodeId: string, pinId: string, value: Literal | undefined) => {

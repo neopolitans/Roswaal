@@ -45,6 +45,8 @@ import {
 } from "../core/functionGraph.js";
 import type { NodeScript } from "../core/schema.js";
 import type { View } from "./geometry.js";
+import { retypeReroutes } from "../core/reroutes.js";
+import type { Registry } from "../core/nodes/index.js";
 
 const HISTORY_LIMIT = 100;
 
@@ -145,6 +147,16 @@ class Store {
 	 * forever if handed a fresh object every time it asks. So this is rebuilt
 	 * only when something actually changed.
 	 */
+	/**
+	 * The node definitions this page edits against, for the rules that need to
+	 * resolve a node's pins -- see `apply`.
+	 *
+	 * One, not one per document, because the editor and Node Design are separate
+	 * routes and never share a page: `/designer` renders `DesignerPage` and
+	 * nothing else. Each sets its own on the way in.
+	 */
+	private registry: Registry | null = null;
+
 	private snapshot: EditorState = NOTHING_OPEN;
 	private tabs: OpenDocument[] = [];
 	/** Each open file's functions, rebuilt only when a name or the set changes. */
@@ -506,6 +518,11 @@ class Store {
 		this.changed();
 	}
 
+	/** The definitions to resolve pins against. Set once per page. */
+	setRegistry(registry: Registry): void {
+		this.registry = registry;
+	}
+
 	/** Refuses every edit until it is unset. See `EditorState.locked`. */
 	setLocked(locked: boolean): void {
 		if (this.locked === locked) return;
@@ -528,6 +545,28 @@ class Store {
 		if (next === doc.script) return;
 		const graph = this.activeTab()!.graph;
 		if (graph !== null) next = adopt(doc.script, next, graph);
+		/**
+		 * A knot has the type of what it is carrying, so it has to be asked again
+		 * whenever anything could have changed the answer.
+		 *
+		 * Here rather than in the edits that change a type, and that is the point.
+		 * `retypeReroutes` used to be called by the four edits that add or remove
+		 * a **link**, on the theory that a knot's type only changes when its
+		 * source changes. It also changes when the source stays put and says
+		 * something different -- a local given a type, a loop value given one, a
+		 * function's parameter retyped -- and none of the twenty-odd places that
+		 * can do that called it. So a knot went on being the type it was when the
+		 * wire was drawn, refusing connections the graph should accept.
+		 *
+		 * There is no list of type-changing edits to keep in step because this is
+		 * not a list. Every edit arrives here.
+		 *
+		 * Free when there are no knots, which is the common case: `retypeReroutes`
+		 * returns the script it was handed untouched. Undo and redo do not come
+		 * through here, which is right -- they restore what was there rather than
+		 * work it out again.
+		 */
+		if (this.registry) next = retypeReroutes(next, this.registry);
 
 		this.setDoc({
 			...doc,

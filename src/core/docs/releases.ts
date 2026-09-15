@@ -54,6 +54,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.36.7",
+		date: "2026-09-15",
+		headline: "A knot hears its source change its mind.",
+		fixed: [
+			"**A reroute knot follows its source being retyped**, without the wire having to be redrawn. Give a Declare Local a type, type a loop's Value, retype a function's parameter or a variable — the knots downstream take the new type, and so do the knots after those.",
+			"**A wire dragged from an output connects to a knot.** A knot's two pins are stacked at its centre, so the drop landed on the output whatever you aimed at, the two ends were both outputs, and nothing happened. Dragging from an *input* always worked, which is why knots looked like they sometimes took wires and sometimes did not.",
+		],
+		changed: [
+			"**A knot in a drawn graph on these pages is coloured by what it carries too.** The picture under Reroute knots drew two grey dots beside a paragraph saying otherwise.",
+		],
+		watch: [
+			"**A knot was only retyped when a wire was added or removed.** If one has been sitting on the wrong type, it corrects itself the next time you touch the graph.",
+			"**Node Design's logic canvas does the same**, as it does for everything else the canvas can do.",
+		],
+	},
+	{
 		version: "0.36.6",
 		date: "2026-09-15",
 		headline: "A graph's coordinates are its own.",

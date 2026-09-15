@@ -41,6 +41,7 @@
 import type { GraphNode, Literal, NodeConfig, NodeDef, NodeScript, PinDef } from "../schema.js";
 import { nodeTitle, resolveNodePins, type Registry } from "../nodes/index.js";
 import { execReach, execWidth } from "../pinLayout.js";
+import { retypeReroutes } from "../reroutes.js";
 import {
 	operatorEditorWidth, operatorFields, operatorLayout,
 	type OperatorField, type OperatorLayout,
@@ -1095,8 +1096,18 @@ export function placedPinAnchor(
  * authored anywhere on an infinite canvas crops to itself.
  */
 export function graphSvg(
-	script: NodeScript, registry: Registry, options: PreviewOptions,
+	scene: NodeScript, registry: Registry, options: PreviewOptions,
 ): string {
+	/**
+	 * A knot is coloured by what it carries, and a scene is written by hand.
+	 *
+	 * So the picture under "Reroute knots" drew two grey dots beside a paragraph
+	 * saying a knot takes the type of whatever is wired into it. The editor gets
+	 * this from `Store.apply` on every edit; a drawn graph has no edits, so it is
+	 * asked once, here, where every docs graph is rendered and the registry is
+	 * already in hand.
+	 */
+	const script = retypeReroutes(scene, registry);
 	const g = options.geometry;
 	const placed = placeGraph(script, registry, options);
 	if (placed.length === 0) return "";
