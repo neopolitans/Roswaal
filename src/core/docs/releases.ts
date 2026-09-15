@@ -20,6 +20,15 @@
  * who opened a changelog to find out what is different.
  */
 
+/**
+ * A part of the tool a release can say it touched.
+ *
+ * Here rather than beside the other tags in `site.ts` because `site.ts` imports
+ * this file and not the other way round — a type-only cycle compiles and is
+ * still a cycle to read.
+ */
+export type ReleaseSurface = "editor" | "designer" | "docs";
+
 export interface Release {
 	version: string;
 	/** ISO date. Absolute, so it still means something in six months. */
@@ -49,12 +58,42 @@ export interface Release {
 	 * "something that worked will stop".
 	 */
 	breaking?: boolean;
+	/**
+	 * Which surfaces this release touched: the editor, Node Design, the
+	 * documentation.
+	 *
+	 * Stated rather than derived, because no shape of a release note says which
+	 * part of the tool changed. Absent means *not stated*, not *not affected* —
+	 * releases before 0.39.0 predate the field.
+	 *
+	 * The point of it is a reader scanning for one thing. Somebody who only
+	 * writes graphs does not need to read a Designer release, and somebody
+	 * keeping a fork's documentation in step needs exactly the Docs ones.
+	 */
+	affects?: ReleaseSurface[];
 }
 
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.39.0",
+		date: "2026-09-15",
+		headline: "A comment you wrote once is read twice.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A comment's header is written into the generated Luau**, above the code of the nodes it is drawn around — once per block, indented with it, and keeping the lines you wrote it on.",
+			"**Comment headers**, in Settings: on by default. Off keeps comments in the editor, which is what other visual scripting tools do; **Coming from Blueprints** says so where that habit comes from.",
+			"**Docs, Editor and Designer tags** on a release, saying which part of the tool it touched. The releases of 0.36 onwards carry them; anything earlier predates the field, so an absent tag means *not stated* rather than *not affected*.",
+		],
+		watch: [
+			"**A comment holding no nodes writes nothing**, and neither does one with a blank header — a note about nothing in particular is a fair thing to write on a canvas and has no block to head.",
+			"**A node inside two comments takes the smaller one.** Two headings over one statement is one heading too many, and the inner comment is the more specific thing said about it.",
+			"**Turning it on changes every generated file.** The code is the same; the diffs are not small.",
+		],
+	},
+	{
 		version: "0.38.1",
+		affects: ["docs"],
 		date: "2026-09-15",
 		headline: "Attributions says what Roswaal is designed for.",
 		added: [
@@ -70,6 +109,7 @@ export const RELEASES: Release[] = [
 	},
 	{
 		version: "0.38.0",
+		affects: ["editor", "docs"],
 		date: "2026-09-15",
 		headline: "A picker for six hundred classes.",
 		added: [
@@ -88,6 +128,7 @@ export const RELEASES: Release[] = [
 	},
 	{
 		version: "0.37.0",
+		affects: ["editor", "designer", "docs"],
 		date: "2026-09-15",
 		headline: "A Class Name is a list you pick from.",
 		added: [
@@ -107,6 +148,7 @@ export const RELEASES: Release[] = [
 	},
 	{
 		version: "0.36.7",
+		affects: ["editor", "designer", "docs"],
 		date: "2026-09-15",
 		headline: "A knot hears its source change its mind.",
 		fixed: [
@@ -123,6 +165,7 @@ export const RELEASES: Release[] = [
 	},
 	{
 		version: "0.36.6",
+		affects: ["editor", "designer", "docs"],
 		date: "2026-09-15",
 		headline: "A graph's coordinates are its own.",
 		fixed: [
@@ -139,6 +182,7 @@ export const RELEASES: Release[] = [
 	},
 	{
 		version: "0.36.5",
+		affects: ["editor", "docs"],
 		date: "2026-09-15",
 		headline: "A copied comment brings what it is drawn around.",
 		fixed: [
@@ -155,6 +199,7 @@ export const RELEASES: Release[] = [
 	},
 	{
 		version: "0.36.4",
+		affects: ["editor", "docs"],
 		date: "2026-09-15",
 		headline: "A paste lands where you are pointing.",
 		changed: [
@@ -171,6 +216,7 @@ export const RELEASES: Release[] = [
 	},
 	{
 		version: "0.36.3",
+		affects: ["editor", "docs"],
 		date: "2026-09-15",
 		headline: "A loop says what it is looping over.",
 		added: [
@@ -185,6 +231,7 @@ export const RELEASES: Release[] = [
 	},
 	{
 		version: "0.36.2",
+		affects: ["editor", "docs"],
 		date: "2026-09-15",
 		headline: "A field read twice is written twice.",
 		changed: [
@@ -201,6 +248,7 @@ export const RELEASES: Release[] = [
 	},
 	{
 		version: "0.36.1",
+		affects: ["editor", "docs"],
 		date: "2026-09-15",
 		headline: "The node search asks the same scope question the panel does.",
 		fixed: [
@@ -213,6 +261,7 @@ export const RELEASES: Release[] = [
 	},
 	{
 		version: "0.36.0",
+		affects: ["editor", "docs"],
 		date: "2026-09-15",
 		headline: "A name lasts as long as its block, and a chain of conditions is one chain.",
 		added: [

@@ -129,6 +129,19 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 					"there for when you want the value as its own node.",
 			},
 			{
+				unreal: "Comment box",
+				roswaal: "Comment — and it reaches the file",
+				note:
+					"The same box drawn round the same nodes, with one difference worth knowing " +
+					"before it surprises you: Roswaal **writes a comment's header into the generated " +
+					"Luau**, above the code of the nodes it encloses. Unreal keeps a comment entirely " +
+					"in the editor and so does every other visual scripting tool, so this is the " +
+					"habit to unlearn — or to keep, with **Settings → Project → Comment headers** " +
+					"turned off. It is on by default because a generated file here is committed and " +
+					"read beside hand-written Luau, and explaining the same block twice is the " +
+					"alternative.",
+			},
+			{
 				unreal: "Promote to Variable",
 				roswaal: "Promote to Variable",
 				note:

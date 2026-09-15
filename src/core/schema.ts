@@ -447,6 +447,21 @@ export interface RoswaalConfig {
 	indentStyle: IndentStyle;
 	/** How many spaces one level is, when `indentStyle` is `"space"`. */
 	indentWidth: number;
+	/**
+	 * Write each comment's header into the generated Luau, above the code of the
+	 * nodes it is drawn around.
+	 *
+	 * On by default, and that is a position rather than a shrug. A comment on a
+	 * graph is written to be read by whoever reads the graph *or the file*, and
+	 * a visual language that drops it at the compiler's door makes you write the
+	 * same explanation twice. The generated file is committed here and is meant
+	 * to be read beside hand-written Luau, which settles it.
+	 *
+	 * Off is for anyone coming from a tool where comments never leave the
+	 * canvas, which is most of them -- Blueprints and Bolt both keep theirs
+	 * entirely in the editor.
+	 */
+	comments: boolean;
 	/** Rojo project file, used to resolve the tree view. */
 	rojoProject?: string;
 }
@@ -481,6 +496,7 @@ export function defaultConfig(): RoswaalConfig {
 		format: true,
 		indentStyle: "tab",
 		indentWidth: 4,
+		comments: true,
 		rojoProject: "default.project.json",
 	};
 }

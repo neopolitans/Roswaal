@@ -22,7 +22,8 @@ import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../nodes/flow.js";
 import { CAST_NODES, castModeOf } from "../nodes/library.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { isModuleScript, PAIR } from "../schema.js";
-import type { Literal, NodeScript, PinDef } from "../schema.js";
+import { commentLines, headersByNode } from "../comments.js";
+import type { Comment, Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
 import type { FunctionRef, LocalRef, ParamRef, VariableRef } from "../nodes/variables.js";
 import { isService as isRobloxService, lastSegment, renderPath } from "../roblox.js";
@@ -204,6 +205,16 @@ export interface EmitOptions {
 	 * to know how wide a level happens to be.
 	 */
 	indent?: string;
+	/**
+	 * Write each comment's header into the file, above the code of the nodes it
+	 * is drawn around.
+	 *
+	 * A project setting rather than a graph one: it changes every generated file
+	 * and everyone on a repository has to agree. Default on -- a comment is
+	 * written to be read, and a visual language that throws it away at the door
+	 * makes you write it twice.
+	 */
+	comments?: boolean;
 }
 
 /** What a node's logic compiles to, before the placeholders are put back. */
@@ -278,6 +289,10 @@ class Emitter {
 	/** "root/path" -> the local a required module was hoisted to. */
 	private requires = new Map<string, { ident: string; expression: string }>();
 	private preamble: OutLine[] = [];
+	/** Node id -> the comment whose header goes above its code. */
+	private headers = new Map<string, Comment>();
+	/** Comments already written, so a header is printed once per block. */
+	private headed = new Set<string>();
 
 	constructor(
 		private script: NodeScript,
@@ -286,6 +301,9 @@ class Emitter {
 		private options: EmitOptions = {},
 	) {
 		this.index = new GraphIndex(script, registry);
+		// Worked out once: it is a pass over every comment against every node,
+		// and the answer cannot change while one file is being written.
+		if (this.options.comments) this.headers = headersByNode(script, registry);
 		// Anything Luau itself provides must not be shadowed by a generated name.
 		for (const g of ["game", "workspace", "script", "shared", "require", "print", "warn", "table", "math", "string", "task", "Instance", "Vector3", "Color3", "CFrame", "Enum", "tostring", "tonumber", "pairs", "ipairs", "next", "select", "type", "typeof"]) {
 			this.names.reserve(g);
@@ -387,7 +405,38 @@ class Emitter {
 	 * indent its own body without knowing how deep the statement it lands in
 	 * happens to be.
 	 */
+		/**
+	 * The comment header owed before this node's first line, if any.
+	 *
+	 * Asked once per node and struck off, so a comment holding six nodes prints
+	 * its header above the first of them rather than above all six. A node that
+	 * emits nothing never asks, so a comment around only such nodes prints
+	 * nothing -- which is right: there is no block for it to head.
+	 */
+	private headerFor(nodeId: string | undefined): void {
+		if (nodeId === undefined || !this.options.comments) return;
+		const comment = this.headers.get(nodeId);
+		if (!comment || this.headed.has(comment.id)) return;
+		this.headed.add(comment.id);
+
+		/**
+		 * A blank line before it, but only between blocks.
+		 *
+		 * A heading with the previous block still against it reads as part of
+		 * that block. A heading on the *first* line of a block does not -- the
+		 * `if` above it already separates them -- and a blank there is a gap
+		 * nobody writes by hand. The test is the previous line's depth: a block
+		 * opener sits one level shallower than what it opens.
+		 */
+		const previous = [...this.out].reverse().find((line) => line.text !== "");
+		if (previous && previous.indent >= this.indent) this.blank();
+		for (const line of commentLines(comment.text)) {
+			this.out.push({ text: line, indent: this.indent, node: nodeId });
+		}
+	}
+
 	private push(text: string, node?: string): void {
+		this.headerFor(node);
 		for (const line of text.split("\n")) {
 			const inner = line.length - line.replace(/^\t+/, "").length;
 			this.out.push({ text: line.slice(inner), indent: this.indent + inner, node });

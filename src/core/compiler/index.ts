@@ -33,6 +33,8 @@ export interface CompileResult {
 export interface CompileOptions {
 	/** One level of indentation. See `indentUnit` in the schema. */
 	indent?: string;
+	/** Write comment headers above the code their nodes produce. */
+	comments?: boolean;
 }
 
 export function compile(
@@ -40,7 +42,10 @@ export function compile(
 ): CompileResult {
 	const structural = validate(script, registry);
 	const sourceHash = hashString(semanticJson(script));
-	const emitted: EmitResult = emit(script, registry, sourceHash, { indent: options.indent });
+	const emitted: EmitResult = emit(script, registry, sourceHash, {
+		indent: options.indent,
+		comments: options.comments,
+	});
 
 	const diagnostics = [...structural, ...emitted.diagnostics];
 	const ok = !diagnostics.some((d) => d.severity === "error");

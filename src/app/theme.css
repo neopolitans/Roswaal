@@ -5785,6 +5785,17 @@ button.tb.danger {
 	background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
+/* The surface tags read as a second row of information on one line, so they are
+   deliberately quieter than the four that say what kind of change it is: an
+   outline and no fill. Which part of the tool changed is context for the
+   entries, not a claim about them. */
+.docs-tag.editor,
+.docs-tag.designer,
+.docs-tag.docs {
+	color: var(--fg-faint);
+	border-style: dashed;
+}
+
 /* A table with no header row: one release entry per row.
  *
  * A dot in front of four lines of prose stops separating them — the eye loses

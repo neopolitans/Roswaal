@@ -1164,7 +1164,10 @@ export async function compileScript(
 	} = {},
 ): Promise<CompileOutcome> {
 	const script = await readScript(project, relPath);
-	const result = compile(script, project.registry, { indent: indentUnit(project.config) });
+	const result = compile(script, project.registry, {
+		indent: indentUnit(project.config),
+		comments: project.config.comments,
+	});
 
 	// Formatting happens before the output hash is stamped, so the hash always
 	// describes the bytes that actually land on disk.

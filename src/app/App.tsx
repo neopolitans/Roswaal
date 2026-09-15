@@ -295,9 +295,12 @@ export function App() {
 	// Indented the way the project says, so the Source view and the compiled
 	// file on disk are the same text rather than nearly the same text.
 	const indent = project ? indentUnit(project.config) : undefined;
+	const withComments = project?.config.comments ?? true;
 	const compiled = useMemo(
-		() => (editor.script ? compile(editor.script, registry, { indent }) : null),
-		[editor.script, registry, indent],
+		() => (editor.script
+			? compile(editor.script, registry, { indent, comments: withComments })
+			: null),
+		[editor.script, registry, indent, withComments],
 	);
 	const diagnostics: Diagnostic[] = compiled?.diagnostics ?? [];
 

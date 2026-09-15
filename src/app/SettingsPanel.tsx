@@ -212,6 +212,17 @@ function ProjectSettings({ config, onConfig }: {
 			</Row>
 
 			<Row
+				label="Comment headers"
+				help="Writes each comment's header into the generated Luau, above the code of the nodes it is drawn around. Off keeps them in the editor, which is what other visual scripting tools do — turn it off if that is the habit you have."
+			>
+				<Toggle
+					on={config.comments}
+					onChange={(on) => onConfig({ comments: on })}
+					label={config.comments ? "Written into the file" : "Kept on the canvas"}
+				/>
+			</Row>
+
+			<Row
 				label="Indent with"
 				help="One level of indentation in the generated Luau. Handed to stylua as well when formatting is on, so this decides rather than stylua.toml."
 			>

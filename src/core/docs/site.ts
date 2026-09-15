@@ -32,7 +32,7 @@ import {
 } from "./attributions.js";
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { GUIDE_SCENES } from "./examples.js";
-import { RELEASES, type Release } from "./releases.js";
+import { RELEASES, type Release, type ReleaseSurface } from "./releases.js";
 import { reviewerCounts, reviewerLink, reviewOf, type Review } from "./reviews.js";
 
 // ---------------------------------------------------------------------------
@@ -40,19 +40,34 @@ import { reviewerCounts, reviewerLink, reviewOf, type Review } from "./reviews.j
 // ---------------------------------------------------------------------------
 
 /**
- * The kinds of change a release can carry.
+ * What a release carries, and where it lands.
  *
- * `breaking` is the one that cannot be derived from the entries — whether a
- * change breaks somebody is a judgement about their code, not a property of
- * ours — so it is the one a release states for itself.
+ * Two axes in one row, which is why there are seven of these. The first four
+ * are the **kind** of change and three of them are derived: a release with
+ * `added` entries is a Feature whether or not anybody says so. `breaking` is the
+ * exception, because whether a change breaks somebody is a judgement about their
+ * code rather than a property of ours.
+ *
+ * The last three are the **surface** it touches, and none of them can be
+ * derived: "this changed the documentation" is not a fact about the shape of a
+ * release note. A release states them, and an absent one means *not stated*
+ * rather than *not affected* — they arrived at 0.39.0 and nothing before it was
+ * retagged except the releases of that same sitting, which were still in hand.
  */
-export type ReleaseTag = "feature" | "change" | "fix" | "breaking";
+export type ReleaseTag =
+	| "feature" | "change" | "fix" | "breaking"
+	| "docs" | "editor" | "designer";
+
+export const SURFACES: readonly ReleaseSurface[] = ["editor", "designer", "docs"];
 
 export const TAG_LABELS: Record<ReleaseTag, string> = {
 	feature: "Feature",
 	change: "Change",
 	fix: "Bugfix",
 	breaking: "Breaking change",
+	docs: "Docs",
+	editor: "Editor",
+	designer: "Designer",
 };
 
 export type Block =
@@ -685,6 +700,11 @@ export function releaseTags(release: Release): ReleaseTag[] {
 	if (release.added?.length) tags.push("feature");
 	if (release.changed?.length) tags.push("change");
 	if (release.fixed?.length) tags.push("fix");
+	// The surfaces last, and in one order however they were listed: a tag row
+	// that reshuffles between releases is a row you read twice.
+	for (const surface of SURFACES) {
+		if (release.affects?.includes(surface)) tags.push(surface);
+	}
 	return tags;
 }
 
@@ -1969,6 +1989,11 @@ function settingsPage(): DocPage {
 						"`format`",
 						`\`${defaults.format}\``,
 						"Run stylua over generated files when it is on PATH. When it is not, the file is written unformatted rather than not written.",
+					],
+					[
+						"`comments`",
+						"`true`",
+						"Write each comment's header into the generated Luau, above the code of the nodes it is drawn around. Off keeps them in the editor, which is what other visual scripting tools do — see [Coming from Blueprints](coming-from-blueprints) if that is the habit you have.",
 					],
 					[
 						"`indentStyle`",
