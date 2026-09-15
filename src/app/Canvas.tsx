@@ -24,6 +24,7 @@ import {
 } from "./geometry.js";
 import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
 import { commentColor, pinColor } from "./palette.js";
+import { serviceFromSource } from "../core/serviceCalls.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
 	addNode, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, canConnect, commentContents,
@@ -58,7 +59,7 @@ export interface CanvasProps {
 	 */
 	onRequestMenu: (
 		screen: Vec, world: Vec,
-		from?: { ref: PinRef; side: "in" | "out"; pin: PinDef },
+		from?: { ref: PinRef; side: "in" | "out"; pin: PinDef; service?: string },
 	) => void;
 	onRequestPinMenu: (screen: Vec, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
@@ -383,10 +384,16 @@ export function Canvas({
 				// this gesture that did not finish the thought.
 				if (!onNode) {
 					const box = surface.current!.getBoundingClientRect();
+					// Which service the wire carries, if any, so the menu can open
+					// on that service's methods rather than on everything.
+					const source = script.nodes.find((n) => n.id === g.from.node);
+					const service = g.side === "out"
+						? serviceFromSource(source, g.pin.type)
+						: undefined;
 					onRequestMenu(
 						{ x: e.clientX - box.left, y: e.clientY - box.top },
 						toWorld(e.clientX, e.clientY),
-						{ ref: g.from, side: g.side, pin: g.pin },
+						{ ref: g.from, side: g.side, pin: g.pin, service },
 					);
 				}
 			}

@@ -14,7 +14,7 @@ import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import {
 	CALL_OPTIONS, SERVICE_CALL, SERVICE_VALUE, SERVICES_WITH_METHODS, argumentPins, callDetail,
-	methodsOfService, serviceMenuItems, serviceMethod, servicePins, splitCall,
+	methodsOfService, serviceFromSource, serviceMenuItems, serviceMethod, servicePins, splitCall,
 } from "../src/core/serviceCalls.js";
 
 const registry = createRegistry();
@@ -90,17 +90,20 @@ describe("the catalogue", () => {
 describe("a Service Function node's pins", () => {
 	it("are the method's arguments, named and typed", () => {
 		const { inputs, outputs } = servicePins({ service: "Debris", method: "AddItem" }, false);
-		expect(inputs.map((p) => p.id)).toEqual(["in", "a0", "a1"]);
-		expect(inputs[1].type).toBe("Instance");
-		expect(inputs[2].type).toBe("number");
-		expect(inputs[2].optional).toBe(true);
+		expect(inputs.map((p) => p.id)).toEqual(["in", "service", "a0", "a1"]);
+		expect(inputs[2].type).toBe("Instance");
+		expect(inputs[3].type).toBe("number");
+		expect(inputs[3].optional).toBe(true);
 		// AddItem returns nothing, so there is no result pin to wire nil out of.
 		expect(outputs.map((p) => p.id)).toEqual(["then"]);
 	});
 
 	it("drop the execution pins on the value node", () => {
 		const { inputs, outputs } = servicePins({ service: "RunService", method: "IsServer" }, true);
-		expect(inputs).toEqual([]);
+		// The receiver stays: dragging a service out and asking it for a method
+		// needs somewhere for that wire to land, pure or not.
+		expect(inputs.map((p) => p.id)).toEqual(["service"]);
+		expect(inputs[0].name).toBe("RunService");
 		expect(outputs.map((p) => p.id)).toEqual(["result"]);
 		expect(outputs[0].type).toBe("boolean");
 	});
@@ -110,7 +113,7 @@ describe("a Service Function node's pins", () => {
 		const { inputs, outputs } = servicePins(
 			{ service: "RunService", method: "SomethingShippedLastWeek", args: 2 }, false,
 		);
-		expect(inputs.map((p) => p.id)).toEqual(["in", "a0", "a1"]);
+		expect(inputs.map((p) => p.id)).toEqual(["in", "service", "a0", "a1"]);
 		expect(outputs.map((p) => p.id)).toEqual(["then", "result"]);
 	});
 
@@ -237,5 +240,85 @@ describe("what it compiles to", () => {
 		const out = compile(script, registry, {});
 		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
 		expect(body(out.code)).toContain("RunService:SomethingShippedLastWeek()");
+	});
+});
+
+describe("dragging a service out", () => {
+	/**
+	 * The gesture this node should have been found by: pull a wire off Get
+	 * Service and ask what that service can do.
+	 */
+	it("reads the service off a Get Service node", () => {
+		const node = { def: "roblox.getService", literals: { service: { t: "string", v: "RunService" } } };
+		expect(serviceFromSource(node as never, "Instance")).toBe("RunService");
+	});
+
+	/** An untouched Get Service has no literal, and its pin declares the default. */
+	it("falls back to the service the pin defaults to", () => {
+		expect(serviceFromSource({ def: "roblox.getService" }, "Instance")).toBe("Players");
+	});
+
+	/** A pin typed as the service is the general answer, and needs no node. */
+	it("reads a pin typed as a service class", () => {
+		expect(serviceFromSource(undefined, "Workspace")).toBe("Workspace");
+	});
+
+	it("says nothing for a pin that carries no service", () => {
+		expect(serviceFromSource({ def: "roblox.instanceNew" }, "Instance")).toBeUndefined();
+		expect(serviceFromSource(undefined, "number")).toBeUndefined();
+		expect(serviceFromSource(undefined, undefined)).toBeUndefined();
+	});
+});
+
+describe("a service wired into the receiver", () => {
+	/** The wire is the object the call is made on, so no local is hoisted. */
+	it("is called on instead of the hoisted local", () => {
+		const b = new Builder();
+		const start = b.node("script.begin", { id: "start" });
+		const get = b.node("roblox.getService", { id: "get" });
+		b.lit(get, "service", { t: "string", v: "Debris" });
+		const add = b.node(SERVICE_CALL, {
+			id: "add", config: { service: "Debris", method: "AddItem" },
+		});
+		const part = b.node("roblox.instanceNew", { id: "part" });
+		b.lit(part, "className", { t: "string", v: "Part" });
+		b.link(start, "then", part, "in");
+		b.link(part, "then", add, "in");
+		b.link(get, "service", add, "service");
+		b.link(part, "result", add, "a0");
+
+		const out = compile(b.build(), registry, {});
+		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+		// Get Service still hoists its own local, and the call is made on it.
+		expect(out.code).toContain('local Debris = game:GetService("Debris")');
+		expect(body(out.code)).toMatch(/Debris:AddItem\(\w+\)/);
+	});
+
+	/**
+	 * Wiring something that is plainly not the service is worth saying. Only a
+	 * pin that names a class: most instance pins are typed `Instance`, which
+	 * claims nothing and is refused nothing.
+	 */
+	it("warns when the wire is a class the method does not belong to", () => {
+		const b = new Builder();
+		const start = b.node("script.begin", { id: "start" });
+		const humanoid = b.variable("target", "Humanoid", { t: "nil" });
+		const get = b.node("variable.get", {
+			id: "get", config: { variable: humanoid, name: "target", type: "Humanoid" },
+		});
+		const part = b.node("roblox.instanceNew", { id: "part" });
+		b.lit(part, "className", { t: "string", v: "Part" });
+		const add = b.node(SERVICE_CALL, {
+			id: "add", config: { service: "Debris", method: "AddItem" },
+		});
+		b.link(start, "then", part, "in");
+		b.link(part, "then", add, "in");
+		b.link(get, "value", add, "service");
+		b.link(part, "result", add, "a0");
+
+		const warnings = compile(b.build(), registry, {}).diagnostics.filter(
+			(d) => d.severity === "warning",
+		);
+		expect(warnings.map((d) => d.message).join(" ")).toContain("Debris method");
 	});
 });

@@ -37,7 +37,19 @@ export interface MenuAnchor {
 	 * you pick is wired up on arrival — which is the whole point, and what
 	 * anyone who already knows node graphs will expect.
 	 */
-	from?: { ref: PinRef; side: "in" | "out"; pin: PinDef };
+	from?: {
+		ref: PinRef; side: "in" | "out"; pin: PinDef;
+		/**
+		 * The service the wire carries, when it carries one.
+		 *
+		 * Set by the canvas, which can see the node the wire left — a pin typed
+		 * as a service class, or a Get Service, whose service is a literal and so
+		 * cannot be read off the pin's type. The menu opens on that service's
+		 * methods, which is the whole gesture: drag a service out, ask it what it
+		 * can do.
+		 */
+		service?: string;
+	};
 }
 
 /** A named instance of a node type: "Get health", "Set health", "Get greet". */
@@ -171,10 +183,15 @@ export function NodeMenu(props: NodeMenuProps) {
 			const def = registry.get(entry.defId);
 			if (!def) return [];
 			const pure = def.pure === true;
+			const dragged = entry.service === anchor.from?.service;
 			return [{
+				// Off a service's own pin the service is not news — it is what you
+				// dragged — so the entries are the method names under a heading of
+				// the service, which is how the Creator Hub lists them. Searched
+				// from nowhere in particular, the service is half the name.
 				key: `service:${entry.service}:${entry.method.name}`,
-				title: `${entry.service}:${entry.method.name}`,
-				category: "Engine",
+				title: dragged ? entry.method.name : `${entry.service}:${entry.method.name}`,
+				category: dragged ? entry.service : "Engine",
 				summary: entry.method.summary,
 				color: nodeColor(def),
 				pure,
@@ -183,21 +200,41 @@ export function NodeMenu(props: NodeMenuProps) {
 				pins: servicePins(entry.config, pure),
 			}];
 		});
-	}, [registry, target]);
+	}, [registry, target, anchor.from?.service]);
+
+	/**
+	 * The methods of the service a wire was dragged off, listed before anything
+	 * else and without a search.
+	 *
+	 * This is the one place a list of methods is browsable rather than searched:
+	 * narrowed to one service it is a dozen or two, it is what the gesture asked
+	 * for, and the alternative — dragging RunService out and being shown every
+	 * node in the library that takes an Instance — answers a question nobody put.
+	 */
+	const draggedService = useMemo(() => {
+		const service = anchor.from?.service;
+		if (!service || anchor.from?.side !== "out") return [];
+		return serviceItems.filter((item) => item.category === service);
+	}, [serviceItems, anchor.from?.service, anchor.from?.side]);
 
 	const matches = useMemo(() => {
 		const q = query.trim().toLowerCase();
-		if (!q) return items;
+		if (!q) return [...draggedService, ...items];
 
 		const from = anchor.from;
 		const side = from ? (from.side === "out" ? "in" : "out") : null;
+		const reach = (item: MenuItem) => {
+			if (!from || !side || !item.pins) return true;
+			const pins = side === "in" ? item.pins.inputs : item.pins.outputs;
+			return landingPins(item.def, pins, from.pin, side).length > 0;
+		};
+		// A method of the dragged service is listed once, under its own heading,
+		// so the same call does not appear twice with two different names.
+		const dragged = new Set(draggedService.map((item) => item.key));
 		const searchable = [
+			...draggedService,
 			...items,
-			...serviceItems.filter((item) => {
-				if (!from || !side || !item.pins) return true;
-				const pins = side === "in" ? item.pins.inputs : item.pins.outputs;
-				return landingPins(item.def, pins, from.pin, side).length > 0;
-			}),
+			...serviceItems.filter((item) => !dragged.has(item.key) && reach(item)),
 		];
 
 		return searchable
@@ -205,7 +242,7 @@ export function NodeMenu(props: NodeMenuProps) {
 			.filter((x) => x.score > 0)
 			.sort((a, b) => b.score - a.score)
 			.map((x) => x.item);
-	}, [query, items, serviceItems, anchor.from]);
+	}, [query, items, serviceItems, draggedService, anchor.from]);
 
 	/**
 	 * Categories, each holding either a flat list or a list of datatype groups.
@@ -228,8 +265,13 @@ export function NodeMenu(props: NodeMenuProps) {
 		}
 		const order = categories(registry).filter((c) => byCategory.has(c));
 		const extra = [...byCategory.keys()].filter((c) => !order.includes(c)).sort();
+		// The service you dragged off goes first. It is the answer to the gesture;
+		// everything under it is what else the graph could do with that wire.
+		const service = anchor.from?.service;
+		const lead = service && byCategory.has(service) ? [service] : [];
+		const rest = [...order, ...extra].filter((c) => !lead.includes(c));
 
-		return [...order, ...extra].map((category) => {
+		return [...lead, ...rest].map((category) => {
 			const all = byCategory.get(category)!;
 			const subs = subcategories(registry, category);
 			if (subs.length === 0) return { category, loose: all, groups: [] };
@@ -243,7 +285,7 @@ export function NodeMenu(props: NodeMenuProps) {
 				.filter((g) => g.items.length > 0);
 			return { category, loose, groups };
 		});
-	}, [matches, registry]);
+	}, [matches, registry, anchor.from?.service]);
 
 	/** Flat order, so arrow keys move through the list the eye reads. */
 	const flat = useMemo(

@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.41.0",
+		date: "2026-09-15",
+		headline: "Ask a service what it can do.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Drag a wire off a service and drop it on empty canvas**, and the menu opens on that service's own methods, under its name. Picking one places the Service Function already set to that call, with the wire landed on it. Everything else that could take an Instance is still listed underneath.",
+			"**Service Function's first pin is the service the call is made on.** Wired, the value on it is what the method runs against. Left alone it is nothing at all: the service is reached and hoisted the way Get Service reaches it, which is what the node did before this pin existed.",
+		],
+		changed: [
+			"**A wire carrying a class the method does not belong to is now a warning** — a Humanoid on a `Debris:AddItem` — rather than silence. Only where the pin names a class: an `Instance` claims nothing and is refused nothing.",
+		],
+	},
+	{
 		version: "0.40.0",
 		date: "2026-09-15",
 		headline: "Every method a service has, without a node each.",

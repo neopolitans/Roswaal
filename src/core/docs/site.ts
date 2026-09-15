@@ -1366,6 +1366,7 @@ const CONTROLS: DocPage = {
 			rows: [
 				["Drag from a pin", "Start a wire; everything it cannot reach dims"],
 				["Drop a wire on empty space", "Node menu, showing only what can take that wire"],
+				["Drop a wire from a service", "That service's methods, listed first — see [Services and their methods](services)"],
 				["Drag from a wired input", "Pick that wire up and move it somewhere else"],
 				["`Shift` + click a pin", "Disconnect everything on it"],
 				["Right-click a pin", "Pin menu — split a struct, promote to a variable"],
@@ -2553,6 +2554,26 @@ function servicesPage(registry: Registry): DocPage {
 					'\tprint("On the client")',
 					"end",
 				].join("\n"),
+			},
+
+			{ t: "h", level: 2, text: "Asking a service what it can do" },
+			{
+				t: "p",
+				text:
+					"**Drag a wire off a service and drop it on empty canvas.** The menu opens on " +
+					"that service's own methods, under its name — `GetPlayers`, `GetPlayerByUserId`, " +
+					"`BanAsync` — and picking one places the node with the wire already landed on it. " +
+					"Everything else the graph could do with an Instance is still underneath, where " +
+					"it always is.",
+			},
+			{
+				t: "p",
+				text:
+					"That wire lands on the node's first pin, which is the service the call is made " +
+					"*on*. Left unwired it is nothing at all: the service is reached and hoisted the " +
+					"way Get Service reaches it, and the node draws as the call. Wired, the value on " +
+					"it is what the method runs against — which is what makes the gesture honest " +
+					"rather than a shortcut that throws your wire away.",
 			},
 
 			{ t: "h", level: 2, text: "Picking the call" },

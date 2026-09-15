@@ -52,6 +52,10 @@ import {
 import { setProjectTypes } from "./projectTypes.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
+import { SERVICE_CALL, SERVICE_VALUE } from "../core/serviceCalls.js";
+
+/** The two nodes whose first data pin is the service the call is made on. */
+const SERVICE_NODES = new Set([SERVICE_CALL, SERVICE_VALUE]);
 
 const LAST_PROJECT_KEY = "roswaal.lastProject";
 /**
@@ -789,7 +793,21 @@ export function App() {
 				const placed = next.nodes.find((n) => n.id === added.id);
 				const pins = placed ? resolveNodePins(def, placed.config) : { inputs: [], outputs: [] };
 				const side = from.side === "out" ? "in" : "out";
-				const candidates = side === "in" ? pins.inputs : pins.outputs;
+				let candidates = side === "in" ? pins.inputs : pins.outputs;
+				/**
+				 * A Service Function's receiver pin takes the wire only when the
+				 * wire *is* that service.
+				 *
+				 * It is typed `Instance`, because that is what Get Service gives
+				 * back, and it is declared first — so without this, dragging a
+				 * Part out and picking Debris:AddItem would wire the part in as
+				 * the service and leave Item empty. The pin exists for one
+				 * gesture; every other drag should land where it always did.
+				 */
+				const wanted = (config as { service?: string } | undefined)?.service;
+				if (SERVICE_NODES.has(def.id) && from.service !== wanted) {
+					candidates = candidates.filter((pin) => pin.id !== "service");
+				}
 				const landing = landingPins(def, candidates, from.pin, side)[0];
 				if (!landing) return next;
 

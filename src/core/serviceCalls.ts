@@ -125,6 +125,34 @@ function unknownArgPins(c: NodeConfig | undefined): PinDef[] {
 }
 
 /**
+ * The pin the call is made *on*.
+ *
+ * Unwired it is nothing: the service is reached the way Get Service reaches it,
+ * hoisted into a local at the top of the file, and the node draws as the call it
+ * is. That is the common case, since a service is a singleton and wiring one in
+ * says no more than naming it does.
+ *
+ * It exists for the gesture that should have been how this node is found in the
+ * first place: **drag off a service and ask it what it can do**. A wire needs
+ * somewhere to land, and a node whose service is only a name in a panel has
+ * nowhere — so the pin is here, typed `Instance` because that is what Get
+ * Service gives back, and the value on it wins when there is one.
+ */
+export function serviceReceiverPin(service: string): PinDef {
+	return {
+		id: "service",
+		name: service,
+		kind: "data",
+		type: "Instance",
+		// Nothing is an error here: no wire means the hoisted service local.
+		required: false,
+		description:
+			`Wire a service in to call on that one. Left alone, ${service} is reached the way ` +
+			"Get Service reaches it.",
+	};
+}
+
+/**
  * The pins of a Service Function node, for the call it is set to.
  *
  * The service and the method are **config rather than pins**, which is the one
@@ -145,6 +173,7 @@ export function servicePins(
 
 	const inputs: PinDef[] = [
 		...(pure ? [] : [exec("in")]),
+		serviceReceiverPin(serviceOf(c)),
 		...(method ? argumentPins(method) : unknownArgPins(c)),
 	];
 
@@ -226,4 +255,31 @@ export function serviceMenuItems(): ServiceMenuItem[] {
 		}
 	}
 	return out;
+}
+
+/**
+ * Which service a pin gives back, for the menu that opens when a wire is
+ * dropped on empty canvas.
+ *
+ * Two ways of knowing, and both are needed. A pin **typed** as a service class
+ * is the general answer and is what a Service Function's own result gives. Get
+ * Service is the special case: its output is typed `Instance` — the service it
+ * names is a literal typed into the node, and a pin's type cannot depend on a
+ * literal — so the node is asked directly.
+ *
+ * Undefined for everything else, which is most pins: the answer decides whether
+ * the menu opens with a service's methods in it, not whether it opens.
+ */
+export function serviceFromSource(
+	node: { def: string; literals?: Record<string, Literal> } | undefined,
+	pinType: string | undefined,
+): string | undefined {
+	if (pinType && methodsOfService(pinType).length > 0) return pinType;
+	if (node?.def !== "roblox.getService") return undefined;
+	const literal = node.literals?.service;
+	const name = literal?.t === "string" ? literal.v.trim() : "";
+	// The default is the one the pin declares, since an untouched Get Service
+	// has no literal of its own.
+	const service = name || "Players";
+	return methodsOfService(service).length > 0 ? service : undefined;
 }

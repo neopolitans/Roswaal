@@ -26,7 +26,10 @@ import { commentLines, headersByNode } from "../comments.js";
 import type { Comment, Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
 import type { FunctionRef, LocalRef, ParamRef, VariableRef } from "../nodes/variables.js";
-import { isService as isRobloxService, lastSegment, renderPath } from "../roblox.js";
+import {
+	isInstanceClass as isRobloxClass, isService as isRobloxService, isSubclassOf, lastSegment,
+	renderPath,
+} from "../roblox.js";
 import { methodOf, serviceMethod, serviceOf } from "../serviceCalls.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
 import {
@@ -548,7 +551,37 @@ class Emitter {
 			if (pin.optional === true && !set[index]) return "nil";
 			return this.serviceArgument(r, pin, scope, known?.params[index]?.enum);
 		});
-		return `${this.resolveRoot(service)}:${toIdentifier(name, "method")}(${args.join(", ")})`;
+		return `${this.serviceReceiver(r, service, scope)}:${toIdentifier(name, "method")}(${args.join(", ")})`;
+	}
+
+	/**
+	 * What the call is made on: the wire if there is one, the service if not.
+	 *
+	 * Unwired is the ordinary case and reads as the hand-written line does —
+	 * `RunService:IsServer()`, with the service hoisted. A wire is for the
+	 * gesture that drags a service out and asks it for a method, and it wins
+	 * outright: the value on the pin is the object being called.
+	 *
+	 * A wire of a class that is not the service being called is worth saying out
+	 * loud — a Humanoid on a `Debris:AddItem` is a runtime error with a node's
+	 * name on it — but only as a warning, because the pin is typed `Instance`
+	 * and a value narrowed elsewhere may be exactly right.
+	 */
+	private serviceReceiver(r: ResolvedNode, service: string, scope: Scope): string {
+		const link = this.index.sourceOf(r.node.id, "service");
+		if (!link) return this.resolveRoot(service);
+
+		const from = this.index.get(link.from.node);
+		const type = from?.outputs.find((p) => p.id === link.from.pin)?.type;
+		if (type && type !== "Instance" && isRobloxClass(type) && !isSubclassOf(type, service)) {
+			this.warn(
+				`This wire carries a ${type}, and the call is a ${service} method. It will run on ` +
+					"whatever is wired, so this is only right if the value really is that service.",
+				r.node.id,
+				"service",
+			);
+		}
+		return paren(this.resolveInput(r, this.pin(r, "service", "in"), scope));
 	}
 
 	/**
