@@ -20,6 +20,46 @@ import { ENGINE_TYPES, LUAU, PAIR } from "../schema.js";
 /** The category for coordinates brought across from a Z-up tool. */
 export const ZUP_CONVERSIONS = "Z-Up Conversions";
 
+/**
+ * The nodes that assert a type rather than test one.
+ *
+ * Named as a set because three things ask the same question of them: the
+ * Inspector, which offers the Implicit/Explicit choice; the emitter, which acts
+ * on it; and the documentation, which lists them together on the casting page.
+ * Each of those was written against the literal string `"cast.as"` first, and
+ * each of them was then wrong about the other two nodes.
+ */
+export const CAST_NODES: ReadonlySet<string> = new Set(["cast.as", "cast.array", "cast.any"]);
+
+/**
+ * How a cast reaches the value it asserts about.
+ *
+ * `auto` is what a cast has always done and stays the default: spliced into its
+ * one reader, bound to a local as soon as there are two, on the ordinary rule
+ * every pure node follows.
+ *
+ * The other two say so outright, and exist because a cast is the one pure node
+ * whose *line* is the point. `explicit` always writes `local part = value ::
+ * BasePart`, which is the line you want when several statements below read it
+ * and you would rather see the claim once than five times. `implicit` never
+ * writes one: the assertion is spliced where it is used, and where Luau has
+ * already narrowed the value itself — inside the True arm of a Branch on Is A —
+ * it disappears entirely, because there is nothing left for it to tell the
+ * typechecker.
+ */
+export type CastMode = "auto" | "explicit" | "implicit";
+
+export const CAST_MODES: { mode: CastMode; label: string; what: string }[] = [
+	{ mode: "auto", label: "Automatic", what: "A line when the value is read more than once." },
+	{ mode: "explicit", label: "Explicit", what: "Always a line: local x = value :: T." },
+	{ mode: "implicit", label: "Implicit", what: "Never a line. Dropped where Is A has already narrowed the value." },
+];
+
+export function castModeOf(config: Record<string, unknown> | undefined): CastMode {
+	const mode = config?.cast;
+	return mode === "explicit" || mode === "implicit" ? mode : "auto";
+}
+
 const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
 const d = (id: string, name: string, type: string, def?: PinDef["default"]): PinDef => ({
 	id, name, kind: "data", type, default: def,
@@ -439,15 +479,18 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// part or default` in strict mode, which does not compile.
 	pill(variadic("logic.and", "And", "Logic", "$args( and )", "any", { t: "boolean", v: true }, "any",
 		"The last operand, or the first that is falsy. Not a boolean: `a and b` hands back " +
-		"one of the two, which is what Luau's `and` does."), "and"),
+		"one of the two, which is what Luau's `and` does. Brackets, in the Inspector, wraps " +
+		"the result in `( )`; precedence is handled either way."), "and"),
 	pill(variadic("logic.or", "Or", "Logic", "$args( or )", "any", { t: "boolean", v: false }, "any",
 		"The first operand that is not `nil` or `false`. This is how a default is written: " +
-		"`value or fallback` is the value when there is one and the fallback when there is not."), "or"),
+		"`value or fallback` is the value when there is one and the fallback when there is not. " +
+		"Brackets, in the Inspector, wraps the result in `( )`; precedence is handled either way."), "or"),
 	pill(pure("logic.not", "Not", "Logic", "not $in.a", [d("a", "A", "any", { t: "boolean", v: false })],
 		"boolean",
 		"True when the value is `nil` or `false`, and false for everything else. Takes any " +
 		"value, so `not part` on an `Instance?` is the usual way to ask whether it is there. " +
-		"Note that 0 and an empty string are true in Luau."), "not"),
+		"Note that 0 and an empty string are true in Luau. Brackets, in the Inspector, wraps " +
+		"the result in `( )`; precedence is handled either way."), "not"),
 
 	// -- Strings -----------------------------------------------------------
 	variadic("string.concat", "Concatenate", "Strings", "$args( .. )", "string", { t: "string", v: "" }, "string"),
@@ -948,7 +991,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// here, and Is A is the node for asking rather than asserting.
 	pure("cast.as", "Cast", "Values", "($in.value :: $in.type!raw)",
 		[d("value", "Value", "any"), str("type", "Type", "BasePart")], "any",
-		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first. The Type pin takes any Luau type expression, so an intersection like `Model & { Humanoid: Humanoid }` is written here directly."),
+		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first. The Type pin takes any Luau type expression, so an intersection like `Model & { Humanoid: Humanoid }` is written here directly. Cast, in the Inspector, decides whether the assertion gets a line of its own; an implicit one inside the True arm of a Branch on Is A writes nothing at all, because Luau has already narrowed the value."),
 	pure("cast.array", "Cast Array", "Values", "($in.value :: { $in.type!raw })",
 		[d("value", "Value", "table"), str("type", "Type", "BasePart")], "table",
 		"For a collection you know more about than its type says: Get Descendants is { Instance }, and this is how you say they are all BaseParts."),

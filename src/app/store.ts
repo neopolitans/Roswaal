@@ -317,6 +317,30 @@ class Store {
 		return true;
 	}
 
+	/**
+	 * Moves a tab, by key, to sit before another one.
+	 *
+	 * `before` is a key rather than an index because the index the pointer is
+	 * over is an index into the row *as drawn*, and the row is about to change
+	 * underneath it — dragging a tab three places right and asking for "index 3"
+	 * lands it at 2, because it left a hole behind. Naming the neighbour is
+	 * unambiguous whichever direction the drag went. `null` means the end.
+	 *
+	 * Note what this does **not** do: it does not activate the tab it moved.
+	 * Reordering a row is tidying, and tidying that also navigates is tidying
+	 * you have to undo.
+	 */
+	reorder(key: string, before: string | null): void {
+		const from = this.tabList.findIndex((t) => t.key === key);
+		if (from === -1 || key === before) return;
+
+		const [tab] = this.tabList.splice(from, 1);
+		const at = before === null ? this.tabList.length : this.tabList.findIndex((t) => t.key === before);
+		if (at === -1) this.tabList.push(tab);
+		else this.tabList.splice(at, 0, tab);
+		this.changed();
+	}
+
 	/** Brings an open tab to the front, by its key. */
 	activate(key: string): void {
 		if (!this.tabList.some((t) => t.key === key) || this.activeKey === key) return;
@@ -356,9 +380,49 @@ class Store {
 		this.changed();
 	}
 
-	/** Is this file open, in any tab? */
+	/**
+	 * Is this file's **document** loaded — in any tab, of any of its graphs?
+	 *
+	 * Not the same question as "is its own graph in a tab", and the difference
+	 * is load-bearing: a file with only a function's tab open is loaded, holds
+	 * undo history and may hold edits that have not reached disk, so reading it
+	 * again would throw all of that away. Ask this before `open`; ask
+	 * `showGraph` when what you want is the tab.
+	 */
 	isOpen(path: string): boolean {
 		return this.docs.has(path);
+	}
+
+	/**
+	 * Brings a file's own graph to the front, putting its tab back if it has
+	 * been closed while a function's tab kept the file open.
+	 *
+	 * False means the document is not loaded and the caller should read it.
+	 *
+	 * ## Why this exists
+	 *
+	 * Opening a graph used to be `isOpen(path)` then `activate(path)`. Those are
+	 * two different questions and the pair only worked while they happened to
+	 * have the same answer. Close a nodescript's own tab but leave one of its
+	 * function tabs open, and the file is still loaded — so `isOpen` says yes,
+	 * `activate` finds no tab with that key and returns, and double-clicking the
+	 * graph in the tree did nothing at all until the function tab was closed.
+	 *
+	 * Falling through to `open` instead would have been worse than the dead
+	 * click: it re-reads the file and replaces the document the function tab is
+	 * still editing, taking its undo history and any unsaved edits with it.
+	 */
+	showGraph(path: string): boolean {
+		if (!this.docs.has(path)) return false;
+		if (!this.tabList.some((t) => t.key === path)) {
+			// In front of the file's function tabs, which is where a file's own
+			// graph sits everywhere else it is drawn.
+			const at = this.tabList.findIndex((t) => t.path === path);
+			this.tabList.splice(at === -1 ? this.tabList.length : at, 0, this.newTab(path, null));
+		}
+		this.activeKey = path;
+		this.changed();
+		return true;
 	}
 
 	/** Every open file's path, in the order their first tabs appear. */

@@ -23,7 +23,7 @@ import {
 	type Rect, type Vec, type View,
 } from "./geometry.js";
 import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
-import { pinColor } from "./palette.js";
+import { commentColor, pinColor } from "./palette.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
 	addNode, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, canConnect, commentContents,
@@ -35,7 +35,6 @@ import {
 } from "./edits.js";
 import { store, useEditor, useView } from "./store.js";
 
-const COMMENT_DEFAULT_COLOR = "6a8fbf";
 
 export interface CanvasProps {
 	/** The whole script. The canvas draws one graph of it. */
@@ -936,7 +935,7 @@ interface CommentViewProps {
 
 function CommentView(props: CommentViewProps) {
 	const { comment } = props;
-	const color = `#${comment.color ?? COMMENT_DEFAULT_COLOR}`;
+	const color = commentColor(comment.color);
 	const bar = useRef<HTMLDivElement>(null);
 
 	/** Keeps the field exactly as tall as what it holds. */

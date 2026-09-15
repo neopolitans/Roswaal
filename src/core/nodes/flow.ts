@@ -322,7 +322,9 @@ export const FLOW_NODES: NodeDef[] = [
 		role: "flow",
 		summary:
 			"if / else. Any value can be the condition — only `nil` and `false` take the " +
-			"False branch, so an `Instance?` can be tested directly.",
+			"False branch, so an `Instance?` can be tested directly. A Branch on another " +
+			"Branch's False pin compiles to `elseif`, so a chain of conditions stays at one " +
+			"level of indentation and ends with one `end`.",
 		inputs: [exec("in", ""), data("condition", "Condition", "any", { t: "boolean", v: true })],
 		outputs: [exec("true", "True"), exec("false", "False")],
 		compilesTo: { kind: "builtin", handler: "flow.branch" },
@@ -365,7 +367,10 @@ export const FLOW_NODES: NodeDef[] = [
 		title: "For Each",
 		category: "Flow",
 		role: "flow",
-		summary: "Generic for over a table (pairs).",
+		summary:
+			"Generic for over a table (pairs). Key name and Value name in the Inspector decide " +
+			"what the two loop variables are called in the generated Luau; left blank they are " +
+			"`key` and `value`.",
 		inputs: [exec("in", ""), data("table", "Table", "table")],
 		outputs: [
 			exec("body", "Body"),
@@ -380,7 +385,9 @@ export const FLOW_NODES: NodeDef[] = [
 		title: "For Each (Array)",
 		category: "Flow",
 		role: "flow",
-		summary: "Generic for over an array (ipairs).",
+		summary:
+			"Generic for over an array (ipairs). Index name and Value name in the Inspector " +
+			"decide what the two loop variables are called; left blank they are `i` and `value`.",
 		inputs: [exec("in", ""), data("table", "Array", "table")],
 		outputs: [
 			exec("body", "Body"),

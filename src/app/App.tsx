@@ -12,7 +12,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
 import { createRegistry, resolveNodePins } from "../core/nodes/index.js";
-import type { NodeDef, RoswaalConfig } from "../core/schema.js";
+import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import {
 	api, ProjectChangedError,
 	type CompileOutcome, type CompileStep, type MapOutcome, type ProjectInfo, type TreeEntry,
@@ -277,9 +277,12 @@ export function App() {
 	 * the same call that was already running on every edit. Nothing extra is
 	 * compiled to support it.
 	 */
+	// Indented the way the project says, so the Source view and the compiled
+	// file on disk are the same text rather than nearly the same text.
+	const indent = project ? indentUnit(project.config) : undefined;
 	const compiled = useMemo(
-		() => (editor.script ? compile(editor.script, registry) : null),
-		[editor.script, registry],
+		() => (editor.script ? compile(editor.script, registry, { indent }) : null),
+		[editor.script, registry, indent],
 	);
 	const diagnostics: Diagnostic[] = compiled?.diagnostics ?? [];
 
@@ -524,13 +527,10 @@ export function App() {
 			return;
 		}
 		setMapDoc(null);
-		// Already open: go to that tab rather than re-reading. Reopening would
-		// throw away its undo history and where it was scrolled to, for a file
-		// the editor is already showing.
-		if (store.isOpen(entry.path)) {
-			store.activate(entry.path);
-			return;
-		}
+		// Already loaded: go to its tab rather than re-reading, which would throw
+		// away its undo history and where it was scrolled to. `showGraph` puts
+		// the tab back when only a function's tab is keeping the file open.
+		if (store.showGraph(entry.path)) return;
 		const { script } = await api.readScript(entry.path);
 		store.open(entry.path, script);
 	}, []);
@@ -546,10 +546,7 @@ export function App() {
 		try {
 			setSource(null);
 			setMapDoc(null);
-			if (store.isOpen(path)) {
-				store.activate(path);
-				return;
-			}
+			if (store.showGraph(path)) return;
 			const { script } = await api.readScript(path);
 			store.open(path, script);
 		} catch (err) {
@@ -730,7 +727,21 @@ export function App() {
 					if (hoisted && path) store.openFunction(path, added.id);
 					store.select([added.id]);
 				});
-				let next = config ? setNodeConfig(added.script, added.id, config) : added.script;
+				/**
+				 * An operator pill starts bracketed when Settings says so.
+				 *
+				 * Written onto the node rather than read from preferences at
+				 * compile time, because the brackets are part of the file every
+				 * developer on the project reads. A preference that silently
+				 * reshaped everyone else's generated Luau would be the wrong kind
+				 * of personal setting.
+				 */
+				const withDefaults = def.display === "operator" && prefs.logicParens
+					? { parens: true, ...config }
+					: config;
+				let next = withDefaults
+					? setNodeConfig(added.script, added.id, withDefaults)
+					: added.script;
 				if (!from || hoisted) return next;
 
 				const placed = next.nodes.find((n) => n.id === added.id);
@@ -748,7 +759,7 @@ export function App() {
 			});
 			setMenu(null);
 		},
-		[menu, registry],
+		[menu, registry, prefs.logicParens],
 	);
 
 	const spawnComment = useCallback((world: { x: number; y: number }) => {
@@ -1361,6 +1372,7 @@ export function App() {
 							<VariablesPanel
 								locked={locked}
 								script={editor.script}
+								graph={editor.graph}
 								selection={editor.selection}
 								confirm={async (title, message, confirmLabel) =>
 									(await ask({ kind: "confirm", title, message, confirmLabel, danger: true })) === true
@@ -1424,6 +1436,7 @@ export function App() {
 								store.activate(key);
 							}}
 							onClose={(key) => store.closeDocument(key)}
+							onReorder={(key, before) => store.reorder(key, before)}
 						/>
 						<div className="centre-body">
 						{mapDoc ? (

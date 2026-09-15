@@ -7,16 +7,19 @@
  * because the pins are what they define.
  */
 
-import type { GraphNode, Literal, NodeDef, NodeScript } from "../core/schema.js";
+import type { Comment, GraphNode, Literal, NodeDef, NodeScript } from "../core/schema.js";
 import { nodeTitle, type Registry } from "../core/nodes/index.js";
 import type { Signature } from "../core/nodes/index.js";
 import { resolvePins } from "./geometry.js";
-import { nodeColor } from "./palette.js";
+import {
+	COMMENT_COLORS, COMMENT_DEFAULT_COLOR, commentColor, nodeColor, readHexColor,
+} from "./palette.js";
 import {
 	addVariable, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, disconnectInput, renameNode,
-	setConfig, setLiteral, syncFunctionRefs, syncFunctionReturns, syncParamRefs,
+	setConfig, setLiteral, syncFunctionRefs, syncFunctionReturns, syncParamRefs, updateComment,
 } from "./edits.js";
 import { FUNCTION_NODES, typeShapeOf } from "../core/nodes/flow.js";
+import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
 import { localNameOf } from "../core/nodes/variables.js";
 import { store } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
@@ -102,6 +105,8 @@ export interface InspectorProps {
 export function Inspector({ script, registry, selection, locked }: InspectorProps) {
 	if (selection.size !== 1) return null;
 	const id = [...selection][0];
+	const comment = script.comments.find((c) => c.id === id);
+	if (comment) return <CommentInspector comment={comment} locked={locked} />;
 	const node = script.nodes.find((n) => n.id === id);
 	if (!node) return null;
 	const def = registry.get(node.def);
@@ -165,6 +170,11 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 						hint="Whatever the signal passes to its listener."
 					/>
 				)}
+				{def.display === "operator" && <OperatorBrackets node={node} />}
+				{CAST_NODES.has(def.id) && <CastMode node={node} />}
+				{(def.id === "flow.forEach" || def.id === "flow.forIndex") && (
+					<LoopNames node={node} array={def.id === "flow.forIndex"} />
+				)}
 				{(def.id === "table.dictionary"
 					|| def.id === "table.getKey"
 					|| def.id === "table.setKey") && <KeyStyle node={node} />}
@@ -190,6 +200,76 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				{def.id === "local.declare" && <LocalType node={node} />}
 
 				<PinSummary def={def} node={node} />
+			</div>
+		</div>
+	);
+}
+
+/**
+ * A selected comment.
+ *
+ * The panel had nothing for one, which was fine while a comment was a box with
+ * text in it — the text is edited on the canvas, where it is read. A colour is
+ * different: it is a property of the comment with nowhere on the comment to put
+ * it, which is exactly what this panel is for.
+ *
+ * The heading is the comment's own colour rather than a category's, because a
+ * comment has no category and the swatch is the thing being edited.
+ */
+function CommentInspector({ comment, locked }: { comment: Comment; locked?: boolean }) {
+	const current = comment.color ?? COMMENT_DEFAULT_COLOR;
+	const set = (color: string | undefined) =>
+		store.edit((s) => updateComment(s, comment.id, { color }));
+
+	return (
+		<div className={`inspector${locked ? " editing-locked" : ""}`}>
+			<h2>Node</h2>
+			<div className="inspector-body">
+				<div className="node-heading" style={{ background: commentColor(comment.color) }}>
+					Comment
+				</div>
+				<p className="summary">
+					A note on the canvas. Double-click its header to write in it; drag it to take
+					what it encloses with it.
+				</p>
+
+				<Field
+					label="Colour"
+					hint="Two comments the same colour are saying they are about the same thing, which is why this is a short list rather than a picker."
+				>
+					<div className="swatches">
+						{COMMENT_COLORS.map((choice) => (
+							<button
+								key={choice.hex}
+								className={`swatch${choice.hex === current ? " on" : ""}`}
+								style={{ background: `#${choice.hex}` }}
+								title={choice.name}
+								aria-label={choice.name}
+								aria-pressed={choice.hex === current}
+								onClick={() =>
+									set(choice.hex === COMMENT_DEFAULT_COLOR ? undefined : choice.hex)
+								}
+							/>
+						))}
+					</div>
+				</Field>
+
+				<Field label="Or a hex" hint="Six digits, or three. The hash is optional.">
+					<input
+						className="tb"
+						defaultValue={current}
+						placeholder={COMMENT_DEFAULT_COLOR}
+						key={current}
+						onBlur={(e) => {
+							const hex = readHexColor(e.target.value);
+							// A value that is not a colour leaves the comment as it was,
+							// and the field goes back to saying what the colour is. A
+							// half-typed hex is not an error worth a message.
+							if (hex) set(hex === COMMENT_DEFAULT_COLOR ? undefined : hex);
+							else e.target.value = current;
+						}}
+					/>
+				</Field>
 			</div>
 		</div>
 	);
@@ -441,6 +521,101 @@ function TableLayout({ node }: { node: GraphNode }) {
 				<option value="lines">One per line</option>
 			</select>
 		</Field>
+	);
+}
+
+/**
+ * Whether an operator pill brackets what it works out.
+ *
+ * Off by default, because the emitter now brackets exactly what Luau's
+ * precedence requires and `(not humanoid) or (not root)` was never one of them.
+ * On is for the house style that wants every operand grouped out loud; it is
+ * never *needed*, which is why it is a preference and not a correctness switch.
+ *
+ * What a new pill starts as comes from Settings — see `logicParens`.
+ */
+function OperatorBrackets({ node }: { node: GraphNode }) {
+	const on = (node.config as { parens?: unknown } | undefined)?.parens === true;
+	return (
+		<Field
+			label="Brackets"
+			hint="Wraps this node's expression in ( ). Precedence is handled either way; this is about how the line reads."
+		>
+			<select
+				className="tb"
+				value={on ? "on" : "off"}
+				onChange={(e) =>
+					store.edit((s) => setConfig(s, node.id, { parens: e.target.value === "on" || undefined }))
+				}
+			>
+				<option value="off">Only where Luau needs them</option>
+				<option value="on">Always — (a and b)</option>
+			</select>
+		</Field>
+	);
+}
+
+/**
+ * How a Cast reaches its value: as a line of its own, or spliced where it is
+ * used. See `CAST_MODES`, which is where the three are described.
+ */
+function CastMode({ node }: { node: GraphNode }) {
+	const current = castModeOf(node.config);
+	const chosen = CAST_MODES.find((m) => m.mode === current);
+	return (
+		<Field label="Cast" hint={chosen?.what}>
+			<select
+				className="tb"
+				value={current}
+				onChange={(e) =>
+					store.edit((s) => setConfig(s, node.id, {
+						cast: e.target.value === "auto" ? undefined : e.target.value,
+					}))
+				}
+			>
+				{CAST_MODES.map((m) => (
+					<option key={m.mode} value={m.mode}>
+						{m.label}
+					</option>
+				))}
+			</select>
+		</Field>
+	);
+}
+
+/**
+ * What a loop calls the two values it hands the body.
+ *
+ * `key` and `value` are a placeholder rather than a name, and every line under
+ * the loop then talks about `value` — the one word in the block that says
+ * nothing about what is in it. Naming them is the first thing a hand-written
+ * loop does.
+ *
+ * Free text, coerced to an identifier by the emitter rather than validated
+ * here: a name is typed one letter at a time, and a field that goes red on the
+ * way to a good name is a field that is wrong more often than it is right.
+ */
+function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
+	const config = (node.config ?? {}) as { keyName?: string; valueName?: string };
+	return (
+		<>
+			<Field label={array ? "Index name" : "Key name"}>
+				<input
+					className="tb"
+					value={config.keyName ?? ""}
+					placeholder={array ? "i" : "key"}
+					onChange={(e) => store.edit((s) => setConfig(s, node.id, { keyName: e.target.value }))}
+				/>
+			</Field>
+			<Field label="Value name">
+				<input
+					className="tb"
+					value={config.valueName ?? ""}
+					placeholder="value"
+					onChange={(e) => store.edit((s) => setConfig(s, node.id, { valueName: e.target.value }))}
+				/>
+			</Field>
+		</>
 	);
 }
 

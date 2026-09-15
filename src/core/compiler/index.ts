@@ -22,10 +22,25 @@ export interface CompileResult {
 	ok: boolean;
 }
 
-export function compile(script: NodeScript, registry: Registry): CompileResult {
+/**
+ * What the project decides about the generated file, as opposed to what the
+ * graph decides.
+ *
+ * One field so far. It is a separate type from `EmitOptions` because those
+ * other two switches are the logic compiler talking to itself about templates,
+ * and nothing calling `compile` has any business setting them.
+ */
+export interface CompileOptions {
+	/** One level of indentation. See `indentUnit` in the schema. */
+	indent?: string;
+}
+
+export function compile(
+	script: NodeScript, registry: Registry, options: CompileOptions = {},
+): CompileResult {
 	const structural = validate(script, registry);
 	const sourceHash = hashString(semanticJson(script));
-	const emitted: EmitResult = emit(script, registry, sourceHash);
+	const emitted: EmitResult = emit(script, registry, sourceHash, { indent: options.indent });
 
 	const diagnostics = [...structural, ...emitted.diagnostics];
 	const ok = !diagnostics.some((d) => d.severity === "error");

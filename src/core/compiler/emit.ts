@@ -14,10 +14,12 @@
  */
 
 import {
-	indentBlock, isAtomic, literalToLuau, NameScope, paren, quoteString, toIdentifier,
+	foldPrecedence, indentBlock, isAtomic, literalToLuau, NameScope, paren, parenAt,
+	quoteString, templatePrecedence, toIdentifier,
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import { FUNCTION_NODES, typeShapeOf } from "../nodes/flow.js";
+import { CAST_NODES, castModeOf } from "../nodes/library.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { isModuleScript, PAIR } from "../schema.js";
 import type { Literal, NodeScript, PinDef } from "../schema.js";
@@ -54,10 +56,29 @@ interface OutLine {
 /** Lexical scope: which node outputs are bound to which locals, and where. */
 class Scope {
 	bindings = new Map<string, string>();
+	/**
+	 * Values Luau already knows more about here than their declared type says,
+	 * and the classes it knows them to be.
+	 *
+	 * Written by a Branch on Is A, and read by an implicit Cast. Keyed by where
+	 * the value came *from* — a node and a pin — rather than by the text it
+	 * compiles to, because the text can be a local in one place and an inlined
+	 * expression in another and it is the same value either way.
+	 *
+	 * Scoped exactly as bindings are, which is the whole point: a narrowing
+	 * holds inside the arm that tested for it and nowhere else. The False arm of
+	 * the same Branch gets a fresh scope and knows nothing.
+	 */
+	narrowings = new Map<string, Set<string>>();
 	constructor(readonly parent?: Scope, readonly loop = false) {}
 
 	lookup(key: string): string | undefined {
 		return this.bindings.get(key) ?? this.parent?.lookup(key);
+	}
+
+	/** The classes this value is known to be here, innermost test first. */
+	narrowedTo(key: string): Set<string> | undefined {
+		return this.narrowings.get(key) ?? this.parent?.narrowedTo(key);
 	}
 
 	inLoop(): boolean {
@@ -151,8 +172,10 @@ function isTypeExpression(t: string): boolean {
 	return checkLuauBalance(text).length === 0;
 }
 
-export function emit(script: NodeScript, registry: Registry, sourceHash: string): EmitResult {
-	return new Emitter(script, registry, sourceHash).run();
+export function emit(
+	script: NodeScript, registry: Registry, sourceHash: string, options: EmitOptions = {},
+): EmitResult {
+	return new Emitter(script, registry, sourceHash, options).run();
 }
 
 /**
@@ -171,6 +194,16 @@ export interface EmitOptions {
 	 * pure node's logic, which is one expression per output.
 	 */
 	expressionsOnly?: boolean;
+	/**
+	 * What one level of indentation is written as. A tab unless the project says
+	 * otherwise; see `indentUnit` in the schema.
+	 *
+	 * Only the *rendering* uses it. Depth is counted in levels everywhere else,
+	 * and a template that indents its own body writes tabs, which `push` reads
+	 * as levels rather than leaving in the line — so nothing in the emitter has
+	 * to know how wide a level happens to be.
+	 */
+	indent?: string;
 }
 
 /** What a node's logic compiles to, before the placeholders are put back. */
@@ -368,8 +401,9 @@ class Emitter {
 	}
 
 	private render(lines: OutLine[]): string {
+		const unit = this.options.indent ?? "\t";
 		const body = lines
-			.map((l) => (l.text === "" ? "" : "\t".repeat(l.indent) + l.text))
+			.map((l) => (l.text === "" ? "" : unit.repeat(l.indent) + l.text))
 			.join("\n");
 		return body.endsWith("\n") ? body : body + "\n";
 	}
@@ -409,7 +443,7 @@ class Emitter {
 		if (this.options.inline) return `game:GetService(${quoteString(root)})`;
 		const existing = this.services.get(root);
 		if (existing) return existing;
-		const ident = this.names.unique(root, "service");
+		const ident = this.names.uniqueForFile(root, "service");
 		this.services.set(root, ident);
 		return ident;
 	}
@@ -656,6 +690,10 @@ class Emitter {
 			const name = this.functionNames.get(fn.node.id)!;
 			const scope = new Scope(root);
 
+			// The parameters and everything the body declares belong to this
+			// function, and are released with it -- so the next function may call
+			// its own parameter `character` too. Closed by `pop` below.
+			this.names.push();
 			const params = (sig.params ?? []).map((p, i) => {
 				const ident = this.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
 				scope.bindings.set(`${fn.node.id}/p${i}`, ident);
@@ -675,6 +713,7 @@ class Emitter {
 			this.indent++;
 			this.walk(this.index.execTarget(fn.node.id, "then"), scope);
 			this.indent--;
+			this.names.pop();
 			this.push("end", fn.node.id);
 			this.blank();
 
@@ -883,6 +922,135 @@ class Emitter {
 		return this.index.execTarget(r.node.id, "then");
 	}
 
+	/**
+	 * A Branch, and the `elseif` chain it may continue into.
+	 *
+	 * ## Why `elseif` is worth machinery
+	 *
+	 * A Branch wired into another Branch's False pin is how every node editor
+	 * spells "otherwise, if". It used to come out as an `else` holding a nested
+	 * `if`, which is the same program and a worse file: each link in the chain
+	 * cost a level of indentation and an `end`, so five conditions ended in five
+	 * closing keywords and a body pushed a third of the way across the page.
+	 * That is the "extra indents" people report, and it is not a formatting bug
+	 * -- it is the block structure being written out longhand.
+	 *
+	 * ## When the chain has to break
+	 *
+	 * `elseif <cond> then` has nowhere to put a statement. An `else` does: its
+	 * block opens before the nested `if`. So the next condition is resolved with
+	 * everything it emits **captured** rather than written, and the chain
+	 * continues only when it emitted nothing. A condition that had to bind a
+	 * local first falls back to `else` and the nested `if`, with the captured
+	 * lines put back at the top of the block where they belong -- which is
+	 * exactly the code this used to write every time.
+	 *
+	 * The condition is resolved in the arm's own scope either way, because that
+	 * is where it is evaluated in both shapes.
+	 */
+	private emitBranch(r: ResolvedNode, scope: Scope, keyword: "if" | "elseif", condition?: string): void {
+		const id = r.node.id;
+		const cond = condition ?? this.resolveInput(r, this.pin(r, "condition", "in"), scope);
+		this.push(`${keyword} ${cond} then`, id);
+		this.indent++;
+		const trueArm = new Scope(scope);
+		// Whatever the condition proved holds here and only here.
+		for (const [key, classes] of this.narrowingsOf(r, "condition")) {
+			trueArm.narrowings.set(key, classes);
+		}
+		this.names.within(() => this.walk(this.index.execTarget(id, "true"), trueArm));
+		this.indent--;
+
+		const onFalse = this.index.execTarget(id, "false");
+		const chained = this.chainedBranch(onFalse);
+		if (chained) {
+			const arm = new Scope(scope);
+			// Resolved at the indentation the else block would be at, so lines
+			// that do get captured are already sitting at the right depth.
+			this.indent++;
+			this.names.push();
+			const captured = this.capture(() =>
+				this.resolveInput(chained, this.pin(chained, "condition", "in"), arm),
+			);
+			this.indent--;
+
+			this.execStack.add(chained.node.id);
+			if (captured.lines.length === 0) {
+				// Nothing was declared, so there is no block for it to belong to:
+				// the chain carries on at this level and one `end` closes it all.
+				this.names.pop();
+				this.emitBranch(chained, arm, "elseif", captured.value);
+			} else {
+				this.push("else", id);
+				this.indent++;
+				for (const line of captured.lines) this.out.push(line);
+				this.emitBranch(chained, arm, "if", captured.value);
+				this.indent--;
+				this.names.pop();
+				this.push("end", id);
+			}
+			this.execStack.delete(chained.node.id);
+			this.terminated = false;
+			return;
+		}
+
+		if (onFalse) {
+			const mark = this.out.length;
+			this.push("else", id);
+			this.indent++;
+			this.names.within(() => this.walk(onFalse, new Scope(scope)));
+			this.indent--;
+			// A false arm that produces no statements -- a lone Script End, or a
+			// chain of nodes that all compile to nothing -- would leave a bare
+			// `else` before the `end`. Valid Luau, but nobody writes it, and the
+			// generated file is meant to be read.
+			if (this.out.length === mark + 1) this.out.length = mark;
+		}
+		this.push("end", id);
+		this.terminated = false;
+	}
+
+	/**
+	 * The Branch an `else` arm consists of, when that is all it consists of.
+	 *
+	 * Reroutes are stepped through, because a knot is a bend in the wire and
+	 * emits nothing. A Branch already on the execution stack is refused: that is
+	 * a loop, and `walk` is the thing that reports it.
+	 */
+	private chainedBranch(target: string | undefined): ResolvedNode | undefined {
+		const seen = new Set<string>();
+		let current = target;
+		while (current !== undefined && !seen.has(current)) {
+			seen.add(current);
+			const r = this.index.get(current);
+			const spec = r?.def.compilesTo;
+			if (!r || spec?.kind !== "builtin") return undefined;
+			if (spec.handler === "flow.rerouteExec") {
+				current = this.index.execTarget(current, "then");
+				continue;
+			}
+			if (spec.handler !== "flow.branch") return undefined;
+			return this.execStack.has(r.node.id) ? undefined : r;
+		}
+		return undefined;
+	}
+
+	/**
+	 * Runs `fn` with whatever it emits collected instead of written.
+	 *
+	 * The lines come back at the indentation they were produced at, so a caller
+	 * that decides to keep them puts them back verbatim.
+	 */
+	private capture<T>(fn: () => T): { value: T; lines: OutLine[] } {
+		const outer = this.out;
+		this.out = [];
+		try {
+			return { value: fn(), lines: this.out };
+		} finally {
+			this.out = outer;
+		}
+	}
+
 	// -- builtin flow ------------------------------------------------------
 
 	private emitBuiltin(handler: string, r: ResolvedNode, scope: Scope): string | undefined {
@@ -1010,6 +1178,9 @@ class Emitter {
 				this.functionNames.set(id, ident);
 
 				const body = new Scope(scope);
+				// As for a hoisted function: the parameters and the body's locals
+				// are this function's, and go out of scope with its `end`.
+				this.names.push();
 				const params = (sig.params ?? []).map((p, i) => {
 					const arg = this.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
 					body.bindings.set(`${id}/p${i}`, arg);
@@ -1034,6 +1205,7 @@ class Emitter {
 				this.indent++;
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
+				this.names.pop();
 				this.push("end", id);
 				this.blank();
 				this.terminated = false;
@@ -1225,26 +1397,7 @@ class Emitter {
 				return undefined;
 
 			case "flow.branch": {
-				const cond = this.resolveInput(r, this.pin(r, "condition", "in"), scope);
-				const onTrue = this.index.execTarget(id, "true");
-				const onFalse = this.index.execTarget(id, "false");
-				this.push(`if ${cond} then`, id);
-				this.indent++;
-				this.walk(onTrue, new Scope(scope));
-				this.indent--;
-				if (onFalse) {
-					const mark = this.out.length;
-					this.push("else", id);
-					this.indent++;
-					this.walk(onFalse, new Scope(scope));
-					this.indent--;
-					// A false arm that produces no statements — a lone Script End,
-					// or a chain of nodes that all compile to nothing — would leave
-					// a bare `else` before the `end`. Valid Luau, but nobody writes
-					// it, and the generated file is meant to be read.
-					if (this.out.length === mark + 1) this.out.length = mark;
-				}
-				this.push("end", id);
+				this.emitBranch(r, scope, "if");
 				// The if-statement is closed, so the enclosing block continues
 				// regardless of what happened inside it.
 				this.terminated = false;
@@ -1283,6 +1436,9 @@ class Emitter {
 				const last = this.resolveInput(r, this.pin(r, "last", "in"), scope);
 				const step = this.resolveInput(r, this.pin(r, "step", "in"), scope);
 				const body = new Scope(scope, true);
+				// The loop variable belongs to the body, so the next loop in the
+				// same block may call its own counter `i` as well.
+				this.names.push();
 				const idx = this.names.unique(r.node.label || "i", "i");
 				body.bindings.set(`${id}/index`, idx);
 				const stepPart = step === "1" ? "" : `, ${step}`;
@@ -1290,6 +1446,7 @@ class Emitter {
 				this.indent++;
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
+				this.names.pop();
 				this.push("end", id);
 				this.terminated = false;
 				return this.index.execTarget(id, "completed");
@@ -1301,14 +1458,30 @@ class Emitter {
 				const source = this.resolveInput(r, this.pin(r, "table", "in"), scope);
 				const body = new Scope(scope, true);
 				const keyPin = isArray ? "index" : "key";
-				const k = this.names.unique(isArray ? "i" : "key", "key");
-				const v = this.names.unique("value", "value");
+				/**
+				 * What the two loop variables are called.
+				 *
+				 * `key` and `value` are a placeholder, not a name: a loop over
+				 * parts reads `for key, value in` and every line under it talks
+				 * about `value`, which is the one word in the block that says
+				 * nothing. Naming them is what a hand-written loop does first.
+				 *
+				 * Held to identifiers here rather than refused, because the field
+				 * is typed into and a half-typed name should not fail a compile.
+				 */
+				const names = (r.node.config ?? {}) as { keyName?: string; valueName?: string };
+				// Both belong to the body, for the same reason a numeric loop's
+				// counter does.
+				this.names.push();
+				const k = this.names.unique(names.keyName?.trim() || (isArray ? "i" : "key"), "key");
+				const v = this.names.unique(names.valueName?.trim() || "value", "value");
 				body.bindings.set(`${id}/${keyPin}`, k);
 				body.bindings.set(`${id}/value`, v);
 				this.push(`for ${k}, ${v} in ${isArray ? "ipairs" : "pairs"}(${source}) do`, id);
 				this.indent++;
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
+				this.names.pop();
 				this.push("end", id);
 				this.terminated = false;
 				return this.index.execTarget(id, "completed");
@@ -1329,7 +1502,7 @@ class Emitter {
 				const cond = this.resolveInput(r, condPin, scope);
 				this.push(`while ${cond} do`, id);
 				this.indent++;
-				this.walk(this.index.execTarget(id, "body"), new Scope(scope, true));
+				this.names.within(() => this.walk(this.index.execTarget(id, "body"), new Scope(scope, true)));
 				this.indent--;
 				this.push("end", id);
 				this.terminated = false;
@@ -1357,22 +1530,29 @@ class Emitter {
 				const signal = this.resolveInput(r, this.pin(r, "signal", "in"), scope);
 				const sig = (r.node.config ?? {}) as Signature;
 				const body = new Scope(scope);
+
+				// The connection is a local in the *enclosing* block, so it is
+				// named before the handler's own frame is opened.
+				let prefix = "";
+				if (this.index.consumerCount(id, "connection") > 0) {
+					const ident = this.names.unique(r.node.label || "connection", "connection");
+					scope.bindings.set(`${id}/connection`, ident);
+					prefix = `local ${ident} = `;
+				}
+
+				// The handler is a function literal, so its parameters and its
+				// locals are its own. Closed after the walk, below.
+				this.names.push();
 				const params = (sig.params ?? []).map((p, i) => {
 					const ident = this.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
 					body.bindings.set(`${id}/p${i}`, ident);
 					return this.annotates ? `${ident}: ${luauType(p.type)}` : ident;
 				});
-				const wantsConnection = this.index.consumerCount(id, "connection") > 0;
-				let prefix = "";
-				if (wantsConnection) {
-					const ident = this.names.unique(r.node.label || "connection", "connection");
-					scope.bindings.set(`${id}/connection`, ident);
-					prefix = `local ${ident} = `;
-				}
 				this.push(`${prefix}${signal}:${method}(function(${params.join(", ")})`, id);
 				this.indent++;
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
+				this.names.pop();
 				this.push("end)", id);
 				this.terminated = false;
 				return this.index.execTarget(id, "then");
@@ -1418,6 +1598,117 @@ class Emitter {
 	 * A knot is a bend in the wire and never changes what travels down it, so
 	 * asking "what is on the other end of this" has to walk past one.
 	 */
+	/**
+	 * Where a data input's value comes from, as a key two nodes can agree on.
+	 *
+	 * A wire is identified by the pin it leaves, so an Is A and a Cast reading
+	 * the same For Each loop variable produce the same key. An unwired pin
+	 * falls back to its own literal, so `Is A` on a typed-in path and a Cast on
+	 * the same typed-in path also agree.
+	 */
+	private valueKey(r: ResolvedNode, pinId: string): string | undefined {
+		const link = this.index.sourceOf(r.node.id, pinId);
+		if (link) return `${link.from.node}/${link.from.pin}`;
+		const text = this.literalText(r, pinId);
+		return text === "" ? undefined : `literal:${text}`;
+	}
+
+	/**
+	 * What a Branch's condition proves about the values it tests.
+	 *
+	 * Only Is A, and only the shapes whose meaning is unambiguous:
+	 *
+	 * - `x:IsA("BasePart")` — x is a BasePart.
+	 * - `a and b` — everything both operands prove, because both hold.
+	 * - `a or b` — only what *both* operands prove about the same value, as the
+	 *   union of their classes. This is the `Decal` or `Texture` case: either
+	 *   branch may be the one that fired, so the value is one of the two and
+	 *   nothing narrower. A value only one side mentions is not narrowed at all.
+	 *
+	 * Anything else contributes nothing, which is the safe direction: a missed
+	 * narrowing costs a redundant cast, and an invented one is a lie to the
+	 * typechecker.
+	 */
+	private narrowingsOf(r: ResolvedNode, pinId: string): Map<string, Set<string>> {
+		const feeder = this.feederOf(r.node.id, pinId);
+		if (!feeder) return new Map();
+		return this.narrowingsFrom(feeder);
+	}
+
+	/**
+	 * Whether a Cast is claiming exactly what the enclosing arm already proved.
+	 *
+	 * Exactly, not merely compatibly. A narrowing of `Decal | Texture` and a
+	 * Cast to `Decal` are different claims — the value might be the other one —
+	 * and Roswaal has no subtype table to judge `BasePart` against `Instance`
+	 * with. So the two sets of class names have to match, which is a rule that
+	 * can be stated in one sentence on the documentation page and never
+	 * surprises anybody by dropping a cast that was doing work.
+	 */
+	private alreadyNarrowed(src: ResolvedNode, scope: Scope): boolean {
+		const key = this.valueKey(src, "value");
+		if (!key) return false;
+		const known = scope.narrowedTo(key);
+		if (!known) return false;
+
+		const claimed = this.literalText(src, "type")
+			.split("|")
+			.map((part) => part.trim())
+			.filter((part) => part !== "");
+		if (claimed.length === 0) return false;
+		if (claimed.length !== known.size) return false;
+		return claimed.every((part) => known.has(part));
+	}
+
+	private narrowingsFrom(node: ResolvedNode, depth = 0): Map<string, Set<string>> {
+		const out = new Map<string, Set<string>>();
+		if (depth > 8) return out;
+
+		if (node.def.id === "instance.isA") {
+			const key = this.valueKey(node, "instance");
+			const className = this.literalText(node, "className");
+			if (key && /^[A-Za-z_][A-Za-z0-9_]*$/.test(className)) out.set(key, new Set([className]));
+			return out;
+		}
+
+		const operands = node.inputs
+			.filter((p) => VARIADIC_PIN.test(p.id))
+			.map((p) => this.feederOf(node.node.id, p.id))
+			.filter((f): f is ResolvedNode => f !== undefined);
+
+		if (node.def.id === "logic.and") {
+			for (const operand of operands) {
+				for (const [key, classes] of this.narrowingsFrom(operand, depth + 1)) {
+					const existing = out.get(key);
+					if (existing) for (const c of classes) existing.add(c);
+					else out.set(key, new Set(classes));
+				}
+			}
+			return out;
+		}
+
+		if (node.def.id === "logic.or") {
+			// Every operand has to say something about a value for the branch to
+			// know anything about it, so this starts from the first and keeps
+			// only what survives the rest.
+			if (operands.length === 0) return out;
+			let shared = this.narrowingsFrom(operands[0], depth + 1);
+			for (const operand of operands.slice(1)) {
+				const next = this.narrowingsFrom(operand, depth + 1);
+				const merged = new Map<string, Set<string>>();
+				for (const [key, classes] of shared) {
+					const other = next.get(key);
+					if (!other) continue;
+					merged.set(key, new Set([...classes, ...other]));
+				}
+				shared = merged;
+			}
+			return shared;
+		}
+
+		return out;
+	}
+
 	private feederOf(nodeId: string, pinId: string): ResolvedNode | undefined {
 		let at = { node: nodeId, pin: pinId };
 		for (let hops = 0; hops < 64; hops++) {
@@ -1593,7 +1884,7 @@ class Emitter {
 				if (this.options.inline) return `game:GetService(${quoteString(name)})`;
 				const existing = this.services.get(name);
 				if (existing) return existing;
-				const ident = this.names.unique(name, "service");
+				const ident = this.names.uniqueForFile(name, "service");
 				this.services.set(name, ident);
 				return ident;
 			}
@@ -1630,7 +1921,7 @@ class Emitter {
 				if (existing) return existing.ident;
 
 				const hint = this.literalText(src, "as") || lastSegment(path) || "module";
-				const ident = this.names.unique(hint, "module");
+				const ident = this.names.uniqueForFile(hint, "module");
 				this.requires.set(key, {
 					ident,
 					expression: renderPath(this.resolveRoot(root), path),
@@ -1876,6 +2167,14 @@ class Emitter {
 			return "nil";
 		}
 
+		const cast = CAST_NODES.has(src.def.id) ? castModeOf(src.node.config) : undefined;
+		// An implicit Cast standing inside the arm that already proved its
+		// claim has nothing left to say, so it says nothing and hands the value
+		// through. This is the line hand-written Luau does not write either.
+		if (cast === "implicit" && src.def.id === "cast.as" && this.alreadyNarrowed(src, scope)) {
+			return this.resolveInput(src, this.pin(src, "value", "in"), scope);
+		}
+
 		// Guard against a cycle among pure nodes, which would recurse forever.
 		if (this.execStack.has(`pure:${nodeId}`)) {
 			this.error(
@@ -1885,8 +2184,26 @@ class Emitter {
 			return "nil";
 		}
 		this.execStack.add(`pure:${nodeId}`);
-		const expr = this.renderTemplate(src, template, scope);
+		let expr = this.renderTemplate(src, template, scope);
 		this.execStack.delete(`pure:${nodeId}`);
+
+		/**
+		 * An operator pill asked to bracket what it works out.
+		 *
+		 * Only the pills, because only they are one operator wearing its symbol
+		 * on its face -- and only they have the readable-either-way property that
+		 * makes this a choice rather than a bug. Everywhere else the emitter
+		 * brackets exactly what Luau's precedence requires and no more, which is
+		 * what `parenAt` is for.
+		 *
+		 * Wrapping here rather than at the use site means the brackets travel
+		 * with the value: read twice, bound to a local, spliced into a template,
+		 * it is the same expression each time. And a wrapped expression is
+		 * already an atom, so nothing downstream adds a second pair.
+		 */
+		if (src.def.display === "operator" && (src.node.config as { parens?: unknown } | undefined)?.parens === true) {
+			expr = `(${expr})`;
+		}
 
 		/**
 		 * What to call the local, when there is one.
@@ -1908,7 +2225,10 @@ class Emitter {
 		// up is a field you have to experiment on to understand.
 		// A pure node's logic is one expression, with nowhere to put the local.
 		if (this.options.expressionsOnly) return expr;
-		if (!named && this.effectiveConsumers(nodeId, pinId) <= 1) return expr;
+		// A cast that has been told which it is overrides the ordinary rule.
+		// Implicit never takes a line; explicit always does, even for one reader.
+		if (cast === "implicit") return expr;
+		if (cast !== "explicit" && !named && this.effectiveConsumers(nodeId, pinId) <= 1) return expr;
 
 		const outPin = src.outputs.find((p) => p.id === pinId);
 		const hint = named || src.node.label || outPin?.name || src.def.title;
@@ -1928,7 +2248,10 @@ class Emitter {
 		template = template.replace(/\$args\(([^)]*)\)/g, (_match, separator: string) => {
 			const args = r.inputs.filter((p) => VARIADIC_PIN.test(p.id));
 			if (args.length === 0) return "";
-			return args.map((p) => paren(this.resolveInput(r, p, scope))).join(separator);
+			const needed = foldPrecedence(separator);
+			return args
+				.map((p, i) => parenAt(this.resolveInput(r, p, scope), i === 0 ? needed.first : needed.rest))
+				.join(separator);
 		});
 
 		// `$more(<sep>)` is `$args` with a leading separator when there is anything
@@ -1937,7 +2260,10 @@ class Emitter {
 		template = template.replace(/\$more\(([^)]*)\)/g, (_match, separator: string) => {
 			const args = r.inputs.filter((p) => VARIADIC_PIN.test(p.id));
 			if (args.length === 0) return "";
-			return separator + args.map((p) => paren(this.resolveInput(r, p, scope))).join(separator);
+			const needed = foldPrecedence(separator);
+			return separator + args
+				.map((p, i) => parenAt(this.resolveInput(r, p, scope), i === 0 ? needed.first : needed.rest))
+				.join(separator);
 		});
 
 		/**
@@ -2106,52 +2432,12 @@ class Emitter {
 
 			const expr = this.resolveInput(r, pin, scope);
 			// Only guard precedence where the template actually places the value
-			// next to an operator. Wrapping every argument would be correct but
-			// would make print((x)) of everything.
-			return needsParens(template, offset, offset + match.length) ? paren(expr) : expr;
+			// next to an operator, and only as far as that position needs.
+			// Wrapping every argument would be correct but would make print((x))
+			// of everything.
+			return parenAt(expr, templatePrecedence(template, offset, offset + match.length));
 		});
 	}
-}
-
-/**
- * Whether a value spliced at this position in a template needs parentheses.
- *
- * The test is purely lexical: what sits immediately either side of the
- * placeholder in the template. That is enough because templates are short and
- * hand-written, and erring towards a redundant pair of parentheses is cheap
- * while erring the other way silently reassociates the expression.
- */
-function needsParens(template: string, start: number, end: number): boolean {
-	const before = template.slice(0, start).trimEnd();
-	const after = template.slice(end).trimStart();
-	return forcedByFollowing(after) || forcedByPreceding(before);
-}
-
-const PREFIX_OPERATORS = "+-*/%^#<>.:";
-const SUFFIX_OPERATORS = "+-*/%^<>.:[(";
-const COMPARISONS = ["==", "~=", "<=", ">="];
-
-function forcedByPreceding(before: string): boolean {
-	if (before === "") return false;
-	const word = /[A-Za-z_][A-Za-z0-9_]*$/.exec(before)?.[0];
-	if (word) return word === "not" || word === "and" || word === "or";
-	if (COMPARISONS.some((op) => before.endsWith(op)) || before.endsWith("..")) return true;
-	const last = before[before.length - 1];
-	// A lone "=" is an assignment or a comparison's right-hand side; both are
-	// already at the lowest precedence, so nothing needs wrapping.
-	if (last === "=") return false;
-	return PREFIX_OPERATORS.includes(last);
-}
-
-function forcedByFollowing(after: string): boolean {
-	if (after === "") return false;
-	if (COMPARISONS.some((op) => after.startsWith(op))) return true;
-	// A lone "=" means this placeholder is the assignment target, and Luau will
-	// not accept a parenthesised one in every position.
-	if (after.startsWith("=")) return false;
-	const word = /^[A-Za-z_][A-Za-z0-9_]*/.exec(after)?.[0];
-	if (word) return word === "and" || word === "or";
-	return SUFFIX_OPERATORS.includes(after[0]);
 }
 
 /** True when the expression is also a valid Luau statement (a function call). */

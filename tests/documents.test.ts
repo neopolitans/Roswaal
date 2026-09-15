@@ -283,6 +283,47 @@ describe("function graphs", () => {
 		expect(store.isOpen(A)).toBe(false);
 	});
 
+	/**
+	 * Closing a file's own tab by mistake while one of its functions is open
+	 * used to make the file unreachable: it was still loaded, so opening it from
+	 * the tree took the "already open, just activate it" path, and there was no
+	 * tab of that key to activate. Double-clicking the graph did nothing at all
+	 * until the function's tab was closed.
+	 */
+	it("comes back when its own tab was closed and a function's was not", () => {
+		store.closeDocument(A);
+		expect(store.getTabs().map((t) => t.key)).toEqual([`${A}#fn`]);
+
+		expect(store.showGraph(A)).toBe(true);
+		// In front of its function's tab, where a file's own graph always sits.
+		expect(store.getTabs().map((t) => t.key)).toEqual([A, `${A}#fn`]);
+		expect(store.getSnapshot()).toMatchObject({ path: A, graph: null });
+	});
+
+	it("keeps the history and the edits the function's tab was holding", () => {
+		store.edit((s) => ({ ...s, name: "edited in the function" }));
+		store.closeDocument(A);
+		store.showGraph(A);
+
+		expect(store.getSnapshot().script?.name).toBe("edited in the function");
+		store.undo();
+		expect(store.getSnapshot().script?.name).toBe("A");
+	});
+
+	it("brings an open file's own tab to the front rather than adding a second", () => {
+		store.activate(`${A}#fn`);
+		expect(store.showGraph(A)).toBe(true);
+		expect(store.getTabs().map((t) => t.key)).toEqual([A, `${A}#fn`]);
+		expect(store.getSnapshot()).toMatchObject({ path: A, graph: null });
+	});
+
+	it("says no for a file that is not loaded, so the caller reads it", () => {
+		store.closeDocument(A);
+		store.closeDocument(`${A}#fn`);
+		expect(store.showGraph(A)).toBe(false);
+		expect(store.getTabs()).toEqual([]);
+	});
+
 	it("follows its file when the file is renamed", () => {
 		store.rename(A, B);
 		expect(store.getTabs().map((t) => t.key)).toEqual([B, `${B}#fn`]);

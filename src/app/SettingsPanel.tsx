@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { RoswaalConfig, Target } from "../core/schema.js";
+import { INDENT_WIDTHS, type RoswaalConfig, type Target } from "../core/schema.js";
 import {
 	CODE_ROLES, ROLES, themeSlug, type Theme,
 } from "../core/theme.js";
@@ -211,6 +211,42 @@ function ProjectSettings({ config, onConfig }: {
 				/>
 			</Row>
 
+			<Row
+				label="Indent with"
+				help="One level of indentation in the generated Luau. Handed to stylua as well when formatting is on, so this decides rather than stylua.toml."
+			>
+				<div className="segmented">
+					<button
+						className={config.indentStyle !== "space" ? "on" : ""}
+						onClick={() => onConfig({ indentStyle: "tab" })}
+					>
+						Tab
+					</button>
+					<button
+						className={config.indentStyle === "space" ? "on" : ""}
+						onClick={() => onConfig({ indentStyle: "space" })}
+					>
+						Spaces
+					</button>
+				</div>
+			</Row>
+
+			{config.indentStyle === "space" && (
+				<Row label="Spaces per level" help="How wide one level is.">
+					<select
+						className="tb"
+						value={String(config.indentWidth)}
+						onChange={(e) => onConfig({ indentWidth: Number(e.target.value) })}
+					>
+						{INDENT_WIDTHS.map((width) => (
+							<option key={width} value={width}>
+								{width}
+							</option>
+						))}
+					</select>
+				</Row>
+			)}
+
 			<h3>Node packs</h3>
 			<p className="settings-note">
 				Directories scanned for <code>.nodedef.json</code>. A pack's nodes join the
@@ -315,6 +351,26 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 						onClick={() => onPrefs({ wideNodes: true })}
 					>
 						Widen
+					</button>
+				</div>
+			</Row>
+
+			<Row
+				label="New logic nodes"
+				help="What a new And, Or, Not or comparison pill starts as. Stored on the node, so it travels with the graph; this only decides where a new one begins. Precedence is handled either way."
+			>
+				<div className="segmented">
+					<button
+						className={!prefs.logicParens ? "on" : ""}
+						onClick={() => onPrefs({ logicParens: false })}
+					>
+						Bare
+					</button>
+					<button
+						className={prefs.logicParens ? "on" : ""}
+						onClick={() => onPrefs({ logicParens: true })}
+					>
+						Bracketed
 					</button>
 				</div>
 			</Row>

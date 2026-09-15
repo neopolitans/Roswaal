@@ -54,6 +54,34 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.36.0",
+		date: "2026-09-15",
+		headline: "A name lasts as long as its block, and a chain of conditions is one chain.",
+		added: [
+			"**Key name and Value name** on For Each and For Each (Array), in the Inspector. Left blank they are `key` and `value`, as before.",
+			"**Cast, in the Inspector**: **Automatic** is the old rule, **Explicit** always writes `local part = value :: BasePart`, and **Implicit** never writes a line.",
+			"**An implicit Cast inside the True arm of a Branch on Is A writes nothing at all.** Luau has already narrowed the value there. Two classes tested with **Or** narrow to the union, so a cast to `Decal | Texture` disappears in that arm and a cast to either half stays.",
+			"**Brackets**, on And, Or, Not and the comparison pills: wrap the result in `( )`, or leave it to Luau's precedence.",
+			"**New logic nodes**, in Settings, chooses which of those a pill you drop starts as.",
+			"**Indent with**, in Settings: a tab, or 2, 3, 4 or 8 spaces. Written to `roswaal.json` as `indentStyle` and `indentWidth`, and handed to stylua as well.",
+			"**Get ‹parameter›** in the node search, one per parameter of every function and handler in the graph, with Get Parameter's From and Parameter already filled in.",
+			"**A comment's colour**, in the Inspector: eight swatches, or a hex typed in.",
+			"**Drag a tab to reorder the row**, and a list at the end of the row naming every open graph.",
+		],
+		changed: [
+			"**A Branch wired into a Branch's False pin compiles to `elseif`.** A chain of conditions is one `if` statement at one level of indentation, ending in one `end`, instead of a nested `if` per condition. A condition that has to work something out first still gets its own `else` block, because `elseif` has nowhere to put the line.",
+			"**Parentheses are written where Luau's precedence needs them and nowhere else.** `not humanoid or not root` rather than `(not humanoid) or (not root)`.",
+			"**A local's name is taken for as long as its block, not for the whole file.** Two functions can both call a parameter `character`, and two loops can both call their value `part`; a name an *enclosing* block holds is still avoided, so nothing shadows.",
+		],
+		fixed: [
+			"**A graph whose own tab was closed while one of its function tabs stayed open can be opened again.** It was still loaded, so opening it took the \"already open\" path and found no tab to go to; double-clicking it in the tree did nothing until the function's tab was closed. Its tab now comes back in front of its functions', keeping the history and any unsaved edits.",
+			"**The Variables panel lists the locals and types the graph on screen can actually reach.** A local declared inside `hide` was listed while `show` was open, and dragging it out gave a Get Local the compiler then refused. A file's own locals still show inside a Declare Function, which closes over them — but not inside a hoisted Function, which is written above them.",
+		],
+		watch: [
+			"**Recompiling a graph will reformat parts of the generated file.** The parentheses, the `elseif` chains and any name that had picked up a `2` all change at once. The programs are the same; the diffs are not small.",
+		],
+	},
+	{
 		version: "0.35.0",
 		date: "2026-09-14",
 		headline: "Pins sit on the edge they wire to.",

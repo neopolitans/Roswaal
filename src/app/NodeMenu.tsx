@@ -17,7 +17,7 @@ import { categories, subcategories } from "../core/nodes/index.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { landingPins, localRefFor } from "./edits.js";
 import { LAYER } from "./layers.js";
-import { nodeColor, pinColor } from "./palette.js";
+import { COMMENT_DEFAULT_COLOR, nodeColor, pinColor } from "./palette.js";
 
 export interface MenuAnchor {
 	/** Viewport position. The menu is `position: fixed`, so it must not be
@@ -257,7 +257,7 @@ export function NodeMenu(props: NodeMenuProps) {
 			<div className="items">
 				{query.trim() === "" && (
 					<div className="item" onClick={onAddComment}>
-						<span className="swatch" style={{ background: "#6a8fbf" }} />
+						<span className="swatch" style={{ background: `#${COMMENT_DEFAULT_COLOR}` }} />
 						<span>Comment</span>
 						<span className="hint">C</span>
 					</div>
@@ -369,5 +369,53 @@ export function buildPresets(script: {
 		});
 	}
 
+	/**
+	 * A parameter by its name, the same way a variable and a local are.
+	 *
+	 * Get Parameter was reachable only as a blank node you then pointed at a
+	 * function and a parameter in the Inspector -- two steps and a panel, for
+	 * something whose whole content is a name you already have in mind. Worse,
+	 * a graph full of them looked like a graph missing its parameter wires, and
+	 * the node that would have said otherwise was the one nobody found.
+	 *
+	 * Handlers are here as well as functions, because Connect binds its
+	 * listener's parameters exactly as a declaration does and Get Parameter has
+	 * always read either.
+	 *
+	 * Named for the owner as well when two of them share a parameter name,
+	 * which they usually do: `character` belongs to three functions in a module
+	 * of any size, and three identical entries is a list you cannot pick from.
+	 */
+	const owners = script.nodes.filter(
+		(node) => FUNCTION_NODES.has(node.def) || node.def === "event.connect" || node.def === "event.once",
+	);
+	const counts = new Map<string, number>();
+	for (const owner of owners) {
+		for (const param of paramsOf(owner)) {
+			counts.set(param.name, (counts.get(param.name) ?? 0) + 1);
+		}
+	}
+	for (const owner of owners) {
+		const ownerName = (owner.config as { name?: string } | undefined)?.name?.trim()
+			|| (FUNCTION_NODES.has(owner.def) ? "function" : "handler");
+		for (const param of paramsOf(owner)) {
+			if (param.name.trim() === "") continue;
+			const shared = (counts.get(param.name) ?? 0) > 1;
+			out.push({
+				key: `param:${owner.id}:${param.name}`,
+				title: shared ? `Get ${param.name} (${ownerName})` : `Get ${param.name}`,
+				category: "Flow",
+				summary: `Reads the ${param.type ?? "any"} parameter "${param.name}" of ${ownerName}.`,
+				defId: "function.getParam",
+				config: { function: owner.id, param: param.name, type: param.type },
+				color: pinColor(param.type ?? "any", "data"),
+			});
+		}
+	}
+
 	return out;
+}
+
+function paramsOf(node: Pick<GraphNode, "config">): { name: string; type?: string }[] {
+	return (node.config as { params?: { name: string; type?: string }[] } | undefined)?.params ?? [];
 }

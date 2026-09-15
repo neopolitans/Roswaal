@@ -1926,6 +1926,16 @@ function settingsPage(): DocPage {
 						"Run stylua over generated files when it is on PATH. When it is not, the file is written unformatted rather than not written.",
 					],
 					[
+						"`indentStyle`",
+						`\`${defaults.indentStyle}\``,
+						"What one level of indentation is in the generated Luau: `tab`, or `space`. Handed to stylua as well when `format` is on, so this decides rather than whatever `stylua.toml` says.",
+					],
+					[
+						"`indentWidth`",
+						`\`${defaults.indentWidth}\``,
+						"How many spaces one level is, when `indentStyle` is `space`. Ignored otherwise, except that stylua is told it so a tab still counts the right amount against its column limit.",
+					],
+					[
 						"`rojoProject`",
 						`\`${defaults.rojoProject ?? ""}\``,
 						"Left for Rojo. Where a file lands in the DataModel comes from your node maps, and nothing is written to this file.",
@@ -1965,6 +1975,10 @@ function settingsPage(): DocPage {
 					[
 						"Long names",
 						"**Truncate** cuts a header too long for its node short, with the whole of it in the tooltip — what nodes have always done. **Widen** draws the node wide enough for its header instead. It is the one of these looks that moves *pins*, so the wire router and the pictures on these pages are computed from the same width: a node and its own picture are never two different sizes.",
+					],
+					[
+						"New logic nodes",
+						"Whether a new **And**, **Or**, **Not** or comparison pill starts out bracketing its expression. Only the starting point: whether a node brackets is stored **on the node**, so it travels with the graph and reads the same on everybody's machine. Precedence is handled either way — this is about how the line reads, never about what it means.",
 					],
 					[
 						"Name in the graph tools",
@@ -2483,6 +2497,90 @@ function castingBlocks(registry: Registry): Block[] {
 			"Is A asks the question a cast assumes the answer to. Branch on it, and cast inside " +
 			"the arm where it is true.",
 		),
+
+		{ t: "h", level: 2, text: "Where the cast is written" },
+		{
+			t: "p",
+			text:
+				"A cast is the one value node whose *line* can be the point. **Cast** in the " +
+				"Inspector chooses which of three:",
+		},
+		{
+			t: "table",
+			head: ["Cast", "Writes", "For"],
+			rows: [
+				[
+					"**Automatic**",
+					"A line once two things read it",
+					"The default, and the rule every pure node follows. One reader gets it spliced; two get `local part = value :: BasePart` and then read `part`.",
+				],
+				[
+					"**Explicit**",
+					"Always a line",
+					"Several statements below read it and you would rather see the claim written once, above them, than repeated at each use.",
+				],
+				[
+					"**Implicit**",
+					"Never a line",
+					"The assertion is spliced where it is used — and dropped entirely where Luau has already narrowed the value itself.",
+				],
+			],
+		},
+		{
+			t: "h",
+			level: 3,
+			text: "An implicit cast inside an Is A branch disappears",
+		},
+		{
+			t: "p",
+			text:
+				"Luau narrows a value for the length of the arm that tested it. Inside " +
+				"`if part:IsA(\"BasePart\") then`, `part` **is** a BasePart as far as the " +
+				"typechecker is concerned, and a cast there tells it nothing it does not know. An " +
+				"implicit Cast in that arm therefore writes nothing at all and hands the value " +
+				"through, which is what the hand-written Luau does too.",
+		},
+		{
+			t: "code",
+			lang: "luau",
+			text: [
+				"for _, part in character:GetDescendants() do",
+				'\tif part:IsA("BasePart") then',
+				"\t\t-- an implicit Cast to BasePart here writes nothing",
+				"\t\tpart.Transparency = 1",
+				'\telseif part:IsA("Decal") or part:IsA("Texture") then',
+				"\t\t-- and here, a cast to `Decal | Texture` writes nothing either",
+				"\t\tpart.Transparency = 1",
+				"\tend",
+				"end",
+			].join("\n"),
+		},
+		{
+			t: "p",
+			text:
+				"Two classes tested with **Or** narrow the value to *either* of them, so the claim " +
+				"that matches is the union — `Decal | Texture` — and that is the one that " +
+				"disappears. A cast to only one half stays, because the Or did not prove it. **And** " +
+				"narrows everything both sides tested, since both hold.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"The match has to be **exact**: the classes the branch proved and the classes the " +
+				"cast claims are the same set, or the cast is written. Roswaal has no table of " +
+				"which Roblox class derives from which, so it will not quietly drop a cast to " +
+				"`BasePart` because the branch proved `Part` — nor, more importantly, the other " +
+				"way round.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"The narrowing belongs to the **True arm**, and to nothing else. The False arm of " +
+				"the same Branch proved nothing, a later statement after the `end` proved nothing, " +
+				"and an implicit cast in either of those places is written out in full.",
+		},
 
 		{ t: "h", level: 2, text: "Declaring a type" },
 		{

@@ -148,3 +148,60 @@ export function pinColor(type: string | undefined, kind: "exec" | "data"): strin
 	if (kind === "exec") return TYPE_COLORS.exec;
 	return TYPE_COLORS[type ?? "any"] ?? TYPE_COLORS.any;
 }
+
+// ---------------------------------------------------------------------------
+// Comments
+// ---------------------------------------------------------------------------
+
+/**
+ * A comment's colour when it has not been given one.
+ *
+ * Here rather than in the canvas because three things need to agree about it
+ * now: the canvas draws it, the Inspector shows which swatch is current, and
+ * the documentation's pictures draw comments too.
+ */
+export const COMMENT_DEFAULT_COLOR = "6a8fbf";
+
+/**
+ * The colours a comment can be given, as hex without the hash.
+ *
+ * A short list rather than a colour picker, and that is the feature rather than
+ * a shortcut. A comment's colour is a *grouping*: two comments the same colour
+ * are saying they are about the same thing, and that only works while the
+ * colours are few enough to tell apart and repeat exactly. A free picker gives
+ * you nine blues nobody can match a fortnight later.
+ *
+ * Each is muted to roughly the same weight, because the canvas already has
+ * saturated node headers on it and a comment is a background the graph sits on.
+ * They are also deliberately not the node category colours: a comment is not a
+ * kind of node, and a red one should not read as "flow".
+ */
+export const COMMENT_COLORS: { hex: string; name: string }[] = [
+	{ hex: COMMENT_DEFAULT_COLOR, name: "Blue" },
+	{ hex: "5f9e8a", name: "Green" },
+	{ hex: "b08a4a", name: "Amber" },
+	{ hex: "b06a6a", name: "Red" },
+	{ hex: "9a76b8", name: "Violet" },
+	{ hex: "4f9ab0", name: "Teal" },
+	{ hex: "b0789c", name: "Pink" },
+	{ hex: "7c848f", name: "Grey" },
+];
+
+/** A comment's colour as a CSS value, defaulting when it has none. */
+export function commentColor(hex: string | undefined): string {
+	return `#${hex ?? COMMENT_DEFAULT_COLOR}`;
+}
+
+/**
+ * A hex colour typed in by hand, or nothing.
+ *
+ * Accepts the shorthand and the leading hash, because those are what somebody
+ * pastes; stores the long form without one, which is what the schema says a
+ * comment's colour is.
+ */
+export function readHexColor(text: string): string | undefined {
+	const hex = text.trim().replace(/^#/, "").toLowerCase();
+	if (/^[0-9a-f]{6}$/.test(hex)) return hex;
+	if (/^[0-9a-f]{3}$/.test(hex)) return hex.split("").map((c) => c + c).join("");
+	return undefined;
+}

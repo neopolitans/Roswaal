@@ -104,6 +104,20 @@ export interface Preferences {
 	 */
 	wideNodes: boolean;
 	/**
+	 * Whether a new operator pill starts out bracketing its expression.
+	 *
+	 * A *default for new nodes*, not a switch over the graph. Whether a node
+	 * brackets what it works out is stored on the node, so it travels with the
+	 * graph and reads the same on everybody's machine -- this only decides what
+	 * a node you drop today starts as, which is a question about your hands
+	 * rather than about the file.
+	 *
+	 * Off, because the emitter brackets exactly what Luau's precedence requires
+	 * and nothing more, and `not humanoid or not root` is the line the module
+	 * this was found in actually contains.
+	 */
+	logicParens: boolean;
+	/**
 	 * What a function's tab says. In full it is `ƒ hide (Occupancy)`; shortened,
 	 * one of the two names. The tooltip keeps both either way.
 	 */
@@ -185,6 +199,7 @@ export const DEFAULTS: Preferences = {
 	// Truncating is what nodes already did, so the default changes nothing for
 	// anybody who does not go looking for it.
 	wideNodes: false,
+	logicParens: false,
 	functionTabs: "full",
 	toolbarName: false,
 	docsFont: "system",
@@ -236,6 +251,8 @@ export function readPreferences(): Preferences {
 			typeof stored.roundedNodes === "boolean" ? stored.roundedNodes : DEFAULTS.roundedNodes,
 		wideNodes:
 			typeof stored.wideNodes === "boolean" ? stored.wideNodes : DEFAULTS.wideNodes,
+		logicParens:
+			typeof stored.logicParens === "boolean" ? stored.logicParens : DEFAULTS.logicParens,
 		functionTabs: FUNCTION_TAB_CHOICES.some((c) => c.value === stored.functionTabs)
 			? (stored.functionTabs as FunctionTabs)
 			: DEFAULTS.functionTabs,

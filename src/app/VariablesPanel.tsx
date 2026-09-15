@@ -10,6 +10,7 @@
 import { useState, type DragEvent } from "react";
 
 import type { GraphNode, Literal, NodeScript, ScriptVariable } from "../core/schema.js";
+import type { GraphId } from "../core/functionGraph.js";
 import {
 	addVariable, defaultLiteralFor, deleteVariable, localRefFor, updateVariable, variableUsageCount,
 } from "./edits.js";
@@ -27,21 +28,56 @@ export interface VariablesPanelProps {
 	 */
 	locked?: boolean;
 	script: NodeScript;
+	/** The graph on screen: a function's id, or null for the script's own. */
+	graph: GraphId;
 	selection: ReadonlySet<string>;
 	/** Asks for confirmation; resolves true when the developer agrees. */
 	confirm: (title: string, message: string, confirmLabel: string) => Promise<boolean>;
 }
 
-export function VariablesPanel({ script, confirm, locked }: VariablesPanelProps) {
+/**
+ * Whether a declaration made in `node.graph` can be seen from the graph on
+ * screen.
+ *
+ * A local declared inside `hide` used to be listed while `show` was open, which
+ * is not a cosmetic slip: the panel is where you go to ask what you can reach,
+ * and dragging one of those out gives you a Get Local the compiler then refuses.
+ * A local is exactly as visible as the block that declared it, and a function's
+ * graph **is** a block.
+ *
+ * The file's own declarations are the exception, because a function declared in
+ * the flow closes over everything above it — which is what `restores` is in the
+ * module this was reported from. A **hoisted** Function is different: it is
+ * written at the top of the file, above every local the main flow declares, so
+ * it can see none of them. That distinction is exact and free, so it is made.
+ */
+export function visibleFrom(
+	node: Pick<GraphNode, "graph">, graph: GraphId, hoisted: ReadonlySet<string>,
+): boolean {
+	if (node.graph !== undefined) return node.graph === graph;
+	return graph === null || !hoisted.has(graph);
+}
+
+export function VariablesPanel({ script, graph, confirm, locked }: VariablesPanelProps) {
 	const [open, setOpen] = useState<string | null>(null);
-	const locals = script.nodes.filter((n) => n.def === "local.declare");
 	// Both kinds, because a graph's functions are its functions: which one is
 	// hoisted is a property of each, shown on the row rather than sorted on.
+	// The list is not scoped: it is how you move between a file's functions, and
+	// a function you cannot see from here is still one you may want to open.
 	const functions = script.nodes.filter((n) => FUNCTION_NODES.has(n.def));
+	const hoisted = new Set(
+		script.nodes.filter((n) => n.def === "function.entry").map((n) => n.id),
+	);
+	const locals = script.nodes.filter(
+		(n) => n.def === "local.declare" && visibleFrom(n, graph, hoisted),
+	);
 	const declaredTypes = script.nodes.filter(
 		(n) =>
 			(n.def === "type.declareTop" || n.def === "type.declareHere") &&
-			((n.config as { name?: string } | undefined)?.name ?? "").trim() !== "",
+			((n.config as { name?: string } | undefined)?.name ?? "").trim() !== "" &&
+			// A type declared inside a function is scoped to it exactly as a
+			// local is; a hoisted one is written above everything and always is.
+			(n.def === "type.declareTop" || visibleFrom(n, graph, hoisted)),
 	);
 	const required = requiredTypes(script, useProjectTypes());
 

@@ -434,8 +434,40 @@ export interface RoswaalConfig {
 	nodePaths: string[];
 	/** Run stylua over generated files when it is available on PATH. */
 	format: boolean;
+	/**
+	 * What one level of indentation is in generated Luau.
+	 *
+	 * In `roswaal.json` rather than in a developer's own preferences, because
+	 * the generated files are committed: two people compiling the same graph
+	 * with different answers would hand each other a whole-file diff.
+	 *
+	 * Passed to stylua as well when formatting is on, so the setting decides
+	 * rather than losing to whatever `stylua.toml` happens to say.
+	 */
+	indentStyle: IndentStyle;
+	/** How many spaces one level is, when `indentStyle` is `"space"`. */
+	indentWidth: number;
 	/** Rojo project file, used to resolve the tree view. */
 	rojoProject?: string;
+}
+
+export type IndentStyle = "tab" | "space";
+
+/** The widths offered for space indentation. Free of a text field on purpose. */
+export const INDENT_WIDTHS: readonly number[] = [2, 3, 4, 8];
+
+/**
+ * One level of indentation, as the text the emitter repeats.
+ *
+ * Tolerant of a config written by hand: an unknown style is a tab, and a width
+ * outside the offered range is clamped rather than refused, because a file
+ * somebody typed into should not stop a graph compiling.
+ */
+export function indentUnit(config: Pick<RoswaalConfig, "indentStyle" | "indentWidth">): string {
+	if (config.indentStyle !== "space") return "\t";
+	const width = Math.round(Number(config.indentWidth));
+	if (!Number.isFinite(width)) return "    ";
+	return " ".repeat(Math.min(8, Math.max(1, width)));
 }
 
 export function defaultConfig(): RoswaalConfig {
@@ -447,6 +479,8 @@ export function defaultConfig(): RoswaalConfig {
 		compileMode: "manual",
 		nodePaths: [".roswaal/nodes"],
 		format: true,
+		indentStyle: "tab",
+		indentWidth: 4,
 		rojoProject: "default.project.json",
 	};
 }

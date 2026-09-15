@@ -22,7 +22,7 @@ import {
 } from "../core/nodemap.js";
 import { createRegistry, parseNodePack, type Registry } from "../core/nodes/index.js";
 import {
-	defaultConfig, isModuleScript, SCHEMA_VERSION,
+	defaultConfig, indentUnit, isModuleScript, SCHEMA_VERSION,
 	type NodeDef, type NodeScript, type RoswaalConfig, type Target,
 } from "../core/schema.js";
 import {
@@ -1164,11 +1164,13 @@ export async function compileScript(
 	} = {},
 ): Promise<CompileOutcome> {
 	const script = await readScript(project, relPath);
-	const result = compile(script, project.registry);
+	const result = compile(script, project.registry, { indent: indentUnit(project.config) });
 
 	// Formatting happens before the output hash is stamped, so the hash always
 	// describes the bytes that actually land on disk.
-	const formatted = project.config.format ? formatLuau(project.root, result.code) : result.code;
+	const formatted = project.config.format
+		? formatLuau(project.root, result.code, project.config)
+		: result.code;
 	const code = stampOutputHash(formatted);
 
 	const outputPath = path.posix.join(
@@ -1416,8 +1418,26 @@ let styluaCommand: string | null | undefined;
  * restarted. Now only a command that will not start counts as absent; one that
  * ran and refused leaves that file as emitted and formats the next.
  */
-export function formatLuau(cwd: string, code: string): string {
+export function formatLuau(
+	cwd: string, code: string, config?: Pick<RoswaalConfig, "indentStyle" | "indentWidth">,
+): string {
 	if (styluaCommand === null) return code;
+
+	/**
+	 * The indentation setting, handed to stylua as arguments.
+	 *
+	 * Without them a project's `stylua.toml` decides, and the setting in
+	 * `roswaal.json` would appear to do nothing for everyone who has both --
+	 * which is the whole of its audience, since the setting exists for people
+	 * who care what their generated files look like.
+	 */
+	const spaces = config?.indentStyle === "space";
+	const indent = config
+		? ["--indent-type", spaces ? "Spaces" : "Tabs",
+			// A tab has no width, but stylua still counts one against its column
+			// limit, so the number is told either way.
+			"--indent-width", String(spaces ? indentUnit(config).length : config.indentWidth || 4)]
+		: [];
 
 	// Each candidate is tried without a shell. Going through one would resolve
 	// the .cmd shim for us, but it also means the arguments are concatenated
@@ -1427,7 +1447,7 @@ export function formatLuau(cwd: string, code: string): string {
 		: process.platform === "win32" ? ["stylua.exe", "stylua.cmd", "stylua.bat"] : ["stylua"];
 
 	for (const command of candidates) {
-		const run = spawnSync(command, ["-"], { cwd, input: code, encoding: "utf8" });
+		const run = spawnSync(command, [...indent, "-"], { cwd, input: code, encoding: "utf8" });
 		if (run.error) continue;
 		styluaCommand = command;
 		if (run.status === 0 && typeof run.stdout === "string" && run.stdout !== "") return run.stdout;
