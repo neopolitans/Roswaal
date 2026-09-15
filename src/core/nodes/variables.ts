@@ -24,6 +24,25 @@ export interface LocalRef {
 }
 
 /**
+ * Whether a Declare Local binds with `const` rather than `local`.
+ *
+ * Luau's `const` is the same binding with one guarantee added: the name cannot
+ * be reassigned after it is initialised. It is the binding that is fixed and
+ * not the value — `const t = {}` still lets you write to `t.count`, and
+ * `table.freeze` is the tool for the other half.
+ *
+ * Off by default, and it stays a choice per node rather than a project setting:
+ * a local you never reassign is not automatically one you want the language to
+ * hold you to, and saying so is the point of saying it.
+ *
+ * `const` is newer than most of the runtimes people are on. A graph that uses it
+ * needs a Luau that has it — see the note on the Variables and locals page.
+ */
+export function isConstLocal(config: NodeConfig | undefined): boolean {
+	return (config as { const?: unknown } | undefined)?.const === true;
+}
+
+/**
  * What a Declare Local calls its local: the name typed into it, else its
  * label, else the emitter's own fallback. The same order the emitter uses.
  */

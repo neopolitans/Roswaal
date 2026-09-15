@@ -1496,6 +1496,31 @@ const VARIABLES: DocPage = {
 				"emitted as code that will not compile. The local genuinely is not in scope there, " +
 				"and finding that out from Roswaal beats finding it out from Studio.",
 		},
+		{
+			t: "p",
+			text:
+				"**Binding**, in the Inspector, makes it a `const` instead. A constant is the same " +
+				"binding with one guarantee — the name cannot be reassigned after it is set — and " +
+				"Roswaal refuses a **Set Local** wired to one rather than leaving it to the " +
+				"runtime, naming the local that made the promise.",
+		},
+		{
+			t: "code",
+			lang: "luau",
+			text:
+				"const tuning = Config.Tuning\n"
+				+ "tuning.turnRate = 60 -- fine: the table is not frozen\n"
+				+ "tuning = {}          -- error: the name is",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"It is the **binding** that is fixed, not the value — `table.freeze` is the tool " +
+				"for the other half, and the two work together. `const` is a recent addition to " +
+				"Luau, so a graph that uses it needs a runtime that has it; an older one will " +
+				"refuse the file at parse time.",
+		},
 
 		{ t: "h", level: 2, text: "Parameters" },
 		{

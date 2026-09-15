@@ -22,7 +22,7 @@ import {
 } from "./edits.js";
 import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../core/nodes/flow.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
-import { localNameOf } from "../core/nodes/variables.js";
+import { isConstLocal, localNameOf } from "../core/nodes/variables.js";
 import { store } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
 import { ValuePicker } from "./ValuePicker.jsx";
@@ -210,6 +210,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				{def.id === "function.get" && <FunctionPicker script={script} node={node} />}
 				{def.id === "function.getParam" && <ParamPicker script={script} node={node} />}
 				{def.id === "local.get" && <LocalPicker script={script} node={node} />}
+				{def.id === "local.declare" && <LocalBinding node={node} />}
 				{def.id === "local.declare" && <LocalType node={node} />}
 
 				<PinSummary def={def} node={node} />
@@ -592,6 +593,43 @@ function CastMode({ node }: { node: GraphNode }) {
 					</option>
 				))}
 			</select>
+		</Field>
+	);
+}
+
+/**
+ * `local` or `const`.
+ *
+ * Luau's `const` is the same binding with one guarantee: the name cannot be
+ * reassigned after it is initialised. The value can still change from the
+ * inside — `const t = {}` and then `t.count = 1` is fine — so this is a promise
+ * about the *name*, which is what makes it worth saying out loud on the node
+ * that makes it.
+ *
+ * Roswaal refuses a Set Local wired to one rather than letting the runtime do
+ * it, because the graph knows which node made the promise.
+ */
+function LocalBinding({ node }: { node: GraphNode }) {
+	const constant = isConstLocal(node.config);
+	return (
+		<Field
+			label="Binding"
+			hint="const cannot be reassigned. Luau added it in 2026, so a graph using it needs a runtime that has it."
+		>
+			<div className="segmented">
+				<button
+					className={!constant ? "on" : ""}
+					onClick={() => store.edit((s) => setConfig(s, node.id, { const: undefined }))}
+				>
+					local
+				</button>
+				<button
+					className={constant ? "on" : ""}
+					onClick={() => store.edit((s) => setConfig(s, node.id, { const: true }))}
+				>
+					const
+				</button>
+			</div>
 		</Field>
 	);
 }

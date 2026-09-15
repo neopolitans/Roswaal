@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.49.0",
+		date: "2026-09-15",
+		headline: "A local can be a constant.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Declare Local can bind with `const`** — *Binding*, in the Inspector. Luau's constant is the same binding with one guarantee: the name cannot be reassigned after it is set. It is the binding that is fixed and not the value, so a const table is still a table you can write into.",
+			"**A Set Local wired to a constant is refused before the file is written**, naming the local that made the promise. The runtime would catch it; the graph knows which node to point at.",
+		],
+		watch: [
+			"`const` is a recent addition to Luau. A graph that uses it needs a runtime that has it — an older one refuses the file at parse time — so it is a choice per local rather than something Roswaal writes for you.",
+		],
+	},
+	{
 		version: "0.48.0",
 		date: "2026-09-15",
 		headline: "One picker for every type.",

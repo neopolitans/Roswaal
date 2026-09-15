@@ -26,6 +26,7 @@ import { commentLines, headersByNode } from "../comments.js";
 import type { Comment, Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
 import type { FunctionRef, LocalRef, ParamRef, VariableRef } from "../nodes/variables.js";
+import { isConstLocal } from "../nodes/variables.js";
 import {
 	isInstanceClass as isRobloxClass, isService as isRobloxService, isSubclassOf, lastSegment,
 	renderPath,
@@ -1488,7 +1489,11 @@ class Emitter {
 						annotation = `: ${written}`;
 					}
 				}
-				this.push(`local ${ident}${annotation} = ${value}`, id);
+				// `const` is Luau's, from 2026: the same binding, and reassigning it
+				// is an error the language raises rather than one Roswaal has to.
+				// Only the keyword changes; everything downstream reads a local.
+				const keyword = isConstLocal(r.node.config) ? "const" : "local";
+				this.push(`${keyword} ${ident}${annotation} = ${value}`, id);
 				scope.bindings.set(`${id}/ref`, ident);
 				return this.index.execTarget(id, "then");
 			}

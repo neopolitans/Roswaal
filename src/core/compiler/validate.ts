@@ -13,6 +13,7 @@ import { crossingLinks, graphExists } from "../functionGraph.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { isSubclassOf } from "../roblox.js";
+import { isConstLocal, localNameOf } from "../nodes/variables.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
 
@@ -121,6 +122,30 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				node: node.id,
 			});
 		}
+	}
+
+	// -- constants ---------------------------------------------------------
+	//
+	// `const x = 1; x = 2` is an error Luau raises, and one Roswaal can see
+	// before the file is written: the wire from a Declare Local marked const
+	// into a Set Local is the whole of it. Said here rather than left to the
+	// runtime, because the graph knows which node made the promise and the
+	// runtime only knows the line that broke it.
+	for (const node of script.nodes) {
+		if (node.def !== "local.set") continue;
+		const link = script.links.find(
+			(l) => l.to.node === node.id && l.to.pin === "variable",
+		);
+		const source = link && script.nodes.find((n) => n.id === link.from.node);
+		if (!source || source.def !== "local.declare" || !isConstLocal(source.config)) continue;
+		out.push({
+			severity: "error",
+			message:
+				`"${localNameOf(source)}" is a constant, so it cannot be assigned again. Make the ` +
+				"Declare Local an ordinary local, or bind the new value to one of its own.",
+			node: node.id,
+			pin: "variable",
+		});
 	}
 
 	// -- nodes -------------------------------------------------------------
