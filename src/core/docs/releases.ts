@@ -54,6 +54,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.36.1",
+		date: "2026-09-15",
+		headline: "The node search asks the same scope question the panel does.",
+		fixed: [
+			"**The node search offers only the locals the graph on screen can reach.** Searching `restore` in `show`'s graph offered `Get restore` for a local that `hide` declares, and picking it gave a Get Local the compiler then refused. The Variables panel was scoped in 0.36.0; the search was not, and both now read one rule.",
+			"**A parameter is offered only inside the body it belongs to.** A function's in its own graph, a Connect or Once handler's where its node is drawn.",
+		],
+		watch: [
+			"**Script variables and functions are still listed everywhere.** A variable is readable from anywhere by construction, and the list of a file's functions is how you move between them — neither is scoped, and neither is an oversight.",
+		],
+	},
+	{
 		version: "0.36.0",
 		date: "2026-09-15",
 		headline: "A name lasts as long as its block, and a chain of conditions is one chain.",

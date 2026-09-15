@@ -48,6 +48,61 @@ export function graphOf(item: { graph?: string }): GraphId {
 	return item.graph ?? null;
 }
 
+/**
+ * The functions written at the top of the file, above the main flow.
+ *
+ * `emitFunctions` runs before `emitMainFlow`, so a hoisted Function is written
+ * above every local the main flow declares and closes over none of them. A
+ * Declare Function sits in the flow and closes over everything above it.
+ */
+export function hoistedFunctions(
+	script: { nodes: readonly Pick<GraphNode, "id" | "def">[] },
+): Set<string> {
+	return new Set(script.nodes.filter((n) => n.def === "function.entry").map((n) => n.id));
+}
+
+/**
+ * Whether a declaration drawn in `node.graph` can be seen from the graph on
+ * screen.
+ *
+ * ## Why this is shared rather than written where it is needed
+ *
+ * It was written in the Variables panel first, and the node search then offered
+ * the same out-of-scope locals the panel had just stopped listing -- `Get
+ * restore` in `show`'s graph, for a local `hide` declares. Two lists answering
+ * the same question in two places is two chances to answer it differently, and
+ * the second one was already wrong.
+ *
+ * A local is exactly as visible as the block that declared it, and a function's
+ * graph **is** a block. The exception is the file's own declarations, because a
+ * Declare Function closes over everything above it -- which is what `restores`
+ * is in the module this was reported from. A hoisted Function is the exception
+ * to the exception; see `hoistedFunctions`.
+ *
+ * Offering one anyway is not cosmetic: the node you get compiles to an error,
+ * and the list was the thing that said it was there.
+ */
+export function visibleFrom(
+	node: Pick<GraphNode, "graph">, graph: GraphId, hoisted: ReadonlySet<string>,
+): boolean {
+	if (node.graph !== undefined) return node.graph === graph;
+	return graph === null || !hoisted.has(graph);
+}
+
+/**
+ * Whether the parameters of this function or handler can be read from `graph`.
+ *
+ * Narrower than `visibleFrom`, because a parameter is not a declaration drawn
+ * somewhere -- it exists only where its body runs. A function's body is a graph
+ * of its own, so its parameters are readable in that graph and nowhere else. A
+ * Connect handler's body is **not** a separate graph: it is nested inside the
+ * one the Connect node is drawn in, so its parameters are readable there.
+ */
+export function paramsVisibleFrom(owner: Pick<GraphNode, "id" | "def" | "graph">, graph: GraphId): boolean {
+	if (FUNCTION_NODES.has(owner.def)) return owner.id === graph;
+	return graphOf(owner) === graph;
+}
+
 /** Whether this pin belongs to the graph a declaration opens. */
 export function isEntryPin(defId: string, pinId: string): boolean {
 	if (defId === "function.entry") return true;

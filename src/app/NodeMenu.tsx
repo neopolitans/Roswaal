@@ -15,6 +15,9 @@ import type { GraphNode, NodeConfig, NodeDef, PinDef, PinRef } from "../core/sch
 import type { Registry } from "../core/nodes/index.js";
 import { categories, subcategories } from "../core/nodes/index.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import {
+	hoistedFunctions, paramsVisibleFrom, visibleFrom, type GraphId,
+} from "../core/functionGraph.js";
 import { landingPins, localRefFor } from "./edits.js";
 import { LAYER } from "./layers.js";
 import { COMMENT_DEFAULT_COLOR, nodeColor, pinColor } from "./palette.js";
@@ -307,14 +310,35 @@ function score(item: MenuItem, query: string): number {
 }
 
 /**
- * One entry per variable and per function in the graph. Built here rather than
- * in the menu so the caller keeps control of what a preset means.
+ * One entry per variable, local, function and parameter the graph on screen can
+ * reach. Built here rather than in the menu so the caller keeps control of what
+ * a preset means.
+ *
+ * ## Why it takes the graph
+ *
+ * It used to list every local in the **file**, so searching `restore` in
+ * `show`'s graph offered `Get restore` for a local that `hide` declares. Picking
+ * it gives you a Get Local the compiler then refuses — and the search was the
+ * thing that said it was available.
+ *
+ * Scoped with the same rule the Variables panel uses, from `functionGraph.ts`,
+ * because two lists answering the same question in two places is two chances to
+ * answer it differently and the second one was already wrong.
+ *
+ * **Variables and functions stay unscoped**, and that is not an oversight. A
+ * script variable is readable from anywhere by construction, and the list of a
+ * file's functions is how you move between them — a function you cannot call
+ * from here is still one you may want a reference to.
  */
-export function buildPresets(script: {
-	variables: { id: string; name: string; type: string }[];
-	nodes: Pick<GraphNode, "id" | "def" | "config" | "literals" | "label">[];
-}): Preset[] {
+export function buildPresets(
+	script: {
+		variables: { id: string; name: string; type: string }[];
+		nodes: Pick<GraphNode, "id" | "def" | "config" | "literals" | "label" | "graph">[];
+	},
+	graph: GraphId = null,
+): Preset[] {
 	const out: Preset[] = [];
+	const hoisted = hoistedFunctions(script);
 
 	for (const variable of script.variables) {
 		const config = { variable: variable.id, name: variable.name, type: variable.type };
@@ -339,10 +363,11 @@ export function buildPresets(script: {
 		});
 	}
 
-	// A local by its name, the same way a variable is. Whether it is in scope
-	// where it lands is the compiler's to say.
+	// A local by its name, the same way a variable is — but only the ones this
+	// graph can see, because a Get Local for any of the others is an error.
 	for (const node of script.nodes) {
 		if (node.def !== "local.declare") continue;
+		if (!visibleFrom(node, graph, hoisted)) continue;
 		const ref = localRefFor(node);
 		out.push({
 			key: `local:${node.id}`,
@@ -387,7 +412,11 @@ export function buildPresets(script: {
 	 * of any size, and three identical entries is a list you cannot pick from.
 	 */
 	const owners = script.nodes.filter(
-		(node) => FUNCTION_NODES.has(node.def) || node.def === "event.connect" || node.def === "event.once",
+		(node) =>
+			(FUNCTION_NODES.has(node.def) || node.def === "event.connect" || node.def === "event.once")
+			// A parameter exists only where its body runs, so a function's are
+			// offered in its own graph and a handler's where its Connect is drawn.
+			&& paramsVisibleFrom(node, graph),
 	);
 	const counts = new Map<string, number>();
 	for (const owner of owners) {

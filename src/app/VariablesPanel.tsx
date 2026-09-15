@@ -10,7 +10,7 @@
 import { useState, type DragEvent } from "react";
 
 import type { GraphNode, Literal, NodeScript, ScriptVariable } from "../core/schema.js";
-import type { GraphId } from "../core/functionGraph.js";
+import { hoistedFunctions, visibleFrom, type GraphId } from "../core/functionGraph.js";
 import {
 	addVariable, defaultLiteralFor, deleteVariable, localRefFor, updateVariable, variableUsageCount,
 } from "./edits.js";
@@ -35,29 +35,6 @@ export interface VariablesPanelProps {
 	confirm: (title: string, message: string, confirmLabel: string) => Promise<boolean>;
 }
 
-/**
- * Whether a declaration made in `node.graph` can be seen from the graph on
- * screen.
- *
- * A local declared inside `hide` used to be listed while `show` was open, which
- * is not a cosmetic slip: the panel is where you go to ask what you can reach,
- * and dragging one of those out gives you a Get Local the compiler then refuses.
- * A local is exactly as visible as the block that declared it, and a function's
- * graph **is** a block.
- *
- * The file's own declarations are the exception, because a function declared in
- * the flow closes over everything above it — which is what `restores` is in the
- * module this was reported from. A **hoisted** Function is different: it is
- * written at the top of the file, above every local the main flow declares, so
- * it can see none of them. That distinction is exact and free, so it is made.
- */
-export function visibleFrom(
-	node: Pick<GraphNode, "graph">, graph: GraphId, hoisted: ReadonlySet<string>,
-): boolean {
-	if (node.graph !== undefined) return node.graph === graph;
-	return graph === null || !hoisted.has(graph);
-}
-
 export function VariablesPanel({ script, graph, confirm, locked }: VariablesPanelProps) {
 	const [open, setOpen] = useState<string | null>(null);
 	// Both kinds, because a graph's functions are its functions: which one is
@@ -65,9 +42,7 @@ export function VariablesPanel({ script, graph, confirm, locked }: VariablesPane
 	// The list is not scoped: it is how you move between a file's functions, and
 	// a function you cannot see from here is still one you may want to open.
 	const functions = script.nodes.filter((n) => FUNCTION_NODES.has(n.def));
-	const hoisted = new Set(
-		script.nodes.filter((n) => n.def === "function.entry").map((n) => n.id),
-	);
+	const hoisted = hoistedFunctions(script);
 	const locals = script.nodes.filter(
 		(n) => n.def === "local.declare" && visibleFrom(n, graph, hoisted),
 	);

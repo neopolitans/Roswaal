@@ -690,11 +690,12 @@ export function App() {
 
 	// -- canvas actions ----------------------------------------------------
 
-	// One palette entry per variable and per function in the open graph, so
-	// "Get health" is searchable by name rather than by node type.
+	// One palette entry per variable, local, function and parameter the graph on
+	// screen can reach, so "Get health" is searchable by name rather than by node
+	// type — and so nothing is offered that would not compile where it lands.
 	const presets = useMemo(
-		() => (editor.script ? buildPresets(editor.script) : []),
-		[editor.script],
+		() => (editor.script ? buildPresets(editor.script, editor.graph) : []),
+		[editor.script, editor.graph],
 	);
 
 	/**
