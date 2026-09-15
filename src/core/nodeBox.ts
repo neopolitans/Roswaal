@@ -12,7 +12,7 @@
 
 import { NODE } from "./nodeMetrics.js";
 import {
-	operatorEditorWidth, operatorFields, operatorLayout, type OperatorLayout,
+	operatorEditorWidth, operatorFields, operatorLayout, operatorSymbol, type OperatorLayout,
 } from "./operatorLayout.js";
 import type { GraphNode, NodeConfig, NodeDef, PinDef } from "./schema.js";
 import type { Registry } from "./nodes/index.js";
@@ -67,7 +67,7 @@ export function operatorLayoutOf(def: NodeDef, config?: NodeConfig): OperatorLay
 	const { inputs } = resolvePins(def, config);
 	return operatorLayout(
 		{
-			symbol: def.operator ?? def.title,
+			symbol: operatorSymbol(def, config),
 			editor: operatorEditorWidth(operatorFields(inputs), NODE),
 			rows: inputs.filter((p) => p.kind === "data").length,
 			growable: def.variadic !== undefined,

@@ -43,7 +43,7 @@ import { nodeTitle, resolveNodePins, type Registry } from "../nodes/index.js";
 import { execReach, execWidth } from "../pinLayout.js";
 import { retypeReroutes } from "../reroutes.js";
 import {
-	operatorEditorWidth, operatorFields, operatorLayout,
+	operatorEditorWidth, operatorFields, operatorLayout, operatorSymbol,
 	type OperatorField, type OperatorLayout,
 } from "../operatorLayout.js";
 
@@ -241,10 +241,14 @@ export function previewOf(def: NodeDef): NodePreview {
 }
 
 /** What a pill needs to be drawn, or nothing for a node that is not one. */
-function operatorOf(def: NodeDef, inputs: PinDef[]): NodePreview["operator"] {
+function operatorOf(
+	def: NodeDef, inputs: PinDef[], config?: NodeConfig,
+): NodePreview["operator"] {
 	if (def.display !== "operator") return undefined;
 	return {
-		symbol: def.operator ?? def.title,
+		// From the config, so a cast set to show its name is drawn showing it —
+		// the docs draw placed nodes as well as bare definitions.
+		symbol: operatorSymbol(def, config),
 		growable: def.variadic !== undefined,
 		fields: operatorFields(inputs),
 	};
@@ -979,7 +983,7 @@ export function previewOfPlaced(
 		category: def.category,
 		role: def.role,
 		display: def.display ?? "normal",
-		operator: operatorOf(def, inputs),
+		operator: operatorOf(def, inputs, config),
 		latent: def.latent === true,
 		inputs: inputs.map((pin) => ({
 			id: pin.id,

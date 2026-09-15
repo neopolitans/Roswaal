@@ -76,6 +76,20 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.43.0",
+		date: "2026-09-15",
+		headline: "The pill's field sits where the pill reserved room for it.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"**A pill's inline field no longer sits on top of its symbol and its result pin.** Every pill reserves a column for the field between the pins and the symbol, and the stylesheet was pushing it to the right-hand edge instead — which put a cast's type over the `::` and under the output.",
+		],
+		added: [
+			"**A cast's Type is a list you pick from**: Luau's own types, then Roblox's datatypes, then every Instance class, grouped as the class picker groups them. Whatever you type is still committed, so an intersection like `Model & { Humanoid: Humanoid }` is written the way it always was.",
+			"**Shows**, in the Inspector, swaps a cast's `::` for the node's name — `Cast`, `Cast Array`, `Cast Through Any` — for anybody who would rather read the word. Stored on the node, because it sets the pill's width; **New cast nodes** in Settings decides what a new one starts as.",
+			"**Wait For Child (Value)** is the same call with no execution wire, for the line that reads `local remote = ReplicatedStorage:WaitForChild(\"Remote\")`. It still yields, and still says so with the clock — reach for the original when the waiting is the step.",
+		],
+	},
+	{
 		version: "0.42.0",
 		date: "2026-09-15",
 		headline: "A cast is shaped like a cast.",

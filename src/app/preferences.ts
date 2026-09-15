@@ -118,6 +118,18 @@ export interface Preferences {
 	 */
 	logicParens: boolean;
 	/**
+	 * What a new cast pill writes in its middle: `::`, or the node's name.
+	 *
+	 * A default for new nodes, exactly as `logicParens` is, and for the same
+	 * reason — the choice is stored on the node, because it sets the pill's
+	 * width and a node has to be the same size on everybody's machine.
+	 *
+	 * Symbol by default: `value :: BasePart` is the line the cast writes, and a
+	 * pill that says what the generated code says is the shorter path between
+	 * the graph and the file.
+	 */
+	castNames: boolean;
+	/**
 	 * What a function's tab says. In full it is `ƒ hide (Occupancy)`; shortened,
 	 * one of the two names. The tooltip keeps both either way.
 	 */
@@ -200,6 +212,7 @@ export const DEFAULTS: Preferences = {
 	// anybody who does not go looking for it.
 	wideNodes: false,
 	logicParens: false,
+	castNames: false,
 	functionTabs: "full",
 	toolbarName: false,
 	docsFont: "system",
@@ -253,6 +266,8 @@ export function readPreferences(): Preferences {
 			typeof stored.wideNodes === "boolean" ? stored.wideNodes : DEFAULTS.wideNodes,
 		logicParens:
 			typeof stored.logicParens === "boolean" ? stored.logicParens : DEFAULTS.logicParens,
+		castNames:
+			typeof stored.castNames === "boolean" ? stored.castNames : DEFAULTS.castNames,
 		functionTabs: FUNCTION_TAB_CHOICES.some((c) => c.value === stored.functionTabs)
 			? (stored.functionTabs as FunctionTabs)
 			: DEFAULTS.functionTabs,

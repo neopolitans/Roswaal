@@ -13,7 +13,7 @@
  * apart with nothing to say which was right.
  */
 
-import type { PinDef } from "./schema.js";
+import type { NodeConfig, NodeDef, PinDef } from "./schema.js";
 
 /** Canvas geometry this needs, structurally satisfied by `NODE`. */
 export interface OperatorGeometry {
@@ -118,4 +118,31 @@ export function operatorLayout(shape: OperatorShape, g: OperatorGeometry): Opera
 		symbolWidth,
 		growLeft: left + symbolWidth,
 	};
+}
+
+/**
+ * The nodes that can show their name instead of their symbol.
+ *
+ * The casts, and only them. `==` is `==` to anybody who has read a line of code
+ * in any language; `::` is Luau's own and is the one symbol here that somebody
+ * arriving from Blueprints has no reason to recognise — so a cast can say
+ * "Cast" on its face instead, and go on being a pill.
+ */
+const NAMEABLE = new Set(["cast.as", "cast.array", "cast.any"]);
+
+export const canShowName = (id: string): boolean => NAMEABLE.has(id);
+
+/**
+ * What a pill writes in its middle.
+ *
+ * Read from the node's **config**, not from a preference, for the reason the
+ * brackets are: the symbol sets the pill's width, the width decides where the
+ * result pin is and which comments hold the node — so a graph that looked
+ * different on two machines would compile differently on two machines. A
+ * setting decides what a *new* cast starts as; the node carries it after that.
+ */
+export function operatorSymbol(def: NodeDef, config?: NodeConfig): string {
+	const named = (config as { castLabel?: unknown } | undefined)?.castLabel === "name";
+	if (named && canShowName(def.id)) return def.title;
+	return def.operator ?? def.title;
 }

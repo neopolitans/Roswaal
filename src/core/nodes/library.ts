@@ -13,7 +13,7 @@
  */
 
 import type { NodeDef, PinDef } from "../schema.js";
-import { CLASS_OPTIONS, PATH_ROOTS, ROBLOX_SERVICES } from "../roblox.js";
+import { CLASS_OPTIONS, PATH_ROOTS, ROBLOX_SERVICES, TYPE_OPTIONS } from "../roblox.js";
 import {
 	SERVICE_CALL, SERVICE_VALUE, servicePins, serviceSubtitle,
 } from "../serviceCalls.js";
@@ -87,6 +87,19 @@ const vec = (id: string, name: string) => d(id, name, "Vector3", { t: "raw", v: 
 const cls = (id: string, name: string, value: string) => ({
 	...str(id, name, value), options: CLASS_OPTIONS,
 });
+/**
+ * A pin naming a Luau type: what a cast asserts.
+ *
+ * Offered like a Class Name is, and for the reason that was: a list you pick
+ * from beats a field you spell into. Wider than the classes, because `string`
+ * and `Vector3` are as ordinary a thing to cast to as `BasePart` — and still
+ * only a suggestion, since the picker commits whatever you type and a type
+ * expression like `Model & { Humanoid: Humanoid }` is not on any list.
+ */
+const luauType = (id: string, name: string, value: string) => ({
+	...str(id, name, value), options: TYPE_OPTIONS,
+});
+
 const cf = (id: string, name: string) => d(id, name, "CFrame", { t: "raw", v: "CFrame.identity" });
 
 /**
@@ -678,6 +691,27 @@ export const LIBRARY_NODES: NodeDef[] = [
 		"$in.parent:WaitForChild($in.name)",
 		[d("parent", "Parent", "Instance"), str("name", "Name")], "Child", "Instance",
 		{ latent: true, targets: ["roblox"], summary: "Yields until the child exists." }),
+	/**
+	 * The same call as a value.
+	 *
+	 * Waiting is a step and belongs in the chain — which is why the impure one
+	 * leads and stays the default. But a module that reaches three children at
+	 * the top of itself is four statements of ceremony for three names, and
+	 * `local remote = ReplicatedStorage:WaitForChild("Remote")` is what a
+	 * hand-written one says. A pure node *is* that line: spliced where it is
+	 * read, bound to a local as soon as two things read it.
+	 *
+	 * Latent all the same. It yields wherever it lands, and the clock on the
+	 * node is the only thing that says so once the execution wire is gone.
+	 */
+	{
+		...pure("roblox.waitForChildValue", "Wait For Child (Value)", "Engine",
+			"$in.parent:WaitForChild($in.name)",
+			[d("parent", "Parent", "Instance"), str("name", "Name")], "Instance",
+			"Yields until the child exists, where the child is wanted rather than as a step of its own. Use Wait For Child when the waiting is the point — this one disappears into the line that reads it."),
+		latent: true,
+		targets: ["roblox"],
+	},
 	pure("roblox.getProperty", "Get Property", "Engine", "$in.instance.$in.property!ident",
 		[d("instance", "Instance", "Instance"), str("property", "Property", "Name")], "any"),
 	pure("roblox.getEvent", "Get Event", "Engine", "$in.instance.$in.event!ident",
@@ -1049,13 +1083,13 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// check, and a graph should show where those are at a glance rather than
 	// after reading three titles.
 	pill(pure("cast.as", "Cast", "Values", "($in.value :: $in.type!raw)",
-		[d("value", "Value", "any"), str("type", "Type", "BasePart")], "any",
+		[d("value", "Value", "any"), luauType("type", "Type", "BasePart")], "any",
 		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first. The Type pin takes any Luau type expression, so an intersection like `Model & { Humanoid: Humanoid }` is written here directly. Cast, in the Inspector, decides whether the assertion gets a line of its own; an implicit one inside the True arm of a Branch on Is A writes nothing at all, because Luau has already narrowed the value."), "::"),
 	pill(pure("cast.array", "Cast Array", "Values", "($in.value :: { $in.type!raw })",
-		[d("value", "Value", "table"), str("type", "Type", "BasePart")], "table",
+		[d("value", "Value", "table"), luauType("type", "Type", "BasePart")], "table",
 		"For a collection you know more about than its type says: Get Descendants is { Instance }, and this is how you say they are all BaseParts."), ":: { }"),
 	pill(pure("cast.any", "Cast Through Any", "Values", "(($in.value :: any) :: $in.type!raw)",
-		[d("value", "Value", "any"), str("type", "Type", "BasePart")], "any",
+		[d("value", "Value", "any"), luauType("type", "Type", "BasePart")], "any",
 		"Luau refuses a cast between unrelated types. Going through `any` is the documented way round it, and the extra step is the point: it marks where you overrode the typechecker rather than agreed with it."), ":: any ::"),
 
 	// -- Engine types ------------------------------------------------------

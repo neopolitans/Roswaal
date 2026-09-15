@@ -182,6 +182,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				{def.display === "operator" && !CAST_NODES.has(def.id) && (
 					<OperatorBrackets node={node} />
 				)}
+				{CAST_NODES.has(def.id) && <CastLabel node={node} />}
 				{CAST_NODES.has(def.id) && <CastMode node={node} />}
 				{(def.id === "flow.forEach" || def.id === "flow.forIndex") && (
 					<LoopNames node={node} array={def.id === "flow.forIndex"} />
@@ -591,6 +592,40 @@ function CastMode({ node }: { node: GraphNode }) {
 					</option>
 				))}
 			</select>
+		</Field>
+	);
+}
+
+/**
+ * What a cast's pill writes in its middle.
+ *
+ * `::` is Luau's, and is the one symbol on any pill that somebody arriving from
+ * another visual language has no reason to recognise. The name is the way out,
+ * and the pill stays a pill either way — the shape is what says *this is a claim
+ * without a check*, and that is the half worth keeping.
+ *
+ * On the node rather than in preferences, like the brackets: the symbol decides
+ * the pill's width, and a node that is a different size on two machines is a
+ * node two people's comments hold differently.
+ */
+function CastLabel({ node }: { node: GraphNode }) {
+	const named = (node.config as { castLabel?: unknown } | undefined)?.castLabel === "name";
+	return (
+		<Field label="Shows" hint="What the pill writes between its pins and its result.">
+			<div className="segmented">
+				<button
+					className={!named ? "on" : ""}
+					onClick={() => store.edit((s) => setConfig(s, node.id, { castLabel: undefined }))}
+				>
+					Symbol
+				</button>
+				<button
+					className={named ? "on" : ""}
+					onClick={() => store.edit((s) => setConfig(s, node.id, { castLabel: "name" }))}
+				>
+					Name
+				</button>
+			</div>
 		</Field>
 	);
 }

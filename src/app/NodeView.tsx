@@ -9,13 +9,14 @@ import { nodeTitle } from "../core/nodes/index.js";
 import { Icon } from "./icons.jsx";
 import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
-import { CLASS_OPTIONS, classGroup } from "../core/roblox.js";
+import { CLASS_OPTIONS, TYPE_OPTIONS, classGroup, typeGroup } from "../core/roblox.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 import { pinColor } from "./palette.js";
 import {
 	compactLabel, compactWidth, headerHeight, isCompact, isOperator, isReroute,
 	nodeWidth, operatorLayoutOf, resolvePins,
 } from "./geometry.js";
+import { operatorSymbol } from "../core/operatorLayout.js";
 
 const NEWLINE = String.fromCharCode(10);
 
@@ -324,7 +325,7 @@ function renderOperator(
 				className="operator-symbol"
 				style={{ left: layout.symbolLeft, width: layout.symbolWidth }}
 			>
-				{def.operator ?? def.title}
+				{operatorSymbol(def, node.config)}
 			</span>
 
 			{/* Beside the symbol rather than in a header, because there is none. */}
@@ -576,6 +577,19 @@ const TOO_MANY_TO_SCROLL = 24;
  * Nobody scrolls six hundred options, and "Other…" is not the escape you want
  * when the list you are escaping is the one you were going to type into anyway.
  */
+/**
+ * How a pin's options are grouped in the picker, or nothing for a flat list.
+ *
+ * By identity on the shared arrays rather than by inspecting the values: these
+ * are the two lists long enough to need headings, and a list a pack author
+ * wrote is theirs to show as they gave it.
+ */
+function groupingFor(pin: PinDef): ((value: string) => string) | undefined {
+	if (pin.options === CLASS_OPTIONS) return classGroup;
+	if (pin.options === TYPE_OPTIONS) return typeGroup;
+	return undefined;
+}
+
 function OptionEditor({
 	pin, value, onChange,
 }: { pin: PinDef; value: string; onChange: (value: string) => void }) {
@@ -611,8 +625,8 @@ function OptionEditor({
 						what={pin.name || pin.id}
 						options={known}
 						value={value}
-						groupOf={pin.options === CLASS_OPTIONS ? classGroup : undefined}
-						detailOf={pin.options === CLASS_OPTIONS ? classDetail : undefined}
+						groupOf={groupingFor(pin)}
+						detailOf={groupingFor(pin) ? classDetail : undefined}
 						onPick={onChange}
 						onClose={() => setPicking(false)}
 					/>

@@ -387,6 +387,26 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			</Row>
 
 			<Row
+				label="New cast nodes"
+				help="What a new Cast pill writes in its middle: Luau's :: , or the node's name. Stored on the node, because it sets the pill's width — this only decides where a new one begins."
+			>
+				<div className="segmented">
+					<button
+						className={!prefs.castNames ? "on" : ""}
+						onClick={() => onPrefs({ castNames: false })}
+					>
+						Symbol
+					</button>
+					<button
+						className={prefs.castNames ? "on" : ""}
+						onClick={() => onPrefs({ castNames: true })}
+					>
+						Name
+					</button>
+				</div>
+			</Row>
+
+			<Row
 				label="Name in the graph tools"
 				help="The graph's name at the start of the tools over the canvas. In a function's graph it reads ƒ hide (Occupancy)."
 			>

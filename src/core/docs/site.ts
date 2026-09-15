@@ -2684,9 +2684,25 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "p",
 			text:
 				"All three are drawn as **pills**, the shape the comparisons and **and** / **or** " +
-				"use: the value and the type down the left, the `::` in the middle, the result on " +
+				"use: the value and the type down the left, the symbol in the middle, the result on " +
 				"the right. A cast *is* an operator, and the shape is the point — a claim made " +
 				"without a check is worth spotting at a glance rather than after reading a header.",
+		},
+		{
+			t: "p",
+			text:
+				"**Shows**, in the Inspector, swaps the `::` for the node's name where that reads " +
+				"better — `::` is Luau's own and is the one symbol here nobody arrives already " +
+				"knowing. It is stored on the node, because it sets the pill's width; **New cast " +
+				"nodes** in Settings decides what a cast you drop today starts as.",
+		},
+		{
+			t: "p",
+			text:
+				"The Type pin is a **list you pick from**: Luau's own types, then Roblox's " +
+				"datatypes, then every Instance class, grouped as the class picker groups them. " +
+				"Still only a suggestion — whatever you type is committed, which is how an " +
+				"intersection like `Model & { Humanoid: Humanoid }` is written.",
 		},
 		...previews(
 			registry,

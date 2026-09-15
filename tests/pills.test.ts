@@ -17,7 +17,7 @@ import { isOperator, nodeBounds, pinPosition } from "../src/app/geometry.js";
 import { NODE } from "../src/app/layers.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import {
-	operatorEditorWidth, operatorFields, operatorLayout,
+	operatorEditorWidth, operatorFields, operatorLayout, operatorSymbol,
 } from "../src/core/operatorLayout.js";
 import type { GraphNode, NodeConfig } from "../src/core/schema.js";
 
@@ -56,8 +56,25 @@ describe("which nodes are pills", () => {
 	it("includes the casts, each saying which cast it is", () => {
 		expect(registry.get("cast.array")!.operator).toBe(":: { }");
 		expect(registry.get("cast.any")!.operator).toBe(":: any ::");
-		// Value takes a wire and has no editor; Type is typed in, so one field.
-		expect(fieldsOf("cast.as")).toEqual(["field"]);
+		// Value takes a wire and has no editor; Type is picked from a list, which
+		// is the wider control.
+		expect(fieldsOf("cast.as")).toEqual(["wide"]);
+	});
+
+	/**
+	 * The symbol is read from the node, not from the definition, so a cast set
+	 * to show its name is that much wider on everybody's screen and not only on
+	 * the screen whose preferences asked for it.
+	 */
+	it("writes the node's name instead when the node says so", () => {
+		const def = registry.get("cast.any")!;
+		expect(operatorSymbol(def, undefined)).toBe(":: any ::");
+		expect(operatorSymbol(def, { castLabel: "name" })).toBe("Cast Through Any");
+		// Only the casts: `==` needs no words.
+		expect(operatorSymbol(registry.get("compare.eq")!, { castLabel: "name" })).toBe("==");
+
+		const named = nodeBounds(node("cast.any", { castLabel: "name" }), registry).w;
+		expect(named).toBeGreaterThan(nodeBounds(node("cast.any"), registry).w);
 	});
 
 	it("is a shape the canvas knows", () => {
@@ -139,5 +156,21 @@ describe("where a pill's wires meet it", () => {
 		const nil = node("value.nil");
 		const box = nodeBounds(nil, registry);
 		expect(pinPosition(nil, registry, "result", "out")).toEqual({ x: box.w, y: box.h / 2 });
+	});
+});
+
+describe("a pill's inline field", () => {
+	/**
+	 * The pill reserves a column for it between the pins and the symbol — the
+	 * right of the row is the symbol and the result, and a field pushed there
+	 * sat on top of both. The layout always said so; the stylesheet did not.
+	 */
+	it("sits in the column the layout reserves for it", () => {
+		const layout = operatorLayout(
+			{ symbol: "::", editor: NODE.fieldWide, rows: 2, growable: false },
+			NODE,
+		);
+		const fieldLeft = NODE.rowPadding + NODE.pinSlot + 5;
+		expect(fieldLeft + NODE.fieldWide).toBeLessThanOrEqual(layout.symbolLeft);
 	});
 });

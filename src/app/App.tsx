@@ -53,6 +53,7 @@ import { setProjectTypes } from "./projectTypes.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
 import { SERVICE_CALL, SERVICE_VALUE } from "../core/serviceCalls.js";
+import { canShowName } from "../core/operatorLayout.js";
 
 /** The two nodes whose first data pin is the service the call is made on. */
 const SERVICE_NODES = new Set([SERVICE_CALL, SERVICE_VALUE]);
@@ -782,8 +783,21 @@ export function App() {
 				 * reshaped everyone else's generated Luau would be the wrong kind
 				 * of personal setting.
 				 */
-				const withDefaults = def.display === "operator" && prefs.logicParens
-					? { parens: true, ...config }
+				/**
+				 * A new pill starts as Settings says, and then the node carries it.
+				 *
+				 * Both of these are written onto the node rather than read at draw
+				 * time, because both are part of what everybody else sees: the
+				 * brackets reach the generated file, and the cast's label sets the
+				 * pill's width.
+				 */
+				const starting: Record<string, unknown> = {};
+				if (def.display === "operator" && prefs.logicParens && !canShowName(def.id)) {
+					starting.parens = true;
+				}
+				if (canShowName(def.id) && prefs.castNames) starting.castLabel = "name";
+				const withDefaults = Object.keys(starting).length > 0
+					? { ...starting, ...config }
 					: config;
 				let next = withDefaults
 					? setNodeConfig(added.script, added.id, withDefaults)

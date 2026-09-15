@@ -13,7 +13,7 @@
  * release here.
  */
 
-import { CLASSES, CLASS_PARENTS } from "./robloxData.js";
+import { CLASSES, CLASS_PARENTS, DATATYPES } from "./robloxData.js";
 
 /** Services offered in the Get Service dropdown, in rough order of use. */
 export const ROBLOX_SERVICES = [
@@ -141,6 +141,58 @@ export const CLASS_OPTIONS: string[] = [
 	...INSTANCE_CLASSES,
 	...CLASSES.filter((name) => !INSTANCE_CLASSES.includes(name)),
 ];
+
+/** What Luau has before Roblox adds anything, in the order a graph reaches. */
+const LUAU_TYPES = ["any", "boolean", "number", "string", "table", "function", "thread", "nil"];
+
+/**
+ * Roblox's own values that are not instances, common ones first.
+ *
+ * The same shortlist the type picker offers, because the two answer the same
+ * question — "what could this be" — and two lists would drift.
+ */
+const COMMON_DATATYPES = [
+	"Instance", "Vector3", "Vector2", "CFrame", "Color3", "UDim", "UDim2", "BrickColor",
+	"EnumItem", "TweenInfo", "Ray", "Region3", "RBXScriptSignal", "RBXScriptConnection",
+];
+
+/**
+ * Every type a cast might assert: Luau's, Roblox's datatypes, then the classes.
+ *
+ * Wider than `CLASS_OPTIONS` because a cast is not a Class Name pin — `value ::
+ * string` and `value :: Vector3` are ordinary things to write, and a list that
+ * offered only Instance classes would be a list that is wrong more often than a
+ * Class Name pin's is.
+ *
+ * Still suggestions rather than a gate. The Type pin takes any Luau type
+ * expression at all, and `Model & { Humanoid: Humanoid }` is typed in — see the
+ * picker, which commits whatever you give it.
+ */
+export const TYPE_OPTIONS: string[] = [
+	...LUAU_TYPES,
+	...COMMON_DATATYPES.filter((name) => !LUAU_TYPES.includes(name)),
+	...DATATYPES.filter((name) => !LUAU_TYPES.includes(name) && !COMMON_DATATYPES.includes(name)),
+	...CLASS_OPTIONS.filter(
+		(name) => !LUAU_TYPES.includes(name) && !COMMON_DATATYPES.includes(name),
+	),
+];
+
+const LUAU_SET = new Set(LUAU_TYPES);
+const DATATYPE_SET = new Set<string>([...COMMON_DATATYPES, ...DATATYPES]);
+
+/**
+ * Which heading a type sits under in the picker.
+ *
+ * Three kinds, and the classes then group themselves the way they do everywhere
+ * else — by the ancestor directly below `Instance`, which is the engine's own
+ * arrangement rather than one invented here.
+ */
+export function typeGroup(name: string): string {
+	if (LUAU_SET.has(name)) return "Luau";
+	if (isInstanceClass(name)) return classGroup(name);
+	if (DATATYPE_SET.has(name)) return "Roblox types";
+	return "Other";
+}
 
 const EVERY_CLASS = new Set<string>([...CLASSES, ...INSTANCE_CLASSES]);
 

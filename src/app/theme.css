@@ -1397,6 +1397,15 @@ button.tb.primary:hover:not(:disabled) {
 	margin-left: auto;
 }
 
+/* Not on a pill, where the row is the whole node and the right of it is the
+   symbol and the result pin. Pushed there, a field sat on top of both — and the
+   pill's width already reserves a column for it beside the pins, which is where
+   `operatorLayout` has always put it. */
+.node.operator .row .side.left > .literal,
+.node.operator .row .side.left > input[type="checkbox"] {
+	margin-left: 0;
+}
+
 /* An optional pin nobody has set. Reads as the word rather than as a value,
    because the argument is genuinely not passed and showing a number here would
    claim otherwise. Dashed, so it looks like a placeholder rather than a field
