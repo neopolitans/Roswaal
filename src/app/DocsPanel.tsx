@@ -541,7 +541,7 @@ function BlockView({ block }: { block: Block }) {
 			return (
 				<p className="docs-tags">
 					{block.tags.map((tag) => (
-						<span className={`docs-tag ${tag}`} key={tag}>{TAG_LABELS[tag]}</span>
+						<span className={`docs-tag tag-${tag}`} key={tag}>{TAG_LABELS[tag]}</span>
 					))}
 				</p>
 			);

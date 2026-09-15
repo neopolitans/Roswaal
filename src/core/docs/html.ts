@@ -160,8 +160,12 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			return `<div class="docs-table${bare}"><table>${head}<tbody>${rows}</tbody></table></div>`;
 		}
 		case "tags":
+			// `tag-` prefixed, because a bare modifier class is a collision waiting
+			// to happen in a stylesheet this size -- and it happened: `.docs` is
+			// the documentation *panel*, so a Docs tag came out as a full-width
+			// bordered box on its own line.
 			return `<p class="docs-tags">${block.tags
-				.map((tag) => `<span class="docs-tag ${tag}">${escapeHtml(TAG_LABELS[tag])}</span>`)
+				.map((tag) => `<span class="docs-tag tag-${tag}">${escapeHtml(TAG_LABELS[tag])}</span>`)
 				.join("")}</p>`;
 		case "note": {
 			const items = block.items

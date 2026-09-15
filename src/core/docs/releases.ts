@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.39.1",
+		date: "2026-09-15",
+		headline: "The Docs tag is a tag again.",
+		affects: ["docs"],
+		fixed: [
+			"**The Docs tag no longer renders as a full-width box on its own line.** Its class was `docs`, and `.docs` is the documentation panel — a bordered, full-height grid — so the tag took the panel's styling.",
+			"**Tag rows are one line tall again.** They are a flex row, so the one stretched tag pulled every other tag on the release up to its height — which is what turned 0.37.x's tags into columns.",
+		],
+		watch: [
+			"**A tag's class is `tag-feature`, `tag-docs` and so on now**, rather than the bare name. Only a fork styling the documentation itself would notice.",
+		],
+	},
+	{
 		version: "0.39.0",
 		date: "2026-09-15",
 		headline: "A comment you wrote once is read twice.",

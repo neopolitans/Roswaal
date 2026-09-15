@@ -14,6 +14,7 @@ import {
 	releaseTags, searchDocs, TAG_LABELS, type Block,
 } from "../src/core/docs/site.js";
 import { RELEASES } from "../src/core/docs/releases.js";
+import { renderPage } from "../src/core/docs/html.js";
 import { VERSION } from "../src/cli/version.js";
 import type { NodeDef } from "../src/core/schema.js";
 
@@ -373,5 +374,29 @@ describe("release tags", () => {
 		})) {
 			expect(TAG_LABELS[tag]).toBeTruthy();
 		}
+	});
+});
+
+/**
+ * A tag's modifier class is prefixed, and this is asserted because the
+ * unprefixed version shipped and broke twice in one release.
+ *
+ * `.docs` is the documentation *panel* — a full-width, full-height grid with a
+ * border. So `<span class="docs-tag docs">` came out as a bordered box on its
+ * own line; and because `.docs-tags` is a flex row, that one tall item stretched
+ * every sibling tag to match, turning the row into columns.
+ *
+ * CSS collisions are not testable. The rule that prevents them is, and this is
+ * it: a modifier class for a tag is namespaced to tags.
+ */
+describe("release tag classes", () => {
+	it("namespaces every one of them", () => {
+		const site = buildSite(createRegistry(), new Set());
+		const page = findPage(site, "release-notes")!;
+		const html = renderPage(site, page, { version: VERSION });
+		for (const tag of Object.keys(TAG_LABELS)) {
+			expect(html, tag).not.toMatch(new RegExp(`class="docs-tag ${tag}"`));
+		}
+		expect(html).toMatch(/class="docs-tag tag-/);
 	});
 });

@@ -5767,19 +5767,19 @@ button.tb.danger {
 	white-space: nowrap;
 }
 
-.docs-tag.feature {
+.docs-tag.tag-feature {
 	color: var(--ok);
 	border-color: color-mix(in srgb, var(--ok) 45%, transparent);
 	background: color-mix(in srgb, var(--ok) 10%, transparent);
 }
 
-.docs-tag.fix {
+.docs-tag.tag-fix {
 	color: var(--accent);
 	border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 	background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
-.docs-tag.breaking {
+.docs-tag.tag-breaking {
 	color: var(--danger);
 	border-color: color-mix(in srgb, var(--danger) 50%, transparent);
 	background: color-mix(in srgb, var(--danger) 10%, transparent);
@@ -5789,9 +5789,9 @@ button.tb.danger {
    deliberately quieter than the four that say what kind of change it is: an
    outline and no fill. Which part of the tool changed is context for the
    entries, not a claim about them. */
-.docs-tag.editor,
-.docs-tag.designer,
-.docs-tag.docs {
+.docs-tag.tag-editor,
+.docs-tag.tag-designer,
+.docs-tag.tag-docs {
 	color: var(--fg-faint);
 	border-style: dashed;
 }
