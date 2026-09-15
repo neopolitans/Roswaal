@@ -1113,6 +1113,58 @@ export function straighten(
 		}
 	}
 
+	/**
+	 * Then get the value nodes off the flow's lane.
+	 *
+	 * An execution wire often runs a long way — Script Start to the node that
+	 * handles the event, past everything that works out its arguments — and a
+	 * pure node sitting on that line has the wire pass behind it, which reads as
+	 * a wire going *into* it. Fifteen of the thirty-nine drawn graphs had one.
+	 *
+	 * The flow is the spine and the value nodes hang off it, so it is the value
+	 * node that moves. Its own wires bend as a result, and that is correct: a
+	 * value reaching up into the flow is a shape people draw by hand.
+	 */
+	const settled = script.nodes.map((node) => ({ ...node, y: node.y + (moved.get(node.id) ?? 0) }));
+	const placed = placeGraph({ ...script, nodes: settled }, registry, options);
+	const byId = new Map(placed.map((p) => [p.node.id, p]));
+
+	/** Half a row, so a cleared node does not sit flush against the wire. */
+	const CLEARANCE = options.geometry.rowHeight / 2;
+
+	for (const link of script.links) {
+		const from = byId.get(link.from.node);
+		const to = byId.get(link.to.node);
+		if (!from || !to) continue;
+
+		const kind = from.preview.outputs.find((pin) => pin.id === link.from.pin)?.kind;
+		if (kind !== "exec") continue;
+
+		const a = placedPinAnchor(from, link.from.pin, "out", options.geometry);
+		const b = placedPinAnchor(to, link.to.pin, "in", options.geometry);
+		if (!a || !b) continue;
+
+		const left = Math.min(a.x, b.x);
+		const right = Math.max(a.x, b.x);
+		const lane = (a.y + b.y) / 2;
+
+		for (const node of placed) {
+			if (node.node.id === link.from.node || node.node.id === link.to.node) continue;
+			// A node that carries flow of its own belongs on the lane.
+			const hasExec = [...node.preview.inputs, ...node.preview.outputs]
+				.some((pin) => pin.kind === "exec");
+			if (hasExec) continue;
+			if (node.x + node.width <= left || node.x >= right) continue;
+			if (lane <= node.y || lane >= node.y + node.height) continue;
+
+			const down = lane + CLEARANCE - node.y;
+			const up = lane - CLEARANCE - (node.y + node.height);
+			const shift = Math.abs(down) <= Math.abs(up) ? down : up;
+			moved.set(node.node.id, (moved.get(node.node.id) ?? 0) + shift);
+			node.y += shift;
+		}
+	}
+
 	return {
 		...script,
 		nodes: script.nodes.map((node) => ({ ...node, y: node.y + (moved.get(node.id) ?? 0) })),

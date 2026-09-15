@@ -76,6 +76,15 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.58.0",
+		date: "2026-09-15",
+		headline: "An execution wire no longer runs behind the nodes feeding it.",
+		affects: ["docs"],
+		changed: [
+			"**A drawn graph moves its value nodes off the execution wire's lane.** A flow wire often runs a long way — from the start of a script to the node that handles an event, past everything working out its arguments — and a pure node sitting on that line had the wire pass behind it, which reads as a wire going into it. Fifteen of the thirty-nine drawn graphs had one; two remain, where the node carries flow of its own and belongs there.",
+		],
+	},
+	{
 		version: "0.57.0",
 		date: "2026-09-15",
 		headline: "Ctrl+K opens the documentation from Node Design too.",

@@ -30,7 +30,6 @@ import { wirePath } from "../../src/app/geometry.ts";
 import { NODE } from "../../src/app/layers.ts";
 import { faviconHref, logoMarkup } from "../../src/app/logo.tsx";
 import { ICONS } from "../../src/app/icons.tsx";
-import { BUILTIN_THEMES } from "../../src/core/themeData.ts";
 
 /**
  * Which example to show.
@@ -236,6 +235,15 @@ body.roswaal-landing {
 .landing-card h3 { font-size: 14px; margin: 0 0 6px; }
 .landing-card p { color: var(--fg-faint); margin: 0; font-size: 14px; }
 .landing-card code { font-size: 12px; }
+/* A key, not a phrase. Borrowed from the shape the docs give one, so a reader
+   who has seen the shortcuts written down once recognises them here. */
+.landing-card kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; line-height: 1;
+  padding: 2px 5px; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--bg-input, var(--bg-app));
+  color: var(--fg); white-space: nowrap;
+}
 .landing-h2 {
   font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--fg-faint); margin: 0 0 16px;
@@ -349,10 +357,10 @@ export function landingPage(version) {
       <div>
         <h3>Search literally, or visually</h3>
         <p>
-          Right-click the canvas to search nodes by name. <strong>Ctrl</strong>
-          and right-click asks the same question the other way — a picker that
-          draws each node as you walk the list. One for when you know the name,
-          one for when you know the shape.
+          <kbd>Right-click</kbd> the canvas to search nodes by name.
+          <kbd>Ctrl</kbd> + <kbd>Right-click</kbd> asks the same question the
+          other way — a picker that draws each node as you walk the list. One
+          for when you know the name, one for when you know the shape.
         </p>
       </div>
     </div>
@@ -398,7 +406,7 @@ export function landingPage(version) {
         <h3>Documented, node by node</h3>
         <p>
           A reference page for every node, with the graph and the Luau it
-          compiles to on each one, and <strong>Ctrl</strong>+<strong>K</strong>
+          compiles to on each one, and <kbd>Ctrl</kbd> + <kbd>K</kbd>
           to it from anywhere in the editor. Plus a guide for anyone
           <a href="docs/coming-from-blueprints.html">Coming from Blueprints</a>.
         </p>
@@ -406,13 +414,14 @@ export function landingPage(version) {
     </div>
 
     <div class="landing-card" style="--edge: ${colourOf("string.concat")}">
-      <div class="icon">${icon("palette")}</div>
+      <div class="icon">${icon("layout")}</div>
       <div>
-        <h3>${BUILTIN_THEMES.length} colour schemes</h3>
+        <h3>Preview anything, any time</h3>
         <p>
-          ${BUILTIN_THEMES.map((theme) => theme.name).slice(0, 4).join(", ")} and more,
-          switchable in settings. Three of them are somebody else's design,
-          <a href="docs/attributions.html">credited in full</a>.
+          <kbd>P</kbd> shows what the graph in front of you compiles to — a
+          whole script, one function, or just the nodes you have selected. It
+          reads the generated file and picks those lines out of it, so it is the
+          real output rather than a guess at it.
         </p>
       </div>
     </div>

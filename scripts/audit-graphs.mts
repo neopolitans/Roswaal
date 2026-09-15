@@ -37,7 +37,7 @@ const options = {
 
 let graphs = 0;
 let links = 0;
-const offenders: { page: string; bent: number; total: number; worst: number }[] = [];
+const offenders: { page: string; bent: number; total: number; worst: number; crossings: number }[] = [];
 
 for (const section of site.sections) {
 	for (const page of section.pages) {
@@ -73,7 +73,36 @@ for (const section of site.sections) {
 				}
 			}
 
-			offenders.push({ page: page.slug, bent, total, worst: Math.round(worst) });
+			/**
+			 * A wire that runs through a node it has nothing to do with.
+			 *
+			 * Levelling the flow can pull a value node onto the lane a long
+			 * execution wire already occupies, and the wire then passes behind
+			 * it — which reads as a wire going into the node.
+			 */
+			const anchors = (link: { from: { node: string; pin: string }; to: { node: string; pin: string } }) => {
+				const from = byId.get(link.from.node);
+				const to = byId.get(link.to.node);
+				if (!from || !to) return null;
+				const a = placedPinAnchor(from, link.from.pin, "out", NODE);
+				const b = placedPinAnchor(to, link.to.pin, "in", NODE);
+				return a && b ? { a, b } : null;
+			};
+
+			let crossings = 0;
+			for (const link of source.links ?? []) {
+				const ends = anchors(link);
+				if (!ends) continue;
+				const { a, b } = ends;
+				for (const node of placed) {
+					if (node.node.id === link.from.node || node.node.id === link.to.node) continue;
+					const spansX = Math.min(a.x, b.x) < node.x + node.width && Math.max(a.x, b.x) > node.x;
+					const withinY = Math.min(a.y, b.y) < node.y + node.height && Math.max(a.y, b.y) > node.y;
+					if (spansX && withinY) crossings++;
+				}
+			}
+
+			offenders.push({ page: page.slug, bent, total, worst: Math.round(worst), crossings });
 		}
 	}
 }
@@ -82,7 +111,8 @@ offenders.sort((a, b) => b.worst - a.worst);
 
 const bentGraphs = offenders.filter((x) => x.bent > 0);
 const bentLinks = offenders.reduce((n, x) => n + x.bent, 0);
-console.log(`graphs: ${graphs}   links: ${links}   graphs with a bent wire: ${bentGraphs.length}   bent links: ${bentLinks}`);
+const crossed = offenders.reduce((n, x) => n + x.crossings, 0);
+console.log(`graphs: ${graphs}   links: ${links}   graphs with a bent wire: ${bentGraphs.length}   bent links: ${bentLinks}   wires crossing a node: ${crossed}`);
 console.log("");
 console.log("CLEAN (every wire runs straight):");
 for (const o of offenders.filter((x) => x.bent === 0)) {
@@ -90,7 +120,7 @@ for (const o of offenders.filter((x) => x.bent === 0)) {
 }
 console.log("");
 for (const o of offenders.filter((x) => x.bent > 0).slice(0, 4)) {
-	console.log(`  ${o.page.padEnd(34)} ${o.bent}/${o.total} bent, worst ${o.worst}px`);
+	console.log(`  ${o.page.padEnd(34)} ${o.bent}/${o.total} bent, worst ${o.worst}px, ${o.crossings} crossing(s)`);
 }
 if (offenders.length > 25) console.log(`  ... and ${offenders.length - 25} more`);
 
