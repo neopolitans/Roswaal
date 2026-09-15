@@ -12,9 +12,10 @@ source file.
 install, a demo project already in it. Opening a folder of your own needs the
 File System Access API, so that part is Chrome and Edge.
 
-> Prototype. The compiler and its tests are the load-bearing parts and are
-> solid; the editor is complete enough to build real graphs with. **Lune support
-> is experimental** — Roswaal is built and checked against Roblox.
+> In active development. The compiler and its tests are the load-bearing parts
+> and are solid; the editor is complete enough to build real graphs with.
+> **Lune support is experimental** — Roswaal is built and checked against
+> Roblox.
 
 ## Install
 
