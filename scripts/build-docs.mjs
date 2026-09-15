@@ -8,11 +8,13 @@
  * Two things it deliberately does not do. It does not read a project, so the
  * site documents the **built-in library only**; a project's own packs are
  * documented in the editor, where the registry is live. And it needs no
- * JavaScript to read a page: highlighting is baked in here, and the only script
- * on the site is the search box.
+ * JavaScript to read a page: highlighting is baked in here, and the scripts it
+ * does carry only add to a page that already reads without them -- the search
+ * box, and the viewer that lets a drawn graph be panned and zoomed.
  */
 
 import { mkdir, writeFile, readFile, rm } from "node:fs/promises";
+
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -25,11 +27,12 @@ import { nodeColor, pinColor } from "../src/app/palette.ts";
 import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
 
 import { wirePath } from "../src/app/geometry.ts";
-import { attachGraphView } from "../src/app/graphView.ts";
-import { NODE, ZOOM } from "../src/app/layers.ts";
+import { NODE } from "../src/app/layers.ts";
+import { buildGraphViewer } from "./lib/graphViewer.mjs";
 import { VERSION } from "../src/cli/version.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+
 const out = join(root, "dist-docs");
 
 /** Luau to HTML, with the same token classes the editor's stylesheet colours. */
@@ -157,27 +160,7 @@ async function main() {
 		body: e.body,
 	}));
 	await writeFile(join(out, "search.json"), JSON.stringify(index), "utf8");
-	/**
-	 * The graph viewer, serialised from the module the editor uses.
-	 *
-	 * `toString()` rather than a second copy: `attachGraphView` takes no imports
-	 * precisely so it survives the trip, and a hand-written twin here would
-	 * drift from the canvas the first time either moved. The limits travel as a
-	 * literal because they are `ZOOM`, the canvas's own.
-	 */
-	// Written as a code unit, the way the rest of this repository writes a
-	// newline that has to survive being pasted through a build step.
-	const NL = String.fromCharCode(10);
-	const viewer = [
-		attachGraphView.toString(),
-		"(function () {",
-		"  var limits = " + JSON.stringify(ZOOM) + ";",
-		"  var boxes = document.querySelectorAll('.graph-viewport');",
-		"  for (var i = 0; i < boxes.length; i++) attachGraphView(boxes[i], limits);",
-		"})();",
-	].join(NL) + NL;
-
-	await writeFile(join(out, "docs.js"), CLIENT + viewer, "utf8");
+	await writeFile(join(out, "docs.js"), CLIENT + await buildGraphViewer(), "utf8");
 
 	// The editor's own stylesheet, so the site and the in-app window are styled
 	// by one file rather than by two that have to be kept in step.
