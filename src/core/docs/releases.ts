@@ -54,6 +54,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.36.6",
+		date: "2026-09-15",
+		headline: "A graph's coordinates are its own.",
+		fixed: [
+			"**A comment takes only what is in its own graph.** Every graph of a file starts at the same origin, so a comment in the nodescript's graph and a function's nodes can sit at the same numbers — and a comment copied from one was coming back with nodes from the other.",
+			"**Dragging a comment no longer moves nodes in a graph you are not looking at.** The same question, asked by the drag since function graphs existed.",
+			"**Paste lands at the pointer for anything copied inside a function's graph.** It was testing whether a thing had been copied from the nodescript's own graph, which is no for everything copied while a function is open — so the pointer was ignored in exactly the graphs most of the work happens in.",
+		],
+		added: [
+			"**Copy, cut, paste and duplicate in Node Design's logic canvas**, on the same terms as a graph. They live in the graph editor's shell, which the designer page does not have, so they had never been there. Node Inputs and Node Outputs are left out of all four — there is one of each and they are already present.",
+		],
+		watch: [
+			"**A copied function still keeps its body's layout.** Only its declaration lands at the pointer; the nodes inside it stay where they are in the copy's own graph.",
+		],
+	},
+	{
 		version: "0.36.5",
 		date: "2026-09-15",
 		headline: "A copied comment brings what it is drawn around.",

@@ -35,7 +35,8 @@ import { LOGIC_DENIED, LOGIC_INPUTS, LOGIC_OUTPUTS, type LogicShape } from "../.
 import type { NodeConfig, NodeDef, NodeScript, Target } from "../../core/schema.js";
 import { Canvas } from "../Canvas.jsx";
 import {
-	addComment, addNode, alignToAnchor, connect, deleteSelection, landingPins, selectionAnchor, setConfig,
+	addComment, addNode, alignToAnchor, connect, copySelection, deleteSelection, landingPins,
+	pasteClipping, selectionAnchor, setConfig, withCommentContents, type Clipping,
 } from "../edits.js";
 import { FloatingTools, ToolGroup } from "../FloatingTools.jsx";
 import { Icon } from "../icons.jsx";
@@ -46,6 +47,32 @@ import { store, useEditor } from "../store.js";
 
 /** The store path the logic graph is open under. Never a file. */
 const PATH = "designer:logic";
+
+const isEnd = (def: string) => def === LOGIC_INPUTS || def === LOGIC_OUTPUTS;
+
+/**
+ * The two ends are the node's own pins, one of each, and already here.
+ *
+ * So they cannot be deleted, and they cannot be copied either — a second Node
+ * Inputs is a thing `compileLogic` refuses, and offering a way to make one is
+ * offering a way to break the node. A comment drawn around an end brings the
+ * rest of what it encloses and leaves the end behind.
+ */
+export function withoutEnds(clip: Clipping): Clipping {
+	const ends = new Set(clip.nodes.filter((n) => isEnd(n.def)).map((n) => n.id));
+	if (ends.size === 0) return clip;
+	return {
+		nodes: clip.nodes.filter((n) => !ends.has(n.id)),
+		links: clip.links.filter((l) => !ends.has(l.from.node) && !ends.has(l.to.node)),
+		comments: clip.comments,
+	};
+}
+
+/** The same rule for anything being taken away: everything but the two ends. */
+export function removable(script: NodeScript, picked: ReadonlySet<string>): Set<string> {
+	const ends = new Set(script.nodes.filter((n) => isEnd(n.def)).map((n) => n.id));
+	return new Set([...picked].filter((id) => !ends.has(id)));
+}
 
 const NOOP = () => {};
 
@@ -158,6 +185,29 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 		[menu, registry],
 	);
 
+	/**
+	 * Copy and paste, which the logic canvas did not have.
+	 *
+	 * The graph editor's shell owns these on a nodescript, and the designer page
+	 * has no shell — so a canvas that was meant to behave like the graph editor
+	 * quietly did not, in the one way you notice while building a node out of
+	 * three copies of the same pair.
+	 *
+	 * The same helpers, so a comment brings what it is drawn around and a paste
+	 * lands at the pointer here exactly as it does on a graph.
+	 */
+	const clipboard = useRef<Clipping | null>(null);
+	const pointerAt = useRef<{ x: number; y: number } | null>(null);
+
+	const paste = useCallback((clip: Clipping) => {
+		const at = pointerAt.current ?? undefined;
+		store.edit((s) => {
+			const { script, ids } = pasteClipping(s, clip, { at });
+			queueMicrotask(() => store.select(ids));
+			return script;
+		});
+	}, []);
+
 	// Keys for the canvas, while it has focus. The designer page has no editor
 	// shell to handle them, and typing in the node's fields must not reach here.
 	useEffect(() => {
@@ -195,20 +245,36 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 				e.preventDefault();
 				const s = store.getSnapshot().script;
 				if (s) store.select([...s.nodes.map((n) => n.id), ...s.comments.map((c) => c.id)]);
+			} else if (mod && (key === "c" || key === "x")) {
+				const state = store.getSnapshot();
+				if (!state.script || state.selection.size === 0) return;
+				e.preventDefault();
+				clipboard.current = withoutEnds(copySelection(state.script, state.selection, registry));
+				if (key === "x") {
+					const ids = removable(state.script, withCommentContents(state.script, state.selection, registry));
+					if (ids.size > 0) store.edit((s) => deleteSelection(s, ids, registry));
+				}
+			} else if (mod && key === "v") {
+				const clip = clipboard.current;
+				if (!clip || clip.nodes.length + clip.comments.length === 0) return;
+				e.preventDefault();
+				paste(clip);
+			} else if (mod && key === "d") {
+				const state = store.getSnapshot();
+				if (!state.script || state.selection.size === 0) return;
+				e.preventDefault();
+				paste(withoutEnds(copySelection(state.script, state.selection, registry)));
 			} else if (e.key === "Delete" || e.key === "Backspace") {
 				e.preventDefault();
 				const state = store.getSnapshot();
 				if (!state.script) return;
-				const ends = new Set(
-					state.script.nodes.filter((n) => n.def === LOGIC_INPUTS || n.def === LOGIC_OUTPUTS).map((n) => n.id),
-				);
-				const ids = new Set([...state.selection].filter((id) => !ends.has(id)));
+				const ids = removable(state.script, state.selection);
 				if (ids.size > 0) store.edit((s) => deleteSelection(s, ids, registry));
 			}
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [registry, realign]);
+	}, [registry, realign, paste]);
 
 	return (
 		<div className="logic-canvas" ref={container}>
@@ -218,6 +284,7 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 					graph={null}
 					registry={registry}
 					diagnostics={[]}
+					onPointerAt={(world) => { pointerAt.current = world; }}
 					onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
 					onRequestPinMenu={NOOP}
 					onEditCode={NOOP}

@@ -19,7 +19,7 @@ import { literalToLuau } from "../core/compiler/luau.js";
 import { pinsCompatible } from "../core/compiler/validate.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import {
-	placeIn, positionIn, withFunctionGraphs, type GraphId,
+	graphOf, placeIn, positionIn, viewOf, withFunctionGraphs, type GraphId,
 } from "../core/functionGraph.js";
 import { localNameOf, pinDefaultFor, pinTypeOf, type LocalRef } from "../core/nodes/variables.js";
 import { currentArity, growthRule, type GrowthRule } from "../core/nodes/growth.js";
@@ -823,15 +823,36 @@ export function commentContents(
 	script: NodeScript, registry: Registry, commentId: string,
 ): Set<string> {
 	const comment = script.comments.find((c) => c.id === commentId);
-	const out = new Set<string>();
-	if (!comment) return out;
+	if (!comment) return new Set<string>();
+	return containedBy(viewOf(script, graphOf(comment)), registry, comment);
+}
 
+/**
+ * What a comment is drawn around, **within the one graph it is drawn in**.
+ *
+ * The graph is the whole point of taking a view rather than the script. Every
+ * graph of a file has its own coordinate space and they all start at the same
+ * origin, so a comment in the nodescript's graph and a function's nodes can sit
+ * at exactly the same numbers -- and asking `script.nodes` which of them a box
+ * contains answers about all of them at once. That is how copying a comment in
+ * Occupancy's own graph came back with three nodes from `value`.
+ *
+ * It was never only a copying bug: `commentContents` is what a comment **drag**
+ * asks as well, and `placeNodes` moves whatever it is handed. So dragging a
+ * comment could quietly rearrange a function's graph you were not looking at.
+ *
+ * `viewOf` is what knows how a node appears in a given graph -- which graphs it
+ * is drawn in at all, and at which of its two positions -- so the answer comes
+ * from the same place the canvas draws from rather than from a second guess.
+ */
+function containedBy(view: NodeScript, registry: Registry, comment: Comment): Set<string> {
+	const out = new Set<string>();
 	const box: Rect = { x: comment.x, y: comment.y, w: comment.w, h: comment.h };
-	for (const node of script.nodes) {
+	for (const node of view.nodes) {
 		if (rectContains(box, nodeBounds(node, registry))) out.add(node.id);
 	}
-	for (const other of script.comments) {
-		if (other.id === commentId) continue;
+	for (const other of view.comments) {
+		if (other.id === comment.id) continue;
 		if (rectContains(box, { x: other.x, y: other.y, w: other.w, h: other.h })) out.add(other.id);
 	}
 	return out;
@@ -1433,9 +1454,19 @@ export function withCommentContents(
 	script: NodeScript, picked: ReadonlySet<string>, registry: Registry,
 ): Set<string> {
 	const out = new Set(picked);
+	// One view per graph rather than one per comment: two comments in the same
+	// graph ask the same question of the same picture.
+	const views = new Map<GraphId, NodeScript>();
 	for (const id of picked) {
-		if (!script.comments.some((c) => c.id === id)) continue;
-		for (const member of commentContents(script, registry, id)) out.add(member);
+		const comment = script.comments.find((c) => c.id === id);
+		if (!comment) continue;
+		const graph = graphOf(comment);
+		let view = views.get(graph);
+		if (!view) {
+			view = viewOf(script, graph);
+			views.set(graph, view);
+		}
+		for (const member of containedBy(view, registry, comment)) out.add(member);
 	}
 	return out;
 }
@@ -1498,20 +1529,30 @@ export function pasteClipping(
 	const graphFor = (graph: string | undefined) => (graph !== undefined ? remap.get(graph) : undefined);
 
 	/**
-	 * How far everything landing in the graph on screen moves.
+	 * Does this item land in the graph being pasted into?
 	 *
-	 * Only those: a node inside a pasted function keeps its position relative to
-	 * that function's own graph, which is not the one being pointed at.
+	 * Everything does **except** what belongs to a function whose declaration is
+	 * in this same clipping: that keeps its position in the copy's own graph,
+	 * which is not the graph anybody is pointing at.
 	 *
-	 * A clipping with nothing landing here — every item inside a function whose
-	 * declaration was not itself copied — has no corner to place, so it falls
+	 * Not `graph === undefined`, which is what this asked at first and is a
+	 * different question — it is "was this copied from the nodescript's own
+	 * graph". Copy anything while a **function's** graph is open and every item
+	 * carries that function's id, so the answer was no for all of them, the set
+	 * below came out empty, and the paste fell back to the offset. Which is to
+	 * say: pasting at the pointer worked everywhere except the graphs most of
+	 * the work happens in.
+	 */
+	const landsHere = (item: { graph?: string }) => graphFor(item.graph) === undefined;
+
+	/**
+	 * How far everything landing in this graph moves.
+	 *
+	 * A clipping with nothing landing here has no corner to place, so it falls
 	 * back to the offset rather than to `at`, which would otherwise read as
 	 * `-Infinity`.
 	 */
-	const landing = [
-		...clip.nodes.filter((n) => n.graph === undefined),
-		...clip.comments.filter((c) => c.graph === undefined),
-	];
+	const landing = [...clip.nodes.filter(landsHere), ...clip.comments.filter(landsHere)];
 	let dx = offset;
 	let dy = offset;
 	if (into.at && landing.length > 0) {
@@ -1521,13 +1562,13 @@ export function pasteClipping(
 	const nodes = clip.nodes.map((n) => {
 		const { graph: _graph, ...rest } = n;
 		const graph = graphFor(n.graph);
-		const inside = graph !== undefined;
+		const here = landsHere(n);
 		return {
 			...rest,
 			...(graph !== undefined ? { graph } : {}),
 			id: remap.get(n.id)!,
-			x: n.x + (inside ? 0 : dx),
-			y: n.y + (inside ? 0 : dy),
+			x: n.x + (here ? dx : 0),
+			y: n.y + (here ? dy : 0),
 		};
 	});
 	const links = clip.links.map((l) => ({
@@ -1538,13 +1579,13 @@ export function pasteClipping(
 	const comments = clip.comments.map((c) => {
 		const { graph: _graph, ...rest } = c;
 		const graph = graphFor(c.graph);
-		const inside = graph !== undefined;
+		const here = landsHere(c);
 		return {
 			...rest,
 			...(graph !== undefined ? { graph } : {}),
 			id: remap.get(c.id)!,
-			x: c.x + (inside ? 0 : dx),
-			y: c.y + (inside ? 0 : dy),
+			x: c.x + (here ? dx : 0),
+			y: c.y + (here ? dy : 0),
 		};
 	});
 
