@@ -1367,6 +1367,7 @@ const CONTROLS: DocPage = {
 				["Drag from a pin", "Start a wire; everything it cannot reach dims"],
 				["Drop a wire on empty space", "Node menu, showing only what can take that wire"],
 				["Drop a wire from a service", "That service's methods, listed first — see [Services and their methods](services)"],
+				["Type a service or class name in the menu", "**ReplicatedStorage** gives Get Service; **Part** gives New Instance, each filled in"],
 				["Drag from a wired input", "Pick that wire up and move it somewhere else"],
 				["`Shift` + click a pin", "Disconnect everything on it"],
 				["Right-click a pin", "Pin menu — split a struct, promote to a variable"],
@@ -2584,6 +2585,13 @@ function servicesPage(registry: Registry): DocPage {
 					"grouped by service, searchable, with the signature under the highlighted row. " +
 					"The palette knows them too: type `IsServer` into the node menu and the entry is " +
 					"there, and picking it places the node already set to that call.",
+			},
+			{
+				t: "p",
+				text:
+					"The service itself is in there by name as well: typing `ReplicatedStorage` " +
+					"offers **Get Service** with the name filled in, and any other class name — " +
+					"`Part`, `ProximityPrompt` — offers **New Instance** the same way.",
 			},
 			{
 				t: "p",

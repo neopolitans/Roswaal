@@ -76,6 +76,16 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.44.0",
+		date: "2026-09-15",
+		headline: "A service or a class, by its own name.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Typing a service name into the node menu offers that service.** `ReplicatedStorage` gives you Get Service with the name already in it, the way a variable's name gives you its Get.",
+			"**Any other class name offers New Instance**, filled in: `Part`, `ProximityPrompt`, `Motor6D`. Services are left out of that half — `Instance.new(\"Players\")` is an error the engine raises at runtime, and the service entry is the one that means anything.",
+		],
+	},
+	{
 		version: "0.43.1",
 		date: "2026-09-15",
 		headline: "Shows fills its row, and the documentation's casts were checked.",

@@ -14,7 +14,8 @@ import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import {
 	CALL_OPTIONS, SERVICE_CALL, SERVICE_VALUE, SERVICES_WITH_METHODS, argumentPins, callDetail,
-	methodsOfService, serviceFromSource, serviceMenuItems, serviceMethod, servicePins, splitCall,
+	methodsOfService, nameItems, serviceFromSource, serviceMenuItems, serviceMethod, servicePins,
+	splitCall,
 } from "../src/core/serviceCalls.js";
 
 const registry = createRegistry();
@@ -320,5 +321,52 @@ describe("a service wired into the receiver", () => {
 			(d) => d.severity === "warning",
 		);
 		expect(warnings.map((d) => d.message).join(" ")).toContain("Debris method");
+	});
+});
+
+describe("a service or a class by its name", () => {
+	const items = nameItems();
+	const named = (name: string) => items.filter((item) => item.name === name);
+
+	it("offers a service as Get Service, filled in", () => {
+		expect(named("ReplicatedStorage")).toEqual([{
+			name: "ReplicatedStorage",
+			defId: "roblox.getService",
+			literals: { service: { t: "string", v: "ReplicatedStorage" } },
+			summary: "Get Service — ReplicatedStorage, as a local at the top of the file.",
+			category: "Engine",
+		}]);
+	});
+
+	it("offers a class as New Instance, filled in", () => {
+		expect(named("ProximityPrompt")).toEqual([{
+			name: "ProximityPrompt",
+			defId: "roblox.instanceNew",
+			literals: { className: { t: "string", v: "ProximityPrompt" } },
+			summary: 'New Instance — Instance.new("ProximityPrompt").',
+			category: "Instances",
+		}]);
+	});
+
+	/** `Instance.new("Players")` is a runtime error, so only one of the two. */
+	it("gives a service no New Instance entry", () => {
+		expect(named("Players").map((item) => item.defId)).toEqual(["roblox.getService"]);
+		expect(named("Workspace").map((item) => item.defId)).toEqual(["roblox.getService"]);
+	});
+
+	it("names every entry after the thing itself, and nothing twice", () => {
+		const keys = items.map((item) => `${item.defId}:${item.name}`);
+		expect(new Set(keys).size).toBe(keys.length);
+		for (const item of items) expect(item.name).toMatch(/^[A-Za-z][A-Za-z0-9_]*$/);
+	});
+
+	/** Both of these are pin literals rather than config — see `NameItem`. */
+	it("fills a pin the node actually has", () => {
+		for (const item of items) {
+			const def = registry.get(item.defId)!;
+			for (const pin of Object.keys(item.literals)) {
+				expect(def.inputs.some((p) => p.id === pin), `${item.defId}/${pin}`).toBe(true);
+			}
+		}
 	});
 });

@@ -32,7 +32,9 @@
 
 import { useEffect, useRef } from "react";
 
-import type { NodeConfig, NodeDef, NodeScript, PinDef, RoswaalConfig } from "../core/schema.js";
+import type {
+	Literal, NodeConfig, NodeDef, NodeScript, PinDef, RoswaalConfig,
+} from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import type { InstanceLocation } from "../core/nodemap.js";
 import { CodeEditor } from "./CodeEditor.jsx";
@@ -71,7 +73,7 @@ export interface OverlaysProps {
 
 	menu: MenuAnchor | null;
 	presets: Preset[];
-	onMenuPick: (def: NodeDef, config?: NodeConfig) => void;
+	onMenuPick: (def: NodeDef, config?: NodeConfig, literals?: Record<string, Literal>) => void;
 	onAddComment: () => void;
 	onMenuClose: () => void;
 

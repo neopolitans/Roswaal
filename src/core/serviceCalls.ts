@@ -30,7 +30,7 @@
  * argument count in its config, exactly as Call Method does.
  */
 
-import { ROBLOX_SERVICES } from "./roblox.js";
+import { CLASS_OPTIONS, ROBLOX_SERVICES, isService } from "./roblox.js";
 import { SERVICE_METHODS, type ServiceMethod } from "./robloxMembers.js";
 import type { Literal, NodeConfig, PinDef } from "./schema.js";
 
@@ -282,4 +282,53 @@ export function serviceFromSource(
 	// has no literal of its own.
 	const service = name || "Players";
 	return methodsOfService(service).length > 0 ? service : undefined;
+}
+
+/**
+ * The nodes a name alone can spawn: a service, or a class to make one of.
+ *
+ * Typing `ReplicatedStorage` into the palette and being offered every node that
+ * mentions a service is a worse answer than being offered *that service*. The
+ * same for `Part`, where the node somebody wants is New Instance with the class
+ * already filled in.
+ *
+ * Here rather than in the menu because the compiler's vocabulary lives in core
+ * and the menu is one reader of it — and because a list of six hundred entries
+ * is worth a test.
+ */
+export interface NameItem {
+	/** What is typed, and what the entry is called. */
+	name: string;
+	defId: string;
+	/** The pin the name goes into. Both of these are literals, not config. */
+	literals: Record<string, Literal>;
+	summary: string;
+	category: string;
+}
+
+export function nameItems(): NameItem[] {
+	const out: NameItem[] = [];
+	for (const service of ROBLOX_SERVICES) {
+		out.push({
+			name: service,
+			defId: "roblox.getService",
+			literals: { service: { t: "string", v: service } },
+			summary: `Get Service — ${service}, as a local at the top of the file.`,
+			category: "Engine",
+		});
+	}
+	for (const className of CLASS_OPTIONS) {
+		// A service is an instance too, and `Instance.new("Players")` is an
+		// error the engine raises at runtime. The service entry is the one that
+		// means anything, so the class list gives those a miss.
+		if (isService(className)) continue;
+		out.push({
+			name: className,
+			defId: "roblox.instanceNew",
+			literals: { className: { t: "string", v: className } },
+			summary: `New Instance — Instance.new("${className}").`,
+			category: "Instances",
+		});
+	}
+	return out;
 }

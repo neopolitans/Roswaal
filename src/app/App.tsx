@@ -22,7 +22,7 @@ import { MapEditor } from "./MapEditor.jsx";
 import { SourceView, type SourceDoc } from "./SourceView.jsx";
 import type { DialogRequest, DialogResult, PendingDialog } from "./Dialog.jsx";
 import { Logo } from "./logo.jsx";
-import type { PinDef } from "../core/schema.js";
+import type { Literal, PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
 import { previewSelection } from "./SelectionPreview.jsx";
 import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
@@ -761,7 +761,12 @@ export function App() {
 	 * unconnected is better than refusing a pick with no explanation.
 	 */
 	const spawn = useCallback(
-		(def: NodeDef, world: { x: number; y: number }, config?: Record<string, unknown>) => {
+		(
+			def: NodeDef,
+			world: { x: number; y: number },
+			config?: Record<string, unknown>,
+			literals?: Record<string, Literal>,
+		) => {
 			const from = menu?.from;
 			// A hoisted Function is in no flow, so it goes straight into a graph of
 			// its own, and that graph opens.
@@ -802,6 +807,11 @@ export function App() {
 				let next = withDefaults
 					? setNodeConfig(added.script, added.id, withDefaults)
 					: added.script;
+				// A menu entry that named a service or a class fills the pin in,
+				// which is the whole of what picking it saves you.
+				for (const [pin, value] of Object.entries(literals ?? {})) {
+					next = setLiteral(next, added.id, pin, value);
+				}
 				if (!from || hoisted) return next;
 
 				const placed = next.nodes.find((n) => n.id === added.id);
@@ -833,7 +843,7 @@ export function App() {
 			});
 			setMenu(null);
 		},
-		[menu, registry, prefs.logicParens],
+		[menu, registry, prefs.logicParens, prefs.castNames],
 	);
 
 	const spawnComment = useCallback((world: { x: number; y: number }) => {
@@ -1661,7 +1671,7 @@ export function App() {
 
 				menu={menu}
 				presets={presets}
-				onMenuPick={(def, config) => menu && spawn(def, menu.world, config)}
+				onMenuPick={(def, config, literals) => menu && spawn(def, menu.world, config, literals)}
 				onAddComment={() => menu && spawnComment(menu.world)}
 				onMenuClose={() => setMenu(null)}
 

@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { GraphNode, NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
+import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { categories, subcategories } from "../core/nodes/index.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
@@ -19,7 +19,7 @@ import {
 	hoistedFunctions, paramsVisibleFrom, visibleFrom, type GraphId,
 } from "../core/functionGraph.js";
 import { landingPins, localRefFor } from "./edits.js";
-import { serviceMenuItems, servicePins } from "../core/serviceCalls.js";
+import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
 import { LAYER } from "./layers.js";
 import { COMMENT_DEFAULT_COLOR, nodeColor, pinColor } from "./palette.js";
 
@@ -84,6 +84,15 @@ interface MenuItem {
 	 * entry that gives a boolean back.
 	 */
 	pins?: { inputs: PinDef[]; outputs: PinDef[] };
+	/**
+	 * Values typed into the node's own pins on arrival.
+	 *
+	 * A config decides what a node *is*; a literal is what somebody would have
+	 * typed into it. Get Service's service and New Instance's class name are
+	 * literals — they are pins with a value — so an entry that offers "the
+	 * ReplicatedStorage one" has to be able to fill one in.
+	 */
+	literals?: Record<string, Literal>;
 }
 
 export interface NodeMenuProps {
@@ -91,7 +100,7 @@ export interface NodeMenuProps {
 	registry: Registry;
 	target: "roblox" | "lune";
 	presets: Preset[];
-	onPick: (def: NodeDef, config?: NodeConfig) => void;
+	onPick: (def: NodeDef, config?: NodeConfig, literals?: Record<string, Literal>) => void;
 	onAddComment: () => void;
 	onClose: () => void;
 }
@@ -211,6 +220,33 @@ export function NodeMenu(props: NodeMenuProps) {
 	 * for, and the alternative — dragging RunService out and being shown every
 	 * node in the library that takes an Instance — answers a question nobody put.
 	 */
+	/**
+	 * A service or a class by its own name.
+	 *
+	 * `ReplicatedStorage` is a thing somebody has in mind, and the node for it is
+	 * Get Service with that name filled in — so the name is what the entry is
+	 * called, and the node it makes is in the summary beside it. Searched rather
+	 * than browsed, like the service methods: six hundred classes under a heading
+	 * is not a list anybody reads.
+	 */
+	const nameEntries = useMemo((): MenuItem[] => {
+		if (target !== "roblox") return [];
+		return nameItems().flatMap((entry) => {
+			const def = registry.get(entry.defId);
+			if (!def) return [];
+			return [{
+				key: `name:${entry.defId}:${entry.name}`,
+				title: entry.name,
+				category: entry.category,
+				summary: entry.summary,
+				color: nodeColor(def),
+				pure: def.pure === true,
+				def,
+				literals: entry.literals,
+			}];
+		});
+	}, [registry, target]);
+
 	const draggedService = useMemo(() => {
 		const service = anchor.from?.service;
 		if (!service || anchor.from?.side !== "out") return [];
@@ -224,9 +260,12 @@ export function NodeMenu(props: NodeMenuProps) {
 		const from = anchor.from;
 		const side = from ? (from.side === "out" ? "in" : "out") : null;
 		const reach = (item: MenuItem) => {
-			if (!from || !side || !item.pins) return true;
-			const pins = side === "in" ? item.pins.inputs : item.pins.outputs;
-			return landingPins(item.def, pins, from.pin, side).length > 0;
+			if (!from || !side) return true;
+			// A configured entry knows the pins it would arrive with; one that only
+			// fills a literal in arrives with its definition's own.
+			const pins = item.pins ?? { inputs: item.def.inputs, outputs: item.def.outputs };
+			const list = side === "in" ? pins.inputs : pins.outputs;
+			return landingPins(item.def, list, from.pin, side).length > 0;
 		};
 		// A method of the dragged service is listed once, under its own heading,
 		// so the same call does not appear twice with two different names.
@@ -235,6 +274,7 @@ export function NodeMenu(props: NodeMenuProps) {
 			...draggedService,
 			...items,
 			...serviceItems.filter((item) => !dragged.has(item.key) && reach(item)),
+			...nameEntries.filter(reach),
 		];
 
 		return searchable
@@ -242,7 +282,7 @@ export function NodeMenu(props: NodeMenuProps) {
 			.filter((x) => x.score > 0)
 			.sort((a, b) => b.score - a.score)
 			.map((x) => x.item);
-	}, [query, items, serviceItems, draggedService, anchor.from]);
+	}, [query, items, serviceItems, nameEntries, draggedService, anchor.from]);
 
 	/**
 	 * Categories, each holding either a flat list or a list of datatype groups.
@@ -346,7 +386,7 @@ export function NodeMenu(props: NodeMenuProps) {
 						setActive((i) => Math.max(i - 1, 0));
 					}
 					if (e.key === "Enter" && flat[active]) {
-						onPick(flat[active].def, flat[active].config);
+						onPick(flat[active].def, flat[active].config, flat[active].literals);
 					}
 				}}
 			/>
@@ -365,7 +405,7 @@ export function NodeMenu(props: NodeMenuProps) {
 							className={`item${flat[active]?.key === item.key ? " active" : ""}`}
 							title={item.summary}
 							onMouseEnter={() => setActive(flat.indexOf(item))}
-							onClick={() => onPick(item.def, item.config)}
+							onClick={() => onPick(item.def, item.config, item.literals)}
 						>
 							<span className="swatch" style={{ background: item.color }} />
 							<span>{item.title}</span>
