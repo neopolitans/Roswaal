@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.42.0",
+		date: "2026-09-15",
+		headline: "A cast is shaped like a cast.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Cast, Cast Array and Cast Through Any are drawn as pills**, the shape the comparisons and **and** / **or** already use: the value and the type down the left, the symbol in the middle — `::`, `:: { }`, `:: any ::` — and the result on the right. Same pins, same generated line; a cast now reads as the operator it is instead of as a box with a header saying what the symbol says.",
+		],
+		watch: [
+			"A pill has no header, so a **name typed into Label** on a cast is no longer drawn on the node — it still names the local the cast binds, and is still shown in the Inspector and on hover. Every other pill has always worked this way.",
+			"**Brackets** is not offered for a cast. A cast already writes `(value :: T)`, and the toggle would add a second pair.",
+		],
+	},
+	{
 		version: "0.41.0",
 		date: "2026-09-15",
 		headline: "Ask a service what it can do.",

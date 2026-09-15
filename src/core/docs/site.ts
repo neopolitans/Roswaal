@@ -2050,7 +2050,7 @@ function settingsPage(): DocPage {
 					],
 					[
 						"New logic nodes",
-						"Whether a new **And**, **Or**, **Not** or comparison pill starts out bracketing its expression. Only the starting point: whether a node brackets is stored **on the node**, so it travels with the graph and reads the same on everybody's machine. Precedence is handled either way — this is about how the line reads, never about what it means.",
+						"Whether a new **And**, **Or**, **Not** or comparison pill starts out bracketing its expression. Only the starting point: whether a node brackets is stored **on the node**, so it travels with the graph and reads the same on everybody's machine. Precedence is handled either way — this is about how the line reads, never about what it means. The casts are pills too and are not offered it: `(value :: T)` brackets itself already.",
 					],
 					[
 						"Name in the graph tools",
@@ -2679,6 +2679,14 @@ function castingBlocks(registry: Registry): Block[] {
 				"**Cast** takes any Luau type expression verbatim, so an intersection, a union or a " +
 				"table type all work — its Type pin is typed in rather than wired, because the text " +
 				"becomes part of the generated code.",
+		},
+		{
+			t: "p",
+			text:
+				"All three are drawn as **pills**, the shape the comparisons and **and** / **or** " +
+				"use: the value and the type down the left, the `::` in the middle, the result on " +
+				"the right. A cast *is* an operator, and the shape is the point — a claim made " +
+				"without a check is worth spotting at a glance rather than after reading a header.",
 		},
 		...previews(
 			registry,

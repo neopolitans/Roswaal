@@ -1041,15 +1041,22 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// typechecker what you know and disappears. That is genuinely different from
 	// a checked cast, which branches at runtime — so there is no Cast Failed pin
 	// here, and Is A is the node for asking rather than asserting.
-	pure("cast.as", "Cast", "Values", "($in.value :: $in.type!raw)",
+	//
+	// Drawn as pills, for the reason the comparisons are: a cast *is* an
+	// operator — `value :: T`, two operands and a symbol — and a full node put a
+	// header reading "Cast" above a pin called Value to say what `::` says. The
+	// shape is also the point of the node. A cast is a claim made without a
+	// check, and a graph should show where those are at a glance rather than
+	// after reading three titles.
+	pill(pure("cast.as", "Cast", "Values", "($in.value :: $in.type!raw)",
 		[d("value", "Value", "any"), str("type", "Type", "BasePart")], "any",
-		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first. The Type pin takes any Luau type expression, so an intersection like `Model & { Humanoid: Humanoid }` is written here directly. Cast, in the Inspector, decides whether the assertion gets a line of its own; an implicit one inside the True arm of a Branch on Is A writes nothing at all, because Luau has already narrowed the value."),
-	pure("cast.array", "Cast Array", "Values", "($in.value :: { $in.type!raw })",
+		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first. The Type pin takes any Luau type expression, so an intersection like `Model & { Humanoid: Humanoid }` is written here directly. Cast, in the Inspector, decides whether the assertion gets a line of its own; an implicit one inside the True arm of a Branch on Is A writes nothing at all, because Luau has already narrowed the value."), "::"),
+	pill(pure("cast.array", "Cast Array", "Values", "($in.value :: { $in.type!raw })",
 		[d("value", "Value", "table"), str("type", "Type", "BasePart")], "table",
-		"For a collection you know more about than its type says: Get Descendants is { Instance }, and this is how you say they are all BaseParts."),
-	pure("cast.any", "Cast Through Any", "Values", "(($in.value :: any) :: $in.type!raw)",
+		"For a collection you know more about than its type says: Get Descendants is { Instance }, and this is how you say they are all BaseParts."), ":: { }"),
+	pill(pure("cast.any", "Cast Through Any", "Values", "(($in.value :: any) :: $in.type!raw)",
 		[d("value", "Value", "any"), str("type", "Type", "BasePart")], "any",
-		"Luau refuses a cast between unrelated types. Going through `any` is the documented way round it, and the extra step is the point: it marks where you overrode the typechecker rather than agreed with it."),
+		"Luau refuses a cast between unrelated types. Going through `any` is the documented way round it, and the extra step is the point: it marks where you overrode the typechecker rather than agreed with it."), ":: any ::"),
 
 	// -- Engine types ------------------------------------------------------
 	//

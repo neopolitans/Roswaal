@@ -2,9 +2,9 @@
  * Operator pills.
  *
  * A comparison is `a == b`, and a full node says that in three rows under a
- * header whose title repeats what the symbol says. These ten nodes are drawn as
- * the expression instead: pins down the left, the Luau operator in the middle,
- * the result on the right.
+ * header whose title repeats what the symbol says. These nodes are drawn as the
+ * expression instead: pins down the left, the Luau operator in the middle, the
+ * result on the right.
  *
  * The sizes are asserted through `nodeBounds` and `pinPosition` — the canvas's
  * own — because the documentation draws these too, and a second opinion about
@@ -27,12 +27,13 @@ const node = (def: string, config?: NodeConfig): GraphNode => ({ id: "n", def, x
 const fieldsOf = (id: string) => operatorFields(resolveNodePins(registry.get(id)!, undefined).inputs);
 
 describe("which nodes are pills", () => {
-	it("is the ten whose whole meaning is one symbol", () => {
+	it("is the thirteen whose whole meaning is one symbol", () => {
 		const ids = [...registry.values()]
 			.filter((def) => def.display === "operator")
 			.map((def) => def.id)
 			.sort();
 		expect(ids).toEqual([
+			"cast.any", "cast.array", "cast.as",
 			"compare.eq", "compare.gt", "compare.gte", "compare.lt", "compare.lte", "compare.neq",
 			"logic.and", "logic.not", "logic.or", "value.nil",
 		]);
@@ -43,6 +44,20 @@ describe("which nodes are pills", () => {
 		expect(registry.get("compare.gte")!.operator).toBe(">=");
 		expect(registry.get("logic.and")!.operator).toBe("and");
 		expect(registry.get("value.nil")!.operator).toBe("nil");
+		expect(registry.get("cast.as")!.operator).toBe("::");
+	});
+
+	/**
+	 * A cast is `value :: T`: two operands and a symbol, which is what a pill
+	 * draws. The type is the second row's field, so the pill carries the claim
+	 * on its face — which is the point, since a cast is the one node that
+	 * asserts without checking.
+	 */
+	it("includes the casts, each saying which cast it is", () => {
+		expect(registry.get("cast.array")!.operator).toBe(":: { }");
+		expect(registry.get("cast.any")!.operator).toBe(":: any ::");
+		// Value takes a wire and has no editor; Type is typed in, so one field.
+		expect(fieldsOf("cast.as")).toEqual(["field"]);
 	});
 
 	it("is a shape the canvas knows", () => {

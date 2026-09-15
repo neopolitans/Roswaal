@@ -177,7 +177,11 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 						hint="Whatever the signal passes to its listener."
 					/>
 				)}
-				{def.display === "operator" && <OperatorBrackets node={node} />}
+				{/* A cast is a pill and brackets its own expression already — see the
+				    template. Offering the toggle would offer a second pair. */}
+				{def.display === "operator" && !CAST_NODES.has(def.id) && (
+					<OperatorBrackets node={node} />
+				)}
 				{CAST_NODES.has(def.id) && <CastMode node={node} />}
 				{(def.id === "flow.forEach" || def.id === "flow.forIndex") && (
 					<LoopNames node={node} array={def.id === "flow.forIndex"} />
