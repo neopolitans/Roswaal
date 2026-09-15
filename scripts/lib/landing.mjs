@@ -281,7 +281,7 @@ export function landingPage(version) {
     </div>
 
     <p class="landing-lede">
-      Visual scripting in Luau, reimagined.
+      Visual scripting for Luau, reimagined.
       <em>Completely free, forever.</em>
     </p>
     <p class="landing-sub">
@@ -379,24 +379,25 @@ export function landingPage(version) {
     <div class="landing-card" style="--edge: ${colourOf("value.expression")}">
       <div class="icon">${icon("build")}</div>
       <div>
-        <h3>Design a node in Luau, or in nodes</h3>
+        <h3>Custom nodes, created your way</h3>
         <p>
-          Node Design writes the logic either way, and switches between them:
-          wire it from nodes and watch the Luau appear beside it, or write the
-          template by hand. Leaving nodes for an empty Luau field starts you
-          from what the nodes compiled to.
+          Design one in Node Design — wire the logic from nodes and watch the
+          Luau appear beside it, or write the template by hand, switching
+          whenever you like. Or write the pack yourself, JSON or Luau, in
+          whichever editor you already use.
         </p>
       </div>
     </div>
 
     <div class="landing-card" style="--edge: ${colourOf("table.insert")}">
-      <div class="icon">${icon("duplicate")}</div>
+      <div class="icon">${icon("rename")}</div>
       <div>
-        <h3>Nodes of your own</h3>
+        <h3>Suggest an edit from any page</h3>
         <p>
-          A node pack is a file — JSON, or Luau with comments — that defines
-          nodes the way the built-in library defines its own. Commit them, and
-          share them between projects.
+          Found a mistake, or a graph that is wrong? Every documentation page
+          has a <kbd>✎</kbd> beside its title that opens an issue with the page
+          already named — and in the editor's own docs window you can change
+          the page in place and propose exactly what it should say.
         </p>
       </div>
     </div>

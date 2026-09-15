@@ -76,6 +76,15 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.58.1",
+		date: "2026-09-15",
+		headline: "The front page says custom nodes once, and points at the edit button.",
+		affects: ["docs"],
+		changed: [
+			"Designing a node and writing a pack were two points saying most of the same thing, and are now one. The room went to the **Suggest an edit** pencil that every documentation page already carries, which nothing on the site mentioned.",
+		],
+	},
+	{
 		version: "0.58.0",
 		date: "2026-09-15",
 		headline: "An execution wire no longer runs behind the nodes feeding it.",
