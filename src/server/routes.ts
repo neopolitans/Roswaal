@@ -28,7 +28,7 @@ import { VERSION } from "../cli/version.js";
 
 import { path } from "./host.js";
 import {
-	buildTree, collectMaps, compileAll, compileMap, compileScript, copyPackBetween, createFolder,
+	buildTree, collectMaps, collectProject, compileAll, compileMap, compileScript, copyPackBetween, createFolder,
 	createPack, deleteEntry, deletePack, deletePackNode, duplicatePack, exportedTypes, findOrphanOutputs,
 	graphName, initProject, listPacks, locateFile, moveEntry, openProject, packUsage, readConfig,
 	readMap, readPack, readScript, readText, removeOutputs, renameEntry, safeJoin, savePackNode,
@@ -99,6 +99,14 @@ export class ApiSession {
 		return this.current;
 	}
 
+	/** The capabilities this host passed, by name, for the editor to read. */
+	private abilities(): string[] {
+		const given = this.hooks.capabilities ?? {};
+		return (Object.keys(given) as (keyof HostCapabilities)[])
+			.filter((name) => given[name] !== undefined)
+			.sort();
+	}
+
 	private ability<K extends keyof HostCapabilities>(name: K): NonNullable<HostCapabilities[K]> {
 		const able = this.hooks.capabilities?.[name];
 		if (!able) {
@@ -155,8 +163,19 @@ export class ApiSession {
 			// Project
 			// -----------------------------------------------------------------
 
+			/**
+			 * What is serving, and what it can do.
+			 *
+			 * The capability list is the editor's, not a diagnostic: it hides the
+			 * controls behind anything absent rather than offering them and
+			 * failing on the click. Names, not a boolean each, so a host that
+			 * gains one does not need this shape changed.
+			 */
 			"GET /health": async () => ({
-				ok: true, project: this.current?.root ?? null, version: VERSION,
+				ok: true,
+				project: this.current?.root ?? null,
+				version: VERSION,
+				capabilities: this.abilities(),
 			}),
 
 			/**
@@ -485,6 +504,20 @@ export class ApiSession {
 			 * Generated files whose graph has moved or gone. Reported rather than
 			 * removed: deleting files is not something to do behind somebody's back.
 			 */
+			/**
+			 * The whole project, as text, for the editor to zip and hand over.
+			 *
+			 * On both hosts, not just the hosted one. It costs nothing on the
+			 * daemon -- where the answer is a directory somebody already has --
+			 * and a route that only exists on one of them is a route that only
+			 * works on one of them, which is the arrangement this whole file
+			 * exists to avoid.
+			 */
+			"GET /export": async () => {
+				const project = this.project();
+				return { name: path.posix.basename(project.root) || "project", files: await collectProject(project) };
+			},
+
 			"GET /orphans": async () => ({ orphans: await findOrphanOutputs(this.project()) }),
 
 			"POST /orphans/remove": async (req) => {

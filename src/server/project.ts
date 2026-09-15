@@ -942,6 +942,44 @@ export async function removeOutputs(project: OpenProject, paths: string[]): Prom
 	return removed;
 }
 
+/**
+ * Every text file in the project, for handing the whole thing over at once.
+ *
+ * What the hosted editor downloads as a zip, and the only way work done in a
+ * browser tab leaves it.
+ *
+ * **By extension, deliberately.** The alternative -- everything under the root
+ * that is not in `SKIP_DIRS` -- would read a `.rbxm` or a PNG as UTF-8 and hand
+ * back something that is not the file. These are the extensions a Roswaal
+ * project is made of: the graphs, the maps, the packs, the config, the
+ * generated Luau and the Rojo project beside it. Anything else in the directory
+ * is somebody else's, and a zip that quietly corrupts it is worse than one that
+ * does not contain it.
+ */
+const EXPORTABLE = [
+	".nodescript", ".nodemap", ".luau", ".lua", ".json", ".toml", ".md", ".txt",
+];
+
+export async function collectProject(project: OpenProject): Promise<Record<string, string>> {
+	const out: Record<string, string> = {};
+	const stack = [project.root];
+
+	while (stack.length) {
+		const dir = stack.pop()!;
+		for (const entry of await fs.readdir(dir, { withFileTypes: true }).catch(() => [])) {
+			const abs = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				if (!SKIP_DIRS.has(entry.name)) stack.push(abs);
+				continue;
+			}
+			if (!EXPORTABLE.some((suffix) => entry.name.endsWith(suffix))) continue;
+			const text = await fs.readFile(abs, "utf8").catch(() => null);
+			if (text !== null) out[toPosix(path.relative(project.root, abs))] = text;
+		}
+	}
+	return out;
+}
+
 export async function collectMaps(project: OpenProject): Promise<string[]> {
 	const out: string[] = [];
 	const stack = [path.join(project.root, project.config.sourceDir)];

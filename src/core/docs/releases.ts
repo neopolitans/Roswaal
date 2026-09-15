@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.51.0",
+		date: "2026-09-15",
+		headline: "The editor asks what it is running on, and offers only that.",
+		affects: ["editor", "designer"],
+		added: [
+			"**Download as a zip**, in the project menu: every graph, node map, node pack, config file and generated Luau, in one archive named after the project.",
+		],
+		changed: [
+			"**A control that needs something this copy of Roswaal does not have is no longer offered.** Showing a file in a file manager and handing one to an editor are shown but disabled, with a tooltip saying where they work; opening another project, the recent list and copying a node pack between projects are hidden, since there is nothing behind them to do. On a machine with a filesystem nothing changes — on one without a folder dialog, the Browse button is gone rather than failing when pressed.",
+			"**A host that is not answering says so**, instead of showing the screen that asks you to choose a project folder.",
+		],
+	},
+	{
 		version: "0.50.4",
 		date: "2026-09-15",
 		headline: "A path means the same thing on every platform.",

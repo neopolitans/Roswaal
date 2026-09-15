@@ -29,6 +29,7 @@ import { EditorView, lineNumbers, highlightActiveLine } from "@codemirror/view";
 import { syntaxHighlighting } from "@codemirror/language";
 
 import { luauLanguage } from "./luauMode.js";
+import { NOT_HERE, useHostCan } from "./host.js";
 import { editorTheme, luauHighlight } from "./luauTheme.js";
 
 export interface SourceDoc {
@@ -48,6 +49,11 @@ export interface SourceViewProps {
 }
 
 export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewProps) {
+	// Both need a machine: an editor to hand the file to, and a file manager
+	// to show it in. Disabled rather than gone -- they describe what the tool
+	// does, and their titles say where it does it.
+	const canEdit = useHostCan("edit");
+	const canReveal = useHostCan("reveal");
 	const host = useRef<HTMLDivElement>(null);
 	const view = useRef<EditorView | null>(null);
 	const [copied, setCopied] = useState(false);
@@ -110,11 +116,21 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 						Open the graph
 					</button>
 				) : (
-					<button className="tb primary" title="Hand this file to VS Code" onClick={() => onEdit(doc.path)}>
+					<button
+						className="tb primary"
+						disabled={!canEdit}
+						title={canEdit ? "Hand this file to VS Code" : NOT_HERE}
+						onClick={() => onEdit(doc.path)}
+					>
 						Open in VS Code
 					</button>
 				)}
-				<button className="tb" onClick={() => onReveal(doc.path)}>
+				<button
+					className="tb"
+					disabled={!canReveal}
+					title={canReveal ? undefined : NOT_HERE}
+					onClick={() => onReveal(doc.path)}
+				>
 					Show in folder
 				</button>
 				<button

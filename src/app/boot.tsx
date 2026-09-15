@@ -16,6 +16,7 @@ import { DesignerPage } from "./DesignerPage.jsx";
 import { DocsPage } from "./DocsPage.jsx";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
 import { installFavicon } from "./logo.jsx";
+import { loadCapabilities } from "./host.js";
 import { currentPage } from "./pages.js";
 import { readPreferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
@@ -53,6 +54,17 @@ export function bootEditor(): void {
 	 * the docs window is the same document, and a developer on Nord who opens
 	 * the reference should not find it in slate blue.
 	 */
+	/**
+	 * What the host can do, asked once for the page.
+	 *
+	 * Not awaited: the answer decides whether a few controls are usable, not
+	 * whether anything renders, and holding the first paint for a round trip
+	 * to buy that would be the wrong trade. They start unusable and the store
+	 * redraws them, which is the right way round -- a control that appears and
+	 * then vanishes is worse than one that arrives a moment late.
+	 */
+	void loadCapabilities();
+
 	const preferences = readPreferences();
 	applyTheme(findTheme(preferences.theme));
 	applyChrome(preferences);

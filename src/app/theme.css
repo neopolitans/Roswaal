@@ -1991,6 +1991,20 @@ button.tb.primary:hover:not(:disabled) {
 	background: var(--bg-active);
 }
 
+/* An item describing something this copy of Roswaal cannot do -- showing a file
+   in a file manager, from a browser tab. Shown rather than removed, because it
+   names a real thing the tool does and somebody trying the hosted editor is
+   exactly who should learn that; its title says where it does work. Compound
+   with `.item` so the rule cannot reach anything else calling itself disabled. */
+.menu .item.item-unavailable {
+	cursor: default;
+	opacity: 0.45;
+}
+
+.menu .item.item-unavailable:hover {
+	background: none;
+}
+
 .menu .item .swatch {
 	width: 8px;
 	height: 8px;
@@ -2411,6 +2425,21 @@ button.tb.primary:hover:not(:disabled) {
 	font-size: 12px;
 	color: var(--fg-faint);
 	min-height: 18px;
+}
+
+/* The host never answered. This is the screen instead of the folder picker,
+   because a picker is an answer to a question nobody asked when the thing that
+   would open the folder is the thing that is down. */
+.placeholder.shell .shell-broken {
+	color: var(--danger);
+	margin: 0 0 4px;
+}
+
+.placeholder.shell .shell-row {
+	display: flex;
+	gap: 8px;
+	justify-content: center;
+	margin-top: 14px;
 }
 
 .shell-recent {
@@ -4277,6 +4306,20 @@ button.tb.icon-only.on {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
+}
+
+/* Says this is the browser copy. Compound with `.version` so it inherits the
+   size and numerals rather than restating them, and reads as a chip beside the
+   number rather than as a second number. */
+.toolbar .logo .version.preview-chip {
+	color: var(--accent);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	padding: 0 4px;
+	margin-left: 2px;
+	text-transform: uppercase;
+	font-size: 9px;
+	letter-spacing: 0.04em;
 }
 
 .docs-page-head .logo .version {

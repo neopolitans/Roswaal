@@ -10,6 +10,7 @@ import { memo, useEffect, useMemo, useRef, useState, type DragEvent } from "reac
 import type { TreeEntry } from "./api.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
 import { Icon, type IconName } from "./icons.jsx";
+import { NOT_HERE, useHostCan } from "./host.js";
 import { LAYER } from "./layers.js";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
@@ -61,6 +62,8 @@ export interface ProjectTreeProps {
  */
 export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 	const { tree, openPath, sourceDir, nodePaths, targetDir, onOpen, onMove, onTargetDir } = props;
+	// A file manager to show a file in is something only a machine has.
+	const canReveal = useHostCan("reveal");
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
 
@@ -371,8 +374,10 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							<span>New folder</span>
 						</div>
 						<div
-							className="item"
+							className={`item${canReveal ? "" : " item-unavailable"}`}
+							title={canReveal ? undefined : NOT_HERE}
 							onClick={() => {
+								if (!canReveal) return;
 								props.onReveal(menu.entry.path);
 								setMenu(null);
 							}}

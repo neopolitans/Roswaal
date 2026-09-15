@@ -34,6 +34,7 @@ import { VERSION } from "../cli/version.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
+import { IS_STATIC_HOST } from "./pages.js";
 
 export interface ProjectBarProps {
 	config: RoswaalConfig;
@@ -63,7 +64,9 @@ export function ProjectBar(props: ProjectBarProps) {
 			    which is where an application's own icon is looked for. */}
 			<button
 				className="logo"
-				title={`Roswaal ${VERSION} — switch project`}
+				title={IS_STATIC_HOST
+					? `Roswaal ${VERSION}, running in your browser. Nothing is saved when you close the tab.`
+					: `Roswaal ${VERSION} — switch project`}
 				onClick={(e) => {
 					const box = e.currentTarget.getBoundingClientRect();
 					props.onOpenProjectMenu({ x: box.left, y: box.bottom + 4 });
@@ -73,6 +76,10 @@ export function ProjectBar(props: ProjectBarProps) {
 				{/* Small, always there. Knowing which build you are looking at
 				    is the first question about any bug report. */}
 				<span className="version">{VERSION}</span>
+				{/* And *which kind* of build, which is the second question. A
+				    shared link lands on the editor rather than on the page that
+				    explains what it is, so the editor has to say. */}
+				{IS_STATIC_HOST && <span className="version preview-chip">preview</span>}
 			</button>
 
 			{/* Icons, with the label as the tooltip. A toolbar is read by shape

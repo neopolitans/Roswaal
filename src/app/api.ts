@@ -162,7 +162,10 @@ export const api = {
 		projectRoot = root;
 	},
 
-	health: () => request<{ ok: boolean; project: string | null }>("/api/health"),
+	/** What is serving, and what it can do — see `host.ts`. */
+	health: () => request<{
+		ok: boolean; project: string | null; version: string; capabilities: string[];
+	}>("/api/health"),
 
 	/** What the daemon already has open, if `roswaal serve` opened one. */
 	currentProject: () =>
@@ -216,6 +219,9 @@ export const api = {
 		post<{ results: MapOutcome[] }>("/api/map/compile", opts),
 
 	createFolder: (path: string) => post<{ path: string }>("/api/folder/create", { path }),
+	/** The whole project as text, for `zip.ts` to turn into a download. */
+	exportProject: () =>
+		request<{ name: string; files: Record<string, string> }>("/api/export"),
 	/** Generated files whose graph has moved or gone. */
 	orphans: () => request<{ orphans: string[] }>("/api/orphans"),
 	removeOrphans: (paths: string[]) =>

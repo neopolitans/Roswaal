@@ -26,6 +26,9 @@
 /** True in the hosted build. Set by `define` in both Vite configs. */
 declare const __ROSWAAL_STATIC__: boolean;
 
+/** Whether this bundle was built for a static host rather than the daemon. */
+export const IS_STATIC_HOST: boolean = __ROSWAAL_STATIC__;
+
 export type Page = "editor" | "docs" | "designer";
 
 /** Vite guarantees a trailing slash: "/" for the daemon, "/Roswaal/" on Pages. */

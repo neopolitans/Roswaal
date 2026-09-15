@@ -47,6 +47,52 @@ const ready = (async () => {
 	await session.openAt(PLAYGROUND_ROOT);
 })();
 
+/**
+ * Dynamic compiling, without a file watcher.
+ *
+ * The daemon watches the directory, because a graph there can change without
+ * Roswaal doing it — a branch switch, a pull, another editor. Here there is no
+ * directory and nothing else that can touch the volume, so the *only* way a
+ * graph changes is a write through this worker. That makes the watcher
+ * unnecessary rather than impossible: every event it would have reported passes
+ * through the line below.
+ *
+ * Without this the editor showed Dynamic as on and nothing recompiled, which is
+ * worse than not offering it — the setting was there, it said it was working,
+ * and the generated Luau silently stopped matching the graph.
+ *
+ * Compiled through the route table rather than by calling the compiler, so the
+ * refusals a manual compile makes — a hand-edited file, a name collision — are
+ * the same ones here.
+ */
+async function dynamicCompile(method: string, path: string, body: unknown): Promise<void> {
+	if (method !== "PUT" || path !== "/script") return;
+	if (session.current?.config.compileMode !== "hot") return;
+
+	const relPath = (body as { path?: string })?.path;
+	if (typeof relPath !== "string" || relPath === "") return;
+
+	try {
+		const { results } = await session.handle("POST", "/compile", {
+			body: { path: relPath, write: true },
+		}) as { results: unknown[] };
+		post({
+			kind: "event",
+			event: "hot",
+			data: { type: "compiled", path: relPath, outcome: results[0] },
+		});
+	} catch (err) {
+		// Reported the way the watcher reports one, rather than failing the write
+		// that triggered it: the graph is saved either way, and a compile that
+		// will not run is news rather than a reason to lose the save.
+		post({
+			kind: "event",
+			event: "hot",
+			data: { type: "error", path: relPath, message: (err as Error).message },
+		});
+	}
+}
+
 self.onmessage = async (event: MessageEvent<ToWorker>) => {
 	const message = event.data;
 	if (message?.kind !== "request") return;
@@ -58,6 +104,9 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 			body: message.body,
 		});
 		post({ kind: "response", id: message.id, status: 200, payload });
+		// After the reply, so the save is confirmed before the compile it causes
+		// starts reporting on itself.
+		await dynamicCompile(message.method, message.path, message.body);
 	} catch (err) {
 		// The same mapping `app.ts` makes for Express: a thrown `HttpError` knows
 		// its own status, and anything else is the caller's fault at 400.

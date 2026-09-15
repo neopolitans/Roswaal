@@ -54,7 +54,9 @@ import {
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
 import { setProjectTypes } from "./projectTypes.js";
-import { PAGE_TARGET, pageHref } from "./pages.js";
+import { IS_STATIC_HOST, PAGE_TARGET, pageHref } from "./pages.js";
+import { useHostCan, useHostFailure } from "./host.js";
+import { download, zip } from "./zip.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
 import { SERVICE_CALL, SERVICE_VALUE } from "../core/serviceCalls.js";
@@ -1292,6 +1294,28 @@ export function App() {
 		await refreshTree();
 	}, [refreshTree, flushUnder, followMove, notify]);
 
+	/**
+	 * The whole project, as one file the developer keeps.
+	 *
+	 * The way work leaves a browser tab, where everything is in memory and goes
+	 * when the tab does. Named after the project and wrapped in a folder of that
+	 * name, so unpacking it does not spray graphs across somebody's Downloads.
+	 */
+	const downloadProject = useCallback(async () => {
+		try {
+			const { name, files } = await api.exportProject();
+			const folder = name || "roswaal-project";
+			download(
+				zip(Object.fromEntries(
+					Object.entries(files).map(([path, text]) => [`${folder}/${path}`, text]),
+				)),
+				`${folder}.zip`,
+			);
+		} catch (err) {
+			notify("The project could not be packed up", (err as Error).message);
+		}
+	}, [notify]);
+
 	const onTreeReveal = useCallback(async (target: string) => {
 		try {
 			await api.reveal(target);
@@ -1469,6 +1493,7 @@ export function App() {
 						);
 					}}
 					onBrowse={() => void browseForProject()}
+					onDownload={() => void downloadProject()}
 					onClose={() => setProjectMenu(null)}
 				/>
 			)}
@@ -1837,6 +1862,15 @@ function ProjectPicker({
 	 * button is there, and a machine with no dialog — a daemon over SSH, a
 	 * container — replaces it with the reason the first time you press it.
 	 */
+	// The folder picker is the machine's, and a host without one says so
+	// before the button is drawn rather than when it is pressed.
+	const canBrowse = useHostCan("browse");
+	/**
+	 * Set when the host never answered, which is not the same as having no
+	 * project open. Offering a folder picker then is answering a question
+	 * nobody asked, and hiding the one that matters.
+	 */
+	const hostFailure = useHostFailure();
 	const [noPicker, setNoPicker] = useState<string | null>(null);
 	const [browsing, setBrowsing] = useState(false);
 
@@ -1895,6 +1929,35 @@ function ProjectPicker({
 		}
 	};
 
+	if (hostFailure !== null) {
+		return (
+			<div className="placeholder shell">
+				<h1 className="logo"><Logo height={26} /> Roswaal</h1>
+				<p className="shell-broken">
+					{IS_STATIC_HOST
+						? "Roswaal could not start in this tab. Nothing here can open a project until it does."
+						: "The Roswaal daemon is not answering. Start it with `roswaal serve` in your project, then reload."}
+				</p>
+				<p className="shell-note">{hostFailure}</p>
+				<div className="shell-row">
+					<button className="tb primary" onClick={() => window.location.reload()}>
+						Reload
+					</button>
+					{IS_STATIC_HOST && (
+						<a
+							className="tb"
+							href="https://github.com/neopolitans/roswaal-feedback/issues/new"
+							target="_blank"
+							rel="noreferrer"
+						>
+							Report this
+						</a>
+					)}
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="placeholder shell">
 			{/* Here the name stays in text beside the mark. This is the first
@@ -1912,7 +1975,7 @@ function ProjectPicker({
 					onChange={(e) => setRoot(e.target.value)}
 					onKeyDown={(e) => e.key === "Enter" && go()}
 				/>
-				{noPicker === null && (
+				{noPicker === null && canBrowse && (
 					<button
 						className="tb"
 						disabled={browsing || !!busy}

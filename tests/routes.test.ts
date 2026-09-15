@@ -235,3 +235,52 @@ describe("what the API refuses", () => {
 		expect(await statusOf(post("/folder/create", { path: "src/Invented" }))).toBe(400);
 	});
 });
+
+describe("what the host tells the editor it can do", () => {
+	/**
+	 * The editor hides a control whose capability is missing rather than
+	 * offering it and failing on the click, so this list is load-bearing: an
+	 * empty one leaves a browser tab with no dead buttons, and a wrong one puts
+	 * them back. Named capabilities rather than a boolean each, so a host
+	 * gaining one does not change the shape.
+	 */
+	it("reports none for a host with no machine under it", async () => {
+		const health = await get("/health") as { capabilities: string[] };
+		expect(health.capabilities).toEqual([]);
+	});
+
+	it("reports exactly the ones it was given", async () => {
+		const withMachine = new ApiSession({
+			capabilities: {
+				reveal: async () => {},
+				edit: async () => "code",
+			},
+		});
+		const health = await withMachine.handle("GET", "/health") as { capabilities: string[] };
+		expect(health.capabilities).toEqual(["edit", "reveal"]);
+	});
+
+	/**
+	 * The names have to be the ones the routes gate on, or a control is hidden
+	 * while its route works, or shown while its route answers 501. Checked
+	 * against the routes themselves rather than a list written twice.
+	 */
+	it("names them the way the routes refuse them", async () => {
+		// The session with the demo open, so a route that needs a project gets
+		// past that check and reaches the capability one -- which is the check
+		// being read here.
+		const refusals: Record<string, string> = {
+			browse: "POST /project/browse",
+			reveal: "POST /entry/reveal",
+			edit: "POST /entry/edit",
+			inspect: "GET /project/inspect",
+		};
+
+		for (const [capability, route] of Object.entries(refusals)) {
+			const [method, path] = route.split(" ");
+			const message = await session.handle(method, path, { body: { path: "x" }, query: { root: "/" } })
+				.then(() => "", (err: Error) => err.message);
+			expect([route, message.includes(capability)]).toEqual([route, true]);
+		}
+	});
+});

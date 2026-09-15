@@ -16,6 +16,7 @@
 import { useEffect, useRef } from "react";
 
 import { LAYER } from "./layers.js";
+import { useHostCan } from "./host.js";
 
 export interface ProjectMenuProps {
 	/** Viewport position of the menu's top-left; it is `position: fixed`. */
@@ -28,6 +29,8 @@ export interface ProjectMenuProps {
 	onForget: (root: string) => void;
 	/** Ask the daemon for a folder dialog, then open whatever comes back. */
 	onBrowse: () => void;
+	/** Hand the whole project over as one file. */
+	onDownload: () => void;
 	onClose: () => void;
 }
 
@@ -72,6 +75,7 @@ export function ProjectMenu(props: ProjectMenuProps) {
 		};
 	}, [onClose]);
 
+	const canUseOtherProjects = useHostCan("inspect");
 	const others = recent.filter((r) => r !== current);
 
 	return (
@@ -88,8 +92,8 @@ export function ProjectMenu(props: ProjectMenuProps) {
 			</div>
 
 			<div className="items">
-				{others.length > 0 && <div className="group">Recent</div>}
-				{others.map((path) => (
+				{canUseOtherProjects && others.length > 0 && <div className="group">Recent</div>}
+				{canUseOtherProjects && others.map((path) => (
 					<div
 						key={path}
 						className="item"
@@ -116,16 +120,36 @@ export function ProjectMenu(props: ProjectMenuProps) {
 					</div>
 				))}
 
-				<div className="group">Elsewhere</div>
+				<div className="group">This project</div>
 				<div
 					className="item"
+					title="Every graph, node pack and generated file, as a zip"
 					onClick={() => {
-						props.onBrowse();
+						props.onDownload();
 						onClose();
 					}}
 				>
-					<span className="name">Open another project…</span>
+					<span className="name">Download as a zip…</span>
 				</div>
+
+				{/* Recent projects and opening another one both need a filesystem
+				    with more than this project on it. In a browser tab there is
+				    exactly one, held in memory, and a list of others would be a
+				    list of nothing. */}
+				{canUseOtherProjects && (
+					<>
+						<div className="group">Elsewhere</div>
+						<div
+							className="item"
+							onClick={() => {
+								props.onBrowse();
+								onClose();
+							}}
+						>
+							<span className="name">Open another project…</span>
+						</div>
+					</>
+				)}
 			</div>
 		</div>
 	);

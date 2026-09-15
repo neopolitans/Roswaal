@@ -28,6 +28,7 @@ import { packTargets, runsOn } from "../../core/packs.js";
 import type { Target } from "../../core/schema.js";
 import { api, type PackFile } from "../api.js";
 import { Icon } from "../icons.jsx";
+import { NOT_HERE, useHostCan } from "../host.js";
 
 /** What the designer has open: a built-in category, or one of the project's packs. */
 export type OpenPack = { kind: "builtin"; category: string } | { kind: "project"; path: string };
@@ -78,6 +79,10 @@ export interface PackBrowserProps {
 }
 
 export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notify }: PackBrowserProps) {
+	// Copying a pack between projects needs a second project to copy to, which
+	// needs a filesystem holding more than this one. `inspect` is that
+	// question: a daemon with no folder picker can still be given a path.
+	const canUseOtherProjects = useHostCan("inspect");
 	const [layout, setLayout] = useState(readLayout);
 	const [naming, setNaming] = useState<string | null>(null);
 	const [importing, setImporting] = useState<
@@ -135,10 +140,15 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 						List
 					</button>
 				</div>
-				<button className="tb with-icon" disabled={noProject} onClick={() => void startImport()}>
-					<Icon name="folderOpen" size={15} />
-					Import from a project…
-				</button>
+				{/* Hidden rather than disabled, unlike the file-manager buttons: a
+				    tooltip explaining that there is no second project on a volume
+				    holding one would not help anybody do anything. */}
+				{canUseOtherProjects && (
+					<button className="tb with-icon" disabled={noProject} onClick={() => void startImport()}>
+						<Icon name="folderOpen" size={15} />
+						Import from a project…
+					</button>
+				)}
 				{naming === null ? (
 					<button className="tb primary with-icon" disabled={noProject} onClick={() => setNaming("")}>
 						<Icon name="newFile" size={15} />
@@ -287,6 +297,8 @@ function ProjectPackCard({
 	onChanged: () => Promise<void>;
 	notify: Notify;
 }) {
+	const canUseOtherProjects = useHostCan("inspect");
+	const canReveal = useHostCan("reveal");
 	const [confirming, setConfirming] = useState<{ graph: string; count: number }[] | null>(null);
 	const luau = pack.format === "luau";
 
@@ -357,19 +369,21 @@ function ProjectPackCard({
 						<Icon name="duplicate" size={14} />
 						{luau ? "Save as JSON pack" : "Duplicate"}
 					</button>
-					<button
-						className="tb icon-only"
-						title="Copy to another project…"
-						aria-label="Copy to another project"
-						onClick={act(async () => {
-							const { path: root } = await api.browseForProject();
-							if (!root) return;
-							await api.exportPack(pack.path, root);
-							notify(`${pack.name} was copied to ${root}.`);
-						})}
-					>
-						<Icon name="external" size={14} />
-					</button>
+					{canUseOtherProjects && (
+						<button
+							className="tb icon-only"
+							title="Copy to another project…"
+							aria-label="Copy to another project"
+							onClick={act(async () => {
+								const { path: root } = await api.browseForProject();
+								if (!root) return;
+								await api.exportPack(pack.path, root);
+								notify(`${pack.name} was copied to ${root}.`);
+							})}
+						>
+							<Icon name="external" size={14} />
+						</button>
+					)}
 					<button
 						className="tb icon-only"
 						title="Copy JSON"
@@ -385,7 +399,8 @@ function ProjectPackCard({
 					</button>
 					<button
 						className="tb icon-only"
-						title="Show in file manager"
+						disabled={!canReveal}
+						title={canReveal ? "Show in file manager" : NOT_HERE}
 						aria-label="Show in file manager"
 						onClick={act(async () => {
 							await api.reveal(pack.path);
