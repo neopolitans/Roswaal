@@ -378,6 +378,24 @@ function proposeHref(page: DocPage): string {
 	);
 }
 
+/**
+ * A version stamp on the site's two shared assets.
+ *
+ * `docs.js` and `theme.css` keep the same names across every release, which is
+ * ordinarily fine and is not fine on a static host whose cache headers cannot
+ * be set. GitHub Pages serves them with `max-age=600`, so for ten minutes after
+ * a deploy a returning reader gets the previous script against the current
+ * markup — which is how a fix for a broken viewer looked exactly like the
+ * breakage it fixed.
+ *
+ * A query string is enough: it changes the URL, so a release is a cache miss
+ * and anything between releases is a hit. The editor's own bundles solve this
+ * with a content hash in the filename and need nothing here.
+ */
+function stamp(options: RenderOptions): string {
+	return options.version ? `?v=${encodeURIComponent(options.version)}` : "";
+}
+
 /** Pending, Reviewed or Verified, with what that means on hover. */
 function reviewBadge(review: Review): string {
 	return (
@@ -397,7 +415,7 @@ export function renderPage(site: DocSite, page: DocPage, options: RenderOptions)
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(page.title)} · Roswaal docs</title>
 <meta name="description" content="${escapeHtml(page.summary)}">
-${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(options.logo.icon)}">\n` : ""}<link rel="stylesheet" href="${up}theme.css">
+${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(options.logo.icon)}">\n` : ""}<link rel="stylesheet" href="${up}theme.css${stamp(options)}">
 </head>
 <body class="docs-static">
 <div class="docs-page">
@@ -419,7 +437,7 @@ ${page.review ? `<p class="docs-reviewed">${inline(reviewLine(page.review), up)}
 ${renderOutline(page)}
 </div>
 </div>
-<script src="${up}docs.js" defer></script>
+<script src="${up}docs.js${stamp(options)}" defer></script>
 </body>
 </html>
 `;

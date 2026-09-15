@@ -76,12 +76,13 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
-		version: "0.53.1",
+		version: "0.53.2",
 		date: "2026-09-15",
 		headline: "Drawn graphs fit their frames again on the documentation site.",
 		affects: ["docs"],
 		fixed: [
 			"**Every drawn graph on the published documentation was rendering at its natural size and overflowing its box**, and could not be panned or zoomed. The site's one script was throwing on its first line of every page, which took the search box with it.",
+			"**The documentation's script and stylesheet carry the version in their address**, so a release is not served to a returning reader alongside the previous one's script. A published site cannot set its own cache headers, and the two are cached for ten minutes under names that never change.",
 		],
 	},
 	{
