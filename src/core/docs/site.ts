@@ -1200,8 +1200,11 @@ const CONTROLS: DocPage = {
 				["`Ctrl` + `Shift` + `Z`, `Ctrl` + `Y`", "Redo"],
 				["`Ctrl` + `S`", "Compile the open graph"],
 				["`Ctrl` + `A`", "Select everything in the graph on screen"],
-				["`Ctrl` + `C`, `Ctrl` + `X`, `Ctrl` + `V`", "Copy, cut, paste. A function brings its graph"],
-				["`Ctrl` + `D`", "Duplicate the selection in place"],
+				[
+					"`Ctrl` + `C`, `Ctrl` + `X`, `Ctrl` + `V`",
+					"Copy, cut, paste. A function brings its graph. The paste lands with its top-left corner at the pointer, or offset from the original when the pointer is off the canvas",
+				],
+				["`Ctrl` + `D`", "Duplicate the selection, at the pointer"],
 				["`Ctrl` + `Shift` + `L`", "Realign the graph on screen"],
 				["`Delete`, `Backspace`", "Delete the selection. A function takes its graph, and asks first"],
 				["`A`", "Align the selection, walking it in the order you picked it"],

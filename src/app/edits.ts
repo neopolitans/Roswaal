@@ -23,7 +23,9 @@ import {
 } from "../core/functionGraph.js";
 import { localNameOf, pinDefaultFor, pinTypeOf, type LocalRef } from "../core/nodes/variables.js";
 import { currentArity, growthRule, type GrowthRule } from "../core/nodes/growth.js";
-import { compactWidth, nodeBounds, pinPosition, rectContains, type Rect } from "./geometry.js";
+import {
+	compactWidth, nodeBounds, pinPosition, rectContains, type Rect, type Vec,
+} from "./geometry.js";
 import { NODE } from "./layers.js";
 import { newId } from "./store.js";
 
@@ -1428,12 +1430,32 @@ export function copySelection(script: NodeScript, picked: ReadonlySet<string>): 
 }
 
 /**
- * Pastes a clipping with fresh ids, offset so it does not land exactly on top
- * of whatever it was copied from.
+ * Where a paste lands.
+ *
+ * `at` is a world position for the clipping's **top-left corner** — the
+ * smallest x and the smallest y across everything in it, comments included,
+ * since a comment usually reaches further up and left than the nodes it
+ * encloses and is part of what you are placing.
+ *
+ * Without one, the clipping keeps its old positions plus `offset`. That is the
+ * fallback rather than the rule now, because landing beside the original is
+ * what made a pasted **comment** enclose the originals as well as the copies:
+ * membership is worked out from the geometry when a drag starts, so a copy
+ * dropped on top of what it was copied from really does contain both.
+ */
+export interface PasteInto {
+	at?: Vec;
+	offset?: number;
+}
+
+/**
+ * Pastes a clipping with fresh ids, at the pointer or offset from where it was
+ * copied. See `PasteInto`.
  */
 export function pasteClipping(
-	script: NodeScript, clip: Clipping, offset = 32,
+	script: NodeScript, clip: Clipping, into: PasteInto = {},
 ): { script: NodeScript; ids: string[] } {
+	const offset = into.offset ?? 32;
 	const remap = new Map<string, string>();
 	for (const node of clip.nodes) remap.set(node.id, newId());
 	for (const comment of clip.comments) remap.set(comment.id, newId());
@@ -1442,6 +1464,28 @@ export function pasteClipping(
 	// from the graph on screen and lands in the one on screen, which the store
 	// fills in for a node with no graph.
 	const graphFor = (graph: string | undefined) => (graph !== undefined ? remap.get(graph) : undefined);
+
+	/**
+	 * How far everything landing in the graph on screen moves.
+	 *
+	 * Only those: a node inside a pasted function keeps its position relative to
+	 * that function's own graph, which is not the one being pointed at.
+	 *
+	 * A clipping with nothing landing here — every item inside a function whose
+	 * declaration was not itself copied — has no corner to place, so it falls
+	 * back to the offset rather than to `at`, which would otherwise read as
+	 * `-Infinity`.
+	 */
+	const landing = [
+		...clip.nodes.filter((n) => n.graph === undefined),
+		...clip.comments.filter((c) => c.graph === undefined),
+	];
+	let dx = offset;
+	let dy = offset;
+	if (into.at && landing.length > 0) {
+		dx = into.at.x - Math.min(...landing.map((i) => i.x));
+		dy = into.at.y - Math.min(...landing.map((i) => i.y));
+	}
 	const nodes = clip.nodes.map((n) => {
 		const { graph: _graph, ...rest } = n;
 		const graph = graphFor(n.graph);
@@ -1450,8 +1494,8 @@ export function pasteClipping(
 			...rest,
 			...(graph !== undefined ? { graph } : {}),
 			id: remap.get(n.id)!,
-			x: n.x + (inside ? 0 : offset),
-			y: n.y + (inside ? 0 : offset),
+			x: n.x + (inside ? 0 : dx),
+			y: n.y + (inside ? 0 : dy),
 		};
 	});
 	const links = clip.links.map((l) => ({
@@ -1467,8 +1511,8 @@ export function pasteClipping(
 			...rest,
 			...(graph !== undefined ? { graph } : {}),
 			id: remap.get(c.id)!,
-			x: c.x + (inside ? 0 : offset),
-			y: c.y + (inside ? 0 : offset),
+			x: c.x + (inside ? 0 : dx),
+			y: c.y + (inside ? 0 : dy),
 		};
 	});
 

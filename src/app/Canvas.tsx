@@ -53,6 +53,16 @@ export interface CanvasProps {
 	) => void;
 	onRequestPinMenu: (screen: Vec, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
+	/**
+	 * Where the pointer is over the canvas, in world coordinates, and `null`
+	 * once it leaves.
+	 *
+	 * For paste, which has to place a clipping at the pointer without having an
+	 * event of its own to read it from -- a keystroke does not say where the
+	 * mouse is. Called on every move, so the caller is expected to put it in a
+	 * ref rather than in state.
+	 */
+	onPointerAt?: (world: Vec | null) => void;
 	/** A file dragged in from the project tree, dropped at this point. */
 	onDropFile: (path: string, screen: Vec, world: Vec) => void;
 	/**
@@ -98,6 +108,7 @@ type Gesture =
 
 export function Canvas({
 	script: whole, graph = null, registry, diagnostics, onRequestMenu, onRequestPinMenu, onEditCode,
+	onPointerAt,
 	onDropFile, locked = false, wireStyle = "curved", wideNodes = false,
 }: CanvasProps) {
 	const { selection, path } = useEditor();
@@ -564,6 +575,11 @@ export function Canvas({
 			ref={surface}
 			tabIndex={0}
 			onPointerDown={onSurfacePointerDown}
+			onPointerMove={(e) => onPointerAt?.(toWorld(e.clientX, e.clientY))}
+			// A pointer that has left has no position to paste at, and the
+			// alternative -- keeping the last one it had -- puts the paste
+			// wherever it happened to exit, which is not somewhere anybody chose.
+			onPointerLeave={() => onPointerAt?.(null)}
 			onContextMenu={(e) => {
 				e.preventDefault();
 				// Viewport coordinates, not canvas-relative: every menu is

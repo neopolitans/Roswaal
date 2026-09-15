@@ -266,6 +266,13 @@ export function App() {
 	// Deliberately in-memory rather than the system clipboard: a graph fragment
 	// is not text, and round-tripping it through one would lose pin identity.
 	const clipboard = useRef<Clipping | null>(null);
+	/**
+	 * Where the pointer is over the canvas, in world coordinates.
+	 *
+	 * A ref rather than state: it changes on every mouse move and nothing
+	 * renders from it — only `paste` reads it, once, when a key is pressed.
+	 */
+	const pointerAt = useRef<{ x: number; y: number } | null>(null);
 
 	const registry = useMemo(() => createRegistry(customNodes), [customNodes]);
 
@@ -699,6 +706,29 @@ export function App() {
 	);
 
 	/**
+	 * Pastes a clipping where the pointer is.
+	 *
+	 * Both Ctrl+V and Ctrl+D come here, because they are the same act with a
+	 * different source, and a duplicate landing beside its original has the same
+	 * problem a paste did: a copied **comment** is drawn over the nodes it was
+	 * copied from, and membership is geometric, so dragging it afterwards takes
+	 * the originals along with the copies.
+	 *
+	 * The pointer is only a landing point while it is over the canvas. A
+	 * keystroke pressed with the mouse in a panel, or off the window entirely,
+	 * falls back to the old offset — which is still a sensible answer, and is
+	 * what a graph pasted from the keyboard alone has always done.
+	 */
+	const paste = useCallback((clip: Clipping) => {
+		const at = pointerAt.current ?? undefined;
+		store.edit((s) => {
+			const { script, ids } = pasteClipping(s, clip, { at });
+			queueMicrotask(() => store.select(ids));
+			return script;
+		});
+	}, []);
+
+	/**
 	 * Places a node, and — when the menu was opened by dragging a wire off a pin
 	 * — joins it up.
 	 *
@@ -993,23 +1023,14 @@ export function App() {
 				const clip = clipboard.current;
 				if (!clip) return;
 				e.preventDefault();
-				store.edit((s) => {
-					const { script, ids } = pasteClipping(s, clip);
-					queueMicrotask(() => store.select(ids));
-					return script;
-				});
+				paste(clip);
 				return;
 			}
 			if (mod && e.key.toLowerCase() === "d") {
 				const state = store.getSnapshot();
 				if (!state.script || state.selection.size === 0) return;
 				e.preventDefault();
-				const clip = copySelection(state.script, state.selection);
-				store.edit((s) => {
-					const { script, ids } = pasteClipping(s, clip);
-					queueMicrotask(() => store.select(ids));
-					return script;
-				});
+				paste(copySelection(state.script, state.selection));
 				return;
 			}
 			if (e.key === "Delete" || e.key === "Backspace") {
@@ -1529,6 +1550,7 @@ export function App() {
 							registry={registry}
 							diagnostics={diagnostics}
 							locked={locked}
+							onPointerAt={(world) => { pointerAt.current = world; }}
 							wireStyle={prefs.wireStyle}
 							wideNodes={prefs.wideNodes}
 							onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}

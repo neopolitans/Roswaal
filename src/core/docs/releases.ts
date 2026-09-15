@@ -54,6 +54,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.36.4",
+		date: "2026-09-15",
+		headline: "A paste lands where you are pointing.",
+		changed: [
+			"**Paste and Duplicate put the clipping's top-left corner at the pointer**, instead of beside what it was copied from. The corner is the furthest up and left of everything in the clipping, comments included.",
+			"**Ctrl+D goes to the pointer too**, because a duplicate is a paste with a different source and had the same problem.",
+		],
+		fixed: [
+			"**A copied comment no longer encloses the originals as well as the copies.** Membership is worked out from the geometry when a drag starts, so a comment dropped on top of what it was copied from really did contain both — and dragging it afterwards took all of them.",
+		],
+		watch: [
+			"**With the pointer off the canvas, a paste still offsets from the original**, which is what it always did. A keystroke does not say where the mouse is, and a mouse in a panel is not a place you chose.",
+			"**A node inside a pasted function does not move.** It keeps its position in that function's own graph, which is not the graph you are pointing at; only the declaration lands at the pointer.",
+		],
+	},
+	{
 		version: "0.36.3",
 		date: "2026-09-15",
 		headline: "A loop says what it is looping over.",
