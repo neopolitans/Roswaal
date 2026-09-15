@@ -65,7 +65,13 @@ const DEFAULT_PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor, w
  * the style the canvas draws with; capsules and knots keep their shapes either
  * way, as they do there.
  */
-function previewFor(prefs: Preferences, registry: Registry): PreviewOptions {
+/**
+ * How a node is drawn in a picture: the reader's own geometry and colours.
+ *
+ * Exported because the node picker draws with it too — a picture that is not
+ * the node you are about to place is worse than no picture.
+ */
+export function previewFor(prefs: Preferences, registry: Registry): PreviewOptions {
 	return {
 		geometry: {
 			...NODE,

@@ -828,7 +828,8 @@ class Emitter {
 					? `: ${luauType(variable.type)}`
 					: "";
 			if (variable.description) this.push(`-- ${variable.description}`);
-			this.push(`local ${ident}${annotation} = ${literalToLuau(variable.default)}`);
+			const keyword = variable.const === true ? "const" : "local";
+			this.push(`${keyword} ${ident}${annotation} = ${literalToLuau(variable.default)}`);
 			this.declaredSoFar.add(variable.id);
 			written++;
 		}

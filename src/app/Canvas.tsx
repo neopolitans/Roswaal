@@ -61,6 +61,11 @@ export interface CanvasProps {
 		screen: Vec, world: Vec,
 		from?: { ref: PinRef; side: "in" | "out"; pin: PinDef; service?: string },
 	) => void;
+	/**
+	 * Ctrl and the right mouse button: the node picker, which draws what it
+	 * offers. Absent leaves the gesture as an ordinary right-click.
+	 */
+	onRequestNodePicker?: (world: Vec) => void;
 	onRequestPinMenu: (screen: Vec, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
 	/**
@@ -125,7 +130,8 @@ type Gesture =
 | { kind: "resize"; id: string; corner: "nw" | "se"; origin: Vec; start: Rect };
 
 export function Canvas({
-	script: whole, graph = null, registry, diagnostics, onRequestMenu, onRequestPinMenu, onEditCode,
+	script: whole, graph = null, registry, diagnostics, onRequestMenu, onRequestNodePicker,
+	onRequestPinMenu, onEditCode,
 	onPointerAt,
 	onDropFile, locked = false, wireStyle = "curved", wideNodes = false,
 }: CanvasProps) {
@@ -647,6 +653,13 @@ export function Canvas({
 			onPointerLeave={() => onPointerAt?.(null)}
 			onContextMenu={(e) => {
 				e.preventDefault();
+				// Ctrl asks the same question the slower way: the picker, which
+				// draws each node as you walk the list. The menu is for when you
+				// know the name; this is for when you know the shape.
+				if (e.ctrlKey || e.metaKey) {
+					onRequestNodePicker?.(toWorld(e.clientX, e.clientY));
+					return;
+				}
 				// Viewport coordinates, not canvas-relative: every menu is
 				// `position: fixed`, so subtracting the canvas origin here would
 				// open it a sidebar's width to the left of the pointer.

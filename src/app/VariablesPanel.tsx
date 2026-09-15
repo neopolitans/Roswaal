@@ -15,6 +15,7 @@ import {
 	addVariable, defaultLiteralFor, deleteVariable, localRefFor, updateVariable, variableUsageCount,
 } from "./edits.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import { isConstLocal } from "../core/nodes/variables.js";
 import { pinColor } from "./palette.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { store } from "./store.js";
@@ -194,6 +195,10 @@ function LocalRow({ node }: { node: GraphNode }) {
 			>
 				<span className="swatch" style={{ background: pinColor(ref.type, "data") }} />
 				<span className="name">{ref.name}</span>
+				{/* The list is where you look to see what a graph holds, so a promise
+				    one of them has made belongs here rather than only in the
+				    Inspector of the node that made it. */}
+				{isConstLocal(node.config) && <span className="badge const">const</span>}
 				<span className="type">{declared || "any"}</span>
 			</div>
 		</div>
@@ -260,6 +265,7 @@ function VariableRow({ variable, script, expanded, onToggle, confirm }: Variable
 			<div className="variable-head" draggable onDragStart={onDragStart} onClick={onToggle}>
 				<span className="swatch" style={{ background: pinColor(variable.type, "data") }} />
 				<span className="name">{variable.name}</span>
+				{variable.const === true && <span className="badge const">const</span>}
 				<span className="type">{variable.type}</span>
 			</div>
 
@@ -283,6 +289,31 @@ function VariableRow({ variable, script, expanded, onToggle, confirm }: Variable
 								store.edit((s) => updateVariable(s, variable.id, { type }))
 							}
 						/>
+					</label>
+					{/* `local` or `const`, per variable. A constant is declared once at
+					    the top of the file with the value below, and Set Variable on
+					    one is refused rather than left to the runtime. */}
+					<label className="field">
+						<span>Binding</span>
+						<div className="segmented">
+							<button
+								className={variable.const !== true ? "on" : ""}
+								onClick={() =>
+									store.edit((s) => updateVariable(s, variable.id, { const: undefined }))
+								}
+							>
+								local
+							</button>
+							<button
+								className={variable.const === true ? "on" : ""}
+								title="Luau's const: the name cannot be reassigned. Needs a runtime that has it."
+								onClick={() =>
+									store.edit((s) => updateVariable(s, variable.id, { const: true }))
+								}
+							>
+								const
+							</button>
+						</div>
 					</label>
 					<label className="field">
 						<span>Initial value</span>

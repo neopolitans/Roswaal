@@ -91,3 +91,61 @@ describe("assigning to a constant", () => {
 		expect(body(out.code)).toContain("limit = 6");
 	});
 });
+
+describe("a constant variable", () => {
+	/** A script variable, declared const at the top of the file. */
+	function withVariable(constant: boolean, writer?: "variable.set" | "variable.init") {
+		const b = new Builder();
+		const id = b.variable("limit", "number", { t: "number", v: 5 });
+		if (constant) {
+			b.script.variables = b.script.variables.map((v) => ({ ...v, const: true }));
+		}
+		const start = b.node("script.begin", { id: "start" });
+		if (writer) {
+			const node = b.node(writer, {
+				id: "write",
+				config: { variable: id, name: "limit", type: "number" },
+			});
+			b.lit(node, "value", { t: "number", v: 6 });
+			b.link(start, "then", node, "in");
+		} else {
+			const print = b.node("debug.print", { id: "print" });
+			const get = b.node("variable.get", {
+				id: "get", config: { variable: id, name: "limit", type: "number" },
+			});
+			b.link(start, "then", print, "in");
+			b.link(get, "value", print, "value");
+		}
+		return b.build();
+	}
+
+	it("is written with the keyword", () => {
+		const out = compile(withVariable(true), registry, {});
+		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+		expect(out.code).toContain("const limit: number = 5");
+	});
+
+	it("leaves an ordinary variable alone", () => {
+		expect(compile(withVariable(false), registry, {}).code).toContain("local limit: number = 5");
+	});
+
+	it("refuses a Set Variable", () => {
+		const errors = compile(withVariable(true, "variable.set"), registry, {}).diagnostics
+			.filter((d) => d.severity === "error");
+		expect(errors.map((d) => d.message).join(" ")).toContain('"limit" is a constant');
+	});
+
+	/** A constant is given its value where it is declared, and nowhere else. */
+	it("refuses an Initialize Variable", () => {
+		const errors = compile(withVariable(true, "variable.init"), registry, {}).diagnostics
+			.filter((d) => d.severity === "error");
+		expect(errors.map((d) => d.message).join(" ")).toContain("declared");
+	});
+
+	it("allows both on an ordinary variable", () => {
+		for (const writer of ["variable.set", "variable.init"] as const) {
+			const out = compile(withVariable(false, writer), registry, {});
+			expect(out.diagnostics.filter((d) => d.severity === "error"), writer).toEqual([]);
+		}
+	});
+});

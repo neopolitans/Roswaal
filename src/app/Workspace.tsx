@@ -268,13 +268,17 @@ function FloatingPanel({
 		if (target.closest("button, input, select, textarea, a")) return;
 		e.preventDefault();
 		e.stopPropagation();
-		const handle = e.currentTarget;
-		handle.setPointerCapture(e.pointerId);
 		start.current = { frame, x: e.clientX, y: e.clientY };
 
 		const move = (at: PointerEvent) => {
 			const from = start.current;
 			if (!from) return;
+			// A move with nothing held is a release this never heard. See the
+			// splitter, which had the same bug and the same fix.
+			if (at.buttons === 0) {
+				up();
+				return;
+			}
 			const dx = at.clientX - from.x;
 			const dy = at.clientY - from.y;
 			onFrame(
@@ -290,15 +294,15 @@ function FloatingPanel({
 		};
 		const up = () => {
 			start.current = null;
-			handle.removeEventListener("pointermove", move);
-			handle.removeEventListener("pointerup", up);
-			handle.removeEventListener("pointercancel", up);
+			window.removeEventListener("pointermove", move);
+			window.removeEventListener("pointerup", up);
+			window.removeEventListener("pointercancel", up);
 			onFrameEnd?.();
 		};
 
-		handle.addEventListener("pointermove", move);
-		handle.addEventListener("pointerup", up);
-		handle.addEventListener("pointercancel", up);
+		window.addEventListener("pointermove", move);
+		window.addEventListener("pointerup", up);
+		window.addEventListener("pointercancel", up);
 	}
 
 	return (
@@ -420,16 +424,33 @@ function Splitter({
 }) {
 	const axis = side === "bottom" ? "row" : "col";
 
+	/**
+	 * Drag to resize, on the **window** rather than on the handle.
+	 *
+	 * It listened on the handle with a pointer capture, which is the tidier
+	 * shape and has one failure that matters: if the capture is not granted —
+	 * or is lost, which a browser may do for its own reasons — the release
+	 * happens somewhere else and the handle never hears about it. The move
+	 * listener then survives the drag, and the next time the pointer *passes
+	 * over* the splitter with no button held it carries on resizing from the
+	 * position it was left at, which is the dock walking outwards on its own.
+	 *
+	 * On the window, the release is heard wherever it happens. `buttons` is
+	 * checked as well, so a move that arrives with nothing held ends the drag
+	 * rather than acting on it — belt and braces for the same failure.
+	 */
 	function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
 		if (e.button !== 0) return;
 		e.preventDefault();
-		const handle = e.currentTarget;
-		handle.setPointerCapture(e.pointerId);
 
 		const startX = e.clientX;
 		const startY = e.clientY;
 
 		const move = (move: PointerEvent) => {
+			if (move.buttons === 0) {
+				up();
+				return;
+			}
 			// Each side grows in a different direction: the left dock follows the
 			// pointer, the right and bottom grow as it moves back towards them.
 			const delta =
@@ -439,15 +460,15 @@ function Splitter({
 			onResize(size + delta);
 		};
 		const up = () => {
-			handle.removeEventListener("pointermove", move);
-			handle.removeEventListener("pointerup", up);
-			handle.removeEventListener("pointercancel", up);
+			window.removeEventListener("pointermove", move);
+			window.removeEventListener("pointerup", up);
+			window.removeEventListener("pointercancel", up);
 			onResizeEnd?.();
 		};
 
-		handle.addEventListener("pointermove", move);
-		handle.addEventListener("pointerup", up);
-		handle.addEventListener("pointercancel", up);
+		window.addEventListener("pointermove", move);
+		window.addEventListener("pointerup", up);
+		window.addEventListener("pointercancel", up);
 	}
 
 	return (

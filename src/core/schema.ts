@@ -373,6 +373,17 @@ export interface ScriptVariable {
 	/** Initial value. Every variable has one so the local is never left nil by accident. */
 	default: Literal;
 	description?: string;
+	/**
+	 * Declared with Luau's `const` rather than `local`: the name cannot be
+	 * reassigned once the file has started.
+	 *
+	 * Per variable, and off unless somebody says so — a variable that nothing
+	 * happens to assign is not the same as one you are promising never to. Set
+	 * Variable on a constant is refused before the file is written, and an
+	 * Initialize Variable node cannot declare one, since a constant is
+	 * initialised where it is declared and nowhere else.
+	 */
+	const?: boolean;
 }
 
 export interface NodeScript {

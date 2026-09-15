@@ -11,7 +11,11 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 
 import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
-import { createRegistry, resolveNodePins } from "../core/nodes/index.js";
+import { BUILTIN_NODES, createRegistry, resolveNodePins } from "../core/nodes/index.js";
+import { buildSearchIndex, buildSite } from "../core/docs/site.js";
+import { DocsSearch } from "./DocsSearch.jsx";
+import { NodePicker } from "./NodePicker.jsx";
+import { previewFor } from "./DocsPanel.jsx";
 import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import {
 	api, ProjectChangedError,
@@ -109,6 +113,16 @@ export function App() {
 	const [project, setProject] = useState<ProjectInfo | null>(null);
 	const [customNodes, setCustomNodes] = useState<NodeDef[]>([]);
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
+	/**
+	 * Where a node picked from the picker would land, and whether it is open.
+	 *
+	 * A world position rather than a boolean: the picker is opened by a
+	 * right-click on the canvas, and the node goes where that click was however
+	 * long you spend looking through it.
+	 */
+	const [nodePicker, setNodePicker] = useState<{ x: number; y: number } | null>(null);
+	/** The docs page the editor's Ctrl+K jumped to, opened in the docs window. */
+	const [docsJump, setDocsJump] = useState(false);
 	const [pinMenu, setPinMenu] = useState<PinMenuTarget | null>(null);
 	const [outcomes, setOutcomes] = useState<CompileOutcome[]>([]);
 	// The walk of the current project compile, one entry per file. Empty
@@ -308,6 +322,19 @@ export function App() {
 	const pointerAt = useRef<{ x: number; y: number } | null>(null);
 
 	const registry = useMemo(() => createRegistry(customNodes), [customNodes]);
+	/** How the node picker draws: the same settings the docs pictures follow. */
+	const nodePreview = useMemo(() => previewFor(prefs, registry), [prefs, registry]);
+	/**
+	 * The documentation, for the editor's own Ctrl+K.
+	 *
+	 * Built here rather than in the docs window, which is a separate page: this
+	 * is the index of what there is to jump *to*, and building it costs one walk
+	 * of the site the first time somebody asks.
+	 */
+	const docsIndex = useMemo(
+		() => buildSearchIndex(buildSite(registry, new Set(BUILTIN_NODES.map((d) => d.id)))),
+		[registry],
+	);
 
 	// The store needs it for the rules that resolve a node's pins -- see
 	// `Store.apply`. Set here rather than passed to every edit, because every
@@ -1075,6 +1102,14 @@ export function App() {
 				else if (!source && editor.path) void runCompile(editor.path, true);
 				return;
 			}
+			// The documentation, from wherever you are in the editor. It opens the
+			// docs window on the page you pick, which is the same window the
+			// toolbar's button opens and the same search it has.
+			if (mod && e.key.toLowerCase() === "k") {
+				e.preventDefault();
+				setDocsJump(true);
+				return;
+			}
 			if (mod && e.shiftKey && e.key.toLowerCase() === "l") {
 				e.preventDefault();
 				realign();
@@ -1649,6 +1684,7 @@ export function App() {
 							wireStyle={prefs.wireStyle}
 							wideNodes={prefs.wideNodes}
 							onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
+							onRequestNodePicker={(world) => setNodePicker(world)}
 							onRequestPinMenu={(screen, nodeId, pin, side) =>
 								setPinMenu({ screen, nodeId, pin, side })
 							}
@@ -1683,6 +1719,35 @@ export function App() {
 					</>
 				}
 			/>
+
+			{/* Ctrl and the right mouse button, on the canvas: the same question as
+			    the palette, asked by looking rather than by name. */}
+			{nodePicker && editor.script && (
+				<NodePicker
+					registry={registry}
+					target={editor.script.target}
+					preview={nodePreview}
+					onPick={(def) => {
+						spawn(def, nodePicker);
+						setNodePicker(null);
+					}}
+					onClose={() => setNodePicker(null)}
+				/>
+			)}
+
+			{/* Ctrl+K here jumps to a documentation page, the way it searches them
+			    in the docs window. Picking one opens that window on it. */}
+			{docsJump && (
+				<DocsSearch
+					index={docsIndex}
+					recent={[]}
+					onPick={(slug) => {
+						window.open(`/docs#${slug}`, "roswaal-docs");
+						setDocsJump(false);
+					}}
+					onClose={() => setDocsJump(false)}
+				/>
+			)}
 
 			<Overlays
 				registry={registry}

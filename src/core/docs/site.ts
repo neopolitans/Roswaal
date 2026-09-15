@@ -1387,6 +1387,28 @@ const CONTROLS: DocPage = {
 				["Double-click a wire", "Add a reroute knot where you clicked"],
 			],
 		},
+		{ t: "h", level: 2, text: "Advanced shortcuts" },
+		{
+			t: "p",
+			text:
+				"Two that are worth knowing and neither of which you need: each is a slower, " +
+				"fuller way of asking something the editor already answers quickly.",
+		},
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				[
+					"`Ctrl` + right-click the canvas",
+					"The **node picker**: the same list as the menu, with each node **drawn** as you walk it. For when you remember the shape rather than the name",
+				],
+				[
+					"`Ctrl` + `K`, in the editor",
+					"Jump to a documentation page. Pick one and the docs window opens on it",
+				],
+				["`Ctrl` + `K`, in the docs", "The search palette, over the page"],
+			],
+		},
 		{ t: "h", level: 2, text: "Searching" },
 		{
 			t: "table",
@@ -1397,7 +1419,6 @@ const CONTROLS: DocPage = {
 				["`for`, `while`, `break`, `return`", "The loop or the flow node that writes it"],
 				["A service or class name", "Get Service or New Instance, filled in"],
 				["A method name", "`RunService:IsServer` and the rest of that service's methods"],
-				["`Ctrl` + `K`, in the docs", "The search palette, over the page"],
 			],
 		},
 		{ t: "h", level: 2, text: "Comments" },
@@ -1476,6 +1497,16 @@ const VARIABLES: DocPage = {
 				"its use site — otherwise a Set sitting between two Gets would be invisible to the " +
 				"second one, and the graph would compile to something that does not match what it " +
 				"draws.",
+		},
+
+		{
+			t: "p",
+			text:
+				"**Binding**, in a variable's row, makes it a `const` — declared once at the top " +
+				"of the file with the starting value you gave it, and never assigned again. A " +
+				"**Set Variable** wired to one is refused, and so is **Initialize Variable**, " +
+				"because a constant is given its value where it is declared. The row says `const` " +
+				"beside the name, and so does a local's.",
 		},
 
 		{ t: "h", level: 2, text: "Locals" },
@@ -2942,6 +2973,7 @@ function castingBlocks(registry: Registry): Block[] {
 			head: ["Set on", "Comes out as"],
 			rows: [
 				["A variable, in the Variables panel", "`local health: number = 100`"],
+				["A variable set to **const**", "`const health: number = 100`"],
 				["A **Declare Local**, in the Inspector", "`local restores: { [Model]: Restore } = {}`"],
 				["A function's parameters and returns", "`local function read(tank: Model): Config`"],
 				["A node that produces a value", "`local part: BasePart = ...`"],

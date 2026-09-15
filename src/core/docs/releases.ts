@@ -76,6 +76,21 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.50.0",
+		date: "2026-09-15",
+		headline: "A picker that draws the node, and constants in the Variables list.",
+		affects: ["editor", "docs"],
+		added: [
+			"**`Ctrl` + right-click opens the node picker**: the same nodes as the menu, with each one **drawn** as you walk the list, in your own wire style and node corners. For when you remember what a node looks like rather than what it is called. Listed under *Advanced shortcuts* on the Controls page.",
+			"**`Ctrl` + `K` in the editor jumps to a documentation page.** Pick one and the docs window opens on it — the same search the docs window has, from wherever you are in a graph.",
+			"**A variable can be a `const`**, set per variable in its own row: declared once at the top of the file with its starting value, and never assigned again. **Set Variable** and **Initialize Variable** on one are refused before the file is written.",
+			"**Constants are marked in the Variables list**, variables and locals alike, with the keyword they write.",
+		],
+		fixed: [
+			"**A dock stops resizing when you let go**, wherever you let go. Releasing the splitter away from it left the drag running, so the next time the pointer passed over it the dock carried on growing.",
+		],
+	},
+	{
 		version: "0.49.0",
 		date: "2026-09-15",
 		headline: "A local can be a constant.",

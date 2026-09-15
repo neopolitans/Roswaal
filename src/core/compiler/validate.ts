@@ -148,6 +148,33 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		});
 	}
 
+	// A constant variable is declared once, at the top of the file, and cannot
+	// be written to after that — so both of the nodes that write to one are
+	// refused. Initialize is refused as well as Set: a constant is initialised
+	// where it is declared, and a node claiming to do it later is claiming the
+	// one thing `const` exists to prevent.
+	const constants = new Map(
+		script.variables.filter((v) => v.const === true).map((v) => [v.id, v.name]),
+	);
+	if (constants.size > 0) {
+		for (const node of script.nodes) {
+			if (node.def !== "variable.set" && node.def !== "variable.init") continue;
+			const id = (node.config as { variable?: string } | undefined)?.variable;
+			const name = id && constants.get(id);
+			if (!name) continue;
+			out.push({
+				severity: "error",
+				message:
+					node.def === "variable.set"
+						? `"${name}" is a constant, so it cannot be assigned again. Make it an ordinary `
+							+ "variable, or bind the new value to a local."
+						: `"${name}" is a constant, so it is given its value where it is declared. `
+							+ "Set its starting value in the Variables panel, or make it an ordinary variable.",
+				node: node.id,
+			});
+		}
+	}
+
 	// -- nodes -------------------------------------------------------------
 	const seenIds = new Set<string>();
 	for (const node of script.nodes) {
