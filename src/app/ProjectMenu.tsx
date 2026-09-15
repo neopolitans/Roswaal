@@ -16,7 +16,7 @@
 import { useEffect, useRef } from "react";
 
 import { LAYER } from "./layers.js";
-import { useHostCan } from "./host.js";
+import { useCanOpenDirectory, useHostCan } from "./host.js";
 
 export interface ProjectMenuProps {
 	/** Viewport position of the menu's top-left; it is `position: fixed`. */
@@ -33,6 +33,8 @@ export interface ProjectMenuProps {
 	onDownload: () => void;
 	/** Throw away what the browser is holding and start from the demo. */
 	onReset: () => void;
+	/** Hand the editor a folder from the developer's own disk. */
+	onOpenFolder: () => void;
 	onClose: () => void;
 }
 
@@ -80,6 +82,9 @@ export function ProjectMenu(props: ProjectMenuProps) {
 	const canUseOtherProjects = useHostCan("inspect");
 	// Only a host whose project is its own copy can throw it away.
 	const canReset = useHostCan("reset");
+	// The browser can be handed a real folder, where the daemon has its own
+	// dialog for the same job and this would be the second of two.
+	const canOpenFolder = useCanOpenDirectory();
 	const others = recent.filter((r) => r !== current);
 
 	return (
@@ -135,6 +140,19 @@ export function ProjectMenu(props: ProjectMenuProps) {
 				>
 					<span className="name">Download as a zip…</span>
 				</div>
+
+				{canOpenFolder && (
+					<div
+						className="item"
+						title="Work in a project on your own computer, from this browser"
+						onClick={() => {
+							props.onOpenFolder();
+							onClose();
+						}}
+					>
+						<span className="name">Open a folder on your computer…</span>
+					</div>
+				)}
 
 				{canReset && (
 					<div

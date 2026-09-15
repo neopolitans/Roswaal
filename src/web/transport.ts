@@ -17,6 +17,8 @@ import type { ApiRequestMessage, FromWorker } from "./protocol.js";
 export interface WorkerTransport {
 	request: Transport;
 	events: () => EventStream;
+	/** Hands a folder the developer picked to the worker, and says how it went. */
+	mount: (handle: FileSystemDirectoryHandle) => Promise<{ root: string }>;
 }
 
 export function workerTransport(worker: Worker): WorkerTransport {
@@ -98,11 +100,30 @@ export function workerTransport(worker: Worker): WorkerTransport {
 	 * discarded without any further warning, and every close is preceded by a
 	 * hide. `pagehide` as well, for a navigation that never hides first.
 	 */
+	/**
+	 * The folder itself, not its contents.
+	 *
+	 * A directory handle is structured-cloneable and carries its permission with
+	 * it, so the worker gets the real thing rather than a copy of the files. The
+	 * picker cannot be called from a worker — it needs a window and a gesture —
+	 * which is the whole reason this crosses the boundary in this direction.
+	 */
+	const mount = (handle: FileSystemDirectoryHandle) => {
+		const id = nextId++;
+		return new Promise<{ root: string }>((resolve, reject) => {
+			pending.set(id, (reply) => {
+				if (reply.status === 200) resolve(reply.payload as { root: string });
+				else reject(new Error((reply.payload as { error?: string }).error ?? "It would not open."));
+			});
+			worker.postMessage({ kind: "mount", id, handle });
+		});
+	};
+
 	const flush = () => worker.postMessage({ kind: "flush" });
 	document.addEventListener("visibilitychange", () => {
 		if (document.visibilityState === "hidden") flush();
 	});
 	window.addEventListener("pagehide", flush);
 
-	return { request, events };
+	return { request, events, mount };
 }

@@ -55,7 +55,7 @@ import {
 } from "./edits.js";
 import { setProjectTypes } from "./projectTypes.js";
 import { IS_STATIC_HOST, PAGE_TARGET, pageHref } from "./pages.js";
-import { useHostCan, useHostFailure } from "./host.js";
+import { openDirectory, useHostCan, useHostFailure } from "./host.js";
 import { download, zip } from "./zip.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
@@ -1328,6 +1328,24 @@ export function App() {
 	 * names a graph that is about to stop existing, and reconciling each one is
 	 * more code and more ways to be wrong than starting the page again.
 	 */
+	/**
+	 * A folder on the developer's own disk, in the browser.
+	 *
+	 * The project layer is pointed at it and then opened the ordinary way, so
+	 * everything after this line is the same code path as opening a project on a
+	 * machine — including the tree, the packs and where the compiler writes.
+	 */
+	const openFolder = useCallback(async () => {
+		try {
+			const picked = await openDirectory();
+			// Cancelling the picker is an answer. Nothing to report.
+			if (!picked) return;
+			await loadProject(picked.root);
+		} catch (err) {
+			notify("That folder could not be opened", (err as Error).message);
+		}
+	}, [loadProject, notify]);
+
 	const resetProject = useCallback(async () => {
 		const ok = await ask({
 			kind: "confirm",
@@ -1528,6 +1546,7 @@ export function App() {
 					onBrowse={() => void browseForProject()}
 					onDownload={() => void downloadProject()}
 					onReset={() => void resetProject()}
+					onOpenFolder={() => void openFolder()}
 					onClose={() => setProjectMenu(null)}
 				/>
 			)}

@@ -16,7 +16,9 @@
 
 import { bootEditor } from "../app/boot.jsx";
 import { useTransport } from "../app/api.js";
+import { useDirectoryOpener } from "../app/host.js";
 
+import { canOpenDirectory } from "./directoryFs.js";
 import { workerTransport } from "./transport.js";
 
 const worker = new Worker(new URL("./worker.js", import.meta.url), {
@@ -24,6 +26,33 @@ const worker = new Worker(new URL("./worker.js", import.meta.url), {
 	name: "roswaal-project",
 });
 
-useTransport(workerTransport(worker));
+const transport = workerTransport(worker);
+useTransport(transport);
+
+/**
+ * A real folder, in the browser, with nothing installed.
+ *
+ * Only offered where the browser has the picker at all — Chrome and Edge, at
+ * time of writing. Everywhere else the editor simply does not mention it, which
+ * is the same rule every other capability follows.
+ *
+ * The click that opens the picker has to be the developer's own: the API
+ * refuses without a gesture, which is what stops a page helping itself to
+ * somebody's home directory.
+ */
+if (canOpenDirectory()) {
+	useDirectoryOpener(async () => {
+		let handle: FileSystemDirectoryHandle;
+		try {
+			handle = await window.showDirectoryPicker({ mode: "readwrite" });
+		} catch (err) {
+			// Cancelling is an answer, not a failure — the same way the daemon's
+			// folder dialog reports one.
+			if ((err as DOMException)?.name === "AbortError") return null;
+			throw err;
+		}
+		return transport.mount(handle);
+	});
+}
 
 bootEditor();

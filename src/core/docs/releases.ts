@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.53.0",
+		date: "2026-09-15",
+		headline: "The browser version can open a project on your own computer.",
+		affects: ["editor"],
+		added: [
+			"**Open a folder on your computer**, from the browser version's project menu, with nothing installed. Roswaal reads and writes that folder directly, so compiled Luau lands where Rojo is already watching for it. **Chrome and Edge only** — the browser has to be able to hand a folder over, and where it cannot, the option is not offered.",
+		],
+		watch: [
+			"A folder with no `roswaal.json` is refused rather than opened as an empty project. Run `roswaal init` in it first.",
+			"Nothing watches the folder while it is open in a browser: a change made outside Roswaal — a branch switch, a pull, another editor — is not noticed until you reopen it. The daemon on your machine does watch.",
+		],
+	},
+	{
 		version: "0.52.0",
 		date: "2026-09-15",
 		headline: "The browser version keeps what you were working on.",

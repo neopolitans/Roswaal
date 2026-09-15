@@ -52,5 +52,22 @@ export interface FlushMessage {
 	kind: "flush";
 }
 
-export type ToWorker = ApiRequestMessage | FlushMessage;
+/**
+ * A folder on the developer's own disk, handed over.
+ *
+ * The picker is a window API and cannot be called from a worker, so the main
+ * thread opens it and sends the handle here. Handles are structured-cloneable,
+ * which is what makes this possible at all — permission travels with it, and
+ * the worker can read and write through it directly.
+ *
+ * Answered like a request, because the editor has to know whether the folder
+ * turned out to be a project before it shows one.
+ */
+export interface MountMessage {
+	kind: "mount";
+	id: number;
+	handle: FileSystemDirectoryHandle;
+}
+
+export type ToWorker = ApiRequestMessage | FlushMessage | MountMessage;
 export type FromWorker = ApiResponseMessage | ApiEventMessage;

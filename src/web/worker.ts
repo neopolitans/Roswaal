@@ -21,7 +21,8 @@ import { ApiSession, HttpError } from "../server/routes.js";
 
 import { VERSION } from "../cli/version.js";
 
-import { volume } from "./host.js";
+import { DirectoryFs, mountFor } from "./directoryFs.js";
+import { useFilesystem, usingVolume, volume } from "./host.js";
 import { opfsStore, persistence } from "./persist.js";
 import type { FromWorker, ToWorker } from "./protocol.js";
 import { PLAYGROUND_ROOT, playgroundFiles } from "./seed.js";
@@ -136,6 +137,68 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 		return;
 	}
 
+	/**
+	 * A folder the developer picked, taking the place of the volume.
+	 *
+	 * From here on the project layer reads and writes their disk, so the
+	 * generated Luau lands where Rojo is already watching. The stored copy is
+	 * left alone rather than deleted — it is the playground project, and coming
+	 * back to it is a reload away.
+	 */
+	if (message?.kind === "mount") {
+		try {
+			await ready;
+			const mount = mountFor(message.handle);
+
+			/**
+			 * A folder is not a project just because somebody picked it.
+			 *
+			 * `openProject` falls back to a default config when there is no
+			 * `roswaal.json`, which is right for the daemon — where a directory is
+			 * only ever reached after the shell has inspected it and offered
+			 * *Initialise* as a deliberate choice. Nothing had asked that here, so
+			 * a folder of holiday photos opened as an empty project, and the next
+			 * compile would have written `src/*.luau` into it.
+			 *
+			 * Refused rather than offered, for now. Initialising writes into a
+			 * folder somebody chose for a different reason, and that is a question
+			 * to ask out loud rather than a default to pick.
+			 */
+			const initialised = await message.handle.getFileHandle("roswaal.json")
+				.then(() => true, () => false);
+			if (!initialised) {
+				throw new Error(
+					`${message.handle.name} is not a Roswaal project: it has no roswaal.json. `
+					+ "Open it with Roswaal on your machine and run `roswaal init` first.",
+				);
+			}
+
+			useFilesystem(new DirectoryFs(message.handle, mount));
+			// Stops the playground's project being overwritten by the one that
+			// replaced it: the disk is its own persistence now.
+			await store.flush();
+			const project = await session.openAt(mount);
+			post({
+				kind: "response",
+				id: message.id,
+				status: 200,
+				payload: { root: project.root, config: project.config, packErrors: project.packErrors },
+			});
+		} catch (err) {
+			// Back to the volume, so a folder that is not a project leaves the
+			// editor with the one it had rather than with nothing.
+			useFilesystem(volume);
+			await session.openAt(PLAYGROUND_ROOT).catch(() => {});
+			post({
+				kind: "response",
+				id: message.id,
+				status: 400,
+				payload: { error: (err as Error).message },
+			});
+		}
+		return;
+	}
+
 	if (message?.kind !== "request") return;
 
 	try {
@@ -150,7 +213,7 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 		await dynamicCompile(message.method, message.path, message.body);
 		// Anything that is not a read may have changed the volume, and the
 		// compile above writes too. Debounced, so a burst costs one write.
-		if (message.method !== "GET") store.touch(snapshot);
+		if (message.method !== "GET" && usingVolume()) store.touch(snapshot);
 	} catch (err) {
 		// The same mapping `app.ts` makes for Express: a thrown `HttpError` knows
 		// its own status, and anything else is the caller's fault at 400.

@@ -23,7 +23,43 @@ import { Volume } from "./volume.js";
  */
 export const volume = new Volume();
 
-export const fs: ProjectFs = volume;
+/**
+ * Which filesystem the project layer is actually talking to.
+ *
+ * The volume to begin with, and a folder on the developer's own disk once they
+ * hand one over. `project.ts` imports `fs` once, at module load, so this cannot
+ * be a reassignment — it is a delegate, and the binding it forwards to is what
+ * changes.
+ *
+ * One at a time, deliberately. Two projects open at once would mean two
+ * registries, two sets of packs and two answers to "which project is this
+ * request about", which is the arrangement the daemon avoids by serving one
+ * project and the reason it has a guard for tabs that disagree.
+ */
+let backing: ProjectFs = volume;
+
+/** Points the project layer at a different filesystem. */
+export function useFilesystem(next: ProjectFs): void {
+	backing = next;
+}
+
+/** True while the project lives in memory rather than on somebody's disk. */
+export function usingVolume(): boolean {
+	return backing === volume;
+}
+
+export const fs: ProjectFs = {
+	stat: (target) => backing.stat(target),
+	readFile: (target, encoding) => backing.readFile(target, encoding),
+	writeFile: (target, data, encoding) => backing.writeFile(target, data, encoding),
+	mkdir: (target, options) => backing.mkdir(target, options),
+	readdir: ((target: string, options?: { withFileTypes: true }) =>
+		options ? backing.readdir(target, options) : backing.readdir(target)) as ProjectFs["readdir"],
+	rm: (target, options) => backing.rm(target, options),
+	access: (target) => backing.access(target),
+	rename: (from, to) => backing.rename(from, to),
+	copyFile: (from, to) => backing.copyFile(from, to),
+};
 
 export const path: ProjectPath = posixPath;
 

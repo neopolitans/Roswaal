@@ -123,4 +123,40 @@ export function useHostCan(capability: Capability): boolean {
  * there is nothing to say about them that would help, because there is no
  * action behind them to take.
  */
+/**
+ * Opening a folder on the developer's own disk.
+ *
+ * Installed by the hosted editor's entry point, because only it can: the picker
+ * is a window API, it needs a click to open, and the handle it produces has to
+ * reach the worker. `src/app` cannot import `src/web` — the daemon build does
+ * not have it — so the ability arrives the way the transport does.
+ *
+ * `null` in the daemon build, where the daemon's own folder dialog does this
+ * and the editor would be offering the same thing twice.
+ */
+export type DirectoryOpener = () => Promise<{ root: string } | null>;
+
+let opener: DirectoryOpener | null = null;
+
+export function useDirectoryOpener(next: DirectoryOpener): void {
+	opener = next;
+	announce();
+}
+
+/** Whether this build can put a folder from the developer's disk in the editor. */
+export function canOpenDirectory(): boolean {
+	return opener !== null;
+}
+
+/** The picked folder's root, or `null` when the developer cancelled. */
+export async function openDirectory(): Promise<{ root: string } | null> {
+	if (!opener) throw new Error("This copy of Roswaal cannot open a folder.");
+	return opener();
+}
+
+/** `canOpenDirectory`, for a component that should redraw when it is installed. */
+export function useCanOpenDirectory(): boolean {
+	return useSyncExternalStore(subscribe, () => opener !== null, () => false);
+}
+
 export const NOT_HERE = "Not in the browser version — this needs Roswaal running on your machine.";
