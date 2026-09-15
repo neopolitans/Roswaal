@@ -20,6 +20,7 @@ import type { Block, DocPage, DocSection, DocSite } from "./site.js";
 import type { Registry } from "../nodes/index.js";
 import { allPages, isPageLink, parseInline, TAG_LABELS } from "./site.js";
 import { graphSvg, previewSvg, type PreviewOptions } from "./preview.js";
+import { FEEDBACK_REPOSITORY } from "./links.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
 
 export interface RenderOptions {
@@ -372,7 +373,7 @@ function renderOutline(page: DocPage): string {
 function proposeHref(page: DocPage): string {
 	const body = `Page: ${page.title} (\`${page.slug}\`)\n\nWhat should it say instead?\n`;
 	return (
-		"https://github.com/neopolitans/Roswaal/issues/new" +
+		`${FEEDBACK_REPOSITORY}/issues/new` +
 		`?title=${encodeURIComponent(`Docs: ${page.title}`)}&body=${encodeURIComponent(body)}`
 	);
 }

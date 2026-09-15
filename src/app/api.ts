@@ -98,8 +98,43 @@ export class ProjectChangedError extends Error {
 	}
 }
 
+/**
+ * How a request reaches whatever is serving the API.
+ *
+ * `fetch` to the daemon on a developer's machine; a message to a worker holding
+ * the project in memory on the hosted editor. It answers a `Response` either
+ * way, which is not a formality — it means everything below this line, the
+ * error shape and the project guard included, is the same code in both.
+ */
+export type Transport = (url: string, init: RequestInit) => Promise<Response>;
+
+/** What the editor needs of the daemon's event stream. `EventSource` fits it. */
+export interface EventStream {
+	addEventListener(type: string, handler: (event: MessageEvent) => void): void;
+	close(): void;
+}
+
+let transport: Transport = (url, init) => fetch(url, init);
+let openStream: () => EventStream = () => new EventSource("/api/events");
+
+/**
+ * Points the editor at something other than a daemon on localhost.
+ *
+ * Called once, before anything renders, by the hosted editor's entry point —
+ * see `src/web/main.tsx`. The daemon build never calls it and keeps `fetch`.
+ */
+export function useTransport(next: { request: Transport; events: () => EventStream }): void {
+	transport = next.request;
+	openStream = next.events;
+}
+
+/** The daemon's event stream, or whatever is standing in for it. */
+export function openEventStream(): EventStream {
+	return openStream();
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-	const response = await fetch(url, {
+	const response = await transport(url, {
 		...init,
 		headers: {
 			"Content-Type": "application/json",

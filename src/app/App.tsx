@@ -18,7 +18,7 @@ import { NodePicker } from "./NodePicker.jsx";
 import { previewFor } from "./DocsPanel.jsx";
 import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import {
-	api, ProjectChangedError,
+	api, openEventStream, ProjectChangedError,
 	type CompileOutcome, type CompileStep, type MapOutcome, type ProjectInfo, type TreeEntry,
 } from "./api.js";
 import type { InstanceLocation, NodeMap } from "../core/nodemap.js";
@@ -525,7 +525,7 @@ export function App() {
 	useEffect(() => {
 		if (!project) return;
 		const open = project.root;
-		const stream = new EventSource("/api/events");
+		const stream = openEventStream();
 
 		stream.addEventListener("hot", (event) => {
 			const detail = JSON.parse((event as MessageEvent).data) as {

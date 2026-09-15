@@ -20,7 +20,9 @@
     "build:roblox": "node scripts/build-roblox.mjs",
     "build:members": "tsx scripts/build-members.mjs",
     "build:docs": "tsx scripts/build-docs.mjs",
-    "docs:reviews": "tsx scripts/docs-reviews.mjs"
+    "docs:reviews": "tsx scripts/docs-reviews.mjs",
+    "dev:site": "vite --config vite.web.config.ts",
+    "build:site": "tsc --noEmit && vite build --config vite.web.config.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

@@ -8,8 +8,7 @@
  * instead, beside the graphs, in a file only Roswaal reads.
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
+import { fs, path } from "./host.js";
 
 const MANIFEST_PATH = ".roswaal/generated.json";
 const SCHEMA_VERSION = 1;

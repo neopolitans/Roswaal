@@ -1,0 +1,73 @@
+/**
+ * The hosted build: Roswaal as a website, with no daemon behind it.
+ *
+ * Separate from `vite.config.ts` rather than a mode flag on it, because the two
+ * differ in exactly one interesting way and it is worth being able to read what
+ * that is. The daemon build talks to `/api` on localhost. This one substitutes
+ * `src/server/host.ts` — the filesystem, the path arithmetic and the formatter
+ * that `project.ts` runs on — for a volume in memory, and everything else about
+ * the editor is the same code.
+ *
+ * Output goes to `dist-site/`, which is the website: `try.html` is the editor,
+ * and the landing page and the documentation join it there.
+ */
+
+import { fileURLToPath } from "node:url";
+
+import react from "@vitejs/plugin-react";
+import { defineConfig, type Plugin } from "vite";
+
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { demoSeedPlugin } from "./scripts/demo-seed.mjs";
+
+const here = fileURLToPath(new URL(".", import.meta.url));
+const DEMO = fileURLToPath(new URL("examples/demo", import.meta.url));
+
+/**
+ * The web host's path, spelled the way Vite spells one.
+ *
+ * `fileURLToPath` hands back a Windows path with backslashes, and Vite's own
+ * resolution produces forward slashes — so returning the former from
+ * `resolveId` gave rolldown **two module ids for one file**. It bundled
+ * `src/web/host.ts` twice, and each copy ran `new Volume()`: the worker mounted
+ * the demo into one volume and the project layer read the other, which was
+ * empty. The playground came up on `Not a directory: /demo`.
+ *
+ * Only in a production build, and only on Windows — dev normalises ids before
+ * this matters, and a posix machine has nothing to normalise.
+ */
+const WEB_HOST = fileURLToPath(new URL("src/web/host.ts", import.meta.url))
+	.replace(/\\/g, "/");
+
+/**
+ * Points the project layer at the volume instead of the disk.
+ *
+ * Narrow on purpose: only the literal `./host.js`, and only when the file
+ * asking is one of the server's own. A blanket alias on the specifier would
+ * catch any future `host.js` anywhere in the tree and substitute it silently,
+ * which is the kind of build-time surprise that costs an afternoon.
+ */
+function roswaalWebHost(): Plugin {
+	return {
+		name: "roswaal-web-host",
+		enforce: "pre",
+		resolveId(source, importer) {
+			if (source !== "./host.js" || !importer) return null;
+			if (!/[\\/]src[\\/]server[\\/]/.test(importer)) return null;
+			return WEB_HOST;
+		},
+	};
+}
+
+export default defineConfig({
+	plugins: [react(), roswaalWebHost(), demoSeedPlugin(DEMO)],
+	// Module workers, so the worker can import the route table rather than being
+	// handed a bundled copy of it.
+	worker: { format: "es", plugins: () => [roswaalWebHost(), demoSeedPlugin(DEMO)] },
+	server: { port: 4472 },
+	build: {
+		outDir: "dist-site",
+		emptyOutDir: true,
+		rollupOptions: { input: here + "try.html" },
+	},
+});

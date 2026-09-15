@@ -28,6 +28,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { Block, DocPage } from "../core/docs/site.js";
 import { previewOf, previewSvg, type PreviewOptions } from "../core/docs/preview.js";
+import { FEEDBACK_REPOSITORY } from "../core/docs/links.js";
 import type { NodeScript } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { api } from "./api.js";
@@ -37,7 +38,8 @@ import { VERSION } from "../cli/version.js";
 /** Written as a code unit so no escape has to survive a build step. */
 const NEWLINE = String.fromCharCode(10);
 
-const REPOSITORY = "https://github.com/neopolitans/Roswaal";
+/** Feedback goes to the public repository, not the private source one. */
+const REPOSITORY = FEEDBACK_REPOSITORY;
 
 /** How much of a proposal a URL carries. GitHub stops reading before this. */
 const PROPOSAL_LIMIT = 6000;

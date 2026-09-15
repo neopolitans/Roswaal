@@ -12,6 +12,7 @@ dist-cli/
 
 # Built documentation site.
 dist-docs/
+dist-site/
 
 # An Obsidian vault config for reading the notes, not part of Roswaal. Holds
 # window state that changes on every pane move, and two third-party themes with
