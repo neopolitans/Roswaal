@@ -139,6 +139,7 @@ body.roswaal-landing {
 /* Centred, because it is a masthead rather than the start of a paragraph.
    Everything below the demonstration goes back to being read left to right. */
 .landing-top { text-align: center; margin-bottom: 64px; }
+.landing-top .landing-targets { margin-left: auto; margin-right: auto; }
 .landing-head {
   display: flex; align-items: center; justify-content: center;
   gap: 16px; margin-bottom: 26px;
@@ -168,7 +169,17 @@ body.roswaal-landing {
 }
 .landing-doors a:hover { border-color: var(--accent); }
 .landing-doors a.first { background: var(--accent); border-color: var(--accent); color: #fff; }
-.landing-note { font-size: 13px; color: var(--fg-faint); margin: 0 0 56px; }
+.landing-note { font-size: 13px; color: var(--fg-faint); margin: 0 0 10px; }
+/* Which runtimes, and which of them to be careful with. Its own line rather
+   than a clause in the paragraph above, because "experimental" is the kind of
+   qualifier that gets skimmed past when it is buried in prose. */
+.landing-targets { font-size: 13px; color: var(--fg-faint); margin: 0; }
+.landing-targets strong { color: var(--fg); font-weight: 600; }
+.landing-targets .flag {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px;
+  margin-left: 4px; color: var(--warning, var(--fg-faint));
+}
 
 /* The demonstration, stacked rather than in two columns.
    
@@ -249,6 +260,25 @@ body.roswaal-landing {
   color: var(--fg-faint); margin: 0 0 16px;
 }
 
+/* What is planned, told apart from what is there.
+   
+   The cards are the same shape so the section reads as part of the page, and
+   deliberately not the same colour: a plan that looks like a feature is a
+   promise nobody made. No accent edge, a muted icon, and the disclaimer sits
+   above them rather than in small print underneath. */
+.landing-note-plan {
+  color: var(--fg-faint); font-size: 13px; margin: -8px 0 18px; max-width: 46rem;
+}
+.landing-card.planned {
+  border-left: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-panel) 55%, transparent);
+}
+.landing-card.planned .icon {
+  background: color-mix(in srgb, var(--fg-faint) 12%, transparent);
+  color: var(--fg-faint);
+}
+.landing-card.planned h3 { color: var(--fg-muted, var(--fg)); font-weight: 600; }
+
 .landing-foot {
   border-top: 1px solid var(--border); padding-top: 20px;
   display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--fg-faint);
@@ -264,7 +294,7 @@ export function landingPage(version) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Roswaal — visual scripting for Roblox Luau</title>
+<title>Roswaal - Visual Scripting for Luau</title>
 <meta name="description" content="Visual scripting for Roblox Luau and Lune Luau. Graphs live on disk and compile to plain Luau that Rojo syncs. Try it in your browser, with nothing installed." />
 <link rel="icon" href="${faviconHref()}" />
 <link rel="stylesheet" href="docs/theme.css?v=${encodeURIComponent(version)}" />
@@ -295,9 +325,14 @@ export function landingPage(version) {
       <li><a class="door first" href="try.html">Try it in your browser</a></li>
       <li><a href="docs/">Read the documentation</a></li>
     </ul>
-    <p class="landing-note">
+      <p class="landing-note">
       Nothing to install. Open the demo project, or open a folder from your own
       computer and work in it — Chrome and Edge can hand one over.
+    </p>
+    <p class="landing-targets">
+      Compiles for <strong>Roblox</strong> and <strong>Lune</strong>
+      <span class="flag">experimental</span> — Roswaal is built and checked
+      against Roblox.
     </p>
   </div>
 
@@ -423,6 +458,86 @@ export function landingPage(version) {
           whole script, one function, or just the nodes you have selected. It
           reads the generated file and picks those lines out of it, so it is the
           real output rather than a guess at it.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="landing-h2">What is planned</h2>
+  <p class="landing-note-plan">
+    Plans rather than promises, in no particular order, and with no dates. Any
+    of it may change, arrive in a different shape, or be dropped — and none of
+    it is in the version you can try today.
+  </p>
+  <div class="landing-points">
+    <div class="landing-card planned">
+      <div class="icon">${icon("folder")}</div>
+      <div>
+        <h3>Wally packages</h3>
+        <p>
+          Read <code>wally.toml</code>, resolve <code>Packages/</code>, and
+          offer what a package exports as nodes you can place.
+        </p>
+      </div>
+    </div>
+
+    <div class="landing-card planned">
+      <div class="icon">${icon("newFile")}</div>
+      <div>
+        <h3>Import Luau you already have</h3>
+        <p>
+          Statements become the flow, expressions become nodes, and anything
+          that will not lower cleanly arrives as a Custom Code node holding the
+          original text — so an import is useful before it is perfect.
+        </p>
+      </div>
+    </div>
+
+    <div class="landing-card planned">
+      <div class="icon">${icon("function")}</div>
+      <div>
+        <h3>A real Luau parser</h3>
+        <p>
+          What the importer needs, and two things that already want it: an exact
+          check instead of counting brackets, and true block scoping so a local
+          declared inside an <code>if</code> stops being offered after it.
+        </p>
+      </div>
+    </div>
+
+    <div class="landing-card planned">
+      <div class="icon">${icon("map")}</div>
+      <div>
+        <h3>Read a Rojo project as a node map</h3>
+        <p>
+          The inverse of the translation Roswaal already does, so an existing
+          <code>default.project.json</code> can come in rather than be rebuilt.
+        </p>
+      </div>
+    </div>
+
+    <div class="landing-card planned">
+      <div class="icon">${icon("warning")}</div>
+      <div>
+        <h3>Runtime errors that point at a node</h3>
+        <p>
+          The compiler already writes down which node produced which line.
+          Nothing reads it in the other direction yet — an error at
+          <code>Main.server.luau:42</code> could light up the node that wrote
+          line 42.
+        </p>
+      </div>
+    </div>
+
+    <div class="landing-card planned">
+      <div class="icon">${icon("settings")}</div>
+      <div>
+        <h3>Overriding a built-in node</h3>
+        <p>
+          Keep a node's default behaviour and let a project replace its
+          internals. Honestly, this one is a versioning problem wearing a
+          feature's clothes: what should happen when the built-in changes
+          underneath an override?
         </p>
       </div>
     </div>

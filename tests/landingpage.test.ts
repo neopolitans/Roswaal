@@ -25,7 +25,12 @@ const html: string = landingPage("9.9.9");
  * The code block is highlighted, so `game:GetService` is three elements and
  * never appears in the markup as one string. What matters is what it reads as.
  */
-const text = html.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"');
+const text = html
+	.replace(/<[^>]+>/g, "")
+	.replace(/&quot;/g, '"')
+	// Collapsed, because a sentence in the source is wrapped across lines and
+	// indented; what a reader sees is one run of words.
+	.replace(/\s+/g, " ");
 
 describe("the landing page", () => {
 	it("shows a graph, drawn rather than described", () => {
@@ -109,5 +114,41 @@ describe("the Luau on it is coloured", () => {
 		const scoped = [...css.matchAll(/:is\(([^)]*)\)\s*\.tok-keyword/g)].map((m) => m[1]);
 		expect(scoped.length).toBeGreaterThan(0);
 		for (const list of scoped) expect(list).toContain("landing-code");
+	});
+});
+
+describe("what the page claims it runs on", () => {
+	/**
+	 * Roswaal targets two runtimes and is honest about only one of them being
+	 * proven. "Experimental" is exactly the qualifier that gets tidied away in a
+	 * rewrite, so it is asserted rather than trusted.
+	 */
+	it("names both runtimes and marks Lune experimental", () => {
+		expect(text).toContain("Roblox");
+		expect(text).toContain("Lune");
+		expect(text.toLowerCase()).toContain("experimental");
+	});
+
+	/** The tab is where the name is read first, so it says what Roswaal is. */
+	it("titles the tab with what Roswaal is", () => {
+		const title = html.match(/<title>([^<]+)<\/title>/)?.[1];
+		expect(title).toBe("Roswaal - Visual Scripting for Luau");
+	});
+});
+
+describe("what is planned, told apart from what is there", () => {
+	/**
+	 * The roadmap sits directly above a "try it" link, so the distinction has to
+	 * survive skim-reading: a plan that looks like a feature is a promise nobody
+	 * made.
+	 */
+	it("carries a disclaimer, and says none of it has shipped", () => {
+		expect(text).toMatch(/Plans rather than promises/);
+		expect(text).toMatch(/none of it is in the version you can try today/);
+	});
+
+	it("marks every planned card as planned", () => {
+		const cards = [...html.matchAll(/<div class="landing-card([^"]*)"/g)].map((m) => m[1]);
+		expect(cards.filter((c) => c.includes("planned")).length).toBe(6);
 	});
 });

@@ -76,6 +76,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.59.0",
+		date: "2026-09-15",
+		headline: "The front page says what is planned, and what it runs on.",
+		affects: ["docs"],
+		added: [
+			"**A list of what is planned** — Wally packages, importing Luau you already have, a real Luau parser, reading a Rojo project as a node map, runtime errors that point at a node, and overriding a built-in node. Plans rather than promises: none of it is in the version you can try today, and any of it may change or be dropped.",
+		],
+		changed: [
+			"The front page says it compiles for **Roblox** and **Lune**, and marks Lune experimental — Roswaal is built and checked against Roblox.",
+		],
+	},
+	{
 		version: "0.58.1",
 		date: "2026-09-15",
 		headline: "The front page says custom nodes once, and points at the edit button.",
