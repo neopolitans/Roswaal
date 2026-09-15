@@ -76,6 +76,15 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.50.4",
+		date: "2026-09-15",
+		headline: "A path means the same thing on every platform.",
+		affects: ["editor"],
+		fixed: [
+			"**A path written with backslashes is read the same way on Linux and macOS as it is on Windows.** The separator was only stripped when it was the one the daemon's own machine uses, so a graph at `scripts\Shared\Greeter.nodescript` compiled to `Greeter.luau` on Windows and to `scriptsSharedGreeter.luau` elsewhere. Renaming, moving, and the checks that keep a path inside its project read the same paths and were wrong in the same way.",
+		],
+	},
+	{
 		version: "0.50.3",
 		date: "2026-09-15",
 		headline: "The dock and undock buttons sit on the row they belong to.",

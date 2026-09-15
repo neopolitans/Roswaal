@@ -155,8 +155,20 @@ describe("the name a graph gets from where it lives", () => {
 		expect(graphNameFor("scripts/....nodescript")).toBe("");
 	});
 
-	/** Windows paths reach the daemon too; the separator must not survive. */
+	/**
+	 * Windows paths reach the daemon too; the separator must not survive.
+	 *
+	 * Asserted against the forward-slash spelling as well as against the answer,
+	 * because the first form of this test passed on Windows for the wrong
+	 * reason: the separator was stripped by splitting on `path.sep`, which *is*
+	 * a backslash there. On Linux it survived, and the graph came out called
+	 * `scriptsSharedGreeter`. The two spellings agreeing is the actual
+	 * requirement, and it cannot be satisfied by accident on either platform.
+	 */
 	it("reads a backslash path the same as a forward-slash one", () => {
 		expect(graphNameFor("scripts\\Shared\\Greeter.nodescript")).toBe("Greeter");
+		expect(graphNameFor("scripts\\Shared\\Greeter.nodescript"))
+			.toBe(graphNameFor("scripts/Shared/Greeter.nodescript"));
+		expect(graphNameFor("a\\b/c\\Player_Controller.nodescript")).toBe("Player_Controller");
 	});
 });
