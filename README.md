@@ -8,6 +8,10 @@ source file.
 .roswaal/scripts/*.nodescript  →  roswaal  →  src/*.luau  →  rojo  →  Studio
 ```
 
+**[Try it in your browser](https://neopolitans.github.io/Roswaal/)** — no
+install, a demo project already in it. Opening a folder of your own needs the
+File System Access API, so that part is Chrome and Edge.
+
 > Prototype. The compiler and its tests are the load-bearing parts and are
 > solid; the editor is complete enough to build real graphs with. **Lune support
 > is experimental** — Roswaal is built and checked against Roblox.
@@ -50,13 +54,23 @@ including your own packs, the controls, and *Coming from Blueprints* for anyone
 arriving from Unreal Engine. It opens in its own window, so it can sit beside
 the graph you are reading about.
 
-A published copy will follow once there is a release worth publishing.
+Published copy: <https://neopolitans.github.io/Roswaal/docs/>.
 
 ```sh
 npm run dev        # daemon on :4471, editor on :4470 with hot reload
 npm test           # the compiler, the emitter, and the editor's pure parts
 npm run build:docs # the documentation as a static site, into dist-docs/
 ```
+
+## Reporting a problem
+
+Issues are closed here, so that reports land in one place rather than two:
+**<https://github.com/neopolitans/roswaal-feedback/issues>**. Bugs, Lune
+trouble, a documentation page that is wrong — all of it goes there, and every
+documentation page has an edit button that opens a report for that page.
+
+Pull requests are welcome on this repository. What a change brings with it is in
+[Contributing](https://neopolitans.github.io/Roswaal/docs/contributing.html).
 
 ## Licence
 
