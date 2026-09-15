@@ -134,7 +134,18 @@ export function useHostCan(capability: Capability): boolean {
  * `null` in the daemon build, where the daemon's own folder dialog does this
  * and the editor would be offering the same thing twice.
  */
-export type DirectoryOpener = () => Promise<{ root: string } | null>;
+export type DirectoryPick =
+	/** Opened. The editor loads this root the ordinary way. */
+	| { root: string }
+	/**
+	 * The folder is not a Roswaal project yet, and setting it up would write
+	 * into it. The editor asks, and calls `initialise` if the answer is yes —
+	 * so the question is asked where the editor's own dialogs are, rather than
+	 * by whatever happened to open the picker.
+	 */
+	| { notAProject: string; initialise: () => Promise<{ root: string }> };
+
+export type DirectoryOpener = () => Promise<DirectoryPick | null>;
 
 let opener: DirectoryOpener | null = null;
 
@@ -148,10 +159,54 @@ export function canOpenDirectory(): boolean {
 	return opener !== null;
 }
 
-/** The picked folder's root, or `null` when the developer cancelled. */
-export async function openDirectory(): Promise<{ root: string } | null> {
+/** What the picker produced, or `null` when the developer cancelled. */
+export async function openDirectory(): Promise<DirectoryPick | null> {
 	if (!opener) throw new Error("This copy of Roswaal cannot open a folder.");
 	return opener();
+}
+
+/**
+ * A folder from a previous session that is waiting on a click.
+ *
+ * Set only when the browser still has the handle but no longer has permission
+ * to use it. Permission does not survive a session, and asking for it back
+ * needs a gesture — so the editor offers the folder by name and the click that
+ * accepts is the same click that asks.
+ *
+ * When permission *did* survive, nothing is set here: the folder is already
+ * open by the time anything renders, which is the point.
+ */
+export interface RememberedFolder {
+	name: string;
+	open: () => Promise<DirectoryPick | null>;
+}
+
+let remembered: RememberedFolder | null = null;
+
+export function setRememberedFolder(next: RememberedFolder | null): void {
+	remembered = next;
+	announce();
+}
+
+export function useRememberedFolder(): RememberedFolder | null {
+	return useSyncExternalStore(subscribe, () => remembered, () => null);
+}
+
+/**
+ * Stops offering the remembered folder, and forgets it for next time.
+ *
+ * Part of starting again: a reset that put the demo back and then reopened
+ * somebody's project on the next load would not be a reset.
+ */
+let forgetter: (() => Promise<void>) | null = null;
+
+export function useFolderForgetter(next: () => Promise<void>): void {
+	forgetter = next;
+}
+
+export async function forgetRememberedFolder(): Promise<void> {
+	setRememberedFolder(null);
+	await forgetter?.();
 }
 
 /** `canOpenDirectory`, for a component that should redraw when it is installed. */

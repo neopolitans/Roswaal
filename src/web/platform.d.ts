@@ -10,6 +10,15 @@
  * copy of a specification that the DOM library will carry properly soon enough.
  */
 
+/**
+ * A handle can be asked whether it may still be used, and can ask. Both are
+ * part of the same proposal as the picker and are missing for the same reason.
+ */
+interface FileSystemHandle {
+	queryPermission(options?: { mode?: "read" | "readwrite" }): Promise<PermissionState>;
+	requestPermission(options?: { mode?: "read" | "readwrite" }): Promise<PermissionState>;
+}
+
 interface Window {
 	showDirectoryPicker(options?: {
 		/** "readwrite" is what asks for permission to write, which Roswaal needs. */

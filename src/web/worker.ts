@@ -17,6 +17,7 @@
 
 /// <reference lib="webworker" />
 
+import { initProject } from "../server/project.js";
 import { ApiSession, HttpError } from "../server/routes.js";
 
 import { VERSION } from "../cli/version.js";
@@ -156,24 +157,31 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 			 * `openProject` falls back to a default config when there is no
 			 * `roswaal.json`, which is right for the daemon — where a directory is
 			 * only ever reached after the shell has inspected it and offered
-			 * *Initialise* as a deliberate choice. Nothing had asked that here, so
-			 * a folder of holiday photos opened as an empty project, and the next
+			 * *Initialise* as a deliberate choice. Nothing asked that here, so a
+			 * folder of holiday photos opened as an empty project and the next
 			 * compile would have written `src/*.luau` into it.
 			 *
-			 * Refused rather than offered, for now. Initialising writes into a
-			 * folder somebody chose for a different reason, and that is a question
-			 * to ask out loud rather than a default to pick.
+			 * Reported rather than refused, and rather than adopted. The editor
+			 * asks and comes back with `initialise`, so setting up somebody's
+			 * folder is always a yes they gave.
 			 */
 			const initialised = await message.handle.getFileHandle("roswaal.json")
 				.then(() => true, () => false);
-			if (!initialised) {
-				throw new Error(
-					`${message.handle.name} is not a Roswaal project: it has no roswaal.json. `
-					+ "Open it with Roswaal on your machine and run `roswaal init` first.",
-				);
+			if (!initialised && !message.initialise) {
+				post({
+					kind: "response",
+					id: message.id,
+					status: 409,
+					payload: { code: "not-a-project", name: message.handle.name },
+				});
+				return;
 			}
 
 			useFilesystem(new DirectoryFs(message.handle, mount));
+			// The same `roswaal init` the command line runs, over the folder they
+			// just handed over: `roswaal.json`, the graphs directory and the node
+			// path, and nothing else.
+			if (!initialised) await initProject(mount);
 			// Stops the playground's project being overwritten by the one that
 			// replaced it: the disk is its own persistence now.
 			await store.flush();

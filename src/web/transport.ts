@@ -17,8 +17,15 @@ import type { ApiRequestMessage, FromWorker } from "./protocol.js";
 export interface WorkerTransport {
 	request: Transport;
 	events: () => EventStream;
-	/** Hands a folder the developer picked to the worker, and says how it went. */
-	mount: (handle: FileSystemDirectoryHandle) => Promise<{ root: string }>;
+	/**
+	 * Hands a folder the developer picked to the worker.
+	 *
+	 * Resolves with `notAProject` rather than rejecting when the folder has no
+	 * `roswaal.json`: that is an answer the caller acts on by asking, not a
+	 * failure. Calling again with `initialise` is what the yes turns into.
+	 */
+	mount: (handle: FileSystemDirectoryHandle, initialise?: boolean)
+		=> Promise<{ root: string } | { notAProject: string }>;
 }
 
 export function workerTransport(worker: Worker): WorkerTransport {
@@ -108,14 +115,17 @@ export function workerTransport(worker: Worker): WorkerTransport {
 	 * picker cannot be called from a worker — it needs a window and a gesture —
 	 * which is the whole reason this crosses the boundary in this direction.
 	 */
-	const mount = (handle: FileSystemDirectoryHandle) => {
+	const mount = (handle: FileSystemDirectoryHandle, initialise?: boolean) => {
 		const id = nextId++;
-		return new Promise<{ root: string }>((resolve, reject) => {
+		return new Promise<{ root: string } | { notAProject: string }>((resolve, reject) => {
 			pending.set(id, (reply) => {
-				if (reply.status === 200) resolve(reply.payload as { root: string });
-				else reject(new Error((reply.payload as { error?: string }).error ?? "It would not open."));
+				const payload = reply.payload as
+					{ root?: string; code?: string; name?: string; error?: string };
+				if (reply.status === 200) resolve({ root: payload.root! });
+				else if (payload.code === "not-a-project") resolve({ notAProject: payload.name! });
+				else reject(new Error(payload.error ?? "It would not open."));
 			});
-			worker.postMessage({ kind: "mount", id, handle });
+			worker.postMessage({ kind: "mount", id, handle, initialise });
 		});
 	};
 

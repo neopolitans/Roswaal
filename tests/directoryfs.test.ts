@@ -259,3 +259,55 @@ describe("what the folder answers when something is not there", () => {
 		await expect(fs.stat("/demo/../elsewhere")).rejects.toThrow(/ENOENT/);
 	});
 });
+
+describe("setting up a folder that is not a project yet", () => {
+	/**
+	 * The hosted editor can do this now, which is most of the point of it:
+	 * evaluating Roswaal against your own game should not require installing
+	 * Roswaal first.
+	 *
+	 * It is also the only thing here that writes into a folder somebody chose
+	 * for a different reason, so what it writes is worth pinning down — the same
+	 * three things `roswaal init` writes on the command line, and nothing else.
+	 * Anything already in the folder is still there afterwards.
+	 */
+	it("writes what `roswaal init` writes, and leaves everything else alone", async () => {
+		const { initProject } = await import("../src/server/project.js");
+
+		// Nested inside the mounted root, because a `DirectoryFs` reaches exactly
+		// one folder and refuses everything outside it — which is the guard being
+		// relied on here rather than worked around.
+		const blank = new FakeDirectory("fresh-game");
+		ROOT.dirs.set("fresh-game", blank);
+		place(blank, "notes.txt", "a file that was already here");
+
+		await initProject("/demo/fresh-game");
+
+		const laid: string[] = [];
+		const walk = (dir: FakeDirectory, prefix: string) => {
+			for (const sub of dir.dirs.values()) {
+				laid.push(prefix + sub.name);
+				walk(sub, prefix + sub.name + "/");
+			}
+			for (const file of dir.files.values()) laid.push(prefix + file.name);
+		};
+		walk(blank, "");
+
+		expect(laid.sort()).toEqual([
+			".roswaal",
+			".roswaal/nodes",
+			".roswaal/scripts",
+			"notes.txt",
+			"roswaal.json",
+		]);
+
+		// A real config, not an empty file: the editor opens it straight after.
+		const config = JSON.parse(
+			await blank.files.get("roswaal.json")!.getFile().then((f) => f.text()),
+		) as { sourceDir: string; outDir: string };
+		expect(config.sourceDir).toBe(".roswaal/scripts");
+		expect(config.outDir).toBe("src");
+
+		ROOT.dirs.delete("fresh-game");
+	});
+});

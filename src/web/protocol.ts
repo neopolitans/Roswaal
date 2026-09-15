@@ -67,6 +67,15 @@ export interface MountMessage {
 	kind: "mount";
 	id: number;
 	handle: FileSystemDirectoryHandle;
+	/**
+	 * Make it a Roswaal project on the way in.
+	 *
+	 * Absent on the first attempt, which is how a folder that is not one gets
+	 * reported rather than adopted. The editor asks, and asks again with this
+	 * set — so writing into a folder somebody picked for another reason is
+	 * always something they said yes to, never something that happened.
+	 */
+	initialise?: boolean;
 }
 
 export type ToWorker = ApiRequestMessage | FlushMessage | MountMessage;

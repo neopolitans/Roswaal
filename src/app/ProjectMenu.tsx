@@ -16,7 +16,7 @@
 import { useEffect, useRef } from "react";
 
 import { LAYER } from "./layers.js";
-import { useCanOpenDirectory, useHostCan } from "./host.js";
+import { useCanOpenDirectory, useHostCan, useRememberedFolder } from "./host.js";
 
 export interface ProjectMenuProps {
 	/** Viewport position of the menu's top-left; it is `position: fixed`. */
@@ -35,6 +35,8 @@ export interface ProjectMenuProps {
 	onReset: () => void;
 	/** Hand the editor a folder from the developer's own disk. */
 	onOpenFolder: () => void;
+	/** Open the folder from last time, asking for permission again. */
+	onReopenFolder: () => void;
 	onClose: () => void;
 }
 
@@ -85,6 +87,9 @@ export function ProjectMenu(props: ProjectMenuProps) {
 	// The browser can be handed a real folder, where the daemon has its own
 	// dialog for the same job and this would be the second of two.
 	const canOpenFolder = useCanOpenDirectory();
+	// Set only when the handle survived but the permission did not, so the
+	// click that accepts is the click that asks for it back.
+	const remembered = useRememberedFolder();
 	const others = recent.filter((r) => r !== current);
 
 	return (
@@ -140,6 +145,19 @@ export function ProjectMenu(props: ProjectMenuProps) {
 				>
 					<span className="name">Download as a zip…</span>
 				</div>
+
+				{remembered && (
+					<div
+						className="item"
+						title={`Open ${remembered.name} again. Your browser will ask for permission first.`}
+						onClick={() => {
+							props.onReopenFolder();
+							onClose();
+						}}
+					>
+						<span className="name">Reopen {remembered.name}…</span>
+					</div>
+				)}
 
 				{canOpenFolder && (
 					<div

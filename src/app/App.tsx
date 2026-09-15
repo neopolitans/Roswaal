@@ -55,7 +55,9 @@ import {
 } from "./edits.js";
 import { setProjectTypes } from "./projectTypes.js";
 import { IS_STATIC_HOST, PAGE_TARGET, pageHref } from "./pages.js";
-import { openDirectory, useHostCan, useHostFailure } from "./host.js";
+import {
+	forgetRememberedFolder, openDirectory, useHostCan, useHostFailure, useRememberedFolder,
+} from "./host.js";
 import { download, zip } from "./zip.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
@@ -285,6 +287,8 @@ export function App() {
 	 */
 	const [targetDir, setTargetDir] = useState<string | null>(null);
 	/** Where the project menu is anchored, and the recents it was opened with. */
+	// The folder from a previous session, when one is waiting on a click.
+	const remembered = useRememberedFolder();
 	const [projectMenu, setProjectMenu] = useState<
 		{ anchor: { x: number; y: number }; recent: string[] } | null
 	>(null);
@@ -1340,11 +1344,54 @@ export function App() {
 			const picked = await openDirectory();
 			// Cancelling the picker is an answer. Nothing to report.
 			if (!picked) return;
-			await loadProject(picked.root);
+
+			if ("root" in picked) {
+				await loadProject(picked.root);
+				return;
+			}
+
+			/**
+			 * The folder is not a project yet, and making it one writes into it.
+			 *
+			 * The same two things `roswaal init` writes, said plainly, because the
+			 * folder in question is one somebody picked and may well be the root of
+			 * a game they have been working on for a year.
+			 */
+			const ok = await ask({
+				kind: "confirm",
+				title: `Set up ${picked.notAProject} as a Roswaal project?`,
+				message:
+					"It has no roswaal.json yet. Roswaal will add one, along with a "
+					+ ".roswaal folder for your graphs and node packs. Nothing else in the "
+					+ "folder is touched, and no code is compiled until you ask.",
+				confirmLabel: "Set it up",
+			});
+			if (ok !== true) return;
+
+			const made = await picked.initialise();
+			await loadProject(made.root);
 		} catch (err) {
 			notify("That folder could not be opened", (err as Error).message);
 		}
 	}, [loadProject, notify]);
+
+	/**
+	 * The folder from last time, reopened.
+	 *
+	 * Separate from the picker because there is nothing to pick: the browser
+	 * still has the handle and only wants permission confirmed. Declining is an
+	 * answer, so a `null` says nothing rather than reporting a failure.
+	 */
+	const reopenFolder = useCallback(async () => {
+		if (!remembered) return;
+		try {
+			const opened = await remembered.open();
+			if (!opened) return;
+			if ("root" in opened) await loadProject(opened.root);
+		} catch (err) {
+			notify(`${remembered.name} could not be reopened`, (err as Error).message);
+		}
+	}, [remembered, loadProject, notify]);
 
 	const resetProject = useCallback(async () => {
 		const ok = await ask({
@@ -1361,6 +1408,10 @@ export function App() {
 
 		try {
 			await api.resetProject();
+			// And stop offering the folder from last time: a reset that put the
+			// demo back and then reopened somebody's project on the next load
+			// would not be a reset.
+			await forgetRememberedFolder();
 			window.location.reload();
 		} catch (err) {
 			notify("The project could not be reset", (err as Error).message);
@@ -1547,6 +1598,7 @@ export function App() {
 					onDownload={() => void downloadProject()}
 					onReset={() => void resetProject()}
 					onOpenFolder={() => void openFolder()}
+					onReopenFolder={() => void reopenFolder()}
 					onClose={() => setProjectMenu(null)}
 				/>
 			)}
