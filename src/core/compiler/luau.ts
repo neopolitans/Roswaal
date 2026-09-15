@@ -175,6 +175,32 @@ export function isAtomic(expr: string): boolean {
 	return false;
 }
 
+/**
+ * True when `expr` is a plain access path: a name, then only `.field` and
+ * `[key]` steps, with no call anywhere in it.
+ *
+ * ## What it is for
+ *
+ * The emitter binds a pure value to a local as soon as two things read it, so
+ * that an expensive or side-effecting expression is not worked out twice. That
+ * is right for a call and wrong for `restore.weld`: hand-written Luau writes
+ * the path again, and hoisting it costs a line, a name that says nothing, and —
+ * less obviously — a *stale read*, because a Set Index between the two uses
+ * would not reach the local.
+ *
+ * So a path may be repeated and anything else may not. The test is deliberately
+ * narrow: no `(` at all, which rules out a call, a method call and a
+ * parenthesised group in one character. `t[i]` qualifies because `i` is itself
+ * a name; `t[f()]` does not.
+ */
+export function isAccessPath(expr: string): boolean {
+	const e = expr.trim();
+	if (e === "" || e.includes("(")) return false;
+	return ACCESS_PATH.test(e);
+}
+
+const ACCESS_PATH = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*|\[[^[\]()]*\])*$/;
+
 /** Wraps `expr` in parentheses unless it is already safe to splice. */
 export function paren(expr: string): string {
 	return isAtomic(expr) ? expr : `(${expr})`;

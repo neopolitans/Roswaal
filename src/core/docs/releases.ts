@@ -54,6 +54,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.36.2",
+		date: "2026-09-15",
+		headline: "A field read twice is written twice.",
+		changed: [
+			"**A plain access path read more than once is written again rather than hoisted into a local.** `restore.weld` at both use sites, not `local weld = restore.weld` beside them — which is what hand-written Luau does, and what `Occupancy.VALUE_NAME` was already doing everywhere except through Get Key.",
+			"**A path reached through a call still gets its local**, because the call would otherwise run twice. So does an expression, and anything else that is work rather than a name.",
+		],
+		fixed: [
+			"**A field read twice now really is read twice.** The local was a snapshot: a Set Index between the two reads never reached it, so the graph said \"read this field here\" and the file did not.",
+		],
+		watch: [
+			"**Naming the result still asks for the local**, and is now the way to say \"read this once and keep it\" — worth it for an instance property read several times in a row, where each read crosses into the engine.",
+			"**Recompiling will drop these locals from generated files.** Every graph that read a field or a constant twice loses a line and reads the path at each use instead.",
+		],
+	},
+	{
 		version: "0.36.1",
 		date: "2026-09-15",
 		headline: "The node search asks the same scope question the panel does.",

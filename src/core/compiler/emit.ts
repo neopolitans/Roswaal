@@ -14,7 +14,7 @@
  */
 
 import {
-	foldPrecedence, indentBlock, isAtomic, literalToLuau, NameScope, paren, parenAt,
+	foldPrecedence, indentBlock, isAccessPath, isAtomic, literalToLuau, NameScope, paren, parenAt,
 	quoteString, templatePrecedence, toIdentifier,
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
@@ -2216,19 +2216,34 @@ class Emitter {
 		 */
 		const named = (src.node.config as { resultName?: string } | undefined)?.resultName;
 
-		// One consumer: splice it in. More: bind it once, so a side-effecting or
-		// merely expensive expression is not evaluated twice.
-		//
-		// A name you typed is the exception. Naming the result is a request for
-		// the local, not a suggestion about what to call one if it happens to
-		// appear — and a field that does nothing until some second reader shows
-		// up is a field you have to experiment on to understand.
-		// A pure node's logic is one expression, with nowhere to put the local.
+		/**
+		 * One consumer: splice it in. More: bind it once, so a side-effecting or
+		 * merely expensive expression is not worked out twice.
+		 *
+		 * **An access path is the exception**, and reading it again is not a
+		 * concession — it is the more faithful answer. `restore.weld` read twice
+		 * is what the hand-written module writes, hoisting it costs a line and a
+		 * name that says nothing, and the local is a *snapshot*: a Set Index
+		 * between the two reads would never reach it, so the graph would say
+		 * "read this field here" and the file would not. See `isAccessPath` for
+		 * how narrow the test is.
+		 *
+		 * A name you typed is the other exception, in the other direction.
+		 * Naming the result is a request for the local, not a suggestion about
+		 * what to call one if it happens to appear — and a field that does
+		 * nothing until some second reader shows up is a field you have to
+		 * experiment on to understand.
+		 *
+		 * A pure node's logic is one expression, with nowhere to put the local.
+		 */
 		if (this.options.expressionsOnly) return expr;
 		// A cast that has been told which it is overrides the ordinary rule.
 		// Implicit never takes a line; explicit always does, even for one reader.
 		if (cast === "implicit") return expr;
-		if (cast !== "explicit" && !named && this.effectiveConsumers(nodeId, pinId) <= 1) return expr;
+		if (cast !== "explicit" && !named) {
+			if (this.effectiveConsumers(nodeId, pinId) <= 1) return expr;
+			if (isAccessPath(expr)) return expr;
+		}
 
 		const outPin = src.outputs.find((p) => p.id === pinId);
 		const hint = named || src.node.label || outPin?.name || src.def.title;
