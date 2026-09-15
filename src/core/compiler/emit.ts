@@ -27,6 +27,7 @@ import type { Comment, Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
 import type { FunctionRef, LocalRef, ParamRef, VariableRef } from "../nodes/variables.js";
 import { isService as isRobloxService, lastSegment, renderPath } from "../roblox.js";
+import { methodOf, serviceMethod, serviceOf } from "../serviceCalls.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
 import {
 	modeOf, partPinId, splitKey, splitPinId, splitsOf, STRUCTS, type StructMode,
@@ -506,6 +507,74 @@ class Emitter {
 		const ident = this.names.uniqueForFile(root, "service");
 		this.services.set(root, ident);
 		return ident;
+	}
+
+	/**
+	 * The call a Service Function node writes: `RunService:IsServer()`.
+	 *
+	 * The service goes through `resolveRoot`, so a graph that calls two methods
+	 * on RunService and also has a Get Service for it ends up with one
+	 * `local RunService = game:GetService("RunService")` at the top and three
+	 * readers — which is the file somebody would have written.
+	 *
+	 * The service and the method are typed in rather than wired for the reason
+	 * Get Service's name is: both become text in the generated file, so they have
+	 * to be known before the script runs.
+	 */
+	private serviceCall(r: ResolvedNode, scope: Scope): string {
+		const id = r.node.id;
+		const service = serviceOf(r.node.config);
+		const name = methodOf(r.node.config) ?? "";
+		if (name === "") {
+			this.error(
+				`"${r.def.title}" has no call chosen. Pick one in the Inspector — the service and ` +
+					"the method become text in the generated file, so they are set on the node " +
+					"rather than wired into it.",
+				id,
+			);
+			return "nil";
+		}
+
+		const known = serviceMethod(service, name);
+		const pins = r.inputs.filter((p) => VARIADIC_PIN.test(p.id));
+		const set = pins.map((pin) => this.isSet(r, pin));
+		// Trailing optional arguments nobody has touched are not passed at all,
+		// on the rule `$opt` follows and for the same reason: the engine rejects
+		// an explicit nil in places where it is happy with a missing argument.
+		let last = pins.length - 1;
+		while (last >= 0 && pins[last].optional === true && !set[last]) last -= 1;
+
+		const args = pins.slice(0, last + 1).map((pin, index) => {
+			if (pin.optional === true && !set[index]) return "nil";
+			return this.serviceArgument(r, pin, scope, known?.params[index]?.enum);
+		});
+		return `${this.resolveRoot(service)}:${toIdentifier(name, "method")}(${args.join(", ")})`;
+	}
+
+	/**
+	 * One argument, with the enum ones written out.
+	 *
+	 * An enum argument is typed as its member name — `E`, `Begin` — because that
+	 * is what somebody has in mind, and `Enum.KeyCode.E` is what Luau wants. A
+	 * wire wins over the name: the value then comes from the graph and is already
+	 * whatever it is.
+	 */
+	private serviceArgument(
+		r: ResolvedNode, pin: PinDef, scope: Scope, enumName: string | undefined,
+	): string {
+		if (!enumName || this.index.sourceOf(r.node.id, pin.id)) {
+			return this.resolveInput(r, pin, scope);
+		}
+		const member = this.literalText(r, pin.id);
+		if (member === "") {
+			this.error(
+				`"${pin.name || pin.id}" needs an Enum.${enumName} value, by name.`,
+				r.node.id,
+				pin.id,
+			);
+			return "nil";
+		}
+		return `Enum.${enumName}.${toIdentifier(member, "value")}`;
 	}
 
 	/**
@@ -1181,6 +1250,18 @@ class Emitter {
 				}
 
 				const expression = `${callee}(${args.join(", ")})`;
+				if (this.index.consumerCount(id, "result") > 0) {
+					const ident = this.names.unique(r.node.label || "result", "result");
+					this.push(`local ${ident} = ${expression}`, id);
+					scope.bindings.set(`${id}/result`, ident);
+				} else {
+					this.push(expression, id);
+				}
+				return this.index.execTarget(id, "then");
+			}
+
+			case "service.call": {
+				const expression = this.serviceCall(r, scope);
 				if (this.index.consumerCount(id, "result") > 0) {
 					const ident = this.names.unique(r.node.label || "result", "result");
 					this.push(`local ${ident} = ${expression}`, id);
@@ -1934,6 +2015,9 @@ class Emitter {
 			case "players.localCharacter":
 				this.requireClient(src, "Local Character");
 				return `${this.resolveRoot("Players")}.LocalPlayer.Character`;
+
+			case "service.call":
+				return this.serviceCall(src, scope);
 
 			case "service.get": {
 				const link = this.index.sourceOf(src.node.id, "service");

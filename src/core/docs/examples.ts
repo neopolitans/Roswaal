@@ -687,6 +687,27 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	},
 
 	/** Two nodes that take a list, each one past its minimum. */
+	/**
+	 * Asking a service a question, where the answer is wanted.
+	 *
+	 * The point is the shape: `RunService:IsServer()` is a value node feeding a
+	 * Branch's condition, with no execution wire of its own — and the service it
+	 * calls on never appears as a node, because it is hoisted to the top of the
+	 * file.
+	 */
+	serviceCall: () => {
+		const g = new G({}, TIGHT);
+		const begin = g.node("script.begin", { column: 0, row: 0 });
+		const branch = g.node("flow.branch", { column: 1, row: 0 });
+		const isServer = g.node("roblox.serviceValue", {
+			column: 0, row: 1, config: { service: "RunService", method: "IsServer" },
+		});
+		g.link(begin, "then", branch, "in").link(isServer, "result", branch, "condition");
+		printAfter(g, branch, "true", "On the server", 0);
+		printAfter(g, branch, "false", "On the client", 1);
+		return g.out();
+	},
+
 	growPins: () => {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0, row: 0 });

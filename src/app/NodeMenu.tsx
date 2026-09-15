@@ -19,6 +19,7 @@ import {
 	hoistedFunctions, paramsVisibleFrom, visibleFrom, type GraphId,
 } from "../core/functionGraph.js";
 import { landingPins, localRefFor } from "./edits.js";
+import { serviceMenuItems, servicePins } from "../core/serviceCalls.js";
 import { LAYER } from "./layers.js";
 import { COMMENT_DEFAULT_COLOR, nodeColor, pinColor } from "./palette.js";
 
@@ -62,6 +63,15 @@ interface MenuItem {
 	pure: boolean;
 	def: NodeDef;
 	config?: NodeConfig;
+	/**
+	 * The pins this item would arrive with, where its config decides them.
+	 *
+	 * Only the service calls set it. A wire in flight filters the menu by what
+	 * a node can receive, and "Service Function" declares no pins of its own —
+	 * so without this, dragging a boolean into the menu would hide the very
+	 * entry that gives a boolean back.
+	 */
+	pins?: { inputs: PinDef[]; outputs: PinDef[] };
 }
 
 export interface NodeMenuProps {
@@ -146,15 +156,56 @@ export function NodeMenu(props: NodeMenuProps) {
 		[allItems, reachable],
 	);
 
+	/**
+	 * Every method of every service, as an entry that configures one of the two
+	 * Service Function nodes.
+	 *
+	 * **Searched, never browsed.** Three hundred calls under a heading is a list
+	 * nobody scrolls, and it would bury the rest of the Engine category — so
+	 * they appear once you have typed something, and browsing shows the two
+	 * nodes themselves, which is where the picker lives.
+	 */
+	const serviceItems = useMemo((): MenuItem[] => {
+		if (target !== "roblox") return [];
+		return serviceMenuItems().flatMap((entry) => {
+			const def = registry.get(entry.defId);
+			if (!def) return [];
+			const pure = def.pure === true;
+			return [{
+				key: `service:${entry.service}:${entry.method.name}`,
+				title: `${entry.service}:${entry.method.name}`,
+				category: "Engine",
+				summary: entry.method.summary,
+				color: nodeColor(def),
+				pure,
+				def,
+				config: entry.config,
+				pins: servicePins(entry.config, pure),
+			}];
+		});
+	}, [registry, target]);
+
 	const matches = useMemo(() => {
 		const q = query.trim().toLowerCase();
 		if (!q) return items;
-		return items
+
+		const from = anchor.from;
+		const side = from ? (from.side === "out" ? "in" : "out") : null;
+		const searchable = [
+			...items,
+			...serviceItems.filter((item) => {
+				if (!from || !side || !item.pins) return true;
+				const pins = side === "in" ? item.pins.inputs : item.pins.outputs;
+				return landingPins(item.def, pins, from.pin, side).length > 0;
+			}),
+		];
+
+		return searchable
 			.map((item) => ({ item, score: score(item, q) }))
 			.filter((x) => x.score > 0)
 			.sort((a, b) => b.score - a.score)
 			.map((x) => x.item);
-	}, [query, items]);
+	}, [query, items, serviceItems, anchor.from]);
 
 	/**
 	 * Categories, each holding either a flat list or a list of datatype groups.

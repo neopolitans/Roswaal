@@ -7,6 +7,8 @@
  * because the pins are what they define.
  */
 
+import { useState } from "react";
+
 import type { Comment, GraphNode, Literal, NodeDef, NodeScript } from "../core/schema.js";
 import { nodeTitle, type Registry } from "../core/nodes/index.js";
 import type { Signature } from "../core/nodes/index.js";
@@ -23,6 +25,11 @@ import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
 import { localNameOf } from "../core/nodes/variables.js";
 import { store } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
+import { ValuePicker } from "./ValuePicker.jsx";
+import { Icon } from "./icons.jsx";
+import {
+	CALL_OPTIONS, SERVICE_CALL, SERVICE_VALUE, callDetail, callLabel, serviceMethod, splitCall,
+} from "../core/serviceCalls.js";
 
 /**
  * Abbreviations whose full stop is not the end of a sentence.
@@ -186,6 +193,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				{(def.id === "call.function" || def.id === "call.method") && (
 					<CountEditor node={node} field="args" label="Arguments" min={0} max={8} fallback={1} />
 				)}
+				{(def.id === SERVICE_CALL || def.id === SERVICE_VALUE) && <CallPicker node={node} />}
 				{(def.id === "type.declareTop" || def.id === "type.declareHere") && (
 					<TypeEditor node={node} />
 				)}
@@ -580,6 +588,62 @@ function CastMode({ node }: { node: GraphNode }) {
 				))}
 			</select>
 		</Field>
+	);
+}
+
+/**
+ * Which call a Service Function node makes.
+ *
+ * One field for both halves, because `RunService:IsServer` is one name as far
+ * as anybody thinking about it is concerned — and because the alternative is a
+ * Service dropdown whose choice silently empties the Method dropdown beside it.
+ *
+ * Whatever is typed is committed, listed or not: the catalogue is a build of
+ * Roblox's documentation and the engine moves between builds, so a method newer
+ * than this one has to be reachable. A call the catalogue does not know takes
+ * its argument count from the field below instead of from a signature.
+ */
+function CallPicker({ node }: { node: GraphNode }) {
+	const [picking, setPicking] = useState(false);
+	const label = callLabel(node.config);
+	const split = label ? splitCall(label) : undefined;
+	const known = split ? serviceMethod(split.service, split.method) : undefined;
+
+	const pick = (value: string) => {
+		const chosen = splitCall(value);
+		if (!chosen) return;
+		store.edit((s) => setConfig(s, node.id, { service: chosen.service, method: chosen.method }));
+	};
+
+	return (
+		<>
+			<Field
+				label="Call"
+				hint={known?.summary ?? "A method on a service. Type one the list has not caught up with."}
+			>
+				<button className="tb literal picker" onClick={() => setPicking(true)}>
+					<span className="preview">{label ?? "Choose a call…"}</span>
+					<Icon name="chevron" size={12} />
+				</button>
+			</Field>
+			{known?.yields && (
+				<p className="summary">Yields: the thread stops here until the engine comes back.</p>
+			)}
+			{label && !known && (
+				<CountEditor node={node} field="args" label="Arguments" min={0} max={8} fallback={0} />
+			)}
+			{picking && (
+				<ValuePicker
+					what="call"
+					options={CALL_OPTIONS}
+					value={label ?? ""}
+					groupOf={(value) => splitCall(value)?.service ?? "Other"}
+					detailOf={callDetail}
+					onPick={pick}
+					onClose={() => setPicking(false)}
+				/>
+			)}
+		</>
 	);
 }
 

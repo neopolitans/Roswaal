@@ -76,6 +76,23 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.40.0",
+		date: "2026-09-15",
+		headline: "Every method a service has, without a node each.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Service Function** and **Service Function (Value)** call a method on a Roblox service. Pick the call in the Inspector — `RunService:IsServer`, `Debris:AddItem`, `TweenService:Create` — and the arguments arrive named and typed from the method's own signature, with the result pin typed to what it returns. The value node has no execution pins, so it wires straight into the Branch or the loop that wanted the answer.",
+			"**The node palette lists every method by name.** Searching `IsServer` finds `RunService:IsServer`, and picking it places the node already set to that call. They appear once you have typed something rather than in the browsing list, which is three hundred entries long.",
+			"**The service is hoisted**, exactly as Get Service hoists it: one `local RunService = game:GetService(\"RunService\")` at the top of the file, shared with every node that asked for the same service.",
+			"**A catalogue of 322 methods across 36 services**, built from Roblox's documentation and shipped with Roswaal — no network at build time or run time. Methods behind a security context and deprecated ones are not offered; methods a service inherits are, down to `Instance`, whose own methods have nodes already.",
+			"**An enum argument is typed as its member name** — `E`, `Begin` — and written out as `Enum.KeyCode.E`. An optional argument nothing set is left out of the call rather than passed as nil.",
+			"**A new guide**, [Services and their methods](services), on Get Service, the two nodes, and what the catalogue holds.",
+		],
+		watch: [
+			"The method list is a **snapshot of Roblox's documentation at this build**. A method newer than it is not on the list and still compiles: type it into the picker and set Arguments in the Inspector.",
+		],
+	},
+	{
 		version: "0.39.2",
 		date: "2026-09-15",
 		headline: "Comments resize from either corner, and long headers print as blocks.",

@@ -14,6 +14,9 @@
 
 import type { NodeDef, PinDef } from "../schema.js";
 import { CLASS_OPTIONS, PATH_ROOTS, ROBLOX_SERVICES } from "../roblox.js";
+import {
+	SERVICE_CALL, SERVICE_VALUE, servicePins, serviceSubtitle,
+} from "../serviceCalls.js";
 import { pinTypeOf, typedLocalName } from "./variables.js";
 import { ENGINE_TYPES, LUAU, PAIR } from "../schema.js";
 
@@ -630,6 +633,44 @@ export const LIBRARY_NODES: NodeDef[] = [
 		],
 		outputs: [d("service", "", "Instance")],
 		compilesTo: { kind: "builtin", handler: "service.get" },
+	},
+	/**
+	 * Every method a service has, without a node each.
+	 *
+	 * The pair exists for the reason Call Function and Call have one: a method
+	 * that *does* something belongs in the execution chain, and a method that
+	 * *answers* something belongs in the condition of the Branch that asks. Both
+	 * call any method — the catalogue's read-only mark decides which one the
+	 * menu reaches for and nothing more.
+	 *
+	 * See `serviceCalls.ts` for why the signature is derived rather than typed.
+	 */
+	{
+		id: SERVICE_CALL,
+		title: "Service Function",
+		category: "Engine",
+		summary:
+			"Calls a method on a service: Debris:AddItem, TweenService:Create. The service is pulled into a local at the top of the file, as Get Service does.",
+		targets: ["roblox"],
+		inputs: servicePins(undefined, false).inputs,
+		outputs: servicePins(undefined, false).outputs,
+		compilesTo: { kind: "builtin", handler: "service.call" },
+		derivePins: (config) => servicePins(config, false),
+		subtitle: (config) => serviceSubtitle(config) ?? resultSubtitle(config),
+	},
+	{
+		id: SERVICE_VALUE,
+		title: "Service Function (Value)",
+		category: "Engine",
+		summary:
+			"Asks a service something, where the answer is wanted: RunService:IsServer() in a Branch, Players:GetPlayers() in a For Each. No execution wire.",
+		targets: ["roblox"],
+		pure: true,
+		inputs: servicePins(undefined, true).inputs,
+		outputs: servicePins(undefined, true).outputs,
+		compilesTo: { kind: "builtin", handler: "service.call" },
+		derivePins: (config) => servicePins(config, true),
+		subtitle: (config) => serviceSubtitle(config) ?? resultSubtitle(config),
 	},
 	call("roblox.instanceNew", "New Instance", "Engine", "Instance.new($in.className)",
 		[cls("className", "Class Name", "Part")], "Instance", "Instance", { targets: ["roblox"] }),
