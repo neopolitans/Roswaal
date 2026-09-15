@@ -239,6 +239,9 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 	}
 }
 
+/** Past this many, a pin's values are counted rather than listed. */
+const NAMEABLE_OPTIONS = 8;
+
 function renderPins(block: Block & { t: "pins" }, options: RenderOptions): string {
 	const rows = block.pins
 		.map((pin) => {
@@ -247,14 +250,33 @@ function renderPins(block: Block & { t: "pins" }, options: RenderOptions): strin
 				pin.literalOnly && !pin.code ? `<span class="badge">literal</span>` : "",
 				pin.code ? `<span class="badge">code editor</span>` : "",
 				pin.splitModes.length > 0 ? `<span class="badge">splittable</span>` : "",
+				pin.options && pin.options.length > 0 ? `<span class="badge">from a list</span>` : "",
 			].join("");
 
+			/**
+			 * What a pin with a list of values offers.
+			 *
+			 * Named when there are few enough to read — three axes is a sentence —
+			 * and counted when there are not. Six hundred and twenty-five Instance
+			 * classes printed into a reference page is a page nobody can use, and
+			 * the number is the useful fact anyway: it says "all of them".
+			 *
+			 * Either way it says the list is not a gate, because that is the thing
+			 * a reader would otherwise have to find out by trying.
+			 */
+			const choices = !pin.options || pin.options.length === 0
+				? ""
+				: pin.options.length <= NAMEABLE_OPTIONS
+					? ` One of ${escapeHtml(pin.options.join(", "))} — or anything else, typed in.`
+					: ` Offers ${pin.options.length} values to pick from, and takes anything else typed in.`;
+
 			const detail =
-				pin.description || pin.splitModes.length > 0
+				pin.description || pin.splitModes.length > 0 || choices
 					? `<div class="detail">${escapeHtml(pin.description ?? "")}` +
 						(pin.splitModes.length > 0
 							? ` Splits into ${escapeHtml(pin.splitModes.join(", or "))}.`
 							: "") +
+						choices +
 						`</div>`
 					: "";
 

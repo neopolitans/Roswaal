@@ -1,7 +1,8 @@
 /** One node on the canvas: header, pin rows, and inline literal editors. */
 
 import {
-	memo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode,
+	memo, useId, useState, type CSSProperties, type PointerEvent as ReactPointerEvent,
+	type ReactNode,
 } from "react";
 
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
@@ -552,12 +553,27 @@ function renderLiteralEditor(props: NodeViewProps, pin: PinDef) {
 const CUSTOM = "__roswaal_other__";
 
 /**
- * A dropdown for a pin with a known set of values, and an escape from it.
+ * Past this many, a dropdown stops being a list you read and becomes one you
+ * scroll. Twelve services is the first; six hundred and twenty-five Instance
+ * classes is the second.
+ */
+const TOO_MANY_TO_SCROLL = 24;
+
+/**
+ * A pin with a known set of values, in whichever control suits the set.
  *
- * The list is suggestions rather than a gate: a value that is not on it — a
- * service Roblox shipped after this build — still shows, still round-trips, and
- * can still be typed via "Other…". A closed dropdown would turn every gap in
- * the list into a dead end.
+ * The list is suggestions rather than a gate either way: a value that is not on
+ * it — a class Roblox shipped after this build — still shows, still round-trips,
+ * and can still be typed. A closed dropdown would turn every gap in the list
+ * into a dead end.
+ *
+ * **A short list is a `select`**, which says what the choices are without being
+ * asked and has "Other…" at the bottom for anything else.
+ *
+ * **A long one is a text field with a datalist**, which is the same offer made
+ * the other way round: type and it narrows, or open it and scroll the lot.
+ * Nobody scrolls six hundred options, and "Other…" is not the escape you want
+ * when the list you are escaping is the one you were going to type into anyway.
  */
 function OptionEditor({
 	pin, value, onChange,
@@ -566,6 +582,28 @@ function OptionEditor({
 	const listed = known.includes(value) || value === "";
 	const [typing, setTyping] = useState(!listed);
 	const stop = (e: ReactPointerEvent) => e.stopPropagation();
+	const listId = useId();
+
+	if (known.length > TOO_MANY_TO_SCROLL) {
+		return (
+			<>
+				<input
+					className="literal wide"
+					list={listId}
+					value={value}
+					title={pin.description}
+					placeholder={known[0]}
+					onPointerDown={stop}
+					onChange={(e) => onChange(e.target.value)}
+				/>
+				<datalist id={listId}>
+					{known.map((option) => (
+						<option key={option} value={option} />
+					))}
+				</datalist>
+			</>
+		);
+	}
 
 	if (typing) {
 		return (

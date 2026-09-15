@@ -1,6 +1,10 @@
 /**
- * Roblox-specific vocabulary: the services a script can reach, and how an
- * instance path is written into Luau.
+ * Roblox-specific vocabulary: the services a script can reach, how an instance
+ * path is written into Luau, and which names are classes.
+ *
+ * The engine's full lists are generated into `robloxData.ts`. What is here is
+ * the *editorial* half — which services are offered, which classes are near to
+ * hand — which is a judgement and so is written by hand.
  *
  * The service list is hardcoded on purpose. Roblox adds services rarely, and a
  * fixed list is what lets Get Service be a dropdown rather than a text field
@@ -8,6 +12,8 @@
  * it also accepts a name typed by hand, so a service added next year needs no
  * release here.
  */
+
+import { CLASSES } from "./robloxData.js";
 
 /** Services offered in the Get Service dropdown, in rough order of use. */
 export const ROBLOX_SERVICES = [
@@ -95,14 +101,16 @@ export function lastSegment(path: string): string {
 }
 
 /**
- * Instance classes a pin may be typed as.
+ * Instance classes worth offering before the other six hundred.
  *
- * Partial on purpose: Roblox has hundreds and a graph needs the handful you
- * actually hold a reference to. It exists so `Model` can be told apart from
- * `Config` -- one fits an `Instance` pin and the other does not -- which is a
- * question no amount of looking at the name can answer. Add to it freely; a
- * class missing from here still *works* as a type, it just is not offered in
- * the type list and will not satisfy an `Instance` pin without a Cast.
+ * Hand-picked, and the order is the point: these are what a graph actually
+ * holds a reference to, so they go at the top of a class list and the complete
+ * one follows. Add to it freely — it changes what is *near to hand*, never what
+ * is possible.
+ *
+ * It used to be the whole list, which meant `isInstanceClass` said no to
+ * `Decal`, and a Decal needed a Cast to reach an `Instance` pin. That is what
+ * `CLASSES` is for now.
  */
 export const INSTANCE_CLASSES: string[] = [
 	"Accessory", "Animation", "AnimationTrack", "Animator", "Attachment",
@@ -112,15 +120,37 @@ export const INSTANCE_CLASSES: string[] = [
 	"HumanoidDescription", "ImageLabel", "IntValue", "Model", "Motor6D",
 	"MeshPart", "NumberValue", "ObjectValue", "Part", "ParticleEmitter",
 	"Player", "PlayerGui", "PointLight", "ProximityPrompt", "RemoteEvent",
-	"RemoteFunction", "ScreenGui", "ScriptSignal", "Seat", "Sound", "Sparkles",
+	"RemoteFunction", "ScreenGui", "Seat", "Sound", "Sparkles",
 	"StringValue", "SurfaceGui", "TextBox", "TextButton", "TextLabel", "Tool",
 	"Trail", "UICorner", "UIListLayout", "UIPadding", "Vector3Value",
 	"VehicleSeat", "WeldConstraint",
 ];
 
-const CLASSES = new Set(INSTANCE_CLASSES);
+/**
+ * Every class, with the common ones first.
+ *
+ * What a Class Name pin offers. The order matters more than it looks: a list of
+ * six hundred and twenty-five is a list nobody scrolls, so the fifty that are
+ * reached for daily sit at the top and the rest follow alphabetically. Nothing
+ * appears twice.
+ *
+ * Suggestions, not a gate — every pin that offers this also takes a name typed
+ * by hand, so a class Roblox ships next month needs no release here.
+ */
+export const CLASS_OPTIONS: string[] = [
+	...INSTANCE_CLASSES,
+	...CLASSES.filter((name) => !INSTANCE_CLASSES.includes(name)),
+];
 
-/** Whether a type name is an Instance class, and so fits an `Instance` pin. */
+const EVERY_CLASS = new Set<string>([...CLASSES, ...INSTANCE_CLASSES]);
+
+/**
+ * Whether a type name is an Instance class, and so fits an `Instance` pin.
+ *
+ * The engine's whole list, not the shortlist above. While it was the shortlist,
+ * `Decal` was not an Instance as far as the editor was concerned and wiring one
+ * into an `Instance` pin wanted a Cast that asserted something already true.
+ */
 export function isInstanceClass(type: string | undefined): boolean {
-	return type !== undefined && CLASSES.has(type);
+	return type !== undefined && EVERY_CLASS.has(type);
 }

@@ -1140,6 +1140,16 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 		{
 			t: "p",
 			text:
+				"**A dropdown is a shortcut, never a gate.** A short list of values — the three " +
+				"axes, the easing styles — is a `select` with **Other…** at the bottom for anything " +
+				"it does not hold. A long one, like the Class Name on **Is A** or **New Instance**, " +
+				"is a field you type into that narrows as you go: every Instance class the engine " +
+				"has, with the everyday ones first, and a class newer than your build typed in and " +
+				"working. Each node’s reference page says which of its pins offer a list.",
+		},
+		{
+			t: "p",
+			text:
 				"**default** in a dashed box is an optional argument. Left alone, it is not passed " +
 				"at all. Click it to set a value, and **×** to clear it. [Roswaal types](types) " +
 				"explains when that matters.",

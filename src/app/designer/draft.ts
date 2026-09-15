@@ -47,6 +47,14 @@ export interface DraftPin {
 	type: string;
 	/** Inputs only: the value used when nothing is wired. */
 	default?: Literal;
+	/**
+	 * Inputs only: values offered in a dropdown on the node.
+	 *
+	 * Suggestions rather than a gate, as `PinDef.options` is — the loader has
+	 * taken these from a `.nodedef.json` all along and there was no way to set
+	 * one from the editor that builds them.
+	 */
+	options?: string[];
 	description?: string;
 }
 
@@ -115,6 +123,7 @@ export function draftOf(def: PackNode): Draft {
 		kind: p.kind,
 		type: p.kind === "exec" ? "exec" : (p.type ?? "any"),
 		...(p.default ? { default: p.default } : {}),
+		...(p.options && p.options.length > 0 ? { options: [...p.options] } : {}),
 		...(p.description ? { description: p.description } : {}),
 	});
 	const spec = def.compilesTo;
@@ -342,16 +351,24 @@ export function pillShape(draft: Draft): { ok: true } | { ok: false; reason: str
  * saved beside it for the designer to read back; the loader never looks at it.
  */
 export function defOf(draft: Draft, compiled?: LogicCompile | null): PackNode {
-	const pin = (p: DraftPin): PinDef => ({
+	/**
+	 * `side` rather than `p.kind`, because an output pin is `data` too and the
+	 * two fields below are an input's alone: a default is what is used when
+	 * nothing is wired, and a dropdown is a value nobody can set on an output.
+	 */
+	const pin = (side: Side) => (p: DraftPin): PinDef => ({
 		id: p.id,
 		name: p.name,
 		kind: p.kind,
 		...(p.kind === "data" ? { type: p.type || "any" } : {}),
-		...(p.kind === "data" && p.default ? { default: p.default } : {}),
+		...(side === "in" && p.kind === "data" && p.default ? { default: p.default } : {}),
+		...(side === "in" && p.kind === "data" && p.options && p.options.length > 0
+			? { options: [...p.options] }
+			: {}),
 		...(p.description ? { description: p.description } : {}),
 	});
 	const purity = purityOf(draft);
-	const outputs = draft.outputs.map(pin);
+	const outputs = draft.outputs.map(pin("out"));
 
 	const fromNodes = draft.logicMode === "nodes";
 	let compilesTo: NodeDef["compilesTo"];
@@ -381,7 +398,7 @@ export function defOf(draft: Draft, compiled?: LogicCompile | null): PackNode {
 			const targets = targetsOf(draft, compiled);
 			return targets ? { targets } : {};
 		})(),
-		inputs: draft.inputs.map(pin),
+		inputs: draft.inputs.map(pin("in")),
 		outputs,
 		compilesTo,
 		...(fromNodes && draft.logic ? { logic: draft.logic } : {}),

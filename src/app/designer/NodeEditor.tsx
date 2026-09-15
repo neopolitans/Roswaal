@@ -581,6 +581,14 @@ export function NodeEditor({
 								return pin.side === "in" ? { ...d, inputs: next } : { ...d, outputs: next };
 							})
 						}
+						onChoices={(text) =>
+							update((d) => {
+								const options = readChoices(text);
+								const next = d.inputs.map((p, i) =>
+									(i === pin.index ? { ...p, options } : p));
+								return { ...d, inputs: next };
+							})
+						}
 						onResult={(on) => update((d) => setResult(d, on ? selected.id : undefined))}
 						onMove={(delta) => {
 							update((d) => movePin(d, pin.side, pin.index, delta));
@@ -679,6 +687,26 @@ export function NodeEditor({
 }
 
 /** Everything about one pin that does not fit on the pin. */
+/**
+ * The values a pin offers, from a comma-separated field.
+ *
+ * Blank means no list rather than an empty one, because a pin with `options: []`
+ * is a dropdown with nothing in it -- and `undefined` is what every pin that has
+ * never had choices already stores.
+ *
+ * Commas and newlines both separate, so a list pasted from anywhere works.
+ * Duplicates are dropped and order is kept: order is the author's, and it is the
+ * order the dropdown shows.
+ */
+function readChoices(text: string): string[] | undefined {
+	const values = text
+		.split(/[,\n]/)
+		.map((value) => value.trim())
+		.filter((value) => value !== "");
+	const unique = [...new Set(values)];
+	return unique.length > 0 ? unique : undefined;
+}
+
 function PinPopover(props: {
 	pin: DraftPin;
 	side: Side;
@@ -691,6 +719,7 @@ function PinPopover(props: {
 	onRetype: (type: string) => void;
 	onDefault: (value: Literal | undefined) => void;
 	onDescription: (text: string) => void;
+	onChoices: (text: string) => void;
 	onResult: (on: boolean) => void;
 	onMove: (delta: -1 | 1) => void;
 	onRemove: () => void;
@@ -789,6 +818,19 @@ function PinPopover(props: {
 						<label className="check">
 							<input type="checkbox" checked={props.isResult} onChange={(e) => props.onResult(e.target.checked)} />
 							<span>The call's result — its logic is one expression, and this pin holds its value</span>
+						</label>
+					)}
+					{side === "in" && (
+						<label>
+							<span>Choices</span>
+							<input
+								className="tb"
+								value={(pin.options ?? []).join(", ")}
+								placeholder="Optional, comma separated"
+								spellCheck={false}
+								title="Offers these in a dropdown on the node. Suggestions rather than a gate: anything else can still be typed."
+								onChange={(e) => props.onChoices(e.target.value)}
+							/>
 						</label>
 					)}
 					<label>

@@ -18,6 +18,9 @@ import { localNameOf } from "../core/nodes/variables.js";
 import { toIdentifier } from "../core/compiler/luau.js";
 import { collectLocalNames } from "../core/luauLocals.js";
 import { lastSegment } from "../core/roblox.js";
+import {
+	DATATYPES as ENGINE_DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
+} from "../core/robloxData.js";
 import { surfacesIn } from "./edits.js";
 
 /** Members of the standard libraries, for completion after a dot. */
@@ -53,14 +56,21 @@ const KEYWORDS = [
 	"return", "then", "true", "type", "until", "while",
 ];
 
-const GLOBALS = [
-	"game", "workspace", "script", "shared", "Enum", "Instance", "Vector3",
-	"Vector2", "CFrame", "Color3", "UDim2", "BrickColor", "Random", "TweenInfo",
-	"task", "math", "string", "table", "os", "coroutine", "utf8", "buffer",
-	"debug", "print", "warn", "error", "assert", "pcall", "xpcall", "select",
-	"type", "typeof", "tostring", "tonumber", "pairs", "ipairs", "next",
-	"setmetatable", "getmetatable", "require",
-];
+/**
+ * What is in scope before this graph has put anything there.
+ *
+ * The engine's own lists, plus the datatypes — `Vector3`, `TweenInfo` — which
+ * are globals in the sense that matters here: names you can type into Custom
+ * Code and have work. `Enum` is among the datatypes, so it needs no mention of
+ * its own.
+ *
+ * Hand-maintaining this was fine while it was thirty-nine names and wrong in
+ * the way a hand-maintained list is: `buffer` and `vector` were libraries it
+ * knew, `bit32` was one it did not.
+ */
+const GLOBALS = [...new Set([
+	...LUAU_GLOBALS, ...ROBLOX_GLOBALS, ...LIBRARIES, ...ENGINE_DATATYPES,
+])].sort((a, b) => a.localeCompare(b));
 
 /**
  * Names the generated file will have in scope around this node.

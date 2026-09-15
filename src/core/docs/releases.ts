@@ -54,6 +54,25 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.37.0",
+		date: "2026-09-15",
+		headline: "A Class Name is a list you pick from.",
+		added: [
+			"**Class Name is a dropdown** on Is A, New Instance, Find First Child Of Class, Find First Child Which Is A, and both Find First Ancestor nodes. Every Instance class the engine has, with the everyday ones first — and a field you type into, so a class newer than your build still works.",
+			"**Roswaal knows the engine's vocabulary**: 625 classes, 507 enums, 48 datatypes, the libraries, and both sets of globals. Generated from the Creator Hub by `npm run build:roblox`, and only names — no prose.",
+			"**Choices on a pin, in Node Design.** A pack's pin can offer a dropdown of its own; `.nodedef.json` has taken `options` all along and there was no way to set one from the editor that builds them.",
+			"**A node's reference page says which pins offer a list**, naming the values when there are few enough to read and counting them when there are not.",
+		],
+		changed: [
+			"**Every Instance class fits an `Instance` pin.** It used to be a hand-kept list of fifty-odd, so a `Decal` wanted a Cast to assert something that was already true.",
+			"**Other… in the type picker searches every class and datatype**, not the shortlist.",
+			"**Custom Code's autocomplete offers the engine's real globals and libraries.** The hand-kept list knew `buffer` and not `bit32`.",
+		],
+		fixed: [
+			"**`ScriptSignal` is gone from the type list.** There is no such class — the signal type is `RBXScriptSignal`, which is a datatype and was already offered as one.",
+		],
+	},
+	{
 		version: "0.36.7",
 		date: "2026-09-15",
 		headline: "A knot hears its source change its mind.",

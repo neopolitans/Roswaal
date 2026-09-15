@@ -13,7 +13,7 @@
  */
 
 import type { NodeDef, PinDef } from "../schema.js";
-import { PATH_ROOTS, ROBLOX_SERVICES } from "../roblox.js";
+import { CLASS_OPTIONS, PATH_ROOTS, ROBLOX_SERVICES } from "../roblox.js";
 import { pinTypeOf, typedLocalName } from "./variables.js";
 import { ENGINE_TYPES, LUAU, PAIR } from "../schema.js";
 
@@ -73,6 +73,17 @@ const bool = (id: string, name: string, v = false) => d(id, name, "boolean", { t
  * that split, so each component has a sane starting value to fall back on.
  */
 const vec = (id: string, name: string) => d(id, name, "Vector3", { t: "raw", v: "Vector3.zero" });
+
+/**
+ * A pin naming an Instance class: `FindFirstChildOfClass`, `Instance.new`.
+ *
+ * Every class the engine has, with the common ones first, and still a plain
+ * string underneath — the list is what you pick from, not what you are held to,
+ * so a class newer than this build is typed in and works.
+ */
+const cls = (id: string, name: string, value: string) => ({
+	...str(id, name, value), options: CLASS_OPTIONS,
+});
 const cf = (id: string, name: string) => d(id, name, "CFrame", { t: "raw", v: "CFrame.identity" });
 
 /**
@@ -621,7 +632,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		compilesTo: { kind: "builtin", handler: "service.get" },
 	},
 	call("roblox.instanceNew", "New Instance", "Engine", "Instance.new($in.className)",
-		[str("className", "Class Name", "Part")], "Instance", "Instance", { targets: ["roblox"] }),
+		[cls("className", "Class Name", "Part")], "Instance", "Instance", { targets: ["roblox"] }),
 	call("roblox.waitForChild", "Wait For Child", "Engine",
 		"$in.parent:WaitForChild($in.name)",
 		[d("parent", "Parent", "Instance"), str("name", "Name")], "Child", "Instance",
@@ -828,7 +839,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		[d("instance", "Instance", "Instance")], "string",
 		"The exact class, as a string. Comparing against it misses derived classes — Is A is the test for those."),
 	pure("instance.isA", "Is A", "Instances", "$in.instance:IsA($in.className)",
-		[d("instance", "Instance", "Instance"), str("className", "Class Name", "BasePart")], "boolean",
+		[d("instance", "Instance", "Instance"), cls("className", "Class Name", "BasePart")], "boolean",
 		"True for the class itself and anything derived from it — the test you want when a Cast would be too strict."),
 	pure("instance.isDescendantOf", "Is Descendant Of", "Instances",
 		"$in.instance:IsDescendantOf($in.ancestor)",
@@ -850,7 +861,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		"Everything below this instance, at any depth. Typed `{ Instance }`."),
 	pure("instance.findFirstChildOfClass", "Find First Child Of Class", "Instances",
 		"$in.instance:FindFirstChildOfClass($in.className)",
-		[d("instance", "Instance", "Instance"), str("className", "Class Name", "Humanoid")], "Instance"),
+		[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Humanoid")], "Instance"),
 	/**
 	 * Pure, as every sibling asking the same question already is: Find First
 	 * Child Which Is A, the three Find First Ancestors, Get Children, Is A. It
@@ -891,7 +902,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// have written by hand. Roblox's own default is false either way.
 	pure("instance.findFirstChildWhichIsA", "Find First Child Which Is A", "Instances",
 		"$in.instance:FindFirstChildWhichIsA($in.className$opt(, ))",
-		[d("instance", "Instance", "Instance"), str("className", "Class Name", "BasePart"),
+		[d("instance", "Instance", "Instance"), cls("className", "Class Name", "BasePart"),
 			{ ...bool("recursive", "Recursive"), optional: true }], "Instance",
 		"Matches derived classes too, unlike Find First Child Of Class."),
 	pure("instance.findFirstAncestor", "Find First Ancestor", "Instances",
@@ -899,10 +910,10 @@ export const LIBRARY_NODES: NodeDef[] = [
 		[d("instance", "Instance", "Instance"), str("name", "Name", "Model")], "Instance"),
 	pure("instance.findFirstAncestorOfClass", "Find First Ancestor Of Class", "Instances",
 		"$in.instance:FindFirstAncestorOfClass($in.className)",
-		[d("instance", "Instance", "Instance"), str("className", "Class Name", "Model")], "Instance"),
+		[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Model")], "Instance"),
 	pure("instance.findFirstAncestorWhichIsA", "Find First Ancestor Which Is A", "Instances",
 		"$in.instance:FindFirstAncestorWhichIsA($in.className)",
-		[d("instance", "Instance", "Instance"), str("className", "Class Name", "Model")], "Instance"),
+		[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Model")], "Instance"),
 	pure("instance.propertyChanged", "Get Property Changed Signal", "Instances",
 		"$in.instance:GetPropertyChangedSignal($in.property)",
 		[d("instance", "Instance", "Instance"), str("property", "Property", "Name")], "RBXScriptSignal",
