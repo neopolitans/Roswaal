@@ -1,8 +1,7 @@
 /** One node on the canvas: header, pin rows, and inline literal editors. */
 
 import {
-	memo, useId, useState, type CSSProperties, type PointerEvent as ReactPointerEvent,
-	type ReactNode,
+	memo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode,
 } from "react";
 
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
@@ -10,6 +9,8 @@ import { nodeTitle } from "../core/nodes/index.js";
 import { Icon } from "./icons.jsx";
 import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
+import { CLASS_OPTIONS, classGroup } from "../core/roblox.js";
+import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 import { pinColor } from "./palette.js";
 import {
 	compactLabel, compactWidth, headerHeight, isCompact, isOperator, isReroute,
@@ -581,26 +582,41 @@ function OptionEditor({
 	const known = pin.options ?? [];
 	const listed = known.includes(value) || value === "";
 	const [typing, setTyping] = useState(!listed);
+	const [picking, setPicking] = useState(false);
 	const stop = (e: ReactPointerEvent) => e.stopPropagation();
-	const listId = useId();
 
 	if (known.length > TOO_MANY_TO_SCROLL) {
+		/**
+		 * A button that opens the picker, showing the value it holds.
+		 *
+		 * Not a text field with a `datalist` behind it, which is what this was
+		 * first and is the wrong shape for the job: a datalist only narrows what
+		 * you have already started typing, so it helps somebody who knows the
+		 * name and not somebody looking for one. Browsing is half of what a list
+		 * of six hundred classes is for.
+		 */
 		return (
 			<>
-				<input
-					className="literal wide"
-					list={listId}
-					value={value}
-					title={pin.description}
-					placeholder={known[0]}
+				<button
+					className="literal wide picker"
+					title={pin.description ?? `Choose from ${known.length}`}
 					onPointerDown={stop}
-					onChange={(e) => onChange(e.target.value)}
-				/>
-				<datalist id={listId}>
-					{known.map((option) => (
-						<option key={option} value={option} />
-					))}
-				</datalist>
+					onClick={() => setPicking(true)}
+				>
+					<span className="preview">{value || known[0]}</span>
+					<Icon name="chevron" size={12} />
+				</button>
+				{picking && (
+					<ValuePicker
+						what={pin.name || pin.id}
+						options={known}
+						value={value}
+						groupOf={pin.options === CLASS_OPTIONS ? classGroup : undefined}
+						detailOf={pin.options === CLASS_OPTIONS ? classDetail : undefined}
+						onPick={onChange}
+						onClose={() => setPicking(false)}
+					/>
+				)}
 			</>
 		);
 	}

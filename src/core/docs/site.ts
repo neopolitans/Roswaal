@@ -1060,6 +1060,10 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 				["Drag from a wired input", "Pick the wire up and move it"],
 				["`Shift` + click a pin", "Disconnect everything on it"],
 				["`Shift` or `Alt` + click a wire", "Disconnect it"],
+				[
+					"Click a Class Name",
+					"The class picker: type to search, `↑` `↓` to move, `Enter` to take it, `Esc` to leave. A name it does not hold is taken on `Enter` anyway",
+				],
 				["Double-click a wire", "Add a reroute knot"],
 				["Right-click a pin", "The pin menu"],
 			],
@@ -1143,9 +1147,11 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 				"**A dropdown is a shortcut, never a gate.** A short list of values — the three " +
 				"axes, the easing styles — is a `select` with **Other…** at the bottom for anything " +
 				"it does not hold. A long one, like the Class Name on **Is A** or **New Instance**, " +
-				"is a field you type into that narrows as you go: every Instance class the engine " +
-				"has, with the everyday ones first, and a class newer than your build typed in and " +
-				"working. Each node’s reference page says which of its pins offer a list.",
+				"opens a **picker**: search at the top, and every Instance class the engine has " +
+				"below it, grouped by what each one derives from. Type to narrow, arrows to move, " +
+				"Enter to take it — and a name the list does not hold is still taken, because a " +
+				"class newer than your build has to be reachable. Each node’s reference page says " +
+				"which of its pins offer a list.",
 		},
 		{
 			t: "p",

@@ -13,7 +13,10 @@ import { describe, expect, it } from "vitest";
 import {
 	CLASSES, DATATYPES, ENUMS, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
 } from "../src/core/robloxData.js";
-import { CLASS_OPTIONS, INSTANCE_CLASSES, isInstanceClass } from "../src/core/roblox.js";
+import {
+	CLASS_OPTIONS, classChain, classGroup, INSTANCE_CLASSES, isInstanceClass, isSubclassOf,
+} from "../src/core/roblox.js";
+import { typesCompatible } from "../src/core/compiler/validate.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import { searchTypes } from "../src/app/TypePicker.jsx";
 import { defOf, draftOf, newDraft, type DraftPin } from "../src/app/designer/draft.js";
@@ -160,5 +163,70 @@ describe("a pin's choices in Node Design", () => {
 		const draft = newDraft("combat", []);
 		draft.outputs = [pin({ id: "result", options: ["Part"] })];
 		expect(defOf(draft).outputs[0]).not.toHaveProperty("options");
+	});
+});
+
+/**
+ * The hierarchy, which is what makes a list of six hundred browsable and what
+ * lets a `Part` reach a `BasePart` pin without asserting something already true.
+ */
+describe("the class hierarchy", () => {
+	it("reads a chain from a class to the root", () => {
+		expect(classChain("Part")).toEqual(["Part", "FormFactorPart", "BasePart", "PVInstance", "Instance", "Object"]);
+	});
+
+	it("gives an unknown name back on its own", () => {
+		expect(classChain("Tuning")).toEqual(["Tuning"]);
+		expect(classChain(undefined)).toEqual([]);
+	});
+
+	it("answers IsA the way Luau would", () => {
+		expect(isSubclassOf("Part", "BasePart")).toBe(true);
+		expect(isSubclassOf("MeshPart", "Instance")).toBe(true);
+		expect(isSubclassOf("TextButton", "GuiObject")).toBe(true);
+		expect(isSubclassOf("Part", "Part")).toBe(true);
+	});
+
+	/** The other way round is a claim about the value, which is Cast's job. */
+	it("does not answer it backwards", () => {
+		expect(isSubclassOf("BasePart", "Part")).toBe(false);
+		expect(isSubclassOf("Instance", "Model")).toBe(false);
+		expect(isSubclassOf("Part", "Decal")).toBe(false);
+		expect(isSubclassOf(undefined, "Part")).toBe(false);
+	});
+
+	it("groups a class under the engine's own taxonomy", () => {
+		expect(classGroup("AlignPosition")).toBe("Constraint");
+		expect(classGroup("HingeConstraint")).toBe("Constraint");
+		expect(classGroup("Part")).toBe("PVInstance");
+		expect(classGroup("Instance")).toBe("Instance");
+	});
+
+	it("puts every class somewhere", () => {
+		for (const name of CLASSES) expect(classGroup(name), name).toBeTruthy();
+	});
+
+	/** A cycle in generated data must not hang the editor. */
+	it("survives a chain that never ends", () => {
+		expect(classChain("Part").length).toBeLessThan(33);
+	});
+});
+
+describe("a wire between two classes", () => {
+	it("lands on a pin typed as something it derives from", () => {
+		expect(typesCompatible("Part", "BasePart")).toBe(true);
+		expect(typesCompatible("Model", "Instance")).toBe(true);
+		expect(typesCompatible("TextButton", "GuiObject")).toBe(true);
+	});
+
+	it("does not land on a narrower one", () => {
+		expect(typesCompatible("BasePart", "Part")).toBe(false);
+		expect(typesCompatible("Instance", "Humanoid")).toBe(false);
+	});
+
+	it("leaves everything that was already true alone", () => {
+		expect(typesCompatible("number", "string")).toBe(true);
+		expect(typesCompatible("any", "Part")).toBe(true);
+		expect(typesCompatible("Part", "Color3")).toBe(false);
 	});
 });

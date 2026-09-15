@@ -12,7 +12,7 @@ import { checkLuauBalance } from "../luauCheck.js";
 import { crossingLinks, graphExists } from "../functionGraph.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
-import { isInstanceClass } from "../roblox.js";
+import { isSubclassOf } from "../roblox.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
 
@@ -64,10 +64,19 @@ export function typesCompatible(from: string | undefined, to: string | undefined
 	// Numbers stringify implicitly in Luau, and it is more annoying than useful
 	// to flag it.
 	if ((a === "number" && b === "string") || (a === "string" && b === "number")) return true;
-	// A Model is an Instance, so it goes anywhere an Instance is wanted. The
-	// other way round is a claim about what the value *is* rather than a fact
-	// about its type, and Cast is the node that makes that claim out loud.
-	if (b === "Instance" && isInstanceClass(a)) return true;
+	/**
+	 * A class goes wherever one it derives from is wanted: a `Model` into an
+	 * `Instance`, a `Part` into a `BasePart`, a `TextButton` into a `GuiObject`.
+	 * Luau's `IsA`, answered from the engine's own hierarchy.
+	 *
+	 * Only `Instance` was known before the hierarchy was, so every narrower
+	 * version of the same fact wanted a Cast asserting something already true.
+	 *
+	 * The other way round stays refused. `Instance` into `Part` is a claim about
+	 * what the value *is* rather than a fact about its type, and Cast is the node
+	 * that makes that claim out loud.
+	 */
+	if (isSubclassOf(a, b)) return true;
 	return false;
 }
 

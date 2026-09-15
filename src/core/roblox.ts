@@ -13,7 +13,7 @@
  * release here.
  */
 
-import { CLASSES } from "./robloxData.js";
+import { CLASSES, CLASS_PARENTS } from "./robloxData.js";
 
 /** Services offered in the Get Service dropdown, in rough order of use. */
 export const ROBLOX_SERVICES = [
@@ -153,4 +153,58 @@ const EVERY_CLASS = new Set<string>([...CLASSES, ...INSTANCE_CLASSES]);
  */
 export function isInstanceClass(type: string | undefined): boolean {
 	return type !== undefined && EVERY_CLASS.has(type);
+}
+
+/**
+ * A class and everything it derives from, nearest first: `Part`, `BasePart`,
+ * `PVInstance`, `Instance`, `Object`.
+ *
+ * Bounded rather than trusting the data: the chain comes from a generated file,
+ * and a cycle in it would otherwise hang the editor rather than produce a wrong
+ * answer. Thirty-two is several times the deepest the engine has ever been.
+ */
+export function classChain(name: string | undefined): string[] {
+	if (!name || !EVERY_CLASS.has(name)) return name ? [name] : [];
+	const chain = [name];
+	const seen = new Set(chain);
+	for (let step = 0; step < 32; step++) {
+		const parent = CLASS_PARENTS[chain[chain.length - 1]];
+		if (!parent || seen.has(parent)) break;
+		chain.push(parent);
+		seen.add(parent);
+	}
+	return chain;
+}
+
+/**
+ * Whether `a` is `b`, or derives from it. Luau's `IsA`, answered statically.
+ *
+ * This is what lets a `Part` reach a `BasePart` pin without a Cast. Roswaal
+ * knew only "every class fits `Instance`" before the hierarchy was available,
+ * so every other narrowing — a `MeshPart` into a `BasePart`, a `TextButton`
+ * into a `GuiObject` — wanted a cast asserting something already true.
+ */
+export function isSubclassOf(a: string | undefined, b: string | undefined): boolean {
+	if (!a || !b) return false;
+	if (a === b) return true;
+	return classChain(a).includes(b);
+}
+
+/**
+ * Which heading a class sits under when they are shown as a list.
+ *
+ * The engine's own taxonomy rather than a set of categories invented here: the
+ * ancestor directly below `Instance`, which puts every constraint under
+ * `Constraint` and every UI element under `GuiBase`. Studio's Insert Object
+ * uses hand-made groups instead — prettier, and with no machine-readable source
+ * to keep them true.
+ *
+ * `Instance` itself, and anything the export did not place, come back as
+ * `Instance`: the honest answer for "derives from nothing more specific".
+ */
+export function classGroup(name: string): string {
+	const chain = classChain(name);
+	const at = chain.indexOf("Instance");
+	if (at <= 0) return "Instance";
+	return chain[at - 1];
 }

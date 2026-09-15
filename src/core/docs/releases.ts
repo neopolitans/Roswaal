@@ -54,6 +54,24 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.38.0",
+		date: "2026-09-15",
+		headline: "A picker for six hundred classes.",
+		added: [
+			"**A class picker**, in the shape Studio's Insert Object uses: search at the top, everything below it in columns. Click the Class Name on any node that takes one.",
+			"**Grouped by the engine's own inheritance** — every constraint under Constraint, every UI element under GuiBase — rather than by categories invented here.",
+			"**The chain under the highlighted class**: `Part › BasePart › PVInstance › Instance › Object`, which answers what a class *is* while you browse.",
+			"**Type to search, arrows to move, Enter to take it.** A name the list does not hold is still taken on Enter, because a class newer than your build has to be reachable.",
+			"**Roswaal knows the class hierarchy**: 624 superclass links, from the same Creator Hub export.",
+		],
+		changed: [
+			"**A class fits a pin typed as anything it derives from.** A `Part` reaches a `BasePart` pin, a `TextButton` a `GuiObject` one. Only `Instance` was known before, so every narrower version of the same fact wanted a Cast asserting something already true.",
+		],
+		watch: [
+			"**The other direction is still refused.** An `Instance` into a `Part` pin is a claim about what the value is rather than a fact about its type, and Cast is the node that makes that claim out loud.",
+		],
+	},
+	{
 		version: "0.37.0",
 		date: "2026-09-15",
 		headline: "A Class Name is a list you pick from.",
