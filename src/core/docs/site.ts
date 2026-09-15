@@ -2707,8 +2707,8 @@ function castingBlocks(registry: Registry): Block[] {
 		...previews(
 			registry,
 			["cast.as", "cast.array", "cast.any"],
-			"The three of them. Each takes its type as typed-in text, because that text becomes " +
-			"part of the generated file rather than a value at runtime.",
+			"The three of them. The type is picked from the list or typed, and either way it " +
+			"becomes text in the generated file rather than a value at runtime.",
 		),
 		{
 			t: "code",

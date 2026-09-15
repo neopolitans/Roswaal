@@ -5080,7 +5080,12 @@ button.tb.danger {
 
 /* A choice fills its row the way the fields above and below it do, its options
    sharing the width, rather than stopping at the length of its labels. */
-.node-details .segmented {
+/* A segmented control in a stacked field fills the field, the way the select
+   and the text input beside it do. Left to `inline-flex` it sits in the corner
+   of a full-width box with the rest of the row empty, which reads as a control
+   that failed to load rather than as a choice of two. */
+.node-details .segmented,
+.inspector .field .segmented {
 	display: flex;
 	width: 100%;
 }
@@ -5088,7 +5093,8 @@ button.tb.danger {
 /* Each option starts from its own label and they share what is left, so the
    row is filled without cutting a long label into two lines, which equal thirds
    did to "Roblox and Lune". */
-.node-details .segmented button {
+.node-details .segmented button,
+.inspector .field .segmented button {
 	flex: 1 1 auto;
 	text-align: center;
 	white-space: nowrap;

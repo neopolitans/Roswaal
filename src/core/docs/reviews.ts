@@ -90,6 +90,9 @@ export const REVIEWS: Record<
 	// preferences: a badge that covered text nobody had checked would be the
 	// one thing the ledger exists to prevent.
 	"settings": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
+	// Verified by the author for 0.43.1, once What Roswaal is designed for named
+	// Lune, Luau and Roblox alongside the borrowed names it credits.
+	"attributions": { status: "verified", date: "2026-09-15", reviewers: ["neopolitans"] },
 	// Read by the author, who has not shipped the networking side.
 	"coming-from-blueprints": {
 		status: "reviewed",

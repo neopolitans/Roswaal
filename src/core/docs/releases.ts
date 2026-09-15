@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.43.1",
+		date: "2026-09-15",
+		headline: "Shows fills its row, and the documentation's casts were checked.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"**A segmented control in the Inspector fills its field**, the way the dropdowns and text fields beside it do. **Shows** was sitting in the corner of a full-width box with the rest of the row empty.",
+		],
+		changed: [
+			"**The casts' pictures in the documentation are held to the canvas's** by a test of their own: the pill, its symbol, the field in the column reserved for it, and the width of a cast set to show its name. The pages draw with their own renderer, so a stylesheet fix on the canvas said nothing about them.",
+		],
+		verified: ["attributions"],
+	},
+	{
 		version: "0.43.0",
 		date: "2026-09-15",
 		headline: "The pill's field sits where the pill reserved room for it.",

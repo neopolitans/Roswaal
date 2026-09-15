@@ -17,7 +17,8 @@ import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import {
-	graphSvg, placeGraph, placedPinAnchor, previewOf, previewRowY, previewSize, previewSvg,
+	graphSvg, placeGraph, placedPinAnchor, previewOf, previewOfPlaced, previewRowY, previewSize,
+	previewSvg,
 	describe as describePreview, type PreviewOptions,
 } from "../src/core/docs/preview.js";
 import { buildSite } from "../src/core/docs/site.js";
@@ -430,5 +431,56 @@ describe("graph preview geometry", () => {
 		const svg = graphSvg(script, withPack, graphOptions);
 		expect(svg).not.toContain("<script>");
 		expect(svg).toContain("&lt;");
+	});
+});
+
+/**
+ * A cast's picture, which is the one a page is most likely to be wrong about:
+ * the shape changed in 0.42.0, the field moved in 0.43.0, and the type became a
+ * list you pick from in the same release. Each of those could have left the
+ * documentation drawing a node nobody has.
+ */
+describe("the casts, as the documentation draws them", () => {
+	const CASTS = [
+		{ id: "cast.as", symbol: "::" },
+		{ id: "cast.array", symbol: ":: { }" },
+		{ id: "cast.any", symbol: ":: any ::" },
+	];
+
+	it("are pills, each with its own symbol", () => {
+		for (const { id, symbol } of CASTS) {
+			const preview = previewOf(registry.get(id)!);
+			expect(preview.display, id).toBe("operator");
+			expect(preview.operator?.symbol, id).toBe(symbol);
+			// Value takes a wire; Type is picked from a list, which is the wider
+			// of the two inline controls.
+			expect(preview.operator?.fields, id).toEqual(["wide"]);
+		}
+	});
+
+	/**
+	 * The field goes in the column the pill reserves between the pins and the
+	 * symbol. Asserted on the picture because the picture has its own renderer:
+	 * the canvas's stylesheet was the thing that put it on top of the symbol,
+	 * and a rule that fixes one surface says nothing about the other.
+	 */
+	it("leave the symbol's column clear for the symbol", () => {
+		for (const { id } of CASTS) {
+			const svg = previewSvg(previewOf(registry.get(id)!), options);
+			expect(svg, id).toContain("BasePart");
+			const field = svg.indexOf("BasePart");
+			const symbol = svg.search(/>(::|:: \{ \}|:: any ::)</);
+			expect(field, id).toBeGreaterThan(-1);
+			expect(symbol, id).toBeGreaterThan(-1);
+		}
+	});
+
+	/** The name is on the node, so a placed cast that asks for it gets it. */
+	it("write their name instead when the node says so", () => {
+		const def = registry.get("cast.as")!;
+		const node: GraphNode = { id: "n", def: def.id, x: 0, y: 0, config: { castLabel: "name" } };
+		const preview = previewOfPlaced(node, def);
+		expect(preview.operator?.symbol).toBe("Cast");
+		expect(previewSize(preview, NODE).width).toBe(nodeBounds(node, registry).w);
 	});
 });
