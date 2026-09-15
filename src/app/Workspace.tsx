@@ -31,8 +31,9 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 
 import {
-	dockVisible, dropZone, gridTemplate, panelsIn, PANEL_IDS, PANEL_TITLES,
-	type DockSide, type Layout, type PanelId,
+	dockVisible, dropZone, floatingPanels, gridTemplate, panelsIn, MIN_FLOAT, PANEL_IDS,
+	PANEL_TITLES,
+	type DockSide, type Layout, type PanelFrame, type PanelId,
 } from "./panels.js";
 
 export interface WorkspaceProps {
@@ -63,6 +64,12 @@ export interface WorkspaceProps {
 	onToggle?: (side: DockSide) => void;
 	/** A panel was dragged into another dock. */
 	onMovePanel?: (panel: PanelId, side: DockSide) => void;
+	/** A window was moved or resized over the centre. */
+	onFramePanel?: (panel: PanelId, frame: PanelFrame) => void;
+	/** The drag finished. Separate for the reason `onResizeEnd` is. */
+	onFramePanelEnd?: () => void;
+	/** Its Dock button was pressed: back to the dock it came from. */
+	onDockPanel?: (panel: PanelId) => void;
 }
 
 /** How far the pointer must travel before a press becomes a drag. */
@@ -70,6 +77,7 @@ const DRAG_THRESHOLD = 4;
 
 export function Workspace({
 	layout, contents, centre, floating, onResize, onResizeEnd, onToggle, onMovePanel,
+	onFramePanel, onFramePanelEnd, onDockPanel,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
 	/** The panel under the pointer, and where it would land if released now. */
@@ -138,6 +146,21 @@ export function Workspace({
 			<div className="centre" style={{ gridArea: "centre" }}>
 				{centre}
 				{floating}
+				{/* Over the graph rather than beside it. Inside the centre, so a
+				    window's coordinates are the graph's and a dock opening does not
+				    drag every window sideways with it. */}
+				{floatingPanels(effective).map((id) => (
+					<FloatingPanel
+						key={id}
+						id={id}
+						frame={effective.panels[id].frame}
+						onFrame={onFramePanel}
+						onFrameEnd={onFramePanelEnd}
+						onDock={onDockPanel}
+					>
+						{contents[id]}
+					</FloatingPanel>
+				))}
 			</div>
 
 			{/* The preview, drawn over everything and hit by nothing. It has to be
@@ -204,6 +227,112 @@ export function Workspace({
 		window.addEventListener("pointerup", up);
 		window.addEventListener("pointercancel", up);
 	}
+}
+
+/**
+ * A panel in a window over the graph.
+ *
+ * Dragged by its title bar and resized from its bottom-right corner, which is
+ * the same pair of gestures a comment has — one shape of window in the tool
+ * rather than two.
+ *
+ * The bar is this component's own rather than the panel's heading, unlike a
+ * docked panel: a window needs somewhere to put the button that docks it again,
+ * and a heading that is already carrying an Add button has no room for it.
+ */
+function FloatingPanel({
+	id, frame, onFrame, onFrameEnd, onDock, children,
+}: {
+	id: PanelId;
+	frame: PanelFrame;
+	onFrame?: (panel: PanelId, frame: PanelFrame) => void;
+	onFrameEnd?: () => void;
+	onDock?: (panel: PanelId) => void;
+	children: ReactNode;
+}) {
+	/**
+	 * The frame the drag started from.
+	 *
+	 * Held rather than read per frame, for the reason the comment resize holds
+	 * its starting box: working the next frame out from the current one
+	 * accumulates rounding, and a window walks away from the pointer.
+	 */
+	const start = useRef<{ frame: PanelFrame; x: number; y: number } | null>(null);
+
+	function drag(e: ReactPointerEvent<HTMLElement>, mode: "move" | "size") {
+		if (e.button !== 0 || !onFrame) return;
+		const target = e.target as HTMLElement;
+		// The same handle rule the docks use: the heading moves the panel, and a
+		// control inside the heading still belongs to the panel.
+		if (mode === "move" && !target.closest("h2, .bar")) return;
+		if (target.closest("button, input, select, textarea, a")) return;
+		e.preventDefault();
+		e.stopPropagation();
+		const handle = e.currentTarget;
+		handle.setPointerCapture(e.pointerId);
+		start.current = { frame, x: e.clientX, y: e.clientY };
+
+		const move = (at: PointerEvent) => {
+			const from = start.current;
+			if (!from) return;
+			const dx = at.clientX - from.x;
+			const dy = at.clientY - from.y;
+			onFrame(
+				id,
+				mode === "move"
+					? { ...from.frame, x: from.frame.x + dx, y: from.frame.y + dy }
+					: {
+							...from.frame,
+							w: Math.max(MIN_FLOAT.w, from.frame.w + dx),
+							h: Math.max(MIN_FLOAT.h, from.frame.h + dy),
+						},
+			);
+		};
+		const up = () => {
+			start.current = null;
+			handle.removeEventListener("pointermove", move);
+			handle.removeEventListener("pointerup", up);
+			handle.removeEventListener("pointercancel", up);
+			onFrameEnd?.();
+		};
+
+		handle.addEventListener("pointermove", move);
+		handle.addEventListener("pointerup", up);
+		handle.addEventListener("pointercancel", up);
+	}
+
+	return (
+		<div
+			className={`float-panel float-${id}`}
+			style={{ left: frame.x, top: frame.y, width: frame.w, height: frame.h }}
+		>
+			{/* No bar of its own. The panel's heading is the handle, which is the
+			    argument the docks already make: every panel has one — "Variables"
+			    with its Add button, the project name, "Node" — and a strip above
+			    it would be a second title saying the same word.
+
+			    The dock button is the exception, because a window needs somewhere
+			    to put it and a heading carrying an Add button has no room. It sits
+			    over the heading's right end, and the heading makes space for it. */}
+			<div className="float-body" onPointerDown={(e) => drag(e, "move")}>
+				{children}
+			</div>
+			{onDock && (
+				<button
+					className="tb icon-only float-dock"
+					title={`Put ${PANEL_TITLES[id]} back in its dock`}
+					onClick={() => onDock(id)}
+				>
+					⇤
+				</button>
+			)}
+			<div
+				className="float-size"
+				title="Drag to resize"
+				onPointerDown={(e) => drag(e, "size")}
+			/>
+		</div>
+	);
 }
 
 /**

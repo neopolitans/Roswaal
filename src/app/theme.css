@@ -433,12 +433,16 @@ select optgroup {
    diagnostics bar still collapses — because nothing is a drag until the
    pointer has actually moved. */
 .dock h2,
-.dock .bar {
+.dock .bar,
+.float-panel h2,
+.float-panel .bar {
 	cursor: grab;
 }
 
 .dock h2:active,
-.dock .bar:active {
+.dock .bar:active,
+.float-panel h2:active,
+.float-panel .bar:active {
 	cursor: grabbing;
 }
 
@@ -741,6 +745,88 @@ select optgroup {
 	white-space: nowrap;
 }
 
+/* --------------------------------------------------------- floating panels */
+
+/* A panel out of its dock, over the graph. Positioned inside `.centre`, so its
+   coordinates are the graph's own and opening a dock does not drag it sideways. */
+.float-panel {
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	min-width: 200px;
+	min-height: 140px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+	overflow: hidden;
+	/* Over the canvas and its wires, under the menus and dialogs. */
+	z-index: 60;
+}
+
+/* The panel's own heading is the window's title bar, so it says what a title
+   bar says and carries what the panel already put there.
+   
+   Two classes deep on purpose: `.dock h2` sets the heading's padding as a
+   shorthand and is further down the file, so an equally specific rule here
+   loses and the Add button ends up under the dock button. */
+.float-panel .float-body h2 {
+	user-select: none;
+	/* Room for the dock button sitting over its right end. */
+	padding-right: 38px;
+}
+
+/* A panel in a window fills it, the way it fills a dock. */
+.float-panel .panel,
+.float-panel .float-body > * {
+	flex: 1;
+	min-height: 0;
+}
+
+/* Over the heading rather than in a bar of its own. */
+.float-panel .float-dock {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	z-index: 1;
+}
+
+.float-body {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: auto;
+}
+
+/* The panel inside a window has no dock to stretch against, so it fills the
+   window instead -- otherwise a list of three variables leaves the bottom half
+   of a window you deliberately made tall as empty panel. */
+.float-body > * {
+	flex: 1;
+	min-height: 0;
+}
+
+.float-size {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 16px;
+	height: 16px;
+	cursor: nwse-resize;
+}
+
+.float-size::after {
+	content: "";
+	position: absolute;
+	right: 3px;
+	bottom: 3px;
+	width: 8px;
+	height: 8px;
+	border-right: 2px solid var(--border-strong);
+	border-bottom: 2px solid var(--border-strong);
+}
+
 /* ---------------------------------------------------------------- toolbar */
 
 .toolbar {
@@ -935,8 +1021,14 @@ button.tb.primary:hover:not(:disabled) {
    it. This was `.sidebar h2` until the sidebar became `.dock.left`, and the
    rename orphaned it: the project name and the Variables heading both fell
    back to the browser's default 2em bold, because `.variables h2` only sets
-   its own flex properties and inherited everything else from here. */
-.dock h2 {
+   its own flex properties and inherited everything else from here.
+   
+   And a second time in 0.46.0, when a panel could be in a window instead of a
+   dock: the same heading, the same 2em bold. "Wherever it is docked" now has to
+   include "and where it is not", so the window is named here too rather than
+   restating the rule beside itself. */
+.dock h2,
+.float-panel h2 {
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;

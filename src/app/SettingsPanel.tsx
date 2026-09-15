@@ -30,6 +30,7 @@ import {
 } from "./preferences.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
+import { floatPanel } from "./panels.js";
 import { nodeColor, pinColor } from "./palette.js";
 
 const TABS = [
@@ -402,6 +403,30 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 						onClick={() => onPrefs({ castNames: true })}
 					>
 						Name
+					</button>
+				</div>
+			</Row>
+
+			<Row
+				label="Variables"
+				help="In a dock beside the graph, or in a window over it that you drag and resize. The window remembers where you put it."
+			>
+				<div className="segmented">
+					<button
+						className={!prefs.layout.panels.variables.floating ? "on" : ""}
+						onClick={() => onPrefs({
+							layout: floatPanel(prefs.layout, "variables", false),
+						})}
+					>
+						Docked
+					</button>
+					<button
+						className={prefs.layout.panels.variables.floating ? "on" : ""}
+						onClick={() => onPrefs({
+							layout: floatPanel(prefs.layout, "variables", true),
+						})}
+					>
+						Window
 					</button>
 				</div>
 			</Row>

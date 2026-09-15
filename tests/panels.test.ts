@@ -16,8 +16,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	clampLayout, DEFAULT_LAYOUT, dockVisible, dropZone, gridTemplate, maxDockSize,
-	MIN_DOCK, movePanel, panelsIn, readLayout, resizeDock, toggleDock, type Layout,
+	clampLayout, DEFAULT_FRAME, DEFAULT_LAYOUT, dockVisible, dropZone, floatingPanels, floatPanel,
+	framePanel, gridTemplate, maxDockSize, MIN_DOCK, MIN_FLOAT, movePanel, panelsIn, readLayout,
+	resizeDock, toggleDock, type Layout,
 } from "../src/app/panels.js";
 
 /** A copy, so a test that moves a panel cannot move it for the next one. */
@@ -285,5 +286,57 @@ describe("moving a panel", () => {
 	it("does nothing when the panel is already there", () => {
 		const layout = base();
 		expect(movePanel(layout, "tree", "left")).toBe(layout);
+	});
+});
+
+describe("a panel in a window", () => {
+	it("leaves its dock without forgetting which one", () => {
+		const floated = floatPanel(DEFAULT_LAYOUT, "variables", true);
+		expect(floated.panels.variables.floating).toBe(true);
+		expect(floated.panels.variables.dock).toBe("left");
+		// Out of the dock's list, so the dock sizes itself to what is left.
+		expect(panelsIn(floated, "left")).toEqual(["tree"]);
+		expect(floatingPanels(floated)).toEqual(["variables"]);
+	});
+
+	it("goes back to the dock it came from, and opens it", () => {
+		const closed = toggleDock(DEFAULT_LAYOUT, "left");
+		const floated = floatPanel(closed, "variables", true);
+		const docked = floatPanel(floated, "variables", false);
+		expect(docked.panels.variables.floating).toBe(false);
+		expect(docked.docks.left.open).toBe(true);
+		expect(panelsIn(docked, "left")).toEqual(["tree", "variables"]);
+	});
+
+	/** Dropping a window into a dock is how you dock it. */
+	it("stops floating when it is dragged into a dock", () => {
+		const floated = floatPanel(DEFAULT_LAYOUT, "variables", true);
+		const dropped = movePanel(floated, "variables", "right");
+		expect(dropped.panels.variables.floating).toBe(false);
+		expect(dropped.panels.variables.dock).toBe("right");
+	});
+
+	it("keeps its frame on screen and above the minimum", () => {
+		const moved = framePanel(DEFAULT_LAYOUT, "variables", { x: -80, y: -9, w: 10, h: 10 });
+		expect(moved.panels.variables.frame).toEqual({ x: 0, y: 0, w: MIN_FLOAT.w, h: MIN_FLOAT.h });
+	});
+
+	/** A layout written before windows existed is a docked layout. */
+	it("reads an older layout as docked, in its default frame", () => {
+		const old = readLayout({
+			panels: { variables: { dock: "right", open: true, order: 0 } },
+			docks: { left: { size: 200, open: true } },
+		});
+		expect(old.panels.variables.floating).toBe(false);
+		expect(old.panels.variables.frame).toEqual(DEFAULT_FRAME);
+	});
+
+	it("takes a saved frame back, clamped", () => {
+		const saved = readLayout({
+			panels: { variables: { dock: "left", open: true, order: 1, floating: true,
+				frame: { x: 40, y: 60, w: 12, h: 900 } } },
+		});
+		expect(saved.panels.variables.floating).toBe(true);
+		expect(saved.panels.variables.frame).toEqual({ x: 40, y: 60, w: MIN_FLOAT.w, h: 900 });
 	});
 });

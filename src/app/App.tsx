@@ -37,8 +37,8 @@ import { Overlays } from "./Overlays.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
 import { Workspace } from "./Workspace.jsx";
 import {
-	clampLayout, movePanel, resizeDock, toggleDock,
-	type DockSide, type PanelId,
+	clampLayout, floatPanel, framePanel, movePanel, resizeDock, toggleDock,
+	type DockSide, type PanelFrame, type PanelId,
 } from "./panels.js";
 import { screenToWorld } from "./geometry.js";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
@@ -180,6 +180,33 @@ export function App() {
 	}, []);
 
 	/** A panel dropped into another dock. One decision, so it is written at once. */
+	/**
+	 * A window is being dragged or resized: update, but do not write.
+	 *
+	 * The same bargain a splitter makes — this fires on every pointer move, and
+	 * `writePreferences` serialises the whole blob synchronously.
+	 */
+	const onFramePanel = useCallback((panel: PanelId, frame: PanelFrame) => {
+		setPrefs((current) => ({ ...current, layout: framePanel(current.layout, panel, frame) }));
+	}, []);
+
+	/** The window was let go, so where it is now is worth keeping. */
+	const onFramePanelEnd = useCallback(() => {
+		setPrefs((current) => {
+			writePreferences(current);
+			return current;
+		});
+	}, []);
+
+	/** One decision, so it is written at once. */
+	const onFloatPanel = useCallback((panel: PanelId, floating: boolean) => {
+		setPrefs((current) => {
+			const next = { ...current, layout: floatPanel(current.layout, panel, floating) };
+			writePreferences(next);
+			return next;
+		});
+	}, []);
+
 	const onMovePanel = useCallback((panel: PanelId, side: DockSide) => {
 		setPrefs((current) => {
 			const next = { ...current, layout: movePanel(current.layout, panel, side) };
@@ -1429,6 +1456,9 @@ export function App() {
 				onResizeEnd={onDockResizeEnd}
 				onToggle={onDockToggle}
 				onMovePanel={onMovePanel}
+				onFramePanel={onFramePanel}
+				onFramePanelEnd={onFramePanelEnd}
+				onDockPanel={(panel) => onFloatPanel(panel, false)}
 				contents={{
 					tree: (
 						<>

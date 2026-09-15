@@ -1343,6 +1343,18 @@ const CONTROLS: DocPage = {
 				["Middle-click a tab", "Close it"],
 			],
 		},
+		{ t: "h", level: 2, text: "Panels" },
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				["Drag a panel by its heading", "Move it to another edge"],
+				["Drag the divider beside a dock", "Resize it; double-click to collapse"],
+				["**Settings → Variables → Window**", "Variables leaves the dock for a window over the graph"],
+				["Drag the window by its heading", "Move it; the bottom-right corner resizes it"],
+				["The **⇤** button on the window", "Put it back in the dock it came from"],
+			],
+		},
 		{ t: "h", level: 2, text: "Node Design" },
 		{
 			t: "table",

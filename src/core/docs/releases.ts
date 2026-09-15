@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.46.0",
+		date: "2026-09-15",
+		headline: "Variables in a window, if you would rather.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Variables can leave its dock for a window over the graph** — Settings → **Variables** → *Window*. Drag it by its own heading, resize it from the bottom-right corner, and put it back with the **⇤** button. Where you left it is remembered.",
+			"**A dock is a column and a window is not**, which is the point: a dock takes width from the canvas for as long as it is open, and a window is exactly as big as you drag it and covers the graph rather than narrowing it.",
+		],
+		watch: [
+			"Dropping the window into a dock docks it, the same as dragging a docked panel between edges. A window put back with **⇤** returns to the dock it came from, not to whichever dock is first.",
+		],
+	},
+	{
 		version: "0.45.1",
 		date: "2026-09-15",
 		headline: "Best match, then Related — and the kinds are coloured.",

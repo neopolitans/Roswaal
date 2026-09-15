@@ -46,7 +46,43 @@ export interface PanelState {
 	open: boolean;
 	/** Position within its dock. Renumbered wholesale on every move. */
 	order: number;
+	/**
+	 * Out of the docks and over the graph, in a window of its own.
+	 *
+	 * A dock is a column: it takes width from the canvas for as long as it is
+	 * open, and everything in it is as wide as the widest thing in it. A window
+	 * is the other trade — it covers the graph, and it is exactly as big as you
+	 * drag it. Variables is the panel this was asked for, because a list of
+	 * names and types wants width in bursts and none the rest of the time.
+	 *
+	 * `dock` is kept while floating, so docking again puts the panel back where
+	 * it came from rather than in whichever dock is first.
+	 */
+	floating: boolean;
+	/** Where the window sits over the centre, and how big. Pixels. */
+	frame: PanelFrame;
 }
+
+export interface PanelFrame {
+	/** From the centre's top-left, not the window's: a dock is not the screen. */
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+}
+
+/** Smallest a floating panel may be dragged to, so its heading survives. */
+export const MIN_FLOAT = { w: 200, h: 140 };
+
+/**
+ * Where a window opens when nothing has moved it yet.
+ *
+ * Inset from the top-left of the graph rather than centred: a window that opens
+ * in the middle covers whatever you were looking at, and the first thing
+ * anybody does with one is drag it out of the way. Low enough to clear the
+ * tools that float across the top of the canvas.
+ */
+export const DEFAULT_FRAME: PanelFrame = { x: 28, y: 64, w: 320, h: 420 };
 
 export interface DockState {
 	/**
@@ -73,10 +109,10 @@ export interface Layout {
  */
 export const DEFAULT_LAYOUT: Layout = {
 	panels: {
-		tree: { dock: "left", open: true, order: 0 },
-		variables: { dock: "left", open: true, order: 1 },
-		inspector: { dock: "right", open: true, order: 0 },
-		analysis: { dock: "bottom", open: true, order: 0 },
+		tree: { dock: "left", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
+		variables: { dock: "left", open: true, order: 1, floating: false, frame: DEFAULT_FRAME },
+		inspector: { dock: "right", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
+		analysis: { dock: "bottom", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
 	},
 	docks: {
 		left: { size: 260, open: true },
@@ -112,8 +148,11 @@ const MIN_CENTRE = 320;
  * object happened to iterate.
  */
 export function panelsIn(layout: Layout, side: DockSide): PanelId[] {
-	return PANEL_IDS.filter((id) => layout.panels[id].dock === side && layout.panels[id].open)
-		.sort((a, b) => layout.panels[a].order - layout.panels[b].order || a.localeCompare(b));
+	return PANEL_IDS.filter(
+		(id) => layout.panels[id].dock === side
+			&& layout.panels[id].open
+			&& !layout.panels[id].floating,
+	).sort((a, b) => layout.panels[a].order - layout.panels[b].order || a.localeCompare(b));
 }
 
 /**
@@ -247,10 +286,20 @@ export function readLayout(stored: unknown): Layout {
 	for (const id of PANEL_IDS) {
 		const fallback = DEFAULT_LAYOUT.panels[id];
 		const value = raw.panels?.[id];
+		const frame = (value as { frame?: Partial<PanelFrame> } | undefined)?.frame;
 		panels[id] = {
 			dock: DOCK_SIDES.includes(value?.dock as DockSide) ? value!.dock : fallback.dock,
 			open: typeof value?.open === "boolean" ? value.open : fallback.open,
 			order: typeof value?.order === "number" ? value.order : fallback.order,
+			floating: typeof (value as { floating?: unknown } | undefined)?.floating === "boolean"
+				? (value as { floating: boolean }).floating
+				: fallback.floating,
+			frame: {
+				x: typeof frame?.x === "number" ? Math.max(0, frame.x) : fallback.frame.x,
+				y: typeof frame?.y === "number" ? Math.max(0, frame.y) : fallback.frame.y,
+				w: typeof frame?.w === "number" ? Math.max(MIN_FLOAT.w, frame.w) : fallback.frame.w,
+				h: typeof frame?.h === "number" ? Math.max(MIN_FLOAT.h, frame.h) : fallback.frame.h,
+			},
 		};
 	}
 
@@ -310,10 +359,59 @@ export function dropZone(
  * Orders are renumbered wholesale rather than nudged, so they cannot drift into
  * duplicates or gaps however many times a panel is moved.
  */
-export function movePanel(layout: Layout, panel: PanelId, side: DockSide): Layout {
-	if (layout.panels[panel].dock === side) return layout;
+/** The panels drawn over the centre, in a window each. */
+export function floatingPanels(layout: Layout): PanelId[] {
+	return PANEL_IDS.filter((id) => layout.panels[id].floating && layout.panels[id].open);
+}
 
-	const panels = { ...layout.panels, [panel]: { ...layout.panels[panel], dock: side, open: true } };
+/**
+ * Out of its dock and into a window, or back again.
+ *
+ * Docking again needs no side: `dock` was never cleared, so the panel returns
+ * to the one it left — and that dock is opened, for the reason dropping into a
+ * dock opens it. A panel that came back to a closed dock would read as having
+ * been thrown away.
+ */
+export function floatPanel(layout: Layout, panel: PanelId, floating: boolean): Layout {
+	const state = layout.panels[panel];
+	if (state.floating === floating) return layout;
+
+	const panels = { ...layout.panels, [panel]: { ...state, floating, open: true } };
+	if (floating) return { ...layout, panels };
+
+	const side = state.dock;
+	return {
+		...layout,
+		panels,
+		docks: { ...layout.docks, [side]: { ...layout.docks[side], open: true } },
+	};
+}
+
+/** A window was dragged or resized. Clamped so it cannot be lost or shrunk away. */
+export function framePanel(layout: Layout, panel: PanelId, frame: PanelFrame): Layout {
+	const clamped: PanelFrame = {
+		// Not below zero: a window dragged off the top-left would take its own
+		// heading with it, and the heading is the only way to drag it back.
+		x: Math.max(0, Math.round(frame.x)),
+		y: Math.max(0, Math.round(frame.y)),
+		w: Math.max(MIN_FLOAT.w, Math.round(frame.w)),
+		h: Math.max(MIN_FLOAT.h, Math.round(frame.h)),
+	};
+	return {
+		...layout,
+		panels: { ...layout.panels, [panel]: { ...layout.panels[panel], frame: clamped } },
+	};
+}
+
+export function movePanel(layout: Layout, panel: PanelId, side: DockSide): Layout {
+	if (layout.panels[panel].dock === side && !layout.panels[panel].floating) return layout;
+
+	const panels = {
+		...layout.panels,
+		// Dropping a window into a dock is how you dock it, so the drop wins over
+		// the fact that it was floating a moment ago.
+		[panel]: { ...layout.panels[panel], dock: side, open: true, floating: false },
+	};
 	const renumbered = { ...panels };
 	for (const dock of DOCK_SIDES) {
 		PANEL_IDS.filter((id) => panels[id].dock === dock)
