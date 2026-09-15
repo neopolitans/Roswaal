@@ -93,10 +93,10 @@ export type WireStyle = "curved" | "rigid" | "angular";
 /**
  * Where a wire is allowed to bend, before any style is applied.
  *
- * `rigid` and `angular` are the *same route* — this one — drawn two ways, which
- * is the whole reason they are built together. If each style had its own router
- * they could disagree about which side of a node a wire passes, and switching
- * style would move wires rather than restyle them.
+ * The route for `rigid`, and for the wires `angular` has no straight line to
+ * take — see `diagonal`. It was the route for both until 0.47.0, when angular
+ * turned out to be drawing a chamfered right angle where it was meant to be
+ * drawing a diagonal.
  *
  * There is deliberately no obstacle avoidance. A router that dodged nodes would
  * reroute every wire in the graph whenever one node moved, and a wire that
@@ -140,6 +140,33 @@ function manhattan(from: Vec, to: Vec): Vec[] {
 		{ x: inX, y: to.y },
 		to,
 	];
+}
+
+/**
+ * The angular route: out of the pin, one straight run, into the pin.
+ *
+ * A short horizontal stub at each end so the wire leaves and arrives level with
+ * its pin — which is what makes it read as attached rather than as a line that
+ * happens to end there — and a single straight segment between them. **Not a
+ * chamfered right angle**, which is what this style drew for its first eleven
+ * releases and is a different shape entirely: the diagonal is the whole line
+ * rather than a corner treatment.
+ *
+ * The stub shrinks on a short hop so the two never overlap and send the middle
+ * run backwards. Level pins get one straight line, because a stub either side
+ * of a horizontal run is the same horizontal run with two extra points in it.
+ *
+ * A wire that has to go *backwards* keeps the Manhattan lane: there is no
+ * straight line from a pin to something behind it that does not cross its own
+ * node, so it goes out, along and back, with its corners cut.
+ */
+function diagonal(from: Vec, to: Vec): Vec[] {
+	if (from.y === to.y) return [from, to];
+
+	const stub = Math.min(NODE.wireStub, Math.max(0, (to.x - from.x) / 2));
+	if (stub <= 0) return manhattan(from, to);
+
+	return [from, { x: from.x + stub, y: from.y }, { x: to.x - stub, y: to.y }, to];
 }
 
 /**
@@ -197,7 +224,13 @@ export function wirePath(from: Vec, to: Vec, style: WireStyle = "curved"): strin
 		const slack = Math.max(NODE.wireSlack, Math.abs(to.x - from.x) * 0.4);
 		return `M ${from.x} ${from.y} C ${from.x + slack} ${from.y}, ${to.x - slack} ${to.y}, ${to.x} ${to.y}`;
 	}
-	return polyline(manhattan(from, to), style === "angular" ? NODE.wireChamfer : 0);
+	if (style === "angular") {
+		const route = diagonal(from, to);
+		// A diagonal route turns twice and both turns are already soft; a route
+		// that fell back to the lane is a right angle and wants its corners cut.
+		return polyline(route, route.length > 4 ? NODE.wireChamfer : 0);
+	}
+	return polyline(manhattan(from, to), 0);
 }
 
 export function rectsIntersect(a: Rect, b: Rect): boolean {

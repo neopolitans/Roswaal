@@ -1,16 +1,16 @@
 /**
  * Wire routing.
  *
- * Three styles, one router. `rigid` and `angular` are the *same* Manhattan
- * route drawn two ways — sharp corners or 45-degree chamfers — so most of what
- * is worth asserting is that the two agree about where the wire goes and differ
- * only in how it turns.
+ * Three styles. `rigid` turns at right angles; `angular` leaves its pin level,
+ * takes one straight run, and arrives level — a diagonal rather than a corner
+ * treatment, which is what it was until 0.47.0 and was not what the shape is
+ * for. Where a diagonal cannot be drawn, because the input is behind the
+ * output, angular falls back to rigid's lane with its corners cut.
  *
- * The properties tested here are the ones a reader would otherwise have to take
- * on trust from the name: that `rigid` really has no diagonals, that `angular`'s
- * diagonals really are 45 degrees, and that a chamfer never overshoots the
- * segment it is cutting into — which would draw a wire that visibly doubles
- * back on itself.
+ * The properties tested here are the ones a reader would otherwise take on
+ * trust from the name: that `rigid` really has no diagonals, that `angular`
+ * really is one straight run between two stubs, and that no corner treatment
+ * ever makes a wire double back on itself.
  */
 
 import { describe, expect, it } from "vitest";
@@ -133,19 +133,62 @@ describe("rigid", () => {
 
 describe("angular", () => {
 	/**
-	 * The claim the name makes. Anything not axis-aligned is a corner cut, and a
-	 * corner cut is 45 degrees or it is not the thing being advertised.
+	 * The shape the name promises: out level, one straight run, in level.
+	 *
+	 * Four points, and the middle run is the only thing that is not horizontal.
+	 * It drew a chamfered right angle for eleven releases — which passes a test
+	 * about 45-degree corners and is not the style anybody was asking for.
 	 */
-	it("draws every diagonal at exactly 45 degrees", () => {
+	it("is one straight run between two level stubs", () => {
+		const path = points(wirePath({ x: 0, y: 0 }, { x: 300, y: 140 }, "angular"));
+		expect(path).toHaveLength(4);
+		expect(path[0]).toEqual({ x: 0, y: 0 });
+		expect(path[1]).toEqual({ x: NODE.wireStub, y: 0 });
+		expect(path[2]).toEqual({ x: 300 - NODE.wireStub, y: 140 });
+		expect(path[3]).toEqual({ x: 300, y: 140 });
+	});
+
+	it("leaves and arrives level with the pins", () => {
 		for (const c of CASES) {
-			for (const s of segments(wirePath(c.from, c.to, "angular"))) {
-				if (degenerate(s) || axisAligned(s)) continue;
-				expect(
-					Math.abs(Math.abs(s.x) - Math.abs(s.y)),
-					`${c.name}: segment (${s.x}, ${s.y}) is not 45 degrees`,
-				).toBeLessThan(EPSILON);
-			}
+			const segs = segments(wirePath(c.from, c.to, "angular"));
+			expect(axisAligned(segs[0]), `${c.name}: leaves at an angle`).toBe(true);
+			expect(
+				axisAligned(segs[segs.length - 1]),
+				`${c.name}: arrives at an angle`,
+			).toBe(true);
 		}
+	});
+
+	/** Two pins on one line is one line, not a line with two points added. */
+	it("draws level pins as a single run", () => {
+		expect(points(wirePath({ x: 0, y: 0 }, { x: 300, y: 0 }, "angular"))).toHaveLength(2);
+	});
+
+	/**
+	 * The stub shrinks rather than overlapping its partner. Two full stubs on a
+	 * hop shorter than both would send the middle run backwards, which is the
+	 * one thing a wire must never look like it is doing.
+	 */
+	it("shortens its stubs on a hop too small for them", () => {
+		const path = points(wirePath({ x: 0, y: 0 }, { x: 20, y: 30 }, "angular"));
+		expect(path[1].x).toBeLessThanOrEqual(10);
+		expect(path[1].x).toBeGreaterThan(0);
+		expect(path[2].x).toBeGreaterThanOrEqual(10);
+	});
+
+	/**
+	 * Backwards there is no straight line that does not cross the node it came
+	 * from, so the lane is the honest answer — and its corners are cut, which is
+	 * the one place the old chamfer still earns its keep.
+	 */
+	it("keeps rigid's lane when the input is behind the output", () => {
+		const back = { from: { x: 400, y: 100 }, to: { x: 80, y: 260 } };
+		const rigid = points(wirePath(back.from, back.to, "rigid"));
+		const angular = points(wirePath(back.from, back.to, "angular"));
+		expect(angular[0]).toEqual(rigid[0]);
+		expect(angular[angular.length - 1]).toEqual(rigid[rigid.length - 1]);
+		// One sharp corner becomes two chamfer points.
+		expect(angular.length).toBe(rigid.length + (rigid.length - 2));
 	});
 
 	/**
@@ -167,26 +210,6 @@ describe("angular", () => {
 				const magnitude = Math.hypot(previous.x, previous.y) * Math.hypot(current.x, current.y);
 				expect(dot / magnitude, `${c.name}: segment ${i} doubles back`).toBeGreaterThan(-0.5);
 			}
-		}
-	});
-
-	/**
-	 * The two rigid styles are one route drawn two ways. If they disagreed about
-	 * where a wire goes, changing style would move wires rather than restyle
-	 * them — and a developer trying angular to see whether they like it would be
-	 * comparing two different graphs.
-	 */
-	it("follows the same route as rigid", () => {
-		for (const c of CASES) {
-			const rigid = points(wirePath(c.from, c.to, "rigid"));
-			const angular = points(wirePath(c.from, c.to, "angular"));
-			// Every angular vertex lies on the rigid path's bounding shape: same
-			// start, same end, same number of turns before chamfering.
-			expect(angular[0]).toEqual(rigid[0]);
-			expect(angular[angular.length - 1]).toEqual(rigid[rigid.length - 1]);
-			// One sharp corner becomes two chamfer points.
-			const corners = rigid.length - 2;
-			expect(angular.length, c.name).toBe(rigid.length + corners);
 		}
 	});
 });

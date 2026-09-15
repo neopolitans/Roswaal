@@ -2064,7 +2064,7 @@ function settingsPage(): DocPage {
 					],
 					[
 						"Wires",
-						"**Curved** is a bezier out of each pin, and the default. **Rigid** is right angles only. **Angular** is the same route with each corner cut to a 45-degree slope. The two rigid styles are one router drawn two ways, so switching between them restyles a wire rather than moving it.",
+						"**Curved** is a bezier out of each pin, and the default. **Rigid** turns at right angles only. **Angular** leaves the pin level, takes one straight run to the other end, and arrives level — a diagonal rather than a cut corner. Where the input is *behind* the output there is no straight line to take, so angular borrows rigid's lane out and back, with its corners cut.",
 					],
 					[
 						"Node corners",

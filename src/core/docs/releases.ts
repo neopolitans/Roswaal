@@ -76,6 +76,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.47.0",
+		date: "2026-09-15",
+		headline: "Angular is a diagonal.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"**The Angular wire style draws what its name says**: out of the pin level, one straight run to the other end, in level. It has been drawing a right angle with its corners cut since it shipped, which is a different shape and not the one anybody picked it for.",
+		],
+		changed: [
+			"**A backwards wire keeps the lane.** There is no straight line from a pin to something behind it that does not cross its own node, so angular borrows Rigid's route out and back, with its corners cut — which is the one place the old shape earns its keep.",
+		],
+	},
+	{
 		version: "0.46.0",
 		date: "2026-09-15",
 		headline: "Variables in a window, if you would rather.",
