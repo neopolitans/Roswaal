@@ -76,6 +76,16 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.52.0",
+		date: "2026-09-15",
+		headline: "The browser version keeps what you were working on.",
+		affects: ["editor"],
+		added: [
+			"**Roswaal in a browser keeps your project between visits.** It is stored in that browser and nowhere else — not on a server, and not on your disk — so it does not follow you to another machine, and clearing your browser's site data takes it with everything else. Download it as a zip for anything you would mind losing.",
+			"**Start again from the demo**, in the project menu of the browser version, for when you want the project you started with back.",
+		],
+	},
+	{
 		version: "0.51.0",
 		date: "2026-09-15",
 		headline: "The editor asks what it is running on, and offers only that.",

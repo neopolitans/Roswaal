@@ -32,7 +32,12 @@ import { api } from "./api.js";
  * button and `inspect` gates everything about a second project — switching to
  * one, the recent list, copying a node pack between two.
  */
-export type Capability = "inspect" | "browse" | "reveal" | "edit";
+/**
+ * `reset` is the one a machine does *not* have: throwing the project away and
+ * starting from the demo only means anything where the project is the host's
+ * own copy. On the daemon it would mean deleting a repository.
+ */
+export type Capability = "inspect" | "browse" | "reveal" | "edit" | "reset";
 
 /**
  * Nothing until the host has answered.

@@ -31,6 +31,8 @@ export interface ProjectMenuProps {
 	onBrowse: () => void;
 	/** Hand the whole project over as one file. */
 	onDownload: () => void;
+	/** Throw away what the browser is holding and start from the demo. */
+	onReset: () => void;
 	onClose: () => void;
 }
 
@@ -76,6 +78,8 @@ export function ProjectMenu(props: ProjectMenuProps) {
 	}, [onClose]);
 
 	const canUseOtherProjects = useHostCan("inspect");
+	// Only a host whose project is its own copy can throw it away.
+	const canReset = useHostCan("reset");
 	const others = recent.filter((r) => r !== current);
 
 	return (
@@ -131,6 +135,19 @@ export function ProjectMenu(props: ProjectMenuProps) {
 				>
 					<span className="name">Download as a zip…</span>
 				</div>
+
+				{canReset && (
+					<div
+						className="item"
+						title="Throw away everything in this browser and start from the demo"
+						onClick={() => {
+							props.onReset();
+							onClose();
+						}}
+					>
+						<span className="name">Start again from the demo…</span>
+					</div>
+				)}
 
 				{/* Recent projects and opening another one both need a filesystem
 				    with more than this project on it. In a browser tab there is

@@ -19,7 +19,10 @@
 
 import { ApiSession, HttpError } from "../server/routes.js";
 
+import { VERSION } from "../cli/version.js";
+
 import { volume } from "./host.js";
+import { opfsStore, persistence } from "./persist.js";
 import type { FromWorker, ToWorker } from "./protocol.js";
 import { PLAYGROUND_ROOT, playgroundFiles } from "./seed.js";
 
@@ -29,11 +32,23 @@ function post(message: FromWorker): void {
 	self.postMessage(message);
 }
 
+const store = persistence(opfsStore(), VERSION);
+
 const session = new ApiSession({
-	// No capabilities at all: there is no file manager to reveal a file in, no
-	// editor to hand one to, and no folder picker. Each of those routes answers
-	// 501, and the editor drops the button rather than offering something that
-	// cannot work.
+	capabilities: {
+		/**
+		 * The only thing this host can do that a machine cannot: throw the
+		 * project away and start from the demo again.
+		 *
+		 * A capability rather than something the worker handles on its own,
+		 * because the editor has to know whether to offer it — and the daemon
+		 * must not, where "start again" would mean deleting somebody's
+		 * repository. A host that does not pass it answers 501.
+		 */
+		reset: async () => {
+			await store.forget();
+		},
+	},
 	compileStep: (step) => post({ kind: "event", event: "compile", data: step }),
 });
 
@@ -41,11 +56,23 @@ const session = new ApiSession({
  * Mounted and opened before the first request is answered, not before the first
  * one arrives — the editor starts asking as soon as it renders, and making it
  * wait for a handshake would be a second thing to get wrong.
+ *
+ * The stored project wins over the demo. Somebody returning to a tab they were
+ * working in wants what they left; somebody arriving for the first time has
+ * nothing stored and gets the demo. Neither needs to be asked.
  */
 const ready = (async () => {
-	volume.mount(playgroundFiles());
+	const stored = await store.restore();
+	volume.mount(stored ?? playgroundFiles());
 	await session.openAt(PLAYGROUND_ROOT);
 })();
+
+/** The volume as it now stands, for the store to write when things settle. */
+function snapshot() {
+	return volume.snapshot(PLAYGROUND_ROOT);
+}
+
+
 
 /**
  * Dynamic compiling, without a file watcher.
@@ -95,6 +122,20 @@ async function dynamicCompile(method: string, path: string, body: unknown): Prom
 
 self.onmessage = async (event: MessageEvent<ToWorker>) => {
 	const message = event.data;
+
+	/**
+	 * The tab is going away, or has at least stopped being looked at.
+	 *
+	 * Writes settle rather than happening at once, so without this the change
+	 * made in the last four hundred milliseconds is the one change that does not
+	 * survive — which is precisely the one somebody is most likely to notice.
+	 * The main thread sends it, because this side cannot see a page unload.
+	 */
+	if (message?.kind === "flush") {
+		await store.flush();
+		return;
+	}
+
 	if (message?.kind !== "request") return;
 
 	try {
@@ -107,6 +148,9 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 		// After the reply, so the save is confirmed before the compile it causes
 		// starts reporting on itself.
 		await dynamicCompile(message.method, message.path, message.body);
+		// Anything that is not a read may have changed the volume, and the
+		// compile above writes too. Debounced, so a burst costs one write.
+		if (message.method !== "GET") store.touch(snapshot);
 	} catch (err) {
 		// The same mapping `app.ts` makes for Express: a thrown `HttpError` knows
 		// its own status, and anything else is the caller's fault at 400.

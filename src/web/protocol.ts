@@ -40,5 +40,17 @@ export interface ApiEventMessage {
 	data: unknown;
 }
 
-export type ToWorker = ApiRequestMessage;
+/**
+ * Finish anything still settling, because the tab may be about to go.
+ *
+ * Sent by the main thread, which is the only side that can see it coming: a
+ * dedicated worker gets no `beforeunload` — that is a window event — and is
+ * simply terminated when the page goes. `visibilitychange` is the signal that
+ * actually arrives in time.
+ */
+export interface FlushMessage {
+	kind: "flush";
+}
+
+export type ToWorker = ApiRequestMessage | FlushMessage;
 export type FromWorker = ApiResponseMessage | ApiEventMessage;

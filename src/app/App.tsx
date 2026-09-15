@@ -1316,6 +1316,39 @@ export function App() {
 		}
 	}, [notify]);
 
+	/**
+	 * Throw away what this browser is holding and start from the demo.
+	 *
+	 * Asked first, and in the strongest terms the dialog has: there is no
+	 * recycle bin behind this and no copy anywhere else. The offer to download
+	 * first is in the message rather than in a second button, because a dialog
+	 * with two ways to say yes is a dialog people click through.
+	 *
+	 * Reloads rather than putting the demo back in place. Every open document
+	 * names a graph that is about to stop existing, and reconciling each one is
+	 * more code and more ways to be wrong than starting the page again.
+	 */
+	const resetProject = useCallback(async () => {
+		const ok = await ask({
+			kind: "confirm",
+			title: "Start again from the demo?",
+			message:
+				"Everything in this browser goes: every graph you have made or changed, and "
+				+ "every file compiled from them. Nothing is kept, and there is no copy "
+				+ "elsewhere unless you have downloaded one.",
+			confirmLabel: "Throw it away",
+			danger: true,
+		});
+		if (ok !== true) return;
+
+		try {
+			await api.resetProject();
+			window.location.reload();
+		} catch (err) {
+			notify("The project could not be reset", (err as Error).message);
+		}
+	}, [ask, notify]);
+
 	const onTreeReveal = useCallback(async (target: string) => {
 		try {
 			await api.reveal(target);
@@ -1494,6 +1527,7 @@ export function App() {
 					}}
 					onBrowse={() => void browseForProject()}
 					onDownload={() => void downloadProject()}
+					onReset={() => void resetProject()}
 					onClose={() => setProjectMenu(null)}
 				/>
 			)}

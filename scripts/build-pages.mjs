@@ -122,9 +122,10 @@ function holdingPage() {
   </p>
   <p>
     The copy below runs entirely in this tab — the same editor and the same
-    compiler as the tool you install, over a project held in memory instead of a
-    disk. Nothing you do in it leaves your browser, and nothing is kept when you
-    close it.
+    compiler as the tool you install, over a project held in your browser
+    instead of on a disk. Nothing you do in it leaves your browser, and it is
+    still there when you come back. You can download the whole project as a zip
+    whenever you want it somewhere safer.
   </p>
   <ul class="doors">
     <li><a class="door first" href="try.html">Try it in the browser</a></li>

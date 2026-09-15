@@ -65,7 +65,7 @@ export function ProjectBar(props: ProjectBarProps) {
 			<button
 				className="logo"
 				title={IS_STATIC_HOST
-					? `Roswaal ${VERSION}, running in your browser. Nothing is saved when you close the tab.`
+					? `Roswaal ${VERSION}, running in your browser. Your project is kept in this browser only.`
 					: `Roswaal ${VERSION} — switch project`}
 				onClick={(e) => {
 					const box = e.currentTarget.getBoundingClientRect();

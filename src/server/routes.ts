@@ -64,6 +64,14 @@ export interface HostCapabilities {
 		root: string; exists: boolean; directory: boolean; initialised: boolean;
 	}>;
 	browse?(startIn?: string): Promise<string | null>;
+	/**
+	 * Throws the project away so the host can start from its own beginning.
+	 *
+	 * Only a host whose project is *its* copy has any business offering this.
+	 * The daemon does not pass it: there, the project is a directory somebody
+	 * owns, and "start again" would mean deleting their work.
+	 */
+	reset?(): Promise<void>;
 	reveal?(abs: string): Promise<void>;
 	edit?(abs: string): Promise<string>;
 }
@@ -513,6 +521,17 @@ export class ApiSession {
 			 * works on one of them, which is the arrangement this whole file
 			 * exists to avoid.
 			 */
+			/**
+			 * Forgets what the host has stored. The caller reloads afterwards:
+			 * the editor is holding open documents that name graphs which are
+			 * about to stop existing, and a reload is a shorter answer than
+			 * reconciling every one of them.
+			 */
+			"POST /reset": async () => {
+				await this.ability("reset")();
+				return { ok: true };
+			},
+
 			"GET /export": async () => {
 				const project = this.project();
 				return { name: path.posix.basename(project.root) || "project", files: await collectProject(project) };

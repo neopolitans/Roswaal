@@ -91,5 +91,18 @@ export function workerTransport(worker: Worker): WorkerTransport {
 		};
 	};
 
+	/**
+	 * Tell the worker to finish writing while there is still time.
+	 *
+	 * `visibilitychange` rather than `beforeunload`: a hidden tab may be
+	 * discarded without any further warning, and every close is preceded by a
+	 * hide. `pagehide` as well, for a navigation that never hides first.
+	 */
+	const flush = () => worker.postMessage({ kind: "flush" });
+	document.addEventListener("visibilitychange", () => {
+		if (document.visibilityState === "hidden") flush();
+	});
+	window.addEventListener("pagehide", flush);
+
 	return { request, events };
 }

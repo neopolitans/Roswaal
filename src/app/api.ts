@@ -219,6 +219,8 @@ export const api = {
 		post<{ results: MapOutcome[] }>("/api/map/compile", opts),
 
 	createFolder: (path: string) => post<{ path: string }>("/api/folder/create", { path }),
+	/** Throws away what the host has stored. The caller reloads afterwards. */
+	resetProject: () => post<{ ok: true }>("/api/reset", {}),
 	/** The whole project as text, for `zip.ts` to turn into a download. */
 	exportProject: () =>
 		request<{ name: string; files: Record<string, string> }>("/api/export"),
