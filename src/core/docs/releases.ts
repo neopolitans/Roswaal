@@ -54,6 +54,21 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.38.1",
+		date: "2026-09-15",
+		headline: "Attributions says what Roswaal is designed for.",
+		added: [
+			"**What Roswaal is designed for**, on Attributions and in `ATTRIBUTIONS.md`: **Luau**, **Roblox** and **Lune**, with what each one is and where it reaches the output.",
+			"**Non-affiliation said outright for each**, rather than left to be inferred from a licence column.",
+		],
+		changed: [
+			"**Luau moved there from \"What Roswaal is built on\".** No Luau ships inside Roswaal — Roswaal writes it — and listing it beside the libraries that do overstated the relationship. The attribution its README asks for is unchanged and is still on the page, with the quote.",
+		],
+		watch: [
+			"**Nothing about the tool changed.** This is what the project says about itself, which is the sort of thing that goes stale quietly — Lune had been a compile target for eight releases and was named nowhere.",
+		],
+	},
+	{
 		version: "0.38.0",
 		date: "2026-09-15",
 		headline: "A picker for six hundred classes.",

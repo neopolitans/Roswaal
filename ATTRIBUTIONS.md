@@ -1,8 +1,8 @@
 # Attributions
 
 Roswaal itself is licensed 0BSD; see [LICENSE](LICENSE). What follows is what
-that does not cover: work by other people that Roswaal ships or stands on, and
-names that are not ours.
+that does not cover: the languages and platforms it writes for, work by other
+people that Roswaal ships or stands on, and names that are not ours.
 
 The same list is a page in the documentation — **Attributions**, under Learn —
 because the people who need to read it are not all reading the repository. This
@@ -29,20 +29,24 @@ restriction on what anyone else does with it, commercially or otherwise — thos
 choices, and any obligations that follow from them, belong to whoever makes
 them.
 
-## What Roswaal is built on
+## What Roswaal is designed for
 
-Code and assets that ship inside Roswaal, or that it could not run without.
+The languages and runtimes the generated code is written for. Nothing of theirs
+is bundled here and nothing of theirs is licensed to Roswaal; they are named
+because that is what the output is **for**, and because a reader seeing these
+names throughout the editor is owed the sentence saying whose they are.
 
-| Project | By | Licence | Where |
+| Platform | By | Licence | Where |
 | --- | --- | --- | --- |
 | [Luau](https://luau.org/) | Roblox Corporation | MIT | Not bundled. Roswaal writes Luau; Luau runs it. |
-| [Lua](https://www.lua.org/) | PUC-Rio | MIT | Not bundled. Luau is based on the Lua 5.x implementation. |
-| [Material Symbols](https://fonts.google.com/icons) | Google LLC | Apache-2.0 | `src/app/icons.tsx`, inlined as SVG path data. |
-| [CodeMirror 6](https://codemirror.net/) | Marijn Haverbeke and contributors | MIT | A runtime dependency; see `package.json`. |
-| [Tokyo Night](https://github.com/tokyo-night/tokyo-night-vscode-theme) | Enkia | MIT | `themes/tokyo-night.json`, `themes/tokyo-night-storm.json`. |
-| [Catppuccin](https://github.com/catppuccin/catppuccin) | Catppuccin | MIT | `themes/catppuccin-mocha.json`, the Mocha flavour. |
-| [Nord](https://github.com/nordtheme/nord) | Sven Greb | MIT | `themes/nord.json`. |
-| [Rojo](https://rojo.space/) | rojo-rbx and contributors | MPL-2.0 | Not bundled. Roswaal writes the files Rojo syncs. |
+| [Roblox](https://create.roblox.com/docs) | Roblox Corporation | not licensed to us | Not bundled. Roswaal compiles graphs to Luau files a Roblox place runs, and knows the engine's class and enum names so a pin can offer them. |
+| [Lune](https://lune-org.github.io/docs) | Filip Tibell and contributors | not licensed to us | Not bundled. A graph whose target is Lune compiles to a standalone `.luau` file Lune runs outside Roblox. |
+
+**Roswaal is not affiliated with, endorsed by, or approved by Roblox
+Corporation, or by the Lune project.** Roblox, the Roblox logo and the names of
+the engine's classes and services belong to Roblox Corporation; they appear in
+Roswaal because that is what the generated code refers to. Lune is its own
+project under its own licence.
 
 Luau's own README asks that projects integrating it carry an attribution in
 user-facing documentation, which is what this file and the Attributions page
@@ -52,8 +56,21 @@ are:
 > license agreement and include Luau attribution into the user-facing product
 > documentation.
 
-Luau and the Luau logo belong to Roblox. Roswaal is not affiliated with or
-endorsed by Roblox.
+Luau and the Luau logo belong to Roblox Corporation, as above.
+
+## What Roswaal is built on
+
+Code and assets that ship inside Roswaal, or that it could not run without.
+
+| Project | By | Licence | Where |
+| --- | --- | --- | --- |
+| [Lua](https://www.lua.org/) | PUC-Rio | MIT | Not bundled. Luau is based on the Lua 5.x implementation. |
+| [Material Symbols](https://fonts.google.com/icons) | Google LLC | Apache-2.0 | `src/app/icons.tsx`, inlined as SVG path data. |
+| [CodeMirror 6](https://codemirror.net/) | Marijn Haverbeke and contributors | MIT | A runtime dependency; see `package.json`. |
+| [Tokyo Night](https://github.com/tokyo-night/tokyo-night-vscode-theme) | Enkia | MIT | `themes/tokyo-night.json`, `themes/tokyo-night-storm.json`. |
+| [Catppuccin](https://github.com/catppuccin/catppuccin) | Catppuccin | MIT | `themes/catppuccin-mocha.json`, the Mocha flavour. |
+| [Nord](https://github.com/nordtheme/nord) | Sven Greb | MIT | `themes/nord.json`. |
+| [Rojo](https://rojo.space/) | rojo-rbx and contributors | MPL-2.0 | Not bundled. Roswaal writes the files Rojo syncs. |
 
 The three borrowed colour schemes keep their own licences, copied **byte for
 byte** into `notices/upstream/` and compiled into the editor, where each is

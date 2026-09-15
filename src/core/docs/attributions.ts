@@ -36,14 +36,21 @@ export interface Attribution {
 	 */
 	licence: string | null;
 	/**
-	 * Whether Roswaal **uses** this or only **learned** from it.
+	 * Whether Roswaal **uses** this, only **learned** from it, or **produces
+	 * code for** it.
 	 *
 	 * The distinction is the point of having it. Listing something Roswaal only
 	 * learned from under "built on" claims a relationship that does not exist —
 	 * no code, no assets, no dependency, only conventions a reader might
 	 * recognise. Overstating a debt is its own kind of inaccuracy.
+	 *
+	 * `designed-for` is the third, and it is the weakest of the three on
+	 * purpose: a language Roswaal writes and a runtime that runs the result.
+	 * Nothing of theirs is here and nothing of theirs is licensed to us — what
+	 * is being said is only "this is what the output is for", which is
+	 * referential and is a statement about Roswaal rather than about them.
 	 */
-	relation: "uses" | "inspired-by";
+	relation: "uses" | "inspired-by" | "designed-for";
 	/** Where it is in the repository, or how it reaches a user. */
 	where: string;
 	/** Why it is listed: what we use, and what we are not claiming. */
@@ -60,7 +67,7 @@ export interface Attribution {
 export const ATTRIBUTIONS: Attribution[] = [
 	{
 		name: "Luau",
-		relation: "uses",
+		relation: "designed-for",
 		holder: "Roblox Corporation",
 		licence: "MIT",
 		where: "Not bundled. Roswaal writes Luau; Luau runs it.",
@@ -75,6 +82,39 @@ export const ATTRIBUTIONS: Attribution[] = [
 			"When Luau is integrated into external projects, we ask that you honor " +
 			"the license agreement and include Luau attribution into the user-facing " +
 			"product documentation.",
+	},
+	{
+		name: "Roblox",
+		relation: "designed-for",
+		holder: "Roblox Corporation",
+		licence: null,
+		where:
+			"Not bundled, and nothing of Roblox's is here. Roswaal compiles graphs " +
+			"to Luau files a Roblox place runs, and knows the engine's class and " +
+			"enum names so a pin can offer them.",
+		note:
+			"The platform most Roswaal graphs are written for. Roblox, the Roblox " +
+			"logo and the names of the engine's classes and services belong to " +
+			"Roblox Corporation. Roswaal is not affiliated with, endorsed by, or " +
+			"approved by Roblox Corporation, and claims no rights in those names — " +
+			"they appear here because that is what the generated code refers to.",
+		url: "https://create.roblox.com/docs",
+	},
+	{
+		name: "Lune",
+		relation: "designed-for",
+		holder: "Filip Tibell and contributors",
+		licence: null,
+		where:
+			"Not bundled. A graph whose target is Lune compiles to a standalone " +
+			"`.luau` file Lune runs outside Roblox.",
+		note:
+			"The second runtime Roswaal can write for, and still experimental here — " +
+			"a Lune graph drops the Roblox nodes and has not yet been through an " +
+			"experienced Lune developer's hands. Lune is its own project under its " +
+			"own licence; Roswaal is not affiliated with or endorsed by it, and " +
+			"nothing of Lune's is distributed here.",
+		url: "https://lune-org.github.io/docs",
 	},
 	{
 		name: "Unreal Engine",
@@ -255,3 +295,14 @@ export const DEPENDENCIES = ATTRIBUTIONS.filter((a) => a.relation === "uses");
  * weaker one is the true one here.
  */
 export const INSPIRATIONS = ATTRIBUTIONS.filter((a) => a.relation === "inspired-by");
+
+/**
+ * The languages and runtimes the generated code is for.
+ *
+ * Weaker than either of the others, and listed anyway: a reader seeing Roblox’s
+ * class names throughout the editor is owed the sentence saying whose they are
+ * and that there is no association. Luau is here rather than under "built on"
+ * because no Luau ships inside Roswaal — Roswaal writes it — and its README asks
+ * for the attribution in user-facing documentation, which this is.
+ */
+export const TARGETS = ATTRIBUTIONS.filter((a) => a.relation === "designed-for");

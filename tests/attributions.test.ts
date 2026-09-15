@@ -21,7 +21,7 @@ import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-	ATTRIBUTIONS, DEPENDENCIES, INSPIRATIONS, NAME_NOTICE,
+	ATTRIBUTIONS, DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, TARGETS,
 } from "../src/core/docs/attributions.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import { blockText, buildSite, findPage } from "../src/core/docs/site.js";
@@ -117,18 +117,45 @@ describe("ATTRIBUTIONS.md and the attributions page", () => {
 });
 
 /**
- * ## Built on versus inspired by
+ * ## Built on, inspired by, designed for
  *
- * These are two different claims and the page makes them separately. An
- * inspiration sat under "What Roswaal is built on" for a release, which claimed
- * a relationship that did not exist — no code, no assets, no dependency, only
- * conventions. Overstating a debt is its own kind of inaccuracy.
+ * Three different claims, and the page makes them separately. An inspiration sat
+ * under "What Roswaal is built on" for a release, which claimed a relationship
+ * that did not exist — no code, no assets, no dependency, only conventions.
+ * Overstating a debt is its own kind of inaccuracy, and so is understating one.
  */
-describe("what Roswaal uses and what it only learned from", () => {
-	it("puts every entry in exactly one of the two", () => {
-		expect(DEPENDENCIES.length + INSPIRATIONS.length).toBe(ATTRIBUTIONS.length);
+describe("what Roswaal uses, learned from, and writes for", () => {
+	it("puts every entry in exactly one of the three", () => {
+		expect(DEPENDENCIES.length + INSPIRATIONS.length + TARGETS.length)
+			.toBe(ATTRIBUTIONS.length);
 		for (const entry of ATTRIBUTIONS) {
-			expect(["uses", "inspired-by"], entry.name).toContain(entry.relation);
+			expect(["uses", "inspired-by", "designed-for"], entry.name).toContain(entry.relation);
+		}
+	});
+
+	/**
+	 * The three platforms the output is for. Named rather than counted: dropping
+	 * one would be a quiet change to what the project says it targets, and
+	 * Luau's own README asks for its attribution by name.
+	 */
+	it("names Luau, Roblox and Lune as what the output is for", () => {
+		expect([...TARGETS.map((t) => t.name)].sort()).toEqual(["Luau", "Lune", "Roblox"]);
+	});
+
+	/**
+	 * A target is not a dependency, and saying so is the whole point of the
+	 * third relation: nothing of theirs ships here.
+	 */
+	it("claims no licence over anything it only writes for", () => {
+		for (const entry of TARGETS) {
+			expect(entry.where, entry.name).toContain("Not bundled");
+		}
+	});
+
+	/** Affirmative non-affiliation, per target, rather than left to be inferred. */
+	it("says outright that it is not affiliated with any of them", () => {
+		for (const entry of TARGETS) {
+			expect(entry.note, entry.name).toMatch(/not affiliated with/);
 		}
 	});
 

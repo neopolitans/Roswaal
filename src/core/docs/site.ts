@@ -27,7 +27,9 @@ import { previewOf, type NodePreview } from "./preview.js";
 import { defaultConfig, ENGINE_TYPES, type NodeScript } from "../schema.js";
 import { CODE_ROLES, ROLES } from "../theme.js";
 import { BUILTIN_THEMES } from "../themeData.js";
-import { DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, type Attribution } from "./attributions.js";
+import {
+	DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, TARGETS, type Attribution,
+} from "./attributions.js";
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release } from "./releases.js";
@@ -583,9 +585,10 @@ function attributionsPage(): DocPage {
 		{
 			t: "p",
 			text:
-				"Roswaal is 0BSD — see the end of this page — but it stands on work " +
-				"that is not, and it is named after characters that are not ours. " +
-				"Both are listed here.",
+				"Roswaal is 0BSD — see the end of this page — but it writes for " +
+				"languages and platforms that are not ours, it stands on work that is " +
+				"not, and it is named after characters that are not ours. All three " +
+				"are listed here.",
 		},
 		{ t: "h", level: 2, text: NAME_NOTICE.title },
 	];
@@ -598,13 +601,15 @@ function attributionsPage(): DocPage {
 	 * second is work it only learned from. Listing an inspiration under "built
 	 * on" would claim a relationship that does not exist.
 	 */
-	const group = (heading: string, lede: string, entries: Attribution[]) => {
+	const group = (
+		heading: string, lede: string, entries: Attribution[], what = "Project",
+	) => {
 		if (entries.length === 0) return;
 		blocks.push({ t: "h", level: 2, text: heading });
 		blocks.push({ t: "p", text: lede });
 		blocks.push({
 			t: "table",
-			head: ["Project", "By", "Licence"],
+			head: [what, "By", "Licence"],
 			rows: entries.map((a) => [
 				a.url ? `[${a.name}](${a.url})` : a.name,
 				a.holder ?? "—",
@@ -619,6 +624,21 @@ function attributionsPage(): DocPage {
 		}
 	};
 
+	/**
+	 * First, because it is the one a reader needs before the others make sense
+	 * -- and because Roblox's class names are all over the editor, which is a
+	 * thing to explain rather than leave to be inferred.
+	 */
+	group(
+		"What Roswaal is designed for",
+		"The languages and runtimes the generated code is written for. Nothing of " +
+			"theirs is bundled here and nothing of theirs is licensed to Roswaal; " +
+			"they are named because that is what the output is **for**, and because " +
+			"a reader seeing these names throughout the editor is owed the sentence " +
+			"saying whose they are.",
+		TARGETS,
+		"Platform",
+	);
 	group(
 		"What Roswaal is built on",
 		"Code and assets that ship inside Roswaal, or that it could not run without.",
