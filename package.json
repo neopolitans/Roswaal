@@ -1,6 +1,6 @@
 {
   "name": "roswaal",
-  "version": "0.55.0",
+  "version": "0.56.0",
   "private": true,
   "license": "0BSD",
   "type": "module",
@@ -23,7 +23,8 @@
     "docs:reviews": "tsx scripts/docs-reviews.mjs",
     "dev:site": "vite --config vite.web.config.ts",
     "build:site": "tsc --noEmit && vite build --config vite.web.config.ts",
-    "build:pages": "tsx scripts/build-pages.mjs"
+    "build:pages": "tsx scripts/build-pages.mjs",
+    "audit:graphs": "tsx scripts/audit-graphs.mts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

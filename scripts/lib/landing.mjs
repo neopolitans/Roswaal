@@ -29,6 +29,7 @@ import { BUILTIN_NODES as ALL_NODES } from "../../src/core/nodes/index.ts";
 import { wirePath } from "../../src/app/geometry.ts";
 import { NODE } from "../../src/app/layers.ts";
 import { faviconHref, logoMarkup } from "../../src/app/logo.tsx";
+import { ICONS } from "../../src/app/icons.tsx";
 
 /**
  * Which example to show.
@@ -51,6 +52,22 @@ function colourOf(id) {
 	const def = ALL_NODES.find((node) => node.id === id);
 	if (!def) throw new Error(`The landing page accents on a node that is gone: ${id}`);
 	return nodeColor(def);
+}
+
+/**
+ * One of the editor's own icons, as markup.
+ *
+ * The same paths the toolbar and the tree draw, so the page is furnished from
+ * the tool rather than from a second icon set that happens to look similar.
+ * `function` is the only stroked one, which is why it is the only special case.
+ */
+function icon(name) {
+	const path = ICONS[name];
+	if (!path) throw new Error(`The landing page asks for an icon that is gone: ${name}`);
+	const stroke = name === "function"
+		? ' fill="none" stroke="currentColor" stroke-width="80" stroke-linecap="round"'
+		: ' fill="currentColor"';
+	return `<svg viewBox="0 -960 960 960" aria-hidden="true"><path d="${path}"${stroke}/></svg>`;
 }
 
 /** Luau to HTML, with the token classes the editor's own stylesheet colours. */
@@ -119,16 +136,31 @@ body.roswaal-landing {
     radial-gradient(60rem 26rem at 22% -8%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
     radial-gradient(44rem 22rem at 78% -14%, color-mix(in srgb, var(--category-values, #4c7fd4) 14%, transparent), transparent 70%);
 }
-.landing-head { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+/* Centred, because it is a masthead rather than the start of a paragraph.
+   Everything below the demonstration goes back to being read left to right. */
+.landing-top { text-align: center; margin-bottom: 64px; }
+.landing-head {
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; margin-bottom: 26px;
+}
+.landing-top .landing-lede,
+.landing-top .landing-sub,
+.landing-top .landing-note { margin-left: auto; margin-right: auto; }
+.landing-doors { justify-content: center; }
 /* The mark draws with currentColor, so this is the whole of colouring it. */
 .landing-head .logo-mark { color: var(--accent); }
-.landing-head h1 { font-size: 24px; margin: 0; letter-spacing: -0.01em; }
+.landing-head h1 { font-size: 34px; margin: 0; letter-spacing: -0.015em; }
 .landing-head .tag {
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
-  border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; color: var(--accent);
+  font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
+  border: 1px solid var(--border); border-radius: 4px; padding: 2px 9px; color: var(--accent);
+  align-self: center;
 }
-.landing-lede { font-size: 21px; line-height: 1.45; max-width: 36rem; margin: 0 0 10px; }
-.landing-sub { color: var(--fg-faint); max-width: 38rem; margin: 0 0 30px; }
+.landing-lede { font-size: 30px; line-height: 1.25; max-width: 44rem; margin: 0 0 14px; letter-spacing: -0.015em; }
+/* The one claim on the page that is a promise rather than a description. */
+/* Its own line: it is a second sentence and the only promise on the page,
+   and wrapped mid-phrase it read as an afterthought. */
+.landing-lede em { display: block; font-style: normal; color: var(--accent); }
+.landing-sub { color: var(--fg-faint); max-width: 40rem; margin: 0 0 30px; font-size: 16px; }
 .landing-doors { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; padding: 0; list-style: none; }
 .landing-doors a {
   display: inline-block; padding: 10px 18px; border-radius: 7px; text-decoration: none;
@@ -192,6 +224,14 @@ body.roswaal-landing {
   border: 1px solid var(--border); border-left: 3px solid var(--edge, var(--accent));
   border-radius: 8px; background: var(--bg-panel); padding: 16px 18px;
 }
+.landing-card { display: flex; gap: 14px; align-items: flex-start; }
+.landing-card .icon {
+  flex: none; width: 30px; height: 30px; border-radius: 7px;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--edge, var(--accent)) 18%, transparent);
+  color: var(--edge, var(--accent));
+}
+.landing-card .icon svg { width: 17px; height: 17px; }
 .landing-card h3 { font-size: 14px; margin: 0 0 6px; }
 .landing-card p { color: var(--fg-faint); margin: 0; font-size: 14px; }
 .landing-card code { font-size: 12px; }
@@ -224,38 +264,41 @@ export function landingPage(version) {
 <body class="roswaal-landing">
 <div class="landing-glow" aria-hidden="true"></div>
 <main class="landing">
-  <div class="landing-head">
-    ${logoMarkup(24)}
-    <h1>Roswaal</h1>
-    <span class="tag">preview</span>
+  <div class="landing-top">
+    <div class="landing-head">
+      ${logoMarkup(38)}
+      <h1>Roswaal</h1>
+      <span class="tag">preview</span>
+    </div>
+
+    <p class="landing-lede">
+      Visual scripting in Luau, reimagined.
+      <em>Completely free, forever.</em>
+    </p>
+    <p class="landing-sub">
+      Graphs live on disk as <code>.nodescript</code> files and compile to plain
+      <code>.luau</code> that Rojo syncs like any other source file. No plugin, no
+      runtime, nothing of Roswaal's left in your game — and it is 0BSD, so the
+      code and the graphs are yours to keep, sell, or walk away with.
+    </p>
+
+    <ul class="landing-doors">
+      <li><a class="door first" href="try.html">Try it in your browser</a></li>
+      <li><a href="docs/">Read the documentation</a></li>
+    </ul>
+    <p class="landing-note">
+      Nothing to install. Open the demo project, or open a folder from your own
+      computer and work in it — Chrome and Edge can hand one over.
+    </p>
   </div>
-
-  <p class="landing-lede">
-    Visual scripting for Roblox Luau that compiles to Luau you would have been
-    happy to write.
-  </p>
-  <p class="landing-sub">
-    Graphs live on disk as <code>.nodescript</code> files and compile to plain
-    <code>.luau</code> that Rojo syncs like any other source file. No plugin, no
-    runtime, nothing of Roswaal's left in your game.
-  </p>
-
-  <ul class="landing-doors">
-    <li><a class="door first" href="try.html">Try it in your browser</a></li>
-    <li><a href="docs/">Read the documentation</a></li>
-  </ul>
-  <p class="landing-note">
-    Nothing to install. Open the demo project, or open a folder from your own
-    computer and work in it — Chrome and Edge can hand one over.
-  </p>
 
   <div class="landing-show">
     <section class="landing-pane">
-      <h2>A graph</h2>
+      <h2>The graph you see</h2>
       <div class="landing-graph">${svg}</div>
     </section>
     <section class="landing-pane">
-      <h2>What Roswaal writes from it</h2>
+      <h2>The Luau it writes</h2>
       <pre class="landing-code"><code>${luau}</code></pre>
     </section>
   </div>
@@ -266,53 +309,72 @@ export function landingPage(version) {
 
   <div class="landing-points">
     <div class="landing-card" style="--edge: ${colourOf("script.begin")}">
-      <h3>Your graphs are source</h3>
-      <p>
-        A <code>.nodescript</code> is a file in your repository. Commit it,
-        branch it, review it, and read the diff.
-      </p>
+      <div class="icon">${icon("document")}</div>
+      <div>
+        <h3>You own all of it</h3>
+        <p>
+          A <code>.nodescript</code> is a file in your repository — commit it,
+          branch it, review the diff. Roswaal is 0BSD: no attribution, no
+          licence to outgrow, nothing to ask permission for.
+        </p>
+      </div>
     </div>
     <div class="landing-card" style="--edge: ${colourOf("math.add")}">
-      <h3>The output is ordinary Luau</h3>
-      <p>
-        Typed, commented and formatted with your own stylua. Roswaal refuses to
-        overwrite a generated file you have edited by hand.
-      </p>
+      <div class="icon">${icon("terminal")}</div>
+      <div>
+        <h3>The output is ordinary Luau</h3>
+        <p>
+          Typed, commented and formatted with your own stylua. Roswaal refuses
+          to overwrite a generated file you have edited by hand.
+        </p>
+      </div>
     </div>
     <div class="landing-card" style="--edge: ${colourOf("roblox.getService")}">
-      <h3>Try it on your own project</h3>
-      <p>
-        The browser version opens a real folder and writes into it, so you can
-        find out whether this fits your game before installing anything.
-      </p>
+      <div class="icon">${icon("folderOpen")}</div>
+      <div>
+        <h3>Try it on your own project</h3>
+        <p>
+          The browser version opens a real folder and writes into it, so you can
+          find out whether this fits your game before installing anything.
+        </p>
+      </div>
     </div>
   </div>
 
   <h2 class="landing-h2">When a node is not the answer</h2>
   <div class="landing-points">
     <div class="landing-card" style="--edge: ${colourOf("code.custom")}">
-      <h3>Custom Code, and Luau Expression</h3>
-      <p>
-        Two escape hatches, on purpose. Write Luau where writing Luau is
-        simpler, and wrap code you already have instead of rebuilding it as
-        nodes. The text is emitted verbatim.
-      </p>
+      <div class="icon">${icon("function")}</div>
+      <div>
+        <h3>Custom Code, and Luau Expression</h3>
+        <p>
+          Two escape hatches, on purpose. Write Luau where writing Luau is
+          simpler, and wrap code you already have instead of rebuilding it as
+          nodes. The text is emitted verbatim.
+        </p>
+      </div>
     </div>
     <div class="landing-card" style="--edge: ${colourOf("value.expression")}">
-      <h3>Nodes of your own</h3>
-      <p>
-        A node pack is a file — JSON, or Luau with comments — that defines nodes
-        the way the built-in library defines its own. Design them in the editor,
-        commit them, and share them between projects.
-      </p>
+      <div class="icon">${icon("palette")}</div>
+      <div>
+        <h3>Nodes of your own</h3>
+        <p>
+          A node pack is a file — JSON, or Luau with comments — that defines
+          nodes the way the built-in library defines its own. Design them in the
+          editor, commit them, and share them between projects.
+        </p>
+      </div>
     </div>
     <div class="landing-card" style="--edge: ${colourOf("debug.print")}">
-      <h3>Documented, node by node</h3>
-      <p>
-        A reference page for every node in the library, with the graph and the
-        Luau it compiles to on each one, plus a guide for anyone
-        <a href="docs/coming-from-blueprints.html">Coming from Blueprints</a>.
-      </p>
+      <div class="icon">${icon("help")}</div>
+      <div>
+        <h3>Documented, node by node</h3>
+        <p>
+          A reference page for every node in the library, with the graph and the
+          Luau it compiles to on each one, plus a guide for anyone
+          <a href="docs/coming-from-blueprints.html">Coming from Blueprints</a>.
+        </p>
+      </div>
     </div>
   </div>
 

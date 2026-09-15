@@ -76,6 +76,16 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.56.0",
+		date: "2026-09-15",
+		headline: "Drawn graphs line their wires up.",
+		affects: ["docs", "editor"],
+		changed: [
+			"**A drawn graph nudges its nodes so the wires between them run level**, on the documentation site, in the editor's docs window, and on the front page. Only vertically, and only a node that something feeds — the columns stay where they were, so the shape of the graph is unchanged. An execution wire wins over a value one, since that is the wire the graph is about.",
+			"**The front page leads with what Roswaal is and what it costs**, and says what you own: the graphs, the generated Luau, and a 0BSD licence with nothing to ask permission for.",
+		],
+	},
+	{
 		version: "0.55.0",
 		date: "2026-09-15",
 		headline: "Roswaal has a front page.",

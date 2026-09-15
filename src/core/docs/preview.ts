@@ -1043,6 +1043,83 @@ export function placeGraph(
 }
 
 /**
+ * The same graph with its nodes nudged so their wires run level.
+ *
+ * Every drawn graph in the documentation is authored by hand, and hand-placing
+ * a node so a pin four rows down lines up with a pin two rows down on a node of
+ * a different height is arithmetic nobody should be doing in their head. So
+ * most of them were a little out: an audit of the thirty-nine graphs found a
+ * bent wire in thirty-four of them, the worst by two hundred and twenty-six
+ * pixels.
+ *
+ * A bent wire is not wrong, it just reads as unfinished — the eye follows a
+ * line, and a line that climbs for no reason suggests the climb means
+ * something. This moves the node rather than the wire, which is what a person
+ * would do.
+ *
+ * **Only vertically, and only a node that is fed.** Columns stay where the
+ * author put them, so the shape of the graph — what comes before what — is
+ * untouched. A node with several inputs settles on its first wired one, because
+ * something has to win and the first is the one the eye starts from.
+ */
+export function straighten(
+	script: NodeScript, registry: Registry, options: PreviewOptions,
+): NodeScript {
+	const moved = new Map<string, number>();
+	// Left to right, so a node is only ever aligned against one already settled.
+	const order = [...script.nodes].sort((a, b) => a.x - b.x).map((node) => node.id);
+	const rank = new Map(order.map((id, at) => [id, at]));
+
+	// Two passes: a node fed by one that moves after it would otherwise keep a
+	// bend that the first pass could not have known about.
+	for (let pass = 0; pass < 2; pass++) {
+		const nodes = script.nodes.map((node) => ({ ...node, y: node.y + (moved.get(node.id) ?? 0) }));
+		const placed = placeGraph({ ...script, nodes }, registry, options);
+		const byId = new Map(placed.map((p) => [p.node.id, p]));
+
+		for (const id of order) {
+			const incoming = script.links.filter(
+				(link) => link.to.node === id && (rank.get(link.from.node) ?? -1) < (rank.get(id) ?? 0),
+			);
+			if (incoming.length === 0) continue;
+
+			/**
+			 * The execution wire wins when there is one.
+			 *
+			 * It is the wire the graph is *about* — the order things happen in —
+			 * and it is the one a reader traces first. A node fed by both a flow
+			 * and a value settles on the flow, and the value wire does the
+			 * bending, which is the right way round.
+			 */
+			const execLink = incoming.find((candidate) => {
+				const target = byId.get(candidate.to.node);
+				return target?.preview.inputs.find((pin) => pin.id === candidate.to.pin)?.kind === "exec";
+			});
+			const link = execLink ?? incoming[0];
+			const from = byId.get(link.from.node);
+			const to = byId.get(id);
+			if (!from || !to) continue;
+
+			const a = placedPinAnchor(from, link.from.pin, "out", options.geometry);
+			const b = placedPinAnchor(to, link.to.pin, "in", options.geometry);
+			if (!a || !b) continue;
+
+			const drop = a.y - b.y;
+			if (Math.abs(drop) < 0.5) continue;
+			moved.set(id, (moved.get(id) ?? 0) + drop);
+			// Keep the placement current so the next node in the row aligns
+			// against where this one has just gone, not where it was.
+			to.y += drop;
+		}
+	}
+
+	return {
+		...script,
+		nodes: script.nodes.map((node) => ({ ...node, y: node.y + (moved.get(node.id) ?? 0) })),
+	};
+}
+
+/**
  * Where a wire meets a node, in graph coordinates.
  *
  * The mirror of `pinPosition` in `src/app/geometry.ts`, and asserted equal to
@@ -1100,8 +1177,16 @@ export function placedPinAnchor(
  * authored anywhere on an infinite canvas crops to itself.
  */
 export function graphSvg(
-	scene: NodeScript, registry: Registry, options: PreviewOptions,
+	source: NodeScript, registry: Registry, options: PreviewOptions,
 ): string {
+	/**
+	 * Levelled before it is drawn, for every one of the three places a drawn
+	 * graph appears: the published documentation, the editor's own docs window,
+	 * and the landing page. Doing it here rather than at each call site is the
+	 * point — a graph that reads differently in the docs than in the window
+	 * beside the canvas is the drift this file exists to avoid.
+	 */
+	const scene = straighten(source, registry, options);
 	/**
 	 * A knot is coloured by what it carries, and a scene is written by hand.
 	 *
