@@ -76,6 +76,20 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.59.1",
+		date: "2026-09-15",
+		headline: "The source is public.",
+		affects: ["docs"],
+		added: [
+			"**Roswaal is open source** — [github.com/neopolitans/Roswaal](https://github.com/neopolitans/Roswaal), under 0BSD. Read it, fork it, take what you want from it.",
+			"The front page links the repository, beside the documentation.",
+		],
+		changed: [
+			"The front page no longer calls itself a preview. It carries the version instead.",
+			"Reports still go to [roswaal-feedback](https://github.com/neopolitans/roswaal-feedback/issues/new) — the source repository is for reading.",
+		],
+	},
+	{
 		version: "0.59.0",
 		date: "2026-09-15",
 		headline: "The front page says what is planned, and what it runs on.",

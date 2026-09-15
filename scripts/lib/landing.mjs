@@ -42,6 +42,15 @@ import { ICONS } from "../../src/app/icons.tsx";
 const EXAMPLE = "node/event.connect";
 
 /**
+ * Roswaal's own repository.
+ *
+ * Dead until it is public, which is why the button carrying it lands with the
+ * change of visibility rather than before it — the documentation spent a week
+ * linking `issues/new` on a private repository, and once was enough.
+ */
+const REPOSITORY = "https://github.com/neopolitans/Roswaal";
+
+/**
  * A node's colour, from the function the canvas itself uses.
  *
  * So the accents on this page are the palette a reader will see the moment they
@@ -169,6 +178,11 @@ body.roswaal-landing {
 }
 .landing-doors a:hover { border-color: var(--accent); }
 .landing-doors a.first { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* The repository, named rather than badged. GitHub's own mark would be a third
+   party's brand on the front page; the word is a plain nominative reference,
+   which is how this project names Unreal and Unity too. */
+.landing-doors a.with-icon { display: inline-flex; align-items: center; gap: 8px; }
+.landing-doors a.with-icon svg { width: 15px; height: 15px; fill: currentColor; opacity: 0.8; }
 .landing-note { font-size: 13px; color: var(--fg-faint); margin: 0 0 10px; }
 /* Which runtimes, and which of them to be careful with. Its own line rather
    than a clause in the paragraph above, because "experimental" is the kind of
@@ -307,7 +321,7 @@ export function landingPage(version) {
     <div class="landing-head">
       ${logoMarkup(38)}
       <h1>Roswaal</h1>
-      <span class="tag">preview</span>
+      <span class="tag">${escapeHtml(version)}</span>
     </div>
 
     <p class="landing-lede">
@@ -324,6 +338,11 @@ export function landingPage(version) {
     <ul class="landing-doors">
       <li><a class="door first" href="try.html">Try it in your browser</a></li>
       <li><a href="docs/">Read the documentation</a></li>
+      <li>
+        <a class="door with-icon" href="${REPOSITORY}" rel="noreferrer noopener">
+          ${icon("external")} Source on GitHub
+        </a>
+      </li>
     </ul>
       <p class="landing-note">
       Nothing to install. Open the demo project, or open a folder from your own
@@ -544,7 +563,7 @@ export function landingPage(version) {
   </div>
 
   <div class="landing-foot">
-    <span>Roswaal ${escapeHtml(version)} — a preview, ahead of the first release.</span>
+    <span>Roswaal ${escapeHtml(version)} — the first public release.</span>
     <a href="https://github.com/neopolitans/roswaal-feedback/issues/new">Report something</a>
     <a href="docs/release-notes.html">Release notes</a>
     <a href="docs/attributions.html">Attributions and licence</a>

@@ -56,9 +56,19 @@ describe("the landing page", () => {
 		expect(html).not.toMatch(/<script[\s>]/i);
 	});
 
-	it("says which version it is, and that it is a preview", () => {
+	/**
+	 * The version is on the page twice -- beside the name and in the footer -- and
+	 * it no longer calls itself a preview. Those two phrases went out with the
+	 * repository being opened, and a rewrite that quietly reinstates either would
+	 * be telling people the release has not happened yet.
+	 *
+	 * The word "preview" itself still appears: `P` previews a graph, and that
+	 * feature is not going anywhere. It is the status claim that is gone.
+	 */
+	it("says which version it is, and no longer calls itself provisional", () => {
 		expect(html).toContain("9.9.9");
-		expect(html.toLowerCase()).toContain("preview");
+		expect(text).not.toContain("ahead of the first release");
+		expect(html).not.toMatch(/class="tag">preview/i);
 	});
 
 	/**
@@ -81,6 +91,22 @@ describe("the landing page", () => {
 	it("sends feedback somewhere that exists", () => {
 		expect(html).toContain("roswaal-feedback");
 		expect(html).not.toContain("github.com/neopolitans/Roswaal/issues");
+	});
+
+	/**
+	 * The source, linked plainly.
+	 *
+	 * A shields.io badge would be a third party's image on the first page anybody
+	 * sees, and it would report a star count that says nothing on day one. The
+	 * link goes to the repository root rather than to `issues` -- feedback has a
+	 * repository of its own, and the two are not the same door.
+	 */
+	it("links its own source, without borrowing a mark to do it", () => {
+		expect(html).toContain('href="https://github.com/neopolitans/Roswaal"');
+		expect(text).toContain("Source on GitHub");
+		// No image pulled from anywhere else, and no inlined third-party logo.
+		expect(html).not.toContain("shields.io");
+		expect(html).not.toMatch(/<img[^>]+https?:/i);
 	});
 
 	/**
