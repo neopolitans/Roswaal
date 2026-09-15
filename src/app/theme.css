@@ -4332,6 +4332,11 @@ button.tb.icon-only.on {
 
 .docs-page-head .sub { color: var(--fg-faint); font-size: 12px; }
 
+/* Pushes the controls to the right edge. The editor's own docs window does the
+   same thing with an inline style on a spacer span; the published site has no
+   React to write one, so it gets a class. */
+.docs-page-head .grow { flex: 1; }
+
 .docs-page-head .warn {
 	font-size: 11px;
 	color: var(--warning);

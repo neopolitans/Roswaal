@@ -23,6 +23,7 @@ import { escapeHtml } from "../../src/core/docs/html.ts";
 import { BUILTIN_NODES, createRegistry } from "../../src/core/nodes/index.ts";
 import { growthState } from "../../src/core/nodes/growth.ts";
 import { graphSvg } from "../../src/core/docs/preview.ts";
+import { SOURCE_REPOSITORY } from "../../src/core/docs/links.ts";
 import { highlightLuau } from "../../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../../src/app/palette.ts";
 import { BUILTIN_NODES as ALL_NODES } from "../../src/core/nodes/index.ts";
@@ -41,14 +42,7 @@ import { ICONS } from "../../src/app/icons.tsx";
  */
 const EXAMPLE = "node/event.connect";
 
-/**
- * Roswaal's own repository.
- *
- * Dead until it is public, which is why the button carrying it lands with the
- * change of visibility rather than before it — the documentation spent a week
- * linking `issues/new` on a private repository, and once was enough.
- */
-const REPOSITORY = "https://github.com/neopolitans/Roswaal";
+
 
 /**
  * A node's colour, from the function the canvas itself uses.
@@ -339,7 +333,7 @@ export function landingPage(version) {
       <li><a class="door first" href="try.html">Try it in your browser</a></li>
       <li><a href="docs/">Read the documentation</a></li>
       <li>
-        <a class="door with-icon" href="${REPOSITORY}" rel="noreferrer noopener">
+        <a class="door with-icon" href="${SOURCE_REPOSITORY}" rel="noreferrer noopener">
           ${icon("external")} Source on GitHub
         </a>
       </li>

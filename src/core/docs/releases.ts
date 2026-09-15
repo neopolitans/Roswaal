@@ -76,6 +76,15 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.59.2",
+		date: "2026-09-15",
+		headline: "A published documentation page leads somewhere.",
+		affects: ["docs"],
+		added: [
+			"**The header of every documentation page** carries *Try it in your browser* and *Source*. The mark still goes to the documentation's own index.",
+		],
+	},
+	{
 		version: "0.59.1",
 		date: "2026-09-15",
 		headline: "The source is public.",

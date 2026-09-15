@@ -400,3 +400,44 @@ describe("release tag classes", () => {
 		expect(html).toMatch(/class="docs-tag tag-/);
 	});
 });
+
+/**
+ * The header on a published documentation page.
+ *
+ * It carried the mark and nothing else for fifty releases, which was fine while
+ * the docs were reached from the editor -- you arrived from the thing being
+ * documented and could go back to it. Published, they are where most people
+ * arrive, and the page led nowhere: the mark goes to the docs index, and the
+ * only other links on it were the ones in the prose.
+ *
+ * The depth is the part worth holding. A node page sits a directory deeper than
+ * a guide, so a link written once has to climb differently on each -- and a
+ * wrong climb is a 404 on 283 of the 301 pages, or on the other 18.
+ */
+describe("the header of a published page", () => {
+	const page = (slug: string) => renderPage(site, {
+		slug, title: "T", summary: "S", blocks: [],
+	}, { version: "test" });
+
+	it("offers the editor and the source, not just the mark", () => {
+		const html = page("getting-started");
+		expect(html).toContain("Try it in your browser");
+		expect(html).toContain('href="https://github.com/neopolitans/Roswaal"');
+	});
+
+	it("climbs to the site root from whatever depth the page is at", () => {
+		// A top-level page is in `docs/`, so one step up is the site root.
+		expect(page("getting-started")).toContain('href="../try.html"');
+		// A node page is in `docs/node/`, so it needs two.
+		expect(page("node/event.connect")).toContain('href="../../try.html"');
+	});
+
+	/**
+	 * The mark stays pointed at the docs index. It is the way back to the top of
+	 * the documentation, and a header where everything leaves the docs has no
+	 * way back to their front page.
+	 */
+	it("keeps the mark pointing at the docs index", () => {
+		expect(page("node/event.connect")).toContain('class="logo" href="../index.html"');
+	});
+});

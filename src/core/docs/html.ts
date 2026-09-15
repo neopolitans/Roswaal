@@ -20,7 +20,7 @@ import type { Block, DocPage, DocSection, DocSite } from "./site.js";
 import type { Registry } from "../nodes/index.js";
 import { allPages, isPageLink, parseInline, TAG_LABELS } from "./site.js";
 import { graphSvg, previewSvg, type PreviewOptions } from "./preview.js";
-import { FEEDBACK_REPOSITORY } from "./links.js";
+import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
 
 export interface RenderOptions {
@@ -421,6 +421,9 @@ ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(optio
 <div class="docs-page">
 <header class="docs-page-head">
 <a class="logo" href="${up}index.html">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a>
+<span class="grow"></span>
+<a class="tb" href="${up}../try.html">Try it in your browser</a>
+<a class="tb" href="${SOURCE_REPOSITORY}" rel="noreferrer noopener">Source</a>
 </header>
 <div class="docs-body">
 ${renderNav(site, page)}
