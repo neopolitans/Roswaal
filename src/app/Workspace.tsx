@@ -70,6 +70,8 @@ export interface WorkspaceProps {
 	onFramePanelEnd?: () => void;
 	/** Its Dock button was pressed: back to the dock it came from. */
 	onDockPanel?: (panel: PanelId) => void;
+	/** Out of its dock and into a window at this point over the centre. */
+	onFloatPanel?: (panel: PanelId, frame: PanelFrame) => void;
 }
 
 /** How far the pointer must travel before a press becomes a drag. */
@@ -77,9 +79,11 @@ const DRAG_THRESHOLD = 4;
 
 export function Workspace({
 	layout, contents, centre, floating, onResize, onResizeEnd, onToggle, onMovePanel,
-	onFramePanel, onFramePanelEnd, onDockPanel,
+	onFramePanel, onFramePanelEnd, onDockPanel, onFloatPanel,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
+	/** The centre, which a window's coordinates are measured from. */
+	const centreBox = useRef<HTMLDivElement>(null);
 	/** The panel under the pointer, and where it would land if released now. */
 	const [dragging, setDragging] = useState<{ panel: PanelId; over: DockSide | null } | null>(null);
 	/**
@@ -124,6 +128,11 @@ export function Workspace({
 						layout={effective}
 						contents={contents}
 						onDragPanel={onMovePanel ? startDrag : undefined}
+						onFloat={
+							onFloatPanel
+								? (panel) => onFloatPanel(panel, layout.panels[panel].frame)
+								: undefined
+						}
 					/>
 				) : null,
 			)}
@@ -143,7 +152,7 @@ export function Workspace({
 				) : null,
 			)}
 
-			<div className="centre" style={{ gridArea: "centre" }}>
+			<div className="centre" style={{ gridArea: "centre" }} ref={centreBox}>
 				{centre}
 				{floating}
 				{/* Over the graph rather than beside it. Inside the centre, so a
@@ -220,7 +229,31 @@ export function Workspace({
 			if (!started) return;
 			const rect = surface.current?.getBoundingClientRect();
 			const side = rect ? dropZone(rect, e.clientX, e.clientY) : null;
-			if (side) onMovePanel?.(panel, side);
+			if (side) {
+				onMovePanel?.(panel, side);
+				return;
+			}
+			/**
+			 * Dropped over the graph: a window, where it was dropped.
+			 *
+			 * The gesture everybody tries first — drag the panel out of the dock
+			 * and onto the canvas — used to do nothing at all, because the only
+			 * drop targets were the three edges. A drop in the middle is not a
+			 * miss; it is the other place a panel can be.
+			 */
+			const centre = centreBox.current?.getBoundingClientRect();
+			if (!centre || !onFloatPanel) return;
+			if (
+				e.clientX < centre.x || e.clientX > centre.right
+				|| e.clientY < centre.y || e.clientY > centre.bottom
+			) return;
+			onFloatPanel(panel, {
+				// Under the pointer by its own heading, which is what was grabbed.
+				x: Math.round(e.clientX - centre.x - 40),
+				y: Math.round(e.clientY - centre.y - 10),
+				w: layout.panels[panel].frame.w,
+				h: layout.panels[panel].frame.h,
+			});
 		};
 
 		window.addEventListener("pointermove", move);
@@ -373,12 +406,13 @@ function DropPreview({ side, layout }: { side: DockSide; layout: Layout }) {
  * per dock and a strip has something to say.
  */
 function Dock({
-	side, layout, contents, onDragPanel,
+	side, layout, contents, onDragPanel, onFloat,
 }: {
 	side: DockSide;
 	layout: Layout;
 	contents: Partial<Record<PanelId, ReactNode>>;
 	onDragPanel?: (panel: PanelId, event: ReactPointerEvent<HTMLElement>) => void;
+	onFloat?: (panel: PanelId) => void;
 }) {
 	const ids = panelsIn(layout, side).filter((id) => contents[id] !== undefined);
 	if (ids.length === 0) return null;
@@ -389,9 +423,25 @@ function Dock({
 				<div
 					className={`panel panel-${id}`}
 					key={id}
-					title={onDragPanel ? `Drag ${PANEL_TITLES[id]} by its heading to another edge` : undefined}
+					title={
+						onDragPanel
+							? `Drag ${PANEL_TITLES[id]} by its heading to another edge, or onto the graph`
+							: undefined
+					}
 					onPointerDown={onDragPanel ? (e) => onDragPanel(id, e) : undefined}
 				>
+					{/* The button the window has, pointing the other way. Dragging the
+					    heading onto the graph does the same thing; a gesture nobody
+					    has been told about needs something visible beside it. */}
+					{onFloat && (
+						<button
+							className="tb icon-only panel-float"
+							title={`Put ${PANEL_TITLES[id]} in a window over the graph`}
+							onClick={() => onFloat(id)}
+						>
+							⇥
+						</button>
+					)}
 					{contents[id]}
 				</div>
 			))}

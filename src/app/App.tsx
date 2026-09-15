@@ -1494,6 +1494,10 @@ export function App() {
 				onFramePanel={onFramePanel}
 				onFramePanelEnd={onFramePanelEnd}
 				onDockPanel={(panel) => onFloatPanel(panel, false)}
+				onFloatPanel={(panel, frame) => {
+					onFramePanel(panel, frame);
+					onFloatPanel(panel, true);
+				}}
 				contents={{
 					tree: (
 						<>

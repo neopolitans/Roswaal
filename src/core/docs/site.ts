@@ -1349,8 +1349,10 @@ const CONTROLS: DocPage = {
 			head: ["Gesture", "What it does"],
 			rows: [
 				["Drag a panel by its heading", "Move it to another edge"],
+				["Drag a panel onto the graph", "It becomes a window there"],
+				["The **⇥** button on a panel", "The same, without the drag"],
 				["Drag the divider beside a dock", "Resize it; double-click to collapse"],
-				["**Settings → Variables → Window**", "Variables leaves the dock for a window over the graph"],
+				["**Settings → Variables → Window**", "The same choice, remembered as a preference"],
 				["Drag the window by its heading", "Move it; the bottom-right corner resizes it"],
 				["The **⇤** button on the window", "Put it back in the dock it came from"],
 			],

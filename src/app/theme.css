@@ -765,15 +765,10 @@ select optgroup {
 }
 
 /* The panel's own heading is the window's title bar, so it says what a title
-   bar says and carries what the panel already put there.
-   
-   Two classes deep on purpose: `.dock h2` sets the heading's padding as a
-   shorthand and is further down the file, so an equally specific rule here
-   loses and the Add button ends up under the dock button. */
+   bar says and carries what the panel already put there. The room for the
+   button over its right end is in `.dock h2`, which both shapes share. */
 .float-panel .float-body h2 {
 	user-select: none;
-	/* Room for the dock button sitting over its right end. */
-	padding-right: 38px;
 }
 
 /* A panel in a window fills it, the way it fills a dock. */
@@ -783,13 +778,44 @@ select optgroup {
 	min-height: 0;
 }
 
-/* Over the heading rather than in a bar of its own. */
+/* The two buttons that move a panel between a dock and a window: ⇥ out of the
+   dock, ⇤ back into it.
+   
+   Sized to the Add button beside them rather than to the toolbar's icon
+   buttons, which are 28px and tower over a heading. They sit on the heading's
+   own row, so they have to be that row's height. */
+button.tb.icon-only.float-dock,
+button.tb.icon-only.panel-float {
+	width: 20px;
+	height: 20px;
+	min-width: 0;
+	padding: 0;
+	font-size: 12px;
+	line-height: 1;
+	z-index: 2;
+}
+
+/* Over the heading, level with the button already in it. */
 .float-panel .float-dock {
 	position: absolute;
-	top: 6px;
-	right: 6px;
-	z-index: 1;
+	top: 10px;
+	right: 8px;
 }
+
+/* The same button in a dock, pointing the other way.
+   
+   Sticky rather than absolute, and above the heading in the flow with a
+   negative margin pulling the heading back up under it: the dock scrolls, the
+   heading is sticky, and a button pinned to the panel would scroll away from
+   the heading it belongs to. The margins put it on the heading's own line --
+   ten down for the heading's padding, and its whole height back again. */
+.panel .panel-float {
+	position: sticky;
+	top: 10px;
+	align-self: flex-end;
+	margin: 10px 8px -30px 0;
+}
+
 
 .float-body {
 	flex: 1;
@@ -1211,7 +1237,10 @@ button.tb.primary:hover:not(:disabled) {
 	letter-spacing: 0.08em;
 	color: var(--fg-faint);
 	margin: 0;
-	padding: 10px 12px 6px;
+	/* Wide on the right: both shapes hang a button over that end — the window's
+	   dock button, the dock's undock one — and a heading with an Add button in
+	   it has no room to spare otherwise. */
+	padding: 10px 34px 6px 12px;
 	position: sticky;
 	top: 0;
 	background: var(--bg-panel);
@@ -2244,7 +2273,8 @@ button.tb.primary:hover:not(:disabled) {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	padding: 4px 10px;
+	/* Room on the right for the undock button, as the headings have. */
+	padding: 4px 34px 4px 10px;
 	font-size: 12px;
 	cursor: pointer;
 }

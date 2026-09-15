@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.50.1",
+		date: "2026-09-15",
+		headline: "Drag a panel onto the graph.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Dragging a panel out of its dock and onto the graph makes it a window**, where you dropped it. The gesture did nothing before: the only drop targets were the three edges, so a drop in the middle read as a miss.",
+			"**A ⇥ button on every docked panel** does the same without the drag — the mirror of the ⇤ that puts a window back.",
+		],
+		fixed: [
+			"**Both buttons are the size of the heading they sit in**, rather than the toolbar's 28px icons, and sit level with the panel's own Add button.",
+		],
+	},
+	{
 		version: "0.50.0",
 		date: "2026-09-15",
 		headline: "A picker that draws the node, and constants in the Variables list.",
