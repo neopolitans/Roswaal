@@ -29,7 +29,8 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
+import { faviconHref } from "../src/app/logo.tsx";
+import { landingPage } from "./lib/landing.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "dist-pages");
@@ -69,79 +70,6 @@ function checkClaimedBase(base) {
 }
 
 const { version } = JSON.parse(await readFile(join(root, "version.json"), "utf8"));
-
-/**
- * The page in front of everything, until there is a landing page.
- *
- * Deliberately small and deliberately honest: it says what Roswaal is, admits
- * the browser copy is a preview of something still in testing, and gives the
- * three doors. A holding page that oversells is worse than no holding page,
- * because the people following this link first are the ones who will report
- * what is wrong with it.
- */
-function holdingPage() {
-	return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Roswaal</title>
-<link rel="icon" href="${faviconHref()}" />
-<meta name="description" content="Visual scripting for Roblox Luau and Lune Luau. Graphs compile to plain Luau that Rojo syncs." />
-<style>
-  :root { color-scheme: dark; }
-  body {
-    margin: 0; min-height: 100vh; display: grid; place-items: center;
-    background: #14161c; color: #d6dae4; padding: 24px;
-    font: 15px/1.6 ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-  }
-  main { max-width: 34rem; }
-  .mark { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; color: #e8ecf4; }
-  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
-  .version { font-size: 12px; color: #6f7686; }
-  p { color: #9aa2b4; }
-  code { background: #1c1f28; border-radius: 4px; padding: 1px 5px; font-size: 13px; }
-  .doors { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 0; padding: 0; list-style: none; }
-  a.door {
-    display: inline-block; padding: 9px 15px; border-radius: 7px;
-    border: 1px solid #2c313d; background: #1c1f28; color: #d6dae4; text-decoration: none;
-  }
-  a.door:hover { border-color: #3d63c4; color: #fff; }
-  a.door.first { background: #3d63c4; border-color: #3d63c4; color: #fff; }
-  .note { margin-top: 30px; font-size: 13px; color: #6f7686; border-top: 1px solid #23262f; padding-top: 16px; }
-  .note a { color: #8fa6dd; }
-</style>
-</head>
-<body>
-<main>
-  <div class="mark">${logoMarkup(26)}<h1>Roswaal</h1><span class="version">${version}</span></div>
-  <p>
-    Visual scripting for Roblox Luau and Lune Luau. Graphs live on disk as
-    <code>.nodescript</code> files and compile to plain <code>.luau</code> that
-    Rojo syncs like any other source file.
-  </p>
-  <p>
-    The copy below runs entirely in this tab — the same editor and the same
-    compiler as the tool you install, over a project held in your browser
-    instead of on a disk. Nothing you do in it leaves your browser, and it is
-    still there when you come back. You can download the whole project as a zip
-    whenever you want it somewhere safer.
-  </p>
-  <ul class="doors">
-    <li><a class="door first" href="try.html">Try it in the browser</a></li>
-    <li><a class="door" href="docs/">Documentation</a></li>
-    <li><a class="door" href="https://github.com/neopolitans/roswaal-feedback/issues/new">Report something</a></li>
-  </ul>
-  <p class="note">
-    A preview, ahead of the first release. It is complete enough to build real
-    graphs with, and it will have rough edges — please
-    <a href="https://github.com/neopolitans/roswaal-feedback/issues/new">say what they are</a>.
-  </p>
-</main>
-</body>
-</html>
-`;
-}
 
 /** Sent for any path with nothing behind it, so GitHub's own 404 never shows. */
 function notFoundPage(base) {
@@ -200,7 +128,7 @@ async function main() {
 	await cp(editor, out, { recursive: true });
 	await cp(docs, join(out, "docs"), { recursive: true });
 
-	await writeFile(join(out, "index.html"), holdingPage(), "utf8");
+	await writeFile(join(out, "index.html"), landingPage(version), "utf8");
 	await writeFile(join(out, "404.html"), notFoundPage(base), "utf8");
 
 	// Tells Pages not to run the files through Jekyll, which would drop every

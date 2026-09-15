@@ -4676,18 +4676,18 @@ button.tb.icon-only.on {
  *
  * The variables are the ones the Custom Code editor's HighlightStyle uses, so a
  * snippet in the docs, the same code in the editor and the same code in the
- * preview are one opinion about Luau rather than three. */
-:is(.docs-code, .preview-code) .tok-keyword { color: var(--code-keyword); }
-:is(.docs-code, .preview-code) .tok-string { color: var(--code-string); }
-:is(.docs-code, .preview-code) .tok-number { color: var(--code-number); }
-:is(.docs-code, .preview-code) .tok-comment { color: var(--code-comment); font-style: italic; }
-:is(.docs-code, .preview-code) .tok-operator { color: var(--code-operator); }
-:is(.docs-code, .preview-code) .tok-global { color: var(--code-global); }
-:is(.docs-code, .preview-code) .tok-function { color: var(--code-function); }
-:is(.docs-code, .preview-code) .tok-type { color: var(--code-type); }
-:is(.docs-code, .preview-code) .tok-property { color: var(--code-property); }
-:is(.docs-code, .preview-code) .tok-bracket,
-:is(.docs-code, .preview-code) .tok-punctuation { color: var(--fg-muted); }
+ * preview are one opinion about Luau rather than four. */
+:is(.docs-code, .preview-code, .landing-code) .tok-keyword { color: var(--code-keyword); }
+:is(.docs-code, .preview-code, .landing-code) .tok-string { color: var(--code-string); }
+:is(.docs-code, .preview-code, .landing-code) .tok-number { color: var(--code-number); }
+:is(.docs-code, .preview-code, .landing-code) .tok-comment { color: var(--code-comment); font-style: italic; }
+:is(.docs-code, .preview-code, .landing-code) .tok-operator { color: var(--code-operator); }
+:is(.docs-code, .preview-code, .landing-code) .tok-global { color: var(--code-global); }
+:is(.docs-code, .preview-code, .landing-code) .tok-function { color: var(--code-function); }
+:is(.docs-code, .preview-code, .landing-code) .tok-type { color: var(--code-type); }
+:is(.docs-code, .preview-code, .landing-code) .tok-property { color: var(--code-property); }
+:is(.docs-code, .preview-code, .landing-code) .tok-bracket,
+:is(.docs-code, .preview-code, .landing-code) .tok-punctuation { color: var(--fg-muted); }
 
 /* Pin lists, in the shape Roblox's own reference uses for properties: one
    bordered row per entry, the signature scannable down the left, detail

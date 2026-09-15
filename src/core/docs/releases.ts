@@ -76,6 +76,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.55.0",
+		date: "2026-09-15",
+		headline: "Roswaal has a front page.",
+		affects: ["docs"],
+		added: [
+			"**A landing page**, showing a graph and the Luau compiled from it. Both halves are built from the same `.nodescript` by the same compiler the editor runs, so the picture cannot show a wiring the code does not have — and it says what is there beyond the nodes: the two escape hatches, node packs of your own, and a reference page for every node.",
+		],
+		fixed: [
+			"**Luau is coloured wherever it is shown.** The palette was scoped to a list of containers and a new one had not been added to it, so a code block could be correct, classed, and entirely grey.",
+		],
+	},
+	{
 		version: "0.54.0",
 		date: "2026-09-15",
 		headline: "The browser version remembers your folder, and can set one up.",
