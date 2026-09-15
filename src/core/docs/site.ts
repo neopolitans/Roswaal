@@ -1202,7 +1202,7 @@ const CONTROLS: DocPage = {
 				["`Ctrl` + `A`", "Select everything in the graph on screen"],
 				[
 					"`Ctrl` + `C`, `Ctrl` + `X`, `Ctrl` + `V`",
-					"Copy, cut, paste. A function brings its graph. The paste lands with its top-left corner at the pointer, or offset from the original when the pointer is off the canvas",
+					"Copy, cut, paste. A function brings its graph and a comment brings what it is drawn around. The paste lands with its top-left corner at the pointer, or offset from the original when the pointer is off the canvas",
 				],
 				["`Ctrl` + `D`", "Duplicate the selection, at the pointer"],
 				["`Ctrl` + `Shift` + `L`", "Realign the graph on screen"],

@@ -54,6 +54,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.36.5",
+		date: "2026-09-15",
+		headline: "A copied comment brings what it is drawn around.",
+		fixed: [
+			"**Copying a comment copies the nodes inside it**, and the wires between them. It used to copy the rectangle alone — so pasting gave an empty box, which then landed over whatever was already there and enclosed that instead.",
+			"**A comment inside a copied comment comes too**, with everything in it.",
+		],
+		changed: [
+			"**Cut takes away exactly what it took a copy of.** Cutting a comment removes the nodes it encloses, so the paste is the group rather than a second set of it.",
+		],
+		watch: [
+			"**Delete is unchanged.** Removing a comment removes the note and leaves the nodes, as it always has — a key that quietly took eleven nodes with it is not one to find out about by accident.",
+			"**A node does not bring its comment.** Copying something that happens to sit inside a comment copies the node, exactly as dragging it does.",
+		],
+	},
+	{
 		version: "0.36.4",
 		date: "2026-09-15",
 		headline: "A paste lands where you are pointing.",

@@ -155,7 +155,7 @@ describe("a function as a whole", () => {
 
 	it("is copied with its graph, and the copy's graph is its own", () => {
 		const { script, fn } = declared();
-		const { script: pasted, ids } = pasteClipping(script, copySelection(script, new Set([fn])));
+		const { script: pasted, ids } = pasteClipping(script, copySelection(script, new Set([fn]), registry));
 		const copy = pasted.nodes.find((n) => ids.includes(n.id) && n.def === "function.declareHere")!;
 		const members = graphMembers(pasted, copy.id);
 		expect(members.size).toBe(1);

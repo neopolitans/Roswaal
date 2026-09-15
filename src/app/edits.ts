@@ -1412,14 +1412,46 @@ export interface Clipping {
 }
 
 /**
+ * A selection, plus everything a picked comment is drawn around.
+ *
+ * **A comment carries its contents, because that is what a comment does.**
+ * Dragging one takes the nodes it encloses; the Inspector says so; and every
+ * other thing you can do to a comment has meant the group rather than the box.
+ * Copying was the exception, and copying a commented group gave you an empty
+ * rectangle -- which then landed on top of whatever was already there and
+ * enclosed *that*, so the one thing the box was sure to contain was the nodes
+ * it was copied from.
+ *
+ * One pass is enough, and provably so: containment is transitive for
+ * rectangles, so a comment inside a picked comment has its own contents inside
+ * the picked one as well, and they are found by the same look.
+ *
+ * Only in this direction. A node that happens to sit inside a comment does not
+ * bring the comment, exactly as dragging the node alone does not.
+ */
+export function withCommentContents(
+	script: NodeScript, picked: ReadonlySet<string>, registry: Registry,
+): Set<string> {
+	const out = new Set(picked);
+	for (const id of picked) {
+		if (!script.comments.some((c) => c.id === id)) continue;
+		for (const member of commentContents(script, registry, id)) out.add(member);
+	}
+	return out;
+}
+
+/**
  * Copies a selection, keeping only the wires with both ends inside it. A wire
  * to something that was not copied has nothing to reconnect to on paste.
  *
  * A function carries its graph, or pasting it would give a declaration with
- * nothing inside.
+ * nothing inside. A comment carries what it encloses -- see
+ * `withCommentContents`.
  */
-export function copySelection(script: NodeScript, picked: ReadonlySet<string>): Clipping {
-	const ids = withFunctionGraphs(script, picked);
+export function copySelection(
+	script: NodeScript, picked: ReadonlySet<string>, registry: Registry,
+): Clipping {
+	const ids = withFunctionGraphs(script, withCommentContents(script, picked, registry));
 	const nodes = script.nodes.filter((n) => ids.has(n.id));
 	const inside = new Set(nodes.map((n) => n.id));
 	return {

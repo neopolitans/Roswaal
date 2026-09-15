@@ -45,6 +45,7 @@ import { readPreferences, writePreferences, type Preferences } from "./preferenc
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import {
 	addComment, addNode, alignToAnchor, landingPins, connect, copySelection, deleteSelection, disconnectPin, pasteClipping,
+	withCommentContents,
 	promoteToVariable, recombinePin, selectionAnchor, setConfig as setNodeConfig, setLiteral, splitCost,
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
@@ -1015,8 +1016,20 @@ export function App() {
 				const state = store.getSnapshot();
 				if (!state.script || state.selection.size === 0) return;
 				e.preventDefault();
-				clipboard.current = copySelection(state.script, state.selection);
-				if (e.key.toLowerCase() === "x") void removeSelection(state.selection);
+				clipboard.current = copySelection(state.script, state.selection, registry);
+				/**
+				 * Cut takes away exactly what it took a copy of.
+				 *
+				 * A comment carries what it encloses, so cutting one and cutting
+				 * only its box would leave the nodes behind and the paste would
+				 * be a second set of them. Delete is deliberately not changed:
+				 * removing a comment has always meant removing the note, and a
+				 * key that quietly took eleven nodes with it is not a key anybody
+				 * should have to find out about.
+				 */
+				if (e.key.toLowerCase() === "x") {
+					void removeSelection(withCommentContents(state.script, state.selection, registry));
+				}
 				return;
 			}
 			if (mod && e.key.toLowerCase() === "v") {
@@ -1030,7 +1043,7 @@ export function App() {
 				const state = store.getSnapshot();
 				if (!state.script || state.selection.size === 0) return;
 				e.preventDefault();
-				paste(copySelection(state.script, state.selection));
+				paste(copySelection(state.script, state.selection, registry));
 				return;
 			}
 			if (e.key === "Delete" || e.key === "Backspace") {
@@ -1075,7 +1088,7 @@ export function App() {
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [editor.path, mapDoc, source, runCompile, runCompileMap, spawnComment, realign, removeSelection, locked, registry]);
+	}, [editor.path, mapDoc, source, runCompile, runCompileMap, spawnComment, realign, removeSelection, locked, registry, paste]);
 
 	// -- project tree ------------------------------------------------------
 

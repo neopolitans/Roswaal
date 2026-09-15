@@ -576,6 +576,10 @@ export function Canvas({
 			tabIndex={0}
 			onPointerDown={onSurfacePointerDown}
 			onPointerMove={(e) => onPointerAt?.(toWorld(e.clientX, e.clientY))}
+			// Captured, so a press anywhere inside -- on a node, a pin, a comment
+			// -- records where the pointer is even if the move that got it there
+			// was swallowed by something between here and it.
+			onPointerDownCapture={(e) => onPointerAt?.(toWorld(e.clientX, e.clientY))}
 			// A pointer that has left has no position to paste at, and the
 			// alternative -- keeping the last one it had -- puts the paste
 			// wherever it happened to exit, which is not somewhere anybody chose.
