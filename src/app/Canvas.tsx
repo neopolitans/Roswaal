@@ -36,6 +36,14 @@ import {
 } from "./edits.js";
 import { store, useEditor, useView } from "./store.js";
 
+/**
+ * The smallest a comment may be dragged to.
+ *
+ * Named because two corners now enforce it and they have to agree: a
+ * top-left drag stops where a bottom-right drag would have stopped.
+ */
+const COMMENT_MIN = { w: 160, h: 96 } as const;
+
 
 export interface CanvasProps {
 	/** The whole script. The canvas draws one graph of it. */
@@ -105,7 +113,15 @@ type Gesture =
 			anchor: string;
 	  }
 	| { kind: "wire"; from: PinRef; side: "in" | "out"; pin: PinDef }
-	| { kind: "resize"; id: string; origin: Vec; start: { w: number; h: number } };
+	/**
+ * Resizing a comment, from either corner.
+ *
+ * The **whole** starting box, not just its size: dragging the top-left moves
+ * the box as well as resizing it, and it has to move by exactly what the size
+ * lost. Working that out from the current box each frame accumulates rounding
+ * and the opposite corner creeps.
+ */
+| { kind: "resize"; id: string; corner: "nw" | "se"; origin: Vec; start: Rect };
 
 export function Canvas({
 	script: whole, graph = null, registry, diagnostics, onRequestMenu, onRequestPinMenu, onEditCode,
@@ -294,12 +310,34 @@ export function Canvas({
 					break;
 				}
 				case "resize": {
-					store.apply((s) =>
-						updateComment(s, g.id, {
-							w: Math.max(160, g.start.w + (world.x - g.origin.x)),
-							h: Math.max(96, g.start.h + (world.y - g.origin.y)),
-						}),
-					);
+					const dx = world.x - g.origin.x;
+					const dy = world.y - g.origin.y;
+					/**
+					 * The bottom-right corner grows the box. The top-left moves it
+					 * *and* shrinks it by the same amount, so the opposite corner
+					 * stays where it is — which is the whole reason to grab that
+					 * corner rather than the other one.
+					 *
+					 * Clamped by taking the smaller of the drag and what is left
+					 * above the minimum, so a top-left drag that runs out of box
+					 * stops moving instead of sliding on past its own bottom-right.
+					 */
+					const patch = g.corner === "se"
+						? {
+								w: Math.max(COMMENT_MIN.w, g.start.w + dx),
+								h: Math.max(COMMENT_MIN.h, g.start.h + dy),
+							}
+						: (() => {
+								const takeX = Math.min(dx, g.start.w - COMMENT_MIN.w);
+								const takeY = Math.min(dy, g.start.h - COMMENT_MIN.h);
+								return {
+									x: g.start.x + takeX,
+									y: g.start.y + takeY,
+									w: g.start.w - takeX,
+									h: g.start.h - takeY,
+								};
+							})();
+					store.apply((s) => updateComment(s, g.id, patch));
 					break;
 				}
 			}
@@ -554,15 +592,16 @@ export function Canvas({
 		};
 	}
 
-	function onCommentResize(e: ReactPointerEvent, comment: Comment) {
+	function onCommentResize(e: ReactPointerEvent, comment: Comment, corner: "nw" | "se") {
 		if (e.button !== 0) return;
 		e.stopPropagation();
 		store.begin();
 		gesture.current = {
 			kind: "resize",
 			id: comment.id,
+			corner,
 			origin: toWorld(e.clientX, e.clientY),
-			start: { w: comment.w, h: comment.h },
+			start: { x: comment.x, y: comment.y, w: comment.w, h: comment.h },
 		};
 	}
 
@@ -962,7 +1001,7 @@ interface CommentViewProps {
 	selected: boolean;
 	editing: boolean;
 	onPointerDown: (e: ReactPointerEvent, comment: Comment) => void;
-	onResize: (e: ReactPointerEvent, comment: Comment) => void;
+	onResize: (e: ReactPointerEvent, comment: Comment, corner: "nw" | "se") => void;
 	onStartEdit: () => void;
 	/** The text, and how tall the header ended up, so the box can fit it. */
 	onCommit: (text: string, barHeight: number) => void;
@@ -1020,7 +1059,20 @@ function CommentView(props: CommentViewProps) {
 					comment.text
 				)}
 			</div>
-			<div className="resize" onPointerDown={(e) => props.onResize(e, comment)} />
+			{/* Both corners. The top-left moves the box as it resizes, which is
+			    what you want when a comment has to grow upwards to take in a node
+			    above it -- the alternative is resizing from the bottom and then
+			    dragging the whole thing back. */}
+			<div
+				className="resize nw"
+				title="Resize from this corner"
+				onPointerDown={(e) => props.onResize(e, comment, "nw")}
+			/>
+			<div
+				className="resize se"
+				title="Resize from this corner"
+				onPointerDown={(e) => props.onResize(e, comment, "se")}
+			/>
 		</div>
 	);
 }

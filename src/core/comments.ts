@@ -103,15 +103,47 @@ export function headersByNode(
 }
 
 /**
- * A comment's text as Luau comment lines.
+ * The `=` level a long-bracket comment needs to survive its own contents.
  *
- * One `--` line each, rather than a `--[[ ]]` block, because a header is
- * usually one line and a block comment for one line is ceremony. A header that
- * does run long keeps its own line breaks, so what was written is what appears.
+ * `--[[ ... ]]` ends at the first `]]`, so a header mentioning `t[a[1]]` would
+ * close the comment early and leave the rest of it as code. Luau allows any
+ * number of `=` between the brackets, and the closer has to match — so the
+ * level is the smallest that does not appear in the text.
+ *
+ * Nobody will ever see level 1. It exists because the alternative is generating
+ * a file that does not parse, from a comment somebody wrote in good faith.
+ */
+export function bracketLevel(text: string): number {
+	for (let level = 0; level < 16; level++) {
+		if (!text.includes(`]${"=".repeat(level)}]`)) return level;
+	}
+	return 16;
+}
+
+/**
+ * A comment's text as Luau.
+ *
+ * **One line stays `-- like this`**, because a block comment around six words is
+ * ceremony, and a one-line header is what most comments are.
+ *
+ * **More than one becomes `--[[ … ]]`**, which is what the hand-written module
+ * this mirrors uses for exactly the same thing: a heading with a paragraph under
+ * it. Six `--` lines in a row is a wall; a block has a top and a bottom and
+ * reads as one thing. The lines inside are indented a level, as they are there.
+ *
+ * That indentation is a **tab**, which `push` reads as one level relative to
+ * wherever the comment lands and strips from the line — so this needs to know
+ * neither how deep the block it is going into happens to be, nor whether the
+ * project indents with spaces.
  */
 export function commentLines(text: string): string[] {
-	return text
-		.replace(/\r\n?/g, "\n")
-		.split("\n")
-		.map((line) => `-- ${line.trimEnd()}`.trimEnd());
+	const lines = text.replace(/\r\n?/g, "\n").split("\n").map((line) => line.trimEnd());
+	if (lines.length === 1) return [`-- ${lines[0]}`.trimEnd()];
+
+	const eq = "=".repeat(bracketLevel(text));
+	return [
+		`--[${eq}[`,
+		...lines.map((line) => (line === "" ? "" : `\t${line}`)),
+		`]${eq}]`,
+	];
 }

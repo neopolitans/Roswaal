@@ -1531,22 +1531,43 @@ button.tb.primary:hover:not(:disabled) {
 
 .comment .resize {
 	position: absolute;
-	right: 0;
-	bottom: 0;
 	width: 16px;
 	height: 16px;
 	cursor: nwse-resize;
+	/* Above the header bar, which the top-left corner sits on top of and which
+	   would otherwise take the drag as a move. */
+	z-index: 36;
 }
 
 .comment .resize::after {
 	content: "";
 	position: absolute;
-	right: 3px;
-	bottom: 3px;
 	width: 8px;
 	height: 8px;
+}
+
+.comment .resize.se {
+	right: 0;
+	bottom: 0;
+}
+
+.comment .resize.se::after {
+	right: 3px;
+	bottom: 3px;
 	border-right: 2px solid color-mix(in srgb, var(--comment-color) 90%, transparent);
 	border-bottom: 2px solid color-mix(in srgb, var(--comment-color) 90%, transparent);
+}
+
+.comment .resize.nw {
+	left: 0;
+	top: 0;
+}
+
+.comment .resize.nw::after {
+	left: 3px;
+	top: 3px;
+	border-left: 2px solid color-mix(in srgb, var(--comment-color) 90%, transparent);
+	border-top: 2px solid color-mix(in srgb, var(--comment-color) 90%, transparent);
 }
 
 /* ------------------------------------------------------------------- menu */

@@ -13,7 +13,7 @@ import { describe, expect, it } from "vitest";
 import { body, Builder } from "./helpers.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
-import { commentLines, headersByNode } from "../src/core/comments.js";
+import { bracketLevel, commentLines, headersByNode } from "../src/core/comments.js";
 
 const registry = createRegistry();
 const on = { comments: true };
@@ -67,9 +67,18 @@ describe("a comment holding nodes", () => {
 		expect([...holds.keys()]).toEqual(["first"]);
 	});
 
-	it("keeps the lines the header was written with", () => {
+	/**
+	 * A heading with a paragraph under it is what a block comment is for, and is
+	 * what the hand-written module this mirrors uses. Six `--` lines is a wall.
+	 */
+	it("becomes a block when the header has more than one line", () => {
 		const out = body(compile(graph(BOTH, "Two lines\nof heading"), registry, on).code);
-		expect(out).toContain("-- Two lines\n-- of heading");
+		expect(out).toContain(["--[[", "\tTwo lines", "\tof heading", "]]"].join("\n"));
+	});
+
+	/** One line is one line: a block around six words is ceremony. */
+	it("stays a dash comment when the header is one line", () => {
+		expect(body(compile(graph(BOTH), registry, on).code)).toContain("-- Say hello\n");
 	});
 
 	/** A blank header would emit a bare `--`, which is noise rather than a note. */
@@ -127,12 +136,34 @@ describe("a header inside a block", () => {
 });
 
 describe("a header's text as Luau", () => {
-	it("is one comment line each, with no trailing space on a blank one", () => {
-		expect(commentLines("one\ntwo")).toEqual(["-- one", "-- two"]);
-		expect(commentLines("one\n\ntwo")).toEqual(["-- one", "--", "-- two"]);
+	it("is a dash comment for one line", () => {
+		expect(commentLines("one")).toEqual(["-- one"]);
+		expect(commentLines("")).toEqual(["--"]);
+	});
+
+	it("is a long bracket for more", () => {
+		expect(commentLines("one\ntwo")).toEqual(["--[[", "\tone", "\ttwo", "]]"]);
+	});
+
+	/** A blank line inside keeps no indentation, so it is genuinely blank. */
+	it("leaves a blank line blank", () => {
+		expect(commentLines("one\n\ntwo")).toEqual(["--[[", "\tone", "", "\ttwo", "]]"]);
 	});
 
 	it("takes Windows line endings as line endings", () => {
-		expect(commentLines("one\r\ntwo")).toEqual(["-- one", "-- two"]);
+		expect(commentLines("one\r\ntwo")).toEqual(["--[[", "\tone", "\ttwo", "]]"]);
+	});
+
+	/**
+	 * `--[[ ]]` ends at the first `]]`, so a header mentioning one would close
+	 * the comment early and leave the rest of itself as code that does not parse.
+	 */
+	it("picks a bracket level its own text cannot close", () => {
+		expect(bracketLevel("nothing here")).toBe(0);
+		expect(bracketLevel("t[a[1]]")).toBe(1);
+		expect(bracketLevel("both ]] and ]=]")).toBe(2);
+		expect(commentLines("t[a[1]]\nsecond line")).toEqual([
+			"--[=[", "\tt[a[1]]", "\tsecond line", "]=]",
+		]);
 	});
 });

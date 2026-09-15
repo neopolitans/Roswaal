@@ -430,13 +430,24 @@ class Emitter {
 		 */
 		const previous = [...this.out].reverse().find((line) => line.text !== "");
 		if (previous && previous.indent >= this.indent) this.blank();
-		for (const line of commentLines(comment.text)) {
-			this.out.push({ text: line, indent: this.indent, node: nodeId });
-		}
+		this.write(commentLines(comment.text).join("\n"), nodeId);
 	}
 
 	private push(text: string, node?: string): void {
 		this.headerFor(node);
+		this.write(text, node);
+	}
+
+	/**
+	 * Lines out, with leading tabs read as relative indentation.
+	 *
+	 * Apart from `push` so that a comment header can use it without asking for a
+	 * comment header. That matters for more than the recursion: a block comment
+	 * indents its own body with a tab, and it is this that turns the tab into a
+	 * level — so the body follows the project's indent setting rather than being
+	 * a tab sitting inside four spaces.
+	 */
+	private write(text: string, node?: string): void {
 		for (const line of text.split("\n")) {
 			const inner = line.length - line.replace(/^\t+/, "").length;
 			this.out.push({ text: line.slice(inner), indent: this.indent + inner, node });

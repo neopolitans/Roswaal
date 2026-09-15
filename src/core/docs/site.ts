@@ -1385,6 +1385,7 @@ const CONTROLS: DocPage = {
 				["Select it", "Its colour, in the Inspector: eight swatches or a hex you type"],
 				["Double-click", "Edit the text. Enter adds a line; Esc, Ctrl+Enter or a click away saves"],
 				["Drag the bottom-right corner", "Resize"],
+				["Drag the top-left corner", "Resize, keeping the bottom-right where it is"],
 			],
 		},
 		{ t: "h", level: 2, text: "Dragging things in" },
@@ -1993,7 +1994,7 @@ function settingsPage(): DocPage {
 					[
 						"`comments`",
 						"`true`",
-						"Write each comment's header into the generated Luau, above the code of the nodes it is drawn around. Off keeps them in the editor, which is what other visual scripting tools do — see [Coming from Blueprints](coming-from-blueprints) if that is the habit you have.",
+						"Write each comment's header into the generated Luau, above the code of the nodes it is drawn around. A header of one line is written `-- like this`, one of several as a `--[[ ]]` block. Off keeps them in the editor, which is what other visual scripting tools do — see [Coming from Blueprints](coming-from-blueprints) if that is the habit you have.",
 					],
 					[
 						"`indentStyle`",

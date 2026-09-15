@@ -76,6 +76,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.39.2",
+		date: "2026-09-15",
+		headline: "Comments resize from either corner, and long headers print as blocks.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Comments resize from the top-left corner as well as the bottom-right.** The top-left drag moves the box as it shrinks it, so the bottom-right corner stays where it is — a comment can be grown upwards over a node above it without being dragged back afterwards.",
+		],
+		changed: [
+			"**A comment header of more than one line is written as a `--[[ ]]` block**, with its lines indented inside it, rather than a run of `--` lines. One line is still written `-- like this`. A header containing `]]` takes a `--[=[` block, or as many `=` as it needs.",
+		],
+	},
+	{
 		version: "0.39.1",
 		date: "2026-09-15",
 		headline: "The Docs tag is a tag again.",
