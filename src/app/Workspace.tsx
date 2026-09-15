@@ -292,7 +292,7 @@ function FloatingPanel({
 	 */
 	const start = useRef<{ frame: PanelFrame; x: number; y: number } | null>(null);
 
-	function drag(e: ReactPointerEvent<HTMLElement>, mode: "move" | "size") {
+	function drag(e: ReactPointerEvent<HTMLElement>, mode: "move" | "nw" | "se") {
 		if (e.button !== 0 || !onFrame) return;
 		const target = e.target as HTMLElement;
 		// The same handle rule the docks use: the heading moves the panel, and a
@@ -314,16 +314,31 @@ function FloatingPanel({
 			}
 			const dx = at.clientX - from.x;
 			const dy = at.clientY - from.y;
-			onFrame(
-				id,
-				mode === "move"
-					? { ...from.frame, x: from.frame.x + dx, y: from.frame.y + dy }
-					: {
-							...from.frame,
-							w: Math.max(MIN_FLOAT.w, from.frame.w + dx),
-							h: Math.max(MIN_FLOAT.h, from.frame.h + dy),
-						},
-			);
+			if (mode === "move") {
+				onFrame(id, { ...from.frame, x: from.frame.x + dx, y: from.frame.y + dy });
+				return;
+			}
+			if (mode === "se") {
+				onFrame(id, {
+					...from.frame,
+					w: Math.max(MIN_FLOAT.w, from.frame.w + dx),
+					h: Math.max(MIN_FLOAT.h, from.frame.h + dy),
+				});
+				return;
+			}
+			// The top-left moves the window as it shrinks it, by exactly what the
+			// size lost, so the opposite corner stays where it is. Clamped by the
+			// amount *taken* rather than by the size, or the window slides past
+			// its own bottom-right once it has nothing left to give — the same
+			// arithmetic a comment's corner does.
+			const takeX = Math.min(dx, from.frame.w - MIN_FLOAT.w);
+			const takeY = Math.min(dy, from.frame.h - MIN_FLOAT.h);
+			onFrame(id, {
+				x: from.frame.x + takeX,
+				y: from.frame.y + takeY,
+				w: from.frame.w - takeX,
+				h: from.frame.h - takeY,
+			});
 		};
 		const up = () => {
 			start.current = null;
@@ -352,7 +367,12 @@ function FloatingPanel({
 			    to put it and a heading carrying an Add button has no room. It sits
 			    over the heading's right end, and the heading makes space for it. */}
 			<div className="float-body" onPointerDown={(e) => drag(e, "move")}>
-				{children}
+				{/* The same wrapper a dock puts round a panel. Without it every rule
+				    written for `.panel` — and every panel that renders a fragment
+				    rather than one element — lands differently in a window than in
+				    a dock, which is the one thing a panel moving between them must
+				    not do. */}
+				<div className={`panel panel-${id}`}>{children}</div>
 			</div>
 			{onDock && (
 				<button
@@ -363,10 +383,18 @@ function FloatingPanel({
 					⇤
 				</button>
 			)}
+			{/* Both corners, for the reason a comment has both: growing a window
+			    upwards or leftwards otherwise means resizing it from the bottom
+			    and then dragging the whole thing back. */}
 			<div
-				className="float-size"
+				className="float-size nw"
 				title="Drag to resize"
-				onPointerDown={(e) => drag(e, "size")}
+				onPointerDown={(e) => drag(e, "nw")}
+			/>
+			<div
+				className="float-size se"
+				title="Drag to resize"
+				onPointerDown={(e) => drag(e, "se")}
 			/>
 		</div>
 	);

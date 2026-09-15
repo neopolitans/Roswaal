@@ -76,6 +76,19 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.50.2",
+		date: "2026-09-15",
+		headline: "A window resizes from either corner, and draws what it holds.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A window resizes from its top-left corner as well as its bottom-right**, moving as it shrinks so the far corner stays where it is — the same pair of handles a comment has.",
+		],
+		fixed: [
+			"**A panel in a window lays out as it does in a dock.** The project tree drew its outline and its tree as two halves of the window with a screen of nothing between them: the window was stretching every element a panel rendered, rather than the panel.",
+			"**One scroll container per window**, round the panel, which is the job a dock does for the panels in it.",
+		],
+	},
+	{
 		version: "0.50.1",
 		date: "2026-09-15",
 		headline: "Drag a panel onto the graph.",

@@ -771,12 +771,7 @@ select optgroup {
 	user-select: none;
 }
 
-/* A panel in a window fills it, the way it fills a dock. */
-.float-panel .panel,
-.float-panel .float-body > * {
-	flex: 1;
-	min-height: 0;
-}
+
 
 /* The two buttons that move a panel between a dock and a window: ⇥ out of the
    dock, ⇤ back into it.
@@ -817,6 +812,8 @@ button.tb.icon-only.panel-float {
 }
 
 
+/* The window's scrolling half, which is the job `.dock.left` does for a dock:
+   one scroll container round the panel rather than one per panel. */
 .float-body {
 	flex: 1;
 	min-height: 0;
@@ -825,32 +822,48 @@ button.tb.icon-only.panel-float {
 	overflow: auto;
 }
 
-/* The panel inside a window has no dock to stretch against, so it fills the
-   window instead -- otherwise a list of three variables leaves the bottom half
-   of a window you deliberately made tall as empty panel. */
-.float-body > * {
+/* The panel fills the window, the way it fills a dock — and *only* the panel.
+   This was `> *`, which reached every element a panel renders: the project
+   tree draws its outline and its tree as two siblings, and both grew to half
+   the window, leaving a screen of nothing above the tree. */
+.float-body > .panel {
 	flex: 1;
 	min-height: 0;
 }
 
 .float-size {
 	position: absolute;
-	right: 0;
-	bottom: 0;
 	width: 16px;
 	height: 16px;
 	cursor: nwse-resize;
+	/* Over the panel's own content, or a list that reaches the corner takes the
+	   drag and the window cannot be resized from that end. */
+	z-index: 3;
 }
 
 .float-size::after {
 	content: "";
 	position: absolute;
-	right: 3px;
-	bottom: 3px;
 	width: 8px;
 	height: 8px;
+}
+
+.float-size.se { right: 0; bottom: 0; }
+
+.float-size.se::after {
+	right: 3px;
+	bottom: 3px;
 	border-right: 2px solid var(--border-strong);
 	border-bottom: 2px solid var(--border-strong);
+}
+
+.float-size.nw { left: 0; top: 0; }
+
+.float-size.nw::after {
+	left: 3px;
+	top: 3px;
+	border-left: 2px solid var(--border-strong);
+	border-top: 2px solid var(--border-strong);
 }
 
 /* The type control: what it holds, and a chevron saying the list is there. The

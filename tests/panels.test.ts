@@ -316,6 +316,23 @@ describe("a panel in a window", () => {
 		expect(dropped.panels.variables.dock).toBe("right");
 	});
 
+	/**
+	 * The top-left corner moves the window as it shrinks it, so the bottom-right
+	 * stays put — the arithmetic a comment's own corner does, and the reason the
+	 * drag holds the frame it started from rather than the current one.
+	 */
+	it("keeps its far corner still when the near one is dragged", () => {
+		const start = framePanel(DEFAULT_LAYOUT, "variables", { x: 100, y: 80, w: 300, h: 400 });
+		const frame = start.panels.variables.frame;
+		const dx = 40;
+		const dy = 25;
+		const dragged = framePanel(start, "variables", {
+			x: frame.x + dx, y: frame.y + dy, w: frame.w - dx, h: frame.h - dy,
+		}).panels.variables.frame;
+		expect(dragged.x + dragged.w).toBe(frame.x + frame.w);
+		expect(dragged.y + dragged.h).toBe(frame.y + frame.h);
+	});
+
 	it("keeps its frame on screen and above the minimum", () => {
 		const moved = framePanel(DEFAULT_LAYOUT, "variables", { x: -80, y: -9, w: 10, h: 10 });
 		expect(moved.panels.variables.frame).toEqual({ x: 0, y: 0, w: MIN_FLOAT.w, h: MIN_FLOAT.h });
