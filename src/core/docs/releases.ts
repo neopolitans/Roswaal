@@ -76,6 +76,27 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.61.0",
+		date: "2026-09-16",
+		headline: "Every node says which runtime it is for.",
+		affects: ["editor"],
+		added: [
+			"**All 283 built-in nodes now declare their runtime.** 46 did before, so a Lune graph was offered every Vector3, every Instance method and the whole remote system as though they would compile. A Lune graph now sees 95 nodes — the language and what Roswaal builds out of it — and a Roblox graph still sees all of them.",
+			"Every category has to be classified, so a new one cannot be added without somebody saying what it runs on. That is exactly how 237 nodes came to say nothing.",
+		],
+		changed: [
+			"The Engine Types, Instances, Engine, Events, Networking, Players, Time and Z-Up Conversions nodes are **Roblox only**. Lune carries its own `Vector3` and friends behind `@lune/roblox`, so the datatypes become available there once there is a node that can require one — not before, because a node that appears and then always errors is worse than one that does not appear.",
+			"The `task` nodes are Roblox only. Lune's scheduler is not a global: it is `require(\"@lune/task\")`, so `task.wait(1)` in a Lune file indexes nil.",
+		],
+		fixed: [
+			"**`Resume Coroutine` and `Yield` were hidden from Lune graphs.** `coroutine` is Luau's own primitive and works in both runtimes — six of its eight nodes were offered and these two were not, because the helper that built them filled in a Roblox tag on every node it made. A node's runtime is no longer a property of how its definition happened to be written.",
+		],
+		watch: [
+			"If you have a Lune graph using a node that is now Roblox only, it keeps working and keeps compiling — nothing was removed. The node menu stops offering it for new work, and compiling already told you it was an error.",
+			"A node pack's nodes are untouched. What they run on is the project's to declare, and guessing on its behalf is not ours to do.",
+		],
+	},
+	{
 		version: "0.60.4",
 		date: "2026-09-16",
 		headline: "The canvas behind the graph toolbars reaches its own edges.",

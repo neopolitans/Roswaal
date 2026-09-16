@@ -9,6 +9,7 @@ import {
 import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
 import { VARIABLE_NODES } from "./variables.js";
+import { withRuntimes } from "./runtimes.js";
 
 export { FLOW_NODES, continuesEnclosingBlock, signatureText } from "./flow.js";
 export { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
@@ -16,7 +17,16 @@ export { VARIABLE_NODES } from "./variables.js";
 export type { Signature } from "./flow.js";
 export type { FunctionRef, VariableRef } from "./variables.js";
 
-export const BUILTIN_NODES: NodeDef[] = [...FLOW_NODES, ...VARIABLE_NODES, ...LIBRARY_NODES];
+/**
+ * Every built-in node, each carrying the runtime it is for.
+ *
+ * `withRuntimes` is applied here rather than at any call site, so there is no
+ * way into the registry that skips it. See `runtimes.ts` for the table and for
+ * why the answer is not left to the definitions alone.
+ */
+export const BUILTIN_NODES: NodeDef[] = withRuntimes([
+	...FLOW_NODES, ...VARIABLE_NODES, ...LIBRARY_NODES,
+]);
 
 /**
  * Node ids that have been renamed. Applied when a graph is read, so a file

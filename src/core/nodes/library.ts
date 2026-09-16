@@ -241,7 +241,12 @@ function variadicStmt(
 		outputs: [exec("then")],
 	});
 	return {
-		id, title, category, summary, targets: opts.targets ?? ["roblox"],
+		// No runtime default here. This helper used to fill in `["roblox"]`,
+		// which made a node's runtime a property of the constructor its author
+		// reached for -- right for the remotes, wrong for `coroutine.yield`,
+		// which is plain Luau and was hidden from every Lune graph by it. The
+		// answer comes from `runtimes.ts` now, or from the call site.
+		id, title, category, summary, targets: opts.targets,
 		variadic: { min, max: MAX_ARGS, type: "any", default: { t: "nil" } },
 		...shape({}),
 		compilesTo: { kind: "statement", template },
@@ -253,7 +258,7 @@ function variadicStmt(
 function variadicCall(
 	id: string, title: string, category: string, template: string,
 	fixed: PinDef[], resultName: string, summary: string,
-	opts: { min?: number; latent?: boolean } = {},
+	opts: { min?: number; latent?: boolean; targets?: NodeDef["targets"] } = {},
 ): NodeDef {
 	const min = opts.min ?? 0;
 	const shape = (config: Record<string, unknown>) => ({
@@ -261,7 +266,9 @@ function variadicCall(
 		outputs: [exec("then"), d("result", resultName, "any")],
 	});
 	return {
-		id, title, category, summary, targets: ["roblox"], latent: opts.latent,
+		// Same as `variadicStmt`: the runtime is not the constructor's to
+		// decide. `coroutine.resume` came through here and was tagged Roblox.
+		id, title, category, summary, targets: opts.targets, latent: opts.latent,
 		variadic: { min, max: MAX_ARGS, type: "any", default: { t: "nil" } },
 		...shape({}),
 		compilesTo: { kind: "call", template, result: "result" },
