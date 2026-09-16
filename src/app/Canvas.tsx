@@ -193,6 +193,25 @@ export function Canvas({
 	}, [diagnostics]);
 
 	/**
+	 * Warnings, so a node can say it needs attention before it needs fixing.
+	 *
+	 * The case this exists for: a Lune call whose module nothing requires. The
+	 * Inspector says so and offers the button, and until now the canvas said
+	 * nothing — so a node you had put down and not yet opened looked fine.
+	 */
+	const warningsByNode = useMemo(() => {
+		const map = new Map<string, number>();
+		for (const d of diagnostics) {
+			// Only the ones that opted in. Most warnings are about where a node
+			// sits rather than what it is, and "not connected to anything that
+			// runs" is true of every node the moment it is dropped.
+			if (d.severity !== "warning" || !d.node || !d.attention) continue;
+			map.set(d.node, (map.get(d.node) ?? 0) + 1);
+		}
+		return map;
+	}, [diagnostics]);
+
+	/**
 	 * The node the rest of a selection would line up on, marked on the canvas.
 	 *
 	 * Null with fewer than two selected: one node is already where it would be
@@ -949,6 +968,7 @@ export function Canvas({
 						wideNodes={wideNodes}
 						anchor={node.id === anchorId}
 						errorCount={errorsByNode.get(node.id) ?? 0}
+						warningCount={warningsByNode.get(node.id) ?? 0}
 						connected={connectedPins}
 						drag={wireDrag}
 						canAccept={canAccept}

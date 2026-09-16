@@ -71,6 +71,20 @@ export interface Diagnostic {
 	message: string;
 	node?: string;
 	pin?: string;
+	/**
+	 * This warning is about the node itself, and the node can be marked for it.
+	 *
+	 * Errors are always marked — a count in the node's corner — and warnings are
+	 * not, because most of them are about *where a node sits* rather than what
+	 * it is. "Not connected to anything that runs" is true of every node the
+	 * moment it is dropped, and marking those would put a pip on each one while
+	 * a graph is being built, which is a warning about being halfway through.
+	 *
+	 * So a warning opts in. The ones that do are the ones a developer can act
+	 * on by selecting the node and reading the Inspector — a Lune call whose
+	 * module nothing requires, where the Inspector has the button that fixes it.
+	 */
+	attention?: boolean;
 }
 
 export interface EmitResult {

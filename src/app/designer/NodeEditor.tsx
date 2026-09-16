@@ -338,6 +338,7 @@ export function NodeEditor({
 						selected={false}
 						anchor={false}
 						errorCount={0}
+						warningCount={0}
 						connected={NOTHING_WIRED}
 						drag={null}
 						canAccept={NEVER}

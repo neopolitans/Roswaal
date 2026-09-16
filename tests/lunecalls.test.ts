@@ -200,3 +200,80 @@ describe("compiling one", () => {
 		expect(error?.message).toContain("no call chosen");
 	});
 });
+
+/**
+ * Marking a node that needs attention.
+ *
+ * The emitter refuses an undeclared module, but only for a node it reaches — so
+ * a Lune call dropped on the canvas and not yet wired said nothing on the
+ * canvas while the Inspector was already saying it. The validator covers that
+ * half, and only that half: a wired one would carry the same complaint twice
+ * under two severities.
+ *
+ * And the mark is opt-in per warning, which is the part worth holding. Most
+ * warnings are about *where a node sits* rather than what it is — "not
+ * connected to anything that runs" is true of every node the moment it is
+ * dropped, and marking those would put a pip on each one while a graph is being
+ * built.
+ */
+describe("a node that needs attention", () => {
+	const unwired = (modules: NodeScript["modules"]): NodeScript => ({
+		...emptyScript("Demo", "demo"),
+		target: "lune",
+		modules,
+		nodes: [
+			{ id: "begin", def: "script.begin", x: 0, y: 0 },
+			{
+				id: "read", def: LUNE_VALUE, x: 200, y: 200,
+				config: { module: "fs", call: "readFile" },
+			},
+		],
+		links: [],
+	});
+
+	const attention = (script: NodeScript) =>
+		compile(script, registry).diagnostics.filter((one) => one.attention === true);
+
+	it("marks an unwired Lune call whose module nothing requires", () => {
+		const found = attention(unwired([]));
+		expect(found).toHaveLength(1);
+		expect(found[0]).toMatchObject({ severity: "warning", node: "read" });
+		expect(found[0].message).toContain("@lune/fs");
+	});
+
+	it("stops marking it once the module is declared", () => {
+		expect(attention(unwired([{ id: "m1", name: "fs", specifier: "@lune/fs" }]))).toEqual([]);
+	});
+
+	/**
+	 * The one that keeps the canvas quiet. Every node is unconnected for a
+	 * while, and a pip on each of them is a warning about being halfway
+	 * through writing a graph.
+	 */
+	it("does not mark a node merely for being unwired", () => {
+		const script = unwired([{ id: "m1", name: "fs", specifier: "@lune/fs" }]);
+		const all = compile(script, registry).diagnostics;
+		// The warning is still reported -- it is just not something the node
+		// is marked for.
+		expect(all.some((one) => one.message.includes("not connected"))).toBe(true);
+		expect(all.filter((one) => one.attention === true)).toEqual([]);
+	});
+
+	/** A wired one is the emitter's to complain about, and it errors. */
+	it("leaves a wired one to the emitter, and does not double up", () => {
+		const script: NodeScript = {
+			...emptyScript("Demo", "demo"),
+			target: "lune",
+			nodes: [
+				{ id: "begin", def: "script.begin", x: 0, y: 0 },
+				{ id: "write", def: LUNE_CALL, x: 200, y: 0, config: { module: "fs", call: "writeFile" } },
+			],
+			links: [
+				{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "write", pin: "in" } },
+			],
+		};
+		const found = compile(script, registry).diagnostics.filter((one) => one.node === "write");
+		expect(found).toHaveLength(1);
+		expect(found[0].severity).toBe("error");
+	});
+});

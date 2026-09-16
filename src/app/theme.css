@@ -1819,6 +1819,22 @@ button.tb.primary:hover:not(:disabled) {
 	line-height: 15px;
 }
 
+/* Something to look at rather than something that is wrong: a Lune call whose
+   module nothing requires will not compile, but the node itself is fine and the
+   fix is one button away in the Inspector. Yellow and a single mark, in the
+   corner the error count uses -- one place to glance at, and never both at
+   once, because an error is the more urgent of the two and says how many. */
+.node .badge-count.warn {
+	background: var(--warning);
+	color: #1c1f24;
+	font-weight: 700;
+	/* A round pip rather than the error's oval: one character wants a circle,
+	   and the two should not be mistaken for each other at a glance. */
+	min-width: 15px;
+	padding: 0;
+	text-align: center;
+}
+
 /* ---------------------------------------------------------------- comment */
 
 .comment {

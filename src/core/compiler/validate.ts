@@ -13,6 +13,8 @@ import { crossingLinks, graphExists } from "../functionGraph.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { isSubclassOf } from "../roblox.js";
+import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
+import { isLuneCall } from "../nodes/lune.js";
 import { isConstLocal, localNameOf } from "../nodes/variables.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
@@ -481,6 +483,39 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				node: r.node.id,
 			});
 		}
+	}
+
+	/**
+	 * A Lune call whose module nothing requires.
+	 *
+	 * The emitter already refuses this, and says so with an error — but only
+	 * for a node it actually reaches. A node dropped on the canvas and not yet
+	 * wired is exactly where somebody needs to be told, because it is where
+	 * they are about to wire it, and the Inspector is already saying so.
+	 *
+	 * So this covers the half the emitter cannot see, and only that half:
+	 * **unreachable nodes only**, or a wired one would carry the same complaint
+	 * twice under two severities.
+	 */
+	const declared = new Set(
+		(script.modules ?? []).map((module) => module.specifier.trim().toLowerCase()),
+	);
+	for (const r of index.all()) {
+		if (reachable.has(r.node.id)) continue;
+		if (!isLuneCall(r.def.id)) continue;
+		const call = callOf(r.node.config);
+		if (call === undefined) continue;
+		const specifier = specifierFor(moduleOf(r.node.config));
+		if (declared.has(specifier.toLowerCase())) continue;
+		out.push({
+			severity: "warning",
+			message:
+				`"${moduleOf(r.node.config)}.${call}" needs \`${specifier}\`, and nothing in this ` +
+				"script requires it. Declare it in the Variables panel, or from the Inspector.",
+			node: r.node.id,
+			// Marked on the node: the Inspector has the button that fixes it.
+			attention: true,
+		});
 	}
 
 	return out;

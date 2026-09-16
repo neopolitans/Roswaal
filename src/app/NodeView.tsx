@@ -47,6 +47,15 @@ export interface NodeViewProps {
 	 */
 	anchor: boolean;
 	errorCount: number;
+	/**
+	 * Warnings on this node, drawn only when there are no errors.
+	 *
+	 * A count is the right shape for an error — how many things are wrong is
+	 * worth knowing before opening anything. A warning is a nudge toward the
+	 * Inspector, where the thing to do about it is, so it is one mark saying
+	 * "look here" rather than a number nobody acts on.
+	 */
+	warningCount: number;
 	/** Wired pin keys, as "in:node/pin" or "out:node/pin". */
 	connected: ReadonlySet<string>;
 	drag: PinDragState | null;
@@ -158,6 +167,9 @@ function NodeViewInner(props: NodeViewProps) {
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
 		>
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
+			{props.errorCount === 0 && props.warningCount > 0 && (
+				<span className="badge-count warn" title="Needs attention — see the Inspector">!</span>
+			)}
 			<div
 				className={`head${subtitle ? " two-line" : ""}`}
 				style={{ background: nodeColor(def), height: head }}
@@ -269,6 +281,9 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
 		>
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
+			{props.errorCount === 0 && props.warningCount > 0 && (
+				<span className="badge-count warn" title="Needs attention — see the Inspector">!</span>
+			)}
 			<span className="capsule-label">{compactLabel(def, node)}</span>
 			{output && renderPin(props, output, "out")}
 		</div>
@@ -312,6 +327,9 @@ function renderOperator(
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
 		>
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
+			{props.errorCount === 0 && props.warningCount > 0 && (
+				<span className="badge-count warn" title="Needs attention — see the Inspector">!</span>
+			)}
 
 			<div className="operator-rows" style={{ top: layout.rowsTop }}>
 				{rows.map((pin) => (

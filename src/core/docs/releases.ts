@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.66.1",
+		date: "2026-09-16",
+		headline: "A node says when it needs attention.",
+		affects: ["editor"],
+		added: [
+			"**A yellow mark in a node's corner** when something about it needs looking at — a Lune call whose module nothing requires, where the Inspector has the button that fixes it. The corner the error count already uses, and never both at once: an error is the more urgent of the two and says how many.",
+			"**An unwired Lune call says so too.** The compiler refuses an undeclared module, but only for a node it reaches — so one dropped on the canvas and not yet wired said nothing, while the Inspector was already saying it.",
+		],
+		watch: [
+			"A warning marks the node only when it is **about the node**. Most are about where a node sits — \"not connected to anything that runs\" is true of every node the moment you drop it — and marking those would put a pip on each one while you were still building the graph.",
+		],
+	},
+	{
 		version: "0.66.0",
 		date: "2026-09-16",
 		headline: "Lune's standard library, callable.",
