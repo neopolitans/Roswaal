@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { categoryLabel } from "../core/schema.js";
 import type { NodeConfig, NodeDef } from "../core/schema.js";
 import type { Preset } from "./NodeMenu.jsx";
 import { categories, type Registry } from "../core/nodes/index.js";
@@ -89,6 +90,7 @@ function score(hit: Hit, query: string): number {
 	if (def.operator?.toLowerCase() === query) return 400;
 	if (title.startsWith(query)) return 100;
 	if (title.includes(query)) return 60;
+	if (categoryLabel(hit.category).toLowerCase().includes(query)) return 30;
 	if (hit.category.toLowerCase().includes(query)) return 30;
 	if (def.id.toLowerCase().includes(query)) return 20;
 	if (hit.summary?.toLowerCase().includes(query)) return 10;
@@ -327,7 +329,7 @@ export function NodePicker(
 								/>
 								<div className="about">
 									<div className="name">{chosen.title}</div>
-									<div className="where">{chosen.category}</div>
+									<div className="where">{categoryLabel(chosen.category)}</div>
 									{chosen.summary && <p className="summary">{chosen.summary}</p>}
 								</div>
 							</>

@@ -44,9 +44,17 @@ names throughout the editor is owed the sentence saying whose they are.
 
 **Roswaal is not affiliated with, endorsed by, or approved by Roblox
 Corporation, or by the Lune project.** Roblox, the Roblox logo and the names of
-the engine's classes and services belong to Roblox Corporation; they appear in
-Roswaal because that is what the generated code refers to. Lune is its own
-project under its own licence.
+the engine's classes and services belong to Roblox Corporation, and Roswaal
+claims no rights in any of them.
+
+They appear in two places. In the **generated code**, because that is what it
+refers to — a script that calls `game:GetService("Players")` has to say so. And
+in the **editor**, where the nodes that need the engine are grouped under the
+platform's name: a graph compiles for one of two runtimes now, and which one a
+node is for is the thing that label exists to say. Naming another product to
+say what this one works with is what a name is for.
+
+Lune is its own project under its own licence, and the same applies to it.
 
 Luau's own README asks that projects integrating it carry an attribution in
 user-facing documentation, which is what this file and the Attributions page

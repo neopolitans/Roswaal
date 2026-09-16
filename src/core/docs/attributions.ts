@@ -91,13 +91,17 @@ export const ATTRIBUTIONS: Attribution[] = [
 		where:
 			"Not bundled, and nothing of Roblox's is here. Roswaal compiles graphs " +
 			"to Luau files a Roblox place runs, and knows the engine's class and " +
-			"enum names so a pin can offer them.",
+			"enum names so a pin can offer them. The name also labels the nodes " +
+			"that need the engine — a graph now compiles for one of two runtimes, " +
+			"and which one a node is for is the thing that label says.",
 		note:
 			"The platform most Roswaal graphs are written for. Roblox, the Roblox " +
 			"logo and the names of the engine's classes and services belong to " +
 			"Roblox Corporation. Roswaal is not affiliated with, endorsed by, or " +
-			"approved by Roblox Corporation, and claims no rights in those names — " +
-			"they appear here because that is what the generated code refers to.",
+			"approved by Roblox Corporation, and claims no rights in those names. " +
+			"They appear in the generated code because that is what it refers to, " +
+			"and in the editor to say which platform a node is for — which is what " +
+			"the name is for, and is how any product says what it works with.",
 		url: "https://create.roblox.com/docs",
 	},
 	{

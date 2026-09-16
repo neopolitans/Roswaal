@@ -18,7 +18,11 @@ import { describe, expect, it } from "vitest";
 import { LUNE_MODULES, LUNE_VERSION, type LuneFunction } from "../src/core/luneApi.js";
 import { requiresLuneRoblox } from "../src/core/luneTypes.js";
 import { listedTypes, listGroups, searchTypes } from "../src/app/TypePicker.jsx";
-import { emptyScript, type NodeScript } from "../src/core/schema.js";
+import {
+	categoryLabel, emptyScript, ENGINE_TYPES, ROBLOX_NAMED_CATEGORIES, type NodeScript,
+} from "../src/core/schema.js";
+import { createRegistry } from "../src/core/nodes/index.js";
+import { readFileSync } from "node:fs";
 
 const byAlias = new Map(LUNE_MODULES.map((module) => [module.alias, module]));
 
@@ -210,5 +214,52 @@ describe("the types a graph can pick from", () => {
 		});
 		expect(requiresLuneRoblox(onCanvas)).toBe(true);
 		expect(listedTypes(onCanvas)).toContain("Instance");
+	});
+});
+
+/**
+ * What the Roblox-facing categories are called.
+ *
+ * They were "Engine" and "Engine Types", which is unambiguous only while there
+ * is one engine. A Lune developer reading "Engine Types" has to already know it
+ * means Roblox's — and naming the platform a node is *for* is what a name is
+ * for.
+ *
+ * Held here because the change has two halves that must stay together: the
+ * label may move and the key may not. A category name is slugged into a
+ * published documentation URL, so renaming the key would move every one of
+ * those pages, and moving them back would move them twice.
+ */
+describe("naming the Roblox categories", () => {
+	it("says Roblox on screen", () => {
+		expect(categoryLabel("Engine")).toBe("Roblox");
+		expect(categoryLabel(ENGINE_TYPES)).toBe("Roblox Types");
+	});
+
+	/** The stored key is what a URL and a runtime table are built from. */
+	it("leaves the key alone", () => {
+		expect(ENGINE_TYPES).toBe("Engine Types");
+		const engine = [...createRegistry().values()].filter((def) => def.category === "Engine");
+		expect(engine.length).toBeGreaterThan(0);
+	});
+
+	it("leaves every other category as it is", () => {
+		for (const name of ["Flow", "Variables", "Instances", "Modules", "Debug"]) {
+			expect(categoryLabel(name), name).toBe(name);
+		}
+	});
+
+	/**
+	 * One flag, because it may have to go back. Flipping it must put every
+	 * label back and touch nothing else — which is only true while the labels
+	 * are a lookup rather than the keys themselves.
+	 */
+	it("is one flag away from being Engine again", () => {
+		const source = readFileSync(new URL("../src/core/schema.ts", import.meta.url), "utf8");
+		expect(source).toContain("ROBLOX_NAMED_CATEGORIES");
+		expect(ROBLOX_NAMED_CATEGORIES).toBe(true);
+		// The guard is the first thing the function does, so `false` is a
+		// straight passthrough rather than a second table to keep in step.
+		expect(source).toContain("if (!ROBLOX_NAMED_CATEGORIES) return category;");
 	});
 });

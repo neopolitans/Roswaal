@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { categoryLabel } from "../core/schema.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { categories, subcategories } from "../core/nodes/index.js";
@@ -532,7 +533,7 @@ export function NodeMenu(props: NodeMenuProps) {
 					);
 					return (
 						<div key={group.category}>
-							<div className="group">{group.category}</div>
+							<div className="group">{categoryLabel(group.category)}</div>
 							{group.loose.map(row)}
 							{group.groups.map((sub) => (
 								<div key={sub.sub}>
@@ -574,6 +575,9 @@ export function score(item: MenuItem, query: string): number {
 	if (item.def.operator?.toLowerCase() === query) return 400;
 	if (title.startsWith(query)) return 100;
 	if (title.includes(query)) return 60;
+	// The label as well as the key: the heading says "Roblox" and typing what
+	// you can see should find what is under it.
+	if (categoryLabel(item.category).toLowerCase().includes(query)) return 30;
 	if (item.category.toLowerCase().includes(query)) return 30;
 	if (item.def.id.toLowerCase().includes(query)) return 20;
 	if (item.summary?.toLowerCase().includes(query)) return 10;

@@ -81,10 +81,18 @@ Apache-2.0) and CodeMirror (MIT) — and three of the seven colour schemes are
 somebody else's design, MIT licensed and credited in full. See
 [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
 
+Roblox, Luau and the names of the engine's classes and services belong to
+Roblox Corporation; Lune is Filip Tibell's and its contributors'. Both are named
+throughout Roswaal — in the code it generates, and in the editor, where the
+nodes that need one runtime or the other are grouped under its name. That is
+what a name is for: saying which product this one works with.
+
 Unreal Engine and Blueprint are trademarks of Epic Games, Inc.; Unity and Bolt
 of Unity Technologies; Blender of the Blender Foundation. They appear in the
-documentation to name someone else's product while explaining this one. Roswaal
-is not affiliated with, endorsed by, or derived from any of them.
+documentation to name someone else's product while explaining this one.
+
+**Roswaal is not affiliated with, endorsed by, or approved by any of them, and
+claims no rights in their names.**
 
 ## For anyone picking this up
 

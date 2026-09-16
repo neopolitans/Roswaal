@@ -24,7 +24,7 @@ import { BLUEPRINT_MAP } from "./blueprints.js";
 import { documentRegistry, OMISSION_REASONS, stripHeader, type NodeDoc } from "./nodeReference.js";
 import { compile } from "../compiler/index.js";
 import { previewOf, type NodePreview } from "./preview.js";
-import { defaultConfig, ENGINE_TYPES, type NodeScript } from "../schema.js";
+import { categoryLabel, defaultConfig, ENGINE_TYPES, type NodeScript } from "../schema.js";
 import { CODE_ROLES, ROLES } from "../theme.js";
 import { BUILTIN_THEMES } from "../themeData.js";
 import {
@@ -504,7 +504,7 @@ function nodePage(doc: NodeDoc): DocPage {
 	return {
 		slug: `node/${doc.id}`,
 		title: doc.title,
-		summary: doc.summary ?? `${doc.category} node.`,
+		summary: doc.summary ?? `${categoryLabel(doc.category)} node.`,
 		blocks,
 		nodeId: doc.id,
 		custom: doc.custom,
@@ -4289,7 +4289,9 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 			.map((c) => ({ c, pages: (byCategory.get(c) ?? []).filter((p) => !!p.custom === custom) }))
 			.filter((x) => x.pages.length > 0)
 			.map((x) => ({
-				title: x.c,
+				// Named for the reader, slugged by the key: a label may be changed
+				// back and a published URL may not.
+				title: categoryLabel(x.c),
 				slug: `${custom ? "pack" : "nodes"}/${slugify(x.c)}`,
 				pages: x.pages,
 				group,
