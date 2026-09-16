@@ -107,6 +107,7 @@ export const RELEASES: Release[] = [
 			"**Both map pages now say which target they are about in their first line**, and each carries the whole of compiling for that target. [Compiling and nodemaps for Lune](compiling-for-lune) no longer sends a Lune developer to the Roblox page for the half that happens to be shared — what triggers a compile, what the generated header is for, what `prune` does.",
 			"[Compiling and nodemaps for Roblox](building-and-rojo) drops its Lune asides and says what each script kind becomes in Studio, which is the question the file ending was standing in for.",
 			"The figure is **wider than the page's reading measure**. A tree, an Inspector and a project file do not fit in the width that suits a sentence.",
+			"Both pages open with a **Nodemap basics** section, which is the panel and its legend. The Roblox page's later section is **Building a node map**, because two sections called some arrangement of the same two words is not an outline.",
 		],
 		fixed: [
 			"The article's typography was reaching inside drawn panels, so the Inspector's section headings came out at body size and their hints came out as paragraphs — which between them ate most of the height the figure had.",

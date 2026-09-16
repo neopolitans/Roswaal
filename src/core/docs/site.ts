@@ -2785,6 +2785,7 @@ const BUILDING_LUNE: DocPage = {
 				"answer and there is no second copy of it to keep in step.",
 		},
 
+		{ t: "h", level: 2, text: "Nodemap basics" },
 		{
 			t: "p",
 			text:
@@ -2961,6 +2962,7 @@ const BUILDING: DocPage = {
 				"[settings](settings).",
 		},
 
+		{ t: "h", level: 2, text: "Nodemap basics" },
 		{
 			t: "p",
 			text:
@@ -3048,7 +3050,7 @@ const BUILDING: DocPage = {
 				"`roswaal prune` lists them and `roswaal prune --yes` removes them.",
 		},
 
-		{ t: "h", level: 2, text: "Node maps" },
+		{ t: "h", level: 2, text: "Building a node map" },
 		{
 			t: "p",
 			text:

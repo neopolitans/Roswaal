@@ -7768,9 +7768,13 @@ button.tb.danger {
    names. */
 .docs-map-body {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 270px);
-	gap: 16px;
-	align-items: start;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 290px);
+	gap: 18px;
+	/* Stretched, not started. The legend is eleven entries and usually the
+	   taller of the two, and a panel that stopped at its own content height
+	   left a column of empty page beside the second half of the list. The
+	   panel takes the row's height instead, so the two columns end together. */
+	align-items: stretch;
 }
 
 @media (max-width: 900px) {
@@ -7780,6 +7784,12 @@ button.tb.danger {
 }
 
 .docs-map-frame {
+	display: flex;
+	/* The ceiling lives here rather than on the editor inside it. Stretched to
+	   the row, the frame takes the legend's height and the editor fills it, so
+	   the two columns end together instead of leaving a column of empty page
+	   beside the last few entries. */
+	max-height: min(860px, 88vh);
 	border: 1px solid var(--border);
 	border-radius: 6px;
 	overflow: hidden;
@@ -7798,8 +7808,9 @@ button.tb.danger {
    by four hundred pixels of empty tree. The children carry their own
    scrollers, so the grid sizes to whatever they need up to this. */
 .docs-map-frame .map-editor {
-	min-height: 360px;
-	max-height: min(760px, 82vh);
+	flex: 1;
+	min-width: 0;
+	min-height: 380px;
 }
 
 /* The project file keeps a scroller of its own rather than growing until the
@@ -7858,33 +7869,42 @@ button.tb.danger {
 
 /* --- the legend, and pointing between it and the panel ------------------- */
 
+/* The entries are separated by space rather than by rules.
+
+   Each one is a name over a sentence, so the gap between two entries has to
+   beat the gap between a name and its own sentence or the list reads as one
+   run of alternating weights. Hence the tight `margin` inside an entry and the
+   much larger `gap` between them. */
 .docs-map-legend {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 	display: flex;
 	flex-direction: column;
-	gap: 2px;
+	gap: 10px;
 	align-content: start;
 }
 
 .docs-map-legend li {
-	padding: 6px 10px;
+	padding: 4px 10px 5px;
 	border-radius: 5px;
 	border-left: 2px solid transparent;
 	font-size: 12px;
-	line-height: 1.45;
+	line-height: 1.5;
 	transition: background-color 90ms ease, opacity 90ms ease;
 }
 
 .docs-map-legend .docs-map-part {
 	display: block;
+	margin-bottom: 1px;
 	font-weight: 600;
 	color: var(--fg);
 }
 
 .docs-map-legend .docs-map-what {
+	display: block;
 	color: var(--fg-muted);
+	text-wrap: pretty;
 }
 
 .docs-map.linked .docs-map-legend li {
