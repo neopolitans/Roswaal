@@ -39,7 +39,8 @@
  * first place.
  */
 
-import type { NodeDef, Target } from "../schema.js";
+import { ENGINE_TYPES, type NodeDef, type Target } from "../schema.js";
+import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
 
 /**
  * What a runtime answer can be, before it becomes a `targets` array.
@@ -193,8 +194,35 @@ export function targetsFor(runtime: Runtime): Target[] | undefined {
  * test looks for — rather than quietly answering "works everywhere", which is
  * the answer that got us here.
  */
-export function runtimeOf(def: Pick<NodeDef, "id" | "category">): Runtime | undefined {
-	return NODE_RUNTIME[def.id] ?? CATEGORY_RUNTIME[def.category];
+export function runtimeOf(
+	def: Pick<NodeDef, "id" | "category"> & { subcategory?: string },
+): Runtime | undefined {
+	const named = NODE_RUNTIME[def.id];
+	if (named !== undefined) return named;
+
+	/**
+	 * A Roblox datatype `@lune/roblox` implements works in both.
+	 *
+	 * The category is Roblox's, and for most of it that is the whole answer.
+	 * But `Vector3` is not the engine — it is a table with a `new`, and Lune
+	 * ships an implementation of it. A Lune program that requires
+	 * `@lune/roblox` genuinely has `Vector3.new(0, 10, 0)`, so hiding the node
+	 * from a Lune graph hid something that works.
+	 *
+	 * Which datatypes is generated from the module's own source, so this
+	 * follows a Lune release rather than a list somebody kept up. `TweenInfo`
+	 * is a Roblox datatype Lune does not implement, and stays Roblox-only.
+	 *
+	 * The node is *offered*, not silently made to work: it still needs the
+	 * module declared, and says so. Same arrangement as a Lune call, for the
+	 * same reason — a require happens because somebody asked.
+	 */
+	if (def.category === ENGINE_TYPES && def.subcategory &&
+		LUNE_ROBLOX_DATATYPES.includes(def.subcategory)) {
+		return "luau";
+	}
+
+	return CATEGORY_RUNTIME[def.category];
 }
 
 /**

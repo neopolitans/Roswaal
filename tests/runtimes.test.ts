@@ -125,9 +125,37 @@ describe("what a Lune graph is offered", () => {
 
 	it("hides the engine from it", () => {
 		const lune = new Set(forTarget("lune").map((d) => d.id));
-		for (const id of ["roblox.vector3", "cframe.new", "instance.getName", "datetime.fromIso"]) {
+		for (const id of ["instance.getName", "datetime.fromIso", "tweeninfo.new", "tween.create"]) {
 			expect(lune.has(id), `${id} is offered to a Lune graph`).toBe(false);
 		}
+	});
+
+	/**
+	 * A datatype is not the engine.
+	 *
+	 * `Vector3` is a table with a `new` on it, and `@lune/roblox` ships an
+	 * implementation — so a Lune program that requires it genuinely has
+	 * `Vector3.new(0, 10, 0)`, and hiding the node hid something that works.
+	 * It is still *offered* rather than silently made to work: the module has
+	 * to be declared and the node says so.
+	 *
+	 * Which datatypes is read from the module's own source, so `TweenInfo` —
+	 * a Roblox datatype Lune does not implement — is above, with the engine.
+	 */
+	it("offers the datatypes @lune/roblox implements, and no others", () => {
+		const lune = new Set(forTarget("lune").map((d) => d.id));
+		for (const id of ["roblox.vector3", "cframe.new", "color3.new", "udim2.new"]) {
+			expect(lune.has(id), `${id} should be offered to a Lune graph`).toBe(true);
+		}
+
+		const engine = all.filter((def) => def.category === "Engine Types");
+		const offered = engine.filter((def) => lune.has(def.id));
+		const held = engine.filter((def) => !lune.has(def.id));
+		expect(offered.length).toBeGreaterThan(held.length);
+		// The ones held back are exactly the two families Lune has no
+		// implementation of, rather than an arbitrary remainder.
+		expect([...new Set(held.map((def) => def.subcategory))].sort())
+			.toEqual(["Tween", "TweenInfo"]);
 	});
 
 	it("keeps the language in it", () => {
@@ -155,9 +183,13 @@ describe("what a Lune graph is offered", () => {
 		expect(roblox.length).toBeGreaterThan(all.length * 0.9);
 		expect(roblox.some((d) => d.category === "Lune")).toBe(false);
 
-		expect(lune.length).toBeLessThan(all.length / 2);
-		expect(lune.length).toBeGreaterThan(50);
+		// A Lune graph was offered a third of the library when the datatypes
+		// were all held back, and the number is not the point — that it is most
+		// of it, and not all of it, is.
+		expect(lune.length).toBeLessThan(all.length);
+		expect(lune.length).toBeGreaterThan(all.length / 2);
 		expect(lune.some((d) => d.category === "Lune")).toBe(true);
+		expect(lune.some((d) => d.category === "Instances")).toBe(false);
 	});
 });
 
@@ -342,11 +374,14 @@ describe("the tag on a node's page", () => {
 
 	it("renders it as a badge, on the base-Luau pages too", () => {
 		const opts = { version: "test" };
-		const vector = renderPage(site, findPage(site, "node/roblox.vector3")!, opts);
+		// Instance work needs the DataModel, which is the thing Lune has not
+		// got. `Vector3` used to be the example here and is no longer one: it
+		// is Roblox's datatype and Lune implements it, so it reads as both.
+		const instance = renderPage(site, findPage(site, "node/instance.getName")!, opts);
 		const add = renderPage(site, findPage(site, "node/math.add")!, opts);
 
-		expect(vector).toContain('class="badge runtime roblox"');
-		expect(vector).toContain(">Roblox</span>");
+		expect(instance).toContain('class="badge runtime roblox"');
+		expect(instance).toContain(">Roblox</span>");
 		// Stated rather than left off: a page is arrived at one at a time, so an
 		// absence has not answered anything.
 		expect(add).toContain('class="badge runtime luau"');

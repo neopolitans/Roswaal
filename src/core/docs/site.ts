@@ -25,7 +25,7 @@ import { documentRegistry, OMISSION_REASONS, stripHeader, type NodeDoc } from ".
 import { compile } from "../compiler/index.js";
 import { previewOf, type NodePreview } from "./preview.js";
 import { categoryLabel, defaultConfig, ENGINE_TYPES, type NodeScript } from "../schema.js";
-import { LUNE_MODULES, LUNE_VERSION } from "../luneApi.js";
+import { LUNE_MODULES, LUNE_ROBLOX_DATATYPES, LUNE_VERSION } from "../luneApi.js";
 import { CODE_ROLES, ROLES } from "../theme.js";
 import { BUILTIN_THEMES } from "../themeData.js";
 import {
@@ -433,7 +433,20 @@ function nodePage(doc: NodeDoc): DocPage {
 	// The tag beside the title names it; this says what it means. Two forms of
 	// one fact, which is what a reference page is for: one to scan, one to
 	// read.
-	traits.push(RUNTIME_TRAIT[classify(doc)]);
+	/**
+	 * A Roblox datatype that works in Lune is not "the language itself".
+	 *
+	 * `Vector3` compiles in both, so it classifies as Luau and the filter is
+	 * right to treat it that way — but the plain Luau sentence would be a claim
+	 * this node cannot make. It is Roblox's datatype, and Lune has it because
+	 * `@lune/roblox` implements it and you required it.
+	 */
+	const crossOver =
+		doc.category === ENGINE_TYPES && doc.subcategory !== undefined &&
+		LUNE_ROBLOX_DATATYPES.includes(doc.subcategory);
+	traits.push(crossOver
+		? "Roblox's, and Lune's too — a Lune graph needs `@lune/roblox` required for it"
+		: RUNTIME_TRAIT[classify(doc)]);
 	if (doc.pure) traits.push("pure — no execution pins, wire it anywhere");
 	if (doc.latent) traits.push("latent — it yields, and is never inlined");
 	if (doc.role === "entry") traits.push("an entry point: nothing wires into it");
@@ -2636,10 +2649,121 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 	],
 });
 
+/**
+ * Compiling for Lune, and the map that describes a filesystem.
+ *
+ * Its own page rather than a branch inside the Roblox one. The two answer the
+ * same question — where does this file end up — and answer it so differently
+ * that one page would spend its length saying "unless you are on the other
+ * one". A Lune developer should be able to read a page that is about Lune.
+ */
+const BUILDING_LUNE: DocPage = {
+	slug: "compiling-for-lune",
+	narrow: true,
+	title: "Compiling and nodemaps for Lune",
+	summary: "A graph becomes a file, and the file is where it is. No DataModel, no project file.",
+	blocks: [
+		{
+			t: "p",
+			text:
+				"A Lune graph compiles the same way a Roblox one does: a `.nodescript` under " +
+				"`.roswaal/scripts` becomes a `.luau` under the output directory, in the same " +
+				"shape. What changes is everything after that.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"**There is no DataModel, so there is nothing to sync.** A Roblox project needs " +
+				"Rojo to carry a file into a place, and a node map to say where it lands. Lune " +
+				"runs the file where it is — `lune run main` — so the layout on disk is the whole " +
+				"answer and there is no second copy of it to keep in step.",
+		},
+
+		{ t: "h", level: 2, text: "What a nodemap is for here" },
+		{
+			t: "p",
+			text:
+				"A map still has a job, and it is the one Rojo was doing incidentally: **saying " +
+				"the layout out loud, and checking it holds together**. Set a map's *Describes* to " +
+				"**A filesystem** and it becomes directories and files rather than services and " +
+				"instances.",
+		},
+		{
+			t: "table",
+			head: ["", "A DataModel map", "A filesystem map"],
+			rows: [
+				["Root is", "The DataModel", "The project directory"],
+				["Children are", "Services, folders, instances", "Directories and files"],
+				["Compiles to", "`default.project.json`, for Rojo", "Nothing — it is a check"],
+				["A node has", "A class and a path on disk", "A name, and whether it is a file"],
+			],
+		},
+		{
+			t: "p",
+			text:
+				"A new map is already the right kind: it follows the project's target, so a Lune " +
+				"project gets a filesystem map without being asked.",
+		},
+
+		{ t: "h", level: 2, text: "What it checks" },
+		{
+			t: "p",
+			text:
+				"These are **require-time errors in Luau**, not house style. The language refuses " +
+				"an ambiguous path rather than picking one, so a layout with both of these is one " +
+				"the runtime will not load — and a map catches it while you can still move " +
+				"something, with both things named.",
+		},
+		{
+			t: "ul",
+			items: [
+				"**A file beside a directory of the same name.** `require(\"./foo\")` cannot mean " +
+					"both `foo.luau` and `foo/init.luau`.",
+				"**Two files differing only by extension.** `foo.luau` and `foo.lua` both answer " +
+					"to `./foo`.",
+				"**A name a require cannot reach** — letters, digits, `.`, `-` and `_`, and no " +
+					"directory separators.",
+			],
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"**A file's name carries no extension.** The `.luau` follows from the node being a " +
+				"file, and the row shows it — `main` in the map, `main.luau` on disk. Typing one " +
+				"is a warning rather than an error: it is the file you meant, and saying so is " +
+				"how you avoid wondering why the disk has `main.luau.luau`.",
+		},
+
+		{ t: "h", level: 2, text: "Requires, and what the file depends on" },
+		{
+			t: "p",
+			text:
+				"Everything a Lune program reaches for arrives through a `require` you wrote. " +
+				"The standard library is [Lune's standard library](lune-library); a short name " +
+				"for a path is [Aliases and .luaurc](aliases); and the rule behind both is on " +
+				"[Modules](modules) — a generated file does not grow imports nobody chose.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"**Roblox's datatypes are available, and are not free.** `Vector3` and `CFrame` " +
+				"work in a Lune graph because `@lune/roblox` implements them — so the node is " +
+				"offered, and it will not compile until that module is required with the datatype " +
+				"as a member. The Inspector has the button. `TweenInfo` is a Roblox datatype Lune " +
+				"does not implement, so its nodes stay out of a Lune graph entirely.",
+		},
+	],
+};
+
 const BUILDING: DocPage = {
+	// The slug stays. It is in published links and in the editor's own jump
+	// list, and a title is not a URL -- renaming the page should not move it.
 	slug: "building-and-rojo",
 	narrow: true,
-	title: "Building, and node maps",
+	title: "Compiling and nodemaps for Roblox",
 	summary: "How a graph becomes a file, and a file becomes an instance in Studio.",
 	blocks: [
 		{
@@ -4490,7 +4614,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	const start = [GETTING_STARTED, CONTROLS, TOOLBARS_PAGE, blueprintPage()];
 	const guides = [
 		TWO_KINDS_OF_WIRE(registry), TYPES_GUIDE, VARIABLES, MODULES_PAGE, ALIASES_PAGE,
-		luneLibraryPage(registry), BUILDING,
+		luneLibraryPage(registry), BUILDING, BUILDING_LUNE,
 		ESCAPE_HATCHES(registry), settingsPage(), CUSTOM_NODES, CLI_PAGE,
 	];
 	// Beside the types page it was split out of, rather than at the end.

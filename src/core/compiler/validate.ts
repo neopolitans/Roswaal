@@ -7,7 +7,9 @@
  * context.
  */
 
-import { PAIR, type GraphNode, type NodeScript, type PinDef, type Target } from "../schema.js";
+import {
+	ENGINE_TYPES, PAIR, type GraphNode, type NodeScript, type PinDef, type Target,
+} from "../schema.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { crossingLinks, graphExists } from "../functionGraph.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
@@ -15,6 +17,7 @@ import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { isSubclassOf } from "../roblox.js";
 import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
 import { isLuneCall } from "../nodes/lune.js";
+import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
 import { isConstLocal, localNameOf } from "../nodes/variables.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
@@ -516,6 +519,47 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 			// Marked on the node: the Inspector has the button that fixes it.
 			attention: true,
 		});
+	}
+
+	/**
+	 * A Roblox datatype in a Lune graph, without the module that provides it.
+	 *
+	 * `Vector3.new(0, 10, 0)` is what these nodes write, and in Lune `Vector3`
+	 * is not a global — it is a member of `@lune/roblox`, bound by a
+	 * declaration that names it. Without that the generated file indexes nil at
+	 * runtime, which is the failure this whole design exists to prevent: a
+	 * graph that looks right and a file that does not work.
+	 *
+	 * An error rather than a warning, and for every such node rather than only
+	 * the wired ones. An undeclared module is wrong whether or not the node has
+	 * been connected yet — unlike "not connected", which is a state every node
+	 * passes through.
+	 */
+	if (script.target === "lune") {
+		const roblox = (script.modules ?? []).find(
+			(module) => module.specifier.trim().toLowerCase() === "@lune/roblox",
+		);
+		const members = new Set(roblox?.members ?? []);
+
+		for (const r of index.all()) {
+			const datatype = r.def.subcategory;
+			if (r.def.category !== ENGINE_TYPES || datatype === undefined) continue;
+			if (!LUNE_ROBLOX_DATATYPES.includes(datatype)) continue;
+			if (members.has(datatype)) continue;
+
+			out.push({
+				severity: "error",
+				message: roblox === undefined
+					? `"${nodeTitle(r.def, r.node)}" writes \`${datatype}\`, which Lune has only ` +
+						"through `@lune/roblox`. Declare that module with " +
+						`\`${datatype}\` as a member.`
+					: `"${nodeTitle(r.def, r.node)}" writes \`${datatype}\`, and "${roblox.name}" ` +
+						`does not pull \`${datatype}\` off \`@lune/roblox\`. Add it to that ` +
+						"module's members.",
+				node: r.node.id,
+				attention: true,
+			});
+		}
 	}
 
 	return out;

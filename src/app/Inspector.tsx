@@ -19,7 +19,7 @@ import {
 import {
 	addVariable, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, disconnectInput, renameNode,
 	addModule, setConfig, setLiteral, syncFunctionRefs, syncFunctionReturns, syncParamRefs,
-	updateComment,
+	updateComment, updateModule,
 } from "./edits.js";
 import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../core/nodes/flow.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
@@ -35,6 +35,8 @@ import {
 	callLabel as luneCallLabel, luneCallDetail, luneFunction, requiredSpecifier, splitLuneCall,
 	LUNE_CALL, LUNE_CALL_OPTIONS, LUNE_VALUE,
 } from "../core/luneCalls.js";
+import { LUNE_ROBLOX_DATATYPES } from "../core/luneApi.js";
+import { ENGINE_TYPES } from "../core/schema.js";
 
 /**
  * Abbreviations whose full stop is not the end of a sentence.
@@ -205,6 +207,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				)}
 				{(def.id === SERVICE_CALL || def.id === SERVICE_VALUE) && <CallPicker node={node} />}
 				{(def.id === LUNE_CALL || def.id === LUNE_VALUE) && <LuneCallPicker node={node} />}
+				<DatatypeFromLune def={def} />
 				{(def.id === "type.declareTop" || def.id === "type.declareHere") && (
 					<TypeEditor node={node} />
 				)}
@@ -727,6 +730,58 @@ function CallPicker({ node }: { node: GraphNode }) {
 				/>
 			)}
 		</>
+	);
+}
+
+/**
+ * A Roblox datatype in a Lune graph, and the module that provides it.
+ *
+ * `Vector3.new(0, 10, 0)` is what the node writes, and in Lune `Vector3` is not
+ * a global — it is a member of `@lune/roblox`, bound by a declaration that
+ * names it. Two things have to be true, so the button does both: the module
+ * declared, and the datatype pulled off it.
+ *
+ * Said and offered rather than done, the same as the standard library's. The
+ * node appears in the menu because it *can* work here, and what makes it work
+ * is a require somebody asked for.
+ */
+function DatatypeFromLune({ def }: { def: NodeDef }) {
+	const script = useEditor().script;
+	const datatype = def.subcategory;
+
+	if (script?.target !== "lune" || def.category !== ENGINE_TYPES) return null;
+	if (datatype === undefined || !LUNE_ROBLOX_DATATYPES.includes(datatype)) return null;
+
+	const existing = (script.modules ?? []).find(
+		(one) => one.specifier.trim().toLowerCase() === "@lune/roblox",
+	);
+	if (existing && (existing.members ?? []).includes(datatype)) return null;
+
+	const give = () => {
+		store.edit((s) => {
+			const found = (s.modules ?? []).find(
+				(one) => one.specifier.trim().toLowerCase() === "@lune/roblox",
+			);
+			if (!found) {
+				const added = addModule(s, "roblox", "@lune/roblox");
+				return updateModule(added.script, added.id, { members: [datatype] });
+			}
+			return updateModule(s, found.id, {
+				members: [...new Set([...(found.members ?? []), datatype])],
+			});
+		});
+	};
+
+	return (
+		<div className="inspector-warn">
+			<p>
+				Lune has <code>{datatype}</code> only through <code>@lune/roblox</code>
+				{existing ? ", and this script does not pull it off the module." : ", which this script does not require."}
+			</p>
+			<button className="tb" onClick={give}>
+				{existing ? `Add ${datatype} to ${existing.name}` : `Require @lune/roblox for ${datatype}`}
+			</button>
+		</div>
 	);
 }
 

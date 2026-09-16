@@ -94,6 +94,27 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.67.1",
+		date: "2026-09-16",
+		headline: "Vector3 works in Lune, and says what it needs.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Roblox's datatypes are offered to a Lune graph** — 101 of the 108 Engine Types nodes, which is every one `@lune/roblox` implements. A datatype is not the engine: `Vector3` is a table with a `new` on it, and hiding the node hid something that works.",
+			"**A datatype node says what it needs, and the Inspector gives it.** One press declares `@lune/roblox` and pulls the datatype off it, which are the two things that have to be true.",
+			"**A page about compiling for Lune**, at [Compiling and nodemaps for Lune](compiling-for-lune): what a filesystem map is for, what it checks, and where a Lune program's dependencies come from.",
+		],
+		changed: [
+			"**Building, and node maps** is now [Compiling and nodemaps for Roblox](building-and-rojo) — it was only unambiguous while there was one runtime. Its address has not moved.",
+			"A node page for one of these datatypes says it is **Roblox's, and Lune's too**, rather than calling it the language itself. `Vector3` is not base Luau, and a page saying so would be making a claim the node cannot keep.",
+		],
+		fixed: [
+			"**A Roblox datatype in a Lune graph no longer compiles to something that fails at run time.** It wrote `Vector3.new(...)` with no require, and in Lune that indexes nil. It is an error now, naming the module and the member that fix it.",
+		],
+		watch: [
+			"`TweenInfo` and `Tween` stay out of a Lune graph. Lune does not implement them, and the list is read from the module's own source rather than kept by hand.",
+		],
+	},
+	{
 		version: "0.67.0",
 		date: "2026-09-16",
 		headline: "A map can describe a filesystem.",

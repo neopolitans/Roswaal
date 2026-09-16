@@ -277,3 +277,71 @@ describe("a node that needs attention", () => {
 		expect(found[0].severity).toBe("error");
 	});
 });
+
+/**
+ * A Roblox datatype in a Lune graph.
+ *
+ * `Vector3` is not the engine — it is a table with a `new` on it, and
+ * `@lune/roblox` ships an implementation. So hiding the node from a Lune graph
+ * hid something that works; offering it and letting it compile to a nil index
+ * would be worse. It is offered, and it says what it needs.
+ */
+describe("a Roblox datatype in Lune", () => {
+	const graph = (modules: NodeScript["modules"]): NodeScript => ({
+		...emptyScript("V", "v"),
+		target: "lune",
+		modules,
+		nodes: [
+			{ id: "begin", def: "script.begin", x: 0, y: 0 },
+			{
+				id: "v", def: "roblox.vector3", x: 200, y: 120,
+				literals: {
+					x: { t: "number", v: 0 }, y: { t: "number", v: 10 }, z: { t: "number", v: 0 },
+				},
+			},
+			{ id: "p", def: "debug.print", x: 400, y: 0 },
+		],
+		links: [
+			{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "p", pin: "in" } },
+			{ id: "l2", from: { node: "v", pin: "result" }, to: { node: "p", pin: "value" } },
+		],
+	});
+
+	const errorsOf = (script: NodeScript) =>
+		compile(script, registry).diagnostics.filter((one) => one.severity === "error");
+
+	it("refuses one with no module at all", () => {
+		const found = errorsOf(graph([]));
+		expect(found).toHaveLength(1);
+		expect(found[0].message).toContain("@lune/roblox");
+		expect(found[0].attention).toBe(true);
+	});
+
+	/**
+	 * The module alone is not enough. `Vector3` is bound by a member, and
+	 * without one the file still indexes a global that is not there.
+	 */
+	it("refuses one whose module does not pull the datatype off", () => {
+		const found = errorsOf(graph([{ id: "m", name: "roblox", specifier: "@lune/roblox" }]));
+		expect(found).toHaveLength(1);
+		expect(found[0].message).toContain("members");
+	});
+
+	it("compiles once the member is declared", () => {
+		const result = compile(
+			graph([{ id: "m", name: "roblox", specifier: "@lune/roblox", members: ["Vector3"] }]),
+			registry,
+		);
+		expect(result.diagnostics.filter((one) => one.severity === "error")).toEqual([]);
+		expect(result.code).toContain('local roblox = require("@lune/roblox")');
+		expect(result.code).toContain("local Vector3 = roblox.Vector3");
+		expect(result.code).toContain("print(Vector3.new(0, 10, 0))");
+	});
+
+	/** A Roblox graph has all of this for free and must not gain a complaint. */
+	it("says nothing about the same node in a Roblox graph", () => {
+		const script = { ...graph([]), target: "roblox" as const };
+		expect(errorsOf(script)).toEqual([]);
+		expect(compile(script, registry).code).toContain("Vector3.new(0, 10, 0)");
+	});
+});
