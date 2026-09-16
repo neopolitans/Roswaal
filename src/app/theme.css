@@ -7035,7 +7035,13 @@ button.tb.danger {
    the picture look like two boxes -- and the point of this one is that the
    groups float over a view that carries on past them. */
 .docs-bar-frame.float {
-	padding: 0;
+	/* Padding, not a margin on the strip inside. With `padding: 0` here the
+	   strip's vertical margins collapsed straight out through this element:
+	   the frame ended up exactly as tall as the tools, the space above and
+	   below them belonged to the figure instead, and the grid stopped at the
+	   tools with a bare band either side of it. The gap has to be *inside* the
+	   thing that paints the canvas. */
+	padding: 20px 14px;
 	background-color: var(--bg-canvas);
 	background-image:
 		linear-gradient(var(--grid-fine) 1px, transparent 1px),
@@ -7087,11 +7093,12 @@ button.tb.danger {
    and given some of the canvas above and below it, because the gaps between
    the groups are the thing being explained. */
 /* Laid out in flow rather than absolutely, since there is no canvas here for
-   them to be positioned over -- the frame behind them is the canvas now. */
+   them to be positioned over -- the frame behind them is the canvas now, and
+   its padding is the room they float in. */
 .docs-bar-frame.float > .floating-tools {
 	position: static;
 	flex-wrap: nowrap;
-	margin: 20px 14px;
+	margin: 0;
 }
 
 /* A real <select> is a tab stop even with nothing to focus, and opens on a

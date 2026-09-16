@@ -76,13 +76,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.60.4",
+		date: "2026-09-16",
+		headline: "The canvas behind the graph toolbars reaches its own edges.",
+		affects: ["docs"],
+		fixed: [
+			"**The grid behind the drawn graph toolbars stopped level with the tools**, leaving a bare band above and below it inside the frame. 0.60.3 put the canvas on the right element and the gap around the tools on the wrong one: a margin, which collapsed straight back out through the element painting the canvas, so the pane ended up exactly as tall as its contents. The gap is padding now, inside the thing that paints.",
+		],
+	},
+	{
 		version: "0.60.3",
 		date: "2026-09-16",
 		headline: "The graph toolbars float over a canvas again.",
 		affects: ["docs"],
 		verified: ["toolbars"],
 		changed: [
-			"**The drawn graph toolbars sit on a full pane of canvas**, grid and all, rather than on a strip that stopped where the tools stopped. The whole point of that picture is that the three groups float over a view which carries on past them, and a canvas cut to the width of its contents said the opposite.",
+			"**The drawn graph toolbars sit on a full pane of canvas**, grid and all, rather than on a strip that stopped where the tools stopped. The whole point of that picture is that the three groups float over a view which carries on past them, and a canvas cut to the size of its contents said the opposite.",
 		],
 	},
 	{
