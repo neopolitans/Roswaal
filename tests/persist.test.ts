@@ -14,7 +14,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { persistence, type SnapshotStore } from "../src/web/persist.js";
+import { persistence, type RestoredVolume, type SnapshotStore } from "../src/web/persist.js";
 import type { VolumeSnapshot } from "../src/web/volume.js";
 
 /** A store in a variable, which is all the real one is with extra steps. */
@@ -43,7 +43,16 @@ function fakeStore() {
 	return store;
 }
 
-const PROJECT: VolumeSnapshot = { "/demo/roswaal.json": "{}" };
+const FILES: VolumeSnapshot = { "/demo/roswaal.json": "{}" };
+
+/**
+ * What the worker hands the store: the files, and the directories among them.
+ *
+ * `dirs` carries the ones no file implies. A directory somebody made and had
+ * not put anything in yet is invisible to a snapshot keyed by path, and used
+ * to come back as nothing at all.
+ */
+const PROJECT: RestoredVolume = { files: FILES, dirs: ["/demo", "/demo/empty"] };
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -120,13 +129,13 @@ describe("when the writing happens", () => {
 		const store = fakeStore();
 		const keeping = persistence(store, "0.0.0");
 
-		let files: VolumeSnapshot = { "/demo/a.nodescript": "first" };
-		keeping.touch(() => files);
-		files = { "/demo/a.nodescript": "second" };
+		let held: RestoredVolume = { files: { "/demo/a.nodescript": "first" }, dirs: ["/demo"] };
+		keeping.touch(() => held);
+		held = { files: { "/demo/a.nodescript": "second" }, dirs: ["/demo"] };
 		await settle();
 
 		expect(await persistence(store, "0.0.0").restore())
-			.toEqual({ "/demo/a.nodescript": "second" });
+			.toEqual({ files: { "/demo/a.nodescript": "second" }, dirs: ["/demo"] });
 	});
 });
 
@@ -202,5 +211,56 @@ describe("when the browser refuses to store anything", () => {
 		await settle();
 
 		expect(store.writes).toBe(0);
+	});
+});
+
+/**
+ * A directory somebody made and had not put anything in yet.
+ *
+ * The snapshot is keyed by path, so an empty directory cannot appear in it:
+ * there is no file whose path implies it. It came back as nothing at all, and
+ * the project that remembered where it was said "Not a directory" — which is a
+ * folder quietly disappearing between one visit and the next, and the worst
+ * kind of bug a playground can have.
+ */
+describe("a folder with nothing in it", () => {
+	it("survives a reload", async () => {
+		const store = fakeStore();
+		const keeping = persistence(store, "0.0.0");
+		keeping.touch(() => ({
+			files: { "/demo/roswaal.json": "{}" },
+			dirs: ["/demo", "/demo/scratch"],
+		}));
+		await settle();
+
+		const back = await persistence(store, "0.0.0").restore();
+		expect(back?.dirs).toContain("/demo/scratch");
+	});
+
+	it("is kept even when the project has no files at all", async () => {
+		const store = fakeStore();
+		const keeping = persistence(store, "0.0.0");
+		keeping.touch(() => ({ files: {}, dirs: ["/lune_test"] }));
+		await settle();
+
+		expect((await persistence(store, "0.0.0").restore())?.dirs).toEqual(["/lune_test"]);
+	});
+
+	/**
+	 * A document written before directories were kept restores exactly as it
+	 * did: the files, and whatever they imply. Anything else would be this
+	 * change deciding that older stored projects are unreadable.
+	 */
+	it("reads a document from before this without complaining", async () => {
+		const store = fakeStore();
+		await store.write(JSON.stringify({
+			format: 1,
+			version: "0.0.0",
+			files: { "/demo/roswaal.json": "{}" },
+		}));
+
+		const back = await persistence(store, "0.0.0").restore();
+		expect(back?.files).toEqual({ "/demo/roswaal.json": "{}" });
+		expect(back?.dirs).toEqual([]);
 	});
 });

@@ -307,3 +307,41 @@ describe("editing a project held in memory", () => {
 		await writeScript(project, relPath, reread);
 	});
 });
+
+/**
+ * Directories, including the ones no file implies.
+ *
+ * `snapshot` is keyed by path and so can only describe a directory that has
+ * something in it. `directories` is the other half, and the reason there are
+ * two: a folder made and not yet used is invisible to the first and is exactly
+ * what somebody loses when a tab reloads.
+ */
+describe("what a volume can say about its directories", () => {
+	it("lists one that has nothing in it", () => {
+		const volume = new Volume({ "/p/roswaal.json": "{}" });
+		volume.mountDirs(["/p/scratch"]);
+		expect(volume.directories("/p")).toContain("/p/scratch");
+	});
+
+	it("leaves it out of the snapshot, which is files", () => {
+		const volume = new Volume({ "/p/roswaal.json": "{}" });
+		volume.mountDirs(["/p/scratch"]);
+		expect(Object.keys(volume.snapshot("/p"))).toEqual(["/p/roswaal.json"]);
+	});
+
+	it("excludes the prefix itself, which the caller already has", () => {
+		const volume = new Volume({ "/p/a.txt": "" });
+		expect(volume.directories("/p")).not.toContain("/p");
+	});
+
+	it("comes back a directory after a round trip through both halves", async () => {
+		const first = new Volume({ "/p/roswaal.json": "{}" });
+		first.mountDirs(["/p/scratch"]);
+
+		const second = new Volume();
+		second.mount(first.snapshot("/p"));
+		second.mountDirs(first.directories("/p"));
+
+		expect((await second.stat("/p/scratch")).isDirectory()).toBe(true);
+	});
+});

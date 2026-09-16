@@ -91,6 +91,26 @@ export class Volume implements ProjectFs {
 		return out;
 	}
 
+	/**
+	 * The directories at or under a prefix, the prefix itself excluded.
+	 *
+	 * Apart from `snapshot`, which is files, because a snapshot keyed by path
+	 * cannot hold a directory that has none. An **empty** directory is invisible
+	 * to it entirely, which meant a folder somebody made and had not put
+	 * anything in yet did not survive a reload: it came back as nothing, and
+	 * opening it said "Not a directory".
+	 */
+	directories(prefix = "/"): string[] {
+		const root = resolve(prefix);
+		const within = root === "/" ? "/" : root + "/";
+		return [...this.dirs].filter((at) => at !== root && at.startsWith(within)).sort();
+	}
+
+	/** Recreates directories, including the ones no file implies. */
+	mountDirs(dirs: readonly string[]): void {
+		for (const at of dirs) this.makeDirs(resolve(at));
+	}
+
 	/** Makes a directory and every ancestor it needs. */
 	private makeDirs(target: string): void {
 		let at = resolve(target);

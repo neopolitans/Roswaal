@@ -107,6 +107,7 @@ export const RELEASES: Release[] = [
 		],
 		fixed: [
 			"**A project on the recent list that will not open is said so on its own card**, with a cross to take it off. The list is roots from previous sessions and a root can stop being one between them — deleted, renamed, on a drive that is not plugged in, or thrown away with the browser’s volume. It used to close the panel over a dialog saying only what went wrong, leaving nothing to do about it.",
+			"**A folder with nothing in it no longer disappears on reload.** The browser build stored the project as files keyed by path, and a directory somebody had made and not put anything in yet is not implied by any of them — so it came back as nothing, and whatever remembered where it was said “Not a directory”. Directories are stored alongside the files now, and a project stored before this reads exactly as it did.",
 			"**A dialog raised while the panel was open rendered behind it** — invisible, modal, and holding the focus. The panel now sits under anything that speaks.",
 			"**An operator’s value field no longer hangs off the side of it.** A pill’s width came from its pins’ defaults while what is drawn on a row comes from the pin’s default *or the value on that node*. For most of them the two agree by accident; `compare.eq` takes `any` with no default, so it was measured with no room for a field and then drawn with one.",
 		],

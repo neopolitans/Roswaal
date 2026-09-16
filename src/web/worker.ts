@@ -65,13 +65,19 @@ const session = new ApiSession({
  */
 const ready = (async () => {
 	const stored = await store.restore();
-	volume.mount(stored ?? playgroundFiles());
+	volume.mount(stored ? stored.files : playgroundFiles());
+	// After the files: a directory with nothing in it is not implied by any of
+	// them, and is the whole reason the directories are stored separately.
+	if (stored) volume.mountDirs(stored.dirs);
 	await session.openAt(PLAYGROUND_ROOT);
 })();
 
 /** The volume as it now stands, for the store to write when things settle. */
 function snapshot() {
-	return volume.snapshot(PLAYGROUND_ROOT);
+	return {
+		files: volume.snapshot(PLAYGROUND_ROOT),
+		dirs: volume.directories(PLAYGROUND_ROOT),
+	};
 }
 
 

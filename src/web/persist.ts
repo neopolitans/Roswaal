@@ -38,13 +38,31 @@ interface Document {
 	/** The version that wrote it, for a bug report rather than for logic. */
 	version: string;
 	files: VolumeSnapshot;
+	/**
+	 * The directories, including the ones no file implies.
+	 *
+	 * `files` is keyed by path, so a directory with nothing in it cannot
+	 * appear in it — and a folder somebody made and had not put anything in
+	 * yet did not survive a reload. It came back as nothing at all, and the
+	 * project that remembered it said "Not a directory".
+	 *
+	 * Optional, and absent on a document written before this: those restore
+	 * exactly as they did, with the directories their files imply.
+	 */
+	dirs?: string[];
+}
+
+/** What a restore hands back: the files, and the directories among them. */
+export interface RestoredVolume {
+	files: VolumeSnapshot;
+	dirs: string[];
 }
 
 export interface Persistence {
 	/** The stored project, or `null` when there is not one to restore. */
-	restore(): Promise<VolumeSnapshot | null>;
+	restore(): Promise<RestoredVolume | null>;
 	/** Notes that the volume changed. Writes settle rather than happening at once. */
-	touch(snapshot: () => VolumeSnapshot): void;
+	touch(snapshot: () => RestoredVolume): void;
 	/** Finishes any pending write. */
 	flush(): Promise<void>;
 	/** Forgets the stored project and stops writing. For "start again". */
@@ -66,7 +84,7 @@ const SETTLE_MS = 400;
 
 export function persistence(store: SnapshotStore, version: string): Persistence {
 	let timer: ReturnType<typeof setTimeout> | null = null;
-	let pending: (() => VolumeSnapshot) | null = null;
+	let pending: (() => RestoredVolume) | null = null;
 	let writing: Promise<void> = Promise.resolve();
 	let stopped = false;
 	let failure: string | null = null;
@@ -76,7 +94,10 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 		pending = null;
 		if (!take || stopped) return;
 
-		const document: Document = { format: 1, version, files: take() };
+		const taken = take();
+		const document: Document = {
+			format: 1, version, files: taken.files, dirs: taken.dirs,
+		};
 		try {
 			await store.write(JSON.stringify(document));
 			failure = null;
@@ -100,7 +121,13 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 				if (parsed.format !== 1 || typeof parsed.files !== "object" || !parsed.files) {
 					return null;
 				}
-				return parsed.files;
+				return {
+					files: parsed.files,
+					// Absent on a document written before directories were kept.
+					dirs: Array.isArray(parsed.dirs)
+						? parsed.dirs.filter((at): at is string => typeof at === "string")
+						: [],
+				};
 			} catch (err) {
 				failure = (err as Error).message || "The stored project could not be read.";
 				return null;
