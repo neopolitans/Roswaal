@@ -8,11 +8,13 @@ import {
 } from "../structs.js";
 import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
+import { LUNE_NODES } from "./lune.js";
 import { VARIABLE_NODES } from "./variables.js";
 import { withRuntimes } from "./runtimes.js";
 
 export { FLOW_NODES, continuesEnclosingBlock, signatureText } from "./flow.js";
 export { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
+export { isLuneCall, LUNE_NODES } from "./lune.js";
 export { VARIABLE_NODES } from "./variables.js";
 export type { Signature } from "./flow.js";
 export type { FunctionRef, VariableRef } from "./variables.js";
@@ -25,7 +27,7 @@ export type { FunctionRef, VariableRef } from "./variables.js";
  * why the answer is not left to the definitions alone.
  */
 export const BUILTIN_NODES: NodeDef[] = withRuntimes([
-	...FLOW_NODES, ...VARIABLE_NODES, ...LIBRARY_NODES,
+	...FLOW_NODES, ...VARIABLE_NODES, ...LIBRARY_NODES, ...LUNE_NODES,
 ]);
 
 /**
@@ -196,6 +198,7 @@ export function nodeTitle(def: NodeDef | undefined, node: GraphNode): string {
 const CATEGORY_ORDER = [
 	"Flow", "Events", "Variables", "Values", "Math", "Logic", "Strings", "Tables",
 	ENGINE_TYPES, "Engine", "Instances", "Players", "Networking", "Modules",
+	"Lune",
 	"Time", "Threads", "Debug", ZUP_CONVERSIONS,
 ];
 

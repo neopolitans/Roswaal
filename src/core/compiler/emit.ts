@@ -23,6 +23,7 @@ import { CAST_NODES, castModeOf } from "../nodes/library.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { isModuleScript, PAIR } from "../schema.js";
 import { checkSpecifier, type SpecifierContext } from "../modules.js";
+import { argPinId, callOf, luneFunction, moduleOf, specifierFor } from "../luneCalls.js";
 import { commentLines, headersByNode } from "../comments.js";
 import type { Comment, Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
@@ -340,6 +341,16 @@ class Emitter {
 	}>();
 	/** Declared module id -> the local it was bound to, for Get Module. */
 	private moduleIdents = new Map<string, string>();
+	/**
+	 * Specifier -> the local it was bound to, for a node that knows what it
+	 * needs but not which declaration provides it.
+	 *
+	 * A Lune Function node knows it calls `@lune/fs`; which module in the panel
+	 * that is, and what somebody named it, is the graph's business. Keyed
+	 * lowercase because a specifier is a path and the alias in it is
+	 * case-insensitive.
+	 */
+	private moduleBySpecifier = new Map<string, string>();
 	private preamble: OutLine[] = [];
 	/** Node id -> the comment whose header goes above its code. */
 	private headers = new Map<string, Comment>();
@@ -595,6 +606,11 @@ class Emitter {
 
 			const ident = wanted;
 			this.moduleIdents.set(module.id, ident);
+			// First declaration of a specifier wins, which is the one whose
+			// require is written first and so the one already in scope.
+			if (!this.moduleBySpecifier.has(specifier.toLowerCase())) {
+				this.moduleBySpecifier.set(specifier.toLowerCase(), ident);
+			}
 			this.requires.set(`module:${module.id}`, {
 				ident,
 				expression: quoteString(specifier),
@@ -680,6 +696,53 @@ class Emitter {
 	 * Get Service's name is: both become text in the generated file, so they have
 	 * to be known before the script runs.
 	 */
+	/**
+	 * A call into Lune's standard library, as an expression.
+	 *
+	 * Shared by both switches for the reason `serviceCall` is: the value node
+	 * returns it and the step node binds it, and the call itself is written
+	 * once. Two copies would be two places for the argument rule to drift.
+	 *
+	 * The node never writes its own `require`. That is the rule the whole module
+	 * design rests on, and `@lune/fs` being Lune's own and always available is
+	 * not an exception to it — a file that quietly gained a require because
+	 * somebody dropped a node is a file whose dependencies are not what its
+	 * author can see.
+	 */
+	private luneCall(src: ResolvedNode, scope: Scope): string {
+		const alias = moduleOf(src.node.config);
+		const call = callOf(src.node.config);
+		if (call === undefined) {
+			this.error("This Lune Function has no call chosen.", src.node.id);
+			return "nil";
+		}
+
+		const specifier = specifierFor(alias);
+		const ident = this.moduleBySpecifier.get(specifier.toLowerCase());
+		if (ident === undefined) {
+			// The specifier, not a description of the problem: it is what gets
+			// typed into the panel to fix this.
+			this.error(
+				`This calls \`${alias}.${call}\`, and nothing in this script requires ` +
+				`\`${specifier}\`. Declare it in the Variables panel — Roswaal will not add a ` +
+				"require you did not ask for.",
+				src.node.id,
+			);
+			return "nil";
+		}
+
+		const fn = luneFunction(alias, call);
+		const args = Array.from({ length: fn?.params.length ?? 0 }, (_unused, i) =>
+			this.resolveInput(src, this.pin(src, argPinId(i), "in"), scope));
+		// A trailing optional nobody filled in is left off rather than passed as
+		// nil, which is the difference between a call the runtime accepts and
+		// one it rejects.
+		while (args.length > 0 && fn?.params[args.length - 1]?.optional && args.at(-1) === "nil") {
+			args.pop();
+		}
+		return `${ident}.${call}(${args.join(", ")})`;
+	}
+
 	private serviceCall(r: ResolvedNode, scope: Scope): string {
 		const id = r.node.id;
 		const service = serviceOf(r.node.config);
@@ -1440,6 +1503,18 @@ class Emitter {
 				}
 
 				const expression = `${callee}(${args.join(", ")})`;
+				if (this.index.consumerCount(id, "result") > 0) {
+					const ident = this.names.unique(r.node.label || "result", "result");
+					this.push(`local ${ident} = ${expression}`, id);
+					scope.bindings.set(`${id}/result`, ident);
+				} else {
+					this.push(expression, id);
+				}
+				return this.index.execTarget(id, "then");
+			}
+
+			case "lune.call": {
+				const expression = this.luneCall(r, scope);
 				if (this.index.consumerCount(id, "result") > 0) {
 					const ident = this.names.unique(r.node.label || "result", "result");
 					this.push(`local ${ident} = ${expression}`, id);
@@ -2321,6 +2396,10 @@ class Emitter {
 			 * a lookup -- which is why four uses of one module are four pills
 			 * and one require.
 			 */
+			case "lune.call":
+			case "lune.value":
+				return this.luneCall(src, scope);
+
 			case "module.get": {
 				const id = String((src.node.config as { module?: string } | undefined)?.module ?? "");
 				const ident = this.moduleIdents.get(id);

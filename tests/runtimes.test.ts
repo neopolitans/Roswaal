@@ -141,11 +141,23 @@ describe("what a Lune graph is offered", () => {
 	/**
 	 * The number is not the point and will move; that it is *most* of the
 	 * library is. Before this, a Lune graph was offered all 283.
+	 *
+	 * Neither target gets everything now. A Roblox graph is offered all of it
+	 * bar the `Lune` category, which arrived with 0.66.0 and calls modules the
+	 * engine does not have — the same argument in the other direction, and the
+	 * first time the exclusion has run that way.
 	 */
-	it("offers a Lune graph a third of what a Roblox graph gets", () => {
-		expect(forTarget("roblox")).toHaveLength(all.length);
-		expect(forTarget("lune").length).toBeLessThan(all.length / 2);
-		expect(forTarget("lune").length).toBeGreaterThan(50);
+	it("offers each target most of the library, and neither all of it", () => {
+		const lune = forTarget("lune");
+		const roblox = forTarget("roblox");
+
+		expect(roblox.length).toBeLessThan(all.length);
+		expect(roblox.length).toBeGreaterThan(all.length * 0.9);
+		expect(roblox.some((d) => d.category === "Lune")).toBe(false);
+
+		expect(lune.length).toBeLessThan(all.length / 2);
+		expect(lune.length).toBeGreaterThan(50);
+		expect(lune.some((d) => d.category === "Lune")).toBe(true);
 	});
 });
 
@@ -181,17 +193,22 @@ describe("runtime as an axis", () => {
 	});
 
 	/**
-	 * The chips are drawn from what is present, so a Lune graph is never
-	 * offered a Roblox filter that could only ever return nothing.
+	 * The chips are drawn from what is present, so neither graph is offered a
+	 * filter that could only ever return nothing.
+	 *
+	 * A Lune graph had no Lune chip until 0.66.0, and that was correct at the
+	 * time: every node it could see was plain Luau, so a "Lune" filter would
+	 * have emptied the list. The standard library is the first thing that makes
+	 * the chip mean something.
 	 */
-	it("offers a Lune graph no Roblox filter", () => {
+	it("offers each graph only the filters it can fill", () => {
 		const present = (target: "roblox" | "lune") => {
 			const forTarget = all.filter((d) => !d.targets || d.targets.includes(target));
 			const seen = new Set(forTarget.map(classify));
 			return RUNTIMES.filter((r) => seen.has(r));
 		};
 		expect(present("roblox")).toEqual(["luau", "roblox"]);
-		expect(present("lune")).toEqual(["luau"]);
+		expect(present("lune")).toEqual(["luau", "lune"]);
 	});
 
 	/** Both lists read the same preference, so the answer does not depend on route. */

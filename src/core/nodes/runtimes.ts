@@ -92,6 +92,15 @@ export const CATEGORY_RUNTIME: Record<string, Runtime> = {
 	"Threads": "luau",
 
 	// The engine.
+	/**
+	 * The one Lune category, and the first `lune` entry in this table.
+	 *
+	 * Its nodes call `@lune/fs` and the rest, which the Roblox engine does not
+	 * have — so a Roblox graph should never be offered one, which is what this
+	 * line does.
+	 */
+	"Lune": "lune",
+
 	"Engine Types": "roblox",
 	"Instances": "roblox",
 	"Engine": "roblox",

@@ -39,6 +39,10 @@ const CATEGORY_COLORS: Record<string, string> = {
 	// crosses the client/server boundary is a graph to read carefully.
 	Networking: "#8a4a5e",
 	Modules: "#6f4f9b",
+	// Near Modules, because every one of these is a call on a required module
+	// and the two are used in the same breath -- and far enough from Roblox's
+	// teals that a Lune graph does not read as an engine one.
+	Lune: "#5b5fa6",
 	Time: "#65852c",
 	Threads: "#4a6f8a",
 	Debug: "#6d7480",
