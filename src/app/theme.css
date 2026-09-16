@@ -6185,6 +6185,28 @@ button.tb.danger {
 	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
 }
 
+/* Which runtime this node needs, beside its name.
+ *
+ * The same words and the same colours the node menu puts on a row, so a badge
+ * there and a badge here are recognisably one thing rather than two vocabularies
+ * for one fact. Luau is stated rather than left off, which is the difference
+ * from the menu: a list is scanned and an absence reads, but a reference page is
+ * arrived at one at a time and a page that says nothing has not answered. */
+.docs-title .badge.runtime.luau {
+	color: var(--fg-muted);
+	border-color: var(--border);
+}
+
+.docs-title .badge.runtime.roblox {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.docs-title .badge.runtime.lune {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 50%, transparent);
+}
+
 .docs-title .badge.review.reviewed {
 	color: var(--accent);
 	border-color: color-mix(in srgb, var(--accent) 60%, transparent);

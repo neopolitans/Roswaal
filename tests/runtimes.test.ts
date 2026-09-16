@@ -25,6 +25,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, categories, createRegistry } from "../src/core/nodes/index.js";
+import { allPages, buildSite, findPage } from "../src/core/docs/site.js";
+import { renderPage } from "../src/core/docs/html.js";
 import {
 	CATEGORY_RUNTIME, classify, NODE_RUNTIME, RUNTIME_LABEL, RUNTIME_SUMMARY, RUNTIMES,
 	runtimeOf, targetsFor, withRuntimes,
@@ -294,6 +296,57 @@ describe("runtime as an axis", () => {
 		// which is already target-filtered.
 		expect(menu).toContain("def.targets.includes(target)");
 		expect(menu).toContain("byWire.filter((item) => item.runtime === narrowed)");
+	});
+});
+
+/**
+ * The same fact, in the documentation.
+ *
+ * A node page carries the runtime as a tag beside its title, in the words and
+ * the colours the node menu uses — so a badge on a row there and a badge on a
+ * page here are one vocabulary rather than two.
+ */
+describe("the tag on a node's page", () => {
+	const site = buildSite(registry, new Set(BUILTIN_NODES.map((d) => d.id)));
+
+	it("gives every node page a runtime and no guide one", () => {
+		for (const page of allPages(site)) {
+			if (page.nodeId) expect(page.runtime, page.slug).toBeDefined();
+			else expect(page.runtime, page.slug).toBeUndefined();
+		}
+	});
+
+	it("agrees with the node it documents", () => {
+		for (const page of allPages(site)) {
+			if (!page.nodeId) continue;
+			expect(page.runtime, page.slug).toBe(classify(registry.get(page.nodeId)!));
+		}
+	});
+
+	it("renders it as a badge, on the base-Luau pages too", () => {
+		const opts = { version: "test" };
+		const vector = renderPage(site, findPage(site, "node/roblox.vector3")!, opts);
+		const add = renderPage(site, findPage(site, "node/math.add")!, opts);
+
+		expect(vector).toContain('class="badge runtime roblox"');
+		expect(vector).toContain(">Roblox</span>");
+		// Stated rather than left off: a page is arrived at one at a time, so an
+		// absence has not answered anything.
+		expect(add).toContain('class="badge runtime luau"');
+		expect(add).toContain(">Luau</span>");
+	});
+
+	/** A guide is about an idea, not about something that runs. */
+	it("puts no tag on a guide", () => {
+		const controls = renderPage(site, findPage(site, "controls")!, { version: "test" });
+		expect(controls).not.toContain("badge runtime");
+	});
+
+	it("styles all three, scoped to the title", () => {
+		const css = source("src/app/theme.css");
+		for (const runtime of RUNTIMES) {
+			expect(css, runtime).toContain(`.docs-title .badge.runtime.${runtime}`);
+		}
 	});
 });
 

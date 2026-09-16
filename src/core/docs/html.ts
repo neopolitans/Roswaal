@@ -24,6 +24,7 @@ import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
 import {
 	controlKey, legendOf, TOOLBAR_HINT, toolbarHtml, type ToolbarArt,
 } from "./toolbars.js";
+import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
 
 export interface RenderOptions {
@@ -470,6 +471,23 @@ function reviewBadge(review: Review): string {
 	);
 }
 
+/**
+ * The runtime a node needs, as a tag beside its title.
+ *
+ * The same word and the same colour the editor's node menu uses, so the badge
+ * on a row there and the badge on the page here are recognisably one thing.
+ * Nothing on a guide, which is about an idea rather than about something that
+ * runs.
+ */
+function runtimeBadge(page: DocPage): string {
+	if (!page.runtime) return "";
+	return (
+		`<span class="badge runtime ${escapeHtml(page.runtime)}"` +
+		` title="${escapeHtml(RUNTIME_SUMMARY[page.runtime])}">` +
+		`${escapeHtml(RUNTIME_LABEL[page.runtime])}</span>`
+	);
+}
+
 export function renderPage(site: DocSite, page: DocPage, options: RenderOptions): string {
 	const up = upTo(page.slug);
 	const body = page.blocks.map((b) => renderBlock(b, options, up)).join("\n");
@@ -497,7 +515,7 @@ ${renderNav(site, page)}
 <article class="docs-content">
 <div class="docs-article${page.narrow ? " narrow" : ""}">
 <header class="docs-title">
-<h1>${escapeHtml(page.title)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}<a class="tb icon-only docs-edit" href="${escapeHtml(proposeHref(page))}" rel="noreferrer noopener" title="Suggest an edit — opens an issue for this page" aria-label="Suggest an edit">✎</a></h1>
+<h1>${escapeHtml(page.title)}${runtimeBadge(page)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}<a class="tb icon-only docs-edit" href="${escapeHtml(proposeHref(page))}" rel="noreferrer noopener" title="Suggest an edit — opens an issue for this page" aria-label="Suggest an edit">✎</a></h1>
 <p class="summary">${escapeHtml(page.summary)}</p>
 ${page.review ? `<p class="docs-status">${reviewBadge(page.review)}</p>\n` : ""}</header>
 ${body}

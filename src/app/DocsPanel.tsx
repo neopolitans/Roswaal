@@ -39,6 +39,7 @@ import type { Preferences } from "./preferences.js";
 import { growthState } from "../core/nodes/growth.js";
 import { PageEditor } from "./PageEditor.jsx";
 import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
+import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../core/nodes/runtimes.js";
 import { attachToolbarLink } from "./toolbarLink.js";
 import type { ToolbarSpec } from "../core/docs/toolbars.js";
 import { VERSION } from "../cli/version.js";
@@ -388,6 +389,16 @@ function Page({ page }: { page: DocPage }) {
 			<header className="docs-title">
 				<h1>
 					{page.title}
+					{/* The same tag the node menu puts on a row, so the two are
+					    recognisably one thing. */}
+					{page.runtime && (
+						<span
+							className={`badge runtime ${page.runtime}`}
+							title={RUNTIME_SUMMARY[page.runtime]}
+						>
+							{RUNTIME_LABEL[page.runtime]}
+						</span>
+					)}
 					{page.custom && <span className="badge">from a node pack</span>}
 					{/* The way in, where a page's own controls are looked for. It was a
 					    button at the foot, which is where you are once you have

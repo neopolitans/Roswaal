@@ -94,6 +94,20 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.62.6",
+		date: "2026-09-16",
+		headline: "A node's page is tagged with the runtime it needs.",
+		affects: ["docs"],
+		added: [
+			"**Every node page carries its runtime as a tag beside the title** — the same word and the same colour the node menu puts on a row, so a badge in the editor and a badge in the documentation are one vocabulary rather than two.",
+			"**Base Luau is tagged too**, which is where the documentation differs from the menu. A list is scanned, so an absence reads; a page is arrived at one at a time, and a page that says nothing has not answered.",
+		],
+		changed: [
+			"The line under the title says what the runtime *means* rather than naming it again — *needs the Roblox engine, its datatypes, its DataModel or its scheduler*. The tag is the thing to scan; the line is the thing to read.",
+			"A guide carries no tag. It is about an idea rather than about something that runs, and tagging *Controls* with a runtime would answer a question nobody asked of it.",
+		],
+	},
+	{
 		version: "0.62.5",
 		date: "2026-09-16",
 		headline: "The visual search finds what you named, not just what we shipped.",

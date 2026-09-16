@@ -31,7 +31,7 @@ import {
 	DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, TARGETS, type Attribution,
 } from "./attributions.js";
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
-import { classify, RUNTIME_LABEL, type Runtime } from "../nodes/runtimes.js";
+import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
 	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DOCS_BAR, DOCS_SITE_BAR, EDITOR_BAR,
 	EDITOR_BAR_BROWSER, GRAPH_BAR, legendOf, MAP_BAR, type ToolbarSpec,
@@ -182,6 +182,14 @@ export interface DocPage {
 	nodeId?: string;
 	/** True for a page documenting a node from this project's own packs. */
 	custom?: boolean;
+	/**
+	 * Which runtime this node needs, for the tag beside the title.
+	 *
+	 * Set on a node's page and nowhere else: a guide is about an idea rather
+	 * than about something that runs, and tagging *Wires and pins* with a
+	 * runtime would be answering a question nobody asked of it.
+	 */
+	runtime?: Runtime;
 	/**
 	 * Set on a page that is mostly prose.
 	 *
@@ -398,9 +406,9 @@ function previews(registry: Registry, ids: string[], caption?: string): Block[] 
  * them meant until 0.61.0, and the reader had no way to tell.
  */
 const RUNTIME_TRAIT: Record<Runtime, string> = {
-	luau: `**${RUNTIME_LABEL.luau}** — the language itself, so it works in both runtimes`,
-	roblox: `**${RUNTIME_LABEL.roblox} only** — it needs the engine`,
-	lune: `**${RUNTIME_LABEL.lune} only** — it needs the standalone runtime`,
+	luau: "the language itself, so it works in Roblox and in Lune",
+	roblox: "needs the Roblox engine — its datatypes, its DataModel or its scheduler",
+	lune: "needs Lune, the standalone Luau runtime",
 };
 
 function nodePage(doc: NodeDoc): DocPage {
@@ -410,6 +418,10 @@ function nodePage(doc: NodeDoc): DocPage {
 	// Which runtime, on every page rather than only where it is restricted.
 	// Said nowhere, "base Luau" and "nobody has checked" look identical -- and
 	// for 237 nodes they were the same thing until 0.61.0.
+	//
+	// The tag beside the title names it; this says what it means. Two forms of
+	// one fact, which is what a reference page is for: one to scan, one to
+	// read.
 	traits.push(RUNTIME_TRAIT[classify(doc)]);
 	if (doc.pure) traits.push("pure — no execution pins, wire it anywhere");
 	if (doc.latent) traits.push("latent — it yields, and is never inlined");
@@ -486,6 +498,7 @@ function nodePage(doc: NodeDoc): DocPage {
 		blocks,
 		nodeId: doc.id,
 		custom: doc.custom,
+		runtime: classify(doc),
 	};
 }
 
