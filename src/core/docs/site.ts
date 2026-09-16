@@ -4884,18 +4884,31 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	};
 
 	const start = [GETTING_STARTED, CONTROLS, TOOLBARS_PAGE, blueprintPage()];
-	const guides = [
-		TWO_KINDS_OF_WIRE(registry), TYPES_GUIDE, VARIABLES, MODULES_PAGE, ALIASES_PAGE,
-		luneLibraryPage(registry), BUILDING, BUILDING_LUNE, luneDemosPage(registry),
-		ESCAPE_HATCHES(registry), settingsPage(), CUSTOM_NODES, CLI_PAGE,
+	/**
+	 * The guides, in four shelves rather than one list of sixteen.
+	 *
+	 * One section had grown past the point where a reader scans it: sixteen
+	 * titles is a list you read line by line looking for a word, and three of
+	 * them began "Compiling and nodemaps". Splitting by the question somebody
+	 * arrives with -- how do graphs work, how does this reach Roblox, how does
+	 * it reach Lune, what is the tool itself -- puts the Lune pages together
+	 * for somebody who only has Lune, and keeps the Roblox ones out of their
+	 * way without hiding them.
+	 *
+	 * Ordered within each shelf the way they were within the one list: casting
+	 * beside the types page it was split out of, functions after the locals
+	 * whose Get Parameter they lean on.
+	 */
+	const writingGraphs = [
+		TWO_KINDS_OF_WIRE(registry), TYPES_GUIDE, castingPage(registry),
+		VARIABLES, functionsPage(registry), MODULES_PAGE, ESCAPE_HATCHES(registry),
 	];
-	// Beside the types page it was split out of, rather than at the end.
-	guides.splice(guides.indexOf(TYPES_GUIDE) + 1, 0, castingPage(registry));
-	// After locals, whose Get Parameter it leans on.
-	guides.splice(guides.indexOf(VARIABLES) + 1, 0, functionsPage(registry));
-	// Beside Building and Rojo, the other page that is about Roblox rather than
-	// about graphs.
-	guides.splice(guides.indexOf(BUILDING), 0, servicesPage(registry));
+	const forRoblox = [servicesPage(registry), BUILDING];
+	const forLune = [
+		luneLibraryPage(registry), ALIASES_PAGE, BUILDING_LUNE, luneDemosPage(registry),
+	];
+	const theTool = [settingsPage(), CUSTOM_NODES, CLI_PAGE];
+	const guides = [...writingGraphs, ...forRoblox, ...forLune, ...theTool];
 	const attributions = attributionsPage();
 	// Every page's title by slug, so the release notes can name the articles
 	// they list without holding a second copy of each title.
@@ -4907,7 +4920,10 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	return {
 		sections: withReviews([
 			{ title: "Getting started", slug: "start", group: GROUPS.learn, pages: start },
-			{ title: "Guides", slug: "guides", group: GROUPS.learn, pages: guides },
+			{ title: "Writing graphs", slug: "guides", group: GROUPS.learn, pages: writingGraphs },
+			{ title: "For Roblox", slug: "guides-roblox", group: GROUPS.learn, pages: forRoblox },
+			{ title: "For Lune", slug: "guides-lune", group: GROUPS.learn, pages: forLune },
+			{ title: "The tool", slug: "guides-tool", group: GROUPS.learn, pages: theTool },
 			{
 				title: "Release notes",
 				slug: "releases",

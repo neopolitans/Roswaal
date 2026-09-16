@@ -94,6 +94,21 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.70.1",
+		date: "2026-09-16",
+		headline: "The guides split into four, and a pill fits what is on it.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**The guides are four shelves rather than one list of sixteen** — Writing graphs, For Roblox, For Lune, The tool. Three of the sixteen titles began “Compiling and nodemaps”, and a list that long is one you read line by line looking for a word. Somebody who only has Lune now finds their four pages together.",
+		],
+		fixed: [
+			"**An operator’s value field no longer hangs off the side of it.** A pill’s width came from its pins’ defaults while what is drawn on a row comes from the pin’s default *or the value on that node*. For most of them the two agree by accident; `compare.eq` takes `any` with no default, so it was measured with no room for a field and then drawn with one.",
+		],
+		watch: [
+			"The width still does not change when a wire lands, which is what the old rule was protecting: a value stays on the node, so the field stops being drawn and the column simply stays empty.",
+		],
+	},
+	{
 		version: "0.70.0",
 		date: "2026-09-16",
 		headline: "The Roswaal mark opens the way in, from any window.",
