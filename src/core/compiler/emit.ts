@@ -38,6 +38,20 @@ import {
 } from "../structs.js";
 
 /**
+ * Names the runtime provides, which a *generated* name must not shadow.
+ *
+ * "Generated" is the load-bearing word. A name somebody typed is allowed to
+ * shadow one of these — binding `Vector3` off `@lune/roblox` is the whole point
+ * of that mechanism — but it is worth warning about, because shadowing `table`
+ * breaks `table.insert` for the rest of the file.
+ */
+const PROVIDED_GLOBALS = [
+	"game", "workspace", "script", "shared", "require", "print", "warn", "table", "math",
+	"string", "task", "Instance", "Vector3", "Color3", "CFrame", "Enum", "tostring",
+	"tonumber", "pairs", "ipairs", "next", "select", "type", "typeof",
+];
+
+/**
  * The local a module specifier would be called if nobody said.
  *
  * Its last segment. `lastSegment` splits on dots because it was written for
@@ -333,9 +347,7 @@ class Emitter {
 		// and the answer cannot change while one file is being written.
 		if (this.options.comments) this.headers = headersByNode(script, registry);
 		// Anything Luau itself provides must not be shadowed by a generated name.
-		for (const g of ["game", "workspace", "script", "shared", "require", "print", "warn", "table", "math", "string", "task", "Instance", "Vector3", "Color3", "CFrame", "Enum", "tostring", "tonumber", "pairs", "ipairs", "next", "select", "type", "typeof"]) {
-			this.names.reserve(g);
-		}
+		for (const g of PROVIDED_GLOBALS) this.names.reserve(g);
 	}
 
 	run(): EmitResult {
@@ -518,10 +530,49 @@ class Emitter {
 	private declareModules(): void {
 		// A template has no top of the file to hoist to; it is one expression.
 		if (this.options.inline) return;
+		/** Local name -> the module that asked for it, for the clash below. */
+		const claimed = new Map<string, string>();
+
 		for (const module of this.script.modules ?? []) {
 			const specifier = module.specifier.trim();
 			if (specifier === "") continue;
-			const ident = this.names.uniqueForFile(module.name || "module", "module");
+
+			/**
+			 * A declared name is taken **verbatim**, not made unique.
+			 *
+			 * The panel makes you type one, so it is always a choice — and
+			 * `uniqueForFile` answers a different question. Asked for `util`
+			 * twice it hands back `util` and `util2`; asked for `table` it hands
+			 * back `table2`. Both are silent, and both leave the graph saying
+			 * one name while the file says another, which is the kind of
+			 * mismatch that costs an afternoon.
+			 *
+			 * Two modules genuinely can want one name — `./combat/util` and
+			 * `./inventory/util` is a shape real projects have — and the answer
+			 * to that is for the author to rename one, which they can only do
+			 * if we tell them.
+			 */
+			const wanted = toIdentifier(module.name.trim() || specifierName(specifier) || "module");
+
+			const already = claimed.get(wanted);
+			if (already !== undefined) {
+				this.error(
+					`Two modules are both called "${wanted}" — ${already} and ${specifier}. ` +
+						"Rename one of them: a generated file can only bind the name once.",
+				);
+				continue;
+			}
+			if (PROVIDED_GLOBALS.includes(wanted)) {
+				this.warn(
+					`The module "${wanted}" shadows something Luau provides. That is allowed and is ` +
+						"sometimes the point, but everything below it in this file sees the module " +
+						"rather than the global.",
+				);
+			}
+			claimed.set(wanted, specifier);
+			this.names.reserve(wanted);
+
+			const ident = wanted;
 			this.moduleIdents.set(module.id, ident);
 			this.requires.set(`module:${module.id}`, {
 				ident,
@@ -2205,10 +2256,31 @@ class Emitter {
 				const existing = this.requires.get(key);
 				if (existing) return existing.ident;
 
-				const hint = this.literalText(src, "as").trim()
-					|| specifierName(specifier)
-					|| "module";
-				const ident = this.names.uniqueForFile(hint, "module");
+				/**
+				 * A name typed into `As` is taken verbatim; a derived one is made
+				 * unique.
+				 *
+				 * The two are different claims. Nobody chose the default, so
+				 * renaming it to `util2` when something already has `util` costs
+				 * nothing — but a name somebody typed is the one they meant, and
+				 * quietly handing back a different one leaves the node saying
+				 * `util` and the file saying `util2`.
+				 */
+				const chosen = this.literalText(src, "as").trim();
+				const ident = chosen === ""
+					? this.names.uniqueForFile(specifierName(specifier) || "module", "module")
+					: toIdentifier(chosen);
+				if (chosen !== "") {
+					if (PROVIDED_GLOBALS.includes(ident)) {
+						this.warn(
+							`Require at Top binds "${ident}", which shadows something Luau provides. ` +
+								"Everything below it in this file sees the module rather than the global.",
+							src.node.id,
+							"as",
+						);
+					}
+					this.names.reserve(ident);
+				}
 				this.requires.set(key, { ident, expression: quoteString(specifier) });
 				return ident;
 			}

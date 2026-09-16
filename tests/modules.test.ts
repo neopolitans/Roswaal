@@ -254,6 +254,100 @@ describe("Get Module", () => {
 	});
 });
 
+/**
+ * Overriding the local a module binds to.
+ *
+ * Two modules genuinely can want one name. `./combat/util` and
+ * `./inventory/util` is a shape real projects have — arguably a bad one, and
+ * commoner than it ought to be — so the name has to be the author's to set.
+ */
+describe("naming a module yourself", () => {
+	const declaring = (modules: ScriptModule[]) => compile(withModules(modules), registry, {});
+	const said = (modules: ScriptModule[]) =>
+		declaring(modules).diagnostics.map((d) => `${d.severity}: ${d.message}`).join(" | ");
+
+	it("binds each to the name it was given", () => {
+		const out = body(withModules([
+			{ id: "a", name: "combatUtil", specifier: "./combat/util" },
+			{ id: "b", name: "inventoryUtil", specifier: "./inventory/util" },
+		]));
+		expect(out).toContain('local combatUtil = require("./combat/util")');
+		expect(out).toContain('local inventoryUtil = require("./inventory/util")');
+		expect(said([
+			{ id: "a", name: "combatUtil", specifier: "./combat/util" },
+			{ id: "b", name: "inventoryUtil", specifier: "./inventory/util" },
+		])).toBe("");
+	});
+
+	/**
+	 * A chosen name is taken verbatim, never made unique.
+	 *
+	 * `uniqueForFile` answers a different question. Asked for `util` twice it
+	 * hands back `util` and `util2`; asked for `table` it hands back `table2`.
+	 * Both silently, and both leaving the panel saying one name while the file
+	 * says another — which is the mismatch that costs an afternoon.
+	 */
+	it("does not quietly rename a name you chose", () => {
+		const out = body(withModules([{ id: "a", name: "util", specifier: "./combat/util" }]));
+		expect(out).toContain("local util = ");
+		expect(out).not.toContain("util2");
+	});
+
+	it("says so when two modules want the same name", () => {
+		const problem = said([
+			{ id: "a", name: "util", specifier: "./combat/util" },
+			{ id: "b", name: "util", specifier: "./inventory/util" },
+		]);
+		expect(problem).toContain("error");
+		expect(problem).toContain('"util"');
+		// Both specifiers, so you know which two to tell apart.
+		expect(problem).toContain("./combat/util");
+		expect(problem).toContain("./inventory/util");
+	});
+
+	/**
+	 * Shadowing a global is allowed — binding `Vector3` off `@lune/roblox` is
+	 * the point of that whole mechanism — but it is worth saying, because
+	 * naming a module `table` breaks `table.insert` for the rest of the file.
+	 */
+	it("warns rather than refuses when a name shadows a global", () => {
+		const problem = said([{ id: "a", name: "table", specifier: "./util/table" }]);
+		expect(problem).toContain("warning");
+		expect(problem).toContain("shadows");
+		// And it still binds what was asked for.
+		expect(body(withModules([{ id: "a", name: "table", specifier: "./util/table" }])))
+			.toContain('local table = require("./util/table")');
+	});
+
+	it("falls back to the specifier when no name was given", () => {
+		expect(body(withModules([{ id: "a", name: "  ", specifier: "@lune/fs" }])))
+			.toContain("local fs = require");
+	});
+
+	/** The same rule on the node: `As` is a choice, the default is not. */
+	it("takes Require at Top's As verbatim and makes its default unique", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const first = b.node("module.requireTop");
+		const second = b.node("module.requireTop");
+		b.lit(first, "specifier", { t: "string", v: "./combat/util" });
+		b.lit(second, "specifier", { t: "string", v: "./inventory/util" });
+		b.lit(second, "as", { t: "string", v: "inventoryUtil" });
+		const a = b.node("debug.print");
+		const c = b.node("debug.print");
+		b.link(start, "then", a, "in");
+		b.link(a, "then", c, "in");
+		b.link(first, "exports", a, "value");
+		b.link(second, "exports", c, "value");
+
+		const out = body({ ...b.build(), target: "lune" });
+		// The derived one keeps the plain name; the chosen one is exactly what
+		// was typed.
+		expect(out).toContain('local util = require("./combat/util")');
+		expect(out).toContain('local inventoryUtil = require("./inventory/util")');
+	});
+});
+
 describe("a graph written before modules existed", () => {
 	/**
 	 * `modules` arrived at 0.63.0. A file without it must open, not throw, and
