@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "kind": "script",
+  "id": "demo-greet",
+  "name": "greet",
+  "scriptClass": "ModuleScript",
+  "target": "lune",
+  "typecheck": "strict",
+  "variables": [],
+  "modules": [
+    {
+      "id": "m_process",
+      "name": "process",
+      "specifier": "@lune/process"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n0",
+      "def": "script.begin",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": "n1",
+      "def": "value.expression",
+      "x": 235,
+      "y": 250,
+      "literals": {
+        "code": {
+          "t": "raw",
+          "v": "process.args"
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "def": "table.length",
+      "x": 470,
+      "y": 250
+    },
+    {
+      "id": "n3",
+      "def": "compare.eq",
+      "x": 705,
+      "y": 250,
+      "literals": {
+        "b": {
+          "t": "number",
+          "v": 0
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "def": "flow.branch",
+      "x": 940,
+      "y": 0
+    },
+    {
+      "id": "n5",
+      "def": "debug.print",
+      "x": 1175,
+      "y": 0,
+      "literals": {
+        "value": {
+          "t": "string",
+          "v": "usage: lune run greet -- <name>"
+        }
+      }
+    },
+    {
+      "id": "n6",
+      "def": "lune.call",
+      "x": 1410,
+      "y": 0,
+      "config": {
+        "module": "process",
+        "call": "exit"
+      },
+      "literals": {
+        "a0": {
+          "t": "number",
+          "v": 1
+        }
+      }
+    },
+    {
+      "id": "n7",
+      "def": "table.get",
+      "x": 1175,
+      "y": 260,
+      "literals": {
+        "key": {
+          "t": "number",
+          "v": 1
+        }
+      }
+    },
+    {
+      "id": "n8",
+      "def": "string.concat",
+      "x": 1410,
+      "y": 260,
+      "literals": {
+        "a0": {
+          "t": "string",
+          "v": "Hello, "
+        }
+      }
+    },
+    {
+      "id": "n9",
+      "def": "debug.print",
+      "x": 1645,
+      "y": 140
+    }
+  ],
+  "links": [
+    {
+      "id": "l0",
+      "from": {
+        "node": "n0",
+        "pin": "then"
+      },
+      "to": {
+        "node": "n4",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n2",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n3",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n3",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n4",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n4",
+        "pin": "true"
+      },
+      "to": {
+        "node": "n5",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "n5",
+        "pin": "then"
+      },
+      "to": {
+        "node": "n6",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "n4",
+        "pin": "false"
+      },
+      "to": {
+        "node": "n9",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "n1",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n7",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "n7",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n8",
+        "pin": "a1"
+      }
+    },
+    {
+      "id": "l9",
+      "from": {
+        "node": "n8",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n9",
+        "pin": "value"
+      }
+    }
+  ],
+  "comments": []
+}

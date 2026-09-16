@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "kind": "script",
+  "id": "demo-walk-a-directory",
+  "name": "walk-a-directory",
+  "scriptClass": "ModuleScript",
+  "target": "lune",
+  "typecheck": "strict",
+  "variables": [],
+  "modules": [
+    {
+      "id": "m_fs",
+      "name": "fs",
+      "specifier": "@lune/fs"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n0",
+      "def": "script.begin",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": "n1",
+      "def": "lune.value",
+      "x": 235,
+      "y": 130,
+      "config": {
+        "module": "fs",
+        "call": "readDir"
+      },
+      "literals": {
+        "a0": {
+          "t": "string",
+          "v": "."
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "def": "flow.forIndex",
+      "x": 470,
+      "y": 0
+    },
+    {
+      "id": "n3",
+      "def": "lune.value",
+      "x": 705,
+      "y": 150,
+      "config": {
+        "module": "fs",
+        "call": "isDir"
+      }
+    },
+    {
+      "id": "n4",
+      "def": "flow.branch",
+      "x": 940,
+      "y": 0
+    },
+    {
+      "id": "n5",
+      "def": "string.concat",
+      "x": 1175,
+      "y": 120,
+      "literals": {
+        "a0": {
+          "t": "string",
+          "v": "dir   "
+        }
+      }
+    },
+    {
+      "id": "n6",
+      "def": "debug.print",
+      "x": 1410,
+      "y": 0
+    },
+    {
+      "id": "n7",
+      "def": "string.concat",
+      "x": 1175,
+      "y": 260,
+      "literals": {
+        "a0": {
+          "t": "string",
+          "v": "file  "
+        }
+      }
+    },
+    {
+      "id": "n8",
+      "def": "debug.print",
+      "x": 1410,
+      "y": 140
+    }
+  ],
+  "links": [
+    {
+      "id": "l0",
+      "from": {
+        "node": "n0",
+        "pin": "then"
+      },
+      "to": {
+        "node": "n2",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n2",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "pin": "body"
+      },
+      "to": {
+        "node": "n4",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n2",
+        "pin": "value"
+      },
+      "to": {
+        "node": "n3",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n3",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n4",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "n4",
+        "pin": "true"
+      },
+      "to": {
+        "node": "n6",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "n2",
+        "pin": "value"
+      },
+      "to": {
+        "node": "n5",
+        "pin": "a1"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "n5",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n6",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "n4",
+        "pin": "false"
+      },
+      "to": {
+        "node": "n8",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l9",
+      "from": {
+        "node": "n2",
+        "pin": "value"
+      },
+      "to": {
+        "node": "n7",
+        "pin": "a1"
+      }
+    },
+    {
+      "id": "l10",
+      "from": {
+        "node": "n7",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n8",
+        "pin": "value"
+      }
+    }
+  ],
+  "comments": []
+}

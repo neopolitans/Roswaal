@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "kind": "script",
+  "id": "demo-fetch-json",
+  "name": "fetch-json",
+  "scriptClass": "ModuleScript",
+  "target": "lune",
+  "typecheck": "strict",
+  "variables": [],
+  "modules": [
+    {
+      "id": "m_net",
+      "name": "net",
+      "specifier": "@lune/net"
+    },
+    {
+      "id": "m_serde",
+      "name": "serde",
+      "specifier": "@lune/serde"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n0",
+      "def": "script.begin",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": "n1",
+      "def": "lune.call",
+      "x": 235,
+      "y": 0,
+      "config": {
+        "module": "net",
+        "call": "request"
+      },
+      "literals": {
+        "a0": {
+          "t": "string",
+          "v": "https://api.github.com/repos/lune-org/lune"
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "def": "table.getKey",
+      "x": 470,
+      "y": 130,
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "body"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "def": "lune.value",
+      "x": 705,
+      "y": 130,
+      "config": {
+        "module": "serde",
+        "call": "decode"
+      },
+      "literals": {
+        "a0": {
+          "t": "string",
+          "v": "json"
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "def": "table.getKey",
+      "x": 940,
+      "y": 130,
+      "literals": {
+        "key": {
+          "t": "string",
+          "v": "stargazers_count"
+        }
+      }
+    },
+    {
+      "id": "n5",
+      "def": "string.format",
+      "x": 1175,
+      "y": 130,
+      "literals": {
+        "format": {
+          "t": "string",
+          "v": "lune has %d stars."
+        }
+      }
+    },
+    {
+      "id": "n6",
+      "def": "debug.print",
+      "x": 1410,
+      "y": 0
+    }
+  ],
+  "links": [
+    {
+      "id": "l0",
+      "from": {
+        "node": "n0",
+        "pin": "then"
+      },
+      "to": {
+        "node": "n1",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "pin": "then"
+      },
+      "to": {
+        "node": "n6",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n1",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n2",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n2",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n3",
+        "pin": "a1"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n3",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n4",
+        "pin": "table"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "n4",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n5",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "n5",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n6",
+        "pin": "value"
+      }
+    }
+  ],
+  "comments": []
+}

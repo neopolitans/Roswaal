@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "kind": "script",
+  "id": "demo-count-characters",
+  "name": "count-characters",
+  "scriptClass": "ModuleScript",
+  "target": "lune",
+  "typecheck": "strict",
+  "variables": [],
+  "modules": [
+    {
+      "id": "m_fs",
+      "name": "fs",
+      "specifier": "@lune/fs"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n0",
+      "def": "script.begin",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": "n1",
+      "def": "lune.value",
+      "x": 235,
+      "y": 120,
+      "config": {
+        "module": "fs",
+        "call": "readFile"
+      },
+      "literals": {
+        "a0": {
+          "t": "string",
+          "v": "README.md"
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "def": "string.len",
+      "x": 470,
+      "y": 120
+    },
+    {
+      "id": "n3",
+      "def": "string.format",
+      "x": 705,
+      "y": 120,
+      "literals": {
+        "format": {
+          "t": "string",
+          "v": "README.md is %d characters."
+        }
+      }
+    },
+    {
+      "id": "n4",
+      "def": "debug.print",
+      "x": 940,
+      "y": 0
+    }
+  ],
+  "links": [
+    {
+      "id": "l0",
+      "from": {
+        "node": "n0",
+        "pin": "then"
+      },
+      "to": {
+        "node": "n4",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n2",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n3",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n3",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n4",
+        "pin": "value"
+      }
+    }
+  ],
+  "comments": []
+}
