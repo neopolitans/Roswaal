@@ -394,3 +394,175 @@ export function chainFor(files: readonly Luaurc[], filePath: string): LuaurcChai
 	}
 	return chain;
 }
+
+// ---------------------------------------------------------------------------
+// Writing one
+// ---------------------------------------------------------------------------
+
+/** Where the `aliases` object sits in a file's raw text. */
+interface Span {
+	/** Index of its `{`. */
+	open: number;
+	/** Index just past its `}`. */
+	close: number;
+	/** The indentation of the line the `{` is on, for writing the members. */
+	indent: string;
+}
+
+/**
+ * The `aliases` object's span, found in the text rather than in a parse.
+ *
+ * Needed because a parse loses everything that is not data, and a `.luaurc` is
+ * a file somebody wrote: `languageMode`, `lint`, settings we have never heard
+ * of, and comments explaining why a package is vendored. Rewriting the file
+ * from the aliases we understood would take all of that away silently, which is
+ * the one thing the module rules here forbid.
+ */
+function aliasesSpan(text: string): Span | null {
+	let i = 0;
+	let depth = 0;
+	let found: number | null = null;
+
+	const skipTrivia = (at: number): number => {
+		let j = at;
+		for (;;) {
+			while (j < text.length && /\s/.test(text[j])) j += 1;
+			if (text[j] === "/" && text[j + 1] === "/") {
+				while (j < text.length && text[j] !== "\n") j += 1;
+				continue;
+			}
+			if (text[j] === "/" && text[j + 1] === "*") {
+				j += 2;
+				while (j < text.length && !(text[j] === "*" && text[j + 1] === "/")) j += 1;
+				j += 2;
+				continue;
+			}
+			return j;
+		}
+	};
+
+	while (i < text.length) {
+		const ch = text[i];
+		if (ch === "/" && (text[i + 1] === "/" || text[i + 1] === "*")) {
+			i = skipTrivia(i);
+			continue;
+		}
+		if (ch === '"') {
+			const start = i;
+			i += 1;
+			while (i < text.length && text[i] !== '"') i += text[i] === "\\" ? 2 : 1;
+			i += 1;
+			// Only a key at the top level: `aliases` nested in something else is
+			// somebody else's field with the same name.
+			if (depth === 1 && text.slice(start + 1, i - 1) === "aliases") {
+				const colon = skipTrivia(i);
+				if (text[colon] === ":") {
+					found = skipTrivia(colon + 1);
+					break;
+				}
+			}
+			continue;
+		}
+		if (ch === "{" || ch === "[") depth += 1;
+		if (ch === "}" || ch === "]") depth -= 1;
+		i += 1;
+	}
+
+	if (found === null || text[found] !== "{") return null;
+
+	// Match the brace, ignoring one inside a string or a comment.
+	let j = found;
+	let inner = 0;
+	while (j < text.length) {
+		const ch = text[j];
+		if (ch === '"') {
+			j += 1;
+			while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1;
+			j += 1;
+			continue;
+		}
+		if (ch === "/" && (text[j + 1] === "/" || text[j + 1] === "*")) {
+			j = skipTrivia(j);
+			continue;
+		}
+		if (ch === "{") inner += 1;
+		if (ch === "}") {
+			inner -= 1;
+			if (inner === 0) {
+				const lineStart = text.lastIndexOf("\n", found) + 1;
+				const indent = /^[ \t]*/.exec(text.slice(lineStart))?.[0] ?? "";
+				return { open: found, close: j + 1, indent };
+			}
+		}
+		j += 1;
+	}
+	return null;
+}
+
+export type AliasEdit =
+	| { t: "text"; text: string }
+	| { t: "refused"; why: string };
+
+/**
+ * The same file with a different set of aliases, and nothing else touched.
+ *
+ * Splices the `aliases` object rather than re-serialising the file, so every
+ * other field and every comment outside that object survives exactly. A file
+ * with **comments inside the aliases object** is refused instead: those cannot
+ * be kept through an edit that reorders and rewrites the members, and quietly
+ * dropping somebody's note about why a package is vendored is worse than
+ * asking them to make the change by hand.
+ *
+ * A file that does not parse is refused too. Editing one would mean guessing
+ * what it was meant to say.
+ */
+export function withAliases(text: string, aliases: readonly AliasEntry[]): AliasEdit {
+	const body = (indent: string) => {
+		if (aliases.length === 0) return "{}";
+		const members = aliases
+			.map((alias) => `${indent}\t${JSON.stringify(alias.name)}: ${JSON.stringify(alias.value)}`)
+			.join(",\n");
+		return `{\n${members}\n${indent}}`;
+	};
+
+	if (text.trim() === "") return { t: "text", text: `{\n\t"aliases": ${body("\t")}\n}\n` };
+
+	const parsed = parseLuaurc("", text);
+	const broken = parsed.problems.find((problem) => problem.alias === undefined);
+	if (broken !== undefined) {
+		return {
+			t: "refused",
+			why: "This `.luaurc` cannot be read, so changing it would mean guessing what it says.",
+		};
+	}
+
+	const span = aliasesSpan(text);
+	if (span === null) {
+		// No `aliases` field: add one inside the object it is missing from.
+		const close = text.lastIndexOf("}");
+		if (close < 0) {
+			return { t: "refused", why: "This `.luaurc` is not an object, so it has nowhere to put an alias." };
+		}
+		const before = text.slice(0, close).replace(/\s*$/, "");
+		const comma = before.endsWith("{") ? "" : ",";
+		return {
+			t: "text",
+			text: `${before}${comma}\n\t"aliases": ${body("\t")}\n${text.slice(close)}`,
+		};
+	}
+
+	const inside = text.slice(span.open, span.close);
+	if (/\/\/|\/\*/.test(inside)) {
+		return {
+			t: "refused",
+			why:
+				"There are comments inside this file's `aliases`, and an edit here would reorder " +
+				"the entries and lose them. Change it by hand instead.",
+		};
+	}
+
+	return {
+		t: "text",
+		text: text.slice(0, span.open) + body(span.indent) + text.slice(span.close),
+	};
+}

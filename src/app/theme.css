@@ -6713,6 +6713,119 @@ button.tb.danger {
 	font-size: 13px;
 }
 
+/* -------------------------------------------------------- .luaurc document */
+
+/* A `.luaurc`, opened from the tree like any other file. It borrows the
+   settings rows because it is the same kind of thing to look at -- a name, what
+   it does, and the control that changes it -- and the page around them is this
+   file's own. */
+.alias-doc {
+	overflow: auto;
+	padding: 20px 24px 40px;
+	height: 100%;
+}
+
+/* Everything here shares one right edge, and it is the wide one.
+   `.settings-warn` and the notes cap themselves at a reading measure, which is
+   right inside a settings panel a third of the screen across and wrong here:
+   this is a document, the rows already use the full width, and a paragraph that
+   stops two-thirds short reads as a column that failed to load rather than as a
+   line kept short on purpose. */
+.alias-doc .settings-warn,
+.alias-doc .settings-note,
+.alias-doc .settings-problem,
+.alias-doc .alias-scope {
+	max-width: none;
+}
+
+/* A `.setting` is a wide label and a narrow control, which is right for a
+   preference: most of the row is the sentence explaining it. An alias is the
+   other shape -- a short name and a path -- so the columns are the other way
+   round. Borrowing the settings row wholesale put the name in a column wide
+   enough for a paragraph and the path in a box at the far end of it. */
+.alias-doc .alias-row {
+	grid-template-columns: minmax(140px, 220px) 1fr;
+	gap: 12px;
+	align-items: center;
+}
+
+/* The resolved path under the name, which is the thing being checked. */
+.alias-doc .alias-row .setting-label {
+	gap: 1px;
+	min-width: 0;
+}
+
+.alias-doc .alias-row .setting-label span {
+	overflow-wrap: anywhere;
+}
+
+.alias-doc-head h1 {
+	margin: 0 0 4px;
+	font-size: 16px;
+}
+
+.alias-doc h2 {
+	margin: 28px 0 4px;
+	font-size: 14px;
+}
+
+.alias-scope {
+	margin: 0 0 18px;
+	color: var(--fg-muted);
+	line-height: 1.55;
+	max-width: 64ch;
+}
+
+/* The value and the buttons that act on it, on one line: the path is the thing
+   being edited and the rest is furniture beside it. */
+.alias-control {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.alias-control input {
+	flex: 1;
+	min-width: 0;
+}
+
+.alias-row .setting-label input {
+	margin-bottom: 3px;
+}
+
+/* Where an inherited alias was defined. Not a control: it belongs to another
+   file, and the way to change it is to open that one. */
+.alias-from {
+	justify-content: flex-end;
+	color: var(--fg-faint);
+}
+
+.alias-inherited .setting-control {
+	opacity: 0.8;
+}
+
+/* Said where it happened rather than in a toast: an edit that was refused is
+   about the file the reader is looking at, and a message that floats away takes
+   the reason with it. */
+.settings-warn {
+	margin: 0 0 14px;
+	padding: 10px 12px;
+	border-radius: 6px;
+	border-left: 3px solid var(--warning);
+	background: color-mix(in srgb, var(--warning) 10%, transparent);
+	line-height: 1.55;
+	max-width: 64ch;
+}
+
+.settings-problem {
+	margin: 4px 0;
+	line-height: 1.5;
+	max-width: 64ch;
+}
+
+.settings-problem.error { color: var(--danger); }
+.settings-problem.warning { color: var(--warning); }
+
 /* The published site's settings popover: the editor's panel, sized for the two
    preferences a reader of a page can change. Everything inside it is the app's
    own -- only the frame is smaller, because a full-height dialog for two rows

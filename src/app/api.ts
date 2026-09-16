@@ -9,7 +9,7 @@ import type { LuaurcSource } from "../core/luaurc.js";
 export interface TreeEntry {
 	path: string;
 	name: string;
-	kind: "directory" | "nodescript" | "nodemap" | "luau";
+	kind: "directory" | "nodescript" | "nodemap" | "luau" | "luaurc";
 	generatedFrom?: string;
 	/** A graph's functions, as the file on disk has them. */
 	functions?: FunctionInfo[];

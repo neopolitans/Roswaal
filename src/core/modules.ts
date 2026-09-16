@@ -28,10 +28,18 @@
  * | any other `@alias/` from `.luaurc` | **not yet** | yes |
  *
  * That last row is the one that is a warning rather than an error. Roblox's own
- * announcement answers "custom aliased paths?" with *"Not yet, but we're
- * working on it!"* — so a `.luaurc` alias in a Roblox graph is code that does
- * not resolve *today*, written against something that is coming. Refusing it
- * would be claiming to know a date nobody has given.
+ * announcement, [Introducing Require-by-String][announce], answers "custom
+ * aliased paths?" with *"Not yet, but we're working on it!"*, and its update of
+ * 8 January 2026 says *"we're also currently working on making it possible to
+ * define your own custom require aliases, so stay tuned for that."* Both are
+ * SubatomicTurtle's, for Roblox. So a `.luaurc` alias in a Roblox graph is code
+ * that does not resolve *today*, written against something that is coming —
+ * refusing it would be claiming to know a date nobody has given.
+ *
+ * The link is exported rather than only quoted, because a reader should be able
+ * to check a claim about somebody else's roadmap instead of taking ours for it.
+ *
+ * [announce]: https://devforum.roblox.com/t/introducing-require-by-string/3405078
  *
  * [amended]: https://rfcs.luau.org/amended-require-resolution.html
  */
@@ -43,6 +51,13 @@ export interface SpecifierProblem {
 	severity: "error" | "warning";
 	message: string;
 }
+
+/**
+ * Roblox's announcement of require-by-string, where the alias question is
+ * answered. Checked 16 September 2026.
+ */
+export const ROBLOX_REQUIRE_ANNOUNCEMENT =
+	"https://devforum.roblox.com/t/introducing-require-by-string/3405078";
 
 /** Aliases Roblox resolves itself, with no `.luaurc` involved. */
 export const ROBLOX_ALIASES = ["self", "game"] as const;

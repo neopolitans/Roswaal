@@ -17,6 +17,9 @@ const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
 	nodescript: "document",
 	nodemap: "map",
 	luau: "document",
+	// The gear it used to be reached by, kept as the glyph: it is the project's
+	// settings for requires, and the shape people already associate with that.
+	luaurc: "settings",
 };
 
 export interface ProjectTreeProps {
@@ -105,9 +108,14 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		// top-level `scripts` folder would be inside it. Either way it is ours.
 		const isOurs = (p: string) =>
 			owned.some((dir) => dir === p || dir.startsWith(p + "/") || p.startsWith(dir + "/"));
+		// A `.luaurc` is graph content wherever it sits. The split is between what
+		// Roswaal *reads* and what it *writes*, and this is read -- it decides
+		// what a require resolves to, exactly as a node pack decides what a node
+		// is. Landing it beside the compiled Luau said the opposite.
+		const isGraph = (e: TreeEntry) => isOurs(e.path) || e.kind === "luaurc";
 		return {
-			graph: tree.filter((e) => isOurs(e.path)),
-			compiled: tree.filter((e) => !isOurs(e.path)),
+			graph: tree.filter(isGraph),
+			compiled: tree.filter((e) => !isGraph(e)),
 		};
 	}, [tree, sourceDir, nodePaths]);
 

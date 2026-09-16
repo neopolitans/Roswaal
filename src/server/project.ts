@@ -45,7 +45,7 @@ export interface TreeEntry {
 	/** Path relative to the project root, with forward slashes. */
 	path: string;
 	name: string;
-	kind: "directory" | "nodescript" | "nodemap" | "luau";
+	kind: "directory" | "nodescript" | "nodemap" | "luau" | "luaurc";
 	/** Set on generated Luau: the graph it came from. */
 	generatedFrom?: string;
 	/** Set on a graph with functions, which the tree lists under it. */
@@ -568,6 +568,10 @@ function classify(name: string): TreeEntry["kind"] | null {
 	if (name.endsWith(".nodescript")) return "nodescript";
 	if (name.endsWith(".nodemap")) return "nodemap";
 	if (name.endsWith(".luau") || name.endsWith(".lua")) return "luau";
+	// A project fact, shown where it lives: which directory a `.luaurc` is in
+	// decides which graphs it applies to, and a tree is the one place that says
+	// so without having to explain it.
+	if (name === ".luaurc") return "luaurc";
 	return null;
 }
 

@@ -46,7 +46,9 @@ import {
 } from "./panels.js";
 import { screenToWorld } from "./geometry.js";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
+import { AliasDocument } from "./AliasDocument.jsx";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
+import type { LuaurcSource } from "../core/luaurc.js";
 import { usePreferenceSync } from "./preferenceSync.js";
 import {
 	addComment, addNode, alignToAnchor, landingPins, connect, copySelection, deleteSelection, disconnectPin, pasteClipping,
@@ -150,6 +152,15 @@ export function App() {
 	 */
 	const [prefs, setPrefs] = useState<Preferences>(readPreferences);
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	/**
+	 * The `.luaurc` being edited, and every one in the project.
+	 *
+	 * All of them because the open file is not the whole story: it inherits from
+	 * the files above it, and a name added here must not collide with one of
+	 * those. Read when a `.luaurc` is opened rather than held, so the document
+	 * cannot be showing a file somebody changed on disk half an hour ago.
+	 */
+	const [aliasDoc, setAliasDoc] = useState<{ dir: string; files: LuaurcSource[] } | null>(null);
 	const layout = prefs.layout;
 
 	/**
@@ -440,6 +451,7 @@ export function App() {
 			store.closeAll();
 			setMapDoc(null);
 			setSource(null);
+			setAliasDoc(null);
 			await loadProject(root);
 		},
 		[loadProject, mapDoc, notify],
@@ -489,6 +501,7 @@ export function App() {
 			store.closeAll();
 			setMapDoc(null);
 			setSource(null);
+			setAliasDoc(null);
 			await loadProject(chosen, true);
 			return;
 		}
@@ -574,6 +587,7 @@ export function App() {
 			if (!root || root === open) return;
 			store.closeAll();
 			setSource(null);
+			setAliasDoc(null);
 			setMapDoc(null);
 			notify(
 				"Following the daemon to another project",
@@ -598,7 +612,19 @@ export function App() {
 
 	// -- documents ---------------------------------------------------------
 
+	/** The directory a file is in, project-relative. */
+	const dirOf = (filePath: string) => filePath.split("/").slice(0, -1).join("/");
+
 	const openEntry = useCallback(async (entry: TreeEntry) => {
+		if (entry.kind === "luaurc") {
+			setSource(null);
+			setMapDoc(null);
+			store.close();
+			const { files } = await api.luaurcFiles();
+			setAliasDoc({ dir: dirOf(entry.path), files });
+			return;
+		}
+		setAliasDoc(null);
 		if (entry.kind === "luau") {
 			setMapDoc(null);
 			setSource({
@@ -634,6 +660,7 @@ export function App() {
 	const openGraphPath = useCallback(async (path: string) => {
 		try {
 			setSource(null);
+			setAliasDoc(null);
 			setMapDoc(null);
 			if (store.showGraph(path)) return;
 			const { script } = await api.readScript(path);
@@ -672,6 +699,7 @@ export function App() {
 		async (err: ProjectChangedError) => {
 			store.closeAll();
 			setSource(null);
+			setAliasDoc(null);
 			setMapDoc(null);
 			notify(
 				"The daemon moved to another project",
@@ -1236,6 +1264,7 @@ export function App() {
 	const onTreeOpenFunction = useCallback(async (path: string, id: string) => {
 		try {
 			setSource(null);
+			setAliasDoc(null);
 			setMapDoc(null);
 			if (!store.isOpen(path)) {
 				const { script } = await api.readScript(path);
@@ -1467,6 +1496,7 @@ export function App() {
 			await refreshTree();
 			store.open(created.path, created.script);
 			setSource(null);
+			setAliasDoc(null);
 			setMapDoc(null);
 		} catch (err) {
 			notify("Could not create that graph", (err as Error).message);
@@ -1486,6 +1516,7 @@ export function App() {
 			await refreshTree();
 			store.close();
 			setSource(null);
+			setAliasDoc(null);
 			setMapDoc({ path: created.path, map: created.map, dirty: false });
 		} catch (err) {
 			notify("Could not create that map", (err as Error).message);
@@ -1558,7 +1589,8 @@ export function App() {
 
 	if (!project) return <ProjectPicker onOpen={loadProject} busy={busy} />;
 
-	const showInspector = !source && !mapDoc && editor.script !== null && editor.selection.size === 1;
+	const showInspector =
+		!source && !mapDoc && !aliasDoc && editor.script !== null && editor.selection.size === 1;
 	const errorCount = diagnostics.filter((d) => d.severity === "error").length;
 	const warningCount = diagnostics.length - errorCount;
 
@@ -1734,7 +1766,20 @@ export function App() {
 							onReorder={(key, before) => store.reorder(key, before)}
 						/>
 						<div className="centre-body">
-						{mapDoc ? (
+						{aliasDoc ? (
+						<AliasDocument
+							dir={aliasDoc.dir}
+							files={aliasDoc.files}
+							target={project.config.target}
+							onWrite={(dir, text) => {
+								void api.writeLuaurc(dir, text).then(
+									(written) => setAliasDoc({ dir: aliasDoc.dir, files: written.files }),
+									(err: unknown) =>
+										notify("The .luaurc was not written", (err as Error).message),
+								);
+							}}
+						/>
+					) : mapDoc ? (
 						<MapEditor
 							map={mapDoc.map}
 							dirty={mapDoc.dirty}

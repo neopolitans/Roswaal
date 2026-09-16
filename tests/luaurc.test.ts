@@ -13,7 +13,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	aliasesOf, aliasNameOf, chainFor, lookupAlias, parseLuaurc, resolveSpecifier,
+	aliasesOf, aliasNameOf, chainFor, lookupAlias, parseLuaurc, resolveSpecifier, withAliases,
 	type LuaurcChain,
 } from "../src/core/luaurc.js";
 import { checkSpecifier } from "../src/core/modules.js";
@@ -342,5 +342,100 @@ describe("the chain for a file", () => {
 	it("reads a backslash path the same way", () => {
 		expect(chainFor(files, "src\\ui\\Panel.nodescript").map((f) => f.dir))
 			.toEqual(["src/ui", "src", ""]);
+	});
+});
+
+/**
+ * Changing one, without changing anything else.
+ *
+ * A `.luaurc` is the developer's file. It carries `languageMode`, lint
+ * settings, fields we have never heard of and comments explaining why a
+ * package is vendored — so the edit splices the aliases object rather than
+ * rewriting the file from the parts we understood. What cannot be kept is
+ * refused rather than dropped quietly.
+ */
+describe("writing one", () => {
+	const aliases = [{ name: "roact", value: "./Packages/Roact" }];
+
+	it("keeps every other field exactly", () => {
+		const before = [
+			"{",
+			'	"languageMode": "strict",',
+			'	"lint": { "*": true },',
+			'	"aliases": { "old": "./x" }',
+			"}",
+		].join("\n");
+		const after = withAliases(before, aliases);
+		expect(after.t).toBe("text");
+		const text = after.t === "text" ? after.text : "";
+		expect(text).toContain('"languageMode": "strict"');
+		expect(text).toContain('"lint": { "*": true }');
+		expect(text).toContain('"roact": "./Packages/Roact"');
+		expect(text).not.toContain('"old"');
+		// And it is still a file the reader can read back.
+		expect(parseLuaurc("", text).aliases.get("roact")?.value).toBe("./Packages/Roact");
+	});
+
+	it("keeps a comment that is not inside the aliases", () => {
+		const before = [
+			"{",
+			"	// strict everywhere, on purpose",
+			'	"languageMode": "strict",',
+			'	"aliases": {}',
+			"}",
+		].join("\n");
+		const after = withAliases(before, aliases);
+		expect(after.t === "text" && after.text).toContain("// strict everywhere, on purpose");
+	});
+
+	/**
+	 * The one case worth refusing. An edit reorders and rewrites the members,
+	 * so a note about why a package is vendored cannot survive it — and losing
+	 * somebody's note without saying so is worse than asking for a hand edit.
+	 */
+	it("refuses when there are comments inside the aliases", () => {
+		const before = [
+			"{",
+			'	"aliases": {',
+			"		// vendored until the fork lands upstream",
+			'		"roact": "./vendor/Roact"',
+			"	}",
+			"}",
+		].join("\n");
+		const after = withAliases(before, aliases);
+		expect(after.t).toBe("refused");
+		expect(after.t === "refused" && after.why).toContain("by hand");
+	});
+
+	it("refuses a file it cannot read", () => {
+		expect(withAliases('{ "aliases": ', aliases).t).toBe("refused");
+	});
+
+	it("adds the field to a file that has no aliases at all", () => {
+		const after = withAliases('{\n\t"languageMode": "strict"\n}', aliases);
+		expect(after.t).toBe("text");
+		const text = after.t === "text" ? after.text : "";
+		expect(parseLuaurc("", text).aliases.get("roact")?.value).toBe("./Packages/Roact");
+		expect(text).toContain("languageMode");
+	});
+
+	it("writes a whole file when there was none", () => {
+		const after = withAliases("", aliases);
+		expect(after.t === "text" && parseLuaurc("", after.text).aliases.size).toBe(1);
+	});
+
+	it("writes an empty object when the last alias goes", () => {
+		const after = withAliases('{ "aliases": { "a": "./x" } }', []);
+		expect(after.t === "text" && parseLuaurc("", after.text).aliases.size).toBe(0);
+	});
+
+	/** `aliases` inside some other field is somebody else's field. */
+	it("only touches the top-level aliases", () => {
+		const before =
+			'{\n\t"lint": { "aliases": { "nested": "./no" } },\n\t"aliases": {}\n}';
+		const after = withAliases(before, aliases);
+		const text = after.t === "text" ? after.text : "";
+		expect(text).toContain('"nested": "./no"');
+		expect(parseLuaurc("", text).aliases.get("roact")).toBeDefined();
 	});
 });
