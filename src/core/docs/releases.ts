@@ -94,6 +94,27 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.70.0",
+		date: "2026-09-16",
+		headline: "The Roswaal mark opens the way in, from any window.",
+		affects: ["editor", "docs"],
+		added: [
+			"**An introduction panel on the Roswaal mark**, in the editor, Node Design and the documentation alike. The projects you were in, the projects that shipped, and the way to the other two windows — one panel, because the question somebody has when they reach for the mark is the same one in all three.",
+			"**The demos are offered by name, with the runtime they compile for.** A Roblox demo and a Lune one, each with its chip, so arriving at Lune support no longer means opening a Roblox project and being told the rest transfers.",
+			"**A Lune project to open**, at `examples/lune-demo`: the four programmes from [Lune demos](lune-demos), generated from the same graphs the page draws.",
+		],
+		changed: [
+			"**The editor's project menu is gone**, and what it did is in the panel. It was the only surface where the mark did anything, and what it did was not what the other two needed.",
+			"Which projects you have opened before is now read by all three windows rather than by the editor alone.",
+		],
+		fixed: [
+			"**Four graphs the documentation builds shared one id**, which was invisible while they were pictures and destructive as a project: the compiler keys generated files by graph id, so each compile deleted the file before it. All four wrote and one survived.",
+		],
+		watch: [
+			"The panel asks the host which demos it has rather than assuming. A daemon has them on disk beside itself; an install that packed the CLI without the examples has none, and the panel then offers none rather than paths that are not there.",
+		],
+	},
+	{
 		version: "0.69.0",
 		date: "2026-09-16",
 		headline: "Four Lune programmes, drawn and compiled.",

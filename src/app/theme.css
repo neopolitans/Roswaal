@@ -4486,8 +4486,11 @@ button.tb.icon-only.on {
 
 /* A link in the header is drawn as the button it acts as — Docs, Open Editor —
    so a row of them reads as one set of controls rather than buttons beside
-   underlined text. */
-.docs-page-head a.tb {
+   underlined text. The introduction panel's footer is the same row of controls
+   in a different frame, so it is named here rather than given a second set of
+   rules that would have to be kept level with these. */
+.docs-page-head a.tb,
+.intro-foot a.tb {
 	text-decoration: none;
 	color: inherit;
 	background: var(--bg-input);
@@ -4500,18 +4503,23 @@ button.tb.icon-only.on {
    given its own font size came out two pixels shorter than Settings beside it,
    and the row stopped lining up. */
 .docs-page-head a.tb,
-.docs-page-head button.tb {
+.docs-page-head button.tb,
+.intro-foot a.tb,
+.intro-foot button.tb {
 	height: 29px;
 	box-sizing: border-box;
 }
 
-.docs-page-head a.tb:hover {
+.docs-page-head a.tb:hover,
+.intro-foot a.tb:hover {
 	background: var(--bg-hover);
 }
 
 /* An icon is a block, so an icon and a word in one button stack by default. */
 .docs-page-head button.tb,
-.docs-page-head a.tb {
+.docs-page-head a.tb,
+.intro-foot button.tb,
+.intro-foot a.tb {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
@@ -7974,4 +7982,273 @@ button.tb.danger {
 		border-left: none;
 		border-top: 1px solid var(--border);
 	}
+}
+
+/* --------------------------------------------------------------------------
+   The introduction panel, on the Roswaal mark in every window.
+
+   Sized to its content rather than to the window: it is a way in, not a
+   workspace, and a dialog that filled a 4K screen would put its two buttons
+   half a metre apart.
+   ----------------------------------------------------------------------- */
+
+.intro-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 90;
+	display: grid;
+	place-items: center;
+	padding: 24px;
+	background: rgba(0, 0, 0, 0.45);
+	backdrop-filter: blur(2px);
+}
+
+.intro-panel {
+	display: flex;
+	flex-direction: column;
+	width: min(760px, 100%);
+	max-height: min(640px, 100%);
+	border: 1px solid var(--border-strong);
+	border-radius: 10px;
+	background: var(--bg-panel);
+	box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+	overflow: hidden;
+}
+
+.intro-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 12px 12px 16px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-input);
+}
+
+/* The mark in the accent, as the landing page draws it. Everywhere else it is
+   chrome and takes the text colour with everything around it; here it is the
+   first thing on the panel and the one place in the app it is the subject. */
+.intro-head .logo-mark {
+	color: var(--accent);
+}
+
+/* The mark and the wordmark, which is the one place in the app they sit
+   together at this size -- everywhere else the mark is chrome. */
+.intro-head .logo {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	color: var(--fg);
+}
+
+/* Which window you are in, said quietly. The panel is the same in all three,
+   so this is the only thing on it that answers "where am I". */
+.intro-where {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding-left: 10px;
+	border-left: 1px solid var(--border);
+	font-size: 12px;
+	color: var(--fg-dim);
+}
+
+.intro-body {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 4px 0 8px;
+}
+
+.intro-shelf {
+	padding: 10px 0 4px;
+}
+
+.intro-shelf-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 16px 8px;
+}
+
+.intro-shelf-head h2 {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--fg-faint);
+}
+
+.intro-arrows {
+	display: flex;
+	gap: 4px;
+	margin-left: auto;
+}
+
+/* One chevron glyph, turned. It points down as drawn. */
+.turn-left,
+.turn-right {
+	display: inline-flex;
+}
+
+.turn-left svg {
+	transform: rotate(90deg);
+}
+
+.turn-right svg {
+	transform: rotate(-90deg);
+}
+
+/* The rail scrolls sideways and snaps, so a nudge never leaves half a card
+   showing. Padding rather than margin on the ends, so the first card starts
+   level with the heading above it and the last one can still reach the edge. */
+.intro-rail {
+	display: flex;
+	gap: 10px;
+	padding: 2px 16px 6px;
+	overflow-x: auto;
+	scroll-snap-type: x proximity;
+	/* Thin, and only while the pointer is in the shelf. The arrows above are
+	   the control; a full-width scrollbar under four cards read as a divider
+	   between the two shelves rather than as part of either. */
+	scrollbar-width: none;
+}
+
+.intro-shelf:hover .intro-rail {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-strong) transparent;
+}
+
+.intro-card {
+	flex: 0 0 auto;
+	scroll-snap-align: start;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	width: 220px;
+	padding: 11px 12px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg-input);
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 90ms ease, background-color 90ms ease;
+}
+
+.intro-card:hover {
+	border-color: var(--accent);
+	background: var(--bg-hover);
+}
+
+/* The project this window already has open. Marked rather than hidden: it is
+   still the one you are most likely to mean. */
+.intro-card.on {
+	border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.intro-card-name {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--fg);
+}
+
+/* The runtime chip on a demo card, drawn as the documentation draws it on a
+   page title -- same shape, same two colours, because it is answering the same
+   question in both places. Restated rather than shared: `.docs .badge` is
+   scoped to the documentation, and widening that selector to reach a panel in
+   the editor would make every badge in the app depend on a docs rule. */
+.intro-card .badge {
+	font-size: 9px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--fg-faint);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	padding: 1px 4px;
+	white-space: nowrap;
+}
+
+.intro-card .badge.runtime.roblox {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.intro-card .badge.runtime.lune {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 50%, transparent);
+}
+
+.intro-card-what {
+	font-size: 11.5px;
+	line-height: 1.4;
+	color: var(--fg-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.intro-card-open {
+	margin-top: 2px;
+	font-size: 10.5px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fg-faint);
+}
+
+.intro-empty {
+	margin: 0;
+	padding: 28px 16px;
+	text-align: center;
+	font-size: 12.5px;
+	color: var(--fg-muted);
+}
+
+.intro-foot {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	border-top: 1px solid var(--border);
+	background: var(--bg-input);
+}
+
+/* Wraps rather than scrolls: the project actions are host-dependent, so how
+   many are in this row is not something the layout can be written around. */
+@media (max-width: 620px) {
+	.intro-foot {
+		flex-wrap: wrap;
+	}
+
+	.intro-foot > span[style] {
+		display: none;
+	}
+}
+
+/* The mark in a window's header, once it became a button.
+
+   Styled back to what it was: it is the same chip it has always been and the
+   only change is that pressing it now does something. A button's own border,
+   background and padding would have made the header look rearranged. */
+.docs-page-head .logo.as-chip {
+	border: 1px solid transparent;
+	border-radius: 6px;
+	margin-left: -6px;
+	padding: 2px 6px;
+	background: transparent;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+	transition: background-color 90ms ease, border-color 90ms ease;
+}
+
+.docs-page-head .logo.as-chip:hover {
+	border-color: var(--border);
+	background: var(--bg-hover);
 }

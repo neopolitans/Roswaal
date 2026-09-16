@@ -19,6 +19,7 @@ import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
 import { openInEditor, revealInFileManager } from "./reveal.js";
 import { DynamicCompiler } from "./watcher.js";
+import { DEMO_PROJECTS } from "../core/demoProjects.js";
 
 export const DEFAULT_PORT = 4471;
 
@@ -139,6 +140,33 @@ function syncDynamicCompile(): void {
  * volume in memory underneath it, so there is one description of what Roswaal
  * does and two ways to reach it.
  */
+
+/**
+ * Where Roswaal itself is installed, for finding the demo projects.
+ *
+ * `ROSWAAL_HOME` when the launcher set it, and otherwise walked up from this
+ * module until a directory with `examples/` in it turns up. Two answers because
+ * there are two ways to be running: through `bin/roswaal`, which exports it,
+ * and straight from source with `tsx`, which does not.
+ *
+ * Null when neither finds one, which is a real case — an npm install that
+ * packed the CLI and not the examples — and the panel then offers no demos
+ * rather than paths that are not there.
+ */
+function installRoot(): string | null {
+	const declared = process.env.ROSWAAL_HOME;
+	if (declared && fs.existsSync(path.join(declared, "examples"))) return declared;
+
+	let at = path.dirname(fileURLToPath(import.meta.url));
+	for (let up = 0; up < 6; up += 1) {
+		if (fs.existsSync(path.join(at, "examples"))) return at;
+		const parent = path.dirname(at);
+		if (parent === at) break;
+		at = parent;
+	}
+	return null;
+}
+
 const session = new ApiSession({
 	/** Everything the daemon can do that a browser tab cannot. */
 	capabilities: {
@@ -174,6 +202,17 @@ const session = new ApiSession({
 		if (switched) broadcastProject(project.root);
 	},
 	compileStep: broadcastCompile,
+	/** The demos that shipped with this copy, by folder name. */
+	demos: async () => {
+		const home = installRoot();
+		if (home === null) return {};
+		const out: Record<string, string> = {};
+		for (const demo of DEMO_PROJECTS) {
+			const root = path.join(home, "examples", demo.dir);
+			if (fs.existsSync(path.join(root, "roswaal.json"))) out[demo.dir] = root;
+		}
+		return out;
+	},
 });
 
 /** Wraps a handler so a thrown error becomes a clean JSON response. */

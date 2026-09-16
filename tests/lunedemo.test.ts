@@ -30,8 +30,27 @@ describe("the Lune demo project", () => {
 		expect(project.rojoProject).toBeUndefined();
 	});
 
+	/**
+	 * Everything except where the nodes sit.
+	 *
+	 * The project is a project. Somebody will open it, tidy a graph that was
+	 * laid out by a rule rather than by eye, and save — and a test that called
+	 * that a failure would be a test fighting the tool it ships with. What
+	 * must not drift is what the programme *is*: the nodes, what they are
+	 * configured to do, what is wired to what, and what it requires.
+	 *
+	 * The page redraws from its own coordinates either way, so the two can
+	 * differ in layout and still be the same four programmes.
+	 */
+	const meaning = (script: NodeScript) => ({
+		...script,
+		nodes: script.nodes
+			.map(({ x: _x, y: _y, ...rest }) => rest)
+			.sort((a, b) => a.id.localeCompare(b.id)),
+	});
+
 	it.each(DEMOS)("$slug on disk is the graph the page draws", (demo) => {
-		expect(onDisk(demo.slug)).toEqual(demo.script());
+		expect(meaning(onDisk(demo.slug))).toEqual(meaning(demo.script()));
 	});
 
 	/**

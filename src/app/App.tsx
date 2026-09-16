@@ -35,7 +35,8 @@ import { autoLayout } from "./layout.js";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
-import { ProjectMenu } from "./ProjectMenu.jsx";
+import { IntroPanel } from "./IntroPanel.jsx";
+import { Icon } from "./icons.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays } from "./Overlays.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
@@ -58,10 +59,12 @@ import {
 } from "./edits.js";
 import { setProjectTypes } from "./projectTypes.js";
 import { setProjectAliases } from "./projectAliases.js";
+import { forget, lastProject, recentProjects, remember } from "./recents.js";
 import { IS_STATIC_HOST, PAGE_TARGET, pageHref } from "./pages.js";
 import { CanaryBanner } from "./previewBuild.jsx";
 import {
-	forgetRememberedFolder, openDirectory, useHostCan, useHostFailure, useRememberedFolder,
+	forgetRememberedFolder, openDirectory, useCanOpenDirectory, useHostCan, useHostFailure,
+	useRememberedFolder,
 } from "./host.js";
 import { download, zip } from "./zip.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
@@ -72,39 +75,6 @@ import { canShowName } from "../core/operatorLayout.js";
 /** The two nodes whose first data pin is the service the call is made on. */
 const SERVICE_NODES = new Set([SERVICE_CALL, SERVICE_VALUE]);
 
-const LAST_PROJECT_KEY = "roswaal.lastProject";
-/**
- * Projects opened before, most recent first.
- *
- * Typing an absolute path into a text field is fine once and tiresome the
- * fourth time, and a repository you work in is a repository you come back to.
- * Per-browser rather than in the config: which projects *you* have open is not
- * something to commit.
- */
-const RECENT_KEY = "roswaal.recentProjects";
-const RECENT_LIMIT = 6;
-
-function recentProjects(): string[] {
-	try {
-		const raw = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]") as unknown;
-		return Array.isArray(raw) ? raw.filter((r): r is string => typeof r === "string") : [];
-	} catch {
-		return [];
-	}
-}
-
-/** Moves a root to the front of the list, keeping it short and unique. */
-function remember(root: string): void {
-	localStorage.setItem(LAST_PROJECT_KEY, root);
-	const next = [root, ...recentProjects().filter((r) => r !== root)].slice(0, RECENT_LIMIT);
-	localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-}
-
-/** Drops one from the list, for a path that is no longer there. */
-function forget(root: string): void {
-	localStorage.setItem(RECENT_KEY, JSON.stringify(recentProjects().filter((r) => r !== root)));
-	if (localStorage.getItem(LAST_PROJECT_KEY) === root) localStorage.removeItem(LAST_PROJECT_KEY);
-}
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
 
@@ -317,12 +287,20 @@ export function App() {
 	 * where everything went before this existed.
 	 */
 	const [targetDir, setTargetDir] = useState<string | null>(null);
-	/** Where the project menu is anchored, and the recents it was opened with. */
 	// The folder from a previous session, when one is waiting on a click.
 	const remembered = useRememberedFolder();
-	const [projectMenu, setProjectMenu] = useState<
-		{ anchor: { x: number; y: number }; recent: string[] } | null
-	>(null);
+	// What this host can do, for the project actions in the panel's footer.
+	// Hidden rather than disabled: a button that needs a different host is a
+	// button with no action behind it to explain.
+	const hostCanBrowse = useHostCan("browse");
+	const hostCanReset = useHostCan("reset");
+	const hostCanOpenFolder = useCanOpenDirectory();
+	/**
+	 * The introduction panel. No anchor: it is centred rather than dropped
+	 * under the mark, because it is the same panel in all three windows and
+	 * two of them have nothing to anchor it to.
+	 */
+	const [introOpen, setIntroOpen] = useState(false);
 	// A file dropped on the canvas, once we know where it lives in the DataModel
 	// and therefore what can usefully be made from it.
 	const [dropMenu, setDropMenu] = useState<
@@ -547,7 +525,7 @@ export function App() {
 			// picker instead would be ignoring an instruction rather than
 			// honouring a setting.
 			if (!readPreferences().reopenLastProject) return;
-			const last = localStorage.getItem(LAST_PROJECT_KEY);
+			const last = lastProject();
 			if (last) void loadProject(last);
 		})();
 	}, [loadProject]);
@@ -1637,32 +1615,54 @@ export function App() {
 				onOpenDocs={() => window.open(pageHref("docs"), PAGE_TARGET.docs)}
 				onOpenDesigner={() => window.open(pageHref("designer"), PAGE_TARGET.designer)}
 				onOpenSettings={() => setSettingsOpen(true)}
-				onOpenProjectMenu={(anchor) =>
-					setProjectMenu({ anchor, recent: recentProjects() })
-				}
+				onOpenProjectMenu={() => setIntroOpen(true)}
 			/>
 
 			{/* Rendered here rather than in the overlay stack: it is about the
 			    project, not about the graph, and Overlays takes the script. It
 			    is `position: fixed`, so where it sits in the tree is invisible. */}
-			{projectMenu && (
-				<ProjectMenu
-					anchor={projectMenu.anchor}
+			{introOpen && (
+				<IntroPanel
+					surface="editor"
 					current={project.root}
-					recent={projectMenu.recent}
 					onOpen={(root) => void switchProject(root)}
-					onForget={(root) => {
-						forget(root);
-						setProjectMenu((m) =>
-							m ? { ...m, recent: m.recent.filter((r) => r !== root) } : m,
-						);
-					}}
-					onBrowse={() => void browseForProject()}
-					onDownload={() => void downloadProject()}
-					onReset={() => void resetProject()}
-					onOpenFolder={() => void openFolder()}
-					onReopenFolder={() => void reopenFolder()}
-					onClose={() => setProjectMenu(null)}
+					onHome={() => setProject(null)}
+					onClose={() => setIntroOpen(false)}
+					actions={
+						<>
+							{hostCanBrowse && (
+								<button className="tb with-icon" onClick={() => void browseForProject()}>
+									<Icon name="folderOpen" size={15} />
+									Browse&hellip;
+								</button>
+							)}
+							{hostCanOpenFolder && (
+								<button className="tb with-icon" onClick={() => void openFolder()}>
+									<Icon name="folder" size={15} />
+									Open folder&hellip;
+								</button>
+							)}
+							{remembered && (
+								<button
+									className="tb with-icon"
+									onClick={() => void reopenFolder()}
+									title={`Open ${remembered.name} again. Your browser will ask first.`}
+								>
+									<Icon name="folderOpen" size={15} />
+									{remembered.name}
+								</button>
+							)}
+							<button className="tb with-icon" onClick={() => void downloadProject()}>
+								<Icon name="copy" size={15} />
+								Download
+							</button>
+							{hostCanReset && (
+								<button className="tb" onClick={() => void resetProject()}>
+									Start again
+								</button>
+							)}
+						</>
+					}
 				/>
 			)}
 

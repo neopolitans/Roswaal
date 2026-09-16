@@ -168,6 +168,13 @@ export const api = {
 		ok: boolean; project: string | null; version: string; capabilities: string[];
 	}>("/api/health"),
 
+	/**
+	 * The demo projects this host has, keyed by the folder name in
+	 * `DEMO_PROJECTS`. Asked when the panel opens rather than on load: it
+	 * costs the host a stat per demo and nobody is waiting on the answer.
+	 */
+	demos: () => request<{ demos: Record<string, string> }>("/api/demos"),
+
 	/** What the daemon already has open, if `roswaal serve` opened one. */
 	currentProject: () =>
 		request<({ open: false } | ({ open: true } & ProjectInfo))>("/api/project"),

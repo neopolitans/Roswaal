@@ -15,7 +15,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { projectName, projectTail } from "../src/app/ProjectMenu.js";
+import { projectName, projectTail } from "../src/app/recents.js";
 import { store } from "../src/app/store.js";
 import { Builder } from "./helpers.js";
 

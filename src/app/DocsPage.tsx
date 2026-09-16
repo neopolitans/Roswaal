@@ -27,6 +27,7 @@ import { DocsView } from "./DocsPanel.jsx";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
 import { CanaryBanner, PreviewChip } from "./previewBuild.jsx";
+import { IntroPanel } from "./IntroPanel.jsx";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { SettingsPanel } from "./SettingsPanel.jsx";
 import { usePreferenceSync } from "./preferenceSync.js";
@@ -40,6 +41,7 @@ function slugFromHash(): string | undefined {
 }
 
 export function DocsPage() {
+	const [introOpen, setIntroOpen] = useState(false);
 	const [packs, setPacks] = useState<NodeDef[]>([]);
 	const [packsFailed, setPacksFailed] = useState(false);
 	const [slug, setSlug] = useState<string | undefined>(slugFromHash);
@@ -99,7 +101,11 @@ export function DocsPage() {
 			<header className="docs-page-head">
 				{/* The mark and what this window is. "Roswaal Documentation" said
 				    both of those in six syllables and neither of them quickly. */}
-				<span className="logo">
+				<button
+					className="logo as-chip"
+					onClick={() => setIntroOpen(true)}
+					title="Recent projects, the demos, and the other windows"
+				>
 					<Logo height={17} title="Roswaal" />
 					Docs
 					<span className="version">{VERSION}</span>
@@ -108,7 +114,7 @@ export function DocsPage() {
 					    rule is every surface of that build, and the day this one is
 					    served from it is not the day to remember. */}
 					<PreviewChip />
-				</span>
+				</button>
 				{packsFailed && (
 					<span className="warn" title="Start the daemon and reload to include them">
 						built-in nodes only — no daemon
@@ -123,6 +129,10 @@ export function DocsPage() {
 					Open Editor
 				</a>
 			</header>
+
+			{introOpen && (
+				<IntroPanel surface="docs" onClose={() => setIntroOpen(false)} />
+			)}
 
 			<DocsView
 				registry={registry}

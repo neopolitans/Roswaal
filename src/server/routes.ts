@@ -87,6 +87,20 @@ export interface SessionHooks {
 	projectChanged?(project: OpenProject, info: { switched: boolean }): void;
 	/** One file's turn in a whole-project compile, while it is still running. */
 	compileStep?(step: CompileStep): void;
+	/**
+	 * Where this host keeps the demo projects, if it has them.
+	 *
+	 * A hook rather than a capability: a capability is something the editor
+	 * offers a button for and disables with a reason, and there is nothing to
+	 * say about a host that ships no demos except to not offer any. The daemon
+	 * has them on disk beside itself and the playground has them on its volume;
+	 * which ones exist is the host's to answer because it is the only one that
+	 * can see them.
+	 *
+	 * Returns roots keyed by the folder name in `DEMO_PROJECTS`, so the names
+	 * and the runtime chips stay in core and only the paths come from here.
+	 */
+	demos?(): Promise<Record<string, string>>;
 }
 
 /**
@@ -180,6 +194,17 @@ export class ApiSession {
 			 * failing on the click. Names, not a boolean each, so a host that
 			 * gains one does not need this shape changed.
 			 */
+			/**
+			 * The demo projects this host can open, by folder name.
+			 *
+			 * Its own route rather than a field on `/health`, which every page
+			 * asks for on load: finding out costs a stat per demo and the
+			 * answer is only wanted when somebody opens the panel.
+			 */
+			"GET /demos": async () => ({
+				demos: this.hooks.demos ? await this.hooks.demos() : {},
+			}),
+
 			"GET /health": async () => ({
 				ok: true,
 				project: this.current?.root ?? null,

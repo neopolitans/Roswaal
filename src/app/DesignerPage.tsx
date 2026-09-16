@@ -31,9 +31,11 @@ import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
 import { CanaryBanner, PreviewChip } from "./previewBuild.jsx";
+import { IntroPanel } from "./IntroPanel.jsx";
 import { VERSION } from "../cli/version.js";
 
 export function DesignerPage() {
+	const [introOpen, setIntroOpen] = useState(false);
 	const [packs, setPacks] = useState<PackFile[] | null>(null);
 	const [target, setTarget] = useState<Target | null>(null);
 	const [noProject, setNoProject] = useState(false);
@@ -124,7 +126,11 @@ export function DesignerPage() {
 		<div className="designer">
 			<CanaryBanner />
 			<header className="docs-page-head">
-				<span className="logo">
+				<button
+					className="logo as-chip"
+					onClick={() => setIntroOpen(true)}
+					title="Recent projects, the demos, and the other windows"
+				>
 					<Logo height={17} title="Roswaal" />
 					Node Design
 					<span className="version">{VERSION}</span>
@@ -132,7 +138,7 @@ export function DesignerPage() {
 					    does. It did not, and Node Design is where somebody decides
 					    whether Roswaal can hold their node library. */}
 					<PreviewChip />
-				</span>
+				</button>
 				<span style={{ flex: 1 }} />
 				<a
 					className="tb icon-only"
@@ -160,6 +166,10 @@ export function DesignerPage() {
 					<Icon name="settings" size={16} />
 				</button>
 			</header>
+
+			{introOpen && (
+				<IntroPanel surface="designer" onClose={() => setIntroOpen(false)} />
+			)}
 
 			{notice && (
 				<div className={`designer-notice ${notice.kind}`} role={notice.kind === "failed" ? "alert" : "status"}>
