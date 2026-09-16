@@ -28,8 +28,9 @@ import {
 import { renderPage } from "../src/core/docs/html.js";
 import {
 	controlKey, controlsOf, DOCS_SITE_BAR, EDITOR_BAR, EDITOR_BAR_BROWSER, iconsOf, legendOf,
-	MODULES_PANEL, pointingElsewhere, TOOLBAR_HINT, toolbarConstant, toolbarHtml, TOOLBARS,
-	VARIABLES_PAGE_PANEL, VARIABLES_PANEL, type ToolbarArt,
+	FUNCTIONS_PANEL, MODULES_PANEL, pointingElsewhere, TOOLBAR_HINT, toolbarConstant,
+	toolbarHtml, TOOLBARS, VARIABLES_PAGE_PANEL, VARIABLES_PANEL,
+	type ToolbarArt, type ToolbarSpec,
 } from "../src/core/docs/toolbars.js";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { buildToolbarLinker } from "../scripts/lib/toolbarLinker.mjs";
@@ -504,30 +505,46 @@ describe("pointing a section at its own page", () => {
 		viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: "test",
 	};
 
+	/** Each variant, and the sections that page is the page for. */
+	const VARIANTS: [string, ToolbarSpec, string[]][] = [
+		["modules", MODULES_PANEL, ["Modules"]],
+		["variables-and-locals", VARIABLES_PAGE_PANEL, ["Variables", "Locals"]],
+		["functions", FUNCTIONS_PANEL, ["Functions"]],
+	];
+
+	const whatOf = (spec: ToolbarSpec, name: string) =>
+		legendOf(spec).find((item) => item.name === name)?.what;
+
 	it("keeps the drawing identical and moves only the words", () => {
-		expect(toolbarHtml(MODULES_PANEL, art)).toEqual(toolbarHtml(VARIABLES_PANEL, art));
-		expect(toolbarHtml(VARIABLES_PAGE_PANEL, art)).toEqual(toolbarHtml(VARIABLES_PANEL, art));
+		const drawn = toolbarHtml(VARIABLES_PANEL, art);
+		for (const [slug, spec] of VARIANTS) {
+			expect(toolbarHtml(spec, art), slug).toEqual(drawn);
+		}
 	});
 
-	it("explains modules on the modules page and points the rest away", () => {
-		const legend = new Map(legendOf(MODULES_PANEL).map((item) => [item.name, item.what]));
-		expect(legend.get("Modules")).toEqual(
-			legendOf(VARIABLES_PANEL).find((item) => item.name === "Modules")?.what,
-		);
-		expect(legend.get("Variables")).toContain("(variables-and-locals)");
-		expect(legend.get("Locals")).toContain("(variables-and-locals)");
-		expect(legend.get("Functions")).toContain("(functions)");
+	it("explains its own section in full and points the rest away", () => {
+		for (const [slug, spec, mine] of VARIANTS) {
+			for (const item of legendOf(spec)) {
+				if (mine.includes(item.name)) {
+					expect(item.what, `${slug}: ${item.name}`)
+						.toEqual(whatOf(VARIABLES_PANEL, item.name));
+				} else {
+					expect(item.what, `${slug}: ${item.name}`).toContain("](");
+				}
+			}
+		}
 	});
 
-	/** And the other way round, so neither page is the one that repeats itself. */
-	it("explains variables on their own page and points modules away", () => {
-		const legend = new Map(
-			legendOf(VARIABLES_PAGE_PANEL).map((item) => [item.name, item.what]),
-		);
-		expect(legend.get("Modules")).toContain("(modules)");
-		expect(legend.get("Variables")).toEqual(
-			legendOf(VARIABLES_PANEL).find((item) => item.name === "Variables")?.what,
-		);
+	/**
+	 * Locals live on the variables page, so nothing points there from it -- and
+	 * a pointer from a page to itself is a link that goes nowhere.
+	 */
+	it("never points a page at itself", () => {
+		for (const [slug, spec] of VARIANTS) {
+			for (const item of legendOf(spec)) {
+				expect(item.what ?? "", `${slug}: ${item.name}`).not.toContain(`](${slug})`);
+			}
+		}
 	});
 
 	/** A key nothing matches is a pointer written against a section that moved. */
@@ -538,12 +555,23 @@ describe("pointing a section at its own page", () => {
 
 	/** Every page the pointers name has to be a page. */
 	it("points at pages that exist", () => {
-		for (const spec of [MODULES_PANEL, VARIABLES_PAGE_PANEL]) {
+		for (const [slug, spec] of VARIANTS) {
 			for (const item of legendOf(spec)) {
-				for (const [, slug] of (item.what ?? "").matchAll(/\]\(([a-z-]+)\)/g)) {
-					expect(findPage(site, slug), `${item.name} -> ${slug}`).toBeDefined();
+				for (const [, named] of (item.what ?? "").matchAll(/\]\(([a-z-]+)\)/g)) {
+					expect(findPage(site, named), `${slug}: ${item.name} -> ${named}`).toBeDefined();
 				}
 			}
+		}
+	});
+
+	/** And each variant is the one its page actually draws. */
+	it("is the panel each page draws", () => {
+		for (const [slug, spec] of VARIANTS) {
+			const page = findPage(site, slug)!;
+			const bars = page.blocks
+				.filter((block): block is Extract<Block, { t: "toolbar" }> => block.t === "toolbar")
+				.map((block) => block.bar);
+			expect(bars, slug).toContain(spec);
 		}
 	});
 });

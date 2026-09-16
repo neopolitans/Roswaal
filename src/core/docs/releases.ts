@@ -94,6 +94,25 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.64.2",
+		date: "2026-09-16",
+		headline: "The Functions guide, caught up with the editor.",
+		affects: ["docs"],
+		added: [
+			"**How to call one**, which the page never said: Get Function for the value, Call Function for a call that does something, Call For Value for a call that asks something — and why a Get Function above a Declare Function is an error where a hoisted Function has no order to get wrong.",
+			"**The signature**: what the Name, Parameters and Return values fields do, that a type there is free text, and what renaming, reordering and removing a parameter each do to the nodes reading it.",
+			"**Returning**, with the Return node drawn. Return values configured on the function become named, typed pins on every Return in it.",
+			"**Reading a parameter**, with Get Parameter drawn, the `Get ‹parameter›` search entry, and where a parameter is offered.",
+			"**Finding one**: the Variables panel, the *This graph* filter in the node menu, and the node picker on `Ctrl` + right-click.",
+			"**Previewing the function you are in** with `P`, rather than the whole script.",
+			"**The Variables panel is drawn on the Functions page**, with functions explained there and the other sections pointing at their own pages.",
+		],
+		changed: [
+			"**Which locals a function can see** now says which declaration it is talking about: a Declare Function closes over the file's locals, and a hoisted Function is written above them and cannot.",
+			"The **Functions** section of the drawn panel points at [Functions](functions) from the pages that are not about functions, the way Modules and Variables already did.",
+		],
+	},
+	{
 		version: "0.64.1",
 		date: "2026-09-16",
 		headline: "A drawn panel's headings, and each section explained where it belongs.",

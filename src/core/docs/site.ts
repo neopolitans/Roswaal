@@ -34,8 +34,8 @@ import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
 	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DOCS_BAR, DOCS_SITE_BAR, EDITOR_BAR,
-	EDITOR_BAR_BROWSER, GRAPH_BAR, legendOf, MAP_BAR, MODULES_PANEL, VARIABLES_PAGE_PANEL,
-	type ToolbarSpec,
+	EDITOR_BAR_BROWSER, FUNCTIONS_PANEL, GRAPH_BAR, legendOf, MAP_BAR, MODULES_PANEL,
+	VARIABLES_PAGE_PANEL, type ToolbarSpec,
 } from "./toolbars.js";
 import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release, type ReleaseSurface } from "./releases.js";
@@ -2934,7 +2934,9 @@ function functionsPage(registry: Registry): DocPage {
 	return {
 		slug: "functions",
 		title: "Functions",
-		summary: "The two ways to declare one, the graph each opens in, and what can reach inside.",
+		summary:
+			"The two ways to declare one, the graph each opens in, how to call it, and what can " +
+			"reach inside.",
 		narrow: true,
 		blocks: [
 			{
@@ -2942,6 +2944,12 @@ function functionsPage(registry: Registry): DocPage {
 				text:
 					"Every function in a nodescript has a **graph of its own**. Its body is built there, " +
 					"it opens in a tab, and the nodescript's own graph stays about the script's flow.",
+			},
+			{
+				t: "p",
+				text:
+					"Functions are the language's, not the engine's, so everything on this page works " +
+					"the same whether the graph compiles for Roblox or for [Lune](modules).",
 			},
 
 			{ t: "h", level: 2, text: "Two ways to declare one" },
@@ -2966,6 +2974,49 @@ function functionsPage(registry: Registry): DocPage {
 					"`function TankConfig.read(tank: Model)` needs `TankConfig` to exist first — and " +
 					"for **Function** when it is simply something the script has.",
 			},
+			{
+				t: "note",
+				kind: "info",
+				text:
+					"**On Table** has to resolve to a name — a variable or a local. Luau has no " +
+					"syntax for attaching a function to an expression, so anything else is refused " +
+					"rather than half-written. Left unwired it is a plain `local function` at that " +
+					"point in the flow.",
+			},
+
+			{ t: "h", level: 2, text: "The signature" },
+			{
+				t: "p",
+				text:
+					"Name, parameters and return values are all edited in the Inspector, on either " +
+					"declaration node. The signature is written under the node's header — " +
+					"`read(tank: Model): Config` — so a graph full of functions can be read without " +
+					"opening any of them.",
+			},
+			{
+				t: "table",
+				head: ["Field", "What it does"],
+				rows: [
+					["**Name**", "What the function is called, and what a Get Function offers"],
+					["**Parameters**", "Name and optional Luau type each. They become data outputs on the entry node, in this order"],
+					["**Return values**", "Name and optional Luau type each. They become input pins on every **Return** in this function"],
+				],
+			},
+			{
+				t: "p",
+				text:
+					"A type here is **free text**, the same as a local's or a variable's: `BasePart?`, " +
+					"`{ [Model]: Restore }` and a union are all types no dropdown could offer. Left " +
+					"blank there is no annotation at all rather than `any`.",
+			},
+			{
+				t: "p",
+				text:
+					"Renaming a parameter carries every node reading it along. **Reordering** them " +
+					"leaves those nodes alone, because a Get Parameter holds the parameter's name and " +
+					"not its position. **Removing** one leaves the node saying which parameter is " +
+					"gone.",
+			},
 
 			{ t: "h", level: 2, text: "A function's graph" },
 			{
@@ -2985,6 +3036,12 @@ function functionsPage(registry: Registry): DocPage {
 					"Adding a **Function** opens its graph straight away.",
 				],
 			},
+			{
+				t: "p",
+				text:
+					"**`P` with nothing selected previews the function you are in**, rather than the " +
+					"whole script. The nodescript's own graph still previews all of it.",
+			},
 
 			{ t: "h", level: 2, text: "Declare Function, in two graphs" },
 			{
@@ -3002,6 +3059,122 @@ function functionsPage(registry: Registry): DocPage {
 					"the other, and renaming it or changing its parameters shows in both.",
 			},
 
+			{ t: "h", level: 2, text: "Returning" },
+			{
+				t: "p",
+				text:
+					"**Return** ends the enclosing function, and it lives in that function's graph. " +
+					"Give the function return values in the Inspector and each one becomes a pin on " +
+					"every Return in it — named, typed, and with a default you can type in rather " +
+					"than having to wire a node up for a constant.",
+			},
+			...previews(
+				registry,
+				["function.return"],
+				"A Return with no values configured is the bare `return`. Each value you add to the " +
+				"signature adds a pin here.",
+			),
+			{
+				t: "note",
+				kind: "info",
+				text:
+					"A function with no Return at all is fine — it runs to the end of its body and " +
+					"returns nothing, the same as the Luau it compiles to.",
+			},
+
+			{ t: "h", level: 2, text: "Calling one" },
+			{
+				t: "p",
+				text:
+					"A function is reached as a **value** first, and then called. **Get Function** is " +
+					"that value for a function declared in this graph; the **Function** output on " +
+					"either declaration node is the same thing, which is what lets one be handed to " +
+					"**Connect** or returned from a module without a wrapper node.",
+			},
+			{
+				t: "table",
+				head: ["Node", "When"],
+				rows: [
+					["**Call Function**", "The call does something. It sits in the execution chain and binds its result to a local"],
+					["**Call For Value**", "The call asks something. No execution wire, so it goes where a value goes — inside a table, an argument, an expression"],
+					["**Call Method**", "The call is colon-style, on an object: `part:Destroy()`. See [Services and their methods](services) for the service case"],
+				],
+			},
+			...previews(
+				registry,
+				["function.get", "call.function", "call.value"],
+				"Both call nodes take the function on a wire, and the argument count is set in the " +
+				"Inspector rather than fixed by the node.",
+			),
+			{
+				t: "code",
+				lang: "luau",
+				text:
+					"-- Call Function: the result is bound, and the order is on the wire\n"
+					+ "local config = TankConfig.read(tank)\n"
+					+ "\n"
+					+ "-- Call For Value: spliced into whatever reads it\n"
+					+ "return { movementSpeed = readNumber(hullSettings, \"MovementSpeed\") }",
+			},
+			{
+				t: "note",
+				kind: "warn",
+				text:
+					"A **Get Function** above a **Declare Function** reports that the function does " +
+					"not exist yet. The function is named where it is declared, so reaching it " +
+					"earlier in the flow is an error rather than a name that has not been reached. " +
+					"A hoisted **Function** has no such order to get wrong.",
+			},
+
+			{ t: "h", level: 2, text: "Reading a parameter" },
+			{
+				t: "p",
+				text:
+					"The parameter pins on the entry node work and are not going away, but in a " +
+					"function of any size the wires off them cross the whole body. **Get Parameter** " +
+					"reads one by name instead — the same trade [Get Local](variables-and-locals) " +
+					"makes. Pick the function and the parameter in the Inspector.",
+			},
+			...previews(registry, ["function.getParam"]),
+			{
+				t: "ul",
+				items: [
+					"It works inside an **event handler** as well as a function: Connect binds its " +
+						"handler's parameters in the same way.",
+					"Typing a parameter's name into the node search offers **Get ‹parameter›** " +
+						"directly, with From and Parameter already filled in.",
+					"A parameter is offered only **inside the body it belongs to** — a function's in " +
+						"its own graph, a handler's where its node is drawn.",
+				],
+			},
+			{
+				t: "note",
+				kind: "warn",
+				text:
+					"A Get Parameter outside the body it belongs to is an error naming both. That is " +
+					"the compiler's own scope rule rather than a separate check, so the editor and " +
+					"the generated file cannot disagree about it.",
+			},
+
+			{ t: "h", level: 2, text: "Finding one" },
+			{
+				t: "p",
+				text:
+					"The **Variables panel** lists every function this script declares, under its own " +
+					"heading. Click one to open its graph; drag it onto the canvas for a **Get " +
+					"Function**.",
+			},
+			{ t: "toolbar", bar: FUNCTIONS_PANEL, hint: true },
+			{
+				t: "p",
+				text:
+					"Both node searches know them too. **This graph**, in the node menu's filter row, " +
+					"sets the built-in library aside and leaves what this graph declares: its " +
+					"variables, locals, functions and — in a function's own graph — that function's " +
+					"parameters. `Ctrl` + right-click opens the same list as the **node picker**, " +
+					"with each entry drawn as you walk it.",
+			},
+
 			{ t: "h", level: 2, text: "What reaches inside" },
 			{
 				t: "p",
@@ -3010,6 +3183,14 @@ function functionsPage(registry: Registry): DocPage {
 					"parameter — wired from the entry node, or read with [Get Parameter](variables-and-locals) — " +
 					"through a local declared before it, or through a script variable. Anything you add " +
 					"in a function's tab goes in that function's graph.",
+			},
+			{
+				t: "p",
+				text:
+					"Which locals count as *before it* is the one place the two declarations differ. " +
+					"A **Declare Function** is written where it sits, so it closes over the file's " +
+					"locals and the Variables panel lists them inside it. A hoisted **Function** is " +
+					"written above them, so it cannot see them and they are not offered.",
 			},
 			{
 				t: "note",
@@ -3025,7 +3206,7 @@ function functionsPage(registry: Registry): DocPage {
 				items: [
 					"**Select all**, marquee select, **Realign** and align act on the graph on screen, and only that.",
 					"**Deleting** a function deletes its graph, and asks first when there are nodes in it. Its tab closes.",
-					"**Copying** a function copies its graph, so the paste is a working function.",
+					"**Copying** a function copies its graph, so the paste is a working function. Only its declaration lands at the pointer; the nodes inside keep their places.",
 				],
 			},
 			{

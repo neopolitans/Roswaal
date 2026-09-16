@@ -1048,22 +1048,38 @@ export function pointingElsewhere(
 	};
 }
 
+/** How each section reads when it is not the page's subject. */
+const POINTERS = {
+	variables: "Values the whole script reads and writes. See [Variables and locals](variables-and-locals).",
+	modules: "What this script requires, one `require` each. See [Modules](modules).",
+	locals: "Values that exist inside one block. See [Variables and locals](variables-and-locals).",
+	functions: "Every function this script declares. See [Functions](functions).",
+};
+
 /**
  * The Variables panel as the Modules page draws it: modules explained, the
  * rest pointing at the pages that are about them.
  */
 export const MODULES_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
-	variables: "Values the whole script reads and writes. See [Variables and locals](variables-and-locals).",
-	locals: "Values that exist inside one block. See [Variables and locals](variables-and-locals).",
-	functions: "Every function this script declares. See [Functions](functions).",
+	variables: POINTERS.variables,
+	locals: POINTERS.locals,
+	functions: POINTERS.functions,
 });
 
 /**
- * The Variables panel as its own page draws it: variables, locals and
- * functions in full, with modules pointing at the page about requiring.
+ * The Variables panel as its own page draws it: variables and locals in full,
+ * with modules and functions pointing at the pages about them.
  */
 export const VARIABLES_PAGE_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
-	modules: "What this script requires, one `require` each. See [Modules](modules).",
+	modules: POINTERS.modules,
+	functions: POINTERS.functions,
+});
+
+/** The Variables panel as the Functions page draws it. */
+export const FUNCTIONS_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
+	variables: POINTERS.variables,
+	modules: POINTERS.modules,
+	locals: POINTERS.locals,
 });
 
 /** Every bar the documentation draws, in the order the page walks them. */
