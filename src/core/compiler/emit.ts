@@ -22,6 +22,7 @@ import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../nodes/flow.js";
 import { CAST_NODES, castModeOf } from "../nodes/library.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { isModuleScript, PAIR } from "../schema.js";
+import { checkSpecifier } from "../modules.js";
 import { commentLines, headersByNode } from "../comments.js";
 import type { Comment, Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
@@ -536,6 +537,17 @@ class Emitter {
 		for (const module of this.script.modules ?? []) {
 			const specifier = module.specifier.trim();
 			if (specifier === "") continue;
+
+			// Whether this target resolves it at all. The declaration still
+			// compiles either way: a require that will not resolve is worth
+			// saying loudly and is not worth silently dropping, because the
+			// generated file is the thing the developer is about to read.
+			const wrong = checkSpecifier(specifier, this.script.target);
+			if (wrong) {
+				const said = `Module "${module.name || specifier}": ${wrong.message}`;
+				if (wrong.severity === "error") this.error(said);
+				else this.warn(said);
+			}
 
 			/**
 			 * A declared name is taken **verbatim**, not made unique.
@@ -2249,6 +2261,13 @@ class Emitter {
 				if (specifier === "") {
 					this.error("Require at Top has no module to require.", src.node.id, "specifier");
 					return "nil";
+				}
+
+				const wrong = checkSpecifier(specifier, this.script.target);
+				if (wrong?.severity === "error") {
+					this.error(wrong.message, src.node.id, "specifier");
+				} else if (wrong) {
+					this.warn(wrong.message, src.node.id, "specifier");
 				}
 				if (this.options.inline) return `require(${quoteString(specifier)})`;
 

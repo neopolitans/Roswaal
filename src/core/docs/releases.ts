@@ -94,6 +94,28 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.63.0",
+		date: "2026-09-16",
+		headline: "A script says which modules it requires.",
+		affects: ["editor"],
+		added: [
+			"**Modules are declared, in the Variables panel.** A name, what to require, and optionally what to pull off it. The generated file gets one `require` per declaration, at the top and below the GetService calls — so four uses of one module write one `require`.",
+			"**Get Module**, the pill for a declared module. Drag one out of the panel, the way you drag a variable. It reads the local the require was bound to rather than requiring again.",
+			"**Require at Top**, for declaring one on the canvas instead. It takes the specifier verbatim, so it works for both runtimes and for forms neither has shipped yet.",
+			"**Members**: names pulled off a module into locals of their own. Lune's own idiom — `local roblox = require(\"@lune/roblox\")` and then `local Vector3 = roblox.Vector3` — and what lets the Vector3 and CFrame nodes compile unchanged in a Lune graph.",
+			"**Specifiers are checked against the runtime you compile for.** `@self/` and `@game/` are Roblox's; `@lune/*` is Lune's; `./` and `../` work anywhere; and an unprefixed path is refused, because that is now an error in Luau itself rather than a fallback.",
+		],
+		changed: [
+			"**The name a module binds to is yours.** Two modules can genuinely want to be called `util`, so the name is chosen rather than derived — and a name you choose is taken exactly, never quietly turned into `util2`. Two declarations wanting one name is an error naming both, since only you can pick which one renames.",
+			"A name that shadows something Luau provides is a warning rather than a refusal. Binding `Vector3` is the whole point of the `@lune/roblox` case; naming a module `table` is probably not what you meant.",
+		],
+		watch: [
+			"**A declaration is the only thing that writes a `require`.** Nothing is inferred and nothing is hoisted behind you: if the file imports something, it is because the panel or the canvas says so. That is deliberate, and it is why the datatype nodes will never quietly add an import of their own.",
+			"A `.luaurc` alias in a Roblox graph is a warning, not an error. Roblox says alias maps are coming; they do not resolve today.",
+			"Deleting a module leaves the pills that read it in place, reporting an error. The same as deleting a variable, and for the same reason: an error you can see beats nodes disappearing.",
+		],
+	},
+	{
 		version: "0.62.6",
 		date: "2026-09-16",
 		headline: "A node's page is tagged with the runtime it needs.",

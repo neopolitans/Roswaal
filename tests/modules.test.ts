@@ -17,6 +17,7 @@ import { compile, serialiseScript } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { emptyScript, type NodeScript, type ScriptModule } from "../src/core/schema.js";
 import { migrateScript } from "../src/core/migrate.js";
+import { checkSpecifier } from "../src/core/modules.js";
 import { Builder } from "./helpers.js";
 
 const registry = createRegistry();
@@ -400,6 +401,129 @@ describe("saving a declaration", () => {
 		const without = compile(withModules([]), registry, {}).sourceHash;
 		const with_ = compile(withModules(declared), registry, {}).sourceHash;
 		expect(with_).not.toBe(without);
+	});
+});
+
+/**
+ * Which specifiers each runtime resolves.
+ *
+ * Checked against the Luau RFCs and each runtime's own documentation on
+ * 16 September 2026, and this table is the record of that — so when Roblox
+ * ships alias maps, the change is one row here and a failing test that says
+ * which.
+ */
+describe("what a require string may be", () => {
+	const ok = (specifier: string, target: "roblox" | "lune") =>
+		expect(checkSpecifier(specifier, target), `${specifier} on ${target}`).toBeNull();
+	const problem = (specifier: string, target: "roblox" | "lune") => {
+		const found = checkSpecifier(specifier, target);
+		expect(found, `${specifier} on ${target} was accepted`).not.toBeNull();
+		return found!;
+	};
+
+	/** Relative paths are the one form both runtimes agree on entirely. */
+	it("takes a relative path anywhere", () => {
+		for (const target of ["roblox", "lune"] as const) {
+			ok("./util", target);
+			ok("../shared/config", target);
+			ok("./a/b/c.luau", target);
+		}
+	});
+
+	/**
+	 * The amended RFC is Implemented: "any unprefixed path will always result
+	 * in an error". `require("Foo")` used to resolve, so this is a change in
+	 * the language rather than a house style.
+	 */
+	it("refuses an unprefixed path on either runtime", () => {
+		for (const target of ["roblox", "lune"] as const) {
+			const found = problem("Foo", target);
+			expect(found.severity).toBe("error");
+			expect(found.message).toContain("prefix");
+		}
+	});
+
+	it("refuses a bare @, which is reserved", () => {
+		for (const target of ["roblox", "lune"] as const) {
+			expect(problem("@", target).severity).toBe("error");
+		}
+	});
+
+	it("gives Roblox its own aliases and refuses Lune's", () => {
+		ok("@self/Child", "roblox");
+		ok("@game/ReplicatedStorage/Combat", "roblox");
+		expect(problem("@lune/fs", "roblox").severity).toBe("error");
+	});
+
+	it("gives Lune its own and refuses Roblox's", () => {
+		ok("@lune/fs", "lune");
+		ok("@lune/roblox", "lune");
+		for (const specifier of ["@self/Child", "@game/ReplicatedStorage/Combat"]) {
+			expect(problem(specifier, "lune").severity).toBe("error");
+		}
+	});
+
+	/**
+	 * A `.luaurc` alias in a Roblox graph is a warning, not an error. Roblox's
+	 * own announcement answers "custom aliased paths?" with "Not yet, but we're
+	 * working on it!" — so it is code that does not resolve *today*, and
+	 * refusing it outright would be claiming to know a date nobody has given.
+	 */
+	it("warns rather than refuses a .luaurc alias under Roblox", () => {
+		const found = problem("@Roact/createElement", "roblox");
+		expect(found.severity).toBe("warning");
+		expect(found.message).toContain("not resolve");
+		// And Lune resolves them, so it says nothing there.
+		ok("@Roact/createElement", "lune");
+	});
+
+	/** An unfinished declaration is a normal state, not a mistake to report. */
+	it("says nothing about a specifier nobody has typed yet", () => {
+		for (const target of ["roblox", "lune"] as const) {
+			ok("", target);
+			ok("   ", target);
+		}
+	});
+});
+
+describe("where a bad specifier is reported", () => {
+	const saidAbout = (specifier: string, target: "roblox" | "lune") =>
+		compile(
+			{ ...withModules([{ id: "m", name: "thing", specifier }], target) },
+			registry,
+			{},
+		).diagnostics.map((d) => `${d.severity}: ${d.message}`).join(" | ");
+
+	it("reports a declaration's specifier, naming the module", () => {
+		const said = saidAbout("@lune/fs", "roblox");
+		expect(said).toContain("error");
+		expect(said).toContain("thing");
+	});
+
+	/**
+	 * The require is still written. A generated file is the thing the developer
+	 * is about to read, and silently dropping a line they asked for teaches
+	 * them less than a line plus an error saying why it will not resolve.
+	 */
+	it("still writes the require, so the file matches the graph", () => {
+		expect(body(withModules([{ id: "m", name: "fs", specifier: "@lune/fs" }], "roblox")))
+			.toContain('require("@lune/fs")');
+	});
+
+	it("reports a Require at Top node's specifier against the node", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const req = b.node("module.requireTop");
+		b.lit(req, "specifier", { t: "string", v: "Foo" });
+		const print = b.node("debug.print");
+		b.link(start, "then", print, "in");
+		b.link(req, "exports", print, "value");
+
+		const out = compile({ ...b.build(), target: "lune" }, registry, {});
+		const found = out.diagnostics.find((d) => d.message.includes("prefix"));
+		expect(found).toBeDefined();
+		expect(found!.node).toBe(req);
+		expect(found!.pin).toBe("specifier");
 	});
 });
 
