@@ -75,6 +75,20 @@ export interface HostCapabilities {
 	reset?(): Promise<void>;
 	reveal?(abs: string): Promise<void>;
 	edit?(abs: string): Promise<string>;
+	/**
+	 * Copy a demo that shipped with Roswaal into a project of somebody's own.
+	 *
+	 * The demos are files on disk beside the tool, and opening one puts the
+	 * editor straight onto them — so the first thing anybody does to try a demo
+	 * is edit the copy every other user of that install will get. Worse, it is
+	 * a copy under version control here, so the edit turns up in `git status`
+	 * as a change to the repository rather than as somebody's own work.
+	 *
+	 * So a demo is taken rather than opened. `dir` is the folder name in
+	 * `DEMO_PROJECTS`; `into` is where the developer wants it. What comes back
+	 * is the new root, which is what then gets opened.
+	 */
+	duplicateDemo?(dir: string, into: string): Promise<string>;
 }
 
 export interface SessionHooks {
@@ -204,6 +218,23 @@ export class ApiSession {
 			"GET /demos": async () => ({
 				demos: this.hooks.demos ? await this.hooks.demos() : {},
 			}),
+
+			/**
+			 * Take a copy of a demo, and answer with where it went.
+			 *
+			 * A copy rather than opening the original, so trying a demo cannot
+			 * change what the next person who tries it will see.
+			 */
+			"POST /demos/duplicate": async (req) => {
+				const body = req.body as { dir?: unknown; into?: unknown };
+				if (typeof body.dir !== "string" || body.dir === "") {
+					throw new HttpError(400, "Which demo? Pass its `dir`.");
+				}
+				if (typeof body.into !== "string" || body.into === "") {
+					throw new HttpError(400, "Where should it go? Pass `into`.");
+				}
+				return { root: await this.ability("duplicateDemo")(body.dir, body.into) };
+			},
 
 			"GET /health": async () => ({
 				ok: true,

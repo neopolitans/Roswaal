@@ -326,3 +326,55 @@ describe("alias maps", () => {
 		expect(await statusOf(put("/luaurc", { dir: "" }))).toBe(400);
 	});
 });
+
+/**
+ * Taking a demo, which is a copy and never the original.
+ *
+ * The demos ship beside the tool. Opening one put the editor straight onto the
+ * files every other user of that install would get — and here, where they are
+ * in the repository, editing one turned up as a change to Roswaal rather than
+ * as somebody's own work. That is not hypothetical; it is what happened the
+ * day the Lune demo was added.
+ *
+ * The session above passes no capabilities, exactly as the worker constructs
+ * it, so these also pin the refusal: a host that cannot copy says 501 rather
+ * than failing some other way, and the panel drops the action.
+ */
+describe("taking a copy of a demo", () => {
+	it("lists what the host has, and says nothing when it has none", async () => {
+		const answer = await get("/demos") as { demos: Record<string, string> };
+		expect(answer.demos).toEqual({});
+	});
+
+	it("refuses with 501 on a host that cannot copy", async () => {
+		expect(await statusOf(post("/demos/duplicate", { dir: "demo", into: "/somewhere" })))
+			.toBe(501);
+	});
+
+	it("asks for both halves before it asks the host for anything", async () => {
+		// 400 rather than 501: what is wrong is the request, and answering
+		// "this host cannot do that" would send somebody looking at the host.
+		expect(await statusOf(post("/demos/duplicate", { into: "/somewhere" }))).toBe(400);
+		expect(await statusOf(post("/demos/duplicate", { dir: "demo" }))).toBe(400);
+		expect(await statusOf(post("/demos/duplicate", { dir: "", into: "/x" }))).toBe(400);
+	});
+
+	it("hands the host the demo and the destination, and answers with the root", async () => {
+		const asked: Array<[string, string]> = [];
+		const { ApiSession: Session } = await import("../src/server/routes.js");
+		const able = new Session({
+			capabilities: {
+				duplicateDemo: async (dir: string, into: string) => {
+					asked.push([dir, into]);
+					return `${into}/${dir}`;
+				},
+			},
+		});
+		const answer = await able.handle("POST", "/demos/duplicate", {
+			body: { dir: "lune-demo", into: "/work" },
+		}) as { root: string };
+
+		expect(asked).toEqual([["lune-demo", "/work"]]);
+		expect(answer.root).toBe("/work/lune-demo");
+	});
+});

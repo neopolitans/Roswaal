@@ -8111,14 +8111,25 @@ button.tb.danger {
 	padding: 2px 16px 6px;
 	overflow-x: auto;
 	scroll-snap-type: x proximity;
-	/* Thin, and only while the pointer is in the shelf. The arrows above are
-	   the control; a full-width scrollbar under four cards read as a divider
-	   between the two shelves rather than as part of either. */
-	scrollbar-width: none;
+	/* The gutter, said twice.
+
+	   `padding` puts it there; `scroll-padding` keeps it there. A snap aligns
+	   a card to the *scrollport* edge, which ignores padding -- so the moment
+	   this rail was scrolled at all, the first card slid flush against the
+	   panel's edge while the shelf below it, still at zero, kept its 16px. Two
+	   rows of the same cards, indented differently, because one of them had
+	   been touched. */
+	scroll-padding-inline: 16px;
+	/* Always thin, never toggled. Showing it on hover changed the scrollport's
+	   height, so every card in the shelf shifted up a pixel or two as the
+	   pointer arrived and back again as it left. A quiet scrollbar that is
+	   always there costs less than a tidy one that moves the furniture. */
+	scrollbar-width: thin;
+	scrollbar-color: transparent transparent;
+	transition: scrollbar-color 120ms ease;
 }
 
 .intro-shelf:hover .intro-rail {
-	scrollbar-width: thin;
 	scrollbar-color: var(--border-strong) transparent;
 }
 
@@ -8242,7 +8253,12 @@ button.tb.danger {
 	margin-left: -6px;
 	padding: 2px 6px;
 	background: transparent;
-	font: inherit;
+	/* Family and size, not the `font` shorthand. `font: inherit` also resets
+	   weight and letter-spacing, which `.docs-page-head .logo` above is the
+	   one supplying -- so the wordmark came out at the header's normal weight
+	   the moment it became a button. */
+	font-family: inherit;
+	font-size: inherit;
 	color: inherit;
 	cursor: pointer;
 	transition: background-color 90ms ease, border-color 90ms ease;
@@ -8251,4 +8267,20 @@ button.tb.danger {
 .docs-page-head .logo.as-chip:hover {
 	border-color: var(--border);
 	background: var(--bg-hover);
+}
+
+/* A copy that did not happen, said where it was asked for rather than in a
+   dialog over the top of the panel. */
+.intro-trouble {
+	margin: 0;
+	padding: 4px 16px 10px;
+	font-size: 12px;
+	color: var(--danger);
+}
+
+/* A card mid-copy. Dimmed rather than removed, so the row does not reflow
+   under the pointer that just pressed it. */
+.intro-card:disabled {
+	opacity: 0.55;
+	cursor: default;
 }

@@ -181,6 +181,38 @@ const session = new ApiSession({
 				initialised: fs.existsSync(path.join(root, "roswaal.json")),
 			};
 		},
+		/**
+		 * Copy a demo into a directory of the developer's own.
+		 *
+		 * Named after the demo, and never over the top of something already
+		 * there — a second copy becomes `lune-demo-2`. Taking a demo is meant
+		 * to be safe twice, and a copy that silently replaced an earlier one
+		 * would lose whatever had been done to it.
+		 */
+		duplicateDemo: async (dir, into) => {
+			const home = installRoot();
+			if (home === null) throw new HttpError(501, "This copy of Roswaal has no demos.");
+			if (!DEMO_PROJECTS.some((one) => one.dir === dir)) {
+				throw new HttpError(404, `There is no demo called "${dir}".`);
+			}
+			const from = path.join(home, "examples", dir);
+			if (!fs.existsSync(path.join(from, "roswaal.json"))) {
+				throw new HttpError(404, `The "${dir}" demo is not in this install.`);
+			}
+
+			const parent = path.resolve(into);
+			if (!fs.existsSync(parent)) throw new HttpError(400, `There is no directory at ${parent}.`);
+
+			let root = path.join(parent, dir);
+			for (let n = 2; fs.existsSync(root); n += 1) root = path.join(parent, `${dir}-${n}`);
+
+			// `.roswaal` and everything else. `recursive` copies the dot
+			// directory too, which is where the graphs are -- a copy without it
+			// would be the generated Luau and nothing to regenerate it from.
+			await fs.promises.cp(from, root, { recursive: true });
+			return root;
+		},
+
 		browse: async (startIn) => {
 			try {
 				return await chooseDirectory(startIn);

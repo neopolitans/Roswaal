@@ -51,7 +51,12 @@ export interface ProjectBarProps {
 	onOpenDesigner: () => void;
 	onOpenSettings: () => void;
 	/** Opens the project menu, anchored under the mark. */
-	onOpenProjectMenu: (anchor: { x: number; y: number }) => void;
+	/**
+	 * Open the introduction panel. No anchor: it is centred rather than dropped
+	 * under the mark, because the same panel opens from a header in two other
+	 * windows that have nothing to anchor it to.
+	 */
+	onOpenIntro: () => void;
 }
 
 export function ProjectBar(props: ProjectBarProps) {
@@ -61,17 +66,14 @@ export function ProjectBar(props: ProjectBarProps) {
 			    text, because the toolbar is the one screen you are only on
 			    once you have already opened the thing.
 
-			    It is also the way back out: the mark opens the project menu,
-			    which is where an application's own icon is looked for. */}
+			    It is also the way back out: the mark opens the introduction
+			    panel, which is where an application's own icon is looked for. */}
 			<button
 				className="logo"
 				title={IS_STATIC_HOST
 					? `Roswaal ${VERSION}, running in your browser. Your project is kept in this browser only.`
-					: `Roswaal ${VERSION} — switch project`}
-				onClick={(e) => {
-					const box = e.currentTarget.getBoundingClientRect();
-					props.onOpenProjectMenu({ x: box.left, y: box.bottom + 4 });
-				}}
+					: `Roswaal ${VERSION} — recent projects, the demos, and the other windows`}
+				onClick={() => props.onOpenIntro()}
 			>
 				<Logo height={17} />
 				{/* Small, always there. Knowing which build you are looking at

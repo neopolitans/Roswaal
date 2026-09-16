@@ -175,6 +175,15 @@ export const api = {
 	 */
 	demos: () => request<{ demos: Record<string, string> }>("/api/demos"),
 
+	/**
+	 * Take a copy of a demo into `into`, and answer with the new root.
+	 *
+	 * A copy rather than opening what shipped: the demos are files beside the
+	 * tool, and editing one changes what the next person to try it sees.
+	 */
+	duplicateDemo: (dir: string, into: string) =>
+		post<{ root: string }>("/api/demos/duplicate", { dir, into }),
+
 	/** What the daemon already has open, if `roswaal serve` opened one. */
 	currentProject: () =>
 		request<({ open: false } | ({ open: true } & ProjectInfo))>("/api/project"),

@@ -1615,7 +1615,7 @@ export function App() {
 				onOpenDocs={() => window.open(pageHref("docs"), PAGE_TARGET.docs)}
 				onOpenDesigner={() => window.open(pageHref("designer"), PAGE_TARGET.designer)}
 				onOpenSettings={() => setSettingsOpen(true)}
-				onOpenProjectMenu={() => setIntroOpen(true)}
+				onOpenIntro={() => setIntroOpen(true)}
 			/>
 
 			{/* Rendered here rather than in the overlay stack: it is about the

@@ -47,6 +47,17 @@ describe("the Lune demo project", () => {
 		nodes: script.nodes
 			.map(({ x: _x, y: _y, ...rest }) => rest)
 			.sort((a, b) => a.id.localeCompare(b.id)),
+		// Sorted for the same reason the nodes are. The editor writes links in
+		// the order it holds them, which is not the order the builder made
+		// them in, and a wire is the same wire wherever it sits in the array.
+		// Keyed by what it connects rather than by its own id, which the editor
+		// is also free to renumber.
+		links: [...script.links]
+			.map(({ id: _id, ...rest }) => rest)
+			.sort((a, b) =>
+				`${a.from.node}.${a.from.pin}>${a.to.node}.${a.to.pin}`
+					.localeCompare(`${b.from.node}.${b.from.pin}>${b.to.node}.${b.to.pin}`),
+			),
 	});
 
 	it.each(DEMOS)("$slug on disk is the graph the page draws", (demo) => {

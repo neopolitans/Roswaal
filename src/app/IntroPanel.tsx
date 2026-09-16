@@ -148,6 +148,9 @@ export function IntroPanel(props: IntroPanelProps) {
 	const [recent] = useState<string[]>(() => recentProjects());
 	/** Demo folder name -> its root here. Empty until the host answers. */
 	const [demoRoots, setDemoRoots] = useState<Record<string, string>>({});
+	/** The demo being copied, and why the last attempt did not finish. */
+	const [busy, setBusy] = useState<string | null>(null);
+	const [trouble, setTrouble] = useState<string | null>(null);
 
 	useEffect(() => {
 		let live = true;
@@ -199,6 +202,39 @@ export function IntroPanel(props: IntroPanelProps) {
 
 	const demos = DEMO_PROJECTS.filter((one) => demoRoots[one.dir] !== undefined);
 
+	/**
+	 * Take a copy of a demo, and open that.
+	 *
+	 * Never the original. The demos are files that shipped beside the tool, so
+	 * the first thing anybody does to try one would otherwise be to edit the
+	 * copy every other user of that install gets — and here, where they are in
+	 * the repository, it turns up as a change to Roswaal rather than as
+	 * somebody's own work. That is not a hypothetical; it is what happened to
+	 * the Lune demo the day it was added.
+	 *
+	 * The developer picks where it goes, because a demo they cannot find again
+	 * is barely better than one they could not take.
+	 */
+	const take = (demo: DemoProject) => {
+		setBusy(demo.dir);
+		setTrouble(null);
+		void api.browseForProject()
+			.then(({ path: into }) => {
+				if (into === null) {
+					setBusy(null);
+					return;
+				}
+				return api.duplicateDemo(demo.dir, into).then(({ root }) => {
+					setBusy(null);
+					open(root);
+				});
+			})
+			.catch((err: Error) => {
+				setBusy(null);
+				setTrouble(err.message || "It could not be copied.");
+			});
+	};
+
 	return (
 		<div className="intro-backdrop" onPointerDown={onClose}>
 			<div
@@ -246,8 +282,9 @@ export function IntroPanel(props: IntroPanelProps) {
 								<button
 									key={demo.dir}
 									className="intro-card"
-									onClick={() => open(demoRoots[demo.dir])}
-									title={demoRoots[demo.dir]}
+									disabled={busy !== null}
+									onClick={() => take(demo)}
+									title={`Copy ${demo.name} somewhere of your own, and open that`}
 								>
 									<span className="intro-card-name">
 										{demo.name}
@@ -255,12 +292,16 @@ export function IntroPanel(props: IntroPanelProps) {
 									</span>
 									<span className="intro-card-what">{demo.what}</span>
 									<span className="intro-card-open">
-										{demo.graphs} {demo.graphs === 1 ? "graph" : "graphs"}
+										{busy === demo.dir
+											? "copying…"
+											: `${demo.graphs} ${demo.graphs === 1 ? "graph" : "graphs"} · take a copy`}
 									</span>
 								</button>
 							))}
 						</Carousel>
 					)}
+
+					{trouble !== null && <p className="intro-trouble">{trouble}</p>}
 
 					{recent.length === 0 && demos.length === 0 && (
 						<p className="intro-empty">

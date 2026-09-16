@@ -108,6 +108,10 @@ export const RELEASES: Release[] = [
 			"Which projects you have opened before is now read by all three windows rather than by the editor alone.",
 		],
 		fixed: [
+			"**A demo is taken as a copy, not opened where it lies.** The demos ship beside the tool, so opening one put the editor straight onto the files every other user of that install would get — and in a checkout, editing one turned up as a change to Roswaal rather than as somebody’s own work. A card copies it somewhere of your choosing and opens that; a second copy is `lune-demo-2` rather than an overwrite.",
+			"The panel’s recent shelf kept its gutter until it was scrolled, and then lost it. A snap aligns a card to the scrollport rather than to the padding, so the first card slid flush against the edge while the shelf below it, still at zero, kept its sixteen pixels.",
+			"Showing the shelf’s scrollbar on hover changed the scrollport’s height, so the cards shifted as the pointer arrived and back again as it left.",
+			"The wordmark lost its weight when the mark became a button: `font: inherit` resets more than the family.",
 			"**Four graphs the documentation builds shared one id**, which was invisible while they were pictures and destructive as a project: the compiler keys generated files by graph id, so each compile deleted the file before it. All four wrote and one survived.",
 		],
 		watch: [
