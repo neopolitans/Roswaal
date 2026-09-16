@@ -107,7 +107,7 @@ export const RELEASES: Release[] = [
 			"The three windows share one listener rather than a copy each. A theme is stored in `localStorage`, which is exactly so that every window on the origin — including the static site — can be told when it moves.",
 		],
 		watch: [
-			"The node pictures on the documentation site are drawn at build time, so their headers and pins keep the default palette under any scheme. The page around them follows yours.",
+			"A node picture on the site follows your scheme too. It is drawn with the same tokens the canvas uses — `var(--node-body)` and the rest — so only a node's **category colour** and its **pin type colours** stay put, and those are fixed in every theme by design, in the editor as much as here.",
 		],
 	},
 	{
