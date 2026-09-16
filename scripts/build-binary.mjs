@@ -13,11 +13,16 @@
  * Those are self-contained and are what a pinned toolchain is for — compiling
  * in CI, and compiling the same way on everybody's machine.
  *
- * **Not the editor.** `serve` resolves the built web application from `dist/`
- * beside the CLI on disk, and a packaged executable has nothing beside it.
- * Embedding several megabytes of web application into every platform's binary
- * to serve a window that this kind of install is not for would be the wrong
- * trade; `serve` says so instead of printing a URL that answers 404.
+ * **The editor too.** It is four files and under two megabytes — one bundle,
+ * one stylesheet, the theme script and the page naming them — so they travel
+ * inside the binary as assets and are served from memory. `serve` gives the
+ * whole localhost editor, and the documentation with it, from an executable
+ * with nothing beside it.
+ *
+ * Not the *published* documentation site, which is a different thing: thirteen
+ * megabytes of pre-rendered pages for a static host. The editor draws those
+ * same pages itself from the node registry, which is why `/docs` needs nothing
+ * extra here.
  *
  * ## Why `bin/roswaal` is still a script
  *
@@ -35,8 +40,11 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import {
+	copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync,
+	writeFileSync,
+} from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
@@ -80,6 +88,43 @@ await build({
 	legalComments: "none",
 });
 
+/**
+ * The editor, carried inside the binary.
+ *
+ * Four files and under two megabytes -- one bundle, one stylesheet, the script
+ * that paints the theme before first paint, and the page that names them. That
+ * is what makes this worth doing: `serve` gives the whole localhost editor and
+ * the documentation with it, from an executable with nothing beside it.
+ *
+ * Keyed by the path a browser will ask for, so the server looks up the request
+ * and nothing has to translate between the two.
+ */
+function editorAssets() {
+	const dist = join(root, "dist");
+	if (!existsSync(join(dist, "index.html"))) {
+		console.error("roswaal: dist/ has not been built, so the binary would have no editor.");
+		console.error("  Run:  npm run build:web");
+		process.exit(1);
+	}
+
+	const assets = {};
+	const walk = (at) => {
+		for (const entry of readdirSync(at, { withFileTypes: true })) {
+			const abs = join(at, entry.name);
+			if (entry.isDirectory()) {
+				walk(abs);
+				continue;
+			}
+			// Forward slashes: this is a URL path, not a path on this machine.
+			assets[relative(dist, abs).split(sep).join("/")] = abs;
+		}
+	};
+	walk(dist);
+	return assets;
+}
+
+const assets = editorAssets();
+
 const config = join(out, "sea-config.json");
 writeFileSync(
 	config,
@@ -87,6 +132,7 @@ writeFileSync(
 		main: bundle,
 		output: join(out, "roswaal.blob"),
 		disableExperimentalSEAWarning: true,
+		assets,
 	}, null, 2)}\n`,
 	"utf8",
 );
@@ -122,5 +168,8 @@ if (inject.status !== 0) {
 }
 
 const megabytes = (statSync(binary).size / 1024 / 1024).toFixed(0);
-console.log(`roswaal binary: ${megabytes} MB -> dist-binary/roswaal${exe}`);
+console.log(
+	`roswaal binary: ${megabytes} MB -> dist-binary/roswaal${exe}` +
+	` (editor: ${Object.keys(assets).length} files)`,
+);
 console.log(`  release asset name: ${assetName(version)}.zip`);

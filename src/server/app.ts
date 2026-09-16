@@ -13,6 +13,7 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import sea from "node:sea";
 
 import { ApiSession, HttpError, type RouteRequest } from "./routes.js";
 import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
@@ -392,6 +393,23 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<void> {
 
 	if (options.root) await session.openAt(options.root);
 
+	/**
+	 * The built editor, carried inside the executable.
+	 *
+	 * A packaged build has no `dist/` beside it -- it has no beside -- so the
+	 * editor and the documentation travel in the binary itself, as assets, and
+	 * are served from memory. Four files and under two megabytes, which is what
+	 * makes this worth doing at all: the localhost editor is one bundle, one
+	 * stylesheet and the page that names them.
+	 *
+	 * First, because a build that has them should use them rather than looking
+	 * for a directory it will not find.
+	 */
+	if (mountEmbeddedEditor(app)) {
+		await listen();
+		return;
+	}
+
 	// The built editor, when there is one. In development Vite serves it instead
 	// and proxies /api here, so this is simply absent.
 	const staticDir = options.staticDir ?? defaultStaticDir();
@@ -415,13 +433,89 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<void> {
 		});
 	}
 
-	await new Promise<void>((resolve, reject) => {
-		const server = app.listen(port, "127.0.0.1", () => {
-			options.onListening?.(port);
-			resolve();
+	await listen();
+
+	function listen(): Promise<void> {
+		return new Promise<void>((resolve, reject) => {
+			const server = app.listen(port, "127.0.0.1", () => {
+				options.onListening?.(port);
+				resolve();
+			});
+			server.on("error", reject);
 		});
-		server.on("error", reject);
+	}
+}
+
+/**
+ * The editor's own files, when they are inside the executable.
+ *
+ * `index.html` is always there in a packaged build, so it is the one asked for
+ * to decide whether there are any. `getRawAsset` throws for a name that was
+ * not embedded rather than answering null, which is why every read here is
+ * wrapped: asking is the only way to find out.
+ */
+function embeddedAsset(name: string): Buffer | null {
+	if (!sea.isSea()) return null;
+	try {
+		return Buffer.from(sea.getRawAsset(name));
+	} catch {
+		return null;
+	}
+}
+
+/** What a browser should be told each kind of file is. */
+const CONTENT_TYPES: Record<string, string> = {
+	".html": "text/html; charset=utf-8",
+	".js": "text/javascript; charset=utf-8",
+	".css": "text/css; charset=utf-8",
+	".json": "application/json; charset=utf-8",
+	".svg": "image/svg+xml",
+	".woff2": "font/woff2",
+	".png": "image/png",
+	".ico": "image/x-icon",
+	".map": "application/json; charset=utf-8",
+};
+
+/**
+ * Serve the editor out of the binary, if this is a build that carries it.
+ *
+ * Answers whether it did, so the caller can fall back to a directory on disk.
+ * The single-page fallback is the same rule the filesystem mount uses: anything
+ * that is not `/api/` and does not name a file is the application's own route
+ * -- `/docs`, `/designer` -- and gets the page that knows how to draw it.
+ */
+function mountEmbeddedEditor(app: express.Express): boolean {
+	if (embeddedAsset("index.html") === null) return false;
+
+	app.get(/^(?!\/api\/).*/, (req, res) => {
+		const wanted = decodeURIComponent(req.path).replace(/^\/+/, "");
+		const asset = wanted === "" ? null : embeddedAsset(wanted);
+
+		if (asset !== null) {
+			const dot = wanted.lastIndexOf(".");
+			const type = dot === -1 ? undefined : CONTENT_TYPES[wanted.slice(dot).toLowerCase()];
+			if (type) res.setHeader("Content-Type", type);
+			// The asset names carry a content hash, so they can be cached hard.
+			// `index.html` cannot: it is what names the current hashes.
+			res.setHeader(
+				"Cache-Control",
+				wanted.endsWith(".html") ? "no-cache" : "public, max-age=31536000, immutable",
+			);
+			res.send(asset);
+			return;
+		}
+
+		const page = embeddedAsset("index.html");
+		if (page === null) {
+			res.status(404).send("Not found");
+			return;
+		}
+		res.setHeader("Content-Type", CONTENT_TYPES[".html"]);
+		res.setHeader("Cache-Control", "no-cache");
+		res.send(page);
 	});
+
+	return true;
 }
 
 /**
@@ -434,6 +528,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<void> {
  * it starts, prints a URL, and answers 404 on it.
  */
 export function hasBundledEditor(): boolean {
+	if (embeddedAsset("index.html") !== null) return true;
 	const dir = defaultStaticDir();
 	return dir !== null && fs.existsSync(path.join(dir, "index.html"));
 }

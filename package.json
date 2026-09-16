@@ -11,6 +11,7 @@
     "dev:web": "vite",
     "build": "npm run build:themes && npm run build:web && npm run build:cli",
     "build:web": "tsc --noEmit && vite build",
+    "build:binary": "node scripts/build-binary.mjs",
     "build:cli": "node scripts/build-cli.mjs",
     "roswaal": "node dist-cli/roswaal.mjs",
     "test": "vitest run",
