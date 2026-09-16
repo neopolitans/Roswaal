@@ -7381,3 +7381,12 @@ button.tb.danger {
 	color: var(--warning);
 	border-color: color-mix(in srgb, var(--warning) 45%, transparent);
 }
+
+/* Something this graph declares rather than a node from the library -- a
+   variable you named, a local, a function, one of its parameters. Quieter than
+   the runtimes: it is a fact about where the entry came from, not a warning
+   about where it will run. */
+.hint.runtime.graph {
+	color: var(--fg-muted);
+	border-color: var(--border);
+}

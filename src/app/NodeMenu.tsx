@@ -23,10 +23,11 @@ import { keywordNodes } from "../core/keywords.js";
 import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
 import { LAYER } from "./layers.js";
 import { COMMENT_DEFAULT_COLOR, nodeColor, pinColor } from "./palette.js";
+import { classify } from "../core/nodes/runtimes.js";
 import {
-	classify, RUNTIME_LABEL, RUNTIME_SUMMARY, RUNTIMES, type Runtime,
-} from "../core/nodes/runtimes.js";
-import { readPreferences, writePreferences } from "./preferences.js";
+	FILTER_LABEL, FILTER_SUMMARY, MENU_FILTERS, readPreferences, writePreferences,
+	type MenuFilter,
+} from "./preferences.js";
 
 export interface MenuAnchor {
 	/** Viewport position. The menu is `position: fixed`, so it must not be
@@ -78,8 +79,12 @@ interface MenuItem {
 	summary?: string;
 	color: string;
 	pure: boolean;
-	/** Which runtime it needs. Shown on the row, and what the filter narrows on. */
-	runtime: Runtime;
+	/**
+	 * What narrowing this item answers to: the runtime it needs, or `graph`
+	 * when the item is not a library node at all but something this document
+	 * declares — a variable, a local, a function, a parameter.
+	 */
+	runtime: MenuFilter;
 	def: NodeDef;
 	config?: NodeConfig;
 	/**
@@ -143,9 +148,11 @@ export function NodeMenu(props: NodeMenuProps) {
 				summary: preset.summary,
 				color: preset.color,
 				pure: def.pure === true,
-				// A preset is an instance of a node, so it runs where that node
-				// runs. Reading it off the preset would be a second answer.
-				runtime: classify(def),
+				// A preset is a thing this graph declares -- a variable you named,
+				// a local, a function, one of its parameters. Which runtime the
+				// node behind it needs is not the interesting question about it:
+				// it is as portable as the graph is.
+				runtime: "graph" as const,
 				def,
 				config: preset.config,
 			}];
@@ -164,11 +171,11 @@ export function NodeMenu(props: NodeMenuProps) {
 	 * narrow is mostly "show me only what is portable", which is the question
 	 * somebody asks when they are thinking about moving a graph.
 	 */
-	const [runtime, setRuntime] = useState<Runtime | null>(() => readPreferences().nodeRuntime);
+	const [runtime, setRuntime] = useState<MenuFilter | null>(() => readPreferences().nodeFilter);
 
-	const chooseRuntime = (next: Runtime | null) => {
+	const chooseRuntime = (next: MenuFilter | null) => {
 		setRuntime(next);
-		writePreferences({ ...readPreferences(), nodeRuntime: next });
+		writePreferences({ ...readPreferences(), nodeFilter: next });
 	};
 
 	/**
@@ -181,7 +188,7 @@ export function NodeMenu(props: NodeMenuProps) {
 	 */
 	const present = useMemo(() => {
 		const seen = new Set(allItems.map((item) => item.runtime));
-		return RUNTIMES.filter((r) => seen.has(r));
+		return MENU_FILTERS.filter((r) => seen.has(r));
 	}, [allItems]);
 
 	// A remembered runtime that this graph has none of would hide everything.
@@ -442,8 +449,8 @@ export function NodeMenu(props: NodeMenuProps) {
 				   where the filter goes reads as the filter being broken rather
 				   than as there being one answer. */
 				<div className="menu-runtimes" role="group" aria-label="Runtime">
-					<span className="only" title={RUNTIME_SUMMARY[present[0]]}>
-						Every node here is <strong>{RUNTIME_LABEL[present[0]]}</strong>
+					<span className="only" title={FILTER_SUMMARY[present[0]]}>
+						Every node here is <strong>{FILTER_LABEL[present[0]]}</strong>
 					</span>
 				</div>
 			)}
@@ -464,9 +471,9 @@ export function NodeMenu(props: NodeMenuProps) {
 							type="button"
 							className={narrowed === r ? "on" : ""}
 							onClick={() => chooseRuntime(narrowed === r ? null : r)}
-							title={RUNTIME_SUMMARY[r]}
+							title={FILTER_SUMMARY[r]}
 						>
-							{RUNTIME_LABEL[r]}
+							{FILTER_LABEL[r]}
 						</button>
 					))}
 				</div>
@@ -517,8 +524,8 @@ export function NodeMenu(props: NodeMenuProps) {
 							    would be noise -- and a narrowed list already says
 							    it on the chip above. */}
 							{item.runtime !== "luau" && narrowed === null && (
-								<span className={`hint runtime ${item.runtime}`} title={RUNTIME_SUMMARY[item.runtime]}>
-									{RUNTIME_LABEL[item.runtime]}
+								<span className={`hint runtime ${item.runtime}`} title={FILTER_SUMMARY[item.runtime]}>
+									{FILTER_LABEL[item.runtime]}
 								</span>
 							)}
 						</div>

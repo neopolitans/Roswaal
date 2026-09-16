@@ -25,10 +25,11 @@ import { previewOf, previewSvg, type PreviewOptions } from "../core/docs/preview
 import { keywordNodes } from "../core/keywords.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
+import { classify } from "../core/nodes/runtimes.js";
 import {
-	classify, RUNTIME_LABEL, RUNTIME_SUMMARY, RUNTIMES, type Runtime,
-} from "../core/nodes/runtimes.js";
-import { readPreferences, writePreferences } from "./preferences.js";
+	FILTER_LABEL, FILTER_SUMMARY, MENU_FILTERS, readPreferences, writePreferences,
+	type MenuFilter,
+} from "./preferences.js";
 
 export interface NodePickerProps {
 	registry: Registry;
@@ -71,17 +72,19 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 	);
 
 	/** Which runtime the list is narrowed to. The same preference the menu uses. */
-	const [runtime, setRuntime] = useState<Runtime | null>(() => readPreferences().nodeRuntime);
+	// The picker lists the library only, so it never shows a "This graph" chip:
+	// `present` cannot contain it, and the guard below falls back to All.
+	const [runtime, setRuntime] = useState<MenuFilter | null>(() => readPreferences().nodeFilter);
 
-	const chooseRuntime = (next: Runtime | null) => {
+	const chooseRuntime = (next: MenuFilter | null) => {
 		setRuntime(next);
-		writePreferences({ ...readPreferences(), nodeRuntime: next });
+		writePreferences({ ...readPreferences(), nodeFilter: next });
 	};
 
 	// Only the runtimes this graph actually has. See NodeMenu for why.
 	const present = useMemo(() => {
-		const seen = new Set(forTarget.map(classify));
-		return RUNTIMES.filter((r) => seen.has(r));
+		const seen = new Set<MenuFilter>(forTarget.map(classify));
+		return MENU_FILTERS.filter((r) => seen.has(r));
 	}, [forTarget]);
 
 	const narrowed = runtime !== null && present.includes(runtime) ? runtime : null;
@@ -145,8 +148,8 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 			<div className="node-picker" role="dialog" aria-label="Find a node">
 				{present.length === 1 && (
 					<div className="menu-runtimes" role="group" aria-label="Runtime">
-						<span className="only" title={RUNTIME_SUMMARY[present[0]]}>
-							Every node here is <strong>{RUNTIME_LABEL[present[0]]}</strong>
+						<span className="only" title={FILTER_SUMMARY[present[0]]}>
+							Every node here is <strong>{FILTER_LABEL[present[0]]}</strong>
 						</span>
 					</div>
 				)}
@@ -166,9 +169,9 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 								type="button"
 								className={narrowed === r ? "on" : ""}
 								onClick={() => chooseRuntime(narrowed === r ? null : r)}
-								title={RUNTIME_SUMMARY[r]}
+								title={FILTER_SUMMARY[r]}
 							>
-								{RUNTIME_LABEL[r]}
+								{FILTER_LABEL[r]}
 							</button>
 						))}
 					</div>
@@ -226,9 +229,9 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 											{classify(def) !== "luau" && narrowed === null && (
 												<span
 													className={`hint runtime ${classify(def)}`}
-													title={RUNTIME_SUMMARY[classify(def)]}
+													title={FILTER_SUMMARY[classify(def)]}
 												>
-													{RUNTIME_LABEL[classify(def)]}
+													{FILTER_LABEL[classify(def)]}
 												</span>
 											)}
 										</button>

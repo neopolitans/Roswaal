@@ -124,6 +124,28 @@ describe("the node search's presets", () => {
 		}
 	});
 
+	/**
+	 * What the menu's **This graph** filter narrows to.
+	 *
+	 * It selects the presets, and the presets are exactly what this graph
+	 * declares — so the filter inherits every scoping rule tested here for
+	 * free. A parameter is the case worth saying out loud: inside a function's
+	 * own graph it is one of that graph's own things, and in the file's graph
+	 * it does not exist at all, so the filter must not conjure it.
+	 */
+	it("narrows This graph to what that graph actually declares", () => {
+		const inHide = titles("hide");
+		// Its own parameter, its own local, and the file's variables and functions.
+		expect(inHide).toEqual(expect.arrayContaining([
+			"Get character", "Get restore", "Get restores", "Get Occupancy", "Get hide",
+		]));
+		// And nothing belonging to the function next door.
+		expect(inHide).not.toContain("Get exitAt");
+
+		// At the file level there is no parameter to offer at all.
+		expect(titles(null).some((t) => t === "Get character" || t === "Get exitAt")).toBe(false);
+	});
+
 	it("offers a parameter only inside the body it belongs to", () => {
 		expect(titles("hide")).toContain("Get character");
 		expect(titles("show")).not.toContain("Get character");

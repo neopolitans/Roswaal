@@ -29,6 +29,9 @@ import {
 	CATEGORY_RUNTIME, classify, NODE_RUNTIME, RUNTIME_LABEL, RUNTIME_SUMMARY, RUNTIMES,
 	runtimeOf, targetsFor, withRuntimes,
 } from "../src/core/nodes/runtimes.js";
+import {
+	FILTER_LABEL, FILTER_SUMMARY, MENU_FILTERS,
+} from "../src/app/preferences.js";
 import type { NodeDef } from "../src/core/schema.js";
 
 const registry = createRegistry();
@@ -192,9 +195,34 @@ describe("runtime as an axis", () => {
 	/** Both lists read the same preference, so the answer does not depend on route. */
 	it("uses one preference in both the menu and the picker", () => {
 		for (const path of ["src/app/NodeMenu.tsx", "src/app/NodePicker.tsx"]) {
-			expect(source(path), path).toContain("readPreferences().nodeRuntime");
-			expect(source(path), path).toContain("nodeRuntime: next");
+			expect(source(path), path).toContain("readPreferences().nodeFilter");
+			expect(source(path), path).toContain("nodeFilter: next");
 		}
+	});
+
+	/**
+	 * "This graph" is the fourth option and a different kind of claim: not
+	 * which runtime a node needs, but that it is not a library node at all --
+	 * a variable you named, a local, a function, one of its parameters.
+	 *
+	 * The menu offers it because the menu has those. The picker lists the
+	 * library only, so the chip cannot appear there and the shared preference
+	 * falls back to All rather than showing an empty list.
+	 */
+	it("offers This graph in the menu and never in the picker", () => {
+		expect(MENU_FILTERS[0]).toBe("graph");
+		expect(FILTER_LABEL.graph).toBe("This graph");
+		expect(FILTER_SUMMARY.graph).toMatch(/variables, locals, functions and parameters/i);
+
+		// The menu marks every preset as the graph's own.
+		expect(source("src/app/NodeMenu.tsx")).toContain('runtime: "graph" as const');
+		// The picker builds its list from the registry, so nothing in it can be.
+		expect(source("src/app/NodePicker.tsx")).not.toContain('"graph"');
+	});
+
+	/** Runtimes still cover the library, with `graph` added on top rather than into it. */
+	it("keeps the runtimes as they were", () => {
+		expect(MENU_FILTERS.filter((f) => f !== "graph")).toEqual([...RUNTIMES]);
 	});
 
 	/**

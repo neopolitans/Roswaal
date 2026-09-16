@@ -94,6 +94,23 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.62.4",
+		date: "2026-09-16",
+		headline: "Search only what this graph declares.",
+		affects: ["editor"],
+		added: [
+			"**A This graph filter in the node menu**, beside the runtimes: the variables, locals, functions and parameters this graph declares, with the library set aside. The thing you are looking for when you know you named it.",
+			"Those entries carry a quiet badge in the unfiltered list too, so **Get Accumulator** is told apart from the **Get Variable** it sits next to under the same heading.",
+		],
+		changed: [
+			"The filter is one control with four answers rather than two controls. Three of them say which runtime a node needs; This graph says it is not a library node at all. They are different kinds of claim, and a reader opening a search box is asking one question — narrow this — not two.",
+		],
+		watch: [
+			"**In a function's own graph, This graph includes that function's parameters** — and only its own. A parameter exists where its body runs, so the file's graph offers none and a sibling function's are never listed. That was already how the menu worked; the filter inherits it rather than deciding again.",
+			"The node picker lists the built-in library only, so it has nothing of the graph's to offer and does not show the chip. The preference is shared, and falls back to showing everything there rather than to an empty list.",
+		],
+	},
+	{
 		version: "0.62.3",
 		date: "2026-09-16",
 		headline: "The front page says what this version is about.",
