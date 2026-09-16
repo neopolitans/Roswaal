@@ -1468,6 +1468,41 @@ export const LIBRARY_NODES: NodeDef[] = [
 		outputs: [d("instance", "", "Instance")],
 		compilesTo: { kind: "builtin", handler: "instance.path" },
 	},
+	/**
+	 * Require at Top: a module by the string its runtime resolves.
+	 *
+	 * The general form of Require Module, which is Roblox-only and builds an
+	 * *instance* path. This takes the specifier verbatim, because the two
+	 * runtimes resolve different things and the set is still moving: Roblox
+	 * takes `./`, `../`, `@self/` and `@game/` today and says alias maps are
+	 * coming; Lune takes `./`, `../`, `@lune/*` and `.luaurc` aliases.
+	 *
+	 * Held as text rather than parsed into parts, so a form shipping next month
+	 * needs no release here.
+	 */
+	{
+		id: "module.requireTop",
+		title: "Require at Top",
+		category: "Modules",
+		summary:
+			"Requires a module by its specifier, as a top-level local below the GetService calls. " +
+			"Pure: requiring the same module twice reuses one local.",
+		pure: true,
+		inputs: [
+			{
+				...str("specifier", "Module", "@lune/fs"),
+				description:
+					"What goes inside require(...). A prefix is required -- `@` for an alias, `./` or " +
+					"`../` for a path. An unprefixed path is an error in Luau itself, not a fallback.",
+			},
+			{
+				...str("as", "As", ""),
+				description: "Name for the generated local. Defaults to the last part of the specifier.",
+			},
+		],
+		outputs: [d("exports", "", "any")],
+		compilesTo: { kind: "builtin", handler: "module.requireTop" },
+	},
 	{
 		// Hoisted for the same reason services are: require is idempotent and
 		// cached by Roblox, so every Roblox codebase pulls modules into locals

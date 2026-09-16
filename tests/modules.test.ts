@@ -150,6 +150,110 @@ describe("where the requires go", () => {
 	});
 });
 
+describe("Require at Top", () => {
+	/** A graph that requires something and prints it, so the value is used. */
+	const requiring = (specifier: string, as?: string) => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const req = b.node("module.requireTop");
+		b.lit(req, "specifier", { t: "string", v: specifier });
+		if (as !== undefined) b.lit(req, "as", { t: "string", v: as });
+		const print = b.node("debug.print");
+		b.link(start, "then", print, "in");
+		b.link(req, "exports", print, "value");
+		return { ...b.build(), target: "lune" as const };
+	};
+
+	it("writes the specifier verbatim", () => {
+		expect(body(requiring("@lune/fs"))).toContain('require("@lune/fs")');
+	});
+
+	/**
+	 * The default name is the specifier's last segment. It was `lastSegment`,
+	 * which splits on dots because it was written for instance paths -- so
+	 * `@lune/fs` came out as `lune_fs`: readable, and not what anybody would
+	 * have typed.
+	 */
+	it("names the local after the last part of the specifier", () => {
+		const named = (specifier: string) =>
+			body(requiring(specifier)).match(/local (\w+) = require/)?.[1];
+
+		expect(named("@lune/fs")).toBe("fs");
+		expect(named("@lune/roblox")).toBe("roblox");
+		expect(named("./util/strings")).toBe("strings");
+		expect(named("@game/ReplicatedStorage/Combat")).toBe("Combat");
+		// A file extension is not a name.
+		expect(named("../shared/config.luau")).toBe("config");
+	});
+
+	it("takes the name you give it over the one it would guess", () => {
+		expect(body(requiring("@lune/fs", "filesystem"))).toContain("local filesystem = require");
+	});
+
+	/** Requiring is idempotent, so two nodes asking for one module get one local. */
+	it("writes one require however many nodes ask for the module", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const first = b.node("module.requireTop");
+		const second = b.node("module.requireTop");
+		b.lit(first, "specifier", { t: "string", v: "@lune/fs" });
+		b.lit(second, "specifier", { t: "string", v: "@lune/fs" });
+		const a = b.node("debug.print");
+		const c = b.node("debug.print");
+		b.link(start, "then", a, "in");
+		b.link(a, "then", c, "in");
+		b.link(first, "exports", a, "value");
+		b.link(second, "exports", c, "value");
+
+		const out = body({ ...b.build(), target: "lune" });
+		expect(out.match(/require\(/g)).toHaveLength(1);
+	});
+
+	it("says so when it has nothing to require", () => {
+		const out = compile(requiring("   "), registry, {});
+		expect(out.diagnostics.map((d) => d.message).join(" "))
+			.toContain("Require at Top has no module to require");
+	});
+});
+
+describe("Get Module", () => {
+	const using = (moduleId: string, modules: ScriptModule[]) => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const get = b.node("module.get", { config: { module: moduleId, name: "fs" } });
+		const print = b.node("debug.print");
+		b.link(start, "then", print, "in");
+		b.link(get, "exports", print, "value");
+		return { ...b.build(), target: "lune" as const, modules };
+	};
+
+	const fs: ScriptModule = { id: "m1", name: "fs", specifier: "@lune/fs" };
+
+	/** It resolves rather than requires: the declaration is what writes one. */
+	it("reads the local the declaration was bound to", () => {
+		const out = body(using("m1", [fs]));
+		expect(out).toContain('local fs = require("@lune/fs")');
+		expect(out).toContain("print(fs)");
+		expect(out.match(/require\(/g)).toHaveLength(1);
+	});
+
+	/**
+	 * A pill pointing at a declaration somebody deleted. It names the module
+	 * and says where to fix it, rather than compiling to `nil` in silence.
+	 */
+	it("says so when the declaration is gone", () => {
+		const out = compile(using("m1", []), registry, {});
+		const said = out.diagnostics.map((d) => d.message).join(" ");
+		expect(said).toContain("fs");
+		expect(said).toContain("Variables panel");
+	});
+
+	it("says so when no module was chosen", () => {
+		const out = compile(using("", [fs]), registry, {});
+		expect(out.diagnostics.map((d) => d.message).join(" ")).toContain("no module chosen");
+	});
+});
+
 describe("a graph written before modules existed", () => {
 	/**
 	 * `modules` arrived at 0.63.0. A file without it must open, not throw, and

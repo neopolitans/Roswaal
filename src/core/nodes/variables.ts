@@ -142,6 +142,32 @@ const data = (id: string, name: string, type: string): PinDef => ({
 });
 
 export const VARIABLE_NODES: NodeDef[] = [
+	/**
+	 * A module this script declares, as a capsule with one output.
+	 *
+	 * The same shape Get Variable has, for the same reason: the name *is* the
+	 * node, and a header saying "Get Module" above it would be saying the
+	 * obvious twice. Four uses of `@lune/fs` are four of these and one require,
+	 * because the declaration is on the script rather than on any of them.
+	 *
+	 * Filed under Variables because that is where it is declared -- one panel
+	 * answers "what does this script have to hand", and the answer is these
+	 * variables and these modules.
+	 */
+	{
+		id: "module.get",
+		title: "Get Module",
+		category: "Variables",
+		summary:
+			"A module this script requires. Pure: it reads the local the require was bound to, so " +
+			"using one module in four places still writes one require.",
+		pure: true,
+		inputs: [],
+		outputs: [data("exports", "", "any")],
+		compilesTo: { kind: "builtin", handler: "module.get" },
+		display: "compact",
+		defaultLabel: (config) => String((config as { name?: string }).name ?? ""),
+	},
 	{
 		id: "variable.get",
 		title: "Get Variable",

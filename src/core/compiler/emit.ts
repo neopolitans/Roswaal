@@ -37,6 +37,19 @@ import {
 	modeOf, partPinId, splitKey, splitPinId, splitsOf, STRUCTS, type StructMode,
 } from "../structs.js";
 
+/**
+ * The local a module specifier would be called if nobody said.
+ *
+ * Its last segment. `lastSegment` splits on dots because it was written for
+ * instance paths, so `@lune/fs` came out as `lune_fs` — readable, and not what
+ * anybody would have typed. A specifier is separated by slashes.
+ */
+export function specifierName(specifier: string): string {
+	const parts = specifier.replace(/^@/, "").split(/[\\/]+/).filter((part) => part !== "");
+	// `./util/config.luau` is called config, not luau.
+	return (parts[parts.length - 1] ?? "").replace(/\.(luau|lua)$/, "");
+}
+
 export interface Diagnostic {
 	severity: "error" | "warning";
 	message: string;
@@ -2167,6 +2180,60 @@ class Emitter {
 				// multi-consumer rule already binds it to a local when it is read
 				// more than once.
 				return renderPath(this.resolveRoot(root), path);
+			}
+
+			/**
+			 * Require at Top: a literal specifier, hoisted below the services.
+			 *
+			 * The generalisation of Require Module, which is Roblox-only and
+			 * builds an *instance* path. This one writes whatever string you
+			 * give it, because the two runtimes resolve different things and
+			 * the set is still moving -- `@lune/fs`, `@game/…`, `./sibling`.
+			 *
+			 * Keyed by the specifier, so requiring the same module from two
+			 * nodes gives one local, exactly as Require Module does.
+			 */
+			case "module.requireTop": {
+				const specifier = this.literalText(src, "specifier").trim();
+				if (specifier === "") {
+					this.error("Require at Top has no module to require.", src.node.id, "specifier");
+					return "nil";
+				}
+				if (this.options.inline) return `require(${quoteString(specifier)})`;
+
+				const key = `top:${specifier}`;
+				const existing = this.requires.get(key);
+				if (existing) return existing.ident;
+
+				const hint = this.literalText(src, "as").trim()
+					|| specifierName(specifier)
+					|| "module";
+				const ident = this.names.uniqueForFile(hint, "module");
+				this.requires.set(key, { ident, expression: quoteString(specifier) });
+				return ident;
+			}
+
+			/**
+			 * Get Module: the pill for something the script declares.
+			 *
+			 * It resolves rather than requires. `declareModules` has already
+			 * registered every declaration and bound it to a local, so this is
+			 * a lookup -- which is why four uses of one module are four pills
+			 * and one require.
+			 */
+			case "module.get": {
+				const id = String((src.node.config as { module?: string } | undefined)?.module ?? "");
+				const ident = this.moduleIdents.get(id);
+				if (ident) return ident;
+				const name = String((src.node.config as { name?: string } | undefined)?.name ?? "");
+				this.error(
+					id === ""
+						? "Get Module has no module chosen."
+						: `"${name || "That module"}" is not declared by this script any more. ` +
+							"Declare it in the Variables panel, or point this at one that is.",
+					src.node.id,
+				);
+				return "nil";
 			}
 
 			case "module.requirePath": {
