@@ -24,33 +24,33 @@
     {
       "id": "n1",
       "def": "lune.value",
-      "x": 235,
-      "y": 130,
-      "config": {
-        "module": "fs",
-        "call": "readDir"
-      },
+      "x": 0,
+      "y": 96,
       "literals": {
         "a0": {
           "t": "string",
           "v": "."
         }
+      },
+      "config": {
+        "call": "readDir",
+        "module": "fs"
       }
     },
     {
       "id": "n2",
       "def": "flow.forIndex",
-      "x": 470,
+      "x": 360,
       "y": 0
     },
     {
       "id": "n3",
       "def": "lune.value",
-      "x": 705,
-      "y": 150,
+      "x": 672,
+      "y": 56,
       "config": {
-        "module": "fs",
-        "call": "isDir"
+        "call": "isDir",
+        "module": "fs"
       }
     },
     {
@@ -62,8 +62,8 @@
     {
       "id": "n5",
       "def": "string.concat",
-      "x": 1175,
-      "y": 120,
+      "x": 672,
+      "y": 192,
       "literals": {
         "a0": {
           "t": "string",
@@ -80,8 +80,8 @@
     {
       "id": "n7",
       "def": "string.concat",
-      "x": 1175,
-      "y": 260,
+      "x": 672,
+      "y": 332,
       "literals": {
         "a0": {
           "t": "string",
@@ -117,6 +117,17 @@
       "to": {
         "node": "n2",
         "pin": "table"
+      }
+    },
+    {
+      "id": "l10",
+      "from": {
+        "node": "n7",
+        "pin": "result"
+      },
+      "to": {
+        "node": "n8",
+        "pin": "value"
       }
     },
     {
@@ -205,17 +216,6 @@
       "to": {
         "node": "n7",
         "pin": "a1"
-      }
-    },
-    {
-      "id": "l10",
-      "from": {
-        "node": "n7",
-        "pin": "result"
-      },
-      "to": {
-        "node": "n8",
-        "pin": "value"
       }
     }
   ],

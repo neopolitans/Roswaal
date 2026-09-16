@@ -26,6 +26,7 @@
 import { compile } from "../compiler/index.js";
 import type { Registry } from "../nodes/index.js";
 import type { NodeScript, ScriptModule } from "../schema.js";
+import { DEMO_LAYOUT } from "./demoLayout.js";
 import { G, num, str } from "./examples.js";
 import { stripHeader } from "./nodeReference.js";
 
@@ -35,6 +36,27 @@ const lune = (alias: string): ScriptModule => ({
 	name: alias,
 	specifier: `@lune/${alias}`,
 });
+
+/**
+ * The graph, with the arrangement somebody made in the editor over the top.
+ *
+ * The builder places by column and row, which is the right way to *author* a
+ * graph and a poor way to finish one: it gets every node into a sensible
+ * column and leaves wires crossing in ways a person would have nudged out. So
+ * the layout is authored in the editor, folded back by
+ * `scripts/fold-demo-layout.mjs`, and applied here.
+ *
+ * A node the layout has never heard of keeps where the builder put it, so a
+ * demo can gain a node and still draw before anybody has opened the project.
+ */
+function arranged(slug: string, script: NodeScript): NodeScript {
+	const at = DEMO_LAYOUT[slug];
+	if (!at) return script;
+	return {
+		...script,
+		nodes: script.nodes.map((node) => (at[node.id] ? { ...node, ...at[node.id] } : node)),
+	};
+}
 
 /**
  * A Lune graph, with its modules already declared.
@@ -106,7 +128,7 @@ function readAFile(): NodeScript {
 	g.link(read, "result", len, "value");
 	g.link(len, "result", say, "a");
 	g.link(say, "result", print, "value");
-	return g.out();
+	return arranged("count-characters", g.out());
 }
 
 /**
@@ -156,7 +178,7 @@ function fetchJson(): NodeScript {
 	g.link(decode, "result", stars, "table");
 	g.link(stars, "result", say, "a");
 	g.link(say, "result", print, "value");
-	return g.out();
+	return arranged("fetch-json", g.out());
 }
 
 /**
@@ -213,7 +235,7 @@ function walkADirectory(): NodeScript {
 	g.link(branch, "false", filePrint, "in");
 	g.link(each, "value", fileLabel, "a1");
 	g.link(fileLabel, "result", filePrint, "value");
-	return g.out();
+	return arranged("walk-a-directory", g.out());
 }
 
 /**
@@ -274,7 +296,7 @@ function aSmallCli(): NodeScript {
 	g.link(args, "result", name, "table");
 	g.link(name, "result", greeting, "a1");
 	g.link(greeting, "result", hello, "value");
-	return g.out();
+	return arranged("greet", g.out());
 }
 
 // ---------------------------------------------------------------------------

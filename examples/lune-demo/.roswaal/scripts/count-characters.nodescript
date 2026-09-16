@@ -24,30 +24,30 @@
     {
       "id": "n1",
       "def": "lune.value",
-      "x": 235,
-      "y": 120,
-      "config": {
-        "module": "fs",
-        "call": "readFile"
-      },
+      "x": 4,
+      "y": 105,
       "literals": {
         "a0": {
           "t": "string",
           "v": "README.md"
         }
+      },
+      "config": {
+        "call": "readFile",
+        "module": "fs"
       }
     },
     {
       "id": "n2",
       "def": "string.len",
-      "x": 470,
-      "y": 120
+      "x": 297,
+      "y": 121
     },
     {
       "id": "n3",
       "def": "string.format",
-      "x": 705,
-      "y": 120,
+      "x": 609,
+      "y": 97,
       "literals": {
         "format": {
           "t": "string",

@@ -19,13 +19,13 @@
       "id": "n0",
       "def": "script.begin",
       "x": 0,
-      "y": 0
+      "y": -9
     },
     {
       "id": "n1",
       "def": "value.expression",
-      "x": 235,
-      "y": 250,
+      "x": 0,
+      "y": 92,
       "literals": {
         "code": {
           "t": "raw",
@@ -36,14 +36,14 @@
     {
       "id": "n2",
       "def": "table.length",
-      "x": 470,
-      "y": 250
+      "x": 336,
+      "y": 92
     },
     {
       "id": "n3",
       "def": "compare.eq",
-      "x": 705,
-      "y": 250,
+      "x": 696,
+      "y": 120,
       "literals": {
         "b": {
           "t": "number",
@@ -54,14 +54,14 @@
     {
       "id": "n4",
       "def": "flow.branch",
-      "x": 940,
-      "y": 0
+      "x": 840,
+      "y": -9
     },
     {
       "id": "n5",
       "def": "debug.print",
-      "x": 1175,
-      "y": 0,
+      "x": 1172,
+      "y": -9,
       "literals": {
         "value": {
           "t": "string",
@@ -72,24 +72,24 @@
     {
       "id": "n6",
       "def": "lune.call",
-      "x": 1410,
-      "y": 0,
-      "config": {
-        "module": "process",
-        "call": "exit"
-      },
+      "x": 1536,
+      "y": -25,
       "literals": {
         "a0": {
           "t": "number",
           "v": 1
         }
+      },
+      "config": {
+        "call": "exit",
+        "module": "process"
       }
     },
     {
       "id": "n7",
       "def": "table.get",
-      "x": 1175,
-      "y": 260,
+      "x": 269,
+      "y": 264,
       "literals": {
         "key": {
           "t": "number",
@@ -100,8 +100,8 @@
     {
       "id": "n8",
       "def": "string.concat",
-      "x": 1410,
-      "y": 260,
+      "x": 504,
+      "y": 240,
       "literals": {
         "a0": {
           "t": "string",
@@ -112,8 +112,8 @@
     {
       "id": "n9",
       "def": "debug.print",
-      "x": 1645,
-      "y": 140
+      "x": 1176,
+      "y": 144
     }
   ],
   "links": [

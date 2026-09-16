@@ -29,24 +29,24 @@
     {
       "id": "n1",
       "def": "lune.call",
-      "x": 235,
-      "y": 0,
-      "config": {
-        "module": "net",
-        "call": "request"
-      },
+      "x": 348,
+      "y": -16,
       "literals": {
         "a0": {
           "t": "string",
           "v": "https://api.github.com/repos/lune-org/lune"
         }
+      },
+      "config": {
+        "call": "request",
+        "module": "net"
       }
     },
     {
       "id": "n2",
       "def": "table.getKey",
-      "x": 470,
-      "y": 130,
+      "x": 646,
+      "y": 216,
       "literals": {
         "key": {
           "t": "string",
@@ -57,24 +57,24 @@
     {
       "id": "n3",
       "def": "lune.value",
-      "x": 705,
-      "y": 130,
-      "config": {
-        "module": "serde",
-        "call": "decode"
-      },
+      "x": 925,
+      "y": 176,
       "literals": {
         "a0": {
           "t": "string",
           "v": "json"
         }
+      },
+      "config": {
+        "call": "decode",
+        "module": "serde"
       }
     },
     {
       "id": "n4",
       "def": "table.getKey",
-      "x": 940,
-      "y": 130,
+      "x": 1204,
+      "y": 192,
       "literals": {
         "key": {
           "t": "string",
@@ -85,8 +85,8 @@
     {
       "id": "n5",
       "def": "string.format",
-      "x": 1175,
-      "y": 130,
+      "x": 1513,
+      "y": 168,
       "literals": {
         "format": {
           "t": "string",
@@ -97,7 +97,7 @@
     {
       "id": "n6",
       "def": "debug.print",
-      "x": 1410,
+      "x": 1848,
       "y": 0
     }
   ],

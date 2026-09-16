@@ -31,22 +31,21 @@ describe("the Lune demo project", () => {
 	});
 
 	/**
-	 * Everything except where the nodes sit.
+	 * Everything, layout included.
 	 *
-	 * The project is a project. Somebody will open it, tidy a graph that was
-	 * laid out by a rule rather than by eye, and save — and a test that called
-	 * that a failure would be a test fighting the tool it ships with. What
-	 * must not drift is what the programme *is*: the nodes, what they are
-	 * configured to do, what is wired to what, and what it requires.
+	 * It did not always include it. The project is a project: somebody opens
+	 * it, tidies a graph that was placed by a rule rather than by eye, and
+	 * saves — and while there was no way to get that arrangement back into the
+	 * page, failing here would have been a test fighting the tool it ships
+	 * with.
 	 *
-	 * The page redraws from its own coordinates either way, so the two can
-	 * differ in layout and still be the same four programmes.
+	 * `scripts/fold-demo-layout.mjs` is that way, so this is a real failure
+	 * again, and the fix is to run it. **If this fails after tidying a demo in
+	 * the editor, that is what it is telling you.**
 	 */
 	const meaning = (script: NodeScript) => ({
 		...script,
-		nodes: script.nodes
-			.map(({ x: _x, y: _y, ...rest }) => rest)
-			.sort((a, b) => a.id.localeCompare(b.id)),
+		nodes: [...script.nodes].sort((a, b) => a.id.localeCompare(b.id)),
 		// Sorted for the same reason the nodes are. The editor writes links in
 		// the order it holds them, which is not the order the builder made
 		// them in, and a wire is the same wire wherever it sits in the array.
