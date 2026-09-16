@@ -94,12 +94,24 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.65.1",
+		date: "2026-09-16",
+		headline: "Backticks that were printing themselves.",
+		affects: ["docs"],
+		fixed: [
+			"**Code written inside bold or italics rendered as its own backticks** rather than as code. 48 strings across the guides and these notes had it — `.luaurc` on the new Aliases page, and others that shipped long before it.",
+		],
+		changed: [
+			"Where a term inside an emphasised phrase needs monospace, the emphasis is now **split around it** rather than one of the two being dropped. Inside a quotation the backticks go instead: a word in somebody else's sentence is not ours to restyle.",
+		],
+	},
+	{
 		version: "0.65.0",
 		date: "2026-09-16",
 		headline: "Roswaal reads your `.luaurc`, and lets you write one.",
 		affects: ["editor", "docs"],
 		added: [
-			"**A `.luaurc` is a file in the project tree**, under Graph content beside your graphs — Roswaal reads it rather than writing it. Double-click one to open the alias editor: what that file defines, where each alias lands once its chain is followed, and underneath, what it inherits from the files above it.",
+			"**A** `.luaurc` **is a file in the project tree**, under Graph content beside your graphs — Roswaal reads it rather than writing it. Double-click one to open the alias editor: what that file defines, where each alias lands once its chain is followed, and underneath, what it inherits from the files above it.",
 			"**Aliases are checked against the project.** A specifier naming an alias no `.luaurc` defines is an error where the project uses alias maps, and a warning where it has none at all — the second may be generating one at build time, and refusing to compile that would be refusing a project that builds.",
 			"**A page about all of it**, at [Aliases and .luaurc](aliases): where the file goes, what a nearer one inherits from its parents, where a relative path lands, chains and cycles, and what each runtime resolves.",
 		],
@@ -120,7 +132,7 @@ export const RELEASES: Release[] = [
 		headline: "The published pages get the palette and a gear of their own.",
 		affects: ["docs"],
 		added: [
-			"**`Ctrl` + `K` opens the search palette on the published site**, the way it does in the editor and in Node Design. It used to put the cursor in the sidebar's field instead. That field is still there and still filters the tree.",
+			"`Ctrl` **+** `K` **opens the search palette on the published site**, the way it does in the editor and in Node Design. It used to put the cursor in the sidebar's field instead. That field is still there and still filters the tree.",
 			"**Settings on a published page**, from the gear at the end of the header: your theme and the face these pages are set in. The icon alone rather than a labelled button — a page gives its width to what you came to read.",
 		],
 		changed: [
@@ -174,7 +186,7 @@ export const RELEASES: Release[] = [
 		headline: "A gesture reads as one input, and a migration nobody can have needed is gone.",
 		affects: ["docs"],
 		changed: [
-			"**`Ctrl` + `right-click`** on [Functions](functions) marks the whole gesture, rather than highlighting the key and leaving the click as prose.",
+			"`Ctrl` **+** `right-click` on [Functions](functions) marks the whole gesture, rather than highlighting the key and leaving the click as prose.",
 		],
 		fixed: [
 			"The **Functions** guide no longer explains what happens to a graph made before 0.33.0. Roswaal has been public since 0.59.1, so no reader has one.",
@@ -259,7 +271,7 @@ export const RELEASES: Release[] = [
 			"A name that shadows something Luau provides is a warning rather than a refusal. Binding `Vector3` is the whole point of the `@lune/roblox` case; naming a module `table` is probably not what you meant.",
 		],
 		watch: [
-			"**A declaration is the only thing that writes a `require`.** Nothing is inferred and nothing is hoisted behind you: if the file imports something, it is because the panel or the canvas says so. That is deliberate, and it is why the datatype nodes will never quietly add an import of their own.",
+			"**A declaration is the only thing that writes a** `require`. Nothing is inferred and nothing is hoisted behind you: if the file imports something, it is because the panel or the canvas says so. That is deliberate, and it is why the datatype nodes will never quietly add an import of their own.",
 			"A `.luaurc` alias in a Roblox graph is a warning, not an error. Roblox says alias maps are coming; they do not resolve today.",
 			"Deleting a module leaves the pills that read it in place, reporting an error. The same as deleting a variable, and for the same reason: an error you can see beats nodes disappearing.",
 		],
@@ -284,7 +296,7 @@ export const RELEASES: Release[] = [
 		headline: "The visual search finds what you named, not just what we shipped.",
 		affects: ["editor"],
 		added: [
-			"**`Ctrl` + right-click now searches the graph's own declarations too** — its variables, locals, functions and the parameters of the body you are in, beside the built-in library. The one search that shows you what a node *looks* like could not find the node you named yourself.",
+			"`Ctrl` **+ right-click now searches the graph's own declarations too** — its variables, locals, functions and the parameters of the body you are in, beside the built-in library. The one search that shows you what a node *looks* like could not find the node you named yourself.",
 			"They come first in the list. A name you chose is likelier to be the one you are after than a built-in that happens to read similarly.",
 			"The **This graph** filter works here as well, so the picker can be narrowed to what this graph declares and nothing else.",
 		],
@@ -332,7 +344,7 @@ export const RELEASES: Release[] = [
 		headline: "The runtime badges line up, and a Lune graph says what it is.",
 		affects: ["editor"],
 		fixed: [
-			"**A row carrying both `pure` and a runtime badge put the `pure` in a different place on every row.** Both were pushed right independently, so they split the space between them rather than travelling together — the column stopped being a column.",
+			"**A row carrying both** `pure` **and a runtime badge put the** `pure` **in a different place on every row.** Both were pushed right independently, so they split the space between them rather than travelling together — the column stopped being a column.",
 			"**The badge sat two pixels low.** A menu row aligns on the baseline, which is right for a swatch and a title and wrong for a bordered chip: its border hangs below the line its neighbour sits on. Every trailing chip centres now.",
 		],
 		changed: [
@@ -386,7 +398,7 @@ export const RELEASES: Release[] = [
 			"The `task` nodes are Roblox only. Lune's scheduler is not a global: it is `require(\"@lune/task\")`, so `task.wait(1)` in a Lune file indexes nil.",
 		],
 		fixed: [
-			"**`Resume Coroutine` and `Yield` were hidden from Lune graphs.** `coroutine` is Luau's own primitive and works in both runtimes — six of its eight nodes were offered and these two were not, because the helper that built them filled in a Roblox tag on every node it made. A node's runtime is no longer a property of how its definition happened to be written.",
+			"`Resume Coroutine` **and** `Yield` **were hidden from Lune graphs.** `coroutine` is Luau's own primitive and works in both runtimes — six of its eight nodes were offered and these two were not, because the helper that built them filled in a Roblox tag on every node it made. A node's runtime is no longer a property of how its definition happened to be written.",
 		],
 		watch: [
 			"If you have a Lune graph using a node that is now Roblox only, it keeps working and keeps compiling — nothing was removed. The node menu stops offering it for new work, and compiling already told you it was an error.",
@@ -565,7 +577,7 @@ export const RELEASES: Release[] = [
 		affects: ["editor"],
 		added: [
 			"**A folder you opened in the browser is opened again next time.** Where the permission has lapsed — which it does between sessions — the project menu offers it by name, and the click that accepts is the click that asks for permission back.",
-			"**A folder with no `roswaal.json` can be set up from the browser**, so trying Roswaal on your own project no longer means installing it first. It asks before writing, and writes what `roswaal init` writes: `roswaal.json`, `.roswaal/scripts` and `.roswaal/nodes`. Nothing else in the folder is touched.",
+			"**A folder with no** `roswaal.json` **can be set up from the browser**, so trying Roswaal on your own project no longer means installing it first. It asks before writing, and writes what `roswaal init` writes: `roswaal.json`, `.roswaal/scripts` and `.roswaal/nodes`. Nothing else in the folder is touched.",
 		],
 		changed: [
 			"**Start again from the demo** also forgets the folder it was remembering.",
@@ -667,9 +679,9 @@ export const RELEASES: Release[] = [
 		headline: "A picker that draws the node, and constants in the Variables list.",
 		affects: ["editor", "docs"],
 		added: [
-			"**`Ctrl` + right-click opens the node picker**: the same nodes as the menu, with each one **drawn** as you walk the list, in your own wire style and node corners. For when you remember what a node looks like rather than what it is called. Listed under *Advanced shortcuts* on the Controls page.",
-			"**`Ctrl` + `K` in the editor jumps to a documentation page.** Pick one and the docs window opens on it — the same search the docs window has, from wherever you are in a graph.",
-			"**A variable can be a `const`**, set per variable in its own row: declared once at the top of the file with its starting value, and never assigned again. **Set Variable** and **Initialize Variable** on one are refused before the file is written.",
+			"`Ctrl` **+ right-click opens the node picker**: the same nodes as the menu, with each one **drawn** as you walk the list, in your own wire style and node corners. For when you remember what a node looks like rather than what it is called. Listed under *Advanced shortcuts* on the Controls page.",
+			"`Ctrl` **+** `K` **in the editor jumps to a documentation page.** Pick one and the docs window opens on it — the same search the docs window has, from wherever you are in a graph.",
+			"**A variable can be a** `const`, set per variable in its own row: declared once at the top of the file with its starting value, and never assigned again. **Set Variable** and **Initialize Variable** on one are refused before the file is written.",
 			"**Constants are marked in the Variables list**, variables and locals alike, with the keyword they write.",
 		],
 		fixed: [
@@ -682,7 +694,7 @@ export const RELEASES: Release[] = [
 		headline: "A local can be a constant.",
 		affects: ["editor", "docs"],
 		added: [
-			"**Declare Local can bind with `const`** — *Binding*, in the Inspector. Luau's constant is the same binding with one guarantee: the name cannot be reassigned after it is set. It is the binding that is fixed and not the value, so a const table is still a table you can write into.",
+			"**Declare Local can bind with** `const` — *Binding*, in the Inspector. Luau's constant is the same binding with one guarantee: the name cannot be reassigned after it is set. It is the binding that is fixed and not the value, so a const table is still a table you can write into.",
 			"**A Set Local wired to a constant is refused before the file is written**, naming the local that made the promise. The runtime would catch it; the graph knows which node to point at.",
 		],
 		watch: [
@@ -839,7 +851,7 @@ export const RELEASES: Release[] = [
 			"**Comments resize from the top-left corner as well as the bottom-right.** The top-left drag moves the box as it shrinks it, so the bottom-right corner stays where it is — a comment can be grown upwards over a node above it without being dragged back afterwards.",
 		],
 		changed: [
-			"**A comment header of more than one line is written as a `--[[ ]]` block**, with its lines indented inside it, rather than a run of `--` lines. One line is still written `-- like this`. A header containing `]]` takes a `--[=[` block, or as many `=` as it needs.",
+			"**A comment header of more than one line is written as a** `--[[ ]]` **block**, with its lines indented inside it, rather than a run of `--` lines. One line is still written `-- like this`. A header containing `]]` takes a `--[=[` block, or as many `=` as it needs.",
 		],
 	},
 	{
@@ -852,7 +864,7 @@ export const RELEASES: Release[] = [
 			"**Tag rows are one line tall again.** They are a flex row, so the one stretched tag pulled every other tag on the release up to its height — which is what turned 0.37.x's tags into columns.",
 		],
 		watch: [
-			"**A tag's class is `tag-feature`, `tag-docs` and so on now**, rather than the bare name. Only a fork styling the documentation itself would notice.",
+			"**A tag's class is** `tag-feature`, `tag-docs` **and so on now**, rather than the bare name. Only a fork styling the documentation itself would notice.",
 		],
 	},
 	{
@@ -918,12 +930,12 @@ export const RELEASES: Release[] = [
 			"**A node's reference page says which pins offer a list**, naming the values when there are few enough to read and counting them when there are not.",
 		],
 		changed: [
-			"**Every Instance class fits an `Instance` pin.** It used to be a hand-kept list of fifty-odd, so a `Decal` wanted a Cast to assert something that was already true.",
+			"**Every Instance class fits an** `Instance` **pin.** It used to be a hand-kept list of fifty-odd, so a `Decal` wanted a Cast to assert something that was already true.",
 			"**Other… in the type picker searches every class and datatype**, not the shortlist.",
 			"**Custom Code's autocomplete offers the engine's real globals and libraries.** The hand-kept list knew `buffer` and not `bit32`.",
 		],
 		fixed: [
-			"**`ScriptSignal` is gone from the type list.** There is no such class — the signal type is `RBXScriptSignal`, which is a datatype and was already offered as one.",
+			"`ScriptSignal` **is gone from the type list.** There is no such class — the signal type is `RBXScriptSignal`, which is a datatype and was already offered as one.",
 		],
 	},
 	{
@@ -1056,7 +1068,7 @@ export const RELEASES: Release[] = [
 			"**Drag a tab to reorder the row**, and a list at the end of the row naming every open graph.",
 		],
 		changed: [
-			"**A Branch wired into a Branch's False pin compiles to `elseif`.** A chain of conditions is one `if` statement at one level of indentation, ending in one `end`, instead of a nested `if` per condition. A condition that has to work something out first still gets its own `else` block, because `elseif` has nowhere to put the line.",
+			"**A Branch wired into a Branch's False pin compiles to** `elseif`. A chain of conditions is one `if` statement at one level of indentation, ending in one `end`, instead of a nested `if` per condition. A condition that has to work something out first still gets its own `else` block, because `elseif` has nowhere to put the line.",
 			"**Parentheses are written where Luau's precedence needs them and nowhere else.** `not humanoid or not root` rather than `(not humanoid) or (not root)`.",
 			"**A local's name is taken for as long as its block, not for the whole file.** Two functions can both call a parameter `character`, and two loops can both call their value `part`; a name an *enclosing* block holds is still avoided, so nothing shadows.",
 		],
@@ -1077,7 +1089,7 @@ export const RELEASES: Release[] = [
 			"**Every other pin is balanced halfway over the border**, which is where its wire ends. Pin names and inline value fields have not moved.",
 			"**An unwired pin sits in a dark well** rather than taking the colour of whatever is behind it.",
 			"**Node pictures in the docs show the same pins**, and a worked example's stand-in value sits below the execution line rather than across it.",
-			"**`NOTICE.md` is now `ATTRIBUTIONS.md`**, and mirrors the Attributions page as tables.",
+			"`NOTICE.md` **is now** `ATTRIBUTIONS.md`, and mirrors the Attributions page as tables.",
 			"**Attributions names two more inspirations**: Unity Visual Scripting (Bolt) and Blender.",
 		],
 	},
@@ -1110,7 +1122,7 @@ export const RELEASES: Release[] = [
 		date: "2026-09-13",
 		headline: "Preview the function you are in.",
 		fixed: [
-			"**`P` in a function's tab with nothing selected previews that function**, not the whole script. The nodescript's own graph still previews the whole script.",
+			"`P` **in a function's tab with nothing selected previews that function**, not the whole script. The nodescript's own graph still previews the whole script.",
 		],
 	},
 	{
@@ -1124,7 +1136,7 @@ export const RELEASES: Release[] = [
 			"**Shorten function tabs**, in Settings: **None**, **Function name** or **Script name**.",
 			"**Coming from Blueprints has a Macro row**: no counterpart, and the Luau that does the job instead.",
 			"**A Functions guide**: the two declarations, a function's graph, and what can reach inside one.",
-			"**`P` with nothing selected previews the whole script.** The preview button is in the bar whether or not anything is selected.",
+			"`P` **with nothing selected previews the whole script.** The preview button is in the bar whether or not anything is selected.",
 			"**Contributing says Lune comes first.** Where possible and feasible, Lune bugfixes and features are prioritized. Roblox Studio fixes and features are still considered.",
 		],
 		changed: [
@@ -1164,7 +1176,7 @@ export const RELEASES: Release[] = [
 		date: "2026-09-12",
 		headline: "A comment about nothing in particular.",
 		changed: [
-			"**`C` no longer needs a selection.** With nodes picked it still draws a comment around them; with nothing picked you get an empty one, placed where the canvas is looking rather than at the far corner of the graph.",
+			"`C` **no longer needs a selection.** With nodes picked it still draws a comment around them; with nothing picked you get an empty one, placed where the canvas is looking rather than at the far corner of the graph.",
 		],
 		added: [
 			"**The Controls page says how to make a comment** — by key and by right-click — which it never did.",
@@ -1180,7 +1192,7 @@ export const RELEASES: Release[] = [
 			"**The toolbar names what the buttons set**, reading Compile: Manual | Dynamic rather than leaving it to a hover title. Settings says the same two words, where it used to say Manually and On every change.",
 		],
 		watch: [
-			"**`roswaal.json` is untouched.** The setting is still stored as `compileMode: \"hot\"`, so every existing project keeps working and an older Roswaal can still read a file this one writes. The settings page names both, for anyone editing that file by hand.",
+			"`roswaal.json` **is untouched.** The setting is still stored as `compileMode: \"hot\"`, so every existing project keeps working and an older Roswaal can still read a file this one writes. The settings page names both, for anyone editing that file by hand.",
 		],
 	},
 	{
@@ -1256,7 +1268,7 @@ export const RELEASES: Release[] = [
 			"**Command line**, a page listing every command and option, built from the same list `roswaal help` prints.",
 			"**Casting and annotations**, its own page: the three cast nodes, declaring a type in three shapes, what Roswaal writes into the file, and where types are offered.",
 			"**Suggest an edit**, at the foot of every documentation page. Rewrite the page and it opens as an issue with the page and version filled in.",
-			"**`roswaal version`** is in `roswaal help`. It has always worked and appeared in no list.",
+			"`roswaal version` is in `roswaal help`. It has always worked and appeared in no list.",
 			"**The daemon prints the documentation's address** under the editor's.",
 		],
 		changed: [
@@ -1292,13 +1304,13 @@ export const RELEASES: Release[] = [
 			"**A Model wired into an Instance pin no longer warns at compile.** The editor allowed it and the compile disagreed.",
 			"**Dropping a data wire on a Sequence or a function no longer leaves an empty pin behind** that nothing could connect to.",
 			"**The palette no longer offers a node whose only matching pin must be typed in.**",
-			"**A node map whose `$path` is not on disk is no longer written.** The error was reported and the file went out anyway.",
+			"**A node map whose** `$path` **is not on disk is no longer written.** The error was reported and the file went out anyway.",
 			"**Ctrl+S with a node map open writes the map**, rather than compiling the graph behind it.",
 			"**Moving or renaming a graph keeps its tab pointed at the file.** The next save used to write it back where it had been.",
 			"**One file StyLua cannot parse no longer turns formatting off** for every file after it.",
 			"**The overwrite link shows only where overwriting would do something** — not on a graph held back by its own errors.",
 			"**Files deleted because a graph moved are listed**, in the status panel and on the command line.",
-			"**`--yes` is in `roswaal help`.**",
+			"`--yes` **is in** `roswaal help`.",
 			"**The docs window follows a link back to the page it was opened on.**",
 		],
 		watch: [
@@ -1431,7 +1443,7 @@ export const RELEASES: Release[] = [
 			"**Declare Function has a red header**, the same as Function.",
 		],
 		fixed: [
-			"**Ctrl+C stops `roswaal serve` and `roswaal watch` without a `Terminate batch job (Y/N)?` prompt** or a `^C` over the last line, when run through `bin/roswaal.cmd`.",
+			"**Ctrl+C stops** `roswaal serve` **and** `roswaal watch` **without a** `Terminate batch job (Y/N)?` **prompt** or a `^C` over the last line, when run through `bin/roswaal.cmd`.",
 		],
 		watch: [
 			"**Find First Descendant is removed**, because Roblox has deprecated `FindFirstDescendant`. A graph using it no longer compiles, and the error says to use Find First Child with Recursive set.",
@@ -1461,7 +1473,7 @@ export const RELEASES: Release[] = [
 		headline: "Declare Function hands its function over.",
 		fixed: [
 			"**A Declare Function node's function can be wired into a call.** Its `Function` output was reported as out of scope, because passing a function as a value was special-cased to the hoisted node.",
-			"**Its header reads `Declare Function (name)`**, with the signature underneath, instead of replacing the node's name with the function's.",
+			"**Its header reads** `Declare Function (name)`, with the signature underneath, instead of replacing the node's name with the function's.",
 		],
 	},
 	{
@@ -1509,7 +1521,7 @@ export const RELEASES: Release[] = [
 		],
 		fixed: [
 			"**Align follows the wires out from the anchor** rather than the order you clicked. A chain picked out of order left its last hop bent — with a knot, a Get Full Name and a Concatenate, the first two came out flat and Concatenate did not. A selected node with no wired path to the anchor takes the anchor's top edge.",
-			"**A knot takes the type of whatever is wired into it, and `any` when nothing is.** Its type was fixed when it was made, so cutting the wire into a string knot left a knot that still refused everything but a string — and the only way to rewire it was to delete it.",
+			"**A knot takes the type of whatever is wired into it, and** `any` **when nothing is.** Its type was fixed when it was made, so cutting the wire into a string knot left a knot that still refused everything but a string — and the only way to rewire it was to delete it.",
 			"**Shift- or ctrl-clicking a knot adds it to the selection.** Its pins cover most of it, so the click landed on a pin and cut the wire instead. Cutting still works on the wire itself, where you can see it.",
 			"**A knot is easier to hit.** Its pins took 14 of its 22 pixels, leaving a 4px ring to click for selecting or moving it. The ring is 6px wider all round; starting a wire from the pin is unchanged.",
 			"**Docs pages scroll past their last line**, so the end of a page can be read somewhere other than the bottom edge of the screen.",
@@ -1709,7 +1721,7 @@ export const RELEASES: Release[] = [
 		date: "2026-09-08",
 		headline: "`npm link` puts roswaal on your PATH.",
 		fixed: [
-			"**Installing Roswaal through npm produced a `roswaal` command that did not run on Windows.** npm read the `#!/bin/sh` line off the launcher and wrote a wrapper calling `sh`, which a Windows machine has no reason to have — the command failed with \"the term '/bin/sh.exe' is not recognized\". npm now installs a launcher it can wrap on every platform.",
+			"**Installing Roswaal through npm produced a** `roswaal` **command that did not run on Windows.** npm read the `#!/bin/sh` line off the launcher and wrote a wrapper calling `sh`, which a Windows machine has no reason to have — the command failed with \"the term '/bin/sh.exe' is not recognized\". npm now installs a launcher it can wrap on every platform.",
 		],
 		changed: [
 			"The install instructions offer `npm link` first. It is one command, it works in the terminal you are already in rather than the next one you open, and `npm unlink -g roswaal` undoes it. Putting `bin/` on your PATH still works and is still documented.",
@@ -1720,7 +1732,7 @@ export const RELEASES: Release[] = [
 		date: "2026-09-08",
 		headline: "Opening a Luau file with a block comment no longer blanks the editor.",
 		fixed: [
-			"**Opening a `.luau` file containing a `--[[ ]]` comment or a `[[ ]]` string emptied the whole page.** The syntax highlighter threw, React unmounted, and what was left was a black rectangle with no message. Every `.luau` file opens correctly now, generated or hand-written.",
+			"**Opening a** `.luau` **file containing a** `--[[ ]]` **comment or a** `[[ ]]` **string emptied the whole page.** The syntax highlighter threw, React unmounted, and what was left was a black rectangle with no message. Every `.luau` file opens correctly now, generated or hand-written.",
 			"**A number's exponent was split in two.** `1e-9` was coloured as `1e`, an operator, and `9`; hex and binary literals were read a character at a time and could come apart the same way.",
 		],
 		added: [
@@ -1751,7 +1763,7 @@ export const RELEASES: Release[] = [
 			"**Shift-click a wire to disconnect it.** Alt-click already did, and still does.",
 		],
 		changed: [
-			"**The `strict` checkbox is now a typechecking mode**, with three settings. *Default* writes no mode line at all, leaving the generated file to whatever the project says. *Nonstrict Mode* writes `--!nonstrict`, and *Strict Mode* writes `--!strict`.",
+			"**The** `strict` **checkbox is now a typechecking mode**, with three settings. *Default* writes no mode line at all, leaving the generated file to whatever the project says. *Nonstrict Mode* writes `--!nonstrict`, and *Strict Mode* writes `--!strict`.",
 			"**Both checked modes annotate the types** of generated locals and function parameters. *Default* leaves them off, which is what an unticked `strict` did.",
 			"`.nodescript` files record `typecheck` where they recorded `strict`. Older graphs convert on open — a ticked box becomes *Strict Mode* and an unticked one becomes *Default* — and the old key is dropped on the next save.",
 		],
@@ -1882,11 +1894,11 @@ export const RELEASES: Release[] = [
 			"**Square node corners.** Capsule getters and reroute knots keep their shapes either way.",
 		],
 		changed: [
-			"**Straighten is a preference rather than a stray `localStorage` key.** It behaves exactly as before, and is now in the settings panel with everything else.",
+			"**Straighten is a preference rather than a stray** `localStorage` **key.** It behaves exactly as before, and is now in the settings panel with everything else.",
 			"A **project setting that the daemon refuses now says so.** Writing `roswaal.json` was previously a promise nobody checked.",
 		],
 		fixed: [
-			"**The `<select>` popup follows the theme.** Chromium paints that list outside the document, where `var(…)` does not resolve, so its colours were four literals copied out of the built-in schemes and stopped following any other palette.",
+			"**The** `<select>` **popup follows the theme.** Chromium paints that list outside the document, where `var(…)` does not resolve, so its colours were four literals copied out of the built-in schemes and stopped following any other palette.",
 		],
 		watch: [
 			"**A theme cannot recolour a pin or a node category.** Red is a boolean, green is a number, gold is a vector, whatever scheme you are on.",
@@ -2044,13 +2056,13 @@ export const RELEASES: Release[] = [
 		date: "2026-09-06",
 		headline: "A static documentation site, a luau pin type, and Error.",
 		added: [
-			"**`npm run build:docs`** writes the whole site to `dist-docs/` — 167 pages, syntax highlighted at build time, with client-side search. No daemon, and **no JavaScript needed to read a page**.",
+			"`npm run build:docs` writes the whole site to `dist-docs/` — 167 pages, syntax highlighted at build time, with client-side search. No daemon, and **no JavaScript needed to read a page**.",
 			"**Error**, **Assert** and **Traceback** in Debug.",
 			"**Cast Through Any**, because Luau refuses a cast between unrelated types and going through `any` is the documented way round it.",
 			"**Roswaal types** — a guide to what a pin's type means, what connects to what, and where it differs from Luau's own.",
 		],
 		changed: [
-			"Code pins are typed **`luau`** rather than `string`. They hold code, not text, and a type says that more plainly than the yellow warning badge they used to carry did.",
+			"Code pins are typed `luau` rather than `string`. They hold code, not text, and a type says that more plainly than the yellow warning badge they used to carry did.",
 			"That badge is gone. Neither a code pin nor a literal-only pin is a problem, so neither is coloured like one — they read **code editor** and **literal** now.",
 			"Release notes are their own nav section rather than the fifth page under Guides.",
 			"**Cast** already accepted any Luau type expression — intersections, unions, table types — and nothing said so. `Model & { Humanoid: Humanoid }` works, and the docs now show it.",

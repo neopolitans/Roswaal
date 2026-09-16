@@ -133,15 +133,21 @@ describe("the site", () => {
 
 describe("inline markup in the pages themselves", () => {
 	/**
-	 * Inline markup does not nest. A link inside bold prints its brackets —
-	 * which is how the Beako link on Attributions shipped — and italics inside
-	 * bold print their asterisks, which is how the note announcing the fix did.
-	 * So every string a page carries goes through the real parser, and fails
-	 * on what a reader would see as broken: an asterisk left in plain text, or
-	 * link syntax inside bold or italics. A pattern over the raw string was
-	 * tried first and matched across two separate bold spans.
+	 * Inline markup does not nest, at all. `parseInline` gives `strong`, `em`
+	 * and `code` a flat string and matches one span at a time, so anything
+	 * inside any of them is printed as the characters it is written with.
+	 *
+	 * This was held as "no link or italics inside bold", which is how the Beako
+	 * link on Attributions shipped and how the note announcing that fix did.
+	 * **Code counts too**, and that was missed: four strings on the Aliases page
+	 * printed `` `.luaurc` `` with its backticks because it was written inside
+	 * bold, and the test passed the whole time. The rule is now what the parser
+	 * actually does rather than a list of the ways it had been broken so far.
+	 *
+	 * A pattern over the raw string was tried first and matched across two
+	 * separate bold spans, so every string goes through the real parser.
 	 */
-	it("never nests markup: no link or italics inside bold", () => {
+	it("never nests markup, in any direction", () => {
 		const strings = (blocks: Block[]): string[] =>
 			blocks.flatMap((b) => {
 				switch (b.t) {
@@ -159,7 +165,12 @@ describe("inline markup in the pages themselves", () => {
 				const where = `${page.slug}: ${text.slice(0, 60)}`;
 				for (const run of parseInline(text)) {
 					if (run.t === "text") expect(run.text, where).not.toContain("*");
-					if (run.t === "strong" || run.t === "em") expect(run.text, where).not.toContain("](");
+					if (run.t !== "strong" && run.t !== "em") continue;
+					// A link, italics, or a code span: all three print their own
+					// syntax when they are written inside one of these.
+					expect(run.text, where).not.toContain("](");
+					expect(run.text, where).not.toContain("`");
+					expect(run.text, where).not.toContain("*");
 				}
 			}
 		}

@@ -1603,7 +1603,7 @@ const TOOLBARS_PAGE: DocPage = {
 				"the **browser preview** on the project site — the same build, running in a tab, " +
 				"on a project kept in that browser rather than in your repository.",
 			items: [
-				"**Every window of the preview is marked `preview`, beside the version.** If you " +
+				"**Every window of the preview is marked** `preview`**, beside the version.** If you " +
 					"can see that chip, your work is in this browser and not on your disk.",
 				"The bars are otherwise the same bars. Where one reaches something different, " +
 					"both are drawn below under a switch.",
@@ -1776,7 +1776,7 @@ const ALIASES_PAGE: DocPage = {
 			t: "p",
 			text:
 				"`@roact/Component` is a require that does not say where Roact is. The path lives " +
-				"in a **`.luaurc`**, and the alias is the name you use instead — so a package that " +
+				"in a `.luaurc`, and the alias is the name you use instead — so a package that " +
 				"moves is one file changed rather than every graph that reads it.",
 		},
 		{
@@ -1813,7 +1813,7 @@ const ALIASES_PAGE: DocPage = {
 			kind: "info",
 			text:
 				"**A nearer file adds to the one above it; it does not replace it.** The RFC is " +
-				"explicit: *\"Missing aliases in `.luaurc` are inherited from the alias maps of " +
+				"explicit: *\"Missing aliases in .luaurc are inherited from the alias maps of " +
 				"any parent directories, and fields can be overridden.\"* So a file that names one " +
 				"alias changes that one, and every other name still arrives from above.",
 		},
@@ -1831,9 +1831,9 @@ const ALIASES_PAGE: DocPage = {
 		{
 			t: "p",
 			text:
-				"Against **the `.luaurc` that defined it** — not against the file doing the " +
+				"Against **the** `.luaurc` **that defined it** — not against the file doing the " +
 				"requiring. *\"If an alias is bound to a relative path, the path will be evaluated " +
-				"relative to the `.luaurc` file in which the alias was defined.\"*",
+				"relative to the .luaurc file in which the alias was defined.\"*",
 		},
 		{
 			t: "note",
@@ -1852,7 +1852,7 @@ const ALIASES_PAGE: DocPage = {
 				"**Case does not matter.** `@Roact` and `@roact` are one alias. Defining both in " +
 					"one file is defining one alias twice, and Roswaal says so rather than letting " +
 					"you write a file whose behaviour nobody can predict.",
-				"Letters, digits, `.`, `-` and `_`. A name **cannot contain `/` or `\\`** — the " +
+				"Letters, digits, `.`, `-` and `_`. A name **cannot contain** `/` **or** `\\` — the " +
 					"separator is what ends the alias and starts the path after it.",
 				"`@` on its own is reserved.",
 			],
@@ -1890,10 +1890,10 @@ const ALIASES_PAGE: DocPage = {
 			items: [
 				"Inherited aliases are shown but not editable. They belong to another file, and " +
 					"the way to change one is to open the file that defines it.",
-				"Every write **splices the `aliases` object** and leaves the rest of the file " +
+				"Every write **splices the** `aliases` **object** and leaves the rest of the file " +
 					"exactly as it was: `languageMode`, lint settings, fields Roswaal has never " +
 					"heard of.",
-				"A file with **comments inside its `aliases`** is refused rather than rewritten, " +
+				"A file with **comments inside its** `aliases` is refused rather than rewritten, " +
 					"and says why. An edit reorders the entries, and a note about why a package is " +
 					"vendored cannot survive that.",
 			],
@@ -2954,7 +2954,7 @@ const TYPES_GUIDE: DocPage = {
 				[
 					"`BrickColor`",
 					"A colour from Roblox's fixed palette",
-					"**Not a `Color3`**, and not interchangeable with one. Read `.Color` to get the Color3 behind the name.",
+					"**Not a** `Color3`, and not interchangeable with one. Read `.Color` to get the Color3 behind the name.",
 				],
 				[
 					"`TweenInfo`, `Tween`",
@@ -3221,7 +3221,7 @@ function functionsPage(registry: Registry): DocPage {
 			{
 				t: "p",
 				text:
-					"**`P` with nothing selected previews the function you are in**, rather than the " +
+					"`P` **with nothing selected previews the function you are in**, rather than the " +
 					"whole script. The nodescript's own graph still previews all of it.",
 			},
 
@@ -3853,7 +3853,7 @@ function castingBlocks(registry: Registry): Block[] {
 			text:
 				"A wire is allowed when the two pins agree, when either is `any` or `wildcard`, " +
 				"between `number` and `string` because Luau converts those itself, and from an " +
-				"**instance class to an `Instance` pin** — a `Model` goes anywhere an `Instance` is " +
+				"**instance class to an** `Instance` **pin** — a `Model` goes anywhere an `Instance` is " +
 				"wanted. The editor and the compiler ask the same question, so a wire the canvas " +
 				"accepts is never one the compile complains about.",
 		},
@@ -4154,7 +4154,7 @@ const CUSTOM_NODES: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"**`builtin` is reserved** for the flow nodes that open blocks — branches, loops, " +
+				"`builtin` **is reserved** for the flow nodes that open blocks — branches, loops, " +
 				"function bodies. A pack declaring one is rejected when it loads, and that refusal is " +
 				"the boundary that lets a project depend on somebody else's pack.",
 		},
@@ -4242,7 +4242,7 @@ const CLI_PAGE: DocPage = {
 		{
 			t: "p",
 			text:
-				"**`stop` and `restart` reach the daemon over HTTP** rather than through a PID file, " +
+				"`stop` **and** `restart` **reach the daemon over HTTP** rather than through a PID file, " +
 				"so there is no stale pid to reason about when one dies unexpectedly. `stop` reports " +
 				"success only once the health probe has gone quiet — not when the request was sent.",
 		},
