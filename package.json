@@ -19,6 +19,7 @@
     "build:themes": "tsx scripts/build-themes.mjs",
     "build:roblox": "node scripts/build-roblox.mjs",
     "build:members": "tsx scripts/build-members.mjs",
+    "build:lune": "node scripts/build-lune.mjs",
     "build:docs": "tsx scripts/build-docs.mjs",
     "docs:reviews": "tsx scripts/docs-reviews.mjs",
     "dev:site": "vite --config vite.web.config.ts",
