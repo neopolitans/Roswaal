@@ -58,10 +58,59 @@ const appSource = sources(join(root, "src"), /\.(ts|tsx|css)$/).join("\n");
  * existed — so the check passed on exactly the regression it was written for,
  * which is the most expensive way for a test to be wrong.
  */
-const appCode = sources(join(root, "src"), /\.(ts|tsx)$/)
-	.join("\n")
-	.replace(/\/\*[\s\S]*?\*\//g, " ")
-	.replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+/**
+ * Comments out, strings kept.
+ *
+ * A pattern was enough until it was not. A glob in a placeholder contains the
+ * two characters that open a block comment, so a plain `replace` paired it with
+ * the next `*` `/` and swallowed the markup between them — including a
+ * `className` this check was looking for. It reported a live stylesheet rule as
+ * dead while the element was right there on screen.
+ *
+ * So the scan tracks quotes. Same shape as `stripJsonc` in `luaurc.ts`, for the
+ * same reason: a delimiter inside a string is text.
+ */
+function withoutComments(code: string): string {
+	let out = "";
+	let quote: string | null = null;
+
+	for (let i = 0; i < code.length; i += 1) {
+		const ch = code[i];
+
+		if (quote !== null) {
+			out += ch;
+			if (ch === "\\") {
+				out += code[i + 1] ?? "";
+				i += 1;
+			} else if (ch === quote) {
+				quote = null;
+			}
+			continue;
+		}
+
+		if (ch === '"' || ch === "'" || ch === "`") {
+			quote = ch;
+			out += ch;
+			continue;
+		}
+		if (ch === "/" && code[i + 1] === "*") {
+			const end = code.indexOf("*/", i + 2);
+			i = end < 0 ? code.length : end + 1;
+			out += " ";
+			continue;
+		}
+		// A colon before it is a URL, which is not a comment.
+		if (ch === "/" && code[i + 1] === "/" && code[i - 1] !== ":") {
+			while (i < code.length && code[i] !== "\n") i += 1;
+			out += "\n";
+			continue;
+		}
+		out += ch;
+	}
+	return out;
+}
+
+const appCode = withoutComments(sources(join(root, "src"), /\.(ts|tsx)$/).join("\n"));
 
 /** A deep copy, so a test that breaks a theme cannot break the next test. */
 function clone(name: string): Theme {

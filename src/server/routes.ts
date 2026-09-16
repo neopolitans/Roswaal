@@ -22,7 +22,7 @@
  * already knows how to read as "drop the button" rather than as a failure.
  */
 
-import { emptyMap, type NodeMap } from "../core/nodemap.js";
+import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
 import { emptyScript, type NodeDef, type NodeScript, type RoswaalConfig } from "../core/schema.js";
 import { VERSION } from "../cli/version.js";
 
@@ -320,7 +320,13 @@ export class ApiSession {
 				const { dir, name } = body<{ dir?: string; name?: string }>(req);
 				const safeName = (name ?? "Tree").replace(/[^A-Za-z0-9_ -]/g, "").trim() || "Tree";
 				const relPath = path.posix.join(dir ?? project.config.sourceDir, `${safeName}.nodemap`);
-				const map = emptyMap(safeName, newId(), newId);
+				// A map describes where files end up, and that question has a
+				// different shape per runtime. The project already says which
+				// one it is, so a new map starts as the kind that project needs
+				// rather than as the kind Roblox needed.
+				const map = project.config.target === "lune"
+					? emptyFilesystemMap(safeName, newId(), newId)
+					: emptyMap(safeName, newId(), newId);
 				await writeMap(project, relPath, map);
 				return { path: relPath, map };
 			},

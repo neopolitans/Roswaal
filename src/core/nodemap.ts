@@ -210,6 +210,27 @@ function validateFilesystem(node: MapNode, diagnostics: MapDiagnostic[]): void {
 		});
 	}
 
+	/**
+	 * The extension is not part of the name.
+	 *
+	 * A warning rather than an error, because it is not wrong — `main.luau` is
+	 * the file you meant and it is the file you get. It is worth saying because
+	 * the name is what the *stem* is, so typing the extension here is how you
+	 * end up wondering why the map shows `main.luau` and the disk has
+	 * `main.luau.luau`.
+	 */
+	const extension = /\.(luau|lua)$/i.exec(node.name.trim());
+	if (node.file && extension) {
+		const stem = node.name.trim().slice(0, -extension[0].length);
+		diagnostics.push({
+			severity: "warning",
+			message:
+				`"${node.name}" does not need the ${extension[0]} — a file here is Luau, and the ` +
+				`extension is added for you. Call it "${stem}".`,
+			node: node.id,
+		});
+	}
+
 	if (node.file && node.children.length > 0) {
 		diagnostics.push({
 			severity: "error",

@@ -94,6 +94,24 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.67.0",
+		date: "2026-09-16",
+		headline: "A map can describe a filesystem.",
+		affects: ["editor"],
+		added: [
+			"**A map says which runtime it describes.** A DataModel map is what one has always been: services, and a `default.project.json` for Rojo. A **filesystem map** is directories and files, which is what a Lune program actually has. A new map starts as the kind the project needs.",
+			"**A filesystem map is checked against Luau's own require rules.** A file beside a directory of the same name is an error, because `require(\"./foo\")` cannot mean both `foo.luau` and `foo/init.luau` and the language refuses an ambiguous path rather than picking one. Two files differing only by extension are the same collision one step along.",
+			"**A file's name carries no extension.** Typing one is a warning saying so, and what to call it instead — the extension follows from the node being a file, and writing it into the name is how you get `main.luau.luau`.",
+		],
+		changed: [
+			"A filesystem map writes **no project file**. Rojo's answers a question a Lune program does not ask, so what compiling one does is check that the layout holds together — the part Rojo was doing incidentally, and the only part that transfers.",
+			"Every map written before this is a DataModel map and stays one without being touched.",
+		],
+		fixed: [
+			"A stylesheet check was reading a glob in a placeholder as the start of a comment, and swallowing the markup after it — so it could report a live rule as dead. It reads string literals as strings now.",
+		],
+	},
+	{
 		version: "0.66.2",
 		date: "2026-09-16",
 		headline: "Aliases suggest themselves, and Roblox types tell the truth in Lune.",

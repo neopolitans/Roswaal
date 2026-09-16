@@ -12,7 +12,7 @@ import { useMemo, useState } from "react";
 
 import {
 	COMMON_SERVICES, CONTAINER_CLASSES, compileNodeMap, findMapNode, mapNodeParent,
-	mapNodeRemove, mapNodeUpdate, type MapNode, type NodeMap,
+	isFilesystemMap, mapNodeRemove, mapNodeUpdate, type MapNode, type NodeMap,
 } from "../core/nodemap.js";
 import type { TreeEntry } from "./api.js";
 import { Icon } from "./icons.jsx";
@@ -73,6 +73,27 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 		commit({ ...map, root: mapNodeUpdate(map.root, id, (node) => ({ ...node, ...patch })) });
 	}
 
+	/** Which kind of map this is, which decides most of what the panel shows. */
+	const filesystem = isFilesystemMap(map);
+
+	/**
+	 * A file, whose name carries no extension.
+	 *
+	 * `.luau` follows from the node being a file, so a name typed with one is
+	 * warned about rather than honoured — see `validateFilesystem`.
+	 */
+	function addFile(parentId: string) {
+		const child: MapNode = { id: newId(), name: "module", file: true, children: [] };
+		commit({
+			...map,
+			root: mapNodeUpdate(map.root, parentId, (node) => ({
+				...node,
+				children: [...node.children, child],
+			})),
+		});
+		setSelected(child.id);
+	}
+
 	function addChild(parentId: string, className: string | undefined, name: string) {
 		const child: MapNode = { id: newId(), name, className, children: [] };
 		commit({
@@ -118,7 +139,23 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 			</div>
 
 			<div className="map-side">
-				<h2>Instance</h2>
+				<h2>This map</h2>
+				<label className="field">
+					<span>Describes</span>
+					<select
+						className="tb"
+						value={map.target ?? "roblox"}
+						title="What this map is a map of. A DataModel has services and compiles to a Rojo project file; a filesystem has directories and files and compiles to neither."
+						onChange={(e) =>
+							commit({ ...map, target: e.target.value === "lune" ? "lune" : undefined })
+						}
+					>
+						<option value="roblox">A DataModel — Roblox</option>
+						<option value="lune">A filesystem — Lune</option>
+					</select>
+				</label>
+
+				<h2>{filesystem ? (current.file ? "File" : "Directory") : "Instance"}</h2>
 				<div className="map-fields">
 					<label className="field">
 						<span>Name</span>
@@ -129,6 +166,23 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 						/>
 					</label>
 
+					{filesystem && current.id !== map.root.id && (
+						<label className="field">
+							<span>Kind</span>
+							<select
+								className="tb"
+								value={current.file ? "file" : "directory"}
+								onChange={(e) =>
+									updateNode(current.id, { file: e.target.value === "file" || undefined })
+								}
+							>
+								<option value="directory">Directory</option>
+								<option value="file">File — a .luau Roswaal writes</option>
+							</select>
+						</label>
+					)}
+
+					{!filesystem && (
 					<label className="field">
 						<span>Class</span>
 						<select
@@ -145,7 +199,9 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 							{current.id === map.root.id && <option>DataModel</option>}
 						</select>
 					</label>
+					)}
 
+					{!filesystem && (
 					<label className="field">
 						<span>Path</span>
 						<span className="path-field">
@@ -164,7 +220,9 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 							)}
 						</span>
 					</label>
+					)}
 
+					{!filesystem && (
 					<label className="field">
 						<span>Ignore unknown</span>
 						<input
@@ -175,8 +233,10 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 							}
 						/>
 					</label>
+					)}
 				</div>
 
+				{!filesystem && (
 				<ListField
 					label="Ignore paths"
 					hint="Globs under this instance's path that Rojo should skip, e.g. shared/** — how you stop a nested mapping syncing twice."
@@ -186,12 +246,32 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 						updateNode(current.id, { ignorePaths: next.length ? next : undefined })
 					}
 				/>
+				)}
 
 				<div className="map-actions">
-					<button className="tb" onClick={() => addChild(current.id, "Folder", "Folder")}>
-						Add folder
-					</button>
-					{current.id === map.root.id && (
+					{filesystem ? (
+						<>
+							<button
+								className="tb"
+								disabled={current.file === true}
+								onClick={() => addChild(current.id, undefined, "folder")}
+							>
+								Add directory
+							</button>
+							<button
+								className="tb"
+								disabled={current.file === true}
+								onClick={() => addFile(current.id)}
+							>
+								Add file
+							</button>
+						</>
+					) : (
+						<button className="tb" onClick={() => addChild(current.id, "Folder", "Folder")}>
+							Add folder
+						</button>
+					)}
+					{!filesystem && current.id === map.root.id && (
 						<select
 							className="tb"
 							value=""
@@ -212,29 +292,45 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 					</button>
 				</div>
 
-				<h2>Project file</h2>
-				<p className="summary">
-					Written to <code>{map.output}</code> when this map is compiled.
-				</p>
-				<label className="field">
-					<span>Output</span>
-					<input
-						className="tb"
-						value={map.output}
-						onChange={(e) => commit({ ...map, output: e.target.value })}
-					/>
-				</label>
-				<ListField
-					label="Project-wide ignores"
-					hint="Passed to Rojo as globIgnorePaths, unanchored."
-					values={map.globIgnorePaths ?? []}
-					placeholder="**/*.spec.luau"
-					onChange={(next) =>
-						commit({ ...map, globIgnorePaths: next.length ? next : undefined })
-					}
-				/>
-
-				<pre className="map-preview">{compiled.json}</pre>
+				{filesystem ? (
+					<>
+						<h2>The layout</h2>
+						{/* A Lune program has no DataModel, so there is no project
+						    file to write. What compiling this does is check that
+						    the layout is one Luau can require through -- which is
+						    the part Rojo was doing incidentally. */}
+						<p className="summary">
+							Directories and files, as they sit on disk. Nothing is written when this is
+							compiled — a Lune program has no project file, so what compiling does is
+							check the layout holds together.
+						</p>
+					</>
+				) : (
+					<>
+						<h2>Project file</h2>
+						<p className="summary">
+							Written to <code>{map.output}</code> when this map is compiled.
+						</p>
+						<label className="field">
+							<span>Output</span>
+							<input
+								className="tb"
+								value={map.output}
+								onChange={(e) => commit({ ...map, output: e.target.value })}
+							/>
+						</label>
+						<ListField
+							label="Project-wide ignores"
+							hint="Passed to Rojo as globIgnorePaths, unanchored."
+							values={map.globIgnorePaths ?? []}
+							placeholder="**/*.spec.luau"
+							onChange={(next) =>
+								commit({ ...map, globIgnorePaths: next.length ? next : undefined })
+							}
+						/>
+						<pre className="map-preview">{compiled.json}</pre>
+					</>
+				)}
 
 				{compiled.diagnostics.length > 0 && (
 					<div className="map-diagnostics">
@@ -330,7 +426,11 @@ function MapRow(props: MapRowProps) {
 				>
 					▸
 				</span>
+				{/* The extension is shown and not stored: a file is `main` in the
+				    map and `main.luau` on disk, and the row is where that is
+				    least surprising to see. */}
 				<span className="name">{node.name}</span>
+				{node.file && <span className="class">.luau</span>}
 				{node.className && <span className="class">{node.className}</span>}
 				{node.path && <span className="path">{node.path}</span>}
 			</div>

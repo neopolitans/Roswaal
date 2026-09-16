@@ -119,3 +119,43 @@ describe("a layout Luau would refuse", () => {
 		expect(errors(deep)).toHaveLength(1);
 	});
 });
+
+/**
+ * The extension is not part of the name.
+ *
+ * A warning and not an error: `main.luau` is the file you meant and the file
+ * you get. It is worth saying because the name is the *stem*, so typing the
+ * extension is how somebody ends up wondering why the map shows `main.luau`
+ * and the disk has `main.luau.luau`.
+ */
+describe("a name that carries its own extension", () => {
+	const warnings = (map: NodeMap) =>
+		compileNodeMap(map).diagnostics
+			.filter((one) => one.severity === "warning")
+			.map((one) => one.message);
+
+	it("says the extension is not needed, and what to call it instead", () => {
+		const found = warnings(mapOf([file("main.luau")]));
+		expect(found).toHaveLength(1);
+		expect(found[0]).toContain("does not need the .luau");
+		expect(found[0]).toContain('Call it "main"');
+	});
+
+	it("says it for .lua too", () => {
+		expect(warnings(mapOf([file("old.lua")]))[0]).toContain("does not need the .lua");
+	});
+
+	/** Not an error: the file is still the one that was meant. */
+	it("does not refuse it", () => {
+		expect(errors(mapOf([file("main.luau")]))).toEqual([]);
+	});
+
+	/** A directory called `lua` is a directory called `lua`. */
+	it("leaves a directory alone", () => {
+		expect(warnings(mapOf([dir("lua")]))).toEqual([]);
+	});
+
+	it("says nothing about a name without one", () => {
+		expect(warnings(mapOf([file("main"), dir("lib")]))).toEqual([]);
+	});
+});
