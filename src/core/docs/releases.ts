@@ -76,6 +76,16 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.60.3",
+		date: "2026-09-16",
+		headline: "The graph toolbars float over a canvas again.",
+		affects: ["docs"],
+		verified: ["toolbars"],
+		changed: [
+			"**The drawn graph toolbars sit on a full pane of canvas**, grid and all, rather than on a strip that stopped where the tools stopped. The whole point of that picture is that the three groups float over a view which carries on past them, and a canvas cut to the width of its contents said the opposite.",
+		],
+	},
+	{
 		version: "0.60.2",
 		date: "2026-09-16",
 		headline: "A drawn toolbar sits on the page rather than in the list.",

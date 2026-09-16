@@ -7026,11 +7026,21 @@ button.tb.danger {
 	border-radius: 7px;
 }
 
-/* The floating tools already float: they sit over a piece of canvas with its
-   own grid, and that canvas is the inset. Padding here would inset the inset. */
+/* The floating tools already float: they sit over a piece of canvas, and that
+   canvas is the inset. Padding here would inset the inset.
+
+   The grid is on the frame rather than on the strip inside it, so the whole
+   containing element reads as canvas. On the strip alone it stopped where the
+   tools stopped, which drew a second edge just inside the frame's own and made
+   the picture look like two boxes -- and the point of this one is that the
+   groups float over a view that carries on past them. */
 .docs-bar-frame.float {
 	padding: 0;
-	background: var(--bg-canvas);
+	background-color: var(--bg-canvas);
+	background-image:
+		linear-gradient(var(--grid-fine) 1px, transparent 1px),
+		linear-gradient(90deg, var(--grid-fine) 1px, transparent 1px);
+	background-size: 24px 24px;
 }
 
 /* Which is also why the real hover paint is off in here. A drawn button lights
@@ -7076,14 +7086,12 @@ button.tb.danger {
    Here there is no canvas to float over, so the strip is laid out in flow —
    and given some of the canvas above and below it, because the gaps between
    the groups are the thing being explained. */
+/* Laid out in flow rather than absolutely, since there is no canvas here for
+   them to be positioned over -- the frame behind them is the canvas now. */
 .docs-bar-frame.float > .floating-tools {
 	position: static;
 	flex-wrap: nowrap;
 	margin: 20px 14px;
-	background-image:
-		linear-gradient(var(--grid-fine) 1px, transparent 1px),
-		linear-gradient(90deg, var(--grid-fine) 1px, transparent 1px);
-	background-size: 24px 24px;
 }
 
 /* A real <select> is a tab stop even with nothing to focus, and opens on a
