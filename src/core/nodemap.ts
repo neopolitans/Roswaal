@@ -13,7 +13,7 @@
  */
 
 import { ROBLOX_SERVICES } from "./roblox.js";
-import { SCHEMA_VERSION } from "./schema.js";
+import { SCHEMA_VERSION, type Target } from "./schema.js";
 
 /** Instances Rojo will create for us, beyond the services it already knows. */
 export const CONTAINER_CLASSES = [
@@ -28,8 +28,22 @@ export const COMMON_SERVICES = ROBLOX_SERVICES;
 
 export interface MapNode {
 	id: string;
-	/** The name this instance takes in the DataModel. */
+	/**
+	 * What this is called.
+	 *
+	 * In a DataModel map, the instance's name. In a filesystem map, the
+	 * directory or file name — with no extension, because the extension is
+	 * decided by what the node *is* and writing `.luau` into a name is how you
+	 * get `init.luau.luau`.
+	 */
 	name: string;
+	/**
+	 * A file rather than a directory, in a filesystem map.
+	 *
+	 * Ignored by a DataModel map, where the same question is answered by
+	 * `className` and `path` together.
+	 */
+	file?: boolean;
 	/**
 	 * Instance class. Empty on a service, because Rojo already knows what
 	 * ReplicatedStorage is and saying so again is noise Rojo will reject.
@@ -59,7 +73,30 @@ export interface NodeMap {
 	id: string;
 	/** Rojo project name, and the name shown in the editor. */
 	name: string;
-	/** Where the generated project file is written, relative to the root. */
+	/**
+	 * Which runtime this map describes, and therefore what it *is*.
+	 *
+	 * A map has always been a DataModel: a root that is the DataModel, children
+	 * that are services, and a `default.project.json` at the end of it. That is
+	 * one shape of the question "where does this file end up", and it is
+	 * Roblox's shape.
+	 *
+	 * A Lune program has no DataModel. It has **directories and files**, and
+	 * where a file ends up is where it is. So a Lune map is a tree of folders,
+	 * it writes no project file, and what it is for is the thing Rojo was doing
+	 * incidentally: saying the layout out loud and checking it holds together.
+	 *
+	 * Optional, and absent means `roblox`. Every map written before this is a
+	 * DataModel map and stays one without being touched.
+	 */
+	target?: Target;
+	/**
+	 * Where the generated project file is written, relative to the root.
+	 *
+	 * A filesystem map writes none, so this is a DataModel map's field. It is
+	 * kept rather than made conditional because a map that changes target
+	 * should not lose where its project file went.
+	 */
 	output: string;
 	/** Project-wide ignore globs, passed through to Rojo untouched. */
 	globIgnorePaths?: string[];
@@ -89,6 +126,34 @@ export function emptyMap(name: string, id: string, makeId: () => string): NodeMa
 	};
 }
 
+/**
+ * A map for a Lune program: directories and files, and no DataModel.
+ *
+ * It starts with the shape a Lune program actually has — an entry point beside
+ * a place to put the rest — rather than empty, because an empty tree does not
+ * say what kind of thing it is about to become and this one has to.
+ */
+export function emptyFilesystemMap(name: string, id: string, makeId: () => string): NodeMap {
+	return {
+		schemaVersion: SCHEMA_VERSION,
+		kind: "map",
+		id,
+		name,
+		target: "lune",
+		// Kept, though nothing writes it, so changing target back does not lose
+		// where the project file went.
+		output: "default.project.json",
+		root: {
+			id: makeId(),
+			name: ".",
+			children: [
+				{ id: makeId(), name: "main", file: true, children: [] },
+				{ id: makeId(), name: "lib", children: [] },
+			],
+		},
+	};
+}
+
 // ---------------------------------------------------------------------------
 // Compilation
 // ---------------------------------------------------------------------------
@@ -106,8 +171,117 @@ export interface MapCompileResult {
 	ok: boolean;
 }
 
+/** A map that describes directories and files rather than a DataModel. */
+export const isFilesystemMap = (map: NodeMap): boolean => map.target === "lune";
+
+/**
+ * A name a `require` can actually reach.
+ *
+ * Luau's require takes a path, so the characters a path cannot hold are the
+ * rule — and a name with a dot in it is the one worth catching, because
+ * `my.thing` beside `my.thing.luau` is a file you cannot name unambiguously.
+ */
+const LEGAL_SEGMENT = /^[A-Za-z0-9_.-]+$/;
+
+/**
+ * What is wrong with a filesystem layout, checked where a person can still move
+ * something.
+ *
+ * These are **require-time errors in Luau**, not preferences. The RFC that
+ * amended require resolution makes an ambiguous path an error rather than a
+ * choice, so a layout with both `foo.luau` and `foo/` is one the runtime will
+ * refuse — and finding that out from a map, with the two things named, beats
+ * finding it out from a stack trace.
+ */
+function validateFilesystem(node: MapNode, diagnostics: MapDiagnostic[]): void {
+	if (node.name.trim() === "") {
+		diagnostics.push({
+			severity: "error",
+			message: "Something here has no name.",
+			node: node.id,
+		});
+	} else if (!LEGAL_SEGMENT.test(node.name.trim())) {
+		diagnostics.push({
+			severity: "error",
+			message:
+				`"${node.name}" is not a name a require can reach. Letters, digits, \`.\`, \`-\` ` +
+				"and `_`, and no directory separators.",
+			node: node.id,
+		});
+	}
+
+	if (node.file && node.children.length > 0) {
+		diagnostics.push({
+			severity: "error",
+			message: `"${node.name}" is a file, so nothing can be inside it.`,
+			node: node.id,
+		});
+	}
+
+	/**
+	 * Two things in one directory that a require cannot tell apart.
+	 *
+	 * A file and a directory of the same name is the ambiguity Luau refuses:
+	 * `require("./foo")` cannot mean both `foo.luau` and `foo/init.luau`. And
+	 * two files whose names differ only by extension are the same collision one
+	 * step along — `foo.luau` and `foo.lua` both answer to `./foo`.
+	 */
+	const files = new Map<string, MapNode>();
+	const directories = new Map<string, MapNode>();
+
+	for (const child of node.children) {
+		const name = child.name.trim();
+		const stem = child.file ? name.replace(/\.(luau|lua)$/i, "") : name;
+		const bucket = child.file ? files : directories;
+
+		const clash = bucket.get(stem);
+		if (clash) {
+			diagnostics.push({
+				severity: "error",
+				message: child.file
+					? `"${stem}" is here twice. A require of "./${stem}" cannot say which.`
+					: `"${node.name}" has two directories called "${stem}".`,
+				node: child.id,
+			});
+		} else {
+			bucket.set(stem, child);
+		}
+
+		const other = (child.file ? directories : files).get(stem);
+		if (other) {
+			diagnostics.push({
+				severity: "error",
+				message:
+					`"${stem}" is both a file and a directory here, and \`require("./${stem}")\` ` +
+					"cannot mean both. Luau refuses an ambiguous path rather than picking one.",
+				node: child.id,
+			});
+		}
+
+		validateFilesystem(child, diagnostics);
+	}
+}
+
 export function compileNodeMap(map: NodeMap): MapCompileResult {
 	const diagnostics: MapDiagnostic[] = [];
+
+	/**
+	 * A filesystem map writes no project file.
+	 *
+	 * Rojo's project file answers "where does this land in the DataModel", and
+	 * a Lune program has no DataModel to land in — the layout *is* the answer.
+	 * So compiling one is checking it, which is the part Rojo was doing
+	 * incidentally and the only part that transfers.
+	 */
+	if (isFilesystemMap(map)) {
+		validateFilesystem(map.root, diagnostics);
+		return {
+			json: "",
+			diagnostics,
+			outputPath: "",
+			ok: !diagnostics.some((one) => one.severity === "error"),
+		};
+	}
 
 	if (map.root.className !== "DataModel") {
 		diagnostics.push({
