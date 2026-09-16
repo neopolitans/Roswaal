@@ -1012,6 +1012,8 @@ button.tb.icon-only.panel-float {
 	margin-left: auto;
 	font-size: 9px;
 	color: var(--fg-faint);
+	/* Same as the menu's: this row is baseline-aligned too. */
+	align-self: center;
 }
 
 /* The canvas's own background under the picture, so a node is read against
@@ -2016,6 +2018,24 @@ button.tb.primary:hover:not(:disabled) {
 	margin-left: auto;
 	font-size: 10px;
 	color: var(--fg-faint);
+	/* Centred, like everything else that trails a row. The row aligns on the
+	   baseline, which is right for the swatch and the title and wrong for a
+	   trailing chip -- `pure` and a bordered badge beside it sat two pixels
+	   apart because one was on the baseline and the other was not. */
+	align-self: center;
+}
+
+/* Only the first hint pushes. `margin-left: auto` on every one of them splits
+   the free space between them, so on a row carrying both `pure` and a runtime
+   badge the `pure` floated to a different x on every row -- 843 here, 827 the
+   next row down -- and the column stopped being a column. The rest follow at
+   the row's own gap, so the group right-aligns as one thing. */
+.menu .item .hint ~ .hint {
+	margin-left: 0;
+}
+
+.node-picker-hit .hint ~ .hint {
+	margin-left: 0;
 }
 
 .menu .empty {
@@ -7307,6 +7327,22 @@ button.tb.danger {
 	color: var(--fg);
 }
 
+/* What the row says when there is only one runtime to say it about -- which is
+   every Lune graph until the Lune library lands. Hiding the row entirely was
+   the first answer and it read as the feature being missing rather than as
+   there being nothing to choose. */
+.menu-runtimes .only {
+	font-size: 11px;
+	line-height: 1.6;
+	padding: 1px 2px;
+	color: var(--fg-faint);
+}
+
+.menu-runtimes .only strong {
+	font-weight: 600;
+	color: var(--fg-muted);
+}
+
 .menu-runtimes button.on {
 	background: color-mix(in srgb, var(--accent) 18%, var(--bg-input));
 	border-color: var(--accent);
@@ -7326,6 +7362,9 @@ button.tb.danger {
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	font-size: 9px;
+	/* Centred wherever it lands, including the picker, whose rows do not share
+	   the menu's rule. A bordered box on a baseline hangs below it. */
+	align-self: center;
 }
 
 .hint.runtime.roblox {

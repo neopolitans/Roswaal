@@ -197,6 +197,46 @@ describe("runtime as an axis", () => {
 		}
 	});
 
+	/**
+	 * A Lune graph has exactly one runtime in it, so there is nothing to choose
+	 * between — and the first version hid the row entirely, which read as the
+	 * filter being broken rather than as there being one answer. It says what
+	 * the one runtime is instead.
+	 */
+	it("says which runtime it is when there is only one", () => {
+		for (const path of ["src/app/NodeMenu.tsx", "src/app/NodePicker.tsx"]) {
+			const text = source(path);
+			expect(text, path).toContain("present.length === 1");
+			expect(text, path).toContain("Every node here is");
+			// And the chips are still hidden in that case: one option is furniture.
+			expect(text, path).toContain("present.length > 1");
+		}
+	});
+
+	/**
+	 * Both alignment bugs, held as CSS rules because that is what they were.
+	 *
+	 * `margin-left: auto` on every hint split the free space between them, so
+	 * `pure` landed at a different x on every row that also carried a badge —
+	 * 843 on one, 827 on the next. And a bordered badge on a baseline-aligned
+	 * row hangs below the baseline its neighbour sits on.
+	 */
+	it("keeps a row's trailing chips in one column and on one line", () => {
+		const css = source("src/app/theme.css");
+		const rule = (selector: string) => {
+			const at = css.indexOf(selector + " {");
+			expect(at, selector).toBeGreaterThan(-1);
+			return css.slice(css.indexOf("{", at) + 1, css.indexOf("}", at));
+		};
+		// Only the first hint pushes; the rest follow at the row's own gap.
+		expect(rule(".menu .item .hint ~ .hint")).toContain("margin-left: 0");
+		expect(rule(".node-picker-hit .hint ~ .hint")).toContain("margin-left: 0");
+		// And every trailing chip centres rather than sitting on the baseline.
+		expect(rule(".menu .item .hint")).toContain("align-self: center");
+		expect(rule(".node-picker-hit .hint")).toContain("align-self: center");
+		expect(rule(".hint.runtime")).toContain("align-self: center");
+	});
+
 	/** Narrowing must not widen: the target's filter is applied first, always. */
 	it("narrows what the target allows rather than replacing it", () => {
 		const menu = source("src/app/NodeMenu.tsx");

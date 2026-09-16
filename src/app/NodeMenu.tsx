@@ -436,10 +436,19 @@ export function NodeMenu(props: NodeMenuProps) {
 					</span>
 				</div>
 			)}
+			{present.length === 1 && (
+				/* Nothing to choose between, but something to say. A Lune graph is
+				   all base Luau until the Lune library lands, and an empty space
+				   where the filter goes reads as the filter being broken rather
+				   than as there being one answer. */
+				<div className="menu-runtimes" role="group" aria-label="Runtime">
+					<span className="only" title={RUNTIME_SUMMARY[present[0]]}>
+						Every node here is <strong>{RUNTIME_LABEL[present[0]]}</strong>
+					</span>
+				</div>
+			)}
 			{present.length > 1 && (
-				/* Which runtime, on top of what this graph can compile. The row is
-				   absent when there is only one runtime present, because a filter
-				   with a single option is furniture. */
+				/* Which runtime, on top of what this graph can compile. */
 				<div className="menu-runtimes" role="group" aria-label="Filter by runtime">
 					<button
 						type="button"

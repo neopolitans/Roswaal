@@ -143,6 +143,13 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 			}}
 		>
 			<div className="node-picker" role="dialog" aria-label="Find a node">
+				{present.length === 1 && (
+					<div className="menu-runtimes" role="group" aria-label="Runtime">
+						<span className="only" title={RUNTIME_SUMMARY[present[0]]}>
+							Every node here is <strong>{RUNTIME_LABEL[present[0]]}</strong>
+						</span>
+					</div>
+				)}
 				{present.length > 1 && (
 					<div className="menu-runtimes" role="group" aria-label="Filter by runtime">
 						<button

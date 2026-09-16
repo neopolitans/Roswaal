@@ -76,6 +76,22 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.62.2",
+		date: "2026-09-16",
+		headline: "The runtime badges line up, and a Lune graph says what it is.",
+		affects: ["editor"],
+		fixed: [
+			"**A row carrying both `pure` and a runtime badge put the `pure` in a different place on every row.** Both were pushed right independently, so they split the space between them rather than travelling together — the column stopped being a column.",
+			"**The badge sat two pixels low.** A menu row aligns on the baseline, which is right for a swatch and a title and wrong for a bordered chip: its border hangs below the line its neighbour sits on. Every trailing chip centres now.",
+		],
+		changed: [
+			"**A graph with only one runtime available says so** rather than showing nothing where the filter goes. Every node a Lune graph can compile is base Luau today, so there was nothing to choose between — and an empty space read as the filter being broken instead of as there being one answer.",
+		],
+		watch: [
+			"There are no Lune-only nodes yet, which is why a Lune graph offers base Luau and nothing else. They arrive with the Lune standard library — `@lune/fs`, `@lune/net`, `@lune/process` and the rest — which is a later release in this sequence.",
+		],
+	},
+	{
 		version: "0.62.1",
 		date: "2026-09-16",
 		headline: "Switching a tab no longer leaves you on a blank page.",
