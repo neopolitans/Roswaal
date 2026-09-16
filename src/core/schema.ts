@@ -386,6 +386,52 @@ export interface ScriptVariable {
 	const?: boolean;
 }
 
+/**
+ * A module this script requires, declared once and used wherever.
+ *
+ * The same shape a variable has and for the same reasons: a name you chose, a
+ * declaration that lives on the script rather than on a node, and any number of
+ * uses that refer back to it. Four graphs reading `@lune/fs` are four pills and
+ * one require.
+ *
+ * **This list is the declaration.** The compiler hoists a `require` for every
+ * entry, below the GetService calls; nothing else in the graph can cause one.
+ * That is the whole of the rule the Lune work is built on — a generated file
+ * people read and commit does not get to grow imports nobody chose — and it is
+ * enforced by there being exactly one place a require can come from.
+ */
+export interface ScriptModule {
+	id: string;
+	/**
+	 * The local the module is bound to, and what the Get Module pill shows.
+	 *
+	 * Chosen rather than derived: `@lune/fs` and `./util/fs` both want to be
+	 * `fs`, and which one gets the plain name is the author's call.
+	 */
+	name: string;
+	/**
+	 * What goes inside `require(...)`, verbatim.
+	 *
+	 * Held as written rather than parsed into parts. Every runtime resolves
+	 * these differently and the set is still moving -- Roblox took `@self/` and
+	 * `@game/` and has `.luaurc` aliases "coming", Lune has `@lune/*` built in
+	 * -- so a structure claiming to model them would be a structure to migrate
+	 * every time one of them ships something. The validator checks it; the
+	 * emitter writes it.
+	 */
+	specifier: string;
+	/**
+	 * Names pulled off the module into locals of their own.
+	 *
+	 * Lune's own idiom -- `local roblox = require("@lune/roblox")` then
+	 * `local Instance = roblox.Instance` -- and the reason the datatype nodes
+	 * need no second code path under Lune: bind `Vector3` here and
+	 * `Vector3.new(1, 2, 3)` compiles unchanged.
+	 */
+	members?: string[];
+	description?: string;
+}
+
 export interface NodeScript {
 	schemaVersion: number;
 	kind: "script";
@@ -396,6 +442,11 @@ export interface NodeScript {
 	target: Target;
 	typecheck: TypecheckMode;
 	variables: ScriptVariable[];
+	/**
+	 * What this script requires. Absent on a graph written before 0.63.0, which
+	 * is why every reader defaults it rather than assuming an array.
+	 */
+	modules?: ScriptModule[];
 	nodes: GraphNode[];
 	links: Link[];
 	comments: Comment[];
@@ -423,6 +474,7 @@ export function emptyScript(name: string, id: string): NodeScript {
 		target: "roblox",
 		typecheck: "strict",
 		variables: [],
+		modules: [],
 		nodes: [],
 		links: [],
 		comments: [],

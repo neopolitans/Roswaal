@@ -291,8 +291,18 @@ class Emitter {
 	 * separate preamble buffer is for.
 	 */
 	private services = new Map<string, string>();
-	/** "root/path" -> the local a required module was hoisted to. */
-	private requires = new Map<string, { ident: string; expression: string }>();
+	/**
+	 * What gets required at the top, keyed by what asked for it: `"root/path"`
+	 * for a Require Module node, `"module:<id>"` for a declared one.
+	 */
+	private requires = new Map<string, {
+		ident: string;
+		expression: string;
+		/** Names pulled off it into locals of their own, for a declared module. */
+		members?: { member: string; ident: string }[];
+	}>();
+	/** Declared module id -> the local it was bound to, for Get Module. */
+	private moduleIdents = new Map<string, string>();
 	private preamble: OutLine[] = [];
 	/** Node id -> the comment whose header goes above its code. */
 	private headers = new Map<string, Comment>();
@@ -317,6 +327,10 @@ class Emitter {
 
 	run(): EmitResult {
 		const root = new Scope();
+
+		// Before anything walks the graph, so a declared module gets the plain
+		// name its author chose and a later collision is the one that renames.
+		this.declareModules();
 
 		this.emitTypes();
 		this.emitVariables();
@@ -474,6 +488,54 @@ class Emitter {
 	}
 
 	/**
+	 * The modules this script declares, registered before the walk begins.
+	 *
+	 * `NodeScript.modules` is the only place a require can come from -- the
+	 * whole rule the Lune work is built on is that a generated file does not
+	 * grow imports nobody chose, and it is kept by there being one source.
+	 *
+	 * Registered into the same map `module.requirePath` uses, so a declared
+	 * module and a path-required one share the hoisting, the ordering and the
+	 * naming rather than arriving by two routes that have to agree.
+	 *
+	 * Ahead of the walk because names are first come, first served: a module
+	 * called `fs` should get `fs`, and a local that wants the same name later is
+	 * the one that gets `fs2`.
+	 */
+	private declareModules(): void {
+		// A template has no top of the file to hoist to; it is one expression.
+		if (this.options.inline) return;
+		for (const module of this.script.modules ?? []) {
+			const specifier = module.specifier.trim();
+			if (specifier === "") continue;
+			const ident = this.names.uniqueForFile(module.name || "module", "module");
+			this.moduleIdents.set(module.id, ident);
+			this.requires.set(`module:${module.id}`, {
+				ident,
+				expression: quoteString(specifier),
+				// A member takes the name it asks for, verbatim.
+				//
+				// `uniqueForFile` would not give it one: the emitter reserves the
+				// Roblox globals so a generated local cannot shadow them, and
+				// `Vector3` bound off `@lune/roblox` came out as `Vector32`. But
+				// shadowing is the entire point here -- binding `Vector3` is what
+				// lets `Vector3.new(1, 2, 3)` compile unchanged under Lune, and a
+				// binding the author wrote down is not the accident that rule
+				// guards against. Reserved afterwards so a later generated name
+				// avoids it rather than the other way round.
+				members: (module.members ?? [])
+					.map((member) => member.trim())
+					.filter((member) => member !== "")
+					.map((member) => {
+						const ident = toIdentifier(member);
+						this.names.reserve(ident);
+						return { member, ident };
+					}),
+			});
+		}
+	}
+
+	/**
 	 * Writes the hoisted locals into the preamble, in the order they were first
 	 * asked for. That order is deterministic because the walk is.
 	 *
@@ -492,8 +554,16 @@ class Emitter {
 		if (this.services.size > 0 && this.requires.size > 0) {
 			this.preamble.push({ text: "", indent: 0 });
 		}
-		for (const { ident, expression } of this.requires.values()) {
+		for (const { ident, expression, members } of this.requires.values()) {
 			this.preamble.push({ text: `local ${ident} = require(${expression})`, indent: 0 });
+			// What the module was asked to hand out, bound beneath it. Lune's own
+			// idiom, and what lets `Vector3.new(...)` compile unchanged there.
+			for (const bound of members ?? []) {
+				this.preamble.push({
+					text: `local ${bound.ident} = ${ident}.${bound.member}`,
+					indent: 0,
+				});
+			}
 		}
 		this.preamble.push({ text: "", indent: 0 });
 	}

@@ -109,6 +109,10 @@ export function migrateScript(raw: NodeScript, registry?: Registry): MigrationRe
 		...emptyScript(raw.name, raw.id),
 		...raw,
 		variables: raw.variables ?? [],
+		// Added at 0.63.0. A graph written before it has no modules, which is
+		// not the same as having an empty list nobody wrote -- but it reads the
+		// same, and defaulting here means nothing downstream has to ask.
+		modules: raw.modules ?? [],
 		comments: raw.comments ?? [],
 		links: raw.links ?? [],
 		nodes: raw.nodes ?? [],
