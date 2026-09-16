@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { compile } from "../src/core/compiler/index.js";
+import { compile, serialiseScript } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { emptyScript, type NodeScript, type ScriptModule } from "../src/core/schema.js";
 import { migrateScript } from "../src/core/migrate.js";
@@ -345,6 +345,61 @@ describe("naming a module yourself", () => {
 		// was typed.
 		expect(out).toContain('local util = require("./combat/util")');
 		expect(out).toContain('local inventoryUtil = require("./inventory/util")');
+	});
+});
+
+/**
+ * The round trip, which is where this first went wrong.
+ *
+ * `serialiseScript` writes an explicit list of fields rather than the object,
+ * which is right -- it is the canonical on-disk form and a stray key would end
+ * up in everybody's diffs -- and it means a new field reaches the file only
+ * when somebody adds it there. The panel wrote a module, the store held it,
+ * and the `.nodescript` never heard about it.
+ */
+describe("saving a declaration", () => {
+	const declared: ScriptModule[] = [
+		{ id: "m1", name: "fs", specifier: "@lune/fs" },
+		{ id: "m2", name: "roblox", specifier: "@lune/roblox", members: ["Vector3"] },
+	];
+
+	it("writes the modules to the file", () => {
+		const written = JSON.parse(serialiseScript(withModules(declared))) as { modules?: unknown };
+		expect(written.modules).toEqual([
+			{ id: "m1", name: "fs", specifier: "@lune/fs" },
+			{ id: "m2", name: "roblox", specifier: "@lune/roblox", members: ["Vector3"] },
+		]);
+	});
+
+	it("keeps them in the order they were declared", () => {
+		const written = JSON.parse(serialiseScript(withModules(declared))) as {
+			modules: { name: string }[];
+		};
+		expect(written.modules.map((m) => m.name)).toEqual(["fs", "roblox"]);
+	});
+
+	/** A graph with none writes no key, so existing files do not all change. */
+	it("writes no key when there are none", () => {
+		expect(JSON.parse(serialiseScript(withModules([])))).not.toHaveProperty("modules");
+	});
+
+	it("survives a round trip through the file", () => {
+		const back = migrateScript(
+			JSON.parse(serialiseScript(withModules(declared))) as NodeScript,
+			registry,
+		);
+		expect(back.script.modules).toEqual(declared);
+	});
+
+	/**
+	 * A module changes the generated file, so it has to change the hash that
+	 * decides whether the file needs rewriting — or a declaration would be
+	 * saved and never compiled.
+	 */
+	it("changes the source hash", () => {
+		const without = compile(withModules([]), registry, {}).sourceHash;
+		const with_ = compile(withModules(declared), registry, {}).sourceHash;
+		expect(with_).not.toBe(without);
 	});
 });
 

@@ -9,10 +9,13 @@
 
 import { useState, type DragEvent } from "react";
 
-import type { GraphNode, Literal, NodeScript, ScriptVariable } from "../core/schema.js";
+import type {
+	GraphNode, Literal, NodeScript, ScriptModule, ScriptVariable,
+} from "../core/schema.js";
 import { hoistedFunctions, visibleFrom, type GraphId } from "../core/functionGraph.js";
 import {
-	addVariable, defaultLiteralFor, deleteVariable, localRefFor, updateVariable, variableUsageCount,
+	addModule, addVariable, defaultLiteralFor, deleteModule, deleteVariable, localRefFor,
+	moduleUsageCount, updateModule, updateVariable, variableUsageCount,
 } from "./edits.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { isConstLocal } from "../core/nodes/variables.js";
@@ -91,6 +94,46 @@ export function VariablesPanel({ script, graph, confirm, locked }: VariablesPane
 					<p className="hint">
 						None yet. A variable is a value the whole script can read and write, as opposed to a
 						local, which only exists inside the block that declared it.
+					</p>
+				)}
+
+				{/* What this script requires.
+				    
+				    Here rather than in a panel of its own because it answers the
+				    same question the variables do -- what does this script have
+				    to hand -- and because a require is a dependency, which is
+				    exactly the kind of thing that should be somewhere you can see
+				    it rather than somewhere you have to go looking. */}
+				<h3 className="variables-sub">
+					<span>Modules</span>
+					<button
+						className="tb"
+						title="Require a module"
+						onClick={() =>
+							store.edit((s) => {
+								const { script: next, id } = addModule(s);
+								queueMicrotask(() => setOpen(id));
+								return next;
+							})
+						}
+					>
+						Add
+					</button>
+				</h3>
+				{(script.modules ?? []).map((module) => (
+					<ModuleRow
+						key={module.id}
+						script={script}
+						module={module}
+						confirm={confirm}
+						expanded={open === module.id}
+						onToggle={() => setOpen((id) => (id === module.id ? null : module.id))}
+					/>
+				))}
+				{(script.modules ?? []).length === 0 && (
+					<p className="hint">
+						None. A module is required once at the top of the generated file and read wherever
+						you drag it — so four uses write one <code>require</code>.
 					</p>
 				)}
 
@@ -175,6 +218,119 @@ function TypeRow({
 }
 
 /** One Declare Local: drag it for a Get Local, click it to find the node. */
+/**
+ * One module the script requires: the name it binds, and where it comes from.
+ *
+ * Dragged onto the canvas it becomes a Get Module pill, exactly as a variable
+ * becomes a Get. The specifier is shown on the collapsed row because it is the
+ * part you scan for — two modules called `util` are told apart by where they
+ * came from, not by their names.
+ */
+function ModuleRow(
+	{ module, script, expanded, onToggle, confirm }: {
+		module: ScriptModule;
+		script: NodeScript;
+		expanded: boolean;
+		onToggle: () => void;
+		confirm: VariablesPanelProps["confirm"];
+	},
+) {
+	const uses = moduleUsageCount(script, module.id);
+
+	function onDragStart(e: DragEvent) {
+		e.dataTransfer.setData("application/x-roswaal-module", JSON.stringify({ id: module.id }));
+		e.dataTransfer.effectAllowed = "copy";
+	}
+
+	return (
+		<div className={`variable${expanded ? " expanded" : ""}`}>
+			<div
+				className="variable-head"
+				draggable
+				title="Drag onto the canvas for a Get Module."
+				onDragStart={onDragStart}
+				onClick={onToggle}
+			>
+				<span className="swatch module" />
+				<span className="name">{module.name}</span>
+				<span className="type">{module.specifier || "not set"}</span>
+			</div>
+
+			{expanded && (
+				<div className="variable-body">
+					<label className="field">
+						<span>Name</span>
+						<input
+							className="tb"
+							value={module.name}
+							title="The local this binds to. Yours to choose: two modules called the same thing need telling apart."
+							onChange={(e) =>
+								store.edit((s) => updateModule(s, module.id, { name: e.target.value }))
+							}
+						/>
+					</label>
+					<label className="field">
+						<span>Module</span>
+						<input
+							className="tb"
+							value={module.specifier}
+							placeholder="@lune/fs"
+							title="What goes inside require(...). A prefix is required: @ for an alias, ./ or ../ for a path."
+							onChange={(e) =>
+								store.edit((s) => updateModule(s, module.id, { specifier: e.target.value }))
+							}
+						/>
+					</label>
+					{/* What to pull off it into locals of their own. Lune's own
+					    idiom, and what lets the datatype nodes compile unchanged
+					    there: bind `Vector3` and `Vector3.new(...)` just works. */}
+					<label className="field">
+						<span>Members</span>
+						<input
+							className="tb"
+							value={(module.members ?? []).join(", ")}
+							placeholder="Vector3, CFrame"
+							title="Names bound beneath the require, comma separated. `local Vector3 = roblox.Vector3`."
+							onChange={(e) =>
+								store.edit((s) =>
+									updateModule(s, module.id, {
+										members: e.target.value
+											.split(",")
+											.map((part) => part.trim())
+											.filter((part) => part !== ""),
+									}),
+								)
+							}
+						/>
+					</label>
+					<div className="variable-actions">
+						<span className="hint">
+							{uses === 0 ? "Not used yet" : `${uses} node${uses === 1 ? "" : "s"}`}
+						</span>
+						<button
+							className="tb"
+							onClick={async () => {
+								// Same bargain as a variable: the pills stay as errors rather
+								// than disappearing, so say what that will cost first.
+								const warning =
+									uses === 0
+										? `Delete "${module.name}"?`
+										: `Delete "${module.name}"? ${uses} node${uses === 1 ? "" : "s"} still ` +
+											`reference it, and will report an error until repointed or removed.`;
+								if (await confirm("Delete module", warning, "Delete")) {
+									store.edit((s) => deleteModule(s, module.id));
+								}
+							}}
+						>
+							Delete
+						</button>
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
 function LocalRow({ node }: { node: GraphNode }) {
 	const ref = localRefFor(node);
 	const declared = (node.config as { type?: string } | undefined)?.type?.trim();

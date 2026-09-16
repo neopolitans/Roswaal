@@ -670,6 +670,7 @@ export function Canvas({
 				if (
 					!kinds.includes("application/x-roswaal-variable") &&
 					!kinds.includes("application/x-roswaal-local") &&
+					!kinds.includes("application/x-roswaal-module") &&
 					!kinds.includes("application/x-roswaal-type") &&
 					!kinds.includes("application/x-roswaal")
 				) {
@@ -712,6 +713,34 @@ export function Canvas({
 						return cast
 							? setLiteral(added.script, added.id, "type", { t: "string", v: type })
 							: setConfig(added.script, added.id, { type });
+					});
+					return;
+				}
+
+				// A module from the Modules list: a Get Module pointed at it. The
+				// same shape as a local or a function -- a reference to something
+				// this script declares, rather than a node configured from scratch.
+				const module = e.dataTransfer.getData("application/x-roswaal-module");
+				if (module) {
+					e.preventDefault();
+					const { id } = JSON.parse(module) as { id: string };
+					const def = registry.get("module.get");
+					if (!def) return;
+					const world = toWorld(e.clientX, e.clientY);
+					store.edit((s) => {
+						const declared = (s.modules ?? []).find((m) => m.id === id);
+						const added = addNode(
+							s, def,
+							world.x - NODE.compactMinWidth / 2,
+							world.y - NODE.compactHeight / 2,
+						);
+						queueMicrotask(() => store.select([added.id]));
+						// The name is cached on the node so the capsule has something
+						// to draw; `updateModule` refreshes it on a rename.
+						return setConfig(added.script, added.id, {
+							module: id,
+							name: declared?.name ?? "",
+						});
 					});
 					return;
 				}

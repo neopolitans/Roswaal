@@ -7,7 +7,8 @@
  */
 
 import type {
-	Comment, GraphNode, Link, Literal, NodeDef, NodeScript, PinDef, PinRef, ScriptVariable,
+	Comment, GraphNode, Link, Literal, NodeDef, NodeScript, PinDef, PinRef, ScriptModule,
+	ScriptVariable,
 } from "../core/schema.js";
 import { ANY, PAIR, WILDCARD } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
@@ -959,6 +960,74 @@ export function variableUsageCount(script: NodeScript, id: string): number {
  */
 export function deleteVariable(script: NodeScript, id: string): NodeScript {
 	return { ...script, variables: script.variables.filter((v) => v.id !== id) };
+}
+
+// ---------------------------------------------------------------------------
+// Modules
+// ---------------------------------------------------------------------------
+
+/**
+ * The same four operations a variable has, for the modules a script requires.
+ *
+ * Deliberately parallel rather than shared: a module and a variable are the
+ * same *shape* — declared on the script, named by the author, referenced by
+ * any number of nodes — and a reader who has understood one should find the
+ * other where they expect it.
+ */
+export function addModule(
+	script: NodeScript, name = "module", specifier = "",
+): { script: NodeScript; id: string } {
+	const id = newId();
+	const taken = new Set((script.modules ?? []).map((m) => m.name));
+	let unique = name;
+	for (let i = 2; taken.has(unique); i++) unique = `${name}${i}`;
+
+	return {
+		script: { ...script, modules: [...(script.modules ?? []), { id, name: unique, specifier }] },
+		id,
+	};
+}
+
+/**
+ * Updates a module, and refreshes the name cached on every Get Module pointing
+ * at it.
+ *
+ * The same reason variables do it: pin derivation and the node's label only see
+ * the node's own config, so without this a rename leaves the canvas showing a
+ * name the panel no longer has.
+ */
+export function updateModule(
+	script: NodeScript, id: string, patch: Partial<ScriptModule>,
+): NodeScript {
+	const existing = (script.modules ?? []).find((m) => m.id === id);
+	if (!existing) return script;
+	const updated: ScriptModule = { ...existing, ...patch };
+
+	return {
+		...script,
+		modules: (script.modules ?? []).map((m) => (m.id === id ? updated : m)),
+		nodes: script.nodes.map((node) => {
+			if (node.def !== "module.get") return node;
+			if ((node.config as { module?: string } | undefined)?.module !== id) return node;
+			return { ...node, config: { ...node.config, module: id, name: updated.name } };
+		}),
+	};
+}
+
+/** How many Get Module nodes read this one. Shown before deleting it. */
+export function moduleUsageCount(script: NodeScript, id: string): number {
+	return script.nodes.filter(
+		(n) => n.def === "module.get" && (n.config as { module?: string } | undefined)?.module === id,
+	).length;
+}
+
+/**
+ * Removes a module and leaves the pills that referenced it in place, which is
+ * the same bargain `deleteVariable` makes: an error you can see and undo beats
+ * nodes vanishing because a declaration went away.
+ */
+export function deleteModule(script: NodeScript, id: string): NodeScript {
+	return { ...script, modules: (script.modules ?? []).filter((m) => m.id !== id) };
 }
 
 // ---------------------------------------------------------------------------

@@ -7319,6 +7319,27 @@ button.tb.danger {
 	}
 }
 
+/* A module's swatch. A variable's is its type's colour; a module has no type,
+   so it gets the outline that says "a thing, not a value". */
+.variables .swatch.module {
+	background: none;
+	border: 1px solid var(--fg-faint);
+}
+
+/* The Modules heading carries an Add button, which the other subheadings do
+   not -- they list what the graph already declares, and this one declares. */
+.variables h3.variables-sub {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.variables h3.variables-sub button.tb {
+	margin-left: auto;
+	font-size: 11px;
+	padding: 1px 8px;
+}
+
 /* ------------------------------------------ the runtime filter and badge */
 
 /* Which runtime, on top of the filter the graph's own target already applies.

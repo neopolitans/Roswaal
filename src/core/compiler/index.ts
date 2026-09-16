@@ -115,6 +115,12 @@ export function semanticJson(script: NodeScript): string {
 			id: v.id, name: v.name, type: v.type, default: v.default,
 			description: v.description ?? null,
 		})),
+		// Modules change the generated file, so they have to change the hash
+		// that decides whether it needs rewriting.
+		modules: (script.modules ?? []).map((m) => ({
+			id: m.id, name: m.name, specifier: m.specifier,
+			members: m.members ?? null, description: m.description ?? null,
+		})),
 		nodes,
 		links,
 	});
@@ -140,6 +146,19 @@ export function serialiseScript(script: NodeScript): string {
 			default: v.default,
 			...(v.description ? { description: v.description } : {}),
 		})),
+		// Declaration order is the author's here too: it is the order the requires
+		// come out in, which a reader of the generated file sees.
+		...((script.modules ?? []).length > 0
+			? {
+				modules: (script.modules ?? []).map((m) => ({
+					id: m.id,
+					name: m.name,
+					specifier: m.specifier,
+					...(m.members && m.members.length > 0 ? { members: m.members } : {}),
+					...(m.description ? { description: m.description } : {}),
+				})),
+			}
+			: {}),
 		nodes: [...script.nodes]
 			.sort((a, b) => a.id.localeCompare(b.id))
 			.map((n) => ({
