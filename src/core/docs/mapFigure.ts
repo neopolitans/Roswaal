@@ -596,12 +596,12 @@ export function mapPanelHtml(figure: MapFigure): string {
 			);
 
 	const tail = lune
-		? `<h2>The layout</h2>` +
+		? `<h2 data-part="preview">The layout</h2>` +
 			`<p class="summary">Directories and files, as they sit on disk. Nothing is written ` +
 			`when this is compiled — a Lune program has no project file, so what compiling does ` +
 			`is check the layout holds together.</p>` +
-			`<pre class="map-preview layout" data-part="preview">${preview}</pre>`
-		: `<h2>Project file</h2>` +
+			`<pre class="map-preview layout" data-part="preview" data-quiet>${preview}</pre>`
+		: `<h2 data-part="preview">Project file</h2>` +
 			`<p class="summary">Written to <code>${escapeXml(figure.output)}</code> when this ` +
 			`map is compiled.</p>` +
 			field("Output", input("output", figure.output), "output") +
@@ -611,7 +611,7 @@ export function mapPanelHtml(figure: MapFigure): string {
 				figure.globIgnorePaths,
 				"globs",
 			) +
-			`<pre class="map-preview" data-part="preview">${preview}</pre>`;
+			`<pre class="map-preview" data-part="preview" data-quiet>${preview}</pre>`;
 
 	const ignorePaths = lune
 		? ""
@@ -626,8 +626,8 @@ export function mapPanelHtml(figure: MapFigure): string {
 			`<button class="tb" disabled>Delete</button>`;
 
 	return `<div class="map-editor">` +
-		`<div class="map-tree" data-part="tree">` +
-		`<div class="map-bar"><span>${escapeXml(figure.name)}</span>` +
+		`<div class="map-tree" data-part="tree" data-quiet>` +
+		`<div class="map-bar" data-grip="tree"><span>${escapeXml(figure.name)}</span>` +
 		`<span style="flex:1"></span><button class="tb" disabled>Undo</button></div>` +
 		rows +
 		`</div>` +

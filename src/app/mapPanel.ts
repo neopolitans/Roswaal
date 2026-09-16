@@ -223,15 +223,17 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 		return part && figure.contains(part) ? part.dataset.control ?? null : null;
 	};
 
+	// Both of these say what the state *is* for wherever the pointer now is,
+	// rather than reacting to having entered something. Reacting left the
+	// previous answer on screen whenever the pointer moved onto a piece of the
+	// panel that is not a part -- which is most of it.
 	const onOver = (e: Event) => {
-		const key = keyAt(e.target);
-		if (key === null) return;
-		paint(key);
+		paint(keyAt(e.target) ?? picked);
 	};
 
-	const onOut = (e: Event) => {
-		if (keyAt(e.target) === null) return;
+	const onLeave = () => {
 		paint(picked);
+		shine(null);
 	};
 
 	const onClick = (e: Event) => {
@@ -269,28 +271,35 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 		figure.classList.toggle("pointing", part !== null);
 	};
 
+	/**
+	 * What the pointer is asking about, which is not the same as what lights.
+	 *
+	 * The tree body and the project file both light — hovering "The tree" in
+	 * the legend should ring the whole tree — but neither may *trigger*,
+	 * because the reader is inside them the whole time they are using the
+	 * other pairing. Hovering a row to watch its lines light, and having the
+	 * project file dim for being the part you are not pointing at, is the
+	 * figure putting out the thing it was asked to show.
+	 *
+	 * So they carry `data-quiet`, and the header above each carries the grip
+	 * instead: the map's own bar for the tree, the "Project file" heading for
+	 * the output. Point at the heading and you are asking where that section
+	 * is; point inside it and you are reading it.
+	 */
 	const partAt = (target: EventTarget | null): string | null => {
 		if (!(target instanceof Element)) return null;
-		const one = target.closest<HTMLElement>("[data-part]");
-		return one && figure.contains(one) ? one.dataset.part ?? null : null;
+		const one = target.closest<HTMLElement>("[data-grip],[data-part]:not([data-quiet])");
+		if (!one || !figure.contains(one)) return null;
+		return one.dataset.grip ?? one.dataset.part ?? null;
 	};
 
 	const onPartOver = (e: Event) => {
-		const part = partAt(e.target);
-		if (part === null) return;
-		shine(part);
-	};
-
-	const onPartOut = (e: Event) => {
-		if (partAt(e.target) === null) return;
-		shine(null);
+		shine(partAt(e.target));
 	};
 
 	figure.addEventListener("pointerover", onPartOver);
-	figure.addEventListener("pointerout", onPartOut);
-
 	figure.addEventListener("pointerover", onOver);
-	figure.addEventListener("pointerout", onOut);
+	figure.addEventListener("pointerleave", onLeave);
 	figure.addEventListener("click", onClick);
 	figure.classList.add("linked");
 
@@ -304,9 +313,8 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 
 	return () => {
 		figure.removeEventListener("pointerover", onPartOver);
-		figure.removeEventListener("pointerout", onPartOut);
 		figure.removeEventListener("pointerover", onOver);
-		figure.removeEventListener("pointerout", onOut);
+		figure.removeEventListener("pointerleave", onLeave);
 		figure.removeEventListener("click", onClick);
 		figure.classList.remove("pointing");
 		for (const one of parts) one.classList.remove("shown");

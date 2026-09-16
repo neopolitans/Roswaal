@@ -7932,9 +7932,30 @@ button.tb.danger {
 	border-left-color: var(--accent);
 }
 
-.docs-map-frame [data-part].shown {
-	box-shadow: 0 0 0 2px var(--accent);
+/* The ring is an overlay, not a shadow or an outline.
+
+   Both of those are painted with the element's own box decoration, which put
+   them underneath two different things. The tree fills its half of the frame
+   and touches three of its edges, so an outer shadow was cut off by the
+   frame's `overflow: hidden`; and the tree's bar is `position: sticky` with a
+   z-index, so an inset one was painted over along the top. The Inspector's
+   fields had the milder version of the same thing, the next field's background
+   covering the millimetre of ring between them.
+
+   A pseudo-element sits above all of it, inside the box so nothing can clip
+   it, and takes no pointer events so it cannot change what is being hovered. */
+.docs-map-frame [data-part] {
+	position: relative;
+}
+
+.docs-map-frame [data-part].shown::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border: 2px solid var(--accent);
 	border-radius: 4px;
+	pointer-events: none;
+	z-index: 4;
 }
 
 .docs-map > figcaption {

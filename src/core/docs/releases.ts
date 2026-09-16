@@ -112,6 +112,8 @@ export const RELEASES: Release[] = [
 		fixed: [
 			"The article's typography was reaching inside drawn panels, so the Inspector's section headings came out at body size and their hints came out as paragraphs — which between them ate most of the height the figure had.",
 			"A figure's caption was being laid out as a column of the figure rather than underneath it.",
+			"**Reading the panel no longer dims the panel.** Hovering a row to watch its lines light was dimming the project file those lines are in. The tree and the output light when asked about, but only their headers — the map's bar, and *Project file* — ask; being inside one is reading it, not pointing at it.",
+			"The highlight ring was being painted underneath the tree's own header bar and under the next field along, so it looked clipped or missing. It is drawn over the top now.",
 		],
 		watch: [
 			"The buttons in the drawn panel are dimmed because they do nothing: there is no project behind the figure to add a folder to. The fields are live — they follow the selected row — so they are not dimmed.",
