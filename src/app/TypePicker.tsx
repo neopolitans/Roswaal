@@ -27,9 +27,18 @@ import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 import { Icon } from "./icons.jsx";
 import { useEditor } from "./store.js";
+import {
+	LUAU_PRIMITIVES, LUNE_ROBLOX_TYPES, LUNE_TYPES, requiresLuneRoblox,
+} from "../core/luneTypes.js";
 
-/** What Luau has, before Roblox adds anything. */
-const BASIC_TYPES = ["any", "boolean", "number", "string", "table", "function"];
+/**
+ * What Luau has, before either runtime adds anything.
+ *
+ * From `luneTypes.ts` rather than listed here, because listing it here is how
+ * it came to be missing `buffer`, `thread` and `nil` — all three are Luau's,
+ * and `fs.readFile` can hand you a `buffer` that this picker could not name.
+ */
+const BASIC_TYPES = LUAU_PRIMITIVES;
 
 /**
  * Roblox's own values — not instances, and not primitives either.
@@ -88,12 +97,37 @@ export interface TypeGroup {
  */
 export function listGroups(script: NodeScript | undefined, required: string[] = []): TypeGroup[] {
 	const declared = declaredTypes(script);
+	const lune = script?.target === "lune";
+
+	/**
+	 * Roblox's types, in a Lune graph, only once the graph has asked for them.
+	 *
+	 * `@lune/roblox` genuinely gives a Lune program `Instance`, `DataModel` and
+	 * the datatypes — so they are not wrong there, they are *conditional*. The
+	 * condition is a require the developer wrote, which is the rule everything
+	 * else about modules is built on: offering `CFrame` to a graph that has not
+	 * required it would be the picker assuming a dependency.
+	 */
+	const robloxInLune = lune && requiresLuneRoblox(script);
+
 	return [
 		...(declared.length > 0 ? [{ label: "This graph", types: declared }] : []),
 		...(required.length > 0 ? [{ label: "Required modules", types: required }] : []),
 		{ label: "Basic", types: BASIC_TYPES },
-		{ label: "Roblox values", types: DATATYPES },
-		{ label: "Instances", types: COMMON_CLASSES },
+		...(lune
+			? [{
+				label: "Lune",
+				// The `@lune/roblox` ones are offered under their own heading
+				// below, or not at all, so they are not in here twice.
+				types: LUNE_TYPES.filter((type) => !LUNE_ROBLOX_TYPES.includes(type)),
+			}]
+			: [
+				{ label: "Roblox values", types: DATATYPES },
+				{ label: "Instances", types: COMMON_CLASSES },
+			]),
+		...(robloxInLune
+			? [{ label: "From @lune/roblox", types: [...LUNE_ROBLOX_TYPES, ...DATATYPES] }]
+			: []),
 	];
 }
 
@@ -111,11 +145,16 @@ export function listedTypes(script: NodeScript | undefined, required: string[] =
  * know the answer isn't in.
  */
 export function searchTypes(script: NodeScript | undefined, required: string[] = []): string[] {
+	const listed = listedTypes(script, required);
+	// The engine's six hundred classes belong behind Other… in a Roblox graph,
+	// and in a Lune graph only once `@lune/roblox` is required — a program that
+	// opens a place file does deal in `Part` and `Model`, and one that does not
+	// has no use for either.
+	const engine = script?.target !== "lune" || requiresLuneRoblox(script);
 	return [...new Set([
-		...listedTypes(script, required),
-		...INSTANCE_CLASSES,
-		...CLASSES,
-		...ENGINE_DATATYPES,
+		...listed,
+		...(engine ? [...INSTANCE_CLASSES, ...CLASSES, ...ENGINE_DATATYPES] : []),
+		...(script?.target === "lune" ? LUNE_TYPES : []),
 	])];
 }
 

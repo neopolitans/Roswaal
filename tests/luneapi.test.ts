@@ -16,6 +16,9 @@
 import { describe, expect, it } from "vitest";
 
 import { LUNE_MODULES, LUNE_VERSION, type LuneFunction } from "../src/core/luneApi.js";
+import { requiresLuneRoblox } from "../src/core/luneTypes.js";
+import { listedTypes, listGroups, searchTypes } from "../src/app/TypePicker.jsx";
+import { emptyScript, type NodeScript } from "../src/core/schema.js";
 
 const byAlias = new Map(LUNE_MODULES.map((module) => [module.alias, module]));
 
@@ -128,5 +131,84 @@ describe("as node definitions will read it", () => {
 		const all = LUNE_MODULES.flatMap((module) => module.functions);
 		expect(all.some((one) => one.mustUse)).toBe(true);
 		expect(all.some((one) => !one.mustUse)).toBe(true);
+	});
+});
+
+/**
+ * Which types a graph is offered, which is a question about its target.
+ *
+ * The picker was built when there was one target, so it offered Luau's
+ * primitives, then Roblox's datatypes, then Instance classes — the whole world,
+ * if the whole world is Roblox. A Lune graph got `CFrame` and `Humanoid` and
+ * had never heard of `DateTime`, which made the one runtime you would have to
+ * type a type by hand for the one Roswaal is adding support for.
+ */
+describe("the types a graph can pick from", () => {
+	const graph = (target: "roblox" | "lune", extra: Partial<NodeScript> = {}): NodeScript => ({
+		...emptyScript("Example", "example"),
+		target,
+		...extra,
+	});
+
+	const labels = (script: NodeScript) => listGroups(script).map((one) => one.label);
+
+	it("offers Roblox's own to a Roblox graph", () => {
+		expect(labels(graph("roblox"))).toContain("Roblox values");
+		expect(labels(graph("roblox"))).toContain("Instances");
+		expect(labels(graph("roblox"))).not.toContain("Lune");
+	});
+
+	it("offers Lune's to a Lune graph, and not the engine's", () => {
+		const found = labels(graph("lune"));
+		expect(found).toContain("Lune");
+		expect(found).not.toContain("Roblox values");
+		expect(found).not.toContain("Instances");
+	});
+
+	it("has the types the standard library actually deals in", () => {
+		const offered = listedTypes(graph("lune"));
+		for (const type of ["DateTime", "Regex", "WebSocket", "Metadata", "ChildProcess"]) {
+			expect(offered, type).toContain(type);
+		}
+	});
+
+	/** Luau's own, and all three were missing from a list written by hand. */
+	it("offers buffer, thread and nil to both", () => {
+		for (const target of ["roblox", "lune"] as const) {
+			for (const type of ["buffer", "thread", "nil"]) {
+				expect(listedTypes(graph(target)), `${target}: ${type}`).toContain(type);
+			}
+		}
+	});
+
+	/**
+	 * `@lune/roblox` genuinely gives a Lune program `Instance` and the
+	 * datatypes, so they are conditional there rather than wrong — and the
+	 * condition is a require somebody wrote.
+	 */
+	it("keeps Roblox's types out of a Lune graph that has not required them", () => {
+		expect(listedTypes(graph("lune"))).not.toContain("Instance");
+		expect(searchTypes(graph("lune"))).not.toContain("Humanoid");
+	});
+
+	it("offers them once the graph requires `@lune/roblox`", () => {
+		const required = graph("lune", {
+			modules: [{ id: "m1", name: "roblox", specifier: "@lune/roblox" }],
+		});
+		expect(labels(required)).toContain("From @lune/roblox");
+		expect(listedTypes(required)).toContain("Instance");
+		expect(searchTypes(required)).toContain("Humanoid");
+	});
+
+	/** The canvas is the other way of asking, and counts the same. */
+	it("counts a Require at Top as having asked", () => {
+		const onCanvas = graph("lune", {
+			nodes: [{
+				id: "n1", def: "module.requireTop", x: 0, y: 0,
+				literals: { specifier: { t: "raw", v: "@lune/roblox" } },
+			}],
+		});
+		expect(requiresLuneRoblox(onCanvas)).toBe(true);
+		expect(listedTypes(onCanvas)).toContain("Instance");
 	});
 });
