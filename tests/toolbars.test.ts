@@ -15,6 +15,10 @@
  * editor's own Docs panel.
  */
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
@@ -366,6 +370,56 @@ describe("the documentation's toolbar linker", () => {
 		expect(() => new Function("document", linker)(document)).not.toThrow();
 		expect(figureClasses).toContain("linked");
 		expect(listeners.pointerover).toBeTypeOf("function");
+	});
+});
+
+/**
+ * The switch between two drawn bars, and the blank page it used to cause.
+ *
+ * A `tabs` block hides its radios with `position: absolute`. With no positioned
+ * ancestor their containing block was the **body**, so inputs sitting at their
+ * static position deep inside a separately-scrolling column contributed to the
+ * *body's* scrollable overflow. On the Toolbars page two of them landed at
+ * y=2845 and y=3441 and stretched the document to 3454px, when the content box
+ * is one viewport tall and scrolls internally.
+ *
+ * Harmless until somebody clicked a tab. A `<label for>` focuses its input, a
+ * browser scrolls a focused element into view, and the window scrolled two
+ * thousand pixels below anything that renders: a blank page, and nothing in the
+ * console because nothing threw.
+ *
+ * It survived three attempts to reproduce it because a scripted `.click()` does
+ * not focus, so only a real pointer ever triggered it. Hence a test on the
+ * stylesheet rather than on behaviour — this is a rule about the CSS, and the
+ * CSS is what can quietly lose it.
+ */
+describe("the tab switch does not move the window", () => {
+	const css = readFileSync(
+		join(dirname(fileURLToPath(import.meta.url)), "..", "src/app/theme.css"),
+		"utf8",
+	);
+	const rule = (selector: string) => {
+		const at = css.indexOf(selector + " {");
+		expect(at, `no rule for ${selector}`).toBeGreaterThan(-1);
+		return css.slice(css.indexOf("{", at) + 1, css.indexOf("}", at));
+	};
+
+	it("gives the hidden radios a containing block of their own", () => {
+		expect(rule(".docs-tabs")).toContain("position: relative");
+	});
+
+	/**
+	 * And pins them inside it. At `auto` offsets an absolute element keeps its
+	 * static position, which is the part that reached down the page.
+	 */
+	it("pins them to the top of the switch rather than leaving them in flow", () => {
+		const input = rule(".docs-tabs > input");
+		expect(input).toContain("position: absolute");
+		expect(input).toContain("top: 0");
+		expect(input).toContain("left: 0");
+		// An input has an intrinsic width; at its natural size it can still
+		// widen a narrow page.
+		expect(input).toContain("width: 1px");
 	});
 });
 

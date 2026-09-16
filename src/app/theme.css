@@ -5931,10 +5931,33 @@ button.tb.danger {
    the panel renders the chosen one. Both use these rules. */
 .docs-tabs {
 	margin: 16px 0;
+	/* A containing block for the radios below, and it is load-bearing.
+	 *
+	 * Without it their nearest positioned ancestor is the *body*, so three
+	 * absolutely-positioned inputs sitting at their static position deep inside
+	 * a separately-scrolling column were contributing to the body's scrollable
+	 * overflow -- on the Toolbars page they landed at y=2845 and y=3441 and
+	 * stretched the document to 3454px when the content box is one viewport
+	 * tall and scrolls internally.
+	 *
+	 * Which was survivable until somebody clicked a tab. A `<label for>` focuses
+	 * its input, the browser scrolls a focused element into view, and the window
+	 * scrolled to a radio two thousand pixels below anything that renders:
+	 * **a blank page, with nothing in the console**. Reported twice and
+	 * invisible to a scripted click, because `.click()` does not focus. */
+	position: relative;
 }
 
+/* Hidden, and pinned to the top of their own tabs block so that focusing one
+   scrolls to the switch the reader just used rather than into empty space.
+   1px rather than `auto`: an input has an intrinsic width, and at its natural
+   size it can still widen a narrow page. */
 .docs-tabs > input {
 	position: absolute;
+	top: 0;
+	left: 0;
+	width: 1px;
+	height: 1px;
 	opacity: 0;
 	pointer-events: none;
 }

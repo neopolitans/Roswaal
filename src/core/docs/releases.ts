@@ -76,6 +76,18 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.62.1",
+		date: "2026-09-16",
+		headline: "Switching a tab no longer leaves you on a blank page.",
+		affects: ["docs"],
+		fixed: [
+			"**Clicking a tab on a documentation page could scroll the window to an empty part of the document.** The switch hides its radio buttons by positioning them absolutely, and with no positioned ancestor they were measured against the page itself — so on [Toolbars](toolbars) two of them sat two thousand pixels below anything that renders and stretched the document to three times its height. Clicking the label focused one, the browser scrolled it into view, and you landed on nothing at all. Nothing threw, so there was nothing in the console either.",
+		],
+		watch: [
+			"It only ever happened to a real pointer. Focus is what moved the window, and a scripted click does not focus — which is why it survived three attempts to reproduce it.",
+		],
+	},
+	{
 		version: "0.62.0",
 		date: "2026-09-16",
 		headline: "Search nodes by the runtime they work for.",
