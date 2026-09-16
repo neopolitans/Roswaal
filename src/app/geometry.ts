@@ -63,7 +63,7 @@ export function pinPosition(
 	// A pill's inputs run down its left; its one result sits on the right, level
 	// with the middle of the pill rather than with a row.
 	if (isOperator(def)) {
-		const layout = operatorLayoutOf(def, node.config);
+		const layout = operatorLayoutOf(def, node.config, node.literals);
 		return side === "in"
 			? { x: node.x, y: node.y + layout.rowsTop + index * NODE.rowHeight + NODE.rowHeight / 2 }
 			: { x: node.x + layout.width, y: node.y + layout.height / 2 };

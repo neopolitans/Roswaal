@@ -302,7 +302,7 @@ function renderOperator(
 	props: NodeViewProps, def: NodeDef, inputs: PinDef[], output: PinDef | undefined,
 ) {
 	const { node, selected } = props;
-	const layout = operatorLayoutOf(def, node.config);
+	const layout = operatorLayoutOf(def, node.config, node.literals);
 	const rows = inputs.filter((pin) => pin.kind === "data");
 
 	return (

@@ -14,7 +14,7 @@ import { NODE } from "./nodeMetrics.js";
 import {
 	operatorEditorWidth, operatorFields, operatorLayout, operatorSymbol, type OperatorLayout,
 } from "./operatorLayout.js";
-import type { GraphNode, NodeConfig, NodeDef, PinDef } from "./schema.js";
+import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "./schema.js";
 import type { Registry } from "./nodes/index.js";
 import { nodeTitle, resolveNodePins } from "./nodes/index.js";
 
@@ -62,13 +62,22 @@ export function isOperator(def: NodeDef | undefined): boolean {
 	return def?.display === "operator";
 }
 
-/** Where everything on an operator pill goes, from the node's own pins. */
-export function operatorLayoutOf(def: NodeDef, config?: NodeConfig): OperatorLayout {
+/**
+ * Where everything on an operator pill goes, from the node's own pins.
+ *
+ * `literals` matters for a pill whose pins carry no default -- `compare.eq`'s
+ * are `any` -- where the only thing that puts a field on a row is a value
+ * somebody typed. Without it the pill was measured as though it had no editor
+ * column and drawn with one.
+ */
+export function operatorLayoutOf(
+	def: NodeDef, config?: NodeConfig, literals?: Record<string, Literal | undefined>,
+): OperatorLayout {
 	const { inputs } = resolvePins(def, config);
 	return operatorLayout(
 		{
 			symbol: operatorSymbol(def, config),
-			editor: operatorEditorWidth(operatorFields(inputs), NODE),
+			editor: operatorEditorWidth(operatorFields(inputs, literals), NODE),
 			rows: inputs.filter((p) => p.kind === "data").length,
 			growable: def.variadic !== undefined,
 		},
@@ -154,7 +163,7 @@ export function nodeBounds(node: GraphNode, registry: Registry, wide = false): R
 		};
 	}
 	if (isOperator(def)) {
-		const layout = operatorLayoutOf(def, node.config);
+		const layout = operatorLayoutOf(def, node.config, node.literals);
 		return { x: node.x, y: node.y, w: layout.width, h: layout.height };
 	}
 	const { inputs, outputs } = resolvePins(def, node.config);

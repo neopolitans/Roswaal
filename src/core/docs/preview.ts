@@ -249,6 +249,7 @@ export function previewOf(def: NodeDef, config?: NodeConfig): NodePreview {
 /** What a pill needs to be drawn, or nothing for a node that is not one. */
 function operatorOf(
 	def: NodeDef, inputs: PinDef[], config?: NodeConfig,
+	literals?: Record<string, Literal | undefined>,
 ): NodePreview["operator"] {
 	if (def.display !== "operator") return undefined;
 	return {
@@ -256,7 +257,9 @@ function operatorOf(
 		// the docs draw placed nodes as well as bare definitions.
 		symbol: operatorSymbol(def, config),
 		growable: def.variadic !== undefined,
-		fields: operatorFields(inputs),
+		// And from the node's values, so a pill whose pins have no default is
+		// still measured with room for the field a typed value draws.
+		fields: operatorFields(inputs, literals),
 	};
 }
 
@@ -989,7 +992,7 @@ export function previewOfPlaced(
 		category: def.category,
 		role: def.role,
 		display: def.display ?? "normal",
-		operator: operatorOf(def, inputs, config),
+		operator: operatorOf(def, inputs, config, node.literals),
 		latent: def.latent === true,
 		inputs: inputs.map((pin) => ({
 			id: pin.id,

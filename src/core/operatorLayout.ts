@@ -13,7 +13,7 @@
  * apart with nothing to say which was right.
  */
 
-import type { NodeConfig, NodeDef, PinDef } from "./schema.js";
+import type { Literal, NodeConfig, NodeDef, PinDef } from "./schema.js";
 
 /** Canvas geometry this needs, structurally satisfied by `NODE`. */
 export interface OperatorGeometry {
@@ -58,14 +58,35 @@ export interface OperatorLayout {
 export type OperatorField = "field" | "wide" | "check";
 
 /**
- * Which editor each row shows, from the pins' own defaults.
+ * Which editor each row shows, from the pins' defaults and the node's own
+ * values.
  *
- * Deliberately not from what is wired: a node that changed width when a wire
+ * Deliberately not from what is *wired*: a node that changed width when a wire
  * arrived would move every pin below it, and the wire that had just been
  * connected with it. Kinds rather than pixels, because a preview is built
  * without geometry and measured with it.
+ *
+ * ## Why `literals` and not defaults alone
+ *
+ * A pill's width has to leave room for exactly the editors that get drawn, and
+ * what gets drawn is the pin's default *or the value on this node*. For most
+ * operators those agree — `math.add`'s pins default to `0`, so the column is
+ * there whether or not anybody typed in it.
+ *
+ * `compare.eq` is the case where they do not. Its pins are `any` with no
+ * default, because there is no sensible one to compare against, so this
+ * returned nothing and the pill was built with no editor column at all. Type a
+ * `0` into one and the field was drawn anyway, in a node with no room for it:
+ * it hung off the left-hand side, overlapping the node beside it.
+ *
+ * Passing the node's literals keeps the width and the drawing answering the
+ * same question. It stays stable under wiring, because a literal is not
+ * removed when a wire lands on the pin — the field stops being drawn and the
+ * column simply stays empty, which is the thing that must not move.
  */
-export function operatorFields(inputs: PinDef[]): OperatorField[] {
+export function operatorFields(
+	inputs: PinDef[], literals?: Record<string, Literal | undefined>,
+): OperatorField[] {
 	const out: OperatorField[] = [];
 	for (const pin of inputs) {
 		if (pin.kind !== "data" || pin.required === true) continue;
@@ -73,7 +94,7 @@ export function operatorFields(inputs: PinDef[]): OperatorField[] {
 			out.push("field");
 			continue;
 		}
-		const literal = pin.default;
+		const literal = literals?.[pin.id] ?? pin.default;
 		if (!literal) continue;
 		if (literal.t === "boolean") out.push("check");
 		else if (literal.t === "number" || literal.t === "raw") out.push("field");
