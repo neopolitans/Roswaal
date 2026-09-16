@@ -161,6 +161,28 @@ function Carousel({ label, children }: { label: string; children: React.ReactNod
 	);
 }
 
+/**
+ * What to say when there is nothing to list.
+ *
+ * By surface, not by host. `IS_STATIC_HOST` is true for the published
+ * documentation *and* for the editor running over a volume in the browser, and
+ * the first version of this said "this is the published documentation" while
+ * sitting in the editor — which is both wrong and unhelpful, since that window
+ * is exactly where a project is opened.
+ */
+function emptyReason(surface: Page): string {
+	if (surface === "editor") {
+		return IS_STATIC_HOST
+			? "Nothing opened yet. Open a folder from your machine, or carry on in the demo — "
+				+ "this editor keeps its project in your browser."
+			: "Nothing opened yet. Open a folder to get started.";
+	}
+	return IS_STATIC_HOST
+		? "This is the published documentation, so there are no projects here. "
+			+ "The editor is where one is opened."
+		: "No projects yet. The editor is where one is opened.";
+}
+
 /** The chip saying which runtime a demo compiles for. */
 function TargetChip({ target }: { target: DemoProject["target"] }) {
 	return <span className={`badge runtime ${target}`}>{RUNTIME_LABEL[target]}</span>;
@@ -401,12 +423,7 @@ export function IntroPanel(props: IntroPanelProps) {
 					{trouble !== null && <p className="intro-trouble">{trouble}</p>}
 
 					{listed.length === 0 && offered.length === 0 && demos.length === 0 && (
-						<p className="intro-empty">
-							{IS_STATIC_HOST
-								? "This is the published documentation, so there are no projects here. "
-								: "No projects yet. "}
-							The editor is where one is opened.
-						</p>
+						<p className="intro-empty">{emptyReason(surface)}</p>
 					)}
 				</div>
 

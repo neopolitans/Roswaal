@@ -539,7 +539,11 @@ export function App() {
 				if (existing.open) {
 					api.setProjectRoot(existing.root);
 					setProject(existing);
-					remember(existing.root);
+					// Guarded for the reason `loadProject` is: the browser build's
+					// roots are mount points on its own volume, and the playground
+					// always has one open — so every load was putting `/demo` on
+					// the recent list, which is not a project anybody chose.
+					if (!IS_STATIC_HOST) remember(existing.root);
 					setCustomNodes((await api.customNodes()).custom);
 					refreshTypes();
 					refreshAliases();
