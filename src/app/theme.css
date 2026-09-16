@@ -7995,7 +7995,14 @@ button.tb.danger {
 .intro-backdrop {
 	position: fixed;
 	inset: 0;
-	z-index: 90;
+	/* Under the dialogs, not over them.
+
+	   `Dialog` sits at `LAYER.menu + 1`, and this was at 90 — so a notice
+	   raised while the panel was open rendered behind it: invisible, modal,
+	   and holding the focus. Opening a recent project that had been deleted
+	   did exactly that, which is how it was found. Above everything on the
+	   canvas, below anything that speaks. */
+	z-index: 68;
 	display: grid;
 	place-items: center;
 	padding: 24px;
@@ -8315,4 +8322,57 @@ button.tb.danger {
 	.docs-preview.graph.with-panel {
 		grid-template-columns: minmax(0, 1fr);
 	}
+}
+
+/* A recent card is two controls: the project, and taking it off the list.
+
+   The cross is the affordance the project menu had and the first version of
+   this panel dropped — which left a root that had been deleted, or thrown away
+   with the browser volume, sitting there failing every time it was pressed. */
+.intro-card {
+	position: relative;
+}
+
+.intro-card-open-it {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	width: 100%;
+	padding: 0;
+	border: 0;
+	background: none;
+	text-align: left;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+}
+
+.intro-forget {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	width: 20px;
+	height: 20px;
+	min-width: 0;
+	padding: 0;
+	opacity: 0;
+	transition: opacity 90ms ease;
+}
+
+/* Shown on the card it belongs to, and always once the keyboard is on it —
+   a control that only exists under a pointer is one a keyboard cannot reach. */
+.intro-card:hover .intro-forget,
+.intro-forget:focus-visible {
+	opacity: 1;
+}
+
+/* A project that would not open. Marked rather than removed: taking it off the
+   list is the reader's decision, and one they may not want if the drive it is
+   on is simply not plugged in today. */
+.intro-card.gone {
+	border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+}
+
+.intro-card-open.gone {
+	color: var(--danger);
 }

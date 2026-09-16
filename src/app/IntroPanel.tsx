@@ -68,10 +68,21 @@ export interface IntroPanelProps {
 	/** The open project, where there is one, so its card can say so. */
 	current?: string | null;
 	/**
-	 * Open a project in this window. Only the editor can; the other two hand
-	 * the root to the host and open the editor tab instead.
+	 * Open a project in this window, answering whether it opened. Only the
+	 * editor can; the other two hand the root to the host and open the editor
+	 * tab instead.
 	 */
-	onOpen?: (root: string) => void;
+	onOpen?: (root: string) => Promise<boolean>;
+	/**
+	 * Take a project off the recent list.
+	 *
+	 * The list is roots from previous sessions, and a root can stop being a
+	 * project between them — deleted, renamed, on a drive that is not plugged
+	 * in, or in the browser build thrown away with the volume. Without this
+	 * the entry sits there failing every time it is pressed, which is what the
+	 * menu this panel replaced had a cross for.
+	 */
+	onForget?: (root: string) => void;
 	/** Back to the picker, where this window has one. */
 	onHome?: () => void;
 	/** Project actions the editor's old menu carried, where the host has them. */
@@ -143,7 +154,7 @@ function TargetChip({ target }: { target: DemoProject["target"] }) {
 }
 
 export function IntroPanel(props: IntroPanelProps) {
-	const { surface, current, onOpen, onHome, actions, onClose } = props;
+	const { surface, current, onOpen, onForget, onHome, actions, onClose } = props;
 
 	const [recent] = useState<string[]>(() => recentProjects());
 	/** Demo folder name -> its root here. Empty until the host answers. */
@@ -151,6 +162,10 @@ export function IntroPanel(props: IntroPanelProps) {
 	/** The demo being copied, and why the last attempt did not finish. */
 	const [busy, setBusy] = useState<string | null>(null);
 	const [trouble, setTrouble] = useState<string | null>(null);
+	/** A recent project that would not open, and so is offered for removal. */
+	const [gone, setGone] = useState<string | null>(null);
+	/** Roots taken off the list in this panel, so the row goes at once. */
+	const [dropped, setDropped] = useState<string[]>([]);
 
 	useEffect(() => {
 		let live = true;
@@ -184,8 +199,15 @@ export function IntroPanel(props: IntroPanelProps) {
 	 */
 	const open = (root: string) => {
 		if (onOpen) {
-			onOpen(root);
-			onClose();
+			setTrouble(null);
+			void onOpen(root).then((opened) => {
+				// Only on success. A project that would not open leaves the
+				// panel where it is, with the entry still on screen to take off
+				// the list — closing would hide the one thing left to do about
+				// it behind opening the panel again.
+				if (opened) onClose();
+				else setGone(root);
+			});
 			return;
 		}
 		void api.openProject(root)
@@ -200,6 +222,7 @@ export function IntroPanel(props: IntroPanelProps) {
 			});
 	};
 
+	const listed = recent.filter((root) => !dropped.includes(root));
 	const demos = DEMO_PROJECTS.filter((one) => demoRoots[one.dir] !== undefined);
 
 	/**
@@ -259,25 +282,43 @@ export function IntroPanel(props: IntroPanelProps) {
 				</header>
 
 				<div className="intro-body">
-					{recent.length > 0 && (
+					{listed.length > 0 && (
 						<Carousel label="Recent">
-							{recent.map((root) => (
-								<button
+							{listed.map((root) => (
+								<div
 									key={root}
-									className={`intro-card${root === current ? " on" : ""}`}
-									onClick={() => open(root)}
-									title={root}
+									className={`intro-card${root === current ? " on" : ""}` +
+										`${root === gone ? " gone" : ""}`}
 								>
-									<span className="intro-card-name">{projectName(root)}</span>
-									<span className="intro-card-what">{projectTail(root)}</span>
+									<button className="intro-card-open-it" onClick={() => open(root)} title={root}>
+										<span className="intro-card-name">{projectName(root)}</span>
+										<span className="intro-card-what">{projectTail(root)}</span>
+									</button>
 									{root === current && <span className="intro-card-open">open</span>}
-								</button>
+									{root === gone && (
+										<span className="intro-card-open gone">could not be opened</span>
+									)}
+									{onForget && (
+										<button
+											className="tb icon-only intro-forget"
+											title={`Take ${projectName(root)} off this list`}
+											aria-label={`Take ${projectName(root)} off this list`}
+											onClick={() => {
+												onForget(root);
+												setDropped((was) => [...was, root]);
+												if (gone === root) setGone(null);
+											}}
+										>
+											<Icon name="close" size={12} />
+										</button>
+									)}
+								</div>
 							))}
 						</Carousel>
 					)}
 
 					{demos.length > 0 && (
-						<Carousel label={recent.length > 0 ? "Demos" : "Try it"}>
+						<Carousel label={listed.length > 0 ? "Demos" : "Try it"}>
 							{demos.map((demo) => (
 								<button
 									key={demo.dir}
@@ -303,7 +344,7 @@ export function IntroPanel(props: IntroPanelProps) {
 
 					{trouble !== null && <p className="intro-trouble">{trouble}</p>}
 
-					{recent.length === 0 && demos.length === 0 && (
+					{listed.length === 0 && demos.length === 0 && (
 						<p className="intro-empty">
 							{IS_STATIC_HOST
 								? "This is the published documentation, so there are no projects here. "

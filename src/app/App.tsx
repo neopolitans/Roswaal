@@ -394,7 +394,18 @@ export function App() {
 
 	// -- project -----------------------------------------------------------
 
-	const loadProject = useCallback(async (root: string, init = false) => {
+	/**
+	 * Opens a project, and says whether it opened.
+	 *
+	 * The answer matters to the introduction panel, which lists projects from
+	 * a previous session: a root that has since been deleted, renamed or -- in
+	 * the browser build -- thrown away with the volume is still on that list,
+	 * and the panel needs to know the open failed so it can offer to take it
+	 * off rather than closing over a dialog that says only what went wrong.
+	 */
+	const loadProject = useCallback(async (
+		root: string, init = false, quiet = false,
+	): Promise<boolean> => {
 		setBusy("Opening project…");
 		try {
 			const info = init ? await api.initProject(root) : await api.openProject(root);
@@ -404,8 +415,14 @@ export function App() {
 			setCustomNodes((await api.customNodes()).custom);
 			refreshTypes();
 			refreshAliases();
+			return true;
 		} catch (err) {
-			notify("Something went wrong", (err as Error).message);
+			// `quiet` is the introduction panel, which stays open and says so on
+			// the card itself, with the cross to take it off the list beside it.
+			// A dialog as well would be the same news twice, over the top of the
+			// one place the reader can act on it.
+			if (!quiet) notify("Something went wrong", (err as Error).message);
+			return false;
 		} finally {
 			setBusy(null);
 		}
@@ -426,7 +443,7 @@ export function App() {
 	 * document, which is what changing project does, would take it with it.
 	 */
 	const switchProject = useCallback(
-		async (root: string) => {
+		async (root: string, quiet = false): Promise<boolean> => {
 			try {
 				for (const { path, script } of store.unsaved()) {
 					await api.writeScript(path, script);
@@ -439,14 +456,14 @@ export function App() {
 						(err as Error).message
 					}. Nothing was closed and the project has not changed.`,
 				);
-				return;
+				return false;
 			}
 
 			store.closeAll();
 			setMapDoc(null);
 			setSource(null);
 			setAliasDoc(null);
-			await loadProject(root);
+			return loadProject(root, false, quiet);
 		},
 		[loadProject, mapDoc, notify],
 	);
@@ -1625,7 +1642,8 @@ export function App() {
 				<IntroPanel
 					surface="editor"
 					current={project.root}
-					onOpen={(root) => void switchProject(root)}
+					onOpen={(root) => switchProject(root, true)}
+					onForget={forget}
 					onHome={() => setProject(null)}
 					onClose={() => setIntroOpen(false)}
 					actions={

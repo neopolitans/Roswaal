@@ -106,6 +106,8 @@ export const RELEASES: Release[] = [
 			"**The guides are four shelves rather than one list of sixteen** — Writing graphs, For Roblox, For Lune, The tool. Three of the sixteen titles began “Compiling and nodemaps”, and a list that long is one you read line by line looking for a word. Somebody who only has Lune now finds their four pages together.",
 		],
 		fixed: [
+			"**A project on the recent list that will not open is said so on its own card**, with a cross to take it off. The list is roots from previous sessions and a root can stop being one between them — deleted, renamed, on a drive that is not plugged in, or thrown away with the browser’s volume. It used to close the panel over a dialog saying only what went wrong, leaving nothing to do about it.",
+			"**A dialog raised while the panel was open rendered behind it** — invisible, modal, and holding the focus. The panel now sits under anything that speaks.",
 			"**An operator’s value field no longer hangs off the side of it.** A pill’s width came from its pins’ defaults while what is drawn on a row comes from the pin’s default *or the value on that node*. For most of them the two agree by accident; `compare.eq` takes `any` with no default, so it was measured with no room for a field and then drawn with one.",
 		],
 		watch: [
