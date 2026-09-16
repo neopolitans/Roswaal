@@ -67,17 +67,27 @@ const CLIENT = `
   var up = (document.documentElement.dataset.slug || "").split("/").length - 1;
   var prefix = new Array(up + 1).join("../");
 
-  fetch(prefix + "search.json").then(function (r) { return r.json(); }).then(function (index) {
-    function score(e, q) {
-      var t = e.title.toLowerCase();
-      if (t === q) return 120;
-      if (t.indexOf(q) === 0) return 100;
-      if (t.indexOf(q) >= 0) return 60;
-      if (e.id && e.id.toLowerCase().indexOf(q) >= 0) return 40;
-      if (e.summary.toLowerCase().indexOf(q) >= 0) return 25;
-      if (e.body.indexOf(q) >= 0) return 10;
-      return 0;
-    }
+  function score(e, q) {
+    var t = e.title.toLowerCase();
+    if (t === q) return 120;
+    if (t.indexOf(q) === 0) return 100;
+    if (t.indexOf(q) >= 0) return 60;
+    if (e.id && e.id.toLowerCase().indexOf(q) >= 0) return 40;
+    if (e.summary.toLowerCase().indexOf(q) >= 0) return 25;
+    if (e.body.indexOf(q) >= 0) return 10;
+    return 0;
+  }
+
+  // Shared with the palette, which is the same search in a different shape.
+  // One index and one ranking, so the two cannot disagree about which page is
+  // the best answer -- and one fetch, because it is the same file.
+  var shared = { score: score, index: null, ready: null };
+  window.__roswaalSearch = shared;
+
+  shared.ready = fetch(prefix + "search.json")
+    .then(function (r) { return r.json(); })
+    .then(function (index) {
+    shared.index = index;
     box.addEventListener("input", function () {
       var q = box.value.trim().toLowerCase();
       if (!q) { results.hidden = true; tree.hidden = false; return; }
@@ -96,17 +106,6 @@ const CLIENT = `
       results.hidden = false;
       tree.hidden = true;
     });
-  });
-
-  // Ctrl+K puts the cursor in the search field. The published site has one
-  // column and one list, so the shortcut has somewhere obvious to land -- the
-  // editor's docs window opens a palette instead, which is the shape a window
-  // that wide can afford.
-  document.addEventListener("keydown", function (e) {
-    if ((e.key !== "k" && e.key !== "K") || !(e.ctrlKey || e.metaKey)) return;
-    e.preventDefault();
-    box.focus();
-    box.select();
   });
 
   document.addEventListener("click", function (e) {
@@ -184,7 +183,10 @@ async function main() {
 	await writeFile(join(out, "search.json"), JSON.stringify(index), "utf8");
 	await writeFile(
 		join(out, "docs.js"),
-		CLIENT + (await buildGraphViewer()) + (await buildToolbarLinker()),
+		CLIENT
+			+ (await readFile(join(root, "scripts/lib/docsChrome.js"), "utf8"))
+			+ (await buildGraphViewer())
+			+ (await buildToolbarLinker()),
 		"utf8",
 	);
 

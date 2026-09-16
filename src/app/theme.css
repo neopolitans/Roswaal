@@ -6713,6 +6713,16 @@ button.tb.danger {
 	font-size: 13px;
 }
 
+/* The published site's settings popover: the editor's panel, sized for the two
+   preferences a reader of a page can change. Everything inside it is the app's
+   own -- only the frame is smaller, because a full-height dialog for two rows
+   is a dialog that looks like it failed to load the rest. */
+.docs.docs-compact {
+	width: min(560px, 100%);
+	height: auto;
+	max-height: min(520px, 100%);
+}
+
 .settings-note {
 	margin: 0 0 14px;
 	color: var(--fg-muted);

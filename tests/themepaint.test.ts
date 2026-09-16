@@ -12,6 +12,8 @@
  * built from the app's modules, or it is a copy that can disagree.
  */
 
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
@@ -144,6 +146,34 @@ describe("the app shell", () => {
 	/** A project site is served from `/<repo>/`, and Vite writes that in. */
 	it("follows the base the site is mounted at", async () => {
 		expect(await inject("/Roswaal/")).toContain('src="/Roswaal/theme.js?v=');
+	});
+});
+
+/**
+ * The site's own chrome, which is a script rather than markup.
+ *
+ * Held here because what matters about it is what it does *not* carry: a
+ * second theme list, a second ranking, or a page that needs it to be readable.
+ */
+describe("the site's chrome script", () => {
+	const script = readFileSync(
+		new URL("../scripts/lib/docsChrome.js", import.meta.url), "utf8",
+	);
+
+	it("takes its data from the page rather than carrying its own", () => {
+		// The schemes, the fonts and the preference keys all arrive from the
+		// head script; the ranking and the index from the sidebar's search.
+		expect(script).toContain("window.__roswaal");
+		expect(script).toContain("window.__roswaalSearch");
+		// No list of scheme names, and no second scoring function.
+		expect(script).not.toMatch(/Tokyo Night|Catppuccin|Nord/);
+		expect(script).not.toContain("toLowerCase().indexOf");
+	});
+
+	it("draws with the app's own class names", () => {
+		for (const name of ["docs-palette-hit", "docs settings", "setting-label", "segmented"]) {
+			expect(script, name).toContain(name);
+		}
 	});
 });
 

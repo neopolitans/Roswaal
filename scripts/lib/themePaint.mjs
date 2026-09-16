@@ -38,7 +38,9 @@ export async function buildThemePaint() {
 	const bundled = await build({
 		stdin: {
 			contents: [
-				'import { PREFERENCES_KEY, readPreferences } from "./src/app/preferences.ts";',
+				'import { DOCS_FONTS, PREFERENCES_KEY, readPreferences, writePreferences }',
+				'\tfrom "./src/app/preferences.ts";',
+				'import { BUILTIN_THEMES } from "./src/core/themeData.ts";',
 				'import { applyChrome, applyTheme, findTheme } from "./src/app/theme.ts";',
 				"",
 				"function paint() {",
@@ -55,6 +57,15 @@ export async function buildThemePaint() {
 				"\tif (event.key !== null && event.key !== PREFERENCES_KEY) return;",
 				"\tpaint();",
 				"});",
+				"",
+				"// Handed to `docs.js`, which draws the site's settings popover and has",
+				"// to offer the same schemes and write the same key. Exported rather",
+				"// than bundled a second time: two copies of the theme list is two",
+				"// lists to keep in step, and this one is already on the page.",
+				"window.__roswaal = {",
+				"\tread: readPreferences, write: writePreferences, paint,",
+				"\tthemes: BUILTIN_THEMES, fonts: DOCS_FONTS,",
+				"};",
 			].join(String.fromCharCode(10)),
 			resolveDir: root,
 			loader: "ts",

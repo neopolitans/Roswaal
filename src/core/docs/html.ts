@@ -446,6 +446,24 @@ function proposeHref(page: DocPage): string {
 }
 
 /**
+ * One of the editor's glyphs, for the site's own chrome.
+ *
+ * Off `toolbars`, which is already here so a drawn bar can be drawn — the same
+ * paths, so the gear in this header and the gear in the picture of this header
+ * are one shape. Nothing when the art was not passed: a button with no glyph
+ * would be a button nobody can see, and the page reads without it.
+ */
+function chromeIcon(name: string, options: RenderOptions): string {
+	const art = options.toolbars;
+	const path = art?.paths[name];
+	if (art === undefined || path === undefined) return "";
+	return (
+		`<svg class="icon" viewBox="${escapeHtml(art.viewBox)}" width="16" height="16"` +
+		` aria-hidden="true"><path d="${escapeHtml(path)}" fill="currentColor"/></svg>`
+	);
+}
+
+/**
  * A version stamp on the site's two shared assets.
  *
  * `docs.js` and `theme.css` keep the same names across every release, which is
@@ -510,6 +528,7 @@ ${options.canaryBanner ?? ""}<header class="docs-page-head">
 <span class="grow"></span>
 <a class="tb" href="${up}../try.html">Try it in your browser${options.previewChip ?? ""}</a>
 <a class="tb" href="${SOURCE_REPOSITORY}" rel="noreferrer noopener">Source</a>
+<button type="button" class="tb icon-only" id="prefs" title="Settings" aria-label="Settings">${chromeIcon("settings", options)}</button>
 </header>
 <div class="docs-body">
 ${renderNav(site, page)}

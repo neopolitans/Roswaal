@@ -28,6 +28,7 @@ import {
 import { renderPage } from "../src/core/docs/html.js";
 import {
 	controlKey, controlsOf, DOCS_SITE_BAR, EDITOR_BAR, EDITOR_BAR_BROWSER, iconsOf, legendOf,
+	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DOCS_BAR,
 	FUNCTIONS_PANEL, MODULES_PANEL, pointingElsewhere, TOOLBAR_HINT, toolbarConstant,
 	toolbarHtml, TOOLBARS, VARIABLES_PAGE_PANEL, VARIABLES_PANEL,
 	type ToolbarArt, type ToolbarSpec,
@@ -121,7 +122,33 @@ describe("the toolbar specs", () => {
 		const names = legendOf(DOCS_SITE_BAR).map((item) => item.name);
 		expect(names).toContain("Try it in your browser");
 		expect(names).toContain("Source");
-		expect(names).not.toContain("Settings");
+		// No daemon behind these pages, so nothing here opens a project.
+		expect(names).not.toContain("Open Editor");
+	});
+
+	/**
+	 * Settings is on both docs headers and is not the same control on each.
+	 *
+	 * In the window it is a button with its name on it, beside one other. On a
+	 * published page it is the gear alone: the header there is mostly the way
+	 * out to the editor and the source, and a page gives its width to what the
+	 * reader came for. Drawn, because that difference is the sort a picture
+	 * settles and a sentence argues about.
+	 */
+	it("spells Settings as a gear on the site and as a button in the window", () => {
+		const site = controlsOf(DOCS_SITE_BAR).find((item) => item.name === "Settings");
+		expect(site?.t).toBe("icon");
+		const window = controlsOf(DOCS_BAR).find((item) => item.name === "Settings");
+		expect(window?.t).toBe("button");
+	});
+
+	/** Node Design gained it in 0.64.7, and is a gear for the same reason. */
+	it("gives Node Design the gear, in both builds", () => {
+		for (const bar of [DESIGNER_BAR, DESIGNER_BAR_BROWSER]) {
+			const gear = controlsOf(bar).find((item) => item.name === "Settings");
+			expect(gear?.t, bar.id).toBe("icon");
+			expect(gear?.t === "icon" && gear.icon, bar.id).toBe("settings");
+		}
 	});
 
 	/**

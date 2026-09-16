@@ -727,6 +727,17 @@ export const DESIGNER_BAR: ToolbarSpec = {
 					name: "Open Editor",
 					what: "The editor, in a new tab. Node Design is a window of its own, not a panel.",
 				},
+				{
+					t: "icon",
+					icon: "settings",
+					name: "Settings",
+					where: "the gear at the end",
+					what:
+						"This browser's preferences — node corners, wire style and themes — which " +
+						"is what a window that draws nodes all day wants to hand. No project " +
+						"settings: `roswaal.json` is the repository's and is changed from the " +
+						"editor.",
+				},
 			],
 		},
 	],
@@ -940,6 +951,17 @@ export const DOCS_SITE_BAR: ToolbarSpec = {
 					name: "Source",
 					what: "The repository. Roswaal is 0BSD: read it, fork it, take what you want from it.",
 				},
+				{
+					t: "icon",
+					icon: "settings",
+					name: "Settings",
+					where: "the gear at the end",
+					what:
+						"Your theme and reading face, kept in this browser. The same preference " +
+						"the editor writes, so a scheme picked there is the one these pages are " +
+						"in — and the icon alone, because a published page gives its width to " +
+						"what you came to read.",
+				},
 			],
 		},
 	],
@@ -1002,6 +1024,17 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 					text: "Open Editor",
 					name: "Open Editor",
 					what: "The editor, in a new tab.",
+				},
+				{
+					t: "icon",
+					icon: "settings",
+					name: "Settings",
+					where: "the gear at the end",
+					what:
+						"This browser's preferences — node corners, wire style and themes — which " +
+						"is what a window that draws nodes all day wants to hand. No project " +
+						"settings: `roswaal.json` is the repository's and is changed from the " +
+						"editor.",
 				},
 			],
 		},

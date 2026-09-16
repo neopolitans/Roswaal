@@ -94,6 +94,21 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.64.8",
+		date: "2026-09-16",
+		headline: "The published pages get the palette and a gear of their own.",
+		affects: ["docs"],
+		added: [
+			"**`Ctrl` + `K` opens the search palette on the published site**, the way it does in the editor and in Node Design. It used to put the cursor in the sidebar's field instead. That field is still there and still filters the tree.",
+			"**Settings on a published page**, from the gear at the end of the header: your theme and the face these pages are set in. The icon alone rather than a labelled button — a page gives its width to what you came to read.",
+		],
+		changed: [
+			"**Verified**: the [Functions](functions) guide, rewritten in 0.64.2 and read against the editor.",
+			"The drawn bars on [Toolbars](toolbars) show the gear Node Design and the published pages gained, and say why it is a gear on those and a button in the documentation window.",
+			"The site's palette takes the sidebar's index and the sidebar's ranking rather than a second copy of either, so the two searches cannot disagree about the best answer.",
+		],
+	},
+	{
 		version: "0.64.7",
 		date: "2026-09-16",
 		headline: "Settings in Node Design, and no more flash of the wrong scheme.",

@@ -87,6 +87,12 @@ export const REVIEWS: Record<
 	// cannot show, and the two Declare Type shapes for a type that is a
 	// declaration rather than a name.
 	"casting": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
+	// Verified by the author for 0.64.8, after the page was rewritten in 0.64.2:
+	// it had been written for 0.33.0, when function graphs were the new thing,
+	// and had never said how to *call* one. Read again with the Variables panel
+	// drawn on it and the pre-0.33.0 migration note taken out -- a note no
+	// reader could have needed, the tool having been public only since 0.59.1.
+	"functions": { status: "verified", date: "2026-09-16", reviewers: ["neopolitans"] },
 	// Read again for 0.32.0, when Get Parameter joined the locals it sits
 	// beside: the same idea of reading something by name instead of by a wire.
 	"variables-and-locals": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
