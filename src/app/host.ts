@@ -177,19 +177,33 @@ export async function openDirectory(): Promise<DirectoryPick | null> {
  * open by the time anything renders, which is the point.
  */
 export interface RememberedFolder {
+	/** Stable, so a card and a forget refer to the same one. */
+	id: string;
+	/** The folder's own name — the leaf. A browser is never told a path. */
 	name: string;
+	/**
+	 * Whether it can be read without asking.
+	 *
+	 * `false` is not a problem to report: it is the ordinary state of a handle
+	 * in a new session, and the click that opens it is the click that asks.
+	 */
+	granted: boolean;
 	open: () => Promise<DirectoryPick | null>;
+	/** Stops offering this one. */
+	forget: () => Promise<void>;
 }
 
-let remembered: RememberedFolder | null = null;
+let remembered: RememberedFolder[] = [];
 
-export function setRememberedFolder(next: RememberedFolder | null): void {
+export function setRememberedFolders(next: RememberedFolder[]): void {
 	remembered = next;
 	announce();
 }
 
-export function useRememberedFolder(): RememberedFolder | null {
-	return useSyncExternalStore(subscribe, () => remembered, () => null);
+const NONE: RememberedFolder[] = [];
+
+export function useRememberedFolders(): RememberedFolder[] {
+	return useSyncExternalStore(subscribe, () => remembered, () => NONE);
 }
 
 /**
@@ -205,7 +219,7 @@ export function useFolderForgetter(next: () => Promise<void>): void {
 }
 
 export async function forgetRememberedFolder(): Promise<void> {
-	setRememberedFolder(null);
+	setRememberedFolders([]);
 	await forgetter?.();
 }
 

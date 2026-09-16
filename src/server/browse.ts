@@ -32,7 +32,7 @@ import fs from "node:fs/promises";
  * request: two browser tabs share one desktop, and stacked modal dialogs are a
  * good way to make a developer think the daemon has hung.
  */
-let dialogOpen = false;
+let inFlight: Promise<string | null> | null = null;
 
 export class NoPickerError extends Error {
 	constructor(message: string) {
@@ -51,16 +51,23 @@ export class NoPickerError extends Error {
  * the text field beside the button already works.
  */
 export async function chooseDirectory(startIn?: string): Promise<string | null> {
-	if (dialogOpen) {
-		throw new Error("A folder picker is already open. Answer that one first.");
-	}
+	/**
+	 * A second ask joins the first rather than being refused.
+	 *
+	 * This used to throw, and the message went to the one person it could not
+	 * help: somebody clicks Browse, the dialog opens somewhere they cannot see
+	 * it, so they click Browse again — and are told a picker is already open,
+	 * which reads as the button being broken. Handing back the same promise
+	 * makes the second click wait for the answer to the first, which is what
+	 * they meant by it.
+	 */
+	if (inFlight) return inFlight;
 
 	// Only offered as a starting point, so a path that has gone stale should
 	// open the dialog somewhere sensible rather than fail it.
 	const start = startIn && (await isDirectory(startIn)) ? path.resolve(startIn) : undefined;
 
-	dialogOpen = true;
-	try {
+	const pick = (async () => {
 		switch (process.platform) {
 			case "win32":
 				return await windowsPicker(start);
@@ -69,8 +76,13 @@ export async function chooseDirectory(startIn?: string): Promise<string | null> 
 			default:
 				return await linuxPicker(start);
 		}
+	})();
+
+	inFlight = pick;
+	try {
+		return await pick;
 	} finally {
-		dialogOpen = false;
+		inFlight = null;
 	}
 }
 
@@ -87,17 +99,37 @@ export async function chooseDirectory(startIn?: string): Promise<string | null> 
 async function windowsPicker(start?: string): Promise<string | null> {
 	const script = [
 		"Add-Type -AssemblyName System.Windows.Forms",
+		// `System.Drawing` for the owner's Point and Size; not loaded by default.
+		"Add-Type -AssemblyName System.Drawing",
 		"$d = New-Object System.Windows.Forms.FolderBrowserDialog",
 		"$d.Description = 'Choose a folder to open as a Roswaal project'",
 		"$d.ShowNewFolderButton = $true",
 		"if ($env:ROSWAAL_BROWSE_START) { $d.SelectedPath = $env:ROSWAAL_BROWSE_START }",
-		// A hidden top-most form as the owner, so the dialog opens in front of
-		// the browser rather than behind it where nobody finds it.
+		// A top-most owner, so the dialog opens in front of the browser rather
+		// than behind it where nobody finds it.
+		//
+		// **Shown and activated**, which is the part that was missing. A form
+		// that is only constructed is not a window yet: `ShowDialog` took it as
+		// an owner and Windows had nothing to raise, so the dialog appeared
+		// behind whatever had focus — which is the browser, every time, because
+		// the click that asked for it happened there.
+		//
+		// Off-screen and out of the taskbar so the thing being raised is never
+		// actually seen. One pixel, because a zero-sized form is not shown at
+		// all on some versions.
 		"$owner = New-Object System.Windows.Forms.Form",
 		"$owner.TopMost = $true",
+		"$owner.ShowInTaskbar = $false",
+		"$owner.FormBorderStyle = 'None'",
+		"$owner.StartPosition = 'Manual'",
+		"$owner.Location = New-Object System.Drawing.Point(-32000, -32000)",
+		"$owner.Size = New-Object System.Drawing.Size(1, 1)",
+		"$owner.Show()",
+		"$owner.Activate()",
 		"if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) {",
 		"  [Console]::Out.Write($d.SelectedPath)",
 		"}",
+		"$owner.Close()",
 		"$owner.Dispose()",
 	].join("\n");
 

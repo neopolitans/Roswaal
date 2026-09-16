@@ -17,12 +17,13 @@
 import { bootEditor } from "../app/boot.jsx";
 import { useTransport } from "../app/api.js";
 import {
-	setRememberedFolder, useDirectoryOpener, useFolderForgetter, type DirectoryPick,
+	setRememberedFolders, useDirectoryOpener, useFolderForgetter, type DirectoryPick,
+	type RememberedFolder,
 } from "../app/host.js";
 
 import { canOpenDirectory } from "./directoryFs.js";
 import {
-	askPermissionFor, forgetFolder, permissionFor, rememberedFolder, rememberFolder,
+	askPermissionFor, forgetFolder, permissionFor, rememberedFolders, rememberFolder,
 } from "./remember.js";
 import { workerTransport } from "./transport.js";
 
@@ -88,7 +89,7 @@ async function start(): Promise<void> {
 		return openFolder(handle);
 	});
 
-	useFolderForgetter(forgetFolder);
+	useFolderForgetter(() => forgetFolder());
 
 	/**
 	 * The folder from last time.
@@ -106,38 +107,54 @@ async function start(): Promise<void> {
 	 * **Denied**, or no folder at all, means the playground — which is also what
 	 * a first visit gets, and needs no explaining either way.
 	 */
-	const handle = await rememberedFolder();
-	if (!handle) {
+	const stored = await rememberedFolders();
+	if (stored.length === 0) {
 		bootEditor();
 		return;
 	}
 
-	const permission = await permissionFor(handle);
-	if (permission === "granted") {
-		// A folder that has since been deleted or moved fails here rather than
-		// leaving the editor half-open on something that is not there.
-		const opened = await openFolder(handle).catch(() => null);
-		if (opened && "root" in opened) {
-			bootEditor();
-			return;
+	/** Every folder still worth offering, with what it would take to open it. */
+	const offer: RememberedFolder[] = [];
+	/** The newest one whose permission outlived the session, if any. */
+	let carryOn: FileSystemDirectoryHandle | null = null;
+
+	for (const one of stored) {
+		const permission = await permissionFor(one.handle);
+		// Denied is not "ask again later": the developer said no to this folder,
+		// and offering it every session would be asking them to say it again.
+		if (permission === "denied") {
+			await forgetFolder(one.id);
+			continue;
 		}
-		await forgetFolder();
-		bootEditor();
-		return;
-	}
+		if (permission === "granted" && carryOn === null) carryOn = one.handle;
 
-	if (permission === "prompt") {
-		setRememberedFolder({
-			name: handle.name,
+		offer.push({
+			id: one.id,
+			name: one.name,
+			granted: permission === "granted",
 			open: async () => {
-				if (await askPermissionFor(handle) !== "granted") return null;
-				const opened = await openFolder(handle);
-				setRememberedFolder(null);
-				return opened;
+				if (await permissionFor(one.handle) !== "granted"
+					&& await askPermissionFor(one.handle) !== "granted") {
+					return null;
+				}
+				return openFolder(one.handle);
+			},
+			forget: async () => {
+				await forgetFolder(one.id);
+				setRememberedFolders(offer.filter((other) => other.id !== one.id));
 			},
 		});
-	} else {
-		await forgetFolder();
+	}
+	setRememberedFolders(offer);
+
+	if (carryOn) {
+		// A folder that has since been deleted or moved fails here rather than
+		// leaving the editor half-open on something that is not there.
+		const opened = await openFolder(carryOn).catch(() => null);
+		if (!opened || !("root" in opened)) {
+			const lost = stored.find((one) => one.handle === carryOn);
+			if (lost) await forgetFolder(lost.id);
+		}
 	}
 
 	bootEditor();

@@ -38,6 +38,7 @@ import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
 import { IS_STATIC_HOST, PAGE_TARGET, pageHref, type Page } from "./pages.js";
 import { projectName, projectTail, recentProjects } from "./recents.js";
+import type { RememberedFolder } from "./host.js";
 import { RUNTIME_LABEL } from "../core/nodes/runtimes.js";
 import { VERSION } from "../cli/version.js";
 
@@ -83,6 +84,18 @@ export interface IntroPanelProps {
 	 * menu this panel replaced had a cross for.
 	 */
 	onForget?: (root: string) => void;
+	/**
+	 * Folders the browser remembers, which are projects with no path.
+	 *
+	 * The File System Access API never tells a page where a picked folder is —
+	 * only its own name — so a folder-backed project cannot be a row on the
+	 * recent list, which is paths. What is kept instead is the *handle*, and
+	 * these are those: openable, by name, and usually needing the permission
+	 * asked for again first.
+	 */
+	folders?: RememberedFolder[];
+	/** Open one, asking for permission if it needs it. Answers whether it did. */
+	onOpenFolder?: (folder: RememberedFolder) => Promise<boolean>;
 	/** Back to the picker, where this window has one. */
 	onHome?: () => void;
 	/** Project actions the editor's old menu carried, where the host has them. */
@@ -154,7 +167,9 @@ function TargetChip({ target }: { target: DemoProject["target"] }) {
 }
 
 export function IntroPanel(props: IntroPanelProps) {
-	const { surface, current, onOpen, onForget, onHome, actions, onClose } = props;
+	const {
+		surface, current, onOpen, onForget, folders, onOpenFolder, onHome, actions, onClose,
+	} = props;
 
 	const [recent] = useState<string[]>(() => recentProjects());
 	/** Demo folder name -> its root here. Empty until the host answers. */
@@ -223,6 +238,17 @@ export function IntroPanel(props: IntroPanelProps) {
 	};
 
 	const listed = recent.filter((root) => !dropped.includes(root));
+	const offered = (folders ?? []).filter((one) => !dropped.includes(one.id));
+
+	/** A remembered folder, which may have to ask before it can be read. */
+	const takeFolder = (folder: RememberedFolder) => {
+		if (!onOpenFolder) return;
+		setTrouble(null);
+		void onOpenFolder(folder).then((opened) => {
+			if (opened) onClose();
+			else setGone(folder.id);
+		});
+	};
 	const demos = DEMO_PROJECTS.filter((one) => demoRoots[one.dir] !== undefined);
 
 	/**
@@ -282,8 +308,38 @@ export function IntroPanel(props: IntroPanelProps) {
 				</header>
 
 				<div className="intro-body">
-					{listed.length > 0 && (
+					{(listed.length > 0 || offered.length > 0) && (
 						<Carousel label="Recent">
+							{offered.map((folder) => (
+								<div
+									key={folder.id}
+									className={`intro-card${folder.id === gone ? " gone" : ""}`}
+								>
+									<button
+										className="intro-card-open-it"
+										onClick={() => takeFolder(folder)}
+										title={folder.granted
+											? `Open ${folder.name} again`
+											: `Open ${folder.name} again. Your browser will ask first.`}
+									>
+										<span className="intro-card-name">{folder.name}</span>
+										<span className="intro-card-what">
+											{folder.granted ? "a folder on your machine" : "needs permission"}
+										</span>
+									</button>
+									<button
+										className="tb icon-only intro-forget"
+										title={`Stop offering ${folder.name}`}
+										aria-label={`Stop offering ${folder.name}`}
+										onClick={() => {
+											void folder.forget();
+											setDropped((was) => [...was, folder.id]);
+										}}
+									>
+										<Icon name="close" size={12} />
+									</button>
+								</div>
+							))}
 							{listed.map((root) => (
 								<div
 									key={root}
@@ -318,7 +374,7 @@ export function IntroPanel(props: IntroPanelProps) {
 					)}
 
 					{demos.length > 0 && (
-						<Carousel label={listed.length > 0 ? "Demos" : "Try it"}>
+						<Carousel label={listed.length + offered.length > 0 ? "Demos" : "Try it"}>
 							{demos.map((demo) => (
 								<button
 									key={demo.dir}
@@ -344,7 +400,7 @@ export function IntroPanel(props: IntroPanelProps) {
 
 					{trouble !== null && <p className="intro-trouble">{trouble}</p>}
 
-					{listed.length === 0 && demos.length === 0 && (
+					{listed.length === 0 && offered.length === 0 && demos.length === 0 && (
 						<p className="intro-empty">
 							{IS_STATIC_HOST
 								? "This is the published documentation, so there are no projects here. "

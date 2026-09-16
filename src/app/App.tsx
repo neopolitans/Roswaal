@@ -36,6 +36,7 @@ import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
+import type { RememberedFolder } from "./host.js";
 import { Icon } from "./icons.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays } from "./Overlays.jsx";
@@ -64,7 +65,7 @@ import { IS_STATIC_HOST, PAGE_TARGET, pageHref } from "./pages.js";
 import { CanaryBanner } from "./previewBuild.jsx";
 import {
 	forgetRememberedFolder, openDirectory, useCanOpenDirectory, useHostCan, useHostFailure,
-	useRememberedFolder,
+	useRememberedFolders,
 } from "./host.js";
 import { download, zip } from "./zip.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
@@ -288,7 +289,7 @@ export function App() {
 	 */
 	const [targetDir, setTargetDir] = useState<string | null>(null);
 	// The folder from a previous session, when one is waiting on a click.
-	const remembered = useRememberedFolder();
+	const rememberedFolders = useRememberedFolders();
 	// What this host can do, for the project actions in the panel's footer.
 	// Hidden rather than disabled: a button that needs a different host is a
 	// button with no action behind it to explain.
@@ -411,7 +412,17 @@ export function App() {
 			const info = init ? await api.initProject(root) : await api.openProject(root);
 			api.setProjectRoot(info.root);
 			setProject(info);
-			remember(info.root);
+			/**
+			 * Only where a root means something next time.
+			 *
+			 * The browser build's roots are *mount points* on its own volume —
+			 * `/lune_test` for a folder whose real name is all the page is ever
+			 * told. Between sessions that path means nothing: the folder is
+			 * reached through the handle the browser kept, and the mount point
+			 * is made again from its name. Remembering it produced a card that
+			 * looked openable and was not.
+			 */
+			if (!IS_STATIC_HOST) remember(info.root);
 			setCustomNodes((await api.customNodes()).custom);
 			refreshTypes();
 			refreshAliases();
@@ -1430,16 +1441,25 @@ export function App() {
 	 * still has the handle and only wants permission confirmed. Declining is an
 	 * answer, so a `null` says nothing rather than reporting a failure.
 	 */
-	const reopenFolder = useCallback(async () => {
-		if (!remembered) return;
+	/**
+	 * Opens a folder the browser remembers, asking for permission if it must.
+	 *
+	 * Answers whether it opened, the same as `switchProject` does and for the
+	 * same reason: the introduction panel offers these as cards and stays open
+	 * to say so when one does not.
+	 */
+	const reopenFolder = useCallback(async (folder: RememberedFolder): Promise<boolean> => {
 		try {
-			const opened = await remembered.open();
-			if (!opened) return;
-			if ("root" in opened) await loadProject(opened.root);
+			const opened = await folder.open();
+			// Refusing the permission prompt is an answer, not a failure.
+			if (!opened) return false;
+			if ("root" in opened) return loadProject(opened.root, false, true);
+			return false;
 		} catch (err) {
-			notify(`${remembered.name} could not be reopened`, (err as Error).message);
+			notify(`${folder.name} could not be reopened`, (err as Error).message);
+			return false;
 		}
-	}, [remembered, loadProject, notify]);
+	}, [loadProject, notify]);
 
 	const resetProject = useCallback(async () => {
 		const ok = await ask({
@@ -1643,6 +1663,8 @@ export function App() {
 					surface="editor"
 					current={project.root}
 					onOpen={(root) => switchProject(root, true)}
+					folders={rememberedFolders}
+					onOpenFolder={reopenFolder}
 					onForget={forget}
 					onHome={() => setProject(null)}
 					onClose={() => setIntroOpen(false)}
@@ -1658,16 +1680,6 @@ export function App() {
 								<button className="tb with-icon" onClick={() => void openFolder()}>
 									<Icon name="folder" size={15} />
 									Open folder&hellip;
-								</button>
-							)}
-							{remembered && (
-								<button
-									className="tb with-icon"
-									onClick={() => void reopenFolder()}
-									title={`Open ${remembered.name} again. Your browser will ask first.`}
-								>
-									<Icon name="folderOpen" size={15} />
-									{remembered.name}
 								</button>
 							)}
 							<button className="tb with-icon" onClick={() => void downloadProject()}>
