@@ -24,6 +24,7 @@ import { DocsSearch } from "./DocsSearch.jsx";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import { PAGE_TARGET, pageHref } from "./pages.js";
+import { usePreferenceSync } from "./preferenceSync.js";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
 import { CanaryBanner, PreviewChip } from "./previewBuild.jsx";
@@ -36,6 +37,10 @@ export function DesignerPage() {
 	const [open, setOpen] = useState<OpenPack | null>(null);
 	const [notice, setNotice] = useState<{ text: string; kind: "ok" | "failed" } | null>(null);
 	const [docsJump, setDocsJump] = useState(false);
+
+	// Node Design has no settings panel of its own, so every theme it will ever
+	// see is one another window picked.
+	usePreferenceSync();
 
 	/**
 	 * The documentation, from Node Design as well as from the editor.

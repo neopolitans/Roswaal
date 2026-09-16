@@ -47,6 +47,7 @@ import {
 import { screenToWorld } from "./geometry.js";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
+import { usePreferenceSync } from "./preferenceSync.js";
 import {
 	addComment, addNode, alignToAnchor, landingPins, connect, copySelection, deleteSelection, disconnectPin, pasteClipping,
 	withCommentContents,
@@ -266,6 +267,9 @@ export function App() {
 			return next;
 		});
 	}, []);
+	// A theme picked in the docs window, which has its own settings panel.
+	usePreferenceSync(setPrefs);
+
 	const [source, setSource] = useState<SourceDoc | null>(null);
 	// A node map is a tree, not a graph, so it lives beside the graph store
 	// rather than inside it. Nothing about undo or selection carries over.

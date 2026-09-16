@@ -94,6 +94,23 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.64.5",
+		date: "2026-09-16",
+		headline: "Your colour scheme reaches every window, and the documentation site.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"**The published documentation follows your theme.** It shipped the editor's stylesheet and nothing else, so it followed the operating system — a scheme picked in the editor stopped at the Docs button. It now reads the same preference the editor writes, before the page paints, along with your node corners and reading face.",
+			"**Node Design follows a theme picked in the editor.** It took the scheme it opened in and kept it, because it has no settings panel of its own and nothing was telling it.",
+			"**The editor follows a theme picked in the docs window.** The docs have their own settings panel, and the editor was the one window not listening.",
+		],
+		changed: [
+			"The three windows share one listener rather than a copy each. A theme is stored in `localStorage`, which is exactly so that every window on the origin — including the static site — can be told when it moves.",
+		],
+		watch: [
+			"The node pictures on the documentation site are drawn at build time, so their headers and pins keep the default palette under any scheme. The page around them follows yours.",
+		],
+	},
+	{
 		version: "0.64.4",
 		date: "2026-09-16",
 		headline: "A gesture reads as one input, and a migration nobody can have needed is gone.",

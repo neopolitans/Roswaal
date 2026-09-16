@@ -70,7 +70,15 @@ export const FILTER_SUMMARY: Record<MenuFilter, string> = {
 	...RUNTIME_SUMMARY,
 };
 
-const KEY = "roswaal.preferences";
+/**
+ * Where the blob lives.
+ *
+ * Exported because a `storage` event says which key moved, and a window that
+ * repaints itself for somebody else's key is a window that repaints for every
+ * unrelated thing on the origin.
+ */
+export const PREFERENCES_KEY = "roswaal.preferences";
+const KEY = PREFERENCES_KEY;
 
 /** The key the Straighten toggle used before preferences existed. */
 const LEGACY_ALIGN_EXEC = "roswaal.alignExec";

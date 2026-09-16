@@ -29,6 +29,7 @@ import { Logo } from "./logo.jsx";
 import { CanaryBanner, PreviewChip } from "./previewBuild.jsx";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { SettingsPanel } from "./SettingsPanel.jsx";
+import { usePreferenceSync } from "./preferenceSync.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import { VERSION } from "../cli/version.js";
 
@@ -59,18 +60,8 @@ export function DocsPage() {
 		return () => window.removeEventListener("hashchange", onHash);
 	}, []);
 
-	// The editor wrote a preference in its own window. Take all of them again
-	// rather than guessing which one moved.
-	useEffect(() => {
-		const onStorage = () => {
-			const next = readPreferences();
-			setPrefs(next);
-			applyTheme(findTheme(next.theme));
-			applyChrome(next);
-		};
-		window.addEventListener("storage", onStorage);
-		return () => window.removeEventListener("storage", onStorage);
-	}, []);
+	// The editor or Node Design wrote a preference in its own window.
+	usePreferenceSync(setPrefs);
 
 	const updatePrefs = (patch: Partial<Preferences>) => {
 		setPrefs((current) => {

@@ -501,6 +501,7 @@ ${options.noindex ? `<meta name="robots" content="noindex">
 ` : ""}<title>${escapeHtml(page.title)} · Roswaal docs</title>
 <meta name="description" content="${escapeHtml(page.summary)}">
 ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(options.logo.icon)}">\n` : ""}<link rel="stylesheet" href="${up}theme.css${stamp(options)}">
+<script src="${up}theme.js${stamp(options)}"></script>
 </head>
 <body class="docs-static">
 <div class="docs-page">

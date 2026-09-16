@@ -31,6 +31,7 @@ import { CANARY_BANNER, markChipMarkup, MARK_LABEL, previewChipMarkup } from "..
 import { wirePath } from "../src/app/geometry.ts";
 import { NODE } from "../src/app/layers.ts";
 import { buildGraphViewer } from "./lib/graphViewer.mjs";
+import { buildThemePaint } from "./lib/themePaint.mjs";
 import { buildToolbarLinker } from "./lib/toolbarLinker.mjs";
 import { VERSION } from "../src/cli/version.ts";
 
@@ -194,6 +195,10 @@ async function main() {
 		await readFile(join(root, "src/app/theme.css"), "utf8"),
 		"utf8",
 	);
+
+	// And the scheme the reader picked, which the stylesheet alone cannot know.
+	// Loaded blocking from the head, so the page never paints twice.
+	await writeFile(join(out, "theme.js"), await buildThemePaint(), "utf8");
 
 	console.log(`docs site: ${files.length} pages -> dist-docs/`);
 }
