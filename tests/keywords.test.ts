@@ -9,6 +9,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import { classify } from "../src/core/nodes/runtimes.js";
+
 import { LUAU_KEYWORDS, keywordNodes } from "../src/core/keywords.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { score } from "../src/app/NodeMenu.jsx";
@@ -60,6 +62,7 @@ describe("what the palette puts first", () => {
 		category: def.category,
 		color: "",
 		pure: def.pure === true,
+		runtime: classify(def),
 		def,
 	}));
 

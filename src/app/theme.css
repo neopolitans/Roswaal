@@ -7253,3 +7253,64 @@ button.tb.danger {
 		gap: 2px;
 	}
 }
+
+/* ------------------------------------------ the runtime filter and badge */
+
+/* Which runtime, on top of the filter the graph's own target already applies.
+   A row of chips above the search box in both the node menu and the node
+   picker -- the same control in both, because it is the same question and the
+   answer is one shared preference. */
+.menu-runtimes {
+	display: flex;
+	gap: 4px;
+	padding: 6px 8px 0;
+	flex-wrap: wrap;
+}
+
+.menu-runtimes button {
+	font: inherit;
+	font-size: 11px;
+	line-height: 1.6;
+	padding: 1px 8px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--bg-input);
+	color: var(--fg-muted);
+	cursor: pointer;
+}
+
+.menu-runtimes button:hover {
+	border-color: var(--border-strong);
+	color: var(--fg);
+}
+
+.menu-runtimes button.on {
+	background: color-mix(in srgb, var(--accent) 18%, var(--bg-input));
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+/* What a node needs, on its row. Base Luau is the unmarked case: badging four
+   rows in five would be noise rather than information, and the absence is the
+   claim -- this one runs anywhere.
+
+   Compounded on `.hint`, which already sits at the right of a row in both
+   lists and is where `pure` goes, so a row never grows a second alignment. */
+.hint.runtime {
+	border: 1px solid transparent;
+	border-radius: 3px;
+	padding: 0 4px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	font-size: 9px;
+}
+
+.hint.runtime.roblox {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.hint.runtime.lune {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+}

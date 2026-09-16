@@ -25,6 +25,10 @@ import { previewOf, previewSvg, type PreviewOptions } from "../core/docs/preview
 import { keywordNodes } from "../core/keywords.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
+import {
+	classify, RUNTIME_LABEL, RUNTIME_SUMMARY, RUNTIMES, type Runtime,
+} from "../core/nodes/runtimes.js";
+import { readPreferences, writePreferences } from "./preferences.js";
 
 export interface NodePickerProps {
 	registry: Registry;
@@ -61,9 +65,30 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 		field.current?.focus();
 	}, []);
 
-	const all = useMemo(
+	const forTarget = useMemo(
 		() => [...registry.values()].filter((def) => !def.targets || def.targets.includes(target)),
 		[registry, target],
+	);
+
+	/** Which runtime the list is narrowed to. The same preference the menu uses. */
+	const [runtime, setRuntime] = useState<Runtime | null>(() => readPreferences().nodeRuntime);
+
+	const chooseRuntime = (next: Runtime | null) => {
+		setRuntime(next);
+		writePreferences({ ...readPreferences(), nodeRuntime: next });
+	};
+
+	// Only the runtimes this graph actually has. See NodeMenu for why.
+	const present = useMemo(() => {
+		const seen = new Set(forTarget.map(classify));
+		return RUNTIMES.filter((r) => seen.has(r));
+	}, [forTarget]);
+
+	const narrowed = runtime !== null && present.includes(runtime) ? runtime : null;
+
+	const all = useMemo(
+		() => (narrowed === null ? forTarget : forTarget.filter((def) => classify(def) === narrowed)),
+		[forTarget, narrowed],
 	);
 
 	const matches = useMemo(() => {
@@ -118,6 +143,29 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 			}}
 		>
 			<div className="node-picker" role="dialog" aria-label="Find a node">
+				{present.length > 1 && (
+					<div className="menu-runtimes" role="group" aria-label="Filter by runtime">
+						<button
+							type="button"
+							className={narrowed === null ? "on" : ""}
+							onClick={() => chooseRuntime(null)}
+							title="Every node this graph can compile"
+						>
+							All
+						</button>
+						{present.map((r) => (
+							<button
+								key={r}
+								type="button"
+								className={narrowed === r ? "on" : ""}
+								onClick={() => chooseRuntime(narrowed === r ? null : r)}
+								title={RUNTIME_SUMMARY[r]}
+							>
+								{RUNTIME_LABEL[r]}
+							</button>
+						))}
+					</div>
+				)}
 				<div className="node-picker-field">
 					<Icon name="search" size={14} />
 					<input
@@ -168,6 +216,14 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 										>
 											<span className="title">{def.title}</span>
 											{def.pure && <span className="hint">pure</span>}
+											{classify(def) !== "luau" && narrowed === null && (
+												<span
+													className={`hint runtime ${classify(def)}`}
+													title={RUNTIME_SUMMARY[classify(def)]}
+												>
+													{RUNTIME_LABEL[classify(def)]}
+												</span>
+											)}
 										</button>
 									);
 								})}

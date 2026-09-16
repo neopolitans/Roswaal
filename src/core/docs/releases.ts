@@ -76,6 +76,24 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.62.0",
+		date: "2026-09-16",
+		headline: "Search nodes by the runtime they work for.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A runtime filter in the node menu and the node picker** — All, Luau, Roblox — remembered between openings. It narrows what the graph's target already allows rather than replacing it, so a Lune graph never gains a Roblox node by picking a chip.",
+			"**Luau** is the useful one: it answers \"which of these still works if I move this graph to the other runtime\".",
+			"**A badge on a node that needs something.** Base Luau is unmarked — badging four rows in five would be noise, and the absence is the claim: this one runs anywhere.",
+			"**Every node's page says which runtime it is for**, base Luau included. Said nowhere, \"works in both\" and \"nobody has decided\" look identical, and for 237 nodes they were the same thing until 0.61.0.",
+		],
+		changed: [
+			"The filter offers only the runtimes actually present. A Lune graph has no Roblox nodes left to narrow to, so the chip is not there — a filter that can only return nothing is worse than no filter — and with one runtime present the row goes entirely.",
+		],
+		fixed: [
+			"Bringing a lit toolbar control into view measured from the wrong element on the [Toolbars](toolbars) page, so on a page with anything positioned above it the bar scrolled to a meaningless offset.",
+		],
+	},
+	{
 		version: "0.61.0",
 		date: "2026-09-16",
 		headline: "Every node says which runtime it is for.",

@@ -39,6 +39,7 @@
 
 import type { WireStyle } from "./geometry.js";
 import { DEFAULT_LAYOUT, readLayout, type Layout } from "./panels.js";
+import { RUNTIMES, type Runtime } from "../core/nodes/runtimes.js";
 
 const KEY = "roswaal.preferences";
 
@@ -143,6 +144,19 @@ export interface Preferences {
 	/** The typeface the docs are read in. Code keeps its own monospace either way. */
 	docsFont: DocsFont;
 	/**
+	 * Which runtime the node menu is narrowed to, or `null` for all of them.
+	 *
+	 * On top of the filter the graph's own target already applies, not instead
+	 * of it: a Lune graph never offers a Roblox node whatever this says. What
+	 * this narrows is the *rest* — most usefully to **Luau**, which answers
+	 * "which of these still works if I move this graph to the other runtime".
+	 *
+	 * A preference rather than per-graph state because it is a way of working
+	 * rather than a property of a document, and because a filter that resets
+	 * every time the menu opens is one nobody uses twice.
+	 */
+	nodeRuntime: Runtime | null;
+	/**
 	 * How large node and graph pictures are drawn in the docs, from 0.5 to 3.
 	 * A graph's frame grows with it, and a graph that outgrows the column is
 	 * panned rather than shrunk back.
@@ -216,6 +230,9 @@ export const DEFAULTS: Preferences = {
 	functionTabs: "full",
 	toolbarName: false,
 	docsFont: "system",
+	// Everything the target allows, which is what the menu did before there was
+	// a filter at all.
+	nodeRuntime: null,
 	docsPreviewScale: 1,
 	layout: DEFAULT_LAYOUT,
 };
@@ -273,6 +290,12 @@ export function readPreferences(): Preferences {
 			: DEFAULTS.functionTabs,
 		toolbarName:
 			typeof stored.toolbarName === "boolean" ? stored.toolbarName : DEFAULTS.toolbarName,
+		// A runtime that is not one of the three -- an older build's preference,
+		// or a hand-edited store -- falls back to showing everything rather
+		// than to a filter that hides the whole library.
+		nodeRuntime: RUNTIMES.includes(stored.nodeRuntime as Runtime)
+			? (stored.nodeRuntime as Runtime)
+			: null,
 		docsFont: DOCS_FONTS.some((f) => f.font === stored.docsFont)
 			? (stored.docsFont as DocsFont)
 			: DEFAULTS.docsFont,

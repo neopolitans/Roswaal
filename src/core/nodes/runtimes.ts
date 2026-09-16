@@ -132,6 +132,45 @@ export const NODE_RUNTIME: Record<string, Runtime> = {
 	"module.requirePath": "roblox",
 };
 
+/**
+ * What each runtime is called where a person reads it.
+ *
+ * "Luau" rather than "both" or "any": the claim is about the language, not
+ * about coverage, and a node that is base Luau stays base Luau on the day a
+ * third runtime appears.
+ */
+export const RUNTIME_LABEL: Record<Runtime, string> = {
+	luau: "Luau",
+	roblox: "Roblox",
+	lune: "Lune",
+};
+
+/** One line on what each means, for a tooltip and for the documentation. */
+export const RUNTIME_SUMMARY: Record<Runtime, string> = {
+	luau: "The language and its standard library. Works in both runtimes.",
+	roblox: "Needs the Roblox engine — its datatypes, its DataModel or its scheduler.",
+	lune: "Needs Lune, the standalone Luau runtime.",
+};
+
+/** Which order they are offered in: the portable one first. */
+export const RUNTIMES: readonly Runtime[] = ["luau", "roblox", "lune"];
+
+/**
+ * What a node runs on, read off the node itself.
+ *
+ * The counterpart to {@link runtimeOf}, which answers from the tables for a
+ * built-in. This one answers for **any** node including a project's own pack,
+ * whose runtime is the project's to declare and is on the definition or
+ * nowhere. Targeting both runtimes explicitly is the same claim as targeting
+ * neither, so both come back as base Luau.
+ */
+export function classify(def: { targets?: readonly string[] }): Runtime {
+	const targets = def.targets;
+	if (!targets || targets.length === 0) return "luau";
+	if (targets.includes("roblox") && targets.includes("lune")) return "luau";
+	return targets.includes("lune") ? "lune" : "roblox";
+}
+
 /** A runtime as the `targets` array a `NodeDef` carries. */
 export function targetsFor(runtime: Runtime): Target[] | undefined {
 	if (runtime === "luau") return undefined;

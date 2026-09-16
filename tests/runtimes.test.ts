@@ -26,7 +26,8 @@ import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, categories, createRegistry } from "../src/core/nodes/index.js";
 import {
-	CATEGORY_RUNTIME, NODE_RUNTIME, runtimeOf, targetsFor, withRuntimes,
+	CATEGORY_RUNTIME, classify, NODE_RUNTIME, RUNTIME_LABEL, RUNTIME_SUMMARY, RUNTIMES,
+	runtimeOf, targetsFor, withRuntimes,
 } from "../src/core/nodes/runtimes.js";
 import type { NodeDef } from "../src/core/schema.js";
 
@@ -140,6 +141,69 @@ describe("what a Lune graph is offered", () => {
 		expect(forTarget("roblox")).toHaveLength(all.length);
 		expect(forTarget("lune").length).toBeLessThan(all.length / 2);
 		expect(forTarget("lune").length).toBeGreaterThan(50);
+	});
+});
+
+/**
+ * 0.62.0: the runtime is something you can see and narrow by.
+ *
+ * The filter sits on top of the target's own, never instead of it — a Lune
+ * graph must not gain a Roblox node because somebody picked a chip.
+ */
+describe("runtime as an axis", () => {
+	it("classifies a node from its own targets, packs included", () => {
+		expect(classify({ targets: undefined })).toBe("luau");
+		expect(classify({ targets: [] })).toBe("luau");
+		expect(classify({ targets: ["roblox"] })).toBe("roblox");
+		expect(classify({ targets: ["lune"] })).toBe("lune");
+		// Saying both is the same claim as saying neither.
+		expect(classify({ targets: ["roblox", "lune"] })).toBe("luau");
+	});
+
+	it("agrees with the table for every built-in", () => {
+		for (const def of all) {
+			expect(classify(def), def.id).toBe(runtimeOf(def));
+		}
+	});
+
+	it("names every runtime it offers", () => {
+		for (const runtime of RUNTIMES) {
+			expect(RUNTIME_LABEL[runtime], runtime).toBeTruthy();
+			expect(RUNTIME_SUMMARY[runtime], runtime).toBeTruthy();
+		}
+		// The portable one first: it is the answer to "what can I move".
+		expect(RUNTIMES[0]).toBe("luau");
+	});
+
+	/**
+	 * The chips are drawn from what is present, so a Lune graph is never
+	 * offered a Roblox filter that could only ever return nothing.
+	 */
+	it("offers a Lune graph no Roblox filter", () => {
+		const present = (target: "roblox" | "lune") => {
+			const forTarget = all.filter((d) => !d.targets || d.targets.includes(target));
+			const seen = new Set(forTarget.map(classify));
+			return RUNTIMES.filter((r) => seen.has(r));
+		};
+		expect(present("roblox")).toEqual(["luau", "roblox"]);
+		expect(present("lune")).toEqual(["luau"]);
+	});
+
+	/** Both lists read the same preference, so the answer does not depend on route. */
+	it("uses one preference in both the menu and the picker", () => {
+		for (const path of ["src/app/NodeMenu.tsx", "src/app/NodePicker.tsx"]) {
+			expect(source(path), path).toContain("readPreferences().nodeRuntime");
+			expect(source(path), path).toContain("nodeRuntime: next");
+		}
+	});
+
+	/** Narrowing must not widen: the target's filter is applied first, always. */
+	it("narrows what the target allows rather than replacing it", () => {
+		const menu = source("src/app/NodeMenu.tsx");
+		// The wire filter and then the runtime filter, both over `allItems`,
+		// which is already target-filtered.
+		expect(menu).toContain("def.targets.includes(target)");
+		expect(menu).toContain("byWire.filter((item) => item.runtime === narrowed)");
 	});
 });
 

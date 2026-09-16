@@ -75,8 +75,14 @@ export function attachToolbarLink(figure: HTMLElement): () => void {
 		const target = (byKey.get(key) ?? []).find((part) => box.contains(part));
 		if (!target) return;
 
-		const left = target.offsetLeft;
-		const right = left + target.offsetWidth;
+		// Measured against the scroller, not against `offsetParent`. `offsetLeft`
+		// is relative to the nearest positioned ancestor, which the picture is
+		// not -- so on any page where something above it is positioned, this
+		// scrolled to a number that meant nothing.
+		const box_ = box.getBoundingClientRect();
+		const at = target.getBoundingClientRect();
+		const left = at.left - box_.left + box.scrollLeft;
+		const right = left + at.width;
 		const margin = 16;
 		if (left < box.scrollLeft + margin) {
 			box.scrollLeft = Math.max(0, left - margin);

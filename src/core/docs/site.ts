@@ -31,6 +31,7 @@ import {
 	DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, TARGETS, type Attribution,
 } from "./attributions.js";
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
+import { classify, RUNTIME_LABEL, type Runtime } from "../nodes/runtimes.js";
 import {
 	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DOCS_BAR, DOCS_SITE_BAR, EDITOR_BAR,
 	EDITOR_BAR_BROWSER, GRAPH_BAR, legendOf, MAP_BAR, type ToolbarSpec,
@@ -387,15 +388,31 @@ function previews(registry: Registry, ids: string[], caption?: string): Block[] 
 	return nodes.length > 0 ? [{ t: "preview", nodes, caption }] : [];
 }
 
+/**
+ * How a node page says which runtime it is for.
+ *
+ * Every page says it, including the base-Luau ones. Left unsaid, "works in
+ * both" is indistinguishable from "nobody has decided" — which is what 237 of
+ * them meant until 0.61.0, and the reader had no way to tell.
+ */
+const RUNTIME_TRAIT: Record<Runtime, string> = {
+	luau: `**${RUNTIME_LABEL.luau}** — the language itself, so it works in both runtimes`,
+	roblox: `**${RUNTIME_LABEL.roblox} only** — it needs the engine`,
+	lune: `**${RUNTIME_LABEL.lune} only** — it needs the standalone runtime`,
+};
+
 function nodePage(doc: NodeDoc): DocPage {
 	const blocks: Block[] = [];
 
 	const traits: string[] = [];
+	// Which runtime, on every page rather than only where it is restricted.
+	// Said nowhere, "base Luau" and "nobody has checked" look identical -- and
+	// for 237 nodes they were the same thing until 0.61.0.
+	traits.push(RUNTIME_TRAIT[classify(doc)]);
 	if (doc.pure) traits.push("pure — no execution pins, wire it anywhere");
 	if (doc.latent) traits.push("latent — it yields, and is never inlined");
 	if (doc.role === "entry") traits.push("an entry point: nothing wires into it");
 	if (doc.role === "terminal") traits.push("terminal — it ends the flow it is in");
-	if (doc.targets) traits.push(`only for ${doc.targets.join(" and ")}`);
 	if (doc.variadic) {
 		traits.push(`takes ${doc.variadic.min} to ${doc.variadic.max} inputs, set per node`);
 	}

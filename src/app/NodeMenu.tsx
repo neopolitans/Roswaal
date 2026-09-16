@@ -23,6 +23,10 @@ import { keywordNodes } from "../core/keywords.js";
 import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
 import { LAYER } from "./layers.js";
 import { COMMENT_DEFAULT_COLOR, nodeColor, pinColor } from "./palette.js";
+import {
+	classify, RUNTIME_LABEL, RUNTIME_SUMMARY, RUNTIMES, type Runtime,
+} from "../core/nodes/runtimes.js";
+import { readPreferences, writePreferences } from "./preferences.js";
 
 export interface MenuAnchor {
 	/** Viewport position. The menu is `position: fixed`, so it must not be
@@ -74,6 +78,8 @@ interface MenuItem {
 	summary?: string;
 	color: string;
 	pure: boolean;
+	/** Which runtime it needs. Shown on the row, and what the filter narrows on. */
+	runtime: Runtime;
 	def: NodeDef;
 	config?: NodeConfig;
 	/**
@@ -123,6 +129,7 @@ export function NodeMenu(props: NodeMenuProps) {
 				summary: def.summary,
 				color: nodeColor(def),
 				pure: def.pure === true,
+				runtime: classify(def),
 				def,
 			}));
 
@@ -136,6 +143,9 @@ export function NodeMenu(props: NodeMenuProps) {
 				summary: preset.summary,
 				color: preset.color,
 				pure: def.pure === true,
+				// A preset is an instance of a node, so it runs where that node
+				// runs. Reading it off the preset would be a second answer.
+				runtime: classify(def),
 				def,
 				config: preset.config,
 			}];
@@ -145,6 +155,37 @@ export function NodeMenu(props: NodeMenuProps) {
 		// it is an instance of.
 		return [...fromPresets, ...fromDefs];
 	}, [registry, target, presets]);
+
+	/**
+	 * Which runtime the list is narrowed to, remembered between openings.
+	 *
+	 * On top of the target's own filter rather than instead of it — `allItems`
+	 * has already dropped anything this graph cannot compile. What is left to
+	 * narrow is mostly "show me only what is portable", which is the question
+	 * somebody asks when they are thinking about moving a graph.
+	 */
+	const [runtime, setRuntime] = useState<Runtime | null>(() => readPreferences().nodeRuntime);
+
+	const chooseRuntime = (next: Runtime | null) => {
+		setRuntime(next);
+		writePreferences({ ...readPreferences(), nodeRuntime: next });
+	};
+
+	/**
+	 * The runtimes worth offering, which is the ones actually present.
+	 *
+	 * A Lune graph has no Roblox nodes left to filter to, so offering the chip
+	 * would be offering an empty list — and a filter that can only disappoint
+	 * is worse than no filter. With one runtime present there is nothing to
+	 * choose between, so the row goes entirely.
+	 */
+	const present = useMemo(() => {
+		const seen = new Set(allItems.map((item) => item.runtime));
+		return RUNTIMES.filter((r) => seen.has(r));
+	}, [allItems]);
+
+	// A remembered runtime that this graph has none of would hide everything.
+	const narrowed = runtime !== null && present.includes(runtime) ? runtime : null;
 
 	/**
 	 * The pin a wire was dragged off, and what could receive it.
@@ -173,10 +214,12 @@ export function NodeMenu(props: NodeMenuProps) {
 		return ok;
 	}, [anchor.from, registry]);
 
-	const items = useMemo(
-		() => (reachable === null ? allItems : allItems.filter((item) => reachable.has(item.def.id))),
-		[allItems, reachable],
-	);
+	const items = useMemo(() => {
+		const byWire = reachable === null
+			? allItems
+			: allItems.filter((item) => reachable.has(item.def.id));
+		return narrowed === null ? byWire : byWire.filter((item) => item.runtime === narrowed);
+	}, [allItems, reachable, narrowed]);
 
 	/**
 	 * Every method of every service, as an entry that configures one of the two
@@ -187,14 +230,19 @@ export function NodeMenu(props: NodeMenuProps) {
 	 * they appear once you have typed something, and browsing shows the two
 	 * nodes themselves, which is where the picker lives.
 	 */
+	// Roblox-only twice over: the guard below, and the node each entry
+	// configures. Stated rather than assumed, so the badge and the filter read
+	// it the same way everything else does.
 	const serviceItems = useMemo((): MenuItem[] => {
 		if (target !== "roblox") return [];
 		return serviceMenuItems().flatMap((entry) => {
 			const def = registry.get(entry.defId);
 			if (!def) return [];
 			const pure = def.pure === true;
+			const runtime = classify(def);
 			const dragged = entry.service === anchor.from?.service;
 			return [{
+				runtime,
 				// Off a service's own pin the service is not news — it is what you
 				// dragged — so the entries are the method names under a heading of
 				// the service, which is how the Creator Hub lists them. Searched
@@ -236,6 +284,7 @@ export function NodeMenu(props: NodeMenuProps) {
 			const def = registry.get(entry.defId);
 			if (!def) return [];
 			return [{
+				runtime: classify(def),
 				key: `name:${entry.defId}:${entry.name}`,
 				title: entry.name,
 				category: entry.category,
@@ -387,6 +436,32 @@ export function NodeMenu(props: NodeMenuProps) {
 					</span>
 				</div>
 			)}
+			{present.length > 1 && (
+				/* Which runtime, on top of what this graph can compile. The row is
+				   absent when there is only one runtime present, because a filter
+				   with a single option is furniture. */
+				<div className="menu-runtimes" role="group" aria-label="Filter by runtime">
+					<button
+						type="button"
+						className={narrowed === null ? "on" : ""}
+						onClick={() => chooseRuntime(null)}
+						title="Every node this graph can compile"
+					>
+						All
+					</button>
+					{present.map((r) => (
+						<button
+							key={r}
+							type="button"
+							className={narrowed === r ? "on" : ""}
+							onClick={() => chooseRuntime(narrowed === r ? null : r)}
+							title={RUNTIME_SUMMARY[r]}
+						>
+							{RUNTIME_LABEL[r]}
+						</button>
+					))}
+				</div>
+			)}
 			<input
 				className="search"
 				autoFocus
@@ -428,6 +503,15 @@ export function NodeMenu(props: NodeMenuProps) {
 							<span className="swatch" style={{ background: item.color }} />
 							<span>{item.title}</span>
 							{item.pure && <span className="hint">pure</span>}
+							{/* What it needs, where that is worth saying. Base Luau
+							    is the unmarked case -- badging four rows in five
+							    would be noise -- and a narrowed list already says
+							    it on the chip above. */}
+							{item.runtime !== "luau" && narrowed === null && (
+								<span className={`hint runtime ${item.runtime}`} title={RUNTIME_SUMMARY[item.runtime]}>
+									{RUNTIME_LABEL[item.runtime]}
+								</span>
+							)}
 						</div>
 					);
 					return (
