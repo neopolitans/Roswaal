@@ -8376,3 +8376,50 @@ button.tb.danger {
 .intro-card-open.gone {
 	color: var(--danger);
 }
+
+/* --------------------------------------------------------------------------
+   A checkbox the page puts beside the thing it changes.
+
+   The settings popover is for what a reader sets once and forgets; this is for
+   a choice that only makes sense while looking at the page it belongs to.
+   ----------------------------------------------------------------------- */
+.docs-toggle {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: start;
+	column-gap: 9px;
+	row-gap: 2px;
+	margin: 0 0 18px;
+	padding: 10px 12px;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: var(--bg-input);
+	cursor: pointer;
+}
+
+.docs-toggle input {
+	margin: 2px 0 0;
+	cursor: pointer;
+}
+
+.docs-toggle-label {
+	font-weight: 600;
+	color: var(--fg);
+}
+
+.docs-toggle-hint {
+	grid-column: 2;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--fg-muted);
+}
+
+/* What the answer hides.
+
+   Only when it is explicitly off, which is the script having run and read the
+   preference. With no JavaScript the attribute is never set and every fold is
+   drawn — a reader who cannot toggle sees everything rather than a checkbox
+   that does nothing and a history they cannot reach. */
+:root[data-showprereleasenotes="off"] .docs-details[data-prerelease] {
+	display: none;
+}

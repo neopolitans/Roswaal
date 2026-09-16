@@ -35,7 +35,8 @@ import { NODE, ZOOM } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { wirePath } from "./geometry.js";
 import { attachGraphView } from "./graphView.js";
-import type { Preferences } from "./preferences.js";
+import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
+import { applyDocsToggle } from "./docsToggle.js";
 import { growthState } from "../core/nodes/growth.js";
 import { PageEditor } from "./PageEditor.jsx";
 import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
@@ -569,9 +570,15 @@ function BlockView({ block }: { block: Block }) {
 			const Heading = block.level === 3 ? "h3" : "h4";
 			return <Heading><Rich text={block.text} />{badge}{aside}</Heading>;
 		}
+		case "toggle":
+			return <PreferenceToggle pref={block.pref} label={block.label} hint={block.hint} />;
 		case "details":
 			return (
-				<details className="docs-details" open={block.open}>
+				<details
+					className="docs-details"
+					open={block.open}
+					{...(block.prerelease ? { "data-prerelease": "" } : {})}
+				>
 					<summary>
 						<Rich text={block.summary} />
 						{block.aside && <span className="aside">{block.aside}</span>}
@@ -674,6 +681,43 @@ const TOOLBAR_ART = {
  * another docs page has to go through this panel's own navigation rather than
  * become an `<a href>` that leaves the window.
  */
+/**
+ * A checkbox on the page, wired to one of the reader's preferences.
+ *
+ * React state here, the shared script on the published site — the same split
+ * every interactive figure makes, and for the same reason: this window already
+ * holds the preferences and re-renders when they change, and the static site
+ * has neither.
+ */
+function PreferenceToggle(
+	{ pref, label, hint }: { pref: "showPreReleaseNotes"; label: string; hint?: string },
+) {
+	const [on, setOn] = useState(() => readPreferences()[pref]);
+
+	// The stylesheet decides what the answer hides, from an attribute on the
+	// document — the same one the published site's script sets, so one rule
+	// serves both.
+	useEffect(() => {
+		applyDocsToggle(document, pref, on);
+	}, [pref, on]);
+
+	return (
+		<label className="docs-toggle">
+			<input
+				type="checkbox"
+				checked={on}
+				onChange={(e) => {
+					const next = e.target.checked;
+					setOn(next);
+					writePreferences({ ...readPreferences(), [pref]: next });
+				}}
+			/>
+			<span className="docs-toggle-label"><Rich text={label} /></span>
+			{hint && <span className="docs-toggle-hint"><Rich text={hint} /></span>}
+		</label>
+	);
+}
+
 /**
  * The map editor, drawn in the panel and wired up.
  *

@@ -168,8 +168,34 @@ export type Block =
 	 * scroll past all of it. `aside` sits at the right of the summary, as a
 	 * heading's does. `open` starts it unfolded; a reader can still close it.
 	 */
-	| { t: "details"; summary: string; aside?: string; open?: boolean; blocks: Block[] }
+	| {
+			t: "details";
+			summary: string;
+			aside?: string;
+			open?: boolean;
+			blocks: Block[];
+			/**
+			 * Part of the history from before Roswaal was public.
+			 *
+			 * Hidden unless the reader asks, by the toggle below. Marked rather
+			 * than left out: the reasoning in those entries is still the reasoning
+			 * behind the tool, and somebody who wants it should not have to go to
+			 * the repository for it.
+			 */
+			prerelease?: boolean;
+	  }
 	| { t: "tabs"; label?: string; tabs: DocTab[] }
+	/**
+	 * A checkbox on the page, wired to one of the reader's preferences.
+	 *
+	 * The settings popover is for what a reader sets once and forgets. This is
+	 * for a choice that belongs beside the thing it changes: the pre-release
+	 * notes are only worth thinking about while looking at the release notes.
+	 *
+	 * `pref` names the preference, which is where the answer is kept, so it
+	 * survives the page and is the same answer in the editor's own Docs window.
+	 */
+	| { t: "toggle"; pref: "showPreReleaseNotes"; label: string; hint?: string }
 	/**
 	 * A bar of the tool, drawn as it appears, with every control named
 	 * underneath it.
@@ -398,6 +424,10 @@ export function blockText(block: Block): string {
 			// an id is what somebody searching for a node in a guide will type.
 			return [...block.script.nodes.map((n) => n.def), block.caption ?? ""]
 				.join(" ").trim();
+		case "toggle":
+			// The label, not the hint. Somebody searching for "pre-release" should
+			// land on the page that has the switch for them.
+			return block.label;
 		case "nodemap":
 			// The names in the tree, which is what somebody looks for: they are
 			// the services and folders a reader recognises from their own project.
@@ -929,12 +959,38 @@ function releasesPage(titles: ReadonlyMap<string, string>): DocPage {
 		const minor = release.version.split(".").slice(0, 2).join(".") + ".x";
 		minors.set(minor, [...(minors.get(minor) ?? []), release]);
 	}
+	/**
+	 * Roswaal became something other people could run at 0.59.2.
+	 *
+	 * Everything before it was written while nobody else could, and reads that
+	 * way: entries about decisions nobody had to live with yet. It is kept,
+	 * because the reasoning is still the reasoning behind the tool — and hidden
+	 * by default, because somebody looking for what changed last week should
+	 * not scroll two years of a private project to find it.
+	 */
+	const PUBLIC_FROM = [0, 59];
+	const isPreRelease = (minor: string): boolean => {
+		const [major, second] = minor.split(".").map((part) => Number.parseInt(part, 10));
+		if (!Number.isFinite(major) || !Number.isFinite(second)) return false;
+		return major < PUBLIC_FROM[0] || (major === PUBLIC_FROM[0] && second < PUBLIC_FROM[1]);
+	};
+
+	blocks.push({
+		t: "toggle",
+		pref: "showPreReleaseNotes",
+		label: "Show the notes from before Roswaal was public",
+		hint:
+			"Everything up to 0.59.1, written while nobody else could run it. Kept because the " +
+			"reasoning in it is still the reasoning behind the tool.",
+	});
+
 	[...minors].forEach(([minor, releases], index) => {
 		blocks.push({
 			t: "details",
 			summary: minor,
 			aside: `${releases.length} ${releases.length === 1 ? "release" : "releases"} · ${releases[0].date}`,
 			open: index === 0,
+			...(isPreRelease(minor) ? { prerelease: true } : {}),
 			blocks: releases.flatMap((release) =>
 				releaseBlocks(release, titles, 3, release === RELEASES[0]),
 			),

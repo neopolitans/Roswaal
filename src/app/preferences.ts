@@ -181,6 +181,15 @@ export interface Preferences {
 	/** The typeface the docs are read in. Code keeps its own monospace either way. */
 	docsFont: DocsFont;
 	/**
+	 * Show the release notes from before Roswaal was public.
+	 *
+	 * Everything up to 0.59.1 was written while nobody else could run it. It is
+	 * kept because the reasoning in it is still the reasoning behind the tool,
+	 * and hidden because a reader looking for what changed last week should not
+	 * have to scroll two years of a private project to find it.
+	 */
+	showPreReleaseNotes: boolean;
+	/**
 	 * What the node menu is narrowed to, or `null` for everything.
 	 *
 	 * On top of the filter the graph's own target already applies, not instead
@@ -265,6 +274,7 @@ export const DEFAULTS: Preferences = {
 	functionTabs: "full",
 	toolbarName: false,
 	docsFont: "system",
+	showPreReleaseNotes: false,
 	// Everything the target allows, which is what the menu did before there was
 	// a filter at all.
 	nodeFilter: null,
@@ -331,6 +341,10 @@ export function readPreferences(): Preferences {
 		nodeFilter: MENU_FILTERS.includes(stored.nodeFilter as MenuFilter)
 			? (stored.nodeFilter as MenuFilter)
 			: null,
+		showPreReleaseNotes:
+			typeof stored.showPreReleaseNotes === "boolean"
+				? stored.showPreReleaseNotes
+				: DEFAULTS.showPreReleaseNotes,
 		docsFont: DOCS_FONTS.some((f) => f.font === stored.docsFont)
 			? (stored.docsFont as DocsFont)
 			: DEFAULTS.docsFont,

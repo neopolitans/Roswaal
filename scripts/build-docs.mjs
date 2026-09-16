@@ -34,6 +34,7 @@ import { buildGraphViewer } from "./lib/graphViewer.mjs";
 import { buildThemePaint } from "./lib/themePaint.mjs";
 import { buildToolbarLinker } from "./lib/toolbarLinker.mjs";
 import { buildMapPanel } from "./lib/mapPanel.mjs";
+import { buildDocsToggle } from "./lib/docsToggle.mjs";
 import { VERSION } from "../src/cli/version.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -188,7 +189,8 @@ async function main() {
 			+ (await readFile(join(root, "scripts/lib/docsChrome.js"), "utf8"))
 			+ (await buildGraphViewer())
 			+ (await buildToolbarLinker())
-			+ (await buildMapPanel()),
+			+ (await buildMapPanel())
+			+ (await buildDocsToggle()),
 		"utf8",
 	);
 

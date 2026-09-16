@@ -239,6 +239,16 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			return `<figure class="docs-preview graph${panel ? " with-panel" : ""}">` +
 				`${panel}<div class="graph-viewport">${svg}</div>${caption}</figure>`;
 		}
+		case "toggle": {
+			// `data-pref` is what the script reads; the checkbox is checked by that
+			// script rather than here, because the answer lives in the reader's own
+			// storage and this markup is the same for everybody.
+			return `<label class="docs-toggle"><input type="checkbox"` +
+				` data-pref="${escapeHtml(block.pref)}">` +
+				`<span class="docs-toggle-label">${inline(block.label, up)}</span>` +
+				`${block.hint ? `<span class="docs-toggle-hint">${inline(block.hint, up)}</span>` : ""}` +
+				`</label>`;
+		}
 		case "nodemap": {
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
 			// One string, built in core, for the reason the toolbars are: the
@@ -318,7 +328,8 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
 			const inner = block.blocks.map((b) => renderBlock(b, options, up)).join("\n");
 			return (
-				`<details class="docs-details"${block.open ? " open" : ""}>` +
+				`<details class="docs-details"${block.open ? " open" : ""}` +
+				`${block.prerelease ? " data-prerelease" : ""}>` +
 				`<summary>${inline(block.summary, up)}${aside}</summary>\n` +
 				`${inner}\n</details>`
 			);
