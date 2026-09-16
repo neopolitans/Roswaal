@@ -36,6 +36,7 @@
  * [amended]: https://rfcs.luau.org/amended-require-resolution.html
  */
 
+import { aliasesOf, type LuaurcChain } from "./luaurc.js";
 import type { Target } from "./schema.js";
 
 export interface SpecifierProblem {
@@ -65,7 +66,33 @@ export function aliasOf(specifier: string): string | null {
  * emitter skips it rather than compiling half of one — saying "this is wrong"
  * about a field you have not filled in yet is nagging, not checking.
  */
-export function checkSpecifier(specifier: string, target: Target): SpecifierProblem | null {
+/**
+ * What the project's `.luaurc` files say, when we have been told.
+ *
+ * Optional because two of the three callers do not have it: the emitter is
+ * handed a graph and no project, and a test asks about a specifier in the
+ * abstract. Absent, this checks what a specifier *is*; present, it can also
+ * check whether the alias exists — which is the difference between "that is
+ * not a legal require" and "nothing in this project defines `@roact`".
+ */
+export interface SpecifierContext {
+	/** The `.luaurc` chain for the file being compiled, nearest first. */
+	luaurc?: LuaurcChain;
+	/**
+	 * Whether the project has any `.luaurc` at all.
+	 *
+	 * Separate from the chain being empty, and it changes the verdict. With a
+	 * file present, a name it does not define is a **typo** and an error. With
+	 * no file anywhere, an alias is code written against a map we have not been
+	 * shown — generated at build time, or outside the project root — and calling
+	 * that an error would be refusing to compile a project that builds.
+	 */
+	hasLuaurc?: boolean;
+}
+
+export function checkSpecifier(
+	specifier: string, target: Target, context: SpecifierContext = {},
+): SpecifierProblem | null {
 	const text = specifier.trim();
 	if (text === "") return null;
 
@@ -101,7 +128,8 @@ export function checkSpecifier(specifier: string, target: Target): SpecifierProb
 					", and Lune has neither. Use a path, or an alias from your `.luaurc`.",
 			};
 		}
-		return null;
+		if (alias === LUNE_ALIAS) return null;
+		return undefinedAlias(alias, context);
 	}
 
 	// Roblox from here.
@@ -115,11 +143,46 @@ export function checkSpecifier(specifier: string, target: Target): SpecifierProb
 	}
 	if (isRobloxAlias) return null;
 
+	// A name nothing defines is wrong for a reason that has nothing to do with
+	// Roblox, and saying the Roblox thing about it would send somebody off to
+	// read about engine support for an alias they have misspelled.
+	const undefined_ = undefinedAlias(alias, context);
+	if (undefined_ !== null) return undefined_;
+
 	return {
 		severity: "warning",
 		message:
 			`\`@${alias}/\` reads as an alias from a \`.luaurc\`, which **Roblox does not resolve ` +
 			"yet** — its own announcement says alias maps are being worked on. `@self/` and " +
 			"`@game/` do work, and so do `./` and `../`.",
+	};
+}
+
+/**
+ * Nothing defines this alias — or nothing we were shown.
+ *
+ * `null` when we have no business having an opinion: without a chain this
+ * module does not know what the project defines, and inventing an error from
+ * that would be worse than saying nothing.
+ */
+function undefinedAlias(alias: string, context: SpecifierContext): SpecifierProblem | null {
+	const chain = context.luaurc;
+	if (chain === undefined) return null;
+	if (aliasesOf(chain).has(alias.toLowerCase())) return null;
+
+	if (context.hasLuaurc === false) {
+		return {
+			severity: "warning",
+			message:
+				`Nothing in this project defines \`@${alias}\` — there is no \`.luaurc\` here at ` +
+				"all. If the file is generated at build time this is fine; otherwise the require " +
+				"will not resolve.",
+		};
+	}
+	return {
+		severity: "error",
+		message:
+			`No \`.luaurc\` above this script defines \`@${alias}\`. Check the spelling, or add ` +
+			"the alias in Settings.",
 	};
 }
