@@ -641,6 +641,7 @@ export function Canvas({
 
 	const worldStyle: CSSProperties = {
 		transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
+		zIndex: LAYER.world,
 	};
 
 	const liveWire = (() => {

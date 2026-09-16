@@ -3419,7 +3419,26 @@ button.tb.primary:hover:not(:disabled) {
 	gap: 8px;
 }
 
+/* The filled destructive button: the confirm on "Delete this?".
+
+   It states all three of background, colour and border rather than only the
+   one that differs from `.primary`. `.danger` on its own is the *outline*
+   destructive button -- danger text, danger border, no fill -- and it sits
+   later in this file than `.primary`, so at equal specificity its `color`
+   won. A filled button that took its fill from here and its text from there
+   rendered `--danger` on `--danger`: the word "Delete" was still in the
+   button, in exactly the colour of the button.
+
+   The hover needs saying for the same kind of reason. `button.tb.primary:hover`
+   carries a pseudo-class and so outranks a plain `.primary.danger`, which
+   turned the delete button accent-blue the moment the pointer reached it. */
 button.tb.primary.danger {
+	background: var(--danger);
+	border-color: transparent;
+	color: #fff;
+}
+
+button.tb.primary.danger:hover:not(:disabled) {
 	background: var(--danger);
 }
 

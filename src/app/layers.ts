@@ -12,6 +12,24 @@ export const LAYER = {
 	grid: 10,
 	/** The graph name, bottom right, sitting just above the grid. */
 	watermark: 20,
+	/**
+	 * The transformed layer everything in the graph is drawn inside.
+	 *
+	 * It needs a number of its own, and the reason is the one thing about this
+	 * table that is not obvious. Every value below this one is resolved
+	 * *inside* `.world`, which is a stacking context because it is
+	 * transformed. So `node: 50` does not mean the node is above the grid --
+	 * it means the node is above the wires drawn beside it. What the reader
+	 * sees a node painted over is decided here, once, by where `.world` sits
+	 * among the grid and the watermark.
+	 *
+	 * Left unset, `.world` was `z-index: auto`, which paints below every
+	 * positioned sibling that has a number. The grid and the watermark both
+	 * have one, so both were painted over the top of every node on the canvas
+	 * -- faintly enough, at 5% to 14% alpha, to read as texture rather than as
+	 * something wrong.
+	 */
+	world: 25,
 	/** Comment boxes group nodes, so they sit behind them. */
 	comment: 30,
 	/** Comment title bars, which stay grabbable when nodes overlap the body. */

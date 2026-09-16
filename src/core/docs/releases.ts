@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.67.4",
+		date: "2026-09-16",
+		headline: "The grid stops being drawn over the graph.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"**The canvas grid was painted on top of every node**, in the graph editor and in Node Design's logic canvas. The layer everything in the graph is drawn inside carried no stacking order of its own, and an element without one sits below every neighbour that has one — which the grid and the graph's name both do. At 5% to 14% alpha it read as texture rather than as a mistake, and it had been there since the first version. Node previews were never affected.",
+			"**The confirm button on a delete no longer prints its text in its own colour.** The filled destructive button took its fill from one rule and its text from another, and both resolved to the same red: the word *Delete* was still in the button, in exactly the colour of the button. Reaching for it also turned it accent-blue, because the hover rule outranked the one giving it a red fill.",
+		],
+		watch: [
+			"The documentation has two renderers — one writes the published site, the other draws the same pages in the editor — and a change reaching only one of them has now shipped twice. They are checked against each other on every run.",
+		],
+	},
+	{
 		version: "0.67.3",
 		date: "2026-09-16",
 		headline: "Vector3 works in Lune, and says what it needs.",

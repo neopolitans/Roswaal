@@ -499,3 +499,151 @@ describe("the buttons that move a panel between a dock and a window", () => {
 		expect(css.slice(override, css.indexOf("}", override))).toMatch(/--dock-button-top:/);
 	});
 });
+
+/**
+ * A button variant must never paint its text in its own background.
+ *
+ * `.tb` modifiers combine, and two of them disagreed. `.danger` on its own is
+ * the *outline* destructive button -- danger text, no fill -- while
+ * `.primary.danger` is the *filled* one. The filled rule set only the
+ * background and let the colour fall through to whichever same-specificity
+ * rule came later in the file, which was the outline one. The result rendered
+ * `--danger` text on a `--danger` fill: the confirm button on "Delete this?"
+ * still had the word Delete in it, in exactly the colour of the button.
+ *
+ * That is not something a declaration-by-declaration reading of the file
+ * catches, because every individual rule is reasonable. It only appears once
+ * the cascade has run, so this runs it: for each combination of classes the
+ * app actually renders, resolve the winning `color` and `background` the way
+ * a browser would -- specificity first, then source order -- and require the
+ * two to differ.
+ */
+describe("no button paints its text in its own background", () => {
+	interface Rule { classes: Set<string>; states: number; at: number; body: string }
+
+	const bare = withoutComments(css);
+
+	/**
+	 * Every `button.tb…` rule, with what it takes to match.
+	 *
+	 * Scanned rather than matched with one regex. A pattern that anchors each
+	 * rule to the `}` before it consumes that `}`, so the rule after it has no
+	 * delimiter left and the pass silently reads every *other* rule — which is
+	 * how the first version of this test passed against the bug it was written
+	 * for. Depth is tracked so a rule inside `@media` is still seen.
+	 */
+	const rules: Rule[] = [];
+	const blocks: Array<{ selector: string; body: string; at: number }> = [];
+	let depth = 0;
+	let mark = 0;
+	for (let i = 0; i < bare.length; i += 1) {
+		if (bare[i] === "{") {
+			if (depth === 0) {
+				const selector = bare.slice(mark, i).trim();
+				const close = (() => {
+					let d = 0;
+					for (let j = i; j < bare.length; j += 1) {
+						if (bare[j] === "{") d += 1;
+						else if (bare[j] === "}" && (d -= 1) === 0) return j;
+					}
+					return bare.length;
+				})();
+				// An at-rule wraps more rules; step inside it rather than
+				// treating its whole body as declarations.
+				if (!selector.startsWith("@")) {
+					blocks.push({ selector, body: bare.slice(i + 1, close), at: i });
+					i = close;
+					mark = i + 1;
+					continue;
+				}
+				mark = i + 1;
+			}
+			depth += 1;
+		} else if (bare[i] === "}") {
+			depth = Math.max(0, depth - 1);
+			mark = i + 1;
+		}
+	}
+
+	for (const block of blocks) {
+		for (const selector of block.selector.split(",").map((s) => s.trim())) {
+			if (!/^button\.tb[.:]/.test(selector) && selector !== "button.tb") continue;
+			// Anything with a descendant or sibling combinator is scoped to a
+			// container, and is not in play for a button on its own.
+			if (/[\s>+~]/.test(selector.replace(/:not\([^)]*\)/g, ""))) continue;
+			const classes = new Set(
+				[...selector.matchAll(/\.([a-zA-Z0-9-]+)/g)].map((c) => c[1]),
+			);
+			// `:hover` and `:not(:disabled)` both add specificity, and both are
+			// what let a hover rule outrank a more specific resting one.
+			const states = (selector.match(/:(?!not\()[a-z-]+/g) ?? []).length;
+			rules.push({ classes, states, at: block.at, body: block.body });
+		}
+	}
+
+	it("finds the rules to reason about", () => {
+		expect(rules.length).toBeGreaterThan(3);
+		expect(rules.some((r) => r.classes.has("primary") && r.classes.has("danger"))).toBe(true);
+	});
+
+	/** What a browser would land on for one property, given a set of classes. */
+	function winner(on: Set<string>, property: string, hovering: boolean): string | null {
+		const matching = rules
+			.filter((r) => [...r.classes].every((c) => on.has(c)))
+			.filter((r) => (hovering ? true : r.states === 0));
+		let best: { rank: number; at: number; value: string } | null = null;
+		for (const r of matching) {
+			// `\\s` and not `\s`: this is a template literal, where `\s` is
+			// just `s`. The first version of this read `(?:^|;)s*colors*:`,
+			// matched nothing, and returned null for every property -- which
+			// this function treats as "inherits", so every case passed.
+			const found = [...r.body.matchAll(
+				new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`, "g"),
+			)];
+			if (found.length === 0) continue;
+			const rank = r.classes.size + r.states;
+			const value = found[found.length - 1][1].trim();
+			if (best === null || rank > best.rank || (rank === best.rank && r.at > best.at)) {
+				best = { rank, at: r.at, value };
+			}
+		}
+		return best?.value ?? null;
+	}
+
+	/**
+	 * The variants the app renders. `Dialog.tsx` builds the third by appending
+	 * to the second, which is how the two modifiers met in the first place.
+	 */
+	const VARIANTS: Array<[string, string[]]> = [
+		["a plain button", ["tb"]],
+		["the primary button", ["tb", "primary"]],
+		["the outline destructive button", ["tb", "danger"]],
+		["the filled destructive button", ["tb", "primary", "danger"]],
+	];
+
+	for (const [name, classes] of VARIANTS) {
+		for (const hovering of [false, true]) {
+			it(`${name} stays readable${hovering ? ", hovered" : ""}`, () => {
+				const on = new Set(classes);
+				const colour = winner(on, "color", hovering);
+				const background = winner(on, "background", hovering);
+				// A variant that states neither is inheriting both, which is the
+				// plain button and is somebody else's problem to get right.
+				if (colour === null || background === null) return;
+				expect([name, colour]).not.toEqual([name, background]);
+			});
+		}
+	}
+
+	/**
+	 * The hover must not throw away the variant's own fill.
+	 *
+	 * `button.tb.primary:hover:not(:disabled)` carries two pseudo-classes and
+	 * so outranks a plain `button.tb.primary.danger`. Before this, reaching
+	 * for the delete button turned it accent-blue on the way.
+	 */
+	it("keeps the filled destructive button red under the pointer", () => {
+		const on = new Set(["tb", "primary", "danger"]);
+		expect(winner(on, "background", true)).toBe(winner(on, "background", false));
+	});
+});
