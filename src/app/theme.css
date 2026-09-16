@@ -8284,3 +8284,35 @@ button.tb.danger {
 	opacity: 0.55;
 	cursor: default;
 }
+
+/* --------------------------------------------------------------------------
+   A drawn graph with what it declares beside it.
+
+   The panel goes on the left because it is read first: `fs` is declared and
+   then used, and a reader following `fs.readFile` back to its module should
+   travel the way the eye already goes.
+   ----------------------------------------------------------------------- */
+.docs-preview.graph.with-panel {
+	display: grid;
+	grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+	gap: 14px;
+	align-items: start;
+}
+
+.docs-preview.graph.with-panel > figcaption {
+	grid-column: 1 / -1;
+}
+
+/* The panel draws itself; this only stops it stretching to the graph's height,
+   which would leave a tall empty box under three rows of modules. */
+.graph-declares .docs-bar-frame {
+	margin: 0;
+}
+
+/* One under the other once there is no room for two: a 240px panel beside a
+   graph on a phone is two things too narrow to read instead of one. */
+@media (max-width: 860px) {
+	.docs-preview.graph.with-panel {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

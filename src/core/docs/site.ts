@@ -36,7 +36,7 @@ import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
 	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DOCS_BAR, DOCS_SITE_BAR, EDITOR_BAR,
 	EDITOR_BAR_BROWSER, FUNCTIONS_PANEL, GRAPH_BAR, legendOf, MAP_BAR, MODULES_PANEL,
-	VARIABLES_PAGE_PANEL, type ToolbarSpec,
+	VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec,
 } from "./toolbars.js";
 import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release, type ReleaseSurface } from "./releases.js";
@@ -138,7 +138,20 @@ export type Block =
 	 * compiled for the code block underneath it — the picture and the Luau
 	 * cannot describe different graphs.
 	 */
-	| { t: "graph"; script: NodeScript; caption?: string }
+	| {
+			t: "graph";
+			script: NodeScript;
+			caption?: string;
+			/**
+			 * The Variables panel as this graph would show it, beside the picture.
+			 *
+			 * A drawn graph shows what the nodes do and not where their names came
+			 * from: `fs.readFile` is on the canvas and `fs` is declared in a panel
+			 * that is not in the picture. Built by `declarationsPanel` from the
+			 * graph itself, so the two halves cannot describe different graphs.
+			 */
+			panel?: ToolbarSpec;
+	  }
 	/**
 	 * A node map drawn beside what it produces, the two halves linked.
 	 *
@@ -4770,10 +4783,15 @@ function luneDemosPage(registry: Registry): DocPage {
 	for (const demo of DEMOS) {
 		blocks.push({ t: "h", level: 2, text: demo.title });
 		blocks.push({ t: "p", text: demo.what });
+		const script = demo.script();
 		blocks.push({
 			t: "graph",
-			script: demo.script(),
-			caption: "The graph this was compiled from.",
+			script,
+			// What it declares, beside it. A drawn graph shows `fs.readFile`
+			// and not where `fs` came from, and where it came from is the whole
+			// rule the Lune library rests on.
+			panel: declarationsPanel(script),
+			caption: "The graph this was compiled from, and what it declares.",
 		});
 		blocks.push({ t: "code", lang: "luau", text: demoLuau(demo, registry) });
 		if (demo.note) blocks.push({ t: "note", kind: "info", text: demo.note });

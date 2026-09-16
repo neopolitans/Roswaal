@@ -638,7 +638,9 @@ function BlockView({ block }: { block: Block }) {
 		case "preview":
 			return <PreviewFigure nodes={block.nodes} caption={block.caption} />;
 		case "graph":
-			return <GraphFigure script={block.script} caption={block.caption} />;
+			return (
+				<GraphFigure script={block.script} caption={block.caption} panel={block.panel} />
+			);
 		case "tabs":
 			return <Tabs block={block} />;
 		case "nodemap":
@@ -807,7 +809,10 @@ function PreviewFigure({ nodes, caption }: { nodes: NodePreview[]; caption?: str
  * about what a graph looks like. The registry comes from context because a
  * graph stores node ids, and a project's own packs have to draw too.
  */
-function GraphFigure({ script, caption }: { script: NodeScript; caption?: string }) {
+function GraphFigure(
+	{ script, caption, panel }:
+	{ script: NodeScript; caption?: string; panel?: ToolbarSpec },
+) {
 	const registry = useContext(RegistryContext);
 	const preview = useContext(PreviewContext);
 	const svg = registry ? graphSvg(script, registry, preview) : "";
@@ -828,7 +833,18 @@ function GraphFigure({ script, caption }: { script: NodeScript; caption?: string
 	if (svg === "") return null;
 	const wide = breakout(scale);
 	return (
-		<figure className={`docs-preview graph${wide.className}`} style={wide.style}>
+		<figure
+			className={`docs-preview graph${panel ? " with-panel" : ""}${wide.className}`}
+			style={wide.style}
+		>
+			{/* What the graph declares, from core, so it is byte-identical to
+			    the published site's. */}
+			{panel && (
+				<div
+					className="graph-declares"
+					dangerouslySetInnerHTML={{ __html: toolbarHtml(panel, TOOLBAR_ART) }}
+				/>
+			)}
 			<div
 				className="graph-viewport"
 				ref={viewport}

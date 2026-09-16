@@ -38,6 +38,7 @@
  */
 
 import { escapeXml } from "./preview.js";
+import type { NodeScript } from "../schema.js";
 
 // ---------------------------------------------------------------------------
 // The model
@@ -1199,3 +1200,47 @@ export const TOOLBARS: ToolbarSpec[] = [
  * page telling somebody they are in the tool when they are in the preview.
  */
 export const BROWSER_TOOLBARS: ToolbarSpec[] = [EDITOR_BAR_BROWSER, DESIGNER_BAR_BROWSER];
+
+/**
+ * The Variables panel as a particular graph would show it.
+ *
+ * The same widget the Variables and Modules pages draw, given a real graph's
+ * declarations instead of example rows. It answers the question a demo raises
+ * and its picture cannot: `fs.readFile` is drawn on the canvas, and where `fs`
+ * came from is in a panel that is not in the picture.
+ *
+ * Only the sections the graph actually has. A Modules heading over nothing
+ * would be teaching that a Lune graph has an empty one, and these all declare
+ * something — that is most of the point of them.
+ */
+export function declarationsPanel(script: NodeScript): ToolbarSpec | undefined {
+	const items: ToolbarItem[] = [];
+
+	const modules = script.modules ?? [];
+	if (modules.length > 0) {
+		// `action` is the editor's own Add button on that heading: Modules
+		// declares something, so it has one. Drawn rather than explained.
+		items.push({ t: "heading", text: "Modules", level: 3, action: "Add" });
+		for (const module of modules) {
+			// `outline` is the ring a module gets. A variable's swatch is its
+			// type's colour, and a module has no type.
+			items.push({ t: "row", label: module.name, trailing: module.specifier, swatch: "outline" });
+		}
+	}
+
+	for (const variable of script.variables) {
+		if (items.length === 0 || items[items.length - 1].t === "row") {
+			items.push({ t: "heading", text: "Variables", level: 3, action: "Add" });
+		}
+		items.push({ t: "row", label: variable.name, trailing: variable.type, swatch: variable.type });
+	}
+
+	if (items.length === 0) return undefined;
+	return {
+		id: `declares-${script.id}`,
+		title: "Variables",
+		summary: "What this graph declares.",
+		chrome: "panel",
+		groups: [{ items }],
+	};
+}

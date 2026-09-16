@@ -228,10 +228,16 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			const svg = graphSvg(block.script, options.registry, options.preview);
 			if (svg === "") return "";
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
+			// What the graph declares, to the left of it. Absent on a graph
+			// that declares nothing, which is most of them.
+			const panel = block.panel && options.toolbars
+				? `<div class="graph-declares">` +
+					`${toolbarHtml(block.panel, { ...options.toolbars, version: options.version })}</div>`
+				: "";
 			// The viewport clips; the script that makes it pan and zoom is an
 			// enhancement, and without it this is still a readable picture.
-			return `<figure class="docs-preview graph">` +
-				`<div class="graph-viewport">${svg}</div>${caption}</figure>`;
+			return `<figure class="docs-preview graph${panel ? " with-panel" : ""}">` +
+				`${panel}<div class="graph-viewport">${svg}</div>${caption}</figure>`;
 		}
 		case "nodemap": {
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";

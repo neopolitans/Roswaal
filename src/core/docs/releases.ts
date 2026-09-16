@@ -98,7 +98,11 @@ export const RELEASES: Release[] = [
 		date: "2026-09-16",
 		headline: "The guides split into four, and a pill fits what is on it.",
 		affects: ["editor", "docs"],
+		added: [
+			"**A demo graph shows what it declares, beside it.** The Variables panel — the real widget, given the graph’s own modules rather than example rows — sits to the left of each picture on [Lune demos](lune-demos). A drawn graph shows `fs.readFile` and not where `fs` came from, and where it came from is the rule the whole library rests on.",
+		],
 		changed: [
+			"**The demos are drawn as they were arranged.** The placement rule that builds them gets every node into a sensible column and leaves wires crossing; the layout is authored in the editor now and folded back, so the page draws the arrangement somebody actually made.",
 			"**The guides are four shelves rather than one list of sixteen** — Writing graphs, For Roblox, For Lune, The tool. Three of the sixteen titles began “Compiling and nodemaps”, and a list that long is one you read line by line looking for a word. Somebody who only has Lune now finds their four pages together.",
 		],
 		fixed: [
