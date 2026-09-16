@@ -1,7 +1,9 @@
 import { fileURLToPath } from "node:url";
 
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+// Vitest reads this file, so the config carries a `test` block -- which is
+// Vitest's key, not Vite's, and needs Vitest's own `defineConfig` to typecheck.
+import { defineConfig } from "vitest/config";
 
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { demoSeedPlugin } from "./scripts/demo-seed.mjs";
@@ -51,5 +53,21 @@ export default defineConfig({
 	},
 	build: {
 		outDir: "dist",
+	},
+	/**
+	 * Tests run on the stable line, whatever line the machine is building.
+	 *
+	 * The site workflow sets `ROSWAAL_CHANNEL` for the whole job, including
+	 * `npm test`. Anything that reads it as a default therefore answered
+	 * differently on the canary than on a developer's machine, and two tests
+	 * that had passed everywhere failed on the first canary run — the front
+	 * page's title and the mark on its door.
+	 *
+	 * The tests themselves now state which build they mean. This is the second
+	 * lock: nothing under test can read the ambient channel by accident, so a
+	 * test written next year cannot reintroduce the same failure.
+	 */
+	test: {
+		env: { ROSWAAL_CHANNEL: "stable" },
 	},
 });

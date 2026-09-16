@@ -90,6 +90,7 @@ export const RELEASES: Release[] = [
 			"The front page's first button carries whichever mark the site was built from, and the sentence under it agrees with it.",
 		],
 		fixed: [
+			"**The test suite read which build it was being run for.** The site workflow sets the channel for the whole job, so the two tests that asked the front page what it looked like got the canary's answer and failed — on the canary only, after passing on every machine. They state which build they mean now, and the suite pins the channel so nothing can read it by accident again.",
 			"**The canary mark was drawn in the preview's colour.** The chip read *canary* and was painted accent blue, because the rule that colours it in a toolbar is more specific than the rule that says which colour a canary is. The colour is chosen on the chip itself now, so no amount of chrome around it can overrule what it is claiming.",
 		],
 		watch: [

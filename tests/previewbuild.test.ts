@@ -271,7 +271,8 @@ describe("the Source link", () => {
 });
 
 describe("links into the browser build", () => {
-	const html: string = landingPage("9.9.9");
+	// The stable page, stated rather than inherited. See landingpage.test.ts.
+	const html: string = landingPage("9.9.9", { canary: false });
 
 	it("labels the front page's door, rather than only describing it", () => {
 		expect(html).toContain('href="try.html"');

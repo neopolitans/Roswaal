@@ -17,7 +17,15 @@ import { describe, expect, it } from "vitest";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { landingPage } from "../scripts/lib/landing.mjs";
 
-const html: string = landingPage("9.9.9");
+/**
+ * The stable page, said out loud rather than taken from the environment.
+ *
+ * `landingPage` defaults its channel to `ROSWAAL_CHANNEL`, and the site
+ * workflow sets that for the whole job — so on the canary these assertions were
+ * being made against a page with a different title and a different door, and
+ * two of them failed on CI while passing on every developer's machine.
+ */
+const html: string = landingPage("9.9.9", { canary: false });
 
 /**
  * The page as a reader sees it, tags removed.
