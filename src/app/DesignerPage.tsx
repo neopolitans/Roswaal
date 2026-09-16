@@ -25,6 +25,9 @@ import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import { PAGE_TARGET, pageHref } from "./pages.js";
 import { usePreferenceSync } from "./preferenceSync.js";
+import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
+import { SettingsPanel } from "./SettingsPanel.jsx";
+import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
 import { CanaryBanner, PreviewChip } from "./previewBuild.jsx";
@@ -38,9 +41,30 @@ export function DesignerPage() {
 	const [notice, setNotice] = useState<{ text: string; kind: "ok" | "failed" } | null>(null);
 	const [docsJump, setDocsJump] = useState(false);
 
-	// Node Design has no settings panel of its own, so every theme it will ever
-	// see is one another window picked.
-	usePreferenceSync();
+	/**
+	 * This browser's preferences, and the panel that changes them.
+	 *
+	 * Node Design had neither: it took the scheme it opened in and the only way
+	 * to change one was to go to another window and come back. A window that
+	 * draws nodes all day is a window somebody adjusts node corners from.
+	 *
+	 * No project settings here — `roswaal.json` describes a project and is the
+	 * editor's to change, and `SettingsPanel` drops that tab when no `config`
+	 * is passed. The docs window mounts it the same way for the same reason.
+	 */
+	const [prefs, setPrefs] = useState<Preferences>(readPreferences);
+	const [settingsOpen, setSettingsOpen] = useState(false);
+	usePreferenceSync(setPrefs);
+
+	const updatePrefs = useCallback((patch: Partial<Preferences>) => {
+		setPrefs((current) => {
+			const next = { ...current, ...patch };
+			writePreferences(next);
+			if ("theme" in patch) applyTheme(findTheme(next.theme));
+			applyChrome(next);
+			return next;
+		});
+	}, []);
 
 	/**
 	 * The documentation, from Node Design as well as from the editor.
@@ -126,6 +150,15 @@ export function DesignerPage() {
 				<a className="tb" href={pageHref("editor")} target="_blank" rel="noreferrer">
 					Open Editor
 				</a>
+				<button
+					type="button"
+					className="tb icon-only"
+					onClick={() => setSettingsOpen(true)}
+					title="Settings"
+					aria-label="Settings"
+				>
+					<Icon name="settings" size={16} />
+				</button>
 			</header>
 
 			{notice && (
@@ -154,6 +187,14 @@ export function DesignerPage() {
 					onOpen={setOpen}
 					onChanged={refresh}
 					notify={notify}
+				/>
+			)}
+
+			{settingsOpen && (
+				<SettingsPanel
+					prefs={prefs}
+					onPrefs={updatePrefs}
+					onClose={() => setSettingsOpen(false)}
 				/>
 			)}
 

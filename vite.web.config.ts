@@ -19,6 +19,8 @@ import { defineConfig, type Plugin } from "vite";
 
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { demoSeedPlugin } from "./scripts/demo-seed.mjs";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { themeShellPlugin } from "./scripts/theme-shell.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const DEMO = fileURLToPath(new URL("examples/demo", import.meta.url));
@@ -109,7 +111,7 @@ export default defineConfig({
 			process.env.ROSWAAL_CHANNEL === "canary" ? "canary" : "stable",
 		),
 	},
-	plugins: [react(), roswaalWebHost(), demoSeedPlugin(DEMO), noindexOnCanary()],
+	plugins: [react(), roswaalWebHost(), demoSeedPlugin(DEMO), noindexOnCanary(), themeShellPlugin()],
 	// Module workers, so the worker can import the route table rather than being
 	// handed a bundled copy of it.
 	worker: { format: "es", plugins: () => [roswaalWebHost(), demoSeedPlugin(DEMO)] },

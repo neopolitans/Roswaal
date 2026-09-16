@@ -31,6 +31,7 @@ import { fileURLToPath } from "node:url";
 
 import { faviconHref } from "../src/app/logo.tsx";
 import { landingPage } from "./lib/landing.mjs";
+import { notFoundPage } from "./lib/notFound.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "dist-pages");
@@ -71,38 +72,6 @@ function checkClaimedBase(base) {
 
 const { version } = JSON.parse(await readFile(join(root, "version.json"), "utf8"));
 
-/** Sent for any path with nothing behind it, so GitHub's own 404 never shows. */
-function notFoundPage(base) {
-	return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Not here — Roswaal</title>
-<link rel="icon" href="${faviconHref()}" />
-<style>
-  :root { color-scheme: dark; }
-  body {
-    margin: 0; min-height: 100vh; display: grid; place-items: center;
-    background: #14161c; color: #d6dae4; padding: 24px; text-align: center;
-    font: 15px/1.6 ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-  }
-  h1 { font-size: 20px; margin: 0 0 8px; }
-  p { color: #9aa2b4; margin: 0 0 20px; }
-  a { color: #8fa6dd; }
-</style>
-</head>
-<body>
-<main>
-  <h1>There is nothing at this address.</h1>
-  <p>It may have moved, or never existed.</p>
-  <p><a href="${base}">Back to Roswaal</a> &middot; <a href="${base}docs/">the documentation</a></p>
-</main>
-</body>
-</html>
-`;
-}
-
 // ---------------------------------------------------------------------------
 
 async function main() {
@@ -129,7 +98,7 @@ async function main() {
 	await cp(docs, join(out, "docs"), { recursive: true });
 
 	await writeFile(join(out, "index.html"), landingPage(version), "utf8");
-	await writeFile(join(out, "404.html"), notFoundPage(base), "utf8");
+	await writeFile(join(out, "404.html"), notFoundPage(base, version), "utf8");
 
 	// Tells Pages not to run the files through Jekyll, which would drop every
 	// directory whose name begins with an underscore.

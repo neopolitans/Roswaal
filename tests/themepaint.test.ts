@@ -21,6 +21,10 @@ import { renderPage } from "../src/core/docs/html.js";
 import { buildThemePaint } from "../scripts/lib/themePaint.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { landingPage } from "../scripts/lib/landing.mjs";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { notFoundPage } from "../scripts/lib/notFound.mjs";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { themeShellPlugin } from "../scripts/theme-shell.mjs";
 
 const registry = createRegistry();
 const site = buildSite(registry, new Set(BUILTIN_NODES.map((d) => d.id)));
@@ -67,6 +71,79 @@ describe("the landing page", () => {
 		const head = html.slice(0, html.indexOf("</head>"));
 		expect(head).toContain("docs/theme.js?v=9.9.9");
 		expect(head).not.toMatch(/theme\.js[^>]*defer/);
+	});
+});
+
+/**
+ * The page sent for any address with nothing behind it, which therefore cannot
+ * reach a neighbour and must read correctly with nothing else loaded.
+ */
+describe("the 404 page", () => {
+	const html = notFoundPage("/Roswaal/", "9.9.9") as string;
+
+	it("reaches its assets from the site root, not from its neighbours", () => {
+		expect(html).toContain('href="/Roswaal/docs/theme.css?v=9.9.9"');
+		expect(html).toContain('src="/Roswaal/docs/theme.js?v=9.9.9"');
+		// A relative path is wrong from every address but one.
+		expect(html).not.toMatch(/(?:href|src)="(?:\.\.?\/|docs\/)/);
+	});
+
+	/**
+	 * The colours it always had are still there as fallbacks, so the page a
+	 * failed stylesheet leaves behind is the page this used to be rather than
+	 * black text on white.
+	 */
+	it("takes a scheme, and still reads without one", () => {
+		expect(html).toContain("var(--bg-app, #14161c)");
+		expect(html).toContain("var(--fg, #d6dae4)");
+		expect(html).toContain("var(--fg-muted, #9aa2b4)");
+		expect(html).toContain("var(--accent, #8fa6dd)");
+		// It used to pin itself dark, which is the claim a theme has to beat.
+		expect(html).not.toContain("color-scheme: dark");
+	});
+});
+
+/**
+ * The app's three shells, which paint before their bundle can run.
+ *
+ * The plugin is the whole fix, so the thing worth holding is what it writes:
+ * a classic script, in the head, that blocks.
+ */
+describe("the app shell", () => {
+	const SHELL = [
+		"<!doctype html>",
+		"<html lang=\"en\">",
+		"\t<head>",
+		"\t\t<title>Roswaal</title>",
+		"\t</head>",
+		"\t<body></body>",
+		"</html>",
+	].join("\n");
+
+	const inject = async (base: string) => {
+		const plugin = themeShellPlugin();
+		await plugin.configResolved({ base });
+		return plugin.transformIndexHtml.handler(SHELL) as string;
+	};
+
+	it("blocks: no defer, no module", async () => {
+		const html = await inject("/");
+		const tag = html.match(/<script[^>]*theme\.js[^>]*>/)![0];
+		// Either one puts the scheme back behind the first paint, which is the
+		// entire bug this exists for.
+		expect(tag).not.toContain("defer");
+		expect(tag).not.toContain("module");
+		expect(tag).not.toContain("async");
+	});
+
+	it("goes in the head, ahead of the bundle", async () => {
+		const html = await inject("/");
+		expect(html.indexOf("theme.js")).toBeLessThan(html.indexOf("</head>"));
+	});
+
+	/** A project site is served from `/<repo>/`, and Vite writes that in. */
+	it("follows the base the site is mounted at", async () => {
+		expect(await inject("/Roswaal/")).toContain('src="/Roswaal/theme.js?v=');
 	});
 });
 

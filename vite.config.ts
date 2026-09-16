@@ -7,6 +7,8 @@ import { defineConfig } from "vitest/config";
 
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { demoSeedPlugin } from "./scripts/demo-seed.mjs";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { themeShellPlugin } from "./scripts/theme-shell.mjs";
 
 const DAEMON = process.env.ROSWAAL_PORT ?? "4471";
 
@@ -27,7 +29,11 @@ export default defineConfig({
 	// The seed plugin is here for Vitest, which reads this config: the seed
 	// test imports the virtual module the playground is built from. The daemon
 	// bundle never imports it, so mounting it here costs nothing.
-	plugins: [react(), demoSeedPlugin(fileURLToPath(new URL("examples/demo", import.meta.url)))],
+	plugins: [
+		react(),
+		demoSeedPlugin(fileURLToPath(new URL("examples/demo", import.meta.url))),
+		themeShellPlugin(),
+	],
 	server: {
 		port: 4470,
 		/**

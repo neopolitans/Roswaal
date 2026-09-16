@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.64.7",
+		date: "2026-09-16",
+		headline: "Settings in Node Design, and no more flash of the wrong scheme.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Settings in Node Design**, from the gear beside Open Editor. The same panel the docs window opens, without the Project tab — `roswaal.json` describes a project and stays the editor's to change. It is where node corners and wire style live, which is the window that draws nodes all day.",
+		],
+		fixed: [
+			"**The app no longer opens in the wrong colours.** A module script runs after the page is parsed, so the stylesheet painted first and the scheme you picked arrived a frame later — a flash on every load, worst when your scheme disagrees with your operating system, which is the whole reason for picking one. The scheme is now applied before the first paint. Measured on the built site: ready 38ms before the page painted.",
+			"**The Not Found page takes your theme.** It kept the colours it was written with, and now uses them only as the fallback for a reader whose stylesheet did not arrive.",
+		],
+	},
+	{
 		version: "0.64.6",
 		date: "2026-09-16",
 		headline: "The landing page follows your scheme too.",
