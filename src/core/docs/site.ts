@@ -3171,7 +3171,7 @@ function functionsPage(registry: Registry): DocPage {
 					"Both node searches know them too. **This graph**, in the node menu's filter row, " +
 					"sets the built-in library aside and leaves what this graph declares: its " +
 					"variables, locals, functions and — in a function's own graph — that function's " +
-					"parameters. `Ctrl` + right-click opens the same list as the **node picker**, " +
+					"parameters. `Ctrl` + `right-click` opens the same list as the **node picker**, " +
 					"with each entry drawn as you walk it.",
 			},
 
@@ -3208,13 +3208,6 @@ function functionsPage(registry: Registry): DocPage {
 					"**Deleting** a function deletes its graph, and asks first when there are nodes in it. Its tab closes.",
 					"**Copying** a function copies its graph, so the paste is a working function. Only its declaration lands at the pointer; the nodes inside keep their places.",
 				],
-			},
-			{
-				t: "note",
-				kind: "info",
-				text:
-					"**A graph made before 0.33.0 is split when it is opened.** Each function's nodes " +
-					"move into its graph, and the Luau it compiles to does not change.",
 			},
 		],
 	};

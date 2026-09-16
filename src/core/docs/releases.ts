@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.64.4",
+		date: "2026-09-16",
+		headline: "A gesture reads as one input, and a migration nobody can have needed is gone.",
+		affects: ["docs"],
+		changed: [
+			"**`Ctrl` + `right-click`** on [Functions](functions) marks the whole gesture, rather than highlighting the key and leaving the click as prose.",
+		],
+		fixed: [
+			"The **Functions** guide no longer explains what happens to a graph made before 0.33.0. Roswaal has been public since 0.59.1, so no reader has one.",
+		],
+	},
+	{
 		version: "0.64.3",
 		date: "2026-09-16",
 		headline: "A drawn panel holds something, and says which part the page is about.",
