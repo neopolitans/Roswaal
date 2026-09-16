@@ -26,6 +26,7 @@ import {
 } from "./toolbars.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
+import { mapFigure } from "./mapFigure.js";
 
 export interface RenderOptions {
 	/** Turns Luau into HTML. Returns escaped text when absent. */
@@ -231,6 +232,48 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			// enhancement, and without it this is still a readable picture.
 			return `<figure class="docs-preview graph">` +
 				`<div class="graph-viewport">${svg}</div>${caption}</figure>`;
+		}
+		case "nodemap": {
+			const figure = mapFigure(block.map);
+			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
+
+			// `data-control` is the node's id on both sides, which is what the
+			// linker pairs on. It is the same attribute a toolbar uses, so one
+			// script serves both and neither has to know about the other.
+			const rows = figure.rows
+				.map((row) =>
+					`<li class="docs-map-row" data-control="${escapeHtml(row.key)}" ` +
+					`style="--depth:${row.depth}">` +
+					`<span class="docs-map-name">${escapeHtml(row.name)}</span>` +
+					`<span class="docs-map-kind">${escapeHtml(row.kind)}</span>` +
+					(row.path ? `<span class="docs-map-path">${escapeHtml(row.path)}</span>` : "") +
+					`</li>`,
+				)
+				.join("");
+
+			const lines = figure.lines
+				.map((line) => {
+					const keyed = line.key ? ` data-control="${escapeHtml(line.key)}"` : "";
+					const note = line.note
+						? `<span class="docs-map-note">${escapeHtml(line.note)}</span>`
+						: "";
+					return `<li class="docs-map-line"${keyed} style="--depth:${line.indent}">` +
+						`<span class="docs-map-text">${escapeHtml(line.text)}</span>${note}</li>`;
+				})
+				.join("");
+
+			const noteHead = figure.noteTitle
+				? `<span class="docs-map-note">${escapeHtml(figure.noteTitle)}</span>`
+				: "";
+
+			return `<figure class="docs-map ${figure.target}">` +
+				`<div class="docs-map-side">` +
+				`<div class="docs-map-head">${escapeHtml(figure.treeTitle)}</div>` +
+				`<ul class="docs-map-tree">${rows}</ul></div>` +
+				`<div class="docs-map-side">` +
+				`<div class="docs-map-head">${escapeHtml(figure.outputTitle)}${noteHead}</div>` +
+				`<ul class="docs-map-out">${lines}</ul></div>` +
+				`${caption}</figure>`;
 		}
 		case "preview": {
 			if (!options.preview) return "";

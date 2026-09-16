@@ -41,6 +41,8 @@ import { PageEditor } from "./PageEditor.jsx";
 import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../core/nodes/runtimes.js";
 import { attachToolbarLink } from "./toolbarLink.js";
+import { mapFigure } from "../core/docs/mapFigure.js";
+import type { NodeMap } from "../core/nodemap.js";
 import type { ToolbarSpec } from "../core/docs/toolbars.js";
 import { VERSION } from "../cli/version.js";
 
@@ -638,6 +640,8 @@ function BlockView({ block }: { block: Block }) {
 			return <GraphFigure script={block.script} caption={block.caption} />;
 		case "tabs":
 			return <Tabs block={block} />;
+		case "nodemap":
+			return <MapFigureView map={block.map} caption={block.caption} />;
 		case "toolbar":
 			return <ToolbarFigure bar={block.bar} caption={block.caption} hint={block.hint} />;
 	}
@@ -667,6 +671,71 @@ const TOOLBAR_ART = {
  * another docs page has to go through this panel's own navigation rather than
  * become an `<a href>` that leaves the window.
  */
+/**
+ * A node map beside what it produces, linked both ways.
+ *
+ * The markup is written out here rather than shared with `html.ts` as a
+ * string, for the reason the toolbar figure's legend is: one is JSX and the
+ * other is a template, and the thing that must not drift between them is the
+ * *model*, which is `mapFigure` and is shared. `data-control` carries the
+ * node's id on both sides, so `attachToolbarLink` -- the same function the
+ * static site runs -- pairs them without knowing what a map is.
+ */
+function MapFigureView({ map, caption }: { map: NodeMap; caption?: string }) {
+	const figure = useMemo(() => mapFigure(map), [map]);
+	const host = useRef<HTMLElement>(null);
+
+	useEffect(() => {
+		if (!host.current) return;
+		return attachToolbarLink(host.current);
+	}, [figure]);
+
+	return (
+		<figure className={`docs-map ${figure.target}`} ref={host}>
+			<div className="docs-map-side">
+				<div className="docs-map-head">{figure.treeTitle}</div>
+				<ul className="docs-map-tree">
+					{figure.rows.map((row) => (
+						<li
+							key={row.key}
+							className="docs-map-row"
+							data-control={row.key}
+							style={{ "--depth": row.depth } as CSSProperties}
+						>
+							<span className="docs-map-name">{row.name}</span>
+							<span className="docs-map-kind">{row.kind}</span>
+							{row.path && <span className="docs-map-path">{row.path}</span>}
+						</li>
+					))}
+				</ul>
+			</div>
+			<div className="docs-map-side">
+				<div className="docs-map-head">
+					{figure.outputTitle}
+					{figure.noteTitle && <span className="docs-map-note">{figure.noteTitle}</span>}
+				</div>
+				<ul className="docs-map-out">
+					{figure.lines.map((line, i) => (
+						<li
+							/* The index: a project file has repeated lines -- every
+							   closing brace is "}" -- and they are a fixed list that
+							   never reorders. */
+							key={i}
+							className="docs-map-line"
+							{...(line.key ? { "data-control": line.key } : {})}
+							style={{ "--depth": line.indent } as CSSProperties}
+						>
+							<span className="docs-map-text">{line.text}</span>
+							{line.note && <span className="docs-map-note">{line.note}</span>}
+						</li>
+					))}
+				</ul>
+			</div>
+			{caption && <figcaption><Rich text={caption} /></figcaption>}
+		</figure>
+	);
+}
+
 function ToolbarFigure(
 	{ bar, caption, hint }: { bar: ToolbarSpec; caption?: string; hint?: boolean },
 ) {

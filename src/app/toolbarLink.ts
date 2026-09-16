@@ -70,10 +70,22 @@ export function attachToolbarLink(figure: HTMLElement): () => void {
 	 * `scrollIntoView` would move the page under them.
 	 */
 	const reveal = (key: string) => {
-		const box = figure.querySelector<HTMLElement>(".docs-bar-picture");
-		if (!box || box.scrollWidth <= box.clientWidth) return;
-		const target = (byKey.get(key) ?? []).find((part) => box.contains(part));
-		if (!target) return;
+		// Whichever box the lit part is actually inside, found by walking up
+		// from it rather than named. A map figure's columns scroll too, and
+		// hunting for one hard-coded class would have quietly done nothing on
+		// every figure that was not a toolbar.
+		const found = (byKey.get(key) ?? [])
+			.map((part) => {
+				let box: HTMLElement | null = part.parentElement;
+				while (box && box !== figure) {
+					if (box.scrollWidth > box.clientWidth) return { box, target: part };
+					box = box.parentElement;
+				}
+				return null;
+			})
+			.find((one) => one !== null);
+		if (!found) return;
+		const { box, target } = found;
 
 		// Measured against the scroller, not against `offsetParent`. `offsetLeft`
 		// is relative to the nearest positioned ancestor, which the picture is
@@ -134,9 +146,18 @@ export function attachToolbarLink(figure: HTMLElement): () => void {
 	};
 }
 
-/** Every toolbar figure on the page. What the static site's script runs. */
+/**
+ * Every linked figure on the page. What the static site's script runs.
+ *
+ * Two kinds so far and the same mechanism behind both: a toolbar pointing
+ * between its picture and its legend, and a node map pointing between a row of
+ * the tree and the lines that row writes. Both are a correspondence the reader
+ * would otherwise have to work out by counting, and neither needs to know that
+ * the other exists — a figure is linked if its parts carry `data-control`.
+ */
 export function attachToolbarLinks(root: ParentNode): void {
-	for (const figure of Array.from(root.querySelectorAll<HTMLElement>(".docs-bar"))) {
+	const figures = root.querySelectorAll<HTMLElement>(".docs-bar, .docs-map");
+	for (const figure of Array.from(figures)) {
 		attachToolbarLink(figure);
 	}
 }

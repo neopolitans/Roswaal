@@ -94,6 +94,26 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.68.0",
+		date: "2026-09-16",
+		headline: "A map is drawn beside what it produces.",
+		affects: ["docs"],
+		added: [
+			"**A node map, drawn beside its output, with the two halves linked.** Hover a row of the tree and the lines it writes light up; hover a line and the row that wrote it lights. On a Roblox map the other half is the `default.project.json`; on a Lune map it is the disk, and the require that reaches each file.",
+			"A row lights **its own** lines and not its children's. What the figure answers is *what did this row do*, and a row that appeared to produce its children's output would be one you expect to delete without losing them.",
+		],
+		changed: [
+			"**Both map pages now say which target they are about in their first line**, and each carries the whole of compiling for that target. [Compiling and nodemaps for Lune](compiling-for-lune) no longer sends a Lune developer to the Roblox page for the half that happens to be shared — what triggers a compile, what the generated header is for, what `prune` does.",
+			"[Compiling and nodemaps for Roblox](building-and-rojo) drops its Lune asides and says what each script kind becomes in Studio, which is the question the file ending was standing in for.",
+		],
+		fixed: [
+			"A figure's caption was being laid out as a column of the figure rather than underneath it, so it read as a narrow strip beside the tree.",
+		],
+		watch: [
+			"The project file in the figure is printed from the map by the same rules the compiler uses, and the two are checked against each other for every map the documentation draws. A page cannot show a project file Roswaal would not write.",
+		],
+	},
+	{
 		version: "0.67.4",
 		date: "2026-09-16",
 		headline: "The grid stops being drawn over the graph.",

@@ -41,6 +41,8 @@ import {
 import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release, type ReleaseSurface } from "./releases.js";
 import { reviewerCounts, reviewerLink, reviewOf, type Review } from "./reviews.js";
+import type { NodeMap } from "../nodemap.js";
+import { mapFigure } from "./mapFigure.js";
 
 // ---------------------------------------------------------------------------
 // Blocks
@@ -136,6 +138,15 @@ export type Block =
 	 * cannot describe different graphs.
 	 */
 	| { t: "graph"; script: NodeScript; caption?: string }
+	/**
+	 * A node map drawn beside what it produces, the two halves linked.
+	 *
+	 * The same promise the `graph` block makes: it carries a real `NodeMap`, so
+	 * the tree in the picture and the project file beside it are the tree and
+	 * the file Roswaal would actually write. A map page cannot end up
+	 * describing a shape the compiler does not produce.
+	 */
+	| { t: "nodemap"; map: NodeMap; caption?: string }
 	/**
 	 * A fold: a summary line that opens onto more blocks. `<details>` in both
 	 * renderers, so a page can hold a long history without making every reader
@@ -371,6 +382,14 @@ export function blockText(block: Block): string {
 			// The node ids rather than their titles: titles need a registry, and
 			// an id is what somebody searching for a node in a guide will type.
 			return [...block.script.nodes.map((n) => n.def), block.caption ?? ""]
+				.join(" ").trim();
+		case "nodemap":
+			// The names in the tree, which is what somebody looks for: they are
+			// the services and folders a reader recognises from their own project.
+			// The generated JSON is not indexed -- searching the documentation for
+			// `$className` should find the page that explains it, not every page
+			// that happens to draw a map.
+			return [...mapFigure(block.map).rows.map((r) => r.name), block.caption ?? ""]
 				.join(" ").trim();
 		case "details":
 			return [block.summary, block.aside ?? "", ...block.blocks.map(blockText)].join(" ").trim();
@@ -2661,12 +2680,79 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 });
 
 /**
+ * The map drawn on the Roblox page.
+ *
+ * Small on purpose. It is here to be read in one look and matched against the
+ * file beside it, not to be a realistic project — a tree deep enough to be
+ * realistic is one where the reader loses which row they were following.
+ *
+ * `Shared` carries a class *and* a path, which is the case worth seeing: the
+ * row says Folder, and the project file does not, because a path pointing at
+ * a directory already tells Rojo that much.
+ */
+const ROBLOX_MAP: NodeMap = {
+	schemaVersion: 1,
+	kind: "map",
+	id: "docs-map-roblox",
+	name: "Tycoon",
+	output: "default.project.json",
+	root: {
+		id: "dm",
+		name: "DataModel",
+		className: "DataModel",
+		children: [
+			{
+				id: "rs",
+				name: "ReplicatedStorage",
+				children: [
+					{ id: "shared", name: "Shared", className: "Folder", path: "src/Shared", children: [] },
+				],
+			},
+			{
+				id: "sss",
+				name: "ServerScriptService",
+				children: [
+					{ id: "server", name: "Server", className: "Folder", path: "src/Server", children: [] },
+				],
+			},
+		],
+	},
+};
+
+/** The same figure for a Lune project: a tree, and the disk it describes. */
+const LUNE_MAP: NodeMap = {
+	schemaVersion: 1,
+	kind: "map",
+	id: "docs-map-lune",
+	name: "tool",
+	target: "lune",
+	output: "",
+	root: {
+		id: "root",
+		name: "tool",
+		children: [
+			{ id: "main", name: "main", file: true, children: [] },
+			{
+				id: "lib",
+				name: "lib",
+				children: [
+					{ id: "json", name: "json", file: true, children: [] },
+					{ id: "text", name: "text", file: true, children: [] },
+				],
+			},
+		],
+	},
+};
+
+/**
  * Compiling for Lune, and the map that describes a filesystem.
  *
  * Its own page rather than a branch inside the Roblox one. The two answer the
  * same question — where does this file end up — and answer it so differently
  * that one page would spend its length saying "unless you are on the other
- * one". A Lune developer should be able to read a page that is about Lune.
+ * one". A Lune developer should be able to read a page that is about Lune,
+ * and that means this page carries the whole of compiling rather than sending
+ * them to the Roblox page for the half that happens to be shared.
  */
 const BUILDING_LUNE: DocPage = {
 	slug: "compiling-for-lune",
@@ -2677,9 +2763,17 @@ const BUILDING_LUNE: DocPage = {
 		{
 			t: "p",
 			text:
-				"A Lune graph compiles the same way a Roblox one does: a `.nodescript` under " +
-				"`.roswaal/scripts` becomes a `.luau` under the output directory, in the same " +
-				"shape. What changes is everything after that.",
+				"This page is about graphs whose **Target** is Lune. The bar along the top of the " +
+				"canvas says which, and a new graph takes the project's. For Roblox, the answer is " +
+				"a different one and it is on [Compiling and nodemaps for Roblox](building-and-rojo).",
+		},
+		{
+			t: "p",
+			text:
+				"A graph is a `.nodescript` under `.roswaal/scripts`. Compiling it writes a `.luau` " +
+				"file to the same place under the output directory, in the same shape: " +
+				"`.roswaal/scripts/lib/json.nodescript` writes `src/lib/json.luau`. Both " +
+				"directories are project [settings](settings).",
 		},
 		{
 			t: "note",
@@ -2691,6 +2785,56 @@ const BUILDING_LUNE: DocPage = {
 				"answer and there is no second copy of it to keep in step.",
 		},
 
+		{ t: "h", level: 2, text: "What a graph compiles to" },
+		{
+			t: "p",
+			text:
+				"Always a `.luau` file named after the graph. A Roblox graph picks between Script, " +
+				"LocalScript and ModuleScript, and the choice decides the file's ending because " +
+				"Rojo reads it — `Greeter.server.luau`. Lune has no such distinction: a file is a " +
+				"file, and whether it is a program or a module is decided by whether something " +
+				"requires it.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"**Lune support is experimental.** It has not yet been tested by an experienced " +
+				"Lune developer, so treat what it writes as a starting point.",
+		},
+
+		{ t: "h", level: 2, text: "Compiling" },
+		{
+			t: "table",
+			head: ["", "What it compiles"],
+			rows: [
+				["**Compile script**, or `Ctrl` + `S`", "The open graph"],
+				["**Compile project**", "Every graph, then every node map"],
+				[
+					"**Compile: Dynamic**",
+					"Each graph as you edit it, and any that change on disk — after a `git pull`, say",
+				],
+				["`roswaal compile`", "Everything, or the one graph or map you give it"],
+				["`roswaal watch`", "The same, without the editor"],
+			],
+		},
+		{
+			t: "p",
+			text:
+				"A graph with errors writes nothing; warnings do not stop it. With `format` on and " +
+				"[StyLua](https://github.com/JohnnyMorganz/StyLua) on your PATH, the file is " +
+				"formatted as it is written. Then `lune run main` — Roswaal does not run it for you.",
+		},
+		{
+			t: "p",
+			text:
+				"A generated file starts with a header naming its graph and a hash of what was " +
+				"written. Roswaal will not overwrite a file whose hash no longer matches — one " +
+				"edited by hand — or a file it did not write. Rename a graph or move it and its " +
+				"next compile removes the file it used to write; `roswaal prune` lists the ones " +
+				"left behind by a graph that is gone.",
+		},
+
 		{ t: "h", level: 2, text: "What a nodemap is for here" },
 		{
 			t: "p",
@@ -2698,7 +2842,21 @@ const BUILDING_LUNE: DocPage = {
 				"A map still has a job, and it is the one Rojo was doing incidentally: **saying " +
 				"the layout out loud, and checking it holds together**. Set a map's *Describes* to " +
 				"**A filesystem** and it becomes directories and files rather than services and " +
-				"instances.",
+				"instances. A new map is already the right kind — it follows the project's target.",
+		},
+		{
+			t: "nodemap",
+			map: LUNE_MAP,
+			caption:
+				"Hover a row to see what it is on disk, or a path to see which row put it there. " +
+				"The extension is on the right and never in the name.",
+		},
+		{
+			t: "p",
+			text:
+				"What the right-hand column is *not* is a file Roswaal writes. A filesystem map " +
+				"compiles to nothing: the disk is already the answer, and compiling the map is " +
+				"checking that the answer is one Luau can load.",
 		},
 		{
 			t: "table",
@@ -2709,12 +2867,6 @@ const BUILDING_LUNE: DocPage = {
 				["Compiles to", "`default.project.json`, for Rojo", "Nothing — it is a check"],
 				["A node has", "A class and a path on disk", "A name, and whether it is a file"],
 			],
-		},
-		{
-			t: "p",
-			text:
-				"A new map is already the right kind: it follows the project's target, so a Lune " +
-				"project gets a filesystem map without being asked.",
 		},
 
 		{ t: "h", level: 2, text: "What it checks" },
@@ -2742,9 +2894,9 @@ const BUILDING_LUNE: DocPage = {
 			kind: "info",
 			text:
 				"**A file's name carries no extension.** The `.luau` follows from the node being a " +
-				"file, and the row shows it — `main` in the map, `main.luau` on disk. Typing one " +
-				"is a warning rather than an error: it is the file you meant, and saying so is " +
-				"how you avoid wondering why the disk has `main.luau.luau`.",
+				"file, and the figure above shows it — `main` in the map, `main.luau` on disk. " +
+				"Typing one is a warning rather than an error: it is the file you meant, and " +
+				"saying so is how you avoid wondering why the disk has `main.luau.luau`.",
 		},
 
 		{ t: "h", level: 2, text: "Requires, and what the file depends on" },
@@ -2780,6 +2932,14 @@ const BUILDING: DocPage = {
 		{
 			t: "p",
 			text:
+				"This page is about graphs whose **Target** is Roblox. The bar along the top of " +
+				"the canvas says which, and a new graph takes the project's. For Lune, the answer " +
+				"is a different one and it is on " +
+				"[Compiling and nodemaps for Lune](compiling-for-lune).",
+		},
+		{
+			t: "p",
+			text:
 				"A graph is a `.nodescript` under `.roswaal/scripts`. Compiling it writes a `.luau` " +
 				"file to the same place under `src`, and [Rojo](https://rojo.space) syncs that into " +
 				"Studio. Roswaal never talks to Studio itself.",
@@ -2797,30 +2957,17 @@ const BUILDING: DocPage = {
 			t: "p",
 			text:
 				"The file is named after the graph, and its ending comes from the script kind, " +
-				"chosen in the tools along the top of the canvas. A Lune graph always writes `.luau`.",
+				"chosen in the tools along the top of the canvas. The ending is how Rojo knows " +
+				"which class of instance to make.",
 		},
 		{
 			t: "table",
-			head: ["Kind", "File"],
+			head: ["Kind", "File", "In Studio"],
 			rows: [
-				["Script", "`Greeter.server.luau`"],
-				["LocalScript", "`Greeter.client.luau`"],
-				["ModuleScript", "`Greeter.luau`"],
+				["Script", "`Greeter.server.luau`", "A `Script`, running on the server"],
+				["LocalScript", "`Greeter.client.luau`", "A `LocalScript`, running on a player's machine"],
+				["ModuleScript", "`Greeter.luau`", "A `ModuleScript`, run by whatever requires it"],
 			],
-		},
-		{
-			t: "p",
-			text:
-				"The same bar shows what the graph compiles for — **Roblox**, or **Lune** — and " +
-				"changes it. A new graph takes the project's **Target** setting. A Roblox-only node in " +
-				"a Lune graph is an error on that node, and nothing is written.",
-		},
-		{
-			t: "note",
-			kind: "warn",
-			text:
-				"**Lune support is experimental.** It has not yet been tested by an experienced " +
-				"Lune developer, so treat what it writes as a starting point.",
 		},
 
 		{ t: "h", level: 2, text: "Compiling" },
@@ -2883,9 +3030,25 @@ const BUILDING: DocPage = {
 				"Roswaal rather than the JSON by hand.",
 		},
 		{
+			t: "nodemap",
+			map: ROBLOX_MAP,
+			caption:
+				"Hover a row to light the lines it writes, or a line to find the row that wrote " +
+				"it. A row lights its own lines and not its children's — they are rows too.",
+		},
+		{
 			t: "p",
 			text:
-				"Make one with **New map** in the toolbar, or by right-clicking a folder in the " +
+				"Two things in that file are worth naming, because both are Roswaal leaving " +
+				"something out on purpose. A service carries no `$className`, because Rojo already " +
+				"knows what `ReplicatedStorage` is and saying it again is something Rojo rejects. " +
+				"And `Shared` is a Folder in the tree with no `$className` in the file, because a " +
+				"path pointing at a directory already implies one.",
+		},
+		{
+			t: "p",
+			text:
+				"Make a map with **New map** in the toolbar, or by right-clicking a folder in the " +
 				"project tree. It starts with `src` in ServerScriptService. Select an instance to " +
 				"edit it:",
 		},

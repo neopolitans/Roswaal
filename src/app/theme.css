@@ -7694,3 +7694,141 @@ button.tb.danger {
 	color: var(--fg-muted);
 	border-color: var(--border);
 }
+
+/* --------------------------------------------------------------------------
+   A node map, drawn beside what it produces.
+
+   Two columns that point at each other: a row of the tree on the left, and on
+   the right the lines that row writes -- the Rojo project file on a DataModel
+   map, the disk on a filesystem one. The pairing is `data-control`, the same
+   attribute the toolbar legend uses, so one script lights both.
+
+   Without that script the figure is still both halves, fully drawn and in
+   order, which is what a reader with no pointer has. The lighting makes the
+   correspondence quick; it is not what carries it.
+   ----------------------------------------------------------------------- */
+.docs-map {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 14px;
+	margin: 0 0 18px;
+	padding: 0;
+}
+
+/* One under the other once there is no room for two, because a tree squeezed
+   to a third of a phone's width stops being a tree. */
+@media (max-width: 680px) {
+	.docs-map {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* A filesystem map stacks at every width.
+
+   Its right-hand column is a path and the require that reaches it -- around
+   thirty-four monospace characters on a nested file -- against the twenty-five
+   half of a narrow page holds. Side by side it did not overflow gracefully, it
+   overflowed into a scrollbar over the part that mattered.
+
+   Stacking costs less here than it would on a DataModel map, because both
+   halves of this one are lists of paths: the eye follows them down rather than
+   across, and the pairing is carried by the highlight either way. */
+.docs-map.lune {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.docs-map-side {
+	min-width: 0;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: var(--bg-canvas);
+	overflow: hidden;
+}
+
+.docs-map-head {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 7px 10px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-input);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fg-dim);
+}
+
+.docs-map-tree,
+.docs-map-out {
+	margin: 0;
+	padding: 6px 0;
+	list-style: none;
+	overflow-x: auto;
+}
+
+.docs-map-row,
+.docs-map-line {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	/* The indent is the depth, so the two columns are indented by the same
+	   rule and a nested row lines up with the stanza it writes. */
+	padding: 2px 10px 2px calc(10px + var(--depth, 0) * 14px);
+	white-space: nowrap;
+	transition: background-color 90ms ease, box-shadow 90ms ease;
+}
+
+.docs-map-line {
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: 12px;
+	color: var(--fg-dim);
+}
+
+.docs-map-name {
+	font-size: 12.5px;
+	color: var(--fg);
+}
+
+.docs-map-kind,
+.docs-map-path {
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.docs-map-path {
+	font-family: var(--mono, ui-monospace, monospace);
+}
+
+.docs-map-note {
+	margin-left: auto;
+	padding-left: 14px;
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.docs-map-head .docs-map-note {
+	font-family: inherit;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+}
+
+/* The caption is a grid item like the columns are, so without this it is laid
+   into the first cell of a new row and reads as a narrow column of text under
+   the tree rather than as a caption for the figure. */
+.docs-map > figcaption {
+	grid-column: 1 / -1;
+	margin: 0;
+}
+
+/* Both sides take the same highlight, because the point being made is that
+   they are the same thing seen twice. */
+.docs-map [data-control].lit {
+	background: color-mix(in srgb, var(--accent) 14%, transparent);
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.docs-map.linked [data-control] {
+	cursor: help;
+}
