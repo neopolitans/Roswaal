@@ -94,6 +94,27 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.65.0",
+		date: "2026-09-16",
+		headline: "Roswaal reads your `.luaurc`, and lets you write one.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A `.luaurc` is a file in the project tree**, under Graph content beside your graphs — Roswaal reads it rather than writing it. Double-click one to open the alias editor: what that file defines, where each alias lands once its chain is followed, and underneath, what it inherits from the files above it.",
+			"**Aliases are checked against the project.** A specifier naming an alias no `.luaurc` defines is an error where the project uses alias maps, and a warning where it has none at all — the second may be generating one at build time, and refusing to compile that would be refusing a project that builds.",
+			"**A page about all of it**, at [Aliases and .luaurc](aliases): where the file goes, what a nearer one inherits from its parents, where a relative path lands, chains and cycles, and what each runtime resolves.",
+		],
+		changed: [
+			"An alias map is resolved the way [the RFC](https://rfcs.luau.org/require-by-string-aliases.html) specifies, checked against it rather than remembered. A nearer `.luaurc` **inherits** what it does not say instead of replacing the map, and a relative path resolves against the file that **defined** it rather than the file requiring — both of which look correct in any project with one `.luaurc` at the root.",
+			"Names are case-insensitive, so `@Roact` and `@roact` are one alias. Defining both in one file is reported rather than written.",
+			"A chain of aliases is followed, and a ring is reported as the ring it walked — `a → b → c → a` rather than \"cycle detected\".",
+			"Editing a `.luaurc` **splices its aliases** and leaves the rest of the file exactly as it was. A file with comments inside its `aliases` is refused with the reason instead of rewritten: an edit reorders the entries, and a note about why a package is vendored cannot survive that.",
+			"Roblox's position on aliases is now linked rather than only quoted, so the claim can be checked instead of taken on trust.",
+		],
+		watch: [
+			"**Roblox does not resolve aliases yet**, so a `.luaurc` in a Roblox project is a file Rojo will sync and the engine will ignore. Roswaal warns rather than refusing — that is code written against something that is coming, not code that is wrong.",
+		],
+	},
+	{
 		version: "0.64.8",
 		date: "2026-09-16",
 		headline: "The published pages get the palette and a gear of their own.",
