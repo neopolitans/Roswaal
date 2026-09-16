@@ -42,6 +42,7 @@ import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release, type ReleaseSurface } from "./releases.js";
 import { reviewerCounts, reviewerLink, reviewOf, type Review } from "./reviews.js";
 import { DEMOS, demoLuau } from "./demos.js";
+import { ROBLOX_DEMO_GRAPHS, ROBLOX_DEMO_MAP } from "./robloxDemos.js";
 import type { NodeMap } from "../nodemap.js";
 import { mapFigure } from "./mapFigure.js";
 
@@ -4832,6 +4833,143 @@ function luneDemosPage(registry: Registry): DocPage {
 	};
 }
 
+/**
+ * The Roblox demo page: the project that ships, read rather than described.
+ *
+ * Its graphs and its node map come from `examples/demo` itself, which is the
+ * project the introduction panel offers to take a copy of — so what somebody
+ * reads here and what they get when they take it are the same thing.
+ *
+ * Two graphs and a map rather than four programmes, because that is what the
+ * demo is. The Lune page had to invent its examples; this one only has to show
+ * the one that was already there, and showing a real project is worth more
+ * than four tidier ones would be.
+ */
+function robloxDemosPage(registry: Registry): DocPage {
+	const greeter = ROBLOX_DEMO_GRAPHS.greeter;
+	const main = ROBLOX_DEMO_GRAPHS.main;
+
+	const luau = (script: NodeScript): string => stripHeader(compile(script, registry).code);
+
+	const blocks: Block[] = [
+		{
+			t: "p",
+			text:
+				"One project, two graphs and a node map. It is `examples/demo` — the project " +
+				"the Roswaal panel offers to take a copy of, and the one `roswaal init` leaves " +
+				"you standing in — so what is drawn here is what you would open.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"**Take a copy rather than opening it where it sits.** The mark in the corner " +
+				"offers it under *Demos*, and copies it somewhere of your own first: the demo " +
+				"beside Roswaal is the one everybody else who installed it will open.",
+		},
+
+		{ t: "h", level: 2, text: "A module, and a function in it" },
+		{
+			t: "p",
+			text:
+				"`Greeter` is a ModuleScript. It declares a function, returns a string from it, " +
+				"and hands the function out through **Module Exports** — which is the node that " +
+				"decides what `require` gives back.",
+		},
+		{
+			t: "graph",
+			script: greeter,
+			panel: declarationsPanel(greeter),
+			caption: "The graph this was compiled from, and what it declares.",
+		},
+		{ t: "code", lang: "luau", text: luau(greeter) },
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"A graph with a **Function** in it draws that function on its own canvas — the " +
+				"picture above is the outer graph. [Functions](functions) is the page about " +
+				"what that means and how a parameter reaches the body.",
+		},
+
+		{ t: "h", level: 2, text: "A script that runs when the place does" },
+		{
+			t: "p",
+			text:
+				"`Main` is a Script, so it runs on the server. It gets a service, requires the " +
+				"module beside it, calls the function out of it, and connects to an event — " +
+				"which between them is most of what any Roblox script does.",
+		},
+		{
+			t: "graph",
+			script: main,
+			panel: declarationsPanel(main),
+			caption: "The graph this was compiled from, and what it declares.",
+		},
+		{ t: "code", lang: "luau", text: luau(main) },
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"**Nothing in that file arrived on its own.** The `require` is a node somebody " +
+				"placed, the service is a **Get Service**, and the event is a **Connect**. The " +
+				"rule is on [Modules](modules), and [Services and their methods](services) is " +
+				"the page about the first two.",
+		},
+
+		{ t: "h", level: 2, text: "Where it lands in the DataModel" },
+		{
+			t: "p",
+			text:
+				"The map says where the generated files go, and compiles to the " +
+				"`default.project.json` that Rojo reads. This is the demo's own, in the editor " +
+				"that edits it:",
+		},
+		{
+			t: "nodemap",
+			map: ROBLOX_DEMO_MAP,
+			caption:
+				"The demo's map. **Select a row** and the Inspector fills with that instance's " +
+				"fields, while the project file scrolls to the lines the row writes.",
+		},
+		{
+			t: "p",
+			text:
+				"[Compiling and nodemaps for Roblox](building-and-rojo) is the page about that " +
+				"panel — what each field does, and what happens when you compile.",
+		},
+
+		{ t: "h", level: 2, text: "Running it" },
+		{
+			t: "p",
+			text:
+				"Compile the project, then point Rojo at it and connect from Studio. Roswaal " +
+				"writes the `.luau` files and the project file; everything after that is Rojo's, " +
+				"and Roswaal never talks to Studio itself.",
+		},
+		{
+			t: "code",
+			lang: "sh",
+			text: "roswaal compile   # writes src/ and default.project.json\nrojo serve        # then connect from Studio",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"The demo also ships two **node packs** of its own, under `.roswaal/nodes`. They " +
+				"are not used by either graph above — they are there to be opened in Node " +
+				"Design, which is what [Creating custom nodes](creating-custom-nodes) is about.",
+		},
+	];
+
+	return {
+		slug: "roblox-demos",
+		title: "The Roblox demo",
+		summary: "The project that ships: a module, a server script, and the map that places them.",
+		blocks,
+	};
+}
+
 export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): DocSite {
 	const nodes = documentRegistry(registry, builtinIds);
 
@@ -4921,7 +5059,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 		TWO_KINDS_OF_WIRE(registry), TYPES_GUIDE, castingPage(registry),
 		VARIABLES, functionsPage(registry), MODULES_PAGE, ESCAPE_HATCHES(registry),
 	];
-	const forRoblox = [servicesPage(registry), BUILDING];
+	const forRoblox = [servicesPage(registry), BUILDING, robloxDemosPage(registry)];
 	const forLune = [
 		luneLibraryPage(registry), ALIASES_PAGE, BUILDING_LUNE, luneDemosPage(registry),
 	];

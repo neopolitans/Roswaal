@@ -20,26 +20,6 @@
   ],
   "nodes": [
     {
-      "id": "0151aec6-1e44-45ae-8a56-7ea5b0556e90",
-      "def": "cframe.lookAt",
-      "x": 374,
-      "y": -6,
-      "literals": {
-        "from": {
-          "t": "raw",
-          "v": "Vector3.new(0, 14, -7)"
-        },
-        "from.y": {
-          "t": "number",
-          "v": 14
-        },
-        "from.z": {
-          "t": "number",
-          "v": -7
-        }
-      }
-    },
-    {
       "id": "13a5c553-604c-4034-a094-9f63467069db",
       "def": "flow.sequence",
       "x": 72,
