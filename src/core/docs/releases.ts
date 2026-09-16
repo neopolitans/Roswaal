@@ -94,6 +94,26 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.66.0",
+		date: "2026-09-16",
+		headline: "Lune's standard library, callable.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Files, networking, processes and the rest.** All 61 functions of Lune's standard library, as two nodes: `Lune Function` for a call that does something, `Lune Function (Value)` for one that answers something. The palette lists every function by name — type `readFile` and what you get is a node already set to `fs.readFile`, with its arguments named and typed from Lune's own signature.",
+			"**A page about it**, at [Lune's standard library](lune-library): what is in each module, how arguments and results are typed, and which Lune the signatures come from.",
+			"**The Inspector offers the require.** A call whose module is not declared says so and gives you a button that declares it — said and offered, never done.",
+		],
+		changed: [
+			"**The type picker knows which runtime it is picking for.** A Lune graph is offered Lune's own types — `DateTime`, `Regex`, `WebSocket` — instead of Roblox's datatypes and Instance classes. Roblox's come back the moment the graph requires `@lune/roblox`, because that module genuinely provides them and a require you wrote is the only thing that should make them appear.",
+			"`buffer`, `thread` and `nil` are offered as types in both runtimes. All three are Luau's and none was on a list written by hand.",
+			"**The Roblox categories say Roblox again**, rather than `Engine` and `Engine Types`. Unambiguous was easy while there was one engine; a graph compiles for one of two runtimes now. Roblox Corporation owns the name and Roswaal claims no rights in it — see [Attributions](attributions).",
+		],
+		watch: [
+			"**A Lune Function node never writes its own require.** `@lune/fs` is Lune's own and always available, which is the strongest case there is for an exception, and it is still not one: a file that quietly gained a require because you dropped a node is a file whose dependencies are not what its author can see.",
+			"Signatures come from Lune 0.10.5, read out of the type definitions that ship with it. Moving to a new Lune is one command and the diff is the API change.",
+		],
+	},
+	{
 		version: "0.65.3",
 		date: "2026-09-16",
 		headline: "Realign no longer stacks a fan-out's arms.",
