@@ -28,7 +28,8 @@ import {
 import { renderPage } from "../src/core/docs/html.js";
 import {
 	controlKey, controlsOf, DOCS_SITE_BAR, EDITOR_BAR, EDITOR_BAR_BROWSER, iconsOf, legendOf,
-	TOOLBAR_HINT, toolbarConstant, toolbarHtml, TOOLBARS, VARIABLES_PANEL, type ToolbarArt,
+	MODULES_PANEL, pointingElsewhere, TOOLBAR_HINT, toolbarConstant, toolbarHtml, TOOLBARS,
+	VARIABLES_PAGE_PANEL, VARIABLES_PANEL, type ToolbarArt,
 } from "../src/core/docs/toolbars.js";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { buildToolbarLinker } from "../scripts/lib/toolbarLinker.mjs";
@@ -490,6 +491,60 @@ describe("drawing a panel", () => {
 		const sections = html.split("variables-sub");
 		expect(sections.find((part) => part.includes("Modules"))).toContain("Add");
 		expect(sections.find((part) => part.includes("Locals"))).not.toContain("Add");
+	});
+});
+
+/**
+ * The same panel explained twice, because two pages draw it and each is about
+ * a different part of it. Cropping the picture instead would be a drawing of a
+ * panel nobody has.
+ */
+describe("pointing a section at its own page", () => {
+	const art: ToolbarArt = {
+		viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: "test",
+	};
+
+	it("keeps the drawing identical and moves only the words", () => {
+		expect(toolbarHtml(MODULES_PANEL, art)).toEqual(toolbarHtml(VARIABLES_PANEL, art));
+		expect(toolbarHtml(VARIABLES_PAGE_PANEL, art)).toEqual(toolbarHtml(VARIABLES_PANEL, art));
+	});
+
+	it("explains modules on the modules page and points the rest away", () => {
+		const legend = new Map(legendOf(MODULES_PANEL).map((item) => [item.name, item.what]));
+		expect(legend.get("Modules")).toEqual(
+			legendOf(VARIABLES_PANEL).find((item) => item.name === "Modules")?.what,
+		);
+		expect(legend.get("Variables")).toContain("(variables-and-locals)");
+		expect(legend.get("Locals")).toContain("(variables-and-locals)");
+		expect(legend.get("Functions")).toContain("(functions)");
+	});
+
+	/** And the other way round, so neither page is the one that repeats itself. */
+	it("explains variables on their own page and points modules away", () => {
+		const legend = new Map(
+			legendOf(VARIABLES_PAGE_PANEL).map((item) => [item.name, item.what]),
+		);
+		expect(legend.get("Modules")).toContain("(modules)");
+		expect(legend.get("Variables")).toEqual(
+			legendOf(VARIABLES_PANEL).find((item) => item.name === "Variables")?.what,
+		);
+	});
+
+	/** A key nothing matches is a pointer written against a section that moved. */
+	it("leaves a section alone when nothing points it anywhere", () => {
+		const same = pointingElsewhere(VARIABLES_PANEL, { nosuchsection: "..." });
+		expect(legendOf(same)).toEqual(legendOf(VARIABLES_PANEL));
+	});
+
+	/** Every page the pointers name has to be a page. */
+	it("points at pages that exist", () => {
+		for (const spec of [MODULES_PANEL, VARIABLES_PAGE_PANEL]) {
+			for (const item of legendOf(spec)) {
+				for (const [, slug] of (item.what ?? "").matchAll(/\]\(([a-z-]+)\)/g)) {
+					expect(findPage(site, slug), `${item.name} -> ${slug}`).toBeDefined();
+				}
+			}
+		}
 	});
 });
 

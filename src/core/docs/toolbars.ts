@@ -1004,9 +1004,10 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 					text: "Locals",
 					name: "Locals",
 					what:
-						"The Declare Locals this graph can see — a local exists inside the block that " +
-						"declared it, so the list changes with the graph you are looking at. No **Add**: " +
-						"a local is declared by a node, on the canvas, where it runs.",
+						"The Declare Locals this graph can see. A local exists inside the block that " +
+						"declared it, so the list changes with the graph you are looking at — and there " +
+						"is no **Add**, because a local is declared by a node on the canvas, where it " +
+						"runs.",
 				},
 				{
 					t: "heading",
@@ -1020,6 +1021,50 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 		},
 	],
 };
+
+/**
+ * The same panel, with some of its sections pointing at their own page.
+ *
+ * One drawing, two legends. A page about modules should not re-explain what a
+ * variable is — it should say where that is explained — but it still wants the
+ * whole panel in the picture, because the panel is the thing you are looking
+ * at and a cropped one would be a picture of something that does not exist.
+ *
+ * So the drawing is shared and only the words move.
+ */
+export function pointingElsewhere(
+	spec: ToolbarSpec, pointers: Record<string, string>,
+): ToolbarSpec {
+	return {
+		...spec,
+		groups: spec.groups.map((group) => ({
+			...group,
+			items: group.items.map((item) => {
+				if (item.name === undefined) return item;
+				const instead = pointers[controlKey(item.name)];
+				return instead === undefined ? item : { ...item, what: instead };
+			}),
+		})),
+	};
+}
+
+/**
+ * The Variables panel as the Modules page draws it: modules explained, the
+ * rest pointing at the pages that are about them.
+ */
+export const MODULES_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
+	variables: "Values the whole script reads and writes. See [Variables and locals](variables-and-locals).",
+	locals: "Values that exist inside one block. See [Variables and locals](variables-and-locals).",
+	functions: "Every function this script declares. See [Functions](functions).",
+});
+
+/**
+ * The Variables panel as its own page draws it: variables, locals and
+ * functions in full, with modules pointing at the page about requiring.
+ */
+export const VARIABLES_PAGE_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
+	modules: "What this script requires, one `require` each. See [Modules](modules).",
+});
 
 /** Every bar the documentation draws, in the order the page walks them. */
 export const TOOLBARS: ToolbarSpec[] = [

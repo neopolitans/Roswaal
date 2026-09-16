@@ -34,7 +34,7 @@ import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
 	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DOCS_BAR, DOCS_SITE_BAR, EDITOR_BAR,
-	EDITOR_BAR_BROWSER, GRAPH_BAR, legendOf, MAP_BAR, VARIABLES_PANEL,
+	EDITOR_BAR_BROWSER, GRAPH_BAR, legendOf, MAP_BAR, MODULES_PANEL, VARIABLES_PAGE_PANEL,
 	type ToolbarSpec,
 } from "./toolbars.js";
 import { GUIDE_SCENES } from "./examples.js";
@@ -1790,7 +1790,7 @@ const MODULES_PAGE: DocPage = {
 				"question the variables answer — what does this script have to hand — and a " +
 				"dependency belongs somewhere you can see it rather than somewhere you go looking.",
 		},
-		{ t: "toolbar", bar: VARIABLES_PANEL, hint: true },
+		{ t: "toolbar", bar: MODULES_PANEL, hint: true },
 		{
 			t: "table",
 			head: ["Field", "What it is"],
@@ -1922,6 +1922,7 @@ const VARIABLES: DocPage = {
 				"differently. The short version: a **variable** is yours to name and reach from " +
 				"anywhere; a **local** exists for the length of a block and is reached by wire.",
 		},
+		{ t: "toolbar", bar: VARIABLES_PAGE_PANEL, hint: true },
 
 		{ t: "h", level: 2, text: "Variables" },
 		{

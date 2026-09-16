@@ -94,6 +94,21 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.64.1",
+		date: "2026-09-16",
+		headline: "A drawn panel's headings, and each section explained where it belongs.",
+		affects: ["docs"],
+		added: [
+			"**The Variables panel is drawn on its own page too**, at [Variables and locals](variables-and-locals), with variables, locals and functions explained in full there.",
+		],
+		changed: [
+			"A section of the drawn panel is explained on the page that is about it, and points there from the others. [Modules](modules) explains modules and links out for the rest; [Variables and locals](variables-and-locals) does the reverse. Same drawing, different words.",
+		],
+		fixed: [
+			"The **Modules**, **Locals** and **Functions** headings in a drawn panel took the article's heading style instead of the editor's, so they came out large and dark where the panel shows small grey caps.",
+		],
+	},
+	{
 		version: "0.64.0",
 		date: "2026-09-16",
 		headline: "Modules, documented — and panels can be drawn now.",

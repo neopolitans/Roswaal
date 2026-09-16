@@ -7105,26 +7105,32 @@ button.tb.danger {
 	background: var(--bg-panel);
 }
 
-/* The panel's own headings sit flush with a dock's edge. Inside a picture they
-   want the room the rest of the rows have. */
-.docs-bar-frame.panel .variables-sub,
-.docs-bar-frame.panel h2 {
-	margin: 10px 0 4px;
-	padding: 0 10px;
-}
-
-.docs-bar-frame.panel h2 {
+/* The panel's headings, restated in full.
+ *
+ * They carry the editor's own `.variables-sub`, which is how every other part
+ * of this picture gets its likeness -- but an article styles its headings, and
+ * `.docs-page .docs-content h3` outspecifies a lone class. So the drawn panel
+ * came out with the article's h3: twice the size, in the article's colour, and
+ * not remotely what the editor shows.
+ *
+ * Qualified by the element to match that specificity, and the type is restated
+ * rather than inherited, because inheriting is exactly what did not happen. */
+.docs-bar-frame.panel h2,
+.docs-bar-frame.panel h3.variables-sub {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	font-size: 11px;
+	margin: 10px 0 4px;
+	padding: 0 10px;
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	letter-spacing: 0.08em;
 	color: var(--fg-faint);
 }
 
 .docs-bar-frame.panel h2 button.tb,
-.docs-bar-frame.panel .variables-sub button.tb {
+.docs-bar-frame.panel h3.variables-sub button.tb {
 	margin-left: auto;
 	font-size: 11px;
 	padding: 1px 8px;
