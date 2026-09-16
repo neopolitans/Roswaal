@@ -6998,10 +6998,38 @@ button.tb.danger {
 /* The bar itself. Nothing in it does anything: no handlers, no tab stops, and
    `aria-hidden` on the frame, because the legend underneath is what carries the
    content. It does take the pointer, though -- hovering a button lights its
-   explanation, which is the whole point of the page. */
+   explanation, which is the whole point of the page.
+
+   The bar sits *inside* the frame rather than welded to its edges. Flush
+   against the legend it read as the top row of a table -- part of the list
+   rather than the thing the list is about -- and a control nobody reads as a
+   control is not one they think to hover. A little of the app's own background
+   around it, and the chrome becomes an object on a surface.
+
+   Padding on the frame rather than on the scroller around it: the frame is the
+   scrolled content, so its padding is part of the scrollable width and the
+   trailing edge survives being scrolled to. On a padded scroller it would
+   not. */
 .docs-bar-frame {
 	user-select: none;
 	min-width: min-content;
+	padding: 12px;
+	background: var(--bg-app);
+}
+
+/* The drawn chrome, as a thing with edges. In the tool these bars run the full
+   width of a window and have no outer border to draw; here they are a picture
+   of one, so they get the corners that say where they stop. */
+.docs-bar-frame.bar > .toolbar,
+.docs-bar-frame.head > .docs-page-head {
+	border: 1px solid var(--border);
+	border-radius: 7px;
+}
+
+/* The floating tools already float: they sit over a piece of canvas with its
+   own grid, and that canvas is the inset. Padding here would inset the inset. */
+.docs-bar-frame.float {
+	padding: 0;
 	background: var(--bg-canvas);
 }
 
@@ -7037,6 +7065,9 @@ button.tb.danger {
    Nothing to override: `.toolbar` is already a plain flex row. */
 .docs-bar-frame.bar > .toolbar,
 .docs-bar-frame.head > .docs-page-head {
+	/* The real ones are separated from what is below them by this rule. A
+	   drawn one has its own border instead, so the rule would be a second
+	   edge in the same place. */
 	border-bottom: 0;
 	flex-wrap: nowrap;
 }

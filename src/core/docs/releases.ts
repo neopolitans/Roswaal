@@ -76,6 +76,15 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.60.2",
+		date: "2026-09-16",
+		headline: "A drawn toolbar sits on the page rather than in the list.",
+		affects: ["docs"],
+		changed: [
+			"**The drawn bars are inset from their frames** on [Toolbars](toolbars), with their own corners and a little of the app's background around them. Flush against the list underneath, a bar read as that list's top row rather than as the thing the list is about — and a control nobody reads as a control is not one they think to hover.",
+		],
+	},
+	{
 		version: "0.60.1",
 		date: "2026-09-16",
 		headline: "A canary build says so, on every page.",
