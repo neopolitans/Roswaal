@@ -73,6 +73,20 @@ export interface AliasEntry {
 }
 
 /**
+ * One `.luaurc` as it crosses the wire: where it is, and what is in it.
+ *
+ * Text rather than a parsed map, deliberately. The parser has one home, so the
+ * panel that shows a file's complaints shows the ones the compiler saw — and a
+ * file nobody can parse arrives as a file nobody can parse rather than as an
+ * empty object that looks like a file with no aliases.
+ */
+export interface LuaurcSource {
+	/** Its directory, project-relative, posix, `""` for the root. */
+	dir: string;
+	text: string;
+}
+
+/**
  * A `.luaurc` chain for one file: its own directory's first, then upwards.
  *
  * Ordered rather than merged so a panel can say *where* an alias came from,
@@ -352,4 +366,31 @@ export function resolveSpecifier(chain: LuaurcChain, specifier: string): AliasLo
 	const tail = specifier.trim().slice(1).split("/").slice(1).join("/");
 	if (tail === "") return found;
 	return { t: "found", alias: { ...found.alias, path: joinPath(found.alias.path, tail) } };
+}
+
+/**
+ * The chain that applies to one file: its own directory, then upwards.
+ *
+ * Arithmetic on the whole set rather than a search of the disk, because the
+ * editor holds several graphs open and asks this question on every keystroke in
+ * a specifier field. Reading every `.luaurc` once and slicing is what makes
+ * that free.
+ *
+ * `filePath` is the file doing the requiring, project-relative — the directory
+ * is taken off it here so a caller does not have to remember whether to pass
+ * the file or the folder, which is the sort of thing that is wrong for a month
+ * before anyone notices.
+ */
+export function chainFor(files: readonly Luaurc[], filePath: string): LuaurcChain {
+	const parts = filePath.replace(/\\/g, "/").split("/");
+	parts.pop();
+
+	const byDir = new Map(files.map((file) => [file.dir, file]));
+	const chain: Luaurc[] = [];
+	for (let i = parts.length; i >= 0; i -= 1) {
+		const dir = parts.slice(0, i).join("/");
+		const file = byDir.get(dir);
+		if (file !== undefined) chain.push(file);
+	}
+	return chain;
 }

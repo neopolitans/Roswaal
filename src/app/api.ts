@@ -4,6 +4,7 @@ import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "..
 import type { Diagnostic } from "../core/compiler/index.js";
 import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
+import type { LuaurcSource } from "../core/luaurc.js";
 
 export interface TreeEntry {
 	path: string;
@@ -270,6 +271,21 @@ export const api = {
 
 	/** Every type the project's module graphs export, and where each module lands. */
 	exportedTypes: () => request<{ types: ExportedType[] }>("/api/types"),
+	/**
+	 * Every `.luaurc` in the project, as text.
+	 *
+	 * Text rather than a parsed map so the parser has one home: the panel that
+	 * shows a file's complaints shows the ones the compiler saw, and a file
+	 * nobody can parse still says so rather than arriving as an empty object.
+	 */
+	luaurcFiles: () => request<{ files: LuaurcSource[] }>("/api/luaurc"),
+	/** Writes one whole, and hands back the project's files as they now are. */
+	writeLuaurc: (dir: string, text: string) =>
+		request<{ files: LuaurcSource[] }>("/api/luaurc", {
+			method: "PUT",
+			body: JSON.stringify({ dir, text }),
+		}),
+
 	/** Where a file lands in the DataModel, per the project's node maps. */
 	resolve: (path: string) =>
 		request<{ location: InstanceLocation | null }>(`/api/resolve?path=${encodeURIComponent(path)}`),

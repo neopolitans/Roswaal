@@ -284,3 +284,45 @@ describe("what the host tells the editor it can do", () => {
 		}
 	});
 });
+
+/**
+ * `.luaurc`, over the API.
+ *
+ * The chain arithmetic is held in `luaurc.test.ts`; what is worth pinning here
+ * is the round trip — that the daemon finds the files anywhere in the tree,
+ * hands them over as text, and writes one back without inventing the parts it
+ * does not understand.
+ */
+describe("alias maps", () => {
+	it("finds every one in the project, root and not", async () => {
+		volume.mount({
+			"/demo/.luaurc": JSON.stringify({ aliases: { shared: "./src/Shared" } }),
+			"/demo/src/.luaurc": JSON.stringify({
+				languageMode: "strict",
+				aliases: { near: "./here" },
+			}),
+		});
+		const { files } = await get("/luaurc") as { files: { dir: string; text: string }[] };
+		expect(files.map((file) => file.dir).sort()).toEqual(["", "src"]);
+		// Text, not a parsed map: the parser has one home and a file's own
+		// complaints survive the trip.
+		expect(files.find((file) => file.dir === "src")?.text).toContain("languageMode");
+	});
+
+	it("writes one whole, keeping what it does not understand", async () => {
+		const text = JSON.stringify(
+			{ languageMode: "nonstrict", aliases: { roact: "./Packages/Roact" } }, null, 2,
+		);
+		const { files } = await put("/luaurc", { dir: "", text }) as {
+			files: { dir: string; text: string }[];
+		};
+		const root = files.find((file) => file.dir === "");
+		expect(root?.text).toBe(text);
+		// And it is on disk as the developer's file, not as ours.
+		expect(await volume.readFile("/demo/.luaurc", "utf8")).toBe(text);
+	});
+
+	it("refuses a write with no text", async () => {
+		expect(await statusOf(put("/luaurc", { dir: "" }))).toBe(400);
+	});
+});

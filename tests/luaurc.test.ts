@@ -13,7 +13,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	aliasesOf, aliasNameOf, lookupAlias, parseLuaurc, resolveSpecifier,
+	aliasesOf, aliasNameOf, chainFor, lookupAlias, parseLuaurc, resolveSpecifier,
 	type LuaurcChain,
 } from "../src/core/luaurc.js";
 import { checkSpecifier } from "../src/core/modules.js";
@@ -301,5 +301,46 @@ describe("checking a specifier against the map", () => {
 			expect(checkSpecifier(specifier, "roblox", { luaurc: empty, hasLuaurc: true }), specifier)
 				.toBeNull();
 		}
+	});
+});
+
+/**
+ * Which files apply to one script.
+ *
+ * Arithmetic rather than a walk of the disk: every `.luaurc` is read once and
+ * the chain for a file is a slice of that, which is what makes asking on every
+ * keystroke free.
+ */
+describe("the chain for a file", () => {
+	const files = [
+		parseLuaurc("", json({ root: "./r" })),
+		parseLuaurc("src", json({ mid: "./m" })),
+		parseLuaurc("src/ui", json({ near: "./n" })),
+		parseLuaurc("other", json({ elsewhere: "./e" })),
+	];
+
+	it("is the file's own directory first, then upwards", () => {
+		const chain = chainFor(files, "src/ui/Panel.nodescript");
+		expect(chain.map((file) => file.dir)).toEqual(["src/ui", "src", ""]);
+	});
+
+	it("leaves out a sibling branch", () => {
+		const chain = chainFor(files, "src/ui/Panel.nodescript");
+		expect(aliasesOf(chain).has("elsewhere")).toBe(false);
+	});
+
+	it("skips directories with no file of their own", () => {
+		expect(chainFor(files, "src/ui/deep/er/Panel.nodescript").map((f) => f.dir))
+			.toEqual(["src/ui", "src", ""]);
+	});
+
+	it("is the root alone for a file at the top", () => {
+		expect(chainFor(files, "Main.nodescript").map((file) => file.dir)).toEqual([""]);
+	});
+
+	/** A path off a Windows filesystem still names the same directories. */
+	it("reads a backslash path the same way", () => {
+		expect(chainFor(files, "src\\ui\\Panel.nodescript").map((f) => f.dir))
+			.toEqual(["src/ui", "src", ""]);
 	});
 });

@@ -31,8 +31,9 @@ import {
 	buildTree, collectMaps, collectProject, compileAll, compileMap, compileScript, copyPackBetween, createFolder,
 	createPack, deleteEntry, deletePack, deletePackNode, duplicatePack, exportedTypes, findOrphanOutputs,
 	graphName, initProject, listPacks, locateFile, moveEntry, openProject, packUsage, readConfig,
-	readMap, readPack, readScript, readText, removeOutputs, renameEntry, safeJoin, savePackNode,
-	scanProjectPacks, setPackRequires, writeConfig, writeMap, writeScript,
+	readLuaurcFiles, readMap, readPack, readScript, readText, removeOutputs, renameEntry, safeJoin,
+	savePackNode, scanProjectPacks, setPackRequires, writeConfig, writeLuaurcFile, writeMap,
+	writeScript,
 	type CompileStep, type OpenProject,
 } from "./project.js";
 
@@ -491,6 +492,36 @@ export class ApiSession {
 			"GET /resolve": async (req) => ({
 				location: await locateFile(this.project(), query(req, "path")),
 			}),
+
+			// -----------------------------------------------------------------
+			// `.luaurc`
+			// -----------------------------------------------------------------
+
+			/**
+			 * Every `.luaurc` in the project, as text.
+			 *
+			 * All of them rather than the chain for one script: the editor keeps
+			 * several graphs open and asks which aliases are in scope on every
+			 * keystroke in a specifier field, and `chainFor` turns this into that
+			 * answer without a round trip.
+			 */
+			"GET /luaurc": async () => ({ files: await readLuaurcFiles(this.project()) }),
+
+			/**
+			 * Writes one, whole.
+			 *
+			 * The caller sends the file's whole text because a `.luaurc` is the
+			 * developer's: it may carry `languageMode` and settings that are none
+			 * of our business, and rebuilding it from the aliases we understood
+			 * would drop the rest without saying so.
+			 */
+			"PUT /luaurc": async (req) => {
+				const body = req.body as { dir?: unknown; text?: unknown };
+				if (typeof body.text !== "string") throw new HttpError(400, "text is required");
+				const dir = typeof body.dir === "string" ? body.dir : "";
+				await writeLuaurcFile(this.project(), dir, body.text);
+				return { files: await readLuaurcFiles(this.project()) };
+			},
 
 			// -----------------------------------------------------------------
 			// Compilation

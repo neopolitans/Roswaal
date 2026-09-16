@@ -22,7 +22,7 @@ import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../nodes/flow.js";
 import { CAST_NODES, castModeOf } from "../nodes/library.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { isModuleScript, PAIR } from "../schema.js";
-import { checkSpecifier } from "../modules.js";
+import { checkSpecifier, type SpecifierContext } from "../modules.js";
 import { commentLines, headersByNode } from "../comments.js";
 import type { Comment, Literal, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
@@ -221,6 +221,15 @@ export function emit(
  * put a local. These two switches are those two facts.
  */
 export interface EmitOptions {
+	/**
+	 * What the project's `.luaurc` files say, for checking an alias.
+	 *
+	 * Optional, and absent it changes nothing: without it the specifier check
+	 * says what a specifier *is* and has no opinion about whether the alias
+	 * exists. A custom node's template compiles with no project behind it at
+	 * all, and so does a test.
+	 */
+	specifiers?: SpecifierContext;
 	/** Write Get Service and Require Module where they are used, not at the top. */
 	inline?: boolean;
 	/**
@@ -542,7 +551,7 @@ class Emitter {
 			// compiles either way: a require that will not resolve is worth
 			// saying loudly and is not worth silently dropping, because the
 			// generated file is the thing the developer is about to read.
-			const wrong = checkSpecifier(specifier, this.script.target);
+			const wrong = checkSpecifier(specifier, this.script.target, this.options.specifiers);
 			if (wrong) {
 				const said = `Module "${module.name || specifier}": ${wrong.message}`;
 				if (wrong.severity === "error") this.error(said);
@@ -2263,7 +2272,7 @@ class Emitter {
 					return "nil";
 				}
 
-				const wrong = checkSpecifier(specifier, this.script.target);
+				const wrong = checkSpecifier(specifier, this.script.target, this.options.specifiers);
 				if (wrong?.severity === "error") {
 					this.error(wrong.message, src.node.id, "specifier");
 				} else if (wrong) {

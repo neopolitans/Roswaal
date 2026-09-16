@@ -2,6 +2,7 @@
 
 import type { NodeScript, ScriptClass, Target } from "../schema.js";
 import type { Registry } from "../nodes/index.js";
+import type { SpecifierContext } from "../modules.js";
 import { emit, hashString, type Diagnostic, type EmitResult } from "./emit.js";
 import { validate } from "./validate.js";
 
@@ -35,6 +36,15 @@ export interface CompileOptions {
 	indent?: string;
 	/** Write comment headers above the code their nodes produce. */
 	comments?: boolean;
+	/**
+	 * The project's `.luaurc` alias map, for checking a module's specifier.
+	 *
+	 * A project fact rather than a graph one, so it arrives here rather than
+	 * being read off the script. Absent, an alias is checked for shape only —
+	 * which is every caller that has no project: a template, a test, a preview
+	 * of a graph nobody has opened.
+	 */
+	specifiers?: SpecifierContext;
 }
 
 export function compile(
@@ -45,6 +55,7 @@ export function compile(
 	const emitted: EmitResult = emit(script, registry, sourceHash, {
 		indent: options.indent,
 		comments: options.comments,
+		specifiers: options.specifiers,
 	});
 
 	const diagnostics = [...structural, ...emitted.diagnostics];
