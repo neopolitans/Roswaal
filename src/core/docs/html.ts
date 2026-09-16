@@ -506,11 +506,16 @@ function runtimeBadge(page: DocPage): string {
 
 	// Two tags rather than one averaged one. A node that is Roblox's and that
 	// Lune implements is not "Luau": that would say the base language has it.
+	//
+	// The second tag is the **require string**, not the runtime's name. The
+	// specifier is what has to be declared for this node to work, and it is the
+	// text that goes in the field to declare it — "Lune" in front of it would
+	// be the part carrying no information.
 	if (page.runtimeVia === undefined) return own;
 	return own +
 		`<span class="badge runtime lune"` +
 		` title="Lune has this through ${escapeHtml(page.runtimeVia)}, which the graph must require">` +
-		`Lune: ${escapeHtml(page.runtimeVia)}</span>`;
+		`${escapeHtml(page.runtimeVia)}</span>`;
 }
 
 export function renderPage(site: DocSite, page: DocPage, options: RenderOptions): string {

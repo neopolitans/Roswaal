@@ -219,11 +219,18 @@ export function runtimeLabelFor(
 ): string {
 	const via = crossRuntimeModule(def);
 	const runtime = classifyFor(def, target);
-	// Only the borrowed side names the module. In its own runtime it is simply
-	// that runtime's, and `Roblox: @lune/roblox` would be nonsense.
-	return via !== undefined && runtime === "lune"
-		? `${RUNTIME_LABEL.lune}: ${via}`
-		: RUNTIME_LABEL[runtime];
+	/**
+	 * The borrowed side is tagged with the **require string itself**.
+	 *
+	 * `Lune: @lune/roblox` said the runtime and then the module, and the
+	 * runtime was the part carrying no information — you are reading this in a
+	 * Lune graph. The specifier is the whole answer: it is what has to be
+	 * declared, and it is the text that goes in the field to declare it.
+	 *
+	 * In its own runtime the node is simply that runtime's, and
+	 * `Roblox: @lune/roblox` would be nonsense.
+	 */
+	return via !== undefined && runtime === "lune" ? via : RUNTIME_LABEL[runtime];
 }
 
 export function classify(def: { targets?: readonly string[] }): Runtime {

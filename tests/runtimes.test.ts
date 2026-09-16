@@ -396,7 +396,9 @@ describe("the tag on a node's page", () => {
 	it("says Roblox and names the module Lune needs", () => {
 		const page = renderPage(site, findPage(site, "node/roblox.vector3")!, { version: "test" });
 		expect(page).toContain(">Roblox</span>");
-		expect(page).toContain("Lune: @lune/roblox");
+		// The require string itself: it is what has to be declared, and the
+		// text that goes in the field to declare it.
+		expect(page).toContain(">@lune/roblox</span>");
 		expect(page).not.toContain(">Luau</span>");
 	});
 

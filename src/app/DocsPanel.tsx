@@ -399,6 +399,18 @@ function Page({ page }: { page: DocPage }) {
 							{RUNTIME_LABEL[page.runtime]}
 						</span>
 					)}
+					{/* The second tag, for a datatype that is Roblox's and that Lune
+					    borrows. It is the require string rather than the runtime's
+					    name: the specifier is what has to be declared, and "Lune" in
+					    front of it carries nothing a reader of a Lune graph needs. */}
+					{page.runtimeVia && (
+						<span
+							className="badge runtime lune"
+							title={`Lune has this through ${page.runtimeVia}, which the graph must require`}
+						>
+							{page.runtimeVia}
+						</span>
+					)}
 					{page.custom && <span className="badge">from a node pack</span>}
 					{/* The way in, where a page's own controls are looked for. It was a
 					    button at the foot, which is where you are once you have
