@@ -93,6 +93,12 @@ export const REVIEWS: Record<
 	// drawn on it and the pre-0.33.0 migration note taken out -- a note no
 	// reader could have needed, the tool having been public only since 0.59.1.
 	"functions": { status: "verified", date: "2026-09-16", reviewers: ["neopolitans"] },
+	// Verified by the author for 0.65.3, reading the page against the editor.
+	// The read found the drawn graph under the node previews had two Prints
+	// exactly on top of each other -- which turned out to be six graphs and a
+	// bug in Realign rather than a mistake in this scene. The contents were
+	// verified as they stood; the picture is what changed.
+	"services": { status: "verified", date: "2026-09-16", reviewers: ["neopolitans"] },
 	// Read again for 0.32.0, when Get Parameter joined the locals it sits
 	// beside: the same idea of reading something by name instead of by a wire.
 	"variables-and-locals": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },

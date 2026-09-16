@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.65.3",
+		date: "2026-09-16",
+		headline: "Realign no longer stacks a fan-out's arms.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"**Realign put a Branch's two arms on top of each other.** It aligns a node onto the pin that feeds it, which is right for a chain and wrong for a fan-out: two execution pins are one pin row apart and a node is at least 64px tall. The topmost arm keeps its straight wire now and the rest move down to clear it.",
+			"**Six drawn graphs had a pair of nodes in the same place** for that reason — Branch, Sequence, Continue, and the scenes under [Wires and pins](wires-and-pins), [Variables and locals](variables-and-locals) and [Services and their methods](services), where the two Prints overlapped exactly and read as one node.",
+		],
+		changed: [
+			"**Verified**: [Services and their methods](services).",
+		],
+	},
+	{
 		version: "0.65.2",
 		date: "2026-09-16",
 		headline: "Aliases is Reviewed, and asking for a Lune developer.",

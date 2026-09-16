@@ -18,12 +18,13 @@ import { describe, expect, it } from "vitest";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import {
 	graphSvg, placeGraph, placedPinAnchor, previewOf, previewOfPlaced, previewRowY, previewSize,
+	straighten,
 	previewSvg,
 	describe as describePreview, type PreviewOptions,
 } from "../src/core/docs/preview.js";
 import { buildSite } from "../src/core/docs/site.js";
 import { documentRegistry } from "../src/core/docs/nodeReference.js";
-import { CURATED } from "../src/core/docs/examples.js";
+import { CURATED, GUIDE_SCENES } from "../src/core/docs/examples.js";
 import { renderPage } from "../src/core/docs/html.js";
 import { nodeBounds, pinPosition, wirePath } from "../src/app/geometry.js";
 import { NODE } from "../src/app/layers.js";
@@ -482,5 +483,46 @@ describe("the casts, as the documentation draws them", () => {
 		const preview = previewOfPlaced(node, def);
 		expect(preview.operator?.symbol).toBe("Cast");
 		expect(previewSize(preview, NODE).width).toBe(nodeBounds(node, registry).w);
+	});
+});
+
+/**
+ * No drawn graph has two nodes in the same place.
+ *
+ * `straighten` aligns each node onto the pin that feeds it, which is right for
+ * a chain and wrong for a fan-out: a Branch's two execution pins are one pin
+ * row apart and a node is 64px at its shortest, so both arms landed on top of
+ * each other. Six of the drawn graphs shipped like that — Branch, Sequence,
+ * Continue, the local-scope scene, the wiring scene, and the one under
+ * *Services and their methods* where a reader finally noticed, the two Prints
+ * overlapping exactly and reading as one node.
+ *
+ * Nobody was going to catch the seventh by looking, so this is the check that
+ * does. It runs over every curated and guide scene, which is every graph the
+ * documentation draws.
+ */
+describe("every drawn graph", () => {
+	const scenes = [...Object.entries(CURATED), ...Object.entries(GUIDE_SCENES)];
+
+	it("has scenes to check", () => {
+		expect(scenes.length).toBeGreaterThan(20);
+	});
+
+	it("never draws two nodes on top of each other", () => {
+		for (const [name, make] of scenes) {
+			const boxes = placeGraph(straighten(make(), registry, options), registry, options);
+			for (let i = 0; i < boxes.length; i++) {
+				for (let j = i + 1; j < boxes.length; j++) {
+					const a = boxes[i];
+					const b = boxes[j];
+					const across = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+					const down = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+					// A one-pixel touch is a rounding artefact; a real overlap is
+					// two nodes a reader cannot tell apart.
+					const clash = across > 1 && down > 1;
+					expect(clash, `${name}: ${a.node.def} over ${b.node.def}`).toBe(false);
+				}
+			}
+		}
 	});
 });

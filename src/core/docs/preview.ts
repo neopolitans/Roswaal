@@ -1171,6 +1171,48 @@ export function straighten(
 		}
 	}
 
+	/**
+	 * Then pull apart whatever the alignment stacked.
+	 *
+	 * Aligning a node onto its own incoming pin is right for a chain and wrong
+	 * for a **fan-out**. A Branch's two execution pins are one pin row apart —
+	 * 24px — and a node is 64px at its shortest, so straightening both arms puts
+	 * them on top of each other. Six of the drawn graphs had a pair sitting in
+	 * the same place, including the one under *Services and their methods* where
+	 * it was finally noticed; the two Prints were exactly overlapping and read
+	 * as one.
+	 *
+	 * The topmost node keeps its straight wire, because it is the one a reader
+	 * traces first, and the others move down until they clear it. Their wires
+	 * bend as a result, which is what a fan-out looks like when a person draws
+	 * one.
+	 *
+	 * A single sweep down the graph is enough: a node is only ever compared with
+	 * ones already settled above it, so pushing one down cannot strand another
+	 * behind it.
+	 */
+	const spaced = script.nodes.map((node) => ({ ...node, y: node.y + (moved.get(node.id) ?? 0) }));
+	const boxes = placeGraph({ ...script, nodes: spaced }, registry, options)
+		.sort((a, b) => a.y - b.y || a.x - b.x);
+
+	/** Air between two nodes that had to be separated, not a hard touch. */
+	const GAP = Math.round(options.geometry.rowHeight / 2);
+
+	for (let i = 0; i < boxes.length; i++) {
+		const box = boxes[i];
+		for (let j = 0; j < i; j++) {
+			const above = boxes[j];
+			const sharesColumn =
+				Math.min(above.x + above.width, box.x + box.width) - Math.max(above.x, box.x) > 1;
+			if (!sharesColumn) continue;
+			const overlap = above.y + above.height - box.y;
+			if (overlap <= 0) continue;
+			const shift = overlap + GAP;
+			moved.set(box.node.id, (moved.get(box.node.id) ?? 0) + shift);
+			box.y += shift;
+		}
+	}
+
 	return {
 		...script,
 		nodes: script.nodes.map((node) => ({ ...node, y: node.y + (moved.get(node.id) ?? 0) })),
