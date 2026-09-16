@@ -1865,9 +1865,14 @@ export function App() {
 				<NodePicker
 					registry={registry}
 					target={editor.script.target}
+					// The same entries the node menu offers, scoped the same way --
+					// a function's parameters inside its own body and nowhere else.
+					// Built once above, so the two searches cannot disagree about
+					// what this graph has.
+					presets={presets}
 					preview={nodePreview}
-					onPick={(def) => {
-						spawn(def, nodePicker);
+					onPick={(def, config) => {
+						spawn(def, nodePicker, config);
 						setNodePicker(null);
 					}}
 					onClose={() => setNodePicker(null)}

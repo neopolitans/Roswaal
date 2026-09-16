@@ -19,7 +19,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import type { NodeDef } from "../core/schema.js";
+import type { NodeConfig, NodeDef } from "../core/schema.js";
+import type { Preset } from "./NodeMenu.jsx";
 import { categories, type Registry } from "../core/nodes/index.js";
 import { previewOf, previewSvg, type PreviewOptions } from "../core/docs/preview.js";
 import { keywordNodes } from "../core/keywords.js";
@@ -35,28 +36,68 @@ export interface NodePickerProps {
 	registry: Registry;
 	/** Only nodes this project's target can run. */
 	target: "roblox" | "lune";
+	/**
+	 * What the open graph declares — its variables, locals, functions and the
+	 * parameters of the body you are in.
+	 *
+	 * The picker listed the library and nothing else, so the one search that
+	 * knows what a node *looks* like could not find the node you named
+	 * yourself. They are the same entries the node menu offers, built once in
+	 * `App.tsx` and scoped there, so the two searches cannot disagree about
+	 * what is in scope.
+	 */
+	presets?: Preset[];
 	/** How the picture is drawn: the reader's own geometry and colours. */
 	preview: PreviewOptions;
-	onPick: (def: NodeDef) => void;
+	onPick: (def: NodeDef, config?: NodeConfig) => void;
 	onClose: () => void;
 }
 
-/** Prefix beats substring beats category, and Luau typed in beats all of it. */
-function score(def: NodeDef, query: string): number {
+/**
+ * One row: a library node, or something the graph declares.
+ *
+ * A preset is a node *plus the configuration that makes it that one* — Get
+ * Variable pointed at `Accumulator`. Carrying the config rather than only the
+ * definition is what lets the preview draw the thing you are about to place
+ * instead of the nameless capsule it is built on.
+ */
+interface Hit {
+	key: string;
+	title: string;
+	category: string;
+	summary?: string;
+	def: NodeDef;
+	config?: NodeConfig;
+	/** What the filter chips narrow on. `graph` for anything the graph declares. */
+	filter: MenuFilter;
+}
+
+/**
+ * Prefix beats substring beats category, and Luau typed in beats all of it.
+ *
+ * Scored on the **hit's** title rather than the definition's, so searching
+ * "accumulator" finds Get Accumulator — the definition behind it is called Get
+ * Variable and would never match. The keyword and id rules still read the
+ * definition, because those are questions about the node.
+ */
+function score(hit: Hit, query: string): number {
+	const def = hit.def;
 	const at = keywordNodes(query).indexOf(def.id);
 	if (at >= 0) return 1000 - at;
-	const title = def.title.toLowerCase();
+	const title = hit.title.toLowerCase();
 	if (title === query) return 500;
 	if (def.operator?.toLowerCase() === query) return 400;
 	if (title.startsWith(query)) return 100;
 	if (title.includes(query)) return 60;
-	if (def.category.toLowerCase().includes(query)) return 30;
+	if (hit.category.toLowerCase().includes(query)) return 30;
 	if (def.id.toLowerCase().includes(query)) return 20;
-	if (def.summary?.toLowerCase().includes(query)) return 10;
+	if (hit.summary?.toLowerCase().includes(query)) return 10;
 	return 0;
 }
 
-export function NodePicker({ registry, target, preview, onPick, onClose }: NodePickerProps) {
+export function NodePicker(
+	{ registry, target, presets = [], preview, onPick, onClose }: NodePickerProps,
+) {
 	const [query, setQuery] = useState("");
 	const [active, setActive] = useState(0);
 	const field = useRef<HTMLInputElement>(null);
@@ -66,14 +107,43 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 		field.current?.focus();
 	}, []);
 
-	const forTarget = useMemo(
-		() => [...registry.values()].filter((def) => !def.targets || def.targets.includes(target)),
-		[registry, target],
-	);
+	/**
+	 * Everything on offer: what the graph declares, then the library.
+	 *
+	 * The graph's own first, deliberately. A name you chose is a name you are
+	 * more likely to be looking for than a node called something similar, and
+	 * with equal scores the earlier one wins.
+	 */
+	const forTarget = useMemo((): Hit[] => {
+		const mine: Hit[] = presets.flatMap((preset) => {
+			const def = registry.get(preset.defId);
+			if (!def) return [];
+			return [{
+				key: preset.key,
+				title: preset.title,
+				category: preset.category,
+				summary: preset.summary,
+				def,
+				config: preset.config,
+				filter: "graph" as const,
+			}];
+		});
 
-	/** Which runtime the list is narrowed to. The same preference the menu uses. */
-	// The picker lists the library only, so it never shows a "This graph" chip:
-	// `present` cannot contain it, and the guard below falls back to All.
+		const library: Hit[] = [...registry.values()]
+			.filter((def) => !def.targets || def.targets.includes(target))
+			.map((def) => ({
+				key: def.id,
+				title: def.title,
+				category: def.category,
+				summary: def.summary,
+				def,
+				filter: classify(def),
+			}));
+
+		return [...mine, ...library];
+	}, [registry, target, presets]);
+
+	/** What the list is narrowed to. The same preference the menu uses. */
 	const [runtime, setRuntime] = useState<MenuFilter | null>(() => readPreferences().nodeFilter);
 
 	const chooseRuntime = (next: MenuFilter | null) => {
@@ -81,16 +151,16 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 		writePreferences({ ...readPreferences(), nodeFilter: next });
 	};
 
-	// Only the runtimes this graph actually has. See NodeMenu for why.
+	// Only what this graph actually has. See NodeMenu for why.
 	const present = useMemo(() => {
-		const seen = new Set<MenuFilter>(forTarget.map(classify));
+		const seen = new Set<MenuFilter>(forTarget.map((hit) => hit.filter));
 		return MENU_FILTERS.filter((r) => seen.has(r));
 	}, [forTarget]);
 
 	const narrowed = runtime !== null && present.includes(runtime) ? runtime : null;
 
 	const all = useMemo(
-		() => (narrowed === null ? forTarget : forTarget.filter((def) => classify(def) === narrowed)),
+		() => (narrowed === null ? forTarget : forTarget.filter((hit) => hit.filter === narrowed)),
 		[forTarget, narrowed],
 	);
 
@@ -98,10 +168,10 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 		const q = query.trim().toLowerCase();
 		if (q === "") return all;
 		return all
-			.map((def) => ({ def, score: score(def, q) }))
+			.map((hit) => ({ hit, score: score(hit, q) }))
 			.filter((x) => x.score > 0)
-			.sort((a, b) => b.score - a.score || a.def.title.localeCompare(b.def.title))
-			.map((x) => x.def);
+			.sort((a, b) => b.score - a.score || a.hit.title.localeCompare(b.hit.title))
+			.map((x) => x.hit);
 	}, [all, query]);
 
 	/**
@@ -114,9 +184,9 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 	const groups = useMemo(() => {
 		if (query.trim() !== "") return [{ label: "", defs: matches }];
 		const order = categories(registry);
-		const byCategory = new Map<string, NodeDef[]>();
-		for (const def of matches) {
-			byCategory.set(def.category, [...(byCategory.get(def.category) ?? []), def]);
+		const byCategory = new Map<string, Hit[]>();
+		for (const hit of matches) {
+			byCategory.set(hit.category, [...(byCategory.get(hit.category) ?? []), hit]);
 		}
 		return [...order, ...[...byCategory.keys()].filter((c) => !order.includes(c))]
 			.filter((c) => byCategory.has(c))
@@ -193,7 +263,7 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 								move(-1);
 							} else if (e.key === "Enter") {
 								e.preventDefault();
-								if (chosen) onPick(chosen);
+								if (chosen) onPick(chosen.def, chosen.config);
 							} else if (e.key === "Escape") {
 								e.preventDefault();
 								e.stopPropagation();
@@ -215,23 +285,23 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 						{groups.map((group) => (
 							<div key={group.label || "all"} className="node-picker-group">
 								{group.label && <div className="head">{group.label}</div>}
-								{group.defs.map((def) => {
-									const i = flat.indexOf(def);
+								{group.defs.map((hit) => {
+									const i = flat.indexOf(hit);
 									return (
 										<button
-											key={def.id}
+											key={hit.key}
 											className={`node-picker-hit${i === active ? " on" : ""}`}
 											onPointerEnter={() => setActive(i)}
-											onClick={() => onPick(def)}
+											onClick={() => onPick(hit.def, hit.config)}
 										>
-											<span className="title">{def.title}</span>
-											{def.pure && <span className="hint">pure</span>}
-											{classify(def) !== "luau" && narrowed === null && (
+											<span className="title">{hit.title}</span>
+											{hit.def.pure && <span className="hint">pure</span>}
+											{hit.filter !== "luau" && narrowed === null && (
 												<span
-													className={`hint runtime ${classify(def)}`}
-													title={FILTER_SUMMARY[classify(def)]}
+													className={`hint runtime ${hit.filter}`}
+													title={FILTER_SUMMARY[hit.filter]}
 												>
-													{FILTER_LABEL[classify(def)]}
+													{FILTER_LABEL[hit.filter]}
 												</span>
 											)}
 										</button>
@@ -248,7 +318,12 @@ export function NodePicker({ registry, target, preview, onPick, onClose }: NodeP
 							<>
 								<div
 									className="shot"
-									dangerouslySetInnerHTML={{ __html: previewSvg(previewOf(chosen), preview) }}
+									dangerouslySetInnerHTML={{
+										// With the config, so a graph's own entry is drawn as
+										// the node it will place rather than as the nameless
+										// one it is built on.
+										__html: previewSvg(previewOf(chosen.def, chosen.config), preview),
+									}}
 								/>
 								<div className="about">
 									<div className="name">{chosen.title}</div>

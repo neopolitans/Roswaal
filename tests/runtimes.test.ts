@@ -204,20 +204,42 @@ describe("runtime as an axis", () => {
 	 * "This graph" is the fourth option and a different kind of claim: not
 	 * which runtime a node needs, but that it is not a library node at all --
 	 * a variable you named, a local, a function, one of its parameters.
-	 *
-	 * The menu offers it because the menu has those. The picker lists the
-	 * library only, so the chip cannot appear there and the shared preference
-	 * falls back to All rather than showing an empty list.
 	 */
-	it("offers This graph in the menu and never in the picker", () => {
+	it("names the fourth option and puts what you wrote first", () => {
 		expect(MENU_FILTERS[0]).toBe("graph");
 		expect(FILTER_LABEL.graph).toBe("This graph");
 		expect(FILTER_SUMMARY.graph).toMatch(/variables, locals, functions and parameters/i);
+	});
 
-		// The menu marks every preset as the graph's own.
+	/**
+	 * Both searches offer it, and both get it from the same place.
+	 *
+	 * The picker listed the library and nothing else until 0.62.5, so the one
+	 * search that shows you what a node *looks* like could not find the node
+	 * you named yourself. It takes `buildPresets`' output now -- built once in
+	 * `App.tsx` and scoped there -- so the two cannot disagree about what this
+	 * graph has, or about which of a function's parameters are in scope.
+	 */
+	it("offers This graph in both searches, from one source", () => {
 		expect(source("src/app/NodeMenu.tsx")).toContain('runtime: "graph" as const');
-		// The picker builds its list from the registry, so nothing in it can be.
-		expect(source("src/app/NodePicker.tsx")).not.toContain('"graph"');
+		expect(source("src/app/NodePicker.tsx")).toContain('filter: "graph" as const');
+		// One call site, and both surfaces take the result as a prop. (The
+		// builder itself lives in NodeMenu.tsx, which is why this asks App
+		// rather than asking the components what they do not contain.)
+		const app = source("src/app/App.tsx");
+		expect(app.match(/buildPresets\(/g)).toHaveLength(1);
+		expect(app).toContain("presets={presets}");
+		expect(source("src/app/NodePicker.tsx")).toContain("presets = []");
+	});
+
+	/**
+	 * A preset is a node plus the configuration that makes it that one, and the
+	 * picker's whole point is the picture. Drawn without the config, every
+	 * variable in a graph previews as the same nameless capsule.
+	 */
+	it("draws a graph's own entry as the node it will place", () => {
+		expect(source("src/app/NodePicker.tsx"))
+			.toContain("previewOf(chosen.def, chosen.config)");
 	});
 
 	/** Runtimes still cover the library, with `graph` added on top rather than into it. */

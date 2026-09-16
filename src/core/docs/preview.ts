@@ -216,24 +216,30 @@ export interface PreviewOptions {
 /**
  * A node as it is drawn when you drop it on the canvas.
  *
- * No configuration, which is what "as you find it in the palette" means: a
- * variadic is at its minimum arity, nothing is split, and no pin is wired. That
- * is also the state the node's compiled example on the same page documents, so
- * the picture and the code below it are the same node.
+ * No configuration by default, which is what "as you find it in the palette"
+ * means: a variadic is at its minimum arity, nothing is split, and no pin is
+ * wired. That is also the state the node's compiled example on the same page
+ * documents, so the picture and the code below it are the same node.
+ *
+ * `config` is for an entry that arrives already configured — a Get Variable
+ * that is *this* variable, a Get Parameter that is *that* parameter. The
+ * picker offers those beside the library now, and drawing them as the bare
+ * node they are built on would show a picture of something else: every
+ * variable in a graph would preview as an identical nameless capsule.
  */
-export function previewOf(def: NodeDef): NodePreview {
-	const { inputs, outputs } = resolveNodePins(def, undefined);
+export function previewOf(def: NodeDef, config?: NodeConfig): NodePreview {
+	const { inputs, outputs } = resolveNodePins(def, config);
 	return {
 		id: def.id,
-		// The same rule the canvas uses, though with no config there is never a
-		// name to find: a preview shows what you get before you have configured
-		// anything, which for a Function node is "Function".
-		title: def.defaultLabel?.({}) || def.title,
-		subtitle: def.subtitle?.({}),
+		// The same rule the canvas uses. With no config there is never a name to
+		// find, so a preview shows what you get before configuring anything —
+		// which for a Function node is "Function".
+		title: def.defaultLabel?.(config ?? {}) || def.title,
+		subtitle: def.subtitle?.(config ?? {}),
 		category: def.category,
 		role: def.role,
 		display: def.display ?? "normal",
-		operator: operatorOf(def, inputs),
+		operator: operatorOf(def, inputs, config),
 		latent: def.latent === true,
 		inputs: inputs.map((p) => previewPin(p, "in")),
 		outputs: outputs.map((p) => previewPin(p, "out")),

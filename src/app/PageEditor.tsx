@@ -502,7 +502,9 @@ function NodePicker({
 		const nodes = next
 			.map((id) => registry.get(id))
 			.filter((def): def is NonNullable<typeof def> => def !== undefined)
-			.map(previewOf);
+			// Wrapped, not point-free: `previewOf` takes a config second and
+			// `map` would hand it the index.
+			.map((def) => previewOf(def));
 		onChange({ ...draft, ids: next, block: { ...block, nodes } });
 	};
 

@@ -94,6 +94,24 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.62.5",
+		date: "2026-09-16",
+		headline: "The visual search finds what you named, not just what we shipped.",
+		affects: ["editor"],
+		added: [
+			"**`Ctrl` + right-click now searches the graph's own declarations too** — its variables, locals, functions and the parameters of the body you are in, beside the built-in library. The one search that shows you what a node *looks* like could not find the node you named yourself.",
+			"They come first in the list. A name you chose is likelier to be the one you are after than a built-in that happens to read similarly.",
+			"The **This graph** filter works here as well, so the picker can be narrowed to what this graph declares and nothing else.",
+		],
+		changed: [
+			"**The preview draws the entry you are about to place.** A graph's own entry is a node plus the configuration that makes it that one, so Get Accumulator is drawn as Get Accumulator rather than as the nameless capsule underneath it — otherwise every variable in a graph previews identically.",
+			"A search matches on the entry's own name. Typing *accumulator* finds **Get Accumulator**, whose definition is called Get Variable and would never have matched.",
+		],
+		watch: [
+			"Both searches take the same list, built once, so they cannot disagree about what is in scope — including which of a function's parameters belong to the body you are looking at.",
+		],
+	},
+	{
 		version: "0.62.4",
 		date: "2026-09-16",
 		headline: "Search only what this graph declares.",
