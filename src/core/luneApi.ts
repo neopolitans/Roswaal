@@ -58,6 +58,16 @@ export interface LuneModule {
 	classes: LuneClass[];
 }
 
+/**
+ * The Roblox datatypes `@lune/roblox` implements.
+ *
+ * Not every Roblox datatype: `TweenInfo` and `Tween` are Roblox's and are
+ * not here, so a Lune graph that requires the module still cannot make one.
+ * Read from the crate's own module listing rather than assumed from the
+ * Roblox side, because the difference is the reason for asking.
+ */
+export const LUNE_ROBLOX_DATATYPES: string[] = ["Axes","BrickColor","CFrame","Color3","ColorSequence","ColorSequenceKeypoint","Content","Enum","EnumItem","Enums","Faces","Font","NumberRange","NumberSequence","NumberSequenceKeypoint","PhysicalProperties","Ray","Rect","Region3","Region3int16","UDim","UDim2","UniqueId","Vector2","Vector2int16","Vector3","Vector3int16"];
+
 /** The Lune release this catalogue describes. */
 export const LUNE_VERSION = "0.10.5";
 

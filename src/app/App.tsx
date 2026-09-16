@@ -34,7 +34,7 @@ import type { PinMenuTarget } from "./PinMenu.jsx";
 import { autoLayout } from "./layout.js";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
-import { VariablesPanel } from "./VariablesPanel.jsx";
+import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
 import { ProjectMenu } from "./ProjectMenu.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays } from "./Overlays.jsx";
@@ -57,6 +57,7 @@ import {
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
 import { setProjectTypes } from "./projectTypes.js";
+import { setProjectAliases } from "./projectAliases.js";
 import { IS_STATIC_HOST, PAGE_TARGET, pageHref } from "./pages.js";
 import { CanaryBanner } from "./previewBuild.jsx";
 import {
@@ -113,6 +114,20 @@ const SEP = String.fromCharCode(92);
  */
 function refreshTypes(): void {
 	void api.exportedTypes().then(({ types }) => setProjectTypes(types), () => setProjectTypes([]));
+}
+
+/**
+ * Asks the daemon for the project's `.luaurc` files, so a specifier field can
+ * offer the aliases somebody has already defined.
+ *
+ * Best effort and refreshed with the types: they change for the same reasons —
+ * somebody edited a file — and a project with no `.luaurc` simply has none.
+ */
+function refreshAliases(): void {
+	void api.luaurcFiles().then(
+		({ files }) => setProjectAliases(files),
+		() => setProjectAliases([]),
+	);
 }
 
 export function App() {
@@ -410,6 +425,7 @@ export function App() {
 			remember(info.root);
 			setCustomNodes((await api.customNodes()).custom);
 			refreshTypes();
+			refreshAliases();
 		} catch (err) {
 			notify("Something went wrong", (err as Error).message);
 		} finally {
@@ -520,6 +536,7 @@ export function App() {
 					remember(existing.root);
 					setCustomNodes((await api.customNodes()).custom);
 					refreshTypes();
+					refreshAliases();
 					return;
 				}
 			} catch {
@@ -559,6 +576,7 @@ export function App() {
 			if (detail.outcome) setOutcomes([detail.outcome]);
 			void api.tree().then(({ tree }) => setProject((p) => (p ? { ...p, tree } : p)));
 			refreshTypes();
+			refreshAliases();
 		});
 
 		/**
@@ -608,6 +626,7 @@ export function App() {
 		// so the count went on describing whatever the last compile saw.
 		setOrphans((await api.orphans().catch(() => ({ orphans: [] }))).orphans);
 		refreshTypes();
+		refreshAliases();
 	}, []);
 
 	// -- documents ---------------------------------------------------------
@@ -1599,6 +1618,10 @@ export function App() {
 			{/* Above everything, including the toolbar: a build that may be
 			    halfway through an idea says so before you start working in it. */}
 			<CanaryBanner />
+			{/* One list, at the root, because a `<datalist>` has to be in the
+			    document for every field that names it — and the fields that do
+			    are in two panels and on the canvas. */}
+			<SpecifierHints />
 			{/* The application: what Roswaal is doing, whatever is open. */}
 			<ProjectBar
 				config={project.config}

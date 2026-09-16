@@ -18,7 +18,7 @@ import {
 	SERVICE_CALL, SERVICE_VALUE, servicePins, serviceSubtitle,
 } from "../serviceCalls.js";
 import { pinTypeOf, typedLocalName } from "./variables.js";
-import { ENGINE_TYPES, LUAU, PAIR } from "../schema.js";
+import { ENGINE_TYPES, LUAU, PAIR, SPECIFIER_HINTS } from "../schema.js";
 
 /** The category for coordinates brought across from a Z-up tool. */
 export const ZUP_CONVERSIONS = "Z-Up Conversions";
@@ -1491,6 +1491,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 		inputs: [
 			{
 				...str("specifier", "Module", "@lune/fs"),
+				// What this project's `.luaurc` defines, plus the runtime's own
+				// prefixes. A project fact, so the list is filled at run time.
+				suggest: SPECIFIER_HINTS,
 				description:
 					"What goes inside require(...). A prefix is required -- `@` for an alias, `./` or " +
 					"`../` for a path. An unprefixed path is an error in Luau itself, not a fallback.",

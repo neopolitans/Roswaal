@@ -46,7 +46,29 @@ export const PAIR: DataType = "pair";
 
 export type PinKind = "exec" | "data";
 
+/**
+ * The id of the suggestion list a require specifier uses.
+ *
+ * Named here so the node that asks for it and the component that renders it
+ * agree without importing each other — core cannot reach the app, and the app
+ * should not be guessing a string.
+ */
+export const SPECIFIER_HINTS = "roswaal-specifier-hints";
+
 export interface PinDef {
+	/**
+	 * A `<datalist>` this pin's field should offer, by id.
+	 *
+	 * For a field whose good answers are **a project fact** rather than a fixed
+	 * list: a require specifier is whatever this project's `.luaurc` defines,
+	 * which no node definition can know. `options` is the fixed kind and stays
+	 * what it is.
+	 *
+	 * A suggestion either way. The set of things a require can name is still
+	 * moving, so everything known is one keystroke away and anything else is
+	 * simply typed.
+	 */
+	suggest?: string;
 	/** Stable within the node. Referenced from templates as `$in.<id>`. */
 	id: string;
 	name: string;

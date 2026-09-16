@@ -15,7 +15,7 @@
  * support for.
  */
 
-import { LUNE_MODULES } from "./luneApi.js";
+import { LUNE_MODULES, LUNE_ROBLOX_DATATYPES } from "./luneApi.js";
 import type { NodeScript } from "./schema.js";
 
 /**
@@ -84,8 +84,14 @@ export const LUNE_TYPE_MODULE: Record<string, string> = Object.fromEntries(
  * this project is built on is that a require happens because somebody asked
  * for it, not because a type picker assumed it.
  */
-export const LUNE_ROBLOX_TYPES: string[] = LUNE_TYPES
-	.filter((name) => LUNE_TYPE_MODULE[name] === "roblox");
+export const LUNE_ROBLOX_TYPES: string[] = [...new Set([
+	...LUNE_TYPES.filter((name) => LUNE_TYPE_MODULE[name] === "roblox"),
+	// The datatypes the module implements, which is not every Roblox datatype:
+	// `TweenInfo` is Roblox's and is not one of them, so a Lune graph that
+	// requires `@lune/roblox` still cannot make one. Generated from the crate's
+	// own module listing rather than assumed from the Roblox side.
+	...LUNE_ROBLOX_DATATYPES,
+])];
 
 /**
  * Whether this graph has asked for `@lune/roblox`.

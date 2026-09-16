@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.66.2",
+		date: "2026-09-16",
+		headline: "Aliases suggest themselves, and Roblox types tell the truth in Lune.",
+		affects: ["editor"],
+		added: [
+			"**A specifier field offers what the project defines.** Every alias a `.luaurc` above the graph declares, then the runtime's own prefixes — `@lune/*` for a Lune graph, `@self/` and `@game/` for a Roblox one — then `./` and `../`. A suggestion rather than a gate: anything else is still typed, because the set of things a require can name is still moving.",
+			"Which aliases are offered depends on **where the graph is**, since a `.luaurc` in `src/ui` defines aliases for `src/ui` and below. It asks the same function the compiler resolves by, so a field cannot offer a name the compiler would then refuse.",
+		],
+		fixed: [
+			"**A Lune graph is no longer offered Roblox datatypes** `@lune/roblox` **cannot make.** The module implements 27 of them and `TweenInfo` is not one, so offering the whole group was offering a constructor the runtime has not got. The list is read from the module's own source rather than assumed from the Roblox side.",
+		],
+	},
+	{
 		version: "0.66.1",
 		date: "2026-09-16",
 		headline: "A node says when it needs attention.",

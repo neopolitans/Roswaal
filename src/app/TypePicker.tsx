@@ -125,9 +125,10 @@ export function listGroups(script: NodeScript | undefined, required: string[] = 
 				{ label: "Roblox values", types: DATATYPES },
 				{ label: "Instances", types: COMMON_CLASSES },
 			]),
-		...(robloxInLune
-			? [{ label: "From @lune/roblox", types: [...LUNE_ROBLOX_TYPES, ...DATATYPES] }]
-			: []),
+		// The module's own list, not Roswaal's. `TweenInfo` is a Roblox datatype
+		// `@lune/roblox` does not implement, and offering it here would offer a
+		// constructor the runtime has not got.
+		...(robloxInLune ? [{ label: "From @lune/roblox", types: LUNE_ROBLOX_TYPES }] : []),
 	];
 }
 

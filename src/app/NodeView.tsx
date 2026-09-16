@@ -562,6 +562,10 @@ function renderLiteralEditor(props: NodeViewProps, pin: PinDef) {
 			<input
 				className="literal"
 				value={current.v}
+				// A project fact rather than a fixed list, so the options are
+				// somewhere else and this only names them. Typing anything else
+				// still works: a datalist narrows, it does not gate.
+				list={pin.suggest}
 				onPointerDown={stop}
 				onChange={(e) => set({ t: "string", v: e.target.value })}
 			/>

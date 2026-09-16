@@ -7,7 +7,7 @@
  * one.
  */
 
-import { useState, type DragEvent } from "react";
+import { useMemo, useState, type DragEvent } from "react";
 
 import type {
 	GraphNode, Literal, NodeScript, ScriptModule, ScriptVariable,
@@ -20,8 +20,10 @@ import {
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { isConstLocal } from "../core/nodes/variables.js";
 import { pinColor } from "./palette.js";
+import { SPECIFIER_HINTS } from "../core/schema.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
-import { store } from "./store.js";
+import { store, useEditor } from "./store.js";
+import { specifierSuggestions, useProjectLuaurc } from "./projectAliases.js";
 import { TypePicker } from "./TypePicker.jsx";
 
 export interface VariablesPanelProps {
@@ -271,10 +273,14 @@ function ModuleRow(
 					</label>
 					<label className="field">
 						<span>Module</span>
+						{/* A suggestion, not a choice: the set of things a require can
+						    name is still moving, so everything known is a keystroke
+						    away and anything else is simply typed. */}
 						<input
 							className="tb"
 							value={module.specifier}
 							placeholder="@lune/fs"
+							list="roswaal-specifier-hints"
 							title="What goes inside require(...). A prefix is required: @ for an alias, ./ or ../ for a path."
 							onChange={(e) =>
 								store.edit((s) => updateModule(s, module.id, { specifier: e.target.value }))
@@ -565,5 +571,35 @@ function DefaultEditor({
 			title="A Luau expression, inserted verbatim"
 			onChange={(e) => onChange({ t: "raw", v: e.target.value })}
 		/>
+	);
+}
+
+/**
+ * The specifiers a require could name here, as a `<datalist>`.
+ *
+ * One element, shared by every specifier field on screen through a fixed id —
+ * the browser matches a `list` attribute to it wherever it sits, and rendering
+ * one per row would put sixty options in the DOM per module.
+ *
+ * Which aliases are offered depends on **where this graph is**, because a
+ * `.luaurc` in `src/ui` defines aliases for `src/ui` and below. It asks the
+ * same function the compiler resolves by, so the field cannot offer a name the
+ * compiler would then refuse.
+ */
+export function SpecifierHints() {
+	const editor = useEditor();
+	const files = useProjectLuaurc();
+	const script = editor.script;
+	const suggestions = useMemo(
+		() => (script ? specifierSuggestions(files, editor.path ?? "", script.target) : []),
+		[files, editor.path, script],
+	);
+
+	return (
+		<datalist id={SPECIFIER_HINTS}>
+			{suggestions.map((one) => (
+				<option key={one.value} value={one.value} label={one.what} />
+			))}
+		</datalist>
 	);
 }

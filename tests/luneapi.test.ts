@@ -15,7 +15,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { LUNE_MODULES, LUNE_VERSION, type LuneFunction } from "../src/core/luneApi.js";
+import {
+	LUNE_MODULES, LUNE_ROBLOX_DATATYPES, LUNE_VERSION, type LuneFunction,
+} from "../src/core/luneApi.js";
 import { requiresLuneRoblox } from "../src/core/luneTypes.js";
 import { listedTypes, listGroups, searchTypes } from "../src/app/TypePicker.jsx";
 import {
@@ -261,5 +263,54 @@ describe("naming the Roblox categories", () => {
 		// The guard is the first thing the function does, so `false` is a
 		// straight passthrough rather than a second table to keep in step.
 		expect(source).toContain("if (!ROBLOX_NAMED_CATEGORIES) return category;");
+	});
+});
+
+/**
+ * What `@lune/roblox` actually implements.
+ *
+ * It gives a Lune program *some* of Roblox's datatypes and not all of them, so
+ * "Roblox Types" is not one answer in a Lune graph — it is a list with a line
+ * through part of it. Offering the whole group once the module is required errs
+ * toward showing a constructor the runtime has not got, which is the wrong way
+ * round: better to hide something that would have worked than to offer
+ * something that cannot.
+ *
+ * Generated from the crate's own module listing, so a Lune release that adds a
+ * datatype adds it here.
+ */
+describe("the datatypes @lune/roblox has", () => {
+	it("has the ones a Lune program really can make", () => {
+		for (const name of ["Vector3", "CFrame", "Color3", "UDim2", "BrickColor", "Font"]) {
+			expect(LUNE_ROBLOX_DATATYPES, name).toContain(name);
+		}
+	});
+
+	/** The point of asking rather than assuming. */
+	it("does not have TweenInfo or Tween", () => {
+		expect(LUNE_ROBLOX_DATATYPES).not.toContain("TweenInfo");
+		expect(LUNE_ROBLOX_DATATYPES).not.toContain("Tween");
+	});
+
+	it("offers them to a Lune graph only once the module is required", () => {
+		const bare = { ...emptyScript("A", "a"), target: "lune" as const };
+		const asked = {
+			...bare,
+			modules: [{ id: "m1", name: "roblox", specifier: "@lune/roblox" }],
+		};
+		expect(listedTypes(bare)).not.toContain("Vector3");
+		expect(listedTypes(asked)).toContain("Vector3");
+	});
+
+	/** And never the ones it cannot make, however the graph asks. */
+	it("never offers a datatype the module does not implement", () => {
+		const asked = {
+			...emptyScript("A", "a"),
+			target: "lune" as const,
+			modules: [{ id: "m1", name: "roblox", specifier: "@lune/roblox" }],
+		};
+		const offered = listGroups(asked).find((one) => one.label === "From @lune/roblox");
+		expect(offered).toBeDefined();
+		expect(offered?.types).not.toContain("TweenInfo");
 	});
 });

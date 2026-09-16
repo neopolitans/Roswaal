@@ -257,6 +257,34 @@ for (const module of MODULES) {
 	);
 }
 
+/**
+ * The Roblox datatypes `@lune/roblox` actually implements.
+ *
+ * Read from the crate's own module listing rather than assumed from the Roblox
+ * side, because the two differ and the difference is the whole point of asking.
+ * `TweenInfo` is a Roblox datatype and is **not** in this list; offering it to a
+ * Lune graph would be offering a constructor the runtime does not have.
+ *
+ * The `pub use` lines are the answer rather than the `mod` lines: a module is
+ * `color3` and the type it exports is `Color3`, and the exported name is the one
+ * a developer writes.
+ */
+const datatypesSource = await (
+	await fetch(
+		`https://raw.githubusercontent.com/lune-org/lune/${TAG}` +
+		"/crates/lune-roblox/src/datatypes/types/mod.rs",
+	)
+).text();
+
+const robloxDatatypes = [...new Set(
+	[...datatypesSource.matchAll(/^pub use (?:r#)?\w+::(\w+);/gm)].map((one) => one[1]),
+)].sort();
+
+if (robloxDatatypes.length === 0) {
+	throw new Error("lune-roblox: no datatypes found. The module listing has changed shape.");
+}
+console.log(`  @lune/roblox   ${robloxDatatypes.length} Roblox datatypes`);
+
 const total = modules.reduce((sum, module) => sum + module.functions.length, 0);
 
 const lines = [
@@ -319,6 +347,16 @@ const lines = [
 	"\t */",
 	"\tclasses: LuneClass[];",
 	"}",
+	"",
+	"/**",
+	" * The Roblox datatypes `@lune/roblox` implements.",
+	" *",
+	" * Not every Roblox datatype: `TweenInfo` and `Tween` are Roblox's and are",
+	" * not here, so a Lune graph that requires the module still cannot make one.",
+	" * Read from the crate's own module listing rather than assumed from the",
+	" * Roblox side, because the difference is the reason for asking.",
+	" */",
+	`export const LUNE_ROBLOX_DATATYPES: string[] = ${JSON.stringify(robloxDatatypes)};`,
 	"",
 	"/** The Lune release this catalogue describes. */",
 	`export const LUNE_VERSION = ${JSON.stringify(LUNE_VERSION)};`,
