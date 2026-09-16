@@ -41,6 +41,7 @@ import {
 import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release, type ReleaseSurface } from "./releases.js";
 import { reviewerCounts, reviewerLink, reviewOf, type Review } from "./reviews.js";
+import { DEMOS, demoLuau } from "./demos.js";
 import type { NodeMap } from "../nodemap.js";
 import { mapFigure } from "./mapFigure.js";
 
@@ -4738,6 +4739,81 @@ const CLI_PAGE: DocPage = {
 // Assembly
 // ---------------------------------------------------------------------------
 
+/**
+ * The demos page: four small Lune programmes, drawn and compiled.
+ *
+ * Generated from `DEMOS` rather than written out, for the reason the node
+ * reference is: the Luau under each picture is what the emitter produces from
+ * the graph above it, so the two cannot end up describing different programs
+ * and a demo that stopped compiling fails the build.
+ */
+function luneDemosPage(registry: Registry): DocPage {
+	const blocks: Block[] = [
+		{
+			t: "p",
+			text:
+				"Four programmes somebody writes first, each one a graph and the file it " +
+				"compiles to. They are small on purpose: the point is the shape, and the " +
+				"shortest version of a shape is the one you can take away.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"**Every require here was placed by hand.** Roswaal does not add one, and a " +
+				"call whose module is not declared is an error rather than a guess — the rule " +
+				"is on [Modules](modules), and [Lune's standard library](lune-library) is what " +
+				"these are calling into.",
+		},
+	];
+
+	for (const demo of DEMOS) {
+		blocks.push({ t: "h", level: 2, text: demo.title });
+		blocks.push({ t: "p", text: demo.what });
+		blocks.push({
+			t: "graph",
+			script: demo.script(),
+			caption: "The graph this was compiled from.",
+		});
+		blocks.push({ t: "code", lang: "luau", text: demoLuau(demo, registry) });
+		if (demo.note) blocks.push({ t: "note", kind: "info", text: demo.note });
+		if (demo.warns) blocks.push({ t: "note", kind: "warn", text: demo.warns });
+	}
+
+	blocks.push({ t: "h", level: 2, text: "Running one" });
+	blocks.push({
+		t: "p",
+		text:
+			"Compile the graph, then run the file — `lune run count-characters`. Roswaal " +
+			"writes the `.luau` and stops there; what runs it is Lune. Where the file lands, " +
+			"and what checks that the layout holds together, is on " +
+			"[Compiling and nodemaps for Lune](compiling-for-lune).",
+	});
+	blocks.push({
+		t: "note",
+		kind: "warn",
+		text:
+			"**These are starting points, not finished programmes.** None of them checks " +
+			"whether the file was there, whether the request came back, or whether the JSON " +
+			"had the field — which a real version would, and which would double the size of " +
+			"every picture on this page.",
+	});
+
+	return {
+		slug: "lune-demos",
+		// Not `narrow`. A prose measure is right for a page of sentences and
+		// wrong for one that is mostly pictures of seven-column graphs: capped
+		// at 78ch every one of them was drawn at half size to fit.
+		title: "Lune demos",
+		summary:
+			"Four small programmes: read a file, fetch JSON, walk a directory, take an argument.",
+		// No `runtime` tag: that is a node page's, and this is a guide. The
+		// badge answers "what does this node need", and nobody asked that of a
+		// page whose title already says Lune.
+		blocks,
+	};
+}
+
 export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): DocSite {
 	const nodes = documentRegistry(registry, builtinIds);
 
@@ -4810,7 +4886,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	const start = [GETTING_STARTED, CONTROLS, TOOLBARS_PAGE, blueprintPage()];
 	const guides = [
 		TWO_KINDS_OF_WIRE(registry), TYPES_GUIDE, VARIABLES, MODULES_PAGE, ALIASES_PAGE,
-		luneLibraryPage(registry), BUILDING, BUILDING_LUNE,
+		luneLibraryPage(registry), BUILDING, BUILDING_LUNE, luneDemosPage(registry),
 		ESCAPE_HATCHES(registry), settingsPage(), CUSTOM_NODES, CLI_PAGE,
 	];
 	// Beside the types page it was split out of, rather than at the end.

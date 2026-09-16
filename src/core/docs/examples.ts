@@ -63,7 +63,14 @@ const TIGHT = { column: 240, row: 125 };
  */
 const STAND_DROP = 68;
 
-class G {
+/**
+ * Exported for `demos.ts`, which builds whole programmes rather than scenes.
+ *
+ * The two files want the same construction and different things from it —
+ * a scene is one node's worth of context, a demo is a program somebody could
+ * have written — so they share the builder and nothing else.
+ */
+export class G {
 	readonly script: NodeScript;
 	private n = 0;
 	/** Each node's column, so a consumer can be placed one to the right of it. */
@@ -140,8 +147,8 @@ class G {
 	}
 }
 
-const str = (v: string): Literal => ({ t: "string", v });
-const num = (v: number): Literal => ({ t: "number", v });
+export const str = (v: string): Literal => ({ t: "string", v });
+export const num = (v: number): Literal => ({ t: "number", v });
 
 /**
  * A Print wired to run after `from`'s named exec pin.

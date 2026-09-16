@@ -1,0 +1,334 @@
+/**
+ * Four small Lune programmes, as graphs.
+ *
+ * The feedback that started Lune support asked for "common programming
+ * tutorials", which is the right shape for a runtime most people will meet
+ * through this editor: not a showcase of what Roswaal can do, but the four
+ * things somebody writes first. Read a file. Fetch some JSON. Walk a
+ * directory. Take an argument.
+ *
+ * ## They are compiled, not transcribed
+ *
+ * Each one is a real `NodeScript`. The page draws it and shows the Luau
+ * underneath, and that Luau comes out of the same emitter the editor uses —
+ * so a demo cannot drift from what Roswaal would actually write, and one that
+ * stopped compiling fails the build rather than sitting here being wrong.
+ * `tests/demos.test.ts` holds that line.
+ *
+ * ## Small enough to read
+ *
+ * A demo that needed scrolling would be a program the reader has to study
+ * rather than an answer they can take. Each of these is under a dozen nodes,
+ * and where a real version would grow — error handling on every call, a
+ * prettier CLI — the page says so in prose instead of drawing it.
+ */
+
+import { compile } from "../compiler/index.js";
+import type { Registry } from "../nodes/index.js";
+import type { NodeScript, ScriptModule } from "../schema.js";
+import { G, num, str } from "./examples.js";
+import { stripHeader } from "./nodeReference.js";
+
+/** A module declaration, as the Variables panel would have written it. */
+const lune = (alias: string): ScriptModule => ({
+	id: `m_${alias}`,
+	name: alias,
+	specifier: `@lune/${alias}`,
+});
+
+/** A Lune graph, with its modules already declared. */
+function programme(name: string, modules: ScriptModule[]): G {
+	return new G(
+		{ name, target: "lune", scriptClass: "ModuleScript", modules },
+		// Tighter than a scene's spacing rather than wider. These are seven
+		// columns at their longest, and a drawn graph is fitted to the column
+		// it sits in -- so the roomier the placement, the smaller every node
+		// ends up on the page.
+		{ column: 235, row: 140 },
+	);
+}
+
+export interface Demo {
+	slug: string;
+	title: string;
+	/** One line: what somebody would have opened this looking for. */
+	what: string;
+	/** What it is worth noticing, beyond the obvious. */
+	note?: string;
+	/**
+	 * A warning the demo raises on purpose, and why it is not a mistake.
+	 *
+	 * Written down rather than designed around. A reader who builds this will
+	 * see it, and a page that quietly avoided the wire that causes it would be
+	 * teaching them to avoid the natural way of doing this.
+	 */
+	warns?: string;
+	script: () => NodeScript;
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Read a file, and say how big it is.
+ *
+ * The smallest useful thing: one module, one call, one answer. `readFile` is
+ * a value node because Lune tags it `must_use` — the file's contents are the
+ * whole point of calling it — so it has no execution pins and wires straight
+ * into what wanted the string.
+ */
+function readAFile(): NodeScript {
+	const g = programme("count-characters", [lune("fs")]);
+
+	const begin = g.node("script.begin", { column: 0 });
+	const read = g.node("lune.value", {
+		config: { module: "fs", call: "readFile" },
+		literals: { a0: str("README.md") },
+		column: 1,
+		dy: 120,
+	});
+	const len = g.node("string.len", { column: 2, dy: 120 });
+	const say = g.node("string.format", {
+		literals: { format: str("README.md is %d characters.") },
+		column: 3,
+		dy: 120,
+	});
+	const print = g.node("debug.print", { column: 4 });
+
+	g.link(begin, "then", print, "in");
+	g.link(read, "result", len, "value");
+	g.link(len, "result", say, "a");
+	g.link(say, "result", print, "value");
+	return g.out();
+}
+
+/**
+ * Fetch JSON and print a field.
+ *
+ * `net.request` is a step rather than a value — it is not tagged `must_use`,
+ * because a request can be worth making for what it does — so it sits in the
+ * execution line and hands back a response. `serde.decode` is the opposite,
+ * and the two together are most of what talking to an HTTP API is.
+ */
+function fetchJson(): NodeScript {
+	const g = programme("fetch-json", [lune("net"), lune("serde")]);
+
+	const begin = g.node("script.begin", { column: 0 });
+	const request = g.node("lune.call", {
+		config: { module: "net", call: "request" },
+		literals: { a0: str("https://api.github.com/repos/lune-org/lune") },
+		column: 1,
+	});
+	const body = g.node("table.getKey", {
+		literals: { key: str("body") },
+		column: 2,
+		dy: 130,
+	});
+	const decode = g.node("lune.value", {
+		config: { module: "serde", call: "decode" },
+		literals: { a0: str("json") },
+		column: 3,
+		dy: 130,
+	});
+	const stars = g.node("table.getKey", {
+		literals: { key: str("stargazers_count") },
+		column: 4,
+		dy: 130,
+	});
+	const say = g.node("string.format", {
+		literals: { format: str("lune has %d stars.") },
+		column: 5,
+		dy: 130,
+	});
+	const print = g.node("debug.print", { column: 6 });
+
+	g.link(begin, "then", request, "in");
+	g.link(request, "then", print, "in");
+	g.link(request, "result", body, "table");
+	g.link(body, "result", decode, "a1");
+	g.link(decode, "result", stars, "table");
+	g.link(stars, "result", say, "a");
+	g.link(say, "result", print, "value");
+	return g.out();
+}
+
+/**
+ * Walk a directory, saying what each entry is.
+ *
+ * The shape every file-handling script has: list, loop, ask about each one.
+ * The two arms sit on their own rows because a Branch whose consumers share a
+ * row reads as a sequence — the reader cannot tell which Print belongs to
+ * True.
+ */
+function walkADirectory(): NodeScript {
+	const g = programme("walk-a-directory", [lune("fs")]);
+
+	const begin = g.node("script.begin", { column: 0 });
+	const list = g.node("lune.value", {
+		config: { module: "fs", call: "readDir" },
+		literals: { a0: str(".") },
+		column: 1,
+		dy: 130,
+	});
+	const each = g.node("flow.forIndex", { column: 2 });
+	const isDir = g.node("lune.value", {
+		config: { module: "fs", call: "isDir" },
+		column: 3,
+		dy: 150,
+	});
+	const branch = g.node("flow.branch", { column: 4 });
+
+	const dirLabel = g.node("string.concat", {
+		literals: { a0: str("dir   ") },
+		column: 5,
+		dy: 120,
+	});
+	const dirPrint = g.node("debug.print", { column: 6 });
+
+	const fileLabel = g.node("string.concat", {
+		literals: { a0: str("file  ") },
+		column: 5,
+		row: 1,
+		dy: 120,
+	});
+	const filePrint = g.node("debug.print", { column: 6, row: 1 });
+
+	g.link(begin, "then", each, "in");
+	g.link(list, "result", each, "table");
+	g.link(each, "body", branch, "in");
+	g.link(each, "value", isDir, "a0");
+	g.link(isDir, "result", branch, "condition");
+
+	g.link(branch, "true", dirPrint, "in");
+	g.link(each, "value", dirLabel, "a1");
+	g.link(dirLabel, "result", dirPrint, "value");
+
+	g.link(branch, "false", filePrint, "in");
+	g.link(each, "value", fileLabel, "a1");
+	g.link(fileLabel, "result", filePrint, "value");
+	return g.out();
+}
+
+/**
+ * A CLI that takes an argument, and says so when it does not get one.
+ *
+ * `process.args` is a *property* of the module rather than a function, and
+ * the catalogue Roswaal reads holds functions and classes — so there is no
+ * node for it and a Luau Expression stands in. That is the honest version of
+ * this program rather than a limitation being hidden: the module is declared
+ * like any other, and the expression reaches through the local it bound.
+ */
+function aSmallCli(): NodeScript {
+	const g = programme("greet", [lune("process")]);
+
+	const begin = g.node("script.begin", { column: 0 });
+	const args = g.stand("process.args", { column: 1, dy: 250 });
+	const count = g.node("table.length", { column: 2, dy: 250 });
+	const none = g.node("compare.eq", {
+		literals: { b: num(0) },
+		column: 3,
+		dy: 250,
+	});
+	const branch = g.node("flow.branch", { column: 4 });
+
+	const usage = g.node("debug.print", {
+		literals: { value: str("usage: lune run greet -- <name>") },
+		column: 5,
+	});
+	const exit = g.node("lune.call", {
+		config: { module: "process", call: "exit" },
+		literals: { a0: num(1) },
+		column: 6,
+	});
+
+	const name = g.node("table.get", {
+		literals: { key: num(1) },
+		column: 5,
+		row: 1,
+		dy: 120,
+	});
+	const greeting = g.node("string.concat", {
+		literals: { a0: str("Hello, ") },
+		column: 6,
+		row: 1,
+		dy: 120,
+	});
+	const hello = g.node("debug.print", { column: 7, row: 1 });
+
+	g.link(begin, "then", branch, "in");
+	g.link(args, "result", count, "table");
+	g.link(count, "result", none, "a");
+	g.link(none, "result", branch, "condition");
+
+	g.link(branch, "true", usage, "in");
+	g.link(usage, "then", exit, "in");
+
+	g.link(branch, "false", hello, "in");
+	g.link(args, "result", name, "table");
+	g.link(name, "result", greeting, "a1");
+	g.link(greeting, "result", hello, "value");
+	return g.out();
+}
+
+// ---------------------------------------------------------------------------
+
+/** In the order somebody meets them, which is smallest first. */
+export const DEMOS: Demo[] = [
+	{
+		slug: "count-characters",
+		title: "Read a file",
+		what: "Open a file, and say how long it is.",
+		note:
+			"`fs.readFile` is a **value** node — no execution pins — because Lune tags it " +
+			"`must_use`. What a function gives back is what decides which of the two Lune " +
+			"nodes it arrives as, and that decision is Lune's rather than Roswaal's.",
+		script: readAFile,
+	},
+	{
+		slug: "fetch-json",
+		title: "Fetch JSON and read a field",
+		what: "Ask an HTTP API for something, and pull one value out of the answer.",
+		note:
+			"`net.request` is a **step** and `serde.decode` is a **value**, which is the same " +
+			"rule again: a request can be worth making for what it does, and a decode cannot. " +
+			"Two modules are declared here, and neither was added for you.",
+		warns:
+			"**The wire that reads the body warns, and it is right.** Roswaal knows " +
+			"the pin is a `FetchResponse` because Lune's own signature says so, and it reads " +
+			"the library's type *names* without their shapes — so it cannot tell that this one " +
+			"is a table. It compiles and runs. Expect the same on anything that hands back one " +
+			"of Lune's named types, `fs.metadata` included.",
+		script: fetchJson,
+	},
+	{
+		slug: "walk-a-directory",
+		title: "Walk a directory",
+		what: "List what is in a folder, and say which entries are folders themselves.",
+		note:
+			"The two arms of the Branch sit on their own rows. On one row they would read as " +
+			"a sequence, and which Print belongs to **True** would be something the reader has " +
+			"to work out from the wires.",
+		script: walkADirectory,
+	},
+	{
+		slug: "greet",
+		title: "A small command line",
+		what: "Take an argument, and say what to do when it is missing.",
+		note:
+			"`process.args` is a property of the module rather than a function, and Roswaal's " +
+			"catalogue holds functions and classes — so there is no node for it and a **Luau " +
+			"Expression** stands in. The module is declared the same as any other, and the " +
+			"expression reaches through the local it bound.",
+		script: aSmallCli,
+	},
+];
+
+/**
+ * The Luau a demo compiles to, with the generated header taken off.
+ *
+ * The header names the graph and carries a hash, which is right in a file on
+ * disk and noise in a documentation listing.
+ */
+export function demoLuau(demo: Demo, registry: Registry): string {
+	const result = compile(demo.script(), registry);
+    return stripHeader(result.code);
+}

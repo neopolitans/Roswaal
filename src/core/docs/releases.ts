@@ -94,6 +94,20 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.69.0",
+		date: "2026-09-16",
+		headline: "Four Lune programmes, drawn and compiled.",
+		affects: ["docs"],
+		added: [
+			"**Four small Lune programmes**, at [Lune demos](lune-demos): read a file, fetch JSON and read a field, walk a directory, take a command-line argument. Each one is a graph, drawn, with the Luau it compiles to underneath it.",
+			"They are compiled rather than transcribed: the file shown is what the emitter writes from the graph above it, so the picture and the code cannot describe different programmes and a demo that stopped compiling fails the build.",
+		],
+		watch: [
+			"**The process arguments have no node of their own.** `process.args` is a property of the module rather than a function, and the catalogue Roswaal reads from Lune's typedefs holds functions and classes. The command-line demo reaches it with a Luau Expression through the local the module bound, which works and is what the page shows.",
+			"**Reading a field off one of Lune's named types warns.** Roswaal knows the pin is a `FetchResponse`, because Lune's signature says so, and reads the library's type names without their shapes — so it cannot tell that one is a table. The wire is right and the file runs; the demo shows it rather than avoiding it.",
+		],
+	},
+	{
 		version: "0.68.0",
 		date: "2026-09-16",
 		headline: "The map pages open with the map editor, working.",
