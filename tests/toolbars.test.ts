@@ -515,11 +515,43 @@ describe("pointing a section at its own page", () => {
 	const whatOf = (spec: ToolbarSpec, name: string) =>
 		legendOf(spec).find((item) => item.name === name)?.what;
 
+	/** The scrim classes, stripped, so what is left is the drawing itself. */
+	const undimmed = (html: string) =>
+		html.replace(/class="panel-section(?: dim| focus)?"/g, 'class="panel-section"');
+
 	it("keeps the drawing identical and moves only the words", () => {
 		const drawn = toolbarHtml(VARIABLES_PANEL, art);
 		for (const [slug, spec] of VARIANTS) {
-			expect(toolbarHtml(spec, art), slug).toEqual(drawn);
+			expect(undimmed(toolbarHtml(spec, art)), slug).toEqual(undimmed(drawn));
 		}
+	});
+
+	/**
+	 * The light falls on the sections the page explains, and only those.
+	 *
+	 * Read off the same source as the words, so a pointer added without one
+	 * being taken away cannot leave two pages claiming the same section.
+	 */
+	it("lights the sections it explains and dims the rest", () => {
+		for (const [slug, spec, mine] of VARIANTS) {
+			const html = toolbarHtml(spec, art);
+			const sections = [...html.matchAll(
+				/<div class="panel-section( dim| focus)?">.*?<span>([^<]+)<\/span>/g,
+			)];
+			expect(sections.length, slug).toBe(legendOf(VARIABLES_PANEL).length);
+			for (const [, state, text] of sections) {
+				const owned = mine.some((name) => name.toUpperCase() === text.toUpperCase());
+				expect(state?.trim(), `${slug}: ${text}`).toBe(owned ? "focus" : "dim");
+			}
+		}
+	});
+
+	/** A panel nobody is pointing away from has no subject, so nothing is lit. */
+	it("leaves the panel alone when it is not a page's subject", () => {
+		const html = toolbarHtml(VARIABLES_PANEL, art);
+		expect(html).toContain('class="panel-section"');
+		expect(html).not.toContain("panel-section dim");
+		expect(html).not.toContain("panel-section focus");
 	});
 
 	it("explains its own section in full and points the rest away", () => {

@@ -129,7 +129,23 @@ export type ToolbarItem = Documented &
 		 * between Modules and Functions in the Variables panel and is worth
 		 * drawing rather than explaining.
 		 */
-		| { t: "heading"; text: string; level?: 2 | 3; action?: string }
+		| {
+				t: "heading";
+				text: string;
+				level?: 2 | 3;
+				action?: string;
+				/**
+				 * This section is not what the page is about.
+				 *
+				 * Set by `pointingElsewhere`, never by hand: a section whose words
+				 * point at another page is by definition not this page's subject,
+				 * so the two cannot drift apart. The renderer dims it and the
+				 * rows under it, which leaves the light on the one section that
+				 * is — a scrim with a cutout, said in classes rather than in a
+				 * drawing nobody could keep in step with the panel.
+				 */
+				dim?: boolean;
+		  }
 		/**
 		 * One row of a list: a swatch, a name, and what sits at its right.
 		 *
@@ -351,6 +367,41 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 	}
 }
 
+/**
+ * A panel's items, wrapped one `<div>` per heading.
+ *
+ * The wrapper is what lets a section be lit or dimmed as a whole: without it
+ * the heading and its rows are siblings in a flat list and there is nothing
+ * to put a ring around. `focus` is only spelt when some *other* section is
+ * dimmed — a panel with nothing pointed away has no subject, and marking every
+ * section as the focus would light the lot.
+ */
+function panelSections(items: ToolbarItem[], art: ToolbarArt): string {
+	const dimmed = items.some((item) => item.t === "heading" && item.dim);
+	const out: string[] = [];
+	let open: string[] | null = null;
+	let openClass = "";
+
+	const close = () => {
+		if (open === null) return;
+		out.push(`<div class="panel-section${openClass}">${open.join("")}</div>`);
+		open = null;
+	};
+
+	for (const item of items) {
+		if (item.t === "heading") {
+			close();
+			open = [];
+			openClass = item.dim ? " dim" : dimmed ? " focus" : "";
+		}
+		// Anything before the first heading is furniture and stands on its own.
+		if (open === null) out.push(itemHtml(item, art));
+		else open.push(itemHtml(item, art));
+	}
+	close();
+	return out.join("");
+}
+
 /** The class the real chrome carries, so the replica takes its rules. */
 const CHROME_CLASS: Record<ToolbarChrome, string> = {
 	bar: "toolbar",
@@ -385,7 +436,11 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 			if (spec.chrome === "float") return `${gap}<div class="tool-group">${items}</div>`;
 			// A panel's groups are sections down a column rather than clusters
 			// along a row, so there is no flexible gap to push them apart with.
-			if (spec.chrome === "panel") return `<div class="variable-list">${items}</div>`;
+			// Each heading starts a section that runs to the next one, so the
+			// rows under a dimmed heading dim with it.
+			if (spec.chrome === "panel") {
+				return `<div class="variable-list">${panelSections(group.items, art)}</div>`;
+			}
 			return `${gap}${items}`;
 		})
 		.join("");
@@ -982,10 +1037,13 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 						"Values the whole script can read and write. **Add** makes one; drag it onto the " +
 						"canvas for a Get, or hold `Ctrl` while you drop for a Set.",
 				},
-				// A row rather than a control: it carries no `name`, so the legend
-				// does not list it. The panel's parts are what a reader is
-				// matching; the rows are what those parts contain.
+				// Rows rather than controls: they carry no `name`, so the legend
+				// does not list them. The panel's parts are what a reader is
+				// matching; the rows are what those parts contain -- and a
+				// section drawn empty reads as one that holds nothing, which is
+				// the wrong thing to say about all four of these.
 				{ t: "row", label: "Accumulator", trailing: "number", swatch: "number" },
+				{ t: "row", label: "MaxTanks", trailing: "number", swatch: "number", badge: "const" },
 				{
 					t: "heading",
 					text: "Modules",
@@ -999,6 +1057,7 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 				// `outline` rather than a colour: a variable's swatch is its type's,
 				// and a module has no type.
 				{ t: "row", label: "roblox", trailing: "@lune/roblox", swatch: "outline" },
+				{ t: "row", label: "Config", trailing: "./Config", swatch: "outline" },
 				{
 					t: "heading",
 					text: "Locals",
@@ -1009,6 +1068,8 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 						"is no **Add**, because a local is declared by a node on the canvas, where it " +
 						"runs.",
 				},
+				{ t: "row", label: "restores", trailing: "{ [Model]: Restore }", swatch: "table" },
+				{ t: "row", label: "tuning", trailing: "Tuning", swatch: "table", badge: "const" },
 				{
 					t: "heading",
 					text: "Functions",
@@ -1017,6 +1078,10 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 						"Every function this script declares. Clicking one opens its graph, which is how " +
 						"you move between them — a declaration in a graph of any size is off screen.",
 				},
+				// `hoisted` and `here` are the editor's own trailing words, and
+				// they are the difference between the two declaration nodes.
+				{ t: "row", label: "read", trailing: "hoisted", swatch: "function" },
+				{ t: "row", label: "hide", trailing: "here", swatch: "function" },
 			],
 		},
 	],
@@ -1042,7 +1107,12 @@ export function pointingElsewhere(
 			items: group.items.map((item) => {
 				if (item.name === undefined) return item;
 				const instead = pointers[controlKey(item.name)];
-				return instead === undefined ? item : { ...item, what: instead };
+				if (instead === undefined) return item;
+				// A heading whose words point away is dimmed as well as reworded:
+				// it is the same statement, made to the eye instead of in prose.
+				return item.t === "heading"
+					? { ...item, what: instead, dim: true }
+					: { ...item, what: instead };
 			}),
 		})),
 	};

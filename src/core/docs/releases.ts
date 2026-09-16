@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.64.3",
+		date: "2026-09-16",
+		headline: "A drawn panel holds something, and says which part the page is about.",
+		affects: ["docs"],
+		added: [
+			"**Every section of the drawn Variables panel has rows in it** — two variables, two modules, two locals and two functions, with the `const` badge, a module's specifier and a function's `hoisted` or `here` all shown. A section drawn empty said the section held nothing.",
+			"**The section a page is about keeps the light, and the rest dim** — a scrim with a cutout. [Modules](modules) lights Modules, [Functions](functions) lights Functions, and [Variables and locals](variables-and-locals) lights both of its own.",
+		],
+		changed: [
+			"Hovering a dimmed section's explanation lights that section in the picture, scrim and all. A highlight that leaves the thing it points at unreadable is pointing at nothing.",
+		],
+	},
+	{
 		version: "0.64.2",
 		date: "2026-09-16",
 		headline: "The Functions guide, caught up with the editor.",
