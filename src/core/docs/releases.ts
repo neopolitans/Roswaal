@@ -94,6 +94,21 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.64.0",
+		date: "2026-09-16",
+		headline: "Modules, documented — and panels can be drawn now.",
+		affects: ["docs"],
+		added: [
+			"**A page about requiring**, at [Modules](modules): how to declare one, what each runtime resolves, why the name is yours to choose, and what `@lune/roblox` members make possible. Requiring is the one subject where Roblox and Lune genuinely differ, and there was nowhere to look.",
+			"**A table of what resolves where** — `./` and `../` anywhere, `@self/` and `@game/` under Roblox, `@lune/*` under Lune, and `.luaurc` aliases under Lune with Roblox still to come.",
+			"**The Variables panel is drawn**, the way the toolbars are: hover a section to light its explanation, and hover an explanation to light the section.",
+		],
+		changed: [
+			"The machinery behind a drawn toolbar now draws a **panel** too. It was never about bars — a spec, the editor's own class names, a legend from the same spec, and the pointing between them. One more shape rather than a second copy, so the pointing, the layout traps and the fixes that took three attempts are paid for once.",
+			"A drawn row takes its swatch from the palette the canvas uses, so a `number` in a picture is the `number` on your screen. Without a palette it falls back to the ring a module gets, rather than inventing a colour.",
+		],
+	},
+	{
 		version: "0.63.0",
 		date: "2026-09-16",
 		headline: "A script says which modules it requires.",

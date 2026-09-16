@@ -28,7 +28,7 @@ import {
 import { renderPage } from "../src/core/docs/html.js";
 import {
 	controlKey, controlsOf, DOCS_SITE_BAR, EDITOR_BAR, EDITOR_BAR_BROWSER, iconsOf, legendOf,
-	TOOLBAR_HINT, toolbarConstant, toolbarHtml, TOOLBARS, type ToolbarArt,
+	TOOLBAR_HINT, toolbarConstant, toolbarHtml, TOOLBARS, VARIABLES_PANEL, type ToolbarArt,
 } from "../src/core/docs/toolbars.js";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { buildToolbarLinker } from "../scripts/lib/toolbarLinker.mjs";
@@ -420,6 +420,76 @@ describe("the tab switch does not move the window", () => {
 		// An input has an intrinsic width; at its natural size it can still
 		// widen a narrow page.
 		expect(input).toContain("width: 1px");
+	});
+});
+
+/**
+ * 0.64.0: the same machinery, drawing a panel.
+ *
+ * A toolbar and a panel are two shapes of one thing — a piece of chrome, drawn,
+ * with its parts named and pointing at their explanations. Generalising rather
+ * than copying matters because the copy would have to re-earn everything the
+ * original paid for: the pointing, the `noindex` traps, the blank page that
+ * took three attempts to find.
+ */
+describe("drawing a panel", () => {
+	const art: ToolbarArt = {
+		viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: "test",
+		pinColor: (type) => (type === "number" ? "#8fbf3f" : "#888"),
+	};
+
+	it("draws it with the editor's own class names", () => {
+		const html = toolbarHtml(VARIABLES_PANEL, art);
+		// The likeness comes from these, not from a parallel stylesheet.
+		expect(html).toContain('class="variables');
+		expect(html).toContain('class="variables-sub"');
+		expect(html).toContain('class="variable-head"');
+		expect(html).toContain('class="swatch');
+	});
+
+	it("gives a row its type's colour and a module the ring", () => {
+		const html = toolbarHtml(VARIABLES_PANEL, art);
+		// A variable's swatch is its type's colour...
+		expect(html).toContain("background:#8fbf3f");
+		// ...and a module has no type, so it gets the outline instead.
+		expect(html).toContain('class="swatch module"');
+	});
+
+	/** No palette passed in means the ring, not a colour invented on the spot. */
+	it("falls back to the ring when it has no palette", () => {
+		const html = toolbarHtml(VARIABLES_PANEL, { ...art, pinColor: undefined });
+		expect(html).not.toContain("background:#");
+		expect(html.match(/class="swatch module"/g)?.length).toBeGreaterThan(1);
+	});
+
+	/**
+	 * A row is an example of what a section holds, not a part to match against.
+	 * Called `name` rather than `label` it put "Accumulator" and "roblox" in the
+	 * legend as though they were controls.
+	 */
+	it("lists the sections and not the example rows", () => {
+		const listed = legendOf(VARIABLES_PANEL).map((item) => item.name);
+		expect(listed).toEqual(["Variables", "Modules", "Locals", "Functions"]);
+		// The rows are still drawn.
+		const html = toolbarHtml(VARIABLES_PANEL, art);
+		expect(html).toContain("Accumulator");
+		expect(html).toContain("@lune/roblox");
+	});
+
+	/** The pointing is the shared part, and needs nothing panel-specific. */
+	it("ties each section to its explanation the way a bar does", () => {
+		const html = toolbarHtml(VARIABLES_PANEL, art);
+		for (const item of legendOf(VARIABLES_PANEL)) {
+			expect(html, item.name).toContain(`data-control="${controlKey(item.name)}"`);
+		}
+	});
+
+	/** An Add button where the section declares, and none where it only lists. */
+	it("draws Add on the sections that declare something", () => {
+		const html = toolbarHtml(VARIABLES_PANEL, art);
+		const sections = html.split("variables-sub");
+		expect(sections.find((part) => part.includes("Modules"))).toContain("Add");
+		expect(sections.find((part) => part.includes("Locals"))).not.toContain("Add");
 	});
 });
 

@@ -157,7 +157,7 @@ async function main() {
 		: undefined;
 	// The glyphs and the mark a drawn toolbar needs. Core cannot import either,
 	// so the build hands them over the same way it hands over the palette.
-	const toolbars = { viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15) };
+	const toolbars = { viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), pinColor };
 	const files = renderSite(site, {
 		highlight, pinColor, preview, logo, registry, toolbars,
 		previewChip: isCanary ? markChipMarkup("canary") : previewChipMarkup(),

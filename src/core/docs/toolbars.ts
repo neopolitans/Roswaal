@@ -61,6 +61,16 @@ export interface ToolbarArt {
 	mark: string;
 	/** The build, drawn beside the mark the way the real bars draw it. */
 	version: string;
+	/**
+	 * The colour the canvas draws a pin of this type in, for a panel row's
+	 * swatch.
+	 *
+	 * Passed in for the same reason the glyphs are: the palette is in
+	 * `src/app`. Absent, a typed swatch falls back to the outline one, which is
+	 * the honest degradation — a ring says "a thing" and a wrong colour says
+	 * something false about a type.
+	 */
+	pinColor?: (type: string | undefined, kind: "exec" | "data") => string;
 }
 
 /**
@@ -111,6 +121,42 @@ export type ToolbarItem = Documented &
 		| { t: "name"; text: string; kind?: string; dirty?: boolean }
 		/** A rule between two clusters inside one group. */
 		| { t: "divider" }
+		/**
+		 * A panel's heading, with the button that adds to it.
+		 *
+		 * `action` is the button's word. A heading that declares something has
+		 * one and a heading that only lists does not, which is the difference
+		 * between Modules and Functions in the Variables panel and is worth
+		 * drawing rather than explaining.
+		 */
+		| { t: "heading"; text: string; level?: 2 | 3; action?: string }
+		/**
+		 * One row of a list: a swatch, a name, and what sits at its right.
+		 *
+		 * `swatch` is a colour, or `"outline"` for the ring a module gets —
+		 * a variable's swatch is its type's colour and a module has no type.
+		 */
+		| {
+				t: "row";
+				/**
+				 * What the row shows.
+				 *
+				 * `label`, not `name`: `name` is the legend's key, and a row is an
+				 * *example* of what a section holds rather than a part a reader
+				 * matches against. Called `name` it put "Accumulator" and "roblox"
+				 * in the legend as though they were controls.
+				 */
+				label: string;
+				trailing?: string;
+				/**
+				 * The *type* whose colour the swatch takes — `"number"` — or
+				 * `"outline"` for the ring a module gets, having no type.
+				 */
+				swatch?: string;
+				badge?: string;
+		  }
+		/** The line a panel shows when its list is empty. */
+		| { t: "hint"; text: string }
 	);
 
 /**
@@ -144,7 +190,7 @@ export interface ToolbarGroup {
  * sits over a canvas in panels with the view showing between them, so its
  * groups are separate objects rather than regions of one strip.
  */
-export type ToolbarChrome = "bar" | "head" | "float";
+export type ToolbarChrome = "bar" | "head" | "float" | "panel";
 
 export interface ToolbarSpec {
 	/** Stable; the anchor the docs page gives this bar's section. */
@@ -275,6 +321,33 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			);
 		case "divider":
 			return `<span class="divider"></span>`;
+
+		case "heading":
+			// `h3.variables-sub` is the editor's own subheading, and the Add
+			// button beside it is the editor's own `.tb`.
+			return item.level === 3 || item.level === undefined
+				? `<h3 class="variables-sub"${tie}><span>${escapeXml(item.text)}</span>` +
+					`${item.action ? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>` : ""}</h3>`
+				: `<h2${tie}><span>${escapeXml(item.text)}</span>` +
+					`${item.action ? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>` : ""}</h2>`;
+
+		case "row": {
+			const colour = item.swatch && item.swatch !== "outline"
+				? art.pinColor?.(item.swatch, "data")
+				: undefined;
+			return (
+				`<div class="variable"${tie}><div class="variable-head">` +
+				`<span class="swatch${colour ? "" : " module"}"` +
+				`${colour ? ` style="background:${escapeXml(colour)}"` : ""}></span>` +
+				`<span class="name">${escapeXml(item.label)}</span>` +
+				`${item.badge ? `<span class="badge const">${escapeXml(item.badge)}</span>` : ""}` +
+				`${item.trailing ? `<span class="type">${escapeXml(item.trailing)}</span>` : ""}` +
+				`</div></div>`
+			);
+		}
+
+		case "hint":
+			return `<p class="hint"${tie}>${escapeXml(item.text)}</p>`;
 	}
 }
 
@@ -283,6 +356,10 @@ const CHROME_CLASS: Record<ToolbarChrome, string> = {
 	bar: "toolbar",
 	head: "docs-page-head",
 	float: "floating-tools",
+	// A docked panel. Its own class, because the editor's is a dock and this is
+	// a picture of one -- the panel's *contents* are what carry the real class
+	// names, which is where the fidelity comes from.
+	panel: "variables docs-panel-shot",
 };
 
 /**
@@ -305,9 +382,11 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 			// A floating bar's groups are separate panels over the canvas; a bar
 			// and a page header are one strip, so their groups are only an
 			// authoring convenience and flatten away.
-			return spec.chrome === "float"
-				? `${gap}<div class="tool-group">${items}</div>`
-				: `${gap}${items}`;
+			if (spec.chrome === "float") return `${gap}<div class="tool-group">${items}</div>`;
+			// A panel's groups are sections down a column rather than clusters
+			// along a row, so there is no flexible gap to push them apart with.
+			if (spec.chrome === "panel") return `<div class="variable-list">${items}</div>`;
+			return `${gap}${items}`;
 		})
 		.join("");
 
@@ -868,6 +947,74 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 					text: "Open Editor",
 					name: "Open Editor",
 					what: "The editor, in a new tab.",
+				},
+			],
+		},
+	],
+};
+
+/**
+ * The Variables panel, which is where a script's own declarations live.
+ *
+ * Drawn rather than described for the same reason a toolbar is: the panel
+ * answers "what does this script have to hand", and a reader who has not seen
+ * it cannot picture what "drag a module onto the canvas" means. One picture
+ * with the parts named is shorter than the paragraph that would replace it.
+ *
+ * The rows are the demo project's, so the picture is of something real rather
+ * than of `foo` and `bar`.
+ */
+export const VARIABLES_PANEL: ToolbarSpec = {
+	id: "variables-panel",
+	title: "The Variables panel",
+	summary: "Everything this script declares: its variables, its modules, its locals and its functions.",
+	chrome: "panel",
+	groups: [
+		{
+			items: [
+				{
+					t: "heading",
+					level: 2,
+					text: "Variables",
+					action: "Add",
+					name: "Variables",
+					what:
+						"Values the whole script can read and write. **Add** makes one; drag it onto the " +
+						"canvas for a Get, or hold `Ctrl` while you drop for a Set.",
+				},
+				// A row rather than a control: it carries no `name`, so the legend
+				// does not list it. The panel's parts are what a reader is
+				// matching; the rows are what those parts contain.
+				{ t: "row", label: "Accumulator", trailing: "number", swatch: "number" },
+				{
+					t: "heading",
+					text: "Modules",
+					action: "Add",
+					name: "Modules",
+					what:
+						"What this script requires. Each one writes a single `require` at the top of the " +
+						"generated file, however many places read it — so four uses are four pills and " +
+						"one import.",
+				},
+				// `outline` rather than a colour: a variable's swatch is its type's,
+				// and a module has no type.
+				{ t: "row", label: "roblox", trailing: "@lune/roblox", swatch: "outline" },
+				{
+					t: "heading",
+					text: "Locals",
+					name: "Locals",
+					what:
+						"The Declare Locals this graph can see — a local exists inside the block that " +
+						"declared it, so the list changes with the graph you are looking at. No **Add**: " +
+						"a local is declared by a node, on the canvas, where it runs.",
+				},
+				{
+					t: "heading",
+					text: "Functions",
+					name: "Functions",
+					what:
+						"Every function this script declares. Clicking one opens its graph, which is how " +
+						"you move between them — a declaration in a graph of any size is off screen.",
 				},
 			],
 		},

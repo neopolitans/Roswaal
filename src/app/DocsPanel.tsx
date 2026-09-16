@@ -639,7 +639,9 @@ function BlockView({ block }: { block: Block }) {
  * geometry, and for the same reason: the picture is then drawn from the
  * objects the real bars are drawn from.
  */
-const TOOLBAR_ART = { viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: VERSION };
+const TOOLBAR_ART = {
+	viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: VERSION, pinColor,
+};
 
 /**
  * A bar of the tool, drawn as it appears, with every control named under it.

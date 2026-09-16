@@ -7091,6 +7091,54 @@ button.tb.danger {
 	border-radius: 7px;
 }
 
+/* A docked panel, drawn on a page.
+ *
+ * In the editor a panel fills its dock and scrolls; here it is a picture of
+ * one, so it takes the width it needs and stops. The contents carry the
+ * editor's own class names -- `.variable`, `.swatch`, `.variables-sub` -- which
+ * is where the likeness comes from, so this rule only has to undo the dock. */
+.docs-bar-frame.panel > .variables {
+	width: min(340px, 100%);
+	padding: 4px 0 8px;
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	background: var(--bg-panel);
+}
+
+/* The panel's own headings sit flush with a dock's edge. Inside a picture they
+   want the room the rest of the rows have. */
+.docs-bar-frame.panel .variables-sub,
+.docs-bar-frame.panel h2 {
+	margin: 10px 0 4px;
+	padding: 0 10px;
+}
+
+.docs-bar-frame.panel h2 {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+}
+
+.docs-bar-frame.panel h2 button.tb,
+.docs-bar-frame.panel .variables-sub button.tb {
+	margin-left: auto;
+	font-size: 11px;
+	padding: 1px 8px;
+}
+
+.docs-bar-frame.panel .variable-head {
+	padding: 3px 10px;
+}
+
+.docs-bar-frame.panel .hint {
+	padding: 2px 10px 4px;
+	margin: 0;
+}
+
 /* The floating tools already float: they sit over a piece of canvas, and that
    canvas is the inset. Padding here would inset the inset.
 
