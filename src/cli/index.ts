@@ -23,7 +23,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { DEFAULT_PORT, startDaemon } from "../server/app.js";
+import { DEFAULT_PORT, hasBundledEditor, startDaemon } from "../server/app.js";
 import {
 	collectMaps, compileAll, compileMap, compileScript, findOrphanOutputs,
 	openProject, removeOutputs, writeConfig,
@@ -274,21 +274,29 @@ async function commandServe(args: Args): Promise<number> {
 	await startDaemon({ port, root });
 
 	const url = `http://127.0.0.1:${port}`;
+	/**
+	 * A packaged build has no editor beside it, and saying "editor <url>" over
+	 * a URL that answers 404 is worse than not offering one. The API is still
+	 * there, which is what a compile-in-CI install actually wants.
+	 */
+	const editor = hasBundledEditor();
 	banner([
 		`${bold("roswaal")} ${dim("v" + VERSION)}`,
 		`project   ${path.basename(project.root)}`,
 		`root      ${project.root}`,
 		`graphs    ${project.config.sourceDir}  →  ${project.config.outDir}`,
 		`mode      ${project.config.compileMode}`,
-		`editor    ${cyan(url)}`,
+		editor
+			? `editor    ${cyan(url)}`
+			: `editor    ${dim("not in this build — install Roswaal from npm for the editor")}`,
 		// The documentation is the same daemon, and nothing said so: it was
 		// reachable only from a button inside the editor you had not opened yet.
-		`docs      ${cyan(`${url}/docs`)}`,
+		...(editor ? [`docs      ${cyan(`${url}/docs`)}`] : []),
 	]);
 	if (project.packErrors.length > 0) {
 		for (const message of project.packErrors) console.log(yellow(`  node pack: ${message}`));
 	}
-	if (args.flags["no-open"] !== true) {
+	if (args.flags["no-open"] !== true && editor) {
 		// Windows terminals want Ctrl+Click for a link, and neither PowerShell nor
 		// cmd.exe says so anywhere.
 		console.log(dim("  Ctrl+Click to open the editor URL above; Ctrl+C stops the daemon"));

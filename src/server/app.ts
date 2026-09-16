@@ -424,6 +424,20 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<void> {
 	});
 }
 
+/**
+ * Whether this copy has an editor to serve at all.
+ *
+ * A single-file build has none: `dist/` is resolved beside the CLI on disk, and
+ * a packaged executable has nothing beside it. That is the honest shape of such
+ * a build rather than a fault -- the CLI commands are self-contained and the
+ * editor is a few megabytes of web application -- but `serve` must say so, or
+ * it starts, prints a URL, and answers 404 on it.
+ */
+export function hasBundledEditor(): boolean {
+	const dir = defaultStaticDir();
+	return dir !== null && fs.existsSync(path.join(dir, "index.html"));
+}
+
 /** The bundled editor sits next to the bundled CLI, one level up from it. */
 function defaultStaticDir(): string | null {
 	try {

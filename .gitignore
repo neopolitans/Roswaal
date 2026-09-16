@@ -9,6 +9,7 @@ Thumbs.db
 .env.local
 coverage/
 dist-cli/
+dist-binary/
 
 # Built documentation site.
 dist-docs/
