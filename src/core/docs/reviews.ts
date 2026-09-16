@@ -105,6 +105,23 @@ export const REVIEWS: Record<
 	// Verified by the author for 0.43.1, once What Roswaal is designed for named
 	// Lune, Luau and Roblox alongside the borrowed names it credits.
 	"attributions": { status: "verified", date: "2026-09-15", reviewers: ["neopolitans"] },
+	// Read by the author for 0.65.0, against the RFC and against the editor.
+	// Not verified, and deliberately: every rule on it is checked against
+	// `require-by-string-aliases.html` and against what Roswaal does with it,
+	// and neither of those is the same as a project that actually resolves its
+	// requires through an alias map every day. The two the page leans hardest
+	// on -- inheritance, and which file a relative path resolves against -- are
+	// exactly the two that look correct in any project with one `.luaurc` at
+	// the root, which is where reading a spec stops being enough.
+	"aliases": {
+		status: "reviewed",
+		date: "2026-09-16",
+		reviewers: ["neopolitans"],
+		verify:
+			"someone who has shipped a **Lune** project with a `.luaurc` should check this " +
+			"against a real alias map — especially a project with more than one file, where " +
+			"inheritance and relative paths stop agreeing with the simple case.",
+	},
 	// Read by the author, who has not shipped the networking side.
 	"coming-from-blueprints": {
 		status: "reviewed",

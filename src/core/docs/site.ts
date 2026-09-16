@@ -980,6 +980,11 @@ const CONTRIBUTING: DocPage = {
 			t: "ul",
 			items: [
 				"**Lune.** The Lune target is experimental, and has not yet been tested by an experienced Lune developer.",
+				"**Aliases and .luaurc.** The page at [Aliases and .luaurc](aliases) is written from " +
+					"the RFC and from what Roswaal does with it. Someone who has shipped a Lune " +
+					"project with a real alias map should check it — particularly a project with " +
+					"more than one `.luaurc`, since inheritance and relative paths agree with the " +
+					"simple case right up until they do not.",
 				"**Networking on Coming from Blueprints.** The rows on replicated functions need checking by someone who has shipped multiplayer.",
 				"**Node reference pages.** Every one is still pending review.",
 			],

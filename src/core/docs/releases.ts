@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.65.2",
+		date: "2026-09-16",
+		headline: "Aliases is Reviewed, and asking for a Lune developer.",
+		affects: ["docs"],
+		changed: [
+			"**Reviewed**: [Aliases and .luaurc](aliases). Read against the RFC and against the editor — which is not the same as a project that resolves its requires through an alias map every day, so the page says what it still wants checked and [Contributing](contributing) asks for it too.",
+		],
+	},
+	{
 		version: "0.65.1",
 		date: "2026-09-16",
 		headline: "Backticks that were printing themselves.",
