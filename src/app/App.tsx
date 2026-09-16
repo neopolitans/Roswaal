@@ -55,6 +55,7 @@ import {
 } from "./edits.js";
 import { setProjectTypes } from "./projectTypes.js";
 import { IS_STATIC_HOST, PAGE_TARGET, pageHref } from "./pages.js";
+import { CanaryBanner } from "./previewBuild.jsx";
 import {
 	forgetRememberedFolder, openDirectory, useHostCan, useHostFailure, useRememberedFolder,
 } from "./host.js";
@@ -1559,6 +1560,9 @@ export function App() {
 
 	return (
 		<div className="app">
+			{/* Above everything, including the toolbar: a build that may be
+			    halfway through an idea says so before you start working in it. */}
+			<CanaryBanner />
 			{/* The application: what Roswaal is doing, whatever is open. */}
 			<ProjectBar
 				config={project.config}

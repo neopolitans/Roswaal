@@ -4320,7 +4320,14 @@ button.tb.icon-only.on {
 .toolbar .logo .version.preview-chip,
 .docs-page-head .logo .version.preview-chip,
 .docs-page-head a.tb .version.preview-chip {
-	color: var(--accent);
+	/* The colour is the variant's, not this rule's. These three selectors are
+	   scoped to a context and so outspecify any plain `.preview-chip.canary`,
+	   which is how the canary chip first shipped painted accent blue while
+	   reading CANARY. Reading a custom property moves the decision to the
+	   element, where both variants set it at their own specificity and the more
+	   specific one wins -- rather than to whichever selector happens to have
+	   collected more classes. */
+	color: var(--chip-ink);
 	border: 1px solid var(--border);
 	border-radius: 3px;
 	padding: 0 4px;
@@ -4337,6 +4344,66 @@ button.tb.icon-only.on {
 	margin-left: 0;
 	font-weight: 400;
 	line-height: 1.6;
+}
+
+/* Which ink a chip is drawn in. Set on the element, so the variant decides and
+   no amount of context around it can overrule the claim it is making.
+
+   The shape is the shape and only the colour is the claim: the canary wears the
+   same chip in the warning colour -- the yellow the Lune `experimental` flag
+   already uses, so the stylesheet means one thing by it. */
+.version.preview-chip {
+	--chip-ink: var(--accent);
+}
+
+.version.preview-chip.canary {
+	--chip-ink: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 55%, transparent);
+}
+
+/* ------------------------------------------------------- the canary banner */
+
+/* Across the top of every canary window, above the toolbar.
+ *
+ * The chip says which build you are on; this says what that means for you. On a
+ * site anyone can reach, the reader who most needs telling is the one who did
+ * not choose to be there -- which is also why it leads somewhere. A warning
+ * with no way out is a warning that gets dismissed rather than acted on. */
+.canary-banner {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 14px;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--fg);
+	background: color-mix(in srgb, var(--warning) 14%, var(--bg-panel));
+	border-bottom: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+	/* It is chrome, not content: a long sentence must not push the way out off
+	   the end of a narrow window. */
+	flex-wrap: wrap;
+}
+
+.canary-banner-mark {
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--warning);
+	border: 1px solid color-mix(in srgb, var(--warning) 55%, transparent);
+	border-radius: 3px;
+	padding: 1px 6px;
+	white-space: nowrap;
+}
+
+.canary-banner-text {
+	flex: 1;
+	min-width: 12rem;
+}
+
+.canary-banner-out {
+	color: var(--accent);
+	white-space: nowrap;
 }
 
 .docs-page-head .logo .version {

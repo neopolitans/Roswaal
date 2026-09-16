@@ -31,7 +31,10 @@ import { wirePath } from "../../src/app/geometry.ts";
 import { NODE } from "../../src/app/layers.ts";
 import { faviconHref, logoMarkup } from "../../src/app/logo.tsx";
 import { ICONS } from "../../src/app/icons.tsx";
-import { PREVIEW_BESIDE_LINK, PREVIEW_LABEL } from "../../src/app/previewMark.ts";
+import {
+	CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, PREVIEW_BESIDE_LINK,
+	PREVIEW_LABEL,
+} from "../../src/app/previewMark.ts";
 
 /**
  * Which example to show.
@@ -193,6 +196,17 @@ body.roswaal-landing {
 /* On the accent-filled first door, the flag has to read against the accent
    rather than against the page. Its own border, not the page's. */
 .landing-doors a.first .flag { color: #fff; border-color: rgb(255 255 255 / 55%); }
+/* The canary's warning, above the name. Not dismissible: it is the first thing
+   about this site that anybody needs to know, and it leads out. */
+.landing-canary {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  flex-wrap: wrap; margin: 0 0 22px; font-size: 13px; line-height: 1.5;
+  padding: 8px 14px; border-radius: 6px;
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+}
+.landing-canary .flag { color: var(--warning); }
+.landing-canary a { color: var(--accent); white-space: nowrap; }
 
 /* The demonstration, stacked rather than in two columns.
    
@@ -299,7 +313,22 @@ body.roswaal-landing {
 .landing-foot a { color: var(--fg-muted, #8fa6dd); }
 `;
 
-export function landingPage(version) {
+/**
+ * Which line a build came from, read off the environment by default.
+ *
+ * This file runs under `tsx`, where the Vite defines do not exist — so it asks
+ * the same variable the configs ask rather than importing `pages.ts`, which
+ * would throw on `__ROSWAAL_STATIC__`.
+ *
+ * A parameter rather than only a module constant, because both shapes of this
+ * page have to be testable in one run: the chip on the door and the sentence
+ * under it are two statements about the same thing, written at different times,
+ * and the canary is where they first disagreed.
+ */
+const channelIsCanary = () => process.env.ROSWAAL_CHANNEL === "canary";
+
+export function landingPage(version, { canary = channelIsCanary() } = {}) {
+	const IS_CANARY = canary;
 	const { svg, luau } = example();
 
 	return `<!doctype html>
@@ -307,7 +336,8 @@ export function landingPage(version) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Roswaal - Visual Scripting for Luau</title>
+${IS_CANARY ? `<meta name="robots" content="noindex" />
+` : ""}<title>Roswaal${IS_CANARY ? " canary" : ""} - Visual Scripting for Luau</title>
 <meta name="description" content="Visual scripting for Roblox Luau and Lune Luau. Graphs live on disk and compile to plain Luau that Rojo syncs. Try it in your browser, with nothing installed." />
 <link rel="icon" href="${faviconHref()}" />
 <link rel="stylesheet" href="docs/theme.css?v=${encodeURIComponent(version)}" />
@@ -317,6 +347,11 @@ export function landingPage(version) {
 <div class="landing-glow" aria-hidden="true"></div>
 <main class="landing">
   <div class="landing-top">
+    ${IS_CANARY ? `<p class="landing-canary">
+      <span class="flag canary">${escapeHtml(MARK_LABEL.canary)}</span>
+      ${escapeHtml(CANARY_BANNER.app)}
+      <a href="https://neopolitans.github.io/Roswaal/">${escapeHtml(CANARY_BANNER.wayOut)}</a>
+    </p>` : ""}
     <div class="landing-head">
       ${logoMarkup(38)}
       <h1>Roswaal</h1>
@@ -336,8 +371,12 @@ export function landingPage(version) {
 
     <ul class="landing-doors">
       <li>
-        <a class="door first" href="try.html" title="${escapeHtml(PREVIEW_BESIDE_LINK)}">
-          Try it in your browser <span class="flag preview">${escapeHtml(PREVIEW_LABEL)}</span>
+        <a class="door first" href="try.html" title="${escapeHtml(
+          IS_CANARY ? MARK_BESIDE_LINK.canary : PREVIEW_BESIDE_LINK,
+        )}">
+          Try it in your browser <span class="flag ${IS_CANARY ? "canary" : "preview"}">${escapeHtml(
+            IS_CANARY ? MARK_LABEL.canary : PREVIEW_LABEL,
+          )}</span>
         </a>
       </li>
       <li><a href="docs/">Read the documentation</a></li>
@@ -352,8 +391,9 @@ export function landingPage(version) {
       computer and work in it — Chrome and Edge can hand one over.
     </p>
     <p class="landing-note">
-      That one is a <strong>preview</strong>: the same editor over a project kept
-      in your browser. The tool itself runs beside your repository and writes
+      That one is a <strong>${IS_CANARY ? "canary" : "preview"}</strong>: the same
+      editor over a project kept in your browser${IS_CANARY ? ", built from the unreleased line" : ""}.
+      The tool itself runs beside your repository and writes
       <code>.luau</code> files Rojo syncs into Studio.
     </p>
     <p class="landing-targets">

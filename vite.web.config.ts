@@ -59,6 +59,33 @@ function roswaalWebHost(): Plugin {
 	};
 }
 
+/**
+ * Keeps the canary's own pages out of search indexes.
+ *
+ * The three entry HTML files are checked-in static files shared by both
+ * channels, so the tag is injected at build time rather than written into them.
+ * A meta tag rather than a `robots.txt` because GitHub Pages cannot set an
+ * `X-Robots-Tag` header, a project site cannot host a `robots.txt` at all --
+ * crawlers read one only from the host root -- and a `Disallow` would be worse
+ * than nothing: a page nobody may crawl is a page whose `noindex` is never
+ * read, so it stays indexed as a bare URL forever.
+ */
+function noindexOnCanary(): Plugin {
+	return {
+		name: "roswaal-noindex",
+		transformIndexHtml: {
+			order: "pre",
+			handler(html) {
+				if (process.env.ROSWAAL_CHANNEL !== "canary") return html;
+				return html.replace(
+					"</head>",
+					'\t\t<meta name="robots" content="noindex" />\n\t</head>',
+				);
+			},
+		},
+	};
+}
+
 export default defineConfig({
 	/**
 	 * Where the site is mounted.
@@ -74,8 +101,15 @@ export default defineConfig({
 	 * and the documentation is the static site rather than the editor's own
 	 * docs window. `pages.ts` is the only thing that reads this.
 	 */
-	define: { __ROSWAAL_STATIC__: "true" },
-	plugins: [react(), roswaalWebHost(), demoSeedPlugin(DEMO)],
+	// `static` says what serves this; `channel` says which line it came from.
+	// A canary build wears its mark on either host. See `src/app/previewMark.ts`.
+	define: {
+		__ROSWAAL_STATIC__: "true",
+		__ROSWAAL_CHANNEL__: JSON.stringify(
+			process.env.ROSWAAL_CHANNEL === "canary" ? "canary" : "stable",
+		),
+	},
+	plugins: [react(), roswaalWebHost(), demoSeedPlugin(DEMO), noindexOnCanary()],
 	// Module workers, so the worker can import the route table rather than being
 	// handed a bundled copy of it.
 	worker: { format: "es", plugins: () => [roswaalWebHost(), demoSeedPlugin(DEMO)] },

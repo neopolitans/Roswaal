@@ -26,10 +26,16 @@ concurrency:
 
 env:
   # Where the site is mounted. A project site on github.io is served from
-  # `/<repo>/`; change this to `/` on the day a custom domain points here, and
-  # add the CNAME to the artifact. It is the only place this is written down --
-  # `build-pages.mjs` reads the base back out of what Vite built.
-  ROSWAAL_BASE: /Roswaal/
+  # `/<repo>/`, so the repository's own name is the answer and both this
+  # repository and the canary get it right from one line. Change this to `/` on
+  # the day a custom domain points here, and add the CNAME to the artifact. It
+  # is the only place this is written down -- `build-pages.mjs` reads the base
+  # back out of what Vite built.
+  ROSWAAL_BASE: /${{ github.event.repository.name }}/
+  # Which line of development this build is from. `canary` puts the yellow mark
+  # on every surface, the warning banner above them, and `noindex` in every
+  # page's head. Anything but `canary` is the stable build.
+  ROSWAAL_CHANNEL: ${{ github.event.repository.name == 'roswaal-canary' && 'canary' || 'stable' }}
 
 jobs:
   build:

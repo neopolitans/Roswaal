@@ -74,6 +74,27 @@ export interface RenderOptions {
 	 * `tests/previewbuild.test.ts` holds it there.
 	 */
 	previewChip?: string;
+	/**
+	 * The canary's warning, rendered above the header on every page.
+	 *
+	 * Markup, and passed in for the same reason as the chip. Absent on a stable
+	 * build, which is the ordinary case — this site has had no banner for its
+	 * whole life and should not grow one by default.
+	 */
+	canaryBanner?: string;
+	/**
+	 * Keep this build out of search indexes.
+	 *
+	 * The canary carries a copy of every page on the real site, under the same
+	 * titles. Indexed, it competes with the documentation it is a draft of.
+	 *
+	 * A meta tag rather than a `robots.txt`, and that is not a preference:
+	 * GitHub Pages cannot set an `X-Robots-Tag` header, a project site cannot
+	 * host a `robots.txt` at all — crawlers read one only from the host root —
+	 * and a `Disallow` would be actively worse, because a page nobody may crawl
+	 * is a page whose `noindex` is never read.
+	 */
+	noindex?: boolean;
 	/** Shown in the header, next to the name. */
 	version: string;
 }
@@ -458,13 +479,14 @@ export function renderPage(site: DocSite, page: DocPage, options: RenderOptions)
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(page.title)} · Roswaal docs</title>
+${options.noindex ? `<meta name="robots" content="noindex">
+` : ""}<title>${escapeHtml(page.title)} · Roswaal docs</title>
 <meta name="description" content="${escapeHtml(page.summary)}">
 ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(options.logo.icon)}">\n` : ""}<link rel="stylesheet" href="${up}theme.css${stamp(options)}">
 </head>
 <body class="docs-static">
 <div class="docs-page">
-<header class="docs-page-head">
+${options.canaryBanner ?? ""}<header class="docs-page-head">
 <a class="logo" href="${up}index.html">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a>
 <span class="grow"></span>
 <a class="tb" href="${up}../try.html">Try it in your browser${options.previewChip ?? ""}</a>

@@ -24,5 +24,11 @@ export const FEEDBACK_REPOSITORY = "https://github.com/neopolitans/roswaal-feedb
  * is why it is a constant rather than a string in each -- a repository that is
  * renamed or moved should be one edit, not a search for a URL that is spelled
  * slightly differently in two places.
+ *
+ * **It does not follow the build.** The canary site is deployed from a private
+ * repository, so the obvious implementation -- point Source at whichever
+ * repository built this -- is a 404 for every visitor but the author. It stays
+ * the public one on both, and `tests/previewbuild.test.ts` says so. When the
+ * canary goes public that becomes a choice; today it is a broken link.
  */
 export const SOURCE_REPOSITORY = "https://github.com/neopolitans/Roswaal";

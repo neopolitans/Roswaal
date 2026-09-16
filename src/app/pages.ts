@@ -26,8 +26,29 @@
 /** True in the hosted build. Set by `define` in both Vite configs. */
 declare const __ROSWAAL_STATIC__: boolean;
 
+/**
+ * Which line of development this bundle is from. Set by `define` in both Vite
+ * configs, from `ROSWAAL_CHANNEL`.
+ */
+declare const __ROSWAAL_CHANNEL__: Channel;
+
 /** Whether this bundle was built for a static host rather than the daemon. */
 export const IS_STATIC_HOST: boolean = __ROSWAAL_STATIC__;
+
+/**
+ * Stable, or the canary.
+ *
+ * A second axis, not a variation on the first. `IS_STATIC_HOST` says what is
+ * serving the bundle — the daemon or a static host — and the channel says which
+ * line of development produced it. The two are independent: there is a canary
+ * daemon build and a canary hosted build, and both are canary.
+ */
+export type Channel = "stable" | "canary";
+
+export const CHANNEL: Channel = __ROSWAAL_CHANNEL__;
+
+/** True when this build is not from the stable line. */
+export const IS_CANARY: boolean = __ROSWAAL_CHANNEL__ === "canary";
 
 export type Page = "editor" | "docs" | "designer";
 

@@ -26,7 +26,7 @@ import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import { PAGE_TARGET, pageHref } from "./pages.js";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
-import { PreviewChip } from "./previewBuild.jsx";
+import { CanaryBanner, PreviewChip } from "./previewBuild.jsx";
 import { VERSION } from "../cli/version.js";
 
 export function DesignerPage() {
@@ -93,6 +93,7 @@ export function DesignerPage() {
 
 	return (
 		<div className="designer">
+			<CanaryBanner />
 			<header className="docs-page-head">
 				<span className="logo">
 					<Logo height={17} title="Roswaal" />

@@ -26,7 +26,7 @@ import { highlightLuau } from "../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../src/app/palette.ts";
 import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
 import { ICONS, VIEW_BOX } from "../src/app/icons.tsx";
-import { previewChipMarkup } from "../src/app/previewMark.ts";
+import { CANARY_BANNER, markChipMarkup, MARK_LABEL, previewChipMarkup } from "../src/app/previewMark.ts";
 
 import { wirePath } from "../src/app/geometry.ts";
 import { NODE } from "../src/app/layers.ts";
@@ -144,12 +144,24 @@ async function main() {
 		growth: (p) => growthState(registry.get(p.id), p.config),
 	};
 	const logo = { mark: logoMarkup(18), icon: faviconHref() };
+	// Which line this site was built from. Read off the environment rather than
+	// through `pages.ts`, which reads a Vite define that does not exist here.
+	const isCanary = process.env.ROSWAAL_CHANNEL === "canary";
+	const canaryBanner = isCanary
+		? `<div class="canary-banner" role="status">` +
+			`<span class="canary-banner-mark">${escapeHtml(MARK_LABEL.canary)}</span>` +
+			`<span class="canary-banner-text">${escapeHtml(CANARY_BANNER.docs)}</span>` +
+			`<a class="canary-banner-out" href="https://neopolitans.github.io/Roswaal/"` +
+			` rel="noreferrer noopener">${escapeHtml(CANARY_BANNER.wayOut)}</a></div>
+`
+		: undefined;
 	// The glyphs and the mark a drawn toolbar needs. Core cannot import either,
 	// so the build hands them over the same way it hands over the palette.
 	const toolbars = { viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15) };
 	const files = renderSite(site, {
 		highlight, pinColor, preview, logo, registry, toolbars,
-		previewChip: previewChipMarkup(), version: VERSION,
+		previewChip: isCanary ? markChipMarkup("canary") : previewChipMarkup(),
+		canaryBanner, noindex: isCanary, version: VERSION,
 	});
 
 	for (const file of files) {

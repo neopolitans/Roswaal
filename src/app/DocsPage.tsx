@@ -26,7 +26,7 @@ import { api } from "./api.js";
 import { DocsView } from "./DocsPanel.jsx";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
-import { PreviewChip } from "./previewBuild.jsx";
+import { CanaryBanner, PreviewChip } from "./previewBuild.jsx";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { SettingsPanel } from "./SettingsPanel.jsx";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
@@ -103,6 +103,8 @@ export function DocsPage() {
 	return (
 		<>
 		<div className="docs-page">
+			{/* The sharper wording: these pages describe a build that is not out. */}
+			<CanaryBanner kind="docs" />
 			<header className="docs-page-head">
 				{/* The mark and what this window is. "Roswaal Documentation" said
 				    both of those in six syllables and neither of them quickly. */}

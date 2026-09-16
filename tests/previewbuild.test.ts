@@ -31,8 +31,10 @@ import { describe, expect, it } from "vitest";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { landingPage } from "../scripts/lib/landing.mjs";
 import {
+	CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, MARK_ON_SURFACE,
 	PREVIEW_LABEL, PREVIEW_ON_SURFACE, previewChipMarkup,
 } from "../src/app/previewMark.js";
+import { SOURCE_REPOSITORY } from "../src/core/docs/links.js";
 import { BROWSER_TOOLBARS, TOOLBARS, toolbarHtml, type ToolbarArt } from "../src/core/docs/toolbars.js";
 import { ICONS, VIEW_BOX } from "../src/app/icons.js";
 import { logoMarkup } from "../src/app/logo.js";
@@ -102,6 +104,172 @@ describe("the rule", () => {
 	});
 });
 
+/**
+ * The canary is the second marked build, and the rule is the same rule: every
+ * surface, every link. What is new is that there are now two marks and a build
+ * must wear exactly one — a surface saying both is a surface saying neither.
+ */
+describe("the canary mark", () => {
+	it("says one word per mark, and never the same word twice", () => {
+		expect(MARK_LABEL.canary).toBe("canary");
+		expect(MARK_LABEL.preview).toBe("preview");
+		expect(new Set(Object.values(MARK_LABEL)).size).toBe(2);
+	});
+
+	it("carries a caveat with each, so neither word is bare", () => {
+		for (const mark of ["preview", "canary"] as const) {
+			expect(MARK_ON_SURFACE[mark], mark).toBeTruthy();
+			expect(MARK_BESIDE_LINK[mark], mark).toBeTruthy();
+			expect(markChipMarkup(mark)).toContain(MARK_LABEL[mark]);
+			// The chip keeps the shape and changes only the colour, so the
+			// stylesheet can style one thing and qualify it.
+			expect(markChipMarkup(mark)).toContain(`preview-chip ${mark}`);
+		}
+	});
+
+	it("says the canary is unreleased rather than merely uninstalled", () => {
+		expect(MARK_ON_SURFACE.canary).toMatch(/unreleased/);
+		expect(MARK_ON_SURFACE.preview).not.toMatch(/unreleased/);
+	});
+
+	/** One gate, so a canary browser build cannot wear both. */
+	it("picks the mark in one place", () => {
+		const gate = source("src/app/previewBuild.tsx");
+		expect(gate).toContain("export function buildMark()");
+		// Canary first: an unfinished build is unfinished on either host.
+		expect(gate.indexOf("IS_CANARY")).toBeLessThan(gate.indexOf("IS_STATIC_HOST"));
+	});
+
+	/** The banner is not the chip, and it says what the chip cannot. */
+	it("warns in two wordings, each leading somewhere", () => {
+		expect(CANARY_BANNER.app).toMatch(/unreleased/);
+		expect(CANARY_BANNER.docs).toMatch(/not be in\s+the version you have|unreleased/);
+		expect(CANARY_BANNER.app).not.toBe(CANARY_BANNER.docs);
+		expect(CANARY_BANNER.wayOut).toBeTruthy();
+	});
+
+	it("puts the banner on every window the canary serves", () => {
+		for (const path of ["src/app/App.tsx", "src/app/DesignerPage.tsx", "src/app/DocsPage.tsx"]) {
+			expect(source(path), path).toContain("<CanaryBanner");
+		}
+		// The documentation takes the sharper wording.
+		expect(source("src/app/DocsPage.tsx")).toContain('kind="docs"');
+	});
+
+	it("styles the yellow variant and the banner", () => {
+		const css = source("src/app/theme.css");
+		expect(css).toContain(".version.preview-chip.canary");
+		expect(css).toContain(".canary-banner");
+	});
+
+	/**
+	 * The canary chip shipped painted accent blue while reading CANARY.
+	 *
+	 * `.toolbar .logo .version.preview-chip` is scoped to a context and so
+	 * outspecifies a plain `.preview-chip.canary`, so the variant's colour lost
+	 * to the base one. The fix is a custom property set on the element: both
+	 * variants set it at their own specificity, and no amount of context around
+	 * the chip can overrule which claim it is making.
+	 *
+	 * Same shape as `kind node` inheriting `.node`. Third time in this
+	 * stylesheet, hence a test rather than another comment.
+	 */
+	it("lets the variant decide the colour, not the context around it", () => {
+		const css = source("src/app/theme.css");
+
+		// The scoped rule's own body: from its selector list to the brace that
+		// closes it. Sliced to the next selector instead, the first attempt fell
+		// off the end of the file and asserted against most of the stylesheet.
+		const at = css.indexOf(".toolbar .logo .version.preview-chip,");
+		expect(at).toBeGreaterThan(-1);
+		const body = css.slice(css.indexOf("{", at) + 1, css.indexOf("}", at));
+
+		expect(body).toContain("color: var(--chip-ink)");
+		expect(body).not.toContain("var(--accent)");
+
+		// And both variants set it on the element itself.
+		expect(css).toMatch(/\.version\.preview-chip \{[^}]*--chip-ink: var\(--accent\)/);
+		expect(css).toMatch(/\.version\.preview-chip\.canary \{[^}]*--chip-ink: var\(--warning\)/);
+	});
+});
+
+/**
+ * Keeping the canary out of search, and the trap in doing it.
+ *
+ * Google: "For the noindex rule to be effective, the page or resource must not
+ * be blocked by a robots.txt file." A Disallow is therefore worse than nothing
+ * — the crawler never reads the noindex, and the URL stays indexed with no way
+ * to remove it. So: the meta tag, crawling left open, and no robots.txt.
+ */
+describe("keeping the canary out of search", () => {
+	const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
+	const page = findPage(site, "toolbars")!;
+
+	it("marks a canary page noindex and a stable one not", () => {
+		expect(renderPage(site, page, { version: "t", noindex: true }))
+			.toContain('<meta name="robots" content="noindex">');
+		expect(renderPage(site, page, { version: "t" })).not.toContain("noindex");
+	});
+
+	/**
+	 * Asserted against what is *emitted*, not against the prose explaining it —
+	 * both of these files talk about `robots.txt` at length, in comments saying
+	 * why there is not one.
+	 */
+	it("does not also disallow crawling, which would defeat it", () => {
+		const build = source("scripts/build-docs.mjs");
+		const web = source("vite.web.config.ts");
+
+		for (const [name, text] of [["build-docs", build], ["vite.web.config", web]] as const) {
+			// No robots.txt is written anywhere.
+			expect(text, name).not.toMatch(/writeFile\([^)]*robots\.txt/);
+			// And no Disallow directive is emitted in any form.
+			expect(text, name).not.toMatch(/Disallow\s*:/);
+		}
+
+		// The rule we do emit is exactly `noindex`. Not `nofollow` with it: the
+		// crawler has to follow canary links to reach the other canary pages and
+		// read *their* noindex.
+		const emitted = [
+			...build.matchAll(/name="robots" content="([^"]+)"/g),
+			...web.matchAll(/name="robots" content="([^"]+)"/g),
+			...source("src/core/docs/html.ts").matchAll(/name="robots" content="([^"]+)"/g),
+			...source("scripts/lib/landing.mjs").matchAll(/name="robots" content="([^"]+)"/g),
+		].map((found) => found[1]);
+
+		expect(emitted.length).toBeGreaterThan(0);
+		for (const rule of emitted) expect(rule).toBe("noindex");
+	});
+
+	it("injects it into the entry pages at build time, not into the files", () => {
+		expect(source("vite.web.config.ts")).toContain("roswaal-noindex");
+		for (const file of ["try.html", "designer.html", "index.html"]) {
+			expect(source(file), file).not.toContain("noindex");
+		}
+	});
+});
+
+/**
+ * The canary deploys from a private repository, so "the repository that built
+ * this" is a 404 for every visitor but the author.
+ */
+describe("the Source link", () => {
+	it("points at the public repository, whatever built the site", () => {
+		expect(SOURCE_REPOSITORY).toBe("https://github.com/neopolitans/Roswaal");
+		expect(SOURCE_REPOSITORY).not.toContain("canary");
+	});
+
+	it("is not derived from the channel anywhere", () => {
+		for (const path of ["src/core/docs/html.ts", "scripts/lib/landing.mjs"]) {
+			const text = source(path);
+			const canaryLines = text
+				.split(/\r?\n/)
+				.filter((line) => /canary/i.test(line) && /SOURCE_REPO/.test(line));
+			expect(canaryLines, path).toEqual([]);
+		}
+	});
+});
+
 describe("links into the browser build", () => {
 	const html: string = landingPage("9.9.9");
 
@@ -109,6 +277,37 @@ describe("links into the browser build", () => {
 		expect(html).toContain('href="try.html"');
 		const door = html.slice(html.indexOf('href="try.html"'));
 		expect(door.slice(0, 400)).toContain(PREVIEW_LABEL);
+	});
+
+	/**
+	 * The door's chip and the sentence under it are two statements about the
+	 * same thing, and they were written at different times. On the canary the
+	 * chip said CANARY and the prose still said preview.
+	 */
+	it("does not let the door and the prose under it disagree", () => {
+		const canary: string = landingPage("9.9.9", { canary: true });
+		// From the door forwards, not from the first mention of the class: the
+		// stylesheet names every one of these before the markup uses it.
+		const door = canary.indexOf('href="try.html"');
+		const note = canary.indexOf('class="landing-note"', door);
+		expect(door).toBeGreaterThan(-1);
+		expect(note).toBeGreaterThan(door);
+
+		const doorMark = canary.slice(door, note);
+		expect(doorMark).toContain(MARK_LABEL.canary);
+		expect(doorMark).not.toContain(PREVIEW_LABEL);
+
+		// And the sentence under it agrees with the chip above it.
+		expect(canary.slice(note, note + 400)).toContain("canary");
+		expect(canary.slice(note, note + 400)).not.toContain(PREVIEW_LABEL);
+
+		// The stable build still says preview in both places. Checked against the
+		// markup rather than the whole file: the stylesheet is shared and names
+		// the canary's classes whether or not this build uses them.
+		const stable: string = landingPage("9.9.9", { canary: false });
+		const body = stable.slice(stable.indexOf("</style>"));
+		expect(body).toContain(PREVIEW_LABEL);
+		expect(body).not.toContain(MARK_LABEL.canary);
 	});
 
 	it("says on the front page what the preview is, in prose as well", () => {

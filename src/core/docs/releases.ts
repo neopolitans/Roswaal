@@ -76,6 +76,28 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.60.1",
+		date: "2026-09-16",
+		headline: "A canary build says so, on every page.",
+		affects: ["editor", "designer", "docs"],
+		added: [
+			"**The canary channel.** Roswaal now builds from two lines: the stable one, and a canary where work lands first. A canary build wears a yellow *canary* mark beside the version, on the editor, on Node Design and on the documentation — and carries a banner above them saying what that means, with a link to the stable build.",
+			"The documentation's canary says something sharper than the editor's: these pages describe a build that is not out, so what they say may not be in the version you have.",
+			"Canary pages are marked `noindex`, so the unreleased copy of the documentation does not compete with the real one in search results.",
+		],
+		changed: [
+			"The build mark is one rule with two variants rather than one mark with an exception. A build wears *canary* or *preview*, never both: an unfinished build is unfinished whether it is in a browser tab or on your own machine.",
+			"The front page's first button carries whichever mark the site was built from, and the sentence under it agrees with it.",
+		],
+		fixed: [
+			"**The canary mark was drawn in the preview's colour.** The chip read *canary* and was painted accent blue, because the rule that colours it in a toolbar is more specific than the rule that says which colour a canary is. The colour is chosen on the chip itself now, so no amount of chrome around it can overrule what it is claiming.",
+		],
+		watch: [
+			"Nothing changes for the stable build: it carries no canary mark, no banner and no `noindex`. If you are reading this anywhere but the canary site, none of it is on your screen.",
+			"The site workflow now takes its base path from the repository's own name rather than a hard-coded one, so both repositories publish correctly from the same file.",
+		],
+	},
+	{
 		version: "0.60.0",
 		date: "2026-09-16",
 		headline: "Every toolbar is drawn, with its buttons named.",
