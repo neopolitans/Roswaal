@@ -25,7 +25,7 @@ import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.j
 import { luneMenuItems, lunePins } from "../core/luneCalls.js";
 import { LAYER } from "./layers.js";
 import { COMMENT_DEFAULT_COLOR, nodeColor, pinColor } from "./palette.js";
-import { classify } from "../core/nodes/runtimes.js";
+import { classify, classifyFor, runtimeLabelFor } from "../core/nodes/runtimes.js";
 import {
 	FILTER_LABEL, FILTER_SUMMARY, MENU_FILTERS, readPreferences, writePreferences,
 	type MenuFilter,
@@ -87,6 +87,14 @@ interface MenuItem {
 	 * declares — a variable, a local, a function, a parameter.
 	 */
 	runtime: MenuFilter;
+	/**
+	 * What the tag reads, when it is not simply the filter's own name.
+	 *
+	 * `Lune: @lune/roblox` for a Roblox datatype in a Lune graph: it answers to
+	 * the Lune filter, and saying only "Lune" would suggest the runtime has it
+	 * on its own. The module is the whole reason it is here.
+	 */
+	runtimeLabel?: string;
 	def: NodeDef;
 	config?: NodeConfig;
 	/**
@@ -136,7 +144,10 @@ export function NodeMenu(props: NodeMenuProps) {
 				summary: def.summary,
 				color: nodeColor(def),
 				pure: def.pure === true,
-				runtime: classify(def),
+				// The runtime the *graph* is in, so a borrowed datatype is tagged
+				// as what it is here rather than averaged to Luau.
+				runtime: classifyFor(def, target),
+				runtimeLabel: runtimeLabelFor(def, target),
 				def,
 			}));
 
@@ -560,7 +571,7 @@ export function NodeMenu(props: NodeMenuProps) {
 							    it on the chip above. */}
 							{item.runtime !== "luau" && narrowed === null && (
 								<span className={`hint runtime ${item.runtime}`} title={FILTER_SUMMARY[item.runtime]}>
-									{FILTER_LABEL[item.runtime]}
+									{item.runtimeLabel ?? FILTER_LABEL[item.runtime]}
 								</span>
 							)}
 						</div>

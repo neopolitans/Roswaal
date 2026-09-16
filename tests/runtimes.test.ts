@@ -28,7 +28,8 @@ import { BUILTIN_NODES, categories, createRegistry } from "../src/core/nodes/ind
 import { allPages, buildSite, findPage } from "../src/core/docs/site.js";
 import { renderPage } from "../src/core/docs/html.js";
 import {
-	CATEGORY_RUNTIME, classify, NODE_RUNTIME, RUNTIME_LABEL, RUNTIME_SUMMARY, RUNTIMES,
+	CATEGORY_RUNTIME, classify, crossRuntimeModule, NODE_RUNTIME, RUNTIME_LABEL,
+	RUNTIME_SUMMARY, RUNTIMES,
 	runtimeOf, targetsFor, withRuntimes,
 } from "../src/core/nodes/runtimes.js";
 import {
@@ -368,8 +369,35 @@ describe("the tag on a node's page", () => {
 	it("agrees with the node it documents", () => {
 		for (const page of allPages(site)) {
 			if (!page.nodeId) continue;
-			expect(page.runtime, page.slug).toBe(classify(registry.get(page.nodeId)!));
+			const def = registry.get(page.nodeId)!;
+			/**
+			 * A borrowed datatype carries two tags rather than one averaged
+			 * one: `Roblox`, because it is Roblox's, and `Lune: @lune/roblox`,
+			 * because that is how Lune has it. `classify` averages both-runtime
+			 * nodes to `luau`, which is right for the ones that *are* Luau and
+			 * says the wrong thing about these.
+			 */
+			if (crossRuntimeModule(def) !== undefined) {
+				expect(page.runtime, page.slug).toBe("roblox");
+				expect(page.runtimeVia, page.slug).toBe("@lune/roblox");
+				continue;
+			}
+			expect(page.runtime, page.slug).toBe(classify(def));
+			expect(page.runtimeVia, page.slug).toBeUndefined();
 		}
+	});
+
+	/**
+	 * The tag a reader sees, which is the part that was wrong.
+	 *
+	 * `Vector3` tagged `Luau` says the base language has it. The base language
+	 * does not: Roblox has it, and Lune has it through a module you require.
+	 */
+	it("says Roblox and names the module Lune needs", () => {
+		const page = renderPage(site, findPage(site, "node/roblox.vector3")!, { version: "test" });
+		expect(page).toContain(">Roblox</span>");
+		expect(page).toContain("Lune: @lune/roblox");
+		expect(page).not.toContain(">Luau</span>");
 	});
 
 	it("renders it as a badge, on the base-Luau pages too", () => {

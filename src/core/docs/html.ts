@@ -499,11 +499,18 @@ function reviewBadge(review: Review): string {
  */
 function runtimeBadge(page: DocPage): string {
 	if (!page.runtime) return "";
-	return (
+	const own =
 		`<span class="badge runtime ${escapeHtml(page.runtime)}"` +
 		` title="${escapeHtml(RUNTIME_SUMMARY[page.runtime])}">` +
-		`${escapeHtml(RUNTIME_LABEL[page.runtime])}</span>`
-	);
+		`${escapeHtml(RUNTIME_LABEL[page.runtime])}</span>`;
+
+	// Two tags rather than one averaged one. A node that is Roblox's and that
+	// Lune implements is not "Luau": that would say the base language has it.
+	if (page.runtimeVia === undefined) return own;
+	return own +
+		`<span class="badge runtime lune"` +
+		` title="Lune has this through ${escapeHtml(page.runtimeVia)}, which the graph must require">` +
+		`Lune: ${escapeHtml(page.runtimeVia)}</span>`;
 }
 
 export function renderPage(site: DocSite, page: DocPage, options: RenderOptions): string {

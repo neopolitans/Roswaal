@@ -174,6 +174,58 @@ export const RUNTIMES: readonly Runtime[] = ["luau", "roblox", "lune"];
  * nowhere. Targeting both runtimes explicitly is the same claim as targeting
  * neither, so both come back as base Luau.
  */
+/**
+ * The module a node needs to work in the runtime that is not its own.
+ *
+ * `Vector3` is Roblox's datatype and Lune implements it, so the node works in
+ * both — but not for the same reason, and not for free. `@lune/roblox` has to
+ * be required for it, which is a thing to say rather than a thing to average
+ * out.
+ *
+ * `undefined` for every other node, which is nearly all of them.
+ */
+export function crossRuntimeModule(
+	def: Pick<NodeDef, "category"> & { subcategory?: string },
+): string | undefined {
+	if (def.category !== ENGINE_TYPES) return undefined;
+	if (!def.subcategory || !LUNE_ROBLOX_DATATYPES.includes(def.subcategory)) return undefined;
+	return "@lune/roblox";
+}
+
+/**
+ * What a node is tagged as, for the runtime the reader is in.
+ *
+ * `classify` answers "which of the three is this" and maps a node that works in
+ * both to `luau` — which is right for the nodes that *are* Luau and wrong for
+ * the handful that are Roblox's and borrowed. Tagging `Vector3` as Luau says
+ * the base language has it, and the base language does not.
+ *
+ * So a cross-runtime node takes the tag of the graph asking. In a Roblox graph
+ * it is Roblox's datatype, because it is. In a Lune graph it is Lune's, because
+ * that is the module it arrives through — and the label says which module.
+ */
+export function classifyFor(
+	def: Pick<NodeDef, "category" | "targets"> & { subcategory?: string },
+	target: Target | undefined,
+): Runtime {
+	if (target !== undefined && crossRuntimeModule(def) !== undefined) return target;
+	return classify(def);
+}
+
+/** What a tag reads, for the runtime a node is being shown in. */
+export function runtimeLabelFor(
+	def: Pick<NodeDef, "category" | "targets"> & { subcategory?: string },
+	target: Target | undefined,
+): string {
+	const via = crossRuntimeModule(def);
+	const runtime = classifyFor(def, target);
+	// Only the borrowed side names the module. In its own runtime it is simply
+	// that runtime's, and `Roblox: @lune/roblox` would be nonsense.
+	return via !== undefined && runtime === "lune"
+		? `${RUNTIME_LABEL.lune}: ${via}`
+		: RUNTIME_LABEL[runtime];
+}
+
 export function classify(def: { targets?: readonly string[] }): Runtime {
 	const targets = def.targets;
 	if (!targets || targets.length === 0) return "luau";

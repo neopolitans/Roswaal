@@ -94,7 +94,7 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
-		version: "0.67.1",
+		version: "0.67.2",
 		date: "2026-09-16",
 		headline: "Vector3 works in Lune, and says what it needs.",
 		affects: ["editor", "docs"],
@@ -105,7 +105,7 @@ export const RELEASES: Release[] = [
 		],
 		changed: [
 			"**Building, and node maps** is now [Compiling and nodemaps for Roblox](building-and-rojo) — it was only unambiguous while there was one runtime. Its address has not moved.",
-			"A node page for one of these datatypes says it is **Roblox's, and Lune's too**, rather than calling it the language itself. `Vector3` is not base Luau, and a page saying so would be making a claim the node cannot keep.",
+			"**A borrowed datatype carries two tags**, not one averaged one: `Roblox`, because it is Roblox's, and `Lune: @lune/roblox`, because that is how Lune has it. A single `Luau` tag said the base language has `Vector3`, and it does not. In the node menu the tag is the one the graph you are in needs.",
 		],
 		fixed: [
 			"**A Roblox datatype in a Lune graph no longer compiles to something that fails at run time.** It wrote `Vector3.new(...)` with no require, and in Lune that indexes nil. It is an error now, naming the module and the member that fix it.",

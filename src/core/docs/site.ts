@@ -193,6 +193,14 @@ export interface DocPage {
 	 */
 	runtime?: Runtime;
 	/**
+	 * The module the *other* runtime needs to have this.
+	 *
+	 * A second tag rather than a different one. `Vector3` is Roblox's datatype
+	 * and Lune implements it, so "Luau" would be the wrong single answer — it
+	 * says the base language has it, and the base language does not.
+	 */
+	runtimeVia?: string;
+	/**
 	 * Set on a page that is mostly prose.
 	 *
 	 * A wide page caps its paragraphs at a reading measure while its tables run
@@ -522,7 +530,10 @@ function nodePage(doc: NodeDoc): DocPage {
 		blocks,
 		nodeId: doc.id,
 		custom: doc.custom,
-		runtime: classify(doc),
+		// Its own runtime, not the averaged one: `Vector3` is Roblox's, and the
+		// second tag says the other runtime borrows it and through what.
+		runtime: crossOver ? "roblox" : classify(doc),
+		...(crossOver ? { runtimeVia: "@lune/roblox" } : {}),
 	};
 }
 
