@@ -22,6 +22,7 @@ import {
 import { landingPins, localRefFor } from "./edits.js";
 import { keywordNodes } from "../core/keywords.js";
 import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
+import { luneMenuItems, lunePins } from "../core/luneCalls.js";
 import { LAYER } from "./layers.js";
 import { COMMENT_DEFAULT_COLOR, nodeColor, pinColor } from "./palette.js";
 import { classify } from "../core/nodes/runtimes.js";
@@ -269,6 +270,38 @@ export function NodeMenu(props: NodeMenuProps) {
 	}, [registry, target, anchor.from?.service]);
 
 	/**
+	 * Lune's standard library, one row per function.
+	 *
+	 * The point of there being two nodes rather than sixty-one: the palette
+	 * still knows every name, so `readFile` finds `fs.readFile` and what the
+	 * menu hands over is a node already set to that call.
+	 *
+	 * Lune-only twice over, the way the service entries are Roblox-only: the
+	 * guard here, and the node each row configures.
+	 */
+	const luneItems = useMemo((): MenuItem[] => {
+		if (target !== "lune") return [];
+		return luneMenuItems().flatMap((entry) => {
+			const def = registry.get(entry.def);
+			if (!def) return [];
+			const pure = def.pure === true;
+			const config = { module: entry.module, call: entry.call };
+			return [{
+				runtime: classify(def),
+				key: `lune:${entry.label}`,
+				title: entry.label,
+				category: "Lune",
+				summary: entry.summary,
+				color: nodeColor(def),
+				pure,
+				def,
+				config,
+				pins: lunePins(config, pure),
+			}];
+		});
+	}, [registry, target]);
+
+	/**
 	 * The methods of the service a wire was dragged off, listed before anything
 	 * else and without a search.
 	 *
@@ -332,6 +365,7 @@ export function NodeMenu(props: NodeMenuProps) {
 			...draggedService,
 			...items,
 			...serviceItems.filter((item) => !dragged.has(item.key) && reach(item)),
+			...luneItems.filter(reach),
 			...nameEntries.filter(reach),
 		];
 
@@ -340,7 +374,7 @@ export function NodeMenu(props: NodeMenuProps) {
 			.filter((x) => x.score > 0)
 			.sort((a, b) => b.score - a.score)
 			.map((x) => x.item);
-	}, [query, items, serviceItems, nameEntries, draggedService, anchor.from]);
+	}, [query, items, serviceItems, luneItems, nameEntries, draggedService, anchor.from]);
 
 	/**
 	 * Categories, each holding either a flat list or a list of datatype groups.

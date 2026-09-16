@@ -6713,6 +6713,23 @@ button.tb.danger {
 	font-size: 13px;
 }
 
+/* Something a node needs that the script has not got, said in the Inspector
+   where the node is selected -- and with the button that fixes it. Said and
+   offered, never done: declaring a module because somebody picked a call would
+   be the editor expanding what the project depends on without being asked. */
+.inspector-warn {
+	margin: 8px 0 4px;
+	padding: 9px 10px;
+	border-radius: 6px;
+	border-left: 3px solid var(--warning);
+	background: color-mix(in srgb, var(--warning) 10%, transparent);
+	line-height: 1.5;
+}
+
+.inspector-warn p {
+	margin: 0 0 8px;
+}
+
 /* -------------------------------------------------------- .luaurc document */
 
 /* A `.luaurc`, opened from the tree like any other file. It borrows the

@@ -236,3 +236,42 @@ export function luneMenuItems(): LuneMenuItem[] {
 
 /** Primitives a pin type may be, for a test that the mapping stays honest. */
 export const PIN_PRIMITIVES = LUAU_PRIMITIVES;
+
+/** Every call the catalogue knows, as the picker lists them: `fs.readFile`. */
+export const LUNE_CALL_OPTIONS: string[] = LUNE_MODULES.flatMap((module) =>
+	module.functions.map((fn) => `${module.alias}.${fn.name}`),
+);
+
+/** The two halves of `fs.readFile`. */
+export function splitLuneCall(text: string): { module: string; call: string } | undefined {
+	const at = text.indexOf(".");
+	if (at <= 0) return undefined;
+	const module = text.slice(0, at).trim();
+	const call = text.slice(at + 1).replace(/\(.*\)$/, "").trim();
+	if (module === "" || call === "") return undefined;
+	return { module, call };
+}
+
+/**
+ * What the picker shows under the highlighted row.
+ *
+ * The signature, then what it gives back, then whether it is a value or a step
+ * — because which of the two nodes you are about to get is the thing a reader
+ * cannot see from the name, and `fs.readFile` versus `fs.writeFile` is exactly
+ * the pair where it matters.
+ */
+export function luneCallDetail(text: string): string {
+	const split = splitLuneCall(text);
+	const fn = split && luneFunction(split.module, split.call);
+	if (!fn) return "";
+	const params = fn.params
+		.map((param) => (param.optional ? `${param.name}?` : param.name))
+		.join(", ");
+	const gives = fn.returns === "" ? "no result" : fn.returns;
+	return `${fn.name}(${params})  ›  ${gives}  ›  ${isValueCall(fn) ? "a value" : "a step"}`;
+}
+
+/** The specifier a chosen call needs declared, for the Inspector to offer. */
+export function requiredSpecifier(c: NodeConfig | undefined): string {
+	return specifierFor(moduleOf(c));
+}

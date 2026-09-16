@@ -18,18 +18,23 @@ import {
 } from "./palette.js";
 import {
 	addVariable, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, disconnectInput, renameNode,
-	setConfig, setLiteral, syncFunctionRefs, syncFunctionReturns, syncParamRefs, updateComment,
+	addModule, setConfig, setLiteral, syncFunctionRefs, syncFunctionReturns, syncParamRefs,
+	updateComment,
 } from "./edits.js";
 import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../core/nodes/flow.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
 import { isConstLocal, localNameOf } from "../core/nodes/variables.js";
-import { store } from "./store.js";
+import { store, useEditor } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
 import { ValuePicker } from "./ValuePicker.jsx";
 import { Icon } from "./icons.jsx";
 import {
 	CALL_OPTIONS, SERVICE_CALL, SERVICE_VALUE, callDetail, callLabel, serviceMethod, splitCall,
 } from "../core/serviceCalls.js";
+import {
+	callLabel as luneCallLabel, luneCallDetail, luneFunction, requiredSpecifier, splitLuneCall,
+	LUNE_CALL, LUNE_CALL_OPTIONS, LUNE_VALUE,
+} from "../core/luneCalls.js";
 
 /**
  * Abbreviations whose full stop is not the end of a sentence.
@@ -199,6 +204,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 					<CountEditor node={node} field="args" label="Arguments" min={0} max={8} fallback={1} />
 				)}
 				{(def.id === SERVICE_CALL || def.id === SERVICE_VALUE) && <CallPicker node={node} />}
+				{(def.id === LUNE_CALL || def.id === LUNE_VALUE) && <LuneCallPicker node={node} />}
 				{(def.id === "type.declareTop" || def.id === "type.declareHere") && (
 					<TypeEditor node={node} />
 				)}
@@ -716,6 +722,80 @@ function CallPicker({ node }: { node: GraphNode }) {
 					value={label ?? ""}
 					groupOf={(value) => splitCall(value)?.service ?? "Other"}
 					detailOf={callDetail}
+					onPick={pick}
+					onClose={() => setPicking(false)}
+				/>
+			)}
+		</>
+	);
+}
+
+/**
+ * Picking a call from Lune's standard library, and declaring what it needs.
+ *
+ * The picker half is the service call's, with the module standing in for the
+ * service. The second half is the part that matters: a Lune Function node
+ * cannot compile until its module is declared, and this is where that is said
+ * and where it can be done.
+ *
+ * **Said, and offered — not done.** The button declares `@lune/fs` because you
+ * pressed it. Declaring it for you when you picked the call would be the
+ * editor expanding what the project depends on without being asked, which is
+ * the rule the whole module design rests on. The distance between "we did it"
+ * and "here is the button" is the whole of that rule.
+ */
+function LuneCallPicker({ node }: { node: GraphNode }) {
+	const [picking, setPicking] = useState(false);
+	const script = useEditor().script;
+	const label = luneCallLabel(node.config);
+	const split = label ? splitLuneCall(label) : undefined;
+	const known = split ? luneFunction(split.module, split.call) : undefined;
+
+	const specifier = requiredSpecifier(node.config);
+	const declared = (script?.modules ?? []).some(
+		(one) => one.specifier.trim().toLowerCase() === specifier.toLowerCase(),
+	);
+
+	const pick = (value: string) => {
+		const chosen = splitLuneCall(value);
+		if (!chosen) return;
+		store.edit((s) => setConfig(s, node.id, { module: chosen.module, call: chosen.call }));
+	};
+
+	return (
+		<>
+			<Field
+				label="Call"
+				hint={known?.summary ?? "A function from Lune's standard library."}
+			>
+				<button className="tb literal picker" onClick={() => setPicking(true)}>
+					<span className="preview">{label ?? "Choose a call…"}</span>
+					<Icon name="chevron" size={12} />
+				</button>
+			</Field>
+
+			{label && !declared && (
+				<div className="inspector-warn">
+					<p>
+						This needs <code>{specifier}</code>, and nothing in this script requires it.
+						Roswaal will not add a require you did not ask for.
+					</p>
+					<button
+						className="tb"
+						onClick={() => store.edit((s) => addModule(s, split?.module ?? "module", specifier).script)}
+					>
+						Declare {specifier}
+					</button>
+				</div>
+			)}
+
+			{picking && (
+				<ValuePicker
+					what="call"
+					options={LUNE_CALL_OPTIONS}
+					value={label ?? ""}
+					groupOf={(value) => splitLuneCall(value)?.module ?? "Other"}
+					detailOf={luneCallDetail}
 					onPick={pick}
 					onClose={() => setPicking(false)}
 				/>
