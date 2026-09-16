@@ -96,20 +96,24 @@ export const RELEASES: Release[] = [
 	{
 		version: "0.68.0",
 		date: "2026-09-16",
-		headline: "A map is drawn beside what it produces.",
+		headline: "The map pages open with the map editor, working.",
 		affects: ["docs"],
 		added: [
-			"**A node map, drawn beside its output, with the two halves linked.** Hover a row of the tree and the lines it writes light up; hover a line and the row that wrote it lights. On a Roblox map the other half is the `default.project.json`; on a Lune map it is the disk, and the require that reaches each file.",
+			"**The map editor itself, at the top of both map pages.** Not a picture of it — the real panel, with the tree, the Inspector and the project file where the editor puts them. Select a row and the Inspector fills with that instance's fields while the project file scrolls to the lines that row writes.",
+			"**Every part of the panel is named beside it**, and pointing at a name lights the control while everything else steps back. The same device the toolbar figures use, for the same reason: chrome is unreadable on the first day, and counting down a column to match a name is not reading.",
 			"A row lights **its own** lines and not its children's. What the figure answers is *what did this row do*, and a row that appeared to produce its children's output would be one you expect to delete without losing them.",
 		],
 		changed: [
 			"**Both map pages now say which target they are about in their first line**, and each carries the whole of compiling for that target. [Compiling and nodemaps for Lune](compiling-for-lune) no longer sends a Lune developer to the Roblox page for the half that happens to be shared — what triggers a compile, what the generated header is for, what `prune` does.",
 			"[Compiling and nodemaps for Roblox](building-and-rojo) drops its Lune asides and says what each script kind becomes in Studio, which is the question the file ending was standing in for.",
+			"The figure is **wider than the page's reading measure**. A tree, an Inspector and a project file do not fit in the width that suits a sentence.",
 		],
 		fixed: [
-			"A figure's caption was being laid out as a column of the figure rather than underneath it, so it read as a narrow strip beside the tree.",
+			"The article's typography was reaching inside drawn panels, so the Inspector's section headings came out at body size and their hints came out as paragraphs — which between them ate most of the height the figure had.",
+			"A figure's caption was being laid out as a column of the figure rather than underneath it.",
 		],
 		watch: [
+			"The buttons in the drawn panel are dimmed because they do nothing: there is no project behind the figure to add a folder to. The fields are live — they follow the selected row — so they are not dimmed.",
 			"The project file in the figure is printed from the map by the same rules the compiler uses, and the two are checked against each other for every map the documentation draws. A page cannot show a project file Roswaal would not write.",
 		],
 	},

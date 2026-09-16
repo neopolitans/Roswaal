@@ -33,6 +33,7 @@ import { NODE } from "../src/app/layers.ts";
 import { buildGraphViewer } from "./lib/graphViewer.mjs";
 import { buildThemePaint } from "./lib/themePaint.mjs";
 import { buildToolbarLinker } from "./lib/toolbarLinker.mjs";
+import { buildMapPanel } from "./lib/mapPanel.mjs";
 import { VERSION } from "../src/cli/version.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -186,7 +187,8 @@ async function main() {
 		CLIENT
 			+ (await readFile(join(root, "scripts/lib/docsChrome.js"), "utf8"))
 			+ (await buildGraphViewer())
-			+ (await buildToolbarLinker()),
+			+ (await buildToolbarLinker())
+			+ (await buildMapPanel()),
 		"utf8",
 	);
 

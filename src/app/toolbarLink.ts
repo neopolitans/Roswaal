@@ -147,17 +147,15 @@ export function attachToolbarLink(figure: HTMLElement): () => void {
 }
 
 /**
- * Every linked figure on the page. What the static site's script runs.
+ * Every toolbar figure on the page. What the static site's script runs.
  *
- * Two kinds so far and the same mechanism behind both: a toolbar pointing
- * between its picture and its legend, and a node map pointing between a row of
- * the tree and the lines that row writes. Both are a correspondence the reader
- * would otherwise have to work out by counting, and neither needs to know that
- * the other exists — a figure is linked if its parts carry `data-control`.
+ * Map panels are the other linked figure and have their own attacher in
+ * `mapPanel.ts`: they share the `data-control` idea and nothing else, because
+ * selecting a row also has to fill an Inspector. One function trying to do
+ * both would be two functions with a flag.
  */
 export function attachToolbarLinks(root: ParentNode): void {
-	const figures = root.querySelectorAll<HTMLElement>(".docs-bar, .docs-map");
-	for (const figure of Array.from(figures)) {
+	for (const figure of Array.from(root.querySelectorAll<HTMLElement>(".docs-bar"))) {
 		attachToolbarLink(figure);
 	}
 }

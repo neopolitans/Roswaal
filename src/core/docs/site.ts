@@ -2785,6 +2785,22 @@ const BUILDING_LUNE: DocPage = {
 				"answer and there is no second copy of it to keep in step.",
 		},
 
+		{
+			t: "p",
+			text:
+				"Here is the whole of it. A `.nodemap` is edited in Roswaal rather than by hand, and " +
+				"this is that editor with *Describes* set to **A filesystem** — the tree on the left, " +
+				"the Inspector on the right, and the layout it describes underneath. Every part is " +
+				"named beside it; the rest of this page explains them in order.",
+		},
+		{
+			t: "nodemap",
+			map: LUNE_MAP,
+			caption:
+				"The same panel, describing a filesystem. **Select a row** to fill the Inspector. " +
+				"A name carries no extension — `main` in the map, `main.luau` on disk, and the " +
+				"require that reaches it beside.",
+		},
 		{ t: "h", level: 2, text: "What a graph compiles to" },
 		{
 			t: "p",
@@ -2843,13 +2859,6 @@ const BUILDING_LUNE: DocPage = {
 				"the layout out loud, and checking it holds together**. Set a map's *Describes* to " +
 				"**A filesystem** and it becomes directories and files rather than services and " +
 				"instances. A new map is already the right kind — it follows the project's target.",
-		},
-		{
-			t: "nodemap",
-			map: LUNE_MAP,
-			caption:
-				"Hover a row to see what it is on disk, or a path to see which row put it there. " +
-				"The extension is on the right and never in the name.",
 		},
 		{
 			t: "p",
@@ -2952,6 +2961,24 @@ const BUILDING: DocPage = {
 				"[settings](settings).",
 		},
 
+		{
+			t: "p",
+			text:
+				"Here is the whole of it. A `.nodemap` is edited in Roswaal rather than as JSON by " +
+				"hand, and this is that editor — the tree on the left, the Inspector on the right, " +
+				"and the project file it writes underneath. Every part is named beside it; the rest " +
+				"of this page explains them in order.",
+		},
+		{
+			t: "nodemap",
+			map: ROBLOX_MAP,
+			caption:
+				"The real panel. **Select a row** and the Inspector fills with that instance's " +
+				"fields, while the project file scrolls to the lines the row writes. A row lights " +
+				"its own lines and not its children's — they are rows too. The fields are filled " +
+				"rather than editable: this is the editor demonstrating itself, not a scratch " +
+				"project.",
+		},
 		{ t: "h", level: 2, text: "What a graph compiles to" },
 		{
 			t: "p",
@@ -3028,13 +3055,6 @@ const BUILDING: DocPage = {
 				"A `.nodemap` says where your files land in the DataModel, and compiles to a Rojo " +
 				"project file — `default.project.json` unless you change it. You edit the tree in " +
 				"Roswaal rather than the JSON by hand.",
-		},
-		{
-			t: "nodemap",
-			map: ROBLOX_MAP,
-			caption:
-				"Hover a row to light the lines it writes, or a line to find the row that wrote " +
-				"it. A row lights its own lines and not its children's — they are rows too.",
 		},
 		{
 			t: "p",

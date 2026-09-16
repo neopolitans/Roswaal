@@ -7696,139 +7696,241 @@ button.tb.danger {
 }
 
 /* --------------------------------------------------------------------------
-   A node map, drawn beside what it produces.
+   The map editor, drawn in the documentation.
 
-   Two columns that point at each other: a row of the tree on the left, and on
-   the right the lines that row writes -- the Rojo project file on a DataModel
-   map, the disk on a filesystem one. The pairing is `data-control`, the same
-   attribute the toolbar legend uses, so one script lights both.
-
-   Without that script the figure is still both halves, fully drawn and in
-   order, which is what a reader with no pointer has. The lighting makes the
-   correspondence quick; it is not what carries it.
+   Almost nothing here is about how the panel looks: it is drawn with the
+   editor's own class names, so `.map-editor` and everything under it is
+   already styled by the rules above and cannot be restyled out of step with
+   the real thing. What is left is the frame it sits in, the height it takes
+   when it is not filling a window, and the highlight that pairs a row with
+   the lines it writes.
    ----------------------------------------------------------------------- */
-.docs-map {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	gap: 14px;
-	margin: 0 0 18px;
+
+/* The figure is wider than the measure.
+
+   A page of prose caps itself at 78ch, which is right for sentences and far
+   too narrow for a tree, an Inspector and a project file side by side. So the
+   figure is sized against the content column rather than against the article
+   -- `.docs-content` is already a container for exactly this, and this is the
+   same breakout `.docs-preview.breakout` above makes.
+
+   The negative left margin is the part that is easy to leave out. The article
+   is centred in the column, so a child merely made wider grows to the right
+   only and runs off the end of the page; re-centring it on the column is what
+   makes it a breakout rather than an overflow. */
+.docs-page .docs-article > .docs-map {
+	--frame: min(1280px, calc(100cqw - 32px));
+	box-sizing: border-box;
+	width: var(--frame);
+	margin: 0 0 18px calc((100% - var(--frame)) / 2);
 	padding: 0;
+	max-width: none;
 }
 
-/* One under the other once there is no room for two, because a tree squeezed
-   to a third of a phone's width stops being a tree. */
-@media (max-width: 680px) {
-	.docs-map {
+/* The article's typography does not reach inside the panel.
+
+   `.docs-page .docs-content h2` is two classes and an element; `.map-side h2`
+   is one and an element, so the article won and the Inspector's section
+   headings came out at body size in the article's colour -- and the hints
+   under them came out as paragraphs, which between them ate most of the
+   height the figure had to show a project file in.
+
+   The same fix, and the same reason, as `.docs-bar-frame.panel h2` above:
+   qualified enough to match, and restated rather than inherited, because
+   inheriting is exactly what did not happen. */
+.docs-page .docs-content .docs-map-frame h2 {
+	margin: 0;
+	padding: 10px 12px 6px;
+	border: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--fg-faint);
+}
+
+.docs-page .docs-content .docs-map-frame p.summary {
+	margin: 0;
+	padding: 0 12px 6px;
+	max-width: none;
+	font-size: 11px;
+	line-height: 1.45;
+	color: var(--fg-muted);
+}
+
+.docs-page .docs-content .docs-map-frame p.summary code {
+	font-size: 10.5px;
+	padding: 0 3px;
+}
+
+/* Panel and legend side by side. The panel is tall, and a column of eleven
+   names underneath a tall picture is a column nobody reads beside the thing it
+   names. */
+.docs-map-body {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 270px);
+	gap: 16px;
+	align-items: start;
+}
+
+@media (max-width: 900px) {
+	.docs-map-body {
 		grid-template-columns: minmax(0, 1fr);
 	}
 }
 
-/* A filesystem map stacks at every width.
-
-   Its right-hand column is a path and the require that reaches it -- around
-   thirty-four monospace characters on a nested file -- against the twenty-five
-   half of a narrow page holds. Side by side it did not overflow gracefully, it
-   overflowed into a scrollbar over the part that mattered.
-
-   Stacking costs less here than it would on a DataModel map, because both
-   halves of this one are lists of paths: the eye follows them down rather than
-   across, and the pairing is carried by the highlight either way. */
-.docs-map.lune {
-	grid-template-columns: minmax(0, 1fr);
-}
-
-.docs-map-side {
-	min-width: 0;
+.docs-map-frame {
 	border: 1px solid var(--border);
 	border-radius: 6px;
-	background: var(--bg-canvas);
 	overflow: hidden;
+	background: var(--bg-panel);
 }
 
-.docs-map-head {
-	display: flex;
-	justify-content: space-between;
-	gap: 8px;
-	padding: 7px 10px;
-	border-bottom: 1px solid var(--border);
-	background: var(--bg-input);
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	color: var(--fg-dim);
+/* The editor fills a window; here it is given a height to fill instead. Tall
+   enough for a small tree and the whole of its project file, which is the
+   figure's job -- a reader scrolling the file to find the lit lines is being
+   asked to do the thing the highlight was for. */
+/* Tall enough to be worked in rather than looked at -- the figure is the
+   centrepiece of the page, and a panel with a project file the reader has to
+   scroll a two-line window through is a picture of a panel again.
+
+   A ceiling rather than a height, because a small map should not be followed
+   by four hundred pixels of empty tree. The children carry their own
+   scrollers, so the grid sizes to whatever they need up to this. */
+.docs-map-frame .map-editor {
+	min-height: 360px;
+	max-height: min(760px, 82vh);
 }
 
-.docs-map-tree,
-.docs-map-out {
-	margin: 0;
-	padding: 6px 0;
-	list-style: none;
-	overflow-x: auto;
+/* The project file keeps a scroller of its own rather than growing until the
+   whole Inspector scrolls. Selecting a row then moves the file to the lines
+   that row writes and leaves Name, Class and Path where the reader is looking. */
+.docs-map-frame .map-preview {
+	max-height: 320px;
 }
 
-.docs-map-row,
-.docs-map-line {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	/* The indent is the depth, so the two columns are indented by the same
-	   rule and a nested row lines up with the stanza it writes. */
-	padding: 2px 10px 2px calc(10px + var(--depth, 0) * 14px);
-	white-space: nowrap;
+/* Lines of the project file are spans so each can carry the node that wrote
+   it. `<pre>` already keeps their whitespace; this only keeps them on their
+   own rows. */
+.map-preview-line {
+	display: block;
+	border-radius: 3px;
 	transition: background-color 90ms ease, box-shadow 90ms ease;
 }
 
-.docs-map-line {
-	font-family: var(--mono, ui-monospace, monospace);
-	font-size: 12px;
-	color: var(--fg-dim);
-}
-
-.docs-map-name {
-	font-size: 12.5px;
-	color: var(--fg);
-}
-
-.docs-map-kind,
-.docs-map-path {
-	font-size: 11px;
+/* On a filesystem map, what reaches the file, pushed to the right of it. */
+.map-reach {
+	float: right;
+	padding-left: 24px;
 	color: var(--fg-faint);
-}
-
-.docs-map-path {
-	font-family: var(--mono, ui-monospace, monospace);
-}
-
-.docs-map-note {
-	margin-left: auto;
-	padding-left: 14px;
-	font-family: var(--mono, ui-monospace, monospace);
-	font-size: 11px;
-	color: var(--fg-faint);
-}
-
-.docs-map-head .docs-map-note {
-	font-family: inherit;
-	font-weight: 600;
-	letter-spacing: 0.06em;
-}
-
-/* The caption is a grid item like the columns are, so without this it is laid
-   into the first cell of a new row and reads as a narrow column of text under
-   the tree rather than as a caption for the figure. */
-.docs-map > figcaption {
-	grid-column: 1 / -1;
-	margin: 0;
 }
 
 /* Both sides take the same highlight, because the point being made is that
-   they are the same thing seen twice. */
-.docs-map [data-control].lit {
+   they are the same thing seen twice. `lit` is the row under the pointer;
+   `selected` is the row the Inspector is showing, and is the editor's own
+   class doing its own job. */
+.docs-map .map-preview-line.lit,
+.docs-map .map-row.lit {
 	background: color-mix(in srgb, var(--accent) 14%, transparent);
 	box-shadow: inset 2px 0 0 var(--accent);
 }
 
-.docs-map.linked [data-control] {
+.docs-map .map-row[data-control] {
+	cursor: pointer;
+}
+
+/* A demonstrator, not a sandbox.
+
+   The buttons are the parts that genuinely do nothing -- there is no project
+   to add a folder to -- so they are dimmed to say so before anybody presses
+   one. The fields are not: they are filled from whichever row is selected and
+   change as you go, so dimming them would be calling live output dead. */
+.docs-map-frame .map-editor button[disabled],
+.docs-map-frame .map-editor .map-actions select[disabled] {
+	opacity: 0.38;
+	cursor: default;
+}
+
+.docs-map-frame .map-editor input[readonly],
+.docs-map-frame .map-editor select[disabled] {
+	cursor: default;
+}
+
+/* --- the legend, and pointing between it and the panel ------------------- */
+
+.docs-map-legend {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	align-content: start;
+}
+
+.docs-map-legend li {
+	padding: 6px 10px;
+	border-radius: 5px;
+	border-left: 2px solid transparent;
+	font-size: 12px;
+	line-height: 1.45;
+	transition: background-color 90ms ease, opacity 90ms ease;
+}
+
+.docs-map-legend .docs-map-part {
+	display: block;
+	font-weight: 600;
+	color: var(--fg);
+}
+
+.docs-map-legend .docs-map-what {
+	color: var(--fg-muted);
+}
+
+.docs-map.linked .docs-map-legend li {
 	cursor: help;
+}
+
+/* Pointing at one part dims everything that is not it, on both sides at once.
+
+   The scrim is on the figure rather than on each part, so there is one rule
+   deciding what "not the thing you are pointing at" looks like -- the same
+   arrangement the Variables panel preview makes, where a section that is not
+   the subject of the paragraph steps back rather than disappearing. */
+.docs-map.pointing .docs-map-legend li,
+.docs-map.pointing .docs-map-frame [data-part] {
+	opacity: 0.32;
+}
+
+.docs-map.pointing .docs-map-legend li.shown,
+.docs-map.pointing .docs-map-frame [data-part].shown {
+	opacity: 1;
+}
+
+.docs-map-legend li.shown {
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
+	border-left-color: var(--accent);
+}
+
+.docs-map-frame [data-part].shown {
+	box-shadow: 0 0 0 2px var(--accent);
+	border-radius: 4px;
+}
+
+.docs-map > figcaption {
+	margin: 8px 0 0;
+}
+
+/* One under the other once there is no room for two: an Inspector squeezed
+   beside a tree on a phone is two unreadable columns instead of one. */
+@media (max-width: 860px) {
+	.docs-map-frame .map-editor {
+		grid-template-columns: minmax(0, 1fr);
+		height: auto;
+	}
+
+	.docs-map-frame .map-side {
+		border-left: none;
+		border-top: 1px solid var(--border);
+	}
 }
