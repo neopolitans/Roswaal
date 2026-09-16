@@ -76,6 +76,33 @@ export interface Release {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.60.0",
+		date: "2026-09-16",
+		headline: "Every toolbar is drawn, with its buttons named.",
+		affects: ["docs", "editor", "designer"],
+		added: [
+			"A new page under Getting started, [Toolbars](toolbars). Five bars drawn as they appear — the editor's top bar, the three floating groups over a graph, a node map's row, Node Design's header and this window's — each with every control named underneath it.",
+			"**Docs, Node Design and Settings are named and placed.** They are the last three icons on the editor's top bar, in that order, and the page says so in words as well as in the picture.",
+			"A table of how to get from any of the three windows to the other two.",
+			"**The drawn bars point at their own documentation.** Hover a control and its row in the list lights; hover a row and the control lights. Tapping one keeps it lit, and brings it into view if the bar has scrolled sideways.",
+			"**Both editors are drawn.** The editor's top bar, Node Design's header and the documentation's own header each carry a switch between the build the daemon serves and the one that runs in a browser tab.",
+			"**Every window of the browser preview now says it is one.** The *preview* chip sits beside the version in the editor and in Node Design, and the links into it — the front page's first button, and *Try it in your browser* in the documentation's header — carry it too. If you can see the chip, your project is kept in that browser rather than in your repository.",
+		],
+		changed: [
+			"The front page says what the browser preview is, under the button that opens it. Its own tag is still the version: Roswaal is not a preview, the thing behind that one button is.",
+			"Getting started and [Controls](controls) point at the new page. Controls is the keyboard and the mouse; the buttons are on Toolbars.",
+			"*Creating custom nodes* names the button that opens Node Design rather than saying it is on the toolbar.",
+		],
+		fixed: [
+			"**Node Design in the browser preview did not say it was the preview.** It is a whole window of that build and carried nothing; the chip was a one-off in the editor's toolbar rather than a rule. It is one component now, and every surface of that build renders it.",
+			"**In the browser preview, the Docs button said it would show this project's packs.** It opens the published documentation, which is a static site with no registry behind it and documents the built-in library only. The tooltip now says so; the button is unchanged, and a project's own packs are still documented in the editor the daemon serves.",
+		],
+		watch: [
+			"The bars are drawn in your own theme, at your own window width, rather than photographed — so a bar wider than the reading column scrolls sideways. The position of each control is written out in the list beneath it as well, which is what the page falls back on with no pointer and no script.",
+			"Nothing in a drawn bar does anything when you click it. It is a picture of a control, not the control.",
+		],
+	},
+	{
 		version: "0.59.2",
 		date: "2026-09-15",
 		headline: "A published documentation page leads somewhere.",

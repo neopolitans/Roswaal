@@ -35,6 +35,7 @@ import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
 import { IS_STATIC_HOST } from "./pages.js";
+import { PreviewChip } from "./previewBuild.jsx";
 
 export interface ProjectBarProps {
 	config: RoswaalConfig;
@@ -78,8 +79,10 @@ export function ProjectBar(props: ProjectBarProps) {
 				<span className="version">{VERSION}</span>
 				{/* And *which kind* of build, which is the second question. A
 				    shared link lands on the editor rather than on the page that
-				    explains what it is, so the editor has to say. */}
-				{IS_STATIC_HOST && <span className="version preview-chip">preview</span>}
+				    explains what it is, so the editor has to say. One component
+				    for every surface of the browser build -- see
+				    `previewBuild.tsx` for why that is a rule. */}
+				<PreviewChip />
 			</button>
 
 			{/* Icons, with the label as the tooltip. A toolbar is read by shape
@@ -139,9 +142,17 @@ export function ProjectBar(props: ProjectBarProps) {
 			>
 				Compile project
 			</button>
+			{/* Two builds, two destinations. The daemon opens its own /docs, which
+			    is built from the live registry and so has a page for every pack
+			    node as well. The hosted build has no daemon to ask, so it opens
+			    the published site — the built-in library, and nothing of yours.
+			    Promising packs there sent people looking for a page that is not
+			    on that site. */}
 			<button
 				className="tb icon-only"
-				title="Docs — guides, and a page for every node including this project's packs. Opens in its own window."
+				title={IS_STATIC_HOST
+					? "Docs — guides, and a page for every built-in node. Opens the published documentation in its own tab; a project's own packs are documented in the editor the daemon serves."
+					: "Docs — guides, and a page for every node including this project's packs. Opens in its own window."}
 				aria-label="Open the documentation"
 				onClick={props.onOpenDocs}
 			>

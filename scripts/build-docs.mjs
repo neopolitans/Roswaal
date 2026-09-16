@@ -25,10 +25,13 @@ import { escapeHtml, renderSite } from "../src/core/docs/html.ts";
 import { highlightLuau } from "../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../src/app/palette.ts";
 import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
+import { ICONS, VIEW_BOX } from "../src/app/icons.tsx";
+import { previewChipMarkup } from "../src/app/previewMark.ts";
 
 import { wirePath } from "../src/app/geometry.ts";
 import { NODE } from "../src/app/layers.ts";
 import { buildGraphViewer } from "./lib/graphViewer.mjs";
+import { buildToolbarLinker } from "./lib/toolbarLinker.mjs";
 import { VERSION } from "../src/cli/version.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -141,7 +144,13 @@ async function main() {
 		growth: (p) => growthState(registry.get(p.id), p.config),
 	};
 	const logo = { mark: logoMarkup(18), icon: faviconHref() };
-	const files = renderSite(site, { highlight, pinColor, preview, logo, registry, version: VERSION });
+	// The glyphs and the mark a drawn toolbar needs. Core cannot import either,
+	// so the build hands them over the same way it hands over the palette.
+	const toolbars = { viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15) };
+	const files = renderSite(site, {
+		highlight, pinColor, preview, logo, registry, toolbars,
+		previewChip: previewChipMarkup(), version: VERSION,
+	});
 
 	for (const file of files) {
 		const target = join(out, file.path);
@@ -160,7 +169,11 @@ async function main() {
 		body: e.body,
 	}));
 	await writeFile(join(out, "search.json"), JSON.stringify(index), "utf8");
-	await writeFile(join(out, "docs.js"), CLIENT + await buildGraphViewer(), "utf8");
+	await writeFile(
+		join(out, "docs.js"),
+		CLIENT + (await buildGraphViewer()) + (await buildToolbarLinker()),
+		"utf8",
+	);
 
 	// The editor's own stylesheet, so the site and the in-app window are styled
 	// by one file rather than by two that have to be kept in step.

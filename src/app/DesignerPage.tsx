@@ -26,6 +26,7 @@ import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import { PAGE_TARGET, pageHref } from "./pages.js";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
+import { PreviewChip } from "./previewBuild.jsx";
 import { VERSION } from "../cli/version.js";
 
 export function DesignerPage() {
@@ -97,6 +98,10 @@ export function DesignerPage() {
 					<Logo height={17} title="Roswaal" />
 					Node Design
 					<span className="version">{VERSION}</span>
+					{/* A window of the browser build says so, the same as the editor
+					    does. It did not, and Node Design is where somebody decides
+					    whether Roswaal can hold their node library. */}
+					<PreviewChip />
 				</span>
 				<span style={{ flex: 1 }} />
 				<a

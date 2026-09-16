@@ -26,6 +26,7 @@ import { api } from "./api.js";
 import { DocsView } from "./DocsPanel.jsx";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
+import { PreviewChip } from "./previewBuild.jsx";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { SettingsPanel } from "./SettingsPanel.jsx";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
@@ -109,6 +110,11 @@ export function DocsPage() {
 					<Logo height={17} title="Roswaal" />
 					Docs
 					<span className="version">{VERSION}</span>
+					{/* Nothing today: the browser build sends Docs to the published
+					    site rather than to this window. Here anyway, because the
+					    rule is every surface of that build, and the day this one is
+					    served from it is not the day to remember. */}
+					<PreviewChip />
 				</span>
 				{packsFailed && (
 					<span className="warn" title="Start the daemon and reload to include them">

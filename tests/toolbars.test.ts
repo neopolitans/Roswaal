@@ -1,0 +1,415 @@
+/**
+ * The toolbars the documentation draws.
+ *
+ * The page is a replica rather than a screenshot, which buys one thing a
+ * screenshot cannot give: the things that make it wrong are checkable. Two of
+ * them matter.
+ *
+ * A **glyph name that is not in the icon set** draws an empty square. The
+ * reader is on this page precisely because they cannot tell the icons apart,
+ * so a blank one is worse than the problem it was meant to solve.
+ *
+ * And the **two renderers must draw the same bar**. The picture is one string
+ * from `toolbars.ts`, so it cannot drift; the legend is rendered twice, and
+ * that is where a control could be listed on the website and missing in the
+ * editor's own Docs panel.
+ */
+
+import { describe, expect, it } from "vitest";
+
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
+import {
+	blockText, buildSearchIndex, buildSite, findPage, searchDocs, type Block,
+} from "../src/core/docs/site.js";
+import { renderPage } from "../src/core/docs/html.js";
+import {
+	controlKey, controlsOf, DOCS_SITE_BAR, EDITOR_BAR, EDITOR_BAR_BROWSER, iconsOf, legendOf,
+	TOOLBAR_HINT, toolbarConstant, toolbarHtml, TOOLBARS, type ToolbarArt,
+} from "../src/core/docs/toolbars.js";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { buildToolbarLinker } from "../scripts/lib/toolbarLinker.mjs";
+import * as toolbars from "../src/core/docs/toolbars.js";
+import { pageSource } from "../src/app/PageEditor.jsx";
+import { ICONS, VIEW_BOX } from "../src/app/icons.js";
+import { logoMarkup } from "../src/app/logo.js";
+
+const registry = createRegistry();
+const site = buildSite(registry, new Set(BUILTIN_NODES.map((d) => d.id)));
+const art: ToolbarArt = {
+	viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: "test",
+};
+/** Built once, at the top level: a describe callback cannot await. */
+const linker: string = await buildToolbarLinker();
+
+describe("the toolbar specs", () => {
+	it("names only glyphs the icon set has", () => {
+		for (const bar of TOOLBARS) {
+			for (const name of iconsOf(bar)) {
+				expect(ICONS, `${bar.id} draws "${name}"`).toHaveProperty(name);
+			}
+		}
+	});
+
+	it("gives every listed control a name and a line about it", () => {
+		for (const bar of TOOLBARS) {
+			expect(legendOf(bar).length, bar.id).toBeGreaterThan(0);
+			for (const item of legendOf(bar)) {
+				expect(item.what, `${bar.id}: ${item.name}`).toBeTruthy();
+			}
+		}
+	});
+
+	/** Two rows called the same thing is a legend the reader cannot use. */
+	it("has no two controls on one bar sharing a name", () => {
+		for (const bar of TOOLBARS) {
+			const names = legendOf(bar).map((item) => item.name);
+			expect(new Set(names).size, bar.id).toBe(names.length);
+		}
+	});
+
+	/**
+	 * The name a spec is exported under is derived from its id, so a bar added
+	 * with an id that does not spell its constant would have *Suggest an edit*
+	 * hand back source naming something that is not there.
+	 */
+	it("derives each spec's exported name from its id", () => {
+		for (const bar of TOOLBARS) {
+			const name = toolbarConstant(bar);
+			expect(toolbars, bar.id).toHaveProperty(name);
+			expect((toolbars as Record<string, unknown>)[name], bar.id).toBe(bar);
+		}
+	});
+
+	/**
+	 * Roswaal is two editors out of one bundle and this page is read from both.
+	 * The browser preview's bar is drawn separately because three of its
+	 * controls reach something different -- and the one that matters is Docs,
+	 * which lands on a site that has no project behind it.
+	 */
+	it("does not promise a hosted reader a reference for their own packs", () => {
+		const daemon = legendOf(EDITOR_BAR).find((item) => item.name === "Docs")!;
+		const browser = legendOf(EDITOR_BAR_BROWSER).find((item) => item.name === "Docs")!;
+
+		expect(daemon.what).toContain("packs");
+		expect(browser.what).toContain("cannot document");
+		expect(browser.what).not.toMatch(/including your project/);
+	});
+
+	/**
+	 * The chip is the one thing on screen that says which build you are in. Which
+	 * bars carry it is the browser build's rule rather than this page's, so it is
+	 * held in `previewbuild.test.ts` against `BROWSER_TOOLBARS` — here only as
+	 * far as the browser editor having one at all.
+	 */
+	it("draws the preview chip on the browser editor's bar", () => {
+		expect(toolbarHtml(EDITOR_BAR_BROWSER, art)).toContain("preview-chip");
+		expect(toolbarHtml(EDITOR_BAR, art)).not.toContain("preview-chip");
+	});
+
+	/**
+	 * The published header is a different header, not the same buttons pointing
+	 * elsewhere -- and it is the one a reader on the project site is looking at
+	 * while they read this page.
+	 */
+	it("draws the published documentation's own header", () => {
+		const names = legendOf(DOCS_SITE_BAR).map((item) => item.name);
+		expect(names).toContain("Try it in your browser");
+		expect(names).toContain("Source");
+		expect(names).not.toContain("Settings");
+	});
+
+	/**
+	 * The three the page exists for. If any of these stops being an icon at the
+	 * right-hand end of the editor's bar, the page says something untrue about
+	 * where to look — and the wording that points at them is hand-written.
+	 */
+	it("keeps Docs, Node Design and Settings last on the editor's bar, in that order", () => {
+		const editor = TOOLBARS.find((bar) => bar.id === "editor-bar")!;
+		const items = controlsOf(editor);
+		expect(items.slice(-3).map((item) => item.t === "icon" && item.icon)).toEqual([
+			"document", "palette", "settings",
+		]);
+		expect(items.slice(-3).map((item) => item.name)).toEqual([
+			"Docs", "Node Design", "Settings",
+		]);
+	});
+});
+
+describe("drawing one", () => {
+	it("draws each control, with the glyph the spec names", () => {
+		const editor = TOOLBARS.find((bar) => bar.id === "editor-bar")!;
+		const html = toolbarHtml(editor, art);
+
+		expect(html).toContain('class="toolbar"');
+		expect(html).toContain(ICONS.palette);
+		expect(html).toContain(ICONS.settings);
+		// The flexible gap is what puts them at the right-hand end.
+		expect(html).toContain('<span class="spacer"></span>');
+	});
+
+	it("floats the graph's tools as separate panels", () => {
+		const graph = TOOLBARS.find((bar) => bar.id === "graph-bar")!;
+		const html = toolbarHtml(graph, art);
+
+		expect(html).toContain('class="floating-tools"');
+		expect(html.match(/class="tool-group"/g)).toHaveLength(graph.groups.length);
+	});
+
+	/** A page header spells its flexible gap `grow`; the other two `spacer`. */
+	it("uses the header's own spacer on a window header", () => {
+		const docs = TOOLBARS.find((bar) => bar.id === "docs-bar")!;
+		const html = toolbarHtml(docs, art);
+
+		expect(html).toContain('class="docs-page-head"');
+		expect(html).toContain('<span class="grow"></span>');
+		expect(html).not.toContain('class="spacer"');
+	});
+
+	it("takes the version it is given rather than holding one", () => {
+		expect(toolbarHtml(TOOLBARS[0], art)).toContain(">test<");
+	});
+
+	/** Inert: nothing in the picture is reachable, and none of it is announced. */
+	it("leaves nothing in the picture focusable or announced", () => {
+		for (const bar of TOOLBARS) {
+			const html = toolbarHtml(bar, art);
+			expect(html, bar.id).toContain('aria-hidden="true"');
+			for (const button of html.match(/<button[^>]*>/g) ?? []) {
+				expect(button, bar.id).toContain('tabindex="-1"');
+			}
+		}
+	});
+
+	/** No artwork means no picture, rather than a row of empty squares. */
+	it("draws nothing for a glyph the set does not have", () => {
+		const bare: ToolbarArt = { ...art, paths: {} };
+		expect(toolbarHtml(TOOLBARS[0], bare)).not.toContain("<svg class=\"icon\"");
+	});
+});
+
+/** Bar ids in page order, walking into tabs the way the renderers do. */
+function drawnBars(blocks: readonly Block[]): string[] {
+	return blocks.flatMap((block) => {
+		if (block.t === "toolbar") return [block.bar.id];
+		if (block.t === "tabs") return block.tabs.flatMap((tab) => drawnBars(tab.blocks));
+		return [];
+	});
+}
+
+describe("the Toolbars page", () => {
+	const page = findPage(site, "toolbars")!;
+
+	it("is in the site", () => {
+		expect(page).toBeDefined();
+		expect(page.title).toBe("Toolbars");
+	});
+
+	it("draws every bar the specs describe, tabs included", () => {
+		expect(drawnBars(page.blocks)).toEqual(TOOLBARS.map((bar) => bar.id));
+	});
+
+	/**
+	 * The static site switches a tabs block with radios, and names the group
+	 * after the tab ids joined together. Two blocks whose tabs are called the
+	 * same thing therefore share one radio group, and picking a tab under one
+	 * bar silently moves the other. Both switches on this page answer nearly the
+	 * same question, so this is one rename away at all times.
+	 */
+	it("gives each tab switch on a page its own radio group", () => {
+		const groups = page.blocks.flatMap((b) =>
+			b.t === "tabs" ? [b.tabs.map((tab) => tab.id).join("-")] : [],
+		);
+		expect(groups.length).toBeGreaterThan(1);
+		expect(new Set(groups).size).toBe(groups.length);
+	});
+
+	/** Both panels are in the markup, so the page reads with no script at all. */
+	it("puts both editors in the page rather than only the open tab", () => {
+		const html = renderPage(site, page, { version: "test", toolbars: art });
+		expect(html).toContain("The same bar in the browser preview");
+		expect(html).toContain("Everything on it acts on the project.");
+	});
+
+	/**
+	 * The point of the whole exercise: somebody who cannot find Node Design
+	 * types "Node Design" and lands here rather than on a node's page.
+	 */
+	it("is findable by searching for the buttons people cannot find", () => {
+		const index = buildSearchIndex(site);
+		for (const term of ["node design", "palette icon", "gear icon", "document icon"]) {
+			const hits = searchDocs(index, term).map((hit) => hit.slug);
+			expect(hits, term).toContain("toolbars");
+		}
+	});
+
+	it("puts a control's name and its explanation into the search text", () => {
+		// Inside a tabs block now, and the index has to walk into it: a reader
+		// searching for Node Design must not depend on which tab is open.
+		const tabs = page.blocks.find((b) => b.t === "tabs")!;
+		const text = blockText(tabs);
+		expect(text).toContain("Node Design");
+		expect(text).toContain("second icon from the right");
+		// Markup is stripped, the way it is for every other block.
+		expect(text).not.toContain("[");
+		expect(text).not.toContain("**");
+	});
+});
+
+/**
+ * The pairing that makes the page interactive.
+ *
+ * Both sides derive their handle from the control's name, and the thing that
+ * breaks is one side deriving it and the other not — which is silent: the page
+ * renders, the hover simply does nothing, and nobody notices until somebody
+ * tries it.
+ */
+describe("pointing between the picture and the list", () => {
+	it("gives a control and its row the same handle", () => {
+		for (const bar of TOOLBARS) {
+			const html = toolbarHtml(bar, art);
+			for (const item of legendOf(bar)) {
+				expect(html, `${bar.id}: ${item.name}`).toContain(
+					`data-control="${controlKey(item.name)}"`,
+				);
+			}
+		}
+	});
+
+	/** Furniture is drawn and left out of the pairing: nothing to point at. */
+	it("leaves a control the legend does not list unhandled", () => {
+		const graph = TOOLBARS.find((bar) => bar.id === "graph-bar")!;
+		const html = toolbarHtml(graph, art);
+		const handles = [...html.matchAll(/data-control="([^"]+)"/g)].map((m) => m[1]);
+
+		expect(handles).toEqual(legendOf(graph).map((item) => controlKey(item.name)));
+		// The document's name is drawn and is not a control.
+		expect(html).toContain('class="doc-name');
+	});
+
+	/** A key that is not unique lights two things at once. */
+	it("keeps every handle on a bar distinct", () => {
+		for (const bar of TOOLBARS) {
+			const keys = legendOf(bar).map((item) => controlKey(item.name));
+			expect(new Set(keys).size, bar.id).toBe(keys.length);
+		}
+	});
+
+	it("says how it works once on the page, and only once", () => {
+		const page = findPage(site, "toolbars")!;
+		const html = renderPage(site, page, { version: "test", toolbars: art });
+		expect(html.match(new RegExp(TOOLBAR_HINT, "g"))).toHaveLength(1);
+	});
+});
+
+/**
+ * The script the site runs. The same shape of check the graph viewer gets, and
+ * for the same reason: it is bundled out of a module, and a bundle that names
+ * something nothing defines fails silently on every page it is asked to wire.
+ */
+describe("the documentation's toolbar linker", () => {
+	it("is actually there", () => {
+		expect(linker).toContain("data-control");
+		expect(linker).toContain("docs-bar");
+	});
+
+	it("parses as a script a browser would accept", () => {
+		expect(() => new Function(linker)).not.toThrow();
+	});
+
+	it("defines every transpiler helper it calls", () => {
+		const called = new Set(
+			[...linker.matchAll(/(__[A-Za-z]\w*)\s*\(/g)].map((found) => found[1]),
+		);
+		const undeclared = [...called].filter(
+			(name) => !new RegExp("(?:var|let|const|function)\s+" + name + "\b").test(linker),
+		);
+		expect(undeclared).toEqual([]);
+	});
+
+	/** Most pages have no toolbar on them, and it shares a file with the search box. */
+	it("runs on a page with no toolbar to wire", () => {
+		const document = { querySelectorAll: () => [] };
+		expect(() => new Function("document", linker)(document)).not.toThrow();
+	});
+
+	/** And on a page with one, which is where it has something to do. */
+	it("claims a figure and lights a control with its row", () => {
+		const made = (control: string) => {
+			const classes = new Set<string>();
+			return {
+				dataset: { control },
+				classList: {
+					toggle: (name: string, on: boolean) => (on ? classes.add(name) : classes.delete(name)),
+					add: (name: string) => classes.add(name),
+					remove: (name: string) => classes.delete(name),
+				},
+				lit: () => classes.has("lit"),
+			};
+		};
+		const button = made("settings");
+		const row = made("settings");
+		const other = made("docs");
+		const parts = [button, row, other];
+
+		const listeners: Record<string, (e: unknown) => void> = {};
+		const figureClasses = new Set<string>();
+		const figure = {
+			querySelectorAll: () => parts,
+			querySelector: () => null,
+			contains: () => true,
+			addEventListener: (name: string, fn: (e: unknown) => void) => void (listeners[name] = fn),
+			removeEventListener: () => {},
+			classList: { add: (n: string) => figureClasses.add(n), remove: (n: string) => figureClasses.delete(n) },
+		};
+		const document = { querySelectorAll: () => [figure] };
+
+		expect(() => new Function("document", linker)(document)).not.toThrow();
+		expect(figureClasses).toContain("linked");
+		expect(listeners.pointerover).toBeTypeOf("function");
+	});
+});
+
+describe("suggesting an edit", () => {
+	it("writes a bar as the constant it is, not as its spec", () => {
+		const page = findPage(site, "toolbars")!;
+		const source = pageSource(page, page.blocks.map((block) => ({ block })));
+
+		expect(source).toContain('{ t: "toolbar", bar: DESIGNER_BAR },');
+		// Including the ones inside a tab, which is where it first leaked: a
+		// `tabs` block was handed back as JSON, spec and all.
+		expect(source).toContain('{ t: "toolbar", bar: EDITOR_BAR, hint: true },');
+		expect(source).toContain('{ t: "toolbar", bar: EDITOR_BAR_BROWSER },');
+		expect(source).toContain('{ t: "toolbar", bar: DOCS_SITE_BAR },');
+		// The spec itself never reaches the output.
+		expect(source).not.toContain('"chrome"');
+	});
+});
+
+describe("the two renderers", () => {
+	const page = findPage(site, "toolbars")!;
+	const html = renderPage(site, page, { version: "test", toolbars: art });
+
+	it("lists the same controls the panel would", () => {
+		for (const bar of TOOLBARS) {
+			for (const item of legendOf(bar)) {
+				expect(html, `${bar.id}: ${item.name}`).toContain(
+					`<span class="docs-bar-name">${item.name}`,
+				);
+			}
+		}
+	});
+
+	it("resolves a page link in a control's line to a file beside this one", () => {
+		expect(html).toContain('href="creating-custom-nodes.html"');
+	});
+
+	/**
+	 * Without the artwork the picture is left out and the words stay, which is
+	 * the degradation that still answers the reader's question.
+	 */
+	it("keeps the legend when it is given no artwork", () => {
+		const bare = renderPage(site, page, { version: "test" });
+		expect(bare).not.toContain("docs-bar-frame");
+		expect(bare).toContain('<span class="docs-bar-name">Node Design');
+	});
+});

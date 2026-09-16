@@ -29,7 +29,8 @@ import {
 } from "../core/docs/preview.js";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { highlightLuau } from "./highlight.js";
-import { Icon } from "./icons.jsx";
+import { Icon, ICONS, VIEW_BOX } from "./icons.jsx";
+import { logoMarkup } from "./logo.jsx";
 import { NODE, ZOOM } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { wirePath } from "./geometry.js";
@@ -37,6 +38,10 @@ import { attachGraphView } from "./graphView.js";
 import type { Preferences } from "./preferences.js";
 import { growthState } from "../core/nodes/growth.js";
 import { PageEditor } from "./PageEditor.jsx";
+import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
+import { attachToolbarLink } from "./toolbarLink.js";
+import type { ToolbarSpec } from "../core/docs/toolbars.js";
+import { VERSION } from "../cli/version.js";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
 
@@ -610,7 +615,68 @@ function BlockView({ block }: { block: Block }) {
 			return <GraphFigure script={block.script} caption={block.caption} />;
 		case "tabs":
 			return <Tabs block={block} />;
+		case "toolbar":
+			return <ToolbarFigure bar={block.bar} caption={block.caption} hint={block.hint} />;
 	}
+}
+
+/**
+ * The artwork a drawn toolbar needs, gathered once.
+ *
+ * `src/core` cannot import either the glyphs or the mark, so this is where
+ * they meet — the same arrangement `DEFAULT_PREVIEW` makes for the canvas
+ * geometry, and for the same reason: the picture is then drawn from the
+ * objects the real bars are drawn from.
+ */
+const TOOLBAR_ART = { viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: VERSION };
+
+/**
+ * A bar of the tool, drawn as it appears, with every control named under it.
+ *
+ * The bar itself is markup from `src/core/docs/toolbars.ts` and is injected
+ * rather than rebuilt as JSX — the same bargain the node pictures make, so a
+ * bar cannot look like one thing here and another on the website. Nothing in
+ * it comes from a reader.
+ *
+ * The legend is JSX because its prose carries inline markup, and a link to
+ * another docs page has to go through this panel's own navigation rather than
+ * become an `<a href>` that leaves the window.
+ */
+function ToolbarFigure(
+	{ bar, caption, hint }: { bar: ToolbarSpec; caption?: string; hint?: boolean },
+) {
+	const html = useMemo(() => ({ __html: toolbarHtml(bar, TOOLBAR_ART) }), [bar]);
+	const figure = useRef<HTMLElement>(null);
+
+	// The same function the static site runs, so hovering a button behaves
+	// identically in both. After the markup is in place, and undone on the way
+	// out: this panel swaps pages without unmounting the document.
+	useEffect(() => {
+		if (!figure.current) return;
+		return attachToolbarLink(figure.current);
+	}, [bar]);
+
+	return (
+		<figure className="docs-bar" ref={figure}>
+			<div className="docs-bar-picture" dangerouslySetInnerHTML={html} />
+			<p className="docs-bar-summary"><Rich text={bar.summary} /></p>
+			{hint && <p className="docs-bar-hint">{TOOLBAR_HINT}</p>}
+			<ul className="docs-bar-legend">
+				{legendOf(bar).map((item) => (
+					<li key={item.name} data-control={controlKey(item.name)}>
+						<span className="docs-bar-name">
+							{item.name}
+							{item.where && <span className="docs-bar-where">{item.where}</span>}
+						</span>
+						{item.what && (
+							<span className="docs-bar-what"><Rich text={item.what} /></span>
+						)}
+					</li>
+				))}
+			</ul>
+			{caption && <figcaption><Rich text={caption} /></figcaption>}
+		</figure>
+	);
 }
 
 /**

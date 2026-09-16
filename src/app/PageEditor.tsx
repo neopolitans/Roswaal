@@ -29,6 +29,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Block, DocPage } from "../core/docs/site.js";
 import { previewOf, previewSvg, type PreviewOptions } from "../core/docs/preview.js";
 import { FEEDBACK_REPOSITORY } from "../core/docs/links.js";
+import { toolbarConstant } from "../core/docs/toolbars.js";
 import type { NodeScript } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { api } from "./api.js";
@@ -131,13 +132,56 @@ function blockSource(draft: Draft, indent = "\t\t"): string {
 	if (block.t === "code") {
 		return `${indent}{ t: "code", lang: ${str(block.lang)}, text: ${str(block.text)} },`;
 	}
+	// A bar is a module constant in `site.ts`, not a literal. Written out as
+	// JSON it would bury the page it sits on.
+	if (block.t === "toolbar") {
+		const hint = block.hint ? ", hint: true" : "";
+		const caption = block.caption ? `, caption: ${str(block.caption)}` : "";
+		return `${indent}{ t: "toolbar", bar: ${toolbarConstant(block.bar)}${hint}${caption} },`;
+	}
+
 	if (block.t === "note") {
 		const items = block.items ? `, items: [${block.items.map(str).join(", ")}]` : "";
 		return `${indent}{ t: "note", kind: ${str(block.kind)}, text: ${str(block.text)}${items} },`;
 	}
 
-	// Everything else round-trips as JSON: a table, a pin list, a fold. They are
-	// not editable here, so they are handed back exactly as they arrived.
+	// A block that holds other blocks is written out structurally rather than
+	// stringified, so the ones inside it keep their own source form. Written
+	// flat it buried a drawn toolbar's entire spec -- hundreds of lines of
+	// something the file names in a word -- inside one JSON blob.
+	if (block.t === "tabs") {
+		const inner = `${indent}\t\t`;
+		const tabs = block.tabs
+			.map((tab) =>
+				`${inner}{${NEWLINE}` +
+				`${inner}\tid: ${str(tab.id)},${NEWLINE}` +
+				`${inner}\ttitle: ${str(tab.title)},${NEWLINE}` +
+				`${inner}\tblocks: [${NEWLINE}` +
+				tab.blocks.map((b) => blockSource({ block: b }, `${inner}\t\t`)).join(NEWLINE) +
+				`${NEWLINE}${inner}\t],${NEWLINE}${inner}},`,
+			)
+			.join(NEWLINE);
+		const label = block.label ? `${indent}\tlabel: ${str(block.label)},${NEWLINE}` : "";
+		return (
+			`${indent}{${NEWLINE}${indent}\tt: "tabs",${NEWLINE}${label}` +
+			`${indent}\ttabs: [${NEWLINE}${tabs}${NEWLINE}${indent}\t],${NEWLINE}${indent}},`
+		);
+	}
+
+	if (block.t === "details") {
+		const open = block.open ? ", open: true" : "";
+		const aside = block.aside ? `, aside: ${str(block.aside)}` : "";
+		return (
+			`${indent}{${NEWLINE}${indent}\tt: "details",${NEWLINE}` +
+			`${indent}\tsummary: ${str(block.summary)}${aside}${open},${NEWLINE}` +
+			`${indent}\tblocks: [${NEWLINE}` +
+			block.blocks.map((b) => blockSource({ block: b }, `${indent}\t\t`)).join(NEWLINE) +
+			`${NEWLINE}${indent}\t],${NEWLINE}${indent}},`
+		);
+	}
+
+	// Everything else round-trips as JSON: a table, a pin list. They are not
+	// editable here, so they are handed back exactly as they arrived.
 	return `${indent}${JSON.stringify(block)},`;
 }
 

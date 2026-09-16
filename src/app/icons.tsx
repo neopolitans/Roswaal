@@ -12,7 +12,12 @@
  * why the viewBox looks odd. Leave it alone; the paths are authored for it.
  */
 
-const VIEW_BOX = "0 -960 960 960";
+/**
+ * Material's own grid, bottom-left origin. Exported because the documentation
+ * draws a toolbar from `src/core`, which cannot import this file and so is
+ * handed the paths and the grid they are authored for.
+ */
+export const VIEW_BOX = "0 -960 960 960";
 
 export const ICONS = {
 	chevron: "M480-345 240-585l56-56 184 184 184-184 56 56-240 240Z",

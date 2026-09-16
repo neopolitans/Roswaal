@@ -21,6 +21,9 @@ import type { Registry } from "../nodes/index.js";
 import { allPages, isPageLink, parseInline, TAG_LABELS } from "./site.js";
 import { graphSvg, previewSvg, type PreviewOptions } from "./preview.js";
 import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
+import {
+	controlKey, legendOf, TOOLBAR_HINT, toolbarHtml, type ToolbarArt,
+} from "./toolbars.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
 
 export interface RenderOptions {
@@ -52,6 +55,25 @@ export interface RenderOptions {
 	 * the definitions behind them are what say how each one looks.
 	 */
 	registry?: Registry;
+	/**
+	 * The icon paths and the mark, for drawing a toolbar. Passed in for the
+	 * same reason as the rest — the artwork is in `src/app`.
+	 *
+	 * Without it the legend still renders and still names every control, which
+	 * is the honest degradation: the page's job is telling somebody which
+	 * button opens Node Design, and the words do that without the picture.
+	 */
+	toolbars?: Omit<ToolbarArt, "version">;
+	/**
+	 * The `preview` mark, beside the header's link into the browser build.
+	 *
+	 * Markup rather than a flag, and passed in for the same reason as the rest:
+	 * the word and its caveat live in `src/app/previewBuild.tsx`, which is where
+	 * the rule is written down. Absent, the link is still a link — this site is
+	 * readable with nothing passed in at all — but the build passes it, and
+	 * `tests/previewbuild.test.ts` holds it there.
+	 */
+	previewChip?: string;
 	/** Shown in the header, next to the name. */
 	version: string;
 }
@@ -197,6 +219,29 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				? `<figcaption>${inline(block.caption, up)}</figcaption>`
 				: "";
 			return `<figure class="docs-preview"><div class="row">${svgs}</div>${caption}</figure>`;
+		}
+		case "toolbar": {
+			// The picture comes from core so it is byte-identical to the panel's;
+			// the legend is rendered here because its prose carries page links,
+			// and a page link is resolved differently in each renderer.
+			const art = options.toolbars;
+			const picture = art ? toolbarHtml(block.bar, { ...art, version: options.version }) : "";
+			const legend = legendOf(block.bar)
+				.map(
+					(item) =>
+						`<li data-control="${escapeHtml(controlKey(item.name))}">` +
+						`<span class="docs-bar-name">${escapeHtml(item.name)}` +
+						`${item.where ? `<span class="docs-bar-where">${escapeHtml(item.where)}</span>` : ""}` +
+						`</span>${item.what ? `<span class="docs-bar-what">${inline(item.what, up)}</span>` : ""}</li>`,
+				)
+				.join("");
+			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
+			const hint = block.hint ? `<p class="docs-bar-hint">${escapeHtml(TOOLBAR_HINT)}</p>` : "";
+			return (
+				`<figure class="docs-bar"><div class="docs-bar-picture">${picture}</div>` +
+				`<p class="docs-bar-summary">${inline(block.bar.summary, up)}</p>${hint}` +
+				`<ul class="docs-bar-legend">${legend}</ul>${caption}</figure>`
+			);
 		}
 		case "tabs": {
 			// Radios and labels, so the switch works with no script at all — the
@@ -422,7 +467,7 @@ ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(optio
 <header class="docs-page-head">
 <a class="logo" href="${up}index.html">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a>
 <span class="grow"></span>
-<a class="tb" href="${up}../try.html">Try it in your browser</a>
+<a class="tb" href="${up}../try.html">Try it in your browser${options.previewChip ?? ""}</a>
 <a class="tb" href="${SOURCE_REPOSITORY}" rel="noreferrer noopener">Source</a>
 </header>
 <div class="docs-body">

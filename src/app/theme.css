@@ -4308,10 +4308,18 @@ button.tb.icon-only.on {
 	gap: 6px;
 }
 
-/* Says this is the browser copy. Compound with `.version` so it inherits the
+/* Says this is the browser build. Compound with `.version` so it inherits the
    size and numerals rather than restating them, and reads as a chip beside the
-   number rather than as a second number. */
-.toolbar .logo .version.preview-chip {
+   number rather than as a second number.
+
+   Every surface of that build carries it and every link into it is labelled
+   with it -- see `src/app/previewBuild.tsx`. So the selector is every header
+   that has a mark, plus the documentation site's header link, rather than the
+   editor's toolbar alone: scoped to `.toolbar`, Node Design grew the component
+   and rendered it invisible. */
+.toolbar .logo .version.preview-chip,
+.docs-page-head .logo .version.preview-chip,
+.docs-page-head a.tb .version.preview-chip {
 	color: var(--accent);
 	border: 1px solid var(--border);
 	border-radius: 3px;
@@ -4320,6 +4328,15 @@ button.tb.icon-only.on {
 	text-transform: uppercase;
 	font-size: 9px;
 	letter-spacing: 0.04em;
+}
+
+/* In the header's link it sits inside a button-shaped anchor, which sets its
+   own colour and its own gap. The chip keeps the accent and takes the gap from
+   the flex row rather than a margin of its own. */
+.docs-page-head a.tb .version.preview-chip {
+	margin-left: 0;
+	font-weight: 400;
+	line-height: 1.6;
 }
 
 .docs-page-head .logo .version {
@@ -6884,4 +6901,242 @@ button.tb.danger {
 	color: var(--fg-faint);
 	padding-left: 4.5ch;
 	user-select: none;
+}
+
+/* ------------------------------------------- toolbars drawn in the docs */
+
+/* A bar of the tool, drawn on the page it is documented on. See
+   `src/core/docs/toolbars.ts` for why it is a replica rather than a
+   screenshot: it takes the reader's theme, and it goes stale visibly.
+
+   Everything inside the picture is the real chrome's own class names, so
+   these rules only have to do two things — put the bar in a frame, and make
+   sure nothing in it can be pressed. */
+.docs-bar {
+	margin: 0 0 22px;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	overflow: hidden;
+	background: var(--bg-panel);
+}
+
+/* A bar is as wide as it is. On a narrow page it scrolls sideways rather than
+   wrapping into a shape the reader will never see on their own screen —
+   wrapping was the first version, and it put Settings on a second row, which
+   is the one thing the page must not say. */
+.docs-bar-picture {
+	overflow-x: auto;
+}
+
+/* The bar itself. Nothing in it does anything: no handlers, no tab stops, and
+   `aria-hidden` on the frame, because the legend underneath is what carries the
+   content. It does take the pointer, though -- hovering a button lights its
+   explanation, which is the whole point of the page. */
+.docs-bar-frame {
+	user-select: none;
+	min-width: min-content;
+	background: var(--bg-canvas);
+}
+
+/* Which is also why the real hover paint is off in here. A drawn button lights
+   the same way whether the pointer is on it or on its row in the list, and two
+   different highlights for one relationship reads as two relationships. */
+.docs-bar-frame [data-control],
+.docs-bar-frame [data-control] button {
+	cursor: help;
+}
+
+.docs-bar-frame button.tb:hover:not(:disabled),
+.docs-bar-frame .segmented button:hover {
+	background: var(--bg-input);
+	border-color: var(--border);
+}
+
+.docs-bar-frame button.tb.primary:hover:not(:disabled) {
+	background: var(--accent);
+	filter: none;
+}
+
+.docs-bar-frame button.tb.on:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--accent) 18%, var(--bg-input));
+	border-color: var(--accent);
+}
+
+.docs-bar-frame button.tb.icon-only:hover:not(:disabled) {
+	color: var(--fg-muted);
+}
+
+/* The editor's bar is the full width of a window, so it keeps its own rule.
+   Nothing to override: `.toolbar` is already a plain flex row. */
+.docs-bar-frame.bar > .toolbar,
+.docs-bar-frame.head > .docs-page-head {
+	border-bottom: 0;
+	flex-wrap: nowrap;
+}
+
+/* The graph's tools really do float, absolutely positioned over the canvas.
+   Here there is no canvas to float over, so the strip is laid out in flow —
+   and given some of the canvas above and below it, because the gaps between
+   the groups are the thing being explained. */
+.docs-bar-frame.float > .floating-tools {
+	position: static;
+	flex-wrap: nowrap;
+	margin: 20px 14px;
+	background-image:
+		linear-gradient(var(--grid-fine) 1px, transparent 1px),
+		linear-gradient(90deg, var(--grid-fine) 1px, transparent 1px);
+	background-size: 24px 24px;
+}
+
+/* A real <select> is a tab stop even with nothing to focus, and opens on a
+   click the frame is trying to swallow. This is the box without either:
+   `select.tb`'s paint, and the chevron drawn on. */
+.docs-bar-frame .tb.docs-bar-select {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 4px 9px;
+	white-space: nowrap;
+}
+
+.docs-bar-frame .tb.docs-bar-select::after {
+	content: "";
+	width: 0;
+	height: 0;
+	border: 4px solid transparent;
+	border-top-color: var(--fg-muted);
+	margin-top: 2px;
+}
+
+/* ---- the lit pair
+ *
+ * One control and its explanation, lit together. A ring rather than a fill: the
+ * drawn control already uses fill to mean "this setting is on", and a second
+ * meaning for the same paint would have Straighten look pressed because the
+ * pointer was over its row in the list.
+ *
+ * `.linked` is set by the script, so the cursor and the ring only appear where
+ * the pairing actually works. */
+.docs-bar [data-control] {
+	border-radius: 6px;
+}
+
+.docs-bar.linked [data-control] {
+	transition: box-shadow 90ms ease, background-color 90ms ease;
+}
+
+.docs-bar-frame [data-control].lit {
+	box-shadow: 0 0 0 2px var(--accent);
+}
+
+.docs-bar-legend li.lit {
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.docs-bar.linked .docs-bar-legend li {
+	cursor: help;
+}
+
+/* A link in an explanation is a link first -- the script lets it navigate, so
+   it has to keep looking like one. */
+.docs-bar.linked .docs-bar-legend li a {
+	cursor: pointer;
+}
+
+/* Said once, under the first bar on the page, by the renderers. Quiet: it is an
+   instruction for a thing the reader will find by doing it anyway. */
+.docs-bar-hint {
+	padding: 8px 14px;
+	font-size: 11px;
+	color: var(--fg-faint);
+	border-top: 1px solid var(--border);
+}
+
+/* Nothing to hint at without a pointer, and nothing to hint at before the
+   script has claimed the figure. */
+.docs-bar:not(.linked) .docs-bar-hint {
+	display: none;
+}
+
+@media (hover: none) {
+	.docs-bar-hint::after {
+		content: " Tap one to keep it lit.";
+	}
+}
+
+/* What the bar is and where it sits, between the picture and the list. */
+.docs-bar-summary {
+	margin: 0;
+	padding: 10px 14px;
+	font-size: 12px;
+	color: var(--fg-muted);
+	border-top: 1px solid var(--border);
+	background: var(--bg-panel);
+}
+
+/* Every control, in the order it is drawn. A list rather than a table: the
+   name is the thing being scanned and the explanation is detail under it,
+   which is a column that would be empty on no rows and wide on all of them. */
+.docs-bar-legend {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border-top: 1px solid var(--border);
+}
+
+.docs-bar-legend li {
+	display: grid;
+	grid-template-columns: minmax(9rem, 14rem) 1fr;
+	gap: 4px 18px;
+	padding: 9px 14px;
+	border-bottom: 1px solid var(--border);
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.docs-bar-legend li:last-child {
+	border-bottom: 0;
+}
+
+.docs-bar-name {
+	font-weight: 600;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+/* Where to look for it. Under the name rather than in the sentence, because a
+   reader who cannot find a button is scanning for this and nothing else. */
+.docs-bar-where {
+	font-weight: 400;
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.docs-bar-what {
+	color: var(--fg-muted);
+}
+
+.docs-bar figcaption {
+	padding: 10px 14px;
+	border-top: 1px solid var(--border);
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--fg-muted);
+}
+
+/* One column when the reading column is narrow -- a *container* query, not a
+   media query. The window can be 780px wide with the article at 440 once the
+   nav and the outline have taken their share, and a viewport query does not
+   see that: the name column held its 9rem and left the explanation wrapping
+   at four words. `.docs-page .docs-content` is the container. */
+@container (max-width: 620px) {
+	.docs-bar-legend li {
+		grid-template-columns: 1fr;
+		gap: 2px;
+	}
 }
