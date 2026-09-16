@@ -61,8 +61,21 @@ describe("the landing page", () => {
 		expect(html).toContain("tok-string");
 	});
 
-	it("carries no script of its own", () => {
-		expect(html).not.toMatch(/<script[\s>]/i);
+	/**
+	 * One script, and it is not this page's.
+	 *
+	 * The page had none at all, which was the point: nothing to execute, so
+	 * nothing to go wrong on the first thing anybody sees. That held until the
+	 * page needed to know something only the reader's browser knows -- which
+	 * colour scheme they picked in the editor -- and the answer is the copy the
+	 * documentation already ships rather than a script written for this page.
+	 */
+	it("carries no script but the shared theme one", () => {
+		const scripts = [...html.matchAll(/<script[^>]*>/gi)].map((m) => m[0]);
+		expect(scripts).toHaveLength(1);
+		expect(scripts[0]).toContain("docs/theme.js");
+		// Nothing inline, and nothing this page maintains itself.
+		expect(html).not.toMatch(/<script(?![^>]*\ssrc=)/i);
 	});
 
 	/**

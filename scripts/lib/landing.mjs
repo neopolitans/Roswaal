@@ -353,6 +353,7 @@ ${IS_CANARY ? `<meta name="robots" content="noindex" />
 <meta name="description" content="Visual scripting for Roblox Luau and Lune Luau. Graphs live on disk and compile to plain Luau that Rojo syncs. Try it in your browser, with nothing installed." />
 <link rel="icon" href="${faviconHref()}" />
 <link rel="stylesheet" href="docs/theme.css?v=${encodeURIComponent(version)}" />
+<script src="docs/theme.js?v=${encodeURIComponent(version)}"></script>
 <style>${STYLE}</style>
 </head>
 <body class="roswaal-landing">

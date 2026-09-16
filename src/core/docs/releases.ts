@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.64.6",
+		date: "2026-09-16",
+		headline: "The landing page follows your scheme too.",
+		affects: ["docs"],
+		fixed: [
+			"**The site's front page takes your theme.** It is drawn from the same tokens everything else is, so it was one page away from the fix that reached the documentation — and it is the first page anyone sees.",
+		],
+	},
+	{
 		version: "0.64.5",
 		date: "2026-09-16",
 		headline: "Your colour scheme reaches every window, and the documentation site.",
