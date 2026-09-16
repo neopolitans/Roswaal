@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { landingPage } from "../scripts/lib/landing.mjs";
+import { taglineFor } from "../src/core/docs/releases.js";
 
 /**
  * The stable page, said out loud rather than taken from the environment.
@@ -167,6 +168,45 @@ describe("what the page claims it runs on", () => {
 	it("titles the tab with what Roswaal is", () => {
 		const title = html.match(/<title>([^<]+)<\/title>/)?.[1];
 		expect(title).toBe("Roswaal - Visual Scripting for Luau");
+	});
+});
+
+/**
+ * The footer's line about this version.
+ *
+ * It used to read "the first public release", which was true once and then
+ * quietly stopped being: a hand-written line about a moment cannot go on
+ * describing the version beside it. Every release already writes a `headline`
+ * for exactly this purpose, so the footer reads that rather than keeping its
+ * own copy to forget.
+ */
+describe("the version's tagline", () => {
+	it("takes it from the release notes rather than from the page", () => {
+		const page: string = landingPage("0.59.1", { canary: false });
+		expect(page).toContain(taglineFor("0.59.1"));
+		expect(taglineFor("0.59.1")).toBe("The source is public.");
+	});
+
+	/** The line that went stale, and must not come back. */
+	it("no longer claims to be the first public release", () => {
+		expect(html).not.toContain("the first public release");
+	});
+
+	/**
+	 * A build from between releases has no entry. The number alone is honest;
+	 * the previous release's headline beside this one's version would not be.
+	 */
+	it("says only the number for a version it has no line for", () => {
+		expect(taglineFor("9.9.9")).toBeUndefined();
+		const page: string = landingPage("9.9.9", { canary: false });
+		const foot = page.slice(page.indexOf('class="landing-foot"'));
+		expect(foot).toContain("Roswaal 9.9.9</span>");
+	});
+
+	/** The links go to the other end, so a growing sentence has room. */
+	it("pushes the links away from the version", () => {
+		expect(html).toContain('class="landing-version"');
+		expect(html).toContain(".landing-foot .landing-version { margin-right: auto; }");
 	});
 });
 

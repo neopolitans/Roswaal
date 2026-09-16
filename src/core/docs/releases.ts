@@ -73,8 +73,39 @@ export interface Release {
 	affects?: ReleaseSurface[];
 }
 
+/**
+ * What this version is about, in one line.
+ *
+ * The front page's footer used to say "the first public release", which was
+ * true once and then quietly stopped being — a hand-written line about a moment
+ * cannot describe the version beside it for long. Every release already writes
+ * a `headline`, which is the same sentence for the same purpose, so the footer
+ * reads that instead of carrying its own copy.
+ *
+ * Falls back to nothing rather than to a guess: a version with no entry is a
+ * build from between releases, and a footer that named the previous release's
+ * headline beside this one's number would be worse than a footer that says
+ * only the number.
+ */
+export function taglineFor(version: string): string | undefined {
+	return RELEASES.find((release) => release.version === version)?.headline;
+}
+
 /** Newest first. */
 export const RELEASES: Release[] = [
+	{
+		version: "0.62.3",
+		date: "2026-09-16",
+		headline: "The front page says what this version is about.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**The front page's footer names the release rather than the moment.** It read *the first public release*, which was true once and then quietly stopped being — a line about a day cannot go on describing the version beside it. It takes the release's own headline now, so it is right for every version without anybody remembering to change it.",
+			"The footer's links sit at the other end of the row, so a tagline has room to be a sentence.",
+		],
+		fixed: [
+			"The runtime filter had no room under it, so the chips sat directly on the search box and the two read as one control stuck to another.",
+		],
+	},
 	{
 		version: "0.62.2",
 		date: "2026-09-16",

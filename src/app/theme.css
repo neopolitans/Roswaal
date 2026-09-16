@@ -7306,8 +7306,13 @@ button.tb.danger {
 .menu-runtimes {
 	display: flex;
 	gap: 4px;
-	padding: 6px 8px 0;
+	/* Room underneath as well as above. With `0` at the bottom the chips sat
+	   directly on the search field -- which has its own background and a rule
+	   under it, so the two read as one control stuck to another rather than as
+	   a row above a box. */
+	padding: 8px 8px;
 	flex-wrap: wrap;
+	align-items: center;
 }
 
 .menu-runtimes button {

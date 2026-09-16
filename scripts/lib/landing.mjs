@@ -24,6 +24,7 @@ import { BUILTIN_NODES, createRegistry } from "../../src/core/nodes/index.ts";
 import { growthState } from "../../src/core/nodes/growth.ts";
 import { graphSvg } from "../../src/core/docs/preview.ts";
 import { SOURCE_REPOSITORY } from "../../src/core/docs/links.ts";
+import { taglineFor } from "../../src/core/docs/releases.ts";
 import { highlightLuau } from "../../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../../src/app/palette.ts";
 import { BUILTIN_NODES as ALL_NODES } from "../../src/core/nodes/index.ts";
@@ -309,6 +310,17 @@ body.roswaal-landing {
 .landing-foot {
   border-top: 1px solid var(--border); padding-top: 20px;
   display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--fg-faint);
+  align-items: baseline;
+}
+/* The version and its tagline take the room they need; the links go to the
+   other end. A tagline is a sentence and grows with each release, so the two
+   cannot share a left edge and stay legible -- and the links are a fixed set
+   that reads better as a group anyway. */
+.landing-foot .landing-version { margin-right: auto; }
+/* On a narrow page the row wraps, and a group pinned right by an auto margin
+   lands under the tagline with nothing beside it. Left again once wrapped. */
+@media (max-width: 720px) {
+  .landing-foot .landing-version { margin-right: 0; }
 }
 .landing-foot a { color: var(--fg-muted, #8fa6dd); }
 `;
@@ -611,7 +623,9 @@ ${IS_CANARY ? `<meta name="robots" content="noindex" />
   </div>
 
   <div class="landing-foot">
-    <span>Roswaal ${escapeHtml(version)} — the first public release.</span>
+    <span class="landing-version">Roswaal ${escapeHtml(version)}${
+      taglineFor(version) ? ` — ${escapeHtml(taglineFor(version))}` : ""
+    }</span>
     <a href="https://github.com/neopolitans/roswaal-feedback/issues/new">Report something</a>
     <a href="docs/release-notes.html">Release notes</a>
     <a href="docs/attributions.html">Attributions and licence</a>
