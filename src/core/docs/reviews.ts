@@ -81,7 +81,12 @@ export const REVIEWS: Record<
 	// Comments table gained the two ways to make one.
 	"controls": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
 	// Read by the author against the editor and Node Design, both ways, for 0.72.0.
-	"the-interface": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
+	"the-interface": {
+		status: "verified",
+		date: "2026-09-18",
+		reviewers: ["neopolitans"],
+		verify: "The two Phone (Webapp) tabs, added after it was verified.",
+	},
 	// Verified with the author, once it had pictures for every section.
 	"wires-and-pins": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	// Verified with the author. Settings once its rojoProject line said what
