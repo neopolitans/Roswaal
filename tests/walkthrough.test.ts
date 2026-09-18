@@ -73,7 +73,7 @@ describe("a walkthrough on the page", () => {
 	const page = pages.find((p) => p.slug === "getting-started")!;
 	const html = renderPage(site, page, {
 		version: "test",
-		toolbars: { viewBox: "0 -960 960 960", paths: ICONS, mark: "<svg></svg>", version: "test" },
+		toolbars: { viewBox: "0 -960 960 960", paths: ICONS, mark: "<svg></svg>" },
 	});
 
 	it("draws every step's screen, the first one showing", () => {
