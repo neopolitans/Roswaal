@@ -70,12 +70,9 @@ export const REVIEWS: Record<
 	// the drawn bars sat flush against their legends and read as the top row of
 	// a list, and the graph toolbars' canvas stopped where the tools stopped.
 	// Both were found by looking at the page rather than at the diff.
-	"toolbars": {
-		status: "verified",
-		date: "2026-09-16",
-		reviewers: ["neopolitans"],
-		verify: "The Tablet and Phone tabs on each bar, each listing every control, and Only on a touch screen, added in 0.72.0.",
-	},
+	// Verified again for 0.72.0, with its Desktop, Tablet and Phone tabs and
+	// the two bars only a touch screen has.
+	"toolbars": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.29.1.
 	// Read again for 0.31.6, when C stopped needing a selection and the
 	// Comments table gained the two ways to make one.
