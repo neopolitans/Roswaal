@@ -103,11 +103,27 @@ export interface CanvasProps {
 	 * wire would end where the node used to be.
 	 */
 	wideNodes?: boolean;
+	/**
+	 * What scrolling does with nothing held: zoom, as a mouse wheel always has
+	 * here, or pan, which is what a trackpad's two-finger drag means. Resolved
+	 * from the preference by the caller. Pinching zooms either way.
+	 */
+	wheel?: "zoom" | "pan";
 }
 
 type Gesture =
 	| { kind: "none" }
-	| { kind: "pan"; startView: View; origin: Vec }
+	| {
+			kind: "pan"; startView: View; origin: Vec;
+			/**
+			 * A finger on empty canvas pans rather than drawing a marquee, so it
+			 * cannot clear the selection on the way down the way a click does.
+			 * It does so on the way up instead, if it never moved: a tap.
+			 */
+			tap?: boolean;
+	  }
+	/** Two fingers: zoom by how far apart they are, pan by where they are. */
+	| { kind: "pinch"; startView: View; ids: [number, number]; distance: number; middle: Vec }
 	| { kind: "marquee"; origin: Vec; additive: boolean }
 	| {
 			kind: "move";
@@ -133,7 +149,7 @@ export function Canvas({
 	script: whole, graph = null, registry, diagnostics, onRequestMenu, onRequestNodePicker,
 	onRequestPinMenu, onEditCode,
 	onPointerAt,
-	onDropFile, locked = false, wireStyle = "curved", wideNodes = false,
+	onDropFile, locked = false, wireStyle = "curved", wideNodes = false, wheel = "zoom",
 }: CanvasProps) {
 	const { selection, path } = useEditor();
 	/**
@@ -261,31 +277,107 @@ export function Canvas({
 		[],
 	);
 
-	// -- zoom --------------------------------------------------------------
+	// -- zoom and scroll ---------------------------------------------------
+
+	/** Read by listeners bound once, so a changed preference reaches them. */
+	const wheelMode = useRef(wheel);
+	wheelMode.current = wheel;
+
+	/** Touches down on the canvas, by pointer id, in client coordinates. */
+	const touches = useRef(new Map<number, Vec>());
+	/**
+	 * The pointer driving the gesture in progress.
+	 *
+	 * A mouse has one, so this never mattered. Fingers are several, and without
+	 * it the second finger of a pinch moved whatever the first had grabbed.
+	 */
+	const activePointer = useRef<number | null>(null);
 
 	useEffect(() => {
 		const element = surface.current;
 		if (!element) return;
 
-		const onWheel = (e: WheelEvent) => {
-			e.preventDefault();
-			const box = element.getBoundingClientRect();
-			const sx = e.clientX - box.left;
-			const sy = e.clientY - box.top;
-			const current = store.getView();
-
-			const factor = e.deltaY < 0 ? ZOOM.step : 1 / ZOOM.step;
-			const zoom = clamp(current.zoom * factor, ZOOM.min, ZOOM.max);
-			if (zoom === current.zoom) return;
-
-			// Keep the world point under the cursor pinned while zooming.
-			const wx = (sx - current.x) / current.zoom;
-			const wy = (sy - current.y) / current.zoom;
+		/** Zoom by `factor` about a point on the canvas, which stays where it is. */
+		const zoomAbout = (sx: number, sy: number, factor: number, from = store.getView()) => {
+			const zoom = clamp(from.zoom * factor, ZOOM.min, ZOOM.max);
+			if (zoom === store.getView().zoom) return;
+			const wx = (sx - from.x) / from.zoom;
+			const wy = (sy - from.y) / from.zoom;
 			store.setView({ x: sx - wx * zoom, y: sy - wy * zoom, zoom });
 		};
 
+		/** Safari's own pinch, while one is in progress. See below. */
+		let pinch: { view: View; sx: number; sy: number } | null = null;
+
+		const onWheel = (e: WheelEvent) => {
+			e.preventDefault();
+			// Safari reports a trackpad pinch twice over; the gesture events own it.
+			if (pinch) return;
+			const box = element.getBoundingClientRect();
+			const sx = e.clientX - box.left;
+			const sy = e.clientY - box.top;
+			// Lines and pages are what a mouse wheel sends in Firefox. Pixels are
+			// what everything else is measured in.
+			const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? box.height : 1;
+			const dx = e.deltaX * unit;
+			const dy = e.deltaY * unit;
+
+			// Ctrl is also what a browser adds to a trackpad pinch, so this is the
+			// pinch as well as Ctrl+wheel. Anything sideways is a trackpad or a
+			// tilting wheel, and only ever meant to move.
+			const zooming = e.ctrlKey || e.metaKey || (wheelMode.current === "zoom" && dx === 0);
+			if (!zooming) {
+				const current = store.getView();
+				store.setView({ ...current, x: current.x - dx, y: current.y - dy });
+				return;
+			}
+			if (dy === 0) return;
+			// A wheel notch is one step, whatever size the browser calls it. A
+			// pinch arrives as a stream of small deltas and follows the fingers.
+			const factor = e.deltaMode !== 0 || Math.abs(dy) >= 50
+				? (dy < 0 ? ZOOM.step : 1 / ZOOM.step)
+				: Math.exp(-dy * 0.01);
+			zoomAbout(sx, sy, factor);
+		};
+
+		/**
+		 * A pinch in Safari, on a Mac's trackpad or an iPad.
+		 *
+		 * Safari sends these instead of Ctrl+wheel, and zooms the whole page if
+		 * nobody cancels them. `scale` is relative to the start of the gesture,
+		 * so the view it started from is kept rather than compounded.
+		 *
+		 * Fingers on the glass are the canvas's own pinch — see `pinch` in the
+		 * gestures — so these are only acted on when no touch is down.
+		 */
+		type SafariGesture = Event & { scale: number; clientX: number; clientY: number };
+		const onGestureStart = (event: Event) => {
+			event.preventDefault();
+			if (touches.current.size > 0) return;
+			const e = event as SafariGesture;
+			const box = element.getBoundingClientRect();
+			pinch = { view: store.getView(), sx: e.clientX - box.left, sy: e.clientY - box.top };
+		};
+		const onGestureChange = (event: Event) => {
+			event.preventDefault();
+			if (!pinch || touches.current.size > 0) return;
+			zoomAbout(pinch.sx, pinch.sy, (event as SafariGesture).scale, pinch.view);
+		};
+		const onGestureEnd = (event: Event) => {
+			event.preventDefault();
+			pinch = null;
+		};
+
 		element.addEventListener("wheel", onWheel, { passive: false });
-		return () => element.removeEventListener("wheel", onWheel);
+		element.addEventListener("gesturestart", onGestureStart);
+		element.addEventListener("gesturechange", onGestureChange);
+		element.addEventListener("gestureend", onGestureEnd);
+		return () => {
+			element.removeEventListener("wheel", onWheel);
+			element.removeEventListener("gesturestart", onGestureStart);
+			element.removeEventListener("gesturechange", onGestureChange);
+			element.removeEventListener("gestureend", onGestureEnd);
+		};
 	}, []);
 
 	// -- gesture plumbing --------------------------------------------------
@@ -294,14 +386,37 @@ export function Canvas({
 		const g = gesture.current;
 		if (g.kind === "move" || g.kind === "resize") store.end();
 		gesture.current = { kind: "none" };
+		activePointer.current = null;
 		setMarquee(null);
 		setWireDrag(null);
 	}, []);
 
 	useEffect(() => {
 		const onMove = (e: PointerEvent) => {
+			if (touches.current.has(e.pointerId)) {
+				touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+			}
 			const g = gesture.current;
 			if (g.kind === "none") return;
+			if (g.kind === "pinch") {
+				const a = touches.current.get(g.ids[0]);
+				const b = touches.current.get(g.ids[1]);
+				if (!a || !b) return;
+				const box = surface.current!.getBoundingClientRect();
+				const zoom = clamp(
+					g.startView.zoom * Math.hypot(a.x - b.x, a.y - b.y) / g.distance,
+					ZOOM.min, ZOOM.max,
+				);
+				// The world point that was between the fingers stays between them,
+				// wherever they have moved to.
+				const wx = (g.middle.x - g.startView.x) / g.startView.zoom;
+				const wy = (g.middle.y - g.startView.y) / g.startView.zoom;
+				const mx = (a.x + b.x) / 2 - box.left;
+				const my = (a.y + b.y) / 2 - box.top;
+				store.setView({ x: mx - wx * zoom, y: my - wy * zoom, zoom });
+				return;
+			}
+			if (activePointer.current !== null && e.pointerId !== activePointer.current) return;
 			const world = toWorld(e.clientX, e.clientY);
 			setPointer(world);
 
@@ -370,7 +485,23 @@ export function Canvas({
 		};
 
 		const onUp = (e: PointerEvent) => {
+			const lifted = touches.current.delete(e.pointerId);
 			const g = gesture.current;
+			if (g.kind === "pinch") {
+				// Either finger ends it. The one left behind does not pick up a
+				// pan halfway through: it would jump by however far the middle
+				// of the pinch was from it.
+				if (lifted && g.ids.includes(e.pointerId)) endGesture();
+				return;
+			}
+			if (activePointer.current !== null && e.pointerId !== activePointer.current) return;
+			if (g.kind === "pan" && g.tap) {
+				const box = surface.current!.getBoundingClientRect();
+				const moved = Math.hypot(
+					e.clientX - box.left - g.origin.x, e.clientY - box.top - g.origin.y,
+				);
+				if (moved < 8) store.clearSelection();
+			}
 			if (g.kind === "marquee" && marquee) commitMarquee(marquee, g.additive);
 			if (g.kind === "wire" && !wireHandled.current) {
 				const target = document.elementFromPoint(e.clientX, e.clientY);
@@ -425,11 +556,27 @@ export function Canvas({
 			endGesture();
 		};
 
+		/**
+		 * The browser took the pointer back, which iPadOS does when a system
+		 * gesture starts. Whatever was half-done stays where it got to, and no
+		 * menu opens for a release that never happened.
+		 */
+		const onCancel = (e: PointerEvent) => {
+			touches.current.delete(e.pointerId);
+			const g = gesture.current;
+			if (g.kind === "none") return;
+			if (g.kind === "pinch" ? g.ids.includes(e.pointerId) : e.pointerId === activePointer.current) {
+				endGesture();
+			}
+		};
+
 		window.addEventListener("pointermove", onMove);
 		window.addEventListener("pointerup", onUp);
+		window.addEventListener("pointercancel", onCancel);
 		return () => {
 			window.removeEventListener("pointermove", onMove);
 			window.removeEventListener("pointerup", onUp);
+			window.removeEventListener("pointercancel", onCancel);
 		};
 	});
 
@@ -447,12 +594,14 @@ export function Canvas({
 	// -- background --------------------------------------------------------
 
 	function onSurfacePointerDown(e: ReactPointerEvent) {
-		if (e.button === 1 || (e.button === 0 && e.altKey)) {
+		const finger = e.pointerType === "touch";
+		if (e.button === 1 || (e.button === 0 && (e.altKey || finger))) {
 			const box = surface.current!.getBoundingClientRect();
 			gesture.current = {
 				kind: "pan",
 				startView: store.getView(),
 				origin: { x: e.clientX - box.left, y: e.clientY - box.top },
+				tap: finger,
 			};
 			e.preventDefault();
 			return;
@@ -666,7 +815,45 @@ export function Canvas({
 			// Captured, so a press anywhere inside -- on a node, a pin, a comment
 			// -- records where the pointer is even if the move that got it there
 			// was swallowed by something between here and it.
-			onPointerDownCapture={(e) => onPointerAt?.(toWorld(e.clientX, e.clientY))}
+			onPointerDownCapture={(e) => {
+				onPointerAt?.(toWorld(e.clientX, e.clientY));
+				if (e.pointerType !== "touch") {
+					if (gesture.current.kind === "none") activePointer.current = e.pointerId;
+					return;
+				}
+				// A finger is captured by whatever it first touched, so a wire
+				// dragged from a pin would report its release to that same pin
+				// rather than to the one it was dropped on. Let it go, and the
+				// release lands on what is actually under the finger.
+				const touched = e.target as Element;
+				if (touched.hasPointerCapture?.(e.pointerId)) touched.releasePointerCapture(e.pointerId);
+
+				touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+				if (touches.current.size === 1) {
+					activePointer.current = e.pointerId;
+					return;
+				}
+				// A second finger: whatever the first one started becomes a
+				// pinch. A node halfway through a move stays where it got to.
+				e.stopPropagation();
+				if (touches.current.size !== 2) return;
+				const [a, b] = [...touches.current.entries()];
+				endGesture();
+				const box = surface.current!.getBoundingClientRect();
+				gesture.current = {
+					kind: "pinch",
+					startView: store.getView(),
+					ids: [a[0], b[0]],
+					distance: Math.max(1, Math.hypot(a[1].x - b[1].x, a[1].y - b[1].y)),
+					middle: { x: (a[1].x + b[1].x) / 2 - box.left, y: (a[1].y + b[1].y) / 2 - box.top },
+				};
+			}}
+			// A long press arrives as a right-click (see `touch.ts`) while the
+			// finger is still down and the drag it began is still live. The menu
+			// is what was meant, so the drag stops here.
+			onContextMenuCapture={() => {
+				if (gesture.current.kind !== "none") endGesture();
+			}}
 			// A pointer that has left has no position to paste at, and the
 			// alternative -- keeping the last one it had -- puts the paste
 			// wherever it happened to exit, which is not somewhere anybody chose.

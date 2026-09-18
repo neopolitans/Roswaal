@@ -128,6 +128,19 @@ export interface Preferences {
 	 */
 	roundedNodes: boolean;
 	/**
+	 * What scrolling over the graph does, with nothing held.
+	 *
+	 * A mouse wheel has one axis and is how Windows users have always zoomed a
+	 * node graph. A trackpad has two, and binding both to zoom leaves a Mac —
+	 * and an iPad with a keyboard case — no way to move around at all, because
+	 * the two-finger drag *is* the scroll. Pinching zooms under every choice:
+	 * browsers report it as a scroll with Ctrl held, or as a gesture in Safari.
+	 *
+	 * `auto` is decided per machine by `wheelAction`, not stored as its answer,
+	 * so the same preferences blob synced between a Mac and a PC is right on both.
+	 */
+	wheel: WheelChoice;
+	/**
 	 * What a node does when its header is longer than the node is wide.
 	 *
 	 * `false` truncates, which is what a node has always done: the title
@@ -234,6 +247,32 @@ export const WIRE_STYLES: { style: WireStyle; label: string; what: string }[] = 
 	{ style: "angular", label: "Angular", what: "The same route, with each corner cut to a 45-degree slope." },
 ];
 
+export type WheelChoice = "auto" | "zoom" | "pan";
+
+export const WHEEL_CHOICES: { value: WheelChoice; label: string; what: string }[] = [
+	{ value: "auto", label: "Automatic", what: "Pans on a Mac or iPad, zooms elsewhere." },
+	{ value: "pan", label: "Pan", what: "Scrolling moves the graph. Pinch, or hold Ctrl or ⌘, to zoom." },
+	{ value: "zoom", label: "Zoom", what: "Scrolling zooms. Sideways scrolling still pans." },
+];
+
+/**
+ * What `auto` means on this machine.
+ *
+ * Apple's platforms are trackpad-first, and an iPad asking for the desktop
+ * site reports itself as a Mac, so one test covers both. Everything else keeps
+ * the wheel zooming, which is what the graph has always done.
+ */
+export function wheelAction(choice: WheelChoice, platform = currentPlatform()): "zoom" | "pan" {
+	if (choice !== "auto") return choice;
+	return /Mac|iPhone|iPad|iPod/i.test(platform) ? "pan" : "zoom";
+}
+
+function currentPlatform(): string {
+	if (typeof navigator === "undefined") return "";
+	const data = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
+	return data?.platform || navigator.platform || "";
+}
+
 export type FunctionTabs = "full" | "function" | "script";
 
 export const FUNCTION_TAB_CHOICES: { value: FunctionTabs; label: string; what: string }[] = [
@@ -266,6 +305,7 @@ export const DEFAULTS: Preferences = {
 	reopenLastProject: true,
 	wireStyle: "curved",
 	roundedNodes: true,
+	wheel: "auto",
 	// Truncating is what nodes already did, so the default changes nothing for
 	// anybody who does not go looking for it.
 	wideNodes: false,
@@ -324,6 +364,9 @@ export function readPreferences(): Preferences {
 			: DEFAULTS.wireStyle,
 		roundedNodes:
 			typeof stored.roundedNodes === "boolean" ? stored.roundedNodes : DEFAULTS.roundedNodes,
+		wheel: WHEEL_CHOICES.some((c) => c.value === stored.wheel)
+			? (stored.wheel as WheelChoice)
+			: DEFAULTS.wheel,
 		wideNodes:
 			typeof stored.wideNodes === "boolean" ? stored.wideNodes : DEFAULTS.wideNodes,
 		logicParens:

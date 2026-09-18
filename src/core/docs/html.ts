@@ -561,8 +561,10 @@ ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(optio
 </head>
 <body class="docs-static">
 <div class="docs-page">
-${options.canaryBanner ?? ""}<header class="docs-page-head">
-<a class="logo" href="${up}index.html">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a>
+${options.canaryBanner ?? ""}<input type="checkbox" id="docs-nav-open" class="docs-nav-check" aria-label="Show the contents">
+<header class="docs-page-head">
+<a class="logo" href="${up}../try.html#picker" title="Your projects">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a>
+<label for="docs-nav-open" class="tb docs-nav-toggle">Contents</label>
 <span class="grow"></span>
 <a class="tb" href="${up}../try.html">Try it in your browser${options.previewChip ?? ""}</a>
 <a class="tb" href="${SOURCE_REPOSITORY}" rel="noreferrer noopener">Source</a>

@@ -4575,7 +4575,10 @@ button.tb.icon-only.on {
    and the reading column is not. */
 @media (max-width: 1100px) {
 	.docs-page .docs-body { grid-template-columns: 268px minmax(0, 1fr); }
-	.docs-toc { display: none; }
+	/* Scoped, so it outranks `.docs-toc` further down. Unscoped, the later
+	   rule won: the outline stayed, wrapped into a second grid row under the
+	   nav, and halved the height of everything on a tablet or a phone. */
+	.docs-page .docs-toc { display: none; }
 }
 
 .docs-group + .docs-group { margin-top: 14px; }
@@ -8422,4 +8425,250 @@ button.tb.danger {
    that does nothing and a history they cannot reach. */
 :root[data-showprereleasenotes="off"] .docs-details[data-prerelease] {
 	display: none;
+}
+
+/* --------------------------------------------------------------------------
+   Phones, tablets and fingers.
+
+   Last in the file on purpose: every rule here narrows one written further
+   up, and a narrowing that loses on order does nothing. That is how the
+   docs' outline stayed on screen below 1100px.
+   ----------------------------------------------------------------------- */
+
+/* A finger has no hover and no double-click, and iPadOS reads a quick second
+   tap as "zoom the page". `manipulation` keeps pans and pinches and drops that
+   one, so a double tap reaches `touch.ts` as the double-click it stands for.
+   The callout is the iOS menu a long press raises over text, which would sit
+   on top of the one Roswaal opens for the same press. */
+.app,
+.designer,
+.docs-page {
+	touch-action: manipulation;
+	-webkit-touch-callout: none;
+}
+
+@media (pointer: coarse) {
+	/* A long press is a right-click here, so a press on a tree row or a node
+	   title must not start selecting its text first. Fields are left alone. */
+	.app,
+	.designer {
+		-webkit-user-select: none;
+		user-select: none;
+	}
+
+	.app :is(input, textarea, [contenteditable="true"], .cm-content),
+	.designer :is(input, textarea, [contenteditable="true"], .cm-content) {
+		-webkit-user-select: text;
+		user-select: text;
+	}
+
+	/* Five pixels is a line for a mouse and a miss for a finger. The strip
+	   drawn stays the same; only what catches the press grows. */
+	.splitter.col {
+		border-left-width: 9px;
+		border-right-width: 9px;
+		margin: 0 -9px;
+	}
+}
+
+/* ---------------------------------------------------- the editor, on a phone */
+
+/* See `useCompact` in Workspace.tsx: below this the side docks leave the grid
+   and slide over the graph, one at a time. */
+.dock.drawer {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	z-index: 67;
+	width: min(340px, 86vw);
+	background: var(--bg-panel);
+	box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+	overflow: auto;
+	transition: transform 160ms ease-out, visibility 160ms;
+}
+
+.dock.drawer.left {
+	left: 0;
+	border-right: 1px solid var(--border-strong);
+}
+
+.dock.drawer.right {
+	right: 0;
+	border-left: 1px solid var(--border-strong);
+}
+
+.dock.drawer:not(.drawer-open) {
+	visibility: hidden;
+	box-shadow: none;
+}
+
+.dock.drawer.left:not(.drawer-open) { transform: translateX(-100%); }
+.dock.drawer.right:not(.drawer-open) { transform: translateX(100%); }
+
+/* The drawer's own panels fill it, whichever side they came from. */
+.dock.drawer .panel {
+	flex: 1;
+}
+
+.drawer-backdrop {
+	position: relative;
+	z-index: 66;
+	background: rgba(0, 0, 0, 0.35);
+}
+
+.drawer-toggles {
+	position: absolute;
+	left: 10px;
+	right: 10px;
+	bottom: 10px;
+	z-index: 64;
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	pointer-events: none;
+}
+
+.drawer-toggles button.tb {
+	pointer-events: auto;
+	padding: 8px 12px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+/* One button and it is the Inspector's: keep it on the right, where the
+   Inspector slides in from. */
+.drawer-toggles .drawer-right:only-child {
+	margin-left: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.dock.drawer { transition: none; }
+}
+
+/* ----------------------------------------------------- dialogs, on a phone */
+
+@media (max-width: 640px) {
+	.docs-backdrop {
+		padding: 8px;
+	}
+
+	/* The sections along the top rather than down the side: a 230px column of
+	   five words left the page beside it a hundred pixels wide. */
+	.settings .docs-body {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-rows: auto minmax(0, 1fr);
+	}
+
+	.settings .docs-nav {
+		flex-direction: row;
+		overflow-x: auto;
+		border-right: 0;
+		border-bottom: 1px solid var(--border);
+		padding: 6px;
+		gap: 4px;
+	}
+
+	.settings .settings-tab {
+		flex: none;
+		width: auto;
+		white-space: nowrap;
+	}
+
+	.settings .settings-tab-sub {
+		display: none;
+	}
+
+	.settings-page {
+		padding: 14px 14px 32px;
+	}
+
+	.setting {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 8px;
+	}
+
+	.setting-control {
+		justify-content: flex-start;
+	}
+}
+
+/* ------------------------------------------------------ the docs, narrow */
+
+.docs-nav-check {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.docs-page-head .docs-nav-toggle {
+	display: none;
+}
+
+.docs-page-head label.tb {
+	cursor: pointer;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 4px 9px;
+	height: 29px;
+	box-sizing: border-box;
+	align-items: center;
+}
+
+@media (max-width: 760px) {
+	.docs-page-head {
+		flex-wrap: wrap;
+		row-gap: 6px;
+		padding: 8px 10px;
+	}
+
+	.docs-page-head .docs-nav-toggle {
+		display: inline-flex;
+	}
+
+	/* The reading column takes the width; the contents come over it when
+	   asked for, rather than holding a third of a phone for good. */
+	.docs-page .docs-body {
+		grid-template-columns: minmax(0, 1fr);
+		position: relative;
+	}
+
+	.docs-page .docs-nav {
+		display: none;
+	}
+
+	.docs-page.nav-open .docs-nav,
+	.docs-page:has(.docs-nav-check:checked) .docs-nav {
+		display: flex;
+		position: absolute;
+		inset: 0;
+		z-index: 5;
+		border-right: 0;
+		background: var(--bg-panel);
+	}
+
+	.docs-page:has(.docs-nav-check:checked) .docs-nav-toggle,
+	.docs-page.nav-open .docs-nav-toggle {
+		background: color-mix(in srgb, var(--accent) 18%, var(--bg-input));
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.docs-page .docs-content {
+		padding: 18px 16px 60px;
+	}
+}
+
+@media (max-width: 560px) {
+	/* Two rows on purpose: the mark and the contents, then the ways out. Left
+	   to wrap by itself, the header dropped whichever button ran out of room. */
+	.docs-page-head .grow {
+		flex-basis: 100%;
+		height: 0;
+	}
+
+	.docs-page-head .logo .version {
+		display: none;
+	}
 }

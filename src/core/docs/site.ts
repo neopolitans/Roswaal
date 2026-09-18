@@ -1455,7 +1455,7 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 const CONTROLS: DocPage = {
 	slug: "controls",
 	title: "Controls",
-	summary: "Every key and mouse gesture the canvas understands.",
+	summary: "Every key, mouse, trackpad and touch gesture the canvas understands.",
 	blocks: [
 		{
 			t: "p",
@@ -1466,7 +1466,7 @@ const CONTROLS: DocPage = {
 		{
 			t: "p",
 			text:
-				"This page is the keyboard and the mouse. The buttons are on [Toolbars](toolbars), " +
+				"This page is the keyboard, the mouse and touch. The buttons are on [Toolbars](toolbars), " +
 				"which draws each bar with every control named under it.",
 		},
 		{ t: "h", level: 2, text: "Keyboard" },
@@ -1534,7 +1534,12 @@ const CONTROLS: DocPage = {
 			t: "table",
 			head: ["Gesture", "What it does"],
 			rows: [
-				["Wheel", "Zoom, towards the pointer"],
+				[
+					"Scroll",
+					"Zoom towards the pointer, or pan on a Mac or iPad. **Settings → Editor → Scrolling the graph** changes it",
+				],
+				["Pinch, or `Ctrl` + scroll", "Zoom, towards the pointer"],
+				["Scroll sideways", "Pan"],
 				["Middle-drag, or `Alt` + drag", "Pan"],
 				["Drag on empty space", "Marquee select"],
 				["`Shift` or `Ctrl` + drag on empty space", "Marquee adds to the selection"],
@@ -1611,6 +1616,30 @@ const CONTROLS: DocPage = {
 				["`Shift` or `Alt` + click a wire", "Disconnect it"],
 				["Double-click a wire", "Add a reroute knot where you clicked"],
 			],
+		},
+		{ t: "h", level: 2, text: "Touch" },
+		{
+			t: "p",
+			text:
+				"A long press is a right-click and a double tap is a double-click, everywhere — " +
+				"so every row above has a touch version. An Apple Pencil works the same way.",
+		},
+		{
+			t: "table",
+			head: ["Gesture", "What it does"],
+			rows: [
+				["Drag empty space with one finger", "Pan. A tap clears the selection"],
+				["Two fingers", "Pinch to zoom, drag to pan"],
+				["Long press", "The menu a right-click opens: the node, the pin, or the canvas"],
+				["Double tap", "Open a graph from the tree, add a reroute knot, rename a comment"],
+				["Drag a node, or from a pin", "As with a mouse"],
+				["**Project** and **Inspector**, under the graph on a phone", "Slide that panel out over the graph"],
+			],
+		},
+		{
+			t: "note",
+			kind: "info",
+			text: "Marquee select needs a mouse, a trackpad or a Pencil: a finger on empty space pans.",
 		},
 		{ t: "h", level: 2, text: "Advanced shortcuts" },
 		{

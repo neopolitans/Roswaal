@@ -47,6 +47,8 @@ export function DocsPage() {
 	const [slug, setSlug] = useState<string | undefined>(slugFromHash);
 	const [prefs, setPrefs] = useState<Preferences>(readPreferences);
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	/** The contents, over the page, on a screen too narrow for both. */
+	const [navOpen, setNavOpen] = useState(false);
 
 	useEffect(() => {
 		void api
@@ -91,11 +93,12 @@ export function DocsPage() {
 		const url = `${window.location.pathname}#${encodeURIComponent(next)}`;
 		window.history.replaceState(null, "", url);
 		setSlug(next);
+		setNavOpen(false);
 	}, []);
 
 	return (
 		<>
-		<div className="docs-page">
+		<div className={`docs-page${navOpen ? " nav-open" : ""}`}>
 			{/* The sharper wording: these pages describe a build that is not out. */}
 			<CanaryBanner kind="docs" />
 			<header className="docs-page-head">
@@ -114,6 +117,13 @@ export function DocsPage() {
 					    rule is every surface of that build, and the day this one is
 					    served from it is not the day to remember. */}
 					<PreviewChip />
+				</button>
+				<button
+					className={`tb docs-nav-toggle${navOpen ? " on" : ""}`}
+					aria-expanded={navOpen}
+					onClick={() => setNavOpen((open) => !open)}
+				>
+					Contents
 				</button>
 				{packsFailed && (
 					<span className="warn" title="Start the daemon and reload to include them">

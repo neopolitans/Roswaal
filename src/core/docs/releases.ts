@@ -94,6 +94,31 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.71.0",
+		date: "2026-09-18",
+		headline: "Trackpads, touch screens and phones.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Two fingers on a trackpad pan the graph on a Mac or an iPad**, and pinching zooms, in Safari as well as Chrome. Scrolling still zooms elsewhere; **Settings → Editor → Scrolling the graph** picks Pan or Zoom on any machine.",
+			"**The graph works by touch.** One finger pans, two pinch and pan, and a tap on empty space clears the selection. A long press opens the menu a right-click would, and a double tap is a double-click — opening a graph from the tree, adding a reroute knot. Both work everywhere in the editor, and with an Apple Pencil. See [Controls](controls).",
+			"**On a phone, the panels slide over the graph.** Project and Inspector are buttons under it; opening a graph from the tree puts the tree away again.",
+			"**The documentation reads on a phone**: the contents are behind a Contents button in the header, and the page takes the width.",
+		],
+		changed: [
+			"**The mark on a documentation page opens your projects** — the editor with its projects panel up — rather than the documentation's front page, which is the first entry in the contents.",
+			"**Settings stacks on a narrow screen**: the sections run along the top and each control sits under its label.",
+		],
+		fixed: [
+			"**The documentation's outline no longer squeezes the page below 1100px wide.** It was meant to hide there and did not, so on an iPad or a phone in landscape it wrapped under the contents and both halved in height.",
+			"**A wire dragged by touch lands on the pin it is dropped on.** It reported the drop to the pin it started from.",
+			"**The docks keep their sizes after a phone is turned round.** Squeezed to fit a narrow screen, they stayed squeezed when it widened.",
+			"**Focusing a field on an iPhone no longer zooms the whole editor in.**",
+		],
+		watch: [
+			"Marquee select needs a mouse, a trackpad or a Pencil: a finger on empty space pans.",
+		],
+	},
+	{
 		version: "0.70.1",
 		date: "2026-09-16",
 		headline: "The guides split into four, and a pill fits what is on it.",

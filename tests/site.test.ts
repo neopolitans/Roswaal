@@ -444,11 +444,13 @@ describe("the header of a published page", () => {
 	});
 
 	/**
-	 * The mark stays pointed at the docs index. It is the way back to the top of
-	 * the documentation, and a header where everything leaves the docs has no
-	 * way back to their front page.
+	 * The mark is the way to your projects, as it is in every window of the
+	 * editor: the hosted editor, opened on its project picker rather than on
+	 * whichever project it last had. The docs' own front page is the first
+	 * entry in the nav.
 	 */
-	it("keeps the mark pointing at the docs index", () => {
-		expect(page("node/event.connect")).toContain('class="logo" href="../index.html"');
+	it("points the mark at the project picker", () => {
+		expect(page("node/event.connect")).toContain('class="logo" href="../../try.html#picker"');
+		expect(page("getting-started")).toContain('class="logo" href="../try.html#picker"');
 	});
 });

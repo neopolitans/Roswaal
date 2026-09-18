@@ -43,11 +43,11 @@ import { Overlays } from "./Overlays.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
 import { Workspace } from "./Workspace.jsx";
 import {
-	clampLayout, floatPanel, framePanel, movePanel, resizeDock, toggleDock,
+	clampLayout, COMPACT_QUERY, floatPanel, framePanel, movePanel, resizeDock, toggleDock,
 	type DockSide, type PanelFrame, type PanelId,
 } from "./panels.js";
 import { screenToWorld } from "./geometry.js";
-import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
+import { readPreferences, wheelAction, writePreferences, type Preferences } from "./preferences.js";
 import { AliasDocument } from "./AliasDocument.jsx";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import type { LuaurcSource } from "../core/luaurc.js";
@@ -100,6 +100,17 @@ function refreshAliases(): void {
 		() => setProjectAliases([]),
 	);
 }
+
+/**
+ * The page was opened on `#picker`: the docs' mark links here, and it opens
+ * the editor with the projects panel up, as pressing the editor's own mark
+ * does. That panel rather than the bare picker screen, because in the browser
+ * build the panel is where the demos and your folders are.
+ *
+ * Read once when the module loads. The effect that tidies the address runs
+ * twice in development, and the second run would find nothing to read.
+ */
+const OPENED_FOR_PICKER = typeof window !== "undefined" && window.location.hash === "#picker";
 
 export function App() {
 	const editor = useEditor();
@@ -165,10 +176,16 @@ export function App() {
 	 */
 	useEffect(() => {
 		const onResize = () =>
-			setPrefs((current) => ({
-				...current,
-				layout: clampLayout(current.layout, window.innerWidth, window.innerHeight),
-			}));
+			setPrefs((current) =>
+				// A phone draws the docks as drawers, so there is nothing to make
+				// room for -- and clamping would shrink the sizes kept for a
+				// wider window down to what fits beside a 320px graph.
+				window.matchMedia(COMPACT_QUERY).matches
+					? current
+					: {
+						...current,
+						layout: clampLayout(current.layout, window.innerWidth, window.innerHeight),
+					});
 		onResize();
 		window.addEventListener("resize", onResize);
 		return () => window.removeEventListener("resize", onResize);
@@ -301,7 +318,7 @@ export function App() {
 	 * under the mark, because it is the same panel in all three windows and
 	 * two of them have nothing to anchor it to.
 	 */
-	const [introOpen, setIntroOpen] = useState(false);
+	const [introOpen, setIntroOpen] = useState(OPENED_FOR_PICKER);
 	// A file dropped on the canvas, once we know where it lives in the DataModel
 	// and therefore what can usefully be made from it.
 	const [dropMenu, setDropMenu] = useState<
@@ -534,6 +551,11 @@ export function App() {
 		// The daemon wins over the remembered path: if it was started with
 		// `roswaal serve` in a directory, that is the project the developer meant.
 		void (async () => {
+			// Taken off the address once read, or every reload would open the
+			// projects panel again. See `OPENED_FOR_PICKER`.
+			if (OPENED_FOR_PICKER) {
+				history.replaceState(null, "", window.location.pathname + window.location.search);
+			}
 			try {
 				const existing = await api.currentProject();
 				if (existing.open) {
@@ -1715,6 +1737,7 @@ export function App() {
 
 			<Workspace
 				layout={layout}
+				drawerKey={`${editor.path}|${editor.graph}|${source?.path}|${mapDoc?.path}|${aliasDoc ? "alias" : ""}`}
 				onResize={onDockResize}
 				onResizeEnd={onDockResizeEnd}
 				onToggle={onDockToggle}
@@ -1927,6 +1950,7 @@ export function App() {
 							locked={locked}
 							onPointerAt={(world) => { pointerAt.current = world; }}
 							wireStyle={prefs.wireStyle}
+							wheel={wheelAction(prefs.wheel)}
 							wideNodes={prefs.wideNodes}
 							onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
 							onRequestNodePicker={(world) => setNodePicker(world)}

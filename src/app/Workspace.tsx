@@ -28,11 +28,13 @@
  * like tidiness and is not.
  */
 
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import {
+	useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode,
+} from "react";
 
 import {
-	dockVisible, dropZone, floatingPanels, gridTemplate, panelsIn, MIN_FLOAT, PANEL_IDS,
-	PANEL_TITLES,
+	COMPACT_QUERY, dockVisible, dropZone, floatingPanels, gridTemplate, panelsIn, MIN_FLOAT,
+	PANEL_IDS, PANEL_TITLES,
 	type DockSide, type Layout, type PanelFrame, type PanelId,
 } from "./panels.js";
 
@@ -72,6 +74,12 @@ export interface WorkspaceProps {
 	onDockPanel?: (panel: PanelId) => void;
 	/** Out of its dock and into a window at this point over the centre. */
 	onFloatPanel?: (panel: PanelId, frame: PanelFrame) => void;
+	/**
+	 * On a phone, the side docks are drawers over the graph; a change to this
+	 * shuts them. The open document, so opening one from the tree gets out of
+	 * the way of what was opened.
+	 */
+	drawerKey?: unknown;
 }
 
 /** How far the pointer must travel before a press becomes a drag. */
@@ -79,7 +87,7 @@ const DRAG_THRESHOLD = 4;
 
 export function Workspace({
 	layout, contents, centre, floating, onResize, onResizeEnd, onToggle, onMovePanel,
-	onFramePanel, onFramePanelEnd, onDockPanel, onFloatPanel,
+	onFramePanel, onFramePanelEnd, onDockPanel, onFloatPanel, drawerKey,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
 	/** The centre, which a window's coordinates are measured from. */
@@ -112,11 +120,29 @@ export function Workspace({
 		) as Layout["panels"],
 	};
 
-	const tracks = gridTemplate(effective);
+	const compact = useCompact();
+	/** Which side's drawer is out, on a phone. Never more than one. */
+	const [drawer, setDrawer] = useState<"left" | "right" | null>(null);
+	useEffect(() => setDrawer(null), [drawerKey]);
+
+	/**
+	 * A phone has room for the graph or a panel, not both side by side: the
+	 * centre's minimum alone is most of its width, which left the tree as a
+	 * strip a few letters wide. So the side docks come out of the grid and
+	 * slide over the graph instead, one at a time. The layout itself is not
+	 * touched, and a wider window gets it back exactly as it was.
+	 */
+	const full = gridTemplate(effective);
+	const tracks = compact
+		? { columns: "0px 0px minmax(0, 1fr) 0px 0px", rows: full.rows }
+		: full;
+	const drawers = compact
+		? (["left", "right"] as const).filter((side) => dockVisible(effective, side))
+		: [];
 
 	return (
 		<div
-			className={`workspace${dragging ? " dragging" : ""}`}
+			className={`workspace${dragging ? " dragging" : ""}${compact ? " compact" : ""}`}
 			ref={surface}
 			style={{ gridTemplateColumns: tracks.columns, gridTemplateRows: tracks.rows }}
 		>
@@ -127,9 +153,10 @@ export function Workspace({
 						side={side}
 						layout={effective}
 						contents={contents}
-						onDragPanel={onMovePanel ? startDrag : undefined}
+						drawer={compact && side !== "bottom" ? drawer === side : undefined}
+						onDragPanel={onMovePanel && !compact ? startDrag : undefined}
 						onFloat={
-							onFloatPanel
+							onFloatPanel && !compact
 								? (panel) => onFloatPanel(panel, layout.panels[panel].frame)
 								: undefined
 						}
@@ -137,10 +164,18 @@ export function Workspace({
 				) : null,
 			)}
 
+			{compact && drawer && (
+				<div
+					className="drawer-backdrop"
+					style={{ gridArea: "centre" }}
+					onPointerDown={() => setDrawer(null)}
+				/>
+			)}
+
 			{/* Side docks only. The bottom is content-sized -- see `gridTemplate`
 			    -- so there is nothing for a splitter there to drag. */}
 			{(["left", "right"] as DockSide[]).map((side) =>
-				dockVisible(effective, side) && onResize && onToggle ? (
+				!compact && dockVisible(effective, side) && onResize && onToggle ? (
 					<Splitter
 						key={`split-${side}`}
 						side={side}
@@ -155,6 +190,26 @@ export function Workspace({
 			<div className="centre" style={{ gridArea: "centre" }} ref={centreBox}>
 				{centre}
 				{floating}
+				{drawers.length > 0 && (
+					<div className="drawer-toggles">
+						{drawers.map((side) => {
+							const title = panelsIn(effective, side)
+								.filter((id) => contents[id] !== undefined)
+								.map((id) => PANEL_TITLES[id])
+								.join(" · ");
+							return (
+								<button
+									key={side}
+									className={`tb drawer-toggle drawer-${side}${drawer === side ? " on" : ""}`}
+									aria-expanded={drawer === side}
+									onClick={() => setDrawer((open) => (open === side ? null : side))}
+								>
+									{title}
+								</button>
+							);
+						})}
+					</div>
+				)}
 				{/* Over the graph rather than beside it. Inside the centre, so a
 				    window's coordinates are the graph's and a dock opening does not
 				    drag every window sideways with it. */}
@@ -434,11 +489,13 @@ function DropPreview({ side, layout }: { side: DockSide; layout: Layout }) {
  * per dock and a strip has something to say.
  */
 function Dock({
-	side, layout, contents, onDragPanel, onFloat,
+	side, layout, contents, drawer, onDragPanel, onFloat,
 }: {
 	side: DockSide;
 	layout: Layout;
 	contents: Partial<Record<PanelId, ReactNode>>;
+	/** A drawer on a phone, and whether it is out. Undefined for a docked dock. */
+	drawer?: boolean;
 	onDragPanel?: (panel: PanelId, event: ReactPointerEvent<HTMLElement>) => void;
 	onFloat?: (panel: PanelId) => void;
 }) {
@@ -446,7 +503,13 @@ function Dock({
 	if (ids.length === 0) return null;
 
 	return (
-		<div className={`dock ${side}`} style={{ gridArea: side }}>
+		<div
+			className={`dock ${side}${drawer === undefined ? "" : drawer ? " drawer drawer-open" : " drawer"}`}
+			style={{ gridArea: side }}
+			// Kept mounted while it is in, so the tree keeps what was expanded
+			// and where it was scrolled to -- but out of reach of focus.
+			inert={drawer === false}
+		>
 			{ids.map((id) => (
 				<div
 					className={`panel panel-${id}`}
@@ -560,4 +623,24 @@ function Splitter({
 			onDoubleClick={onToggle}
 		/>
 	);
+}
+
+/**
+ * Whether the window is phone-sized, and so the docks are drawers.
+ *
+ * A media query rather than a width in state, so it changes when the query
+ * does rather than on every pixel of a resize.
+ */
+function useCompact(): boolean {
+	const [compact, setCompact] = useState(
+		() => typeof window !== "undefined" && window.matchMedia(COMPACT_QUERY).matches,
+	);
+	useEffect(() => {
+		const query = window.matchMedia(COMPACT_QUERY);
+		const update = () => setCompact(query.matches);
+		update();
+		query.addEventListener("change", update);
+		return () => query.removeEventListener("change", update);
+	}, []);
+	return compact;
 }

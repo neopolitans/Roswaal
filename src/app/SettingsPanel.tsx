@@ -25,7 +25,7 @@ import {
 import { LICENCE_TEXTS } from "../core/themeData.js";
 import { BUILTIN_THEMES } from "./theme.js";
 import {
-	AUTOSAVE_CHOICES, DOCS_FONTS, FUNCTION_TAB_CHOICES, PREVIEW_SCALE, previewScaleOf, WIRE_STYLES,
+	AUTOSAVE_CHOICES, DOCS_FONTS, FUNCTION_TAB_CHOICES, PREVIEW_SCALE, previewScaleOf, WHEEL_CHOICES, WIRE_STYLES,
 	type Preferences,
 } from "./preferences.js";
 import { Icon } from "./icons.jsx";
@@ -484,6 +484,24 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 						</option>
 					))}
 				</select>
+			</Row>
+
+			<Row
+				label="Scrolling the graph"
+				help={WHEEL_CHOICES.find((c) => c.value === prefs.wheel)?.what ?? ""}
+			>
+				<div className="segmented">
+					{WHEEL_CHOICES.map((c) => (
+						<button
+							key={c.value}
+							className={prefs.wheel === c.value ? "on" : ""}
+							title={c.what}
+							onClick={() => onPrefs({ wheel: c.value })}
+						>
+							{c.label}
+						</button>
+					))}
+				</div>
 			</Row>
 
 			<Row

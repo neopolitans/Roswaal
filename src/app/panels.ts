@@ -128,6 +128,13 @@ export const PANEL_TITLES: Record<PanelId, string> = {
 	analysis: "Script analysis",
 };
 
+/**
+ * When the side docks are drawers over the graph rather than columns beside
+ * it: a phone either way up, or an iPad sharing its screen. An iPad on its own
+ * is wider and taller than both, in either orientation.
+ */
+export const COMPACT_QUERY = "(max-width: 699px), (max-height: 479px)";
+
 /** Smallest a dock may be dragged to before it is worth closing instead. */
 export const MIN_DOCK = 140;
 

@@ -20,6 +20,7 @@ import { loadCapabilities } from "./host.js";
 import { currentPage } from "./pages.js";
 import { readPreferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
+import { installTouchGestures } from "./touch.js";
 import "./theme.css";
 
 export function bootEditor(): void {
@@ -64,6 +65,10 @@ export function bootEditor(): void {
 	 * then vanishes is worse than one that arrives a moment late.
 	 */
 	void loadCapabilities();
+
+	// Long press and double tap, for the right-click and double-click every
+	// panel is built around. See `touch.ts`.
+	installTouchGestures();
 
 	const preferences = readPreferences();
 	applyTheme(findTheme(preferences.theme));
