@@ -35,6 +35,7 @@ import { nodeColor, pinColor } from "../palette.js";
 import type { PackNode } from "./draft.js";
 import { NodeEditor } from "./NodeEditor.jsx";
 import { useCompact } from "../Workspace.jsx";
+import { setLeaveWarning } from "../pages.js";
 import { targetsLabel, type Notify, type OpenPack } from "./PackBrowser.jsx";
 
 const PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor, scale: 2 };
@@ -154,6 +155,11 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 	}, [current, logicById]);
 	const svg = useMemo(() => (readOnly && current ? previewSvg(previewOf(current), PREVIEW) : ""), [readOnly, current]);
 	const onDirty = useCallback((value: boolean) => setDirty(value), []);
+	// Where the pages share a tab, leaving Node Design is leaving this node.
+	useEffect(() => {
+		setLeaveWarning(dirty ? "This node has edits that are not saved. Leave Node Design anyway?" : null);
+		return () => setLeaveWarning(null);
+	}, [dirty]);
 
 	// This pack's other nodes can be built from too.
 	const buildableDefs = useMemo(

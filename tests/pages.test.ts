@@ -17,9 +17,9 @@
  * base are compiled in, and a build can only ever be one of the two shapes.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterEach, vi } from "vitest";
 
-import { hrefFor, pageAt, PAGE_TARGET, type Page } from "../src/app/pages.js";
+import { hrefFor, pageAt, PAGE_TARGET, type Page, pagesShareTab, pageTarget } from "../src/app/pages.js";
 
 const PAGES: Page[] = ["editor", "docs", "designer"];
 
@@ -130,5 +130,34 @@ describe("the window each page opens into", () => {
 	it("gives every page a distinct target", () => {
 		const targets = PAGES.map((page) => PAGE_TARGET[page]);
 		expect(new Set(targets).size).toBe(PAGES.length);
+	});
+});
+
+describe("which tab a page opens in", () => {
+	const touchFirst = (matches: boolean) => {
+		vi.stubGlobal("window", { matchMedia: () => ({ matches }) });
+	};
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	/**
+	 * iPadOS loads a page into a named tab that is already open without
+	 * bringing it forward, so the second press of Node Design looked like
+	 * nothing. On a touch-first screen the pages take turns in one tab.
+	 */
+	it("keeps to this tab on a touch-first screen", () => {
+		touchFirst(true);
+		expect(pagesShareTab()).toBe(true);
+		expect(pageTarget("designer")).toBe("_self");
+		expect(pageTarget("docs")).toBe("_self");
+	});
+
+	it("gives each page its own named tab everywhere else", () => {
+		touchFirst(false);
+		expect(pagesShareTab()).toBe(false);
+		expect(pageTarget("designer")).toBe(PAGE_TARGET.designer);
+		expect(pageTarget("editor")).toBe(PAGE_TARGET.editor);
 	});
 });

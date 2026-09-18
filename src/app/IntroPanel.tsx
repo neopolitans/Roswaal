@@ -36,7 +36,7 @@ import { api } from "./api.js";
 import { DEMO_PROJECTS, type DemoProject } from "../core/demoProjects.js";
 import { Icon } from "./icons.jsx";
 import { Logo } from "./logo.jsx";
-import { IS_STATIC_HOST, PAGE_TARGET, pageHref, type Page } from "./pages.js";
+import { IS_STATIC_HOST, pageHref, type Page, guardLeave, openPage, pageTarget } from "./pages.js";
 import { projectName, projectTail, recentProjects } from "./recents.js";
 import type { RememberedFolder } from "./host.js";
 import { RUNTIME_LABEL } from "../core/nodes/runtimes.js";
@@ -249,13 +249,13 @@ export function IntroPanel(props: IntroPanelProps) {
 		}
 		void api.openProject(root)
 			.then(() => {
-				window.open(pageHref("editor"), PAGE_TARGET.editor);
+				void openPage("editor");
 				onClose();
 			})
 			.catch(() => {
 				// The daemon refused or is not there. The editor can still be
 				// opened, and will say why better than a panel can.
-				window.open(pageHref("editor"), PAGE_TARGET.editor);
+				void openPage("editor");
 			});
 	};
 
@@ -445,9 +445,12 @@ export function IntroPanel(props: IntroPanelProps) {
 							key={page}
 							className="tb with-icon"
 							href={pageHref(page)}
-							target={PAGE_TARGET[page]}
+							target={pageTarget(page)}
 							rel="noreferrer"
-							onClick={onClose}
+							onClick={(e) => {
+								guardLeave(e);
+								onClose();
+							}}
 						>
 							<Icon name={SURFACE_ICON[page]} size={15} />
 							{SURFACE_NAME[page]}

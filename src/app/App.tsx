@@ -62,7 +62,7 @@ import {
 import { setProjectTypes } from "./projectTypes.js";
 import { setProjectAliases } from "./projectAliases.js";
 import { forget, lastProject, recentProjects, remember } from "./recents.js";
-import { IS_STATIC_HOST, PAGE_TARGET, pageHref } from "./pages.js";
+import { IS_STATIC_HOST, openPage, setBeforeLeaving } from "./pages.js";
 import { CanaryBanner } from "./previewBuild.jsx";
 import {
 	forgetRememberedFolder, openDirectory, useCanOpenDirectory, useHostCan, useHostFailure,
@@ -1355,6 +1355,20 @@ export function App() {
 	}, []);
 
 	/**
+	 * Before this tab becomes Node Design or the docs, on a screen where the
+	 * pages share one: every graph with edits the autosave has not reached yet,
+	 * and the node map if it has them. Leaving mid-pause used to be closing a
+	 * tab; now it is a button, and the last edit must not be what it costs.
+	 */
+	useEffect(() => {
+		setBeforeLeaving(async () => {
+			for (const { path, script } of store.unsaved()) await api.writeScript(path, script);
+			if (mapDoc?.dirty) await api.writeMap(mapDoc.path, mapDoc.map);
+		});
+		return () => setBeforeLeaving(null);
+	}, [mapDoc]);
+
+	/**
 	 * Points every open document at where its file went.
 	 *
 	 * A tab kept its old path when a graph was moved, so its next autosave wrote
@@ -1687,8 +1701,8 @@ export function App() {
 					await runCompile(undefined, true);
 					await runCompileMap(undefined);
 				}}
-				onOpenDocs={() => window.open(pageHref("docs"), PAGE_TARGET.docs)}
-				onOpenDesigner={() => window.open(pageHref("designer"), PAGE_TARGET.designer)}
+				onOpenDocs={() => void openPage("docs")}
+				onOpenDesigner={() => void openPage("designer")}
 				onOpenSettings={() => setSettingsOpen(true)}
 				onOpenIntro={() => setIntroOpen(true)}
 			/>
@@ -2039,7 +2053,7 @@ export function App() {
 					index={docsIndex}
 					recent={[]}
 					onPick={(slug) => {
-						window.open(pageHref("docs", slug), PAGE_TARGET.docs);
+						void openPage("docs", slug);
 						setDocsJump(false);
 					}}
 					onClose={() => setDocsJump(false)}

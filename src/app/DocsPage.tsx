@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createRegistry } from "../core/nodes/index.js";
-import { pageHref } from "./pages.js";
+import { pageHref, pagesShareTab } from "./pages.js";
 import type { NodeDef } from "../core/schema.js";
 import { api } from "./api.js";
 import { DocsView } from "./DocsPanel.jsx";
@@ -148,7 +148,7 @@ export function DocsPage() {
 					<Icon name="settings" size={15} />
 					Settings
 				</button>
-				<a className="tb" href={pageHref("editor")} target="_blank" rel="noreferrer">
+				<a className="tb" href={pageHref("editor")} target={pagesShareTab() ? "_self" : "_blank"} rel="noreferrer">
 					Open Editor
 				</a>
 			</header>

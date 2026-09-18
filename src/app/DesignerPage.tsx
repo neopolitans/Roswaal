@@ -23,7 +23,7 @@ import { PackView } from "./designer/PackView.jsx";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
-import { PAGE_TARGET, pageHref } from "./pages.js";
+import { pageHref, guardLeave, openPage, pageTarget, pagesShareTab } from "./pages.js";
 import { usePreferenceSync } from "./preferenceSync.js";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { SettingsPanel } from "./SettingsPanel.jsx";
@@ -143,17 +143,30 @@ export function DesignerPage() {
 				<a
 					className="tb icon-only"
 					href={pageHref("docs", "creating-custom-nodes")}
-					target="roswaal-docs"
+					target={pageTarget("docs")}
+					onClick={guardLeave}
 					title="How custom nodes work"
 					aria-label="How custom nodes work"
 				>
 					<Icon name="help" size={16} />
 				</a>
-				<a className="tb with-icon" href={pageHref("docs")} target={PAGE_TARGET.docs} title="The documentation">
+				<a
+					className="tb with-icon"
+					href={pageHref("docs")}
+					target={pageTarget("docs")}
+					onClick={guardLeave}
+					title="The documentation"
+				>
 					<Icon name="document" size={15} />
 					Docs
 				</a>
-				<a className="tb" href={pageHref("editor")} target="_blank" rel="noreferrer">
+				<a
+					className="tb"
+					href={pageHref("editor")}
+					target={pagesShareTab() ? "_self" : "_blank"}
+					rel="noreferrer"
+					onClick={guardLeave}
+				>
 					Open Editor
 				</a>
 				<button
@@ -213,7 +226,7 @@ export function DesignerPage() {
 					index={docsIndex}
 					recent={[]}
 					onPick={(slug) => {
-						window.open(pageHref("docs", slug), PAGE_TARGET.docs);
+						void openPage("docs", slug);
 						setDocsJump(false);
 					}}
 					onClose={() => setDocsJump(false)}

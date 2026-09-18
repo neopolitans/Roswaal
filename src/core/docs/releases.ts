@@ -119,6 +119,7 @@ export const RELEASES: Release[] = [
 			"**A tapped button no longer stays grey on an iPad or an iPhone.** Safari kept the last button tapped in its hover state — the Variables button, after its drawer was closed by tapping the graph.",
 			"**A node map's project file keeps its height** when the Inspector beside it scrolls. On a shorter screen it was squeezed to a single line.",
 			"**The arrows above an iPad's keyboard stay in the documentation's search.** They moved the cursor to a field behind it, out of sight, with the keyboard still up.",
+			"**Node Design, the editor and the documentation open in the same tab on an iPad or an iPhone**, and the back button returns. The second time Node Design was opened it loaded in a tab of its own that Safari did not bring forward, so the button seemed to do nothing. Edits waiting to be saved are written first, and Node Design asks before leaving a node with unsaved changes. On a computer each still has its own tab.",
 			"**The project tree scrolls within its own panel**, so a long tree no longer runs down over the Variables panel beneath it.",
 			"**A wire dragged by touch lands on the pin it is dropped on.** It reported the drop to the pin it started from.",
 			"**Tapping a control in a toolbar, Variables or node map picture no longer flickers.** The tap lit the new one, went back to the old one, then lit the new one again.",

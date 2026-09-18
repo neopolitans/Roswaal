@@ -109,3 +109,73 @@ export const PAGE_TARGET: Record<Page, string> = {
 	docs: "roswaal-docs",
 	designer: "roswaal-designer",
 };
+
+/**
+ * Whether the three pages share one tab.
+ *
+ * On a desktop each has a tab of its own, reused by name, so the docs can sit
+ * beside the graph. iPadOS Safari loads a page into a named tab that is already
+ * open without bringing that tab forward -- so the second press of Node Design
+ * did its work somewhere out of sight and looked like nothing. On a
+ * touch-first screen the pages take turns in the tab you are in, and the back
+ * button returns.
+ */
+export function pagesShareTab(): boolean {
+	return typeof window !== "undefined"
+		&& typeof window.matchMedia === "function"
+		&& window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+}
+
+/** The `target` for a link to a page: its own tab, or this one. */
+export function pageTarget(page: Page): string {
+	return pagesShareTab() ? "_self" : PAGE_TARGET[page];
+}
+
+/**
+ * Something that has to happen before this page is left for another in the
+ * same tab: the editor writing a graph whose autosave has not come round yet.
+ * One at a time, set by whichever page is showing.
+ */
+let beforeLeaving: (() => Promise<void>) | null = null;
+
+export function setBeforeLeaving(task: (() => Promise<void>) | null): void {
+	beforeLeaving = task;
+}
+
+/**
+ * What to ask before this page is left for another in the same tab, or null
+ * to leave without asking: Node Design, with a node whose edits are not saved.
+ * A page in a tab of its own is not left at all, so it never asks.
+ */
+let leaveWarning: string | null = null;
+
+export function setLeaveWarning(message: string | null): void {
+	leaveWarning = message;
+}
+
+/** Whether leaving is all right, asking if there is something to lose. */
+function mayLeave(): boolean {
+	return !pagesShareTab() || leaveWarning === null || window.confirm(leaveWarning);
+}
+
+/** For a link to another page: stays put if the reader would rather. */
+export function guardLeave(event: { preventDefault(): void }): void {
+	if (!mayLeave()) event.preventDefault();
+}
+
+/** Opens a page where `pageTarget` says, after anything that must happen first. */
+export async function openPage(page: Page, hash?: string): Promise<void> {
+	const href = pageHref(page, hash);
+	if (!pagesShareTab()) {
+		window.open(href, PAGE_TARGET[page]);
+		return;
+	}
+	if (!mayLeave()) return;
+	try {
+		await beforeLeaving?.();
+	} catch {
+		// A write that failed has already said so where it failed; staying on a
+		// page because of it would leave the reader stuck on the button.
+	}
+	window.location.assign(href);
+}
