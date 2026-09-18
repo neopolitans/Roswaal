@@ -61,7 +61,7 @@ import {
 import { setProjectTypes } from "./projectTypes.js";
 import { setProjectAliases } from "./projectAliases.js";
 import { forget, lastProject, recentProjects, remember } from "./recents.js";
-import { IS_STATIC_HOST, openPage, setBeforeLeaving } from "./pages.js";
+import { IS_STATIC_HOST, openHome, openPage, setBeforeLeaving } from "./pages.js";
 import { CanaryBanner, MarkedLogo } from "./previewBuild.jsx";
 import {
 	forgetRememberedFolder, openDirectory, useCanOpenDirectory, useHostCan, useHostFailure,
@@ -1717,7 +1717,7 @@ export function App() {
 					folders={rememberedFolders}
 					onOpenFolder={reopenFolder}
 					onForget={forget}
-					onHome={() => setProject(null)}
+					onHome={() => { if (IS_STATIC_HOST) void openHome(); else setProject(null); }}
 					onClose={() => setIntroOpen(false)}
 					actions={
 						<>

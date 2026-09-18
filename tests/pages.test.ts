@@ -19,7 +19,7 @@
 
 import { describe, expect, it, afterEach, vi } from "vitest";
 
-import { hrefFor, pageAt, PAGE_TARGET, type Page, pagesShareTab, pageTarget } from "../src/app/pages.js";
+import { homeHref, hrefFor, pageAt, PAGE_TARGET, type Page, pagesShareTab, pageTarget } from "../src/app/pages.js";
 
 const PAGES: Page[] = ["editor", "docs", "designer"];
 
@@ -161,3 +161,15 @@ describe("which tab a page opens in", () => {
 		expect(pageTarget("editor")).toBe(PAGE_TARGET.editor);
 	});
 });
+
+describe("Home", () => {
+	it("is the front page on the web app, wherever the site is mounted", () => {
+		expect(homeHref("/Roswaal/", true)).toBe("/Roswaal/");
+		expect(homeHref("/Roswaal", true)).toBe("/Roswaal/");
+	});
+
+	it("is not a page under the daemon, which has no front page", () => {
+		expect(homeHref("/", false)).toBeNull();
+	});
+});
+

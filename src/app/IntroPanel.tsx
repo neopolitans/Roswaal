@@ -432,7 +432,7 @@ export function IntroPanel(props: IntroPanelProps) {
 						<button
 							className="tb with-icon"
 							onClick={() => { onHome(); onClose(); }}
-							title="Close this project and go back to the start"
+							title={IS_STATIC_HOST ? "Back to the front page" : "Close this project and go back to the start"}
 						>
 							<span className="turn-left"><Icon name="chevron" size={15} /></span>
 							Home

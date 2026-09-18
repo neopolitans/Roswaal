@@ -163,6 +163,28 @@ export function guardLeave(event: { preventDefault(): void }): void {
 	if (!mayLeave()) event.preventDefault();
 }
 
+/**
+ * The front page, where the site has one: the landing page at the root of the
+ * web app. The daemon has none, so its Home stays in the editor.
+ */
+export function homeHref(base: string, staticHost: boolean): string | null {
+	if (!staticHost) return null;
+	return base.endsWith("/") ? base : base + "/";
+}
+
+/** Leaves for the front page, after anything that must happen first. */
+export async function openHome(): Promise<boolean> {
+	const href = homeHref(base, __ROSWAAL_STATIC__);
+	if (href === null || !mayLeave()) return false;
+	try {
+		await beforeLeaving?.();
+	} catch {
+		// As in `openPage`: the failure has been reported where it happened.
+	}
+	window.location.assign(href);
+	return true;
+}
+
 /** Opens a page where `pageTarget` says, after anything that must happen first. */
 export async function openPage(page: Page, hash?: string): Promise<void> {
 	const href = pageHref(page, hash);

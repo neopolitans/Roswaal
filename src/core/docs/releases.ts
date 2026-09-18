@@ -106,6 +106,7 @@ export const RELEASES: Release[] = [
 			"**Settings → Editor → Action row** draws the action row as separate buttons, as it was, or as one bar like the graph's own tools.",
 		],
 		fixed: [
+			"**Home in the web app's project picker goes to the front page**, rather than back to the editor's start.",
 			"**The top bar and the graph's tools keep to one row on an iPad in portrait.** Where they are short of room, Compile project, Straighten and Compile script show only their icons, and the Compile caption goes; each keeps its name as its tooltip.",
 			"**The documentation's Roswaal mark lights when the pointer is over it**, and when it is pressed, like every other button in its header.",
 			"**Node Design's node tools fold on a phone too.** Details and Save are their icons; the types to drag on, the pin counts, and the node's kind each sit behind a button, and a type still drags from its panel onto the node. Docs in its header is its icon, so Settings keeps the row.",
