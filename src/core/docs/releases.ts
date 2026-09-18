@@ -98,7 +98,7 @@ export const RELEASES: Release[] = [
 		date: "2026-09-18",
 		headline: "A map of the editor and Node Design.",
 		affects: ["editor", "docs"],
-		verified: ["the-interface"],
+		verified: ["the-interface", "getting-started"],
 		added: [
 			"**The Interface**, a new page under Getting started, before Controls. It draws the editor and Node Design as their parts — each numbered, with a line on what it is for — on a computer and, in a second tab, on a phone or a tablet, where the panels slide out and the action row is. Hover or tap a part to light its line. See [The Interface](the-interface).",
 			"**Toolbars draws the two bars only a touch screen has**: the action row, and Node Design's bar over a node.",
