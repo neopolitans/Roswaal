@@ -25,7 +25,6 @@ import type { InstanceLocation, NodeMap } from "../core/nodemap.js";
 import { MapEditor } from "./MapEditor.jsx";
 import { SourceView, type SourceDoc } from "./SourceView.jsx";
 import type { DialogRequest, DialogResult, PendingDialog } from "./Dialog.jsx";
-import { Logo } from "./logo.jsx";
 import type { Literal, PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
 import { previewSelection } from "./SelectionPreview.jsx";
@@ -63,7 +62,7 @@ import { setProjectTypes } from "./projectTypes.js";
 import { setProjectAliases } from "./projectAliases.js";
 import { forget, lastProject, recentProjects, remember } from "./recents.js";
 import { IS_STATIC_HOST, openPage, setBeforeLeaving } from "./pages.js";
-import { CanaryBanner } from "./previewBuild.jsx";
+import { CanaryBanner, MarkedLogo } from "./previewBuild.jsx";
 import {
 	forgetRememberedFolder, openDirectory, useCanOpenDirectory, useHostCan, useHostFailure,
 	useRememberedFolders,
@@ -2215,7 +2214,7 @@ function ProjectPicker({
 	if (hostFailure !== null) {
 		return (
 			<div className="placeholder shell">
-				<h1 className="logo"><Logo height={26} /> Roswaal</h1>
+				<h1 className="logo"><MarkedLogo height={26} /> Roswaal</h1>
 				<p className="shell-broken">
 					{IS_STATIC_HOST
 						? "Roswaal could not start in this tab. Nothing here can open a project until it does."
@@ -2245,7 +2244,7 @@ function ProjectPicker({
 		<div className="placeholder shell">
 			{/* Here the name stays in text beside the mark. This is the first
 			    screen, and it is the one place that has to say what it is. */}
-			<h1 className="logo"><Logo height={26} /> Roswaal</h1>
+			<h1 className="logo"><MarkedLogo height={26} /> Roswaal</h1>
 			<p>Open a Roblox repository, or a Lune one (experimental). Roswaal writes Luau into it; Rojo does the rest.</p>
 
 			<div className="row">

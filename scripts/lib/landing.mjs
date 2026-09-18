@@ -156,8 +156,10 @@ body.roswaal-landing {
 .landing-top .landing-sub,
 .landing-top .landing-note { margin-left: auto; margin-right: auto; }
 .landing-doors { justify-content: center; }
-/* The mark draws with currentColor, so this is the whole of colouring it. */
+/* The mark draws with currentColor, so this is the whole of colouring it. Blue
+   is the web app's colour and yellow the canary's, as the editor's own mark is. */
 .landing-head .logo-mark { color: var(--accent); }
+.landing-head.canary .logo-mark { color: var(--warning); }
 .landing-head h1 { font-size: 34px; margin: 0; letter-spacing: -0.015em; }
 .landing-head .tag {
   font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
@@ -365,7 +367,7 @@ ${IS_CANARY ? `<meta name="robots" content="noindex" />
       ${escapeHtml(CANARY_BANNER.app)}
       <a href="https://neopolitans.github.io/Roswaal/">${escapeHtml(CANARY_BANNER.wayOut)}</a>
     </p>` : ""}
-    <div class="landing-head">
+    <div class="landing-head${IS_CANARY ? " canary" : ""}">
       ${logoMarkup(38)}
       <h1>Roswaal</h1>
       <span class="tag">${escapeHtml(version)}</span>

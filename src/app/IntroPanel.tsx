@@ -35,7 +35,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "./api.js";
 import { DEMO_PROJECTS, type DemoProject } from "../core/demoProjects.js";
 import { Icon } from "./icons.jsx";
-import { Logo } from "./logo.jsx";
+import { MarkedLogo } from "./previewBuild.jsx";
 import { IS_STATIC_HOST, pageHref, type Page, guardLeave, openPage, pageTarget } from "./pages.js";
 import { projectName, projectTail, recentProjects } from "./recents.js";
 import type { RememberedFolder } from "./host.js";
@@ -316,7 +316,7 @@ export function IntroPanel(props: IntroPanelProps) {
 			>
 				<header className="intro-head">
 					<span className="logo">
-						<Logo height={20} title="Roswaal" />
+						<MarkedLogo height={20} title="Roswaal" />
 						Roswaal
 					</span>
 					<span className="intro-where">

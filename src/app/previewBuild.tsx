@@ -61,8 +61,8 @@ export function PreviewChip({ title }: { title?: string } = {}) {
  * The same rule as the chip -- every surface carries its mark -- by the same
  * route, one component, so the colour is decided in one place.
  */
-export function MarkedLogo({ height = 17 }: { height?: number } = {}) {
-	return <Logo height={height} className={`mark-${buildMark() ?? "stable"}`} />;
+export function MarkedLogo({ height = 17, title }: { height?: number; title?: string } = {}) {
+	return <Logo height={height} title={title} className={`mark-${buildMark() ?? "stable"}`} />;
 }
 
 /** What the mark means, for a tooltip beside a tinted logo. Empty for a stable build. */

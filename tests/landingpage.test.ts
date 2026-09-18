@@ -239,3 +239,16 @@ describe("what is planned, told apart from what is there", () => {
 		expect(cards.filter((c) => c.includes("planned")).length).toBe(6);
 	});
 });
+
+describe("the mark on the front page", () => {
+	/**
+	 * The editor's mark wears the build's colour -- blue for the web app,
+	 * yellow for the canary -- and the front page's mark is the same claim
+	 * about the same build, so it follows the channel too.
+	 */
+	it("is yellow on the canary and the web app's blue otherwise", () => {
+		expect(landingPage("9.9.9", { canary: true })).toContain('class="landing-head canary"');
+		expect(landingPage("9.9.9", { canary: false })).toContain('class="landing-head"');
+		expect(landingPage("9.9.9", { canary: false })).not.toContain('class="landing-head canary"');
+	});
+});
