@@ -40,6 +40,7 @@ import { applyDocsToggle } from "./docsToggle.js";
 import { growthState } from "../core/nodes/growth.js";
 import { PageEditor } from "./PageEditor.jsx";
 import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
+import { layoutHtml, listedRegions, type LayoutSpec } from "../core/docs/layouts.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../core/nodes/runtimes.js";
 import { attachToolbarLink } from "./toolbarLink.js";
 import { attachMapPanel } from "./mapPanel.js";
@@ -666,6 +667,8 @@ function BlockView({ block }: { block: Block }) {
 			return <MapFigureView map={block.map} caption={block.caption} />;
 		case "toolbar":
 			return <ToolbarFigure bar={block.bar} caption={block.caption} hint={block.hint} />;
+		case "layout":
+			return <LayoutFigure layout={block.layout} caption={block.caption} hint={block.hint} />;
 	}
 }
 
@@ -786,6 +789,49 @@ function ToolbarFigure(
 					</li>
 				))}
 			</ul>
+			{caption && <figcaption><Rich text={caption} /></figcaption>}
+		</figure>
+	);
+}
+
+/**
+ * A whole window as a labelled diagram, with its regions listed under it.
+ *
+ * The toolbar figure's arrangement exactly: the picture from core, injected,
+ * so it cannot differ from the website's; the legend as JSX, for its links;
+ * and the same linking script, which pairs a region and its row by
+ * `data-control` as it pairs a button and its row.
+ */
+function LayoutFigure(
+	{ layout, caption, hint }: { layout: LayoutSpec; caption?: string; hint?: boolean },
+) {
+	const html = useMemo(() => ({ __html: layoutHtml(layout, TOOLBAR_ART) }), [layout]);
+	const figure = useRef<HTMLElement>(null);
+
+	useEffect(() => {
+		if (!figure.current) return;
+		return attachToolbarLink(figure.current);
+	}, [layout]);
+
+	return (
+		<figure className="docs-bar docs-layout" ref={figure}>
+			<div className="docs-bar-picture" dangerouslySetInnerHTML={html} />
+			<p className="docs-bar-summary"><Rich text={layout.summary} /></p>
+			{hint && <p className="docs-bar-hint">{TOOLBAR_HINT}</p>}
+			<ol className="docs-bar-legend docs-layout-legend">
+				{listedRegions(layout).map((region, i) => (
+					<li key={region.name} data-control={controlKey(region.name)}>
+						<span className="docs-bar-name">
+							<span className="docs-layout-num">{i + 1}</span>
+							{region.name}
+							{region.where && <span className="docs-bar-where">{region.where}</span>}
+						</span>
+						{region.what && (
+							<span className="docs-bar-what"><Rich text={region.what} /></span>
+						)}
+					</li>
+				))}
+			</ol>
 			{caption && <figcaption><Rich text={caption} /></figcaption>}
 		</figure>
 	);

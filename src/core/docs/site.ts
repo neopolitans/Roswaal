@@ -34,10 +34,14 @@ import {
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
-	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DOCS_BAR, DOCS_SITE_BAR, EDITOR_BAR,
-	EDITOR_BAR_BROWSER, FUNCTIONS_PANEL, GRAPH_BAR, legendOf, MAP_BAR, MODULES_PANEL,
+	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_TOUCH_BAR, DOCS_BAR, DOCS_SITE_BAR,
+	EDITOR_BAR, EDITOR_BAR_BROWSER, FUNCTIONS_PANEL, GRAPH_BAR, legendOf, MAP_BAR, MODULES_PANEL,
 	VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec,
 } from "./toolbars.js";
+import {
+	DESIGNER_LAYOUT, DESIGNER_LAYOUT_TOUCH, EDITOR_LAYOUT, EDITOR_LAYOUT_TOUCH, listedRegions,
+	type LayoutSpec,
+} from "./layouts.js";
 import { GUIDE_SCENES } from "./examples.js";
 import { RELEASES, type Release, type ReleaseSurface } from "./releases.js";
 import { reviewerCounts, reviewerLink, reviewOf, type Review } from "./reviews.js";
@@ -210,6 +214,12 @@ export type Block =
 	 * both out of one spec in `toolbars.ts` — the picture and the legend cannot
 	 * describe different bars.
 	 */
+	/**
+	 * A whole window as a labelled diagram: where each part of the screen is,
+	 * numbered, with a legend. The page before Toolbars, drawn from a spec in
+	 * `layouts.ts` into the same figure and legend a toolbar uses.
+	 */
+	| { t: "layout"; layout: LayoutSpec; caption?: string; hint?: boolean }
 	| {
 			t: "toolbar";
 			bar: ToolbarSpec;
@@ -442,6 +452,12 @@ export function blockText(block: Block): string {
 			return [
 				block.label ?? "",
 				...block.tabs.flatMap((tab) => [tab.title, ...tab.blocks.map(blockText)]),
+			].join(" ").trim();
+		case "layout":
+			return [
+				block.layout.title,
+				block.layout.summary,
+				...listedRegions(block.layout).flatMap((r) => [r.name, r.where ?? "", r.what ?? ""]),
 			].join(" ").trim();
 		case "toolbar":
 			// The legend, not the drawing. Somebody who cannot find Node Design
@@ -1444,6 +1460,101 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 });
 
 /**
+ * A map of the two windows a graph is built in, before the pages about using
+ * them.
+ *
+ * Controls says what each key and gesture does and Toolbars names each button,
+ * which both assume the reader knows where the Inspector is. This is where
+ * they find out: each window drawn as its regions, numbered, with a line each
+ * -- and, in the Mobile tabs, where those regions go on a touch screen and
+ * what is only there. The docs themselves are not drawn: a page to read needs
+ * no map.
+ */
+const INTERFACE: DocPage = {
+	slug: "the-interface",
+	title: "The Interface",
+	summary: "What each part of the editor and Node Design is, and where it sits.",
+	blocks: [
+		{
+			t: "p",
+			text:
+				"Roswaal has three windows: the editor, where you build graphs; **Node Design**, " +
+				"where you make the nodes they are built from; and these docs. This page is a map of " +
+				"the first two. How each part is used is on [Controls](controls), and every button is " +
+				"named on [Toolbars](toolbars).",
+		},
+		{
+			t: "p",
+			text:
+				"On a phone or a tablet the same parts are there, arranged for a finger. The " +
+				"**Mobile (Webapp)** tabs show where they go, and what is only there.",
+		},
+		{ t: "h", level: 2, text: "The editor" },
+		{
+			t: "tabs",
+			label: "What are you using?",
+			tabs: [
+				{
+					id: "interface-editor-desktop",
+					title: "Desktop",
+					blocks: [
+						{ t: "layout", layout: EDITOR_LAYOUT, hint: true },
+						{
+							t: "note",
+							kind: "info",
+							text:
+								"That is where each panel starts. Drag one by its heading to another edge, " +
+								"or out over the graph as a window.",
+						},
+					],
+				},
+				{
+					id: "interface-editor-mobile",
+					title: "Mobile (Webapp)",
+					blocks: [
+						{ t: "layout", layout: EDITOR_LAYOUT_TOUCH },
+						{ t: "toolbar", bar: ACTION_ROW },
+					],
+				},
+			],
+		},
+		{ t: "h", level: 2, text: "Node Design" },
+		{
+			t: "p",
+			text:
+				"Opened from the editor's top bar. It lists the project's node packs; open one and " +
+				"pick a node to edit it.",
+		},
+		{
+			t: "tabs",
+			label: "What are you using?",
+			tabs: [
+				{
+					id: "interface-designer-desktop",
+					title: "Desktop",
+					blocks: [{ t: "layout", layout: DESIGNER_LAYOUT }],
+				},
+				{
+					id: "interface-designer-mobile",
+					title: "Mobile (Webapp)",
+					blocks: [
+						{ t: "layout", layout: DESIGNER_LAYOUT_TOUCH },
+						{ t: "toolbar", bar: DESIGNER_TOUCH_BAR },
+					],
+				},
+			],
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"On a phone or a tablet the editor, Node Design and the docs open in the same tab, " +
+				"and the back button returns. On a computer each has a tab of its own.",
+		},
+	],
+};
+
+/**
  * Every control the editor has, in one place.
  *
  * Written from the two files that bind one — `App.tsx`'s key handler and
@@ -1907,7 +2018,8 @@ const TOOLBARS_PAGE: DocPage = {
 			t: "p",
 			text:
 				"Roswaal is three windows out of one build, and each one can reach the others. " +
-				"None of them replaces the window you are on.",
+				"On a computer none of them replaces the window you are on; on a phone or a tablet " +
+				"they take turns in one tab, and the back button returns.",
 		},
 		{
 			t: "table",
@@ -1928,6 +2040,14 @@ const TOOLBARS_PAGE: DocPage = {
 				"repository and are changed from the editor, which is the window that has a " +
 				"project open.",
 		},
+		{ t: "h", level: 2, text: "On a phone or a tablet" },
+		{
+			t: "p",
+			text:
+				"Two bars only a touch screen has. Where they sit is on [The Interface](the-interface).",
+		},
+		{ t: "toolbar", bar: ACTION_ROW },
+		{ t: "toolbar", bar: DESIGNER_TOUCH_BAR },
 	],
 };
 
@@ -5153,7 +5273,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 		}];
 	};
 
-	const start = [GETTING_STARTED, CONTROLS, TOOLBARS_PAGE, blueprintPage()];
+	const start = [GETTING_STARTED, INTERFACE, CONTROLS, TOOLBARS_PAGE, blueprintPage()];
 	/**
 	 * The guides, in four shelves rather than one list of sixteen.
 	 *

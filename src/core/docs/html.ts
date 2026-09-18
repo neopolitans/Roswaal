@@ -24,6 +24,7 @@ import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
 import {
 	controlKey, legendOf, TOOLBAR_HINT, toolbarHtml, type ToolbarArt,
 } from "./toolbars.js";
+import { layoutHtml, listedRegions } from "./layouts.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
 import { mapFigure, mapFigureHtml } from "./mapFigure.js";
@@ -271,6 +272,29 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				? `<figcaption>${inline(block.caption, up)}</figcaption>`
 				: "";
 			return `<figure class="docs-preview"><div class="row">${svgs}</div>${caption}</figure>`;
+		}
+		case "layout": {
+			// A toolbar's figure, holding a window rather than a bar: the same
+			// legend markup and `data-control` pairing, so the one linking script
+			// lights both. Numbered, because the picture numbers its regions.
+			const art = options.toolbars;
+			const picture = art ? layoutHtml(block.layout, art) : "";
+			const legend = listedRegions(block.layout)
+				.map(
+					(region, i) =>
+						`<li data-control="${escapeHtml(controlKey(region.name))}">` +
+						`<span class="docs-bar-name"><span class="docs-layout-num">${i + 1}</span>${escapeHtml(region.name)}` +
+						`${region.where ? `<span class="docs-bar-where">${escapeHtml(region.where)}</span>` : ""}` +
+						`</span>${region.what ? `<span class="docs-bar-what">${inline(region.what, up)}</span>` : ""}</li>`,
+				)
+				.join("");
+			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
+			const hint = block.hint ? `<p class="docs-bar-hint">${escapeHtml(TOOLBAR_HINT)}</p>` : "";
+			return (
+				`<figure class="docs-bar docs-layout"><div class="docs-bar-picture">${picture}</div>` +
+				`<p class="docs-bar-summary">${inline(block.layout.summary, up)}</p>${hint}` +
+				`<ol class="docs-bar-legend docs-layout-legend">${legend}</ol>${caption}</figure>`
+			);
 		}
 		case "toolbar": {
 			// The picture comes from core so it is byte-identical to the panel's;

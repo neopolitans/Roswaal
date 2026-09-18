@@ -70,7 +70,12 @@ export const REVIEWS: Record<
 	// the drawn bars sat flush against their legends and read as the top row of
 	// a list, and the graph toolbars' canvas stopped where the tools stopped.
 	// Both were found by looking at the page rather than at the diff.
-	"toolbars": { status: "verified", date: "2026-09-16", reviewers: ["neopolitans"] },
+	"toolbars": {
+		status: "verified",
+		date: "2026-09-16",
+		reviewers: ["neopolitans"],
+		verify: "On a phone or a tablet, added in 0.72.0, and the windows sharing one tab there.",
+	},
 	// Verified by the author for 0.29.1.
 	// Read again for 0.31.6, when C stopped needing a selection and the
 	// Comments table gained the two ways to make one.

@@ -1186,10 +1186,66 @@ export const FUNCTIONS_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
 	locals: POINTERS.locals,
 });
 
+/**
+ * The row of edits under the graph on a phone or a tablet.
+ *
+ * Written from `src/app/TouchBar.tsx`, in its order. Each is the keystroke
+ * named beside it, sent to the graph's own handler.
+ */
+export const ACTION_ROW: ToolbarSpec = {
+	id: "action-row",
+	title: "The action row",
+	summary: "Under the graph on a phone or a tablet, and under Node Design's logic graph. Icons, or words with **Settings → Editor → Action buttons**.",
+	chrome: "float",
+	groups: [
+		{
+			items: [
+				{ t: "icon", icon: "undo", name: "Undo", what: "As `Ctrl` + `Z`. Greyed when there is nothing to undo." },
+				{ t: "icon", icon: "redo", name: "Redo", what: "As `Ctrl` + `Y`." },
+				{ t: "icon", icon: "straighten", name: "Align", what: "Lines the selection up on the node picked first, as `A` does.", where: "Two or more selected" },
+				{ t: "icon", icon: "copy", name: "Copy", what: "As `Ctrl` + `C`.", where: "Something selected" },
+				{ t: "icon", icon: "cut", name: "Cut", what: "As `Ctrl` + `X`.", where: "Something selected" },
+				{ t: "icon", icon: "duplicate", name: "Duplicate", what: "As `Ctrl` + `D`.", where: "Something selected" },
+				{ t: "icon", icon: "remove", name: "Delete", what: "As `Delete`.", where: "Something selected" },
+				{ t: "icon", icon: "paste", name: "Paste", what: "As `Ctrl` + `V`, where the graph was last touched.", where: "Something copied" },
+			],
+		},
+	],
+};
+
+/**
+ * Node Design's bar over a node, on a phone or a tablet.
+ *
+ * Written from `src/app/designer/PackView.tsx` and the switches `NodeEditor`
+ * puts in it.
+ */
+export const DESIGNER_TOUCH_BAR: ToolbarSpec = {
+	id: "designer-touch-bar",
+	title: "Node Design's bar, on a phone or a tablet",
+	summary: "Above the node on a phone or a tablet: the pack, the node, and which view of it is showing.",
+	chrome: "bar",
+	groups: [
+		{
+			items: [
+				{ t: "button", text: "combat", icon: "chevron", name: "The pack", what: "Slides the pack's node list out over the editor. Pick a node and it goes away again." },
+				{ t: "name", text: "Apply Knockback" },
+			],
+		},
+		{
+			apart: true,
+			items: [
+				{ t: "segmented", options: ["Preview", "Logic"], on: 1, name: "Preview and Logic", what: "The node as a graph draws it, or what it does when it runs." },
+				{ t: "segmented", options: ["Luau", "Nodes"], on: 1, name: "Luau and Nodes", what: "Write the logic as Luau, or build it from nodes.", where: "With Logic showing" },
+			],
+		},
+	],
+};
+
 /** Every bar the documentation draws, in the order the page walks them. */
 export const TOOLBARS: ToolbarSpec[] = [
 	EDITOR_BAR, EDITOR_BAR_BROWSER, GRAPH_BAR, MAP_BAR,
 	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DOCS_BAR, DOCS_SITE_BAR,
+	ACTION_ROW, DESIGNER_TOUCH_BAR,
 ];
 
 /**

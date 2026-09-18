@@ -30,6 +30,7 @@ import type { Block, DocPage } from "../core/docs/site.js";
 import { previewOf, previewSvg, type PreviewOptions } from "../core/docs/preview.js";
 import { FEEDBACK_REPOSITORY } from "../core/docs/links.js";
 import { toolbarConstant } from "../core/docs/toolbars.js";
+import { layoutConstant } from "../core/docs/layouts.js";
 import type { NodeScript } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { api } from "./api.js";
@@ -138,6 +139,12 @@ function blockSource(draft: Draft, indent = "\t\t"): string {
 		const hint = block.hint ? ", hint: true" : "";
 		const caption = block.caption ? `, caption: ${str(block.caption)}` : "";
 		return `${indent}{ t: "toolbar", bar: ${toolbarConstant(block.bar)}${hint}${caption} },`;
+	}
+	// A window diagram is a constant in `layouts.ts`, for the toolbar's reason.
+	if (block.t === "layout") {
+		const hint = block.hint ? ", hint: true" : "";
+		const caption = block.caption ? `, caption: ${str(block.caption)}` : "";
+		return `${indent}{ t: "layout", layout: ${layoutConstant(block.layout)}${hint}${caption} },`;
 	}
 
 	if (block.t === "note") {

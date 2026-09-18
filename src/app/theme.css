@@ -9028,3 +9028,165 @@ select:not(.literal):not([multiple]) {
 	background-repeat: no-repeat;
 	text-overflow: ellipsis;
 }
+
+/* --------------------------------------------------------------------------
+   A window as a diagram, on The Interface. See `src/core/docs/layouts.ts`.
+
+   Boxes in the places the real regions occupy, each numbered as the legend
+   under it numbers them. Recognisable rather than faithful: the bars are drawn
+   control by control on Toolbars, and a picture of every button at this size
+   would be a picture of nothing in particular.
+   ----------------------------------------------------------------------- */
+.docs-layout-frame {
+	display: grid;
+	gap: 3px;
+	padding: 6px;
+	margin: 14px;
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	background: var(--bg-app);
+	font-size: 11px;
+	line-height: 1.3;
+}
+
+.docs-layout-frame.device-desktop {
+	aspect-ratio: 16 / 10;
+}
+
+/* A tablet held sideways: its bezel, so the two tabs are two devices at a
+   glance rather than two sizes of one box. */
+.docs-layout-frame.device-tablet {
+	aspect-ratio: 4 / 3;
+	max-width: 620px;
+	margin-inline: auto;
+	border: 10px solid var(--border-strong);
+	border-radius: 22px;
+}
+
+.docs-layout-region {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	align-content: flex-start;
+	gap: 4px 6px;
+	min-width: 0;
+	min-height: 0;
+	padding: 5px 7px;
+	overflow: hidden;
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	background: var(--bg-panel);
+	color: var(--fg-muted);
+}
+
+.docs-layout-region.kind-bar {
+	align-items: center;
+	align-content: center;
+}
+
+/* The graph, drawn as the graph's own grid so it reads as the canvas. */
+.docs-layout-region.kind-canvas {
+	background-color: var(--bg-canvas);
+	background-image:
+		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
+		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
+	background-size: 14px 14px;
+	align-content: flex-end;
+}
+
+/* Over the graph: in the graph's cells, sized to what is on it, raised. */
+.docs-layout-region.kind-float {
+	z-index: 2;
+	align-self: center;
+	align-items: center;
+	margin: 0 6px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.docs-layout-region.kind-float.place-start { justify-self: start; }
+.docs-layout-region.kind-float.place-center { justify-self: center; }
+.docs-layout-region.kind-float.place-end { justify-self: end; }
+
+/* A panel slid out over the graph: above it, with the shadow the real one has. */
+.docs-layout-region.kind-drawer {
+	z-index: 3;
+	border-color: var(--border-strong);
+	box-shadow: -8px 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.docs-layout-num {
+	display: inline-grid;
+	place-items: center;
+	flex: none;
+	width: 17px;
+	height: 17px;
+	border-radius: 50%;
+	background: var(--accent);
+	color: var(--bg-panel);
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.docs-layout-icons,
+.docs-layout-chips {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+}
+
+.docs-layout-icons.docs-layout-end {
+	margin-left: auto;
+}
+
+.docs-layout-chips > span {
+	padding: 1px 6px;
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	background: var(--bg-input);
+	white-space: nowrap;
+}
+
+.docs-bar.docs-layout .docs-bar-picture {
+	overflow: visible;
+}
+
+.docs-layout-frame [data-control] {
+	cursor: pointer;
+}
+
+.docs-layout-frame [data-control].lit {
+	box-shadow: 0 0 0 2px var(--accent);
+}
+
+.docs-layout-legend {
+	list-style: none;
+}
+
+/* The number beside the name, as it sits in the picture; the when-it-is-there
+   line keeps its own row under both. */
+.docs-layout-legend .docs-bar-name {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	column-gap: 7px;
+}
+
+.docs-layout-legend .docs-bar-where {
+	flex-basis: 100%;
+	padding-left: 24px;
+}
+
+/* A phone draws the diagram small: the numbers carry it, and the names are
+   in the legend beneath. */
+@media (max-width: 560px) {
+	.docs-layout-frame .docs-layout-chips,
+	.docs-layout-frame .docs-layout-icons {
+		display: none;
+	}
+
+	.docs-layout-frame {
+		margin: 8px;
+	}
+}
