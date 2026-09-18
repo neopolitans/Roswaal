@@ -29,6 +29,7 @@
  * layout changes underneath them.
  */
 
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { RoswaalConfig, ScriptClass, Target, TypecheckMode } from "../core/schema.js";
 import { VERSION } from "../cli/version.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
@@ -225,6 +226,7 @@ export type DocumentBarProps =
 	  };
 
 export function DocumentBar(props: DocumentBarProps) {
+	const phone = usePhone();
 	if (props.kind === "map") {
 		return (
 			<div className="docbar">
@@ -244,25 +246,10 @@ export function DocumentBar(props: DocumentBarProps) {
 		);
 	}
 
-	// Floats over the canvas's top edge in three groups — the document's own
-	// settings, the tools that act on the graph, and compiling — rather than
-	// taking a row above it. See FloatingTools.tsx.
-	return (
-		<FloatingTools label="Graph">
-			<ToolGroup>
-			{/* The name is a preference; the tab and the watermark already say it.
-			    Unsaved edits are marked either way. */}
-			{props.showName ? (
-				<span className={`doc-name${props.dirty ? " dirty" : ""}`}>
-					{props.functionName ? (
-						<>ƒ {props.functionName} <span className="doc-of">({props.name})</span></>
-					) : (
-						props.name
-					)}
-				</span>
-			) : (
-				props.dirty && <span className="doc-dirty" title="Edits not written yet" />
-			)}
+	// The document's settings and its compile target, written once and drawn
+	// either inline or, on a phone, behind a button each. See `Popout`.
+	const scriptSettings = (
+		<>
 			{/* Lune has no script classes: every file is .luau, and a Module
 			    Exports node is what makes one a module. */}
 			{props.target !== "lune" && (
@@ -291,6 +278,52 @@ export function DocumentBar(props: DocumentBarProps) {
 				<option value="nonstrict">Nonstrict Mode</option>
 				<option value="strict">Strict Mode</option>
 			</select>
+		</>
+	);
+	const targetSetting = (
+			<select
+				className={`tb doc-target ${props.target}`}
+				title={
+					props.target === "lune"
+						? "Compiles for Lune, which is experimental. Roblox-only nodes are errors here."
+						: "Compiles for Roblox."
+				}
+				value={props.target}
+				disabled={props.locked}
+				onChange={(e) => props.onTarget(e.target.value as Target)}
+			>
+				<option value="roblox">Roblox</option>
+				<option value="lune">Lune (experimental)</option>
+			</select>
+	);
+
+	// Floats over the canvas's top edge in three groups — the document's own
+	// settings, the tools that act on the graph, and compiling — rather than
+	// taking a row above it. See FloatingTools.tsx.
+	return (
+		<FloatingTools label="Graph">
+			<ToolGroup>
+			{/* The name is a preference; the tab and the watermark already say it.
+			    Unsaved edits are marked either way. */}
+			{props.showName ? (
+				<span className={`doc-name${props.dirty ? " dirty" : ""}`}>
+					{props.functionName ? (
+						<>ƒ {props.functionName} <span className="doc-of">({props.name})</span></>
+					) : (
+						props.name
+					)}
+				</span>
+			) : (
+				props.dirty && <span className="doc-dirty" title="Edits not written yet" />
+			)}
+			{phone ? (
+				<Popout
+					label={props.target === "lune" ? TYPECHECK_SHORT[props.typecheck] : props.scriptClass}
+					title="What this graph compiles to, and its typechecking mode"
+				>
+					{scriptSettings}
+				</Popout>
+			) : scriptSettings}
 			</ToolGroup>
 
 			<ToolGroup>
@@ -351,20 +384,15 @@ export function DocumentBar(props: DocumentBarProps) {
 			{/* What the graph compiles for, beside the button that compiles it:
 			    it is a compilation setting, and a Roblox-only node in a Lune graph
 			    being an error is the fact it explains. */}
-			<select
-				className={`tb doc-target ${props.target}`}
-				title={
-					props.target === "lune"
-						? "Compiles for Lune, which is experimental. Roblox-only nodes are errors here."
-						: "Compiles for Roblox."
-				}
-				value={props.target}
-				disabled={props.locked}
-				onChange={(e) => props.onTarget(e.target.value as Target)}
-			>
-				<option value="roblox">Roblox</option>
-				<option value="lune">Lune (experimental)</option>
-			</select>
+			{phone ? (
+				<Popout
+					label={props.target === "lune" ? "Lune" : "Roblox"}
+					title="What this graph compiles for"
+					end
+				>
+					{targetSetting}
+				</Popout>
+			) : targetSetting}
 			<button
 				className="tb primary with-icon tb-collapsible"
 				title="Compile just this document (Ctrl+S)"
@@ -378,3 +406,92 @@ export function DocumentBar(props: DocumentBarProps) {
 		</FloatingTools>
 	);
 }
+
+/** A mode's name as a button shows it, where the word "Mode" is room it has not got. */
+const TYPECHECK_SHORT: Record<TypecheckMode, string> = {
+	default: "Default",
+	nonstrict: "Nonstrict",
+	strict: "Strict",
+};
+
+/**
+ * Whether this is a phone-sized window, where the graph's tools pop out.
+ *
+ * The width alone: an iPad holds the tools in one row either way up, and a
+ * phone does not, held either way.
+ */
+function usePhone(): boolean {
+	const query = "(max-width: 699px)";
+	const [phone, setPhone] = useState(
+		() => typeof window !== "undefined" && window.matchMedia(query).matches,
+	);
+	useEffect(() => {
+		const list = window.matchMedia(query);
+		const update = () => setPhone(list.matches);
+		update();
+		list.addEventListener("change", update);
+		return () => list.removeEventListener("change", update);
+	}, []);
+	return phone;
+}
+
+/**
+ * A group of settings behind one button, on a phone.
+ *
+ * The button says what is chosen -- "Script", "Roblox" -- so the setting can be
+ * read without opening it, and opens a small panel of the dropdowns it stands
+ * for. A tap anywhere else puts the panel away; choosing does not, because the
+ * script's panel holds two settings and the second is usually why it was opened.
+ */
+function Popout({ label, title, end = false, children }: {
+	label: string;
+	title: string;
+	/** Opens towards the left: for the group at the right-hand edge. */
+	end?: boolean;
+	children: ReactNode;
+}) {
+	const [open, setOpen] = useState(false);
+	const box = useRef<HTMLDivElement>(null);
+	const panel = useRef<HTMLDivElement>(null);
+	/**
+	 * Which way the panel hangs. `end` is where it would like to open, but the
+	 * groups wrap on a narrow screen and the one at the right-hand edge can end
+	 * up at the left of the second row -- so it is measured once it is drawn,
+	 * and turned round if it would run off either side.
+	 */
+	const [side, setSide] = useState<"start" | "end">(end ? "end" : "start");
+	useLayoutEffect(() => {
+		if (!open || !panel.current) return;
+		const at = panel.current.getBoundingClientRect();
+		const width = document.documentElement.clientWidth;
+		if (at.left < 4) setSide("start");
+		else if (at.right > width - 4) setSide("end");
+	}, [open, side]);
+	useEffect(() => {
+		if (!open) return;
+		const away = (e: PointerEvent) => {
+			if (!box.current?.contains(e.target as Node)) setOpen(false);
+		};
+		window.addEventListener("pointerdown", away, true);
+		return () => window.removeEventListener("pointerdown", away, true);
+	}, [open]);
+	return (
+		<div className={`tool-popout${side === "end" ? " tool-popout-end" : ""}`} ref={box}>
+			<button
+				className={`tb with-icon${open ? " on" : ""}`}
+				title={title}
+				aria-expanded={open}
+				onClick={() => setOpen((was) => !was)}
+			>
+				{label}
+				<Icon name="chevron" size={14} />
+			</button>
+			{open && (
+				<div className="tool-popout-panel" role="group" aria-label={title} ref={panel}>
+					{children}
+				</div>
+			)}
+		</div>
+	);
+}
+

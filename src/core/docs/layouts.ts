@@ -227,9 +227,9 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 		},
 		{
 			name: "Graph tools", kind: "float", place: "start", at: [3, 4, 1, 3], icons: ["search", "layout", "terminal"],
-			what: "As on a computer. Held upright, Straighten is its icon, lit while it is on.",
+			what: "As on a computer. Held upright, Straighten is its icon, lit while it is on. On a phone the script's type and mode are behind one button.",
 		},
-		{ name: "Compile", kind: "float", place: "end", at: [3, 4, 1, 3], icons: ["build"], what: "As on a computer. Held upright, Compile script is its icon." },
+		{ name: "Compile", kind: "float", place: "end", at: [3, 4, 1, 3], icons: ["build"], what: "As on a computer. Held upright, Compile script is its icon; on a phone the target is behind a button beside it." },
 		{
 			name: "A panel, slid out", kind: "drawer", at: [4, 5, 2, 3],
 			what: "Project, Variables and the Inspector come out over the graph one at a time, with its whole height. Tap the graph beside one to put it away.",

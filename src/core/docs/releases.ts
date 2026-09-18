@@ -107,6 +107,7 @@ export const RELEASES: Release[] = [
 		fixed: [
 			"**The top bar and the graph's tools keep to one row on an iPad in portrait.** Where they are short of room, Compile project, Straighten and Compile script show only their icons, and the Compile caption goes; each keeps its name as its tooltip.",
 			"**The documentation's Roswaal mark lights when the pointer is over it**, and when it is pressed, like every other button in its header.",
+			"**The graph's tools fit one row on a phone.** The script's type and mode, and the compile target, each sit behind a button that says what is chosen and opens the dropdowns under it.",
 			"**The action row's icons have room around them.** Each button is 46 pixels square; the icon sat two pixels from its edge.",
 		],
 		changed: [

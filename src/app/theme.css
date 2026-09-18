@@ -9301,3 +9301,50 @@ select:not(.literal):not([multiple]) {
 	}
 }
 
+/* The graph's settings behind a button each, on a phone: see `Popout` in
+   Toolbar.tsx. The panel hangs under its button, over the graph. */
+.tool-popout {
+	position: relative;
+}
+
+.tool-popout-panel {
+	position: absolute;
+	top: calc(100% + 8px);
+	left: 0;
+	z-index: 20;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 190px;
+	padding: 8px;
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	background: var(--bg-panel);
+	box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.tool-popout-end .tool-popout-panel {
+	left: auto;
+	right: 0;
+}
+
+.tool-popout-panel select.tb {
+	width: 100%;
+}
+
+/* A phone's graph tools, drawn a little tighter so the three groups share one
+   row: with two of them behind buttons they are about 400px wide, and a phone
+   has 373 once the edges are taken. */
+@media (max-width: 699px) {
+	.floating-tools {
+		left: 6px;
+		right: 6px;
+		gap: 5px;
+	}
+
+	.floating-tools .tool-group {
+		gap: 4px;
+		padding: 4px;
+	}
+}
+
