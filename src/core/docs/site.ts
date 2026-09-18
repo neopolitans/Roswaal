@@ -1633,7 +1633,7 @@ const CONTROLS: DocPage = {
 				["Long press", "The menu a right-click opens: the node, the pin, or the canvas"],
 				["Double tap", "Open a graph from the tree, add a reroute knot, rename a comment"],
 				["Drag a node, or from a pin", "As with a mouse"],
-				["**Project** and **Inspector**, under the graph on a phone", "Slide that panel out over the graph"],
+				["**Project** and **Inspector**, under the graph on a phone or tablet", "Slide that panel out over the graph"],
 			],
 		},
 		{

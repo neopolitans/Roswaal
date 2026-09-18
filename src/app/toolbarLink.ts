@@ -110,6 +110,7 @@ export function attachToolbarLink(figure: HTMLElement): () => void {
 	};
 
 	const onOver = (e: Event) => {
+		if (isFinger(e)) return;
 		const key = keyAt(e.target);
 		if (key === null) return;
 		paint(key);
@@ -118,6 +119,7 @@ export function attachToolbarLink(figure: HTMLElement): () => void {
 	// Back to whatever was pinned rather than to nothing, so a tapped control
 	// does not go dark the moment the pointer crosses it.
 	const onOut = (e: Event) => {
+		if (isFinger(e)) return;
 		if (keyAt(e.target) === null) return;
 		paint(pinned);
 	};
@@ -144,6 +146,21 @@ export function attachToolbarLink(figure: HTMLElement): () => void {
 		figure.classList.remove("linked");
 		paint(null);
 	};
+}
+
+/**
+ * A finger, which cannot hover.
+ *
+ * A tap still sends hover events: `pointerover` as it lands and `pointerout`
+ * once it lifts, both *before* the `click`. Acted on, a tap lit the new
+ * control, dropped back to the old one, then lit the new one again -- a
+ * flicker on every tap on an iPad. The click alone says what was tapped.
+ *
+ * `mapPanel.ts` has the same three events and its own copy of this, since
+ * neither file may import.
+ */
+function isFinger(e: Event): boolean {
+	return (e as PointerEvent).pointerType === "touch";
 }
 
 /**

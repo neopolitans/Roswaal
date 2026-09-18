@@ -227,11 +227,15 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 	// rather than reacting to having entered something. Reacting left the
 	// previous answer on screen whenever the pointer moved onto a piece of the
 	// panel that is not a part -- which is most of it.
+	// Neither acts for a finger, which cannot hover: its tap sends both before
+	// the click and the picture flickered old-new-old-new. See `isFinger`.
 	const onOver = (e: Event) => {
+		if (isFinger(e)) return;
 		paint(keyAt(e.target) ?? picked);
 	};
 
-	const onLeave = () => {
+	const onLeave = (e: Event) => {
+		if (isFinger(e)) return;
 		paint(picked);
 		shine(null);
 	};
@@ -294,6 +298,7 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 	};
 
 	const onPartOver = (e: Event) => {
+		if (isFinger(e)) return;
 		shine(partAt(e.target));
 	};
 
@@ -325,6 +330,11 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 			row.hidden = false;
 		}
 	};
+}
+
+/** A finger, which cannot hover. The toolbar linker's `isFinger`, copied: no imports here. */
+function isFinger(e: Event): boolean {
+	return (e as PointerEvent).pointerType === "touch";
 }
 
 /** Every drawn map panel on the page. What the static site's script runs. */

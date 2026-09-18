@@ -7,6 +7,8 @@
  * worth pinning: a preferences blob synced from a Mac must not make a PC pan.
  */
 
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { COMPACT_QUERY } from "../src/app/panels.js";
@@ -47,13 +49,31 @@ describe("the phone layout", () => {
 	};
 
 	/**
-	 * An iPad Mini is 744 by 1133, so it keeps its docks either way up. An
-	 * iPhone 14 Pro is 393 by 852: too narrow standing up, too short lying down.
+	 * By size alone: an iPhone 14 Pro is 393 by 852, too narrow standing up and
+	 * too short lying down. A desktop window the size of an iPad Mini (744 by
+	 * 1133) keeps its docks; an iPad itself gets drawers for being a touch
+	 * screen, below.
 	 */
-	it("draws docks as drawers on a phone either way up, and never on an iPad", () => {
+	it("draws docks as drawers at a phone's size either way up, and not at a tablet's", () => {
 		expect(limit("width")).toBeLessThan(744);
 		expect(limit("width")).toBeGreaterThanOrEqual(393);
 		expect(limit("height")).toBeLessThan(744);
 		expect(limit("height")).toBeGreaterThanOrEqual(393);
+	});
+});
+
+describe("a touch screen of any size", () => {
+	const TOUCH = "(hover: none) and (pointer: coarse)";
+
+	/**
+	 * An iPad is wider than any phone breakpoint, so the drawers reach it by
+	 * asking what the screen is rather than how big. The editor asks in
+	 * `COMPACT_QUERY` and the docs in the stylesheet; one without the other
+	 * is an iPad with drawers in one window and columns in the next.
+	 */
+	it("gets the drawers in the editor and the contents button in the docs", () => {
+		expect(COMPACT_QUERY).toContain(TOUCH);
+		const css = readFileSync(new URL("../src/app/theme.css", import.meta.url), "utf8");
+		expect(css).toContain(`@media (max-width: 760px), ${TOUCH} {`);
 	});
 });

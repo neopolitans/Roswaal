@@ -571,6 +571,7 @@ ${options.canaryBanner ?? ""}<input type="checkbox" id="docs-nav-open" class="do
 <button type="button" class="tb icon-only" id="prefs" title="Settings" aria-label="Settings">${chromeIcon("settings", options)}</button>
 </header>
 <div class="docs-body">
+<label for="docs-nav-open" class="docs-nav-scrim" aria-hidden="true"></label>
 ${renderNav(site, page)}
 <article class="docs-content">
 <div class="docs-article${page.narrow ? " narrow" : ""}">

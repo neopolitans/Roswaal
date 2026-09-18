@@ -144,6 +144,10 @@ export function DocsPage() {
 				<IntroPanel surface="docs" onClose={() => setIntroOpen(false)} />
 			)}
 
+			{/* Tapping beside the drawer puts it away, as on the static site.
+			    Here rather than inside the body, which `DocsView` draws. */}
+			{navOpen && <div className="docs-nav-scrim" onClick={() => setNavOpen(false)} />}
+
 			<DocsView
 				registry={registry}
 				prefs={prefs}

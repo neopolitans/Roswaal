@@ -8616,19 +8616,18 @@ button.tb.danger {
 	align-items: center;
 }
 
-@media (max-width: 760px) {
-	.docs-page-head {
-		flex-wrap: wrap;
-		row-gap: 6px;
-		padding: 8px 10px;
-	}
-
+/* The contents as a drawer: on anything narrow, and on a touch screen of any
+   size. A column of links held open beside the page is a desktop's way of
+   reading; on an iPad it is a third of the screen spent on a list you use
+   once per page. Keep the query in step with `COMPACT_QUERY` in panels.ts,
+   which asks the same question of the editor. */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
 	.docs-page-head .docs-nav-toggle {
 		display: inline-flex;
 	}
 
-	/* The reading column takes the width; the contents come over it when
-	   asked for, rather than holding a third of a phone for good. */
+	/* The nav is out of the grid, so the reading column is the first track.
+	   The outline keeps its own track wherever it is shown. */
 	.docs-page .docs-body {
 		grid-template-columns: minmax(0, 1fr);
 		position: relative;
@@ -8642,10 +8641,27 @@ button.tb.danger {
 	.docs-page:has(.docs-nav-check:checked) .docs-nav {
 		display: flex;
 		position: absolute;
-		inset: 0;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		width: min(360px, 100%);
+		box-sizing: border-box;
 		z-index: 5;
-		border-right: 0;
 		background: var(--bg-panel);
+		border-right: 1px solid var(--border-strong);
+		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+	}
+
+	/* Tapping the page beside the drawer puts it away. A label for the same
+	   checkbox, so the static site needs no script for it. */
+	.docs-page.nav-open .docs-nav-scrim,
+	.docs-page:has(.docs-nav-check:checked) .docs-nav-scrim {
+		display: block;
+		position: absolute;
+		inset: 0;
+		z-index: 4;
+		background: rgba(0, 0, 0, 0.35);
+		cursor: pointer;
 	}
 
 	.docs-page:has(.docs-nav-check:checked) .docs-nav-toggle,
@@ -8654,10 +8670,38 @@ button.tb.danger {
 		border-color: var(--accent);
 		color: var(--accent);
 	}
+}
+
+@media (hover: none) and (pointer: coarse) and (min-width: 1101px) {
+	.docs-page .docs-body { grid-template-columns: minmax(0, 1fr) 210px; }
+}
+
+@media (hover: none) and (pointer: coarse) and (min-width: 1500px) {
+	.docs-page .docs-body { grid-template-columns: minmax(0, 1fr) 240px; }
+}
+
+.docs-nav-scrim {
+	display: none;
+}
+
+@media (max-width: 760px) {
+	.docs-page-head {
+		flex-wrap: wrap;
+		row-gap: 6px;
+		padding: 8px 10px;
+	}
 
 	.docs-page .docs-content {
 		padding: 18px 16px 60px;
 	}
+}
+
+/* No grey flash where a tap lands on a picture that lights what was tapped:
+   the lit state is the answer, and iOS drawing its own box over it first
+   read as the picture flickering. */
+.docs-bar.linked,
+.docs-map.linked {
+	-webkit-tap-highlight-color: transparent;
 }
 
 @media (max-width: 560px) {

@@ -130,10 +130,17 @@ export const PANEL_TITLES: Record<PanelId, string> = {
 
 /**
  * When the side docks are drawers over the graph rather than columns beside
- * it: a phone either way up, or an iPad sharing its screen. An iPad on its own
- * is wider and taller than both, in either orientation.
+ * it: a phone either way up, or any touch screen. On an iPad the docks as
+ * columns left the graph a strip down the middle, and a finger wants the
+ * graph more than a tree it opens a file from once.
+ *
+ * A touch screen is `hover: none` and `pointer: coarse` together, which is
+ * what a tablet reports and a laptop with a touch screen does not — its
+ * primary pointer is the trackpad. The docs ask the same question in
+ * `theme.css`, for their contents.
  */
-export const COMPACT_QUERY = "(max-width: 699px), (max-height: 479px)";
+export const COMPACT_QUERY =
+	"(max-width: 699px), (max-height: 479px), (hover: none) and (pointer: coarse)";
 
 /** Smallest a dock may be dragged to before it is worth closing instead. */
 export const MIN_DOCK = 140;
