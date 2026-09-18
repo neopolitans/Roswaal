@@ -129,9 +129,17 @@ export interface DocsViewProps {
 	initialSlug?: string;
 	/** Reflects the current page outwards, for the address bar or a title. */
 	onNavigate?: (slug: string) => void;
+	/**
+	 * Opens the search palette each time it changes. For a header's search
+	 * button, on a screen with no keyboard to press Ctrl+K on; zero opens
+	 * nothing, so the first render does not.
+	 */
+	searchRequest?: number;
 }
 
-export function DocsView({ registry, prefs, initialSlug, onNavigate }: DocsViewProps) {
+export function DocsView({
+	registry, prefs, initialSlug, onNavigate, searchRequest = 0,
+}: DocsViewProps) {
 	const site = useMemo(() => buildSite(registry, BUILTIN_IDS), [registry]);
 	const index = useMemo(() => buildSearchIndex(site), [site]);
 
@@ -200,6 +208,10 @@ export function DocsView({ registry, prefs, initialSlug, onNavigate }: DocsViewP
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
 	}, []);
+
+	useEffect(() => {
+		if (searchRequest > 0) setPalette(true);
+	}, [searchRequest]);
 
 	return (
 		<RegistryContext.Provider value={registry}>

@@ -49,6 +49,8 @@ export function DocsPage() {
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	/** The contents, over the page, on a screen too narrow for both. */
 	const [navOpen, setNavOpen] = useState(false);
+	/** Presses of the header's search button. See `searchRequest`. */
+	const [searches, setSearches] = useState(0);
 
 	useEffect(() => {
 		void api
@@ -125,6 +127,17 @@ export function DocsPage() {
 				>
 					Contents
 				</button>
+				<button
+					className="tb icon-only docs-search-toggle"
+					title="Search the docs"
+					aria-label="Search the docs"
+					onClick={() => {
+						setNavOpen(false);
+						setSearches((n) => n + 1);
+					}}
+				>
+					<Icon name="search" size={15} />
+				</button>
 				{packsFailed && (
 					<span className="warn" title="Start the daemon and reload to include them">
 						built-in nodes only — no daemon
@@ -153,6 +166,7 @@ export function DocsPage() {
 				prefs={prefs}
 				initialSlug={slug}
 				onNavigate={onNavigate}
+				searchRequest={searches}
 			/>
 		</div>
 

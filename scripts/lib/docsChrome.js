@@ -46,6 +46,11 @@
     document.addEventListener("keydown", onKey);
     back.appendChild(build(shut));
     document.body.appendChild(back);
+    // Focused now, inside the tap or keypress that opened it, rather than a
+    // tick later: iOS only raises the keyboard for a focus made during the
+    // gesture, and a search box you then have to tap again is a second step.
+    var field = back.querySelector("input");
+    if (field) field.focus();
   }
 
   function el(tag, className, text) {
@@ -302,4 +307,21 @@
     e.preventDefault();
     overlay("docs-palette-backdrop", palette);
   });
+
+  /**
+   * The same palette, for a screen with no keyboard to press Ctrl+K on.
+   *
+   * Hidden in the markup and shown from here, because without this script the
+   * button would have nothing behind it. The stylesheet decides where it is
+   * offered -- beside Contents, wherever Contents is.
+   */
+  var finder = document.getElementById("docs-search");
+  if (finder) {
+    finder.hidden = false;
+    finder.addEventListener("click", function () {
+      var contents = document.getElementById("docs-nav-open");
+      if (contents) contents.checked = false;
+      overlay("docs-palette-backdrop", palette);
+    });
+  }
 })();

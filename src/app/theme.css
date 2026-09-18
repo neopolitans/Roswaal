@@ -6310,7 +6310,8 @@ button.tb.danger {
  * anchors rather than buttons.
  */
 .docs-static .docs-link,
-.docs-static .docs-hit { text-decoration: none; }
+.docs-static .docs-hit,
+.docs-static .docs-palette-hit { text-decoration: none; color: inherit; }
 
 .docs-static .docs-section-head {
 	list-style: none;
@@ -8601,7 +8602,8 @@ button.tb.danger {
 	pointer-events: none;
 }
 
-.docs-page-head .docs-nav-toggle {
+.docs-page-head .docs-nav-toggle,
+.docs-page-head .docs-search-toggle {
 	display: none;
 }
 
@@ -8622,7 +8624,8 @@ button.tb.danger {
    once per page. Keep the query in step with `COMPACT_QUERY` in panels.ts,
    which asks the same question of the editor. */
 @media (max-width: 760px), (hover: none) and (pointer: coarse) {
-	.docs-page-head .docs-nav-toggle {
+	.docs-page-head .docs-nav-toggle,
+	.docs-page-head .docs-search-toggle:not([hidden]) {
 		display: inline-flex;
 	}
 
@@ -8693,6 +8696,13 @@ button.tb.danger {
 
 	.docs-page .docs-content {
 		padding: 18px 16px 60px;
+	}
+}
+
+/* Arrow keys, Enter and Escape, on a screen with no keys. */
+@media (hover: none) and (pointer: coarse) {
+	.docs-palette-foot {
+		display: none;
 	}
 }
 
