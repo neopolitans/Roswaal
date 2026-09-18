@@ -947,7 +947,7 @@ export const DOCS_SITE_BAR: ToolbarSpec = {
 					name: "The mark, and Docs",
 					where: "far left",
 					what:
-						"Back to the documentation's own index, and the build these pages were " +
+						"Opens the editor on your projects. Beside it, the build these pages were " +
 						"generated from.",
 				},
 			],
@@ -1207,30 +1207,53 @@ export const FUNCTIONS_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
 // ---------------------------------------------------------------------------
 // The same bars on a tablet and a phone
 //
-// Drawn whole, so the reader can find their place in them, and listing only
-// what is different -- the rest is named under the Desktop tab above.
+// Each is a whole bar with a whole legend, as its Desktop tab has: somebody
+// holding an iPad reads that tab and no other. The lines are the desktop
+// bar's own, taken by name through `as`, with what this screen does
+// differently said after -- so a control is described in one place, and a
+// change to it reaches every screen.
 // ---------------------------------------------------------------------------
 
-/** The editor's top bar on a tablet held upright. */
+/**
+ * A control's name and legend lines, from the bar that already documents it,
+ * with `more` said after the line. Throws for a name the bar does not have,
+ * so a renamed control cannot quietly lose its description here.
+ */
+function as(from: ToolbarSpec, name: string, more?: string, where?: string): Documented {
+	const item = controlsOf(from).find((one) => one.name === name);
+	if (!item) throw new Error(`${from.id} has no control named "${name}"`);
+	return {
+		name,
+		where: where ?? item.where,
+		what: more ? `${item.what ?? ""} ${more}`.trim() : item.what,
+	};
+}
+
+const SAME_TAB = "On a tablet or a phone it opens in this tab, and the back button returns.";
+const SHORT_OF_ROOM = "Held upright, where the bar is short of room,";
+const NODE_DESIGN_HERE =
+	"Opens [Node Design](creating-custom-nodes) in this tab, on the packs of the project you " +
+	"have open here; the back button returns.";
+
+/** The editor's top bar on a tablet. */
 export const EDITOR_BAR_TABLET: ToolbarSpec = {
 	id: "editor-bar-tablet",
 	device: "tablet",
 	title: "The editor's top bar, on a tablet",
 	summary:
-		"Held upright, the same bar with its words folded away. Held sideways it is the web " +
-		"app's bar on a computer. Only what changes is listed.",
+		"The web app's bar. Held upright its words fold away so it keeps one row; held sideways " +
+		"it is as on a computer.",
 	chrome: "bar",
 	groups: [
 		{
 			items: [
 				{
 					t: "mark", text: "", tint: "preview",
-					name: "The Roswaal mark", where: "far left, in blue",
-					what: "As on a computer. The version beside it steps aside, and is in its tooltip.",
+					...as(EDITOR_BAR_BROWSER, "The Roswaal mark", `${SHORT_OF_ROOM} the version beside it steps aside; it is in the mark's tooltip.`),
 				},
-				{ t: "icon", icon: "refresh" },
-				{ t: "icon", icon: "newFile" },
-				{ t: "icon", icon: "map" },
+				{ t: "icon", icon: "refresh", ...as(EDITOR_BAR_BROWSER, "Refresh") },
+				{ t: "icon", icon: "newFile", ...as(EDITOR_BAR_BROWSER, "New graph") },
+				{ t: "icon", icon: "map", ...as(EDITOR_BAR_BROWSER, "New node map") },
 			],
 		},
 		{
@@ -1238,12 +1261,12 @@ export const EDITOR_BAR_TABLET: ToolbarSpec = {
 			items: [
 				{
 					t: "segmented", options: ["Manual", "Dynamic"], on: 1,
-					name: "Manual | Dynamic", what: "As on a computer, without the Compile caption.",
+					...as(EDITOR_BAR_BROWSER, "Compile: Manual | Dynamic", `${SHORT_OF_ROOM} the Compile caption goes.`),
 				},
-				{ t: "icon", icon: "build", name: "Compile project", what: "Every graph and node map, as its icon." },
-				{ t: "icon", icon: "document" },
-				{ t: "icon", icon: "palette" },
-				{ t: "icon", icon: "settings" },
+				{ t: "icon", icon: "build", ...as(EDITOR_BAR_BROWSER, "Compile project", `${SHORT_OF_ROOM} it is its icon.`) },
+				{ t: "icon", icon: "document", ...as(EDITOR_BAR_BROWSER, "Docs", SAME_TAB) },
+				{ t: "icon", icon: "palette", ...as(EDITOR_BAR_BROWSER, "Node Design"), what: NODE_DESIGN_HERE },
+				{ t: "icon", icon: "settings", ...as(EDITOR_BAR_BROWSER, "Settings") },
 			],
 		},
 	],
@@ -1254,73 +1277,79 @@ export const EDITOR_BAR_PHONE: ToolbarSpec = {
 	id: "editor-bar-phone",
 	device: "phone",
 	title: "The editor's top bar, on a phone",
-	summary: "The tablet's bar, in two rows. Only what changes is listed.",
+	summary: "The tablet's bar held upright, in two rows: Docs, Node Design and Settings go under the rest.",
 	chrome: "bar",
 	groups: [
 		{
 			items: [
-				{ t: "mark", text: "", tint: "preview" },
-				{ t: "icon", icon: "refresh" },
-				{ t: "icon", icon: "newFile" },
-				{ t: "icon", icon: "map" },
+				{
+					t: "mark", text: "", tint: "preview",
+					...as(EDITOR_BAR_BROWSER, "The Roswaal mark", "The version is in its tooltip."),
+				},
+				{ t: "icon", icon: "refresh", ...as(EDITOR_BAR_BROWSER, "Refresh") },
+				{ t: "icon", icon: "newFile", ...as(EDITOR_BAR_BROWSER, "New graph") },
+				{ t: "icon", icon: "map", ...as(EDITOR_BAR_BROWSER, "New node map") },
 			],
 		},
 		{
 			apart: true,
 			items: [
-				{ t: "segmented", options: ["Manual", "Dynamic"], on: 1 },
-				{ t: "icon", icon: "build" },
+				{ t: "segmented", options: ["Manual", "Dynamic"], on: 1, ...as(EDITOR_BAR_BROWSER, "Compile: Manual | Dynamic") },
+				{ t: "icon", icon: "build", ...as(EDITOR_BAR_BROWSER, "Compile project", "As its icon.") },
 			],
 		},
 		{
 			items: [
-				{
-					t: "icon", icon: "document",
-					name: "Docs, Node Design and Settings", where: "second row, at the left",
-					what: "Under the rest, where the first row has no room for them.",
-				},
-				{ t: "icon", icon: "palette" },
-				{ t: "icon", icon: "settings" },
+				{ t: "icon", icon: "document", ...as(EDITOR_BAR_BROWSER, "Docs", SAME_TAB, "second row, first") },
+				{ t: "icon", icon: "palette", ...as(EDITOR_BAR_BROWSER, "Node Design", undefined, "second row, second"), what: NODE_DESIGN_HERE },
+				{ t: "icon", icon: "settings", ...as(EDITOR_BAR_BROWSER, "Settings", undefined, "second row, last") },
 			],
 		},
 	],
 };
 
-/** The graph's tools on a tablet held upright. */
+const HOLD_TO_ADD = "On a touch screen, pressing and holding the graph does the same, where you held.";
+
+/** The graph's tools on a tablet. */
 export const GRAPH_BAR_TABLET: ToolbarSpec = {
 	id: "graph-bar-tablet",
 	device: "tablet",
 	title: "The graph's tools, on a tablet",
 	summary:
 		"Held upright, Straighten and Compile script are their icons, so the three groups keep " +
-		"one row. Held sideways they are as on a computer. Only what changes is listed.",
+		"one row. Held sideways they are as on a computer.",
 	chrome: "float",
 	groups: [
-		{ items: [{ t: "select", text: "ModuleScript" }, { t: "select", text: "Strict Mode" }] },
 		{
 			items: [
-				{ t: "icon", icon: "search" },
-				{ t: "icon", icon: "layout" },
-				{ t: "icon", icon: "straighten", on: true, name: "Straighten", what: "As its icon, lit while it is on." },
-				{ t: "icon", icon: "terminal" },
+				{ t: "select", text: "ModuleScript", ...as(GRAPH_BAR, "Script class") },
+				{ t: "select", text: "Strict Mode", ...as(GRAPH_BAR, "Typechecking mode") },
+			],
+		},
+		{
+			items: [
+				{ t: "icon", icon: "search", ...as(GRAPH_BAR, "Add node", HOLD_TO_ADD) },
+				{ t: "icon", icon: "layout", ...as(GRAPH_BAR, "Realign") },
+				{ t: "icon", icon: "straighten", on: true, ...as(GRAPH_BAR, "Straighten", `${SHORT_OF_ROOM} it is its icon, lit while it is on.`) },
+				{ t: "icon", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
 			],
 		},
 		{
 			apart: true,
 			items: [
-				{ t: "select", text: "Roblox" },
-				{ t: "icon", icon: "build", primary: true, name: "Compile script", what: "As its icon." },
+				{ t: "select", text: "Roblox", ...as(GRAPH_BAR, "Target", "Lune shows a warning triangle after its name.") },
+				{ t: "icon", icon: "build", primary: true, ...as(GRAPH_BAR, "Compile script", `${SHORT_OF_ROOM} it is its icon.`) },
 			],
 		},
 	],
 };
 
-/** The graph's tools on a phone, with its settings behind a button each. */
+/** The graph's tools on a phone, with the document's settings behind a button each. */
 export const GRAPH_BAR_PHONE: ToolbarSpec = {
 	id: "graph-bar-phone",
 	device: "phone",
 	title: "The graph's tools, on a phone",
-	summary: "As on a tablet, with the document's settings behind a button each. Only what changes is listed.",
+	summary: "The tablet's tools held upright, with the document's settings behind a button each.",
 	chrome: "float",
 	groups: [
 		{
@@ -1328,16 +1357,19 @@ export const GRAPH_BAR_PHONE: ToolbarSpec = {
 				{
 					t: "select", text: "Script",
 					name: "Script and mode",
-					what: "The script's type and its typechecking mode, behind one button that names the type. Tap anywhere else to put them away.",
+					what:
+						"What this graph compiles to — a Script, a LocalScript or a ModuleScript — and which " +
+						"Luau typechecking mode the file declares, behind one button that names the type. Tap " +
+						"anywhere else to put them away. See [Types](types).",
 				},
 			],
 		},
 		{
 			items: [
-				{ t: "icon", icon: "search" },
-				{ t: "icon", icon: "layout" },
-				{ t: "icon", icon: "straighten", on: true },
-				{ t: "icon", icon: "terminal" },
+				{ t: "icon", icon: "search", ...as(GRAPH_BAR, "Add node", HOLD_TO_ADD) },
+				{ t: "icon", icon: "layout", ...as(GRAPH_BAR, "Realign") },
+				{ t: "icon", icon: "straighten", on: true, ...as(GRAPH_BAR, "Straighten", "As its icon, lit while it is on.") },
+				{ t: "icon", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
 			],
 		},
 		{
@@ -1345,9 +1377,40 @@ export const GRAPH_BAR_PHONE: ToolbarSpec = {
 			items: [
 				{
 					t: "select", text: "Roblox",
-					name: "Target", what: "Behind a button that names it. Lune has a warning triangle after its name.",
+					...as(GRAPH_BAR, "Target", "Behind a button that names it, with a warning triangle after Lune."),
 				},
-				{ t: "icon", icon: "build", primary: true },
+				{ t: "icon", icon: "build", primary: true, ...as(GRAPH_BAR, "Compile script", "As its icon.") },
+			],
+		},
+	],
+};
+
+/** Node Design's header on a tablet: the web app's, opening pages in this tab. */
+export const DESIGNER_BAR_TABLET: ToolbarSpec = {
+	id: "designer-bar-tablet",
+	device: "tablet",
+	title: "Node Design's top bar, on a tablet",
+	summary:
+		"The web app's bar. Over a node, a second bar switches between its preview and its " +
+		"logic: see **Only on a touch screen** below.",
+	chrome: "head",
+	groups: [
+		{
+			items: [
+				{ t: "mark", text: "Node Design", tint: "preview", ...as(DESIGNER_BAR_BROWSER, "Node Design") },
+			],
+		},
+		{
+			apart: true,
+			items: [
+				{ t: "icon", icon: "help", ...as(DESIGNER_BAR_BROWSER, "How custom nodes work") },
+				{ t: "button", text: "Docs", icon: "document", ...as(DESIGNER_BAR_BROWSER, "Docs", SAME_TAB) },
+				{
+					t: "button", text: "Open Editor",
+					name: "Open Editor",
+					what: `The editor. ${SAME_TAB} Leaving a node with unsaved edits asks first.`,
+				},
+				{ t: "icon", icon: "settings", ...as(DESIGNER_BAR_BROWSER, "Settings") },
 			],
 		},
 	],
@@ -1358,17 +1421,28 @@ export const DESIGNER_BAR_PHONE: ToolbarSpec = {
 	id: "designer-bar-phone",
 	device: "phone",
 	title: "Node Design's top bar, on a phone",
-	summary: "The web app's bar, with Docs as its icon so the row holds Settings. Only what changes is listed.",
+	summary: "The web app's bar, with Docs as its icon so the row holds Settings.",
 	chrome: "head",
 	groups: [
-		{ items: [{ t: "mark", text: "Node Design", tint: "preview" }] },
+		{
+			items: [
+				{
+					t: "mark", text: "Node Design", tint: "preview",
+					...as(DESIGNER_BAR_BROWSER, "Node Design", "The version steps aside on a phone."),
+				},
+			],
+		},
 		{
 			apart: true,
 			items: [
-				{ t: "icon", icon: "help" },
-				{ t: "icon", icon: "document", name: "Docs", what: "As its icon." },
-				{ t: "button", text: "Open Editor" },
-				{ t: "icon", icon: "settings" },
+				{ t: "icon", icon: "help", ...as(DESIGNER_BAR_BROWSER, "How custom nodes work") },
+				{ t: "icon", icon: "document", ...as(DESIGNER_BAR_BROWSER, "Docs", `As its icon. ${SAME_TAB}`) },
+				{
+					t: "button", text: "Open Editor",
+					name: "Open Editor",
+					what: `The editor. ${SAME_TAB} Leaving a node with unsaved edits asks first.`,
+				},
+				{ t: "icon", icon: "settings", ...as(DESIGNER_BAR_BROWSER, "Settings") },
 			],
 		},
 	],
@@ -1380,13 +1454,13 @@ export const DOCS_SITE_BAR_TOUCH: ToolbarSpec = {
 	device: "tablet",
 	title: "The published documentation's header, on a touch screen",
 	summary:
-		"The contents come out from a button rather than holding a column, and search has a " +
-		"button of its own. Only what changes is listed.",
+		"The web app's header, with the contents behind a button rather than holding a column, " +
+		"and a button for search.",
 	chrome: "head",
 	groups: [
 		{
 			items: [
-				{ t: "mark", text: "Docs", version: true, tint: "preview" },
+				{ t: "mark", text: "Docs", version: true, tint: "preview", ...as(DOCS_SITE_BAR, "The mark, and Docs") },
 				{
 					t: "button", text: "Contents",
 					name: "Contents", what: "Slides the contents out over the page. Tap beside them to put them away.",
@@ -1397,9 +1471,38 @@ export const DOCS_SITE_BAR_TOUCH: ToolbarSpec = {
 		{
 			apart: true,
 			items: [
-				{ t: "button", text: "Try it in your browser" },
-				{ t: "button", text: "Source" },
-				{ t: "icon", icon: "settings" },
+				{ t: "button", text: "Try it in your browser", ...as(DOCS_SITE_BAR, "Try it in your browser", SAME_TAB) },
+				{ t: "button", text: "Source", ...as(DOCS_SITE_BAR, "Source") },
+				{ t: "icon", icon: "settings", ...as(DOCS_SITE_BAR, "Settings") },
+			],
+		},
+	],
+};
+
+/** The published documentation's header on a phone: the touch header, in two rows. */
+export const DOCS_SITE_BAR_PHONE: ToolbarSpec = {
+	id: "docs-site-bar-phone",
+	device: "phone",
+	title: "The published documentation's header, on a phone",
+	summary: "The tablet's header in two rows: the mark, Contents and search, then the rest.",
+	chrome: "head",
+	groups: [
+		{
+			items: [
+				{
+					t: "mark", text: "Docs", tint: "preview",
+					...as(DOCS_SITE_BAR, "The mark, and Docs", "The version steps aside on a phone."),
+				},
+				{ t: "button", text: "Contents", ...as(DOCS_SITE_BAR_TOUCH, "Contents") },
+				{ t: "icon", icon: "search", ...as(DOCS_SITE_BAR_TOUCH, "Search") },
+			],
+		},
+		{
+			row: true,
+			items: [
+				{ t: "button", text: "Try it in your browser", ...as(DOCS_SITE_BAR, "Try it in your browser", SAME_TAB, "second row") },
+				{ t: "button", text: "Source", ...as(DOCS_SITE_BAR, "Source", undefined, "second row") },
+				{ t: "icon", icon: "settings", ...as(DOCS_SITE_BAR, "Settings", undefined, "second row, at the end") },
 			],
 		},
 	],
@@ -1464,8 +1567,8 @@ export const DESIGNER_TOUCH_BAR: ToolbarSpec = {
 export const TOOLBARS: ToolbarSpec[] = [
 	EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_TABLET, EDITOR_BAR_PHONE,
 	GRAPH_BAR, GRAPH_BAR_TABLET, GRAPH_BAR_PHONE, MAP_BAR,
-	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE,
-	DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH,
+	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_TABLET, DESIGNER_BAR_PHONE,
+	DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH, DOCS_SITE_BAR_PHONE,
 	ACTION_ROW, DESIGNER_TOUCH_BAR,
 ];
 
@@ -1478,7 +1581,8 @@ export const TOOLBARS: ToolbarSpec[] = [
  */
 export const BROWSER_TOOLBARS: ToolbarSpec[] = [
 	EDITOR_BAR_BROWSER, EDITOR_BAR_TABLET, EDITOR_BAR_PHONE,
-	DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH,
+	DESIGNER_BAR_BROWSER, DESIGNER_BAR_TABLET, DESIGNER_BAR_PHONE,
+	DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH, DOCS_SITE_BAR_PHONE,
 ];
 
 /**

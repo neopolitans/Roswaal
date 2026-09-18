@@ -34,8 +34,8 @@ import {
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
-	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_TOUCH_BAR, DOCS_BAR,
-	DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH, EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE,
+	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_BAR_TABLET, DESIGNER_TOUCH_BAR,
+	DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_PHONE, DOCS_SITE_BAR_TOUCH, EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE,
 	EDITOR_BAR_TABLET, FUNCTIONS_PANEL, GRAPH_BAR, GRAPH_BAR_PHONE, GRAPH_BAR_TABLET, legendOf,
 	MAP_BAR, MODULES_PANEL,
 	VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec,
@@ -2068,14 +2068,7 @@ const TOOLBARS_PAGE: DocPage = {
 				{
 					id: "designer-tablet",
 					title: "Tablet (Webapp)",
-					blocks: [
-						{
-							t: "p",
-							text:
-								"The same bar as the web app's on a computer. Over a node, a second bar " +
-								"switches between its preview and its logic: see **Only on a touch screen** below.",
-						},
-					],
+					blocks: [{ t: "toolbar", bar: DESIGNER_BAR_TABLET }],
 				},
 				{
 					id: "designer-phone",
@@ -2114,14 +2107,7 @@ const TOOLBARS_PAGE: DocPage = {
 				{
 					id: "docs-phone",
 					title: "Phone (Webapp)",
-					blocks: [
-						{
-							t: "p",
-							text:
-								"As on a tablet, in two rows: the mark, **Contents** and search, then the " +
-								"rest. The version steps aside.",
-						},
-					],
+					blocks: [{ t: "toolbar", bar: DOCS_SITE_BAR_PHONE }],
 				},
 			],
 		},

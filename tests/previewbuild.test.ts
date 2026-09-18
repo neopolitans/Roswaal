@@ -379,7 +379,8 @@ describe("the bars the documentation draws", () => {
 	it("draws every window the web app serves, on each kind of screen", () => {
 		expect(BROWSER_TOOLBARS.map((bar) => bar.id)).toEqual([
 			"editor-bar-browser", "editor-bar-tablet", "editor-bar-phone",
-			"designer-bar-browser", "designer-bar-phone", "docs-site-bar", "docs-site-bar-touch",
+			"designer-bar-browser", "designer-bar-tablet", "designer-bar-phone",
+			"docs-site-bar", "docs-site-bar-touch", "docs-site-bar-phone",
 		]);
 	});
 
