@@ -1952,8 +1952,8 @@ const TOOLBARS_PAGE: DocPage = {
 				"the **browser preview** on the project site — the same build, running in a tab, " +
 				"on a project kept in that browser rather than in your repository.",
 			items: [
-				"**Every window of the preview is marked.** The editor's mark is blue — yellow on the " +
-					"canary — and Node Design carries a `preview` chip. If you can see either, " +
+				"**Every window of the preview is marked.** The editor's mark is blue beside the " +
+					"version — yellow on the canary — and Node Design carries a `preview` chip. If you can see either, " +
 					"your work is in this browser and not on your disk.",
 				"The bars are otherwise the same bars. Where one reaches something different, " +
 					"both are drawn below under a switch.",

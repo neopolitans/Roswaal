@@ -481,13 +481,14 @@ export const EDITOR_BAR: ToolbarSpec = {
 				{
 					t: "mark",
 					text: "",
+					version: true,
 					name: "The Roswaal mark",
 					where: "far left",
 					what:
 						"Opens the project menu: the project you have open, the ones you opened " +
-						"before, and a folder dialog for anything else. That panel shows the version " +
-						"you are on, which is the first thing any bug report needs, and so does the " +
-						"mark's tooltip.",
+						"before, and a folder dialog for anything else. The version beside it is " +
+						"the build you are on, which is the first thing any bug report needs; on a " +
+						"narrow screen it is in the mark's tooltip instead.",
 				},
 				{
 					t: "icon",
@@ -827,6 +828,7 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 				{
 					t: "mark",
 					text: "",
+					version: true,
 					tint: "preview",
 					name: "The Roswaal mark",
 					where: "far left, in blue",

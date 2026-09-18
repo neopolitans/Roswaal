@@ -108,7 +108,7 @@ export const RELEASES: Release[] = [
 			"**The action row's icons have room around them.** Each button is 46 pixels square; the icon sat two pixels from its edge.",
 		],
 		changed: [
-			"**The editor's top bar shows which build it is as the colour of the Roswaal mark**: blue for the browser preview, yellow for the canary, plain for an installed build. The version and the preview chip are gone from the bar; the version is in the mark's tooltip and in the panel it opens.",
+			"**The editor's top bar shows which build it is as the colour of the Roswaal mark**: blue for the browser preview, yellow for the canary, plain for an installed build. The preview chip is gone from the bar, and the version beside the mark steps aside when the bar is short of room; it is in the mark's tooltip either way.",
 			"**Getting started opens with the three ways in** — installed on a computer, in a browser on a computer, and on a tablet or a phone — each under its own tab.",
 			"**Toolbars says the three windows share one tab on a phone or a tablet**, rather than that none of them replaces the one you are on.",
 		],

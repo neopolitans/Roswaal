@@ -9256,7 +9256,8 @@ select:not(.literal):not([multiple]) {
 
 /* The top bar measures the window: it always spans it. */
 @media (max-width: 899px) {
-	.toolbar .group-label {
+	.toolbar .group-label,
+	.toolbar .logo .version {
 		display: none;
 	}
 

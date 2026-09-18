@@ -69,9 +69,9 @@ export function ProjectBar(props: ProjectBarProps) {
 			    panel, which is where an application's own icon is looked for. */}
 			{/* Which kind of build this is, as the logo's colour: blue for the
 			    browser preview, yellow for the canary, plain for an installed
-			    build. The version and the words are the tooltip, and the panel
-			    the mark opens shows the version too -- the row itself had no
-			    room for either. See `MarkedLogo` for why that is still the rule. */}
+			    build -- see `MarkedLogo` for why that is still the rule. The
+			    version beside it goes when the bar is short of room, and is in
+			    the tooltip and the panel the mark opens either way. */}
 			<button
 				className="logo"
 				title={`Roswaal ${VERSION}. ${markTooltip() || "Recent projects, the demos, and the other windows."}`}
@@ -79,6 +79,7 @@ export function ProjectBar(props: ProjectBarProps) {
 				onClick={() => props.onOpenIntro()}
 			>
 				<MarkedLogo height={17} />
+				<span className="version">{VERSION}</span>
 			</button>
 
 			{/* Icons, with the label as the tooltip. A toolbar is read by shape
