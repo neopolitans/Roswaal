@@ -1359,7 +1359,8 @@ export const GRAPH_BAR_PHONE: ToolbarSpec = {
 					name: "Script and mode",
 					what:
 						"What this graph compiles to — a Script, a LocalScript or a ModuleScript — and which " +
-						"Luau typechecking mode the file declares, behind one button that names the type. Tap " +
+						"Luau typechecking mode the file declares, behind one button that names the type in a " +
+						"word — Script, Local or Module — and lists them in full. Tap " +
 						"anywhere else to put them away. See [Types](types).",
 				},
 			],

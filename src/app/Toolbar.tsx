@@ -323,7 +323,7 @@ export function DocumentBar(props: DocumentBarProps) {
 			)}
 			{phone ? (
 				<Popout
-					label={props.target === "lune" ? TYPECHECK_SHORT[props.typecheck] : props.scriptClass}
+					label={props.target === "lune" ? TYPECHECK_SHORT[props.typecheck] : CLASS_SHORT[props.scriptClass]}
 					title="What this graph compiles to, and its typechecking mode"
 				>
 					{scriptSettings}
@@ -413,6 +413,15 @@ export function DocumentBar(props: DocumentBarProps) {
 		</FloatingTools>
 	);
 }
+
+/**
+ * A phone's folded button names the class in a word, so LocalScript and
+ * ModuleScript do not push the tools onto a second row. The list inside still
+ * says them in full.
+ */
+const CLASS_SHORT: Record<ScriptClass, string> = {
+	Script: "Script", LocalScript: "Local", ModuleScript: "Module",
+};
 
 /** A mode's name as a button shows it, where the word "Mode" is room it has not got. */
 const TYPECHECK_SHORT: Record<TypecheckMode, string> = {

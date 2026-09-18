@@ -9362,6 +9362,30 @@ select:not(.literal):not([multiple]) {
 	width: 100%;
 }
 
+/* A menu of actions: the projects panel's Project button. Each is a row. */
+.tool-popout-up .tool-popout-panel {
+	min-width: 170px;
+	gap: 2px;
+	padding: 5px;
+}
+
+.tool-popout-up .tool-popout-panel > button.tb {
+	justify-content: flex-start;
+	width: 100%;
+	border-color: transparent;
+	background: none;
+}
+
+.tool-popout-up .tool-popout-panel > button.tb:hover {
+	background: var(--bg-hover);
+}
+
+.tool-popout-up .tool-popout-panel > .tool-popout-rule {
+	height: 1px;
+	margin: 3px 4px;
+	background: var(--border);
+}
+
 /* A phone's graph tools, drawn a little tighter so the three groups share one
    row: with two of them behind buttons they are about 400px wide, and a phone
    has 373 once the edges are taken. */

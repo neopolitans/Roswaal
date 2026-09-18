@@ -35,6 +35,7 @@ import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
+import { Popout } from "./Popout.jsx";
 import type { RememberedFolder } from "./host.js";
 import { Icon } from "./icons.jsx";
 import { liveSelection, TouchBar } from "./TouchBar.jsx";
@@ -1775,6 +1776,9 @@ export function App() {
 					onClose={() => setIntroOpen(false)}
 					actions={
 						<>
+						{/* One button for what can be done to the project, so the
+						    footer is Home, Project, and the other two windows. */}
+						<Popout label="Project" title="Open, download or start again" up closeOnPick>
 							{hostCanBrowse && (
 								<button className="tb with-icon" onClick={() => void browseForProject()}>
 									<Icon name="folderOpen" size={15} />
@@ -1793,29 +1797,34 @@ export function App() {
 									Open .zip&hellip;
 								</button>
 							)}
-							{hostCanImportZip && (
-								<input
-									ref={zipInput}
-									type="file"
-									accept=".zip,application/zip"
-									hidden
-									onChange={(event) => {
-										const file = event.target.files?.[0];
-										// Cleared, so picking the same zip again is a change.
-										event.target.value = "";
-										if (file) void importZip(file);
-									}}
-								/>
-							)}
 							<button className="tb with-icon" onClick={() => void downloadProject()}>
 								<Icon name="copy" size={15} />
 								Download
 							</button>
+							{hostCanReset && <span className="tool-popout-rule" />}
 							{hostCanReset && (
-								<button className="tb" onClick={() => void resetProject()}>
+								<button className="tb with-icon" onClick={() => void resetProject()}>
+									<Icon name="refresh" size={15} />
 									Start again
 								</button>
 							)}
+						</Popout>
+						{/* Outside the menu, which closes on the tap that opens
+						    the picker; the input has to outlast it. */}
+						{hostCanImportZip && (
+							<input
+								ref={zipInput}
+								type="file"
+								accept=".zip,application/zip"
+								hidden
+								onChange={(event) => {
+									const file = event.target.files?.[0];
+									// Cleared, so picking the same zip again is a change.
+									event.target.value = "";
+									if (file) void importZip(file);
+								}}
+							/>
+						)}
 						</>
 					}
 				/>

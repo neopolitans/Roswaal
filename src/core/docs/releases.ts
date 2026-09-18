@@ -99,9 +99,13 @@ export const RELEASES: Release[] = [
 		headline: "Open a project from a zip.",
 		affects: ["editor", "docs"],
 		added: [
-			"**Open .zip…** in the web app's projects panel opens a project from a zip, in every browser — on an iPad, from the Files app. It replaces the project kept in the browser, after asking, and takes the name of the folder the zip wraps it in. **Download** makes a zip it opens.",
+			"**Project → Open .zip…** in the web app's projects panel opens a project from a zip, in every browser — on an iPad, from the Files app. It replaces the project kept in the browser, after asking, and takes the name of the folder the zip wraps it in. **Download** makes a zip it opens.",
 			"**What does not come in is listed.** A zip's `.git`, `node_modules` and the files a Mac or Windows adds are left out, and so is anything that is not text, such as a place file.",
 			"**A zip without roswaal.json** can be set up as a project, as a folder can.",
+		],
+		changed: [
+			"**The projects panel's footer is Home, Project, Node Design and Docs.** Open folder, Open .zip, Download and Start again are in the **Project** menu.",
+			"**On a phone, the graph's script type reads Script, Local or Module** on its folded button, so the tools keep one row. The list inside names them in full.",
 		],
 	},
 	{

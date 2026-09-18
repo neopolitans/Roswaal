@@ -41,15 +41,24 @@ export function usePhone(): boolean {
  * for. A tap anywhere else puts the panel away; choosing does not, because the
  * script's panel holds two settings and the second is usually why it was opened.
  */
-export function Popout({ label, title, end = false, children }: {
+export function Popout({ label, title, end = false, up = false, closeOnPick = false, children }: {
 	/** What is chosen, or what the panel holds: words, or a glyph and words. */
 	label: ReactNode;
 	title: string;
 	/** Opens towards the left: for the group at the right-hand edge. */
 	end?: boolean;
+	/**
+	 * Opens above the button, fixed to the screen rather than hung from the
+	 * button: the projects panel's footer is at the bottom of a dialog that
+	 * clips what overflows it.
+	 */
+	up?: boolean;
+	/** Closes when a button inside is pressed: a menu, rather than settings. */
+	closeOnPick?: boolean;
 	children: ReactNode;
 }) {
 	const [open, setOpen] = useState(false);
+	const [fixedAt, setFixedAt] = useState<{ left: number; bottom: number } | null>(null);
 	const box = useRef<HTMLDivElement>(null);
 	const panel = useRef<HTMLDivElement>(null);
 	/**
@@ -60,7 +69,12 @@ export function Popout({ label, title, end = false, children }: {
 	 */
 	const [side, setSide] = useState<"start" | "end">(end ? "end" : "start");
 	useLayoutEffect(() => {
-		if (!open || !panel.current) return;
+		if (!open || !up || !box.current) return;
+		const at = box.current.getBoundingClientRect();
+		setFixedAt({ left: at.left, bottom: window.innerHeight - at.top + 6 });
+	}, [open, up]);
+	useLayoutEffect(() => {
+		if (!open || !panel.current || up) return;
 		const at = panel.current.getBoundingClientRect();
 		const width = document.documentElement.clientWidth;
 		if (at.left < 4) setSide("start");
@@ -75,7 +89,7 @@ export function Popout({ label, title, end = false, children }: {
 		return () => window.removeEventListener("pointerdown", away, true);
 	}, [open]);
 	return (
-		<div className={`tool-popout${side === "end" ? " tool-popout-end" : ""}`} ref={box}>
+		<div className={`tool-popout${side === "end" ? " tool-popout-end" : ""}${up ? " tool-popout-up" : ""}`} ref={box}>
 			<button
 				className={`tb with-icon${open ? " on" : ""}`}
 				title={title}
@@ -86,7 +100,16 @@ export function Popout({ label, title, end = false, children }: {
 				<Icon name="chevron" size={14} />
 			</button>
 			{open && (
-				<div className="tool-popout-panel" role="group" aria-label={title} ref={panel}>
+				<div
+					className="tool-popout-panel"
+					role="group"
+					aria-label={title}
+					ref={panel}
+					style={up && fixedAt ? { position: "fixed", top: "auto", ...fixedAt } : undefined}
+					onClick={closeOnPick ? (e) => {
+						if ((e.target as Element).closest("button")) setOpen(false);
+					} : undefined}
+				>
 					{children}
 				</div>
 			)}
