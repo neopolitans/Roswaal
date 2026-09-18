@@ -154,8 +154,7 @@ function blockSource(draft: Draft, indent = "\t\t"): string {
 				`${inner}{ text: ${str(step.text)}, picture: [${step.picture.map(toolbarConstant).join(", ")}]` +
 				`${step.point ? `, point: ${str(step.point)}` : ""} },`)
 			.join(NEWLINE);
-		const start = block.start ? `, start: ${block.start}` : "";
-		return `${indent}{${NEWLINE}${indent}\tt: "walkthrough"${start},${NEWLINE}${indent}\tsteps: [${NEWLINE}${steps}${NEWLINE}${indent}\t],${NEWLINE}${indent}},`;
+		return `${indent}{${NEWLINE}${indent}\tt: "walkthrough",${NEWLINE}${indent}\tsteps: [${NEWLINE}${steps}${NEWLINE}${indent}\t],${NEWLINE}${indent}},`;
 	}
 
 	if (block.t === "note") {

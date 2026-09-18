@@ -713,7 +713,7 @@ function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
 				<span className="docs-walk-count" />
 				<button type="button" className="tb primary" data-walk="next">Next</button>
 			</div>
-			<ol className="docs-walk-steps" start={block.start}>
+			<ol className="docs-walk-steps">
 				{block.steps.map((step, i) => <li key={i}><Rich text={step.text} /></li>)}
 			</ol>
 		</figure>

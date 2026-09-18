@@ -314,7 +314,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				`<div class="docs-walk-nav"><button type="button" class="tb" data-walk="back">Back</button>` +
 				`<span class="docs-walk-count"></span>` +
 				`<button type="button" class="tb primary" data-walk="next">Next</button></div>` +
-				`<ol class="docs-walk-steps"${block.start ? ` start="${block.start}"` : ""}>${steps}</ol></figure>`
+				`<ol class="docs-walk-steps">${steps}</ol></figure>`
 			);
 		}
 		case "toolbar": {

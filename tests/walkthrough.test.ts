@@ -82,8 +82,8 @@ describe("a walkthrough on the page", () => {
 		expect(figure.slice(0, figure.indexOf("</figure>"))).toContain('class="docs-walk-frame" data-point="home" hidden');
 	});
 
-	it("carries on the numbering from a list above it", () => {
-		expect(html).toContain('<ol class="docs-walk-steps" start="3">');
+	it("numbers its steps from 1, as its counter does", () => {
+		expect(html).not.toContain('class="docs-walk-steps" start=');
 	});
 
 	it("is written back as source by Suggest an edit, bars by name", () => {

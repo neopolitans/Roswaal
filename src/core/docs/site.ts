@@ -226,10 +226,9 @@ export type Block =
 	/**
 	 * Steps done on screen, shown one at a time: a drawing of the screen at
 	 * each step with the control to press ringed, over the list of steps.
-	 * `start` numbers the first step, for steps that follow an ordinary list.
-	 * See `src/app/docsWalk.ts`.
+	 * Numbered from 1, as the counter over them is. See `src/app/docsWalk.ts`.
 	 */
-	| { t: "walkthrough"; steps: WalkStep[]; start?: number }
+	| { t: "walkthrough"; steps: WalkStep[] }
 	| {
 			t: "toolbar";
 			bar: ToolbarSpec;
@@ -1324,14 +1323,14 @@ const GETTING_STARTED: DocPage = {
 									"that saves to Files.",
 							],
 						},
+						{ t: "p", text: "Then, on the device:" },
 						{
 							t: "walkthrough",
-							start: 3,
 							steps: [
 								{
 									text:
-										"On the device, open [the web app](https://neopolitans.github.io/Roswaal/try.html) " +
-										"and tap the Roswaal mark.",
+										"Open [the web app](https://neopolitans.github.io/Roswaal/try.html) and tap the " +
+										"Roswaal mark.",
 									picture: [EDITOR_BAR_TABLET],
 									point: "The Roswaal mark",
 								},
