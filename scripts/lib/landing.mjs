@@ -199,6 +199,7 @@ body.roswaal-landing {
 }
 /* On the accent-filled first door, the flag has to read against the accent
    rather than against the page. Its own border, not the page's. */
+.landing-targets .flag.stable { color: var(--ok, var(--fg-faint)); }
 .landing-doors a.first .flag { color: #fff; border-color: rgb(255 255 255 / 55%); }
 /* The canary's warning, above the name. Not dismissible: it is the first thing
    about this site that anybody needs to know, and it leads out. */
@@ -408,7 +409,8 @@ ${IS_CANARY ? `<meta name="robots" content="noindex" />
       with nothing to install and your project kept in your browser.
     </p>
     <p class="landing-targets">
-      Compiles for <strong>Roblox</strong> and <strong>Lune</strong>
+      Compiles for <strong>Roblox</strong> <span class="flag stable">stable</span>
+      and <strong>Lune</strong>
       <span class="flag">experimental</span>
     </p>
   </div>
