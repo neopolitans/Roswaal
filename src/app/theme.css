@@ -8567,6 +8567,71 @@ button.tb.danger {
 	.dock.drawer { transition: none; }
 }
 
+/* Node Design's node list, the same way: a drawer over the node editor on a
+   phone or a tablet, opened from a bar that also names the node that is open. */
+.pack-view.compact {
+	position: relative;
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-rows: auto minmax(0, 1fr);
+}
+
+/* Above the drawer and its scrim, so the button that opened it closes it. */
+.pack-compact-bar {
+	position: relative;
+	z-index: 68;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-panel);
+}
+
+.pack-compact-current {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--fg-muted);
+}
+
+/* Placed in the row under the bar, which makes that row its containing
+   block: it and the scrim cover the editor and never the bar. */
+.pack-view.compact .pack-nodes.drawer {
+	grid-row: 2;
+	grid-column: 1;
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 67;
+	width: min(320px, 86vw);
+	box-sizing: border-box;
+	border-right: 1px solid var(--border-strong);
+	box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+	transition: transform 160ms ease-out, visibility 160ms;
+}
+
+.pack-view.compact .pack-nodes.drawer:not(.drawer-open) {
+	visibility: hidden;
+	box-shadow: none;
+	transform: translateX(-100%);
+}
+
+.pack-scrim {
+	grid-row: 2;
+	grid-column: 1;
+	position: absolute;
+	inset: 0;
+	z-index: 66;
+	background: rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pack-view.compact .pack-nodes.drawer { transition: none; }
+}
+
 /* ----------------------------------------------------- dialogs, on a phone */
 
 @media (max-width: 640px) {

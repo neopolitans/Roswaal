@@ -35,7 +35,7 @@ import { NODE, ZOOM } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { wirePath } from "./geometry.js";
 import { attachGraphView } from "./graphView.js";
-import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
+import { readPreferences, wheelAction, writePreferences, type Preferences } from "./preferences.js";
 import { applyDocsToggle } from "./docsToggle.js";
 import { growthState } from "../core/nodes/growth.js";
 import { PageEditor } from "./PageEditor.jsx";
@@ -883,7 +883,10 @@ function GraphFigure(
 	const scale = preview.scale ?? 1;
 	useEffect(() => {
 		if (!viewport.current || svg === "") return;
-		return attachGraphView(viewport.current, { ...ZOOM, scale });
+		// Read here rather than threaded through: it only matters when a graph
+		// attaches, and the docs have no other use for it.
+		const wheel = wheelAction(readPreferences().wheel);
+		return attachGraphView(viewport.current, { ...ZOOM, scale, wheel });
 	}, [svg, scale]);
 
 	if (svg === "") return null;

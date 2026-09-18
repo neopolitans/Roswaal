@@ -34,6 +34,7 @@ import { NODE } from "../layers.js";
 import { nodeColor, pinColor } from "../palette.js";
 import type { PackNode } from "./draft.js";
 import { NodeEditor } from "./NodeEditor.jsx";
+import { useCompact } from "../Workspace.jsx";
 import { targetsLabel, type Notify, type OpenPack } from "./PackBrowser.jsx";
 
 const PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor, scale: 2 };
@@ -58,6 +59,13 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 	const [chosen, setChosen] = useState<Chosen>(null);
 	const [dirty, setDirty] = useState(false);
 	const [pending, setPending] = useState<Chosen | "back" | undefined>(undefined);
+	/**
+	 * On a phone or a tablet the node list is a drawer over the editor, as the
+	 * editor's panels are: beside it, it left a phone's editor sixty pixels
+	 * wide. Out to begin with, since nothing is open until a node is picked.
+	 */
+	const compact = useCompact();
+	const [listOpen, setListOpen] = useState(true);
 	const [requiredDefs, setRequiredDefs] = useState<NodeDef[]>([]);
 
 	const pack = open.kind === "project" ? packs.find((p) => p.path === open.path) : undefined;
@@ -177,8 +185,25 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 	};
 
 	return (
-		<div className="pack-view">
-			<aside className="pack-nodes">
+		<div className={`pack-view${compact ? " compact" : ""}`}>
+			{compact && (
+				<div className="pack-compact-bar">
+					<button
+						className={`tb with-icon${listOpen ? " on" : ""}`}
+						aria-expanded={listOpen}
+						onClick={() => setListOpen((open) => !open)}
+					>
+						<Icon name="chevron" size={14} rotate={listOpen ? 90 : -90} />
+						{title}
+					</button>
+					<span className="pack-compact-current">{current?.title ?? ""}</span>
+				</div>
+			)}
+			{compact && listOpen && <div className="pack-scrim" onClick={() => setListOpen(false)} />}
+			<aside
+				className={`pack-nodes${compact ? (listOpen ? " drawer drawer-open" : " drawer") : ""}`}
+				inert={compact && !listOpen}
+			>
 				<button className="tb with-icon pack-back" onClick={() => go("back")}>
 					<Icon name="chevron" size={14} rotate={90} />
 					Node packs
@@ -259,7 +284,10 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 					className="tb primary with-icon"
 					disabled={readOnly !== null}
 					title={readOnly ?? "A new node in this pack"}
-					onClick={() => go({ fresh: Date.now() })}
+					onClick={() => {
+						go({ fresh: Date.now() });
+						setListOpen(false);
+					}}
 				>
 					<Icon name="newFile" size={15} />
 					New node
@@ -275,7 +303,10 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 							<li key={def.id}>
 								<button
 									className={`pack-node${current?.id === def.id ? " on" : ""}`}
-									onClick={() => current?.id !== def.id && go({ id: def.id })}
+									onClick={() => {
+										if (current?.id !== def.id) go({ id: def.id });
+										setListOpen(false);
+									}}
 								>
 									<span className="swatch" style={{ background: nodeColor(def) }} />
 									<span className="title">{def.title}</span>

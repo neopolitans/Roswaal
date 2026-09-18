@@ -101,6 +101,8 @@ export const RELEASES: Release[] = [
 		added: [
 			"**Two fingers on a trackpad pan the graph on a Mac or an iPad**, and pinching zooms, in Safari as well as Chrome. Scrolling still zooms elsewhere; **Settings → Editor → Scrolling the graph** picks Pan or Zoom on any machine.",
 			"**The graph works by touch.** One finger pans, two pinch and pan, and a tap on empty space clears the selection. Press and hold empty space, then drag, to draw a marquee; lift instead for the node menu. A long press opens the menu a right-click would, and a double tap is a double-click — opening a graph from the tree, adding a reroute knot. Both work everywhere in the editor, and with an Apple Pencil. See [Controls](controls).",
+			"**Graphs drawn in the documentation move the way the canvas does**: scrolling pans or zooms as Settings says, pinching zooms on a trackpad or with two fingers, and a double tap fits the graph back in its frame.",
+			"**Node Design follows Scrolling the graph too**, and on a phone or a tablet its node list slides over the node editor from a bar above it.",
 			"**On a phone or a tablet, the panels slide over the graph.** Project and Inspector are buttons under it; opening a graph from the tree puts the tree away again.",
 			"**The documentation reads on a phone or a tablet**: the contents slide out from a Contents button in the header, and the page takes the width. Tap beside them to put them away. The search button beside it opens the search Ctrl+K does.",
 		],

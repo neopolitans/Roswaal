@@ -42,7 +42,7 @@ import { FloatingTools, ToolGroup } from "../FloatingTools.jsx";
 import { Icon } from "../icons.jsx";
 import { autoLayout } from "../layout.js";
 import { NodeMenu, type MenuAnchor } from "../NodeMenu.jsx";
-import { readPreferences, writePreferences } from "../preferences.js";
+import { readPreferences, wheelAction, writePreferences } from "../preferences.js";
 import { store, useEditor } from "../store.js";
 
 /** The store path the logic graph is open under. Never a file. */
@@ -295,6 +295,7 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 					onRequestPinMenu={NOOP}
 					onEditCode={NOOP}
 					onDropFile={NOOP}
+					wheel={wheelAction(readPreferences().wheel)}
 				/>
 			)}
 			{/* The graph's own tools, floating over this canvas as they do over a graph. */}

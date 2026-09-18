@@ -626,12 +626,13 @@ function Splitter({
 }
 
 /**
- * Whether the window is phone-sized, and so the docks are drawers.
+ * Whether the window is phone-sized or a touch screen, and so the docks are
+ * drawers. Node Design's node list asks the same question.
  *
  * A media query rather than a width in state, so it changes when the query
  * does rather than on every pixel of a resize.
  */
-function useCompact(): boolean {
+export function useCompact(): boolean {
 	const [compact, setCompact] = useState(
 		() => typeof window !== "undefined" && window.matchMedia(COMPACT_QUERY).matches,
 	);

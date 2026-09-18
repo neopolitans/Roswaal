@@ -36,8 +36,18 @@ export async function buildGraphViewer() {
 			contents: [
 				'import { attachGraphView } from "./src/app/graphView.ts";',
 				'import { ZOOM } from "./src/app/layers.ts";',
+				'import { PREFERENCES_KEY, wheelAction } from "./src/app/preferences.ts";',
+				// The reader's scroll choice, from the editor's own store: the
+				// site and the hosted editor share an origin, so Settings there
+				// reaches the graphs here. Automatic when there is none.
+				'let choice = "auto";',
+				"try {",
+				"  const stored = JSON.parse(localStorage.getItem(PREFERENCES_KEY) || \"{}\");",
+				'  if (stored && (stored.wheel === "zoom" || stored.wheel === "pan")) choice = stored.wheel;',
+				"} catch {}",
+				"const wheel = wheelAction(choice);",
 				'for (const box of document.querySelectorAll(".graph-viewport")) {',
-				"  attachGraphView(box, ZOOM);",
+				"  attachGraphView(box, { ...ZOOM, wheel });",
 				"}",
 			].join(String.fromCharCode(10)),
 			resolveDir: root,

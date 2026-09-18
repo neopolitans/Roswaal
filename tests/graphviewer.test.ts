@@ -114,4 +114,50 @@ describe("the documentation's graph viewer", () => {
 		// And it scaled the drawing down rather than leaving it at 800 wide.
 		expect(style.transform).toMatch(/scale\(0\.\d+\)/);
 	});
+
+	/**
+	 * Scrolling follows the reader's choice from the editor's Settings, read
+	 * from the store the two share, and a pinch -- Ctrl held, as a browser
+	 * reports one -- zooms whichever it is. The canvas's rules, on a page.
+	 */
+	it("pans on a scroll when the reader chose Pan, and zooms on a pinch", () => {
+		const style: Record<string, string> = {};
+		const box = { width: 400, height: 300, left: 0, top: 0, right: 400, bottom: 300 };
+		const svg = {
+			getAttribute: (name: string) => (name === "width" ? "800" : "600"),
+			style,
+			getBoundingClientRect: () => box,
+		};
+		const handlers: Record<string, (e: unknown) => void> = {};
+		const viewport = {
+			getBoundingClientRect: () => box,
+			querySelector: () => svg,
+			classList: { add: () => {}, remove: () => {} },
+			addEventListener: (type: string, fn: (e: unknown) => void) => {
+				// The first listener for a type is the viewer's own handler.
+				handlers[type] ??= fn;
+			},
+			setPointerCapture: () => {},
+			releasePointerCapture: () => {},
+		};
+		const document = { querySelectorAll: () => [viewport] };
+		const localStorage = { getItem: () => JSON.stringify({ wheel: "pan" }) };
+		new Function("document", "localStorage", viewer)(document, localStorage);
+
+		const scale = () => Number(/scale\(([\d.]+)\)/.exec(style.transform)?.[1]);
+		const left = () => Number(/translate\((-?[\d.]+)px/.exec(style.transform)?.[1]);
+		const wheel = (init: Record<string, unknown>) => handlers.wheel({
+			preventDefault: () => {}, clientX: 200, clientY: 150, deltaX: 0, deltaY: 0, deltaMode: 0,
+			ctrlKey: false, metaKey: false, ...init,
+		});
+
+		const fitted = { scale: scale(), left: left() };
+		wheel({ deltaY: 40 });
+		expect(scale()).toBe(fitted.scale);
+		expect(left()).toBe(fitted.left);
+		wheel({ deltaX: 25 });
+		expect(left()).toBeCloseTo(fitted.left - 25);
+		wheel({ deltaY: -10, ctrlKey: true });
+		expect(scale()).toBeGreaterThan(fitted.scale);
+	});
 });
