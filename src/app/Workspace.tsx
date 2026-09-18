@@ -121,9 +121,16 @@ export function Workspace({
 	};
 
 	const compact = useCompact();
-	/** Which side's drawer is out, on a phone. Never more than one. */
-	const [drawer, setDrawer] = useState<"left" | "right" | null>(null);
+	/**
+	 * Which panel's drawer is out, on a phone or a tablet. Never more than one,
+	 * and one panel per drawer: the tree and Variables shared a drawer at
+	 * first and each got half of it, which is not enough of either.
+	 */
+	const [drawer, setDrawer] = useState<PanelId | null>(null);
 	useEffect(() => setDrawer(null), [drawerKey]);
+	// A panel that has gone quiet -- the Inspector once nothing is selected --
+	// takes its drawer with it.
+	const openPanel = drawer !== null && contents[drawer] !== undefined ? drawer : null;
 
 	/**
 	 * A phone has room for the graph or a panel, not both side by side: the
@@ -136,9 +143,22 @@ export function Workspace({
 	const tracks = compact
 		? { columns: "0px 0px minmax(0, 1fr) 0px 0px", rows: full.rows }
 		: full;
+	/**
+	 * The panels a side's drawers offer, in the order the dock stacks them.
+	 *
+	 * Floating panels too, by the dock they came from: a window over the graph
+	 * is a desktop's arrangement, and on a tablet it would sit on top of the
+	 * only thing there is room for. And a collapsed dock still offers its
+	 * panels -- collapsing is a choice about a wide window, and the splitter
+	 * that would undo it is not drawn here.
+	 */
+	const drawerPanels = (side: "left" | "right"): PanelId[] =>
+		PANEL_IDS.filter(
+			(id) => layout.panels[id].dock === side && layout.panels[id].open && contents[id] !== undefined,
+		).sort((a, b) => layout.panels[a].order - layout.panels[b].order || a.localeCompare(b));
 	const drawers = compact
-		? (["left", "right"] as const).filter((side) => dockVisible(effective, side))
-		: [];
+		? { left: drawerPanels("left"), right: drawerPanels("right") }
+		: { left: [], right: [] };
 
 	return (
 		<div
@@ -147,13 +167,15 @@ export function Workspace({
 			style={{ gridTemplateColumns: tracks.columns, gridTemplateRows: tracks.rows }}
 		>
 			{(["left", "right", "bottom"] as DockSide[]).map((side) =>
-				dockVisible(effective, side) ? (
+				(compact && side !== "bottom" ? drawers[side].length > 0 : dockVisible(effective, side)) ? (
 					<Dock
 						key={side}
 						side={side}
 						layout={effective}
 						contents={contents}
-						drawer={compact && side !== "bottom" ? drawer === side : undefined}
+						drawer={compact && side !== "bottom"
+							? { ids: drawers[side], open: openPanel }
+							: undefined}
 						onDragPanel={onMovePanel && !compact ? startDrag : undefined}
 						onFloat={
 							onFloatPanel && !compact
@@ -164,7 +186,7 @@ export function Workspace({
 				) : null,
 			)}
 
-			{compact && drawer && (
+			{compact && openPanel && (
 				<div
 					className="drawer-backdrop"
 					style={{ gridArea: "centre" }}
@@ -190,30 +212,28 @@ export function Workspace({
 			<div className="centre" style={{ gridArea: "centre" }} ref={centreBox}>
 				{centre}
 				{floating}
-				{drawers.length > 0 && (
+				{drawers.left.length + drawers.right.length > 0 && (
 					<div className="drawer-toggles">
-						{drawers.map((side) => {
-							const title = panelsIn(effective, side)
-								.filter((id) => contents[id] !== undefined)
-								.map((id) => PANEL_TITLES[id])
-								.join(" · ");
-							return (
-								<button
-									key={side}
-									className={`tb drawer-toggle drawer-${side}${drawer === side ? " on" : ""}`}
-									aria-expanded={drawer === side}
-									onClick={() => setDrawer((open) => (open === side ? null : side))}
-								>
-									{title}
-								</button>
-							);
-						})}
+						{(["left", "right"] as const).map((side) => (
+							<div key={side} className={`drawer-group drawer-${side}`}>
+								{drawers[side].map((id) => (
+									<button
+										key={id}
+										className={`tb drawer-toggle${openPanel === id ? " on" : ""}`}
+										aria-expanded={openPanel === id}
+										onClick={() => setDrawer(openPanel === id ? null : id)}
+									>
+										{PANEL_TITLES[id]}
+									</button>
+								))}
+							</div>
+						))}
 					</div>
 				)}
 				{/* Over the graph rather than beside it. Inside the centre, so a
 				    window's coordinates are the graph's and a dock opening does not
 				    drag every window sideways with it. */}
-				{floatingPanels(effective).map((id) => (
+				{(compact ? [] : floatingPanels(effective)).map((id) => (
 					<FloatingPanel
 						key={id}
 						id={id}
@@ -494,25 +514,31 @@ function Dock({
 	side: DockSide;
 	layout: Layout;
 	contents: Partial<Record<PanelId, ReactNode>>;
-	/** A drawer on a phone, and whether it is out. Undefined for a docked dock. */
-	drawer?: boolean;
+	/**
+	 * A dock drawn as drawers, on a phone or a tablet: the panels it offers,
+	 * and which one is out, if any of them. Undefined for a docked dock.
+	 */
+	drawer?: { ids: PanelId[]; open: PanelId | null };
 	onDragPanel?: (panel: PanelId, event: ReactPointerEvent<HTMLElement>) => void;
 	onFloat?: (panel: PanelId) => void;
 }) {
-	const ids = panelsIn(layout, side).filter((id) => contents[id] !== undefined);
+	const ids = drawer?.ids ?? panelsIn(layout, side).filter((id) => contents[id] !== undefined);
 	if (ids.length === 0) return null;
+	const out = drawer !== undefined && drawer.open !== null && ids.includes(drawer.open);
 
 	return (
 		<div
-			className={`dock ${side}${drawer === undefined ? "" : drawer ? " drawer drawer-open" : " drawer"}`}
+			className={`dock ${side}${drawer === undefined ? "" : out ? " drawer drawer-open" : " drawer"}`}
 			style={{ gridArea: side }}
 			// Kept mounted while it is in, so the tree keeps what was expanded
 			// and where it was scrolled to -- but out of reach of focus.
-			inert={drawer === false}
+			inert={drawer !== undefined && !out}
 		>
 			{ids.map((id) => (
 				<div
-					className={`panel panel-${id}`}
+					// The drawer shows the one panel asked for. The others stay
+					// mounted beside it, hidden, for the reason the drawer does.
+					className={`panel panel-${id}${drawer !== undefined && drawer.open !== id ? " panel-away" : ""}`}
 					key={id}
 					title={
 						onDragPanel

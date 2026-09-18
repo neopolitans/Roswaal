@@ -8556,7 +8556,9 @@ button.tb.danger {
 	left: 10px;
 	right: 10px;
 	bottom: 10px;
-	z-index: 64;
+	/* Above the drawers, so one tap moves from Project to Variables rather
+	   than two. The drawers keep their last 56px clear for them. */
+	z-index: 68;
 	display: flex;
 	justify-content: space-between;
 	gap: 8px;
@@ -8569,10 +8571,30 @@ button.tb.danger {
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
-/* One button and it is the Inspector's: keep it on the right, where the
-   Inspector slides in from. */
-.drawer-toggles .drawer-right:only-child {
-	margin-left: auto;
+/* A group per side, so the buttons sit on the edge their drawers slide in
+   from, whichever side has none. */
+.drawer-group {
+	display: flex;
+	gap: 8px;
+}
+
+.dock.drawer {
+	padding-bottom: 56px;
+}
+
+/* One panel to a drawer, and it has the whole height. */
+.dock.drawer .panel {
+	flex: 1;
+	min-height: 0;
+}
+
+.dock.drawer .panel.panel-away {
+	display: none;
+}
+
+.dock.drawer .panel-variables {
+	flex: 1;
+	max-height: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

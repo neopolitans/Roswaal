@@ -1530,7 +1530,7 @@ const CONTROLS: DocPage = {
 								["Long press a node or a pin", "Its menu, as a right-click opens"],
 								["Double tap", "Open a graph from the tree, add a reroute knot, rename a comment"],
 								["Drag a node, or from a pin", "As with a mouse"],
-								["**Project** and **Inspector**, under the graph", "Slide that panel out over the graph"],
+								["**Project**, **Variables** and **Inspector**, under the graph", "Slide that panel out over the graph, one at a time"],
 								["The search button beside **Contents**, in these pages", "Search the docs, as `Ctrl` + `K` does"],
 							],
 						},
