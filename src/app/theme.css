@@ -8658,8 +8658,8 @@ button.tb.danger {
 /* One bar, as the graph's floating tools are one: the buttons sit flat on it
    and the bar carries the edge and the shadow. */
 .touch-bar-group.unified {
-	gap: 2px;
-	padding: 4px;
+	gap: 4px;
+	padding: 6px 8px;
 	border: 1px solid var(--border);
 	border-radius: 8px;
 	background: var(--bg-panel);
@@ -8681,9 +8681,15 @@ button.tb.danger {
 	}
 }
 
-/* A 24px glyph in a 46px square: past the 44pt Apple asks a tap target to be. */
-.touch-bar button.tb.icon-only {
-	padding: 10px;
+/* A 24px glyph in a 46px square: past the 44pt Apple asks a tap target to be.
+   A size rather than padding, because `.tb.icon-only` fixes its buttons at 28px
+   and padding inside that left the glyph two pixels from each edge. */
+.touch-bar .touch-bar-group button.tb.icon-only {
+	width: 46px;
+	height: 46px;
+	padding: 0;
+	display: inline-grid;
+	place-items: center;
 	line-height: 0;
 }
 
@@ -9223,3 +9229,59 @@ select:not(.literal):not([multiple]) {
 		margin: 8px;
 	}
 }
+
+/* --------------------------------------------------------------------------
+   Bars short of room: words become glyphs.
+
+   The top bar and the graph's tools are one row each on a computer. On an iPad
+   in portrait they wrapped into two, and the graph lost the height of both.
+   So where they are short of room the buttons that carry a word -- Compile
+   project, Straighten, Compile script -- show only their glyph, and the
+   Compile caption goes. The word stays as the button's accessible name, and
+   the title says it on a long press.
+   ----------------------------------------------------------------------- */
+.tb-icon-when-narrow {
+	display: none;
+}
+
+/* The top bar measures the window: it always spans it. */
+@media (max-width: 899px) {
+	.toolbar .group-label {
+		display: none;
+	}
+
+	.toolbar .tb-collapsible .tb-icon-when-narrow {
+		display: inline-block;
+	}
+
+	.toolbar .tb-collapsible .tb-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
+
+/* The graph's tools measure the graph, which is narrower than the window
+   whenever a panel is docked beside it. */
+.centre {
+	container: centre / inline-size;
+}
+
+@container centre (max-width: 819px) {
+	.floating-tools .tb-collapsible .tb-icon-when-narrow {
+		display: inline-block;
+	}
+
+	.floating-tools .tb-collapsible .tb-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
+

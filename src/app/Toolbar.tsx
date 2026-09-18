@@ -137,12 +137,14 @@ export function ProjectBar(props: ProjectBarProps) {
 				</button>
 			</div>
 			<button
-				className="tb"
+				className="tb with-icon tb-collapsible"
 				title="Compile every graph and node map in the project"
 				disabled={props.busy !== null}
 				onClick={props.onCompileProject}
 			>
-				Compile project
+				{/* Drawn only where the bar is short of room: see `tb-collapsible`. */}
+				<Icon name="build" size={15} className="tb-icon-when-narrow" />
+				<span className="tb-label">Compile project</span>
 			</button>
 			{/* Two builds, two destinations. The daemon opens its own /docs, which
 			    is built from the live registry and so has a page for every pack
@@ -317,7 +319,7 @@ export function DocumentBar(props: DocumentBarProps) {
 				<Icon name="layout" size={16} />
 			</button>
 			<button
-				className={`tb${props.alignExec ? " on" : ""}`}
+				className={`tb with-icon tb-collapsible${props.alignExec ? " on" : ""}`}
 				aria-pressed={props.alignExec}
 				title={
 					props.alignExec
@@ -326,7 +328,8 @@ export function DocumentBar(props: DocumentBarProps) {
 				}
 				onClick={props.onToggleAlignExec}
 			>
-				Straighten
+				<Icon name="straighten" size={16} className="tb-icon-when-narrow" />
+				<span className="tb-label">Straighten</span>
 			</button>
 
 			{/* With a selection it picks out what those nodes produced; without
@@ -368,13 +371,13 @@ export function DocumentBar(props: DocumentBarProps) {
 				<option value="lune">Lune (experimental)</option>
 			</select>
 			<button
-				className="tb primary with-icon"
+				className="tb primary with-icon tb-collapsible"
 				title="Compile just this document (Ctrl+S)"
 				disabled={!props.hasPath || props.busy !== null}
 				onClick={props.onCompile}
 			>
 				<Icon name="build" size={15} />
-				Compile script
+				<span className="tb-label">Compile script</span>
 			</button>
 			</ToolGroup>
 		</FloatingTools>

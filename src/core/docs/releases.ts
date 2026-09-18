@@ -103,6 +103,10 @@ export const RELEASES: Release[] = [
 			"**Toolbars draws the two bars only a touch screen has**: the action row, and Node Design's bar over a node.",
 			"**Settings → Editor → Action row** draws the action row as separate buttons, as it was, or as one bar like the graph's own tools.",
 		],
+		fixed: [
+			"**The top bar and the graph's tools keep to one row on an iPad in portrait.** Where they are short of room, Compile project, Straighten and Compile script show only their icons, and the Compile caption goes; each keeps its name as its tooltip.",
+			"**The action row's icons have room around them.** Each button is 46 pixels square; the icon sat two pixels from its edge.",
+		],
 		changed: [
 			"**Toolbars says the three windows share one tab on a phone or a tablet**, rather than that none of them replaces the one you are on.",
 		],

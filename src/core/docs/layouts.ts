@@ -215,7 +215,7 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 		{
 			name: "Top bar", kind: "bar", at: [1, 2, 1, 3],
 			icons: ["refresh", "newFile", "map"], iconsEnd: ["document", "palette", "settings"],
-			what: "The same bar as on a computer. On a phone it takes two rows.",
+			what: "The same bar as on a computer. Held upright, Compile project is its icon.",
 		},
 		{
 			name: "Graph tabs", kind: "bar", at: [2, 3, 1, 3], chips: ["Main", "Greeter"],
@@ -227,9 +227,9 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 		},
 		{
 			name: "Graph tools", kind: "float", place: "start", at: [3, 4, 1, 3], icons: ["search", "layout", "terminal"],
-			what: "As on a computer.",
+			what: "As on a computer. Held upright, Straighten is its icon, lit while it is on.",
 		},
-		{ name: "Compile", kind: "float", place: "end", at: [3, 4, 1, 3], icons: ["build"], what: "As on a computer." },
+		{ name: "Compile", kind: "float", place: "end", at: [3, 4, 1, 3], icons: ["build"], what: "As on a computer. Held upright, Compile script is its icon." },
 		{
 			name: "A panel, slid out", kind: "drawer", at: [4, 5, 2, 3],
 			what: "Project, Variables and the Inspector come out over the graph one at a time, with its whole height. Tap the graph beside one to put it away.",
