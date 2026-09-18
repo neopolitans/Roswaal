@@ -80,6 +80,12 @@ export interface WorkspaceProps {
 	 * the way of what was opened.
 	 */
 	drawerKey?: unknown;
+	/**
+	 * Controls for what is selected, drawn with the drawer buttons on a phone
+	 * or a tablet, where there is no keyboard to reach them from. Ignored
+	 * elsewhere.
+	 */
+	touchBar?: ReactNode;
 }
 
 /** How far the pointer must travel before a press becomes a drag. */
@@ -87,7 +93,7 @@ const DRAG_THRESHOLD = 4;
 
 export function Workspace({
 	layout, contents, centre, floating, onResize, onResizeEnd, onToggle, onMovePanel,
-	onFramePanel, onFramePanelEnd, onDockPanel, onFloatPanel, drawerKey,
+	onFramePanel, onFramePanelEnd, onDockPanel, onFloatPanel, drawerKey, touchBar,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
 	/** The centre, which a window's coordinates are measured from. */
@@ -131,6 +137,18 @@ export function Workspace({
 	// A panel that has gone quiet -- the Inspector once nothing is selected --
 	// takes its drawer with it.
 	const openPanel = drawer !== null && contents[drawer] !== undefined ? drawer : null;
+
+	// Dragging something out of a drawer -- a variable, a file -- puts the
+	// drawer away, or it would cover the graph the drag is headed for.
+	useEffect(() => {
+		const element = surface.current;
+		if (!compact || !element) return;
+		const onStart = (e: Event) => {
+			if (e.target instanceof Element && e.target.closest(".dock.drawer")) setDrawer(null);
+		};
+		element.addEventListener("dragstart", onStart);
+		return () => element.removeEventListener("dragstart", onStart);
+	}, [compact]);
 
 	/**
 	 * A phone has room for the graph or a panel, not both side by side: the
@@ -212,8 +230,9 @@ export function Workspace({
 			<div className="centre" style={{ gridArea: "centre" }} ref={centreBox}>
 				{centre}
 				{floating}
-				{drawers.left.length + drawers.right.length > 0 && (
+				{(drawers.left.length + drawers.right.length > 0 || (compact && touchBar)) && (
 					<div className="drawer-toggles">
+						{compact && touchBar && <div className="touch-bar">{touchBar}</div>}
 						{(["left", "right"] as const).map((side) => (
 							<div key={side} className={`drawer-group drawer-${side}`}>
 								{drawers[side].map((id) => (

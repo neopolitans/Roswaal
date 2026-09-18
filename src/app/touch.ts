@@ -1,21 +1,31 @@
 /**
- * The two mouse gestures a finger cannot make, made from ones it can.
+ * The mouse gestures a finger cannot make, made from ones it can.
  *
- * Roswaal puts a lot behind the right button and the double-click: every node,
- * pin, wire and tree row has a menu, and a graph is opened by double-clicking
- * it. A touch screen has neither. iPadOS Safari sends no `contextmenu` for a
- * long press and no `dblclick` for a double tap, so on an iPad none of that
- * was reachable at all.
+ * Roswaal puts a lot behind the right button, the double-click and dragging:
+ * every node, pin, wire and tree row has a menu, a graph is opened by
+ * double-clicking it, and a variable reaches the graph by being dragged there.
+ * A touch screen has none of the three. iPadOS Safari sends no `contextmenu`
+ * for a long press, no `dblclick` for a double tap, and does not start the
+ * page's drag-and-drop from a finger, so on an iPad none of that was reachable.
  *
- * So this turns a **long press** into a `contextmenu` and a **double tap** into
- * a `dblclick`, dispatched on the element under the finger with the finger's
- * coordinates. Every handler already written for the mouse then runs as it is —
- * there is no second, touch-shaped copy of any menu to keep in step.
+ * So this makes them:
  *
- * Fingers and pens — an Apple Pencil has no second button either. Not the
- * mouse, which has both gestures already. A browser that sends its own events
- * for these (Android Chrome sends `contextmenu`) has the duplicate swallowed
- * rather than acted on twice.
+ * - a **long press** is a `contextmenu`;
+ * - a **double tap** is a `dblclick`;
+ * - a **long press on something draggable, then a drag**, is `dragstart`,
+ *   `dragenter`/`dragover`/`dragleave` under the finger, `drop` where it lifts,
+ *   and `dragend` -- carrying a data transfer the source fills in itself.
+ *
+ * Each is dispatched on the element under the finger with the finger's
+ * coordinates, so every handler already written for the mouse runs as it is:
+ * the canvas's drop reads a variable out of the transfer exactly as it does for
+ * a mouse. There is no second, touch-shaped copy of any menu or drop to keep in
+ * step.
+ *
+ * Fingers and pens -- an Apple Pencil has no second button either. Not the
+ * mouse, which has all three already. A browser that sends its own events for
+ * these (Android Chrome sends `contextmenu`) has the duplicate swallowed rather
+ * than acted on twice.
  */
 
 /** How long a still finger is held before it counts as a right-click. */
@@ -28,15 +38,64 @@ const DOUBLE_TAP_SLOP = 24;
 /** How long after a synthesised event the browser's own copy is swallowed. */
 const ECHO_MS = 800;
 
+/**
+ * What a drag carries, for a drag no browser started.
+ *
+ * The app's drag sources and drop targets use only these members, and a
+ * constructed `DataTransfer` is not available in every Safari this runs in —
+ * so a plain object with the same shape, which both sides read and write
+ * without knowing the difference.
+ */
+class TouchDataTransfer {
+	private readonly data = new Map<string, string>();
+	dropEffect = "none";
+	effectAllowed = "all";
+	readonly files: readonly File[] = [];
+
+	get types(): string[] {
+		return [...this.data.keys()];
+	}
+
+	setData(type: string, value: string): void {
+		this.data.set(type.toLowerCase(), value);
+	}
+
+	getData(type: string): string {
+		return this.data.get(type.toLowerCase()) ?? "";
+	}
+
+	clearData(type?: string): void {
+		if (type === undefined) this.data.clear();
+		else this.data.delete(type.toLowerCase());
+	}
+
+	setDragImage(): void {
+		// The ghost under the finger is drawn here; see `startDrag`.
+	}
+}
+
 let installed = false;
 
 export function installTouchGestures(target: Window = window): void {
 	if (installed) return;
 	installed = true;
 
-	/** The one finger that might become a long press, while it is down. */
+	/**
+	 * The one finger that might become a long press, while it is down.
+	 *
+	 * `source` is the draggable thing it landed in, if any. On one of those the
+	 * long press does not open the menu straight away: it *arms* a drag, and
+	 * what the finger does next decides -- move and it drags, lift and the menu
+	 * opens then. The same bargain as holding on empty canvas.
+	 */
 	let press: {
-		id: number; x: number; y: number; element: Element; timer: number; fired: boolean;
+		id: number; x: number; y: number; element: Element; timer: number;
+		fired: boolean; source: HTMLElement | null; armed: boolean;
+	} | null = null;
+	/** A drag in progress, carried by one finger. */
+	let drag: {
+		id: number; source: HTMLElement; transfer: TouchDataTransfer; ghost: HTMLElement;
+		over: Element | null; accepted: boolean;
 	} | null = null;
 	/** Where the last quick tap ended, for recognising the second. */
 	let lastTap: { x: number; y: number; at: number } | null = null;
@@ -48,7 +107,10 @@ export function installTouchGestures(target: Window = window): void {
 	let swallowClickUntil = -Infinity;
 
 	const cancelPress = () => {
-		if (press) window.clearTimeout(press.timer);
+		if (press) {
+			window.clearTimeout(press.timer);
+			press.source?.classList.remove("touch-lifted");
+		}
 		press = null;
 	};
 
@@ -63,6 +125,78 @@ export function installTouchGestures(target: Window = window): void {
 			detail: type === "dblclick" ? 2 : 0,
 			view: window,
 		}));
+	};
+
+	/**
+	 * A drag event carrying the transfer. A `MouseEvent` with `dataTransfer`
+	 * defined on it rather than a `DragEvent`, whose constructor not every
+	 * Safari has; React and every handler here read the property either way.
+	 */
+	const dragEvent = (type: string, transfer: TouchDataTransfer, x: number, y: number) => {
+		const event = new MouseEvent(type, {
+			bubbles: true,
+			cancelable: type !== "dragleave" && type !== "dragend",
+			composed: true,
+			clientX: x,
+			clientY: y,
+			view: window,
+		});
+		Object.defineProperty(event, "dataTransfer", { value: transfer });
+		return event;
+	};
+
+	const moveDrag = (x: number, y: number) => {
+		if (!drag) return;
+		drag.ghost.style.left = `${x}px`;
+		drag.ghost.style.top = `${y}px`;
+		const under = document.elementFromPoint(x, y);
+		if (under !== drag.over) {
+			drag.over?.dispatchEvent(dragEvent("dragleave", drag.transfer, x, y));
+			under?.dispatchEvent(dragEvent("dragenter", drag.transfer, x, y));
+			drag.over = under;
+		}
+		if (!under) {
+			drag.accepted = false;
+			return;
+		}
+		// A target says it will take the drop by cancelling `dragover`, which is
+		// what every drop target here already does for a mouse.
+		const over = dragEvent("dragover", drag.transfer, x, y);
+		under.dispatchEvent(over);
+		drag.accepted = over.defaultPrevented;
+	};
+
+	const startDrag = (held: NonNullable<typeof press>, x: number, y: number) => {
+		const source = held.source!;
+		window.clearTimeout(held.timer);
+		source.classList.remove("touch-lifted");
+		press = null;
+
+		// The source fills the transfer in itself, from its own `dragstart`.
+		const transfer = new TouchDataTransfer();
+		const start = dragEvent("dragstart", transfer, held.x, held.y);
+		source.dispatchEvent(start);
+		if (start.defaultPrevented || transfer.types.length === 0) return;
+
+		// A label under the finger, since the thing itself stays where it is.
+		const ghost = document.createElement("div");
+		ghost.className = "touch-drag-ghost";
+		ghost.textContent = (source.textContent ?? "").trim().slice(0, 48);
+		document.body.appendChild(ghost);
+
+		drag = { id: held.id, source, transfer, ghost, over: null, accepted: false };
+		moveDrag(x, y);
+	};
+
+	const endDrag = (x: number, y: number, cancelled: boolean) => {
+		if (!drag) return;
+		const { source, transfer, ghost, over, accepted } = drag;
+		drag = null;
+		ghost.remove();
+		if (!cancelled && over && accepted) over.dispatchEvent(dragEvent("drop", transfer, x, y));
+		else over?.dispatchEvent(dragEvent("dragleave", transfer, x, y));
+		source.dispatchEvent(dragEvent("dragend", transfer, x, y));
+		swallowClickUntil = performance.now() + ECHO_MS;
 	};
 
 	target.addEventListener("pointerdown", (e) => {
@@ -80,12 +214,20 @@ export function installTouchGestures(target: Window = window): void {
 		const element = e.target instanceof Element ? e.target : null;
 		if (!element) return;
 		cancelPress();
-		const at = { id: e.pointerId, x: e.clientX, y: e.clientY, element };
+		const source = element.closest<HTMLElement>('[draggable="true"]');
+		const at = { id: e.pointerId, x: e.clientX, y: e.clientY, element, source };
 		press = {
 			...at,
 			fired: false,
+			armed: false,
 			timer: window.setTimeout(() => {
 				if (!press || press.id !== at.id) return;
+				if (at.source) {
+					// Held on something draggable: wait to see which it is.
+					press.armed = true;
+					at.source.classList.add("touch-lifted");
+					return;
+				}
 				press.fired = true;
 				sentMenuAt = performance.now();
 				fire("contextmenu", element.isConnected ? element : document.body, at.x, at.y);
@@ -94,18 +236,53 @@ export function installTouchGestures(target: Window = window): void {
 	}, true);
 
 	target.addEventListener("pointermove", (e) => {
+		if (drag && e.pointerId === drag.id) {
+			moveDrag(e.clientX, e.clientY);
+			return;
+		}
 		if (!press || e.pointerId !== press.id || press.fired) return;
-		if (Math.hypot(e.clientX - press.x, e.clientY - press.y) > SLOP) cancelPress();
+		const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y) > SLOP;
+		if (!moved) return;
+		if (press.armed) startDrag(press, e.clientX, e.clientY);
+		else cancelPress();
 	}, true);
+
+	/**
+	 * An armed press or a drag keeps the page where it is. Without this the
+	 * finger that has just been held still on a tree row scrolls the tree the
+	 * moment it moves -- and the browser, having started a scroll, cancels the
+	 * pointer, so the drag never happens. A touch-move is the one event that can
+	 * still refuse the scroll at that point; the first one after a still hold is
+	 * always cancelable.
+	 */
+	target.addEventListener("touchmove", (e) => {
+		if (drag || press?.armed) e.preventDefault();
+	}, { capture: true, passive: false });
 
 	const lift = (e: PointerEvent, cancelled: boolean) => {
 		if (e.pointerType === "mouse") return;
 		fingers.delete(e.pointerId);
+		if (drag && e.pointerId === drag.id) {
+			endDrag(e.clientX, e.clientY, cancelled);
+			lastTap = null;
+			return;
+		}
 		const held = press && e.pointerId === press.id ? press : null;
 		if (!held) return;
 		window.clearTimeout(held.timer);
+		held.source?.classList.remove("touch-lifted");
 		press = null;
 
+		if (held.armed) {
+			// Held and lifted without moving: it was the menu after all.
+			if (!cancelled) {
+				sentMenuAt = performance.now();
+				fire("contextmenu", held.element.isConnected ? held.element : document.body, held.x, held.y);
+			}
+			swallowClickUntil = performance.now() + ECHO_MS;
+			lastTap = null;
+			return;
+		}
 		if (held.fired) {
 			// The menu is open under the finger. The click that follows the lift
 			// would land on whatever it was pressed on and act as well.

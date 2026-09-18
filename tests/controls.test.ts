@@ -87,6 +87,20 @@ describe("the Controls page", () => {
 		expect(missing, "bound in App.tsx but not on the Controls page").toEqual([]);
 	});
 
+	/**
+	 * The touch bar's buttons send keystrokes rather than calling the edits,
+	 * so a shortcut renamed in the handler would leave its button pressing a
+	 * key nothing answers. Every key it sends has to be one the handler binds.
+	 */
+	it("sends only keys the editor binds, from the touch bar", () => {
+		const source = readFileSync(path.join(ROOT, "src/app/App.tsx"), "utf8");
+		const bar = source.slice(source.indexOf("function TouchBar("), source.indexOf("function TouchBar(") + 2000);
+		const sent = [...bar.matchAll(/press\("(\w+)"/g)].map((m) => (m[1].length === 1 ? m[1].toUpperCase() : m[1]));
+		expect(sent.length).toBeGreaterThanOrEqual(5);
+		const bound = boundKeys();
+		expect(sent.filter((key) => !bound.includes(key))).toEqual([]);
+	});
+
 	/** A scan that matches nothing would pass the test above without proving it. */
 	it("found the handler it is checking against", () => {
 		const keys = boundKeys();

@@ -101,6 +101,8 @@ export const RELEASES: Release[] = [
 		added: [
 			"**Two fingers on a trackpad pan the graph on a Mac or an iPad**, and pinching zooms, in Safari as well as Chrome. Scrolling still zooms elsewhere; **Settings → Editor → Scrolling the graph** picks Pan or Zoom on any machine.",
 			"**The graph works by touch.** One finger pans, two pinch and pan, and a tap on empty space clears the selection. Press and hold empty space, then drag, to draw a marquee; lift instead for the node menu. A long press opens the menu a right-click would, and a double tap is a double-click — opening a graph from the tree, adding a reroute knot. Both work everywhere in the editor, and with an Apple Pencil. See [Controls](controls).",
+			"**Drag by touch.** Press and hold a variable, a local, a file or a tab until it lifts, then drag it — onto the graph, into a folder — as with a mouse. Held and lifted without moving, it opens its menu instead. The drawer it came from slides away as the drag starts.",
+			"**Copy, Cut, Duplicate, Delete and Paste are buttons under the graph** on a phone or a tablet, while something is selected or there is something to paste.",
 			"**Graphs drawn in the documentation move the way the canvas does**: scrolling pans or zooms as Settings says, pinching zooms on a trackpad or with two fingers, and a double tap fits the graph back in its frame.",
 			"**Node Design follows Scrolling the graph too**, and on a phone or a tablet its node list slides over the node editor from a bar above it.",
 			"**On a phone or a tablet, the panels slide over the graph.** Project, Variables and Inspector each have a button under it and come out one at a time, with the whole height to themselves; opening a graph from the tree puts the tree away again.",
@@ -113,6 +115,7 @@ export const RELEASES: Release[] = [
 		],
 		fixed: [
 			"**The documentation's outline no longer squeezes the page below 1100px wide.** It was meant to hide there and did not, so on an iPad or a phone in landscape it wrapped under the contents and both halved in height.",
+			"**A tapped button no longer stays grey on an iPad or an iPhone.** Safari kept the last button tapped in its hover state — the Variables button, after its drawer was closed by tapping the graph.",
 			"**The project tree scrolls within its own panel**, so a long tree no longer runs down over the Variables panel beneath it.",
 			"**A wire dragged by touch lands on the pin it is dropped on.** It reported the drop to the pin it started from.",
 			"**Tapping a control in a toolbar, Variables or node map picture no longer flickers.** The tap lit the new one, went back to the old one, then lit the new one again.",

@@ -26,7 +26,7 @@ import { MapEditor } from "./MapEditor.jsx";
 import { SourceView, type SourceDoc } from "./SourceView.jsx";
 import type { DialogRequest, DialogResult, PendingDialog } from "./Dialog.jsx";
 import { Logo } from "./logo.jsx";
-import type { Literal, PinDef } from "../core/schema.js";
+import type { Literal, NodeScript, PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
 import { previewSelection } from "./SelectionPreview.jsx";
 import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
@@ -98,6 +98,47 @@ function refreshAliases(): void {
 	void api.luaurcFiles().then(
 		({ files }) => setProjectAliases(files),
 		() => setProjectAliases([]),
+	);
+}
+
+/**
+ * Copy, cut, duplicate, delete and paste, for a screen with no keyboard.
+ *
+ * Each button sends the keystroke the editor already answers -- the same
+ * handler, the same checks, the same locked-while-compiling rule -- rather
+ * than a second route to the same edits that could drift from the first.
+ * Paste lands where the canvas was last touched, as it lands at the pointer.
+ */
+/**
+ * How many selected things still exist. A delete leaves the removed ids in the
+ * selection, which nothing drew and a keyboard never noticed -- but the touch
+ * bar counted them and went on offering Copy and Delete for nothing.
+ */
+function liveSelection(script: NodeScript, selection: ReadonlySet<string>): number {
+	let live = 0;
+	for (const id of selection) {
+		if (script.nodes.some((n) => n.id === id) || script.comments.some((c) => c.id === id)) live++;
+	}
+	return live;
+}
+
+function TouchBar({ selected, canPaste, locked }: { selected: number; canPaste: boolean; locked: boolean }) {
+	const press = (key: string, withMod: boolean) =>
+		document.body.dispatchEvent(new KeyboardEvent("keydown", { key, ctrlKey: withMod, bubbles: true }));
+	return (
+		<>
+			{selected > 0 && (
+				<>
+					<button className="tb" onClick={() => press("c", true)}>Copy</button>
+					<button className="tb" disabled={locked} onClick={() => press("x", true)}>Cut</button>
+					<button className="tb" disabled={locked} onClick={() => press("d", true)}>Duplicate</button>
+					<button className="tb" disabled={locked} onClick={() => press("Delete", false)}>Delete</button>
+				</>
+			)}
+			{canPaste && (
+				<button className="tb" disabled={locked} onClick={() => press("v", true)}>Paste</button>
+			)}
+		</>
 	);
 }
 
@@ -347,6 +388,8 @@ export function App() {
 	// Deliberately in-memory rather than the system clipboard: a graph fragment
 	// is not text, and round-tripping it through one would lose pin identity.
 	const clipboard = useRef<Clipping | null>(null);
+	/** Whether there is anything to paste, for the touch bar's Paste button. */
+	const [hasClip, setHasClip] = useState(false);
 	/**
 	 * Where the pointer is over the canvas, in world coordinates.
 	 *
@@ -1222,6 +1265,7 @@ export function App() {
 				if (!state.script || state.selection.size === 0) return;
 				e.preventDefault();
 				clipboard.current = copySelection(state.script, state.selection, registry);
+				setHasClip(true);
 				/**
 				 * Cut takes away exactly what it took a copy of.
 				 *
@@ -1738,6 +1782,18 @@ export function App() {
 			<Workspace
 				layout={layout}
 				drawerKey={`${editor.path}|${editor.graph}|${source?.path}|${mapDoc?.path}|${aliasDoc ? "alias" : ""}`}
+				touchBar={
+					editor.script && !source && !mapDoc && !aliasDoc
+					&& (liveSelection(editor.script, editor.selection) > 0 || hasClip)
+						? (
+							<TouchBar
+								selected={liveSelection(editor.script, editor.selection)}
+								canPaste={hasClip}
+								locked={locked}
+							/>
+						)
+						: undefined
+				}
 				onResize={onDockResize}
 				onResizeEnd={onDockResizeEnd}
 				onToggle={onDockToggle}
