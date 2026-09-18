@@ -116,6 +116,8 @@ export const RELEASES: Release[] = [
 		fixed: [
 			"**The documentation's outline no longer squeezes the page below 1100px wide.** It was meant to hide there and did not, so on an iPad or a phone in landscape it wrapped under the contents and both halved in height.",
 			"**A tapped button no longer stays grey on an iPad or an iPhone.** Safari kept the last button tapped in its hover state — the Variables button, after its drawer was closed by tapping the graph.",
+			"**A node map's project file keeps its height** when the Inspector beside it scrolls. On a shorter screen it was squeezed to a single line.",
+			"**The arrows above an iPad's keyboard stay in the documentation's search.** They moved the cursor to a field behind it, out of sight, with the keyboard still up.",
 			"**The project tree scrolls within its own panel**, so a long tree no longer runs down over the Variables panel beneath it.",
 			"**A wire dragged by touch lands on the pin it is dropped on.** It reported the drop to the pin it started from.",
 			"**Tapping a control in a toolbar, Variables or node map picture no longer flickers.** The tap lit the new one, went back to the old one, then lit the new one again.",

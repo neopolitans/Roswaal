@@ -31,8 +31,22 @@
     if (document.querySelector("." + className)) return;
     var back = document.createElement("div");
     back.className = className;
+    /**
+     * Everything behind the overlay is inert while it is open.
+     *
+     * The arrows above an iPad's keyboard move focus to the previous and next
+     * field on the page -- and the page had fields behind this one, the
+     * sidebar's search among them. One tap sent the cursor under the overlay,
+     * with the keyboard still up and nothing the reader could see to type in.
+     * Inert, there is nowhere else to go, and the arrows grey out.
+     */
+    var behind = [].slice.call(document.body.children).filter(function (el) {
+      return !el.inert;
+    });
+    behind.forEach(function (el) { el.inert = true; });
     function shut() {
       back.remove();
+      behind.forEach(function (el) { el.inert = false; });
       document.removeEventListener("keydown", onKey);
     }
     function onKey(e) {

@@ -3019,6 +3019,14 @@ button.tb.primary:hover:not(:disabled) {
 	min-height: 0;
 }
 
+/* The column scrolls; nothing in it gives way. A flex item shrinks when the
+   column is shorter than its contents, and the project file -- a scroller of
+   its own, so free to shrink to nothing -- took all of it: on an iPad it was
+   one line high under a column that scrolled past it. */
+.map-side > * {
+	flex-shrink: 0;
+}
+
 .map-side h2 {
 	font-size: 11px;
 	text-transform: uppercase;
