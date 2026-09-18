@@ -146,10 +146,15 @@ async function main() {
 		geometry: NODE, nodeColor, pinColor, wirePath,
 		growth: (p) => growthState(registry.get(p.id), p.config),
 	};
-	const logo = { mark: logoMarkup(18), icon: faviconHref() };
 	// Which line this site was built from. Read off the environment rather than
 	// through `pages.ts`, which reads a Vite define that does not exist here.
 	const isCanary = process.env.ROSWAAL_CHANNEL === "canary";
+	// The mark in the site's colour, as every window of the web app wears it:
+	// the published site is the web app's, so blue, and yellow on the canary.
+	const logo = {
+		mark: logoMarkup(18).replace('class="logo-mark"', `class="logo-mark mark-${isCanary ? "canary" : "preview"}"`),
+		icon: faviconHref(),
+	};
 	const canaryBanner = isCanary
 		? `<div class="canary-banner" role="status">` +
 			`<span class="canary-banner-mark">${escapeHtml(MARK_LABEL.canary)}</span>` +

@@ -2089,17 +2089,16 @@ const TOOLBARS_PAGE: DocPage = {
 				["The editor", "—", "**Open Editor**", "**Open Editor**"],
 				["Docs", "The document icon", "**Docs**, or `Ctrl` + `K`", "—"],
 				["Node Design", "The palette icon", "—", "Not from here"],
-				["Settings", "The gear", "Not from here", "**Settings**"],
+				["Settings", "The gear", "The gear", "**Settings**"],
 			],
 		},
 		{
 			t: "note",
 			kind: "warn",
 			text:
-				"Node Design has no Settings button and the documentation window has no Project " +
-				"tab in its Settings. Both are deliberate: a project's settings belong to the " +
-				"repository and are changed from the editor, which is the window that has a " +
-				"project open.",
+				"Node Design's Settings and the documentation window's have no Project tab. That " +
+				"is deliberate: a project's settings belong to the repository and are changed " +
+				"from the editor, which is the window that has a project open.",
 		},
 		{ t: "h", level: 2, text: "On a phone or a tablet" },
 		{

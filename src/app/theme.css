@@ -4435,13 +4435,16 @@ button.tb.icon-only.on {
 	--chip-ink: var(--accent);
 }
 
-/* The same claim as a colour, on the logo the editor's top bar wears in place
-   of the chip: see `MarkedLogo`. */
-.logo-mark.mark-preview {
+/* The same claim as a colour, on the logo every window wears: see
+   `MarkedLogo`. Plain for an installed build, blue for the web app, yellow for
+   the canary. The class is doubled so no context rule can outrank it -- the
+   projects panel had one painting its mark the accent, which turned the
+   canary's mark blue there and nowhere else. */
+.logo-mark.logo-mark.mark-preview {
 	color: var(--accent);
 }
 
-.logo-mark.mark-canary {
+.logo-mark.logo-mark.mark-canary {
 	color: var(--warning);
 }
 
@@ -8069,13 +8072,6 @@ button.tb.danger {
 	background: var(--bg-input);
 }
 
-/* The mark in the accent, as the landing page draws it. Everywhere else it is
-   chrome and takes the text colour with everything around it; here it is the
-   first thing on the panel and the one place in the app it is the subject. */
-.intro-head .logo-mark {
-	color: var(--accent);
-}
-
 /* The mark and the wordmark, which is the one place in the app they sit
    together at this size -- everywhere else the mark is chrome. */
 .intro-head .logo {
@@ -8312,6 +8308,15 @@ button.tb.danger {
 .docs-page-head .logo.as-chip:hover {
 	border-color: var(--border);
 	background: var(--bg-hover);
+}
+
+.docs-page-head .logo.as-chip:active {
+	background: color-mix(in srgb, var(--accent) 14%, var(--bg-hover));
+}
+
+.docs-page-head .logo.as-chip:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
 }
 
 /* A copy that did not happen, said where it was asked for rather than in a

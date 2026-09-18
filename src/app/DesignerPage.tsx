@@ -29,8 +29,7 @@ import { readPreferences, writePreferences, type Preferences } from "./preferenc
 import { SettingsPanel } from "./SettingsPanel.jsx";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import { Icon } from "./icons.jsx";
-import { Logo } from "./logo.jsx";
-import { CanaryBanner, PreviewChip } from "./previewBuild.jsx";
+import { CanaryBanner, MarkedLogo } from "./previewBuild.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { VERSION } from "../cli/version.js";
 
@@ -131,13 +130,11 @@ export function DesignerPage() {
 					onClick={() => setIntroOpen(true)}
 					title="Recent projects, the demos, and the other windows"
 				>
-					<Logo height={17} title="Roswaal" />
+					{/* A window of the browser build says so, the same way the editor
+					    does: the mark in the build's colour. See `MarkedLogo`. */}
+					<MarkedLogo height={17} title="Roswaal" />
 					Node Design
 					<span className="version">{VERSION}</span>
-					{/* A window of the browser build says so, the same as the editor
-					    does. It did not, and Node Design is where somebody decides
-					    whether Roswaal can hold their node library. */}
-					<PreviewChip />
 				</button>
 				<span style={{ flex: 1 }} />
 				<a

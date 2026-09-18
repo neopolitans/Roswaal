@@ -1000,9 +1000,9 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 					t: "mark",
 					text: "Node Design",
 					version: true,
-					preview: true,
+					tint: "preview",
 					name: "Node Design",
-					where: "far left, with a preview chip",
+					where: "far left, in blue",
 					what:
 						"Every window of the browser preview says it is one. The packs are the " +
 						"project's own, read out of the browser the same way they are read off " +

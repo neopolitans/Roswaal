@@ -25,8 +25,7 @@ import type { NodeDef } from "../core/schema.js";
 import { api } from "./api.js";
 import { DocsView } from "./DocsPanel.jsx";
 import { Icon } from "./icons.jsx";
-import { Logo } from "./logo.jsx";
-import { CanaryBanner, PreviewChip } from "./previewBuild.jsx";
+import { CanaryBanner, MarkedLogo } from "./previewBuild.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { SettingsPanel } from "./SettingsPanel.jsx";
@@ -111,14 +110,13 @@ export function DocsPage() {
 					onClick={() => setIntroOpen(true)}
 					title="Recent projects, the demos, and the other windows"
 				>
-					<Logo height={17} title="Roswaal" />
+					{/* The build's colour, as the editor's mark wears it. Plain today:
+					    the browser build sends Docs to the published site rather than
+					    to this window. Here anyway, because the rule is every surface
+					    of that build. */}
+					<MarkedLogo height={17} title="Roswaal" />
 					Docs
 					<span className="version">{VERSION}</span>
-					{/* Nothing today: the browser build sends Docs to the published
-					    site rather than to this window. Here anyway, because the
-					    rule is every surface of that build, and the day this one is
-					    served from it is not the day to remember. */}
-					<PreviewChip />
 				</button>
 				<button
 					className={`tb docs-nav-toggle${navOpen ? " on" : ""}`}

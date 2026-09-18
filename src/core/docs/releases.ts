@@ -106,11 +106,13 @@ export const RELEASES: Release[] = [
 		],
 		fixed: [
 			"**The top bar and the graph's tools keep to one row on an iPad in portrait.** Where they are short of room, Compile project, Straighten and Compile script show only their icons, and the Compile caption goes; each keeps its name as its tooltip.",
+			"**The documentation's Roswaal mark lights when the pointer is over it**, and when it is pressed, like every other button in its header.",
 			"**The action row's icons have room around them.** Each button is 46 pixels square; the icon sat two pixels from its edge.",
 		],
 		changed: [
 			"**The editor's top bar shows which build it is as the colour of the Roswaal mark**: blue for the browser preview, yellow for the canary, plain for an installed build. The preview chip is gone from the bar, and the version beside the mark steps aside when the bar is short of room; it is in the mark's tooltip either way.",
-			"**The projects panel, the project picker and the front page wear the same colour** on their Roswaal mark.",
+			"**Node Design, the documentation, the projects panel, the project picker and the front page wear the same colour** on their Roswaal mark, beside the version where there is one. Node Design's preview chip is gone with the editor's.",
+			"**Toolbars says Node Design reaches Settings with its gear**, as it does. Neither its Settings nor the documentation window's has a Project tab.",
 			"**Getting started opens with the three ways in** — installed on a computer, in a browser on a computer, and on a tablet or a phone — each under its own tab.",
 			"**Toolbars says the three windows share one tab on a phone or a tablet**, rather than that none of them replaces the one you are on.",
 		],

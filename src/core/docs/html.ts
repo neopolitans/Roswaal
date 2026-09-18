@@ -597,7 +597,7 @@ ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(optio
 <div class="docs-page">
 ${options.canaryBanner ?? ""}<input type="checkbox" id="docs-nav-open" class="docs-nav-check" aria-label="Show the contents">
 <header class="docs-page-head">
-<a class="logo" href="${up}../try.html#picker" title="Your projects">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a>
+<a class="logo as-chip" href="${up}../try.html#picker" title="Your projects">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a>
 <label for="docs-nav-open" class="tb docs-nav-toggle">Contents</label>
 <button type="button" class="tb icon-only docs-search-toggle" id="docs-search" title="Search the docs" aria-label="Search the docs" hidden>${chromeIcon("search", options)}</button>
 <span class="grow"></span>
