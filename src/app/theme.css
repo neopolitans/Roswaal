@@ -9530,3 +9530,139 @@ select:not(.literal):not([multiple]) {
 	height: 0;
 }
 
+
+/* A walkthrough: one drawing of the screen, the steps under it lit in turn.
+   See `src/app/docsWalk.ts`. Without its script the first drawing shows over
+   the ordinary numbered list, so nothing here hides a step. */
+.docs-walk {
+	margin: 16px 0;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--bg-panel);
+}
+
+.docs-walk-window {
+	overflow-x: auto;
+	background: var(--bg-app);
+}
+
+.docs-walk-frame[hidden] {
+	display: none;
+}
+
+/* A drawing keeps its real shape -- one row, words unbroken -- and the script
+   scales it to fit the window instead. */
+.docs-walk-frame {
+	width: max-content;
+}
+
+.docs-walk-frame .tb {
+	white-space: nowrap;
+}
+
+/* Two bars in one frame, as the Project menu sits over the panel's footer. */
+.docs-walk-frame .docs-bar-frame + .docs-bar-frame {
+	padding-top: 0;
+}
+
+.docs-walk-nav {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-top: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+}
+
+.docs-walk:not(.walk-on) .docs-walk-nav {
+	display: none;
+}
+
+.docs-walk-count {
+	flex: 1;
+	text-align: center;
+	font-size: 12px;
+	color: var(--fg-faint);
+}
+
+.docs-walk-steps {
+	margin: 0;
+	padding: 10px 14px 12px 36px;
+}
+
+.docs-walk-steps > li {
+	padding: 6px 8px;
+	border-radius: 6px;
+}
+
+.walk-on .docs-walk-steps > li {
+	cursor: pointer;
+	transition: background-color 120ms ease, color 120ms ease;
+}
+
+.walk-on .docs-walk-steps > li.walk-next {
+	color: var(--fg-faint);
+}
+
+.walk-on .docs-walk-steps > li.walk-done {
+	color: var(--fg-faint);
+}
+
+.walk-on .docs-walk-steps > li.walk-done::marker {
+	color: var(--ok);
+}
+
+.walk-on .docs-walk-steps > li.walk-current {
+	color: var(--fg);
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* The control to press, ringed, and pressable: it moves to the next step. */
+.docs-walk-frame .walk-here {
+	box-shadow: 0 0 0 2px var(--accent);
+	animation: walk-here 1.6s ease-in-out infinite;
+	cursor: pointer;
+}
+
+@keyframes walk-here {
+	50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 35%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.docs-walk-frame .walk-here {
+		animation: none;
+	}
+}
+
+/* An open menu, drawn where it sits rather than hung from a button. */
+.docs-bar-frame.popmenu > .docs-menu-shot {
+	position: static;
+	display: inline-flex;
+	gap: 2px;
+	padding: 5px;
+	min-width: 170px;
+	box-shadow: none;
+}
+
+.docs-menu-shot > button.tb {
+	justify-content: flex-start;
+	width: 100%;
+	border-color: transparent;
+	background: none;
+}
+
+/* Home's arrow points back, as the projects panel turns it. */
+.docs-bar-frame [data-control="home"] .icon {
+	transform: rotate(90deg);
+}
+
+/* A text box, with its placeholder. */
+.docs-bar-field {
+	display: inline-flex;
+	align-items: center;
+	min-width: 220px;
+	color: var(--fg-faint);
+	cursor: text;
+}

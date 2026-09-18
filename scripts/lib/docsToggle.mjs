@@ -25,9 +25,11 @@ export async function buildDocsToggle() {
 			contents: [
 				'import { attachDocsToggles } from "./src/app/docsToggle.ts";',
 				'import { attachDeviceTabs } from "./src/app/docsDevice.ts";',
+				'import { attachWalkthroughs } from "./src/app/docsWalk.ts";',
 				"attachDocsToggles(document);",
 				// The published site is the web app's, so a computer is its Desktop (Webapp).
 				"attachDeviceTabs(document, false);",
+				"attachWalkthroughs(document);",
 			].join(String.fromCharCode(10)),
 			resolveDir: root,
 			loader: "ts",

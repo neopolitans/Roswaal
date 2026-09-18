@@ -296,6 +296,27 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				`<ol class="docs-bar-legend docs-layout-legend">${legend}</ol>${caption}</figure>`
 			);
 		}
+		case "walkthrough": {
+			// Every step's drawing is in the page, the first showing: with no
+			// script this is the numbered list it replaced, under a picture of
+			// where it starts. See `src/app/docsWalk.ts` for the stepping.
+			const art = options.toolbars;
+			const frames = block.steps
+				.map((step, i) =>
+					`<div class="docs-walk-frame"${step.point ? ` data-point="${escapeHtml(controlKey(step.point))}"` : ""}` +
+					`${i > 0 ? " hidden" : ""}>` +
+					(art ? step.picture.map((bar) => toolbarHtml(bar, { ...art, version: options.version })).join("") : "") +
+					`</div>`)
+				.join("");
+			const steps = block.steps.map((step) => `<li>${inline(step.text, up)}</li>`).join("");
+			return (
+				`<figure class="docs-walk"><div class="docs-walk-window">${frames}</div>` +
+				`<div class="docs-walk-nav"><button type="button" class="tb" data-walk="back">Back</button>` +
+				`<span class="docs-walk-count"></span>` +
+				`<button type="button" class="tb primary" data-walk="next">Next</button></div>` +
+				`<ol class="docs-walk-steps"${block.start ? ` start="${block.start}"` : ""}>${steps}</ol></figure>`
+			);
+		}
 		case "toolbar": {
 			// The picture comes from core so it is byte-identical to the panel's;
 			// the legend is rendered here because its prose carries page links,

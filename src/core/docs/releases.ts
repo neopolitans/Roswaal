@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.73.1",
+		date: "2026-09-18",
+		headline: "Steps you can walk through.",
+		affects: ["docs"],
+		added: [
+			"**Walkthroughs**: steps done on screen, shown one at a time. A drawing of the screen at each step rings the control to press, and the list under it lights the step you are on and marks the ones done. Move with **Back** and **Next**, by tapping a step, or by tapping the ringed control.",
+			"**Getting started opens a project as a walkthrough** on each tab: the start page on a computer, the **Project** menu in the web app, and **Open .zip…** on a tablet or a phone.",
+		],
+	},
+	{
 		version: "0.73.0",
 		date: "2026-09-18",
 		headline: "Open a project from a zip.",

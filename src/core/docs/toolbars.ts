@@ -123,6 +123,8 @@ export type ToolbarItem = Documented &
 		| { t: "segmented"; options: string[]; on: number }
 		/** A dropdown, shown holding whatever it is set to. */
 		| { t: "select"; text: string }
+		/** A text box, shown with its placeholder: the start page's path. */
+		| { t: "field"; text: string }
 		/** A caption naming what the control beside it sets. */
 		| { t: "label"; text: string }
 		/** The open document's name, and what kind of document it is. */
@@ -216,7 +218,11 @@ export interface ToolbarGroup {
  * sits over a canvas in panels with the view showing between them, so its
  * groups are separate objects rather than regions of one strip.
  */
-export type ToolbarChrome = "bar" | "head" | "float" | "panel";
+/**
+ * `popmenu` rather than `menu`: the frame carries the chrome as a class, and
+ * the editor's context menus are `.menu`, fixed to the screen.
+ */
+export type ToolbarChrome = "bar" | "head" | "float" | "panel" | "popmenu";
 
 export interface ToolbarSpec {
 	/** Stable; the anchor the docs page gives this bar's section. */
@@ -344,6 +350,8 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			// A real <select> would open on click and is a tab stop even inert, so
 			// this is the box without the behaviour: the chevron is drawn on.
 			return `<span class="tb docs-bar-select"${tie}>${escapeXml(item.text)}</span>`;
+		case "field":
+			return `<span class="tb docs-bar-field"${tie}>${escapeXml(item.text)}</span>`;
 		case "label":
 			return `<span class="group-label">${escapeXml(item.text)}</span>`;
 		case "name":
@@ -427,6 +435,8 @@ const CHROME_CLASS: Record<ToolbarChrome, string> = {
 	// a picture of one -- the panel's *contents* are what carry the real class
 	// names, which is where the fidelity comes from.
 	panel: "variables docs-panel-shot",
+	// A pop-out menu, open: the list the projects panel's Project button holds.
+	popmenu: "tool-popout-panel docs-menu-shot",
 };
 
 /**
@@ -1508,6 +1518,76 @@ export const DOCS_SITE_BAR_PHONE: ToolbarSpec = {
 		},
 	],
 };
+
+// ---------------------------------------------------------------------------
+// Drawn for walkthroughs
+//
+// Pictures a walkthrough points into rather than bars the Toolbars page
+// documents: the projects panel's footer and its Project menu, and the start
+// page the daemon shows with no project open. Named, so a step can point at a
+// control, and described, so what a step points at always says what it is.
+// ---------------------------------------------------------------------------
+
+/** The foot of the projects panel, which the Roswaal mark opens. */
+export const PROJECTS_FOOT: ToolbarSpec = {
+	id: "projects-foot",
+	title: "The projects panel's footer",
+	summary: "Along the bottom of the projects panel, which the Roswaal mark opens.",
+	chrome: "head",
+	groups: [
+		{
+			items: [
+				{ t: "button", text: "Home", icon: "chevron", name: "Home", what: "Closes the project, for the start page." },
+				{ t: "button", text: "Project", name: "Project", what: "Opening, downloading and starting again." },
+			],
+		},
+		{
+			apart: true,
+			items: [
+				{ t: "button", text: "Node Design", icon: "palette" },
+				{ t: "button", text: "Docs", icon: "document" },
+			],
+		},
+	],
+};
+
+/** The Project menu in the web app, open. */
+export const PROJECT_MENU: ToolbarSpec = {
+	id: "project-menu",
+	title: "The Project menu",
+	summary: "What the Project button holds in the web app.",
+	chrome: "popmenu",
+	groups: [
+		{
+			items: [
+				{ t: "button", text: "Open folder…", icon: "folder", name: "Open folder…", what: "A folder on your computer, in Chrome and Edge." },
+				{ t: "button", text: "Open .zip…", icon: "folderOpen", name: "Open .zip…", what: "A project from a zip, in any browser." },
+				{ t: "button", text: "Download", icon: "copy", name: "Download", what: "The project, as a zip." },
+				{ t: "button", text: "Start again", icon: "refresh", name: "Start again", what: "Back to the demo." },
+			],
+		},
+	],
+};
+
+/** The daemon's start page: a path, Browse, and Open. */
+export const START_PAGE: ToolbarSpec = {
+	id: "start-page",
+	title: "The start page",
+	summary: "What the installed editor shows with no project open.",
+	chrome: "head",
+	groups: [
+		{
+			items: [
+				{ t: "field", text: "C:\\path\\to\\project", name: "Path", what: "The folder to open." },
+				{ t: "button", text: "Browse…", name: "Browse…", what: "Chooses the folder with your computer's own dialog." },
+				{ t: "button", text: "Open", primary: true, name: "Open", what: "Opens it, or Initialise for a folder that is not a project yet." },
+			],
+		},
+	],
+};
+
+/** Every picture a walkthrough draws, for the tests that hold them to the icon set. */
+export const WALK_BARS: ToolbarSpec[] = [PROJECTS_FOOT, PROJECT_MENU, START_PAGE];
 
 /**
  * The row of edits under the graph on a phone or a tablet.

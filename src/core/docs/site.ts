@@ -36,7 +36,7 @@ import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
 	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_BAR_TABLET, DESIGNER_TOUCH_BAR,
 	DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_PHONE, DOCS_SITE_BAR_TOUCH, EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE,
-	EDITOR_BAR_TABLET, FUNCTIONS_PANEL, GRAPH_BAR, GRAPH_BAR_PHONE, GRAPH_BAR_TABLET, legendOf,
+	EDITOR_BAR_TABLET, FUNCTIONS_PANEL, PROJECT_MENU, PROJECTS_FOOT, START_PAGE, GRAPH_BAR, GRAPH_BAR_PHONE, GRAPH_BAR_TABLET, legendOf,
 	MAP_BAR, MODULES_PANEL,
 	VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec,
 } from "./toolbars.js";
@@ -223,6 +223,13 @@ export type Block =
 	 * `layouts.ts` into the same figure and legend a toolbar uses.
 	 */
 	| { t: "layout"; layout: LayoutSpec; caption?: string; hint?: boolean }
+	/**
+	 * Steps done on screen, shown one at a time: a drawing of the screen at
+	 * each step with the control to press ringed, over the list of steps.
+	 * `start` numbers the first step, for steps that follow an ordinary list.
+	 * See `src/app/docsWalk.ts`.
+	 */
+	| { t: "walkthrough"; steps: WalkStep[]; start?: number }
 	| {
 			t: "toolbar";
 			bar: ToolbarSpec;
@@ -292,6 +299,16 @@ export interface DocPage {
  * panel and switches with a radio, so the text is there with no script, and the
  * search index walks into every tab rather than only the open one.
  */
+/** One step of a walkthrough. */
+export interface WalkStep {
+	/** What to do. Inline markup. */
+	text: string;
+	/** The screen at this step: bars drawn top to bottom, as they sit. */
+	picture: ToolbarSpec[];
+	/** The control to press, by its name in one of the bars. */
+	point?: string;
+}
+
 /** A kind of screen a tab is for. Desktop is split by which build it is. */
 export type TabDevice = "localhost" | "webapp" | "tablet" | "phone";
 
@@ -464,6 +481,8 @@ export function blockText(block: Block): string {
 				block.label ?? "",
 				...block.tabs.flatMap((tab) => [tab.title, ...tab.blocks.map(blockText)]),
 			].join(" ").trim();
+		case "walkthrough":
+			return block.steps.map((step) => step.text).join(" ");
 		case "layout":
 			return [
 				block.layout.title,
@@ -1212,14 +1231,32 @@ const GETTING_STARTED: DocPage = {
 						},
 						{ t: "h", level: 3, text: "Another project" },
 						{
-							t: "ol",
-							items: [
-								"Click the Roswaal mark at the top left. The projects panel lists the ones you " +
-									"have opened before: click one to switch.",
-								"For one that is not listed, press **Home** in that panel. The start page asks " +
-									"for a folder: type its path, or press **Browse…** to choose it.",
-								"The button beside the path says what it will do: **Open** for a Roswaal project, " +
-									"**Initialise** for a folder that is not one yet.",
+							t: "walkthrough",
+							steps: [
+								{
+									text:
+										"Click the Roswaal mark at the top left. The projects panel lists the ones " +
+										"you have opened before: click one to switch.",
+									picture: [EDITOR_BAR],
+									point: "The Roswaal mark",
+								},
+								{
+									text: "For one that is not listed, press **Home** at the bottom of that panel.",
+									picture: [PROJECTS_FOOT],
+									point: "Home",
+								},
+								{
+									text: "The start page asks for a folder. Type its path, or press **Browse…** to choose it.",
+									picture: [START_PAGE],
+									point: "Browse…",
+								},
+								{
+									text:
+										"Press **Open**. For a folder that is not a Roswaal project yet it says " +
+										"**Initialise**, which writes a `roswaal.json` and nothing else.",
+									picture: [START_PAGE],
+									point: "Open",
+								},
 							],
 						},
 					],
@@ -1230,17 +1267,39 @@ const GETTING_STARTED: DocPage = {
 					device: ["webapp"],
 					blocks: [
 						{
-							t: "ol",
-							items: [
+							t: "p",
+							text:
 								"Open [the web app](https://neopolitans.github.io/Roswaal/try.html). Nothing is " +
-									"installed; it opens on a demo project, kept in this browser. The Roswaal mark " +
-									"is blue to say so.",
-								"To work on your own, click the mark to open the projects panel, then press " +
-									"**Project**.",
-								"**Open folder…** works on a folder on your computer and writes into it, as the " +
-									"installed editor does. It is in Chrome and Edge.",
-								"**Open .zip…** brings a project in from a zip, in any browser. It replaces the " +
-									"project kept in the browser, and asks first.",
+								"installed: it opens on a demo project, kept in this browser, and the Roswaal mark " +
+								"is blue to say so. To work on your own:",
+						},
+						{
+							t: "walkthrough",
+							steps: [
+								{
+									text: "Click the Roswaal mark at the top left, for the projects panel.",
+									picture: [EDITOR_BAR_BROWSER],
+									point: "The Roswaal mark",
+								},
+								{
+									text: "Press **Project** at the bottom of the panel.",
+									picture: [PROJECTS_FOOT],
+									point: "Project",
+								},
+								{
+									text:
+										"**Open folder…** works on a folder on your computer and writes into it, as " +
+										"the installed editor does. It is in Chrome and Edge.",
+									picture: [PROJECT_MENU, PROJECTS_FOOT],
+									point: "Open folder…",
+								},
+								{
+									text:
+										"Or **Open .zip…**, in any browser, for a project in a zip. It replaces the " +
+										"project kept in the browser, and asks first.",
+									picture: [PROJECT_MENU, PROJECTS_FOOT],
+									point: "Open .zip…",
+								},
 							],
 						},
 						{
@@ -1263,8 +1322,29 @@ const GETTING_STARTED: DocPage = {
 									"**Send to → Compressed (zipped) folder** in Explorer.",
 								"Put the zip where the device can reach it: AirDrop, iCloud Drive, or any app " +
 									"that saves to Files.",
-								"On the device, open [the web app](https://neopolitans.github.io/Roswaal/try.html), " +
-									"tap the Roswaal mark, then **Project → Open .zip…**, and pick the zip.",
+							],
+						},
+						{
+							t: "walkthrough",
+							start: 3,
+							steps: [
+								{
+									text:
+										"On the device, open [the web app](https://neopolitans.github.io/Roswaal/try.html) " +
+										"and tap the Roswaal mark.",
+									picture: [EDITOR_BAR_TABLET],
+									point: "The Roswaal mark",
+								},
+								{
+									text: "Tap **Project** at the bottom of the panel.",
+									picture: [PROJECTS_FOOT],
+									point: "Project",
+								},
+								{
+									text: "Tap **Open .zip…**, and pick the zip in Files.",
+									picture: [PROJECT_MENU, PROJECTS_FOOT],
+									point: "Open .zip…",
+								},
 							],
 						},
 						{

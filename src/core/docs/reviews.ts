@@ -86,7 +86,7 @@ export const REVIEWS: Record<
 		status: "verified",
 		date: "2026-09-18",
 		reviewers: ["neopolitans"],
-		verify: "Open a project as steps on each tab — the start page, the projects panel and Open .zip… — added in 0.73.0.",
+		verify: "Open a project as a walkthrough on each tab — the start page, the projects panel and Open .zip… — added in 0.73.0 and 0.73.1.",
 	},
 	// Verified with the author, once it had pictures for every section.
 	"wires-and-pins": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },

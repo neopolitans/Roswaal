@@ -146,6 +146,17 @@ function blockSource(draft: Draft, indent = "\t\t"): string {
 		const caption = block.caption ? `, caption: ${str(block.caption)}` : "";
 		return `${indent}{ t: "layout", layout: ${layoutConstant(block.layout)}${hint}${caption} },`;
 	}
+	// Each step's bars by the constants `toolbars.ts` exports them as.
+	if (block.t === "walkthrough") {
+		const inner = `${indent}\t\t`;
+		const steps = block.steps
+			.map((step) =>
+				`${inner}{ text: ${str(step.text)}, picture: [${step.picture.map(toolbarConstant).join(", ")}]` +
+				`${step.point ? `, point: ${str(step.point)}` : ""} },`)
+			.join(NEWLINE);
+		const start = block.start ? `, start: ${block.start}` : "";
+		return `${indent}{${NEWLINE}${indent}\tt: "walkthrough"${start},${NEWLINE}${indent}\tsteps: [${NEWLINE}${steps}${NEWLINE}${indent}\t],${NEWLINE}${indent}},`;
+	}
 
 	if (block.t === "note") {
 		const items = block.items ? `, items: [${block.items.map(str).join(", ")}]` : "";

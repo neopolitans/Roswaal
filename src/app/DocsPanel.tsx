@@ -45,6 +45,7 @@ import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/to
 import { layoutHtml, listedRegions, type LayoutSpec } from "../core/docs/layouts.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../core/nodes/runtimes.js";
 import { attachToolbarLink } from "./toolbarLink.js";
+import { attachWalkthrough } from "./docsWalk.js";
 import { attachMapPanel } from "./mapPanel.js";
 import { mapFigure, mapFigureHtml } from "../core/docs/mapFigure.js";
 import type { NodeMap } from "../core/nodemap.js";
@@ -671,7 +672,52 @@ function BlockView({ block }: { block: Block }) {
 			return <ToolbarFigure bar={block.bar} caption={block.caption} hint={block.hint} />;
 		case "layout":
 			return <LayoutFigure layout={block.layout} caption={block.caption} hint={block.hint} />;
+		case "walkthrough":
+			return <WalkthroughFigure block={block} />;
 	}
+}
+
+/**
+ * Steps shown one at a time over a drawing of the screen.
+ *
+ * The drawings are core's markup, injected, as a toolbar's are; the stepping
+ * is `docsWalk.ts`, the function the published site runs, so the two behave
+ * alike. See the `walkthrough` block in `site.ts`.
+ */
+function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
+	const figure = useRef<HTMLElement>(null);
+	const frames = useMemo(
+		() => block.steps.map((step) => ({ __html: step.picture.map((bar) => toolbarHtml(bar, TOOLBAR_ART)).join("") })),
+		[block],
+	);
+	useEffect(() => {
+		if (!figure.current) return;
+		return attachWalkthrough(figure.current);
+	}, [block]);
+
+	return (
+		<figure className="docs-walk" ref={figure}>
+			<div className="docs-walk-window">
+				{block.steps.map((step, i) => (
+					<div
+						key={i}
+						className="docs-walk-frame"
+						data-point={step.point ? controlKey(step.point) : undefined}
+						hidden={i > 0}
+						dangerouslySetInnerHTML={frames[i]}
+					/>
+				))}
+			</div>
+			<div className="docs-walk-nav">
+				<button type="button" className="tb" data-walk="back">Back</button>
+				<span className="docs-walk-count" />
+				<button type="button" className="tb primary" data-walk="next">Next</button>
+			</div>
+			<ol className="docs-walk-steps" start={block.start}>
+				{block.steps.map((step, i) => <li key={i}><Rich text={step.text} /></li>)}
+			</ol>
+		</figure>
+	);
 }
 
 /**
