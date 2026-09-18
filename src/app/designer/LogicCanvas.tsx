@@ -27,7 +27,7 @@
  * rule.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { logicScript, type LogicGraph } from "../../core/compiler/logic.js";
 import { resolveNodePins, type Registry } from "../../core/nodes/index.js";
@@ -85,9 +85,11 @@ export interface LogicCanvasProps {
 	registry: Registry;
 	target: Target;
 	onChange: (graph: LogicGraph) => void;
+	/** More tools for the canvas's own bar: Node Design's Luau preview. */
+	tools?: ReactNode;
 }
 
-export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicCanvasProps) {
+export function LogicCanvas({ graph, shape, registry, target, onChange, tools }: LogicCanvasProps) {
 	const editor = useEditor();
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
 	/**
@@ -354,6 +356,7 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 					>
 						Straighten
 					</button>
+					{tools}
 				</ToolGroup>
 			</FloatingTools>
 			{menu && (

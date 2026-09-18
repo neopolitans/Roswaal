@@ -55,7 +55,8 @@ describe("the window diagrams", () => {
 	it("draw only glyphs the icon set has", () => {
 		for (const layout of LAYOUTS) {
 			for (const region of layout.regions) {
-				for (const icon of [...(region.icons ?? []), ...(region.iconsEnd ?? [])]) {
+				const mixed = (region.endItems ?? []).flatMap((item) => ("icon" in item ? [item.icon] : []));
+				for (const icon of [...(region.icons ?? []), ...(region.iconsEnd ?? []), ...mixed]) {
 					expect(ICONS, `${layout.id}: ${icon}`).toHaveProperty(icon);
 				}
 			}

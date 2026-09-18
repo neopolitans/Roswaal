@@ -151,6 +151,13 @@ export function NodeEditor({
 	/** On a phone the node's tools fold behind buttons: see `Popout`. */
 	const phone = usePhone();
 	const [view, setView] = useState<"preview" | "logic">("preview");
+	/**
+	 * The Luau the logic compiles to, shown when asked for -- as the editor's
+	 * graph shows its Luau from a button rather than beside it all the time.
+	 * Beside the graph it took a third of the width, or a quarter of the height
+	 * on a touch screen, from the thing being built.
+	 */
+	const [showLuau, setShowLuau] = useState(false);
 	const stage = useRef<HTMLDivElement>(null);
 	const [size, setSize] = useState({ w: 900, h: 500 });
 
@@ -736,21 +743,32 @@ export function NodeEditor({
 					)}
 				</div>
 				{draft.logicMode === "nodes" && draft.logic ? (
-					<div className="logic-split">
+					<div className={`logic-split${showLuau ? "" : " luau-hidden"}`}>
 						<LogicCanvas
 							graph={draft.logic}
 							shape={shape}
 							registry={logicRegistry}
 							target={target ?? "roblox"}
 							onChange={onLogicChange}
+							tools={
+								<button
+									className={`tb icon-only${showLuau ? " on" : ""}`}
+									aria-pressed={showLuau}
+									title="Preview — the Luau this logic compiles to, and what the node is saved as"
+									aria-label="Preview the Luau"
+									onClick={() => setShowLuau((was) => !was)}
+								>
+									<Icon name="terminal" size={16} />
+								</button>
+							}
 						/>
-						<pre className="logic-compiled" title="What the nodes compile to, and what the node is saved as">
+						{showLuau && <pre className="logic-compiled" title="What the nodes compile to, and what the node is saved as">
 							{compiled?.compilesTo?.kind === "statement"
 								? compiled.compilesTo.template || "-- Nothing yet"
 								: compiled?.compilesTo?.kind === "expr"
 									? Object.entries(compiled.compilesTo.outputs).map(([id, text]) => `-- ${id}\n${text}`).join("\n\n")
 									: "-- Fix the problems to see the Luau it compiles to."}
-						</pre>
+						</pre>}
 					</div>
 				) : purity === "pure" && !exprPin ? (
 					<p className="hint logic-empty">A pure node's logic is one expression per output. Add an output first.</p>

@@ -9121,7 +9121,8 @@ select:not(.literal):not([multiple]) {
    reading column beside its legend's first rows rather than fill it. */
 .docs-layout-frame.device-phone {
 	aspect-ratio: 9 / 19;
-	max-width: 250px;
+	font-size: 9.5px;
+	max-width: 280px;
 	margin-inline: auto;
 	border: 9px solid var(--border-strong);
 	border-radius: 28px;
@@ -9165,6 +9166,7 @@ select:not(.literal):not([multiple]) {
 
 /* Over the graph: in the graph's cells, sized to what is on it, raised. */
 .docs-layout-region.kind-float {
+	flex-wrap: nowrap;
 	z-index: 2;
 	align-self: center;
 	align-items: center;
@@ -9209,7 +9211,8 @@ select:not(.literal):not([multiple]) {
 	margin-left: auto;
 }
 
-.docs-layout-chips > span {
+.docs-layout-chips > span,
+.docs-layout-chip {
 	padding: 1px 6px;
 	border: 1px solid var(--border);
 	border-radius: 4px;
@@ -9426,5 +9429,43 @@ select:not(.literal):not([multiple]) {
 		clip-path: inset(50%);
 		white-space: nowrap;
 	}
+}
+
+/* Node Design's logic graph with its Luau put away: the graph has the room. */
+.logic-split.luau-hidden,
+.node-editor.split .logic-split.luau-hidden {
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr);
+}
+
+/* A phone's picture is small: its glyphs are too, so a row holds what the real
+   row holds. */
+.docs-layout-frame.device-phone .icon {
+	width: 11px;
+	height: 11px;
+}
+
+.docs-layout-frame.device-phone .docs-layout-region {
+	gap: 3px 4px;
+	padding: 4px 5px;
+}
+
+.docs-layout-frame.device-phone .docs-layout-num {
+	width: 14px;
+	height: 14px;
+	font-size: 9px;
+}
+
+.docs-layout-frame.device-phone .docs-layout-region.kind-float {
+	margin: 0 3px;
+}
+
+.docs-layout-frame.device-phone .docs-layout-chips > span,
+.docs-layout-frame.device-phone .docs-layout-chip {
+	padding: 0 4px;
+}
+
+.docs-layout-frame.device-phone .docs-layout-icons {
+	gap: 3px;
 }
 

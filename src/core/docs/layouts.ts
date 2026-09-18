@@ -57,6 +57,11 @@ export interface LayoutRegion {
 	 * are not.
 	 */
 	iconsEnd?: string[];
+	/**
+	 * The far-end cluster when it mixes glyphs and words, in the order they
+	 * sit: Node Design's header has ?, Docs, Open Editor and the gear.
+	 */
+	endItems?: ({ icon: string } | { chip: string })[];
 	/** Words drawn as small buttons in it: a panel's buttons, a switch. */
 	chips?: string[];
 	/**
@@ -133,15 +138,20 @@ export function layoutHtml(spec: LayoutSpec, art: Pick<ToolbarArt, "viewBox" | "
 			const chips = region.chips?.length
 				? `<span class="docs-layout-chips">${region.chips.map((c) => `<span>${escapeXml(c)}</span>`).join("")}</span>`
 				: "";
-			const end = region.iconsEnd?.length
-				? `<span class="docs-layout-icons docs-layout-end">${region.iconsEnd.map((i) => glyph(i, art)).join("")}</span>`
+			const endParts = [
+				...(region.iconsEnd ?? []).map((i) => glyph(i, art)),
+				...(region.endItems ?? []).map((item) =>
+					"icon" in item ? glyph(item.icon, art) : `<span class="docs-layout-chip">${escapeXml(item.chip)}</span>`),
+			];
+			const end = endParts.length
+				? `<span class="docs-layout-icons docs-layout-end">${endParts.join("")}</span>`
 				: "";
 			const place = region.place ? ` place-${region.place}` : "";
 			const numberAt = region.number ? ` number-${region.number}` : "";
 			return (
 				`<div class="docs-layout-region kind-${region.kind}${place}${numberAt}"` +
 				` style="grid-row:${r1} / ${r2};grid-column:${c1} / ${c2}"${tie}>` +
-				`${badge}${chips}${icons}${end}</div>`
+				`${badge}${icons}${chips}${end}</div>`
 			);
 		})
 		.join("");
@@ -296,7 +306,8 @@ export const DESIGNER_LAYOUT: LayoutSpec = {
 		},
 		{
 			name: "Compiled Luau", kind: "panel", at: [5, 6, 3, 4],
-			what: "What the logic compiles to, and what the node is saved as.",
+			what: "What the logic compiles to, and what the node is saved as. The preview button on the logic graph's tools shows and hides it.",
+			where: "With the preview on",
 		},
 	],
 };
@@ -324,8 +335,8 @@ export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 			what: "Preview shows the node, Logic its logic — each with the whole editor to itself.",
 		},
 		{
-			name: "Logic tools", kind: "float", place: "start", at: [3, 4, 1, 2], icons: ["search", "layout"],
-			what: "Adding a node, Realign and Straighten, as over the editor's graph.",
+			name: "Logic tools", kind: "float", place: "start", at: [3, 4, 1, 2], icons: ["search", "layout", "terminal"],
+			what: "Adding a node, Realign and Straighten, as over the editor's graph, and the preview of the Luau it compiles to.",
 		},
 		{
 			name: "Action row", kind: "float", place: "center", at: [5, 6, 1, 2],
@@ -336,6 +347,7 @@ export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 		{
 			name: "Compiled Luau", kind: "panel", at: [6, 7, 1, 2],
 			what: "Beneath the logic rather than beside it.",
+			where: "With the preview on",
 		},
 	],
 };
@@ -351,42 +363,43 @@ export const EDITOR_LAYOUT_PHONE: LayoutSpec = {
 	summary: "The editor on a phone, with Variables slid out and a node selected.",
 	device: "phone",
 	columns: "86% minmax(0, 1fr)",
-	rows: "28px 28px 22px 40px minmax(0, 1fr) 40px 40px 28px",
+	rows: "28px 28px 40px minmax(0, 1fr) 40px 40px 28px",
 	regions: [
 		{
-			name: "Top bar", kind: "bar", at: [1, 3, 1, 3],
-			icons: ["refresh", "newFile", "map"], iconsEnd: ["document", "palette", "settings"],
-			what: "The same bar, in two rows. Compile project is its icon, and the version is in the mark's tooltip.",
+			name: "Top bar", kind: "bar", at: [1, 2, 1, 3],
+			icons: ["refresh", "newFile", "map"], chips: ["Manual", "Dynamic"], iconsEnd: ["build"],
+			what: "The same bar in two rows: the project's own buttons, then Docs, Node Design and Settings under them. Compile project is its icon, and the version is in the mark's tooltip.",
 		},
-		{ name: "Graph tabs", kind: "bar", at: [3, 4, 1, 3], chips: ["Main"], what: "One tab per open graph." },
+		{ kind: "bar", at: [2, 3, 1, 3], icons: ["document", "palette", "settings"] },
 		{
-			name: "The graph", kind: "canvas", at: [4, 9, 1, 3], number: "middle-end",
+			name: "The graph", kind: "canvas", at: [3, 8, 1, 3], number: "middle-end",
 			what: "The same gestures as on a tablet; see [Controls](controls).",
 		},
 		{
-			name: "Graph tools", kind: "float", place: "start", at: [4, 5, 1, 3], chips: ["Script ▾"],
+			name: "Graph tools", kind: "float", place: "start", at: [3, 4, 1, 3],
+			chips: ["Script ▾"], iconsEnd: ["search", "layout", "straighten", "terminal"],
 			what: "The script's type and mode behind one button that says which is chosen; the tools as icons.",
 			where: "Phones only",
 		},
 		{
-			name: "Compile", kind: "float", place: "end", at: [4, 5, 1, 3], chips: ["Roblox ▾"], icons: ["build"],
+			name: "Compile", kind: "float", place: "end", at: [3, 4, 1, 3], chips: ["Roblox ▾"], iconsEnd: ["build"],
 			what: "The target behind a button, and compiling as its icon.",
 		},
 		{
-			name: "A panel, slid out", kind: "drawer", at: [5, 6, 1, 2],
+			name: "A panel, slid out", kind: "drawer", at: [4, 5, 1, 2],
 			what: "Nearly the width of the screen, one at a time. Tap the graph beside it to put it away.",
 		},
 		{
-			name: "Action row", kind: "float", place: "center", at: [6, 7, 1, 3],
-			icons: ["undo", "redo", "copy", "remove"],
+			name: "Action row", kind: "float", place: "center", at: [5, 6, 1, 3],
+			icons: ["undo", "redo", "copy", "cut", "duplicate", "remove"],
 			what: "As on a tablet, wrapping when the selection offers more than a row holds.",
 		},
 		{
-			name: "Panel buttons", kind: "float", place: "start", at: [7, 8, 1, 3], chips: ["Project", "Variables"],
-			what: "As on a tablet.",
+			name: "Panel buttons", kind: "float", place: "center", at: [6, 7, 1, 3],
+			chips: ["Project", "Variables", "Inspector"],
+			what: "As on a tablet, in one row.",
 		},
-		{ kind: "float", place: "end", at: [7, 8, 1, 3], chips: ["Inspector"] },
-		{ name: "Script analysis", kind: "bar", at: [8, 9, 1, 3], what: "As on a computer." },
+		{ name: "Script analysis", kind: "bar", at: [7, 8, 1, 3], what: "As on a computer." },
 	],
 };
 
@@ -400,11 +413,13 @@ export const DESIGNER_LAYOUT_PHONE: LayoutSpec = {
 	rows: "30px 34px 40px minmax(0, 1fr)",
 	regions: [
 		{
-			name: "Header", kind: "bar", at: [1, 2, 1, 2], iconsEnd: ["help", "document", "settings"],
+			name: "Header", kind: "bar", at: [1, 2, 1, 2],
+			endItems: [{ icon: "help" }, { icon: "document" }, { chip: "Open Editor" }, { icon: "settings" }],
 			what: "As on a computer, with Docs as its icon so the row holds Settings too.",
 		},
 		{
-			name: "Pack bar", kind: "bar", at: [2, 3, 1, 2], chips: ["‹ combat", "Preview", "Logic"],
+			name: "Pack bar", kind: "bar", at: [2, 3, 1, 2], chips: ["› combat"],
+			endItems: [{ chip: "Preview" }, { chip: "Logic" }],
 			what: "As on a tablet.",
 		},
 		{
@@ -413,8 +428,14 @@ export const DESIGNER_LAYOUT_PHONE: LayoutSpec = {
 		},
 		{
 			name: "Node tools", kind: "float", place: "start", at: [3, 4, 1, 2],
-			icons: ["rename"], chips: ["Types ▾", "Pins ▾", "Impure ▾"],
-			what: "Details as its icon; the types to drag on, the pin counts, and the node's kind and deleting it, each behind a button. A type still drags out of its panel onto the node. Save is its icon.",
+			icons: ["rename"], chips: ["Types ▾", "Pins ▾"],
+			what: "Details as its icon; the types to drag on and the pin counts each behind a button. A type still drags out of its panel onto the node.",
+			where: "Phones only",
+		},
+		{
+			name: "Kind and Save", kind: "float", place: "end", at: [3, 4, 1, 2],
+			chips: ["Impure ▾"], iconsEnd: ["build"],
+			what: "Whether the node is pure, how a pure one is drawn, and deleting it, behind a button that names its kind; Save as its icon.",
 			where: "Phones only",
 		},
 	],
