@@ -7,7 +7,8 @@
  */
 
 import type { NodeScript } from "../core/schema.js";
-import { Icon } from "./icons.jsx";
+import { Icon, type IconName } from "./icons.jsx";
+import type { ActionLabels } from "./preferences.js";
 import { store } from "./store.js";
 
 /**
@@ -23,53 +24,53 @@ export function liveSelection(script: NodeScript, selection: ReadonlySet<string>
 	return live;
 }
 
-export function TouchBar({ selected, canPaste, locked }: { selected: number; canPaste: boolean; locked: boolean }) {
+export function TouchBar({ selected, canPaste, locked, labels = "icons" }: {
+	selected: number;
+	canPaste: boolean;
+	locked: boolean;
+	/** Glyphs or names; see the Action buttons preference. */
+	labels?: ActionLabels;
+}) {
 	const press = (key: string, withMod: boolean) =>
 		document.body.dispatchEvent(new KeyboardEvent("keydown", { key, ctrlKey: withMod, bubbles: true }));
 	// Read at render: the bar redraws with the editor on every edit.
 	const history = { undo: store.canUndo(), redo: store.canRedo() };
+
+	/**
+	 * One action. Its name is always its accessible name and its tooltip -- a
+	 * long press shows it on an iPad -- so choosing icons hides a word, never
+	 * the meaning.
+	 */
+	const action = (
+		name: string, icon: IconName, key: string, withMod: boolean, disabled: boolean,
+	) => (
+		<button
+			key={name}
+			className={labels === "icons" ? "tb icon-only" : "tb"}
+			title={name}
+			aria-label={name}
+			disabled={disabled}
+			onClick={() => press(key, withMod)}
+		>
+			{labels === "icons" ? <Icon name={icon} size={18} /> : name}
+		</button>
+	);
+
 	return (
 		<>
-			<button
-				className="tb icon-only"
-				title="Undo"
-				aria-label="Undo"
-				disabled={locked || !history.undo}
-				onClick={() => press("z", true)}
-			>
-				<Icon name="undo" size={18} />
-			</button>
-			<button
-				className="tb icon-only"
-				title="Redo"
-				aria-label="Redo"
-				disabled={locked || !history.redo}
-				onClick={() => press("y", true)}
-			>
-				<Icon name="redo" size={18} />
-			</button>
-			{selected > 1 && (
-				<button
-					className="tb with-icon"
-					title="Align the selection on the node picked first, as A does"
-					disabled={locked}
-					onClick={() => press("a", false)}
-				>
-					<Icon name="straighten" size={18} />
-					Align
-				</button>
-			)}
+			{action("Undo", "undo", "z", true, locked || !history.undo)}
+			{action("Redo", "redo", "y", true, locked || !history.redo)}
+			{/* A lines the selection up on the node picked first. */}
+			{selected > 1 && action("Align", "straighten", "a", false, locked)}
 			{selected > 0 && (
 				<>
-					<button className="tb" onClick={() => press("c", true)}>Copy</button>
-					<button className="tb" disabled={locked} onClick={() => press("x", true)}>Cut</button>
-					<button className="tb" disabled={locked} onClick={() => press("d", true)}>Duplicate</button>
-					<button className="tb" disabled={locked} onClick={() => press("Delete", false)}>Delete</button>
+					{action("Copy", "copy", "c", true, false)}
+					{action("Cut", "cut", "x", true, locked)}
+					{action("Duplicate", "duplicate", "d", true, locked)}
+					{action("Delete", "remove", "Delete", false, locked)}
 				</>
 			)}
-			{canPaste && (
-				<button className="tb" disabled={locked} onClick={() => press("v", true)}>Paste</button>
-			)}
+			{canPaste && action("Paste", "paste", "v", true, locked)}
 		</>
 	);
 }

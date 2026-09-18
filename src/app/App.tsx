@@ -1771,6 +1771,7 @@ export function App() {
 								selected={liveSelection(editor.script, editor.selection)}
 								canPaste={hasClip}
 								locked={locked}
+								labels={prefs.actionLabels}
 							/>
 						)
 						: undefined

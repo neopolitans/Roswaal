@@ -313,6 +313,7 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 							selected={liveSelection(editor.script, editor.selection)}
 							canPaste={hasClip}
 							locked={false}
+							labels={readPreferences().actionLabels}
 						/>
 					</div>
 				</div>

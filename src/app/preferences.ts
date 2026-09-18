@@ -141,6 +141,13 @@ export interface Preferences {
 	 */
 	wheel: WheelChoice;
 	/**
+	 * How the action buttons under the graph are drawn on a phone or a tablet:
+	 * each action's glyph, or its name. Icons keep the row to one line on a
+	 * phone; words are there for anybody who would rather read than learn eight
+	 * pictures.
+	 */
+	actionLabels: ActionLabels;
+	/**
 	 * What a node does when its header is longer than the node is wide.
 	 *
 	 * `false` truncates, which is what a node has always done: the title
@@ -247,6 +254,13 @@ export const WIRE_STYLES: { style: WireStyle; label: string; what: string }[] = 
 	{ style: "angular", label: "Angular", what: "The same route, with each corner cut to a 45-degree slope." },
 ];
 
+export type ActionLabels = "icons" | "text";
+
+export const ACTION_LABEL_CHOICES: { value: ActionLabels; label: string; what: string }[] = [
+	{ value: "icons", label: "Icons", what: "Each action's picture. Its name is on a long press." },
+	{ value: "text", label: "Text", what: "Each action's name." },
+];
+
 export type WheelChoice = "auto" | "zoom" | "pan";
 
 export const WHEEL_CHOICES: { value: WheelChoice; label: string; what: string }[] = [
@@ -306,6 +320,7 @@ export const DEFAULTS: Preferences = {
 	wireStyle: "curved",
 	roundedNodes: true,
 	wheel: "auto",
+	actionLabels: "icons",
 	// Truncating is what nodes already did, so the default changes nothing for
 	// anybody who does not go looking for it.
 	wideNodes: false,
@@ -364,6 +379,9 @@ export function readPreferences(): Preferences {
 			: DEFAULTS.wireStyle,
 		roundedNodes:
 			typeof stored.roundedNodes === "boolean" ? stored.roundedNodes : DEFAULTS.roundedNodes,
+		actionLabels: ACTION_LABEL_CHOICES.some((c) => c.value === stored.actionLabels)
+			? (stored.actionLabels as ActionLabels)
+			: DEFAULTS.actionLabels,
 		wheel: WHEEL_CHOICES.some((c) => c.value === stored.wheel)
 			? (stored.wheel as WheelChoice)
 			: DEFAULTS.wheel,

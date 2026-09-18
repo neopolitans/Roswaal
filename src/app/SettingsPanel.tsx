@@ -25,7 +25,7 @@ import {
 import { LICENCE_TEXTS } from "../core/themeData.js";
 import { BUILTIN_THEMES } from "./theme.js";
 import {
-	AUTOSAVE_CHOICES, DOCS_FONTS, FUNCTION_TAB_CHOICES, PREVIEW_SCALE, previewScaleOf, WHEEL_CHOICES, WIRE_STYLES,
+	ACTION_LABEL_CHOICES, AUTOSAVE_CHOICES, DOCS_FONTS, FUNCTION_TAB_CHOICES, PREVIEW_SCALE, previewScaleOf, WHEEL_CHOICES, WIRE_STYLES,
 	type Preferences,
 } from "./preferences.js";
 import { Icon } from "./icons.jsx";
@@ -497,6 +497,23 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 							className={prefs.wheel === c.value ? "on" : ""}
 							title={c.what}
 							onClick={() => onPrefs({ wheel: c.value })}
+						>
+							{c.label}
+						</button>
+					))}
+				</div>
+			</Row>
+
+			<Row
+				label="Action buttons"
+				help={`Under the graph on a phone or a tablet. ${ACTION_LABEL_CHOICES.find((c) => c.value === prefs.actionLabels)?.what ?? ""}`}
+			>
+				<div className="segmented">
+					{ACTION_LABEL_CHOICES.map((c) => (
+						<button
+							key={c.value}
+							className={prefs.actionLabels === c.value ? "on" : ""}
+							onClick={() => onPrefs({ actionLabels: c.value })}
 						>
 							{c.label}
 						</button>

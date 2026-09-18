@@ -1531,7 +1531,7 @@ const CONTROLS: DocPage = {
 								["Press and hold a variable, a file or a tab, then drag", "Drag it, as a mouse does — onto the graph, into a folder"],
 								["Press and hold a variable, a file or a tab, then lift", "Its menu, if it has one"],
 								["**Undo** and **Redo**, under the graph", "As `Ctrl` + `Z` and `Ctrl` + `Y` do"],
-								["**Align**, **Copy**, **Cut**, **Duplicate**, **Delete**, **Paste**, under the graph", "What their shortcuts do, to the selection. Node Design's logic graph has the same bar"],
+								["**Align**, **Copy**, **Cut**, **Duplicate**, **Delete**, **Paste**, under the graph", "What their shortcuts do, to the selection. Node Design's logic graph has the same bar. Icons or words: **Settings → Editor → Action buttons**"],
 								["**Preview** and **Logic**, in Node Design", "Show the node, or its logic, with the whole editor to itself"],
 								["Double tap", "Open a graph from the tree, add a reroute knot, rename a comment"],
 								["Drag a node, or from a pin", "As with a mouse"],

@@ -95,7 +95,8 @@ describe("the Controls page", () => {
 	it("sends only keys the editor binds, from the touch bar", () => {
 		const source = readFileSync(path.join(ROOT, "src/app/TouchBar.tsx"), "utf8");
 		const bar = source.slice(source.indexOf("function TouchBar("));
-		const sent = [...bar.matchAll(/press\("(\w+)"/g)].map((m) => (m[1].length === 1 ? m[1].toUpperCase() : m[1]));
+		const sent = [...bar.matchAll(/action\("\w+", "\w+", "(\w+)"/g)]
+			.map((m) => (m[1].length === 1 ? m[1].toUpperCase() : m[1]));
 		expect(sent.length).toBeGreaterThanOrEqual(5);
 		const bound = boundKeys();
 		expect(sent.filter((key) => !bound.includes(key))).toEqual([]);
