@@ -76,6 +76,9 @@ describe("the canvas stacking order", () => {
 			watermark: "watermark",
 			wires: "wire",
 			marquee: "marquee",
+			// The ring under a held finger, drawn at the marquee's layer because
+			// it is where a marquee is about to start.
+			"canvas-hold": "marquee",
 		};
 
 		const positioned: string[] = [];

@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import { blockText, buildSite, findPage } from "../src/core/docs/site.js";
+import { blockText, buildSite, findPage, type Block } from "../src/core/docs/site.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
@@ -44,6 +44,23 @@ function boundKeys(): string[] {
 	}
 	for (const m of body.matchAll(/e\.key === "(\w+)"/g)) keys.add(m[1]);
 	return [...keys];
+}
+
+/**
+ * Every block on the page, with the ones inside a tab brought up beside the
+ * rest. The keyboard table sits in the Desktop tab, and a test reading only
+ * the top level would find no keys at all.
+ */
+function allBlocks(): Block[] {
+	const out: Block[] = [];
+	const walk = (blocks: Block[]) => {
+		for (const b of blocks) {
+			out.push(b);
+			if (b.t === "tabs") for (const tab of b.tabs) walk(tab.blocks);
+		}
+	};
+	walk(page?.blocks ?? []);
+	return out;
 }
 
 /** Every `code span` on the page — which is how a key is written there. */
@@ -90,7 +107,7 @@ describe("the Controls page", () => {
 	 * so both have to be there.
 	 */
 	it("distinguishes align from select all", () => {
-		const rows = page!.blocks
+		const rows = allBlocks()
 			.filter((b): b is { t: "table"; head?: string[]; rows: string[][] } => b.t === "table")
 			.flatMap((b) => b.rows);
 		expect(rows.some((r) => r[0] === "`A`")).toBe(true);
@@ -99,8 +116,21 @@ describe("the Controls page", () => {
 
 	it("covers the mouse as well as the keyboard", () => {
 		const headings = page!.blocks.filter((b) => b.t === "h").map((b) => (b as { text: string }).text);
-		expect(headings).toContain("Keyboard");
+		expect(headings).toContain("Keys and gestures");
 		expect(headings).toContain("The canvas");
 		expect(headings).toContain("Pins and wires");
+	});
+
+	/**
+	 * A tab for each way in, so a reader on an iPad finds the gestures without
+	 * reading past a keyboard table they cannot use -- and the gesture the
+	 * canvas only gives a finger, press and hold for a marquee, is written down.
+	 */
+	it("has a Desktop tab and a Mobile tab, and the mobile one covers the marquee", () => {
+		const tabs = page!.blocks.find((b): b is Extract<Block, { t: "tabs" }> => b.t === "tabs");
+		expect(tabs?.tabs.map((t) => t.title)).toEqual(["Desktop", "Mobile (Webapp)"]);
+		const mobile = tabs!.tabs[1].blocks.map(blockText).join(" ").toLowerCase();
+		expect(mobile).toContain("press and hold");
+		expect(mobile).toContain("marquee");
 	});
 });

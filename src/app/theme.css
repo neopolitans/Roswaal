@@ -8472,6 +8472,28 @@ button.tb.danger {
 	}
 }
 
+/* A finger held on empty canvas: drag for a marquee, lift for the menu. The
+   ring says the hold has registered, since nothing else on screen changes. */
+.canvas-hold {
+	position: absolute;
+	width: 44px;
+	height: 44px;
+	margin: -22px 0 0 -22px;
+	border: 2px solid var(--select);
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--select) 14%, transparent);
+	pointer-events: none;
+	animation: canvas-hold-in 140ms ease-out;
+}
+
+@keyframes canvas-hold-in {
+	from { transform: scale(0.4); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.canvas-hold { animation: none; }
+}
+
 /* ---------------------------------------------------- the editor, on a phone */
 
 /* See `useCompact` in Workspace.tsx: below this the side docks leave the grid

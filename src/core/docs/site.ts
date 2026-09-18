@@ -1460,42 +1460,90 @@ const CONTROLS: DocPage = {
 		{
 			t: "p",
 			text:
-				"Keys act on the canvas, and do nothing while you are typing in a field. **Ctrl** is " +
-				"**⌘** on a Mac. **Escape** closes whatever is open — a menu, a panel, the preview.",
-		},
-		{
-			t: "p",
-			text:
 				"This page is the keyboard, the mouse and touch. The buttons are on [Toolbars](toolbars), " +
 				"which draws each bar with every control named under it.",
 		},
-		{ t: "h", level: 2, text: "Keyboard" },
+		{ t: "h", level: 2, text: "Keys and gestures" },
 		{
-			t: "table",
-			head: ["Key", "What it does"],
-			rows: [
-				["`Ctrl` + `Z`", "Undo"],
-				["`Ctrl` + `Shift` + `Z`, `Ctrl` + `Y`", "Redo"],
-				["`Ctrl` + `S`", "Compile the open graph"],
-				["`Ctrl` + `A`", "Select everything in the graph on screen"],
-				[
-					"`Ctrl` + `C`, `Ctrl` + `X`, `Ctrl` + `V`",
-					"Copy, cut, paste. A function brings its graph and a comment brings what it is drawn around. The paste lands with its top-left corner at the pointer, or offset from the original when the pointer is off the canvas",
-				],
-				["`Ctrl` + `D`", "Duplicate the selection, at the pointer"],
-				["`Ctrl` + `Shift` + `L`", "Realign the graph on screen"],
-				["`Delete`, `Backspace`", "Delete the selection. A function takes its graph, and asks first"],
-				["`A`", "Align the selection, walking it in the order you picked it"],
-				["`C`", "Comment around the selection, or an empty one if nothing is selected"],
-				["`P`", "Preview the Luau the selection compiles to. With nothing selected: the function on screen, or the whole script"],
+			t: "tabs",
+			label: "What are you using?",
+			tabs: [
+				{
+					id: "controls-desktop",
+					title: "Desktop",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"Keys act on the canvas, and do nothing while you are typing in a field. **Ctrl** is " +
+								"**⌘** on a Mac. **Escape** closes whatever is open — a menu, a panel, the preview.",
+						},
+						{
+							t: "table",
+							head: ["Key", "What it does"],
+							rows: [
+								["`Ctrl` + `Z`", "Undo"],
+								["`Ctrl` + `Shift` + `Z`, `Ctrl` + `Y`", "Redo"],
+								["`Ctrl` + `S`", "Compile the open graph"],
+								["`Ctrl` + `A`", "Select everything in the graph on screen"],
+								[
+									"`Ctrl` + `C`, `Ctrl` + `X`, `Ctrl` + `V`",
+									"Copy, cut, paste. A function brings its graph and a comment brings what it is drawn around. The paste lands with its top-left corner at the pointer, or offset from the original when the pointer is off the canvas",
+								],
+								["`Ctrl` + `D`", "Duplicate the selection, at the pointer"],
+								["`Ctrl` + `Shift` + `L`", "Realign the graph on screen"],
+								["`Delete`, `Backspace`", "Delete the selection. A function takes its graph, and asks first"],
+								["`A`", "Align the selection, walking it in the order you picked it"],
+								["`C`", "Comment around the selection, or an empty one if nothing is selected"],
+								["`P`", "Preview the Luau the selection compiles to. With nothing selected: the function on screen, or the whole script"],
+							],
+						},
+						{
+							t: "note",
+							kind: "info",
+							text:
+								"While a compile is running outside Dynamic the canvas is locked, and only the " +
+								"controls that read rather than change it work: `Ctrl` + `A`, `Ctrl` + `C` and `P`.",
+						},
+					],
+				},
+				{
+					id: "controls-mobile",
+					title: "Mobile (Webapp)",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"A long press is a right-click and a double tap is a double-click, everywhere — " +
+								"so every gesture in the sections below has a touch version. An Apple Pencil " +
+								"works the same way, and draws a marquee as a mouse does.",
+						},
+						{
+							t: "table",
+							head: ["Gesture", "What it does"],
+							rows: [
+								["Drag empty space with one finger", "Pan"],
+								["Tap empty space", "Clear the selection"],
+								["Two fingers", "Pinch to zoom, drag to pan"],
+								["Press and hold empty space, then drag", "Marquee select"],
+								["Press and hold empty space, then lift", "Node menu, where you held"],
+								["Long press a node or a pin", "Its menu, as a right-click opens"],
+								["Double tap", "Open a graph from the tree, add a reroute knot, rename a comment"],
+								["Drag a node, or from a pin", "As with a mouse"],
+								["**Project** and **Inspector**, under the graph", "Slide that panel out over the graph"],
+								["The search button beside **Contents**, in these pages", "Search the docs, as `Ctrl` + `K` does"],
+							],
+						},
+						{
+							t: "note",
+							kind: "info",
+							text:
+								"An iPad with a keyboard takes the Desktop shortcuts as well, with **⌘** for " +
+								"**Ctrl**.",
+						},
+					],
+				},
 			],
-		},
-		{
-			t: "note",
-			kind: "info",
-			text:
-				"While a compile is running outside Dynamic the canvas is locked, and only the " +
-				"controls that read rather than change it work: `Ctrl` + `A`, `Ctrl` + `C` and `P`.",
 		},
 		{ t: "h", level: 2, text: "Aligning" },
 		{
@@ -1616,30 +1664,6 @@ const CONTROLS: DocPage = {
 				["`Shift` or `Alt` + click a wire", "Disconnect it"],
 				["Double-click a wire", "Add a reroute knot where you clicked"],
 			],
-		},
-		{ t: "h", level: 2, text: "Touch" },
-		{
-			t: "p",
-			text:
-				"A long press is a right-click and a double tap is a double-click, everywhere — " +
-				"so every row above has a touch version. An Apple Pencil works the same way.",
-		},
-		{
-			t: "table",
-			head: ["Gesture", "What it does"],
-			rows: [
-				["Drag empty space with one finger", "Pan. A tap clears the selection"],
-				["Two fingers", "Pinch to zoom, drag to pan"],
-				["Long press", "The menu a right-click opens: the node, the pin, or the canvas"],
-				["Double tap", "Open a graph from the tree, add a reroute knot, rename a comment"],
-				["Drag a node, or from a pin", "As with a mouse"],
-				["**Project** and **Inspector**, under the graph on a phone or tablet", "Slide that panel out over the graph"],
-			],
-		},
-		{
-			t: "note",
-			kind: "info",
-			text: "Marquee select needs a mouse, a trackpad or a Pencil: a finger on empty space pans.",
 		},
 		{ t: "h", level: 2, text: "Advanced shortcuts" },
 		{

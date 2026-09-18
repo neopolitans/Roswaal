@@ -122,6 +122,16 @@ type Gesture =
 			 */
 			tap?: boolean;
 	  }
+	/**
+	 * A finger held still on empty canvas, which is now one of two things.
+	 *
+	 * Drag from here and it is a marquee; lift and it is the menu a
+	 * right-click opens. Apple's Freeform works the same way, and it is the
+	 * only way a finger can draw a marquee at all -- a finger that simply
+	 * moves on empty canvas pans. `client` is where it was held, in viewport
+	 * coordinates, because both answers start there.
+	 */
+	| { kind: "hold"; client: Vec }
 	/** Two fingers: zoom by how far apart they are, pan by where they are. */
 	| { kind: "pinch"; startView: View; ids: [number, number]; distance: number; middle: Vec }
 	| { kind: "marquee"; origin: Vec; additive: boolean }
@@ -183,6 +193,8 @@ export function Canvas({
 	 */
 	const wireHandled = useRef(false);
 	const [editingComment, setEditingComment] = useState<string | null>(null);
+	/** Where a held finger is, relative to the canvas, so it can be ringed. */
+	const [holdAt, setHoldAt] = useState<Vec | null>(null);
 
 	// -- derived -----------------------------------------------------------
 
@@ -389,6 +401,7 @@ export function Canvas({
 		activePointer.current = null;
 		setMarquee(null);
 		setWireDrag(null);
+		setHoldAt(null);
 	}, []);
 
 	useEffect(() => {
@@ -417,6 +430,19 @@ export function Canvas({
 				return;
 			}
 			if (activePointer.current !== null && e.pointerId !== activePointer.current) return;
+			// A held finger that moves draws a marquee from where it was held.
+			if (g.kind === "hold") {
+				if (Math.hypot(e.clientX - g.client.x, e.clientY - g.client.y) < 8) return;
+				store.clearSelection();
+				setHoldAt(null);
+				gesture.current = {
+					kind: "marquee",
+					origin: toWorld(g.client.x, g.client.y),
+					additive: false,
+				};
+				setMarquee(rectFromPoints(gesture.current.origin, toWorld(e.clientX, e.clientY)));
+				return;
+			}
 			const world = toWorld(e.clientX, e.clientY);
 			setPointer(world);
 
@@ -495,6 +521,12 @@ export function Canvas({
 				return;
 			}
 			if (activePointer.current !== null && e.pointerId !== activePointer.current) return;
+			// Held and lifted without moving: the menu, where it was held.
+			if (g.kind === "hold") {
+				endGesture();
+				onRequestMenu(g.client, toWorld(g.client.x, g.client.y));
+				return;
+			}
 			if (g.kind === "pan" && g.tap) {
 				const box = surface.current!.getBoundingClientRect();
 				const moved = Math.hypot(
@@ -851,8 +883,23 @@ export function Canvas({
 			// A long press arrives as a right-click (see `touch.ts`) while the
 			// finger is still down and the drag it began is still live. The menu
 			// is what was meant, so the drag stops here.
-			onContextMenuCapture={() => {
-				if (gesture.current.kind !== "none") endGesture();
+			onContextMenuCapture={(e) => {
+				const g = gesture.current;
+				// On empty canvas the press is held, not answered yet: see
+				// `hold`. Only for the press `touch.ts` recognised -- a pen or a
+				// mouse sends its own right-click and means it.
+				if (g.kind === "pan" && g.tap && !e.nativeEvent.isTrusted) {
+					e.preventDefault();
+					e.stopPropagation();
+					// Anything the finger drifted before it counted as held is
+					// put back, so the marquee starts under it.
+					store.setView(g.startView);
+					const box = surface.current!.getBoundingClientRect();
+					gesture.current = { kind: "hold", client: { x: e.clientX, y: e.clientY } };
+					setHoldAt({ x: e.clientX - box.left, y: e.clientY - box.top });
+					return;
+				}
+				if (g.kind !== "none") endGesture();
 			}}
 			// A pointer that has left has no position to paste at, and the
 			// alternative -- keeping the last one it had -- puts the paste
@@ -1182,6 +1229,13 @@ export function Canvas({
 					/>
 				))}
 			</div>
+
+			{holdAt && (
+				<div
+					className="canvas-hold"
+					style={{ zIndex: LAYER.marquee, left: holdAt.x, top: holdAt.y }}
+				/>
+			)}
 
 			{marquee && (
 				<div

@@ -74,7 +74,12 @@ export const REVIEWS: Record<
 	// Verified by the author for 0.29.1.
 	// Read again for 0.31.6, when C stopped needing a selection and the
 	// Comments table gained the two ways to make one.
-	"controls": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
+	"controls": {
+		status: "verified",
+		date: "2026-09-12",
+		reviewers: ["neopolitans"],
+		verify: "The Mobile (Webapp) tab, added in 0.71.0, on a phone and a tablet.",
+	},
 	// Verified with the author, once it had pictures for every section.
 	"wires-and-pins": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	// Verified with the author. Settings once its rojoProject line said what

@@ -100,12 +100,13 @@ export const RELEASES: Release[] = [
 		affects: ["editor", "docs"],
 		added: [
 			"**Two fingers on a trackpad pan the graph on a Mac or an iPad**, and pinching zooms, in Safari as well as Chrome. Scrolling still zooms elsewhere; **Settings → Editor → Scrolling the graph** picks Pan or Zoom on any machine.",
-			"**The graph works by touch.** One finger pans, two pinch and pan, and a tap on empty space clears the selection. A long press opens the menu a right-click would, and a double tap is a double-click — opening a graph from the tree, adding a reroute knot. Both work everywhere in the editor, and with an Apple Pencil. See [Controls](controls).",
+			"**The graph works by touch.** One finger pans, two pinch and pan, and a tap on empty space clears the selection. Press and hold empty space, then drag, to draw a marquee; lift instead for the node menu. A long press opens the menu a right-click would, and a double tap is a double-click — opening a graph from the tree, adding a reroute knot. Both work everywhere in the editor, and with an Apple Pencil. See [Controls](controls).",
 			"**On a phone or a tablet, the panels slide over the graph.** Project and Inspector are buttons under it; opening a graph from the tree puts the tree away again.",
 			"**The documentation reads on a phone or a tablet**: the contents slide out from a Contents button in the header, and the page takes the width. Tap beside them to put them away. The search button beside it opens the search Ctrl+K does.",
 		],
 		changed: [
 			"**The mark on a documentation page opens your projects** — the editor with its projects panel up — rather than the documentation's front page, which is the first entry in the contents.",
+			"**The Controls page has a tab each for Desktop and Mobile (Webapp)**, in place of the one Keyboard table. See [Controls](controls).",
 			"**Settings stacks on a narrow screen**: the sections run along the top and each control sits under its label.",
 		],
 		fixed: [
@@ -116,9 +117,6 @@ export const RELEASES: Release[] = [
 			"**Focusing a field on an iPhone no longer zooms the whole editor or documentation page in.**",
 			"**Dropdowns look the same in every browser**, and the same as the pictures of them in the docs. In Safari on a Mac they were the system's own control, a different height from the buttons beside them.",
 			"**A documentation page could lay out with its contents in the reading column** after an update, until the browser's copy of the stylesheet expired. Each build's pages now name the exact stylesheet and script they were built with.",
-		],
-		watch: [
-			"Marquee select needs a mouse, a trackpad or a Pencil: a finger on empty space pans.",
 		],
 	},
 	{
