@@ -8648,6 +8648,12 @@ button.tb.danger {
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
+/* A 24px glyph in a 46px square: past the 44pt Apple asks a tap target to be. */
+.touch-bar button.tb.icon-only {
+	padding: 10px;
+	line-height: 0;
+}
+
 /* A group per side, so the buttons sit on the edge their drawers slide in
    from, whichever side has none. */
 .drawer-group {

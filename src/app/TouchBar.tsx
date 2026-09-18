@@ -52,7 +52,7 @@ export function TouchBar({ selected, canPaste, locked, labels = "icons" }: {
 			disabled={disabled}
 			onClick={() => press(key, withMod)}
 		>
-			{labels === "icons" ? <Icon name={icon} size={18} /> : name}
+			{labels === "icons" ? <Icon name={icon} size={24} /> : name}
 		</button>
 	);
 
