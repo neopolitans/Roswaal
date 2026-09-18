@@ -270,6 +270,22 @@ select optgroup {
 	flex: 1;
 }
 
+/* The tree scrolls inside its own panel. Without this the panel could shrink
+   and the tree inside it would not, so a tree taller than its share ran down
+   over the Variables panel beneath -- on an iPad's drawer every time, and on
+   a desktop whenever the window was short enough. Variables keeps the height
+   of what it lists, up to a share of the dock, and scrolls past that. */
+.dock .panel-tree .tree {
+	min-height: 0;
+	overflow: auto;
+}
+
+.dock.left .panel-variables {
+	flex: 0 1 auto;
+	max-height: 60%;
+	overflow: auto;
+}
+
 .dock.right .panel,
 .dock.bottom .panel {
 	flex: 1;
@@ -8528,10 +8544,6 @@ button.tb.danger {
 .dock.drawer.left:not(.drawer-open) { transform: translateX(-100%); }
 .dock.drawer.right:not(.drawer-open) { transform: translateX(100%); }
 
-/* The drawer's own panels fill it, whichever side they came from. */
-.dock.drawer .panel {
-	flex: 1;
-}
 
 .drawer-backdrop {
 	position: relative;

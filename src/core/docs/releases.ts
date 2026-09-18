@@ -113,6 +113,7 @@ export const RELEASES: Release[] = [
 		],
 		fixed: [
 			"**The documentation's outline no longer squeezes the page below 1100px wide.** It was meant to hide there and did not, so on an iPad or a phone in landscape it wrapped under the contents and both halved in height.",
+			"**The project tree scrolls within its own panel**, so a long tree no longer runs down over the Variables panel beneath it.",
 			"**A wire dragged by touch lands on the pin it is dropped on.** It reported the drop to the pin it started from.",
 			"**Tapping a control in a toolbar, Variables or node map picture no longer flickers.** The tap lit the new one, went back to the old one, then lit the new one again.",
 			"**The docks keep their sizes after a phone is turned round.** Squeezed to fit a narrow screen, they stayed squeezed when it widened.",
