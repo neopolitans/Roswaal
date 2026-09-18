@@ -105,6 +105,7 @@ export const RELEASES: Release[] = [
 		],
 		changed: [
 			"**The projects panel's footer is Home, Project, Node Design and Docs.** Open folder, Open .zip, Download and Start again are in the **Project** menu.",
+			"**Getting started opens a project in steps** on each tab: `roswaal serve` and the start page on a computer, the projects panel's **Project** menu in the web app, and a zip carried from a computer to a tablet or a phone.",
 			"**On a phone, the graph's script type reads Script, Local or Module** on its folded button, so the tools keep one row. The list inside names them in full.",
 		],
 	},

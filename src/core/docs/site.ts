@@ -1191,16 +1191,36 @@ const GETTING_STARTED: DocPage = {
 					device: ["localhost"],
 					blocks: [
 						{
+							t: "ol",
+							items: [
+								"In a terminal, go to your project and set it up once: `roswaal init` writes a " +
+									"`roswaal.json` and a `.roswaal/` folder, and nothing else.",
+								"Run `roswaal serve`, and open the editor address it prints — " +
+									"`http://127.0.0.1:4471`. It opens on that project.",
+							],
+						},
+						{
 							t: "code",
 							lang: "sh",
-							text: "cd my-game\nroswaal init      # creates roswaal.json and .roswaal/\nroswaal serve     # opens the editor on 127.0.0.1:4471",
+							text: "cd my-game\nroswaal init      # once: roswaal.json and .roswaal/\nroswaal serve     # the editor, on 127.0.0.1:4471",
 						},
 						{
 							t: "p",
 							text:
-								"The editor opens in your browser and writes straight into your project. " +
-								"`.roswaal/` holds your graphs and is **source, not cache** — commit it. The " +
-								"`src/` directory holds what Roswaal generates from them.",
+								"`.roswaal/` holds your graphs and is **source, not cache** — commit it. `src/` " +
+								"holds what Roswaal generates from them.",
+						},
+						{ t: "h", level: 3, text: "Another project" },
+						{
+							t: "ol",
+							items: [
+								"Click the Roswaal mark at the top left. The projects panel lists the ones you " +
+									"have opened before: click one to switch.",
+								"For one that is not listed, press **Home** in that panel. The start page asks " +
+									"for a folder: type its path, or press **Browse…** to choose it.",
+								"The button beside the path says what it will do: **Open** for a Roswaal project, " +
+									"**Initialise** for a folder that is not one yet.",
+							],
 						},
 					],
 				},
@@ -1210,18 +1230,24 @@ const GETTING_STARTED: DocPage = {
 					device: ["webapp"],
 					blocks: [
 						{
-							t: "p",
-							text:
-								"Nothing to install: open [the web app](https://neopolitans.github.io/Roswaal/try.html) " +
-								"and start from the demo. Your project is kept in that browser, and the " +
-								"Roswaal mark is blue to say so.",
+							t: "ol",
+							items: [
+								"Open [the web app](https://neopolitans.github.io/Roswaal/try.html). Nothing is " +
+									"installed; it opens on a demo project, kept in this browser. The Roswaal mark " +
+									"is blue to say so.",
+								"To work on your own, click the mark to open the projects panel, then press " +
+									"**Project**.",
+								"**Open folder…** works on a folder on your computer and writes into it, as the " +
+									"installed editor does. It is in Chrome and Edge.",
+								"**Open .zip…** brings a project in from a zip, in any browser. It replaces the " +
+									"project kept in the browser, and asks first.",
+							],
 						},
 						{
 							t: "p",
 							text:
-								"The **Project** button in the projects panel holds the rest. In Chrome or Edge, " +
-								"**Open folder…** works on a folder on your own machine instead; **Download** " +
-								"takes a project out as a zip, and **Open .zip…** brings one in.",
+								"**Download** in the same menu takes the project out as a zip. Folders you have " +
+								"opened are listed in the panel, to reopen with a click.",
 						},
 					],
 				},
@@ -1231,20 +1257,24 @@ const GETTING_STARTED: DocPage = {
 					device: ["tablet", "phone"],
 					blocks: [
 						{
-							t: "p",
-							text:
-								"The same web app on an iPad or a phone, laid out for a finger: the panels slide " +
-								"out over the graph, and the edits a keyboard makes are buttons under it. " +
-								"[The Interface](the-interface) shows where everything goes, and " +
-								"[Controls](controls) has the gestures.",
+							t: "ol",
+							items: [
+								"On your computer, zip the project's folder: **Compress** in Finder, or " +
+									"**Send to → Compressed (zipped) folder** in Explorer.",
+								"Put the zip where the device can reach it: AirDrop, iCloud Drive, or any app " +
+									"that saves to Files.",
+								"On the device, open [the web app](https://neopolitans.github.io/Roswaal/try.html), " +
+									"tap the Roswaal mark, then **Project → Open .zip…**, and pick the zip.",
+							],
 						},
 						{
 							t: "p",
 							text:
-								"Your project is kept in the browser. To bring one from a computer, zip its " +
-								"folder, send it to the device, and pick it with **Project → Open .zip…** in the " +
-								"projects panel. An iPad Mini is the smallest screen it is made for; a phone is best for " +
-								"reading graphs.",
+								"**Project → Download** saves it back to Files as a zip. The panels slide out over " +
+								"the graph, and the edits a keyboard makes are buttons under it: " +
+								"[The Interface](the-interface) shows where things are, and " +
+								"[Controls](controls) has the gestures. An iPad Mini is the smallest screen it " +
+								"is made for; a phone is best for reading graphs.",
 						},
 					],
 				},
