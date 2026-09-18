@@ -64,8 +64,8 @@ import { forget, lastProject, recentProjects, remember } from "./recents.js";
 import { IS_STATIC_HOST, openHome, openPage, setBeforeLeaving } from "./pages.js";
 import { CanaryBanner, MarkedLogo } from "./previewBuild.jsx";
 import {
-	forgetRememberedFolder, openDirectory, useCanOpenDirectory, useHostCan, useHostFailure,
-	useRememberedFolders,
+	forgetRememberedFolder, openDirectory, readZip, useCanImportZip, useCanOpenDirectory, useHostCan,
+	useHostFailure, useRememberedFolders,
 } from "./host.js";
 import { download, zip } from "./zip.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
@@ -321,6 +321,8 @@ export function App() {
 	const hostCanBrowse = useHostCan("browse");
 	const hostCanReset = useHostCan("reset");
 	const hostCanOpenFolder = useCanOpenDirectory();
+	const hostCanImportZip = useCanImportZip();
+	const zipInput = useRef<HTMLInputElement>(null);
 	/**
 	 * The introduction panel. No anchor: it is centred rather than dropped
 	 * under the mark, because it is the same panel in all three windows and
@@ -1486,6 +1488,58 @@ export function App() {
 	}, [loadProject, notify]);
 
 	/**
+	 * A project from a zip, in place of the one this browser holds.
+	 *
+	 * The file is picked first and the question asked after, so the question
+	 * can name what is coming in -- and because Safari will not open a file
+	 * picker from anything but the tap itself, so asking first would lose it.
+	 * Nothing is replaced until the yes.
+	 */
+	const importZip = useCallback(async (file: File) => {
+		try {
+			const preview = await readZip(file);
+			const ok = await ask({
+				kind: "confirm",
+				title: `Open ${preview.name}?`,
+				message:
+					`It replaces the project kept in this browser. Download that one first `
+					+ `if you want to keep it.`,
+				confirmLabel: "Open it",
+			});
+			if (ok !== true) return;
+
+			const { pick, skipped } = await preview.open();
+			let root: string;
+			if ("root" in pick) {
+				root = pick.root;
+			} else {
+				const setUp = await ask({
+					kind: "confirm",
+					title: `Set up ${pick.notAProject} as a Roswaal project?`,
+					message:
+						"It has no roswaal.json. Roswaal will add one, along with a .roswaal "
+						+ "folder for your graphs and node packs.",
+					confirmLabel: "Set it up",
+				});
+				if (setUp !== true) return;
+				root = (await pick.initialise()).root;
+			}
+			await loadProject(root);
+			setIntroOpen(false);
+			if (skipped.length > 0) {
+				const shown = skipped.slice(0, 6).map((one) => `${one.path} (${one.reason})`);
+				if (skipped.length > shown.length) shown.push(`and ${skipped.length - shown.length} more`);
+				notify(
+					`${skipped.length} file${skipped.length === 1 ? "" : "s"} left out`,
+					`The browser keeps a project's text files. Not brought in: ${shown.join(", ")}.`,
+				);
+			}
+		} catch (err) {
+			notify("That zip could not be opened", (err as Error).message);
+		}
+	}, [ask, loadProject, notify]);
+
+	/**
 	 * The folder from last time, reopened.
 	 *
 	 * Separate from the picker because there is nothing to pick: the browser
@@ -1732,6 +1786,26 @@ export function App() {
 									<Icon name="folder" size={15} />
 									Open folder&hellip;
 								</button>
+							)}
+							{hostCanImportZip && (
+								<button className="tb with-icon" onClick={() => zipInput.current?.click()}>
+									<Icon name="folderOpen" size={15} />
+									Open .zip&hellip;
+								</button>
+							)}
+							{hostCanImportZip && (
+								<input
+									ref={zipInput}
+									type="file"
+									accept=".zip,application/zip"
+									hidden
+									onChange={(event) => {
+										const file = event.target.files?.[0];
+										// Cleared, so picking the same zip again is a change.
+										event.target.value = "";
+										if (file) void importZip(file);
+									}}
+								/>
 							)}
 							<button className="tb with-icon" onClick={() => void downloadProject()}>
 								<Icon name="copy" size={15} />

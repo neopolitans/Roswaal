@@ -17,14 +17,16 @@
 import { bootEditor } from "../app/boot.jsx";
 import { useTransport } from "../app/api.js";
 import {
-	setRememberedFolders, useDirectoryOpener, useFolderForgetter, type DirectoryPick,
-	type RememberedFolder,
+	setRememberedFolders, useDirectoryOpener, useFolderForgetter, useZipImporter, type DirectoryPick,
+	type RememberedFolder, type ZipPreview,
 } from "../app/host.js";
+import { unzip } from "../app/unzip.js";
 
 import { canOpenDirectory } from "./directoryFs.js";
 import {
 	askPermissionFor, forgetFolder, permissionFor, rememberedFolders, rememberFolder,
 } from "./remember.js";
+import { keepEntry, projectFromZip } from "./importZip.js";
 import { workerTransport } from "./transport.js";
 
 const worker = new Worker(new URL("./worker.js", import.meta.url), {
@@ -70,7 +72,37 @@ async function openFolder(handle: FileSystemDirectoryHandle): Promise<DirectoryP
  * refuses without a gesture, which is what stops a page helping itself to
  * somebody's home directory.
  */
+/**
+ * A project from a zip: read here, handed to the worker only once the editor
+ * has said yes, so a zip that is picked and then declined replaces nothing.
+ */
+async function readProjectZip(file: File): Promise<ZipPreview> {
+	const project = projectFromZip(file.name, await unzip(await file.arrayBuffer(), keepEntry));
+	const count = Object.keys(project.files).length;
+	if (count === 0) throw new Error("There is no project in this zip: it has no text files in it.");
+
+	const send = (initialise?: boolean) =>
+		transport.importProject(project.name, project.files, project.dirs, initialise);
+	return {
+		name: project.name,
+		files: count,
+		open: async () => {
+			const opened = await send();
+			const pick: DirectoryPick = "root" in opened ? opened : {
+				notAProject: opened.notAProject,
+				initialise: async () => {
+					const made = await send(true);
+					if (!("root" in made)) throw new Error("It could not be set up.");
+					return made;
+				},
+			};
+			return { pick, skipped: project.skipped };
+		},
+	};
+}
+
 async function start(): Promise<void> {
+	useZipImporter(readProjectZip);
 	if (!canOpenDirectory()) {
 		bootEditor();
 		return;

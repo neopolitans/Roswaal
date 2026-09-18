@@ -223,6 +223,48 @@ export async function forgetRememberedFolder(): Promise<void> {
 	await forgetter?.();
 }
 
+/**
+ * Opening a project from a zip, in place of the one the browser holds.
+ *
+ * Installed by the hosted editor, as the folder opener is, and for the same
+ * reason: unpacking and the worker are `src/web`'s. Offered in every browser,
+ * which is the point of it -- Safari and an iPad cannot open a folder, and can
+ * pick a zip from the Files app.
+ */
+export interface ZipImport {
+	/** Opened, or waiting on a yes to set it up. The same answer a folder gives. */
+	pick: DirectoryPick;
+	/** Files the zip had and the project does not, with why. */
+	skipped: { path: string; reason: string }[];
+}
+
+/** What `zipName` would open as, before anything is replaced. */
+export interface ZipPreview {
+	name: string;
+	files: number;
+	open: () => Promise<ZipImport>;
+}
+
+export type ZipImporter = (file: File) => Promise<ZipPreview>;
+
+let zipImporter: ZipImporter | null = null;
+
+export function useZipImporter(next: ZipImporter): void {
+	zipImporter = next;
+	announce();
+}
+
+/** Reads a zip and says what is in it. Nothing is replaced until `open`. */
+export async function readZip(file: File): Promise<ZipPreview> {
+	if (!zipImporter) throw new Error("This copy of Roswaal cannot open a zip.");
+	return zipImporter(file);
+}
+
+/** Whether this build can open a project from a zip, redrawing when that changes. */
+export function useCanImportZip(): boolean {
+	return useSyncExternalStore(subscribe, () => zipImporter !== null, () => false);
+}
+
 /** `canOpenDirectory`, for a component that should redraw when it is installed. */
 export function useCanOpenDirectory(): boolean {
 	return useSyncExternalStore(subscribe, () => opener !== null, () => false);

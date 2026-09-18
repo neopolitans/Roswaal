@@ -50,12 +50,19 @@ interface Document {
 	 * exactly as they did, with the directories their files imply.
 	 */
 	dirs?: string[];
+	/**
+	 * Where the project sits on the volume: `/demo`, or `/<name>` for one
+	 * that came in as a zip. Absent on a document written before import
+	 * existed, which was always the demo's.
+	 */
+	root?: string;
 }
 
 /** What a restore hands back: the files, and the directories among them. */
 export interface RestoredVolume {
 	files: VolumeSnapshot;
 	dirs: string[];
+	root?: string;
 }
 
 export interface Persistence {
@@ -97,6 +104,7 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 		const taken = take();
 		const document: Document = {
 			format: 1, version, files: taken.files, dirs: taken.dirs,
+			...(taken.root ? { root: taken.root } : {}),
 		};
 		try {
 			await store.write(JSON.stringify(document));
@@ -127,6 +135,9 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 					dirs: Array.isArray(parsed.dirs)
 						? parsed.dirs.filter((at): at is string => typeof at === "string")
 						: [],
+					...(typeof parsed.root === "string" && parsed.root.startsWith("/")
+						? { root: parsed.root }
+						: {}),
 				};
 			} catch (err) {
 				failure = (err as Error).message || "The stored project could not be read.";

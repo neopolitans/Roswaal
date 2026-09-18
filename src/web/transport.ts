@@ -26,6 +26,9 @@ export interface WorkerTransport {
 	 */
 	mount: (handle: FileSystemDirectoryHandle, initialise?: boolean)
 		=> Promise<{ root: string } | { notAProject: string }>;
+	/** A project out of a zip, replacing the browser's own. Answers as `mount` does. */
+	importProject: (name: string, files: Record<string, string>, dirs: string[], initialise?: boolean)
+		=> Promise<{ root: string } | { notAProject: string }>;
 }
 
 export function workerTransport(worker: Worker): WorkerTransport {
@@ -129,11 +132,28 @@ export function workerTransport(worker: Worker): WorkerTransport {
 		});
 	};
 
+	/** A project out of a zip, replacing the browser's. See `importZip.ts`. */
+	const importProject = (
+		name: string, files: Record<string, string>, dirs: string[], initialise?: boolean,
+	) => {
+		const id = nextId++;
+		return new Promise<{ root: string } | { notAProject: string }>((resolve, reject) => {
+			pending.set(id, (reply) => {
+				const payload = reply.payload as
+					{ root?: string; code?: string; name?: string; error?: string };
+				if (reply.status === 200) resolve({ root: payload.root! });
+				else if (payload.code === "not-a-project") resolve({ notAProject: payload.name! });
+				else reject(new Error(payload.error ?? "It would not open."));
+			});
+			worker.postMessage({ kind: "import", id, name, files, dirs, initialise });
+		});
+	};
+
 	const flush = () => worker.postMessage({ kind: "flush" });
 	document.addEventListener("visibilitychange", () => {
 		if (document.visibilityState === "hidden") flush();
 	});
 	window.addEventListener("pagehide", flush);
 
-	return { request, events, mount };
+	return { request, events, mount, importProject };
 }

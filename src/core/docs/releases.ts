@@ -94,6 +94,17 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.73.0",
+		date: "2026-09-18",
+		headline: "Open a project from a zip.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Open .zip…** in the web app's projects panel opens a project from a zip, in every browser — on an iPad, from the Files app. It replaces the project kept in the browser, after asking, and takes the name of the folder the zip wraps it in. **Download** makes a zip it opens.",
+			"**What does not come in is listed.** A zip's `.git`, `node_modules` and the files a Mac or Windows adds are left out, and so is anything that is not text, such as a place file.",
+			"**A zip without roswaal.json** can be set up as a project, as a folder can.",
+		],
+	},
+	{
 		version: "0.72.0",
 		date: "2026-09-18",
 		headline: "A map of the editor and Node Design.",

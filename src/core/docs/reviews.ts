@@ -82,7 +82,12 @@ export const REVIEWS: Record<
 	// tablet and a phone, for 0.72.0.
 	"the-interface": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
 	// Read by the author for 0.72.0, with its three ways in.
-	"getting-started": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
+	"getting-started": {
+		status: "verified",
+		date: "2026-09-18",
+		reviewers: ["neopolitans"],
+		verify: "Open .zip… on the Desktop (Webapp) and Mobile (Webapp) tabs, added in 0.73.0.",
+	},
 	// Verified with the author, once it had pictures for every section.
 	"wires-and-pins": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	// Verified with the author. Settings once its rojoProject line said what

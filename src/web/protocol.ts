@@ -78,5 +78,23 @@ export interface MountMessage {
 	initialise?: boolean;
 }
 
-export type ToWorker = ApiRequestMessage | FlushMessage | MountMessage;
+/**
+ * A project out of a zip, replacing the one the browser holds.
+ *
+ * The files and not the archive: unpacking needs nothing a worker lacks, but
+ * deciding what counts as the project is easier to test on the main thread's
+ * side of the line, and it is a few hundred kilobytes of text either way.
+ */
+export interface ImportMessage {
+	kind: "import";
+	id: number;
+	name: string;
+	/** Path below the project root, to contents. */
+	files: Record<string, string>;
+	dirs: string[];
+	/** Set it up as a Roswaal project when it has no `roswaal.json`. */
+	initialise?: boolean;
+}
+
+export type ToWorker = ApiRequestMessage | FlushMessage | MountMessage | ImportMessage;
 export type FromWorker = ApiResponseMessage | ApiEventMessage;

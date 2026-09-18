@@ -63,20 +63,28 @@ const session = new ApiSession({
  * working in wants what they left; somebody arriving for the first time has
  * nothing stored and gets the demo. Neither needs to be asked.
  */
+/**
+ * Where the browser's own project is on the volume: the demo's root until a
+ * zip replaces it, and then the name that zip carried.
+ */
+let playgroundRoot = PLAYGROUND_ROOT;
+
 const ready = (async () => {
 	const stored = await store.restore();
 	volume.mount(stored ? stored.files : playgroundFiles());
 	// After the files: a directory with nothing in it is not implied by any of
 	// them, and is the whole reason the directories are stored separately.
 	if (stored) volume.mountDirs(stored.dirs);
-	await session.openAt(PLAYGROUND_ROOT);
+	if (stored?.root) playgroundRoot = stored.root;
+	await session.openAt(playgroundRoot);
 })();
 
 /** The volume as it now stands, for the store to write when things settle. */
 function snapshot() {
 	return {
-		files: volume.snapshot(PLAYGROUND_ROOT),
-		dirs: volume.directories(PLAYGROUND_ROOT),
+		files: volume.snapshot(playgroundRoot),
+		dirs: volume.directories(playgroundRoot),
+		root: playgroundRoot,
 	};
 }
 
@@ -202,7 +210,68 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 			// Back to the volume, so a folder that is not a project leaves the
 			// editor with the one it had rather than with nothing.
 			useFilesystem(volume);
-			await session.openAt(PLAYGROUND_ROOT).catch(() => {});
+			await session.openAt(playgroundRoot).catch(() => {});
+			post({
+				kind: "response",
+				id: message.id,
+				status: 400,
+				payload: { error: (err as Error).message },
+			});
+		}
+		return;
+	}
+
+	/**
+	 * A project from a zip, in place of the one the browser was holding.
+	 *
+	 * Replaced rather than added beside: the browser holds one project, the
+	 * way the daemon serves one. The editor has already asked, and offered a
+	 * download of the old one first. Mounted at the zip's own name, so the
+	 * editor, the window title and the next Download all call it what its
+	 * owner does.
+	 */
+	if (message?.kind === "import") {
+		await ready;
+		const before = snapshot();
+		const next = `/${message.name}`;
+		try {
+			if (!("roswaal.json" in message.files) && !message.initialise) {
+				post({
+					kind: "response",
+					id: message.id,
+					status: 409,
+					payload: { code: "not-a-project", name: message.name },
+				});
+				return;
+			}
+			// From a folder on disk, if one was open: the zip replaces the
+			// browser's project, and that is what the editor shows next.
+			useFilesystem(volume);
+			await volume.rm(playgroundRoot, { recursive: true, force: true });
+			await volume.rm(next, { recursive: true, force: true });
+			volume.mount(Object.fromEntries(
+				Object.entries(message.files).map(([rel, text]) => [`${next}/${rel}`, text]),
+			));
+			volume.mountDirs([next, ...message.dirs.map((dir) => `${next}/${dir}`)]);
+			if (!("roswaal.json" in message.files)) await initProject(next);
+			playgroundRoot = next;
+			const project = await session.openAt(next);
+			store.touch(snapshot);
+			await store.flush();
+			post({
+				kind: "response",
+				id: message.id,
+				status: 200,
+				payload: { root: project.root, config: project.config, packErrors: project.packErrors },
+			});
+		} catch (err) {
+			// Back to what the browser held, so a zip that would not open costs
+			// nothing.
+			await volume.rm(next, { recursive: true, force: true }).catch(() => {});
+			volume.mount(before.files);
+			volume.mountDirs(before.dirs);
+			playgroundRoot = before.root;
+			await session.openAt(playgroundRoot).catch(() => {});
 			post({
 				kind: "response",
 				id: message.id,

@@ -1220,7 +1220,8 @@ const GETTING_STARTED: DocPage = {
 							t: "p",
 							text:
 								"In Chrome or Edge, **Open folder…** in the projects panel works on a folder on " +
-								"your own machine instead. **Download** takes a project out as files.",
+								"your own machine instead. **Download** takes a project out as a zip, and " +
+								"**Open .zip…** brings one in.",
 						},
 					],
 				},
@@ -1240,8 +1241,10 @@ const GETTING_STARTED: DocPage = {
 						{
 							t: "p",
 							text:
-								"Your project is kept in the browser. An iPad Mini is the smallest screen it is " +
-								"made for; a phone is best for reading graphs.",
+								"Your project is kept in the browser. To bring one from a computer, zip its " +
+								"folder, send it to the device, and pick it with **Open .zip…** in the projects " +
+								"panel. An iPad Mini is the smallest screen it is made for; a phone is best for " +
+								"reading graphs.",
 						},
 					],
 				},
