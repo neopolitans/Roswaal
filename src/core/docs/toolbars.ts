@@ -116,7 +116,7 @@ export type ToolbarItem = Documented &
 				tint?: "preview" | "canary";
 		  }
 		/** An icon on its own: the shape of most of the chrome. */
-		| { t: "icon"; icon: string; on?: boolean }
+		| { t: "icon"; icon: string; on?: boolean; primary?: boolean }
 		/** A button with words, and an icon before them when it has one. */
 		| { t: "button"; text: string; icon?: string; primary?: boolean; on?: boolean }
 		/** A pair or trio of buttons where one is lit: a setting, not an action. */
@@ -202,6 +202,8 @@ export interface ToolbarGroup {
 	 * legend has to describe them.
 	 */
 	apart?: boolean;
+	/** Starts a second row of the bar, as a phone's top bar wraps into one. */
+	row?: boolean;
 	items: ToolbarItem[];
 }
 
@@ -224,6 +226,11 @@ export interface ToolbarSpec {
 	/** One line: where this bar is and what it acts on. */
 	summary: string;
 	chrome: ToolbarChrome;
+	/**
+	 * Drawn at a tablet's or a phone's width rather than the page's, so it
+	 * wraps where the real one wraps, by the same stylesheet.
+	 */
+	device?: "tablet" | "phone";
 	groups: ToolbarGroup[];
 }
 
@@ -310,7 +317,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			);
 		case "icon":
 			return (
-				`<button type="button" tabindex="-1"${tie} class="tb icon-only${item.on ? " on" : ""}">` +
+				`<button type="button" tabindex="-1"${tie} class="tb icon-only${item.on ? " on" : ""}${item.primary ? " primary" : ""}">` +
 				`${iconSvg(item.icon, 16, art)}</button>`
 			);
 		case "button":
@@ -437,7 +444,8 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 	const gapClass = spec.chrome === "head" ? "grow" : "spacer";
 	const inner = spec.groups
 		.map((group) => {
-			const gap = group.apart ? `<span class="${gapClass}"></span>` : "";
+			const gap = (group.row ? `<span class="docs-bar-break"></span>` : "") +
+				(group.apart ? `<span class="${gapClass}"></span>` : "");
 			const items = group.items.map((item) => itemHtml(item, art)).join("");
 			// A floating bar's groups are separate panels over the canvas; a bar
 			// and a page header are one strip, so their groups are only an
@@ -455,7 +463,7 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 		.join("");
 
 	return (
-		`<div class="docs-bar-frame ${escapeXml(spec.chrome)}" aria-hidden="true">` +
+		`<div class="docs-bar-frame ${escapeXml(spec.chrome)}${spec.device ? ` device-${spec.device}` : ""}" aria-hidden="true">` +
 		`<div class="${CHROME_CLASS[spec.chrome]}">${inner}</div></div>`
 	);
 }
@@ -933,6 +941,7 @@ export const DOCS_SITE_BAR: ToolbarSpec = {
 			items: [
 				{
 					t: "mark",
+					tint: "preview",
 					text: "Docs",
 					version: true,
 					name: "The mark, and Docs",
@@ -1195,6 +1204,207 @@ export const FUNCTIONS_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
 	locals: POINTERS.locals,
 });
 
+// ---------------------------------------------------------------------------
+// The same bars on a tablet and a phone
+//
+// Drawn whole, so the reader can find their place in them, and listing only
+// what is different -- the rest is named under the Desktop tab above.
+// ---------------------------------------------------------------------------
+
+/** The editor's top bar on a tablet held upright. */
+export const EDITOR_BAR_TABLET: ToolbarSpec = {
+	id: "editor-bar-tablet",
+	device: "tablet",
+	title: "The editor's top bar, on a tablet",
+	summary:
+		"Held upright, the same bar with its words folded away. Held sideways it is the web " +
+		"app's bar on a computer. Only what changes is listed.",
+	chrome: "bar",
+	groups: [
+		{
+			items: [
+				{
+					t: "mark", text: "", tint: "preview",
+					name: "The Roswaal mark", where: "far left, in blue",
+					what: "As on a computer. The version beside it steps aside, and is in its tooltip.",
+				},
+				{ t: "icon", icon: "refresh" },
+				{ t: "icon", icon: "newFile" },
+				{ t: "icon", icon: "map" },
+			],
+		},
+		{
+			apart: true,
+			items: [
+				{
+					t: "segmented", options: ["Manual", "Dynamic"], on: 1,
+					name: "Manual | Dynamic", what: "As on a computer, without the Compile caption.",
+				},
+				{ t: "icon", icon: "build", name: "Compile project", what: "Every graph and node map, as its icon." },
+				{ t: "icon", icon: "document" },
+				{ t: "icon", icon: "palette" },
+				{ t: "icon", icon: "settings" },
+			],
+		},
+	],
+};
+
+/** The editor's top bar on a phone: the tablet's, in two rows. */
+export const EDITOR_BAR_PHONE: ToolbarSpec = {
+	id: "editor-bar-phone",
+	device: "phone",
+	title: "The editor's top bar, on a phone",
+	summary: "The tablet's bar, in two rows. Only what changes is listed.",
+	chrome: "bar",
+	groups: [
+		{
+			items: [
+				{ t: "mark", text: "", tint: "preview" },
+				{ t: "icon", icon: "refresh" },
+				{ t: "icon", icon: "newFile" },
+				{ t: "icon", icon: "map" },
+			],
+		},
+		{
+			apart: true,
+			items: [
+				{ t: "segmented", options: ["Manual", "Dynamic"], on: 1 },
+				{ t: "icon", icon: "build" },
+			],
+		},
+		{
+			items: [
+				{
+					t: "icon", icon: "document",
+					name: "Docs, Node Design and Settings", where: "second row, at the left",
+					what: "Under the rest, where the first row has no room for them.",
+				},
+				{ t: "icon", icon: "palette" },
+				{ t: "icon", icon: "settings" },
+			],
+		},
+	],
+};
+
+/** The graph's tools on a tablet held upright. */
+export const GRAPH_BAR_TABLET: ToolbarSpec = {
+	id: "graph-bar-tablet",
+	device: "tablet",
+	title: "The graph's tools, on a tablet",
+	summary:
+		"Held upright, Straighten and Compile script are their icons, so the three groups keep " +
+		"one row. Held sideways they are as on a computer. Only what changes is listed.",
+	chrome: "float",
+	groups: [
+		{ items: [{ t: "select", text: "ModuleScript" }, { t: "select", text: "Strict Mode" }] },
+		{
+			items: [
+				{ t: "icon", icon: "search" },
+				{ t: "icon", icon: "layout" },
+				{ t: "icon", icon: "straighten", on: true, name: "Straighten", what: "As its icon, lit while it is on." },
+				{ t: "icon", icon: "terminal" },
+			],
+		},
+		{
+			apart: true,
+			items: [
+				{ t: "select", text: "Roblox" },
+				{ t: "icon", icon: "build", primary: true, name: "Compile script", what: "As its icon." },
+			],
+		},
+	],
+};
+
+/** The graph's tools on a phone, with its settings behind a button each. */
+export const GRAPH_BAR_PHONE: ToolbarSpec = {
+	id: "graph-bar-phone",
+	device: "phone",
+	title: "The graph's tools, on a phone",
+	summary: "As on a tablet, with the document's settings behind a button each. Only what changes is listed.",
+	chrome: "float",
+	groups: [
+		{
+			items: [
+				{
+					t: "select", text: "Script",
+					name: "Script and mode",
+					what: "The script's type and its typechecking mode, behind one button that names the type. Tap anywhere else to put them away.",
+				},
+			],
+		},
+		{
+			items: [
+				{ t: "icon", icon: "search" },
+				{ t: "icon", icon: "layout" },
+				{ t: "icon", icon: "straighten", on: true },
+				{ t: "icon", icon: "terminal" },
+			],
+		},
+		{
+			apart: true,
+			items: [
+				{
+					t: "select", text: "Roblox",
+					name: "Target", what: "Behind a button that names it. Lune has a warning triangle after its name.",
+				},
+				{ t: "icon", icon: "build", primary: true },
+			],
+		},
+	],
+};
+
+/** Node Design's header on a phone. */
+export const DESIGNER_BAR_PHONE: ToolbarSpec = {
+	id: "designer-bar-phone",
+	device: "phone",
+	title: "Node Design's top bar, on a phone",
+	summary: "The web app's bar, with Docs as its icon so the row holds Settings. Only what changes is listed.",
+	chrome: "head",
+	groups: [
+		{ items: [{ t: "mark", text: "Node Design", tint: "preview" }] },
+		{
+			apart: true,
+			items: [
+				{ t: "icon", icon: "help" },
+				{ t: "icon", icon: "document", name: "Docs", what: "As its icon." },
+				{ t: "button", text: "Open Editor" },
+				{ t: "icon", icon: "settings" },
+			],
+		},
+	],
+};
+
+/** The published documentation's header on a touch screen. */
+export const DOCS_SITE_BAR_TOUCH: ToolbarSpec = {
+	id: "docs-site-bar-touch",
+	device: "tablet",
+	title: "The published documentation's header, on a touch screen",
+	summary:
+		"The contents come out from a button rather than holding a column, and search has a " +
+		"button of its own. Only what changes is listed.",
+	chrome: "head",
+	groups: [
+		{
+			items: [
+				{ t: "mark", text: "Docs", version: true, tint: "preview" },
+				{
+					t: "button", text: "Contents",
+					name: "Contents", what: "Slides the contents out over the page. Tap beside them to put them away.",
+				},
+				{ t: "icon", icon: "search", name: "Search", what: "The search `Ctrl` + `K` opens, for a screen with no keyboard." },
+			],
+		},
+		{
+			apart: true,
+			items: [
+				{ t: "button", text: "Try it in your browser" },
+				{ t: "button", text: "Source" },
+				{ t: "icon", icon: "settings" },
+			],
+		},
+	],
+};
+
 /**
  * The row of edits under the graph on a phone or a tablet.
  *
@@ -1252,8 +1462,10 @@ export const DESIGNER_TOUCH_BAR: ToolbarSpec = {
 
 /** Every bar the documentation draws, in the order the page walks them. */
 export const TOOLBARS: ToolbarSpec[] = [
-	EDITOR_BAR, EDITOR_BAR_BROWSER, GRAPH_BAR, MAP_BAR,
-	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DOCS_BAR, DOCS_SITE_BAR,
+	EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_TABLET, EDITOR_BAR_PHONE,
+	GRAPH_BAR, GRAPH_BAR_TABLET, GRAPH_BAR_PHONE, MAP_BAR,
+	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE,
+	DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH,
 	ACTION_ROW, DESIGNER_TOUCH_BAR,
 ];
 
@@ -1264,7 +1476,10 @@ export const TOOLBARS: ToolbarSpec[] = [
  * drawings as well as against the code: a bar added here without the chip is a
  * page telling somebody they are in the tool when they are in the preview.
  */
-export const BROWSER_TOOLBARS: ToolbarSpec[] = [EDITOR_BAR_BROWSER, DESIGNER_BAR_BROWSER];
+export const BROWSER_TOOLBARS: ToolbarSpec[] = [
+	EDITOR_BAR_BROWSER, EDITOR_BAR_TABLET, EDITOR_BAR_PHONE,
+	DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH,
+];
 
 /**
  * The Variables panel as a particular graph would show it.

@@ -9469,3 +9469,28 @@ select:not(.literal):not([multiple]) {
 	gap: 3px;
 }
 
+/* A bar drawn at a tablet's or a phone's width: the real one's width, so it
+   wraps where the real one does. Only these wrap; a computer's bar is drawn as
+   one line whatever the page's width. */
+.docs-bar-frame.device-tablet {
+	max-width: 760px;
+}
+
+.docs-bar-frame.device-phone {
+	max-width: 409px;
+}
+
+.docs-bar-frame.device-tablet .toolbar,
+.docs-bar-frame.device-phone .toolbar,
+.docs-bar-frame.device-tablet .docs-page-head,
+.docs-bar-frame.device-phone .docs-page-head,
+.docs-bar-frame.device-tablet .floating-tools,
+.docs-bar-frame.device-phone .floating-tools {
+	flex-wrap: wrap;
+}
+
+.docs-bar-frame .docs-bar-break {
+	flex-basis: 100%;
+	height: 0;
+}
+

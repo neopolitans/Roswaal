@@ -371,13 +371,15 @@ describe("the bars the documentation draws", () => {
 	});
 
 	/**
-	 * Both windows the browser build actually serves are drawn. The docs window
-	 * is not, because that build does not serve it — Docs there opens the
-	 * published site, which has its own drawn header.
+	 * Every window of the web app is drawn with its mark: the editor and Node
+	 * Design on a computer and on a phone -- a tablet's Node Design bar is the
+	 * computer's -- the editor on a tablet, and the published documentation's
+	 * header on a computer and on a touch screen.
 	 */
-	it("draws both of the windows that build serves", () => {
+	it("draws every window the web app serves, on each kind of screen", () => {
 		expect(BROWSER_TOOLBARS.map((bar) => bar.id)).toEqual([
-			"editor-bar-browser", "designer-bar-browser",
+			"editor-bar-browser", "editor-bar-tablet", "editor-bar-phone",
+			"designer-bar-browser", "designer-bar-phone", "docs-site-bar", "docs-site-bar-touch",
 		]);
 	});
 

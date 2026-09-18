@@ -34,8 +34,10 @@ import {
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
-	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_TOUCH_BAR, DOCS_BAR, DOCS_SITE_BAR,
-	EDITOR_BAR, EDITOR_BAR_BROWSER, FUNCTIONS_PANEL, GRAPH_BAR, legendOf, MAP_BAR, MODULES_PANEL,
+	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_TOUCH_BAR, DOCS_BAR,
+	DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH, EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE,
+	EDITOR_BAR_TABLET, FUNCTIONS_PANEL, GRAPH_BAR, GRAPH_BAR_PHONE, GRAPH_BAR_TABLET, legendOf,
+	MAP_BAR, MODULES_PANEL,
 	VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec,
 } from "./toolbars.js";
 import {
@@ -1974,17 +1976,27 @@ const TOOLBARS_PAGE: DocPage = {
 		{ t: "h", level: 2, text: "The editor's top bar" },
 		{
 			t: "tabs",
-			label: "Which editor are you in?",
+			label: "Where are you working?",
 			tabs: [
 				{
 					id: "editor-daemon",
-					title: "With the daemon",
+					title: "Desktop (localhost)",
 					blocks: [{ t: "toolbar", bar: EDITOR_BAR, hint: true }],
 				},
 				{
 					id: "editor-browser",
-					title: "In your browser",
+					title: "Desktop (Webapp)",
 					blocks: [{ t: "toolbar", bar: EDITOR_BAR_BROWSER }],
+				},
+				{
+					id: "editor-tablet",
+					title: "Tablet (Webapp)",
+					blocks: [{ t: "toolbar", bar: EDITOR_BAR_TABLET }],
+				},
+				{
+					id: "editor-phone",
+					title: "Phone (Webapp)",
+					blocks: [{ t: "toolbar", bar: EDITOR_BAR_PHONE }],
 				},
 			],
 		},
@@ -2005,7 +2017,15 @@ const TOOLBARS_PAGE: DocPage = {
 				"node you wrote yourself has a page there and not here.",
 		},
 		{ t: "h", level: 2, text: GRAPH_BAR.title },
-		{ t: "toolbar", bar: GRAPH_BAR },
+		{
+			t: "tabs",
+			label: "Where are you working?",
+			tabs: [
+				{ id: "graph-desktop", title: "Desktop", blocks: [{ t: "toolbar", bar: GRAPH_BAR }] },
+				{ id: "graph-tablet", title: "Tablet (Webapp)", blocks: [{ t: "toolbar", bar: GRAPH_BAR_TABLET }] },
+				{ id: "graph-phone", title: "Phone (Webapp)", blocks: [{ t: "toolbar", bar: GRAPH_BAR_PHONE }] },
+			],
+		},
 		{
 			t: "note",
 			kind: "info",
@@ -2033,17 +2053,34 @@ const TOOLBARS_PAGE: DocPage = {
 		{ t: "h", level: 2, text: "Node Design's top bar" },
 		{
 			t: "tabs",
-			label: "Which build are you in?",
+			label: "Where are you working?",
 			tabs: [
 				{
 					id: "designer-daemon",
-					title: "With the daemon",
+					title: "Desktop (localhost)",
 					blocks: [{ t: "toolbar", bar: DESIGNER_BAR }],
 				},
 				{
 					id: "designer-browser",
-					title: "In your browser",
+					title: "Desktop (Webapp)",
 					blocks: [{ t: "toolbar", bar: DESIGNER_BAR_BROWSER }],
+				},
+				{
+					id: "designer-tablet",
+					title: "Tablet (Webapp)",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"The same bar as the web app's on a computer. Over a node, a second bar " +
+								"switches between its preview and its logic: see **Only on a touch screen** below.",
+						},
+					],
+				},
+				{
+					id: "designer-phone",
+					title: "Phone (Webapp)",
+					blocks: [{ t: "toolbar", bar: DESIGNER_BAR_PHONE }],
 				},
 			],
 		},
@@ -2057,17 +2094,34 @@ const TOOLBARS_PAGE: DocPage = {
 		{ t: "h", level: 2, text: "The documentation's top bar" },
 		{
 			t: "tabs",
-			label: "Which copy are you reading?",
+			label: "Which copy are you reading, and on what?",
 			tabs: [
 				{
 					id: "docs-daemon",
-					title: "Served by the daemon",
+					title: "Desktop (localhost)",
 					blocks: [{ t: "toolbar", bar: DOCS_BAR }],
 				},
 				{
 					id: "docs-published",
-					title: "On the project site",
+					title: "Desktop (Webapp)",
 					blocks: [{ t: "toolbar", bar: DOCS_SITE_BAR }],
+				},
+				{
+					id: "docs-tablet",
+					title: "Tablet (Webapp)",
+					blocks: [{ t: "toolbar", bar: DOCS_SITE_BAR_TOUCH }],
+				},
+				{
+					id: "docs-phone",
+					title: "Phone (Webapp)",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"As on a tablet, in two rows: the mark, **Contents** and search, then the " +
+								"rest. The version steps aside.",
+						},
+					],
 				},
 			],
 		},
@@ -2112,11 +2166,12 @@ const TOOLBARS_PAGE: DocPage = {
 				"is deliberate: a project's settings belong to the repository and are changed " +
 				"from the editor, which is the window that has a project open.",
 		},
-		{ t: "h", level: 2, text: "On a phone or a tablet" },
+		{ t: "h", level: 2, text: "Only on a touch screen" },
 		{
 			t: "p",
 			text:
-				"Two bars only a touch screen has. Where they sit is on [The Interface](the-interface).",
+				"Two bars a tablet and a phone have and a computer does not, the same on both. Where " +
+				"they sit is on [The Interface](the-interface).",
 		},
 		{ t: "toolbar", bar: ACTION_ROW },
 		{ t: "toolbar", bar: DESIGNER_TOUCH_BAR },
