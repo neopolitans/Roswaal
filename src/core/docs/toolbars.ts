@@ -107,7 +107,14 @@ export type ToolbarItem = Documented &
 		 * not — the one visible difference between the two editors, and the
 		 * thing a reader on the website is looking at while they read this.
 		 */
-		| { t: "mark"; text?: string; version?: boolean; preview?: boolean }
+		| {
+				t: "mark"; text?: string; version?: boolean; preview?: boolean;
+				/**
+				 * The mark in a build's colour rather than beside a chip: the editor's
+				 * top bar wears it this way. See `MarkedLogo`.
+				 */
+				tint?: "preview" | "canary";
+		  }
 		/** An icon on its own: the shape of most of the chrome. */
 		| { t: "icon"; icon: string; on?: boolean }
 		/** A button with words, and an icon before them when it has one. */
@@ -295,7 +302,8 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			// thing that says which window you are in, and a reader matching the
 			// picture to their screen is matching that shape first.
 			return (
-				`<span class="logo"${tie}>${art.mark}` +
+				`<span class="logo"${tie}>` +
+				`${item.tint ? `<span class="logo-mark mark-${item.tint}">${art.mark}</span>` : art.mark}` +
 				`${item.text ? escapeXml(item.text) : ""}` +
 				`${item.version ? `<span class="version">${escapeXml(art.version)}</span>` : ""}` +
 				`${item.preview ? `<span class="version preview-chip">preview</span>` : ""}</span>`
@@ -473,13 +481,13 @@ export const EDITOR_BAR: ToolbarSpec = {
 				{
 					t: "mark",
 					text: "",
-					version: true,
 					name: "The Roswaal mark",
 					where: "far left",
 					what:
 						"Opens the project menu: the project you have open, the ones you opened " +
-						"before, and a folder dialog for anything else. The version beside it is " +
-						"the build you are on, which is the first thing any bug report needs.",
+						"before, and a folder dialog for anything else. That panel shows the version " +
+						"you are on, which is the first thing any bug report needs, and so does the " +
+						"mark's tooltip.",
 				},
 				{
 					t: "icon",
@@ -819,12 +827,11 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 				{
 					t: "mark",
 					text: "",
-					version: true,
-					preview: true,
+					tint: "preview",
 					name: "The Roswaal mark",
-					where: "far left, with a preview chip",
+					where: "far left, in blue",
 					what:
-						"Opens the project menu. **Your project is kept in this browser**, not on " +
+						"Opens the project menu. Blue means the browser preview: **your project is kept in this browser**, not on " +
 						"your disk — it survives a reload and it is gone if you clear the site's " +
 						"data. The menu offers a folder on your own machine instead, where the " +
 						"browser allows it.",

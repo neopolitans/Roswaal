@@ -1165,21 +1165,79 @@ const GETTING_STARTED: DocPage = {
 		},
 		{ t: "h", level: 2, text: "Open a project" },
 		{
-			t: "code",
-			lang: "sh",
-			text: "cd my-game\nroswaal init      # creates roswaal.json and .roswaal/\nroswaal serve     # opens the editor on 127.0.0.1:4471",
-		},
-		{
 			t: "p",
 			text:
-				"`.roswaal/` holds your graphs and is **source, not cache** — commit it. The `src/` " +
-				"directory holds what Roswaal generates from them.",
+				"Three ways in, all the same editor: installed on your computer, in a browser on your " +
+				"computer, or in a browser on a tablet or a phone.",
+		},
+		{
+			t: "tabs",
+			label: "Where are you working?",
+			tabs: [
+				{
+					id: "start-localhost",
+					title: "Desktop (localhost)",
+					blocks: [
+						{
+							t: "code",
+							lang: "sh",
+							text: "cd my-game\nroswaal init      # creates roswaal.json and .roswaal/\nroswaal serve     # opens the editor on 127.0.0.1:4471",
+						},
+						{
+							t: "p",
+							text:
+								"The editor opens in your browser and writes straight into your project. " +
+								"`.roswaal/` holds your graphs and is **source, not cache** — commit it. The " +
+								"`src/` directory holds what Roswaal generates from them.",
+						},
+					],
+				},
+				{
+					id: "start-webapp",
+					title: "Desktop (Webapp)",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"Nothing to install: open [the web app](https://neopolitans.github.io/Roswaal/try.html) " +
+								"and start from the demo. Your project is kept in that browser, and the " +
+								"Roswaal mark is blue to say so.",
+						},
+						{
+							t: "p",
+							text:
+								"In Chrome or Edge, **Open folder…** in the projects panel works on a folder on " +
+								"your own machine instead. **Download** takes a project out as files.",
+						},
+					],
+				},
+				{
+					id: "start-mobile",
+					title: "Mobile (Webapp)",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"The same web app on an iPad or a phone, laid out for a finger: the panels slide " +
+								"out over the graph, and the edits a keyboard makes are buttons under it. " +
+								"[The Interface](the-interface) shows where everything goes, and " +
+								"[Controls](controls) has the gestures.",
+						},
+						{
+							t: "p",
+							text:
+								"Your project is kept in the browser. An iPad Mini is the smallest screen it is " +
+								"made for; a phone is best for reading graphs.",
+						},
+					],
+				},
+			],
 		},
 		{ t: "h", level: 2, text: "Your first script" },
 		{
 			t: "ol",
 			items: [
-				"Right-click the project tree and make a new graph.",
+				"Right-click the project tree and make a new graph. On a touch screen, press and hold instead of right-clicking.",
 				"Every script starts at a red **Script Start** node. Nothing runs without one.",
 				"Right-click the canvas, search for `Print`, and wire Script Start's execution pin into it.",
 				"Type something into the Value pin.",
@@ -1189,9 +1247,10 @@ const GETTING_STARTED: DocPage = {
 		{
 			t: "p",
 			text:
-				"Most of the chrome is icons, and [Toolbars](toolbars) draws every bar with its " +
-				"buttons named — including the three at the right-hand end of the top bar, which " +
-				"are Docs, Node Design and Settings.",
+				"[The Interface](the-interface) shows what each part of the screen is. Most of the " +
+				"chrome is icons, and [Toolbars](toolbars) draws every bar with its buttons named — " +
+				"including the three at the right-hand end of the top bar, which are Docs, Node " +
+				"Design and Settings.",
 		},
 		{
 			t: "code",
@@ -1881,8 +1940,9 @@ const TOOLBARS_PAGE: DocPage = {
 		{
 			t: "p",
 			text:
-				"All three open in **their own window** rather than over the canvas, so nothing " +
-				"appears to happen on the page you were on. Look for a new tab.",
+				"On a computer all three open in **their own window** rather than over the canvas, " +
+				"so nothing appears to happen on the page you were on: look for a new tab. On a " +
+				"phone or a tablet they take turns in the one tab, and the back button returns.",
 		},
 		{
 			t: "note",
@@ -1892,8 +1952,9 @@ const TOOLBARS_PAGE: DocPage = {
 				"the **browser preview** on the project site — the same build, running in a tab, " +
 				"on a project kept in that browser rather than in your repository.",
 			items: [
-				"**Every window of the preview is marked** `preview`**, beside the version.** If you " +
-					"can see that chip, your work is in this browser and not on your disk.",
+				"**Every window of the preview is marked.** The editor's mark is blue — yellow on the " +
+					"canary — and Node Design carries a `preview` chip. If you can see either, " +
+					"your work is in this browser and not on your disk.",
 				"The bars are otherwise the same bars. Where one reaches something different, " +
 					"both are drawn below under a switch.",
 			],

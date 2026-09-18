@@ -11,6 +11,7 @@
  * rendering the component and cannot get it half right.
  */
 
+import { Logo } from "./logo.jsx";
 import { IS_CANARY, IS_STATIC_HOST } from "./pages.js";
 import {
 	CANARY_BANNER, MARK_LABEL, MARK_ON_SURFACE, type BuildMark,
@@ -46,6 +47,28 @@ export function PreviewChip({ title }: { title?: string } = {}) {
 			{MARK_LABEL[mark]}
 		</span>
 	);
+}
+
+/**
+ * The Roswaal logo, in the colour of the build: blue for the browser preview,
+ * the canary's yellow for the canary, and its own colour for an installed
+ * build. The editor's top bar wears the mark this way rather than as a chip:
+ * the bar is the one short of room, and the chip and the version beside it
+ * were two words on a row that has none to spare. The version and the words
+ * the chip said are in the mark's tooltip instead, and the mark opens the
+ * panel that shows both.
+ *
+ * The same rule as the chip -- every surface carries its mark -- by the same
+ * route, one component, so the colour is decided in one place.
+ */
+export function MarkedLogo({ height = 17 }: { height?: number } = {}) {
+	return <Logo height={height} className={`mark-${buildMark() ?? "stable"}`} />;
+}
+
+/** What the mark means, for a tooltip beside a tinted logo. Empty for a stable build. */
+export function markTooltip(): string {
+	const mark = buildMark();
+	return mark === null ? "" : `${MARK_LABEL[mark][0].toUpperCase()}${MARK_LABEL[mark].slice(1)}. ${MARK_ON_SURFACE[mark]}`;
 }
 
 /**

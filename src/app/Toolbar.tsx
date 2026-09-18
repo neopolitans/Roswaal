@@ -33,9 +33,8 @@ import type { RoswaalConfig, ScriptClass, Target, TypecheckMode } from "../core/
 import { VERSION } from "../cli/version.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
-import { Logo } from "./logo.jsx";
 import { IS_STATIC_HOST } from "./pages.js";
-import { PreviewChip } from "./previewBuild.jsx";
+import { MarkedLogo, markTooltip } from "./previewBuild.jsx";
 
 export interface ProjectBarProps {
 	config: RoswaalConfig;
@@ -68,23 +67,18 @@ export function ProjectBar(props: ProjectBarProps) {
 
 			    It is also the way back out: the mark opens the introduction
 			    panel, which is where an application's own icon is looked for. */}
+			{/* Which kind of build this is, as the logo's colour: blue for the
+			    browser preview, yellow for the canary, plain for an installed
+			    build. The version and the words are the tooltip, and the panel
+			    the mark opens shows the version too -- the row itself had no
+			    room for either. See `MarkedLogo` for why that is still the rule. */}
 			<button
 				className="logo"
-				title={IS_STATIC_HOST
-					? `Roswaal ${VERSION}, running in your browser. Your project is kept in this browser only.`
-					: `Roswaal ${VERSION} — recent projects, the demos, and the other windows`}
+				title={`Roswaal ${VERSION}. ${markTooltip() || "Recent projects, the demos, and the other windows."}`}
+				aria-label={`Roswaal ${VERSION}`}
 				onClick={() => props.onOpenIntro()}
 			>
-				<Logo height={17} />
-				{/* Small, always there. Knowing which build you are looking at
-				    is the first question about any bug report. */}
-				<span className="version">{VERSION}</span>
-				{/* And *which kind* of build, which is the second question. A
-				    shared link lands on the editor rather than on the page that
-				    explains what it is, so the editor has to say. One component
-				    for every surface of the browser build -- see
-				    `previewBuild.tsx` for why that is a rule. */}
-				<PreviewChip />
+				<MarkedLogo height={17} />
 			</button>
 
 			{/* Icons, with the label as the tooltip. A toolbar is read by shape

@@ -108,8 +108,10 @@ describe("the toolbar specs", () => {
 	 * held in `previewbuild.test.ts` against `BROWSER_TOOLBARS` — here only as
 	 * far as the browser editor having one at all.
 	 */
-	it("draws the preview chip on the browser editor's bar", () => {
-		expect(toolbarHtml(EDITOR_BAR_BROWSER, art)).toContain("preview-chip");
+	/** The editor's top bar wears the preview as the mark's colour, not a chip. */
+	it("draws the browser editor's mark in the preview's colour", () => {
+		expect(toolbarHtml(EDITOR_BAR_BROWSER, art)).toContain("mark-preview");
+		expect(toolbarHtml(EDITOR_BAR, art)).not.toContain("mark-preview");
 		expect(toolbarHtml(EDITOR_BAR, art)).not.toContain("preview-chip");
 	});
 
@@ -199,7 +201,9 @@ describe("drawing one", () => {
 	});
 
 	it("takes the version it is given rather than holding one", () => {
-		expect(toolbarHtml(TOOLBARS[0], art)).toContain(">test<");
+		const shown = TOOLBARS.find((bar) =>
+			bar.groups.some((g) => g.items.some((i) => i.t === "mark" && i.version)))!;
+		expect(toolbarHtml(shown, art)).toContain(">test<");
 	});
 
 	/** Inert: nothing in the picture is reachable, and none of it is announced. */

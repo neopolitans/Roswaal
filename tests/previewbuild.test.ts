@@ -58,9 +58,14 @@ const SURFACES = [
 ];
 
 describe("the rule", () => {
+	/**
+	 * The chip, or the tinted mark the editor's top bar wears instead -- the
+	 * same claim in the same component file, drawn as a colour where the bar
+	 * has no room for a word.
+	 */
 	it("puts every surface of the browser build through one component", () => {
 		for (const path of SURFACES) {
-			expect(source(path), path).toContain("<PreviewChip");
+			expect(source(path), path).toMatch(/<PreviewChip|<MarkedLogo/);
 			expect(source(path), path).toContain("previewBuild.jsx");
 		}
 	});
@@ -358,10 +363,10 @@ describe("the bars the documentation draws", () => {
 
 	it("marks every browser bar and no daemon bar", () => {
 		for (const bar of BROWSER_TOOLBARS) {
-			expect(toolbarHtml(bar, art), bar.id).toContain("preview-chip");
+			expect(toolbarHtml(bar, art), bar.id).toMatch(/preview-chip|mark-preview/);
 		}
 		for (const bar of TOOLBARS.filter((b) => !BROWSER_TOOLBARS.includes(b))) {
-			expect(toolbarHtml(bar, art), bar.id).not.toContain("preview-chip");
+			expect(toolbarHtml(bar, art), bar.id).not.toMatch(/preview-chip|mark-preview/);
 		}
 	});
 

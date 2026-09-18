@@ -4435,6 +4435,16 @@ button.tb.icon-only.on {
 	--chip-ink: var(--accent);
 }
 
+/* The same claim as a colour, on the logo the editor's top bar wears in place
+   of the chip: see `MarkedLogo`. */
+.logo-mark.mark-preview {
+	color: var(--accent);
+}
+
+.logo-mark.mark-canary {
+	color: var(--warning);
+}
+
 .version.preview-chip.canary {
 	--chip-ink: var(--warning);
 	border-color: color-mix(in srgb, var(--warning) 55%, transparent);
