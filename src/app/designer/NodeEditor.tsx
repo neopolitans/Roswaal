@@ -46,6 +46,7 @@ import {
 } from "./draft.js";
 import { LogicCanvas } from "./LogicCanvas.jsx";
 import { useCompact } from "../Workspace.jsx";
+import { Popout, usePhone } from "../Popout.jsx";
 import { LuauField } from "./LuauField.jsx";
 import type { Notify } from "./PackBrowser.jsx";
 
@@ -147,6 +148,8 @@ export function NodeEditor({
 	 * five-pixel target for a finger.
 	 */
 	const split = useCompact();
+	/** On a phone the node's tools fold behind buttons: see `Popout`. */
+	const phone = usePhone();
 	const [view, setView] = useState<"preview" | "logic">("preview");
 	const stage = useRef<HTMLDivElement>(null);
 	const [size, setSize] = useState({ w: 900, h: 500 });
@@ -358,6 +361,101 @@ export function NodeEditor({
 		</div>
 	);
 
+	// The node's tools, each written once and drawn inline or, on a phone,
+	// behind a button. See `Popout`.
+	const typeChips = (
+		<>
+			{PALETTE.map((type) => (
+							<span
+								key={type}
+								className="pin-chip"
+								draggable
+								onDragStart={(e) => {
+									e.dataTransfer.setData(PIN_DRAG, type);
+									e.dataTransfer.effectAllowed = "copy";
+								}}
+							>
+								<span
+									className={`chip-dot ${type === "exec" ? "exec" : "data"}`}
+									style={{ color: pinColor(type === "exec" ? undefined : type, type === "exec" ? "exec" : "data") }}
+								/>
+								{type === "exec" ? "Execution" : type}
+							</span>
+						))}
+		</>
+	);
+	const pinCounts = (
+		<>
+						<span className="tool-label">Inputs</span>
+						<button className="tb icon-only" title="Take the last input off" onClick={() => removeLast("in")}>−</button>
+						<button className="tb icon-only" title="Add an input" onClick={() => structural((d) => addPin(d, "in", "any"))}>+</button>
+						<span className="divider" />
+						<span className="tool-label">Outputs</span>
+						<button className="tb icon-only" title="Take the last output off" onClick={() => removeLast("out")}>−</button>
+						<button className="tb icon-only" title="Add an output" onClick={() => structural((d) => addPin(d, "out", "any"))}>+</button>
+		</>
+	);
+	const nodeKind = (
+		<>
+						<span
+							className={`badge${purity === "unrunnable" ? " warn" : ""}`}
+							title={
+								purity === "pure"
+									? "No execution pins: a value, evaluated where it is used."
+									: purity === "impure"
+										? "Has an execution input: a step, run where it sits."
+										: "An execution output with no input: nothing can run it."
+							}
+						>
+							{purity === "pure" ? "Pure" : purity === "impure" ? "Impure" : "Cannot run"}
+						</span>
+						{purity === "pure" && (
+							<div className="segmented">
+								<button
+									className={draft.display === "normal" ? "on" : ""}
+									onClick={() => update((d) => ({ ...d, display: "normal" }))}
+								>
+									Normal
+								</button>
+								<button
+									className={draft.display === "compact" ? "on" : ""}
+									disabled={!pill.ok}
+									title={pill.ok ? "Drawn as a pill, like a getter" : pill.reason}
+									onClick={() => update((d) => ({ ...d, display: "compact" }))}
+								>
+									Pill
+								</button>
+							</div>
+						)}
+						<span className="divider" />
+						{original &&
+							(confirmDelete ? (
+								<>
+									<span className="tool-label">Delete {original.title}?</span>
+									<button
+										className="tb danger"
+										onClick={async () => {
+											try {
+												await api.deletePackNode(packPath, original.id);
+												notify(`${original.title} was deleted.`);
+												onDeleted();
+											} catch (err) {
+												notify((err as Error).message, "failed");
+											}
+										}}
+									>
+										Delete
+									</button>
+									<button className="tb" onClick={() => setConfirmDelete(false)}>Keep</button>
+								</>
+							) : (
+								<button className="tb icon-only" title="Delete this node…" onClick={() => setConfirmDelete(true)}>
+									<Icon name="remove" size={15} />
+								</button>
+							))}
+		</>
+	);
+
 	return (
 		<div className={`node-editor${split ? ` split view-${view}` : ""}`}>
 			{split && (() => {
@@ -449,95 +547,34 @@ export function NodeEditor({
 							onClick={toggleDetails}
 						>
 							<Icon name="rename" size={15} />
-							Details
+							{phone ? <span className="visually-hidden">Details</span> : "Details"}
 						</button>
 					</ToolGroup>
 					<ToolGroup title="Drag a type onto the node: the left half adds an input, the right half an output.">
-						{PALETTE.map((type) => (
-							<span
-								key={type}
-								className="pin-chip"
-								draggable
-								onDragStart={(e) => {
-									e.dataTransfer.setData(PIN_DRAG, type);
-									e.dataTransfer.effectAllowed = "copy";
-								}}
-							>
-								<span
-									className={`chip-dot ${type === "exec" ? "exec" : "data"}`}
-									style={{ color: pinColor(type === "exec" ? undefined : type, type === "exec" ? "exec" : "data") }}
-								/>
-								{type === "exec" ? "Execution" : type}
-							</span>
-						))}
+						{phone ? (
+							<Popout label="Types" title="Types to drag onto the node">
+								<div className="pin-chip-grid">{typeChips}</div>
+							</Popout>
+						) : typeChips}
 					</ToolGroup>
 					<ToolGroup>
-						<span className="tool-label">Inputs</span>
-						<button className="tb icon-only" title="Take the last input off" onClick={() => removeLast("in")}>−</button>
-						<button className="tb icon-only" title="Add an input" onClick={() => structural((d) => addPin(d, "in", "any"))}>+</button>
-						<span className="divider" />
-						<span className="tool-label">Outputs</span>
-						<button className="tb icon-only" title="Take the last output off" onClick={() => removeLast("out")}>−</button>
-						<button className="tb icon-only" title="Add an output" onClick={() => structural((d) => addPin(d, "out", "any"))}>+</button>
+						{phone ? (
+							<Popout label="Pins" title="How many inputs and outputs">
+								<div className="pin-counts">{pinCounts}</div>
+							</Popout>
+						) : pinCounts}
 					</ToolGroup>
 					<span className="spacer" />
 					<ToolGroup>
-						<span
-							className={`badge${purity === "unrunnable" ? " warn" : ""}`}
-							title={
-								purity === "pure"
-									? "No execution pins: a value, evaluated where it is used."
-									: purity === "impure"
-										? "Has an execution input: a step, run where it sits."
-										: "An execution output with no input: nothing can run it."
-							}
-						>
-							{purity === "pure" ? "Pure" : purity === "impure" ? "Impure" : "Cannot run"}
-						</span>
-						{purity === "pure" && (
-							<div className="segmented">
-								<button
-									className={draft.display === "normal" ? "on" : ""}
-									onClick={() => update((d) => ({ ...d, display: "normal" }))}
-								>
-									Normal
-								</button>
-								<button
-									className={draft.display === "compact" ? "on" : ""}
-									disabled={!pill.ok}
-									title={pill.ok ? "Drawn as a pill, like a getter" : pill.reason}
-									onClick={() => update((d) => ({ ...d, display: "compact" }))}
-								>
-									Pill
-								</button>
-							</div>
-						)}
-						<span className="divider" />
-						{original &&
-							(confirmDelete ? (
-								<>
-									<span className="tool-label">Delete {original.title}?</span>
-									<button
-										className="tb danger"
-										onClick={async () => {
-											try {
-												await api.deletePackNode(packPath, original.id);
-												notify(`${original.title} was deleted.`);
-												onDeleted();
-											} catch (err) {
-												notify((err as Error).message, "failed");
-											}
-										}}
-									>
-										Delete
-									</button>
-									<button className="tb" onClick={() => setConfirmDelete(false)}>Keep</button>
-								</>
-							) : (
-								<button className="tb icon-only" title="Delete this node…" onClick={() => setConfirmDelete(true)}>
-									<Icon name="remove" size={15} />
-								</button>
-							))}
+						{phone ? (
+							<Popout
+								label={purity === "pure" ? "Pure" : purity === "impure" ? "Impure" : "Cannot run"}
+								title="What kind of node this is, how it is drawn, and deleting it"
+								end
+							>
+								<div className="pin-counts">{nodeKind}</div>
+							</Popout>
+						) : nodeKind}
 						<button
 							className="tb primary with-icon"
 							disabled={problems.length > 0 || saving || !dirty}
@@ -545,7 +582,9 @@ export function NodeEditor({
 							onClick={() => void save()}
 						>
 							<Icon name="build" size={15} />
-							{dirty ? "Save" : "Saved"}
+							{phone
+								? <span className="visually-hidden">{dirty ? "Save" : "Saved"}</span>
+								: dirty ? "Save" : "Saved"}
 						</button>
 					</ToolGroup>
 				</FloatingTools>

@@ -9117,6 +9117,16 @@ select:not(.literal):not([multiple]) {
 	border-radius: 22px;
 }
 
+/* A phone held upright: taller than wide, and narrow enough to sit in the
+   reading column beside its legend's first rows rather than fill it. */
+.docs-layout-frame.device-phone {
+	aspect-ratio: 9 / 19;
+	max-width: 250px;
+	margin-inline: auto;
+	border: 9px solid var(--border-strong);
+	border-radius: 28px;
+}
+
 .docs-layout-region {
 	display: flex;
 	flex-wrap: wrap;
@@ -9146,6 +9156,11 @@ select:not(.literal):not([multiple]) {
 		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
 	background-size: 14px 14px;
 	align-content: flex-end;
+}
+
+.docs-layout-region.number-middle-end {
+	align-content: center;
+	justify-content: flex-end;
 }
 
 /* Over the graph: in the graph's cells, sized to what is on it, raised. */
@@ -9345,6 +9360,71 @@ select:not(.literal):not([multiple]) {
 	.floating-tools .tool-group {
 		gap: 4px;
 		padding: 4px;
+	}
+}
+
+/* The compile target, with Lune's warning after its name rather than the word
+   "experimental" in it: drawn over the select, clear of its chevron, and
+   passing taps through to it. */
+.target-pick {
+	position: relative;
+	display: inline-flex;
+}
+
+.target-pick select.doc-target.lune {
+	padding-right: 44px;
+}
+
+.target-pick .target-warn {
+	position: absolute;
+	right: 24px;
+	top: 50%;
+	transform: translateY(-50%);
+	color: var(--warning);
+	pointer-events: none;
+}
+
+.target-warn-inline {
+	color: var(--warning);
+}
+
+/* Node Design's node tools, folded on a phone. The type chips wrap into a
+   block rather than a line; the pin counts and the node's kind keep a row. */
+.pin-chip-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	max-width: 260px;
+}
+
+.pin-counts {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+/* Words a screen reader needs and the row has no room to show. */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* A window's header on a phone: a button that carries a word beside its icon
+   keeps only the icon, so the header holds one row -- Node Design's Settings
+   had wrapped under the rest. */
+@media (max-width: 699px) {
+	.docs-page-head .tb-collapsible .tb-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
 	}
 }
 

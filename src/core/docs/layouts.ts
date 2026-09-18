@@ -59,6 +59,12 @@ export interface LayoutRegion {
 	iconsEnd?: string[];
 	/** Words drawn as small buttons in it: a panel's buttons, a switch. */
 	chips?: string[];
+	/**
+	 * Where a large region's number sits, when its usual corner is under
+	 * something floating over it. The graph's is at its foot, which on a phone
+	 * is where the panel buttons are.
+	 */
+	number?: "middle-end";
 }
 
 export interface LayoutSpec {
@@ -67,8 +73,8 @@ export interface LayoutSpec {
 	title: string;
 	/** One line under the picture: what window this is, and on what. */
 	summary: string;
-	/** A window on a computer, or a tablet held sideways. */
-	device: "desktop" | "tablet";
+	/** A window on a computer, a tablet held sideways, or a phone held upright. */
+	device: "desktop" | "tablet" | "phone";
 	/** `grid-template-columns`. */
 	columns: string;
 	/** `grid-template-rows`. */
@@ -131,8 +137,9 @@ export function layoutHtml(spec: LayoutSpec, art: Pick<ToolbarArt, "viewBox" | "
 				? `<span class="docs-layout-icons docs-layout-end">${region.iconsEnd.map((i) => glyph(i, art)).join("")}</span>`
 				: "";
 			const place = region.place ? ` place-${region.place}` : "";
+			const numberAt = region.number ? ` number-${region.number}` : "";
 			return (
-				`<div class="docs-layout-region kind-${region.kind}${place}"` +
+				`<div class="docs-layout-region kind-${region.kind}${place}${numberAt}"` +
 				` style="grid-row:${r1} / ${r2};grid-column:${c1} / ${c2}"${tie}>` +
 				`${badge}${chips}${icons}${end}</div>`
 			);
@@ -206,7 +213,7 @@ export const EDITOR_LAYOUT: LayoutSpec = {
  */
 export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 	id: "editor-layout-touch",
-	title: "The editor, on a phone or a tablet",
+	title: "The editor, on a tablet",
 	summary: "The editor on a tablet, with the Inspector slid out and two nodes selected.",
 	device: "tablet",
 	columns: "minmax(0, 1fr) 34%",
@@ -297,7 +304,7 @@ export const DESIGNER_LAYOUT: LayoutSpec = {
 /** Node Design on a tablet: one view at a time, switched from the pack's bar. */
 export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 	id: "designer-layout-touch",
-	title: "Node Design, on a phone or a tablet",
+	title: "Node Design, on a tablet",
 	summary: "Node Design on a tablet, showing a node's logic built from nodes.",
 	device: "tablet",
 	columns: "minmax(0, 1fr)",
@@ -333,7 +340,88 @@ export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 	],
 };
 
-/** Every window the documentation draws, for the tests. */
+/**
+ * The editor on a phone, held upright: what a tablet does, and then the bars
+ * fold as well -- the top bar into two rows, the graph's settings behind
+ * buttons -- and a panel slid out takes nearly the whole width.
+ */
+export const EDITOR_LAYOUT_PHONE: LayoutSpec = {
+	id: "editor-layout-phone",
+	title: "The editor, on a phone",
+	summary: "The editor on a phone, with Variables slid out and a node selected.",
+	device: "phone",
+	columns: "86% minmax(0, 1fr)",
+	rows: "28px 28px 22px 40px minmax(0, 1fr) 40px 40px 28px",
+	regions: [
+		{
+			name: "Top bar", kind: "bar", at: [1, 3, 1, 3],
+			icons: ["refresh", "newFile", "map"], iconsEnd: ["document", "palette", "settings"],
+			what: "The same bar, in two rows. Compile project is its icon, and the version is in the mark's tooltip.",
+		},
+		{ name: "Graph tabs", kind: "bar", at: [3, 4, 1, 3], chips: ["Main"], what: "One tab per open graph." },
+		{
+			name: "The graph", kind: "canvas", at: [4, 9, 1, 3], number: "middle-end",
+			what: "The same gestures as on a tablet; see [Controls](controls).",
+		},
+		{
+			name: "Graph tools", kind: "float", place: "start", at: [4, 5, 1, 3], chips: ["Script ▾"],
+			what: "The script's type and mode behind one button that says which is chosen; the tools as icons.",
+			where: "Phones only",
+		},
+		{
+			name: "Compile", kind: "float", place: "end", at: [4, 5, 1, 3], chips: ["Roblox ▾"], icons: ["build"],
+			what: "The target behind a button, and compiling as its icon.",
+		},
+		{
+			name: "A panel, slid out", kind: "drawer", at: [5, 6, 1, 2],
+			what: "Nearly the width of the screen, one at a time. Tap the graph beside it to put it away.",
+		},
+		{
+			name: "Action row", kind: "float", place: "center", at: [6, 7, 1, 3],
+			icons: ["undo", "redo", "copy", "remove"],
+			what: "As on a tablet, wrapping when the selection offers more than a row holds.",
+		},
+		{
+			name: "Panel buttons", kind: "float", place: "start", at: [7, 8, 1, 3], chips: ["Project", "Variables"],
+			what: "As on a tablet.",
+		},
+		{ kind: "float", place: "end", at: [7, 8, 1, 3], chips: ["Inspector"] },
+		{ name: "Script analysis", kind: "bar", at: [8, 9, 1, 3], what: "As on a computer." },
+	],
+};
+
+/** Node Design on a phone, showing a node's preview with its tools folded. */
+export const DESIGNER_LAYOUT_PHONE: LayoutSpec = {
+	id: "designer-layout-phone",
+	title: "Node Design, on a phone",
+	summary: "Node Design on a phone, showing a node with its tools folded.",
+	device: "phone",
+	columns: "minmax(0, 1fr)",
+	rows: "30px 34px 40px minmax(0, 1fr)",
+	regions: [
+		{
+			name: "Header", kind: "bar", at: [1, 2, 1, 2], iconsEnd: ["help", "document", "settings"],
+			what: "As on a computer, with Docs as its icon so the row holds Settings too.",
+		},
+		{
+			name: "Pack bar", kind: "bar", at: [2, 3, 1, 2], chips: ["‹ combat", "Preview", "Logic"],
+			what: "As on a tablet.",
+		},
+		{
+			name: "The node, or its logic", kind: "canvas", at: [3, 5, 1, 2],
+			what: "As on a tablet: one view at a time, with the whole screen.",
+		},
+		{
+			name: "Node tools", kind: "float", place: "start", at: [3, 4, 1, 2],
+			icons: ["rename"], chips: ["Types ▾", "Pins ▾", "Impure ▾"],
+			what: "Details as its icon; the types to drag on, the pin counts, and the node's kind and deleting it, each behind a button. A type still drags out of its panel onto the node. Save is its icon.",
+			where: "Phones only",
+		},
+	],
+};
+
+/** Every window the documentation draws, in the order the page draws them. */
 export const LAYOUTS: LayoutSpec[] = [
-	EDITOR_LAYOUT, EDITOR_LAYOUT_TOUCH, DESIGNER_LAYOUT, DESIGNER_LAYOUT_TOUCH,
+	EDITOR_LAYOUT, EDITOR_LAYOUT_TOUCH, EDITOR_LAYOUT_PHONE,
+	DESIGNER_LAYOUT, DESIGNER_LAYOUT_TOUCH, DESIGNER_LAYOUT_PHONE,
 ];

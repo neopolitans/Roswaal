@@ -39,7 +39,8 @@ import {
 	VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec,
 } from "./toolbars.js";
 import {
-	DESIGNER_LAYOUT, DESIGNER_LAYOUT_TOUCH, EDITOR_LAYOUT, EDITOR_LAYOUT_TOUCH, listedRegions,
+	DESIGNER_LAYOUT, DESIGNER_LAYOUT_PHONE, DESIGNER_LAYOUT_TOUCH, EDITOR_LAYOUT, EDITOR_LAYOUT_PHONE,
+	EDITOR_LAYOUT_TOUCH, listedRegions,
 	type LayoutSpec,
 } from "./layouts.js";
 import { GUIDE_SCENES } from "./examples.js";
@@ -1545,8 +1546,9 @@ const INTERFACE: DocPage = {
 		{
 			t: "p",
 			text:
-				"On a phone or a tablet the same parts are there, arranged for a finger. The " +
-				"**Mobile (Webapp)** tabs show where they go, and what is only there.",
+				"On a tablet or a phone the same parts are there, arranged for a finger; a phone " +
+				"folds its bars further still. The **Tablet** and **Phone** tabs show where they go, " +
+				"and what is only there.",
 		},
 		{ t: "h", level: 2, text: "The editor" },
 		{
@@ -1568,12 +1570,17 @@ const INTERFACE: DocPage = {
 					],
 				},
 				{
-					id: "interface-editor-mobile",
-					title: "Mobile (Webapp)",
+					id: "interface-editor-tablet",
+					title: "Tablet (Webapp)",
 					blocks: [
 						{ t: "layout", layout: EDITOR_LAYOUT_TOUCH },
 						{ t: "toolbar", bar: ACTION_ROW },
 					],
+				},
+				{
+					id: "interface-editor-phone",
+					title: "Phone (Webapp)",
+					blocks: [{ t: "layout", layout: EDITOR_LAYOUT_PHONE }],
 				},
 			],
 		},
@@ -1594,12 +1601,17 @@ const INTERFACE: DocPage = {
 					blocks: [{ t: "layout", layout: DESIGNER_LAYOUT }],
 				},
 				{
-					id: "interface-designer-mobile",
-					title: "Mobile (Webapp)",
+					id: "interface-designer-tablet",
+					title: "Tablet (Webapp)",
 					blocks: [
 						{ t: "layout", layout: DESIGNER_LAYOUT_TOUCH },
 						{ t: "toolbar", bar: DESIGNER_TOUCH_BAR },
 					],
+				},
+				{
+					id: "interface-designer-phone",
+					title: "Phone (Webapp)",
+					blocks: [{ t: "layout", layout: DESIGNER_LAYOUT_PHONE }],
 				},
 			],
 		},

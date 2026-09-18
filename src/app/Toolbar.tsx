@@ -29,11 +29,11 @@
  * layout changes underneath them.
  */
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { RoswaalConfig, ScriptClass, Target, TypecheckMode } from "../core/schema.js";
 import { VERSION } from "../cli/version.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
+import { Popout, usePhone } from "./Popout.jsx";
 import { IS_STATIC_HOST } from "./pages.js";
 import { MarkedLogo, markTooltip } from "./previewBuild.jsx";
 
@@ -280,7 +280,10 @@ export function DocumentBar(props: DocumentBarProps) {
 			</select>
 		</>
 	);
+	// The target by name alone; Lune's being experimental is the triangle
+	// after it and the tooltip, rather than a word in every option.
 	const targetSetting = (
+			<span className="target-pick">
 			<select
 				className={`tb doc-target ${props.target}`}
 				title={
@@ -293,8 +296,10 @@ export function DocumentBar(props: DocumentBarProps) {
 				onChange={(e) => props.onTarget(e.target.value as Target)}
 			>
 				<option value="roblox">Roblox</option>
-				<option value="lune">Lune (experimental)</option>
+				<option value="lune">Lune</option>
 			</select>
+			{props.target === "lune" && <Icon name="warning" size={14} className="target-warn" />}
+			</span>
 	);
 
 	// Floats over the canvas's top edge in three groups — the document's own
@@ -386,7 +391,9 @@ export function DocumentBar(props: DocumentBarProps) {
 			    being an error is the fact it explains. */}
 			{phone ? (
 				<Popout
-					label={props.target === "lune" ? "Lune" : "Roblox"}
+					label={props.target === "lune"
+						? <>Lune <Icon name="warning" size={14} className="target-warn-inline" /></>
+						: "Roblox"}
 					title="What this graph compiles for"
 					end
 				>
@@ -413,85 +420,3 @@ const TYPECHECK_SHORT: Record<TypecheckMode, string> = {
 	nonstrict: "Nonstrict",
 	strict: "Strict",
 };
-
-/**
- * Whether this is a phone-sized window, where the graph's tools pop out.
- *
- * The width alone: an iPad holds the tools in one row either way up, and a
- * phone does not, held either way.
- */
-function usePhone(): boolean {
-	const query = "(max-width: 699px)";
-	const [phone, setPhone] = useState(
-		() => typeof window !== "undefined" && window.matchMedia(query).matches,
-	);
-	useEffect(() => {
-		const list = window.matchMedia(query);
-		const update = () => setPhone(list.matches);
-		update();
-		list.addEventListener("change", update);
-		return () => list.removeEventListener("change", update);
-	}, []);
-	return phone;
-}
-
-/**
- * A group of settings behind one button, on a phone.
- *
- * The button says what is chosen -- "Script", "Roblox" -- so the setting can be
- * read without opening it, and opens a small panel of the dropdowns it stands
- * for. A tap anywhere else puts the panel away; choosing does not, because the
- * script's panel holds two settings and the second is usually why it was opened.
- */
-function Popout({ label, title, end = false, children }: {
-	label: string;
-	title: string;
-	/** Opens towards the left: for the group at the right-hand edge. */
-	end?: boolean;
-	children: ReactNode;
-}) {
-	const [open, setOpen] = useState(false);
-	const box = useRef<HTMLDivElement>(null);
-	const panel = useRef<HTMLDivElement>(null);
-	/**
-	 * Which way the panel hangs. `end` is where it would like to open, but the
-	 * groups wrap on a narrow screen and the one at the right-hand edge can end
-	 * up at the left of the second row -- so it is measured once it is drawn,
-	 * and turned round if it would run off either side.
-	 */
-	const [side, setSide] = useState<"start" | "end">(end ? "end" : "start");
-	useLayoutEffect(() => {
-		if (!open || !panel.current) return;
-		const at = panel.current.getBoundingClientRect();
-		const width = document.documentElement.clientWidth;
-		if (at.left < 4) setSide("start");
-		else if (at.right > width - 4) setSide("end");
-	}, [open, side]);
-	useEffect(() => {
-		if (!open) return;
-		const away = (e: PointerEvent) => {
-			if (!box.current?.contains(e.target as Node)) setOpen(false);
-		};
-		window.addEventListener("pointerdown", away, true);
-		return () => window.removeEventListener("pointerdown", away, true);
-	}, [open]);
-	return (
-		<div className={`tool-popout${side === "end" ? " tool-popout-end" : ""}`} ref={box}>
-			<button
-				className={`tb with-icon${open ? " on" : ""}`}
-				title={title}
-				aria-expanded={open}
-				onClick={() => setOpen((was) => !was)}
-			>
-				{label}
-				<Icon name="chevron" size={14} />
-			</button>
-			{open && (
-				<div className="tool-popout-panel" role="group" aria-label={title} ref={panel}>
-					{children}
-				</div>
-			)}
-		</div>
-	);
-}
-

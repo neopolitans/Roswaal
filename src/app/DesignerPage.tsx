@@ -148,14 +148,15 @@ export function DesignerPage() {
 					<Icon name="help" size={16} />
 				</a>
 				<a
-					className="tb with-icon"
+					className="tb with-icon tb-collapsible"
 					href={pageHref("docs")}
 					target={pageTarget("docs")}
 					onClick={guardLeave}
 					title="The documentation"
 				>
 					<Icon name="document" size={15} />
-					Docs
+					{/* Its icon alone on a phone, so Settings keeps the header's row. */}
+					<span className="tb-label">Docs</span>
 				</a>
 				<a
 					className="tb"
