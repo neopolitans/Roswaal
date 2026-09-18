@@ -81,13 +81,9 @@ export const REVIEWS: Record<
 	// Read by the author against the editor and Node Design on a computer, a
 	// tablet and a phone, for 0.72.0.
 	"the-interface": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
-	// Read by the author for 0.72.0, with its three ways in.
-	"getting-started": {
-		status: "verified",
-		date: "2026-09-18",
-		reviewers: ["neopolitans"],
-		verify: "Open a project as a walkthrough on each tab — the start page, the projects panel and Open .zip… — added in 0.73.0 and 0.73.1.",
-	},
+	// Read by the author for 0.72.0, with its three ways in, and again for
+	// 0.73.1 with its walkthroughs, on an iPad Pro, an iPhone, a Mac and Windows.
+	"getting-started": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
 	// Verified with the author, once it had pictures for every section.
 	"wires-and-pins": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	// Verified with the author. Settings once its rojoProject line said what
