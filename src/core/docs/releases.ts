@@ -120,6 +120,8 @@ export const RELEASES: Release[] = [
 			"**Toolbars says Node Design reaches Settings with its gear**, as it does. Neither its Settings nor the documentation window's has a Project tab.",
 			"**Getting started opens with the three ways in** — installed on a computer, in a browser on a computer, and on a tablet or a phone — each under its own tab.",
 			"**Toolbars says the three windows share one tab on a phone or a tablet**, rather than that none of them replaces the one you are on.",
+			"**Toolbars heads the action row and Node Design's touch bar each with its name**, under Only on a touch screen.",
+			"**The front page says where Roswaal runs**: locally on a computer, and online on a computer, a tablet or a phone, in any current browser. Opening a folder from your disk is Chrome and Edge on a computer.",
 		],
 	},
 	{

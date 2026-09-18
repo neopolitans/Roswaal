@@ -2159,7 +2159,9 @@ const TOOLBARS_PAGE: DocPage = {
 				"Two bars a tablet and a phone have and a computer does not, the same on both. Where " +
 				"they sit is on [The Interface](the-interface).",
 		},
+		{ t: "h", level: 3, text: ACTION_ROW.title },
 		{ t: "toolbar", bar: ACTION_ROW },
+		{ t: "h", level: 3, text: DESIGNER_TOUCH_BAR.title },
 		{ t: "toolbar", bar: DESIGNER_TOUCH_BAR },
 	],
 };

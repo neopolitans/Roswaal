@@ -190,6 +190,7 @@ body.roswaal-landing {
    qualifier that gets skimmed past when it is buried in prose. */
 .landing-targets { font-size: 13px; color: var(--fg-faint); margin: 0; }
 .landing-targets strong { color: var(--fg); font-weight: 600; }
+.landing-targets + .landing-targets { margin-top: 6px; }
 .landing-targets .flag,
 .landing-doors .flag {
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
@@ -402,14 +403,19 @@ ${IS_CANARY ? `<meta name="robots" content="noindex" />
       </li>
     </ul>
       <p class="landing-note">
-      Nothing to install. Open the demo project, or open a folder from your own
-      computer and work in it — Chrome and Edge can hand one over.
+      Nothing to install, in any current browser. Open the demo project or start
+      your own, kept in the browser; on a computer, Chrome and Edge can also hand
+      over a folder from your disk to work in.
     </p>
     <p class="landing-note">
       That one is a <strong>${IS_CANARY ? "canary" : "preview"}</strong>: the same
       editor over a project kept in your browser${IS_CANARY ? ", built from the unreleased line" : ""}.
       The tool itself runs beside your repository and writes
       <code>.luau</code> files Rojo syncs into Studio.
+    </p>
+    <p class="landing-targets">
+      Runs <strong>locally</strong> on a computer, and <strong>online</strong> on a
+      computer, a tablet or a phone.
     </p>
     <p class="landing-targets">
       Compiles for <strong>Roblox</strong> and <strong>Lune</strong>
@@ -460,8 +466,9 @@ ${IS_CANARY ? `<meta name="robots" content="noindex" />
       <div>
         <h3>Try it on your own project</h3>
         <p>
-          The browser version opens a real folder and writes into it, so you can
-          find out whether this fits your game before installing anything.
+          On a computer, the browser version opens a real folder and writes into
+          it, so you can find out whether this fits your game before installing
+          anything.
         </p>
       </div>
     </div>
