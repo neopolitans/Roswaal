@@ -8699,7 +8699,20 @@ button.tb.danger {
 	background: var(--bg-panel);
 }
 
+/* The open node's switches, pushed to the end of the bar. */
+.pack-compact-slot {
+	margin-left: auto;
+	display: flex;
+	gap: 8px;
+	flex: none;
+}
+
+.pack-compact-slot:empty {
+	display: none;
+}
+
 .pack-compact-current {
+	flex: 1;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -8741,6 +8754,42 @@ button.tb.danger {
 
 @media (prefers-reduced-motion: reduce) {
 	.pack-view.compact .pack-nodes.drawer { transition: none; }
+}
+
+/* Node Design's node and its logic, one at a time on a phone or a tablet:
+   see `split` in NodeEditor.tsx. */
+.node-editor-views {
+	display: flex;
+	justify-content: center;
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-panel);
+}
+
+/* With its title, hint and Luau/Nodes elsewhere, the logic's head holds at most
+   a pure node's choice of output -- and is not drawn with nothing in it. */
+.logic-head.logic-head-slim:not(:has(> *)) {
+	display: none;
+}
+
+.node-editor.split .logic-splitter {
+	display: none;
+}
+
+.node-editor.split.view-preview .node-logic,
+.node-editor.split.view-logic .node-editor-stage {
+	display: none;
+}
+
+.node-editor.split.view-logic .node-logic {
+	flex: 1;
+}
+
+/* The graph over the Luau it compiles to, rather than beside it: side by side,
+   an iPad in portrait gave each half too little width to read. */
+.node-editor.split .logic-split {
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr) minmax(120px, 30%);
 }
 
 /* ----------------------------------------------------- dialogs, on a phone */

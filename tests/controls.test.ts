@@ -93,8 +93,8 @@ describe("the Controls page", () => {
 	 * key nothing answers. Every key it sends has to be one the handler binds.
 	 */
 	it("sends only keys the editor binds, from the touch bar", () => {
-		const source = readFileSync(path.join(ROOT, "src/app/App.tsx"), "utf8");
-		const bar = source.slice(source.indexOf("function TouchBar("), source.indexOf("function TouchBar(") + 2000);
+		const source = readFileSync(path.join(ROOT, "src/app/TouchBar.tsx"), "utf8");
+		const bar = source.slice(source.indexOf("function TouchBar("));
 		const sent = [...bar.matchAll(/press\("(\w+)"/g)].map((m) => (m[1].length === 1 ? m[1].toUpperCase() : m[1]));
 		expect(sent.length).toBeGreaterThanOrEqual(5);
 		const bound = boundKeys();

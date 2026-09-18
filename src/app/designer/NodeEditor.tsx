@@ -26,6 +26,7 @@ import {
 	useCallback, useEffect, useMemo, useRef, useState,
 	type DragEvent, type PointerEvent as ReactPointerEvent,
 } from "react";
+import { createPortal } from "react-dom";
 
 import { compileLogic, defaultLogic, type LogicGraph } from "../../core/compiler/logic.js";
 import { createRegistry, type Registry } from "../../core/nodes/index.js";
@@ -44,6 +45,7 @@ import {
 	type Draft, type DraftPin, type PackNode, type Side,
 } from "./draft.js";
 import { LogicCanvas } from "./LogicCanvas.jsx";
+import { useCompact } from "../Workspace.jsx";
 import { LuauField } from "./LuauField.jsx";
 import type { Notify } from "./PackBrowser.jsx";
 
@@ -92,6 +94,11 @@ export interface NodeEditorProps {
 	target: Target | null;
 	/** The namespace a new node's id starts in. */
 	namespace: string;
+	/**
+	 * Where the view switches go on a phone or a tablet: the pack's own bar,
+	 * so the node's controls do not stack another row or two above the node.
+	 */
+	toolbarSlot?: HTMLElement | null;
 	/** The ids of the pack's other nodes, which this one's must not repeat. */
 	otherIds: string[];
 	onSaved: (def: NodeDef) => void;
@@ -103,6 +110,7 @@ export interface NodeEditorProps {
 
 export function NodeEditor({
 	packPath, original, requiredDefs, missingRequires, target, namespace, otherIds, onSaved, onDeleted, onDirty, notify,
+	toolbarSlot = null,
 }: NodeEditorProps) {
 	const [draft, setDraft] = useState<Draft>(() => (original ? draftOf(original) : newDraft(namespace, otherIds)));
 	const [pin, setPin] = useState<{ side: Side; index: number } | null>(null);
@@ -131,6 +139,15 @@ export function NodeEditor({
 		});
 	const [saving, setSaving] = useState(false);
 	const [logicHeight, setLogicHeight] = useState(readLogicHeight);
+	/**
+	 * On a phone or a tablet the node and its logic take turns at the whole
+	 * editor, switched from a bar at the top, instead of splitting it. Split,
+	 * the logic graph was a strip under the node too short to move around in
+	 * the way the editor's graph is, and the divider between them was a
+	 * five-pixel target for a finger.
+	 */
+	const split = useCompact();
+	const [view, setView] = useState<"preview" | "logic">("preview");
 	const stage = useRef<HTMLDivElement>(null);
 	const [size, setSize] = useState({ w: 900, h: 500 });
 
@@ -307,8 +324,62 @@ export function NodeEditor({
 	const pill = pillShape(draft);
 	const compact = isCompact(drawDef);
 
+	/** Luau or Nodes: how the logic is written. Drawn in the logic's head, or in
+	 *  the pack's bar on a touch screen. */
+	const modeSwitch = (
+		<div className="segmented">
+			<button
+				className={draft.logicMode === "luau" ? "on" : ""}
+				title="Write the logic as a Luau template"
+				onClick={() =>
+					update((d) => {
+						// Leaving nodes for an empty Luau field starts it from what the
+						// nodes compiled to. Luau already written is left alone.
+						const spec = d.logicMode === "nodes" ? compiled?.compilesTo : undefined;
+						if (spec?.kind === "statement" && d.template.trim() === "") {
+							return { ...d, logicMode: "luau", template: spec.template, result: undefined };
+						}
+						if (spec?.kind === "expr" && Object.values(d.expressions).every((e) => e.trim() === "")) {
+							return { ...d, logicMode: "luau", expressions: { ...spec.outputs } };
+						}
+						return { ...d, logicMode: "luau" };
+					})
+				}
+			>
+				Luau
+			</button>
+			<button
+				className={draft.logicMode === "nodes" ? "on" : ""}
+				title="Build the logic from nodes, compiled to Luau as you go"
+				onClick={() => update((d) => ({ ...d, logicMode: "nodes", logic: d.logic ?? defaultLogic(shapeOfDraft(d)) }))}
+			>
+				Nodes
+			</button>
+		</div>
+	);
+
 	return (
-		<div className="node-editor">
+		<div className={`node-editor${split ? ` split view-${view}` : ""}`}>
+			{split && (() => {
+				// Preview or Logic, and with Logic which way it is written: one
+				// row's worth of switches, in the pack's bar where there is one.
+				const switches = (
+					<>
+						<div className="segmented">
+							<button className={view === "preview" ? "on" : ""} onClick={() => setView("preview")}>
+								Preview
+							</button>
+							<button className={view === "logic" ? "on" : ""} onClick={() => setView("logic")}>
+								Logic
+							</button>
+						</div>
+						{view === "logic" && modeSwitch}
+					</>
+				);
+				return toolbarSlot
+					? createPortal(switches, toolbarSlot)
+					: <div className="node-editor-views">{switches}</div>;
+			})()}
 			<div
 				className="node-editor-stage"
 				ref={stage}
@@ -602,38 +673,10 @@ export function NodeEditor({
 			</div>
 
 			<div className="logic-splitter" onPointerDown={startResize} title="Drag to resize" />
-			<div className="node-logic" style={{ height: logicHeight }}>
-				<div className="logic-head">
-					<strong>Logic</strong>
-					<div className="segmented">
-						<button
-							className={draft.logicMode === "luau" ? "on" : ""}
-							title="Write the logic as a Luau template"
-							onClick={() =>
-								update((d) => {
-									// Leaving nodes for an empty Luau field starts it from what the
-									// nodes compiled to. Luau already written is left alone.
-									const spec = d.logicMode === "nodes" ? compiled?.compilesTo : undefined;
-									if (spec?.kind === "statement" && d.template.trim() === "") {
-										return { ...d, logicMode: "luau", template: spec.template, result: undefined };
-									}
-									if (spec?.kind === "expr" && Object.values(d.expressions).every((e) => e.trim() === "")) {
-										return { ...d, logicMode: "luau", expressions: { ...spec.outputs } };
-									}
-									return { ...d, logicMode: "luau" };
-								})
-							}
-						>
-							Luau
-						</button>
-						<button
-							className={draft.logicMode === "nodes" ? "on" : ""}
-							title="Build the logic from nodes, compiled to Luau as you go"
-							onClick={() => update((d) => ({ ...d, logicMode: "nodes", logic: d.logic ?? defaultLogic(shapeOfDraft(d)) }))}
-						>
-							Nodes
-						</button>
-					</div>
+			<div className="node-logic" style={split ? undefined : { height: logicHeight }}>
+				<div className={`logic-head${split ? " logic-head-slim" : ""}`}>
+					{!split && <strong>Logic</strong>}
+					{!split && modeSwitch}
 					{draft.logicMode === "luau" && purity === "pure" && dataOutputs.length > 1 && (
 						<div className="segmented">
 							{dataOutputs.map((p) => (
@@ -643,11 +686,15 @@ export function NodeEditor({
 							))}
 						</div>
 					)}
-					<span className="hint">
-						{draft.logicMode === "nodes"
-							? "Right-click for nodes. Compiled to the Luau on the right as you build it."
-							: logicHint}
-					</span>
+					{/* The how-to is for a first visit on a desktop; a touch screen's
+					    row is kept for the controls, and its gestures are on Controls. */}
+					{!split && (
+						<span className="hint">
+							{draft.logicMode === "nodes"
+								? "Right-click for nodes. Compiled to the Luau on the right as you build it."
+								: logicHint}
+						</span>
+					)}
 				</div>
 				{draft.logicMode === "nodes" && draft.logic ? (
 					<div className="logic-split">

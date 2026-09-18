@@ -66,6 +66,8 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 	 */
 	const compact = useCompact();
 	const [listOpen, setListOpen] = useState(true);
+	/** The bar's slot for the open node's own switches; see `toolbarSlot`. */
+	const [slot, setSlot] = useState<HTMLElement | null>(null);
 	const [requiredDefs, setRequiredDefs] = useState<NodeDef[]>([]);
 
 	const pack = open.kind === "project" ? packs.find((p) => p.path === open.path) : undefined;
@@ -197,6 +199,7 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 						{title}
 					</button>
 					<span className="pack-compact-current">{current?.title ?? ""}</span>
+					<span className="pack-compact-slot" ref={setSlot} />
 				</div>
 			)}
 			{compact && listOpen && <div className="pack-scrim" onClick={() => setListOpen(false)} />}
@@ -345,6 +348,7 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 					onDeleted={() => void afterDelete()}
 					onDirty={onDirty}
 					notify={notify}
+					toolbarSlot={compact ? slot : null}
 				/>
 			)}
 		</div>

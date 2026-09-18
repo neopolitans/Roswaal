@@ -44,6 +44,8 @@ import { autoLayout } from "../layout.js";
 import { NodeMenu, type MenuAnchor } from "../NodeMenu.jsx";
 import { readPreferences, wheelAction, writePreferences } from "../preferences.js";
 import { store, useEditor } from "../store.js";
+import { liveSelection, TouchBar } from "../TouchBar.jsx";
+import { useCompact } from "../Workspace.jsx";
 
 /** The store path the logic graph is open under. Never a file. */
 const PATH = "designer:logic";
@@ -197,6 +199,9 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 	 * lands at the pointer here exactly as it does on a graph.
 	 */
 	const clipboard = useRef<Clipping | null>(null);
+	/** Whether there is anything to paste, for the touch bar. */
+	const [hasClip, setHasClip] = useState(false);
+	const touch = useCompact();
 	const pointerAt = useRef<{ x: number; y: number } | null>(null);
 
 	// As the editor does: the store resolves pins against this while the designer
@@ -256,6 +261,7 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 				if (!state.script || state.selection.size === 0) return;
 				e.preventDefault();
 				clipboard.current = withoutEnds(copySelection(state.script, state.selection, registry));
+				setHasClip(true);
 				if (key === "x") {
 					const ids = removable(state.script, withCommentContents(state.script, state.selection, registry));
 					if (ids.size > 0) store.edit((s) => deleteSelection(s, ids, registry));
@@ -297,6 +303,19 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 					onDropFile={NOOP}
 					wheel={wheelAction(readPreferences().wheel)}
 				/>
+			)}
+			{/* The same bar the editor's graph has on a touch screen, sending the
+			    same keys to this canvas's own handler. */}
+			{touch && editor.script && editor.path === PATH && (
+				<div className="drawer-toggles">
+					<div className="touch-bar">
+						<TouchBar
+							selected={liveSelection(editor.script, editor.selection)}
+							canPaste={hasClip}
+							locked={false}
+						/>
+					</div>
+				</div>
 			)}
 			{/* The graph's own tools, floating over this canvas as they do over a graph. */}
 			<FloatingTools label="Logic">
