@@ -402,25 +402,14 @@ ${IS_CANARY ? `<meta name="robots" content="noindex" />
         </a>
       </li>
     </ul>
-      <p class="landing-note">
-      Nothing to install, in any current browser. Open the demo project or start
-      your own, kept in the browser; on a computer, Chrome and Edge can also hand
-      over a folder from your disk to work in.
-    </p>
     <p class="landing-note">
-      That one is a <strong>${IS_CANARY ? "canary" : "preview"}</strong>: the same
-      editor over a project kept in your browser${IS_CANARY ? ", built from the unreleased line" : ""}.
-      The tool itself runs beside your repository and writes
-      <code>.luau</code> files Rojo syncs into Studio.
-    </p>
-    <p class="landing-targets">
-      Runs <strong>locally</strong> on a computer, and <strong>online</strong> on a
-      computer, a tablet or a phone.
+      Runs <strong>locally</strong> on a computer, or <strong>online</strong> on a
+      computer, tablet or phone: the <strong>${IS_CANARY ? "canary" : "preview"}</strong>,
+      with nothing to install and your project kept in your browser.
     </p>
     <p class="landing-targets">
       Compiles for <strong>Roblox</strong> and <strong>Lune</strong>
-      <span class="flag">experimental</span> — Roswaal is built and checked
-      against Roblox.
+      <span class="flag">experimental</span>
     </p>
   </div>
 
