@@ -8602,8 +8602,11 @@ button.tb.danger {
 	pointer-events: none;
 }
 
-.docs-page-head .docs-nav-toggle,
-.docs-page-head .docs-search-toggle {
+/* `.tb` in both, to outrank `.docs-page-head button.tb`, which makes every
+   header button a flex box -- and made this one visible everywhere, with or
+   without the script it needs. */
+.docs-page-head .tb.docs-nav-toggle,
+.docs-page-head .tb.docs-search-toggle {
 	display: none;
 }
 
@@ -8624,8 +8627,8 @@ button.tb.danger {
    once per page. Keep the query in step with `COMPACT_QUERY` in panels.ts,
    which asks the same question of the editor. */
 @media (max-width: 760px), (hover: none) and (pointer: coarse) {
-	.docs-page-head .docs-nav-toggle,
-	.docs-page-head .docs-search-toggle:not([hidden]) {
+	.docs-page-head .tb.docs-nav-toggle,
+	.docs-page-head .tb.docs-search-toggle:not([hidden]) {
 		display: inline-flex;
 	}
 
@@ -8704,6 +8707,23 @@ button.tb.danger {
 	.docs-palette-foot {
 		display: none;
 	}
+}
+
+/* iOS zooms the page in on any field under 16px when it takes focus, and the
+   docs let a page zoom. Focusing the search did exactly that: the palette ran
+   off the right-hand edge and the page stayed zoomed after it closed. */
+@media (pointer: coarse) {
+	.docs-static :is(input, select, textarea),
+	.docs-palette-field input {
+		font-size: 16px;
+	}
+}
+
+/* Over everything on the page, whatever it has positioned. The app's copies
+   set this inline; the static site's did not set it at all. */
+.docs-palette-backdrop,
+.docs-static .docs-backdrop {
+	z-index: 100;
 }
 
 /* No grey flash where a tap lands on a picture that lights what was tapped:
