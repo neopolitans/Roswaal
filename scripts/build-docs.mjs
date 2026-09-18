@@ -13,6 +13,7 @@
  * box, and the viewer that lets a drawn graph be panned and zoomed.
  */
 
+import { createHash } from "node:crypto";
 import { mkdir, writeFile, readFile, rm } from "node:fs/promises";
 
 import { dirname, join } from "node:path";
@@ -160,10 +161,31 @@ async function main() {
 	// The glyphs and the mark a drawn toolbar needs. Core cannot import either,
 	// so the build hands them over the same way it hands over the palette.
 	const toolbars = { viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), pinColor };
+
+	// The three shared assets, made before any page so every page can name
+	// exactly the bytes it was built against. See `assetStamp` in html.ts.
+	const docsJs =
+		CLIENT
+		+ (await readFile(join(root, "scripts/lib/docsChrome.js"), "utf8"))
+		+ (await buildGraphViewer())
+		+ (await buildToolbarLinker())
+		+ (await buildMapPanel())
+		+ (await buildDocsToggle());
+	// The editor's own stylesheet, so the site and the in-app window are styled
+	// by one file rather than by two that have to be kept in step.
+	const themeCss = await readFile(join(root, "src/app/theme.css"), "utf8");
+	// And the scheme the reader picked, which the stylesheet alone cannot know.
+	// Loaded blocking from the head, so the page never paints twice.
+	const themeJs = await buildThemePaint();
+	const assetStamp = createHash("sha256")
+		.update(docsJs).update("\0").update(themeCss).update("\0").update(themeJs)
+		.digest("hex")
+		.slice(0, 12);
+
 	const files = renderSite(site, {
 		highlight, pinColor, preview, logo, registry, toolbars,
 		previewChip: isCanary ? markChipMarkup("canary") : previewChipMarkup(),
-		canaryBanner, noindex: isCanary, version: VERSION,
+		canaryBanner, noindex: isCanary, version: VERSION, assetStamp,
 	});
 
 	for (const file of files) {
@@ -183,28 +205,9 @@ async function main() {
 		body: e.body,
 	}));
 	await writeFile(join(out, "search.json"), JSON.stringify(index), "utf8");
-	await writeFile(
-		join(out, "docs.js"),
-		CLIENT
-			+ (await readFile(join(root, "scripts/lib/docsChrome.js"), "utf8"))
-			+ (await buildGraphViewer())
-			+ (await buildToolbarLinker())
-			+ (await buildMapPanel())
-			+ (await buildDocsToggle()),
-		"utf8",
-	);
-
-	// The editor's own stylesheet, so the site and the in-app window are styled
-	// by one file rather than by two that have to be kept in step.
-	await writeFile(
-		join(out, "theme.css"),
-		await readFile(join(root, "src/app/theme.css"), "utf8"),
-		"utf8",
-	);
-
-	// And the scheme the reader picked, which the stylesheet alone cannot know.
-	// Loaded blocking from the head, so the page never paints twice.
-	await writeFile(join(out, "theme.js"), await buildThemePaint(), "utf8");
+	await writeFile(join(out, "docs.js"), docsJs, "utf8");
+	await writeFile(join(out, "theme.css"), themeCss, "utf8");
+	await writeFile(join(out, "theme.js"), themeJs, "utf8");
 
 	console.log(`docs site: ${files.length} pages -> dist-docs/`);
 }

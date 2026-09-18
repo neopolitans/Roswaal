@@ -8726,3 +8726,32 @@ button.tb.danger {
 		display: none;
 	}
 }
+
+/* --------------------------------------------------------------------------
+   Dropdowns, drawn by us everywhere.
+
+   A <select> left to the browser is three different controls: Chrome on
+   Windows draws something close to the app's buttons, and Safari on a Mac
+   draws its own -- a double chevron, its own height, its padding ignored --
+   so the tools over the graph came out a different size from the buttons
+   beside them, and from the picture of that bar in the docs. This is the
+   box `select.tb` already paints, with the triangle `docs-bar-select` draws,
+   made the same way the node's own dropdowns make theirs.
+
+   Last in the file, and specific enough, because every `background:`
+   shorthand above -- `select.tb:hover` among them -- resets the image. The
+   list a select opens is still the system's, which is right: it is the one
+   part a browser does well on every platform.
+   ----------------------------------------------------------------------- */
+select:not(.literal):not([multiple]) {
+	-webkit-appearance: none;
+	appearance: none;
+	padding-right: 24px;
+	background-image:
+		linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
+		linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
+	background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%;
+	background-size: 4px 4px, 4px 4px;
+	background-repeat: no-repeat;
+	text-overflow: ellipsis;
+}

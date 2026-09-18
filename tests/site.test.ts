@@ -449,6 +449,19 @@ describe("the header of a published page", () => {
 	 * whichever project it last had. The docs' own front page is the first
 	 * entry in the nav.
 	 */
+	/**
+	 * A version is deployed more than once, so a stamp of the version let a
+	 * browser pair new pages with an older build's stylesheet. The build
+	 * passes a hash of the assets, and that is what the links carry.
+	 */
+	it("stamps its stylesheet and script with the build's hash, not the version", () => {
+		const html = renderPage(site, { slug: "getting-started", title: "T", summary: "S", blocks: [] },
+			{ version: "0.71.0", assetStamp: "2f841e432a53" });
+		expect(html).toContain('theme.css?v=2f841e432a53"');
+		expect(html).toContain('docs.js?v=2f841e432a53"');
+		expect(html).not.toContain("?v=0.71.0");
+	});
+
 	it("points the mark at the project picker", () => {
 		expect(page("node/event.connect")).toContain('class="logo" href="../../try.html#picker"');
 		expect(page("getting-started")).toContain('class="logo" href="../try.html#picker"');

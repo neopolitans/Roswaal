@@ -99,6 +99,11 @@ export interface RenderOptions {
 	noindex?: boolean;
 	/** Shown in the header, next to the name. */
 	version: string;
+	/**
+	 * What the shared assets are stamped with, when not the version: a hash of
+	 * their contents, from the build. See `stamp`.
+	 */
+	assetStamp?: string;
 }
 
 export interface LogoOptions {
@@ -499,12 +504,17 @@ function chromeIcon(name: string, options: RenderOptions): string {
  * markup — which is how a fix for a broken viewer looked exactly like the
  * breakage it fixed.
  *
- * A query string is enough: it changes the URL, so a release is a cache miss
- * and anything between releases is a hit. The editor's own bundles solve this
- * with a content hash in the filename and need nothing here.
+ * A query string is enough: it changes the URL, so new bytes are a cache
+ * miss. The build stamps with a hash of the assets rather than the version,
+ * because a version is deployed more than once: the canary shipped three
+ * builds as 0.71.0, and Safari paired the third one's pages with the first
+ * one's stylesheet -- a label the old sheet did not hide took the nav's
+ * column and pushed the whole grid one track to the right. The editor's own
+ * bundles solve this with a content hash in the filename and need nothing here.
  */
 function stamp(options: RenderOptions): string {
-	return options.version ? `?v=${encodeURIComponent(options.version)}` : "";
+	const key = options.assetStamp ?? options.version;
+	return key ? `?v=${encodeURIComponent(key)}` : "";
 }
 
 /** Pending, Reviewed or Verified, with what that means on hover. */
@@ -572,7 +582,7 @@ ${options.canaryBanner ?? ""}<input type="checkbox" id="docs-nav-open" class="do
 <button type="button" class="tb icon-only" id="prefs" title="Settings" aria-label="Settings">${chromeIcon("settings", options)}</button>
 </header>
 <div class="docs-body">
-<label for="docs-nav-open" class="docs-nav-scrim" aria-hidden="true"></label>
+<label for="docs-nav-open" class="docs-nav-scrim" aria-hidden="true" hidden></label>
 ${renderNav(site, page)}
 <article class="docs-content">
 <div class="docs-article${page.narrow ? " narrow" : ""}">

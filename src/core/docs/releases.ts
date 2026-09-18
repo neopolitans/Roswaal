@@ -114,6 +114,8 @@ export const RELEASES: Release[] = [
 			"**Tapping a control in a toolbar, Variables or node map picture no longer flickers.** The tap lit the new one, went back to the old one, then lit the new one again.",
 			"**The docks keep their sizes after a phone is turned round.** Squeezed to fit a narrow screen, they stayed squeezed when it widened.",
 			"**Focusing a field on an iPhone no longer zooms the whole editor in.**",
+			"**Dropdowns look the same in every browser**, and the same as the pictures of them in the docs. In Safari on a Mac they were the system's own control, a different height from the buttons beside them.",
+			"**A documentation page could lay out with its contents in the reading column** after an update, until the browser's copy of the stylesheet expired. Each build's pages now name the exact stylesheet and script they were built with.",
 		],
 		watch: [
 			"Marquee select needs a mouse, a trackpad or a Pencil: a finger on empty space pans.",
