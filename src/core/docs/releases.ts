@@ -101,6 +101,7 @@ export const RELEASES: Release[] = [
 		added: [
 			"**The Interface**, a new page under Getting started, before Controls. It draws the editor and Node Design as their parts — each numbered, with a line on what it is for — on a computer and, in a second tab, on a phone or a tablet, where the panels slide out and the action row is. Hover or tap a part to light its line. See [The Interface](the-interface).",
 			"**Toolbars draws the two bars only a touch screen has**: the action row, and Node Design's bar over a node.",
+			"**Settings → Editor → Action row** draws the action row as separate buttons, as it was, or as one bar like the graph's own tools.",
 		],
 		changed: [
 			"**Toolbars says the three windows share one tab on a phone or a tablet**, rather than that none of them replaces the one you are on.",

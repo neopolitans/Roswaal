@@ -314,6 +314,7 @@ export function LogicCanvas({ graph, shape, registry, target, onChange }: LogicC
 							canPaste={hasClip}
 							locked={false}
 							labels={readPreferences().actionLabels}
+							style={readPreferences().actionRow}
 						/>
 					</div>
 				</div>

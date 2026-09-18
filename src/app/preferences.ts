@@ -148,6 +148,11 @@ export interface Preferences {
 	 */
 	actionLabels: ActionLabels;
 	/**
+	 * Whether the action row's buttons each stand on their own over the graph,
+	 * or share one bar, the way the graph's floating tools do.
+	 */
+	actionRow: ActionRowStyle;
+	/**
 	 * What a node does when its header is longer than the node is wide.
 	 *
 	 * `false` truncates, which is what a node has always done: the title
@@ -261,6 +266,13 @@ export const ACTION_LABEL_CHOICES: { value: ActionLabels; label: string; what: s
 	{ value: "text", label: "Text", what: "Each action's name." },
 ];
 
+export type ActionRowStyle = "separate" | "unified";
+
+export const ACTION_ROW_CHOICES: { value: ActionRowStyle; label: string; what: string }[] = [
+	{ value: "separate", label: "Separate", what: "Each button on its own over the graph." },
+	{ value: "unified", label: "Unified", what: "One bar holding every button." },
+];
+
 export type WheelChoice = "auto" | "zoom" | "pan";
 
 export const WHEEL_CHOICES: { value: WheelChoice; label: string; what: string }[] = [
@@ -321,6 +333,7 @@ export const DEFAULTS: Preferences = {
 	roundedNodes: true,
 	wheel: "auto",
 	actionLabels: "icons",
+	actionRow: "separate",
 	// Truncating is what nodes already did, so the default changes nothing for
 	// anybody who does not go looking for it.
 	wideNodes: false,
@@ -382,6 +395,9 @@ export function readPreferences(): Preferences {
 		actionLabels: ACTION_LABEL_CHOICES.some((c) => c.value === stored.actionLabels)
 			? (stored.actionLabels as ActionLabels)
 			: DEFAULTS.actionLabels,
+		actionRow: ACTION_ROW_CHOICES.some((c) => c.value === stored.actionRow)
+			? (stored.actionRow as ActionRowStyle)
+			: DEFAULTS.actionRow,
 		wheel: WHEEL_CHOICES.some((c) => c.value === stored.wheel)
 			? (stored.wheel as WheelChoice)
 			: DEFAULTS.wheel,

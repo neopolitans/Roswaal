@@ -1195,7 +1195,7 @@ export const FUNCTIONS_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
 export const ACTION_ROW: ToolbarSpec = {
 	id: "action-row",
 	title: "The action row",
-	summary: "Under the graph on a phone or a tablet, and under Node Design's logic graph. Icons, or words with **Settings → Editor → Action buttons**.",
+	summary: "Under the graph on a phone or a tablet, and under Node Design's logic graph. Icons or words with **Settings → Editor → Action buttons**; separate buttons or one bar with **Action row**.",
 	chrome: "float",
 	groups: [
 		{

@@ -1772,6 +1772,7 @@ export function App() {
 								canPaste={hasClip}
 								locked={locked}
 								labels={prefs.actionLabels}
+								style={prefs.actionRow}
 							/>
 						)
 						: undefined

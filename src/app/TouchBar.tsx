@@ -8,7 +8,7 @@
 
 import type { NodeScript } from "../core/schema.js";
 import { Icon, type IconName } from "./icons.jsx";
-import type { ActionLabels } from "./preferences.js";
+import type { ActionLabels, ActionRowStyle } from "./preferences.js";
 import { store } from "./store.js";
 
 /**
@@ -24,12 +24,14 @@ export function liveSelection(script: NodeScript, selection: ReadonlySet<string>
 	return live;
 }
 
-export function TouchBar({ selected, canPaste, locked, labels = "icons" }: {
+export function TouchBar({ selected, canPaste, locked, labels = "icons", style = "separate" }: {
 	selected: number;
 	canPaste: boolean;
 	locked: boolean;
 	/** Glyphs or names; see the Action buttons preference. */
 	labels?: ActionLabels;
+	/** Buttons each on their own, or one bar; see the Action row preference. */
+	style?: ActionRowStyle;
 }) {
 	const press = (key: string, withMod: boolean) =>
 		document.body.dispatchEvent(new KeyboardEvent("keydown", { key, ctrlKey: withMod, bubbles: true }));
@@ -57,7 +59,7 @@ export function TouchBar({ selected, canPaste, locked, labels = "icons" }: {
 	);
 
 	return (
-		<>
+		<div className={`touch-bar-group${style === "unified" ? " unified" : ""}`}>
 			{action("Undo", "undo", "z", true, locked || !history.undo)}
 			{action("Redo", "redo", "y", true, locked || !history.redo)}
 			{/* A lines the selection up on the node picked first. */}
@@ -71,6 +73,6 @@ export function TouchBar({ selected, canPaste, locked, labels = "icons" }: {
 				</>
 			)}
 			{canPaste && action("Paste", "paste", "v", true, locked)}
-		</>
+		</div>
 	);
 }

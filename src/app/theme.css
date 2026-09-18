@@ -8648,6 +8648,39 @@ button.tb.danger {
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
+.touch-bar-group {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 6px;
+}
+
+/* One bar, as the graph's floating tools are one: the buttons sit flat on it
+   and the bar carries the edge and the shadow. */
+.touch-bar-group.unified {
+	gap: 2px;
+	padding: 4px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg-panel);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+	pointer-events: auto;
+}
+
+.touch-bar-group.unified button.tb {
+	border-color: transparent;
+	background: transparent;
+	box-shadow: none;
+}
+
+/* Where a tap leaves a button hovered, a flat bar keeps its buttons flat. */
+@media (hover: none) {
+	.touch-bar .touch-bar-group.unified button.tb:hover:not(:disabled):not(.on) {
+		border-color: transparent;
+		background: transparent;
+	}
+}
+
 /* A 24px glyph in a 46px square: past the 44pt Apple asks a tap target to be. */
 .touch-bar button.tb.icon-only {
 	padding: 10px;

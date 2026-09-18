@@ -25,7 +25,7 @@ import {
 import { LICENCE_TEXTS } from "../core/themeData.js";
 import { BUILTIN_THEMES } from "./theme.js";
 import {
-	ACTION_LABEL_CHOICES, AUTOSAVE_CHOICES, DOCS_FONTS, FUNCTION_TAB_CHOICES, PREVIEW_SCALE, previewScaleOf, WHEEL_CHOICES, WIRE_STYLES,
+	ACTION_LABEL_CHOICES, ACTION_ROW_CHOICES, AUTOSAVE_CHOICES, DOCS_FONTS, FUNCTION_TAB_CHOICES, PREVIEW_SCALE, previewScaleOf, WHEEL_CHOICES, WIRE_STYLES,
 	type Preferences,
 } from "./preferences.js";
 import { Icon } from "./icons.jsx";
@@ -514,6 +514,23 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 							key={c.value}
 							className={prefs.actionLabels === c.value ? "on" : ""}
 							onClick={() => onPrefs({ actionLabels: c.value })}
+						>
+							{c.label}
+						</button>
+					))}
+				</div>
+			</Row>
+
+			<Row
+				label="Action row"
+				help={`Under the graph on a phone or a tablet. ${ACTION_ROW_CHOICES.find((c) => c.value === prefs.actionRow)?.what ?? ""}`}
+			>
+				<div className="segmented">
+					{ACTION_ROW_CHOICES.map((c) => (
+						<button
+							key={c.value}
+							className={prefs.actionRow === c.value ? "on" : ""}
+							onClick={() => onPrefs({ actionRow: c.value })}
 						>
 							{c.label}
 						</button>
