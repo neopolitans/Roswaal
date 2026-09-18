@@ -1,5 +1,5 @@
 /**
- * The page's own checkboxes, for the documentation site.
+ * The page's own checkboxes, and its device tabs, for the documentation site.
  *
  * Bundled from `src/app/docsToggle.ts` — the module the editor's own Docs
  * window uses — so a preference set on the published site and one set in the
@@ -24,7 +24,10 @@ export async function buildDocsToggle() {
 		stdin: {
 			contents: [
 				'import { attachDocsToggles } from "./src/app/docsToggle.ts";',
+				'import { attachDeviceTabs } from "./src/app/docsDevice.ts";',
 				"attachDocsToggles(document);",
+				// The published site is the web app's, so a computer is its Desktop (Webapp).
+				"attachDeviceTabs(document, false);",
 			].join(String.fromCharCode(10)),
 			resolveDir: root,
 			loader: "ts",

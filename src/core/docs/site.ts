@@ -292,10 +292,18 @@ export interface DocPage {
  * panel and switches with a radio, so the text is there with no script, and the
  * search index walks into every tab rather than only the open one.
  */
+/** A kind of screen a tab is for. Desktop is split by which build it is. */
+export type TabDevice = "localhost" | "webapp" | "tablet" | "phone";
+
 export interface DocTab {
 	/** Stable, and part of the radio's name in the static build. */
 	id: string;
 	title: string;
+	/**
+	 * The screens this tab is for. A page opens on the tab for the reader's
+	 * own, and marks it; see `src/app/docsDevice.ts`.
+	 */
+	device?: TabDevice[];
 	blocks: Block[];
 }
 
@@ -1180,6 +1188,7 @@ const GETTING_STARTED: DocPage = {
 				{
 					id: "start-localhost",
 					title: "Desktop (localhost)",
+					device: ["localhost"],
 					blocks: [
 						{
 							t: "code",
@@ -1198,6 +1207,7 @@ const GETTING_STARTED: DocPage = {
 				{
 					id: "start-webapp",
 					title: "Desktop (Webapp)",
+					device: ["webapp"],
 					blocks: [
 						{
 							t: "p",
@@ -1217,6 +1227,7 @@ const GETTING_STARTED: DocPage = {
 				{
 					id: "start-mobile",
 					title: "Mobile (Webapp)",
+					device: ["tablet", "phone"],
 					blocks: [
 						{
 							t: "p",
@@ -1560,6 +1571,7 @@ const INTERFACE: DocPage = {
 				{
 					id: "interface-editor-desktop",
 					title: "Desktop",
+					device: ["localhost", "webapp"],
 					blocks: [
 						{ t: "layout", layout: EDITOR_LAYOUT, hint: true },
 						{
@@ -1574,6 +1586,7 @@ const INTERFACE: DocPage = {
 				{
 					id: "interface-editor-tablet",
 					title: "Tablet (Webapp)",
+					device: ["tablet"],
 					blocks: [
 						{ t: "layout", layout: EDITOR_LAYOUT_TOUCH },
 						{ t: "toolbar", bar: ACTION_ROW },
@@ -1582,6 +1595,7 @@ const INTERFACE: DocPage = {
 				{
 					id: "interface-editor-phone",
 					title: "Phone (Webapp)",
+					device: ["phone"],
 					blocks: [{ t: "layout", layout: EDITOR_LAYOUT_PHONE }],
 				},
 			],
@@ -1600,11 +1614,13 @@ const INTERFACE: DocPage = {
 				{
 					id: "interface-designer-desktop",
 					title: "Desktop",
+					device: ["localhost", "webapp"],
 					blocks: [{ t: "layout", layout: DESIGNER_LAYOUT }],
 				},
 				{
 					id: "interface-designer-tablet",
 					title: "Tablet (Webapp)",
+					device: ["tablet"],
 					blocks: [
 						{ t: "layout", layout: DESIGNER_LAYOUT_TOUCH },
 						{ t: "toolbar", bar: DESIGNER_TOUCH_BAR },
@@ -1613,6 +1629,7 @@ const INTERFACE: DocPage = {
 				{
 					id: "interface-designer-phone",
 					title: "Phone (Webapp)",
+					device: ["phone"],
 					blocks: [{ t: "layout", layout: DESIGNER_LAYOUT_PHONE }],
 				},
 			],
@@ -1655,6 +1672,7 @@ const CONTROLS: DocPage = {
 				{
 					id: "controls-desktop",
 					title: "Desktop",
+					device: ["localhost", "webapp"],
 					blocks: [
 						{
 							t: "p",
@@ -1694,6 +1712,7 @@ const CONTROLS: DocPage = {
 				{
 					id: "controls-mobile",
 					title: "Mobile (Webapp)",
+					device: ["tablet", "phone"],
 					blocks: [
 						{
 							t: "p",
@@ -1981,21 +2000,25 @@ const TOOLBARS_PAGE: DocPage = {
 				{
 					id: "editor-daemon",
 					title: "Desktop (localhost)",
+					device: ["localhost"],
 					blocks: [{ t: "toolbar", bar: EDITOR_BAR, hint: true }],
 				},
 				{
 					id: "editor-browser",
 					title: "Desktop (Webapp)",
+					device: ["webapp"],
 					blocks: [{ t: "toolbar", bar: EDITOR_BAR_BROWSER }],
 				},
 				{
 					id: "editor-tablet",
 					title: "Tablet (Webapp)",
+					device: ["tablet"],
 					blocks: [{ t: "toolbar", bar: EDITOR_BAR_TABLET }],
 				},
 				{
 					id: "editor-phone",
 					title: "Phone (Webapp)",
+					device: ["phone"],
 					blocks: [{ t: "toolbar", bar: EDITOR_BAR_PHONE }],
 				},
 			],
@@ -2021,9 +2044,9 @@ const TOOLBARS_PAGE: DocPage = {
 			t: "tabs",
 			label: "Where are you working?",
 			tabs: [
-				{ id: "graph-desktop", title: "Desktop", blocks: [{ t: "toolbar", bar: GRAPH_BAR }] },
-				{ id: "graph-tablet", title: "Tablet (Webapp)", blocks: [{ t: "toolbar", bar: GRAPH_BAR_TABLET }] },
-				{ id: "graph-phone", title: "Phone (Webapp)", blocks: [{ t: "toolbar", bar: GRAPH_BAR_PHONE }] },
+				{ id: "graph-desktop", title: "Desktop", device: ["localhost", "webapp"], blocks: [{ t: "toolbar", bar: GRAPH_BAR }] },
+				{ id: "graph-tablet", title: "Tablet (Webapp)", device: ["tablet"], blocks: [{ t: "toolbar", bar: GRAPH_BAR_TABLET }] },
+				{ id: "graph-phone", title: "Phone (Webapp)", device: ["phone"], blocks: [{ t: "toolbar", bar: GRAPH_BAR_PHONE }] },
 			],
 		},
 		{
@@ -2058,21 +2081,25 @@ const TOOLBARS_PAGE: DocPage = {
 				{
 					id: "designer-daemon",
 					title: "Desktop (localhost)",
+					device: ["localhost"],
 					blocks: [{ t: "toolbar", bar: DESIGNER_BAR }],
 				},
 				{
 					id: "designer-browser",
 					title: "Desktop (Webapp)",
+					device: ["webapp"],
 					blocks: [{ t: "toolbar", bar: DESIGNER_BAR_BROWSER }],
 				},
 				{
 					id: "designer-tablet",
 					title: "Tablet (Webapp)",
+					device: ["tablet"],
 					blocks: [{ t: "toolbar", bar: DESIGNER_BAR_TABLET }],
 				},
 				{
 					id: "designer-phone",
 					title: "Phone (Webapp)",
+					device: ["phone"],
 					blocks: [{ t: "toolbar", bar: DESIGNER_BAR_PHONE }],
 				},
 			],
@@ -2092,21 +2119,25 @@ const TOOLBARS_PAGE: DocPage = {
 				{
 					id: "docs-daemon",
 					title: "Desktop (localhost)",
+					device: ["localhost"],
 					blocks: [{ t: "toolbar", bar: DOCS_BAR }],
 				},
 				{
 					id: "docs-published",
 					title: "Desktop (Webapp)",
+					device: ["webapp"],
 					blocks: [{ t: "toolbar", bar: DOCS_SITE_BAR }],
 				},
 				{
 					id: "docs-tablet",
 					title: "Tablet (Webapp)",
+					device: ["tablet"],
 					blocks: [{ t: "toolbar", bar: DOCS_SITE_BAR_TOUCH }],
 				},
 				{
 					id: "docs-phone",
 					title: "Phone (Webapp)",
+					device: ["phone"],
 					blocks: [{ t: "toolbar", bar: DOCS_SITE_BAR_PHONE }],
 				},
 			],

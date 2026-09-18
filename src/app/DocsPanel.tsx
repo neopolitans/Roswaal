@@ -37,6 +37,8 @@ import { wirePath } from "./geometry.js";
 import { attachGraphView } from "./graphView.js";
 import { readPreferences, wheelAction, writePreferences, type Preferences } from "./preferences.js";
 import { applyDocsToggle } from "./docsToggle.js";
+import { chosenDevice, pickTab, readerDevice, rememberPick } from "./docsDevice.js";
+import { IS_STATIC_HOST } from "./pages.js";
 import { growthState } from "../core/nodes/growth.js";
 import { PageEditor } from "./PageEditor.jsx";
 import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
@@ -846,7 +848,14 @@ function LayoutFigure(
  * does not move the reader.
  */
 function Tabs({ block }: { block: Block & { t: "tabs" } }) {
-	const [on, setOn] = useState(block.tabs[0]?.id ?? "");
+	// Opens on the reader's own screen's tab, or the one they picked this
+	// visit, as the published site does. See `docsDevice.ts`.
+	const own = readerDevice(window, !IS_STATIC_HOST);
+	const mine = pickTab(block.tabs, own);
+	const [on, setOn] = useState(() => {
+		const i = pickTab(block.tabs, chosenDevice() ?? own);
+		return block.tabs[i >= 0 ? i : 0]?.id ?? "";
+	});
 	const current = block.tabs.find((tab) => tab.id === on) ?? block.tabs[0];
 	if (!current) return null;
 
@@ -860,9 +869,13 @@ function Tabs({ block }: { block: Block & { t: "tabs" } }) {
 						role="tab"
 						aria-selected={tab.id === current.id}
 						className={tab.id === current.id ? "on" : ""}
-						onClick={() => setOn(tab.id)}
+						onClick={() => {
+							setOn(tab.id);
+							if (tab.device) rememberPick(tab.device, own);
+						}}
 					>
 						{tab.title}
+						{block.tabs[mine] === tab && <span className="docs-tab-here">this device</span>}
 					</button>
 				))}
 			</div>

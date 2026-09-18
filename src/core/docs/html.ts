@@ -328,6 +328,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				.map(
 					(tab, i) =>
 						`<input type="radio" name="${escapeHtml(name)}" id="${escapeHtml(`${name}-${tab.id}`)}"` +
+						(tab.device ? ` data-device="${escapeHtml(tab.device.join(" "))}"` : "") +
 						`${i === 0 ? " checked" : ""}>`,
 				)
 				.join("");

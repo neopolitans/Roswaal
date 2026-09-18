@@ -163,6 +163,7 @@ function blockSource(draft: Draft, indent = "\t\t"): string {
 				`${inner}{${NEWLINE}` +
 				`${inner}\tid: ${str(tab.id)},${NEWLINE}` +
 				`${inner}\ttitle: ${str(tab.title)},${NEWLINE}` +
+				(tab.device ? `${inner}\tdevice: [${tab.device.map(str).join(", ")}],${NEWLINE}` : "") +
 				`${inner}\tblocks: [${NEWLINE}` +
 				tab.blocks.map((b) => blockSource({ block: b }, `${inner}\t\t`)).join(NEWLINE) +
 				`${NEWLINE}${inner}\t],${NEWLINE}${inner}},`,
