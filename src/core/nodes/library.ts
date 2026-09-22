@@ -20,6 +20,8 @@ import {
 	SERVICE_CALL, SERVICE_VALUE, servicePins, serviceSubtitle,
 } from "../serviceCalls.js";
 import { pinTypeOf, typedLocalName } from "./variables.js";
+import { LUAU_PRIMITIVES } from "../luneTypes.js";
+import { DATATYPES } from "../robloxData.js";
 import { ENGINE_TYPES, LUAU, PAIR, SPECIFIER_HINTS } from "../schema.js";
 
 /** The category for coordinates brought across from a Z-up tool. */
@@ -256,6 +258,21 @@ function classTyped(def: NodeDef, pinId: string, outputId: string): NodeDef {
 	};
 	return { ...def, derivePins: derive };
 }
+
+/**
+ * What `typeof` answers, which is not the same list as what a type can be.
+ *
+ * Luau's own names first, then Roblox's datatypes; `Instance` covers everything
+ * in the DataModel, since `typeof(part)` is "Instance" rather than "Part".
+ * Deliberately not the class list: a check against "Part" never matches, and
+ * offering it would be offering a bug.
+ */
+const TYPEOF_NAMES: string[] = [
+	...LUAU_PRIMITIVES.filter((name) => name !== "any" && name !== "unknown" && name !== "never"),
+	"userdata",
+	"Instance",
+	...DATATYPES,
+];
 
 const LETTERS = "ABCDEFGH".split("");
 
@@ -495,11 +512,47 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("value.string", "String", "Values", "$in.value", [str("value", "")], "string"),
 	pure("value.boolean", "Boolean", "Values", "$in.value", [bool("value", "")], "boolean"),
 	pill(pure("value.nil", "Nil", "Values", "nil", [], "any"), "nil"),
-	pure("value.typeof", "Type Of", "Values", "typeof($in.value)",
-		[d("value", "Value", "any")], "string",
-		"Roblox's `typeof`, which knows its own datatypes -- a Vector3 answers \"Vector3\" where " +
-		"Lua's `type` only says \"userdata\". This is the runtime one; for `typeof(x)` inside a " +
-		"type, write it in a Declare Type node's definition."),
+	pill(
+		pure("value.typeof", "Type Of", "Values", "typeof($in.value)",
+			[d("value", "", "any")], "string",
+			"Roblox's `typeof`, which knows its own datatypes -- a Vector3 answers \"Vector3\" where " +
+			"Lua's `type` only says \"userdata\". This is the runtime one; for `typeof(x)` inside a " +
+			"type, write it in a Declare Type node's definition."),
+		"typeof",
+	),
+	/**
+	 * The name a value's type answers to, as a string, chosen rather than spelt.
+	 *
+	 * `typeof(aim) ~= "Vector3"` is the shape of every runtime type check, and
+	 * the right-hand side was a String node with the name typed into it — where
+	 * "vector3", "Vector 3" and a stray space are all things you find out about
+	 * at runtime, if at all. The list is what `typeof` can actually answer:
+	 * Luau's own type names and Roblox's datatypes, with `Instance` for
+	 * anything in the DataModel.
+	 *
+	 * Still only a suggestion, like every other list here -- a datatype newer
+	 * than this build is typed in and compiles to exactly the same string.
+	 */
+	pure("value.typeName", "Type as String", "Values", "$in.type",
+		[{ ...str("type", "", "Vector3"), options: TYPEOF_NAMES }], "string",
+		"The name `typeof` answers for a type, as a string: `\"Vector3\"`. Picked from a list " +
+		"rather than typed, since a misspelt one is a check that never matches."),
+	/**
+	 * `x ~= x`, which is true of exactly one value.
+	 *
+	 * NaN is not equal to itself, and that is the whole test for it: there is
+	 * no `isnan` in Luau, and `x == x` reads as a tautology to anybody who has
+	 * not met the trick. A node for it says what it is for on its face, and
+	 * makes the graph's intent legible where a comparison of a value against
+	 * itself looks like a mistake somebody should clean up.
+	 */
+	pill(
+		pure("compare.selfNeq", "Not Equal to Self", "Logic", "$in.a ~= $in.a",
+			[d("a", "", "any")], "boolean",
+			"True only for NaN, which is the one value not equal to itself — the check for a " +
+			"number that came out of `0/0` or a normalised zero vector. Luau has no `isnan`."),
+		"~= self",
+	),
 	{
 		id: "value.expression",
 		title: "Luau Expression",

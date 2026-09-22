@@ -31,6 +31,9 @@ export const LUAU_KEYWORDS: Readonly<Record<string, readonly string[]>> = {
 	">": ["compare.gt"],
 	">=": ["compare.gte"],
 	"nil": ["value.nil"],
+	// Both nodes that ask a value what it is: the call, and the name it
+	// answers with, which is what the call is nearly always compared against.
+	"typeof": ["value.typeof", "value.typeName"],
 	"true": ["value.boolean"],
 	"false": ["value.boolean"],
 

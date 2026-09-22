@@ -2789,6 +2789,57 @@ class Emitter {
 
 	// -- templates ---------------------------------------------------------
 
+	/**
+	 * A pin a template reads more than once, worked out once.
+	 *
+	 * `x ~= x` is the NaN check, and its template names one pin twice — so
+	 * without this, the value arrives twice: `roll() ~= roll()` calls `roll`
+	 * two times and compares two different numbers, which is not the question
+	 * the node asks. Fanning out to two *pins* already binds a local; this is
+	 * the same rule for one pin read twice.
+	 *
+	 * An identifier or an access path is spliced as it is, for the reason
+	 * `resolveOutput` gives: `restore.weld` read twice is what the hand-written
+	 * module says, and a local for it is a snapshot rather than a shorthand.
+	 * A literal is left alone too — nothing is saved by naming `0`.
+	 *
+	 * Nothing is bound in a logic graph, which is one expression with nowhere
+	 * to put a local; there the value is worked out where it is read, as it was
+	 * before this existed.
+	 */
+	private readOnce(r: ResolvedNode, template: string, scope: Scope): Map<string, string> {
+		const out = new Map<string, string>();
+		if (this.options.expressionsOnly) return out;
+
+		const counts = new Map<string, number>();
+		for (const match of template.matchAll(/\$in\.([A-Za-z_][A-Za-z0-9_]*)(?![.\w!])/g)) {
+			counts.set(match[1], (counts.get(match[1]) ?? 0) + 1);
+		}
+
+		for (const [pinId, count] of counts) {
+			if (count < 2) continue;
+			const pin = r.inputs.find((one) => one.id === pinId);
+			if (!pin) continue;
+			const expr = this.resolveInput(r, pin, scope);
+			// A name, a literal or a field read: repeating it costs nothing and
+			// reads as the hand-written line would. A call is not on this list,
+			// however atomic it looks -- calling it twice is the bug.
+			if (REPEATABLE.test(expr) || isAccessPath(expr)) {
+				out.set(pinId, expr);
+				continue;
+			}
+			// Named after what fed it, as `resolveOutput` names its locals: the
+			// pin is unnamed on a pill, and `a` would be a local called after
+			// the operand slot rather than after the value in it.
+			const src = this.feederOf(r.node.id, pinId);
+			const hint = src?.node.label || pin.name || src?.def.title || pinId;
+			const ident = this.names.unique(hint, "value");
+			this.push(`local ${ident} = ${expr}`, r.node.id);
+			out.set(pinId, ident);
+		}
+		return out;
+	}
+
 	private renderTemplate(r: ResolvedNode, template: string, scope: Scope): string {
 		/**
 		 * `$config.<key>` — a name the node carries rather than a pin it has.
@@ -2964,6 +3015,10 @@ class Emitter {
 			},
 		);
 
+		// Worked out before anything is spliced, so a value read twice is read
+		// once and the local it binds sits above the line that uses it.
+		const once = this.readOnce(r, template, scope);
+
 		const re = /\$(in|out)\.([A-Za-z_][A-Za-z0-9_]*)(?:!(ident|raw))?/g;
 		return template.replace(re, (match: string, side: string, pinId: string, modifier: string | undefined, offset: number) => {
 			if (side === "out") {
@@ -2980,6 +3035,13 @@ class Emitter {
 				return "_";
 			}
 			const pin = this.pin(r, pinId, "in");
+
+			// Read twice by this template: the same text both times, and a local
+			// above it where the value could not be repeated safely.
+			const shared = modifier === undefined ? once.get(pinId) : undefined;
+			if (shared !== undefined) {
+				return parenAt(shared, templatePrecedence(template, offset, offset + match.length));
+			}
 
 			if (modifier) {
 				const link = this.index.sourceOf(r.node.id, pinId);
@@ -3007,6 +3069,13 @@ class Emitter {
 		});
 	}
 }
+
+/**
+ * An expression a template may splice twice: a name, a number, a string, or
+ * one of Luau's three keyword values. Anything with a call, an operator or a
+ * constructor in it is worked out once and bound. See `readOnce`.
+ */
+const REPEATABLE = /^(?:[A-Za-z_][A-Za-z0-9_]*|-?\d+(?:\.\d+)?|"(?:[^"\\]|\\.)*"|nil|true|false)$/;
 
 /** True when the expression is also a valid Luau statement (a function call). */
 function isCallStatement(expr: string): boolean {

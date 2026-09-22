@@ -36,10 +36,11 @@ describe("which nodes are pills", () => {
 			"cast.any", "cast.array", "cast.as",
 			"cframe.mul", "cframe.translate",
 			"compare.eq", "compare.gt", "compare.gte", "compare.lt", "compare.lte", "compare.neq",
+			"compare.selfNeq",
 			"logic.and", "logic.not", "logic.or",
 			"math.add", "math.div", "math.mod", "math.mul", "math.neg", "math.pow", "math.sub",
 			"udim.add", "udim.sub", "udim2.add", "udim2.sub",
-			"value.member", "value.nil",
+			"value.member", "value.nil", "value.typeof",
 			"vector2.add", "vector2.divide", "vector2.negate", "vector2.scale", "vector2.sub",
 			"vector3.add", "vector3.divide", "vector3.mul", "vector3.negate", "vector3.scale", "vector3.sub",
 		]);
@@ -187,5 +188,29 @@ describe("a pill's inline field", () => {
 		);
 		const fieldLeft = NODE.rowPadding + NODE.pinSlot + 5;
 		expect(fieldLeft + NODE.fieldWide).toBeLessThanOrEqual(layout.symbolLeft);
+	});
+});
+
+/**
+ * The three that came with 0.79.0: the runtime type question, the NaN check,
+ * and the type name a check compares against.
+ */
+describe("asking about a type at runtime", () => {
+	it("draws typeof as the word it writes", () => {
+		expect(registry.get("value.typeof")!.operator).toBe("typeof");
+	});
+
+	it("draws the NaN check as the comparison it writes", () => {
+		expect(registry.get("compare.selfNeq")!.operator).toBe("~= self");
+	});
+
+	/** What `typeof` answers, not what a type can be: no classes. */
+	it("offers the names typeof can answer", () => {
+		const options = registry.get("value.typeName")!.inputs[0].options ?? [];
+		for (const name of ["number", "string", "Vector3", "CFrame", "Instance", "boolean"]) {
+			expect(options, name).toContain(name);
+		}
+		expect(options).not.toContain("Part");
+		expect(options).not.toContain("any");
 	});
 });

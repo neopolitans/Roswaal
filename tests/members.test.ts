@@ -236,3 +236,51 @@ describe("a member dragged off a pin", () => {
 			.toEqual(["throttle", "aim"]);
 	});
 });
+
+/**
+ * A value read twice by one template.
+ *
+ * `x ~= x` is the NaN check and names one pin twice, so the value has to be
+ * worked out once: calling `roll()` twice compares two different numbers, and
+ * whatever the second call did it did again.
+ */
+describe("Not Equal to Self", () => {
+	function nan(code: string) {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const expr = b.node("value.expression", { literals: { code: { t: "raw", v: code } } });
+		const check = b.node("compare.selfNeq");
+		b.link(expr, "result", check, "a");
+		const print = b.node("debug.print");
+		b.link(start, "then", print, "in");
+		b.link(check, "result", print, "value");
+		return code_(b.build());
+	}
+	const code_ = (script: NodeScript) => body(compile(script, registry).code);
+
+	it("binds a call once rather than making it twice", () => {
+		const out = nan("roll()");
+		expect(out).toContain("= roll()");
+		expect(out.match(/roll\(\)/g)).toHaveLength(1);
+		expect(out).toMatch(/print\((\w+) ~= \1\)/);
+	});
+
+	it("repeats a name, which costs nothing", () => {
+		expect(nan("speed")).toContain("print(speed ~= speed)");
+	});
+
+	/** A field read twice is what the hand-written line says. */
+	it("repeats a field read", () => {
+		expect(nan("input.aim")).toContain("print(input.aim ~= input.aim)");
+	});
+
+	it("writes the type name as a string", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const name = b.node("value.typeName", { literals: { type: { t: "string", v: "Vector3" } } });
+		const print = b.node("debug.print");
+		b.link(start, "then", print, "in");
+		b.link(name, "result", print, "value");
+		expect(code_(b.build())).toContain('print("Vector3")');
+	});
+});

@@ -94,6 +94,20 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.79.0",
+		date: "2026-09-22",
+		headline: "Asking what a value is.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Not Equal to Self**, a pill: `x ~= x`, which is true of NaN and nothing else. Luau has no `isnan`, and a value compared against itself reads as a mistake until you know the trick.",
+			"**Type as String** writes the name `typeof` answers — `\"Vector3\"` — picked from a list rather than typed into a String node, where a misspelling is a check that never matches. The list is what `typeof` can answer: Luau's own names, Roblox's datatypes and `Instance`.",
+		],
+		changed: [
+			"**Type Of is a pill**, showing the `typeof` it writes.",
+			"**A value a node reads twice is worked out once.** `x ~= x` on a call bound a local and compared it to itself; it used to make the call twice. A name, a number or a field read is still read where it is used.",
+		],
+	},
+	{
 		version: "0.78.0",
 		date: "2026-09-22",
 		headline: "Members where the wire comes from.",
