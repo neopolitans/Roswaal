@@ -135,6 +135,29 @@ export function migrateScript(raw: NodeScript, registry?: Registry): MigrationRe
 		notes.push(`Renamed ${count} × "${from}" to "${RENAMED_NODES[from]}".`);
 	}
 
+	// -- a member that was a pin -------------------------------------------
+	//
+	// Get Member shipped in 0.76.0 with its member typed into a pin, which made
+	// it two rows wide with "Object" and a field beside it. It is one line now
+	// -- `.throttle` -- and the member is carried by the node, so a graph from
+	// that one version has it in the wrong place and would compile to `x.`.
+	let members = 0;
+	script.nodes = script.nodes.map((node) => {
+		if (node.def !== "value.member") return node;
+		const literal = node.literals?.member;
+		if (!literal || literal.t !== "string") return node;
+		const literals = { ...node.literals };
+		delete literals.member;
+		members++;
+		const config = (node.config ?? {}) as { member?: unknown };
+		return {
+			...node,
+			literals,
+			config: { ...config, member: config.member ?? literal.v },
+		};
+	});
+	if (members > 0) notes.push(`Moved the member onto ${members} × Get Member.`);
+
 	// -- an index that was a name ------------------------------------------
 	//
 	// Until 0.30.0 one node set `t[1]` and `t.name` alike, and its pin was

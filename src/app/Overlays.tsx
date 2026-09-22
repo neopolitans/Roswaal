@@ -73,7 +73,12 @@ export interface OverlaysProps {
 
 	menu: MenuAnchor | null;
 	presets: Preset[];
-	onMenuPick: (def: NodeDef, config?: NodeConfig, literals?: Record<string, Literal>) => void;
+	onMenuPick: (
+		def: NodeDef,
+		config?: NodeConfig,
+		literals?: Record<string, Literal>,
+		member?: { name: string; type?: string },
+	) => void;
 	onAddComment: () => void;
 	onMenuClose: () => void;
 

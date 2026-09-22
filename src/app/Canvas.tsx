@@ -81,7 +81,12 @@ export interface CanvasProps {
 	 * A node dragged off the node picker's list, dropped here. The caller
 	 * places it, since placing one is the picker's job and it closes after.
 	 */
-	onDropNode?: (defId: string, config: NodeConfig | undefined, world: Vec) => void;
+	onDropNode?: (
+		defId: string,
+		config: NodeConfig | undefined,
+		world: Vec,
+		member?: { name: string; type?: string },
+	) => void;
 	onRequestPinMenu: (screen: Vec, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
 	/**
@@ -965,8 +970,10 @@ export function Canvas({
 				const picked = e.dataTransfer.getData("application/x-roswaal-node");
 				if (picked) {
 					e.preventDefault();
-					const { def, config } = JSON.parse(picked) as { def: string; config?: NodeConfig };
-					onDropNode?.(def, config, toWorld(e.clientX, e.clientY));
+					const { def, config, member } = JSON.parse(picked) as {
+						def: string; config?: NodeConfig; member?: { name: string; type?: string };
+					};
+					onDropNode?.(def, config, toWorld(e.clientX, e.clientY), member);
 					return;
 				}
 
@@ -1416,7 +1423,7 @@ function pinDefOf(
 	const node = script.nodes.find((n) => n.id === ref.node);
 	const def = node && registry.get(node.def);
 	if (!node || !def) return undefined;
-	const derived = resolveNodePins(def, node.config);
+	const derived = resolveNodePins(def, node.config, node.literals);
 	return (side === "in" ? derived.inputs : derived.outputs).find((p) => p.id === ref.pin);
 }
 

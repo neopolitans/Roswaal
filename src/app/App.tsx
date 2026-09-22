@@ -59,7 +59,14 @@ import {
 	promoteToVariable, recombinePin, selectionAnchor, setConfig as setNodeConfig, setLiteral, splitCost,
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
-import { setProjectTypes } from "./projectTypes.js";
+import { requiredTypes, setProjectTypes, useProjectTypes } from "./projectTypes.js";
+import type { ExportedType } from "./api.js";
+import { membersOfType } from "../core/members.js";
+import { pinColor } from "./palette.js";
+import { NODE } from "./layers.js";
+import type { Preset } from "./NodeMenu.jsx";
+import type { NodeScript } from "../core/schema.js";
+import type { Registry } from "../core/nodes/index.js";
 import { setProjectAliases } from "./projectAliases.js";
 import { forget, lastProject, recentProjects, remember } from "./recents.js";
 import { IS_STATIC_HOST, openHome, openPage, setBeforeLeaving } from "./pages.js";
@@ -874,9 +881,14 @@ export function App() {
 	// One palette entry per variable, local, function and parameter the graph on
 	// screen can reach, so "Get health" is searchable by name rather than by node
 	// type — and so nothing is offered that would not compile where it lands.
+	const projectTypes = useProjectTypes();
 	const presets = useMemo(
-		() => (editor.script ? buildPresets(editor.script, editor.graph) : []),
-		[editor.script, editor.graph],
+		() => {
+			if (!editor.script) return [];
+			const base = buildPresets(editor.script, editor.graph);
+			return [...base, ...memberPresets(base, editor.script, registry, projectTypes)];
+		},
+		[editor.script, editor.graph, registry, projectTypes],
 	);
 
 	/**
@@ -924,6 +936,12 @@ export function App() {
 			world: { x: number; y: number },
 			config?: Record<string, unknown>,
 			literals?: Record<string, Literal>,
+			/**
+			 * An entry like `input.throttle`: this node, and a Get Member on its
+			 * output, wired. Both are placed because both are what the graph
+			 * holds — the entry saves the placing, not the nodes.
+			 */
+			member?: { name: string; type?: string },
 		) => {
 			const from = menu?.from;
 			// A hoisted Function is in no flow, so it goes straight into a graph of
@@ -970,10 +988,41 @@ export function App() {
 				for (const [pin, value] of Object.entries(literals ?? {})) {
 					next = setLiteral(next, added.id, pin, value);
 				}
+				/**
+				 * The Get Member half of a `name.member` entry.
+				 *
+				 * To the right of the getter by one node's width, wired to its
+				 * first data output — which is the only output any of these
+				 * getters has. The member is selected rather than the getter:
+				 * it is the node the entry was about, and the one whose
+				 * Inspector says which member it reads.
+				 */
+				if (member) {
+					const reader = registry.get("value.member");
+					const source = next.nodes.find((n) => n.id === added.id);
+					const out = reader && source
+						? resolveNodePins(def, source.config, source.literals).outputs
+							.find((p) => p.kind === "data")
+						: undefined;
+					if (reader && out) {
+						const placedMember = addNode(next, reader, at.x + NODE.width + 40, at.y);
+						next = setNodeConfig(placedMember.script, placedMember.id, {
+							member: member.name,
+							type: member.type,
+						});
+						next = connect(
+							next, registry,
+							{ node: added.id, pin: out.id },
+							{ node: placedMember.id, pin: "object" },
+						);
+						queueMicrotask(() => store.select([placedMember.id]));
+					}
+				}
+
 				if (!from || hoisted) return next;
 
 				const placed = next.nodes.find((n) => n.id === added.id);
-				const pins = placed ? resolveNodePins(def, placed.config) : { inputs: [], outputs: [] };
+				const pins = placed ? resolveNodePins(def, placed.config, placed.literals) : { inputs: [], outputs: [] };
 				const side = from.side === "out" ? "in" : "out";
 				let candidates = side === "in" ? pins.inputs : pins.outputs;
 				/**
@@ -2081,9 +2130,9 @@ export function App() {
 							wideNodes={prefs.wideNodes}
 							onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
 							onRequestNodePicker={(world) => setNodePicker(world)}
-							onDropNode={(defId, config, world) => {
+							onDropNode={(defId, config, world, member) => {
 								const def = registry.get(defId);
-								if (def) spawn(def, world, config);
+								if (def) spawn(def, world, config, undefined, member);
 								setNodePicker(null);
 							}}
 							onRequestPinMenu={(screen, nodeId, pin, side) =>
@@ -2133,8 +2182,8 @@ export function App() {
 					// what this graph has.
 					presets={presets}
 					preview={nodePreview}
-					onPick={(def, config) => {
-						spawn(def, nodePicker, config);
+					onPick={(def, config, member) => {
+						spawn(def, nodePicker, config, undefined, member);
 						setNodePicker(null);
 					}}
 					onClose={() => setNodePicker(null)}
@@ -2172,7 +2221,8 @@ export function App() {
 
 				menu={menu}
 				presets={presets}
-				onMenuPick={(def, config, literals) => menu && spawn(def, menu.world, config, literals)}
+				onMenuPick={(def, config, literals, member) =>
+					menu && spawn(def, menu.world, config, literals, member)}
 				onAddComment={() => menu && spawnComment(menu.world)}
 				onMenuClose={() => setMenu(null)}
 
@@ -2609,6 +2659,60 @@ function StatusPanel(props: StatusPanelProps) {
 		</div>
 	);
 }
+
+
+/**
+ * One entry per member of anything the graph names: `input.throttle`.
+ *
+ * Built from the presets rather than beside them, so whatever is offered as a
+ * value is offered with its members: a variable, a local, a parameter. Only
+ * where the type says what it holds — a declared table type, a required
+ * module's, or a Roblox class — since the rest have no members to name.
+ *
+ * Marked `deep`, which keeps them out of the menu until somebody types: a
+ * `BasePart` local has two hundred properties and a list you scroll is not a
+ * shortcut. See `Preset.deep`.
+ */
+function memberPresets(
+	base: Preset[],
+	script: NodeScript,
+	registry: Registry,
+	projectTypes: ExportedType[],
+): Preset[] {
+	const external = new Map(
+		requiredTypes(script, projectTypes)
+			.filter((entry) => entry.fields && entry.fields.length > 0)
+			.map((entry) => [entry.type, entry.fields!] as const),
+	);
+	// The whole file: a type is declared once for it, and a link is found by
+	// node id whichever graph it is drawn in.
+	const lookup = { script, registry, external };
+
+	const out: Preset[] = [];
+	for (const preset of base) {
+		// The getters, and only them: a Set has nothing to read a member off.
+		if (!MEMBER_SOURCES.has(preset.defId)) continue;
+		const config = (preset.config ?? {}) as { type?: string; name?: string };
+		const owner = config.name ?? preset.title.replace(/^Get /, "");
+		for (const field of membersOfType(lookup, config.type)) {
+			out.push({
+				key: `${preset.key}.${field.name}`,
+				title: `${owner}.${field.name}`,
+				category: preset.category,
+				summary: `Reads the ${field.type} member "${field.name}" of ${owner}.`,
+				defId: preset.defId,
+				config: preset.config,
+				color: pinColor(field.type, "data"),
+				member: { name: field.name, type: field.type },
+				deep: true,
+			});
+		}
+	}
+	return out;
+}
+
+/** What a `name.member` entry can read a member off. */
+const MEMBER_SOURCES = new Set(["variable.get", "local.get", "function.getParam"]);
 
 function boundsOf(
 	script: { nodes: { id: string; x: number; y: number }[]; comments: { id: string; x: number; y: number; w: number; h: number }[] },

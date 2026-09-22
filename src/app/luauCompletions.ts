@@ -303,7 +303,7 @@ function isExecPin(
 	const node = script.nodes.find((n) => n.id === nodeId);
 	const def = node && registry.get(node.def);
 	if (!node || !def) return false;
-	const pins = resolveNodePins(def, node.config);
+	const pins = resolveNodePins(def, node.config, node.literals);
 	const list = side === "in" ? pins.inputs : pins.outputs;
 	return list.find((p) => p.id === pinId)?.kind === "exec";
 }

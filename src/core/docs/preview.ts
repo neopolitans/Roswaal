@@ -227,8 +227,10 @@ export interface PreviewOptions {
  * node they are built on would show a picture of something else: every
  * variable in a graph would preview as an identical nameless capsule.
  */
-export function previewOf(def: NodeDef, config?: NodeConfig): NodePreview {
-	const { inputs, outputs } = resolveNodePins(def, config);
+export function previewOf(
+	def: NodeDef, config?: NodeConfig, literals?: Record<string, Literal>,
+): NodePreview {
+	const { inputs, outputs } = resolveNodePins(def, config, literals);
 	return {
 		id: def.id,
 		// The same rule the canvas uses. With no config there is never a name to
@@ -982,7 +984,7 @@ export function previewOfPlaced(
 	node: GraphNode, def: NodeDef, wired?: ReadonlySet<string>,
 ): NodePreview {
 	const config = node.config ?? {};
-	const { inputs, outputs } = resolveNodePins(def, node.config);
+	const { inputs, outputs } = resolveNodePins(def, node.config, node.literals);
 	const isWired = (side: "in" | "out", pin: string) => wired?.has(`${side}:${node.id}:${pin}`) === true;
 
 	return {

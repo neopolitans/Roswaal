@@ -12,8 +12,10 @@
  * node does, and everything else belongs on the page.
  */
 
-import type { NodeDef, PinDef } from "../schema.js";
-import { CLASS_OPTIONS, PATH_ROOTS, ROBLOX_SERVICES, TYPE_OPTIONS } from "../roblox.js";
+import type { Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
+import {
+	CLASS_OPTIONS, PATH_ROOTS, ROBLOX_SERVICES, TYPE_OPTIONS, isInstanceClass,
+} from "../roblox.js";
 import {
 	SERVICE_CALL, SERVICE_VALUE, servicePins, serviceSubtitle,
 } from "../serviceCalls.js";
@@ -183,6 +185,76 @@ function variadic(
 			outputs: [d("result", "", resultType)],
 		}),
 	};
+}
+
+
+/**
+ * A node whose result is the class one of its pins names.
+ *
+ * New Instance says `Part` on its face and handed back an `Instance`, so
+ * everything downstream had to be told again what the graph already said: a
+ * Cast to reach `Anchored`, and nothing offering `Anchored` in the first place.
+ * The class is typed into a pin, so the pins are derived from the pin values —
+ * see `NodeDef.derivePins`, which takes them for this.
+ *
+ * Only a **known** class narrows the pin. A name this build has never heard of
+ * is left as `Instance`, which is the honest answer and keeps a class newer
+ * than the catalogue working exactly as it did.
+ *
+ * A wire into the pin narrows nothing either: the class is then whatever the
+ * wire carries at runtime, which is not knowable here.
+ */
+/**
+ * A cast whose result is the type it asserts.
+ *
+ * The whole point of a cast is to say what a value is, and its result pin said
+ * `any` regardless — so `packet :: Input` handed on something the editor knew
+ * nothing about, and Get Member had nothing to offer off it. The type is typed
+ * into a pin, so the pins are derived from the pin values.
+ *
+ * `pinTypeOf` decides what the pin becomes, which keeps this honest about what
+ * it cannot use: a table type written out is a `table`, and an expression that
+ * is not a name at all stays `any`.
+ */
+function castTyped(def: NodeDef): NodeDef {
+	return {
+		...def,
+		derivePins: (config, literals) => {
+			const base = def.derivePins?.(config, literals)
+				?? { inputs: def.inputs, outputs: def.outputs };
+			const pin = base.inputs.find((one) => one.id === "type");
+			const named = literals?.type ?? pin?.default;
+			const text = named && (named.t === "string" || named.t === "raw") ? named.v.trim() : "";
+			if (text === "") return base;
+			return {
+				inputs: base.inputs,
+				outputs: base.outputs.map(
+					(one) => (one.id === "result" ? { ...one, type: pinTypeOf(text) } : one),
+				),
+			};
+		},
+	};
+}
+
+function classTyped(def: NodeDef, pinId: string, outputId: string): NodeDef {
+	const derive = (config: NodeConfig, literals?: Record<string, Literal>) => {
+		const base = def.derivePins?.(config, literals)
+			?? { inputs: def.inputs, outputs: def.outputs };
+		// The pin's own default counts: a New Instance dropped on the canvas
+		// says `Part` on its face before anybody has typed anything, and the
+		// pin it feeds should say Part too.
+		const pin = base.inputs.find((one) => one.id === pinId);
+		const named = literals?.[pinId] ?? pin?.default;
+		const className = named && named.t === "string" ? named.v.trim() : "";
+		if (!isInstanceClass(className)) return base;
+		return {
+			inputs: base.inputs,
+			outputs: base.outputs.map(
+				(pin) => (pin.id === outputId ? { ...pin, type: className } : pin),
+			),
+		};
+	};
+	return { ...def, derivePins: derive };
 }
 
 const LETTERS = "ABCDEFGH".split("");
@@ -654,6 +726,25 @@ export const LIBRARY_NODES: NodeDef[] = [
 		],
 		outputs: [d("service", "", "Instance")],
 		compilesTo: { kind: "builtin", handler: "service.get" },
+		/**
+		 * A service is an instance of a class named after it, so the local it
+		 * binds is typed as that class rather than as a bare `Instance` —
+		 * which is what lets Get Member offer `Workspace.Gravity`.
+		 */
+		derivePins: (_config, literals) => {
+			const named = literals?.service ?? { t: "string" as const, v: "Players" };
+			const service = named.t === "string" ? named.v.trim() : "";
+			return {
+				inputs: [
+					{
+						...str("service", "Service", "Players"),
+						options: [...ROBLOX_SERVICES],
+						description: "Pick a service, or type one the list has not caught up with.",
+					},
+				],
+				outputs: [d("service", "", isInstanceClass(service) ? service : "Instance")],
+			};
+		},
 	},
 	/**
 	 * Every method a service has, without a node each.
@@ -693,8 +784,11 @@ export const LIBRARY_NODES: NodeDef[] = [
 		derivePins: (config) => servicePins(config, true),
 		subtitle: (config) => serviceSubtitle(config) ?? resultSubtitle(config),
 	},
-	call("roblox.instanceNew", "New Instance", "Engine", "Instance.new($in.className)",
-		[cls("className", "Class Name", "Part")], "Instance", "Instance", { targets: ["roblox"] }),
+	classTyped(
+		call("roblox.instanceNew", "New Instance", "Engine", "Instance.new($in.className)",
+			[cls("className", "Class Name", "Part")], "Instance", "Instance", { targets: ["roblox"] }),
+		"className", "result",
+	),
 	call("roblox.waitForChild", "Wait For Child", "Engine",
 		"$in.parent:WaitForChild($in.name)",
 		[d("parent", "Parent", "Instance"), str("name", "Name")], "Child", "Instance",
@@ -942,9 +1036,12 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("instance.getDescendants", "Get Descendants", "Instances",
 		"$in.instance:GetDescendants()", [d("instance", "Instance", "Instance")], "table",
 		"Everything below this instance, at any depth. Typed `{ Instance }`."),
-	pure("instance.findFirstChildOfClass", "Find First Child Of Class", "Instances",
-		"$in.instance:FindFirstChildOfClass($in.className)",
-		[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Humanoid")], "Instance"),
+	classTyped(
+		pure("instance.findFirstChildOfClass", "Find First Child Of Class", "Instances",
+			"$in.instance:FindFirstChildOfClass($in.className)",
+			[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Humanoid")], "Instance"),
+		"className", "result",
+	),
 	/**
 	 * Pure, as every sibling asking the same question already is: Find First
 	 * Child Which Is A, the three Find First Ancestors, Get Children, Is A. It
@@ -983,20 +1080,29 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// Recursive is optional here for the reason it is on Find First Child: left
 	// alone it is not passed at all, so the line reads as the one somebody would
 	// have written by hand. Roblox's own default is false either way.
-	pure("instance.findFirstChildWhichIsA", "Find First Child Which Is A", "Instances",
-		"$in.instance:FindFirstChildWhichIsA($in.className$opt(, ))",
-		[d("instance", "Instance", "Instance"), cls("className", "Class Name", "BasePart"),
-			{ ...bool("recursive", "Recursive"), optional: true }], "Instance",
-		"Matches derived classes too, unlike Find First Child Of Class."),
+	classTyped(
+		pure("instance.findFirstChildWhichIsA", "Find First Child Which Is A", "Instances",
+			"$in.instance:FindFirstChildWhichIsA($in.className$opt(, ))",
+			[d("instance", "Instance", "Instance"), cls("className", "Class Name", "BasePart"),
+				{ ...bool("recursive", "Recursive"), optional: true }], "Instance",
+			"Matches derived classes too, unlike Find First Child Of Class."),
+		"className", "result",
+	),
 	pure("instance.findFirstAncestor", "Find First Ancestor", "Instances",
 		"$in.instance:FindFirstAncestor($in.name)",
 		[d("instance", "Instance", "Instance"), str("name", "Name", "Model")], "Instance"),
-	pure("instance.findFirstAncestorOfClass", "Find First Ancestor Of Class", "Instances",
-		"$in.instance:FindFirstAncestorOfClass($in.className)",
-		[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Model")], "Instance"),
-	pure("instance.findFirstAncestorWhichIsA", "Find First Ancestor Which Is A", "Instances",
-		"$in.instance:FindFirstAncestorWhichIsA($in.className)",
-		[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Model")], "Instance"),
+	classTyped(
+		pure("instance.findFirstAncestorOfClass", "Find First Ancestor Of Class", "Instances",
+			"$in.instance:FindFirstAncestorOfClass($in.className)",
+			[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Model")], "Instance"),
+		"className", "result",
+	),
+	classTyped(
+		pure("instance.findFirstAncestorWhichIsA", "Find First Ancestor Which Is A", "Instances",
+			"$in.instance:FindFirstAncestorWhichIsA($in.className)",
+			[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Model")], "Instance"),
+		"className", "result",
+	),
 	pure("instance.propertyChanged", "Get Property Changed Signal", "Instances",
 		"$in.instance:GetPropertyChangedSignal($in.property)",
 		[d("instance", "Instance", "Instance"), str("property", "Property", "Name")], "RBXScriptSignal",
@@ -1090,15 +1196,15 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// shape is also the point of the node. A cast is a claim made without a
 	// check, and a graph should show where those are at a glance rather than
 	// after reading three titles.
-	pill(pure("cast.as", "Cast", "Values", "($in.value :: $in.type!raw)",
+	castTyped(pill(pure("cast.as", "Cast", "Values", "($in.value :: $in.type!raw)",
 		[d("value", "Value", "any"), luauType("type", "Type", "BasePart")], "any",
-		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first. The Type pin takes any Luau type expression, so an intersection like `Model & { Humanoid: Humanoid }` is written here directly. Cast, in the Inspector, decides whether the assertion gets a line of its own; an implicit one inside the True arm of a Branch on Is A writes nothing at all, because Luau has already narrowed the value."), "::"),
+		"Asserts a type for the typechecker. No runtime check: if you are wrong, it is wrong silently — use Is A to ask first. The Type pin takes any Luau type expression, so an intersection like `Model & { Humanoid: Humanoid }` is written here directly. Cast, in the Inspector, decides whether the assertion gets a line of its own; an implicit one inside the True arm of a Branch on Is A writes nothing at all, because Luau has already narrowed the value."), "::")),
 	pill(pure("cast.array", "Cast Array", "Values", "($in.value :: { $in.type!raw })",
 		[d("value", "Value", "table"), luauType("type", "Type", "BasePart")], "table",
 		"For a collection you know more about than its type says: Get Descendants is { Instance }, and this is how you say they are all BaseParts."), ":: { }"),
-	pill(pure("cast.any", "Cast Through Any", "Values", "(($in.value :: any) :: $in.type!raw)",
+	castTyped(pill(pure("cast.any", "Cast Through Any", "Values", "(($in.value :: any) :: $in.type!raw)",
 		[d("value", "Value", "any"), luauType("type", "Type", "BasePart")], "any",
-		"Luau refuses a cast between unrelated types. Going through `any` is the documented way round it, and the extra step is the point: it marks where you overrode the typechecker rather than agreed with it."), ":: any ::"),
+		"Luau refuses a cast between unrelated types. Going through `any` is the documented way round it, and the extra step is the point: it marks where you overrode the typechecker rather than agreed with it."), ":: any ::")),
 
 	// -- Engine types ------------------------------------------------------
 	//
@@ -1560,8 +1666,10 @@ export const LIBRARY_NODES: NodeDef[] = [
 	 */
 	{
 		...pill(
-			pure("value.member", "Get Member", "Modules", "$in.object.$in.member!ident",
-				[d("object", "Object", "any"), { ...str("member", "Member", ""), wide: true as const }], "any",
+			pure("value.member", "Get Member", "Modules", "$in.object.$config.member",
+				// Unnamed: the pill writes `.throttle` and a row labelled
+				// "Object" beside it would be saying what the wire already says.
+				[d("object", "", "any")], "any",
 				"Reads a member the type declares: a field of a declared table type, or a " +
 				"property of a Roblox instance. The list comes from what is wired in; for a " +
 				"table whose keys change as the program runs, use Get Field."),
@@ -1577,10 +1685,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		 * on the other end of it.
 		 */
 		derivePins: (config) => ({
-			inputs: [
-				d("object", "Object", "any"),
-				{ ...str("member", "Member", ""), wide: true as const },
-			],
+			inputs: [d("object", "", "any")],
 			outputs: [d("result", "", pinTypeOf(config.type as string | undefined))],
 		}),
 	},

@@ -57,7 +57,7 @@ export function retypeReroutes(script: NodeScript, registry: Registry): NodeScri
 			const link = current.links.find((l) => l.to.node === node.id && l.to.pin === "in");
 			const source = link && current.nodes.find((n) => n.id === link.from.node);
 			const def = source && registry.get(source.def);
-			const pin = def && resolveNodePins(def, source.config).outputs.find((x) => x.id === link.from.pin);
+			const pin = def && resolveNodePins(def, source.config, source.literals).outputs.find((x) => x.id === link.from.pin);
 			const type = pin?.type ?? ANY;
 
 			const config = (node.config ?? {}) as { type?: string };

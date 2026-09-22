@@ -295,7 +295,19 @@ export interface NodeDef {
 	 * Builtins whose pins depend on per-instance config (function signatures,
 	 * module exports) derive them here. Data-only custom nodes never set this.
 	 */
-	derivePins?: (config: NodeConfig) => { inputs: PinDef[]; outputs: PinDef[] };
+	/**
+	 * The pins this node has, given what it carries.
+	 *
+	 * `literals` is what has been typed into its pins, and is how a node whose
+	 * shape depends on a *value* rather than on a setting derives it: New
+	 * Instance's result is the class its Class Name names, and the class is
+	 * typed into a pin. Absent where the caller has no node to read -- a
+	 * documentation page drawing the bare definition -- so an implementation
+	 * that uses it must still answer without it.
+	 */
+	derivePins?: (
+		config: NodeConfig, literals?: Record<string, Literal>,
+	) => { inputs: PinDef[]; outputs: PinDef[] };
 	/**
 	 * Second header line, smaller, under the title. For nodes whose identity is
 	 * not the whole story — a function's signature, a variable's type — this is

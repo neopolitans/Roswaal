@@ -96,7 +96,7 @@ export function functionBody(
 		const def = registry.get(node.def);
 		if (!def) continue;
 		const execOut = new Set(
-			resolveNodePins(def, node.config).outputs
+			resolveNodePins(def, node.config, node.literals).outputs
 				.filter((pin) => pin.kind === "exec")
 				.map((pin) => pin.id),
 		);

@@ -56,7 +56,7 @@ export function typeInto(
 	if (!from) return undefined;
 	const def = lookup.registry.get(from.def);
 	if (!def) return undefined;
-	const pins = resolveNodePins(def, from.config);
+	const pins = resolveNodePins(def, from.config, from.literals);
 	const pin = pins.outputs.find((p) => p.id === link.from.pin);
 	const type = pin?.type?.trim();
 	return type === "" || type === undefined ? undefined : type;

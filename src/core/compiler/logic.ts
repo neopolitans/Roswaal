@@ -90,7 +90,7 @@ export function logicScript(graph: LogicGraph, shape: LogicShape, registry: Regi
 	const pins = new Map(
 		nodes.map((node) => {
 			const def = registry.get(node.def);
-			return [node.id, def ? resolveNodePins(def, node.config) : null] as const;
+			return [node.id, def ? resolveNodePins(def, node.config, node.literals) : null] as const;
 		}),
 	);
 	const links = graph.links.filter((link) => {

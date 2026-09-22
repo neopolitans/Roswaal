@@ -300,7 +300,7 @@ function pinKind(
 ): PinKind | undefined {
 	const def = registry.get(node.def);
 	if (!def) return undefined;
-	const { inputs, outputs } = resolvePins(def, node.config);
+	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
 	return (side === "in" ? inputs : outputs).find((p) => p.id === pinId)?.kind;
 }
 

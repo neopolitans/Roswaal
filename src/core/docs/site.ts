@@ -4776,6 +4776,14 @@ function castingBlocks(registry: Registry): Block[] {
 				"`aim` on the type above gives a Vector3 pin and the wire from it is a Vector3's " +
 				"colour.",
 		},
+		{
+			t: "p",
+			text:
+				"It is one line — the access it writes, one input, one output — and which member " +
+				"it reads is chosen in the **Inspector**. Type `input.` into either node search " +
+				"and the members of everything the graph names are there: picking one places the " +
+				"getter and the Get Member on it, wired.",
+		},
 		...previews(
 			registry,
 			["value.member", "value.field"],
@@ -4789,6 +4797,14 @@ function castingBlocks(registry: Registry): Block[] {
 				["**A type a required module exports**", "`Config.Tuning`, read from the graph that declares it."],
 				["**A Roblox class**", "`BasePart.Position`, `Humanoid.WalkSpeed`. Roblox graphs only — a Lune program has no instances."],
 			],
+		},
+		{
+			t: "p",
+			text:
+				"**A node that names a class hands back that class.** New Instance set to `Part` " +
+				"gives a Part, not an Instance, and so do Get Service and the Find First Child " +
+				"and Ancestor nodes that take a Class Name. That is what puts a class's own " +
+				"properties in Get Member's list without a Cast first.",
 		},
 		{
 			t: "note",

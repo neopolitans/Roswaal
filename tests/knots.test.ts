@@ -85,7 +85,10 @@ describe("a knot takes the type of what feeds it", () => {
 		const out = connect(
 			cut, registry, { node: finder, pin: "result" }, { node: knot, pin: "in" },
 		);
-		expect(typeOf(out, knot)).toBe("Instance");
+		// `Humanoid` rather than `Instance` since 0.77.0: a node that names a
+		// class hands back that class, and Find First Child Of Class starts on
+		// Humanoid.
+		expect(typeOf(out, knot)).toBe("Humanoid");
 	});
 
 	/**

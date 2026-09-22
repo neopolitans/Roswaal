@@ -40,8 +40,10 @@ export function rectContains(outer: Rect, inner: Rect): boolean {
  * imports from here. The resolution itself lives in the registry, which is the
  * only place that knows about splitting.
  */
-export function resolvePins(def: NodeDef, config?: NodeConfig): { inputs: PinDef[]; outputs: PinDef[] } {
-	return resolveNodePins(def, config);
+export function resolvePins(
+	def: NodeDef, config?: NodeConfig, literals?: Record<string, Literal>,
+): { inputs: PinDef[]; outputs: PinDef[] } {
+	return resolveNodePins(def, config, literals);
 }
 
 /**
@@ -166,7 +168,7 @@ export function nodeBounds(node: GraphNode, registry: Registry, wide = false): R
 		const layout = operatorLayoutOf(def, node.config, node.literals);
 		return { x: node.x, y: node.y, w: layout.width, h: layout.height };
 	}
-	const { inputs, outputs } = resolvePins(def, node.config);
+	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
 	return {
 		x: node.x, y: node.y, w: nodeWidth(def, node, wide),
 		h: nodeHeight(inputs, outputs, def, node.config),

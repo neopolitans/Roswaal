@@ -58,7 +58,9 @@ export interface NodePickerProps {
 	presets?: Preset[];
 	/** How the picture is drawn: the reader's own geometry and colours. */
 	preview: PreviewOptions;
-	onPick: (def: NodeDef, config?: NodeConfig) => void;
+	onPick: (
+		def: NodeDef, config?: NodeConfig, member?: { name: string; type?: string },
+	) => void;
 	onClose: () => void;
 }
 
@@ -77,6 +79,10 @@ interface Hit {
 	summary?: string;
 	def: NodeDef;
 	config?: NodeConfig;
+	/** See `Preset.member`: this entry places a getter and a Get Member on it. */
+	member?: { name: string; type?: string };
+	/** See `Preset.deep`: offered while searching rather than while browsing. */
+	deep?: boolean;
 	/** What the filter chips narrow on. `graph` for anything the graph declares. */
 	filter: MenuFilter;
 }
@@ -148,6 +154,8 @@ export function NodePicker(
 				summary: preset.summary,
 				def,
 				config: preset.config,
+				member: preset.member,
+				deep: preset.deep,
 				filter: "graph" as const,
 			}];
 		});
@@ -189,7 +197,9 @@ export function NodePicker(
 
 	const matches = useMemo(() => {
 		const q = query.trim().toLowerCase();
-		if (q === "") return all;
+		// Browsing: everything but the members, which are found by name. See
+		// `Preset.deep`.
+		if (q === "") return all.filter((hit) => !hit.deep);
 		return all
 			.map((hit) => ({ hit, score: score(hit, q) }))
 			.filter((x) => x.score > 0)
@@ -286,7 +296,7 @@ export function NodePicker(
 								move(-1);
 							} else if (e.key === "Enter") {
 								e.preventDefault();
-								if (chosen) onPick(chosen.def, chosen.config);
+								if (chosen) onPick(chosen.def, chosen.config, chosen.member);
 							} else if (e.key === "Escape") {
 								e.preventDefault();
 								e.stopPropagation();
@@ -322,13 +332,13 @@ export function NodePicker(
 												pressedWith.current = e.pointerType;
 											}}
 											onClick={() => {
-												if (pressedWith.current === "mouse") onPick(hit.def, hit.config);
+												if (pressedWith.current === "mouse") onPick(hit.def, hit.config, hit.member);
 												else setActive(i);
 											}}
 											// A mouse's first click has already placed, so this
 											// is a finger's: `touch.ts` makes a double tap one.
 											onDoubleClick={() => {
-												if (pressedWith.current !== "mouse") onPick(hit.def, hit.config);
+												if (pressedWith.current !== "mouse") onPick(hit.def, hit.config, hit.member);
 											}}
 											onDragStart={(e) => {
 												setActive(i);
@@ -345,7 +355,7 @@ export function NodePicker(
 												setTimeout(() => image.remove(), 0);
 												e.dataTransfer.setData(
 													"application/x-roswaal-node",
-													JSON.stringify({ def: hit.def.id, config: hit.config }),
+													JSON.stringify({ def: hit.def.id, config: hit.config, member: hit.member }),
 												);
 												e.dataTransfer.effectAllowed = "copy";
 												// After the browser has taken its picture of the row:
@@ -392,7 +402,7 @@ export function NodePicker(
 								</div>
 								<button
 									className="tb node-picker-spawn"
-									onClick={() => onPick(chosen.def, chosen.config)}
+									onClick={() => onPick(chosen.def, chosen.config, chosen.member)}
 								>
 									Spawn node
 								</button>

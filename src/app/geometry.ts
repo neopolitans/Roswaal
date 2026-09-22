@@ -38,7 +38,7 @@ export function pinPosition(
 ): Vec | null {
 	const def = registry.get(node.def);
 	if (!def) return null;
-	const { inputs, outputs } = resolvePins(def, node.config);
+	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
 	const list = side === "in" ? inputs : outputs;
 	const index = list.findIndex((p) => p.id === pinId);
 	if (index === -1) return null;

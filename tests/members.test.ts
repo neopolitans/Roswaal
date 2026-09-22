@@ -17,6 +17,9 @@ import type { NodeScript } from "../src/core/schema.js";
 import { fieldsOfTableType, declaredTypeFields } from "../src/core/typeFields.js";
 import { membersOfType, typeInto } from "../src/core/members.js";
 import { Builder, body } from "./helpers.js";
+import { operatorSymbol } from "../src/core/operatorLayout.js";
+import { resolveNodePins } from "../src/core/nodes/index.js";
+import { migrateScript } from "../src/core/migrate.js";
 
 const registry = createRegistry();
 const code = (script: NodeScript) => body(compile(script, registry).code);
@@ -89,8 +92,7 @@ function reading(member: string, extra: { shape?: string; definition?: string } 
 	const declare = b.node("local.declare", { config: { type: "Input" } });
 	b.lit(declare, "name", { t: "string", v: "input" });
 	const get = b.node("local.get", { config: { local: declare, name: "input", type: "Input" } });
-	const read = b.node("value.member", { config: { type: "number" } });
-	b.lit(read, "member", { t: "string", v: member });
+	const read = b.node("value.member", { config: { member, type: "number" } });
 	b.link(get, "value", read, "object");
 	const print = b.node("debug.print");
 	b.link(start, "then", declare, "in");
@@ -157,11 +159,46 @@ describe("what Get Member writes", () => {
 	it("says nothing about a member on an unknown type", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const read = b.node("value.member");
-		b.lit(read, "member", { t: "string", v: "Position" });
+		const read = b.node("value.member", { config: { member: "Position" } });
 		const print = b.node("debug.print");
 		b.link(start, "then", print, "in");
 		b.link(read, "result", print, "value");
 		expect(errors(b.build()).join(" ")).not.toContain("has no member");
+	});
+});
+
+/**
+ * The pill's face, and the graphs written before it had one.
+ *
+ * 0.76.0 typed the member into a pin, which made the node two rows wide. One
+ * line reads as the access it writes — and a graph from that version has to
+ * arrive at the same place rather than compiling to `input.`.
+ */
+describe("the shape of it", () => {
+	it("writes the access on its face", () => {
+		const def = registry.get("value.member")!;
+		expect(operatorSymbol(def, { member: "throttle" })).toBe(".throttle");
+		expect(operatorSymbol(def, {})).toBe(".…");
+	});
+
+	it("has one input and one output", () => {
+		const pins = resolveNodePins(registry.get("value.member")!, { member: "aim", type: "Vector3" });
+		expect(pins.inputs.map((p) => p.id)).toEqual(["object"]);
+		expect(pins.outputs.map((p) => [p.id, p.type])).toEqual([["result", "Vector3"]]);
+	});
+
+	it("moves a 0.76.0 member off its pin", () => {
+		const raw = {
+			...new Builder().build(),
+			nodes: [{
+				id: "n1", def: "value.member", x: 0, y: 0,
+				literals: { member: { t: "string" as const, v: "throttle" } },
+			}],
+		};
+		const { script, notes } = migrateScript(raw, registry);
+		const node = script.nodes[0];
+		expect((node.config as { member?: string }).member).toBe("throttle");
+		expect(node.literals?.member).toBeUndefined();
+		expect(notes.join(" ")).toContain("Get Member");
 	});
 });

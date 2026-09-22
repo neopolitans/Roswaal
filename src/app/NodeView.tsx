@@ -1,7 +1,7 @@
 /** One node on the canvas: header, pin rows, and inline literal editors. */
 
 import {
-	memo, useMemo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode,
+	memo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode,
 } from "react";
 
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
@@ -12,11 +12,6 @@ import { nodeColor } from "./palette.js";
 import { CLASS_OPTIONS, TYPE_OPTIONS, classGroup, typeGroup } from "../core/roblox.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 import { useTypeChoices } from "./TypePicker.jsx";
-import { membersFor } from "../core/members.js";
-import { viewOf } from "../core/functionGraph.js";
-import { requiredTypes, useProjectTypes } from "./projectTypes.js";
-import { setConfig } from "./edits.js";
-import { store, useEditor } from "./store.js";
 import { pinColor } from "./palette.js";
 import {
 	compactLabel, compactWidth, headerHeight, isCompact, isOperator, isReroute,
@@ -141,7 +136,7 @@ function NodeViewInner(props: NodeViewProps) {
 		);
 	}
 
-	const { inputs, outputs } = resolvePins(def, node.config);
+	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
 
 	if (isReroute(def)) return renderReroute(props, inputs[0], outputs[0]);
 	if (isCompact(def)) return renderCapsule(props, def, outputs[0]);
@@ -561,15 +556,6 @@ function renderLiteralEditor(props: NodeViewProps, pin: PinDef) {
 		);
 	}
 	if (current.t === "string") {
-		if (props.node.def === "value.member" && pin.id === "member") {
-			return (
-				<MemberEditor
-					node={props.node}
-					value={current.v}
-					onChange={(v) => set({ t: "string", v })}
-				/>
-			);
-		}
 		if (pin.options && pin.options.length > 0) {
 			return <OptionEditor pin={pin} value={current.v} onChange={(v) => set({ t: "string", v })} />;
 		}
@@ -627,95 +613,6 @@ function groupingFor(pin: PinDef): ((value: string) => string) | undefined {
 	return undefined;
 }
 
-
-/**
- * The member a Get Member reads, chosen from what the wired type declares.
- *
- * A picker rather than a text field, because the whole difference between this
- * node and Get Field is that here the answer is knowable: the value is typed,
- * the type says what it holds, and picking from that list is what makes the
- * node worth having. The list is still not a gate -- a member can be typed in,
- * for a property newer than this build's catalogue -- but typing is the way
- * out rather than the way in.
- *
- * Picking also writes the member's **type** onto the node, which is what the
- * result pin is drawn from. Get Local does the same with the local it reads:
- * pin derivation sees a node's own config and never the wire, so a type that
- * is not stored is a type the pin cannot show.
- */
-function MemberEditor(
-	{ node, value, onChange }: {
-		node: GraphNode; value: string; onChange: (value: string) => void;
-	},
-) {
-	const editor = useEditor();
-	const projectTypes = useProjectTypes();
-	const [picking, setPicking] = useState(false);
-	const stop = (e: ReactPointerEvent) => e.stopPropagation();
-
-	const members = useMemo(() => {
-		const registry = store.getRegistry();
-		if (!editor.script || !registry) return [];
-		const external = new Map(
-			requiredTypes(editor.script, projectTypes)
-				.filter((entry) => entry.fields && entry.fields.length > 0)
-				.map((entry) => [entry.type, entry.fields!] as const),
-		);
-		// The graph on screen, so a wire inside a function is followed and one
-		// in another graph is not.
-		return membersFor(
-			{ script: viewOf(editor.script, editor.graph), registry, external },
-			node.id,
-		);
-	}, [editor.script, editor.graph, projectTypes, node.id]);
-
-	const pick = (name: string) => {
-		const member = members.find((m) => m.name === name);
-		onChange(name);
-		// The type goes on the node in the same edit the name does, or the pin
-		// would keep the type of the member picked before it.
-		store.edit((s) => setConfig(s, node.id, { type: member?.type }));
-	};
-
-	if (members.length === 0) {
-		// Nothing known about what is wired in. A field typed by hand still
-		// compiles, and is what this node has in common with Get Field.
-		return (
-			<input
-				className="literal"
-				value={value}
-				placeholder="member"
-				title="Nothing is wired in, or its type declares no fixed members. Use Get Field for a table whose keys change."
-				onPointerDown={stop}
-				onChange={(e) => onChange(e.target.value)}
-			/>
-		);
-	}
-
-	return (
-		<>
-			<button
-				className="literal wide picker"
-				title="A member of the wired value's type"
-				onPointerDown={stop}
-				onClick={() => setPicking(true)}
-			>
-				<span className="preview">{value || "member"}</span>
-				<Icon name="chevron" size={12} />
-			</button>
-			{picking && (
-				<ValuePicker
-					what="member"
-					options={members.map((m) => m.name)}
-					value={value}
-					detailOf={(name) => members.find((m) => m.name === name)?.type ?? ""}
-					onPick={pick}
-					onClose={() => setPicking(false)}
-				/>
-			)}
-		</>
-	);
-}
 
 function OptionEditor({
 	pin, value, onChange,

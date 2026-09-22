@@ -145,14 +145,13 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	const declaredFields = declaredTypeFields(script);
 	for (const node of script.nodes) {
 		if (node.def !== "value.member") continue;
-		const literal = node.literals?.member;
-		const member = literal && literal.t === "string" ? literal.v.trim() : "";
+		const named = (node.config as { member?: unknown } | undefined)?.member;
+		const member = typeof named === "string" ? named.trim() : "";
 		if (member === "") {
 			out.push({
 				severity: "error",
 				message: "Get Member needs a member to read. Wire a value in and pick one of its type's.",
 				node: node.id,
-				pin: "member",
 			});
 			continue;
 		}
@@ -163,7 +162,6 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 					`"${member}" is not a name Luau will take for a member. Letters, digits and ` +
 					"underscores, not starting with a digit — for a key that is not a name, use Get Field.",
 				node: node.id,
-				pin: "member",
 			});
 			continue;
 		}
@@ -180,7 +178,6 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 					`"${bare}" is not a table of fixed fields, so it has no members to read. Use ` +
 					"Get Field, which reads any key off any value.",
 				node: node.id,
-				pin: "member",
 			});
 			continue;
 		}
@@ -191,7 +188,6 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 					`"${bare}" has no member "${member}". It holds ` +
 					`${fields.map((field) => field.name).join(", ")}.`,
 				node: node.id,
-				pin: "member",
 			});
 		}
 	}

@@ -34,7 +34,7 @@ export class GraphIndex {
 		for (const node of script.nodes) {
 			const def = defs.get(node.def);
 			if (!def) continue; // reported by validate()
-			this.byId.set(node.id, { node, def, ...resolveNodePins(def, node.config) });
+			this.byId.set(node.id, { node, def, ...resolveNodePins(def, node.config, node.literals) });
 		}
 		for (const link of script.links) {
 			this.inLink.set(key(link.to.node, link.to.pin), link);

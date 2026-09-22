@@ -527,7 +527,7 @@ export function wireLanding(
 	const def = node && registry.get(node.def);
 	if (!node || !def || !isReroute(def)) return null;
 	const wanted = from === "out" ? "in" : "out";
-	const pins = resolveNodePins(def, node.config);
+	const pins = resolveNodePins(def, node.config, node.literals);
 	const other = (wanted === "in" ? pins.inputs : pins.outputs)[0];
 	return other ? { pin: other, side: wanted } : null;
 }
@@ -681,7 +681,7 @@ export { retypeReroutes } from "../core/reroutes.js";
 
 /** A node's pins as its config derives them. */
 function pinsOf(def: NodeDef, node: GraphNode) {
-	return resolveNodePins(def, node.config);
+	return resolveNodePins(def, node.config, node.literals);
 }
 
 // ---------------------------------------------------------------------------
@@ -1249,7 +1249,7 @@ function basePinOf(
 ): PinDef | undefined {
 	const def = registry.get(node.def);
 	if (!def) return undefined;
-	const pins = resolveNodePins(def, node.config);
+	const pins = resolveNodePins(def, node.config, node.literals);
 	return (side === "in" ? pins.baseInputs : pins.baseOutputs).find((p) => p.id === pinId);
 }
 

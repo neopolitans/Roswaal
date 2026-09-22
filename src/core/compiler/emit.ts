@@ -2790,6 +2790,25 @@ class Emitter {
 	// -- templates ---------------------------------------------------------
 
 	private renderTemplate(r: ResolvedNode, template: string, scope: Scope): string {
+		/**
+		 * `$config.<key>` — a name the node carries rather than a pin it has.
+		 *
+		 * Get Member's member is the case: it is chosen from what the wired
+		 * type declares, drawn on the pill's face, and is not a value anything
+		 * can wire, so a pin for it would be a pin that only ever holds what
+		 * the picker put there. Written out as an identifier, and a key that is
+		 * missing or is not one leaves the template empty for the node's own
+		 * validation to report.
+		 */
+		template = template.replace(
+			/\$config\.([A-Za-z_][A-Za-z0-9_]*)/g,
+			(_match, key: string) => {
+				const value = (r.node.config as Record<string, unknown> | undefined)?.[key];
+				const text = typeof value === "string" ? value.trim() : "";
+				return /^[A-Za-z_][A-Za-z0-9_]*$/.test(text) ? text : "";
+			},
+		);
+
 		// `$args(<separator>)` folds every variadic input pin into one list, so a
 		// node whose arity is chosen per instance still compiles from a static
 		// template. Each operand is parenthesised, because the separator is

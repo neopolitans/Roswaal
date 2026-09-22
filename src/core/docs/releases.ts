@@ -94,6 +94,26 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.77.0",
+		date: "2026-09-22",
+		headline: "Members on one line, and a class that stays a class.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Members are in both node searches.** Type `input.` and every member of what the graph names is there — variables, locals and parameters. Picking one places the getter and a Get Member on it, wired.",
+		],
+		changed: [
+			"**Get Member is one line**: the access it writes, one input, one output. Which member it reads is chosen in the Inspector rather than on the node.",
+			"**A node that names a class hands back that class.** New Instance set to `Part` gives a Part, Get Service gives the service's own class, and the Find First Child and Ancestor nodes follow their Class Name. Their members are then in Get Member's list without a Cast first.",
+			"**An instance class's pin is an Instance's blue.** A pin typed `Part` was drawn as an untyped `any`, and a wire from it faded on the way into an Instance pin.",
+			"**A cast hands back the type it asserts.** `packet :: Input` gives an Input rather than an `any`, so Get Member offers that type's fields straight off the cast.",
+			"**A type is found wherever it is declared in the file**, so a Get Member inside a function sees a type declared beside the function.",
+		],
+		watch: [
+			"**A Get Member from 0.76.0 is moved to the new shape** when its graph is opened, and its member is kept.",
+			"**A generated annotation names the class**: `local weld: WeldConstraint = Instance.new(\"WeldConstraint\")` where it used to say `Instance`. Recompiling rewrites those lines.",
+		],
+	},
+	{
 		version: "0.76.0",
 		date: "2026-09-22",
 		headline: "Reading the members a type declares.",

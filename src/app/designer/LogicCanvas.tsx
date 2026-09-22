@@ -174,7 +174,7 @@ export function LogicCanvas({ graph, shape, registry, target, onChange, tools }:
 				let next = config ? setConfig(added.script, added.id, config) : added.script;
 				if (!from) return next;
 				const placed = next.nodes.find((n) => n.id === added.id);
-				const pins = placed ? resolveNodePins(def, placed.config) : { inputs: [], outputs: [] };
+				const pins = placed ? resolveNodePins(def, placed.config, placed.literals) : { inputs: [], outputs: [] };
 				const side = from.side === "out" ? "in" : "out";
 				const landing = landingPins(def, side === "in" ? pins.inputs : pins.outputs, from.pin, side)[0];
 				if (!landing) return next;

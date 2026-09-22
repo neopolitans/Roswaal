@@ -91,9 +91,10 @@ export function createRegistry(extra: NodeDef[] = []): Registry {
 export function resolveNodePins(
 	def: NodeDef,
 	config: NodeConfig | undefined,
+	literals?: Record<string, Literal>,
 	structs: StructRegistry = STRUCTS,
 ): { inputs: PinDef[]; outputs: PinDef[]; baseInputs: PinDef[]; baseOutputs: PinDef[] } {
-	const derived = def.derivePins?.(config ?? {});
+	const derived = def.derivePins?.(config ?? {}, literals);
 	const baseInputs = derived?.inputs ?? def.inputs;
 	const baseOutputs = derived?.outputs ?? def.outputs;
 

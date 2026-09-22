@@ -71,6 +71,23 @@ export interface Preset {
 	config: NodeConfig;
 	/** Swatch colour; presets use their value's type rather than a category. */
 	color: string;
+	/**
+	 * This entry reads a member off the value the preset gives: `input.throttle`.
+	 *
+	 * Picking it places both nodes, wired — the getter and a Get Member on its
+	 * output. Two nodes rather than one, because that is what the graph holds
+	 * either way and the entry only saves the placing of them.
+	 */
+	member?: { name: string; type?: string };
+	/**
+	 * Offered while searching, not while browsing.
+	 *
+	 * A `BasePart` local has two hundred properties, and a menu opened to look
+	 * around should not be two hundred entries of one local's members deep.
+	 * They are what you find when you type, which is when you have something in
+	 * mind to find.
+	 */
+	deep?: boolean;
 }
 
 interface MenuItem {
@@ -98,6 +115,10 @@ interface MenuItem {
 	runtimeLabel?: string;
 	def: NodeDef;
 	config?: NodeConfig;
+	/** See `Preset.member`: this entry places a getter and a Get Member on it. */
+	member?: { name: string; type?: string };
+	/** See `Preset.deep`: offered while searching rather than while browsing. */
+	deep?: boolean;
 	/**
 	 * The pins this item would arrive with, where its config decides them.
 	 *
@@ -123,7 +144,12 @@ export interface NodeMenuProps {
 	registry: Registry;
 	target: "roblox" | "lune";
 	presets: Preset[];
-	onPick: (def: NodeDef, config?: NodeConfig, literals?: Record<string, Literal>) => void;
+	onPick: (
+		def: NodeDef,
+		config?: NodeConfig,
+		literals?: Record<string, Literal>,
+		member?: { name: string; type?: string },
+	) => void;
 	onAddComment: () => void;
 	onClose: () => void;
 }
@@ -169,6 +195,8 @@ export function NodeMenu(props: NodeMenuProps) {
 				runtime: "graph" as const,
 				def,
 				config: preset.config,
+				member: preset.member,
+				deep: preset.deep,
 			}];
 		});
 
@@ -358,7 +386,9 @@ export function NodeMenu(props: NodeMenuProps) {
 
 	const matches = useMemo(() => {
 		const q = query.trim().toLowerCase();
-		if (!q) return [...draggedService, ...items];
+		// Browsing: everything but the members, which are found by name rather
+		// than scrolled past. See `Preset.deep`.
+		if (!q) return [...draggedService, ...items.filter((item) => !item.deep)];
 
 		const from = anchor.from;
 		const side = from ? (from.side === "out" ? "in" : "out") : null;
@@ -561,7 +591,7 @@ export function NodeMenu(props: NodeMenuProps) {
 							className={`item${flat[active]?.key === item.key ? " active" : ""}`}
 							title={item.summary}
 							onMouseEnter={() => setActive(flat.indexOf(item))}
-							onClick={() => onPick(item.def, item.config, item.literals)}
+							onClick={() => onPick(item.def, item.config, item.literals, item.member)}
 						>
 							<span className="swatch" style={{ background: item.color }} />
 							<span>{item.title}</span>

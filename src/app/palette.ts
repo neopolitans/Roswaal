@@ -11,6 +11,7 @@
  */
 
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import { isInstanceClass } from "../core/roblox.js";
 import type { NodeDef } from "../core/schema.js";
 
 const FLOW_RED = "#a93b2c";
@@ -150,7 +151,19 @@ const TYPE_COLORS: Record<string, string> = {
 
 export function pinColor(type: string | undefined, kind: "exec" | "data"): string {
 	if (kind === "exec") return TYPE_COLORS.exec;
-	return TYPE_COLORS[type ?? "any"] ?? TYPE_COLORS.any;
+	const named = TYPE_COLORS[type ?? "any"];
+	if (named) return named;
+	/**
+	 * Every instance class is an Instance's blue.
+	 *
+	 * `Instance` had the colour and `Part` did not, so a pin typed as the class
+	 * it actually holds read as an untyped `any` — grey, and a wire from it
+	 * faded on its way into an Instance pin as though the value had changed
+	 * type. It had not: a Part is an Instance, and the two ends of that wire
+	 * are the same kind of thing.
+	 */
+	if (isInstanceClass(type)) return TYPE_COLORS.Instance;
+	return TYPE_COLORS.any;
 }
 
 // ---------------------------------------------------------------------------

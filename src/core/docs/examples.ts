@@ -408,10 +408,7 @@ export const CURATED: Record<string, () => NodeScript> = {
 			literals: { name: str("input") },
 		});
 		const get = g.node("local.get", { config: { local: declare, name: "input", type: "Input" } });
-		const read = g.node("value.member", {
-			config: { type: "number" },
-			literals: { member: str("throttle") },
-		});
+		const read = g.node("value.member", { config: { member: "throttle", type: "number" } });
 		g.link(get, "value", read, "object");
 		const p = g.node("debug.print");
 		g.link(begin, "then", declare, "in").link(declare, "then", p, "in");

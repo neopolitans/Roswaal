@@ -7,7 +7,7 @@
  * because the pins are what they define.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { Comment, GraphNode, Literal, NodeDef, NodeScript } from "../core/schema.js";
 import { nodeTitle, type Registry } from "../core/nodes/index.js";
@@ -25,6 +25,8 @@ import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../core/nodes/flow.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
 import { isConstLocal, localNameOf } from "../core/nodes/variables.js";
 import { store, useEditor } from "./store.js";
+import { membersFor } from "../core/members.js";
+import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { TypePicker } from "./TypePicker.jsx";
 import { ValuePicker } from "./ValuePicker.jsx";
 import { Icon } from "./icons.jsx";
@@ -176,6 +178,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 						hint="One pin per key on the returned table. A single pin named “value” returns that value directly instead of wrapping it."
 					/>
 				)}
+				{def.id === "value.member" && <MemberEditor node={node} />}
 				{def.id === "event.connect" && (
 					<ListEditor
 						node={node}
@@ -295,6 +298,89 @@ function CommentInspector({ comment, locked }: { comment: Comment; locked?: bool
 				</Field>
 			</div>
 		</div>
+	);
+}
+
+
+/**
+ * The member a Get Member reads.
+ *
+ * Here rather than on the node, because the node is one line — `.throttle`,
+ * one input, one output — and a picker on its face would be the widest thing
+ * on it. The same reason a function's parameters are edited here: the panel is
+ * where a node's *shape* is decided, and which member this reads decides both
+ * the face it shows and the type of what comes out of it.
+ *
+ * Picking also stores the member's type, which is what the result pin is drawn
+ * from. Get Local stores the type of its local for the same reason: pin
+ * derivation sees the node and never the wire.
+ */
+function MemberEditor({ node }: { node: GraphNode }) {
+	const editor = useEditor();
+	const projectTypes = useProjectTypes();
+	const [picking, setPicking] = useState(false);
+	const current = ((node.config ?? {}) as { member?: string }).member ?? "";
+
+	const members = useMemo(() => {
+		const registry = store.getRegistry();
+		if (!editor.script || !registry) return [];
+		const external = new Map(
+			requiredTypes(editor.script, projectTypes)
+				.filter((entry) => entry.fields && entry.fields.length > 0)
+				.map((entry) => [entry.type, entry.fields!] as const),
+		);
+		// The whole file, not the graph on screen: a type is declared once and
+		// is the file's, while the node reading it is usually inside a
+		// function. Scoping this to the open graph meant a Get Member in a
+		// function's body could not see the type declared beside it.
+		return membersFor({ script: editor.script, registry, external }, node.id);
+	}, [editor.script, editor.graph, projectTypes, node.id]);
+
+	const pick = (name: string) => {
+		const member = members.find((m) => m.name === name);
+		// Name and type in one edit, or the pin would keep the type of the
+		// member picked before it.
+		store.edit((s) => setConfig(s, node.id, { member: name, type: member?.type }));
+		setPicking(false);
+	};
+
+	return (
+		<>
+			<Field
+				label="Member"
+				hint={
+					members.length > 0
+						? undefined
+						: "Nothing is wired in, or its type declares no fixed members. Get Field reads any key off any value."
+				}
+			>
+				{members.length > 0 ? (
+					<button className="tb type-picker" onClick={() => setPicking(true)}>
+						<span className="preview">{current || "choose"}</span>
+						<Icon name="chevron" size={12} />
+					</button>
+				) : (
+					<input
+						className="tb"
+						value={current}
+						placeholder="member"
+						onChange={(e) =>
+							store.edit((s) => setConfig(s, node.id, { member: e.target.value }))
+						}
+					/>
+				)}
+			</Field>
+			{picking && (
+				<ValuePicker
+					what="member"
+					options={members.map((m) => m.name)}
+					value={current}
+					detailOf={(name) => members.find((m) => m.name === name)?.type ?? ""}
+					onPick={pick}
+					onClose={() => setPicking(false)}
+				/>
+			)}
+		</>
 	);
 }
 
@@ -1321,7 +1407,7 @@ function ListEditor({ node, field, title, hint }: ListEditorProps) {
 }
 
 function PinSummary({ def, node }: { def: NodeDef; node: GraphNode }) {
-	const { inputs, outputs } = resolvePins(def, node.config);
+	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
 	const data = [...inputs, ...outputs].filter((p) => p.kind === "data");
 	if (data.length === 0) return null;
 	return (
