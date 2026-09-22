@@ -20,6 +20,7 @@ import { Builder, body } from "./helpers.js";
 import { operatorSymbol } from "../src/core/operatorLayout.js";
 import { resolveNodePins } from "../src/core/nodes/index.js";
 import { migrateScript } from "../src/core/migrate.js";
+import { landingPins } from "../src/app/edits.js";
 
 const registry = createRegistry();
 const code = (script: NodeScript) => body(compile(script, registry).code);
@@ -200,5 +201,38 @@ describe("the shape of it", () => {
 		expect((node.config as { member?: string }).member).toBe("throttle");
 		expect(node.literals?.member).toBeUndefined();
 		expect(notes.join(" ")).toContain("Get Member");
+	});
+});
+
+/**
+ * Dragging a wire out of a typed pin.
+ *
+ * The menu offers that type's members, and picking one places a Get Member
+ * already wired — which only works if the wire can land on its Object pin.
+ * That landing is the part worth holding: the entry is a Get Member with a
+ * member chosen, and the menu's own wire-up does the rest.
+ */
+describe("a member dragged off a pin", () => {
+	const def = registry.get("value.member")!;
+
+	it("takes a wire from any typed output onto its Object pin", () => {
+		const from = { id: "result", kind: "data" as const, name: "", type: "Part" };
+		const pins = resolveNodePins(def, { member: "Anchored", type: "boolean" });
+		expect(landingPins(def, pins.inputs, from, "in").map((p) => p.id)).toEqual(["object"]);
+	});
+
+	it("offers a Roblox class's properties for a pin typed as that class", () => {
+		const script = reading("aim");
+		const names = membersOfType({ script, registry }, "Part").map((m) => m.name);
+		expect(names).toContain("Anchored");
+		expect(names).toContain("Position");
+		// Inherited, from Instance rather than from BasePart.
+		expect(names).toContain("Name");
+	});
+
+	it("offers a declared type's fields for a pin typed as that type", () => {
+		const script = reading("aim");
+		expect(membersOfType({ script, registry }, "Input").map((m) => m.name))
+			.toEqual(["throttle", "aim"]);
 	});
 });

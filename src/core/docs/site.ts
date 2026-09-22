@@ -4784,6 +4784,13 @@ function castingBlocks(registry: Registry): Block[] {
 				"and the members of everything the graph names are there: picking one places the " +
 				"getter and the Get Member on it, wired.",
 		},
+		{
+			t: "p",
+			text:
+				"**Drag a wire out of a typed pin** and that type's members are in the menu under " +
+				"their own heading — a Part's properties, a declared type's fields. Picking one " +
+				"places a Get Member already wired to the pin you dragged.",
+		},
 		...previews(
 			registry,
 			["value.member", "value.field"],

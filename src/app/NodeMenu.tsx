@@ -20,6 +20,9 @@ import {
 	hoistedFunctions, paramsVisibleFrom, visibleFrom, type GraphId,
 } from "../core/functionGraph.js";
 import { landingPins, localRefFor } from "./edits.js";
+import { membersOfType } from "../core/members.js";
+import { requiredTypes, useProjectTypes } from "./projectTypes.js";
+import { useEditor } from "./store.js";
 import { aliasScore } from "../core/aliases.js";
 import { keywordNodes } from "../core/keywords.js";
 import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
@@ -156,6 +159,9 @@ export interface NodeMenuProps {
 
 export function NodeMenu(props: NodeMenuProps) {
 	const { anchor, registry, target, presets, onPick, onAddComment, onClose } = props;
+	// What the open graph declares, for the members of a dragged wire's type.
+	const script = useEditor().script;
+	const projectTypes = useProjectTypes();
 	const [query, setQuery] = useState("");
 	const [active, setActive] = useState(0);
 	const root = useRef<HTMLDivElement>(null);
@@ -384,11 +390,52 @@ export function NodeMenu(props: NodeMenuProps) {
 		return serviceItems.filter((item) => item.category === service);
 	}, [serviceItems, anchor.from?.service, anchor.from?.side]);
 
+
+	/**
+	 * The members of what is being dragged, when the wire knows its type.
+	 *
+	 * Drag out of a `Part` and its properties are in the menu; drag out of a
+	 * value typed `Input` and its fields are. Each places a **Get Member**
+	 * already wired to the pin you dragged, which is the whole gesture — the
+	 * alternative is picking Get Member, then opening the Inspector, then
+	 * picking the member there, for something you had in mind before you
+	 * started dragging.
+	 *
+	 * Listed while browsing as well as while searching, unlike the member
+	 * entries in the rest of the menu: a drag has already narrowed the question
+	 * to one value, so these are not two hundred entries about everything, they
+	 * are what that value holds.
+	 */
+	const draggedMembers = useMemo((): MenuItem[] => {
+		const from = anchor.from;
+		const def = registry.get("value.member");
+		if (!from || from.side !== "out" || !def || !script) return [];
+		const external = new Map(
+			requiredTypes(script, projectTypes)
+				.filter((entry) => entry.fields && entry.fields.length > 0)
+				.map((entry) => [entry.type, entry.fields!] as const),
+		);
+		const type = from.pin.type;
+		return membersOfType({ script, registry, external }, type).map((field) => ({
+			key: `member:${type}.${field.name}`,
+			title: field.name,
+			category: `${type} members`,
+			summary: `Reads ${type}.${field.name}, which is a ${field.type}.`,
+			color: pinColor(field.type, "data"),
+			pure: true,
+			runtime: "graph" as const,
+			def,
+			config: { member: field.name, type: field.type },
+		}));
+	}, [anchor.from, registry, script, projectTypes]);
+
 	const matches = useMemo(() => {
 		const q = query.trim().toLowerCase();
 		// Browsing: everything but the members, which are found by name rather
 		// than scrolled past. See `Preset.deep`.
-		if (!q) return [...draggedService, ...items.filter((item) => !item.deep)];
+		if (!q) {
+			return [...draggedMembers, ...draggedService, ...items.filter((item) => !item.deep)];
+		}
 
 		const from = anchor.from;
 		const side = from ? (from.side === "out" ? "in" : "out") : null;
@@ -404,6 +451,7 @@ export function NodeMenu(props: NodeMenuProps) {
 		// so the same call does not appear twice with two different names.
 		const dragged = new Set(draggedService.map((item) => item.key));
 		const searchable = [
+			...draggedMembers,
 			...draggedService,
 			...items,
 			...serviceItems.filter((item) => !dragged.has(item.key) && reach(item)),
@@ -416,7 +464,10 @@ export function NodeMenu(props: NodeMenuProps) {
 			.filter((x) => x.score > 0)
 			.sort((a, b) => b.score - a.score)
 			.map((x) => x.item);
-	}, [query, items, serviceItems, luneItems, nameEntries, draggedService, anchor.from]);
+	}, [
+		query, items, serviceItems, luneItems, nameEntries, draggedService, draggedMembers,
+		anchor.from,
+	]);
 
 	/**
 	 * Categories, each holding either a flat list or a list of datatype groups.

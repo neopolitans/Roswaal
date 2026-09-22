@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.78.0",
+		date: "2026-09-22",
+		headline: "Members where the wire comes from.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Drag a wire out of a typed pin and the node menu offers that type's members**, under their own heading: a Part's properties, a declared type's fields, a required module's type's. Picking one places a **Get Member** already wired to the pin you dragged.",
+		],
+	},
+	{
 		version: "0.77.0",
 		date: "2026-09-22",
 		headline: "Members on one line, and a class that stays a class.",
