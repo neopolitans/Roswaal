@@ -644,7 +644,7 @@ function ConcatStyle({ node }: { node: GraphNode }) {
 	const on = (node.config as { interpolate?: unknown } | undefined)?.interpolate === true;
 	return (
 		<Field
-			label="Writes"
+			label="Concatenation Type"
 			hint="The same string either way. Interpolation needs Luau, which both targets are."
 		>
 			<select
@@ -658,8 +658,8 @@ function ConcatStyle({ node }: { node: GraphNode }) {
 					)
 				}
 			>
-				<option value="join">A join — a .. b</option>
-				<option value="interpolate">An interpolated string</option>
+				<option value="join">String Joining: a..b</option>
+				<option value="interpolate">Interpolation: {"{a} {b}"}</option>
 			</select>
 		</Field>
 	);

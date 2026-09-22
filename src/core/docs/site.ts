@@ -4105,7 +4105,7 @@ function settingsPage(): DocPage {
 					],
 					[
 						"New concatenate nodes",
-						"What a new **Concatenate** writes: a **join** with `..`, or an **interpolated string**, where a part typed into the node is text and a part wired in is a hole in braces. The same string either way, and both are Luau, so the choice is about how the line reads. Stored **on the node**, as the brackets are — this only decides what one you drop today starts as, and **Writes** in the Inspector changes any of them.",
+						"What a new **Concatenate** writes: a **join** with `..`, or an **interpolated string**, where a part typed into the node is text and a part wired in is a hole in braces. The same string either way, and both are Luau, so the choice is about how the line reads. Stored **on the node**, as the brackets are — this only decides what one you drop today starts as, and **Concatenation Type** in the Inspector changes any of them.",
 					],
 					[
 						"New logic nodes",
