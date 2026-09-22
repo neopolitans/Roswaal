@@ -438,13 +438,6 @@ function FunctionEditor({ node }: { node: GraphNode }) {
  * honest shape: a type is not built out of values, so there is nothing for a
  * node to be. `{ speed: number }` describes something no wire can carry.
  */
-/** Suggestions for a Luau field type. Free text — the list is a shortcut. */
-const LUAU_TYPE_HINTS = [
-	"number", "string", "boolean", "any",
-	"Vector3", "Vector2", "CFrame", "Color3", "UDim2", "Instance", "BasePart",
-	"{ [string]: number }", "{ number }", "string?",
-];
-
 /**
  * The fields of a table type, as rows rather than as typed-out Luau.
  *
@@ -455,9 +448,14 @@ const LUAU_TYPE_HINTS = [
  * say — a union, a function type, a generic — which is most of Luau's type
  * language and not worth building a second grammar for.
  *
- * The type of each field is free text with suggestions rather than a dropdown.
- * A closed list would be wrong within a week: `Instance?`, `{ Player }` and
- * every type declared in the same file are all valid and none could be offered.
+ * The type of each field is the **type picker**, the same control a variable,
+ * a parameter and a cast use: this graph's own declared types first, then a
+ * required module's, then Luau's and Roblox's. It was a text field with a
+ * dozen suggestions behind it, which offered `Vector3` and could not offer
+ * `Config` — a type declared four nodes away — and it had to be spelt.
+ *
+ * Whatever you type is still taken, listed or not, so `{ Player }` and
+ * `Model?` are typed in as they always were.
  */
 function TypeFields({ node }: { node: GraphNode }) {
 	const fields = ((node.config ?? {}).fields as { name: string; type: string }[]) ?? [];
@@ -487,14 +485,11 @@ function TypeFields({ node }: { node: GraphNode }) {
 							write(next);
 						}}
 					/>
-					<input
-						className="tb"
-						list="luau-type-hints"
+					<TypePicker
 						value={entry.type}
-						placeholder="number"
-						onChange={(e) => {
+						onChange={(type) => {
 							const next = [...fields];
-							next[i] = { ...entry, type: e.target.value };
+							next[i] = { ...entry, type };
 							write(next);
 						}}
 					/>
@@ -504,11 +499,6 @@ function TypeFields({ node }: { node: GraphNode }) {
 				</div>
 			))}
 			{fields.length === 0 && <p className="summary">No fields yet.</p>}
-			<datalist id="luau-type-hints">
-				{LUAU_TYPE_HINTS.map((t) => (
-					<option key={t} value={t} />
-				))}
-			</datalist>
 		</div>
 	);
 }

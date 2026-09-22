@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.82.3",
+		date: "2026-09-22",
+		headline: "A field's type is picked, not spelt.",
+		affects: ["editor"],
+		changed: [
+			"**A field of a declared type uses the type picker**, as a variable, a parameter and a cast do: this graph's own types first, then a required module's, then Luau's and Roblox's. It was a text field with a dozen suggestions behind it, which could not offer a type declared four nodes away. Whatever you type is still taken.",
+		],
+	},
+	{
 		version: "0.82.2",
 		date: "2026-09-22",
 		headline: "The drawn Inspector, finished.",
