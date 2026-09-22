@@ -20,7 +20,7 @@ import { Builder, body } from "./helpers.js";
 import { operatorSymbol } from "../src/core/operatorLayout.js";
 import { resolveNodePins } from "../src/core/nodes/index.js";
 import { migrateScript } from "../src/core/migrate.js";
-import { landingPins } from "../src/app/edits.js";
+import { landingPins, setConfig, syncFunctionReturns } from "../src/app/edits.js";
 
 const registry = createRegistry();
 const code = (script: NodeScript) => body(compile(script, registry).code);
@@ -282,5 +282,59 @@ describe("Not Equal to Self", () => {
 		b.link(start, "then", print, "in");
 		b.link(name, "result", print, "value");
 		expect(code_(b.build())).toContain('print("Vector3")');
+	});
+});
+
+/**
+ * A Return follows the function it is in.
+ *
+ * Both directions of the same promise: a Return placed after the signature was
+ * written arrives with its pins, and one already on the canvas takes the new
+ * pins when the signature changes — wired into the flow or not, since an
+ * unwired Return is the ordinary state of one you have just placed.
+ */
+describe("a function's returns reach its Return nodes", () => {
+	function withFunction(wire: boolean) {
+		const b = new Builder();
+		b.node("script.begin");
+		const fn = b.node("function.declareHere", {
+			config: { name: "valid", params: [], returns: [{ name: "ok", type: "boolean" }] },
+		});
+		const ret = b.node("function.return", { graph: fn });
+		if (wire) b.link(fn, "body", ret, "in");
+		return { script: b.build(), fn, ret };
+	}
+
+	const pinsOfReturn = (script: NodeScript, id: string) => {
+		const node = script.nodes.find((n) => n.id === id)!;
+		return resolveNodePins(registry.get(node.def)!, node.config).inputs
+			.filter((p) => p.kind === "data")
+			.map((p) => p.name);
+	};
+
+	it("updates a Return that is wired into the flow", () => {
+		const { script, fn, ret } = withFunction(true);
+		const next = syncFunctionReturns(
+			setConfig(script, fn, { returns: [{ name: "ok", type: "boolean" }, { name: "why", type: "string" }] }),
+			fn,
+		);
+		expect(pinsOfReturn(next, ret)).toEqual(["ok", "why"]);
+	});
+
+	/** The case that did nothing: a Return placed and not yet wired. */
+	it("updates a Return that is not wired to anything", () => {
+		const { script, fn, ret } = withFunction(false);
+		const next = syncFunctionReturns(
+			setConfig(script, fn, { returns: [{ name: "valid", type: "boolean" }] }),
+			fn,
+		);
+		expect(pinsOfReturn(next, ret)).toEqual(["valid"]);
+	});
+
+	it("leaves a Return in another function alone", () => {
+		const { script, fn } = withFunction(false);
+		const other = script.nodes.find((n) => n.def === "function.return")!;
+		const next = syncFunctionReturns(setConfig(script, fn, { returns: [] }), "someone-else");
+		expect(next.nodes.find((n) => n.id === other.id)!.config).toEqual(script.nodes.find((n) => n.id === other.id)!.config);
 	});
 });

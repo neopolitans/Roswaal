@@ -393,26 +393,24 @@ export function syncFunctionReturns(script: NodeScript, entryId: string): NodeSc
 	if (!entry) return script;
 	const returns = (entry.config as { returns?: unknown } | undefined)?.returns ?? [];
 
-	const execLinks = new Map<string, string[]>();
-	for (const link of script.links) {
-		const list = execLinks.get(link.from.node);
-		if (list) list.push(link.to.node);
-		else execLinks.set(link.from.node, [link.to.node]);
-	}
-
-	const seen = new Set<string>();
-	const queue = [entryId];
-	const targets = new Set<string>();
-	while (queue.length) {
-		const id = queue.pop()!;
-		if (seen.has(id)) continue;
-		seen.add(id);
-		const node = script.nodes.find((n) => n.id === id);
-		// A nested Function node starts its own scope; stop before crossing in.
-		if (node && FUNCTION_NODES.has(node.def) && id !== entryId) continue;
-		if (node?.def === "function.return") targets.add(id);
-		queue.push(...(execLinks.get(id) ?? []));
-	}
+	/**
+	 * Every Return **in the function's graph**, wired or not.
+	 *
+	 * This walked the execution wires out of the entry node, which reaches a
+	 * Return only once something runs into it — so a Return placed first and
+	 * wired second kept whatever signature it was born with, and editing the
+	 * returns to fix it did nothing, because the walk could not see it either.
+	 * A graph *is* the function's body, so membership is the honest test and it
+	 * needs no wires to be true.
+	 *
+	 * A nested function's Returns belong to the nested function's graph, so
+	 * they are not in this set — the same boundary the walk stopped at.
+	 */
+	const targets = new Set(
+		script.nodes
+			.filter((n) => n.def === "function.return" && graphOf(n) === entryId)
+			.map((n) => n.id),
+	);
 	if (targets.size === 0) return script;
 
 	return dropDanglingLinks({

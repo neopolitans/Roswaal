@@ -94,6 +94,20 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.80.0",
+		date: "2026-09-22",
+		headline: "A page about members, and Returns that keep up.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Members and fields**, a documentation page after *Variables and locals*: reading a field off a declared type and off a Roblox instance, each with a graph and the Luau it compiles to, and what to reach for when nothing can promise what a table holds.",
+			"**Previous and next links** at the foot of every documentation page, each naming the page it goes to. Above the review line, in the editor's docs window as well as on the website.",
+		],
+		fixed: [
+			"**A Return placed inside a function arrives with that function's returns** as its pins. It used to arrive bare, and the only way to fill it in was to retype the signature.",
+			"**Every Return in a function follows its signature**, including one not yet wired into the flow. The sync walked execution wires, so a Return you had placed but not connected kept the pins it was born with.",
+		],
+	},
+	{
 		version: "0.79.0",
 		date: "2026-09-22",
 		headline: "Asking what a value is.",

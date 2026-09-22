@@ -18,8 +18,9 @@ import {
 
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
 import {
-	buildSearchIndex, buildSite, findPage, isPageLink, parseInline, searchDocs, TAG_LABELS,
-	type Block, type DocPage, type DocSection, type Inline,
+	buildSearchIndex, buildSite, findPage, isPageLink, neighbours, parseInline, searchDocs,
+	TAG_LABELS,
+	type Block, type DocPage, type DocSection, type DocSite, type Inline,
 } from "../core/docs/site.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "../core/docs/reviews.js";
@@ -328,7 +329,7 @@ export function DocsView({
 						{/* The measure lives on an inner wrapper so the article itself
 						    can centre in whatever room the window gives it. */}
 						<div className={`docs-article${page.narrow ? " narrow" : ""}`}>
-							<Page page={page} />
+							<Page page={page} site={site} go={go} />
 							<div className="docs-tail" aria-hidden="true" />
 						</div>
 					</article>
@@ -392,7 +393,7 @@ function PageOutline({ page }: { page: DocPage }) {
 	);
 }
 
-function Page({ page }: { page: DocPage }) {
+function Page({ page, site, go }: { page: DocPage; site: DocSite; go: (next: string) => void }) {
 	const registry = useContext(RegistryContext);
 	const preview = useContext(PreviewContext);
 	const [editing, setEditing] = useState(false);
@@ -462,6 +463,8 @@ function Page({ page }: { page: DocPage }) {
 			) : (
 				page.blocks.map((block, i) => <BlockView key={i} block={block} />)
 			)}
+			{/* Where to go next, above the line about this page's own review. */}
+			{!editing && <Neighbours site={site} slug={page.slug} go={go} />}
 			{!editing && page.review && (
 				<p className="docs-reviewed"><Rich text={reviewLine(page.review)} /></p>
 			)}
@@ -474,6 +477,41 @@ function Page({ page }: { page: DocPage }) {
 	);
 }
 
+
+
+/**
+ * The pages either side of this one, at the foot of it.
+ *
+ * The same pair the static site draws, and the same order, so the docs read
+ * the same whether they are open in the editor or on the website. Clicking one
+ * navigates in place, as every other page link here does.
+ */
+function Neighbours({ site, slug, go }: { site: DocSite; slug: string; go: (next: string) => void }) {
+	const { previous, next } = neighbours(site, slug);
+	if (!previous && !next) return null;
+	const side = (one: { slug: string; title: string } | undefined, which: string, label: string) =>
+		one ? (
+			<a
+				className={`docs-neighbour ${which}`}
+				href={`#${one.slug}`}
+				onClick={(e) => {
+					e.preventDefault();
+					go(one.slug);
+				}}
+			>
+				<span className="way">{label}</span>
+				<span className="title">{one.title}</span>
+			</a>
+		) : (
+			<span className={`docs-neighbour ${which} none`} />
+		);
+	return (
+		<nav className="docs-neighbours" aria-label="More pages">
+			{side(previous, "previous", "Previous")}
+			{side(next, "next", "Next")}
+		</nav>
+	);
+}
 
 /** Pending, Reviewed or Verified, with what that means on hover. */
 function ReviewBadge({ review }: { review: Review }) {

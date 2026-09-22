@@ -566,6 +566,66 @@ export const CURATED: Record<string, () => NodeScript> = {
  */
 export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	/**
+	 * A type this graph declares, read by a Get Member.
+	 *
+	 * The whole loop in one picture: the type says what it holds, a local is
+	 * that type, and the member pill reads one field off it — typed as the
+	 * field is, which is what the wire out of it carries.
+	 */
+	memberOfType: () => {
+		const g = new G({}, TIGHT);
+		g.node("type.declareTop", {
+			column: 0, row: 0,
+			config: {
+				name: "Input",
+				fields: [
+					{ name: "throttle", type: "number" },
+					{ name: "steer", type: "number" },
+					{ name: "aim", type: "Vector3" },
+				],
+				layout: "lines",
+			},
+		});
+		const begin = g.node("script.begin", { column: 0, row: 1 });
+		const declare = g.node("local.declare", {
+			column: 1, row: 1,
+			config: { type: "Input" },
+			literals: { name: str("input") },
+		});
+		const get = g.node("local.get", {
+			column: 2, row: 1,
+			config: { local: declare, name: "input", type: "Input" },
+		});
+		const read = g.node("value.member", {
+			column: 3, row: 1,
+			config: { member: "aim", type: "Vector3" },
+		});
+		const length = g.node("vector3.magnitude", { column: 4, row: 1 });
+		g.link(begin, "then", declare, "in");
+		g.link(get, "value", read, "object");
+		g.link(read, "result", length, "v");
+		return g.out();
+	},
+
+	/** A Roblox instance, whose properties the engine fixes. */
+	memberOfInstance: () => {
+		const g = new G({}, TIGHT);
+		const begin = g.node("script.begin", { column: 0, row: 0 });
+		const made = g.node("roblox.instanceNew", {
+			column: 1, row: 0, literals: { className: str("Part") },
+		});
+		const anchored = g.node("value.member", {
+			column: 2, row: 0, config: { member: "Anchored", type: "boolean" },
+		});
+		const branch = g.node("flow.branch", { column: 3, row: 0 });
+		g.link(begin, "then", made, "in");
+		g.link(made, "result", anchored, "object");
+		g.link(made, "then", branch, "in");
+		g.link(anchored, "result", branch, "condition");
+		return g.out();
+	},
+
+	/**
 	 * Why a local declared in one branch arm is not visible in the other.
 	 *
 	 * The two Custom Code nodes are siblings: each is inside its own `if` arm,

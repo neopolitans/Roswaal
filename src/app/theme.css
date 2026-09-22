@@ -6366,6 +6366,60 @@ button.tb.danger {
 	border-color: color-mix(in srgb, var(--ok) 60%, transparent);
 }
 
+/* Where to go next, at the foot of the page.
+   Back on the left and on on the right, the way a book runs. Each says where
+   it goes as well as which way: a reader deciding whether to carry on is
+   deciding about the page, not about the direction. */
+.docs-neighbours {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 40px 0 0;
+}
+
+.docs-neighbour {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+	max-width: 48%;
+	padding: 8px 12px;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	text-decoration: none;
+	color: var(--fg);
+}
+
+.docs-neighbour:hover {
+	border-color: var(--border-strong);
+	background: var(--bg-hover);
+}
+
+.docs-neighbour.next {
+	margin-left: auto;
+	text-align: right;
+}
+
+/* An end of the site has nothing on that side, and the other one stays put. */
+.docs-neighbour.none {
+	border: 0;
+	padding: 0;
+	pointer-events: none;
+}
+
+.docs-neighbour .way {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+}
+
+.docs-neighbour .title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 /* "Last reviewed", at the foot of the page where GOV.UK puts it. */
 .docs-content p.docs-reviewed {
 	margin: 44px 0 0;

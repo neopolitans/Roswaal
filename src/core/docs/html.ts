@@ -18,7 +18,9 @@
 
 import type { Block, DocPage, DocSection, DocSite } from "./site.js";
 import type { Registry } from "../nodes/index.js";
-import { allPages, isPageLink, parseInline, TAG_LABELS } from "./site.js";
+import {
+	allPages, isPageLink, parseInline, TAG_LABELS, neighbours, type Neighbour,
+} from "./site.js";
 import { graphSvg, previewSvg, type PreviewOptions } from "./preview.js";
 import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
 import {
@@ -600,6 +602,32 @@ function runtimeBadge(page: DocPage): string {
 		`${escapeHtml(page.runtimeVia)}</span>`;
 }
 
+
+/**
+ * The pages either side of this one, at the foot of it.
+ *
+ * Each one names where it goes rather than saying only "Next": a reader
+ * deciding whether to carry on is deciding about the page, not about the
+ * direction. Back on the left and on the right, the way a book runs, and
+ * above the review line because "last reviewed" is about this page rather
+ * than about where to go after it.
+ */
+function renderNeighbours(site: DocSite, page: DocPage): string {
+	const { previous, next } = neighbours(site, page.slug);
+	if (!previous && !next) return "";
+	const up = upTo(page.slug);
+	const side = (one: Neighbour | undefined, which: "previous" | "next", label: string) =>
+		one
+			? `<a class="docs-neighbour ${which}" href="${up}${pagePath(one.slug)}">` +
+				`<span class="way">${label}</span>` +
+				`<span class="title">${escapeHtml(one.title)}</span></a>`
+			: `<span class="docs-neighbour ${which} none"></span>`;
+	return (
+		`<nav class="docs-neighbours" aria-label="More pages">` +
+		`${side(previous, "previous", "Previous")}${side(next, "next", "Next")}</nav>\n`
+	);
+}
+
 export function renderPage(site: DocSite, page: DocPage, options: RenderOptions): string {
 	const up = upTo(page.slug);
 	const body = page.blocks.map((b) => renderBlock(b, options, up)).join("\n");
@@ -637,7 +665,7 @@ ${renderNav(site, page)}
 <p class="summary">${escapeHtml(page.summary)}</p>
 ${page.review ? `<p class="docs-status">${reviewBadge(page.review)}</p>\n` : ""}</header>
 ${body}
-${page.review ? `<p class="docs-reviewed">${inline(reviewLine(page.review), up)}</p>\n` : ""}${page.review?.verify ? `<p class="docs-verify"><strong>To verify:</strong> ${inline(page.review.verify, up)}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>
+${renderNeighbours(site, page)}${page.review ? `<p class="docs-reviewed">${inline(reviewLine(page.review), up)}</p>\n` : ""}${page.review?.verify ? `<p class="docs-verify"><strong>To verify:</strong> ${inline(page.review.verify, up)}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>
 </div>
 </article>
 ${renderOutline(page)}

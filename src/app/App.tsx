@@ -947,7 +947,7 @@ export function App() {
 			// A hoisted Function is in no flow, so it goes straight into a graph of
 			// its own, and that graph opens.
 			const hoisted = def.id === "function.entry";
-			const path = store.getSnapshot().path;
+			const { path, graph: graphNow } = store.getSnapshot();
 			store.edit((s) => {
 				const at = hoisted ? ENTRY_HOME : world;
 				const added = addNode(s, def, at.x, at.y);
@@ -977,6 +977,21 @@ export function App() {
 					starting.parens = true;
 				}
 				if (canShowName(def.id) && prefs.castNames) starting.castLabel = "name";
+				/**
+				 * A Return arrives with the pins its function returns.
+				 *
+				 * Editing a signature already reaches every Return inside it —
+				 * see `syncFunctionReturns` — but a Return placed *after* the
+				 * signature was written arrived bare, with nothing to wire the
+				 * values into, and the way to fix it was to retype the returns
+				 * on the function so the sync ran. The graph on screen is the
+				 * function it belongs to, so it can simply be asked.
+				 */
+				if (def.id === "function.return" && graphNow !== null) {
+					const owner = s.nodes.find((n) => n.id === graphNow);
+					const returns = (owner?.config as { returns?: unknown } | undefined)?.returns;
+					if (Array.isArray(returns) && returns.length > 0) starting.returns = returns;
+				}
 				const withDefaults = Object.keys(starting).length > 0
 					? { ...starting, ...config }
 					: config;

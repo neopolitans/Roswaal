@@ -2809,6 +2809,149 @@ const MODULES_PAGE: DocPage = {
 	],
 };
 
+/**
+ * Reading what a value holds.
+ *
+ * Its own page rather than a section of the types one, because the question
+ * arrives from the other direction: the types page is about *declaring* what a
+ * value is, and this is about a graph in front of you that has one and wants a
+ * field off it. It sits after Variables and locals for the same reason — the
+ * things it reads members off are what that page is about.
+ */
+const MEMBERS_PAGE = (registry: Registry): DocPage => ({
+	slug: "members-and-fields",
+	narrow: true,
+	title: "Members and fields",
+	summary: "Reading a field off a value whose type says what it holds — and what to use when it does not.",
+	review: { status: "pending" },
+	blocks: [
+		{
+			t: "p",
+			text:
+				"A value often holds other values: a table of settings, an instance with " +
+				"properties. Two nodes read one out, and which you want depends on a single " +
+				"question — **does anything know what is in there?**",
+		},
+		{
+			t: "table",
+			head: ["Node", "Reads", "When"],
+			rows: [
+				[
+					"**Get Member**",
+					"A field the type declares",
+					"The type says what it holds: a Declare Type's fields, a Roblox class's properties. The list is offered, and a name that is not on it is refused before the file is written.",
+				],
+				[
+					"**Get Field**",
+					"Any key you name",
+					"Nothing can promise what is in there: a dictionary filled and emptied as the program runs, a table from `require` of something Roswaal cannot see.",
+				],
+			],
+		},
+		...previews(
+			registry,
+			["value.member", "value.field"],
+			"Get Member is one line: the access it writes, one input, one output. Get Field " +
+			"takes the key as a pin, because the key is yours to name.",
+		),
+
+		{ t: "h", level: 2, text: "A type you declared" },
+		{
+			t: "p",
+			text:
+				"Declare a type as a **Table of Fields** and those fields are what Get Member " +
+				"offers off anything typed as it. Below: `Input` holds a throttle, a steer and " +
+				"an aim; the local is that type; the pill reads `aim` and hands on a Vector3, " +
+				"which is why Magnitude takes it without a cast.",
+		},
+		{
+			t: "graph",
+			script: GUIDE_SCENES.memberOfType(),
+			caption: "A declared type, a local of it, and one field read off that local.",
+		},
+		{ t: "code", lang: "luau", text: "local input: Input = nil\nlocal magnitude = input.aim.Magnitude" },
+		{
+			t: "p",
+			text:
+				"**The result is typed as the field is.** `aim` gives a Vector3 pin and `throttle` " +
+				"a number one, so the wire out of the pill is the colour of what it carries and " +
+				"the node downstream accepts it without a [Cast](casting).",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"A type written as **Custom Luau** works too, as long as it is a table of named " +
+				"fields: `{ throttle: number, aim: Vector3 }` is read the same as the rows are. " +
+				"A union, a function type or `{ [string]: number }` has no fixed fields, so it " +
+				"offers none — see the bottom of this page.",
+		},
+
+		{ t: "h", level: 2, text: "A Roblox instance" },
+		{
+			t: "p",
+			text:
+				"An instance's properties come from the engine, so they need no declaring. A node " +
+				"that names a class hands back that class — **New Instance** set to `Part` gives a " +
+				"Part — and a Part's properties are then what Get Member offers.",
+		},
+		{
+			t: "graph",
+			script: GUIDE_SCENES.memberOfInstance(),
+			caption: "New Instance gives a Part; the pill reads its Anchored, which is a boolean.",
+		},
+		{ t: "code", lang: "luau", text: "local part: Part = Instance.new(\"Part\")\nif part.Anchored then\nend" },
+		{
+			t: "p",
+			text:
+				"Inherited properties are there too: `Name` and `Parent` come from `Instance`, and " +
+				"a `Part` offers them alongside its own. **Get Service** gives the service's own " +
+				"class, and the Find First Child and Ancestor nodes follow their Class Name, so " +
+				"each of those leads straight into a member without a cast first.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"The property list is Roblox's, so it is offered in a Roblox graph and not in a " +
+				"Lune one. It is also a catalogue built with this release: a property newer than " +
+				"it is typed in and compiles exactly the same, as every other list here does.",
+		},
+
+		{ t: "h", level: 2, text: "Finding one" },
+		{
+			t: "table",
+			head: ["Gesture", "What you get"],
+			rows: [
+				["Drag a wire out of a typed pin", "That type's members in the node menu, under their own heading. Picking one places a Get Member already wired"],
+				["Type `input.` in either node search", "Every member of everything this graph names — a variable, a local, a parameter. Picking one places the getter and the Get Member on it, wired"],
+				["Select a Get Member", "Its **Member** in the Inspector, as a list of what the wired type declares"],
+			],
+		},
+
+		{ t: "h", level: 2, text: "When there is no list" },
+		{
+			t: "p",
+			text:
+				"A table whose keys come and go while the program runs has no fixed members, and " +
+				"nothing offers any: that is **Get Field**, which takes the key as a pin and reads " +
+				"whatever is there. A key that is not a Luau name — a number, or a string with a " +
+				"space in it — is Get Field's as well, since `t.my key` is not something Luau can " +
+				"write.",
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"**A member the type does not have is refused**, where the type is one this file " +
+				"declares: the compiler lists what it does hold rather than writing a read that " +
+				"comes back `nil` at runtime. A Roblox property and a type another module exports " +
+				"are not checked here — the catalogue is a build old, and the other graph is not " +
+				"open.",
+		},
+	],
+});
+
 const VARIABLES: DocPage = {
 	slug: "variables-and-locals",
 	narrow: true,
@@ -5611,7 +5754,8 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	 */
 	const writingGraphs = [
 		TWO_KINDS_OF_WIRE(registry), TYPES_GUIDE, castingPage(registry),
-		VARIABLES, functionsPage(registry), MODULES_PAGE, ESCAPE_HATCHES(registry),
+		VARIABLES, MEMBERS_PAGE(registry), functionsPage(registry), MODULES_PAGE,
+		ESCAPE_HATCHES(registry),
 	];
 	const forRoblox = [servicesPage(registry), BUILDING, robloxDemosPage(registry)];
 	const forLune = [
@@ -5679,6 +5823,32 @@ export function allPages(site: DocSite): DocPage[] {
 
 export function findPage(site: DocSite, slug: string): DocPage | undefined {
 	return allPages(site).find((p) => p.slug === slug);
+}
+
+/** One end of the walk through the site: where it goes, and what is there. */
+export interface Neighbour {
+	slug: string;
+	title: string;
+}
+
+/**
+ * The pages either side of this one, in the order the contents list them.
+ *
+ * So the foot of a page can offer the next one by name. Site-wide rather than
+ * within a section, because the contents read as one list top to bottom and
+ * "next" at the end of a section is the next section's first page — which is
+ * what somebody reading straight through wants, and what the sidebar shows
+ * them anyway.
+ */
+export function neighbours(
+	site: DocSite, slug: string,
+): { previous?: Neighbour; next?: Neighbour } {
+	const pages = allPages(site);
+	const at = pages.findIndex((page) => page.slug === slug);
+	if (at < 0) return {};
+	const name = (page: DocPage | undefined): Neighbour | undefined =>
+		page ? { slug: page.slug, title: page.title } : undefined;
+	return { previous: name(pages[at - 1]), next: name(pages[at + 1]) };
 }
 
 // ---------------------------------------------------------------------------
