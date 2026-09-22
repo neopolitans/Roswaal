@@ -85,7 +85,9 @@ export class G {
 
 	node(
 		def: string,
-		opts: { config?: NodeConfig; literals?: Record<string, Literal> } & Place = {},
+		// `label` because a node's label names the local it binds: `part`
+		// rather than `Instance2` in the Luau under the picture.
+		opts: { config?: NodeConfig; literals?: Record<string, Literal>; label?: string } & Place = {},
 	): string {
 		const { column, row, dy, dx, ...rest } = opts;
 		const id = `n${this.n++}`;
@@ -601,9 +603,52 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 			config: { member: "aim", type: "Vector3" },
 		});
 		const length = g.node("vector3.magnitude", { column: 4, row: 1 });
+		const print = g.node("debug.print", { column: 5, row: 0 });
 		g.link(begin, "then", declare, "in");
+		g.link(declare, "then", print, "in");
 		g.link(get, "value", read, "object");
 		g.link(read, "result", length, "v");
+		g.link(length, "result", print, "value");
+		return g.out();
+	},
+
+	/**
+	 * A type another module exports, on a value taken out of that module.
+	 *
+	 * Both nodes in one line of Luau, which is the point of the picture: the
+	 * module's own table is a value nothing here can describe, so its key is
+	 * read by **Get Field** — and what comes back is annotated `Config.Tuning`,
+	 * which *is* described, so `turnRate` off it is a **Get Member**.
+	 */
+	memberOfModule: () => {
+		const g = new G({}, TIGHT);
+		const begin = g.node("script.begin", { column: 0, row: 0 });
+		const mod = g.node("module.requirePath", {
+			column: 0, row: 1,
+			literals: { root: str("ReplicatedStorage"), path: str("Tank.Config"), as: str("") },
+		});
+		const field = g.node("value.field", {
+			column: 1, row: 1, literals: { field: str("tuning") },
+		});
+		const declare = g.node("local.declare", {
+			column: 2, row: 0,
+			config: { type: "Config.Tuning" },
+			literals: { name: str("tuning") },
+		});
+		const get = g.node("local.get", {
+			column: 3, row: 1,
+			config: { local: declare, name: "tuning", type: "Config.Tuning" },
+		});
+		const rate = g.node("value.member", {
+			column: 4, row: 1, config: { member: "turnRate", type: "number" },
+		});
+		const print = g.node("debug.print", { column: 5, row: 0 });
+		g.link(mod, "exports", field, "object");
+		g.link(field, "result", declare, "value");
+		g.link(begin, "then", declare, "in");
+		g.link(declare, "then", print, "in");
+		g.link(get, "value", rate, "object");
+		g.link(rate, "result", print, "value");
 		return g.out();
 	},
 
@@ -612,7 +657,7 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0, row: 0 });
 		const made = g.node("roblox.instanceNew", {
-			column: 1, row: 0, literals: { className: str("Part") },
+			column: 1, row: 0, label: "part", literals: { className: str("Part") },
 		});
 		const anchored = g.node("value.member", {
 			column: 2, row: 0, config: { member: "Anchored", type: "boolean" },

@@ -429,6 +429,16 @@ export function NodeMenu(props: NodeMenuProps) {
 		}));
 	}, [anchor.from, registry, script, projectTypes]);
 
+	/**
+	 * Placing what an entry stands for.
+	 *
+	 * One function for the click and for Enter, because they were two calls and
+	 * only one of them was updated when entries gained a member: picking
+	 * `input.throttle` with the mouse placed the getter and the Get Member on
+	 * it, and pressing Enter on the same row placed the getter alone.
+	 */
+	const pick = (item: MenuItem) => onPick(item.def, item.config, item.literals, item.member);
+
 	const matches = useMemo(() => {
 		const q = query.trim().toLowerCase();
 		// Browsing: everything but the members, which are found by name rather
@@ -622,9 +632,7 @@ export function NodeMenu(props: NodeMenuProps) {
 						e.preventDefault();
 						setActive((i) => Math.max(i - 1, 0));
 					}
-					if (e.key === "Enter" && flat[active]) {
-						onPick(flat[active].def, flat[active].config, flat[active].literals);
-					}
+					if (e.key === "Enter" && flat[active]) pick(flat[active]);
 				}}
 			/>
 			<div className="items">
@@ -642,7 +650,7 @@ export function NodeMenu(props: NodeMenuProps) {
 							className={`item${flat[active]?.key === item.key ? " active" : ""}`}
 							title={item.summary}
 							onMouseEnter={() => setActive(flat.indexOf(item))}
-							onClick={() => onPick(item.def, item.config, item.literals, item.member)}
+							onClick={() => pick(item)}
 						>
 							<span className="swatch" style={{ background: item.color }} />
 							<span>{item.title}</span>

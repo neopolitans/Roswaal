@@ -2859,10 +2859,56 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 		{
 			t: "p",
 			text:
-				"Declare a type as a **Table of Fields** and those fields are what Get Member " +
-				"offers off anything typed as it. Below: `Input` holds a throttle, a steer and " +
-				"an aim; the local is that type; the pill reads `aim` and hands on a Vector3, " +
-				"which is why Magnitude takes it without a cast.",
+				"A type is declared by a [Declare Type](types-and-typechecking) node — at the top " +
+				"of the file or where it sits — and what it is *written as* decides whether it has " +
+				"members to offer. A table of fixed fields does; everything else is a type Luau " +
+				"understands and this cannot enumerate.",
+		},
+		{
+			t: "table",
+			head: ["Written as", "Example", "Members"],
+			rows: [
+				[
+					"**Table of Fields**",
+					"Rows in the Inspector: `throttle`, `number`",
+					"Each row, with its type. The ordinary case, and the one the editor checks as you type it.",
+				],
+				[
+					"**Custom Luau**, a table",
+					"`{ throttle: number, aim: Vector3 }`",
+					"The same fields, read out of the text — so a type typed out by hand behaves as the rows do.",
+				],
+				[
+					"**Custom Luau**, anything else",
+					"`\"idle\" | \"driving\"`, `(number) -> string`",
+					"None. There is no fixed field list to offer, and a Get Member on one is refused.",
+				],
+				[
+					"**A dictionary type**",
+					"`{ [string]: number }`",
+					"None: the keys are the program's business. That is Get Field's case.",
+				],
+				[
+					"**Type of a Value**",
+					"`typeof(Tuning)`",
+					"None here. Luau resolves it; Roswaal does not follow it, so its members are Get Field's.",
+				],
+			],
+		},
+		{
+			t: "p",
+			text:
+				"**The type's name is what travels.** A Declare Local, a function's parameter, a " +
+				"variable or a [Cast](casting) set to `Input` gives a pin typed `Input`, and every " +
+				"pin typed `Input` offers the same fields — the declaration is read wherever it " +
+				"sits in the file, including from inside a function.",
+		},
+		{
+			t: "p",
+			text:
+				"Below: `Input` holds a throttle, a steer and an aim; the local is that type; the " +
+				"pill reads `aim` and hands on a Vector3, which is why Magnitude takes it without " +
+				"a cast.",
 		},
 		{
 			t: "graph",
@@ -2885,6 +2931,48 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 				"fields: `{ throttle: number, aim: Vector3 }` is read the same as the rows are. " +
 				"A union, a function type or `{ [string]: number }` has no fixed fields, so it " +
 				"offers none — see the bottom of this page.",
+		},
+
+		{ t: "h", level: 2, text: "A type a module exports" },
+		{
+			t: "p",
+			text:
+				"A module's exported types are offered here too, under the name this graph writes " +
+				"them as: require `Tank.Config` as `Config`, and a value annotated `Config.Tuning` " +
+				"offers that type's fields. The fields are read from the graph that declares them, " +
+				"so renaming one there changes what is offered here.",
+		},
+		{
+			t: "graph",
+			script: GUIDE_SCENES.memberOfModule(),
+			caption: "Get Field takes a key off the module's table; Get Member reads a field of the type that value is annotated with.",
+		},
+		{
+			t: "code",
+			lang: "luau",
+			text:
+				"local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\n" +
+				"local Config = require(ReplicatedStorage.Tank.Config)\n" +
+				"local tuning: Config.Tuning = Config.tuning\n" +
+				"print(tuning.turnRate)",
+		},
+		{
+			t: "p",
+			text:
+				"**Both nodes appear, and which is which is the point.** The module's own table is " +
+				"a value nothing here can describe — Roswaal does not read the other file's " +
+				"returns — so `Config.tuning` is a **Get Field**. What comes out is annotated as a " +
+				"type that *is* described, so `turnRate` off it is a **Get Member**.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"This list comes from the daemon, which reads the other graph. In a browser with " +
+				"no project open behind it there is nothing to read, so a module's type offers no " +
+				"members — the name still compiles, and Luau still checks it. For the same reason " +
+				"the compiler does not refuse a member on one of these: the graph that declares it " +
+				"is not open, and refusing what cannot be checked would be guessing.",
 		},
 
 		{ t: "h", level: 2, text: "A Roblox instance" },

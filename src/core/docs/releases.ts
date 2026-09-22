@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.80.1",
+		date: "2026-09-22",
+		headline: "Members from a module, and Enter that places both nodes.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Members and fields** says what makes a type's fields knowable — rows, a table written as Luau, and the shapes that have no fixed fields — and adds a worked example of a type a required module exports, where Get Field takes the module's key and Get Member reads the type's field.",
+		],
+		fixed: [
+			"**Pressing Enter on a member entry places both nodes.** Picking `input.throttle` with the mouse placed the getter and the Get Member on it; Enter placed the getter alone.",
+		],
+	},
+	{
 		version: "0.80.0",
 		date: "2026-09-22",
 		headline: "A page about members, and Returns that keep up.",
