@@ -34,15 +34,19 @@ describe("which nodes are pills", () => {
 			.sort();
 		expect(ids).toEqual([
 			"cast.any", "cast.array", "cast.as",
-			"cframe.mul", "cframe.translate",
+			"cframe.lookVector", "cframe.mul", "cframe.position", "cframe.rightVector",
+			"cframe.rotation", "cframe.translate", "cframe.upVector",
 			"compare.eq", "compare.gt", "compare.gte", "compare.lt", "compare.lte", "compare.neq",
 			"compare.selfNeq",
 			"logic.and", "logic.not", "logic.or",
 			"math.add", "math.div", "math.mod", "math.mul", "math.neg", "math.pow", "math.sub",
+			"tween.completed",
 			"udim.add", "udim.sub", "udim2.add", "udim2.sub",
 			"value.member", "value.nil", "value.typeof",
-			"vector2.add", "vector2.divide", "vector2.negate", "vector2.scale", "vector2.sub",
-			"vector3.add", "vector3.divide", "vector3.mul", "vector3.negate", "vector3.scale", "vector3.sub",
+			"vector2.add", "vector2.divide", "vector2.magnitude", "vector2.negate", "vector2.scale",
+			"vector2.sub", "vector2.unit",
+			"vector3.add", "vector3.divide", "vector3.magnitude", "vector3.mul", "vector3.negate",
+			"vector3.scale", "vector3.sub", "vector3.unit",
 		]);
 	});
 
@@ -212,5 +216,25 @@ describe("asking about a type at runtime", () => {
 		}
 		expect(options).not.toContain("Part");
 		expect(options).not.toContain("any");
+	});
+});
+
+/** A member read draws as the access it writes, as Get Member does. */
+describe("reading one member", () => {
+	it("shows the property on the pill's face", () => {
+		expect(registry.get("vector3.magnitude")!.operator).toBe(".Magnitude");
+		expect(registry.get("vector3.unit")!.operator).toBe(".Unit");
+		expect(registry.get("cframe.lookVector")!.operator).toBe(".LookVector");
+		expect(registry.get("tween.completed")!.operator).toBe(".Completed");
+	});
+
+	/** The row carries no label: the pill already says what it reads. */
+	it("leaves the value's pin unnamed", () => {
+		expect(registry.get("vector3.magnitude")!.inputs[0].name).toBe("");
+	});
+
+	/** Distance is `(a - b).Magnitude`, which is not one member read. */
+	it("leaves a node that does more than read a member alone", () => {
+		expect(registry.get("vector3.distance")!.display).toBeUndefined();
 	});
 });

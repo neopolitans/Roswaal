@@ -568,13 +568,13 @@ export const CURATED: Record<string, () => NodeScript> = {
  */
 export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	/**
-	 * A type this graph declares, read by a Get Member.
+	 * A type entered as rows, and one field read off a local of it.
 	 *
-	 * The whole loop in one picture: the type says what it holds, a local is
-	 * that type, and the member pill reads one field off it — typed as the
-	 * field is, which is what the wire out of it carries.
+	 * Four nodes, because the page shows this beside two others and a picture
+	 * somebody has to pan is a picture nobody reads: the declaration, the local
+	 * that is one, and the member.
 	 */
-	memberOfType: () => {
+	typeFieldsRows: () => {
 		const g = new G({}, TIGHT);
 		g.node("type.declareTop", {
 			column: 0, row: 0,
@@ -588,27 +588,69 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 				layout: "lines",
 			},
 		});
-		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const declare = g.node("local.declare", {
-			column: 1, row: 1,
+			column: 0, row: 1,
 			config: { type: "Input" },
 			literals: { name: str("input") },
 		});
 		const get = g.node("local.get", {
-			column: 2, row: 1,
+			column: 1, row: 1,
 			config: { local: declare, name: "input", type: "Input" },
 		});
 		const read = g.node("value.member", {
-			column: 3, row: 1,
-			config: { member: "aim", type: "Vector3" },
+			column: 2, row: 1, config: { member: "aim", type: "Vector3" },
 		});
-		const length = g.node("vector3.magnitude", { column: 4, row: 1 });
-		const print = g.node("debug.print", { column: 5, row: 0 });
-		g.link(begin, "then", declare, "in");
-		g.link(declare, "then", print, "in");
 		g.link(get, "value", read, "object");
-		g.link(read, "result", length, "v");
-		g.link(length, "result", print, "value");
+		return g.out();
+	},
+
+	/** The same type, typed out as Luau instead of entered as rows. */
+	typeFieldsWritten: () => {
+		const g = new G({}, TIGHT);
+		g.node("type.declareTop", {
+			column: 0, row: 0,
+			config: {
+				name: "Shot",
+				shape: "written",
+				definition: "{ damage: number, from: Vector3 }",
+			},
+		});
+		const declare = g.node("local.declare", {
+			column: 0, row: 1,
+			config: { type: "Shot" },
+			literals: { name: str("shot") },
+		});
+		const get = g.node("local.get", {
+			column: 1, row: 1,
+			config: { local: declare, name: "shot", type: "Shot" },
+		});
+		const read = g.node("value.member", {
+			column: 2, row: 1, config: { member: "damage", type: "number" },
+		});
+		g.link(get, "value", read, "object");
+		return g.out();
+	},
+
+	/** A type with no fixed fields, and the node that reads one anyway. */
+	typeFieldsOpen: () => {
+		const g = new G({}, TIGHT);
+		g.node("type.declareTop", {
+			column: 0, row: 0,
+			config: { name: "Scores", shape: "written", definition: "{ [string]: number }" },
+		});
+		const declare = g.node("local.declare", {
+			column: 0, row: 1,
+			config: { type: "Scores" },
+			literals: { name: str("scores") },
+		});
+		const get = g.node("local.get", {
+			column: 1, row: 1,
+			config: { local: declare, name: "scores", type: "Scores" },
+		});
+		const read = g.node("value.field", {
+			column: 2, row: 1, literals: { field: str("alice") },
+		});
+		g.link(get, "value", read, "object");
 		return g.out();
 	},
 

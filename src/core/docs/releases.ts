@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.81.0",
+		date: "2026-09-22",
+		headline: "A member read looks like one.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**A node whose whole job is reading one member is a pill**, showing the access it writes: **Magnitude** is `.Magnitude`, and so are **Unit**, the Vector2 pair, **CFrame Position**, **Rotation**, **Look**, **Right** and **Up Vector**, and **Tween Completed**. A node that does more than read a member — Distance, which is `(a - b).Magnitude` — is unchanged.",
+			"**Members and fields shows the kinds of declaration in tabs**, a small graph each, rather than one picture wide enough to need panning.",
+		],
+	},
+	{
 		version: "0.80.1",
 		date: "2026-09-22",
 		headline: "Members from a module, and Enter that places both nodes.",

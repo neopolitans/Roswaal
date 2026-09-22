@@ -2904,33 +2904,92 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 				"sits in the file, including from inside a function.",
 		},
 		{
-			t: "p",
-			text:
-				"Below: `Input` holds a throttle, a steer and an aim; the local is that type; the " +
-				"pill reads `aim` and hands on a Vector3, which is why Magnitude takes it without " +
-				"a cast.",
-		},
-		{
-			t: "graph",
-			script: GUIDE_SCENES.memberOfType(),
-			caption: "A declared type, a local of it, and one field read off that local.",
-		},
-		{ t: "code", lang: "luau", text: "local input: Input = nil\nlocal magnitude = input.aim.Magnitude" },
-		{
-			t: "p",
-			text:
-				"**The result is typed as the field is.** `aim` gives a Vector3 pin and `throttle` " +
-				"a number one, so the wire out of the pill is the colour of what it carries and " +
-				"the node downstream accepts it without a [Cast](casting).",
-		},
-		{
-			t: "note",
-			kind: "info",
-			text:
-				"A type written as **Custom Luau** works too, as long as it is a table of named " +
-				"fields: `{ throttle: number, aim: Vector3 }` is read the same as the rows are. " +
-				"A union, a function type or `{ [string]: number }` has no fixed fields, so it " +
-				"offers none — see the bottom of this page.",
+			t: "tabs",
+			label: "How the type is written",
+			tabs: [
+				{
+					id: "type-rows",
+					title: "Table of fields",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"The ordinary case. `Input` holds a throttle, a steer and an aim, each entered " +
+								"as a row; the local is that type; the pill reads `aim` and hands on a Vector3.",
+						},
+						{
+							t: "graph",
+							script: GUIDE_SCENES.typeFieldsRows(),
+							caption: "Three fields declared, and one of them read off a local of that type.",
+						},
+						{
+							t: "code",
+							lang: "luau",
+							text:
+								"export type Input = {\n\tthrottle: number,\n\tsteer: number,\n\taim: Vector3,\n}\n\n" +
+								"local input: Input = nil\nlocal aim = input.aim",
+						},
+						{
+							t: "p",
+							text:
+								"**The result is typed as the field is.** `aim` gives a Vector3 pin and " +
+								"`throttle` a number one, so what comes out wires into a Vector3 node without " +
+								"a [Cast](casting).",
+						},
+					],
+				},
+				{
+					id: "type-written",
+					title: "Written as Luau",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"A type typed out in the **Custom Luau** box behaves as the rows do, as long " +
+								"as what you wrote is a table of named fields. This is the shape to reach for " +
+								"when a field's own type is more than a name — `{ Player }`, `Model?`.",
+						},
+						{
+							t: "graph",
+							script: GUIDE_SCENES.typeFieldsWritten(),
+							caption: "The same thing, written as Luau instead of entered as rows.",
+						},
+						{
+							t: "code",
+							lang: "luau",
+							text:
+								"export type Shot = { damage: number, from: Vector3 }\n\n" +
+								"local shot: Shot = nil\nlocal damage = shot.damage",
+						},
+					],
+				},
+				{
+					id: "type-open",
+					title: "No fixed fields",
+					blocks: [
+						{
+							t: "p",
+							text:
+								"A dictionary type, a union, a function type: Luau understands each of them, " +
+								"and none has a field list anybody can write down. Get Member offers nothing " +
+								"and refuses a member on one — **Get Field** is the node, and the key is a pin " +
+								"you fill in or wire.",
+						},
+						{
+							t: "graph",
+							script: GUIDE_SCENES.typeFieldsOpen(),
+							caption: "A table keyed by name: the keys are the program's business, so the key is a pin.",
+						},
+						{
+							t: "code",
+							lang: "luau",
+							text:
+								"export type Scores = { [string]: number }\n\n" +
+								"local scores: Scores = nil\nlocal alice = scores.alice",
+						},
+					],
+				},
+			],
 		},
 
 		{ t: "h", level: 2, text: "A type a module exports" },

@@ -274,6 +274,31 @@ const TYPEOF_NAMES: string[] = [
 	...DATATYPES,
 ];
 
+/**
+ * A node whose whole job is reading one member off a value.
+ *
+ * `v.Magnitude` is the same shape as a Get Member -- a value in, a member
+ * named, one thing out -- so it is drawn the same way: a pill with the access
+ * on its face. A header over two rows spent a title saying what the access
+ * already says, which is the argument the comparisons made when they became
+ * pills.
+ *
+ * The symbol is read from the template rather than written twice, so the node
+ * that writes `$in.cframe.LookVector` shows `.LookVector` and cannot drift
+ * from it. A template that is anything but one member read is left alone.
+ */
+function memberPill(def: NodeDef): NodeDef {
+	const template = def.compilesTo.kind === "expr" ? def.compilesTo.outputs.result : undefined;
+	const read = template?.match(/^\$in\.[A-Za-z_][A-Za-z0-9_]*\.([A-Za-z_][A-Za-z0-9_]*)$/);
+	if (!read) return def;
+	return pill(
+		// Unnamed, as Get Member's own pin is: the pill writes `.Magnitude`,
+		// and a row labelled "Vector" beside it repeats the wire's colour.
+		{ ...def, inputs: def.inputs.map((pin, i) => (i === 0 ? { ...pin, name: "" } : pin)) },
+		`.${read[1]}`,
+	);
+}
+
 const LETTERS = "ABCDEFGH".split("");
 
 /**
@@ -1312,9 +1337,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 		p("vector3.sign", "Vector3 Sign", "$in.v:Sign()", [vec("v", "Vector")], "Vector3",
 			"-1, 0 or 1 per component."),
 
-		p("vector3.magnitude", "Magnitude", "$in.v.Magnitude", [vec("v", "Vector")], "number"),
-		p("vector3.unit", "Unit", "$in.v.Unit", [vec("v", "Vector")], "Vector3",
-			"The vector scaled to length one. Undefined for a zero vector, as in Luau."),
+		memberPill(p("vector3.magnitude", "Magnitude", "$in.v.Magnitude", [vec("v", "Vector")], "number")),
+		memberPill(p("vector3.unit", "Unit", "$in.v.Unit", [vec("v", "Vector")], "Vector3",
+			"The vector scaled to length one. Undefined for a zero vector, as in Luau.")),
 		p("vector3.distance", "Distance", "($in.a - $in.b).Magnitude",
 			[vec("a", "A"), vec("b", "B")], "number"),
 		breakInto("vector3.break", "Break Vector3", [vec("v", "Vector")], [
@@ -1359,8 +1384,8 @@ export const LIBRARY_NODES: NodeDef[] = [
 		p("vector2.floor", "Vector2 Floor", "$in.v:Floor()", [v2("v", "Vector")], "Vector2"),
 		p("vector2.sign", "Vector2 Sign", "$in.v:Sign()", [v2("v", "Vector")], "Vector2"),
 
-		p("vector2.magnitude", "Vector2 Magnitude", "$in.v.Magnitude", [v2("v", "Vector")], "number"),
-		p("vector2.unit", "Vector2 Unit", "$in.v.Unit", [v2("v", "Vector")], "Vector2"),
+		memberPill(p("vector2.magnitude", "Vector2 Magnitude", "$in.v.Magnitude", [v2("v", "Vector")], "number")),
+		memberPill(p("vector2.unit", "Vector2 Unit", "$in.v.Unit", [v2("v", "Vector")], "Vector2")),
 		p("vector2.distance", "Vector2 Distance", "($in.a - $in.b).Magnitude",
 			[v2("a", "A"), v2("b", "B")], "number"),
 		breakInto("vector2.break", "Break Vector2", [v2("v", "Vector")], [
@@ -1407,11 +1432,11 @@ export const LIBRARY_NODES: NodeDef[] = [
 			[cf("cframe", "CFrame"), vec("vector", "Vector")], "Vector3",
 			"A direction expressed in this CFrame's own axes. Rotation only, so a translation does not move it."),
 
-		p("cframe.position", "CFrame Position", "$in.cframe.Position", [cf("cframe", "CFrame")], "Vector3"),
-		p("cframe.rotation", "CFrame Rotation", "$in.cframe.Rotation", [cf("cframe", "CFrame")], "CFrame"),
-		p("cframe.lookVector", "Look Vector", "$in.cframe.LookVector", [cf("cframe", "CFrame")], "Vector3"),
-		p("cframe.rightVector", "Right Vector", "$in.cframe.RightVector", [cf("cframe", "CFrame")], "Vector3"),
-		p("cframe.upVector", "Up Vector", "$in.cframe.UpVector", [cf("cframe", "CFrame")], "Vector3"),
+		memberPill(p("cframe.position", "CFrame Position", "$in.cframe.Position", [cf("cframe", "CFrame")], "Vector3")),
+		memberPill(p("cframe.rotation", "CFrame Rotation", "$in.cframe.Rotation", [cf("cframe", "CFrame")], "CFrame")),
+		memberPill(p("cframe.lookVector", "Look Vector", "$in.cframe.LookVector", [cf("cframe", "CFrame")], "Vector3")),
+		memberPill(p("cframe.rightVector", "Right Vector", "$in.cframe.RightVector", [cf("cframe", "CFrame")], "Vector3")),
+		memberPill(p("cframe.upVector", "Up Vector", "$in.cframe.UpVector", [cf("cframe", "CFrame")], "Vector3")),
 		breakInto("cframe.toEulerAngles", "To Euler Angles XYZ", [cf("cframe", "CFrame")], [
 			{ id: "x", name: "X (rad)", type: "number", expr: "(select(1, $in.cframe:ToEulerAnglesXYZ()))" },
 			{ id: "y", name: "Y (rad)", type: "number", expr: "(select(2, $in.cframe:ToEulerAnglesXYZ()))" },
@@ -1573,9 +1598,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 		stmt("tween.cancel", "Cancel Tween", ENGINE_TYPES, "$in.tween:Cancel()",
 			[d("tween", "Tween", "Tween")],
 			{ targets: ["roblox"], summary: "Stops and resets its progress, leaving the property wherever it had reached." }),
-		p("tween.completed", "Tween Completed", "$in.tween.Completed",
+		memberPill(p("tween.completed", "Tween Completed", "$in.tween.Completed",
 			[d("tween", "Tween", "Tween")], "RBXScriptSignal",
-			"Wire into Connect Event to run something afterwards, or Wait For Signal to hold the thread until it finishes."),
+			"Wire into Connect Event to run something afterwards, or Wait For Signal to hold the thread until it finishes.")),
 	]),
 
 	// -- DateTime ----------------------------------------------------------
