@@ -1902,6 +1902,7 @@ export function App() {
 								script={editor.script}
 								graph={editor.graph}
 								selection={editor.selection}
+								registry={registry}
 								confirm={async (title, message, confirmLabel) =>
 									(await ask({ kind: "confirm", title, message, confirmLabel, danger: true })) === true
 								}

@@ -2846,6 +2846,8 @@ const VARIABLES: DocPage = {
 				"The panel also lists this graph's **Locals**, **Functions** and **Types**. Click a " +
 					"function to open its graph, or drag it out for a **Get Function**. Clicking a " +
 					"local or a type goes to the graph its node is in.",
+				"**×** on a local or a function deletes the node that declares it, and a function's " +
+					"graph with it. The nodes that read it stay, and report an error until repointed.",
 			],
 		},
 		{

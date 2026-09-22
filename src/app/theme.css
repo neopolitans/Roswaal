@@ -2889,6 +2889,24 @@ button.tb.primary:hover:not(:disabled) {
 	font-family: "Cascadia Mono", Consolas, monospace;
 }
 
+/* Faint until pointed at, so a list of locals does not read as a list of
+   deletes; still there for a finger, which cannot hover. */
+.variable-head .variable-delete {
+	flex: none;
+	padding: 0 5px;
+	line-height: 16px;
+	background: transparent;
+	border-color: transparent;
+	color: var(--fg-faint);
+	cursor: pointer;
+}
+
+.variable-head .variable-delete:hover,
+.variable-head .variable-delete:focus-visible {
+	color: var(--danger, #e06c6c);
+	border-color: var(--border);
+}
+
 .variable-body {
 	display: flex;
 	flex-direction: column;

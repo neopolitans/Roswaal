@@ -12,10 +12,13 @@ import { useMemo, useState, type DragEvent } from "react";
 import type {
 	GraphNode, Literal, NodeScript, ScriptModule, ScriptVariable,
 } from "../core/schema.js";
-import { hoistedFunctions, visibleFrom, type GraphId } from "../core/functionGraph.js";
 import {
-	addModule, addVariable, defaultLiteralFor, deleteModule, deleteVariable, localRefFor,
-	moduleUsageCount, updateModule, updateVariable, variableUsageCount,
+	hoistedFunctions, visibleFrom, withFunctionGraphs, type GraphId,
+} from "../core/functionGraph.js";
+import type { Registry } from "../core/nodes/index.js";
+import {
+	addModule, addVariable, defaultLiteralFor, deleteModule, deleteSelection, deleteVariable,
+	localRefFor, moduleUsageCount, updateModule, updateVariable, variableUsageCount,
 } from "./edits.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { isConstLocal } from "../core/nodes/variables.js";
@@ -37,11 +40,41 @@ export interface VariablesPanelProps {
 	/** The graph on screen: a function's id, or null for the script's own. */
 	graph: GraphId;
 	selection: ReadonlySet<string>;
+	/** For deleting a local or a function, which is deleting its node. */
+	registry: Registry;
 	/** Asks for confirmation; resolves true when the developer agrees. */
 	confirm: (title: string, message: string, confirmLabel: string) => Promise<boolean>;
 }
 
-export function VariablesPanel({ script, graph, confirm, locked }: VariablesPanelProps) {
+export function VariablesPanel({ script, graph, registry, confirm, locked }: VariablesPanelProps) {
+	/**
+	 * Deletes the node that declares a local or a function, as the canvas would.
+	 *
+	 * The nodes that refer to it stay, as a variable's Get and Set do, and
+	 * report an error until they are repointed or removed. A function's own
+	 * graph goes with it, which the canvas also does -- so the question says how
+	 * much of each.
+	 */
+	const deleteDeclaration = async (node: GraphNode, kind: "local" | "function") => {
+		const name = kind === "local"
+			? localRefFor(node).name || "local"
+			: (node.config as { name?: string } | undefined)?.name || "function";
+		const key = kind === "local" ? "local" : "function";
+		const uses = script.nodes.filter(
+			(n) => n.id !== node.id && (n.config as Record<string, unknown> | undefined)?.[key] === node.id,
+		).length;
+		const inside = kind === "function" ? withFunctionGraphs(script, new Set([node.id])).size - 1 : 0;
+		const parts = [`Delete "${name}"?`];
+		if (inside > 0) parts.push(`${inside} node${inside === 1 ? " is" : "s are"} inside it, and go${inside === 1 ? "es" : ""} with it.`);
+		if (uses > 0) {
+			parts.push(`${uses} node${uses === 1 ? "" : "s"} still reference it, and will report an error until repointed or removed.`);
+		}
+		const title = kind === "local" ? "Delete local" : "Delete function";
+		if (await confirm(title, parts.join(" "), "Delete")) {
+			store.edit((s) => deleteSelection(s, new Set([node.id]), registry));
+		}
+	};
+
 	const [open, setOpen] = useState<string | null>(null);
 	// Both kinds, because a graph's functions are its functions: which one is
 	// hoisted is a property of each, shown on the row rather than sorted on.
@@ -145,7 +178,7 @@ export function VariablesPanel({ script, graph, confirm, locked }: VariablesPane
 					<>
 						<h3 className="variables-sub">Locals</h3>
 						{locals.map((node) => (
-							<LocalRow key={node.id} node={node} />
+							<LocalRow key={node.id} node={node} onDelete={() => deleteDeclaration(node, "local")} />
 						))}
 					</>
 				)}
@@ -157,7 +190,7 @@ export function VariablesPanel({ script, graph, confirm, locked }: VariablesPane
 					<>
 						<h3 className="variables-sub">Functions</h3>
 						{functions.map((node) => (
-							<FunctionRow key={node.id} node={node} />
+							<FunctionRow key={node.id} node={node} onDelete={() => deleteDeclaration(node, "function")} />
 						))}
 					</>
 				)}
@@ -337,7 +370,33 @@ function ModuleRow(
 	);
 }
 
-function LocalRow({ node }: { node: GraphNode }) {
+/**
+ * Delete, on a row that does not open.
+ *
+ * A variable or a module expands, and its Delete is at the foot of what opens.
+ * A local's row selects its node and a function's opens its graph, so theirs
+ * sits on the row itself -- always shown rather than on hover, which a finger
+ * does not have.
+ */
+function RowDelete({ name, onDelete }: { name: string; onDelete: () => void }) {
+	return (
+		<button
+			className="tb variable-delete"
+			title={`Delete "${name}"`}
+			aria-label={`Delete "${name}"`}
+			draggable={false}
+			onClick={(e) => {
+				// The row's own click selects or opens; this is not that.
+				e.stopPropagation();
+				onDelete();
+			}}
+		>
+			×
+		</button>
+	);
+}
+
+function LocalRow({ node, onDelete }: { node: GraphNode; onDelete: () => void }) {
 	const ref = localRefFor(node);
 	const declared = (node.config as { type?: string } | undefined)?.type?.trim();
 
@@ -362,6 +421,7 @@ function LocalRow({ node }: { node: GraphNode }) {
 				    Inspector of the node that made it. */}
 				{isConstLocal(node.config) && <span className="badge const">const</span>}
 				<span className="type">{declared || "any"}</span>
+				<RowDelete name={ref.name || "local"} onDelete={onDelete} />
 			</div>
 		</div>
 	);
@@ -374,7 +434,7 @@ function LocalRow({ node }: { node: GraphNode }) {
  * tell from the name and the thing that decides where its body runs — hoisted
  * to the top of the file, or declared where the node sits.
  */
-function FunctionRow({ node }: { node: GraphNode }) {
+function FunctionRow({ node, onDelete }: { node: GraphNode; onDelete: () => void }) {
 	const sig = (node.config ?? {}) as { name?: string };
 
 	function onDragStart(e: DragEvent) {
@@ -397,6 +457,7 @@ function FunctionRow({ node }: { node: GraphNode }) {
 				<span className="swatch" style={{ background: pinColor("function", "data") }} />
 				<span className="name">{sig.name || "function"}</span>
 				<span className="type">{node.def === "function.entry" ? "hoisted" : "here"}</span>
+				<RowDelete name={sig.name || "function"} onDelete={onDelete} />
 			</div>
 		</div>
 	);

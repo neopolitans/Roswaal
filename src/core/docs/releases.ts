@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.74.2",
+		date: "2026-09-22",
+		headline: "Delete locals and functions from the Variables panel.",
+		affects: ["editor", "docs"],
+		added: [
+			"**×** on a local or a function in the Variables panel deletes it, after asking. A function's graph goes with it, as it does from the canvas. Nodes that read it stay, and report an error until repointed or removed.",
+		],
+	},
+	{
 		version: "0.74.1",
 		date: "2026-09-22",
 		headline: "Binding fills its row.",
