@@ -39,7 +39,7 @@ describe("which nodes are pills", () => {
 			"logic.and", "logic.not", "logic.or",
 			"math.add", "math.div", "math.mod", "math.mul", "math.neg", "math.pow", "math.sub",
 			"udim.add", "udim.sub", "udim2.add", "udim2.sub",
-			"value.nil",
+			"value.member", "value.nil",
 			"vector2.add", "vector2.divide", "vector2.negate", "vector2.scale", "vector2.sub",
 			"vector3.add", "vector3.divide", "vector3.mul", "vector3.negate", "vector3.scale", "vector3.sub",
 		]);

@@ -390,6 +390,35 @@ export const CURATED: Record<string, () => NodeScript> = {
 		return g.out();
 	},
 
+	/**
+	 * Get Member reads a field the type declares, so the example has to
+	 * declare one: the node is about the type as much as about the value.
+	 */
+	"value.member": () => {
+		const g = new G();
+		const begin = g.node("script.begin");
+		g.node("type.declareTop", {
+			config: {
+				name: "Input",
+				fields: [{ name: "throttle", type: "number" }, { name: "aim", type: "Vector3" }],
+			},
+		});
+		const declare = g.node("local.declare", {
+			config: { type: "Input" },
+			literals: { name: str("input") },
+		});
+		const get = g.node("local.get", { config: { local: declare, name: "input", type: "Input" } });
+		const read = g.node("value.member", {
+			config: { type: "number" },
+			literals: { member: str("throttle") },
+		});
+		g.link(get, "value", read, "object");
+		const p = g.node("debug.print");
+		g.link(begin, "then", declare, "in").link(declare, "then", p, "in");
+		g.link(read, "result", p, "value");
+		return g.out();
+	},
+
 	"module.requirePath": () => {
 		const g = new G();
 		const begin = g.node("script.begin");

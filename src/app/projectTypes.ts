@@ -14,6 +14,7 @@ import { createRegistry } from "../core/nodes/index.js";
 import { lastSegment } from "../core/roblox.js";
 import type { GraphNode, NodeScript } from "../core/schema.js";
 import type { ExportedType } from "./api.js";
+import type { TypeField } from "../core/typeFields.js";
 
 let current: ExportedType[] = [];
 const listeners = new Set<() => void>();
@@ -59,8 +60,8 @@ function textOf(node: Pick<GraphNode, "def" | "literals">, pin: string): string 
  */
 export function requiredTypes(
 	script: Pick<NodeScript, "nodes">, types: ExportedType[],
-): { type: string; graph: string }[] {
-	const out: { type: string; graph: string }[] = [];
+): { type: string; graph: string; fields?: TypeField[] }[] {
+	const out: { type: string; graph: string; fields?: TypeField[] }[] = [];
 	const seen = new Set<string>();
 
 	for (const node of script.nodes) {
@@ -76,7 +77,7 @@ export function requiredTypes(
 			const type = `${local}.${exported.name}`;
 			if (seen.has(type)) continue;
 			seen.add(type);
-			out.push({ type, graph: exported.graph });
+			out.push({ type, graph: exported.graph, fields: exported.fields });
 		}
 	}
 	return out;

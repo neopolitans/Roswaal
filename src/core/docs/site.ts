@@ -4767,6 +4767,39 @@ function castingBlocks(registry: Registry): Block[] {
 				"than written where Luau will not take it.",
 		},
 
+		{ t: "h", level: 2, text: "Reading what a type holds" },
+		{
+			t: "p",
+			text:
+				"**Get Member** reads a field off a value whose type declares one: wire the value " +
+				"in and its type's fields are the list. The result is typed as the field is, so " +
+				"`aim` on the type above gives a Vector3 pin and the wire from it is a Vector3's " +
+				"colour.",
+		},
+		...previews(
+			registry,
+			["value.member", "value.field"],
+			"Get Member offers what the type declares; Get Field reads any key you name.",
+		),
+		{
+			t: "table",
+			head: ["Where the members come from", "When"],
+			rows: [
+				["**A type this graph declares**", "A Declare Type of either kind, entered as fields or written as a table."],
+				["**A type a required module exports**", "`Config.Tuning`, read from the graph that declares it."],
+				["**A Roblox class**", "`BasePart.Position`, `Humanoid.WalkSpeed`. Roblox graphs only — a Lune program has no instances."],
+			],
+		},
+		{
+			t: "note",
+			kind: "warn",
+			text:
+				"**A table whose keys come and go is Get Field's**, not this one's. A dictionary " +
+				"filled and emptied as the program runs has no fixed members, so a type that is " +
+				"not a table of fixed fields offers none — and a member this graph's own type does " +
+				"not have is refused before the file is written.",
+		},
+
 		{ t: "h", level: 2, text: "What Roswaal writes for you" },
 		{
 			t: "p",

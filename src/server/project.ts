@@ -29,6 +29,7 @@ import {
 	clashingIds, namespaceFor, packRequires, packTargets, renamespace,
 } from "../core/packs.js";
 import { functionOutline, type FunctionInfo } from "../core/functionGraph.js";
+import { fieldsOfDeclaration, type TypeField } from "../core/typeFields.js";
 
 /**
  * Ownership key written into project files by an earlier build. Rojo refuses
@@ -904,6 +905,16 @@ export interface ExportedType {
 	name: string;
 	/** Where the graph's module sits in the DataModel, when a node map says. */
 	location: InstanceLocation | null;
+	/**
+	 * The fields it holds, when it is a table of fixed ones.
+	 *
+	 * Sent with the name because only this side can read the other graph: Get
+	 * Member offers `Config.Tuning`'s fields in a graph that has required it,
+	 * and the compiler in the browser has no way to open the file that
+	 * declares them. Empty for a union, a function type or a dictionary, which
+	 * have no fixed fields to offer.
+	 */
+	fields?: TypeField[];
 }
 
 /**
@@ -920,17 +931,22 @@ export async function exportedTypes(project: OpenProject): Promise<ExportedType[
 		const script = await readScript(project, relPath).catch(() => null);
 		if (!script || !isModuleScript(script)) continue;
 
-		const names = new Set<string>();
+		const declared = new Map<string, TypeField[]>();
 		for (const node of script.nodes) {
 			if (node.def !== "type.declareTop" && node.def !== "type.declareHere") continue;
-			const config = (node.config ?? {}) as { name?: string; export?: boolean };
+			const config = (node.config ?? {}) as {
+				name?: string; export?: boolean; shape?: string; definition?: string;
+				fields?: { name?: string; type?: string }[];
+			};
 			const name = (config.name ?? "").trim();
-			if (config.export !== false && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) names.add(name);
+			if (config.export !== false && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+				declared.set(name, fieldsOfDeclaration(node.def, config));
+			}
 		}
-		if (names.size === 0) continue;
+		if (declared.size === 0) continue;
 
 		const location = await locateFile(project, relPath).catch(() => null);
-		for (const name of names) out.push({ graph: relPath, name, location });
+		for (const [name, fields] of declared) out.push({ graph: relPath, name, location, fields });
 	}
 	return out;
 }

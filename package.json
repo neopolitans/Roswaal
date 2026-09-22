@@ -1,6 +1,6 @@
 {
   "name": "roswaal",
-  "version": "0.75.1",
+  "version": "0.76.0",
   "private": true,
   "license": "0BSD",
   "type": "module",
@@ -20,6 +20,7 @@
     "build:themes": "tsx scripts/build-themes.mjs",
     "build:roblox": "node scripts/build-roblox.mjs",
     "build:members": "tsx scripts/build-members.mjs",
+    "build:properties": "tsx scripts/build-properties.mjs",
     "build:lune": "node scripts/build-lune.mjs",
     "build:docs": "tsx scripts/build-docs.mjs",
     "docs:reviews": "tsx scripts/docs-reviews.mjs",

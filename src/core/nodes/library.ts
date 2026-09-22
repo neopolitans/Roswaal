@@ -1542,6 +1542,48 @@ export const LIBRARY_NODES: NodeDef[] = [
 	pure("value.field", "Get Field", "Modules", "$in.object.$in.field!ident",
 		[d("object", "Object", "any"), str("field", "Field", "name")], "any",
 		"Reads a field off any value: a module's export, a table key, an instance property."),
+	/**
+	 * The other half of Get Field: a member of a type that says what it holds.
+	 *
+	 * Get Field is right for a table whose keys are the program's business --
+	 * a dictionary filled and emptied as it runs -- and it can offer nothing,
+	 * because there is nothing fixed to offer. This one is for the value whose
+	 * type is **declared**: `Input` with `throttle`, `steer` and `aim`, or a
+	 * Roblox instance, whose properties the engine fixes. The list comes from
+	 * the type of whatever is wired in, and the result is typed as the member
+	 * is -- so `aim` gives a Vector3 pin, and the wire from it is the colour of
+	 * one.
+	 *
+	 * A pill, because `input.aim` is an expression with one operand and the
+	 * member is the rest of it -- the same shape a cast has, which is also a
+	 * value and a word about it.
+	 */
+	{
+		...pill(
+			pure("value.member", "Get Member", "Modules", "$in.object.$in.member!ident",
+				[d("object", "Object", "any"), { ...str("member", "Member", ""), wide: true as const }], "any",
+				"Reads a member the type declares: a field of a declared table type, or a " +
+				"property of a Roblox instance. The list comes from what is wired in; for a " +
+				"table whose keys change as the program runs, use Get Field."),
+			".",
+		),
+		/**
+		 * The result takes the member's own type, which the editor wrote onto
+		 * the node when the member was picked.
+		 *
+		 * Cached there rather than worked out here, for the reason Get Local
+		 * caches its type: pin derivation sees the node's config and nothing
+		 * else -- not the wire, not the graph, and so not the type of what is
+		 * on the other end of it.
+		 */
+		derivePins: (config) => ({
+			inputs: [
+				d("object", "Object", "any"),
+				{ ...str("member", "Member", ""), wide: true as const },
+			],
+			outputs: [d("result", "", pinTypeOf(config.type as string | undefined))],
+		}),
+	},
 	{
 		/**
 		 * A call where a *value* is wanted, rather than a step.

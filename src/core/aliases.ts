@@ -37,6 +37,8 @@ export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = {
 	"type.declareTop": ["Define Type at Top", "Export Type", "Type Alias"],
 	"type.declareHere": ["Define Type", "Type Alias"],
 	"module.exports": ["Return Module", "Export"],
+	"value.member": ["Get Property", "Typed Field", "Known Field"],
+	"value.field": ["Get Key", "Index"],
 
 	"script.begin": ["Begin Play", "On Start", "Entry"],
 	"flow.branch": ["If Else", "Condition"],

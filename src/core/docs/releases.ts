@@ -94,6 +94,20 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.76.0",
+		date: "2026-09-22",
+		headline: "Reading the members a type declares.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Get Member** reads a field off a value whose type declares one, as a pill: wire the value in and pick from what its type holds. The result takes that field's type, so a Vector3 field gives a Vector3 pin.",
+			"**Its list comes from the type**: a Declare Type in this graph, entered as fields or written as a table; a type a required module exports; or a Roblox class's properties, in a Roblox graph.",
+			"**A member this graph's own type does not have is refused** before the file is written, with the type's fields listed.",
+		],
+		changed: [
+			"**Get Field is unchanged** and is still the node for a table whose keys come and go while the program runs.",
+		],
+	},
+	{
 		version: "0.75.1",
 		date: "2026-09-22",
 		headline: "UDim arithmetic drawn as pills.",

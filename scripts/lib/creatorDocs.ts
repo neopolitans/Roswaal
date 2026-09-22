@@ -3,11 +3,11 @@
  *
  * `Roblox/creator-docs` publishes the engine reference as YAML, one file per
  * class, regenerated with every engine release. This turns one of those files
- * into the part a node needs: what a method is called, what it takes, and what
- * it gives back.
+ * into the parts a node needs: what a method is called, what it takes and what
+ * it gives back, and what a class's properties are called and hold.
  *
- * Separate from `build-members.mjs`, which fetches and writes, so that the
- * reading half can be exercised against a saved file — see
+ * Separate from `build-members.mjs` and `build-properties.mjs`, which fetch and
+ * write, so that the reading half can be exercised against a saved file — see
  * `tests/creatordocs.test.ts`. A parser with no test is a parser that quietly
  * returns nothing the day the format shifts, and "no methods" looks exactly
  * like "no network".
@@ -42,6 +42,14 @@ export interface ParsedMethod {
 	returns: string;
 	yields?: true;
 	pure?: true;
+}
+
+/** A property as the catalogue stores it. See `robloxProperties.ts` for the mirror. */
+export interface ParsedProperty {
+	name: string;
+	type: string;
+	enum?: string;
+	summary?: string;
 }
 
 // -- a YAML subset ---------------------------------------------------------
@@ -259,6 +267,73 @@ export function methodsOf(
 		if (tags.includes("Yields")) method.yields = true;
 		if (looksPure(method)) method.pure = true;
 		out.push(method);
+	}
+	return out;
+}
+
+/**
+ * The properties one parsed class file declares *itself*, as the catalogue
+ * stores them.
+ *
+ * Only its own: inherited properties are not copied down here, because a `Part`
+ * would then carry every line `BasePart` and `Instance` declare and the file
+ * would be the same few thousand properties written out six hundred times. The
+ * walk up the chain happens at read time instead — see `propertiesOf` in
+ * `robloxProperties.ts`.
+ *
+ * Dropped rather than offered, on the same grounds as `methodsOf`: anything
+ * deprecated, and anything a game script cannot read. A property's security is
+ * a pair rather than the single word a method's is, so the *read* half is what
+ * decides — a property you can only write is not something a Get node can
+ * offer, and `NotScriptable` means neither half is reachable from a script at
+ * all.
+ */
+export function propertiesOf(
+	doc: Record<string, Yaml> | null | undefined,
+	isEnum: (name: string) => boolean = () => false,
+): ParsedProperty[] {
+	const out: ParsedProperty[] = [];
+	const entries = doc?.properties;
+	for (const raw of Array.isArray(entries) ? entries : []) {
+		const entry = raw as Record<string, Yaml> | null;
+		if (!entry || typeof entry.name !== "string") continue;
+		const tags = Array.isArray(entry.tags) ? entry.tags : [];
+		if (tags.includes("Deprecated")) continue;
+		if (tags.includes("NotScriptable")) continue;
+		if (tags.includes("WriteOnly")) continue;
+		if (String(entry.deprecation_message ?? "").trim() !== "") continue;
+
+		const security = entry.security;
+		const read =
+			typeof security === "string"
+				? security
+				: String((security as Record<string, Yaml> | null)?.read ?? "None");
+		if (read !== "None") continue;
+
+		// `BasePart.Anchored` — the class half is the file we are already reading.
+		const name = entry.name.includes(".") ? entry.name.split(".").pop()! : entry.name;
+
+		// The docs qualify a type only where the bare name would be ambiguous:
+		// `Font` is an enum *and* a datatype, so `TextLabel.Font` is written
+		// `Enum.Font` and `TextLabel.FontFace` is written `Datatype.Font`. The
+		// qualifier therefore decides, and `isEnum` only gets a say without one.
+		let declared = String(entry.type ?? "").trim();
+		let qualifier = "";
+		const dot = declared.indexOf(".");
+		if (dot > 0 && ["Enum", "Datatype", "Class"].includes(declared.slice(0, dot))) {
+			qualifier = declared.slice(0, dot);
+			declared = declared.slice(dot + 1);
+		}
+		const asEnum = qualifier === "Enum" || (qualifier === "" && isEnum(declared));
+
+		const property: ParsedProperty = {
+			name,
+			type: asEnum ? "string" : pinType(declared),
+		};
+		if (asEnum) property.enum = declared;
+		const summary = firstSentence(entry.summary);
+		if (summary) property.summary = summary;
+		out.push(property);
 	}
 	return out;
 }

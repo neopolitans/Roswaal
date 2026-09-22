@@ -523,6 +523,15 @@ class Store {
 		this.registry = registry;
 	}
 
+	/**
+	 * Those definitions, for a component that needs to read the graph rather
+	 * than only draw what it is handed -- Get Member, which asks what type is
+	 * wired into it and so has to resolve the pins of the node feeding it.
+	 */
+	getRegistry(): Registry | null {
+		return this.registry;
+	}
+
 	/** Refuses every edit until it is unset. See `EditorState.locked`. */
 	setLocked(locked: boolean): void {
 		if (this.locked === locked) return;

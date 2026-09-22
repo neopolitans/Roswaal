@@ -5,6 +5,7 @@ import type { Diagnostic } from "../core/compiler/index.js";
 import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
 import type { LuaurcSource } from "../core/luaurc.js";
+import type { TypeField } from "../core/typeFields.js";
 
 export interface TreeEntry {
 	path: string;
@@ -40,6 +41,8 @@ export interface ExportedType {
 	graph: string;
 	name: string;
 	location: InstanceLocation | null;
+	/** Its fields, when it is a table of fixed ones. What Get Member offers. */
+	fields?: TypeField[];
 }
 
 export interface MapOutcome {

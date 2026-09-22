@@ -112,6 +112,16 @@ export interface PinDef {
 	 * typed, so a value the list has not caught up with is never a dead end.
 	 */
 	options?: string[];
+	/**
+	 * This pin is edited through a picker rather than a plain field, though its
+	 * choices are not a fixed list.
+	 *
+	 * Get Member's is the case: what it offers comes from the type wired into
+	 * the node, so there is nothing to put in `options` -- and an operator
+	 * pill sizes its editor column from the pin, so without this the pill is
+	 * built for a text field and drawn with a picker hanging off it.
+	 */
+	wide?: true;
 	description?: string;
 	/**
 	 * This pin accepts hand-written Luau, and opens a code editor for it.

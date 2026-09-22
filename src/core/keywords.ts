@@ -51,6 +51,10 @@ export const LUAU_KEYWORDS: Readonly<Record<string, readonly string[]>> = {
 	"function": ["function.entry", "function.declareHere"],
 	"local": ["local.declare"],
 
+	// Indexing. Both nodes write it: one for a member a type declares, one for
+	// a key named on the spot.
+	".": ["value.member", "value.field"],
+
 	// Operators that are not logic, where the symbol is the whole question.
 	"..": ["string.concat"],
 	"#": ["table.length"],

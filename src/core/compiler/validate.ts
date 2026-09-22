@@ -19,6 +19,8 @@ import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
 import { isLuneCall } from "../nodes/lune.js";
 import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
 import { isConstLocal, localNameOf } from "../nodes/variables.js";
+import { declaredTypeFields } from "../typeFields.js";
+import { typeInto } from "../members.js";
 import { GraphIndex } from "./graph.js";
 import type { Diagnostic } from "./emit.js";
 
@@ -125,6 +127,71 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				severity: "error",
 				message: "This node is in the graph of a function that is no longer there.",
 				node: node.id,
+			});
+		}
+	}
+
+	// -- members -----------------------------------------------------------
+	//
+	// Get Member reads a member the *type* declares, which is the whole reason
+	// it is a different node from Get Field: what it can read is knowable, so a
+	// name the type does not have is a mistake rather than a runtime `nil`.
+	//
+	// Only checked against a type this file declares. A Roblox property and a
+	// type another module exports are both out of reach here -- the catalogue
+	// is a build old and the other graph is not open -- and refusing what
+	// cannot be checked would turn every gap in this compiler's knowledge into
+	// a broken build.
+	const declaredFields = declaredTypeFields(script);
+	for (const node of script.nodes) {
+		if (node.def !== "value.member") continue;
+		const literal = node.literals?.member;
+		const member = literal && literal.t === "string" ? literal.v.trim() : "";
+		if (member === "") {
+			out.push({
+				severity: "error",
+				message: "Get Member needs a member to read. Wire a value in and pick one of its type's.",
+				node: node.id,
+				pin: "member",
+			});
+			continue;
+		}
+		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(member)) {
+			out.push({
+				severity: "error",
+				message:
+					`"${member}" is not a name Luau will take for a member. Letters, digits and ` +
+					"underscores, not starting with a digit — for a key that is not a name, use Get Field.",
+				node: node.id,
+				pin: "member",
+			});
+			continue;
+		}
+
+		const type = typeInto({ script, registry }, node.id, "object");
+		const bare = type?.endsWith("?") ? type.slice(0, -1).trim() : type;
+		if (!bare) continue;
+		const fields = declaredFields.get(bare);
+		if (!fields) continue;
+		if (fields.length === 0) {
+			out.push({
+				severity: "error",
+				message:
+					`"${bare}" is not a table of fixed fields, so it has no members to read. Use ` +
+					"Get Field, which reads any key off any value.",
+				node: node.id,
+				pin: "member",
+			});
+			continue;
+		}
+		if (!fields.some((field) => field.name === member)) {
+			out.push({
+				severity: "error",
+				message:
+					`"${bare}" has no member "${member}". It holds ` +
+					`${fields.map((field) => field.name).join(", ")}.`,
+				node: node.id,
+				pin: "member",
 			});
 		}
 	}
