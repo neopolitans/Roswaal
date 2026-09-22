@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.82.1",
+		date: "2026-09-22",
+		headline: "Pictures worth the screen they are on.",
+		affects: ["docs"],
+		fixed: [
+			"**A drawn Inspector looks like the Inspector**: the label above its box, a type's fields two across with the button that removes them, and the export tick. It was drawing generic toolbar controls, so a label and its value ran together and each field stacked.",
+			"**A drawn graph uses the width a wide screen has.** It was held to the prose measure — 78 characters — which is narrower than any graph worth drawing; it now steps outside the column, centred, and gets the height to match.",
+		],
+	},
+	{
 		version: "0.82.0",
 		date: "2026-09-22",
 		headline: "Two graphs in one frame.",

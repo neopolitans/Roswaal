@@ -183,6 +183,29 @@ export type ToolbarItem = Documented &
 		  }
 		/** The line a panel shows when its list is empty. */
 		| { t: "hint"; text: string }
+		/**
+		 * A labelled control, as the Inspector stacks them: the label above the
+		 * box, both the width of the panel.
+		 *
+		 * The Inspector's own `label.field` markup, so the picture inherits the
+		 * editor's grid rather than a second opinion about it -- the same trick
+		 * the Variables panel plays with `.variable`.
+		 */
+		| {
+				t: "setting";
+				label: string;
+				value: string;
+				control?: "field" | "select" | "check";
+				/** For a checkbox: whether it is ticked. */
+				on?: boolean;
+		  }
+		/**
+		 * One row of a list editor: two boxes and the button that removes it.
+		 *
+		 * A type's fields are pairs -- a name and a type -- and drawing them as
+		 * two stacked boxes said they were two settings.
+		 */
+		| { t: "pair"; left: string; right: string }
 	);
 
 /**
@@ -222,7 +245,7 @@ export interface ToolbarGroup {
  * `popmenu` rather than `menu`: the frame carries the chrome as a class, and
  * the editor's context menus are `.menu`, fixed to the screen.
  */
-export type ToolbarChrome = "bar" | "head" | "float" | "panel" | "popmenu";
+export type ToolbarChrome = "bar" | "head" | "float" | "panel" | "popmenu" | "inspector";
 
 export interface ToolbarSpec {
 	/** Stable; the anchor the docs page gives this bar's section. */
@@ -388,6 +411,29 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 
 		case "hint":
 			return `<p class="hint"${tie}>${escapeXml(item.text)}</p>`;
+
+		case "setting": {
+			if (item.control === "check") {
+				return (
+					`<label class="check-row"${tie}><input type="checkbox" tabindex="-1"` +
+					`${item.on ? " checked" : ""} disabled><span>${escapeXml(item.label)}</span></label>`
+				);
+			}
+			const box = item.control === "select"
+				? `<span class="tb docs-bar-select">${escapeXml(item.value)}</span>`
+				: `<span class="tb docs-bar-field">${escapeXml(item.value)}</span>`;
+			return (
+				`<label class="field"${tie}><span>${escapeXml(item.label)}</span>${box}</label>`
+			);
+		}
+
+		case "pair":
+			return (
+				`<div class="list-row"${tie}>` +
+				`<span class="tb docs-bar-field">${escapeXml(item.left)}</span>` +
+				`<span class="tb docs-bar-field">${escapeXml(item.right)}</span>` +
+				`<button type="button" tabindex="-1" class="tb">\u00d7</button></div>`
+			);
 	}
 }
 
@@ -437,6 +483,7 @@ const CHROME_CLASS: Record<ToolbarChrome, string> = {
 	panel: "variables docs-panel-shot",
 	// A pop-out menu, open: the list the projects panel's Project button holds.
 	popmenu: "tool-popout-panel docs-menu-shot",
+	inspector: "inspector inspector-body",
 };
 
 /**
@@ -468,6 +515,9 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 			if (spec.chrome === "panel") {
 				return `<div class="variable-list">${panelSections(group.items, art)}</div>`;
 			}
+			// The Inspector stacks its settings; each group is one of them, and
+			// the editor's own `.inspector-body` does the spacing.
+			if (spec.chrome === "inspector") return items;
 			return `${gap}${items}`;
 		})
 		.join("");
@@ -1713,25 +1763,29 @@ export function declarationsPanel(script: NodeScript): ToolbarSpec | undefined {
 /**
  * The Inspector for a Declare Type, one per way of writing the type.
  *
- * The two live side by side on *Members and fields*, because the difference
- * between them is a panel away from the graph: the nodes look identical on the
- * canvas — a red box with a name under the title — and what makes one of them
- * offer members is a dropdown and what is under it. A picture of the panel says
- * that in one glance; a paragraph about the panel does not.
+ * The three live on *Members and fields*, because the difference between them
+ * is a panel away from the graph: the nodes look identical on the canvas -- a
+ * red box with a name under the title -- and what decides whether one offers
+ * members is a dropdown and what is under it.
+ *
+ * Drawn with the Inspector's own markup, so the picture inherits the editor's
+ * own layout: the label above its box, the field rows two across with the
+ * remove button after them.
  */
 export const TYPE_FIELDS_INSPECTOR: ToolbarSpec = {
 	id: "type-fields-inspector",
 	title: "A type entered as fields",
 	summary: "The Inspector for a Declare Type whose shape is Table of Fields.",
-	chrome: "panel",
+	chrome: "inspector",
 	groups: [
-		{ items: [{ t: "label", text: "Type name" }, { t: "field", text: "Input" }] },
-		{ items: [{ t: "label", text: "Shape" }, { t: "select", text: "Table of Fields" }] },
+		{ items: [{ t: "setting", label: "Type name", value: "Input" }] },
+		{ items: [{ t: "setting", label: "Shape", value: "Table of Fields", control: "select" }] },
 		{ items: [{ t: "heading", text: "Fields", action: "Add" }] },
-		{ items: [{ t: "field", text: "throttle" }, { t: "field", text: "number" }] },
-		{ items: [{ t: "field", text: "steer" }, { t: "field", text: "number" }] },
-		{ items: [{ t: "field", text: "aim" }, { t: "field", text: "Vector3" }] },
-		{ items: [{ t: "label", text: "Layout" }, { t: "select", text: "One per line" }] },
+		{ items: [{ t: "pair", left: "throttle", right: "number" }] },
+		{ items: [{ t: "pair", left: "steer", right: "number" }] },
+		{ items: [{ t: "pair", left: "aim", right: "Vector3" }] },
+		{ items: [{ t: "setting", label: "Layout", value: "One per line", control: "select" }] },
+		{ items: [{ t: "setting", label: "Is Export Type", value: "", control: "check", on: true }] },
 	],
 };
 
@@ -1740,12 +1794,12 @@ export const TYPE_WRITTEN_INSPECTOR: ToolbarSpec = {
 	id: "type-written-inspector",
 	title: "A type written as Luau",
 	summary: "The Inspector for a Declare Type whose shape is Custom Luau.",
-	chrome: "panel",
+	chrome: "inspector",
 	groups: [
-		{ items: [{ t: "label", text: "Type name" }, { t: "field", text: "Shot" }] },
-		{ items: [{ t: "label", text: "Shape" }, { t: "select", text: "Custom Luau" }] },
-		{ items: [{ t: "label", text: "Definition" }] },
-		{ items: [{ t: "field", text: "{ damage: number, from: Vector3 }" }] },
+		{ items: [{ t: "setting", label: "Type name", value: "Shot" }] },
+		{ items: [{ t: "setting", label: "Shape", value: "Custom Luau", control: "select" }] },
+		{ items: [{ t: "setting", label: "Definition", value: "{ damage: number, from: Vector3 }" }] },
+		{ items: [{ t: "setting", label: "Is Export Type", value: "", control: "check", on: true }] },
 	],
 };
 
@@ -1754,11 +1808,11 @@ export const TYPE_OPEN_INSPECTOR: ToolbarSpec = {
 	id: "type-open-inspector",
 	title: "A type with no fixed fields",
 	summary: "The Inspector for a Declare Type holding a dictionary type.",
-	chrome: "panel",
+	chrome: "inspector",
 	groups: [
-		{ items: [{ t: "label", text: "Type name" }, { t: "field", text: "Scores" }] },
-		{ items: [{ t: "label", text: "Shape" }, { t: "select", text: "Custom Luau" }] },
-		{ items: [{ t: "label", text: "Definition" }] },
-		{ items: [{ t: "field", text: "{ [string]: number }" }] },
+		{ items: [{ t: "setting", label: "Type name", value: "Scores" }] },
+		{ items: [{ t: "setting", label: "Shape", value: "Custom Luau", control: "select" }] },
+		{ items: [{ t: "setting", label: "Definition", value: "{ [string]: number }" }] },
+		{ items: [{ t: "setting", label: "Is Export Type", value: "", control: "check", on: true }] },
 	],
 };

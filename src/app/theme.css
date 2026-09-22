@@ -6197,6 +6197,27 @@ button.tb.danger {
 	color: #fff;
 }
 
+/* A picture is not prose, and a wide screen has room the measure does not use.
+   A graph drawn at 78 characters wide is a graph nobody can read the pins of,
+   so on a screen with the space these step outside the column -- centred, and
+   never wider than the article's own maximum. */
+@media (min-width: 1180px) {
+	.docs-page .docs-article.narrow .docs-preview.graph,
+	.docs-page .docs-article.narrow .docs-graph-tabs,
+	.docs-page .docs-article.narrow .docs-tab-panel .docs-preview.graph {
+		width: min(940px, calc(100vw - 420px));
+		margin-left: calc((100% - min(940px, calc(100vw - 420px))) / 2);
+	}
+}
+
+/* Taller too, once it is wider: the frame is a window onto the graph, and a
+   940px window 260px tall crops what the width just made visible. */
+@media (min-width: 1180px) {
+	.docs-page .docs-article.narrow .docs-preview.graph .graph-viewport {
+		height: 360px;
+	}
+}
+
 /* Several graphs in one frame, a tab each — the shape the editor uses for two
    open documents, so an example that is two files reads as two files.
    Radios on the static site, state in the app; both hide the radios. */
@@ -7498,6 +7519,36 @@ button.tb.danger {
 	border: 1px solid var(--border);
 	border-radius: 7px;
 	background: var(--bg-panel);
+}
+
+/* The Inspector, drawn on a page.
+ *
+ * As the docked panel above: the contents carry the editor's own class names --
+ * `.field`, `.list-row`, `.check-row` -- so the likeness is the editor's own
+ * stylesheet rather than a second description of it. This rule only has to give
+ * the picture its edges and stop it filling the page. */
+.docs-bar-frame.inspector > .inspector {
+	width: min(360px, 100%);
+	padding: 12px;
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	background: var(--bg-panel);
+}
+
+/* The rows the Inspector draws in a list editor, as pictures: no input to
+   focus, so the boxes are spans and want the height a field has. */
+.docs-bar-frame.inspector .docs-bar-field,
+.docs-bar-frame.inspector .docs-bar-select {
+	display: block;
+	width: 100%;
+	text-align: left;
+}
+
+.docs-bar-frame.inspector .list-row {
+	display: grid;
+	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 24px;
+	gap: 4px;
+	margin-top: 4px;
 }
 
 /* The panel's headings, restated in full.
