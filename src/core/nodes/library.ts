@@ -191,7 +191,8 @@ const LETTERS = "ABCDEFGH".split("");
  * A pure node drawn as an operator pill, with its operator in the middle.
  *
  * For the nodes whose whole meaning is one symbol: a comparison, `and`, `or`,
- * `not`, and `nil`. A full node spends a header on a title that says what the
+ * `not`, `nil`, and since 0.75.0 arithmetic -- on numbers, vectors and CFrames,
+ * each showing the Luau it writes. A full node spends a header on a title that says what the
  * symbol says, and two rows on pins called A and B — so a graph of conditions
  * reads as a column of boxes rather than as the expressions it is.
  */
@@ -480,13 +481,13 @@ export const LIBRARY_NODES: NodeDef[] = [
 	], { summary: "Reassigns a local declared upstream." }),
 
 	// -- Math --------------------------------------------------------------
-	variadic("math.add", "Add", "Math", "$args( + )", "number", { t: "number", v: 0 }, "number"),
-	variadic("math.sub", "Subtract", "Math", "$args( - )", "number", { t: "number", v: 0 }, "number"),
-	variadic("math.mul", "Multiply", "Math", "$args( * )", "number", { t: "number", v: 1 }, "number"),
-	variadic("math.div", "Divide", "Math", "$args( / )", "number", { t: "number", v: 1 }, "number"),
-	pure("math.mod", "Modulo", "Math", "$in.a % $in.b", [num("a", "A"), num("b", "B", 1)], "number"),
-	pure("math.pow", "Power", "Math", "$in.a ^ $in.b", [num("a", "A"), num("b", "B", 2)], "number"),
-	pure("math.neg", "Negate", "Math", "-$in.a", [num("a", "A")], "number"),
+	pill(variadic("math.add", "Add", "Math", "$args( + )", "number", { t: "number", v: 0 }, "number"), "+"),
+	pill(variadic("math.sub", "Subtract", "Math", "$args( - )", "number", { t: "number", v: 0 }, "number"), "-"),
+	pill(variadic("math.mul", "Multiply", "Math", "$args( * )", "number", { t: "number", v: 1 }, "number"), "*"),
+	pill(variadic("math.div", "Divide", "Math", "$args( / )", "number", { t: "number", v: 1 }, "number"), "/"),
+	pill(pure("math.mod", "Modulo", "Math", "$in.a % $in.b", [num("a", "A"), num("b", "B", 1)], "number"), "%"),
+	pill(pure("math.pow", "Power", "Math", "$in.a ^ $in.b", [num("a", "A"), num("b", "B", 2)], "number"), "^"),
+	pill(pure("math.neg", "Negate", "Math", "-$in.a", [num("a", "A")], "number"), "-"),
 	pure("math.abs", "Absolute", "Math", "math.abs($in.a)", [num("a", "A")], "number"),
 	pure("math.floor", "Floor", "Math", "math.floor($in.a)", [num("a", "A")], "number"),
 	pure("math.ceil", "Ceiling", "Math", "math.ceil($in.a)", [num("a", "A")], "number"),
@@ -1119,16 +1120,16 @@ export const LIBRARY_NODES: NodeDef[] = [
 			[{ ...str("axis", "Axis", "yAxis"), options: ["xAxis", "yAxis", "zAxis"] }], "Vector3",
 			"A unit vector along one axis."),
 
-		p("vector3.add", "Vector3 +", "$in.a + $in.b", [vec("a", "A"), vec("b", "B")], "Vector3"),
-		p("vector3.sub", "Vector3 −", "$in.a - $in.b", [vec("a", "A"), vec("b", "B")], "Vector3"),
-		p("vector3.scale", "Vector3 × Scalar", "$in.v * $in.scalar",
-			[vec("v", "Vector"), num("scalar", "Scalar", 1)], "Vector3"),
-		p("vector3.divide", "Vector3 ÷ Scalar", "$in.v / $in.scalar",
-			[vec("v", "Vector"), num("scalar", "Scalar", 1)], "Vector3"),
-		p("vector3.mul", "Vector3 × Vector3", "$in.a * $in.b",
+		pill(p("vector3.add", "Vector3 +", "$in.a + $in.b", [vec("a", "A"), vec("b", "B")], "Vector3"), "+"),
+		pill(p("vector3.sub", "Vector3 −", "$in.a - $in.b", [vec("a", "A"), vec("b", "B")], "Vector3"), "-"),
+		pill(p("vector3.scale", "Vector3 × Scalar", "$in.v * $in.scalar",
+			[vec("v", "Vector"), num("scalar", "Scalar", 1)], "Vector3"), "*"),
+		pill(p("vector3.divide", "Vector3 ÷ Scalar", "$in.v / $in.scalar",
+			[vec("v", "Vector"), num("scalar", "Scalar", 1)], "Vector3"), "/"),
+		pill(p("vector3.mul", "Vector3 × Vector3", "$in.a * $in.b",
 			[vec("a", "A"), vec("b", "B")], "Vector3",
-			"Component by component, not a dot or cross product. Useful as a per-axis scale."),
-		p("vector3.negate", "Vector3 Negate", "-$in.v", [vec("v", "Vector")], "Vector3"),
+			"Component by component, not a dot or cross product. Useful as a per-axis scale."), "*"),
+		pill(p("vector3.negate", "Vector3 Negate", "-$in.v", [vec("v", "Vector")], "Vector3"), "-"),
 
 		p("vector3.dot", "Dot", "$in.a:Dot($in.b)", [vec("a", "A"), vec("b", "B")], "number"),
 		p("vector3.cross", "Cross", "$in.a:Cross($in.b)", [vec("a", "A"), vec("b", "B")], "Vector3"),
@@ -1172,13 +1173,13 @@ export const LIBRARY_NODES: NodeDef[] = [
 		p("vector2.axis", "Vector2 Axis", "Vector2.$in.axis!ident",
 			[{ ...str("axis", "Axis", "yAxis"), options: ["xAxis", "yAxis"] }], "Vector2"),
 
-		p("vector2.add", "Vector2 +", "$in.a + $in.b", [v2("a", "A"), v2("b", "B")], "Vector2"),
-		p("vector2.sub", "Vector2 −", "$in.a - $in.b", [v2("a", "A"), v2("b", "B")], "Vector2"),
-		p("vector2.scale", "Vector2 × Scalar", "$in.v * $in.scalar",
-			[v2("v", "Vector"), num("scalar", "Scalar", 1)], "Vector2"),
-		p("vector2.divide", "Vector2 ÷ Scalar", "$in.v / $in.scalar",
-			[v2("v", "Vector"), num("scalar", "Scalar", 1)], "Vector2"),
-		p("vector2.negate", "Vector2 Negate", "-$in.v", [v2("v", "Vector")], "Vector2"),
+		pill(p("vector2.add", "Vector2 +", "$in.a + $in.b", [v2("a", "A"), v2("b", "B")], "Vector2"), "+"),
+		pill(p("vector2.sub", "Vector2 −", "$in.a - $in.b", [v2("a", "A"), v2("b", "B")], "Vector2"), "-"),
+		pill(p("vector2.scale", "Vector2 × Scalar", "$in.v * $in.scalar",
+			[v2("v", "Vector"), num("scalar", "Scalar", 1)], "Vector2"), "*"),
+		pill(p("vector2.divide", "Vector2 ÷ Scalar", "$in.v / $in.scalar",
+			[v2("v", "Vector"), num("scalar", "Scalar", 1)], "Vector2"), "/"),
+		pill(p("vector2.negate", "Vector2 Negate", "-$in.v", [v2("v", "Vector")], "Vector2"), "-"),
 
 		p("vector2.dot", "Vector2 Dot", "$in.a:Dot($in.b)", [v2("a", "A"), v2("b", "B")], "number"),
 		p("vector2.cross", "Vector2 Cross", "$in.a:Cross($in.b)",
@@ -1224,11 +1225,11 @@ export const LIBRARY_NODES: NodeDef[] = [
 			[{ ...vec("axis", "Axis"), default: { t: "raw", v: "Vector3.yAxis" } }, num("angle", "Angle (rad)")],
 			"CFrame"),
 
-		p("cframe.mul", "CFrame ×", "$in.a * $in.b", [cf("a", "A"), cf("b", "B")], "CFrame",
-			"Composes two CFrames. Order matters: A then B, in A's space."),
-		p("cframe.translate", "CFrame + Vector3", "$in.cframe + $in.offset",
+		pill(p("cframe.mul", "CFrame ×", "$in.a * $in.b", [cf("a", "A"), cf("b", "B")], "CFrame",
+			"Composes two CFrames. Order matters: A then B, in A's space."), "*"),
+		pill(p("cframe.translate", "CFrame + Vector3", "$in.cframe + $in.offset",
 			[cf("cframe", "CFrame"), vec("offset", "Offset")], "CFrame",
-			"Moves in world space, leaving the rotation alone."),
+			"Moves in world space, leaving the rotation alone."), "+"),
 		p("cframe.inverse", "Inverse", "$in.cframe:Inverse()", [cf("cframe", "CFrame")], "CFrame"),
 		p("cframe.lerp", "CFrame Lerp", "$in.a:Lerp($in.b, $in.alpha)",
 			[cf("a", "A"), cf("b", "B"), num("alpha", "Alpha", 0.5)], "CFrame"),

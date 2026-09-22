@@ -94,13 +94,30 @@ export function operatorFields(
 			out.push("field");
 			continue;
 		}
-		const literal = literals?.[pin.id] ?? pin.default;
-		if (!literal) continue;
-		if (literal.t === "boolean") out.push("check");
-		else if (literal.t === "number" || literal.t === "raw") out.push("field");
-		else if (literal.t === "string") out.push(pin.options && pin.options.length > 0 ? "wide" : "field");
+		// The default's editor as well as the value's: the column is the widest
+		// the pin can show, so typing a value never narrows the pill. It did
+		// on a pill of one row, such as Negate, where a `true` on a number pin
+		// swapped the field for a narrower checkbox and nothing else held the
+		// width.
+		const kinds = [pin.default, literals?.[pin.id]]
+			.map((literal) => fieldFor(pin, literal))
+			.filter((kind): kind is OperatorField => kind !== undefined);
+		if (kinds.length === 0) continue;
+		out.push(kinds.reduce((a, b) => (FIELD_RANK[b] > FIELD_RANK[a] ? b : a)));
 	}
 	return out;
+}
+
+/** Narrowest first, for choosing the wider of two. */
+const FIELD_RANK: Record<OperatorField, number> = { check: 0, field: 1, wide: 2 };
+
+/** The editor one value would draw on this pin, if any. */
+function fieldFor(pin: PinDef, literal: Literal | undefined): OperatorField | undefined {
+	if (!literal) return undefined;
+	if (literal.t === "boolean") return "check";
+	if (literal.t === "number" || literal.t === "raw") return "field";
+	if (literal.t === "string") return pin.options && pin.options.length > 0 ? "wide" : "field";
+	return undefined;
 }
 
 /** The widest of those, which is the column every row's editor sits in. */

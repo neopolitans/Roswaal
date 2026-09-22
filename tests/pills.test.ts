@@ -27,16 +27,30 @@ const node = (def: string, config?: NodeConfig): GraphNode => ({ id: "n", def, x
 const fieldsOf = (id: string) => operatorFields(resolveNodePins(registry.get(id)!, undefined).inputs);
 
 describe("which nodes are pills", () => {
-	it("is the thirteen whose whole meaning is one symbol", () => {
+	it("is the ones whose whole meaning is one symbol", () => {
 		const ids = [...registry.values()]
 			.filter((def) => def.display === "operator")
 			.map((def) => def.id)
 			.sort();
 		expect(ids).toEqual([
 			"cast.any", "cast.array", "cast.as",
+			"cframe.mul", "cframe.translate",
 			"compare.eq", "compare.gt", "compare.gte", "compare.lt", "compare.lte", "compare.neq",
-			"logic.and", "logic.not", "logic.or", "value.nil",
+			"logic.and", "logic.not", "logic.or",
+			"math.add", "math.div", "math.mod", "math.mul", "math.neg", "math.pow", "math.sub",
+			"value.nil",
+			"vector2.add", "vector2.divide", "vector2.negate", "vector2.scale", "vector2.sub",
+			"vector3.add", "vector3.divide", "vector3.mul", "vector3.negate", "vector3.scale", "vector3.sub",
 		]);
+	});
+
+	/** Arithmetic since 0.75.0, on numbers, vectors and CFrames, as Luau writes it. */
+	it("shows arithmetic as the Luau symbol", () => {
+		expect(registry.get("math.add")!.operator).toBe("+");
+		expect(registry.get("math.pow")!.operator).toBe("^");
+		expect(registry.get("math.neg")!.operator).toBe("-");
+		expect(registry.get("vector3.scale")!.operator).toBe("*");
+		expect(registry.get("cframe.translate")!.operator).toBe("+");
 	});
 
 	it("shows what Luau will say, not a word for it", () => {

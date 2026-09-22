@@ -94,6 +94,23 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.75.0",
+		date: "2026-09-22",
+		headline: "Arithmetic drawn as pills.",
+		affects: ["editor", "designer", "docs"],
+		changed: [
+			"**Arithmetic is drawn as pills**, as the comparisons and **and** / **or** are: Add, Subtract, Multiply, Divide, Modulo, Power and Negate, the Vector3 and Vector2 operators, **CFrame ×** and **CFrame + Vector3**. Each shows the Luau it writes: `+`, `-`, `*`, `/`, `%`, `^`.",
+			"**Brackets**, in the Inspector, and **New logic nodes** in Settings apply to arithmetic pills too.",
+		],
+		fixed: [
+			"**A Cast's type picker lists this graph's own types**, and those a required module exports, as the Inspector's type fields do.",
+			"**A pill with one input keeps its width** when a value of another kind is typed on it.",
+		],
+		watch: [
+			"**Arithmetic nodes already in a graph are drawn as pills** from this version, and are narrower than they were. Their wires and the code they write are unchanged.",
+		],
+	},
+	{
 		version: "0.74.5",
 		date: "2026-09-22",
 		headline: "Nodes dragged out of the node picker look like nodes.",

@@ -11,6 +11,7 @@ import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
 import { CLASS_OPTIONS, TYPE_OPTIONS, classGroup, typeGroup } from "../core/roblox.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
+import { useTypeChoices } from "./TypePicker.jsx";
 import { pinColor } from "./palette.js";
 import {
 	compactLabel, compactWidth, headerHeight, isCompact, isOperator, isReroute,
@@ -615,7 +616,12 @@ function groupingFor(pin: PinDef): ((value: string) => string) | undefined {
 function OptionEditor({
 	pin, value, onChange,
 }: { pin: PinDef; value: string; onChange: (value: string) => void }) {
-	const known = pin.options ?? [];
+	// A pin naming a Luau type -- what a Cast asserts -- offers what the
+	// Inspector's type fields do, this graph's own types first, rather than the
+	// engine's list alone.
+	const types = useTypeChoices();
+	const isType = pin.options === TYPE_OPTIONS;
+	const known = isType ? types.options : pin.options ?? [];
 	const listed = known.includes(value) || value === "";
 	const [typing, setTyping] = useState(!listed);
 	const [picking, setPicking] = useState(false);
@@ -647,7 +653,8 @@ function OptionEditor({
 						what={pin.name || pin.id}
 						options={known}
 						value={value}
-						groupOf={groupingFor(pin)}
+						groupOf={isType ? types.groupOf : groupingFor(pin)}
+						groupsFirst={isType ? types.groupsFirst : undefined}
 						detailOf={groupingFor(pin) ? classDetail : undefined}
 						onPick={onChange}
 						onClose={() => setPicking(false)}

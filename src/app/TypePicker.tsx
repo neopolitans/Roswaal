@@ -166,7 +166,19 @@ export interface TypePickerProps {
 	disabled?: boolean;
 }
 
-export function TypePicker(props: TypePickerProps) {
+/**
+ * What a type can be chosen from, and how the list is headed.
+ *
+ * One answer for every place a type is picked: the Inspector's fields and a
+ * node's own Type pin, which is what a Cast asserts. The pin had the engine's
+ * list and nothing of the graph's, so a type declared three nodes away could be
+ * cast to only by spelling it.
+ */
+export function useTypeChoices(): {
+	options: string[];
+	groupOf: (type: string) => string;
+	groupsFirst: string[];
+} {
 	// The open graph, so the types it declares are offered without every panel
 	// having to pass them down. What is on screen is what they are.
 	const script = useEditor().script ?? undefined;
@@ -184,24 +196,13 @@ export function TypePicker(props: TypePickerProps) {
 		[script, required],
 	);
 	const options = useMemo(() => searchTypes(script, required), [script, required]);
-	const [picking, setPicking] = useState(false);
 
-	const value = props.value ?? "any";
-
-	/**
-	 * Which heading a type sits under.
-	 *
-	 * The graph's own types and the project's come first and are named for where
-	 * they come from; everything else defers to `typeGroup`, which is what the
-	 * pins already use — so a `Part` is under `PVInstance` here exactly as it is
-	 * when you pick a class on a node.
-	 */
 	/**
 	 * The headings worth reading first: this graph's own types, then the ones a
 	 * required module brings, then Luau's and Roblox's own values. Everything
 	 * after them is classes, ordered by how big each family is.
 	 */
-	const leadingGroups = useMemo(
+	const groupsFirst = useMemo(
 		() => [...local.map((g) => g.label), "Luau", "Roblox types"],
 		[local],
 	);
@@ -215,12 +216,21 @@ export function TypePicker(props: TypePickerProps) {
 	 * a class on a node, rather than under a second heading that means the same
 	 * thing and holds a different fifteen of them.
 	 */
-	const groupOf = (type: string): string => {
+	const groupOf = useMemo(() => (type: string): string => {
 		for (const group of local) {
 			if (group.types.includes(type)) return group.label;
 		}
 		return typeGroup(type);
-	};
+	}, [local]);
+
+	return { options, groupOf, groupsFirst };
+}
+
+export function TypePicker(props: TypePickerProps) {
+	const { options, groupOf, groupsFirst } = useTypeChoices();
+	const [picking, setPicking] = useState(false);
+
+	const value = props.value ?? "any";
 
 	return (
 		<>
@@ -239,7 +249,7 @@ export function TypePicker(props: TypePickerProps) {
 					options={options}
 					value={value}
 					groupOf={groupOf}
-					groupsFirst={leadingGroups}
+					groupsFirst={groupsFirst}
 					detailOf={classDetail}
 					onPick={(type) => props.onChange(type.trim() || "any")}
 					onClose={() => setPicking(false)}
