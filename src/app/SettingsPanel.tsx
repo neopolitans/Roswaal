@@ -408,6 +408,26 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			</Row>
 
 			<Row
+				label="New concatenate nodes"
+				help="What a new Concatenate writes: a join with .. , or Luau's interpolated string with the values in braces. Stored on the node, since it is part of the generated file — this only decides where a new one begins."
+			>
+				<div className="segmented">
+					<button
+						className={!prefs.concatInterpolate ? "on" : ""}
+						onClick={() => onPrefs({ concatInterpolate: false })}
+					>
+						Join
+					</button>
+					<button
+						className={prefs.concatInterpolate ? "on" : ""}
+						onClick={() => onPrefs({ concatInterpolate: true })}
+					>
+						Interpolate
+					</button>
+				</div>
+			</Row>
+
+			<Row
 				label="Variables"
 				help="In a dock beside the graph, or in a window over it that you drag and resize. The window remembers where you put it."
 			>

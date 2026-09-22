@@ -977,6 +977,7 @@ export function App() {
 					starting.parens = true;
 				}
 				if (canShowName(def.id) && prefs.castNames) starting.castLabel = "name";
+				if (def.id === "string.concat" && prefs.concatInterpolate) starting.interpolate = true;
 				/**
 				 * A Return arrives with the pins its function returns.
 				 *

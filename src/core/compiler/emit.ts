@@ -25,7 +25,7 @@ import { isModuleScript, PAIR } from "../schema.js";
 import { checkSpecifier, type SpecifierContext } from "../modules.js";
 import { argPinId, callOf, luneFunction, moduleOf, specifierFor } from "../luneCalls.js";
 import { commentLines, headersByNode } from "../comments.js";
-import type { Comment, Literal, NodeScript, PinDef } from "../schema.js";
+import type { Comment, Literal, NodeConfig, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
 import type { FunctionRef, LocalRef, ParamRef, VariableRef } from "../nodes/variables.js";
 import { isConstLocal } from "../nodes/variables.js";
@@ -2718,7 +2718,10 @@ class Emitter {
 			return "nil";
 		}
 		this.execStack.add(`pure:${nodeId}`);
-		let expr = this.renderTemplate(src, template, scope);
+		// Concatenate writes the interpolated form when the node says so.
+		let expr = src.def.id === "string.concat" && isInterpolated(src.node.config)
+			? this.interpolated(src, scope)
+			: this.renderTemplate(src, template, scope);
 		this.execStack.delete(`pure:${nodeId}`);
 
 		/**
@@ -2785,6 +2788,36 @@ class Emitter {
 		this.push(`local ${ident} = ${expr}`, nodeId);
 		scope.bindings.set(`${nodeId}/${pinId}`, ident);
 		return ident;
+	}
+
+	/**
+	 * Concatenate, written as Luau's interpolated string.
+	 *
+	 * `a .. " has no " .. name` and the interpolated form are the same string,
+	 * and which reads better depends on the line: a join of two values is
+	 * plainer as a join, and a sentence with three values in it is a sentence
+	 * with holes in it. So it is a setting on the node, as a pill's brackets
+	 * are, and the node carries the answer into everybody else's checkout.
+	 *
+	 * A part typed into the node is written as **text**, escaped where Luau's
+	 * interpolation needs it; anything wired in is written as a hole. A plain
+	 * string literal arriving down a wire is unwrapped, since a hole with a
+	 * constant in it is a hole the reader has to look through.
+	 */
+	private interpolated(r: ResolvedNode, scope: Scope): string {
+		const parts: string[] = [];
+		for (const pin of r.inputs.filter((p) => VARIADIC_PIN.test(p.id))) {
+			const wired = this.index.sourceOf(r.node.id, pin.id) !== undefined;
+			const literal = r.node.literals?.[pin.id] ?? pin.default;
+			if (!wired && literal && literal.t === "string") {
+				parts.push(escapeInterpolated(literal.v));
+				continue;
+			}
+			const value = this.resolveInput(r, pin, scope);
+			const plain = PLAIN_STRING.exec(value);
+			parts.push(plain ? escapeInterpolated(plain[1]) : `{${value}}`);
+		}
+		return `\`${parts.join("")}\``;
 	}
 
 	// -- templates ---------------------------------------------------------
@@ -3076,6 +3109,30 @@ class Emitter {
  * constructor in it is worked out once and bound. See `readOnce`.
  */
 const REPEATABLE = /^(?:[A-Za-z_][A-Za-z0-9_]*|-?\d+(?:\.\d+)?|"(?:[^"\\]|\\.)*"|nil|true|false)$/;
+
+/** A double-quoted literal with nothing in it that interpolation would mind. */
+const PLAIN_STRING = /^"([^"`{}\\\n]*)"$/;
+
+/**
+ * Text inside an interpolated string.
+ *
+ * Luau reads a backtick as the end of one and a brace as the start of a hole,
+ * so both are escaped; a backslash escapes itself, and a line break is written
+ * as an escape rather than folded into the source.
+ */
+function escapeInterpolated(text: string): string {
+	return text
+		.replace(/\\/g, "\\\\")
+		.replace(/`/g, "\\`")
+		.replace(/\{/g, "\\{")
+		.replace(/\n/g, "\\n")
+		.replace(/\r/g, "\\r");
+}
+
+/** Whether this Concatenate writes an interpolated string rather than a join. */
+export function isInterpolated(config: NodeConfig | undefined): boolean {
+	return (config as { interpolate?: unknown } | undefined)?.interpolate === true;
+}
 
 /** True when the expression is also a valid Luau statement (a function call). */
 function isCallStatement(expr: string): boolean {

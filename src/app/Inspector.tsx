@@ -189,6 +189,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				)}
 				{/* A cast is a pill and brackets its own expression already — see the
 				    template. Offering the toggle would offer a second pair. */}
+				{def.id === "string.concat" && <ConcatStyle node={node} />}
 				{def.display === "operator" && !CAST_NODES.has(def.id) && (
 					<OperatorBrackets node={node} />
 				)}
@@ -622,6 +623,43 @@ function TableLayout({ node }: { node: GraphNode }) {
 			>
 				<option value="inline">Inline</option>
 				<option value="lines">One per line</option>
+			</select>
+		</Field>
+	);
+}
+
+/**
+ * Which of the two strings a Concatenate writes.
+ *
+ * `a .. " has no " .. name` and the interpolated form are the same string, and
+ * which reads better is a judgement about the line rather than about the
+ * graph: two values joined are plainer as a join, and a sentence with three
+ * values in it is a sentence with holes in it.
+ *
+ * Stored on the node, as the brackets are, because it is part of the file
+ * everybody on the project reads. **New concatenate nodes** in Settings
+ * decides what one you drop today starts as.
+ */
+function ConcatStyle({ node }: { node: GraphNode }) {
+	const on = (node.config as { interpolate?: unknown } | undefined)?.interpolate === true;
+	return (
+		<Field
+			label="Writes"
+			hint="The same string either way. Interpolation needs Luau, which both targets are."
+		>
+			<select
+				className="tb"
+				value={on ? "interpolate" : "join"}
+				onChange={(e) =>
+					store.edit((s) =>
+						setConfig(s, node.id, {
+							interpolate: e.target.value === "interpolate" || undefined,
+						}),
+					)
+				}
+			>
+				<option value="join">A join — a .. b</option>
+				<option value="interpolate">An interpolated string</option>
 			</select>
 		</Field>
 	);

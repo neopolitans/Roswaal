@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.83.0",
+		date: "2026-09-22",
+		headline: "Concatenate can write an interpolated string.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Writes**, in a Concatenate's Inspector: a **join** with `..`, or an **interpolated string** — a part typed into the node is text, a part wired in is a hole in braces. The same string either way, and both are Luau.",
+			"**New concatenate nodes** in Settings decides which one a new Concatenate starts as. Stored on the node, as a pill's brackets are, so the graph reads the same on everybody's machine.",
+		],
+		changed: [
+			"**A plain string literal wired into an interpolated Concatenate is written as text**, rather than as a hole with a constant in it. A backtick or a brace in what you typed is escaped.",
+		],
+	},
+	{
 		version: "0.82.3",
 		date: "2026-09-22",
 		headline: "A field's type is picked, not spelt.",

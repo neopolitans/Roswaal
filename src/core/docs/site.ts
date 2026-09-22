@@ -4104,6 +4104,10 @@ function settingsPage(): DocPage {
 						"**Truncate** cuts a header too long for its node short, with the whole of it in the tooltip — what nodes have always done. **Widen** draws the node wide enough for its header instead. It is the one of these looks that moves *pins*, so the wire router and the pictures on these pages are computed from the same width: a node and its own picture are never two different sizes.",
 					],
 					[
+						"New concatenate nodes",
+						"What a new **Concatenate** writes: a **join** with `..`, or an **interpolated string**, where a part typed into the node is text and a part wired in is a hole in braces. The same string either way, and both are Luau, so the choice is about how the line reads. Stored **on the node**, as the brackets are — this only decides what one you drop today starts as, and **Writes** in the Inspector changes any of them.",
+					],
+					[
 						"New logic nodes",
 						"Whether a new **And**, **Or**, **Not**, comparison or arithmetic pill starts out bracketing its expression. Only the starting point: whether a node brackets is stored **on the node**, so it travels with the graph and reads the same on everybody's machine. Precedence is handled either way — this is about how the line reads, never about what it means. The casts are pills too and are not offered it: `(value :: T)` brackets itself already.",
 					],

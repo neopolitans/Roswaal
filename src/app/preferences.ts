@@ -193,6 +193,14 @@ export interface Preferences {
 	 */
 	castNames: boolean;
 	/**
+	 * What a new **Concatenate** writes: a join, or Luau's interpolated string.
+	 *
+	 * A default for new nodes, exactly as `castNames` is, and for the same
+	 * reason: which form a node writes is part of the file everybody reads, so
+	 * it is stored on the node and this only decides where a new one begins.
+	 */
+	concatInterpolate: boolean;
+	/**
 	 * What a function's tab says. In full it is `ƒ hide (Occupancy)`; shortened,
 	 * one of the two names. The tooltip keeps both either way.
 	 */
@@ -339,6 +347,7 @@ export const DEFAULTS: Preferences = {
 	wideNodes: false,
 	logicParens: false,
 	castNames: false,
+	concatInterpolate: false,
 	functionTabs: "full",
 	toolbarName: false,
 	docsFont: "system",
@@ -407,6 +416,10 @@ export function readPreferences(): Preferences {
 			typeof stored.logicParens === "boolean" ? stored.logicParens : DEFAULTS.logicParens,
 		castNames:
 			typeof stored.castNames === "boolean" ? stored.castNames : DEFAULTS.castNames,
+		concatInterpolate:
+			typeof stored.concatInterpolate === "boolean"
+				? stored.concatInterpolate
+				: DEFAULTS.concatInterpolate,
 		functionTabs: FUNCTION_TAB_CHOICES.some((c) => c.value === stored.functionTabs)
 			? (stored.functionTabs as FunctionTabs)
 			: DEFAULTS.functionTabs,
