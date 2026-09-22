@@ -1005,14 +1005,19 @@ export function App() {
 	);
 
 	const spawnComment = useCallback((world: { x: number; y: number }) => {
-		const selected = store.getSnapshot().selection;
+		const { selection: selected, graph } = store.getSnapshot();
 		store.edit((s) => {
 			// Wrapping a selection is the common case, so a comment created with
 			// nodes selected sizes itself to enclose them. With nothing selected
 			// it is a plain box at the point given: a comment is a note on the
 			// canvas, and one about nothing in particular — a heading, a reminder,
 			// a space left for work not done yet — is a fair thing to write.
-			const box = boundsOf(s, selected, registry);
+			//
+			// Measured in the graph on screen. A Declare Function is drawn in two
+			// graphs at two positions, and the whole script only holds the outer
+			// one — so a comment around it inside its own graph went to where it
+			// sits in the other.
+			const box = boundsOf(viewOf(s, graph), selected, registry);
 			const rect = box
 				? { x: box.x - 24, y: box.y - 52, w: box.w + 48, h: box.h + 76 }
 				: { x: world.x, y: world.y, w: 320, h: 200 };

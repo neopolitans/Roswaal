@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.74.4",
+		date: "2026-09-22",
+		headline: "Comments around a Declare Function in its own graph.",
+		affects: ["editor"],
+		fixed: [
+			"**A comment made around a Declare Function inside its own graph goes around it.** It was placed where the node sits in the graph outside.",
+		],
+	},
+	{
 		version: "0.74.3",
 		date: "2026-09-22",
 		headline: "The node picker by touch, and unknown and never.",
