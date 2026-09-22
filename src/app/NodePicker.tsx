@@ -24,6 +24,7 @@ import type { NodeConfig, NodeDef } from "../core/schema.js";
 import type { Preset } from "./NodeMenu.jsx";
 import { categories, type Registry } from "../core/nodes/index.js";
 import { previewOf, previewSvg, type PreviewOptions } from "../core/docs/preview.js";
+import { aliasScore } from "../core/aliases.js";
 import { keywordNodes } from "../core/keywords.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
@@ -81,14 +82,18 @@ interface Hit {
  * Variable and would never match. The keyword and id rules still read the
  * definition, because those are questions about the node.
  */
-function score(hit: Hit, query: string): number {
+export function score(hit: Hit, query: string): number {
 	const def = hit.def;
 	const at = keywordNodes(query).indexOf(def.id);
 	if (at >= 0) return 1000 - at;
 	const title = hit.title.toLowerCase();
 	if (title === query) return 500;
+	// The library node only, as in the node menu.
+	const alias = hit.filter === "graph" ? 0 : aliasScore(def.id, query);
+	if (alias === 450) return alias;
 	if (def.operator?.toLowerCase() === query) return 400;
 	if (title.startsWith(query)) return 100;
+	if (alias > 0) return alias;
 	if (title.includes(query)) return 60;
 	if (categoryLabel(hit.category).toLowerCase().includes(query)) return 30;
 	if (hit.category.toLowerCase().includes(query)) return 30;

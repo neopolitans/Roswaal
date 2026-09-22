@@ -45,6 +45,16 @@ import { store, useEditor, useView } from "./store.js";
  */
 const COMMENT_MIN = { w: 160, h: 96 } as const;
 
+/** What can be dropped on the canvas: what the panels and the tree drag out. */
+export const DROPPABLE = [
+	"application/x-roswaal-variable",
+	"application/x-roswaal-local",
+	"application/x-roswaal-function",
+	"application/x-roswaal-module",
+	"application/x-roswaal-type",
+	"application/x-roswaal",
+] as const;
+
 
 export interface CanvasProps {
 	/** The whole script. The canvas draws one graph of it. */
@@ -920,16 +930,11 @@ export function Canvas({
 				onRequestMenu({ x: e.clientX, y: e.clientY }, toWorld(e.clientX, e.clientY));
 			}}
 			onDragOver={(e) => {
+				// Every kind `onDrop` reads. One missing here is a drop the
+				// browser refuses before `onDrop` is asked, which is how
+				// functions went undroppable.
 				const kinds = e.dataTransfer.types;
-				if (
-					!kinds.includes("application/x-roswaal-variable") &&
-					!kinds.includes("application/x-roswaal-local") &&
-					!kinds.includes("application/x-roswaal-module") &&
-					!kinds.includes("application/x-roswaal-type") &&
-					!kinds.includes("application/x-roswaal")
-				) {
-					return;
-				}
+				if (!DROPPABLE.some((kind) => kinds.includes(kind))) return;
 				e.preventDefault();
 				e.dataTransfer.dropEffect = "copy";
 			}}

@@ -20,6 +20,7 @@ import {
 	hoistedFunctions, paramsVisibleFrom, visibleFrom, type GraphId,
 } from "../core/functionGraph.js";
 import { landingPins, localRefFor } from "./edits.js";
+import { aliasScore } from "../core/aliases.js";
 import { keywordNodes } from "../core/keywords.js";
 import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
 import { luneMenuItems, lunePins } from "../core/luneCalls.js";
@@ -616,9 +617,13 @@ export function score(item: MenuItem, query: string): number {
 
 	const title = item.title.toLowerCase();
 	if (title === query) return 500;
+	// The library node only: a preset's title is a name somebody chose.
+	const alias = item.title === item.def.title ? aliasScore(item.def.id, query) : 0;
+	if (alias === 450) return alias;
 	// The symbol a pill wears is a name for it: typing `~=` finds Not Equal.
 	if (item.def.operator?.toLowerCase() === query) return 400;
 	if (title.startsWith(query)) return 100;
+	if (alias > 0) return alias;
 	if (title.includes(query)) return 60;
 	// The label as well as the key: the heading says "Roblox" and typing what
 	// you can see should find what is under it.

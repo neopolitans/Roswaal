@@ -11,6 +11,8 @@
  * So this makes them:
  *
  * - a **long press** is a `contextmenu`;
+ * - a **two-finger long press**, lifted, is a `contextmenu` with Ctrl held --
+ *   which on the canvas is the visual node search rather than the node menu;
  * - a **double tap** is a `dblclick`;
  * - a **long press on something draggable, then a drag**, is `dragstart`,
  *   `dragenter`/`dragover`/`dragleave` under the finger, `drop` where it lifts,
@@ -97,6 +99,17 @@ export function installTouchGestures(target: Window = window): void {
 		id: number; source: HTMLElement; transfer: TouchDataTransfer; ghost: HTMLElement;
 		over: Element | null; accepted: boolean;
 	} | null = null;
+	/**
+	 * Two fingers held still together, which lifted is Ctrl and the right
+	 * button: the mouse gesture for the visual node search.
+	 *
+	 * Answered on the lift, not when the timer runs out, so a pinch that starts
+	 * slowly is still a pinch: it only stops being one if the fingers are
+	 * held and then let go without having moved.
+	 */
+	let pair: {
+		start: Map<number, { x: number; y: number }>; timer: number; held: boolean;
+	} | null = null;
 	/** Where the last quick tap ended, for recognising the second. */
 	let lastTap: { x: number; y: number; at: number } | null = null;
 	/** Touches currently down, by id, so a lost release cannot leave a count stuck. */
@@ -114,13 +127,21 @@ export function installTouchGestures(target: Window = window): void {
 		press = null;
 	};
 
-	const fire = (type: "contextmenu" | "dblclick", element: Element, x: number, y: number) => {
+	const cancelPair = () => {
+		if (pair) window.clearTimeout(pair.timer);
+		pair = null;
+	};
+
+	const fire = (
+		type: "contextmenu" | "dblclick", element: Element, x: number, y: number, ctrlKey = false,
+	) => {
 		element.dispatchEvent(new MouseEvent(type, {
 			bubbles: true,
 			cancelable: true,
 			composed: true,
 			clientX: x,
 			clientY: y,
+			ctrlKey,
 			button: type === "contextmenu" ? 2 : 0,
 			detail: type === "dblclick" ? 2 : 0,
 			view: window,
@@ -205,10 +226,28 @@ export function installTouchGestures(target: Window = window): void {
 			return;
 		}
 		fingers.add(e.pointerId);
-		// A second finger is a pinch, not a press that is taking its time.
+		// A second finger is a pinch, not a press that is taking its time --
+		// unless the two are held still, which `pair` watches for. Only when
+		// the first had not already become something: a menu opened by its
+		// long press, or a drag it armed.
 		if (fingers.size > 1) {
+			const first = press && !press.fired && !press.armed && fingers.size === 2 ? press : null;
 			cancelPress();
+			cancelPair();
 			lastTap = null;
+			if (first) {
+				const start = new Map([
+					[first.id, { x: first.x, y: first.y }],
+					[e.pointerId, { x: e.clientX, y: e.clientY }],
+				]);
+				pair = {
+					start,
+					held: false,
+					timer: window.setTimeout(() => {
+						if (pair && pair.start === start) pair.held = true;
+					}, LONG_PRESS_MS),
+				};
+			}
 			return;
 		}
 		const element = e.target instanceof Element ? e.target : null;
@@ -240,6 +279,12 @@ export function installTouchGestures(target: Window = window): void {
 			moveDrag(e.clientX, e.clientY);
 			return;
 		}
+		const from = pair?.start.get(e.pointerId);
+		if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > SLOP) {
+			// It moved, so it is the pinch or the pan it looked like.
+			cancelPair();
+			return;
+		}
 		if (!press || e.pointerId !== press.id || press.fired) return;
 		const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y) > SLOP;
 		if (!moved) return;
@@ -262,6 +307,25 @@ export function installTouchGestures(target: Window = window): void {
 	const lift = (e: PointerEvent, cancelled: boolean) => {
 		if (e.pointerType === "mouse") return;
 		fingers.delete(e.pointerId);
+		if (pair?.start.has(e.pointerId)) {
+			const { start, held } = pair;
+			cancelPair();
+			if (held && !cancelled) {
+				// Between the two fingers, which is where the hand was.
+				const [a, b] = [...start.values()];
+				const x = (a.x + b.x) / 2;
+				const y = (a.y + b.y) / 2;
+				// On a graph, the canvas itself rather than what the point
+				// lands on: between two fingers is often a node, and a node's
+				// right-click is its own menu. The search is what was asked for.
+				const under = document.elementFromPoint(x, y);
+				sentMenuAt = performance.now();
+				fire("contextmenu", under?.closest(".canvas") ?? under ?? document.body, x, y, true);
+				swallowClickUntil = performance.now() + ECHO_MS;
+			}
+			lastTap = null;
+			return;
+		}
 		if (drag && e.pointerId === drag.id) {
 			endDrag(e.clientX, e.clientY, cancelled);
 			lastTap = null;

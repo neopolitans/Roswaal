@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.74.0",
+		date: "2026-09-22",
+		headline: "Nodes by other names, and the node picker by touch.",
+		affects: ["editor", "designer", "docs"],
+		added: [
+			"**Nodes have other names in both node searches.** `Define Function` finds Function and Declare Function, `Define Type` finds Declare Type, `Sleep` finds Wait, `Log` finds Print. A node actually called what you typed still comes first.",
+			"**Press and hold with two fingers, then lift**, on a tablet or a phone, opens the node picker where you held, as `Ctrl` + right-click does. One finger still opens the node menu.",
+		],
+		fixed: [
+			"**A function dragged from the Variables panel lands on the graph** as a Get Function. The canvas had always refused the drop.",
+		],
+	},
+	{
 		version: "0.73.2",
 		date: "2026-09-22",
 		headline: "Table types, one field to a line.",
