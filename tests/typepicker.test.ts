@@ -15,6 +15,9 @@ import { describe, expect, it } from "vitest";
 
 import { declaredTypes, listGroups, listedTypes, searchTypes } from "../src/app/TypePicker.js";
 import { INSTANCE_CLASSES } from "../src/core/roblox.js";
+import { pinTypeOf } from "../src/core/nodes/variables.js";
+import { compile } from "../src/core/compiler/index.js";
+import { createRegistry } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { Builder } from "./helpers.js";
 
@@ -67,10 +70,11 @@ describe("the list", () => {
 
 	/**
 	 * A list nobody can scan is not a shortcut. Fifty-odd classes belong behind
-	 * a search field, not in a dropdown.
+	 * a search field, not in a dropdown. 42 since 0.74.3, when Luau's `unknown`
+	 * and `never` joined the basic types.
 	 */
 	it("stays short enough to read", () => {
-		expect(listedTypes(undefined).length).toBeLessThan(40);
+		expect(listedTypes(undefined).length).toBeLessThan(42);
 		expect(listedTypes(undefined).length).toBeLessThan(INSTANCE_CLASSES.length + 10);
 	});
 
@@ -105,5 +109,34 @@ describe("what is behind Other", () => {
 	/** It is a shortcut, not a limit — the field takes anything. */
 	it("is bigger than the list", () => {
 		expect(searchTypes(undefined).length).toBeGreaterThan(listedTypes(undefined).length);
+	});
+});
+
+/** Luau's top and bottom types: offered, and wired as anything is. */
+describe("unknown and never", () => {
+	it("are offered with the basic types", () => {
+		const types = listedTypes(undefined);
+		expect(types).toContain("unknown");
+		expect(types).toContain("never");
+	});
+
+	it("give a pin that takes any wire", () => {
+		expect(pinTypeOf("unknown")).toBe("any");
+		expect(pinTypeOf("never")).toBe("any");
+		expect(pinTypeOf("unknown?")).toBe("any");
+	});
+});
+
+describe("unknown and never, written out", () => {
+	it("annotate a parameter as chosen, though the pin is any", () => {
+		const b = new Builder();
+		b.node("script.begin");
+		b.node("function.entry", {
+			config: { name: "check", params: [{ name: "packet", type: "unknown" }], returns: [{ name: "out", type: "never" }] },
+		});
+		const script = { ...b.build(), mode: "strict" } as NodeScript;
+		const out = compile(script, createRegistry()).code;
+		expect(out).toContain("packet: unknown");
+		expect(out).toContain("): never");
 	});
 });

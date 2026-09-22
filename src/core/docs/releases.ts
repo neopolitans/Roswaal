@@ -94,6 +94,25 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.74.3",
+		date: "2026-09-22",
+		headline: "The node picker by touch, and unknown and never.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Spawn node**, under the node picker's preview, places the node shown.",
+			"**Drag a node out of the node picker** onto the graph to place it there. Hold it first on a touch screen.",
+			"**unknown** and **never** are in the type picker's Luau types. A pin of either takes any wire.",
+		],
+		changed: [
+			"**On a touch screen, tapping a node in the node picker previews it.** Double tap it, tap **Spawn node** or drag it out to place it. A mouse click still places it.",
+			"**The node picker's footer shows touch controls on a touch screen.**",
+		],
+		fixed: [
+			"**A parameter's or a return's type has its padding** in the Inspector.",
+			"**Name and type share a parameter row 60/40** as the Inspector is resized. The type stayed 90px wide.",
+		],
+	},
+	{
 		version: "0.74.2",
 		date: "2026-09-22",
 		headline: "Delete locals and functions from the Variables panel.",

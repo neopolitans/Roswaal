@@ -13,7 +13,7 @@ import {
 	type CSSProperties, type PointerEvent as ReactPointerEvent,
 } from "react";
 
-import type { Comment, Literal, NodeScript, PinDef, PinRef } from "../core/schema.js";
+import type { Comment, Literal, NodeConfig, NodeScript, PinDef, PinRef } from "../core/schema.js";
 import { resolveNodePins, type Registry } from "../core/nodes/index.js";
 import type { Diagnostic } from "../core/compiler/index.js";
 import { viewOf, type GraphId } from "../core/functionGraph.js";
@@ -52,6 +52,7 @@ export const DROPPABLE = [
 	"application/x-roswaal-function",
 	"application/x-roswaal-module",
 	"application/x-roswaal-type",
+	"application/x-roswaal-node",
 	"application/x-roswaal",
 ] as const;
 
@@ -76,6 +77,11 @@ export interface CanvasProps {
 	 * offers. Absent leaves the gesture as an ordinary right-click.
 	 */
 	onRequestNodePicker?: (world: Vec) => void;
+	/**
+	 * A node dragged off the node picker's list, dropped here. The caller
+	 * places it, since placing one is the picker's job and it closes after.
+	 */
+	onDropNode?: (defId: string, config: NodeConfig | undefined, world: Vec) => void;
 	onRequestPinMenu: (screen: Vec, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
 	/**
@@ -166,7 +172,7 @@ type Gesture =
 | { kind: "resize"; id: string; corner: "nw" | "se"; origin: Vec; start: Rect };
 
 export function Canvas({
-	script: whole, graph = null, registry, diagnostics, onRequestMenu, onRequestNodePicker,
+	script: whole, graph = null, registry, diagnostics, onRequestMenu, onRequestNodePicker, onDropNode,
 	onRequestPinMenu, onEditCode,
 	onPointerAt,
 	onDropFile, locked = false, wireStyle = "curved", wideNodes = false, wheel = "zoom",
@@ -952,6 +958,15 @@ export function Canvas({
 							toWorld(e.clientX, e.clientY),
 						);
 					}
+					return;
+				}
+
+				// A node from the picker's list, dragged out rather than tapped.
+				const picked = e.dataTransfer.getData("application/x-roswaal-node");
+				if (picked) {
+					e.preventDefault();
+					const { def, config } = JSON.parse(picked) as { def: string; config?: NodeConfig };
+					onDropNode?.(def, config, toWorld(e.clientX, e.clientY));
 					return;
 				}
 

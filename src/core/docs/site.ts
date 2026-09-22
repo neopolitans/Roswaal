@@ -1843,6 +1843,7 @@ const CONTROLS: DocPage = {
 								["Press and hold empty space, then drag", "Marquee select"],
 								["Press and hold empty space, then lift", "Node menu, where you held"],
 								["Press and hold with two fingers, then lift", "The node picker, as `Ctrl` + right-click opens"],
+								["Tap a node in the node picker", "Preview it. Double tap it, tap **Spawn node**, or hold and drag it onto the graph to place it"],
 								["Long press a node or a pin", "Its menu, as a right-click opens"],
 								["Press and hold a variable, a file or a tab, then drag", "Drag it, as a mouse does — onto the graph, into a folder"],
 								["Press and hold a variable, a file or a tab, then lift", "Its menu, if it has one"],
@@ -1999,7 +2000,7 @@ const CONTROLS: DocPage = {
 			rows: [
 				[
 					"`Ctrl` + right-click the canvas",
-					"The **node picker**: the same list as the menu, with each node **drawn** as you walk it. For when you remember the shape rather than the name",
+					"The **node picker**: the same list as the menu, with each node **drawn** as you walk it. For when you remember the shape rather than the name. Click a node, press **Spawn node**, or drag it onto the graph",
 				],
 				[
 					"`Ctrl` + `K`, in the editor",

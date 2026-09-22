@@ -1082,6 +1082,36 @@ button.tb.icon-only.panel-float {
 	margin-right: 3px;
 }
 
+.node-picker-foot {
+	flex-wrap: wrap;
+}
+
+.node-picker-foot-touch {
+	display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+	.node-picker-foot-keys {
+		display: none;
+	}
+
+	.node-picker-foot-touch {
+		display: flex;
+	}
+}
+
+.node-picker-spawn {
+	align-self: flex-start;
+}
+
+/* A row being dragged out: the picker steps aside so the graph can be seen
+   and dropped on, and lets the pointer through to it. */
+.picker-backdrop.picker-backdrop-dragging {
+	pointer-events: none;
+	opacity: 0.15;
+	background: transparent;
+}
+
 /* ---------------------------------------------------------------- toolbar */
 
 .toolbar {
@@ -2745,9 +2775,11 @@ button.tb.primary:hover:not(:disabled) {
 	font-size: 11px;
 }
 
+/* Name and type share the width 60/40 as the panel is resized, rather than
+   the type staying 90px while the name takes the rest. */
 .inspector .list-row {
 	display: grid;
-	grid-template-columns: 1fr 90px 24px;
+	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 24px;
 	gap: 4px;
 }
 
@@ -2756,7 +2788,9 @@ button.tb.primary:hover:not(:disabled) {
 	min-width: 0;
 }
 
-.inspector .list-row button {
+/* The remove button. Not the type picker beside it, which is a button too and
+   lost its padding to this. */
+.inspector .list-row button:not(.type-picker) {
 	padding: 0;
 	text-align: center;
 }

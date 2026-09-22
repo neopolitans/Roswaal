@@ -2076,6 +2076,11 @@ export function App() {
 							wideNodes={prefs.wideNodes}
 							onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
 							onRequestNodePicker={(world) => setNodePicker(world)}
+							onDropNode={(defId, config, world) => {
+								const def = registry.get(defId);
+								if (def) spawn(def, world, config);
+								setNodePicker(null);
+							}}
 							onRequestPinMenu={(screen, nodeId, pin, side) =>
 								setPinMenu({ screen, nodeId, pin, side })
 							}

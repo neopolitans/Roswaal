@@ -74,6 +74,10 @@ export function pinTypeOf(luauType: string | undefined): string {
 	const t = (luauType ?? "").trim();
 	if (t === "") return "any";
 	const named = /^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\??$/.exec(t);
+	// Anything goes into an `unknown`, and a `never` holds nothing to be
+	// particular about: as a pin, both take any wire. The annotation still
+	// says what was chosen, since that is written from the type, not the pin.
+	if (named && (named[1] === "unknown" || named[1] === "never")) return "any";
 	if (named) return named[1];
 	if (t.startsWith("{")) return "table";
 	return "any";

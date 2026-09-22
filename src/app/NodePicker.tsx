@@ -13,7 +13,14 @@
  * lands on the canvas.
  *
  * Opened with `Ctrl` and the right mouse button, which is the ordinary node
- * menu's gesture with a modifier: the same question asked a slower way.
+ * menu's gesture with a modifier: the same question asked a slower way. On a
+ * touch screen, two fingers held and lifted (see `touch.ts`).
+ *
+ * Three ways to place what you are looking at: **Spawn node** under the
+ * picture, a double click or double tap on the row, or dragging the row onto
+ * the graph. A mouse click places as well, since hovering has already shown the
+ * picture; a tap only shows it, because a finger has no hover and a tap that
+ * placed would never let you see the node first.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -109,6 +116,15 @@ export function NodePicker(
 	const [active, setActive] = useState(0);
 	const field = useRef<HTMLInputElement>(null);
 	const list = useRef<HTMLDivElement>(null);
+	/** What the last press on a row was, so a click knows whether it was a tap. */
+	const pressedWith = useRef<string>("mouse");
+	/**
+	 * A row is being dragged out. The picker stands aside while it is -- faded
+	 * and letting the pointer through -- so the graph under it can be seen and
+	 * dropped on. Placing closes the picker; a drag let go elsewhere brings it
+	 * back.
+	 */
+	const [dragging, setDragging] = useState(false);
 
 	useEffect(() => {
 		field.current?.focus();
@@ -216,7 +232,7 @@ export function NodePicker(
 
 	return createPortal(
 		<div
-			className="picker-backdrop"
+			className={`picker-backdrop${dragging ? " picker-backdrop-dragging" : ""}`}
 			style={{ zIndex: LAYER.menu }}
 			onPointerDown={(e) => {
 				if (e.target === e.currentTarget) onClose();
@@ -298,8 +314,34 @@ export function NodePicker(
 										<button
 											key={hit.key}
 											className={`node-picker-hit${i === active ? " on" : ""}`}
-											onPointerEnter={() => setActive(i)}
-											onClick={() => onPick(hit.def, hit.config)}
+											draggable
+											onPointerEnter={(e) => {
+												if (e.pointerType === "mouse") setActive(i);
+											}}
+											onPointerDown={(e) => {
+												pressedWith.current = e.pointerType;
+											}}
+											onClick={() => {
+												if (pressedWith.current === "mouse") onPick(hit.def, hit.config);
+												else setActive(i);
+											}}
+											// A mouse's first click has already placed, so this
+											// is a finger's: `touch.ts` makes a double tap one.
+											onDoubleClick={() => {
+												if (pressedWith.current !== "mouse") onPick(hit.def, hit.config);
+											}}
+											onDragStart={(e) => {
+												setActive(i);
+												e.dataTransfer.setData(
+													"application/x-roswaal-node",
+													JSON.stringify({ def: hit.def.id, config: hit.config }),
+												);
+												e.dataTransfer.effectAllowed = "copy";
+												// After the browser has taken its picture of the row:
+												// fading it first would drag a faded ghost.
+												setTimeout(() => setDragging(true), 0);
+											}}
+											onDragEnd={() => setDragging(false)}
 										>
 											<span className="title">{hit.title}</span>
 											{hit.def.pure && <span className="hint">pure</span>}
@@ -337,15 +379,29 @@ export function NodePicker(
 									<div className="where">{categoryLabel(chosen.category)}</div>
 									{chosen.summary && <p className="summary">{chosen.summary}</p>}
 								</div>
+								<button
+									className="tb node-picker-spawn"
+									onClick={() => onPick(chosen.def, chosen.config)}
+								>
+									Spawn node
+								</button>
 							</>
 						)}
 					</div>
 				</div>
 
-				<div className="node-picker-foot">
+				{/* Both, and the stylesheet shows the one for the screen: the keys on
+				    a computer, the gestures on a touch screen with no pointer. */}
+				<div className="node-picker-foot node-picker-foot-keys">
 					<span><kbd>↑</kbd><kbd>↓</kbd> to move</span>
 					<span><kbd>Enter</kbd> to place</span>
+					<span>Drag onto the graph</span>
 					<span><kbd>Esc</kbd> to close</span>
+				</div>
+				<div className="node-picker-foot node-picker-foot-touch">
+					<span>Tap to preview</span>
+					<span>Double tap or <strong>Spawn node</strong> to place</span>
+					<span>Hold and drag onto the graph</span>
 				</div>
 			</div>
 		</div>,

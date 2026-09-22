@@ -143,7 +143,9 @@ export const CLASS_OPTIONS: string[] = [
 ];
 
 /** What Luau has before Roblox adds anything, in the order a graph reaches. */
-const LUAU_TYPES = ["any", "boolean", "number", "string", "table", "function", "thread", "nil"];
+const LUAU_TYPES = [
+	"any", "unknown", "never", "boolean", "number", "string", "table", "function", "thread", "nil",
+];
 
 /**
  * Roblox's own values that are not instances, common ones first.

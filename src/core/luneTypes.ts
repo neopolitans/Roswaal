@@ -24,10 +24,12 @@ import type { NodeScript } from "./schema.js";
  * `buffer` is here because it is Luau's and the picker did not have it —
  * `fs.readFile` can return one and `serde` takes one, so a Lune graph needed to
  * name a type the list could not offer. `thread` and `nil` are the same
- * oversight from the other direction: base Luau, offered by neither.
+ * oversight from the other direction: base Luau, offered by neither. So were
+ * `unknown` and `never`, the top and bottom of Luau's types, until 0.74.3.
  */
 export const LUAU_PRIMITIVES = [
-	"any", "boolean", "number", "string", "table", "function", "thread", "buffer", "nil",
+	"any", "unknown", "never",
+	"boolean", "number", "string", "table", "function", "thread", "buffer", "nil",
 ];
 
 const PRIMITIVE = new Set([...LUAU_PRIMITIVES, "true", "false", "never", "unknown"]);
