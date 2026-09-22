@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.75.1",
+		date: "2026-09-22",
+		headline: "UDim arithmetic drawn as pills.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**UDim +**, **UDim −**, **UDim2 +** and **UDim2 −** are drawn as pills, as the rest of the arithmetic is. They are every operator the engine gives the two: neither takes a unary minus or a multiplication.",
+		],
+	},
+	{
 		version: "0.75.0",
 		date: "2026-09-22",
 		headline: "Arithmetic drawn as pills.",

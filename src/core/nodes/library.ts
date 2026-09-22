@@ -191,8 +191,8 @@ const LETTERS = "ABCDEFGH".split("");
  * A pure node drawn as an operator pill, with its operator in the middle.
  *
  * For the nodes whose whole meaning is one symbol: a comparison, `and`, `or`,
- * `not`, `nil`, and since 0.75.0 arithmetic -- on numbers, vectors and CFrames,
- * each showing the Luau it writes. A full node spends a header on a title that says what the
+ * `not`, `nil`, and since 0.75.0 arithmetic -- on numbers, vectors, CFrames and
+ * the UDims, each showing the Luau it writes. A full node spends a header on a title that says what the
  * symbol says, and two rows on pins called A and B — so a graph of conditions
  * reads as a column of boxes rather than as the expressions it is.
  */
@@ -1329,8 +1329,8 @@ export const LIBRARY_NODES: NodeDef[] = [
 		p("udim.new", "UDim", "UDim.new($in.scale, $in.offset)",
 			[num("scale", "Scale"), num("offset", "Offset")], "UDim",
 			"Scale is a fraction of the parent; offset is pixels. A UDim is one axis of a UDim2."),
-		p("udim.add", "UDim +", "$in.a + $in.b", [ud("a", "A"), ud("b", "B")], "UDim"),
-		p("udim.sub", "UDim −", "$in.a - $in.b", [ud("a", "A"), ud("b", "B")], "UDim"),
+		pill(p("udim.add", "UDim +", "$in.a + $in.b", [ud("a", "A"), ud("b", "B")], "UDim"), "+"),
+		pill(p("udim.sub", "UDim −", "$in.a - $in.b", [ud("a", "A"), ud("b", "B")], "UDim"), "-"),
 		breakInto("udim.break", "Break UDim", [ud("udim", "UDim")], [
 			{ id: "scale", name: "Scale", type: "number", expr: "$in.udim.Scale" },
 			{ id: "offset", name: "Offset", type: "number", expr: "$in.udim.Offset" },
@@ -1346,8 +1346,8 @@ export const LIBRARY_NODES: NodeDef[] = [
 		p("udim2.fromOffset", "UDim2 from Offset", "UDim2.fromOffset($in.x, $in.y)",
 			[num("x", "X"), num("y", "Y")], "UDim2", "Pixels, with no scaling."),
 
-		p("udim2.add", "UDim2 +", "$in.a + $in.b", [ud2("a", "A"), ud2("b", "B")], "UDim2"),
-		p("udim2.sub", "UDim2 −", "$in.a - $in.b", [ud2("a", "A"), ud2("b", "B")], "UDim2"),
+		pill(p("udim2.add", "UDim2 +", "$in.a + $in.b", [ud2("a", "A"), ud2("b", "B")], "UDim2"), "+"),
+		pill(p("udim2.sub", "UDim2 −", "$in.a - $in.b", [ud2("a", "A"), ud2("b", "B")], "UDim2"), "-"),
 		p("udim2.lerp", "UDim2 Lerp", "$in.a:Lerp($in.b, $in.alpha)",
 			[ud2("a", "A"), ud2("b", "B"), num("alpha", "Alpha", 0.5)], "UDim2"),
 
