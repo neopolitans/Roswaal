@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.74.1",
+		date: "2026-09-22",
+		headline: "Binding fills its row.",
+		affects: ["editor"],
+		fixed: [
+			"**A variable's Binding, local or const, fills its row** in the Variables panel, as the fields above and below it do.",
+		],
+	},
+	{
 		version: "0.74.0",
 		date: "2026-09-22",
 		headline: "Nodes by other names, and the node picker by touch.",

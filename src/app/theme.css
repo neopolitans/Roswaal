@@ -5824,7 +5824,8 @@ button.tb.danger {
    of a full-width box with the rest of the row empty, which reads as a control
    that failed to load rather than as a choice of two. */
 .node-details .segmented,
-.inspector .field .segmented {
+.inspector .field .segmented,
+.variable-body .field .segmented {
 	display: flex;
 	width: 100%;
 }
@@ -5833,7 +5834,8 @@ button.tb.danger {
    row is filled without cutting a long label into two lines, which equal thirds
    did to "Roblox and Lune". */
 .node-details .segmented button,
-.inspector .field .segmented button {
+.inspector .field .segmented button,
+.variable-body .field .segmented button {
 	flex: 1 1 auto;
 	text-align: center;
 	white-space: nowrap;
