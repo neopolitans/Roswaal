@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.74.5",
+		date: "2026-09-22",
+		headline: "Nodes dragged out of the node picker look like nodes.",
+		affects: ["editor"],
+		fixed: [
+			"**A node dragged out of the node picker is drawn as the node**, above your finger or pointer. On a touch screen it showed the row's text.",
+		],
+	},
+	{
 		version: "0.74.4",
 		date: "2026-09-22",
 		headline: "Comments around a Declare Function in its own graph.",

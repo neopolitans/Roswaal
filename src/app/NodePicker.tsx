@@ -332,6 +332,17 @@ export function NodePicker(
 											}}
 											onDragStart={(e) => {
 												setActive(i);
+												// Dragged as the node it places, not as the row's text.
+												// Drawn out of sight, pictured, and thrown away: the
+												// browser, and `touch.ts`, take their copy now. Held
+												// from just below it, so a finger does not cover it.
+												const image = document.createElement("div");
+												image.style.cssText = "position: fixed; left: -10000px; top: 0;";
+												image.innerHTML = previewSvg(previewOf(hit.def, hit.config), preview);
+												document.body.appendChild(image);
+												const box = image.getBoundingClientRect();
+												e.dataTransfer.setDragImage(image, box.width / 2, box.height + 12);
+												setTimeout(() => image.remove(), 0);
 												e.dataTransfer.setData(
 													"application/x-roswaal-node",
 													JSON.stringify({ def: hit.def.id, config: hit.config }),

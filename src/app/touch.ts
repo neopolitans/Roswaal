@@ -53,6 +53,12 @@ class TouchDataTransfer {
 	dropEffect = "none";
 	effectAllowed = "all";
 	readonly files: readonly File[] = [];
+	/**
+	 * What the source asked to be dragged as, copied when it asked -- the
+	 * source is free to throw its own away straight after, as it must for a
+	 * mouse, where the browser takes its picture there and then.
+	 */
+	image: { element: HTMLElement; x: number; y: number } | null = null;
 
 	get types(): string[] {
 		return [...this.data.keys()];
@@ -71,8 +77,13 @@ class TouchDataTransfer {
 		else this.data.delete(type.toLowerCase());
 	}
 
-	setDragImage(): void {
-		// The ghost under the finger is drawn here; see `startDrag`.
+	setDragImage(element: Element, x: number, y: number): void {
+		const copy = element.cloneNode(true) as HTMLElement;
+		// Wherever the source kept it out of sight is not where it is drawn.
+		copy.style.position = "static";
+		copy.style.left = "";
+		copy.style.top = "";
+		this.image = { element: copy, x, y };
 	}
 }
 
@@ -98,6 +109,8 @@ export function installTouchGestures(target: Window = window): void {
 	let drag: {
 		id: number; source: HTMLElement; transfer: TouchDataTransfer; ghost: HTMLElement;
 		over: Element | null; accepted: boolean;
+		/** Where the finger is on a drag image, which is then drawn from there. */
+		offset: { x: number; y: number } | null;
 	} | null = null;
 	/**
 	 * Two fingers held still together, which lifted is Ctrl and the right
@@ -168,8 +181,8 @@ export function installTouchGestures(target: Window = window): void {
 
 	const moveDrag = (x: number, y: number) => {
 		if (!drag) return;
-		drag.ghost.style.left = `${x}px`;
-		drag.ghost.style.top = `${y}px`;
+		drag.ghost.style.left = `${x - (drag.offset?.x ?? 0)}px`;
+		drag.ghost.style.top = `${y - (drag.offset?.y ?? 0)}px`;
 		const under = document.elementFromPoint(x, y);
 		if (under !== drag.over) {
 			drag.over?.dispatchEvent(dragEvent("dragleave", drag.transfer, x, y));
@@ -199,13 +212,24 @@ export function installTouchGestures(target: Window = window): void {
 		source.dispatchEvent(start);
 		if (start.defaultPrevented || transfer.types.length === 0) return;
 
-		// A label under the finger, since the thing itself stays where it is.
+		// What the source asked to be dragged as, as a mouse drag would show it
+		// -- the node picker gives the node itself. Otherwise a label, since the
+		// thing itself stays where it is.
 		const ghost = document.createElement("div");
-		ghost.className = "touch-drag-ghost";
-		ghost.textContent = (source.textContent ?? "").trim().slice(0, 48);
+		const image = transfer.image;
+		if (image) {
+			ghost.className = "touch-drag-image";
+			ghost.appendChild(image.element);
+		} else {
+			ghost.className = "touch-drag-ghost";
+			ghost.textContent = (source.textContent ?? "").trim().slice(0, 48);
+		}
 		document.body.appendChild(ghost);
 
-		drag = { id: held.id, source, transfer, ghost, over: null, accepted: false };
+		drag = {
+			id: held.id, source, transfer, ghost, over: null, accepted: false,
+			offset: image ? { x: image.x, y: image.y } : null,
+		};
 		moveDrag(x, y);
 	};
 

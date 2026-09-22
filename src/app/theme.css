@@ -8625,6 +8625,20 @@ button.tb.danger {
 	text-overflow: ellipsis;
 }
 
+/* A drag image the source drew, such as a node from the node picker. Placed by
+   the offset the source gave rather than centred over the finger. */
+.touch-drag-image {
+	position: fixed;
+	z-index: 1000;
+	pointer-events: none;
+	opacity: 0.9;
+	filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35));
+}
+
+.touch-drag-image svg {
+	display: block;
+}
+
 @media (hover: none) and (pointer: coarse) {
 	/* iOS's own drag would lift the same item at the same moment and take the
 	   finger away from the one above. */
