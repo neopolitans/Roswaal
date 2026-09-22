@@ -206,6 +206,12 @@ export type ToolbarItem = Documented &
 		 * two stacked boxes said they were two settings.
 		 */
 		| { t: "pair"; left: string; right: string }
+		/**
+		 * The heading over a list editor -- FIELDS, PARAMETERS -- which is not
+		 * the panel heading `heading` draws: it is small, and its button sits
+		 * at the end of the same line.
+		 */
+		| { t: "listTitle"; text: string; action?: string }
 	);
 
 /**
@@ -426,6 +432,13 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				`<label class="field"${tie}><span>${escapeXml(item.label)}</span>${box}</label>`
 			);
 		}
+
+		case "listTitle":
+			return (
+				`<div class="list-title"${tie}><span>${escapeXml(item.text)}</span>` +
+				`${item.action ? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>` : ""}` +
+				`</div>`
+			);
 
 		case "pair":
 			return (
@@ -1780,7 +1793,7 @@ export const TYPE_FIELDS_INSPECTOR: ToolbarSpec = {
 	groups: [
 		{ items: [{ t: "setting", label: "Type name", value: "Input" }] },
 		{ items: [{ t: "setting", label: "Shape", value: "Table of Fields", control: "select" }] },
-		{ items: [{ t: "heading", text: "Fields", action: "Add" }] },
+		{ items: [{ t: "listTitle", text: "Fields", action: "Add" }] },
 		{ items: [{ t: "pair", left: "throttle", right: "number" }] },
 		{ items: [{ t: "pair", left: "steer", right: "number" }] },
 		{ items: [{ t: "pair", left: "aim", right: "Vector3" }] },

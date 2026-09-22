@@ -7537,11 +7537,42 @@ button.tb.danger {
 
 /* The rows the Inspector draws in a list editor, as pictures: no input to
    focus, so the boxes are spans and want the height a field has. */
+/* The boxes. A drawn field is a span rather than an input -- nothing here is
+   focusable -- so it needs the border and the fill an input paints itself. */
 .docs-bar-frame.inspector .docs-bar-field,
 .docs-bar-frame.inspector .docs-bar-select {
 	display: block;
+	box-sizing: border-box;
 	width: 100%;
+	min-width: 0;
+	padding: 5px 8px;
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	background: var(--bg-input);
+	color: var(--fg);
 	text-align: left;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* The select keeps its chevron, and the row it sits in does not grow for it. */
+.docs-bar-frame.inspector .docs-bar-select {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+/* A picture of a panel does not scroll: a definition too long for the box is
+   cut with an ellipsis, as the editor's own field cuts it. */
+.docs-bar-frame.inspector > .inspector {
+	overflow: hidden;
+}
+
+.docs-bar-frame.inspector .list-row button {
+	padding: 0;
+	text-align: center;
 }
 
 .docs-bar-frame.inspector .list-row {

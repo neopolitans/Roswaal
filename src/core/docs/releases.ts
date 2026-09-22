@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.82.2",
+		date: "2026-09-22",
+		headline: "The drawn Inspector, finished.",
+		affects: ["docs"],
+		fixed: [
+			"**A drawn Inspector's values are boxes**, as the editor's are, its list heading is the small one a list editor has, and it no longer scrolls sideways. A definition too long for the box is cut with an ellipsis where the panel would cut it.",
+		],
+	},
+	{
 		version: "0.82.1",
 		date: "2026-09-22",
 		headline: "Pictures worth the screen they are on.",
