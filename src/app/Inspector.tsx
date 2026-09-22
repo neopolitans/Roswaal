@@ -467,6 +467,7 @@ function TypeEditor({ node }: { node: GraphNode }) {
 			</Field>
 
 			{shape === "fields" && <TypeFields node={node} />}
+			{shape === "fields" && <TableLayout node={node} />}
 
 			{shape === "written" && (
 				<Field label="Definition">
@@ -523,6 +524,9 @@ function TypeEditor({ node }: { node: GraphNode }) {
  */
 /**
  * Whether a table is written on one line or one key to a line.
+ *
+ * Make Dictionary's, and a Table of Fields type's: the same choice about the
+ * same braces, so the same control and the same `layout` config key.
  *
  * Inline is right for two or three keys and unreadable for ten, which is the
  * length a settings table actually is. stylua would break a long one for you,

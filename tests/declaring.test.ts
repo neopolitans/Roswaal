@@ -510,6 +510,42 @@ describe("a type built from fields", () => {
 		b.node("type.declareTop", { config: { name: "Config", definition: "number" } });
 		expect(code(b.build())).toContain("export type Config = number");
 	});
+
+	/** Make Dictionary's Layout, on the type that describes such a table. */
+	it("puts one field on each line when asked", () => {
+		expect(code(fromFields(
+			[{ name: "movementSpeed", type: "number" }, { name: "hp", type: "number" }],
+			{ layout: "lines" },
+		))).toContain(
+			["export type Config = {", "\tmovementSpeed: number,", "\thp: number,", "}"].join("\n"),
+		);
+	});
+
+	it("stays on one line when the layout says inline", () => {
+		expect(code(fromFields([{ name: "hp", type: "number" }], { layout: "inline" })))
+			.toContain("export type Config = { hp: number }");
+	});
+
+	/** Ignored by the written shape, which is laid out however it was typed. */
+	it("leaves a written definition as it was typed", () => {
+		expect(code(fromFields([], { shape: "written", definition: "{ a: number }", layout: "lines" })))
+			.toContain("export type Config = { a: number }");
+	});
+
+	it("indents the fields relative to an in-flow declaration", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const branch = b.node("flow.branch");
+		const type = b.node("type.declareHere", {
+			config: {
+				name: "Inner", export: false, shape: "fields", layout: "lines",
+				fields: [{ name: "hp", type: "number" }],
+			},
+		});
+		b.link(start, "then", branch, "in");
+		b.link(branch, "true", type, "in");
+		expect(code(b.build())).toContain(["\ttype Inner = {", "\t\thp: number,", "\t}"].join("\n"));
+	});
 });
 
 /**

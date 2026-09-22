@@ -4742,7 +4742,7 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "table",
 			head: ["Shape", "Writes", "When"],
 			rows: [
-				["**Table of Fields**", "`{ walkSpeed: number, weld: WeldConstraint? }`", "A record. The fields are rows in the Inspector, so a brace cannot go missing."],
+				["**Table of Fields**", "`{ walkSpeed: number, weld: WeldConstraint? }`", "A record. The fields are rows in the Inspector, so a brace cannot go missing. **Layout** writes it on one line or one field to a line, as Make Dictionary does."],
 				["**Custom Luau**", "Whatever you type", "A union, a function type, a generic — everything the row editor cannot say."],
 				[
 					"**Type of a Value**",

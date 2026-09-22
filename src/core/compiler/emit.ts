@@ -946,7 +946,10 @@ class Emitter {
 	 * function types would be building a second language inside the first.
 	 */
 	private typeDefinition(
-		config: { definition?: string; shape?: string; fields?: { name?: string; type?: string }[] },
+		config: {
+			definition?: string; shape?: string; layout?: string;
+			fields?: { name?: string; type?: string }[];
+		},
 		nodeId: string,
 	): string {
 		// Written out is pasted in as it stands, so an unclosed brace here breaks
@@ -985,6 +988,10 @@ class Emitter {
 			}
 			parts.push(`${fieldName}: ${fieldType}`);
 		}
+		// One field to a line, the way Make Dictionary lays out one key to a
+		// line: trailing comma on the last, leading tab relative to wherever the
+		// declaration itself is indented.
+		if (config.layout === "lines") return `{\n${parts.map((part) => `\t${part},`).join("\n")}\n}`;
 		return `{ ${parts.join(", ")} }`;
 	}
 
@@ -996,7 +1003,7 @@ class Emitter {
 		for (const r of nodes) {
 			const config = (r.node.config ?? {}) as {
 				name?: string; definition?: string; export?: boolean;
-				shape?: string; fields?: { name?: string; type?: string }[];
+				shape?: string; layout?: string; fields?: { name?: string; type?: string }[];
 			};
 			const name = (config.name ?? "").trim();
 			const definition = this.typeDefinition(config, r.node.id);
@@ -1634,7 +1641,7 @@ class Emitter {
 
 			case "type.declareHere": {
 				const config = (r.node.config ?? {}) as {
-					name?: string; export?: boolean; shape?: string; definition?: string;
+					name?: string; export?: boolean; shape?: string; definition?: string; layout?: string;
 					fields?: { name?: string; type?: string }[];
 				};
 				const name = (config.name ?? "").trim();

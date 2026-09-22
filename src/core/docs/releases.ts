@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.73.2",
+		date: "2026-09-22",
+		headline: "Table types, one field to a line.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Declare Type has a Layout setting for Table of Fields**: *Inline*, or *One per line*, as Make Dictionary has. One per line writes each field on its own line with a trailing comma.",
+		],
+	},
+	{
 		version: "0.73.1",
 		date: "2026-09-18",
 		headline: "Steps you can walk through.",
