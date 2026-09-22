@@ -1709,3 +1709,56 @@ export function declarationsPanel(script: NodeScript): ToolbarSpec | undefined {
 		groups: [{ items }],
 	};
 }
+
+/**
+ * The Inspector for a Declare Type, one per way of writing the type.
+ *
+ * The two live side by side on *Members and fields*, because the difference
+ * between them is a panel away from the graph: the nodes look identical on the
+ * canvas — a red box with a name under the title — and what makes one of them
+ * offer members is a dropdown and what is under it. A picture of the panel says
+ * that in one glance; a paragraph about the panel does not.
+ */
+export const TYPE_FIELDS_INSPECTOR: ToolbarSpec = {
+	id: "type-fields-inspector",
+	title: "A type entered as fields",
+	summary: "The Inspector for a Declare Type whose shape is Table of Fields.",
+	chrome: "panel",
+	groups: [
+		{ items: [{ t: "label", text: "Type name" }, { t: "field", text: "Input" }] },
+		{ items: [{ t: "label", text: "Shape" }, { t: "select", text: "Table of Fields" }] },
+		{ items: [{ t: "heading", text: "Fields", action: "Add" }] },
+		{ items: [{ t: "field", text: "throttle" }, { t: "field", text: "number" }] },
+		{ items: [{ t: "field", text: "steer" }, { t: "field", text: "number" }] },
+		{ items: [{ t: "field", text: "aim" }, { t: "field", text: "Vector3" }] },
+		{ items: [{ t: "label", text: "Layout" }, { t: "select", text: "One per line" }] },
+	],
+};
+
+/** The same panel, for a type typed out instead. */
+export const TYPE_WRITTEN_INSPECTOR: ToolbarSpec = {
+	id: "type-written-inspector",
+	title: "A type written as Luau",
+	summary: "The Inspector for a Declare Type whose shape is Custom Luau.",
+	chrome: "panel",
+	groups: [
+		{ items: [{ t: "label", text: "Type name" }, { t: "field", text: "Shot" }] },
+		{ items: [{ t: "label", text: "Shape" }, { t: "select", text: "Custom Luau" }] },
+		{ items: [{ t: "label", text: "Definition" }] },
+		{ items: [{ t: "field", text: "{ damage: number, from: Vector3 }" }] },
+	],
+};
+
+/** And for a type that has no fields to offer at all. */
+export const TYPE_OPEN_INSPECTOR: ToolbarSpec = {
+	id: "type-open-inspector",
+	title: "A type with no fixed fields",
+	summary: "The Inspector for a Declare Type holding a dictionary type.",
+	chrome: "panel",
+	groups: [
+		{ items: [{ t: "label", text: "Type name" }, { t: "field", text: "Scores" }] },
+		{ items: [{ t: "label", text: "Shape" }, { t: "select", text: "Custom Luau" }] },
+		{ items: [{ t: "label", text: "Definition" }] },
+		{ items: [{ t: "field", text: "{ [string]: number }" }] },
+	],
+};

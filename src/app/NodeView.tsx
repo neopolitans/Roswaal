@@ -421,6 +421,7 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	// graphs from filling up with literal nodes.
 	const editor =
 		side === "in" && pin.kind === "data" && !wired && pin.required !== true
+			&& pin.hideEditor !== true
 			? renderLiteral(props, pin)
 			: null;
 

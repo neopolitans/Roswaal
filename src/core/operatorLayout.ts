@@ -113,7 +113,7 @@ const FIELD_RANK: Record<OperatorField, number> = { check: 0, field: 1, wide: 2 
 
 /** The editor one value would draw on this pin, if any. */
 function fieldFor(pin: PinDef, literal: Literal | undefined): OperatorField | undefined {
-	if (!literal) return undefined;
+	if (!literal || pin.hideEditor === true) return undefined;
 	if (pin.wide === true) return "wide";
 	if (literal.t === "boolean") return "check";
 	if (literal.t === "number" || literal.t === "raw") return "field";

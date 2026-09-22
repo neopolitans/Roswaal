@@ -294,7 +294,12 @@ function memberPill(def: NodeDef): NodeDef {
 	return pill(
 		// Unnamed, as Get Member's own pin is: the pill writes `.Magnitude`,
 		// and a row labelled "Vector" beside it repeats the wire's colour.
-		{ ...def, inputs: def.inputs.map((pin, i) => (i === 0 ? { ...pin, name: "" } : pin)) },
+		{
+			...def,
+			inputs: def.inputs.map(
+				(pin, i) => (i === 0 ? { ...pin, name: "", hideEditor: true as const } : pin),
+			),
+		},
 		`.${read[1]}`,
 	);
 }

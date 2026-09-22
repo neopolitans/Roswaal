@@ -702,6 +702,8 @@ function BlockView({ block }: { block: Block }) {
 			return (
 				<GraphFigure script={block.script} caption={block.caption} panel={block.panel} />
 			);
+		case "graphs":
+			return <GraphTabs block={block} />;
 		case "tabs":
 			return <Tabs block={block} />;
 		case "nodemap":
@@ -713,6 +715,37 @@ function BlockView({ block }: { block: Block }) {
 		case "walkthrough":
 			return <WalkthroughFigure block={block} />;
 	}
+}
+
+
+/**
+ * Several graphs behind tabs, as the editor shows two open documents.
+ *
+ * The static site does this with radios and labels; here it is state, because
+ * the panel is React either way and a radio would be the odd one out. Both
+ * render every graph — switching is showing, not building.
+ */
+function GraphTabs({ block }: { block: Block & { t: "graphs" } }) {
+	const [at, setAt] = useState(0);
+	const showing = block.graphs[Math.min(at, block.graphs.length - 1)];
+	return (
+		<div className="docs-graph-tabs live">
+			{block.label && <p className="docs-tabs-label">{block.label}</p>}
+			<div className="docs-tab-bar">
+				{block.graphs.map((one, i) => (
+					<button
+						key={one.id}
+						type="button"
+						className={i === at ? "on" : ""}
+						onClick={() => setAt(i)}
+					>
+						{one.title}
+					</button>
+				))}
+			</div>
+			<GraphFigure script={showing.script} caption={showing.caption} />
+		</div>
+	);
 }
 
 /**

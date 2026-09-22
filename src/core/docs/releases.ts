@@ -94,6 +94,20 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.82.0",
+		date: "2026-09-22",
+		headline: "Two graphs in one frame.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A documentation example can hold several graphs**, a tab each, as the editor holds two open documents. *Members and fields* uses it to show `Tank.Config` and the graph that requires it side by side.",
+			"**The Inspector is drawn beside each type example**, since which shape a Declare Type is — rows or typed-out Luau — is decided in the panel and cannot be seen on the canvas.",
+		],
+		fixed: [
+			"**A member pill is as wide as the member it reads.** `.Magnitude` reserved room for a value nobody edits there, so it was half again as wide as its own word whether or not anything was wired in.",
+			"**The type examples compile to what is printed under them.** They declared a local and never gave it a value, so the line below read a field off `nil`.",
+		],
+	},
+	{
 		version: "0.81.0",
 		date: "2026-09-22",
 		headline: "A member read looks like one.",

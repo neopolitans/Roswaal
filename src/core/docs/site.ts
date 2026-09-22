@@ -34,11 +34,7 @@ import {
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
-	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_BAR_TABLET, DESIGNER_TOUCH_BAR,
-	DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_PHONE, DOCS_SITE_BAR_TOUCH, EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE,
-	EDITOR_BAR_TABLET, FUNCTIONS_PANEL, PROJECT_MENU, PROJECTS_FOOT, START_PAGE, GRAPH_BAR, GRAPH_BAR_PHONE, GRAPH_BAR_TABLET, legendOf,
-	MAP_BAR, MODULES_PANEL,
-	VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec,
+	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_BAR_TABLET, DESIGNER_TOUCH_BAR, DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_PHONE, DOCS_SITE_BAR_TOUCH, EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE, EDITOR_BAR_TABLET, FUNCTIONS_PANEL, PROJECT_MENU, PROJECTS_FOOT, START_PAGE, GRAPH_BAR, GRAPH_BAR_PHONE, GRAPH_BAR_TABLET, legendOf, MAP_BAR, MODULES_PANEL, VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec, TYPE_FIELDS_INSPECTOR, TYPE_WRITTEN_INSPECTOR, TYPE_OPEN_INSPECTOR,
 } from "./toolbars.js";
 import {
 	DESIGNER_LAYOUT, DESIGNER_LAYOUT_PHONE, DESIGNER_LAYOUT_TOUCH, EDITOR_LAYOUT, EDITOR_LAYOUT_PHONE,
@@ -159,6 +155,27 @@ export type Block =
 			 * graph itself, so the two halves cannot describe different graphs.
 			 */
 			panel?: ToolbarSpec;
+	  }
+	/**
+	 * Several graphs in one frame, a tab each, as the editor shows two open
+	 * documents.
+	 *
+	 * For an example that is not one graph. A module and the graph that requires
+	 * it are two files and one idea, and showing them one above the other asks
+	 * the reader to hold the first while scrolling the second — where the editor
+	 * itself would put them behind tabs and let you flick between them. The
+	 * titles are the file names, because that is what the tabs say in the editor.
+	 */
+	| {
+			t: "graphs";
+			label?: string;
+			graphs: {
+				/** Stable, and part of the radio's name in the static build. */
+				id: string;
+				title: string;
+				script: NodeScript;
+				caption?: string;
+			}[];
 	  }
 	/**
 	 * A node map drawn beside what it produces, the two halves linked.
@@ -461,6 +478,17 @@ export function blockText(block: Block): string {
 			// an id is what somebody searching for a node in a guide will type.
 			return [...block.script.nodes.map((n) => n.def), block.caption ?? ""]
 				.join(" ").trim();
+		case "graphs":
+			// Every graph's, including the ones not showing: a search finds the
+			// page, and the page has them all in it.
+			return [
+				block.label ?? "",
+				...block.graphs.flatMap((one) => [
+					one.title,
+					one.caption ?? "",
+					...one.script.nodes.map((n) => n.def),
+				]),
+			].join(" ").trim();
 		case "toggle":
 			// The label, not the hint. Somebody searching for "pre-release" should
 			// land on the page that has the switch for them.
@@ -2917,6 +2945,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 								"The ordinary case. `Input` holds a throttle, a steer and an aim, each entered " +
 								"as a row; the local is that type; the pill reads `aim` and hands on a Vector3.",
 						},
+						{ t: "toolbar", bar: TYPE_FIELDS_INSPECTOR },
 						{
 							t: "graph",
 							script: GUIDE_SCENES.typeFieldsRows(),
@@ -2927,7 +2956,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 							lang: "luau",
 							text:
 								"export type Input = {\n\tthrottle: number,\n\tsteer: number,\n\taim: Vector3,\n}\n\n" +
-								"local input: Input = nil\nlocal aim = input.aim",
+								"local input: Input = readInput()\nprint(input.aim)",
 						},
 						{
 							t: "p",
@@ -2949,6 +2978,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 								"as what you wrote is a table of named fields. This is the shape to reach for " +
 								"when a field's own type is more than a name — `{ Player }`, `Model?`.",
 						},
+						{ t: "toolbar", bar: TYPE_WRITTEN_INSPECTOR },
 						{
 							t: "graph",
 							script: GUIDE_SCENES.typeFieldsWritten(),
@@ -2959,7 +2989,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 							lang: "luau",
 							text:
 								"export type Shot = { damage: number, from: Vector3 }\n\n" +
-								"local shot: Shot = nil\nlocal damage = shot.damage",
+								"local shot: Shot = readShot()\nprint(shot.damage)",
 						},
 					],
 				},
@@ -2975,6 +3005,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 								"and refuses a member on one — **Get Field** is the node, and the key is a pin " +
 								"you fill in or wire.",
 						},
+						{ t: "toolbar", bar: TYPE_OPEN_INSPECTOR },
 						{
 							t: "graph",
 							script: GUIDE_SCENES.typeFieldsOpen(),
@@ -2985,7 +3016,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 							lang: "luau",
 							text:
 								"export type Scores = { [string]: number }\n\n" +
-								"local scores: Scores = nil\nlocal alice = scores.alice",
+								"local scores: Scores = loadScores()\nprint(scores.alice)",
 						},
 					],
 				},
@@ -3002,9 +3033,22 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 				"so renaming one there changes what is offered here.",
 		},
 		{
-			t: "graph",
-			script: GUIDE_SCENES.memberOfModule(),
-			caption: "Get Field takes a key off the module's table; Get Member reads a field of the type that value is annotated with.",
+			t: "graphs",
+			label: "Two files, one idea",
+			graphs: [
+				{
+					id: "module-config",
+					title: "Tank.Config",
+					script: GUIDE_SCENES.tankConfigModule(),
+					caption: "The module: it declares the type, and returns a table with that value on it.",
+				},
+				{
+					id: "module-user",
+					title: "Remotes",
+					script: GUIDE_SCENES.memberOfModule(),
+					caption: "The graph that requires it: Get Field takes the key, Get Member reads the type's field.",
+				},
+			],
 		},
 		{
 			t: "code",

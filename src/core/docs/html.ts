@@ -247,6 +247,38 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			return `<figure class="docs-preview graph${panel ? " with-panel" : ""}">` +
 				`${panel}<div class="graph-viewport">${svg}</div>${caption}</figure>`;
 		}
+		case "graphs": {
+			if (!options.preview || !options.registry) return "";
+			// Radios and labels, as the tabs block does it, so flicking between
+			// two graphs needs no script — and every graph is in the page, so a
+			// search of the text finds what is on the one that is not showing.
+			const name = `graphs-${block.graphs.map((one) => one.id).join("-")}`;
+			const drawn = block.graphs.map((one) => ({
+				one,
+				svg: graphSvg(one.script, options.registry!, options.preview!),
+			}));
+			if (drawn.some(({ svg }) => svg === "")) return "";
+			const inputs = drawn
+				.map(({ one }, i) =>
+					`<input type="radio" name="${escapeHtml(name)}" ` +
+					`id="${escapeHtml(`${name}-${one.id}`)}"${i === 0 ? " checked" : ""}>`)
+				.join("");
+			const labels = drawn
+				.map(({ one }) =>
+					`<label for="${escapeHtml(`${name}-${one.id}`)}">${escapeHtml(one.title)}</label>`)
+				.join("");
+			const panels = drawn
+				.map(({ one, svg }) =>
+					`<figure class="docs-preview graph docs-graph-panel">` +
+					`<div class="graph-viewport">${svg}</div>` +
+					`${one.caption ? `<figcaption>${inline(one.caption, up)}</figcaption>` : ""}` +
+					`</figure>`)
+				.join("");
+			return `<div class="docs-graph-tabs">` +
+				`${block.label ? `<p class="docs-tabs-label">${inline(block.label, up)}</p>` : ""}` +
+				`${inputs}<div class="docs-tab-bar">${labels}</div>` +
+				`<div class="docs-tab-panels">${panels}</div></div>`;
+		}
 		case "toggle": {
 			// `data-pref` is what the script reads; the checkbox is checked by that
 			// script rather than here, because the answer lives in the reader's own

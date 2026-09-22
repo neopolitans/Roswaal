@@ -296,6 +296,9 @@ function previewPin(pin: PinDef, side: "in" | "out"): PreviewPin {
  */
 function valueOf(pin: PinDef, typed?: Literal): PreviewValue | undefined {
 	if (pin.kind !== "data" || pin.required === true) return undefined;
+	// A pin that draws no editor in the app draws none here: the picture and
+	// the node are the same node. See `PinDef.hideEditor`.
+	if (pin.hideEditor === true) return undefined;
 	if (pin.optional === true && typed === undefined) return { shape: "unset" };
 	const value = editorOf(pin, typed ?? pin.default);
 	return value && pin.optional === true ? { ...value, clearable: true } : value;

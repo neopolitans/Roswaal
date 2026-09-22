@@ -588,19 +588,22 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 				layout: "lines",
 			},
 		});
+		const from = g.stand("readInput()", { column: 1, row: 2 });
+		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const declare = g.node("local.declare", {
-			column: 0, row: 1,
+			column: 1, row: 1,
 			config: { type: "Input" },
 			literals: { name: str("input") },
 		});
-		const get = g.node("local.get", {
-			column: 1, row: 1,
-			config: { local: declare, name: "input", type: "Input" },
-		});
+		g.link(begin, "then", declare, "in");
+		g.link(from, "result", declare, "value");
 		const read = g.node("value.member", {
 			column: 2, row: 1, config: { member: "aim", type: "Vector3" },
 		});
-		g.link(get, "value", read, "object");
+		const print = g.node("debug.print", { column: 3, row: 1 });
+		g.link(declare, "ref", read, "object");
+		g.link(declare, "then", print, "in");
+		g.link(read, "result", print, "value");
 		return g.out();
 	},
 
@@ -615,19 +618,22 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 				definition: "{ damage: number, from: Vector3 }",
 			},
 		});
+		const from = g.stand("readShot()", { column: 1, row: 2 });
+		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const declare = g.node("local.declare", {
-			column: 0, row: 1,
+			column: 1, row: 1,
 			config: { type: "Shot" },
 			literals: { name: str("shot") },
 		});
-		const get = g.node("local.get", {
-			column: 1, row: 1,
-			config: { local: declare, name: "shot", type: "Shot" },
-		});
+		g.link(begin, "then", declare, "in");
+		g.link(from, "result", declare, "value");
 		const read = g.node("value.member", {
 			column: 2, row: 1, config: { member: "damage", type: "number" },
 		});
-		g.link(get, "value", read, "object");
+		const print = g.node("debug.print", { column: 3, row: 1 });
+		g.link(declare, "ref", read, "object");
+		g.link(declare, "then", print, "in");
+		g.link(read, "result", print, "value");
 		return g.out();
 	},
 
@@ -638,19 +644,60 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 			column: 0, row: 0,
 			config: { name: "Scores", shape: "written", definition: "{ [string]: number }" },
 		});
+		const from = g.stand("loadScores()", { column: 1, row: 2 });
+		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const declare = g.node("local.declare", {
-			column: 0, row: 1,
+			column: 1, row: 1,
 			config: { type: "Scores" },
 			literals: { name: str("scores") },
 		});
-		const get = g.node("local.get", {
-			column: 1, row: 1,
-			config: { local: declare, name: "scores", type: "Scores" },
-		});
+		g.link(begin, "then", declare, "in");
+		g.link(from, "result", declare, "value");
 		const read = g.node("value.field", {
 			column: 2, row: 1, literals: { field: str("alice") },
 		});
-		g.link(get, "value", read, "object");
+		const print = g.node("debug.print", { column: 3, row: 1 });
+		g.link(declare, "ref", read, "object");
+		g.link(declare, "then", print, "in");
+		g.link(read, "result", print, "value");
+		return g.out();
+	},
+
+	/**
+	 * The module the next scene requires: `Tank.Config`.
+	 *
+	 * Here so the pair can be read as the two files they are. It declares the
+	 * type *and* returns the table, which is the arrangement that makes
+	 * `Config.Tuning` nameable from another graph at all — the type is exported
+	 * by the module, and the value is a key on what it returns.
+	 */
+	tankConfigModule: () => {
+		const g = new G({ scriptClass: "ModuleScript" }, TIGHT);
+		g.node("type.declareTop", {
+			column: 0, row: 0,
+			config: {
+				name: "Tuning",
+				fields: [
+					{ name: "turnRate", type: "number" },
+					{ name: "accelerationTime", type: "number" },
+				],
+				layout: "lines",
+			},
+		});
+		const tuning = g.node("table.dictionary", {
+			column: 0, row: 1,
+			config: { args: 2, split: { "in:p0": "keyValue", "in:p1": "keyValue" }, layout: "lines" },
+			literals: {
+				"p0.key": str("turnRate"),
+				"p0.value": num(45),
+				"p1.key": str("accelerationTime"),
+				"p1.value": num(5),
+			},
+		});
+		const exports = g.node("module.exports", {
+			column: 1, row: 1, config: { exports: [{ name: "tuning" }] },
+		});
+		g.link(tuning, "result", exports, "e0");
 		return g.out();
 	},
 

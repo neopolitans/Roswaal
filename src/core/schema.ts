@@ -122,6 +122,16 @@ export interface PinDef {
 	 * built for a text field and drawn with a picker hanging off it.
 	 */
 	wide?: true;
+	/**
+	 * Nothing is drawn for this pin's value, and no room is left for one.
+	 *
+	 * The pin keeps its default, because the default is what an unwired node
+	 * compiles with -- `Vector3.zero.Magnitude` rather than an error. What it
+	 * loses is the box: on a member pill the value is a constant nobody edits
+	 * there, and reserving a field's width for it made `.Magnitude` twice as
+	 * wide as the word it draws, wired or not.
+	 */
+	hideEditor?: true;
 	description?: string;
 	/**
 	 * This pin accepts hand-written Luau, and opens a code editor for it.
