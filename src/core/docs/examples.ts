@@ -106,6 +106,15 @@ export class G {
 		return id;
 	}
 
+	/**
+	 * Draws these nodes in a function's own graph, where the editor puts a
+	 * function's body. A Function is in its own graph already.
+	 */
+	inside(fn: string, ...ids: string[]): this {
+		for (const node of this.script.nodes) if (ids.includes(node.id)) node.graph = fn;
+		return this;
+	}
+
 	/** The column just right of a node, for placing what it feeds. */
 	rightOf(id: string): number {
 		return (this.columns.get(id) ?? 0) + 1;
@@ -290,6 +299,7 @@ export const CURATED: Record<string, () => NodeScript> = {
 		});
 		const p = g.node("debug.print");
 		g.link(fn, "then", p, "in").link(fn, "p0", p, "value");
+		g.inside(fn, p);
 		return g.out();
 	},
 
@@ -308,16 +318,17 @@ export const CURATED: Record<string, () => NodeScript> = {
 			config: { returns: [{ name: "result", type: "number" }] },
 		});
 		g.link(fn, "then", ret, "in").link(times, "result", ret, "r0");
+		g.inside(fn, times, ret);
 		return g.out();
 	},
 
 	"function.get": () => {
 		const g = new G();
 		const fn = g.node("function.entry", { config: { name: "onHit", params: [], returns: [] } });
-		printAfter(g, fn, "then", "Hit");
-		const begin = g.node("script.begin");
-		const ref = g.node("function.get", { config: { function: fn, name: "onHit" } });
-		const p = g.node("debug.print");
+		g.inside(fn, printAfter(g, fn, "then", "Hit"));
+		const begin = g.node("script.begin", { column: 0 });
+		const ref = g.node("function.get", { config: { function: fn, name: "onHit" }, column: 1, row: 1 });
+		const p = g.node("debug.print", { column: 2 });
 		g.link(begin, "then", p, "in").link(ref, "fn", p, "value");
 		return g.out();
 	},
@@ -329,9 +340,13 @@ export const CURATED: Record<string, () => NodeScript> = {
 		});
 		const p = g.node("debug.print");
 		g.link(fn, "then", p, "in").link(fn, "p0", p, "value");
+		g.inside(fn, p);
 
-		const exports = g.node("module.exports", { config: { exports: [{ name: "greet" }] } });
-		g.link(fn, "self", exports, "e0");
+		// A Function is in its own graph, so the module's graph reaches it as
+		// the editor does: a Get Function, wired into the export.
+		const ref = g.node("function.get", { config: { function: fn, name: "greet" }, column: 0 });
+		const exports = g.node("module.exports", { config: { exports: [{ name: "greet" }] }, column: 1 });
+		g.link(ref, "fn", exports, "e0");
 		return g.out();
 	},
 
@@ -371,11 +386,11 @@ export const CURATED: Record<string, () => NodeScript> = {
 		const fn = g.node("function.entry", {
 			config: { name: "greet", params: [{ name: "who", type: "string" }], returns: [] },
 		});
-		printAfter(g, fn, "then", "Hello");
+		g.inside(fn, printAfter(g, fn, "then", "Hello"));
 
-		const begin = g.node("script.begin");
-		const ref = g.node("function.get", { config: { function: fn, name: "greet" } });
-		const call = g.node("call.function", { config: { args: 1 }, literals: { a0: str("world") } });
+		const begin = g.node("script.begin", { column: 0 });
+		const ref = g.node("function.get", { config: { function: fn, name: "greet" }, column: 1, row: 1 });
+		const call = g.node("call.function", { config: { args: 1 }, literals: { a0: str("world") }, column: 2 });
 		g.link(begin, "then", call, "in").link(ref, "fn", call, "fn");
 		return g.out();
 	},
@@ -588,7 +603,21 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 				layout: "lines",
 			},
 		});
-		const from = g.stand("readInput()", { column: 1, row: 2 });
+		// A table written out, so the scene holds everything it reads: the
+		// value is the type's three fields, filled in.
+		const from = g.node("table.dictionary", {
+			column: 0, row: 2,
+			config: {
+				args: 3,
+				split: { "in:p0": "keyValue", "in:p1": "keyValue", "in:p2": "keyValue" },
+				layout: "lines",
+			},
+			literals: {
+				"p0.key": str("throttle"), "p0.value": num(1),
+				"p1.key": str("steer"), "p1.value": num(0),
+				"p2.key": str("aim"), "p2.value": { t: "raw", v: "Vector3.zAxis" },
+			},
+		});
 		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const declare = g.node("local.declare", {
 			column: 1, row: 1,
@@ -618,7 +647,14 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 				definition: "{ damage: number, from: Vector3 }",
 			},
 		});
-		const from = g.stand("readShot()", { column: 1, row: 2 });
+		const from = g.node("table.dictionary", {
+			column: 0, row: 2,
+			config: { args: 2, split: { "in:p0": "keyValue", "in:p1": "keyValue" } },
+			literals: {
+				"p0.key": str("damage"), "p0.value": num(25),
+				"p1.key": str("from"), "p1.value": { t: "raw", v: "Vector3.zero" },
+			},
+		});
 		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const declare = g.node("local.declare", {
 			column: 1, row: 1,
@@ -644,7 +680,14 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 			column: 0, row: 0,
 			config: { name: "Scores", shape: "written", definition: "{ [string]: number }" },
 		});
-		const from = g.stand("loadScores()", { column: 1, row: 2 });
+		const from = g.node("table.dictionary", {
+			column: 0, row: 2,
+			config: { args: 2, split: { "in:p0": "keyValue", "in:p1": "keyValue" } },
+			literals: {
+				"p0.key": str("alice"), "p0.value": num(12),
+				"p1.key": str("bob"), "p1.value": num(9),
+			},
+		});
 		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const declare = g.node("local.declare", {
 			column: 1, row: 1,

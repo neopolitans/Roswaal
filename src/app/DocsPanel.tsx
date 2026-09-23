@@ -53,6 +53,7 @@ import { mapFigure, mapFigureHtml } from "../core/docs/mapFigure.js";
 import type { NodeMap } from "../core/nodemap.js";
 import type { ToolbarSpec } from "../core/docs/toolbars.js";
 import { VERSION } from "../cli/version.js";
+import { graphViews } from "../core/docs/graphViews.js";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
 
@@ -702,10 +703,24 @@ function BlockView({ block }: { block: Block }) {
 			return <PinTable title={block.title} pins={block.pins} />;
 		case "preview":
 			return <PreviewFigure nodes={block.nodes} caption={block.caption} />;
-		case "graph":
+		case "graph": {
+			// A function is drawn in a graph of its own, a tab each, as the
+			// editor opens it.
+			const views = graphViews(block.script);
+			if (views.length > 0) {
+				return (
+					<GraphTabs
+						block={{
+							t: "graphs",
+							graphs: views.map((view, i) => (i === 0 && block.caption ? { ...view, caption: block.caption } : view)),
+						}}
+					/>
+				);
+			}
 			return (
 				<GraphFigure script={block.script} caption={block.caption} panel={block.panel} />
 			);
+		}
 		case "graphs":
 			return <GraphTabs block={block} />;
 		case "tabs":

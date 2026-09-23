@@ -30,6 +30,7 @@ import { nodeBounds, pinPosition, wirePath } from "../src/app/geometry.js";
 import { NODE } from "../src/app/layers.js";
 import { nodeColor, pinColor } from "../src/app/palette.js";
 import { emptyScript, type GraphNode, type NodeDef, type NodeScript } from "../src/core/schema.js";
+import { graphViews } from "../src/core/docs/graphViews.js";
 
 const registry = createRegistry();
 const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
@@ -385,7 +386,15 @@ describe("graph preview geometry", () => {
 	 * which looked exactly like a bug in the renderer.
 	 */
 	it("draws scenes whose nodes do not overlap", () => {
-		for (const [id, script] of scenes) {
+		// A function's graph is drawn on its own, so each graph is its own
+		// canvas: two nodes in different graphs are never on screen together.
+		const drawn = scenes.flatMap(([id, script]) => {
+			const views = graphViews(script);
+			return views.length > 0
+				? views.map((view) => [`${id} (${view.title})`, view.script] as const)
+				: [[id, script] as const];
+		});
+		for (const [id, script] of drawn) {
 			const placedNodes = placeGraph(script, registry, graphOptions);
 			for (let i = 0; i < placedNodes.length; i++) {
 				for (let j = i + 1; j < placedNodes.length; j++) {

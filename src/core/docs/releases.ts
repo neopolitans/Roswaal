@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.97.0",
+		date: "2026-09-23",
+		headline: "Documentation graphs are drawn as the editor draws them.",
+		affects: ["docs"],
+		changed: [
+			"**A function in a documentation graph has a tab of its own**, as in the editor: the script's graph first, then one per function. On the pages for Function, Get Function, Return, Call Function and Module Exports, and in the Roblox demo.",
+			"**Members and fields builds the values it reads**: each type example fills in a table, rather than calling a function the page never defines.",
+		],
+	},
+	{
 		version: "0.96.0",
 		date: "2026-09-23",
 		headline: "What can be nil says so.",

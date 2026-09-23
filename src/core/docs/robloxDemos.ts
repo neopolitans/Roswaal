@@ -42,7 +42,8 @@ export const ROBLOX_DEMO_GRAPHS =
 					"id": "091a4b93-e238-446a-a258-c4fd3407507e",
 					"def": "math.add",
 					"x": 387,
-					"y": -37
+					"y": -37,
+					"graph": "a17d2f2d-90fc-4ad7-8260-2302e0aad281"
 				},
 				{
 					"id": "18e9cab5-80cf-4814-8997-9e445a7795ae",
@@ -76,7 +77,8 @@ export const ROBLOX_DEMO_GRAPHS =
 								"type": "number"
 							}
 						]
-					}
+					},
+					"graph": "a17d2f2d-90fc-4ad7-8260-2302e0aad281"
 				},
 				{
 					"id": "9f7806fd-3992-4c4f-8e8b-73eb443b9782",
@@ -87,7 +89,8 @@ export const ROBLOX_DEMO_GRAPHS =
 						"name": "Accumulator",
 						"type": "number",
 						"variable": "29751969-1b75-45e4-902e-01a6804c8284"
-					}
+					},
+					"graph": "a17d2f2d-90fc-4ad7-8260-2302e0aad281"
 				},
 				{
 					"id": "a0e48503-7ed3-4988-a0a1-c7f15666bbb2",
@@ -98,7 +101,8 @@ export const ROBLOX_DEMO_GRAPHS =
 						"name": "Accumulator",
 						"type": "number",
 						"variable": "29751969-1b75-45e4-902e-01a6804c8284"
-					}
+					},
+					"graph": "a17d2f2d-90fc-4ad7-8260-2302e0aad281"
 				},
 				{
 					"id": "a17d2f2d-90fc-4ad7-8260-2302e0aad281",
@@ -131,7 +135,8 @@ export const ROBLOX_DEMO_GRAPHS =
 							"t": "string",
 							"v": "Hello, "
 						}
-					}
+					},
+					"graph": "fn"
 				},
 				{
 					"id": "exports",
@@ -184,7 +189,8 @@ export const ROBLOX_DEMO_GRAPHS =
 								"type": "string"
 							}
 						]
-					}
+					},
+					"graph": "fn"
 				}
 			],
 			"links": [

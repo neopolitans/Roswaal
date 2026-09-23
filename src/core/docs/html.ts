@@ -31,6 +31,7 @@ import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
 import { mapFigure, mapFigureHtml } from "./mapFigure.js";
 import { noteHeadHtml } from "./notes.js";
+import { graphViews } from "./graphViews.js";
 
 export interface RenderOptions {
 	/** Turns Luau into HTML. Returns escaped text when absent. */
@@ -237,6 +238,15 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			// No geometry passed in means no picture, rather than one at invented
 			// sizes — the same bargain the node previews make.
 			if (!options.preview || !options.registry) return "";
+			// A function is drawn in a graph of its own, a tab each, as the
+			// editor opens it.
+			const views = graphViews(block.script);
+			if (views.length > 0) {
+				return renderBlock({
+					t: "graphs",
+					graphs: views.map((view, i) => ({ ...view, ...(i === 0 && block.caption ? { caption: block.caption } : {}) })),
+				}, options, up);
+			}
 			const svg = graphSvg(block.script, options.registry, options.preview);
 			if (svg === "") return "";
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";

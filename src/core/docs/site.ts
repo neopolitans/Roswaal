@@ -2928,7 +2928,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 							lang: "luau",
 							text:
 								"export type Input = {\n\tthrottle: number,\n\tsteer: number,\n\taim: Vector3,\n}\n\n" +
-								"local input: Input = readInput()\nprint(input.aim)",
+								"local input: Input = {\n\tthrottle = 1,\n\tsteer = 0,\n\taim = Vector3.zAxis,\n}\nprint(input.aim)",
 						},
 						{
 							t: "p",
@@ -2961,7 +2961,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 							lang: "luau",
 							text:
 								"export type Shot = { damage: number, from: Vector3 }\n\n" +
-								"local shot: Shot = readShot()\nprint(shot.damage)",
+								"local shot: Shot = { damage = 25, from = Vector3.zero }\nprint(shot.damage)",
 						},
 					],
 				},
@@ -2988,7 +2988,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 							lang: "luau",
 							text:
 								"export type Scores = { [string]: number }\n\n" +
-								"local scores: Scores = loadScores()\nprint(scores.alice)",
+								"local scores: Scores = { alice = 12, bob = 9 }\nprint(scores.alice)",
 						},
 					],
 				},
