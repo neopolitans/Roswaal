@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.91.0",
+		date: "2026-09-23",
+		headline: "Keys complete in brackets as well as after a dot.",
+		affects: ["editor"],
+		added: [
+			"**A key in brackets completes**: `tbl[\"A` offers the table's keys inside the string, and `tbl[` offers them quoted. Brackets reach every string key — `[\"two words\"]` included — where a dot offers only the ones that are names. A class's properties complete the same way.",
+		],
+	},
+	{
 		version: "0.90.1",
 		date: "2026-09-23",
 		headline: "The hover's signature reads as code.",

@@ -62,6 +62,11 @@ export function classOfCall(expr: Expr): string | undefined {
 	return undefined;
 }
 
+/** The keys a dot can reach: the ones that are names. */
+export function dotKeys(held: Held): string[] {
+	return (held.keys ?? []).filter((key) => IDENTIFIER.test(key));
+}
+
 /** What a declaration says its value holds. */
 export function heldBy(typeText: string | undefined, value: Expr | undefined): Held {
 	const written = classOfTypeText(typeText);
@@ -82,7 +87,9 @@ export function heldBy(typeText: string | undefined, value: Expr | undefined): H
 			const key = field.kind === "named"
 				? field.name.name
 				: field.kind === "keyed" ? stringValue(field.key) : undefined;
-			if (key && IDENTIFIER.test(key) && !keys.includes(key)) keys.push(key);
+			// Every string key: brackets reach `["two words"]`, and a dot only
+			// the ones that are names — `dotKeys` is that narrower list.
+			if (key !== undefined && !keys.includes(key)) keys.push(key);
 		}
 		return { keys };
 	}

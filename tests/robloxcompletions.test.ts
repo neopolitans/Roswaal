@@ -108,3 +108,27 @@ describe("the cases from the first test of the editor", () => {
 		expect(offered("local thing = makeThing()\nthing.|")).toEqual([]);
 	});
 });
+
+describe("a key in brackets", () => {
+	const TABLE = 'local tbl = {\n["Anne"] = 500,\n["James"] = 300,\n["two words"] = 1,\n}\n';
+
+	it("offers the keys inside the string", () => {
+		expect(offered(`${TABLE}tbl["A|`)).toEqual(["Anne", "James", "two words"]);
+	});
+
+	it("offers them quoted before the string is started", () => {
+		expect(offered(`${TABLE}tbl[|`)).toEqual(['"Anne"', '"James"', '"two words"']);
+	});
+
+	it("keeps a key that is not a name out of the dot's list", () => {
+		expect(offered(`${TABLE}tbl.|`)).toEqual(["Anne", "James"]);
+	});
+
+	it("offers a class's properties in brackets too", () => {
+		expect(offered('local p = Instance.new("Part")\np["Anc|')).toContain("Anchored");
+	});
+
+	it("still completes an ordinary name used as an index", () => {
+		expect(offered("local index = 1\nlist[ind|")).toContain("index");
+	});
+});

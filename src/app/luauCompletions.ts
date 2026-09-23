@@ -19,7 +19,7 @@ import { toIdentifier } from "../core/compiler/luau.js";
 import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
 import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
 import { propertiesOf } from "../core/robloxProperties.js";
-import { heldBy } from "../core/luau/infer.js";
+import { dotKeys, heldBy } from "../core/luau/infer.js";
 import { DATATYPE_STATICS } from "../core/robloxStatics.js";
 import {
 	CLASSES as ROBLOX_CLASSES, DATATYPES as ENGINE_DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
@@ -160,10 +160,10 @@ const LUAU_TYPE_NAMES = [
 ];
 
 /**
- * Builds the completion source. Member completion after a dot is offered only
- * where the members are actually known — a library's, or a datatype's
- * constructors and constants — since guessing at an instance's properties
- * would be worse than staying quiet.
+ * Builds the completion source. Members — after a dot or in brackets — are
+ * offered only where they are actually known: a library's, a datatype's
+ * constructors and constants, or those of a local whose declaration says what
+ * it holds. Guessing at what a value holds would be worse than staying quiet.
  */
 export function luauCompletionSource(
 	getScope: () => Completion[], getTarget: () => Target = () => "roblox",
@@ -185,6 +185,35 @@ export function luauCompletionSource(
 			};
 		}
 
+		// A key in brackets: `tbl["A` offers the keys inside the string,
+		// `tbl[` offers them quoted. Brackets reach every string key, not only
+		// the ones a dot can, and a class's properties the same way.
+		const bracket = context.matchBefore(/([A-Za-z_][A-Za-z0-9_]*)\s*\[\s*(["']?)([^"'\]]*)$/);
+		if (bracket) {
+			const [, owner, quote, typed] = /([A-Za-z_][A-Za-z0-9_]*)\s*\[\s*(["']?)([^"'\]]*)$/.exec(bracket.text)!;
+			const local = localsAt(context.state.doc.toString(), bracket.from).find((n) => n.name === owner);
+			if (local) {
+				const held = heldBy(local.typeText, local.value);
+				const keys = held.className && roblox
+					? propertiesOf(held.className).map((p) => p.name)
+					: held.keys ?? [];
+				if (keys.length > 0) {
+					return {
+						from: bracket.to - typed.length,
+						options: keys.map((key) => ({
+							label: quote ? key : JSON.stringify(key),
+							type: "property",
+							detail: "key",
+						})),
+						validFor: quote ? /^[^"'\]]*$/ : /^["']?[^"'\]]*$/,
+					};
+				}
+			}
+			// Inside a quote there is nothing else to offer; outside one, `list[i`
+			// goes on to the ordinary completion of `i`.
+			if (quote) return null;
+		}
+
 		const member = context.matchBefore(/([A-Za-z_][A-Za-z0-9_]*)\.\w*$/);
 		if (member) {
 			const owner = /^([A-Za-z_][A-Za-z0-9_]*)\./.exec(member.text)?.[1] ?? "";
@@ -202,7 +231,7 @@ export function luauCompletionSource(
 					? propertiesOf(held.className).map((p) => ({
 						label: p.name, type: "property", detail: p.enum ?? p.type ?? "",
 					}))
-					: (held.keys ?? []).map((key) => ({ label: key, type: "property", detail: "key" }));
+					: dotKeys(held).map((key) => ({ label: key, type: "property", detail: "key" }));
 				return options.length > 0 ? { from, options, validFor: /^\w*$/ } : null;
 			}
 			const members = LIBRARY_MEMBERS[owner] ?? [];
