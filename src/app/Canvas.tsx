@@ -880,6 +880,28 @@ export function Canvas({
 			className={`canvas${wireDrag ? " wiring" : ""}${locked ? " locked" : ""}`}
 			ref={surface}
 			tabIndex={0}
+			/**
+			 * The canvas moves by its camera, never by scrolling — but it is an
+			 * overflow box, so the browser can scroll it anyway: `scrollIntoView`
+			 * from tabbing onto a field, find-in-page, a screen reader, or an
+			 * agent driving the editor. That slid the nodes out from under the
+			 * grid, the wires' layer and every coordinate the camera knows.
+			 *
+			 * So a scroll becomes a pan: the camera moves by what was scrolled,
+			 * which leaves the content where the browser put it, and the scroll
+			 * goes back to zero. What `scrollIntoView` asked for still happens —
+			 * the node comes into view — by the canvas's own means.
+			 */
+			onScroll={(e) => {
+				const box = e.currentTarget;
+				const dx = box.scrollLeft;
+				const dy = box.scrollTop;
+				if (dx === 0 && dy === 0) return;
+				box.scrollLeft = 0;
+				box.scrollTop = 0;
+				const current = store.getView();
+				store.setView({ ...current, x: current.x - dx, y: current.y - dy });
+			}}
 			onPointerDown={onSurfacePointerDown}
 			onPointerMove={(e) => onPointerAt?.(toWorld(e.clientX, e.clientY))}
 			// Captured, so a press anywhere inside -- on a node, a pin, a comment

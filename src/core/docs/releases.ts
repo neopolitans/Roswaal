@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.87.2",
+		date: "2026-09-23",
+		headline: "Bringing a node into view moves the camera, not the page.",
+		affects: ["editor", "designer"],
+		fixed: [
+			"**A node scrolled into view** — by tabbing onto one of its fields, find-in-page, a screen reader, or an agent driving the editor — pans the camera to it. The browser used to scroll the canvas itself, which slid the nodes away from the grid and broke panning until a reload.",
+		],
+	},
+	{
 		version: "0.87.1",
 		date: "2026-09-23",
 		headline: "The code editor's cursor shows on every theme.",
