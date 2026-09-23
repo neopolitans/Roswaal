@@ -6,6 +6,11 @@
  * is built against rather than a description of it. Do not edit by hand: run
  * `npm run build:lune` and read the diff.
  *
+ * The parameter descriptions are Lune's own, verbatim from files covered by
+ * the Mozilla Public License 2.0 (https://mozilla.org/MPL/2.0/); their source
+ * is https://github.com/lune-org/lune. They are not covered by Roswaal's 0BSD
+ * licence; see ATTRIBUTIONS.md.
+ *
  * 61 functions across 10 modules.
  */
 

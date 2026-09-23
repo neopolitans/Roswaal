@@ -78,8 +78,11 @@ Pull requests are welcome on this repository. What a change brings with it is in
 Roswaal is **0BSD**: use it, modify it, ship it, train on it, no attribution
 required. Two bundled things keep their own terms — the icons (Material Symbols,
 Apache-2.0) and CodeMirror (MIT) — and three of the seven colour schemes are
-somebody else's design, MIT licensed and credited in full. See
-[ATTRIBUTIONS.md](ATTRIBUTIONS.md).
+somebody else's design, MIT licensed and credited in full. Two generated files
+carry documentation text under its own licence and not 0BSD: summaries from
+Roblox's Creator Documentation (CC BY 4.0) in `src/core/robloxMembers.ts`, and
+parameter descriptions from Lune's type definitions (MPL-2.0) in
+`src/core/luneApi.ts`. See [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
 
 Roblox, Luau and the names of the engine's classes and services belong to
 Roblox Corporation; Lune is Filip Tibell's and its contributors'. Both are named
