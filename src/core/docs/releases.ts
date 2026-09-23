@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.85.2",
+		date: "2026-09-23",
+		headline: "The Players nodes say what they hand back.",
+		affects: ["editor"],
+		fixed: [
+			"**Local Player** and **Get Player From Character** hand back a `Player`, and **Local Character** a `Model`, rather than an `Instance` — so a Get Member on them offers UserId, Character, PrimaryPart and the rest.",
+		],
+	},
+	{
 		version: "0.85.1",
 		date: "2026-09-23",
 		headline: "The second half of a Luau parser: the grammar, types included.",
