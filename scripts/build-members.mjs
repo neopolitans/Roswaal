@@ -102,6 +102,12 @@ const header = `/**
  * Like every other generated list this is a **suggestion rather than a gate**:
  * the method name is a dropdown you can type past, so a method newer than this
  * build still compiles.
+ *
+ * The summaries are text from Roblox's Creator Documentation
+ * (https://github.com/Roblox/creator-docs), (c) Roblox Corporation, used under
+ * CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), each shortened to
+ * its first sentence with its markup removed. They are not covered by
+ * Roswaal's 0BSD licence; see ATTRIBUTIONS.md.
  */
 
 /** One argument of a service method. */
