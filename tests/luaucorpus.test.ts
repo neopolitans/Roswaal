@@ -14,6 +14,7 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { lineIndex, tokenize } from "../src/core/luau/lexer.js";
+import { parseChunk } from "../src/core/luau/parser.js";
 
 const root = process.env.ROSWAAL_LUAU_CORPUS;
 
@@ -45,6 +46,19 @@ describe.skipIf(!root)("the corpus", () => {
 			for (const bad of tokens.filter((t) => t.kind === "error")) {
 				const { line, column } = at(bad.start);
 				problems.push(`${name}:${line}:${column}: ${bad.message}`);
+			}
+		}
+		expect(problems).toEqual([]);
+	});
+
+	it("parses every file with no errors", () => {
+		const problems: string[] = [];
+		for (const file of files) {
+			const src = readFileSync(file, "utf8");
+			const at = lineIndex(src);
+			for (const error of parseChunk(src).errors) {
+				const { line, column } = at(error.start);
+				problems.push(`${relative(root!, file)}:${line}:${column}: ${error.message}`);
 			}
 		}
 		expect(problems).toEqual([]);

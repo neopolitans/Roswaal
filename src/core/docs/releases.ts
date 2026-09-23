@@ -94,6 +94,14 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.85.1",
+		date: "2026-09-23",
+		headline: "The second half of a Luau parser: the grammar, types included.",
+		added: [
+			"**A Luau parser** on the lexer: statements, expressions with Luau's own precedence, `::`, if-expressions, interpolated strings, attributes, and the whole type language — unions, optionals, table types with indexers, function types, generics and packs, `typeof`. Every node knows where it is in the source, and a mistake is reported where it is and read past, so one does not hide the next. Nothing uses it yet.",
+		],
+	},
+	{
 		version: "0.85.0",
 		date: "2026-09-23",
 		headline: "The first half of a Luau parser: a lexer.",
