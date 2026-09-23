@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.97.1",
+		date: "2026-09-23",
+		headline: "A graph in tabs keeps its Variables panel.",
+		affects: ["docs"],
+		fixed: [
+			"**The Variables panel shows beside every tab** of a graph drawn in tabs, as it did beside the one graph. On the Roblox demo page, whose note now says each Function has a tab.",
+		],
+	},
+	{
 		version: "0.97.0",
 		date: "2026-09-23",
 		headline: "Documentation graphs are drawn as the editor draws them.",

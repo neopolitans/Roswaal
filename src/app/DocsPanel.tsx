@@ -713,6 +713,7 @@ function BlockView({ block }: { block: Block }) {
 						block={{
 							t: "graphs",
 							graphs: views.map((view, i) => (i === 0 && block.caption ? { ...view, caption: block.caption } : view)),
+							...(block.panel ? { panel: block.panel } : {}),
 						}}
 					/>
 				);
@@ -762,7 +763,7 @@ function GraphTabs({ block }: { block: Block & { t: "graphs" } }) {
 					</button>
 				))}
 			</div>
-			<GraphFigure script={showing.script} caption={showing.caption} />
+			<GraphFigure script={showing.script} caption={showing.caption} panel={block.panel} />
 		</div>
 	);
 }

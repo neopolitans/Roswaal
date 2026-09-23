@@ -175,6 +175,8 @@ export type Block =
 	| {
 			t: "graphs";
 			label?: string;
+			/** The Variables panel, beside whichever graph is showing: see `graph`. */
+			panel?: ToolbarSpec;
 			graphs: {
 				/** Stable, and part of the radio's name in the static build. */
 				id: string;
@@ -5684,8 +5686,7 @@ function robloxDemosPage(registry: Registry): DocPage {
 			t: "note",
 			kind: "info",
 			text:
-				"A **Function** is drawn on its own canvas; the picture above is the outer graph. See " +
-				"[Functions](functions).",
+				"Each **Function** has a tab of its own, as in the editor. See [Functions](functions).",
 		},
 
 		{ t: "h", level: 2, text: "A script that runs when the place does" },

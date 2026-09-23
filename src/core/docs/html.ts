@@ -245,6 +245,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				return renderBlock({
 					t: "graphs",
 					graphs: views.map((view, i) => ({ ...view, ...(i === 0 && block.caption ? { caption: block.caption } : {}) })),
+					...(block.panel ? { panel: block.panel } : {}),
 				}, options, up);
 			}
 			const svg = graphSvg(block.script, options.registry, options.preview);
@@ -281,10 +282,16 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				.map(({ one }) =>
 					`<label for="${escapeHtml(`${name}-${one.id}`)}">${escapeHtml(one.title)}</label>`)
 				.join("");
+			// What the file declares, beside each graph: a function's graph reads
+			// the same variables the script's own does.
+			const declares = block.panel && options.toolbars
+				? `<div class="graph-declares">` +
+					`${toolbarHtml(block.panel, { ...options.toolbars, version: options.version })}</div>`
+				: "";
 			const panels = drawn
 				.map(({ one, svg }) =>
-					`<figure class="docs-preview graph docs-graph-panel">` +
-					`<div class="graph-viewport">${svg}</div>` +
+					`<figure class="docs-preview graph docs-graph-panel${declares ? " with-panel" : ""}">` +
+					`${declares}<div class="graph-viewport">${svg}</div>` +
 					`${one.caption ? `<figcaption>${inline(one.caption, up)}</figcaption>` : ""}` +
 					`</figure>`)
 				.join("");
