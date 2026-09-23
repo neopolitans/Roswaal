@@ -20,6 +20,10 @@ export type LocalKind = "local" | "function" | "parameter" | "loop variable";
 export interface ScopedName {
 	name: string;
 	kind: LocalKind;
+	/** The type written beside it, as written: `local part: Part`. */
+	typeText?: string;
+	/** What it was declared with, for working out what it holds. */
+	value?: Expr;
 }
 
 /** Names a statement leaves in scope for the statements after it. */
@@ -27,7 +31,12 @@ function declared(stat: Stat): ScopedName[] {
 	switch (stat.kind) {
 		case "local":
 		case "const":
-			return stat.names.map((b) => ({ name: b.name, kind: "local" }));
+			return stat.names.map((b, i) => ({
+				name: b.name,
+				kind: "local" as const,
+				...(b.type ? { typeSpan: b.type } : {}),
+				...(stat.values[i] ? { value: stat.values[i] } : {}),
+			}));
 		case "localFunction":
 			return [{ name: stat.name.name, kind: "function" }];
 		default:
@@ -76,6 +85,11 @@ export function localsAt(src: string, offset: number): ScopedName[] {
 
 	const found: ScopedName[] = [];
 	walkBlock(best.value, offset, found, 0, offset);
+	// A written type as its text, so a caller need not keep the source.
+	for (const item of found as (ScopedName & { typeSpan?: { start: number; end: number } })[]) {
+		if (item.typeSpan) item.typeText = before.slice(item.typeSpan.start, item.typeSpan.end).trim();
+		delete item.typeSpan;
+	}
 
 	// The innermost declaration of a name is the one in scope.
 	const out: ScopedName[] = [];
@@ -168,7 +182,9 @@ function enter(stat: Stat, at: number, out: ScopedName[]): void {
 }
 
 function enterFunction(func: FunctionBody, at: number, out: ScopedName[]): void {
-	for (const param of func.params) out.push({ name: param.name, kind: "parameter" });
+	for (const param of func.params) {
+		out.push({ name: param.name, kind: "parameter", ...(param.type ? { typeSpan: param.type } : {}) } as ScopedName);
+	}
 	const bodyStart = func.params[func.params.length - 1]?.end ?? func.start;
 	walkBlock(func.body, at, out, bodyStart, func.end);
 }

@@ -82,3 +82,29 @@ describe("a type", () => {
 		expect(types).not.toContain("Part");
 	});
 });
+
+describe("the cases from the first test of the editor", () => {
+	it("takes `local Temp : Par` for a type, with a space before the colon", () => {
+		expect(offered("local Temp : Par|")).toContain("Part");
+	});
+
+	it("offers every class, not only the common ones", () => {
+		expect(offered('Instance.new("Proximity|')).toContain("ProximityPrompt");
+		expect(offered("local p: Proximity|")).toContain("ProximityPrompt");
+	});
+
+	it("offers a Part's properties on a local typed or made as one", () => {
+		expect(offered('local Temp : Part = Instance.new("Part")\nTemp.Na|')).toContain("Name");
+		expect(offered('local Temp = Instance.new("Part")\nTemp.|')).toEqual(expect.arrayContaining(["Anchored", "Size", "Name"]));
+		expect(offered('local players = game:GetService("Players")\nplayers.|')).toContain("LocalPlayer");
+	});
+
+	it("offers the keys of a table written out in its declaration", () => {
+		const keys = offered('local tbl = {\n["Anne"] = 500,\n["James"] = 300,\nEmma = 475\n}\n\ntbl.An|');
+		expect(keys).toEqual(["Anne", "James", "Emma"]);
+	});
+
+	it("offers nothing for a local whose declaration says nothing", () => {
+		expect(offered("local thing = makeThing()\nthing.|")).toEqual([]);
+	});
+});

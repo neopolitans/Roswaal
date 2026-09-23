@@ -17,10 +17,12 @@ import {
 import { localNameOf } from "../core/nodes/variables.js";
 import { toIdentifier } from "../core/compiler/luau.js";
 import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
-import { INSTANCE_CLASSES, ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
+import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
+import { propertiesOf } from "../core/robloxProperties.js";
+import { heldBy } from "../core/luau/infer.js";
 import { DATATYPE_STATICS } from "../core/robloxStatics.js";
 import {
-	DATATYPES as ENGINE_DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
+	CLASSES as ROBLOX_CLASSES, DATATYPES as ENGINE_DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
 } from "../core/robloxData.js";
 import { surfacesIn } from "./edits.js";
 
@@ -147,10 +149,11 @@ const CLASS_STRING =
 	/(Instance\.new|:IsA|:FindFirstChildOfClass|:FindFirstChildWhichIsA|:FindFirstAncestorOfClass|:FindFirstAncestorWhichIsA|:GetService)\s*\(\s*["']([A-Za-z0-9_]*)$/;
 
 /**
- * A type position: after `::`, or after `name:` with a space — `local x: Part`,
- * `(hit: BasePart)`. A method call, `part:Clone()`, has no space after its colon.
+ * A type position: after `::`, or after a name and a colon with a space on
+ * either side — `local x: Part`, `local x : Part`, `(hit: BasePart)`. A method
+ * call, `part:Clone()`, has no space around its colon.
  */
-const TYPE_POSITION = /(?:::\s*|\w:\s+)([A-Za-z_]\w*)?$/;
+const TYPE_POSITION = /(?:::\s*|\w\s*:\s+|\w\s+:\s*)([A-Za-z_]\w*)?$/;
 
 const LUAU_TYPE_NAMES = [
 	"any", "boolean", "buffer", "never", "nil", "number", "string", "thread", "unknown", "vector",
@@ -174,7 +177,7 @@ export function luauCompletionSource(
 		const quoted = roblox ? context.matchBefore(CLASS_STRING) : null;
 		if (quoted) {
 			const [, call, typed] = CLASS_STRING.exec(quoted.text)!;
-			const names = call === ":GetService" ? ROBLOX_SERVICES : INSTANCE_CLASSES;
+			const names = call === ":GetService" ? ROBLOX_SERVICES : ROBLOX_CLASSES;
 			return {
 				from: quoted.to - typed.length,
 				options: names.map((label) => ({ label, type: "class" })),
@@ -185,6 +188,23 @@ export function luauCompletionSource(
 		const member = context.matchBefore(/([A-Za-z_][A-Za-z0-9_]*)\.\w*$/);
 		if (member) {
 			const owner = /^([A-Za-z_][A-Za-z0-9_]*)\./.exec(member.text)?.[1] ?? "";
+			const from = member.from + owner.length + 1;
+
+			// A local of the code's own, whose declaration says what it holds:
+			// `local part: Part` or `= Instance.new("Part")` offers a Part's
+			// properties, `local scores = { Anne = 500 }` offers `Anne`. A local
+			// hides a library or datatype of the same name, as it does in Luau.
+			const local = localsAt(context.state.doc.toString(), member.from)
+				.find((n) => n.name === owner);
+			if (local) {
+				const held = heldBy(local.typeText, local.value);
+				const options = held.className && roblox
+					? propertiesOf(held.className).map((p) => ({
+						label: p.name, type: "property", detail: p.enum ?? p.type ?? "",
+					}))
+					: (held.keys ?? []).map((key) => ({ label: key, type: "property", detail: "key" }));
+				return options.length > 0 ? { from, options, validFor: /^\w*$/ } : null;
+			}
 			const members = LIBRARY_MEMBERS[owner] ?? [];
 			// A datatype's own name reaches its constructors and constants:
 			// `Instance.new`, `Vector3.zero`. `Instance` is a class as well, and
@@ -192,7 +212,7 @@ export function luauCompletionSource(
 			const statics = roblox ? DATATYPE_STATICS[owner] ?? [] : [];
 			if (members.length === 0 && statics.length === 0) return null;
 			return {
-				from: member.from + owner.length + 1,
+				from,
 				options: [
 					...statics.map((item) => ({
 						label: item.name,
@@ -214,7 +234,7 @@ export function luauCompletionSource(
 				from: typePosition.to - written.length,
 				options: [
 					...LUAU_TYPE_NAMES.map((label) => ({ label, type: "type" })),
-					...(roblox ? [...INSTANCE_CLASSES, ...ENGINE_DATATYPES] : [])
+					...(roblox ? [...ROBLOX_CLASSES, ...ENGINE_DATATYPES] : [])
 						.map((label) => ({ label, type: "class" })),
 				],
 				validFor: /^\w*$/,

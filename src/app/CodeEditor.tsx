@@ -26,6 +26,7 @@ import type { NodeScript } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { checkLuau, type LuauFragment } from "../core/luau/check.js";
 import { luauLint } from "./luauLint.js";
+import { luauHover } from "./luauHover.js";
 import { luauLanguage } from "./luauMode.js";
 import {
 	luauCompletionSource, precedingLocals, scopeCompletions,
@@ -103,6 +104,7 @@ export function CodeEditor({
 				// The same structural check that runs on every compile, shown here
 				// as you type so a stray `end` is caught in the box you typed it in.
 				luauLint((code) => checkLuau(code, kind)),
+				luauHover(() => targetRef.current),
 				editorTheme,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) setText(update.state.doc.toString());

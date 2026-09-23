@@ -94,6 +94,21 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.90.0",
+		date: "2026-09-23",
+		headline: "The code editor says what a name is, and what a local holds.",
+		affects: ["editor"],
+		added: [
+			"**Hovering a name in the code editor** says what it is: `Instance.new(\"Part\")` returns a Part, with a sentence on what a Part is and a link to its Roblox docs page. The same for a class written as a string or a type, a datatype and its constants, a local, and a property read off one.",
+			"**A local's members are offered after a dot** when its declaration says what it holds: `local part: Part`, `= Instance.new(\"Part\")`, `= game:GetService(\"Players\")` and `:: Model` offer that class's properties, and a table written out offers its keys.",
+			"`npm run build:statics` also fetches a one-line summary of every class and datatype for the hover.",
+		],
+		fixed: [
+			"`local Temp : Part`, with a space before the colon, is read as a type position.",
+			"Class names complete from all 625 classes, not the 54 common ones.",
+		],
+	},
+	{
 		version: "0.89.0",
 		date: "2026-09-23",
 		headline: "Completion knows Roblox's datatypes and classes.",
