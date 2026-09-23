@@ -959,9 +959,37 @@ export async function removeOutputs(project: OpenProject, paths: string[]): Prom
 		const head = (await fs.readFile(abs, "utf8").catch(() => "")).slice(0, 512);
 		if (!head.includes("roswaal-graph:")) continue;
 		await fs.rm(abs, { force: true });
+		await removeEmptyFolders(project, relPath);
 		removed++;
 	}
 	return removed;
+}
+
+/**
+ * The folders a removed output leaves empty, removed with it.
+ *
+ * A graph in a folder of its own compiles into a matching folder under the
+ * out directory, and deleting the graph and then its output left that folder
+ * behind — empty, and synced by Rojo as an empty Folder instance. Climbs from
+ * the file's folder towards the out directory, stopping at the first folder
+ * that still holds anything, and never removes the out directory itself or
+ * anything outside it.
+ */
+async function removeEmptyFolders(project: OpenProject, relPath: string): Promise<void> {
+	const outDir = path.posix.normalize(toPosix(project.config.outDir));
+	let dir = path.posix.dirname(path.posix.normalize(toPosix(relPath)));
+	while (dir !== outDir && dir.startsWith(`${outDir}/`)) {
+		const abs = safeJoin(project.root, dir);
+		let entries: string[];
+		try {
+			entries = await fs.readdir(abs);
+		} catch {
+			return;
+		}
+		if (entries.length > 0) return;
+		await fs.rm(abs, { recursive: true, force: true });
+		dir = path.posix.dirname(dir);
+	}
 }
 
 /**
@@ -1207,6 +1235,7 @@ async function removeSupersededOutputs(
 	const stale = supersededOutputs(await generatedIndex(project), graphId, keepPath);
 	for (const relPath of stale) {
 		await fs.rm(safeJoin(project.root, relPath), { force: true });
+		await removeEmptyFolders(project, relPath);
 	}
 	return stale;
 }

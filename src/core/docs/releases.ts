@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.87.1",
+		date: "2026-09-23",
+		headline: "The code editor's cursor shows on every theme.",
+		affects: ["editor"],
+		fixed: [
+			"**The text cursor in the code editors** takes the theme's text colour — light on a dark theme, dark on a light one. It was black on every theme.",
+			"**Removing a stale generated file** also removes the folders it leaves empty, up to the out directory, so Rojo is not left syncing empty Folders.",
+		],
+	},
+	{
 		version: "0.87.0",
 		date: "2026-09-23",
 		headline: "A type written as Luau opens in the code editor.",

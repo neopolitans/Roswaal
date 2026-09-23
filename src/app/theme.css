@@ -10015,3 +10015,18 @@ select:not(.literal):not([multiple]) {
 	font-family: var(--mono);
 	font-size: 11px;
 }
+
+/* The text cursor in every code editor, in the theme's own text colour: light
+   on a dark theme, dark on a light one. CodeMirror colours the native caret
+   black unless told its theme is dark, and Roswaal's themes are CSS variables
+   it cannot read, so it was black on every dark theme. Its rule is scoped
+   tighter than any selector here can be without matching its generated class
+   names, hence `!important`. */
+.cm-editor .cm-content {
+	caret-color: var(--fg) !important;
+}
+
+.cm-editor .cm-cursor,
+.cm-editor .cm-dropCursor {
+	border-left-color: var(--fg) !important;
+}
