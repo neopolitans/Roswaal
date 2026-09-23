@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.84.1",
+		date: "2026-09-23",
+		headline: "A result wired into a Declare Local is one local, not two.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**A result read only by a Declare Local, Set Local, Set Variable or table field** is written straight into it — `local named = parent:FindFirstChild(name)` — even with a Result name. The Result name is used once something else reads the value too.",
+			"**A step's result folds the same way** when that reader runs straight after it, so the call still runs where it did.",
+		],
+	},
+	{
 		version: "0.84.0",
 		date: "2026-09-23",
 		headline: "A Find First node's class reaches the file.",

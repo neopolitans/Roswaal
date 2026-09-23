@@ -3262,12 +3262,11 @@ const VARIABLES: DocPage = {
 		},
 		{
 			t: "note",
-			kind: "info",
+			kind: "good",
 			text:
-				"**A result name and a Declare Local make two locals:** " +
-				"`local child = parent:FindFirstChild(name)`, then `local named = child`. Use " +
-				"one — the **Result name** names the value where it is made, a **Declare Local** " +
-				"where you want the name.",
+				"**Wired only into a Declare Local, a setter or a table field, a result goes straight " +
+				"in:** `local named = parent:FindFirstChild(name)`. Its Result name is used once " +
+				"something else reads it too. A step folds only when that reader runs right after it.",
 		},
 
 		{ t: "h", level: 2, text: "What the code editor can see" },

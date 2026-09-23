@@ -172,6 +172,10 @@ function plainKey(rendered: string): string | null {
  */
 const EDITOR_ONLY_TYPES = new Set(["any", "wildcard", "luau", "code"]);
 
+/** Statements that name the value on their `value` pin. See `foldsInto`. */
+const STATEMENT_READERS = new Set(["local.declare", "local.set", "variable.set", "variable.init"]);
+const FOLDING_READERS = STATEMENT_READERS;
+
 /** A name Luau will accept in a type position, including `a.B` for a module's. */
 const TYPE_NAME = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/;
 
@@ -1245,10 +1249,48 @@ class Emitter {
 		}
 	}
 
+	/**
+	 * The one reader an output is written straight into, when there is one.
+	 *
+	 * A result wired only into a Declare Local, a setter or a table field was
+	 * given a local of its own and then copied: `local child = ...` and then
+	 * `local named = child`. Two names for one value, and the first says nothing
+	 * the second does not. Those readers name the value themselves, so it goes
+	 * straight into them.
+	 *
+	 * One direct wire only. A second reader needs the local, and a knot is left
+	 * alone rather than followed, so what folds is what the canvas shows joined.
+	 */
+	private foldsInto(nodeId: string, pinId: string): ResolvedNode | undefined {
+		const links = this.script.links.filter((l) => l.from.node === nodeId && l.from.pin === pinId);
+		if (links.length !== 1) return undefined;
+		const to = links[0].to;
+		const reader = this.index.get(to.node);
+		if (!reader) return undefined;
+		const id = reader.def.id;
+		if (to.pin === "value" && FOLDING_READERS.has(id)) return reader;
+		if (id === "table.pair" && to.pin === "value") return reader;
+		if (id === "table.dictionary") return reader;
+		return undefined;
+	}
+
 	private emitCall(r: ResolvedNode, template: string, resultPin: string, scope: Scope): string | undefined {
 		const pin = r.baseOutputs.find((p) => p.id === resultPin);
 		const consumed = this.index.consumerCount(r.node.id, resultPin) > 0;
 		const rendered = this.renderTemplate(r, template, scope);
+		const next = this.index.execTarget(r.node.id, "then");
+
+		/**
+		 * A step whose one reader is the very next statement is written into it:
+		 * `local copy = model:Clone()`, not a local and then a copy of it. Only
+		 * the next statement, and only a Declare Local or a setter, so the call
+		 * still runs exactly where it did — nothing else happens in between.
+		 */
+		const reader = consumed ? this.foldsInto(r.node.id, resultPin) : undefined;
+		if (reader && reader.node.id === next && STATEMENT_READERS.has(reader.def.id)) {
+			scope.bindings.set(`${r.node.id}/${resultPin}`, rendered);
+			return next;
+		}
 
 		if (consumed) {
 			/**
@@ -2792,7 +2834,10 @@ class Emitter {
 		// A cast that has been told which it is overrides the ordinary rule.
 		// Implicit never takes a line; explicit always does, even for one reader.
 		if (cast === "implicit") return expr;
-		if (cast !== "explicit" && !named) {
+		// A result read only by something that names it — a Declare Local, a
+		// setter, a table field — is written straight into it. The Result name
+		// would only make a second local holding the same value.
+		if (cast !== "explicit" && (!named || this.foldsInto(nodeId, pinId) !== undefined)) {
 			if (this.effectiveConsumers(nodeId, pinId) <= 1) return expr;
 			if (isAccessPath(expr)) return expr;
 		}
