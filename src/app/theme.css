@@ -6410,10 +6410,10 @@ button.tb.danger {
 .docs-graph-tabs > input:nth-of-type(2):checked ~ .docs-tab-bar > label:nth-child(2),
 .docs-graph-tabs > input:nth-of-type(3):checked ~ .docs-tab-bar > label:nth-child(3),
 .docs-graph-tabs > input:nth-of-type(4):checked ~ .docs-tab-bar > label:nth-child(4) {
-	background: var(--bg-panel);
-	border-color: var(--border-strong);
-	border-bottom-color: var(--bg-panel);
-	color: var(--fg);
+	/* The docs window's selected tab (`button.on`), so the site reads the same. */
+	background: var(--accent);
+	border-color: var(--accent);
+	color: #fff;
 }
 
 /* Release history, folded by minor version: one summary line per fold, its

@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.97.3",
+		date: "2026-09-23",
+		headline: "A graph's selected tab is marked on the website.",
+		affects: ["docs"],
+		fixed: [
+			"**The selected tab over a graph** is filled with the accent colour on the website, as it is in the docs window.",
+		],
+	},
+	{
 		version: "0.97.2",
 		date: "2026-09-23",
 		headline: "Custom Code opens from a documentation graph.",
