@@ -80,7 +80,8 @@ required. Two bundled things keep their own terms — the icons (Material Symbol
 Apache-2.0) and CodeMirror (MIT) — and three of the seven colour schemes are
 somebody else's design, MIT licensed and credited in full. Two generated files
 carry documentation text under its own licence and not 0BSD: summaries from
-Roblox's Creator Documentation (CC BY 4.0) in `src/core/robloxMembers.ts`, and
+Roblox's Creator Documentation (CC BY 4.0) in `src/core/robloxEngine.json` and
+`src/core/robloxMembers.ts`, and
 parameter descriptions from Lune's type definitions (MPL-2.0) in
 `src/core/luneApi.ts`. See [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
 

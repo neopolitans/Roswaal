@@ -10,7 +10,8 @@
  * draws what this returns.
  */
 
-import { classOfGlobal, heldBy, methodsOf, signatureOf, stringValue, typeOfValue } from "./infer.js";
+import { classOfGlobal, eventsOf, heldBy, methodsOf, signatureOf, stringValue, typeOfValue } from "./infer.js";
+import { ENGINE, signatureText } from "../robloxEngine.js";
 import { tokenize } from "./lexer.js";
 import { localsAt, type LocalKind } from "./scope.js";
 import { CLASSES, DATATYPES } from "../robloxData.js";
@@ -42,6 +43,10 @@ function classLink(name: string): Hover["link"] {
 
 function datatypeLink(name: string): Hover["link"] {
 	return { label: `${name} - Roblox Creator Docs`, href: `${DOCS}/datatypes/${name}` };
+}
+
+function enumLink(name: string): Hover["link"] {
+	return { label: `${name} - Roblox Creator Docs`, href: `${DOCS}/enums/${name}` };
 }
 
 function aboutClass(name: string, from: number, to: number, code = name, role = "class"): Hover {
@@ -84,6 +89,23 @@ export function hoverAt(src: string, pos: number, roblox = true): Hover | null {
 		while (isWordChar(src[ownerFrom - 1])) ownerFrom--;
 		const owner = src.slice(ownerFrom, from - 1);
 
+		// `Enum.Material`, and `Enum.Material.Plastic`.
+		if (roblox && owner === "Enum" && ENGINE.enums[word]) {
+			return { from, to, code: `Enum.${word}`, role: "enum", summary: ENGINE.enums[word].summary, link: enumLink(word) };
+		}
+		if (roblox && src.slice(ownerFrom - 5, ownerFrom) === "Enum." && ENGINE.enums[owner]) {
+			const item = ENGINE.enums[owner].items.find((i) => i.name === word);
+			if (item) {
+				return {
+					from, to,
+					code: `Enum.${owner}.${word} = ${item.value}`,
+					role: "enum item",
+					summary: item.summary,
+					link: enumLink(owner),
+				};
+			}
+		}
+
 		const local = localsAt(src, ownerFrom).find((n) => n.name === owner);
 		if (local) {
 			const held = heldBy(local.typeText, local.value);
@@ -96,6 +118,16 @@ export function hoverAt(src: string, pos: number, roblox = true): Hover | null {
 						role: "property",
 						summary: property.summary,
 						link: classLink(held.className),
+					};
+				}
+				const event = eventsOf(held.className).find((e) => e.name === word);
+				if (event) {
+					return {
+						from, to,
+						code: `${event.from}.${word}${signatureText(event.params)}`,
+						role: "event",
+						summary: event.summary,
+						link: classLink(event.from),
 					};
 				}
 			}

@@ -89,3 +89,19 @@ describe("the cases from the generated Remotes file", () => {
 		expect(hover.link?.label).toBe("Object - Roblox Creator Docs");
 	});
 });
+
+describe("events and enums, from the engine catalogue", () => {
+	it("describes an event read off a local", () => {
+		const src = 'local part = Instance.new("Part")\npart.Touched:Connect(print)';
+		const hover = hoverAt(src, src.indexOf("Touched") + 1)!;
+		expect(hover).toMatchObject({ code: "BasePart.Touched(otherPart: BasePart)", role: "event" });
+	});
+
+	it("describes an enum and one of its items", () => {
+		const src = "local m = Enum.Material.Plastic";
+		expect(hoverAt(src, src.indexOf("Material") + 1)).toMatchObject({ code: "Enum.Material", role: "enum" });
+		const item = hoverAt(src, src.indexOf("Plastic") + 1)!;
+		expect(item).toMatchObject({ code: "Enum.Material.Plastic = 256", role: "enum item" });
+		expect(item.link?.href).toBe("https://create.roblox.com/docs/reference/engine/enums/Material");
+	});
+});

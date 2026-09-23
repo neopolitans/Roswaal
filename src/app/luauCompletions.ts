@@ -19,7 +19,8 @@ import { toIdentifier } from "../core/compiler/luau.js";
 import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
 import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
 import { propertiesOf } from "../core/robloxProperties.js";
-import { classOfGlobal, dotKeys, heldBy, methodsOf } from "../core/luau/infer.js";
+import { classOfGlobal, dotKeys, eventsOf, heldBy, methodsOf } from "../core/luau/infer.js";
+import { ENGINE, signatureText } from "../core/robloxEngine.js";
 import { DATATYPE_STATICS } from "../core/robloxStatics.js";
 import {
 	CLASSES as ROBLOX_CLASSES, DATATYPES as ENGINE_DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
@@ -155,6 +156,9 @@ const CLASS_STRING =
  */
 const TYPE_POSITION = /(?:::\s*|\w\s*:\s+|\w\s+:\s*)([A-Za-z_]\w*)?$/;
 
+/** `Enum.` or `Enum.Material.`, and what is typed after the last dot. */
+const ENUM_PATH = /\bEnum\.(?:([A-Za-z_]\w*)\.)?(\w*)$/;
+
 const LUAU_TYPE_NAMES = [
 	"any", "boolean", "buffer", "never", "nil", "number", "string", "thread", "unknown", "vector",
 ];
@@ -214,6 +218,18 @@ export function luauCompletionSource(
 			if (quote) return null;
 		}
 
+		// `Enum.` offers the enums, and `Enum.Material.` that enum's items.
+		const enumPath = roblox ? context.matchBefore(ENUM_PATH) : null;
+		if (enumPath) {
+			const [, enumName, written] = ENUM_PATH.exec(enumPath.text)!;
+			const options = enumName
+				? (ENGINE.enums[enumName]?.items ?? []).filter((i) => !i.deprecated)
+					.map((i) => ({ label: i.name, type: "enum", detail: String(i.value), info: i.summary }))
+				: Object.entries(ENGINE.enums).filter(([, e]) => !e.deprecated)
+					.map(([name, e]) => ({ label: name, type: "enum", info: e.summary }));
+			if (options.length > 0) return { from: enumPath.to - written.length, options, validFor: /^\w*$/ };
+		}
+
 		const member = context.matchBefore(/([A-Za-z_][A-Za-z0-9_]*)\.\w*$/);
 		if (member) {
 			const owner = /^([A-Za-z_][A-Za-z0-9_]*)\./.exec(member.text)?.[1] ?? "";
@@ -228,9 +244,15 @@ export function luauCompletionSource(
 			if (local) {
 				const held = heldBy(local.typeText, local.value);
 				const options = held.className && roblox
-					? propertiesOf(held.className).map((p) => ({
-						label: p.name, type: "property", detail: p.enum ?? p.type ?? "",
-					}))
+					? [
+						...propertiesOf(held.className).map((p) => ({
+							label: p.name, type: "property", detail: p.enum ?? p.type ?? "",
+						})),
+						// Events are read with a dot too: `part.Touched:Connect(…)`.
+						...eventsOf(held.className).map((e) => ({
+							label: e.name, type: "event", detail: `event${signatureText(e.params)}`, info: e.summary,
+						})),
+					]
 					: dotKeys(held).map((key) => ({ label: key, type: "property", detail: "key" }));
 				return options.length > 0 ? { from, options, validFor: /^\w*$/ } : null;
 			}

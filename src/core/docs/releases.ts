@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.95.0",
+		date: "2026-09-23",
+		headline: "The whole engine, from its documentation, credited.",
+		added: [
+			"**The engine catalogue**: every class with its properties, methods, events and callbacks — types, parameters, security, thread safety, capabilities — every enum and its items, every datatype, and the globals and libraries, read from Roblox's Creator Documentation. `npm run build:engine` refreshes it; it replaces `build:statics`.",
+			"**Events and enums in the code editor**: a dot after an instance offers its events with its properties, `Enum.` offers the enums and `Enum.Material.` their items, and hovering any of them describes it with a link to its page.",
+		],
+		fixed: [
+			"**Documentation text Roswaal carries is credited**, and marked as under its own licence rather than 0BSD: summaries from Roblox's Creator Documentation (CC BY 4.0), and parameter descriptions from Lune's type definitions (MPL-2.0). On the Attributions page, in ATTRIBUTIONS.md, in the README and in the generated files.",
+		],
+	},
+	{
 		version: "0.94.0",
 		date: "2026-09-23",
 		headline: "A hover gives a name's type, and methods are known.",

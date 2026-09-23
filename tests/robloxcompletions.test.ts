@@ -147,3 +147,14 @@ describe("a method after a colon", () => {
 		expect(offered("local x: |")).toContain("number");
 	});
 });
+
+describe("events and enums", () => {
+	it("offers a class's events after a dot, with its properties", () => {
+		expect(offered('local part = Instance.new("Part")\npart.|')).toEqual(expect.arrayContaining(["Touched", "Anchored"]));
+	});
+
+	it("offers the enums after Enum, and an enum's items after its name", () => {
+		expect(offered("local m = Enum.|")).toEqual(expect.arrayContaining(["Material", "KeyCode"]));
+		expect(offered("local m = Enum.Material.|")).toEqual(expect.arrayContaining(["Plastic", "Neon"]));
+	});
+});

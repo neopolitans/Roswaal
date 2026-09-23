@@ -19,6 +19,7 @@ import type { Expr, FunctionBody } from "./ast.js";
 import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
 import { isService } from "../roblox.js";
 import { CLASS_METHODS, type ClassMethod } from "../robloxStatics.js";
+import { ENGINE, type EngineClass, type EngineEvent } from "../robloxEngine.js";
 
 export interface Held {
 	/** A Roblox class the value is an instance of. */
@@ -84,6 +85,28 @@ export function methodsOf(className: string): (ClassMethod & { from: string })[]
 			out.push({ ...method, from: current });
 		}
 		current = CLASS_PARENTS[current];
+	}
+	return out;
+}
+
+/**
+ * A class's events, its own first and then each ancestor's, once each —
+ * `Part` reaches `BasePart.Touched`. Deprecated ones are left out.
+ */
+export function eventsOf(className: string): (EngineEvent & { from: string })[] {
+	const out: (EngineEvent & { from: string })[] = [];
+	const seen = new Set<string>();
+	const walked = new Set<string>();
+	let current: string | undefined = className;
+	while (current !== undefined && !walked.has(current)) {
+		walked.add(current);
+		const found: EngineClass | undefined = ENGINE.classes[current];
+		for (const event of found?.events ?? []) {
+			if (event.deprecated || seen.has(event.name)) continue;
+			seen.add(event.name);
+			out.push({ ...event, from: current });
+		}
+		current = found?.superclass;
 	}
 	return out;
 }
