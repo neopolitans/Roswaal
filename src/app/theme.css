@@ -2167,15 +2167,37 @@ button.tb.primary:hover:not(:disabled) {
 	min-width: 0;
 }
 
-/* A Luau type, typed rather than wired. Monospace because it is code, and
-   resizable vertically because a union of six string literals is a real type
-   and three rows is not enough for it. */
-.inspector textarea.type-definition {
+/* A Luau type written out, shown as the code it is and opened in the code
+   editor on a click. A button that looks like a field: it is where the text
+   is, and pressing it is how you change it. */
+.inspector button.type-definition {
+	display: flex;
+	flex-direction: column;
 	width: 100%;
+	min-height: 3.2em;
+	max-height: 14em;
+	overflow: auto;
+	padding: 5px 8px;
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	background: var(--bg-input);
+	color: var(--fg);
 	font-family: var(--mono);
 	font-size: 11px;
 	line-height: 1.5;
-	resize: vertical;
+	text-align: left;
+	white-space: pre;
+	cursor: text;
+}
+
+.inspector button.type-definition:hover { border-color: var(--border-strong); }
+.inspector button.type-definition.bad { border-color: var(--danger); }
+.inspector button.type-definition .placeholder { color: var(--fg-faint); }
+
+.inspector .type-definition-problem {
+	margin: 4px 0 0;
+	font-size: 11px;
+	color: var(--danger);
 }
 
 /* The two halves of a project: what you author, and what Roswaal writes. Styled
@@ -9986,4 +10008,10 @@ select:not(.literal):not([multiple]) {
 	min-width: 220px;
 	color: var(--fg-faint);
 	cursor: text;
+}
+
+/* A drawn Inspector's Luau, as the real one shows it: code, in the mono face. */
+.docs-bar-frame.inspector .docs-bar-code {
+	font-family: var(--mono);
+	font-size: 11px;
 }

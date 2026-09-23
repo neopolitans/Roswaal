@@ -195,7 +195,8 @@ export type ToolbarItem = Documented &
 				t: "setting";
 				label: string;
 				value: string;
-				control?: "field" | "select" | "check";
+				/** `code`: Luau shown as code, which the editor opens in the code editor. */
+				control?: "field" | "select" | "check" | "code";
 				/** For a checkbox: whether it is ticked. */
 				on?: boolean;
 		  }
@@ -427,7 +428,9 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			}
 			const box = item.control === "select"
 				? `<span class="tb docs-bar-select">${escapeXml(item.value)}</span>`
-				: `<span class="tb docs-bar-field">${escapeXml(item.value)}</span>`;
+				: item.control === "code"
+					? `<span class="tb docs-bar-field docs-bar-code">${escapeXml(item.value)}</span>`
+					: `<span class="tb docs-bar-field">${escapeXml(item.value)}</span>`;
 			return (
 				`<label class="field"${tie}><span>${escapeXml(item.label)}</span>${box}</label>`
 			);
@@ -1811,7 +1814,7 @@ export const TYPE_WRITTEN_INSPECTOR: ToolbarSpec = {
 	groups: [
 		{ items: [{ t: "setting", label: "Type name", value: "Shot" }] },
 		{ items: [{ t: "setting", label: "Shape", value: "Custom Luau", control: "select" }] },
-		{ items: [{ t: "setting", label: "Definition", value: "{ damage: number, from: Vector3 }" }] },
+		{ items: [{ t: "setting", label: "Definition", value: "{ damage: number, from: Vector3 }", control: "code" }] },
 		{ items: [{ t: "setting", label: "Is Export Type", value: "", control: "check", on: true }] },
 	],
 };
@@ -1825,7 +1828,7 @@ export const TYPE_OPEN_INSPECTOR: ToolbarSpec = {
 	groups: [
 		{ items: [{ t: "setting", label: "Type name", value: "Scores" }] },
 		{ items: [{ t: "setting", label: "Shape", value: "Custom Luau", control: "select" }] },
-		{ items: [{ t: "setting", label: "Definition", value: "{ [string]: number }" }] },
+		{ items: [{ t: "setting", label: "Definition", value: "{ [string]: number }", control: "code" }] },
 		{ items: [{ t: "setting", label: "Is Export Type", value: "", control: "check", on: true }] },
 	],
 };

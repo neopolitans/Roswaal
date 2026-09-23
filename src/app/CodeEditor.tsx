@@ -38,6 +38,8 @@ export interface CodeEditorProps {
 	value: string;
 	/** One line of context, e.g. what the code is spliced into. */
 	hint?: string;
+	/** What the text must parse as; worked out from the node when absent. */
+	kind?: LuauFragment;
 	/** The open graph, so completion can offer the names it puts in scope. */
 	script: NodeScript | null;
 	registry: Registry;
@@ -48,7 +50,7 @@ export interface CodeEditorProps {
 }
 
 export function CodeEditor({
-	title, value, hint, script, registry, nodeId, onCommit, onClose,
+	title, value, hint, kind: given, script, registry, nodeId, onCommit, onClose,
 }: CodeEditorProps) {
 	const host = useRef<HTMLDivElement>(null);
 	const view = useRef<EditorView | null>(null);
@@ -56,7 +58,8 @@ export function CodeEditor({
 
 	// Custom Code is statements; a Luau Expression, or code typed into any
 	// other pin, is one value. The compiler parses each the same way.
-	const kind: LuauFragment = script?.nodes.find((n) => n.id === nodeId)?.def === "code.custom" ? "block" : "expression";
+	const kind: LuauFragment = given
+		?? (script?.nodes.find((n) => n.id === nodeId)?.def === "code.custom" ? "block" : "expression");
 	const problems = useMemo(() => checkLuau(text, kind), [text, kind]);
 	// Recomputed only when the graph changes, and read through a ref so the
 	// editor is built once rather than torn down on every keystroke.

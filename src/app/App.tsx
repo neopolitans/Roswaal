@@ -25,9 +25,10 @@ import type { InstanceLocation, NodeMap } from "../core/nodemap.js";
 import { MapEditor } from "./MapEditor.jsx";
 import { SourceView, type SourceDoc } from "./SourceView.jsx";
 import type { DialogRequest, DialogResult, PendingDialog } from "./Dialog.jsx";
-import type { Literal, PinDef } from "../core/schema.js";
+import type { Literal } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
 import { CanvasNotice } from "./CanvasNotice.jsx";
+import { onCodeEditRequest } from "./codeEditRequests.js";
 import { previewSelection } from "./SelectionPreview.jsx";
 import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
 import type { PinMenuTarget } from "./PinMenu.jsx";
@@ -41,7 +42,7 @@ import type { RememberedFolder } from "./host.js";
 import { Icon } from "./icons.jsx";
 import { liveSelection, TouchBar } from "./TouchBar.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
-import { Overlays } from "./Overlays.jsx";
+import { Overlays, type CodeEditState } from "./Overlays.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
 import { Workspace } from "./Workspace.jsx";
 import {
@@ -309,9 +310,9 @@ export function App() {
 	// Generated files whose graph has moved or gone. Rojo cannot tell they are
 	// stale, so it syncs them, and the same module turns up twice.
 	const [orphans, setOrphans] = useState<string[]>([]);
-	const [codeEdit, setCodeEdit] = useState<
-		{ nodeId: string; pin: PinDef; value: string } | null
-	>(null);
+	const [codeEdit, setCodeEdit] = useState<CodeEditState | null>(null);
+	// The Inspector asks for the editor this way; see `codeEditRequests.ts`.
+	useEffect(() => onCodeEditRequest(setCodeEdit), []);
 	const [dialog, setDialog] = useState<PendingDialog | null>(null);
 	/**
 	 * The folder a new graph or map goes into.
@@ -2269,7 +2270,9 @@ export function App() {
 				codeEdit={codeEdit}
 				onCodeCommit={(next) => {
 					if (!codeEdit) return;
-					store.edit((s) => setLiteral(s, codeEdit.nodeId, codeEdit.pin.id, { t: "raw", v: next }));
+					const { nodeId, pin, field } = codeEdit;
+					if (field) store.edit((s) => setNodeConfig(s, nodeId, { [field]: next }));
+					else if (pin) store.edit((s) => setLiteral(s, nodeId, pin.id, { t: "raw", v: next }));
 					setCodeEdit(null);
 				}}
 				onCodeClose={() => setCodeEdit(null)}

@@ -45,6 +45,7 @@ import { SelectionPreview } from "./SelectionPreview.jsx";
 import { SettingsPanel } from "./SettingsPanel.jsx";
 import { LAYER } from "./layers.js";
 import type { Preferences } from "./preferences.js";
+import type { LuauFragment } from "../core/luau/check.js";
 
 /** A file dragged onto the canvas, once we know what can be made from it. */
 export interface DropMenuState {
@@ -54,10 +55,20 @@ export interface DropMenuState {
 	location: InstanceLocation;
 }
 
+/**
+ * Code being edited in the full editor: a pin's code, or — with `field` — a
+ * Declare Type's definition written out in Luau.
+ */
 export interface CodeEditState {
 	nodeId: string;
-	pin: PinDef;
+	pin?: PinDef;
+	/** A config field to write back to, rather than a pin's literal. */
+	field?: "definition";
 	value: string;
+	/** What the text must parse as. Worked out from the node when absent. */
+	kind?: LuauFragment;
+	title?: string;
+	hint?: string;
 }
 
 export interface OverlaysProps {
@@ -153,9 +164,10 @@ export function Overlays(props: OverlaysProps) {
 
 			{props.codeEdit && (
 				<CodeEditor
-					title={props.codeEdit.pin.name || "Luau"}
+					title={props.codeEdit.title ?? (props.codeEdit.pin?.name || "Luau")}
 					value={props.codeEdit.value}
-					hint="Emitted verbatim into the generated file"
+					hint={props.codeEdit.hint ?? "Emitted verbatim into the generated file"}
+					kind={props.codeEdit.kind}
 					script={props.script}
 					registry={props.registry}
 					nodeId={props.codeEdit.nodeId}

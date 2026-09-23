@@ -39,6 +39,9 @@ import {
 } from "../core/luneCalls.js";
 import { LUNE_ROBLOX_DATATYPES } from "../core/luneApi.js";
 import { ENGINE_TYPES } from "../core/schema.js";
+import { checkLuau } from "../core/luau/check.js";
+import { requestCodeEdit } from "./codeEditRequests.js";
+import { highlightLuau } from "./highlight.js";
 
 /**
  * Abbreviations whose full stop is not the end of a sentence.
@@ -504,6 +507,54 @@ function TypeFields({ node }: { node: GraphNode }) {
 	);
 }
 
+/**
+ * A Declare Type written out in Luau: shown here, edited in the code editor.
+ *
+ * It was a textarea, which took any text and said nothing, so a table type
+ * missing a comma went into the file and broke it in Studio. The code editor
+ * parses it as a type while you write, with the same parser the build runs,
+ * and this preview carries the first mistake so it is seen without opening it.
+ */
+function WrittenType({ node, name, definition }: { node: GraphNode; name?: string; definition?: string }) {
+	const text = definition ?? "";
+	const problem = text.trim() === "" ? undefined : checkLuau(text, "type")[0];
+	const open = () => requestCodeEdit({
+		nodeId: node.id,
+		field: "definition",
+		value: text,
+		kind: "type",
+		title: `type ${name || "Name"}`,
+		hint: "Written into the generated file as this type's definition",
+	});
+	return (
+		<Field label="Definition">
+			<button
+				type="button"
+				className={`type-definition${problem ? " bad" : ""}`}
+				onClick={open}
+				title="Edit in the code editor"
+			>
+				{text.trim() === "" ? (
+					<span className="placeholder">{'"idle" | "driving"'}</span>
+				) : (
+					highlightLuau(text).map((line, i) => (
+						<span className="line" key={i}>
+							{line.map((token, j) => (token.cls === ""
+								? token.text
+								: <span key={j} className={token.cls}>{token.text}</span>))}
+						</span>
+					))
+				)}
+			</button>
+			{problem && (
+				<p className="type-definition-problem">
+					{problem.message} <span className="where">line {problem.line}</span>
+				</p>
+			)}
+		</Field>
+	);
+}
+
 function TypeEditor({ node }: { node: GraphNode }) {
 	const config = (node.config ?? {}) as {
 		name?: string; definition?: string; export?: boolean; shape?: string;
@@ -546,20 +597,7 @@ function TypeEditor({ node }: { node: GraphNode }) {
 			{shape === "fields" && <TypeFields node={node} />}
 			{shape === "fields" && <TableLayout node={node} />}
 
-			{shape === "written" && (
-				<Field label="Definition">
-					<textarea
-						className="tb type-definition"
-						rows={3}
-						spellCheck={false}
-						value={config.definition ?? ""}
-						placeholder={'"idle" | "driving"'}
-						onChange={(e) =>
-							store.edit((s) => setConfig(s, node.id, { definition: e.target.value }))
-						}
-					/>
-				</Field>
-			)}
+			{shape === "written" && <WrittenType node={node} name={config.name} definition={config.definition} />}
 
 			{shape === "typeof" && (
 				<p className="summary">

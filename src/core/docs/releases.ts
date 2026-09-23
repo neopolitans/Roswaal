@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.87.0",
+		date: "2026-09-23",
+		headline: "A type written as Luau opens in the code editor.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A Declare Type written as Custom Luau is edited in the code editor**, checked as a type while you write. Click the Definition in the Inspector to open it.",
+			"**The Inspector shows the definition highlighted**, with its first mistake underneath — a table type missing a comma is marked there, before the build.",
+		],
+	},
+	{
 		version: "0.86.0",
 		date: "2026-09-23",
 		headline: "Hand-written Luau is parsed before the file is written.",

@@ -2946,7 +2946,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 						{
 							t: "p",
 							text:
-								"A type typed out in the **Custom Luau** box behaves as the rows do, as long " +
+								"A type written as **Custom Luau** — click its Definition to open the code editor — behaves as the rows do, as long " +
 								"as what you wrote is a table of named fields. This is the shape to reach for " +
 								"when a field's own type is more than a name — `{ Player }`, `Model?`.",
 						},
@@ -5006,7 +5006,7 @@ function castingBlocks(registry: Registry): Block[] {
 			head: ["Shape", "Writes", "When"],
 			rows: [
 				["**Table of Fields**", "`{ walkSpeed: number, weld: WeldConstraint? }`", "A record. The fields are rows in the Inspector, so a brace cannot go missing. **Layout** writes it on one line or one field to a line, as Make Dictionary does."],
-				["**Custom Luau**", "Whatever you type", "A union, a function type, a generic — everything the row editor cannot say."],
+				["**Custom Luau**", "What you write in the code editor, checked as a type", "A union, a function type, a generic — everything the row editor cannot say."],
 				[
 					"**Type of a Value**",
 					"`typeof(Tuning)`",
