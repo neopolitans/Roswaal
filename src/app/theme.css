@@ -4384,13 +4384,38 @@ button.tb.icon-only.on {
 	clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
+/* After Docusaurus's admonitions: the kind is a colour, a word and an icon,
+   so the reader knows why the box is there before reading it. The colour is
+   the theme's own, so a note takes whichever theme the reader has chosen. */
 .docs-note {
-	border-left: 3px solid var(--border-strong);
-	background: var(--bg-input);
+	--note: var(--border-strong);
+	border-left: 4px solid var(--note);
+	background: color-mix(in srgb, var(--note) 9%, var(--bg-input));
 	border-radius: 0 4px 4px 0;
 	padding: 9px 12px;
 	margin: 0 0 14px;
 	line-height: 1.55;
+}
+
+.docs-note.note-info { --note: var(--accent); }
+.docs-note.note-good { --note: var(--ok); }
+.docs-note.note-warn { --note: var(--warning); }
+.docs-note.note-danger { --note: var(--danger); }
+
+.docs-note-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 4px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--note);
+}
+
+.docs-note-body > :last-child {
+	margin-bottom: 0;
 }
 
 /* A list inside a note: several separate claims rather than one thought.
@@ -4405,9 +4430,6 @@ button.tb.icon-only.on {
 	margin: 3px 0;
 }
 
-.docs-note.warn { border-left-color: var(--warning); }
-.docs-note.good { border-left-color: var(--ok); }
-.docs-note.info { border-left-color: var(--accent); }
 
 /* The docs as their own window, at /docs. Fills the viewport rather than
    floating over a canvas, because there is no canvas behind it. */
@@ -7513,6 +7535,19 @@ button.tb.danger {
  * one, so it takes the width it needs and stops. The contents carry the
  * editor's own class names -- `.variable`, `.swatch`, `.variables-sub` -- which
  * is where the likeness comes from, so this rule only has to undo the dock. */
+/* Centred in its frame: at its own width against the left edge, a wide page
+   left it stranded beside an empty stage. A column, said here rather than
+   inherited, because `.panel` and `.inspector` are the editor's own classes and
+   bring their own flex direction with them -- centring on the wrong axis is
+   what the first version of this did. `safe`, so a picture wider than the
+   frame still scrolls from its left edge rather than losing it. */
+.docs-bar-frame.panel,
+.docs-bar-frame.inspector {
+	display: flex;
+	flex-direction: column;
+	align-items: safe center;
+}
+
 .docs-bar-frame.panel > .variables {
 	width: min(340px, 100%);
 	padding: 4px 0 8px;
@@ -7822,14 +7857,17 @@ button.tb.danger {
 /* Every control, in the order it is drawn. A list rather than a table: the
    name is the thing being scanned and the explanation is detail under it,
    which is a column that would be empty on no rows and wide on all of them. */
-.docs-bar-legend {
+/* Scoped under `.docs-bar` so it outranks `.docs-content ul` and `li`, whose
+   indent and row gap otherwise inset the legend from its frame. */
+.docs-bar .docs-bar-legend {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 	border-top: 1px solid var(--border);
 }
 
-.docs-bar-legend li {
+.docs-bar .docs-bar-legend li {
+	margin: 0;
 	display: grid;
 	grid-template-columns: minmax(9rem, 14rem) 1fr;
 	gap: 4px 18px;
@@ -7876,7 +7914,7 @@ button.tb.danger {
    see that: the name column held its 9rem and left the explanation wrapping
    at four words. `.docs-page .docs-content` is the container. */
 @container (max-width: 620px) {
-	.docs-bar-legend li {
+	.docs-bar .docs-bar-legend li {
 		grid-template-columns: 1fr;
 		gap: 2px;
 	}

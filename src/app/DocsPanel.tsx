@@ -28,6 +28,7 @@ import type { NodeScript } from "../core/schema.js";
 import {
 	graphSvg, previewSvg, type NodePreview, type PreviewOptions,
 } from "../core/docs/preview.js";
+import { noteHeadHtml } from "../core/docs/notes.js";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { highlightLuau } from "./highlight.js";
 import { Icon, ICONS, VIEW_BOX } from "./icons.jsx";
@@ -683,15 +684,18 @@ function BlockView({ block }: { block: Block }) {
 			);
 		case "note":
 			return (
-				<div className={`docs-note ${block.kind}`}>
-					<Rich text={block.text} />
-					{block.items && (
-						<ul>
-							{block.items.map((item, i) => (
-								<li key={i}><Rich text={item} /></li>
-							))}
-						</ul>
-					)}
+				<div className={`docs-note note-${block.kind}`}>
+					<div dangerouslySetInnerHTML={{ __html: noteHeadHtml(block.kind) }} style={{ display: "contents" }} />
+					<div className="docs-note-body">
+						<Rich text={block.text} />
+						{block.items && (
+							<ul>
+								{block.items.map((item, i) => (
+									<li key={i}><Rich text={item} /></li>
+								))}
+							</ul>
+						)}
+					</div>
 				</div>
 			);
 		case "pins":

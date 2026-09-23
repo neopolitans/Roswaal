@@ -309,8 +309,7 @@ export const DEMOS: Demo[] = [
 		what: "Open a file, and say how long it is.",
 		note:
 			"`fs.readFile` is a **value** node — no execution pins — because Lune tags it " +
-			"`must_use`. What a function gives back is what decides which of the two Lune " +
-			"nodes it arrives as, and that decision is Lune's rather than Roswaal's.",
+			"`must_use`.",
 		script: readAFile,
 	},
 	{
@@ -318,15 +317,12 @@ export const DEMOS: Demo[] = [
 		title: "Fetch JSON and read a field",
 		what: "Ask an HTTP API for something, and pull one value out of the answer.",
 		note:
-			"`net.request` is a **step** and `serde.decode` is a **value**, which is the same " +
-			"rule again: a request can be worth making for what it does, and a decode cannot. " +
-			"Two modules are declared here, and neither was added for you.",
+			"`net.request` is a **step** and `serde.decode` a **value**, by the same rule. Both " +
+			"modules are declared here by hand.",
 		warns:
-			"**The wire that reads the body warns, and it is right.** Roswaal knows " +
-			"the pin is a `FetchResponse` because Lune's own signature says so, and it reads " +
-			"the library's type *names* without their shapes — so it cannot tell that this one " +
-			"is a table. It compiles and runs. Expect the same on anything that hands back one " +
-			"of Lune's named types, `fs.metadata` included.",
+			"**The wire reading the body warns, and still compiles and runs.** Roswaal knows " +
+			"Lune's type names but not their shapes, so it cannot tell `FetchResponse` is a " +
+			"table. `fs.metadata` does the same.",
 		script: fetchJson,
 	},
 	{
@@ -334,9 +330,8 @@ export const DEMOS: Demo[] = [
 		title: "Walk a directory",
 		what: "List what is in a folder, and say which entries are folders themselves.",
 		note:
-			"The two arms of the Branch sit on their own rows. On one row they would read as " +
-			"a sequence, and which Print belongs to **True** would be something the reader has " +
-			"to work out from the wires.",
+			"The Branch's two arms sit on their own rows, so which Print belongs to **True** is " +
+			"plain.",
 		script: walkADirectory,
 	},
 	{
@@ -344,10 +339,8 @@ export const DEMOS: Demo[] = [
 		title: "A small command line",
 		what: "Take an argument, and say what to do when it is missing.",
 		note:
-			"`process.args` is a property of the module rather than a function, and Roswaal's " +
-			"catalogue holds functions and classes — so there is no node for it and a **Luau " +
-			"Expression** stands in. The module is declared the same as any other, and the " +
-			"expression reaches through the local it bound.",
+			"`process.args` is a property, not a function, so it has no node; a **Luau " +
+			"Expression** reads it through the module's local.",
 		script: aSmallCli,
 	},
 ];

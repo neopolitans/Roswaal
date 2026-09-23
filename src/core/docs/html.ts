@@ -30,6 +30,7 @@ import { layoutHtml, listedRegions } from "./layouts.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
 import { mapFigure, mapFigureHtml } from "./mapFigure.js";
+import { noteHeadHtml } from "./notes.js";
 
 export interface RenderOptions {
 	/** Turns Luau into HTML. Returns escaped text when absent. */
@@ -225,7 +226,10 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			const items = block.items
 				? `<ul>${block.items.map((i) => `<li>${inline(i, up)}</li>`).join("")}</ul>`
 				: "";
-			return `<div class="docs-note ${block.kind}">${inline(block.text, up)}${items}</div>`;
+			return (
+				`<div class="docs-note note-${block.kind}">${noteHeadHtml(block.kind)}` +
+				`<div class="docs-note-body">${inline(block.text, up)}${items}</div></div>`
+			);
 		}
 		case "pins":
 			return renderPins(block, options);

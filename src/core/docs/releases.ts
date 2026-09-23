@@ -94,6 +94,23 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.83.2",
+		date: "2026-09-23",
+		headline: "Notes say what kind they are, and say it briefly.",
+		affects: ["docs"],
+		changed: [
+			"**Notes carry a heading**: Info, Tip, Warning or Danger, with an icon, in a box tinted the theme's colour for that kind.",
+			"**Every note on the guide pages is shorter** — about half the words, the claim and what to do about it.",
+			"**Drawn panels and Inspectors are centred** in their frames, and the list under them runs flush to the frame's edges.",
+		],
+		fixed: [
+			"Members and fields no longer promises that a Roblox property or another module's type is checked before the file is written — only a type the file declares is.",
+			"Casting and annotations no longer says Roswaal does not know Roblox's class hierarchy.",
+			"Roswaal types says an optional pin left empty before one that is set is written as `nil`.",
+			"Variables and locals says a local cannot be read after its block ends, as well as from a sibling block.",
+		],
+	},
+	{
 		version: "0.83.1",
 		date: "2026-09-22",
 		headline: "The concatenation control, named for what it picks.",

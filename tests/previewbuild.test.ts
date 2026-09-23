@@ -388,6 +388,6 @@ describe("the bars the documentation draws", () => {
 		const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
 		const page = findPage(site, "toolbars")!;
 		const rendered = renderPage(site, page, { version: "test", toolbars: art });
-		expect(rendered).toContain("your work is in this browser and not on your disk");
+		expect(rendered).toContain("your work is in this browser, not on disk");
 	});
 });

@@ -84,6 +84,12 @@ export const TAG_LABELS: Record<ReleaseTag, string> = {
 	designer: "Designer",
 };
 
+/**
+ * What a note is, which its heading says in a word: Info, Tip, Warning, or
+ * Danger for what loses work or breaks a build. See `notes.ts`.
+ */
+export type NoteKind = "info" | "good" | "warn" | "danger";
+
 export type Block =
 	/** `aside` sits at the right of the heading: a date, a version, a status. */
 	/** `badge` sits right beside the heading's text: "Latest", on the current release. */
@@ -116,7 +122,7 @@ export type Block =
 	 * scanned. Optional, because most notes are a single thought and a bullet
 	 * with nothing to be distinguished from is furniture.
 	 */
-	| { t: "note"; kind: "info" | "warn" | "good"; text: string; items?: string[] }
+	| { t: "note"; kind: NoteKind; text: string; items?: string[] }
 	/** Pin tables on a node page, which want their own rendering. */
 	| { t: "pins"; title: string; pins: NodeDoc["inputs"] }
 	/**
@@ -686,9 +692,7 @@ function blueprintPage(): DocPage {
 			t: "note",
 			kind: "good",
 			text:
-				"**Where there is no equivalent, this page says so.** Being told up front that " +
-				"Construction Scripts do not exist here is worth more than forty minutes spent " +
-				"looking for them.",
+				"**Where there is no equivalent, this page says so** — Construction Scripts, for one.",
 		},
 		{
 			t: "note",
@@ -1147,11 +1151,8 @@ const CONTRIBUTING: DocPage = {
 			t: "note",
 			kind: "good",
 			text:
-				"**Every page carries a Suggest an edit button at its foot**, which opens the page's " +
-				"own text to rewrite and sends the result as a prefilled issue. It is the way in for " +
-				"somebody who is *reading* the documentation rather than building Roswaal — the " +
-				"pages are TypeScript in this repository, so there is nothing on a reader's machine " +
-				"for them to edit — and it works from the published site as well as from the editor.",
+				"**Every page has a Suggest an edit button at its foot.** It opens the page's text to " +
+				"rewrite and sends it as a prefilled issue, from the published site or the editor.",
 		},
 
 		{ t: "h", level: 2, text: "Where help is wanted" },
@@ -1159,10 +1160,8 @@ const CONTRIBUTING: DocPage = {
 			t: "note",
 			kind: "good",
 			text:
-				"**Lune comes first.** Where possible and feasible, Bugfixes and Features for Lune " +
-				"will be prioritized. ROBLOX Studio documentation and developer resources are rich " +
-				"enough at this time to sustain development, but fixes and features will still be " +
-				"considered.",
+				"**Lune comes first.** Lune bugfixes and features are prioritized where feasible; " +
+				"Roblox Studio ones are still considered.",
 		},
 		{
 			t: "ul",
@@ -1415,9 +1414,8 @@ const GETTING_STARTED: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"Generated files carry a hash of themselves. Edit one by hand and Roswaal refuses to " +
-				"overwrite it rather than throwing your change away — recompile with force when you " +
-				"mean it.",
+				"**A generated file you edited by hand is not overwritten.** Recompile with force " +
+				"when you mean to replace it.",
 		},
 		{ t: "h", level: 2, text: "Getting it into Studio" },
 		{
@@ -1606,16 +1604,15 @@ const TWO_KINDS_OF_WIRE = (registry: Registry): DocPage => ({
 			t: "note",
 			kind: "good",
 			text:
-				"Splitting and recombining do not change what the graph compiles to. Where a value " +
-				"cannot be carried across — an expression rather than numbers — Roswaal says so " +
-				"before it changes anything.",
+				"Splitting and recombining never change the compiled output. Where a value cannot be " +
+				"carried across, Roswaal says so first.",
 		},
 		{
 			t: "note",
 			kind: "warn",
 			text:
-				"Wires on a pin you split or recombine are removed. If there is more than one, " +
-				"Roswaal asks first.",
+				"Splitting or recombining a pin removes its wires, and asks first if there is more " +
+				"than one.",
 		},
 
 		{ t: "h", level: 2, text: "Values on unwired inputs" },
@@ -1778,8 +1775,8 @@ const INTERFACE: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"On a phone or a tablet the editor, Node Design and the docs open in the same tab, " +
-				"and the back button returns. On a computer each has a tab of its own.",
+				"On phones or tablets, the Editor, Node Design and Docs share one tab, and Back " +
+				"returns. On a computer each has its own.",
 		},
 	],
 };
@@ -1844,8 +1841,8 @@ const CONTROLS: DocPage = {
 							t: "note",
 							kind: "info",
 							text:
-								"While a compile is running outside Dynamic the canvas is locked, and only the " +
-								"controls that read rather than change it work: `Ctrl` + `A`, `Ctrl` + `C` and `P`.",
+								"While a compile runs outside Dynamic the canvas is locked; only `Ctrl` + `A`, `Ctrl` " +
+								"+ `C` and `P` work.",
 						},
 					],
 				},
@@ -1923,9 +1920,8 @@ const CONTROLS: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"Nothing moves sideways. A node's column says when it happens, so a tidy-up that " +
-				"shifted one would be changing what the graph says. Use **Realign** to rebuild the " +
-				"columns. Comments stay put too.",
+				"Nothing moves sideways — a node's column says when it runs. Use **Realign** to " +
+				"rebuild the columns. Comments stay put.",
 		},
 		{ t: "h", level: 2, text: "The canvas" },
 		{
@@ -2106,7 +2102,7 @@ const TOOLBARS_PAGE: DocPage = {
 		{
 			t: "note",
 			kind: "info",
-			text: "If you are looking for one of the three that are hardest to find:",
+			text: "The three hardest to find:",
 			items: [
 				"**Docs** — the document icon, third from the right on the editor's top bar.",
 				"**Node Design** — the palette icon, second from the right.",
@@ -2124,15 +2120,14 @@ const TOOLBARS_PAGE: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"**There are two editors.** The one the daemon serves with `roswaal serve`, and " +
-				"the **browser preview** on the project site — the same build, running in a tab, " +
-				"on a project kept in that browser rather than in your repository.",
+				"**There are two editors:** the one `roswaal serve` runs, and the **browser preview** " +
+				"on the project site — the same build, on a project kept in the browser instead of " +
+				"your repository.",
 			items: [
-				"**Every window of the preview is marked.** The editor's mark is blue beside the " +
-					"version — yellow on the canary — and Node Design carries a `preview` chip. If you can see either, " +
-					"your work is in this browser and not on your disk.",
-				"The bars are otherwise the same bars. Where one reaches something different, " +
-					"both are drawn below under a switch.",
+				"**Every preview window is marked:** a blue mark beside the version (yellow on the " +
+					"canary), or a `preview` chip in Node Design. If you see either, your work is in " +
+					"this browser, not on disk.",
+				"Otherwise the bars are the same. Where one differs, both are drawn below under a switch.",
 			],
 		},
 		{ t: "h", level: 2, text: "The editor's top bar" },
@@ -2177,10 +2172,9 @@ const TOOLBARS_PAGE: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"In the browser preview the **Docs** button opens the published copy of these " +
-				"pages, which documents the **built-in library only**. A project's own packs are " +
-				"documented in the editor the daemon serves, where the registry is live — so a " +
-				"node you wrote yourself has a page there and not here.",
+				"In the browser preview, **Docs** opens the published pages, which cover the " +
+				"**built-in library only**. Your own packs are documented in the editor `roswaal " +
+				"serve` runs.",
 		},
 		{ t: "h", level: 2, text: GRAPH_BAR.title },
 		{
@@ -2196,9 +2190,8 @@ const TOOLBARS_PAGE: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"These are **three separate panels floating over the canvas**, not one strip — the " +
-				"graph shows through the gaps between them, and that space is still canvas you can " +
-				"click and drag on. Looking for a single toolbar is why they are easy to miss.",
+				"These are **three separate floating panels**, not one strip. The gaps between them " +
+				"are canvas you can click and drag.",
 		},
 		{
 			t: "p",
@@ -2322,9 +2315,8 @@ const TOOLBARS_PAGE: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"Node Design's Settings and the documentation window's have no Project tab. That " +
-				"is deliberate: a project's settings belong to the repository and are changed " +
-				"from the editor, which is the window that has a project open.",
+				"Settings in Node Design and the docs has no Project tab. Project settings are " +
+				"changed from the editor, which has the project open.",
 		},
 		{ t: "h", level: 2, text: "Only on a touch screen" },
 		{
@@ -2397,11 +2389,8 @@ function luneLibraryPage(registry: Registry): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"**Which of the two you get is Lune's decision, not Roswaal's.** Lune tags a " +
-					"function `must_use` when the point of the call is the value it returns, which " +
-					"is the same line Roswaal draws between a pure node and a step. So `fs.readFile` " +
-					"is a value and `fs.writeFile` is a step, and nobody here had a second opinion " +
-					"about either.",
+					"**Lune decides which you get, not Roswaal.** A function Lune tags `must_use` is a " +
+					"value; the rest are steps. So `fs.readFile` is a value and `fs.writeFile` a step.",
 			},
 
 			{ t: "h", level: 2, text: "The module has to be declared" },
@@ -2416,10 +2405,8 @@ function luneLibraryPage(registry: Registry): DocPage {
 				t: "note",
 				kind: "warn",
 				text:
-					"`@lune/fs` is Lune's own and always available, which is the strongest case " +
-					"anybody could make for an exception to that rule. It is still not one. A file " +
-					"that quietly gained a require because you dropped a node is a file whose " +
-					"dependencies are not what its author can see — see [Modules](modules).",
+					"`@lune/fs` is no exception, though it is always available: placing a node never adds " +
+					"a require. See [Modules](modules).",
 			},
 			{
 				t: "p",
@@ -2491,9 +2478,8 @@ function luneLibraryPage(registry: Registry): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"`@lune/fs` and its siblings **cannot be aliased.** Lune reserves those names, " +
-					"so no `.luaurc` can redefine them and none needs to — see " +
-					"[Aliases and .luaurc](aliases) for the aliases you can define yourself.",
+					"`@lune/fs` and its siblings **cannot be aliased** — Lune reserves those names. See " +
+					"[Aliases and .luaurc](aliases) for the ones you can define.",
 			},
 		],
 	};
@@ -2558,10 +2544,8 @@ const ALIASES_PAGE: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"**A nearer file adds to the one above it; it does not replace it.** The RFC is " +
-				"explicit: *\"Missing aliases in .luaurc are inherited from the alias maps of " +
-				"any parent directories, and fields can be overridden.\"* So a file that names one " +
-				"alias changes that one, and every other name still arrives from above.",
+				"**A nearer file adds to the one above it; it does not replace it.** An alias it " +
+				"names overrides the one above; every other alias is inherited.",
 		},
 		{
 			t: "table",
@@ -2585,10 +2569,8 @@ const ALIASES_PAGE: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"This is the rule worth reading twice, because the wrong version of it is right " +
-				"by accident. A graph that sits beside the `.luaurc` resolves the same either " +
-				"way, and most graphs do — so a project can run for months before the first " +
-				"graph in a subdirectory finds out.",
+				"**This rule can be wrong unnoticed.** A graph beside the `.luaurc` resolves the same " +
+				"either way; the first graph in a subdirectory is where it shows.",
 		},
 
 		{ t: "h", level: 2, text: "Naming one" },
@@ -2617,8 +2599,7 @@ const ALIASES_PAGE: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"A ring is an error. Roswaal reports it as the ring it walked — `a → b → c → a` — " +
-				"rather than as \"cycle detected\", because the names are the part you can act on.",
+				"A ring is an error, reported as the ring it walked: `a → b → c → a`.",
 		},
 
 		{ t: "h", level: 2, text: "Editing one" },
@@ -2669,13 +2650,9 @@ const ALIASES_PAGE: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"**Roblox does not resolve aliases yet.** Its own announcement answers \"custom " +
-				"aliased paths?\" with *\"Not yet, but we're working on it!\"*, and an update of 8 " +
-				"January 2026 says custom aliases are being worked on — both checked 16 September " +
-				"2026. So a `.luaurc` in a Roblox project is a file Rojo will sync and the engine " +
-				"will ignore, and Roswaal warns rather than refusing: it is code written against " +
-				"something that is coming, not code that is wrong. `@self/` and `@game/` do work, " +
-				"and so do `./` and `../` — see [Modules](modules).",
+				"**Roblox does not resolve aliases yet** (announced as coming; checked 16 September " +
+				"2026), so a `.luaurc` in a Roblox project is a warning, not an error. `@self/`, " +
+				"`@game/`, `./` and `../` do work — see [Modules](modules).",
 		},
 	],
 };
@@ -2704,10 +2681,8 @@ const MODULES_PAGE: DocPage = {
 			t: "note",
 			kind: "good",
 			text:
-				"**Nothing is required that the graph does not say.** Nothing is inferred and nothing " +
-				"is added behind you. If the generated file imports something, it is because the " +
-				"panel or the canvas says so — which is what makes the file safe to read and to " +
-				"commit.",
+				"**Nothing is required that the graph does not say.** Every import in the generated " +
+				"file is one the panel or the canvas shows.",
 		},
 		{ t: "h", level: 2, text: "Declaring one" },
 		{
@@ -2764,11 +2739,9 @@ const MODULES_PAGE: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"Roswaal checks the specifier against the runtime the graph compiles for, so " +
-				"`@lune/fs` in a Roblox graph is an error rather than a surprise at runtime. The " +
-				"`.luaurc` row is a **warning** instead: Roblox says alias maps are coming, so that " +
-				"is code which does not resolve today rather than code that is wrong. Where those " +
-				"aliases come from is [Aliases and .luaurc](aliases).",
+				"Specifiers are checked against the graph's runtime: `@lune/fs` in a Roblox graph is " +
+				"an error. A `.luaurc` alias is a **warning** in Roblox, which does not resolve them " +
+				"yet — see [Aliases and .luaurc](aliases).",
 		},
 		{ t: "h", level: 2, text: "Naming it yourself" },
 		{
@@ -2830,9 +2803,8 @@ const MODULES_PAGE: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"Deleting a module leaves the pills that read it in place, reporting an error. The " +
-				"same as deleting a variable, and for the same reason: an error you can see and " +
-				"undo beats nodes disappearing because a declaration went away.",
+				"Deleting a module leaves the pills that read it in place, reporting an error — as " +
+				"deleting a variable does.",
 		},
 	],
 };
@@ -2867,12 +2839,12 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 				[
 					"**Get Member**",
 					"A field the type declares",
-					"The type says what it holds: a Declare Type's fields, a Roblox class's properties. The list is offered, and a name that is not on it is refused before the file is written.",
+					"The type says what it holds: a Declare Type's fields, a Roblox class's properties. The list is offered, and for a type this file declares, a name not on it is refused before the file is written.",
 				],
 				[
 					"**Get Field**",
 					"Any key you name",
-					"Nothing can promise what is in there: a dictionary filled and emptied as the program runs, a table from `require` of something Roswaal cannot see.",
+					"Nothing can promise what is in there: a dictionary filled and emptied as the program runs, or whatever `require` returns, which arrives untyped.",
 				],
 			],
 		},
@@ -3071,11 +3043,9 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 			t: "note",
 			kind: "info",
 			text:
-				"This list comes from the daemon, which reads the other graph. In a browser with " +
-				"no project open behind it there is nothing to read, so a module's type offers no " +
-				"members — the name still compiles, and Luau still checks it. For the same reason " +
-				"the compiler does not refuse a member on one of these: the graph that declares it " +
-				"is not open, and refusing what cannot be checked would be guessing.",
+				"This list comes from the daemon reading the other graph. With no project open behind " +
+				"the browser it is empty; the name still compiles, and the compiler does not check " +
+				"it.",
 		},
 
 		{ t: "h", level: 2, text: "A Roblox instance" },
@@ -3104,9 +3074,8 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 			t: "note",
 			kind: "warn",
 			text:
-				"The property list is Roblox's, so it is offered in a Roblox graph and not in a " +
-				"Lune one. It is also a catalogue built with this release: a property newer than " +
-				"it is typed in and compiles exactly the same, as every other list here does.",
+				"The property list is offered in Roblox graphs only, and is as of this release. A " +
+				"newer property can be typed in and compiles the same.",
 		},
 
 		{ t: "h", level: 2, text: "Finding one" },
@@ -3134,11 +3103,8 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 			t: "note",
 			kind: "warn",
 			text:
-				"**A member the type does not have is refused**, where the type is one this file " +
-				"declares: the compiler lists what it does hold rather than writing a read that " +
-				"comes back `nil` at runtime. A Roblox property and a type another module exports " +
-				"are not checked here — the catalogue is a build old, and the other graph is not " +
-				"open.",
+				"**A member the type does not have is refused**, for a type this file declares. " +
+				"Roblox properties and other modules' types are not checked.",
 		},
 	],
 });
@@ -3189,10 +3155,8 @@ const VARIABLES: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"**A variable read is never hoisted.** Unlike a pure expression it has to happen at " +
-				"its use site — otherwise a Set sitting between two Gets would be invisible to the " +
-				"second one, and the graph would compile to something that does not match what it " +
-				"draws.",
+				"**A variable being read from is never hoisted.** It happens where it is used, so a Set between " +
+				"two Gets is seen by the second.",
 		},
 
 		{
@@ -3219,9 +3183,9 @@ const VARIABLES: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"Reading a local from a **sibling block** is reported as an error rather than " +
-				"emitted as code that will not compile. The local genuinely is not in scope there, " +
-				"and finding that out from Roswaal beats finding it out from Studio.",
+				"A local exists only inside the block that declared it, and blocks nested in it. " +
+				"Reading it from a **sibling block** — the other arm of a Branch, another loop " +
+				"body — or after its block ends is an error.",
 		},
 		{
 			t: "p",
@@ -3243,10 +3207,8 @@ const VARIABLES: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"It is the **binding** that is fixed, not the value — `table.freeze` is the tool " +
-				"for the other half, and the two work together. `const` is a recent addition to " +
-				"Luau, so a graph that uses it needs a runtime that has it; an older one will " +
-				"refuse the file at parse time.",
+				"The **binding** is fixed, not the value — `table.freeze` does that. `const` is new " +
+				"to Luau; an older runtime refuses the file.",
 		},
 
 		{ t: "h", level: 2, text: "Parameters" },
@@ -3270,11 +3232,8 @@ const VARIABLES: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"A parameter exists only **where the function runs**, so a Get Parameter outside " +
-				"the body it belongs to is an error naming both. That is the same rule a local " +
-				"follows, for the same reason — and it is the compiler's own scope rule rather " +
-				"than a separate check, so the editor and the generated file cannot disagree " +
-				"about it.",
+				"A **Get Parameter** outside its function's body creates an error pointing to both — " +
+				"the same scope rule as a local.",
 		},
 		{
 			t: "p",
@@ -3305,13 +3264,10 @@ const VARIABLES: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"**A result name and a Declare Local make two locals, and that is deliberate.** " +
-				"Naming the result asks for a local; wiring that result into a Declare Local asks " +
-				"for a second, so you get `local child = parent:FindFirstChild(name)` followed by " +
-				"`local named = child`. Roswaal does not quietly collapse them, because which of " +
-				"the two names you meant to keep is not a question it can answer for you. Use one " +
-				"or the other: the **Result name** to name the value where it comes from, or a " +
-				"**Declare Local** to name it where you want the name to appear.",
+				"**A result name and a Declare Local make two locals:** " +
+				"`local child = parent:FindFirstChild(name)`, then `local named = child`. Use " +
+				"one — the **Result name** names the value where it is made, a **Declare Local** " +
+				"where you want the name.",
 		},
 
 		{ t: "h", level: 2, text: "What the code editor can see" },
@@ -3356,10 +3312,8 @@ const VARIABLES: DocPage = {
 			t: "note",
 			kind: "good",
 			text:
-				"The scanner errs towards offering **slightly too much** rather than too little: a " +
-				"name declared inside an `if` within one Custom Code block is still offered after " +
-				"it, in the same block. Suggesting a name that turns out to be out of scope costs " +
-				"you a compile error; hiding one that is in scope costs you the feature.",
+				"The list offers **slightly too much** rather than too little: a name declared inside " +
+				"an `if` in a Custom Code block is still offered after it.",
 		},
 		{
 			t: "p",
@@ -3437,13 +3391,10 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 		{ t: "code", lang: "luau", text: compiledBody(GUIDE_SCENES.luauExpression(), registry) },
 		{
 			t: "note",
-			kind: "warn",
+			kind: "danger",
 			text:
-				"**Typing a statement into a Luau Expression is the mistake this distinction " +
-				"exists to prevent.** `local x = 1` in one emits `print(local x = 1)` — the text " +
-				"is raw, so nothing rewrites it into something valid. Roswaal now warns when an " +
-				"expression starts with a statement keyword, but the general case is yours to get " +
-				"right: if it would not fit inside brackets, it belongs in Custom Code.",
+				"**Statements do not go in a Luau Expression.** `local x = 1` there emits " +
+				"`print(local x = 1)`. If it would not fit inside brackets, use Custom Code.",
 		},
 		{
 			t: "p",
@@ -3473,10 +3424,8 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 			t: "note",
 			kind: "warn",
 			text:
-				"The scope check reads the graph, not your code. If you declare a local **inside** a " +
-				"Custom Code block, later blocks can see it — Roswaal knows, because it scans for " +
-				"`local` — but a local declared inside an `if` within one snippet is still offered " +
-				"after that `if` has closed. That is a known limit of scanning rather than parsing.",
+				"The scope check scans for `local` rather than parsing, so a local declared inside an " +
+				"`if` in Custom Code is still offered after the `if` closes.",
 		},
 
 		{ t: "h", level: 2, text: "There are exactly two" },
@@ -3484,9 +3433,8 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 			t: "note",
 			kind: "good",
 			text:
-				"Those two node titles are a **complete list** of where hand-written Luau can enter " +
-				"a graph. Every other pin that defaults to something like `Vector3.zero` displays " +
-				"that constant and will not accept typed code.",
+				"Those two nodes are the **only** places hand-written Luau enters a graph. Every " +
+				"other pin shows its constant and will not take code.",
 		},
 		{
 			t: "p",
@@ -3518,9 +3466,8 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 			t: "note",
 			kind: "info",
 			text:
-				"Code inside these nodes is **not** checked by the compiler beyond bracket balance. " +
-				"It reaches the generated file exactly as typed, so a mistake surfaces in Studio " +
-				"rather than in the editor.",
+				"Code in these nodes is **not** checked beyond bracket balance. It is written as " +
+				"typed, so a mistake surfaces in Studio.",
 		},
 	],
 });
@@ -3625,10 +3572,8 @@ const BUILDING_LUNE: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"**There is no DataModel, so there is nothing to sync.** A Roblox project needs " +
-				"Rojo to carry a file into a place, and a node map to say where it lands. Lune " +
-				"runs the file where it is — `lune run main` — so the layout on disk is the whole " +
-				"answer and there is no second copy of it to keep in step.",
+				"**There is no DataModel, so there is nothing to sync.** Lune runs the file where it " +
+				"is — `lune run main` — so the layout on disk is the whole answer.",
 		},
 
 		{ t: "h", level: 2, text: "Nodemap basics" },
@@ -3749,10 +3694,8 @@ const BUILDING_LUNE: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"**A file's name carries no extension.** The `.luau` follows from the node being a " +
-				"file, and the figure above shows it — `main` in the map, `main.luau` on disk. " +
-				"Typing one is a warning rather than an error: it is the file you meant, and " +
-				"saying so is how you avoid wondering why the disk has `main.luau.luau`.",
+				"**A file's name has no extension:** `main` in the map, `main.luau` on disk. Typing " +
+				"one is a warning, so you do not end up with `main.luau.luau`.",
 		},
 
 		{ t: "h", level: 2, text: "Requires, and what the file depends on" },
@@ -3768,11 +3711,9 @@ const BUILDING_LUNE: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"**Roblox's datatypes are available, and are not free.** `Vector3` and `CFrame` " +
-				"work in a Lune graph because `@lune/roblox` implements them — so the node is " +
-				"offered, and it will not compile until that module is required with the datatype " +
-				"as a member. The Inspector has the button. `TweenInfo` is a Roblox datatype Lune " +
-				"does not implement, so its nodes stay out of a Lune graph entirely.",
+				"**Roblox datatypes need** `@lune/roblox`. `Vector3` and `CFrame` compile once it is " +
+				"required with the datatype as a member; the Inspector has the button. `TweenInfo` is " +
+				"not offered in Lune.",
 		},
 	],
 };
@@ -3875,10 +3816,10 @@ const BUILDING: DocPage = {
 		},
 		{
 			t: "note",
-			kind: "warn",
+			kind: "danger",
 			text:
-				"To overwrite one anyway, click **overwrite** beside it in the compile results, or " +
-				"run `roswaal compile --force`. Either way the hand edit is lost.",
+				"To overwrite one anyway, click **overwrite** in the compile results, or run `roswaal " +
+				"compile --force`. **The hand edit is lost.**",
 		},
 
 		{ t: "h", level: 2, text: "Moving and deleting graphs" },
@@ -3949,9 +3890,8 @@ const BUILDING: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"A map is written only when you ask: **Write project file**, **Compile project**, " +
-				"or `roswaal compile`. Dynamic compiling leaves maps alone. A project file Roswaal did not " +
-				"write is not overwritten; `roswaal compile --force` takes it over.",
+				"A map is written only by **Write project file**, **Compile project** or `roswaal " +
+				"compile` — never by Dynamic. A project file Roswaal did not write needs `--force`.",
 		},
 
 		{ t: "h", level: 2, text: "Requiring a module" },
@@ -3999,11 +3939,9 @@ function settingsPage(): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"Both are edited from **Settings** in the toolbar, and preferences from the " +
-					"Docs window's **Settings** too. The panel labels each " +
-					"section with where it is stored, because the one mistake worth designing " +
-					"against here is a personal colour scheme turning up in somebody's pull " +
-					"request.",
+					"Both are edited from **Settings**; preferences from the Docs window's too. Each " +
+					"section says where it is stored, so a personal colour scheme stays out of pull " +
+					"requests.",
 			},
 
 			{ t: "h", level: 2, text: "Project settings" },
@@ -4139,9 +4077,7 @@ function settingsPage(): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"**Wires and node corners change how a graph looks, never what it means** " +
-					"or what it compiles to — which is exactly the kind of thing worth a " +
-					"setting rather than a patch.",
+					"**Wires and node corners change how a graph looks, never what it compiles to.**",
 			},
 
 			{ t: "h", level: 2, text: "Themes" },
@@ -4244,10 +4180,7 @@ function settingsPage(): DocPage {
 				t: "note",
 				kind: "warn",
 				text:
-					"A data wire takes the colour of the pin it leaves, not a theme's. There was " +
-					"a `wireData` role for exactly one afternoon; the test that checks every role " +
-					"is actually read by something found that nothing had read it since data " +
-					"wires started following their pin.",
+					"A data wire takes its pin's colour, not a theme's. Themes have no data-wire role.",
 			},
 		],
 	};
@@ -4319,9 +4252,8 @@ const TYPES_GUIDE: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"A node pack can introduce its own type simply by naming one. Types are strings, " +
-				"not a closed list, so a pack declaring `Quaternion` gets a distinct pin that only " +
-				"connects to other `Quaternion` pins — without patching Roswaal.",
+				"A pack adds a type just by naming one: a `Quaternion` pin connects only to other " +
+				"`Quaternion` pins.",
 		},
 		{ t: "h", level: 2, text: "What connects to what" },
 		{
@@ -4345,10 +4277,8 @@ const TYPES_GUIDE: DocPage = {
 			t: "note",
 			kind: "good",
 			text:
-				"Those two pins are a **complete list** of where hand-written Luau can enter a " +
-				"graph. Everywhere else, a pin holding something like `Vector3.zero` is a constant " +
-				"Roswaal wrote and shows read-only. That is what makes reviewing a shared graph a " +
-				"matter of scanning for two node titles rather than opening every pin.",
+				"Those two pins are the **only** places hand-written Luau enters a graph, so " +
+				"reviewing one means scanning for two node titles.",
 		},
 		{
 			t: "p",
@@ -4388,11 +4318,10 @@ const TYPES_GUIDE: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"This is not the same as a pin with a default. A default is a **value**, and " +
-				"leaving that pin alone emits it. An optional pin left alone emits nothing — " +
-				"which matters because plenty of Roblox constructors reject an explicit `nil` " +
-				"where they accept a missing argument, so the two are different calls and only " +
-				"one of them works.",
+				"Optional is not the same as a default. A default left alone emits its **value**; an " +
+				"optional pin left alone emits nothing — and many Roblox constructors reject an " +
+				"explicit `nil`. Set a later optional pin and the ones before it are written as " +
+				"`nil`, to keep its position.",
 		},
 		{
 			t: "code",
@@ -4495,10 +4424,8 @@ function functionsPage(registry: Registry): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"**On Table** has to resolve to a name — a variable or a local. Luau has no " +
-					"syntax for attaching a function to an expression, so anything else is refused " +
-					"rather than half-written. Left unwired it is a plain `local function` at that " +
-					"point in the flow.",
+					"**On Table** must resolve to a variable or a local; Luau cannot attach a function to " +
+					"an expression. Left unwired, it is a plain `local function`.",
 			},
 
 			{ t: "h", level: 2, text: "The signature" },
@@ -4595,8 +4522,7 @@ function functionsPage(registry: Registry): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"A function with no Return at all is fine — it runs to the end of its body and " +
-					"returns nothing, the same as the Luau it compiles to.",
+					"A function with no Return is fine: it returns nothing, like the Luau it compiles to.",
 			},
 
 			{ t: "h", level: 2, text: "Calling one" },
@@ -4637,10 +4563,8 @@ function functionsPage(registry: Registry): DocPage {
 				t: "note",
 				kind: "warn",
 				text:
-					"A **Get Function** above a **Declare Function** reports that the function does " +
-					"not exist yet. The function is named where it is declared, so reaching it " +
-					"earlier in the flow is an error rather than a name that has not been reached. " +
-					"A hoisted **Function** has no such order to get wrong.",
+					"A **Get Function** earlier in the flow than its **Declare Function** is an error. A " +
+					"hoisted **Function** has no order to get wrong.",
 			},
 
 			{ t: "h", level: 2, text: "Reading a parameter" },
@@ -4668,9 +4592,7 @@ function functionsPage(registry: Registry): DocPage {
 				t: "note",
 				kind: "warn",
 				text:
-					"A Get Parameter outside the body it belongs to is an error naming both. That is " +
-					"the compiler's own scope rule rather than a separate check, so the editor and " +
-					"the generated file cannot disagree about it.",
+					"A **Get Parameter** outside its function's body creates an error pointing to both.",
 			},
 
 			{ t: "h", level: 2, text: "Finding one" },
@@ -4714,7 +4636,7 @@ function functionsPage(registry: Registry): DocPage {
 				kind: "warn",
 				text:
 					"A wire between two graphs can only come from a hand-edited file or a bad merge, " +
-					"and it is an error on the node it runs into.",
+					"and it creates an error on the node it runs into.",
 			},
 
 			{ t: "h", level: 2, text: "Editing a function as a whole" },
@@ -4860,9 +4782,8 @@ function servicesPage(registry: Registry): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"It is a **snapshot, not a gate**. The picker commits whatever you type, so a " +
-					"method the engine shipped after this build still compiles — set the argument " +
-					"count in the Inspector and wire them up.",
+					"The list is a **snapshot, not a gate**: the picker takes whatever you type, so a " +
+					"newer method compiles. Set its argument count in the Inspector.",
 			},
 			{
 				t: "table",
@@ -4973,9 +4894,8 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "note",
 			kind: "warn",
 			text:
-				"`::` is a **claim, not a check** — there is no runtime test and being wrong is " +
-				"silent. Ask with **Is A** first, which is a real test and narrows the type for " +
-				"the branch it guards.",
+				"`::` is a **claim, not a check** — nothing tests it at runtime. Ask with **Is A** " +
+				"first, which narrows the type for its branch.",
 		},
 		...previews(
 			registry,
@@ -5053,19 +4973,15 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "note",
 			kind: "info",
 			text:
-				"The match has to be **exact**: the classes the branch proved and the classes the " +
-				"cast claims are the same set, or the cast is written. Roswaal has no table of " +
-				"which Roblox class derives from which, so it will not quietly drop a cast to " +
-				"`BasePart` because the branch proved `Part` — nor, more importantly, the other " +
-				"way round.",
+				"The match must be **exact**: the branch's classes and the cast's must be the same " +
+				"set, or the cast is written.",
 		},
 		{
 			t: "note",
 			kind: "warn",
 			text:
-				"The narrowing belongs to the **True arm**, and to nothing else. The False arm of " +
-				"the same Branch proved nothing, a later statement after the `end` proved nothing, " +
-				"and an implicit cast in either of those places is written out in full.",
+				"The narrowing applies only in the **True arm**. In the False arm, or after the " +
+				"`end`, the cast is written out.",
 		},
 
 		{ t: "h", level: 2, text: "Declaring a type" },
@@ -5099,10 +5015,9 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "note",
 			kind: "info",
 			text:
-				"A declared type is **exported** unless you untick it, which is what lets another " +
-				"graph name it after requiring the module. `export type` is only legal at the top " +
-				"level, so an exported one inside a branch, a loop or a function is refused rather " +
-				"than written where Luau will not take it.",
+				"A declared type is **exported** unless you untick it, so other graphs can name it. " +
+				"Exported inside a branch, loop or function, it is refused: `export type` is " +
+				"top-level only.",
 		},
 
 		{ t: "h", level: 2, text: "Reading what a type holds" },
@@ -5155,10 +5070,8 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "note",
 			kind: "warn",
 			text:
-				"**A table whose keys come and go is Get Field's**, not this one's. A dictionary " +
-				"filled and emptied as the program runs has no fixed members, so a type that is " +
-				"not a table of fixed fields offers none — and a member this graph's own type does " +
-				"not have is refused before the file is written.",
+				"**Use Get Field for a table whose keys come and go.** A type without fixed fields " +
+				"offers no members, and a member this graph's own type lacks is refused.",
 		},
 
 		{ t: "h", level: 2, text: "What Roswaal writes for you" },
@@ -5225,11 +5138,9 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "note",
 			kind: "info",
 			text:
-				"**Typing it in is not the only way out.** Where a type is a whole declaration rather " +
-				"than a name, declare it once and pick it by name afterwards: **Custom Luau** on a " +
-				"Declare Type node for a union or a function type, or **Type of a Value** for " +
-				"`typeof(Tuning)`. It then appears under *This graph* in every picker in the " +
-				"graph, which beats typing the same type expression into three of them.",
+				"**Declare a long type once, then pick it by name:** **Custom Luau** on a Declare " +
+				"Type for a union or function type, or **Type of a Value** for `typeof(Tuning)`. It " +
+				"appears under *This graph* in every picker.",
 		},
 		{
 			t: "p",
@@ -5253,10 +5164,8 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "note",
 			kind: "warn",
 			text:
-				"The other direction is refused. An `Instance` into a `Model` pin is a claim about " +
-				"what the value *is* rather than a fact about its type — which is exactly what " +
-				"**Cast** is for, and why it is a node you can see in the graph rather than a rule " +
-				"that quietly lets it through.",
+				"The other direction is refused: an `Instance` into a `Model` pin needs a **Cast**, " +
+				"so the claim shows in the graph.",
 		},
 	];
 }
@@ -5288,9 +5197,8 @@ const CUSTOM_NODES: DocPage = {
 			t: "note",
 			kind: "good",
 			text:
-				"**A pack is never executed.** A Luau pack is *parsed*, and only literal values are " +
-				"allowed, so loading somebody else's pack cannot run their code. That is why the " +
-				"template language exists rather than a callback.",
+				"**A pack is never executed.** Luau packs are parsed and allow only literal values, " +
+				"so loading someone's pack cannot run their code.",
 		},
 		{
 			t: "tabs",
@@ -5351,10 +5259,9 @@ const CUSTOM_NODES: DocPage = {
 							t: "note",
 							kind: "good",
 							text:
-								"**The pack stays data.** The logic is compiled when you save, not when a project " +
-								"opens, and the loader only ever reads the Luau. A node built from another pack's " +
-								"nodes has their Luau written into its own, so the other pack is needed to edit " +
-								"the node again, not to use it.",
+								"**The pack stays data.** Logic compiles on save and the loader only reads Luau. A " +
+								"node built from another pack's nodes carries their Luau, so that pack is needed only " +
+								"to edit it.",
 						},
 					],
 				},
@@ -5409,9 +5316,9 @@ const CUSTOM_NODES: DocPage = {
 							t: "note",
 							kind: "warn",
 							text:
-								"**A placeholder is filled in every time it appears.** A template that reads " +
-								"`$in.character` twice evaluates a wired call twice. Read it once into a local: " +
-								"`local character = $in.character`. Logic built from nodes does this for you.",
+								"**A placeholder is filled in every time it appears**, so `$in.character` twice " +
+								"evaluates a wired call twice. Read it once: `local character = $in.character`. Logic " +
+								"built from nodes does this for you.",
 						},
 					],
 				},
@@ -5518,8 +5425,8 @@ const CUSTOM_NODES: DocPage = {
 							kind: "info",
 							text:
 								"Adding one to the library means building Roswaal and running its tests — see " +
-								"[Contributing](contributing). A node that opens a block is the one kind a pack " +
-								"cannot write, and it needs emitter work as well.",
+								"[Contributing](contributing). A node that opens a block also needs emitter work; " +
+								"packs cannot write one.",
 						},
 					],
 				},
@@ -5546,9 +5453,8 @@ const CUSTOM_NODES: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"`builtin` **is reserved** for the flow nodes that open blocks — branches, loops, " +
-				"function bodies. A pack declaring one is rejected when it loads, and that refusal is " +
-				"the boundary that lets a project depend on somebody else's pack.",
+				"`builtin` **is reserved** for the flow nodes that open blocks. A pack declaring one " +
+				"is rejected on load.",
 		},
 		{ t: "h", level: 2, text: "Placeholders" },
 		{
@@ -5612,9 +5518,8 @@ const CLI_PAGE: DocPage = {
 			t: "note",
 			kind: "info",
 			text:
-				"**Three of them block**: `serve`, `watch` and `restart` keep running until you stop " +
-				"them with Ctrl+C. Everything else does its work and exits, which is what makes " +
-				"`check` and `compile` usable from a script.",
+				"`serve`, `watch` and `restart` **block** until Ctrl+C. Everything else exits when " +
+				"done, so `check` and `compile` suit scripts.",
 		},
 		{ t: "h", level: 2, text: "Options" },
 		{
@@ -5627,9 +5532,8 @@ const CLI_PAGE: DocPage = {
 			t: "note",
 			kind: "warn",
 			text:
-				"**Restart the daemon after rebuilding Roswaal.** `serve` loads the CLI bundle once, " +
-				"so a rebuild does not reach a daemon that is already up: the browser picks up the " +
-				"new editor on reload while the server keeps running the old code.",
+				"**Restart the daemon after rebuilding Roswaal.** A reload picks up the new editor, " +
+				"but the server keeps running the old code.",
 		},
 		{
 			t: "p",
@@ -5666,10 +5570,8 @@ function luneDemosPage(registry: Registry): DocPage {
 			t: "note",
 			kind: "info",
 			text:
-				"**Every require here was placed by hand.** Roswaal does not add one, and a " +
-				"call whose module is not declared is an error rather than a guess — the rule " +
-				"is on [Modules](modules), and [Lune's standard library](lune-library) is what " +
-				"these are calling into.",
+				"**Every require here was placed by hand**; an undeclared module is an error, not a " +
+				"guess. See [Modules](modules) and [Lune's standard library](lune-library).",
 		},
 	];
 
@@ -5704,10 +5606,8 @@ function luneDemosPage(registry: Registry): DocPage {
 		t: "note",
 		kind: "warn",
 		text:
-			"**These are starting points, not finished programmes.** None of them checks " +
-			"whether the file was there, whether the request came back, or whether the JSON " +
-			"had the field — which a real version would, and which would double the size of " +
-			"every picture on this page.",
+			"**These are starting points.** None checks whether the file exists, the request " +
+			"succeeded or the JSON has the field — a real version would.",
 	});
 
 	return {
@@ -5755,9 +5655,8 @@ function robloxDemosPage(registry: Registry): DocPage {
 			t: "note",
 			kind: "info",
 			text:
-				"**Take a copy rather than opening it where it sits.** The mark in the corner " +
-				"offers it under *Demos*, and copies it somewhere of your own first: the demo " +
-				"beside Roswaal is the one everybody else who installed it will open.",
+				"**Take a copy rather than opening it in place.** *Demos* under the mark copies it " +
+				"somewhere of your own; the original is shared by everyone who installed Roswaal.",
 		},
 
 		{ t: "h", level: 2, text: "A module, and a function in it" },
@@ -5779,9 +5678,8 @@ function robloxDemosPage(registry: Registry): DocPage {
 			t: "note",
 			kind: "info",
 			text:
-				"A graph with a **Function** in it draws that function on its own canvas — the " +
-				"picture above is the outer graph. [Functions](functions) is the page about " +
-				"what that means and how a parameter reaches the body.",
+				"A **Function** is drawn on its own canvas; the picture above is the outer graph. See " +
+				"[Functions](functions).",
 		},
 
 		{ t: "h", level: 2, text: "A script that runs when the place does" },
@@ -5803,10 +5701,9 @@ function robloxDemosPage(registry: Registry): DocPage {
 			t: "note",
 			kind: "info",
 			text:
-				"**Nothing in that file arrived on its own.** The `require` is a node somebody " +
-				"placed, the service is a **Get Service**, and the event is a **Connect**. The " +
-				"rule is on [Modules](modules), and [Services and their methods](services) is " +
-				"the page about the first two.",
+				"**Nothing in that file arrived on its own:** the `require`, the **Get Service** and " +
+				"the **Connect** are all nodes. See [Modules](modules) and [Services and their " +
+				"methods](services).",
 		},
 
 		{ t: "h", level: 2, text: "Where it lands in the DataModel" },
@@ -5848,9 +5745,8 @@ function robloxDemosPage(registry: Registry): DocPage {
 			t: "note",
 			kind: "info",
 			text:
-				"The demo also ships two **node packs** of its own, under `.roswaal/nodes`. They " +
-				"are not used by either graph above — they are there to be opened in Node " +
-				"Design, which is what [Creating custom nodes](creating-custom-nodes) is about.",
+				"The demo also ships two **node packs** in `.roswaal/nodes`, unused by these graphs, " +
+				"to open in Node Design. See [Creating custom nodes](creating-custom-nodes).",
 		},
 	];
 
