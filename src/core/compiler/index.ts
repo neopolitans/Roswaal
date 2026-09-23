@@ -37,6 +37,8 @@ export interface CompileOptions {
 	indent?: string;
 	/** Write comment headers above the code their nodes produce. */
 	comments?: boolean;
+	/** Drop a cast a branch proved by class hierarchy. See the project config. */
+	castsByHierarchy?: boolean;
 	/**
 	 * The project's `.luaurc` alias map, for checking a module's specifier.
 	 *
@@ -59,6 +61,7 @@ export function compile(
 	const emitted: EmitResult = emit(script, registry, sourceHash, {
 		indent: options.indent,
 		comments: options.comments,
+		castsByHierarchy: options.castsByHierarchy,
 		specifiers: options.specifiers,
 	});
 

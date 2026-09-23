@@ -276,6 +276,8 @@ export interface EmitOptions {
 	 * makes you write it twice.
 	 */
 	comments?: boolean;
+	/** See `castsByHierarchy` in the project config. Default off. */
+	castsByHierarchy?: boolean;
 }
 
 /** What a node's logic compiles to, before the placeholders are put back. */
@@ -2125,12 +2127,17 @@ class Emitter {
 	/**
 	 * Whether a Cast is claiming exactly what the enclosing arm already proved.
 	 *
-	 * Exactly, not merely compatibly. A narrowing of `Decal | Texture` and a
-	 * Cast to `Decal` are different claims — the value might be the other one —
-	 * and Roswaal has no subtype table to judge `BasePart` against `Instance`
-	 * with. So the two sets of class names have to match, which is a rule that
-	 * can be stated in one sentence on the documentation page and never
-	 * surprises anybody by dropping a cast that was doing work.
+	 * Exactly, not merely compatibly, unless the project asks otherwise. A
+	 * narrowing of `Decal | Texture` and a Cast to `Decal` are different claims
+	 * — the value might be the other one. So the two sets of class names have to
+	 * match, which is a rule that can be stated in one sentence on the
+	 * documentation page and never surprises anybody by dropping a cast that
+	 * was doing work.
+	 *
+	 * With `castsByHierarchy` on, a cast is also dropped when every class the
+	 * branch proved derives from one the cast claims: `IsA("Part")` already
+	 * says the value is a `BasePart`. Still never the other way round — proving
+	 * `BasePart` says nothing about `Part`.
 	 */
 	private alreadyNarrowed(src: ResolvedNode, scope: Scope): boolean {
 		const key = this.valueKey(src, "value");
@@ -2143,8 +2150,9 @@ class Emitter {
 			.map((part) => part.trim())
 			.filter((part) => part !== "");
 		if (claimed.length === 0) return false;
-		if (claimed.length !== known.size) return false;
-		return claimed.every((part) => known.has(part));
+		if (claimed.length === known.size && claimed.every((part) => known.has(part))) return true;
+		if (!this.options.castsByHierarchy) return false;
+		return [...known].every((proved) => claimed.some((part) => isSubclassOf(proved, part)));
 	}
 
 	private narrowingsFrom(node: ResolvedNode, depth = 0): Map<string, Set<string>> {

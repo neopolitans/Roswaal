@@ -224,6 +224,17 @@ function ProjectSettings({ config, onConfig }: {
 			</Row>
 
 			<Row
+				label="Casts proved by a subclass"
+				help="An Implicit Cast inside an Is A branch is left out when the branch proved exactly its classes. On, it is also left out when the branch proved a class derived from the one it casts to — Is A Part covering a cast to BasePart."
+			>
+				<Toggle
+					on={config.castsByHierarchy === true}
+					onChange={(on) => onConfig({ castsByHierarchy: on })}
+					label={config.castsByHierarchy ? "Left out" : "Written"}
+				/>
+			</Row>
+
+			<Row
 				label="Indent with"
 				help="One level of indentation in the generated Luau. Handed to stylua as well when formatting is on, so this decides rather than stylua.toml."
 			>

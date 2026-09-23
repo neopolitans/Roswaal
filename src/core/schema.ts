@@ -628,6 +628,17 @@ export interface RoswaalConfig {
 	 * entirely in the editor.
 	 */
 	comments: boolean;
+	/**
+	 * Let an Implicit Cast inside an Is A branch go unwritten when the branch
+	 * proved a class derived from the one it claims — `IsA("Part")` covering a
+	 * cast to `BasePart`. Off, a cast is dropped only when the branch proved
+	 * exactly the classes it claims.
+	 *
+	 * Off by default: a cast is a claim, and one you can see in the file is one
+	 * you can check. A project that would rather read its casts off the branch
+	 * turns it on.
+	 */
+	castsByHierarchy?: boolean;
 	/** Rojo project file, used to resolve the tree view. */
 	rojoProject?: string;
 }

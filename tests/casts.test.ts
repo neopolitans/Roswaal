@@ -227,3 +227,44 @@ describe("an implicit Cast inside an Is A branch", () => {
 		expect(body(out.code)).toContain("print(thing)");
 	});
 });
+
+/**
+ * `castsByHierarchy`, off unless a project turns it on: a branch that proved
+ * a class derived from the one cast to has already said what the cast says.
+ */
+describe("an implicit cast proved by a subclass", () => {
+	/** Is A `proved` on the loop's value, then an implicit Cast to `claimed`. */
+	function proved(provedClass: string, claimed: string, castsByHierarchy?: boolean): string {
+		const b = new Builder();
+		const { loop } = loopOver(b);
+		const isA = b.node("instance.isA");
+		b.lit(isA, "className", { t: "string", v: provedClass });
+		const branch = b.node("flow.branch");
+		const cast = b.node("cast.as", { config: { cast: "implicit" } });
+		b.lit(cast, "type", { t: "string", v: claimed });
+		const print = b.node("debug.print");
+		b.link(loop, "value", isA, "instance");
+		b.link(isA, "result", branch, "condition");
+		b.link(loop, "body", branch, "in");
+		b.link(branch, "true", print, "in");
+		b.link(loop, "value", cast, "value");
+		b.link(cast, "result", print, "value");
+		return body(compile(b.build(), registry, { castsByHierarchy }).code);
+	}
+
+	it("is written by default", () => {
+		expect(proved("Part", "BasePart")).toContain("print((part :: BasePart))");
+	});
+
+	it("is left out when the project asks for it", () => {
+		expect(proved("Part", "BasePart", true)).toContain("print(part)");
+	});
+
+	it("is still written when the branch proved something wider", () => {
+		expect(proved("BasePart", "Part", true)).toContain("print((part :: Part))");
+	});
+
+	it("is still written for a class the branch did not prove at all", () => {
+		expect(proved("Model", "BasePart", true)).toContain("print((part :: BasePart))");
+	});
+});

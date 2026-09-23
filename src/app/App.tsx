@@ -410,11 +410,12 @@ export function App() {
 	// file on disk are the same text rather than nearly the same text.
 	const indent = project ? indentUnit(project.config) : undefined;
 	const withComments = project?.config.comments ?? true;
+	const castsByHierarchy = project?.config.castsByHierarchy === true;
 	const compiled = useMemo(
 		() => (editor.script
-			? compile(editor.script, registry, { indent, comments: withComments })
+			? compile(editor.script, registry, { indent, comments: withComments, castsByHierarchy })
 			: null),
-		[editor.script, registry, indent, withComments],
+		[editor.script, registry, indent, withComments, castsByHierarchy],
 	);
 	const diagnostics: Diagnostic[] = compiled?.diagnostics ?? [];
 

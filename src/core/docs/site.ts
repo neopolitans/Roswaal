@@ -4973,7 +4973,9 @@ function castingBlocks(registry: Registry): Block[] {
 			kind: "info",
 			text:
 				"The match must be **exact**: the branch's classes and the cast's must be the same " +
-				"set, or the cast is written.",
+				"set, or the cast is written. **Settings → Project → Casts proved by a subclass** also " +
+				"leaves one out when the branch proved a derived class — `IsA(\"Part\")` for a " +
+				"cast to `BasePart`.",
 		},
 		{
 			t: "note",

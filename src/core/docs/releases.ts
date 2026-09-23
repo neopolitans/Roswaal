@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.84.3",
+		date: "2026-09-23",
+		headline: "A project can leave out casts a subclass already proved.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Casts proved by a subclass**, in Settings → Project: off by default. On, an Implicit Cast inside an Is A branch is left out when the branch proved a class derived from the one it casts to — `IsA(\"Part\")` covering a cast to `BasePart`. Stored in `roswaal.json` as `castsByHierarchy`.",
+		],
+	},
+	{
 		version: "0.84.2",
 		date: "2026-09-23",
 		headline: "Dropping a wire on a narrower class places the Cast.",
