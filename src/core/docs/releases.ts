@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.85.4",
+		date: "2026-09-23",
+		headline: "A refused wire's types are in bold.",
+		affects: ["editor"],
+		changed: [
+			"The types in a refused wire's message are **bold**: \"**Humanoid** cannot be cast to **Model** due to incompatible classes.\"",
+		],
+	},
+	{
 		version: "0.85.3",
 		date: "2026-09-23",
 		headline: "A refused cast names both classes.",

@@ -528,9 +528,9 @@ export function castFor(
 	const want = inPin.type ?? ANY;
 	if (isInstanceClass(wire) && isInstanceClass(want)) {
 		if (isSubclassOf(want, wire)) return { type: want };
-		return { reason: `${wire} cannot be cast to ${want} due to incompatible classes.` };
+		return { reason: `**${wire}** cannot be cast to **${want}** due to incompatible classes.` };
 	}
-	return { reason: `${wire} does not fit a ${want} pin, and a Cast cannot make it one.` };
+	return { reason: `**${wire}** does not fit a **${want}** pin, and a Cast cannot make it one.` };
 }
 
 /**

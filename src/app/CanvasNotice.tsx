@@ -10,13 +10,22 @@
  * One message at a time: a newer one replaces the last.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type Listener = (text: string | null) => void;
 const listeners = new Set<Listener>();
 
+/**
+ * Shows `text` at the foot of the graph. `**name**` is drawn bold, as it is on
+ * the documentation pages — the names a message is about stand out from it.
+ */
 export function showCanvasNotice(text: string): void {
 	for (const listener of listeners) listener(text);
+}
+
+/** `**bold**` spans as `<strong>`; everything else as it is. */
+function emphasised(text: string): ReactNode[] {
+	return text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 === 1 ? <strong key={i}>{part}</strong> : part));
 }
 
 export function CanvasNotice() {
@@ -36,7 +45,7 @@ export function CanvasNotice() {
 	if (text === null) return null;
 	return (
 		<div className="centre-notice" role="status">
-			<span>{text}</span>
+			<span>{emphasised(text)}</span>
 			<button type="button" className="tb" onClick={() => setText(null)} aria-label="Dismiss">✕</button>
 		</div>
 	);
