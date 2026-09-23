@@ -16,7 +16,7 @@ import {
 } from "../core/nodes/index.js";
 import { localNameOf } from "../core/nodes/variables.js";
 import { toIdentifier } from "../core/compiler/luau.js";
-import { collectLocalNames } from "../core/luauLocals.js";
+import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
 import { lastSegment } from "../core/roblox.js";
 import {
 	DATATYPES as ENGINE_DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
@@ -138,6 +138,14 @@ const GLOBAL_COMPLETIONS: Completion[] = GLOBALS.map((label) => ({
  * for libraries whose members are actually known — guessing at an instance's
  * properties would be worse than staying quiet.
  */
+/** How a name in scope in the code itself is described in the list. */
+const LOCAL_DETAIL: Record<LocalKind, string> = {
+	local: "local here",
+	function: "local function here",
+	parameter: "parameter",
+	"loop variable": "loop variable",
+};
+
 export function luauCompletionSource(getScope: () => Completion[]) {
 	return (context: CompletionContext): CompletionResult | null => {
 		const member = context.matchBefore(/([A-Za-z_][A-Za-z0-9_]*)\.\w*$/);
@@ -155,9 +163,21 @@ export function luauCompletionSource(getScope: () => Completion[]) {
 		const word = context.matchBefore(/[A-Za-z_]\w*$/);
 		if (!word && !context.explicit) return null;
 
+		// What this code itself has in scope at the cursor — its own locals,
+		// the parameters and loop variables around it — ahead of the graph's.
+		const here = localsAt(context.state.doc.toString(), word ? word.from : context.pos)
+			.map((n) => ({ label: n.name, type: "variable", detail: LOCAL_DETAIL[n.kind] }));
+
 		return {
 			from: word ? word.from : context.pos,
-			options: [...getScope(), ...GLOBAL_COMPLETIONS, ...KEYWORD_COMPLETIONS],
+			// A name the code declares hides the graph's of the same name, as it
+			// does in the file.
+			options: [
+				...here,
+				...getScope().filter((c) => !here.some((h) => h.label === c.label)),
+				...GLOBAL_COMPLETIONS,
+				...KEYWORD_COMPLETIONS,
+			],
 			validFor: /^\w*$/,
 		};
 	};
@@ -221,7 +241,9 @@ export function precedingLocals(
 		const literal = node.literals?.code;
 		if (!literal || (literal.t !== "raw" && literal.t !== "string")) return;
 
-		for (const name of collectLocalNames(literal.v)) {
+		// Only what the block leaves in scope: its top-level locals. One declared
+		// inside its `if` or loop is gone by the time the next block runs.
+		for (const name of topLevelLocals(literal.v)) {
 			add(name, `local from ${node.label || "an earlier Custom Code block"}`);
 		}
 	};

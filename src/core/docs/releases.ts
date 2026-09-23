@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.88.0",
+		date: "2026-09-23",
+		headline: "Completion knows the scope of the code you are typing.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Completion offers what the code itself has in scope at the cursor**: its own locals, the parameters of a function you are inside, and the variables of a loop you are inside — ahead of the graph's names, and read correctly while a block is still missing its `end`.",
+		],
+		fixed: [
+			"A local declared inside an `if`, a loop or a function in one Custom Code block is **no longer offered** to the blocks after it. Only what the block leaves in scope is.",
+		],
+	},
+	{
 		version: "0.87.2",
 		date: "2026-09-23",
 		headline: "Bringing a node into view moves the camera, not the page.",

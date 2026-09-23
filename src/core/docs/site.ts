@@ -3311,8 +3311,8 @@ const VARIABLES: DocPage = {
 			t: "note",
 			kind: "good",
 			text:
-				"The list offers **slightly too much** rather than too little: a name declared inside " +
-				"an `if` in a Custom Code block is still offered after it.",
+				"**The list follows Luau's scope**: a local declared inside an `if` or a loop in " +
+				"Custom Code is offered inside it, and not after it closes.",
 		},
 		{
 			t: "p",
@@ -3422,10 +3422,10 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 		},
 		{
 			t: "note",
-			kind: "warn",
+			kind: "good",
 			text:
-				"The scope check scans for `local` rather than parsing, so a local declared inside an " +
-				"`if` in Custom Code is still offered after the `if` closes.",
+				"**Completion reads the code you are typing**: its own locals, and the parameters and " +
+				"loop variables around the cursor, are offered ahead of the graph's names.",
 		},
 
 		{ t: "h", level: 2, text: "There are exactly two" },
