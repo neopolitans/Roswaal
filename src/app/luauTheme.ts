@@ -37,7 +37,12 @@ export const luauHighlight = HighlightStyle.define([
 
 export const editorTheme = EditorView.theme({
 	"&": { fontSize: "12px", height: "100%", backgroundColor: "var(--bg-canvas)" },
-	".cm-content": { fontFamily: '"Cascadia Mono", Consolas, monospace', padding: "10px 0" },
+	".cm-content": {
+		fontFamily: '"Cascadia Mono", Consolas, monospace',
+		padding: "10px 0",
+		// See the cursor rule below.
+		caretColor: "var(--fg) !important",
+	},
 	".cm-gutters": {
 		backgroundColor: "var(--bg-panel)",
 		color: "var(--fg-faint)",
@@ -46,6 +51,12 @@ export const editorTheme = EditorView.theme({
 	},
 	".cm-activeLine": { backgroundColor: "var(--bg-hover)" },
 	"&.cm-focused": { outline: "none" },
-	".cm-cursor": { borderLeftColor: "var(--fg)" },
+	// The text cursor — the native caret above, the drawn one here — in the
+	// theme's own text colour: light on a dark theme, dark on a light one.
+	// CodeMirror colours the native caret black unless told its theme is dark,
+	// and Roswaal's themes are CSS variables it cannot read, so it was black on
+	// every dark theme. Its rule is scoped tighter than this one, hence
+	// `!important`.
+	".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--fg) !important" },
 	".cm-selectionBackground, ::selection": { backgroundColor: "var(--bg-active)" },
 });
