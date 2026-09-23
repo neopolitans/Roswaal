@@ -10,7 +10,10 @@
  * draws what this returns.
  */
 
-import { classOfGlobal, eventsOf, heldBy, methodsOf, signatureOf, stringValue, typeOfValue } from "./infer.js";
+import {
+	classOfGlobal, eventsOf, heldBy, membersInCode, methodsOf, signatureOf, stringValue, typeOfValue,
+	type TableMember,
+} from "./infer.js";
 import { ENGINE, signatureText } from "../robloxEngine.js";
 import { tokenize } from "./lexer.js";
 import { localsAt, type LocalKind } from "./scope.js";
@@ -63,7 +66,25 @@ const LOCAL_ROLE: Record<LocalKind, string> = {
 
 const isWordChar = (c: string | undefined) => !!c && /[A-Za-z0-9_]/.test(c);
 
-export function hoverAt(src: string, pos: number, roblox = true): Hover | null {
+/** A member put on a table by the code or the graph: `Occupancy.value: (tank: Model) -> (Instance)`. */
+function aboutMember(owner: string, member: TableMember, from: number, to: number): Hover {
+	return {
+		from, to,
+		code: `${owner}.${member.name}${member.detail ? `: ${member.detail}` : ""}`,
+		role: member.kind,
+	};
+}
+
+/**
+ * `tableMembers` is what the graph puts on its tables, for code typed into a
+ * graph: functions a Declare Function attaches to a table variable. A file on
+ * its own has no graph, and its own `function Table.name` statements are read
+ * from the text.
+ */
+export function hoverAt(
+	src: string, pos: number, roblox = true,
+	tableMembers: ReadonlyMap<string, TableMember[]> = new Map(),
+): Hover | null {
 	// A class written as the string a call is given: `Instance.new("Part")`.
 	if (roblox) {
 		const token = tokenize(src).find((t) => t.kind === "string" && t.start < pos && pos < t.end);
@@ -131,8 +152,14 @@ export function hoverAt(src: string, pos: number, roblox = true): Hover | null {
 					};
 				}
 			}
-			return null;
 		}
+
+		// A function or field put on the table: `function Occupancy.value(…)`
+		// in the file, or a Declare Function the graph wires onto it.
+		const onTable = membersInCode(src, owner).find((m) => m.name === word)
+			?? (local ? undefined : tableMembers.get(owner)?.find((m) => m.name === word));
+		if (onTable) return aboutMember(owner, onTable, from, to);
+		if (local) return null;
 
 		const item = roblox ? DATATYPE_STATICS[owner]?.find((s) => s.name === word) : undefined;
 		if (item) {

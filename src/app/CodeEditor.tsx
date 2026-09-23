@@ -30,7 +30,7 @@ import { luauHover } from "./luauHover.js";
 import { luauSignature } from "./luauSignature.js";
 import { luauLanguage } from "./luauMode.js";
 import {
-	luauCompletionSource, precedingLocals, scopeCompletions,
+	graphTableMembers, luauCompletionSource, precedingLocals, scopeCompletions,
 } from "./luauCompletions.js";
 import { LAYER } from "./layers.js";
 import { editorTheme, luauHighlight } from "./luauTheme.js";
@@ -75,6 +75,10 @@ export function CodeEditor({
 	// for Roblox. Read through a ref for the same reason as the scope.
 	const targetRef = useRef(script?.target ?? "roblox");
 	targetRef.current = script?.target ?? "roblox";
+	// The functions the graph declares on its tables, for `Occupancy.`.
+	const members = useMemo(() => graphTableMembers(script), [script]);
+	const membersRef = useRef(members);
+	membersRef.current = members;
 
 	useEffect(() => {
 		if (!host.current) return;
@@ -88,7 +92,7 @@ export function CodeEditor({
 				history(),
 				closeBrackets(),
 				autocompletion({
-					override: [luauCompletionSource(() => scopeRef.current, () => targetRef.current)],
+					override: [luauCompletionSource(() => scopeRef.current, () => targetRef.current, () => membersRef.current)],
 					icons: false,
 				}),
 				// Completion and bracket keymaps first: they only claim keys while
@@ -105,8 +109,8 @@ export function CodeEditor({
 				// The same structural check that runs on every compile, shown here
 				// as you type so a stray `end` is caught in the box you typed it in.
 				luauLint((code) => checkLuau(code, kind)),
-				luauHover(() => targetRef.current),
-				luauSignature(() => targetRef.current),
+				luauHover(() => targetRef.current, () => membersRef.current),
+				luauSignature(() => targetRef.current, () => membersRef.current),
 				editorTheme,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) setText(update.state.doc.toString());

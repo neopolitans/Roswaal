@@ -16,6 +16,7 @@
  */
 
 import type { Expr, FunctionBody } from "./ast.js";
+import { parseChunk } from "./parser.js";
 import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
 import { isService } from "../roblox.js";
 import { CLASS_METHODS, type ClassMethod } from "../robloxStatics.js";
@@ -186,6 +187,65 @@ export function typeOfValue(expr: Expr | undefined, src: string): string | undef
 			return called;
 		}
 	}
+}
+
+/** Something a table has, because the code or the graph put it there. */
+export interface TableMember {
+	name: string;
+	kind: "function" | "method" | "field";
+	/** A function's signature, or a field's type when it is evident; "" when not. */
+	detail: string;
+}
+
+/**
+ * What the code puts on a table by name: `function Occupancy.value(…)` and
+ * `function Occupancy:reset()` anywhere in the file, and
+ * `Occupancy.VALUE_NAME = …` assignments. A generated module is written this
+ * way — a table, then its functions declared on it — so without this the
+ * functions a module exports were invisible to hover and completion.
+ */
+export function membersInCode(src: string, owner: string): TableMember[] {
+	const out: TableMember[] = [];
+	const seen = new Set<string>();
+	const add = (member: TableMember) => {
+		if (seen.has(member.name)) return;
+		seen.add(member.name);
+		out.push(member);
+	};
+	const visit = (node: unknown): void => {
+		if (Array.isArray(node)) {
+			for (const item of node) visit(item);
+			return;
+		}
+		if (!node || typeof node !== "object") return;
+		const stat = node as { kind?: string };
+		if (stat.kind === "function") {
+			const fn = node as Extract<import("./ast.js").Stat, { kind: "function" }>;
+			if (fn.path.length === 1 && fn.path[0].name === owner && fn.method) {
+				add({ name: fn.method.name, kind: "method", detail: signatureOf(fn.func, src) });
+			} else if (fn.path.length === 2 && fn.path[0].name === owner && !fn.method) {
+				add({ name: fn.path[1].name, kind: "function", detail: signatureOf(fn.func, src) });
+			}
+		} else if (stat.kind === "assign") {
+			const assign = node as Extract<import("./ast.js").Stat, { kind: "assign" }>;
+			assign.targets.forEach((target, i) => {
+				if (target.kind === "index" && target.object.kind === "name" && target.object.name === owner) {
+					const value = assign.values[i];
+					const isFunction = value?.kind === "function";
+					add({
+						name: target.name.name,
+						kind: isFunction ? "function" : "field",
+						detail: typeOfValue(value, src) ?? "",
+					});
+				}
+			});
+		}
+		for (const value of Object.values(node)) {
+			if (value && typeof value === "object") visit(value);
+		}
+	};
+	visit(parseChunk(src).value);
+	return out;
 }
 
 /** The keys a dot can reach: the ones that are names. */

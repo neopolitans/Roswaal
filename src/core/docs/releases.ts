@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.95.1",
+		date: "2026-09-23",
+		headline: "Functions on a table are known.",
+		affects: ["editor"],
+		fixed: [
+			"**Functions put on a table** are offered, described on hover and shown with their parameters while a call is typed: `function Occupancy.value(…)` in the code, and a Declare Function wired onto a table variable. In the code editor and the read-only Luau viewer.",
+		],
+	},
+	{
 		version: "0.95.0",
 		date: "2026-09-23",
 		headline: "The whole engine, from its documentation, credited.",

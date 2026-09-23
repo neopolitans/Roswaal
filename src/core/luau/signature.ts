@@ -11,7 +11,7 @@
  * that service (`players:GetPlayerByUserId(`).
  */
 
-import { classOfGlobal, heldBy, methodsOf } from "./infer.js";
+import { classOfGlobal, heldBy, membersInCode, methodsOf, type TableMember } from "./infer.js";
 import { significant, tokenize } from "./lexer.js";
 import { localsAt } from "./scope.js";
 import { SERVICE_METHODS } from "../robloxMembers.js";
@@ -56,8 +56,10 @@ function paramsOf(detail: string): Parameter[] {
 	});
 }
 
-export function signatureAt(src: string, pos: number, roblox = true): Signature | null {
-	if (!roblox) return null;
+export function signatureAt(
+	src: string, pos: number, roblox = true,
+	tableMembers: ReadonlyMap<string, TableMember[]> = new Map(),
+): Signature | null {
 	const tokens = significant(tokenize(src.slice(0, pos))).filter((t) => t.kind !== "eof");
 
 	// The brackets still open at the cursor. A comma counts for the innermost
@@ -82,6 +84,21 @@ export function signatureAt(src: string, pos: number, roblox = true): Signature 
 	if (name?.kind !== "name" || separator?.kind !== "symbol" || owner?.kind !== "name") return null;
 
 	if (separator.text === ".") {
+		// A function put on a table, by the code or the graph: `Occupancy.value(`.
+		const onTable = [...membersInCode(src, owner.text), ...(tableMembers.get(owner.text) ?? [])]
+			.find((m) => m.name === name.text && m.kind === "function");
+		if (onTable) {
+			const [head, returned] = onTable.detail.split(") -> (");
+			const params = paramsOf(`${head})`);
+			const returns = (returned ?? "").replace(/\)$/, "");
+			return {
+				label: `${owner.text}.${name.text}`,
+				params,
+				active: Math.min(call.commas, Math.max(0, params.length - 1)),
+				...(returns ? { returns } : {}),
+			};
+		}
+		if (!roblox) return null;
 		const item = DATATYPE_STATICS[owner.text]?.find((s) => s.name === name.text && s.kind !== "constant");
 		if (!item) return null;
 		const params = paramsOf(item.detail);
@@ -92,7 +109,7 @@ export function signatureAt(src: string, pos: number, roblox = true): Signature 
 		};
 	}
 
-	if (separator.text === ":") {
+	if (separator.text === ":" && roblox) {
 		const local = localsAt(src, owner.start).find((n) => n.name === owner.text);
 		const className = local ? heldBy(local.typeText, local.value).className : classOfGlobal(owner.text);
 		const method = className ? SERVICE_METHODS[className]?.find((m) => m.name === name.text) : undefined;

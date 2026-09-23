@@ -11,10 +11,14 @@ import type { Extension } from "@codemirror/state";
 import { hoverAt } from "../core/luau/hover.js";
 import { highlightLuau } from "./highlight.js";
 import type { Target } from "../core/schema.js";
+import type { TableMember } from "../core/luau/infer.js";
 
-export function luauHover(getTarget: () => Target): Extension {
+export function luauHover(
+	getTarget: () => Target,
+	getMembers: () => ReadonlyMap<string, TableMember[]> = () => new Map(),
+): Extension {
 	return hoverTooltip((view, pos) => {
-		const hover = hoverAt(view.state.doc.toString(), pos, getTarget() !== "lune");
+		const hover = hoverAt(view.state.doc.toString(), pos, getTarget() !== "lune", getMembers());
 		if (!hover) return null;
 		return {
 			pos: hover.from,

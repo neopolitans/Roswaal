@@ -158,3 +158,29 @@ describe("events and enums", () => {
 		expect(offered("local m = Enum.Material.|")).toEqual(expect.arrayContaining(["Plastic", "Neon"]));
 	});
 });
+
+describe("functions put on a table", () => {
+	const MODULE = [
+		"local Occupancy = {}",
+		'Occupancy.VALUE_NAME = "Occupant"',
+		"function Occupancy.value(tank: Model): Instance",
+		"\treturn tank",
+		"end",
+		"function Occupancy.show(character: Model) end",
+		"",
+	].join("\n");
+
+	it("offers the functions and fields the code declares on a table", () => {
+		expect(offered(`${MODULE}Occupancy.|`)).toEqual(["VALUE_NAME", "value", "show"]);
+	});
+
+	it("offers the functions the graph declares on a table variable", () => {
+		const members = new Map([["Occupancy", [
+			{ name: "hide", kind: "function" as const, detail: "(character: Model) -> (boolean)" },
+		]]]);
+		const pos = "Occupancy.h".length;
+		const context = new CompletionContext(EditorState.create({ doc: "Occupancy.h" }), pos, false);
+		const result = luauCompletionSource(() => [], () => "roblox", () => members)(context);
+		expect(result?.options.map((o) => o.label)).toEqual(["hide"]);
+	});
+});

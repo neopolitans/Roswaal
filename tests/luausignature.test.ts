@@ -47,3 +47,10 @@ describe("signatureAt", () => {
 		expect(at("Instance.new(|", false)).toBeNull();
 	});
 });
+
+describe("a function put on a table", () => {
+	it("shows its parameters while its call is typed", () => {
+		expect(at("local T = {}\nfunction T.value(tank: Model, n: number): Instance end\nT.value(workspace, |"))
+			.toBe("T.value(tank, [n]) -> Instance");
+	});
+});

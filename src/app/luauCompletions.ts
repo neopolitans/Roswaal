@@ -14,12 +14,15 @@ import type { NodeScript, Target } from "../core/schema.js";
 import {
 	continuesEnclosingBlock, resolveNodePins, type Registry, type Signature,
 } from "../core/nodes/index.js";
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { localNameOf } from "../core/nodes/variables.js";
 import { toIdentifier } from "../core/compiler/luau.js";
 import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
 import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
 import { propertiesOf } from "../core/robloxProperties.js";
-import { classOfGlobal, dotKeys, eventsOf, heldBy, methodsOf } from "../core/luau/infer.js";
+import {
+	classOfGlobal, dotKeys, eventsOf, heldBy, membersInCode, methodsOf, type TableMember,
+} from "../core/luau/infer.js";
 import { ENGINE, signatureText } from "../core/robloxEngine.js";
 import { DATATYPE_STATICS } from "../core/robloxStatics.js";
 import {
@@ -104,6 +107,9 @@ export function scopeCompletions(script: NodeScript | null): Completion[] {
 		switch (node.def) {
 			case "function.entry":
 			case "function.declareHere":
+				// One declared on a table is `Table.name`, not a name in scope on
+				// its own; `graphTableMembers` offers it after the table's dot.
+				if (script.links.some((l) => l.to.node === node.id && l.to.pin === "owner")) break;
 				add(String(config.name ?? "fn"), "function", "function in this graph");
 				break;
 			case "roblox.getService": {
@@ -126,6 +132,36 @@ export function scopeCompletions(script: NodeScript | null): Completion[] {
 		}
 	}
 
+	return out;
+}
+
+/**
+ * The functions a graph declares on its tables, by table name.
+ *
+ * A Declare Function whose On Table is wired from a variable becomes
+ * `function Occupancy.show(…)` in the file; Custom Code in that graph can
+ * call it, so `Occupancy.` offers it, with the parameters the node declares.
+ */
+export function graphTableMembers(script: NodeScript | null): Map<string, TableMember[]> {
+	const out = new Map<string, TableMember[]>();
+	if (!script) return out;
+	for (const node of script.nodes) {
+		if (!FUNCTION_NODES.has(node.def)) continue;
+		const link = script.links.find((l) => l.to.node === node.id && l.to.pin === "owner");
+		const source = link && script.nodes.find((n) => n.id === link.from.node);
+		if (!source || source.def !== "variable.get") continue;
+		const variableId = (source.config as { variable?: string } | undefined)?.variable;
+		const table = script.variables?.find((v) => v.id === variableId)?.name;
+		const config = (node.config ?? {}) as {
+			name?: string; params?: { name: string; type?: string }[]; returns?: { name: string; type?: string }[];
+		};
+		if (!table || !config.name) continue;
+		const params = (config.params ?? []).map((p) => (p.type ? `${p.name}: ${p.type}` : p.name)).join(", ");
+		const returns = (config.returns ?? []).map((r) => r.type || "any").join(", ");
+		const list = out.get(table) ?? [];
+		list.push({ name: config.name, kind: "function", detail: `(${params}) -> (${returns})` });
+		out.set(table, list);
+	}
 	return out;
 }
 
@@ -170,7 +206,9 @@ const LUAU_TYPE_NAMES = [
  * it holds. Guessing at what a value holds would be worse than staying quiet.
  */
 export function luauCompletionSource(
-	getScope: () => Completion[], getTarget: () => Target = () => "roblox",
+	getScope: () => Completion[],
+	getTarget: () => Target = () => "roblox",
+	getMembers: () => ReadonlyMap<string, TableMember[]> = () => new Map(),
 ) {
 	return (context: CompletionContext): CompletionResult | null => {
 		// Roblox's classes and datatypes are there only when the graph compiles
@@ -239,8 +277,18 @@ export function luauCompletionSource(
 			// `local part: Part` or `= Instance.new("Part")` offers a Part's
 			// properties, `local scores = { Anne = 500 }` offers `Anne`. A local
 			// hides a library or datatype of the same name, as it does in Luau.
-			const local = localsAt(context.state.doc.toString(), member.from)
-				.find((n) => n.name === owner);
+			const doc = context.state.doc.toString();
+			const local = localsAt(doc, member.from).find((n) => n.name === owner);
+
+			// Functions and fields put on a table: by the code — `function
+			// Occupancy.value(…)` — or by the graph, whose Declare Functions are
+			// wired onto a table variable. A module's exports are these.
+			const onTable = [
+				...membersInCode(doc, owner),
+				...(local ? [] : getMembers().get(owner) ?? []),
+			].filter((m, i, all) => all.findIndex((n) => n.name === m.name) === i && m.kind !== "method")
+				.map((m) => ({ label: m.name, type: m.kind === "field" ? "property" : "function", detail: m.detail }));
+
 			if (local) {
 				const held = heldBy(local.typeText, local.value);
 				const options = held.className && roblox
@@ -253,9 +301,13 @@ export function luauCompletionSource(
 							label: e.name, type: "event", detail: `event${signatureText(e.params)}`, info: e.summary,
 						})),
 					]
-					: dotKeys(held).map((key) => ({ label: key, type: "property", detail: "key" }));
+					: [
+						...dotKeys(held).map((key) => ({ label: key, type: "property", detail: "key" })),
+						...onTable.filter((m) => !dotKeys(held).includes(m.label)),
+					];
 				return options.length > 0 ? { from, options, validFor: /^\w*$/ } : null;
 			}
+			if (onTable.length > 0) return { from, options: onTable, validFor: /^\w*$/ };
 			const members = LIBRARY_MEMBERS[owner] ?? [];
 			// A datatype's own name reaches its constructors and constants:
 			// `Instance.new`, `Vector3.zero`. `Instance` is a class as well, and

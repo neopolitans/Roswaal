@@ -13,6 +13,7 @@ import { showTooltip, type Tooltip } from "@codemirror/view";
 
 import { signatureAt, type Signature } from "../core/luau/signature.js";
 import type { Target } from "../core/schema.js";
+import type { TableMember } from "../core/luau/infer.js";
 
 function span(text: string, cls: string): HTMLSpanElement {
 	const el = document.createElement("span");
@@ -40,10 +41,13 @@ function render(signature: Signature): HTMLElement {
 	return dom;
 }
 
-export function luauSignature(getTarget: () => Target): Extension {
+export function luauSignature(
+	getTarget: () => Target,
+	getMembers: () => ReadonlyMap<string, TableMember[]> = () => new Map(),
+): Extension {
 	const compute = (state: EditorState): Tooltip | null => {
 		const pos = state.selection.main.head;
-		const signature = signatureAt(state.doc.toString(), pos, getTarget() !== "lune");
+		const signature = signatureAt(state.doc.toString(), pos, getTarget() !== "lune", getMembers());
 		if (!signature) return null;
 		return {
 			pos,

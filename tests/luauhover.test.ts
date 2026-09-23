@@ -105,3 +105,19 @@ describe("events and enums, from the engine catalogue", () => {
 		expect(item.link?.href).toBe("https://create.roblox.com/docs/reference/engine/enums/Material");
 	});
 });
+
+describe("functions put on a table", () => {
+	const MODULE = "local Occupancy = {}\nfunction Occupancy.value(tank: Model): Instance\n\treturn tank\nend\nprint(Occupancy.value(workspace))";
+
+	it("describes one declared in the file", () => {
+		const at = MODULE.lastIndexOf("value") + 1;
+		expect(hoverAt(MODULE, at)).toMatchObject({ code: "Occupancy.value: (tank: Model) -> (Instance)", role: "function" });
+	});
+
+	it("describes one the graph declares on a table variable", () => {
+		const members = new Map([["Occupancy", [{ name: "show", kind: "function" as const, detail: "(character: Model) -> ()" }]]]);
+		expect(hoverAt("Occupancy.show(x)", 12, true, members)).toMatchObject({
+			code: "Occupancy.show: (character: Model) -> ()", role: "function",
+		});
+	});
+});
