@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.93.0",
+		date: "2026-09-23",
+		headline: "A .luau file shows what its names are, and follows the cursor.",
+		affects: ["editor"],
+		added: [
+			"**Hovering a name** in a `.luau` file — generated or hand-written — says what it is and links to its Roblox docs page, as the code editor does. A file that requires `@lune/` is read as Lune code.",
+		],
+		fixed: [
+			"**The text cursor shows** in a `.luau` file, and the highlighted line follows it with the arrow keys, Page Up/Down and Home/End — not only where the file was clicked. The file stays read-only.",
+		],
+	},
+	{
 		version: "0.92.0",
 		date: "2026-09-23",
 		headline: "The call being typed shows its parameters.",

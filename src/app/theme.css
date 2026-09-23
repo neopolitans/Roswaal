@@ -3849,7 +3849,8 @@ button.tb.icon-only.on {
 	font-family: inherit;
 }
 
-.code-body .cm-tooltip {
+.code-body .cm-tooltip,
+.source-body .cm-tooltip {
 	background: var(--bg-panel);
 	border: 1px solid var(--border-strong);
 	border-radius: 6px;

@@ -29,6 +29,8 @@ import { EditorView, lineNumbers, highlightActiveLine } from "@codemirror/view";
 import { syntaxHighlighting } from "@codemirror/language";
 
 import { luauLanguage } from "./luauMode.js";
+import { luauHover } from "./luauHover.js";
+import type { Target } from "../core/schema.js";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { editorTheme, luauHighlight } from "./luauTheme.js";
 
@@ -46,6 +48,17 @@ export interface SourceViewProps {
 	/** Hands the file to VS Code, reporting which editor answered. */
 	onEdit: (path: string) => void;
 	onReveal: (path: string) => void;
+}
+
+/**
+ * Whether a file is Lune code or Roblox code, for what its hover offers.
+ *
+ * A Lune program reaches its standard library through `require("@lune/…")`,
+ * and a Roblox script cannot, so a file that requires one is Lune. Anything
+ * else is read as Roblox, which is what most `.luau` in a project is.
+ */
+function targetOfSource(text: string): Target {
+	return /require\s*\(?\s*["']@lune\//.test(text) ? "lune" : "roblox";
 }
 
 export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewProps) {
@@ -68,13 +81,20 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 				extensions: [
 					lineNumbers(),
 					highlightActiveLine(),
+					// Read-only, but focusable: the text cursor shows and moves with
+					// the arrow keys, Page Up/Down and Home/End, and the highlighted
+					// line follows it. `editable.of(false)` hid the cursor, so the
+					// line only moved where the file was clicked. Typing is still
+					// refused by `readOnly`, and `inputmode="none"` keeps a tablet's
+					// on-screen keyboard from opening for text that takes no input.
 					EditorState.readOnly.of(true),
-					// Without this the caret is hidden and the view reads as an
-					// image; with it you can still select, search and copy.
-					EditorView.editable.of(false),
+					EditorView.contentAttributes.of({ inputmode: "none" }),
 					luauLanguage,
 					syntaxHighlighting(luauHighlight),
 					editorTheme,
+					// The code editor's hover, here too: what every name is and
+					// where its Roblox docs page is, in a file that cannot be edited.
+					luauHover(() => targetOfSource(doc.text)),
 				],
 			}),
 			parent: host.current,
