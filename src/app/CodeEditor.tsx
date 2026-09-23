@@ -69,6 +69,10 @@ export function CodeEditor({
 	);
 	const scopeRef = useRef<Completion[]>(scope);
 	scopeRef.current = scope;
+	// Roblox classes and datatypes are offered only in a graph that compiles
+	// for Roblox. Read through a ref for the same reason as the scope.
+	const targetRef = useRef(script?.target ?? "roblox");
+	targetRef.current = script?.target ?? "roblox";
 
 	useEffect(() => {
 		if (!host.current) return;
@@ -82,7 +86,7 @@ export function CodeEditor({
 				history(),
 				closeBrackets(),
 				autocompletion({
-					override: [luauCompletionSource(() => scopeRef.current)],
+					override: [luauCompletionSource(() => scopeRef.current, () => targetRef.current)],
 					icons: false,
 				}),
 				// Completion and bracket keymaps first: they only claim keys while

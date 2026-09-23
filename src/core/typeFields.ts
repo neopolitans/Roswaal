@@ -23,6 +23,7 @@
 
 import type { NodeScript } from "./schema.js";
 import { typeShapeOf } from "./nodes/flow.js";
+import { parseType } from "./luau/parser.js";
 
 /** One named field of a table type. */
 export interface TypeField {
@@ -34,79 +35,29 @@ export interface TypeField {
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
- * Splits a table type's body at the separators that belong to it.
- *
- * Depth-counted rather than split on every comma, because a field's own type
- * can contain them: `{ hits: { [string]: number }, at: Vector3 }` is two fields
- * and five commas' worth of temptation. Luau takes `,` and `;` between fields
- * and allows a trailing one, which is what `filter` drops.
- */
-function parts(body: string): string[] {
-	const out: string[] = [];
-	let depth = 0;
-	let start = 0;
-	let quote: string | null = null;
-
-	for (let i = 0; i < body.length; i++) {
-		const c = body[i];
-		if (quote) {
-			if (c === "\\") i++;
-			else if (c === quote) quote = null;
-			continue;
-		}
-		if (c === '"' || c === "'") quote = c;
-		else if (c === "{" || c === "(" || c === "[" || c === "<") depth++;
-		else if (c === "}" || c === ")" || c === "]" || c === ">") depth--;
-		else if ((c === "," || c === ";") && depth === 0) {
-			out.push(body.slice(start, i));
-			start = i + 1;
-		}
-	}
-	out.push(body.slice(start));
-	return out.map((part) => part.trim()).filter((part) => part !== "");
-}
-
-/** Whether the leading `{` is closed by the final `}` and nothing sooner. */
-function closesAtEnd(text: string): boolean {
-	let depth = 0;
-	for (let i = 0; i < text.length; i++) {
-		const c = text[i];
-		if (c === "{") depth++;
-		else if (c === "}") {
-			depth--;
-			if (depth === 0) return i === text.length - 1;
-		}
-	}
-	return false;
-}
-
-/**
  * The named fields of a Luau table type written out, or nothing.
  *
  * Nothing rather than a partial list when any part of it is not a named field:
  * a type that is half understood would offer half its fields and hide the rest,
  * which is worse than offering none and saying the type is not one this knows.
+ *
+ * Read with the parser. It was a bracket-counting splitter, which took the `>`
+ * of a function type's `->` for a closing bracket: `{ onHit: (Part) -> (),
+ * damage: number }` came out as one field whose type ran on into the next.
+ * The parser also settles what the splitter had to guess: `{ a: number } &
+ * { b: number }` is an intersection rather than one table, and
+ * `{ [string]: number }` is a dictionary with no field list at all.
  */
 export function fieldsOfTableType(text: string): TypeField[] {
-	const trimmed = text.trim();
-	if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return [];
-	// The opening brace must be the one the last brace closes. `{ a: number } &
-	// { b: number }` starts and ends with braces and is two tables, not one, so
-	// its fields are not a fixed list of this type's.
-	if (!closesAtEnd(trimmed)) return [];
-	const body = trimmed.slice(1, -1);
-	if (parts(body).length === 0) return [];
+	const { value: type, errors } = parseType(text);
+	if (!type || errors.length > 0 || type.kind !== "tableType") return [];
+	if (type.indexer || type.array || type.props.length === 0) return [];
 
 	const fields: TypeField[] = [];
-	for (const part of parts(body)) {
-		const at = part.indexOf(":");
-		if (at < 0) return [];
-		const name = part.slice(0, at).trim();
-		const type = part.slice(at + 1).trim();
-		// `[string]: number` is an index signature: a table with any key of that
-		// type, which is the dictionary case and has no field list at all.
-		if (!NAME.test(name) || type === "") return [];
-		fields.push({ name, type });
+	for (const prop of type.props) {
+		// A quoted name, `["two words"]: T`, is a field Get Member cannot write.
+		if (!NAME.test(prop.name)) return [];
+		fields.push({ name: prop.name, type: text.slice(prop.type.start, prop.type.end).trim() });
 	}
 	return fields;
 }

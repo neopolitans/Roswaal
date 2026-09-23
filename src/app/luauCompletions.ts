@@ -10,14 +10,15 @@
  */
 
 import type { CompletionContext, CompletionResult, Completion } from "@codemirror/autocomplete";
-import type { NodeScript } from "../core/schema.js";
+import type { NodeScript, Target } from "../core/schema.js";
 import {
 	continuesEnclosingBlock, resolveNodePins, type Registry, type Signature,
 } from "../core/nodes/index.js";
 import { localNameOf } from "../core/nodes/variables.js";
 import { toIdentifier } from "../core/compiler/luau.js";
 import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
-import { lastSegment } from "../core/roblox.js";
+import { INSTANCE_CLASSES, ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
+import { DATATYPE_STATICS } from "../core/robloxStatics.js";
 import {
 	DATATYPES as ENGINE_DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
 } from "../core/robloxData.js";
@@ -133,11 +134,6 @@ const GLOBAL_COMPLETIONS: Completion[] = GLOBALS.map((label) => ({
 	label, type: LIBRARY_MEMBERS[label] ? "namespace" : "variable", detail: "Luau",
 }));
 
-/**
- * Builds the completion source. Member completion after a dot is offered only
- * for libraries whose members are actually known — guessing at an instance's
- * properties would be worse than staying quiet.
- */
 /** How a name in scope in the code itself is described in the list. */
 const LOCAL_DETAIL: Record<LocalKind, string> = {
 	local: "local here",
@@ -146,16 +142,81 @@ const LOCAL_DETAIL: Record<LocalKind, string> = {
 	"loop variable": "loop variable",
 };
 
-export function luauCompletionSource(getScope: () => Completion[]) {
+/** Calls whose first argument, as a string, is a class name — or a service's. */
+const CLASS_STRING =
+	/(Instance\.new|:IsA|:FindFirstChildOfClass|:FindFirstChildWhichIsA|:FindFirstAncestorOfClass|:FindFirstAncestorWhichIsA|:GetService)\s*\(\s*["']([A-Za-z0-9_]*)$/;
+
+/**
+ * A type position: after `::`, or after `name:` with a space — `local x: Part`,
+ * `(hit: BasePart)`. A method call, `part:Clone()`, has no space after its colon.
+ */
+const TYPE_POSITION = /(?:::\s*|\w:\s+)([A-Za-z_]\w*)?$/;
+
+const LUAU_TYPE_NAMES = [
+	"any", "boolean", "buffer", "never", "nil", "number", "string", "thread", "unknown", "vector",
+];
+
+/**
+ * Builds the completion source. Member completion after a dot is offered only
+ * where the members are actually known — a library's, or a datatype's
+ * constructors and constants — since guessing at an instance's properties
+ * would be worse than staying quiet.
+ */
+export function luauCompletionSource(
+	getScope: () => Completion[], getTarget: () => Target = () => "roblox",
+) {
 	return (context: CompletionContext): CompletionResult | null => {
+		// Roblox's classes and datatypes are there only when the graph compiles
+		// for Roblox; a Lune graph reaches its datatypes through @lune/roblox.
+		const roblox = getTarget() !== "lune";
+
+		// A class name inside the string it is given as: `Instance.new("Pa`.
+		const quoted = roblox ? context.matchBefore(CLASS_STRING) : null;
+		if (quoted) {
+			const [, call, typed] = CLASS_STRING.exec(quoted.text)!;
+			const names = call === ":GetService" ? ROBLOX_SERVICES : INSTANCE_CLASSES;
+			return {
+				from: quoted.to - typed.length,
+				options: names.map((label) => ({ label, type: "class" })),
+				validFor: /^\w*$/,
+			};
+		}
+
 		const member = context.matchBefore(/([A-Za-z_][A-Za-z0-9_]*)\.\w*$/);
 		if (member) {
 			const owner = /^([A-Za-z_][A-Za-z0-9_]*)\./.exec(member.text)?.[1] ?? "";
-			const members = LIBRARY_MEMBERS[owner];
-			if (!members) return null;
+			const members = LIBRARY_MEMBERS[owner] ?? [];
+			// A datatype's own name reaches its constructors and constants:
+			// `Instance.new`, `Vector3.zero`. `Instance` is a class as well, and
+			// its members are reached from an instance, not from the name.
+			const statics = roblox ? DATATYPE_STATICS[owner] ?? [] : [];
+			if (members.length === 0 && statics.length === 0) return null;
 			return {
 				from: member.from + owner.length + 1,
-				options: members.map((label) => ({ label, type: "method", detail: owner })),
+				options: [
+					...statics.map((item) => ({
+						label: item.name,
+						type: item.kind === "constant" ? "constant" : "function",
+						detail: item.detail,
+						info: item.summary,
+					})),
+					...members.map((label) => ({ label, type: "method", detail: owner })),
+				],
+				validFor: /^\w*$/,
+			};
+		}
+
+		// A type: Luau's own, and Roblox's classes and datatypes.
+		const typePosition = context.matchBefore(TYPE_POSITION);
+		if (typePosition) {
+			const written = /([A-Za-z_]\w*)?$/.exec(typePosition.text)?.[1] ?? "";
+			return {
+				from: typePosition.to - written.length,
+				options: [
+					...LUAU_TYPE_NAMES.map((label) => ({ label, type: "type" })),
+					...(roblox ? [...INSTANCE_CLASSES, ...ENGINE_DATATYPES] : [])
+						.map((label) => ({ label, type: "class" })),
+				],
 				validFor: /^\w*$/,
 			};
 		}

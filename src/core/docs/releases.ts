@@ -94,6 +94,22 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.89.0",
+		date: "2026-09-23",
+		headline: "Completion knows Roblox's datatypes and classes.",
+		affects: ["editor"],
+		added: [
+			"**After a datatype's name and a dot**, the code editor offers its constructors and constants with their signatures: `Instance.new`, `Vector3.zero`, `CFrame.lookAt`, `Color3.fromRGB`. Read from Roblox's creator-docs, with `npm run build:statics` to refresh.",
+			"**Class names complete inside the string they are given as**: `Instance.new(\"Pa`, `:IsA(\"`, the Find First … Of Class and Which Is A calls, and services in `:GetService(\"`.",
+			"**Types complete** after an annotation's colon and after `::`: Luau's own, and Roblox's classes and datatypes.",
+			"All of it only in a graph that compiles for Roblox; a Lune graph is offered Luau's own.",
+		],
+		fixed: [
+			"A table type written as Custom Luau with a function-typed field, `{ onHit: (Part) -> (), damage: number }`, offers every field to Get Member. The `->` used to swallow the field after it.",
+			"Four Lune functions had their parameters run together the same way: `roblox.implementProperty`'s setter, and the arguments of `task.spawn`, `task.defer` and `task.delay`. Each now has its own pin.",
+		],
+	},
+	{
 		version: "0.88.0",
 		date: "2026-09-23",
 		headline: "Completion knows the scope of the code you are typing.",

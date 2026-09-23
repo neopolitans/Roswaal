@@ -1217,9 +1217,15 @@ export const LUNE_MODULES: LuneModule[] = [
 					},
 					{
 						"name": "getter",
-						"type": "(instance: Instance) -> T,\n\tsetter: ((instance: Instance, value: T) -> ())",
-						"optional": true,
+						"type": "(instance: Instance) -> T",
+						"optional": false,
 						"what": "The function which will be called to get the property value when indexed."
+					},
+					{
+						"name": "setter",
+						"type": "((instance: Instance, value: T) -> ())",
+						"optional": true,
+						"what": "The function which will be called to set the property value when indexed. Defaults to a function that will error with a message saying the property is read-only."
 					}
 				],
 				"returns": "",
@@ -1620,9 +1626,15 @@ export const LUNE_MODULES: LuneModule[] = [
 				"params": [
 					{
 						"name": "functionOrThread",
-						"type": "thread | (T...) -> ...any, ...: T...",
+						"type": "thread | (T...) -> ...any",
 						"optional": false,
 						"what": "The function or thread to defer"
+					},
+					{
+						"name": "...",
+						"type": "T...",
+						"optional": false,
+						"what": ""
 					}
 				],
 				"returns": "thread",
@@ -1642,9 +1654,15 @@ export const LUNE_MODULES: LuneModule[] = [
 					},
 					{
 						"name": "functionOrThread",
-						"type": "thread | (T...) -> ...any, ...: T...",
+						"type": "thread | (T...) -> ...any",
 						"optional": false,
 						"what": "The function or thread to delay"
+					},
+					{
+						"name": "...",
+						"type": "T...",
+						"optional": false,
+						"what": ""
 					}
 				],
 				"returns": "thread",
@@ -1658,9 +1676,15 @@ export const LUNE_MODULES: LuneModule[] = [
 				"params": [
 					{
 						"name": "functionOrThread",
-						"type": "thread | (T...) -> ...any, ...: T...",
+						"type": "thread | (T...) -> ...any",
 						"optional": false,
 						"what": "The function or thread to spawn"
+					},
+					{
+						"name": "...",
+						"type": "T...",
+						"optional": false,
+						"what": ""
 					}
 				],
 				"returns": "thread",

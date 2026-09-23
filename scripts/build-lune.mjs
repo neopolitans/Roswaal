@@ -84,6 +84,9 @@ function splitParams(text) {
 	for (let i = 0; i < text.length; i += 1) {
 		const ch = text[i];
 		if ("({[<".includes(ch)) depth += 1;
+		// The `>` of a function type's `->` closes nothing; counted, it took the
+		// depth below zero and the next comma stopped splitting.
+		else if (ch === ">" && text[i - 1] === "-") continue;
 		else if (")}]>".includes(ch)) depth -= 1;
 		else if (ch === "," && depth === 0) {
 			out.push(text.slice(at, i));
