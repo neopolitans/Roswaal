@@ -51,7 +51,7 @@ describe("castFor", () => {
 	it("refuses two unrelated classes, and says why", () => {
 		const { script, find, pivot } = scene("Humanoid");
 		const cast = castFor(script, registry, { node: find, pin: "result" }, { node: pivot, pin: "model" });
-		expect(cast).toEqual({ reason: "A Humanoid is never a Model, so it cannot be cast to one." });
+		expect(cast).toEqual({ reason: "Humanoid cannot be cast to Model due to incompatible classes." });
 	});
 
 	it("has nothing to say about a wire that already fits", () => {

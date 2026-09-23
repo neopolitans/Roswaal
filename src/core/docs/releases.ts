@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.85.3",
+		date: "2026-09-23",
+		headline: "A refused cast names both classes.",
+		affects: ["editor"],
+		changed: [
+			"A wire refused between two unrelated classes now reads **\"Humanoid cannot be cast to Model due to incompatible classes.\"**",
+		],
+	},
+	{
 		version: "0.85.2",
 		date: "2026-09-23",
 		headline: "The Players nodes say what they hand back.",
