@@ -27,6 +27,7 @@ describe("hoverAt", () => {
 		expect(hover.code).toBe("Instance.new(className: string, parent: Instance?) → Part");
 		expect(hover.summary).toContain("BasePart");
 		expect(hover.link?.href).toBe("https://create.roblox.com/docs/reference/engine/classes/Part");
+		expect(hover.link?.label).toBe("Part - Roblox Creator Docs");
 	});
 
 	it("describes a class written as a string or as a type", () => {

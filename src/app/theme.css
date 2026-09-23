@@ -10016,10 +10016,14 @@ select:not(.literal):not([multiple]) {
 	font-size: 11px;
 }
 
-/* The code editor's hover: a signature, a sentence, and where to read more. */
+/* The code editor's hover: a signature, a sentence, and where to read more.
+   The signature is a band of its own: code, in the code editor's face, bold,
+   on a shade darker than the body, so it reads as the thing and the sentence
+   under it as what is said about it. */
 .luau-hover {
-	max-width: 380px;
-	padding: 7px 10px;
+	max-width: 400px;
+	border-radius: 6px;
+	overflow: hidden;
 	font-size: 12px;
 	line-height: 1.45;
 	color: var(--fg);
@@ -10027,19 +10031,28 @@ select:not(.literal):not([multiple]) {
 
 .luau-hover code {
 	display: block;
-	font-family: var(--mono);
+	padding: 7px 10px;
+	background: color-mix(in srgb, var(--bg-canvas) 70%, var(--bg-panel));
+	border-bottom: 1px solid var(--border);
+	font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
 	font-size: 11.5px;
+	font-weight: 700;
 	color: var(--code-type, var(--fg));
 	white-space: pre-wrap;
 }
 
 .luau-hover p {
-	margin: 5px 0 0;
+	margin: 0;
+	padding: 7px 10px 0;
 	color: var(--fg-muted);
 }
 
 .luau-hover a {
 	display: inline-block;
-	margin-top: 5px;
+	margin: 6px 10px 8px;
 	color: var(--accent);
+}
+
+.luau-hover code:last-child {
+	border-bottom: 0;
 }

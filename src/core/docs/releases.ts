@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.90.1",
+		date: "2026-09-23",
+		headline: "The hover's signature reads as code.",
+		affects: ["editor"],
+		changed: [
+			"**The hover's signature** is set in the code editor's own face, bold, on a band a shade darker than the text under it.",
+			"Its link reads **Part - Roblox Creator Docs**.",
+		],
+	},
+	{
 		version: "0.90.0",
 		date: "2026-09-23",
 		headline: "The code editor says what a name is, and what a local holds.",

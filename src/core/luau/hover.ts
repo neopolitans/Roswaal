@@ -35,11 +35,11 @@ const DATATYPE_SET = new Set(DATATYPES);
 const CLASS_CALL = /(Instance\.new|:IsA|:FindFirstChildOfClass|:FindFirstChildWhichIsA|:FindFirstAncestorOfClass|:FindFirstAncestorWhichIsA|:GetService)\s*\(\s*$/;
 
 function classLink(name: string): Hover["link"] {
-	return { label: `${name} on the Roblox docs`, href: `${DOCS}/classes/${name}` };
+	return { label: `${name} - Roblox Creator Docs`, href: `${DOCS}/classes/${name}` };
 }
 
 function datatypeLink(name: string): Hover["link"] {
-	return { label: `${name} on the Roblox docs`, href: `${DOCS}/datatypes/${name}` };
+	return { label: `${name} - Roblox Creator Docs`, href: `${DOCS}/datatypes/${name}` };
 }
 
 function aboutClass(name: string, from: number, to: number, code = `class ${name}`): Hover {
