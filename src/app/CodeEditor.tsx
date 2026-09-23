@@ -27,6 +27,7 @@ import type { Registry } from "../core/nodes/index.js";
 import { checkLuau, type LuauFragment } from "../core/luau/check.js";
 import { luauLint } from "./luauLint.js";
 import { luauHover } from "./luauHover.js";
+import { luauSignature } from "./luauSignature.js";
 import { luauLanguage } from "./luauMode.js";
 import {
 	luauCompletionSource, precedingLocals, scopeCompletions,
@@ -105,6 +106,7 @@ export function CodeEditor({
 				// as you type so a stray `end` is caught in the box you typed it in.
 				luauLint((code) => checkLuau(code, kind)),
 				luauHover(() => targetRef.current),
+				luauSignature(() => targetRef.current),
 				editorTheme,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) setText(update.state.doc.toString());

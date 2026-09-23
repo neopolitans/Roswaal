@@ -9,6 +9,7 @@ import { hoverTooltip } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 
 import { hoverAt } from "../core/luau/hover.js";
+import { highlightLuau } from "./highlight.js";
 import type { Target } from "../core/schema.js";
 
 export function luauHover(getTarget: () => Target): Extension {
@@ -22,8 +23,29 @@ export function luauHover(getTarget: () => Target): Extension {
 			create: () => {
 				const dom = document.createElement("div");
 				dom.className = "luau-hover";
+				// Highlighted as the editor highlights Luau, one span per token.
+				// What a call returns follows an arrow, which is not Luau, so the
+				// highlighter would leave it plain: it is drawn as the type it is.
 				const code = document.createElement("code");
-				code.textContent = hover.code;
+				const [signature, returned] = hover.code.split(" → ");
+				for (const line of highlightLuau(signature)) {
+					for (const token of line) {
+						if (token.cls === "") {
+							code.append(token.text);
+						} else {
+							const span = document.createElement("span");
+							span.className = token.cls;
+							span.textContent = token.text;
+							code.append(span);
+						}
+					}
+				}
+				if (returned !== undefined) {
+					const type = document.createElement("span");
+					type.className = "tok-type";
+					type.textContent = returned;
+					code.append(" → ", type);
+				}
 				dom.append(code);
 				if (hover.summary) {
 					const summary = document.createElement("p");

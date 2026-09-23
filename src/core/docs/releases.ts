@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.92.0",
+		date: "2026-09-23",
+		headline: "The call being typed shows its parameters.",
+		affects: ["editor"],
+		added: [
+			"**Inside a call's brackets, its parameters show above the cursor**, with the one being typed picked out: `Instance.new(className: string, parent: Instance?)`, moving to `parent` after the comma. For a datatype's constructors and functions, and a service's methods on a local the code says holds that service.",
+		],
+		changed: [
+			"**The hover's signature is highlighted** as Luau — the call, its parameter types and what it returns — and set a size larger than the sentence under it.",
+		],
+	},
+	{
 		version: "0.91.0",
 		date: "2026-09-23",
 		headline: "Keys complete in brackets as well as after a dot.",

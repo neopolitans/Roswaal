@@ -4965,17 +4965,17 @@ button.tb.icon-only.on {
  * The variables are the ones the Custom Code editor's HighlightStyle uses, so a
  * snippet in the docs, the same code in the editor and the same code in the
  * preview are one opinion about Luau rather than four. */
-:is(.docs-code, .preview-code, .landing-code) .tok-keyword { color: var(--code-keyword); }
-:is(.docs-code, .preview-code, .landing-code) .tok-string { color: var(--code-string); }
-:is(.docs-code, .preview-code, .landing-code) .tok-number { color: var(--code-number); }
-:is(.docs-code, .preview-code, .landing-code) .tok-comment { color: var(--code-comment); font-style: italic; }
-:is(.docs-code, .preview-code, .landing-code) .tok-operator { color: var(--code-operator); }
-:is(.docs-code, .preview-code, .landing-code) .tok-global { color: var(--code-global); }
-:is(.docs-code, .preview-code, .landing-code) .tok-function { color: var(--code-function); }
-:is(.docs-code, .preview-code, .landing-code) .tok-type { color: var(--code-type); }
-:is(.docs-code, .preview-code, .landing-code) .tok-property { color: var(--code-property); }
-:is(.docs-code, .preview-code, .landing-code) .tok-bracket,
-:is(.docs-code, .preview-code, .landing-code) .tok-punctuation { color: var(--fg-muted); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-keyword { color: var(--code-keyword); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-string { color: var(--code-string); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-number { color: var(--code-number); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-comment { color: var(--code-comment); font-style: italic; }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-operator { color: var(--code-operator); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-global { color: var(--code-global); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-function { color: var(--code-function); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-type { color: var(--code-type); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-property { color: var(--code-property); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-bracket,
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-punctuation { color: var(--fg-muted); }
 
 /* Pin lists, in the shape Roblox's own reference uses for properties: one
    bordered row per entry, the signature scannable down the left, detail
@@ -10035,9 +10035,9 @@ select:not(.literal):not([multiple]) {
 	background: color-mix(in srgb, var(--bg-canvas) 70%, var(--bg-panel));
 	border-bottom: 1px solid var(--border);
 	font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
-	font-size: 11.5px;
+	font-size: 13px;
 	font-weight: 700;
-	color: var(--code-type, var(--fg));
+	color: var(--fg);
 	white-space: pre-wrap;
 }
 
@@ -10055,4 +10055,25 @@ select:not(.literal):not([multiple]) {
 
 .luau-hover code:last-child {
 	border-bottom: 0;
+}
+
+/* The call being typed, above the cursor: its parameters, the one the cursor
+   is on picked out. Code, like the hover's signature line. */
+.luau-signature {
+	padding: 5px 9px;
+	border-radius: 6px;
+}
+
+.luau-signature code {
+	font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+	font-size: 12px;
+	color: var(--fg-muted);
+	white-space: pre-wrap;
+}
+
+.luau-signature .param.active {
+	color: var(--fg);
+	font-weight: 700;
+	text-decoration: underline;
+	text-underline-offset: 3px;
 }
