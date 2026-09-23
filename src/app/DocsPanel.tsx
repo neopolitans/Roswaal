@@ -54,6 +54,7 @@ import type { NodeMap } from "../core/nodemap.js";
 import type { ToolbarSpec } from "../core/docs/toolbars.js";
 import { VERSION } from "../cli/version.js";
 import { graphViews } from "../core/docs/graphViews.js";
+import { nodeCodeHtml } from "../core/docs/nodeCode.js";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
 
@@ -714,12 +715,13 @@ function BlockView({ block }: { block: Block }) {
 							t: "graphs",
 							graphs: views.map((view, i) => (i === 0 && block.caption ? { ...view, caption: block.caption } : view)),
 							...(block.panel ? { panel: block.panel } : {}),
+							...(block.asAuthored ? { asAuthored: true } : {}),
 						}}
 					/>
 				);
 			}
 			return (
-				<GraphFigure script={block.script} caption={block.caption} panel={block.panel} />
+				<GraphFigure script={block.script} caption={block.caption} panel={block.panel} asAuthored={block.asAuthored} />
 			);
 		}
 		case "graphs":
@@ -749,8 +751,15 @@ function GraphTabs({ block }: { block: Block & { t: "graphs" } }) {
 	const [at, setAt] = useState(0);
 	const showing = block.graphs[Math.min(at, block.graphs.length - 1)];
 	return (
-		<div className="docs-graph-tabs live">
+		<div className={`docs-graph-tabs live${block.panel ? " with-panel" : ""}`}>
 			{block.label && <p className="docs-tabs-label">{block.label}</p>}
+			{/* Once, as a column of the tabs block: see the static renderer. */}
+			{block.panel && (
+				<div
+					className="graph-declares"
+					dangerouslySetInnerHTML={{ __html: toolbarHtml(block.panel, TOOLBAR_ART) }}
+				/>
+			)}
 			<div className="docs-tab-bar">
 				{block.graphs.map((one, i) => (
 					<button
@@ -763,7 +772,7 @@ function GraphTabs({ block }: { block: Block & { t: "graphs" } }) {
 					</button>
 				))}
 			</div>
-			<GraphFigure script={showing.script} caption={showing.caption} panel={block.panel} />
+			<GraphFigure script={showing.script} caption={showing.caption} asAuthored={block.asAuthored} />
 		</div>
 	);
 }
@@ -1062,17 +1071,18 @@ function PreviewFigure({ nodes, caption }: { nodes: NodePreview[]; caption?: str
  * graph stores node ids, and a project's own packs have to draw too.
  */
 function GraphFigure(
-	{ script, caption, panel }:
-	{ script: NodeScript; caption?: string; panel?: ToolbarSpec },
+	{ script, caption, panel, asAuthored }:
+	{ script: NodeScript; caption?: string; panel?: ToolbarSpec; asAuthored?: boolean },
 ) {
 	const registry = useContext(RegistryContext);
 	const preview = useContext(PreviewContext);
-	const svg = registry ? graphSvg(script, registry, preview) : "";
+	const svg = registry ? graphSvg(script, registry, preview, asAuthored) : "";
 	const viewport = useRef<HTMLDivElement>(null);
 	// One object per graph, not per render. A new `{ __html }` object is a new
 	// prop, and a re-render with one writes the markup again -- a fresh <svg>,
 	// with the pan and zoom still holding the one it replaced.
 	const html = useMemo(() => ({ __html: svg }), [svg]);
+	const codes = useMemo(() => nodeCodeHtml(script, highlightHtml), [script]);
 
 	// The same function the static site runs, so a graph behaves identically in
 	// both — and the same ZOOM limits the canvas uses.
@@ -1106,9 +1116,21 @@ function GraphFigure(
 				style={{ height: GRAPH_FRAME_HEIGHT * scale }}
 				dangerouslySetInnerHTML={html}
 			/>
+			{/* Each Custom Code node's Luau, for the graph's script to open. */}
+			{codes !== "" && <div hidden dangerouslySetInnerHTML={{ __html: codes }} />}
 			{caption && <figcaption><Rich text={caption} /></figcaption>}
 		</figure>
 	);
+}
+
+/** Luau to HTML, a line per newline: the published site's highlighter. */
+function highlightHtml(code: string): string {
+	const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	return highlightLuau(code)
+		.map((tokens) => tokens
+			.map((t) => (t.cls === "" ? escape(t.text) : `<span class="${t.cls}">${escape(t.text)}</span>`))
+			.join(""))
+		.join(NEWLINE);
 }
 
 /**

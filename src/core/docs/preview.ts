@@ -1286,6 +1286,11 @@ export function placedPinAnchor(
  */
 export function graphSvg(
 	source: NodeScript, registry: Registry, options: PreviewOptions,
+	/**
+	 * Drawn where its nodes are, without levelling: for a real project's graph,
+	 * laid out in the editor, where the page promises what you would open.
+	 */
+	asAuthored = false,
 ): string {
 	/**
 	 * Levelled before it is drawn, for every one of the three places a drawn
@@ -1294,7 +1299,7 @@ export function graphSvg(
 	 * point — a graph that reads differently in the docs than in the window
 	 * beside the canvas is the drift this file exists to avoid.
 	 */
-	const scene = straighten(source, registry, options);
+	const scene = asAuthored ? source : straighten(source, registry, options);
 	/**
 	 * A knot is coloured by what it carries, and a scene is written by hand.
 	 *
@@ -1367,9 +1372,14 @@ export function graphSvg(
 		}
 	}
 
-	const bodies = placed.map(
-		(entry) => `<g transform="translate(${n(entry.x)} ${n(entry.y)})">${drawBody(entry.preview, options)}</g>`,
-	);
+	// A Custom Code node opens its Luau when clicked, as it does in the editor:
+	// `data-code-node` is what the graph's script looks for. See `nodeCodeHtml`.
+	const bodies = placed.map((entry) => {
+		const opens = entry.node.def === "code.custom"
+			? ` class="docs-code-node" data-code-node="${escapeXml(entry.node.id)}"`
+			: "";
+		return `<g${opens} transform="translate(${n(entry.x)} ${n(entry.y)})">${drawBody(entry.preview, options)}</g>`;
+	});
 
 	const width = maxX - minX + MARGIN * 2;
 	const height = maxY - minY + MARGIN * 2;

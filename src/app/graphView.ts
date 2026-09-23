@@ -63,6 +63,8 @@ export function attachGraphView(
 	/** The last quick tap, for a double tap: Safari on iOS sends no dblclick. */
 	let lastTap = { at: -1e9, x: 0, y: 0 };
 	let downAt = { at: 0, x: 0, y: 0 };
+	/** What a press landed on, and where: a press that does not move is a click. */
+	let press: { x: number; y: number; target: EventTarget | null } | null = null;
 
 	const clamp = (value: number, low: number, high: number) =>
 		value < low ? low : value > high ? high : value;
@@ -166,6 +168,7 @@ export function attachGraphView(
 		// Left button only. A right-click is the browser's menu, and a middle
 		// click is the reader's own scroll gesture.
 		if (event.button !== 0) return;
+		press = { x: event.clientX, y: event.clientY, target: event.target };
 		if (event.pointerType === "touch") {
 			touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
 			downAt = { at: performance.now(), x: event.clientX, y: event.clientY };
@@ -217,6 +220,19 @@ export function attachGraphView(
 	};
 
 	const onUp = (event: PointerEvent) => {
+		// A click on a Custom Code node opens its Luau, as the editor does.
+		// Taken from where the press began: the viewport has the pointer
+		// captured, so this event's own target is the viewport.
+		const pressed = press;
+		press = null;
+		if (
+			event.type === "pointerup" && !pinch && pressed
+			&& Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) < 6
+		) {
+			const node = (pressed.target as Element | null)?.closest?.("[data-code-node]");
+			const id = node?.getAttribute("data-code-node");
+			if (id) openNodeCode(viewport, id);
+		}
 		const wasTouch = touches.delete(event.pointerId);
 		if (pinch) {
 			// Either finger ends it, and the one left does not start a drag
@@ -290,4 +306,60 @@ export function attachGraphView(
 		viewport.removeEventListener("gestureend", onGestureEnd);
 		viewport.classList.remove("interactive", "panning");
 	};
+}
+
+/**
+ * A Custom Code node's Luau, read-only, in the code editor's frame.
+ *
+ * The Luau is in the page already, highlighted at build time in a
+ * `<template>` beside the graph (`nodeCodeHtml`), so this is the same on the
+ * published site, which has no editor to open, and in the docs window.
+ */
+function openNodeCode(viewport: HTMLElement, id: string): void {
+	const figure = viewport.parentElement;
+	const template = Array.from(figure?.querySelectorAll("template[data-code-for]") ?? [])
+		.find((one) => one.getAttribute("data-code-for") === id) as HTMLTemplateElement | undefined;
+	if (!template) return;
+
+	const backdrop = document.createElement("div");
+	backdrop.className = "code-backdrop docs-code-backdrop";
+	const modal = document.createElement("div");
+	modal.className = "code-modal read-only";
+	modal.setAttribute("role", "dialog");
+	modal.setAttribute("aria-modal", "true");
+	const head = document.createElement("div");
+	head.className = "code-head";
+	const title = document.createElement("span");
+	title.className = "title";
+	title.textContent = template.getAttribute("data-title") ?? "Custom Code";
+	modal.setAttribute("aria-label", title.textContent ?? "Custom Code");
+	const hint = document.createElement("span");
+	hint.className = "hint";
+	hint.textContent = "Read-only";
+	const close = document.createElement("button");
+	close.className = "tb";
+	close.type = "button";
+	close.textContent = "Close";
+	head.append(title, hint, close);
+	const body = document.createElement("div");
+	body.className = "code-body";
+	body.append(template.content.cloneNode(true));
+	modal.append(head, body);
+	backdrop.append(modal);
+
+	const shut = () => {
+		backdrop.remove();
+		document.removeEventListener("keydown", onKey, true);
+	};
+	const onKey = (event: KeyboardEvent) => {
+		if (event.key === "Escape") {
+			event.stopPropagation();
+			shut();
+		}
+	};
+	backdrop.addEventListener("pointerdown", (event) => { if (event.target === backdrop) shut(); });
+	close.addEventListener("click", shut);
+	document.addEventListener("keydown", onKey, true);
+	document.body.append(backdrop);
+	close.focus();
 }

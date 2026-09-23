@@ -152,6 +152,8 @@ export type Block =
 			t: "graph";
 			script: NodeScript;
 			caption?: string;
+			/** Drawn as laid out in the editor, not levelled: see `graphSvg`. */
+			asAuthored?: boolean;
 			/**
 			 * The Variables panel as this graph would show it, beside the picture.
 			 *
@@ -175,6 +177,8 @@ export type Block =
 	| {
 			t: "graphs";
 			label?: string;
+			/** Drawn as laid out in the editor, not levelled: see `graphSvg`. */
+			asAuthored?: boolean;
 			/** The Variables panel, beside whichever graph is showing: see `graph`. */
 			panel?: ToolbarSpec;
 			graphs: {
@@ -5679,6 +5683,8 @@ function robloxDemosPage(registry: Registry): DocPage {
 			t: "graph",
 			script: greeter,
 			panel: declarationsPanel(greeter),
+			// A real project, laid out in the editor: drawn where its nodes are.
+			asAuthored: true,
 			caption: "The graph this was compiled from, and what it declares.",
 		},
 		{ t: "code", lang: "luau", text: luau(greeter) },
@@ -5701,6 +5707,7 @@ function robloxDemosPage(registry: Registry): DocPage {
 			t: "graph",
 			script: main,
 			panel: declarationsPanel(main),
+			asAuthored: true,
 			caption: "The graph this was compiled from, and what it declares.",
 		},
 		{ t: "code", lang: "luau", text: luau(main) },

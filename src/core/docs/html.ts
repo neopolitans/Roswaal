@@ -32,6 +32,7 @@ import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./review
 import { mapFigure, mapFigureHtml } from "./mapFigure.js";
 import { noteHeadHtml } from "./notes.js";
 import { graphViews } from "./graphViews.js";
+import { nodeCodeHtml } from "./nodeCode.js";
 
 export interface RenderOptions {
 	/** Turns Luau into HTML. Returns escaped text when absent. */
@@ -246,9 +247,10 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 					t: "graphs",
 					graphs: views.map((view, i) => ({ ...view, ...(i === 0 && block.caption ? { caption: block.caption } : {}) })),
 					...(block.panel ? { panel: block.panel } : {}),
+					...(block.asAuthored ? { asAuthored: true } : {}),
 				}, options, up);
 			}
-			const svg = graphSvg(block.script, options.registry, options.preview);
+			const svg = graphSvg(block.script, options.registry, options.preview, block.asAuthored);
 			if (svg === "") return "";
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
 			// What the graph declares, to the left of it. Absent on a graph
@@ -260,7 +262,8 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			// The viewport clips; the script that makes it pan and zoom is an
 			// enhancement, and without it this is still a readable picture.
 			return `<figure class="docs-preview graph${panel ? " with-panel" : ""}">` +
-				`${panel}<div class="graph-viewport">${svg}</div>${caption}</figure>`;
+				`${panel}<div class="graph-viewport">${svg}</div>` +
+				`${nodeCodeHtml(block.script, options.highlight)}${caption}</figure>`;
 		}
 		case "graphs": {
 			if (!options.preview || !options.registry) return "";
@@ -270,7 +273,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			const name = `graphs-${block.graphs.map((one) => one.id).join("-")}`;
 			const drawn = block.graphs.map((one) => ({
 				one,
-				svg: graphSvg(one.script, options.registry!, options.preview!),
+				svg: graphSvg(one.script, options.registry!, options.preview!, block.asAuthored),
 			}));
 			if (drawn.some(({ svg }) => svg === "")) return "";
 			const inputs = drawn
@@ -282,22 +285,24 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				.map(({ one }) =>
 					`<label for="${escapeHtml(`${name}-${one.id}`)}">${escapeHtml(one.title)}</label>`)
 				.join("");
-			// What the file declares, beside each graph: a function's graph reads
-			// the same variables the script's own does.
+			// What the file declares, once, level with the graphs: a function's
+			// graph reads the same variables the script's own does. A column of
+			// the tabs block rather than of each figure, so the tab bar sits over
+			// the graph it switches and not over the panel.
 			const declares = block.panel && options.toolbars
 				? `<div class="graph-declares">` +
 					`${toolbarHtml(block.panel, { ...options.toolbars, version: options.version })}</div>`
 				: "";
 			const panels = drawn
 				.map(({ one, svg }) =>
-					`<figure class="docs-preview graph docs-graph-panel${declares ? " with-panel" : ""}">` +
-					`${declares}<div class="graph-viewport">${svg}</div>` +
+					`<figure class="docs-preview graph docs-graph-panel">` +
+					`<div class="graph-viewport">${svg}</div>${nodeCodeHtml(one.script, options.highlight)}` +
 					`${one.caption ? `<figcaption>${inline(one.caption, up)}</figcaption>` : ""}` +
 					`</figure>`)
 				.join("");
-			return `<div class="docs-graph-tabs">` +
+			return `<div class="docs-graph-tabs${declares ? " with-panel" : ""}">` +
 				`${block.label ? `<p class="docs-tabs-label">${inline(block.label, up)}</p>` : ""}` +
-				`${inputs}<div class="docs-tab-bar">${labels}</div>` +
+				`${inputs}${declares}<div class="docs-tab-bar">${labels}</div>` +
 				`<div class="docs-tab-panels">${panels}</div></div>`;
 		}
 		case "toggle": {

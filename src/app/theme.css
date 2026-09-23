@@ -3302,6 +3302,80 @@ button.tb.primary:hover:not(:disabled) {
 	height: 100%;
 }
 
+/* A Custom Code node's Luau, opened from a graph in the docs: the code
+   editor's frame and look, read-only, and as tall as the code up to the
+   editor's own height. The gutter and face are `luauTheme.ts`'s. */
+.docs-code-backdrop {
+	z-index: 1000;
+}
+
+.code-modal.read-only {
+	height: auto;
+	max-height: min(600px, 100%);
+	grid-template-rows: auto minmax(0, 1fr);
+}
+
+.code-modal.read-only .code-head .hint {
+	flex: 1;
+}
+
+.code-modal.read-only .code-body {
+	overflow: auto;
+	background: var(--bg-canvas);
+}
+
+.code-view {
+	display: flex;
+	min-height: 100%;
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.code-view pre {
+	margin: 0;
+	padding: 10px 0;
+	font: inherit;
+	line-height: inherit;
+	white-space: pre;
+	background: none;
+	border: 0;
+	border-radius: 0;
+}
+
+.code-view-gutter {
+	flex: none;
+	padding-left: 14px !important;
+	padding-right: 10px !important;
+	text-align: right;
+	color: var(--fg-faint);
+	background: var(--bg-panel) !important;
+	border-right: 1px solid var(--border) !important;
+	user-select: none;
+}
+
+.code-view-code {
+	flex: 1;
+	padding-left: 8px !important;
+	padding-right: 14px !important;
+}
+
+.code-view-code code {
+	font: inherit;
+	padding: 0;
+	background: none;
+	color: var(--fg);
+}
+
+/* A node in a docs graph that opens its code: the pointer says so. */
+.graph-viewport .docs-code-node {
+	cursor: pointer;
+}
+
+.graph-viewport .docs-code-node:hover {
+	filter: brightness(1.15);
+}
+
 .code-body .cm-scroller {
 	overflow: auto;
 }
@@ -4966,17 +5040,17 @@ button.tb.icon-only.on {
  * The variables are the ones the Custom Code editor's HighlightStyle uses, so a
  * snippet in the docs, the same code in the editor and the same code in the
  * preview are one opinion about Luau rather than four. */
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-keyword { color: var(--code-keyword); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-string { color: var(--code-string); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-number { color: var(--code-number); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-comment { color: var(--code-comment); font-style: italic; }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-operator { color: var(--code-operator); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-global { color: var(--code-global); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-function { color: var(--code-function); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-type { color: var(--code-type); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-property { color: var(--code-property); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-bracket,
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code) .tok-punctuation { color: var(--fg-muted); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-keyword { color: var(--code-keyword); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-string { color: var(--code-string); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-number { color: var(--code-number); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-comment { color: var(--code-comment); font-style: italic; }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-operator { color: var(--code-operator); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-global { color: var(--code-global); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-function { color: var(--code-function); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-type { color: var(--code-type); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-property { color: var(--code-property); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-bracket,
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-punctuation { color: var(--fg-muted); }
 
 /* Pin lists, in the shape Roblox's own reference uses for properties: one
    bordered row per entry, the signature scannable down the left, detail
@@ -6285,6 +6359,34 @@ button.tb.danger {
 .docs-graph-tabs .docs-tab-bar button {
 	border-radius: 6px 6px 0 0;
 	border-bottom-color: transparent;
+}
+
+/* Tabs with what the file declares beside them: the panel in its own column,
+   level with the graph, and the tab bar over the graph it switches. The
+   same columns as a single graph with a panel (`.with-panel` below). */
+.docs-graph-tabs.with-panel {
+	display: grid;
+	grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+	grid-template-areas:
+		"label label"
+		".     bar"
+		"panel graph";
+	column-gap: 14px;
+	align-items: start;
+}
+
+.docs-graph-tabs.with-panel > .docs-tabs-label { grid-area: label; }
+.docs-graph-tabs.with-panel > .docs-tab-bar { grid-area: bar; }
+.docs-graph-tabs.with-panel > .graph-declares { grid-area: panel; }
+.docs-graph-tabs.with-panel > .docs-tab-panels,
+.docs-graph-tabs.with-panel > .docs-preview { grid-area: graph; min-width: 0; }
+
+@media (max-width: 860px) {
+	.docs-graph-tabs.with-panel {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: "label" "panel" "bar" "graph";
+	}
+	.docs-graph-tabs.with-panel > .graph-declares { margin-bottom: 14px; }
 }
 
 .docs-graph-tabs .docs-graph-panel {

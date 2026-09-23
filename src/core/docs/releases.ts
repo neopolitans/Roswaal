@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.97.2",
+		date: "2026-09-23",
+		headline: "Custom Code opens from a documentation graph.",
+		affects: ["docs"],
+		changed: [
+			"**Clicking a Custom Code node in a documentation graph opens its Luau**, read-only, in the code editor's frame, with its line numbers and colours.",
+		],
+		fixed: [
+			"**A graph's tabs sit over the graph they switch**, with the Variables panel level with the graph beside it.",
+			"**The Roblox demo is drawn as it is laid out in the editor.** Levelling the wires, as the docs do for their own scenes, pulled the Main script's Custom Code nodes onto its flow.",
+		],
+	},
+	{
 		version: "0.97.1",
 		date: "2026-09-23",
 		headline: "A graph in tabs keeps its Variables panel.",

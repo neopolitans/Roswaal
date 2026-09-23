@@ -16,6 +16,12 @@ import { sideGraph } from "../src/core/functionGraph.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { compile } from "../src/core/compiler/index.js";
+import { graphSvg } from "../src/core/docs/preview.js";
+import { nodeCodeHtml } from "../src/core/docs/nodeCode.js";
+import { ROBLOX_DEMO_GRAPHS } from "../src/core/docs/robloxDemos.js";
+import { NODE } from "../src/app/layers.js";
+import { nodeColor, pinColor } from "../src/app/palette.js";
+import { wirePath } from "../src/app/geometry.js";
 
 const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
 
@@ -101,5 +107,37 @@ describe("the documentation's graphs", () => {
 	it("draw a function in a tab of its own", () => {
 		const scene = scripts.find(({ where }) => where === "node/function.get")!.script;
 		expect(graphViews(scene).map((v) => v.title)).toEqual(["Example", "ƒ onHit"]);
+	});
+});
+
+describe("a Custom Code node in a drawn graph", () => {
+	const registry = createRegistry();
+	const main = (ROBLOX_DEMO_GRAPHS as Record<string, NodeScript>).main;
+	const custom = main.nodes.find((n) => n.def === "code.custom")!;
+	const options = { geometry: NODE, nodeColor, pinColor, wirePath };
+
+	it("is marked so the graph's script can open it", () => {
+		expect(graphSvg(main, registry, options)).toContain(`data-code-node="${custom.id}"`);
+	});
+
+	it("has its Luau beside the graph, numbered", () => {
+		const html = nodeCodeHtml(main, (code) => code);
+		expect(html).toContain(`data-code-for="${custom.id}"`);
+		expect(html).toContain("newPart.Material = Enum.Material.Neon");
+		expect(html).toMatch(/class="code-view-gutter"[^>]*>1\n2\n3/);
+	});
+});
+
+describe("a real project's graph", () => {
+	const registry = createRegistry();
+	const main = (ROBLOX_DEMO_GRAPHS as Record<string, NodeScript>).main;
+	const options = { geometry: NODE, nodeColor, pinColor, wirePath };
+
+	it("is drawn where its nodes are, not levelled", () => {
+		expect(graphSvg(main, registry, options, true)).not.toBe(graphSvg(main, registry, options));
+		const page = allPages(site).find((p) => p.slug === "roblox-demos")!;
+		const graphs = page.blocks.filter((b) => b.t === "graph");
+		expect(graphs.length).toBe(2);
+		expect(graphs.every((b) => b.t === "graph" && b.asAuthored)).toBe(true);
 	});
 });
