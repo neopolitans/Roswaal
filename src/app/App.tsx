@@ -27,6 +27,7 @@ import { SourceView, type SourceDoc } from "./SourceView.jsx";
 import type { DialogRequest, DialogResult, PendingDialog } from "./Dialog.jsx";
 import type { Literal, PinDef } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
+import { CanvasNotice } from "./CanvasNotice.jsx";
 import { previewSelection } from "./SelectionPreview.jsx";
 import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
 import type { PinMenuTarget } from "./PinMenu.jsx";
@@ -2019,7 +2020,7 @@ export function App() {
 						/>
 					),
 				}}
-				floating={<CompileToast progress={progress} />}
+				floating={<><CompileToast progress={progress} /><CanvasNotice /></>}
 				centre={
 					<>
 						{/* Above the centre's content, and only when there is a

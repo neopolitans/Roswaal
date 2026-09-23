@@ -19,6 +19,7 @@ import {
 import { literalToLuau } from "../core/compiler/luau.js";
 import { retypeReroutes } from "../core/reroutes.js";
 import { pinsCompatible } from "../core/compiler/validate.js";
+import { isInstanceClass, isSubclassOf } from "../core/roblox.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import {
 	graphOf, placeIn, positionIn, viewOf, withFunctionGraphs, type GraphId,
@@ -491,6 +492,75 @@ export function canConnect(
 		};
 	}
 	return { ok: true };
+}
+
+/**
+ * Whether a data wire the pin refuses can go in through a **Cast**, and to what.
+ *
+ * An `Instance` into a `Model` pin is refused because it is a claim about what
+ * the value is, and Cast is the node that makes that claim out loud. Dropping
+ * the wire there anyway is asking for exactly that claim, so the editor builds
+ * the Cast rather than doing nothing — and the claim is on the canvas, where it
+ * can be read, rather than written into the file unseen.
+ *
+ * A cast only goes down the hierarchy: the pin's class must derive from the
+ * wire's. `Part` to `Model` is two classes that are never each other, and Luau
+ * refuses that `::`, so it is refused here with the reason.
+ *
+ * `null` when there is nothing to cast: the wire fits already, or the refusal
+ * is not about data types (an execution wire, a pin that must be typed in).
+ */
+export function castFor(
+	script: NodeScript, registry: Registry, from: PinRef, to: PinRef,
+): { type: string } | { reason: string } | null {
+	if (canConnect(script, registry, from, to).ok) return null;
+	const fromNode = script.nodes.find((n) => n.id === from.node);
+	const toNode = script.nodes.find((n) => n.id === to.node);
+	const fromDef = fromNode && registry.get(fromNode.def);
+	const toDef = toNode && registry.get(toNode.def);
+	if (!fromNode || !toNode || !fromDef || !toDef || from.node === to.node) return null;
+	const outPin = pinsOf(fromDef, fromNode).outputs.find((p) => p.id === from.pin);
+	const inPin = pinsOf(toDef, toNode).inputs.find((p) => p.id === to.pin);
+	if (!outPin || !inPin || outPin.kind !== "data" || inPin.kind !== "data") return null;
+	if (literalOnlyPins(toDef).has(inPin.id)) return null;
+
+	const wire = outPin.type ?? ANY;
+	const want = inPin.type ?? ANY;
+	if (isInstanceClass(wire) && isInstanceClass(want)) {
+		if (isSubclassOf(want, wire)) return { type: want };
+		return { reason: `A ${wire} is never a ${want}, so it cannot be cast to one.` };
+	}
+	return { reason: `${wire} does not fit a ${want} pin, and a Cast cannot make it one.` };
+}
+
+/**
+ * Wires `from` into `to` through a new Cast to `type`, placed between them.
+ * See `castFor`, which says whether it can and to what.
+ */
+export function connectThroughCast(
+	script: NodeScript, registry: Registry, from: PinRef, to: PinRef, type: string,
+): { script: NodeScript; id: string } | null {
+	const fromNode = script.nodes.find((n) => n.id === from.node);
+	const toNode = script.nodes.find((n) => n.id === to.node);
+	if (!fromNode || !toNode || !registry.get("cast.as")) return null;
+
+	const id = newId();
+	const cast: GraphNode = {
+		id,
+		def: "cast.as",
+		x: Math.round((fromNode.x + toNode.x) / 2),
+		y: Math.round((fromNode.y + toNode.y) / 2),
+		literals: { type: { t: "string", v: type } },
+		...(toNode.graph ? { graph: toNode.graph } : {}),
+	};
+	const placed = { ...script, nodes: [...script.nodes, cast] };
+	const into = connect(placed, registry, from, { node: id, pin: "value" });
+	const out = connect(into, registry, { node: id, pin: "result" }, to);
+	// Both halves or neither: a Cast left hanging off one end is litter.
+	const joined = (a: PinRef, b: PinRef) => out.links.some((l) =>
+		l.from.node === a.node && l.from.pin === a.pin && l.to.node === b.node && l.to.pin === b.pin);
+	if (!joined(from, { node: id, pin: "value" }) || !joined({ node: id, pin: "result" }, to)) return null;
+	return { script: out, id };
 }
 
 /**

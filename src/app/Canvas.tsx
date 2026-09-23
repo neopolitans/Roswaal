@@ -27,7 +27,7 @@ import { commentColor, pinColor } from "./palette.js";
 import { serviceFromSource } from "../core/serviceCalls.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import {
-	addNode, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, canConnect, commentContents,
+	addNode, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, canConnect, castFor, commentContents, connectThroughCast,
 	wireLanding,
 	commentsByArea, connect,
 	capturePlacements, currentArity, disconnectPin, growNode, growthRule,
@@ -35,6 +35,7 @@ import {
 	updateComment,
 	type Placement,
 } from "./edits.js";
+import { showCanvasNotice } from "./CanvasNotice.jsx";
 import { store, useEditor, useView } from "./store.js";
 
 /**
@@ -759,9 +760,23 @@ export function Canvas({
 		const from = side === "in" ? g.from : { node: nodeId, pin: pin.id };
 		const to = side === "in" ? { node: nodeId, pin: pin.id } : g.from;
 
-		// A pin that cannot take this wire does not consume the drop; the window
-		// handler decides what else to do with it.
-		if (!canConnect(script, registry, from, to).ok) return;
+		// A pin that cannot take this wire directly may take it through a Cast,
+		// which the editor builds. One that cannot is said so, rather than the
+		// drag simply ending. Anything else — an execution wire on a data pin —
+		// does not consume the drop; the window handler decides what to do.
+		if (!canConnect(script, registry, from, to).ok) {
+			const cast = castFor(script, registry, from, to);
+			if (!cast) return;
+			e.stopPropagation();
+			wireHandled.current = true;
+			if ("type" in cast) {
+				store.edit((s) => connectThroughCast(s, registry, from, to, cast.type)?.script ?? s);
+			} else {
+				showCanvasNotice(cast.reason);
+			}
+			endGesture();
+			return;
+		}
 
 		e.stopPropagation();
 		wireHandled.current = true;
@@ -787,9 +802,11 @@ export function Canvas({
 			const target = dropTarget(nodeId, pin, side, drag.side);
 			if (!target) return false;
 			const here = { node: nodeId, pin: target.pin.id };
-			return drag.side === "out"
-				? canConnect(script, registry, drag.from, here).ok
-				: canConnect(script, registry, here, drag.from).ok;
+			const [from, to] = drag.side === "out" ? [drag.from, here] : [here, drag.from];
+			if (canConnect(script, registry, from, to).ok) return true;
+			// A pin the wire reaches through a Cast is one it can land on.
+			const cast = castFor(script, registry, from, to);
+			return cast !== null && "type" in cast;
 		},
 		[wireDrag, script, registry, dropTarget],
 	);

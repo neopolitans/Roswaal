@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.84.2",
+		date: "2026-09-23",
+		headline: "Dropping a wire on a narrower class places the Cast.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A wire dropped on a pin that wants a narrower class** — an `Instance` on a `Model` pin — goes in through a new **Cast** to that class, placed between the two. Pins that take a wire this way light up while it is dragged.",
+			"**A wire a pin refuses says why**, at the foot of the graph: two unrelated classes, or types no Cast can turn into each other.",
+		],
+	},
+	{
 		version: "0.84.1",
 		date: "2026-09-23",
 		headline: "A result wired into a Declare Local is one local, not two.",

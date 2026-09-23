@@ -5165,8 +5165,9 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "note",
 			kind: "warn",
 			text:
-				"The other direction is refused: an `Instance` into a `Model` pin needs a **Cast**, " +
-				"so the claim shows in the graph.",
+				"The other direction needs a **Cast**. Drop an `Instance` wire on a `Model` pin and " +
+				"one is placed for you, so the claim shows in the graph. Two unrelated classes are " +
+				"refused, with the reason.",
 		},
 	];
 }

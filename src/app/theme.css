@@ -6659,6 +6659,34 @@ button.tb.danger {
  *
  * It floats rather than taking a row of its own, because it is temporary — the
  * graph underneath is what you were looking at and will be again in a moment. */
+/* Something the canvas did or would not do, said once at the foot of the
+   graph. Centred, so it never sits on the compile toast in the corner. */
+.centre-notice {
+	position: absolute;
+	left: 50%;
+	bottom: 16px;
+	transform: translateX(-50%);
+	z-index: 6;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	max-width: min(460px, calc(100% - 32px));
+	padding: 7px 7px 7px 12px;
+	background: var(--bg-panel);
+	border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--border));
+	border-radius: 6px;
+	box-shadow: 0 4px 16px rgb(0 0 0 / 28%);
+	font-size: 12px;
+}
+
+@keyframes centre-notice-in {
+	from { opacity: 0; transform: translate(-50%, 8px); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.centre-notice { animation: centre-notice-in 140ms ease-out; }
+}
+
 .compile-toast {
 	position: absolute;
 	right: 16px;
