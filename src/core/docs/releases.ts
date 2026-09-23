@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.84.0",
+		date: "2026-09-23",
+		headline: "A Find First node's class reaches the file.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Find First Child Of Class, Which Is A, and the two Find First Ancestor nodes** cast their result to the class or `nil` — `(x:FindFirstChildOfClass(\"Humanoid\") :: Humanoid?)` — in Nonstrict and Strict. Default writes no cast.",
+		],
+		fixed: [
+			"A **Class Name wired in** no longer keeps the class last typed into the pin. Wired from a String node, directly or through reroute knots, the output takes that class; from anything else, it is an `Instance`.",
+		],
+	},
+	{
 		version: "0.83.2",
 		date: "2026-09-23",
 		headline: "Notes say what kind they are, and say it briefly.",

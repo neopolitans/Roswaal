@@ -5064,7 +5064,9 @@ function castingBlocks(registry: Registry): Block[] {
 				"**A node that names a class hands back that class.** New Instance set to `Part` " +
 				"gives a Part, not an Instance, and so do Get Service and the Find First Child " +
 				"and Ancestor nodes that take a Class Name. That is what puts a class's own " +
-				"properties in Get Member's list without a Cast first.",
+				"properties in Get Member's list without a Cast first. The Find First nodes can " +
+				"find nothing, so in Nonstrict and Strict the file casts to `Part?`. A Class Name " +
+				"wired from a **String** keeps its class; from anything else, it is an `Instance`.",
 		},
 		{
 			t: "note",

@@ -238,16 +238,40 @@ function castTyped(def: NodeDef): NodeDef {
 	};
 }
 
-function classTyped(def: NodeDef, pinId: string, outputId: string): NodeDef {
+/**
+ * Every node whose Class Name pin decides its output's type, by id. The pass
+ * that follows a wired Class Name (`classReads.ts`) runs over these.
+ */
+export const CLASS_TYPED = new Set<string>();
+
+/**
+ * The class-typed nodes that can hand back `nil`: the Find First ones. The
+ * pin says the class, as every pin in Roswaal says the bare type; the file
+ * says `Class?`, which is what Luau's own signature returns narrowed.
+ */
+export const NILABLE_CLASS_READS = new Set<string>();
+
+function classTyped(
+	def: NodeDef, pinId: string, outputId: string, nilable = false,
+): NodeDef {
+	CLASS_TYPED.add(def.id);
+	if (nilable) NILABLE_CLASS_READS.add(def.id);
 	const derive = (config: NodeConfig, literals?: Record<string, Literal>) => {
 		const base = def.derivePins?.(config, literals)
 			?? { inputs: def.inputs, outputs: def.outputs };
 		// The pin's own default counts: a New Instance dropped on the canvas
 		// says `Part` on its face before anybody has typed anything, and the
 		// pin it feeds should say Part too.
+		//
+		// A wired Class Name is the wire's, not the literal left behind on the
+		// pin: `classReads.ts` writes what the wire is known to carry into
+		// `wiredClass`, and an empty one means nothing is known.
+		const wired = (config as { wiredClass?: unknown }).wiredClass;
 		const pin = base.inputs.find((one) => one.id === pinId);
 		const named = literals?.[pinId] ?? pin?.default;
-		const className = named && named.t === "string" ? named.v.trim() : "";
+		const className = typeof wired === "string"
+			? wired
+			: named && named.t === "string" ? named.v.trim() : "";
 		if (!isInstanceClass(className)) return base;
 		return {
 			inputs: base.inputs,
@@ -1123,7 +1147,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		pure("instance.findFirstChildOfClass", "Find First Child Of Class", "Instances",
 			"$in.instance:FindFirstChildOfClass($in.className)",
 			[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Humanoid")], "Instance"),
-		"className", "result",
+		"className", "result", true,
 	),
 	/**
 	 * Pure, as every sibling asking the same question already is: Find First
@@ -1169,7 +1193,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 			[d("instance", "Instance", "Instance"), cls("className", "Class Name", "BasePart"),
 				{ ...bool("recursive", "Recursive"), optional: true }], "Instance",
 			"Matches derived classes too, unlike Find First Child Of Class."),
-		"className", "result",
+		"className", "result", true,
 	),
 	pure("instance.findFirstAncestor", "Find First Ancestor", "Instances",
 		"$in.instance:FindFirstAncestor($in.name)",
@@ -1178,13 +1202,13 @@ export const LIBRARY_NODES: NodeDef[] = [
 		pure("instance.findFirstAncestorOfClass", "Find First Ancestor Of Class", "Instances",
 			"$in.instance:FindFirstAncestorOfClass($in.className)",
 			[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Model")], "Instance"),
-		"className", "result",
+		"className", "result", true,
 	),
 	classTyped(
 		pure("instance.findFirstAncestorWhichIsA", "Find First Ancestor Which Is A", "Instances",
 			"$in.instance:FindFirstAncestorWhichIsA($in.className)",
 			[d("instance", "Instance", "Instance"), cls("className", "Class Name", "Model")], "Instance"),
-		"className", "result",
+		"className", "result", true,
 	),
 	pure("instance.propertyChanged", "Get Property Changed Signal", "Instances",
 		"$in.instance:GetPropertyChangedSignal($in.property)",

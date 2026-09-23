@@ -19,7 +19,7 @@ import {
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../nodes/flow.js";
-import { CAST_NODES, castModeOf } from "../nodes/library.js";
+import { CAST_NODES, NILABLE_CLASS_READS, castModeOf } from "../nodes/library.js";
 import { checkLuauBalance } from "../luauCheck.js";
 import { isModuleScript, PAIR } from "../schema.js";
 import { checkSpecifier, type SpecifierContext } from "../modules.js";
@@ -2740,6 +2740,21 @@ class Emitter {
 		 */
 		if (src.def.display === "operator" && (src.node.config as { parens?: unknown } | undefined)?.parens === true) {
 			expr = `(${expr})`;
+		}
+
+		/**
+		 * A Find First node that names a class hands back that class or `nil`,
+		 * and Luau's own signature says only `Instance?`. The pin says the class;
+		 * the file says so too, as `Class?`, so a typechecked file and the graph
+		 * agree about what the value is. Only where annotations are written at
+		 * all: Default writes none, and a cast would be the one annotation in it.
+		 */
+		const typed = src.outputs.find((p) => p.id === pinId)?.type;
+		if (
+			this.annotates && NILABLE_CLASS_READS.has(src.def.id)
+			&& typed !== undefined && typed !== "Instance" && typed !== "any"
+		) {
+			expr = `(${expr} :: ${typed}?)`;
 		}
 
 		/**

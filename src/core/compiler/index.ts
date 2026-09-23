@@ -5,6 +5,7 @@ import type { Registry } from "../nodes/index.js";
 import type { SpecifierContext } from "../modules.js";
 import { emit, hashString, type Diagnostic, type EmitResult } from "./emit.js";
 import { validate } from "./validate.js";
+import { retypeClassReads } from "../classReads.js";
 
 export { validate } from "./validate.js";
 export { emit, hashString } from "./emit.js";
@@ -48,10 +49,13 @@ export interface CompileOptions {
 }
 
 export function compile(
-	script: NodeScript, registry: Registry, options: CompileOptions = {},
+	source: NodeScript, registry: Registry, options: CompileOptions = {},
 ): CompileResult {
+	// Hashed as saved; compiled with every wired Class Name followed, so a file
+	// edited by hand cannot carry a stale class into the build.
+	const sourceHash = hashString(semanticJson(source));
+	const script = retypeClassReads(source);
 	const structural = validate(script, registry);
-	const sourceHash = hashString(semanticJson(script));
 	const emitted: EmitResult = emit(script, registry, sourceHash, {
 		indent: options.indent,
 		comments: options.comments,

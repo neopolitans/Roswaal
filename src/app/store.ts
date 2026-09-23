@@ -46,6 +46,7 @@ import {
 import type { NodeScript } from "../core/schema.js";
 import type { View } from "./geometry.js";
 import { retypeReroutes } from "../core/reroutes.js";
+import { retypeClassReads } from "../core/classReads.js";
 import type { Registry } from "../core/nodes/index.js";
 
 const HISTORY_LIMIT = 100;
@@ -576,6 +577,7 @@ class Store {
 		 * work it out again.
 		 */
 		if (this.registry) next = retypeReroutes(next, this.registry);
+		next = retypeClassReads(next);
 
 		this.setDoc({
 			...doc,
