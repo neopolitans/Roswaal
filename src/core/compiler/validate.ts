@@ -10,7 +10,7 @@
 import {
 	ENGINE_TYPES, PAIR, type GraphNode, type NodeScript, type PinDef, type Target,
 } from "../schema.js";
-import { checkLuauBalance } from "../luauCheck.js";
+import { checkLuau } from "../luau/check.js";
 import { crossingLinks, graphExists } from "../functionGraph.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
@@ -277,26 +277,6 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 			});
 		}
 
-		// A Luau Expression is spliced where a value goes, so a statement typed
-		// into one produces `print(local x = 1)` — emitted without complaint,
-		// because the text is raw and nothing checks it. This is the difference
-		// between the two escape hatches, and the one people get wrong.
-		if (node.def === "value.expression") {
-			const code = node.literals?.code;
-			const text = code?.t === "raw" || code?.t === "string" ? code.v.trimStart() : "";
-			const opener = /^(local|if|for|while|repeat|return|do|end|else|elseif)\b/.exec(text);
-			if (opener) {
-				out.push({
-					severity: "warning",
-					message:
-						`"${opener[1]}" starts a statement, and Luau Expression is substituted where a ` +
-						"value goes — this would emit something like `print(local x = 1)`. Use Custom " +
-						"Code for statements; it sits in the execution chain instead.",
-					node: node.id,
-					pin: "code",
-				});
-			}
-		}
 	}
 
 	// -- links -------------------------------------------------------------
@@ -489,14 +469,19 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 
 	// -- hand-written Luau -------------------------------------------------
 	//
-	// Raw literals land in the output verbatim, so an unclosed string here
-	// breaks the generated file somewhere the developer never wrote. Catching
-	// it against the node that holds it is the difference between a useful
-	// error and a baffling one.
+	// Raw literals land in the output verbatim, so a mistake here breaks the
+	// generated file somewhere the developer never wrote. Catching it against
+	// the node that holds it is the difference between a useful error and a
+	// baffling one.
+	//
+	// Parsed as what each one is: Custom Code is statements, and everything
+	// else — a Luau Expression, code typed into a pin — is one value, which is
+	// what makes `local x = 1` in a Luau Expression the error it always was.
 	for (const node of script.nodes) {
 		for (const [pinId, literal] of Object.entries(node.literals ?? {})) {
 			if (literal.t !== "raw" || literal.v.trim() === "") continue;
-			for (const problem of checkLuauBalance(literal.v)) {
+			const kind = node.def === "code.custom" && pinId === "code" ? "block" : "expression";
+			for (const problem of checkLuau(literal.v, kind)) {
 				out.push({
 					severity: "error",
 					message: `${problem.message} (line ${problem.line} of this node's code)`,

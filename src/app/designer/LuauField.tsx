@@ -23,7 +23,8 @@ import { syntaxHighlighting } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
 
-import { errorLineHighlight, luauLinter } from "../luauLint.js";
+import { checkLuauBalance } from "../../core/luauCheck.js";
+import { luauLint } from "../luauLint.js";
 import { luauLanguage } from "../luauMode.js";
 import { editorTheme, luauHighlight } from "../luauTheme.js";
 
@@ -66,8 +67,7 @@ export function LuauField({ value, onChange, placeholders }: LuauFieldProps) {
 					keymap.of([...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
 					luauLanguage,
 					syntaxHighlighting(luauHighlight),
-					luauLinter,
-					errorLineHighlight,
+					luauLint(checkLuauBalance),
 					editorTheme,
 					EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { overflow: "auto" } }),
 					EditorView.updateListener.of((update) => {

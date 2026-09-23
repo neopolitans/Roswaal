@@ -78,7 +78,7 @@ describe("emitter", () => {
 	 * raw, so nothing rewrites it — the only defence is saying so, and this is
 	 * the mistake the two nodes exist to keep apart.
 	 */
-	it("warns when a Luau Expression is given a statement", () => {
+	it("refuses a statement in a Luau Expression, and names Custom Code", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const expr = b.node("value.expression");
@@ -88,8 +88,10 @@ describe("emitter", () => {
 		b.link(expr, "result", print, "value");
 
 		const out = compile(b.build(), registry);
-		const warnings = out.diagnostics.filter((d) => d.severity === "warning");
-		expect(warnings.map((w) => w.message).join(" ")).toContain("Custom Code");
+		const errors = out.diagnostics.filter((d) => d.severity === "error");
+		expect(errors.map((w) => w.message).join(" ")).toContain('"local" starts a statement');
+		expect(errors.map((w) => w.message).join(" ")).toContain("Custom Code");
+		expect(out.ok).toBe(false);
 	});
 
 	it("says nothing about an expression that really is one", () => {

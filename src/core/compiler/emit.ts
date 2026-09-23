@@ -20,7 +20,7 @@ import {
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../nodes/flow.js";
 import { CAST_NODES, NILABLE_CLASS_READS, castModeOf } from "../nodes/library.js";
-import { checkLuauBalance } from "../luauCheck.js";
+import { checkLuau } from "../luau/check.js";
 import { isModuleScript, PAIR } from "../schema.js";
 import { checkSpecifier, type SpecifierContext } from "../modules.js";
 import { argPinId, callOf, luneFunction, moduleOf, specifierFor } from "../luneCalls.js";
@@ -212,17 +212,14 @@ function luauType(t: string | undefined): string {
  * made of types — braces, brackets, `?`, `|`, `->`, names with dots — is written
  * as it was typed, and a mistake in it is Luau's to report, with a line number.
  *
- * What is refused is text that is plainly not a type: unclosed brackets, more
- * than one line, a comment, an assignment, or two words side by side, which no
- * type has and `2 bad` does.
+ * What is refused is text that is not a type, which the parser now decides:
+ * unclosed brackets, an assignment, two words side by side (`2 bad`). One line
+ * and no comments, still: this is written into an annotation mid-line.
  */
 function isTypeExpression(t: string): boolean {
 	const text = t.trim();
 	if (text === "" || text.includes("\n") || text.includes("--")) return false;
-	if (!/^[A-Za-z_{("']/.test(text)) return false;
-	if (/=(?!>)/.test(text.replace(/->/g, ""))) return false;
-	if (/[A-Za-z0-9_]\s+[A-Za-z0-9_]/.test(text)) return false;
-	return checkLuauBalance(text).length === 0;
+	return checkLuau(text, "type").length === 0;
 }
 
 export function emit(
@@ -962,7 +959,7 @@ class Emitter {
 		// the file somewhere after it. Said against the node, like Custom Code.
 		if (config.shape === "written") {
 			const text = (config.definition ?? "").trim();
-			const problem = checkLuauBalance(text)[0];
+			const problem = checkLuau(text, "type")[0];
 			if (problem) {
 				this.error(`${problem.message} (line ${problem.line} of this type's definition)`, nodeId);
 				return "";

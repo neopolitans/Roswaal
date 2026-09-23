@@ -94,6 +94,23 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.86.0",
+		date: "2026-09-23",
+		headline: "Hand-written Luau is parsed before the file is written.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Custom Code is parsed as statements**, and a **Luau Expression** — or code typed into any other pin — as one value. A syntax mistake stops the build, against the node, with its line: \"Expected \\\"end\\\" to close the for loop, but found the end of the code.\"",
+			"**The code editor marks the same mistakes as you type**, from the same parser, so the editor and the build cannot disagree.",
+		],
+		changed: [
+			"A statement in a Luau Expression is an **error** rather than a warning: `\"local\" starts a statement, and this is a value.`",
+			"A written Declare Type, and a type typed into a picker, are parsed as types.",
+		],
+		fixed: [
+			"Interpolated strings with braces in them, and long strings like `[==[ … ]==]`, are no longer reported as unbalanced.",
+		],
+	},
+	{
 		version: "0.85.4",
 		date: "2026-09-23",
 		headline: "A refused wire's types are in bold.",

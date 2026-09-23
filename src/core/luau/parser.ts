@@ -124,6 +124,13 @@ class Parser {
 		return { start, end: this.last.end };
 	}
 
+	/** After a single value or type: nothing else may follow it. */
+	expectEnd(what: string): void {
+		const token = this.peek();
+		if (token.kind === "eof") return;
+		this.fail(`Only ${what} goes here, but ${this.describe(token)} follows it.`);
+	}
+
 	// -- blocks ----------------------------------------------------------------
 
 	parseChunk(): Block {
@@ -890,5 +897,48 @@ class Parser {
 export function parseChunk(src: string): ParseResult<Block> {
 	const parser = new Parser(src);
 	const value = parser.parseChunk();
+	return { value, errors: parser.errors };
+}
+
+/** Words that can only start a statement, never a value. */
+const STATEMENT_WORDS = /^(local|if|for|while|repeat|return|do|end|else|elseif|until|break|function\s+[A-Za-z_])\b/;
+
+/**
+ * Exactly one value: what a Luau Expression node holds, or code typed into a
+ * pin. A statement here is the mistake the two escape hatches exist to keep
+ * apart, so it is named as that rather than as a stray token.
+ */
+export function parseExpression(src: string): ParseResult<Expr | undefined> {
+	const opener = STATEMENT_WORDS.exec(src.trimStart());
+	if (opener) {
+		const start = src.length - src.trimStart().length;
+		const word = opener[1].split(/\s/)[0];
+		return {
+			value: undefined,
+			errors: [{
+				start, end: start + word.length,
+				message:
+					`"${word}" starts a statement, and this is a value. Use Custom Code for ` +
+					"statements; it sits in the execution chain instead.",
+			}],
+		};
+	}
+	return parseWhole(src, (parser) => parser.expr(), "one value");
+}
+
+/** Exactly one type: a Declare Type written out, or a type typed into a picker. */
+export function parseType(src: string): ParseResult<TypeNode | undefined> {
+	return parseWhole(src, (parser) => parser.type(), "one type");
+}
+
+function parseWhole<T>(src: string, read: (parser: Parser) => T, what: string): ParseResult<T | undefined> {
+	const parser = new Parser(src);
+	let value: T | undefined;
+	try {
+		value = read(parser);
+		parser.expectEnd(what);
+	} catch (error) {
+		if (!(error instanceof Stop)) throw error;
+	}
 	return { value, errors: parser.errors };
 }

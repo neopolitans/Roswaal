@@ -3392,8 +3392,9 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 			t: "note",
 			kind: "danger",
 			text:
-				"**Statements do not go in a Luau Expression.** `local x = 1` there emits " +
-				"`print(local x = 1)`. If it would not fit inside brackets, use Custom Code.",
+				"**Statements do not go in a Luau Expression.** `local x = 1` there would emit " +
+				"`print(local x = 1)`, so it is refused before the file is written. If it would not " +
+				"fit inside brackets, use Custom Code.",
 		},
 		{
 			t: "p",
@@ -3406,7 +3407,7 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 			t: "p",
 			text:
 				"Both pins are typed `luau` rather than `string`, and clicking one opens a real " +
-				"editor: Luau highlighting, a structural check that marks a broken line as you type, " +
+				"editor: Luau highlighting, the parser the build runs marking a mistake as you type, " +
 				"and completion over Luau's globals **and the names this graph puts in scope**.",
 		},
 
@@ -3465,8 +3466,9 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 			t: "note",
 			kind: "info",
 			text:
-				"Code in these nodes is **not** checked beyond bracket balance. It is written as " +
-				"typed, so a mistake surfaces in Studio.",
+				"Code in these nodes is **parsed** before the file is written: a syntax mistake stops " +
+				"the build and points at its line. Names and types are not checked — that is still " +
+				"Luau's job, in Studio.",
 		},
 	],
 });

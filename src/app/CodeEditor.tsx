@@ -24,8 +24,8 @@ import { syntaxHighlighting } from "@codemirror/language";
 
 import type { NodeScript } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
-import { checkLuauBalance } from "../core/luauCheck.js";
-import { errorLineHighlight, luauLinter } from "./luauLint.js";
+import { checkLuau, type LuauFragment } from "../core/luau/check.js";
+import { luauLint } from "./luauLint.js";
 import { luauLanguage } from "./luauMode.js";
 import {
 	luauCompletionSource, precedingLocals, scopeCompletions,
@@ -54,7 +54,10 @@ export function CodeEditor({
 	const view = useRef<EditorView | null>(null);
 	const [text, setText] = useState(value);
 
-	const problems = useMemo(() => checkLuauBalance(text), [text]);
+	// Custom Code is statements; a Luau Expression, or code typed into any
+	// other pin, is one value. The compiler parses each the same way.
+	const kind: LuauFragment = script?.nodes.find((n) => n.id === nodeId)?.def === "code.custom" ? "block" : "expression";
+	const problems = useMemo(() => checkLuau(text, kind), [text, kind]);
 	// Recomputed only when the graph changes, and read through a ref so the
 	// editor is built once rather than torn down on every keystroke.
 	const scope = useMemo(
@@ -92,8 +95,7 @@ export function CodeEditor({
 				syntaxHighlighting(luauHighlight),
 				// The same structural check that runs on every compile, shown here
 				// as you type so a stray `end` is caught in the box you typed it in.
-				luauLinter,
-				errorLineHighlight,
+				luauLint((code) => checkLuau(code, kind)),
 				editorTheme,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) setText(update.state.doc.toString());
@@ -147,7 +149,7 @@ export function CodeEditor({
 
 				<div className={`code-status${problems.length ? " bad" : ""}`}>
 					{problems.length === 0 ? (
-						<span>Balanced. Inserted into the generated Luau exactly as written.</span>
+						<span>Reads as Luau. Inserted into the generated file exactly as written.</span>
 					) : (
 						<span>
 							{problems[0].message} <span className="where">line {problems[0].line}</span>
