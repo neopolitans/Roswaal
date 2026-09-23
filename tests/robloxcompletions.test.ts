@@ -132,3 +132,18 @@ describe("a key in brackets", () => {
 		expect(offered("local index = 1\nlist[ind|")).toContain("index");
 	});
 });
+
+describe("a method after a colon", () => {
+	it("offers the methods of what a local holds, inherited ones included", () => {
+		const methods = offered("local existing = script:FindFirstChild(name)\nexisting:Is|");
+		expect(methods).toEqual(expect.arrayContaining(["IsA", "IsDescendantOf", "Clone", "Destroy"]));
+	});
+
+	it("offers a service's methods on the service's name", () => {
+		expect(offered("RunService:|")).toContain("IsServer");
+	});
+
+	it("is not taken for a type annotation", () => {
+		expect(offered("local x: |")).toContain("number");
+	});
+});

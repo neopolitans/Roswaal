@@ -15,8 +15,10 @@
  * value holds would be a completion list that lies.
  */
 
-import type { Expr } from "./ast.js";
-import { CLASSES } from "../robloxData.js";
+import type { Expr, FunctionBody } from "./ast.js";
+import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
+import { isService } from "../roblox.js";
+import { CLASS_METHODS, type ClassMethod } from "../robloxStatics.js";
 
 export interface Held {
 	/** A Roblox class the value is an instance of. */
@@ -29,7 +31,7 @@ const CLASS_SET = new Set(CLASSES);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** Calls on an instance whose string argument names the class they return. */
-const CLASS_METHODS = new Set([
+const CLASS_NAMING_CALLS = new Set([
 	"GetService", "FindFirstChildOfClass", "FindFirstChildWhichIsA",
 	"FindFirstAncestorOfClass", "FindFirstAncestorWhichIsA",
 ]);
@@ -48,18 +50,119 @@ export function classOfTypeText(text: string | undefined): string | undefined {
 	return CLASS_SET.has(bare) ? bare : undefined;
 }
 
+/** Calls that find an instance by name: the class is not known, but it is one. */
+const INSTANCE_FINDERS: Record<string, string> = {
+	FindFirstChild: "Instance?",
+	FindFirstAncestor: "Instance?",
+	WaitForChild: "Instance",
+};
+
+/**
+ * The class a name that is not a local stands for: a service reached by its
+ * name, as a graph hoists them, and the globals Roblox provides.
+ */
+export function classOfGlobal(name: string): string | undefined {
+	if (name === "game") return "DataModel";
+	if (name === "workspace") return "Workspace";
+	return isService(name) ? name : undefined;
+}
+
+/**
+ * A class's methods, its own first and then each ancestor's, once each:
+ * `Part` reaches `Instance:IsA` through `BasePart` and the rest.
+ */
+export function methodsOf(className: string): (ClassMethod & { from: string })[] {
+	const out: (ClassMethod & { from: string })[] = [];
+	const seen = new Set<string>();
+	const walked = new Set<string>();
+	let current: string | undefined = className;
+	while (current !== undefined && !walked.has(current)) {
+		walked.add(current);
+		for (const method of CLASS_METHODS[current] ?? []) {
+			if (seen.has(method.name)) continue;
+			seen.add(method.name);
+			out.push({ ...method, from: current });
+		}
+		current = CLASS_PARENTS[current];
+	}
+	return out;
+}
+
 /** The class a call names, when it is one of the calls that name one. */
 export function classOfCall(expr: Expr): string | undefined {
+	if (expr.kind === "methodCall" && INSTANCE_FINDERS[expr.method.name]) return "Instance";
 	if (expr.kind === "call" && expr.callee.kind === "index" && expr.callee.object.kind === "name"
 		&& expr.callee.object.name === "Instance" && expr.callee.name.name === "new") {
 		const name = stringValue(expr.args[0]);
 		return name && CLASS_SET.has(name) ? name : undefined;
 	}
-	if (expr.kind === "methodCall" && CLASS_METHODS.has(expr.method.name)) {
+	if (expr.kind === "methodCall" && CLASS_NAMING_CALLS.has(expr.method.name)) {
 		const name = stringValue(expr.args[0]);
 		return name && CLASS_SET.has(name) ? name : undefined;
 	}
 	return undefined;
+}
+
+/**
+ * A function's type as Luau writes it: `(name: string) -> (RemoteEvent)`.
+ * Parameters keep the types written beside them; what it returns is its
+ * written return type, or `()` when it says none.
+ */
+export function signatureOf(func: FunctionBody, src: string): string {
+	const text = (span: { start: number; end: number }) => src.slice(span.start, span.end).trim();
+	const params = func.params.map((p) => (p.type ? `${p.name}: ${text(p.type)}` : p.name));
+	if (func.varargs) params.push(func.varargs.type ? `...: ${text(func.varargs.type)}` : "...");
+	const returns = func.returns ? text(func.returns).replace(/^\((.*)\)$/s, "$1") : "";
+	return `(${params.join(", ")}) -> (${returns})`;
+}
+
+const ARITHMETIC = new Set(["+", "-", "*", "/", "//", "%", "^"]);
+const COMPARISON = new Set(["==", "~=", "<", "<=", ">", ">="]);
+
+/**
+ * The type a value evidently has, from what it is written as: a string is a
+ * `string`, `a + b` a `number`, `x == y` a `boolean`, `Instance.new("Part")` a
+ * `Part`, a function its signature. Nothing for what it cannot tell — a call
+ * whose result nothing here knows.
+ */
+export function typeOfValue(expr: Expr | undefined, src: string): string | undefined {
+	let value = expr;
+	while (value && value.kind === "paren") value = value.inner;
+	if (!value) return undefined;
+	switch (value.kind) {
+		case "string":
+		case "interpolated":
+			return "string";
+		case "number":
+			return "number";
+		case "boolean":
+			return "boolean";
+		case "nil":
+			return "nil";
+		case "table":
+			return "table";
+		case "function":
+			return signatureOf(value.func, src);
+		case "cast":
+			return src.slice(value.type.start, value.type.end).trim();
+		case "unary":
+			return value.op === "not" ? "boolean" : "number";
+		case "binary":
+			if (ARITHMETIC.has(value.op)) return "number";
+			if (value.op === "..") return "string";
+			if (COMPARISON.has(value.op)) return "boolean";
+			return undefined;
+		default: {
+			// The finders say whether they can come back empty: FindFirstChild
+			// can, WaitForChild waits until it cannot.
+			if (value.kind === "methodCall" && INSTANCE_FINDERS[value.method.name]) {
+				return INSTANCE_FINDERS[value.method.name];
+			}
+			const called = classOfCall(value);
+			if (called && value.kind === "methodCall" && value.method.name.startsWith("FindFirst")) return `${called}?`;
+			return called;
+		}
+	}
 }
 
 /** The keys a dot can reach: the ones that are names. */

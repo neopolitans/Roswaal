@@ -11,7 +11,7 @@
  * that service (`players:GetPlayerByUserId(`).
  */
 
-import { heldBy } from "./infer.js";
+import { classOfGlobal, heldBy, methodsOf } from "./infer.js";
 import { significant, tokenize } from "./lexer.js";
 import { localsAt } from "./scope.js";
 import { SERVICE_METHODS } from "../robloxMembers.js";
@@ -94,9 +94,20 @@ export function signatureAt(src: string, pos: number, roblox = true): Signature 
 
 	if (separator.text === ":") {
 		const local = localsAt(src, owner.start).find((n) => n.name === owner.text);
-		const className = local ? heldBy(local.typeText, local.value).className : undefined;
+		const className = local ? heldBy(local.typeText, local.value).className : classOfGlobal(owner.text);
 		const method = className ? SERVICE_METHODS[className]?.find((m) => m.name === name.text) : undefined;
-		if (!method) return null;
+		if (!method) {
+			// Any class's method, found up the hierarchy: `existing:IsA(`.
+			const found = className ? methodsOf(className).find((m) => m.name === name.text) : undefined;
+			if (!found) return null;
+			const params = paramsOf(found.detail);
+			return {
+				label: `${owner.text}:${name.text}`,
+				params,
+				active: Math.min(call.commas, Math.max(0, params.length - 1)),
+				...(found.returns ? { returns: found.returns } : {}),
+			};
+		}
 		const params = method.params.map((p) => ({
 			name: p.name,
 			type: `${p.enum ? `Enum.${p.enum}` : p.type}${p.optional ? "?" : ""}`,

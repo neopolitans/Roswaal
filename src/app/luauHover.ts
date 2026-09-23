@@ -46,7 +46,19 @@ export function luauHover(getTarget: () => Target): Extension {
 					type.textContent = returned;
 					code.append(" → ", type);
 				}
-				dom.append(code);
+				// The name and its type, and under it, quieter, what kind of
+				// name it is: `event: (name: string) -> (RemoteEvent)` over
+				// "local function".
+				const head = document.createElement("div");
+				head.className = "luau-hover-head";
+				head.append(code);
+				if (hover.role) {
+					const role = document.createElement("span");
+					role.className = "luau-hover-role";
+					role.textContent = hover.role;
+					head.append(role);
+				}
+				dom.append(head);
 				if (hover.summary) {
 					const summary = document.createElement("p");
 					summary.textContent = hover.summary.replace(/`/g, "");

@@ -108,9 +108,32 @@ for (const datatype of DATATYPES) {
  * Part is and links to its page.
  */
 const summaries = { classes: {}, datatypes: {} };
+/**
+ * Each class's own methods — `Instance:IsA`, `Instance:FindFirstChild` — for
+ * hover and completion after a colon. Own only: inherited ones are found by
+ * walking up the hierarchy, so `IsA` is listed once, on Instance, rather
+ * than on six hundred classes.
+ */
+const methods = {};
 for (const [name, doc] of await fetchAll("classes", [...CLASSES])) {
 	const line = brief(doc.summary);
 	if (line) summaries.classes[name] = line;
+	const own = [];
+	for (const entry of Array.isArray(doc.methods) ? doc.methods : []) {
+		if (String(entry.deprecation_message ?? "").trim() !== "") continue;
+		const full = String(entry.name ?? "");
+		const method = full.slice(full.indexOf(":") + 1);
+		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(method)) continue;
+		const returns = (Array.isArray(entry.returns) ? entry.returns : [])
+			.map((r) => String(r.type ?? "")).filter((t) => t !== "" && t !== "()");
+		own.push({
+			name: method,
+			detail: signature(entry),
+			returns: returns.join(", "),
+			summary: brief(entry.summary),
+		});
+	}
+	if (own.length > 0) methods[name] = own;
 }
 for (const [name, doc] of await fetchAll("datatypes", [...DATATYPES])) {
 	const line = brief(doc.summary);
@@ -143,8 +166,12 @@ await writeFile(
 	`/** One sentence per class, by class name. */\n` +
 	`export const CLASS_SUMMARIES: Record<string, string> = ${JSON.stringify(summaries.classes, null, "\t")};\n\n` +
 	`/** One sentence per datatype, by name. */\n` +
-	`export const DATATYPE_SUMMARIES: Record<string, string> = ${JSON.stringify(summaries.datatypes, null, "\t")};\n`,
+	`export const DATATYPE_SUMMARIES: Record<string, string> = ${JSON.stringify(summaries.datatypes, null, "\t")};\n\n` +
+	`export interface ClassMethod {\n\tname: string;\n\t/** Its parameters: \`(className: string)\`. */\n\tdetail: string;\n\t/** What it returns, or "" for nothing. */\n\treturns: string;\n\tsummary: string;\n}\n\n` +
+	`/** Each class's own methods, not inherited ones, by class name. */\n` +
+	`export const CLASS_METHODS: Record<string, readonly ClassMethod[]> = ${JSON.stringify(methods)};\n`,
 );
+console.log(`${Object.values(methods).reduce((n, list) => n + list.length, 0)} methods across ${Object.keys(methods).length} classes`);
 console.log(`${Object.keys(summaries.classes).length} class summaries, ${Object.keys(summaries.datatypes).length} datatype summaries`);
 
 const count = Object.values(statics).reduce((n, list) => n + list.length, 0);

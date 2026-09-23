@@ -19,7 +19,7 @@ import { toIdentifier } from "../core/compiler/luau.js";
 import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
 import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
 import { propertiesOf } from "../core/robloxProperties.js";
-import { dotKeys, heldBy } from "../core/luau/infer.js";
+import { classOfGlobal, dotKeys, heldBy, methodsOf } from "../core/luau/infer.js";
 import { DATATYPE_STATICS } from "../core/robloxStatics.js";
 import {
 	CLASSES as ROBLOX_CLASSES, DATATYPES as ENGINE_DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
@@ -253,6 +253,29 @@ export function luauCompletionSource(
 				],
 				validFor: /^\w*$/,
 			};
+		}
+
+		// A method after a colon: `existing:Is` offers Instance's methods, and
+		// every class's own above whatever the owner holds. The owner is a local
+		// the code says holds a class, or a service reached by its name.
+		const colon = roblox ? context.matchBefore(/([A-Za-z_][A-Za-z0-9_]*):(\w*)$/) : null;
+		if (colon) {
+			const [, owner, written] = /([A-Za-z_][A-Za-z0-9_]*):(\w*)$/.exec(colon.text)!;
+			const local = localsAt(context.state.doc.toString(), colon.from).find((n) => n.name === owner);
+			const className = local ? heldBy(local.typeText, local.value).className : classOfGlobal(owner);
+			const methods = className ? methodsOf(className) : [];
+			if (methods.length > 0) {
+				return {
+					from: colon.to - written.length,
+					options: methods.map((m) => ({
+						label: m.name,
+						type: "method",
+						detail: `${m.detail}${m.returns ? ` → ${m.returns}` : ""}`,
+						info: m.summary,
+					})),
+					validFor: /^\w*$/,
+				};
+			}
 		}
 
 		// A type: Luau's own, and Roblox's classes and datatypes.

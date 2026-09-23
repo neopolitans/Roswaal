@@ -10030,11 +10030,27 @@ select:not(.literal):not([multiple]) {
 	color: var(--fg);
 }
 
-.luau-hover code {
-	display: block;
+.luau-hover-head {
 	padding: 7px 10px;
 	background: color-mix(in srgb, var(--bg-canvas) 70%, var(--bg-panel));
 	border-bottom: 1px solid var(--border);
+}
+
+.luau-hover-head:last-child {
+	border-bottom: 0;
+}
+
+/* What kind of name it is, under the name: quieter than the code, which is
+   the thing the hover is about. */
+.luau-hover-role {
+	display: block;
+	margin-top: 2px;
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.luau-hover code {
+	display: block;
 	font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
 	font-size: 13px;
 	font-weight: 700;
@@ -10054,9 +10070,6 @@ select:not(.literal):not([multiple]) {
 	color: var(--accent);
 }
 
-.luau-hover code:last-child {
-	border-bottom: 0;
-}
 
 /* The call being typed, above the cursor: its parameters, the one the cursor
    is on picked out. Code, like the hover's signature line. */

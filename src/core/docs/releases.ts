@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.94.0",
+		date: "2026-09-23",
+		headline: "A hover gives a name's type, and methods are known.",
+		affects: ["editor"],
+		added: [
+			"**A hover gives the name and its type** — `INPUT2: string`, `event: (name: string) -> (RemoteEvent)` — with what kind of name it is under it, quieter: local, local function, parameter, method, property, class.",
+			"**Methods are known for every class**: hovering `existing:IsA` gives `Object:IsA(className: string) → boolean` with a link to where Roblox documents it, a colon after a local offers its class's methods, inherited ones included, and a method's parameters show while its call is typed.",
+			"A local's type comes from its value when none is written: a string, a number, a comparison, a function's signature, and `FindFirstChild` as an `Instance?`. A service reached by its name, `RunService:`, is known as that service.",
+			"`npm run build:statics` also fetches each class's own methods.",
+		],
+	},
+	{
 		version: "0.93.0",
 		date: "2026-09-23",
 		headline: "A .luau file shows what its names are, and follows the cursor.",

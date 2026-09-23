@@ -24,6 +24,8 @@ export interface ScopedName {
 	typeText?: string;
 	/** What it was declared with, for working out what it holds. */
 	value?: Expr;
+	/** A local function's definition, for its signature. */
+	func?: FunctionBody;
 }
 
 /** Names a statement leaves in scope for the statements after it. */
@@ -38,7 +40,7 @@ function declared(stat: Stat): ScopedName[] {
 				...(stat.values[i] ? { value: stat.values[i] } : {}),
 			}));
 		case "localFunction":
-			return [{ name: stat.name.name, kind: "function" }];
+			return [{ name: stat.name.name, kind: "function", func: stat.func }];
 		default:
 			return [];
 	}
@@ -123,7 +125,7 @@ function enter(stat: Stat, at: number, out: ScopedName[]): void {
 	switch (stat.kind) {
 		case "localFunction":
 			// Its own name is in scope inside it: a local function can recurse.
-			out.push({ name: stat.name.name, kind: "function" });
+			out.push({ name: stat.name.name, kind: "function", func: stat.func });
 			enterFunction(stat.func, at, out);
 			return;
 		case "function":
