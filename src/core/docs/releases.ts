@@ -94,6 +94,14 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.85.0",
+		date: "2026-09-23",
+		headline: "The first half of a Luau parser: a lexer.",
+		added: [
+			"**A Luau lexer** that every later reader of hand-written code will share: every token Luau has — long brackets at any level, interpolated strings with holes, `0b` and `_` numbers, `//=` and `::` — with nothing lost, so the tokens give back the source byte for byte. Nothing uses it yet.",
+		],
+	},
+	{
 		version: "0.84.3",
 		date: "2026-09-23",
 		headline: "A project can leave out casts a subclass already proved.",
