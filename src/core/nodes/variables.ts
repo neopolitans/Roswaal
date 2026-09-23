@@ -83,6 +83,12 @@ export function pinTypeOf(luauType: string | undefined): string {
 	return "any";
 }
 
+/** A pin's type as it is shown: `Model`, or `Model?` for one that can be `nil`. */
+export function pinTypeText(pin: Pick<PinDef, "type" | "nilable">): string {
+	const type = pin.type ?? "any";
+	return pin.nilable && type !== "any" ? `${type}?` : type;
+}
+
 /**
  * The starting literal for a pin of this type, or nothing when the type has
  * none to offer.

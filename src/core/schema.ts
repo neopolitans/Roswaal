@@ -107,6 +107,13 @@ export interface PinDef {
 	 */
 	pairs?: boolean;
 	/**
+	 * Data outputs only: the value can be `nil`. `type` stays the class, so the
+	 * pin wires, colours and offers members as that class does; the `?` is
+	 * shown with the type and written into an annotation — `Model?` for Local
+	 * Character, since a player has no character until one spawns.
+	 */
+	nilable?: boolean;
+	/**
 	 * Data inputs only: offer these values as a dropdown instead of a free text
 	 * field. Suggestions, not a closed set — anything not listed can still be
 	 * typed, so a value the list has not caught up with is never a dead end.

@@ -20,6 +20,7 @@ import { toIdentifier } from "../core/compiler/luau.js";
 import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
 import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
 import { propertiesOf } from "../core/robloxProperties.js";
+import { nilableProperty } from "../core/robloxNilable.js";
 import {
 	classOfGlobal, dotKeys, eventsOf, heldBy, membersInCode, methodsOf, type TableMember,
 } from "../core/luau/infer.js";
@@ -294,7 +295,8 @@ export function luauCompletionSource(
 				const options = held.className && roblox
 					? [
 						...propertiesOf(held.className).map((p) => ({
-							label: p.name, type: "property", detail: p.enum ?? p.type ?? "",
+							label: p.name, type: "property",
+							detail: p.enum ?? `${p.type ?? ""}${nilableProperty(held.className!, p.name) ? "?" : ""}`,
 						})),
 						// Events are read with a dot too: `part.Touched:Connect(…)`.
 						...eventsOf(held.className).map((e) => ({

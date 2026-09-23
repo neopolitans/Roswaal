@@ -1304,7 +1304,7 @@ class Emitter {
 			const hint = named || r.node.label || pin?.name || r.def.title;
 			const ident = this.names.unique(hint, "value");
 			const annotation = this.annotates && pin?.type && pin.type !== "any"
-				? `: ${luauType(pin.type)}`
+				? `: ${luauType(pin.type)}${pin.nilable ? "?" : ""}`
 				: "";
 			this.push(`local ${ident}${annotation} = ${rendered}`, r.node.id);
 			scope.bindings.set(`${r.node.id}/${resultPin}`, ident);

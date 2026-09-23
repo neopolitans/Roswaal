@@ -19,6 +19,7 @@ import { tokenize } from "./lexer.js";
 import { localsAt, type LocalKind } from "./scope.js";
 import { CLASSES, DATATYPES } from "../robloxData.js";
 import { propertiesOf } from "../robloxProperties.js";
+import { nilableProperty } from "../robloxNilable.js";
 import { CLASS_SUMMARIES, DATATYPE_STATICS, DATATYPE_SUMMARIES } from "../robloxStatics.js";
 
 export interface Hover {
@@ -135,7 +136,8 @@ export function hoverAt(
 				if (property) {
 					return {
 						from, to,
-						code: `${held.className}.${word}: ${property.enum ?? property.type ?? "unknown"}`,
+						code: `${held.className}.${word}: ${property.enum ?? property.type ?? "unknown"}${
+							nilableProperty(held.className, word) ? "?" : ""}`,
 						role: "property",
 						summary: property.summary,
 						link: classLink(held.className),

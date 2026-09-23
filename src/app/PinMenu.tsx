@@ -20,6 +20,7 @@ import { literalOnlyPins } from "../core/nodes/index.js";
 import { canPromoteToVariable, pinLinkCount, splitModesFor } from "./edits.js";
 import { LAYER } from "./layers.js";
 import { pinColor } from "./palette.js";
+import { pinTypeText } from "../core/nodes/variables.js";
 
 export interface PinMenuTarget {
 	/** Viewport position; the menu is `position: fixed`. */
@@ -152,7 +153,7 @@ export function PinMenu(props: PinMenuProps) {
 		top: Math.min(target.screen.y, window.innerHeight - 160),
 	};
 
-	const typeLabel = target.pin.kind === "exec" ? "execution" : target.pin.type ?? "any";
+	const typeLabel = target.pin.kind === "exec" ? "execution" : pinTypeText(target.pin);
 
 	return (
 		<div className="menu pin-menu" ref={root} style={style}>

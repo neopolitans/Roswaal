@@ -28,6 +28,7 @@ import type { Registry } from "./nodes/index.js";
 import { resolveNodePins } from "./nodes/index.js";
 import { declaredTypeFields, type TypeField } from "./typeFields.js";
 import { propertiesOf } from "./robloxProperties.js";
+import { nilableProperty } from "./robloxNilable.js";
 
 export interface MemberLookup {
 	/** The graph the node is in, as a script. */
@@ -85,8 +86,13 @@ export function membersOfType(
 	const external = lookup.external?.get(bare);
 	if (external) return external;
 
-	// Roblox's own, and only where a Roblox build is what is being written.
-	if (lookup.script.target !== "lune") return propertiesOf(bare);
+	// Roblox's own, and only where a Roblox build is what is being written. A
+	// reference that can be empty is typed as one: `Character` is a `Model?`.
+	if (lookup.script.target !== "lune") {
+		return propertiesOf(bare).map((p) => (
+			nilableProperty(bare, p.name) ? { ...p, type: `${p.type}?` } : p
+		));
+	}
 	return [];
 }
 

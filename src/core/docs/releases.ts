@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.96.0",
+		date: "2026-09-23",
+		headline: "What can be nil says so.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A pin that can be nil says so**: Local Character is a `Model?`, Get Player From Character a `Player?`, and the Find First nodes `Instance?` or the class they name. The pin still wires and offers members as the class does.",
+			"**Roblox properties that can be empty are typed so**: `Player.Character` is a `Model?`, and so are `Parent`, `PrimaryPart`, a weld's `Part0` and `Part1`, and the other references that are empty until something sets them. In Get Member, the code editor's completions and hover, and the node reference.",
+		],
+	},
+	{
 		version: "0.95.1",
 		date: "2026-09-23",
 		headline: "Functions on a table are known.",

@@ -18,6 +18,7 @@ import {
 	nodeWidth, operatorLayoutOf, resolvePins,
 } from "./geometry.js";
 import { operatorSymbol } from "../core/operatorLayout.js";
+import { pinTypeText } from "../core/nodes/variables.js";
 
 const NEWLINE = String.fromCharCode(10);
 
@@ -396,7 +397,7 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 		<span
 			className={`pin ${pin.kind}${wired ? " connected" : ""}${state}${highlighted}`}
 			style={{ color: pinColor(pin.type, pin.kind) }}
-			title={pin.description ?? pin.type ?? pin.kind}
+			title={pin.description ?? (pin.kind === "data" ? pinTypeText(pin) : pin.kind)}
 			onPointerDown={(e) => props.onPinPointerDown(e, node.id, pin, side)}
 			onPointerUp={(e) => props.onPinPointerUp(e, node.id, pin, side)}
 			onContextMenu={(e) => {

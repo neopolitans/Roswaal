@@ -23,6 +23,7 @@ import type { NodeDef, NodeScript, PinDef } from "../schema.js";
 import { emptyScript } from "../schema.js";
 import type { Registry } from "../nodes/index.js";
 import { literalOnlyPins, resolveNodePins } from "../nodes/index.js";
+import { pinTypeText } from "../nodes/variables.js";
 import { STRUCTS, type StructRegistry } from "../structs.js";
 import { previewOf, type NodePreview } from "./preview.js";
 import { CURATED, EXAMPLE_NOTES } from "./examples.js";
@@ -102,7 +103,7 @@ export function documentPin(
 		id: pin.id,
 		name: pin.name,
 		kind: pin.kind,
-		type: pin.type,
+		type: pin.kind === "data" ? pinTypeText(pin) : pin.type,
 		default: pin.default ? literalToLuau(pin.default) : undefined,
 		// Only an input can be "required": an output is a value the node hands
 		// back, so it has neither a default to fall back on nor a wire to demand.

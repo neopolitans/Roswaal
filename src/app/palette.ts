@@ -149,8 +149,10 @@ const TYPE_COLORS: Record<string, string> = {
 	RBXScriptConnection: "#9c5a55",
 };
 
-export function pinColor(type: string | undefined, kind: "exec" | "data"): string {
+export function pinColor(given: string | undefined, kind: "exec" | "data"): string {
 	if (kind === "exec") return TYPE_COLORS.exec;
+	// `Model?` is a Model's colour: whether there is a value is not what it is.
+	const type = given?.endsWith("?") ? given.slice(0, -1) : given;
 	const named = TYPE_COLORS[type ?? "any"];
 	if (named) return named;
 	/**

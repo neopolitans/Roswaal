@@ -251,9 +251,18 @@ export const CLASS_TYPED = new Set<string>();
  */
 export const NILABLE_CLASS_READS = new Set<string>();
 
+/** A node whose result can be `nil`: its pin says so, as `Instance?`. */
+function nilableResult(def: NodeDef, outputId = "result"): NodeDef {
+	return {
+		...def,
+		outputs: def.outputs.map((pin) => (pin.id === outputId ? { ...pin, nilable: true } : pin)),
+	};
+}
+
 function classTyped(
-	def: NodeDef, pinId: string, outputId: string, nilable = false,
+	given: NodeDef, pinId: string, outputId: string, nilable = false,
 ): NodeDef {
+	const def = nilable ? nilableResult(given, outputId) : given;
 	CLASS_TYPED.add(def.id);
 	if (nilable) NILABLE_CLASS_READS.add(def.id);
 	const derive = (config: NodeConfig, literals?: Record<string, Literal>) => {
@@ -1177,7 +1186,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 			str("name", "Name"),
 			{ ...bool("recursive", "Recursive"), optional: true },
 		],
-		outputs: [d("result", "Child", "Instance")],
+		outputs: [{ ...d("result", "Child", "Instance"), nilable: true }],
 		compilesTo: {
 			kind: "expr",
 			outputs: { result: "$in.parent:FindFirstChild($in.name$opt(, ))" },
@@ -1195,9 +1204,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 			"Matches derived classes too, unlike Find First Child Of Class."),
 		"className", "result", true,
 	),
-	pure("instance.findFirstAncestor", "Find First Ancestor", "Instances",
+	nilableResult(pure("instance.findFirstAncestor", "Find First Ancestor", "Instances",
 		"$in.instance:FindFirstAncestor($in.name)",
-		[d("instance", "Instance", "Instance"), str("name", "Name", "Model")], "Instance"),
+		[d("instance", "Instance", "Instance"), str("name", "Name", "Model")], "Instance")),
 	classTyped(
 		pure("instance.findFirstAncestorOfClass", "Find First Ancestor Of Class", "Instances",
 			"$in.instance:FindFirstAncestorOfClass($in.className)",
@@ -1279,13 +1288,13 @@ export const LIBRARY_NODES: NodeDef[] = [
 		pure: true,
 		targets: ["roblox"],
 		inputs: [],
-		outputs: [d("character", "", "Model")],
+		outputs: [{ ...d("character", "", "Model"), nilable: true }],
 		compilesTo: { kind: "builtin", handler: "players.localCharacter" },
 	},
-	pure("players.fromCharacter", "Get Player From Character", "Players",
+	nilableResult(pure("players.fromCharacter", "Get Player From Character", "Players",
 		"$in.players:GetPlayerFromCharacter($in.character)",
 		[d("players", "Players", "Instance"), d("character", "Character", "Instance")], "Player",
-		"Wire Get Service (Players) in. Returns nil for a character with no player behind it."),
+		"Wire Get Service (Players) in. Returns nil for a character with no player behind it.")),
 	pure("players.all", "Get Players", "Players", "$in.players:GetPlayers()",
 		[d("players", "Players", "Instance")], "table",
 		"Every player currently connected. Typed `{ Player }`."),
@@ -1793,7 +1802,11 @@ export const LIBRARY_NODES: NodeDef[] = [
 		 */
 		derivePins: (config) => ({
 			inputs: [d("object", "", "any")],
-			outputs: [d("result", "", pinTypeOf(config.type as string | undefined))],
+			outputs: [{
+				...d("result", "", pinTypeOf(config.type as string | undefined)),
+				// `Character` is a `Model?`: the pin is a Model, and says it can be nil.
+				...(String(config.type ?? "").trim().endsWith("?") ? { nilable: true } : {}),
+			}],
 		}),
 	},
 	{

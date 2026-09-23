@@ -23,7 +23,7 @@ import {
 } from "./edits.js";
 import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../core/nodes/flow.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
-import { isConstLocal, localNameOf } from "../core/nodes/variables.js";
+import { isConstLocal, localNameOf, pinTypeText } from "../core/nodes/variables.js";
 import { store, useEditor } from "./store.js";
 import { membersFor } from "../core/members.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
@@ -1484,7 +1484,7 @@ function PinSummary({ def, node }: { def: NodeDef; node: GraphNode }) {
 			{data.map((pin) => (
 				<div className="pin-summary" key={`${pin.kind}${pin.id}`}>
 					<span>{pin.name || pin.id}</span>
-					<span className="type">{pin.type}</span>
+					<span className="type">{pinTypeText(pin)}</span>
 				</div>
 			))}
 		</div>
