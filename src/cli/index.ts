@@ -303,7 +303,10 @@ async function commandImport(args: Args): Promise<number> {
 		dedupe: args.flags["no-merge"] !== true,
 		outDir: "src",
 		placeFile,
-		name: stem,
+		// The map and the Rojo project are named after the project, as Rojo
+		// names a project after its folder -- not after the place file, which
+		// is most often just `place`.
+		name: path.basename(root),
 	});
 
 	await fs.mkdir(root, { recursive: true });

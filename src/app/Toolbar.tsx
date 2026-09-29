@@ -231,7 +231,7 @@ export function DocumentBar(props: DocumentBarProps) {
 		return (
 			<div className="docbar">
 				<span className={`doc-name${props.dirty ? " dirty" : ""}`}>{props.name}</span>
-				<span className="doc-kind">node map</span>
+				<span className="doc-kind">Node Map</span>
 				<span className="spacer" />
 				<button
 					className="tb primary with-icon"

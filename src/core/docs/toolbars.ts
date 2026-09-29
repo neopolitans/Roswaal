@@ -754,7 +754,7 @@ export const MAP_BAR: ToolbarSpec = {
 	summary: "What the same row holds when the open document is a node map rather than a graph.",
 	chrome: "bar",
 	groups: [
-		{ items: [{ t: "name", text: "Tank.nodemap", kind: "node map" }] },
+		{ items: [{ t: "name", text: "Tank.nodemap", kind: "Node Map" }] },
 		{
 			apart: true,
 			items: [

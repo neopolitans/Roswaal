@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.98.1",
+		date: "2026-09-29",
+		headline: "An imported map is named after its project.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**An imported project's node map** is named after the project's folder, as Rojo names a project, rather than after the place file.",
+			"**The document bar** labels a map Node Map.",
+		],
+	},
+	{
 		version: "0.98.0",
 		date: "2026-09-29",
 		headline: "A place file becomes a project.",
