@@ -644,7 +644,9 @@ export class ApiSession {
 					}
 				}
 				return {
-					name: path.posix.basename(project.root) || "project",
+					// Either separator: the daemon's root on Windows is a Windows
+					// path, and a posix basename of it is the whole path.
+					name: project.root.split(/[\\/]/).filter(Boolean).pop() || "project",
 					files: await collectProject(project),
 					binaries,
 					...(place ? { place } : {}),

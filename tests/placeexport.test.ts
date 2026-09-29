@@ -15,6 +15,7 @@ import { planPlaceUpdate } from "../src/core/rbx/placeExport.js";
 import { planImport, surveyPlace } from "../src/core/rbx/placeImport.js";
 import { writeSources } from "../src/core/rbx/writer.js";
 import { exportPlace, openProject, writePlaceImport } from "../src/server/project.js";
+import { ApiSession } from "../src/server/routes.js";
 import { buildPlace, type Compression, folder, script, service } from "./rbxfixture.js";
 
 const id = (c: string) => ({ UniqueId: { type: 31, value: c.repeat(32) } });
@@ -169,5 +170,27 @@ describe("exporting a project's place", () => {
 		]);
 		// Nothing on disk changed: the place is only read.
 		expect(Buffer.from(await readFile(path.join(root, "Game.rbxl"))).equals(Buffer.from(place))).toBe(true);
+	});
+});
+
+describe("the export's name", () => {
+	let root = "";
+	afterEach(async () => {
+		if (root) await rm(root, { recursive: true, force: true });
+	});
+
+	/**
+	 * The folder's own name, whatever separator its path uses. The route took a
+	 * posix basename, and the daemon's root on Windows is a Windows path, so the
+	 * name was the whole path -- in Download's zip name, and in the Export menu.
+	 */
+	it("is the project folder's name, not its path", async () => {
+		root = await mkdtemp(path.join(os.tmpdir(), "roswaal-name-"));
+		await writeFile(path.join(root, "roswaal.json"), JSON.stringify({ schemaVersion: 1 }));
+		const session = new ApiSession({});
+		await session.openAt(root);
+		const exported = await session.handle("GET", "/export", { query: {} }) as { name: string };
+		expect(exported.name).toBe(path.basename(root));
+		expect(exported.name).not.toMatch(/[\\/]/);
 	});
 });

@@ -68,7 +68,6 @@ export function ExportMenu({ onClose, onError }: ExportMenuProps) {
 	const place = modified?.place;
 	const report = place?.report;
 	const extension = place ? (/\.rbxlx$/i.test(place.file) ? ".rbxlx" : ".rbxl") : "";
-	const fileName = `${name.trim() || "roswaal-project"}${shape === "zip" ? ".zip" : extension}`;
 	const problems = report ? describePlaceReport(place!.file, report).detail : "";
 	const hasProblems = !!report && (report.notInPlace.length + report.ambiguous.length + report.wrongClass.length > 0 || !!report.addError);
 
@@ -125,54 +124,80 @@ export function ExportMenu({ onClose, onError }: ExportMenuProps) {
 				) : !modified ? (
 					<p>Reading the project…</p>
 				) : (
-					<>
-						<p>
-							{Object.keys(modified.files).length} files
-							{place ? <>, and the place file <code>{place.file}</code>.</> : ", and no place file."}
-						</p>
+					<div className="export-menu-form">
+						<label className="export-menu-row" htmlFor="export-format">
+							<span className="export-menu-label">Format</span>
+							<span className="export-menu-control">
+								<select
+									id="export-format"
+									className="tb"
+									value={shape}
+									onChange={(e) => setShape(e.target.value as "zip" | "place")}
+								>
+									<option value="zip">Project (.zip)</option>
+									<option value="place" disabled={!place}>
+										{place ? `Place only (${extension})` : "Place only (no place file)"}
+									</option>
+								</select>
+								<span className="export-menu-note">
+									{shape === "zip"
+										? `A zip: graphs, Luau and the Rojo project${place ? ", with the place in its root" : ""}.`
+										: "The place file alone, to open in Studio."}
+								</span>
+							</span>
+						</label>
 
-						<fieldset className="dialog-choices">
-							<legend>Export as</legend>
-							<label className="dialog-option">
-								<input type="radio" name="export-shape" checked={shape === "zip"} onChange={() => setShape("zip")} />
-								<span>Project <span className="export-menu-note">A zip: graphs, Luau and the Rojo project{place ? ", with the place in its root" : ""}.</span></span>
-							</label>
-							<label className={`dialog-option${place ? "" : " dialog-option-off"}`}>
-								<input type="radio" name="export-shape" disabled={!place} checked={shape === "place"} onChange={() => setShape("place")} />
-								<span>Place only <span className="export-menu-note">{place ? "The place file alone, to open in Studio." : "This project has no place file."}</span></span>
-							</label>
-						</fieldset>
+						<div className="export-menu-section">File</div>
+						<label className="export-menu-row" htmlFor="export-name">
+							<span className="export-menu-label">Name</span>
+							<span className="export-menu-control">
+								<span className="export-menu-name">
+									<input
+										ref={nameInput}
+										id="export-name"
+										className="tb"
+										value={name}
+										spellCheck={false}
+										onChange={(e) => setName(e.target.value)}
+									/>
+									<span className="export-menu-suffix">{shape === "zip" ? ".zip" : extension}</span>
+								</span>
+							</span>
+						</label>
 
 						{place && report && (
-							<fieldset className="dialog-choices">
-								<legend>Place file</legend>
-								<label className="dialog-option">
-									<input type="radio" name="export-modify" checked={modify} onChange={() => setModify(true)} />
-									<span>Modify RBXL <span className="export-menu-note">{summary(place.file, report)}</span></span>
-								</label>
-								<label className="dialog-option">
-									<input type="radio" name="export-modify" checked={!modify} onChange={() => setModify(false)} />
-									<span>Don't Modify RBXL <span className="export-menu-note">The place as it was.</span></span>
-								</label>
-								{modify && hasProblems && <p className="export-menu-problem">{problems}</p>}
-							</fieldset>
+							<>
+								<div className="export-menu-section">Place file</div>
+								<div className="export-menu-row">
+									<span className="export-menu-label">{place.file}</span>
+									<span className="export-menu-control">
+										<span className="segmented">
+											<button type="button" className={modify ? "on" : ""} onClick={() => setModify(true)}>
+												Modify RBXL
+											</button>
+											<button type="button" className={!modify ? "on" : ""} onClick={() => setModify(false)}>
+												Don't Modify RBXL
+											</button>
+										</span>
+										<span className="export-menu-note">
+											{modify ? summary(place.file, report) : "The place as it was."}
+										</span>
+										{modify && hasProblems && <span className="export-menu-problem">{problems}</span>}
+									</span>
+								</div>
+							</>
 						)}
-
-						<label className="field">
-							<span>Name</span>
-							<input
-								ref={nameInput}
-								id="export-name"
-								className="tb"
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-							/>
-						</label>
-						<p className="export-menu-note">Saved as {fileName}. The project itself is not changed.</p>
-					</>
+					</div>
 				)}
 
-				<div className="dialog-actions">
+				<div className="dialog-actions export-menu-foot">
+					{modified && (
+						<span className="export-menu-note export-menu-contents">
+							{shape === "zip"
+								? `${Object.keys(modified.files).length} files${place ? ` and ${place.file}` : ""} · the project itself is not changed`
+								: "The project itself is not changed"}
+						</span>
+					)}
 					<button className="tb" onClick={onClose}>Cancel</button>
 					<button className="tb primary" disabled={!modified || busy} onClick={() => void run()}>
 						{busy ? "Exporting…" : "Export"}

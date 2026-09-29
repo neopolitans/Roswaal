@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.102.4",
+		date: "2026-09-29",
+		headline: "The Export menu is a panel.",
+		affects: ["editor"],
+		changed: [
+			"**Export Project** is laid out as a panel: Format as a dropdown, the Name with the file's extension straight after it, and Modify RBXL or Don't Modify RBXL side by side, with what goes out summed up at the foot.",
+		],
+		fixed: [
+			"**An export from the installed editor on Windows** is named after the project's folder, where it took the folder's whole path.",
+		],
+	},
+	{
 		version: "0.102.3",
 		date: "2026-09-29",
 		headline: "Members and fields is reviewed.",
