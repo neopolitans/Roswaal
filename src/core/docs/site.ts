@@ -1333,13 +1333,21 @@ const GETTING_STARTED: DocPage = {
 									picture: [PROJECT_MENU, PROJECTS_FOOT],
 									point: "Open .zip…",
 								},
+								{
+									text:
+										"Or **Open place…** for a `.rbxl` or `.rbxlx`. It shows how many scripts " +
+										"Rojo can sync and how many only the place can hold, and asks which to bring " +
+										"in. [Compiling and nodemaps](building-and-rojo) has the rest.",
+									picture: [PROJECT_MENU, PROJECTS_FOOT],
+									point: "Open place…",
+								},
 							],
 						},
 						{
 							t: "p",
 							text:
-								"**Download** in the same menu takes the project out as a zip. Folders you have " +
-								"opened are listed in the panel, to reopen with a click.",
+								"**Download** in the same menu takes the project out as a zip, with its place file " +
+								"if it has one. Folders you have opened are listed in the panel, to reopen with a click.",
 						},
 					],
 				},
@@ -3929,6 +3937,13 @@ const BUILDING: DocPage = {
 				"without owning its parent. `--scripts all` brings those out too, under `place/`, " +
 				"where Rojo does not look. Identical copies become one file unless you pass " +
 				"`--no-merge`.",
+		},
+		{
+			t: "p",
+			text:
+				"In the web app, **Project → Open place…** does the same, and asks the same questions " +
+				"with the counts in front of you. The place is kept with the project, and " +
+				"**Download** includes it.",
 		},
 	],
 };

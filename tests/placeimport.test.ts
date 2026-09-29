@@ -129,6 +129,22 @@ describe("planning the files", () => {
 		expect(files["place/Workspace/stuff (2)/B.server.luau"]).toBe("b()");
 	});
 
+	it("names merged scripts that share a name for where their copies live", () => {
+		const lamp = () => script("Script", "Script", "glow()");
+		const door = () => script("Script", "Script", "open()");
+		const place = buildPlace([
+			service("Workspace", [
+				folder("Street Light", [lamp()], "Model"),
+				folder("Street Light", [lamp()], "Model"),
+				folder("Door", [door()], "Model"),
+				folder("Door", [door()], "Model"),
+			]),
+		]);
+		const { files } = planImport(surveyPlace(readRbx(place)), options({ scope: "all" }));
+		expect(files["place/Shared/Script (Street Light).server.luau"]).toBe("glow()");
+		expect(files["place/Shared/Script (Door).server.luau"]).toBe("open()");
+	});
+
 	it("keeps copies apart when asked", () => {
 		const { files } = planImport(survey, options({ scope: "all", dedupe: false }));
 		expect(files["place/Workspace/Door1/Open.server.luau"]).toBe("door:Open()");
@@ -154,7 +170,7 @@ describe("writing the project", () => {
 		root = await mkdtemp(path.join(os.tmpdir(), "roswaal-import-"));
 		await writeFile(path.join(root, "Game.rbxl"), PLACE);
 		const plan = planImport(surveyPlace(readRbx(PLACE)), options({ placeFile: "Game.rbxl" }));
-		const outcome = await writePlaceImport(root, plan, "Game.rbxl");
+		const outcome = await writePlaceImport(root, plan.files, "Game.rbxl");
 		expect(outcome.written).toBe(true);
 		const config = JSON.parse(await readFile(path.join(root, "roswaal.json"), "utf8"));
 		expect(config.place).toBe("Game.rbxl");

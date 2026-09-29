@@ -99,16 +99,21 @@ export class DirectoryFs implements ProjectFs {
 		throw enoent("stat", resolve(target));
 	}
 
-	async readFile(target: string, _encoding: "utf8"): Promise<string> {
+	async readFile(target: string, encoding: "utf8"): Promise<string>;
+	async readFile(target: string): Promise<Uint8Array>;
+	async readFile(target: string, encoding?: "utf8"): Promise<string | Uint8Array> {
 		const handle = await this.fileAt(target);
 		if (!handle) {
 			const asDirectory = await this.directoryAt(target);
 			throw asDirectory ? eisdir("read", resolve(target)) : enoent("open", resolve(target));
 		}
-		return (await handle.getFile()).text();
+		const file = await handle.getFile();
+		return encoding === "utf8" ? file.text() : new Uint8Array(await file.arrayBuffer());
 	}
 
-	async writeFile(target: string, data: string, _encoding: "utf8"): Promise<void> {
+	async writeFile(target: string, data: string, encoding: "utf8"): Promise<void>;
+	async writeFile(target: string, data: Uint8Array): Promise<void>;
+	async writeFile(target: string, data: string | Uint8Array, _encoding?: "utf8"): Promise<void> {
 		const found = await this.parentOf(target);
 		if (!found) throw enoent("open", resolve(target));
 		const handle = await found.parent.getFileHandle(found.name, { create: true })
@@ -116,7 +121,7 @@ export class DirectoryFs implements ProjectFs {
 		if (!handle) throw enoent("open", resolve(target));
 
 		const writable = await handle.createWritable();
-		await writable.write(data);
+		await writable.write(typeof data === "string" ? data : (data as BlobPart));
 		await writable.close();
 	}
 

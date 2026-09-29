@@ -40,7 +40,10 @@ export interface DirEntry {
 export interface ProjectFs {
 	stat(target: string): Promise<FileStat>;
 	readFile(target: string, encoding: "utf8"): Promise<string>;
+	/** Bytes, for a place or model: the one kind of file Roswaal keeps that is not text. */
+	readFile(target: string): Promise<Uint8Array>;
 	writeFile(target: string, data: string, encoding: "utf8"): Promise<void>;
+	writeFile(target: string, data: Uint8Array): Promise<void>;
 	mkdir(target: string, options: { recursive: boolean }): Promise<string | undefined>;
 	readdir(target: string): Promise<string[]>;
 	readdir(target: string, options: { withFileTypes: true }): Promise<DirEntry[]>;

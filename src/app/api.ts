@@ -243,7 +243,7 @@ export const api = {
 	resetProject: () => post<{ ok: true }>("/api/reset", {}),
 	/** The whole project as text, for `zip.ts` to turn into a download. */
 	exportProject: () =>
-		request<{ name: string; files: Record<string, string> }>("/api/export"),
+		request<{ name: string; files: Record<string, string>; binaries?: Record<string, string> }>("/api/export"),
 	/** Generated files whose graph has moved or gone. */
 	orphans: () => request<{ orphans: string[] }>("/api/orphans"),
 	removeOrphans: (paths: string[]) =>

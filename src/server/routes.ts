@@ -28,7 +28,7 @@ import { VERSION } from "../cli/version.js";
 
 import { path } from "./host.js";
 import {
-	buildTree, collectMaps, collectProject, compileAll, compileMap, compileScript, copyPackBetween, createFolder,
+	buildTree, collectBinaries, collectMaps, collectProject, compileAll, compileMap, compileScript, copyPackBetween, createFolder,
 	createPack, deleteEntry, deletePack, deletePackNode, duplicatePack, exportedTypes, findOrphanOutputs,
 	graphName, initProject, listPacks, locateFile, moveEntry, openProject, packUsage, readConfig,
 	readLuaurcFiles, readMap, readPack, readScript, readText, removeOutputs, renameEntry, safeJoin,
@@ -627,7 +627,11 @@ export class ApiSession {
 
 			"GET /export": async () => {
 				const project = this.project();
-				return { name: path.posix.basename(project.root) || "project", files: await collectProject(project) };
+				return {
+					name: path.posix.basename(project.root) || "project",
+					files: await collectProject(project),
+					binaries: await collectBinaries(project),
+				};
 			},
 
 			"GET /orphans": async () => ({ orphans: await findOrphanOutputs(this.project()) }),

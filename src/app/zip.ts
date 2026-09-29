@@ -64,7 +64,7 @@ const UTF8_NAME = 0x0800;
  * has a folder at its root. It should: unpacking a project directly into
  * somebody's Downloads folder is rude.
  */
-export function zip(files: Record<string, string>, when = new Date()): Blob {
+export function zip(files: Record<string, string | Uint8Array>, when = new Date()): Blob {
 	const encoder = new TextEncoder();
 	const { time, date } = dosStamp(when);
 
@@ -75,7 +75,8 @@ export function zip(files: Record<string, string>, when = new Date()): Blob {
 
 	for (const path of names) {
 		const name = encoder.encode(path);
-		const body = encoder.encode(files[path]);
+		const contents = files[path];
+		const body = typeof contents === "string" ? encoder.encode(contents) : contents;
 		const crc = crc32(body);
 
 		const header = new Uint8Array(LOCAL_HEADER + name.length);

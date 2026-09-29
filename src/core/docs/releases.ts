@@ -94,6 +94,20 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.99.0",
+		date: "2026-09-29",
+		headline: "The web app opens a place.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Open place… in the web app.** Project → Open place… makes a project from a `.rbxl` or `.rbxlx`. It shows how many scripts Rojo can sync and how many only the place can hold, then asks what to call the project, which scripts to bring in, and whether to merge identical copies.",
+			"**The place stays with the project** in the browser, across a reload, and Download includes it.",
+			"**A zip holding a place file** opens with the place kept, where before it was listed as left out.",
+		],
+		changed: [
+			"**Merged scripts that share a name** are named for where their copies live, as in Script (Street Light), rather than numbered.",
+		],
+	},
+	{
 		version: "0.98.1",
 		date: "2026-09-29",
 		headline: "An imported map is named after its project.",

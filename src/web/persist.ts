@@ -30,6 +30,16 @@ export interface SnapshotStore {
 	read(): Promise<string | null>;
 	write(text: string): Promise<void>;
 	clear(): Promise<void>;
+	/**
+	 * Binary files -- a place, a model -- kept apart from the document.
+	 *
+	 * A place is megabytes, and the document is rewritten on every settled
+	 * change; carrying the place in it would write megabytes each time a node
+	 * moved. These are written only when a binary file changed. A store without
+	 * them keeps text alone, as every store did before places came in.
+	 */
+	readBinaries?(): Promise<Record<string, Uint8Array>>;
+	writeBinaries?(files: Record<string, Uint8Array>): Promise<void>;
 }
 
 /** What is written, so a future format can tell what it is reading. */
@@ -37,7 +47,8 @@ interface Document {
 	format: 1;
 	/** The version that wrote it, for a bug report rather than for logic. */
 	version: string;
-	files: VolumeSnapshot;
+	/** Text files only: binaries are kept beside the document. */
+	files: Record<string, string>;
 	/**
 	 * The directories, including the ones no file implies.
 	 *
@@ -63,6 +74,8 @@ export interface RestoredVolume {
 	files: VolumeSnapshot;
 	dirs: string[];
 	root?: string;
+	/** The volume's `binaryStamp`: a change says the binaries need writing. */
+	binaryStamp?: number;
 }
 
 export interface Persistence {
@@ -95,6 +108,8 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 	let writing: Promise<void> = Promise.resolve();
 	let stopped = false;
 	let failure: string | null = null;
+	/** The stamp the binaries were last written at; undefined before the first write. */
+	let writtenStamp: number | undefined;
 
 	async function writeNow(): Promise<void> {
 		const take = pending;
@@ -102,12 +117,22 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 		if (!take || stopped) return;
 
 		const taken = take();
+		const text: Record<string, string> = {};
+		const binaries: Record<string, Uint8Array> = {};
+		for (const [at, contents] of Object.entries(taken.files)) {
+			if (typeof contents === "string") text[at] = contents;
+			else binaries[at] = contents;
+		}
 		const document: Document = {
-			format: 1, version, files: taken.files, dirs: taken.dirs,
+			format: 1, version, files: text, dirs: taken.dirs,
 			...(taken.root ? { root: taken.root } : {}),
 		};
 		try {
 			await store.write(JSON.stringify(document));
+			if (store.writeBinaries && (writtenStamp === undefined || taken.binaryStamp !== writtenStamp)) {
+				await store.writeBinaries(binaries);
+				writtenStamp = taken.binaryStamp;
+			}
 			failure = null;
 		} catch (err) {
 			// Reported once and then left alone. A quota that is full will be full
@@ -129,8 +154,9 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 				if (parsed.format !== 1 || typeof parsed.files !== "object" || !parsed.files) {
 					return null;
 				}
+				const binaries = store.readBinaries ? await store.readBinaries().catch(() => ({})) : {};
 				return {
-					files: parsed.files,
+					files: { ...parsed.files, ...binaries },
 					// Absent on a document written before directories were kept.
 					dirs: Array.isArray(parsed.dirs)
 						? parsed.dirs.filter((at): at is string => typeof at === "string")
@@ -215,6 +241,33 @@ export function opfsStore(name = "project.json"): SnapshotStore {
 
 		async clear() {
 			await (await directory()).removeEntry(name).catch(() => {});
+			await (await directory()).removeEntry(BINARIES, { recursive: true }).catch(() => {});
+		},
+		async readBinaries() {
+			const out: Record<string, Uint8Array> = {};
+			const folder = await (await directory()).getDirectoryHandle(BINARIES).catch(() => null);
+			if (!folder) return out;
+			for await (const [key, handle] of folder.entries()) {
+				if (handle.kind !== "file") continue;
+				const file = await (handle as FileSystemFileHandle).getFile();
+				out[decodeURIComponent(key)] = new Uint8Array(await file.arrayBuffer());
+			}
+			return out;
+		},
+		async writeBinaries(files) {
+			// Replaced as a set: a place that went must not come back on reload.
+			await (await directory()).removeEntry(BINARIES, { recursive: true }).catch(() => {});
+			if (Object.keys(files).length === 0) return;
+			const folder = await (await directory()).getDirectoryHandle(BINARIES, { create: true });
+			for (const [at, bytes] of Object.entries(files)) {
+				const handle = await folder.getFileHandle(encodeURIComponent(at), { create: true });
+				const writable = await handle.createWritable();
+				await writable.write(bytes as BlobPart);
+				await writable.close();
+			}
 		},
 	};
 }
+
+/** The folder beside the document that holds binary files, one per file. */
+const BINARIES = "binaries";

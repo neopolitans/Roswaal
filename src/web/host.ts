@@ -50,8 +50,13 @@ export function usingVolume(): boolean {
 
 export const fs: ProjectFs = {
 	stat: (target) => backing.stat(target),
-	readFile: (target, encoding) => backing.readFile(target, encoding),
-	writeFile: (target, data, encoding) => backing.writeFile(target, data, encoding),
+	// Passed through as called: with an encoding a file is text, without one bytes.
+	readFile: ((target: string, encoding?: "utf8") =>
+		encoding ? backing.readFile(target, encoding) : backing.readFile(target)) as ProjectFs["readFile"],
+	writeFile: ((target: string, data: string | Uint8Array, encoding?: "utf8") =>
+		typeof data === "string"
+			? backing.writeFile(target, data, encoding ?? "utf8")
+			: backing.writeFile(target, data)) as ProjectFs["writeFile"],
 	mkdir: (target, options) => backing.mkdir(target, options),
 	readdir: ((target: string, options?: { withFileTypes: true }) =>
 		options ? backing.readdir(target, options) : backing.readdir(target)) as ProjectFs["readdir"],

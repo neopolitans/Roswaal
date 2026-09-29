@@ -16,6 +16,7 @@ import { chainFor, parseLuaurc, type LuaurcSource } from "../core/luaurc.js";
 import type { SpecifierContext } from "../core/modules.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
 import type { PlaceImport } from "../core/rbx/placeImport.js";
+import { toBase64 } from "../core/base64.js";
 import { migrateScript } from "../core/migrate.js";
 import {
 	compileNodeMap, locateInDataModel, serialiseMap,
@@ -136,20 +137,20 @@ export async function findPlaceFile(root: string, config: RoswaalConfig): Promis
  * can point at it.
  */
 export async function writePlaceImport(
-	root: string, plan: PlaceImport, placeFile: string,
+	root: string, files: PlaceImport["files"], placeFile: string,
 ): Promise<MapOutcome> {
 	const config: RoswaalConfig = { ...defaultConfig(), place: placeFile };
 	await fs.mkdir(root, { recursive: true });
 	await writeConfig(root, config);
 	await fs.mkdir(path.join(root, config.sourceDir), { recursive: true });
 	await fs.mkdir(path.join(root, config.nodePaths[0] ?? ".roswaal/nodes"), { recursive: true });
-	for (const [rel, content] of Object.entries(plan.files)) {
+	for (const [rel, content] of Object.entries(files)) {
 		const abs = safeJoin(root, rel);
 		await fs.mkdir(path.dirname(abs), { recursive: true });
 		await fs.writeFile(abs, content, "utf8");
 	}
 	const project = await openProject(root);
-	const mapPath = Object.keys(plan.files).find((f) => f.endsWith(".nodemap"))!;
+	const mapPath = Object.keys(files).find((f) => f.endsWith(".nodemap"))!;
 	return compileMap(project, mapPath, { write: true });
 }
 
@@ -1071,6 +1072,30 @@ export async function collectProject(project: OpenProject): Promise<Record<strin
 			if (!EXPORTABLE.some((suffix) => entry.name.endsWith(suffix))) continue;
 			const text = await fs.readFile(abs, "utf8").catch(() => null);
 			if (text !== null) out[toPosix(path.relative(project.root, abs))] = text;
+		}
+	}
+	return out;
+}
+
+/**
+ * The places and models in a project, base64-encoded, for the export: the one
+ * kind of binary file a project keeps, and the reason `collectProject` is not
+ * the whole of it.
+ */
+export async function collectBinaries(project: OpenProject): Promise<Record<string, string>> {
+	const out: Record<string, string> = {};
+	const stack = [project.root];
+	while (stack.length) {
+		const dir = stack.pop()!;
+		for (const entry of await fs.readdir(dir, { withFileTypes: true }).catch(() => [])) {
+			const abs = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				if (!SKIP_DIRS.has(entry.name)) stack.push(abs);
+				continue;
+			}
+			if (!/\.rbx[lm]x?$/i.test(entry.name)) continue;
+			const bytes = await fs.readFile(abs).catch(() => null);
+			if (bytes !== null) out[toPosix(path.relative(project.root, abs))] = toBase64(bytes);
 		}
 	}
 	return out;

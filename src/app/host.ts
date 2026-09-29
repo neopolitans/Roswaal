@@ -265,6 +265,55 @@ export function useCanImportZip(): boolean {
 	return useSyncExternalStore(subscribe, () => zipImporter !== null, () => false);
 }
 
+/**
+ * Making a project from a place file, in place of the one the browser holds.
+ *
+ * Installed by the hosted editor, as the zip importer is. The place is read
+ * and surveyed before anything is replaced, so the choices can be asked with
+ * the numbers in front of the person answering them.
+ */
+export interface PlacePreview {
+	/** The file as picked. */
+	file: string;
+	/** A project name to suggest: the file's, made safe. */
+	name: string;
+	scripts: number;
+	/** Scripts Rojo can sync, and those only the place can hold. */
+	rojo: number;
+	placeOnly: number;
+	/** Place-only files once identical copies are merged. */
+	placeOnlyDistinct: number;
+	open: (choice: PlaceChoice) => Promise<{ root: string; leftInPlace: number }>;
+}
+
+export interface PlaceChoice {
+	name: string;
+	/** Only what Rojo can sync, or every script. */
+	scope: "rojo" | "all";
+	/** One file for identical place-only scripts. */
+	dedupe: boolean;
+}
+
+export type PlaceImporter = (file: File) => Promise<PlacePreview>;
+
+let placeImporter: PlaceImporter | null = null;
+
+export function usePlaceImporter(next: PlaceImporter): void {
+	placeImporter = next;
+	announce();
+}
+
+/** Reads a place and says what is in it. Nothing is replaced until `open`. */
+export async function readPlace(file: File): Promise<PlacePreview> {
+	if (!placeImporter) throw new Error("This copy of Roswaal cannot open a place.");
+	return placeImporter(file);
+}
+
+/** Whether this build can make a project from a place, redrawing when that changes. */
+export function useCanImportPlace(): boolean {
+	return useSyncExternalStore(subscribe, () => placeImporter !== null, () => false);
+}
+
 /** `canOpenDirectory`, for a component that should redraw when it is installed. */
 export function useCanOpenDirectory(): boolean {
 	return useSyncExternalStore(subscribe, () => opener !== null, () => false);

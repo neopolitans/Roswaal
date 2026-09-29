@@ -91,10 +91,30 @@ export interface ImportMessage {
 	name: string;
 	/** Path below the project root, to contents. */
 	files: Record<string, string>;
+	/** Places and models, path below the root to bytes. */
+	binaries?: Record<string, Uint8Array>;
 	dirs: string[];
 	/** Set it up as a Roswaal project when it has no `roswaal.json`. */
 	initialise?: boolean;
 }
 
-export type ToWorker = ApiRequestMessage | FlushMessage | MountMessage | ImportMessage;
+/**
+ * A project made from a place, replacing the one the browser holds.
+ *
+ * The plan is made on the main thread, where the place was read and the
+ * choices were asked; the worker writes it through the same
+ * `writePlaceImport` the CLI uses, so both hosts make the same project.
+ */
+export interface ImportPlaceMessage {
+	kind: "importPlace";
+	id: number;
+	name: string;
+	/** The files the import planned, path below the project root to text. */
+	files: Record<string, string>;
+	/** Where the place goes, below the root. */
+	placeFile: string;
+	place: Uint8Array;
+}
+
+export type ToWorker = ApiRequestMessage | FlushMessage | MountMessage | ImportMessage | ImportPlaceMessage;
 export type FromWorker = ApiResponseMessage | ApiEventMessage;

@@ -8,8 +8,9 @@
  * hand-edit guard all run here unchanged, so the playground enforces the same
  * rules about what Roswaal owns as the daemon does.
  *
- * **Faithful where it is load-bearing, and only there.** Files are strings,
- * because every file Roswaal reads or writes is text. There are no modes, no
+ * **Faithful where it is load-bearing, and only there.** Files are text, or
+ * bytes for the one kind of file Roswaal keeps that is not -- a place or a
+ * model -- and each reads back as either, the way Node's do. There are no modes, no
  * links, no timestamps and no watchers. What it does copy exactly is the
  * *failure* behaviour: `readFile` on a path that is not there rejects, `rm`
  * rejects unless told `force`, `writeFile` into a directory that does not exist
@@ -27,7 +28,10 @@ import type { DirEntry, FileStat, ProjectFs } from "../server/filesystem.js";
 import { dirname, resolve } from "./posixPath.js";
 
 /** A whole volume as plain data: absolute posix path to file contents. */
-export type VolumeSnapshot = Record<string, string>;
+export type VolumeSnapshot = Record<string, string | Uint8Array>;
+
+const utf8 = new TextDecoder();
+const encode = new TextEncoder();
 
 class VolumeError extends Error {
 	constructor(readonly code: string, message: string) {
@@ -50,7 +54,23 @@ const DIRECTORY: FileStat = { isDirectory: () => true, isFile: () => false };
 
 export class Volume implements ProjectFs {
 	/** Absolute posix path to contents. Directories are not in here. */
-	private readonly files = new Map<string, string>();
+	private readonly files = new Map<string, string | Uint8Array>();
+	/**
+	 * Changes whenever a binary file is written, moved or removed, so a store
+	 * that keeps binaries apart knows when it has to write them again.
+	 */
+	binaryStamp = 0;
+
+	/** Sets a file, noting when bytes came or went. */
+	private put(full: string, contents: string | Uint8Array): void {
+		if (contents instanceof Uint8Array || this.files.get(full) instanceof Uint8Array) this.binaryStamp++;
+		this.files.set(full, contents);
+	}
+
+	private drop(full: string): void {
+		if (this.files.get(full) instanceof Uint8Array) this.binaryStamp++;
+		this.files.delete(full);
+	}
 	/** Every directory that exists, including the ancestors of every file. */
 	private readonly dirs = new Set<string>(["/"]);
 
@@ -73,7 +93,7 @@ export class Volume implements ProjectFs {
 		for (const [target, contents] of Object.entries(snapshot)) {
 			const full = resolve(target);
 			this.makeDirs(dirname(full));
-			this.files.set(full, contents);
+			this.put(full, contents);
 		}
 	}
 
@@ -142,14 +162,20 @@ export class Volume implements ProjectFs {
 		throw enoent("stat", full);
 	}
 
-	async readFile(target: string, _encoding: "utf8"): Promise<string> {
+	async readFile(target: string, encoding: "utf8"): Promise<string>;
+	async readFile(target: string): Promise<Uint8Array>;
+	async readFile(target: string, encoding?: "utf8"): Promise<string | Uint8Array> {
 		const full = resolve(target);
 		const contents = this.files.get(full);
-		if (contents !== undefined) return contents;
-		throw this.dirs.has(full) ? eisdir("read", full) : enoent("open", full);
+		if (contents === undefined) throw this.dirs.has(full) ? eisdir("read", full) : enoent("open", full);
+		// Either kind reads back as the other, as a file on disk does.
+		if (encoding === "utf8") return typeof contents === "string" ? contents : utf8.decode(contents);
+		return typeof contents === "string" ? encode.encode(contents) : contents.slice();
 	}
 
-	async writeFile(target: string, data: string, _encoding: "utf8"): Promise<void> {
+	async writeFile(target: string, data: string, encoding: "utf8"): Promise<void>;
+	async writeFile(target: string, data: Uint8Array): Promise<void>;
+	async writeFile(target: string, data: string | Uint8Array, _encoding?: "utf8"): Promise<void> {
 		const full = resolve(target);
 		if (this.dirs.has(full)) throw eisdir("open", full);
 		// Node will not create the parent for you, and neither will this: every
@@ -157,7 +183,7 @@ export class Volume implements ProjectFs {
 		// should find out here rather than by writing into nowhere.
 		const parent = dirname(full);
 		if (!this.dirs.has(parent)) throw enoent("open", full);
-		this.files.set(full, data);
+		this.put(full, typeof data === "string" ? data : data.slice());
 	}
 
 	async mkdir(target: string, options: { recursive: boolean }): Promise<string | undefined> {
@@ -218,13 +244,13 @@ export class Volume implements ProjectFs {
 			throw enoent("unlink", full);
 		}
 		if (isFile) {
-			this.files.delete(full);
+			this.drop(full);
 			return;
 		}
 		if (!options.recursive) throw eisdir("rm", full);
 
 		const { files, dirs } = this.under(full);
-		for (const path of files) this.files.delete(path);
+		for (const path of files) this.drop(path);
 		for (const path of dirs) this.dirs.delete(path);
 	}
 
@@ -240,8 +266,8 @@ export class Volume implements ProjectFs {
 
 		if (this.files.has(source)) {
 			if (!this.dirs.has(dirname(dest))) throw enoent("rename", dest);
-			this.files.set(dest, this.files.get(source)!);
-			this.files.delete(source);
+			this.put(dest, this.files.get(source)!);
+			this.drop(source);
 			return;
 		}
 		if (!this.dirs.has(source)) throw enoent("rename", source);
@@ -251,8 +277,8 @@ export class Volume implements ProjectFs {
 		const { files, dirs } = this.under(source);
 		this.makeDirs(dest);
 		for (const path of files) {
-			this.files.set(dest + path.slice(source.length), this.files.get(path)!);
-			this.files.delete(path);
+			this.put(dest + path.slice(source.length), this.files.get(path)!);
+			this.drop(path);
 		}
 		for (const path of dirs) {
 			if (path === source) continue;
@@ -268,6 +294,6 @@ export class Volume implements ProjectFs {
 		const contents = this.files.get(source);
 		if (contents === undefined) throw enoent("copyfile", source);
 		if (!this.dirs.has(dirname(dest))) throw enoent("copyfile", dest);
-		this.files.set(dest, contents);
+		this.put(dest, contents);
 	}
 }

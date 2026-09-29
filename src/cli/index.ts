@@ -311,7 +311,7 @@ async function commandImport(args: Args): Promise<number> {
 
 	await fs.mkdir(root, { recursive: true });
 	await fs.writeFile(path.join(root, placeFile), bytes);
-	const map = await writePlaceImport(root, plan, placeFile);
+	const map = await writePlaceImport(root, plan.files, placeFile);
 
 	const luau = Object.keys(plan.files).filter((f) => f.endsWith(".luau"));
 	const placeOnly = luau.filter((f) => f.startsWith("place/")).length;

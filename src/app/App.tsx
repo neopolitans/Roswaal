@@ -37,6 +37,7 @@ import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
+import type { FormAnswers, FormField } from "./Dialog.jsx";
 import { Popout } from "./Popout.jsx";
 import type { RememberedFolder } from "./host.js";
 import { Icon } from "./icons.jsx";
@@ -74,9 +75,11 @@ import { forget, lastProject, recentProjects, remember } from "./recents.js";
 import { IS_STATIC_HOST, openHome, openPage, setBeforeLeaving } from "./pages.js";
 import { SiteBanner, MarkedLogo } from "./previewBuild.jsx";
 import {
-	forgetRememberedFolder, openDirectory, readZip, useCanImportZip, useCanOpenDirectory, useHostCan,
+	forgetRememberedFolder, openDirectory, readPlace, readZip, useCanImportPlace, useCanImportZip,
+	useCanOpenDirectory, useHostCan,
 	useHostFailure, useRememberedFolders,
 } from "./host.js";
+import { fromBase64 } from "../core/base64.js";
 import { download, zip } from "./zip.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
@@ -333,6 +336,8 @@ export function App() {
 	const hostCanOpenFolder = useCanOpenDirectory();
 	const hostCanImportZip = useCanImportZip();
 	const zipInput = useRef<HTMLInputElement>(null);
+	const hostCanImportPlace = useCanImportPlace();
+	const placeInput = useRef<HTMLInputElement>(null);
 	/**
 	 * The introduction panel. No anchor: it is centred rather than dropped
 	 * under the mark, because it is the same panel in all three windows and
@@ -1493,11 +1498,15 @@ export function App() {
 	 */
 	const downloadProject = useCallback(async () => {
 		try {
-			const { name, files } = await api.exportProject();
+			const { name, files, binaries = {} } = await api.exportProject();
 			const folder = name || "roswaal-project";
+			// A place or model travels as base64 over JSON and goes in as bytes.
+			const places = Object.fromEntries(
+				Object.entries(binaries).map(([path, encoded]) => [path, fromBase64(encoded)]),
+			);
 			download(
 				zip(Object.fromEntries(
-					Object.entries(files).map(([path, text]) => [`${folder}/${path}`, text]),
+					Object.entries({ ...files, ...places }).map(([path, contents]) => [`${folder}/${path}`, contents]),
 				)),
 				`${folder}.zip`,
 			);
@@ -1610,6 +1619,70 @@ export function App() {
 			}
 		} catch (err) {
 			notify("That zip could not be opened", (err as Error).message);
+		}
+	}, [ask, loadProject, notify]);
+
+	/**
+	 * A project made from a place, in place of the one this browser holds.
+	 *
+	 * Picked first and asked after, as a zip is, so the menu can show what is
+	 * in the place before anything is chosen: how many scripts Rojo can sync,
+	 * how many only the place can hold, and what merging copies would save.
+	 */
+	const importPlace = useCallback(async (file: File) => {
+		try {
+			const preview = await readPlace(file);
+			const merged = preview.placeOnlyDistinct < preview.placeOnly;
+			const fields: FormField[] = [{ id: "name", kind: "text", label: "Project name", value: preview.name }];
+			if (preview.placeOnly > 0) {
+				fields.push({
+					id: "scope",
+					kind: "choice",
+					label: "Scripts",
+					value: "rojo",
+					options: [
+						{ value: "rojo", label: `Only those Rojo can sync (${preview.rojo})` },
+						{ value: "all", label: `All of them, the rest under place/ (${preview.scripts})` },
+					],
+				});
+				if (merged) {
+					fields.push({
+						id: "dedupe",
+						kind: "check",
+						label: `Merge identical copies: ${preview.placeOnlyDistinct} files, not ${preview.placeOnly}`,
+						value: true,
+						when: { id: "scope", value: "all" },
+					});
+				}
+			}
+			const answer = await ask({
+				kind: "form",
+				title: `Open ${preview.file}?`,
+				message:
+					(preview.placeOnly > 0
+						? `${preview.scripts} scripts: ${preview.rojo} Rojo can sync, ${preview.placeOnly} only the place can hold. `
+						: `${preview.scripts} scripts, all of which Rojo can sync. `)
+					+ `It replaces the project kept in this browser; download that one first to keep it.`,
+				fields,
+				confirmLabel: "Open it",
+			});
+			if (typeof answer !== "string") return;
+			const chosen = JSON.parse(answer) as FormAnswers;
+			const { root, leftInPlace } = await preview.open({
+				name: String(chosen.name || preview.name),
+				scope: chosen.scope === "all" ? "all" : "rojo",
+				dedupe: chosen.dedupe === true,
+			});
+			await loadProject(root);
+			setIntroOpen(false);
+			if (leftInPlace > 0) {
+				notify(
+					`${leftInPlace} script${leftInPlace === 1 ? "" : "s"} left in the place`,
+					"Only the place can hold them. Open it again with All to bring them in.",
+				);
+			}
+		} catch (err) {
+			notify("That place could not be opened", (err as Error).message);
 		}
 	}, [ask, loadProject, notify]);
 
@@ -1870,6 +1943,12 @@ export function App() {
 									Open .zip&hellip;
 								</button>
 							)}
+							{hostCanImportPlace && (
+								<button className="tb with-icon" onClick={() => placeInput.current?.click()}>
+									<Icon name="folderOpen" size={15} />
+									Open place&hellip;
+								</button>
+							)}
 							<button className="tb with-icon" onClick={() => void downloadProject()}>
 								<Icon name="copy" size={15} />
 								Download
@@ -1884,6 +1963,19 @@ export function App() {
 						</Popout>
 						{/* Outside the menu, which closes on the tap that opens
 						    the picker; the input has to outlast it. */}
+						{hostCanImportPlace && (
+							<input
+								ref={placeInput}
+								type="file"
+								accept=".rbxl,.rbxlx,application/octet-stream"
+								hidden
+								onChange={(event) => {
+									const file = event.target.files?.[0];
+									event.target.value = "";
+									if (file) void importPlace(file);
+								}}
+							/>
+						)}
 						{hostCanImportZip && (
 							<input
 								ref={zipInput}

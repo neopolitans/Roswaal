@@ -3591,6 +3591,41 @@ button.tb.primary:hover:not(:disabled) {
 	gap: 8px;
 }
 
+/* A form dialog's choices: a group of radios, and checks beneath. */
+.dialog-choices {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.dialog-choices legend {
+	padding: 0 0 5px;
+	font-size: 11px;
+	color: var(--fg-faint);
+}
+
+.dialog-option {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--fg);
+	line-height: 1.4;
+	cursor: pointer;
+}
+
+.dialog-option input {
+	margin: 0;
+	accent-color: var(--accent);
+}
+
+.dialog-option.dialog-option-off {
+	color: var(--fg-faint);
+	cursor: default;
+}
+
 /* The filled destructive button: the confirm on "Delete this?".
 
    It states all three of background, colour and border rather than only the

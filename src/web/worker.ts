@@ -17,7 +17,7 @@
 
 /// <reference lib="webworker" />
 
-import { initProject } from "../server/project.js";
+import { initProject, writePlaceImport } from "../server/project.js";
 import { ApiSession, HttpError } from "../server/routes.js";
 
 import { VERSION } from "../cli/version.js";
@@ -85,6 +85,7 @@ function snapshot() {
 		files: volume.snapshot(playgroundRoot),
 		dirs: volume.directories(playgroundRoot),
 		root: playgroundRoot,
+		binaryStamp: volume.binaryStamp,
 	};
 }
 
@@ -250,7 +251,7 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 			await volume.rm(playgroundRoot, { recursive: true, force: true });
 			await volume.rm(next, { recursive: true, force: true });
 			volume.mount(Object.fromEntries(
-				Object.entries(message.files).map(([rel, text]) => [`${next}/${rel}`, text]),
+				Object.entries({ ...message.files, ...message.binaries }).map(([rel, contents]) => [`${next}/${rel}`, contents]),
 			));
 			volume.mountDirs([next, ...message.dirs.map((dir) => `${next}/${dir}`)]);
 			if (!("roswaal.json" in message.files)) await initProject(next);
@@ -278,6 +279,40 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 				status: 400,
 				payload: { error: (err as Error).message },
 			});
+		}
+		return;
+	}
+
+	/**
+	 * A project made from a place, in place of the one the browser holds.
+	 *
+	 * The same replacement as a zip, and the same way back if it fails. The
+	 * place goes in first, as bytes; `writePlaceImport` writes the rest.
+	 */
+	if (message?.kind === "importPlace") {
+		await ready;
+		const before = snapshot();
+		const next = `/${message.name}`;
+		try {
+			useFilesystem(volume);
+			await volume.rm(playgroundRoot, { recursive: true, force: true });
+			await volume.rm(next, { recursive: true, force: true });
+			await volume.mkdir(next, { recursive: true });
+			await volume.writeFile(`${next}/${message.placeFile}`, message.place);
+			const map = await writePlaceImport(next, message.files, message.placeFile);
+			if (!map.written) throw new Error(map.skipped ?? "Its Rojo project could not be written.");
+			playgroundRoot = next;
+			const project = await session.openAt(next);
+			store.touch(snapshot);
+			await store.flush();
+			post({ kind: "response", id: message.id, status: 200, payload: { root: project.root } });
+		} catch (err) {
+			await volume.rm(next, { recursive: true, force: true }).catch(() => {});
+			volume.mount(before.files);
+			volume.mountDirs(before.dirs);
+			playgroundRoot = before.root;
+			await session.openAt(playgroundRoot).catch(() => {});
+			post({ kind: "response", id: message.id, status: 400, payload: { error: (err as Error).message } });
 		}
 		return;
 	}

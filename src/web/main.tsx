@@ -17,16 +17,18 @@
 import { bootEditor } from "../app/boot.jsx";
 import { useTransport } from "../app/api.js";
 import {
-	setRememberedFolders, useDirectoryOpener, useFolderForgetter, useZipImporter, type DirectoryPick,
-	type RememberedFolder, type ZipPreview,
+	setRememberedFolders, useDirectoryOpener, useFolderForgetter, usePlaceImporter, useZipImporter,
+	type DirectoryPick, type PlacePreview, type RememberedFolder, type ZipPreview,
 } from "../app/host.js";
 import { unzip } from "../app/unzip.js";
+import { readRbx } from "../core/rbx/index.js";
+import { planImport, surveyPlace } from "../core/rbx/placeImport.js";
 
 import { canOpenDirectory } from "./directoryFs.js";
 import {
 	askPermissionFor, forgetFolder, permissionFor, rememberedFolders, rememberFolder,
 } from "./remember.js";
-import { keepEntry, projectFromZip } from "./importZip.js";
+import { keepEntry, projectFromZip, projectName } from "./importZip.js";
 import { workerTransport } from "./transport.js";
 
 const worker = new Worker(new URL("./worker.js", import.meta.url), {
@@ -82,7 +84,7 @@ async function readProjectZip(file: File): Promise<ZipPreview> {
 	if (count === 0) throw new Error("There is no project in this zip: it has no text files in it.");
 
 	const send = (initialise?: boolean) =>
-		transport.importProject(project.name, project.files, project.dirs, initialise);
+		transport.importProject(project.name, project.files, project.dirs, initialise, project.binaries);
 	return {
 		name: project.name,
 		files: count,
@@ -101,8 +103,37 @@ async function readProjectZip(file: File): Promise<ZipPreview> {
 	};
 }
 
+/**
+ * A project from a place: read and surveyed here, so the menu can show what is
+ * in it, and handed to the worker only once the choices are made.
+ */
+async function readProjectPlace(file: File): Promise<PlacePreview> {
+	const bytes = new Uint8Array(await file.arrayBuffer());
+	const survey = surveyPlace(readRbx(bytes));
+	const ext = /\.rbxlx$/i.test(file.name) ? ".rbxlx" : ".rbxl";
+	const stem = file.name.replace(/\.[^.]*$/, "");
+	return {
+		file: file.name,
+		name: projectName(stem),
+		scripts: survey.scripts.length,
+		rojo: survey.rojo,
+		placeOnly: survey.placeOnly,
+		placeOnlyDistinct: survey.placeOnlyDistinct,
+		open: async (choice) => {
+			const name = projectName(choice.name);
+			const placeFile = `${projectName(stem)}${ext}`;
+			const plan = planImport(survey, {
+				scope: choice.scope, dedupe: choice.dedupe, outDir: "src", placeFile, name,
+			});
+			const { root } = await transport.importPlace(name, plan.files, placeFile, bytes);
+			return { root, leftInPlace: plan.skipped.length };
+		},
+	};
+}
+
 async function start(): Promise<void> {
 	useZipImporter(readProjectZip);
+	usePlaceImporter(readProjectPlace);
 	if (!canOpenDirectory()) {
 		bootEditor();
 		return;

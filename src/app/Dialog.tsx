@@ -28,7 +28,29 @@ export type DialogRequest =
 			confirmLabel?: string;
 			danger?: boolean;
 	  }
-	| { kind: "notice"; title: string; message: string };
+	| { kind: "notice"; title: string; message: string }
+	| {
+			/** Several answers at once. Resolves to `FormAnswers` as JSON, or null. */
+			kind: "form";
+			title: string;
+			message: string;
+			fields: FormField[];
+			confirmLabel?: string;
+	  };
+
+export type FormField =
+	| { id: string; kind: "text"; label: string; value: string }
+	| { id: string; kind: "choice"; label: string; value: string; options: { value: string; label: string }[] }
+	| {
+			id: string;
+			kind: "check";
+			label: string;
+			value: boolean;
+			/** Only offered while another field has this answer. */
+			when?: { id: string; value: string };
+	  };
+
+export type FormAnswers = Record<string, string | boolean>;
 
 /** A prompt resolves to its text or null; a confirm to true or false. */
 export type DialogResult = string | boolean | null;
@@ -40,6 +62,11 @@ export interface PendingDialog {
 
 export function Dialog({ request, resolve }: PendingDialog) {
 	const [text, setText] = useState(request.kind === "prompt" ? (request.value ?? "") : "");
+	const [answers, setAnswers] = useState<FormAnswers>(() =>
+		request.kind === "form" ? Object.fromEntries(request.fields.map((f) => [f.id, f.value])) : {},
+	);
+	const offered = (field: FormField) =>
+		field.kind !== "check" || !field.when || answers[field.when.id] === field.when.value;
 	const input = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
@@ -49,12 +76,17 @@ export function Dialog({ request, resolve }: PendingDialog) {
 	}, []);
 
 	function cancel() {
-		resolve(request.kind === "prompt" ? null : false);
+		resolve(request.kind === "prompt" || request.kind === "form" ? null : false);
 	}
 
 	function accept() {
 		if (request.kind === "prompt") resolve(text.trim() === "" ? null : text.trim());
-		else resolve(true);
+		else if (request.kind === "form") {
+			// A check that is not on offer answers false, whatever it was left at.
+			const out: FormAnswers = {};
+			for (const field of request.fields) out[field.id] = offered(field) ? answers[field.id] : false;
+			resolve(JSON.stringify(out));
+		} else resolve(true);
 	}
 
 	return (
@@ -90,6 +122,54 @@ export function Dialog({ request, resolve }: PendingDialog) {
 							onChange={(e) => setText(e.target.value)}
 						/>
 					</label>
+				) : request.kind === "form" ? (
+					<>
+						<p>{request.message}</p>
+						{request.fields.map((field) => {
+							if (field.kind === "text") {
+								return (
+									<label key={field.id} className="field">
+										<span>{field.label}</span>
+										<input
+											ref={input}
+											className="tb"
+											value={String(answers[field.id])}
+											onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.value })}
+										/>
+									</label>
+								);
+							}
+							if (field.kind === "choice") {
+								return (
+									<fieldset key={field.id} className="dialog-choices">
+										<legend>{field.label}</legend>
+										{field.options.map((option) => (
+											<label key={option.value} className="dialog-option">
+												<input
+													type="radio"
+													name={field.id}
+													checked={answers[field.id] === option.value}
+													onChange={() => setAnswers({ ...answers, [field.id]: option.value })}
+												/>
+												{option.label}
+											</label>
+										))}
+									</fieldset>
+								);
+							}
+							return (
+								<label key={field.id} className={`dialog-option${offered(field) ? "" : " dialog-option-off"}`}>
+									<input
+										type="checkbox"
+										disabled={!offered(field)}
+										checked={offered(field) && answers[field.id] === true}
+										onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.checked })}
+									/>
+									{field.label}
+								</label>
+							);
+						})}
+					</>
 				) : (
 					<>
 						<p>{request.message}</p>

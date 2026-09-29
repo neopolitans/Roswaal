@@ -145,17 +145,27 @@ describe("what counts as the project", () => {
 		expect(Object.keys(got.files)).toEqual(["roswaal.json"]);
 	});
 
-	it("brings in text and lists what it is not", async () => {
+	it("brings in text and places, and lists what it is not", async () => {
+		const place = new Uint8Array([0x3c, 0x72, 0x6f, 0x00, 0xff]);
 		const got = projectFromZip("tank.zip", {
 			files: [
 				{ path: "tank/roswaal.json", bytes: new TextEncoder().encode("{}") },
-				{ path: "tank/place.rbxl", bytes: new Uint8Array([0x3c, 0x72, 0x6f, 0x00, 0xff]) },
+				{ path: "tank/place.rbxl", bytes: place },
+				{ path: "tank/logo.png", bytes: new Uint8Array([0x89, 0x50, 0x00, 0xff]) },
 			],
 			dirs: [],
 			skipped: [],
 		});
 		expect(Object.keys(got.files)).toEqual(["roswaal.json"]);
-		expect(got.skipped).toEqual([{ path: "tank/place.rbxl", reason: "not text" }]);
+		expect(got.binaries).toEqual({ "place.rbxl": place });
+		expect(got.skipped).toEqual([{ path: "tank/logo.png", reason: "not text" }]);
+	});
+
+	it("zips a place as its bytes, and reads it back the same", async () => {
+		const place = Uint8Array.of(0, 1, 2, 255, 254);
+		const blob = zip({ "tank/roswaal.json": "{}", "tank/place.rbxl": place });
+		const back = projectFromZip("tank.zip", await unzip(await blob.arrayBuffer()));
+		expect(Array.from(back.binaries["place.rbxl"])).toEqual([0, 1, 2, 255, 254]);
 	});
 
 	it("never lets a path leave the project", () => {
