@@ -2047,9 +2047,12 @@ export function App() {
 				contents={{
 					tree: (
 						<>
-							<h2>{project.root.split(/[\\/]/).pop()}</h2>
-							{project.place && (
-								<div className="segmented project-views">
+							{/* The switch on the name's row, right-aligned, so the tree
+							    keeps its height on a phone. */}
+							<h2 className={project.place ? "project-head" : undefined}>
+								<span className="project-name" title={project.root.split(/[\\/]/).pop()}>{project.root.split(/[\\/]/).pop()}</span>
+								{project.place && (
+								<span className="segmented project-views">
 									<button
 										className={projectView === "files" ? "on" : ""}
 										onClick={() => setProjectView("files")}
@@ -2066,8 +2069,9 @@ export function App() {
 									>
 										DataModel
 									</button>
-								</div>
-							)}
+								</span>
+								)}
+							</h2>
 							{project.place && placeSeen && (
 								<div className="project-view" hidden={projectView !== "datamodel"}>
 									<PlaceBrowser

@@ -3937,16 +3937,43 @@ button.tb.primary.danger:hover:not(:disabled) {
 
 /* ------------------------------------------------------- DataModel browser */
 
-/* The Project panel's Files / DataModel switch, under the project's name. */
+/* The Project panel's Files / DataModel switch, right-aligned on the row with
+   the project's name. The row keeps the heading's 32px, which the dock's own
+   button is centred on; the name gives way first when the panel is narrow. */
+.dock h2.project-head,
+.float-panel h2.project-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding-top: 4px;
+	padding-bottom: 4px;
+	min-height: 32px;
+	box-sizing: border-box;
+}
+
+/* A drawer has no undock button to leave room for. */
+.dock.drawer h2.project-head {
+	padding-right: 12px;
+}
+
+.project-head .project-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .project-views {
-	align-self: flex-start;
-	margin: 0 12px 6px;
 	flex: none;
+	text-transform: none;
+	letter-spacing: 0;
 }
 
 .project-views button {
 	font-size: 12px;
-	padding: 3px 12px;
+	padding: 2px 10px;
+	color: var(--fg);
 }
 
 /* Either view fills the panel under the switch and scrolls inside itself. */

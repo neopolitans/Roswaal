@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.104.1",
+		date: "2026-09-29",
+		headline: "The DataModel switch shares the project's row.",
+		affects: ["editor"],
+		changed: [
+			"**Files and DataModel** sit on the project name's row, right-aligned, so the tree keeps its height on a phone or tablet.",
+		],
+	},
+	{
 		version: "0.104.0",
 		date: "2026-09-29",
 		headline: "Hover reads doc comments.",
