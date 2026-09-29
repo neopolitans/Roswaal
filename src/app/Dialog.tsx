@@ -30,6 +30,13 @@ export type DialogRequest =
 	  }
 	| { kind: "notice"; title: string; message: string }
 	| {
+			/** One of several answers, each its own button. Resolves to its value, or null. */
+			kind: "choice";
+			title: string;
+			message: string;
+			choices: { value: string; label: string; primary?: boolean }[];
+	  }
+	| {
 			/** Several answers at once. Resolves to `FormAnswers` as JSON, or null. */
 			kind: "form";
 			title: string;
@@ -76,12 +83,16 @@ export function Dialog({ request, resolve }: PendingDialog) {
 	}, []);
 
 	function cancel() {
-		resolve(request.kind === "prompt" || request.kind === "form" ? null : false);
+		resolve(request.kind === "prompt" || request.kind === "form" || request.kind === "choice" ? null : false);
 	}
 
 	function accept() {
 		if (request.kind === "prompt") resolve(text.trim() === "" ? null : text.trim());
-		else if (request.kind === "form") {
+		else if (request.kind === "choice") {
+			// Enter is the primary answer, and nothing when there is none.
+			const primary = request.choices.find((c) => c.primary);
+			if (primary) resolve(primary.value);
+		} else if (request.kind === "form") {
 			// A check that is not on offer answers false, whatever it was left at.
 			const out: FormAnswers = {};
 			for (const field of request.fields) out[field.id] = offered(field) ? answers[field.id] : false;
@@ -187,7 +198,17 @@ export function Dialog({ request, resolve }: PendingDialog) {
 							Cancel
 						</button>
 					)}
-					<button
+					{request.kind === "choice" && request.choices.map((choice) => (
+						<button
+							key={choice.value}
+							className={`tb${choice.primary ? " primary" : ""}`}
+							autoFocus={choice.primary}
+							onClick={() => resolve(choice.value)}
+						>
+							{choice.label}
+						</button>
+					))}
+					{request.kind !== "choice" && <button
 						className={`tb primary${request.kind === "confirm" && request.danger ? " danger" : ""}`}
 						autoFocus={request.kind !== "prompt"}
 						onClick={accept}
@@ -195,7 +216,7 @@ export function Dialog({ request, resolve }: PendingDialog) {
 						{request.kind === "notice"
 							? "OK"
 							: (request.confirmLabel ?? (request.kind === "prompt" ? "Create" : "Confirm"))}
-					</button>
+					</button>}
 				</div>
 			</div>
 		</div>

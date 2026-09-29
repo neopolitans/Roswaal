@@ -44,6 +44,14 @@ export const CLI_COMMANDS: CliCommand[] = [
 			"unless you pass `--no-merge`. The place is copied into the new project.",
 	},
 	{
+		name: "export",
+		blurb: "Write the project's place, holding its scripts, to a file: roswaal export <place.rbxl>.",
+		detail:
+			"Every script the project has a file for is written into a copy of its place; nothing " +
+			"else in the place changes, and the project's own place file is left as it was unless " +
+			"you name it. Scripts not in the place yet are listed, not added.",
+	},
+	{
 		name: "serve",
 		blurb: "Start the daemon and serve the editor. Blocks.",
 		blocks: true,

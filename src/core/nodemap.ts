@@ -509,6 +509,17 @@ export interface InstanceLocation {
  * other. Returns null when no mapping covers the file.
  */
 export function locateInDataModel(map: NodeMap, diskPath: string): InstanceLocation | null {
+	const found = locateSegments(map, diskPath);
+	if (!found) return null;
+	return { root: found.segments[0], path: found.segments.slice(1).join("."), isModule: found.isModule };
+}
+
+/**
+ * `locateInDataModel`, as the names themselves rather than a dotted path: a
+ * name may hold a dot -- a package folder carries its version -- and a dotted
+ * path cannot say where one name ends.
+ */
+export function locateSegments(map: NodeMap, diskPath: string): { segments: string[]; isModule: boolean } | null {
 	const file = normalise(diskPath);
 	const candidates: { segments: string[]; base: string }[] = [];
 
@@ -536,11 +547,7 @@ export function locateInDataModel(map: NodeMap, diskPath: string): InstanceLocat
 		const segments = [...candidate.segments, ...parts, ...named];
 		if (segments.length === 0) return null;
 
-		return {
-			root: segments[0],
-			path: segments.slice(1).join("."),
-			isModule: leaf === undefined ? false : isModuleFile(leaf),
-		};
+		return { segments, isModule: leaf === undefined ? false : isModuleFile(leaf) };
 	}
 	return null;
 }

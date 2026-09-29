@@ -15,11 +15,14 @@ import { LuauParseError, parseLuauData } from "../core/luauData.js";
 import { chainFor, parseLuaurc, type LuaurcSource } from "../core/luaurc.js";
 import type { SpecifierContext } from "../core/modules.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
-import type { PlaceImport } from "../core/rbx/placeImport.js";
+import { LINKS_FILE, type PlaceImport, type PlaceLinks } from "../core/rbx/placeImport.js";
+import { type PlaceEntry, planPlaceUpdate, type PlaceUpdate } from "../core/rbx/placeExport.js";
+import { readRbx } from "../core/rbx/index.js";
+import { writeSources } from "../core/rbx/writer.js";
 import { toBase64 } from "../core/base64.js";
 import { migrateScript } from "../core/migrate.js";
 import {
-	compileNodeMap, locateInDataModel, serialiseMap,
+	compileNodeMap, isFilesystemMap, locateInDataModel, locateSegments, serialiseMap,
 	type InstanceLocation, type MapDiagnostic, type MapNode, type NodeMap,
 } from "../core/nodemap.js";
 import { createRegistry, parseNodePack, type Registry } from "../core/nodes/index.js";
@@ -152,6 +155,75 @@ export async function writePlaceImport(
 	const project = await openProject(root);
 	const mapPath = Object.keys(files).find((f) => f.endsWith(".nodemap"))!;
 	return compileMap(project, mapPath, { write: true });
+}
+
+/** A project's place with its scripts written in, and what was and was not. */
+export interface PlaceExport {
+	/** The place file, project-relative. */
+	file: string;
+	bytes: Uint8Array;
+	update: PlaceUpdate;
+}
+
+/**
+ * The project's place, with every script the project has a file for holding
+ * that file's text. Nothing on disk changes: the caller decides where the
+ * bytes go -- a download, or a path somebody named.
+ *
+ * The files are the ones `.roswaal/place.json` links to the place, and any
+ * other Luau under `outDir` a node map places: a graph compiled since the
+ * import, or hand-written Luau in a Rojo project.
+ */
+export async function exportPlace(project: OpenProject): Promise<PlaceExport | null> {
+	const file = await findPlaceFile(project.root, project.config);
+	if (!file) return null;
+	const bytes = await fs.readFile(safeJoin(project.root, file));
+	const doc = readRbx(bytes);
+
+	const entries: PlaceEntry[] = [];
+	const linked = new Set<string>();
+	const raw = await fs.readFile(safeJoin(project.root, LINKS_FILE), "utf8").catch(() => null);
+	const links = raw === null ? null : (JSON.parse(raw) as PlaceLinks);
+	for (const link of links?.scripts ?? []) {
+		linked.add(link.file);
+		const text = await fs.readFile(safeJoin(project.root, link.file), "utf8").catch(() => null);
+		if (text === null) continue;
+		entries.push({ file: link.file, text, className: link.className, targets: link.instances });
+	}
+
+	const maps = [];
+	for (const mapPath of await collectMaps(project)) {
+		const map = await readMap(project, mapPath).catch(() => null);
+		if (map && !isFilesystemMap(map)) maps.push(map);
+	}
+	const stack = [safeJoin(project.root, project.config.outDir)];
+	while (stack.length) {
+		const dir = stack.pop()!;
+		for (const entry of await fs.readdir(dir, { withFileTypes: true }).catch(() => [])) {
+			const abs = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				if (!SKIP_DIRS.has(entry.name)) stack.push(abs);
+				continue;
+			}
+			if (!/\.luau?$/.test(entry.name)) continue;
+			const rel = toPosix(path.relative(project.root, abs));
+			if (linked.has(rel)) continue;
+			for (const map of maps) {
+				const found = locateSegments(map, rel);
+				if (!found) continue;
+				entries.push({
+					file: rel,
+					text: await fs.readFile(abs, "utf8"),
+					isModule: found.isModule,
+					targets: [{ path: found.segments }],
+				});
+				break;
+			}
+		}
+	}
+
+	const update = planPlaceUpdate(doc, entries.sort((a, b) => a.file.localeCompare(b.file)));
+	return { file, bytes: writeSources(bytes, doc, update.changes), update };
 }
 
 export async function writeConfig(root: string, config: RoswaalConfig): Promise<void> {

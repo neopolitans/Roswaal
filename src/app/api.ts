@@ -1,5 +1,6 @@
 /** Thin wrapper over the daemon's HTTP API. */
 
+import type { PlaceReport } from "../core/rbx/placeExport.js";
 import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "../core/schema.js";
 import type { Diagnostic } from "../core/compiler/index.js";
 import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
@@ -242,8 +243,14 @@ export const api = {
 	/** Throws away what the host has stored. The caller reloads afterwards. */
 	resetProject: () => post<{ ok: true }>("/api/reset", {}),
 	/** The whole project as text, for `zip.ts` to turn into a download. */
-	exportProject: () =>
-		request<{ name: string; files: Record<string, string>; binaries?: Record<string, string> }>("/api/export"),
+	/** The project's files; with `modify`, its place holds the project's scripts. */
+	exportProject: (modify = false) =>
+		request<{
+			name: string;
+			files: Record<string, string>;
+			binaries?: Record<string, string>;
+			place?: { file: string; report?: PlaceReport };
+		}>(`/api/export${modify ? "?place=modify" : ""}`),
 	/** Generated files whose graph has moved or gone. */
 	orphans: () => request<{ orphans: string[] }>("/api/orphans"),
 	removeOrphans: (paths: string[]) =>

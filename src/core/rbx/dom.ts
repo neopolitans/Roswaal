@@ -59,6 +59,11 @@ export interface RbxInstance {
 	props: Map<string, Prop>;
 	/** Marked as a service by the file (binary) or known to be one by class. */
 	service: boolean;
+	/**
+	 * The file's own name for this instance: the referent number in a binary
+	 * file, the `referent` attribute in XML. What the writer finds it by.
+	 */
+	ref?: number | string;
 }
 
 export interface RbxDocument {

@@ -94,6 +94,20 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.100.0",
+		date: "2026-09-29",
+		headline: "Scripts go back into the place.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Modify RBXL**, when downloading a project with a place, writes the project's scripts into the copy in the zip; Don't Modify RBXL leaves it as it was. The project's own place is not changed either way.",
+			"**Exporting from the CLI.** `roswaal export out.rbxl` writes the modified place to a file.",
+			"**What was written** is said after each export, with any file whose script is not in the place yet.",
+		],
+		watch: [
+			"**Only scripts already in the place are written.** A new one is listed, not added.",
+		],
+	},
+	{
 		version: "0.99.0",
 		date: "2026-09-29",
 		headline: "The web app opens a place.",

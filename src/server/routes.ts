@@ -26,9 +26,11 @@ import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
 import { emptyScript, type NodeDef, type NodeScript, type RoswaalConfig } from "../core/schema.js";
 import { VERSION } from "../cli/version.js";
 
+import { toBase64 } from "../core/base64.js";
+import type { PlaceReport } from "../core/rbx/placeExport.js";
 import { path } from "./host.js";
 import {
-	buildTree, collectBinaries, collectMaps, collectProject, compileAll, compileMap, compileScript, copyPackBetween, createFolder,
+	buildTree, collectBinaries, collectMaps, collectProject, compileAll, exportPlace, findPlaceFile, compileMap, compileScript, copyPackBetween, createFolder,
 	createPack, deleteEntry, deletePack, deletePackNode, duplicatePack, exportedTypes, findOrphanOutputs,
 	graphName, initProject, listPacks, locateFile, moveEntry, openProject, packUsage, readConfig,
 	readLuaurcFiles, readMap, readPack, readScript, readText, removeOutputs, renameEntry, safeJoin,
@@ -625,12 +627,26 @@ export class ApiSession {
 				return { ok: true };
 			},
 
-			"GET /export": async () => {
+			"GET /export": async (req) => {
 				const project = this.project();
+				const binaries = await collectBinaries(project);
+				// `place=modify` writes the project's scripts into its place; the
+				// report says what went in and what could not.
+				const placeFile = await findPlaceFile(project.root, project.config);
+				let place: { file: string; report?: PlaceReport } | undefined = placeFile ? { file: placeFile } : undefined;
+				if (placeFile && req.query?.place === "modify") {
+					const written = await exportPlace(project);
+					if (written) {
+						binaries[written.file] = toBase64(written.bytes);
+						const { changes, ...report } = written.update;
+						place = { file: written.file, report: { ...report, scripts: changes.length } };
+					}
+				}
 				return {
 					name: path.posix.basename(project.root) || "project",
 					files: await collectProject(project),
-					binaries: await collectBinaries(project),
+					binaries,
+					...(place ? { place } : {}),
 				};
 			},
 

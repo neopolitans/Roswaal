@@ -79,6 +79,7 @@ import {
 	useCanOpenDirectory, useHostCan,
 	useHostFailure, useRememberedFolders,
 } from "./host.js";
+import { describePlaceReport } from "../core/rbx/placeExport.js";
 import { fromBase64 } from "../core/base64.js";
 import { download, zip } from "./zip.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
@@ -1498,7 +1499,25 @@ export function App() {
 	 */
 	const downloadProject = useCallback(async () => {
 		try {
-			const { name, files, binaries = {} } = await api.exportProject();
+			let exported = await api.exportProject();
+			// A project with a place is asked whether the place goes out as it
+			// was, or holding the project's scripts.
+			if (exported.place) {
+				const answer = await ask({
+					kind: "choice",
+					title: `Download ${exported.name}?`,
+					message:
+						`It has a place file, ${exported.place.file}. Modify writes the project's scripts into `
+						+ `the copy in the zip; the one in the project is not changed.`,
+					choices: [
+						{ value: "keep", label: "Don't Modify RBXL" },
+						{ value: "modify", label: "Modify RBXL", primary: true },
+					],
+				});
+				if (answer === null) return;
+				if (answer === "modify") exported = await api.exportProject(true);
+			}
+			const { name, files, binaries = {} } = exported;
 			const folder = name || "roswaal-project";
 			// A place or model travels as base64 over JSON and goes in as bytes.
 			const places = Object.fromEntries(
@@ -1510,10 +1529,15 @@ export function App() {
 				)),
 				`${folder}.zip`,
 			);
+			const report = exported.place?.report;
+			if (report) {
+				const { title, detail } = describePlaceReport(exported.place!.file, report);
+				notify(title, detail);
+			}
 		} catch (err) {
 			notify("The project could not be packed up", (err as Error).message);
 		}
-	}, [notify]);
+	}, [ask, notify]);
 
 	/**
 	 * Throw away what this browser is holding and start from the demo.

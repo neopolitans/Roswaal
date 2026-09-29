@@ -3945,6 +3945,23 @@ const BUILDING: DocPage = {
 				"with the counts in front of you. The place is kept with the project, and " +
 				"**Download** includes it.",
 		},
+
+		{ t: "h", level: 2, text: "Writing scripts into the place" },
+		{
+			t: "p",
+			text:
+				"**Download** asks, for a project with a place: **Modify RBXL** writes the project's " +
+				"scripts into the copy in the zip, and **Don't Modify RBXL** leaves it as it was. The " +
+				"project's own place file is not changed either way. `roswaal export out.rbxl` writes " +
+				"the modified place to a file.",
+		},
+		{
+			t: "p",
+			text:
+				"A script is found by the id the import recorded, or by its path, and a merged file is " +
+				"written into every copy. Only the scripts' source changes. A file whose script is not " +
+				"in the place yet — a graph made since — is listed rather than added.",
+		},
 	],
 };
 

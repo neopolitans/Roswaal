@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { isScript, pathOf, readRbx, stringProp, text, walk } from "../src/core/rbx/index.js";
-import { lz4Decompress } from "../src/core/rbx/lz4.js";
+import { lz4Compress, lz4Decompress } from "../src/core/rbx/lz4.js";
 import { buildPlace, type Compression, folder, script, service } from "./rbxfixture.js";
 
 const place = () => [
@@ -136,5 +136,26 @@ describe("the XML reader", () => {
 
 	it("says where malformed XML goes wrong", () => {
 		expect(() => readRbx(new TextEncoder().encode("<roblox><Item class='A'></roblox>"))).toThrow(/closes <roblox> inside <Item>/);
+	});
+});
+
+describe("LZ4 compression", () => {
+	const r = (seed: number) => () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
+	const cases: [string, Uint8Array][] = [
+		["empty", new Uint8Array(0)],
+		["short", new TextEncoder().encode("local x = 1")],
+		["repetitive", new TextEncoder().encode("print('hello')\n".repeat(5000))],
+		["noise", (() => { const g = r(1); return Uint8Array.from({ length: 100_000 }, () => Math.floor(g() * 256)); })()],
+		["runs", (() => { const g = r(2); const a = new Uint8Array(300_000); for (let i = 0; i < a.length; i++) a[i] = g() < 0.9 ? a[Math.max(0, i - 40)] : Math.floor(g() * 256); return a; })()],
+	];
+	for (const [name, data] of cases) {
+		it(`round-trips ${name}`, () => {
+			const packed = lz4Compress(data);
+			expect(Array.from(lz4Decompress(packed, data.length)).every((b, i) => b === data[i])).toBe(true);
+		});
+	}
+	it("compresses what repeats", () => {
+		const data = new TextEncoder().encode("print('hello')\n".repeat(5000));
+		expect(lz4Compress(data).length).toBeLessThan(data.length / 20);
 	});
 });

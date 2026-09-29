@@ -316,6 +316,7 @@ export function readBinary(bytes: Uint8Array): RbxDocument {
 					children: [],
 					props: new Map(),
 					service: isService,
+					ref,
 				};
 				chunk.instances.push(inst);
 				byRef.set(ref, inst);

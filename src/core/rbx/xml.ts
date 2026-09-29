@@ -16,11 +16,14 @@
 import { ENGINE } from "../robloxEngine.js";
 import { type CFrameValue, type Prop, type PropType, type RbxDocument, RbxError, type RbxInstance } from "./dom.js";
 
-interface XmlElement {
+export interface XmlElement {
 	name: string;
 	attrs: Record<string, string>;
 	children: XmlElement[];
 	text: string;
+	/** Where the element's content starts and ends in the source, for splicing. */
+	start: number;
+	end: number;
 }
 
 const ENTITIES: Record<string, string> = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
@@ -36,9 +39,9 @@ function decodeEntities(s: string): string {
 	});
 }
 
-function parseXml(src: string): XmlElement {
+export function parseXml(src: string): XmlElement {
 	let p = 0;
-	const root: XmlElement = { name: "#document", attrs: {}, children: [], text: "" };
+	const root: XmlElement = { name: "#document", attrs: {}, children: [], text: "", start: 0, end: src.length };
 	const stack: XmlElement[] = [root];
 	const fail = (what: string): never => {
 		const line = src.slice(0, p).split("\n").length;
@@ -72,23 +75,26 @@ function parseXml(src: string): XmlElement {
 			if (end === -1) fail("has a closing tag that never closes");
 			const name = src.slice(p + 2, end).trim();
 			if (top.name !== name) fail(`closes <${name}> inside <${top.name}>`);
+			top.end = p;
 			stack.pop();
 			p = end + 1;
 		} else {
 			const match = /^<([A-Za-z_][\w.:-]*)/.exec(src.slice(p, p + 256));
 			if (!match) fail("has a tag that is not one");
-			const el: XmlElement = { name: match![1], attrs: {}, children: [], text: "" };
+			const el: XmlElement = { name: match![1], attrs: {}, children: [], text: "", start: 0, end: 0 };
 			p += match![0].length;
 			for (;;) {
 				while (/\s/.test(src[p] ?? "")) p++;
 				if (src[p] === ">") {
 					p++;
+					el.start = p;
 					top.children.push(el);
 					stack.push(el);
 					break;
 				}
 				if (src.startsWith("/>", p)) {
 					p += 2;
+					el.start = el.end = p;
 					top.children.push(el);
 					break;
 				}
@@ -219,6 +225,7 @@ export function readXml(source: string): RbxDocument {
 			children: [],
 			props: new Map(),
 			service: parent === null && isServiceClass(className),
+			...(el.attrs.referent ? { ref: el.attrs.referent } : {}),
 		};
 		instances.push(inst);
 		if (el.attrs.referent) byRef.set(el.attrs.referent, inst);

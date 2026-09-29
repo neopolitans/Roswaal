@@ -26,8 +26,9 @@ import path from "node:path";
 import { DEFAULT_PORT, hasBundledEditor, startDaemon } from "../server/app.js";
 import {
 	collectMaps, compileAll, compileMap, compileScript, findOrphanOutputs,
-	openProject, removeOutputs, writeConfig, writePlaceImport,
+	exportPlace, openProject, removeOutputs, writeConfig, writePlaceImport,
 } from "../server/project.js";
+import { describePlaceReport } from "../core/rbx/placeExport.js";
 import { readRbx } from "../core/rbx/index.js";
 import { planImport, surveyPlace } from "../core/rbx/placeImport.js";
 import { CLI_COMMANDS, CLI_OPTIONS } from "../core/docs/cli.js";
@@ -329,6 +330,44 @@ async function commandImport(args: Args): Promise<number> {
 	return map.written ? 0 : 1;
 }
 
+async function commandExport(args: Args): Promise<number> {
+	const root = resolveRoot(args);
+	const launchedFrom = process.env.ROSWAAL_CWD ?? process.cwd();
+	const given = args.positional[1];
+	if (!given) {
+		console.log(red("roswaal export needs somewhere to write: roswaal export <place.rbxl>"));
+		return 2;
+	}
+	const target = path.resolve(launchedFrom, given);
+	console.log(`${bold("roswaal export")} ${dim(root)}`);
+
+	let written;
+	try {
+		written = await exportPlace(await openProject(root));
+	} catch (err) {
+		console.log(red(`  ${(err as Error).message}`));
+		return 1;
+	}
+	if (!written) {
+		console.log(red("  This project has no place file: set `place` in roswaal.json, or put one in its root."));
+		return 1;
+	}
+	const extension = path.extname(written.file).toLowerCase();
+	if (path.extname(target).toLowerCase() !== extension) {
+		console.log(red(`  The place is ${extension}; write it to a ${extension} file.`));
+		return 2;
+	}
+	await fs.mkdir(path.dirname(target), { recursive: true });
+	await fs.writeFile(target, written.bytes);
+
+	const { changes, ...report } = written.update;
+	const { title, detail } = describePlaceReport(written.file, { ...report, scripts: changes.length });
+	console.log(`  ${green("wrote   ")} ${target}`);
+	console.log(`  ${title}.`);
+	console.log(dim(`  ${detail}`));
+	return 0;
+}
+
 async function commandServe(args: Args): Promise<number> {
 	const root = resolveRoot(args);
 	const port = flagNumber(args, "port", DEFAULT_PORT);
@@ -618,6 +657,7 @@ async function main(): Promise<number> {
 	switch (command) {
 		case "init": return commandInit(args);
 		case "import": return commandImport(args);
+		case "export": return commandExport(args);
 		case "serve": return commandServe(args);
 		case "stop": return commandStop(args);
 		case "restart": return commandRestart(args);
