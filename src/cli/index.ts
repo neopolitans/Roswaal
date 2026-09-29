@@ -26,8 +26,10 @@ import path from "node:path";
 import { DEFAULT_PORT, hasBundledEditor, startDaemon } from "../server/app.js";
 import {
 	collectMaps, compileAll, compileMap, compileScript, findOrphanOutputs,
-	openProject, removeOutputs, writeConfig,
+	openProject, removeOutputs, writeConfig, writePlaceImport,
 } from "../server/project.js";
+import { readRbx } from "../core/rbx/index.js";
+import { planImport, surveyPlace } from "../core/rbx/placeImport.js";
 import { CLI_COMMANDS, CLI_OPTIONS } from "../core/docs/cli.js";
 import { defaultConfig } from "../core/schema.js";
 import { DynamicCompiler } from "../server/watcher.js";
@@ -86,6 +88,13 @@ interface Args {
  * Hand-rolled, about twenty lines, and supports the three forms anyone
  * actually types: `--key value`, `--key=value`, and a bare `--flag`.
  */
+/**
+ * Flags that never take a value, so the word after one stays a positional:
+ * `compile --force Main.nodescript` compiles that graph rather than reading
+ * the path as what `--force` was set to.
+ */
+const BOOLEAN_FLAGS = new Set(["force", "no-open", "yes", "no-merge"]);
+
 function parseArgs(argv: string[]): Args {
 	const positional: string[] = [];
 	const flags: Record<string, string | boolean> = {};
@@ -103,7 +112,7 @@ function parseArgs(argv: string[]): Args {
 			continue;
 		}
 		const next = argv[i + 1];
-		if (next !== undefined && !next.startsWith("--")) {
+		if (!BOOLEAN_FLAGS.has(body) && next !== undefined && !next.startsWith("--")) {
 			flags[body] = next;
 			i++;
 		} else {
@@ -247,6 +256,74 @@ async function commandInit(args: Args): Promise<number> {
 	console.log(dim("  Next: roswaal serve"));
 	console.log(dim("  Graphs are committed. Generated Luau goes to " + config.outDir + "."));
 	return 0;
+}
+
+async function commandImport(args: Args): Promise<number> {
+	const launchedFrom = process.env.ROSWAAL_CWD ?? process.cwd();
+	const given = args.positional[1];
+	if (!given) {
+		console.log(red("roswaal import needs a place file: roswaal import <place.rbxl> [directory]"));
+		return 2;
+	}
+	const placePath = path.resolve(launchedFrom, given);
+	const ext = path.extname(placePath).toLowerCase();
+	const stem = path.basename(placePath, path.extname(placePath));
+	const root = path.resolve(launchedFrom, args.positional[2] ?? stem);
+	const scope = flagString(args, "scripts") ?? "rojo";
+	if (scope !== "rojo" && scope !== "all") {
+		console.log(red(`--scripts is rojo or all, not \`${scope}\``));
+		return 2;
+	}
+	console.log(`${bold("roswaal import")} ${dim(placePath)}`);
+
+	const existing = await fs.readdir(root).catch(() => null);
+	if (existing !== null && existing.length > 0) {
+		console.log(red(`  ${root} already has files in it. Import makes a new project; name an empty directory.`));
+		return 1;
+	}
+
+	let bytes: Uint8Array;
+	try {
+		bytes = new Uint8Array(await fs.readFile(placePath));
+	} catch {
+		console.log(red(`  cannot read ${placePath}`));
+		return 1;
+	}
+	let doc;
+	try {
+		doc = readRbx(bytes);
+	} catch (err) {
+		console.log(red(`  ${(err as Error).message}`));
+		return 1;
+	}
+	const survey = surveyPlace(doc);
+	const placeFile = `${stem}${ext || ".rbxl"}`;
+	const plan = planImport(survey, {
+		scope,
+		dedupe: args.flags["no-merge"] !== true,
+		outDir: "src",
+		placeFile,
+		name: stem,
+	});
+
+	await fs.mkdir(root, { recursive: true });
+	await fs.writeFile(path.join(root, placeFile), bytes);
+	const map = await writePlaceImport(root, plan, placeFile);
+
+	const luau = Object.keys(plan.files).filter((f) => f.endsWith(".luau"));
+	const placeOnly = luau.filter((f) => f.startsWith("place/")).length;
+	console.log(`  ${green("scripts ")} ${survey.scripts.length} in the place, ${luau.length} files written`);
+	console.log(`  ${green("rojo    ")} ${luau.length - placeOnly} under src/, mapped in default.project.json`);
+	if (scope === "all") {
+		console.log(`  ${green("place   ")} ${placeOnly} under place/, for scripts Rojo cannot sync`);
+	} else if (plan.skipped.length > 0) {
+		console.log(`  ${yellow("left    ")} ${plan.skipped.length} only the place can hold; --scripts all brings them in`);
+	}
+	if (!map.written) console.log(`  ${yellow("map     ")} ${map.skipped ?? "default.project.json was not written"}`);
+	console.log(`  ${green("created ")} ${root}`);
+	console.log("");
+	console.log(dim(`  Next: cd ${path.relative(launchedFrom, root) || "."} && roswaal serve`));
+	return map.written ? 0 : 1;
 }
 
 async function commandServe(args: Args): Promise<number> {
@@ -537,6 +614,7 @@ async function main(): Promise<number> {
 
 	switch (command) {
 		case "init": return commandInit(args);
+		case "import": return commandImport(args);
 		case "serve": return commandServe(args);
 		case "stop": return commandStop(args);
 		case "restart": return commandRestart(args);

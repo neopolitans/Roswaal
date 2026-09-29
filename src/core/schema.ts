@@ -648,6 +648,12 @@ export interface RoswaalConfig {
 	castsByHierarchy?: boolean;
 	/** Rojo project file, used to resolve the tree view. */
 	rojoProject?: string;
+	/**
+	 * The place file this project reads its instances from, relative to the
+	 * root. Unset, Roswaal uses a `.rbxl` or `.rbxlx` in the root if there is
+	 * one: `place.rbxl` first, then the first by name. See `findPlaceFile`.
+	 */
+	place?: string;
 }
 
 export type IndentStyle = "tab" | "space";

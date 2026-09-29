@@ -94,6 +94,20 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.98.0",
+		date: "2026-09-29",
+		headline: "A place file becomes a project.",
+		affects: ["docs"],
+		added: [
+			"**Importing a place.** `roswaal import place.rbxl` makes a new project from a `.rbxl` or `.rbxlx`: scripts Rojo can sync under `src/`, a node map that leaves the rest of the place alone, and the place itself in the project root.",
+			"**Scripts inside parts and models** come out with `--scripts all`, under `place/`. Identical copies become one file unless you pass `--no-merge`.",
+			"**The project's place file** in `roswaal.json`, as `place`. Unset, a `.rbxl` or `.rbxlx` in the project root, `place.rbxl` first.",
+		],
+		fixed: [
+			"**A flag with nothing after it** no longer takes the next word as its value: `roswaal compile --force Main.nodescript` compiles that graph.",
+		],
+	},
+	{
 		version: "0.97.4",
 		date: "2026-09-29",
 		headline: "The website moves to roswaal.app.",

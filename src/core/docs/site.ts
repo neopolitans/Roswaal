@@ -3912,6 +3912,24 @@ const BUILDING: DocPage = {
 				"`ReplicatedStorage.Shared.Greeter` — or **Instance** for a reference to it. If no " +
 				"map covers the file, it says so.",
 		},
+
+		{ t: "h", level: 2, text: "Starting from a place" },
+		{
+			t: "p",
+			text:
+				"`roswaal import place.rbxl` makes a new project from a `.rbxl` or `.rbxlx`. Scripts " +
+				"Rojo can sync go under `src/`, and every service in the node map it writes has " +
+				"**Ignore unknown**, so Rojo never removes a part it was not given. The place is " +
+				"copied into the project.",
+		},
+		{
+			t: "p",
+			text:
+				"A script inside a part, a model or a GUI stays in the place: Rojo cannot sync it " +
+				"without owning its parent. `--scripts all` brings those out too, under `place/`, " +
+				"where Rojo does not look. Identical copies become one file unless you pass " +
+				"`--no-merge`.",
+		},
 	],
 };
 
@@ -4012,6 +4030,11 @@ function settingsPage(): DocPage {
 						"`rojoProject`",
 						`\`${defaults.rojoProject ?? ""}\``,
 						"Left for Rojo. Where a file lands in the DataModel comes from your node maps, and nothing is written to this file.",
+					],
+					[
+						"`place`",
+						"unset",
+						"The project's place file, set by `roswaal import`. Unset, a `.rbxl` or `.rbxlx` in the project root, `place.rbxl` first.",
 					],
 					["`schemaVersion`", "set for you", "Which schema the file was written against. `migrate.ts` reads it."],
 				],

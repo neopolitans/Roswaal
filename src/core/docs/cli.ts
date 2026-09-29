@@ -35,6 +35,15 @@ export const CLI_COMMANDS: CliCommand[] = [
 			"pack. Anything already there is kept rather than overwritten.",
 	},
 	{
+		name: "import",
+		blurb: "Make a project from a place file: roswaal import <place.rbxl> [directory].",
+		detail:
+			"Reads `.rbxl` and `.rbxlx`. Scripts Rojo can sync go under `src/` with a " +
+			"`default.project.json` that leaves everything else in the place alone. `--scripts all` also " +
+			"brings in scripts inside parts and models, under `place/`; identical ones become one file " +
+			"unless you pass `--no-merge`. The place is copied into the new project.",
+	},
+	{
 		name: "serve",
 		blurb: "Start the daemon and serve the editor. Blocks.",
 		blocks: true,
@@ -86,4 +95,6 @@ export const CLI_OPTIONS: CliOption[] = [
 	{ flag: "--force", blurb: "For compile: overwrite generated files edited by hand." },
 	{ flag: "--no-open", blurb: "For serve: do not print the editor URL as a hint." },
 	{ flag: "--yes", blurb: "For prune: delete the files it lists, rather than only listing them." },
+	{ flag: "--scripts <rojo|all>", blurb: "For import: only scripts Rojo can sync (default), or all of them." },
+	{ flag: "--no-merge", blurb: "For import: keep identical scripts as separate files." },
 ];

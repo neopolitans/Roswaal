@@ -15,6 +15,7 @@ import { LuauParseError, parseLuauData } from "../core/luauData.js";
 import { chainFor, parseLuaurc, type LuaurcSource } from "../core/luaurc.js";
 import type { SpecifierContext } from "../core/modules.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
+import type { PlaceImport } from "../core/rbx/placeImport.js";
 import { migrateScript } from "../core/migrate.js";
 import {
 	compileNodeMap, locateInDataModel, serialiseMap,
@@ -105,6 +106,51 @@ export async function readConfig(root: string): Promise<RoswaalConfig> {
 	} catch (err) {
 		throw new Error(`roswaal.json is not valid JSON: ${(err as Error).message}`);
 	}
+}
+
+/**
+ * The place file a project reads instances from, project-relative, or null.
+ *
+ * `place` in roswaal.json when it is set and the file is there. Otherwise a
+ * `.rbxl` or `.rbxlx` in the root: `place.rbxl` first, as Rojo projects
+ * conventionally keep one, then the first by name. A place is data the
+ * project reads; nothing is written into it unless an export is asked for.
+ */
+export async function findPlaceFile(root: string, config: RoswaalConfig): Promise<string | null> {
+	if (config.place) {
+		const found = await fs.stat(path.join(root, config.place)).catch(() => null);
+		return found?.isFile() ? toPosix(config.place) : null;
+	}
+	const names = (await fs.readdir(root).catch(() => [] as string[]))
+		.filter((n) => /\.rbxlx?$/i.test(n))
+		.sort((a, b) => a.localeCompare(b));
+	return names.find((n) => n.toLowerCase() === "place.rbxl") ?? names[0] ?? null;
+}
+
+/**
+ * Writes a project made from a place: roswaal.json, the files the import
+ * planned, and the Rojo project compiled from its map.
+ *
+ * The caller has put the place file itself in the root already -- it is bytes,
+ * and the project filesystem carries text -- and passes its name so the config
+ * can point at it.
+ */
+export async function writePlaceImport(
+	root: string, plan: PlaceImport, placeFile: string,
+): Promise<MapOutcome> {
+	const config: RoswaalConfig = { ...defaultConfig(), place: placeFile };
+	await fs.mkdir(root, { recursive: true });
+	await writeConfig(root, config);
+	await fs.mkdir(path.join(root, config.sourceDir), { recursive: true });
+	await fs.mkdir(path.join(root, config.nodePaths[0] ?? ".roswaal/nodes"), { recursive: true });
+	for (const [rel, content] of Object.entries(plan.files)) {
+		const abs = safeJoin(root, rel);
+		await fs.mkdir(path.dirname(abs), { recursive: true });
+		await fs.writeFile(abs, content, "utf8");
+	}
+	const project = await openProject(root);
+	const mapPath = Object.keys(plan.files).find((f) => f.endsWith(".nodemap"))!;
+	return compileMap(project, mapPath, { write: true });
 }
 
 export async function writeConfig(root: string, config: RoswaalConfig): Promise<void> {
