@@ -116,6 +116,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		return {
 			graph: tree.filter(isGraph),
 			compiled: tree.filter((e) => !isGraph(e)),
+			isGraph,
 		};
 	}, [tree, sourceDir, nodePaths]);
 
@@ -287,7 +288,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							onTargetDir(parentDirOf(entry));
 							setMenu({ x: e.clientX, y: e.clientY, entry });
 						}}
-						title={entry.path}
+						title={isDir && !groups.isGraph(entry) && entry.role ? `${entry.path}: ${FOLDER_TITLE[entry.role]}` : entry.path}
 					>
 						{isDir ? (
 							<>
@@ -296,7 +297,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 								<Icon
 									name={collapsed.has(entry.path) ? "folder" : "folderOpen"}
 									size={15}
-									className="kind"
+									className={groups.isGraph(entry) ? "kind" : `kind ${FOLDER_CLASS[entry.role ?? "plain"]}`}
 								/>
 							</>
 						) : (
@@ -452,6 +453,24 @@ const SECTIONS: readonly Section[] = [
 		hint: "Everything Roswaal does not author, including the Luau it writes out.",
 	},
 ];
+
+/**
+ * Compile content's folders, by what they are. Cream for a plain folder; blue
+ * for one that is a service, a container or a script in Studio; red for
+ * `place/`, whose scripts only the place holds and only Modify RBXL writes.
+ */
+const FOLDER_CLASS: Record<NonNullable<TreeEntry["role"]> | "plain", string> = {
+	plain: "tree-folder-plain",
+	service: "tree-folder-special",
+	script: "tree-folder-special",
+	place: "tree-folder-place",
+};
+
+const FOLDER_TITLE: Record<NonNullable<TreeEntry["role"]>, string> = {
+	service: "a service or container in Studio",
+	script: "a script in Studio, with the rest of the folder as its children",
+	place: "only in the place; Modify RBXL writes it back",
+};
 
 /** A stand-in so a heading row can share the row type without a file. */
 const SECTION_ENTRY: TreeEntry = { path: "", name: "", kind: "directory" };

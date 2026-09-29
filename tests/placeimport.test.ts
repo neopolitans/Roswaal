@@ -14,7 +14,7 @@ import { compileNodeMap } from "../src/core/nodemap.js";
 import { readRbx } from "../src/core/rbx/index.js";
 import { type PlaceImportOptions, planImport, surveyPlace } from "../src/core/rbx/placeImport.js";
 import { defaultConfig } from "../src/core/schema.js";
-import { findPlaceFile, writePlaceImport } from "../src/server/project.js";
+import { buildTree, findPlaceFile, openProject, type TreeEntry, writePlaceImport } from "../src/server/project.js";
 import { buildPlace, folder, script, service } from "./rbxfixture.js";
 
 const open = (id: string) => script("Script", "Open", "door:Open()", { UniqueId: { type: 31, value: id.repeat(32) } });
@@ -178,6 +178,28 @@ describe("writing the project", () => {
 		expect(project.tree.ServerScriptService.$ignoreUnknownInstances).toBe(true);
 		expect(await readFile(path.join(root, "src/ServerScriptService/Main.server.luau"), "utf8")).toBe("print('main')");
 		expect(await findPlaceFile(root, config)).toBe("Game.rbxl");
+	});
+
+	it("says in the tree which folders are services, scripts or place-only", async () => {
+		root = await mkdtemp(path.join(os.tmpdir(), "roswaal-import-"));
+		await writeFile(path.join(root, "Game.rbxl"), PLACE);
+		const plan = planImport(surveyPlace(readRbx(PLACE)), options({ scope: "all", placeFile: "Game.rbxl" }));
+		await writePlaceImport(root, plan.files, "Game.rbxl");
+		const roles = new Map<string, string | undefined>();
+		const visit = (entries: TreeEntry[]) => {
+			for (const e of entries) {
+				if (e.kind === "directory") roles.set(e.path, e.role);
+				if (e.children) visit(e.children);
+			}
+		};
+		visit(await buildTree(await openProject(root)));
+		expect(roles.get("src/ServerScriptService")).toBe("service");
+		expect(roles.get("src/StarterPlayer/StarterPlayerScripts")).toBe("service");
+		expect(roles.get("src/ReplicatedStorage/Shared/Util")).toBe("script");
+		expect(roles.get("src/ReplicatedStorage/Shared")).toBeUndefined();
+		expect(roles.get("src/StarterPlayer")).toBe("service");
+		expect(roles.get("place")).toBe("place");
+		expect(roles.get("place/Workspace/Coin")).toBe("place");
 	});
 });
 

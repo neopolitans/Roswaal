@@ -3788,6 +3788,21 @@ button.tb.primary.danger:hover:not(:disabled) {
 	color: var(--fg-faint);
 }
 
+/* Compile content's folders say what they are: cream for a plain folder, blue
+   for a service, container or script in Studio, red for place/, which only
+   the place holds. Fixed colours, chosen to read on light and dark themes. */
+.tree-row .kind.tree-folder-plain {
+	color: #c4a878;
+}
+
+.tree-row .kind.tree-folder-special {
+	color: #4d8fd8;
+}
+
+.tree-row .kind.tree-folder-place {
+	color: var(--danger);
+}
+
 .menu .item .icon {
 	color: var(--fg-muted);
 }

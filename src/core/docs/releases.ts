@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.100.1",
+		date: "2026-09-29",
+		headline: "Compile content's folders are coloured.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Folders under Compile content** are coloured by what they are: cream for a plain folder, blue for a service, container or script in Studio, red for place/. Hovering one says which.",
+		],
+	},
+	{
 		version: "0.100.0",
 		date: "2026-09-29",
 		headline: "Scripts go back into the place.",

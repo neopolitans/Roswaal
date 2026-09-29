@@ -15,7 +15,7 @@ import { LuauParseError, parseLuauData } from "../core/luauData.js";
 import { chainFor, parseLuaurc, type LuaurcSource } from "../core/luaurc.js";
 import type { SpecifierContext } from "../core/modules.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
-import { LINKS_FILE, type PlaceImport, type PlaceLinks } from "../core/rbx/placeImport.js";
+import { LINKS_FILE, PLACE_DIR, type PlaceImport, type PlaceLinks } from "../core/rbx/placeImport.js";
 import { type PlaceEntry, planPlaceUpdate, type PlaceUpdate } from "../core/rbx/placeExport.js";
 import { readRbx } from "../core/rbx/index.js";
 import { writeSources } from "../core/rbx/writer.js";
@@ -57,7 +57,21 @@ export interface TreeEntry {
 	/** Set on a graph with functions, which the tree lists under it. */
 	functions?: FunctionInfo[];
 	children?: TreeEntry[];
+	/** What a folder is, where it is more than a folder. See `folderRole`. */
+	role?: FolderRole;
 }
+
+/**
+ * A folder that is more than a folder, for the colour of its icon:
+ *
+ * - `service`: a service or container a node map points at -- ReplicatedStorage,
+ *   StarterPlayerScripts -- rather than a Folder.
+ * - `script`: a folder holding an `init` file, which is the script itself in
+ *   Studio, with the rest of the folder as its children.
+ * - `place`: `place/` and everything in it: scripts only the place holds,
+ *   written back by Modify RBXL rather than synced by Rojo.
+ */
+export type FolderRole = "service" | "script" | "place";
 
 export interface OpenProject {
 	root: string;
@@ -628,11 +642,44 @@ export async function buildTree(project: OpenProject): Promise<TreeEntry[]> {
 	// Empty folders are noise everywhere except under sourceDir, where one is a
 	// folder the developer just created and is about to put a graph in.
 	const keepEmptyUnder = [project.config.sourceDir, ...project.config.nodePaths];
-	return walk(project.root, project.root, generated, keepEmptyUnder);
+	return walk(project.root, project.root, generated, keepEmptyUnder, await serviceFolders(project));
+}
+
+/** Folders a node map points a service or container at, project-relative. */
+async function serviceFolders(project: OpenProject): Promise<Set<string>> {
+	const out = new Set<string>();
+	const tidy = (p: string) => p.split(String.fromCharCode(92)).join("/").replace(/^\.\//, "").replace(/\/+$/, "");
+	const visit = (node: MapNode, parent: MapNode | null) => {
+		if (node.path && node.className !== "Folder") {
+			const at = tidy(node.path);
+			out.add(at);
+			// A container mapped inside a service with no path of its own --
+			// StarterPlayerScripts in StarterPlayer -- makes the folder above it
+			// the service's, when it is named for it.
+			const above = at.includes("/") ? at.slice(0, at.lastIndexOf("/")) : "";
+			if (parent && !parent.path && !parent.className && above.split("/").pop() === parent.name) out.add(above);
+		}
+		node.children.forEach((child) => visit(child, node));
+	};
+	for (const mapPath of await collectMaps(project)) {
+		const map = await readMap(project, mapPath).catch(() => null);
+		if (map && !isFilesystemMap(map)) map.root.children.forEach((child) => visit(child, null));
+	}
+	return out;
+}
+
+const INIT_FILE = /^init(\.server|\.client)?\.luau?$/;
+
+function folderRole(rel: string, children: readonly TreeEntry[], services: ReadonlySet<string>): FolderRole | undefined {
+	if (rel === PLACE_DIR || rel.startsWith(PLACE_DIR + "/")) return "place";
+	if (services.has(rel)) return "service";
+	if (children.some((c) => c.kind !== "directory" && INIT_FILE.test(c.name))) return "script";
+	return undefined;
 }
 
 async function walk(
 	root: string, dir: string, generated: Map<string, string>, keepEmptyUnder: string[],
+	services: ReadonlySet<string> = new Set(),
 ): Promise<TreeEntry[]> {
 	const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
 	const out: TreeEntry[] = [];
@@ -643,12 +690,13 @@ async function walk(
 
 		if (entry.isDirectory()) {
 			if (SKIP_DIRS.has(entry.name)) continue;
-			const children = await walk(root, abs, generated, keepEmptyUnder);
+			const children = await walk(root, abs, generated, keepEmptyUnder, services);
 			const keep =
 				children.length > 0 ||
 				keepEmptyUnder.some((base) => rel === base || rel.startsWith(base + "/") || base.startsWith(rel + "/"));
 			if (!keep) continue;
-			out.push({ path: rel, name: entry.name, kind: "directory", children });
+			const role = folderRole(rel, children, services);
+			out.push({ path: rel, name: entry.name, kind: "directory", children, ...(role ? { role } : {}) });
 			continue;
 		}
 		const kind = classify(entry.name);

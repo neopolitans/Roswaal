@@ -3945,6 +3945,13 @@ const BUILDING: DocPage = {
 				"with the counts in front of you. The place is kept with the project, and " +
 				"**Download** includes it.",
 		},
+		{
+			t: "p",
+			text:
+				"Under Compile content in the project tree, a folder's colour says what it is: cream " +
+				"for a plain folder, blue for a service, container or script in Studio, and red for " +
+				"`place/`.",
+		},
 
 		{ t: "h", level: 2, text: "Writing scripts into the place" },
 		{

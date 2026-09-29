@@ -16,6 +16,8 @@ export interface TreeEntry {
 	/** A graph's functions, as the file on disk has them. */
 	functions?: FunctionInfo[];
 	children?: TreeEntry[];
+	/** A folder that is a service or container, a script, or place-only. */
+	role?: "service" | "script" | "place";
 }
 
 export interface ProjectInfo {
