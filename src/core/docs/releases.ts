@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.106.1",
+		date: "2026-09-30",
+		headline: "Open .zip offers to import a Rojo project.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Open .zip** asks whether to import the zip's Rojo project file as a node map, when it has one no map writes.",
+		],
+	},
+	{
 		version: "0.106.0",
 		date: "2026-09-29",
 		headline: "Import a Rojo project as a node map.",

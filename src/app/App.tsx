@@ -1446,11 +1446,16 @@ export function App() {
 	/**
 	 * Project → Import Rojo project…: a `*.project.json` in the root, read into
 	 * a node map, which is then opened. The file itself is not changed.
+	 *
+	 * `offered` is the same, asked unprompted after a zip opens with a project
+	 * file no map writes: it says where the file came from, and says nothing
+	 * at all when there is none.
 	 */
-	const importRojo = useCallback(async () => {
+	const importRojo = useCallback(async (offered = false) => {
 		try {
 			const { projects } = await api.rojoProjects();
 			const open = projects.filter((p) => !p.mappedBy);
+			if (open.length === 0 && offered) return;
 			if (open.length === 0) {
 				notify(
 					"No Rojo project to import",
@@ -1464,13 +1469,17 @@ export function App() {
 				? (await ask({
 					kind: "confirm",
 					title: "Import Rojo project",
-					message: `Read ${open[0].file} into a node map? The file is not changed.`,
+					message: offered
+						? `The zip has ${open[0].file}. Read it into a node map, so Roswaal knows where things live? The file is not changed.`
+						: `Read ${open[0].file} into a node map? The file is not changed.`,
 					confirmLabel: "Import",
 				})) === true ? open[0].file : null
 				: (await ask({
 					kind: "choice",
 					title: "Import Rojo project",
-					message: "Which project file? It is not changed.",
+					message: offered
+						? "The zip has Rojo project files. Read one into a node map? It is not changed."
+						: "Which project file? It is not changed.",
 					choices: open.map((p, i) => ({ value: p.file, label: p.file, primary: i === 0 })),
 				})) as string | null;
 			if (!file) return;
@@ -1697,18 +1706,22 @@ export function App() {
 			}
 			await loadProject(root);
 			setIntroOpen(false);
+			// One dialog at a time: each replaces the last, so the notice is
+			// answered before the offer is made.
 			if (skipped.length > 0) {
 				const shown = skipped.slice(0, 6).map((one) => `${one.path} (${one.reason})`);
 				if (skipped.length > shown.length) shown.push(`and ${skipped.length - shown.length} more`);
-				notify(
-					`${skipped.length} file${skipped.length === 1 ? "" : "s"} left out`,
-					`The browser keeps a project's text files. Not brought in: ${shown.join(", ")}.`,
-				);
+				await ask({
+					kind: "notice",
+					title: `${skipped.length} file${skipped.length === 1 ? "" : "s"} left out`,
+					message: `The browser keeps a project's text files. Not brought in: ${shown.join(", ")}.`,
+				});
 			}
+			await importRojo(true);
 		} catch (err) {
 			notify("That zip could not be opened", (err as Error).message);
 		}
-	}, [ask, loadProject, notify]);
+	}, [ask, loadProject, notify, importRojo]);
 
 	/**
 	 * A project made from a place, in place of the one this browser holds.
