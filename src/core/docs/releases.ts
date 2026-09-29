@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.102.1",
+		date: "2026-09-29",
+		headline: "Members and fields reads more plainly.",
+		affects: ["docs"],
+		changed: [
+			"**Members and fields** is reworded in five places after a proofread: the opening, the Table of fields tab, the No fixed fields tab, and the module example's opening line.",
+		],
+	},
+	{
 		version: "0.102.0",
 		date: "2026-09-29",
 		headline: "Export Project.",

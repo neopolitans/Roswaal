@@ -2844,9 +2844,9 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 		{
 			t: "p",
 			text:
-				"A value often holds other values: a table of settings, an instance with " +
-				"properties. Two nodes read one out, and which you want depends on a single " +
-				"question — **does anything know what is in there?**",
+				"A value often holds other values, such as a table with string keys or an instance " +
+				"with properties. Two nodes read one out, and which you want depends on one " +
+				"question - **Does anything know what is there?**",
 		},
 		{
 			t: "table",
@@ -2930,8 +2930,10 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 						{
 							t: "p",
 							text:
-								"The ordinary case. `Input` holds a throttle, a steer and an aim, each entered " +
-								"as a row; the local is that type; the pill reads `aim` and hands on a Vector3.",
+								"The ordinary case: `Input` is a custom type that holds fields for `throttle`, " +
+								"`steer` and `aim`, each entered as a row in the declaration. The local variable " +
+								"is marked as the type, with the pill reading `aim` and passing on the resulting " +
+								"Vector3.",
 						},
 						{ t: "toolbar", bar: TYPE_FIELDS_INSPECTOR },
 						{
@@ -2950,7 +2952,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 							t: "p",
 							text:
 								"**The result is typed as the field is.** `aim` gives a Vector3 pin and " +
-								"`throttle` a number one, so what comes out wires into a Vector3 node without " +
+								"`throttle` a number pin, so what comes out wires into a Vector3 node without " +
 								"a [Cast](casting).",
 						},
 					],
@@ -2989,7 +2991,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 							t: "p",
 							text:
 								"A dictionary type, a union, a function type: Luau understands each of them, " +
-								"and none has a field list anybody can write down. Get Member offers nothing " +
+								"and none have a field list that anybody can write down. Get Member offers nothing " +
 								"and refuses a member on one — **Get Field** is the node, and the key is a pin " +
 								"you fill in or wire.",
 						},
@@ -3050,7 +3052,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 		{
 			t: "p",
 			text:
-				"**Both nodes appear, and which is which is the point.** The module's own table is " +
+				"**This graph uses both nodes, for different reasons.** The module's own table is " +
 				"a value nothing here can describe — Roswaal does not read the other file's " +
 				"returns — so `Config.tuning` is a **Get Field**. What comes out is annotated as a " +
 				"type that *is* described, so `turnRate` off it is a **Get Member**.",
