@@ -96,7 +96,8 @@
 	--ok: #2e7d47;
 
 	/* The project tree's script and folder colours; see derivedTokens. */
-	--tree-script-server: #000000;
+	--tree-script-server: #4b5563;
+	--tree-script-local: #2e7d47;
 	--tree-script-module: #1f64c4;
 	--tree-folder-plain: #94712f;
 	--tree-folder-special: #1f64c4;
@@ -116,6 +117,7 @@
 		--bg-active: rgba(255, 255, 255, 0.13);
 
 		--tree-script-server: #ffffff;
+		--tree-script-local: #5cb87a;
 		--tree-script-module: #5ea2ee;
 		--tree-folder-plain: #c4a878;
 		--tree-folder-special: #5ea2ee;
@@ -3799,10 +3801,14 @@ button.tb.primary.danger:hover:not(:disabled) {
 	color: var(--fg-faint);
 }
 
-/* A Luau file by the script it becomes: a Server Script in the scheme's ink,
-   a ModuleScript or LocalScript in blue. */
+/* A Luau file by the script it becomes: a Server Script white on dark and
+   slate on light, a LocalScript green, a ModuleScript blue. */
 .tree-row .kind.luau.tree-script-server {
 	color: var(--tree-script-server);
+}
+
+.tree-row .kind.luau.tree-script-local {
+	color: var(--tree-script-local);
 }
 
 .tree-row .kind.luau.tree-script-module {

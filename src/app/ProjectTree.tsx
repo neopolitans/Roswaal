@@ -473,10 +473,14 @@ const FOLDER_TITLE: Record<NonNullable<TreeEntry["role"]>, string> = {
 };
 
 /**
- * A Luau file by the script it becomes: a Server Script in the scheme's own
- * ink, a ModuleScript or LocalScript in blue.
+ * A Luau file by the script it becomes: a Server Script white on dark and
+ * slate on light, a LocalScript green, a ModuleScript blue.
  */
-const scriptClass = (name: string) => (/\.server\.luau?$/i.test(name) ? "tree-script-server" : "tree-script-module");
+function scriptClass(name: string): string {
+	if (/\.server\.luau?$/i.test(name)) return "tree-script-server";
+	if (/\.client\.luau?$/i.test(name)) return "tree-script-local";
+	return "tree-script-module";
+}
 
 /** A stand-in so a heading row can share the row type without a file. */
 const SECTION_ENTRY: TreeEntry = { path: "", name: "", kind: "directory" };

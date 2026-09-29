@@ -199,7 +199,8 @@ export function derivedTokens(dark: boolean): Record<string, string> {
 		// The project tree's script and folder colours. Fixed hues -- they say
 		// what a thing is in Studio, not how the scheme looks -- with a shade for
 		// each background, so a light scheme keeps them as readable as a dark one.
-		"--tree-script-server": dark ? "#ffffff" : "#000000",
+		"--tree-script-server": dark ? "#ffffff" : "#4b5563",
+		"--tree-script-local": dark ? "#5cb87a" : "#2e7d47",
 		"--tree-script-module": dark ? "#5ea2ee" : "#1f64c4",
 		"--tree-folder-plain": dark ? "#c4a878" : "#94712f",
 		"--tree-folder-special": dark ? "#5ea2ee" : "#1f64c4",

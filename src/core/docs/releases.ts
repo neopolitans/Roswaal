@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.101.2",
+		date: "2026-09-29",
+		headline: "Each kind of script has its own colour.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**A Script's icon is slate on a light theme**, where black was too heavy; it stays white on a dark one.",
+			"**A LocalScript's icon is green**, so it is told apart from a ModuleScript, which stays blue.",
+		],
+	},
+	{
 		version: "0.101.1",
 		date: "2026-09-29",
 		headline: "A Luau file's icon says which script it is.",
