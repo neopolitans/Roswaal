@@ -1,6 +1,7 @@
 /** Thin wrapper over the daemon's HTTP API. */
 
 import type { PlaceReport } from "../core/rbx/placeExport.js";
+import type { PlaceInstanceInfo, PlaceOutline } from "../core/rbx/browse.js";
 import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "../core/schema.js";
 import type { Diagnostic } from "../core/compiler/index.js";
 import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
@@ -25,7 +26,15 @@ export interface ProjectInfo {
 	config: RoswaalConfig;
 	packErrors: string[];
 	tree: TreeEntry[];
+	/** The place file the project reads instances from, or null. */
+	place?: string | null;
 }
+
+/** The project's place as the DataModel browser reads it. See `core/rbx/browse.ts`. */
+export type PlaceTree =
+	| { file: null }
+	| { file: string; error: string }
+	| { file: string; stamp: string; outline: PlaceOutline; scripts: Record<number, string> };
 
 /** A node pack on disk. The daemon's copy is in `src/server/project.ts`. */
 export interface PackFile {
@@ -216,7 +225,14 @@ export const api = {
 			body: JSON.stringify(config),
 		}),
 
-	tree: () => request<{ tree: TreeEntry[] }>("/api/tree"),
+	tree: () => request<{ tree: TreeEntry[]; place: string | null }>("/api/tree"),
+	/** The place as a tree of names and classes, for the DataModel browser. */
+	place: () => request<PlaceTree>("/api/place"),
+	/** One instance of the place, its properties as text. */
+	placeInstance: (stamp: string, index: number) =>
+		request<PlaceInstanceInfo>(
+			`/api/place/instance?stamp=${encodeURIComponent(stamp)}&index=${index}`,
+		),
 	customNodes: () => request<{ custom: NodeDef[]; errors: string[] }>("/api/nodes"),
 
 	readScript: (path: string) =>

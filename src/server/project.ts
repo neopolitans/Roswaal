@@ -173,6 +173,11 @@ export async function writePlaceImport(
 	return compileMap(project, mapPath, { write: true });
 }
 
+/** A place file's bytes, by its project-relative path. */
+export async function readPlaceBytes(project: OpenProject, file: string): Promise<Uint8Array> {
+	return fs.readFile(safeJoin(project.root, file));
+}
+
 /** A project's place with its scripts written in, and what was and was not. */
 export interface PlaceExport {
 	/** The place file, project-relative. */
@@ -195,7 +200,26 @@ export async function exportPlace(project: OpenProject): Promise<PlaceExport | n
 	if (!file) return null;
 	const bytes = await fs.readFile(safeJoin(project.root, file));
 	const doc = readRbx(bytes);
+	const entries = await placeEntries(project);
 
+	const update = planPlaceUpdate(doc, entries);
+	const written = writeSources(bytes, doc, update.changes);
+	try {
+		return { file, bytes: addInstances(written, doc, update.added), update };
+	} catch (err) {
+		// The sources still go in; the new scripts are reported, not half-added.
+		const addError = err instanceof RbxError ? err.message : (err as Error).message;
+		return { file, bytes: written, update: { ...update, added: [], addedFiles: [], addError, notInPlace: [...update.notInPlace, ...update.addedFiles] } };
+	}
+}
+
+/**
+ * The project's files that belong in its place, by file name: the ones
+ * `.roswaal/place.json` links to the place, and any other Luau under `outDir`
+ * a node map places. What an export writes in, and what the DataModel browser
+ * says writes each script.
+ */
+export async function placeEntries(project: OpenProject): Promise<PlaceEntry[]> {
 	const entries: PlaceEntry[] = [];
 	const linked = new Set<string>();
 	const raw = await fs.readFile(safeJoin(project.root, LINKS_FILE), "utf8").catch(() => null);
@@ -237,16 +261,7 @@ export async function exportPlace(project: OpenProject): Promise<PlaceExport | n
 			}
 		}
 	}
-
-	const update = planPlaceUpdate(doc, entries.sort((a, b) => a.file.localeCompare(b.file)));
-	const written = writeSources(bytes, doc, update.changes);
-	try {
-		return { file, bytes: addInstances(written, doc, update.added), update };
-	} catch (err) {
-		// The sources still go in; the new scripts are reported, not half-added.
-		const addError = err instanceof RbxError ? err.message : (err as Error).message;
-		return { file, bytes: written, update: { ...update, added: [], addedFiles: [], addError, notInPlace: [...update.notInPlace, ...update.addedFiles] } };
-	}
+	return entries.sort((a, b) => a.file.localeCompare(b.file));
 }
 
 export async function writeConfig(root: string, config: RoswaalConfig): Promise<void> {

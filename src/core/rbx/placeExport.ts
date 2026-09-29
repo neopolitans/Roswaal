@@ -61,7 +61,13 @@ export type PlaceReport = Omit<PlaceUpdate, "changes" | "added"> & {
 
 const key = (path: readonly string[]) => path.join("\u0001");
 
-export function planPlaceUpdate(doc: RbxDocument, entries: readonly PlaceEntry[]): PlaceUpdate {
+/**
+ * `onMatch` hears each script a file was found for, whether or not its source
+ * changes: the DataModel browser's answer to which file writes which script.
+ */
+export function planPlaceUpdate(
+	doc: RbxDocument, entries: readonly PlaceEntry[], onMatch?: (inst: RbxInstance, file: string) => void,
+): PlaceUpdate {
 	const byId = new Map<string, RbxInstance>();
 	const byPath = new Map<string, RbxInstance[]>();
 	for (const inst of doc.instances) {
@@ -109,6 +115,7 @@ export function planPlaceUpdate(doc: RbxDocument, entries: readonly PlaceEntry[]
 		}
 		let changed = false;
 		for (const inst of found) {
+			onMatch?.(inst, entry.file);
 			if (claimed.has(inst)) continue;
 			claimed.add(inst);
 			if ((stringProp(inst, "Source") ?? "") === entry.text) continue;

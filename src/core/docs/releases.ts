@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.103.0",
+		date: "2026-09-29",
+		headline: "The DataModel browser.",
+		affects: ["editor", "docs"],
+		added: [
+			"**The DataModel browser.** A project with a place has Files and DataModel in the Project panel. DataModel lists the place's instances as Studio's Explorer does, with a filter, and shows the picked instance's properties, tags and attributes. A script a project file writes opens that file.",
+		],
+	},
+	{
 		version: "0.102.4",
 		date: "2026-09-29",
 		headline: "The Export menu is a panel.",

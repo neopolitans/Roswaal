@@ -27,15 +27,17 @@ import { emptyScript, type NodeDef, type NodeScript, type RoswaalConfig } from "
 import { VERSION } from "../cli/version.js";
 
 import { toBase64 } from "../core/base64.js";
-import type { PlaceReport } from "../core/rbx/placeExport.js";
+import { describeInstance, fingerprint, outlinePlace, type PlaceOutline } from "../core/rbx/browse.js";
+import { RbxError, readRbx, type RbxDocument, type RbxInstance } from "../core/rbx/index.js";
+import { planPlaceUpdate, type PlaceReport } from "../core/rbx/placeExport.js";
 import { path } from "./host.js";
 import {
 	buildTree, collectBinaries, collectMaps, collectProject, compileAll, exportPlace, findPlaceFile, compileMap, compileScript, copyPackBetween, createFolder,
 	createPack, deleteEntry, deletePack, deletePackNode, duplicatePack, exportedTypes, findOrphanOutputs,
 	graphName, initProject, listPacks, locateFile, moveEntry, openProject, packUsage, readConfig,
 	readLuaurcFiles, readMap, readPack, readScript, readText, removeOutputs, renameEntry, safeJoin,
-	savePackNode, scanProjectPacks, setPackRequires, writeConfig, writeLuaurcFile, writeMap,
-	writeScript,
+	placeEntries, readPlaceBytes, savePackNode, scanProjectPacks, setPackRequires, writeConfig,
+	writeLuaurcFile, writeMap, writeScript,
 	type CompileStep, type OpenProject,
 } from "./project.js";
 
@@ -126,6 +128,13 @@ export interface SessionHooks {
 export class ApiSession {
 	current: OpenProject | null = null;
 
+	/**
+	 * The place last read, kept while its bytes stay the same: the DataModel
+	 * browser asks for one instance at a time, and parsing the place for each
+	 * would cost more than every answer together.
+	 */
+	private place: LoadedPlace | null = null;
+
 	readonly routes: Readonly<Record<string, RouteHandler>>;
 
 	constructor(private readonly hooks: SessionHooks = {}) {
@@ -184,7 +193,20 @@ export class ApiSession {
 			config: project.config,
 			packErrors: project.packErrors,
 			tree: await buildTree(project),
+			place: await findPlaceFile(project.root, project.config),
 		};
+	}
+
+	/** The project's place, parsed, from the cache while its bytes are unchanged. */
+	private async loadPlace(project: OpenProject, file: string): Promise<LoadedPlace> {
+		const bytes = await readPlaceBytes(project, file);
+		const stamp = `${file}:${fingerprint(bytes)}`;
+		if (this.place?.root === project.root && this.place.stamp === stamp) return this.place;
+		const doc = readRbx(bytes);
+		const { outline, order } = outlinePlace(doc);
+		const index = new Map(order.map((inst, i) => [inst, i]));
+		this.place = { root: project.root, stamp, doc, outline, order, index };
+		return this.place;
 	}
 
 	private build(): Record<string, RouteHandler> {
@@ -292,7 +314,52 @@ export class ApiSession {
 				return { config: (await this.reload()).config };
 			},
 
-			"GET /tree": async () => ({ tree: await buildTree(this.project()) }),
+			"GET /tree": async () => {
+				const project = this.project();
+				return { tree: await buildTree(project), place: await findPlaceFile(project.root, project.config) };
+			},
+
+			/**
+			 * The project's place as a tree, for the DataModel browser: classes
+			 * and names only, and which project file writes each script -- the
+			 * match Modify RBXL makes. `stamp` names this version of the file,
+			 * for asking about one instance of it.
+			 */
+			"GET /place": async () => {
+				const project = this.project();
+				const file = await findPlaceFile(project.root, project.config);
+				if (!file) return { file: null };
+				let loaded: LoadedPlace;
+				try {
+					loaded = await this.loadPlace(project, file);
+				} catch (err) {
+					if (err instanceof RbxError) return { file, error: err.message };
+					throw err;
+				}
+				const scripts: Record<number, string> = {};
+				planPlaceUpdate(loaded.doc, await placeEntries(project), (inst, owner) => {
+					const i = loaded.index.get(inst);
+					if (i !== undefined) scripts[i] = owner;
+				});
+				return { file, stamp: loaded.stamp, outline: loaded.outline, scripts };
+			},
+
+			/**
+			 * One instance's properties, as text. A 409 when the place has
+			 * changed since `stamp`, since an index into the old tree names
+			 * something else in the new one.
+			 */
+			"GET /place/instance": async (req) => {
+				const project = this.project();
+				const file = await findPlaceFile(project.root, project.config);
+				if (!file) throw new HttpError(404, "The project has no place file.");
+				const loaded = await this.loadPlace(project, file);
+				if (query(req, "stamp") !== loaded.stamp) throw new HttpError(409, "The place file has changed. Reload it.");
+				const index = Number(query(req, "index"));
+				const inst = loaded.order[index];
+				if (!inst) throw new HttpError(404, `No instance ${index} in the place.`);
+				return describeInstance(inst, index, (other) => loaded.index.get(other));
+			},
 
 			/**
 			 * Custom node packs only. The editor bundles the built-in definitions,
@@ -672,6 +739,15 @@ export class ApiSession {
 		if (!handler) throw new HttpError(404, `No such route: ${method} ${routePath}`);
 		return handler(req);
 	}
+}
+
+interface LoadedPlace {
+	root: string;
+	stamp: string;
+	doc: RbxDocument;
+	outline: PlaceOutline;
+	order: RbxInstance[];
+	index: Map<RbxInstance, number>;
 }
 
 /** Kept out of the handlers so the id source is one line to find and to change. */

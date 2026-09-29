@@ -45,6 +45,7 @@ import { liveSelection, TouchBar } from "./TouchBar.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays, type CodeEditState } from "./Overlays.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
+import { PlaceBrowser } from "./PlaceBrowser.jsx";
 import { Workspace } from "./Workspace.jsx";
 import {
 	clampLayout, COMPACT_QUERY, floatPanel, framePanel, movePanel, resizeDock, toggleDock,
@@ -325,6 +326,13 @@ export function App() {
 	 * where everything went before this existed.
 	 */
 	const [targetDir, setTargetDir] = useState<string | null>(null);
+	/**
+	 * What the Project panel shows when the project has a place: its files, or
+	 * the place's instances. The browser stays mounted once opened, as the
+	 * tree does, so switching back keeps what was open.
+	 */
+	const [projectView, setProjectView] = useState<"files" | "datamodel">("files");
+	const [placeSeen, setPlaceSeen] = useState(false);
 	// The folder from a previous session, when one is waiting on a click.
 	const rememberedFolders = useRememberedFolders();
 	// What this host can do, for the project actions in the panel's footer.
@@ -633,7 +641,7 @@ export function App() {
 				type: string; path: string; outcome?: CompileOutcome; message?: string;
 			};
 			if (detail.outcome) setOutcomes([detail.outcome]);
-			void api.tree().then(({ tree }) => setProject((p) => (p ? { ...p, tree } : p)));
+			void api.tree().then(({ tree, place }) => setProject((p) => (p ? { ...p, tree, place } : p)));
 			refreshTypes();
 			refreshAliases();
 		});
@@ -678,8 +686,8 @@ export function App() {
 	}, [project?.root, notify, loadProject]);
 
 	const refreshTree = useCallback(async () => {
-		const { tree } = await api.tree();
-		setProject((p) => (p ? { ...p, tree } : p));
+		const { tree, place } = await api.tree();
+		setProject((p) => (p ? { ...p, tree, place } : p));
 		// Asked here rather than only after a compile. Renaming, moving and
 		// deleting all change what is stale, and none of them compiles anything —
 		// so the count went on describing whatever the last compile saw.
@@ -1402,6 +1410,28 @@ export function App() {
 	 */
 	const onTreeOpen = useCallback((entry: TreeEntry) => void openEntry(entry), [openEntry]);
 
+	/**
+	 * The tree as last read, for the DataModel browser's handlers: through a
+	 * ref, so they stay the same functions and the memoised browser does not
+	 * render again every time the tree is read.
+	 */
+	const projectTreeRef = useRef<TreeEntry[]>([]);
+	projectTreeRef.current = project?.tree ?? [];
+
+	/** A file the DataModel browser names: the Luau that writes a script, or its graph. */
+	const onPlaceOpenFile = useCallback((path: string) => {
+		// Luau the tree leaves out -- a Wally package under Packages/ -- still
+		// opens: reading it goes by path, not by the tree.
+		const entry = findTreeEntry(projectTreeRef.current, path)
+			?? (/\.luau?$/.test(path) ? { path, name: path.split("/").pop()!, kind: "luau" as const } : undefined);
+		if (entry) void openEntry(entry).catch((err: Error) => notify("Could not open that file", err.message));
+		else notify("Not in the project", `${path} is not in the project tree.`);
+	}, [openEntry, notify]);
+	const placeGraphFor = useCallback(
+		(path: string) => findTreeEntry(projectTreeRef.current, path)?.generatedFrom,
+		[],
+	);
+
 	/** A function under a graph in the tree: its file first, then its graph. */
 	const onTreeOpenFunction = useCallback(async (path: string, id: string) => {
 		try {
@@ -2018,6 +2048,37 @@ export function App() {
 					tree: (
 						<>
 							<h2>{project.root.split(/[\\/]/).pop()}</h2>
+							{project.place && (
+								<div className="segmented project-views">
+									<button
+										className={projectView === "files" ? "on" : ""}
+										onClick={() => setProjectView("files")}
+									>
+										Files
+									</button>
+									<button
+										className={projectView === "datamodel" ? "on" : ""}
+										title={`The instances in ${project.place}`}
+										onClick={() => {
+											setProjectView("datamodel");
+											setPlaceSeen(true);
+										}}
+									>
+										DataModel
+									</button>
+								</div>
+							)}
+							{project.place && placeSeen && (
+								<div className="project-view" hidden={projectView !== "datamodel"}>
+									<PlaceBrowser
+										file={project.place}
+										refreshKey={project.tree}
+										onOpenFile={onPlaceOpenFile}
+										graphFor={placeGraphFor}
+									/>
+								</div>
+							)}
+							<div className="project-view" hidden={Boolean(project.place) && projectView === "datamodel"}>
 							<ProjectTree
 								tree={project.tree}
 								openPath={editor.path ?? source?.path ?? null}
@@ -2037,6 +2098,7 @@ export function App() {
 								onRename={onTreeRename}
 								onDelete={onTreeDelete}
 							/>
+							</div>
 						</>
 					),
 					variables:
@@ -2835,4 +2897,16 @@ function boundsOf(
 		maxY = Math.max(maxY, c.y + c.h);
 	}
 	return found ? { x: minX, y: minY, w: maxX - minX, h: maxY - minY } : null;
+}
+
+/** The entry at a project-relative path, anywhere in the tree. */
+function findTreeEntry(tree: readonly TreeEntry[], path: string): TreeEntry | undefined {
+	for (const entry of tree) {
+		if (entry.path === path) return entry;
+		if (entry.children && path.startsWith(entry.path + "/")) {
+			const found = findTreeEntry(entry.children, path);
+			if (found) return found;
+		}
+	}
+	return undefined;
 }

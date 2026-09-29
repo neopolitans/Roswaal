@@ -3973,6 +3973,23 @@ const BUILDING: DocPage = {
 				"since — is added, with a Folder for each part of its path the place does not have. " +
 				"Nothing else in the place changes.",
 		},
+
+		{ t: "h", level: 2, text: "Browsing the place" },
+		{
+			t: "p",
+			text:
+				"When the project has a place, the Project panel switches between **Files** and " +
+				"**DataModel**. DataModel lists the place's instances as Studio's Explorer does: its " +
+				"usual services first, children by name, and empty services at the end. Filter by " +
+				"name, or by a class name typed in full.",
+		},
+		{
+			t: "p",
+			text:
+				"Pick an instance to see its properties, tags and attributes under Studio's headings; " +
+				"a reference goes to what it names. For a script a project file writes, **Open** opens " +
+				"that file, and its graph when one generates it. The browser only reads the place.",
+		},
 	],
 };
 

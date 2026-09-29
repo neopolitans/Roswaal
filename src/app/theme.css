@@ -3935,6 +3935,219 @@ button.tb.primary.danger:hover:not(:disabled) {
 	color: var(--danger);
 }
 
+/* ------------------------------------------------------- DataModel browser */
+
+/* The Project panel's Files / DataModel switch, under the project's name. */
+.project-views {
+	align-self: flex-start;
+	margin: 0 12px 6px;
+	flex: none;
+}
+
+.project-views button {
+	font-size: 12px;
+	padding: 3px 12px;
+}
+
+/* Either view fills the panel under the switch and scrolls inside itself. */
+.project-view {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.project-view[hidden] {
+	display: none;
+}
+
+.place-browser {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.place-browser-head {
+	display: flex;
+	gap: 6px;
+	padding: 0 12px 6px;
+	flex: none;
+}
+
+.place-filter {
+	flex: 1;
+	min-width: 0;
+	cursor: text;
+}
+
+.place-tree {
+	min-height: 96px;
+	overflow: auto;
+}
+
+.place-row .place-twist {
+	display: inline-flex;
+	width: 14px;
+	flex: none;
+}
+
+.place-row .label {
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
+.place-class {
+	margin-left: auto;
+	padding-left: 8px;
+	font-size: 11px;
+	color: var(--fg-faint);
+	flex: none;
+}
+
+/* A filter's match says what it is in, since it is listed out of the tree. */
+.place-where {
+	font-size: 11px;
+	color: var(--fg-faint);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+
+.place-more .label {
+	font-size: 12px;
+	color: var(--accent);
+	cursor: pointer;
+}
+
+.place-props {
+	flex: 0 1 auto;
+	max-height: 55%;
+	overflow: auto;
+	border-top: 1px solid var(--border);
+	padding: 8px 12px 12px;
+}
+
+.place-props-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.place-props-name {
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.place-path {
+	margin-top: 3px;
+	font-size: 11px;
+	color: var(--fg-faint);
+	overflow-wrap: anywhere;
+}
+
+.place-summary {
+	margin: 6px 0 0;
+	font-size: 12px;
+	line-height: 1.4;
+	color: var(--fg-muted);
+}
+
+.place-owner {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.place-note {
+	margin: 4px 0;
+	padding: 0 12px;
+	font-size: 12px;
+	color: var(--fg-faint);
+}
+
+.place-props .place-note {
+	padding: 0;
+}
+
+.place-group-name {
+	margin-top: 10px;
+	padding-bottom: 3px;
+	border-bottom: 1px solid var(--border);
+	font-size: 10.5px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--fg-faint);
+}
+
+.place-prop {
+	display: grid;
+	grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+	gap: 8px;
+	padding: 2px 0;
+	font-size: 12px;
+}
+
+.place-prop-name {
+	color: var(--fg-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.place-prop-value {
+	overflow-wrap: anywhere;
+}
+
+.place-swatch {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	margin-right: 5px;
+	border: 1px solid var(--border);
+	border-radius: 2px;
+	vertical-align: -1px;
+}
+
+/* A reference goes to what it names. */
+.place-ref {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--accent);
+	font: inherit;
+	text-align: left;
+	text-decoration: underline dotted;
+	cursor: pointer;
+}
+
+.place-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	padding-top: 5px;
+}
+
+.place-tag {
+	padding: 1px 6px;
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	font-size: 11px;
+	color: var(--fg-muted);
+}
+
+/* iOS zooms the page onto a field under 16px when it takes focus. */
+@media (pointer: coarse) {
+	.place-filter {
+		font-size: 16px;
+	}
+}
+
 .menu .item .icon {
 	color: var(--fg-muted);
 }
