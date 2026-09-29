@@ -32,3 +32,12 @@ export const FEEDBACK_REPOSITORY = "https://github.com/neopolitans/roswaal-feedb
  * canary goes public that becomes a choice; today it is a broken link.
  */
 export const SOURCE_REPOSITORY = "https://github.com/neopolitans/Roswaal";
+
+/**
+ * Where the stable build of the website lives, with its trailing slash.
+ *
+ * The canary's banners point here, and the setup guides link to the web app
+ * under it. It was `neopolitans.github.io/Roswaal/` until 0.97.4; GitHub
+ * redirects that address here, but browser storage does not follow a redirect.
+ */
+export const STABLE_SITE = "https://roswaal.app/";

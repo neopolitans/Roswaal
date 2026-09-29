@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.97.4",
+		date: "2026-09-29",
+		headline: "The website moves to roswaal.app.",
+		affects: ["editor", "designer", "docs"],
+		changed: [
+			"**The website is at roswaal.app.** The old address on github.io redirects there. The canary stays where it is.",
+		],
+		watch: [
+			"**A project kept in the browser does not move with the address.** Download it as a .zip at the old address before the move, then open it at roswaal.app with Open .zip… in the projects panel.",
+		],
+	},
+	{
 		version: "0.97.3",
 		date: "2026-09-23",
 		headline: "A graph's selected tab is marked on the website.",

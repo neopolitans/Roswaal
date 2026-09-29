@@ -23,7 +23,7 @@ import { escapeHtml } from "../../src/core/docs/html.ts";
 import { BUILTIN_NODES, createRegistry } from "../../src/core/nodes/index.ts";
 import { growthState } from "../../src/core/nodes/growth.ts";
 import { graphSvg } from "../../src/core/docs/preview.ts";
-import { SOURCE_REPOSITORY } from "../../src/core/docs/links.ts";
+import { SOURCE_REPOSITORY, STABLE_SITE } from "../../src/core/docs/links.ts";
 import { taglineFor } from "../../src/core/docs/releases.ts";
 import { highlightLuau } from "../../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../../src/app/palette.ts";
@@ -367,7 +367,7 @@ ${IS_CANARY ? `<meta name="robots" content="noindex" />
     ${IS_CANARY ? `<p class="landing-canary">
       <span class="flag canary">${escapeHtml(MARK_LABEL.canary)}</span>
       ${escapeHtml(CANARY_BANNER.app)}
-      <a href="https://neopolitans.github.io/Roswaal/">${escapeHtml(CANARY_BANNER.wayOut)}</a>
+      <a href="${STABLE_SITE}">${escapeHtml(CANARY_BANNER.wayOut)}</a>
     </p>` : ""}
     <div class="landing-head${IS_CANARY ? " canary" : ""}">
       ${logoMarkup(38)}

@@ -21,6 +21,7 @@
 import type { Registry } from "../nodes/index.js";
 import { categories, subcategories, ZUP_CONVERSIONS } from "../nodes/index.js";
 import { BLUEPRINT_MAP } from "./blueprints.js";
+import { STABLE_SITE } from "./links.js";
 import { documentRegistry, OMISSION_REASONS, stripHeader, type NodeDoc } from "./nodeReference.js";
 import { compile } from "../compiler/index.js";
 import { previewOf, type NodePreview } from "./preview.js";
@@ -1301,7 +1302,7 @@ const GETTING_STARTED: DocPage = {
 						{
 							t: "p",
 							text:
-								"Open [the web app](https://neopolitans.github.io/Roswaal/try.html). Nothing is " +
+								`Open [the web app](${STABLE_SITE}try.html). Nothing is ` +
 								"installed: it opens on a demo project, kept in this browser, and the Roswaal mark " +
 								"is blue to say so. To work on your own:",
 						},
@@ -1362,7 +1363,7 @@ const GETTING_STARTED: DocPage = {
 							steps: [
 								{
 									text:
-										"Open [the web app](https://neopolitans.github.io/Roswaal/try.html) and tap the " +
+										`Open [the web app](${STABLE_SITE}try.html) and tap the ` +
 										"Roswaal mark.",
 									picture: [EDITOR_BAR_TABLET],
 									point: "The Roswaal mark",

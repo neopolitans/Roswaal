@@ -57,7 +57,7 @@ describe("where a page is, on a static host", () => {
 });
 
 describe("where a page is, under a sub-path", () => {
-	/** What a project site on github.io actually is, before a domain is bought. */
+	/** What a project site on github.io actually is: the canary, and the stable site before roswaal.app. */
 	const href = (page: Page, hash?: string) => hrefFor("/Roswaal/", true, page, hash);
 
 	it("keeps every link inside the site", () => {

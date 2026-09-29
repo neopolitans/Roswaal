@@ -11,6 +11,7 @@
  * rendering the component and cannot get it half right.
  */
 
+import { STABLE_SITE } from "../core/docs/links.js";
 import { Logo } from "./logo.jsx";
 import { IS_CANARY, IS_STATIC_HOST } from "./pages.js";
 import {
@@ -34,9 +35,6 @@ export function buildMark(): BuildMark | null {
 	if (IS_STATIC_HOST) return "preview";
 	return null;
 }
-
-/** Where the stable build lives, for a canary banner to point at. */
-export const STABLE_SITE = "https://neopolitans.github.io/Roswaal/";
 
 /** The mark, on a surface that has one. Nothing on the stable daemon build. */
 export function PreviewChip({ title }: { title?: string } = {}) {

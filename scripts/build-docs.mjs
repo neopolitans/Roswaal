@@ -23,6 +23,7 @@ import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
 import { growthState } from "../src/core/nodes/growth.ts";
 import { buildSearchIndex, buildSite } from "../src/core/docs/site.ts";
 import { escapeHtml, renderSite } from "../src/core/docs/html.ts";
+import { STABLE_SITE } from "../src/core/docs/links.ts";
 import { highlightLuau } from "../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../src/app/palette.ts";
 import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
@@ -159,7 +160,7 @@ async function main() {
 		? `<div class="canary-banner" role="status">` +
 			`<span class="canary-banner-mark">${escapeHtml(MARK_LABEL.canary)}</span>` +
 			`<span class="canary-banner-text">${escapeHtml(CANARY_BANNER.docs)}</span>` +
-			`<a class="canary-banner-out" href="https://neopolitans.github.io/Roswaal/"` +
+			`<a class="canary-banner-out" href="${STABLE_SITE}"` +
 			` rel="noreferrer noopener">${escapeHtml(CANARY_BANNER.wayOut)}</a></div>
 `
 		: undefined;

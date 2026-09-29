@@ -8,7 +8,7 @@ source file.
 .roswaal/scripts/*.nodescript  →  roswaal  →  src/*.luau  →  rojo  →  Studio
 ```
 
-**[Try it in your browser](https://neopolitans.github.io/Roswaal/)** — no
+**[Try it in your browser](https://roswaal.app/)** — no
 install, a demo project already in it. Opening a folder of your own needs the
 File System Access API, so that part is Chrome and Edge.
 
@@ -55,7 +55,7 @@ including your own packs, the controls, and *Coming from Blueprints* for anyone
 arriving from Unreal Engine. It opens in its own window, so it can sit beside
 the graph you are reading about.
 
-Published copy: <https://neopolitans.github.io/Roswaal/docs/>.
+Published copy: <https://roswaal.app/docs/>.
 
 ```sh
 npm run dev        # daemon on :4471, editor on :4470 with hot reload
@@ -71,7 +71,7 @@ trouble, a documentation page that is wrong — all of it goes there, and every
 documentation page has an edit button that opens a report for that page.
 
 Pull requests are welcome on this repository. What a change brings with it is in
-[Contributing](https://neopolitans.github.io/Roswaal/docs/contributing.html).
+[Contributing](https://roswaal.app/docs/contributing.html).
 
 ## Licence
 
