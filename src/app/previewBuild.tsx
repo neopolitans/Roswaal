@@ -13,13 +13,13 @@
 
 import { STABLE_SITE } from "../core/docs/links.js";
 import { Logo } from "./logo.jsx";
-import { IS_CANARY, IS_STATIC_HOST } from "./pages.js";
+import { IS_BACKUP, IS_CANARY, IS_STATIC_HOST } from "./pages.js";
 import {
-	CANARY_BANNER, MARK_LABEL, MARK_ON_SURFACE, type BuildMark,
+	BACKUP_BANNER, CANARY_BANNER, MARK_LABEL, MARK_ON_SURFACE, type BuildMark,
 } from "./previewMark.js";
 
 export {
-	CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, MARK_ON_SURFACE,
+	BACKUP_BANNER, CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, MARK_ON_SURFACE,
 	PREVIEW_BESIDE_LINK, PREVIEW_LABEL, PREVIEW_ON_SURFACE, previewChipMarkup,
 	type BuildMark,
 } from "./previewMark.js";
@@ -78,8 +78,21 @@ export function markTooltip(): string {
  *
  * `kind` is the claim being made. The app is a build that may break; the
  * documentation is a build that is not out, which is the sharper one.
+ *
+ * The copy at the old address wears one too, saying where the site went.
  */
-export function CanaryBanner({ kind = "app" }: { kind?: "app" | "docs" } = {}) {
+export function SiteBanner({ kind = "app" }: { kind?: "app" | "docs" } = {}) {
+	if (IS_BACKUP) {
+		return (
+			<div className="canary-banner canary-banner-backup" role="status">
+				<span className="canary-banner-mark">{BACKUP_BANNER.mark}</span>
+				<span className="canary-banner-text">{BACKUP_BANNER[kind]}</span>
+				<a className="canary-banner-out" href={STABLE_SITE}>
+					{BACKUP_BANNER.wayOut}
+				</a>
+			</div>
+		);
+	}
 	if (!IS_CANARY) return null;
 	return (
 		<div className="canary-banner" role="status">

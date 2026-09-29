@@ -33,7 +33,7 @@ import { NODE } from "../../src/app/layers.ts";
 import { faviconHref, logoMarkup } from "../../src/app/logo.tsx";
 import { ICONS } from "../../src/app/icons.tsx";
 import {
-	CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, PREVIEW_BESIDE_LINK,
+	BACKUP_BANNER, CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, PREVIEW_BESIDE_LINK,
 	PREVIEW_LABEL,
 } from "../../src/app/previewMark.ts";
 
@@ -212,6 +212,11 @@ body.roswaal-landing {
 }
 .landing-canary .flag { color: var(--warning); }
 .landing-canary a { color: var(--accent); white-space: nowrap; }
+.landing-canary.landing-backup {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.landing-backup .flag { color: var(--accent); }
 
 /* The demonstration, stacked rather than in two columns.
    
@@ -342,8 +347,10 @@ body.roswaal-landing {
  * and the canary is where they first disagreed.
  */
 const channelIsCanary = () => process.env.ROSWAAL_CHANNEL === "canary";
+/** The copy at the site's old address. See `IS_BACKUP` in `src/app/pages.ts`. */
+const buildIsBackup = () => process.env.ROSWAAL_BACKUP === "1";
 
-export function landingPage(version, { canary = channelIsCanary() } = {}) {
+export function landingPage(version, { canary = channelIsCanary(), backup = buildIsBackup() } = {}) {
 	const IS_CANARY = canary;
 	const { svg, luau } = example();
 
@@ -352,7 +359,7 @@ export function landingPage(version, { canary = channelIsCanary() } = {}) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-${IS_CANARY ? `<meta name="robots" content="noindex" />
+${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
 ` : ""}<title>Roswaal${IS_CANARY ? " canary" : ""} - Visual Scripting for Luau</title>
 <meta name="description" content="Visual scripting for Roblox Luau and Lune Luau. Graphs live on disk and compile to plain Luau that Rojo syncs. Try it in your browser, with nothing installed." />
 <link rel="icon" href="${faviconHref()}" />
@@ -364,6 +371,11 @@ ${IS_CANARY ? `<meta name="robots" content="noindex" />
 <div class="landing-glow" aria-hidden="true"></div>
 <main class="landing">
   <div class="landing-top">
+    ${backup ? `<p class="landing-canary landing-backup">
+      <span class="flag">${escapeHtml(BACKUP_BANNER.mark)}</span>
+      ${escapeHtml(BACKUP_BANNER.app)}
+      <a href="${STABLE_SITE}">${escapeHtml(BACKUP_BANNER.wayOut)}</a>
+    </p>` : ""}
     ${IS_CANARY ? `<p class="landing-canary">
       <span class="flag canary">${escapeHtml(MARK_LABEL.canary)}</span>
       ${escapeHtml(CANARY_BANNER.app)}

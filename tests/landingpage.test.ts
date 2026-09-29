@@ -252,3 +252,19 @@ describe("the mark on the front page", () => {
 		expect(landingPage("9.9.9", { canary: false })).not.toContain('class="landing-head canary"');
 	});
 });
+
+describe("the copy at the old address", () => {
+	const backup: string = landingPage("9.9.9", { canary: false, backup: true });
+
+	/** It is kept so projects can be rescued, and says where the site went. */
+	it("points to roswaal.app and keeps out of search", () => {
+		expect(backup).toContain('class="landing-canary landing-backup"');
+		expect(backup).toContain('href="https://roswaal.app/"');
+		expect(backup).toContain('<meta name="robots" content="noindex" />');
+	});
+
+	it("is not on the site at roswaal.app", () => {
+		expect(html).not.toContain('class="landing-canary landing-backup"');
+		expect(html).not.toContain('<meta name="robots" content="noindex" />');
+	});
+});

@@ -99,10 +99,11 @@ export const RELEASES: Release[] = [
 		headline: "The website moves to roswaal.app.",
 		affects: ["editor", "designer", "docs"],
 		changed: [
-			"**The website is at roswaal.app.** The old address on github.io redirects there. The canary stays where it is.",
+			"**The website is at roswaal.app**, and the canary at canary.roswaal.app.",
+			"**The old address on github.io is a backup copy**, with a banner pointing to roswaal.app. Search engines are asked not to list it.",
 		],
 		watch: [
-			"**A project kept in the browser does not move with the address.** Download it as a .zip at the old address before the move, then open it at roswaal.app with Open .zip… in the projects panel.",
+			"**A project kept in the browser does not move with the address.** Download it as a .zip at the old address, then open it at roswaal.app with Open .zip… in the projects panel.",
 		],
 	},
 	{

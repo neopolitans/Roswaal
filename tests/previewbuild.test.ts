@@ -31,7 +31,7 @@ import { describe, expect, it } from "vitest";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { landingPage } from "../scripts/lib/landing.mjs";
 import {
-	CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, MARK_ON_SURFACE,
+	BACKUP_BANNER, CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, MARK_ON_SURFACE,
 	PREVIEW_LABEL, PREVIEW_ON_SURFACE, previewChipMarkup,
 } from "../src/app/previewMark.js";
 import { SOURCE_REPOSITORY } from "../src/core/docs/links.js";
@@ -155,7 +155,7 @@ describe("the canary mark", () => {
 
 	it("puts the banner on every window the canary serves", () => {
 		for (const path of ["src/app/App.tsx", "src/app/DesignerPage.tsx", "src/app/DocsPage.tsx"]) {
-			expect(source(path), path).toContain("<CanaryBanner");
+			expect(source(path), path).toContain("<SiteBanner");
 		}
 		// The documentation takes the sharper wording.
 		expect(source("src/app/DocsPage.tsx")).toContain('kind="docs"');
@@ -389,5 +389,15 @@ describe("the bars the documentation draws", () => {
 		const page = findPage(site, "toolbars")!;
 		const rendered = renderPage(site, page, { version: "test", toolbars: art });
 		expect(rendered).toContain("your work is in this browser, not on disk");
+	});
+});
+
+describe("the copy at the old address", () => {
+	it("says where the site went, in the app and on every docs page", () => {
+		expect(BACKUP_BANNER.app).toMatch(/roswaal\.app/);
+		expect(BACKUP_BANNER.docs).toMatch(/roswaal\.app/);
+		expect(source("src/app/previewBuild.tsx")).toContain("IS_BACKUP");
+		expect(source("scripts/build-docs.mjs")).toContain("noindex: isCanary || isBackup");
+		expect(source("src/app/theme.css")).toContain(".canary-banner.canary-banner-backup");
 	});
 });

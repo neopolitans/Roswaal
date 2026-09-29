@@ -36,8 +36,8 @@ export const SOURCE_REPOSITORY = "https://github.com/neopolitans/Roswaal";
 /**
  * Where the stable build of the website lives, with its trailing slash.
  *
- * The canary's banners point here, and the setup guides link to the web app
- * under it. It was `neopolitans.github.io/Roswaal/` until 0.97.4; GitHub
- * redirects that address here, but browser storage does not follow a redirect.
+ * The canary's banners and the backup copy's point here, and the setup guides
+ * link to the web app under it. It was `neopolitans.github.io/Roswaal/` until
+ * 0.97.4, which is now the backup: see `IS_BACKUP` in `src/app/pages.ts`.
  */
 export const STABLE_SITE = "https://roswaal.app/";

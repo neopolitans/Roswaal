@@ -72,7 +72,7 @@ import type { Registry } from "../core/nodes/index.js";
 import { setProjectAliases } from "./projectAliases.js";
 import { forget, lastProject, recentProjects, remember } from "./recents.js";
 import { IS_STATIC_HOST, openHome, openPage, setBeforeLeaving } from "./pages.js";
-import { CanaryBanner, MarkedLogo } from "./previewBuild.jsx";
+import { SiteBanner, MarkedLogo } from "./previewBuild.jsx";
 import {
 	forgetRememberedFolder, openDirectory, readZip, useCanImportZip, useCanOpenDirectory, useHostCan,
 	useHostFailure, useRememberedFolders,
@@ -1811,7 +1811,7 @@ export function App() {
 		<div className="app">
 			{/* Above everything, including the toolbar: a build that may be
 			    halfway through an idea says so before you start working in it. */}
-			<CanaryBanner />
+			<SiteBanner />
 			{/* One list, at the root, because a `<datalist>` has to be in the
 			    document for every field that names it — and the fields that do
 			    are in two panels and on the canvas. */}

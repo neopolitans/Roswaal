@@ -4669,6 +4669,18 @@ button.tb.icon-only.on {
 	white-space: nowrap;
 }
 
+/* The copy at the site's old address: news rather than a warning, so the
+   accent rather than the warning colour. */
+.canary-banner.canary-banner-backup {
+	background: color-mix(in srgb, var(--accent) 12%, var(--bg-panel));
+	border-bottom-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.canary-banner-backup .canary-banner-mark {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
 .docs-page-head .logo .version {
 	font-weight: 400;
 	font-size: 10px;

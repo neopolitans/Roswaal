@@ -32,8 +32,24 @@ declare const __ROSWAAL_STATIC__: boolean;
  */
 declare const __ROSWAAL_CHANNEL__: Channel;
 
+/**
+ * True in the copy kept at the site's old address. Set by `define` in both Vite
+ * configs, from `ROSWAAL_BACKUP`.
+ */
+declare const __ROSWAAL_BACKUP__: boolean;
+
 /** Whether this bundle was built for a static host rather than the daemon. */
 export const IS_STATIC_HOST: boolean = __ROSWAAL_STATIC__;
+
+/**
+ * Whether this is the copy at `neopolitans.github.io/Roswaal/`, which the site
+ * moved from to roswaal.app in 0.97.4.
+ *
+ * A third axis rather than a channel: the copy is the stable build, served from
+ * an address a browser keeps its own storage for. It stays so that a project
+ * kept there can still be downloaded, and says where the site went.
+ */
+export const IS_BACKUP: boolean = __ROSWAAL_BACKUP__;
 
 /**
  * Stable, or the canary.

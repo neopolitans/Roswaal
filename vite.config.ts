@@ -25,7 +25,11 @@ const CHANNEL = process.env.ROSWAAL_CHANNEL === "canary" ? "canary" : "stable";
 export default defineConfig({
 	// The daemon serves index.html for every path that is not /api, so the
 	// pages are clean routes rather than files. See `src/app/pages.ts`.
-	define: { __ROSWAAL_STATIC__: "false", __ROSWAAL_CHANNEL__: JSON.stringify(CHANNEL) },
+	define: {
+		__ROSWAAL_STATIC__: "false",
+		__ROSWAAL_CHANNEL__: JSON.stringify(CHANNEL),
+		__ROSWAAL_BACKUP__: "false",
+	},
 	// The seed plugin is here for Vitest, which reads this config: the seed
 	// test imports the virtual module the playground is built from. The daemon
 	// bundle never imports it, so mounting it here costs nothing.
@@ -74,6 +78,6 @@ export default defineConfig({
 	 * test written next year cannot reintroduce the same failure.
 	 */
 	test: {
-		env: { ROSWAAL_CHANNEL: "stable" },
+		env: { ROSWAAL_CHANNEL: "stable", ROSWAAL_BACKUP: "" },
 	},
 });

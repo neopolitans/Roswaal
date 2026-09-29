@@ -29,7 +29,7 @@ import { readPreferences, writePreferences, type Preferences } from "./preferenc
 import { SettingsPanel } from "./SettingsPanel.jsx";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import { Icon } from "./icons.jsx";
-import { CanaryBanner, MarkedLogo } from "./previewBuild.jsx";
+import { SiteBanner, MarkedLogo } from "./previewBuild.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { VERSION } from "../cli/version.js";
 
@@ -123,7 +123,7 @@ export function DesignerPage() {
 
 	return (
 		<div className="designer">
-			<CanaryBanner />
+			<SiteBanner />
 			<header className="docs-page-head">
 				<button
 					className="logo as-chip"

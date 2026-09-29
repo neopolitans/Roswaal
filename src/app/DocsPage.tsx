@@ -25,7 +25,7 @@ import type { NodeDef } from "../core/schema.js";
 import { api } from "./api.js";
 import { DocsView } from "./DocsPanel.jsx";
 import { Icon } from "./icons.jsx";
-import { CanaryBanner, MarkedLogo } from "./previewBuild.jsx";
+import { SiteBanner, MarkedLogo } from "./previewBuild.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { SettingsPanel } from "./SettingsPanel.jsx";
@@ -101,7 +101,7 @@ export function DocsPage() {
 		<>
 		<div className={`docs-page${navOpen ? " nav-open" : ""}`}>
 			{/* The sharper wording: these pages describe a build that is not out. */}
-			<CanaryBanner kind="docs" />
+			<SiteBanner kind="docs" />
 			<header className="docs-page-head">
 				{/* The mark and what this window is. "Roswaal Documentation" said
 				    both of those in six syllables and neither of them quickly. */}

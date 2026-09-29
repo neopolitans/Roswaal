@@ -5,10 +5,28 @@
 # that people are being asked to try, so it publishes when somebody says to
 # rather than on every push. Add a `push:` trigger below when that stops being
 # the right trade.
+#
+# Three repositories run it, and each is a site:
+#
+# - `neopolitans/roswaal-site` calls it to publish roswaal.app. That repository
+#   holds nothing but the call; the source is this one's `main`.
+# - `roswaal-canary` runs it for canary.roswaal.app.
+# - This repository runs it for neopolitans.github.io/Roswaal/, the backup copy
+#   at the address the site had before roswaal.app. A browser keeps storage per
+#   address, so the copy stays for anybody whose project is kept there.
+#
+# A domain is set in each repository's Pages settings: a deploy from Actions
+# ignores a CNAME file.
 name: Site
 
 on:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      source:
+        description: The repository to build, when it is not the caller.
+        type: string
+        default: ""
 
 # The token is minted for this run and scoped to publishing. Nothing here needs
 # to write to the repository.
@@ -25,23 +43,27 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # Where the site is mounted. The stable site has a domain of its own,
-  # roswaal.app, so it is served from the root. The canary is still a project
-  # site on github.io, served from `/<repo>/`. The domain itself is set in the
-  # repository's Pages settings: a deploy from Actions ignores a CNAME file. This
-  # is the only place the base is written down -- `build-pages.mjs` reads it
-  # back out of what Vite built.
-  ROSWAAL_BASE: ${{ github.event.repository.name == 'roswaal-canary' && '/roswaal-canary/' || '/' }}
+  # Where the site is mounted. roswaal.app and canary.roswaal.app are served
+  # from the root; the backup copy is a project site on github.io, served from
+  # `/Roswaal/`. This is the only place the base is written down --
+  # `build-pages.mjs` reads it back out of what Vite built.
+  ROSWAAL_BASE: ${{ github.event.repository.name == 'Roswaal' && '/Roswaal/' || '/' }}
   # Which line of development this build is from. `canary` puts the yellow mark
   # on every surface, the warning banner above them, and `noindex` in every
   # page's head. Anything but `canary` is the stable build.
   ROSWAAL_CHANNEL: ${{ github.event.repository.name == 'roswaal-canary' && 'canary' || 'stable' }}
+  # `1` on the backup copy: a banner pointing to roswaal.app on every surface,
+  # and `noindex`, so search finds the site once.
+  ROSWAAL_BACKUP: ${{ github.event.repository.name == 'Roswaal' && '1' || '' }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Another repository's default branch when `source` is given.
+          repository: ${{ inputs.source || github.repository }}
 
       - uses: actions/setup-node@v4
         with:

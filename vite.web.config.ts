@@ -78,7 +78,7 @@ function noindexOnCanary(): Plugin {
 		transformIndexHtml: {
 			order: "pre",
 			handler(html) {
-				if (process.env.ROSWAAL_CHANNEL !== "canary") return html;
+				if (process.env.ROSWAAL_CHANNEL !== "canary" && process.env.ROSWAAL_BACKUP !== "1") return html;
 				return html.replace(
 					"</head>",
 					'\t\t<meta name="robots" content="noindex" />\n\t</head>',
@@ -110,6 +110,7 @@ export default defineConfig({
 		__ROSWAAL_CHANNEL__: JSON.stringify(
 			process.env.ROSWAAL_CHANNEL === "canary" ? "canary" : "stable",
 		),
+		__ROSWAAL_BACKUP__: JSON.stringify(process.env.ROSWAAL_BACKUP === "1"),
 	},
 	plugins: [react(), roswaalWebHost(), demoSeedPlugin(DEMO), noindexOnCanary(), themeShellPlugin()],
 	// Module workers, so the worker can import the route table rather than being

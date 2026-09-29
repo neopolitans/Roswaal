@@ -28,7 +28,7 @@ import { highlightLuau } from "../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../src/app/palette.ts";
 import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
 import { ICONS, VIEW_BOX } from "../src/app/icons.tsx";
-import { CANARY_BANNER, markChipMarkup, MARK_LABEL, previewChipMarkup } from "../src/app/previewMark.ts";
+import { BACKUP_BANNER, CANARY_BANNER, markChipMarkup, MARK_LABEL, previewChipMarkup } from "../src/app/previewMark.ts";
 
 import { wirePath } from "../src/app/geometry.ts";
 import { NODE } from "../src/app/layers.ts";
@@ -156,7 +156,15 @@ async function main() {
 		mark: logoMarkup(18).replace('class="logo-mark"', `class="logo-mark mark-${isCanary ? "canary" : "preview"}"`),
 		icon: faviconHref(),
 	};
-	const canaryBanner = isCanary
+	// The copy at the old address says where the site went, in the accent colour.
+	const isBackup = process.env.ROSWAAL_BACKUP === "1";
+	const canaryBanner = isBackup
+		? `<div class="canary-banner canary-banner-backup" role="status">` +
+			`<span class="canary-banner-mark">${escapeHtml(BACKUP_BANNER.mark)}</span>` +
+			`<span class="canary-banner-text">${escapeHtml(BACKUP_BANNER.docs)}</span>` +
+			`<a class="canary-banner-out" href="${STABLE_SITE}">${escapeHtml(BACKUP_BANNER.wayOut)}</a></div>
+`
+		: isCanary
 		? `<div class="canary-banner" role="status">` +
 			`<span class="canary-banner-mark">${escapeHtml(MARK_LABEL.canary)}</span>` +
 			`<span class="canary-banner-text">${escapeHtml(CANARY_BANNER.docs)}</span>` +
@@ -191,7 +199,7 @@ async function main() {
 	const files = renderSite(site, {
 		highlight, pinColor, preview, logo, registry, toolbars,
 		previewChip: isCanary ? markChipMarkup("canary") : previewChipMarkup(),
-		canaryBanner, noindex: isCanary, version: VERSION, assetStamp,
+		canaryBanner, noindex: isCanary || isBackup, version: VERSION, assetStamp,
 	});
 
 	for (const file of files) {
