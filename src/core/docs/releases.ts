@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.105.0",
+		date: "2026-09-29",
+		headline: "Place instances open in a Properties panel.",
+		affects: ["editor", "docs"],
+		added: [
+			"**The Properties panel.** Double-click or double-tap an instance in DataModel to open its properties on the right, in the right-hand drawer on a phone or tablet. While it is open it follows what you pick; Close puts it away.",
+		],
+		changed: [
+			"**DataModel** keeps the whole height of the Project panel, where the properties took the bottom half.",
+		],
+	},
+	{
 		version: "0.104.1",
 		date: "2026-09-29",
 		headline: "The DataModel switch shares the project's row.",

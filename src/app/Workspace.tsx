@@ -81,6 +81,11 @@ export interface WorkspaceProps {
 	 */
 	drawerKey?: unknown;
 	/**
+	 * On a phone or a tablet, slides this panel's drawer out, once for each
+	 * new `seq`: the DataModel browser opening an instance's Properties.
+	 */
+	showDrawer?: { panel: PanelId; seq: number } | null;
+	/**
 	 * Controls for what is selected, drawn with the drawer buttons on a phone
 	 * or a tablet, where there is no keyboard to reach them from. Ignored
 	 * elsewhere.
@@ -93,7 +98,7 @@ const DRAG_THRESHOLD = 4;
 
 export function Workspace({
 	layout, contents, centre, floating, onResize, onResizeEnd, onToggle, onMovePanel,
-	onFramePanel, onFramePanelEnd, onDockPanel, onFloatPanel, drawerKey, touchBar,
+	onFramePanel, onFramePanelEnd, onDockPanel, onFloatPanel, drawerKey, touchBar, showDrawer,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
 	/** The centre, which a window's coordinates are measured from. */
@@ -134,6 +139,9 @@ export function Workspace({
 	 */
 	const [drawer, setDrawer] = useState<PanelId | null>(null);
 	useEffect(() => setDrawer(null), [drawerKey]);
+	useEffect(() => {
+		if (showDrawer) setDrawer(showDrawer.panel);
+	}, [showDrawer]);
 	// A panel that has gone quiet -- the Inspector once nothing is selected --
 	// takes its drawer with it.
 	const openPanel = drawer !== null && contents[drawer] !== undefined ? drawer : null;

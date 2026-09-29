@@ -4047,12 +4047,35 @@ button.tb.primary.danger:hover:not(:disabled) {
 	cursor: pointer;
 }
 
+/* The Properties panel: its heading, with Close where Variables has Add,
+   and the instance under it, scrolling on its own. */
+.place-properties {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.place-properties h2 {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	position: static;
+	flex: none;
+}
+
+.place-properties h2 button {
+	padding: 1px 8px;
+	font-size: 11px;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
 .place-props {
-	flex: 0 1 auto;
-	max-height: 55%;
+	flex: 1;
+	min-height: 0;
 	overflow: auto;
-	border-top: 1px solid var(--border);
-	padding: 8px 12px 12px;
+	padding: 2px 12px 12px;
 }
 
 .place-props-head {

@@ -29,7 +29,7 @@ const WIDE = { w: 1920, h: 1080 };
 describe("what is in a dock", () => {
 	it("starts where the editor already looked", () => {
 		expect(panelsIn(base(), "left")).toEqual(["tree", "variables"]);
-		expect(panelsIn(base(), "right")).toEqual(["inspector"]);
+		expect(panelsIn(base(), "right")).toEqual(["inspector", "properties"]);
 		expect(panelsIn(base(), "bottom")).toEqual(["analysis"]);
 	});
 
@@ -48,6 +48,7 @@ describe("what is in a dock", () => {
 		const layout = base();
 		expect(dockVisible(layout, "right")).toBe(true);
 		layout.panels.inspector.open = false;
+		layout.panels.properties.open = false;
 		expect(dockVisible(layout, "right")).toBe(false);
 	});
 
@@ -88,6 +89,7 @@ describe("the grid tracks", () => {
 	it("collapses a hidden dock's track and its splitter to nothing", () => {
 		const layout = base();
 		layout.panels.inspector.open = false;
+		layout.panels.properties.open = false;
 		const { columns } = gridTemplate(layout);
 		// left, its splitter, centre, the right splitter, right.
 		expect(columns.split(" ").slice(-2).join(" ")).toBe("0px 0px");
@@ -119,6 +121,7 @@ describe("resizing", () => {
 		const both = base();
 		const alone = base();
 		alone.panels.inspector.open = false;
+		alone.panels.properties.open = false;
 		expect(maxDockSize(alone, "left", WIDE.w, WIDE.h))
 			.toBeGreaterThan(maxDockSize(both, "left", WIDE.w, WIDE.h));
 	});
@@ -279,7 +282,8 @@ describe("moving a panel", () => {
 		// tree and variables were already there, so all four end up in the left.
 		const orders = panelsIn(layout, "left").map((id) => layout.panels[id].order);
 		expect(orders).toEqual([0, 1, 2, 3]);
-		expect(panelsIn(layout, "right"), "and the docks they left are empty").toEqual([]);
+		// Properties stays behind on the right, the only one not moved.
+		expect(panelsIn(layout, "right")).toEqual(["properties"]);
 		expect(panelsIn(layout, "bottom")).toEqual([]);
 	});
 

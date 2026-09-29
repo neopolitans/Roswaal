@@ -45,7 +45,7 @@ import { liveSelection, TouchBar } from "./TouchBar.jsx";
 import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { Overlays, type CodeEditState } from "./Overlays.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
-import { PlaceBrowser } from "./PlaceBrowser.jsx";
+import { PlaceBrowser, PlaceProperties, type PlaceTarget } from "./PlaceBrowser.jsx";
 import { Workspace } from "./Workspace.jsx";
 import {
 	clampLayout, COMPACT_QUERY, floatPanel, framePanel, movePanel, resizeDock, toggleDock,
@@ -333,6 +333,39 @@ export function App() {
 	 */
 	const [projectView, setProjectView] = useState<"files" | "datamodel">("files");
 	const [placeSeen, setPlaceSeen] = useState(false);
+	/** The place instance the Properties panel shows; the panel is there only while one is. */
+	const [placeInspect, setPlaceInspect] = useState<PlaceTarget | null>(null);
+	/** A reference followed in Properties, for the browser to pick and show. */
+	const [placeReveal, setPlaceReveal] = useState<{ index: number; seq: number } | null>(null);
+	/** Slides a drawer out on a phone or a tablet: Properties, when it is asked for. */
+	const [showDrawer, setShowDrawer] = useState<{ panel: PanelId; seq: number } | null>(null);
+
+	/**
+	 * Shows an instance's properties. Asked for outright -- a double-click or
+	 * a double tap -- it also brings the panel out: its drawer on a tablet,
+	 * and its dock back if that was collapsed.
+	 */
+	const onPlaceInspect = useCallback((target: PlaceTarget | null, open: boolean) => {
+		setPlaceInspect(target);
+		if (!target || !open) return;
+		setShowDrawer((prev) => ({ panel: "properties", seq: (prev?.seq ?? 0) + 1 }));
+		setPrefs((current) => {
+			const panel = current.layout.panels.properties;
+			let layout = current.layout;
+			if (!panel.open) layout = { ...layout, panels: { ...layout.panels, properties: { ...panel, open: true } } };
+			if (!panel.floating && !layout.docks[panel.dock].open) layout = toggleDock(layout, panel.dock);
+			if (layout === current.layout) return current;
+			const next = { ...current, layout };
+			writePreferences(next);
+			return next;
+		});
+	}, []);
+	const onPlacePick = useCallback((index: number) => {
+		setPlaceReveal((prev) => ({ index, seq: (prev?.seq ?? 0) + 1 }));
+	}, []);
+	const onPlaceClose = useCallback(() => setPlaceInspect(null), []);
+	// Another project's place numbers its instances differently.
+	useEffect(() => setPlaceInspect(null), [project?.root]);
 	// The folder from a previous session, when one is waiting on a click.
 	const rememberedFolders = useRememberedFolders();
 	// What this host can do, for the project actions in the panel's footer.
@@ -2020,6 +2053,7 @@ export function App() {
 			<Workspace
 				layout={layout}
 				drawerKey={`${editor.path}|${editor.graph}|${source?.path}|${mapDoc?.path}|${aliasDoc ? "alias" : ""}`}
+				showDrawer={showDrawer}
 				touchBar={
 					editor.script && !source && !mapDoc && !aliasDoc
 						? (
@@ -2077,8 +2111,9 @@ export function App() {
 									<PlaceBrowser
 										file={project.place}
 										refreshKey={project.tree}
-										onOpenFile={onPlaceOpenFile}
-										graphFor={placeGraphFor}
+										onInspect={onPlaceInspect}
+										inspecting={placeInspect?.index ?? null}
+										reveal={placeReveal}
 									/>
 								</div>
 							)}
@@ -2125,6 +2160,16 @@ export function App() {
 								script={editor.script}
 								registry={registry}
 								selection={editor.selection}
+							/>
+						) : undefined,
+					properties:
+						project.place && placeInspect ? (
+							<PlaceProperties
+								target={placeInspect}
+								onPick={onPlacePick}
+								onOpenFile={onPlaceOpenFile}
+								graphFor={placeGraphFor}
+								onClose={onPlaceClose}
 							/>
 						) : undefined,
 					analysis: (

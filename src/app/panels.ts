@@ -37,9 +37,9 @@ export const DOCK_SIDES: DockSide[] = ["left", "right", "bottom"];
  * "drop it" and "render nothing, silently" is whether the type says which
  * names are real.
  */
-export type PanelId = "tree" | "variables" | "inspector" | "analysis";
+export type PanelId = "tree" | "variables" | "inspector" | "properties" | "analysis";
 
-export const PANEL_IDS: PanelId[] = ["tree", "variables", "inspector", "analysis"];
+export const PANEL_IDS: PanelId[] = ["tree", "variables", "inspector", "properties", "analysis"];
 
 export interface PanelState {
 	dock: DockSide;
@@ -112,6 +112,9 @@ export const DEFAULT_LAYOUT: Layout = {
 		tree: { dock: "left", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
 		variables: { dock: "left", open: true, order: 1, floating: false, frame: DEFAULT_FRAME },
 		inspector: { dock: "right", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
+		// A place instance's properties, under the Inspector: there only once
+		// one is opened from the DataModel browser.
+		properties: { dock: "right", open: true, order: 1, floating: false, frame: DEFAULT_FRAME },
 		analysis: { dock: "bottom", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
 	},
 	docks: {
@@ -125,6 +128,7 @@ export const PANEL_TITLES: Record<PanelId, string> = {
 	tree: "Project",
 	variables: "Variables",
 	inspector: "Inspector",
+	properties: "Properties",
 	analysis: "Script analysis",
 };
 

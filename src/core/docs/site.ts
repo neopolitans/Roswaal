@@ -3994,9 +3994,11 @@ const BUILDING: DocPage = {
 		{
 			t: "p",
 			text:
-				"Pick an instance to see its properties, tags and attributes under Studio's headings; " +
-				"a reference goes to what it names. For a script a project file writes, **Open** opens " +
-				"that file, and its graph when one generates it. The browser only reads the place.",
+				"Double-click or double-tap an instance to open the **Properties** panel on the right: " +
+				"its properties, tags and attributes under Studio's headings. While it is open it follows " +
+				"what you pick, and a reference goes to what it names. For a script a project file " +
+				"writes, **Open** opens that file, and its graph when one generates it. The browser " +
+				"only reads the place.",
 		},
 	],
 };
