@@ -128,7 +128,7 @@ function enter(stat: Stat, at: number, out: ScopedName[]): void {
 	switch (stat.kind) {
 		case "localFunction":
 			// Its own name is in scope inside it: a local function can recurse.
-			out.push({ name: stat.name.name, kind: "function", func: stat.func });
+			out.push({ name: stat.name.name, kind: "function", func: stat.func, declaredAt: stat.start });
 			enterFunction(stat.func, at, out);
 			return;
 		case "function":
@@ -213,4 +213,43 @@ function enterExpr(node: unknown, at: number, out: ScopedName[]): void {
 	for (const value of Object.values(node)) {
 		if (value && typeof value === "object") enterExpr(value, at, out);
 	}
+}
+
+/**
+ * The local whose name is written at `offset`, where it is declared:
+ * `local function count<T>(` with the cursor on `count`.
+ *
+ * `localsAt` reads only the text before a point, and a declaration whose
+ * parameters run onto the next lines does not read on its own, so the name
+ * of one was never found there. This reads the whole file instead.
+ */
+export function declarationAt(src: string, offset: number): ScopedName | undefined {
+	let found: ScopedName | undefined;
+	const visit = (node: unknown): void => {
+		if (found) return;
+		if (Array.isArray(node)) {
+			for (const item of node) visit(item);
+			return;
+		}
+		if (!node || typeof node !== "object") return;
+		const stat = node as Stat;
+		if (stat.kind === "localFunction" && stat.name.start <= offset && offset <= stat.name.end) {
+			found = declared(stat)[0];
+			return;
+		}
+		if ((stat.kind === "local" || stat.kind === "const") && Array.isArray(stat.names)) {
+			// The name only: a binding's span runs on over its type, `x: Part`.
+			const i = stat.names.findIndex((b) => b.start <= offset && offset <= b.start + b.name.length);
+			if (i !== -1) {
+				const named = declared(stat)[i] as ScopedName & { typeSpan?: { start: number; end: number } };
+				if (named.typeSpan) named.typeText = src.slice(named.typeSpan.start, named.typeSpan.end).trim();
+				delete named.typeSpan;
+				found = named;
+				return;
+			}
+		}
+		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+	};
+	visit(parseChunk(src).value);
+	return found;
 }

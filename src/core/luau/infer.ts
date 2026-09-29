@@ -16,7 +16,7 @@
  */
 
 import type { Expr, FunctionBody, Stat } from "./ast.js";
-import { docCommentBefore, type DocComment } from "./docComment.js";
+import { docCommentBefore, docFor, type DocComment } from "./docComment.js";
 import { tokenize, type Token } from "./lexer.js";
 import { parseChunk } from "./parser.js";
 import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
@@ -232,7 +232,7 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 	const add = (member: TableMember, at: number) => {
 		if (seen.has(member.name)) return;
 		seen.add(member.name);
-		const doc = docAt(at);
+		const doc = docFor(docAt(at), member.name);
 		out.push(doc ? { ...member, doc } : member);
 	};
 	const visit = (node: unknown): void => {

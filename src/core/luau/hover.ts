@@ -15,9 +15,11 @@ import {
 	type TableMember,
 } from "./infer.js";
 import { ENGINE, signatureText } from "../robloxEngine.js";
-import { docCommentBefore, type DocComment } from "./docComment.js";
+import { docCommentBefore, docFor, type DocComment } from "./docComment.js";
 import { tokenize } from "./lexer.js";
-import { localsAt, type LocalKind } from "./scope.js";
+import { declarationAt, localsAt, type LocalKind } from "./scope.js";
+import { parseChunk } from "./parser.js";
+import type { Stat } from "./ast.js";
 import { CLASSES, DATATYPES } from "../robloxData.js";
 import { propertiesOf } from "../robloxProperties.js";
 import { nilableProperty } from "../robloxNilable.js";
@@ -259,7 +261,8 @@ export function hoverAt(
 	// has not finished where its name is written, so the end of that line is
 	// asked too — hovering `local tbl = { … }` describes `tbl`.
 	const lineEnd = src.indexOf("\n", to);
-	const local = localsAt(src, from).find((n) => n.name === word)
+	const local = declarationAt(src, from)
+		?? localsAt(src, from).find((n) => n.name === word)
 		?? localsAt(src, lineEnd < 0 ? src.length : lineEnd).find((n) => n.name === word);
 	if (local) {
 		const held = heldBy(local.typeText, local.value);
@@ -270,10 +273,18 @@ export function hoverAt(
 			?? (held.keys ? "table" : undefined);
 		const code = type ? `${word}: ${type}` : word;
 		const role = LOCAL_ROLE[local.kind];
-		const doc = local.declaredAt === undefined ? undefined : docCommentBefore(src, local.declaredAt);
+		const doc = local.declaredAt === undefined ? undefined : docFor(docCommentBefore(src, local.declaredAt), word);
 		const typed = doc && type && local.func && !local.typeText ? `${word}: ${withDocTypes(type, doc)}` : code;
 		if (roblox && held.className) return { ...aboutClass(held.className, from, to, typed, role), ...(doc ? { doc } : {}) };
 		return { from, to, code: typed, role, ...(doc ? { doc } : {}) };
+	}
+
+	// A global function the file declares: `function count()`, where it is
+	// declared or called.
+	const global = globalFunction(src, word);
+	if (global) {
+		const doc = docFor(docCommentBefore(src, global.start), word);
+		return { from, to, code: `${word}: ${withDocTypes(signatureOf(global.func, src), doc)}`, role: "function", ...(doc ? { doc } : {}) };
 	}
 
 	if (roblox && CLASS_SET.has(word)) return aboutClass(word, from, to);
@@ -281,4 +292,25 @@ export function hoverAt(
 		return { from, to, code: word, role: "datatype", summary: DATATYPE_SUMMARIES[word], link: datatypeLink(word) };
 	}
 	return null;
+}
+
+/** `function name()` at any depth of the file, with no table in front of it. */
+function globalFunction(src: string, name: string): Extract<Stat, { kind: "function" }> | undefined {
+	let found: Extract<Stat, { kind: "function" }> | undefined;
+	const visit = (node: unknown): void => {
+		if (found) return;
+		if (Array.isArray(node)) {
+			for (const item of node) visit(item);
+			return;
+		}
+		if (!node || typeof node !== "object") return;
+		const stat = node as Stat;
+		if (stat.kind === "function" && "path" in stat && stat.path.length === 1 && !stat.method && stat.path[0].name === name) {
+			found = stat;
+			return;
+		}
+		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+	};
+	visit(parseChunk(src).value);
+	return found;
 }

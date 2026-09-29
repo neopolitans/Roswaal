@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { docCommentBefore, parseDoc } from "../src/core/luau/docComment.js";
 import { hoverAt, withDocTypes } from "../src/core/luau/hover.js";
+import { parseChunk } from "../src/core/luau/parser.js";
 import { membersInCode } from "../src/core/luau/infer.js";
 
 const QUEUE = [
@@ -124,5 +125,47 @@ describe("types from a doc comment", () => {
 
 	it("give several returns as a tuple", () => {
 		expect(withDocTypes("() -> ()", parseDoc("@return boolean\n@return string"))).toBe("() -> (boolean, string)");
+	});
+});
+
+describe("declarations the first sweep missed", () => {
+	const hoverOn = (src: string, needle: string, word: string) =>
+		hoverAt(src, src.indexOf(needle) + needle.indexOf(word) + 1, true);
+
+	it("shows a local function's doc where it is declared", () => {
+		const src = "--- Counts them.\nlocal function count(list)\n\treturn #list\nend";
+		expect(hoverOn(src, "local function count", "count")?.doc?.text).toBe("Counts them.");
+	});
+
+	it("finds a local function whose parameters run onto the next lines", () => {
+		const src = "--- Counts matches.\nlocal function count<T>(\n\tlist: { T },\n\tpredicate: (T) -> boolean\n): number\n\treturn 0\nend";
+		const hover = hoverOn(src, "local function count", "count")!;
+		expect(hover.code).toBe("count: (list: { T }, predicate: (T) -> boolean) -> (number)");
+		expect(hover.doc?.text).toBe("Counts matches.");
+	});
+
+	it("describes a global function, where it is declared and where it is called", () => {
+		const src = "--- Says hello.\n--- @return string\nfunction greet()\n\treturn \"hi\"\nend\nprint(greet())";
+		expect(hoverOn(src, "function greet", "greet")).toMatchObject({ code: "greet: () -> string", role: "function" });
+		expect(hoverAt(src, src.lastIndexOf("greet") + 1, true)?.doc?.text).toBe("Says hello.");
+	});
+
+	it("reads const function, and hovers it", () => {
+		const src = "--- Ready.\nconst function onReady(instance: Instance)\nend";
+		expect(parseChunk(src).errors).toEqual([]);
+		expect(hoverOn(src, "onReady", "onReady")?.doc?.text).toBe("Ready.");
+	});
+});
+
+describe("a comment about something else", () => {
+	it("is not given to the declaration under it", () => {
+		const src = "local Store = {}\n--[=[\n\t@class Store\n\tKeeps things.\n]=]\nfunction Store:init() end";
+		expect(hoverAt(src, src.indexOf(":init") + 2, true)?.doc).toBeUndefined();
+	});
+
+	it("is given when @function names that declaration, and not when it names another", () => {
+		const doc = (name: string) => `local Store = {}\n--[=[\n\t@function ${name}\n\t@within Store\n\tOpens it.\n]=]\nfunction Store.open() end`;
+		expect(hoverAt(doc("open"), doc("open").indexOf(".open") + 2, true)?.doc?.text).toBe("Opens it.");
+		expect(hoverAt(doc("close"), doc("close").indexOf(".open") + 2, true)?.doc).toBeUndefined();
 	});
 });

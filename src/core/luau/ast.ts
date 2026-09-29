@@ -32,7 +32,8 @@ export type Block = Stat[];
 export type Stat =
 	| ({ kind: "local"; names: Binding[]; values: Expr[]; attributes: Attribute[] } & Span)
 	| ({ kind: "const"; names: Binding[]; values: Expr[] } & Span)
-	| ({ kind: "localFunction"; name: Name; func: FunctionBody; attributes: Attribute[] } & Span)
+	/** `constant`: written `const function`, which cannot be reassigned. */
+	| ({ kind: "localFunction"; name: Name; func: FunctionBody; attributes: Attribute[]; constant?: true } & Span)
 	| ({ kind: "function"; path: Name[]; method?: Name; func: FunctionBody; attributes: Attribute[] } & Span)
 	| ({ kind: "assign"; targets: Expr[]; values: Expr[] } & Span)
 	| ({ kind: "compoundAssign"; op: string; target: Expr; value: Expr } & Span)

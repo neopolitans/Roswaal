@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.106.4",
+		date: "2026-09-30",
+		headline: "Hover finds every documented function.",
+		affects: ["editor"],
+		fixed: [
+			"**A local function's doc comment** shows where the function is declared, and on one whose parameters run onto the next lines, which showed nothing.",
+			"**A global function** a file declares hovers with its signature and doc comment, where it is declared and where it is called.",
+			"**A doc comment about a class or another function** is no longer shown on the declaration under it.",
+			"**const function** reads as Luau, where it was marked as a mistake.",
+		],
+	},
+	{
 		version: "0.106.3",
 		date: "2026-09-30",
 		headline: "Several Rojo project files are picked from a list.",

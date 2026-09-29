@@ -20,6 +20,23 @@ export interface DocComment {
 	deprecated?: string;
 	yields?: boolean;
 	errors: { type: string; description?: string }[];
+	/**
+	 * What Moonwave says the comment is about, when it says: `@class`,
+	 * `@prop`, `@type` and `@interface` describe something else, and
+	 * `@function name` or `@method name` a function by name. A comment like
+	 * that above a declaration is not that declaration's.
+	 */
+	subject?: { tag: string; name?: string };
+}
+
+/** Tags that make a comment about something other than what follows it. */
+const ELSEWHERE = new Set(["class", "prop", "type", "interface"]);
+
+/** The doc comment, if it is about a declaration called `name`. */
+export function docFor(doc: DocComment | undefined, name: string): DocComment | undefined {
+	if (!doc?.subject) return doc;
+	if (ELSEWHERE.has(doc.subject.tag)) return undefined;
+	return doc.subject.name === undefined || doc.subject.name === name ? doc : undefined;
 }
 
 /** The doc comment ending directly above `offset`, the start of a statement. */
@@ -112,6 +129,17 @@ export function parseDoc(raw: string): DocComment {
 			case "yields":
 				doc.yields = true;
 				break;
+			case "class":
+			case "prop":
+			case "type":
+			case "interface":
+			case "function":
+			case "method": {
+				// Moonwave's `@function Class.name` names it with its owner.
+				const named = /^\S+/.exec(rest)?.[0]?.split(/[.:]/).pop();
+				doc.subject ??= { tag: name, ...(named ? { name: named } : {}) };
+				break;
+			}
 			// Moonwave's own bookkeeping -- @within, @tag, @since, @class and
 			// the rest -- says where a page goes, not what the function does.
 		}

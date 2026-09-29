@@ -244,6 +244,14 @@ class Parser {
 				this.next();
 				return this.typeStat(start, true);
 			}
+			// `const function f()`: a local function that cannot be reassigned.
+			if (token.text === "const" && this.is("function", 1)) {
+				this.next();
+				this.next();
+				const name = this.expectName("a function name");
+				const func = this.functionBody(start);
+				return { kind: "localFunction", name, func, attributes: [], constant: true, ...this.span(start) };
+			}
 			if (token.text === "const" && this.isName(undefined, 1)) {
 				this.next();
 				const names = this.bindings();
