@@ -16,7 +16,7 @@ import { LAYER } from "./layers.js";
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
 	nodescript: "document",
 	nodemap: "map",
-	luau: "document",
+	luau: "luauScript",
 	// The gear it used to be reached by, kept as the glyph: it is the project's
 	// settings for requires, and the shape people already associate with that.
 	luaurc: "settings",
@@ -323,7 +323,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 								<Icon
 									name={KIND_ICONS[entry.kind as keyof typeof KIND_ICONS]}
 									size={15}
-									className={`kind ${entry.kind}`}
+									className={`kind ${entry.kind}${entry.kind === "luau" ? ` ${scriptClass(entry.name)}` : ""}`}
 								/>
 							</>
 						)}
@@ -471,6 +471,12 @@ const FOLDER_TITLE: Record<NonNullable<TreeEntry["role"]>, string> = {
 	script: "a script in Studio, with the rest of the folder as its children",
 	place: "only in the place; Modify RBXL writes it back",
 };
+
+/**
+ * A Luau file by the script it becomes: a Server Script in the scheme's own
+ * ink, a ModuleScript or LocalScript in blue.
+ */
+const scriptClass = (name: string) => (/\.server\.luau?$/i.test(name) ? "tree-script-server" : "tree-script-module");
 
 /** A stand-in so a heading row can share the row type without a file. */
 const SECTION_ENTRY: TreeEntry = { path: "", name: "", kind: "directory" };

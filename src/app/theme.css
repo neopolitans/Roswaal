@@ -95,6 +95,12 @@
 	--warning: #b8860b;
 	--ok: #2e7d47;
 
+	/* The project tree's script and folder colours; see derivedTokens. */
+	--tree-script-server: #000000;
+	--tree-script-module: #1f64c4;
+	--tree-folder-plain: #94712f;
+	--tree-folder-special: #1f64c4;
+
 	--select: #ff9c2e;
 }
 
@@ -108,6 +114,11 @@
 		--bg-input: #23272f;
 		--bg-hover: rgba(255, 255, 255, 0.07);
 		--bg-active: rgba(255, 255, 255, 0.13);
+
+		--tree-script-server: #ffffff;
+		--tree-script-module: #5ea2ee;
+		--tree-folder-plain: #c4a878;
+		--tree-folder-special: #5ea2ee;
 
 		--fg: #e4e7ec;
 		--fg-muted: #9aa2af;
@@ -3788,15 +3799,25 @@ button.tb.primary.danger:hover:not(:disabled) {
 	color: var(--fg-faint);
 }
 
+/* A Luau file by the script it becomes: a Server Script in the scheme's ink,
+   a ModuleScript or LocalScript in blue. */
+.tree-row .kind.luau.tree-script-server {
+	color: var(--tree-script-server);
+}
+
+.tree-row .kind.luau.tree-script-module {
+	color: var(--tree-script-module);
+}
+
 /* Compile content's folders say what they are: cream for a plain folder, blue
    for a service, container or script in Studio, red for place/, which only
-   the place holds. Fixed colours, chosen to read on light and dark themes. */
+   the place holds. A shade of each for light schemes and dark; see derivedTokens. */
 .tree-row .kind.tree-folder-plain {
-	color: #c4a878;
+	color: var(--tree-folder-plain);
 }
 
 .tree-row .kind.tree-folder-special {
-	color: #4d8fd8;
+	color: var(--tree-folder-special);
 }
 
 .tree-row .kind.tree-folder-place {

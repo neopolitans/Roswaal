@@ -3950,7 +3950,8 @@ const BUILDING: DocPage = {
 			text:
 				"Under Compile content in the project tree, a folder's colour says what it is: cream " +
 				"for a plain folder, blue for a service, container or script in Studio, and red for " +
-				"`place/`.",
+				"`place/`. A Luau file's icon says which script it becomes: white on a dark theme and " +
+				"black on a light one for a Script, blue for a ModuleScript or LocalScript.",
 		},
 
 		{ t: "h", level: 2, text: "Writing scripts into the place" },
