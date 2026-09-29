@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.106.3",
+		date: "2026-09-30",
+		headline: "Several Rojo project files are picked from a list.",
+		affects: ["editor"],
+		changed: [
+			"**Import Rojo project** offers a dropdown when there is more than one project file, with default.project.json first, where it had a button each.",
+		],
+	},
+	{
 		version: "0.106.2",
 		date: "2026-09-30",
 		headline: "Open folder offers to import a Rojo project too.",

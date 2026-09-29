@@ -48,6 +48,8 @@ export type DialogRequest =
 export type FormField =
 	| { id: string; kind: "text"; label: string; value: string }
 	| { id: string; kind: "choice"; label: string; value: string; options: { value: string; label: string }[] }
+	/** One of however many, as a dropdown: a list that could be long. */
+	| { id: string; kind: "select"; label: string; value: string; options: { value: string; label: string }[] }
 	| {
 			id: string;
 			kind: "check";
@@ -147,6 +149,22 @@ export function Dialog({ request, resolve }: PendingDialog) {
 											value={String(answers[field.id])}
 											onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.value })}
 										/>
+									</label>
+								);
+							}
+							if (field.kind === "select") {
+								return (
+									<label key={field.id} className="field">
+										<span>{field.label}</span>
+										<select
+											className="tb"
+											value={String(answers[field.id])}
+											onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.value })}
+										>
+											{field.options.map((option) => (
+												<option key={option.value} value={option.value}>{option.label}</option>
+											))}
+										</select>
 									</label>
 								);
 							}

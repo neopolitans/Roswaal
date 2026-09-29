@@ -1451,6 +1451,28 @@ export function App() {
 	 * with a project file no map writes: it says where the file came from, and
 	 * says nothing at all when there is none.
 	 */
+	/**
+	 * Which of several project files to import, from a dropdown: a project can
+	 * have a file per place, and a row of buttons does not stretch to that.
+	 * `default.project.json` comes first, as it is the one Rojo reads unasked.
+	 */
+	const pickProjectFile = useCallback(async (files: string[], offered?: "zip" | "folder") => {
+		const sorted = [...files].sort((a, b) =>
+			Number(b === "default.project.json") - Number(a === "default.project.json") || a.localeCompare(b));
+		const answer = await ask({
+			kind: "form",
+			title: "Import Rojo project",
+			message: `${offered ? `The ${offered}` : "This project"} has ${files.length} Rojo project files. `
+				+ "Pick one to read into a node map; the file is not changed.",
+			fields: [{
+				id: "file", kind: "select", label: "Project file", value: sorted[0],
+				options: sorted.map((file) => ({ value: file, label: file })),
+			}],
+			confirmLabel: "Import",
+		});
+		return typeof answer === "string" ? String((JSON.parse(answer) as FormAnswers).file) : null;
+	}, [ask]);
+
 	const importRojo = useCallback(async (offered?: "zip" | "folder") => {
 		try {
 			const { projects } = await api.rojoProjects();
@@ -1474,14 +1496,7 @@ export function App() {
 						: `Read ${open[0].file} into a node map? The file is not changed.`,
 					confirmLabel: "Import",
 				})) === true ? open[0].file : null
-				: (await ask({
-					kind: "choice",
-					title: "Import Rojo project",
-					message: offered
-						? `The ${offered} has Rojo project files. Read one into a node map? It is not changed.`
-						: "Which project file? It is not changed.",
-					choices: open.map((p, i) => ({ value: p.file, label: p.file, primary: i === 0 })),
-				})) as string | null;
+				: await pickProjectFile(open.map((p) => p.file), offered);
 			if (!file) return;
 			const out = await api.importRojo(file);
 			await refreshTree();
@@ -1496,7 +1511,7 @@ export function App() {
 		} catch (err) {
 			notify("Could not import the Rojo project", (err as Error).message);
 		}
-	}, [ask, notify, refreshTree, openEntry]);
+	}, [ask, notify, refreshTree, openEntry, pickProjectFile]);
 
 	/**
 	 * The tree as last read, for the DataModel browser's handlers: through a
