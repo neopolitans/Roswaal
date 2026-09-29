@@ -15,7 +15,9 @@
  * value holds would be a completion list that lies.
  */
 
-import type { Expr, FunctionBody } from "./ast.js";
+import type { Expr, FunctionBody, Stat } from "./ast.js";
+import { docCommentBefore, type DocComment } from "./docComment.js";
+import { tokenize, type Token } from "./lexer.js";
 import { parseChunk } from "./parser.js";
 import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
 import { isService } from "../roblox.js";
@@ -195,6 +197,18 @@ export interface TableMember {
 	kind: "function" | "method" | "field";
 	/** A function's signature, or a field's type when it is evident; "" when not. */
 	detail: string;
+	/** The documentation comment above where the code puts it. */
+	doc?: DocComment;
+}
+
+/** `a.b.c` as its names, or undefined for anything that is not a chain of them. */
+function chainOf(expr: Expr): string | undefined {
+	if (expr.kind === "name") return expr.name;
+	if (expr.kind === "index") {
+		const object = chainOf(expr.object);
+		return object === undefined ? undefined : `${object}.${expr.name.name}`;
+	}
+	return undefined;
 }
 
 /**
@@ -203,14 +217,23 @@ export interface TableMember {
  * `Occupancy.VALUE_NAME = …` assignments. A generated module is written this
  * way — a table, then its functions declared on it — so without this the
  * functions a module exports were invisible to hover and completion.
+ *
+ * `owner` may be a chain, `Promise.prototype`, for a table kept inside
+ * another. Each member carries the doc comment written above it, and a field
+ * that is another member of the same table -- `Promise.async =
+ * Promise.defer` -- is described as that member.
  */
 export function membersInCode(src: string, owner: string): TableMember[] {
 	const out: TableMember[] = [];
 	const seen = new Set<string>();
-	const add = (member: TableMember) => {
+	let tokens: Token[] | undefined;
+	const docAt = (at: number) => docCommentBefore(src, at, (tokens ??= tokenize(src)));
+	const aliases: { member: TableMember; of: string }[] = [];
+	const add = (member: TableMember, at: number) => {
 		if (seen.has(member.name)) return;
 		seen.add(member.name);
-		out.push(member);
+		const doc = docAt(at);
+		out.push(doc ? { ...member, doc } : member);
 	};
 	const visit = (node: unknown): void => {
 		if (Array.isArray(node)) {
@@ -219,24 +242,32 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 		}
 		if (!node || typeof node !== "object") return;
 		const stat = node as { kind?: string };
-		if (stat.kind === "function") {
-			const fn = node as Extract<import("./ast.js").Stat, { kind: "function" }>;
-			if (fn.path.length === 1 && fn.path[0].name === owner && fn.method) {
-				add({ name: fn.method.name, kind: "method", detail: signatureOf(fn.func, src) });
-			} else if (fn.path.length === 2 && fn.path[0].name === owner && !fn.method) {
-				add({ name: fn.path[1].name, kind: "function", detail: signatureOf(fn.func, src) });
+		// A function *statement*: a function expression shares the kind and
+		// has no path, and reading one as the other threw, taking every hover
+		// in the file with it.
+		if (stat.kind === "function" && "path" in node) {
+			const fn = node as Extract<Stat, { kind: "function" }>;
+			const names = fn.path.map((n) => n.name);
+			if (fn.method && names.join(".") === owner) {
+				add({ name: fn.method.name, kind: "method", detail: signatureOf(fn.func, src) }, fn.start);
+			} else if (!fn.method && names.length >= 2 && names.slice(0, -1).join(".") === owner) {
+				add({ name: names[names.length - 1], kind: "function", detail: signatureOf(fn.func, src) }, fn.start);
 			}
 		} else if (stat.kind === "assign") {
-			const assign = node as Extract<import("./ast.js").Stat, { kind: "assign" }>;
+			const assign = node as Extract<Stat, { kind: "assign" }>;
 			assign.targets.forEach((target, i) => {
-				if (target.kind === "index" && target.object.kind === "name" && target.object.name === owner) {
+				if (target.kind === "index" && chainOf(target.object) === owner) {
 					const value = assign.values[i];
 					const isFunction = value?.kind === "function";
-					add({
+					const member: TableMember = {
 						name: target.name.name,
 						kind: isFunction ? "function" : "field",
 						detail: typeOfValue(value, src) ?? "",
-					});
+					};
+					add(member, assign.start);
+					if (value?.kind === "index" && chainOf(value.object) === owner) {
+						aliases.push({ member: out.find((m) => m.name === member.name)!, of: value.name.name });
+					}
 				}
 			});
 		}
@@ -245,6 +276,15 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 		}
 	};
 	visit(parseChunk(src).value);
+	for (const { member, of } of aliases) {
+		const original = out.find((m) => m.name === of);
+		if (!original || original === member) continue;
+		Object.assign(member, {
+			kind: original.kind,
+			detail: original.detail,
+			...(member.doc || !original.doc ? {} : { doc: original.doc }),
+		});
+	}
 	return out;
 }
 

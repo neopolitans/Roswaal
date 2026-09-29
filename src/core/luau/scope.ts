@@ -26,6 +26,8 @@ export interface ScopedName {
 	value?: Expr;
 	/** A local function's definition, for its signature. */
 	func?: FunctionBody;
+	/** Where the statement that declares it starts, for the doc comment above. */
+	declaredAt?: number;
 }
 
 /** Names a statement leaves in scope for the statements after it. */
@@ -36,11 +38,12 @@ function declared(stat: Stat): ScopedName[] {
 			return stat.names.map((b, i) => ({
 				name: b.name,
 				kind: "local" as const,
+				declaredAt: stat.start,
 				...(b.type ? { typeSpan: b.type } : {}),
 				...(stat.values[i] ? { value: stat.values[i] } : {}),
 			}));
 		case "localFunction":
-			return [{ name: stat.name.name, kind: "function", func: stat.func }];
+			return [{ name: stat.name.name, kind: "function", func: stat.func, declaredAt: stat.start }];
 		default:
 			return [];
 	}

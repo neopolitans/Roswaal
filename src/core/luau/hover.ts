@@ -15,6 +15,7 @@ import {
 	type TableMember,
 } from "./infer.js";
 import { ENGINE, signatureText } from "../robloxEngine.js";
+import { docCommentBefore, type DocComment } from "./docComment.js";
 import { tokenize } from "./lexer.js";
 import { localsAt, type LocalKind } from "./scope.js";
 import { CLASSES, DATATYPES } from "../robloxData.js";
@@ -32,6 +33,8 @@ export interface Hover {
 	role?: string;
 	summary?: string;
 	link?: { label: string; href: string };
+	/** The code's own documentation comment for it, when it has one. */
+	doc?: DocComment;
 }
 
 const DOCS = "https://create.roblox.com/docs/reference/engine";
@@ -67,13 +70,53 @@ const LOCAL_ROLE: Record<LocalKind, string> = {
 
 const isWordChar = (c: string | undefined) => !!c && /[A-Za-z0-9_]/.test(c);
 
+/**
+ * A signature with the types its doc comment gives, where the code gives none:
+ * `(...) -> ()` under `@param ... any` and `@return Promise<...any>` reads
+ * `(...: any) -> Promise<...any>`. Types written in the code win.
+ */
+export function withDocTypes(detail: string, doc: DocComment | undefined): string {
+	const parts = /^\((.*)\) -> (.*)$/.exec(detail);
+	if (!doc || !parts) return detail;
+	let [, params, returns] = parts;
+	if (params && !params.includes(":")) {
+		params = params.split(", ").map((name) => {
+			const param = doc.params.find((p) => p.name === name || p.name === `${name}?`);
+			if (!param?.type) return name;
+			if (!param.name.endsWith("?")) return `${name}: ${param.type}`;
+			return `${name}: ${param.type.includes("->") ? `(${param.type})` : param.type}?`;
+		}).join(", ");
+	}
+	if (returns === "()" && doc.returns.length) {
+		const types = doc.returns.map((r) => r.type);
+		returns = types.length === 1 ? types[0] : `(${types.join(", ")})`;
+	}
+	return `(${params}) -> ${returns}`;
+}
+
 /** A member put on a table by the code or the graph: `Occupancy.value: (tank: Model) -> (Instance)`. */
 function aboutMember(owner: string, member: TableMember, from: number, to: number): Hover {
+	const detail = withDocTypes(member.detail, member.doc);
 	return {
 		from, to,
-		code: `${owner}.${member.name}${member.detail ? `: ${member.detail}` : ""}`,
+		code: `${owner}${member.kind === "method" ? ":" : "."}${member.name}${detail ? `: ${detail}` : ""}`,
 		role: member.kind,
+		...(member.doc ? { doc: member.doc } : {}),
 	};
+}
+
+/** The names before `end`, joined by dots: `Promise.prototype` in `Promise.prototype:andThen`. */
+function chainBefore(src: string, end: number): { chain: string; from: number } {
+	let from = end;
+	for (;;) {
+		let start = from;
+		while (isWordChar(src[start - 1])) start--;
+		if (start === from) break;
+		from = start;
+		if (src[from - 1] !== "." || !isWordChar(src[from - 2])) break;
+		from--;
+	}
+	return { chain: src.slice(from, end), from };
 }
 
 /**
@@ -157,10 +200,12 @@ export function hoverAt(
 		}
 
 		// A function or field put on the table: `function Occupancy.value(…)`
-		// in the file, or a Declare Function the graph wires onto it.
-		const onTable = membersInCode(src, owner).find((m) => m.name === word)
-			?? (local ? undefined : tableMembers.get(owner)?.find((m) => m.name === word));
-		if (onTable) return aboutMember(owner, onTable, from, to);
+		// in the file, or a Declare Function the graph wires onto it. The
+		// owner may be a chain: `Promise.prototype.andThen`.
+		const { chain } = chainBefore(src, from - 1);
+		const onTable = membersInCode(src, chain).find((m) => m.name === word)
+			?? (local ? undefined : tableMembers.get(chain)?.find((m) => m.name === word));
+		if (onTable) return aboutMember(chain, onTable, from, to);
 		if (local) return null;
 
 		const item = roblox ? DATATYPE_STATICS[owner]?.find((s) => s.name === word) : undefined;
@@ -178,6 +223,14 @@ export function hoverAt(
 			return { from, to, code, role: item.kind, summary: item.summary, link: datatypeLink(owner) };
 		}
 		return null;
+	}
+
+	// A method the file declares, where it declares it or where it is called
+	// on the table: `function Promise.prototype:andThen(…)`.
+	if (src[from - 1] === ":" && isWordChar(src[from - 2])) {
+		const { chain } = chainBefore(src, from - 1);
+		const method = membersInCode(src, chain).find((m) => m.name === word && m.kind === "method");
+		if (method) return aboutMember(chain, method, from, to);
 	}
 
 	// After a colon, and followed by a call: a method, looked up on the class
@@ -217,8 +270,10 @@ export function hoverAt(
 			?? (held.keys ? "table" : undefined);
 		const code = type ? `${word}: ${type}` : word;
 		const role = LOCAL_ROLE[local.kind];
-		if (roblox && held.className) return aboutClass(held.className, from, to, code, role);
-		return { from, to, code, role };
+		const doc = local.declaredAt === undefined ? undefined : docCommentBefore(src, local.declaredAt);
+		const typed = doc && type && local.func && !local.typeText ? `${word}: ${withDocTypes(type, doc)}` : code;
+		if (roblox && held.className) return { ...aboutClass(held.className, from, to, typed, role), ...(doc ? { doc } : {}) };
+		return { from, to, code: typed, role, ...(doc ? { doc } : {}) };
 	}
 
 	if (roblox && CLASS_SET.has(word)) return aboutClass(word, from, to);

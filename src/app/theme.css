@@ -10543,7 +10543,7 @@ select:not(.literal):not([multiple]) {
    on a shade darker than the body, so it reads as the thing and the sentence
    under it as what is said about it. */
 .luau-hover {
-	max-width: 400px;
+	max-width: min(480px, calc(100vw - 24px));
 	border-radius: 6px;
 	overflow: hidden;
 	font-size: 12px;
@@ -10583,6 +10583,73 @@ select:not(.literal):not([multiple]) {
 	margin: 0;
 	padding: 7px 10px 0;
 	color: var(--fg-muted);
+}
+
+/* The code's own doc comment: prose, examples and tags, scrolling past a
+   screenful rather than covering the file. Its code is inline and plain,
+   where the heading's is the signature in bold. */
+.luau-hover-doc {
+	max-height: min(360px, 50vh);
+	overflow: auto;
+	padding-bottom: 8px;
+}
+
+.luau-hover .luau-hover-doc code {
+	display: inline;
+	font-size: 11.5px;
+	font-weight: 400;
+	white-space: pre-wrap;
+}
+
+.luau-hover-doc pre {
+	margin: 7px 10px 0;
+	padding: 6px 8px;
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--bg-canvas) 70%, var(--bg-panel));
+	overflow-x: auto;
+}
+
+.luau-hover .luau-hover-doc pre code {
+	display: block;
+	white-space: pre;
+}
+
+.luau-hover .luau-hover-doc a {
+	display: inline;
+	margin: 0;
+}
+
+.luau-hover-tags {
+	margin: 7px 10px 0;
+}
+
+.luau-hover-tags dt {
+	font-size: 10.5px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fg-faint);
+}
+
+.luau-hover-tags dd {
+	margin: 2px 0 0;
+	color: var(--fg-muted);
+}
+
+.luau-hover-deprecated,
+.luau-hover-yields {
+	font-weight: 600;
+}
+
+.luau-hover .luau-hover-deprecated {
+	color: var(--warning);
+}
+
+.luau-hover .luau-hover-note {
+	margin: 7px 10px 0;
+	padding: 5px 8px;
+	border-left: 2px solid var(--warning);
+	background: color-mix(in srgb, var(--warning) 8%, transparent);
 }
 
 .luau-hover a {

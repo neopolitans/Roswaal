@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.104.0",
+		date: "2026-09-29",
+		headline: "Hover reads doc comments.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Doc comments in hover.** A --[=[ ]=] block or --- lines directly above a function show with it: text, highlighted examples, notes, parameters and returns. Types from @param and @return fill a signature the code leaves untyped.",
+			"**Hover on methods a file declares**, including on a table inside a table, and on a field set to another function of the same table.",
+		],
+		fixed: [
+			"**Hover on a table's functions** works in a file that also has anonymous functions, where it showed nothing.",
+		],
+	},
+	{
 		version: "0.103.0",
 		date: "2026-09-29",
 		headline: "The DataModel browser.",

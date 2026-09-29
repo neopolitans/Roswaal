@@ -3444,6 +3444,14 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 				"**Completion reads the code you are typing**: its own locals, and the parameters and " +
 				"loop variables around the cursor, are offered ahead of the graph's names.",
 		},
+		{
+			t: "p",
+			text:
+				"Hovering a name says what it is, here and in a Luau file opened from the project. A " +
+				"doc comment directly above a function — a `--[=[ … ]=]` block or `---` lines, as " +
+				"Moonwave and luau-lsp read them — shows with it: its text, examples and notes, and " +
+				"the types its `@param` and `@return` tags give.",
+		},
 
 		{ t: "h", level: 2, text: "There are exactly two" },
 		{
