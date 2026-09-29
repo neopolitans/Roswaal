@@ -383,13 +383,21 @@ function pathTo(nodes: readonly [number, string, number, number][], index: numbe
 
 const isScriptClass = (cls: string) => cls === "Script" || cls === "LocalScript" || cls === "ModuleScript";
 
+/**
+ * Containers Studio makes for you inside a service: not services themselves,
+ * but special in the same way, so the same blue folder.
+ */
+const CONTAINERS = new Set(["StarterPlayerScripts", "StarterCharacterScripts", "StarterGear"]);
+
 /** The glyph the project tree uses for the same thing, and a cube for the rest. */
 function ClassIcon({ className, service, open }: { className: string; service: boolean; open: boolean }) {
 	if (isScriptClass(className)) {
 		const tone = className === "Script" ? "server" : className === "LocalScript" ? "local" : "module";
 		return <Icon name="luauScript" size={15} className={`kind luau tree-script-${tone}`} />;
 	}
-	if (service) return <Icon name={open ? "folderOpen" : "folder"} size={15} className="kind tree-folder-special" />;
+	if (service || CONTAINERS.has(className)) {
+		return <Icon name={open ? "folderOpen" : "folder"} size={15} className="kind tree-folder-special" />;
+	}
 	if (className === "Folder") return <Icon name={open ? "folderOpen" : "folder"} size={15} className="kind tree-folder-plain" />;
 	return <Icon name="instance" size={15} className="kind place-instance" />;
 }

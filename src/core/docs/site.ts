@@ -3938,8 +3938,8 @@ const BUILDING: DocPage = {
 				"A project Rojo already manages has its tree in `default.project.json`. **Project → " +
 				"Import Rojo project…**, or `roswaal import default.project.json`, reads it into a node " +
 				"map beside your graphs. The file is not changed, and every field in it is kept, " +
-				"including ones the map editor has no control for. In the web app, **Open .zip…** " +
-				"offers the same when the zip has a project file no map writes.",
+				"including ones the map editor has no control for. In the web app, **Open .zip…** and " +
+				"**Open folder…** offer the same when there is a project file no map writes.",
 		},
 		{
 			t: "p",

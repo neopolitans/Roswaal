@@ -1447,11 +1447,11 @@ export function App() {
 	 * Project → Import Rojo project…: a `*.project.json` in the root, read into
 	 * a node map, which is then opened. The file itself is not changed.
 	 *
-	 * `offered` is the same, asked unprompted after a zip opens with a project
-	 * file no map writes: it says where the file came from, and says nothing
-	 * at all when there is none.
+	 * `offered` is the same, asked unprompted after a zip or a folder opens
+	 * with a project file no map writes: it says where the file came from, and
+	 * says nothing at all when there is none.
 	 */
-	const importRojo = useCallback(async (offered = false) => {
+	const importRojo = useCallback(async (offered?: "zip" | "folder") => {
 		try {
 			const { projects } = await api.rojoProjects();
 			const open = projects.filter((p) => !p.mappedBy);
@@ -1470,7 +1470,7 @@ export function App() {
 					kind: "confirm",
 					title: "Import Rojo project",
 					message: offered
-						? `The zip has ${open[0].file}. Read it into a node map, so Roswaal knows where things live? The file is not changed.`
+						? `The ${offered} has ${open[0].file}. Read it into a node map, so Roswaal knows where things live? The file is not changed.`
 						: `Read ${open[0].file} into a node map? The file is not changed.`,
 					confirmLabel: "Import",
 				})) === true ? open[0].file : null
@@ -1478,7 +1478,7 @@ export function App() {
 					kind: "choice",
 					title: "Import Rojo project",
 					message: offered
-						? "The zip has Rojo project files. Read one into a node map? It is not changed."
+						? `The ${offered} has Rojo project files. Read one into a node map? It is not changed.`
 						: "Which project file? It is not changed.",
 					choices: open.map((p, i) => ({ value: p.file, label: p.file, primary: i === 0 })),
 				})) as string | null;
@@ -1639,6 +1639,7 @@ export function App() {
 
 			if ("root" in picked) {
 				await loadProject(picked.root);
+				await importRojo("folder");
 				return;
 			}
 
@@ -1662,10 +1663,11 @@ export function App() {
 
 			const made = await picked.initialise();
 			await loadProject(made.root);
+			await importRojo("folder");
 		} catch (err) {
 			notify("That folder could not be opened", (err as Error).message);
 		}
-	}, [loadProject, notify]);
+	}, [ask, loadProject, notify, importRojo]);
 
 	/**
 	 * A project from a zip, in place of the one this browser holds.
@@ -1717,7 +1719,7 @@ export function App() {
 					message: `The browser keeps a project's text files. Not brought in: ${shown.join(", ")}.`,
 				});
 			}
-			await importRojo(true);
+			await importRojo("zip");
 		} catch (err) {
 			notify("That zip could not be opened", (err as Error).message);
 		}

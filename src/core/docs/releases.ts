@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.106.2",
+		date: "2026-09-30",
+		headline: "Open folder offers to import a Rojo project too.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Open folder** asks whether to import the folder's Rojo project file as a node map, as Open .zip does.",
+			"**StarterPlayerScripts, StarterCharacterScripts and StarterGear** have a blue folder in DataModel, like the services they sit in.",
+		],
+	},
+	{
 		version: "0.106.1",
 		date: "2026-09-30",
 		headline: "Open .zip offers to import a Rojo project.",
