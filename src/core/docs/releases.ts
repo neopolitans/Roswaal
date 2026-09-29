@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.102.3",
+		date: "2026-09-29",
+		headline: "Members and fields is reviewed.",
+		affects: ["docs"],
+		changed: [
+			"**Members and fields** has a plainer summary.",
+		],
+		reviewed: ["members-and-fields"],
+	},
+	{
 		version: "0.102.2",
 		date: "2026-09-29",
 		headline: "A graph's tabs keep the page in view.",

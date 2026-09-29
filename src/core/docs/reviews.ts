@@ -65,6 +65,10 @@ export const REVIEWS: Record<
 	string,
 	{ status: Exclude<ReviewStatus, "pending">; date: string; verify?: string; reviewers?: string[] }
 > = {
+	// Read by the author for 0.102.3, block by block on a review page built from
+	// the page source: five rewordings, a plainer summary, and the graph tabs'
+	// blank-page bug (0.102.2) found on the way.
+	"members-and-fields": { status: "reviewed", date: "2026-09-29", reviewers: ["neopolitans"] },
 	// Verified by the author across 0.60.0 to 0.60.3, which is the release the
 	// page was written in and the two that answered what reading it turned up:
 	// the drawn bars sat flush against their legends and read as the top row of

@@ -2838,8 +2838,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 	slug: "members-and-fields",
 	narrow: true,
 	title: "Members and fields",
-	summary: "Reading a field off a value whose type says what it holds — and what to use when it does not.",
-	review: { status: "pending" },
+	summary: "Reading a field from a value whose type says what it holds, and what to use when it doesn't.",
 	blocks: [
 		{
 			t: "p",
