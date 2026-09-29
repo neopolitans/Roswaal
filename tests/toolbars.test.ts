@@ -437,8 +437,12 @@ describe("the tab switch does not move the window", () => {
 		return css.slice(css.indexOf("{", at) + 1, css.indexOf("}", at));
 	};
 
+	// A graph's tabs are the same switch: 0.102.2 found them without the fix,
+	// on Members and fields, where the Remotes tab blanked the page.
+	const switches = [".docs-tabs", ".docs-graph-tabs"];
+
 	it("gives the hidden radios a containing block of their own", () => {
-		expect(rule(".docs-tabs")).toContain("position: relative");
+		for (const s of switches) expect(rule(s), s).toContain("position: relative");
 	});
 
 	/**
@@ -446,13 +450,15 @@ describe("the tab switch does not move the window", () => {
 	 * static position, which is the part that reached down the page.
 	 */
 	it("pins them to the top of the switch rather than leaving them in flow", () => {
-		const input = rule(".docs-tabs > input");
-		expect(input).toContain("position: absolute");
-		expect(input).toContain("top: 0");
-		expect(input).toContain("left: 0");
-		// An input has an intrinsic width; at its natural size it can still
-		// widen a narrow page.
-		expect(input).toContain("width: 1px");
+		for (const s of switches) {
+			const input = rule(`${s} > input`);
+			expect(input, s).toContain("position: absolute");
+			expect(input, s).toContain("top: 0");
+			expect(input, s).toContain("left: 0");
+			// An input has an intrinsic width; at its natural size it can still
+			// widen a narrow page.
+			expect(input, s).toContain("width: 1px");
+		}
 	});
 });
 

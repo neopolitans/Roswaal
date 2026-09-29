@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.102.2",
+		date: "2026-09-29",
+		headline: "A graph's tabs keep the page in view.",
+		affects: ["docs"],
+		fixed: [
+			"**Clicking a graph's tab** on the website, such as Remotes on Members and fields, no longer turns the page blank.",
+		],
+	},
+	{
 		version: "0.102.1",
 		date: "2026-09-29",
 		headline: "Members and fields reads more plainly.",

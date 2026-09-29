@@ -6459,9 +6459,21 @@ button.tb.danger {
 
 /* Several graphs in one frame, a tab each — the shape the editor uses for two
    open documents, so an example that is two files reads as two files.
-   Radios on the static site, state in the app; both hide the radios. */
+   Radios on the static site, state in the app; both hide the radios.
+
+   Pinned inside their own block, as `.docs-tabs` pins its radios: left at their
+   static position they reached the body's overflow, and clicking a graph's tab
+   scrolled the window to a radio below anything drawn -- a blank page. */
+.docs-graph-tabs {
+	position: relative;
+}
+
 .docs-graph-tabs > input {
 	position: absolute;
+	top: 0;
+	left: 0;
+	width: 1px;
+	height: 1px;
 	opacity: 0;
 	pointer-events: none;
 }
