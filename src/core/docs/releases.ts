@@ -94,6 +94,21 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.106.0",
+		date: "2026-09-29",
+		headline: "Import a Rojo project as a node map.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Import Rojo project**, in the Project menu or as roswaal import default.project.json, reads a Rojo project file into a node map. Every field is kept, including ones the map editor has no control for, and a class the file writes out is kept as written.",
+		],
+		changed: [
+			"**A project file the map already matches is left alone** when you compile, however it is laid out, and the compile list says same. When the map changes, the file keeps its indentation and line endings.",
+		],
+		fixed: [
+			"**A Lune node map stays a Lune map when saved.** Saving dropped what made it one, so it came back as a DataModel map.",
+		],
+	},
+	{
 		version: "0.105.0",
 		date: "2026-09-29",
 		headline: "Place instances open in a Properties panel.",

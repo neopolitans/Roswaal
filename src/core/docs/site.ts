@@ -3931,6 +3931,24 @@ const BUILDING: DocPage = {
 				"map covers the file, it says so.",
 		},
 
+		{ t: "h", level: 2, text: "Starting from a Rojo project" },
+		{
+			t: "p",
+			text:
+				"A project Rojo already manages has its tree in `default.project.json`. **Project → " +
+				"Import Rojo project…**, or `roswaal import default.project.json`, reads it into a node " +
+				"map beside your graphs. The file is not changed, and every field in it is kept, " +
+				"including ones the map editor has no control for.",
+		},
+		{
+			t: "p",
+			text:
+				"When the map compiles back to the same project, the map writes the file from then on. " +
+				"Compiling leaves it alone until the map changes, and then keeps its indentation and " +
+				"line endings. If the map would write it differently, the file stays yours until you " +
+				"compile with force.",
+		},
+
 		{ t: "h", level: 2, text: "Starting from a place" },
 		{
 			t: "p",

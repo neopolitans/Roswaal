@@ -1629,6 +1629,7 @@ export const PROJECT_MENU: ToolbarSpec = {
 				{ t: "button", text: "Open folder…", icon: "folder", name: "Open folder…", what: "A folder on your computer, in Chrome and Edge." },
 				{ t: "button", text: "Open .zip…", icon: "folderOpen", name: "Open .zip…", what: "A project from a zip, in any browser." },
 				{ t: "button", text: "Open place…", icon: "folderOpen", name: "Open place…", what: "A project made from a .rbxl or .rbxlx." },
+				{ t: "button", text: "Import Rojo project…", icon: "map", name: "Import Rojo project…", what: "A node map read from the project's default.project.json." },
 				{ t: "button", text: "Export…", icon: "copy", name: "Export…", what: "The project as a zip, or its place file alone." },
 				{ t: "button", text: "Start again", icon: "refresh", name: "Start again", what: "Back to the demo." },
 			],

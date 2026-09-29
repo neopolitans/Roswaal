@@ -61,6 +61,8 @@ export interface MapOutcome {
 	mapPath: string;
 	outputPath: string;
 	written: boolean;
+	/** It already said what the map says, and was left as it was. */
+	unchanged?: boolean;
 	skipped?: string;
 	diagnostics: MapDiagnostic[];
 	json: string;
@@ -226,6 +228,11 @@ export const api = {
 		}),
 
 	tree: () => request<{ tree: TreeEntry[]; place: string | null }>("/api/tree"),
+	/** The `*.project.json` files in the project's root, and the maps that write them. */
+	rojoProjects: () => request<{ projects: { file: string; mappedBy: string | null }[] }>("/api/rojo/projects"),
+	/** Reads a Rojo project file into a node map. */
+	importRojo: (file: string) =>
+		post<{ file: string; mapPath: string; takenOver: boolean; problems: string[] }>("/api/rojo/import", { file }),
 	/** The place as a tree of names and classes, for the DataModel browser. */
 	place: () => request<PlaceTree>("/api/place"),
 	/** One instance of the place, its properties as text. */

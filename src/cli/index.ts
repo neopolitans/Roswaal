@@ -26,7 +26,7 @@ import path from "node:path";
 import { DEFAULT_PORT, hasBundledEditor, startDaemon } from "../server/app.js";
 import {
 	collectMaps, compileAll, compileMap, compileScript, findOrphanOutputs,
-	exportPlace, openProject, removeOutputs, writeConfig, writePlaceImport,
+	exportPlace, importRojoProject, initProject, openProject, removeOutputs, writeConfig, writePlaceImport,
 } from "../server/project.js";
 import { describePlaceReport } from "../core/rbx/placeExport.js";
 import { readRbx } from "../core/rbx/index.js";
@@ -259,13 +259,41 @@ async function commandInit(args: Args): Promise<number> {
 	return 0;
 }
 
+/**
+ * `roswaal import default.project.json`: the project file of the folder it is
+ * in, read into a node map there. The folder becomes a Roswaal project if it
+ * was not one.
+ */
+async function commandImportRojo(file: string): Promise<number> {
+	const root = path.dirname(file);
+	console.log(`${bold("roswaal import")} ${dim(file)}`);
+	const hadConfig = await fs.access(path.join(root, "roswaal.json")).then(() => true, () => false);
+	try {
+		if (!hadConfig) await initProject(root);
+		const outcome = await importRojoProject(await openProject(root), path.basename(file));
+		if (!hadConfig) console.log(`  ${green("config  ")} roswaal.json, so this folder is a Roswaal project`);
+		console.log(`  ${green("map     ")} ${outcome.mapPath}`);
+		for (const problem of outcome.problems) console.log(`  ${yellow("kept    ")} ${problem}`);
+		if (outcome.takenOver) {
+			console.log(`  ${green("rojo    ")} ${outcome.file} is written from the map now; compiling leaves it as it is until the map changes`);
+		} else {
+			console.log(`  ${yellow("rojo    ")} ${outcome.file} is left to you: the map would write it differently. Compile with --force to take it over.`);
+		}
+		return 0;
+	} catch (err) {
+		console.log(red(`  ${(err as Error).message}`));
+		return 1;
+	}
+}
+
 async function commandImport(args: Args): Promise<number> {
 	const launchedFrom = process.env.ROSWAAL_CWD ?? process.cwd();
 	const given = args.positional[1];
 	if (!given) {
-		console.log(red("roswaal import needs a place file: roswaal import <place.rbxl> [directory]"));
+		console.log(red("roswaal import needs a place file or a Rojo project file: roswaal import <place.rbxl> [directory], or roswaal import default.project.json"));
 		return 2;
 	}
+	if (/\.project\.json$/i.test(given)) return commandImportRojo(path.resolve(launchedFrom, given));
 	const placePath = path.resolve(launchedFrom, given);
 	const ext = path.extname(placePath).toLowerCase();
 	const stem = path.basename(placePath, path.extname(placePath));
@@ -510,7 +538,9 @@ async function commandCompile(args: Args): Promise<number> {
 
 	for (const mapPath of mapTargets) {
 		const outcome = await compileMap(project, mapPath, { write: true, force });
-		if (outcome.written) {
+		if (outcome.unchanged) {
+			console.log(`${green("same    ")} ${outcome.outputPath} ${dim("already says this; left as it is")}`);
+		} else if (outcome.written) {
 			console.log(`${green("wrote   ")} ${outcome.outputPath}`);
 		} else {
 			mapFailures++;

@@ -33,6 +33,7 @@ import { planPlaceUpdate, type PlaceReport } from "../core/rbx/placeExport.js";
 import { path } from "./host.js";
 import {
 	buildTree, collectBinaries, collectMaps, collectProject, compileAll, exportPlace, findPlaceFile, compileMap, compileScript, copyPackBetween, createFolder,
+	findRojoProjects, importRojoProject,
 	createPack, deleteEntry, deletePack, deletePackNode, duplicatePack, exportedTypes, findOrphanOutputs,
 	graphName, initProject, listPacks, locateFile, moveEntry, openProject, packUsage, readConfig,
 	readLuaurcFiles, readMap, readPack, readScript, readText, removeOutputs, renameEntry, safeJoin,
@@ -342,6 +343,23 @@ export class ApiSession {
 					if (i !== undefined) scripts[i] = owner;
 				});
 				return { file, stamp: loaded.stamp, outline: loaded.outline, scripts };
+			},
+
+			/**
+			 * The Rojo project files in the project's root, and which already
+			 * have a map writing them: what Import Rojo project offers.
+			 */
+			"GET /rojo/projects": async () => ({ projects: await findRojoProjects(this.project()) }),
+
+			/** Reads a Rojo project file into a node map. See `importRojoProject`. */
+			"POST /rojo/import": async (req) => {
+				const { file } = body<{ file?: string }>(req);
+				if (!file) throw new HttpError(400, "Which project file? Pass its `file`.");
+				try {
+					return await importRojoProject(this.project(), file);
+				} catch (err) {
+					throw new HttpError(400, (err as Error).message);
+				}
 			},
 
 			/**

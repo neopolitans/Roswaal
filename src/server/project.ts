@@ -15,6 +15,7 @@ import { LuauParseError, parseLuauData } from "../core/luauData.js";
 import { chainFor, parseLuaurc, type LuaurcSource } from "../core/luaurc.js";
 import type { SpecifierContext } from "../core/modules.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
+import { formatLike, parseProject, projectToMap, sameProject } from "../core/rojoImport.js";
 import { LINKS_FILE, PLACE_DIR, type PlaceImport, type PlaceLinks } from "../core/rbx/placeImport.js";
 import { type PlaceEntry, planPlaceUpdate, type PlaceUpdate } from "../core/rbx/placeExport.js";
 import { readRbx } from "../core/rbx/index.js";
@@ -879,10 +880,80 @@ export async function writeMap(
 	await fs.writeFile(abs, serialiseMap(map), "utf8");
 }
 
+/** A Rojo project file in the project's root, and the map that writes it, if one does. */
+export interface RojoProjectFile {
+	file: string;
+	mappedBy: string | null;
+}
+
+/** The `*.project.json` files in the project's root, for Import Rojo project. */
+export async function findRojoProjects(project: OpenProject): Promise<RojoProjectFile[]> {
+	const names = (await fs.readdir(project.root).catch(() => [] as string[]))
+		.filter((n) => n.endsWith(".project.json"))
+		.sort((a, b) => a.localeCompare(b));
+	const owners = new Map<string, string>();
+	for (const mapPath of await collectMaps(project)) {
+		const map = await readMap(project, mapPath).catch(() => null);
+		if (map && !isFilesystemMap(map)) owners.set(toPosix(map.output), mapPath);
+	}
+	return names.map((file) => ({ file, mappedBy: owners.get(file) ?? null }));
+}
+
+export interface RojoImportOutcome {
+	/** The project file read, project-relative. */
+	file: string;
+	/** The node map written, project-relative. */
+	mapPath: string;
+	/**
+	 * The map compiles to the same project, so Roswaal now writes the file:
+	 * compiling leaves it alone until the map changes.
+	 */
+	takenOver: boolean;
+	/** Parts of the file that are not instances, kept as they were. */
+	problems: string[];
+}
+
+/**
+ * Reads a Rojo project file into a node map beside the project's graphs.
+ *
+ * The file is taken over -- recorded as Roswaal's, so compiling the map may
+ * write it -- only when the map compiles back to the same project. Otherwise
+ * the map is written and the file is left to its author, who can compile with
+ * force once they have looked.
+ */
+export async function importRojoProject(project: OpenProject, file: string): Promise<RojoImportOutcome> {
+	const rel = toPosix(file);
+	const text = await fs.readFile(safeJoin(project.root, rel), "utf8");
+	const json = parseProject(text);
+	if (json === undefined) throw new Error(`${rel} is not valid JSON.`);
+	const owner = (await findRojoProjects(project)).find((p) => p.file === rel)?.mappedBy;
+	if (owner) throw new Error(`${rel} is already written by ${owner}.`);
+
+	const stem = path.posix.basename(rel).replace(/\.project\.json$/i, "") || "project";
+	const { map, problems } = projectToMap(json, {
+		output: rel,
+		fallbackName: stem,
+		makeId: () => globalThis.crypto.randomUUID(),
+	});
+	const base = graphName(map.name) || graphName(stem) || "project";
+	let mapPath = path.posix.join(project.config.sourceDir, `${base}.nodemap`);
+	for (let n = 2; await fs.access(safeJoin(project.root, mapPath)).then(() => true, () => false); n++) {
+		mapPath = path.posix.join(project.config.sourceDir, `${base} ${n}.nodemap`);
+	}
+	await writeMap(project, mapPath, map);
+
+	const same = sameProject(json, JSON.parse(compileNodeMap(map).json));
+	if (same) await recordGenerated(project.root, rel, mapPath);
+	return { file: rel, mapPath, takenOver: same, problems };
+}
+
 export interface MapOutcome {
 	mapPath: string;
 	outputPath: string;
+	/** The project file says what the map says: written, or already so. */
 	written: boolean;
+	/** It already said so, and was left as it was. */
+	unchanged?: boolean;
 	skipped?: string;
 	diagnostics: MapDiagnostic[];
 	json: string;
@@ -938,8 +1009,19 @@ export async function compileMap(
 		return outcome;
 	}
 
+	// A file that already says the same thing is left alone, however it is
+	// laid out: a project taken over from a hand-written one keeps its own
+	// formatting until the map changes, and then keeps its indent and endings.
+	const said = existing === null ? undefined : parseProject(existing);
+	if (said !== undefined && sameProject(said, JSON.parse(result.json))) {
+		await recordGenerated(project.root, result.outputPath, relPath);
+		outcome.written = true;
+		outcome.unchanged = true;
+		return outcome;
+	}
+
 	await fs.mkdir(path.dirname(abs), { recursive: true });
-	await fs.writeFile(abs, result.json, "utf8");
+	await fs.writeFile(abs, formatLike(result.json, existing), "utf8");
 	await recordGenerated(project.root, result.outputPath, relPath);
 	outcome.written = true;
 	return outcome;

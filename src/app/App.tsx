@@ -1444,6 +1444,52 @@ export function App() {
 	const onTreeOpen = useCallback((entry: TreeEntry) => void openEntry(entry), [openEntry]);
 
 	/**
+	 * Project → Import Rojo project…: a `*.project.json` in the root, read into
+	 * a node map, which is then opened. The file itself is not changed.
+	 */
+	const importRojo = useCallback(async () => {
+		try {
+			const { projects } = await api.rojoProjects();
+			const open = projects.filter((p) => !p.mappedBy);
+			if (open.length === 0) {
+				notify(
+					"No Rojo project to import",
+					projects.length > 0
+						? `${projects.map((p) => p.file).join(", ")} ${projects.length === 1 ? "is" : "are"} already written by a map.`
+						: "There is no *.project.json in the project's root folder.",
+				);
+				return;
+			}
+			const file = open.length === 1
+				? (await ask({
+					kind: "confirm",
+					title: "Import Rojo project",
+					message: `Read ${open[0].file} into a node map? The file is not changed.`,
+					confirmLabel: "Import",
+				})) === true ? open[0].file : null
+				: (await ask({
+					kind: "choice",
+					title: "Import Rojo project",
+					message: "Which project file? It is not changed.",
+					choices: open.map((p, i) => ({ value: p.file, label: p.file, primary: i === 0 })),
+				})) as string | null;
+			if (!file) return;
+			const out = await api.importRojo(file);
+			await refreshTree();
+			await openEntry({ path: out.mapPath, name: out.mapPath.split("/").pop()!, kind: "nodemap" });
+			const kept = out.problems.length > 0 ? ` ${out.problems.join(" ")}` : "";
+			notify(
+				"Rojo project imported",
+				(out.takenOver
+					? `The map writes ${out.file} now. Compiling leaves the file as it is until the map changes.`
+					: `${out.file} is left as it is: the map would write it differently. Compile the map with force to take it over.`) + kept,
+			);
+		} catch (err) {
+			notify("Could not import the Rojo project", (err as Error).message);
+		}
+	}, [ask, notify, refreshTree, openEntry]);
+
+	/**
 	 * The tree as last read, for the DataModel browser's handlers: through a
 	 * ref, so they stay the same functions and the memoised browser does not
 	 * render again every time the tree is read.
@@ -1991,6 +2037,10 @@ export function App() {
 									Open place&hellip;
 								</button>
 							)}
+							<button className="tb with-icon" onClick={() => void importRojo()}>
+								<Icon name="map" size={15} />
+								Import Rojo project&hellip;
+							</button>
 							<button className="tb with-icon" onClick={() => setExportOpen(true)}>
 								<Icon name="copy" size={15} />
 								Export&hellip;
@@ -2801,7 +2851,7 @@ function StatusPanel(props: StatusPanelProps) {
 					{props.mapOutcomes.map((outcome) => (
 						<div className={`entry ${outcome.written ? "" : "warning"}`} key={outcome.mapPath}>
 							<span className="sev" style={outcome.written ? { color: "var(--ok)" } : undefined}>
-								{outcome.written ? "wrote" : "skipped"}
+								{outcome.unchanged ? "same" : outcome.written ? "wrote" : "skipped"}
 							</span>
 							<span>{outcome.skipped ?? outcome.outputPath}</span>
 						</div>

@@ -64,6 +64,18 @@ export interface MapNode {
 	 * which is where you are looking when you decide to exclude it.
 	 */
 	ignorePaths?: string[];
+	/**
+	 * Write `$className` even where Rojo can tell the class itself: a service
+	 * named by its key, a Folder a directory implies. Set by importing a
+	 * project file that said so, so taking the file over does not change it.
+	 */
+	statedClass?: boolean;
+	/**
+	 * Fields of a Rojo project node the map does not model -- `$attributes`,
+	 * `$path` given as an object, keys a newer Rojo adds -- kept from an
+	 * imported project file and written back as they were.
+	 */
+	rojo?: Record<string, unknown>;
 	children: MapNode[];
 }
 
@@ -100,6 +112,12 @@ export interface NodeMap {
 	output: string;
 	/** Project-wide ignore globs, passed through to Rojo untouched. */
 	globIgnorePaths?: string[];
+	/**
+	 * Top-level fields of a Rojo project file the map does not model --
+	 * `servePort`, `servePlaceIds`, `emitLegacyScripts` -- kept from an
+	 * imported file and written back as they were.
+	 */
+	rojo?: Record<string, unknown>;
 	/** The DataModel. Its children are services. */
 	root: MapNode;
 }
@@ -316,6 +334,7 @@ export function compileNodeMap(map: NodeMap): MapCompileResult {
 	const globs = collectGlobs(map);
 	const project = {
 		name: map.name,
+		...(map.rojo ?? {}),
 		tree: buildTree(map.root, true),
 		...(globs.length > 0 ? { globIgnorePaths: globs } : {}),
 	};
@@ -334,7 +353,10 @@ function validateNode(node: MapNode, diagnostics: MapDiagnostic[], isRoot: boole
 	if (node.name.trim() === "") {
 		diagnostics.push({ severity: "error", message: "An instance has no name.", node: node.id });
 	}
-	if (!isRoot && node.children.length === 0 && !node.path && !node.className) {
+	// Properties alone do something: they are how Lighting is set up.
+	const saysSomething = node.path || node.className || node.statedClass ||
+		(node.properties && Object.keys(node.properties).length > 0) || node.rojo;
+	if (!isRoot && node.children.length === 0 && !saysSomething) {
 		diagnostics.push({
 			severity: "warning",
 			message: `"${node.name}" has no class, no path and no children, so it does nothing.`,
@@ -393,14 +415,18 @@ function buildTree(node: MapNode, isRoot: boolean): RojoNode {
 	// directory already implies a Folder, so saying it again is noise that
 	// makes an empty result look intentional.
 	const impliedByPath = node.path !== undefined && node.className === "Folder";
-	if (node.className && !impliedByPath && (isRoot || !isService(node))) {
+	if (node.className && (!impliedByPath || node.statedClass) && (isRoot || !isService(node))) {
 		out.$className = node.className;
+	} else if (node.statedClass && !isRoot && isService(node)) {
+		// A service's class is its key, written out because the file did.
+		out.$className = node.name;
 	}
 	if (node.path) out.$path = node.path;
 	if (node.properties && Object.keys(node.properties).length > 0) {
 		out.$properties = node.properties;
 	}
 	if (node.ignoreUnknown) out.$ignoreUnknownInstances = true;
+	Object.assign(out, node.rojo ?? {});
 
 	for (const child of node.children) {
 		out[child.name] = buildTree(child, false);
@@ -454,6 +480,11 @@ export function mapNodeParent(root: MapNode, id: string): MapNode | null {
 }
 
 /** Canonical on-disk form, for diffs that read as changes rather than churn. */
+/**
+ * A map as its file holds it. Every field a map has is named here, so one
+ * that is left out is lost on the next save: `target` and a node's `file`
+ * were, from 0.67.0, which turned every saved Lune map back into a DataModel.
+ */
 export function serialiseMap(map: NodeMap): string {
 	return JSON.stringify(
 		{
@@ -461,10 +492,12 @@ export function serialiseMap(map: NodeMap): string {
 			kind: map.kind,
 			id: map.id,
 			name: map.name,
+			...(map.target ? { target: map.target } : {}),
 			output: map.output,
 			...(map.globIgnorePaths && map.globIgnorePaths.length
 			? { globIgnorePaths: map.globIgnorePaths }
 			: {}),
+			...(map.rojo && Object.keys(map.rojo).length ? { rojo: map.rojo } : {}),
 		root: cleanNode(map.root),
 		},
 		null,
@@ -476,13 +509,16 @@ function cleanNode(node: MapNode): Record<string, unknown> {
 	return {
 		id: node.id,
 		name: node.name,
+		...(node.file ? { file: true } : {}),
 		...(node.className ? { className: node.className } : {}),
+		...(node.statedClass ? { statedClass: true } : {}),
 		...(node.path ? { path: node.path } : {}),
 		...(node.properties && Object.keys(node.properties).length
 			? { properties: node.properties }
 			: {}),
 		...(node.ignoreUnknown ? { ignoreUnknown: true } : {}),
 		...(node.ignorePaths && node.ignorePaths.length ? { ignorePaths: node.ignorePaths } : {}),
+		...(node.rojo && Object.keys(node.rojo).length ? { rojo: node.rojo } : {}),
 		children: node.children.map(cleanNode),
 	};
 }

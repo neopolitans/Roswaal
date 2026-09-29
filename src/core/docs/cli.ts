@@ -36,12 +36,14 @@ export const CLI_COMMANDS: CliCommand[] = [
 	},
 	{
 		name: "import",
-		blurb: "Make a project from a place file: roswaal import <place.rbxl> [directory].",
+		blurb: "Make a project from a place file, or a node map from a Rojo project file.",
 		detail:
-			"Reads `.rbxl` and `.rbxlx`. Scripts Rojo can sync go under `src/` with a " +
-			"`default.project.json` that leaves everything else in the place alone. `--scripts all` also " +
-			"brings in scripts inside parts and models, under `place/`; identical ones become one file " +
-			"unless you pass `--no-merge`. The place is copied into the new project.",
+			"`roswaal import <place.rbxl> [directory]` reads `.rbxl` and `.rbxlx`. Scripts Rojo can sync " +
+			"go under `src/` with a `default.project.json` that leaves everything else in the place alone. " +
+			"`--scripts all` also brings in scripts inside parts and models, under `place/`; identical ones " +
+			"become one file unless you pass `--no-merge`. The place is copied into the new project. " +
+			"`roswaal import default.project.json` reads a Rojo project into a node map beside it, and " +
+			"Roswaal writes the file from then on when the map says the same thing.",
 	},
 	{
 		name: "export",
