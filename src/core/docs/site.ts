@@ -1346,8 +1346,9 @@ const GETTING_STARTED: DocPage = {
 						{
 							t: "p",
 							text:
-								"**Download** in the same menu takes the project out as a zip, with its place file " +
-								"if it has one. Folders you have opened are listed in the panel, to reopen with a click.",
+								"**Export…** in the same menu takes the project out as a zip, with its place file if " +
+								"it has one, or the place file alone. Folders you have opened are listed in the panel, " +
+								"to reopen with a click.",
 						},
 					],
 				},
@@ -1391,7 +1392,7 @@ const GETTING_STARTED: DocPage = {
 						{
 							t: "p",
 							text:
-								"**Project → Download** saves it back to Files as a zip. The panels slide out over " +
+								"**Project → Export…** saves it back to Files as a zip. The panels slide out over " +
 								"the graph, and the edits a keyboard makes are buttons under it: " +
 								"[The Interface](the-interface) shows where things are, and " +
 								"[Controls](controls) has the gestures. An iPad Mini is the smallest screen it " +
@@ -3943,7 +3944,7 @@ const BUILDING: DocPage = {
 			text:
 				"In the web app, **Project → Open place…** does the same, and asks the same questions " +
 				"with the counts in front of you. The place is kept with the project, and " +
-				"**Download** includes it.",
+				"**Export…** includes it.",
 		},
 		{
 			t: "p",
@@ -3958,10 +3959,10 @@ const BUILDING: DocPage = {
 		{
 			t: "p",
 			text:
-				"**Download** asks, for a project with a place: **Modify RBXL** writes the project's " +
-				"scripts into the copy in the zip, and **Don't Modify RBXL** leaves it as it was. The " +
-				"project's own place file is not changed either way. `roswaal export out.rbxl` writes " +
-				"the modified place to a file.",
+				"**Project → Export…** takes the project out as a zip, or its place file alone. For a " +
+				"project with a place it says what **Modify RBXL** would write and add before you " +
+				"choose; **Don't Modify RBXL** sends the place as it was. The project's own place file " +
+				"is not changed either way. `roswaal export out.rbxl` writes the modified place to a file.",
 		},
 		{
 			t: "p",

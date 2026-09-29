@@ -94,6 +94,18 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.102.0",
+		date: "2026-09-29",
+		headline: "Export Project.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Export Project**, from Project → Export…, takes the project out as a zip or its place file alone. For a project with a place it says what Modify RBXL would write and add, and what it cannot place, before you choose.",
+		],
+		changed: [
+			"**Download is now Export…** in the Project menu.",
+		],
+	},
+	{
 		version: "0.101.2",
 		date: "2026-09-29",
 		headline: "Each kind of script has its own colour.",

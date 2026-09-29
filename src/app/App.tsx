@@ -79,9 +79,7 @@ import {
 	useCanOpenDirectory, useHostCan,
 	useHostFailure, useRememberedFolders,
 } from "./host.js";
-import { describePlaceReport } from "../core/rbx/placeExport.js";
-import { fromBase64 } from "../core/base64.js";
-import { download, zip } from "./zip.js";
+import { ExportMenu } from "./ExportMenu.jsx";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
 import { SERVICE_CALL, SERVICE_VALUE } from "../core/serviceCalls.js";
@@ -1491,53 +1489,10 @@ export function App() {
 	}, [refreshTree, flushUnder, followMove, notify]);
 
 	/**
-	 * The whole project, as one file the developer keeps.
-	 *
-	 * The way work leaves a browser tab, where everything is in memory and goes
-	 * when the tab does. Named after the project and wrapped in a folder of that
-	 * name, so unpacking it does not spray graphs across somebody's Downloads.
+	 * Export Project: the menu that takes the project out, as a zip or as its
+	 * place alone. See `ExportMenu.tsx`.
 	 */
-	const downloadProject = useCallback(async () => {
-		try {
-			let exported = await api.exportProject();
-			// A project with a place is asked whether the place goes out as it
-			// was, or holding the project's scripts.
-			if (exported.place) {
-				const answer = await ask({
-					kind: "choice",
-					title: `Download ${exported.name}?`,
-					message:
-						`It has a place file, ${exported.place.file}. Modify writes the project's scripts into `
-						+ `the copy in the zip; the one in the project is not changed.`,
-					choices: [
-						{ value: "keep", label: "Don't Modify RBXL" },
-						{ value: "modify", label: "Modify RBXL", primary: true },
-					],
-				});
-				if (answer === null) return;
-				if (answer === "modify") exported = await api.exportProject(true);
-			}
-			const { name, files, binaries = {} } = exported;
-			const folder = name || "roswaal-project";
-			// A place or model travels as base64 over JSON and goes in as bytes.
-			const places = Object.fromEntries(
-				Object.entries(binaries).map(([path, encoded]) => [path, fromBase64(encoded)]),
-			);
-			download(
-				zip(Object.fromEntries(
-					Object.entries({ ...files, ...places }).map(([path, contents]) => [`${folder}/${path}`, contents]),
-				)),
-				`${folder}.zip`,
-			);
-			const report = exported.place?.report;
-			if (report) {
-				const { title, detail } = describePlaceReport(exported.place!.file, report);
-				notify(title, detail);
-			}
-		} catch (err) {
-			notify("The project could not be packed up", (err as Error).message);
-		}
-	}, [ask, notify]);
+	const [exportOpen, setExportOpen] = useState(false);
 
 	/**
 	 * Throw away what this browser is holding and start from the demo.
@@ -1609,7 +1564,7 @@ export function App() {
 				kind: "confirm",
 				title: `Open ${preview.name}?`,
 				message:
-					`It replaces the project kept in this browser. Download that one first `
+					`It replaces the project kept in this browser. Export that one first `
 					+ `if you want to keep it.`,
 				confirmLabel: "Open it",
 			});
@@ -1686,7 +1641,7 @@ export function App() {
 					(preview.placeOnly > 0
 						? `${preview.scripts} scripts: ${preview.rojo} Rojo can sync, ${preview.placeOnly} only the place can hold. `
 						: `${preview.scripts} scripts, all of which Rojo can sync. `)
-					+ `It replaces the project kept in this browser; download that one first to keep it.`,
+					+ `It replaces the project kept in this browser; export that one first to keep it.`,
 				fields,
 				confirmLabel: "Open it",
 			});
@@ -1744,7 +1699,7 @@ export function App() {
 			message:
 				"Everything in this browser goes: every graph you have made or changed, and "
 				+ "every file compiled from them. Nothing is kept, and there is no copy "
-				+ "elsewhere unless you have downloaded one.",
+				+ "elsewhere unless you have exported one.",
 			confirmLabel: "Throw it away",
 			danger: true,
 		});
@@ -1948,7 +1903,7 @@ export function App() {
 						<>
 						{/* One button for what can be done to the project, so the
 						    footer is Home, Project, and the other two windows. */}
-						<Popout label="Project" title="Open, download or start again" up closeOnPick>
+						<Popout label="Project" title="Open, export or start again" up closeOnPick>
 							{hostCanBrowse && (
 								<button className="tb with-icon" onClick={() => void browseForProject()}>
 									<Icon name="folderOpen" size={15} />
@@ -1973,9 +1928,9 @@ export function App() {
 									Open place&hellip;
 								</button>
 							)}
-							<button className="tb with-icon" onClick={() => void downloadProject()}>
+							<button className="tb with-icon" onClick={() => setExportOpen(true)}>
 								<Icon name="copy" size={15} />
-								Download
+								Export&hellip;
 							</button>
 							{hostCanReset && <span className="tool-popout-rule" />}
 							{hostCanReset && (
@@ -2338,6 +2293,8 @@ export function App() {
 					onClose={() => setDocsJump(false)}
 				/>
 			)}
+
+			{exportOpen && <ExportMenu onClose={() => setExportOpen(false)} onError={notify} />}
 
 			<Overlays
 				registry={registry}

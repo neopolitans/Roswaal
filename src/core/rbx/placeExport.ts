@@ -53,7 +53,11 @@ export interface PlaceUpdate {
 }
 
 /** A `PlaceUpdate` as the editor is told it: counts and file names, no instances. */
-export type PlaceReport = Omit<PlaceUpdate, "changes" | "added"> & { scripts: number };
+export type PlaceReport = Omit<PlaceUpdate, "changes" | "added"> & {
+	scripts: number;
+	/** Folders the additions create. */
+	folders?: number;
+};
 
 const key = (path: readonly string[]) => path.join("\u0001");
 

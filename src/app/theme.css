@@ -3634,6 +3634,37 @@ button.tb.primary:hover:not(:disabled) {
 	accent-color: var(--accent);
 }
 
+/* Export Project: wider than a question, with a line under each choice. */
+.dialog.export-menu {
+	width: min(480px, 100%);
+	gap: 12px;
+}
+
+.export-menu-note {
+	display: block;
+	font-size: 11.5px;
+	color: var(--fg-faint);
+	line-height: 1.45;
+}
+
+.dialog-option .export-menu-note {
+	margin-top: 1px;
+}
+
+.export-menu-problem {
+	font-size: 12px;
+	color: var(--warning);
+	margin: 0;
+}
+
+.dialog.export-menu .dialog-option {
+	align-items: flex-start;
+}
+
+.dialog.export-menu .dialog-option input {
+	margin-top: 3px;
+}
+
 .dialog-option.dialog-option-off {
 	color: var(--fg-faint);
 	cursor: default;
