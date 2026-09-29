@@ -3966,8 +3966,9 @@ const BUILDING: DocPage = {
 			t: "p",
 			text:
 				"A script is found by the id the import recorded, or by its path, and a merged file is " +
-				"written into every copy. Only the scripts' source changes. A file whose script is not " +
-				"in the place yet — a graph made since — is listed rather than added.",
+				"written into every copy. A file whose script is not in the place yet — a graph made " +
+				"since — is added, with a Folder for each part of its path the place does not have. " +
+				"Nothing else in the place changes.",
 		},
 	],
 };

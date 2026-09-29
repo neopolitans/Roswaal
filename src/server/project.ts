@@ -19,6 +19,8 @@ import { LINKS_FILE, PLACE_DIR, type PlaceImport, type PlaceLinks } from "../cor
 import { type PlaceEntry, planPlaceUpdate, type PlaceUpdate } from "../core/rbx/placeExport.js";
 import { readRbx } from "../core/rbx/index.js";
 import { writeSources } from "../core/rbx/writer.js";
+import { addInstances } from "../core/rbx/adder.js";
+import { RbxError } from "../core/rbx/dom.js";
 import { toBase64 } from "../core/base64.js";
 import { migrateScript } from "../core/migrate.js";
 import {
@@ -237,7 +239,14 @@ export async function exportPlace(project: OpenProject): Promise<PlaceExport | n
 	}
 
 	const update = planPlaceUpdate(doc, entries.sort((a, b) => a.file.localeCompare(b.file)));
-	return { file, bytes: writeSources(bytes, doc, update.changes), update };
+	const written = writeSources(bytes, doc, update.changes);
+	try {
+		return { file, bytes: addInstances(written, doc, update.added), update };
+	} catch (err) {
+		// The sources still go in; the new scripts are reported, not half-added.
+		const addError = err instanceof RbxError ? err.message : (err as Error).message;
+		return { file, bytes: written, update: { ...update, added: [], addedFiles: [], addError, notInPlace: [...update.notInPlace, ...update.addedFiles] } };
+	}
 }
 
 export async function writeConfig(root: string, config: RoswaalConfig): Promise<void> {

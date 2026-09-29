@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.101.0",
+		date: "2026-09-29",
+		headline: "New scripts go into the place too.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A script not in the place yet** is added by Modify RBXL and `roswaal export`, with a Folder for each part of its path the place does not have. A new script can hold others.",
+			"**New instances get their own values**: a fresh UniqueId, no tags, attributes or capabilities. What was in the place is unchanged.",
+		],
+		watch: [
+			"**A script is not added** under a service the place does not have, or beside an instance with its name; the export lists it instead. A place whose scripts carry a property Roswaal cannot extend gets its source changes and none of the additions, and says why.",
+		],
+	},
+	{
 		version: "0.100.1",
 		date: "2026-09-29",
 		headline: "Compile content's folders are coloured.",

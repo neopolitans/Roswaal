@@ -142,6 +142,30 @@ function writeValues(w: Writer, type: number, values: unknown[]): void {
 				}
 			}
 			return;
+		case 12: {
+			// Color3: three runs of rotated floats.
+			for (let k = 0; k < 3; k++) w.interleaved(values.map((v) => rotate((v as number[])[k])));
+			return;
+		}
+		case 27:
+		case 33: {
+			// Int64 zigzagged, SecurityCapabilities as it is: 8 bytes, transposed.
+			const n = values.length;
+			const out = new Uint8Array(n * 8);
+			values.forEach((v, i) => {
+				let z = BigInt(v as number);
+				if (type === 27) z = z < 0n ? ~(z << 1n) : z << 1n;
+				for (let k = 7; k >= 0; k--) {
+					out[k * n + i] = Number(z & 255n);
+					z >>= 8n;
+				}
+			});
+			w.bytes(out);
+			return;
+		}
+		case 28:
+			w.interleaved(values as number[]);
+			return;
 		case 31: {
 			const n = values.length;
 			const out = new Uint8Array(n * 16);
@@ -157,8 +181,11 @@ function writeValues(w: Writer, type: number, values: unknown[]): void {
 	}
 }
 
-/** A binary place holding `roots`, every chunk compressed as asked. */
-export function buildPlace(roots: FixtureInstance[], compression: Compression = "none"): Uint8Array {
+/**
+ * A binary place holding `roots`, every chunk compressed as asked. `shared` is
+ * the SSTR table a SharedString property's index points into.
+ */
+export function buildPlace(roots: FixtureInstance[], compression: Compression = "none", shared?: Uint8Array[]): Uint8Array {
 	const all: { inst: FixtureInstance; ref: number; parent: number }[] = [];
 	const visit = (inst: FixtureInstance, parent: number) => {
 		const ref = all.length;
@@ -185,6 +212,16 @@ export function buildPlace(roots: FixtureInstance[], compression: Compression = 
 	header.u32(0);
 
 	const chunks: Uint8Array[] = [header.done()];
+	if (shared) {
+		const w = new Writer();
+		w.u32(0);
+		w.u32(shared.length);
+		for (const value of shared) {
+			w.bytes(new Uint8Array(16));
+			w.string(value);
+		}
+		chunks.push(chunk("SSTR", w.done(), compression));
+	}
 	let id = 0;
 	const ids = new Map<string, number>();
 	for (const [className, list] of classes) {

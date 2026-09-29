@@ -638,7 +638,7 @@ export class ApiSession {
 					const written = await exportPlace(project);
 					if (written) {
 						binaries[written.file] = toBase64(written.bytes);
-						const { changes, ...report } = written.update;
+						const { changes, added: _added, ...report } = written.update;
 						place = { file: written.file, report: { ...report, scripts: changes.length } };
 					}
 				}

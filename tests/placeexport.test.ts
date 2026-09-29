@@ -119,7 +119,7 @@ describe("matching files to scripts", () => {
 
 	it("reports what it cannot place for certain", () => {
 		const update = planPlaceUpdate(doc, [
-			{ file: "new.luau", text: "", isModule: true, targets: [{ path: ["ReplicatedStorage", "New"] }] },
+			{ file: "new.luau", text: "", isModule: true, targets: [{ path: ["Lighting", "New"] }] },
 			{ file: "twin.luau", text: "", isModule: true, targets: [{ path: ["ReplicatedStorage", "Twins", "Same"] }] },
 			{ file: "main.luau", text: "", isModule: true, targets: [{ path: ["ServerScriptService", "Main"] }] },
 		]);
@@ -136,7 +136,7 @@ describe("exporting a project's place", () => {
 		if (root) await rm(root, { recursive: true, force: true });
 	});
 
-	it("writes edited files, merged copies included, and names new ones", async () => {
+	it("writes edited files, merged copies included, and adds new ones", async () => {
 		root = await mkdtemp(path.join(os.tmpdir(), "roswaal-export-"));
 		const place = buildPlace([
 			service("ServerScriptService", [script("Script", "Main", "print('main')")]),
@@ -158,10 +158,11 @@ describe("exporting a project's place", () => {
 		const out = (await exportPlace(await openProject(root)))!;
 		expect(out.file).toBe("Game.rbxl");
 		expect(out.update.updated.sort()).toEqual(["place/Shared/Open.server.luau", "src/ServerScriptService/Main.server.luau"]);
-		expect(out.update.notInPlace).toEqual(["src/ServerScriptService/Added.server.luau"]);
+		expect(out.update.addedFiles).toEqual(["src/ServerScriptService/Added.server.luau"]);
 		const back = readRbx(out.bytes);
 		const sources = back.instances.filter(isScript).map((i) => `${pathOf(i).join(".")}=${stringProp(i, "Source")}`).sort();
 		expect(sources).toEqual([
+			"ServerScriptService.Added=print('new')",
 			"ServerScriptService.Main=print('edited')",
 			"Workspace.Door1.Open=open(true)",
 			"Workspace.Door2.Open=open(true)",

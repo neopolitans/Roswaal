@@ -360,7 +360,7 @@ async function commandExport(args: Args): Promise<number> {
 	await fs.mkdir(path.dirname(target), { recursive: true });
 	await fs.writeFile(target, written.bytes);
 
-	const { changes, ...report } = written.update;
+	const { changes, added: _added, ...report } = written.update;
 	const { title, detail } = describePlaceReport(written.file, { ...report, scripts: changes.length });
 	console.log(`  ${green("wrote   ")} ${target}`);
 	console.log(`  ${title}.`);
