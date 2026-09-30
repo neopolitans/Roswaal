@@ -8241,6 +8241,120 @@ button.tb.danger {
 	overflow: hidden;
 }
 
+/* The project tree, the DataModel browser, the Properties panel and a dialog,
+ * drawn on a page.
+ *
+ * As the panels above: the rows carry the editor's own classes -- `.tree-row`,
+ * `.place-prop`, `.dialog` -- so the likeness is the editor's own stylesheet.
+ * These rules give each picture its edges, set the editor's type size in an
+ * article that sets its own, and restate the headings an article outspecifies. */
+.docs-bar-frame.filetree,
+.docs-bar-frame.place,
+.docs-bar-frame.properties,
+.docs-bar-frame.modal {
+	display: flex;
+	flex-direction: column;
+	align-items: safe center;
+}
+
+.docs-bar-frame > .docs-tree-shot,
+.docs-bar-frame > .docs-dialog-shot {
+	font: 13px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
+	text-align: left;
+}
+
+.docs-bar-frame > .docs-tree-shot {
+	flex: none;
+	width: min(320px, 100%);
+	padding: 8px 0 4px;
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	background: var(--bg-panel);
+}
+
+.docs-bar-frame.properties > .docs-tree-shot {
+	width: min(340px, 100%);
+}
+
+.docs-tree-shot .tree,
+.docs-tree-shot .place-props {
+	flex: none;
+	overflow: visible;
+}
+
+.docs-bar-frame.properties .place-properties h2 {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 2px 0 6px;
+	padding: 0 12px;
+	border: 0;
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fg-faint);
+}
+
+.docs-bar-frame.properties .place-properties h2 button.tb {
+	font-size: 11px;
+	padding: 1px 8px;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+/* A dialog where it sits rather than over a backdrop. */
+.docs-bar-frame > .docs-dialog-shot {
+	box-shadow: none;
+}
+
+.docs-bar-frame.modal h3 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: 0;
+	text-transform: none;
+	color: var(--fg);
+}
+
+.docs-bar-frame.modal p {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--fg-muted);
+}
+
+.docs-bar-frame.modal ul.dialog-list {
+	margin: 0;
+}
+
+.docs-bar-frame.modal ul.dialog-list li {
+	margin: 0;
+}
+
+.docs-bar-frame.modal .docs-bar-field,
+.docs-bar-frame.modal .docs-bar-select {
+	display: flex;
+	align-items: center;
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+	min-height: 28px;
+	padding: 4px 8px;
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	background: var(--bg-input);
+	color: var(--fg);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.docs-bar-frame.modal .export-menu-name .docs-bar-field {
+	width: auto;
+	flex: 1;
+}
+
 .docs-bar-frame.inspector .list-row button {
 	padding: 0;
 	text-align: center;

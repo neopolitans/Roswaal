@@ -39,6 +39,8 @@
 
 import { escapeXml } from "./preview.js";
 import type { NodeScript } from "../schema.js";
+import { classGlyph, describeInstance, groupProperties } from "../rbx/browse.js";
+import type { Prop, RbxInstance } from "../rbx/dom.js";
 
 // ---------------------------------------------------------------------------
 // The model
@@ -72,6 +74,14 @@ export interface ToolbarArt {
 	 * something false about a type.
 	 */
 	pinColor?: (type: string | undefined, kind: "exec" | "data") => string;
+	/**
+	 * Glyphs drawn as a line rather than filled, by stroke width, and glyphs
+	 * whose holes are cut by the even-odd rule: `STROKED` and `EVEN_ODD` in
+	 * `src/app/icons.tsx`. A tree draws `instance` and `luauScript`, and
+	 * filled by default the one is a blob and the other has no holes.
+	 */
+	strokes?: Partial<Record<string, number>>;
+	evenOdd?: ReadonlySet<string>;
 }
 
 /**
@@ -118,13 +128,13 @@ export type ToolbarItem = Documented &
 		/** An icon on its own: the shape of most of the chrome. */
 		| { t: "icon"; icon: string; on?: boolean; primary?: boolean }
 		/** A button with words, and an icon before them when it has one. */
-		| { t: "button"; text: string; icon?: string; primary?: boolean; on?: boolean }
+		| { t: "button"; text: string; icon?: string; primary?: boolean; on?: boolean; danger?: boolean }
 		/** A pair or trio of buttons where one is lit: a setting, not an action. */
 		| { t: "segmented"; options: string[]; on: number }
 		/** A dropdown, shown holding whatever it is set to. */
 		| { t: "select"; text: string }
 		/** A text box, shown with its placeholder: the start page's path. */
-		| { t: "field"; text: string }
+		| { t: "field"; text: string; fill?: boolean }
 		/** A caption naming what the control beside it sets. */
 		| { t: "label"; text: string }
 		/** The open document's name, and what kind of document it is. */
@@ -213,6 +223,67 @@ export type ToolbarItem = Documented &
 		 * at the end of the same line.
 		 */
 		| { t: "listTitle"; text: string; action?: string }
+		/**
+		 * The project tree's heading over one of its lists: Graph content,
+		 * Compile content.
+		 */
+		| { t: "treeSection"; text: string; shut?: boolean }
+		/**
+		 * One row of a tree, the project's or the DataModel's, in the editor's
+		 * own `.tree-row` markup. `twist` draws the chevron, open or shut;
+		 * `tone` is the class that colours the glyph. `place` is a DataModel
+		 * row: its chevron sits in a fixed slot and the class is at its right.
+		 */
+		| {
+				t: "treeRow";
+				label: string;
+				depth: number;
+				icon: string;
+				tone?: string;
+				twist?: "open" | "shut";
+				place?: boolean;
+				className?: string;
+				badge?: string;
+				selected?: boolean;
+				current?: boolean;
+				readonly?: boolean;
+		  }
+		/** The instance at the top of the Properties panel: glyph, name, class. */
+		| { t: "propHead"; label: string; className: string; icon: string; tone?: string }
+		/** Its path, under it. */
+		| { t: "propPath"; text: string }
+		/** The class's line from the engine documentation, under the path. */
+		| { t: "propSummary"; text: string }
+		/** The Export panel's foot: what the zip holds. */
+		| { t: "footNote"; text: string }
+		/** One of Studio's headings, starting a group of properties. */
+		| { t: "propGroup"; text: string }
+		/** One property: its name, and its value as the panel formats it. */
+		| { t: "prop"; label: string; value: string; color?: string }
+		/** The Tags heading's chips. */
+		| { t: "tags"; tags: string[] }
+		/** A dialog's title. */
+		| { t: "dialogTitle"; text: string }
+		/** A dialog's message. */
+		| { t: "message"; text: string }
+		/** A dialog's list: the files that still require a package. */
+		| { t: "list"; items: string[] }
+		/** The Export panel's section heading: File, Place file. */
+		| { t: "formSection"; text: string }
+		/**
+		 * One row of the Export panel: its label, a control, and the note under
+		 * the control.
+		 */
+		| {
+				t: "formRow";
+				label: string;
+				control: "select" | "field" | "segmented";
+				value: string;
+				options?: string[];
+				on?: number;
+				suffix?: string;
+				note?: string;
+		  }
 	);
 
 /**
@@ -236,6 +307,10 @@ export interface ToolbarGroup {
 	apart?: boolean;
 	/** Starts a second row of the bar, as a phone's top bar wraps into one. */
 	row?: boolean;
+	/** A dialog's buttons, in its own row at the foot. */
+	actions?: boolean;
+	/** In a dialog: a class to wrap the group in, as the Export panel's form is. */
+	wrap?: string;
 	items: ToolbarItem[];
 }
 
@@ -252,7 +327,7 @@ export interface ToolbarGroup {
  * `popmenu` rather than `menu`: the frame carries the chrome as a class, and
  * the editor's context menus are `.menu`, fixed to the screen.
  */
-export type ToolbarChrome = "bar" | "head" | "float" | "panel" | "popmenu" | "inspector";
+export type ToolbarChrome = "bar" | "head" | "float" | "panel" | "popmenu" | "inspector" | "filetree" | "place" | "properties" | "modal";
 
 export interface ToolbarSpec {
 	/** Stable; the anchor the docs page gives this bar's section. */
@@ -267,6 +342,8 @@ export interface ToolbarSpec {
 	 * wraps where the real one wraps, by the same stylesheet.
 	 */
 	device?: "tablet" | "phone";
+	/** A class beside the chrome's own: `export-menu`, on the Export panel's dialog. */
+	className?: string;
 	groups: ToolbarGroup[];
 }
 
@@ -314,7 +391,9 @@ export function toolbarConstant(spec: ToolbarSpec): string {
 /** Every glyph a bar draws, for the test that holds them against the icon set. */
 export function iconsOf(spec: ToolbarSpec): string[] {
 	return controlsOf(spec).flatMap((item) =>
-		(item.t === "icon" || item.t === "button") && item.icon ? [item.icon] : [],
+		(item.t === "icon" || item.t === "button") && item.icon ? [item.icon]
+			: item.t === "treeRow" || item.t === "propHead" ? [item.icon]
+			: [],
 	);
 }
 
@@ -322,12 +401,17 @@ export function iconsOf(spec: ToolbarSpec): string[] {
 // Drawing one
 // ---------------------------------------------------------------------------
 
-function iconSvg(name: string, size: number, art: ToolbarArt): string {
+function iconSvg(name: string, size: number, art: ToolbarArt, cls?: string, rotate?: number): string {
 	const path = art.paths[name];
 	if (path === undefined) return "";
+	const stroke = art.strokes?.[name];
+	const paint = stroke
+		? `fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"`
+		: `fill="currentColor"${art.evenOdd?.has(name) ? ` fill-rule="evenodd"` : ""}`;
 	return (
-		`<svg class="icon" viewBox="${escapeXml(art.viewBox)}" width="${size}" height="${size}"` +
-		` aria-hidden="true"><path d="${escapeXml(path)}" fill="currentColor"/></svg>`
+		`<svg class="icon${cls ? ` ${escapeXml(cls)}` : ""}" viewBox="${escapeXml(art.viewBox)}" width="${size}" height="${size}"` +
+		`${rotate ? ` style="transform:rotate(${rotate}deg)"` : ""}` +
+		` aria-hidden="true"><path d="${escapeXml(path)}" ${paint}/></svg>`
 	);
 }
 
@@ -359,7 +443,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 		case "button":
 			return (
 				`<button type="button" tabindex="-1"${tie} class="tb${item.icon ? " with-icon" : ""}` +
-				`${item.primary ? " primary" : ""}${item.on ? " on" : ""}">` +
+				`${item.primary ? " primary" : ""}${item.danger ? " danger" : ""}${item.on ? " on" : ""}">` +
 				`${item.icon ? iconSvg(item.icon, 15, art) : ""}${escapeXml(item.text)}</button>`
 			);
 		case "segmented":
@@ -381,7 +465,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			// this is the box without the behaviour: the chevron is drawn on.
 			return `<span class="tb docs-bar-select"${tie}>${escapeXml(item.text)}</span>`;
 		case "field":
-			return `<span class="tb docs-bar-field"${tie}>${escapeXml(item.text)}</span>`;
+			return `<span class="tb docs-bar-field${item.fill ? " place-filter" : ""}"${tie}>${escapeXml(item.text)}</span>`;
 		case "label":
 			return `<span class="group-label">${escapeXml(item.text)}</span>`;
 		case "name":
@@ -450,6 +534,88 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				`<span class="tb docs-bar-field">${escapeXml(item.right)}</span>` +
 				`<button type="button" tabindex="-1" class="tb">\u00d7</button></div>`
 			);
+
+		case "treeSection":
+			return (
+				`<div class="tree-section${item.shut ? " shut" : ""}"${tie}>` +
+				`<span class="twist">${item.shut ? "\u25b8" : "\u25be"}</span>` +
+				`<span class="label">${escapeXml(item.text)}</span></div>`
+			);
+
+		case "treeRow": {
+			// The editor's own markup: `ProjectTree.tsx` and `PlaceBrowser.tsx`.
+			const chevron = item.twist
+				? iconSvg("chevron", 14, art, "twist", item.twist === "open" ? 0 : -90)
+				: "";
+			const twist = item.place ? `<span class="place-twist">${chevron}</span>` : chevron;
+			const classes = [
+				"tree-row", item.place ? "place-row" : "", item.selected ? "selected" : "",
+				item.current ? "open-doc" : "", item.readonly ? "readonly" : "",
+			].filter(Boolean).join(" ");
+			return (
+				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 13}px">` +
+				twist +
+				iconSvg(item.icon, 15, art, `kind${item.tone ? ` ${item.tone}` : ""}`) +
+				`<span class="label">${escapeXml(item.label)}</span>` +
+				`${item.badge ? `<span class="badge">${escapeXml(item.badge)}</span>` : ""}` +
+				`${item.className ? `<span class="place-class">${escapeXml(item.className)}</span>` : ""}` +
+				`</div>`
+			);
+		}
+
+		case "propHead":
+			return (
+				`<div class="place-props-head"${tie}>` +
+				iconSvg(item.icon, 15, art, `kind${item.tone ? ` ${item.tone}` : ""}`) +
+				`<span class="place-props-name">${escapeXml(item.label)}</span>` +
+				`<span class="place-class">${escapeXml(item.className)}</span></div>`
+			);
+		case "propPath":
+			return `<div class="place-path"${tie}>${escapeXml(item.text)}</div>`;
+		case "propSummary":
+			return `<p class="place-summary"${tie}>${escapeXml(item.text)}</p>`;
+		case "footNote":
+			return `<span class="export-menu-note export-menu-contents"${tie}>${escapeXml(item.text)}</span>`;
+		case "propGroup":
+			return `<div class="place-group-name"${tie}>${escapeXml(item.text)}</div>`;
+		case "prop":
+			return (
+				`<div class="place-prop"${tie}><span class="place-prop-name">${escapeXml(item.label)}</span>` +
+				`<span class="place-prop-value">` +
+				`${item.color ? `<span class="place-swatch" style="background:${escapeXml(item.color)}"></span>` : ""}` +
+				`${escapeXml(item.value)}</span></div>`
+			);
+		case "tags":
+			return (
+				`<div class="place-tags"${tie}>` +
+				item.tags.map((tag) => `<span class="place-tag">${escapeXml(tag)}</span>`).join("") +
+				`</div>`
+			);
+
+		case "dialogTitle":
+			return `<h3${tie}>${escapeXml(item.text)}</h3>`;
+		case "message":
+			return `<p${tie}>${escapeXml(item.text)}</p>`;
+		case "list":
+			return `<ul class="dialog-list"${tie}>${item.items.map((line) => `<li>${escapeXml(line)}</li>`).join("")}</ul>`;
+		case "formSection":
+			return `<div class="export-menu-section"${tie}>${escapeXml(item.text)}</div>`;
+		case "formRow": {
+			const control = item.control === "select"
+				? `<span class="tb docs-bar-select">${escapeXml(item.value)}</span>`
+				: item.control === "segmented"
+					? `<span class="segmented">` +
+						(item.options ?? []).map((option, i) =>
+							`<button type="button" tabindex="-1"${i === item.on ? ` class="on"` : ""}>${escapeXml(option)}</button>`).join("") +
+						`</span>`
+					: `<span class="export-menu-name"><span class="tb docs-bar-field">${escapeXml(item.value)}</span>` +
+						`${item.suffix ? `<span class="export-menu-suffix">${escapeXml(item.suffix)}</span>` : ""}</span>`;
+			return (
+				`<div class="export-menu-row"${tie}><span class="export-menu-label">${escapeXml(item.label)}</span>` +
+				`<span class="export-menu-control">${control}` +
+				`${item.note ? `<span class="export-menu-note">${escapeXml(item.note)}</span>` : ""}</span></div>`
+			);
+		}
 	}
 }
 
@@ -500,6 +666,15 @@ const CHROME_CLASS: Record<ToolbarChrome, string> = {
 	// A pop-out menu, open: the list the projects panel's Project button holds.
 	popmenu: "tool-popout-panel docs-menu-shot",
 	inspector: "inspector inspector-body",
+	// The project tree, the DataModel browser and the Properties panel, each in
+	// the editor's own class, so its stylesheet draws the rows. `filetree` and
+	// `modal` rather than `tree` and `dialog`: the frame carries the chrome as a
+	// class, and `.tree` and `.dialog` are the editor's, which drew the frame as
+	// a second dialog around the first.
+	filetree: "docs-tree-shot",
+	place: "place-browser docs-tree-shot",
+	properties: "place-properties docs-tree-shot",
+	modal: "dialog docs-dialog-shot",
 };
 
 /**
@@ -515,6 +690,41 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 	// right-hand cluster sitting against the mark, which is exactly the layout
 	// the page is trying to explain.
 	const gapClass = spec.chrome === "head" ? "grow" : "spacer";
+	const frame = (inner: string) =>
+		`<div class="docs-bar-frame ${escapeXml(spec.chrome)}${spec.device ? ` device-${spec.device}` : ""}" aria-hidden="true">` +
+		`<div class="${CHROME_CLASS[spec.chrome]}${spec.className ? ` ${escapeXml(spec.className)}` : ""}">${inner}</div></div>`;
+	const itemsOf = (group: ToolbarGroup) => group.items.map((item) => itemHtml(item, art)).join("");
+
+	// The trees and panels nest the way the editor nests them, rather than
+	// running their groups along a row.
+	if (spec.chrome === "filetree") return frame(`<div class="tree">${spec.groups.map(itemsOf).join("")}</div>`);
+	if (spec.chrome === "place") {
+		const [head, ...rows] = spec.groups;
+		return frame(
+			`<div class="place-browser-head">${itemsOf(head)}</div>` +
+			`<div class="tree place-tree">${rows.map(itemsOf).join("")}</div>`,
+		);
+	}
+	if (spec.chrome === "properties") {
+		// The heading, then the instance, then a group per Studio heading.
+		const [head, ...rest] = spec.groups;
+		const groups = rest.filter((g) => g.items[0]?.t === "propGroup");
+		const before = rest.filter((g) => g.items[0]?.t !== "propGroup");
+		return frame(
+			itemsOf(head) +
+			`<div class="place-props">${before.map(itemsOf).join("")}` +
+			`<div class="place-groups">${groups.map((g) => `<div class="place-group">${itemsOf(g)}</div>`).join("")}</div></div>`,
+		);
+	}
+	if (spec.chrome === "modal") {
+		return frame(spec.groups
+			.map((g) => {
+				const wrap = [g.actions ? "dialog-actions" : "", g.wrap ?? ""].filter(Boolean).join(" ");
+				return wrap ? `<div class="${escapeXml(wrap)}">${itemsOf(g)}</div>` : itemsOf(g);
+			})
+			.join(""));
+	}
+
 	const inner = spec.groups
 		.map((group) => {
 			const gap = (group.row ? `<span class="docs-bar-break"></span>` : "") +
@@ -538,10 +748,7 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 		})
 		.join("");
 
-	return (
-		`<div class="docs-bar-frame ${escapeXml(spec.chrome)}${spec.device ? ` device-${spec.device}` : ""}" aria-hidden="true">` +
-		`<div class="${CHROME_CLASS[spec.chrome]}">${inner}</div></div>`
-	);
+	return frame(inner);
 }
 
 // ---------------------------------------------------------------------------
@@ -1664,6 +1871,352 @@ export const PROJECT_PANEL_HEAD: ToolbarSpec = {
 	],
 };
 
+// ---------------------------------------------------------------------------
+// Places and packages
+//
+// The project tree, the DataModel browser, the Properties panel and the
+// dialogs around them, drawn in the editor's own markup. The Properties panel
+// is filled by `describeInstance` itself, from an instance built here, so its
+// headings and its values are the ones the editor would show.
+// ---------------------------------------------------------------------------
+
+const graphFolder = (label: string, depth: number, open: boolean): ToolbarItem => ({
+	t: "treeRow", label, depth, twist: open ? "open" : "shut", icon: open ? "folderOpen" : "folder",
+});
+
+/**
+ * Graph content with `wally.toml` and its packages, as `ProjectTree.tsx` lists
+ * them: folders, then `wally.toml`, then files, and Compile content under it.
+ */
+export const PROJECT_TREE_WALLY: ToolbarSpec = {
+	id: "project-tree-wally",
+	title: "The project tree, with Wally",
+	summary: "The Project panel's Files view in a project that uses Wally.",
+	chrome: "filetree",
+	groups: [
+		{
+			items: [
+				{ t: "treeSection", text: "Graph content" },
+				graphFolder(".roswaal", 0, true),
+				graphFolder("scripts", 1, false),
+				{
+					t: "treeRow", label: "wally.toml", depth: 0, twist: "open", icon: "settings", tone: "wally",
+					name: "wally.toml", what: "What the project depends on. Right-click it to add a package.",
+				},
+				{
+					t: "treeRow", label: "Signal", depth: 1, icon: "instance", tone: "package", badge: "1.5.0",
+					name: "A package",
+					what: "Listed by the name you require it by, with the version installed. Double-click it for its code.",
+				},
+				{
+					t: "treeRow", label: "Promise", depth: 1, icon: "instance", tone: "package", badge: "not installed", readonly: true,
+					name: "Not installed",
+					what: "In wally.toml with nothing in Packages/ yet. Right-click it to insert its zip.",
+				},
+				{ t: "treeRow", label: ".luaurc", depth: 0, icon: "settings", tone: "luaurc" },
+				{ t: "treeSection", text: "Compile content" },
+				{
+					t: "treeRow", label: "Packages", depth: 0, twist: "shut", icon: "folder", tone: "tree-folder-packages",
+					name: "Packages/", what: "What Wally installs, in purple. It starts closed.",
+				},
+				{ t: "treeRow", label: "src", depth: 0, twist: "shut", icon: "folder", tone: "tree-folder-plain" },
+			],
+		},
+	],
+};
+
+/** The same tree once Add from Wally has installed Flux. */
+export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
+	id: "project-tree-wally-added",
+	title: "The project tree, after adding a package",
+	summary: "Flux is listed under wally.toml with the version installed.",
+	chrome: "filetree",
+	groups: [
+		{
+			items: [
+				{ t: "treeSection", text: "Graph content" },
+				graphFolder(".roswaal", 0, true),
+				graphFolder("scripts", 1, false),
+				{ t: "treeRow", label: "wally.toml", depth: 0, twist: "open", icon: "settings", tone: "wally" },
+				{ t: "treeRow", label: "Signal", depth: 1, icon: "instance", tone: "package", badge: "1.5.0" },
+				{ t: "treeRow", label: "Promise", depth: 1, icon: "instance", tone: "package", badge: "not installed", readonly: true },
+				{
+					t: "treeRow", label: "Flux", depth: 1, icon: "instance", tone: "package", badge: "0.2.0", selected: true,
+					name: "The new package", what: "Its line is in wally.toml, and it is installed in Packages/.",
+				},
+				{ t: "treeRow", label: ".luaurc", depth: 0, icon: "settings", tone: "luaurc" },
+				{ t: "treeSection", text: "Compile content" },
+				{ t: "treeRow", label: "Packages", depth: 0, twist: "shut", icon: "folder", tone: "tree-folder-packages" },
+				{ t: "treeRow", label: "src", depth: 0, twist: "shut", icon: "folder", tone: "tree-folder-plain" },
+			],
+		},
+	],
+};
+
+/**
+ * What right-clicking `wally.toml`, or a package listed under it, offers.
+ * Written from `ProjectTree.tsx`, in its order.
+ */
+export const WALLY_MENU: ToolbarSpec = {
+	id: "wally-menu",
+	title: "The wally.toml menu",
+	summary: "Right-click wally.toml, or a package listed under it.",
+	chrome: "popmenu",
+	groups: [
+		{
+			items: [
+				{ t: "button", text: "Insert its zip…", icon: "folderOpen", name: "Insert its zip…", where: "On a package not installed", what: "Installs that package from a zip you downloaded." },
+				{ t: "button", text: "Remove package…", icon: "remove", name: "Remove package…", where: "On a package", what: "Takes it out of wally.toml and Packages/, after listing what still requires it." },
+				{ t: "button", text: "Add from Wally…", icon: "instance", name: "Add from Wally…", what: "A package from the Wally registry, with what it depends on." },
+				{ t: "button", text: "Insert package zip…", icon: "folderOpen", name: "Insert package zip…", what: "A package, or any module, from a zip." },
+				{ t: "button", text: "Insert GitHub repo…", icon: "external", name: "Insert GitHub repo…", where: "In the installed editor", what: "A repository's module, copied into Packages/." },
+			],
+		},
+	],
+};
+
+/** Add from Wally's form, as `App.tsx` asks it. */
+export const ADD_FROM_WALLY: ToolbarSpec = {
+	id: "add-from-wally",
+	title: "Add from Wally",
+	summary: "The form Add from Wally… opens.",
+	chrome: "modal",
+	groups: [
+		{
+			items: [
+				{ t: "dialogTitle", text: "Add from Wally" },
+				{
+					t: "message",
+					text: "A package from the Wally registry: scope/name, or scope/name@version. It goes into wally.toml, then installs with what it depends on.",
+				},
+			],
+		},
+		{
+			items: [{
+				t: "setting", label: "Package", value: "someone/flux",
+				name: "Package", what: "`scope/name`, or `scope/name@version` for a version other than the newest.",
+			}],
+		},
+		{
+			items: [{
+				t: "setting", label: "Required as (optional)", value: "",
+				name: "Required as", what: "The name in wally.toml and Packages/. Left empty, it is the package's own.",
+			}],
+		},
+		{
+			items: [{
+				t: "setting", label: "Realm", value: "Shared (Packages)", control: "select",
+				name: "Realm", what: "Shared, Server or Dev: which table of wally.toml the line goes in, and which folder it installs into.",
+			}],
+		},
+		{
+			actions: true,
+			items: [
+				{ t: "button", text: "Cancel" },
+				{ t: "button", text: "Add", primary: true, name: "Add", what: "Writes the line, then asks the registry." },
+			],
+		},
+	],
+};
+
+/** What Remove package… asks, when a file still requires the package. */
+export const REMOVE_PACKAGE: ToolbarSpec = {
+	id: "remove-package",
+	title: "Remove package",
+	summary: "What Remove package… asks first.",
+	chrome: "modal",
+	groups: [
+		{
+			items: [
+				{ t: "dialogTitle", text: "Remove Signal?" },
+				{
+					t: "message",
+					text: "It comes out of wally.toml and Packages/, with any package only it needed. These still require it, and will fail to:",
+				},
+				{
+					t: "list", items: ["src/server/Doors.server.luau"],
+					name: "Still requires it", what: "Every file with a require that reaches the package.",
+				},
+			],
+		},
+		{
+			actions: true,
+			items: [
+				{ t: "button", text: "Cancel" },
+				{ t: "button", text: "Remove", primary: true, danger: true, name: "Remove", what: "Takes it out. Code copied in over its file in Packages/ stays." },
+			],
+		},
+	],
+};
+
+/** A row of the DataModel browser, glyph and colour as `PlaceBrowser.tsx` picks them. */
+function placeRow(
+	label: string, className: string, depth: number,
+	opts: { service?: boolean; open?: boolean; kids?: boolean; selected?: boolean; name?: string; what?: string } = {},
+): ToolbarItem {
+	const { icon, tone } = classGlyph(className, opts.service ?? false, opts.open ?? false);
+	return {
+		t: "treeRow", place: true, label, depth, icon, tone, className,
+		...(opts.kids ? { twist: opts.open ? "open" as const : "shut" as const } : {}),
+		...(opts.selected ? { selected: true, current: true } : {}),
+		...(opts.name ? { name: opts.name, what: opts.what } : {}),
+	};
+}
+
+/** The DataModel browser, with the door the Properties picture shows picked. */
+export const DATAMODEL_BROWSER: ToolbarSpec = {
+	id: "datamodel-browser",
+	title: "The DataModel browser",
+	summary: "The Project panel with DataModel chosen: the place, as Studio's Explorer lists it.",
+	chrome: "place",
+	groups: [
+		{
+			items: [
+				{ t: "field", text: "Filter by name or class", fill: true, name: "Filter", what: "Lists what matches by name, or by a class typed in full, with where each one is." },
+				{ t: "icon", icon: "refresh", name: "Read again", what: "Reads the place file again." },
+			],
+		},
+		{
+			items: [
+				placeRow("Workspace", "Workspace", 0, { service: true, open: true, kids: true }),
+				placeRow("House", "Model", 1, { open: true, kids: true }),
+				placeRow("Door", "Part", 2, {
+					selected: true,
+					name: "An instance", what: "Its name and class. Double-click it, or double tap, for Properties.",
+				}),
+				placeRow("ReplicatedStorage", "ReplicatedStorage", 0, { service: true, open: true, kids: true }),
+				placeRow("Shared", "Folder", 1, { open: true, kids: true }),
+				placeRow("Config", "ModuleScript", 2, {
+					name: "A script", what: "Coloured by kind, as the project tree colours it. Properties has Open for the file that writes it.",
+				}),
+				placeRow("ServerScriptService", "ServerScriptService", 0, { service: true, open: true, kids: true }),
+				placeRow("Doors", "Script", 1),
+				placeRow("StarterPlayer", "StarterPlayer", 0, { service: true, kids: true }),
+			],
+		},
+	],
+};
+
+/**
+ * The door, built as the place reader would build it, so `describeInstance`
+ * can say what the Properties panel shows for it.
+ */
+function sampleDoor(): RbxInstance {
+	const enc = new TextEncoder();
+	const bytes = (s: string) => enc.encode(s);
+	// `AttributesSerialize`: one attribute, IsOpen, a boolean (0x03) false.
+	const name = bytes("IsOpen");
+	const attributes = new Uint8Array(10 + name.length);
+	const view = new DataView(attributes.buffer);
+	view.setUint32(0, 1, true);
+	view.setUint32(4, name.length, true);
+	attributes.set(name, 8);
+	attributes[8 + name.length] = 0x03;
+	attributes[9 + name.length] = 0;
+	const at = (className: string, label: string, parent: RbxInstance | null, service = false): RbxInstance =>
+		({ className, name: label, parent, children: [], props: new Map(), service });
+	const workspace = at("Workspace", "Workspace", null, true);
+	const house = at("Model", "House", workspace);
+	const door = at("Part", "Door", house);
+	door.props = new Map<string, Prop>([
+		["Name", { type: "String", value: bytes("Door") }],
+		["Anchored", { type: "Bool", value: true }],
+		["CanCollide", { type: "Bool", value: true }],
+		["Transparency", { type: "Float32", value: 0 }],
+		["Color3uint8", { type: "Color3uint8", value: [105, 64, 40] }],
+		["size", { type: "Vector3", value: [4, 7, 1] }],
+		["Tags", { type: "String", value: bytes("Interactable") }],
+		["AttributesSerialize", { type: "String", value: attributes }],
+	]);
+	return door;
+}
+
+/** The Properties panel for the door, filled by the editor's own reader. */
+export const PROPERTIES_PANEL: ToolbarSpec = (() => {
+	const door = sampleDoor();
+	const info = describeInstance(door, 2, () => undefined);
+	const glyph = classGlyph(info.className, false, false);
+	const groups: ToolbarGroup[] = groupProperties(info.properties).map(([category, list]) => ({
+		items: [
+			{ t: "propGroup", text: category },
+			...(category === "Tags"
+				? [{ t: "tags", tags: list.map((p) => p.name), name: "Tags", what: "The instance's tags, as CollectionService reads them." } as ToolbarItem]
+				: list.map((p): ToolbarItem => ({
+					t: "prop", label: p.name, value: p.value, ...(p.color ? { color: p.color } : {}),
+					...(p.name === "Anchored"
+						? { name: "A property", what: "Drag it onto a graph for a Get Member. Hold `Ctrl` as you drop for Set Property." }
+						: category === "Attributes"
+							? { name: "An attribute", what: "Drag it for Get Attribute, or Set Attribute with `Ctrl`." }
+							: {}),
+				}))),
+		],
+	}));
+	return {
+		id: "properties-panel",
+		title: "The Properties panel",
+		summary: "An instance opened from the DataModel, on the right under the Inspector.",
+		chrome: "properties",
+		groups: [
+			{ items: [{ t: "heading", level: 2, text: "Properties", action: "Close", name: "Close", what: "Stops showing the instance." }] },
+			{
+				items: [{
+					t: "propHead", label: info.name, className: info.className, icon: glyph.icon, tone: glyph.tone,
+					name: "The instance", what: "Drag it onto a graph for an Instance node at its path.",
+				}],
+			},
+			{ items: [{ t: "propPath", text: info.path.join(" › ") }] },
+			...(info.summary ? [{ items: [{ t: "propSummary", text: info.summary } as ToolbarItem] }] : []),
+			...groups,
+		],
+	};
+})();
+
+/** The Export panel, for a project with a place, as `ExportMenu.tsx` draws it. */
+export const EXPORT_PANEL: ToolbarSpec = {
+	id: "export-panel",
+	title: "The Export panel",
+	summary: "Project → Export…, in a project with a place.",
+	chrome: "modal",
+	className: "export-menu",
+	groups: [
+		{ items: [{ t: "dialogTitle", text: "Export Project" }] },
+		{
+			wrap: "export-menu-form",
+			items: [
+				{
+					t: "formRow", label: "Format", control: "select", value: "Project (.zip)",
+					note: "A zip: graphs, Luau and the Rojo project, with the place in its root.",
+					name: "Format", what: "The whole project as a zip, or the place file alone.",
+				},
+				{ t: "formSection", text: "File" },
+				{ t: "formRow", label: "Name", control: "field", value: "my-game", suffix: ".zip", name: "Name", what: "The file's name." },
+				{ t: "formSection", text: "Place file" },
+				{
+					t: "formRow", label: "place.rbxl", control: "segmented", value: "", options: ["Modify RBXL", "Don't Modify RBXL"], on: 0,
+					note: "Writes 12 scripts and adds 1.",
+					name: "Modify RBXL | Don't Modify RBXL",
+					what: "Modify writes the project's scripts into the copy of the place, and says how many; Don't sends the place as it was.",
+				},
+			],
+		},
+		{
+			actions: true,
+			wrap: "export-menu-foot",
+			items: [
+				{ t: "footNote", text: "34 files and place.rbxl · the project itself is not changed" },
+				{ t: "button", text: "Cancel" },
+				{ t: "button", text: "Export", primary: true, name: "Export", what: "Downloads it. The project's own files are not changed." },
+			],
+		},
+	],
+};
+
+/** Every picture on Places and Rojo projects and on Wally packages. */
+export const PLACE_BARS: ToolbarSpec[] = [
+	PROJECT_TREE_WALLY, PROJECT_TREE_WALLY_ADDED, WALLY_MENU, ADD_FROM_WALLY, REMOVE_PACKAGE,
+	DATAMODEL_BROWSER, PROPERTIES_PANEL, EXPORT_PANEL,
+];
+
 /** The daemon's start page: a path, Browse, and Open. */
 export const START_PAGE: ToolbarSpec = {
 	id: "start-page",
@@ -1682,7 +2235,7 @@ export const START_PAGE: ToolbarSpec = {
 };
 
 /** Every picture a walkthrough draws, for the tests that hold them to the icon set. */
-export const WALK_BARS: ToolbarSpec[] = [PROJECTS_FOOT, PROJECT_MENU, START_PAGE];
+export const WALK_BARS: ToolbarSpec[] = [PROJECTS_FOOT, PROJECT_MENU, START_PAGE, ...PLACE_BARS];
 
 /**
  * The row of edits under the graph on a phone or a tablet.

@@ -120,7 +120,7 @@ export interface IconProps {
 }
 
 /** Icons whose holes are drawn by the even-odd rule rather than by winding. */
-const EVEN_ODD = new Set<IconName>(["luauScript"]);
+export const EVEN_ODD: ReadonlySet<string> = new Set<IconName>(["luauScript"]);
 
 export function Icon({ name, size = 16, className, rotate, title }: IconProps) {
 	return (
@@ -150,4 +150,4 @@ export function Icon({ name, size = 16, className, rotate, title }: IconProps) {
 }
 
 /** Glyphs drawn as a centre line, by stroke width in the 960 grid. */
-const STROKED: Partial<Record<IconName, number>> = { function: 80, instance: 64 };
+export const STROKED: Partial<Record<string, number>> = { function: 80, instance: 64 };

@@ -27,7 +27,7 @@ import { STABLE_SITE } from "../src/core/docs/links.ts";
 import { highlightLuau } from "../src/app/highlight.ts";
 import { nodeColor, pinColor } from "../src/app/palette.ts";
 import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
-import { ICONS, VIEW_BOX } from "../src/app/icons.tsx";
+import { EVEN_ODD, ICONS, STROKED, VIEW_BOX } from "../src/app/icons.tsx";
 import { BACKUP_BANNER, CANARY_BANNER, markChipMarkup, MARK_LABEL, previewChipMarkup } from "../src/app/previewMark.ts";
 
 import { wirePath } from "../src/app/geometry.ts";
@@ -174,7 +174,7 @@ async function main() {
 		: undefined;
 	// The glyphs and the mark a drawn toolbar needs. Core cannot import either,
 	// so the build hands them over the same way it hands over the palette.
-	const toolbars = { viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), pinColor };
+	const toolbars = { viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), pinColor, strokes: STROKED, evenOdd: EVEN_ODD };
 
 	// The three shared assets, made before any page so every page can name
 	// exactly the bytes it was built against. See `assetStamp` in html.ts.

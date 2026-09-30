@@ -31,7 +31,7 @@ import {
 import { noteHeadHtml } from "../core/docs/notes.js";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { highlightLuau } from "./highlight.js";
-import { Icon, ICONS, VIEW_BOX } from "./icons.jsx";
+import { EVEN_ODD, Icon, ICONS, STROKED, VIEW_BOX } from "./icons.jsx";
 import { logoMarkup } from "./logo.jsx";
 import { NODE, ZOOM } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
@@ -829,7 +829,7 @@ function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
  * objects the real bars are drawn from.
  */
 const TOOLBAR_ART = {
-	viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: VERSION, pinColor,
+	viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: VERSION, pinColor, strokes: STROKED, evenOdd: EVEN_ODD,
 };
 
 /**

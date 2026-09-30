@@ -803,6 +803,59 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	},
 
 	/**
+	 * What dropping a property from Properties makes: the Instance at the
+	 * door's path, into a Get Member typed as the property is. Printed, so the
+	 * value has somewhere to go.
+	 */
+	dropProperty: () => {
+		const g = new G({}, TIGHT);
+		const begin = g.node("script.begin", { column: 0, row: 0 });
+		const door = g.node("roblox.instancePath", {
+			column: 1, row: 1, literals: { root: str("Workspace"), path: str("House.Door") },
+		});
+		const anchored = g.node("value.member", {
+			column: 2, row: 1, config: { member: "Anchored", type: "boolean" },
+		});
+		const print = g.node("debug.print", { column: 3, row: 0 });
+		g.link(begin, "then", print, "in");
+		g.link(door, "instance", anchored, "object");
+		g.link(anchored, "result", print, "value");
+		return g.out();
+	},
+
+	/** The same drop with Ctrl held: Set Property, the property typed in. */
+	dropPropertySet: () => {
+		const g = new G({}, TIGHT);
+		const begin = g.node("script.begin", { column: 0, row: 0 });
+		const door = g.node("roblox.instancePath", {
+			column: 1, row: 1, literals: { root: str("Workspace"), path: str("House.Door") },
+		});
+		const set = g.node("roblox.setProperty", {
+			column: 2, row: 0, literals: { property: str("Anchored"), value: { t: "boolean", v: false } },
+		});
+		g.link(begin, "then", set, "in");
+		g.link(door, "instance", set, "instance");
+		return g.out();
+	},
+
+	/** An attribute from Properties: Get Attribute, the name typed in. */
+	dropAttribute: () => {
+		const g = new G({}, TIGHT);
+		const begin = g.node("script.begin", { column: 0, row: 0 });
+		const door = g.node("roblox.instancePath", {
+			column: 1, row: 1, literals: { root: str("Workspace"), path: str("House.Door") },
+		});
+		const open = g.node("instance.getAttribute", {
+			column: 2, row: 1, literals: { name: str("IsOpen") },
+		});
+		const print = g.node("debug.print", { column: 3, row: 0 });
+		g.link(begin, "then", print, "in");
+		g.link(door, "instance", open, "instance");
+		g.link(open, "result", print, "value");
+		return g.out();
+	},
+
+	/**
 	 * Why a local declared in one branch arm is not visible in the other.
 	 *
 	 * The two Custom Code nodes are siblings: each is inside its own `if` arm,

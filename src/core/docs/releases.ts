@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.116.0",
+		date: "2026-09-30",
+		headline: "Places and Wally pages draw the editor.",
+		affects: ["docs"],
+		added: [
+			"[Places and Rojo projects](places-and-rojo) draws the node map an import makes, the DataModel browser, the Properties panel, each drop from Properties with the Luau it compiles to, and the Export panel.",
+			"[Wally packages](wally-packages) draws the project tree with its packages, and walks through adding one and removing one.",
+		],
+	},
+	{
 		version: "0.115.1",
 		date: "2026-09-30",
 		headline: "The four new pages are reviewed.",

@@ -114,6 +114,50 @@ export interface PlaceInstanceInfo {
 	properties: PlaceProperty[];
 }
 
+/** Studio's Properties headings, in its order; anything else after, by name. */
+const CATEGORY_ORDER = ["Data", "Appearance", "Text", "Image", "Behavior", "Part", "Transform", "Pivot", "Collision", "Assembly", "Character", "Physics", "Surface"];
+const LAST = ["Other", "Tags", "Attributes"];
+
+/** Properties under their headings, the headings in the order Studio shows them. */
+export function groupProperties(properties: readonly PlaceProperty[]): [string, PlaceProperty[]][] {
+	const by = new Map<string, PlaceProperty[]>();
+	for (const p of properties) {
+		const list = by.get(p.category);
+		if (list) list.push(p);
+		else by.set(p.category, [p]);
+	}
+	const rank = (c: string) => {
+		const i = CATEGORY_ORDER.indexOf(c);
+		if (i !== -1) return i;
+		const j = LAST.indexOf(c);
+		return j === -1 ? CATEGORY_ORDER.length : CATEGORY_ORDER.length + 1 + j;
+	};
+	return [...by].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+export const isScriptClass = (cls: string) => cls === "Script" || cls === "LocalScript" || cls === "ModuleScript";
+
+/**
+ * Containers Studio makes for you inside a service: not services themselves,
+ * but special in the same way, so the same blue folder.
+ */
+const CONTAINERS = new Set(["StarterPlayerScripts", "StarterCharacterScripts", "StarterGear"]);
+
+/**
+ * The glyph an instance is drawn with, and the class that colours it: the
+ * project tree's for the same thing, and a cube for the rest.
+ */
+export function classGlyph(className: string, service: boolean, open: boolean): { icon: string; tone: string } {
+	if (isScriptClass(className)) {
+		const tone = className === "Script" ? "server" : className === "LocalScript" ? "local" : "module";
+		return { icon: "luauScript", tone: `luau tree-script-${tone}` };
+	}
+	const folder = open ? "folderOpen" : "folder";
+	if (service || CONTAINERS.has(className)) return { icon: folder, tone: "tree-folder-special" };
+	if (className === "Folder") return { icon: folder, tone: "tree-folder-plain" };
+	return { icon: "instance", tone: "place-instance" };
+}
+
 /** Stored under one name, shown under Studio's. */
 const RENAMED: Record<string, string> = {
 	Color3uint8: "Color",

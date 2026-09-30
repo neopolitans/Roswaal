@@ -35,7 +35,7 @@ import {
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
-	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_BAR_TABLET, DESIGNER_TOUCH_BAR, DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_PHONE, DOCS_SITE_BAR_TOUCH, EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE, EDITOR_BAR_TABLET, FUNCTIONS_PANEL, PROJECT_MENU, PROJECT_PANEL_HEAD, PROJECTS_FOOT, START_PAGE, GRAPH_BAR, GRAPH_BAR_PHONE, GRAPH_BAR_TABLET, legendOf, MAP_BAR, MODULES_PANEL, VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec, TYPE_FIELDS_INSPECTOR, TYPE_WRITTEN_INSPECTOR, TYPE_OPEN_INSPECTOR,
+	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_BAR_TABLET, DESIGNER_TOUCH_BAR, DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_PHONE, DOCS_SITE_BAR_TOUCH, EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE, EDITOR_BAR_TABLET, FUNCTIONS_PANEL, PROJECT_MENU, PROJECT_PANEL_HEAD, PROJECTS_FOOT, ADD_FROM_WALLY, DATAMODEL_BROWSER, EXPORT_PANEL, PROJECT_TREE_WALLY, PROJECT_TREE_WALLY_ADDED, PROPERTIES_PANEL, REMOVE_PACKAGE, WALLY_MENU, START_PAGE, GRAPH_BAR, GRAPH_BAR_PHONE, GRAPH_BAR_TABLET, legendOf, MAP_BAR, MODULES_PANEL, VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec, TYPE_FIELDS_INSPECTOR, TYPE_WRITTEN_INSPECTOR, TYPE_OPEN_INSPECTOR,
 } from "./toolbars.js";
 import {
 	DESIGNER_LAYOUT, DESIGNER_LAYOUT_PHONE, DESIGNER_LAYOUT_TOUCH, EDITOR_LAYOUT, EDITOR_LAYOUT_PHONE,
@@ -49,6 +49,7 @@ import { DEMOS, demoLuau } from "./demos.js";
 import { ROBLOX_DEMO_GRAPHS, ROBLOX_DEMO_MAP } from "./robloxDemos.js";
 import type { NodeMap } from "../nodemap.js";
 import { mapFigure } from "./mapFigure.js";
+import { projectToMap } from "../rojoImport.js";
 
 // ---------------------------------------------------------------------------
 // Blocks
@@ -4041,6 +4042,36 @@ const BUILDING: DocPage = {
 };
 
 /**
+ * A Rojo project as a Wally game usually has one: shared code and packages in
+ * ReplicatedStorage, the server's and the client's own folders. Read into a
+ * map by the importer itself, so the picture is what Import Rojo project makes
+ * of it -- and a test holds that the map writes this file back unchanged.
+ */
+export const ROJO_SAMPLE = {
+	name: "orchard",
+	tree: {
+		$className: "DataModel",
+		ReplicatedStorage: {
+			Shared: { $path: "src/shared" },
+			Packages: { $path: "Packages" },
+		},
+		ServerScriptService: {
+			Server: { $path: "src/server" },
+		},
+		StarterPlayer: {
+			StarterPlayerScripts: {
+				Client: { $path: "src/client" },
+			},
+		},
+	},
+};
+
+const ROJO_IMPORTED: NodeMap = (() => {
+	let n = 0;
+	return projectToMap(ROJO_SAMPLE, { output: "default.project.json", fallbackName: "orchard", makeId: () => `rojo-${n++}` }).map;
+})();
+
+/**
  * Bringing an existing game in: a Rojo project, a place, or both, and what
  * goes back out. Split from `BUILDING` at 0.115.0, when these sections had
  * grown to half of a page about compiling.
@@ -4067,6 +4098,13 @@ const PLACES_PAGE: DocPage = {
 				"Import Rojo project…**, or `roswaal import default.project.json`, reads it into a node " +
 				"map beside your graphs. The file is not changed, and every field in it is kept, " +
 				"including ones the map editor has no control for.",
+		},
+		{
+			t: "nodemap",
+			map: ROJO_IMPORTED,
+			caption:
+				"A project file read into a map. **Select a row** for its fields; the project file " +
+				"beside it is the one the map writes, the same as the one it was read from.",
 		},
 		{
 			t: "p",
@@ -4118,6 +4156,7 @@ const PLACES_PAGE: DocPage = {
 				"usual services first, children by name, and empty services at the end. Filter by " +
 				"name, or by a class name typed in full.",
 		},
+		{ t: "toolbar", bar: DATAMODEL_BROWSER, hint: true },
 		{
 			t: "p",
 			text:
@@ -4127,6 +4166,7 @@ const PLACES_PAGE: DocPage = {
 				"writes, **Open** opens that file, and its graph when one generates it. The browser " +
 				"only reads the place.",
 		},
+		{ t: "toolbar", bar: PROPERTIES_PANEL },
 
 		{ t: "h", level: 2, text: "Dragging onto a graph" },
 		{
@@ -4139,6 +4179,36 @@ const PLACES_PAGE: DocPage = {
 				["The instance's name", "The Instance node alone"],
 			],
 		},
+		{
+			t: "tabs",
+			label: "Dropped from Properties",
+			tabs: [
+				{
+					id: "drop-property",
+					title: "A property",
+					blocks: [
+						{ t: "graph", script: GUIDE_SCENES.dropProperty(), caption: "Anchored, dropped: Get Member, typed boolean, printed here." },
+						{ t: "code", lang: "luau", text: "local Workspace = game:GetService(\"Workspace\")" + NEWLINE + "" + NEWLINE + "print(Workspace.House.Door.Anchored)" },
+					],
+				},
+				{
+					id: "drop-property-set",
+					title: "With Ctrl",
+					blocks: [
+						{ t: "graph", script: GUIDE_SCENES.dropPropertySet(), caption: "The same drop with `Ctrl` held: Set Property." },
+						{ t: "code", lang: "luau", text: "local Workspace = game:GetService(\"Workspace\")" + NEWLINE + "" + NEWLINE + "Workspace.House.Door.Anchored = false" },
+					],
+				},
+				{
+					id: "drop-attribute",
+					title: "An attribute",
+					blocks: [
+						{ t: "graph", script: GUIDE_SCENES.dropAttribute(), caption: "IsOpen, an attribute: Get Attribute." },
+						{ t: "code", lang: "luau", text: "local Workspace = game:GetService(\"Workspace\")" + NEWLINE + "" + NEWLINE + "print(Workspace.House.Door:GetAttribute(\"IsOpen\"))" },
+					],
+				},
+			],
+		},
 
 		{ t: "h", level: 2, text: "Writing scripts into the place" },
 		{
@@ -4149,6 +4219,7 @@ const PLACES_PAGE: DocPage = {
 				"choose; **Don't Modify RBXL** sends the place as it was. The project's own place file " +
 				"is not changed either way. `roswaal export out.rbxl` writes the modified place to a file.",
 		},
+		{ t: "toolbar", bar: EXPORT_PANEL },
 		{
 			t: "p",
 			text:
@@ -4195,6 +4266,7 @@ const PACKAGES_PAGE: DocPage = {
 				"installed. Double-click one to open its code; one not installed yet says so. " +
 				"`Packages/` is under Compile content, in purple, and starts closed.",
 		},
+		{ t: "toolbar", bar: PROJECT_TREE_WALLY, hint: true },
 
 		{ t: "h", level: 2, text: "How a require reaches a package" },
 		{
@@ -4231,6 +4303,32 @@ const PACKAGES_PAGE: DocPage = {
 			],
 		},
 		{
+			t: "walkthrough",
+			steps: [
+				{
+					text: "Right-click `wally.toml` in the project tree, or press and hold it on a touch screen.",
+					picture: [PROJECT_TREE_WALLY],
+					point: "wally.toml",
+				},
+				{ text: "Choose **Add from Wally…**.", picture: [WALLY_MENU], point: "Add from Wally…" },
+				{
+					text: "Type the package as `scope/name`. Pick a **Realm** if it is not for both sides.",
+					picture: [ADD_FROM_WALLY],
+					point: "Package",
+				},
+				{
+					text: "Press **Add**. The line goes into `wally.toml`, then the package installs with what it depends on.",
+					picture: [ADD_FROM_WALLY],
+					point: "Add",
+				},
+				{
+					text: "It is listed under `wally.toml` with the version installed.",
+					picture: [PROJECT_TREE_WALLY_ADDED],
+					point: "The new package",
+				},
+			],
+		},
+		{
 			t: "p",
 			text:
 				"**Realm** puts the line under `[dependencies]`, `[server-dependencies]` or " +
@@ -4259,6 +4357,18 @@ const PACKAGES_PAGE: DocPage = {
 				"asks first. It takes the line out of `wally.toml`, and the package out of `Packages/` " +
 				"with any package only it needed. Code copied in over the package's file is left " +
 				"where it is.",
+		},
+		{
+			t: "walkthrough",
+			steps: [
+				{ text: "Right-click the package under `wally.toml`.", picture: [PROJECT_TREE_WALLY], point: "A package" },
+				{ text: "Choose **Remove package…**.", picture: [WALLY_MENU], point: "Remove package…" },
+				{
+					text: "It lists the files that still require it. Press **Remove** to take it out.",
+					picture: [REMOVE_PACKAGE],
+					point: "Remove",
+				},
+			],
 		},
 	],
 };

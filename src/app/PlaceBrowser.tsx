@@ -9,8 +9,8 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type PlaceTree } from "./api.js";
-import type { PlaceInstanceInfo, PlaceProperty } from "../core/rbx/browse.js";
-import { Icon } from "./icons.jsx";
+import { classGlyph, groupProperties, isScriptClass, type PlaceInstanceInfo, type PlaceProperty } from "../core/rbx/browse.js";
+import { Icon, type IconName } from "./icons.jsx";
 
 /** Mirrors `TUCKED` in core/rbx/browse.ts, which the editor does not bundle. */
 const TUCKED = 1;
@@ -386,25 +386,10 @@ function pathTo(nodes: readonly [number, string, number, number][], index: numbe
 	return names;
 }
 
-const isScriptClass = (cls: string) => cls === "Script" || cls === "LocalScript" || cls === "ModuleScript";
-
-/**
- * Containers Studio makes for you inside a service: not services themselves,
- * but special in the same way, so the same blue folder.
- */
-const CONTAINERS = new Set(["StarterPlayerScripts", "StarterCharacterScripts", "StarterGear"]);
-
 /** The glyph the project tree uses for the same thing, and a cube for the rest. */
 function ClassIcon({ className, service, open }: { className: string; service: boolean; open: boolean }) {
-	if (isScriptClass(className)) {
-		const tone = className === "Script" ? "server" : className === "LocalScript" ? "local" : "module";
-		return <Icon name="luauScript" size={15} className={`kind luau tree-script-${tone}`} />;
-	}
-	if (service || CONTAINERS.has(className)) {
-		return <Icon name={open ? "folderOpen" : "folder"} size={15} className="kind tree-folder-special" />;
-	}
-	if (className === "Folder") return <Icon name={open ? "folderOpen" : "folder"} size={15} className="kind tree-folder-plain" />;
-	return <Icon name="instance" size={15} className="kind place-instance" />;
+	const { icon, tone } = classGlyph(className, service, open);
+	return <Icon name={icon as IconName} size={15} className={`kind ${tone}`} />;
 }
 
 /** What a drag out of Properties carries: the instance, and the property or attribute. */
@@ -423,28 +408,10 @@ function dragOut(e: React.DragEvent, payload: PropertyDrag) {
 	e.dataTransfer.effectAllowed = "copy";
 }
 
-/** Studio's Properties headings, in its order; anything else after, by name. */
-const CATEGORY_ORDER = ["Data", "Appearance", "Text", "Image", "Behavior", "Part", "Transform", "Pivot", "Collision", "Assembly", "Character", "Physics", "Surface"];
-const LAST = ["Other", "Tags", "Attributes"];
-
 function Properties({ properties, onPick, path, className }: {
 	properties: PlaceProperty[]; onPick: (index: number) => void; path: string[]; className: string;
 }) {
-	const groups = useMemo(() => {
-		const by = new Map<string, PlaceProperty[]>();
-		for (const p of properties) {
-			const list = by.get(p.category);
-			if (list) list.push(p);
-			else by.set(p.category, [p]);
-		}
-		const rank = (c: string) => {
-			const i = CATEGORY_ORDER.indexOf(c);
-			if (i !== -1) return i;
-			const j = LAST.indexOf(c);
-			return j === -1 ? CATEGORY_ORDER.length : CATEGORY_ORDER.length + 1 + j;
-		};
-		return [...by].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
-	}, [properties]);
+	const groups = useMemo(() => groupProperties(properties), [properties]);
 
 	if (properties.length === 0) return <p className="place-note">No properties Roswaal reads.</p>;
 	return (
