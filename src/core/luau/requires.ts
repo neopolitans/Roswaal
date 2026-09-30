@@ -1,0 +1,216 @@
+/**
+ * What a `require` in hand-written Luau points at, and what the module it
+ * reaches gives back.
+ *
+ * Two halves of one question -- "what is `Flux.new`?" -- split where the disk
+ * comes in. This half is pure: it reads the requiring file for where each
+ * `require` goes, as an instance path (`game`, `script`, a local holding
+ * either, `:GetService`, `:WaitForChild`, `.Parent`) or a string, and reads a
+ * module's text for what it returns. The project layer turns the first into a
+ * file and hands this the file's text for the second.
+ */
+
+import type { Expr, Stat } from "./ast.js";
+import { docCommentBefore, docFor, type DocComment } from "./docComment.js";
+import { membersInCode, signatureOf, stringValue, type TableMember, typeOfValue } from "./infer.js";
+import { tokenize } from "./lexer.js";
+import { parseChunk } from "./parser.js";
+import { localsInFile } from "./scope.js";
+
+/**
+ * Where a require goes. An instance path starts at `game` or at the requiring
+ * script, and `..` is `.Parent`. A string is a path, as written.
+ */
+export type RequireTarget =
+	| { t: "instance"; from: "game" | "script"; names: string[] }
+	| { t: "string"; spec: string };
+
+/** A local that holds a module: `local Flux = require(Packages.Flux)`. */
+export interface RequireBinding {
+	name: string;
+	target: RequireTarget;
+}
+
+/** How many locals deep a path is followed: `local a = b.C` where `b` is a local. */
+const DEPTH = 12;
+
+/** The instance or string an expression names, when the code says for certain. */
+export function targetOf(expr: Expr, src: string, depth = 0): RequireTarget | undefined {
+	if (depth > DEPTH) return undefined;
+	switch (expr.kind) {
+		case "string": {
+			const spec = stringValue(expr);
+			return spec === undefined ? undefined : { t: "string", spec };
+		}
+		case "paren":
+			return targetOf(expr.inner, src, depth + 1);
+		case "cast":
+			return targetOf(expr.value, src, depth + 1);
+		case "name": {
+			if (expr.name === "game") return { t: "instance", from: "game", names: [] };
+			if (expr.name === "script") return { t: "instance", from: "script", names: [] };
+			if (expr.name === "workspace") return { t: "instance", from: "game", names: ["Workspace"] };
+			const local = localsInFile(src, expr.start)?.find((n) => n.name === expr.name);
+			return local?.value ? targetOf(local.value, src, depth + 1) : undefined;
+		}
+		case "index":
+		case "indexExpr": {
+			const name = expr.kind === "index" ? expr.name.name : expr.key.kind === "string" ? stringValue(expr.key) : undefined;
+			if (name === undefined) return undefined;
+			const base = targetOf(expr.object, src, depth + 1);
+			if (base?.t !== "instance") return undefined;
+			return { ...base, names: [...base.names, name === "Parent" ? ".." : name] };
+		}
+		case "methodCall": {
+			const method = expr.method.name;
+			const arg = expr.args[0]?.kind === "string" ? stringValue(expr.args[0]) : undefined;
+			if (arg === undefined) return undefined;
+			const base = targetOf(expr.object, src, depth + 1);
+			if (base?.t !== "instance") return undefined;
+			if (method === "GetService" && base.from === "game" && base.names.length === 0) return { ...base, names: [arg] };
+			if (method === "WaitForChild" || method === "FindFirstChild") return { ...base, names: [...base.names, arg] };
+			return undefined;
+		}
+		default:
+			return undefined;
+	}
+}
+
+const isRequireCall = (expr: Expr | undefined): expr is Extract<Expr, { kind: "call" }> =>
+	expr?.kind === "call" && expr.callee.kind === "name" && expr.callee.name === "require" && expr.args.length === 1;
+
+/** Whether a local's value is a `require(…)`, so what it holds is a module. */
+export const isRequire = (expr: Expr | undefined): boolean => isRequireCall(expr);
+
+/** Every local in the file that holds a required module, with where it goes. */
+export function requiresIn(src: string): RequireBinding[] {
+	const out: RequireBinding[] = [];
+	const visit = (node: unknown): void => {
+		if (Array.isArray(node)) return node.forEach(visit);
+		if (!node || typeof node !== "object") return;
+		const stat = node as Stat;
+		if ((stat.kind === "local" || stat.kind === "const") && Array.isArray(stat.names)) {
+			stat.names.forEach((binding, i) => {
+				const value = stat.values[i];
+				if (!isRequireCall(value)) return;
+				const target = targetOf(value.args[0], src);
+				if (target) out.push({ name: binding.name, target });
+			});
+		}
+		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+	};
+	visit(parseChunk(src).value);
+	return out;
+}
+
+/** What a module gives back to whoever requires it. */
+export interface ModuleExports {
+	kind: "table" | "function" | "value" | "module";
+	/** A table's functions and fields, with the comments above them. */
+	members: TableMember[];
+	/** A function's signature, or a value's type when it is evident. */
+	detail?: string;
+	/** The comment at the top of the module, above its first statement. */
+	doc?: DocComment;
+	/** It returns what another require returns: a Wally thunk does. */
+	reexport?: RequireTarget;
+}
+
+/**
+ * What the module's last top-level `return` gives back: a local table and
+ * what the file puts on it, a table written out, a function, or another
+ * module passed straight through.
+ */
+export function moduleExports(src: string): ModuleExports {
+	const block = parseChunk(src).value;
+	const last = [...block].reverse().find((s) => s.kind === "return") as Extract<Stat, { kind: "return" }> | undefined;
+	const first = block[0];
+	// A block comment says what the module is; `-- SERVICES` above the first
+	// line of code is a heading, not a description.
+	const top = first ? docCommentBefore(src, first.start) : undefined;
+	const doc = top?.style === "block" ? top : undefined;
+	const out = (e: Omit<ModuleExports, "doc">): ModuleExports => (doc ? { ...e, doc } : e);
+	const value = last?.values[0] ? unwrap(last.values[0]) : undefined;
+	if (!value) return out({ kind: "value", members: [] });
+	if (isRequireCall(value)) {
+		const target = targetOf(value.args[0], src);
+		return out({ kind: "module", members: [], ...(target ? { reexport: target } : {}) });
+	}
+	if (value.kind === "function") return out({ kind: "function", members: [], detail: signatureOf(value.func, src) });
+	if (value.kind === "table") return out({ kind: "table", members: fieldsOf(value, src) });
+	if (value.kind === "name") {
+		const local = localsInFile(src, value.start)?.find((n) => n.name === value.name);
+		// `local Flux = require(…)` then `return Flux`: the other module's.
+		if (isRequireCall(local?.value)) {
+			const target = targetOf(local.value.args[0], src);
+			return out({ kind: "module", members: [], ...(target ? { reexport: target } : {}) });
+		}
+		if (local?.value && local.value !== value) {
+			const held = unwrap(local.value);
+			if (held.kind === "table") {
+				const put = membersInCode(src, value.name);
+				const written = fieldsOf(held, src);
+				return out({ kind: "table", members: [...put, ...written.filter((w) => !put.some((p) => p.name === w.name))] });
+			}
+		}
+		const written = local?.value?.kind === "table" ? fieldsOf(local.value, src) : [];
+		const put = membersInCode(src, value.name);
+		// What the file puts on the table after, over what it was written with.
+		const members = [...put, ...written.filter((w) => !put.some((p) => p.name === w.name))];
+		if (local?.func) return out({ kind: "function", members, detail: signatureOf(local.func, src) });
+		// `function Button(props) … end` then `return Button`: a global the
+		// file defines, and the comment above it says what the module is.
+		const global = local ? undefined : block.find((s): s is Extract<Stat, { kind: "function" }> =>
+			s.kind === "function" && s.path.length === 1 && !s.method && s.path[0].name === value.name);
+		if (global) {
+			const above = docFor(docCommentBefore(src, global.start), value.name) ?? doc;
+			return { kind: "function", members, detail: signatureOf(global.func, src), ...(above ? { doc: above } : {}) };
+		}
+		return out({ kind: members.length || local?.value?.kind === "table" ? "table" : "value", members });
+	}
+	return out({ kind: "value", members: [], ...(typeOfValue(value, src) ? { detail: typeOfValue(value, src) } : {}) });
+}
+
+/**
+ * The value under what dresses it: `(x)`, `x :: T`, `table.freeze(x)` and
+ * `setmetatable(x, mt)` all give back `x` as far as its members go.
+ */
+function unwrap(expr: Expr, depth = 0): Expr {
+	if (depth > 8) return expr;
+	if (expr.kind === "paren") return unwrap(expr.inner, depth + 1);
+	if (expr.kind === "cast") return unwrap(expr.value, depth + 1);
+	if (expr.kind === "call" && expr.args.length > 0) {
+		const callee = expr.callee;
+		const isFreeze = callee.kind === "index" && callee.object.kind === "name" && callee.object.name === "table" && callee.name.name === "freeze";
+		const isSetmetatable = callee.kind === "name" && callee.name === "setmetatable";
+		if (isFreeze || isSetmetatable) return unwrap(expr.args[0], depth + 1);
+	}
+	return expr;
+}
+
+/** A table constructor's named fields, as members, with the comments above them. */
+function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string): TableMember[] {
+	const tokens = tokenize(src);
+	const out: TableMember[] = [];
+	for (const field of table.fields) {
+		if (field.kind !== "named") continue;
+		// `new = Signal.new`: the function the file defines, with its comment.
+		const value = field.value;
+		if (value.kind === "index" && value.object.kind === "name") {
+			const source = membersInCode(src, value.object.name).find((m) => m.name === value.name.name);
+			if (source) {
+				out.push({ ...source, name: field.name.name, kind: source.kind === "method" ? "function" : source.kind });
+				continue;
+			}
+		}
+		const isFunction = field.value.kind === "function";
+		const doc = docFor(docCommentBefore(src, field.start, tokens), field.name.name);
+		out.push({
+			name: field.name.name,
+			kind: isFunction ? "function" : "field",
+			detail: field.value.kind === "function" ? signatureOf(field.value.func, src) : typeOfValue(field.value, src) ?? "",
+			...(doc ? { doc } : {}),
+		});
+	}
+	return out;
+}

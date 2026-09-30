@@ -694,7 +694,12 @@ export async function buildTree(project: OpenProject): Promise<TreeEntry[]> {
 	const keepEmptyUnder = [project.config.sourceDir, ...project.config.nodePaths];
 	const tree = await walk(project.root, project.root, generated, keepEmptyUnder, await serviceFolders(project));
 	const wally = await wallyEntry(project);
-	return wally ? [...tree, wally] : tree;
+	if (!wally) return tree;
+	// It opens like a folder, so it is listed with the folders: after them and
+	// before the files, where its chevron lines up with theirs rather than
+	// sitting under a file as though it were inside it.
+	const files = tree.findIndex((e) => e.kind !== "directory");
+	return files === -1 ? [...tree, wally] : [...tree.slice(0, files), wally, ...tree.slice(files)];
 }
 
 /**
@@ -747,7 +752,8 @@ export async function resolveWallyPackage(
 		const text = await fs.readFile(safeJoin(project.root, thunk), "utf8").catch(() => null);
 		if (text === null) continue;
 		const names = thunkTarget(text);
-		if (!names) return null;
+		// Not a thunk: the package's code was put here in its place.
+		if (!names) return { thunk, module: thunk };
 		const module = await moduleAt(project, [folder, ...names].join("/"));
 		return module ? { thunk, module, version: indexVersion(names[names.length - 2] ?? "") } : null;
 	}

@@ -20,6 +20,16 @@ import { tokenize } from "./lexer.js";
 import { declarationAt, localsAt, localsInFile, type LocalKind } from "./scope.js";
 import { parseChunk } from "./parser.js";
 import type { Stat } from "./ast.js";
+import { isRequire } from "./requires.js";
+
+/** A module a local holds, as hover is told it by whoever followed the require. */
+export interface ModuleInfo {
+	file: string;
+	path?: string[];
+	kind: string;
+	detail?: string;
+	doc?: DocComment;
+}
 import { CLASSES, DATATYPES } from "../robloxData.js";
 import { propertiesOf } from "../robloxProperties.js";
 import { nilableProperty } from "../robloxNilable.js";
@@ -130,6 +140,7 @@ function chainBefore(src: string, end: number): { chain: string; from: number } 
 export function hoverAt(
 	src: string, pos: number, roblox = true,
 	tableMembers: ReadonlyMap<string, TableMember[]> = new Map(),
+	modules: ReadonlyMap<string, ModuleInfo> = new Map(),
 ): Hover | null {
 	// A class written as the string a call is given: `Instance.new("Part")`.
 	if (roblox) {
@@ -205,8 +216,10 @@ export function hoverAt(
 		// in the file, or a Declare Function the graph wires onto it. The
 		// owner may be a chain: `Promise.prototype.andThen`.
 		const { chain } = chainBefore(src, from - 1);
+		// A local that holds a required module has that module's members.
+		const outside = !local || isRequire(local.value);
 		const onTable = membersInCode(src, chain).find((m) => m.name === word)
-			?? (local ? undefined : tableMembers.get(chain)?.find((m) => m.name === word));
+			?? (outside ? tableMembers.get(chain)?.find((m) => m.name === word) : undefined);
 		if (onTable) return aboutMember(chain, onTable, from, to);
 		if (local) return null;
 
@@ -274,6 +287,17 @@ export function hoverAt(
 			?? (held.keys ? "table" : undefined);
 		const code = type ? `${word}: ${type}` : word;
 		const role = LOCAL_ROLE[local.kind];
+		// `local Flux = require(…)`: what the module is, and where.
+		const module = isRequire(local.value) ? modules.get(word) : undefined;
+		if (module) {
+			const where = module.path ? module.path.join(".") : module.file;
+			return {
+				from, to,
+				code: `${word}: ${module.kind === "function" && module.detail ? module.detail : "module"}`,
+				role: `module · ${where}`,
+				...(module.doc ? { doc: module.doc } : {}),
+			};
+		}
 		// Its own comment, or the one above the `function name()` that defines
 		// it later: `local Clean: (obj) -> ()` declared first is a common shape.
 		const definedBy = local.declaredAt === undefined ? undefined : globalFunction(src, word);

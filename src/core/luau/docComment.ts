@@ -30,6 +30,12 @@ export interface DocComment {
 	 * that above a declaration is not that declaration's.
 	 */
 	subject?: { tag: string; name?: string };
+	/**
+	 * How it was written: a `--[[ ]]` or `--[=[ ]=]` block, or a run of
+	 * `--` or `---` lines. A run of lines at the top of a file is as often a
+	 * section heading as a description of the module.
+	 */
+	style?: "block" | "lines";
 }
 
 /** Tags that make a comment about something other than what follows it. */
@@ -90,7 +96,7 @@ export function docCommentBefore(src: string, offset: number, tokens: Token[] = 
 	const raw = block ?? (lines.length ? lines.join("\n") : undefined);
 	if (raw === undefined || raw.trim() === "") return undefined;
 	if (plain && readsAsCode(raw)) return undefined;
-	return parseDoc(raw);
+	return { ...parseDoc(raw), style: block === undefined ? "lines" : "block" };
 }
 
 /**

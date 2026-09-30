@@ -63,7 +63,9 @@ export function parseWallyToml(text: string): WallyDependency[] {
  * is not a thunk.
  */
 export function thunkTarget(text: string): string[] | undefined {
-	const call = /return\s+require\s*\(\s*script\.Parent((?:\s*(?:\.[A-Za-z_][A-Za-z0-9_]*|\[\s*["'][^"']+["']\s*\]))+)\s*\)/.exec(text);
+	// At the start of a line: a thunk commented out -- a package vendored in
+	// its place, as some projects do -- is not one.
+	const call = /^[ \t]*return\s+require\s*\(\s*script\.Parent((?:\s*(?:\.[A-Za-z_][A-Za-z0-9_]*|\[\s*["'][^"']+["']\s*\]))+)\s*\)/m.exec(text);
 	if (!call) return undefined;
 	const names: string[] = [];
 	for (const part of call[1].matchAll(/\.([A-Za-z_][A-Za-z0-9_]*)|\[\s*["']([^"']+)["']\s*\]/g)) {

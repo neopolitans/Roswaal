@@ -2,6 +2,19 @@
 
 import type { PlaceReport } from "../core/rbx/placeExport.js";
 import type { PlaceInstanceInfo, PlaceOutline } from "../core/rbx/browse.js";
+import type { TableMember } from "../core/luau/infer.js";
+import type { DocComment } from "../core/luau/docComment.js";
+
+/** A module a local in a Luau file holds, as the host followed it. */
+export interface RequiredModule {
+	name: string;
+	file: string;
+	path?: string[];
+	kind: "table" | "function" | "value" | "module";
+	members: TableMember[];
+	detail?: string;
+	doc?: DocComment;
+}
 import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "../core/schema.js";
 import type { Diagnostic } from "../core/compiler/index.js";
 import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
@@ -235,6 +248,9 @@ export const api = {
 		}),
 
 	tree: () => request<{ tree: TreeEntry[]; place: string | null }>("/api/tree"),
+	/** What each `local X = require(…)` in a Luau file holds, followed to the module. */
+	luauModules: (path: string, text?: string) =>
+		post<{ modules: RequiredModule[] }>("/api/luau/modules", { path, ...(text === undefined ? {} : { text }) }),
 	/** The `*.project.json` files in the project's root, and the maps that write them. */
 	rojoProjects: () => request<{ projects: { file: string; mappedBy: string | null }[] }>("/api/rojo/projects"),
 	/** Reads a Rojo project file into a node map. */

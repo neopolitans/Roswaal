@@ -31,6 +31,9 @@ import { syntaxHighlighting } from "@codemirror/language";
 import { luauLanguage } from "./luauMode.js";
 import { luauHover } from "./luauHover.js";
 import type { Target } from "../core/schema.js";
+import type { TableMember } from "../core/luau/infer.js";
+import type { ModuleInfo } from "../core/luau/hover.js";
+import { api } from "./api.js";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { editorTheme, luauHighlight } from "./luauTheme.js";
 
@@ -73,6 +76,27 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 
 	// Rebuilt when the file changes rather than reconfigured: the document is
 	// read-only, so there is no state in here worth preserving across a switch.
+	/**
+	 * What the file's `require`s hold, followed by the host: `Flux.new` hovers
+	 * with the module's own signature and comment. Asked once per file, and
+	 * read through refs, so the editor is not rebuilt when the answer lands.
+	 */
+	const members = useRef<ReadonlyMap<string, TableMember[]>>(new Map());
+	const modules = useRef<ReadonlyMap<string, ModuleInfo>>(new Map());
+	useEffect(() => {
+		members.current = new Map();
+		modules.current = new Map();
+		let live = true;
+		api.luauModules(doc.path).then(({ modules: found }) => {
+			if (!live) return;
+			members.current = new Map(found.map((m) => [m.name, m.members]));
+			modules.current = new Map(found.map((m) => [m.name, m]));
+		}, () => {});
+		return () => {
+			live = false;
+		};
+	}, [doc.path, doc.text]);
+
 	useEffect(() => {
 		if (!host.current) return;
 		const instance = new EditorView({
@@ -94,7 +118,7 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 					editorTheme,
 					// The code editor's hover, here too: what every name is and
 					// where its Roblox docs page is, in a file that cannot be edited.
-					luauHover(() => targetOfSource(doc.text)),
+					luauHover(() => targetOfSource(doc.text), () => members.current, () => modules.current),
 				],
 			}),
 			parent: host.current,

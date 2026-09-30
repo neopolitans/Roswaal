@@ -30,6 +30,7 @@ import { toBase64 } from "../core/base64.js";
 import { describeInstance, fingerprint, outlinePlace, type PlaceOutline } from "../core/rbx/browse.js";
 import { RbxError, readRbx, type RbxDocument, type RbxInstance } from "../core/rbx/index.js";
 import { planPlaceUpdate, type PlaceReport } from "../core/rbx/placeExport.js";
+import { modulesRequiredBy } from "./requires.js";
 import { path } from "./host.js";
 import {
 	buildTree, collectBinaries, collectMaps, collectProject, compileAll, exportPlace, findPlaceFile, compileMap, compileScript, copyPackBetween, createFolder,
@@ -343,6 +344,18 @@ export class ApiSession {
 					if (i !== undefined) scripts[i] = owner;
 				});
 				return { file, stamp: loaded.stamp, outline: loaded.outline, scripts };
+			},
+
+			/**
+			 * The modules a Luau file's locals hold -- `local Flux =
+			 * require(Packages.Flux)` -- followed to what each gives back, for
+			 * hover to describe `Flux.new`. `text` is the file as the editor
+			 * has it, when that differs from the disk.
+			 */
+			"POST /luau/modules": async (req) => {
+				const { path: file, text } = body<{ path?: string; text?: string }>(req);
+				if (!file) throw new HttpError(400, "Which file? Pass its `path`.");
+				return { modules: await modulesRequiredBy(this.project(), file, text) };
 			},
 
 			/**

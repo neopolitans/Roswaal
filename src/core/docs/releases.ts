@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.108.0",
+		date: "2026-09-30",
+		headline: "Hover follows require.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Hover follows require** in a Luau file opened from the project. A local holding a required module shows where the module is, and its functions and fields hover with their signatures and comments. The require is followed through the node map, Wally's Packages and each package's own project file, or a .luaurc alias.",
+		],
+		fixed: [
+			"**wally.toml** is listed after the folders in Graph content, where it looked like it sat inside .luaurc.",
+			"**A package vendored in place of Wally's thunk** opens its own code, where the tree followed the commented-out thunk.",
+		],
+	},
+	{
 		version: "0.107.0",
 		date: "2026-09-30",
 		headline: "Wally packages in the project tree.",

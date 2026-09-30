@@ -8,7 +8,7 @@
 import { hoverTooltip } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 
-import { hoverAt } from "../core/luau/hover.js";
+import { hoverAt, type ModuleInfo } from "../core/luau/hover.js";
 import type { DocComment } from "../core/luau/docComment.js";
 import { highlightLuau } from "./highlight.js";
 import type { Target } from "../core/schema.js";
@@ -17,9 +17,10 @@ import type { TableMember } from "../core/luau/infer.js";
 export function luauHover(
 	getTarget: () => Target,
 	getMembers: () => ReadonlyMap<string, TableMember[]> = () => new Map(),
+	getModules: () => ReadonlyMap<string, ModuleInfo> = () => new Map(),
 ): Extension {
 	return hoverTooltip((view, pos) => {
-		const hover = hoverAt(view.state.doc.toString(), pos, getTarget() !== "lune", getMembers());
+		const hover = hoverAt(view.state.doc.toString(), pos, getTarget() !== "lune", getMembers(), getModules());
 		if (!hover) return null;
 		return {
 			pos: hover.from,

@@ -3453,6 +3453,14 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 				"notes are shown, with the types its `@param` and `@return` tags give. A comment " +
 				"that is code switched off is left out.",
 		},
+		{
+			t: "p",
+			text:
+				"In a Luau file opened from the project, a local that holds a required module knows what " +
+				"the module gives back: hover `Flux.state` for its signature and comment, or `Flux` for " +
+				"where the module is. Roswaal follows the require through the node map, Wally's " +
+				"`Packages/` and a package's own project file, or a `.luaurc` alias.",
+		},
 
 		{ t: "h", level: 2, text: "There are exactly two" },
 		{
