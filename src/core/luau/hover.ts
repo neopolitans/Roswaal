@@ -15,7 +15,7 @@ import {
 	type TableMember,
 } from "./infer.js";
 import { ENGINE, signatureText } from "../robloxEngine.js";
-import { docCommentBefore, docFor, docRegistry, withRelated, type DocComment } from "./docComment.js";
+import { docCommentBefore, docFor, docRegistry, mergeDocs, withRelated, type DocComment } from "./docComment.js";
 import { tokenize } from "./lexer.js";
 import { declarationAt, localsAt, localsInFile, type LocalKind } from "./scope.js";
 import { parseChunk } from "./parser.js";
@@ -240,7 +240,10 @@ export function hoverAt(
 		const outside = !local || isRequire(local.value);
 		const onTable = membersInCode(src, chain).find((m) => m.name === word)
 			?? (outside ? tableMembers.get(chain)?.find((m) => m.name === word) : undefined);
-		if (onTable) return aboutMember(chain, onTable, from, to);
+		if (onTable) {
+			const held = modules.get(`${chain}.${word}`) ?? (onTable.aliasOf ? modules.get(`${chain}.${onTable.aliasOf}`) : undefined);
+			return withModule(aboutMember(chain, onTable, from, to), held);
+		}
 		if (local) return null;
 
 		const item = roblox ? DATATYPE_STATICS[owner]?.find((s) => s.name === word) : undefined;
@@ -295,7 +298,7 @@ export function hoverAt(
 	const key = tableKeyAt(src, from, to);
 	if (key) {
 		const member = key.owner ? membersInCode(src, key.owner).find((m) => m.name === word) : undefined;
-		if (member && key.owner) return aboutMember(key.owner, member, from, to);
+		if (member && key.owner) return withModule(aboutMember(key.owner, member, from, to), modules.get(`${key.owner}.${word}`));
 		const doc = docFor(docCommentBefore(src, key.fieldStart), word);
 		return { from, to, code: `${word}${key.detail ? `: ${key.detail}` : ""}`, role: "field", ...(doc ? { doc } : {}) };
 	}
@@ -434,4 +437,16 @@ function tableKeyAt(src: string, from: number, to: number): { owner?: string; fi
 	};
 	visit(parseChunk(src).value);
 	return found;
+}
+
+
+/**
+ * A member that holds a required module, with the module's description where
+ * its own comment has none -- a bare `@prop` -- and where the module is.
+ */
+function withModule(hover: Hover, module: ModuleInfo | undefined): Hover {
+	if (!module) return hover;
+	const doc = mergeDocs(hover.doc, module.doc);
+	const where = module.path ? module.path.join(".") : module.file;
+	return { ...hover, role: `${hover.role ?? "field"} · module ${where}`, ...(doc ? { doc } : {}) };
 }

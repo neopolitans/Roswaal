@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.112.2",
+		date: "2026-09-30",
+		headline: "A field that holds a module shows that module's description.",
+		affects: ["editor"],
+		fixed: [
+			"**A field that holds a module**, Array = require(script.Array) in Sift, shows that module's description where its own @prop has none, in its own file and wherever it is required. An alias of one, Sift.List, shows the same.",
+		],
+	},
+	{
 		version: "0.112.1",
 		date: "2026-09-30",
 		headline: "A table's keys hover where they are written.",

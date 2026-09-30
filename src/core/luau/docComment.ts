@@ -61,6 +61,16 @@ export function docFor(doc: DocComment | undefined, name: string): DocComment | 
 	return doc.subject.name === undefined ? doc : undefined;
 }
 
+/**
+ * `own`, or where it says nothing, `from`: a bare `@prop Array Array` keeps
+ * its type and takes the description of the module the field requires.
+ */
+export function mergeDocs(own: DocComment | undefined, from: DocComment | undefined): DocComment | undefined {
+	if (!own || !from) return own ?? from;
+	if (own.text.trim() !== "" || own.params.length || own.returns.length) return own;
+	return { ...from, ...(own.subject ? { subject: own.subject } : {}) };
+}
+
 /** A Moonwave comment that names what it is about, wherever in the file it is. */
 export interface DocEntry {
 	tag: string;

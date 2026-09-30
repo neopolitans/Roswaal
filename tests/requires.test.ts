@@ -130,6 +130,35 @@ describe("following requires in a project", () => {
 		expect(found[0].path).toEqual(["ReplicatedStorage", "Packages", "_Index", "someone_flux@0.2.0", "flux"]);
 	});
 
+	it("gives a field that holds a module, and its alias, that module's description", async () => {
+		const opened = await project();
+		const put = (rel: string, text: string) => writeFile(path.join(root, rel), text);
+		await mkdir(path.join(root, "src/shared/Crate"), { recursive: true });
+		await put("src/shared/Crate/init.luau", [
+			"local Crate = {",
+			"\tShelf = require(script.Shelf),",
+			"}",
+			"Crate.Rack = Crate.Shelf",
+			"",
+			"--- @prop Shelf Shelf",
+			"--- @within Crate",
+			"",
+			"--- @prop Rack Shelf",
+			"--- @within Crate",
+			"",
+			"return Crate",
+		].join("\n"));
+		await put("src/shared/Crate/Shelf.luau", "--[=[\n\t@class Shelf\n\n\tHolds what is put on it.\n]=]\nlocal Shelf = {}\nreturn Shelf\n");
+		await put("src/server/uses.server.luau", "local Crate = require(game:GetService(\"ReplicatedStorage\").Shared.Crate)\n");
+		const [crate] = await modulesRequiredBy(opened, "src/server/uses.server.luau");
+		const shelf = crate.members.find((m) => m.name === "Shelf")!;
+		expect(shelf.doc).toMatchObject({ text: "Holds what is put on it.", subject: { tag: "prop", name: "Shelf", type: "Shelf" } });
+		expect(crate.members.find((m) => m.name === "Rack")!.doc?.text).toBe("Holds what is put on it.");
+		// In the library's own file, the key's field is followed too.
+		const own = await modulesRequiredBy(opened, "src/shared/Crate/init.luau");
+		expect(own.find((m) => m.name === "Crate.Shelf")?.doc?.text).toBe("Holds what is put on it.");
+	});
+
 	it("is answered on both hosts' route, and hovers with the module's members", async () => {
 		await project();
 		const session = new ApiSession({});

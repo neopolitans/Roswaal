@@ -13,7 +13,7 @@ import { chainFor, parseLuaurc, resolveSpecifier } from "../core/luaurc.js";
 import { isFilesystemMap, type MapNode, type NodeMap } from "../core/nodemap.js";
 import type { TableMember } from "../core/luau/infer.js";
 import { moduleExports, requiresIn, type ModuleExports, type RequireTarget } from "../core/luau/requires.js";
-import type { DocComment } from "../core/luau/docComment.js";
+import { mergeDocs, type DocComment } from "../core/luau/docComment.js";
 import { parseProject } from "../core/rojoImport.js";
 import { FROM_PROJECT, type InstanceOutline } from "../core/luau/instances.js";
 import { fs, path } from "./host.js";
@@ -188,6 +188,26 @@ class Resolver {
 		if (exports.reexport && depth < 6) {
 			const next = await this.resolve(file, exports.reexport);
 			if (next) return this.exportsOf(next, depth + 1);
+		}
+		// A field that holds another module -- Sift's `Array = require(script.Array)`
+		// -- takes that module's description where its own comment says nothing.
+		if (exports.owner && depth < 3) {
+			const fields = requiresIn(text).filter((b) => b.name.startsWith(`${exports.owner}.`));
+			for (const binding of fields) {
+				const name = binding.name.slice(exports.owner.length + 1);
+				const member = exports.members.find((m) => m.name === name);
+				if (!member || (member.doc?.text ?? "").trim() !== "") continue;
+				const target = await this.resolve(file, binding.target);
+				const inner = target ? await this.exportsOf(target, depth + 1) : null;
+				const doc = mergeDocs(member.doc, inner?.exports.doc);
+				if (doc) member.doc = doc;
+			}
+			// And an alias of one takes what that one now has: `Sift.List = Sift.Array`.
+			for (const member of exports.members) {
+				if (!member.aliasOf || (member.doc?.text ?? "").trim() !== "") continue;
+				const doc = mergeDocs(member.doc, exports.members.find((m) => m.name === member.aliasOf)?.doc);
+				if (doc) member.doc = doc;
+			}
 		}
 		return { file, exports };
 	}

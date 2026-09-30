@@ -87,19 +87,37 @@ const isRequireCall = (expr: Expr | undefined): expr is Extract<Expr, { kind: "c
 /** Whether a local's value is a `require(…)`, so what it holds is a module. */
 export const isRequire = (expr: Expr | undefined): boolean => isRequireCall(expr);
 
-/** Every local in the file that holds a required module, with where it goes. */
+/**
+ * Every local in the file that holds a required module, with where it goes --
+ * and every field of a named table that does, as `Owner.field`: Sift's
+ * `Array = require(script.Array)` in `local Sift = { … }` is `Sift.Array`,
+ * as is `Sift.Array = require(…)`.
+ */
 export function requiresIn(src: string): RequireBinding[] {
 	const out: RequireBinding[] = [];
+	const push = (name: string, value: Expr | undefined) => {
+		if (!isRequireCall(value)) return;
+		const target = targetOf(value.args[0], src);
+		if (target) out.push({ name, target });
+	};
+	const fields = (owner: string, value: Expr | undefined) => {
+		let table = value;
+		while (table && (table.kind === "cast" || table.kind === "paren")) table = table.kind === "cast" ? table.value : table.inner;
+		if (table?.kind !== "table") return;
+		for (const field of table.fields) if (field.kind === "named") push(`${owner}.${field.name.name}`, field.value);
+	};
 	const visit = (node: unknown): void => {
 		if (Array.isArray(node)) return node.forEach(visit);
 		if (!node || typeof node !== "object") return;
 		const stat = node as Stat;
 		if ((stat.kind === "local" || stat.kind === "const") && Array.isArray(stat.names)) {
 			stat.names.forEach((binding, i) => {
-				const value = stat.values[i];
-				if (!isRequireCall(value)) return;
-				const target = targetOf(value.args[0], src);
-				if (target) out.push({ name: binding.name, target });
+				push(binding.name, stat.values[i]);
+				fields(binding.name, stat.values[i]);
+			});
+		} else if (stat.kind === "assign") {
+			stat.targets.forEach((target, i) => {
+				if (target.kind === "index" && target.object.kind === "name") push(`${target.object.name}.${target.name.name}`, stat.values[i]);
 			});
 		}
 		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
@@ -119,6 +137,8 @@ export interface ModuleExports {
 	doc?: DocComment;
 	/** It returns what another require returns: a Wally thunk does. */
 	reexport?: RequireTarget;
+	/** The local it returns, by name: its fields' requires are `owner.field`. */
+	owner?: string;
 }
 
 /**
@@ -139,7 +159,8 @@ export function moduleExports(src: string): ModuleExports {
 		? docRegistry(src).find((e) => e.tag === "class" && e.name === value.name)?.doc
 		: undefined;
 	const doc = (top?.style === "block" && !top.subject ? top : undefined) ?? classDoc;
-	const out = (e: Omit<ModuleExports, "doc">): ModuleExports => (doc ? { ...e, doc } : e);
+	const owner = value?.kind === "name" ? value.name : undefined;
+	const out = (e: Omit<ModuleExports, "doc">): ModuleExports => ({ ...e, ...(doc ? { doc } : {}), ...(owner ? { owner } : {}) });
 	if (!value) return out({ kind: "value", members: [] });
 	if (isRequireCall(value)) {
 		const target = targetOf(value.args[0], src);

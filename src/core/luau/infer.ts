@@ -199,6 +199,8 @@ export interface TableMember {
 	detail: string;
 	/** The documentation comment above where the code puts it. */
 	doc?: DocComment;
+	/** Another member of the same table it was set to: `List` for `Sift.List = Sift.Array` is `Array`. */
+	aliasOf?: string;
 }
 
 /** `a.b.c` as its names, or undefined for anything that is not a chain of them. */
@@ -299,6 +301,7 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 		Object.assign(member, {
 			kind: original.kind,
 			detail: original.detail,
+			aliasOf: original.name,
 			...(member.doc || !original.doc ? {} : { doc: original.doc }),
 		});
 	}
