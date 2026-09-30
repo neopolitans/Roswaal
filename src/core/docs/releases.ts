@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.113.0",
+		date: "2026-09-30",
+		headline: "Remove a package.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Remove package**, from a package's menu under wally.toml: it comes out of wally.toml and Packages, with any package only it needed. What still requires it is listed before you confirm, and code put in place of Wally's thunk is left alone.",
+		],
+	},
+	{
 		version: "0.112.2",
 		date: "2026-09-30",
 		headline: "A field that holds a module shows that module's description.",

@@ -17,8 +17,8 @@
 
 import { unzip, type ZipEntry } from "../core/unzip.js";
 import {
-	indexFolder, packageOf, parseSpec, parseWallyToml, pickVersion, REALM_DIRS, thunkFor, withDependency,
-	type WallyRealm,
+	indexFolder, packageOf, parseSpec, parseWallyToml, pickVersion, REALM_DIRS, thunkFor, thunkTarget, withDependency,
+	withoutDependency, type WallyRealm,
 } from "../core/wally.js";
 import { parseProject } from "../core/rojoImport.js";
 import { fs, path } from "./host.js";
@@ -230,4 +230,98 @@ export async function installGithub(
 	const [, owner, name, ref = ""] = found;
 	const bytes = await download(owner, name.replace(/\.git$/, ""), ref);
 	return installZip(project, bytes, { alias: alias || aliasFor(name.replace(/\.git$/, "")), fileName: name, vendor: true });
+}
+
+// ---------------------------------------------------------------------------
+// Removing a package
+// ---------------------------------------------------------------------------
+
+/** Folders never searched for a package's uses: Wally's own, and what is not the game's. */
+const NOT_SEARCHED = new Set(["Packages", "ServerPackages", "DevPackages", "node_modules", ".git"]);
+
+/**
+ * Files that still reach for `Packages.<alias>` -- a require in Luau, or a
+ * graph's node holding that path -- so removing it can say what would break.
+ */
+export async function packageUses(project: OpenProject, alias: string, realm: WallyRealm = "shared"): Promise<string[]> {
+	const folder = REALM_DIRS[realm];
+	const pattern = new RegExp(`\\b${folder}\\s*(?:\\.\\s*|:\\s*WaitForChild\\s*\\(\\s*["']|\\[\\s*["'])${alias}\\b`);
+	const out: string[] = [];
+	const walk = async (dir: string): Promise<void> => {
+		for (const entry of await fs.readdir(safeJoin(project.root, dir || "."), { withFileTypes: true }).catch(() => [])) {
+			const rel = dir ? `${dir}/${entry.name}` : entry.name;
+			if (entry.isDirectory()) {
+				if (!NOT_SEARCHED.has(entry.name)) await walk(rel);
+				continue;
+			}
+			if (!/\.(luau?|nodescript)$/i.test(entry.name)) continue;
+			const text = await fs.readFile(safeJoin(project.root, rel), "utf8").catch(() => "");
+			if (pattern.test(text)) out.push(rel);
+		}
+	};
+	await walk("");
+	return out.sort();
+}
+
+export interface RemovedPackage {
+	/** `_Index` folders deleted: the package's, and what only it needed. */
+	removed: string[];
+	/** Files that still reach for it, which will now fail to. */
+	uses: string[];
+	/** Its file in Packages/ when that is code, not a thunk: left, for its owner to delete. */
+	kept?: string;
+}
+
+/**
+ * Takes a Wally dependency out: its line in wally.toml, its thunk, and the
+ * `_Index` folders only it kept -- its own, and dependencies nothing else
+ * needs. What was there before and reached by nothing is left alone: a
+ * folder a vendored package stopped using is the project's to clear, not a
+ * side effect of removing something else.
+ */
+export async function removePackage(project: OpenProject, alias: string, realm: WallyRealm = "shared"): Promise<RemovedPackage> {
+	const folder = REALM_DIRS[realm];
+	const uses = await packageUses(project, alias, realm);
+	const before = await reachable(project, folder);
+	const toml = await fs.readFile(safeJoin(project.root, "wally.toml"), "utf8").catch(() => null);
+	if (toml !== null) await fs.writeFile(safeJoin(project.root, "wally.toml"), withoutDependency(toml, alias), "utf8");
+	// Only Wally's thunk goes. A file of code put there in its place -- a
+	// package vendored over its thunk -- is somebody's, and stays.
+	let kept: string | undefined;
+	for (const ext of [".lua", ".luau"]) {
+		const rel = `${folder}/${alias}${ext}`;
+		const text = await fs.readFile(safeJoin(project.root, rel), "utf8").catch(() => null);
+		if (text === null) continue;
+		if (thunkTarget(text)) await fs.rm(safeJoin(project.root, rel), { force: true });
+		else kept = rel;
+	}
+	const after = await reachable(project, folder);
+	const removed = [...before].filter((f) => !after.has(f)).sort();
+	for (const index of removed) {
+		await fs.rm(safeJoin(project.root, `${folder}/_Index/${index}`), { recursive: true, force: true });
+	}
+	return { removed, uses, ...(kept ? { kept } : {}) };
+}
+
+/** The `_Index` folders the realm's thunks reach, following each package's own thunks. */
+async function reachable(project: OpenProject, folder: string): Promise<Set<string>> {
+	const read = (rel: string) => fs.readFile(safeJoin(project.root, rel), "utf8").catch(() => "");
+	const thunksIn = async (dir: string) => (await fs.readdir(safeJoin(project.root, dir), { withFileTypes: true }).catch(() => []))
+		.filter((e) => !e.isDirectory() && /\.luau?$/i.test(e.name)).map((e) => `${dir}/${e.name}`);
+	const reached = new Set<string>();
+	const queue: string[] = [];
+	const follow = async (thunk: string) => {
+		const names = thunkTarget(await read(thunk));
+		// `script.Parent._Index[folder]` from the top, `script.Parent.Parent[folder]` from inside.
+		const target = names?.[0] === "_Index" || names?.[0] === "Parent" ? names[1] : undefined;
+		if (target && !reached.has(target)) {
+			reached.add(target);
+			queue.push(target);
+		}
+	};
+	for (const thunk of await thunksIn(folder)) await follow(thunk);
+	while (queue.length) {
+		for (const thunk of await thunksIn(`${folder}/_Index/${queue.shift()}`)) await follow(thunk);
+	}
+	return reached;
 }

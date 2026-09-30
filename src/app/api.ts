@@ -268,6 +268,12 @@ export const api = {
 	/** A package from a zip, base64: a Wally package installed, anything else vendored. */
 	wallyZip: (data: string, fileName: string, alias?: string, realm?: "shared" | "server" | "dev") =>
 		post<WallyOutcome>("/api/wally/zip", { data, fileName, ...(alias ? { alias } : {}), ...(realm ? { realm } : {}) }),
+	/** Files that still require a Wally package. */
+	wallyUses: (alias: string, realm: string) =>
+		request<{ uses: string[] }>(`/api/wally/uses?alias=${encodeURIComponent(alias)}&realm=${encodeURIComponent(realm)}`),
+	/** Takes a Wally dependency out of wally.toml and Packages/. */
+	wallyRemove: (alias: string, realm: string) =>
+		post<{ removed: string[]; uses: string[]; kept?: string }>("/api/wally/remove", { alias, realm }),
 	/** A GitHub repository vendored into Packages/. The daemon's alone. */
 	wallyGithub: (repo: string, alias?: string) =>
 		post<WallyOutcome>("/api/wally/github", { repo, ...(alias ? { alias } : {}) }),

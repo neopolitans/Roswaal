@@ -3,7 +3,7 @@
  * ask the real one -- and from zips, a Wally package's and anything else's.
  */
 
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { zip } from "../src/app/zip.js";
 import { pickVersion, withDependency } from "../src/core/wally.js";
 import { openProject } from "../src/server/project.js";
-import { addFromWally, installGithub, installZip } from "../src/server/wally.js";
+import { addFromWally, installGithub, installZip, removePackage } from "../src/server/wally.js";
 
 const zipped = async (files: Record<string, string>) => new Uint8Array(await zip(files).arrayBuffer());
 
@@ -96,6 +96,40 @@ describe("adding from the registry", () => {
 		expect(out.problem).toContain("503");
 		expect(out.installed).toEqual([]);
 		expect(await read("wally.toml")).toContain('Basket = "orchard/basket@1.2.0"');
+	});
+
+	it("removes a package with what only it needed, and says what still requires it", async () => {
+		const project = await registry();
+		await addFromWally(project, "orchard/basket");
+		// Something else reaches Handle too, and an old folder nothing reaches.
+		await writeFile(path.join(root, "Packages/Other.lua"), 'return require(script.Parent._Index["orchard_handle@0.1.4"]["handle"])\n');
+		await mkdir(path.join(root, "Packages/_Index/someone_old@1.0.0"), { recursive: true });
+		await mkdir(path.join(root, "src"), { recursive: true });
+		await writeFile(path.join(root, "src/uses.server.luau"), "local Basket = require(game.ReplicatedStorage.Packages.Basket)\n");
+
+		const out = await removePackage(project, "Basket");
+		expect(out).toEqual({ removed: ["orchard_basket@1.2.0"], uses: ["src/uses.server.luau"] });
+		expect(await read("wally.toml")).not.toContain("Basket");
+		const exists = (rel: string) => stat(path.join(root, rel)).then(() => true, () => false);
+		expect(await exists("Packages/Basket.lua")).toBe(false);
+		expect(await exists("Packages/_Index/orchard_handle@0.1.4")).toBe(true);
+		expect(await exists("Packages/_Index/someone_old@1.0.0")).toBe(true);
+
+		// With Other gone too, Handle goes with the next removal that frees it.
+		await rm(path.join(root, "Packages/Other.lua"));
+		await addFromWally(project, "orchard/basket");
+		expect((await removePackage(project, "Basket")).removed).toEqual(["orchard_basket@1.2.0", "orchard_handle@0.1.4"]);
+	});
+
+	it("leaves code vendored over a thunk, and says so", async () => {
+		const project = await registry();
+		await writeFile(path.join(root, "wally.toml"), '[dependencies]\nSignal = "x/signal@1.0.0"\n');
+		await mkdir(path.join(root, "Packages"), { recursive: true });
+		await writeFile(path.join(root, "Packages/Signal.lua"), '-- return require(script.Parent._Index["x_signal@1.0.0"]["signal"])\nreturn {}\n');
+		const out = await removePackage(project, "Signal");
+		expect(out.kept).toBe("Packages/Signal.lua");
+		expect(await read("Packages/Signal.lua")).toContain("return {}");
+		expect(await read("wally.toml")).not.toContain("Signal");
 	});
 
 	it("refuses something that is not scope/name", async () => {

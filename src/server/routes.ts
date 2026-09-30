@@ -31,7 +31,7 @@ import { describeInstance, fingerprint, outlinePlace, type PlaceOutline } from "
 import { RbxError, readRbx, type RbxDocument, type RbxInstance } from "../core/rbx/index.js";
 import { planPlaceUpdate, type PlaceReport } from "../core/rbx/placeExport.js";
 import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
-import { addFromWally, installGithub, installZip } from "./wally.js";
+import { addFromWally, installGithub, installZip, packageUses, removePackage } from "./wally.js";
 import { fromBase64 } from "../core/base64.js";
 import type { WallyRealm } from "../core/wally.js";
 import { path } from "./host.js";
@@ -410,6 +410,18 @@ export class ApiSession {
 				} catch (err) {
 					throw new HttpError(400, (err as Error).message);
 				}
+			},
+
+			/** Files that still require a Wally package, before it is removed. */
+			"GET /wally/uses": async (req) => ({
+				uses: await packageUses(this.project(), query(req, "alias"), (req.query?.realm as WallyRealm | undefined) ?? "shared"),
+			}),
+
+			/** Takes a Wally dependency out, with the `_Index` folders only it kept. */
+			"POST /wally/remove": async (req) => {
+				const { alias, realm } = body<{ alias?: string; realm?: WallyRealm }>(req);
+				if (!alias) throw new HttpError(400, "Which package? Pass its `alias`.");
+				return removePackage(this.project(), alias, realm);
 			},
 
 			/** A GitHub repository, vendored into Packages/. The daemon's alone; see `githubDownload`. */

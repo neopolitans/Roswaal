@@ -4020,7 +4020,9 @@ const BUILDING: DocPage = {
 				"zip: a Wally package goes where `wally install` puts one, and any other module is " +
 				"vendored into `Packages/`. **Insert GitHub repo…** vendors a repository, in the " +
 				"installed editor. If a download fails, the line stays in `wally.toml` and the package " +
-				"shows as not installed: right-click it and choose **Insert its zip…**.",
+				"shows as not installed: right-click it and choose **Insert its zip…**. **Remove " +
+				"package…** takes one out of `wally.toml` and `Packages/`, with any package only it " +
+				"needed, after listing what still requires it.",
 		},
 
 		{ t: "h", level: 2, text: "Writing scripts into the place" },

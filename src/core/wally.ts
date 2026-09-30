@@ -165,6 +165,18 @@ export function withDependency(text: string, realm: WallyRealm, alias: string, s
 	return lines.join(eol);
 }
 
+/** `wally.toml` without the dependency called `alias`, in whichever table it is. */
+export function withoutDependency(text: string, alias: string): string {
+	const eol = text.includes("\r\n") ? "\r\n" : "\n";
+	const pattern = new RegExp(`^\\s*["']?${alias}["']?\\s*=`);
+	let inDependencies = false;
+	return text.split(/\r?\n/).filter((line) => {
+		const table = /^\s*\[([^\]]+)\]/.exec(line);
+		if (table) inDependencies = table[1].trim() in SECTIONS;
+		return !(inDependencies && pattern.test(line));
+	}).join(eol);
+}
+
 /** What a Wally package's own `wally.toml` says it is, from `[package]`. */
 export function packageOf(text: string): { scope: string; name: string; version: string; realm?: WallyRealm } | undefined {
 	let inPackage = false;

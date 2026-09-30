@@ -60,7 +60,7 @@ export interface ProjectTreeProps {
 	 * Wally registry, from a zip, or from a GitHub repository. `entry` is the
 	 * package the menu was opened on, whose zip is being inserted.
 	 */
-	onPackage?: (how: "wally" | "zip" | "github", entry?: TreeEntry) => void;
+	onPackage?: (how: "wally" | "zip" | "github" | "remove", entry?: TreeEntry) => void;
 }
 
 /**
@@ -408,6 +408,18 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							>
 								<Icon name="folderOpen" size={15} />
 								<span>Insert its zip…</span>
+							</div>
+						)}
+						{menu.entry.kind === "package" && (
+							<div
+								className="item danger"
+								onClick={() => {
+									props.onPackage!("remove", menu.entry);
+									setMenu(null);
+								}}
+							>
+								<Icon name="remove" size={15} />
+								<span>Remove package…</span>
 							</div>
 						)}
 						<div

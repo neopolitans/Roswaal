@@ -1540,8 +1540,32 @@ export function App() {
 		}
 		notify(out.problem ? (out.installed.length ? "Package partly installed" : "Package not installed") : "Package added", said.join(" "));
 	}, [notify]);
-	const onTreePackage = useCallback(async (how: "wally" | "zip" | "github", entry?: TreeEntry) => {
+	const onTreePackage = useCallback(async (how: "wally" | "zip" | "github" | "remove", entry?: TreeEntry) => {
 		try {
+			if (how === "remove" && entry?.kind === "package") {
+				// `wally.toml/<realm>/<alias>`: the realm is in the entry's path.
+				const realm = entry.path.split("/")[1] ?? "shared";
+				const { uses } = await api.wallyUses(entry.name, realm);
+				const ok = await ask({
+					kind: "confirm",
+					title: `Remove ${entry.name}?`,
+					message: uses.length
+						? `It comes out of wally.toml and Packages/, with any package only it needed. These still require it, and will fail to:`
+						: `It comes out of wally.toml and Packages/, with any package only it needed. Nothing in the project requires it.`,
+					...(uses.length ? { items: uses } : {}),
+					confirmLabel: "Remove",
+					danger: true,
+				});
+				if (ok !== true) return;
+				const out = await api.wallyRemove(entry.name, realm);
+				await refreshTree();
+				const said = [
+					out.removed.length ? `Removed ${out.removed.join(", ")} from Packages/_Index.` : "Its line is out of wally.toml; nothing was installed to remove.",
+					...(out.kept ? [`${out.kept} is code put there in place of Wally's, so it was left. Delete it from the tree if nothing needs it.`] : []),
+				];
+				notify(`${entry.name} removed`, said.join(" "));
+				return;
+			}
 			if (how === "zip") {
 				// A missing package's zip keeps the name wally.toml gives it.
 				packageZipFor.current = entry?.kind === "package" ? entry.name : undefined;
