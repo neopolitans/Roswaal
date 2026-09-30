@@ -9,6 +9,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { api } from "./api.js";
+import { indexFromOutline, type InstanceNode } from "../core/luau/instances.js";
 
 import { EditorState } from "@codemirror/state";
 import {
@@ -79,6 +81,18 @@ export function CodeEditor({
 	const members = useMemo(() => graphTableMembers(script), [script]);
 	const membersRef = useRef(members);
 	membersRef.current = members;
+	// The DataModel the project knows -- the place, and what the node maps
+	// add -- for `ReplicatedStorage.Shared.` to offer what is in Shared.
+	const instancesRef = useRef<{ root: InstanceNode } | null>(null);
+	useEffect(() => {
+		let live = true;
+		api.instances().then(({ outline }) => {
+			if (live) instancesRef.current = { root: indexFromOutline(outline) };
+		}, () => {});
+		return () => {
+			live = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		if (!host.current) return;
@@ -92,7 +106,7 @@ export function CodeEditor({
 				history(),
 				closeBrackets(),
 				autocompletion({
-					override: [luauCompletionSource(() => scopeRef.current, () => targetRef.current, () => membersRef.current)],
+					override: [luauCompletionSource(() => scopeRef.current, () => targetRef.current, () => membersRef.current, () => instancesRef.current)],
 					icons: false,
 				}),
 				// Completion and bracket keymaps first: they only claim keys while

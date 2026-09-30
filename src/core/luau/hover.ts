@@ -21,6 +21,25 @@ import { declarationAt, localsAt, localsInFile, type LocalKind } from "./scope.j
 import { parseChunk } from "./parser.js";
 import type { Stat } from "./ast.js";
 import { isRequire } from "./requires.js";
+import { instanceAt, type InstanceNode } from "./instances.js";
+
+/**
+ * A name that is an instance the project knows: `Shared` in
+ * `ReplicatedStorage.Shared.Util`, with its class and where it is.
+ */
+export function instanceHover(src: string, pos: number, root: InstanceNode, self?: readonly string[]): Hover | null {
+	const found = instanceAt(src, pos, root, self);
+	if (!found) return null;
+	const { className } = found.node;
+	return {
+		from: found.from,
+		to: found.to,
+		code: `${found.node.name}: ${className}`,
+		role: `instance · ${found.path.join(".")}${found.node.fromProject ? " · from the project's files" : ""}`,
+		...(CLASS_SUMMARIES[className] ? { summary: CLASS_SUMMARIES[className] } : {}),
+		...(CLASS_SET.has(className) ? { link: classLink(className) } : {}),
+	};
+}
 
 /** A module a local holds, as hover is told it by whoever followed the require. */
 export interface ModuleInfo {

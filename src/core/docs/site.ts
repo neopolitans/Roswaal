@@ -3461,6 +3461,16 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 				"where the module is. Roswaal follows the require through the node map, Wally's " +
 				"`Packages/` and a package's own project file, or a `.luaurc` alias.",
 		},
+		{
+			t: "p",
+			text:
+				"Paths like `ReplicatedStorage.Shared.Util` are checked against the place and the " +
+				"project's files. Hover a name for its class and where it is. In the code editor, a dot " +
+				"or `:WaitForChild(\"` offers what is there. The Luau viewer marks a name that neither " +
+				"has, under the containers that are settled before the game runs, such as " +
+				"ReplicatedStorage, ServerStorage and the Starter services. Workspace and Players fill " +
+				"while the game runs, so they are left alone.",
+		},
 
 		{ t: "h", level: 2, text: "There are exactly two" },
 		{

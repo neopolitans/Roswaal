@@ -10,12 +10,12 @@
  * file and hands this the file's text for the second.
  */
 
-import type { Expr, Stat } from "./ast.js";
+import type { Block, Expr, Stat } from "./ast.js";
 import { docCommentBefore, docFor, type DocComment } from "./docComment.js";
 import { membersInCode, signatureOf, stringValue, type TableMember, typeOfValue } from "./infer.js";
 import { tokenize } from "./lexer.js";
 import { parseChunk } from "./parser.js";
-import { localsInFile } from "./scope.js";
+import { localsInFile, localsInParsed } from "./scope.js";
 
 /**
  * Where a require goes. An instance path starts at `game` or at the requiring
@@ -34,8 +34,12 @@ export interface RequireBinding {
 /** How many locals deep a path is followed: `local a = b.C` where `b` is a local. */
 const DEPTH = 12;
 
-/** The instance or string an expression names, when the code says for certain. */
-export function targetOf(expr: Expr, src: string, depth = 0): RequireTarget | undefined {
+/**
+ * The instance or string an expression names, when the code says for certain.
+ * `parsed` is the file's parse, when the caller has one: locals are looked up
+ * in it rather than by parsing the file again at every name.
+ */
+export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): RequireTarget | undefined {
 	if (depth > DEPTH) return undefined;
 	switch (expr.kind) {
 		case "string": {
@@ -43,21 +47,22 @@ export function targetOf(expr: Expr, src: string, depth = 0): RequireTarget | un
 			return spec === undefined ? undefined : { t: "string", spec };
 		}
 		case "paren":
-			return targetOf(expr.inner, src, depth + 1);
+			return targetOf(expr.inner, src, depth + 1, parsed);
 		case "cast":
-			return targetOf(expr.value, src, depth + 1);
+			return targetOf(expr.value, src, depth + 1, parsed);
 		case "name": {
 			if (expr.name === "game") return { t: "instance", from: "game", names: [] };
 			if (expr.name === "script") return { t: "instance", from: "script", names: [] };
 			if (expr.name === "workspace") return { t: "instance", from: "game", names: ["Workspace"] };
-			const local = localsInFile(src, expr.start)?.find((n) => n.name === expr.name);
-			return local?.value ? targetOf(local.value, src, depth + 1) : undefined;
+			const locals = parsed ? localsInParsed(parsed, src, expr.start) : localsInFile(src, expr.start);
+			const local = locals?.find((n) => n.name === expr.name);
+			return local?.value ? targetOf(local.value, src, depth + 1, parsed) : undefined;
 		}
 		case "index":
 		case "indexExpr": {
 			const name = expr.kind === "index" ? expr.name.name : expr.key.kind === "string" ? stringValue(expr.key) : undefined;
 			if (name === undefined) return undefined;
-			const base = targetOf(expr.object, src, depth + 1);
+			const base = targetOf(expr.object, src, depth + 1, parsed);
 			if (base?.t !== "instance") return undefined;
 			return { ...base, names: [...base.names, name === "Parent" ? ".." : name] };
 		}
@@ -65,7 +70,7 @@ export function targetOf(expr: Expr, src: string, depth = 0): RequireTarget | un
 			const method = expr.method.name;
 			const arg = expr.args[0]?.kind === "string" ? stringValue(expr.args[0]) : undefined;
 			if (arg === undefined) return undefined;
-			const base = targetOf(expr.object, src, depth + 1);
+			const base = targetOf(expr.object, src, depth + 1, parsed);
 			if (base?.t !== "instance") return undefined;
 			if (method === "GetService" && base.from === "game" && base.names.length === 0) return { ...base, names: [arg] };
 			if (method === "WaitForChild" || method === "FindFirstChild") return { ...base, names: [...base.names, arg] };

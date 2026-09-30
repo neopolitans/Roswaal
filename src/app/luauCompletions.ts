@@ -25,6 +25,7 @@ import {
 	classOfGlobal, dotKeys, eventsOf, heldBy, membersInCode, methodsOf, type TableMember,
 } from "../core/luau/infer.js";
 import { ENGINE, signatureText } from "../core/robloxEngine.js";
+import { childrenOfChain, type InstanceNode } from "../core/luau/instances.js";
 import { DATATYPE_STATICS } from "../core/robloxStatics.js";
 import {
 	CLASSES as ROBLOX_CLASSES, DATATYPES as ENGINE_DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
@@ -210,6 +211,7 @@ export function luauCompletionSource(
 	getScope: () => Completion[],
 	getTarget: () => Target = () => "roblox",
 	getMembers: () => ReadonlyMap<string, TableMember[]> = () => new Map(),
+	getInstances: () => { root: InstanceNode; self?: string[] } | null = () => null,
 ) {
 	return (context: CompletionContext): CompletionResult | null => {
 		// Roblox's classes and datatypes are there only when the graph compiles
@@ -267,6 +269,44 @@ export function luauCompletionSource(
 				: Object.entries(ENGINE.enums).filter(([, e]) => !e.deprecated)
 					.map(([name, e]) => ({ label: name, type: "enum", info: e.summary }));
 			if (options.length > 0) return { from: enumPath.to - written.length, options, validFor: /^\w*$/ };
+		}
+
+		// An instance the project knows: `ReplicatedStorage.Shared.` offers
+		// what is in Shared, in the place and the project's files, with the
+		// class's own properties after them; `:WaitForChild("` its children.
+		const instances = roblox ? getInstances() : null;
+		if (instances) {
+			const text = context.state.doc.toString();
+			const waiting = context.matchBefore(INSTANCE_WAIT);
+			if (waiting) {
+				const [, chain, typed] = INSTANCE_WAIT.exec(waiting.text)!;
+				const kids = childrenOfChain(text, waiting.from, chain.split("."), instances.root, instances.self);
+				if (kids.length > 0) {
+					return {
+						from: waiting.to - typed.length,
+						options: kids.map((k) => ({ label: k.name, type: "class", detail: k.className })),
+						validFor: /^[^"']*$/,
+					};
+				}
+			}
+			const dotted = context.matchBefore(INSTANCE_CHAIN);
+			if (dotted) {
+				const [, chain, typed] = INSTANCE_CHAIN.exec(dotted.text)!;
+				const kids = childrenOfChain(text, dotted.from, chain.split("."), instances.root, instances.self);
+				if (kids.length > 0) {
+					const className = instanceClassOfChain(text, dotted.from, chain.split("."), instances);
+					const properties = className ? propertiesOf(className).map((p) => ({ label: p.name, type: "property", detail: p.enum ?? p.type ?? "" })) : [];
+					return {
+						from: dotted.to - typed.length,
+						options: [
+							...kids.filter((k) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(k.name))
+								.map((k) => ({ label: k.name, type: "class", detail: k.className, boost: 1 })),
+							...properties,
+						],
+						validFor: /^\w*$/,
+					};
+				}
+			}
 		}
 
 		const member = context.matchBefore(/([A-Za-z_][A-Za-z0-9_]*)\.\w*$/);
@@ -537,4 +577,22 @@ function isExecPin(
 	const pins = resolveNodePins(def, node.config, node.literals);
 	const list = side === "in" ? pins.inputs : pins.outputs;
 	return list.find((p) => p.id === pinId)?.kind === "exec";
+}
+
+/** `a.b.c.x`: a chain of names, then what is being typed after the last dot. */
+const INSTANCE_CHAIN = /([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\.(\w*)$/;
+
+/** `a.b:WaitForChild("x`: a chain, then the name being typed in the string. */
+const INSTANCE_WAIT = /([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*):(?:WaitForChild|FindFirstChild)\(\s*["']([^"']*)$/;
+
+/** The class of the instance a chain ends at, for its properties. */
+function instanceClassOfChain(
+	text: string, pos: number, chain: string[], instances: { root: InstanceNode; self?: string[] },
+): string | undefined {
+	if (chain.length < 2) {
+		// `ReplicatedStorage.`: the service itself, when the local names one.
+		return chain[0] === "game" ? "DataModel" : undefined;
+	}
+	const holder = childrenOfChain(text, pos, chain.slice(0, -1), instances.root, instances.self);
+	return holder.find((k) => k.name === chain[chain.length - 1])?.className;
 }

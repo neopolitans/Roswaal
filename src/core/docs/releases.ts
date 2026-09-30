@@ -94,6 +94,17 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.109.0",
+		date: "2026-09-30",
+		headline: "Code knows the place's instances.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Instance paths are checked** against the place and the project's files. The Luau viewer marks a name neither has, under ReplicatedStorage, ServerStorage, the Starter services and the like, and a WaitForChild waiting for one.",
+			"**Hover an instance** in a path for its class and where it is.",
+			"**The code editor offers what is there** after a dot in an instance path, or inside WaitForChild's string.",
+		],
+	},
+	{
 		version: "0.108.0",
 		date: "2026-09-30",
 		headline: "Hover follows require.",

@@ -15,6 +15,7 @@ import type { TableMember } from "../core/luau/infer.js";
 import { moduleExports, requiresIn, type ModuleExports, type RequireTarget } from "../core/luau/requires.js";
 import type { DocComment } from "../core/luau/docComment.js";
 import { parseProject } from "../core/rojoImport.js";
+import { FROM_PROJECT, type InstanceOutline } from "../core/luau/instances.js";
 import { fs, path } from "./host.js";
 import { collectMaps, readLuaurcFiles, readMap, safeJoin, type OpenProject } from "./project.js";
 
@@ -223,4 +224,83 @@ export async function modulesRequiredBy(project: OpenProject, file: string, text
 /** For tests and the project layer: the file an instance path is at. */
 export async function fileAtPath(project: OpenProject, segments: string[]): Promise<string | null> {
 	return new Resolver(project).fileAt(segments);
+}
+
+/** The instance path a file is at, when a node map says. */
+export async function instancePathOf(project: OpenProject, file: string): Promise<string[] | null> {
+	return new Resolver(project).pathOf(file);
+}
+
+/** Folders never walked for instances: Wally's package store, and what is not the game's. */
+const NOT_WALKED = new Set(["_Index", "node_modules", ".git"]);
+
+const scriptClassOf = (file: string) =>
+	/\.server\.luau?$/i.test(file) ? "Script" : /\.client\.luau?$/i.test(file) ? "LocalScript" : "ModuleScript";
+
+/**
+ * The DataModel as the project knows it: the place's instances, with every
+ * script and folder the node maps put there that the place does not have yet
+ * -- a module written since the place was saved -- marked as the project's.
+ */
+export async function projectInstances(project: OpenProject, place: InstanceOutline | null): Promise<InstanceOutline> {
+	const classes: string[] = [...(place?.classes ?? [])];
+	const nodes: InstanceOutline["nodes"] = place ? place.nodes.map((n) => [...n] as [number, string, number, number]) : [];
+	const classIndex = (name: string) => {
+		const i = classes.indexOf(name);
+		return i === -1 ? classes.push(name) - 1 : i;
+	};
+	// Children by name, per node index (-1 for the DataModel), to find or add.
+	const kids = new Map<number, Map<string, number>>();
+	nodes.forEach(([, name, parent], i) => {
+		const under = kids.get(parent) ?? new Map<string, number>();
+		if (!under.has(name)) under.set(name, i);
+		kids.set(parent, under);
+	});
+	const add = (segments: readonly string[], leafClass: string) => {
+		let parent = -1;
+		segments.forEach((name, i) => {
+			const under = kids.get(parent) ?? new Map<string, number>();
+			kids.set(parent, under);
+			let at = under.get(name);
+			if (at === undefined) {
+				const className = i === segments.length - 1 ? leafClass : i === 0 ? name : "Folder";
+				at = nodes.push([classIndex(className), name, parent, FROM_PROJECT]) - 1;
+				under.set(name, at);
+			}
+			parent = at;
+		});
+	};
+
+	const resolver = new Resolver(project);
+	const walk = async (dir: string): Promise<void> => {
+		for (const entry of await fs.readdir(safeJoin(project.root, dir), { withFileTypes: true }).catch(() => [])) {
+			const rel = `${dir}/${entry.name}`;
+			if (entry.isDirectory()) {
+				if (!NOT_WALKED.has(entry.name)) await walk(rel);
+				continue;
+			}
+			if (!/\.luau?$/i.test(entry.name)) continue;
+			const at = await resolver.pathOf(rel);
+			if (at && at.length) add(at, scriptClassOf(entry.name));
+		}
+	};
+	const visit = async (node: MapNode, trail: string[], root: boolean): Promise<void> => {
+		const here = root ? trail : [...trail, node.name];
+		if (!root && here.length) add(here, node.className || (here.length === 1 ? node.name : "Folder"));
+		if (node.path) {
+			const target = posix(node.path);
+			const isFile = await fs.stat(safeJoin(project.root, target)).then((s) => s.isFile(), () => false);
+			if (isFile) {
+				if (here.length) add(here, scriptClassOf(target));
+			} else {
+				await walk(target);
+			}
+		}
+		for (const child of node.children) await visit(child, here, false);
+	};
+	for (const mapPath of await collectMaps(project)) {
+		const map = await readMap(project, mapPath).catch(() => null);
+		if (map && !isFilesystemMap(map)) await visit(map.root, [], true);
+	}
+	return { classes, nodes };
 }

@@ -30,7 +30,7 @@ import { toBase64 } from "../core/base64.js";
 import { describeInstance, fingerprint, outlinePlace, type PlaceOutline } from "../core/rbx/browse.js";
 import { RbxError, readRbx, type RbxDocument, type RbxInstance } from "../core/rbx/index.js";
 import { planPlaceUpdate, type PlaceReport } from "../core/rbx/placeExport.js";
-import { modulesRequiredBy } from "./requires.js";
+import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
 import { path } from "./host.js";
 import {
 	buildTree, collectBinaries, collectMaps, collectProject, compileAll, exportPlace, findPlaceFile, compileMap, compileScript, copyPackBetween, createFolder,
@@ -355,7 +355,25 @@ export class ApiSession {
 			"POST /luau/modules": async (req) => {
 				const { path: file, text } = body<{ path?: string; text?: string }>(req);
 				if (!file) throw new HttpError(400, "Which file? Pass its `path`.");
-				return { modules: await modulesRequiredBy(this.project(), file, text) };
+				const project = this.project();
+				return {
+					modules: await modulesRequiredBy(project, file, text),
+					// Where the file is in the DataModel, for `script.Parent`.
+					self: await instancePathOf(project, file),
+				};
+			},
+
+			/**
+			 * The DataModel as the project knows it: the place's instances and
+			 * what the node maps' files add, for instance-aware lint, hover and
+			 * completion. Answers without a place too, from the files alone.
+			 */
+			"GET /instances": async () => {
+				const project = this.project();
+				const file = await findPlaceFile(project.root, project.config);
+				let place: PlaceOutline | null = null;
+				if (file) place = await this.loadPlace(project, file).then((p) => p.outline, () => null);
+				return { outline: await projectInstances(project, place) };
 			},
 
 			/**

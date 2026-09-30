@@ -106,6 +106,11 @@ export function localsInFile(src: string, offset: number): ScopedName[] | undefi
 	return scoped(parsed.value, offset, src, src.length);
 }
 
+/** `localsInFile` over a parse already made: a check that asks at every name parses once. */
+export function localsInParsed(block: Block, src: string, offset: number): ScopedName[] {
+	return scoped(block, offset, src, src.length);
+}
+
 function scoped(block: Block, offset: number, text: string, to: number): ScopedName[] {
 	const found: ScopedName[] = [];
 	walkBlock(block, offset, found, 0, to);

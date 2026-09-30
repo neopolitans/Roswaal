@@ -76,3 +76,20 @@ function errorLineHighlight(check: LuauChecker): Extension {
 		{ decorations: (plugin) => plugin.decorations },
 	);
 }
+
+/**
+ * Warnings rather than errors: squiggles and gutter marks, no tinted line. For
+ * what reads as a mistake but may not be one -- a name the place does not
+ * have, which the game might make while it runs.
+ */
+export function luauWarnings(check: LuauChecker): Extension {
+	return linter((view): LintDiagnostic[] => {
+		const length = view.state.doc.length;
+		return check(view.state.doc.toString()).map((problem) => ({
+			from: Math.min(problem.from, length),
+			to: Math.min(problem.to, length),
+			severity: "warning",
+			message: problem.message,
+		}));
+	});
+}

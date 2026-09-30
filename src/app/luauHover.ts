@@ -8,7 +8,8 @@
 import { hoverTooltip } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 
-import { hoverAt, type ModuleInfo } from "../core/luau/hover.js";
+import { hoverAt, instanceHover, type ModuleInfo } from "../core/luau/hover.js";
+import type { InstanceNode } from "../core/luau/instances.js";
 import type { DocComment } from "../core/luau/docComment.js";
 import { highlightLuau } from "./highlight.js";
 import type { Target } from "../core/schema.js";
@@ -18,9 +19,16 @@ export function luauHover(
 	getTarget: () => Target,
 	getMembers: () => ReadonlyMap<string, TableMember[]> = () => new Map(),
 	getModules: () => ReadonlyMap<string, ModuleInfo> = () => new Map(),
+	getInstances: () => { root: InstanceNode; self?: string[] } | null = () => null,
 ): Extension {
 	return hoverTooltip((view, pos) => {
-		const hover = hoverAt(view.state.doc.toString(), pos, getTarget() !== "lune", getMembers(), getModules());
+		const text = view.state.doc.toString();
+		const roblox = getTarget() !== "lune";
+		// An instance the project knows first: `Shared` in `ReplicatedStorage.Shared`
+		// is a child, which no class's properties would say.
+		const instances = roblox ? getInstances() : null;
+		const hover = (instances && instanceHover(text, pos, instances.root, instances.self))
+			?? hoverAt(text, pos, roblox, getMembers(), getModules());
 		if (!hover) return null;
 		return {
 			pos: hover.from,

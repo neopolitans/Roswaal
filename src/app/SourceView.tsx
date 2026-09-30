@@ -24,7 +24,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, lineNumbers, highlightActiveLine } from "@codemirror/view";
 import { syntaxHighlighting } from "@codemirror/language";
 
@@ -34,6 +34,9 @@ import type { Target } from "../core/schema.js";
 import type { TableMember } from "../core/luau/infer.js";
 import type { ModuleInfo } from "../core/luau/hover.js";
 import { api } from "./api.js";
+import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
+import { lintGutter } from "@codemirror/lint";
+import { luauWarnings } from "./luauLint.js";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { editorTheme, luauHighlight } from "./luauTheme.js";
 
@@ -83,14 +86,24 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 	 */
 	const members = useRef<ReadonlyMap<string, TableMember[]>>(new Map());
 	const modules = useRef<ReadonlyMap<string, ModuleInfo>>(new Map());
+	/**
+	 * The DataModel the project knows, and where this file is in it: for a
+	 * name like `Shared` to hover as the instance it is, and a name that is
+	 * nowhere to be marked. Kept in state, since the marks are drawn from it.
+	 */
+	const [instances, setInstances] = useState<{ root: InstanceNode; self?: string[] } | null>(null);
+	const warnings = useRef(new Compartment());
+	const instancesRef = useRef(instances);
+	instancesRef.current = instances;
 	useEffect(() => {
 		members.current = new Map();
 		modules.current = new Map();
 		let live = true;
-		api.luauModules(doc.path).then(({ modules: found }) => {
+		Promise.all([api.luauModules(doc.path), api.instances()]).then(([{ modules: found, self }, { outline }]) => {
 			if (!live) return;
 			members.current = new Map(found.map((m) => [m.name, m.members]));
 			modules.current = new Map(found.map((m) => [m.name, m]));
+			setInstances({ root: indexFromOutline(outline), ...(self ? { self } : {}) });
 		}, () => {});
 		return () => {
 			live = false;
@@ -118,7 +131,11 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 					editorTheme,
 					// The code editor's hover, here too: what every name is and
 					// where its Roblox docs page is, in a file that cannot be edited.
-					luauHover(() => targetOfSource(doc.text), () => members.current, () => modules.current),
+					luauHover(() => targetOfSource(doc.text), () => members.current, () => modules.current, () => instancesRef.current),
+					// Names the place and the project do not have, under the
+					// containers that are settled before the game runs: filled in
+					// once the host answers, without rebuilding the view.
+					warnings.current.of([]),
 				],
 			}),
 			parent: host.current,
@@ -129,6 +146,15 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 			view.current = null;
 		};
 	}, [doc.path, doc.text]);
+
+	useEffect(() => {
+		const known = instances;
+		view.current?.dispatch({
+			effects: warnings.current.reconfigure(known && targetOfSource(doc.text) !== "lune"
+				? [lintGutter(), luauWarnings((text) => instanceProblems(text, known.root, known.self))]
+				: []),
+		});
+	}, [instances, doc.text]);
 
 	useEffect(() => {
 		if (!copied) return;

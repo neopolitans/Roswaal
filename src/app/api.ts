@@ -4,6 +4,7 @@ import type { PlaceReport } from "../core/rbx/placeExport.js";
 import type { PlaceInstanceInfo, PlaceOutline } from "../core/rbx/browse.js";
 import type { TableMember } from "../core/luau/infer.js";
 import type { DocComment } from "../core/luau/docComment.js";
+import type { InstanceOutline } from "../core/luau/instances.js";
 
 /** A module a local in a Luau file holds, as the host followed it. */
 export interface RequiredModule {
@@ -250,7 +251,9 @@ export const api = {
 	tree: () => request<{ tree: TreeEntry[]; place: string | null }>("/api/tree"),
 	/** What each `local X = require(…)` in a Luau file holds, followed to the module. */
 	luauModules: (path: string, text?: string) =>
-		post<{ modules: RequiredModule[] }>("/api/luau/modules", { path, ...(text === undefined ? {} : { text }) }),
+		post<{ modules: RequiredModule[]; self: string[] | null }>("/api/luau/modules", { path, ...(text === undefined ? {} : { text }) }),
+	/** The DataModel as the project knows it: the place and what the node maps add. */
+	instances: () => request<{ outline: InstanceOutline }>("/api/instances"),
 	/** The `*.project.json` files in the project's root, and the maps that write them. */
 	rojoProjects: () => request<{ projects: { file: string; mappedBy: string | null }[] }>("/api/rojo/projects"),
 	/** Reads a Rojo project file into a node map. */
