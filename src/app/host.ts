@@ -37,7 +37,7 @@ import { api } from "./api.js";
  * starting from the demo only means anything where the project is the host's
  * own copy. On the daemon it would mean deleting a repository.
  */
-export type Capability = "inspect" | "browse" | "reveal" | "edit" | "reset";
+export type Capability = "inspect" | "browse" | "reveal" | "edit" | "reset" | "githubDownload";
 
 /**
  * Nothing until the host has answered.

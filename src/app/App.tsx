@@ -64,7 +64,8 @@ import {
 	splitPin, splitValueWarning, type Clipping,
 } from "./edits.js";
 import { requiredTypes, setProjectTypes, useProjectTypes } from "./projectTypes.js";
-import type { ExportedType } from "./api.js";
+import type { ExportedType, WallyOutcome } from "./api.js";
+import { toBase64 } from "../core/base64.js";
 import { membersOfType } from "../core/members.js";
 import { pinColor } from "./palette.js";
 import { NODE } from "./layers.js";
@@ -1520,6 +1521,90 @@ export function App() {
 	}, [ask, notify, refreshTree, openEntry, pickProjectFile]);
 
 	/**
+	 * Adding a package from the menu on wally.toml: from the Wally registry,
+	 * from a zip, or -- in the installed editor -- from a GitHub repository.
+	 * What happened is said in one notice: the line written, what was
+	 * installed, and why the rest was not, with the zip as the way round it.
+	 */
+	const packageZipInput = useRef<HTMLInputElement>(null);
+	const packageZipFor = useRef<string | undefined>(undefined);
+	const reportPackage = useCallback((out: WallyOutcome) => {
+		const said: string[] = [];
+		if (out.line) said.push(`${out.line.alias} = "${out.line.spec}" is in wally.toml.`);
+		if (out.installed.length) said.push(`Installed ${out.installed.join(", ")}.`);
+		if (out.problem) {
+			said.push(out.problem);
+			if (out.line && !out.installed.length) {
+				said.push("Download the package's zip and use Insert its zip on it in the project tree.");
+			}
+		}
+		notify(out.problem ? (out.installed.length ? "Package partly installed" : "Package not installed") : "Package added", said.join(" "));
+	}, [notify]);
+	const onTreePackage = useCallback(async (how: "wally" | "zip" | "github", entry?: TreeEntry) => {
+		try {
+			if (how === "zip") {
+				// A missing package's zip keeps the name wally.toml gives it.
+				packageZipFor.current = entry?.kind === "package" ? entry.name : undefined;
+				packageZipInput.current?.click();
+				return;
+			}
+			if (how === "wally") {
+				const answer = await ask({
+					kind: "form",
+					title: "Add from Wally",
+					message: "A package from the Wally registry: scope/name, or scope/name@version. It goes into wally.toml, then installs with what it depends on.",
+					fields: [
+						{ id: "spec", kind: "text", label: "Package", value: "" },
+						{ id: "alias", kind: "text", label: "Required as (optional)", value: "" },
+						{
+							id: "realm", kind: "select", label: "Realm", value: "shared",
+							options: [
+								{ value: "shared", label: "Shared (Packages)" },
+								{ value: "server", label: "Server (ServerPackages)" },
+								{ value: "dev", label: "Dev (DevPackages)" },
+							],
+						},
+					],
+					confirmLabel: "Add",
+				});
+				if (typeof answer !== "string") return;
+				const chosen = JSON.parse(answer) as FormAnswers;
+				const out = await api.wallyAdd(String(chosen.spec), chosen.realm as "shared" | "server" | "dev", String(chosen.alias) || undefined);
+				await refreshTree();
+				reportPackage(out);
+				return;
+			}
+			const answer = await ask({
+				kind: "form",
+				title: "Insert GitHub repo",
+				message: "A repository to vendor into Packages/: owner/repo, or owner/repo@branch. Not added to wally.toml.",
+				fields: [
+					{ id: "repo", kind: "text", label: "Repository", value: "" },
+					{ id: "alias", kind: "text", label: "Required as (optional)", value: "" },
+				],
+				confirmLabel: "Insert",
+			});
+			if (typeof answer !== "string") return;
+			const chosen = JSON.parse(answer) as FormAnswers;
+			const out = await api.wallyGithub(String(chosen.repo), String(chosen.alias) || undefined);
+			await refreshTree();
+			reportPackage(out);
+		} catch (err) {
+			notify("Could not add the package", (err as Error).message);
+		}
+	}, [ask, notify, refreshTree, reportPackage]);
+	const onPackageZip = useCallback(async (file: File) => {
+		try {
+			const bytes = new Uint8Array(await file.arrayBuffer());
+			const out = await api.wallyZip(toBase64(bytes), file.name, packageZipFor.current);
+			await refreshTree();
+			reportPackage(out);
+		} catch (err) {
+			notify("Could not insert that zip", (err as Error).message);
+		}
+	}, [notify, refreshTree, reportPackage]);
+
+	/**
 	 * The tree as last read, for the DataModel browser's handlers: through a
 	 * ref, so they stay the same functions and the memoised browser does not
 	 * render again every time the tree is read.
@@ -2222,6 +2307,18 @@ export function App() {
 								onNewFolder={onTreeNewFolder}
 								onRename={onTreeRename}
 								onDelete={onTreeDelete}
+								onPackage={onTreePackage}
+							/>
+							<input
+								ref={packageZipInput}
+								type="file"
+								accept=".zip,application/zip"
+								hidden
+								onChange={(event) => {
+									const file = event.target.files?.[0];
+									event.target.value = "";
+									if (file) void onPackageZip(file);
+								}}
 							/>
 							</div>
 						</>

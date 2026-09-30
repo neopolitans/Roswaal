@@ -6,6 +6,14 @@ import type { TableMember } from "../core/luau/infer.js";
 import type { DocComment } from "../core/luau/docComment.js";
 import type { InstanceOutline } from "../core/luau/instances.js";
 
+/** What adding a package did. See `src/server/wally.ts`. */
+export interface WallyOutcome {
+	line?: { realm: string; alias: string; spec: string };
+	installed: string[];
+	problem?: string;
+	requests: number;
+}
+
 /** A module a local in a Luau file holds, as the host followed it. */
 export interface RequiredModule {
 	name: string;
@@ -254,6 +262,15 @@ export const api = {
 		post<{ modules: RequiredModule[]; self: string[] | null }>("/api/luau/modules", { path, ...(text === undefined ? {} : { text }) }),
 	/** The DataModel as the project knows it: the place and what the node maps add. */
 	instances: () => request<{ outline: InstanceOutline }>("/api/instances"),
+	/** Adds a Wally package to wally.toml and installs it from the registry. */
+	wallyAdd: (spec: string, realm: "shared" | "server" | "dev", alias?: string) =>
+		post<WallyOutcome>("/api/wally/add", { spec, realm, ...(alias ? { alias } : {}) }),
+	/** A package from a zip, base64: a Wally package installed, anything else vendored. */
+	wallyZip: (data: string, fileName: string, alias?: string, realm?: "shared" | "server" | "dev") =>
+		post<WallyOutcome>("/api/wally/zip", { data, fileName, ...(alias ? { alias } : {}), ...(realm ? { realm } : {}) }),
+	/** A GitHub repository vendored into Packages/. The daemon's alone. */
+	wallyGithub: (repo: string, alias?: string) =>
+		post<WallyOutcome>("/api/wally/github", { repo, ...(alias ? { alias } : {}) }),
 	/** The `*.project.json` files in the project's root, and the maps that write them. */
 	rojoProjects: () => request<{ projects: { file: string; mappedBy: string | null }[] }>("/api/rojo/projects"),
 	/** Reads a Rojo project file into a node map. */

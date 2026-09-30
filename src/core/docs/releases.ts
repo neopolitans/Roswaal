@@ -94,6 +94,17 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.112.0",
+		date: "2026-09-30",
+		headline: "Add packages from the project tree.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Add from Wally**, from the menu on wally.toml: the line goes into wally.toml and the package installs with what it depends on, two requests to the registry a package at most. If a download fails, the line stays and the package shows as not installed.",
+			"**Insert package zip**: a Wally package installs where wally install puts one; any other module is vendored into Packages. On a package not installed, Insert its zip fills it.",
+			"**Insert GitHub repo** vendors a repository into Packages, in the installed editor.",
+		],
+	},
+	{
 		version: "0.111.0",
 		date: "2026-09-30",
 		headline: "Drag a property onto a graph.",

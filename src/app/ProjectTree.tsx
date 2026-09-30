@@ -55,6 +55,12 @@ export interface ProjectTreeProps {
 	onRename: (path: string) => void;
 	onDelete: (paths: string[]) => void;
 	onReveal: (path: string) => void;
+	/**
+	 * Adding a package, from the menu on wally.toml or on a package: from the
+	 * Wally registry, from a zip, or from a GitHub repository. `entry` is the
+	 * package the menu was opened on, whose zip is being inserted.
+	 */
+	onPackage?: (how: "wally" | "zip" | "github", entry?: TreeEntry) => void;
 }
 
 /**
@@ -73,6 +79,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 	const { tree, openPath, sourceDir, nodePaths, targetDir, onOpen, onMove, onTargetDir } = props;
 	// A file manager to show a file in is something only a machine has.
 	const canReveal = useHostCan("reveal");
+	const canGithub = useHostCan("githubDownload");
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
 
@@ -309,7 +316,11 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						onDoubleClick={() => !isDir && entry.kind !== "wally" && !entry.missing && onOpen(entry)}
 						onContextMenu={(e) => {
 							e.preventDefault();
-							if (isListed(entry)) return;
+							// wally.toml and its packages: a menu of their own, for adding.
+							if (isListed(entry)) {
+								if (props.onPackage) setMenu({ x: e.clientX, y: e.clientY, entry });
+								return;
+							}
 							if (!selected.has(entry.path)) setSelected(new Set([entry.path]));
 							// Right-clicking is a way of saying where you are working
 							// too, so the toolbar agrees with the menu you just used.
@@ -380,7 +391,62 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 				</div>
 			)}
 
-			{menu && (
+			{menu && isListed(menu.entry) && props.onPackage && (
+				<div
+					className="menu tree-menu"
+					ref={menuRef}
+					style={{ left: menu.x, top: menu.y, zIndex: LAYER.menu }}
+				>
+					<div className="items">
+						{menu.entry.kind === "package" && menu.entry.missing && (
+							<div
+								className="item"
+								onClick={() => {
+									props.onPackage!("zip", menu.entry);
+									setMenu(null);
+								}}
+							>
+								<Icon name="folderOpen" size={15} />
+								<span>Insert its zip…</span>
+							</div>
+						)}
+						<div
+							className="item"
+							onClick={() => {
+								props.onPackage!("wally");
+								setMenu(null);
+							}}
+						>
+							<Icon name="instance" size={15} />
+							<span>Add from Wally…</span>
+						</div>
+						<div
+							className="item"
+							onClick={() => {
+								props.onPackage!("zip");
+								setMenu(null);
+							}}
+						>
+							<Icon name="folderOpen" size={15} />
+							<span>Insert package zip…</span>
+						</div>
+						<div
+							className={`item${canGithub ? "" : " item-unavailable"}`}
+							title={canGithub ? undefined : NOT_HERE}
+							onClick={() => {
+								if (!canGithub) return;
+								props.onPackage!("github");
+								setMenu(null);
+							}}
+						>
+							<Icon name="external" size={15} />
+							<span>Insert GitHub repo…</span>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{menu && !isListed(menu.entry) && (
 				<div
 					className="menu tree-menu"
 					ref={menuRef}

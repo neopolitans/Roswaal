@@ -31,6 +31,9 @@ import { describeInstance, fingerprint, outlinePlace, type PlaceOutline } from "
 import { RbxError, readRbx, type RbxDocument, type RbxInstance } from "../core/rbx/index.js";
 import { planPlaceUpdate, type PlaceReport } from "../core/rbx/placeExport.js";
 import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
+import { addFromWally, installGithub, installZip } from "./wally.js";
+import { fromBase64 } from "../core/base64.js";
+import type { WallyRealm } from "../core/wally.js";
 import { path } from "./host.js";
 import {
 	buildTree, collectBinaries, collectMaps, collectProject, compileAll, exportPlace, findPlaceFile, compileMap, compileScript, copyPackBetween, createFolder,
@@ -95,6 +98,13 @@ export interface HostCapabilities {
 	 * is the new root, which is what then gets opened.
 	 */
 	duplicateDemo?(dir: string, into: string): Promise<string>;
+	/**
+	 * A GitHub repository's archive, `ref` a branch, tag or commit, or "" for
+	 * the default branch. The
+	 * daemon's alone: GitHub's archive download refuses a web page, so the
+	 * hosted editor cannot fetch one and does not offer to.
+	 */
+	githubDownload?(owner: string, repo: string, ref: string): Promise<Uint8Array>;
 }
 
 export interface SessionHooks {
@@ -374,6 +384,44 @@ export class ApiSession {
 				let place: PlaceOutline | null = null;
 				if (file) place = await this.loadPlace(project, file).then((p) => p.outline, () => null);
 				return { outline: await projectInstances(project, place) };
+			},
+
+			/**
+			 * Adds `scope/name[@version]` to wally.toml and installs it, with what
+			 * it depends on, from the Wally registry -- asking it as little as it
+			 * can. What could not be installed is said, not retried.
+			 */
+			"POST /wally/add": async (req) => {
+				const { spec, realm, alias } = body<{ spec?: string; realm?: WallyRealm; alias?: string }>(req);
+				if (!spec) throw new HttpError(400, "Which package? Pass its `spec`, scope/name.");
+				try {
+					return await addFromWally(this.project(), spec, realm, alias);
+				} catch (err) {
+					throw new HttpError(400, (err as Error).message);
+				}
+			},
+
+			/** A package from a zip: a Wally package where `wally install` puts one, anything else vendored. */
+			"POST /wally/zip": async (req) => {
+				const { data, alias, realm, fileName } = body<{ data?: string; alias?: string; realm?: WallyRealm; fileName?: string }>(req);
+				if (!data) throw new HttpError(400, "Pass the zip as base64 `data`.");
+				try {
+					return await installZip(this.project(), fromBase64(data), { alias, realm, fileName });
+				} catch (err) {
+					throw new HttpError(400, (err as Error).message);
+				}
+			},
+
+			/** A GitHub repository, vendored into Packages/. The daemon's alone; see `githubDownload`. */
+			"POST /wally/github": async (req) => {
+				const { repo, alias } = body<{ repo?: string; alias?: string }>(req);
+				if (!repo) throw new HttpError(400, "Which repository? Pass `repo`, owner/repo.");
+				const download = this.ability("githubDownload");
+				try {
+					return await installGithub(this.project(), repo, download, alias);
+				} catch (err) {
+					throw new HttpError(400, (err as Error).message);
+				}
 			},
 
 			/**

@@ -171,6 +171,17 @@ function installRoot(): string | null {
 const session = new ApiSession({
 	/** Everything the daemon can do that a browser tab cannot. */
 	capabilities: {
+		// GitHub's archive download, which a web page cannot make: the API
+		// redirects to codeload, and codeload refuses other sites' pages.
+		githubDownload: async (owner, repo, ref) => {
+			// No ref is the repository's default branch.
+			const at = ref ? `/${encodeURIComponent(ref)}` : "";
+			const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/zipball${at}`, {
+				headers: { "User-Agent": "Roswaal", Accept: "application/vnd.github+json" },
+			});
+			if (!response.ok) throw new Error(`GitHub answered ${response.status} for ${owner}/${repo}${ref ? `@${ref}` : ""}.`);
+			return new Uint8Array(await response.arrayBuffer());
+		},
 		inspect: async (root) => {
 			const stat = await fs.promises.stat(root).catch(() => null);
 			if (!stat) return { root, exists: false, directory: false, initialised: false };

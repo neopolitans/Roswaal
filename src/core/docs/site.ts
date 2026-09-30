@@ -4009,7 +4009,18 @@ const BUILDING: DocPage = {
 			text:
 				"A project that uses Wally has `wally.toml` under Graph content, with each package it " +
 				"lists and the version installed. Double-click one to open its code; one not installed " +
-				"yet says so. Roswaal reads `Packages/` and never writes to it.",
+				"yet says so.",
+		},
+		{
+			t: "p",
+			text:
+				"Right-click `wally.toml` to add a package. **Add from Wally…** puts the line in " +
+				"`wally.toml` and installs the package with what it depends on, asking the registry " +
+				"once for its versions and once for its archive. **Insert package zip…** installs a " +
+				"zip: a Wally package goes where `wally install` puts one, and any other module is " +
+				"vendored into `Packages/`. **Insert GitHub repo…** vendors a repository, in the " +
+				"installed editor. If a download fails, the line stays in `wally.toml` and the package " +
+				"shows as not installed: right-click it and choose **Insert its zip…**.",
 		},
 
 		{ t: "h", level: 2, text: "Writing scripts into the place" },
