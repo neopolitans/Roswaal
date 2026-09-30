@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.114.0",
+		date: "2026-09-30",
+		headline: "Custom Code follows requires, and a property drops as Get Member.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Custom Code and Luau Expression** follow a require from where the graph compiles to: the module's members complete and hover with their docs, and an instance path the project does not have is underlined, script.Parent included.",
+			"**Export** lists scripts still in the place whose files were removed or renamed.",
+		],
+		changed: [
+			"**A property dragged from Properties** onto a graph gives Get Member, typed as the property is, in place of Get Property. Ctrl still gives Set Property.",
+		],
+	},
+	{
 		version: "0.113.0",
 		date: "2026-09-30",
 		headline: "Remove a package.",

@@ -331,7 +331,7 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 					className="place-props-head"
 					draggable
 					title="Drag onto a graph for an Instance node at this path"
-					onDragStart={(e) => dragOut(e, { path: target.path })}
+					onDragStart={(e) => dragOut(e, { path: target.path, className: target.className })}
 				>
 					<ClassIcon className={target.className} service={target.service} open={false} />
 					<span className="place-props-name">{target.name}</span>
@@ -358,7 +358,7 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 				{problem ? (
 					<p className="place-note">{problem}</p>
 				) : info && info.index === target.index ? (
-					<Properties properties={info.properties} onPick={onPick} path={target.path} />
+					<Properties properties={info.properties} onPick={onPick} path={target.path} className={target.className} />
 				) : (
 					<p className="place-note">Reading…</p>
 				)}
@@ -412,6 +412,8 @@ export const PROPERTY_DRAG = "application/x-roswaal-property";
 
 export interface PropertyDrag {
 	path: string[];
+	/** The instance's class, for the member's type on the node it makes. */
+	className?: string;
 	property?: string;
 	attribute?: string;
 }
@@ -425,7 +427,9 @@ function dragOut(e: React.DragEvent, payload: PropertyDrag) {
 const CATEGORY_ORDER = ["Data", "Appearance", "Text", "Image", "Behavior", "Part", "Transform", "Pivot", "Collision", "Assembly", "Character", "Physics", "Surface"];
 const LAST = ["Other", "Tags", "Attributes"];
 
-function Properties({ properties, onPick, path }: { properties: PlaceProperty[]; onPick: (index: number) => void; path: string[] }) {
+function Properties({ properties, onPick, path, className }: {
+	properties: PlaceProperty[]; onPick: (index: number) => void; path: string[]; className: string;
+}) {
 	const groups = useMemo(() => {
 		const by = new Map<string, PlaceProperty[]>();
 		for (const p of properties) {
@@ -457,9 +461,9 @@ function Properties({ properties, onPick, path }: { properties: PlaceProperty[];
 							<div
 								className="place-prop"
 								key={p.name}
-								title={`${p.name}: ${p.type}. Drag onto a graph to read it; hold Ctrl as you drop to set it.`}
+								title={`${p.name}: ${p.type}. Drag onto a graph for a Get Member; hold Ctrl as you drop to set it.`}
 								draggable
-								onDragStart={(e) => dragOut(e, category === "Attributes" ? { path, attribute: p.name } : { path, property: p.name })}
+								onDragStart={(e) => dragOut(e, category === "Attributes" ? { path, className, attribute: p.name } : { path, className, property: p.name })}
 							>
 								<span className="place-prop-name">{p.name}</span>
 								<span className="place-prop-value">

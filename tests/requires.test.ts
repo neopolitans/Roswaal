@@ -12,7 +12,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { hoverAt } from "../src/core/luau/hover.js";
 import { moduleExports, requiresIn } from "../src/core/luau/requires.js";
+import { serialiseScript } from "../src/core/compiler/index.js";
 import { serialiseMap, type NodeMap } from "../src/core/nodemap.js";
+import { emptyScript } from "../src/core/schema.js";
 import { openProject } from "../src/server/project.js";
 import { modulesRequiredBy } from "../src/server/requires.js";
 import { ApiSession } from "../src/server/routes.js";
@@ -169,5 +171,18 @@ describe("following requires in a project", () => {
 		expect(hoverAt(src, src.lastIndexOf("state") + 1, true, members)).toMatchObject({ code: "Flux.state: (v) -> ()", doc: { text: "Makes state." } });
 		const info = new Map(modules.map((m) => [m.name, m as never]));
 		expect(hoverAt(src, src.indexOf("Flux") + 1, true, members, info)).toMatchObject({ code: "Flux: module", role: "module · ReplicatedStorage.Packages._Index.someone_flux@0.2.0.flux" });
+	});
+
+	it("follows a graph's code from the file the graph compiles to", async () => {
+		await project();
+		await mkdir(path.join(root, ".roswaal/scripts/server"), { recursive: true });
+		await writeFile(path.join(root, ".roswaal/scripts/server/Grow.nodescript"), serialiseScript(emptyScript("Grow", "grow")));
+		const session = new ApiSession({});
+		await session.openAt(root);
+		const { modules, self } = (await session.handle("POST", "/luau/modules", {
+			body: { path: ".roswaal/scripts/server/Grow.nodescript", text: "local Helpers = require(script.Parent.Helpers)" },
+		})) as { modules: { name: string; file: string }[]; self: string[] };
+		expect(self).toEqual(["ServerScriptService", "Server", "Grow"]);
+		expect(modules.map((m) => [m.name, m.file])).toEqual([["Helpers", "src/server/Helpers.luau"]]);
 	});
 });

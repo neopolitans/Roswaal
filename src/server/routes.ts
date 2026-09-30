@@ -41,7 +41,7 @@ import {
 	createPack, deleteEntry, deletePack, deletePackNode, duplicatePack, exportedTypes, findOrphanOutputs,
 	graphName, initProject, listPacks, locateFile, moveEntry, openProject, packUsage, readConfig,
 	readLuaurcFiles, readMap, readPack, readScript, readText, removeOutputs, renameEntry, safeJoin,
-	placeEntries, readPlaceBytes, savePackNode, scanProjectPacks, setPackRequires, writeConfig,
+	graphOutputPath, placeEntries, readPlaceBytes, savePackNode, scanProjectPacks, setPackRequires, writeConfig,
 	writeLuaurcFile, writeMap, writeScript,
 	type CompileStep, type OpenProject,
 } from "./project.js";
@@ -366,10 +366,12 @@ export class ApiSession {
 				const { path: file, text } = body<{ path?: string; text?: string }>(req);
 				if (!file) throw new HttpError(400, "Which file? Pass its `path`.");
 				const project = this.project();
+				// A graph's code runs from the file it compiles to.
+				const runsFrom = file.endsWith(".nodescript") ? (await graphOutputPath(project, file)) ?? file : file;
 				return {
-					modules: await modulesRequiredBy(project, file, text),
+					modules: await modulesRequiredBy(project, runsFrom, text),
 					// Where the file is in the DataModel, for `script.Parent`.
-					self: await instancePathOf(project, file),
+					self: await instancePathOf(project, runsFrom),
 				};
 			},
 

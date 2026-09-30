@@ -2617,6 +2617,7 @@ export function App() {
 			<Overlays
 				registry={registry}
 				script={editor.script}
+				graphPath={editor.path}
 				selection={editor.selection}
 				previewSelection={previewScope.selection}
 				previewFunction={previewScope.functionName}

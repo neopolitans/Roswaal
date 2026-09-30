@@ -30,6 +30,8 @@ export interface PlaceEntry {
 	isModule?: boolean;
 	/** Every instance the file stands for: one, or each copy of a merged script. */
 	targets: PlaceTarget[];
+	/** A linked file the project no longer has: its script is reported, never written. */
+	gone?: boolean;
 }
 
 export interface PlaceUpdate {
@@ -50,6 +52,11 @@ export interface PlaceUpdate {
 	addedFiles: string[];
 	/** Why nothing could be added, when the place could not take it. */
 	addError?: string;
+	/**
+	 * Linked files the project has removed or renamed whose scripts the place
+	 * still has. Left in: taking a script out of a place is not done for you.
+	 */
+	leftInPlace?: string[];
 }
 
 /** A `PlaceUpdate` as the editor is told it: counts and file names, no instances. */
@@ -86,6 +93,11 @@ export function planPlaceUpdate(
 	const missing: PlaceEntry[] = [];
 
 	for (const entry of entries) {
+		if (entry.gone) {
+			const still = entry.targets.some((t) => (t.id && byId.has(t.id)) || byPath.has(key(t.path)));
+			if (still) (out.leftInPlace ??= []).push(entry.file);
+			continue;
+		}
 		const found: RbxInstance[] = [];
 		let ambiguous = false;
 		for (const target of entry.targets) {
@@ -215,5 +227,6 @@ export function describePlaceReport(file: string, report: PlaceReport): { title:
 	if (report.notInPlace.length) lines.push(`No service in the place for: ${list(report.notInPlace)}.`);
 	if (report.ambiguous.length) lines.push(`More than one script with that path: ${list(report.ambiguous)}.`);
 	if (report.wrongClass.length) lines.push(`A different kind of script in the place: ${list(report.wrongClass)}.`);
+	if (report.leftInPlace?.length) lines.push(`Still in the place, with no file now: ${list(report.leftInPlace)}.`);
 	return { title, detail: lines.length ? lines.join(" ") : "Every script the project has a file for is in it." };
 }

@@ -253,8 +253,10 @@ export async function placeEntries(project: OpenProject): Promise<PlaceEntry[]> 
 	for (const link of links?.scripts ?? []) {
 		linked.add(link.file);
 		const text = await fs.readFile(safeJoin(project.root, link.file), "utf8").catch(() => null);
-		if (text === null) continue;
-		entries.push({ file: link.file, text, className: link.className, targets: link.instances });
+		entries.push({
+			file: link.file, text: text ?? "", className: link.className, targets: link.instances,
+			...(text === null ? { gone: true } : {}),
+		});
 	}
 
 	const maps = [];
@@ -1194,26 +1196,30 @@ export async function checkMapPaths(
  * because that is the file the node map actually points at. Both are tried, so
  * a map aimed straight at the graphs directory works too.
  */
+/**
+ * The Luau file a graph compiles to, project-relative, or null when it will
+ * not compile. Where its code runs from, for `script.Parent`.
+ */
+export async function graphOutputPath(project: OpenProject, relPath: string): Promise<string | null> {
+	try {
+		const script = await readScript(project, relPath);
+		const result = compile(script, project.registry);
+		const within = path.posix.dirname(toPosix(path.relative(project.config.sourceDir, relPath)));
+		return path.posix.normalize(path.posix.join(project.config.outDir, within, result.fileName));
+	} catch {
+		return null;
+	}
+}
+
 export async function locateFile(
 	project: OpenProject, relPath: string,
 ): Promise<InstanceLocation | null> {
 	const candidates = [relPath];
 
 	if (relPath.endsWith(".nodescript")) {
-		try {
-			const script = await readScript(project, relPath);
-			const result = compile(script, project.registry);
-			const within = path.posix.dirname(
-				toPosix(path.relative(project.config.sourceDir, relPath)),
-			);
-			candidates.unshift(
-				path.posix.normalize(
-					path.posix.join(project.config.outDir, within, result.fileName),
-				),
-			);
-		} catch {
-			// A graph that will not compile still has a source path worth trying.
-		}
+		// A graph that will not compile still has a source path worth trying.
+		const output = await graphOutputPath(project, relPath);
+		if (output) candidates.unshift(output);
 	}
 
 	for (const mapPath of await collectMaps(project)) {

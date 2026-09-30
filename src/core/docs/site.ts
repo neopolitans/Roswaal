@@ -3334,6 +3334,13 @@ const VARIABLES: DocPage = {
 		{
 			t: "p",
 			text:
+				"A `require` in the code is followed from the file the graph compiles to, so " +
+				"`script.Parent` means what it will. The module's members complete and hover with " +
+				"their docs, and an instance path the project does not have is underlined.",
+		},
+		{
+			t: "p",
+			text:
 				"Custom Code has no output pin, so it cannot hand a value onward by wire. To get " +
 				"one out, write to a variable — or put **Declare Local** before it and assign to " +
 				"that local in the code, which the completion list will offer by name. See " +
@@ -4040,7 +4047,8 @@ const BUILDING: DocPage = {
 				"A script is found by the id the import recorded, or by its path, and a merged file is " +
 				"written into every copy. A file whose script is not in the place yet — a graph made " +
 				"since — is added, with a Folder for each part of its path the place does not have. " +
-				"Nothing else in the place changes.",
+				"Nothing else in the place changes: a script whose file was removed or renamed stays, " +
+				"and the export lists it.",
 		},
 
 		{ t: "h", level: 2, text: "Browsing the place" },
@@ -4064,9 +4072,10 @@ const BUILDING: DocPage = {
 		{
 			t: "p",
 			text:
-				"Drag a property or an attribute from Properties onto a graph for an **Instance** node " +
-				"at that path, wired into **Get Property** or **Get Attribute**. Hold Ctrl as you drop " +
-				"for Set instead. Drag the instance's name for the Instance node alone.",
+				"Drag a property from Properties onto a graph for an **Instance** node at that path, " +
+				"wired into a **Get Member** typed as the property is; an attribute gives **Get " +
+				"Attribute**. Hold Ctrl as you drop for Set Property or Set Attribute. Drag the " +
+				"instance's name for the Instance node alone.",
 		},
 	],
 };

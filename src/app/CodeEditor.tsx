@@ -10,7 +10,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api.js";
-import { indexFromOutline, type InstanceNode } from "../core/luau/instances.js";
+import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
+import type { TableMember } from "../core/luau/infer.js";
+import type { ModuleInfo } from "../core/luau/hover.js";
+import { luauWarnings } from "./luauLint.js";
 
 import { EditorState } from "@codemirror/state";
 import {
@@ -49,12 +52,14 @@ export interface CodeEditorProps {
 	registry: Registry;
 	/** The node being edited, so locals from earlier blocks can be found. */
 	nodeId: string | null;
+	/** The graph's file, so a require in the code -- and `script` -- resolve from where it compiles to. */
+	graphPath?: string | null;
 	onCommit: (value: string) => void;
 	onClose: () => void;
 }
 
 export function CodeEditor({
-	title, value, hint, kind: given, script, registry, nodeId, onCommit, onClose,
+	title, value, hint, kind: given, script, registry, nodeId, graphPath, onCommit, onClose,
 }: CodeEditorProps) {
 	const host = useRef<HTMLDivElement>(null);
 	const view = useRef<EditorView | null>(null);
@@ -83,16 +88,43 @@ export function CodeEditor({
 	membersRef.current = members;
 	// The DataModel the project knows -- the place, and what the node maps
 	// add -- for `ReplicatedStorage.Shared.` to offer what is in Shared.
-	const instancesRef = useRef<{ root: InstanceNode } | null>(null);
+	const instancesRef = useRef<{ root: InstanceNode; self?: string[] } | null>(null);
+	const selfRef = useRef<string[] | undefined>(undefined);
 	useEffect(() => {
 		let live = true;
 		api.instances().then(({ outline }) => {
-			if (live) instancesRef.current = { root: indexFromOutline(outline) };
+			if (live) instancesRef.current = { root: indexFromOutline(outline), ...(selfRef.current ? { self: selfRef.current } : {}) };
 		}, () => {});
 		return () => {
 			live = false;
 		};
 	}, []);
+	/**
+	 * What the code's requires hold, and where the graph's code runs from, as
+	 * the host answers for the text being typed -- asked a moment after typing
+	 * stops, not on every key.
+	 */
+	const requiredRef = useRef<ReadonlyMap<string, TableMember[]>>(new Map());
+	const modulesRef = useRef<ReadonlyMap<string, ModuleInfo>>(new Map());
+	useEffect(() => {
+		if (!graphPath) return;
+		let live = true;
+		const id = window.setTimeout(() => {
+			api.luauModules(graphPath, text).then(({ modules, self }) => {
+				if (!live) return;
+				requiredRef.current = new Map(modules.map((m) => [m.name, m.members]));
+				modulesRef.current = new Map(modules.map((m) => [m.name, m]));
+				selfRef.current = self ?? undefined;
+				if (instancesRef.current) instancesRef.current = { ...instancesRef.current, ...(self ? { self } : {}) };
+			}, () => {});
+		}, 400);
+		return () => {
+			live = false;
+			window.clearTimeout(id);
+		};
+	}, [graphPath, text]);
+	/** The graph's own table members, with what the code's requires hold. */
+	const allMembers = () => new Map([...membersRef.current, ...requiredRef.current]);
 
 	useEffect(() => {
 		if (!host.current) return;
@@ -106,7 +138,7 @@ export function CodeEditor({
 				history(),
 				closeBrackets(),
 				autocompletion({
-					override: [luauCompletionSource(() => scopeRef.current, () => targetRef.current, () => membersRef.current, () => instancesRef.current)],
+					override: [luauCompletionSource(() => scopeRef.current, () => targetRef.current, allMembers, () => instancesRef.current)],
 					icons: false,
 				}),
 				// Completion and bracket keymaps first: they only claim keys while
@@ -123,8 +155,13 @@ export function CodeEditor({
 				// The same structural check that runs on every compile, shown here
 				// as you type so a stray `end` is caught in the box you typed it in.
 				luauLint((code) => checkLuau(code, kind)),
-				luauHover(() => targetRef.current, () => membersRef.current),
-				luauSignature(() => targetRef.current, () => membersRef.current),
+				luauHover(() => targetRef.current, allMembers, () => modulesRef.current, () => instancesRef.current),
+				luauSignature(() => targetRef.current, allMembers),
+				// Instance paths the place and the project do not have, from where
+				// the graph's code runs.
+				luauWarnings((code) => (instancesRef.current && targetRef.current !== "lune"
+					? instanceProblems(code, instancesRef.current.root, instancesRef.current.self)
+					: [])),
 				editorTheme,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) setText(update.state.doc.toString());

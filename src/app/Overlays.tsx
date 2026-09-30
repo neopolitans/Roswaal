@@ -72,6 +72,8 @@ export interface CodeEditState {
 }
 
 export interface OverlaysProps {
+	/** The open graph's file, for the code editor's requires and `script`. */
+	graphPath?: string | null;
 	registry: Registry;
 	/** Null when a node map or a read-only source file is open. */
 	script: NodeScript | null;
@@ -171,6 +173,7 @@ export function Overlays(props: OverlaysProps) {
 					script={props.script}
 					registry={props.registry}
 					nodeId={props.codeEdit.nodeId}
+					graphPath={props.graphPath}
 					onClose={props.onCodeClose}
 					onCommit={props.onCodeCommit}
 				/>

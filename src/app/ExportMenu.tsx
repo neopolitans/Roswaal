@@ -69,7 +69,9 @@ export function ExportMenu({ onClose, onError }: ExportMenuProps) {
 	const report = place?.report;
 	const extension = place ? (/\.rbxlx$/i.test(place.file) ? ".rbxlx" : ".rbxl") : "";
 	const problems = report ? describePlaceReport(place!.file, report).detail : "";
-	const hasProblems = !!report && (report.notInPlace.length + report.ambiguous.length + report.wrongClass.length > 0 || !!report.addError);
+	const hasProblems = !!report && (
+		report.notInPlace.length + report.ambiguous.length + report.wrongClass.length + (report.leftInPlace?.length ?? 0) > 0 || !!report.addError
+	);
 
 	async function run() {
 		if (!modified || busy) return;

@@ -129,6 +129,16 @@ describe("matching files to scripts", () => {
 		expect(update.wrongClass).toEqual(["main.luau"]);
 		expect(update.changes).toHaveLength(0);
 	});
+
+	it("says which scripts are left for files the project no longer has", () => {
+		const update = planPlaceUpdate(doc, [
+			{ file: "main.luau", text: "", gone: true, className: "Script", targets: [{ path: ["ServerScriptService", "Main"] }] },
+			{ file: "never.luau", text: "", gone: true, className: "Script", targets: [{ path: ["ServerScriptService", "Never"] }] },
+		]);
+		expect(update.leftInPlace).toEqual(["main.luau"]);
+		expect(update.changes).toHaveLength(0);
+		expect(update.added).toHaveLength(0);
+	});
 });
 
 describe("exporting a project's place", () => {

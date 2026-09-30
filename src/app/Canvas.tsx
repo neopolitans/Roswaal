@@ -8,6 +8,8 @@
  * cheaper and sharper than scaling a drawn grid.
  */
 
+import { propertiesOf } from "../core/robloxProperties.js";
+import { nilableProperty } from "../core/robloxNilable.js";
 import {
 	useCallback, useEffect, useMemo, useRef, useState,
 	type CSSProperties, type PointerEvent as ReactPointerEvent,
@@ -1008,21 +1010,29 @@ export function Canvas({
 
 				// A place instance, or one of its properties or attributes, from the
 				// Properties panel: an Instance node at its path, wired into a Get
-				// Property or Get Attribute -- Set with Ctrl, as a variable gives Set.
+				// Member -- the member accessor, typed as the property is -- or Get
+				// Attribute. Set Property or Set Attribute with Ctrl, as a variable
+				// gives Set.
 				const dragged = e.dataTransfer.getData("application/x-roswaal-property");
 				if (dragged) {
 					e.preventDefault();
-					const { path, property, attribute } = JSON.parse(dragged) as {
-						path: string[]; property?: string; attribute?: string;
+					const { path, className, property, attribute } = JSON.parse(dragged) as {
+						path: string[]; className?: string; property?: string; attribute?: string;
 					};
 					const pathDef = registry.get("roblox.instancePath");
 					if (!pathDef || path.length === 0) return;
 					const set = e.ctrlKey;
+					const member = property !== undefined && !set;
 					const reader = attribute !== undefined
 						? registry.get(set ? "instance.setAttribute" : "instance.getAttribute")
 						: property !== undefined
-							? registry.get(set ? "roblox.setProperty" : "roblox.getProperty")
+							? registry.get(set ? "roblox.setProperty" : "value.member")
 							: undefined;
+					// The type the member picker would give it, nilable as Character is.
+					const field = member && className ? propertiesOf(className).find((p) => p.name === property) : undefined;
+					const memberType = field
+						? (nilableProperty(className!, field.name) ? `${field.type}?` : field.type)
+						: undefined;
 					const world = toWorld(e.clientX, e.clientY);
 					store.edit((s) => {
 						const at = addNode(s, pathDef, world.x - (reader ? NODE.width + 40 : NODE.width / 2), world.y - 20);
@@ -1033,10 +1043,15 @@ export function Canvas({
 							return next;
 						}
 						const read = addNode(next, reader, world.x, world.y - 20);
-						next = setLiteral(read.script, read.id, attribute !== undefined ? "name" : "property", {
-							t: "string", v: (attribute ?? property)!,
-						});
-						next = connect(next, registry, { node: at.id, pin: "instance" }, { node: read.id, pin: "instance" });
+						if (member) {
+							next = setConfig(read.script, read.id, { member: property, ...(memberType ? { type: memberType } : {}) });
+							next = connect(next, registry, { node: at.id, pin: "instance" }, { node: read.id, pin: "object" });
+						} else {
+							next = setLiteral(read.script, read.id, attribute !== undefined ? "name" : "property", {
+								t: "string", v: (attribute ?? property)!,
+							});
+							next = connect(next, registry, { node: at.id, pin: "instance" }, { node: read.id, pin: "instance" });
+						}
 						queueMicrotask(() => store.select([at.id, read.id]));
 						return next;
 					});
