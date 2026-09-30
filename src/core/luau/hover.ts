@@ -19,7 +19,7 @@ import { docCommentBefore, docFor, docRegistry, withRelated, type DocComment } f
 import { tokenize } from "./lexer.js";
 import { declarationAt, localsAt, localsInFile, type LocalKind } from "./scope.js";
 import { parseChunk } from "./parser.js";
-import type { Stat } from "./ast.js";
+import type { Expr, Stat } from "./ast.js";
 import { isRequire } from "./requires.js";
 import { instanceAt, type InstanceNode } from "./instances.js";
 
@@ -290,6 +290,16 @@ export function hoverAt(
 		return null;
 	}
 
+	// A key written in a table: `Array = …` inside `local Sift = { … }` is
+	// Sift's member, and hovers as `Sift.Array` does -- @prop and all.
+	const key = tableKeyAt(src, from, to);
+	if (key) {
+		const member = key.owner ? membersInCode(src, key.owner).find((m) => m.name === word) : undefined;
+		if (member && key.owner) return aboutMember(key.owner, member, from, to);
+		const doc = docFor(docCommentBefore(src, key.fieldStart), word);
+		return { from, to, code: `${word}${key.detail ? `: ${key.detail}` : ""}`, role: "field", ...(doc ? { doc } : {}) };
+	}
+
 	// A local of the code's own: what it was declared as. Its own declaration
 	// has not finished where its name is written, so the end of that line is
 	// asked too — hovering `local tbl = { … }` describes `tbl`.
@@ -373,6 +383,52 @@ function globalFunction(src: string, name: string): Extract<Stat, { kind: "funct
 		if (stat.kind === "function" && "path" in stat && stat.path.length === 1 && !stat.method && stat.path[0].name === name) {
 			found = stat;
 			return;
+		}
+		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+	};
+	visit(parseChunk(src).value);
+	return found;
+}
+
+/**
+ * The named field of a table constructor whose key is at `from`..`to`, and
+ * the local or field the table is written to, when it is: `Sift` for the keys
+ * of `local Sift = { … }` or `Sift = { … }`.
+ */
+function tableKeyAt(src: string, from: number, to: number): { owner?: string; fieldStart: number; detail?: string } | undefined {
+	let found: { owner?: string; fieldStart: number; detail?: string } | undefined;
+	const ownerOf = (value: unknown, owner: string | undefined) => {
+		let v = value as Expr | undefined;
+		while (v && (v.kind === "cast" || v.kind === "paren")) v = v.kind === "cast" ? v.value : v.inner;
+		return v?.kind === "table" ? { table: v, owner } : undefined;
+	};
+	const tables: { table: Extract<Expr, { kind: "table" }>; owner?: string }[] = [];
+	const visit = (node: unknown): void => {
+		if (found) return;
+		if (Array.isArray(node)) return node.forEach(visit);
+		if (!node || typeof node !== "object") return;
+		const stat = node as Stat;
+		if (stat.kind === "local" || stat.kind === "const") {
+			stat.names.forEach((b, i) => {
+				const t = ownerOf(stat.values[i], b.name);
+				if (t) tables.push(t);
+			});
+		} else if (stat.kind === "assign") {
+			stat.targets.forEach((target, i) => {
+				const t = ownerOf(stat.values[i], target.kind === "name" ? target.name : undefined);
+				if (t) tables.push(t);
+			});
+		}
+		const expr = node as Expr;
+		if (expr.kind === "table") {
+			for (const field of expr.fields) {
+				if (field.kind === "named" && field.name.start === from && field.name.end === to) {
+					const owner = tables.find((t) => t.table === expr)?.owner;
+					const detail = field.value.kind === "function" ? signatureOf(field.value.func, src) : typeOfValue(field.value, src);
+					found = { ...(owner ? { owner } : {}), fieldStart: field.start, ...(detail ? { detail } : {}) };
+					return;
+				}
+			}
 		}
 		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
 	};

@@ -248,6 +248,17 @@ describe("Moonwave comments that name what they are about", () => {
 		expect(hoverAt(use, use.lastIndexOf("Shelf") + 1, true)?.code).toBe("Crate.Shelf: Shelf");
 	});
 
+	it("give a key written in the table the same, where it is written", () => {
+		const hover = hoverAt(LIB, LIB.indexOf("\tShelf = ") + 2, true)!;
+		expect(hover).toMatchObject({ code: "Crate.Shelf: Shelf", role: "field" });
+		expect(hover.doc?.subject).toEqual({ tag: "prop", name: "Shelf", type: "Shelf" });
+	});
+
+	it("describe a key of a table no name holds by the comment above it", () => {
+		const src = "print({\n\t-- How many.\n\tcount = 3,\n})";
+		expect(hoverAt(src, src.indexOf("count") + 1, true)).toMatchObject({ code: "count: number", role: "field", doc: { text: "How many." } });
+	});
+
 	it("list an @interface's fields where a return names it", () => {
 		const hover = hoverAt(LIB, LIB.indexOf("Crate.lid") + 7, true)!;
 		expect(hover.doc?.related).toEqual([{

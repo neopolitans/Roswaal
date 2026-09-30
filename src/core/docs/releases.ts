@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.112.1",
+		date: "2026-09-30",
+		headline: "A table's keys hover where they are written.",
+		affects: ["editor"],
+		fixed: [
+			"**A key written in a table**, Array in local Sift = { Array = … }, hovers as Sift.Array does, with its @prop, where it showed nothing.",
+		],
+	},
+	{
 		version: "0.112.0",
 		date: "2026-09-30",
 		headline: "Add packages from the project tree.",
