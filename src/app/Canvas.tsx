@@ -54,6 +54,7 @@ export const DROPPABLE = [
 	"application/x-roswaal-module",
 	"application/x-roswaal-type",
 	"application/x-roswaal-node",
+	"application/x-roswaal-property",
 	"application/x-roswaal",
 ] as const;
 
@@ -1002,6 +1003,43 @@ export function Canvas({
 							toWorld(e.clientX, e.clientY),
 						);
 					}
+					return;
+				}
+
+				// A place instance, or one of its properties or attributes, from the
+				// Properties panel: an Instance node at its path, wired into a Get
+				// Property or Get Attribute -- Set with Ctrl, as a variable gives Set.
+				const dragged = e.dataTransfer.getData("application/x-roswaal-property");
+				if (dragged) {
+					e.preventDefault();
+					const { path, property, attribute } = JSON.parse(dragged) as {
+						path: string[]; property?: string; attribute?: string;
+					};
+					const pathDef = registry.get("roblox.instancePath");
+					if (!pathDef || path.length === 0) return;
+					const set = e.ctrlKey;
+					const reader = attribute !== undefined
+						? registry.get(set ? "instance.setAttribute" : "instance.getAttribute")
+						: property !== undefined
+							? registry.get(set ? "roblox.setProperty" : "roblox.getProperty")
+							: undefined;
+					const world = toWorld(e.clientX, e.clientY);
+					store.edit((s) => {
+						const at = addNode(s, pathDef, world.x - (reader ? NODE.width + 40 : NODE.width / 2), world.y - 20);
+						let next = setLiteral(at.script, at.id, "root", { t: "string", v: path[0] });
+						next = setLiteral(next, at.id, "path", { t: "string", v: path.slice(1).join(".") });
+						if (!reader) {
+							queueMicrotask(() => store.select([at.id]));
+							return next;
+						}
+						const read = addNode(next, reader, world.x, world.y - 20);
+						next = setLiteral(read.script, read.id, attribute !== undefined ? "name" : "property", {
+							t: "string", v: (attribute ?? property)!,
+						});
+						next = connect(next, registry, { node: at.id, pin: "instance" }, { node: read.id, pin: "instance" });
+						queueMicrotask(() => store.select([at.id, read.id]));
+						return next;
+					});
 					return;
 				}
 

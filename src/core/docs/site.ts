@@ -4048,6 +4048,13 @@ const BUILDING: DocPage = {
 				"writes, **Open** opens that file, and its graph when one generates it. The browser " +
 				"only reads the place.",
 		},
+		{
+			t: "p",
+			text:
+				"Drag a property or an attribute from Properties onto a graph for an **Instance** node " +
+				"at that path, wired into **Get Property** or **Get Attribute**. Hold Ctrl as you drop " +
+				"for Set instead. Drag the instance's name for the Instance node alone.",
+		},
 	],
 };
 

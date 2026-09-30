@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.111.0",
+		date: "2026-09-30",
+		headline: "Drag a property onto a graph.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Drag from Properties onto a graph**: a property gives an Instance node at the instance's path wired into Get Property, and an attribute into Get Attribute. Hold Ctrl as you drop for Set. Drag the instance's name for the Instance node alone.",
+		],
+	},
+	{
 		version: "0.110.0",
 		date: "2026-09-30",
 		headline: "Hover reads @class, @prop and @interface.",

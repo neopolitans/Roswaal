@@ -327,7 +327,12 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 				<button className="tb" title="Stop showing this instance" onClick={onClose}>Close</button>
 			</h2>
 			<div className="place-props">
-				<div className="place-props-head">
+				<div
+					className="place-props-head"
+					draggable
+					title="Drag onto a graph for an Instance node at this path"
+					onDragStart={(e) => dragOut(e, { path: target.path })}
+				>
 					<ClassIcon className={target.className} service={target.service} open={false} />
 					<span className="place-props-name">{target.name}</span>
 					<span className="place-class">{target.className}</span>
@@ -353,7 +358,7 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 				{problem ? (
 					<p className="place-note">{problem}</p>
 				) : info && info.index === target.index ? (
-					<Properties properties={info.properties} onPick={onPick} />
+					<Properties properties={info.properties} onPick={onPick} path={target.path} />
 				) : (
 					<p className="place-note">Reading…</p>
 				)}
@@ -402,11 +407,25 @@ function ClassIcon({ className, service, open }: { className: string; service: b
 	return <Icon name="instance" size={15} className="kind place-instance" />;
 }
 
+/** What a drag out of Properties carries: the instance, and the property or attribute. */
+export const PROPERTY_DRAG = "application/x-roswaal-property";
+
+export interface PropertyDrag {
+	path: string[];
+	property?: string;
+	attribute?: string;
+}
+
+function dragOut(e: React.DragEvent, payload: PropertyDrag) {
+	e.dataTransfer.setData(PROPERTY_DRAG, JSON.stringify(payload));
+	e.dataTransfer.effectAllowed = "copy";
+}
+
 /** Studio's Properties headings, in its order; anything else after, by name. */
 const CATEGORY_ORDER = ["Data", "Appearance", "Text", "Image", "Behavior", "Part", "Transform", "Pivot", "Collision", "Assembly", "Character", "Physics", "Surface"];
 const LAST = ["Other", "Tags", "Attributes"];
 
-function Properties({ properties, onPick }: { properties: PlaceProperty[]; onPick: (index: number) => void }) {
+function Properties({ properties, onPick, path }: { properties: PlaceProperty[]; onPick: (index: number) => void; path: string[] }) {
 	const groups = useMemo(() => {
 		const by = new Map<string, PlaceProperty[]>();
 		for (const p of properties) {
@@ -435,7 +454,13 @@ function Properties({ properties, onPick }: { properties: PlaceProperty[]; onPic
 						</div>
 					) : (
 						list.map((p) => (
-							<div className="place-prop" key={p.name} title={`${p.name}: ${p.type}`}>
+							<div
+								className="place-prop"
+								key={p.name}
+								title={`${p.name}: ${p.type}. Drag onto a graph to read it; hold Ctrl as you drop to set it.`}
+								draggable
+								onDragStart={(e) => dragOut(e, category === "Attributes" ? { path, attribute: p.name } : { path, property: p.name })}
+							>
 								<span className="place-prop-name">{p.name}</span>
 								<span className="place-prop-value">
 									{p.color && <span className="place-swatch" style={{ background: p.color }} />}
