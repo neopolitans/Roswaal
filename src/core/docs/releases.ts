@@ -94,6 +94,13 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.115.1",
+		date: "2026-09-30",
+		headline: "The four new pages are reviewed.",
+		affects: ["docs"],
+		reviewed: ["project-panel", "places-and-rojo", "wally-packages", "reading-luau"],
+	},
+	{
 		version: "0.115.0",
 		date: "2026-09-30",
 		headline: "Four new docs pages.",

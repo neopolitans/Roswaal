@@ -65,6 +65,13 @@ export const REVIEWS: Record<
 	string,
 	{ status: Exclude<ReviewStatus, "pending">; date: string; verify?: string; reviewers?: string[] }
 > = {
+	// Read by the author for 0.115.1, block by block on a review page that set
+	// every block of the four beside the text it came from: all 77 passed as
+	// drafted.
+	"project-panel": { status: "reviewed", date: "2026-09-30", reviewers: ["neopolitans"] },
+	"places-and-rojo": { status: "reviewed", date: "2026-09-30", reviewers: ["neopolitans"] },
+	"wally-packages": { status: "reviewed", date: "2026-09-30", reviewers: ["neopolitans"] },
+	"reading-luau": { status: "reviewed", date: "2026-09-30", reviewers: ["neopolitans"] },
 	// Read by the author for 0.102.3, block by block on a review page built from
 	// the page source: five rewordings, a plainer summary, and the graph tabs'
 	// blank-page bug (0.102.2) found on the way.
