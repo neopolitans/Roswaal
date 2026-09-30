@@ -3448,9 +3448,10 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 			t: "p",
 			text:
 				"Hovering a name says what it is, here and in a Luau file opened from the project. A " +
-				"doc comment directly above a function — a `--[=[ … ]=]` block or `---` lines, as " +
-				"Moonwave and luau-lsp read them — shows with it: its text, examples and notes, and " +
-				"the types its `@param` and `@return` tags give.",
+				"comment directly above a function, field or local shows with it: a `--[[ … ]]` " +
+				"block, `--` lines, or Moonwave's `--[=[ … ]=]` and `---`. Its text, examples and " +
+				"notes are shown, with the types its `@param` and `@return` tags give. A comment " +
+				"that is code switched off is left out.",
 		},
 
 		{ t: "h", level: 2, text: "There are exactly two" },

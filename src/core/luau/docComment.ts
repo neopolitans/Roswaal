@@ -1,15 +1,18 @@
 /**
- * The documentation comment written above a declaration, as Moonwave and
- * luau-lsp read one: a `--[=[ … ]=]` block, or a run of `---` lines, directly
- * above the statement, with `@param` and `@return` tags pulled out of it.
- * A blank line between the comment and the statement ends it: the comment
- * then belongs to the file, or to whatever it sat above.
+ * The documentation comment written above a declaration: a `--[=[ … ]=]`
+ * block or a run of `---` lines, as Moonwave and luau-lsp read one, or the
+ * plain `--[[ … ]]` block or `--` lines most code is commented with -- with
+ * `@param` and `@return` tags pulled out of any of them. A blank line between
+ * the comment and the statement ends it: the comment then belongs to the file,
+ * or to whatever it sat above.
  *
- * A plain `--` comment is not documentation: above a function it is as often
- * a line of code switched off as it is a sentence about the function.
+ * A plain comment is as often code switched off as it is a sentence about the
+ * function, so one whose text reads as Luau is not taken as documentation.
+ * Prose does not: "Fires when a player's region changes." is not a statement.
  */
 
 import { tokenize, type Token } from "./lexer.js";
+import { parseChunk } from "./parser.js";
 
 export interface DocComment {
 	/** The prose, Markdown as written: paragraphs, `code`, and fenced blocks. */
@@ -53,7 +56,10 @@ export function docCommentBefore(src: string, offset: number, tokens: Token[] = 
 		}
 	}
 	const lines: string[] = [];
+	/** Which kind of line comment the run is: `---`, or plain `--`. Never both. */
+	let lineKind: "moonwave" | "plain" | undefined;
 	let block: string | undefined;
+	let plain = false;
 	for (; i >= 0; i--) {
 		const token = tokens[i];
 		if (token.kind === "whitespace") {
@@ -62,20 +68,41 @@ export function docCommentBefore(src: string, offset: number, tokens: Token[] = 
 			continue;
 		}
 		if (token.kind !== "comment") break;
-		// `--[=[`, with at least one `=`: a `--[[` block is as often code
-		// switched off, and Moonwave and luau-lsp read only the other.
 		const open = /^--\[(=*)\[/.exec(token.text);
 		if (open) {
-			if (lines.length === 0 && open[1].length > 0) {
+			if (lines.length === 0) {
 				block = token.text.slice(open[0].length, token.text.length - (open[1].length + 2));
+				// `--[=[` is Moonwave's; `--[[` is anybody's.
+				plain = open[1].length === 0;
 			}
 			break;
 		}
-		if (!token.text.startsWith("---") || token.text.startsWith("----")) break;
-		lines.unshift(token.text.slice(3).replace(/^ /, ""));
+		const kind = /^---(?!-)/.test(token.text) ? "moonwave" : "plain";
+		const body = token.text.slice(kind === "moonwave" ? 3 : 2);
+		// A rule of dashes, `-- ------` or `----`, separates; it says nothing.
+		// A line with nothing on it is a paragraph break within the run.
+		if (/^[\s-]*-[\s-]*$/.test(body) || token.text.startsWith("----")) break;
+		if (lineKind && kind !== lineKind) break;
+		lineKind = kind;
+		lines.unshift(body.replace(/^ /, ""));
 	}
+	if (block === undefined && lineKind === "plain") plain = true;
 	const raw = block ?? (lines.length ? lines.join("\n") : undefined);
-	return raw === undefined ? undefined : parseDoc(raw);
+	if (raw === undefined || raw.trim() === "") return undefined;
+	if (plain && readsAsCode(raw)) return undefined;
+	return parseDoc(raw);
+}
+
+/**
+ * Whether a comment's text is Luau rather than words about it: it parses,
+ * with at least one statement. Tags are left out first, since `@param x`
+ * reads as neither.
+ */
+function readsAsCode(text: string): boolean {
+	const body = text.split("\n").filter((line) => !/^\s*@\w/.test(line)).join("\n").trim();
+	if (body === "") return false;
+	const parsed = parseChunk(body);
+	return parsed.errors.length === 0 && parsed.value.length > 0;
 }
 
 /** Lines less the indent they all share, blank edges dropped. */

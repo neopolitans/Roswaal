@@ -17,7 +17,7 @@ import {
 import { ENGINE, signatureText } from "../robloxEngine.js";
 import { docCommentBefore, docFor, type DocComment } from "./docComment.js";
 import { tokenize } from "./lexer.js";
-import { declarationAt, localsAt, type LocalKind } from "./scope.js";
+import { declarationAt, localsAt, localsInFile, type LocalKind } from "./scope.js";
 import { parseChunk } from "./parser.js";
 import type { Stat } from "./ast.js";
 import { CLASSES, DATATYPES } from "../robloxData.js";
@@ -262,6 +262,7 @@ export function hoverAt(
 	// asked too — hovering `local tbl = { … }` describes `tbl`.
 	const lineEnd = src.indexOf("\n", to);
 	const local = declarationAt(src, from)
+		?? localsInFile(src, from)?.find((n) => n.name === word)
 		?? localsAt(src, from).find((n) => n.name === word)
 		?? localsAt(src, lineEnd < 0 ? src.length : lineEnd).find((n) => n.name === word);
 	if (local) {
@@ -273,7 +274,11 @@ export function hoverAt(
 			?? (held.keys ? "table" : undefined);
 		const code = type ? `${word}: ${type}` : word;
 		const role = LOCAL_ROLE[local.kind];
-		const doc = local.declaredAt === undefined ? undefined : docFor(docCommentBefore(src, local.declaredAt), word);
+		// Its own comment, or the one above the `function name()` that defines
+		// it later: `local Clean: (obj) -> ()` declared first is a common shape.
+		const definedBy = local.declaredAt === undefined ? undefined : globalFunction(src, word);
+		const doc = (local.declaredAt === undefined ? undefined : docFor(docCommentBefore(src, local.declaredAt), word))
+			?? (definedBy ? docFor(docCommentBefore(src, definedBy.start), word) : undefined);
 		const typed = doc && type && local.func && !local.typeText ? `${word}: ${withDocTypes(type, doc)}` : code;
 		if (roblox && held.className) return { ...aboutClass(held.className, from, to, typed, role), ...(doc ? { doc } : {}) };
 		return { from, to, code: typed, role, ...(doc ? { doc } : {}) };

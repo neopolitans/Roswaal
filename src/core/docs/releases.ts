@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.106.5",
+		date: "2026-09-30",
+		headline: "Plain comments show in hover.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Hover shows plain comments** above a function, field or local: a --[[ ]] block or -- lines, as well as Moonwave's. A comment that is code switched off is left out.",
+		],
+		fixed: [
+			"**A local declared first and defined later** by a function statement hovers with the comment above the function.",
+			"**A local called from inside a callback** passed to a call hovers again, where it showed nothing.",
+		],
+	},
+	{
 		version: "0.106.4",
 		date: "2026-09-30",
 		headline: "Hover finds every documented function.",

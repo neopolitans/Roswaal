@@ -88,11 +88,30 @@ export function localsAt(src: string, offset: number): ScopedName[] {
 		}
 	}
 
+	return scoped(best.value, offset, before, offset);
+}
+
+/**
+ * The names in scope at `offset` in a whole file, read from the file as it
+ * stands rather than the text before the point.
+ *
+ * For hover, over code that is finished: `localsAt` closes open blocks with
+ * `end`, which cannot close an open call, so a point inside a callback passed
+ * as an argument -- `promise:andThen(function() … end)` -- found nothing.
+ * Undefined when the file does not parse, for the caller to fall back.
+ */
+export function localsInFile(src: string, offset: number): ScopedName[] | undefined {
+	const parsed = parseChunk(src);
+	if (parsed.errors.length > 0) return undefined;
+	return scoped(parsed.value, offset, src, src.length);
+}
+
+function scoped(block: Block, offset: number, text: string, to: number): ScopedName[] {
 	const found: ScopedName[] = [];
-	walkBlock(best.value, offset, found, 0, offset);
+	walkBlock(block, offset, found, 0, to);
 	// A written type as its text, so a caller need not keep the source.
 	for (const item of found as (ScopedName & { typeSpan?: { start: number; end: number } })[]) {
-		if (item.typeSpan) item.typeText = before.slice(item.typeSpan.start, item.typeSpan.end).trim();
+		if (item.typeSpan) item.typeText = text.slice(item.typeSpan.start, item.typeSpan.end).trim();
 		delete item.typeSpan;
 	}
 

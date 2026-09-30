@@ -70,10 +70,14 @@ describe("reading a doc comment", () => {
 		expect(doc.yields).toBe(true);
 	});
 
-	it("leaves plain comments, --[[ blocks and comments a blank line away alone", () => {
-		expect(docCommentBefore(QUEUE, QUEUE.indexOf("local function helper"))).toBeUndefined();
-		expect(docCommentBefore("--[[ off ]]\nlocal x = 1", 12)).toBeUndefined();
+	it("takes prose in plain comments, and leaves code switched off alone", () => {
+		expect(docCommentBefore(QUEUE, QUEUE.indexOf("local function helper"))?.text).toBe("Not documentation: a plain comment.");
+		const block = "--[[\n\tFired when a player's region changes.\n]]\nlocal changed = 1";
+		expect(docCommentBefore(block, block.indexOf("local"))?.text).toBe("Fired when a player's region changes.");
+		expect(docCommentBefore("-- local x = 1\nlocal y = 2", 15)).toBeUndefined();
+		expect(docCommentBefore('--[[ print("off") ]]\nlocal y = 2', 21)).toBeUndefined();
 		expect(docCommentBefore("--- about y\n\nlocal y = 1", 13)).toBeUndefined();
+		expect(docCommentBefore("-- ------\nlocal y = 1", 10)).toBeUndefined();
 	});
 
 	it("keeps an @ inside a fenced example as code", () => {
@@ -167,5 +171,28 @@ describe("a comment about something else", () => {
 		const doc = (name: string) => `local Store = {}\n--[=[\n\t@function ${name}\n\t@within Store\n\tOpens it.\n]=]\nfunction Store.open() end`;
 		expect(hoverAt(doc("open"), doc("open").indexOf(".open") + 2, true)?.doc?.text).toBe("Opens it.");
 		expect(hoverAt(doc("close"), doc("close").indexOf(".open") + 2, true)?.doc).toBeUndefined();
+	});
+});
+
+describe("plain comments as documentation", () => {
+	it("documents a field set on a table, from a --[[ ]] block", () => {
+		const src = "local Region = {}\n\n--[[\n\tFired when a player's region changes.\n\n\tSends Player and Region (string)\n]]\nRegion.Changed = Signal.new()\nRegion.Changed:Fire()";
+		const hover = hoverAt(src, src.lastIndexOf("Changed") + 1, true)!;
+		expect(hover.doc?.text).toBe("Fired when a player's region changes.\n\nSends Player and Region (string)");
+	});
+
+	it("reads a run of -- lines, with a bare -- as a paragraph break", () => {
+		const src = "-- Detects the character.\n--\n-- Returns nil for anything else.\nlocal function detect(part) end";
+		expect(docCommentBefore(src, src.indexOf("local"))?.text).toBe("Detects the character.\n\nReturns nil for anything else.");
+	});
+
+	it("gives a forward-declared local the comment above the function that defines it", () => {
+		const src = "local Clean: (obj: any) -> ()\n\n--[[\n\tCleans it up.\n]]\nfunction Clean(obj)\nend\nClean(1)";
+		expect(hoverAt(src, src.lastIndexOf("Clean") + 1, true)?.doc?.text).toBe("Cleans it up.");
+	});
+
+	it("finds a local called from inside a callback passed to a call", () => {
+		const src = "-- Tries again.\nlocal function retry(n)\n\ttask.spawn(function()\n\t\tretry(n - 1)\n\tend)\nend";
+		expect(hoverAt(src, src.lastIndexOf("retry") + 1, true)?.doc?.text).toBe("Tries again.");
 	});
 });
