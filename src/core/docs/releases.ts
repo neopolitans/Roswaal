@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.115.0",
+		date: "2026-09-30",
+		headline: "Four new docs pages.",
+		affects: ["docs"],
+		added: [
+			"[The Project panel](project-panel), under Getting started: its two lists, what each colour and icon means, its menus, and the switch to the DataModel.",
+			"[Places and Rojo projects](places-and-rojo), [Wally packages](wally-packages) and [Reading your Luau](reading-luau), under For Roblox. Their sections were on Compiling and nodemaps for Roblox and Hand-written Luau, which now link to them.",
+		],
+		changed: [
+			"[Controls](controls) lists opening an instance in Properties and dragging from it. [Toolbars](toolbars) draws the Project panel's heading.",
+		],
+	},
+	{
 		version: "0.114.0",
 		date: "2026-09-30",
 		headline: "Custom Code follows requires, and a property drops as Get Member.",

@@ -1637,6 +1637,33 @@ export const PROJECT_MENU: ToolbarSpec = {
 	],
 };
 
+/**
+ * The Project panel's heading. Written from `App.tsx`'s tree header: the
+ * project's name, and the Files | DataModel switch once there is a place.
+ */
+export const PROJECT_PANEL_HEAD: ToolbarSpec = {
+	id: "project-panel-head",
+	title: "The Project panel's heading",
+	summary: "Over the project tree, with a place open.",
+	chrome: "head",
+	groups: [
+		{ items: [{ t: "label", text: "MY-GAME" }] },
+		{
+			apart: true,
+			items: [
+				{
+					t: "segmented",
+					options: ["Files", "DataModel"],
+					on: 0,
+					name: "Files | DataModel",
+					where: "With a place",
+					what: "The project's files, or the place's instances as Studio's Explorer lists them.",
+				},
+			],
+		},
+	],
+};
+
 /** The daemon's start page: a path, Browse, and Open. */
 export const START_PAGE: ToolbarSpec = {
 	id: "start-page",
@@ -1714,7 +1741,7 @@ export const DESIGNER_TOUCH_BAR: ToolbarSpec = {
 
 /** Every bar the documentation draws, in the order the page walks them. */
 export const TOOLBARS: ToolbarSpec[] = [
-	EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_TABLET, EDITOR_BAR_PHONE,
+	EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_TABLET, EDITOR_BAR_PHONE, PROJECT_PANEL_HEAD,
 	GRAPH_BAR, GRAPH_BAR_TABLET, GRAPH_BAR_PHONE, MAP_BAR,
 	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_TABLET, DESIGNER_BAR_PHONE,
 	DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH, DOCS_SITE_BAR_PHONE,

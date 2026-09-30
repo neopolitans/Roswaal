@@ -182,7 +182,7 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 		},
 		{
 			name: "Project", kind: "panel", at: [2, 5, 1, 2],
-			what: "The project's files: graphs, node maps, and the Luau compiled from them. Double-click a graph to open it.",
+			what: "The project's files: graphs, node maps, and the Luau compiled from them. With a place, its DataModel too. See [The Project panel](project-panel).",
 		},
 		{
 			name: "Variables", kind: "panel", at: [5, 6, 1, 2],

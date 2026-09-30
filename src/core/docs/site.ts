@@ -35,7 +35,7 @@ import {
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { classify, type Runtime } from "../nodes/runtimes.js";
 import {
-	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_BAR_TABLET, DESIGNER_TOUCH_BAR, DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_PHONE, DOCS_SITE_BAR_TOUCH, EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE, EDITOR_BAR_TABLET, FUNCTIONS_PANEL, PROJECT_MENU, PROJECTS_FOOT, START_PAGE, GRAPH_BAR, GRAPH_BAR_PHONE, GRAPH_BAR_TABLET, legendOf, MAP_BAR, MODULES_PANEL, VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec, TYPE_FIELDS_INSPECTOR, TYPE_WRITTEN_INSPECTOR, TYPE_OPEN_INSPECTOR,
+	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_BAR_TABLET, DESIGNER_TOUCH_BAR, DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_PHONE, DOCS_SITE_BAR_TOUCH, EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE, EDITOR_BAR_TABLET, FUNCTIONS_PANEL, PROJECT_MENU, PROJECT_PANEL_HEAD, PROJECTS_FOOT, START_PAGE, GRAPH_BAR, GRAPH_BAR_PHONE, GRAPH_BAR_TABLET, legendOf, MAP_BAR, MODULES_PANEL, VARIABLES_PAGE_PANEL, declarationsPanel, type ToolbarSpec, TYPE_FIELDS_INSPECTOR, TYPE_WRITTEN_INSPECTOR, TYPE_OPEN_INSPECTOR,
 } from "./toolbars.js";
 import {
 	DESIGNER_LAYOUT, DESIGNER_LAYOUT_PHONE, DESIGNER_LAYOUT_TOUCH, EDITOR_LAYOUT, EDITOR_LAYOUT_PHONE,
@@ -1337,7 +1337,7 @@ const GETTING_STARTED: DocPage = {
 									text:
 										"Or **Open place…** for a `.rbxl` or `.rbxlx`. It shows how many scripts " +
 										"Rojo can sync and how many only the place can hold, and asks which to bring " +
-										"in. [Compiling and nodemaps](building-and-rojo) has the rest.",
+										"in. [Places and Rojo projects](places-and-rojo) has the rest.",
 									picture: [PROJECT_MENU, PROJECTS_FOOT],
 									point: "Open place…",
 								},
@@ -1753,6 +1753,12 @@ const INTERFACE: DocPage = {
 				},
 			],
 		},
+		{
+			t: "p",
+			text:
+				"With a place, **Properties** joins the right-hand side, under the Inspector, for an " +
+				"instance opened from the DataModel.",
+		},
 		{ t: "h", level: 2, text: "Node Design" },
 		{
 			t: "p",
@@ -1793,6 +1799,81 @@ const INTERFACE: DocPage = {
 			text:
 				"On phones or tablets, the Editor, Node Design and Docs share one tab, and Back " +
 				"returns. On a computer each has its own.",
+		},
+	],
+};
+
+/**
+ * The left-hand panel, part by part: the two lists, the colours and icons,
+ * the menus, and the switch to the place's DataModel. Added at 0.115.0, when
+ * the panel had gathered enough of its own -- Wally, places, script kinds --
+ * that the Interface page's one line about it no longer covered it.
+ */
+const PROJECT_PANEL_PAGE: DocPage = {
+	slug: "project-panel",
+	narrow: true,
+	title: "The Project panel",
+	summary: "The project's files and its place's DataModel, and what each colour, icon and menu in them means.",
+	blocks: [
+		{
+			t: "p",
+			text:
+				"The Project panel is on the left of the editor. It lists the project's files and, " +
+				"when the project has a place, the place's instances.",
+		},
+		{ t: "toolbar", bar: PROJECT_PANEL_HEAD, hint: true },
+
+		{ t: "h", level: 2, text: "Graph content and Compile content" },
+		{
+			t: "p",
+			text:
+				"**Graph content** is what you edit: `.roswaal/` with its graphs and node maps, " +
+				"`.luaurc` and `wally.toml`. **Compile content** is what they compile to and what " +
+				"sits beside it: `src/`, `place/` and `Packages/`. Luau there opens read-only in the " +
+				"Luau viewer.",
+		},
+
+		{ t: "h", level: 2, text: "Colours and icons" },
+		{
+			t: "table",
+			head: ["Under Compile content", "Means"],
+			rows: [
+				["A cream folder", "A plain folder"],
+				["A blue folder", "A service, a container or a script in Studio"],
+				["A red folder", "`place/`: scripts only the place can hold"],
+				["A purple folder", "`Packages/`: Wally's packages"],
+				["A white or slate script", "A Script: white on a dark theme, slate on a light one"],
+				["A green script", "A LocalScript"],
+				["A blue script", "A ModuleScript"],
+			],
+		},
+
+		{ t: "h", level: 2, text: "Menus" },
+		{
+			t: "table",
+			head: ["Right-click", "Offers"],
+			rows: [
+				["A folder or a file", "**New graph here** and **New map here** under `.roswaal/`, **New folder**, **Show in file manager**, **Rename** and **Delete**"],
+				["`wally.toml`, or a package under it", "Adding and removing packages. See [Wally packages](wally-packages)"],
+			],
+		},
+
+		{ t: "h", level: 2, text: "Dragging from the tree" },
+		{
+			t: "p",
+			text:
+				"Drag a graph or a `.luau` onto the canvas for **Require Module** with its path filled " +
+				"in, or **Instance** for a reference to it. Drag a file onto a folder to move it.",
+		},
+
+		{ t: "h", level: 2, text: "Files and DataModel" },
+		{
+			t: "p",
+			text:
+				"With a place, **Files** and **DataModel** sit at the right of the panel's heading. " +
+				"DataModel lists the place as Studio's Explorer does. Double-click an instance for " +
+				"**Properties**, on the right under the Inspector; on a tablet or a phone, double tap " +
+				"and it slides out. [Places and Rojo projects](places-and-rojo) has the rest.",
 		},
 	],
 };
@@ -1892,6 +1973,7 @@ const CONTROLS: DocPage = {
 								["**Align**, **Copy**, **Cut**, **Duplicate**, **Delete**, **Paste**, under the graph", "What their shortcuts do, to the selection. Node Design's logic graph has the same bar. Icons or words: **Settings → Editor → Action buttons**"],
 								["**Preview** and **Logic**, in Node Design", "Show the node, or its logic, with the whole editor to itself"],
 								["Double tap", "Open a graph from the tree, add a reroute knot, rename a comment"],
+								["Double tap an instance in DataModel", "Slide Properties out with it"],
 								["Drag a node, or from a pin", "As with a mouse"],
 								["**Project**, **Variables** and **Inspector**, under the graph", "Slide that panel out over the graph, one at a time"],
 								["The search button beside **Contents**, in these pages", "Search the docs, as `Ctrl` + `K` does"],
@@ -2086,6 +2168,11 @@ const CONTROLS: DocPage = {
 				["`Ctrl` while dropping it", "Set Variable instead"],
 				["Drag a file from the project tree", "Offers what can be done with it"],
 				["Double-click a `.nodescript` in the tree", "Open it"],
+				["Double-click an instance in DataModel", "Open it in Properties"],
+				["Drag a property from Properties", "**Get Member** on an Instance node at its path"],
+				["`Ctrl` while dropping it", "**Set Property** instead"],
+				["Drag an attribute from Properties", "**Get Attribute**, or **Set Attribute** with `Ctrl`"],
+				["Drag the instance's name from Properties", "An Instance node at its path"],
 			],
 		},
 	],
@@ -2191,6 +2278,12 @@ const TOOLBARS_PAGE: DocPage = {
 				"In the browser preview, **Docs** opens the published pages, which cover the " +
 				"**built-in library only**. Your own packs are documented in the editor `roswaal " +
 				"serve` runs.",
+		},
+		{ t: "h", level: 2, text: PROJECT_PANEL_HEAD.title },
+		{ t: "toolbar", bar: PROJECT_PANEL_HEAD },
+		{
+			t: "p",
+			text: "The rest of the panel is on [The Project panel](project-panel).",
 		},
 		{ t: "h", level: 2, text: GRAPH_BAR.title },
 		{
@@ -3334,9 +3427,8 @@ const VARIABLES: DocPage = {
 		{
 			t: "p",
 			text:
-				"A `require` in the code is followed from the file the graph compiles to, so " +
-				"`script.Parent` means what it will. The module's members complete and hover with " +
-				"their docs, and an instance path the project does not have is underlined.",
+				"A `require` in the code is followed from the file the graph compiles to, so its " +
+				"members complete and hover with their docs. See [Reading your Luau](reading-luau).",
 		},
 		{
 			t: "p",
@@ -3454,31 +3546,9 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 		{
 			t: "p",
 			text:
-				"Hovering a name says what it is, here and in a Luau file opened from the project. A " +
-				"comment directly above a function, field or local shows with it: a `--[[ … ]]` " +
-				"block, `--` lines, or Moonwave's `--[=[ … ]=]` and `---`. Its text, examples and " +
-				"notes are shown, with the types its `@param` and `@return` tags give. A comment " +
-				"that is code switched off is left out. Moonwave's `@class`, `@prop`, `@interface` " +
-				"and `@type` comments count wherever they stand in the file, and an `@interface` a " +
-				"function returns is listed with its fields.",
-		},
-		{
-			t: "p",
-			text:
-				"In a Luau file opened from the project, a local that holds a required module knows what " +
-				"the module gives back: hover `Flux.state` for its signature and comment, or `Flux` for " +
-				"where the module is. Roswaal follows the require through the node map, Wally's " +
-				"`Packages/` and a package's own project file, or a `.luaurc` alias.",
-		},
-		{
-			t: "p",
-			text:
-				"Paths like `ReplicatedStorage.Shared.Util` are checked against the place and the " +
-				"project's files. Hover a name for its class and where it is. In the code editor, a dot " +
-				"or `:WaitForChild(\"` offers what is there. The Luau viewer marks a name that neither " +
-				"has, under the containers that are settled before the game runs, such as " +
-				"ReplicatedStorage, ServerStorage and the Starter services. Workspace and Players fill " +
-				"while the game runs, so they are left alone.",
+				"Hovering a name says what it is, with the comment above it, and a required module's " +
+				"members and the place's instances are known too. [Reading your Luau](reading-luau) " +
+				"has the detail.",
 		},
 
 		{ t: "h", level: 2, text: "There are exactly two" },
@@ -3959,6 +4029,36 @@ const BUILDING: DocPage = {
 				"map covers the file, it says so.",
 		},
 
+		{ t: "h", level: 2, text: "An existing game" },
+		{
+			t: "p",
+			text:
+				"A Rojo project or a place you already have becomes a Roswaal project on " +
+				"[Places and Rojo projects](places-and-rojo), which also covers browsing the place " +
+				"and writing scripts back into it. Packages are on [Wally packages](wally-packages).",
+		},
+	],
+};
+
+/**
+ * Bringing an existing game in: a Rojo project, a place, or both, and what
+ * goes back out. Split from `BUILDING` at 0.115.0, when these sections had
+ * grown to half of a page about compiling.
+ */
+const PLACES_PAGE: DocPage = {
+	slug: "places-and-rojo",
+	narrow: true,
+	title: "Places and Rojo projects",
+	summary: "Bringing a game in from its Rojo project or its place, browsing the place, and writing scripts back into it.",
+	blocks: [
+		{
+			t: "p",
+			text:
+				"Most games already exist as a Rojo project, a place file, or both. This page is " +
+				"how Roswaal takes either in, shows you the place, and writes your scripts back into " +
+				"it. How a graph compiles is on [Compiling and nodemaps for Roblox](building-and-rojo).",
+		},
+
 		{ t: "h", level: 2, text: "Starting from a Rojo project" },
 		{
 			t: "p",
@@ -3966,8 +4066,14 @@ const BUILDING: DocPage = {
 				"A project Rojo already manages has its tree in `default.project.json`. **Project → " +
 				"Import Rojo project…**, or `roswaal import default.project.json`, reads it into a node " +
 				"map beside your graphs. The file is not changed, and every field in it is kept, " +
-				"including ones the map editor has no control for. In the web app, **Open .zip…** and " +
-				"**Open folder…** offer the same when there is a project file no map writes.",
+				"including ones the map editor has no control for.",
+		},
+		{
+			t: "p",
+			text:
+				"In the web app, **Open .zip…** and **Open folder…** offer the same when there is a " +
+				"project file no map writes, with a list to pick from when there are several. A place " +
+				"file in the zip or folder is found too.",
 		},
 		{
 			t: "p",
@@ -4002,54 +4108,6 @@ const BUILDING: DocPage = {
 				"with the counts in front of you. The place is kept with the project, and " +
 				"**Export…** includes it.",
 		},
-		{
-			t: "p",
-			text:
-				"Under Compile content in the project tree, a folder's colour says what it is: cream " +
-				"for a plain folder, blue for a service, container or script in Studio, red for " +
-				"`place/`, and purple for Wally's `Packages/`. A Luau file's icon says which script it " +
-				"becomes: a Script is white on a dark theme and slate on a light one, a LocalScript " +
-				"green, and a ModuleScript blue.",
-		},
-		{
-			t: "p",
-			text:
-				"A project that uses Wally has `wally.toml` under Graph content, with each package it " +
-				"lists and the version installed. Double-click one to open its code; one not installed " +
-				"yet says so.",
-		},
-		{
-			t: "p",
-			text:
-				"Right-click `wally.toml` to add a package. **Add from Wally…** puts the line in " +
-				"`wally.toml` and installs the package with what it depends on, asking the registry " +
-				"once for its versions and once for its archive. **Insert package zip…** installs a " +
-				"zip: a Wally package goes where `wally install` puts one, and any other module is " +
-				"vendored into `Packages/`. **Insert GitHub repo…** vendors a repository, in the " +
-				"installed editor. If a download fails, the line stays in `wally.toml` and the package " +
-				"shows as not installed: right-click it and choose **Insert its zip…**. **Remove " +
-				"package…** takes one out of `wally.toml` and `Packages/`, with any package only it " +
-				"needed, after listing what still requires it.",
-		},
-
-		{ t: "h", level: 2, text: "Writing scripts into the place" },
-		{
-			t: "p",
-			text:
-				"**Project → Export…** takes the project out as a zip, or its place file alone. For a " +
-				"project with a place it says what **Modify RBXL** would write and add before you " +
-				"choose; **Don't Modify RBXL** sends the place as it was. The project's own place file " +
-				"is not changed either way. `roswaal export out.rbxl` writes the modified place to a file.",
-		},
-		{
-			t: "p",
-			text:
-				"A script is found by the id the import recorded, or by its path, and a merged file is " +
-				"written into every copy. A file whose script is not in the place yet — a graph made " +
-				"since — is added, with a Folder for each part of its path the place does not have. " +
-				"Nothing else in the place changes: a script whose file was removed or renamed stays, " +
-				"and the export lists it.",
-		},
 
 		{ t: "h", level: 2, text: "Browsing the place" },
 		{
@@ -4069,13 +4127,232 @@ const BUILDING: DocPage = {
 				"writes, **Open** opens that file, and its graph when one generates it. The browser " +
 				"only reads the place.",
 		},
+
+		{ t: "h", level: 2, text: "Dragging onto a graph" },
+		{
+			t: "table",
+			head: ["Drag from Properties", "What it makes"],
+			rows: [
+				["A property", "An **Instance** node at the instance's path, wired into **Get Member**, typed as the property is"],
+				["A property, with `Ctrl` held as you drop", "The same, into **Set Property**"],
+				["An attribute", "**Get Attribute**, or **Set Attribute** with `Ctrl`"],
+				["The instance's name", "The Instance node alone"],
+			],
+		},
+
+		{ t: "h", level: 2, text: "Writing scripts into the place" },
 		{
 			t: "p",
 			text:
-				"Drag a property from Properties onto a graph for an **Instance** node at that path, " +
-				"wired into a **Get Member** typed as the property is; an attribute gives **Get " +
-				"Attribute**. Hold Ctrl as you drop for Set Property or Set Attribute. Drag the " +
-				"instance's name for the Instance node alone.",
+				"**Project → Export…** takes the project out as a zip, or its place file alone. For a " +
+				"project with a place it says what **Modify RBXL** would write and add before you " +
+				"choose; **Don't Modify RBXL** sends the place as it was. The project's own place file " +
+				"is not changed either way. `roswaal export out.rbxl` writes the modified place to a file.",
+		},
+		{
+			t: "p",
+			text:
+				"A script is found by the id the import recorded, or by its path, and a merged file is " +
+				"written into every copy. A file whose script is not in the place yet — a graph made " +
+				"since — is added, with a Folder for each part of its path the place does not have. " +
+				"Nothing else in the place changes.",
+		},
+		{
+			t: "table",
+			head: ["Export says", "Why the file was not written"],
+			rows: [
+				["No service in the place for", "Its path starts at a service the place does not have"],
+				["More than one script with that path", "Two siblings share a name, so which one is meant is not certain"],
+				["A different kind of script in the place", "Module code where the place has a Script, or the other way round"],
+				["Still in the place, with no file now", "The file was removed or renamed. The script stays; delete it in Studio if it should go"],
+			],
+		},
+	],
+};
+
+/**
+ * Wally, as Roswaal reads and writes it. Split from `BUILDING` at 0.115.0.
+ */
+const PACKAGES_PAGE: DocPage = {
+	slug: "wally-packages",
+	narrow: true,
+	title: "Wally packages",
+	summary: "Packages in the project tree, how a require reaches one, and adding and removing them.",
+	blocks: [
+		{
+			t: "p",
+			text:
+				"[Wally](https://wally.run) installs a project's packages into `Packages/` from the " +
+				"list in `wally.toml`. Roswaal reads both: the list shows in the project tree, and a " +
+				"require that goes through `Packages/` is followed to the package's code.",
+		},
+
+		{ t: "h", level: 2, text: "In the project tree" },
+		{
+			t: "p",
+			text:
+				"`wally.toml` is under Graph content, with each package it lists and the version " +
+				"installed. Double-click one to open its code; one not installed yet says so. " +
+				"`Packages/` is under Compile content, in purple, and starts closed.",
+		},
+
+		{ t: "h", level: 2, text: "How a require reaches a package" },
+		{
+			t: "p",
+			text:
+				"`wally install` writes a short file for each package that requires the real one " +
+				"from `Packages/_Index`:",
+		},
+		{
+			t: "code",
+			lang: "luau",
+			text: '-- Packages/Flux.lua, written by Wally' + NEWLINE + 'return require(script.Parent._Index["someone_flux@0.2.0"]["flux"])',
+		},
+		{
+			t: "p",
+			text:
+				"Roswaal follows it there, and through the package's own project file to its code, " +
+				"so `require(ReplicatedStorage.Packages.Flux)` hovers with Flux's own functions and " +
+				"comments. A package whose code was copied in over that line is read as the code it is.",
+		},
+
+		{ t: "h", level: 2, text: "Adding a package" },
+		{
+			t: "p",
+			text: "Right-click `wally.toml`:",
+		},
+		{
+			t: "table",
+			head: ["", "What it does"],
+			rows: [
+				["**Add from Wally…**", "Puts the line in `wally.toml` and installs the package, with what it depends on"],
+				["**Insert package zip…**", "Installs a zip. A Wally package goes where `wally install` puts one; any other module is copied into `Packages/`"],
+				["**Insert GitHub repo…**", "Copies a repository's module into `Packages/`, found through its project file. In the installed editor"],
+			],
+		},
+		{
+			t: "p",
+			text:
+				"**Realm** puts the line under `[dependencies]`, `[server-dependencies]` or " +
+				"`[dev-dependencies]`, which install into `Packages/`, `ServerPackages/` and " +
+				"`DevPackages/`.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				"**Add from Wally asks the registry twice a package**, and stops at 16 requests. " +
+				"Nothing is retried.",
+		},
+		{
+			t: "p",
+			text:
+				"If a download fails, the line stays in `wally.toml` and the package shows as not " +
+				"installed. Download its zip, right-click the package and choose **Insert its zip…**.",
+		},
+
+		{ t: "h", level: 2, text: "Removing a package" },
+		{
+			t: "p",
+			text:
+				"**Remove package…**, on a package's menu, lists the files that still require it and " +
+				"asks first. It takes the line out of `wally.toml`, and the package out of `Packages/` " +
+				"with any package only it needed. Code copied in over the package's file is left " +
+				"where it is.",
+		},
+	],
+};
+
+/**
+ * What hover, completion and warnings know about Luau: doc comments, required
+ * modules and the place's instances. Gathered from `ESCAPE_HATCHES` at 0.115.0,
+ * where it had grown past the two code nodes that page is about.
+ */
+const READING_LUAU: DocPage = {
+	slug: "reading-luau",
+	narrow: true,
+	title: "Reading your Luau",
+	summary: "What hover, completion and warnings know about Luau: doc comments, required modules and the place's instances.",
+	blocks: [
+		{
+			t: "p",
+			text:
+				"Roswaal reads your Luau as well as writing it. In a Luau file opened from the " +
+				"project tree, and in **Custom Code** and **Luau Expression**, hover, completion and " +
+				"warnings use what it finds.",
+		},
+
+		{ t: "h", level: 2, text: "Doc comments" },
+		{
+			t: "p",
+			text:
+				"Hover a name to see what it is. A comment directly above a function, field or local " +
+				"shows with it, written as Moonwave's `--[=[ … ]=]` or `---`, or as a plain " +
+				"`--[[ … ]]` or `--` lines. A comment that is code switched off is left out.",
+		},
+		{
+			t: "table",
+			head: ["Moonwave tag", "What hover shows"],
+			rows: [
+				["`@param`, `@return`", "Their types and descriptions, with the signature"],
+				["`@class`", "The description of the table it names"],
+				["`@prop`", "A field's type and description"],
+				["`@interface`", "A table type's fields, listed with a function that returns it"],
+				["`@type`", "A type's description"],
+			],
+		},
+		{
+			t: "p",
+			text:
+				"`@class`, `@prop`, `@interface` and `@type` count wherever they stand in the file, " +
+				"as Moonwave reads them.",
+		},
+
+		{ t: "h", level: 2, text: "Required modules" },
+		{
+			t: "p",
+			text:
+				"A local that holds a required module knows what the module gives back: hover " +
+				"`Flux.state` for its signature and comment, or `Flux` for where the module is. In " +
+				"the code editor, a dot after it offers the module's members.",
+		},
+		{
+			t: "table",
+			head: ["Written", "Followed through"],
+			rows: [
+				["`require(ReplicatedStorage.Shared.Util)`", "The node map, to the file that becomes that instance"],
+				["`require(script.Parent.Util)`", "Where this file ends up in the DataModel"],
+				["`require(\"./Util\")`, `require(\"@shared/Util\")`", "The file's own folder, or a `.luaurc` alias"],
+				["`require(ReplicatedStorage.Packages.Flux)`", "Wally's `Packages/`; see [Wally packages](wally-packages)"],
+			],
+		},
+		{
+			t: "p",
+			text:
+				"In Custom Code, `script` is the file the graph compiles to, so `script.Parent` means " +
+				"what it will in Studio.",
+		},
+
+		{ t: "h", level: 2, text: "The place's instances" },
+		{
+			t: "p",
+			text:
+				"Paths like `ReplicatedStorage.Shared.Util` are checked against the place and the " +
+				"files a node map places. Hover a name for its class and where it is. In the code " +
+				"editor, a dot or `:WaitForChild(\"` offers what is there.",
+		},
+		{
+			t: "p",
+			text:
+				"A name neither has is underlined, but only under what is settled before the game " +
+				"runs: ReplicatedStorage, ReplicatedFirst, ServerScriptService, ServerStorage, " +
+				"Lighting, SoundService, Teams and the Starter services. Workspace and Players fill " +
+				"while the game runs, so they are left alone.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text: "Instance checks are for Roblox. A Lune script has no DataModel to check against.",
 		},
 	],
 };
@@ -6012,7 +6289,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 		}];
 	};
 
-	const start = [GETTING_STARTED, INTERFACE, CONTROLS, TOOLBARS_PAGE, blueprintPage()];
+	const start = [GETTING_STARTED, INTERFACE, CONTROLS, TOOLBARS_PAGE, PROJECT_PANEL_PAGE, blueprintPage()];
 	/**
 	 * The guides, in four shelves rather than one list of sixteen.
 	 *
@@ -6033,7 +6310,9 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 		VARIABLES, MEMBERS_PAGE(registry), functionsPage(registry), MODULES_PAGE,
 		ESCAPE_HATCHES(registry),
 	];
-	const forRoblox = [servicesPage(registry), BUILDING, robloxDemosPage(registry)];
+	const forRoblox = [
+		servicesPage(registry), BUILDING, PLACES_PAGE, PACKAGES_PAGE, READING_LUAU, robloxDemosPage(registry),
+	];
 	const forLune = [
 		luneLibraryPage(registry), ALIASES_PAGE, BUILDING_LUNE, luneDemosPage(registry),
 	];
