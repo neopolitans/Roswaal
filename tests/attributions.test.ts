@@ -21,7 +21,7 @@ import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-	ATTRIBUTIONS, DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, TARGETS,
+	ATTRIBUTIONS, DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, TARGETS, TESTED_WITH,
 } from "../src/core/docs/attributions.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import { blockText, buildSite, findPage } from "../src/core/docs/site.js";
@@ -125,11 +125,20 @@ describe("ATTRIBUTIONS.md and the attributions page", () => {
  * Overstating a debt is its own kind of inaccuracy, and so is understating one.
  */
 describe("what Roswaal uses, learned from, and writes for", () => {
-	it("puts every entry in exactly one of the three", () => {
-		expect(DEPENDENCIES.length + INSPIRATIONS.length + TARGETS.length)
+	it("puts every entry in exactly one of the four", () => {
+		expect(DEPENDENCIES.length + INSPIRATIONS.length + TARGETS.length + TESTED_WITH.length)
 			.toBe(ATTRIBUTIONS.length);
 		for (const entry of ATTRIBUTIONS) {
-			expect(["uses", "inspired-by", "designed-for"], entry.name).toContain(entry.relation);
+			expect(["uses", "inspired-by", "designed-for", "tested-with"], entry.name).toContain(entry.relation);
+		}
+	});
+
+	/** A library Roswaal was only tried against ships nothing here. */
+	it("bundles none of the libraries it was tested with", () => {
+		expect(TESTED_WITH.map((t) => t.name).sort()).toEqual(["Promise", "Roact", "Sift", "Signal"]);
+		for (const entry of TESTED_WITH) {
+			expect(entry.where, entry.name).toContain("Not bundled");
+			expect(entry.licence, entry.name).not.toBeNull();
 		}
 	});
 

@@ -94,6 +94,15 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.116.2",
+		date: "2026-09-30",
+		headline: "Attributions name the libraries Roswaal is tested with.",
+		affects: ["docs"],
+		changed: [
+			"[Attributions](attributions) lists the libraries these pages name and Roswaal was tested with: Sift, Signal, Promise and Roact. None is bundled. Wally and Moonwave join Rojo under what Roswaal is built on.",
+		],
+	},
+	{
 		version: "0.116.1",
 		date: "2026-09-30",
 		headline: "Places and Rojo projects, and Wally packages, are verified.",

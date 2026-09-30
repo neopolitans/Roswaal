@@ -49,8 +49,14 @@ export interface Attribution {
 	 * Nothing of theirs is here and nothing of theirs is licensed to us — what
 	 * is being said is only "this is what the output is for", which is
 	 * referential and is a statement about Roswaal rather than about them.
+	 *
+	 * `tested-with` is for libraries these pages name and Roswaal was tried
+	 * against: real Luau that hover, require following and the Wally support
+	 * were checked on. Nothing of theirs ships here or is needed to use
+	 * Roswaal; they are named so a reader seeing them in a picture or an
+	 * example knows whose they are.
 	 */
-	relation: "uses" | "inspired-by" | "designed-for";
+	relation: "uses" | "inspired-by" | "designed-for" | "tested-with";
 	/** Where it is in the repository, or how it reaches a user. */
 	where: string;
 	/** Why it is listed: what we use, and what we are not claiming. */
@@ -262,6 +268,34 @@ export const ATTRIBUTIONS: Attribution[] = [
 		url: "https://rojo.space/",
 	},
 	{
+		name: "Wally",
+		relation: "uses",
+		holder: "Uplift Games and contributors",
+		licence: "MPL-2.0",
+		where:
+			"Not bundled. Roswaal reads `wally.toml` and the packages `wally install` " +
+			"lays out, and Add from Wally asks the public Wally registry for a package.",
+		note:
+			"Not a dependency: nothing of Wally's ships here, and Roswaal does not run " +
+			"it. Listed because the project tree, the Packages folder and the package " +
+			"menu all follow its conventions, and the registry it asks is Wally's.",
+		url: "https://github.com/UpliftGames/wally",
+	},
+	{
+		name: "Moonwave",
+		relation: "uses",
+		holder: "Eryn L. K. and contributors",
+		licence: "MPL-2.0",
+		where:
+			"Not bundled. Roswaal reads Moonwave's doc-comment format -- `--[=[ ]=]`, " +
+			"`---` and tags such as `@class`, `@prop` and `@interface` -- for hover.",
+		note:
+			"No Moonwave code is used; the format is read by Roswaal's own parser, so " +
+			"that a library documented for Moonwave shows its documentation in the " +
+			"editor.",
+		url: "https://github.com/evaera/moonwave",
+	},
+	{
 		name: "Roblox Creator Documentation",
 		relation: "uses",
 		holder: "Roblox Corporation",
@@ -296,6 +330,57 @@ export const ATTRIBUTIONS: Attribution[] = [
 			"remain under it; their source is the Lune repository linked here. " +
 			"The rest of Roswaal is not covered by the MPL and stays 0BSD.",
 		url: "https://github.com/lune-org/lune",
+	},
+	{
+		name: "Sift",
+		relation: "tested-with",
+		holder: "csqrl",
+		licence: "MIT",
+		where:
+			"Not bundled. Named in the release notes; hover on its `@class` and " +
+			"`@prop` comments, and on fields that hold its modules, was tested on it.",
+		note:
+			"A table utility library for Luau, used as real code to check Roswaal's " +
+			"reading of Moonwave comments and of requires between modules.",
+		url: "https://github.com/cxmeel/sift",
+	},
+	{
+		name: "Signal",
+		relation: "tested-with",
+		holder: "Stephen Leitnick",
+		licence: "MIT",
+		where:
+			"Not bundled. Named in the pictures of the project tree and in tests as " +
+			"`sleitnick/signal` in `wally.toml`; hover on its `@interface` comments " +
+			"was tested on it.",
+		note:
+			"The Signal class from Stephen Leitnick's RbxUtil, published on Wally. " +
+			"Used as the example package in the Wally pages and as real code for hover.",
+		url: "https://github.com/Sleitnick/RbxUtil",
+	},
+	{
+		name: "Promise",
+		relation: "tested-with",
+		holder: "Eryn L. K.",
+		licence: "MIT",
+		where:
+			"Not bundled. Named in the pictures of the project tree as a package " +
+			"that is not installed yet.",
+		note: "roblox-lua-promise, a Promise implementation for Roblox, used by name as an example package.",
+		url: "https://github.com/evaera/roblox-lua-promise",
+	},
+	{
+		name: "Roact",
+		relation: "tested-with",
+		holder: "Roblox Corporation",
+		licence: "Apache-2.0",
+		where:
+			"Not bundled. The example alias on Aliases and .luaurc, `@roact`, and in " +
+			"the tests for aliases.",
+		note:
+			"Roblox's declarative UI library, now archived by Roblox. Its name is " +
+			"used as the example of a package reached through a `.luaurc` alias.",
+		url: "https://github.com/Roblox/roact",
 	},
 ];
 
@@ -349,3 +434,9 @@ export const INSPIRATIONS = ATTRIBUTIONS.filter((a) => a.relation === "inspired-
  * for the attribution in user-facing documentation, which this is.
  */
 export const TARGETS = ATTRIBUTIONS.filter((a) => a.relation === "designed-for");
+
+/**
+ * Libraries these pages name and Roswaal was tried against. Their own heading,
+ * because none of them is something Roswaal is built on: it only reads them.
+ */
+export const TESTED_WITH = ATTRIBUTIONS.filter((a) => a.relation === "tested-with");

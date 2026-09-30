@@ -30,7 +30,7 @@ import { LUNE_MODULES, LUNE_ROBLOX_DATATYPES, LUNE_VERSION } from "../luneApi.js
 import { CODE_ROLES, ROLES } from "../theme.js";
 import { BUILTIN_THEMES } from "../themeData.js";
 import {
-	DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, TARGETS, type Attribution,
+	DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, TARGETS, TESTED_WITH, type Attribution,
 } from "./attributions.js";
 import { CLI_COMMANDS, CLI_OPTIONS } from "./cli.js";
 import { classify, type Runtime } from "../nodes/runtimes.js";
@@ -921,6 +921,14 @@ function attributionsPage(): DocPage {
 		"What Roswaal is built on",
 		"Code and assets that ship inside Roswaal, or that it could not run without.",
 		DEPENDENCIES,
+	);
+	group(
+		"What Roswaal is tested with",
+		"Open-source Luau libraries these pages name, and that hover, require " +
+			"following and the Wally support were tried against. None is bundled, " +
+			"none is needed to use Roswaal, and nothing of theirs is copied into it.",
+		TESTED_WITH,
+		"Library",
 	);
 	group(
 		"What Roswaal is inspired by",
