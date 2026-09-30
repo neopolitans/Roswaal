@@ -734,7 +734,13 @@ export function App() {
 	/** The directory a file is in, project-relative. */
 	const dirOf = (filePath: string) => filePath.split("/").slice(0, -1).join("/");
 
-	const openEntry = useCallback(async (entry: TreeEntry) => {
+	const openEntry = useCallback(async (entry: TreeEntry): Promise<void> => {
+		// A package listed under wally.toml opens the module a require of it reaches.
+		if (entry.kind === "package") {
+			if (entry.target) return openEntry({ path: entry.target, name: entry.target.split("/").pop()!, kind: "luau" });
+			return;
+		}
+		if (entry.kind === "wally") return;
 		if (entry.kind === "luaurc") {
 			setSource(null);
 			setMapDoc(null);

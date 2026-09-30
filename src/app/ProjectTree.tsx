@@ -20,7 +20,13 @@ const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
 	// The gear it used to be reached by, kept as the glyph: it is the project's
 	// settings for requires, and the shape people already associate with that.
 	luaurc: "settings",
+	// The project's other settings file for what it requires, so the same gear.
+	wally: "settings",
+	package: "instance",
 };
+
+/** Listed from `wally.toml` rather than found on disk: no menu, no drag, no rename. */
+const isListed = (entry: TreeEntry) => entry.kind === "wally" || entry.kind === "package";
 
 export interface ProjectTreeProps {
 	tree: TreeEntry[];
@@ -85,6 +91,18 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		};
 	}, [menu]);
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+	/**
+	 * Wally's folders start shut: `_Index` holds every file of every package,
+	 * and opened it is most of the tree. Once each, so shutting is not undone
+	 * every time the tree is read again.
+	 */
+	const seenPackages = useRef(new Set<string>());
+	useEffect(() => {
+		const fresh = tree.filter((e) => e.role === "packages" && !seenPackages.current.has(e.path));
+		if (fresh.length === 0) return;
+		for (const e of fresh) seenPackages.current.add(e.path);
+		setCollapsed((prev) => new Set([...prev, ...fresh.map((e) => e.path)]));
+	}, [tree]);
 	/** Graphs whose functions are listed. Shut until asked, unlike folders. */
 	const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -112,7 +130,8 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		// Roswaal *reads* and what it *writes*, and this is read -- it decides
 		// what a require resolves to, exactly as a node pack decides what a node
 		// is. Landing it beside the compiled Luau said the opposite.
-		const isGraph = (e: TreeEntry) => isOurs(e.path) || e.kind === "luaurc";
+		// So is `wally.toml`: what a project depends on is part of what it reads.
+		const isGraph = (e: TreeEntry) => isOurs(e.path) || e.kind === "luaurc" || e.kind === "wally";
 		return {
 			graph: tree.filter(isGraph),
 			compiled: tree.filter((e) => !isGraph(e)),
@@ -159,6 +178,14 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 	}
 
 	function click(e: React.MouseEvent, entry: TreeEntry) {
+		if (entry.kind === "wally") {
+			toggle(entry.path);
+			return;
+		}
+		if (entry.kind === "package") {
+			setSelected(new Set([entry.path]));
+			return;
+		}
 		// Clicking anywhere in the tree says where you are working, which is what
 		// the toolbar's New graph then uses. A folder is itself; a file is the
 		// folder it is in, because that is where its siblings go.
@@ -250,7 +277,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 					);
 				}
 				const isDir = entry.kind === "directory";
-				const readonly = entry.kind === "luau";
+				const readonly = entry.kind === "luau" || entry.missing === true;
 				return (
 					<div
 						key={entry.path}
@@ -268,7 +295,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							dropTarget === entry.path ? "drop-target" : "",
 						].filter(Boolean).join(" ")}
 						style={{ paddingLeft: 6 + depth * 13 }}
-						draggable={!isDir}
+						draggable={!isDir && !isListed(entry)}
 						onDragStart={(e) => onDragStart(e, entry)}
 						onDragOver={(e) => {
 							if (!isDir) return;
@@ -279,18 +306,31 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						onDragLeave={() => setDropTarget((t) => (t === entry.path ? null : t))}
 						onDrop={(e) => isDir && onDrop(e, entry.path)}
 						onClick={(e) => click(e, entry)}
-						onDoubleClick={() => !isDir && onOpen(entry)}
+						onDoubleClick={() => !isDir && entry.kind !== "wally" && !entry.missing && onOpen(entry)}
 						onContextMenu={(e) => {
 							e.preventDefault();
+							if (isListed(entry)) return;
 							if (!selected.has(entry.path)) setSelected(new Set([entry.path]));
 							// Right-clicking is a way of saying where you are working
 							// too, so the toolbar agrees with the menu you just used.
 							onTargetDir(parentDirOf(entry));
 							setMenu({ x: e.clientX, y: e.clientY, entry });
 						}}
-						title={isDir && !groups.isGraph(entry) && entry.role ? `${entry.path}: ${FOLDER_TITLE[entry.role]}` : entry.path}
+						title={
+							entry.kind === "package"
+								? entry.missing
+									? `${entry.name} is in wally.toml, and not installed: run wally install.`
+									: `${entry.name}${entry.version ? ` ${entry.version}` : ""}. Double-click to open ${entry.target}.`
+								: isDir && !groups.isGraph(entry) && entry.role ? `${entry.path}: ${FOLDER_TITLE[entry.role]}` : entry.path
+						}
 					>
-						{isDir ? (
+						{entry.kind === "wally" ? (
+							<>
+								<Icon name="chevron" size={14} className="twist"
+									rotate={collapsed.has(entry.path) ? -90 : 0} />
+								<Icon name="settings" size={15} className="kind wally" />
+							</>
+						) : isDir ? (
 							<>
 								<Icon name="chevron" size={14} className="twist"
 									rotate={collapsed.has(entry.path) ? -90 : 0} />
@@ -329,6 +369,8 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						)}
 						<span className="label">{entry.name}</span>
 						{entry.generatedFrom && <span className="badge">generated</span>}
+						{entry.version && <span className="badge">{entry.version}</span>}
+						{entry.missing && <span className="badge">not installed</span>}
 					</div>
 				);
 			})}
@@ -464,12 +506,14 @@ const FOLDER_CLASS: Record<NonNullable<TreeEntry["role"]> | "plain", string> = {
 	service: "tree-folder-special",
 	script: "tree-folder-special",
 	place: "tree-folder-place",
+	packages: "tree-folder-packages",
 };
 
 const FOLDER_TITLE: Record<NonNullable<TreeEntry["role"]>, string> = {
 	service: "a service or container in Studio",
 	script: "a script in Studio, with the rest of the folder as its children",
 	place: "only in the place; Modify RBXL writes it back",
+	packages: "Wally's packages, installed by wally install; Roswaal never writes here",
 };
 
 /**

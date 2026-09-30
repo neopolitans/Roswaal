@@ -12,13 +12,20 @@ import type { TypeField } from "../core/typeFields.js";
 export interface TreeEntry {
 	path: string;
 	name: string;
-	kind: "directory" | "nodescript" | "nodemap" | "luau" | "luaurc";
+	/** `wally` is `wally.toml` and `package` a dependency under it; see the daemon's copy. */
+	kind: "directory" | "nodescript" | "nodemap" | "luau" | "luaurc" | "wally" | "package";
 	generatedFrom?: string;
 	/** A graph's functions, as the file on disk has them. */
 	functions?: FunctionInfo[];
 	children?: TreeEntry[];
-	/** A folder that is a service or container, a script, or place-only. */
-	role?: "service" | "script" | "place";
+	/** A folder that is a service or container, a script, place-only, or Wally's. */
+	role?: "service" | "script" | "place" | "packages";
+	/** A package's installed version. */
+	version?: string;
+	/** The file a package opens: its module in `_Index`. */
+	target?: string;
+	/** A package `wally.toml` lists that is not installed. */
+	missing?: boolean;
 }
 
 export interface ProjectInfo {

@@ -16,6 +16,7 @@ import { chainFor, parseLuaurc, type LuaurcSource } from "../core/luaurc.js";
 import type { SpecifierContext } from "../core/modules.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
 import { formatLike, parseProject, projectToMap, sameProject } from "../core/rojoImport.js";
+import { indexVersion, parseWallyToml, REALM_DIRS, thunkTarget } from "../core/wally.js";
 import { LINKS_FILE, PLACE_DIR, type PlaceImport, type PlaceLinks } from "../core/rbx/placeImport.js";
 import { type PlaceEntry, planPlaceUpdate, type PlaceUpdate } from "../core/rbx/placeExport.js";
 import { readRbx } from "../core/rbx/index.js";
@@ -46,15 +47,32 @@ import { fieldsOfDeclaration, type TypeField } from "../core/typeFields.js";
  */
 const LEGACY_OWNERSHIP_KEY = "$roswaalGeneratedFrom";
 
+/**
+ * Folders nothing Roswaal does reads or writes into: compiling, stale-file
+ * cleanup, export. Wally's folders are here because they are Wally's.
+ */
 const SKIP_DIRS = new Set([
-	"node_modules", ".git", ".vscode", "dist", "build", "out", "Packages", "DevPackages",
+	"node_modules", ".git", ".vscode", "dist", "build", "out", "Packages", "ServerPackages", "DevPackages",
 ]);
+
+/**
+ * Folders the project tree leaves out. Wally's are shown -- a project's
+ * packages are part of what it is -- and marked, but never scanned.
+ */
+const TREE_SKIP = new Set(["node_modules", ".git", ".vscode", "dist", "build", "out"]);
+
+const WALLY_DIRS = new Set(Object.values(REALM_DIRS));
 
 export interface TreeEntry {
 	/** Path relative to the project root, with forward slashes. */
 	path: string;
 	name: string;
-	kind: "directory" | "nodescript" | "nodemap" | "luau" | "luaurc";
+	/**
+	 * `wally` is `wally.toml`, listed with its dependencies as `package`
+	 * entries: not files, so a package's `path` is a name, and `target` is the
+	 * file it opens.
+	 */
+	kind: "directory" | "nodescript" | "nodemap" | "luau" | "luaurc" | "wally" | "package";
 	/** Set on generated Luau: the graph it came from. */
 	generatedFrom?: string;
 	/** Set on a graph with functions, which the tree lists under it. */
@@ -62,6 +80,12 @@ export interface TreeEntry {
 	children?: TreeEntry[];
 	/** What a folder is, where it is more than a folder. See `folderRole`. */
 	role?: FolderRole;
+	/** A package's installed version, from its `_Index` folder. */
+	version?: string;
+	/** The file a package opens: its module in `_Index`. */
+	target?: string;
+	/** A package `wally.toml` lists that `wally install` has not put on disk. */
+	missing?: boolean;
 }
 
 /**
@@ -73,8 +97,9 @@ export interface TreeEntry {
  *   Studio, with the rest of the folder as its children.
  * - `place`: `place/` and everything in it: scripts only the place holds,
  *   written back by Modify RBXL rather than synced by Rojo.
+ * - `packages`: a folder `wally install` fills, `Packages/` and its kin.
  */
-export type FolderRole = "service" | "script" | "place";
+export type FolderRole = "service" | "script" | "place" | "packages";
 
 export interface OpenProject {
 	root: string;
@@ -667,7 +692,66 @@ export async function buildTree(project: OpenProject): Promise<TreeEntry[]> {
 	// Empty folders are noise everywhere except under sourceDir, where one is a
 	// folder the developer just created and is about to put a graph in.
 	const keepEmptyUnder = [project.config.sourceDir, ...project.config.nodePaths];
-	return walk(project.root, project.root, generated, keepEmptyUnder, await serviceFolders(project));
+	const tree = await walk(project.root, project.root, generated, keepEmptyUnder, await serviceFolders(project));
+	const wally = await wallyEntry(project);
+	return wally ? [...tree, wally] : tree;
+}
+
+/**
+ * `wally.toml`, with what it depends on under it: each package by the name
+ * the project requires it by, its installed version, and the module the
+ * thunk in `Packages/` sends a `require` to.
+ */
+async function wallyEntry(project: OpenProject): Promise<TreeEntry | null> {
+	const text = await fs.readFile(safeJoin(project.root, "wally.toml"), "utf8").catch(() => null);
+	if (text === null) return null;
+	const children: TreeEntry[] = [];
+	for (const dep of parseWallyToml(text)) {
+		const found = await resolveWallyPackage(project, dep.alias, REALM_DIRS[dep.realm]);
+		children.push({
+			path: `wally.toml/${dep.realm}/${dep.alias}`,
+			name: dep.alias,
+			kind: "package",
+			...(found ? { target: found.module, ...(found.version ? { version: found.version } : {}) } : { missing: true }),
+		});
+	}
+	return { path: "wally.toml", name: "wally.toml", kind: "wally", children };
+}
+
+/**
+ * The module file an instance path on disk stands for: `name.luau`, or a
+ * folder's `init` file -- or, for a folder that is a Rojo project itself, as
+ * every Wally package is, wherever its `default.project.json` points the tree.
+ */
+async function moduleAt(project: OpenProject, base: string, depth = 0): Promise<string | null> {
+	const isFile = (rel: string) => fs.stat(safeJoin(project.root, rel)).then((s) => s.isFile(), () => false);
+	for (const candidate of [`${base}.luau`, `${base}.lua`, `${base}/init.luau`, `${base}/init.lua`]) {
+		if (await isFile(candidate)) return candidate;
+	}
+	if (depth > 4) return null;
+	const text = await fs.readFile(safeJoin(project.root, `${base}/default.project.json`), "utf8").catch(() => null);
+	const tree = text === null ? undefined : (parseProject(text) as { tree?: { $path?: unknown } } | undefined)?.tree;
+	if (typeof tree?.$path !== "string") return null;
+	return moduleAt(project, path.posix.join(base, tree.$path).replace(/\/+$/, ""), depth + 1);
+}
+
+/**
+ * Where `require(Packages.<alias>)` lands: the thunk in the realm's folder,
+ * followed into `_Index`, to the module file. Null when it is not installed.
+ */
+export async function resolveWallyPackage(
+	project: OpenProject, alias: string, folder: string,
+): Promise<{ thunk: string; module: string; version?: string } | null> {
+	for (const ext of [".lua", ".luau"]) {
+		const thunk = `${folder}/${alias}${ext}`;
+		const text = await fs.readFile(safeJoin(project.root, thunk), "utf8").catch(() => null);
+		if (text === null) continue;
+		const names = thunkTarget(text);
+		if (!names) return null;
+		const module = await moduleAt(project, [folder, ...names].join("/"));
+		return module ? { thunk, module, version: indexVersion(names[names.length - 2] ?? "") } : null;
+	}
+	return null;
 }
 
 /** Folders a node map points a service or container at, project-relative. */
@@ -697,6 +781,7 @@ const INIT_FILE = /^init(\.server|\.client)?\.luau?$/;
 
 function folderRole(rel: string, children: readonly TreeEntry[], services: ReadonlySet<string>): FolderRole | undefined {
 	if (rel === PLACE_DIR || rel.startsWith(PLACE_DIR + "/")) return "place";
+	if (WALLY_DIRS.has(rel)) return "packages";
 	if (services.has(rel)) return "service";
 	if (children.some((c) => c.kind !== "directory" && INIT_FILE.test(c.name))) return "script";
 	return undefined;
@@ -714,7 +799,7 @@ async function walk(
 		const rel = path.relative(root, abs).split(path.sep).join("/");
 
 		if (entry.isDirectory()) {
-			if (SKIP_DIRS.has(entry.name)) continue;
+			if (TREE_SKIP.has(entry.name)) continue;
 			const children = await walk(root, abs, generated, keepEmptyUnder, services);
 			const keep =
 				children.length > 0 ||

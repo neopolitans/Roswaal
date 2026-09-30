@@ -94,6 +94,16 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.107.0",
+		date: "2026-09-30",
+		headline: "Wally packages in the project tree.",
+		affects: ["editor", "docs"],
+		added: [
+			"**wally.toml in Graph content**, with each package it lists and the version installed. Double-click one to open the module a require of it reaches; one not installed says so.",
+			"**Packages in Compile content**: Wally's folders are shown, in purple and closed at first, where they were hidden. Compiling and export still leave them alone.",
+		],
+	},
+	{
 		version: "0.106.5",
 		date: "2026-09-30",
 		headline: "Plain comments show in hover.",

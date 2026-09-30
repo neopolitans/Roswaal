@@ -3979,9 +3979,17 @@ const BUILDING: DocPage = {
 			t: "p",
 			text:
 				"Under Compile content in the project tree, a folder's colour says what it is: cream " +
-				"for a plain folder, blue for a service, container or script in Studio, and red for " +
-				"`place/`. A Luau file's icon says which script it becomes: a Script is white on a dark " +
-				"theme and slate on a light one, a LocalScript green, and a ModuleScript blue.",
+				"for a plain folder, blue for a service, container or script in Studio, red for " +
+				"`place/`, and purple for Wally's `Packages/`. A Luau file's icon says which script it " +
+				"becomes: a Script is white on a dark theme and slate on a light one, a LocalScript " +
+				"green, and a ModuleScript blue.",
+		},
+		{
+			t: "p",
+			text:
+				"A project that uses Wally has `wally.toml` under Graph content, with each package it " +
+				"lists and the version installed. Double-click one to open its code; one not installed " +
+				"yet says so. Roswaal reads `Packages/` and never writes to it.",
 		},
 
 		{ t: "h", level: 2, text: "Writing scripts into the place" },

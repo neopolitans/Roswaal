@@ -101,6 +101,7 @@
 	--tree-script-module: #1f64c4;
 	--tree-folder-plain: #94712f;
 	--tree-folder-special: #1f64c4;
+	--tree-folder-packages: #7048c0;
 
 	--select: #ff9c2e;
 }
@@ -121,6 +122,7 @@
 		--tree-script-module: #5ea2ee;
 		--tree-folder-plain: #c4a878;
 		--tree-folder-special: #5ea2ee;
+		--tree-folder-packages: #b48cf0;
 
 		--fg: #e4e7ec;
 		--fg-muted: #9aa2af;
@@ -3933,6 +3935,13 @@ button.tb.primary.danger:hover:not(:disabled) {
 
 .tree-row .kind.tree-folder-special {
 	color: var(--tree-folder-special);
+}
+
+/* Wally's: its folders in Compile content, and wally.toml's packages in Graph
+   content, one colour so the two read as the same thing. */
+.tree-row .kind.tree-folder-packages,
+.tree-row .kind.package {
+	color: var(--tree-folder-packages);
 }
 
 .tree-row .kind.tree-folder-place {

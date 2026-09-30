@@ -204,6 +204,7 @@ export function derivedTokens(dark: boolean): Record<string, string> {
 		"--tree-script-module": dark ? "#5ea2ee" : "#1f64c4",
 		"--tree-folder-plain": dark ? "#c4a878" : "#94712f",
 		"--tree-folder-special": dark ? "#5ea2ee" : "#1f64c4",
+		"--tree-folder-packages": dark ? "#b48cf0" : "#7048c0",
 	};
 }
 
