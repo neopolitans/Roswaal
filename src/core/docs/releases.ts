@@ -94,6 +94,13 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.116.1",
+		date: "2026-09-30",
+		headline: "Places and Rojo projects, and Wally packages, are verified.",
+		affects: ["docs"],
+		verified: ["places-and-rojo", "wally-packages"],
+	},
+	{
 		version: "0.116.0",
 		date: "2026-09-30",
 		headline: "Places and Wally pages draw the editor.",

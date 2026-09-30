@@ -69,9 +69,11 @@ export const REVIEWS: Record<
 	// every block of the four beside the text it came from: all 77 passed as
 	// drafted.
 	"project-panel": { status: "reviewed", date: "2026-09-30", reviewers: ["neopolitans"] },
-	"places-and-rojo": { status: "reviewed", date: "2026-09-30", reviewers: ["neopolitans"] },
-	"wally-packages": { status: "reviewed", date: "2026-09-30", reviewers: ["neopolitans"] },
 	"reading-luau": { status: "reviewed", date: "2026-09-30", reviewers: ["neopolitans"] },
+	// Verified by the author for 0.116.1, once 0.116.0 drew the editor on both:
+	// the pictures checked against the steps they had taken themselves.
+	"places-and-rojo": { status: "verified", date: "2026-09-30", reviewers: ["neopolitans"] },
+	"wally-packages": { status: "verified", date: "2026-09-30", reviewers: ["neopolitans"] },
 	// Read by the author for 0.102.3, block by block on a review page built from
 	// the page source: five rewordings, a plainer summary, and the graph tabs'
 	// blank-page bug (0.102.2) found on the way.
