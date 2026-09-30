@@ -11,8 +11,8 @@
  */
 
 import type { Block, Expr, Stat } from "./ast.js";
-import { docCommentBefore, docFor, type DocComment } from "./docComment.js";
-import { membersInCode, signatureOf, stringValue, type TableMember, typeOfValue } from "./infer.js";
+import { docCommentBefore, docFor, docRegistry, type DocComment } from "./docComment.js";
+import { membersInCode, signatureOf, stringValue, type TableMember, typeOfValue, withRegistry } from "./infer.js";
 import { tokenize } from "./lexer.js";
 import { parseChunk } from "./parser.js";
 import { localsInFile, localsInParsed } from "./scope.js";
@@ -133,9 +133,13 @@ export function moduleExports(src: string): ModuleExports {
 	// A block comment says what the module is; `-- SERVICES` above the first
 	// line of code is a heading, not a description.
 	const top = first ? docCommentBefore(src, first.start) : undefined;
-	const doc = top?.style === "block" ? top : undefined;
-	const out = (e: Omit<ModuleExports, "doc">): ModuleExports => (doc ? { ...e, doc } : e);
 	const value = last?.values[0] ? unwrap(last.values[0]) : undefined;
+	// Or the `@class` Moonwave gives the table it returns, wherever that stands.
+	const classDoc = value?.kind === "name" && /@class\b/.test(src)
+		? docRegistry(src).find((e) => e.tag === "class" && e.name === value.name)?.doc
+		: undefined;
+	const doc = (top?.style === "block" && !top.subject ? top : undefined) ?? classDoc;
+	const out = (e: Omit<ModuleExports, "doc">): ModuleExports => (doc ? { ...e, doc } : e);
 	if (!value) return out({ kind: "value", members: [] });
 	if (isRequireCall(value)) {
 		const target = targetOf(value.args[0], src);
@@ -154,11 +158,11 @@ export function moduleExports(src: string): ModuleExports {
 			const held = unwrap(local.value);
 			if (held.kind === "table") {
 				const put = membersInCode(src, value.name);
-				const written = fieldsOf(held, src);
+				const written = fieldsOf(held, src, value.name);
 				return out({ kind: "table", members: [...put, ...written.filter((w) => !put.some((p) => p.name === w.name))] });
 			}
 		}
-		const written = local?.value?.kind === "table" ? fieldsOf(local.value, src) : [];
+		const written = local?.value?.kind === "table" ? fieldsOf(local.value, src, value.name) : [];
 		const put = membersInCode(src, value.name);
 		// What the file puts on the table after, over what it was written with.
 		const members = [...put, ...written.filter((w) => !put.some((p) => p.name === w.name))];
@@ -193,8 +197,11 @@ function unwrap(expr: Expr, depth = 0): Expr {
 	return expr;
 }
 
-/** A table constructor's named fields, as members, with the comments above them. */
-function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string): TableMember[] {
+/**
+ * A table constructor's named fields, as members, with the comments above
+ * them -- or, for a table called `owner`, what its `@prop`s say.
+ */
+function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string, owner?: string): TableMember[] {
 	const tokens = tokenize(src);
 	const out: TableMember[] = [];
 	for (const field of table.fields) {
@@ -217,5 +224,5 @@ function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string): TableMe
 			...(doc ? { doc } : {}),
 		});
 	}
-	return out;
+	return withRegistry(out, src, owner, tokens);
 }

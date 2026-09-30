@@ -39,6 +39,7 @@ const CLASSES: Record<string, string> = {
 	string: "tok-string",
 	number: "tok-number",
 	comment: "tok-comment",
+	meta: "tok-meta",
 	operator: "tok-operator",
 	bracket: "tok-bracket",
 	punctuation: "tok-punctuation",

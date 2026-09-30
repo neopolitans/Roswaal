@@ -19,6 +19,8 @@ export const luauHighlight = HighlightStyle.define([
 	{ tag: tags.string, color: "var(--code-string)" },
 	{ tag: tags.number, color: "var(--code-number)" },
 	{ tag: tags.comment, color: "var(--code-comment)", fontStyle: "italic" },
+	// A doc tag in a comment, `@param` or `@prop`, set apart as the hover sets it.
+	{ tag: tags.meta, color: "var(--code-type)", fontStyle: "italic" },
 	{ tag: tags.operator, color: "var(--code-operator)" },
 	{ tag: tags.variableName, color: "var(--fg)" },
 	{ tag: tags.propertyName, color: "var(--code-property)" },

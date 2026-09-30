@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 import { docCommentBefore, parseDoc } from "../src/core/luau/docComment.js";
 import { hoverAt, withDocTypes } from "../src/core/luau/hover.js";
 import { parseChunk } from "../src/core/luau/parser.js";
+import { moduleExports } from "../src/core/luau/requires.js";
+import { docRegistry } from "../src/core/luau/docComment.js";
 import { membersInCode } from "../src/core/luau/infer.js";
 
 const QUEUE = [
@@ -194,5 +196,65 @@ describe("plain comments as documentation", () => {
 	it("finds a local called from inside a callback passed to a call", () => {
 		const src = "-- Tries again.\nlocal function retry(n)\n\ttask.spawn(function()\n\t\tretry(n - 1)\n\tend)\nend";
 		expect(hoverAt(src, src.lastIndexOf("retry") + 1, true)?.doc?.text).toBe("Tries again.");
+	});
+});
+
+describe("Moonwave comments that name what they are about", () => {
+	const LIB = [
+		"--[=[",
+		"\t@class Crate",
+		"",
+		"\tHolds things.",
+		"]=]",
+		"local Crate = {",
+		"\tShelf = require(script.Shelf),",
+		"}",
+		"",
+		"--- @prop Shelf Shelf",
+		"--- @within Crate",
+		"",
+		"--[=[",
+		"\t@within Crate",
+		"\t@interface Lid",
+		"\t.Open boolean -- whether it is",
+		"\t.Close (Lid) -> ()",
+		"",
+		"\tThe top of a crate.",
+		"]=]",
+		"",
+		"--[=[",
+		"\t@return Lid",
+		"]=]",
+		"function Crate.lid() end",
+		"",
+		"return Crate",
+	].join("\n");
+
+	it("are read wherever they stand, by name", () => {
+		expect(docRegistry(LIB).map((e) => `${e.tag} ${e.name}${e.within ? ` in ${e.within}` : ""}`))
+			.toEqual(["class Crate", "prop Shelf in Crate", "interface Lid in Crate"]);
+	});
+
+	it("describe a module by its @class and a field by its @prop", () => {
+		const exports = moduleExports(LIB);
+		expect(exports.doc?.text).toBe("Holds things.");
+		const shelf = exports.members.find((m) => m.name === "Shelf")!;
+		expect(shelf.doc?.subject).toEqual({ tag: "prop", name: "Shelf", type: "Shelf" });
+	});
+
+	it("give the local its @class, and the field its @prop's type", () => {
+		expect(hoverAt(LIB, LIB.indexOf("local Crate") + 7, true)?.doc?.text).toBe("Holds things.");
+		const use = `${LIB}\nprint(Crate.Shelf)`;
+		expect(hoverAt(use, use.lastIndexOf("Shelf") + 1, true)?.code).toBe("Crate.Shelf: Shelf");
+	});
+
+	it("list an @interface's fields where a return names it", () => {
+		const hover = hoverAt(LIB, LIB.indexOf("Crate.lid") + 7, true)!;
+		expect(hover.doc?.related).toEqual([{
+			name: "Lid",
+			text: "The top of a crate.",
+			fields: [{ name: "Open", type: "boolean", description: "whether it is" }, { name: "Close", type: "(Lid) -> ()" }],
+		}]);
+		expect(hoverAt(LIB, LIB.indexOf("@return Lid") + 9, true)).toMatchObject({ code: "type Lid", role: "interface" });
 	});
 });

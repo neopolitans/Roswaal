@@ -3451,7 +3451,9 @@ const ESCAPE_HATCHES = (registry: Registry): DocPage => ({
 				"comment directly above a function, field or local shows with it: a `--[[ … ]]` " +
 				"block, `--` lines, or Moonwave's `--[=[ … ]=]` and `---`. Its text, examples and " +
 				"notes are shown, with the types its `@param` and `@return` tags give. A comment " +
-				"that is code switched off is left out.",
+				"that is code switched off is left out. Moonwave's `@class`, `@prop`, `@interface` " +
+				"and `@type` comments count wherever they stand in the file, and an `@interface` a " +
+				"function returns is listed with its fields.",
 		},
 		{
 			t: "p",

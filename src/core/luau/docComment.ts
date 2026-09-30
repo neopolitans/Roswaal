@@ -27,9 +27,20 @@ export interface DocComment {
 	 * What Moonwave says the comment is about, when it says: `@class`,
 	 * `@prop`, `@type` and `@interface` describe something else, and
 	 * `@function name` or `@method name` a function by name. A comment like
-	 * that above a declaration is not that declaration's.
+	 * that above a declaration is not that declaration's -- unless it names
+	 * it: `@class Sift` above `local Sift = {}` is Sift's. `type` is what
+	 * `@prop name type` and `@type name type` say it is.
 	 */
-	subject?: { tag: string; name?: string };
+	subject?: { tag: string; name?: string; type?: string };
+	/** `@within Sift`: the class a Moonwave comment belongs to. */
+	within?: string;
+	/** An `@interface`'s fields, from its `.name type -- text` lines. */
+	fields?: { name: string; type?: string; description?: string }[];
+	/**
+	 * `@interface`s and `@type`s of the same file that the parameters or
+	 * returns name, looked up so the tooltip can say what they are.
+	 */
+	related?: { name: string; type?: string; text: string; fields?: { name: string; type?: string; description?: string }[] }[];
 	/**
 	 * How it was written: a `--[[ ]]` or `--[=[ ]=]` block, or a run of
 	 * `--` or `---` lines. A run of lines at the top of a file is as often a
@@ -44,8 +55,65 @@ const ELSEWHERE = new Set(["class", "prop", "type", "interface"]);
 /** The doc comment, if it is about a declaration called `name`. */
 export function docFor(doc: DocComment | undefined, name: string): DocComment | undefined {
 	if (!doc?.subject) return doc;
+	// About this very name: `@class Sift` above `local Sift = {}`.
+	if (doc.subject.name === name) return doc;
 	if (ELSEWHERE.has(doc.subject.tag)) return undefined;
-	return doc.subject.name === undefined || doc.subject.name === name ? doc : undefined;
+	return doc.subject.name === undefined ? doc : undefined;
+}
+
+/** A Moonwave comment that names what it is about, wherever in the file it is. */
+export interface DocEntry {
+	tag: string;
+	name: string;
+	within?: string;
+	doc: DocComment;
+}
+
+/**
+ * Every comment in the file that says what it is about -- `@class`, `@prop`,
+ * `@type`, `@interface`, `@function`, `@method` -- by name. Moonwave lets
+ * these stand anywhere, not above what they describe: Sift lists its
+ * submodules as `--- @prop Array Array` lines after the table is built.
+ */
+export function docRegistry(src: string, tokens: Token[] = tokenize(src)): DocEntry[] {
+	const out: DocEntry[] = [];
+	for (let i = 0; i < tokens.length; i++) {
+		if (tokens[i].kind !== "comment") continue;
+		// The last comment of a run: what follows is code, a blank line, or the end.
+		let j = i + 1;
+		if (tokens[j]?.kind === "whitespace" && (tokens[j].text.match(/\n/g) ?? []).length <= 1) j++;
+		if (tokens[j]?.kind === "comment") continue;
+		const doc = docCommentBefore(src, tokens[i].end, tokens);
+		if (doc?.subject?.name) {
+			out.push({ tag: doc.subject.tag, name: doc.subject.name, ...(doc.within ? { within: doc.within } : {}), doc });
+		}
+	}
+	return out;
+}
+
+/**
+ * A comment for `name` within `owner` from the registry: an `@prop`,
+ * `@function` or `@method` of that name, `@within` the owner or said of no
+ * class at all.
+ */
+export function registeredDoc(entries: readonly DocEntry[], name: string, owner?: string): DocComment | undefined {
+	const matches = entries.filter((e) =>
+		e.name === name && ["prop", "function", "method", "class"].includes(e.tag) && (!e.within || !owner || e.within === owner));
+	return (matches.find((e) => e.within === owner) ?? matches[0])?.doc;
+}
+
+/** The doc with what its parameter and return types name from the registry. */
+export function withRelated(doc: DocComment, entries: readonly DocEntry[]): DocComment {
+	const named = new Map(entries.filter((e) => e.tag === "interface" || e.tag === "type").map((e) => [e.name, e]));
+	if (named.size === 0) return doc;
+	const types = [...doc.params.map((p) => p.type ?? ""), ...doc.returns.map((r) => r.type)].join(" ");
+	const related = [...named.values()].filter((e) => new RegExp(`\\b${e.name}\\b`).test(types)).map((e) => ({
+		name: e.name,
+		...(e.doc.subject?.type ? { type: e.doc.subject.type } : {}),
+		text: e.doc.text,
+		...(e.doc.fields?.length ? { fields: e.doc.fields } : {}),
+	}));
+	return related.length ? { ...doc, related } : doc;
 }
 
 /** The doc comment ending directly above `offset`, the start of a statement. */
@@ -168,14 +236,33 @@ export function parseDoc(raw: string): DocComment {
 			case "interface":
 			case "function":
 			case "method": {
-				// Moonwave's `@function Class.name` names it with its owner.
-				const named = /^\S+/.exec(rest)?.[0]?.split(/[.:]/).pop();
-				doc.subject ??= { tag: name, ...(named ? { name: named } : {}) };
+				// Moonwave's `@function Class.name` names it with its owner, and
+				// `@prop name type` / `@type name type` say what it is.
+				const [, first = "", after = ""] = /^(\S+)\s*(.*)$/.exec(rest) ?? [];
+				const named = first.split(/[.:]/).pop();
+				const type = (name === "prop" || name === "type") ? typeAndText(after).type : undefined;
+				doc.subject ??= { tag: name, ...(named ? { name: named } : {}), ...(type ? { type } : {}) };
 				break;
 			}
+			case "within":
+				if (rest.trim()) doc.within = rest.trim();
+				break;
 			// Moonwave's own bookkeeping -- @within, @tag, @since, @class and
 			// the rest -- says where a page goes, not what the function does.
 		}
+	}
+	// An `@interface`'s `.name type -- text` lines are its fields, not prose.
+	if (doc.subject?.tag === "interface") {
+		const kept: string[] = [];
+		for (const line of prose) {
+			const field = /^\s*\.([A-Za-z_][A-Za-z0-9_]*)\s*(.*)$/.exec(line);
+			if (!field) {
+				kept.push(line);
+				continue;
+			}
+			(doc.fields ??= []).push({ name: field[1], ...typeAndText(field[2]) });
+		}
+		prose.splice(0, prose.length, ...kept);
 	}
 	doc.text = prose.join("\n").trim();
 	return doc;

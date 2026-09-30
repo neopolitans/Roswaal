@@ -94,6 +94,19 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.110.0",
+		date: "2026-09-30",
+		headline: "Hover reads @class, @prop and @interface.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Moonwave's @class, @prop, @interface and @type** are read wherever they stand in a file: a module and its table show their @class, a field its @prop and type, and a function whose parameters or returns name an @interface lists its fields.",
+			"**Doc tags in comments are coloured** in the Luau viewer and the code editor, as the tooltips set them apart.",
+		],
+		fixed: [
+			"**Fields written in a table's constructor** hover in the file that writes them.",
+		],
+	},
+	{
 		version: "0.109.0",
 		date: "2026-09-30",
 		headline: "Code knows the place's instances.",

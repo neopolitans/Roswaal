@@ -16,7 +16,7 @@
  */
 
 import type { Expr, FunctionBody, Stat } from "./ast.js";
-import { docCommentBefore, docFor, type DocComment } from "./docComment.js";
+import { docCommentBefore, docFor, docRegistry, registeredDoc, withRelated, type DocComment } from "./docComment.js";
 import { tokenize, type Token } from "./lexer.js";
 import { parseChunk } from "./parser.js";
 import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
@@ -253,6 +253,23 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 			} else if (!fn.method && names.length >= 2 && names.slice(0, -1).join(".") === owner) {
 				add({ name: names[names.length - 1], kind: "function", detail: signatureOf(fn.func, src) }, fn.start);
 			}
+		} else if ((stat.kind === "local" || stat.kind === "const") && !owner.includes(".")) {
+			// `local Crate = { Shelf = … }`: what the table is written with.
+			const decl = node as Extract<Stat, { kind: "local" }>;
+			decl.names.forEach((binding, i) => {
+				let value = decl.values[i];
+				while (value?.kind === "cast" || value?.kind === "paren") value = value.kind === "cast" ? value.value : value.inner;
+				if (binding.name !== owner || value?.kind !== "table") return;
+				for (const field of value.fields) {
+					if (field.kind !== "named") continue;
+					const isFunction = field.value.kind === "function";
+					add({
+						name: field.name.name,
+						kind: isFunction ? "function" : "field",
+						detail: field.value.kind === "function" ? signatureOf(field.value.func, src) : typeOfValue(field.value, src) ?? "",
+					}, field.start);
+				}
+			});
 		} else if (stat.kind === "assign") {
 			const assign = node as Extract<Stat, { kind: "assign" }>;
 			assign.targets.forEach((target, i) => {
@@ -285,7 +302,21 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 			...(member.doc || !original.doc ? {} : { doc: original.doc }),
 		});
 	}
-	return out;
+	return withRegistry(out, src, owner.split(".")[0], tokens);
+}
+
+/**
+ * Members with what the file's Moonwave comments say of them wherever they
+ * stand: `--- @prop Array Array` / `--- @within Sift` for `Sift.Array`, and
+ * the `@interface`s and `@type`s their parameters and returns name.
+ */
+export function withRegistry(members: TableMember[], src: string, owner?: string, tokens?: Token[]): TableMember[] {
+	if (!/@(prop|function|method|interface|type|class)\b/.test(src)) return members;
+	const entries = docRegistry(src, tokens ?? tokenize(src));
+	return members.map((m) => {
+		const doc = m.doc ?? registeredDoc(entries, m.name, owner);
+		return doc ? { ...m, doc: withRelated(doc, entries) } : m;
+	});
 }
 
 /** The keys a dot can reach: the ones that are names. */

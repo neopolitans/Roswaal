@@ -221,6 +221,36 @@ function renderDoc(doc: DocComment): HTMLElement {
 		}
 		box.append(list);
 	}
+	// An @interface's own fields, and the interfaces and types what it takes
+	// and gives are, from the same file.
+	const listed = [
+		...(doc.fields?.length ? [{ title: "Fields", items: doc.fields.map((f) => ({ name: `.${f.name}`, type: f.type, description: f.description })) }] : []),
+		...(doc.related ?? []).map((r) => ({
+			title: r.name,
+			items: r.fields?.length
+				? r.fields.map((f) => ({ name: `.${f.name}`, type: f.type, description: f.description }))
+				: [{ name: undefined as string | undefined, type: r.type ?? r.text, description: r.type ? r.text : undefined }],
+		})),
+	];
+	for (const { title, items } of listed) {
+		const list = document.createElement("dl");
+		list.className = "luau-hover-tags";
+		const head = document.createElement("dt");
+		head.textContent = title;
+		list.append(head);
+		for (const item of items) {
+			const row = document.createElement("dd");
+			const code = document.createElement("code");
+			highlighted(item.name ? `${item.name}${item.type ? `: ${item.type}` : ""}` : item.type ?? "", code);
+			row.append(code);
+			if (item.description) {
+				row.append(" \u2014 ");
+				inline(item.description, row);
+			}
+			list.append(row);
+		}
+		box.append(list);
+	}
 	if (doc.yields) {
 		const note = document.createElement("p");
 		note.className = "luau-hover-yields";

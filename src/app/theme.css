@@ -5514,6 +5514,7 @@ button.tb.icon-only.on {
 :is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-string { color: var(--code-string); }
 :is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-number { color: var(--code-number); }
 :is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-comment { color: var(--code-comment); font-style: italic; }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-meta { color: var(--code-type); font-style: italic; }
 :is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-operator { color: var(--code-operator); }
 :is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-global { color: var(--code-global); }
 :is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-function { color: var(--code-function); }

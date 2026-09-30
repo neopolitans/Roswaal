@@ -15,7 +15,7 @@ import {
 	type TableMember,
 } from "./infer.js";
 import { ENGINE, signatureText } from "../robloxEngine.js";
-import { docCommentBefore, docFor, type DocComment } from "./docComment.js";
+import { docCommentBefore, docFor, docRegistry, withRelated, type DocComment } from "./docComment.js";
 import { tokenize } from "./lexer.js";
 import { declarationAt, localsAt, localsInFile, type LocalKind } from "./scope.js";
 import { parseChunk } from "./parser.js";
@@ -127,7 +127,8 @@ export function withDocTypes(detail: string, doc: DocComment | undefined): strin
 
 /** A member put on a table by the code or the graph: `Occupancy.value: (tank: Model) -> (Instance)`. */
 function aboutMember(owner: string, member: TableMember, from: number, to: number): Hover {
-	const detail = withDocTypes(member.detail, member.doc);
+	// An `@prop name type` gives a field the type the code does not.
+	const detail = withDocTypes(member.detail, member.doc) || member.doc?.subject?.type || "";
 	return {
 		from, to,
 		code: `${owner}${member.kind === "method" ? ":" : "."}${member.name}${detail ? `: ${detail}` : ""}`,
@@ -320,8 +321,11 @@ export function hoverAt(
 		// Its own comment, or the one above the `function name()` that defines
 		// it later: `local Clean: (obj) -> ()` declared first is a common shape.
 		const definedBy = local.declaredAt === undefined ? undefined : globalFunction(src, word);
-		const doc = (local.declaredAt === undefined ? undefined : docFor(docCommentBefore(src, local.declaredAt), word))
-			?? (definedBy ? docFor(docCommentBefore(src, definedBy.start), word) : undefined);
+		const own = (local.declaredAt === undefined ? undefined : docFor(docCommentBefore(src, local.declaredAt), word))
+			?? (definedBy ? docFor(docCommentBefore(src, definedBy.start), word) : undefined)
+			// `@class Sift` standing anywhere in the file, for `local Sift`.
+			?? (/@class\b/.test(src) ? docRegistry(src).find((e) => e.tag === "class" && e.name === word)?.doc : undefined);
+		const doc = own && /@(interface|type)\b/.test(src) ? withRelated(own, docRegistry(src)) : own;
 		const typed = doc && type && local.func && !local.typeText ? `${word}: ${withDocTypes(type, doc)}` : code;
 		if (roblox && held.className) return { ...aboutClass(held.className, from, to, typed, role), ...(doc ? { doc } : {}) };
 		return { from, to, code: typed, role, ...(doc ? { doc } : {}) };
@@ -333,6 +337,19 @@ export function hoverAt(
 	if (global) {
 		const doc = docFor(docCommentBefore(src, global.start), word);
 		return { from, to, code: `${word}: ${withDocTypes(signatureOf(global.func, src), doc)}`, role: "function", ...(doc ? { doc } : {}) };
+	}
+
+	// An `@interface` or `@type` the file's Moonwave comments describe.
+	if (/@(interface|type)\b/.test(src)) {
+		const entry = docRegistry(src).find((e) => (e.tag === "interface" || e.tag === "type") && e.name === word);
+		if (entry) {
+			return {
+				from, to,
+				code: entry.doc.subject?.type ? `type ${word} = ${entry.doc.subject.type}` : `type ${word}`,
+				role: entry.tag === "interface" ? "interface" : "type",
+				doc: entry.doc,
+			};
+		}
 	}
 
 	if (roblox && CLASS_SET.has(word)) return aboutClass(word, from, to);

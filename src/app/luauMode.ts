@@ -63,7 +63,12 @@ interface LuauState {
 	aliasPending: boolean;
 	/** The last token that was not whitespace, for telling `x: T` from `obj:Method()`. */
 	last: string;
+	/** Inside a `--` comment whose text starts with a doc tag: the tag next, or the rest. */
+	lineComment?: "tag" | "rest";
 }
+
+/** `@param`, `@within`, `@prop`: a doc tag at the start of a comment line. */
+const DOC_TAG = /^@[A-Za-z_]+/;
 
 /**
  * One token, or null for whitespace.
@@ -88,7 +93,25 @@ function tokenLuau(stream: StringStream, state: LuauState): string | null {
 function readLuau(stream: StringStream, state: LuauState): string | null {
 	// Long strings and long comments span lines, so they are resumed here
 	// before anything else is considered.
+	// A `--` line whose text is a doc tag: the tag, then the rest of the line.
+	if (state.lineComment === "tag") {
+		stream.match(DOC_TAG);
+		state.lineComment = stream.eol() ? undefined : "rest";
+		return "meta";
+	}
+	if (state.lineComment === "rest") {
+		state.lineComment = undefined;
+		stream.skipToEnd();
+		return "comment";
+	}
+
 	if (state.longLevel >= 0) {
+		// A doc tag opening a line of a long comment is its own token, coloured
+		// as the tooltip sets it apart: `@param`, `@prop`, `@within`.
+		if (state.inLongComment && stream.sol() && stream.match(/^\s*(?=@[A-Za-z_])/)) {
+			stream.match(DOC_TAG);
+			return "meta";
+		}
 		const closing = "]" + "=".repeat(state.longLevel) + "]";
 		const found = stream.string.indexOf(closing, stream.pos);
 		if (found === -1) {
@@ -109,6 +132,12 @@ function readLuau(stream: StringStream, state: LuauState): string | null {
 			state.longLevel = long;
 			state.inLongComment = true;
 			return readLuau(stream, state);
+		}
+		// `--- @prop Array Array`: the dashes as comment, then the tag as its
+		// own token, then the rest.
+		if (stream.match(/^-*\s*(?=@[A-Za-z_])/)) {
+			state.lineComment = "tag";
+			return "comment";
 		}
 		stream.skipToEnd();
 		return "comment";
