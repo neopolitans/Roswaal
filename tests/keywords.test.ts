@@ -13,7 +13,7 @@ import { classify } from "../src/core/nodes/runtimes.js";
 
 import { LUAU_KEYWORDS, keywordNodes } from "../src/core/keywords.js";
 import { createRegistry } from "../src/core/nodes/index.js";
-import { score } from "../src/app/NodeMenu.jsx";
+import { score } from "../src/app/menuSearch.js";
 
 const registry = createRegistry();
 
