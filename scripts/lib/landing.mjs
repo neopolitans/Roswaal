@@ -195,17 +195,20 @@ body.roswaal-landing {
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
   border: 1px solid rgb(0 0 0 / 45%); border-radius: 3px; padding: 1px 6px;
 }
-/* The way out, as a door rather than a link: the stable build, named. */
+/* The way out, as a door rather than a link: the stable build, named. A deep
+   navy rather than the accent, which against the canary's yellow was two loud
+   colours meeting; fixed colours, since the strip is yellow in either theme. */
 .strip-stable {
   display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 6px;
-  background: var(--accent); color: #fff; font-weight: 600; text-decoration: none;
-  box-shadow: 0 1px 0 rgb(0 0 0 / 25%);
+  background: #24476b; color: #f1f5fa; font-weight: 600; text-decoration: none;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 30%), inset 0 1px 0 rgb(255 255 255 / 12%);
+  transition: background 0.12s;
 }
-.strip-stable:hover { filter: brightness(1.1); }
+.strip-stable:hover { background: #2d5784; }
 .strip-stable:focus-visible { outline: 2px solid #14161a; outline-offset: 2px; }
 .strip-stable .flag {
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
-  border: 1px solid rgb(255 255 255 / 55%); border-radius: 3px; padding: 1px 5px;
+  border: 1px solid rgb(255 255 255 / 45%); border-radius: 3px; padding: 1px 5px;
 }
 @media (max-width: 640px) { .strip-inner { padding: 9px 20px; } }
 .banner-inner {
@@ -216,12 +219,19 @@ body.roswaal-landing {
 /* The mark draws with currentColor, so this is the whole of colouring it. */
 .banner-mark .logo-mark { display: block; color: var(--fg); }
 .landing-banner.canary .banner-mark .logo-mark { color: var(--warning); }
-.banner-name { display: flex; align-items: center; gap: 14px; }
+/* The version sits on the name's baseline and stands as tall as its
+   lowercase letters, so it reads as part of the wordmark rather than a label
+   floating beside it. The offset is the h1's descent at line-height 1. */
+.banner-name { display: flex; align-items: flex-end; gap: 16px; }
 .banner-name h1 { font-size: 64px; line-height: 1; margin: 0; letter-spacing: -0.02em; font-weight: 700; }
 .banner-name .tag {
-  font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
-  border: 1px solid var(--border); border-radius: 4px; padding: 2px 9px; color: var(--accent);
+  box-sizing: border-box; height: 0.5em; margin-bottom: 0.21em;
+  display: inline-flex; align-items: center;
+  font-size: 64px; /* sizes the box in the name's em; the text is set below */
+  border: 1px solid var(--border); border-radius: 5px; padding: 0 0.16em; color: var(--accent);
 }
+.banner-name .tag-text { font-size: 15px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .banner-name .tag { font-size: 44px; } .banner-name .tag-text { font-size: 12px; } }
 .banner-sub { font-size: 24px; margin: 10px 0 12px; color: var(--fg-muted, var(--fg)); }
 .banner-flow { margin: 0; font: 15px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--accent); }
 .banner-graph svg {
@@ -585,7 +595,7 @@ ${backup ? `<div class="landing-notices">
     <div class="banner-copy">
       <div class="banner-name">
         <h1>Roswaal</h1>
-        <span class="tag">${escapeHtml(version)}</span>
+        <span class="tag"><span class="tag-text">${escapeHtml(version)}</span></span>
       </div>
       <p class="banner-sub">Visual scripting for Luau, reimagined.</p>
       <p class="banner-flow">.nodescript → .luau → Rojo → Studio</p>
@@ -606,7 +616,7 @@ ${IS_CANARY ? `<div class="landing-strip" role="note">
 <div class="landing-glow" aria-hidden="true"></div>
 <main class="landing">
   <div class="landing-top">
-    <p class="landing-lede"><em>Completely free, forever.</em></p>
+    <p class="landing-lede"><em>And it's completely free, forever.</em></p>
     <p class="landing-sub">
       Graphs live on disk as <code>.nodescript</code> files and compile to plain
       <code>.luau</code> that Rojo syncs like any other source file. No plugin, no
