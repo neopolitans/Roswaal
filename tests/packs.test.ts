@@ -25,8 +25,10 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { BUILTIN_NODES } from "../src/core/nodes/index.js";
+import { compile } from "../src/core/compiler/index.js";
+import { BUILTIN_NODES, createRegistry, parseNodePack } from "../src/core/nodes/index.js";
 import { openProject } from "../src/server/project.js";
+import { Builder } from "./helpers.js";
 
 const DEMO = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -88,5 +90,55 @@ describe("definitions carry code the wire cannot", () => {
 		const clone = BUILTIN_NODES.find((def) => def.id === "instance.clone")!;
 		const throughTheWire = JSON.parse(JSON.stringify(clone));
 		expect(throughTheWire.subtitle).toBeUndefined();
+	});
+});
+
+/**
+ * A pack pin left empty behaves as a built-in pin does: with no wire, no
+ * literal and no default there is no value to pass, and the compile says so
+ * rather than writing `nil` into the call.
+ */
+describe("a pack pin with nothing on it", () => {
+	const pack = (required?: boolean) => parseNodePack({
+		nodes: [{
+			id: "combat.hit",
+			title: "Hit",
+			inputs: [
+				{ id: "in", kind: "exec" },
+				{ id: "target", name: "Target", kind: "data", type: "Instance", ...(required === undefined ? {} : { required }) },
+			],
+			outputs: [{ id: "then", kind: "exec" }],
+			compilesTo: { kind: "statement", template: "$in.target:Destroy()" },
+		}],
+	}, "pack").defs;
+
+	const compiled = (required?: boolean) => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const hit = b.node("combat.hit");
+		b.link(start, "then", hit, "in");
+		return compile(b.build(), createRegistry(pack(required)));
+	};
+
+	it("is an error naming the pin", () => {
+		const errors = compiled().diagnostics.filter((d) => d.severity === "error");
+		expect(errors.map((d) => d.message).join(" ")).toContain('needs a value on "Target"');
+	});
+
+	it("is an error when the pack says it must be wired", () => {
+		expect(compiled(true).ok).toBe(false);
+	});
+
+	/** `required: false` is the pack saying an empty pin is fine. */
+	it("is passed as nil when the pack says it may be empty", () => {
+		const result = compiled(false);
+		expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+		expect(result.code).toContain("(nil):Destroy()");
+	});
+
+	it("keeps the pack's word on the definition", () => {
+		expect(pack()[0].inputs[1].required).toBeUndefined();
+		expect(pack(true)[0].inputs[1].required).toBe(true);
+		expect(pack(false)[0].inputs[1].required).toBe(false);
 	});
 });

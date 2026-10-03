@@ -77,7 +77,21 @@ export interface PinDef {
 	type?: DataType;
 	/** Data inputs only: value used when the pin is left unconnected. */
 	default?: Literal;
-	/** Data inputs only: suppress the inline literal editor (must be wired). */
+	/**
+	 * Data inputs only: whether the pin may be left with no value.
+	 *
+	 * Three states, one meaning each, read the same way for a built-in pin and
+	 * a pack's:
+	 *
+	 * - absent: the ordinary pin. A wire, a typed literal or the `default`
+	 *   gives it a value, and with none of them the compile reports an error
+	 *   naming the pin.
+	 * - `true`: as absent, and the value has to come down a wire, so the canvas
+	 *   draws no literal field to type into.
+	 * - `false`: nothing is needed. Left empty, the pin is written as `nil`
+	 *   and nothing is reported, as for a call's receiver that falls back to a
+	 *   service.
+	 */
 	required?: boolean;
 	/**
 	 * Data inputs only: the underlying call takes this argument or nothing.
