@@ -8,8 +8,8 @@ import { fs, path } from "./host.js";
 import { chainFor, parseLuaurc, type LuaurcSource } from "../core/luaurc.js";
 import type { SpecifierContext } from "../core/modules.js";
 import type { OpenProject } from "./config.js";
-import { SKIP_DIRS } from "./files.js";
-import { safeJoin, toPosix } from "./paths.js";
+import { walkFiles } from "./files.js";
+import { safeJoin } from "./paths.js";
 
 /**
  * Every `.luaurc` in the project, as the editor needs to see them.
@@ -26,22 +26,12 @@ import { safeJoin, toPosix } from "./paths.js";
  */
 export async function readLuaurcFiles(project: OpenProject): Promise<LuaurcSource[]> {
 	const out: LuaurcSource[] = [];
-	const stack = [project.root];
-
-	while (stack.length > 0) {
-		const dir = stack.pop()!;
-		const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
-		for (const entry of entries) {
-			const abs = path.join(dir, entry.name);
-			if (entry.isDirectory()) {
-				if (!SKIP_DIRS.has(entry.name)) stack.push(abs);
-				continue;
-			}
-			if (entry.name !== ".luaurc") continue;
-			const text = await fs.readFile(abs, "utf8").catch(() => null);
-			if (text === null) continue;
-			out.push({ dir: toPosix(path.relative(project.root, dir)), text });
-		}
+	for (const file of await walkFiles(project.root, { accept: (name) => name === ".luaurc" })) {
+		// Gone since the walk listed it: then it configures nothing.
+		const text = await fs.readFile(file.abs, "utf8").catch(() => null);
+		if (text === null) continue;
+		const dir = path.posix.dirname(file.path);
+		out.push({ dir: dir === "." ? "" : dir, text });
 	}
 
 	// Nearest last here; `luaurcFor` reverses what it takes. Sorted so two runs

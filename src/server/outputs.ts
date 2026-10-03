@@ -8,51 +8,45 @@
 
 import { fs, path } from "./host.js";
 
-import { compile } from "../core/compiler/index.js";
+import { outputFileName } from "../core/compiler/index.js";
 import type { OpenProject } from "./config.js";
 import { collectScripts, readScript } from "./documents.js";
-import { SKIP_DIRS } from "./files.js";
+import { walkFiles } from "./files.js";
 import { safeJoin, toPosix } from "./paths.js";
 
 /** Maps generated Luau back to the graph that produced it, via the header. */
 export async function generatedIndex(project: OpenProject): Promise<Map<string, string>> {
 	const map = new Map<string, string>();
-	const outDir = path.join(project.root, project.config.outDir);
-	const stack = [outDir];
-
-	while (stack.length) {
-		const dir = stack.pop()!;
-		const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
-		for (const entry of entries) {
-			const abs = path.join(dir, entry.name);
-			if (entry.isDirectory()) {
-				if (!SKIP_DIRS.has(entry.name)) stack.push(abs);
-				continue;
-			}
-			if (!entry.name.endsWith(".luau") && !entry.name.endsWith(".lua")) continue;
-			const head = (await fs.readFile(abs, "utf8").catch(() => "")).slice(0, 512);
-			const match = /^-- roswaal-graph: (.+)$/m.exec(head);
-			if (match) {
-				map.set(path.relative(project.root, abs).split(path.sep).join("/"), match[1].trim());
-			}
-		}
+	const files = await walkFiles(project.root, {
+		from: project.config.outDir,
+		accept: (name) => /\.luau?$/.test(name),
+	});
+	for (const file of files) {
+		// Gone since the walk listed it: then it is nobody's output.
+		const head = (await fs.readFile(file.abs, "utf8").catch(() => "")).slice(0, 512);
+		const match = /^-- roswaal-graph: (.+)$/m.exec(head);
+		if (match) map.set(file.path, match[1].trim());
 	}
 	return map;
 }
 
 /**
- * The Luau file a graph compiles to, project-relative, or null when it will
- * not compile. Where its code runs from, for `script.Parent`.
+ * Where a graph at `relPath` writes a file called `fileName`: the same folder
+ * under `outDir` as the graph has under `sourceDir`. Project-relative.
+ */
+export function outputPathFor(project: OpenProject, relPath: string, fileName: string): string {
+	const within = path.posix.dirname(toPosix(path.relative(project.config.sourceDir, relPath)));
+	return path.posix.normalize(path.posix.join(toPosix(project.config.outDir), within, fileName));
+}
+
+/**
+ * The Luau file a graph compiles to, project-relative, or null when it cannot
+ * be read. Where its code runs from, for `script.Parent`.
  */
 export async function graphOutputPath(project: OpenProject, relPath: string): Promise<string | null> {
-	try {
-		const script = await readScript(project, relPath);
-		const result = compile(script, project.registry);
-		const within = path.posix.dirname(toPosix(path.relative(project.config.sourceDir, relPath)));
-		return path.posix.normalize(path.posix.join(project.config.outDir, within, result.fileName));
-	} catch {
-		return null;
-	}
+	// A graph that will not read has no output to name; the caller says so.
+	const script = await readScript(project, relPath).catch(() => null);
+	return script ? outputPathFor(project, relPath, outputFileName(script)) : null;
 }
 
 /**
@@ -66,22 +60,11 @@ export async function graphOutputPath(project: OpenProject, relPath: string): Pr
 export async function findOrphanOutputs(project: OpenProject): Promise<string[]> {
 	const expected = new Set<string>();
 	for (const relPath of await collectScripts(project)) {
-		try {
-			const script = await readScript(project, relPath);
-			const result = compile(script, project.registry);
-			const within = path.posix.dirname(
-				toPosix(path.relative(project.config.sourceDir, relPath)),
-			);
-			expected.add(
-				path.posix.normalize(
-					path.posix.join(project.config.outDir, within, result.fileName),
-				),
-			);
-		} catch {
-			// A graph that will not read cannot vouch for its output, so leave
-			// anything it might own alone.
-			return [];
-		}
+		const output = await graphOutputPath(project, relPath);
+		// A graph that will not read cannot vouch for its output, so leave
+		// anything it might own alone.
+		if (output === null) return [];
+		expected.add(output);
 	}
 
 	const orphans: string[] = [];

@@ -19,7 +19,7 @@ import { defaultConfig, type RoswaalConfig } from "../core/schema.js";
 import { compileMap, type MapOutcome } from "./compile.js";
 import { openProject, writeConfig, type OpenProject } from "./config.js";
 import { collectMaps, readMap } from "./documents.js";
-import { SKIP_DIRS } from "./files.js";
+import { walkFiles } from "./files.js";
 import { safeJoin, toPosix } from "./paths.js";
 
 /**
@@ -132,30 +132,22 @@ export async function placeEntries(project: OpenProject): Promise<PlaceEntry[]> 
 		const map = await readMap(project, mapPath).catch(() => null);
 		if (map && !isFilesystemMap(map)) maps.push(map);
 	}
-	const stack = [safeJoin(project.root, project.config.outDir)];
-	while (stack.length) {
-		const dir = stack.pop()!;
-		for (const entry of await fs.readdir(dir, { withFileTypes: true }).catch(() => [])) {
-			const abs = path.join(dir, entry.name);
-			if (entry.isDirectory()) {
-				if (!SKIP_DIRS.has(entry.name)) stack.push(abs);
-				continue;
-			}
-			if (!/\.luau?$/.test(entry.name)) continue;
-			const rel = toPosix(path.relative(project.root, abs));
-			if (linked.has(rel)) continue;
-			for (const map of maps) {
-				const found = locateSegments(map, rel);
-				if (!found) continue;
-				entries.push({
-					file: rel,
-					text: await fs.readFile(abs, "utf8"),
-					isModule: found.isModule,
-					targets: [{ path: found.segments }],
-				});
-				break;
-			}
-		}
+	// Refused, as any path is, when `outDir` points outside the project.
+	safeJoin(project.root, project.config.outDir);
+	const files = await walkFiles(project.root, {
+		from: project.config.outDir,
+		accept: (name) => /\.luau?$/.test(name),
+	});
+	for (const file of files) {
+		if (linked.has(file.path)) continue;
+		const found = maps.map((map) => locateSegments(map, file.path)).find((at) => at);
+		if (!found) continue;
+		entries.push({
+			file: file.path,
+			text: await fs.readFile(file.abs, "utf8"),
+			isModule: found.isModule,
+			targets: [{ path: found.segments }],
+		});
 	}
 	return entries.sort((a, b) => a.file.localeCompare(b.file));
 }

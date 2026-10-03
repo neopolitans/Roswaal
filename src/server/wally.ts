@@ -22,6 +22,7 @@ import {
 } from "../core/wally.js";
 import { parseProject } from "../core/rojoImport.js";
 import { fs, path } from "./host.js";
+import { walkFiles } from "./files.js";
 import { safeJoin, type OpenProject } from "./project.js";
 
 const REGISTRY = "https://api.wally.run/v1";
@@ -272,20 +273,16 @@ export async function packageUses(project: OpenProject, alias: string, realm: Wa
 	const folder = REALM_DIRS[realm];
 	const pattern = new RegExp(`\\b${folder}\\s*(?:\\.\\s*|:\\s*WaitForChild\\s*\\(\\s*["']|\\[\\s*["'])${alias}\\b`);
 	const out: string[] = [];
-	const walk = async (dir: string): Promise<void> => {
-		for (const entry of await fs.readdir(safeJoin(project.root, dir || "."), { withFileTypes: true }).catch(() => [])) {
-			const rel = dir ? `${dir}/${entry.name}` : entry.name;
-			if (entry.isDirectory()) {
-				if (!NOT_SEARCHED.has(entry.name)) await walk(rel);
-				continue;
-			}
-			if (!/\.(luau?|nodescript)$/i.test(entry.name)) continue;
-			const text = await fs.readFile(safeJoin(project.root, rel), "utf8").catch(() => "");
-			if (pattern.test(text)) out.push(rel);
-		}
-	};
-	await walk("");
-	return out.sort();
+	const files = await walkFiles(project.root, {
+		skip: NOT_SEARCHED,
+		accept: (name) => /\.(luau?|nodescript)$/i.test(name),
+	});
+	for (const file of files) {
+		// Gone since the walk listed it: then it uses nothing.
+		const text = await fs.readFile(file.abs, "utf8").catch(() => "");
+		if (pattern.test(text)) out.push(file.path);
+	}
+	return out;
 }
 
 export interface RemovedPackage {

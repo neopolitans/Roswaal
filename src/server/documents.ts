@@ -13,7 +13,7 @@ import { compileNodeMap, isFilesystemMap, serialiseMap, type NodeMap } from "../
 import { parseProject, projectToMap, sameProject } from "../core/rojoImport.js";
 import { SCHEMA_VERSION, type NodeScript } from "../core/schema.js";
 import type { OpenProject } from "./config.js";
-import { writeTextAtomically } from "./files.js";
+import { walkFiles, writeTextAtomically } from "./files.js";
 import { recordGenerated } from "./manifest.js";
 import { safeJoin, toPosix } from "./paths.js";
 
@@ -166,37 +166,22 @@ export async function importRojoProject(project: OpenProject, file: string): Pro
 	return { file: rel, mapPath, takenOver: same, problems };
 }
 
+/** Every node map under `sourceDir`, project-relative and sorted. */
 export async function collectMaps(project: OpenProject): Promise<string[]> {
-	const out: string[] = [];
-	const stack = [path.join(project.root, project.config.sourceDir)];
-	while (stack.length) {
-		const dir = stack.pop()!;
-		for (const entry of await fs.readdir(dir, { withFileTypes: true }).catch(() => [])) {
-			const abs = path.join(dir, entry.name);
-			if (entry.isDirectory()) stack.push(abs);
-			else if (entry.name.endsWith(".nodemap")) {
-				out.push(toPosix(path.relative(project.root, abs)));
-			}
-		}
-	}
-	return out.sort();
+	return documentsUnder(project, ".nodemap");
 }
 
 /** Every graph under `sourceDir`, project-relative and sorted. */
 export async function collectScripts(project: OpenProject): Promise<string[]> {
-	const out: string[] = [];
-	const stack = [path.join(project.root, project.config.sourceDir)];
-	while (stack.length) {
-		const dir = stack.pop()!;
-		for (const entry of await fs.readdir(dir, { withFileTypes: true }).catch(() => [])) {
-			const abs = path.join(dir, entry.name);
-			if (entry.isDirectory()) stack.push(abs);
-			else if (entry.name.endsWith(".nodescript")) {
-				out.push(toPosix(path.relative(project.root, abs)));
-			}
-		}
-	}
-	return out.sort();
+	return documentsUnder(project, ".nodescript");
+}
+
+async function documentsUnder(project: OpenProject, extension: string): Promise<string[]> {
+	const files = await walkFiles(project.root, {
+		from: project.config.sourceDir,
+		accept: (name) => name.endsWith(extension),
+	});
+	return files.map((file) => file.path);
 }
 
 /**

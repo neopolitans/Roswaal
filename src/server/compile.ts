@@ -20,8 +20,8 @@ import type { OpenProject } from "./config.js";
 import { collectScripts, readMap, readScript } from "./documents.js";
 import { readLuaurcFiles, specifierContext } from "./luaurc.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
-import { generatedIndex, removeEmptyFolders } from "./outputs.js";
-import { safeJoin, toPosix } from "./paths.js";
+import { generatedIndex, outputPathFor, removeEmptyFolders } from "./outputs.js";
+import { safeJoin } from "./paths.js";
 
 /**
  * Ownership key written into project files by an earlier build. Rojo refuses
@@ -140,15 +140,9 @@ export async function compileScript(
 		: result.code;
 	const code = stampOutputHash(formatted);
 
-	const outputPath = path.posix.join(
-		project.config.outDir,
-		path.posix.dirname(toPosix(path.relative(project.config.sourceDir, relPath))),
-		result.fileName,
-	).replace(/\/\.\//g, "/");
-
 	const outcome: CompileOutcome = {
 		scriptPath: relPath,
-		outputPath: path.posix.normalize(outputPath),
+		outputPath: outputPathFor(project, relPath, result.fileName),
 		written: false,
 		diagnostics: result.diagnostics,
 		sourceMap: result.sourceMap,
