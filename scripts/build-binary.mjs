@@ -49,6 +49,8 @@ import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
 
+import { bundleHasVersion } from "./lib/distVersion.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "dist-binary");
 
@@ -60,7 +62,8 @@ function assetName(version) {
 	return `roswaal-${version}-${os}-${arch}`;
 }
 
-const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+// `version.json`, as the CLI, the daemon and the editor read it.
+const { version } = JSON.parse(readFileSync(join(root, "version.json"), "utf8"));
 const exe = process.platform === "win32" ? ".exe" : "";
 
 rmSync(out, { recursive: true, force: true });
@@ -120,6 +123,15 @@ function editorAssets() {
 		}
 	};
 	walk(dist);
+
+	const scripts = Object.values(assets)
+		.filter((abs) => abs.endsWith(".js"))
+		.map((abs) => readFileSync(abs, "utf8"));
+	if (!bundleHasVersion(scripts, version)) {
+		console.error(`roswaal: dist/ was not built at ${version}, so the binary would carry another editor.`);
+		console.error("  Run:  npm run build:web");
+		process.exit(1);
+	}
 	return assets;
 }
 

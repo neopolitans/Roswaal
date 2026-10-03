@@ -1,0 +1,147 @@
+/**
+ * Compiling `themes/*.json` into the source of `src/core/themeData.ts`.
+ *
+ * Apart from `build-themes.mjs`, which writes it, so a test can run the same
+ * drift check `--check` runs without starting a process.
+ */
+
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
+
+import { themeSlug, validateTheme } from "../../src/core/theme.ts";
+
+/**
+ * Reads and checks every scheme.
+ *
+ * Every problem across every file is collected before anything is reported,
+ * because a palette being written by hand usually has more than one thing wrong
+ * with it and finding them one build at a time is a bad afternoon.
+ */
+export async function loadThemes(root) {
+	const source = join(root, "themes");
+	const notices = join(root, "notices");
+	const files = (await readdir(source)).filter((f) => f.endsWith(".json")).sort();
+	const problems = [];
+	const themes = [];
+
+	for (const file of files) {
+		let parsed;
+		try {
+			parsed = JSON.parse(await readFile(join(source, file), "utf8"));
+		} catch (err) {
+			problems.push(`themes/${file}: not valid JSON — ${err.message}`);
+			continue;
+		}
+		const found = validateTheme(parsed, `themes/${file}`);
+		if (found.length > 0) problems.push(...found);
+		else themes.push({ file, theme: parsed });
+	}
+
+	// Two files claiming one menu entry, or one identity.
+	const byName = new Map();
+	const bySlug = new Map();
+	for (const { file, theme } of themes) {
+		const name = theme.name.toLowerCase();
+		if (byName.has(name)) problems.push(`themes/${file} and themes/${byName.get(name)} both define a theme named "${theme.name}"`);
+		else byName.set(name, file);
+
+		const slug = themeSlug(theme.name);
+		if (bySlug.has(slug)) problems.push(`themes/${file} and themes/${bySlug.get(slug)} both resolve to the slug "${slug}"`);
+		else bySlug.set(slug, file);
+
+		// The file name is not the identity — the slug of the name is — but a
+		// file whose name disagrees with its contents is a trap for whoever
+		// next goes looking for "the Nord one".
+		const expected = `${slug}.json`;
+		if (file !== expected) {
+			problems.push(`themes/${file} defines "${theme.name}", so it should be named ${expected}`);
+		}
+	}
+
+	/**
+	 * The licence a borrowed scheme travels under, read from the vendored file.
+	 *
+	 * Inlined into the generated module rather than left as a path, because the
+	 * three places that have to show it — the settings panel, the documentation
+	 * site, and a plain `dist/` with no daemon behind it — can none of them open
+	 * `notices/`. A licence a user cannot read is not an attribution.
+	 *
+	 * A missing file fails the build. MIT requires the notice to travel with the
+	 * work, so shipping a scheme whose terms resolve to nothing is the one
+	 * failure here that is not merely untidy.
+	 */
+	const texts = {};
+	for (const { file, theme } of themes) {
+		if (theme.licence === undefined) continue;
+		const rel = theme.licence.textFile;
+		if (texts[rel] !== undefined) continue;
+		try {
+			texts[rel] = await readFile(join(notices, rel), "utf8");
+		} catch {
+			problems.push(`themes/${file}: licence.textFile "notices/${rel}" does not exist`);
+		}
+	}
+
+	if (problems.length > 0) {
+		const error = new Error(`${problems.length} problem(s) in themes/`);
+		error.problems = problems;
+		throw error;
+	}
+
+	themes.sort((a, b) => a.theme.order - b.theme.order || a.theme.name.localeCompare(b.theme.name));
+	return { themes: themes.map((t) => t.theme), texts };
+}
+
+/** The module `themes/` compiles to, as text. */
+export function renderThemeModule({ themes, texts }) {
+	return [
+		"/**",
+		" * The built-in colour schemes. GENERATED — do not edit.",
+		" *",
+		" * Source: `themes/*.json`, and the vendored licences under `notices/` that",
+		" * the borrowed ones name. Regenerate with `npm run build:themes`, which is",
+		" * also what `npm run build` does. `tests/theme.test.ts` fails when this file",
+		" * has drifted from either.",
+		" *",
+		" * Committed deliberately, so a fresh clone builds without knowing the",
+		" * generator exists.",
+		" */",
+		"",
+		'import type { Theme } from "./theme.js";',
+		"",
+		`export const BUILTIN_THEMES: Theme[] = ${JSON.stringify(themes, null, "\t")};`,
+		"",
+		"/**",
+		" * Upstream licence texts, byte for byte, keyed by `licence.textFile`.",
+		" *",
+		" * Not written by hand and not rendered from a template: three MIT licences",
+		" * in this repository are headed three different ways and one carries an",
+		" * email address, so a template would produce something that is *nearly* each",
+		" * author's licence. Nearly is the one thing an attribution may not be.",
+		" */",
+		`export const LICENCE_TEXTS: Record<string, string> = ${JSON.stringify(texts, null, "\t")};`,
+		"",
+	].join("\n");
+}
+
+/**
+ * Whether `src/core/themeData.ts` is what `themes/` compiles to now.
+ *
+ * Line endings aside: a Windows checkout holds the committed file, and the
+ * notices it inlines, with CRLF, and that is not drift.
+ */
+export async function themeModuleIsCurrent(root) {
+	const output = renderThemeModule(await loadThemes(root));
+	const existing = await readFile(themeModulePath(root), "utf8").catch(() => null);
+	return existing !== null && lf(existing) === lf(output);
+}
+
+/** Text with LF line endings, whatever it was checked out with. */
+function lf(text) {
+	return text.replace(/\r\n/g, "\n");
+}
+
+/** Where the generated module goes. */
+export function themeModulePath(root) {
+	return join(root, "src", "core", "themeData.ts");
+}

@@ -1,9 +1,11 @@
 /**
- * The build scripts' own instructions, and what they write.
+ * The build scripts: their own instructions, and the checks they make.
  *
  * A script that imports TypeScript fails under plain `node`, so the command
- * its header gives has to be one that runs it through tsx. And the demo layout
- * it folds back is TypeScript a node id of any shape has to survive.
+ * its header gives has to be one that runs it through tsx. The demo layout it
+ * folds back is TypeScript a node id of any shape has to survive. And the
+ * checks a script makes before it writes — a generated file current, a built
+ * editor the right version — are run here, where something runs them.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -16,6 +18,10 @@ import { describe, expect, it } from "vitest";
 import { DEMO_LAYOUT } from "../src/core/docs/demoLayout.js";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { demoLayoutSource } from "../scripts/lib/demoLayoutSource.mjs";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { bundleHasVersion } from "../scripts/lib/distVersion.mjs";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { themeModuleIsCurrent } from "../scripts/lib/themeModule.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPTS = join(ROOT, "scripts");
@@ -47,6 +53,34 @@ describe("the scripts' commands", () => {
 		for (const name of importsTypeScript()) {
 			expect(commands.some((c) => c.includes(`tsx scripts/${name}`)), name).toBe(true);
 		}
+	});
+});
+
+describe("where the scripts write, and what they embed", () => {
+	/** The same `--check` `npm run build:themes -- --check` makes. */
+	it("finds src/core/themeData.ts current with themes/", async () => {
+		expect(await themeModuleIsCurrent(ROOT)).toBe(true);
+	});
+
+	it("resolves every output from the repository, never the shell's folder", () => {
+		for (const name of readdirSync(SCRIPTS).filter((n) => /\.m?[jt]s$/.test(n))) {
+			expect(readFileSync(join(SCRIPTS, name), "utf8"), name).not.toContain("process.cwd()");
+		}
+	});
+
+	it("reads the release version from version.json, as everything else does", () => {
+		const binary = readFileSync(join(SCRIPTS, "build-binary.mjs"), "utf8");
+		expect(binary).toContain('join(root, "version.json")');
+		expect(binary).not.toContain('join(root, "package.json")');
+	});
+
+	it("tells a built editor of this version from one of another", () => {
+		const built = "var a=[{version:`0.117.0`,date:`2026-10-03`}];";
+		expect(bundleHasVersion([built], "0.117.0")).toBe(true);
+		expect(bundleHasVersion(['x={"version":"0.117.0"}'], "0.117.0")).toBe(true);
+		expect(bundleHasVersion([built], "0.118.0")).toBe(false);
+		// A version named in prose is not a build of it.
+		expect(bundleHasVersion(["see 0.118.0 for more"], "0.118.0")).toBe(false);
 	});
 });
 

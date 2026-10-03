@@ -27,6 +27,7 @@
 
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const folder = process.argv[2];
 if (!folder) {
@@ -125,7 +126,10 @@ const lists = {
 const parents = parentsIn(classesPage);
 
 /** What the file says now, so a missing page keeps its list rather than clearing it. */
-const OUT = path.join(process.cwd(), "src/core/robloxData.ts");
+// From this script's folder rather than the shell's, so running it from
+// anywhere else cannot write a stray copy beside wherever that was.
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+const OUT = path.join(ROOT, "src/core/robloxData.ts");
 let existing = "";
 try {
 	existing = readFileSync(OUT, "utf8");
@@ -225,4 +229,4 @@ for (const [name, found] of Object.entries(lists)) {
 }
 const kept = parents ? "" : "  (kept)";
 console.log(`${"CLASS_PARENTS".padEnd(16)} ${String(Object.keys(hierarchy).length).padStart(4)}${kept}`);
-console.log(`\nwrote ${path.relative(process.cwd(), OUT)}`);
+console.log(`\nwrote ${path.relative(ROOT, OUT)}`);
