@@ -256,6 +256,8 @@ describe("what Declare Type at Top refuses", () => {
 	it("will not take a name Luau would reject", () => {
 		expect(only({ name: "2Fast", definition: "number" })).toContain("not a name Luau will take");
 		expect(only({ name: "has space", definition: "number" })).toContain("not a name Luau will take");
+		expect(only({ name: "local", definition: "number" })).toContain("not a name Luau will take");
+		expect(only({ name: "end", definition: "number" })).toContain("not a name Luau will take");
 	});
 
 	it("will not declare the same type twice", () => {
@@ -329,6 +331,11 @@ describe("Declare Type, in the flow", () => {
 	it("follows the identifier the compiler chose, not the one you typed", () => {
 		expect(code(afterLocal({ name: "Config" }, "settings")))
 			.toContain("export type Config = typeof(settings)");
+	});
+
+	/** `export type local = ...` does not parse, so the name is refused. */
+	it("will not take a reserved word for a name", () => {
+		expect(errors(afterLocal({ name: "local" })).join(" ")).toContain("not a name Luau will take");
 	});
 
 	/**

@@ -14,7 +14,8 @@
  */
 
 import {
-	foldPrecedence, indentBlock, isAccessPath, isAtomic, literalToLuau, NameScope, paren, parenAt,
+	foldPrecedence, indentBlock, isAccessPath, isAtomic, isIdentifier, literalToLuau, NameScope,
+	paren, parenAt,
 	parenPrefix, PREC, quoteString, spliceIntoTemplate, toIdentifier,
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
@@ -1036,7 +1037,7 @@ class Emitter {
 				);
 				continue;
 			}
-			if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+			if (!isIdentifier(name)) {
 				this.error(
 					`"${name}" is not a name Luau will take for a type. Letters, digits and ` +
 					"underscores, not starting with a digit.",
@@ -1740,7 +1741,7 @@ class Emitter {
 					this.error("Declare Type needs a name before it can be written.", id);
 					return this.index.execTarget(id, "then");
 				}
-				if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+				if (!isIdentifier(name)) {
 					this.error(
 						`"${name}" is not a name Luau will take for a type. Letters, digits and ` +
 						"underscores, not starting with a digit.",
