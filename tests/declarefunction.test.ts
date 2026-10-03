@@ -391,7 +391,9 @@ describe("nothing still means only the hoisted node", () => {
 	const SOURCES = [
 		"src/app/edits.ts",
 		"src/app/Inspector.tsx",
+		"src/app/InspectorSections.tsx",
 		"src/app/NodeMenu.tsx",
+		"src/app/menuSearch.ts",
 		"src/app/luauCompletions.ts",
 		"src/core/compiler/validate.ts",
 	];
