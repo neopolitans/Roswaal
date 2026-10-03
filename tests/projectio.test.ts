@@ -17,6 +17,7 @@ import type { NodeMap } from "../src/core/nodemap.js";
 import { defaultConfig, emptyScript } from "../src/core/schema.js";
 import { parseConfig } from "../src/server/config.js";
 import { errorResponse, HttpError, UserError } from "../src/server/errors.js";
+import { readManifest, recordGenerated } from "../src/server/manifest.js";
 import {
 	collectMaps, deletePack, openProject, writeConfig, writeMap, writePlaceImport, writeScript,
 } from "../src/server/project.js";
@@ -107,6 +108,16 @@ describe("saving documents", () => {
 		await expect(writeScript(project, "src/Hand.luau", emptyScript("Hand", "g1"))).rejects.toThrow(/\.nodescript/);
 		await expect(writeMap(project, "src/Hand.luau", {} as NodeMap)).rejects.toThrow(/\.nodemap/);
 		expect(await readFile(join(root, "src/Hand.luau"), "utf8")).toBe("return 'mine'");
+	});
+});
+
+describe("the ownership manifest", () => {
+	it("keeps every entry when records are made at once", async () => {
+		await scratch();
+		const outputs = Array.from({ length: 20 }, (_, i) => `out/File${i}.project.json`);
+		await Promise.all(outputs.map((out, i) => recordGenerated(root, out, `maps/Map${i}.nodemap`)));
+		const manifest = await readManifest(root);
+		expect(Object.keys(manifest.outputs).sort()).toEqual([...outputs].sort());
 	});
 });
 
