@@ -15,7 +15,7 @@
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
-import { landingPage } from "../scripts/lib/landing.mjs";
+import { LANDING_SCRIPT, landingPage } from "../scripts/lib/landing.mjs";
 import { taglineFor } from "../src/core/docs/releases.js";
 
 /**
@@ -70,12 +70,27 @@ describe("the landing page", () => {
 	 * colour scheme they picked in the editor -- and the answer is the copy the
 	 * documentation already ships rather than a script written for this page.
 	 */
-	it("carries no script but the shared theme one", () => {
+	it("carries the shared theme script and the split bar's, and nothing inline", () => {
 		const scripts = [...html.matchAll(/<script[^>]*>/gi)].map((m) => m[0]);
-		expect(scripts).toHaveLength(1);
+		expect(scripts).toHaveLength(2);
 		expect(scripts[0]).toContain("docs/theme.js");
-		// Nothing inline, and nothing this page maintains itself.
+		expect(scripts[1]).toContain("landing.js");
 		expect(html).not.toMatch(/<script(?![^>]*\ssrc=)/i);
+	});
+
+	/** The split is CSS: a page whose script did not load still shows both halves at 60/40. */
+	it("splits the graph and its Luau 60/40 without the script", () => {
+		expect(html).toContain('class="landing-show" style="--split: 60%"');
+		expect(html).toContain('role="separator"');
+		expect(() => new Function(LANDING_SCRIPT)).not.toThrow();
+	});
+
+	it("opens on a banner whose graph is drawn, not pictured", () => {
+		const banner = /<header class="landing-banner[^"]*">([\s\S]*?)<\/header>/.exec(html)?.[1] ?? "";
+		expect(banner).toContain("<h1>Roswaal</h1>");
+		expect(banner).toContain("<svg");
+		expect(banner).toContain("Connect Event");
+		expect(banner).toContain("Touched");
 	});
 
 	/**
@@ -235,8 +250,10 @@ describe("what is planned, told apart from what is there", () => {
 	});
 
 	it("marks every planned card as planned", () => {
-		const cards = [...html.matchAll(/<div class="landing-card([^"]*)"/g)].map((m) => m[1]);
-		expect(cards.filter((c) => c.includes("planned")).length).toBe(6);
+		const plans = html.slice(html.indexOf('class="landing-note-plan"'), html.indexOf('class="landing-foot"'));
+		const cards = [...plans.matchAll(/<div class="landing-card([^"]*)"/g)].map((m) => m[1]);
+		expect(cards.length).toBeGreaterThan(0);
+		expect(cards.every((c) => c.includes("planned"))).toBe(true);
 	});
 });
 
@@ -246,10 +263,10 @@ describe("the mark on the front page", () => {
 	 * yellow for the canary -- and the front page's mark is the same claim
 	 * about the same build, so it follows the channel too.
 	 */
-	it("is yellow on the canary and the web app's blue otherwise", () => {
-		expect(landingPage("9.9.9", { canary: true })).toContain('class="landing-head canary"');
-		expect(landingPage("9.9.9", { canary: false })).toContain('class="landing-head"');
-		expect(landingPage("9.9.9", { canary: false })).not.toContain('class="landing-head canary"');
+	it("is yellow on the canary and the page's own colour otherwise", () => {
+		expect(landingPage("9.9.9", { canary: true })).toContain('class="landing-banner canary"');
+		expect(landingPage("9.9.9", { canary: false })).toContain('class="landing-banner"');
+		expect(landingPage("9.9.9", { canary: false })).not.toContain('class="landing-banner canary"');
 	});
 });
 

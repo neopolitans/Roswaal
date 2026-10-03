@@ -30,7 +30,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { faviconHref } from "../src/app/logo.tsx";
-import { landingPage } from "./lib/landing.mjs";
+import { LANDING_SCRIPT, landingPage } from "./lib/landing.mjs";
 import { notFoundPage } from "./lib/notFound.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -98,6 +98,7 @@ async function main() {
 	await cp(docs, join(out, "docs"), { recursive: true });
 
 	await writeFile(join(out, "index.html"), landingPage(version), "utf8");
+	await writeFile(join(out, "landing.js"), LANDING_SCRIPT, "utf8");
 	await writeFile(join(out, "404.html"), notFoundPage(base, version), "utf8");
 
 	// Tells Pages not to run the files through Jekyll, which would drop every

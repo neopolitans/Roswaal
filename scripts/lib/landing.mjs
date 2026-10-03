@@ -13,9 +13,10 @@
  * for the same reason, and it costs nothing here because the machinery already
  * exists.
  *
- * No script of its own. The graph scales by its `viewBox`, the code is
- * highlighted at build time, and a page that is entirely markup cannot break
- * the way `docs.js` broke.
+ * Almost no script of its own. The graph scales by its `viewBox` and the code
+ * is highlighted at build time, so the page is whole as markup and cannot break
+ * the way `docs.js` broke. `landing.js` only makes the bar between the two
+ * halves draggable; without it the split stays at its default.
  */
 
 import { buildSite } from "../../src/core/docs/site.ts";
@@ -23,6 +24,7 @@ import { escapeHtml } from "../../src/core/docs/html.ts";
 import { BUILTIN_NODES, createRegistry } from "../../src/core/nodes/index.ts";
 import { growthState } from "../../src/core/nodes/growth.ts";
 import { graphSvg } from "../../src/core/docs/preview.ts";
+import { emptyScript } from "../../src/core/schema.ts";
 import { SOURCE_REPOSITORY, STABLE_SITE } from "../../src/core/docs/links.ts";
 import { taglineFor } from "../../src/core/docs/releases.ts";
 import { highlightLuau } from "../../src/app/highlight.ts";
@@ -91,6 +93,37 @@ function highlight(code) {
 		.join(String.fromCharCode(10));
 }
 
+/**
+ * The banner's graph: a part's Touched event, handled, printing what touched it.
+ *
+ * A real graph drawn by the docs' renderer, so it is the editor's node style
+ * whatever that becomes, and it follows the theme. Get Event fades into the
+ * banner's left edge, which is what says the graph carries on past it.
+ */
+function heroGraph() {
+	const registry = createRegistry();
+	const script = {
+		...emptyScript("Touched", "landing-hero"),
+		nodes: [
+			{ id: "event", def: "roblox.getEvent", x: 0, y: 40, literals: { event: { t: "string", v: "Touched" } } },
+			{ id: "connect", def: "event.connect", x: 260, y: 0, config: { params: [{ name: "hit", type: "BasePart" }] } },
+			{ id: "print", def: "debug.print", x: 540, y: 30 },
+		],
+		links: [
+			{ id: "l1", from: { node: "event", pin: "result" }, to: { node: "connect", pin: "signal" } },
+			{ id: "l2", from: { node: "connect", pin: "body" }, to: { node: "print", pin: "in" } },
+			{ id: "l3", from: { node: "connect", pin: "p0" }, to: { node: "print", pin: "value" } },
+		],
+	};
+	return graphSvg(script, registry, {
+		geometry: NODE,
+		nodeColor,
+		pinColor,
+		wirePath,
+		growth: (pin) => growthState(registry.get(pin.id), pin.config),
+	});
+}
+
 /** The example page's graph and the Luau compiled from it. */
 function example() {
 	const registry = createRegistry();
@@ -148,24 +181,53 @@ body.roswaal-landing {
    Everything below the demonstration goes back to being read left to right. */
 .landing-top { text-align: center; margin-bottom: 64px; }
 .landing-top .landing-targets { margin-left: auto; margin-right: auto; }
-.landing-head {
-  display: flex; align-items: center; justify-content: center;
-  gap: 16px; margin-bottom: 26px;
+/* The banner: the mark, the name and a graph, on a piece of canvas.
+   The graph is drawn by the docs' renderer, so it is the editor's node style
+   and it follows the theme; its first node fades into the left edge. */
+.landing-banner {
+  position: relative; display: grid; align-items: center; text-align: left;
+  grid-template-columns: auto minmax(0, auto) minmax(0, 1fr); gap: 0 32px;
+  margin: 0 0 30px; padding: 40px 44px; border-radius: 16px; overflow: hidden;
+  border: 1px solid var(--border);
+  background-color: var(--bg-canvas);
+  background-image:
+    linear-gradient(to right, var(--bg-canvas) 20%, transparent 75%),
+    radial-gradient(circle, color-mix(in srgb, var(--fg) 9%, transparent) 1.2px, transparent 1.4px);
+  background-size: 100% 100%, 22px 22px;
+  box-shadow: inset 0 -5px 0 var(--accent);
+}
+.landing-banner.canary { box-shadow: inset 0 -5px 0 var(--warning); }
+/* The mark draws with currentColor, so this is the whole of colouring it. */
+.banner-mark .logo-mark { display: block; color: var(--fg); }
+.landing-banner.canary .banner-mark .logo-mark { color: var(--warning); }
+.banner-name { display: flex; align-items: center; gap: 14px; }
+.banner-name h1 { font-size: 64px; line-height: 1; margin: 0; letter-spacing: -0.02em; font-weight: 700; }
+.banner-name .tag {
+  font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
+  border: 1px solid var(--border); border-radius: 4px; padding: 2px 9px; color: var(--accent);
+}
+.banner-sub { font-size: 24px; margin: 10px 0 12px; color: var(--fg-muted, var(--fg)); }
+.banner-flow { margin: 0; font: 15px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--accent); }
+.banner-graph svg {
+  display: block; width: 100%; height: auto; max-height: 190px; margin-left: auto;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 34%);
+  mask-image: linear-gradient(to right, transparent 0, #000 34%);
+}
+/* Narrower, the graph goes under the name rather than squeezing it. */
+@media (max-width: 1100px) {
+  .landing-banner { grid-template-columns: auto minmax(0, 1fr); padding: 32px 28px; }
+  .banner-graph { grid-column: 1 / -1; margin-top: 22px; }
+}
+@media (max-width: 640px) {
+  .landing-banner { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .banner-mark .logo-mark { height: 56px; width: auto; }
+  .banner-name h1 { font-size: 44px; }
+  .banner-sub { font-size: 19px; }
 }
 .landing-top .landing-lede,
 .landing-top .landing-sub,
 .landing-top .landing-note { margin-left: auto; margin-right: auto; }
 .landing-doors { justify-content: center; }
-/* The mark draws with currentColor, so this is the whole of colouring it. Blue
-   is the web app's colour and yellow the canary's, as the editor's own mark is. */
-.landing-head .logo-mark { color: var(--accent); }
-.landing-head.canary .logo-mark { color: var(--warning); }
-.landing-head h1 { font-size: 34px; margin: 0; letter-spacing: -0.015em; }
-.landing-head .tag {
-  font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
-  border: 1px solid var(--border); border-radius: 4px; padding: 2px 9px; color: var(--accent);
-  align-self: center;
-}
 .landing-lede { font-size: 30px; line-height: 1.25; max-width: 44rem; margin: 0 0 14px; letter-spacing: -0.015em; }
 /* The one claim on the page that is a promise rather than a description. */
 /* Its own line: it is a second sentence and the only promise on the page,
@@ -218,14 +280,31 @@ body.roswaal-landing {
 }
 .landing-backup .flag { color: var(--accent); }
 
-/* The demonstration, stacked rather than in two columns.
-   
-   A graph is wide and short -- this one is about eight to one -- so putting it
-   beside the code halves its width and it renders at a third of its natural
-   size, which is a picture of a graph rather than a graph. Full width it is
-   near enough life size, and the order it reads in is the order it happens in:
-   the flow, then what the flow compiles to. */
+/* The demonstration: the graph and its Luau side by side on a wide screen,
+   split 60/40 by default and resizable by dragging the bar between them
+   (landing.js). Without the script the split is simply fixed. Below 62rem
+   there is no room for two columns and the two stack, flow then output. */
 .landing-show { display: grid; gap: 18px; grid-template-columns: 1fr; margin-bottom: 14px; }
+.landing-split { display: none; }
+@media (min-width: 62rem) {
+  .landing-show {
+    grid-template-columns: minmax(0, var(--split, 60%)) 14px minmax(0, 1fr);
+    gap: 0; align-items: stretch;
+  }
+  .landing-split {
+    display: block; cursor: col-resize; position: relative; touch-action: none;
+  }
+  .landing-split::after {
+    content: ""; position: absolute; top: 50%; left: 50%; width: 4px; height: 44px;
+    transform: translate(-50%, -50%); border-radius: 2px;
+    background: var(--border); transition: background 0.12s;
+  }
+  .landing-split:hover::after, .landing-split:focus-visible::after, .landing-split.dragging::after {
+    background: var(--accent);
+  }
+  .landing-split:focus-visible { outline: none; }
+  .landing-show .landing-graph { height: calc(100% - 38px); display: flex; align-items: center; }
+}
 .landing-pane {
   border: 1px solid var(--border); border-radius: 10px; background: var(--bg-panel);
   overflow: hidden;
@@ -335,6 +414,59 @@ body.roswaal-landing {
 `;
 
 /**
+ * The landing page's one script of its own: the bar between the graph and its
+ * Luau. Written by `build-pages` as `landing.js`.
+ *
+ * Only an enhancement. The 60/40 split is CSS, so a page whose script did not
+ * load still shows both halves; this makes the bar draggable, steps it with
+ * the arrow keys, resets it on a double-click, and remembers it in this browser.
+ */
+export const LANDING_SCRIPT = `(() => {
+  const show = document.querySelector(".landing-show");
+  const bar = show && show.querySelector(".landing-split");
+  if (!bar) return;
+  const KEY = "roswaal.landingSplit";
+  const set = (percent) => {
+    const value = Math.round(Math.min(75, Math.max(25, percent)));
+    show.style.setProperty("--split", value + "%");
+    bar.setAttribute("aria-valuenow", String(value));
+    return value;
+  };
+  const save = (value) => { try { localStorage.setItem(KEY, String(value)); } catch {} };
+  try {
+    const kept = Number(localStorage.getItem(KEY));
+    if (kept) set(kept);
+  } catch {}
+  bar.addEventListener("pointerdown", (event) => {
+    bar.setPointerCapture(event.pointerId);
+    bar.classList.add("dragging");
+    const box = show.getBoundingClientRect();
+    const move = (e) => set(((e.clientX - box.left) / box.width) * 100);
+    const end = (e) => {
+      bar.classList.remove("dragging");
+      bar.removeEventListener("pointermove", move);
+      bar.removeEventListener("pointerup", end);
+      bar.removeEventListener("pointercancel", end);
+      save(set(((e.clientX - box.left) / box.width) * 100));
+    };
+    bar.addEventListener("pointermove", move);
+    bar.addEventListener("pointerup", end);
+    bar.addEventListener("pointercancel", end);
+  });
+  bar.addEventListener("keydown", (event) => {
+    const now = Number(bar.getAttribute("aria-valuenow"));
+    if (event.key === "ArrowLeft") save(set(now - 5));
+    else if (event.key === "ArrowRight") save(set(now + 5));
+    else if (event.key === "Home") save(set(25));
+    else if (event.key === "End") save(set(75));
+    else return;
+    event.preventDefault();
+  });
+  bar.addEventListener("dblclick", () => save(set(60)));
+})();
+`;
+
+/**
  * Which line a build came from, read off the environment by default.
  *
  * This file runs under `tsx`, where the Vite defines do not exist — so it asks
@@ -366,6 +498,7 @@ ${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
 <link rel="stylesheet" href="docs/theme.css?v=${encodeURIComponent(version)}" />
 <script src="docs/theme.js?v=${encodeURIComponent(version)}"></script>
 <style>${STYLE}</style>
+<script src="landing.js?v=${encodeURIComponent(version)}" defer></script>
 </head>
 <body class="roswaal-landing">
 <div class="landing-glow" aria-hidden="true"></div>
@@ -381,16 +514,20 @@ ${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
       ${escapeHtml(CANARY_BANNER.app)}
       <a href="${STABLE_SITE}">${escapeHtml(CANARY_BANNER.wayOut)}</a>
     </p>` : ""}
-    <div class="landing-head${IS_CANARY ? " canary" : ""}">
-      ${logoMarkup(38)}
-      <h1>Roswaal</h1>
-      <span class="tag">${escapeHtml(version)}</span>
-    </div>
+    <header class="landing-banner${IS_CANARY ? " canary" : ""}">
+      <div class="banner-mark">${logoMarkup(96)}</div>
+      <div class="banner-copy">
+        <div class="banner-name">
+          <h1>Roswaal</h1>
+          <span class="tag">${escapeHtml(version)}</span>
+        </div>
+        <p class="banner-sub">Visual scripting for Luau, reimagined.</p>
+        <p class="banner-flow">.nodescript → .luau → Rojo → Studio</p>
+      </div>
+      <div class="banner-graph" aria-hidden="true">${heroGraph()}</div>
+    </header>
 
-    <p class="landing-lede">
-      Visual scripting for Luau, reimagined.
-      <em>Completely free, forever.</em>
-    </p>
+    <p class="landing-lede"><em>Completely free, forever.</em></p>
     <p class="landing-sub">
       Graphs live on disk as <code>.nodescript</code> files and compile to plain
       <code>.luau</code> that Rojo syncs like any other source file. No plugin, no
@@ -427,11 +564,13 @@ ${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
     </p>
   </div>
 
-  <div class="landing-show">
+  <div class="landing-show" style="--split: 60%">
     <section class="landing-pane">
       <h2>The graph you see</h2>
       <div class="landing-graph">${svg}</div>
     </section>
+    <div class="landing-split" role="separator" aria-orientation="vertical" aria-label="Resize the graph and the Luau"
+      aria-valuemin="25" aria-valuemax="75" aria-valuenow="60" tabindex="0"></div>
     <section class="landing-pane">
       <h2>The Luau it writes</h2>
       <pre class="landing-code"><code>${luau}</code></pre>
@@ -563,12 +702,13 @@ ${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
   </p>
   <div class="landing-points">
     <div class="landing-card planned">
-      <div class="icon">${icon("folder")}</div>
+      <div class="icon">${icon("instance")}</div>
       <div>
-        <h3>Wally packages</h3>
+        <h3>Event nodes for instances</h3>
         <p>
-          Read <code>wally.toml</code>, resolve <code>Packages/</code>, and
-          offer what a package exports as nodes you can place.
+          Pick a part's <code>Touched</code> from a list of the events its class
+          has, and get the handler's parameters already typed, rather than
+          naming the event and declaring them yourself.
         </p>
       </div>
     </div>
@@ -581,29 +721,6 @@ ${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
           Statements become the flow, expressions become nodes, and anything
           that will not lower cleanly arrives as a Custom Code node holding the
           original text — so an import is useful before it is perfect.
-        </p>
-      </div>
-    </div>
-
-    <div class="landing-card planned">
-      <div class="icon">${icon("function")}</div>
-      <div>
-        <h3>A real Luau parser</h3>
-        <p>
-          What the importer needs, and two things that already want it: an exact
-          check instead of counting brackets, and true block scoping so a local
-          declared inside an <code>if</code> stops being offered after it.
-        </p>
-      </div>
-    </div>
-
-    <div class="landing-card planned">
-      <div class="icon">${icon("map")}</div>
-      <div>
-        <h3>Read a Rojo project as a node map</h3>
-        <p>
-          The inverse of the translation Roswaal already does, so an existing
-          <code>default.project.json</code> can come in rather than be rebuilt.
         </p>
       </div>
     </div>

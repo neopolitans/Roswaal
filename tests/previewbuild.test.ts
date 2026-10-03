@@ -329,10 +329,11 @@ describe("links into the browser build", () => {
 	 * a preview, the thing behind one door is.
 	 */
 	it("does not put the word back on the product itself", () => {
-		// The markup, not the stylesheet above it, which names the class first.
+		// The name and its tagline: not the stylesheet above, which names the
+		// class first, and not the drawn graph beside, whose class says preview.
 		const head = html.slice(
-			html.indexOf('<div class="landing-head">'),
-			html.indexOf('<p class="landing-lede">'),
+			html.indexOf('<div class="banner-copy">'),
+			html.indexOf('<div class="banner-graph"'),
 		);
 		expect(head).toContain("9.9.9");
 		expect(head).not.toContain(PREVIEW_LABEL);
