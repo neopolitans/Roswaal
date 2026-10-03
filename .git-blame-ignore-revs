@@ -1,0 +1,6 @@
+# Commits that only reformat, for `git blame --ignore-revs-file .git-blame-ignore-revs`
+# (and set automatically with `git config blame.ignoreRevsFile .git-blame-ignore-revs`).
+# GitHub reads this file by name.
+
+# 0.118.0: Biome formatting and import order (STYLE.md)
+fa6bd0d252436868a8c5a1b7c132c55cc2130889
