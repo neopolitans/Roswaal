@@ -184,12 +184,10 @@ export function canShowName(id: string): boolean {
 export function operatorSymbol(def: NodeDef, config?: NodeConfig): string {
 	const named = config?.castLabel === "name";
 	if (named && canShowName(def.id)) return def.title;
-	/**
-	 * Get Member writes the access itself: `.throttle`, not "Object" and a
-	 * field beside it. One line, one input, one output — the shape the same
-	 * read has in Bolt and in Blueprints, and the reason the member is carried
-	 * by the node rather than typed into a pin.
-	 */
+	// Get Member writes the access itself: `.throttle`, not "Object" and a
+	// field beside it. One line, one input, one output — the shape the same
+	// read has in Bolt and in Blueprints, and the reason the member is carried
+	// by the node rather than typed into a pin.
 	if (def.id === "value.member") {
 		return `.${memberNameOf(config) || "…"}`;
 	}

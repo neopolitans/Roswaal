@@ -36,13 +36,6 @@ function plainKey(rendered: string): string | null {
 }
 
 /**
- * Whether generated locals and parameters carry type annotations.
- *
- * Tied to the mode line rather than to `strict` alone: on Roblox nonstrict is
- * already what an unmarked file gets, so `--!nonstrict` with no annotations
- * would be a setting that changes one comment and nothing else.
- */
-/**
  * Whether this node was told to write every key in brackets.
  *
  * A setting rather than a rule, because both forms are ordinary Luau and
@@ -61,8 +54,8 @@ function bracketsOnly(r: ResolvedNode): boolean {
  *
  * A node returning several values assigns to all of them at once —
  * `$out.h, $out.s, $out.v = $in.color:ToHSV()` — whether or not anything is
- * wired to each. Declaring only the consumed ones left the rest as bare
- * names on the left of an assignment, which in Luau creates **globals**:
+ * wired to each. Declaring only the consumed ones would leave the rest as
+ * bare names on the left of an assignment, which in Luau creates **globals**:
  * silent, and the sort of bug that turns up as one script writing over
  * another's state weeks later.
  *
@@ -103,10 +96,6 @@ export function emitStatement(e: Emitter, r: ResolvedNode, template: string, sco
 	return e.index.execTarget(r.node.id, "then");
 }
 
-/**
- * The Luau expression for a data input: the upstream value if the pin is
- * wired, otherwise the literal typed into it.
- */
 /**
  * Has this pin been given a value, as opposed to merely having a default?
  *
@@ -187,8 +176,7 @@ export function interpolated(e: Emitter, r: ResolvedNode, scope: Scope): string 
  * A literal is left alone too — nothing is saved by naming `0`.
  *
  * Nothing is bound in a logic graph, which is one expression with nowhere
- * to put a local; there the value is worked out where it is read, as it was
- * before this existed.
+ * to put a local; there the value is worked out where it is read.
  */
 function readOnce(e: Emitter, r: ResolvedNode, template: string, scope: Scope): Map<string, string> {
 	const out = new Map<string, string>();
@@ -224,16 +212,14 @@ function readOnce(e: Emitter, r: ResolvedNode, template: string, scope: Scope): 
 }
 
 export function renderTemplate(e: Emitter, r: ResolvedNode, template: string, scope: Scope): string {
-	/**
-	 * `$config.<key>` — a name the node carries rather than a pin it has.
-	 *
-	 * Get Member's member is the case: it is chosen from what the wired
-	 * type declares, drawn on the pill's face, and is not a value anything
-	 * can wire, so a pin for it would be a pin that only ever holds what
-	 * the picker put there. Written out as an identifier, and a key that is
-	 * missing or is not one leaves the template empty for the node's own
-	 * validation to report.
-	 */
+	// `$config.<key>` — a name the node carries rather than a pin it has.
+	//
+	// Get Member's member is the case: it is chosen from what the wired
+	// type declares, drawn on the pill's face, and is not a value anything
+	// can wire, so a pin for it would be a pin that only ever holds what
+	// the picker put there. Written out as an identifier, and a key that is
+	// missing or is not one leaves the template empty for the node's own
+	// validation to report.
 	template = template.replace(
 		/\$config\.([A-Za-z_][A-Za-z0-9_]*)/g,
 		(_match, key: string) => {
@@ -268,57 +254,53 @@ export function renderTemplate(e: Emitter, r: ResolvedNode, template: string, sc
 			.join(separator);
 	});
 
-	/**
-	 * `$opt(<sep>)` folds the optional trailing arguments of a call.
-	 *
-	 * An optional pin the developer has not touched is *not passed*, rather
-	 * than passed as its default or as `nil` — because plenty of Roblox
-	 * constructors reject an explicit `nil` where they accept a missing
-	 * argument, so the two are different calls and only one works.
-	 *
-	 * Trailing unset pins therefore disappear entirely. An unset pin with a
-	 * set one *after* it cannot disappear — the positions would shift and
-	 * argument four would arrive as argument three — so it is passed as
-	 * `nil`, which is the only honest thing left and is what a hand-written
-	 * call would do in the same spot.
-	 *
-	 *     TweenInfo.new(1, style, dir)                     nothing set
-	 *     TweenInfo.new(1, style, dir, 2)                   repeat set
-	 *     TweenInfo.new(1, style, dir, nil, nil, 0.5)       only delay set
-	 *
-	 * The leading separator comes from the group, as `$more` does, so a
-	 * call with no optional arguments does not end in a stray comma.
-	 */
+	// `$opt(<sep>)` folds the optional trailing arguments of a call.
+	//
+	// An optional pin the developer has not touched is *not passed*, rather
+	// than passed as its default or as `nil` — because plenty of Roblox
+	// constructors reject an explicit `nil` where they accept a missing
+	// argument, so the two are different calls and only one works.
+	//
+	// Trailing unset pins therefore disappear entirely. An unset pin with a
+	// set one *after* it cannot disappear — the positions would shift and
+	// argument four would arrive as argument three — so it is passed as
+	// `nil`, which is the only honest thing left and is what a hand-written
+	// call would do in the same spot.
+	//
+	//     TweenInfo.new(1, style, dir)                     nothing set
+	//     TweenInfo.new(1, style, dir, 2)                   repeat set
+	//     TweenInfo.new(1, style, dir, nil, nil, 0.5)       only delay set
+	//
+	// The leading separator comes from the group, as `$more` does, so a
+	// call with no optional arguments does not end in a stray comma.
 	template = template.replace(/\$opt\(([^)]*)\)/g, (_match, separator: string) => {
 		const optional = r.inputs.filter((pin) => pin.optional === true);
 		const args = callArguments(e, r, optional, (pin) => e.resolveInput(r, pin, scope));
 		return args.length === 0 ? "" : separator + args.join(separator);
 	});
 
-	/**
-	 * `$pairs(<sep>)` folds `p0`, `p1`, … into `[key] = value`.
-	 *
-	 * Each row is one pair pin, in one of two states. Split, it is a Key and
-	 * a Value read from its parts. Whole, it takes a Key Value Pair, which
-	 * brings its own key — and is read here, where there is a table for the
-	 * entry to belong to, rather than as an expression it cannot be.
-	 *
-	 * `$args` cannot do this: variadic pins are all one type, and a
-	 * dictionary entry is two pins that mean different things. A node
-	 * wanting pairs derives them itself and folds them here, which keeps
-	 * "how many" in the node's own config exactly as `$args` does.
-	 *
-	 * A pair whose key is left empty is skipped rather than emitted as
-	 * `[""] = v`. Growing the node gives you a blank row, and a blank row
-	 * you have not filled in yet should not be a table entry.
-	 *
-	 * The fold carries its own surrounding spaces, so the template writes
-	 * `{$pairs(, )}` and an empty one comes out as `{}` rather than `{  }`.
-	 * That is a formatting decision living slightly further from the
-	 * template than it might, and the alternative is a stray double space in
-	 * generated code that a reader is meant to be able to read — and that
-	 * only stylua would tidy, which is optional.
-	 */
+	// `$pairs(<sep>)` folds `p0`, `p1`, … into `[key] = value`.
+	//
+	// Each row is one pair pin, in one of two states. Split, it is a Key and
+	// a Value read from its parts. Whole, it takes a Key Value Pair, which
+	// brings its own key — and is read here, where there is a table for the
+	// entry to belong to, rather than as an expression it cannot be.
+	//
+	// `$args` cannot do this: variadic pins are all one type, and a
+	// dictionary entry is two pins that mean different things. A node
+	// wanting pairs derives them itself and folds them here, which keeps
+	// "how many" in the node's own config exactly as `$args` does.
+	//
+	// A pair whose key is left empty is skipped rather than emitted as
+	// `[""] = v`. Growing the node gives you a blank row, and a blank row
+	// you have not filled in yet should not be a table entry.
+	//
+	// The fold carries its own surrounding spaces, so the template writes
+	// `{$pairs(, )}` and an empty one comes out as `{}` rather than `{  }`.
+	// That is a formatting decision living slightly further from the
+	// template than it might, and the alternative is a stray double space in
+	// generated code that a reader is meant to be able to read — and that
+	// only stylua would tidy, which is optional.
 	template = template.replace(/\$pairs\(([^)]*)\)/g, (_match, separator: string) => {
 		const entries: string[] = [];
 		// The rows as the node declares them, before splitting — a split row
@@ -332,15 +314,13 @@ export function renderTemplate(e: Emitter, r: ResolvedNode, template: string, sc
 
 			const split = e.splitOf(r, pin.id, "in");
 			if (split) {
-				/**
-				 * Read the parts directly rather than resolving the row.
-				 *
-				 * Resolving it would send a split input to `buildSplitInput`,
-				 * which rebuilds a value from `make` — and a pair is syntax
-				 * rather than a value, so there is nothing to rebuild it into.
-				 * Here there is a table for the entry to belong to, which is
-				 * the only place a key and a value mean anything together.
-				 */
+				// Read the parts directly rather than resolving the row.
+				//
+				// Resolving it would send a split input to `buildSplitInput`,
+				// which rebuilds a value from `make` — and a pair is syntax
+				// rather than a value, so there is nothing to rebuild it into.
+				// Here there is a table for the entry to belong to, which is
+				// the only place a key and a value mean anything together.
 				const keyPin = r.inputs.find((p) => p.id === partPinId(pin.id, "key"));
 				const valuePin = r.inputs.find((p) => p.id === partPinId(pin.id, "value"));
 				if (!keyPin || !valuePin) continue;
@@ -362,27 +342,23 @@ export function renderTemplate(e: Emitter, r: ResolvedNode, template: string, sc
 			entries.push(`${plain ?? `[${key}]`} = ${entry}`);
 		}
 		if (entries.length === 0) return "";
-		/**
-		 * One key to a line, when the node asks for it.
-		 *
-		 * A trailing comma on the last entry, which is what Luau takes and
-		 * what stylua writes — it makes adding a key a one-line diff rather
-		 * than a two-line one. The leading tab is relative: `push` adds it to
-		 * whatever indentation the statement itself is at.
-		 */
+		// One key to a line, when the node asks for it.
+		//
+		// A trailing comma on the last entry, which is what Luau takes and
+		// what stylua writes — it makes adding a key a one-line diff rather
+		// than a two-line one. The leading tab is relative: `push` adds it to
+		// whatever indentation the statement itself is at.
 		if (r.node.config?.layout === "lines") {
 			return `\n${entries.map((entry) => `\t${entry},`).join("\n")}\n`;
 		}
 		return ` ${entries.join(separator)} `;
 	});
 
-	/**
-	 * `$index(<table pin>, <key pin>)` — `t.name` or `t[expr]`.
-	 *
-	 * A placeholder rather than two templates on each node, because Get Index
-	 * and Set Index differ only in what surrounds the access and both have to
-	 * make the same decision about the key.
-	 */
+	// `$index(<table pin>, <key pin>)` — `t.name` or `t[expr]`.
+	//
+	// A placeholder rather than two templates on each node, because Get Index
+	// and Set Index differ only in what surrounds the access and both have to
+	// make the same decision about the key.
 	template = template.replace(
 		/\$index\(([A-Za-z_][A-Za-z0-9_]*),\s*([A-Za-z_][A-Za-z0-9_]*)\)/g,
 		(_match, tablePin: string, keyPin: string) => {
@@ -403,14 +379,12 @@ export function renderTemplate(e: Emitter, r: ResolvedNode, template: string, sc
 		if (side === "out") {
 			const bound = scope.lookup(`${r.node.id}/${pinId}`);
 			if (bound) return bound;
-			/**
-			 * Nothing bound it. `_` rather than a fresh unique name, because
-			 * a unique name here is *undeclared* — on the left of an
-			 * assignment that makes a global, which is the failure
-			 * `emitStatement` now declares its referenced outputs to avoid.
-			 * This is the last line of defence for a spec that reaches here
-			 * some other way, and it should discard rather than leak.
-			 */
+			// Nothing bound it. `_` rather than a fresh unique name, because
+			// a unique name here is *undeclared* — on the left of an
+			// assignment that makes a global, which is the failure
+			// `emitStatement` declares its referenced outputs to avoid.
+			// This is the last line of defence for a spec that reaches here
+			// some other way, and it should discard rather than leak.
 			return "_";
 		}
 		const pin = e.pin(r, pinId, "in");

@@ -74,14 +74,6 @@ export function aliasOf(specifier: string): string | null {
 }
 
 /**
- * What is wrong with this specifier for this target, or `null` if nothing is.
- *
- * An empty specifier is *not* a problem here. A declaration somebody has
- * started and not finished is a normal state to be in while typing, and the
- * emitter skips it rather than compiling half of one — saying "this is wrong"
- * about a field you have not filled in yet is nagging, not checking.
- */
-/**
  * What the project's `.luaurc` files say, when we have been told.
  *
  * Optional because two of the three callers do not have it: the emitter is
@@ -105,6 +97,14 @@ export interface SpecifierContext {
 	hasLuaurc?: boolean;
 }
 
+/**
+ * What is wrong with this specifier for this target, or `null` if nothing is.
+ *
+ * An empty specifier is *not* a problem here. A declaration somebody has
+ * started and not finished is a normal state to be in while typing, and the
+ * emitter skips it rather than compiling half of one — saying "this is wrong"
+ * about a field you have not filled in yet is nagging, not checking.
+ */
 export function checkSpecifier(
 	specifier: string, target: Target, context: SpecifierContext = {},
 ): SpecifierProblem | null {

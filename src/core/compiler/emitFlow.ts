@@ -26,12 +26,10 @@ import {
  * ## Why `elseif` is worth machinery
  *
  * A Branch wired into another Branch's False pin is how every node editor
- * spells "otherwise, if". It used to come out as an `else` holding a nested
- * `if`, which is the same program and a worse file: each link in the chain
- * cost a level of indentation and an `end`, so five conditions ended in five
- * closing keywords and a body pushed a third of the way across the page.
- * That is the "extra indents" people report, and it is not a formatting bug
- * -- it is the block structure being written out longhand.
+ * spells "otherwise, if". Written as an `else` holding a nested `if` it is
+ * the same program and a worse file: each link in the chain costs a level of
+ * indentation and an `end`, so five conditions end in five closing keywords
+ * and a body pushed a third of the way across the page.
  *
  * ## When the chain has to break
  *
@@ -40,8 +38,7 @@ import {
  * everything it emits **captured** rather than written, and the chain
  * continues only when it emitted nothing. A condition that had to bind a
  * local first falls back to `else` and the nested `if`, with the captured
- * lines put back at the top of the block where they belong -- which is
- * exactly the code this used to write every time.
+ * lines put back at the top of the block where they belong.
  *
  * The condition is resolved in the arm's own scope either way, because that
  * is where it is evaluated in both shapes.
@@ -561,17 +558,15 @@ function forPairs(e: Emitter, r: ResolvedNode, scope: Scope, handler: string): s
 	const source = e.resolveInput(r, e.pin(r, "table", "in"), scope);
 	const body = new Scope(scope, "loop");
 	const keyPin = isArray ? "index" : "key";
-	/**
-	 * What the two loop variables are called.
-	 *
-	 * `key` and `value` are a placeholder, not a name: a loop over
-	 * parts reads `for key, value in` and every line under it talks
-	 * about `value`, which is the one word in the block that says
-	 * nothing. Naming them is what a hand-written loop does first.
-	 *
-	 * Held to identifiers here rather than refused, because the field
-	 * is typed into and a half-typed name should not fail a compile.
-	 */
+	// What the two loop variables are called.
+	//
+	// `key` and `value` are a placeholder, not a name: a loop over
+	// parts reads `for key, value in` and every line under it talks
+	// about `value`, which is the one word in the block that says
+	// nothing. Naming them is what a hand-written loop does first.
+	//
+	// Held to identifiers here rather than refused, because the field
+	// is typed into and a half-typed name should not fail a compile.
 	const names = loopNamesOf(r.node.config);
 	// Both belong to the body, for the same reason a numeric loop's
 	// counter does.
@@ -580,16 +575,14 @@ function forPairs(e: Emitter, r: ResolvedNode, scope: Scope, handler: string): s
 	const v = e.names.unique(names.value ?? "value", "value");
 	body.bindings.set(`${id}/${keyPin}`, k);
 	body.bindings.set(`${id}/value`, v);
-	/**
-	 * Luau takes an annotation on a `for` binding, so a typed loop
-	 * variable is said where it is introduced rather than cast on the
-	 * first line of the body.
-	 *
-	 * An array's index is not offered one: `ipairs` hands back a
-	 * number and writing `i: number` is saying what the loop already
-	 * said. On the terms every other annotation has -- written only
-	 * when the mode line asks for them.
-	 */
+	// Luau takes an annotation on a `for` binding, so a typed loop
+	// variable is said where it is introduced rather than cast on the
+	// first line of the body.
+	//
+	// An array's index is not offered one: `ipairs` hands back a
+	// number and writing `i: number` is saying what the loop already
+	// said. On the terms every other annotation has -- written only
+	// when the mode line asks for them.
 	const types = loopTypes(r.node.config ?? {});
 	const bind = (ident: string, type: string | undefined) =>
 		e.annotates && type ? `${ident}: ${luauType(type)}` : ident;

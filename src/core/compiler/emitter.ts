@@ -64,19 +64,20 @@ export class Emitter {
 	functionNames = new Map<string, string>();
 	/** ScriptVariable id -> the file-level local it was declared as. */
 	variableNames = new Map<string, string>();
+	/** Type names already written, from either kind of declaration node. */
+	declaredTypes = new Set<string>();
 	/**
 	 * Variables whose declaration is an `Initialize Variable` node rather than
 	 * the block at the top of the file.
 	 *
 	 * Two sets rather than one, because "will be declared later" and "has been
-	 * declared by now" are different questions and both get asked. The first
-	 * decides whether to skip the top-of-file line; the second catches a read
-	 * that happens before the declaration it depends on, which Luau would
+	 * declared by now" are different questions and both get asked. This one
+	 * decides whether to skip the top-of-file line; `declaredSoFar` catches a
+	 * read that happens before the declaration it depends on, which Luau would
 	 * otherwise compile into a reference to a global that is always nil.
 	 */
-	/** Type names already written, from either kind of declaration node. */
-	declaredTypes = new Set<string>();
 	initialisedLater = new Set<string>();
+	/** Variables declared by this point in the walk. See `initialisedLater`. */
 	declaredSoFar = new Set<string>();
 	/**
 	 * Service name -> the local it was hoisted to. Services are discovered
@@ -153,19 +154,10 @@ export class Emitter {
 		const body = this.render(lines);
 		const outputHash = hashString(body);
 		const header = this.header(outputHash);
-		/**
-		 * How many lines the header occupies.
-		 *
-		 * `split("\n").length` is one too many: the header ends with a newline,
-		 * so splitting leaves a trailing empty string that is not a line. That
-		 * off-by-one put every entry in the source map one line late — the first
-		 * statement was attributed to the line below it, and the last node to the
-		 * blank line at the end of the file.
-		 *
-		 * It survived from the day the map was written until the day something
-		 * finally read it, which is the argument for building a consumer rather
-		 * than trusting a mapping nothing exercises.
-		 */
+		// How many lines the header occupies. `split("\n").length` is one too
+		// many: the header ends with a newline, so splitting leaves a trailing
+		// empty string that is not a line, and every entry in the source map
+		// would land one line late.
 		const headerLines = header.split("\n").length - 1;
 
 		const sourceMap = lines
@@ -223,15 +215,6 @@ export class Emitter {
 	// -- output plumbing ---------------------------------------------------
 
 	/**
-	 * One statement, which may run to several lines.
-	 *
-	 * Leading tabs in the text are **relative** indentation, added to the
-	 * statement's own rather than left in the line to be indented again. A
-	 * multi-line expression — a table written one key to a line — can then
-	 * indent its own body without knowing how deep the statement it lands in
-	 * happens to be.
-	 */
-		/**
 	 * The comment header owed before this node's first line, if any.
 	 *
 	 * Asked once per node and struck off, so a comment holding six nodes prints
@@ -245,20 +228,28 @@ export class Emitter {
 		if (!comment || this.headed.has(comment.id)) return;
 		this.headed.add(comment.id);
 
-		/**
-		 * A blank line before it, but only between blocks.
-		 *
-		 * A heading with the previous block still against it reads as part of
-		 * that block. A heading on the *first* line of a block does not -- the
-		 * `if` above it already separates them -- and a blank there is a gap
-		 * nobody writes by hand. The test is the previous line's depth: a block
-		 * opener sits one level shallower than what it opens.
-		 */
+		// A blank line before it, but only between blocks.
+		//
+		// A heading with the previous block still against it reads as part of
+		// that block. A heading on the *first* line of a block does not -- the
+		// `if` above it already separates them -- and a blank there is a gap
+		// nobody writes by hand. The test is the previous line's depth: a block
+		// opener sits one level shallower than what it opens.
 		const previous = [...this.out].reverse().find((line) => line.text !== "");
 		if (previous && previous.indent >= this.indent) this.blank();
 		this.write(commentLines(comment.text).join("\n"), nodeId);
 	}
 
+	/**
+	 * One statement, which may run to several lines, with the comment header
+	 * owed above it.
+	 *
+	 * Leading tabs in the text are **relative** indentation, added to the
+	 * statement's own rather than left in the line to be indented again. A
+	 * multi-line expression — a table written one key to a line — can then
+	 * indent its own body without knowing how deep the statement it lands in
+	 * happens to be.
+	 */
 	push(text: string, node?: string): void {
 		this.headerFor(node);
 		this.write(text, node);
@@ -303,6 +294,13 @@ export class Emitter {
 		return literal.t === "string" || literal.t === "raw" ? literal.v.trim() : "";
 	}
 
+	/**
+	 * Whether generated locals and parameters carry type annotations.
+	 *
+	 * Tied to the mode line rather than to `strict` alone: on Roblox nonstrict is
+	 * already what an unmarked file gets, so `--!nonstrict` with no annotations
+	 * would be a setting that changes one comment and nothing else.
+	 */
 	get annotates(): boolean {
 		return this.script.typecheck !== "default";
 	}
@@ -447,6 +445,12 @@ export class Emitter {
 		}
 	}
 
+	/**
+	 * The node actually feeding an input, seeing through reroute knots.
+	 *
+	 * A knot is a bend in the wire and never changes what travels down it, so
+	 * asking "what is on the other end of this" has to walk past one.
+	 */
 	feederOf(nodeId: string, pinId: string): ResolvedNode | undefined {
 		let at = { node: nodeId, pin: pinId };
 		for (let hops = 0; hops < 64; hops++) {
@@ -543,6 +547,10 @@ export class Emitter {
 		return ident;
 	}
 
+	/**
+	 * The Luau expression for a data input: the upstream value if the pin is
+	 * wired, otherwise the literal typed into it, otherwise its default.
+	 */
 	resolveInput(r: ResolvedNode, pin: PinDef, scope: Scope): string {
 		// Split into components: there is no wire and no literal on the pin
 		// itself any more, so the value is assembled from the parts.
@@ -591,14 +599,12 @@ export class Emitter {
 			}
 		}
 
-		/**
-		 * A function's own name, so it can be passed as a value.
-		 *
-		 * Both nodes that declare one, not just the hoisted node this was
-		 * written for. Declare Function fell through to the check below and was
-		 * reported as out of scope -- which is what an impure node's output *is*
-		 * outside its block, and is not what a function's name is anywhere.
-		 */
+		// A function's own name, so it can be passed as a value.
+		//
+		// Both nodes that declare one. Checked before the scope rule below,
+		// because Declare Function is impure and its name would otherwise be
+		// reported as out of scope -- which is what an impure node's output
+		// *is* outside its block, and is not what a function's name is anywhere.
 		if (FUNCTION_NODES.has(src.def.id) && pinId === "self") {
 			const named = this.functionNames.get(nodeId);
 			if (named) return named;
@@ -670,31 +676,27 @@ export class Emitter {
 			: renderTemplate(this, src, template, scope);
 		this.execStack.delete(`pure:${nodeId}`);
 
-		/**
-		 * An operator pill asked to bracket what it works out.
-		 *
-		 * Only the pills, because only they are one operator wearing its symbol
-		 * on its face -- and only they have the readable-either-way property that
-		 * makes this a choice rather than a bug. Everywhere else the emitter
-		 * brackets exactly what Luau's precedence requires and no more, which is
-		 * what `parenAt` is for.
-		 *
-		 * Wrapping here rather than at the use site means the brackets travel
-		 * with the value: read twice, bound to a local, spliced into a template,
-		 * it is the same expression each time. And a wrapped expression is
-		 * already an atom, so nothing downstream adds a second pair.
-		 */
+		// An operator pill asked to bracket what it works out.
+		//
+		// Only the pills, because only they are one operator wearing its symbol
+		// on its face -- and only they have the readable-either-way property that
+		// makes this a choice rather than a bug. Everywhere else the emitter
+		// brackets exactly what Luau's precedence requires and no more, which is
+		// what `parenAt` is for.
+		//
+		// Wrapping here rather than at the use site means the brackets travel
+		// with the value: read twice, bound to a local, spliced into a template,
+		// it is the same expression each time. And a wrapped expression is
+		// already an atom, so nothing downstream adds a second pair.
 		if (src.def.display === "operator" && src.node.config?.parens === true) {
 			expr = `(${expr})`;
 		}
 
-		/**
-		 * A Find First node that names a class hands back that class or `nil`,
-		 * and Luau's own signature says only `Instance?`. The pin says the class;
-		 * the file says so too, as `Class?`, so a typechecked file and the graph
-		 * agree about what the value is. Only where annotations are written at
-		 * all: Default writes none, and a cast would be the one annotation in it.
-		 */
+		// A Find First node that names a class hands back that class or `nil`,
+		// and Luau's own signature says only `Instance?`. The pin says the class;
+		// the file says so too, as `Class?`, so a typechecked file and the graph
+		// agree about what the value is. Only where annotations are written at
+		// all: Default writes none, and a cast would be the one annotation in it.
 		const typed = src.outputs.find((p) => p.id === pinId)?.type;
 		if (
 			this.annotates && NILABLE_CLASS_READS.has(src.def.id)

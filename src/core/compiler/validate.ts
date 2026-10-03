@@ -65,9 +65,8 @@ const UNIVERSAL = new Set(["any", "wildcard"]);
  * Whether a value of one type may be wired into a pin of another.
  *
  * The one rule, used by the canvas when a wire is dropped and by the compile
- * when it checks the wires already there. They were two copies until 0.30.0,
- * and the canvas's had learned that a `Model` fits an `Instance` pin while this
- * one had not — so a wire the editor accepted was warned about at compile.
+ * when it checks the wires already there. Two copies could disagree, and a
+ * wire the editor accepted would then be warned about at compile.
  */
 export function typesCompatible(from: string | undefined, to: string | undefined): boolean {
 	const a = from ?? "any";
@@ -77,18 +76,16 @@ export function typesCompatible(from: string | undefined, to: string | undefined
 	// Numbers stringify implicitly in Luau, and it is more annoying than useful
 	// to flag it.
 	if ((a === "number" && b === "string") || (a === "string" && b === "number")) return true;
-	/**
-	 * A class goes wherever one it derives from is wanted: a `Model` into an
-	 * `Instance`, a `Part` into a `BasePart`, a `TextButton` into a `GuiObject`.
-	 * Luau's `IsA`, answered from the engine's own hierarchy.
-	 *
-	 * Only `Instance` was known before the hierarchy was, so every narrower
-	 * version of the same fact wanted a Cast asserting something already true.
-	 *
-	 * The other way round stays refused. `Instance` into `Part` is a claim about
-	 * what the value *is* rather than a fact about its type, and Cast is the node
-	 * that makes that claim out loud.
-	 */
+	// A class goes wherever one it derives from is wanted: a `Model` into an
+	// `Instance`, a `Part` into a `BasePart`, a `TextButton` into a `GuiObject`.
+	// Luau's `IsA`, answered from the engine's own hierarchy.
+	//
+	// Only `Instance` was known before the hierarchy was, so every narrower
+	// version of the same fact wanted a Cast asserting something already true.
+	//
+	// The other way round stays refused. `Instance` into `Part` is a claim about
+	// what the value *is* rather than a fact about its type, and Cast is the node
+	// that makes that claim out loud.
 	if (isSubclassOf(a, b)) return true;
 	return false;
 }
@@ -414,17 +411,15 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				});
 			}
 		}
-		/**
-		 * Get Parameter, which can point at a *handler* as well as a function:
-		 * Connect binds its parameters exactly as the two declarations do, so
-		 * `FUNCTION_NODES` is the wrong set here and would report a working
-		 * graph as broken.
-		 *
-		 * The second check is the one the others do not need. A function that
-		 * still exists can stop having a parameter by that name, and the node
-		 * left behind is pointing at something real that no longer has what it
-		 * asked for — which deserves to say so rather than fail at compile.
-		 */
+		// Get Parameter, which can point at a *handler* as well as a function:
+		// Connect binds its parameters exactly as the two declarations do, so
+		// `FUNCTION_NODES` is the wrong set here and would report a working
+		// graph as broken.
+		//
+		// The second check is the one the others do not need. A function that
+		// still exists can stop having a parameter by that name, and the node
+		// left behind is pointing at something real that no longer has what it
+		// asked for — which deserves to say so rather than fail at compile.
 		if (node.def === "function.getParam") {
 			const ref = paramRefOf(node.config);
 			const owner = ref.function
@@ -523,18 +518,16 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		}
 	}
 
-	/**
-	 * A Lune call whose module nothing requires.
-	 *
-	 * The emitter already refuses this, and says so with an error — but only
-	 * for a node it actually reaches. A node dropped on the canvas and not yet
-	 * wired is exactly where somebody needs to be told, because it is where
-	 * they are about to wire it, and the Inspector is already saying so.
-	 *
-	 * So this covers the half the emitter cannot see, and only that half:
-	 * **unreachable nodes only**, or a wired one would carry the same complaint
-	 * twice under two severities.
-	 */
+	// A Lune call whose module nothing requires.
+	//
+	// The emitter already refuses this, and says so with an error — but only
+	// for a node it actually reaches. A node dropped on the canvas and not yet
+	// wired is exactly where somebody needs to be told, because it is where
+	// they are about to wire it, and the Inspector is already saying so.
+	//
+	// So this covers the half the emitter cannot see, and only that half:
+	// **unreachable nodes only**, or a wired one would carry the same complaint
+	// twice under two severities.
 	const declared = new Set(
 		(script.modules ?? []).map((module) => module.specifier.trim().toLowerCase()),
 	);
@@ -556,20 +549,18 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		});
 	}
 
-	/**
-	 * A Roblox datatype in a Lune graph, without the module that provides it.
-	 *
-	 * `Vector3.new(0, 10, 0)` is what these nodes write, and in Lune `Vector3`
-	 * is not a global — it is a member of `@lune/roblox`, bound by a
-	 * declaration that names it. Without that the generated file indexes nil at
-	 * runtime, which is the failure this whole design exists to prevent: a
-	 * graph that looks right and a file that does not work.
-	 *
-	 * An error rather than a warning, and for every such node rather than only
-	 * the wired ones. An undeclared module is wrong whether or not the node has
-	 * been connected yet — unlike "not connected", which is a state every node
-	 * passes through.
-	 */
+	// A Roblox datatype in a Lune graph, without the module that provides it.
+	//
+	// `Vector3.new(0, 10, 0)` is what these nodes write, and in Lune `Vector3`
+	// is not a global — it is a member of `@lune/roblox`, bound by a
+	// declaration that names it. Without that the generated file indexes nil at
+	// runtime, which is the failure this whole design exists to prevent: a
+	// graph that looks right and a file that does not work.
+	//
+	// An error rather than a warning, and for every such node rather than only
+	// the wired ones. An undeclared module is wrong whether or not the node has
+	// been connected yet — unlike "not connected", which is a state every node
+	// passes through.
 	if (script.target === "lune") {
 		const roblox = (script.modules ?? []).find(
 			(module) => module.specifier.trim().toLowerCase() === "@lune/roblox",

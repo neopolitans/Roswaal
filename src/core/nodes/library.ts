@@ -196,23 +196,6 @@ function variadic(
 	};
 }
 
-
-/**
- * A node whose result is the class one of its pins names.
- *
- * New Instance says `Part` on its face and handed back an `Instance`, so
- * everything downstream had to be told again what the graph already said: a
- * Cast to reach `Anchored`, and nothing offering `Anchored` in the first place.
- * The class is typed into a pin, so the pins are derived from the pin values —
- * see `NodeDef.derivePins`, which takes them for this.
- *
- * Only a **known** class narrows the pin. A name this build has never heard of
- * is left as `Instance`, which is the honest answer and keeps a class newer
- * than the catalogue working exactly as it did.
- *
- * A wire into the pin narrows nothing either: the class is then whatever the
- * wire carries at runtime, which is not knowable here.
- */
 /**
  * A cast whose result is the type it asserts.
  *
@@ -266,6 +249,22 @@ function nilableResult(def: NodeDef, outputId = "result"): NodeDef {
 	};
 }
 
+/**
+ * A node whose result is the class one of its pins names.
+ *
+ * New Instance says `Part` on its face, so its result is a `Part` rather than
+ * an `Instance`, and everything downstream knows it without a Cast: `Anchored`
+ * is offered off it directly. The class is typed into a pin, so the pins are
+ * derived from the pin values — see `NodeDef.derivePins`, which takes them for
+ * this.
+ *
+ * Only a **known** class narrows the pin. A name this build has never heard of
+ * is left as `Instance`, which is the honest answer and keeps a class newer
+ * than the catalogue working exactly as it did.
+ *
+ * A wire into the pin narrows nothing either: the class is then whatever the
+ * wire carries at runtime, which is not knowable here.
+ */
 function classTyped(
 	given: NodeDef, pinId: string, outputId: string, nilable = false,
 ): NodeDef {

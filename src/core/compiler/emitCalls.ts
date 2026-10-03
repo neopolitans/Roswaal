@@ -24,21 +24,9 @@ import { isCallExpression, parenPrefix, toIdentifier } from "./luau.js";
 export const STATEMENT_READERS = new Set(["local.declare", "local.set", "variable.set", "variable.init"]);
 
 /**
- * The call a Service Function node writes: `RunService:IsServer()`.
- *
- * The service goes through `resolveRoot`, so a graph that calls two methods
- * on RunService and also has a Get Service for it ends up with one
- * `local RunService = game:GetService("RunService")` at the top and three
- * readers — which is the file somebody would have written.
- *
- * The service and the method are typed in rather than wired for the reason
- * Get Service's name is: both become text in the generated file, so they have
- * to be known before the script runs.
- */
-/**
  * A call into Lune's standard library, as an expression.
  *
- * Shared by both switches for the reason `serviceCall` is: the value node
+ * Shared by both nodes for the reason `serviceCall` is: the value node
  * returns it and the step node binds it, and the call itself is written
  * once. Two copies would be two places for the argument rule to drift.
  *
@@ -60,7 +48,7 @@ export function luneCall(e: Emitter, src: ResolvedNode, scope: Scope): string {
 	const ident = e.moduleBySpecifier.get(specifier.toLowerCase());
 	if (ident === undefined) {
 		// The specifier, not a description of the problem: it is what gets
-		// typed into the panel to fix e.
+		// typed into the panel to fix this.
 		e.error(
 			`This calls \`${alias}.${call}\`, and nothing in this script requires ` +
 			`\`${specifier}\`. Declare it in the Variables panel — Roswaal will not add a ` +
@@ -76,6 +64,18 @@ export function luneCall(e: Emitter, src: ResolvedNode, scope: Scope): string {
 	return `${ident}.${call}(${args.join(", ")})`;
 }
 
+/**
+ * The call a Service Function node writes: `RunService:IsServer()`.
+ *
+ * The service goes through `resolveRoot`, so a graph that calls two methods
+ * on RunService and also has a Get Service for it ends up with one
+ * `local RunService = game:GetService("RunService")` at the top and three
+ * readers — which is the file somebody would have written.
+ *
+ * The service and the method are typed in rather than wired for the reason
+ * Get Service's name is: both become text in the generated file, so they have
+ * to be known before the script runs.
+ */
 export function serviceCall(e: Emitter, r: ResolvedNode, scope: Scope): string {
 	const id = r.node.id;
 	const service = serviceOf(r.node.config);

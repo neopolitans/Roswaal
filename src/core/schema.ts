@@ -323,11 +323,9 @@ export interface NodeDef {
 	outputs: PinDef[];
 	compilesTo: CompileSpec;
 	/**
-	 * Builtins whose pins depend on per-instance config (function signatures,
-	 * module exports) derive them here. Data-only custom nodes never set this.
-	 */
-	/**
-	 * The pins this node has, given what it carries.
+	 * The pins this node has, given what it carries. For a builtin whose pins
+	 * depend on per-instance config — a function's signature, a module's
+	 * exports. A node pack's nodes never set it.
 	 *
 	 * `literals` is what has been typed into its pins, and is how a node whose
 	 * shape depends on a *value* rather than on a setting derives it: New
@@ -362,8 +360,7 @@ export interface NodeDef {
 	 * A Set Variable node is *about* a variable rather than named after one, and
 	 * showing "Accumulator" where "Set Variable" was would lose the verb; that
 	 * belongs in `subtitle`, which is where it already is.
-	 */
-	/**
+	 *
 	 * The node itself is passed as well, because not everything that names a
 	 * node lives in its config. A Declare Local's name is a literal on its Name
 	 * pin -- typed on the node face, where you would expect to type a name --

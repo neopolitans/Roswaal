@@ -39,9 +39,8 @@ export const PROVIDED_GLOBALS = [
 /**
  * The local a module specifier would be called if nobody said.
  *
- * Its last segment. `lastSegment` splits on dots because it was written for
- * instance paths, so `@lune/fs` came out as `lune_fs` — readable, and not what
- * anybody would have typed. A specifier is separated by slashes.
+ * Its last segment, split on slashes: `@lune/fs` is `fs`. Not `lastSegment`,
+ * which splits on dots for instance paths and would make it `lune_fs`.
  */
 export function specifierName(specifier: string): string {
 	const parts = specifier.replace(/^@/, "").split(/[\\/]+/).filter((part) => part !== "");
@@ -63,15 +62,10 @@ const TYPE_NAME = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/;
 /**
  * The Luau a pin's type is written as.
  *
- * This used to check the name against a list of fifteen and write `any` for
- * everything else, which meant a parameter typed `Model` came out `any` and so
- * did one typed `Config` -- a type the same file had just declared. Neither was
- * a mistake anybody could see: the graph said `Model`, the file said `any`, and
- * nothing said why.
- *
- * Now anything shaped like a type name is written as itself. A name Luau does
- * not know is an error it reports, naming the line, which is a better answer
- * than silently having no type at all.
+ * Anything shaped like a type name is written as itself, whether Roblox's
+ * (`Model`) or one the file declares (`Config`). A name Luau does not know is
+ * an error it reports, naming the line, which is a better answer than
+ * silently writing `any` and leaving the graph and the file disagreeing.
  */
 export function luauType(t: string | undefined): string {
 	if (!t) return "any";
@@ -85,12 +79,12 @@ export function luauType(t: string | undefined): string {
 /**
  * Whether text reads as a Luau type rather than as anything else.
  *
- * The same argument as for names, one step further: `{ [Model]: Restore }` typed
- * for a local or a parameter was written `any`, and nothing said so. So a type
- * made of types — braces, brackets, `?`, `|`, `->`, names with dots — is written
- * as it was typed, and a mistake in it is Luau's to report, with a line number.
+ * The same argument as for names, one step further: a type made of types —
+ * `{ [Model]: Restore }`, with braces, brackets, `?`, `|`, `->` and names with
+ * dots — is written as it was typed, and a mistake in it is Luau's to report,
+ * with a line number.
  *
- * What is refused is text that is not a type, which the parser now decides:
+ * What is refused is text that is not a type, which the parser decides:
  * unclosed brackets, an assignment, two words side by side (`2 bad`). One line
  * and no comments, still: this is written into an annotation mid-line.
  */
@@ -134,21 +128,19 @@ export function declareModules(e: Emitter): void {
 			else e.warn(said);
 		}
 
-		/**
-		 * A declared name is taken **verbatim**, not made unique.
-		 *
-		 * The panel makes you type one, so it is always a choice — and
-		 * `uniqueForFile` answers a different question. Asked for `util`
-		 * twice it hands back `util` and `util2`; asked for `table` it hands
-		 * back `table2`. Both are silent, and both leave the graph saying
-		 * one name while the file says another, which is the kind of
-		 * mismatch that costs an afternoon.
-		 *
-		 * Two modules genuinely can want one name — `./combat/util` and
-		 * `./inventory/util` is a shape real projects have — and the answer
-		 * to that is for the author to rename one, which they can only do
-		 * if we tell them.
-		 */
+		// A declared name is taken **verbatim**, not made unique.
+		//
+		// The panel makes you type one, so it is always a choice — and
+		// `uniqueForFile` answers a different question. Asked for `util`
+		// twice it hands back `util` and `util2`; asked for `table` it hands
+		// back `table2`. Both are silent, and both leave the graph saying
+		// one name while the file says another, which is the kind of
+		// mismatch that costs an afternoon.
+		//
+		// Two modules genuinely can want one name — `./combat/util` and
+		// `./inventory/util` is a shape real projects have — and the answer
+		// to that is for the author to rename one, which they can only do
+		// if we tell them.
 		const wanted = toIdentifier(module.name.trim() || specifierName(specifier) || "module");
 		if (!claimModuleName(e, wanted, specifier)) continue;
 		if (PROVIDED_GLOBALS.includes(wanted)) {
@@ -173,8 +165,8 @@ export function declareModules(e: Emitter): void {
 			//
 			// `uniqueForFile` would not give it one: the emitter reserves the
 			// Roblox globals so a generated local cannot shadow them, and
-			// `Vector3` bound off `@lune/roblox` came out as `Vector32`. But
-			// shadowing is the entire point here -- binding `Vector3` is what
+			// `Vector3` bound off `@lune/roblox` would come out as `Vector32`.
+			// But shadowing is the entire point here -- binding `Vector3` is what
 			// lets `Vector3.new(1, 2, 3)` compile unchanged under Lune, and a
 			// binding the author wrote down is not the accident that rule
 			// guards against. Reserved afterwards so a later generated name

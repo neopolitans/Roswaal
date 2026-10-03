@@ -12,16 +12,6 @@ import type { ResolvedNode } from "./graph.js";
 import { isIdentifier } from "./luau.js";
 
 /**
- * A pure builtin's expression. These always resolve to a plain identifier,
- * which is why they bypass the hoisting rule entirely.
- */
-/**
- * The node actually feeding an input, seeing through reroute knots.
- *
- * A knot is a bend in the wire and never changes what travels down it, so
- * asking "what is on the other end of this" has to walk past one.
- */
-/**
  * Where a data input's value comes from, as a key two nodes can agree on.
  *
  * A wire is identified by the pin it leaves, so an Is A and a Cast reading

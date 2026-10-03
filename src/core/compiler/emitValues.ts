@@ -259,16 +259,14 @@ function requireAtTop(e: Emitter, src: ResolvedNode): string {
 	const existing = e.requires.get(key);
 	if (existing) return existing.ident;
 
-	/**
-	 * A name typed into `As` is taken verbatim; a derived one is made
-	 * unique.
-	 *
-	 * The two are different claims. Nobody chose the default, so
-	 * renaming it to `util2` when something already has `util` costs
-	 * nothing — but a name somebody typed is the one they meant, and
-	 * quietly handing back a different one leaves the node saying
-	 * `util` and the file saying `util2`.
-	 */
+	// A name typed into `As` is taken verbatim; a derived one is made
+	// unique.
+	//
+	// The two are different claims. Nobody chose the default, so
+	// renaming it to `util2` when something already has `util` costs
+	// nothing — but a name somebody typed is the one they meant, and
+	// quietly handing back a different one leaves the node saying
+	// `util` and the file saying `util2`.
 	const chosen = e.literalText(src, "as").trim();
 	const ident = chosen === ""
 		? e.names.uniqueForFile(specifierName(specifier) || "module", "module")
