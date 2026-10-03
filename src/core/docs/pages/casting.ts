@@ -6,6 +6,14 @@ import type { Registry } from "../../nodes/index.js";
 import { code, previews } from "./blocks.js";
 import type { Block, DocPage, PageContext } from "../site.js";
 
+/**
+ * Luau's types, where a graph meets them.
+ *
+ * A page of its own rather than a section of *Roswaal types*: a type can be
+ * declared in three shapes, a local and a variable can carry one, a required
+ * module's types can be named, and a type that is more than a name is written
+ * into the file as itself. That is a page, not a footnote.
+ */
 export function castingPage({ registry }: PageContext): DocPage {
 	return {
 		slug: "casting",

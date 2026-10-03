@@ -648,10 +648,8 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	//
 	// The order is the DOM's, and it has to be: `.node` paints its background
 	// and border, `.head` paints inside that border, and the pins are children
-	// and land on top of all of it. Drawn last -- which it was until 0.35.0 --
-	// the stroke runs straight through every pin now that a pin sits on the edge
-	// rather than inside it, and the docs showed a border cutting each dot in
-	// half while the canvas did not.
+	// and land on top of all of it. Drawn last, the stroke would run straight
+	// through every pin, because a pin sits on the edge rather than inside it.
 	parts.push(
 		`<rect x="0.5" y="0.5" width="${n(width - 1)}" height="${n(height - 1)}" rx="${n(r - 0.5)}" ` +
 		`fill="none" stroke="var(--node-border, #b3b9c4)"/>`,
@@ -1194,10 +1192,7 @@ export function straighten(
 	 * Aligning a node onto its own incoming pin is right for a chain and wrong
 	 * for a **fan-out**. A Branch's two execution pins are one pin row apart —
 	 * 24px — and a node is 64px at its shortest, so straightening both arms puts
-	 * them on top of each other. Six of the drawn graphs had a pair sitting in
-	 * the same place, including the one under *Services and their methods* where
-	 * it was finally noticed; the two Prints were exactly overlapping and read
-	 * as one.
+	 * them on top of each other, and two nodes exactly overlapping read as one.
 	 *
 	 * The topmost node keeps its straight wire, because it is the one a reader
 	 * traces first, and the others move down until they clear it. Their wires

@@ -91,8 +91,7 @@ export { buildSearchIndex } from "./searchIndex.js";
  * The last three are the **surface** it touches, and none of them can be
  * derived: "this changed the documentation" is not a fact about the shape of a
  * release note. A release states them, and an absent one means *not stated*
- * rather than *not affected* — they arrived at 0.39.0 and nothing before it was
- * retagged except the releases of that same sitting, which were still in hand.
+ * rather than *not affected*: the oldest releases state none.
  */
 export type ReleaseTag =
 	| "feature" | "change" | "fix" | "breaking"

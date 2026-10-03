@@ -76,8 +76,8 @@ export interface Release {
 	 * documentation.
 	 *
 	 * Stated rather than derived, because no shape of a release note says which
-	 * part of the tool changed. Absent means *not stated*, not *not affected* —
-	 * releases before 0.39.0 predate the field.
+	 * part of the tool changed. Absent means *not stated*, not *not affected*:
+	 * the oldest releases do not state it.
 	 *
 	 * The point of it is a reader scanning for one thing. Somebody who only
 	 * writes graphs does not need to read a Designer release, and somebody
@@ -89,11 +89,10 @@ export interface Release {
 /**
  * What this version is about, in one line.
  *
- * The front page's footer used to say "the first public release", which was
- * true once and then quietly stopped being — a hand-written line about a moment
- * cannot describe the version beside it for long. Every release already writes
- * a `headline`, which is the same sentence for the same purpose, so the footer
- * reads that instead of carrying its own copy.
+ * A hand-written line about a moment cannot describe the version beside it
+ * for long. Every release already writes a `headline`, which is the same
+ * sentence for the same purpose, so the front page's footer reads that
+ * instead of carrying its own copy.
  *
  * Falls back to nothing rather than to a guess: a version with no entry is a
  * build from between releases, and a footer that named the previous release's

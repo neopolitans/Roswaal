@@ -9,7 +9,7 @@ import {
 } from "../toolbars.js";
 
 /**
- * Wally, as Roswaal reads and writes it. Split from `BUILDING` at 0.115.0.
+ * Wally, as Roswaal reads and writes it.
  */
 export function wallyPackagesPage(): DocPage {
 	return {

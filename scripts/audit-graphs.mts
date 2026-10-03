@@ -11,8 +11,7 @@
  * `graphSvg` straightens what it can before drawing, so what this reports is
  * what is left: a node fed by two wires, or one feeding two, where levelling
  * one necessarily bends the other. Set STRAIGHTEN=1 to measure after the pass
- * rather than before it, which is how the pass was judged -- 55 bent links
- * down to 32, and none of the remainder fixable by moving one node.
+ * rather than before it, which is how to judge a change to the pass.
  */
 
 import { buildSite } from "../src/core/docs/site.ts";

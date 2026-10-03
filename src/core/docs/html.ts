@@ -41,8 +41,7 @@ export interface RenderOptions {
 	 * The colour a pin is drawn in on the canvas.
 	 *
 	 * Passed in rather than imported: the palette lives in `src/app`, and this
-	 * file is in core. Without it the swatches render as invisible empty spans,
-	 * which is how the first build shipped them.
+	 * file is in core. Without it the swatches render as invisible empty spans.
 	 */
 	pinColor?: (type: string | undefined, kind: "exec" | "data") => string;
 	/**
@@ -235,10 +234,9 @@ function renderBlock(
 			return `<div class="docs-table${bare}"><table>${head}<tbody>${rows}</tbody></table></div>`;
 		}
 		case "tags":
-			// `tag-` prefixed, because a bare modifier class is a collision waiting
-			// to happen in a stylesheet this size -- and it happened: `.docs` is
-			// the documentation *panel*, so a Docs tag came out as a full-width
-			// bordered box on its own line.
+			// `tag-` prefixed, because a bare modifier class collides in a
+			// stylesheet this size: `.docs` is the documentation *panel*, so a
+			// bare `docs` tag would come out as a full-width bordered box.
 			return `<p class="docs-tags">${block.tags
 				.map((tag) => `<span class="docs-tag tag-${tag}">${escapeHtml(TAG_LABELS[tag])}</span>`)
 				.join("")}</p>`;
@@ -624,17 +622,15 @@ function chromeIcon(name: string, options: RenderOptions): string {
  * `docs.js` and `theme.css` keep the same names across every release, which is
  * ordinarily fine and is not fine on a static host whose cache headers cannot
  * be set. GitHub Pages serves them with `max-age=600`, so for ten minutes after
- * a deploy a returning reader gets the previous script against the current
- * markup — which is how a fix for a broken viewer looked exactly like the
- * breakage it fixed.
+ * a deploy a returning reader would get the previous script against the
+ * current markup.
  *
  * A query string is enough: it changes the URL, so new bytes are a cache
  * miss. The build stamps with a hash of the assets rather than the version,
- * because a version is deployed more than once: the canary shipped three
- * builds as 0.71.0, and Safari paired the third one's pages with the first
- * one's stylesheet -- a label the old sheet did not hide took the nav's
- * column and pushed the whole grid one track to the right. The editor's own
- * bundles solve this with a content hash in the filename and need nothing here.
+ * because one version can be deployed more than once — the canary often is —
+ * and a browser would pair the later pages with the earlier stylesheet. The
+ * editor's own bundles solve this with a content hash in the filename and
+ * need nothing here.
  */
 function stamp(options: RenderOptions): string {
 	const key = options.assetStamp ?? options.version;

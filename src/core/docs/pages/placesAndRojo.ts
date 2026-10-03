@@ -41,8 +41,8 @@ const ROJO_IMPORTED: NodeMap = (() => {
 
 /**
  * Bringing an existing game in: a Rojo project, a place, or both, and what
- * goes back out. Split from `BUILDING` at 0.115.0, when these sections had
- * grown to half of a page about compiling.
+ * goes back out. Apart from *Compiling and nodemaps for Roblox*, which is
+ * about compiling.
  */
 export function placesAndRojoPage(): DocPage {
 	return {

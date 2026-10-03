@@ -12,8 +12,8 @@ import type { Block, DocPage } from "../site.js";
  * How a node page says which runtime it is for.
  *
  * Every page says it, including the base-Luau ones. Left unsaid, "works in
- * both" is indistinguishable from "nobody has decided" — which is what 237 of
- * them meant until 0.61.0, and the reader had no way to tell.
+ * both" is indistinguishable from "nobody has decided", and the reader has no
+ * way to tell which it is.
  */
 const RUNTIME_TRAIT: Record<Runtime, string> = {
 	luau: "the language itself, so it works in Roblox and in Lune",
@@ -26,8 +26,7 @@ export function nodePage(doc: NodeDoc): DocPage {
 
 	const traits: string[] = [];
 	// Which runtime, on every page rather than only where it is restricted.
-	// Said nowhere, "base Luau" and "nobody has checked" look identical -- and
-	// for 237 nodes they were the same thing until 0.61.0.
+	// Said nowhere, "base Luau" and "nobody has checked" look identical.
 	//
 	// The tag beside the title names it; this says what it means. Two forms of
 	// one fact, which is what a reference page is for: one to scan, one to

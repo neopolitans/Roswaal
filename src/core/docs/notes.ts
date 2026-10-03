@@ -1,9 +1,9 @@
 /**
  * The heading a note carries: an icon and a word saying what kind it is.
  *
- * After Docusaurus's admonitions. The kind used to be only a coloured edge,
- * which said "this is set apart" and nothing about why -- so every note opened
- * with a bold sentence doing the job a label does in one word.
+ * After Docusaurus's admonitions. A coloured edge alone says "this is set
+ * apart" and nothing about why, and every note would open with a bold
+ * sentence doing the job a label does in one word.
  *
  * In core so the editor's panel and the static site draw the same heading.
  */

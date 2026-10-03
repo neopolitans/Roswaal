@@ -6,16 +6,6 @@ import { code, previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
 import { FUNCTIONS_PANEL } from "../toolbars.js";
 
-/**
- * Luau's types, where a graph meets them.
- *
- * Split out of *Roswaal types* in 0.31.0. It was three paragraphs at the foot
- * of that page, written when casting was the only place the two type systems
- * touched — and by 0.30.0 it was not: a type can be declared in three shapes, a
- * local and a variable can carry one, a required module's types can be named,
- * and a type that is more than a name is written into the file as itself. That
- * is a page, not a footnote.
- */
 /** Functions, and the graph each one opens in. */
 export function functionsPage({ registry }: PageContext): DocPage {
 	return {

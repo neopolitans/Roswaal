@@ -9,10 +9,8 @@ import type { DocPage, PageContext } from "../site.js";
 /**
  * Services and the methods on them.
  *
- * Written because the honest answer to "how do I call `RunService:IsServer()`"
- * used to be "you cannot, unless somebody wrote a node for it", and the shape of
- * the answer now — a catalogue, two nodes and a picker — is not one a reader
- * would guess from the palette.
+ * The answer to "how do I call `RunService:IsServer()`" — a catalogue, two
+ * nodes and a picker — is not one a reader would guess from the palette.
  */
 export function servicesPage({ registry }: PageContext): DocPage {
 	return {

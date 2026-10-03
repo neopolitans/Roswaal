@@ -7,9 +7,9 @@ import { PROJECT_PANEL_HEAD } from "../toolbars.js";
 
 /**
  * The left-hand panel, part by part: the two lists, the colours and icons,
- * the menus, and the switch to the place's DataModel. Added at 0.115.0, when
- * the panel had gathered enough of its own -- Wally, places, script kinds --
- * that the Interface page's one line about it no longer covered it.
+ * the menus, and the switch to the place's DataModel. A page of its own
+ * because the panel holds more — Wally, places, script kinds — than the
+ * Interface page's one line about it can cover.
  */
 export function projectPanelPage(): DocPage {
 	return {

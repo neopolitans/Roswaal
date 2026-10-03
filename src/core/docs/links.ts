@@ -2,11 +2,9 @@
  * Where the documentation sends somebody who wants to say something.
  *
  * **Not the source repository**, which is a separate destination rather than a
- * fallback. It was private when this file was written, so a "report a problem"
- * link pointing at it would have answered 404 to everyone. It is public now and
- * reports still go to `roswaal-feedback`: the source repository is for reading,
- * and somebody who wants to file something should not have to work out which of
- * two repositories takes it.
+ * fallback. Reports go to `roswaal-feedback`: the source repository is for
+ * reading, and somebody who wants to file something should not have to work
+ * out which of two repositories takes it.
  *
  * One constant, because two footers carry it: the published site's, rendered in
  * `html.ts`, and the editor's own docs window, in `PageEditor.tsx`. They build
@@ -18,7 +16,7 @@
 export const FEEDBACK_REPOSITORY = "https://github.com/neopolitans/roswaal-feedback";
 
 /**
- * Roswaal's own source, public under 0BSD since 0.59.1.
+ * Roswaal's own source, public under 0BSD.
  *
  * Carried by the landing page and by every documentation page's header, which
  * is why it is a constant rather than a string in each -- a repository that is
@@ -37,7 +35,7 @@ export const SOURCE_REPOSITORY = "https://github.com/neopolitans/Roswaal";
  * Where the stable build of the website lives, with its trailing slash.
  *
  * The canary's banners and the backup copy's point here, and the setup guides
- * link to the web app under it. It was `neopolitans.github.io/Roswaal/` until
- * 0.97.4, which is now the backup: see `IS_BACKUP` in `src/app/pages.ts`.
+ * link to the web app under it. `neopolitans.github.io/Roswaal/` is the
+ * backup: see `IS_BACKUP` in `src/app/pages.ts`.
  */
 export const STABLE_SITE = "https://roswaal.app/";

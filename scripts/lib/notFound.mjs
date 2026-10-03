@@ -11,15 +11,15 @@ import { faviconHref } from "../../src/app/logo.tsx";
 /**
  * Sent for any path with nothing behind it, so GitHub's own 404 never shows.
  *
- * ## Why it is nearly self-contained, and no longer entirely
+ * ## Why it is nearly self-contained
  *
  * It answers for *any* address, at any depth, including one whose neighbouring
  * files do not exist — so it cannot rely on a relative path and it must read
- * correctly with nothing else loaded. That is why the colours were literals.
+ * correctly with nothing else loaded.
  *
- * They are now the same tokens the rest of the site uses **with those literals
- * as fallbacks**, so a reader on Nord gets Nord and a reader whose stylesheet
- * 404'd gets exactly the page this always was. Both assets are reached from
+ * So its colours are the same tokens the rest of the site uses **with
+ * literals as fallbacks**: a reader on Nord gets Nord, and a reader whose
+ * stylesheet 404'd still gets a readable page. Both assets are reached from
  * `base`, which is the site root rather than this page's neighbours — the one
  * path that is right from every address this file answers for.
  */

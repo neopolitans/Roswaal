@@ -6,8 +6,8 @@ import type { DocPage } from "../site.js";
 
 /**
  * What hover, completion and warnings know about Luau: doc comments, required
- * modules and the place's instances. Gathered from `ESCAPE_HATCHES` at 0.115.0,
- * where it had grown past the two code nodes that page is about.
+ * modules and the place's instances. Apart from *Hand-written Luau*, which is
+ * about the two code nodes.
  */
 export function readingLuauPage(): DocPage {
 	return {

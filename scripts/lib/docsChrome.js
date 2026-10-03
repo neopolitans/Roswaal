@@ -208,12 +208,11 @@
   /**
    * `Ctrl` + `K` opens the palette here too.
    *
-   * It used to put the cursor in the sidebar's field instead, on the argument
-   * that a one-column site has somewhere obvious to land. The argument was
-   * wrong about the thing that matters: the editor and Node Design open a
-   * palette, so a reader who learns the shortcut in one window learns it for
-   * all of them, and a shortcut that does something else on the site is a
-   * shortcut they have to remember twice. The field is still there and still
+   * Not the sidebar's field, though a one-column site has somewhere obvious
+   * to land: the editor and Node Design open a palette, so a reader who
+   * learns the shortcut in one window learns it for all of them, and a
+   * shortcut that does something else on the site is a shortcut they have to
+   * remember twice. The field is still there and still
    * filters the tree.
    */
   function palette(shut) {

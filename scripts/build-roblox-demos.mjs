@@ -2,9 +2,9 @@
  * Takes the Roblox demo project's graphs into a module the documentation draws.
  *
  * The opposite direction to `build-lune-demo.mjs`, and for the opposite reason.
- * The Lune demos were authored as pictures and turned into a project; the
- * Roblox demo has been a project since long before there was a page about it,
- * and it is the one `roswaal init` points at and the daemon's own tests open.
+ * The Lune demos are authored as pictures and turned into a project; the
+ * Roblox demo is a project first — the one `roswaal init` points at and the
+ * daemon's own tests open.
  * So the project is the source and the page reads from it.
  *
  * That matters more here than it would elsewhere: the introduction panel offers
