@@ -27,6 +27,7 @@ import { BUILTIN_NODES } from "../../core/nodes/index.js";
 import { packTargets, runsOn } from "../../core/packs.js";
 import type { Target } from "../../core/schema.js";
 import { api, type PackFile } from "../api.js";
+import { cx } from "../cx.js";
 import { Icon } from "../icons.jsx";
 import { NOT_HERE, useHostCan } from "../host.js";
 
@@ -184,7 +185,7 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 			) : packs.length === 0 ? (
 				<p className="hint">No packs yet. Make one, or import one from another project.</p>
 			) : (
-				<div className={`pack-grid ${layout}`}>
+				<div className={cx("pack-grid", layout)}>
 					{packs.map((pack) => (
 						<ProjectPackCard
 							key={pack.path}
@@ -200,7 +201,7 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 			)}
 
 			<h2>Built in</h2>
-			<div className={`pack-grid ${layout}`}>
+			<div className={cx("pack-grid", layout)}>
 				{builtins.map((b) => (
 					<div
 						key={b.category}
@@ -278,7 +279,7 @@ function TargetBadge({ targets, target }: { targets: readonly Target[] | null; t
 	const fits = target === null || runsOn(targets, target);
 	return (
 		<span
-			className={`badge${fits ? "" : " warn"}`}
+			className={cx("badge", !fits && "warn")}
 			title={fits ? "Runs on what this project compiles for." : "This project compiles for something these nodes do not run on."}
 		>
 			{targetsLabel(targets)}

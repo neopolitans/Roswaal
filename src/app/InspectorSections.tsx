@@ -30,6 +30,7 @@ import {
 	CALL_OPTIONS, SERVICE_CALL, SERVICE_VALUE, callDetail, callLabel, serviceMethod, splitCall,
 } from "../core/serviceCalls.js";
 import { requestCodeEdit } from "./codeEditRequests.js";
+import { cx } from "./cx.js";
 import { useEditBurst } from "./editBurst.js";
 import {
 	addModule, addVariable, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable,
@@ -401,7 +402,7 @@ function WrittenType({ node, name, definition }: { node: GraphNode; name?: strin
 		<Field label="Definition">
 			<button
 				type="button"
-				className={`type-definition${problem ? " bad" : ""}`}
+				className={cx("type-definition", problem && "bad")}
 				onClick={open}
 				title="Edit in the code editor"
 			>

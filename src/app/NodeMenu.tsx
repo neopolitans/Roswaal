@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Registry } from "../core/nodes/index.js";
 import { categoryLabel, type Literal, type NodeConfig, type NodeDef } from "../core/schema.js";
+import { cx } from "./cx.js";
 import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
 import {
@@ -228,7 +229,7 @@ export function NodeMenu({
 					const row = (item: MenuItem) => (
 						<div
 							key={item.key}
-							className={`item${flat[active]?.key === item.key ? " active" : ""}`}
+							className={cx("item", flat[active]?.key === item.key && "active")}
 							title={item.summary}
 							onMouseEnter={() => setActive(flat.indexOf(item))}
 							onClick={() => pick(item)}
@@ -241,7 +242,10 @@ export function NodeMenu({
 							    would be noise -- and a narrowed list already says
 							    it on the chip above. */}
 							{item.runtime !== "luau" && narrowed === null && (
-								<span className={`hint runtime ${item.runtime}`} title={FILTER_SUMMARY[item.runtime]}>
+								<span
+									className={cx("hint runtime", item.runtime)}
+									title={FILTER_SUMMARY[item.runtime]}
+								>
 									{item.runtimeLabel ?? FILTER_LABEL[item.runtime]}
 								</span>
 							)}

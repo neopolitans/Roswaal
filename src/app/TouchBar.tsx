@@ -7,6 +7,7 @@
  */
 
 import type { NodeScript } from "../core/schema.js";
+import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import type { ActionLabels, ActionRowStyle } from "./preferences.js";
 import { store } from "./store.js";
@@ -59,7 +60,7 @@ export function TouchBar({ selected, canPaste, locked, labels = "icons", style =
 	);
 
 	return (
-		<div className={`touch-bar-group${style === "unified" ? " unified" : ""}`}>
+		<div className={cx("touch-bar-group", style === "unified" && "unified")}>
 			{action("Undo", "undo", "z", true, locked || !history.undo)}
 			{action("Redo", "redo", "y", true, locked || !history.redo)}
 			{/* A lines the selection up on the node picked first. */}

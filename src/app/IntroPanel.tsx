@@ -34,6 +34,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { api } from "./api.js";
 import { DEMO_PROJECTS, type DemoProject } from "../core/demoProjects.js";
+import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { MarkedLogo } from "./previewBuild.jsx";
 import { IS_STATIC_HOST, pageHref, type Page, guardLeave, openPage, pageTarget } from "./pages.js";
@@ -185,7 +186,7 @@ function emptyReason(surface: Page): string {
 
 /** The chip saying which runtime a demo compiles for. */
 function TargetChip({ target }: { target: DemoProject["target"] }) {
-	return <span className={`badge runtime ${target}`}>{RUNTIME_LABEL[target]}</span>;
+	return <span className={cx("badge runtime", target)}>{RUNTIME_LABEL[target]}</span>;
 }
 
 export function IntroPanel(props: IntroPanelProps) {
@@ -335,7 +336,7 @@ export function IntroPanel(props: IntroPanelProps) {
 							{offered.map((folder) => (
 								<div
 									key={folder.id}
-									className={`intro-card${folder.id === gone ? " gone" : ""}`}
+									className={cx("intro-card", folder.id === gone && "gone")}
 								>
 									<button
 										className="intro-card-open-it"
@@ -365,8 +366,11 @@ export function IntroPanel(props: IntroPanelProps) {
 							{listed.map((root) => (
 								<div
 									key={root}
-									className={`intro-card${root === current ? " on" : ""}` +
-										`${root === gone ? " gone" : ""}`}
+									className={cx(
+										"intro-card",
+										root === current && "on",
+										root === gone && "gone",
+									)}
 								>
 									<button className="intro-card-open-it" onClick={() => open(root)} title={root}>
 										<span className="intro-card-name">{projectName(root)}</span>

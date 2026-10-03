@@ -10,6 +10,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type PlaceTree } from "./api.js";
 import { classGlyph, groupProperties, isScriptClass, type PlaceInstanceInfo, type PlaceProperty } from "../core/rbx/browse.js";
+import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 
 /** Mirrors `TUCKED` in core/rbx/browse.ts, which the editor does not bundle. */
@@ -255,11 +256,11 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 							role="treeitem"
 							aria-selected={selected === i}
 							aria-expanded={kids && !row.match ? isOpen : undefined}
-							className={[
+							className={cx(
 								"tree-row place-row",
-								selected === i ? "selected" : "",
-								inspecting === i ? "open-doc" : "",
-							].filter(Boolean).join(" ")}
+								selected === i && "selected",
+								inspecting === i && "open-doc",
+							)}
 							style={{ paddingLeft: 6 + row.depth * 13 }}
 							title={`${row.match ? pathTo(nodes!, i).join(".") : name} (${cls}). Double-click for its properties.`}
 							onClick={() => (row.match ? reveal(i) : pick(i, false))}
@@ -389,7 +390,7 @@ function pathTo(nodes: readonly [number, string, number, number][], index: numbe
 /** The glyph the project tree uses for the same thing, and a cube for the rest. */
 function ClassIcon({ className, service, open }: { className: string; service: boolean; open: boolean }) {
 	const { icon, tone } = classGlyph(className, service, open);
-	return <Icon name={icon as IconName} size={15} className={`kind ${tone}`} />;
+	return <Icon name={icon as IconName} size={15} className={cx("kind", tone)} />;
 }
 
 /** What a drag out of Properties carries: the instance, and the property or attribute. */

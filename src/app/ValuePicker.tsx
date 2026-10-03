@@ -33,6 +33,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { classChain } from "../core/roblox.js";
+import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 
@@ -179,7 +180,11 @@ export function ValuePicker(props: ValuePickerProps) {
 	const option = (name: string) => (
 		<button
 			key={name}
-			className={`value-option${name === active ? " on" : ""}${name === props.value ? " current" : ""}`}
+			className={cx(
+				"value-option",
+				name === active && "on",
+				name === props.value && "current",
+			)}
 			onPointerEnter={() => setActive(name)}
 			onClick={() => commit(name)}
 		>

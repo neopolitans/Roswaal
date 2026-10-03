@@ -15,6 +15,7 @@ import {
 	isFilesystemMap, mapNodeRemove, mapNodeUpdate, type MapNode, type NodeMap,
 } from "../core/nodemap.js";
 import type { TreeEntry } from "./api.js";
+import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { newId } from "./store.js";
 
@@ -335,7 +336,7 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 				{compiled.diagnostics.length > 0 && (
 					<div className="map-diagnostics">
 						{compiled.diagnostics.map((d, i) => (
-							<div key={i} className={`entry ${d.severity}`}>
+							<div key={i} className={cx("entry", d.severity)}>
 								<span className="sev">{d.severity}</span>
 								<span>{d.message}</span>
 							</div>
@@ -408,7 +409,7 @@ function MapRow(props: MapRowProps) {
 	return (
 		<>
 			<div
-				className={`map-row${props.selected === node.id ? " selected" : ""}`}
+				className={cx("map-row", props.selected === node.id && "selected")}
 				style={{ paddingLeft: 8 + depth * 14 }}
 				onClick={() => props.onSelect(node.id)}
 			>

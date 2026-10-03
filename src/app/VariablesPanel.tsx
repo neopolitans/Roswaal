@@ -16,6 +16,7 @@ import {
 	hoistedFunctions, visibleFrom, withFunctionGraphs, type GraphId,
 } from "../core/functionGraph.js";
 import type { Registry } from "../core/nodes/index.js";
+import { cx } from "./cx.js";
 import {
 	addModule, addVariable, defaultLiteralFor, deleteModule, deleteSelection, deleteVariable,
 	localRefFor, moduleUsageCount, updateModule, updateVariable, variableUsageCount,
@@ -97,7 +98,7 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 	const required = requiredTypes(script, useProjectTypes());
 
 	return (
-		<div className={`variables${locked ? " editing-locked" : ""}`}>
+		<div className={cx("variables", locked && "editing-locked")}>
 			<h2>
 				<span>Variables</span>
 				<button
@@ -277,7 +278,7 @@ function ModuleRow(
 	}
 
 	return (
-		<div className={`variable${expanded ? " expanded" : ""}`}>
+		<div className={cx("variable", expanded && "expanded")}>
 			<div
 				className="variable-head"
 				draggable
@@ -483,7 +484,7 @@ function VariableRow({ variable, script, expanded, onToggle, confirm }: Variable
 	}
 
 	return (
-		<div className={`variable${expanded ? " expanded" : ""}`}>
+		<div className={cx("variable", expanded && "expanded")}>
 			<div className="variable-head" draggable onDragStart={onDragStart} onClick={onToggle}>
 				<span className="swatch" style={{ background: pinColor(variable.type, "data") }} />
 				<span className="name">{variable.name}</span>

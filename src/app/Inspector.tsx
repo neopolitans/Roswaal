@@ -12,6 +12,7 @@
 
 import { nodeTitle, type Registry } from "../core/nodes/index.js";
 import type { Comment, GraphNode, NodeDef, NodeScript } from "../core/schema.js";
+import { cx } from "./cx.js";
 import { useEditBurst } from "./editBurst.js";
 import { renameNode, updateComment } from "./edits.js";
 import { Field, InspectorSections } from "./InspectorSections.jsx";
@@ -90,7 +91,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 	if (!def) return null;
 
 	return (
-		<div className={`inspector${locked ? " editing-locked" : ""}`}>
+		<div className={cx("inspector", locked && "editing-locked")}>
 			<h2>Node</h2>
 			<div className="inspector-body">
 				<div className="node-heading" style={{ background: nodeColor(def) }}>
@@ -155,7 +156,7 @@ function CommentInspector({ comment, locked }: { comment: Comment; locked?: bool
 		store.edit((s) => updateComment(s, comment.id, { color }));
 
 	return (
-		<div className={`inspector${locked ? " editing-locked" : ""}`}>
+		<div className={cx("inspector", locked && "editing-locked")}>
 			<h2>Node</h2>
 			<div className="inspector-body">
 				<div className="node-heading" style={{ background: commentColor(comment.color) }}>
@@ -174,7 +175,7 @@ function CommentInspector({ comment, locked }: { comment: Comment; locked?: bool
 						{COMMENT_COLORS.map((choice) => (
 							<button
 								key={choice.hex}
-								className={`swatch${choice.hex === current ? " on" : ""}`}
+								className={cx("swatch", choice.hex === current && "on")}
 								style={{ background: `#${choice.hex}` }}
 								title={choice.name}
 								aria-label={choice.name}

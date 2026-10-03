@@ -19,6 +19,7 @@ import type { Comment, Literal, NodeConfig, NodeScript, PinDef, PinRef } from ".
 import { resolveNodePins, type Registry } from "../core/nodes/index.js";
 import type { Diagnostic } from "../core/compiler/index.js";
 import { viewOf, type GraphId } from "../core/functionGraph.js";
+import { cx } from "./cx.js";
 import {
 	isReroute, nodeBounds, pinPosition, rectFromPoints, rectsIntersect, screenToWorld, wirePath,
 	type WireStyle,
@@ -881,7 +882,7 @@ export function Canvas({
 
 	return (
 		<div
-			className={`canvas${wireDrag ? " wiring" : ""}${locked ? " locked" : ""}`}
+			className={cx("canvas", wireDrag && "canvas--wiring", locked && "canvas--locked")}
 			ref={surface}
 			tabIndex={0}
 			/**
@@ -1372,7 +1373,7 @@ export function Canvas({
 
 			{/* Over everything, so it swallows the pointer rather than relying on
 			    each handler below to check. The border is on the canvas itself —
-			    see `.canvas.locked` — because a border drawn by this element
+			    see `.canvas--locked` — because a border drawn by this element
 			    would disappear with it. */}
 			{locked && (
 				<div className="canvas-lock" style={{ zIndex: LAYER.lock }}>
@@ -1451,7 +1452,7 @@ function CommentView(props: CommentViewProps) {
 
 	return (
 		<div
-			className={`comment${props.selected ? " selected" : ""}`}
+			className={cx("comment", props.selected && "comment--selected")}
 			style={{
 				left: comment.x,
 				top: comment.y,

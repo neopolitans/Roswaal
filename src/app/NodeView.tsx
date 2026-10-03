@@ -6,6 +6,7 @@ import {
 
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { nodeTitle } from "../core/nodes/index.js";
+import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
@@ -106,7 +107,7 @@ function pinTarget(props: NodeViewProps, pin: PinDef, side: "in" | "out", conten
 	const picked = props.highlightPin === `${side}:${pin.id}`;
 	return (
 		<span
-			className={`pin-target${picked ? " pin-selected" : ""}`}
+			className={cx("pin-target", picked && "pin-selected")}
 			onPointerDown={(e) => props.onPinRowPointerDown!(e, props.node.id, pin, side)}
 		>
 			{content}
@@ -120,7 +121,7 @@ function NodeViewInner(props: NodeViewProps) {
 	if (!def) {
 		return (
 			<div
-				className="node has-error"
+				className="node node--has-error"
 				style={{ left: node.x, top: node.y, width: NODE.width, zIndex: LAYER.node }}
 			>
 				<div className="head" style={{ background: "#7a2f2f" }}>
@@ -155,13 +156,13 @@ function NodeViewInner(props: NodeViewProps) {
 
 	return (
 		<div
-			className={[
+			className={cx(
 				"node",
-				def.pure ? "pure" : "",
-				selected ? "selected" : "",
-				props.anchor ? "anchor" : "",
-				props.errorCount ? "has-error" : "",
-			].filter(Boolean).join(" ")}
+				def.pure && "node--pure",
+				selected && "node--selected",
+				props.anchor && "node--anchor",
+				props.errorCount && "node--has-error",
+			)}
 			style={style}
 			data-node-id={node.id}
 			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
@@ -173,7 +174,7 @@ function NodeViewInner(props: NodeViewProps) {
 				<span className="badge-count warn" title="Needs attention — see the Inspector">!</span>
 			)}
 			<div
-				className={`head${subtitle ? " two-line" : ""}`}
+				className={cx("head", subtitle && "two-line")}
 				style={{ background: nodeColor(def), height: head }}
 			>
 				<span className="lines">
@@ -240,7 +241,11 @@ function renderReroute(
 	const { node, selected } = props;
 	return (
 		<div
-			className={`node reroute${selected ? " selected" : ""}${props.anchor ? " anchor" : ""}`}
+			className={cx(
+				"node node--reroute",
+				selected && "node--selected",
+				props.anchor && "node--anchor",
+			)}
 			data-node-id={node.id}
 			style={{
 				left: node.x,
@@ -270,7 +275,12 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
 
 	return (
 		<div
-			className={`node capsule${selected ? " selected" : ""}${props.anchor ? " anchor" : ""}${props.errorCount ? " has-error" : ""}`}
+			className={cx(
+				"node node--capsule",
+				selected && "node--selected",
+				props.anchor && "node--anchor",
+				props.errorCount && "node--has-error",
+			)}
 			data-node-id={node.id}
 			style={{
 				left: node.x,
@@ -309,12 +319,12 @@ function renderOperator(
 
 	return (
 		<div
-			className={[
-				"node", "operator",
-				selected ? "selected" : "",
-				props.anchor ? "anchor" : "",
-				props.errorCount ? "has-error" : "",
-			].filter(Boolean).join(" ")}
+			className={cx(
+				"node node--operator",
+				selected && "node--selected",
+				props.anchor && "node--anchor",
+				props.errorCount && "node--has-error",
+			)}
 			data-node-id={node.id}
 			style={{
 				left: node.x,
@@ -384,18 +394,18 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	const wired = props.connected.has(`${side}:${node.id}/${pin.id}`);
 	const drag = props.drag;
 
-	let state = "";
+	let state: string | undefined;
 	if (drag) {
 		// While a wire is in flight, dim everything it cannot land on so the
 		// legal targets are the only thing that reads as clickable.
-		state = props.canAccept(node.id, pin, side) ? " compatible" : " incompatible";
+		state = props.canAccept(node.id, pin, side) ? "compatible" : "incompatible";
 	}
 
 	// Marked on the pin itself as well as its row, for the pill, which has no rows.
-	const highlighted = props.highlightPin === `${side}:${pin.id}` ? " highlighted" : "";
+	const highlighted = props.highlightPin === `${side}:${pin.id}` && "highlighted";
 	const dot = (
 		<span
-			className={`pin ${pin.kind}${wired ? " connected" : ""}${state}${highlighted}`}
+			className={cx("pin", pin.kind, wired && "connected", state, highlighted)}
 			style={{ color: pinColor(pin.type, pin.kind) }}
 			title={pin.description ?? (pin.kind === "data" ? pinTypeText(pin) : pin.kind)}
 			onPointerDown={(e) => props.onPinPointerDown(e, node.id, pin, side)}
@@ -415,7 +425,7 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	// children of a split struct pin — without that, three number pins called X,
 	// Y and Z read as three unrelated inputs.
 	const label = pin.name ? (
-		<span className={`pin-label${pin.part ? " part" : ""}`}>{pin.name}</span>
+		<span className={cx("pin-label", pin.part && "part")}>{pin.name}</span>
 	) : null;
 
 	// An unwired data input is edited in place, which is what keeps simple

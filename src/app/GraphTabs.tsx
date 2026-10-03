@@ -31,6 +31,7 @@
 
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
+import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
@@ -130,19 +131,21 @@ export function GraphTabs({ documents, functionTabs, onActivate, onClose, onReor
 	if (!shown) return null;
 
 	return (
-		<div className={`graph-tabs${drag ? " reordering" : ""}`} ref={row} role="tablist">
+		<div className={cx("graph-tabs", drag && "reordering")} ref={row} role="tablist">
 			{documents.map((doc) => {
 				const label = tabLabel(doc, functionTabs);
 				const full = tabLabel(doc, "full");
-				const marks = [
-					drag?.key === doc.key ? " dragging" : "",
-					drag && drag.before === doc.key ? " drop-before" : "",
-				].join("");
 				return (
 					<div
 						key={doc.key}
 						data-tab={doc.key}
-						className={`graph-tab${doc.active ? " on" : ""}${doc.dirty ? " dirty" : ""}${marks}`}
+						className={cx(
+							"graph-tab",
+							doc.active && "on",
+							doc.dirty && "dirty",
+							drag?.key === doc.key && "dragging",
+							drag?.before === doc.key && "drop-before",
+						)}
 						role="tab"
 						aria-selected={doc.active}
 						title={doc.graph === null ? doc.path : `ƒ ${full}\n${doc.path}`}
@@ -169,7 +172,7 @@ export function GraphTabs({ documents, functionTabs, onActivate, onClose, onReor
 			})}
 			{/* The end of the row is a drop target too, and has to be wide enough
 			    to hit when the row is full. It also holds the list. */}
-			<div className={`tab-rest${drag && drag.before === null ? " drop-before" : ""}`}>
+			<div className={cx("tab-rest", drag && drag.before === null && "drop-before")}>
 				{documents.length > 2 && (
 					<TabList
 						documents={documents}
@@ -238,7 +241,7 @@ function TabList(props: {
 					{documents.map((doc) => (
 						<button
 							key={doc.key}
-							className={`tab-list-item${doc.active ? " on" : ""}`}
+							className={cx("tab-list-item", doc.active && "on")}
 							title={doc.path}
 							onClick={() => props.onActivate(doc.key)}
 						>

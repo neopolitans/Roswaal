@@ -21,6 +21,7 @@ import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/l
 import type { Registry } from "../core/nodes/index.js";
 import type { NodeScript } from "../core/schema.js";
 import { api } from "./api.js";
+import { cx } from "./cx.js";
 import { LAYER } from "./layers.js";
 import {
 	graphTableMembers, luauCompletionSource, precedingLocals, scopeCompletions,
@@ -185,7 +186,7 @@ export function CodeEditor({
 
 				<div className="code-body" ref={host} />
 
-				<div className={`code-status${problems.length ? " bad" : ""}`}>
+				<div className={cx("code-status", problems.length && "bad")}>
 					{problems.length === 0 ? (
 						<span>Reads as Luau. Inserted into the generated file exactly as written.</span>
 					) : (

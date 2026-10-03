@@ -12,6 +12,7 @@
  */
 
 import { STABLE_SITE } from "../core/docs/links.js";
+import { cx } from "./cx.js";
 import { Logo } from "./logo.jsx";
 import { IS_BACKUP, IS_CANARY, IS_STATIC_HOST } from "./pages.js";
 import {
@@ -41,7 +42,7 @@ export function PreviewChip({ title }: { title?: string } = {}) {
 	const mark = buildMark();
 	if (mark === null) return null;
 	return (
-		<span className={`version preview-chip ${mark}`} title={title ?? MARK_ON_SURFACE[mark]}>
+		<span className={cx("version preview-chip", mark)} title={title ?? MARK_ON_SURFACE[mark]}>
 			{MARK_LABEL[mark]}
 		</span>
 	);

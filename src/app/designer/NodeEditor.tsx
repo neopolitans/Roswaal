@@ -33,6 +33,7 @@ import { createRegistry, type Registry } from "../../core/nodes/index.js";
 import { LOGIC_NODES } from "../../core/nodes/logic.js";
 import type { GraphNode, Literal, NodeDef, PinDef, Target } from "../../core/schema.js";
 import { api } from "../api.js";
+import { cx } from "../cx.js";
 import { FloatingTools, ToolGroup } from "../FloatingTools.jsx";
 import { headerHeight, isCompact, nodeBounds, nodeWidth, pinPosition } from "../geometry.js";
 import { Icon } from "../icons.jsx";
@@ -385,7 +386,7 @@ export function NodeEditor({
 								}}
 							>
 								<span
-									className={`chip-dot ${type === "exec" ? "exec" : "data"}`}
+									className={cx("chip-dot", type === "exec" ? "exec" : "data")}
 									style={{ color: pinColor(type === "exec" ? undefined : type, type === "exec" ? "exec" : "data") }}
 								/>
 								{type === "exec" ? "Execution" : type}
@@ -407,7 +408,7 @@ export function NodeEditor({
 	const nodeKind = (
 		<>
 						<span
-							className={`badge${purity === "unrunnable" ? " warn" : ""}`}
+							className={cx("badge", purity === "unrunnable" && "warn")}
 							title={
 								purity === "pure"
 									? "No execution pins: a value, evaluated where it is used."
@@ -466,7 +467,7 @@ export function NodeEditor({
 	);
 
 	return (
-		<div className={`node-editor${split ? ` split view-${view}` : ""}`}>
+		<div className={cx("node-editor", split && "split", split && `view-${view}`)}>
 			{split && (() => {
 				// Preview or Logic, and with Logic which way it is written: one
 				// row's worth of switches, in the pack's bar where there is one.
@@ -550,7 +551,7 @@ export function NodeEditor({
 				<FloatingTools label="Node">
 					<ToolGroup>
 						<button
-							className={`tb with-icon${detailsOpen ? " on" : ""}`}
+							className={cx("tb with-icon", detailsOpen && "on")}
 							aria-pressed={detailsOpen}
 							title="The node's id, title, category, and the summary its documentation reads"
 							onClick={toggleDetails}
@@ -659,7 +660,7 @@ export function NodeEditor({
 				</div>
 				)}
 
-				<div className={`node-problems${problems.length ? " bad" : ""}`}>
+				<div className={cx("node-problems", problems.length && "bad")}>
 					{problems.length === 0 ? (
 						<span>{dirty ? "Ready to save." : "Saved, and the project loads it."}</span>
 					) : (
@@ -722,7 +723,7 @@ export function NodeEditor({
 
 			<div className="logic-splitter" onPointerDown={startResize} title="Drag to resize" />
 			<div className="node-logic" style={split ? undefined : { height: logicHeight }}>
-				<div className={`logic-head${split ? " logic-head-slim" : ""}`}>
+				<div className={cx("logic-head", split && "logic-head-slim")}>
 					{!split && <strong>Logic</strong>}
 					{!split && modeSwitch}
 					{draft.logicMode === "luau" && purity === "pure" && dataOutputs.length > 1 && (
@@ -745,7 +746,7 @@ export function NodeEditor({
 					)}
 				</div>
 				{draft.logicMode === "nodes" && draft.logic ? (
-					<div className={`logic-split${showLuau ? "" : " luau-hidden"}`}>
+					<div className={cx("logic-split", !showLuau && "luau-hidden")}>
 						<LogicCanvas
 							graph={draft.logic}
 							shape={shape}
@@ -754,7 +755,7 @@ export function NodeEditor({
 							onChange={onLogicChange}
 							tools={
 								<button
-									className={`tb icon-only${showLuau ? " on" : ""}`}
+									className={cx("tb icon-only", showLuau && "on")}
 									aria-pressed={showLuau}
 									title="Preview — the Luau this logic compiles to, and what the node is saved as"
 									aria-label="Preview the Luau"
@@ -847,7 +848,7 @@ function PinPopover(props: {
 		<div className="pin-popover" style={props.style} onPointerDown={(e) => e.stopPropagation()}>
 			<div className="pin-popover-head">
 				<span
-					className={`chip-dot ${pin.kind}`}
+					className={cx("chip-dot", pin.kind)}
 					style={{ color: pinColor(pin.kind === "exec" ? undefined : pin.type, pin.kind) }}
 				/>
 				<strong>{pin.kind === "exec" ? "Execution" : pin.name || pin.id}</strong>

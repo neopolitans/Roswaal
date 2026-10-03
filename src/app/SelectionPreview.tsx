@@ -37,6 +37,7 @@ import { graphMembers, type GraphId } from "../core/functionGraph.js";
 import type { NodeScript } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { nodeTitle } from "../core/nodes/index.js";
+import { cx } from "./cx.js";
 import { surfacesIn } from "./edits.js";
 import { highlightLuau } from "./highlight.js";
 import { Icon } from "./icons.jsx";
@@ -167,7 +168,11 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 							) : (
 								<span
 									key={row.line}
-									className={`ln${row.mine ? " mine" : ""}${row.downstream ? " downstream" : ""}`}
+									className={cx(
+										"ln",
+										row.mine && "mine",
+										row.downstream && "downstream",
+									)}
 								>
 									<span className="num">{row.line}</span>
 									<span className="text">

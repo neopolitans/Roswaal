@@ -17,6 +17,7 @@ import { useRef } from "react";
 import type { NodeScript, PinDef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins } from "../core/nodes/index.js";
+import { cx } from "./cx.js";
 import { canPromoteToVariable, pinLinkCount, splitModesFor } from "./edits.js";
 import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
@@ -145,7 +146,7 @@ export function PinMenu(props: PinMenuProps) {
 		<div className="menu pin-menu" ref={root} style={style}>
 			<div className="pin-head">
 				<span
-					className={`swatch ${target.pin.kind}`}
+					className={cx("swatch", target.pin.kind)}
 					style={{ background: pinColor(target.pin.type, target.pin.kind) }}
 				/>
 				<span className="name">{target.pin.name || target.pin.id}</span>

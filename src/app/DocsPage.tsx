@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createRegistry } from "../core/nodes/index.js";
+import { cx } from "./cx.js";
 import { pageHref, pagesShareTab } from "./pages.js";
 import type { NodeDef } from "../core/schema.js";
 import { api } from "./api.js";
@@ -99,7 +100,7 @@ export function DocsPage() {
 
 	return (
 		<>
-		<div className={`docs-page${navOpen ? " nav-open" : ""}`}>
+		<div className={cx("docs-page", navOpen && "nav-open")}>
 			{/* The sharper wording: these pages describe a build that is not out. */}
 			<SiteBanner kind="docs" />
 			<header className="docs-page-head">
@@ -119,7 +120,7 @@ export function DocsPage() {
 					<span className="version">{VERSION}</span>
 				</button>
 				<button
-					className={`tb docs-nav-toggle${navOpen ? " on" : ""}`}
+					className={cx("tb docs-nav-toggle", navOpen && "on")}
 					aria-expanded={navOpen}
 					onClick={() => setNavOpen((open) => !open)}
 				>

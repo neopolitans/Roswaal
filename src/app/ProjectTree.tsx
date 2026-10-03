@@ -9,6 +9,7 @@
 import { memo, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import type { TreeEntry } from "./api.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
+import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { useDismiss } from "./dismiss.js";
@@ -242,7 +243,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 					return (
 						<div
 							key={`${entry.path}#${fn.id}`}
-							className={`tree-row function-row${open ? " open-doc" : ""}`}
+							className={cx("tree-row function-row", open && "open-doc")}
 							style={{ paddingLeft: 6 + (depth + fn.depth) * 13 }}
 							title={`${fn.name} in ${entry.name}. Double-click to open its graph.`}
 							onDoubleClick={() => props.onOpenFunction(entry.path, fn.id)}
@@ -258,7 +259,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 					return (
 						<div
 							key={sectionKey(section.id)}
-							className={`tree-section${shut ? " shut" : ""}`}
+							className={cx("tree-section", shut && "shut")}
 							title={section.hint}
 							onClick={() => toggle(sectionKey(section.id))}
 						>
@@ -276,19 +277,17 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 				return (
 					<div
 						key={entry.path}
-						className={[
+						className={cx(
 							"tree-row",
-							selected.has(entry.path) ? "selected" : "",
+							selected.has(entry.path) && "selected",
 							// The folder the toolbar's New graph would use. Marked
 							// rather than left implicit, because a button that acts
 							// on something you clicked earlier has to show what.
-							isDir && entry.path === targetDir && holdsGraphs(entry.path)
-								? "target-dir"
-								: "",
-							openPath === entry.path ? "open-doc" : "",
-							readonly ? "readonly" : "",
-							dropTarget === entry.path ? "drop-target" : "",
-						].filter(Boolean).join(" ")}
+							isDir && entry.path === targetDir && holdsGraphs(entry.path) && "target-dir",
+							openPath === entry.path && "open-doc",
+							readonly && "readonly",
+							dropTarget === entry.path && "drop-target",
+						)}
 						style={{ paddingLeft: 6 + depth * 13 }}
 						draggable={!isDir && !isListed(entry)}
 						onDragStart={(e) => onDragStart(e, entry)}
@@ -362,7 +361,11 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 								<Icon
 									name={KIND_ICONS[entry.kind as keyof typeof KIND_ICONS]}
 									size={15}
-									className={`kind ${entry.kind}${entry.kind === "luau" ? ` ${scriptClass(entry.name)}` : ""}`}
+									className={cx(
+										"kind",
+										entry.kind,
+										entry.kind === "luau" && scriptClass(entry.name),
+									)}
 								/>
 							</>
 						)}
@@ -431,7 +434,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							<span>Insert package zip…</span>
 						</div>
 						<div
-							className={`item${canGithub ? "" : " item-unavailable"}`}
+							className={cx("item", !canGithub && "item-unavailable")}
 							title={canGithub ? undefined : NOT_HERE}
 							onClick={() => {
 								if (!canGithub) return;
@@ -491,7 +494,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							<span>New folder</span>
 						</div>
 						<div
-							className={`item${canReveal ? "" : " item-unavailable"}`}
+							className={cx("item", !canReveal && "item-unavailable")}
 							title={canReveal ? undefined : NOT_HERE}
 							onClick={() => {
 								if (!canReveal) return;

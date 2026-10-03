@@ -33,6 +33,7 @@ import type { TableMember } from "../core/luau/infer.js";
 import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
 import type { Target } from "../core/schema.js";
 import { api } from "./api.js";
+import { cx } from "./cx.js";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { luauExtensions } from "./luauExtensions.js";
 import { luauWarnings } from "./luauLint.js";
@@ -163,7 +164,7 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 		<div className="source">
 			<div className="source-head">
 				<span className="name">{name}</span>
-				<span className={`badge${generated ? " generated" : ""}`}>
+				<span className={cx("badge", generated && "generated")}>
 					{generated ? "generated" : "hand-written"}
 				</span>
 				<span className="meta">{lines} lines</span>

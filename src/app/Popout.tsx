@@ -10,6 +10,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
+import { cx } from "./cx.js";
 import { useDismiss } from "./dismiss.js";
 import { Icon } from "./icons.jsx";
 
@@ -83,9 +84,12 @@ export function Popout({ label, title, end = false, up = false, closeOnPick = fa
 	}, [open, side]);
 	useDismiss(box, () => setOpen(false), { enabled: open });
 	return (
-		<div className={`tool-popout${side === "end" ? " tool-popout-end" : ""}${up ? " tool-popout-up" : ""}`} ref={box}>
+		<div
+			className={cx("tool-popout", side === "end" && "tool-popout-end", up && "tool-popout-up")}
+			ref={box}
+		>
 			<button
-				className={`tb with-icon${open ? " on" : ""}`}
+				className={cx("tb with-icon", open && "on")}
 				title={title}
 				aria-expanded={open}
 				onClick={() => setOpen((was) => !was)}

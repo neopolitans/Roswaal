@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { rankDocs, type DocsHit, type SearchEntry } from "../core/docs/site.js";
+import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 
@@ -157,14 +158,14 @@ export function DocsSearch({ index, recent, onPick, onClose }: DocsSearchProps) 
 								return (
 									<button
 										key={hit.entry.slug}
-										className={`docs-palette-hit${i === active ? " on" : ""}`}
+										className={cx("docs-palette-hit", i === active && "on")}
 										onPointerEnter={() => setActive(i)}
 										onClick={() => onPick(hit.entry.slug)}
 									>
 										{/* `kind-node`, not `node`: `.node` is the canvas node, and a bare
 										    modifier class in a six-thousand-line stylesheet finds it.
 										    This one came out `position: absolute`, under the title. */}
-										<span className={`kind kind-${kind}`}>
+										<span className={cx("kind", `kind-${kind}`)}>
 											{kind === "node" ? "Node" : "Article"}
 										</span>
 										<span className="body">

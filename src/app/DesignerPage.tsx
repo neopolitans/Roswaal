@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Target } from "../core/schema.js";
 import { api, type PackFile } from "./api.js";
+import { cx } from "./cx.js";
 import { PackBrowser, type OpenPack } from "./designer/PackBrowser.jsx";
 import { PackView } from "./designer/PackView.jsx";
 import { DocsSearch } from "./DocsSearch.jsx";
@@ -183,7 +184,10 @@ export function DesignerPage() {
 			)}
 
 			{notice && (
-				<div className={`designer-notice ${notice.kind}`} role={notice.kind === "failed" ? "alert" : "status"}>
+				<div
+					className={cx("designer-notice", notice.kind)}
+					role={notice.kind === "failed" ? "alert" : "status"}
+				>
 					<span>{notice.text}</span>
 					<button className="tb" onClick={() => setNotice(null)} aria-label="Dismiss">
 						×

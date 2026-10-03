@@ -29,6 +29,7 @@
 
 import { useMemo, useState } from "react";
 
+import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import {
 	aliasesOf, chainFor, lookupAlias, parseLuaurc, withAliases,
@@ -128,7 +129,9 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 			)}
 
 			{here?.problems.map((trouble, i) => (
-				<p key={i} className={`settings-problem ${trouble.severity}`}>{trouble.message}</p>
+				<p key={i} className={cx("settings-problem", trouble.severity)}>
+					{trouble.message}
+				</p>
 			))}
 
 			{aliases.length === 0 && draft === null && (

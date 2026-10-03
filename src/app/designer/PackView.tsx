@@ -29,6 +29,7 @@ import { BUILTIN_NODES, parseNodePack } from "../../core/nodes/index.js";
 import { namespaceFor } from "../../core/packs.js";
 import type { NodeDef, Target } from "../../core/schema.js";
 import { api, type PackFile } from "../api.js";
+import { cx } from "../cx.js";
 import { Icon } from "../icons.jsx";
 import { NODE } from "../layers.js";
 import { nodeColor, pinColor } from "../palette.js";
@@ -193,11 +194,11 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 	};
 
 	return (
-		<div className={`pack-view${compact ? " compact" : ""}`}>
+		<div className={cx("pack-view", compact && "compact")}>
 			{compact && (
 				<div className="pack-compact-bar">
 					<button
-						className={`tb with-icon${listOpen ? " on" : ""}`}
+						className={cx("tb with-icon", listOpen && "on")}
 						aria-expanded={listOpen}
 						onClick={() => setListOpen((open) => !open)}
 					>
@@ -210,7 +211,11 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 			)}
 			{compact && listOpen && <div className="pack-scrim" onClick={() => setListOpen(false)} />}
 			<aside
-				className={`pack-nodes${compact ? (listOpen ? " drawer drawer-open" : " drawer") : ""}`}
+				className={cx(
+					"pack-nodes",
+					compact && "drawer",
+					compact && listOpen && "drawer-open",
+				)}
 				inert={compact && !listOpen}
 			>
 				<button className="tb with-icon pack-back" onClick={() => go("back")}>
@@ -238,7 +243,7 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 						{requires.map((name) => (
 							<span
 								key={name}
-								className={`badge${missingRequires.includes(name) ? " warn" : ""}`}
+								className={cx("badge", missingRequires.includes(name) && "warn")}
 								title={missingRequires.includes(name) ? "This project does not have it" : undefined}
 							>
 								{name}
@@ -311,7 +316,7 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 						{defs.map((def) => (
 							<li key={def.id}>
 								<button
-									className={`pack-node${current?.id === def.id ? " on" : ""}`}
+									className={cx("pack-node", current?.id === def.id && "on")}
 									onClick={() => {
 										if (current?.id !== def.id) go({ id: def.id });
 										setListOpen(false);

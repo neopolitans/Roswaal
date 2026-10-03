@@ -34,6 +34,7 @@ import { resolveNodePins, type Registry } from "../../core/nodes/index.js";
 import { LOGIC_DENIED, LOGIC_INPUTS, LOGIC_OUTPUTS, type LogicShape } from "../../core/nodes/logic.js";
 import type { NodeConfig, NodeDef, NodeScript, Target } from "../../core/schema.js";
 import { Canvas } from "../Canvas.jsx";
+import { cx } from "../cx.js";
 import {
 	addComment, addNode, alignToAnchor, connect, copySelection, deleteSelection, landingPins,
 	pasteClipping, selectionAnchor, setConfig, withCommentContents, type Clipping,
@@ -342,7 +343,7 @@ export function LogicCanvas({ graph, shape, registry, target, onChange, tools }:
 						<Icon name="layout" size={16} />
 					</button>
 					<button
-						className={`tb${alignExec ? " on" : ""}`}
+						className={cx("tb", alignExec && "on")}
 						aria-pressed={alignExec}
 						title={
 							alignExec

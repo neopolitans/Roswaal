@@ -32,6 +32,7 @@ import {
 	useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode,
 } from "react";
 
+import { cx } from "./cx.js";
 import {
 	COMPACT_QUERY, dockVisible, dropZone, floatingPanels, gridTemplate, panelsIn, MIN_FLOAT,
 	PANEL_IDS, PANEL_TITLES,
@@ -189,7 +190,7 @@ export function Workspace({
 
 	return (
 		<div
-			className={`workspace${dragging ? " dragging" : ""}${compact ? " compact" : ""}`}
+			className={cx("workspace", dragging && "dragging", compact && "compact")}
 			ref={surface}
 			style={{ gridTemplateColumns: tracks.columns, gridTemplateRows: tracks.rows }}
 		>
@@ -243,11 +244,11 @@ export function Workspace({
 					<div className="drawer-toggles">
 						{compact && touchBar && <div className="touch-bar">{touchBar}</div>}
 						{(["left", "right"] as const).map((side) => (
-							<div key={side} className={`drawer-group drawer-${side}`}>
+							<div key={side} className={cx("drawer-group", `drawer-${side}`)}>
 								{drawers[side].map((id) => (
 									<button
 										key={id}
-										className={`tb drawer-toggle${openPanel === id ? " on" : ""}`}
+										className={cx("tb drawer-toggle", openPanel === id && "on")}
 										aria-expanded={openPanel === id}
 										onClick={() => setDrawer(openPanel === id ? null : id)}
 									>
@@ -444,7 +445,7 @@ function FloatingPanel({
 
 	return (
 		<div
-			className={`float-panel float-${id}`}
+			className={cx("float-panel", `float-${id}`)}
 			style={{ left: frame.x, top: frame.y, width: frame.w, height: frame.h }}
 		>
 			{/* No bar of its own. The panel's heading is the handle, which is the
@@ -461,7 +462,7 @@ function FloatingPanel({
 				    rather than one element — lands differently in a window than in
 				    a dock, which is the one thing a panel moving between them must
 				    not do. */}
-				<div className={`panel panel-${id}`}>{children}</div>
+				<div className={cx("panel", `panel-${id}`)}>{children}</div>
 			</div>
 			{onDock && (
 				<button
@@ -542,7 +543,7 @@ function Dock({
 
 	return (
 		<div
-			className={`dock ${side}${drawer === undefined ? "" : out ? " drawer drawer-open" : " drawer"}`}
+			className={cx("dock", side, drawer !== undefined && "drawer", out && "drawer-open")}
 			style={{ gridArea: side }}
 			// Kept mounted while it is in, so the tree keeps what was expanded
 			// and where it was scrolled to -- but out of reach of focus.
@@ -552,7 +553,11 @@ function Dock({
 				<div
 					// The drawer shows the one panel asked for. The others stay
 					// mounted beside it, hidden, for the reason the drawer does.
-					className={`panel panel-${id}${drawer !== undefined && drawer.open !== id ? " panel-away" : ""}`}
+					className={cx(
+						"panel",
+						`panel-${id}`,
+						drawer !== undefined && drawer.open !== id && "panel-away",
+					)}
 					key={id}
 					title={
 						onDragPanel
@@ -645,7 +650,7 @@ function Splitter({
 
 	return (
 		<div
-			className={`splitter ${side} ${axis}`}
+			className={cx("splitter", side, axis)}
 			style={{ gridArea: `split-${side}` }}
 			role="separator"
 			aria-orientation={axis === "col" ? "vertical" : "horizontal"}

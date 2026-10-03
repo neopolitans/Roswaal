@@ -28,6 +28,7 @@ import { createPortal } from "react-dom";
 
 import { categoryLabel } from "../core/schema.js";
 import type { NodeConfig, NodeDef } from "../core/schema.js";
+import { cx } from "./cx.js";
 import type { Preset } from "./NodeMenu.jsx";
 import { categories, type Registry } from "../core/nodes/index.js";
 import { previewOf, previewSvg, type PreviewOptions } from "../core/docs/preview.js";
@@ -242,7 +243,7 @@ export function NodePicker(
 
 	return createPortal(
 		<div
-			className={`picker-backdrop${dragging ? " picker-backdrop-dragging" : ""}`}
+			className={cx("picker-backdrop", dragging && "picker-backdrop-dragging")}
 			style={{ zIndex: LAYER.menu }}
 			onPointerDown={(e) => {
 				if (e.target === e.currentTarget) onClose();
@@ -323,7 +324,7 @@ export function NodePicker(
 									return (
 										<button
 											key={hit.key}
-											className={`node-picker-hit${i === active ? " on" : ""}`}
+											className={cx("node-picker-hit", i === active && "on")}
 											draggable
 											onPointerEnter={(e) => {
 												if (e.pointerType === "mouse") setActive(i);
@@ -368,7 +369,7 @@ export function NodePicker(
 											{hit.def.pure && <span className="hint">pure</span>}
 											{hit.filter !== "luau" && narrowed === null && (
 												<span
-													className={`hint runtime ${hit.filter}`}
+													className={cx("hint runtime", hit.filter)}
 													title={FILTER_SUMMARY[hit.filter]}
 												>
 													{FILTER_LABEL[hit.filter]}
