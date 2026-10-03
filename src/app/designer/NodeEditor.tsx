@@ -38,6 +38,7 @@ import { headerHeight, isCompact, nodeBounds, nodeWidth, pinPosition } from "../
 import { Icon } from "../icons.jsx";
 import { NodeView } from "../NodeView.jsx";
 import { pinColor } from "../palette.js";
+import { trackPointer } from "../pointer.js";
 import { TypePicker } from "../TypePicker.jsx";
 import {
 	addPin, defOf, draftOf, movePin, newDraft, pillShape, problemsOf, purityOf, removePin, renamePin,
@@ -309,21 +310,22 @@ export function NodeEditor({
 		const startY = e.clientY;
 		const startH = logicHeight;
 		let latest = startH;
-		const move = (ev: PointerEvent) => {
-			latest = Math.round(Math.min(window.innerHeight * 0.7, Math.max(90, startH - (ev.clientY - startY))));
-			setLogicHeight(latest);
-		};
-		const up = () => {
-			window.removeEventListener("pointermove", move);
-			window.removeEventListener("pointerup", up);
-			try {
-				localStorage.setItem(LOGIC_KEY, String(latest));
-			} catch {
-				// The size still applies to this visit.
-			}
-		};
-		window.addEventListener("pointermove", move);
-		window.addEventListener("pointerup", up);
+		// A cancelled drag keeps the height it reached, as a released one does.
+		trackPointer(e, {
+			move: (ev) => {
+				latest = Math.round(
+					Math.min(window.innerHeight * 0.7, Math.max(90, startH - (ev.clientY - startY))),
+				);
+				setLogicHeight(latest);
+			},
+			end: () => {
+				try {
+					localStorage.setItem(LOGIC_KEY, String(latest));
+				} catch {
+					// The size still applies to this visit.
+				}
+			},
+		});
 	};
 
 	// -- the selected pin's popover ----------------------------------------

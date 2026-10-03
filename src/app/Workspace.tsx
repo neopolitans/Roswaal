@@ -37,6 +37,7 @@ import {
 	PANEL_IDS, PANEL_TITLES,
 	type DockSide, type Layout, type PanelFrame, type PanelId,
 } from "./panels.js";
+import { trackPointer } from "./pointer.js";
 
 export interface WorkspaceProps {
 	layout: Layout;
@@ -323,26 +324,18 @@ export function Workspace({
 			setDragging({ panel, over: rect ? dropZone(rect, e.clientX, e.clientY) : null });
 		};
 
-		const up = (e: PointerEvent) => {
-			window.removeEventListener("pointermove", move);
-			window.removeEventListener("pointerup", up);
-			window.removeEventListener("pointercancel", up);
+		const end = (e: PointerEvent | undefined) => {
 			setDragging(null);
-			if (!started) return;
+			// A cancelled pointer was not dropped anywhere.
+			if (!started || !e) return;
 			const rect = surface.current?.getBoundingClientRect();
 			const side = rect ? dropZone(rect, e.clientX, e.clientY) : null;
 			if (side) {
 				onMovePanel?.(panel, side);
 				return;
 			}
-			/**
-			 * Dropped over the graph: a window, where it was dropped.
-			 *
-			 * The gesture everybody tries first — drag the panel out of the dock
-			 * and onto the canvas — used to do nothing at all, because the only
-			 * drop targets were the three edges. A drop in the middle is not a
-			 * miss; it is the other place a panel can be.
-			 */
+			// Dropped over the graph: a window, where it was dropped. A drop in
+			// the middle is not a miss; it is the other place a panel can be.
 			const centre = centreBox.current?.getBoundingClientRect();
 			if (!centre || !onFloatPanel) return;
 			if (
@@ -358,9 +351,7 @@ export function Workspace({
 			});
 		};
 
-		window.addEventListener("pointermove", move);
-		window.addEventListener("pointerup", up);
-		window.addEventListener("pointercancel", up);
+		trackPointer(event, { move, end });
 	}
 }
 
@@ -409,9 +400,9 @@ function FloatingPanel({
 			const from = start.current;
 			if (!from) return;
 			// A move with nothing held is a release this never heard. See the
-			// splitter, which had the same bug and the same fix.
+			// splitter, which has the same check.
 			if (at.buttons === 0) {
-				up();
+				stop();
 				return;
 			}
 			const dx = at.clientX - from.x;
@@ -442,17 +433,13 @@ function FloatingPanel({
 				h: from.frame.h - takeY,
 			});
 		};
-		const up = () => {
-			start.current = null;
-			window.removeEventListener("pointermove", move);
-			window.removeEventListener("pointerup", up);
-			window.removeEventListener("pointercancel", up);
-			onFrameEnd?.();
-		};
-
-		window.addEventListener("pointermove", move);
-		window.addEventListener("pointerup", up);
-		window.addEventListener("pointercancel", up);
+		const stop = trackPointer(e, {
+			move,
+			end: () => {
+				start.current = null;
+				onFrameEnd?.();
+			},
+		});
 	}
 
 	return (
@@ -621,13 +608,13 @@ function Splitter({
 	/**
 	 * Drag to resize, on the **window** rather than on the handle.
 	 *
-	 * It listened on the handle with a pointer capture, which is the tidier
-	 * shape and has one failure that matters: if the capture is not granted —
-	 * or is lost, which a browser may do for its own reasons — the release
-	 * happens somewhere else and the handle never hears about it. The move
-	 * listener then survives the drag, and the next time the pointer *passes
-	 * over* the splitter with no button held it carries on resizing from the
-	 * position it was left at, which is the dock walking outwards on its own.
+	 * A pointer capture on the handle is the tidier shape and has one failure
+	 * that matters: if the capture is not granted — or is lost, which a
+	 * browser may do for its own reasons — the release happens somewhere else
+	 * and the handle never hears about it. The move listener then survives the
+	 * drag, and the next time the pointer *passes over* the splitter with no
+	 * button held it carries on resizing, which is the dock walking outwards on
+	 * its own.
 	 *
 	 * On the window, the release is heard wherever it happens. `buttons` is
 	 * checked as well, so a move that arrives with nothing held ends the drag
@@ -642,7 +629,7 @@ function Splitter({
 
 		const move = (move: PointerEvent) => {
 			if (move.buttons === 0) {
-				up();
+				stop();
 				return;
 			}
 			// Each side grows in a different direction: the left dock follows the
@@ -653,16 +640,7 @@ function Splitter({
 				: startY - move.clientY;
 			onResize(size + delta);
 		};
-		const up = () => {
-			window.removeEventListener("pointermove", move);
-			window.removeEventListener("pointerup", up);
-			window.removeEventListener("pointercancel", up);
-			onResizeEnd?.();
-		};
-
-		window.addEventListener("pointermove", move);
-		window.addEventListener("pointerup", up);
-		window.addEventListener("pointercancel", up);
+		const stop = trackPointer(e, { move, end: () => onResizeEnd?.() });
 	}
 
 	return (

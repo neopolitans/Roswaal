@@ -33,6 +33,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
+import { trackPointer } from "./pointer.js";
 import type { FunctionTabs } from "./preferences.js";
 import type { OpenDocument } from "./store.js";
 
@@ -101,29 +102,28 @@ export function GraphTabs({ documents, functionTabs, onActivate, onClose, onReor
 
 		const startX = e.clientX;
 		let moved = false;
+		// Captured so the tab keeps the pointer as it passes over its
+		// neighbours; the events still bubble to the window `trackPointer` hears.
 		const target = e.currentTarget as HTMLElement;
 		target.setPointerCapture(e.pointerId);
 
-		const move = (ev: PointerEvent) => {
-			if (!moved && Math.abs(ev.clientX - startX) < DRAG_THRESHOLD) return;
-			moved = true;
-			const before = landingAt(ev.clientX);
-			setDrag({ key, before: before === key ? null : before });
-		};
-		const up = (ev: PointerEvent) => {
-			target.releasePointerCapture?.(ev.pointerId);
-			target.removeEventListener("pointermove", move);
-			target.removeEventListener("pointerup", up);
-			target.removeEventListener("pointercancel", up);
-			if (moved) {
+		trackPointer(e, {
+			move: (ev) => {
+				if (!moved && Math.abs(ev.clientX - startX) < DRAG_THRESHOLD) return;
+				moved = true;
 				const before = landingAt(ev.clientX);
-				onReorder(key, before === key ? null : before);
-			}
-			setDrag(null);
-		};
-		target.addEventListener("pointermove", move);
-		target.addEventListener("pointerup", up);
-		target.addEventListener("pointercancel", up);
+				setDrag({ key, before: before === key ? null : before });
+			},
+			end: (release) => {
+				if (target.hasPointerCapture?.(e.pointerId)) target.releasePointerCapture(e.pointerId);
+				// A cancelled drag puts the tab back where it was.
+				if (moved && release) {
+					const before = landingAt(release.clientX);
+					onReorder(key, before === key ? null : before);
+				}
+				setDrag(null);
+			},
+		});
 	}
 
 	if (!shown) return null;
