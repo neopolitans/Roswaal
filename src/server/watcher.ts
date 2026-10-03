@@ -23,6 +23,7 @@
 import chokidar, { type FSWatcher } from "chokidar";
 import path from "node:path";
 
+import { toPosix } from "./paths.js";
 import { compileScript, type CompileOutcome, type OpenProject } from "./project.js";
 
 /** Long enough to coalesce a save, short enough to feel immediate. */
@@ -121,5 +122,5 @@ export class DynamicCompiler {
 }
 
 function relative(project: OpenProject, file: string): string {
-	return path.relative(project.root, file).split(path.sep).join("/");
+	return toPosix(path.relative(project.root, file));
 }

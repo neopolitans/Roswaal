@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { collectMaps, openProject } from "../src/server/project.js";
 import { walkFiles } from "../src/server/files.js";
+import { tidyPath, toPosix } from "../src/server/paths.js";
 
 let root = "";
 
@@ -30,6 +31,14 @@ async function scratch(files: Record<string, string> = {}): Promise<string> {
 afterEach(async () => {
 	if (root) await rm(root, { recursive: true, force: true });
 	root = "";
+});
+
+describe("paths", () => {
+	it("are written one way whichever separator produced them", () => {
+		expect(toPosix("src\\Shared\\Greeter.luau")).toBe("src/Shared/Greeter.luau");
+		expect(tidyPath(".\\src\\ReplicatedStorage\\")).toBe("src/ReplicatedStorage");
+		expect(tidyPath("./src/ReplicatedStorage//")).toBe("src/ReplicatedStorage");
+	});
 });
 
 describe("the shared walk", () => {

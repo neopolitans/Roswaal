@@ -36,6 +36,14 @@ export function toPosix(p: string): string {
 	return p.replace(/\\/g, "/");
 }
 
+/**
+ * A path as somebody wrote it in a node map, made comparable with one the
+ * project produced: forward slashes, no leading `./`, no trailing slash.
+ */
+export function tidyPath(p: string): string {
+	return toPosix(p).replace(/^\.\//, "").replace(/\/+$/, "");
+}
+
 /** Refuses any path that would escape the project root. */
 export function safeJoin(root: string, relPath: string): string {
 	const abs = path.resolve(root, relPath);

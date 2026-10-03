@@ -18,7 +18,7 @@ import { indexVersion, parseWallyToml, REALM_DIRS, thunkTarget } from "../core/w
 import type { OpenProject } from "./config.js";
 import { collectMaps, readMap } from "./documents.js";
 import { generatedIndex } from "./outputs.js";
-import { safeJoin } from "./paths.js";
+import { safeJoin, tidyPath, toPosix } from "./paths.js";
 
 /**
  * Folders the project tree leaves out. Wally's are shown -- a project's
@@ -142,10 +142,9 @@ export async function resolveWallyPackage(
 /** Folders a node map points a service or container at, project-relative. */
 async function serviceFolders(project: OpenProject): Promise<Set<string>> {
 	const out = new Set<string>();
-	const tidy = (p: string) => p.split(String.fromCharCode(92)).join("/").replace(/^\.\//, "").replace(/\/+$/, "");
 	const visit = (node: MapNode, parent: MapNode | null) => {
 		if (node.path && node.className !== "Folder") {
-			const at = tidy(node.path);
+			const at = tidyPath(node.path);
 			out.add(at);
 			// A container mapped inside a service with no path of its own --
 			// StarterPlayerScripts in StarterPlayer -- makes the folder above it
@@ -181,7 +180,7 @@ async function walk(
 
 	for (const entry of entries) {
 		const abs = path.join(dir, entry.name);
-		const rel = path.relative(root, abs).split(path.sep).join("/");
+		const rel = toPosix(path.relative(root, abs));
 
 		if (entry.isDirectory()) {
 			if (TREE_SKIP.has(entry.name)) continue;
