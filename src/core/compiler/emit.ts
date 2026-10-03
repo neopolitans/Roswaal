@@ -20,7 +20,7 @@ import {
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import {
-	FUNCTION_NODES, loopTypes, signatureOf, typeDeclarationOf, type Signature, type TypeDeclaration,
+	FUNCTION_NODES, loopNamesOf, loopTypes, signatureOf, typeDeclarationOf, type Signature, type TypeDeclaration,
 } from "../nodes/flow.js";
 import { CAST_NODES, NILABLE_CLASS_READS, castModeOf, type CastMode } from "../nodes/library.js";
 import { checkLuau } from "../luau/check.js";
@@ -34,7 +34,7 @@ import { DATATYPES } from "../robloxData.js";
 import { commentLines, headersByNode } from "../comments.js";
 import type { Comment, Literal, NodeConfig, NodeScript, PinDef } from "../schema.js";
 import {
-	functionRefOf, isConstLocal, localRefOf, paramRefOf, variableRefOf,
+	functionRefOf, isConstLocal, localRefOf, localTypeOf, moduleRefOf, paramRefOf, variableRefOf,
 } from "../nodes/variables.js";
 import {
 	isInstanceClass as isRobloxClass, isService as isRobloxService, isSubclassOf, lastSegment,
@@ -906,7 +906,7 @@ class Emitter {
 	 * identifiers today wants the brackets it will still need tomorrow.
 	 */
 	private bracketsOnly(r: ResolvedNode): boolean {
-		return (r.node.config as { keys?: string } | undefined)?.keys === "brackets";
+		return r.node.config?.keys === "brackets";
 	}
 
 	private get annotates(): boolean {
@@ -1061,8 +1061,8 @@ class Emitter {
 		// the line at all.
 		for (const r of this.index.all()) {
 			if (r.def.id !== "variable.init") continue;
-			const ref = (r.node.config ?? {}) as { variable?: string };
-			if (ref.variable) this.initialisedLater.add(ref.variable);
+			const variable = variableRefOf(r.node.config).variable;
+			if (variable) this.initialisedLater.add(variable);
 		}
 
 		// Two passes: claim every name before emitting, so a variable declared
@@ -1765,7 +1765,7 @@ class Emitter {
 				const ident = this.names.unique(wanted, "local");
 				// The type, when one was given, on the terms every other annotation
 				// has: written when the mode line asks for annotations.
-				const declared = ((r.node.config as { type?: string } | undefined)?.type ?? "").trim();
+				const declared = localTypeOf(r.node.config);
 				let annotation = "";
 				if (this.annotates && declared !== "" && declared !== "any") {
 					const written = luauType(declared);
@@ -1931,12 +1931,12 @@ class Emitter {
 				 * Held to identifiers here rather than refused, because the field
 				 * is typed into and a half-typed name should not fail a compile.
 				 */
-				const names = (r.node.config ?? {}) as { keyName?: string; valueName?: string };
+				const names = loopNamesOf(r.node.config);
 				// Both belong to the body, for the same reason a numeric loop's
 				// counter does.
 				this.names.push();
-				const k = this.names.unique(names.keyName?.trim() || (isArray ? "i" : "key"), "key");
-				const v = this.names.unique(names.valueName?.trim() || "value", "value");
+				const k = this.names.unique(names.key ?? (isArray ? "i" : "key"), "key");
+				const v = this.names.unique(names.value ?? "value", "value");
 				body.bindings.set(`${id}/${keyPin}`, k);
 				body.bindings.set(`${id}/value`, v);
 				/**
@@ -2432,10 +2432,9 @@ class Emitter {
 				return this.luneCall(src, scope);
 
 			case "module.get": {
-				const id = String((src.node.config as { module?: string } | undefined)?.module ?? "");
+				const { module: id = "", name = "" } = moduleRefOf(src.node.config);
 				const ident = this.moduleIdents.get(id);
 				if (ident) return ident;
-				const name = String((src.node.config as { name?: string } | undefined)?.name ?? "");
 				this.error(
 					id === ""
 						? "Get Module has no module chosen."
@@ -2767,7 +2766,7 @@ class Emitter {
 		 * it is the same expression each time. And a wrapped expression is
 		 * already an atom, so nothing downstream adds a second pair.
 		 */
-		if (src.def.display === "operator" && (src.node.config as { parens?: unknown } | undefined)?.parens === true) {
+		if (src.def.display === "operator" && src.node.config?.parens === true) {
 			expr = `(${expr})`;
 		}
 
@@ -2941,7 +2940,7 @@ class Emitter {
 		template = template.replace(
 			/\$config\.([A-Za-z_][A-Za-z0-9_]*)/g,
 			(_match, key: string) => {
-				const value = (r.node.config as Record<string, unknown> | undefined)?.[key];
+				const value = r.node.config?.[key];
 				const text = typeof value === "string" ? value.trim() : "";
 				return isFieldName(text) ? text : "";
 			},
@@ -3074,7 +3073,7 @@ class Emitter {
 			 * than a two-line one. The leading tab is relative: `push` adds it to
 			 * whatever indentation the statement itself is at.
 			 */
-			if ((r.node.config as { layout?: string } | undefined)?.layout === "lines") {
+			if (r.node.config?.layout === "lines") {
 				return `\n${entries.map((entry) => `\t${entry},`).join("\n")}\n`;
 			}
 			return ` ${entries.join(separator)} `;
@@ -3139,7 +3138,7 @@ class Emitter {
 				}
 				const lit: Literal | undefined = r.node.literals?.[pinId] ?? pin.default;
 				const text =
-					lit === undefined ? "" : lit.t === "string" || lit.t === "raw" ? lit.v : String((lit as { v?: unknown }).v ?? "");
+					lit === undefined || lit.t === "nil" ? "" : String(lit.v);
 				return modifier === "ident" ? toIdentifier(text, "field") : text;
 			}
 
@@ -3204,7 +3203,7 @@ function resultHint(r: ResolvedNode, pin: PinDef | undefined, fallback?: string)
 
 /** Whether this Concatenate writes an interpolated string rather than a join. */
 export function isInterpolated(config: NodeConfig | undefined): boolean {
-	return (config as { interpolate?: unknown } | undefined)?.interpolate === true;
+	return config?.interpolate === true;
 }
 
 /**

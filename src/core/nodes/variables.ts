@@ -184,6 +184,16 @@ export function localRefOf(config: NodeConfig | undefined): LocalRef {
 	};
 }
 
+/** A Get Module node's config: the declared module's id, and its cached name. */
+export function moduleRefOf(config: NodeConfig | undefined): { module?: string; name?: string } {
+	return { module: textField(config, "module"), name: textField(config, "name") };
+}
+
+/** The type a Declare Local was given, trimmed; empty when it was given none. */
+export function localTypeOf(config: NodeConfig | undefined): string {
+	return (textField(config, "type") ?? "").trim();
+}
+
 const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
 const data = (id: string, name: string, type: string): PinDef => ({
 	id, name, kind: "data", type,
@@ -214,7 +224,7 @@ export const VARIABLE_NODES: NodeDef[] = [
 		outputs: [data("exports", "", "any")],
 		compilesTo: { kind: "builtin", handler: "module.get" },
 		display: "compact",
-		defaultLabel: (config) => String((config as { name?: string }).name ?? ""),
+		defaultLabel: (config) => moduleRefOf(config).name ?? "",
 	},
 	{
 		id: "variable.get",
@@ -227,12 +237,12 @@ export const VARIABLE_NODES: NodeDef[] = [
 		compilesTo: { kind: "builtin", handler: "variable.get" },
 		display: "compact",
 		derivePins(config: NodeConfig) {
-			const ref = config as VariableRef;
+			const ref = variableRefOf(config);
 			return { inputs: [], outputs: [data("value", "", pinTypeOf(ref.type))] };
 		},
 		// A capsule has no second line to put a name on, and does not need one:
 		// the variable's name *is* the node.
-		defaultLabel: (config) => (config as VariableRef).name,
+		defaultLabel: (config) => variableRefOf(config).name,
 	},
 	{
 		id: "variable.set",
@@ -243,14 +253,14 @@ export const VARIABLE_NODES: NodeDef[] = [
 		outputs: [exec("then"), data("value", "", "any")],
 		compilesTo: { kind: "builtin", handler: "variable.set" },
 		derivePins(config: NodeConfig) {
-			const ref = config as VariableRef;
+			const ref = variableRefOf(config);
 			const type = pinTypeOf(ref.type);
 			return {
 				inputs: [exec("in"), data("value", "Value", type)],
 				outputs: [exec("then"), data("value", "", type)],
 			};
 		},
-		subtitle: (config) => (config as VariableRef).name,
+		subtitle: (config) => variableRefOf(config).name,
 	},
 	{
 		id: "variable.init",
@@ -262,14 +272,14 @@ export const VARIABLE_NODES: NodeDef[] = [
 		outputs: [exec("then"), data("value", "", "any")],
 		compilesTo: { kind: "builtin", handler: "variable.init" },
 		derivePins(config: NodeConfig) {
-			const ref = config as VariableRef;
+			const ref = variableRefOf(config);
 			const type = pinTypeOf(ref.type);
 			return {
 				inputs: [exec("in"), data("value", "Value", type)],
 				outputs: [exec("then"), data("value", "", type)],
 			};
 		},
-		subtitle: (config) => (config as VariableRef).name,
+		subtitle: (config) => variableRefOf(config).name,
 	},
 	{
 		/**
@@ -292,10 +302,10 @@ export const VARIABLE_NODES: NodeDef[] = [
 		compilesTo: { kind: "builtin", handler: "local.get" },
 		display: "compact",
 		derivePins(config: NodeConfig) {
-			const ref = config as LocalRef;
+			const ref = localRefOf(config);
 			return { inputs: [], outputs: [data("value", "", ref.type ?? "any")] };
 		},
-		defaultLabel: (config) => (config as LocalRef).name,
+		defaultLabel: (config) => localRefOf(config).name,
 	},
 	{
 		id: "function.get",
@@ -308,7 +318,7 @@ export const VARIABLE_NODES: NodeDef[] = [
 		outputs: [data("fn", "", "function")],
 		compilesTo: { kind: "builtin", handler: "function.get" },
 		display: "compact",
-		defaultLabel: (config) => (config as FunctionRef).name,
+		defaultLabel: (config) => functionRefOf(config).name,
 	},
 	{
 		/**
@@ -332,9 +342,9 @@ export const VARIABLE_NODES: NodeDef[] = [
 		compilesTo: { kind: "builtin", handler: "function.getParam" },
 		display: "compact",
 		derivePins(config: NodeConfig) {
-			const ref = config as ParamRef;
+			const ref = paramRefOf(config);
 			return { inputs: [], outputs: [data("value", "", pinTypeOf(ref.type))] };
 		},
-		defaultLabel: (config) => (config as ParamRef).param,
+		defaultLabel: (config) => paramRefOf(config).param,
 	},
 ];

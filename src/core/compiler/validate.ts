@@ -15,6 +15,7 @@ import { crossingLinks, graphExists } from "../functionGraph.js";
 import { bindsParameters } from "../functionBody.js";
 import { FUNCTION_NODES, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
+import { memberNameOf } from "../nodes/library.js";
 import { isSubclassOf } from "../roblox.js";
 import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
 import { isLuneCall } from "../nodes/lune.js";
@@ -149,8 +150,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	const declaredFields = declaredTypeFields(script);
 	for (const node of script.nodes) {
 		if (node.def !== "value.member") continue;
-		const named = (node.config as { member?: unknown } | undefined)?.member;
-		const member = typeof named === "string" ? named.trim() : "";
+		const member = memberNameOf(node.config);
 		if (member === "") {
 			out.push({
 				severity: "error",
@@ -229,7 +229,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	if (constants.size > 0) {
 		for (const node of script.nodes) {
 			if (node.def !== "variable.set" && node.def !== "variable.init") continue;
-			const id = (node.config as { variable?: string } | undefined)?.variable;
+			const id = variableRefOf(node.config).variable;
 			const name = id && constants.get(id);
 			if (!name) continue;
 			out.push({

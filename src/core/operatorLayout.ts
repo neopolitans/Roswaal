@@ -13,7 +13,7 @@
  * apart with nothing to say which was right.
  */
 
-import { CAST_NODES } from "./nodes/library.js";
+import { CAST_NODES, memberNameOf } from "./nodes/library.js";
 import type { Literal, NodeConfig, NodeDef, PinDef } from "./schema.js";
 
 /** Canvas geometry this needs, structurally satisfied by `NODE`. */
@@ -182,7 +182,7 @@ export function canShowName(id: string): boolean {
  * setting decides what a *new* cast starts as; the node carries it after that.
  */
 export function operatorSymbol(def: NodeDef, config?: NodeConfig): string {
-	const named = (config as { castLabel?: unknown } | undefined)?.castLabel === "name";
+	const named = config?.castLabel === "name";
 	if (named && canShowName(def.id)) return def.title;
 	/**
 	 * Get Member writes the access itself: `.throttle`, not "Object" and a
@@ -191,8 +191,7 @@ export function operatorSymbol(def: NodeDef, config?: NodeConfig): string {
 	 * by the node rather than typed into a pin.
 	 */
 	if (def.id === "value.member") {
-		const member = (config as { member?: unknown } | undefined)?.member;
-		return `.${typeof member === "string" && member.trim() !== "" ? member.trim() : "…"}`;
+		return `.${memberNameOf(config) || "…"}`;
 	}
 	return def.operator ?? def.title;
 }

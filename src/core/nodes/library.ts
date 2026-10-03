@@ -19,6 +19,7 @@ import {
 import {
 	SERVICE_CALL, SERVICE_VALUE, servicePins, serviceSubtitle,
 } from "../serviceCalls.js";
+import { signatureOf } from "./flow.js";
 import { pinTypeOf, typedLocalName } from "./variables.js";
 import { LUAU_PRIMITIVES } from "../luneTypes.js";
 import { DATATYPES } from "../robloxData.js";
@@ -65,6 +66,12 @@ export const CAST_MODES: { mode: CastMode; label: string; what: string }[] = [
 export function castModeOf(config: Record<string, unknown> | undefined): CastMode {
 	const mode = config?.cast;
 	return mode === "explicit" || mode === "implicit" ? mode : "auto";
+}
+
+/** The member a Get Member node reads, trimmed; empty before one is picked. */
+export function memberNameOf(config: NodeConfig | undefined): string {
+	const member = config?.member;
+	return typeof member === "string" ? member.trim() : "";
 }
 
 const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
@@ -963,7 +970,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		],
 		compilesTo: { kind: "builtin", handler: "event.once" },
 		derivePins(config) {
-			const sig = config as { params?: { name?: string; type?: string }[] };
+			const sig = signatureOf(config);
 			return {
 				inputs: [exec("in", ""), d("signal", "Signal", "RBXScriptSignal")],
 				outputs: [
