@@ -37,6 +37,14 @@ describe("where a require goes", () => {
 			{ name: "Path", target: { t: "string", spec: "./path" } },
 		]);
 	});
+
+	it("does not follow a recursive FindFirstChild, which may land anywhere below", () => {
+		const src = [
+			'local Direct = require(game.ReplicatedStorage:FindFirstChild("Shared"))',
+			'local Anywhere = require(game.ReplicatedStorage:FindFirstChild("Shared", true))',
+		].join("\n");
+		expect(requiresIn(src).map((r) => r.name)).toEqual(["Direct"]);
+	});
 });
 
 describe("what a module gives back", () => {

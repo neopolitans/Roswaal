@@ -75,7 +75,10 @@ export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): Re
 			const base = targetOf(expr.object, src, depth + 1, parsed);
 			if (base?.t !== "instance") return undefined;
 			if (method === "GetService" && base.from === "game" && base.names.length === 0) return { ...base, names: [arg] };
-			if (method === "WaitForChild" || method === "FindFirstChild") return { ...base, names: [...base.names, arg] };
+			if (method === "WaitForChild") return { ...base, names: [...base.names, arg] };
+			// `FindFirstChild(name, true)` searches every descendant, so where
+			// it lands is not a path the code says.
+			if (method === "FindFirstChild" && expr.args.length === 1) return { ...base, names: [...base.names, arg] };
 			return undefined;
 		}
 		default:
