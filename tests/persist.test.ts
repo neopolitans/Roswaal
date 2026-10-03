@@ -14,7 +14,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { persistence, type RestoredVolume, type SnapshotStore } from "../src/web/persist.js";
+import { opfsStore, persistence, type RestoredVolume, type SnapshotStore } from "../src/web/persist.js";
 import type { VolumeSnapshot } from "../src/web/volume.js";
 
 /** A store in a variable, which is all the real one is with extra steps. */
@@ -264,3 +264,167 @@ describe("a folder with nothing in it", () => {
 		expect(back?.dirs).toEqual([]);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// A stored place
+// ---------------------------------------------------------------------------
+
+const PLACE = new Uint8Array([60, 114, 111, 98, 108, 111, 120, 33]);
+
+/** A store that keeps binaries too, counting how often they are written. */
+function binaryStore(binaries: Record<string, Uint8Array>) {
+	const store = Object.assign(fakeStore(), {
+		binaryWrites: 0,
+		async readBinaries() {
+			return { ...binaries };
+		},
+		async writeBinaries(files: Record<string, Uint8Array>) {
+			store.binaryWrites++;
+			binaries = { ...files };
+		},
+	});
+	return store;
+}
+
+describe("a stored place", () => {
+	/**
+	 * The first settled edit of a session rewrote every binary, megabytes of
+	 * them, because nothing said the ones just restored were already stored --
+	 * and closing the tab then is what lost the place.
+	 */
+	it("is not written again by the first edit after a reload", async () => {
+		const store = binaryStore({ "/demo/place.rbxl": PLACE });
+		await store.write(JSON.stringify({ format: 1, version: "0.0.0", files: FILES }));
+		const keeping = persistence(store, "0.0.0");
+		const back = await keeping.restore();
+		expect(back?.files["/demo/place.rbxl"]).toEqual(PLACE);
+		keeping.restoredAt(7);
+
+		keeping.touch(() => ({ files: back!.files, dirs: [], binaryStamp: 7 }));
+		await settle();
+		expect(store.binaryWrites).toBe(0);
+
+		keeping.touch(() => ({ files: back!.files, dirs: [], binaryStamp: 8 }));
+		await settle();
+		expect(store.binaryWrites).toBe(1);
+	});
+
+	it("is written on the first edit when the restore could not read it", async () => {
+		const store = Object.assign(binaryStore({}), {
+			async readBinaries(): Promise<Record<string, Uint8Array>> {
+				throw new Error("refused");
+			},
+		});
+		await store.write(JSON.stringify({ format: 1, version: "0.0.0", files: FILES }));
+		const keeping = persistence(store, "0.0.0");
+		await keeping.restore();
+		keeping.restoredAt(3);
+
+		keeping.touch(() => ({ files: { ...FILES, "/demo/place.rbxl": PLACE }, dirs: [], binaryStamp: 3 }));
+		await settle();
+		expect(store.binaryWrites).toBe(1);
+	});
+});
+
+describe("binaries in the origin private filesystem", () => {
+	it("are read back as they were written", async () => {
+		const root = new FakeDir("root");
+		const store = opfsStore("project.json", async () => root as unknown as FileSystemDirectoryHandle);
+		await store.writeBinaries!({ "/demo/place.rbxl": PLACE });
+		expect(await store.readBinaries!()).toEqual({ "/demo/place.rbxl": PLACE });
+		await store.writeBinaries!({});
+		expect(await store.readBinaries!()).toEqual({});
+		expect([...root.dirs.keys()]).toEqual([]);
+	});
+
+	/** A tab closed part-way through writing a new place keeps the old one. */
+	it("keep the stored set until a new one is completely written", async () => {
+		const root = new FakeDir("root");
+		const store = opfsStore("project.json", async () => root as unknown as FileSystemDirectoryHandle);
+		await store.writeBinaries!({ "/demo/place.rbxl": PLACE });
+
+		FakeDir.failWritesAfter = 1;
+		await expect(store.writeBinaries!({
+			"/demo/a.rbxl": new Uint8Array([1]), "/demo/b.rbxl": new Uint8Array([2]),
+		})).rejects.toThrow(/closed/);
+		FakeDir.failWritesAfter = Number.POSITIVE_INFINITY;
+
+		expect(await store.readBinaries!()).toEqual({ "/demo/place.rbxl": PLACE });
+	});
+
+	it("reads a store written before the pointer, and clears every set", async () => {
+		const root = new FakeDir("root");
+		const legacy = await root.getDirectoryHandle("binaries", { create: true });
+		const file = await legacy.getFileHandle(encodeURIComponent("/demo/place.rbxl"), { create: true });
+		await (await file.createWritable()).write(PLACE);
+		const store = opfsStore("project.json", async () => root as unknown as FileSystemDirectoryHandle);
+		expect(await store.readBinaries!()).toEqual({ "/demo/place.rbxl": PLACE });
+
+		await store.clear();
+		expect([...root.dirs.keys(), ...root.files.keys()]).toEqual([]);
+	});
+});
+
+/** As much of an OPFS directory as `opfsStore` asks for. */
+class FakeDir {
+	/** How many file writes succeed before the next one fails, as a closing tab would. */
+	static failWritesAfter = Number.POSITIVE_INFINITY;
+	readonly kind = "directory" as const;
+	readonly files = new Map<string, FakeEntry>();
+	readonly dirs = new Map<string, FakeDir>();
+
+	constructor(readonly name: string) {}
+
+	async getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<FakeDir> {
+		const found = this.dirs.get(name);
+		if (found) return found;
+		if (!options?.create) throw new DOMException(name, "NotFoundError");
+		const made = new FakeDir(name);
+		this.dirs.set(name, made);
+		return made;
+	}
+
+	async getFileHandle(name: string, options?: { create?: boolean }): Promise<FakeEntry> {
+		const found = this.files.get(name);
+		if (found) return found;
+		if (!options?.create) throw new DOMException(name, "NotFoundError");
+		const made = new FakeEntry(name);
+		this.files.set(name, made);
+		return made;
+	}
+
+	async removeEntry(name: string): Promise<void> {
+		if (!this.files.delete(name) && !this.dirs.delete(name)) throw new DOMException(name, "NotFoundError");
+	}
+
+	async *values(): AsyncGenerator<FakeDir | FakeEntry> {
+		yield* this.dirs.values();
+		yield* this.files.values();
+	}
+}
+
+class FakeEntry {
+	readonly kind = "file" as const;
+	data = new Uint8Array();
+
+	constructor(readonly name: string) {}
+
+	async getFile() {
+		const data = this.data;
+		return {
+			text: async () => new TextDecoder().decode(data),
+			arrayBuffer: async () => data.slice().buffer,
+		};
+	}
+
+	async createWritable() {
+		if (FakeDir.failWritesAfter <= 0) throw new Error("The tab closed.");
+		FakeDir.failWritesAfter--;
+		return {
+			write: async (chunk: string | Uint8Array) => {
+				this.data = typeof chunk === "string" ? new TextEncoder().encode(chunk) : new Uint8Array(chunk);
+			},
+			close: async () => undefined,
+		};
+	}
+}

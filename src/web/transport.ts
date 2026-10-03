@@ -12,7 +12,11 @@
 
 import type { EventStream, Transport } from "../app/api.js";
 
-import type { ApiRequestMessage, FromWorker } from "./protocol.js";
+import type { ErrorBody } from "../server/errors.js";
+
+import type {
+	ApiRequestMessage, FromWorker, ImportMessage, ImportPlaceMessage, MountMessage, ToWorker,
+} from "./protocol.js";
 
 export interface WorkerTransport {
 	request: Transport;
@@ -109,12 +113,21 @@ export function workerTransport(worker: Worker): WorkerTransport {
 	};
 
 	/**
-	 * Tell the worker to finish writing while there is still time.
-	 *
-	 * `visibilitychange` rather than `beforeunload`: a hidden tab may be
-	 * discarded without any further warning, and every close is preceded by a
-	 * hide. `pagehide` as well, for a navigation that never hides first.
+	 * Hands the worker a project to take, and reads its answer: the root it
+	 * opened, or the name of a folder or archive that is not a project yet.
 	 */
+	const call = (message: WithoutId<ProjectMessage>) =>
+		new Promise<{ root: string } | { notAProject: string }>((resolve, reject) => {
+			const id = nextId++;
+			pending.set(id, (reply) => {
+				const payload = (reply.payload ?? {}) as Partial<ErrorBody> & { root?: string };
+				if (reply.status === 200 && typeof payload.root === "string") resolve({ root: payload.root });
+				else if (payload.code === "not-a-project") resolve({ notAProject: payload.name ?? "" });
+				else reject(new Error(payload.error ?? "It would not open."));
+			});
+			worker.postMessage({ ...message, id } as ToWorker);
+		});
+
 	/**
 	 * The folder itself, not its contents.
 	 *
@@ -123,51 +136,32 @@ export function workerTransport(worker: Worker): WorkerTransport {
 	 * picker cannot be called from a worker — it needs a window and a gesture —
 	 * which is the whole reason this crosses the boundary in this direction.
 	 */
-	const mount = (handle: FileSystemDirectoryHandle, initialise?: boolean) => {
-		const id = nextId++;
-		return new Promise<{ root: string } | { notAProject: string }>((resolve, reject) => {
-			pending.set(id, (reply) => {
-				const payload = reply.payload as
-					{ root?: string; code?: string; name?: string; error?: string };
-				if (reply.status === 200) resolve({ root: payload.root! });
-				else if (payload.code === "not-a-project") resolve({ notAProject: payload.name! });
-				else reject(new Error(payload.error ?? "It would not open."));
-			});
-			worker.postMessage({ kind: "mount", id, handle, initialise });
-		});
-	};
+	const mount = (handle: FileSystemDirectoryHandle, initialise?: boolean) =>
+		call({ kind: "mount", handle, initialise });
 
 	/** A project out of a zip, replacing the browser's. See `importZip.ts`. */
 	const importProject = (
 		name: string, files: Record<string, string>, dirs: string[], initialise?: boolean,
 		binaries?: Record<string, Uint8Array>,
+	) => call({ kind: "import", name, files, binaries, dirs, initialise });
+
+	/** A project made from a place, replacing the browser's. Always one: it has a config. */
+	const importPlace = async (
+		name: string, files: Record<string, string>, placeFile: string, place: Uint8Array,
 	) => {
-		const id = nextId++;
-		return new Promise<{ root: string } | { notAProject: string }>((resolve, reject) => {
-			pending.set(id, (reply) => {
-				const payload = reply.payload as
-					{ root?: string; code?: string; name?: string; error?: string };
-				if (reply.status === 200) resolve({ root: payload.root! });
-				else if (payload.code === "not-a-project") resolve({ notAProject: payload.name! });
-				else reject(new Error(payload.error ?? "It would not open."));
-			});
-			worker.postMessage({ kind: "import", id, name, files, binaries, dirs, initialise });
-		});
+		const made = await call({ kind: "importPlace", name, files, placeFile, place });
+		if (!("root" in made)) throw new Error("It could not be set up.");
+		return made;
 	};
 
-	const importPlace = (name: string, files: Record<string, string>, placeFile: string, place: Uint8Array) => {
-		const id = nextId++;
-		return new Promise<{ root: string }>((resolve, reject) => {
-			pending.set(id, (reply) => {
-				const payload = reply.payload as { root?: string; error?: string };
-				if (reply.status === 200) resolve({ root: payload.root! });
-				else reject(new Error(payload.error ?? "It would not open."));
-			});
-			worker.postMessage({ kind: "importPlace", id, name, files, placeFile, place });
-		});
-	};
-
-	const flush = () => worker.postMessage({ kind: "flush" });
+	/**
+	 * Tell the worker to finish writing while there is still time.
+	 *
+	 * `visibilitychange` rather than `beforeunload`: a hidden tab may be
+	 * discarded without any further warning, and every close is preceded by a
+	 * hide. `pagehide` as well, for a navigation that never hides first.
+	 */
+	const flush = () => worker.postMessage({ kind: "flush" } satisfies ToWorker);
 	document.addEventListener("visibilitychange", () => {
 		if (document.visibilityState === "hidden") flush();
 	});
@@ -175,3 +169,9 @@ export function workerTransport(worker: Worker): WorkerTransport {
 
 	return { request, events, mount, importProject, importPlace };
 }
+
+/** The messages that hand the worker a project, answered like a request. */
+type ProjectMessage = MountMessage | ImportMessage | ImportPlaceMessage;
+
+/** A message before `call` gives it an id; distributed, so each kind keeps its own fields. */
+type WithoutId<T> = T extends unknown ? Omit<T, "id"> : never;
