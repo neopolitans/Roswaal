@@ -41,6 +41,27 @@ export interface WallyOutcome {
 }
 
 /** A name to require a package by: `signal` gives `Signal`, `rbx-util` gives `RbxUtil`. */
+/**
+ * Refuses a package's names unless each is a plain path segment.
+ *
+ * The scope, name and version come from the registry or from a zip's own
+ * `wally.toml`, and the alias from whoever typed it. All of them become
+ * folder and file names, so `../` in any one of them would write, or delete,
+ * somewhere else in the project.
+ */
+function assertPlainNames(names: { scope?: string; name?: string; version?: string; alias?: string }): void {
+	// Dots are fine in a folder name, as long as that is not all it is.
+	const word = /^(?!\.+$)[A-Za-z0-9_.-]+$/;
+	const version = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]*)?$/;
+	for (const key of ["scope", "name", "alias"] as const) {
+		const value = names[key];
+		if (value !== undefined && !word.test(value)) throw new Error(`"${value}" is not a package ${key} Roswaal can install.`);
+	}
+	if (names.version !== undefined && !version.test(names.version)) {
+		throw new Error(`"${names.version}" is not a version Roswaal can install.`);
+	}
+}
+
 export function aliasFor(name: string): string {
 	return name.split(/[-_]/).filter(Boolean).map((part) => part[0].toUpperCase() + part.slice(1)).join("");
 }
@@ -86,6 +107,7 @@ class Installer {
 		const metadata = (await (await this.ask(`${REGISTRY}/package-metadata/${scope}/${name}`)).json()) as { versions: VersionMetadata[] };
 		const version = pickVersion(metadata.versions.map((v) => v.package.version), requirement);
 		if (!version) throw new Error(`No version of ${scope}/${name} matches ${requirement ?? "anything"}.`);
+		assertPlainNames({ scope, name, version, alias });
 		const index = indexFolder(scope, name, version);
 		const thunk = parent ? `${folder}/_Index/${parent}/${alias}.lua` : `${folder}/${alias}.lua`;
 		await this.write(thunk, thunkFor(index, name, parent !== undefined));
@@ -174,6 +196,7 @@ export async function installZip(
 	const pkg = manifest && !options.vendor ? packageOf(manifest) : undefined;
 	if (pkg) {
 		const alias = options.alias?.trim() || aliasFor(pkg.name);
+		assertPlainNames({ ...pkg, alias });
 		const index = indexFolder(pkg.scope, pkg.name, pkg.version);
 		for (const file of files) await installer.write(`${folder}/_Index/${index}/${pkg.name}/${file.path}`, file.bytes);
 		await installer.write(`${folder}/${alias}.lua`, thunkFor(index, pkg.name));
@@ -202,6 +225,7 @@ export async function installZip(
 	}
 	const base = (options.fileName ?? "Package").replace(/\.zip$/i, "").split(/[^A-Za-z0-9_-]/).filter(Boolean).pop() ?? "Package";
 	const alias = options.alias?.trim() || aliasFor(base);
+	assertPlainNames({ alias });
 	const target = `Packages/${alias}`;
 	// A thunk or a folder of that name already: Rojo cannot have both, and one
 	// would be written over.
@@ -244,6 +268,7 @@ const NOT_SEARCHED = new Set(["Packages", "ServerPackages", "DevPackages", "node
  * graph's node holding that path -- so removing it can say what would break.
  */
 export async function packageUses(project: OpenProject, alias: string, realm: WallyRealm = "shared"): Promise<string[]> {
+	assertPlainNames({ alias });
 	const folder = REALM_DIRS[realm];
 	const pattern = new RegExp(`\\b${folder}\\s*(?:\\.\\s*|:\\s*WaitForChild\\s*\\(\\s*["']|\\[\\s*["'])${alias}\\b`);
 	const out: string[] = [];
@@ -280,6 +305,7 @@ export interface RemovedPackage {
  * side effect of removing something else.
  */
 export async function removePackage(project: OpenProject, alias: string, realm: WallyRealm = "shared"): Promise<RemovedPackage> {
+	assertPlainNames({ alias });
 	const folder = REALM_DIRS[realm];
 	const uses = await packageUses(project, alias, realm);
 	const before = await reachable(project, folder);

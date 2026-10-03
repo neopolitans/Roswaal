@@ -293,10 +293,9 @@ export async function placeEntries(project: OpenProject): Promise<PlaceEntry[]> 
 }
 
 export async function writeConfig(root: string, config: RoswaalConfig): Promise<void> {
-	await fs.writeFile(
+	await writeTextAtomically(
 		path.join(root, "roswaal.json"),
 		JSON.stringify({ ...config, schemaVersion: SCHEMA_VERSION }, null, 2) + "\n",
-		"utf8",
 	);
 }
 
@@ -943,7 +942,7 @@ export async function writeScript(
 ): Promise<void> {
 	const abs = safeJoin(project.root, relPath);
 	await fs.mkdir(path.dirname(abs), { recursive: true });
-	await fs.writeFile(abs, serialiseScript(script), "utf8");
+	await writeTextAtomically(abs, serialiseScript(script));
 }
 
 export async function readText(project: OpenProject, relPath: string): Promise<string> {
@@ -970,7 +969,7 @@ export async function writeMap(
 ): Promise<void> {
 	const abs = safeJoin(project.root, relPath);
 	await fs.mkdir(path.dirname(abs), { recursive: true });
-	await fs.writeFile(abs, serialiseMap(map), "utf8");
+	await writeTextAtomically(abs, serialiseMap(map));
 }
 
 /** A Rojo project file in the project's root, and the map that writes it, if one does. */
@@ -1484,9 +1483,9 @@ export async function renameEntry(
 	const clean = newName.replace(/[\\/:*?"<>|]/g, "").trim();
 	if (clean === "") throw new Error("A name cannot be empty.");
 
-	const source = safeJoin(project.root, relPath);
+	const source = entryPath(project.root, relPath);
 	const destRel = path.posix.join(path.posix.dirname(toPosix(relPath)), clean);
-	const dest = safeJoin(project.root, destRel);
+	const dest = entryPath(project.root, destRel);
 	if (source === dest) return destRel;
 	if (await exists(dest)) throw new Error(`${destRel} already exists.`);
 	await fs.rename(source, dest);
@@ -1522,11 +1521,12 @@ export async function moveEntry(
 ): Promise<string> {
 	assertEditable(project, from, "move anything");
 	assertEditable(project, toDir, "move anything");
-	const source = safeJoin(project.root, from);
+	const source = entryPath(project.root, from);
 	const name = path.basename(from);
 	const destRel = path.posix.join(toDir, name);
-	const dest = safeJoin(project.root, destRel);
+	const dest = entryPath(project.root, destRel);
 	if (source === dest) return destRel;
+	if (isInside(dest, source)) throw new Error(`${toPosix(from)} cannot be moved into itself.`);
 	if (await exists(dest)) throw new Error(`${destRel} already exists.`);
 	await fs.mkdir(path.dirname(dest), { recursive: true });
 	await fs.rename(source, dest);
@@ -1535,7 +1535,7 @@ export async function moveEntry(
 
 export async function deleteEntry(project: OpenProject, relPath: string): Promise<void> {
 	// Recursive, because folders are now something the tree can create.
-	await fs.rm(safeJoin(project.root, relPath), { recursive: true, force: false });
+	await fs.rm(entryPath(project.root, relPath), { recursive: true, force: false });
 }
 
 // ---------------------------------------------------------------------------
@@ -1932,6 +1932,49 @@ export function safeJoin(root: string, relPath: string): string {
 		throw new Error(`Path escapes the project: ${relPath}`);
 	}
 	return abs;
+}
+
+/**
+ * Writes a file the editor saves, so that a crash or power cut part-way
+ * leaves the old file rather than half of the new one.
+ *
+ * `writeFile` empties the file before it writes, so a graph interrupted there
+ * was a truncated `.nodescript` that no longer opened. This writes beside it
+ * and renames over the top, which replaces the file in one step.
+ *
+ * Windows refuses that rename while another program has the file open, so a
+ * refused rename falls back to an ordinary write rather than losing the save.
+ */
+async function writeTextAtomically(abs: string, text: string): Promise<void> {
+	const temporary = `${abs}.${Math.random().toString(36).slice(2, 10)}.tmp`;
+	await fs.writeFile(temporary, text, "utf8");
+	try {
+		await fs.rename(temporary, abs);
+	} catch (error) {
+		await fs.rm(temporary, { force: true });
+		const code = (error as { code?: unknown }).code;
+		if (code !== "EPERM" && code !== "EACCES" && code !== "EBUSY") throw error;
+		await fs.writeFile(abs, text, "utf8");
+	}
+}
+
+/**
+ * `safeJoin` for something the tree acts on: an entry *in* the project, never
+ * the project folder itself.
+ *
+ * `""`, `"."` and `"src/.."` all join to the root, and handed to a delete that
+ * is the whole project, `.git` included.
+ */
+export function entryPath(root: string, relPath: string): string {
+	const abs = safeJoin(root, relPath);
+	if (path.relative(root, abs) === "") throw new Error("That is the project folder itself, not something in it.");
+	return abs;
+}
+
+/** True when `abs` is `folder` or somewhere beneath it. */
+function isInside(abs: string, folder: string): boolean {
+	const rel = path.relative(folder, abs);
+	return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
 }
 
 async function exists(abs: string): Promise<boolean> {

@@ -3938,6 +3938,12 @@ const BUILDING: DocPage = {
 				"[StyLua](https://github.com/JohnnyMorganz/StyLua) on your PATH, the file is " +
 				"formatted as it is written.",
 		},
+		{
+			t: "p",
+			text:
+				"In either mode, an open graph whose file changes on disk takes the new version. If it " +
+				"has edits that are not saved yet, you are asked which to keep.",
+		},
 
 		{ t: "h", level: 2, text: "Generated files" },
 		{

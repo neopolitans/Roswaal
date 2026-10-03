@@ -185,6 +185,37 @@ describe("inserting a zip", () => {
 		await expect(installZip(opened, bytes, { alias: "Crate", vendor: true })).rejects.toThrow(/already has Crate/);
 	});
 
+	/** A package could name an entry `../../roswaal.json` and land on top of it. */
+	it("writes nothing outside the package's own folder", async () => {
+		const opened = await project();
+		const before = await read("roswaal.json");
+		const bytes = await zipped({
+			"init.luau": "return {}\n",
+			"wally.toml": '[package]\nname = "orchard/crate"\nversion = "0.3.0"\n',
+			"../../../roswaal.json": "{}",
+			"../../escaped.luau": "return 0\n",
+		});
+		await installZip(opened, bytes, { alias: "Crate" });
+		expect(await read("roswaal.json")).toBe(before);
+		await expect(read("escaped.luau")).rejects.toThrow();
+		await expect(read("Packages/escaped.luau")).rejects.toThrow();
+	});
+
+	it("refuses a package whose version is not a version", async () => {
+		const bytes = await zipped({
+			"init.luau": "return {}\n",
+			"wally.toml": '[package]\nname = "orchard/crate"\nversion = "0.3.0/../../../x"\n',
+		});
+		await expect(installZip(await project(), bytes, { alias: "Crate" })).rejects.toThrow(/not a version/);
+	});
+
+	it("refuses an alias that is not a plain name", async () => {
+		const opened = await project();
+		await expect(installZip(opened, await zipped({ "init.luau": "return {}\n" }), { alias: "../Crate", vendor: true }))
+			.rejects.toThrow(/package alias/);
+		await expect(removePackage(opened, "../../roswaal")).rejects.toThrow(/package alias/);
+	});
+
 	it("says when a zip has no module to vendor", async () => {
 		await expect(installZip(await project(), await zipped({ "notes.txt": "hi" }), { fileName: "Notes.zip" })).rejects.toThrow(/no module/);
 	});

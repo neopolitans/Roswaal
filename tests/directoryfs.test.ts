@@ -252,6 +252,17 @@ describe("what the folder answers when something is not there", () => {
 		await expect(fs.rm("/demo/src")).rejects.toThrow(/EISDIR/);
 	});
 
+	/**
+	 * A folder copied into itself finds its own copy on every pass, and on a
+	 * real disk nested folders until the browser gave up.
+	 */
+	it("refuses to rename a folder into itself", async () => {
+		const { fs } = await import("../src/server/host.js");
+		await expect(fs.rename("/demo/src", "/demo/src/inner")).rejects.toThrow(/EINVAL/);
+		expect((await fs.stat("/demo/src")).isDirectory()).toBe(true);
+		await expect(fs.stat("/demo/src/inner")).rejects.toThrow(/ENOENT/);
+	});
+
 	/** `safeJoin` guards the path, and this guards the mount underneath it. */
 	it("refuses a path outside the folder that was handed over", async () => {
 		const { fs } = await import("../src/server/host.js");

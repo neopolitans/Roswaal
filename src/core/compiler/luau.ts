@@ -206,6 +206,47 @@ export function paren(expr: string): string {
 	return isAtomic(expr) ? expr : `(${expr})`;
 }
 
+/**
+ * True when `expr` is a prefix expression in Luau's grammar: a name, a call or
+ * index chain starting from one, or a parenthesised group. Only these may be
+ * followed by `.field`, `[key]`, `:method()` or `(args)`.
+ *
+ * Narrower than `isAtomic`, which also admits literals. `"s":upper()`,
+ * `{1}[1]` and `nil.x` are not Luau, and each needs its parentheses.
+ */
+export function isPrefixExpression(expr: string): boolean {
+	const e = expr.trim();
+	if (/^(true|false|nil)\b/.test(e)) return false;
+	if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(e)) return true;
+	if (/^[A-Za-z_][A-Za-z0-9_]*[.:[(]/.test(e) && isBalancedChain(e)) return true;
+	return e.startsWith("(") && closesAtEnd(e);
+}
+
+/** Wraps `expr` in parentheses unless it may be indexed or called as it is. */
+export function parenPrefix(expr: string): string {
+	const e = expr.trim();
+	return isPrefixExpression(e) ? e : `(${e})`;
+}
+
+/**
+ * The text a template placeholder becomes: `expr`, parenthesised as far as its
+ * position in `template` (between `start` and `end`) needs.
+ *
+ * Two positions need more than precedence. Followed by `.`, `[`, `(` or a
+ * method's `:`, only a prefix expression may stand there. And a `-` directly
+ * before a value that itself starts with `-` reads as `--`, which Luau takes
+ * as the start of a comment.
+ */
+export function spliceIntoTemplate(expr: string, template: string, start: number, end: number): string {
+	const e = expr.trim();
+	const before = template.slice(0, start).trimEnd();
+	const after = template.slice(end).trimStart();
+	if (/^(?:\.(?!\.)|\[|\(|:(?!:))/.test(after) && !isPrefixExpression(e)) return `(${e})`;
+	const spliced = parenAt(e, templatePrecedence(template, start, end));
+	if (before.endsWith("-") && spliced.startsWith("-")) return `(${spliced})`;
+	return spliced;
+}
+
 // ---------------------------------------------------------------------------
 // Precedence
 //
@@ -306,9 +347,9 @@ const NUMERAL = /^(?:0[xX][0-9a-fA-F_]+|[0-9][0-9_]*(?:\.[0-9_]*)?(?:[eE][+-]?[0
 export function expressionPrecedence(expr: string): number {
 	const e = expr.trim();
 	if (e === "") return PREC.postfix;
-	// A negative number is a literal, not an application of unary minus, and
-	// `isAtomic` has always agreed. Anything else leading with `-` is not.
-	if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(e)) return PREC.postfix;
+	// Luau has no negative literals: `-2` is unary minus applied to `2`, so
+	// `-2 ^ 2` is -4 and `-2` needs brackets as the base of a power.
+	if (/^-\d+(\.\d+)?([eE][+-]?\d+)?$/.test(e)) return PREC.unary;
 	// Luau's if-expression and a function literal both run to the end of
 	// themselves, so anything placed after one belongs to it.
 	if (/^(if|function)\b/.test(e)) return PREC.lowest;
@@ -503,6 +544,14 @@ function fromPreceding(before: string): number {
 		return PREC.lowest;
 	}
 	if (before.endsWith("#")) return PREC.unary;
+	// A `-` with no operand before it is unary minus, which binds tighter than
+	// any binary operator: `-(a + b)`, not `-a + b`.
+	if (before.endsWith("-") && !before.endsWith("--")) {
+		const rest = before.slice(0, -1).trimEnd();
+		if (rest === "" || /[-+*/%^#=<>~(,{[]$/.test(rest) || /\b(and|or|not|return|then|do|else|in|until)$/.test(rest)) {
+			return PREC.unary;
+		}
+	}
 	const op = BINARY_SPELLINGS.find((spelling) => before.endsWith(spelling));
 	// Text before the hole means the hole is this operator's right operand.
 	if (op) return operandPrecedence(op).right;

@@ -49,6 +49,10 @@ const enotdir = (call: string, target: string) =>
 const eexist = (call: string, target: string) =>
 	new VolumeError("EEXIST", `EEXIST: file already exists, ${call} '${target}'`);
 
+/** What Node says when a folder is moved into itself. */
+const einval = (call: string, from: string, to: string) =>
+	new VolumeError("EINVAL", `EINVAL: invalid argument, ${call} '${from}' -> '${to}'`);
+
 const FILE: FileStat = { isDirectory: () => false, isFile: () => true };
 const DIRECTORY: FileStat = { isDirectory: () => true, isFile: () => false };
 
@@ -263,6 +267,7 @@ export class Volume implements ProjectFs {
 		const source = resolve(from);
 		const dest = resolve(to);
 		if (source === dest) return;
+		if (dest.startsWith(`${source}/`)) throw einval("rename", source, dest);
 
 		if (this.files.has(source)) {
 			if (!this.dirs.has(dirname(dest))) throw enoent("rename", dest);

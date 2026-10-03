@@ -35,6 +35,18 @@ export interface Unzipped {
 	skipped: ZipSkip[];
 }
 
+/**
+ * Whether an entry's path stays inside wherever the archive is unpacked.
+ *
+ * A zip can name an entry `../../roswaal.json`, `/etc/x` or `C:/x`, and every
+ * caller joins the path onto a folder of its own. Those entries are skipped
+ * here, for all of them, rather than trusted to each.
+ */
+export function isSafeEntry(path: string): boolean {
+	if (path.startsWith("/") || /^[A-Za-z]:/.test(path)) return false;
+	return !path.split("/").includes("..");
+}
+
 const END_OF_DIRECTORY = 0x06054b50;
 const DIRECTORY_ENTRY = 0x02014b50;
 const LOCAL_HEADER = 0x04034b50;
@@ -100,6 +112,10 @@ export async function unzip(
 
 		if (path.endsWith("/")) {
 			out.dirs.push(path.slice(0, -1));
+			continue;
+		}
+		if (!isSafeEntry(path)) {
+			out.skipped.push({ path, reason: "outside the archive" });
 			continue;
 		}
 		if (!keep(path)) continue;

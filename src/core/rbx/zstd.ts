@@ -16,7 +16,10 @@
  * length, and the reader checks that instead.
  */
 
-class ZstdError extends Error {}
+import { RbxError } from "./dom.js";
+
+/** An `RbxError`, so a damaged place is reported the way any other is. */
+class ZstdError extends RbxError {}
 
 const FRAME_MAGIC = 0xfd2fb528;
 
@@ -410,11 +413,16 @@ function decodeFrame(b: Uint8Array, p: number, state: FrameState): number {
 	state.reps = [1, 4, 8];
 
 	for (;;) {
+		// Past the end, `b[p]` is undefined and the header reads as an empty
+		// block that is not the last, so a cut-off frame looped forever.
+		if (p + 3 > b.length) throw new ZstdError("a frame that ends before its last block");
 		const header = b[p] | (b[p + 1] << 8) | (b[p + 2] << 16);
 		p += 3;
 		const last = header & 1;
 		const type = (header >> 1) & 3;
 		const size = header >> 3;
+		const length = type === 1 ? 1 : type === 3 ? 0 : size;
+		if (p + length > b.length) throw new ZstdError("a block that runs past the end of the data");
 		if (type === 0) {
 			ensure(state, size);
 			state.out.set(b.subarray(p, p + size), state.length);

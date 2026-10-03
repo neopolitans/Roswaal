@@ -196,6 +196,11 @@ export class DirectoryFs implements ProjectFs {
 	 */
 	async rename(from: string, to: string): Promise<void> {
 		if (resolve(from) === resolve(to)) return;
+		// Copying a folder into itself would find its own copy on every pass
+		// and nest on the real disk until the browser gave up.
+		if (resolve(to).startsWith(`${resolve(from)}/`)) {
+			throw new DirectoryError("EINVAL", `EINVAL: invalid argument, rename '${resolve(from)}' -> '${resolve(to)}'`);
+		}
 
 		if (await this.fileAt(from)) {
 			await this.copyFile(from, to);

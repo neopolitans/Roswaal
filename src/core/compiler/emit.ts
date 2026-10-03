@@ -15,7 +15,7 @@
 
 import {
 	foldPrecedence, indentBlock, isAccessPath, isAtomic, literalToLuau, NameScope, paren, parenAt,
-	quoteString, templatePrecedence, toIdentifier,
+	parenPrefix, PREC, quoteString, spliceIntoTemplate, toIdentifier,
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../nodes/flow.js";
@@ -749,14 +749,8 @@ class Emitter {
 		}
 
 		const fn = luneFunction(alias, call);
-		const args = Array.from({ length: fn?.params.length ?? 0 }, (_unused, i) =>
-			this.resolveInput(src, this.pin(src, argPinId(i), "in"), scope));
-		// A trailing optional nobody filled in is left off rather than passed as
-		// nil, which is the difference between a call the runtime accepts and
-		// one it rejects.
-		while (args.length > 0 && fn?.params[args.length - 1]?.optional && args.at(-1) === "nil") {
-			args.pop();
-		}
+		const pins = Array.from({ length: fn?.params.length ?? 0 }, (_unused, i) => this.pin(src, argPinId(i), "in"));
+		const args = this.callArguments(src, pins, (pin) => this.resolveInput(src, pin, scope));
 		return `${ident}.${call}(${args.join(", ")})`;
 	}
 
@@ -776,17 +770,8 @@ class Emitter {
 
 		const known = serviceMethod(service, name);
 		const pins = r.inputs.filter((p) => VARIADIC_PIN.test(p.id));
-		const set = pins.map((pin) => this.isSet(r, pin));
-		// Trailing optional arguments nobody has touched are not passed at all,
-		// on the rule `$opt` follows and for the same reason: the engine rejects
-		// an explicit nil in places where it is happy with a missing argument.
-		let last = pins.length - 1;
-		while (last >= 0 && pins[last].optional === true && !set[last]) last -= 1;
-
-		const args = pins.slice(0, last + 1).map((pin, index) => {
-			if (pin.optional === true && !set[index]) return "nil";
-			return this.serviceArgument(r, pin, scope, known?.params[index]?.enum);
-		});
+		const args = this.callArguments(r, pins, (pin, index) =>
+			this.serviceArgument(r, pin, scope, known?.params[index]?.enum));
 		return `${this.serviceReceiver(r, service, scope)}:${toIdentifier(name, "method")}(${args.join(", ")})`;
 	}
 
@@ -817,7 +802,7 @@ class Emitter {
 				"service",
 			);
 		}
-		return paren(this.resolveInput(r, this.pin(r, "service", "in"), scope));
+		return parenPrefix(this.resolveInput(r, this.pin(r, "service", "in"), scope));
 	}
 
 	/**
@@ -1549,7 +1534,7 @@ class Emitter {
 
 				let callee: string;
 				if (r.def.id === "call.method") {
-					const object = paren(this.resolveInput(r, this.pin(r, "object", "in"), scope));
+					const object = parenPrefix(this.resolveInput(r, this.pin(r, "object", "in"), scope));
 					const method = toIdentifier(this.literalText(r, "method"), "method");
 					if (this.index.sourceOf(id, "method")) {
 						this.error(
@@ -1561,7 +1546,7 @@ class Emitter {
 					}
 					callee = `${object}:${method}`;
 				} else {
-					callee = paren(this.resolveInput(r, this.pin(r, "fn", "in"), scope));
+					callee = parenPrefix(this.resolveInput(r, this.pin(r, "fn", "in"), scope));
 				}
 
 				const expression = `${callee}(${args.join(", ")})`;
@@ -1985,11 +1970,25 @@ class Emitter {
 						"condition",
 					);
 				}
-				const cond = this.resolveInput(r, condPin, scope);
-				this.push(`while ${cond} do`, id);
+				// The condition is worked out inside the loop, so that it is read
+				// again on every pass. Resolved before the loop, a condition with
+				// two readers was bound to a local once and never changed.
+				const loop = new Scope(scope, true);
 				this.indent++;
-				this.names.within(() => this.walk(this.index.execTarget(id, "body"), new Scope(scope, true)));
+				this.names.push();
+				const captured = this.capture(() => this.resolveInput(r, condPin, loop));
 				this.indent--;
+				if (captured.lines.length === 0) {
+					this.push(`while ${captured.value} do`, id);
+				} else {
+					this.push("while true do", id);
+					for (const line of captured.lines) this.out.push(line);
+					this.push(`	if not ${parenAt(captured.value, PREC.unary)} then break end`, id);
+				}
+				this.indent++;
+				this.walk(this.index.execTarget(id, "body"), loop);
+				this.indent--;
+				this.names.pop();
 				this.push("end", id);
 				this.terminated = false;
 				return this.index.execTarget(id, "completed");
@@ -2648,6 +2647,26 @@ class Emitter {
 		return r.node.literals?.[pin.id] !== undefined;
 	}
 
+	/**
+	 * A call's arguments, with the optional ones nobody set handled the one way
+	 * every call does it.
+	 *
+	 * Trailing unset optional arguments are left off, because the engine and
+	 * Lune both reject an explicit `nil` in places where they accept a missing
+	 * argument. One that is unset but followed by a set one is passed as `nil`,
+	 * since leaving it off would shift every argument after it.
+	 */
+	private callArguments(
+		r: ResolvedNode, pins: readonly PinDef[], render: (pin: PinDef, index: number) => string,
+	): string[] {
+		const set = pins.map((pin) => this.isSet(r, pin));
+		let last = pins.length - 1;
+		while (last >= 0 && pins[last].optional === true && !set[last]) last -= 1;
+		return pins
+			.slice(0, last + 1)
+			.map((pin, index) => (pin.optional === true && !set[index] ? "nil" : render(pin, index)));
+	}
+
 	private resolveInput(r: ResolvedNode, pin: PinDef, scope: Scope): string {
 		// Split into components: there is no wire and no literal on the pin
 		// itself any more, so the value is assembled from the parts.
@@ -2658,7 +2677,7 @@ class Emitter {
 		if (!link) {
 			const lit = r.node.literals?.[pin.id] ?? pin.default;
 			if (lit === undefined) {
-				if (pin.required !== false) {
+				if (pin.required !== false && pin.optional !== true) {
 					this.error(
 						`"${r.def.title}" needs a value on "${pin.name || pin.id}".`,
 						r.node.id,
@@ -3006,13 +3025,8 @@ class Emitter {
 		 */
 		template = template.replace(/\$opt\(([^)]*)\)/g, (_match, separator: string) => {
 			const optional = r.inputs.filter((pin) => pin.optional === true);
-			const set = optional.map((pin) => this.isSet(r, pin));
-			const last = set.lastIndexOf(true);
-			if (last === -1) return "";
-			const args = optional
-				.slice(0, last + 1)
-				.map((pin, i) => (set[i] ? this.resolveInput(r, pin, scope) : "nil"));
-			return separator + args.join(separator);
+			const args = this.callArguments(r, optional, (pin) => this.resolveInput(r, pin, scope));
+			return args.length === 0 ? "" : separator + args.join(separator);
 		});
 
 		/**
@@ -3109,7 +3123,8 @@ class Emitter {
 				const table = this.resolveInput(r, this.pin(r, tablePin, "in"), scope);
 				const key = this.resolveInput(r, this.pin(r, keyPin, "in"), scope);
 				const plain = this.bracketsOnly(r) ? null : plainKey(key);
-				return plain ? `${table}.${plain}` : `${table}[${key}]`;
+				const object = parenPrefix(table);
+				return plain ? `${object}.${plain}` : `${object}[${key}]`;
 			},
 		);
 
@@ -3138,7 +3153,7 @@ class Emitter {
 			// above it where the value could not be repeated safely.
 			const shared = modifier === undefined ? once.get(pinId) : undefined;
 			if (shared !== undefined) {
-				return parenAt(shared, templatePrecedence(template, offset, offset + match.length));
+				return spliceIntoTemplate(shared, template, offset, offset + match.length);
 			}
 
 			if (modifier) {
@@ -3163,7 +3178,7 @@ class Emitter {
 			// next to an operator, and only as far as that position needs.
 			// Wrapping every argument would be correct but would make print((x))
 			// of everything.
-			return parenAt(expr, templatePrecedence(template, offset, offset + match.length));
+			return spliceIntoTemplate(expr, template, offset, offset + match.length);
 		});
 	}
 }

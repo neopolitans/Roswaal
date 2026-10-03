@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import {
-	argumentPins, callLabel, isValueCall, luneFunction, luneMenuItems, lunePins,
+	argPinId, argumentPins, callLabel, isValueCall, luneFunction, luneMenuItems, lunePins,
 	pinTypeFor, resultPin, LUNE_CALL, LUNE_VALUE,
 } from "../src/core/luneCalls.js";
 import { emptyScript, type NodeScript } from "../src/core/schema.js";
@@ -180,7 +180,32 @@ describe("compiling one", () => {
 				{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "wait", pin: "in" } },
 			],
 		};
-		expect(compile(script, registry).code).toContain("task.wait()");
+		const result = compile(script, registry);
+		expect(result.ok).toBe(true);
+		expect(result.code).toContain("task.wait()");
+	});
+
+	/** Unset, but followed by one that is set: the position has to be kept. */
+	it("passes nil for an unfilled optional before a filled one", () => {
+		const script: NodeScript = {
+			...emptyScript("Run", "run"),
+			target: "lune",
+			modules: [{ id: "m1", name: "process", specifier: "@lune/process" }],
+			nodes: [
+				{ id: "begin", def: "script.begin", x: 0, y: 0 },
+				{
+					id: "exec", def: LUNE_CALL, x: 200, y: 0,
+					config: { module: "process", call: "exec" },
+					literals: { [argPinId(0)]: { t: "string", v: "ls" }, [argPinId(2)]: { t: "raw", v: "options" } },
+				},
+			],
+			links: [
+				{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "exec", pin: "in" } },
+			],
+		};
+		const result = compile(script, registry);
+		expect(result.ok).toBe(true);
+		expect(result.code).toContain('process.exec("ls", nil, options)');
 	});
 
 	it("says so when no call has been chosen", () => {

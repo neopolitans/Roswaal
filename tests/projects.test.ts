@@ -105,8 +105,30 @@ describe("what has not reached disk yet", () => {
 	it("forgets one once it has been written", () => {
 		store.open(A, graph("A"));
 		store.edit((s) => ({ ...s, name: "A edited" }));
-		store.markSaved();
+		const [{ script }] = store.unsaved();
+		store.markSaved(A, script);
 		expect(store.unsaved()).toEqual([]);
+	});
+
+	/** An edit made while the write was in flight has not been written. */
+	it("keeps one that changed after the write began", () => {
+		store.open(A, graph("A"));
+		store.edit((s) => ({ ...s, name: "A edited" }));
+		const [{ script: writing }] = store.unsaved();
+		store.edit((s) => ({ ...s, name: "A edited again" }));
+		store.markSaved(A, writing);
+		expect(store.unsaved().map((p) => p.script.name)).toEqual(["A edited again"]);
+	});
+
+	/** A write finishing while another tab is in front used to mark that tab clean. */
+	it("marks the graph that was written, not the one on screen", () => {
+		store.open(A, graph("A"));
+		store.edit((s) => ({ ...s, name: "A edited" }));
+		const [{ script: writing }] = store.unsaved();
+		store.open(B, graph("B"));
+		store.edit((s) => ({ ...s, name: "B edited" }));
+		store.markSaved(A, writing);
+		expect(store.unsaved().map((p) => p.path)).toEqual([B]);
 	});
 
 	it("reports both when both are waiting", () => {
@@ -116,5 +138,21 @@ describe("what has not reached disk yet", () => {
 		store.edit((s) => ({ ...s, name: "B edited" }));
 
 		expect(store.unsaved().map((p) => p.path).sort()).toEqual([A, B]);
+	});
+});
+
+describe("closing what a delete took", () => {
+	beforeEach(() => {
+		store.closeAll();
+		store.setLocked(false);
+	});
+
+	it("closes every file under a folder, and nothing beside it", () => {
+		store.open("src/gone/A.nodescript", graph("A"));
+		store.open("src/gone/deeper/B.nodescript", graph("B"));
+		store.open("src/gone-not/C.nodescript", graph("C"));
+		store.closePath("src/gone");
+		expect(store.openPaths()).toEqual(["src/gone-not/C.nodescript"]);
+		expect(store.getSnapshot().path).toBe("src/gone-not/C.nodescript");
 	});
 });

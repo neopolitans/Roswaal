@@ -10,6 +10,7 @@
 
 import { constants, zstdCompressSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
+import { RbxError } from "../src/core/rbx/dom.js";
 import { isZstd, zstdDecompress } from "../src/core/rbx/zstd.js";
 
 const compress = (data: Uint8Array, level: number): Uint8Array =>
@@ -96,6 +97,39 @@ describe("zstd", () => {
 		const b = propertyLike(3_000, 9);
 		const both = new Uint8Array([...compress(a, 3), ...compress(b, 5)]);
 		expect(Buffer.from(zstdDecompress(both)).equals(Buffer.from(new Uint8Array([...a, ...b])))).toBe(true);
+	});
+
+	/**
+	 * A frame cut off anywhere used to read past its end as empty blocks that
+	 * were never the last, and the loop never finished.
+	 */
+	it("refuses a frame cut off anywhere, as a damaged place", () => {
+		const data = luauLike(2_000, 10);
+		const frame = compress(data, 3);
+		for (let cut = 4; cut < frame.length; cut++) {
+			let thrown: unknown;
+			try {
+				const back = zstdDecompress(frame.subarray(0, cut), data.length);
+				// A cut inside the trailing checksum still holds every block.
+				expect(Buffer.from(back).equals(Buffer.from(data))).toBe(true);
+				continue;
+			} catch (error) {
+				thrown = error;
+			}
+			expect(thrown, `cut at ${cut} of ${frame.length}`).toBeInstanceOf(RbxError);
+		}
+	});
+
+	/** It used to come back the right length, padded with zeros, and pass. */
+	it("refuses a raw block shorter than it says", () => {
+		const header = (100 << 3) | 1;
+		const frame = Uint8Array.of(
+			0x28, 0xb5, 0x2f, 0xfd, // magic
+			0x20, 100, // single segment, content size 100
+			header & 0xff, (header >> 8) & 0xff, header >> 16,
+			1, 2, 3,
+		);
+		expect(() => zstdDecompress(frame, 100)).toThrow(RbxError);
 	});
 
 	it("refuses what is not zstd", () => {

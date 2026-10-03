@@ -9,7 +9,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { compile, type Diagnostic } from "../core/compiler/index.js";
+import { compile, serialiseScript, type Diagnostic } from "../core/compiler/index.js";
 import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
 import { BUILTIN_NODES, createRegistry, resolveNodePins } from "../core/nodes/index.js";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
@@ -83,6 +83,8 @@ import {
 } from "./host.js";
 import { ExportMenu } from "./ExportMenu.jsx";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
+import { SaveQueue } from "./saveQueue.js";
+import { isEditableTarget } from "./keys.js";
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
 import { SERVICE_CALL, SERVICE_VALUE } from "../core/serviceCalls.js";
 import { canShowName } from "../core/operatorLayout.js";
@@ -392,22 +394,50 @@ export function App() {
 		  name: string; location: InstanceLocation } | null
 	>(null);
 
-	/** Opens a modal and resolves with what the developer chose. */
+	/**
+	 * Opens a modal and resolves with what the developer chose.
+	 *
+	 * One at a time: a second question replaces the first, which is answered
+	 * as dismissed. It used to be dropped unanswered, and whatever was waiting
+	 * on it waited for ever.
+	 */
+	const answerDialog = useRef<((result: DialogResult) => void) | null>(null);
+	const dialogOpen = useRef(false);
 	const ask = useCallback((request: DialogRequest): Promise<DialogResult> => {
+		answerDialog.current?.(null);
 		return new Promise((resolve) => {
-			setDialog({
-				request,
-				resolve: (result) => {
-					setDialog(null);
-					resolve(result);
-				},
-			});
+			const answer = (result: DialogResult) => {
+				if (answerDialog.current !== answer) return;
+				answerDialog.current = null;
+				dialogOpen.current = false;
+				setDialog(null);
+				resolve(result);
+			};
+			answerDialog.current = answer;
+			dialogOpen.current = true;
+			setDialog({ request, resolve: answer });
 		});
 	}, []);
 
 	const notify = useCallback(
 		(title: string, message: string) => void ask({ kind: "notice", title, message }),
 		[ask],
+	);
+
+	/**
+	 * Autosave's queue: one pending write per file, graphs and node maps alike.
+	 * See `saveQueue.ts`.
+	 *
+	 * One for the life of the page, reading the pause and the failure handler
+	 * through refs, so that changing either does not build a new queue and
+	 * drop what the old one was holding.
+	 */
+	const autosaveMs = useRef(prefs.autosaveMs);
+	autosaveMs.current = prefs.autosaveMs;
+	const writeFailed = useRef<(error: Error) => void>(() => undefined);
+	const saves = useMemo(
+		() => new SaveQueue(() => autosaveMs.current, (error) => writeFailed.current(error)),
+		[],
 	);
 	const [busy, setBusy] = useState<string | null>(null);
 	// Deliberately in-memory rather than the system clipboard: a graph fragment
@@ -542,6 +572,9 @@ export function App() {
 	const switchProject = useCallback(
 		async (root: string, quiet = false): Promise<boolean> => {
 			try {
+				await saves.flushAll();
+				// Still dirty means an earlier write failed and nothing is
+				// queued for it any more: one more try before closing it.
 				for (const { path, script } of store.unsaved()) {
 					await api.writeScript(path, script);
 				}
@@ -562,7 +595,7 @@ export function App() {
 			setAliasDoc(null);
 			return loadProject(root, false, quiet);
 		},
-		[loadProject, mapDoc, notify],
+		[loadProject, mapDoc, notify, saves],
 	);
 
 	/**
@@ -678,6 +711,7 @@ export function App() {
 			void api.tree().then(({ tree, place }) => setProject((p) => (p ? { ...p, tree, place } : p)));
 			refreshTypes();
 			refreshAliases();
+			void followDiskRef.current(detail.type, detail.path);
 		});
 
 		/**
@@ -796,22 +830,20 @@ export function App() {
 		}
 	}, [notify]);
 
-	// Node maps autosave on the same terms graphs do.
-	const mapSaveTimer = useRef<number | null>(null);
+	/**
+	 * Node maps autosave on the same terms graphs do, through the same queue.
+	 *
+	 * No cleanup on purpose: the write belongs to the file. Opening anything
+	 * else sets the map to null, and that used to cancel the pending write.
+	 */
 	useEffect(() => {
 		if (!mapDoc?.dirty) return;
-		if (mapSaveTimer.current) window.clearTimeout(mapSaveTimer.current);
 		const { path, map } = mapDoc;
-		mapSaveTimer.current = window.setTimeout(() => {
-			void api.writeMap(path, map).then(
-				() => setMapDoc((d) => (d && d.path === path ? { ...d, dirty: false } : d)),
-				onWriteFailed,
-			);
-		}, prefs.autosaveMs);
-		return () => {
-			if (mapSaveTimer.current) window.clearTimeout(mapSaveTimer.current);
-		};
-	}, [mapDoc, prefs.autosaveMs]);
+		saves.put(path, async () => {
+			await api.writeMap(path, map);
+			setMapDoc((d) => (d && d.path === path && d.map === map ? { ...d, dirty: false } : d));
+		});
+	}, [mapDoc, saves]);
 
 	/**
 	 * A write the daemon refused because it is now serving a different project.
@@ -823,6 +855,8 @@ export function App() {
 	 */
 	const onProjectChanged = useCallback(
 		async (err: ProjectChangedError) => {
+			// Every write still waiting is for the project that has gone.
+			saves.drop("");
 			store.closeAll();
 			setSource(null);
 			setAliasDoc(null);
@@ -833,7 +867,7 @@ export function App() {
 			);
 			if (err.root) await loadProject(err.root);
 		},
-		[notify, loadProject],
+		[notify, loadProject, saves],
 	);
 
 	/** Reports a failed write, telling a moved project apart from a real error. */
@@ -845,28 +879,112 @@ export function App() {
 		[notify, onProjectChanged],
 	);
 
+	writeFailed.current = onWriteFailed;
+
 	// Autosave. The graph on disk is the document; there is no separate "saved"
 	// copy to diverge from, so an explicit save button would only be ceremony.
-	const saveTimer = useRef<number | null>(null);
+	//
+	// Every dirty graph is queued, not only the one on screen: the queue holds
+	// a write per file, so a tab switched away from or closed inside the pause
+	// is still written.
+	const compileAfterSave = useRef<(path: string) => void>(() => undefined);
+	compileAfterSave.current = (path) => {
+		if (project?.config.compileMode === "hot") void runCompile(path, true);
+	};
+	/** What this tab last wrote to each graph, to tell its own writes from somebody else's. */
+	const lastWritten = useRef(new Map<string, string>());
+	const writeGraph = useCallback(async (path: string, script: NodeScript) => {
+		lastWritten.current.set(path, serialiseScript(script));
+		await api.writeScript(path, script);
+		store.markSaved(path, script);
+		compileAfterSave.current(path);
+	}, []);
 	useEffect(() => {
-		if (!editor.dirty || !editor.path || !editor.script) return;
-		if (saveTimer.current) window.clearTimeout(saveTimer.current);
-		const path = editor.path;
-		const script = editor.script;
-		saveTimer.current = window.setTimeout(() => {
-			void api.writeScript(path, script).then(
-				() => {
-					store.markSaved();
-					if (project?.config.compileMode === "hot") void runCompile(path, true);
-				},
-				onWriteFailed,
-			);
-		}, prefs.autosaveMs);
-		return () => {
-			if (saveTimer.current) window.clearTimeout(saveTimer.current);
+		const queued = new Map<string, NodeScript>();
+		return store.subscribe(() => {
+			for (const { path, script } of store.unsaved()) {
+				if (queued.get(path) === script) continue;
+				queued.set(path, script);
+				saves.put(path, () => writeGraph(path, script));
+			}
+		});
+	}, [saves, writeGraph]);
+
+	/**
+	 * Leaving the page: write what is waiting, and say so if there is any.
+	 *
+	 * A hidden tab may be closed without another chance, so the queue is
+	 * written as soon as the page is hidden. The browser's own "leave this
+	 * page?" question is asked only while something has not been written yet.
+	 */
+	useEffect(() => {
+		const hidden = () => {
+			if (document.visibilityState === "hidden") saves.flushAll().catch(onWriteFailed);
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [editor.dirty, editor.path, editor.script, project?.config.compileMode, prefs.autosaveMs]);
+		const leaving = (event: BeforeUnloadEvent) => {
+			if (!saves.busy()) return;
+			saves.flushAll().catch(onWriteFailed);
+			event.preventDefault();
+		};
+		document.addEventListener("visibilitychange", hidden);
+		window.addEventListener("beforeunload", leaving);
+		return () => {
+			document.removeEventListener("visibilitychange", hidden);
+			window.removeEventListener("beforeunload", leaving);
+		};
+	}, [saves, onWriteFailed]);
+
+	/**
+	 * An open graph's file changed or went on disk: a branch switch, a pull,
+	 * another editor.
+	 *
+	 * Nothing used to listen, so the next autosave wrote the graph on screen
+	 * over the one just checked out. Now a clean graph takes what the file
+	 * says, one with edits of its own asks which to keep, and one whose file
+	 * is gone is closed. This tab's own writes come back here too and are
+	 * recognised by their content.
+	 */
+	const followDisk = useCallback(async (type: string, path: string) => {
+		if (!path.endsWith(".nodescript") || !store.document(path)) return;
+		const disk = await api.readScript(path).then((reply) => reply.script, () => null);
+		const open = store.document(path);
+		if (!open) return;
+
+		if (disk === null) {
+			if (type !== "removed") return;
+			if (open.dirty) {
+				notify("A graph was deleted on disk", `${path} is gone. Your edits are still open, and saving them will bring the file back.`);
+				return;
+			}
+			saves.drop(path);
+			store.closePath(path);
+			return;
+		}
+
+		const text = serialiseScript(disk);
+		if (text === lastWritten.current.get(path) || text === serialiseScript(open.script)) return;
+		if (!open.dirty) {
+			store.reload(path, disk);
+			return;
+		}
+
+		saves.drop(path);
+		const choice = await ask({
+			kind: "choice",
+			title: "This graph changed on disk",
+			message: `${path} was changed outside this tab while you had edits that were not saved yet.`,
+			choices: [
+				{ value: "disk", label: "Use the file" },
+				{ value: "mine", label: "Keep my edits", primary: true },
+			],
+		});
+		const now = store.document(path);
+		if (!now) return;
+		if (choice === "disk") store.reload(path, disk);
+		else saves.put(path, () => writeGraph(path, now.script));
+	}, [ask, notify, saves, writeGraph]);
+	const followDiskRef = useRef(followDisk);
+	followDiskRef.current = followDisk;
 
 	// -- compiling ---------------------------------------------------------
 
@@ -1297,10 +1415,8 @@ export function App() {
 
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
-			const target = e.target as HTMLElement;
-			if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
-				return;
-			}
+			// A dialog is a question about the graph; nothing changes it meanwhile.
+			if (isEditableTarget(e.target) || dialogOpen.current) return;
 			const mod = e.ctrlKey || e.metaKey;
 
 			// Selecting and copying are reading. Everything else below changes
@@ -1669,17 +1785,19 @@ export function App() {
 	}, [notify]);
 
 	/**
-	 * Writes every open graph at or under `path` that has edits not yet on disk.
+	 * Writes everything at or under `path` that has edits not yet on disk.
 	 *
-	 * Before a move or a rename, so the file that moves is the graph on screen.
-	 * Autosave follows the tab you are looking at, and a graph in another tab can
-	 * be dirty with nothing scheduled to write it.
+	 * Before a move or a rename, so the file that moves is the graph on screen,
+	 * and so that no write still waiting for the old path lands there afterwards
+	 * and brings the file back.
 	 */
 	const flushUnder = useCallback(async (path: string) => {
+		await saves.flushUnder(path);
+		// Still dirty means an earlier write failed and nothing is queued for it.
 		for (const { path: open, script } of store.unsaved()) {
-			if (open === path || open.startsWith(path + "/")) await api.writeScript(open, script);
+			if (open === path || open.startsWith(path + "/")) await writeGraph(open, script);
 		}
-	}, []);
+	}, [saves, writeGraph]);
 
 	/**
 	 * Before this tab becomes Node Design or the docs, on a screen where the
@@ -1689,11 +1807,12 @@ export function App() {
 	 */
 	useEffect(() => {
 		setBeforeLeaving(async () => {
-			for (const { path, script } of store.unsaved()) await api.writeScript(path, script);
+			await saves.flushAll();
+			for (const { path, script } of store.unsaved()) await writeGraph(path, script);
 			if (mapDoc?.dirty) await api.writeMap(mapDoc.path, mapDoc.map);
 		});
 		return () => setBeforeLeaving(null);
-	}, [mapDoc]);
+	}, [mapDoc, saves, writeGraph]);
 
 	/**
 	 * Points every open document at where its file went.
@@ -2092,17 +2211,26 @@ export function App() {
 			danger: true,
 		});
 		if (ok !== true) return;
+		const under = (path: string, target: string) => path === target || path.startsWith(`${target}/`);
 		try {
-			for (const target of paths) await api.deleteScript(target);
-			// Only the tabs whose files went. A deleted file elsewhere in the
-			// tree is no reason to close the graph somebody is looking at.
-			for (const path of paths) store.closeDocument(path);
-			if (mapDoc && paths.includes(mapDoc.path)) setMapDoc(null);
+			for (const target of paths) {
+				// A write still waiting for something being deleted would bring
+				// it back; one already under way is let finish first.
+				saves.drop(target);
+				await saves.flushUnder(target);
+				await api.deleteScript(target);
+				// Every tab of every file it took: function tabs, and everything
+				// inside a folder. A deleted file elsewhere in the tree is no
+				// reason to close the graph somebody is looking at.
+				store.closePath(target);
+			}
+			if (mapDoc && paths.some((target) => under(mapDoc.path, target))) setMapDoc(null);
+			if (source && paths.some((target) => under(source.path, target))) setSource(null);
 			await refreshTree();
 		} catch (err) {
 			notify("Something went wrong", (err as Error).message);
 		}
-	}, [ask, notify, refreshTree, editor.path, mapDoc]);
+	}, [ask, notify, refreshTree, mapDoc, source, saves]);
 
 	// -- render ------------------------------------------------------------
 

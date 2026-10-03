@@ -284,10 +284,9 @@ class Store {
 	 * Opens a graph with the content given, and makes it active.
 	 *
 	 * Replaces whatever was there, history and all, **including for a path that
-	 * is already open**. That is not an oversight: dynamic compiling calls this when a
-	 * file changed on disk, and quietly keeping the old content because the tab
-	 * existed would leave the editor showing something the file no longer says.
-	 * An undo stack built on a version that is gone is not worth keeping.
+	 * is already open**, because what was read is what the file says now. A
+	 * file that changed on disk under an open tab goes through `reload`, which
+	 * does the same without bringing the tab forward.
 	 *
 	 * A function tab of the same file already in front stays in front.
 	 *
@@ -484,11 +483,54 @@ class Store {
 		this.changed();
 	}
 
-	markSaved(): void {
-		const doc = this.active();
-		if (!doc) return;
+	/**
+	 * `script` reached disk as `path`.
+	 *
+	 * Clean only if that is still what the document holds. It used to mark
+	 * whichever document was on screen, so an edit made while the write was in
+	 * flight was marked clean and never written, and switching tabs during one
+	 * marked the wrong graph.
+	 */
+	markSaved(path: string, script: NodeScript): void {
+		const doc = this.docs.get(path);
+		if (!doc || doc.script !== script || !doc.dirty) return;
 		this.setDoc({ ...doc, dirty: false });
 		this.changed();
+	}
+
+	/**
+	 * The file changed on disk and this is what it says now.
+	 *
+	 * The open document takes it, history and all, and nothing else moves: the
+	 * tab in front stays in front. Not `open`, which brings the file forward.
+	 */
+	reload(path: string, script: NodeScript): void {
+		if (!this.docs.has(path)) return;
+		this.setDoc({ path, script, dirty: false, past: [], future: [], pending: null });
+		this.reconcile(path);
+		this.changed();
+	}
+
+	/**
+	 * Closes every tab of every file at or under `prefix`: a deleted file's
+	 * function tabs, and everything inside a deleted folder.
+	 */
+	closePath(prefix: string): void {
+		const gone = (path: string) => path === prefix || path.startsWith(`${prefix}/`);
+		const activePath = this.activeTab()?.path;
+		const index = this.tabList.findIndex((t) => t.key === this.activeKey);
+		this.tabList = this.tabList.filter((t) => !gone(t.path));
+		for (const path of [...this.docs.keys()]) if (gone(path)) this.docs.delete(path);
+		if (activePath !== undefined && gone(activePath)) {
+			this.activeKey = (this.tabList[index] ?? this.tabList[index - 1] ?? this.tabList.at(-1))?.key ?? null;
+		}
+		this.changed();
+	}
+
+	/** The script open at `path`, and whether it has edits not on disk. */
+	document(path: string): { script: NodeScript; dirty: boolean } | undefined {
+		const doc = this.docs.get(path);
+		return doc ? { script: doc.script, dirty: doc.dirty } : undefined;
 	}
 
 	// -- editing -----------------------------------------------------------

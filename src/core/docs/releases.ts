@@ -94,6 +94,35 @@ export function taglineFor(version: string): string | undefined {
 /** Newest first. */
 export const RELEASES: Release[] = [
 	{
+		version: "0.117.0",
+		date: "2026-10-03",
+		headline: "Autosave keeps every edit, and the compiler checks its own Luau.",
+		affects: ["editor", "designer", "docs"],
+		added: [
+			"**Every compile reads its Luau back** with the parser. Output that does not parse is an error and is not written.",
+			"**An open graph follows its file.** When the file changes on disk, from a branch switch, a pull or another editor, a graph with no unsaved edits takes the new version and one with edits asks which to keep. A graph whose file is deleted closes. This works in Manual mode too, and [Compiling and nodemaps for Roblox](building-and-rojo) says so.",
+		],
+		changed: [
+			"**Leaving the page** while an edit is still waiting to be saved asks first, and a tab that is hidden writes what is waiting.",
+		],
+		fixed: [
+			"**Switching or closing a tab** inside the autosave pause no longer loses the edit. Neither does leaving a node map for something else.",
+			"**An edit made while a save was under way** is no longer marked as saved, and a save that finishes while another tab is in front no longer marks that tab saved.",
+			"**Deleting from the project tree** closes the function tabs and graphs it took, and a waiting save no longer brings a deleted file back.",
+			"**Negate** of a negative number, or of another Negate, no longer writes `--`, which Luau reads as a comment. A negative number raised to a power is bracketed: `(-2) ^ 2`.",
+			"**Get Key, Set Key and Call Method** bracket what they index or call on: `(config or defaults).speed`, `(\"hello\"):upper()`.",
+			"**A While loop whose condition is read elsewhere** works the condition out on every pass. It was worked out once above the loop, which then never ended.",
+			"**Lune functions** compile with their optional arguments left empty: `task.wait()` no longer asks for a duration.",
+			"**A constant variable** stays constant after the graph is reloaded.",
+			"**Keyboard shortcuts** no longer fire from a dropdown or behind a dialog. Typing in an Inspector dropdown could add a comment or delete the node.",
+			"**Moving a folder into itself** is refused. In the web app it damaged the project, and in a folder opened from disk it copied itself until the browser stopped.",
+			"**A truncated or damaged place file** is reported as damaged rather than freezing the editor.",
+			"**A package zip** can no longer write outside its own folder. Entries with `..` in their path are skipped, and a package's name, version and alias have to be plain names.",
+			"**Graphs, node maps and roswaal.json** are written to a new file and renamed into place, so a crash part-way through a save leaves the old file whole.",
+			"**The daemon** refuses to delete, move or rename the project folder itself.",
+		],
+	},
+	{
 		version: "0.116.2",
 		date: "2026-09-30",
 		headline: "Attributions name the libraries Roswaal is tested with.",

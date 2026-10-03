@@ -25,7 +25,8 @@ describe("how tightly an expression binds", () => {
 		['root:IsA("BasePart")', PREC.postfix],
 		["(a or b)", PREC.postfix],
 		["{ x = 1 }", PREC.postfix],
-		["-5", PREC.postfix],
+		// Luau has no negative literals: this is unary minus applied to 5.
+		["-5", PREC.unary],
 		["2 ^ 8", PREC.power],
 		["not humanoid", PREC.unary],
 		["#parts", PREC.unary],
@@ -228,5 +229,83 @@ describe("a generated name", () => {
 		const out = body(compile(b.build(), registry).code);
 		expect(out).toContain("local part = nil");
 		expect(out).toContain("local part2 = nil");
+	});
+});
+
+describe("unary minus and prefix positions", () => {
+	/** Print whatever `wire` builds into the value pin, and return the line. */
+	function printed(wire: (b: Builder, print: string) => void): string {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const print = b.node("debug.print");
+		b.link(start, "then", print, "in");
+		wire(b, print);
+		const result = compile(b.build(), registry);
+		expect(result.ok).toBe(true);
+		return body(result.code);
+	}
+
+	/** `--3` is the start of a comment, and the line would print nothing. */
+	it("brackets a negative number under Negate", () => {
+		expect(printed((b, print) => {
+			const neg = b.node("math.neg");
+			b.lit(neg, "a", { t: "number", v: -3 });
+			b.link(neg, "result", print, "value");
+		})).toContain("print(-(-3))");
+	});
+
+	it("brackets Negate under Negate", () => {
+		expect(printed((b, print) => {
+			const inner = b.node("math.neg");
+			const outer = b.node("math.neg");
+			b.lit(inner, "a", { t: "raw", v: "speed" });
+			b.link(inner, "result", outer, "a");
+			b.link(outer, "result", print, "value");
+		})).toContain("print(-(-speed))");
+	});
+
+	/** `-2 ^ 2` is -(2 ^ 2), which is -4. */
+	it("brackets a negative base of a power", () => {
+		expect(printed((b, print) => {
+			const pow = b.node("math.pow");
+			b.lit(pow, "a", { t: "number", v: -2 });
+			b.lit(pow, "b", { t: "number", v: 2 });
+			b.link(pow, "result", print, "value");
+		})).toContain("print((-2) ^ 2)");
+	});
+
+	it("leaves a negative number bare where nothing binds it", () => {
+		expect(printed((b, print) => {
+			const add = b.node("math.add");
+			b.lit(add, "a0", { t: "raw", v: "speed" });
+			b.lit(add, "a1", { t: "number", v: -1 });
+			b.link(add, "result", print, "value");
+		})).toContain("print(speed + -1)");
+	});
+
+	/** Without them this reads `defaults.speed`, from the wrong table. */
+	it("brackets an expression that Get Key indexes", () => {
+		expect(printed((b, print) => {
+			const either = b.node("logic.or");
+			b.lit(either, "a0", { t: "raw", v: "config" });
+			b.lit(either, "a1", { t: "raw", v: "defaults" });
+			const get = b.node("table.getKey");
+			b.link(either, "result", get, "table");
+			b.lit(get, "key", { t: "string", v: "speed" });
+			b.link(get, "result", print, "value");
+		})).toContain("print((config or defaults).speed)");
+	});
+
+	/** `"hello":upper()` is not Luau; a string has to be bracketed to be called on. */
+	it("brackets a string that a method is called on", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const call = b.node("call.method", { config: { args: 0 } });
+		b.lit(call, "object", { t: "string", v: "hello" });
+		b.lit(call, "method", { t: "string", v: "upper" });
+		b.link(start, "then", call, "in");
+		const result = compile(b.build(), registry);
+		expect(result.ok).toBe(true);
+		expect(body(result.code)).toContain('("hello"):upper()');
 	});
 });

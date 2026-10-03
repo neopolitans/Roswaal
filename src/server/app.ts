@@ -122,13 +122,14 @@ app.use(express.json({ limit: "32mb" }));
 const dynamic = new DynamicCompiler();
 
 /**
- * Starts or stops the watcher to match the project's compile mode.
+ * Watches the open project, compiling on change in Dynamic mode only.
  *
  * The stored value is still `"hot"` — what a person reads changed, what a
- * committed `roswaal.json` holds did not.
+ * committed `roswaal.json` holds did not. Manual mode is watched too, so an
+ * open graph hears that its file changed underneath it.
  */
 function syncDynamicCompile(): void {
-	if (session.current?.config.compileMode === "hot") dynamic.start(session.current);
+	if (session.current) dynamic.start(session.current, session.current.config.compileMode === "hot");
 	else dynamic.stop();
 }
 

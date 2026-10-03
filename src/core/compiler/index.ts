@@ -6,6 +6,7 @@ import type { SpecifierContext } from "../modules.js";
 import { emit, hashString, type Diagnostic, type EmitResult } from "./emit.js";
 import { validate } from "./validate.js";
 import { retypeClassReads } from "../classReads.js";
+import { checkLuau } from "../luau/check.js";
 
 export { validate } from "./validate.js";
 export { emit, hashString } from "./emit.js";
@@ -66,6 +67,9 @@ export function compile(
 	});
 
 	const diagnostics = [...structural, ...emitted.diagnostics];
+	if (!diagnostics.some((d) => d.severity === "error")) {
+		diagnostics.push(...unparsedOutput(emitted));
+	}
 	const ok = !diagnostics.some((d) => d.severity === "error");
 
 	return {
@@ -77,6 +81,28 @@ export function compile(
 		fileName: outputFileName(script),
 		ok,
 	};
+}
+
+/**
+ * The generated file read back with the Luau parser.
+ *
+ * A graph that passed every other check should always produce Luau that
+ * parses, so a failure here is a bug in the compiler, not in the graph. It is
+ * an error all the same, so a broken file is never written; and it is only
+ * asked once nothing else has failed, so a typo in Custom Code is reported
+ * once, by the check that knows which node it is in.
+ */
+function unparsedOutput(emitted: EmitResult): Diagnostic[] {
+	const problem = checkLuau(emitted.code, "block")[0];
+	if (problem === undefined) return [];
+	const node = emitted.sourceMap.find((entry) => entry.line === problem.line)?.node;
+	return [{
+		severity: "error",
+		message:
+			`The Luau written for this graph does not parse (line ${problem.line}: ${problem.message}). ` +
+			"This is a bug in Roswaal — please report it with the graph.",
+		...(node !== undefined ? { node } : {}),
+	}];
 }
 
 /**
@@ -131,7 +157,7 @@ export function semanticJson(script: NodeScript): string {
 		typecheck: script.typecheck,
 		variables: (script.variables ?? []).map((v) => ({
 			id: v.id, name: v.name, type: v.type, default: v.default,
-			description: v.description ?? null,
+			description: v.description ?? null, ...(v.const === true ? { const: true } : {}),
 		})),
 		// Modules change the generated file, so they have to change the hash
 		// that decides whether it needs rewriting.
@@ -163,6 +189,7 @@ export function serialiseScript(script: NodeScript): string {
 			type: v.type,
 			default: v.default,
 			...(v.description ? { description: v.description } : {}),
+			...(v.const === true ? { const: true } : {}),
 		})),
 		// Declaration order is the author's here too: it is the order the requires
 		// come out in, which a reader of the generated file sees.

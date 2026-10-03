@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { compile } from "../src/core/compiler/index.js";
+import { compile, serialiseScript } from "../src/core/compiler/index.js";
+import { emptyScript, type NodeScript, type ScriptVariable } from "../src/core/schema.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { migrateScript } from "../src/core/migrate.js";
 import { Builder, body } from "./helpers.js";
@@ -578,5 +579,62 @@ describe("reroute knots", () => {
 
 		const code = body(compile(b.build(), registry).code);
 		expect(code.match(/1 \+ 1/g)).toHaveLength(1);
+	});
+});
+
+describe("a While condition", () => {
+	/**
+	 * A condition read twice used to be bound to a local above the loop. The
+	 * local never changed, so the loop never ended.
+	 */
+	it("is read again on every pass when something else reads it too", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const loop = b.node("flow.while");
+		const less = b.node("compare.lt");
+		b.lit(less, "a", { t: "raw", v: "count" });
+		b.lit(less, "b", { t: "number", v: 10 });
+		const print = b.node("debug.print");
+		b.link(start, "then", loop, "in");
+		b.link(less, "result", loop, "condition");
+		b.link(loop, "body", print, "in");
+		b.link(less, "result", print, "value");
+
+		const result = compile(b.build(), registry);
+		expect(errors(result)).toEqual([]);
+		const code = body(result.code);
+		expect(code).toContain("while true do");
+		expect(code).toMatch(/while true do\n\tlocal (\w+) = count < 10\n\tif not \1 then break end\n\tprint\(\1\)\nend/);
+	});
+
+	it("stays on the while line when only the loop reads it", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const loop = b.node("flow.while");
+		const less = b.node("compare.lt");
+		b.lit(less, "a", { t: "raw", v: "count" });
+		b.lit(less, "b", { t: "number", v: 10 });
+		b.link(start, "then", loop, "in");
+		b.link(less, "result", loop, "condition");
+		b.link(loop, "body", b.node("debug.print"), "in");
+
+		expect(body(compile(b.build(), registry).code)).toContain("while count < 10 do");
+	});
+});
+
+describe("saving a graph", () => {
+	/**
+	 * `const` was left out of the file, so a constant variable came back as
+	 * an ordinary one after a reload. Every field a variable can carry has to
+	 * survive the trip.
+	 */
+	it("keeps every field of a variable", () => {
+		const variable: ScriptVariable = {
+			id: "v1", name: "MAX_SPEED", type: "number",
+			default: { t: "number", v: 16 }, description: "Top speed.", const: true,
+		};
+		const script: NodeScript = { ...emptyScript("Car", "car"), variables: [variable] };
+		const back = JSON.parse(serialiseScript(script)) as NodeScript;
+		expect(back.variables).toEqual([variable]);
 	});
 });

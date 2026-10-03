@@ -44,7 +44,7 @@ vi.mock("../src/server/host.js", async () => {
 });
 
 const { volume } = await import("../src/server/host.js") as unknown as { volume: Volume };
-const { buildTree, compileAll, openProject, readScript, writeScript } =
+const { buildTree, compileAll, createFolder, deleteEntry, moveEntry, openProject, readScript, writeScript } =
 	await import("../src/server/project.js");
 const { splitGenerated } = await import("../src/server/project.js");
 
@@ -305,6 +305,11 @@ describe("editing a project held in memory", () => {
 		// Back to what it was: the fixture is shared with the tests above.
 		reread.nodes = reread.nodes.filter((node) => node.id !== "added-by-test");
 		await writeScript(project, relPath, reread);
+
+		// Saved by writing beside the graph and renaming over it: nothing of
+		// that may be left behind.
+		const folder = await volume.readdir("/demo/.roswaal/scripts/ReplicatedStorage/Shared");
+		expect(folder.filter((name) => name.endsWith(".tmp"))).toEqual([]);
 	});
 });
 
@@ -343,5 +348,37 @@ describe("what a volume can say about its directories", () => {
 		second.mountDirs(first.directories("/p"));
 
 		expect((await second.stat("/p/scratch")).isDirectory()).toBe(true);
+	});
+});
+
+/**
+ * The tree's entry operations, on the web host where they used to do the most
+ * damage: a folder dropped on itself left the volume listing a folder `stat`
+ * could not find.
+ */
+describe("what the tree may not do to a project", () => {
+	it("refuses to delete the project folder itself", async () => {
+		const project = await openProject("/demo");
+		for (const target of ["", ".", "src/.."]) {
+			await expect(deleteEntry(project, target)).rejects.toThrow("project folder itself");
+		}
+		expect((await volume.stat("/demo/roswaal.json")).isFile()).toBe(true);
+	});
+
+	it("refuses to move a folder into itself", async () => {
+		const project = await openProject("/demo");
+		await createFolder(project, ".roswaal/scripts/Inner");
+		await createFolder(project, ".roswaal/scripts/Inner/Deeper");
+		await expect(moveEntry(project, ".roswaal/scripts/Inner", ".roswaal/scripts/Inner")).rejects.toThrow("into itself");
+		await expect(moveEntry(project, ".roswaal/scripts/Inner", ".roswaal/scripts/Inner/Deeper")).rejects.toThrow("into itself");
+		expect((await volume.stat("/demo/.roswaal/scripts/Inner/Deeper")).isDirectory()).toBe(true);
+		await deleteEntry(project, ".roswaal/scripts/Inner");
+	});
+
+	it("refuses a rename into itself the way Node does", async () => {
+		const scratch = new Volume();
+		scratch.mount({ "/p/a/file.txt": "x" });
+		await expect(scratch.rename("/p/a", "/p/a/b")).rejects.toMatchObject({ code: "EINVAL" });
+		expect(await scratch.readFile("/p/a/file.txt", "utf8")).toBe("x");
 	});
 });

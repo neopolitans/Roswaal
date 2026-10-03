@@ -46,6 +46,7 @@ import { readPreferences, wheelAction, writePreferences } from "../preferences.j
 import { store, useEditor } from "../store.js";
 import { liveSelection, TouchBar } from "../TouchBar.jsx";
 import { useCompact } from "../Workspace.jsx";
+import { isEditableTarget } from "../keys.js";
 
 /** The store path the logic graph is open under. Never a file. */
 const PATH = "designer:logic";
@@ -228,7 +229,7 @@ export function LogicCanvas({ graph, shape, registry, target, onChange, tools }:
 			const element = container.current;
 			const target = e.target as HTMLElement;
 			if (!element || !element.contains(target)) return;
-			if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+			if (isEditableTarget(target)) return;
 			const mod = e.ctrlKey || e.metaKey;
 			const key = e.key.toLowerCase();
 			// The graph editor's two alignment keys, which live in its shell — and

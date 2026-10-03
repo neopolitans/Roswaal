@@ -110,6 +110,9 @@ export function Dialog({ request, resolve }: PendingDialog) {
 		>
 			<div
 				className="dialog"
+				role="dialog"
+				aria-modal="true"
+				aria-label={request.title}
 				onPointerDown={(e) => e.stopPropagation()}
 				onKeyDown={(e) => {
 					if (e.key === "Escape") {

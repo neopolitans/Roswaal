@@ -14,6 +14,10 @@
  * catches changes Roswaal did not make. Switching branches, pulling, or
  * editing a .nodescript in another tool all regenerate the Luau without
  * anybody pressing anything.
+ *
+ * It runs in Manual mode too, without compiling, because an open graph has
+ * to hear about those changes either way. Without that, the editor's next
+ * autosave wrote the graph it was showing over the one just checked out.
  */
 
 import chokidar, { type FSWatcher } from "chokidar";
@@ -27,7 +31,8 @@ const DEBOUNCE_MS = 200;
 export type WatchListener = (event: WatchEvent) => void;
 
 export interface WatchEvent {
-	type: "compiled" | "removed" | "error";
+	/** `changed` is Manual mode's news: the file is different, nothing was compiled. */
+	type: "compiled" | "changed" | "removed" | "error";
 	path: string;
 	outcome?: CompileOutcome;
 	message?: string;
@@ -37,18 +42,22 @@ export class DynamicCompiler {
 	private watcher: FSWatcher | null = null;
 	private timers = new Map<string, NodeJS.Timeout>();
 	private listeners = new Set<WatchListener>();
+	private compiling = false;
 
 	subscribe(listener: WatchListener): () => void {
 		this.listeners.add(listener);
 		return () => this.listeners.delete(listener);
 	}
 
+	/** Whether Dynamic compiling is on: watching *and* compiling what changed. */
 	get running(): boolean {
-		return this.watcher !== null;
+		return this.watcher !== null && this.compiling;
 	}
 
-	start(project: OpenProject): void {
+	/** Watches `project`'s graphs; compiles each one that changes only when `compile` is set. */
+	start(project: OpenProject, compile = true): void {
 		this.stop();
+		this.compiling = compile;
 		const dir = path.join(project.root, project.config.sourceDir);
 
 		this.watcher = chokidar.watch(dir, {
@@ -61,6 +70,9 @@ export class DynamicCompiler {
 		this.watcher.on("add", (file) => this.schedule(project, file));
 		this.watcher.on("change", (file) => this.schedule(project, file));
 		this.watcher.on("unlink", (file) => {
+			// A save writes beside the graph and renames over it; the file it
+			// wrote first going away is not something being removed.
+			if (file.endsWith(".tmp")) return;
 			this.emit({ type: "removed", path: relative(project, file) });
 		});
 		this.watcher.on("error", (err) => {
@@ -86,7 +98,8 @@ export class DynamicCompiler {
 			rel,
 			setTimeout(() => {
 				this.timers.delete(rel);
-				void this.run(project, rel);
+				if (this.compiling) void this.run(project, rel);
+				else this.emit({ type: "changed", path: rel });
 			}, DEBOUNCE_MS),
 		);
 	}
