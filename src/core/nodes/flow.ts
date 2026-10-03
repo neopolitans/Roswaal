@@ -17,6 +17,28 @@ export interface Signature {
 	exported?: boolean;
 }
 
+/**
+ * A signature read from a node's config: a Function, a Declare Function, or a
+ * Connect or Once handler. A parameter or return with no usable name has an
+ * empty one, which the emitter writes as `argN`.
+ */
+export function signatureOf(config: NodeConfig | undefined): Signature {
+	const c = config ?? {};
+	const entries = (value: unknown) =>
+		(Array.isArray(value) ? value : [])
+			.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null)
+			.map((entry) => ({
+				name: typeof entry.name === "string" ? entry.name : "",
+				...(typeof entry.type === "string" ? { type: entry.type } : {}),
+			}));
+	return {
+		...(typeof c.name === "string" ? { name: c.name } : {}),
+		params: entries(c.params),
+		returns: entries(c.returns),
+		...(typeof c.exported === "boolean" ? { exported: c.exported } : {}),
+	};
+}
+
 const exec = (id: string, name: string): PinDef => ({ id, name, kind: "exec" });
 const data = (id: string, name: string, type: string, def?: PinDef["default"]): PinDef => ({
 	id, name, kind: "data", type, default: def,

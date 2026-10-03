@@ -19,7 +19,9 @@ import {
 	spliceIntoTemplate, toIdentifier,
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
-import { FUNCTION_NODES, loopTypes, typeDeclarationOf, type TypeDeclaration } from "../nodes/flow.js";
+import {
+	FUNCTION_NODES, loopTypes, signatureOf, typeDeclarationOf, type Signature, type TypeDeclaration,
+} from "../nodes/flow.js";
 import { CAST_NODES, NILABLE_CLASS_READS, castModeOf, type CastMode } from "../nodes/library.js";
 import { checkLuau } from "../luau/check.js";
 import { isModuleScript, PAIR } from "../schema.js";
@@ -30,9 +32,9 @@ import { LUAU_PRIMITIVES } from "../luneTypes.js";
 import { DATATYPES } from "../robloxData.js";
 import { commentLines, headersByNode } from "../comments.js";
 import type { Comment, Literal, NodeConfig, NodeScript, PinDef } from "../schema.js";
-import type { Signature } from "../nodes/flow.js";
-import type { FunctionRef, LocalRef, ParamRef, VariableRef } from "../nodes/variables.js";
-import { isConstLocal } from "../nodes/variables.js";
+import {
+	functionRefOf, isConstLocal, localRefOf, paramRefOf, variableRefOf,
+} from "../nodes/variables.js";
 import {
 	isInstanceClass as isRobloxClass, isService as isRobloxService, isSubclassOf, lastSegment,
 	renderPath,
@@ -1095,13 +1097,13 @@ class Emitter {
 
 		// Reserve every function name up front so mutual recursion resolves.
 		for (const fn of entries) {
-			const sig = (fn.node.config ?? {}) as Signature;
+			const sig = signatureOf(fn.node.config);
 			const name = this.names.unique(sig.name || fn.node.label || "fn", "fn");
 			this.functionNames.set(fn.node.id, name);
 		}
 
 		for (const fn of entries) {
-			const sig = (fn.node.config ?? {}) as Signature;
+			const sig = signatureOf(fn.node.config);
 			const name = this.functionNames.get(fn.node.id)!;
 			const scope = new Scope(root, "function");
 
@@ -1109,7 +1111,7 @@ class Emitter {
 			// function, and are released with it -- so the next function may call
 			// its own parameter `character` too. Closed by `pop` below.
 			this.names.push();
-			const { params, returns } = this.signatureOf(sig, fn.node.id, scope);
+			const { params, returns } = this.luauSignature(sig, fn.node.id, scope);
 
 			this.blank();
 			this.push(`local function ${name}(${params})${returns}`, fn.node.id);
@@ -1133,7 +1135,7 @@ class Emitter {
 	 * asks for annotations, the same rule every other annotation follows; the
 	 * return annotation comes back with its colon, or empty.
 	 */
-	private signatureOf(sig: Signature, ownerId: string, body: Scope): { params: string; returns: string } {
+	private luauSignature(sig: Signature, ownerId: string, body: Scope): { params: string; returns: string } {
 		const params = (sig.params ?? []).map((p, i) => {
 			const ident = this.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
 			body.bindings.set(`${ownerId}/p${i}`, ident);
@@ -1615,7 +1617,7 @@ class Emitter {
 			}
 
 			case "function.declareHere": {
-				const sig = (r.node.config ?? {}) as Signature;
+				const sig = signatureOf(r.node.config);
 				const name = (sig.name || r.node.label || "").trim();
 				if (name === "") {
 					this.error("Declare Function needs a name before it can be written.", id);
@@ -1664,7 +1666,7 @@ class Emitter {
 				// As for a hoisted function: the parameters and the body's locals
 				// are this function's, and go out of scope with its `end`.
 				this.names.push();
-				const { params, returns } = this.signatureOf(sig, id, body);
+				const { params, returns } = this.luauSignature(sig, id, body);
 
 				// A blank line either side, the same as a hoisted function gets. A
 				// declaration is a change of subject, and two of them run together read
@@ -1777,7 +1779,7 @@ class Emitter {
 			}
 
 			case "variable.init": {
-				const ref = (r.node.config ?? {}) as VariableRef;
+				const ref = variableRefOf(r.node.config);
 				const ident = ref.variable ? this.variableNames.get(ref.variable) : undefined;
 				const value = this.resolveInput(r, this.pin(r, "value", "in"), scope);
 				if (!ident || !ref.variable) {
@@ -1823,18 +1825,12 @@ class Emitter {
 			}
 
 			case "variable.set": {
-				const ref = (r.node.config ?? {}) as VariableRef;
+				const ref = variableRefOf(r.node.config);
 				const ident = ref.variable ? this.variableNames.get(ref.variable) : undefined;
 				const value = this.resolveInput(r, this.pin(r, "value", "in"), scope);
-				if (!ident) {
-					this.error(
-						ref.variable
-							? `Set Variable points at a variable that no longer exists.`
-							: `Set Variable has no variable chosen.`,
-						id,
-					);
-					return this.index.execTarget(id, "then");
-				}
+				// No variable, or one that is gone: `validate` reports it, for every
+				// node rather than only those the walk reaches.
+				if (!ident) return this.index.execTarget(id, "then");
 				this.push(`${ident} = ${value}`, id);
 				// The pass-through output is the variable itself, so a Set can sit
 				// mid-chain and feed the value onwards without a second read.
@@ -2013,7 +2009,7 @@ class Emitter {
 				// method name rather than a copy that can drift.
 				const method = handler === "event.once" ? "Once" : "Connect";
 				const signal = this.resolveInput(r, this.pin(r, "signal", "in"), scope);
-				const sig = (r.node.config ?? {}) as Signature;
+				const sig = signatureOf(r.node.config);
 				const body = new Scope(scope, "function");
 
 				// The connection is a local in the *enclosing* block, so it is
@@ -2028,7 +2024,7 @@ class Emitter {
 				// The handler is a function literal, so its parameters and its
 				// locals are its own. Closed after the walk, below.
 				this.names.push();
-				const { params } = this.signatureOf(sig, id, body);
+				const { params } = this.luauSignature(sig, id, body);
 				this.push(`${prefix}${signal}:${method}(function(${params})`, id);
 				this.indent++;
 				this.walk(this.index.execTarget(id, "body"), body);
@@ -2218,24 +2214,18 @@ class Emitter {
 				return this.resolveInput(src, this.pin(src, "in", "in"), scope);
 
 			case "variable.get": {
-				const ref = (src.node.config ?? {}) as VariableRef;
+				const ref = variableRefOf(src.node.config);
 				const ident = ref.variable ? this.variableNames.get(ref.variable) : undefined;
-				if (!ident) {
-					this.error(
-						ref.variable
-							? "Get Variable points at a variable that no longer exists."
-							: "Get Variable has no variable chosen.",
-						src.node.id,
-					);
-					return "nil";
-				}
+				// No variable, or one that is gone: `validate` reports it, for every
+				// node rather than only those the walk reaches.
+				if (!ref.variable || !ident) return "nil";
 				// Reading a variable whose declaration has not been emitted yet.
 				// Only reachable when an Initialize Variable node owns it, since
 				// everything else is declared before the first line of flow — and
 				// the usual way in is a function defined above the initialisation
 				// that reads it. Luau would take the name for a global and hand
 				// back nil for the life of the script.
-				if (this.initialisedLater.has(ref.variable!) && !this.declaredSoFar.has(ref.variable!)) {
+				if (this.initialisedLater.has(ref.variable) && !this.declaredSoFar.has(ref.variable)) {
 					this.error(
 						`"${ref.name ?? "That variable"}" is read here, before the Initialize Variable ` +
 						"node that declares it. Move the initialisation earlier, or give the " +
@@ -2256,53 +2246,30 @@ class Emitter {
 				);
 				return "nil";
 
-			/**
-			 * The local a Declare Local bound, looked up in the reader's scope.
-			 *
-			 * The same lookup a wire from Declare Local's output gets, so the two
-			 * cannot disagree about where a local exists: after its declaration,
-			 * inside the block that made it and anything nested in that block —
-			 * a branch, a loop, a function declared further down.
-			 */
-			/**
-			 * A parameter of the function or handler this node sits inside.
-			 *
-			 * The same shape as Get Local, against a key three binders already
-			 * write: `function.entry`, `function.declareHere` and `event.connect`
-			 * each bind `${id}/p${i}` into the body's **own** scope before
-			 * walking it. So "this node has to be inside the body" is not a rule
-			 * implemented here — it is what the scope chain already means, and a
-			 * node outside simply finds nothing and is told so.
-			 *
-			 * Looked up by name and resolved to an index, because the name is
-			 * what the node stores: see `ParamRef`.
-			 */
+			// A parameter of the function or handler this node sits inside.
+			//
+			// The same shape as Get Local, against a key three binders already
+			// write: `function.entry`, `function.declareHere` and `event.connect`
+			// each bind `${id}/p${i}` into the body's own scope before walking it.
+			// So "this node has to be inside the body" is not a rule implemented
+			// here — it is what the scope chain already means, and a node outside
+			// simply finds nothing and is told so.
+			//
+			// Looked up by name and resolved to an index, because the name is what
+			// the node stores: see `ParamRef`. A function that is gone, or no
+			// longer has the parameter, is `validate`'s to report.
 			case "function.getParam": {
-				const ref = (src.node.config ?? {}) as ParamRef;
+				const ref = paramRefOf(src.node.config);
 				const owner = ref.function ? this.index.get(ref.function) : undefined;
-				if (!ref.function || !owner) {
-					this.error(
-						ref.function
-							? "Get Parameter points at a function that is no longer in this graph."
-							: "Get Parameter has no function chosen.",
-						src.node.id,
-					);
-					return "nil";
-				}
+				if (!ref.function || !owner) return "nil";
 
-				const signature = (owner.node.config ?? {}) as Signature;
-				const owning = signature.name || owner.node.label || "that function";
+				const signature = signatureOf(owner.node.config);
 				const index = (signature.params ?? []).findIndex((p) => p.name === ref.param);
-				if (index === -1) {
-					this.error(
-						`"${ref.param ?? "That parameter"}" is not a parameter of "${owning}".`,
-						src.node.id,
-					);
-					return "nil";
-				}
+				if (index === -1) return "nil";
 
 				const bound = scope.lookup(`${ref.function}/p${index}`);
 				if (bound) return bound;
+				const owning = signature.name || owner.node.label || "that function";
 				this.error(
 					`"${ref.param}" is a parameter of "${owning}", and this node is not inside its ` +
 					"body. A parameter exists only where the function runs — wire this into " +
@@ -2313,8 +2280,14 @@ class Emitter {
 				return "nil";
 			}
 
+			// The local a Declare Local bound, looked up in the reader's scope.
+			//
+			// The same lookup a wire from Declare Local's output gets, so the two
+			// cannot disagree about where a local exists: after its declaration,
+			// inside the block that made it and anything nested in that block — a
+			// branch, a loop, a function declared further down.
 			case "local.get": {
-				const ref = (src.node.config ?? {}) as LocalRef;
+				const ref = localRefOf(src.node.config);
 				const declared = ref.local ? this.index.get(ref.local) : undefined;
 				if (!ref.local || declared?.def.id !== "local.declare") {
 					this.error(
@@ -2516,29 +2489,24 @@ class Emitter {
 			}
 
 			case "function.get": {
-				const ref = (src.node.config ?? {}) as FunctionRef;
+				const ref = functionRefOf(src.node.config);
 				const ident = ref.function ? this.functionNames.get(ref.function) : undefined;
-				if (!ident) {
-					// A hoisted function is named before anything is emitted, so a
-					// missing name means the node is gone -- except for Declare
-					// Function, which is named where it sits. Reading one above its
-					// own declaration is a real mistake with a different fix, and
-					// saying "no longer in this graph" about a node plainly on the
-					// canvas sends you looking for the wrong thing.
-					const target = ref.function ? this.index.get(ref.function) : undefined;
+				if (ident) return ident;
+				// A hoisted function is named before anything is emitted, so a
+				// missing name means the node is gone, which `validate` reports --
+				// except for Declare Function, which is named where it sits. Reading
+				// one above its own declaration is a real mistake with a different
+				// fix, and only the walk can see it.
+				const target = ref.function ? this.index.get(ref.function) : undefined;
+				if (target?.def.id === "function.declareHere") {
 					this.error(
-						!ref.function
-							? "Get Function has no function chosen."
-							: target?.def.id === "function.declareHere"
-								? `"${(target.node.config as Signature)?.name || "That function"}" is declared ` +
-									"further down the flow than this, so it does not exist yet. Move the " +
-									"Declare Function above this, or use the hoisted Function node."
-								: "Get Function points at a function that is no longer in this graph.",
+						`"${signatureOf(target.node.config).name || "That function"}" is declared ` +
+							"further down the flow than this, so it does not exist yet. Move the " +
+							"Declare Function above this, or use the hoisted Function node.",
 						src.node.id,
 					);
-					return "nil";
 				}
-				return ident;
+				return "nil";
 			}
 
 			default:

@@ -34,6 +34,7 @@
  * with it.
  */
 
+import { FUNCTION_NODES } from "./nodes/flow.js";
 import { resolveNodePins, type Registry } from "./nodes/index.js";
 import type { Link, NodeScript } from "./schema.js";
 
@@ -58,6 +59,19 @@ export function bodyPinOf(defId: string): string | undefined {
 	if (defId === "function.declareHere") return "body";
 	if (defId === "function.entry") return "then";
 	return undefined;
+}
+
+/**
+ * Whether a node binds parameters for a body of its own to read.
+ *
+ * Wider than the two that declare a function: Connect and Once bind their
+ * handler's parameters the same way, into the same `<id>/p<i>` keys, which is
+ * why Get Parameter works inside a handler. Checking against `FUNCTION_NODES`
+ * alone would report a working graph as pointing at something that is not
+ * there.
+ */
+export function bindsParameters(defId: string): boolean {
+	return FUNCTION_NODES.has(defId) || defId === "event.connect" || defId === "event.once";
 }
 
 /**

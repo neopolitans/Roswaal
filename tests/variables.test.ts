@@ -12,6 +12,24 @@ function errors(result: { diagnostics: { severity: string; message: string }[] }
 }
 
 describe("script variables", () => {
+	/** One deleted variable is one problem, however many places read it. */
+	it("reports a deleted variable once per node", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const get = b.node("variable.get", { config: { variable: "v_gone", name: "gone" } });
+		const set = b.node("variable.set", { config: { variable: "v_gone", name: "gone" } });
+		const print = b.node("debug.print");
+		b.lit(set, "value", { t: "number", v: 1 });
+		b.link(start, "then", set, "in").link(set, "then", print, "in");
+		b.link(get, "value", print, "value");
+
+		const said = errors(compile(b.build(), registry));
+		expect(said).toEqual([
+			"Get Variable points at a variable that has been deleted.",
+			"Set Variable points at a variable that has been deleted.",
+		]);
+	});
+
 	it("declares variables as typed locals before anything else", () => {
 		const b = new Builder();
 		b.variable("health", "number", { t: "number", v: 100 });

@@ -12,13 +12,16 @@ import {
 } from "../schema.js";
 import { checkLuau } from "../luau/check.js";
 import { crossingLinks, graphExists } from "../functionGraph.js";
-import { FUNCTION_NODES } from "../nodes/flow.js";
+import { bindsParameters } from "../functionBody.js";
+import { FUNCTION_NODES, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { isSubclassOf } from "../roblox.js";
 import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
 import { isLuneCall } from "../nodes/lune.js";
 import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
-import { isConstLocal, localNameOf } from "../nodes/variables.js";
+import {
+	functionRefOf, isConstLocal, localNameOf, paramRefOf, variableRefOf,
+} from "../nodes/variables.js";
 import { declaredTypeFields } from "../typeFields.js";
 import { typeInto } from "../members.js";
 import { GraphIndex } from "./graph.js";
@@ -382,44 +385,31 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id),
 	);
 
-	/**
-	 * Everything that binds parameters, which is a wider set than the two that
-	 * declare a function: Connect and Once bind their handler's parameters the
-	 * same way, into the same `p{i}` keys. Get Parameter works inside a handler
-	 * for that reason, so checking it against `functionIds` would report a
-	 * working graph as pointing at something that is not there.
-	 */
-	const paramOwnerIds = new Set(
-		script.nodes
-			.filter((n) => FUNCTION_NODES.has(n.def) || n.def === "event.connect" || n.def === "event.once")
-			.map((n) => n.id),
-	);
-
+	// The references by id: a variable, a function, a parameter. Reported here
+	// and only here, for every node, so a deleted variable is one error rather
+	// than one from here and another from the emitter for each reader it walks.
 	for (const node of script.nodes) {
 		if (node.def === "variable.get" || node.def === "variable.set") {
-			const ref = (node.config ?? {}) as { variable?: string };
+			const ref = variableRefOf(node.config);
+			const title = node.def === "variable.get" ? "Get Variable" : "Set Variable";
 			if (!ref.variable) {
-				out.push({
-					severity: "error",
-					message: `${node.def === "variable.get" ? "Get" : "Set"} Variable has no variable chosen.`,
-					node: node.id,
-				});
+				out.push({ severity: "error", message: `${title} has no variable chosen.`, node: node.id });
 			} else if (!variableIds.has(ref.variable)) {
 				out.push({
 					severity: "error",
-					message: "This node points at a variable that has been deleted.",
+					message: `${title} points at a variable that has been deleted.`,
 					node: node.id,
 				});
 			}
 		}
 		if (node.def === "function.get") {
-			const ref = (node.config ?? {}) as { function?: string };
+			const ref = functionRefOf(node.config);
 			if (!ref.function) {
 				out.push({ severity: "error", message: "Get Function has no function chosen.", node: node.id });
 			} else if (!functionIds.has(ref.function)) {
 				out.push({
 					severity: "error",
-					message: "This node points at a function that is no longer in the graph.",
+					message: "Get Function points at a function that is no longer in the graph.",
 					node: node.id,
 				});
 			}
@@ -436,29 +426,27 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		 * asked for — which deserves to say so rather than fail at compile.
 		 */
 		if (node.def === "function.getParam") {
-			const ref = (node.config ?? {}) as { function?: string; param?: string };
+			const ref = paramRefOf(node.config);
 			const owner = ref.function
-				? script.nodes.find((n) => n.id === ref.function && paramOwnerIds.has(n.id))
+				? script.nodes.find((n) => n.id === ref.function && bindsParameters(n.def))
 				: undefined;
 			if (!ref.function) {
 				out.push({ severity: "error", message: "Get Parameter has no function chosen.", node: node.id });
 			} else if (!owner) {
 				out.push({
 					severity: "error",
-					message: "This node points at a function that is no longer in the graph.",
+					message: "Get Parameter points at a function that is no longer in the graph.",
 					node: node.id,
 				});
 			} else {
-				const signature = (owner.config ?? {}) as {
-					name?: string; params?: { name?: string }[];
-				};
+				const signature = signatureOf(owner.config);
 				const named = (signature.params ?? []).some((p) => p.name === ref.param);
 				if (!named) {
+					const owning = signature.name || owner.label || "that function";
 					out.push({
 						severity: "error",
 						message:
-							`"${ref.param ?? "That parameter"}" is not a parameter of ` +
-							`"${signature.name ?? "that function"}" any more.`,
+							`"${ref.param ?? "That parameter"}" is not a parameter of "${owning}" any more.`,
 						node: node.id,
 					});
 				}

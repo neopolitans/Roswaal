@@ -39,7 +39,7 @@ export interface LocalRef {
  * needs a Luau that has it — see the note on the Variables and locals page.
  */
 export function isConstLocal(config: NodeConfig | undefined): boolean {
-	return (config as { const?: unknown } | undefined)?.const === true;
+	return config?.const === true;
 }
 
 /**
@@ -144,6 +144,44 @@ export interface ParamRef {
 	param?: string;
 	/** Cached for the capsule's pin colour, as a local's type is. */
 	type?: string;
+}
+
+/** A config field that is text, or undefined when it is anything else. */
+function textField(config: NodeConfig | undefined, key: string): string | undefined {
+	const value = config?.[key];
+	return typeof value === "string" ? value : undefined;
+}
+
+/** A Get, Set or Initialize Variable node's config. */
+export function variableRefOf(config: NodeConfig | undefined): VariableRef {
+	return {
+		variable: textField(config, "variable"),
+		name: textField(config, "name"),
+		type: textField(config, "type"),
+	};
+}
+
+/** A Get Function node's config. */
+export function functionRefOf(config: NodeConfig | undefined): FunctionRef {
+	return { function: textField(config, "function"), name: textField(config, "name") };
+}
+
+/** A Get Parameter node's config. */
+export function paramRefOf(config: NodeConfig | undefined): ParamRef {
+	return {
+		function: textField(config, "function"),
+		param: textField(config, "param"),
+		type: textField(config, "type"),
+	};
+}
+
+/** A Get Local node's config. */
+export function localRefOf(config: NodeConfig | undefined): LocalRef {
+	return {
+		local: textField(config, "local"),
+		name: textField(config, "name"),
+		type: textField(config, "type"),
+	};
 }
 
 const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });

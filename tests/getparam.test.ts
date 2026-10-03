@@ -126,7 +126,7 @@ describe("a Get Parameter that has lost its footing", () => {
 
 	it("says so when the function is gone", () => {
 		expect(errors(pointingAt({ function: "n_gone", param: "who" })).join(" "))
-			.toContain("no longer in this graph");
+			.toContain("no longer in the graph");
 	});
 
 	/** A function that still exists can stop having the parameter asked for. */
