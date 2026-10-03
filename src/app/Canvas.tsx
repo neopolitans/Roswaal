@@ -1439,8 +1439,9 @@ interface CommentViewProps {
 	onCommit: (text: string, barHeight: number) => void;
 }
 
-function CommentView(props: CommentViewProps) {
-	const { comment } = props;
+function CommentView({
+	comment, depth, selected, editing, onPointerDown, onResize, onStartEdit, onCommit,
+}: CommentViewProps) {
 	const color = commentColor(comment.color);
 	const bar = useRef<HTMLDivElement>(null);
 
@@ -1452,13 +1453,13 @@ function CommentView(props: CommentViewProps) {
 
 	return (
 		<div
-			className={cx("comment", props.selected && "comment--selected")}
+			className={cx("comment", selected && "comment--selected")}
 			style={{
 				left: comment.x,
 				top: comment.y,
 				width: comment.w,
 				height: comment.h,
-				zIndex: LAYER.comment + props.depth,
+				zIndex: LAYER.comment + depth,
 				["--comment-color" as string]: color,
 			}}
 		>
@@ -1466,17 +1467,17 @@ function CommentView(props: CommentViewProps) {
 				className="bar"
 				ref={bar}
 				style={{ zIndex: LAYER.commentHeader }}
-				onPointerDown={(e) => props.onPointerDown(e, comment)}
-				onDoubleClick={props.onStartEdit}
+				onPointerDown={(e) => onPointerDown(e, comment)}
+				onDoubleClick={onStartEdit}
 			>
-				{props.editing ? (
+				{editing ? (
 					<textarea
 						autoFocus
 						defaultValue={comment.text}
 						onPointerDown={(e) => e.stopPropagation()}
 						onFocus={(e) => fit(e.currentTarget)}
 						onInput={(e) => fit(e.currentTarget)}
-						onBlur={(e) => props.onCommit(e.target.value, bar.current?.offsetHeight ?? 0)}
+						onBlur={(e) => onCommit(e.target.value, bar.current?.offsetHeight ?? 0)}
 						onKeyDown={(e) => {
 							// Enter is a new line in here. Escape and Ctrl+Enter finish, and
 							// so does clicking anywhere else — every way out keeps what was
@@ -1498,12 +1499,12 @@ function CommentView(props: CommentViewProps) {
 			<div
 				className="resize nw"
 				title="Resize from this corner"
-				onPointerDown={(e) => props.onResize(e, comment, "nw")}
+				onPointerDown={(e) => onResize(e, comment, "nw")}
 			/>
 			<div
 				className="resize se"
 				title="Resize from this corner"
-				onPointerDown={(e) => props.onResize(e, comment, "se")}
+				onPointerDown={(e) => onResize(e, comment, "se")}
 			/>
 		</div>
 	);

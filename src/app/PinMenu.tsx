@@ -52,8 +52,9 @@ interface Entry {
 	onPick: () => void;
 }
 
-export function PinMenu(props: PinMenuProps) {
-	const { target, script, registry, onClose } = props;
+export function PinMenu({
+	target, script, registry, onPromote, onBreakLinks, onSplit, onRecombine, onClose,
+}: PinMenuProps) {
 	const root = useRef<HTMLDivElement>(null);
 
 	useDismiss(root, onClose, { escape: true });
@@ -67,7 +68,7 @@ export function PinMenu(props: PinMenuProps) {
 			key: "promote",
 			label: "Promote to Variable",
 			onPick: () => {
-				props.onPromote();
+				onPromote();
 				onClose();
 			},
 		});
@@ -86,7 +87,7 @@ export function PinMenu(props: PinMenuProps) {
 				// Only worth naming the mode when there is a choice to make.
 				hint: splitModesFor(target.pin).length > 1 ? mode.name : undefined,
 				onPick: () => {
-					props.onSplit(mode.id);
+					onSplit(mode.id);
 					onClose();
 				},
 			});
@@ -98,7 +99,7 @@ export function PinMenu(props: PinMenuProps) {
 			key: "recombine",
 			label: "Recombine Struct Pin",
 			onPick: () => {
-				props.onRecombine(parent);
+				onRecombine(parent);
 				onClose();
 			},
 		});
@@ -110,7 +111,7 @@ export function PinMenu(props: PinMenuProps) {
 			label: links === 1 ? "Break Link" : `Break ${links} Links`,
 			hint: "Shift-click",
 			onPick: () => {
-				props.onBreakLinks();
+				onBreakLinks();
 				onClose();
 			},
 		});

@@ -77,8 +77,11 @@ export interface ProjectTreeProps {
  * stable. `App` hoists all six handlers into `useCallback` for that reason; a
  * new inline arrow in the JSX would quietly undo this.
  */
-export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
-	const { tree, openPath, sourceDir, nodePaths, targetDir, onOpen, onMove, onTargetDir } = props;
+export const ProjectTree = memo(function ProjectTree({
+	tree, openPath, openGraph, outline, onOpenFunction, sourceDir, nodePaths, targetDir,
+	onOpen, onMove, onTargetDir, onNewGraph, onNewMap, onNewFolder, onRename, onDelete, onReveal,
+	onPackage,
+}: ProjectTreeProps) {
 	// A file manager to show a file in is something only a machine has.
 	const canReveal = useHostCan("reveal");
 	const canGithub = useHostCan("githubDownload");
@@ -103,7 +106,6 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 	const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 	const [dropTarget, setDropTarget] = useState<string | null>(null);
-	const { outline } = props;
 
 	/**
 	 * The two halves of a Roswaal project, which the tree used to show as a flat
@@ -239,14 +241,14 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		<div className="tree">
 			{rows.map(({ entry, depth, section, fn }) => {
 				if (fn) {
-					const open = props.openPath === entry.path && props.openGraph === fn.id;
+					const open = openPath === entry.path && openGraph === fn.id;
 					return (
 						<div
 							key={`${entry.path}#${fn.id}`}
 							className={cx("tree-row function-row", open && "open-doc")}
 							style={{ paddingLeft: 6 + (depth + fn.depth) * 13 }}
 							title={`${fn.name} in ${entry.name}. Double-click to open its graph.`}
-							onDoubleClick={() => props.onOpenFunction(entry.path, fn.id)}
+							onDoubleClick={() => onOpenFunction(entry.path, fn.id)}
 						>
 							<Icon name="function" size={15} className="kind function" />
 							<span className="label">{fn.name}</span>
@@ -305,7 +307,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							e.preventDefault();
 							// wally.toml and its packages: a menu of their own, for adding.
 							if (isListed(entry)) {
-								if (props.onPackage) setMenu({ x: e.clientX, y: e.clientY, entry });
+								if (onPackage) setMenu({ x: e.clientX, y: e.clientY, entry });
 								return;
 							}
 							if (!selected.has(entry.path)) setSelected(new Set([entry.path]));
@@ -382,7 +384,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 				</div>
 			)}
 
-			{menu && isListed(menu.entry) && props.onPackage && (
+			{menu && isListed(menu.entry) && onPackage && (
 				<div
 					className="menu tree-menu"
 					ref={menuRef}
@@ -393,7 +395,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							<div
 								className="item"
 								onClick={() => {
-									props.onPackage!("zip", menu.entry);
+									onPackage("zip", menu.entry);
 									setMenu(null);
 								}}
 							>
@@ -405,7 +407,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							<div
 								className="item danger"
 								onClick={() => {
-									props.onPackage!("remove", menu.entry);
+									onPackage("remove", menu.entry);
 									setMenu(null);
 								}}
 							>
@@ -416,7 +418,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						<div
 							className="item"
 							onClick={() => {
-								props.onPackage!("wally");
+								onPackage("wally");
 								setMenu(null);
 							}}
 						>
@@ -426,7 +428,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						<div
 							className="item"
 							onClick={() => {
-								props.onPackage!("zip");
+								onPackage("zip");
 								setMenu(null);
 							}}
 						>
@@ -438,7 +440,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							title={canGithub ? undefined : NOT_HERE}
 							onClick={() => {
 								if (!canGithub) return;
-								props.onPackage!("github");
+								onPackage("github");
 								setMenu(null);
 							}}
 						>
@@ -464,7 +466,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 								<div
 									className="item"
 									onClick={() => {
-										props.onNewGraph(parentDirOf(menu.entry));
+										onNewGraph(parentDirOf(menu.entry));
 										setMenu(null);
 									}}
 								>
@@ -474,7 +476,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 								<div
 									className="item"
 									onClick={() => {
-										props.onNewMap(parentDirOf(menu.entry));
+										onNewMap(parentDirOf(menu.entry));
 										setMenu(null);
 									}}
 								>
@@ -486,7 +488,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						<div
 							className="item"
 							onClick={() => {
-								props.onNewFolder(parentDirOf(menu.entry));
+								onNewFolder(parentDirOf(menu.entry));
 								setMenu(null);
 							}}
 						>
@@ -498,7 +500,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							title={canReveal ? undefined : NOT_HERE}
 							onClick={() => {
 								if (!canReveal) return;
-								props.onReveal(menu.entry.path);
+								onReveal(menu.entry.path);
 								setMenu(null);
 							}}
 						>
@@ -508,7 +510,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						<div
 							className="item"
 							onClick={() => {
-								props.onRename(menu.entry.path);
+								onRename(menu.entry.path);
 								setMenu(null);
 							}}
 						>
@@ -519,7 +521,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							className="item danger"
 							onClick={() => {
 								const paths = selected.has(menu.entry.path) ? [...selected] : [menu.entry.path];
-								props.onDelete(paths);
+								onDelete(paths);
 								setMenu(null);
 							}}
 						>

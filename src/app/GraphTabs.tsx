@@ -190,6 +190,14 @@ export function GraphTabs({ documents, functionTabs, onActivate, onClose, onReor
 	);
 }
 
+interface TabListProps {
+	documents: OpenDocument[];
+	functionTabs: FunctionTabs;
+	open: boolean;
+	onOpen: (open: boolean) => void;
+	onActivate: (key: string) => void;
+}
+
 /**
  * Every open graph at once, as a list.
  *
@@ -198,14 +206,7 @@ export function GraphTabs({ documents, functionTabs, onActivate, onClose, onReor
  * list is the answer to "which graphs do I have open", asked in one glance,
  * and it is where a torn-off window would otherwise have been reached for.
  */
-function TabList(props: {
-	documents: OpenDocument[];
-	functionTabs: FunctionTabs;
-	open: boolean;
-	onOpen: (open: boolean) => void;
-	onActivate: (key: string) => void;
-}) {
-	const { documents, functionTabs, open } = props;
+function TabList({ documents, functionTabs, open, onOpen, onActivate }: TabListProps) {
 	const root = useRef<HTMLDivElement>(null);
 	const button = useRef<HTMLButtonElement>(null);
 	/**
@@ -218,7 +219,7 @@ function TabList(props: {
 	 */
 	const [at, setAt] = useState<{ x: number; y: number } | null>(null);
 
-	useDismiss(root, () => props.onOpen(false), { enabled: open, escape: true });
+	useDismiss(root, () => onOpen(false), { enabled: open, escape: true });
 
 	return (
 		<div className="tab-list" ref={root}>
@@ -231,7 +232,7 @@ function TabList(props: {
 				onClick={() => {
 					const box = button.current?.getBoundingClientRect();
 					if (box) setAt({ x: box.left, y: box.bottom + 2 });
-					props.onOpen(!open);
+					onOpen(!open);
 				}}
 			>
 				<Icon name="chevron" size={13} />
@@ -243,7 +244,7 @@ function TabList(props: {
 							key={doc.key}
 							className={cx("tab-list-item", doc.active && "on")}
 							title={doc.path}
-							onClick={() => props.onActivate(doc.key)}
+							onClick={() => onActivate(doc.key)}
 						>
 							{doc.graph !== null && <Icon name="function" size={12} className="tab-fn" />}
 							<span className="name">{tabLabel(doc, functionTabs)}</span>
