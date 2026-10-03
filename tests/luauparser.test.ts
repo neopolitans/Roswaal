@@ -271,3 +271,27 @@ describe("walking the tree", () => {
 		expect(calls).toEqual(["f"]);
 	});
 });
+
+describe("a break with no loop around it", () => {
+	const errorsOf = (src: string) => parseChunk(src, { wholeFile: true }).errors.map((e) => e.message);
+
+	/** Luau refuses it, so generated Luau that holds one must not pass the check. */
+	it("is an error in a whole file, inside a function inside a loop too", () => {
+		expect(errorsOf("break")).toEqual(["`break` is only allowed inside a loop."]);
+		expect(errorsOf("for i = 1, 3 do local function f() break end end"))
+			.toEqual(["`break` is only allowed inside a loop."]);
+		expect(errorsOf("while true do task.spawn(function() continue end) end"))
+			.toEqual(["`continue` is only allowed inside a loop."]);
+	});
+
+	it("is fine in a loop, and in a loop inside a function", () => {
+		expect(errorsOf("while true do break end")).toEqual([]);
+		expect(errorsOf("local function f() for _ in t do continue end end")).toEqual([]);
+		expect(errorsOf("repeat if done then break end until false")).toEqual([]);
+	});
+
+	/** Custom Code is checked on its own, and the loop it sits in is drawn in the graph. */
+	it("is fine in a fragment", () => {
+		expect(parseChunk("if done then break end").errors).toEqual([]);
+	});
+});

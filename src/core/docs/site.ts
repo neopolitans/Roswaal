@@ -28,7 +28,8 @@
 import type { NodeMap } from "../nodemap.js";
 import { categories, type Registry, subcategories, ZUP_CONVERSIONS } from "../nodes/index.js";
 import type { Runtime } from "../nodes/runtimes.js";
-import { categoryLabel, ENGINE_TYPES, type NodeScript } from "../schema.js";
+import { categoryLabel } from "../categories.js";
+import { ENGINE_TYPES, type NodeScript } from "../schema.js";
 import type { LayoutSpec } from "./layouts.js";
 import { documentRegistry, type NodeDoc } from "./nodeReference.js";
 import { aliasesPage } from "./pages/aliases.js";

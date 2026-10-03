@@ -21,10 +21,11 @@ import {
 import { requiresLuneRoblox } from "../src/core/luneTypes.js";
 import { listedTypes, listGroups, searchTypes } from "../src/app/TypePicker.jsx";
 import {
-	categoryLabel, emptyScript, ENGINE_TYPES, ROBLOX_NAMED_CATEGORIES, type NodeScript,
+	emptyScript, ENGINE_TYPES, type NodeScript,
 } from "../src/core/schema.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { readFileSync } from "node:fs";
+import { categoryLabel, ROBLOX_NAMED_CATEGORIES } from "../src/core/categories.js";
 
 const byAlias = new Map(LUNE_MODULES.map((module) => [module.alias, module]));
 
@@ -257,7 +258,7 @@ describe("naming the Roblox categories", () => {
 	 * are a lookup rather than the keys themselves.
 	 */
 	it("is one flag away from being Engine again", () => {
-		const source = readFileSync(new URL("../src/core/schema.ts", import.meta.url), "utf8");
+		const source = readFileSync(new URL("../src/core/categories.ts", import.meta.url), "utf8");
 		expect(source).toContain("ROBLOX_NAMED_CATEGORIES");
 		expect(ROBLOX_NAMED_CATEGORIES).toBe(true);
 		// The guard is the first thing the function does, so `false` is a

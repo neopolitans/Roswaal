@@ -4,7 +4,8 @@
 
 import { LUNE_ROBLOX_DATATYPES } from "../../luneApi.js";
 import { classify, type Runtime } from "../../nodes/runtimes.js";
-import { categoryLabel, ENGINE_TYPES } from "../../schema.js";
+import { categoryLabel } from "../../categories.js";
+import { ENGINE_TYPES } from "../../schema.js";
 import { type NodeDoc, OMISSION_REASONS } from "../nodeReference.js";
 import type { Block, DocPage } from "../site.js";
 

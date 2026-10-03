@@ -26,7 +26,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { categoryLabel } from "../core/schema.js";
+import { categoryLabel } from "../core/categories.js";
 import type { NodeConfig, NodeDef } from "../core/schema.js";
 import { cx } from "./cx.js";
 import type { Preset } from "./NodeMenu.jsx";

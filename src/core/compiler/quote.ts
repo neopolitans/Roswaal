@@ -18,8 +18,9 @@ export function quoteString(s: string): string {
 		else if (ch === "\r") out += "\\r";
 		else if (ch === "\t") out += "\\t";
 		// Anything else below the printable range, plus DEL, would land in the
-		// generated file verbatim and corrupt it.
-		else if (code < FIRST_PRINTABLE || code === DEL) out += "\\" + code;
+		// generated file verbatim and corrupt it. Three digits always: Luau reads
+		// up to three, so one escape followed by a digit would read as another.
+		else if (code < FIRST_PRINTABLE || code === DEL) out += "\\" + String(code).padStart(3, "0");
 		else out += ch;
 	}
 	return `"${out}"`;

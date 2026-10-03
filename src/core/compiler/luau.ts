@@ -1,22 +1,15 @@
 /** Luau lexical helpers: identifiers, literals, and safe expression splicing. */
 
-import { significant, tokenize } from "../luau/lexer.js";
+import { CONTEXTUAL_WORDS, RESERVED_WORDS, significant, tokenize } from "../luau/lexer.js";
 import type { Literal } from "../schema.js";
 import { quoteString } from "./quote.js";
 
-/** Lua's keywords: never a name, in any position. */
-const KEYWORDS = new Set([
-	"and", "break", "do", "else", "elseif", "end", "false", "for", "function",
-	"if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true",
-	"until", "while",
-]);
-
-/** The keywords, and the words Roswaal will not declare as a name either. */
-const RESERVED = new Set([
-	...KEYWORDS,
-	// Contextual in Luau, but shadowing them produces baffling code.
-	"continue", "export", "type", "self",
-]);
+/**
+ * The keywords, from the lexer that reads them, and the words Roswaal will not
+ * declare as a name either: the contextual ones and `self`, which are legal
+ * names but make baffling code when shadowed.
+ */
+const RESERVED: ReadonlySet<string> = new Set([...RESERVED_WORDS, ...CONTEXTUAL_WORDS, "self"]);
 
 const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -34,7 +27,7 @@ export function isIdentifier(s: string): boolean {
  * such as `type` is an ordinary field name; only Lua's keywords are refused.
  */
 export function isFieldName(s: string): boolean {
-	return IDENT_RE.test(s) && !KEYWORDS.has(s);
+	return IDENT_RE.test(s) && !RESERVED_WORDS.has(s);
 }
 
 /**

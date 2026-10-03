@@ -54,10 +54,12 @@ class Stop extends Error {}
 class Parser {
 	private readonly tokens: Token[];
 	private pos = 0;
+	/** How many loops enclose the statement being read, within its own function. */
+	private loops = 0;
 	readonly errors: Diagnostic[] = [];
 
 	/** `all` is every token of the source, as `tokenize` gives them; it is not changed. */
-	constructor(all: readonly Token[]) {
+	constructor(all: readonly Token[], private readonly options: ParseOptions = {}) {
 		for (const bad of all) {
 			if (bad.kind === "error") {
 				this.errors.push({ start: bad.start, end: bad.end, message: bad.message ?? "Unreadable." });
@@ -219,7 +221,7 @@ class Parser {
 					this.next();
 					const condition = this.expr();
 					const doKeyword = spanOf(this.expect("do", "after the while condition"));
-					const body = this.block();
+					const body = this.loopBody();
 					const endKeyword = spanOf(this.expect("end", "to close the while"));
 					return { kind: "while", condition, doKeyword, body, endKeyword, ...this.span(start) };
 				}
@@ -232,7 +234,7 @@ class Parser {
 				case "for": return this.forStat(start);
 				case "repeat": {
 					this.next();
-					const body = this.block();
+					const body = this.loopBody();
 					const untilKeyword = spanOf(this.expect("until", "to close the repeat"));
 					const condition = this.expr();
 					return { kind: "repeat", body, untilKeyword, condition, ...this.span(start) };
@@ -246,7 +248,7 @@ class Parser {
 					return { kind: "return", values, ...this.span(start) };
 				}
 				case "break":
-					this.next();
+					this.outsideLoop(this.next(), "break");
 					return { kind: "break", ...this.span(start) };
 			}
 		}
@@ -255,7 +257,7 @@ class Parser {
 		if (token.kind === "name") {
 			// Contextual words, which are names everywhere else.
 			if (token.text === "continue" && !this.continuesAsExpression(1)) {
-				this.next();
+				this.outsideLoop(this.next(), "continue");
 				return { kind: "continue", ...this.span(start) };
 			}
 			if (token.text === "type" && (this.isName(undefined, 1) || this.is("function", 1))) {
@@ -376,7 +378,7 @@ class Parser {
 			const to = this.expr();
 			const step = this.accept(",") ? this.expr() : undefined;
 			const doKeyword = spanOf(this.expect("do", "after the for loop's range"));
-			const body = this.block();
+			const body = this.loopBody();
 			const endKeyword = spanOf(this.expect("end", "to close the for loop"));
 			return {
 				kind: "numericFor", variable: first[0], from, to, ...(step ? { step } : {}),
@@ -386,7 +388,7 @@ class Parser {
 		this.expect("in", "after the loop's names");
 		const values = this.exprList();
 		const doKeyword = spanOf(this.expect("do", "after what the loop walks"));
-		const body = this.block();
+		const body = this.loopBody();
 		const endKeyword = spanOf(this.expect("end", "to close the for loop"));
 		return { kind: "genericFor", variables: first, values, doKeyword, body, endKeyword, ...this.span(start) };
 	}
@@ -440,6 +442,24 @@ class Parser {
 
 	// -- functions -------------------------------------------------------------
 
+	/** A loop's body, counted so a `break` inside it is known to be in one. */
+	private loopBody(): Block {
+		this.loops++;
+		const body = this.block();
+		this.loops--;
+		return body;
+	}
+
+	/**
+	 * Reports a `break` or `continue` with no loop around it, in a whole file.
+	 * Not in a fragment: Custom Code is checked on its own and may well sit
+	 * inside a loop the graph draws.
+	 */
+	private outsideLoop(word: Token, text: string): void {
+		if (!this.options.wholeFile || this.loops > 0) return;
+		this.errors.push({ start: word.start, end: word.end, message: `\`${text}\` is only allowed inside a loop.` });
+	}
+
 	private functionBody(start: number): FunctionBody {
 		const generics = this.is("<") ? this.genericParams(false) : [];
 		this.expect("(", "to open the parameters");
@@ -460,7 +480,12 @@ class Parser {
 		}
 		const paramsClose = spanOf(this.expect(")", "to close the parameters"));
 		const returns = this.accept(":") ? this.returnType() : undefined;
+		// A function's body is outside any loop around the function: Luau
+		// refuses a `break` there, however deep the function sits in one.
+		const outerLoops = this.loops;
+		this.loops = 0;
 		const body = this.block();
+		this.loops = outerLoops;
 		const endKeyword = spanOf(this.expect("end", "to close the function"));
 		return {
 			generics, params, ...(varargs ? { varargs } : {}), ...(returns ? { returns } : {}),
@@ -926,14 +951,24 @@ class Parser {
 	}
 }
 
+/** How a chunk is read. */
+export interface ParseOptions {
+	/**
+	 * The text is a whole file, not a fragment of one: a `break` or `continue`
+	 * with no loop around it is an error. Off for Custom Code, whose loop is
+	 * in the graph.
+	 */
+	wholeFile?: boolean;
+}
+
 /** A whole file or a Custom Code body: a block of statements. */
-export function parseChunk(src: string): ParseResult<Block> {
-	return parseTokens(tokenize(src));
+export function parseChunk(src: string, options: ParseOptions = {}): ParseResult<Block> {
+	return parseTokens(tokenize(src), options);
 }
 
 /** `parseChunk` over tokens already read, for a caller that keeps them: see `file.ts`. */
-export function parseTokens(tokens: readonly Token[]): ParseResult<Block> {
-	const parser = new Parser(tokens);
+export function parseTokens(tokens: readonly Token[], options: ParseOptions = {}): ParseResult<Block> {
+	const parser = new Parser(tokens, options);
 	const value = parser.parseChunk();
 	return { value, errors: parser.errors };
 }

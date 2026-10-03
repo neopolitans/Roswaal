@@ -15,7 +15,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Registry } from "../core/nodes/index.js";
-import { categoryLabel, type Literal, type NodeConfig, type NodeDef } from "../core/schema.js";
+import { categoryLabel } from "../core/categories.js";
+import type { Literal, NodeConfig, NodeDef } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";

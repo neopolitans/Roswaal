@@ -239,7 +239,7 @@ describe("an instance path written as Luau", () => {
 
 	it("brackets any other name with Luau's own escapes, not JSON's", () => {
 		expect(renderPath("script", "Main Menu")).toBe('script["Main Menu"]');
-		expect(renderPath("script", "a\u0001b")).toBe('script["a\\1b"]');
+		expect(renderPath("script", "a\u0001b")).toBe('script["a\\001b"]');
 		expect(renderPath("script", 'say "hi"')).toBe('script["say \\"hi\\""]');
 	});
 });

@@ -94,7 +94,7 @@ export function compile(
  * once, by the check that knows which node it is in.
  */
 function unparsedOutput(emitted: EmitResult): Diagnostic[] {
-	const problem = checkLuau(emitted.code, "block")[0];
+	const problem = checkLuau(emitted.code, "block", { wholeFile: true })[0];
 	if (problem === undefined) return [];
 	const node = emitted.sourceMap.find((entry) => entry.line === problem.line)?.node;
 	return [{

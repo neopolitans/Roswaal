@@ -14,7 +14,7 @@
  */
 
 import { lineIndex } from "./lexer.js";
-import { parseChunk, parseExpression, parseType } from "./parser.js";
+import { parseChunk, type ParseOptions, parseExpression, parseType } from "./parser.js";
 
 export type LuauFragment = "block" | "expression" | "type";
 
@@ -52,9 +52,9 @@ export function checkTemplate(source: string, kind?: LuauFragment): SyntaxProble
 	return checkLuau(filled, "expression").length === 0 ? [] : asBlock;
 }
 
-export function checkLuau(source: string, kind: LuauFragment): SyntaxProblem[] {
+export function checkLuau(source: string, kind: LuauFragment, options: ParseOptions = {}): SyntaxProblem[] {
 	const { errors } = kind === "block"
-		? parseChunk(source)
+		? parseChunk(source, options)
 		: kind === "expression"
 			? parseExpression(source)
 			: parseType(source);

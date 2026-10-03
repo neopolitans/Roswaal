@@ -20,7 +20,7 @@ import { membersOfType, type MemberLookup } from "../core/members.js";
 import { categories, subcategories, type Registry } from "../core/nodes/index.js";
 import { classify, classifyFor, runtimeLabelFor } from "../core/nodes/runtimes.js";
 import {
-	categoryLabel, type GraphNode, type Literal, type NodeConfig, type NodeDef, type PinDef,
+	type GraphNode, type Literal, type NodeConfig, type NodeDef, type PinDef,
 	type PinRef,
 } from "../core/schema.js";
 import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
@@ -28,6 +28,7 @@ import { landingPins, localRefFor } from "./edits.js";
 import { configText, functionNameOf, paramsOf } from "./nodeConfig.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { MENU_FILTERS, type MenuFilter } from "./preferences.js";
+import { categoryLabel } from "../core/categories.js";
 
 /** The pin a menu was dragged off. See `MenuAnchor.from`. */
 export interface WireFrom {
