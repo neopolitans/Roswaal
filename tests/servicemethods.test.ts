@@ -370,3 +370,39 @@ describe("a service or a class by its name", () => {
 		}
 	});
 });
+
+describe("a value read in two places", () => {
+	/**
+	 * A call answers once. Two prints of one GenerateGUID must print the same
+	 * GUID, so the call is bound to a local and both read that.
+	 */
+	it("calls the service once and binds the answer", () => {
+		const b = new Builder();
+		const start = b.node("script.begin", { id: "start" });
+		const guid = b.node(SERVICE_VALUE, {
+			id: "guid", config: { service: "HttpService", method: "GenerateGUID" },
+		});
+		const first = b.node("debug.print", { id: "first" });
+		const second = b.node("debug.print", { id: "second" });
+		b.link(start, "then", first, "in").link(first, "then", second, "in");
+		b.link(guid, "result", first, "value").link(guid, "result", second, "value");
+
+		const result = compile(b.build(), registry);
+		expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+		expect(result.code.match(/GenerateGUID\(/g)).toHaveLength(1);
+		expect(body(result.code)).toContain("local result = HttpService:GenerateGUID()");
+		expect(body(result.code)).toContain("print(result)\nprint(result)");
+	});
+
+	it("names the local after the node's result name", () => {
+		const b = new Builder();
+		const start = b.node("script.begin", { id: "start" });
+		const guid = b.node(SERVICE_VALUE, {
+			id: "guid",
+			config: { service: "HttpService", method: "GenerateGUID", resultName: "token" },
+		});
+		const print = b.node("debug.print", { id: "print" });
+		b.link(start, "then", print, "in").link(guid, "result", print, "value");
+		expect(body(compile(b.build(), registry).code)).toContain("local token = HttpService:GenerateGUID()");
+	});
+});

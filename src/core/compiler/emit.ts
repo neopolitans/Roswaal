@@ -19,7 +19,7 @@ import {
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../nodes/flow.js";
-import { CAST_NODES, NILABLE_CLASS_READS, castModeOf } from "../nodes/library.js";
+import { CAST_NODES, NILABLE_CLASS_READS, castModeOf, type CastMode } from "../nodes/library.js";
 import { checkLuau } from "../luau/check.js";
 import { isModuleScript, PAIR } from "../schema.js";
 import { checkSpecifier, type SpecifierContext } from "../modules.js";
@@ -178,6 +178,13 @@ const FOLDING_READERS = STATEMENT_READERS;
 
 /** A name Luau will accept in a type position, including `a.B` for a module's. */
 const TYPE_NAME = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/;
+
+/**
+ * Pure builtins whose expression is a call: a Service Function (Value) and a
+ * Lune Function (Value). Read twice, a call runs twice, so these are bound to
+ * a local by the rule every pure expression follows.
+ */
+const CALLING_BUILTINS = new Set(["service.call", "lune.value"]);
 
 /** Variadic input pins are numbered: a0, a1, a2. */
 export const VARIADIC_PIN = /^a\d+$/;
@@ -2750,11 +2757,15 @@ class Emitter {
 
 		const spec = src.def.compilesTo;
 
-		// Pure builtins resolve to a bare identifier. They are deliberately never
-		// hoisted: a variable read has to happen at its use site, or a Set
-		// between two Gets would be invisible to the second one.
+		// Most pure builtins resolve to a name and are read where they are used:
+		// a variable read has to happen at its use site, or a Set between two
+		// Gets would be invisible to the second one. A call is the exception. It
+		// answers once, so two readers share one local as an expression's do.
 		if (spec.kind === "builtin") {
-			return this.pureBuiltin(spec.handler, src, consumer, scope);
+			const expr = this.pureBuiltin(spec.handler, src, consumer, scope);
+			return CALLING_BUILTINS.has(spec.handler)
+				? this.bindForReaders(src, pinId, expr, scope, { fallback: "result" })
+				: expr;
 		}
 
 		if (spec.kind !== "expr") {
@@ -2823,37 +2834,45 @@ class Emitter {
 			expr = `(${expr} :: ${typed}?)`;
 		}
 
-		/**
-		 * What to call the local, when there is one.
-		 *
-		 * `resultName` first, exactly as the impure path reads it. A node that
-		 * bound its result under a name you typed has to go on doing so now the
-		 * binding happens here instead — otherwise making a node pure silently
-		 * orphans the name already sitting in the file, and the local comes back
-		 * as the pin's name with a number stuck on it.
-		 */
+		return this.bindForReaders(src, pinId, expr, scope, { cast });
+	}
+
+	/**
+	 * A pure value as its readers see it: spliced in, or bound to a local first.
+	 *
+	 * `resultName` names the local, exactly as the impure path reads it. A node
+	 * that bound its result under a name you typed has to go on doing so when
+	 * the binding happens here — otherwise making a node pure silently orphans
+	 * the name already sitting in the file, and the local comes back as the
+	 * pin's name with a number stuck on it. `fallback` names it when nothing
+	 * else does, ahead of the pin's own name.
+	 */
+	private bindForReaders(
+		src: ResolvedNode, pinId: string, expr: string, scope: Scope,
+		how: { cast?: CastMode; fallback?: string } = {},
+	): string {
+		const nodeId = src.node.id;
+		const cast = how.cast;
 		const named = (src.node.config as { resultName?: string } | undefined)?.resultName;
 
-		/**
-		 * One consumer: splice it in. More: bind it once, so a side-effecting or
-		 * merely expensive expression is not worked out twice.
-		 *
-		 * **An access path is the exception**, and reading it again is not a
-		 * concession — it is the more faithful answer. `restore.weld` read twice
-		 * is what the hand-written module writes, hoisting it costs a line and a
-		 * name that says nothing, and the local is a *snapshot*: a Set Index
-		 * between the two reads would never reach it, so the graph would say
-		 * "read this field here" and the file would not. See `isAccessPath` for
-		 * how narrow the test is.
-		 *
-		 * A name you typed is the other exception, in the other direction.
-		 * Naming the result is a request for the local, not a suggestion about
-		 * what to call one if it happens to appear — and a field that does
-		 * nothing until some second reader shows up is a field you have to
-		 * experiment on to understand.
-		 *
-		 * A pure node's logic is one expression, with nowhere to put the local.
-		 */
+		// One consumer: splice it in. More: bind it once, so a side-effecting or
+		// merely expensive expression is not worked out twice.
+		//
+		// An access path is the exception, and reading it again is not a
+		// concession — it is the more faithful answer. `restore.weld` read twice
+		// is what the hand-written module writes, hoisting it costs a line and a
+		// name that says nothing, and the local is a snapshot: a Set Index
+		// between the two reads would never reach it, so the graph would say
+		// "read this field here" and the file would not. See `isAccessPath` for
+		// how narrow the test is.
+		//
+		// A name you typed is the other exception, in the other direction.
+		// Naming the result is a request for the local, not a suggestion about
+		// what to call one if it happens to appear — and a field that does
+		// nothing until some second reader shows up is a field you have to
+		// experiment on to understand.
+		//
+		// A pure node's logic is one expression, with nowhere to put the local.
 		if (this.options.expressionsOnly) return expr;
 		// A cast that has been told which it is overrides the ordinary rule.
 		// Implicit never takes a line; explicit always does, even for one reader.
@@ -2867,7 +2886,7 @@ class Emitter {
 		}
 
 		const outPin = src.outputs.find((p) => p.id === pinId);
-		const hint = named || src.node.label || outPin?.name || src.def.title;
+		const hint = named || src.node.label || how.fallback || outPin?.name || src.def.title;
 		const ident = this.names.unique(hint, "value");
 		this.push(`local ${ident} = ${expr}`, nodeId);
 		scope.bindings.set(`${nodeId}/${pinId}`, ident);

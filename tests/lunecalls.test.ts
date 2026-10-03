@@ -370,3 +370,34 @@ describe("a Roblox datatype in Lune", () => {
 		expect(compile(script, registry).code).toContain("Vector3.new(0, 10, 0)");
 	});
 });
+
+describe("a Lune value read in two places", () => {
+	/** `fs.readFile` read by two prints reads the file once. */
+	it("calls once and binds the answer", () => {
+		const script: NodeScript = {
+			...emptyScript("Read", "read"),
+			target: "lune",
+			modules: [{ id: "m1", name: "fs", specifier: "@lune/fs" }],
+			nodes: [
+				{ id: "begin", def: "script.begin", x: 0, y: 0 },
+				{
+					id: "read", def: LUNE_VALUE, x: 200, y: 120,
+					config: { module: "fs", call: "readFile" },
+					literals: { a0: { t: "string", v: "notes.txt" } },
+				},
+				{ id: "p1", def: "debug.print", x: 400, y: 0 },
+				{ id: "p2", def: "debug.print", x: 600, y: 0 },
+			],
+			links: [
+				{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "p1", pin: "in" } },
+				{ id: "l2", from: { node: "p1", pin: "then" }, to: { node: "p2", pin: "in" } },
+				{ id: "l3", from: { node: "read", pin: "result" }, to: { node: "p1", pin: "value" } },
+				{ id: "l4", from: { node: "read", pin: "result" }, to: { node: "p2", pin: "value" } },
+			],
+		};
+		const result = compile(script, registry);
+		expect(result.ok).toBe(true);
+		expect(result.code.match(/fs\.readFile\(/g)).toHaveLength(1);
+		expect(result.code).toContain('local result = fs.readFile("notes.txt")');
+	});
+});
