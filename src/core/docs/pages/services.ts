@@ -3,7 +3,7 @@
  */
 
 import { GUIDE_SCENES } from "../examples.js";
-import { previews } from "./blocks.js";
+import { code, previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
 
 /**
@@ -54,15 +54,15 @@ export function servicesPage({ registry }: PageContext): DocPage {
 			{
 				t: "code",
 				lang: "luau",
-				text: [
-					'local RunService = game:GetService("RunService")',
-					"",
-					"if RunService:IsServer() then",
-					'\tprint("On the server")',
-					"else",
-					'\tprint("On the client")',
-					"end",
-				].join("\n"),
+				text: code`
+					local RunService = game:GetService("RunService")
+
+					if RunService:IsServer() then
+						print("On the server")
+					else
+						print("On the client")
+					end
+					`,
 			},
 
 			{ t: "h", level: 2, text: "Asking a service what it can do" },

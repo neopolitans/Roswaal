@@ -2,7 +2,7 @@
  * The `modules` page of the documentation. `buildSite` places it.
  */
 
-import { NEWLINE } from "./blocks.js";
+import { code } from "./blocks.js";
 import type { DocPage } from "../site.js";
 import { MODULES_PANEL } from "../toolbars.js";
 
@@ -118,11 +118,11 @@ export function modulesPage(): DocPage {
 			{
 				t: "code",
 				lang: "luau",
-				text: [
-					'local roblox = require("@lune/roblox")',
-					"local Vector3 = roblox.Vector3",
-					"local CFrame = roblox.CFrame",
-				].join(NEWLINE),
+				text: code`
+					local roblox = require("@lune/roblox")
+					local Vector3 = roblox.Vector3
+					local CFrame = roblox.CFrame
+					`,
 			},
 			{
 				t: "p",
@@ -142,12 +142,12 @@ export function modulesPage(): DocPage {
 			{
 				t: "code",
 				lang: "luau",
-				text: [
-					'local Players = game:GetService("Players")',
-					"",
-					'local Combat = require("@game/ReplicatedStorage/Combat")',
-					'local config = require("./config")',
-				].join(NEWLINE),
+				text: code`
+					local Players = game:GetService("Players")
+
+					local Combat = require("@game/ReplicatedStorage/Combat")
+					local config = require("./config")
+					`,
 			},
 			{
 				t: "note",

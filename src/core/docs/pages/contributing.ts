@@ -4,6 +4,7 @@
 
 import { reviewerCounts, reviewerLink } from "../reviews.js";
 import type { Block, DocPage } from "../site.js";
+import { code } from "./blocks.js";
 
 /**
  * How to work on Roswaal itself. Written from the repository's own scripts
@@ -28,14 +29,14 @@ export function contributingPage(): DocPage {
 			{
 				t: "code",
 				lang: "sh",
-				text: [
-					"npm install",
-					"npm run dev          # the daemon and the editor, reloading as you edit",
-					"npm test             # the test suite",
-					"npm run typecheck",
-					"npm run build        # themes, the editor and the command line",
-					"npm run build:docs   # these docs, as a static site",
-				].join("\n"),
+				text: code`
+					npm install
+					npm run dev          # the daemon and the editor, reloading as you edit
+					npm test             # the test suite
+					npm run typecheck
+					npm run build        # themes, the editor and the command line
+					npm run build:docs   # these docs, as a static site
+					`,
 			},
 
 			{ t: "h", level: 2, text: "What a change brings with it" },

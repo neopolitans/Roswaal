@@ -3,7 +3,7 @@
  */
 
 import type { Registry } from "../../nodes/index.js";
-import { previews } from "./blocks.js";
+import { code, previews } from "./blocks.js";
 import type { Block, DocPage, PageContext } from "../site.js";
 
 export function castingPage({ registry }: PageContext): DocPage {
@@ -148,17 +148,17 @@ function castingBlocks(registry: Registry): Block[] {
 		{
 			t: "code",
 			lang: "luau",
-			text: [
-				"for _, part in character:GetDescendants() do",
-				'\tif part:IsA("BasePart") then',
-				"\t\t-- an implicit Cast to BasePart here writes nothing",
-				"\t\tpart.Transparency = 1",
-				'\telseif part:IsA("Decal") or part:IsA("Texture") then',
-				"\t\t-- and here, a cast to `Decal | Texture` writes nothing either",
-				"\t\tpart.Transparency = 1",
-				"\tend",
-				"end",
-			].join("\n"),
+			text: code`
+				for _, part in character:GetDescendants() do
+					if part:IsA("BasePart") then
+						-- an implicit Cast to BasePart here writes nothing
+						part.Transparency = 1
+					elseif part:IsA("Decal") or part:IsA("Texture") then
+						-- and here, a cast to \`Decal | Texture\` writes nothing either
+						part.Transparency = 1
+					end
+				end
+				`,
 		},
 		{
 			t: "p",

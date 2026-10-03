@@ -3,7 +3,7 @@
  */
 
 import { LUNE_MODULES, LUNE_VERSION } from "../../luneApi.js";
-import { previews } from "./blocks.js";
+import { code, previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
 
 /**
@@ -92,11 +92,11 @@ export function luneLibraryPage({ registry }: PageContext): DocPage {
 			{
 				t: "code",
 				lang: "luau",
-				text: [
-					'local fs = require("@lune/fs")',
-					"",
-					'print(fs.readFile("notes.txt"))',
-				].join("\n"),
+				text: code`
+					local fs = require("@lune/fs")
+
+					print(fs.readFile("notes.txt"))
+					`,
 			},
 			{
 				t: "p",

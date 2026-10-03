@@ -8,6 +8,7 @@ import { stripHeader } from "../nodeReference.js";
 import { ROBLOX_DEMO_GRAPHS, ROBLOX_DEMO_MAP } from "../robloxDemos.js";
 import type { Block, DocPage, PageContext } from "../site.js";
 import { declarationsPanel } from "../toolbars.js";
+import { code } from "./blocks.js";
 
 /**
  * The Roblox demo page: the project that ships, read rather than described.
@@ -125,7 +126,10 @@ export function robloxDemosPage({ registry }: PageContext): DocPage {
 		{
 			t: "code",
 			lang: "sh",
-			text: "roswaal compile   # writes src/ and default.project.json\nrojo serve        # then connect from Studio",
+			text: code`
+				roswaal compile   # writes src/ and default.project.json
+				rojo serve        # then connect from Studio
+				`,
 		},
 		{
 			t: "note",

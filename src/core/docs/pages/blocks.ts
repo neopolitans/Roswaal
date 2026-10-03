@@ -7,13 +7,37 @@ import { previewOf } from "../preview.js";
 import type { Block } from "../site.js";
 
 /**
- * A line break, for the code samples written out in this file.
+ * A code sample, written out as it reads.
  *
- * As a code unit rather than an escape, the way `PageEditor.tsx` does it: these
- * pages are edited by tools as often as by hand, and an escape sequence is one
- * more thing that has to survive every one of them intact.
+ * The backticks open and close on lines of their own, and the closing one
+ * sets the margin: that much indentation is taken off every line, so the
+ * sample can sit at the page's indentation and still come out flush. A blank
+ * line may be left empty. Inside, `\`` and `\\` and `\${` are escaped as in
+ * any template.
+ *
+ *     text: code`
+ *         local x = 1
+ *         print(x)
+ *         `,
  */
-export const NEWLINE = String.fromCharCode(10);
+export function code(strings: TemplateStringsArray, ...values: unknown[]): string {
+	let text = strings[0];
+	values.forEach((value, i) => {
+		text += String(value) + strings[i + 1];
+	});
+	const lines = text.split("\n");
+	const margin = lines.pop() ?? "";
+	if (lines.shift() !== "" || /\S/.test(margin)) {
+		throw new Error("A code sample's backticks open and close on lines of their own.");
+	}
+	return lines
+		.map((line) => {
+			if (line.startsWith(margin)) return line.slice(margin.length);
+			if (line === "") return line;
+			throw new Error(`A code sample's line sits left of its closing backtick: ${line}`);
+		})
+		.join("\n");
+}
 
 /**
  * A preview block for named nodes, in the order they are named.

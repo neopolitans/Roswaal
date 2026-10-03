@@ -2,7 +2,7 @@
  * The `wally-packages` page of the documentation. `buildSite` places it.
  */
 
-import { NEWLINE } from "./blocks.js";
+import { code } from "./blocks.js";
 import type { DocPage } from "../site.js";
 import {
 	ADD_FROM_WALLY, PROJECT_TREE_WALLY, PROJECT_TREE_WALLY_ADDED, REMOVE_PACKAGE, WALLY_MENU,
@@ -46,7 +46,10 @@ export function wallyPackagesPage(): DocPage {
 			{
 				t: "code",
 				lang: "luau",
-				text: '-- Packages/Flux.lua, written by Wally' + NEWLINE + 'return require(script.Parent._Index["someone_flux@0.2.0"]["flux"])',
+				text: code`
+					-- Packages/Flux.lua, written by Wally
+					return require(script.Parent._Index["someone_flux@0.2.0"]["flux"])
+					`,
 			},
 			{
 				t: "p",

@@ -5,6 +5,7 @@
 import { GUIDE_SCENES } from "../examples.js";
 import type { DocPage } from "../site.js";
 import { VARIABLES_PAGE_PANEL } from "../toolbars.js";
+import { code } from "./blocks.js";
 
 export function variablesAndLocalsPage(): DocPage {
 	return {
@@ -96,10 +97,11 @@ export function variablesAndLocalsPage(): DocPage {
 			{
 				t: "code",
 				lang: "luau",
-				text:
-					"const tuning = Config.Tuning\n"
-					+ "tuning.turnRate = 60 -- fine: the table is not frozen\n"
-					+ "tuning = {}          -- error: the name is",
+				text: code`
+					const tuning = Config.Tuning
+					tuning.turnRate = 60 -- fine: the table is not frozen
+					tuning = {}          -- error: the name is
+					`,
 			},
 			{
 				t: "note",

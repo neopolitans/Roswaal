@@ -3,7 +3,7 @@
  */
 
 import { GUIDE_SCENES } from "../examples.js";
-import { previews } from "./blocks.js";
+import { code, previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
 import { TYPE_FIELDS_INSPECTOR, TYPE_OPEN_INSPECTOR, TYPE_WRITTEN_INSPECTOR } from "../toolbars.js";
 
@@ -126,9 +126,20 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 							{
 								t: "code",
 								lang: "luau",
-								text:
-									"export type Input = {\n\tthrottle: number,\n\tsteer: number,\n\taim: Vector3,\n}\n\n" +
-									"local input: Input = {\n\tthrottle = 1,\n\tsteer = 0,\n\taim = Vector3.zAxis,\n}\nprint(input.aim)",
+								text: code`
+									export type Input = {
+										throttle: number,
+										steer: number,
+										aim: Vector3,
+									}
+
+									local input: Input = {
+										throttle = 1,
+										steer = 0,
+										aim = Vector3.zAxis,
+									}
+									print(input.aim)
+									`,
 							},
 							{
 								t: "p",
@@ -159,9 +170,12 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 							{
 								t: "code",
 								lang: "luau",
-								text:
-									"export type Shot = { damage: number, from: Vector3 }\n\n" +
-									"local shot: Shot = { damage = 25, from = Vector3.zero }\nprint(shot.damage)",
+								text: code`
+									export type Shot = { damage: number, from: Vector3 }
+
+									local shot: Shot = { damage = 25, from = Vector3.zero }
+									print(shot.damage)
+									`,
 							},
 						],
 					},
@@ -186,9 +200,12 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 							{
 								t: "code",
 								lang: "luau",
-								text:
-									"export type Scores = { [string]: number }\n\n" +
-									"local scores: Scores = { alice = 12, bob = 9 }\nprint(scores.alice)",
+								text: code`
+									export type Scores = { [string]: number }
+
+									local scores: Scores = { alice = 12, bob = 9 }
+									print(scores.alice)
+									`,
 							},
 						],
 					},
@@ -225,11 +242,12 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 			{
 				t: "code",
 				lang: "luau",
-				text:
-					"local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\n" +
-					"local Config = require(ReplicatedStorage.Tank.Config)\n" +
-					"local tuning: Config.Tuning = Config.tuning\n" +
-					"print(tuning.turnRate)",
+				text: code`
+					local ReplicatedStorage = game:GetService("ReplicatedStorage")
+					local Config = require(ReplicatedStorage.Tank.Config)
+					local tuning: Config.Tuning = Config.tuning
+					print(tuning.turnRate)
+					`,
 			},
 			{
 				t: "p",
@@ -261,7 +279,11 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 				script: GUIDE_SCENES.memberOfInstance(),
 				caption: "New Instance gives a Part; the pill reads its Anchored, which is a boolean.",
 			},
-			{ t: "code", lang: "luau", text: "local part: Part = Instance.new(\"Part\")\nif part.Anchored then\nend" },
+			{ t: "code", lang: "luau", text: code`
+				local part: Part = Instance.new("Part")
+				if part.Anchored then
+				end
+				` },
 			{
 				t: "p",
 				text:

@@ -4,6 +4,7 @@
 
 import { CLI_COMMANDS, CLI_OPTIONS } from "../cli.js";
 import type { DocPage } from "../site.js";
+import { code } from "./blocks.js";
 
 /**
  * The command line, rendered from the same list `roswaal help` prints.
@@ -29,7 +30,11 @@ export function commandLinePage(): DocPage {
 			{
 				t: "code",
 				lang: "sh",
-				text: "cd path/to/your/roblox/project\nroswaal init      # once per project\nroswaal serve     # editor on http://127.0.0.1:4471, docs at /docs",
+				text: code`
+					cd path/to/your/roblox/project
+					roswaal init      # once per project
+					roswaal serve     # editor on http://127.0.0.1:4471, docs at /docs
+					`,
 			},
 			{ t: "h", level: 2, text: "Commands" },
 			{

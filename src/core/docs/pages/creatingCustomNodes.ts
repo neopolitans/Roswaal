@@ -3,6 +3,7 @@
  */
 
 import type { DocPage } from "../site.js";
+import { code } from "./blocks.js";
 
 /**
  * Making a node of your own, by whichever of the three routes suits you.
@@ -128,7 +129,10 @@ export function creatingCustomNodesPage(): DocPage {
 									"the template runs, so the template sets it rather than declaring it.",
 							},
 							{ t: "code", lang: "luau", text: "$out.hit = workspace:Raycast($in.origin, $in.direction)" },
-							{ t: "code", lang: "luau", text: "local hit\nhit = workspace:Raycast(origin, direction)" },
+							{ t: "code", lang: "luau", text: code`
+								local hit
+								hit = workspace:Raycast(origin, direction)
+								` },
 							{ t: "h", level: 3, text: "A call with a result" },
 							{
 								t: "p",
@@ -172,26 +176,27 @@ export function creatingCustomNodesPage(): DocPage {
 							{
 								t: "code",
 								lang: "luau",
-								text:
-									"return {\n" +
-									"\tnodes = {\n" +
-									"\t\t{\n" +
-									'\t\t\tid = "combat.knockback",\n' +
-									'\t\t\ttitle = "Apply Knockback",\n' +
-									'\t\t\tcategory = "Combat",\n' +
-									"\t\t\tinputs = {\n" +
-									'\t\t\t\t{ id = "in", kind = "exec" },\n' +
-									'\t\t\t\t{ id = "character", name = "Character", kind = "data", type = "Instance" },\n' +
-									'\t\t\t\t{ id = "force", name = "Force", kind = "data", type = "Vector3" },\n' +
-									"\t\t\t},\n" +
-									'\t\t\toutputs = { { id = "then", kind = "exec" } },\n' +
-									"\t\t\tcompilesTo = {\n" +
-									'\t\t\t\tkind = "statement",\n' +
-									'\t\t\t\ttemplate = "$in.character.HumanoidRootPart:ApplyImpulse($in.force)",\n' +
-									"\t\t\t},\n" +
-									"\t\t},\n" +
-									"\t},\n" +
-									"}",
+								text: code`
+									return {
+										nodes = {
+											{
+												id = "combat.knockback",
+												title = "Apply Knockback",
+												category = "Combat",
+												inputs = {
+													{ id = "in", kind = "exec" },
+													{ id = "character", name = "Character", kind = "data", type = "Instance" },
+													{ id = "force", name = "Force", kind = "data", type = "Vector3" },
+												},
+												outputs = { { id = "then", kind = "exec" } },
+												compilesTo = {
+													kind = "statement",
+													template = "$in.character.HumanoidRootPart:ApplyImpulse($in.force)",
+												},
+											},
+										},
+									}
+									`,
 							},
 							{
 								t: "p",
@@ -234,10 +239,11 @@ export function creatingCustomNodesPage(): DocPage {
 							{
 								t: "code",
 								lang: "ts",
-								text:
-									'pure("math.lerp", "Lerp", "Math",\n' +
-									'\t"($in.a + ($in.b - $in.a) * $in.t)",\n' +
-									'\t[num("a", "A"), num("b", "B"), num("t", "Alpha")], "number"),',
+								text: code`
+									pure("math.lerp", "Lerp", "Math",
+										"($in.a + ($in.b - $in.a) * $in.t)",
+										[num("a", "A"), num("b", "B"), num("t", "Alpha")], "number"),
+									`,
 							},
 							{
 								t: "p",

@@ -3,6 +3,7 @@
  */
 
 import type { DocPage } from "../site.js";
+import { code } from "./blocks.js";
 
 export function typesPage(): DocPage {
 	return {
@@ -117,12 +118,12 @@ export function typesPage(): DocPage {
 			{
 				t: "code",
 				lang: "luau",
-				text: [
-					'-- Get Property, with Property typed in as "Name"',
-					"print(instance.Name)",
-					"",
-					"-- The name is part of the code, not a value it reads.",
-				].join("\n"),
+				text: code`
+					-- Get Property, with Property typed in as "Name"
+					print(instance.Name)
+
+					-- The name is part of the code, not a value it reads.
+					`,
 			},
 			{ t: "h", level: 2, text: "Optional arguments" },
 			{
@@ -145,16 +146,16 @@ export function typesPage(): DocPage {
 			{
 				t: "code",
 				lang: "luau",
-				text: [
-					"-- nothing set",
-					"TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)",
-					"",
-					"-- repeat count set to 2",
-					"TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 2)",
-					"",
-					"-- only the delay set: the gap before it has to be held open",
-					"TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, nil, nil, 0.5)",
-				].join("\n"),
+				text: code`
+					-- nothing set
+					TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+					-- repeat count set to 2
+					TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 2)
+
+					-- only the delay set: the gap before it has to be held open
+					TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, nil, nil, 0.5)
+					`,
 			},
 			{
 				t: "p",

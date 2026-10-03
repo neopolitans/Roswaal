@@ -5,7 +5,7 @@
 import type { NodeMap } from "../../nodemap.js";
 import { projectToMap } from "../../rojoImport.js";
 import { GUIDE_SCENES } from "../examples.js";
-import { NEWLINE } from "./blocks.js";
+import { code } from "./blocks.js";
 import type { DocPage } from "../site.js";
 import { DATAMODEL_BROWSER, EXPORT_PANEL, PROPERTIES_PANEL } from "../toolbars.js";
 
@@ -157,7 +157,11 @@ export function placesAndRojoPage(): DocPage {
 						title: "A property",
 						blocks: [
 							{ t: "graph", script: GUIDE_SCENES.dropProperty(), caption: "Anchored, dropped: Get Member, typed boolean, printed here." },
-							{ t: "code", lang: "luau", text: "local Workspace = game:GetService(\"Workspace\")" + NEWLINE + "" + NEWLINE + "print(Workspace.House.Door.Anchored)" },
+							{ t: "code", lang: "luau", text: code`
+								local Workspace = game:GetService("Workspace")
+
+								print(Workspace.House.Door.Anchored)
+								` },
 						],
 					},
 					{
@@ -165,7 +169,11 @@ export function placesAndRojoPage(): DocPage {
 						title: "With Ctrl",
 						blocks: [
 							{ t: "graph", script: GUIDE_SCENES.dropPropertySet(), caption: "The same drop with `Ctrl` held: Set Property." },
-							{ t: "code", lang: "luau", text: "local Workspace = game:GetService(\"Workspace\")" + NEWLINE + "" + NEWLINE + "Workspace.House.Door.Anchored = false" },
+							{ t: "code", lang: "luau", text: code`
+								local Workspace = game:GetService("Workspace")
+
+								Workspace.House.Door.Anchored = false
+								` },
 						],
 					},
 					{
@@ -173,7 +181,11 @@ export function placesAndRojoPage(): DocPage {
 						title: "An attribute",
 						blocks: [
 							{ t: "graph", script: GUIDE_SCENES.dropAttribute(), caption: "IsOpen, an attribute: Get Attribute." },
-							{ t: "code", lang: "luau", text: "local Workspace = game:GetService(\"Workspace\")" + NEWLINE + "" + NEWLINE + "print(Workspace.House.Door:GetAttribute(\"IsOpen\"))" },
+							{ t: "code", lang: "luau", text: code`
+								local Workspace = game:GetService("Workspace")
+
+								print(Workspace.House.Door:GetAttribute("IsOpen"))
+								` },
 						],
 					},
 				],

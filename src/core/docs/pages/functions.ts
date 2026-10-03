@@ -2,7 +2,7 @@
  * The `functions` page of the documentation. `buildSite` places it.
  */
 
-import { previews } from "./blocks.js";
+import { code, previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
 import { FUNCTIONS_PANEL } from "../toolbars.js";
 
@@ -193,12 +193,13 @@ export function functionsPage({ registry }: PageContext): DocPage {
 			{
 				t: "code",
 				lang: "luau",
-				text:
-					"-- Call Function: the result is bound, and the order is on the wire\n"
-					+ "local config = TankConfig.read(tank)\n"
-					+ "\n"
-					+ "-- Call For Value: spliced into whatever reads it\n"
-					+ "return { movementSpeed = readNumber(hullSettings, \"MovementSpeed\") }",
+				text: code`
+					-- Call Function: the result is bound, and the order is on the wire
+					local config = TankConfig.read(tank)
+
+					-- Call For Value: spliced into whatever reads it
+					return { movementSpeed = readNumber(hullSettings, "MovementSpeed") }
+					`,
 			},
 			{
 				t: "note",

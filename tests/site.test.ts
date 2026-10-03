@@ -14,6 +14,7 @@ import {
 	parseInline, releaseTags, searchDocs, TAG_LABELS, type Block, type DocPage, type StringSlot,
 } from "../src/core/docs/site.js";
 import { reviewLine } from "../src/core/docs/reviews.js";
+import { code } from "../src/core/docs/pages/blocks.js";
 import { RELEASES } from "../src/core/docs/releases.js";
 import { renderPage } from "../src/core/docs/html.js";
 import { VERSION } from "../src/cli/version.js";
@@ -46,6 +47,37 @@ describe("inline markup", () => {
 	it("strips markup when flattening a block to text", () => {
 		expect(blockText({ t: "p", text: "wire a `Vector3` in **first**" }))
 			.toBe("wire a Vector3 in first");
+	});
+});
+
+describe("code samples", () => {
+	it("takes the closing backtick's indent off every line", () => {
+		const text = code`
+			if ready then
+				go()
+
+			end
+			`;
+		expect(text).toBe("if ready then\n\tgo()\n\nend");
+	});
+
+	it("keeps a final newline written as an empty last line", () => {
+		expect(code`
+			x
+
+			`).toBe("x\n");
+	});
+
+	it("refuses a line left of the margin, rather than shifting it", () => {
+		expect(() => code`
+			fine
+		left
+			`).toThrow(/left of its closing backtick/);
+	});
+
+	it("refuses a sample that starts on the backtick's line", () => {
+		expect(() => code`x
+			`).toThrow(/lines of their own/);
 	});
 });
 

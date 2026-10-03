@@ -3,6 +3,7 @@
  */
 
 import type { DocPage } from "../site.js";
+import { code } from "./blocks.js";
 
 /**
  * `.luaurc` alias maps.
@@ -41,15 +42,15 @@ export function aliasesPage(): DocPage {
 			{
 				t: "code",
 				lang: "json",
-				text: [
-					"{",
-					'\t"languageMode": "strict",',
-					'\t"aliases": {',
-					'\t\t"roact": "./Packages/Roact",',
-					'\t\t"shared": "./src/Shared"',
-					"\t}",
-					"}",
-				].join("\n"),
+				text: code`
+					{
+						"languageMode": "strict",
+						"aliases": {
+							"roact": "./Packages/Roact",
+							"shared": "./src/Shared"
+						}
+					}
+					`,
 			},
 
 			{ t: "h", level: 2, text: "Where the file goes" },
