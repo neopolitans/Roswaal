@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localsAt, topLevelLocals } from "../src/core/luau/scope.js";
+import { localsAt, localsInFile, topLevelLocals } from "../src/core/luau/scope.js";
 
 describe("finding locals in hand-written Luau", () => {
 	it("finds a simple declaration", () => {
@@ -72,6 +72,12 @@ function at(source: string): string[] {
 	return localsAt(source.replace("|", ""), offset).map((n) => `${n.name}:${n.kind}`);
 }
 
+/** `at`, reading the whole file as it stands. */
+function atInFile(source: string): string[] {
+	const offset = source.indexOf("|");
+	return (localsInFile(source.replace("|", ""), offset) ?? []).map((n) => `${n.name}:${n.kind}`);
+}
+
 describe("what is in scope at the cursor", () => {
 	it("offers a local inside its block, and not after it", () => {
 		expect(at("local a = 1\nif a then\n  local inner = 2\n  |\nend")).toEqual(["a:local", "inner:local"]);
@@ -100,6 +106,21 @@ describe("what is in scope at the cursor", () => {
 
 	it("offers a repeat body's locals in its until", () => {
 		expect(at("repeat local done = step() until |")).toEqual(["done:local"]);
+	});
+
+	it("keeps a then-branch's locals out of its else and elseif", () => {
+		// An empty else, and a cursor before the else's first statement.
+		expect(at("if a then\n  local onlyThen = 1\nelse\n  |\nend")).toEqual([]);
+		expect(at("if a then\n  local onlyThen = 1\nelse |\n  local mine = 2\nend")).toEqual([]);
+		expect(atInFile("if a then\n  local onlyThen = 1\nelse\n  |\nend")).toEqual([]);
+		expect(atInFile("if a then\n  local onlyThen = 1\nelseif b then\n  |\nend")).toEqual([]);
+		expect(atInFile("if a then\n  local onlyThen = 1\n  |\nelse\nend")).toEqual(["onlyThen:local"]);
+	});
+
+	it("knows an empty loop or function body is inside it", () => {
+		expect(atInFile("for i = 1, 2 do |\nend")).toEqual(["i:loop variable"]);
+		expect(atInFile("local function f(a)\n  |\nend")).toEqual(["f:function", "a:parameter"]);
+		expect(atInFile("while true do |end")).toEqual([]);
 	});
 
 	it("offers the innermost of two locals with one name, once", () => {

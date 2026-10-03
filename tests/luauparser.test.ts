@@ -112,6 +112,20 @@ describe("statements", () => {
 		]);
 	});
 
+	it("keeps where each block's keywords are", () => {
+		const src = "if a then elseif b then else end while c do end repeat until d for i = 1, 2 do end\n"
+			+ "local function f(x) end";
+		const text = (span: { start: number; end: number } | undefined) => span && src.slice(span.start, span.end);
+		const [ifStat, whileStat, repeatStat, forStat, fn] = ok(src);
+		if (ifStat.kind !== "if" || whileStat.kind !== "while" || repeatStat.kind !== "repeat") throw new Error();
+		if (forStat.kind !== "numericFor" || fn.kind !== "localFunction") throw new Error();
+		expect(ifStat.clauses.map((c) => [text(c.keyword), text(c.thenKeyword)])).toEqual([["if", "then"], ["elseif", "then"]]);
+		expect([text(ifStat.elseKeyword), text(ifStat.endKeyword)]).toEqual(["else", "end"]);
+		expect([text(whileStat.doKeyword), text(whileStat.endKeyword), text(repeatStat.untilKeyword)]).toEqual(["do", "end", "until"]);
+		expect([text(forStat.doKeyword), text(forStat.endKeyword)]).toEqual(["do", "end"]);
+		expect([text(fn.func.paramsClose), text(fn.func.endKeyword)]).toEqual([")", "end"]);
+	});
+
 	it("keeps attributes on a function", () => {
 		const [stat] = ok("@native local function f() end");
 		expect(stat.kind === "localFunction" && stat.attributes.map((a) => a.name)).toEqual(["native"]);

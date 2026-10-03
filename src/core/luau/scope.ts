@@ -159,33 +159,34 @@ function enter(stat: Stat, at: number, out: ScopedName[]): void {
 		case "typeFunction":
 			enterFunction(stat.func, at, out);
 			return;
+		// A block runs from the keyword that opens it to the one that closes
+		// it, so a point in an empty block, or before its first statement, is
+		// still inside that block and no other.
 		case "do":
-			walkBlock(stat.body, at, out, stat.start, stat.end);
+			walkBlock(stat.body, at, out, stat.start, stat.endKeyword.start);
 			return;
 		case "while": {
 			if (at <= stat.condition.end) return enterExpr(stat.condition, at, out);
-			walkBlock(stat.body, at, out, stat.condition.end, stat.end);
+			walkBlock(stat.body, at, out, stat.doKeyword.end, stat.endKeyword.start);
 			return;
 		}
 		case "repeat": {
 			// The condition sees the body's locals: `repeat local x = f() until x`.
-			if (at >= stat.condition.start) {
+			if (at >= stat.untilKeyword.end) {
 				for (const inner of stat.body) out.push(...declared(inner));
 				return enterExpr(stat.condition, at, out);
 			}
-			walkBlock(stat.body, at, out, stat.start, stat.condition.start);
+			walkBlock(stat.body, at, out, stat.start, stat.untilKeyword.start);
 			return;
 		}
 		case "if": {
 			stat.clauses.forEach((clause, i) => {
 				if (at >= clause.condition.start && at <= clause.condition.end) enterExpr(clause.condition, at, out);
-				const next = stat.clauses[i + 1]?.condition.start ?? stat.orElse?.[0]?.start ?? stat.end;
-				walkBlock(clause.body, at, out, clause.condition.end, next);
+				const next = stat.clauses[i + 1]?.keyword ?? stat.elseKeyword ?? stat.endKeyword;
+				walkBlock(clause.body, at, out, clause.thenKeyword.end, next.start);
 			});
-			if (stat.orElse) {
-				const last = stat.clauses[stat.clauses.length - 1];
-				const bodyEnd = last.body[last.body.length - 1]?.end ?? last.condition.end;
-				walkBlock(stat.orElse, at, out, bodyEnd, stat.end);
+			if (stat.orElse && stat.elseKeyword) {
+				walkBlock(stat.orElse, at, out, stat.elseKeyword.end, stat.endKeyword.start);
 			}
 			return;
 		}
@@ -193,14 +194,14 @@ function enter(stat: Stat, at: number, out: ScopedName[]): void {
 			const range = stat.step ?? stat.to;
 			if (at <= range.end) return enterExpr(range, at, out);
 			out.push({ name: stat.variable.name, kind: "loop variable" });
-			walkBlock(stat.body, at, out, range.end, stat.end);
+			walkBlock(stat.body, at, out, stat.doKeyword.end, stat.endKeyword.start);
 			return;
 		}
 		case "genericFor": {
 			const last = stat.values[stat.values.length - 1];
 			if (last && at <= last.end) return enterExpr(last, at, out);
 			for (const v of stat.variables) out.push({ name: v.name, kind: "loop variable" });
-			walkBlock(stat.body, at, out, last?.end ?? stat.start, stat.end);
+			walkBlock(stat.body, at, out, stat.doKeyword.end, stat.endKeyword.start);
 			return;
 		}
 		default:
@@ -214,8 +215,7 @@ function enterFunction(func: FunctionBody, at: number, out: ScopedName[]): void 
 	for (const param of func.params) {
 		out.push({ name: param.name, kind: "parameter", ...(param.type ? { typeSpan: param.type } : {}) } as ScopedName);
 	}
-	const bodyStart = func.params[func.params.length - 1]?.end ?? func.start;
-	walkBlock(func.body, at, out, bodyStart, func.end);
+	walkBlock(func.body, at, out, func.paramsClose.end, func.endKeyword.start);
 }
 
 /** Finds a function expression the offset is inside, anywhere in `node`. */

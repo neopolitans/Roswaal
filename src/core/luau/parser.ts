@@ -15,7 +15,7 @@
  */
 
 import type {
-	Attribute, Binding, Block, Diagnostic, Expr, FunctionBody, GenericParam, Name,
+	Attribute, Binding, Block, Diagnostic, Expr, FunctionBody, GenericParam, IfClause, Name,
 	ParseResult, Span, Stat, TableField, TableIndexer, TableTypeProp, TypeNode, TypePack,
 } from "./ast.js";
 import { significant, tokenize, type Token } from "./lexer.js";
@@ -42,6 +42,11 @@ const STATEMENT_START = new Set([
 	"local", "function", "if", "for", "while", "repeat", "return", "do", "break",
 	"end", "else", "elseif", "until",
 ]);
+
+/** Where a token is, without its text: a keyword's place in the tree. */
+function spanOf(token: Token): Span {
+	return { start: token.start, end: token.end };
+}
 
 /** Thrown inside the parser only, and caught at the statement it belongs to. */
 class Stop extends Error {}
@@ -213,24 +218,24 @@ class Parser {
 				case "while": {
 					this.next();
 					const condition = this.expr();
-					this.expect("do", "after the while condition");
+					const doKeyword = spanOf(this.expect("do", "after the while condition"));
 					const body = this.block();
-					this.expect("end", "to close the while");
-					return { kind: "while", condition, body, ...this.span(start) };
+					const endKeyword = spanOf(this.expect("end", "to close the while"));
+					return { kind: "while", condition, doKeyword, body, endKeyword, ...this.span(start) };
 				}
 				case "do": {
 					this.next();
 					const body = this.block();
-					this.expect("end", "to close the do");
-					return { kind: "do", body, ...this.span(start) };
+					const endKeyword = spanOf(this.expect("end", "to close the do"));
+					return { kind: "do", body, endKeyword, ...this.span(start) };
 				}
 				case "for": return this.forStat(start);
 				case "repeat": {
 					this.next();
 					const body = this.block();
-					this.expect("until", "to close the repeat");
+					const untilKeyword = spanOf(this.expect("until", "to close the repeat"));
 					const condition = this.expr();
-					return { kind: "repeat", body, condition, ...this.span(start) };
+					return { kind: "repeat", body, untilKeyword, condition, ...this.span(start) };
 				}
 				case "return": {
 					this.next();
@@ -344,24 +349,22 @@ class Parser {
 	}
 
 	private ifStat(start: number): Stat {
-		this.next();
-		const clauses: { condition: Expr; body: Block }[] = [];
-		const condition = this.expr();
-		this.expect("then", "after the if condition");
-		clauses.push({ condition, body: this.block() });
-		let orElse: Block | undefined;
-		for (;;) {
-			if (this.accept("elseif")) {
-				const next = this.expr();
-				this.expect("then", "after the elseif condition");
-				clauses.push({ condition: next, body: this.block() });
-				continue;
-			}
-			if (this.accept("else")) orElse = this.block();
-			break;
+		const clauses: IfClause[] = [];
+		let keyword: Token | undefined = this.next();
+		while (keyword) {
+			const condition = this.expr();
+			const thenKeyword = spanOf(this.expect("then", `after the ${keyword.text} condition`));
+			clauses.push({ keyword: spanOf(keyword), condition, thenKeyword, body: this.block() });
+			keyword = this.accept("elseif");
 		}
-		this.expect("end", "to close the if");
-		return { kind: "if", clauses, ...(orElse ? { orElse } : {}), ...this.span(start) };
+		const elseToken = this.accept("else");
+		const orElse = elseToken ? this.block() : undefined;
+		const endKeyword = spanOf(this.expect("end", "to close the if"));
+		return {
+			kind: "if", clauses,
+			...(elseToken && orElse ? { elseKeyword: spanOf(elseToken), orElse } : {}),
+			endKeyword, ...this.span(start),
+		};
 	}
 
 	private forStat(start: number): Stat {
@@ -372,17 +375,20 @@ class Parser {
 			this.expect(",", "between the loop's start and end");
 			const to = this.expr();
 			const step = this.accept(",") ? this.expr() : undefined;
-			this.expect("do", "after the for loop's range");
+			const doKeyword = spanOf(this.expect("do", "after the for loop's range"));
 			const body = this.block();
-			this.expect("end", "to close the for loop");
-			return { kind: "numericFor", variable: first[0], from, to, ...(step ? { step } : {}), body, ...this.span(start) };
+			const endKeyword = spanOf(this.expect("end", "to close the for loop"));
+			return {
+				kind: "numericFor", variable: first[0], from, to, ...(step ? { step } : {}),
+				doKeyword, body, endKeyword, ...this.span(start),
+			};
 		}
 		this.expect("in", "after the loop's names");
 		const values = this.exprList();
-		this.expect("do", "after what the loop walks");
+		const doKeyword = spanOf(this.expect("do", "after what the loop walks"));
 		const body = this.block();
-		this.expect("end", "to close the for loop");
-		return { kind: "genericFor", variables: first, values, body, ...this.span(start) };
+		const endKeyword = spanOf(this.expect("end", "to close the for loop"));
+		return { kind: "genericFor", variables: first, values, doKeyword, body, endKeyword, ...this.span(start) };
 	}
 
 	private typeStat(start: number, exported: boolean): Stat {
@@ -452,11 +458,14 @@ class Parser {
 				params.push({ name: name.name, ...(type ? { type } : {}), ...this.span(name.start) });
 			} while (this.accept(","));
 		}
-		this.expect(")", "to close the parameters");
+		const paramsClose = spanOf(this.expect(")", "to close the parameters"));
 		const returns = this.accept(":") ? this.returnType() : undefined;
 		const body = this.block();
-		this.expect("end", "to close the function");
-		return { generics, params, ...(varargs ? { varargs } : {}), ...(returns ? { returns } : {}), body, ...this.span(start) };
+		const endKeyword = spanOf(this.expect("end", "to close the function"));
+		return {
+			generics, params, ...(varargs ? { varargs } : {}), ...(returns ? { returns } : {}),
+			body, paramsClose, endKeyword, ...this.span(start),
+		};
 	}
 
 	/** `...: T` or `...: T...`: the type of a function's varargs. */
