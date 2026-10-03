@@ -117,7 +117,11 @@ export function withRelated(doc: DocComment, entries: readonly DocEntry[]): DocC
 	const named = new Map(entries.filter((e) => e.tag === "interface" || e.tag === "type").map((e) => [e.name, e]));
 	if (named.size === 0) return doc;
 	const types = [...doc.params.map((p) => p.type ?? ""), ...doc.returns.map((r) => r.type)].join(" ");
-	const related = [...named.values()].filter((e) => new RegExp(`\\b${e.name}\\b`).test(types)).map((e) => ({
+	// The name as written in a comment, so anything may be in it: `@type Foo[`
+	// must not become a pattern.
+	const names = (name: string) =>
+		new RegExp(`(?<![A-Za-z0-9_])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Za-z0-9_])`);
+	const related = [...named.values()].filter((e) => names(e.name).test(types)).map((e) => ({
 		name: e.name,
 		...(e.doc.subject?.type ? { type: e.doc.subject.type } : {}),
 		text: e.doc.text,

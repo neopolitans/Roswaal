@@ -230,6 +230,12 @@ describe("Moonwave comments that name what they are about", () => {
 		"return Crate",
 	].join("\n");
 
+	it("take a type named with a bracket in it as a name, not a pattern", () => {
+		const src = ["--- @type Foo[ string", "", "--[=[", "\t@return Foo[", "]=]", "local function make() end"].join("\n");
+		const hover = hoverAt(src, src.indexOf("make") + 1, true);
+		expect(hover?.doc?.related?.map((r) => r.name)).toEqual(["Foo["]);
+	});
+
 	it("are read wherever they stand, by name", () => {
 		expect(docRegistry(LIB).map((e) => `${e.tag} ${e.name}${e.within ? ` in ${e.within}` : ""}`))
 			.toEqual(["class Crate", "prop Shelf in Crate", "interface Lid in Crate"]);
