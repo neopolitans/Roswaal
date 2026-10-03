@@ -176,11 +176,6 @@ class Store {
 
 	getSnapshot = (): EditorState => this.snapshot;
 
-	subscribeTabs = (listener: Listener): (() => void) => {
-		this.listeners.add(listener);
-		return () => this.listeners.delete(listener);
-	};
-
 	getTabs = (): OpenDocument[] => this.tabs;
 
 	getOutline = (): ReadonlyMap<string, FunctionInfo[]> => this.outline;
@@ -632,14 +627,16 @@ class Store {
 		this.changed();
 	}
 
-	/** A single atomic edit: begin, apply, end. */
+	/** One edit, one step of undo: `apply` outside a transaction. */
 	edit(fn: (script: NodeScript) => NodeScript): void {
 		this.apply(fn);
 	}
 
 	undo(): void {
 		const doc = this.active();
-		if (!doc || this.locked) return;
+		// Not in the middle of a drag: the drag would land on top of whatever
+		// this restored, and lose a step of history doing it.
+		if (!doc || this.locked || doc.pending) return;
 		const previous = doc.past[doc.past.length - 1];
 		if (!previous) return;
 		this.setDoc({
@@ -656,7 +653,9 @@ class Store {
 
 	redo(): void {
 		const doc = this.active();
-		if (!doc || this.locked) return;
+		// Not in the middle of a drag: the drag would land on top of whatever
+		// this restored, and lose a step of history doing it.
+		if (!doc || this.locked || doc.pending) return;
 		const next = doc.future[doc.future.length - 1];
 		if (!next) return;
 		this.setDoc({
@@ -794,7 +793,7 @@ export function useEditor(): EditorState {
 
 /** Every open tab, in order. */
 export function useDocuments(): OpenDocument[] {
-	return useSyncExternalStore(store.subscribeTabs, store.getTabs, store.getTabs);
+	return useSyncExternalStore(store.subscribe, store.getTabs, store.getTabs);
 }
 
 /** Each open file's functions, for the project tree. */

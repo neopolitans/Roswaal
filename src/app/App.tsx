@@ -7,7 +7,7 @@
  * one source of truth.
  */
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { compile, serialiseScript, type Diagnostic } from "../core/compiler/index.js";
 import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
@@ -435,6 +435,8 @@ export function App() {
 	const autosaveMs = useRef(prefs.autosaveMs);
 	autosaveMs.current = prefs.autosaveMs;
 	const writeFailed = useRef<(error: Error) => void>(() => undefined);
+	/** Whether the host compiles a graph when it sees it written: the daemon, in Dynamic mode. */
+	const hostCompilesOnSave = useRef(false);
 	const saves = useMemo(
 		() => new SaveQueue(() => autosaveMs.current, (error) => writeFailed.current(error)),
 		[],
@@ -488,11 +490,15 @@ export function App() {
 	const indent = project ? indentUnit(project.config) : undefined;
 	const withComments = project?.config.comments ?? true;
 	const castsByHierarchy = project?.config.castsByHierarchy === true;
+	// Deferred, because every pointer move of a drag is an edit: the canvas
+	// renders each frame at once, and the compile catches up when React has a
+	// moment, skipping the scripts it no longer needs.
+	const compileSource = useDeferredValue(editor.script);
 	const compiled = useMemo(
-		() => (editor.script
-			? compile(editor.script, registry, { indent, comments: withComments, castsByHierarchy })
+		() => (compileSource
+			? compile(compileSource, registry, { indent, comments: withComments, castsByHierarchy })
 			: null),
-		[editor.script, registry, indent, withComments, castsByHierarchy],
+		[compileSource, registry, indent, withComments, castsByHierarchy],
 	);
 	const diagnostics: Diagnostic[] = compiled?.diagnostics ?? [];
 
@@ -703,6 +709,12 @@ export function App() {
 		const open = project.root;
 		const stream = openEventStream();
 
+		// Only the daemon's stream says it is ready, and the daemon watches the
+		// graphs: in Dynamic mode it compiles each saved file itself.
+		stream.addEventListener("ready", () => {
+			hostCompilesOnSave.current = true;
+		});
+
 		stream.addEventListener("hot", (event) => {
 			const detail = JSON.parse((event as MessageEvent).data) as {
 				type: string; path: string; outcome?: CompileOutcome; message?: string;
@@ -889,7 +901,9 @@ export function App() {
 	// is still written.
 	const compileAfterSave = useRef<(path: string) => void>(() => undefined);
 	compileAfterSave.current = (path) => {
-		if (project?.config.compileMode === "hot") void runCompile(path, true);
+		// The daemon's watcher compiles the file it sees written; compiling it
+		// here as well did every compile twice.
+		if (project?.config.compileMode === "hot" && !hostCompilesOnSave.current) void runCompile(path, true);
 	};
 	/** What this tab last wrote to each graph, to tell its own writes from somebody else's. */
 	const lastWritten = useRef(new Map<string, string>());
@@ -1239,7 +1253,7 @@ export function App() {
 			});
 			setMenu(null);
 		},
-		[menu, registry, prefs.logicParens, prefs.castNames],
+		[menu, registry, prefs.logicParens, prefs.castNames, prefs.concatInterpolate],
 	);
 
 	const spawnComment = useCallback((world: { x: number; y: number }) => {

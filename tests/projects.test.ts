@@ -156,3 +156,23 @@ describe("closing what a delete took", () => {
 		expect(store.getSnapshot().path).toBe("src/gone-not/C.nodescript");
 	});
 });
+
+describe("undo in the middle of a drag", () => {
+	beforeEach(() => {
+		store.closeAll();
+		store.setLocked(false);
+	});
+
+	/** It used to restore under the drag, and the drag then landed on top and lost a step. */
+	it("waits for the drag to finish", () => {
+		store.open(A, graph("A"));
+		store.edit((s) => ({ ...s, name: "first" }));
+		store.begin();
+		store.apply((s) => ({ ...s, name: "dragging" }));
+		store.undo();
+		expect(store.getSnapshot().script?.name).toBe("dragging");
+		store.end();
+		store.undo();
+		expect(store.getSnapshot().script?.name).toBe("first");
+	});
+});
