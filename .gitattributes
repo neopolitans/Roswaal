@@ -3,8 +3,16 @@
 # would quietly make that untrue — the file checked out is not the file that was
 # fetched, and an attribution that has been reformatted is exactly what vendoring
 # these instead of rendering a template was meant to avoid.
-#
-# This is the same trap 0.13.0 hit from the other side: Roswaal writes LF, Git
-# checked the generated file out as CRLF, and every generated file was then
-# reported as edited by hand.
 notices/upstream/*.txt -text
+
+# Modules a script under `scripts/` writes. Each says which in its first line
+# (the JSON cannot, and its generator is `scripts/build-engine.mjs`), and
+# `tests/generated.test.ts` holds this list to those lines. Marked so a review
+# folds their diffs and language statistics leave them out.
+src/core/docs/*.gen.ts linguist-generated=true
+src/core/luneApi.ts linguist-generated=true
+src/core/robloxData.ts linguist-generated=true
+src/core/robloxEngine.json linguist-generated=true
+src/core/robloxMembers.ts linguist-generated=true
+src/core/robloxProperties.ts linguist-generated=true
+src/core/themeData.ts linguist-generated=true

@@ -93,10 +93,9 @@ export class G {
 		const id = `n${this.n++}`;
 		const at = column ?? this.n;
 		this.columns.set(id, at);
-		// These coordinates used to be arbitrary, because nothing drew them. They
-		// are drawn now — a node page shows the scene above the Luau it compiled
-		// to — so a column has to clear a 216px node, and an arm has to clear the
-		// node above it.
+		// These coordinates are drawn — a node page shows the scene above the
+		// Luau it compiled to — so a column has to clear a 216px node, and an arm
+		// has to clear the node above it.
 		this.script.nodes.push({
 			id, def,
 			x: at * this.spacing.column + (dx ?? 0),
@@ -125,7 +124,7 @@ export class G {
 	 *
 	 * Dropped below the execution line by default. A stand-in sits between two
 	 * step nodes in the column order, so on the line it lands square across the
-	 * exec wire running past it — and since 0.35.0 that wire ends in a triangle
+	 * exec wire running past it — and that wire ends in a triangle
 	 * hung outside the node it feeds, close enough to the stand-in's own output
 	 * to read as one pin. Below it, the exec wire runs clear overhead and the
 	 * value climbs into the pin it feeds, which is how a person would place it.
@@ -191,9 +190,8 @@ export const CURATED: Record<string, () => NodeScript> = {
 	"script.end": () => {
 		// Shown linearly, and the point is what is absent from the output: Script
 		// End emits nothing, because falling off the end of a script does the same
-		// thing. An earlier draft put it in a Branch's false arm to show an early
-		// exit, which produced a bare `else` and taught the reader something
-		// untrue about the node. It did get the emitter to stop emitting that.
+		// thing. Not in a Branch's false arm to show an early exit: that teaches
+		// the reader something untrue about the node.
 		const g = new G();
 		const begin = g.node("script.begin");
 		const p = printAfter(g, begin, "then", "Done");

@@ -2,10 +2,9 @@
  * The command line, as data.
  *
  * One list, read twice: `roswaal help` prints it, and the CLI page in the
- * documentation renders it. It was only in `src/cli/index.ts`, so the docs had
- * no way to describe the commands without a second copy of them — and a second
- * copy is how `--yes` came to exist for a year without appearing in the help
- * output at all.
+ * documentation renders it. Kept in `src/cli/index.ts` alone, the docs could
+ * describe the commands only from a second copy of them, and a second copy
+ * lets an option exist without appearing in the help output.
  *
  * In core because the docs are built here and `src/core` imports nothing
  * platform-specific; the CLI imports this rather than the other way round.

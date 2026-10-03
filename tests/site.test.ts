@@ -10,9 +10,11 @@ import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import {
-	allPages, blockText, buildSearchIndex, buildSite, findPage, GROUPS, parseInline,
-	releaseTags, searchDocs, TAG_LABELS, type Block,
+	allPages, blockStrings, blockText, buildSearchIndex, buildSite, findPage, GROUPS, isPageLink,
+	parseInline, releaseTags, searchDocs, TAG_LABELS, type Block, type DocPage, type StringSlot,
 } from "../src/core/docs/site.js";
+import { reviewLine } from "../src/core/docs/reviews.js";
+import { code } from "../src/core/docs/pages/blocks.js";
 import { RELEASES } from "../src/core/docs/releases.js";
 import { renderPage } from "../src/core/docs/html.js";
 import { VERSION } from "../src/cli/version.js";
@@ -45,6 +47,37 @@ describe("inline markup", () => {
 	it("strips markup when flattening a block to text", () => {
 		expect(blockText({ t: "p", text: "wire a `Vector3` in **first**" }))
 			.toBe("wire a Vector3 in first");
+	});
+});
+
+describe("code samples", () => {
+	it("takes the closing backtick's indent off every line", () => {
+		const text = code`
+			if ready then
+				go()
+
+			end
+			`;
+		expect(text).toBe("if ready then\n\tgo()\n\nend");
+	});
+
+	it("keeps a final newline written as an empty last line", () => {
+		expect(code`
+			x
+
+			`).toBe("x\n");
+	});
+
+	it("refuses a line left of the margin, rather than shifting it", () => {
+		expect(() => code`
+			fine
+		left
+			`).toThrow(/left of its closing backtick/);
+	});
+
+	it("refuses a sample that starts on the backtick's line", () => {
+		expect(() => code`x
+			`).toThrow(/lines of their own/);
 	});
 });
 
@@ -148,26 +181,15 @@ describe("inline markup in the pages themselves", () => {
 	 * separate bold spans, so every string goes through the real parser.
 	 */
 	it("never nests markup, in any direction", () => {
-		const strings = (blocks: Block[]): string[] =>
-			blocks.flatMap((b) => {
-				switch (b.t) {
-					case "h": case "p": return [b.text];
-					case "ul": case "ol": return b.items;
-					case "table": return b.rows.flat();
-					case "note": return [b.text, ...(b.items ?? [])];
-					case "graph": case "preview": return b.caption ? [b.caption] : [];
-					case "details": return [b.summary, ...strings(b.blocks)];
-					default: return [];
-				}
-			});
 		for (const page of allPages(site)) {
-			for (const text of strings(page.blocks)) {
+			for (const text of pageStrings(page, "inline")) {
 				const where = `${page.slug}: ${text.slice(0, 60)}`;
 				for (const run of parseInline(text)) {
 					if (run.t === "text") expect(run.text, where).not.toContain("*");
-					if (run.t !== "strong" && run.t !== "em") continue;
+					if (run.t !== "strong" && run.t !== "em" && run.t !== "link") continue;
 					// A link, italics, or a code span: all three print their own
-					// syntax when they are written inside one of these.
+					// syntax when they are written inside one of these, and a
+					// link's text is a flat string too.
 					expect(run.text, where).not.toContain("](");
 					expect(run.text, where).not.toContain("`");
 					expect(run.text, where).not.toContain("*");
@@ -175,7 +197,64 @@ describe("inline markup in the pages themselves", () => {
 			}
 		}
 	});
+
+	/**
+	 * A slot printed as it is — a tab's title, a legend's control name, a
+	 * table's head — shows its markup as characters, so it must carry none.
+	 */
+	it("writes no markup where the renderer prints the string as it is", () => {
+		for (const page of allPages(site)) {
+			for (const text of [page.title, ...pageStrings(page, "plain")]) {
+				const runs = parseInline(text);
+				expect(runs.every((run) => run.t === "text"), `${page.slug}: ${text.slice(0, 60)}`)
+					.toBe(true);
+			}
+		}
+	});
+
+	/** A summary is markup like any other line, and the meta tag has none. */
+	it("renders a page's summary as markup, and strips it for the meta tag", () => {
+		const page = allPages(site).find((p) => p.summary.includes("`"));
+		expect(page, "no summary carries a code span, so this checks nothing").toBeDefined();
+		const html = renderPage(site, page!, { version: VERSION });
+		const summary = /<p class="summary">(.*?)<\/p>/.exec(html)![1];
+		const meta = /<meta name="description" content="([^"]*)">/.exec(html)![1];
+		expect(summary).toContain("<code>");
+		expect(summary).not.toContain("`");
+		expect(meta).not.toContain("`");
+		expect(buildSearchIndex(site).find((e) => e.slug === page!.slug)!.summary).not.toContain("`");
+	});
+
+	it("links every page link to a page that exists", () => {
+		const slugs = new Set(allPages(site).map((p) => p.slug));
+		const broken: string[] = [];
+		for (const page of allPages(site)) {
+			for (const text of pageStrings(page, "inline")) {
+				for (const run of parseInline(text)) {
+					if (run.t === "link" && isPageLink(run.href) && !slugs.has(run.href)) {
+						broken.push(`${page.slug} -> ${run.href}`);
+					}
+				}
+			}
+		}
+		expect(broken).toEqual([]);
+	});
 });
+
+/**
+ * Every string on a page in one slot: the page's own lines (its summary, and
+ * the review lines under it) and every block's, nested blocks included.
+ */
+function pageStrings(page: DocPage, slot: StringSlot): string[] {
+	const own = slot === "inline"
+		? [page.summary, ...(page.review ? [reviewLine(page.review)] : []), page.review?.verify ?? ""]
+		: [];
+	const blocks = page.blocks
+		.flatMap((block) => blockStrings(block))
+		.filter((one) => one.slot === slot)
+		.map((one) => one.text);
+	return [...own, ...blocks].filter((text) => text !== "");
+}
 
 describe("release notes", () => {
 	/**

@@ -12,12 +12,13 @@
  * generated file that this script wrote by hand would carry a hash Roswaal did
  * not produce, and the editor would then refuse to overwrite its own demo.
  *
- *     node scripts/build-lune-demo.mjs
+ *     npm run demo:lune
  *     roswaal compile            # from inside examples/lune-demo
  *
- * `tests/lunedemo.test.ts` checks the graphs on disk still match the ones the
- * page draws, so a demo edited in one place and not the other fails the build
- * rather than quietly disagreeing.
+ * Through tsx, because `demos.ts` is TypeScript. `tests/lunedemo.test.ts`
+ * checks the graphs on disk still match the ones the page draws, so a demo
+ * edited in one place and not the other fails the build rather than quietly
+ * disagreeing.
  */
 
 import { mkdir, writeFile } from "node:fs/promises";

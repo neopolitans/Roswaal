@@ -26,7 +26,7 @@
 import { compile } from "../compiler/index.js";
 import type { Registry } from "../nodes/index.js";
 import type { NodeScript, ScriptModule } from "../schema.js";
-import { DEMO_LAYOUT } from "./demoLayout.js";
+import { DEMO_LAYOUT } from "./demoLayout.gen.js";
 import { G, num, str } from "./examples.js";
 import { stripHeader } from "./nodeReference.js";
 

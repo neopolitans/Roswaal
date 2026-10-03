@@ -22,7 +22,7 @@ import { describe, expect, it } from "vitest";
 import { compile } from "../src/core/compiler/index.js";
 import { compileNodeMap } from "../src/core/nodemap.js";
 import { createRegistry } from "../src/core/nodes/index.js";
-import { ROBLOX_DEMO_GRAPHS, ROBLOX_DEMO_MAP } from "../src/core/docs/robloxDemos.js";
+import { ROBLOX_DEMO_GRAPHS, ROBLOX_DEMO_MAP } from "../src/core/docs/robloxDemos.gen.js";
 
 const registry = createRegistry();
 const project = new URL("../examples/demo/.roswaal/scripts/", import.meta.url);

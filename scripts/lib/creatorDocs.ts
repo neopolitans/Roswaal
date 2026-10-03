@@ -6,7 +6,10 @@
  * into the parts a node needs: what a method is called, what it takes and what
  * it gives back, and what a class's properties are called and hold.
  *
- * Separate from `build-members.mjs` and `build-properties.mjs`, which fetch and
+ * The download is here too, as `fetchReference`, so what counts as "no page"
+ * is decided once for every generator.
+ *
+ * Separate from `build-members.mjs` and `build-properties.mjs`, which loop and
  * write, so that the reading half can be exercised against a saved file — see
  * `tests/creatordocs.test.ts`. A parser with no test is a parser that quietly
  * returns nothing the day the format shifts, and "no methods" looks exactly
@@ -139,6 +142,38 @@ function parseBlock(lines: Line[], at: number, indent: number): [Yaml, number] {
 export function parseYaml(text: string): Record<string, Yaml> {
 	const [value] = parseBlock(linesOf(text), 0, 0);
 	return value !== null && !Array.isArray(value) && typeof value === "object" ? value : {};
+}
+
+// -- fetching ---------------------------------------------------------------
+
+/** A download that failed for a reason other than the page not existing. */
+export class CreatorDocsError extends Error {
+	constructor(
+		readonly url: string,
+		readonly status: number,
+		statusText: string,
+	) {
+		super(`${url}: ${status} ${statusText}`);
+		this.name = "CreatorDocsError";
+	}
+}
+
+/**
+ * One file of the reference, or `undefined` when there is no such page.
+ *
+ * Only a 404 means "no page". A rate limit, a server error or a dropped
+ * connection is not an answer about the page, and read as one it removes data
+ * without a word: a 429 on `WorldRoot` would take `Workspace:Raycast` out of
+ * the catalogue. Those throw, so a generator stops rather than writing less.
+ */
+export async function fetchReference(
+	url: string,
+	fetchImpl: typeof fetch = fetch,
+): Promise<string | undefined> {
+	const response = await fetchImpl(url);
+	if (response.status === 404) return undefined;
+	if (!response.ok) throw new CreatorDocsError(url, response.status, response.statusText);
+	return response.text();
 }
 
 // -- the shape a node wants ------------------------------------------------

@@ -19,7 +19,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import { blockText, buildSite, findPage, type Block } from "../src/core/docs/site.js";
+import {
+	blockStrings, blockText, buildSite, findPage, parseInline, type Block,
+} from "../src/core/docs/site.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
@@ -65,8 +67,14 @@ function allBlocks(): Block[] {
 
 /** Every `code span` on the page — which is how a key is written there. */
 function codeSpans(): Set<string> {
-	const text = (page?.blocks ?? []).map(blockText).join("\n");
-	return new Set([...text.matchAll(/`([^`]+)`/g)].map((m) => m[1]));
+	return new Set(
+		(page?.blocks ?? [])
+			.flatMap((block) => blockStrings(block))
+			.filter((one) => one.slot === "inline")
+			.flatMap((one) => parseInline(one.text))
+			.filter((run) => run.t === "code")
+			.map((run) => run.text),
+	);
 }
 
 describe("the Controls page", () => {

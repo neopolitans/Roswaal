@@ -19,7 +19,7 @@
 import type { Block, DocPage, DocSection, DocSite } from "./site.js";
 import type { Registry } from "../nodes/index.js";
 import {
-	allPages, isPageLink, parseInline, TAG_LABELS, neighbours, type Neighbour,
+	allPages, isPageLink, parseInline, stripMarkup, TAG_LABELS, neighbours, type Neighbour,
 } from "./site.js";
 import { graphSvg, previewSvg, type PreviewOptions } from "./preview.js";
 import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
@@ -41,8 +41,7 @@ export interface RenderOptions {
 	 * The colour a pin is drawn in on the canvas.
 	 *
 	 * Passed in rather than imported: the palette lives in `src/app`, and this
-	 * file is in core. Without it the swatches render as invisible empty spans,
-	 * which is how the first build shipped them.
+	 * file is in core. Without it the swatches render as invisible empty spans.
 	 */
 	pinColor?: (type: string | undefined, kind: "exec" | "data") => string;
 	/**
@@ -174,7 +173,25 @@ export function headingId(text: string): string {
 	return `h-${text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 }
 
-function renderBlock(block: Block, options: RenderOptions, up = ""): string {
+/** What one page's render keeps between its blocks. */
+interface PageState {
+	/** Graphs drawn so far, which numbers each one's id scope. */
+	drawn: number;
+}
+
+/**
+ * The drawing options for the next graph on a page, with an id scope no other
+ * graph on it has. Numbered in render order, which is the page's own order,
+ * so the same page builds to the same bytes.
+ */
+function drawing(preview: PreviewOptions, page: PageState): PreviewOptions {
+	page.drawn += 1;
+	return { ...preview, idScope: `g${page.drawn}` };
+}
+
+function renderBlock(
+	block: Block, options: RenderOptions, up = "", page: PageState = { drawn: 0 },
+): string {
 	switch (block.t) {
 		case "h": {
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
@@ -217,10 +234,9 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			return `<div class="docs-table${bare}"><table>${head}<tbody>${rows}</tbody></table></div>`;
 		}
 		case "tags":
-			// `tag-` prefixed, because a bare modifier class is a collision waiting
-			// to happen in a stylesheet this size -- and it happened: `.docs` is
-			// the documentation *panel*, so a Docs tag came out as a full-width
-			// bordered box on its own line.
+			// `tag-` prefixed, because a bare modifier class collides in a
+			// stylesheet this size: `.docs` is the documentation *panel*, so a
+			// bare `docs` tag would come out as a full-width bordered box.
 			return `<p class="docs-tags">${block.tags
 				.map((tag) => `<span class="docs-tag tag-${tag}">${escapeHtml(TAG_LABELS[tag])}</span>`)
 				.join("")}</p>`;
@@ -234,7 +250,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			);
 		}
 		case "pins":
-			return renderPins(block, options);
+			return renderPins(block, options, up);
 		case "graph": {
 			// No geometry passed in means no picture, rather than one at invented
 			// sizes — the same bargain the node previews make.
@@ -248,9 +264,9 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 					graphs: views.map((view, i) => ({ ...view, ...(i === 0 && block.caption ? { caption: block.caption } : {}) })),
 					...(block.panel ? { panel: block.panel } : {}),
 					...(block.asAuthored ? { asAuthored: true } : {}),
-				}, options, up);
+				}, options, up, page);
 			}
-			const svg = graphSvg(block.script, options.registry, options.preview, block.asAuthored);
+			const svg = graphSvg(block.script, options.registry, drawing(options.preview, page), block.asAuthored);
 			if (svg === "") return "";
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
 			// What the graph declares, to the left of it. Absent on a graph
@@ -273,7 +289,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			const name = `graphs-${block.graphs.map((one) => one.id).join("-")}`;
 			const drawn = block.graphs.map((one) => ({
 				one,
-				svg: graphSvg(one.script, options.registry!, options.preview!, block.asAuthored),
+				svg: graphSvg(one.script, options.registry!, drawing(options.preview!, page), block.asAuthored),
 			}));
 			if (drawn.some(({ svg }) => svg === "")) return "";
 			const inputs = drawn
@@ -423,7 +439,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				.map(
 					(tab) =>
 						`<section class="docs-tab-panel">` +
-						tab.blocks.map((b) => renderBlock(b, options, up)).join("\n") +
+						tab.blocks.map((b) => renderBlock(b, options, up, page)).join("\n") +
 						`</section>`,
 				)
 				.join("");
@@ -437,7 +453,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 		case "details": {
 			// A plain `<details>`: it opens and closes with no script at all.
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
-			const inner = block.blocks.map((b) => renderBlock(b, options, up)).join("\n");
+			const inner = block.blocks.map((b) => renderBlock(b, options, up, page)).join("\n");
 			return (
 				`<details class="docs-details"${block.open ? " open" : ""}` +
 				`${block.prerelease ? " data-prerelease" : ""}>` +
@@ -451,7 +467,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 /** Past this many, a pin's values are counted rather than listed. */
 const NAMEABLE_OPTIONS = 8;
 
-function renderPins(block: Block & { t: "pins" }, options: RenderOptions): string {
+function renderPins(block: Block & { t: "pins" }, options: RenderOptions, up: string): string {
 	const rows = block.pins
 		.map((pin) => {
 			const badges = [
@@ -481,7 +497,7 @@ function renderPins(block: Block & { t: "pins" }, options: RenderOptions): strin
 
 			const detail =
 				pin.description || pin.splitModes.length > 0 || choices
-					? `<div class="detail">${escapeHtml(pin.description ?? "")}` +
+					? `<div class="detail">${inline(pin.description ?? "", up)}` +
 						(pin.splitModes.length > 0
 							? ` Splits into ${escapeHtml(pin.splitModes.join(", or "))}.`
 							: "") +
@@ -606,17 +622,15 @@ function chromeIcon(name: string, options: RenderOptions): string {
  * `docs.js` and `theme.css` keep the same names across every release, which is
  * ordinarily fine and is not fine on a static host whose cache headers cannot
  * be set. GitHub Pages serves them with `max-age=600`, so for ten minutes after
- * a deploy a returning reader gets the previous script against the current
- * markup — which is how a fix for a broken viewer looked exactly like the
- * breakage it fixed.
+ * a deploy a returning reader would get the previous script against the
+ * current markup.
  *
  * A query string is enough: it changes the URL, so new bytes are a cache
  * miss. The build stamps with a hash of the assets rather than the version,
- * because a version is deployed more than once: the canary shipped three
- * builds as 0.71.0, and Safari paired the third one's pages with the first
- * one's stylesheet -- a label the old sheet did not hide took the nav's
- * column and pushed the whole grid one track to the right. The editor's own
- * bundles solve this with a content hash in the filename and need nothing here.
+ * because one version can be deployed more than once — the canary often is —
+ * and a browser would pair the later pages with the earlier stylesheet. The
+ * editor's own bundles solve this with a content hash in the filename and
+ * need nothing here.
  */
 function stamp(options: RenderOptions): string {
 	const key = options.assetStamp ?? options.version;
@@ -688,7 +702,8 @@ function renderNeighbours(site: DocSite, page: DocPage): string {
 
 export function renderPage(site: DocSite, page: DocPage, options: RenderOptions): string {
 	const up = upTo(page.slug);
-	const body = page.blocks.map((b) => renderBlock(b, options, up)).join("\n");
+	const state: PageState = { drawn: 0 };
+	const body = page.blocks.map((b) => renderBlock(b, options, up, state)).join("\n");
 
 	return `<!doctype html>
 <html lang="en" data-slug="${escapeHtml(page.slug)}">
@@ -697,7 +712,7 @@ export function renderPage(site: DocSite, page: DocPage, options: RenderOptions)
 <meta name="viewport" content="width=device-width, initial-scale=1">
 ${options.noindex ? `<meta name="robots" content="noindex">
 ` : ""}<title>${escapeHtml(page.title)} · Roswaal docs</title>
-<meta name="description" content="${escapeHtml(page.summary)}">
+<meta name="description" content="${escapeHtml(stripMarkup(page.summary))}">
 ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(options.logo.icon)}">\n` : ""}<link rel="stylesheet" href="${up}theme.css${stamp(options)}">
 <script src="${up}theme.js${stamp(options)}"></script>
 </head>
@@ -720,7 +735,7 @@ ${renderNav(site, page)}
 <div class="docs-article${page.narrow ? " narrow" : ""}">
 <header class="docs-title">
 <h1>${escapeHtml(page.title)}${runtimeBadge(page)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}<a class="tb icon-only docs-edit" href="${escapeHtml(proposeHref(page))}" rel="noreferrer noopener" title="Suggest an edit — opens an issue for this page" aria-label="Suggest an edit">✎</a></h1>
-<p class="summary">${escapeHtml(page.summary)}</p>
+<p class="summary">${inline(page.summary, up)}</p>
 ${page.review ? `<p class="docs-status">${reviewBadge(page.review)}</p>\n` : ""}</header>
 ${body}
 ${renderNeighbours(site, page)}${page.review ? `<p class="docs-reviewed">${inline(reviewLine(page.review), up)}</p>\n` : ""}${page.review?.verify ? `<p class="docs-verify"><strong>To verify:</strong> ${inline(page.review.verify, up)}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>

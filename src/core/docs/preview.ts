@@ -207,6 +207,15 @@ export interface PreviewOptions {
 	 * whoever shows it, and the pan-and-zoom viewer does the scaling.
 	 */
 	scale?: number;
+	/**
+	 * Set apart the ids a graph defines from every other graph's on the page.
+	 *
+	 * A wire's gradient is referenced by id, and ids are document-wide: two
+	 * graphs sharing node and link ids would otherwise share gradient ids, and
+	 * one graph's wire would take the other's colours. The page renderer gives
+	 * each drawing on a page its own scope.
+	 */
+	idScope?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -639,10 +648,8 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	//
 	// The order is the DOM's, and it has to be: `.node` paints its background
 	// and border, `.head` paints inside that border, and the pins are children
-	// and land on top of all of it. Drawn last -- which it was until 0.35.0 --
-	// the stroke runs straight through every pin now that a pin sits on the edge
-	// rather than inside it, and the docs showed a border cutting each dot in
-	// half while the canvas did not.
+	// and land on top of all of it. Drawn last, the stroke would run straight
+	// through every pin, because a pin sits on the edge rather than inside it.
 	parts.push(
 		`<rect x="0.5" y="0.5" width="${n(width - 1)}" height="${n(height - 1)}" rx="${n(r - 0.5)}" ` +
 		`fill="none" stroke="var(--node-border, #b3b9c4)"/>`,
@@ -1185,10 +1192,7 @@ export function straighten(
 	 * Aligning a node onto its own incoming pin is right for a chain and wrong
 	 * for a **fan-out**. A Branch's two execution pins are one pin row apart —
 	 * 24px — and a node is 64px at its shortest, so straightening both arms puts
-	 * them on top of each other. Six of the drawn graphs had a pair sitting in
-	 * the same place, including the one under *Services and their methods* where
-	 * it was finally noticed; the two Prints were exactly overlapping and read
-	 * as one.
+	 * them on top of each other, and two nodes exactly overlapping read as one.
 	 *
 	 * The topmost node keeps its straight wire, because it is the one a reader
 	 * traces first, and the others move down until they clear it. Their wires
@@ -1330,7 +1334,7 @@ export function graphSvg(
 	// Wires first, so a curve passes behind the nodes it joins rather than over
 	// their headers — the same order the canvas stacks them in.
 	const wires: string[] = [];
-	const key = graphKey(script);
+	const key = options.idScope === undefined ? graphKey(script) : `${options.idScope}-${graphKey(script)}`;
 	if (options.wirePath) {
 		for (const link of script.links) {
 			const from = byId.get(link.from.node);
@@ -1395,9 +1399,10 @@ export function graphSvg(
 }
 
 /**
- * A short name for a graph, stable across builds, so the gradient ids of two
- * graphs on one page cannot collide. Taken from the graph's contents rather
- * than a counter, which would change with render order.
+ * A short name for a graph, stable across builds, from its node and link ids.
+ *
+ * Two graphs with the same ids get the same name, so this alone does not keep
+ * their gradient ids apart; `idScope` does, where a page holds more than one.
  */
 function graphKey(script: NodeScript): string {
 	const text =

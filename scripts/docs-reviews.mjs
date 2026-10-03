@@ -18,15 +18,16 @@ const listNodes = process.argv.includes("--nodes");
 for (const status of ["pending", "reviewed", "verified"]) {
 	const here = pages
 		.filter((page) => page.review?.status === status)
-		.sort((a, b) => (a.review.date ?? "").localeCompare(b.review.date ?? ""));
+		.sort((a, b) => (a.review?.date ?? "").localeCompare(b.review?.date ?? ""));
 	const guides = here.filter((page) => !page.nodeId);
 	const nodes = here.filter((page) => page.nodeId);
 
 	console.log(`${REVIEW_LABELS[status]}: ${guides.length} guide pages, ${nodes.length} node pages`);
 	for (const page of [...guides, ...(listNodes ? nodes : [])]) {
-		const when = page.review.date ? `  ${page.review.date}` : "";
+		const review = page.review;
+		const when = review?.date ? `  ${review.date}` : "";
 		console.log(`  ${page.slug.padEnd(34)} ${page.title}${when}`);
-		if (page.review.verify) console.log(`  ${"".padEnd(34)} to verify: ${page.review.verify}`);
+		if (review?.verify) console.log(`  ${"".padEnd(34)} to verify: ${review.verify}`);
 	}
 	console.log("");
 }

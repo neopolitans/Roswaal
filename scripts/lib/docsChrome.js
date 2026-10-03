@@ -1,11 +1,11 @@
 /**
  * The published site's own chrome: its settings popover and its search palette.
  *
- * Plain ES5-ish JavaScript rather than a bundle, because there is nothing here
- * to share with the app -- the *data* is shared (the theme list, the
- * preference keys, the search index and its ranking all arrive from elsewhere
- * on the page) and only the few dozen lines of DOM are local. Appended to
- * `docs.js`, after the script that publishes `window.__roswaalSearch`.
+ * Plain ES5-ish JavaScript with no imports, because there is nothing here to
+ * share with the app -- the *data* is shared (the theme list, the preference
+ * keys, the search index and its ranking all arrive from elsewhere on the
+ * page) and only the few dozen lines of DOM are local. Bundled into `docs.js`
+ * after `docsSearch.ts`, which publishes `window.__roswaalSearch`.
  *
  * Neither surface is needed to read a page. The gear is an addition to a header
  * that works without it, and the palette is a second way to reach the search
@@ -13,9 +13,11 @@
  */
 
 (function () {
-  var api = window.__roswaal;
+  var published = window.__roswaal;
   var search = window.__roswaalSearch;
-  if (!api) return;
+  if (!published) return;
+  // Bound after the check, so the functions below see it as present.
+  const api = published;
 
   var up = (document.documentElement.dataset.slug || "").split("/").length - 1;
   var prefix = new Array(up + 1).join("../");
@@ -40,9 +42,10 @@
      * with the keyboard still up and nothing the reader could see to type in.
      * Inert, there is nowhere else to go, and the arrows grey out.
      */
-    var behind = [].slice.call(document.body.children).filter(function (el) {
-      return !el.inert;
-    });
+    // Cast: a page body's children are HTML elements, which `children` does
+    // not promise because it is typed for any document, SVG included.
+    var behind = /** @type {HTMLElement[]} */ (Array.from(document.body.children))
+      .filter(function (el) { return !el.inert; });
     behind.forEach(function (el) { el.inert = true; });
     function shut() {
       back.remove();
@@ -158,7 +161,9 @@
     page.appendChild(setting(
       "Theme",
       "The same preference the editor writes, so a scheme picked there is what these pages are in.",
-      [{ value: null, label: "System", what: "Light or dark, whichever your OS is set to." }].concat(
+      // Typed, so the System row's `null` and a scheme's name share one list.
+      /** @type {{ value: string | null; label: string; what: string }[]} */
+      ([{ value: null, label: "System", what: "Light or dark, whichever your OS is set to." }]).concat(
         api.themes.map(function (t) {
           return { value: t.name, label: t.name, what: t.credit || "" };
         }),
@@ -203,12 +208,11 @@
   /**
    * `Ctrl` + `K` opens the palette here too.
    *
-   * It used to put the cursor in the sidebar's field instead, on the argument
-   * that a one-column site has somewhere obvious to land. The argument was
-   * wrong about the thing that matters: the editor and Node Design open a
-   * palette, so a reader who learns the shortcut in one window learns it for
-   * all of them, and a shortcut that does something else on the site is a
-   * shortcut they have to remember twice. The field is still there and still
+   * Not the sidebar's field, though a one-column site has somewhere obvious
+   * to land: the editor and Node Design open a palette, so a reader who
+   * learns the shortcut in one window learns it for all of them, and a
+   * shortcut that does something else on the site is a shortcut they have to
+   * remember twice. The field is still there and still
    * filters the tree.
    */
   function palette(shut) {
@@ -260,7 +264,7 @@
         hit.href = href(entry);
         // `kind-node`, not `node`: the same trap the app's copy carries a note
         // about, `.node` being the canvas node in a stylesheet this size.
-        var kind = entry.id ? "node" : "article";
+        var kind = entry.nodeId ? "node" : "article";
         hit.appendChild(el("span", "kind kind-" + kind, kind === "node" ? "Node" : "Article"));
         var body = el("span", "body");
         body.appendChild(el("span", "title", entry.title));
@@ -278,17 +282,12 @@
     }
 
     function run() {
-      var q = input.value.trim().toLowerCase();
+      var q = input.value.trim();
       at = 0;
       if (!q || !search || !search.index) { hits = []; draw(); return; }
       // The sidebar's ranking, not a second one: two searches on one page that
       // disagree about which page is the best answer is worse than either.
-      hits = search.index
-        .map(function (e) { return { e: e, s: search.score(e, q) }; })
-        .filter(function (x) { return x.s > 0; })
-        .sort(function (a, b) { return b.s - a.s; })
-        .slice(0, 25)
-        .map(function (x) { return x.e; });
+      hits = search.rank(q, 25);
       draw();
     }
 
@@ -334,7 +333,7 @@
     finder.hidden = false;
     finder.addEventListener("click", function () {
       var contents = document.getElementById("docs-nav-open");
-      if (contents) contents.checked = false;
+      if (contents instanceof HTMLInputElement) contents.checked = false;
       overlay("docs-palette-backdrop", palette);
     });
   }

@@ -7,11 +7,10 @@
  * node scripts/read-rbxm.mjs examples/m103/place.rbxl --props Turret.Gun
  * ```
  *
- * Written twice before it was kept. The M103 survey in `examples/m103/NOTES.md`
- * needed it on 6 September and checking the author's Studio pass needed it again
- * on the 8th, by which point the first copy was gone — and week 3 checks the rig
- * after every change to it. Nothing else in the repository imports this; it is a
- * tool for reading the demo's assets, not part of Roswaal.
+ * Kept because reading the M103 rig is a step that repeats: the survey in
+ * `examples/m103/NOTES.md` and every change to the rig need it. Nothing else
+ * in the repository imports this; it is a tool for reading the demo's assets,
+ * not part of Roswaal.
  *
  * ## What it is not
  *
@@ -314,7 +313,7 @@ export function parse(path) {
 					inst.get(ref).props[prop] = values[i];
 				});
 			} catch (err) {
-				skipped.push(`${cls.name}.${prop}: ${err.message}`);
+				skipped.push(`${cls.name}.${prop}: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		} else if (name === "PRNT") {
 			r.u8();

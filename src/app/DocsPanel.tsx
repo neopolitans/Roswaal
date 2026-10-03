@@ -29,6 +29,7 @@ import {
 	graphSvg, previewSvg, type NodePreview, type PreviewOptions,
 } from "../core/docs/preview.js";
 import { noteHeadHtml } from "../core/docs/notes.js";
+import { headingId } from "../core/docs/html.js";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { highlightLuau } from "./highlight.js";
 import { EVEN_ODD, Icon, ICONS, STROKED, VIEW_BOX } from "./icons.jsx";
@@ -358,11 +359,6 @@ function groupsOf(sections: DocSection[]): [string, DocSection[]][] {
 		out.set(section.group, list);
 	}
 	return [...out];
-}
-
-/** A heading's anchor id, shared by the outline and the heading itself. */
-function headingId(text: string): string {
-	return `h-${text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 }
 
 function PageOutline({ page }: { page: DocPage }) {
