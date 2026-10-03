@@ -22,7 +22,8 @@ import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
 import { propertiesOf } from "../core/robloxProperties.js";
 import { nilableProperty } from "../core/robloxNilable.js";
 import {
-	classOfGlobal, dotKeys, eventsOf, heldBy, membersInCode, methodsOf, type TableMember,
+	classOfGlobal, dotKeys, eventsOf, formatSignature, heldBy, membersInCode, methodsOf,
+	type FunctionSignature, type TableMember,
 } from "../core/luau/infer.js";
 import { ENGINE, signatureText } from "../core/robloxEngine.js";
 import { childrenOfChain, type InstanceNode } from "../core/luau/instances.js";
@@ -158,10 +159,12 @@ export function graphTableMembers(script: NodeScript | null): Map<string, TableM
 			name?: string; params?: { name: string; type?: string }[]; returns?: { name: string; type?: string }[];
 		};
 		if (!table || !config.name) continue;
-		const params = (config.params ?? []).map((p) => (p.type ? `${p.name}: ${p.type}` : p.name)).join(", ");
-		const returns = (config.returns ?? []).map((r) => r.type || "any").join(", ");
+		const signature: FunctionSignature = {
+			params: (config.params ?? []).map((p) => (p.type ? { name: p.name, type: p.type } : { name: p.name })),
+			returns: (config.returns ?? []).map((r) => r.type || "any").join(", "),
+		};
 		const list = out.get(table) ?? [];
-		list.push({ name: config.name, kind: "function", detail: `(${params}) -> (${returns})` });
+		list.push({ name: config.name, kind: "function", detail: formatSignature(signature), signature });
 		out.set(table, list);
 	}
 	return out;

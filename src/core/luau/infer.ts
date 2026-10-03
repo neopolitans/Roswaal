@@ -130,16 +130,41 @@ export function classOfCall(expr: Expr): string | undefined {
 }
 
 /**
+ * A function's parameters and results, each as written. Kept apart rather
+ * than only joined into one string, because a parameter's type may itself be
+ * a function type -- `cb: (x: number) -> ()` -- and a string cannot be split
+ * back at its commas and arrows reliably.
+ */
+export interface FunctionSignature {
+	/** `...` is the last one when the function takes varargs. */
+	params: { name: string; type?: string }[];
+	/** What it returns, without the outer brackets: `string, number`; "" for nothing written. */
+	returns: string;
+}
+
+/** A function's signature, from its definition. */
+export function signatureParts(func: FunctionBody, src: string): FunctionSignature {
+	const text = (span: { start: number; end: number }) => src.slice(span.start, span.end).trim();
+	const params: FunctionSignature["params"] = func.params.map((p) =>
+		(p.type ? { name: p.name, type: text(p.type) } : { name: p.name }));
+	if (func.varargs) params.push(func.varargs.type ? { name: "...", type: text(func.varargs.type) } : { name: "..." });
+	const returns = func.returns ? text(func.returns).replace(/^\((.*)\)$/s, "$1") : "";
+	return { params, returns };
+}
+
+/** A signature as Luau writes a function's type: `(name: string) -> (RemoteEvent)`. */
+export function formatSignature(signature: FunctionSignature): string {
+	const params = signature.params.map((p) => (p.type ? `${p.name}: ${p.type}` : p.name));
+	return `(${params.join(", ")}) -> (${signature.returns})`;
+}
+
+/**
  * A function's type as Luau writes it: `(name: string) -> (RemoteEvent)`.
  * Parameters keep the types written beside them; what it returns is its
  * written return type, or `()` when it says none.
  */
 export function signatureOf(func: FunctionBody, src: string): string {
-	const text = (span: { start: number; end: number }) => src.slice(span.start, span.end).trim();
-	const params = func.params.map((p) => (p.type ? `${p.name}: ${text(p.type)}` : p.name));
-	if (func.varargs) params.push(func.varargs.type ? `...: ${text(func.varargs.type)}` : "...");
-	const returns = func.returns ? text(func.returns).replace(/^\((.*)\)$/s, "$1") : "";
-	return `(${params.join(", ")}) -> (${returns})`;
+	return formatSignature(signatureParts(func, src));
 }
 
 const ARITHMETIC = new Set(["+", "-", "*", "/", "//", "%", "^"]);
@@ -197,10 +222,27 @@ export interface TableMember {
 	kind: "function" | "method" | "field";
 	/** A function's signature, or a field's type when it is evident; "" when not. */
 	detail: string;
+	/** A function's parameters and results apart, for the signature help. */
+	signature?: FunctionSignature;
 	/** The documentation comment above where the code puts it. */
 	doc?: DocComment;
 	/** Another member of the same table it was set to: `List` for `Sift.List = Sift.Array` is `Array`. */
 	aliasOf?: string;
+}
+
+/**
+ * A member for a value put on a table: a function with its signature, both as
+ * text and apart, or a field with the type its value evidently has.
+ */
+export function memberFor(name: string, value: Expr | undefined, src: string): TableMember {
+	if (value?.kind === "function") return functionMember(name, "function", value.func, src);
+	return { name, kind: "field", detail: typeOfValue(value, src) ?? "" };
+}
+
+/** A member for a function written with its body: `function M.f(…)`. */
+export function functionMember(name: string, kind: "function" | "method", func: FunctionBody, src: string): TableMember {
+	const signature = signatureParts(func, src);
+	return { name, kind, detail: formatSignature(signature), signature };
 }
 
 /** `a.b.c` as its names, or undefined for anything that is not a chain of them. */
@@ -251,9 +293,9 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 			const fn = node as Extract<Stat, { kind: "function" }>;
 			const names = fn.path.map((n) => n.name);
 			if (fn.method && names.join(".") === owner) {
-				add({ name: fn.method.name, kind: "method", detail: signatureOf(fn.func, src) }, fn.start);
+				add(functionMember(fn.method.name, "method", fn.func, src), fn.start);
 			} else if (!fn.method && names.length >= 2 && names.slice(0, -1).join(".") === owner) {
-				add({ name: names[names.length - 1], kind: "function", detail: signatureOf(fn.func, src) }, fn.start);
+				add(functionMember(names[names.length - 1], "function", fn.func, src), fn.start);
 			}
 		} else if ((stat.kind === "local" || stat.kind === "const") && !owner.includes(".")) {
 			// `local Crate = { Shelf = … }`: what the table is written with.
@@ -264,12 +306,7 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 				if (binding.name !== owner || value?.kind !== "table") return;
 				for (const field of value.fields) {
 					if (field.kind !== "named") continue;
-					const isFunction = field.value.kind === "function";
-					add({
-						name: field.name.name,
-						kind: isFunction ? "function" : "field",
-						detail: field.value.kind === "function" ? signatureOf(field.value.func, src) : typeOfValue(field.value, src) ?? "",
-					}, field.start);
+					add(memberFor(field.name.name, field.value, src), field.start);
 				}
 			});
 		} else if (stat.kind === "assign") {
@@ -277,12 +314,7 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 			assign.targets.forEach((target, i) => {
 				if (target.kind === "index" && chainOf(target.object) === owner) {
 					const value = assign.values[i];
-					const isFunction = value?.kind === "function";
-					const member: TableMember = {
-						name: target.name.name,
-						kind: isFunction ? "function" : "field",
-						detail: typeOfValue(value, src) ?? "",
-					};
+					const member = memberFor(target.name.name, value, src);
 					add(member, assign.start);
 					if (value?.kind === "index" && chainOf(value.object) === owner) {
 						aliases.push({ member: out.find((m) => m.name === member.name)!, of: value.name.name });
@@ -301,6 +333,7 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 		Object.assign(member, {
 			kind: original.kind,
 			detail: original.detail,
+			...(original.signature ? { signature: original.signature } : {}),
 			aliasOf: original.name,
 			...(member.doc || !original.doc ? {} : { doc: original.doc }),
 		});

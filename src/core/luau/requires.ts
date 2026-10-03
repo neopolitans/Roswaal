@@ -12,7 +12,9 @@
 
 import type { Block, Expr, Stat } from "./ast.js";
 import { docCommentBefore, docFor, docRegistry, type DocComment } from "./docComment.js";
-import { membersInCode, signatureOf, stringValue, type TableMember, typeOfValue, withRegistry } from "./infer.js";
+import {
+	memberFor, membersInCode, signatureOf, stringValue, type TableMember, typeOfValue, withRegistry,
+} from "./infer.js";
 import { tokenize } from "./lexer.js";
 import { parseChunk } from "./parser.js";
 import { localsInFile, localsInParsed } from "./scope.js";
@@ -236,14 +238,8 @@ function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string, owner?: 
 				continue;
 			}
 		}
-		const isFunction = field.value.kind === "function";
 		const doc = docFor(docCommentBefore(src, field.start, tokens), field.name.name);
-		out.push({
-			name: field.name.name,
-			kind: isFunction ? "function" : "field",
-			detail: field.value.kind === "function" ? signatureOf(field.value.func, src) : typeOfValue(field.value, src) ?? "",
-			...(doc ? { doc } : {}),
-		});
+		out.push({ ...memberFor(field.name.name, field.value, src), ...(doc ? { doc } : {}) });
 	}
 	return withRegistry(out, src, owner, tokens);
 }

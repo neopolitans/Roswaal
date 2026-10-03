@@ -87,10 +87,9 @@ export function signatureAt(
 		// A function put on a table, by the code or the graph: `Occupancy.value(`.
 		const onTable = [...membersInCode(src, owner.text), ...(tableMembers.get(owner.text) ?? [])]
 			.find((m) => m.name === name.text && m.kind === "function");
-		if (onTable) {
-			const [head, returned] = onTable.detail.split(") -> (");
-			const params = paramsOf(`${head})`);
-			const returns = (returned ?? "").replace(/\)$/, "");
+		if (onTable?.signature) {
+			const params = onTable.signature.params.map((p) => ({ name: p.name, type: p.type ?? "" }));
+			const returns = onTable.signature.returns;
 			return {
 				label: `${owner.text}.${name.text}`,
 				params,
