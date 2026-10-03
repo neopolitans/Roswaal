@@ -13,6 +13,8 @@
  * release here.
  */
 
+import { quoteString } from "./compiler/quote.js";
+import { RESERVED_WORDS } from "./luau/lexer.js";
 import { CLASSES, CLASS_PARENTS, DATATYPES } from "./robloxData.js";
 
 /** Services offered in the Get Service dropdown, in rough order of use. */
@@ -82,15 +84,17 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
  *
  * Instance names are not identifiers — "Main Menu" and "3D Icons" are both
  * legal — so a segment that cannot be written after a dot is bracketed
- * instead. Segments are split on "." and trimmed; empty ones are dropped, so a
- * trailing dot while typing does not produce broken code.
+ * instead, as a Luau string. A reserved word is a name Luau will not take
+ * after a dot either: `x.end` does not parse, `x["end"]` does. Segments are
+ * split on "." and trimmed; empty ones are dropped, so a trailing dot while
+ * typing does not produce broken code.
  */
 export function renderPath(base: string, path: string): string {
 	const segments = path.split(".").map((s) => s.trim()).filter((s) => s !== "");
 	return segments.reduce((acc, segment) => {
-		return IDENTIFIER.test(segment)
+		return IDENTIFIER.test(segment) && !RESERVED_WORDS.has(segment)
 			? `${acc}.${segment}`
-			: `${acc}[${JSON.stringify(segment)}]`;
+			: `${acc}[${quoteString(segment)}]`;
 	}, base);
 }
 

@@ -87,6 +87,13 @@ describe("the instance a name is", () => {
 		expect(childrenOfChain(src, src.length, ["ReplicatedStorage", "Shared"], root).map((k) => k.name)).toEqual(["Util", "Remotes"]);
 		expect(childrenOfChain("game.", 5, ["game"], root).map((k) => k.name)).toEqual(["ReplicatedStorage", "Workspace"]);
 	});
+
+	it("follows the local in scope, not one in a closed block or a comment", () => {
+		const hidden = `do\n\t${RS}end\nlocal x = ReplicatedStorage.`;
+		expect(childrenOfChain(hidden, hidden.length, ["ReplicatedStorage"], root)).toEqual([]);
+		const commented = `${RS}-- local ReplicatedStorage = game.Workspace\nlocal x = ReplicatedStorage.`;
+		expect(childrenOfChain(commented, commented.length, ["ReplicatedStorage"], root).map((k) => k.name)).toEqual(["Shared"]);
+	});
 });
 
 describe("what the project's files add", () => {

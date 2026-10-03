@@ -11,9 +11,11 @@
  */
 
 import type { Block, Expr } from "./ast.js";
-import { parseChunk } from "./parser.js";
+import { luauFile } from "./file.js";
+import { localsAt } from "./scope.js";
 import { stringValue } from "./infer.js";
 import { targetOf, type RequireTarget } from "./requires.js";
+import { contains, visitBlock } from "./visit.js";
 import { ENGINE } from "../robloxEngine.js";
 
 export interface InstanceNode {
@@ -86,7 +88,7 @@ function pathOf(expr: Expr, src: string, block: Block, self: readonly string[] |
 }
 
 function absolute(target: RequireTarget, self: readonly string[] | undefined): string[] | undefined {
-	if (target.t !== "instance") return undefined;
+	if (target.kind !== "instance") return undefined;
 	const out = target.from === "game" ? [] : self ? [...self] : undefined;
 	if (!out) return undefined;
 	for (const name of target.names) {
@@ -112,9 +114,9 @@ export interface InstanceProblem {
  * and services are checked.
  */
 export function instanceProblems(src: string, root: InstanceNode, self?: readonly string[]): InstanceProblem[] {
-	const parsed = parseChunk(src);
+	const parsed = luauFile(src);
 	if (parsed.errors.length > 0) return [];
-	const block = parsed.value;
+	const block = parsed.block;
 	const out: InstanceProblem[] = [];
 	const check = (holderExpr: Expr, name: string, from: number, to: number, how: "index" | "wait") => {
 		const path = pathOf(holderExpr, src, block, self);
@@ -130,19 +132,16 @@ export function instanceProblems(src: string, root: InstanceNode, self?: readonl
 				: `${where} has no child called "${name}" in the place or the project, and ${holder.className} has no member of that name.`,
 		});
 	};
-	const visit = (node: unknown): void => {
-		if (Array.isArray(node)) return node.forEach(visit);
-		if (!node || typeof node !== "object") return;
-		const expr = node as Expr;
-		if (expr.kind === "index") {
-			check(expr.object, expr.name.name, expr.name.start, expr.name.end, "index");
-		} else if (expr.kind === "methodCall" && expr.method.name === "WaitForChild" && expr.args[0]?.kind === "string") {
-			const name = stringValue(expr.args[0]);
-			if (name !== undefined) check(expr.object, name, expr.args[0].start, expr.args[0].end, "wait");
-		}
-		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
-	};
-	visit(block);
+	visitBlock(block, {
+		expr: (expr) => {
+			if (expr.kind === "index") {
+				check(expr.object, expr.name.name, expr.name.start, expr.name.end, "index");
+			} else if (expr.kind === "methodCall" && expr.method.name === "WaitForChild" && expr.args[0]?.kind === "string") {
+				const name = stringValue(expr.args[0]);
+				if (name !== undefined) check(expr.object, name, expr.args[0].start, expr.args[0].end, "wait");
+			}
+		},
+	});
 	return out;
 }
 
@@ -150,27 +149,23 @@ export function instanceProblems(src: string, root: InstanceNode, self?: readonl
 export function instanceAt(
 	src: string, pos: number, root: InstanceNode, self?: readonly string[],
 ): { from: number; to: number; path: string[]; node: InstanceNode } | undefined {
-	const parsed = parseChunk(src);
+	const parsed = luauFile(src);
 	if (parsed.errors.length > 0) return undefined;
-	const block = parsed.value;
+	const block = parsed.block;
 	let found: { from: number; to: number; expr: Expr } | undefined;
-	const visit = (node: unknown): void => {
-		if (found) return;
-		if (Array.isArray(node)) return node.forEach(visit);
-		if (!node || typeof node !== "object") return;
-		const expr = node as Expr;
-		if (expr.kind === "index" && expr.name.start <= pos && pos <= expr.name.end) {
-			found = { from: expr.name.start, to: expr.name.end, expr };
-			return;
-		}
-		if (expr.kind === "methodCall" && (expr.method.name === "WaitForChild" || expr.method.name === "FindFirstChild")
-			&& expr.args[0]?.kind === "string" && expr.args[0].start <= pos && pos <= expr.args[0].end) {
-			found = { from: expr.args[0].start, to: expr.args[0].end, expr };
-			return;
-		}
-		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
-	};
-	visit(block);
+	visitBlock(block, {
+		stat: () => !found,
+		expr: (expr) => {
+			if (found) return false;
+			if (expr.kind === "index" && contains(expr.name, pos)) {
+				found = { from: expr.name.start, to: expr.name.end, expr };
+			} else if (expr.kind === "methodCall" && (expr.method.name === "WaitForChild" || expr.method.name === "FindFirstChild")
+				&& expr.args[0]?.kind === "string" && contains(expr.args[0], pos)) {
+				found = { from: expr.args[0].start, to: expr.args[0].end, expr };
+			}
+			return !found;
+		},
+	});
 	if (!found) return undefined;
 	const path = pathOf(found.expr, src, block, self);
 	const node = path ? nodeAt(root, path) : undefined;
@@ -193,18 +188,10 @@ export function childrenOfChain(
 	else if (head === "workspace") base = ["Workspace"];
 	else if (head === "script") base = self ? [...self] : undefined;
 	else {
-		// The local's own declaration, read from the text above the cursor.
-		const before = src.slice(0, pos);
-		const decl = new RegExp(`local\\s+${head}\\s*(?::[^=\\n]+)?=\\s*([^\\n]+)`, "g");
-		let last: RegExpExecArray | null = null;
-		for (let m = decl.exec(before); m; m = decl.exec(before)) last = m;
-		if (last) {
-			const parsed = parseChunk(`local __ = ${last[1]}`);
-			const stat = parsed.value[0];
-			const value = stat && stat.kind === "local" ? stat.values[0] : undefined;
-			const target = value ? targetOf(value, before) : undefined;
-			base = target ? absolute(target, self) : undefined;
-		}
+		// The local in scope at the cursor, and what it was declared with.
+		const value = localsAt(src, pos).find((n) => n.name === head)?.value;
+		const target = value ? targetOf(value, src.slice(0, pos)) : undefined;
+		base = target ? absolute(target, self) : undefined;
 	}
 	if (!base) return [];
 	const node = nodeAt(root, [...base, ...rest.map((n) => (n === "Parent" ? ".." : n))].reduce<string[]>((acc, n) => {

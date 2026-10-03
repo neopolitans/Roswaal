@@ -12,18 +12,20 @@
 
 import type { Block, Expr, Stat } from "./ast.js";
 import { docCommentBefore, docFor, docRegistry, type DocComment } from "./docComment.js";
-import { membersInCode, signatureOf, stringValue, type TableMember, typeOfValue, withRegistry } from "./infer.js";
-import { tokenize } from "./lexer.js";
-import { parseChunk } from "./parser.js";
+import {
+	memberFor, membersInCode, signatureOf, stringValue, type TableMember, typeOfValue, withRegistry,
+} from "./infer.js";
+import { luauFile } from "./file.js";
 import { localsInFile, localsInParsed } from "./scope.js";
+import { visitBlock } from "./visit.js";
 
 /**
  * Where a require goes. An instance path starts at `game` or at the requiring
  * script, and `..` is `.Parent`. A string is a path, as written.
  */
 export type RequireTarget =
-	| { t: "instance"; from: "game" | "script"; names: string[] }
-	| { t: "string"; spec: string };
+	| { kind: "instance"; from: "game" | "script"; names: string[] }
+	| { kind: "string"; spec: string };
 
 /** A local that holds a module: `local Flux = require(Packages.Flux)`. */
 export interface RequireBinding {
@@ -44,16 +46,16 @@ export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): Re
 	switch (expr.kind) {
 		case "string": {
 			const spec = stringValue(expr);
-			return spec === undefined ? undefined : { t: "string", spec };
+			return spec === undefined ? undefined : { kind: "string", spec };
 		}
 		case "paren":
 			return targetOf(expr.inner, src, depth + 1, parsed);
 		case "cast":
 			return targetOf(expr.value, src, depth + 1, parsed);
 		case "name": {
-			if (expr.name === "game") return { t: "instance", from: "game", names: [] };
-			if (expr.name === "script") return { t: "instance", from: "script", names: [] };
-			if (expr.name === "workspace") return { t: "instance", from: "game", names: ["Workspace"] };
+			if (expr.name === "game") return { kind: "instance", from: "game", names: [] };
+			if (expr.name === "script") return { kind: "instance", from: "script", names: [] };
+			if (expr.name === "workspace") return { kind: "instance", from: "game", names: ["Workspace"] };
 			const locals = parsed ? localsInParsed(parsed, src, expr.start) : localsInFile(src, expr.start);
 			const local = locals?.find((n) => n.name === expr.name);
 			return local?.value ? targetOf(local.value, src, depth + 1, parsed) : undefined;
@@ -63,7 +65,7 @@ export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): Re
 			const name = expr.kind === "index" ? expr.name.name : expr.key.kind === "string" ? stringValue(expr.key) : undefined;
 			if (name === undefined) return undefined;
 			const base = targetOf(expr.object, src, depth + 1, parsed);
-			if (base?.t !== "instance") return undefined;
+			if (base?.kind !== "instance") return undefined;
 			return { ...base, names: [...base.names, name === "Parent" ? ".." : name] };
 		}
 		case "methodCall": {
@@ -71,9 +73,12 @@ export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): Re
 			const arg = expr.args[0]?.kind === "string" ? stringValue(expr.args[0]) : undefined;
 			if (arg === undefined) return undefined;
 			const base = targetOf(expr.object, src, depth + 1, parsed);
-			if (base?.t !== "instance") return undefined;
+			if (base?.kind !== "instance") return undefined;
 			if (method === "GetService" && base.from === "game" && base.names.length === 0) return { ...base, names: [arg] };
-			if (method === "WaitForChild" || method === "FindFirstChild") return { ...base, names: [...base.names, arg] };
+			if (method === "WaitForChild") return { ...base, names: [...base.names, arg] };
+			// `FindFirstChild(name, true)` searches every descendant, so where
+			// it lands is not a path the code says.
+			if (method === "FindFirstChild" && expr.args.length === 1) return { ...base, names: [...base.names, arg] };
 			return undefined;
 		}
 		default:
@@ -106,23 +111,20 @@ export function requiresIn(src: string): RequireBinding[] {
 		if (table?.kind !== "table") return;
 		for (const field of table.fields) if (field.kind === "named") push(`${owner}.${field.name.name}`, field.value);
 	};
-	const visit = (node: unknown): void => {
-		if (Array.isArray(node)) return node.forEach(visit);
-		if (!node || typeof node !== "object") return;
-		const stat = node as Stat;
-		if ((stat.kind === "local" || stat.kind === "const") && Array.isArray(stat.names)) {
-			stat.names.forEach((binding, i) => {
-				push(binding.name, stat.values[i]);
-				fields(binding.name, stat.values[i]);
-			});
-		} else if (stat.kind === "assign") {
-			stat.targets.forEach((target, i) => {
-				if (target.kind === "index" && target.object.kind === "name") push(`${target.object.name}.${target.name.name}`, stat.values[i]);
-			});
-		}
-		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
-	};
-	visit(parseChunk(src).value);
+	visitBlock(luauFile(src).block, {
+		stat: (stat) => {
+			if (stat.kind === "local" || stat.kind === "const") {
+				stat.names.forEach((binding, i) => {
+					push(binding.name, stat.values[i]);
+					fields(binding.name, stat.values[i]);
+				});
+			} else if (stat.kind === "assign") {
+				stat.targets.forEach((target, i) => {
+					if (target.kind === "index" && target.object.kind === "name") push(`${target.object.name}.${target.name.name}`, stat.values[i]);
+				});
+			}
+		},
+	});
 	return out;
 }
 
@@ -147,7 +149,7 @@ export interface ModuleExports {
  * module passed straight through.
  */
 export function moduleExports(src: string): ModuleExports {
-	const block = parseChunk(src).value;
+	const block = luauFile(src).block;
 	const last = [...block].reverse().find((s) => s.kind === "return") as Extract<Stat, { kind: "return" }> | undefined;
 	const first = block[0];
 	// A block comment says what the module is; `-- SERVICES` above the first
@@ -190,8 +192,8 @@ export function moduleExports(src: string): ModuleExports {
 		if (local?.func) return out({ kind: "function", members, detail: signatureOf(local.func, src) });
 		// `function Button(props) … end` then `return Button`: a global the
 		// file defines, and the comment above it says what the module is.
-		const global = local ? undefined : block.find((s): s is Extract<Stat, { kind: "function" }> =>
-			s.kind === "function" && s.path.length === 1 && !s.method && s.path[0].name === value.name);
+		const global = local ? undefined : block.find((s): s is Extract<Stat, { kind: "functionStat" }> =>
+			s.kind === "functionStat" && s.path.length === 1 && !s.method && s.path[0].name === value.name);
 		if (global) {
 			const above = docFor(docCommentBefore(src, global.start), value.name) ?? doc;
 			return { kind: "function", members, detail: signatureOf(global.func, src), ...(above ? { doc: above } : {}) };
@@ -223,7 +225,6 @@ function unwrap(expr: Expr, depth = 0): Expr {
  * them -- or, for a table called `owner`, what its `@prop`s say.
  */
 function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string, owner?: string): TableMember[] {
-	const tokens = tokenize(src);
 	const out: TableMember[] = [];
 	for (const field of table.fields) {
 		if (field.kind !== "named") continue;
@@ -236,14 +237,8 @@ function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string, owner?: 
 				continue;
 			}
 		}
-		const isFunction = field.value.kind === "function";
-		const doc = docFor(docCommentBefore(src, field.start, tokens), field.name.name);
-		out.push({
-			name: field.name.name,
-			kind: isFunction ? "function" : "field",
-			detail: field.value.kind === "function" ? signatureOf(field.value.func, src) : typeOfValue(field.value, src) ?? "",
-			...(doc ? { doc } : {}),
-		});
+		const doc = docFor(docCommentBefore(src, field.start), field.name.name);
+		out.push({ ...memberFor(field.name.name, field.value, src), ...(doc ? { doc } : {}) });
 	}
-	return withRegistry(out, src, owner, tokens);
+	return withRegistry(out, src, owner);
 }

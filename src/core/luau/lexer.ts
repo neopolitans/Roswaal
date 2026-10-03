@@ -56,14 +56,23 @@ export interface Token {
 }
 
 /**
- * Reserved words: never a name. `continue`, `type`, `export` and `typeof` are
- * not here — Luau keeps them usable as names and decides from context, so the
- * parser does too.
+ * Reserved words: never a name, so never after a dot either. Luau's one list:
+ * the editor's colours, its completions and the code Roswaal writes all read
+ * it from here.
  */
-export const KEYWORDS: ReadonlySet<string> = new Set([
+export const RESERVED_WORDS: ReadonlySet<string> = new Set([
 	"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if",
 	"in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while",
 ]);
+
+/**
+ * Words Luau reads as keywords only where they stand -- `continue` as a
+ * statement, `export type`, `type X =`, `typeof(…)` in a type -- and as
+ * ordinary names everywhere else, so the parser decides from context. Code
+ * that writes names should still avoid them: a local called `type` hides the
+ * global function.
+ */
+export const CONTEXTUAL_WORDS: ReadonlySet<string> = new Set(["continue", "export", "type", "typeof"]);
 
 /** Longest first, so `...` wins over `..` and `//=` over `//`. */
 const SYMBOLS = [
@@ -109,6 +118,30 @@ export function tokenize(src: string): Token[] {
 	};
 
 	/**
+	 * Past the escape whose backslash is at `j`. Both kinds of string share
+	 * these, and an interpolated string must not read the brace of `\u{48}`
+	 * as a hole or stop at the line break a `\z` skips.
+	 */
+	const pastEscape = (j: number): number => {
+		const next = src[j + 1];
+		if (next === "z") {
+			// Skips the escape and every whitespace character after it.
+			j += 2;
+			while (j < src.length && isSpace(src[j])) j++;
+			return j;
+		}
+		if (next === "u" && src[j + 2] === "{") {
+			j += 3;
+			while (j < src.length && isHex(src[j])) j++;
+			return src[j] === "}" ? j + 1 : j;
+		}
+		// A backslash before a line break continues the string onto the next
+		// line; `\r\n` is one break.
+		if (next === "\r" && src[j + 2] === "\n") return j + 3;
+		return j + 2;
+	};
+
+	/**
 	 * A quoted string's body from just past its quote. Returns the offset past
 	 * the closing quote, or an error and where the string stopped.
 	 */
@@ -118,24 +151,7 @@ export function tokenize(src: string): Token[] {
 			const c = src[j];
 			if (c === quote) return { end: j + 1 };
 			if (c === "\n" || c === "\r") return { end: j, error: "This string is not closed before the end of the line." };
-			if (c === "\\") {
-				const next = src[j + 1];
-				if (next === "z") {
-					// Skips the escape and every whitespace character after it.
-					j += 2;
-					while (j < src.length && isSpace(src[j])) j++;
-					continue;
-				}
-				// A backslash before a line break continues the string onto the
-				// next line; `\r\n` is one break.
-				if (next === "\r" && src[j + 2] === "\n") {
-					j += 3;
-					continue;
-				}
-				j += 2;
-				continue;
-			}
-			j++;
+			j = c === "\\" ? pastEscape(j) : j + 1;
 		}
 		return { end: src.length, error: "This string is not closed before the end of the code." };
 	};
@@ -153,11 +169,7 @@ export function tokenize(src: string): Token[] {
 			if (c === "\n" || c === "\r") {
 				return { end: j, opened: false, error: "This string is not closed before the end of the line." };
 			}
-			if (c === "\\") {
-				j += src[j + 1] === "\r" && src[j + 2] === "\n" ? 3 : 2;
-				continue;
-			}
-			j++;
+			j = c === "\\" ? pastEscape(j) : j + 1;
 		}
 		return { end: src.length, opened: false, error: "This string is not closed before the end of the code." };
 	};
@@ -193,19 +205,25 @@ export function tokenize(src: string): Token[] {
 
 		if (isNameStart(c)) {
 			while (i < src.length && isNameChar(src[i])) i++;
-			push(KEYWORDS.has(src.slice(start, i)) ? "keyword" : "name", start, i);
+			push(RESERVED_WORDS.has(src.slice(start, i)) ? "keyword" : "name", start, i);
 			continue;
 		}
 
 		// Numbers: decimal with `_` separators, a fraction and an exponent;
 		// `0x` hex and `0b` binary. `.5` starts with a dot.
 		if (isDigit(c) || (c === "." && isDigit(src[i + 1] ?? ""))) {
+			/** `0x` and `0b` with no digit after them are not numbers. */
+			let digits = true;
 			if (c === "0" && (src[i + 1] === "x" || src[i + 1] === "X")) {
 				i += 2;
+				const first = i;
 				while (i < src.length && (isHex(src[i]) || src[i] === "_")) i++;
+				digits = /[0-9A-Fa-f]/.test(src.slice(first, i));
 			} else if (c === "0" && (src[i + 1] === "b" || src[i + 1] === "B")) {
 				i += 2;
+				const first = i;
 				while (i < src.length && (src[i] === "0" || src[i] === "1" || src[i] === "_")) i++;
+				digits = /[01]/.test(src.slice(first, i));
 			} else {
 				while (i < src.length && (isDigit(src[i]) || src[i] === "_")) i++;
 				if (src[i] === "." && src[i + 1] !== ".") {
@@ -222,7 +240,7 @@ export function tokenize(src: string): Token[] {
 				}
 			}
 			// `1abc` is not a number followed by a name; it is a mistake.
-			if (i < src.length && isNameChar(src[i])) {
+			if (!digits || (i < src.length && isNameChar(src[i]))) {
 				while (i < src.length && isNameChar(src[i])) i++;
 				push("error", start, i, "This is not a number Luau can read.");
 				continue;

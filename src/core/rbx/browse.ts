@@ -9,7 +9,7 @@
  */
 
 import { ENGINE, type EngineProperty } from "../robloxEngine.js";
-import { type Prop, type RbxDocument, type RbxInstance, text } from "./dom.js";
+import { type Prop, type RbxDocument, type RbxInstance, SCRIPT_CLASSES, text } from "./dom.js";
 
 /**
  * The tree, depth first: each node is `[class, name, parent, flags]`, the
@@ -135,7 +135,10 @@ export function groupProperties(properties: readonly PlaceProperty[]): [string, 
 	return [...by].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
 }
 
-export const isScriptClass = (cls: string) => cls === "Script" || cls === "LocalScript" || cls === "ModuleScript";
+/** Whether a class is one of the three script classes, by name. */
+export function isScriptClass(className: string): boolean {
+	return SCRIPT_CLASSES.has(className);
+}
 
 /**
  * Containers Studio makes for you inside a service: not services themselves,

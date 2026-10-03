@@ -17,12 +17,14 @@ import {
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { localNameOf } from "../core/nodes/variables.js";
 import { toIdentifier } from "../core/compiler/luau.js";
+import { CONTEXTUAL_WORDS, RESERVED_WORDS, significant, tokenize } from "../core/luau/lexer.js";
 import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
 import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
 import { propertiesOf } from "../core/robloxProperties.js";
 import { nilableProperty } from "../core/robloxNilable.js";
 import {
-	classOfGlobal, dotKeys, eventsOf, heldBy, membersInCode, methodsOf, type TableMember,
+	classCallBefore, classOfGlobal, dotKeys, eventsOf, formatSignature, heldBy, membersInCode, methodsOf,
+	type FunctionSignature, type TableMember,
 } from "../core/luau/infer.js";
 import { ENGINE, signatureText } from "../core/robloxEngine.js";
 import { childrenOfChain, type InstanceNode } from "../core/luau/instances.js";
@@ -32,38 +34,43 @@ import {
 } from "../core/robloxData.js";
 import { surfacesIn } from "./edits.js";
 
-/** Members of the standard libraries, for completion after a dot. */
-const LIBRARY_MEMBERS: Record<string, string[]> = {
-	math: [
-		"abs", "acos", "asin", "atan", "atan2", "ceil", "clamp", "cos", "cosh",
-		"deg", "exp", "floor", "fmod", "frexp", "huge", "ldexp", "log", "log10",
-		"max", "min", "modf", "noise", "pi", "pow", "rad", "random", "randomseed",
-		"round", "sign", "sin", "sinh", "sqrt", "tan", "tanh",
-	],
-	string: [
-		"byte", "char", "find", "format", "gmatch", "gsub", "len", "lower",
-		"match", "pack", "packsize", "rep", "reverse", "split", "sub", "unpack",
-		"upper",
-	],
-	table: [
-		"clear", "clone", "concat", "create", "find", "freeze", "insert",
-		"isfrozen", "move", "pack", "remove", "sort", "unpack",
-	],
-	task: ["cancel", "defer", "delay", "desynchronize", "spawn", "synchronize", "wait"],
-	os: ["clock", "date", "difftime", "time"],
-	coroutine: ["close", "create", "isyieldable", "resume", "running", "status", "wrap", "yield"],
-	utf8: ["char", "charpattern", "codepoint", "codes", "len", "nfdnormalize", "offset"],
-	debug: ["info", "profilebegin", "profileend", "traceback"],
-	game: ["GetService", "GetChildren", "FindFirstChild", "WaitForChild", "Workspace", "Players"],
-	script: ["Parent", "Name", "GetChildren", "FindFirstChild", "WaitForChild"],
-	workspace: ["CurrentCamera", "GetChildren", "FindFirstChild", "WaitForChild", "Raycast"],
-};
+/**
+ * A standard library's functions and constants, for completion after its
+ * dot: `math.clamp`, `bit32.band`, `buffer.readu8`, `vector.zero`. Read from
+ * the engine catalogue, so a library Luau gains needs no list kept here.
+ */
+function libraryMembers(name: string): Completion[] {
+	const library = ENGINE.libraries[name];
+	if (!library) return [];
+	const seen = new Set<string>();
+	// `table.insert` and `debug.info` have several signatures: offered once.
+	const once = (label: string) => {
+		if (seen.has(label)) return false;
+		seen.add(label);
+		return true;
+	};
+	return [
+		...library.functions.filter((f) => !f.deprecated && once(f.name)).map((f) => ({
+			label: f.name, type: "function", detail: `${signatureText(f.params)}${f.returns ? ` → ${f.returns}` : ""}`, info: f.summary,
+		})),
+		...library.properties.filter((p) => !p.deprecated && once(p.name)).map((p) => ({
+			label: p.name, type: "constant", detail: p.type, info: p.summary,
+		})),
+	];
+}
 
-const KEYWORDS = [
-	"and", "break", "continue", "do", "else", "elseif", "end", "export", "false",
-	"for", "function", "if", "in", "local", "nil", "not", "or", "repeat",
-	"return", "then", "true", "type", "until", "while",
-];
+/** A class's properties and events, as a dot reaches them: `part.Touched:Connect(…)` reads an event with a dot too. */
+function classMembers(className: string): Completion[] {
+	return [
+		...propertiesOf(className).map((p) => ({
+			label: p.name, type: "property",
+			detail: p.enum ?? `${p.type ?? ""}${nilableProperty(className, p.name) ? "?" : ""}`,
+		})),
+		...eventsOf(className).map((e) => ({
+			label: e.name, type: "event", detail: `event${signatureText(e.params)}`, info: e.summary,
+		})),
+	];
+}
 
 /**
  * What is in scope before this graph has put anything there.
@@ -158,21 +165,24 @@ export function graphTableMembers(script: NodeScript | null): Map<string, TableM
 			name?: string; params?: { name: string; type?: string }[]; returns?: { name: string; type?: string }[];
 		};
 		if (!table || !config.name) continue;
-		const params = (config.params ?? []).map((p) => (p.type ? `${p.name}: ${p.type}` : p.name)).join(", ");
-		const returns = (config.returns ?? []).map((r) => r.type || "any").join(", ");
+		const signature: FunctionSignature = {
+			params: (config.params ?? []).map((p) => (p.type ? { name: p.name, type: p.type } : { name: p.name })),
+			returns: (config.returns ?? []).map((r) => r.type || "any").join(", "),
+		};
 		const list = out.get(table) ?? [];
-		list.push({ name: config.name, kind: "function", detail: `(${params}) -> (${returns})` });
+		list.push({ name: config.name, kind: "function", detail: formatSignature(signature), signature });
 		out.set(table, list);
 	}
 	return out;
 }
 
-const KEYWORD_COMPLETIONS: Completion[] = KEYWORDS.map((label) => ({
-	label, type: "keyword",
-}));
+/** Luau's keywords, the contextual ones -- `continue`, `export type` -- among them. */
+const KEYWORD_COMPLETIONS: Completion[] = [...RESERVED_WORDS, ...CONTEXTUAL_WORDS]
+	.sort((a, b) => a.localeCompare(b))
+	.map((label) => ({ label, type: "keyword" }));
 
 const GLOBAL_COMPLETIONS: Completion[] = GLOBALS.map((label) => ({
-	label, type: LIBRARY_MEMBERS[label] ? "namespace" : "variable", detail: "Luau",
+	label, type: ENGINE.libraries[label] ? "namespace" : "variable", detail: "Luau",
 }));
 
 /** How a name in scope in the code itself is described in the list. */
@@ -182,10 +192,6 @@ const LOCAL_DETAIL: Record<LocalKind, string> = {
 	parameter: "parameter",
 	"loop variable": "loop variable",
 };
-
-/** Calls whose first argument, as a string, is a class name — or a service's. */
-const CLASS_STRING =
-	/(Instance\.new|:IsA|:FindFirstChildOfClass|:FindFirstChildWhichIsA|:FindFirstAncestorOfClass|:FindFirstAncestorWhichIsA|:GetService)\s*\(\s*["']([A-Za-z0-9_]*)$/;
 
 /**
  * A type position: after `::`, or after a name and a colon with a space on
@@ -219,12 +225,17 @@ export function luauCompletionSource(
 		const roblox = getTarget() !== "lune";
 
 		// A class name inside the string it is given as: `Instance.new("Pa`.
-		const quoted = roblox ? context.matchBefore(CLASS_STRING) : null;
-		if (quoted) {
-			const [, call, typed] = CLASS_STRING.exec(quoted.text)!;
-			const names = call === ":GetService" ? ROBLOX_SERVICES : ROBLOX_CLASSES;
+		// The call before the quote is read from the lexer's tokens, which
+		// know a comment or a string from code; the call is not finished, so
+		// there is no tree to read it from yet.
+		const quoted = roblox ? context.matchBefore(/["'][A-Za-z0-9_]*$/) : null;
+		const named = quoted
+			? classCallBefore(significant(tokenize(context.state.doc.sliceString(0, quoted.from))).slice(0, -1))
+			: undefined;
+		if (quoted && named) {
+			const names = named === "service" ? ROBLOX_SERVICES : ROBLOX_CLASSES;
 			return {
-				from: quoted.to - typed.length,
+				from: quoted.from + 1,
 				options: names.map((label) => ({ label, type: "class" })),
 				validFor: /^\w*$/,
 			};
@@ -333,16 +344,7 @@ export function luauCompletionSource(
 			if (local) {
 				const held = heldBy(local.typeText, local.value);
 				const options = held.className && roblox
-					? [
-						...propertiesOf(held.className).map((p) => ({
-							label: p.name, type: "property",
-							detail: p.enum ?? `${p.type ?? ""}${nilableProperty(held.className!, p.name) ? "?" : ""}`,
-						})),
-						// Events are read with a dot too: `part.Touched:Connect(…)`.
-						...eventsOf(held.className).map((e) => ({
-							label: e.name, type: "event", detail: `event${signatureText(e.params)}`, info: e.summary,
-						})),
-					]
+					? classMembers(held.className)
 					: [
 						...dotKeys(held).map((key) => ({ label: key, type: "property", detail: "key" })),
 						...onTable.filter((m) => !dotKeys(held).includes(m.label)),
@@ -350,25 +352,24 @@ export function luauCompletionSource(
 				return options.length > 0 ? { from, options, validFor: /^\w*$/ } : null;
 			}
 			if (onTable.length > 0) return { from, options: onTable, validFor: /^\w*$/ };
-			const members = LIBRARY_MEMBERS[owner] ?? [];
+			// `game.`, `workspace.` and `script.` are instances: their class's
+			// properties and events, as a local holding one offers.
+			const globalClass = roblox ? classOfGlobal(owner) ?? (owner === "script" ? "LuaSourceContainer" : undefined) : undefined;
+			if (globalClass) return { from, options: classMembers(globalClass), validFor: /^\w*$/ };
 			// A datatype's own name reaches its constructors and constants:
 			// `Instance.new`, `Vector3.zero`. `Instance` is a class as well, and
 			// its members are reached from an instance, not from the name.
 			const statics = roblox ? DATATYPE_STATICS[owner] ?? [] : [];
-			if (members.length === 0 && statics.length === 0) return null;
-			return {
-				from,
-				options: [
-					...statics.map((item) => ({
-						label: item.name,
-						type: item.kind === "constant" ? "constant" : "function",
-						detail: item.detail,
-						info: item.summary,
-					})),
-					...members.map((label) => ({ label, type: "method", detail: owner })),
-				],
-				validFor: /^\w*$/,
-			};
+			const options = [
+				...statics.map((item) => ({
+					label: item.name,
+					type: item.kind === "constant" ? "constant" : "function",
+					detail: item.detail,
+					info: item.summary,
+				})),
+				...libraryMembers(owner),
+			];
+			return options.length > 0 ? { from, options, validFor: /^\w*$/ } : null;
 		}
 
 		// A method after a colon: `existing:Is` offers Instance's methods, and

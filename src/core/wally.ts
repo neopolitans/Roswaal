@@ -11,6 +11,9 @@
  * Pure: the text goes in, names come out. What is on disk is the caller's.
  */
 
+import { luauFile } from "./luau/file.js";
+import { moduleExports } from "./luau/requires.js";
+
 export type WallyRealm = "shared" | "server" | "dev";
 
 /** Where `wally install` puts each realm's packages, beside `wally.toml`. */
@@ -63,14 +66,15 @@ export function parseWallyToml(text: string): WallyDependency[] {
  * is not a thunk.
  */
 export function thunkTarget(text: string): string[] | undefined {
-	// At the start of a line: a thunk commented out -- a package vendored in
-	// its place, as some projects do -- is not one.
-	const call = /^[ \t]*return\s+require\s*\(\s*script\.Parent((?:\s*(?:\.[A-Za-z_][A-Za-z0-9_]*|\[\s*["'][^"']+["']\s*\]))+)\s*\)/m.exec(text);
-	if (!call) return undefined;
-	const names: string[] = [];
-	for (const part of call[1].matchAll(/\.([A-Za-z_][A-Za-z0-9_]*)|\[\s*["']([^"']+)["']\s*\]/g)) {
-		names.push(part[1] ?? part[2]);
-	}
+	// The whole file is the one `return require(…)`: a thunk commented out,
+	// or a module that returns another among code of its own -- a package
+	// vendored in its place, as some projects do -- is not one.
+	const { block } = luauFile(text);
+	const target = block.length === 1 && block[0].kind === "return" ? moduleExports(text).reexport : undefined;
+	if (target?.kind !== "instance" || target.from !== "script" || target.names[0] !== "..") return undefined;
+	// Below `script.Parent`, a further `.Parent` is named as written: a
+	// package's own thunks reach `script.Parent.Parent[folder]`.
+	const names = target.names.slice(1).map((name) => (name === ".." ? "Parent" : name));
 	return names.length > 0 ? names : undefined;
 }
 

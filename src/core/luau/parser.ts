@@ -15,7 +15,7 @@
  */
 
 import type {
-	Attribute, Binding, Block, Diagnostic, Expr, FunctionBody, GenericParam, Name,
+	Attribute, Binding, Block, Diagnostic, Expr, FunctionBody, GenericParam, IfClause, Name,
 	ParseResult, Span, Stat, TableField, TableIndexer, TableTypeProp, TypeNode, TypePack,
 } from "./ast.js";
 import { significant, tokenize, type Token } from "./lexer.js";
@@ -43,6 +43,11 @@ const STATEMENT_START = new Set([
 	"end", "else", "elseif", "until",
 ]);
 
+/** Where a token is, without its text: a keyword's place in the tree. */
+function spanOf(token: Token): Span {
+	return { start: token.start, end: token.end };
+}
+
 /** Thrown inside the parser only, and caught at the statement it belongs to. */
 class Stop extends Error {}
 
@@ -51,8 +56,8 @@ class Parser {
 	private pos = 0;
 	readonly errors: Diagnostic[] = [];
 
-	constructor(src: string) {
-		const all = tokenize(src);
+	/** `all` is every token of the source, as `tokenize` gives them; it is not changed. */
+	constructor(all: readonly Token[]) {
 		for (const bad of all) {
 			if (bad.kind === "error") {
 				this.errors.push({ start: bad.start, end: bad.end, message: bad.message ?? "Unreadable." });
@@ -149,18 +154,23 @@ class Parser {
 		const out: Block = [];
 		for (;;) {
 			const token = this.peek();
-			if (token.kind === "eof" || (token.kind === "keyword" && BLOCK_END.has(token.text))) return out;
+			if (this.endsBlock(token)) return out;
 			try {
 				const stat = this.statement();
 				out.push(stat);
 				this.accept(";");
-				if (stat.kind === "return") {
+				// `return`, `break` and `continue` end their block: Luau reads
+				// nothing after one, so `break print(1)` is a mistake. Said
+				// once, and the rest is still read, so the block's `end` is
+				// not reported missing as well.
+				if (stat.kind === "return" || stat.kind === "break" || stat.kind === "continue") {
 					const after = this.peek();
-					if (after.kind !== "eof" && !(after.kind === "keyword" && BLOCK_END.has(after.text))) {
+					if (!this.endsBlock(after)) {
 						this.errors.push({
 							start: after.start, end: after.end,
-							message: "Nothing can follow a return in the same block.",
+							message: `Nothing can follow a ${stat.kind} in the same block.`,
 						});
+						out.push(...this.block());
 					}
 					return out;
 				}
@@ -171,8 +181,19 @@ class Parser {
 		}
 	}
 
-	/** Skips to where the next statement can start, taking at least one token. */
+	/** The end of the code, or a word that closes a block: `end`, `else`, `elseif`, `until`. */
+	private endsBlock(token: Token): boolean {
+		return token.kind === "eof" || (token.kind === "keyword" && BLOCK_END.has(token.text));
+	}
+
+	/**
+	 * Skips to where the next statement can start. A statement that stopped at
+	 * a word closing its block leaves that word for the block, so `local x =
+	 * end` is one mistake rather than a second, missing `end`; anything else
+	 * is taken, so the parser always moves on.
+	 */
 	private recover(): void {
+		if (this.endsBlock(this.peek())) return;
 		this.next();
 		for (;;) {
 			const token = this.peek();
@@ -197,24 +218,24 @@ class Parser {
 				case "while": {
 					this.next();
 					const condition = this.expr();
-					this.expect("do", "after the while condition");
+					const doKeyword = spanOf(this.expect("do", "after the while condition"));
 					const body = this.block();
-					this.expect("end", "to close the while");
-					return { kind: "while", condition, body, ...this.span(start) };
+					const endKeyword = spanOf(this.expect("end", "to close the while"));
+					return { kind: "while", condition, doKeyword, body, endKeyword, ...this.span(start) };
 				}
 				case "do": {
 					this.next();
 					const body = this.block();
-					this.expect("end", "to close the do");
-					return { kind: "do", body, ...this.span(start) };
+					const endKeyword = spanOf(this.expect("end", "to close the do"));
+					return { kind: "do", body, endKeyword, ...this.span(start) };
 				}
 				case "for": return this.forStat(start);
 				case "repeat": {
 					this.next();
 					const body = this.block();
-					this.expect("until", "to close the repeat");
+					const untilKeyword = spanOf(this.expect("until", "to close the repeat"));
 					const condition = this.expr();
-					return { kind: "repeat", body, condition, ...this.span(start) };
+					return { kind: "repeat", body, untilKeyword, condition, ...this.span(start) };
 				}
 				case "return": {
 					this.next();
@@ -324,28 +345,26 @@ class Parser {
 		while (this.accept(".")) path.push(this.expectName("a name after the dot"));
 		const method = this.accept(":") ? this.expectName("a method name after the colon") : undefined;
 		const func = this.functionBody(start);
-		return { kind: "function", path, ...(method ? { method } : {}), func, attributes, ...this.span(start) };
+		return { kind: "functionStat", path, ...(method ? { method } : {}), func, attributes, ...this.span(start) };
 	}
 
 	private ifStat(start: number): Stat {
-		this.next();
-		const clauses: { condition: Expr; body: Block }[] = [];
-		const condition = this.expr();
-		this.expect("then", "after the if condition");
-		clauses.push({ condition, body: this.block() });
-		let orElse: Block | undefined;
-		for (;;) {
-			if (this.accept("elseif")) {
-				const next = this.expr();
-				this.expect("then", "after the elseif condition");
-				clauses.push({ condition: next, body: this.block() });
-				continue;
-			}
-			if (this.accept("else")) orElse = this.block();
-			break;
+		const clauses: IfClause[] = [];
+		let keyword: Token | undefined = this.next();
+		while (keyword) {
+			const condition = this.expr();
+			const thenKeyword = spanOf(this.expect("then", `after the ${keyword.text} condition`));
+			clauses.push({ keyword: spanOf(keyword), condition, thenKeyword, body: this.block() });
+			keyword = this.accept("elseif");
 		}
-		this.expect("end", "to close the if");
-		return { kind: "if", clauses, ...(orElse ? { orElse } : {}), ...this.span(start) };
+		const elseToken = this.accept("else");
+		const orElse = elseToken ? this.block() : undefined;
+		const endKeyword = spanOf(this.expect("end", "to close the if"));
+		return {
+			kind: "if", clauses,
+			...(elseToken && orElse ? { elseKeyword: spanOf(elseToken), orElse } : {}),
+			endKeyword, ...this.span(start),
+		};
 	}
 
 	private forStat(start: number): Stat {
@@ -356,17 +375,20 @@ class Parser {
 			this.expect(",", "between the loop's start and end");
 			const to = this.expr();
 			const step = this.accept(",") ? this.expr() : undefined;
-			this.expect("do", "after the for loop's range");
+			const doKeyword = spanOf(this.expect("do", "after the for loop's range"));
 			const body = this.block();
-			this.expect("end", "to close the for loop");
-			return { kind: "numericFor", variable: first[0], from, to, ...(step ? { step } : {}), body, ...this.span(start) };
+			const endKeyword = spanOf(this.expect("end", "to close the for loop"));
+			return {
+				kind: "numericFor", variable: first[0], from, to, ...(step ? { step } : {}),
+				doKeyword, body, endKeyword, ...this.span(start),
+			};
 		}
 		this.expect("in", "after the loop's names");
 		const values = this.exprList();
-		this.expect("do", "after what the loop walks");
+		const doKeyword = spanOf(this.expect("do", "after what the loop walks"));
 		const body = this.block();
-		this.expect("end", "to close the for loop");
-		return { kind: "genericFor", variables: first, values, body, ...this.span(start) };
+		const endKeyword = spanOf(this.expect("end", "to close the for loop"));
+		return { kind: "genericFor", variables: first, values, doKeyword, body, endKeyword, ...this.span(start) };
 	}
 
 	private typeStat(start: number, exported: boolean): Stat {
@@ -407,7 +429,7 @@ class Parser {
 			});
 			throw new Stop();
 		}
-		return { kind: "call", call: target, ...this.span(start) };
+		return { kind: "callStat", call: target, ...this.span(start) };
 	}
 
 	private assignable(target: Expr): void {
@@ -436,11 +458,14 @@ class Parser {
 				params.push({ name: name.name, ...(type ? { type } : {}), ...this.span(name.start) });
 			} while (this.accept(","));
 		}
-		this.expect(")", "to close the parameters");
+		const paramsClose = spanOf(this.expect(")", "to close the parameters"));
 		const returns = this.accept(":") ? this.returnType() : undefined;
 		const body = this.block();
-		this.expect("end", "to close the function");
-		return { generics, params, ...(varargs ? { varargs } : {}), ...(returns ? { returns } : {}), body, ...this.span(start) };
+		const endKeyword = spanOf(this.expect("end", "to close the function"));
+		return {
+			generics, params, ...(varargs ? { varargs } : {}), ...(returns ? { returns } : {}),
+			body, paramsClose, endKeyword, ...this.span(start),
+		};
 	}
 
 	/** `...: T` or `...: T...`: the type of a function's varargs. */
@@ -903,13 +928,22 @@ class Parser {
 
 /** A whole file or a Custom Code body: a block of statements. */
 export function parseChunk(src: string): ParseResult<Block> {
-	const parser = new Parser(src);
+	return parseTokens(tokenize(src));
+}
+
+/** `parseChunk` over tokens already read, for a caller that keeps them: see `file.ts`. */
+export function parseTokens(tokens: readonly Token[]): ParseResult<Block> {
+	const parser = new Parser(tokens);
 	const value = parser.parseChunk();
 	return { value, errors: parser.errors };
 }
 
-/** Words that can only start a statement, never a value. */
-const STATEMENT_WORDS = /^(local|if|for|while|repeat|return|do|end|else|elseif|until|break|function\s+[A-Za-z_])\b/;
+/**
+ * Words that can only start a statement, never a value. `if` is not among
+ * them: `if a then 1 else 2` is an if-expression. An `if` that reads only as
+ * a statement is caught below, once the expression has failed.
+ */
+const STATEMENT_WORDS = /^(local|for|while|repeat|return|do|end|else|elseif|until|break|function\s+[A-Za-z_])\b/;
 
 /**
  * Exactly one value: what a Luau Expression node holds, or code typed into a
@@ -917,21 +951,26 @@ const STATEMENT_WORDS = /^(local|if|for|while|repeat|return|do|end|else|elseif|u
  * apart, so it is named as that rather than as a stray token.
  */
 export function parseExpression(src: string): ParseResult<Expr | undefined> {
-	const opener = STATEMENT_WORDS.exec(src.trimStart());
-	if (opener) {
-		const start = src.length - src.trimStart().length;
-		const word = opener[1].split(/\s/)[0];
-		return {
-			value: undefined,
-			errors: [{
-				start, end: start + word.length,
-				message:
-					`"${word}" starts a statement, and this is a value. Use Custom Code for ` +
-					"statements; it sits in the execution chain instead.",
-			}],
-		};
+	const trimmed = src.trimStart();
+	const start = src.length - trimmed.length;
+	const statementError = (word: string): ParseResult<Expr | undefined> => ({
+		value: undefined,
+		errors: [{
+			start, end: start + word.length,
+			message:
+				`"${word}" starts a statement, and this is a value. Use Custom Code for ` +
+				"statements; it sits in the execution chain instead.",
+		}],
+	});
+	const opener = STATEMENT_WORDS.exec(trimmed);
+	if (opener) return statementError(opener[1].split(/\s/)[0]);
+	const parsed = parseWhole(src, (parser) => parser.expr(), "one value");
+	// `if a then f() end` is an if statement, which is the clearer thing to say
+	// than that an if-expression wants its `else`.
+	if (parsed.errors.length > 0 && /^if\b/.test(trimmed) && parseChunk(src).errors.length === 0) {
+		return statementError("if");
 	}
-	return parseWhole(src, (parser) => parser.expr(), "one value");
+	return parsed;
 }
 
 /** Exactly one type: a Declare Type written out, or a type typed into a picker. */
@@ -940,7 +979,7 @@ export function parseType(src: string): ParseResult<TypeNode | undefined> {
 }
 
 function parseWhole<T>(src: string, read: (parser: Parser) => T, what: string): ParseResult<T | undefined> {
-	const parser = new Parser(src);
+	const parser = new Parser(tokenize(src));
 	let value: T | undefined;
 	try {
 		value = read(parser);

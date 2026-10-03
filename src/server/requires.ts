@@ -11,6 +11,7 @@
 
 import { chainFor, parseLuaurc, resolveSpecifier } from "../core/luaurc.js";
 import { isFilesystemMap, type MapNode, type NodeMap } from "../core/nodemap.js";
+import { instanceNameOf, locateUnder, mappedPaths, normalisePath, scriptClassOf } from "../core/rojoPaths.js";
 import type { TableMember } from "../core/luau/infer.js";
 import { moduleExports, requiresIn, type ModuleExports, type RequireTarget } from "../core/luau/requires.js";
 import { mergeDocs, type DocComment } from "../core/luau/docComment.js";
@@ -32,8 +33,6 @@ export interface ResolvedModule {
 	detail?: string;
 	doc?: DocComment;
 }
-
-const posix = (p: string) => p.split(String.fromCharCode(92)).join("/").replace(/^\.\//, "").replace(/\/+$/, "");
 
 /** Everything read once per request: maps, and project files met on the way. */
 class Resolver {
@@ -61,7 +60,7 @@ class Resolver {
 		if (this.projectPaths.has(dir)) return this.projectPaths.get(dir)!;
 		const text = await fs.readFile(safeJoin(this.project.root, `${dir}/default.project.json`), "utf8").catch(() => null);
 		const tree = text === null ? undefined : (parseProject(text) as { tree?: { $path?: unknown } } | undefined)?.tree;
-		const found = typeof tree?.$path === "string" ? posix(path.posix.join(dir, tree.$path)) : null;
+		const found = typeof tree?.$path === "string" ? normalisePath(path.posix.join(dir, tree.$path)) : null;
 		this.projectPaths.set(dir, found);
 		return found;
 	}
@@ -85,7 +84,7 @@ class Resolver {
 				const child: MapNode | undefined = node.children.find((c) => c.name === segments[i]);
 				if (!child) break;
 				node = child;
-				if (child.path) best = { dir: posix(child.path), used: i + 1 };
+				if (child.path) best = { dir: normalisePath(child.path), used: i + 1 };
 			}
 			if (!best) continue;
 			let dir = best.dir;
@@ -108,25 +107,11 @@ class Resolver {
 
 	/** The instance path a file is at, with a package folder's `src/` taken out. */
 	async pathOf(file: string): Promise<string[] | null> {
-		const target = posix(file);
-		let best: { segments: string[]; base: string } | null = null;
-		const visit = (map: NodeMap, node: MapNode, trail: string[]) => {
-			const here = node === map.root ? trail : [...trail, node.name];
-			if (node.path) {
-				const base = posix(node.path);
-				if ((target === base || target.startsWith(base + "/")) && (!best || base.length > best.base.length)) {
-					best = { segments: here, base };
-				}
-			}
-			for (const child of node.children) visit(map, child, here);
-		};
-		for (const map of await this.dataModelMaps()) visit(map, map.root, []);
-		if (!best) return null;
-		const { segments, base } = best as { segments: string[]; base: string };
-		const parts = target === base ? [] : target.slice(base.length + 1).split("/");
-		const leaf = parts.pop();
-		const out = [...segments];
-		let dir = base;
+		const found = locateUnder((await this.dataModelMaps()).flatMap((map) => mappedPaths(map.root)), file);
+		if (!found) return null;
+		const { parts, leaf } = found;
+		const out = [...found.segments];
+		let dir = found.base;
 		for (let i = 0; i < parts.length; i++) {
 			dir = `${dir}/${parts[i]}`;
 			out.push(parts[i]);
@@ -139,16 +124,14 @@ class Resolver {
 				dir = inner;
 			}
 		}
-		if (leaf !== undefined) {
-			const stem = leaf.replace(/\.(luau|lua)$/i, "").replace(/\.(server|client)$/i, "");
-			if (stem.toLowerCase() !== "init") out.push(stem);
-		}
+		const named = leaf === undefined ? undefined : instanceNameOf(leaf);
+		if (named !== undefined) out.push(named);
 		return out;
 	}
 
 	/** The file a require from `from` reaches. */
 	async resolve(from: string, target: RequireTarget): Promise<string | null> {
-		if (target.t === "instance") {
+		if (target.kind === "instance") {
 			const start = target.from === "game" ? [] : await this.pathOf(from);
 			if (!start) return null;
 			const segments = [...start];
@@ -163,19 +146,19 @@ class Resolver {
 		}
 		const spec = target.spec.trim();
 		const isInit = /(^|\/)init(\.server|\.client)?\.luau?$/i.test(from);
-		const dir = path.posix.dirname(posix(from));
+		const dir = path.posix.dirname(normalisePath(from));
 		if (spec.startsWith("./") || spec.startsWith("../")) {
-			return this.moduleAt(posix(path.posix.join(isInit ? path.posix.dirname(dir) : dir, spec)));
+			return this.moduleAt(normalisePath(path.posix.join(isInit ? path.posix.dirname(dir) : dir, spec)));
 		}
 		if (spec.startsWith("@self/")) {
-			const own = isInit ? dir : posix(from).replace(/\.luau?$/i, "");
-			return this.moduleAt(posix(path.posix.join(own, spec.slice("@self/".length))));
+			const own = isInit ? dir : normalisePath(from).replace(/\.luau?$/i, "");
+			return this.moduleAt(normalisePath(path.posix.join(own, spec.slice("@self/".length))));
 		}
 		if (spec.startsWith("@game/")) return this.fileAt(spec.slice("@game/".length).split("/"));
 		if (spec.startsWith("@")) {
 			if (!this.luaurc) this.luaurc = (await readLuaurcFiles(this.project)).map((f) => parseLuaurc(f.dir, f.text));
 			const found = resolveSpecifier(chainFor(this.luaurc, from), spec);
-			return found.t === "found" ? this.moduleAt(posix(found.alias.path)) : null;
+			return found.t === "found" ? this.moduleAt(normalisePath(found.alias.path)) : null;
 		}
 		return null;
 	}
@@ -254,9 +237,6 @@ export async function instancePathOf(project: OpenProject, file: string): Promis
 /** Folders never walked for instances: Wally's package store, and what is not the game's. */
 const NOT_WALKED = new Set(["_Index", "node_modules", ".git"]);
 
-const scriptClassOf = (file: string) =>
-	/\.server\.luau?$/i.test(file) ? "Script" : /\.client\.luau?$/i.test(file) ? "LocalScript" : "ModuleScript";
-
 /**
  * The DataModel as the project knows it: the place's instances, with every
  * script and folder the node maps put there that the place does not have yet
@@ -308,7 +288,7 @@ export async function projectInstances(project: OpenProject, place: InstanceOutl
 		const here = root ? trail : [...trail, node.name];
 		if (!root && here.length) add(here, node.className || (here.length === 1 ? node.name : "Folder"));
 		if (node.path) {
-			const target = posix(node.path);
+			const target = normalisePath(node.path);
 			const isFile = await fs.stat(safeJoin(project.root, target)).then((s) => s.isFile(), () => false);
 			if (isFile) {
 				if (here.length) add(here, scriptClassOf(target));

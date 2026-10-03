@@ -126,11 +126,17 @@ describe("a local's doc comment", () => {
 
 describe("types from a doc comment", () => {
 	it("never replace types the code writes", () => {
-		expect(withDocTypes("(n: string) -> (boolean)", parseDoc("@param n number\n@return number"))).toBe("(n: string) -> (boolean)");
+		const written = { params: [{ name: "n", type: "string" }], returns: "boolean" };
+		expect(withDocTypes(written, parseDoc("@param n number\n@return number"))).toBe("(n: string) -> (boolean)");
 	});
 
 	it("give several returns as a tuple", () => {
-		expect(withDocTypes("() -> ()", parseDoc("@return boolean\n@return string"))).toBe("() -> (boolean, string)");
+		expect(withDocTypes({ params: [], returns: "" }, parseDoc("@return boolean\n@return string"))).toBe("() -> (boolean, string)");
+	});
+
+	it("fill in a parameter whose own type is a function type", () => {
+		const doc = parseDoc("@param cb (x: number) -> ()\n@param n number");
+		expect(withDocTypes({ params: [{ name: "cb" }, { name: "n" }], returns: "" }, doc)).toBe("(cb: (x: number) -> (), n: number) -> ()");
 	});
 });
 
@@ -229,6 +235,12 @@ describe("Moonwave comments that name what they are about", () => {
 		"",
 		"return Crate",
 	].join("\n");
+
+	it("take a type named with a bracket in it as a name, not a pattern", () => {
+		const src = ["--- @type Foo[ string", "", "--[=[", "\t@return Foo[", "]=]", "local function make() end"].join("\n");
+		const hover = hoverAt(src, src.indexOf("make") + 1, true);
+		expect(hover?.doc?.related?.map((r) => r.name)).toEqual(["Foo["]);
+	});
 
 	it("are read wherever they stand, by name", () => {
 		expect(docRegistry(LIB).map((e) => `${e.tag} ${e.name}${e.within ? ` in ${e.within}` : ""}`))

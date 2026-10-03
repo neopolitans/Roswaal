@@ -90,6 +90,21 @@ describe("the cases from the generated Remotes file", () => {
 	});
 });
 
+describe("where a name stands, read off the tree", () => {
+	it("reads only a bare name before a dot as a local", () => {
+		const src = 'local b = Instance.new("Part")\nprint(x.b.Name, b.Name)';
+		expect(hoverAt(src, src.indexOf("Name") + 1)).toBeNull();
+		expect(hoverAt(src, src.lastIndexOf("Name") + 1)).toMatchObject({ code: "Part.Name: string", role: "property" });
+	});
+
+	it("does not take a string that only follows a class call for its argument", () => {
+		const src = 'local t = { Instance.new, "Part" }';
+		expect(hoverAt(src, src.indexOf('"Part"') + 2)).toBeNull();
+		const arg = 'local p = Instance.new("Part", workspace)';
+		expect(hoverAt(arg, arg.indexOf('"Part"') + 2)).toMatchObject({ code: "Part", role: "class" });
+	});
+});
+
 describe("events and enums, from the engine catalogue", () => {
 	it("describes an event read off a local", () => {
 		const src = 'local part = Instance.new("Part")\npart.Touched:Connect(print)';

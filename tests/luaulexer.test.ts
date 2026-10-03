@@ -67,6 +67,12 @@ describe("numbers", () => {
 	it("refuses a number run into a name", () => {
 		expect(errors("local x = 3abc")[0].message).toBe("This is not a number Luau can read.");
 	});
+
+	it("refuses 0x and 0b with no digits after them", () => {
+		expect(errors("local x = 0x")[0]?.message).toBe("This is not a number Luau can read.");
+		expect(errors("local x = 0b_ + 1")[0]?.message).toBe("This is not a number Luau can read.");
+		expect(errors("local x = 0x_1 + 0b_1")).toEqual([]);
+	});
 });
 
 describe("strings", () => {
@@ -122,6 +128,16 @@ describe("interpolated strings", () => {
 
 	it("keeps an escaped brace in the text", () => {
 		expect(lex("`\\{not a hole}`")).toEqual(["interpSimple:`\\{not a hole}`"]);
+	});
+
+	it("reads a \\u{…} escape whole, not as a hole", () => {
+		expect(lex("`\\u{48}i`")).toEqual(["interpSimple:`\\u{48}i`"]);
+		expect(lex("`\\u{48} {n}`")).toEqual(["interpBegin:`\\u{48} {", "name:n", "interpEnd:}`"]);
+	});
+
+	it("skips the line break after \\z, as a quoted string does", () => {
+		expect(errors("local s = `a\\z\n   b`")).toEqual([]);
+		expect(lex("`a\\z\n   b`")).toEqual(["interpSimple:`a\\z\n   b`"]);
 	});
 });
 

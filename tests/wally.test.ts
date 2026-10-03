@@ -45,6 +45,15 @@ describe("reading wally.toml", () => {
 		expect(thunkTarget("return {}")).toBeUndefined();
 		expect(indexVersion("sleitnick_signal@2.0.0")).toBe("2.0.0");
 	});
+
+	it("reads a package's own thunk, and nothing that only looks like one", () => {
+		expect(thunkTarget('return require(script.Parent.Parent["sleitnick_signal@2.0.0"].signal)'))
+			.toEqual(["Parent", "sleitnick_signal@2.0.0", "signal"]);
+		expect(thunkTarget('--[[\nreturn require(script.Parent._Index["a_b@1.0.0"]["b"])\n]]\nreturn {}')).toBeUndefined();
+		expect(thunkTarget('local x = 1\nreturn require(script.Parent._Index["a_b@1.0.0"]["b"])')).toBeUndefined();
+		expect(thunkTarget('return require(script.Parent:WaitForChild("_Index")["a_b@1.0.0"].b)'))
+			.toEqual(["_Index", "a_b@1.0.0", "b"]);
+	});
 });
 
 describe("Wally in the project tree", () => {

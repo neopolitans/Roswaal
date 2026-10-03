@@ -39,6 +39,20 @@ describe("after a datatype's name and a dot", () => {
 		expect(offered("math.|")).toContain("clamp");
 	});
 
+	it("offers every library's members from the engine catalogue", () => {
+		expect(offered("bit32.|")).toEqual(expect.arrayContaining(["band", "bor", "lshift"]));
+		expect(offered("buffer.|")).toEqual(expect.arrayContaining(["create", "readu8", "writef64"]));
+		expect(offered("vector.|")).toEqual(expect.arrayContaining(["create", "zero", "magnitude"]));
+		expect(offered("math.|")).toEqual(expect.arrayContaining(["pi", "lerp", "map"]));
+		expect(offered("table.|").filter((m) => m === "insert")).toHaveLength(1);
+	});
+
+	it("offers what game, workspace and script hold as instances", () => {
+		expect(offered("workspace.|")).toEqual(expect.arrayContaining(["CurrentCamera", "Gravity"]));
+		expect(offered("script.|")).toContain("Parent");
+		expect(offered("game.|")).not.toContain("GetService");
+	});
+
 	it("offers none of Roblox's in a Lune graph", () => {
 		expect(offered("local part = Instance.|", "lune")).toEqual([]);
 		expect(offered("math.|", "lune")).toContain("clamp");
@@ -53,6 +67,11 @@ describe("a class name in the string it is given as", () => {
 	it("completes IsA and the Find First Of Class calls", () => {
 		expect(offered('if hit:IsA("Base|')).toContain("BasePart");
 		expect(offered("character:FindFirstChildOfClass('Hum|")).toContain("Humanoid");
+	});
+
+	it("reads the call from code, not from a comment that looks like one", () => {
+		expect(offered('-- Instance.new("Pa|')).not.toContain("Part");
+		expect(offered('Instance.new( "Pa|')).toContain("Part");
 	});
 
 	it("completes a service for GetService", () => {

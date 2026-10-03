@@ -34,6 +34,7 @@
  */
 
 import { type MapNode, type NodeMap, serialiseMap } from "../nodemap.js";
+import { scriptSuffix } from "../rojoPaths.js";
 import { SCHEMA_VERSION } from "../schema.js";
 import { isScript, pathOf, type RbxDocument, type RbxInstance, stringProp, walk } from "./dom.js";
 
@@ -193,8 +194,6 @@ export function surveyPlace(doc: RbxDocument): PlaceSurvey {
 	};
 }
 
-const SUFFIX: Record<string, string> = { Script: ".server.luau", LocalScript: ".client.luau", ModuleScript: ".luau" };
-
 /** RunContext as Rojo writes it in a meta file. */
 const RUN_CONTEXT = ["Legacy", "Server", "Client", "Plugin"];
 
@@ -255,8 +254,8 @@ export function planImport(survey: PlaceSurvey, options: PlaceImportOptions): Pl
 		const dir = segments.slice(0, -1);
 		const hasChildren = scriptsWithChildren.has(s.inst);
 		const file = hasChildren
-			? `${options.outDir}/${segments.join("/")}/init${SUFFIX[s.className]}`
-			: `${options.outDir}/${dir.join("/")}/${s.inst.name}${SUFFIX[s.className]}`;
+			? `${options.outDir}/${segments.join("/")}/init${scriptSuffix(s.className)}`
+			: `${options.outDir}/${dir.join("/")}/${s.inst.name}${scriptSuffix(s.className)}`;
 		files[file] = s.source;
 		const meta = scriptMeta(s.inst);
 		// Children the import leaves in the place are kept by saying so.
@@ -338,10 +337,10 @@ export function planImport(survey: PlaceSurvey, options: PlaceImportOptions): Pl
 			let file: string;
 			if (group.length > 1) {
 				const dir = `${PLACE_DIR}/Shared`;
-				file = `${dir}/${claim(dir, safeSegment(sharedName(group)))}${SUFFIX[first.className]}`;
+				file = `${dir}/${claim(dir, safeSegment(sharedName(group)))}${scriptSuffix(first.className)}`;
 			} else {
 				const dir = dirOf(first.inst.parent);
-				file = `${dir}/${claim(dir, safeSegment(first.inst.name) + SUFFIX[first.className])}`;
+				file = `${dir}/${claim(dir, safeSegment(first.inst.name) + scriptSuffix(first.className))}`;
 			}
 			files[file] = first.source;
 			links.push({

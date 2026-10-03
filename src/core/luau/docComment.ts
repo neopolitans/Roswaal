@@ -11,7 +11,7 @@
  * Prose does not: "Fires when a player's region changes." is not a statement.
  */
 
-import { tokenize, type Token } from "./lexer.js";
+import { luauFile, type LuauFile } from "./file.js";
 import { parseChunk } from "./parser.js";
 
 export interface DocComment {
@@ -85,7 +85,11 @@ export interface DocEntry {
  * these stand anywhere, not above what they describe: Sift lists its
  * submodules as `--- @prop Array Array` lines after the table is built.
  */
-export function docRegistry(src: string, tokens: Token[] = tokenize(src)): DocEntry[] {
+export function docRegistry(src: string): readonly DocEntry[] {
+	const file = luauFile(src);
+	const kept = registries.get(file);
+	if (kept) return kept;
+	const { tokens } = file;
 	const out: DocEntry[] = [];
 	for (let i = 0; i < tokens.length; i++) {
 		if (tokens[i].kind !== "comment") continue;
@@ -93,13 +97,17 @@ export function docRegistry(src: string, tokens: Token[] = tokenize(src)): DocEn
 		let j = i + 1;
 		if (tokens[j]?.kind === "whitespace" && (tokens[j].text.match(/\n/g) ?? []).length <= 1) j++;
 		if (tokens[j]?.kind === "comment") continue;
-		const doc = docCommentBefore(src, tokens[i].end, tokens);
+		const doc = docCommentBefore(src, tokens[i].end);
 		if (doc?.subject?.name) {
 			out.push({ tag: doc.subject.tag, name: doc.subject.name, ...(doc.within ? { within: doc.within } : {}), doc });
 		}
 	}
+	registries.set(file, out);
 	return out;
 }
+
+/** Each file's registry, read once: hover asks for it at every name. */
+const registries = new WeakMap<LuauFile, readonly DocEntry[]>();
 
 /**
  * A comment for `name` within `owner` from the registry: an `@prop`,
@@ -117,7 +125,11 @@ export function withRelated(doc: DocComment, entries: readonly DocEntry[]): DocC
 	const named = new Map(entries.filter((e) => e.tag === "interface" || e.tag === "type").map((e) => [e.name, e]));
 	if (named.size === 0) return doc;
 	const types = [...doc.params.map((p) => p.type ?? ""), ...doc.returns.map((r) => r.type)].join(" ");
-	const related = [...named.values()].filter((e) => new RegExp(`\\b${e.name}\\b`).test(types)).map((e) => ({
+	// The name as written in a comment, so anything may be in it: `@type Foo[`
+	// must not become a pattern.
+	const names = (name: string) =>
+		new RegExp(`(?<![A-Za-z0-9_])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Za-z0-9_])`);
+	const related = [...named.values()].filter((e) => names(e.name).test(types)).map((e) => ({
 		name: e.name,
 		...(e.doc.subject?.type ? { type: e.doc.subject.type } : {}),
 		text: e.doc.text,
@@ -127,7 +139,8 @@ export function withRelated(doc: DocComment, entries: readonly DocEntry[]): DocC
 }
 
 /** The doc comment ending directly above `offset`, the start of a statement. */
-export function docCommentBefore(src: string, offset: number, tokens: Token[] = tokenize(src)): DocComment | undefined {
+export function docCommentBefore(src: string, offset: number): DocComment | undefined {
+	const { tokens } = luauFile(src);
 	// The last token that ends at or before the statement.
 	let i = -1;
 	for (let lo = 0, hi = tokens.length - 1; lo <= hi; ) {

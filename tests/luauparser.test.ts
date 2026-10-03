@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Expr, Stat, TypeNode } from "../src/core/luau/ast.js";
 import { parseChunk } from "../src/core/luau/parser.js";
+import { nodeAt, nodesAt, visitBlock } from "../src/core/luau/visit.js";
 
 function ok(src: string): Stat[] {
 	const { value, errors } = parseChunk(src);
@@ -106,10 +107,24 @@ describe("statements", () => {
 			return a
 		`).map((s) => s.kind);
 		expect(kinds).toEqual([
-			"local", "const", "localFunction", "function", "function", "assign", "compoundAssign",
-			"compoundAssign", "call", "do", "while", "repeat", "if", "numericFor", "genericFor",
+			"local", "const", "localFunction", "functionStat", "functionStat", "assign", "compoundAssign",
+			"compoundAssign", "callStat", "do", "while", "repeat", "if", "numericFor", "genericFor",
 			"typeAlias", "typeAlias", "return",
 		]);
+	});
+
+	it("keeps where each block's keywords are", () => {
+		const src = "if a then elseif b then else end while c do end repeat until d for i = 1, 2 do end\n"
+			+ "local function f(x) end";
+		const text = (span: { start: number; end: number } | undefined) => span && src.slice(span.start, span.end);
+		const [ifStat, whileStat, repeatStat, forStat, fn] = ok(src);
+		if (ifStat.kind !== "if" || whileStat.kind !== "while" || repeatStat.kind !== "repeat") throw new Error();
+		if (forStat.kind !== "numericFor" || fn.kind !== "localFunction") throw new Error();
+		expect(ifStat.clauses.map((c) => [text(c.keyword), text(c.thenKeyword)])).toEqual([["if", "then"], ["elseif", "then"]]);
+		expect([text(ifStat.elseKeyword), text(ifStat.endKeyword)]).toEqual(["else", "end"]);
+		expect([text(whileStat.doKeyword), text(whileStat.endKeyword), text(repeatStat.untilKeyword)]).toEqual(["do", "end", "until"]);
+		expect([text(forStat.doKeyword), text(forStat.endKeyword)]).toEqual(["do", "end"]);
+		expect([text(fn.func.paramsClose), text(fn.func.endKeyword)]).toEqual([")", "end"]);
 	});
 
 	it("keeps attributes on a function", () => {
@@ -195,6 +210,17 @@ describe("errors", () => {
 		expect(messages("return 1\nprint(2)")).toContain("Nothing can follow a return in the same block.");
 	});
 
+	it("refuses anything after a break or a continue, and says so once", () => {
+		expect(messages("while x do break print(1) end")).toEqual(["Nothing can follow a break in the same block."]);
+		expect(messages("for i = 1, 2 do continue; f() end")).toEqual(["Nothing can follow a continue in the same block."]);
+		expect(messages("while x do if y then break end continue end")).toEqual([]);
+	});
+
+	it("leaves the end for its block when a statement stops at it", () => {
+		expect(messages("if a then\n\tlocal x =\nend")).toEqual(['Expected a value, but found "end".']);
+		expect(messages("function f()\n\tg(\nend")).toEqual(['Expected a value, but found "end".']);
+	});
+
 	it("says an if-expression needs its else", () => {
 		expect(messages("local x = if a then 1")[0]).toBe(
 			'Expected "else" — an if-expression always has an else, but found the end of the code.',
@@ -207,5 +233,41 @@ describe("errors", () => {
 
 	it("reports what the lexer could not read", () => {
 		expect(messages("local s = 'open\nprint(s)")).toContain("This string is not closed before the end of the line.");
+	});
+});
+
+describe("walking the tree", () => {
+	it("reaches every name, in statements, expressions, function bodies and types", () => {
+		const block = ok([
+			"local a: typeof(b) = function(c) return d[e] end",
+			"function M.f() g(h, `x {i}`) end",
+			"for _, j in k do l += if m then n else o end",
+		].join("\n"));
+		const names: string[] = [];
+		visitBlock(block, {
+			expr: (e) => {
+				if (e.kind === "name") names.push(e.name);
+			},
+		});
+		expect(names).toEqual(["b", "d", "e", "g", "h", "i", "k", "l", "m", "n", "o"]);
+	});
+
+	it("finds the nodes around a point, outermost first", () => {
+		const src = "print(a.b, c)";
+		const path = nodesAt(ok(src), src.indexOf("b"));
+		expect(path.map((n) => `${n.role}:${n.role === "func" ? "body" : n.node.kind}`)).toEqual(["stat:callStat", "expr:call", "expr:index"]);
+		expect(nodeAt(ok(src), src.indexOf("c"))?.node).toMatchObject({ kind: "name", name: "c" });
+		expect(nodesAt(ok("f()\n\ng()"), 4)).toEqual([]);
+	});
+
+	it("leaves a node's children out when the visitor says so", () => {
+		const calls: string[] = [];
+		visitBlock(ok("f(function() g() end)"), {
+			expr: (e) => {
+				if (e.kind === "call" && e.callee.kind === "name") calls.push(e.callee.name);
+				return e.kind !== "function";
+			},
+		});
+		expect(calls).toEqual(["f"]);
 	});
 });

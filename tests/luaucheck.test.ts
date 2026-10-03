@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { checkLuau } from "../src/core/luau/check.js";
+import { checkLuau, checkTemplate } from "../src/core/luau/check.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { Builder } from "./helpers.js";
@@ -38,6 +38,13 @@ describe("checkLuau", () => {
 		expect(messages("  return 1", "expression")[0]).toContain('"return" starts a statement');
 	});
 
+	it("takes an if-expression as a value, and names an if statement as a statement", () => {
+		expect(messages("if a then 1 else 2", "expression")).toEqual([]);
+		expect(messages("  if a then 1 elseif b then 2 else 3", "expression")).toEqual([]);
+		expect(messages("if a then f() end", "expression")[0]).toContain('"if" starts a statement');
+		expect(messages("if a then 1", "expression")[0]).toContain("an if-expression always has an else");
+	});
+
 	it("still takes an anonymous function as a value", () => {
 		expect(messages("function(x) return x end", "expression")).toEqual([]);
 	});
@@ -55,6 +62,55 @@ describe("checkLuau", () => {
 	it("marks at least one character, even at the end of the text", () => {
 		const [problem] = checkLuau("f(", "block");
 		expect(problem.to).toBeGreaterThan(problem.from);
+	});
+
+	// Cases the bracket balance check was held to, kept for the parser.
+	it("reads block words inside strings and comments as text", () => {
+		expect(messages(`local s = "end end end" -- end`, "block")).toEqual([]);
+		expect(messages("--[[ if then ]] print(1)", "block")).toEqual([]);
+		expect(messages("--[=[ if x then ]=] print(1)", "block")).toEqual([]);
+	});
+
+	it("does not take elseif for a second if", () => {
+		expect(messages("if a then\n\tx()\nelseif b then\n\ty()\nend", "block")).toEqual([]);
+	});
+
+	it("points an unclosed string at its line and its quote", () => {
+		const source = 'local a = 1\nlocal b = "oops';
+		const [problem] = checkLuau(source, "block");
+		expect(problem.message).toBe("This string is not closed before the end of the code.");
+		expect(problem.line).toBe(2);
+		expect(source[problem.from]).toBe('"');
+	});
+
+	it("finds a bracket closed by the wrong one", () => {
+		expect(messages("print(1]", "block")).toEqual(['Expected ")" to close the call\'s arguments, but found "]".']);
+	});
+});
+
+describe("checkTemplate", () => {
+	it("reads placeholders as names, and keeps every offset", () => {
+		expect(checkTemplate("$out.h, $out.s, $out.v = $in.color:ToHSV()")).toEqual([]);
+		expect(checkTemplate("print(`it's {$in.n}`)")).toEqual([]);
+		expect(checkTemplate("f($in.a$opt(, ))")).toEqual([]);
+		expect(checkTemplate("{$pairs(, )}", "expression")).toEqual([]);
+		expect(checkTemplate("$in.part!ident.Name = $in.name")).toEqual([]);
+		const source = "local x = $in.force +\n";
+		const [problem] = checkTemplate(source, "block");
+		expect(problem.message).toBe("Expected a value, but found the end of the code.");
+		expect(problem.from).toBe(source.length);
+	});
+
+	it("does not fault what the bracket balance check did", () => {
+		expect(checkTemplate("print(`it's {$in.n}`)", "block")).toEqual([]);
+		expect(checkTemplate("--[=[ … if x then … ]=]\nprint($in.x)", "block")).toEqual([]);
+	});
+
+	it("takes a template as statements or as one value, unless told which", () => {
+		expect(checkTemplate("$in.a + $in.b")).toEqual([]);
+		expect(checkTemplate("$in.a + $in.b", "block")[0].message).toContain("This is a value on its own");
+		expect(checkTemplate("local x = $in.a", "expression")[0].message).toContain('"local" starts a statement');
+		expect(checkTemplate("if $in.a then")[0].message).toContain('Expected "end" to close the if');
 	});
 });
 

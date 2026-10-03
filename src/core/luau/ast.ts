@@ -34,21 +34,40 @@ export type Stat =
 	| ({ kind: "const"; names: Binding[]; values: Expr[] } & Span)
 	/** `constant`: written `const function`, which cannot be reassigned. */
 	| ({ kind: "localFunction"; name: Name; func: FunctionBody; attributes: Attribute[]; constant?: true } & Span)
-	| ({ kind: "function"; path: Name[]; method?: Name; func: FunctionBody; attributes: Attribute[] } & Span)
+	/** `function a.b:c()`. Not `"function"`: that is the expression's kind, and one kind for both was read as the other. */
+	| ({ kind: "functionStat"; path: Name[]; method?: Name; func: FunctionBody; attributes: Attribute[] } & Span)
 	| ({ kind: "assign"; targets: Expr[]; values: Expr[] } & Span)
 	| ({ kind: "compoundAssign"; op: string; target: Expr; value: Expr } & Span)
-	| ({ kind: "call"; call: Expr } & Span)
-	| ({ kind: "do"; body: Block } & Span)
-	| ({ kind: "while"; condition: Expr; body: Block } & Span)
-	| ({ kind: "repeat"; body: Block; condition: Expr } & Span)
-	| ({ kind: "if"; clauses: { condition: Expr; body: Block }[]; orElse?: Block } & Span)
-	| ({ kind: "numericFor"; variable: Binding; from: Expr; to: Expr; step?: Expr; body: Block } & Span)
-	| ({ kind: "genericFor"; variables: Binding[]; values: Expr[]; body: Block } & Span)
+	/** A call standing as a statement; `call` is the call or method call itself. */
+	| ({ kind: "callStat"; call: Extract<Expr, { kind: "call" | "methodCall" }> } & Span)
+	| ({ kind: "do"; body: Block; endKeyword: Span } & Span)
+	| ({ kind: "while"; condition: Expr; doKeyword: Span; body: Block; endKeyword: Span } & Span)
+	| ({ kind: "repeat"; body: Block; untilKeyword: Span; condition: Expr } & Span)
+	| ({ kind: "if"; clauses: IfClause[]; elseKeyword?: Span; orElse?: Block; endKeyword: Span } & Span)
+	| ({
+		kind: "numericFor"; variable: Binding; from: Expr; to: Expr; step?: Expr;
+		doKeyword: Span; body: Block; endKeyword: Span;
+	} & Span)
+	| ({ kind: "genericFor"; variables: Binding[]; values: Expr[]; doKeyword: Span; body: Block; endKeyword: Span } & Span)
 	| ({ kind: "return"; values: Expr[] } & Span)
 	| ({ kind: "break" } & Span)
 	| ({ kind: "continue" } & Span)
 	| ({ kind: "typeAlias"; exported: boolean; name: Name; generics: GenericParam[]; type: TypeNode } & Span)
 	| ({ kind: "typeFunction"; exported: boolean; name: Name; func: FunctionBody } & Span);
+
+/**
+ * One `if … then` or `elseif … then` and the block under it. The keywords'
+ * spans say exactly where the block starts and stops, which the statements in
+ * it cannot: an empty block has none, and a cursor before the first one is
+ * still inside it.
+ */
+export interface IfClause {
+	/** The `if` or `elseif`. */
+	keyword: Span;
+	condition: Expr;
+	thenKeyword: Span;
+	body: Block;
+}
 
 /** `@native`, or the bracketed form `@[deprecated]`. */
 export interface Attribute extends Span {
@@ -75,8 +94,7 @@ export type Expr =
 	| ({ kind: "unary"; op: string; operand: Expr } & Span)
 	| ({ kind: "binary"; op: string; left: Expr; right: Expr } & Span)
 	| ({ kind: "cast"; value: Expr; type: TypeNode } & Span)
-	| ({ kind: "ifElse"; clauses: { condition: Expr; value: Expr }[]; orElse: Expr } & Span)
-	| ({ kind: "error" } & Span);
+	| ({ kind: "ifElse"; clauses: { condition: Expr; value: Expr }[]; orElse: Expr } & Span);
 
 export type TableField =
 	| ({ kind: "positional"; value: Expr } & Span)
@@ -90,6 +108,9 @@ export interface FunctionBody extends Span {
 	varargs?: Span & { type?: TypeNode };
 	returns?: TypePack;
 	body: Block;
+	/** The `)` that closes the parameters: the body starts after it. */
+	paramsClose: Span;
+	endKeyword: Span;
 }
 
 // -- types -------------------------------------------------------------------
@@ -110,8 +131,7 @@ export type TypeNode =
 	| ({ kind: "union"; types: TypeNode[] } & Span)
 	| ({ kind: "intersection"; types: TypeNode[] } & Span)
 	| ({ kind: "optional"; inner: TypeNode } & Span)
-	| ({ kind: "parenType"; inner: TypeNode } & Span)
-	| ({ kind: "errorType" } & Span);
+	| ({ kind: "parenType"; inner: TypeNode } & Span);
 
 export interface TableTypeProp extends Span {
 	name: string;

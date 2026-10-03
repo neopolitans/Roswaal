@@ -17,10 +17,9 @@
  */
 
 import { isBinaryRbx } from "./binary.js";
+import { cdata, type Chunk, chunkData, FIRST_CHUNK, readChunks, readReferents, sealChunk, u32, zigzag } from "./chunks.js";
 import { type RbxDocument, RbxError, type RbxInstance } from "./dom.js";
-import { lz4Compress, lz4Decompress } from "./lz4.js";
 import { parseXml, type XmlElement } from "./xml.js";
-import { isZstd, zstdDecompress } from "./zstd.js";
 
 /** An instance to create, under one in the file or one created before it. */
 export interface NewInstance {
@@ -47,10 +46,6 @@ export function addInstances(bytes: Uint8Array, doc: RbxDocument, added: readonl
 
 const utf8 = new TextEncoder();
 const text = new TextDecoder();
-
-function u32(b: Uint8Array, o: number): number {
-	return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
-}
 
 class Out {
 	private parts: Uint8Array[] = [];
@@ -81,9 +76,6 @@ class Out {
 	}
 }
 
-const zigzag = (v: number) => ((v << 1) ^ (v >> 31)) >>> 0;
-const unzigzag = (v: number) => (v >>> 1) ^ -(v & 1);
-
 /** Values of `width` bytes each, transposed as the format stores them. */
 function untranspose(b: Uint8Array, at: number, count: number, width: number): Uint8Array[] {
 	const out: Uint8Array[] = [];
@@ -105,11 +97,6 @@ function transpose(values: readonly Uint8Array[], width: number): Uint8Array {
 }
 
 const be32 = (v: number) => Uint8Array.of((v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255);
-
-function referents(b: Uint8Array, at: number, count: number): number[] {
-	let acc = 0;
-	return untranspose(b, at, count, 4).map((v) => (acc += unzigzag(((v[0] << 24) | (v[1] << 16) | (v[2] << 8) | v[3]) >>> 0)));
-}
 
 function encodeReferents(refs: readonly number[]): Uint8Array {
 	return transpose(refs.map((r, i) => be32(zigzag(i === 0 ? r : r - refs[i - 1]))), 4);
@@ -195,40 +182,16 @@ function int64(v: number): Uint8Array {
 	return out;
 }
 
-interface Chunk {
-	name: string;
-	/** The chunk exactly as it came, header and all. */
-	whole: Uint8Array;
+/** A chunk of the file, opened when it is one this changes. */
+interface Opened extends Chunk {
 	data?: Uint8Array;
 }
 
-function chunkOf(name: string, payload: Uint8Array): Uint8Array {
-	const packed = lz4Compress(payload);
-	const out = new Out();
-	out.bytes(utf8.encode(name.padEnd(4, "\0")));
-	out.u32(packed.length);
-	out.u32(payload.length);
-	out.u32(0);
-	out.bytes(packed);
-	return out.done();
-}
-
 function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array {
-	const chunks: Chunk[] = [];
-	for (let p = 32; p + 16 <= bytes.length; ) {
-		const name = String.fromCharCode(bytes[p], bytes[p + 1], bytes[p + 2], bytes[p + 3]);
-		const compressed = u32(bytes, p + 4);
-		const length = u32(bytes, p + 8);
-		const size = compressed === 0 ? length : compressed;
-		const raw = bytes.subarray(p + 16, p + 16 + size);
-		const chunk: Chunk = { name, whole: bytes.subarray(p, p + 16 + size) };
-		if (name === "INST" || name === "PROP" || name === "PRNT" || name === "SSTR") {
-			chunk.data = compressed === 0 ? raw : isZstd(raw) ? zstdDecompress(raw, length) : lz4Decompress(raw, length);
-		}
-		chunks.push(chunk);
-		p += 16 + size;
-		if (name === "END\0") break;
-	}
+	const chunks: Opened[] = readChunks(bytes).map((chunk) =>
+		(chunk.name === "INST" || chunk.name === "PROP" || chunk.name === "PRNT" || chunk.name === "SSTR"
+			? { ...chunk, data: chunkData(chunk) }
+			: chunk));
 
 	// What the file already holds.
 	const classes = new Map<string, { id: number; index: number; refs: number[] }>();
@@ -241,7 +204,7 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 		const n = u32(d, 4);
 		const className = text.decode(d.subarray(8, 8 + n));
 		const count = u32(d, 8 + n + 1);
-		const refs = referents(d, 8 + n + 5, count);
+		const refs = readReferents(d, 8 + n + 5, count);
 		classes.set(className, { id, index, refs });
 		maxClass = Math.max(maxClass, id);
 		for (const r of refs) maxRef = Math.max(maxRef, r);
@@ -305,7 +268,7 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 			inst.u8(0);
 			inst.u32(refs.length);
 			inst.bytes(encodeReferents(refs));
-			newInst.push(chunkOf("INST", inst.done()));
+			newInst.push(sealChunk("INST", inst.done()));
 			const props: [string, number, (i: NewInstance) => string][] = [["Name", 1, (i) => i.name]];
 			if (list.some((i) => i.source !== undefined)) props.push(["Source", 1, (i) => i.source ?? ""]);
 			for (const [prop, type, value] of props) {
@@ -314,7 +277,7 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 				out.string(prop);
 				out.u8(type);
 				for (const i of list) out.string(value(i));
-				newProps.push(chunkOf("PROP", out.done()));
+				newProps.push(sealChunk("PROP", out.done()));
 			}
 			continue;
 		}
@@ -358,7 +321,7 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 			const out = new Out();
 			out.bytes(d.subarray(0, 8 + n + 1));
 			out.bytes(writeProp([...values, ...fresh], layout));
-			replaced.set(at, chunkOf("PROP", out.done()));
+			replaced.set(at, sealChunk("PROP", out.done()));
 		});
 
 		const d = chunks[index].data!;
@@ -370,7 +333,7 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 		inst.u32(count + newRefs.length);
 		inst.bytes(encodeReferents([...refs, ...newRefs]));
 		if (d[8 + n] === 1) inst.bytes(new Uint8Array(count + newRefs.length).fill(1));
-		replaced.set(index, chunkOf("INST", inst.done()));
+		replaced.set(index, sealChunk("INST", inst.done()));
 	}
 
 	// The tree: every existing pair, then the new ones.
@@ -379,8 +342,8 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 	{
 		const d = chunks[prntIndex].data!;
 		const count = u32(d, 1);
-		const children = referents(d, 5, count);
-		const parents = referents(d, 5 + count * 4, count);
+		const children = readReferents(d, 5, count);
+		const parents = readReferents(d, 5 + count * 4, count);
 		for (const inst of added) {
 			children.push(refOf.get(inst)!);
 			parents.push(parentRef(inst));
@@ -390,7 +353,7 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 		out.u32(children.length);
 		out.bytes(encodeReferents(children));
 		out.bytes(encodeReferents(parents));
-		replaced.set(prntIndex, chunkOf("PRNT", out.done()));
+		replaced.set(prntIndex, sealChunk("PRNT", out.done()));
 	}
 	if (sharedChanged && sstrIndex >= 0) {
 		const d = chunks[sstrIndex].data!;
@@ -401,7 +364,7 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 			out.bytes(e.hash);
 			out.string(e.value);
 		}
-		replaced.set(sstrIndex, chunkOf("SSTR", out.done()));
+		replaced.set(sstrIndex, sealChunk("SSTR", out.done()));
 	}
 
 	// Reassembled in the file's own order: new classes' chunks after the last
@@ -409,7 +372,7 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 	const lastInst = chunks.map((c) => c.name).lastIndexOf("INST");
 	const lastProp = chunks.map((c) => c.name).lastIndexOf("PROP");
 	const out = new Out();
-	const header = bytes.slice(0, 32);
+	const header = bytes.slice(0, FIRST_CHUNK);
 	const view = new DataView(header.buffer);
 	view.setInt32(16, view.getInt32(16, true) + newClasses, true);
 	view.setInt32(20, view.getInt32(20, true) + added.length, true);
@@ -426,7 +389,6 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 // XML
 
 const escapeText = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const cdata = (s: string) => `<![CDATA[${s.split("]]>").join("]]]]><![CDATA[>")}]]>`;
 
 function referent(): string {
 	return "RBX" + Array.from(randomId(), (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();

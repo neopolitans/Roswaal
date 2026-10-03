@@ -31,11 +31,19 @@ describe("where a require goes", () => {
 			"local Computed = require(pick())",
 		].join("\n");
 		expect(requiresIn(src)).toEqual([
-			{ name: "Flux", target: { t: "instance", from: "game", names: ["ReplicatedStorage", "Packages", "Flux"] } },
-			{ name: "Shared", target: { t: "instance", from: "game", names: ["ReplicatedStorage", "Shared", "Util"] } },
-			{ name: "Sibling", target: { t: "instance", from: "script", names: ["..", "Sibling"] } },
-			{ name: "Path", target: { t: "string", spec: "./path" } },
+			{ name: "Flux", target: { kind: "instance", from: "game", names: ["ReplicatedStorage", "Packages", "Flux"] } },
+			{ name: "Shared", target: { kind: "instance", from: "game", names: ["ReplicatedStorage", "Shared", "Util"] } },
+			{ name: "Sibling", target: { kind: "instance", from: "script", names: ["..", "Sibling"] } },
+			{ name: "Path", target: { kind: "string", spec: "./path" } },
 		]);
+	});
+
+	it("does not follow a recursive FindFirstChild, which may land anywhere below", () => {
+		const src = [
+			'local Direct = require(game.ReplicatedStorage:FindFirstChild("Shared"))',
+			'local Anywhere = require(game.ReplicatedStorage:FindFirstChild("Shared", true))',
+		].join("\n");
+		expect(requiresIn(src).map((r) => r.name)).toEqual(["Direct"]);
 	});
 });
 
@@ -60,9 +68,9 @@ describe("what a module gives back", () => {
 
 	it("passes another module's through, and describes a returned global function", () => {
 		expect(moduleExports('return require(script.Parent._Index["a_b@1.0.0"]["b"])').reexport)
-			.toEqual({ t: "instance", from: "script", names: ["..", "_Index", "a_b@1.0.0", "b"] });
+			.toEqual({ kind: "instance", from: "script", names: ["..", "_Index", "a_b@1.0.0", "b"] });
 		expect(moduleExports("local Inner = require(script.Inner)\nreturn Inner").reexport)
-			.toEqual({ t: "instance", from: "script", names: ["Inner"] });
+			.toEqual({ kind: "instance", from: "script", names: ["Inner"] });
 		const button = moduleExports("--[[ A button. ]]\nfunction Button(props: {}) end\nreturn Button");
 		expect(button).toMatchObject({ kind: "function", detail: "(props: {}) -> ()", doc: { text: "A button." } });
 	});

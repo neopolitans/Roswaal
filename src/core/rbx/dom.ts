@@ -81,6 +81,18 @@ export interface RbxDocument {
 
 export class RbxError extends Error {}
 
+/**
+ * `error` as an `RbxError`, which is all a reader throws for a file it cannot
+ * read. A damaged file reaches code that trusts what the file says -- a length
+ * that runs past the end, a number that is not one -- and whatever failed
+ * there, the caller is told the file is the problem.
+ */
+export function asRbxError(error: unknown, what: string): RbxError {
+	if (error instanceof RbxError) return error;
+	const detail = error instanceof Error ? error.message : String(error);
+	return new RbxError(`${what}: ${detail}`);
+}
+
 const utf8 = new TextDecoder();
 
 /** A text property's value as a string; binary content decodes lossily. */

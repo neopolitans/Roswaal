@@ -54,7 +54,8 @@ const LOCAL_HEADER = 0x04034b50;
 /** Larger than any project file; an entry past it is left in the archive. */
 export const LARGEST_ENTRY = 8 * 1024 * 1024;
 
-class ZipError extends Error {}
+/** What `unzip` throws for an archive it cannot read: not a zip, ZIP64, or damaged. */
+export class ZipError extends Error {}
 
 async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
 	const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"));

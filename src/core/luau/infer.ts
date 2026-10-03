@@ -17,8 +17,9 @@
 
 import type { Expr, FunctionBody, Stat } from "./ast.js";
 import { docCommentBefore, docFor, docRegistry, registeredDoc, withRelated, type DocComment } from "./docComment.js";
-import { tokenize, type Token } from "./lexer.js";
-import { parseChunk } from "./parser.js";
+import { luauFile } from "./file.js";
+import type { Token } from "./lexer.js";
+import { visitBlock } from "./visit.js";
 import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
 import { isService } from "../roblox.js";
 import { CLASS_METHODS, type ClassMethod } from "../robloxStatics.js";
@@ -114,11 +115,42 @@ export function eventsOf(className: string): (EngineEvent & { from: string })[] 
 	return out;
 }
 
+/**
+ * Methods whose first argument, as a string, is a class name: what the
+ * hover over `x:IsA("Model")` and the completion inside its quotes both ask.
+ * `GetService` names a service, which is a class too.
+ */
+export const CLASS_ARGUMENT_METHODS: ReadonlySet<string> = new Set(["IsA", ...CLASS_NAMING_CALLS]);
+
+/** Whether `callee` is `Instance.new`, the one function whose first argument names a class. */
+function isInstanceNew(callee: Expr): boolean {
+	return callee.kind === "index" && callee.object.kind === "name" && callee.object.name === "Instance"
+		&& callee.name.name === "new";
+}
+
+/** Whether a call's first argument names a class: `Instance.new("Part")`, `x:IsA("Model")`. */
+export function takesClassName(call: Expr): boolean {
+	if (call.kind === "call") return isInstanceNew(call.callee);
+	return call.kind === "methodCall" && CLASS_ARGUMENT_METHODS.has(call.method.name);
+}
+
+/**
+ * What the string being typed after `tokens` names, when they end with the
+ * opening bracket of a call that takes a class: `"service"` after
+ * `:GetService(`, `"class"` after `Instance.new(` or `:IsA(`. Read from the
+ * lexer's tokens, since a call being typed does not parse yet.
+ */
+export function classCallBefore(tokens: readonly Token[]): "class" | "service" | undefined {
+	const at = (back: number) => tokens[tokens.length - back]?.text;
+	if (at(1) !== "(") return undefined;
+	if (at(3) === ":" && CLASS_ARGUMENT_METHODS.has(at(2) ?? "")) return at(2) === "GetService" ? "service" : "class";
+	return at(2) === "new" && at(3) === "." && at(4) === "Instance" ? "class" : undefined;
+}
+
 /** The class a call names, when it is one of the calls that name one. */
 export function classOfCall(expr: Expr): string | undefined {
 	if (expr.kind === "methodCall" && INSTANCE_FINDERS[expr.method.name]) return "Instance";
-	if (expr.kind === "call" && expr.callee.kind === "index" && expr.callee.object.kind === "name"
-		&& expr.callee.object.name === "Instance" && expr.callee.name.name === "new") {
+	if (expr.kind === "call" && isInstanceNew(expr.callee)) {
 		const name = stringValue(expr.args[0]);
 		return name && CLASS_SET.has(name) ? name : undefined;
 	}
@@ -130,16 +162,41 @@ export function classOfCall(expr: Expr): string | undefined {
 }
 
 /**
+ * A function's parameters and results, each as written. Kept apart rather
+ * than only joined into one string, because a parameter's type may itself be
+ * a function type -- `cb: (x: number) -> ()` -- and a string cannot be split
+ * back at its commas and arrows reliably.
+ */
+export interface FunctionSignature {
+	/** `...` is the last one when the function takes varargs. */
+	params: { name: string; type?: string }[];
+	/** What it returns, without the outer brackets: `string, number`; "" for nothing written. */
+	returns: string;
+}
+
+/** A function's signature, from its definition. */
+export function signatureParts(func: FunctionBody, src: string): FunctionSignature {
+	const text = (span: { start: number; end: number }) => src.slice(span.start, span.end).trim();
+	const params: FunctionSignature["params"] = func.params.map((p) =>
+		(p.type ? { name: p.name, type: text(p.type) } : { name: p.name }));
+	if (func.varargs) params.push(func.varargs.type ? { name: "...", type: text(func.varargs.type) } : { name: "..." });
+	const returns = func.returns ? text(func.returns).replace(/^\((.*)\)$/s, "$1") : "";
+	return { params, returns };
+}
+
+/** A signature as Luau writes a function's type: `(name: string) -> (RemoteEvent)`. */
+export function formatSignature(signature: FunctionSignature): string {
+	const params = signature.params.map((p) => (p.type ? `${p.name}: ${p.type}` : p.name));
+	return `(${params.join(", ")}) -> (${signature.returns})`;
+}
+
+/**
  * A function's type as Luau writes it: `(name: string) -> (RemoteEvent)`.
  * Parameters keep the types written beside them; what it returns is its
  * written return type, or `()` when it says none.
  */
 export function signatureOf(func: FunctionBody, src: string): string {
-	const text = (span: { start: number; end: number }) => src.slice(span.start, span.end).trim();
-	const params = func.params.map((p) => (p.type ? `${p.name}: ${text(p.type)}` : p.name));
-	if (func.varargs) params.push(func.varargs.type ? `...: ${text(func.varargs.type)}` : "...");
-	const returns = func.returns ? text(func.returns).replace(/^\((.*)\)$/s, "$1") : "";
-	return `(${params.join(", ")}) -> (${returns})`;
+	return formatSignature(signatureParts(func, src));
 }
 
 const ARITHMETIC = new Set(["+", "-", "*", "/", "//", "%", "^"]);
@@ -197,14 +254,31 @@ export interface TableMember {
 	kind: "function" | "method" | "field";
 	/** A function's signature, or a field's type when it is evident; "" when not. */
 	detail: string;
+	/** A function's parameters and results apart, for the signature help. */
+	signature?: FunctionSignature;
 	/** The documentation comment above where the code puts it. */
 	doc?: DocComment;
 	/** Another member of the same table it was set to: `List` for `Sift.List = Sift.Array` is `Array`. */
 	aliasOf?: string;
 }
 
+/**
+ * A member for a value put on a table: a function with its signature, both as
+ * text and apart, or a field with the type its value evidently has.
+ */
+export function memberFor(name: string, value: Expr | undefined, src: string): TableMember {
+	if (value?.kind === "function") return functionMember(name, "function", value.func, src);
+	return { name, kind: "field", detail: typeOfValue(value, src) ?? "" };
+}
+
+/** A member for a function written with its body: `function M.f(…)`. */
+export function functionMember(name: string, kind: "function" | "method", func: FunctionBody, src: string): TableMember {
+	const signature = signatureParts(func, src);
+	return { name, kind, detail: formatSignature(signature), signature };
+}
+
 /** `a.b.c` as its names, or undefined for anything that is not a chain of them. */
-function chainOf(expr: Expr): string | undefined {
+export function chainOf(expr: Expr): string | undefined {
 	if (expr.kind === "name") return expr.name;
 	if (expr.kind === "index") {
 		const object = chainOf(expr.object);
@@ -228,84 +302,59 @@ function chainOf(expr: Expr): string | undefined {
 export function membersInCode(src: string, owner: string): TableMember[] {
 	const out: TableMember[] = [];
 	const seen = new Set<string>();
-	let tokens: Token[] | undefined;
-	const docAt = (at: number) => docCommentBefore(src, at, (tokens ??= tokenize(src)));
 	const aliases: { member: TableMember; of: string }[] = [];
 	const add = (member: TableMember, at: number) => {
 		if (seen.has(member.name)) return;
 		seen.add(member.name);
-		const doc = docFor(docAt(at), member.name);
+		const doc = docFor(docCommentBefore(src, at), member.name);
 		out.push(doc ? { ...member, doc } : member);
 	};
-	const visit = (node: unknown): void => {
-		if (Array.isArray(node)) {
-			for (const item of node) visit(item);
-			return;
-		}
-		if (!node || typeof node !== "object") return;
-		const stat = node as { kind?: string };
-		// A function *statement*: a function expression shares the kind and
-		// has no path, and reading one as the other threw, taking every hover
-		// in the file with it.
-		if (stat.kind === "function" && "path" in node) {
-			const fn = node as Extract<Stat, { kind: "function" }>;
-			const names = fn.path.map((n) => n.name);
-			if (fn.method && names.join(".") === owner) {
-				add({ name: fn.method.name, kind: "method", detail: signatureOf(fn.func, src) }, fn.start);
-			} else if (!fn.method && names.length >= 2 && names.slice(0, -1).join(".") === owner) {
-				add({ name: names[names.length - 1], kind: "function", detail: signatureOf(fn.func, src) }, fn.start);
+	const onStat = (stat: Stat): void => {
+		if (stat.kind === "functionStat") {
+			const names = stat.path.map((n) => n.name);
+			if (stat.method && names.join(".") === owner) {
+				add(functionMember(stat.method.name, "method", stat.func, src), stat.start);
+			} else if (!stat.method && names.length >= 2 && names.slice(0, -1).join(".") === owner) {
+				add(functionMember(names[names.length - 1], "function", stat.func, src), stat.start);
 			}
 		} else if ((stat.kind === "local" || stat.kind === "const") && !owner.includes(".")) {
 			// `local Crate = { Shelf = … }`: what the table is written with.
-			const decl = node as Extract<Stat, { kind: "local" }>;
-			decl.names.forEach((binding, i) => {
-				let value = decl.values[i];
+			stat.names.forEach((binding, i) => {
+				let value = stat.values[i];
 				while (value?.kind === "cast" || value?.kind === "paren") value = value.kind === "cast" ? value.value : value.inner;
 				if (binding.name !== owner || value?.kind !== "table") return;
 				for (const field of value.fields) {
 					if (field.kind !== "named") continue;
-					const isFunction = field.value.kind === "function";
-					add({
-						name: field.name.name,
-						kind: isFunction ? "function" : "field",
-						detail: field.value.kind === "function" ? signatureOf(field.value.func, src) : typeOfValue(field.value, src) ?? "",
-					}, field.start);
+					add(memberFor(field.name.name, field.value, src), field.start);
 				}
 			});
 		} else if (stat.kind === "assign") {
-			const assign = node as Extract<Stat, { kind: "assign" }>;
-			assign.targets.forEach((target, i) => {
-				if (target.kind === "index" && chainOf(target.object) === owner) {
-					const value = assign.values[i];
-					const isFunction = value?.kind === "function";
-					const member: TableMember = {
-						name: target.name.name,
-						kind: isFunction ? "function" : "field",
-						detail: typeOfValue(value, src) ?? "",
-					};
-					add(member, assign.start);
-					if (value?.kind === "index" && chainOf(value.object) === owner) {
-						aliases.push({ member: out.find((m) => m.name === member.name)!, of: value.name.name });
-					}
+			stat.targets.forEach((target, i) => {
+				if (target.kind !== "index" || chainOf(target.object) !== owner) return;
+				const value = stat.values[i];
+				const member = memberFor(target.name.name, value, src);
+				add(member, stat.start);
+				// The member as kept: `add` keeps the first of a name, with its doc.
+				const kept = out.find((m) => m.name === member.name);
+				if (kept && value?.kind === "index" && chainOf(value.object) === owner) {
+					aliases.push({ member: kept, of: value.name.name });
 				}
 			});
 		}
-		for (const value of Object.values(node)) {
-			if (value && typeof value === "object") visit(value);
-		}
 	};
-	visit(parseChunk(src).value);
+	visitBlock(luauFile(src).block, { stat: onStat });
 	for (const { member, of } of aliases) {
 		const original = out.find((m) => m.name === of);
 		if (!original || original === member) continue;
 		Object.assign(member, {
 			kind: original.kind,
 			detail: original.detail,
+			...(original.signature ? { signature: original.signature } : {}),
 			aliasOf: original.name,
 			...(member.doc || !original.doc ? {} : { doc: original.doc }),
 		});
 	}
-	return withRegistry(out, src, owner.split(".")[0], tokens);
+	return withRegistry(out, src, owner.split(".")[0]);
 }
 
 /**
@@ -313,9 +362,9 @@ export function membersInCode(src: string, owner: string): TableMember[] {
  * stand: `--- @prop Array Array` / `--- @within Sift` for `Sift.Array`, and
  * the `@interface`s and `@type`s their parameters and returns name.
  */
-export function withRegistry(members: TableMember[], src: string, owner?: string, tokens?: Token[]): TableMember[] {
+export function withRegistry(members: TableMember[], src: string, owner?: string): TableMember[] {
 	if (!/@(prop|function|method|interface|type|class)\b/.test(src)) return members;
-	const entries = docRegistry(src, tokens ?? tokenize(src));
+	const entries = docRegistry(src);
 	return members.map((m) => {
 		const doc = m.doc ?? registeredDoc(entries, m.name, owner);
 		return doc ? { ...m, doc: withRelated(doc, entries) } : m;

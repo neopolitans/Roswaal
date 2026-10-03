@@ -14,7 +14,9 @@
  */
 
 import { ENGINE } from "../robloxEngine.js";
-import { type CFrameValue, type Prop, type PropType, type RbxDocument, RbxError, type RbxInstance } from "./dom.js";
+import {
+	asRbxError, type CFrameValue, type Prop, type PropType, type RbxDocument, RbxError, type RbxInstance,
+} from "./dom.js";
 
 export interface XmlElement {
 	name: string;
@@ -33,7 +35,9 @@ function decodeEntities(s: string): string {
 	return s.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|[a-z]+);/g, (whole, body: string) => {
 		if (body[0] === "#") {
 			const code = body[1] === "x" ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
-			return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
+			// Past the last code point, `fromCodePoint` throws; such a
+			// reference is left as written.
+			return Number.isFinite(code) && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
 		}
 		return ENTITIES[body] ?? whole;
 	});
@@ -147,8 +151,11 @@ function readValue(el: XmlElement, shared: Map<string, Uint8Array>): [PropType, 
 			return ["Bool", t.trim() === "true"];
 		case "int":
 			return ["Int32", num(t)];
-		case "int64":
-			return ["Int64", BigInt(t.trim() || "0")];
+		case "int64": {
+			const digits = t.trim() || "0";
+			if (!/^-?\d+$/.test(digits)) throw new RbxError(`an int64 property holds "${digits.slice(0, 40)}", which is not a whole number`);
+			return ["Int64", BigInt(digits)];
+		}
 		case "float":
 			return ["Float32", num(t)];
 		case "double":
@@ -200,8 +207,16 @@ function readValue(el: XmlElement, shared: Map<string, Uint8Array>): [PropType, 
 const isServiceClass = (className: string): boolean =>
 	(ENGINE.classes[className]?.tags ?? []).includes("Service");
 
-/** Reads an XML place or model. Throws `RbxError` for a file it cannot read. */
+/** Reads an XML place or model. Throws `RbxError` for a file it cannot read, and nothing else. */
 export function readXml(source: string): RbxDocument {
+	try {
+		return decodeXml(source);
+	} catch (error) {
+		throw asRbxError(error, "the file is damaged");
+	}
+}
+
+function decodeXml(source: string): RbxDocument {
 	const doc = parseXml(source);
 	const roblox = doc.children.find((c) => c.name === "roblox");
 	if (!roblox) throw new RbxError("not a Roblox XML place or model: there is no <roblox> element");

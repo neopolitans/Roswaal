@@ -14,8 +14,8 @@
 import { classOfGlobal, heldBy, membersInCode, methodsOf, type TableMember } from "./infer.js";
 import { significant, tokenize } from "./lexer.js";
 import { localsAt } from "./scope.js";
+import { ENGINE, type EngineParam } from "../robloxEngine.js";
 import { SERVICE_METHODS } from "../robloxMembers.js";
-import { DATATYPE_STATICS } from "../robloxStatics.js";
 
 export interface Parameter {
 	name: string;
@@ -31,29 +31,19 @@ export interface Signature {
 	returns?: string;
 }
 
-/** `(a: T, b: U) +2 more` into its parameters, splitting only top-level commas. */
-function paramsOf(detail: string): Parameter[] {
-	const inner = detail.replace(/\s*\+\d+ more$/, "").trim().replace(/^\(/, "").replace(/\)$/, "");
-	if (inner.trim() === "") return [];
-	const parts: string[] = [];
-	let depth = 0;
-	let start = 0;
-	for (let i = 0; i < inner.length; i++) {
-		const c = inner[i];
-		if (c === "(" || c === "{" || c === "[" || c === "<") depth++;
-		else if (c === ")" || c === "}" || c === "]" || (c === ">" && inner[i - 1] !== "-")) depth--;
-		else if (c === "," && depth === 0) {
-			parts.push(inner.slice(start, i));
-			start = i + 1;
-		}
-	}
-	parts.push(inner.slice(start));
-	return parts.map((part) => {
-		const at = part.indexOf(":");
-		return at < 0
-			? { name: part.trim(), type: "" }
-			: { name: part.slice(0, at).trim(), type: part.slice(at + 1).trim() };
-	});
+/** The engine's parameters, as the signature help shows them. */
+function parametersOf(params: readonly EngineParam[]): Parameter[] {
+	return params.map((p) => ({ name: p.name, type: p.type || "any" }));
+}
+
+/**
+ * A datatype's constructor or function, from the engine catalogue: its first
+ * signature, which is the one the completion list shows.
+ */
+function datatypeFunction(owner: string, name: string): readonly EngineParam[] | undefined {
+	const datatype = ENGINE.datatypes[owner];
+	if (!datatype) return undefined;
+	return [...datatype.constructors, ...datatype.functions].find((f) => f.name === name && !f.deprecated)?.params;
 }
 
 export function signatureAt(
@@ -87,10 +77,9 @@ export function signatureAt(
 		// A function put on a table, by the code or the graph: `Occupancy.value(`.
 		const onTable = [...membersInCode(src, owner.text), ...(tableMembers.get(owner.text) ?? [])]
 			.find((m) => m.name === name.text && m.kind === "function");
-		if (onTable) {
-			const [head, returned] = onTable.detail.split(") -> (");
-			const params = paramsOf(`${head})`);
-			const returns = (returned ?? "").replace(/\)$/, "");
+		if (onTable?.signature) {
+			const params = onTable.signature.params.map((p) => ({ name: p.name, type: p.type ?? "" }));
+			const returns = onTable.signature.returns;
 			return {
 				label: `${owner.text}.${name.text}`,
 				params,
@@ -99,9 +88,9 @@ export function signatureAt(
 			};
 		}
 		if (!roblox) return null;
-		const item = DATATYPE_STATICS[owner.text]?.find((s) => s.name === name.text && s.kind !== "constant");
-		if (!item) return null;
-		const params = paramsOf(item.detail);
+		const found = datatypeFunction(owner.text, name.text);
+		if (!found) return null;
+		const params = parametersOf(found);
 		return {
 			label: `${owner.text}.${name.text}`,
 			params,
@@ -116,8 +105,9 @@ export function signatureAt(
 		if (!method) {
 			// Any class's method, found up the hierarchy: `existing:IsA(`.
 			const found = className ? methodsOf(className).find((m) => m.name === name.text) : undefined;
-			if (!found) return null;
-			const params = paramsOf(found.detail);
+			const declared = found && ENGINE.classes[found.from]?.methods.find((m) => m.name === found.name);
+			if (!found || !declared) return null;
+			const params = parametersOf(declared.params);
 			return {
 				label: `${owner.text}:${name.text}`,
 				params,
