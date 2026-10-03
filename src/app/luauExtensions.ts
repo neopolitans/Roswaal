@@ -58,6 +58,11 @@ export interface LuauExtensionOptions {
 	lint?: LuauChecker;
 	/** Warnings, drawn in the same layers as `lint` in their own colour. */
 	warnings?: LuauChecker;
+	/**
+	 * The lint gutter beside the line numbers. On whenever there is a check,
+	 * unless a narrow field would rather keep the width.
+	 */
+	gutter?: boolean;
 	/** Hover on every name, from this context. */
 	hover?: LuauContext;
 	/** The signature of the call being typed. Needs `hover`'s context. */
@@ -71,8 +76,9 @@ export interface LuauExtensionOptions {
 /** The extensions for one Luau editor. */
 export function luauExtensions(options: LuauExtensionOptions = {}): Extension[] {
 	const { readOnly = false, completion, lint, warnings, hover, signature, onChange } = options;
+	const gutter = options.gutter ?? Boolean(lint || warnings);
 	const extensions: Extension[] = [lineNumbers()];
-	if (lint || warnings) extensions.push(lintGutter());
+	if (gutter) extensions.push(lintGutter());
 	extensions.push(highlightActiveLine());
 
 	if (readOnly) {
