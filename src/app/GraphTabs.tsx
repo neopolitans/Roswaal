@@ -29,9 +29,10 @@
  * outgrown the window and the tab you are after has scrolled off it.
  */
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { Icon } from "./icons.jsx";
+import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
 import { trackPointer } from "./pointer.js";
 import type { FunctionTabs } from "./preferences.js";
@@ -214,23 +215,7 @@ function TabList(props: {
 	 */
 	const [at, setAt] = useState<{ x: number; y: number } | null>(null);
 
-	useEffect(() => {
-		if (!open) return;
-		const away = (e: PointerEvent) => {
-			if (!root.current?.contains(e.target as Node)) props.onOpen(false);
-		};
-		const key = (e: KeyboardEvent) => {
-			if (e.key === "Escape") props.onOpen(false);
-		};
-		// Captured, so a press inside the graph closes it before the graph acts
-		// on the press as well.
-		window.addEventListener("pointerdown", away, true);
-		window.addEventListener("keydown", key);
-		return () => {
-			window.removeEventListener("pointerdown", away, true);
-			window.removeEventListener("keydown", key);
-		};
-	}, [open, props]);
+	useDismiss(root, () => props.onOpen(false), { enabled: open, escape: true });
 
 	return (
 		<div className="tab-list" ref={root}>

@@ -27,6 +27,7 @@ import { aliasScore } from "../core/aliases.js";
 import { keywordNodes } from "../core/keywords.js";
 import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
 import { luneMenuItems, lunePins } from "../core/luneCalls.js";
+import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
 import { COMMENT_DEFAULT_COLOR, nodeColor, pinColor } from "./palette.js";
 import { classify, classifyFor, runtimeLabelFor } from "../core/nodes/runtimes.js";
@@ -547,17 +548,8 @@ export function NodeMenu(props: NodeMenuProps) {
 
 	useEffect(() => setActive(0), [query]);
 
-	useEffect(() => {
-		const onDown = (e: MouseEvent) => {
-			if (!root.current?.contains(e.target as Node)) onClose();
-		};
-		// Deferred so the click that opened the menu does not immediately close it.
-		const id = window.setTimeout(() => window.addEventListener("mousedown", onDown), 0);
-		return () => {
-			window.clearTimeout(id);
-			window.removeEventListener("mousedown", onDown);
-		};
-	}, [onClose]);
+	// Escape is the search field's own, which also steps out of a category.
+	useDismiss(root, onClose);
 
 	// Keep the menu on screen when it is opened near an edge.
 	const style = {

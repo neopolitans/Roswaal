@@ -10,6 +10,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
+import { useDismiss } from "./dismiss.js";
 import { Icon } from "./icons.jsx";
 
 /**
@@ -80,14 +81,7 @@ export function Popout({ label, title, end = false, up = false, closeOnPick = fa
 		if (at.left < 4) setSide("start");
 		else if (at.right > width - 4) setSide("end");
 	}, [open, side]);
-	useEffect(() => {
-		if (!open) return;
-		const away = (e: PointerEvent) => {
-			if (!box.current?.contains(e.target as Node)) setOpen(false);
-		};
-		window.addEventListener("pointerdown", away, true);
-		return () => window.removeEventListener("pointerdown", away, true);
-	}, [open]);
+	useDismiss(box, () => setOpen(false), { enabled: open });
 	return (
 		<div className={`tool-popout${side === "end" ? " tool-popout-end" : ""}${up ? " tool-popout-up" : ""}`} ref={box}>
 			<button

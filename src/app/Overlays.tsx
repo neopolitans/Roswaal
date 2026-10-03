@@ -30,7 +30,7 @@
  * a project switching, a document closing, a compile starting.
  */
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import type {
 	Literal, NodeConfig, NodeDef, NodeScript, PinDef, RoswaalConfig,
@@ -43,6 +43,7 @@ import { NodeMenu, type MenuAnchor, type Preset } from "./NodeMenu.jsx";
 import { PinMenu, type PinMenuTarget } from "./PinMenu.jsx";
 import { SelectionPreview } from "./SelectionPreview.jsx";
 import { SettingsPanel } from "./SettingsPanel.jsx";
+import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
 import type { Preferences } from "./preferences.js";
 import type { LuauFragment } from "../core/luau/check.js";
@@ -229,16 +230,7 @@ function DropMenu({ screen, name, location, onPick, onClose }: DropMenuProps) {
 	const config = { root: location.root, path: location.path };
 	const full = location.path ? `${location.root}.${location.path}` : location.root;
 
-	useEffect(() => {
-		const onDown = (e: MouseEvent) => {
-			if (!root.current?.contains(e.target as Node)) onClose();
-		};
-		const id = window.setTimeout(() => window.addEventListener("mousedown", onDown), 0);
-		return () => {
-			window.clearTimeout(id);
-			window.removeEventListener("mousedown", onDown);
-		};
-	}, [onClose]);
+	useDismiss(root, onClose, { escape: true });
 
 	return (
 		<div

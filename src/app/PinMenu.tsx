@@ -12,12 +12,13 @@
  * know, and "Promote to Variable" is not a phrase to improve on.
  */
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import type { NodeScript, PinDef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins } from "../core/nodes/index.js";
 import { canPromoteToVariable, pinLinkCount, splitModesFor } from "./edits.js";
+import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
 import { pinColor } from "./palette.js";
 import { pinTypeText } from "../core/nodes/variables.js";
@@ -54,22 +55,7 @@ export function PinMenu(props: PinMenuProps) {
 	const { target, script, registry, onClose } = props;
 	const root = useRef<HTMLDivElement>(null);
 
-	useEffect(() => {
-		const onDown = (e: MouseEvent) => {
-			if (!root.current?.contains(e.target as Node)) onClose();
-		};
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === "Escape") onClose();
-		};
-		// Deferred so the click that opened the menu does not close it again.
-		const id = window.setTimeout(() => window.addEventListener("mousedown", onDown), 0);
-		window.addEventListener("keydown", onKey, true);
-		return () => {
-			window.clearTimeout(id);
-			window.removeEventListener("mousedown", onDown);
-			window.removeEventListener("keydown", onKey, true);
-		};
-	}, [onClose]);
+	useDismiss(root, onClose, { escape: true });
 
 	const links = pinLinkCount(script, target.nodeId, target.pin.id, target.side);
 

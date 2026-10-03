@@ -11,6 +11,7 @@ import type { TreeEntry } from "./api.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { NOT_HERE, useHostCan } from "./host.js";
+import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
@@ -83,20 +84,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
 
-	// Closed by a click outside it, deferred by a tick — a right-click also
-	// delivers a click here, and without the delay the menu would close on the
-	// very gesture that opened it.
-	useEffect(() => {
-		if (!menu) return;
-		const onDown = (e: MouseEvent) => {
-			if (!menuRef.current?.contains(e.target as Node)) setMenu(null);
-		};
-		const id = window.setTimeout(() => window.addEventListener("mousedown", onDown), 0);
-		return () => {
-			window.clearTimeout(id);
-			window.removeEventListener("mousedown", onDown);
-		};
-	}, [menu]);
+	useDismiss(menuRef, () => setMenu(null), { enabled: menu !== null, escape: true });
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	/**
 	 * Wally's folders start shut: `_Index` holds every file of every package,
