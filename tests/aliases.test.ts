@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { NODE_ALIASES, aliasScore } from "../src/core/aliases.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { classify } from "../src/core/nodes/runtimes.js";
-import { score as menuScore } from "../src/app/NodeMenu.jsx";
+import { score as menuScore } from "../src/app/menuSearch.js";
 import { score as pickerScore } from "../src/app/NodePicker.jsx";
 
 const registry = createRegistry();

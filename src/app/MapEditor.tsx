@@ -15,6 +15,7 @@ import {
 	isFilesystemMap, mapNodeRemove, mapNodeUpdate, type MapNode, type NodeMap,
 } from "../core/nodemap.js";
 import type { TreeEntry } from "./api.js";
+import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { newId } from "./store.js";
 
@@ -46,11 +47,9 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 	const known = useMemo(() => collectPaths(tree), [tree]);
 	const current = findMapNode(map.root, selected) ?? map.root;
 
-	/**
-	 * Rojo builds an empty instance for a path that is not there rather than
-	 * complaining, so an unresolved path has to be visible here or it is not
-	 * visible anywhere until you are staring at Studio.
-	 */
+	// Rojo builds an empty instance for a path that is not there rather than
+	// complaining, so an unresolved path has to be visible here or it is not
+	// visible anywhere until you are staring at Studio.
 	const pathResolves = (value: string | undefined): boolean | null => {
 		if (!value) return null;
 		return known.has(value.replace(/^\.\//, "").replace(/\/+$/, ""));
@@ -73,15 +72,13 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 		commit({ ...map, root: mapNodeUpdate(map.root, id, (node) => ({ ...node, ...patch })) });
 	}
 
-	/** Which kind of map this is, which decides most of what the panel shows. */
+	// Which kind of map this is, which decides most of what the panel shows.
 	const filesystem = isFilesystemMap(map);
 
-	/**
-	 * A file, whose name carries no extension.
-	 *
-	 * `.luau` follows from the node being a file, so a name typed with one is
-	 * warned about rather than honoured — see `validateFilesystem`.
-	 */
+	// A file, whose name carries no extension.
+	//
+	// `.luau` follows from the node being a file, so a name typed with one is
+	// warned about rather than honoured — see `validateFilesystem`.
 	function addFile(parentId: string) {
 		const child: MapNode = { id: newId(), name: "module", file: true, children: [] };
 		commit({
@@ -335,7 +332,7 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 				{compiled.diagnostics.length > 0 && (
 					<div className="map-diagnostics">
 						{compiled.diagnostics.map((d, i) => (
-							<div key={i} className={`entry ${d.severity}`}>
+							<div key={i} className={cx("entry", d.severity)}>
 								<span className="sev">{d.severity}</span>
 								<span>{d.message}</span>
 							</div>
@@ -408,7 +405,7 @@ function MapRow(props: MapRowProps) {
 	return (
 		<>
 			<div
-				className={`map-row${props.selected === node.id ? " selected" : ""}`}
+				className={cx("map-row", props.selected === node.id && "selected")}
 				style={{ paddingLeft: 8 + depth * 14 }}
 				onClick={() => props.onSelect(node.id)}
 			>

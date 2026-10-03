@@ -33,11 +33,14 @@ import { createRegistry, type Registry } from "../../core/nodes/index.js";
 import { LOGIC_NODES } from "../../core/nodes/logic.js";
 import type { GraphNode, Literal, NodeDef, PinDef, Target } from "../../core/schema.js";
 import { api } from "../api.js";
+import { cx } from "../cx.js";
 import { FloatingTools, ToolGroup } from "../FloatingTools.jsx";
 import { headerHeight, isCompact, nodeBounds, nodeWidth, pinPosition } from "../geometry.js";
 import { Icon } from "../icons.jsx";
 import { NodeView } from "../NodeView.jsx";
 import { pinColor } from "../palette.js";
+import { trackPointer } from "../pointer.js";
+import type { Preferences } from "../preferences.js";
 import { TypePicker } from "../TypePicker.jsx";
 import {
 	addPin, defOf, draftOf, movePin, newDraft, pillShape, problemsOf, purityOf, removePin, renamePin,
@@ -107,21 +110,23 @@ export interface NodeEditorProps {
 	/** Whether there are edits not yet saved, for the pack view to guard. */
 	onDirty: (dirty: boolean) => void;
 	notify: Notify;
+	/** The page's preferences, which the logic canvas draws with. */
+	prefs: Preferences;
+	/** Changes preferences, as the page's settings panel does. */
+	onPrefs: (patch: Partial<Preferences>) => void;
 }
 
 export function NodeEditor({
 	packPath, original, requiredDefs, missingRequires, target, namespace, otherIds, onSaved, onDeleted, onDirty, notify,
-	toolbarSlot = null,
+	toolbarSlot = null, prefs, onPrefs,
 }: NodeEditorProps) {
 	const [draft, setDraft] = useState<Draft>(() => (original ? draftOf(original) : newDraft(namespace, otherIds)));
 	const [pin, setPin] = useState<{ side: Side; index: number } | null>(null);
 	const [output, setOutput] = useState<string | null>(null);
 	const [confirmDelete, setConfirmDelete] = useState(false);
-	/**
-	 * The node's details — id, title, category, summary — expand out from the
-	 * floating tools rather than sitting over the canvas the whole time. The
-	 * summary is what the node's documentation reads, so it gets room to write in.
-	 */
+	// The node's details — id, title, category, summary — expand out from the
+	// floating tools rather than sitting over the canvas the whole time. The
+	// summary is what the node's documentation reads, so it gets room to write in.
 	const [detailsOpen, setDetailsOpen] = useState(() => {
 		try {
 			return localStorage.getItem(DETAILS_KEY) === "open";
@@ -140,23 +145,19 @@ export function NodeEditor({
 		});
 	const [saving, setSaving] = useState(false);
 	const [logicHeight, setLogicHeight] = useState(readLogicHeight);
-	/**
-	 * On a phone or a tablet the node and its logic take turns at the whole
-	 * editor, switched from a bar at the top, instead of splitting it. Split,
-	 * the logic graph was a strip under the node too short to move around in
-	 * the way the editor's graph is, and the divider between them was a
-	 * five-pixel target for a finger.
-	 */
+	// On a phone or a tablet the node and its logic take turns at the whole
+	// editor, switched from a bar at the top, instead of splitting it. Split,
+	// the logic graph was a strip under the node too short to move around in
+	// the way the editor's graph is, and the divider between them was a
+	// five-pixel target for a finger.
 	const split = useCompact();
-	/** On a phone the node's tools fold behind buttons: see `Popout`. */
+	// On a phone the node's tools fold behind buttons: see `Popout`.
 	const phone = usePhone();
 	const [view, setView] = useState<"preview" | "logic">("preview");
-	/**
-	 * The Luau the logic compiles to, shown when asked for -- as the editor's
-	 * graph shows its Luau from a button rather than beside it all the time.
-	 * Beside the graph it took a third of the width, or a quarter of the height
-	 * on a touch screen, from the thing being built.
-	 */
+	// The Luau the logic compiles to, shown when asked for -- as the editor's
+	// graph shows its Luau from a button rather than beside it all the time.
+	// Beside the graph it took a third of the width, or a quarter of the height
+	// on a touch screen, from the thing being built.
 	const [showLuau, setShowLuau] = useState(false);
 	const stage = useRef<HTMLDivElement>(null);
 	const [size, setSize] = useState({ w: 900, h: 500 });
@@ -309,21 +310,22 @@ export function NodeEditor({
 		const startY = e.clientY;
 		const startH = logicHeight;
 		let latest = startH;
-		const move = (ev: PointerEvent) => {
-			latest = Math.round(Math.min(window.innerHeight * 0.7, Math.max(90, startH - (ev.clientY - startY))));
-			setLogicHeight(latest);
-		};
-		const up = () => {
-			window.removeEventListener("pointermove", move);
-			window.removeEventListener("pointerup", up);
-			try {
-				localStorage.setItem(LOGIC_KEY, String(latest));
-			} catch {
-				// The size still applies to this visit.
-			}
-		};
-		window.addEventListener("pointermove", move);
-		window.addEventListener("pointerup", up);
+		// A cancelled drag keeps the height it reached, as a released one does.
+		trackPointer(e, {
+			move: (ev) => {
+				latest = Math.round(
+					Math.min(window.innerHeight * 0.7, Math.max(90, startH - (ev.clientY - startY))),
+				);
+				setLogicHeight(latest);
+			},
+			end: () => {
+				try {
+					localStorage.setItem(LOGIC_KEY, String(latest));
+				} catch {
+					// The size still applies to this visit.
+				}
+			},
+		});
 	};
 
 	// -- the selected pin's popover ----------------------------------------
@@ -334,8 +336,8 @@ export function NodeEditor({
 	const pill = pillShape(draft);
 	const compact = isCompact(drawDef);
 
-	/** Luau or Nodes: how the logic is written. Drawn in the logic's head, or in
-	 *  the pack's bar on a touch screen. */
+	// Luau or Nodes: how the logic is written. Drawn in the logic's head, or in
+	//  the pack's bar on a touch screen.
 	const modeSwitch = (
 		<div className="segmented">
 			<button
@@ -383,7 +385,7 @@ export function NodeEditor({
 								}}
 							>
 								<span
-									className={`chip-dot ${type === "exec" ? "exec" : "data"}`}
+									className={cx("chip-dot", type === "exec" ? "exec" : "data")}
 									style={{ color: pinColor(type === "exec" ? undefined : type, type === "exec" ? "exec" : "data") }}
 								/>
 								{type === "exec" ? "Execution" : type}
@@ -405,7 +407,7 @@ export function NodeEditor({
 	const nodeKind = (
 		<>
 						<span
-							className={`badge${purity === "unrunnable" ? " warn" : ""}`}
+							className={cx("badge", purity === "unrunnable" && "warn")}
 							title={
 								purity === "pure"
 									? "No execution pins: a value, evaluated where it is used."
@@ -464,7 +466,7 @@ export function NodeEditor({
 	);
 
 	return (
-		<div className={`node-editor${split ? ` split view-${view}` : ""}`}>
+		<div className={cx("node-editor", split && "split", split && `view-${view}`)}>
 			{split && (() => {
 				// Preview or Logic, and with Logic which way it is written: one
 				// row's worth of switches, in the pack's bar where there is one.
@@ -548,7 +550,7 @@ export function NodeEditor({
 				<FloatingTools label="Node">
 					<ToolGroup>
 						<button
-							className={`tb with-icon${detailsOpen ? " on" : ""}`}
+							className={cx("tb with-icon", detailsOpen && "on")}
 							aria-pressed={detailsOpen}
 							title="The node's id, title, category, and the summary its documentation reads"
 							onClick={toggleDetails}
@@ -657,7 +659,7 @@ export function NodeEditor({
 				</div>
 				)}
 
-				<div className={`node-problems${problems.length ? " bad" : ""}`}>
+				<div className={cx("node-problems", problems.length && "bad")}>
 					{problems.length === 0 ? (
 						<span>{dirty ? "Ready to save." : "Saved, and the project loads it."}</span>
 					) : (
@@ -720,7 +722,7 @@ export function NodeEditor({
 
 			<div className="logic-splitter" onPointerDown={startResize} title="Drag to resize" />
 			<div className="node-logic" style={split ? undefined : { height: logicHeight }}>
-				<div className={`logic-head${split ? " logic-head-slim" : ""}`}>
+				<div className={cx("logic-head", split && "logic-head-slim")}>
 					{!split && <strong>Logic</strong>}
 					{!split && modeSwitch}
 					{draft.logicMode === "luau" && purity === "pure" && dataOutputs.length > 1 && (
@@ -743,16 +745,18 @@ export function NodeEditor({
 					)}
 				</div>
 				{draft.logicMode === "nodes" && draft.logic ? (
-					<div className={`logic-split${showLuau ? "" : " luau-hidden"}`}>
+					<div className={cx("logic-split", !showLuau && "luau-hidden")}>
 						<LogicCanvas
 							graph={draft.logic}
 							shape={shape}
 							registry={logicRegistry}
 							target={target ?? "roblox"}
 							onChange={onLogicChange}
+							prefs={prefs}
+							onPrefs={onPrefs}
 							tools={
 								<button
-									className={`tb icon-only${showLuau ? " on" : ""}`}
+									className={cx("tb icon-only", showLuau && "on")}
 									aria-pressed={showLuau}
 									title="Preview — the Luau this logic compiles to, and what the node is saved as"
 									aria-label="Preview the Luau"
@@ -791,7 +795,6 @@ export function NodeEditor({
 	);
 }
 
-/** Everything about one pin that does not fit on the pin. */
 /**
  * The values a pin offers, from a comma-separated field.
  *
@@ -812,6 +815,7 @@ function readChoices(text: string): string[] | undefined {
 	return unique.length > 0 ? unique : undefined;
 }
 
+/** Everything about one pin that does not fit on the pin. */
 function PinPopover(props: {
 	pin: DraftPin;
 	side: Side;
@@ -845,7 +849,7 @@ function PinPopover(props: {
 		<div className="pin-popover" style={props.style} onPointerDown={(e) => e.stopPropagation()}>
 			<div className="pin-popover-head">
 				<span
-					className={`chip-dot ${pin.kind}`}
+					className={cx("chip-dot", pin.kind)}
 					style={{ color: pinColor(pin.kind === "exec" ? undefined : pin.type, pin.kind) }}
 				/>
 				<strong>{pin.kind === "exec" ? "Execution" : pin.name || pin.id}</strong>

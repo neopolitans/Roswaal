@@ -155,15 +155,13 @@ export function pinColor(given: string | undefined, kind: "exec" | "data"): stri
 	const type = given?.endsWith("?") ? given.slice(0, -1) : given;
 	const named = TYPE_COLORS[type ?? "any"];
 	if (named) return named;
-	/**
-	 * Every instance class is an Instance's blue.
-	 *
-	 * `Instance` had the colour and `Part` did not, so a pin typed as the class
-	 * it actually holds read as an untyped `any` — grey, and a wire from it
-	 * faded on its way into an Instance pin as though the value had changed
-	 * type. It had not: a Part is an Instance, and the two ends of that wire
-	 * are the same kind of thing.
-	 */
+	// Every instance class is an Instance's blue.
+	//
+	// `Instance` had the colour and `Part` did not, so a pin typed as the class
+	// it actually holds read as an untyped `any` — grey, and a wire from it
+	// faded on its way into an Instance pin as though the value had changed
+	// type. It had not: a Part is an Instance, and the two ends of that wire
+	// are the same kind of thing.
 	if (isInstanceClass(type)) return TYPE_COLORS.Instance;
 	return TYPE_COLORS.any;
 }

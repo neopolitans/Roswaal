@@ -30,6 +30,7 @@ import {
 	compactWidth, isReroute, nodeBounds, pinPosition, rectContains, type Rect, type Vec,
 } from "./geometry.js";
 import { NODE } from "./layers.js";
+import { configEntries, configText } from "./nodeConfig.js";
 import { newId } from "./store.js";
 
 export function addNode(
@@ -53,7 +54,7 @@ export function addNode(
 	if (def.id === "function.get") {
 		const first = script.nodes.find((n) => FUNCTION_NODES.has(n.def));
 		node.config = first
-			? { function: first.id, name: (first.config as { name?: string } | undefined)?.name ?? "function" }
+			? { function: first.id, name: configText(first, "name") ?? "function" }
 			: {};
 	}
 	if (def.id === "local.get") {
@@ -73,7 +74,7 @@ export function addNode(
 
 /** What a Get Local caches about the Declare Local it reads. */
 export function localRefFor(node: Pick<GraphNode, "id" | "literals" | "label" | "config">): LocalRef {
-	const declared = (node.config as { type?: string } | undefined)?.type;
+	const declared = configText(node, "type");
 	return { local: node.id, name: localNameOf(node), type: pinTypeOf(declared) };
 }
 
@@ -98,7 +99,11 @@ export function syncLocalRefs(script: NodeScript): NodeScript {
 	let changed = false;
 	const nodes = script.nodes.map((node) => {
 		if (node.def !== "local.get") return node;
-		const ref = (node.config ?? {}) as LocalRef;
+		const ref = {
+			local: configText(node, "local"),
+			name: configText(node, "name"),
+			type: configText(node, "type"),
+		};
 		const target = ref.local ? locals.get(ref.local) : undefined;
 		if (!target) return node;
 		const next = localRefFor(target);
@@ -392,21 +397,19 @@ export function setConfig(
 export function syncFunctionReturns(script: NodeScript, entryId: string): NodeScript {
 	const entry = script.nodes.find((n) => n.id === entryId);
 	if (!entry) return script;
-	const returns = (entry.config as { returns?: unknown } | undefined)?.returns ?? [];
+	const returns = entry.config?.returns ?? [];
 
-	/**
-	 * Every Return **in the function's graph**, wired or not.
-	 *
-	 * This walked the execution wires out of the entry node, which reaches a
-	 * Return only once something runs into it — so a Return placed first and
-	 * wired second kept whatever signature it was born with, and editing the
-	 * returns to fix it did nothing, because the walk could not see it either.
-	 * A graph *is* the function's body, so membership is the honest test and it
-	 * needs no wires to be true.
-	 *
-	 * A nested function's Returns belong to the nested function's graph, so
-	 * they are not in this set — the same boundary the walk stopped at.
-	 */
+	// Every Return **in the function's graph**, wired or not.
+	//
+	// This walked the execution wires out of the entry node, which reaches a
+	// Return only once something runs into it — so a Return placed first and
+	// wired second kept whatever signature it was born with, and editing the
+	// returns to fix it did nothing, because the walk could not see it either.
+	// A graph *is* the function's body, so membership is the honest test and it
+	// needs no wires to be true.
+	//
+	// A nested function's Returns belong to the nested function's graph, so
+	// they are not in this set — the same boundary the walk stopped at.
 	const targets = new Set(
 		script.nodes
 			.filter((n) => n.def === "function.return" && graphOf(n) === entryId)
@@ -448,9 +451,9 @@ export interface ConnectionCheck {
  * dragged wire could actually reach requires. `canConnect` calls it too, so the
  * menu cannot offer a node the canvas would then refuse.
  *
- * `from` is the output and `to` the input. It used to be whichever end was
- * dragged, which was fine while the rule was symmetric; a `Model` fitting an
- * `Instance` pin, and a pair fitting only a dictionary, are not.
+ * `from` is the output and `to` the input, never whichever end was dragged:
+ * the rule is not symmetric. A `Model` fits an `Instance` pin, and a pair fits
+ * only a dictionary, but not the other way round.
  */
 export function acceptsWire(from: PinDef, to: PinDef): boolean {
 	if (from.kind !== to.kind) return false;
@@ -795,7 +798,7 @@ export function growNode(
 		}
 		updated = setConfig(script, nodeId, patch);
 	} else {
-		const list = ((node.config ?? {})[rule.field] as { name: string; type?: string }[]) ?? [];
+		const list = configEntries(node, rule.field);
 		const grown =
 			delta > 0
 				? [...list, { name: hint?.name ?? `${defaultEntryName(rule)}${list.length + 1}`, type: hint?.type ?? "any" }]
@@ -1006,7 +1009,7 @@ export function updateVariable(
 		variables: script.variables.map((v) => (v.id === id ? updated : v)),
 		nodes: script.nodes.map((node) => {
 			if (!VARIABLE_NODES.has(node.def)) return node;
-			if ((node.config as { variable?: string } | undefined)?.variable !== id) return node;
+			if (configText(node, "variable") !== id) return node;
 			return { ...node, config: { ...node.config, name: updated.name, type: updated.type } };
 		}),
 	});
@@ -1017,7 +1020,7 @@ export function variableUsageCount(script: NodeScript, id: string): number {
 	return script.nodes.filter(
 		(n) =>
 			VARIABLE_NODES.has(n.def) &&
-			(n.config as { variable?: string } | undefined)?.variable === id,
+			configText(n, "variable") === id,
 	).length;
 }
 
@@ -1076,7 +1079,7 @@ export function updateModule(
 		modules: (script.modules ?? []).map((m) => (m.id === id ? updated : m)),
 		nodes: script.nodes.map((node) => {
 			if (node.def !== "module.get") return node;
-			if ((node.config as { module?: string } | undefined)?.module !== id) return node;
+			if (configText(node, "module") !== id) return node;
 			return { ...node, config: { ...node.config, module: id, name: updated.name } };
 		}),
 	};
@@ -1085,7 +1088,7 @@ export function updateModule(
 /** How many Get Module nodes read this one. Shown before deleting it. */
 export function moduleUsageCount(script: NodeScript, id: string): number {
 	return script.nodes.filter(
-		(n) => n.def === "module.get" && (n.config as { module?: string } | undefined)?.module === id,
+		(n) => n.def === "module.get" && configText(n, "module") === id,
 	).length;
 }
 
@@ -1390,16 +1393,14 @@ export function promoteToVariable(
 	const declared = rawType === WILDCARD ? ANY : rawType;
 	const initial = target.literals?.[pin.id] ?? pin.default;
 
-	/**
-	 * What the value in the pin says, when the pin itself will not say.
-	 *
-	 * Some pins are `any` because Luau lets them be, not because nothing is
-	 * known: a Branch condition takes any value because `nil` and `false` are
-	 * the only false ones, and it still defaults to a boolean. Promoting one
-	 * used to make a `boolean` variable and would now make an `any`, which is a
-	 * worse variable for no reason — the literal sitting in the pin is better
-	 * evidence than the pin's own type in exactly this case.
-	 */
+	// What the value in the pin says, when the pin itself will not say.
+	//
+	// Some pins are `any` because Luau lets them be, not because nothing is
+	// known: a Branch condition takes any value because `nil` and `false` are
+	// the only false ones, and it still defaults to a boolean. Promoting one
+	// should make a `boolean` variable, not an `any`, which is a worse variable
+	// for no reason — the literal sitting in the pin is better evidence than
+	// the pin's own type in exactly this case.
 	const fromLiteral =
 		initial?.t === "boolean" || initial?.t === "number" || initial?.t === "string"
 			? initial.t
@@ -1472,7 +1473,7 @@ export function bindNodeToFunction(
 	// meant the inspector offered it, took the click, and did nothing -- the
 	// dropdown snapped back and there was no way to find out why.
 	if (!entry || !FUNCTION_NODES.has(entry.def)) return script;
-	const name = (entry.config as { name?: string } | undefined)?.name ?? "function";
+	const name = configText(entry, "name") ?? "function";
 	return setConfig(script, nodeId, { function: functionNodeId, name });
 }
 
@@ -1481,13 +1482,13 @@ export function syncFunctionRefs(script: NodeScript): NodeScript {
 	const names = new Map<string, string>();
 	for (const node of script.nodes) {
 		if (!FUNCTION_NODES.has(node.def)) continue;
-		names.set(node.id, (node.config as { name?: string } | undefined)?.name ?? "function");
+		names.set(node.id, configText(node, "name") ?? "function");
 	}
 	return {
 		...script,
 		nodes: script.nodes.map((node) => {
 			if (node.def !== "function.get") return node;
-			const ref = node.config as { function?: string; name?: string } | undefined;
+			const ref = { function: configText(node, "function"), name: configText(node, "name") };
 			const name = ref?.function ? names.get(ref.function) : undefined;
 			if (!name || name === ref?.name) return node;
 			return { ...node, config: { ...node.config, name } };
@@ -1544,7 +1545,11 @@ export function syncParamRefs(
 	let changed = false;
 	const nodes = script.nodes.map((node) => {
 		if (node.def !== "function.getParam") return node;
-		const ref = (node.config ?? {}) as { function?: string; param?: string; type?: string };
+		const ref = {
+			function: configText(node, "function"),
+			param: configText(node, "param"),
+			type: configText(node, "type"),
+		};
 		if (ref.function !== ownerId || ref.param === undefined) return node;
 
 		const param = renames.get(ref.param) ?? ref.param;
@@ -1666,30 +1671,26 @@ export function pasteClipping(
 	// fills in for a node with no graph.
 	const graphFor = (graph: string | undefined) => (graph !== undefined ? remap.get(graph) : undefined);
 
-	/**
-	 * Does this item land in the graph being pasted into?
-	 *
-	 * Everything does **except** what belongs to a function whose declaration is
-	 * in this same clipping: that keeps its position in the copy's own graph,
-	 * which is not the graph anybody is pointing at.
-	 *
-	 * Not `graph === undefined`, which is what this asked at first and is a
-	 * different question — it is "was this copied from the nodescript's own
-	 * graph". Copy anything while a **function's** graph is open and every item
-	 * carries that function's id, so the answer was no for all of them, the set
-	 * below came out empty, and the paste fell back to the offset. Which is to
-	 * say: pasting at the pointer worked everywhere except the graphs most of
-	 * the work happens in.
-	 */
+	// Does this item land in the graph being pasted into?
+	//
+	// Everything does **except** what belongs to a function whose declaration is
+	// in this same clipping: that keeps its position in the copy's own graph,
+	// which is not the graph anybody is pointing at.
+	//
+	// Not `graph === undefined`, which is what this asked at first and is a
+	// different question — it is "was this copied from the nodescript's own
+	// graph". Copy anything while a **function's** graph is open and every item
+	// carries that function's id, so the answer was no for all of them, the set
+	// below came out empty, and the paste fell back to the offset. Which is to
+	// say: pasting at the pointer worked everywhere except the graphs most of
+	// the work happens in.
 	const landsHere = (item: { graph?: string }) => graphFor(item.graph) === undefined;
 
-	/**
-	 * How far everything landing in this graph moves.
-	 *
-	 * A clipping with nothing landing here has no corner to place, so it falls
-	 * back to the offset rather than to `at`, which would otherwise read as
-	 * `-Infinity`.
-	 */
+	// How far everything landing in this graph moves.
+	//
+	// A clipping with nothing landing here has no corner to place, so it falls
+	// back to the offset rather than to `at`, which would otherwise read as
+	// `-Infinity`.
 	const landing = [...clip.nodes.filter(landsHere), ...clip.comments.filter(landsHere)];
 	let dx = offset;
 	let dy = offset;

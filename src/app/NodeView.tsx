@@ -6,6 +6,7 @@ import {
 
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { nodeTitle } from "../core/nodes/index.js";
+import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { NODE, LAYER } from "./layers.js";
 import { nodeColor } from "./palette.js";
@@ -106,7 +107,7 @@ function pinTarget(props: NodeViewProps, pin: PinDef, side: "in" | "out", conten
 	const picked = props.highlightPin === `${side}:${pin.id}`;
 	return (
 		<span
-			className={`pin-target${picked ? " pin-selected" : ""}`}
+			className={cx("pin-target", picked && "pin-selected")}
 			onPointerDown={(e) => props.onPinRowPointerDown!(e, props.node.id, pin, side)}
 		>
 			{content}
@@ -120,7 +121,7 @@ function NodeViewInner(props: NodeViewProps) {
 	if (!def) {
 		return (
 			<div
-				className="node has-error"
+				className="node node--has-error"
 				style={{ left: node.x, top: node.y, width: NODE.width, zIndex: LAYER.node }}
 			>
 				<div className="head" style={{ background: "#7a2f2f" }}>
@@ -155,13 +156,13 @@ function NodeViewInner(props: NodeViewProps) {
 
 	return (
 		<div
-			className={[
+			className={cx(
 				"node",
-				def.pure ? "pure" : "",
-				selected ? "selected" : "",
-				props.anchor ? "anchor" : "",
-				props.errorCount ? "has-error" : "",
-			].filter(Boolean).join(" ")}
+				def.pure && "node--pure",
+				selected && "node--selected",
+				props.anchor && "node--anchor",
+				props.errorCount && "node--has-error",
+			)}
 			style={style}
 			data-node-id={node.id}
 			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
@@ -173,7 +174,7 @@ function NodeViewInner(props: NodeViewProps) {
 				<span className="badge-count warn" title="Needs attention — see the Inspector">!</span>
 			)}
 			<div
-				className={`head${subtitle ? " two-line" : ""}`}
+				className={cx("head", subtitle && "two-line")}
 				style={{ background: nodeColor(def), height: head }}
 			>
 				<span className="lines">
@@ -240,7 +241,11 @@ function renderReroute(
 	const { node, selected } = props;
 	return (
 		<div
-			className={`node reroute${selected ? " selected" : ""}${props.anchor ? " anchor" : ""}`}
+			className={cx(
+				"node node--reroute",
+				selected && "node--selected",
+				props.anchor && "node--anchor",
+			)}
 			data-node-id={node.id}
 			style={{
 				left: node.x,
@@ -270,7 +275,12 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
 
 	return (
 		<div
-			className={`node capsule${selected ? " selected" : ""}${props.anchor ? " anchor" : ""}${props.errorCount ? " has-error" : ""}`}
+			className={cx(
+				"node node--capsule",
+				selected && "node--selected",
+				props.anchor && "node--anchor",
+				props.errorCount && "node--has-error",
+			)}
 			data-node-id={node.id}
 			style={{
 				left: node.x,
@@ -309,12 +319,12 @@ function renderOperator(
 
 	return (
 		<div
-			className={[
-				"node", "operator",
-				selected ? "selected" : "",
-				props.anchor ? "anchor" : "",
-				props.errorCount ? "has-error" : "",
-			].filter(Boolean).join(" ")}
+			className={cx(
+				"node node--operator",
+				selected && "node--selected",
+				props.anchor && "node--anchor",
+				props.errorCount && "node--has-error",
+			)}
 			data-node-id={node.id}
 			style={{
 				left: node.x,
@@ -384,18 +394,18 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	const wired = props.connected.has(`${side}:${node.id}/${pin.id}`);
 	const drag = props.drag;
 
-	let state = "";
+	let state: string | undefined;
 	if (drag) {
 		// While a wire is in flight, dim everything it cannot land on so the
 		// legal targets are the only thing that reads as clickable.
-		state = props.canAccept(node.id, pin, side) ? " compatible" : " incompatible";
+		state = props.canAccept(node.id, pin, side) ? "compatible" : "incompatible";
 	}
 
 	// Marked on the pin itself as well as its row, for the pill, which has no rows.
-	const highlighted = props.highlightPin === `${side}:${pin.id}` ? " highlighted" : "";
+	const highlighted = props.highlightPin === `${side}:${pin.id}` && "highlighted";
 	const dot = (
 		<span
-			className={`pin ${pin.kind}${wired ? " connected" : ""}${state}${highlighted}`}
+			className={cx("pin", pin.kind, wired && "connected", state, highlighted)}
 			style={{ color: pinColor(pin.type, pin.kind) }}
 			title={pin.description ?? (pin.kind === "data" ? pinTypeText(pin) : pin.kind)}
 			onPointerDown={(e) => props.onPinPointerDown(e, node.id, pin, side)}
@@ -415,7 +425,7 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	// children of a split struct pin — without that, three number pins called X,
 	// Y and Z read as three unrelated inputs.
 	const label = pin.name ? (
-		<span className={`pin-label${pin.part ? " part" : ""}`}>{pin.name}</span>
+		<span className={cx("pin-label", pin.part && "part")}>{pin.name}</span>
 	) : null;
 
 	// An unwired data input is edited in place, which is what keeps simple
@@ -455,15 +465,13 @@ function renderLiteral(props: NodeViewProps, pin: PinDef) {
 		props.onLiteralChange(props.node.id, pin.id, value);
 	const stop = (e: ReactPointerEvent) => e.stopPropagation();
 
-	/**
-	 * An optional pin nobody has touched.
-	 *
-	 * Drawn as the word "default" rather than as its default *value*, because
-	 * the two are different things here and showing the value would be a lie:
-	 * the argument is not passed at all, and what the call does instead is the
-	 * engine's business rather than ours. Clicking adopts the default as a
-	 * starting point, which is the only sensible thing a click can mean.
-	 */
+	// An optional pin nobody has touched.
+	//
+	// Drawn as the word "default" rather than as its default *value*, because
+	// the two are different things here and showing the value would be a lie:
+	// the argument is not passed at all, and what the call does instead is the
+	// engine's business rather than ours. Clicking adopts the default as a
+	// starting point, which is the only sensible thing a click can mean.
 	if (pin.optional === true && typed === undefined) {
 		return (
 			<button
@@ -587,6 +595,19 @@ const CUSTOM = "__roswaal_other__";
 const TOO_MANY_TO_SCROLL = 24;
 
 /**
+ * How a pin's options are grouped in the picker, or nothing for a flat list.
+ *
+ * By identity on the shared arrays rather than by inspecting the values: these
+ * are the two lists long enough to need headings, and a list a pack author
+ * wrote is theirs to show as they gave it.
+ */
+function groupingFor(pin: PinDef): ((value: string) => string) | undefined {
+	if (pin.options === CLASS_OPTIONS) return classGroup;
+	if (pin.options === TYPE_OPTIONS) return typeGroup;
+	return undefined;
+}
+
+/**
  * A pin with a known set of values, in whichever control suits the set.
  *
  * The list is suggestions rather than a gate either way: a value that is not on
@@ -602,20 +623,6 @@ const TOO_MANY_TO_SCROLL = 24;
  * Nobody scrolls six hundred options, and "Other…" is not the escape you want
  * when the list you are escaping is the one you were going to type into anyway.
  */
-/**
- * How a pin's options are grouped in the picker, or nothing for a flat list.
- *
- * By identity on the shared arrays rather than by inspecting the values: these
- * are the two lists long enough to need headings, and a list a pack author
- * wrote is theirs to show as they gave it.
- */
-function groupingFor(pin: PinDef): ((value: string) => string) | undefined {
-	if (pin.options === CLASS_OPTIONS) return classGroup;
-	if (pin.options === TYPE_OPTIONS) return typeGroup;
-	return undefined;
-}
-
-
 function OptionEditor({
 	pin, value, onChange,
 }: { pin: PinDef; value: string; onChange: (value: string) => void }) {
@@ -631,15 +638,13 @@ function OptionEditor({
 	const stop = (e: ReactPointerEvent) => e.stopPropagation();
 
 	if (known.length > TOO_MANY_TO_SCROLL) {
-		/**
-		 * A button that opens the picker, showing the value it holds.
-		 *
-		 * Not a text field with a `datalist` behind it, which is what this was
-		 * first and is the wrong shape for the job: a datalist only narrows what
-		 * you have already started typing, so it helps somebody who knows the
-		 * name and not somebody looking for one. Browsing is half of what a list
-		 * of six hundred classes is for.
-		 */
+		// A button that opens the picker, showing the value it holds.
+		//
+		// Not a text field with a `datalist` behind it, which is what this was
+		// first and is the wrong shape for the job: a datalist only narrows what
+		// you have already started typing, so it helps somebody who knows the
+		// name and not somebody looking for one. Browsing is half of what a list
+		// of six hundred classes is for.
 		return (
 			<>
 				<button

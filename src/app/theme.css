@@ -1495,7 +1495,7 @@ button.tb.primary:hover:not(:disabled) {
 	user-select: none;
 }
 
-.node.selected {
+.node.node--selected {
 	border-color: var(--select);
 	box-shadow: 0 0 0 2px color-mix(in srgb, var(--select) 55%, transparent), var(--node-shadow);
 }
@@ -1505,11 +1505,11 @@ button.tb.primary:hover:not(:disabled) {
    being selected, not a different state, and a new hue on the canvas is one
    more thing to learn the meaning of. Restated for the capsule and the knot
    further down, where their own rules would otherwise win. */
-.node.selected.anchor {
+.node.node--selected.node--anchor {
 	box-shadow: 0 0 0 4px var(--select), var(--node-shadow);
 }
 
-.node.has-error {
+.node.node--has-error {
 	border-color: var(--danger);
 }
 
@@ -1641,7 +1641,7 @@ button.tb.primary:hover:not(:disabled) {
 	inset: -3px;
 }
 
-.canvas.wiring .node .pin::after {
+.canvas.canvas--wiring .node .pin::after {
 	inset: -9px;
 }
 
@@ -1796,8 +1796,8 @@ button.tb.primary:hover:not(:disabled) {
    symbol and the result pin. Pushed there, a field sat on top of both — and the
    pill's width already reserves a column for it beside the pins, which is where
    `operatorLayout` has always put it. */
-.node.operator .row .side.left > .literal,
-.node.operator .row .side.left > input[type="checkbox"] {
+.node.node--operator .row .side.left > .literal,
+.node.node--operator .row .side.left > input[type="checkbox"] {
 	margin-left: 0;
 }
 
@@ -1862,8 +1862,8 @@ button.tb.primary:hover:not(:disabled) {
 
 /* A pill's corner is rounded away from where a square node's corner is, so a
    badge hung at -7px sits off the shape entirely rather than on its edge. */
-.node.operator .badge-count,
-.node.capsule .badge-count {
+.node.node--operator .badge-count,
+.node.node--capsule .badge-count {
 	top: -6px;
 	right: -1px;
 }
@@ -1906,7 +1906,7 @@ button.tb.primary:hover:not(:disabled) {
 	user-select: none;
 }
 
-.comment.selected {
+.comment.comment--selected {
 	border-color: var(--select);
 	box-shadow: 0 0 0 2px color-mix(in srgb, var(--select) 45%, transparent);
 }
@@ -3426,22 +3426,22 @@ button.tb.primary:hover:not(:disabled) {
 /* The corner comes from `NODE.operatorRadius`, set inline: the wire router and
    the documentation previews measure the same constant, and a second opinion
    here would put the shape and the pins a few pixels apart. */
-.node.operator {
+.node.node--operator {
 	cursor: grab;
 }
 
-.node.operator .operator-rows {
+.node.node--operator .operator-rows {
 	position: absolute;
 	left: 0;
 	right: 0;
 }
 
 /* A and B say nothing the symbol between them has not. */
-.node.operator .pin-label {
+.node.node--operator .pin-label {
 	display: none;
 }
 
-.node.operator .operator-symbol {
+.node.node--operator .operator-symbol {
 	position: absolute;
 	top: 0;
 	bottom: 0;
@@ -3456,7 +3456,7 @@ button.tb.primary:hover:not(:disabled) {
 	pointer-events: none;
 }
 
-.node.operator .operator-out {
+.node.node--operator .operator-out {
 	position: absolute;
 	right: var(--pin-pad);
 	display: flex;
@@ -3465,11 +3465,11 @@ button.tb.primary:hover:not(:disabled) {
 /* A pill's result is not on a row, so it misses the rule that puts a data pin on
    the node's edge. Same offset, stated once more for the one pin outside a row.
    The pill's inputs are in rows and are already covered. */
-.node.operator .operator-out .pin {
+.node.node--operator .operator-out .pin {
 	left: calc(var(--pin-pad) + var(--pin-slot) / 2 + var(--node-stroke));
 }
 
-.node.operator .operator-grow {
+.node.node--operator .operator-grow {
 	position: absolute;
 	top: 0;
 	bottom: 0;
@@ -3479,7 +3479,7 @@ button.tb.primary:hover:not(:disabled) {
 	gap: 2px;
 }
 
-.node.operator .operator-grow button {
+.node.node--operator .operator-grow button {
 	width: 14px;
 	height: 14px;
 	padding: 0;
@@ -3492,7 +3492,7 @@ button.tb.primary:hover:not(:disabled) {
 	cursor: pointer;
 }
 
-.node.operator .operator-grow button:disabled {
+.node.node--operator .operator-grow button:disabled {
 	opacity: 0.3;
 	cursor: default;
 }
@@ -3502,7 +3502,7 @@ button.tb.primary:hover:not(:disabled) {
 /* The usual node-editor shape for a variable getter: a dark pill, the name, one
    output. The form itself says "this is a value", so it needs no header and no
    title row. */
-.node.capsule {
+.node.node--capsule {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -3517,7 +3517,7 @@ button.tb.primary:hover:not(:disabled) {
 	cursor: grab;
 }
 
-.node.capsule .capsule-label {
+.node.node--capsule .capsule-label {
 	flex: 1;
 	min-width: 0;
 	font-size: 12px;
@@ -3527,13 +3527,13 @@ button.tb.primary:hover:not(:disabled) {
 	white-space: nowrap;
 }
 
-.node.capsule .pin-label {
+.node.node--capsule .pin-label {
 	display: none;
 }
 
 /* Balanced on the capsule's right edge, where the wire attaches, the same way
    a data pin sits on a node's. The 10px is the capsule's own right padding. */
-.node.capsule .pin {
+.node.node--capsule .pin {
 	flex: none;
 	left: calc(10px + var(--pin-slot) / 2 + var(--node-stroke));
 }
@@ -3776,7 +3776,7 @@ button.tb.primary.danger:hover:not(:disabled) {
 /* A pure node has no execution pins and can be wired anywhere. Green is the
    usual signal for that; a thin edge carries it here without fighting the
    category colour on the header. */
-.node.pure {
+.node.node--pure {
 	border-left: 3px solid var(--pure-edge);
 }
 
@@ -4427,7 +4427,7 @@ button.tb.icon-only.on {
 
 /* A reroute knot: a dot the wire passes through, with both pins stacked at its
    centre so the wire enters and leaves at the same point. */
-.node.reroute {
+.node.node--reroute {
 	border-radius: 50%;
 	background: var(--capsule-bg);
 	/* An exec knot draws a hollow arrow, and the hollow has to be the colour it
@@ -4446,7 +4446,7 @@ button.tb.icon-only.on {
  * knot stopped being draggable — there was no ring left to grab, only pin. The
  * slot shrinks back here so the two gestures stay separable: the middle starts
  * a wire, the rim moves the knot. */
-.node.reroute .pin {
+.node.node--reroute .pin {
 	--pin-slot: 12px;
 	position: absolute;
 	left: 50%;
@@ -4454,7 +4454,7 @@ button.tb.icon-only.on {
 	transform: translate(-50%, -50%);
 }
 
-.node.reroute .pin::after {
+.node.node--reroute .pin::after {
 	inset: -1px;
 }
 
@@ -4462,7 +4462,7 @@ button.tb.icon-only.on {
    sides to hang anything off. An execution triangle is narrower than its slot,
    so centre it in the slot rather than leaving it against the left edge, where
    the rows want it. */
-.node.reroute .pin.exec .dot {
+.node.node--reroute .pin.exec .dot {
 	left: calc((var(--pin-slot) - var(--exec-width)) / 2);
 }
 
@@ -4472,7 +4472,7 @@ button.tb.icon-only.on {
    off one. The ring grows outwards rather than taking from the pin, so
    starting a wire is exactly as easy as it was. Behind everything, so it
    catches only what would have hit the canvas. */
-.node.reroute::before {
+.node.node--reroute::before {
 	content: "";
 	position: absolute;
 	inset: -6px;
@@ -4480,7 +4480,7 @@ button.tb.icon-only.on {
 	z-index: -1;
 }
 
-.canvas.wiring .node.reroute .pin::after {
+.canvas.canvas--wiring .node.node--reroute .pin::after {
 	inset: -5px;
 }
 
@@ -4488,15 +4488,15 @@ button.tb.icon-only.on {
    unwired output's hollow ring shows the wired input's fill through the middle,
    which reads as a pin that will not let go of its colour. Only the first is
    drawn; the second keeps its hit area, so a wire can still be dragged out. */
-.node.reroute .pin + .pin .dot {
+.node.node--reroute .pin + .pin .dot {
 	display: none;
 }
 
-.node.reroute .pin-label {
+.node.node--reroute .pin-label {
 	display: none;
 }
 
-.node.reroute.selected {
+.node.node--reroute.node--selected {
 	border-color: var(--select);
 }
 
@@ -5225,16 +5225,17 @@ button.tb.icon-only.on {
 	max-width: 78ch;
 }
 
-/* A capsule getter redeclares border and box-shadow further down this file than
-   .node.selected, so it was quietly winning and the selection ring vanished on
-   every Get Variable and Get Function node. Restated at the right specificity. */
-.node.capsule.selected {
+/* A capsule getter redeclares border and box-shadow further down this file
+   than .node.node--selected, so it would win and the selection ring would
+   vanish on every Get Variable and Get Function node. Restated at the right
+   specificity. */
+.node.node--capsule.node--selected {
 	border-color: var(--select);
 	box-shadow: 0 0 0 2px color-mix(in srgb, var(--select) 55%, transparent), var(--node-shadow);
 }
 
-.node.capsule.selected.anchor,
-.node.reroute.selected.anchor {
+.node.node--capsule.node--selected.node--anchor,
+.node.node--reroute.node--selected.node--anchor {
 	box-shadow: 0 0 0 4px var(--select), var(--node-shadow);
 }
 
@@ -7371,7 +7372,7 @@ button.tb.danger {
  * The border is on the canvas rather than on the overlay because `inset` on an
  * absolutely positioned child sits *inside* the scroll box and would slide
  * under the status panel; drawn here it frames the graph exactly. */
-.canvas.locked {
+.canvas.canvas--locked {
 	box-shadow: inset 0 0 0 2px var(--accent);
 }
 

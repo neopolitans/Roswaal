@@ -27,15 +27,13 @@ export function bootEditor(): void {
 	const container = document.getElementById("root");
 	if (!container) throw new Error("Missing #root");
 
-	/**
-	 * Three pages, one bundle.
-	 *
-	 * Decided on the pathname rather than by a router, which keeps the docs and
-	 * Node Design genuinely separate windows — openable on a second monitor,
-	 * readable while you wire — without a second build or a second server route.
-	 * Where those paths are depends on what is serving them, which is `pages.ts`
-	 * and not this file's business.
-	 */
+	// Three pages, one bundle.
+	//
+	// Decided on the pathname rather than by a router, which keeps the docs and
+	// Node Design genuinely separate windows — openable on a second monitor,
+	// readable while you wire — without a second build or a second server route.
+	// Where those paths are depends on what is serving them, which is `pages.ts`
+	// and not this file's business.
 	const page = currentPage();
 	const isDocs = page === "docs";
 	const isDesigner = page === "designer";
@@ -46,30 +44,26 @@ export function bootEditor(): void {
 	// entry points are the same document, so both get it.
 	installFavicon();
 
-	/**
-	 * The colour scheme, before anything renders.
-	 *
-	 * Here rather than in an effect so the app opens in the developer's theme
-	 * instead of painting the default one and correcting itself a frame later.
-	 * Both entry points get it for the same reason they both get the favicon —
-	 * the docs window is the same document, and a developer on Nord who opens
-	 * the reference should not find it in slate blue.
-	 */
-	/**
-	 * What the host can do, asked once for the page.
-	 *
-	 * Not awaited: the answer decides whether a few controls are usable, not
-	 * whether anything renders, and holding the first paint for a round trip
-	 * to buy that would be the wrong trade. They start unusable and the store
-	 * redraws them, which is the right way round -- a control that appears and
-	 * then vanishes is worse than one that arrives a moment late.
-	 */
+	// What the host can do, asked once for the page.
+	//
+	// Not awaited: the answer decides whether a few controls are usable, not
+	// whether anything renders, and holding the first paint for a round trip
+	// to buy that would be the wrong trade. They start unusable and the store
+	// redraws them, which is the right way round -- a control that appears and
+	// then vanishes is worse than one that arrives a moment late.
 	void loadCapabilities();
 
 	// Long press and double tap, for the right-click and double-click every
 	// panel is built around. See `touch.ts`.
 	installTouchGestures();
 
+	// The colour scheme, before anything renders.
+	//
+	// Here rather than in an effect so the app opens in the developer's theme
+	// instead of painting the default one and correcting itself a frame later.
+	// Both entry points get it for the same reason they both get the favicon —
+	// the docs window is the same document, and a developer on Nord who opens
+	// the reference should not find it in slate blue.
 	const preferences = readPreferences();
 	applyTheme(findTheme(preferences.theme));
 	applyChrome(preferences);

@@ -47,11 +47,9 @@ export function attachToolbarLink(figure: HTMLElement): () => void {
 		else byKey.set(key, [part]);
 	}
 
-	/**
-	 * A control the reader tapped, which stays lit until something else is
-	 * tapped. A touch screen has no hover, and without this the page would be
-	 * exactly as hard to read on a phone as it was before.
-	 */
+	// A control the reader tapped, which stays lit until something else is
+	// tapped. A touch screen has no hover, and without this the page would be
+	// exactly as hard to read on a phone as it was before.
 	let pinned: string | null = null;
 
 	const paint = (key: string | null) => {
@@ -60,15 +58,13 @@ export function attachToolbarLink(figure: HTMLElement): () => void {
 		}
 	};
 
-	/**
-	 * Bring a lit control into view sideways.
-	 *
-	 * A bar wider than the reading column scrolls, and the right-hand end —
-	 * which is where the three hardest-to-find buttons are — is the part that is
-	 * off screen. Lighting something the reader cannot see is worse than not
-	 * lighting it. Horizontal only, and only within the picture's own scroller:
-	 * `scrollIntoView` would move the page under them.
-	 */
+	// Bring a lit control into view sideways.
+	//
+	// A bar wider than the reading column scrolls, and the right-hand end —
+	// which is where the three hardest-to-find buttons are — is the part that is
+	// off screen. Lighting something the reader cannot see is worse than not
+	// lighting it. Horizontal only, and only within the picture's own scroller:
+	// `scrollIntoView` would move the page under them.
 	const reveal = (key: string) => {
 		// Whichever box the lit part is actually inside, found by walking up
 		// from it rather than named. A map figure's columns scroll too, and

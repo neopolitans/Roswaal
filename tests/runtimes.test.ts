@@ -35,6 +35,7 @@ import {
 import {
 	FILTER_LABEL, FILTER_SUMMARY, MENU_FILTERS,
 } from "../src/app/preferences.js";
+import { buildPresets, libraryItems, narrowItems } from "../src/app/menuSearch.js";
 import type { NodeDef } from "../src/core/schema.js";
 
 const registry = createRegistry();
@@ -273,10 +274,13 @@ describe("runtime as an axis", () => {
 	 * graph has, or about which of a function's parameters are in scope.
 	 */
 	it("offers This graph in both searches, from one source", () => {
-		expect(source("src/app/NodeMenu.tsx")).toContain('runtime: "graph" as const');
+		const [preset] = buildPresets({ variables: [{ id: "v", name: "hp", type: "number" }], nodes: [] });
+		const [item] = libraryItems(registry, "roblox", [preset]);
+		expect(item.key).toBe(preset.key);
+		expect(item.runtime).toBe("graph");
 		expect(source("src/app/NodePicker.tsx")).toContain('filter: "graph" as const');
 		// One call site, and both surfaces take the result as a prop. (The
-		// builder itself lives in NodeMenu.tsx, which is why this asks App
+		// builder itself lives in menuSearch.ts, which is why this asks App
 		// rather than asking the components what they do not contain.)
 		expect(source("src/app/useGraphCommands.ts").match(/buildPresets\(/g)).toHaveLength(1);
 		expect(source("src/app/App.tsx")).toContain("presets={presets}");
@@ -340,11 +344,17 @@ describe("runtime as an axis", () => {
 
 	/** Narrowing must not widen: the target's filter is applied first, always. */
 	it("narrows what the target allows rather than replacing it", () => {
-		const menu = source("src/app/NodeMenu.tsx");
-		// The wire filter and then the runtime filter, both over `allItems`,
-		// which is already target-filtered.
-		expect(menu).toContain("def.targets.includes(target)");
-		expect(menu).toContain("byWire.filter((item) => item.runtime === narrowed)");
+		// The wire filter and then the runtime filter, both over the library
+		// items, which are already target-filtered.
+		const lune = libraryItems(registry, "lune", []);
+		expect(lune.every((item) => !item.def.targets || item.def.targets.includes("lune"))).toBe(true);
+		const roblox = libraryItems(registry, "roblox", []);
+		expect(roblox.length).toBeGreaterThan(lune.length);
+		const narrowed = narrowItems(lune, null, "luau");
+		expect(narrowed.length).toBeGreaterThan(0);
+		expect(narrowed.every((item) => item.runtime === "luau")).toBe(true);
+		// Narrowing to a runtime the target has none of leaves nothing, never more.
+		expect(narrowItems(lune, null, "roblox").length).toBeLessThanOrEqual(narrowed.length);
 	});
 });
 

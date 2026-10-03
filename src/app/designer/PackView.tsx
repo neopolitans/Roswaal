@@ -29,9 +29,11 @@ import { BUILTIN_NODES, parseNodePack } from "../../core/nodes/index.js";
 import { namespaceFor } from "../../core/packs.js";
 import type { NodeDef, Target } from "../../core/schema.js";
 import { api, type PackFile } from "../api.js";
+import { cx } from "../cx.js";
 import { Icon } from "../icons.jsx";
 import { NODE } from "../layers.js";
 import { nodeColor, pinColor } from "../palette.js";
+import type { Preferences } from "../preferences.js";
 import type { PackNode } from "./draft.js";
 import { NodeEditor } from "./NodeEditor.jsx";
 import { useCompact } from "../Workspace.jsx";
@@ -51,23 +53,27 @@ export interface PackViewProps {
 	/** The pack changed on disk; read the pack list again. */
 	onChanged: () => Promise<void>;
 	notify: Notify;
+	/** The page's preferences, which the open node's logic canvas draws with. */
+	prefs: Preferences;
+	/** Changes preferences, as the page's settings panel does. */
+	onPrefs: (patch: Partial<Preferences>) => void;
 }
 
-export function PackView({ open, packs, target, onBack, onChanged, notify }: PackViewProps) {
+export function PackView({
+	open, packs, target, onBack, onChanged, notify, prefs, onPrefs,
+}: PackViewProps) {
 	const [defs, setDefs] = useState<NodeDef[] | null>(null);
-	/** Each node's saved logic graph, by id, which the loader's defs leave out. */
+	// Each node's saved logic graph, by id, which the loader's defs leave out.
 	const [logicById, setLogicById] = useState<Map<string, LogicGraph>>(new Map());
 	const [chosen, setChosen] = useState<Chosen>(null);
 	const [dirty, setDirty] = useState(false);
 	const [pending, setPending] = useState<Chosen | "back" | undefined>(undefined);
-	/**
-	 * On a phone or a tablet the node list is a drawer over the editor, as the
-	 * editor's panels are: beside it, it left a phone's editor sixty pixels
-	 * wide. Out to begin with, since nothing is open until a node is picked.
-	 */
+	// On a phone or a tablet the node list is a drawer over the editor, as the
+	// editor's panels are: beside it, it left a phone's editor sixty pixels
+	// wide. Out to begin with, since nothing is open until a node is picked.
 	const compact = useCompact();
 	const [listOpen, setListOpen] = useState(true);
-	/** The bar's slot for the open node's own switches; see `toolbarSlot`. */
+	// The bar's slot for the open node's own switches; see `toolbarSlot`.
 	const [slot, setSlot] = useState<HTMLElement | null>(null);
 	const [requiredDefs, setRequiredDefs] = useState<NodeDef[]>([]);
 
@@ -135,7 +141,7 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [requiresKey, packs, notify]);
 
-	/** Moves somewhere else, asking first when the node has edits in it. */
+	// Moves somewhere else, asking first when the node has edits in it.
 	const go = (next: Chosen | "back") => {
 		if (dirty && !readOnly) {
 			setPending(next);
@@ -193,11 +199,11 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 	};
 
 	return (
-		<div className={`pack-view${compact ? " compact" : ""}`}>
+		<div className={cx("pack-view", compact && "compact")}>
 			{compact && (
 				<div className="pack-compact-bar">
 					<button
-						className={`tb with-icon${listOpen ? " on" : ""}`}
+						className={cx("tb with-icon", listOpen && "on")}
 						aria-expanded={listOpen}
 						onClick={() => setListOpen((open) => !open)}
 					>
@@ -210,7 +216,11 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 			)}
 			{compact && listOpen && <div className="pack-scrim" onClick={() => setListOpen(false)} />}
 			<aside
-				className={`pack-nodes${compact ? (listOpen ? " drawer drawer-open" : " drawer") : ""}`}
+				className={cx(
+					"pack-nodes",
+					compact && "drawer",
+					compact && listOpen && "drawer-open",
+				)}
 				inert={compact && !listOpen}
 			>
 				<button className="tb with-icon pack-back" onClick={() => go("back")}>
@@ -238,7 +248,7 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 						{requires.map((name) => (
 							<span
 								key={name}
-								className={`badge${missingRequires.includes(name) ? " warn" : ""}`}
+								className={cx("badge", missingRequires.includes(name) && "warn")}
 								title={missingRequires.includes(name) ? "This project does not have it" : undefined}
 							>
 								{name}
@@ -311,7 +321,7 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 						{defs.map((def) => (
 							<li key={def.id}>
 								<button
-									className={`pack-node${current?.id === def.id ? " on" : ""}`}
+									className={cx("pack-node", current?.id === def.id && "on")}
 									onClick={() => {
 										if (current?.id !== def.id) go({ id: def.id });
 										setListOpen(false);
@@ -354,6 +364,8 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 					onDeleted={() => void afterDelete()}
 					onDirty={onDirty}
 					notify={notify}
+					prefs={prefs}
+					onPrefs={onPrefs}
 					toolbarSlot={compact ? slot : null}
 				/>
 			)}

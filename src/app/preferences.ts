@@ -31,10 +31,9 @@
  *
  * ## One key
  *
- * Preferences used to be one `localStorage` key each, added as needed —
- * `roswaal.alignExec` was the only survivor. One blob means a preference added
- * later does not need a migration, and reading them is one parse rather than a
- * lookup per field.
+ * Every preference is in one `localStorage` blob rather than a key each. One
+ * blob means a preference added later does not need a migration, and reading
+ * them is one parse rather than a lookup per field.
  */
 
 import type { WireStyle } from "./geometry.js";

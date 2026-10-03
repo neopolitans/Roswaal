@@ -10,6 +10,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
+import { cx } from "./cx.js";
+import { useDismiss } from "./dismiss.js";
 import { Icon } from "./icons.jsx";
 
 /**
@@ -61,12 +63,10 @@ export function Popout({ label, title, end = false, up = false, closeOnPick = fa
 	const [fixedAt, setFixedAt] = useState<{ left: number; bottom: number } | null>(null);
 	const box = useRef<HTMLDivElement>(null);
 	const panel = useRef<HTMLDivElement>(null);
-	/**
-	 * Which way the panel hangs. `end` is where it would like to open, but the
-	 * groups wrap on a narrow screen and the one at the right-hand edge can end
-	 * up at the left of the second row -- so it is measured once it is drawn,
-	 * and turned round if it would run off either side.
-	 */
+	// Which way the panel hangs. `end` is where it would like to open, but the
+	// groups wrap on a narrow screen and the one at the right-hand edge can end
+	// up at the left of the second row -- so it is measured once it is drawn,
+	// and turned round if it would run off either side.
 	const [side, setSide] = useState<"start" | "end">(end ? "end" : "start");
 	useLayoutEffect(() => {
 		if (!open || !up || !box.current) return;
@@ -80,18 +80,14 @@ export function Popout({ label, title, end = false, up = false, closeOnPick = fa
 		if (at.left < 4) setSide("start");
 		else if (at.right > width - 4) setSide("end");
 	}, [open, side]);
-	useEffect(() => {
-		if (!open) return;
-		const away = (e: PointerEvent) => {
-			if (!box.current?.contains(e.target as Node)) setOpen(false);
-		};
-		window.addEventListener("pointerdown", away, true);
-		return () => window.removeEventListener("pointerdown", away, true);
-	}, [open]);
+	useDismiss(box, () => setOpen(false), { enabled: open });
 	return (
-		<div className={`tool-popout${side === "end" ? " tool-popout-end" : ""}${up ? " tool-popout-up" : ""}`} ref={box}>
+		<div
+			className={cx("tool-popout", side === "end" && "tool-popout-end", up && "tool-popout-up")}
+			ref={box}
+		>
 			<button
-				className={`tb with-icon${open ? " on" : ""}`}
+				className={cx("tb with-icon", open && "on")}
 				title={title}
 				aria-expanded={open}
 				onClick={() => setOpen((was) => !was)}

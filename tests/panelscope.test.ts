@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildPresets } from "../src/app/NodeMenu.jsx";
+import { buildPresets } from "../src/app/menuSearch.js";
 import {
 	hoistedFunctions, paramsVisibleFrom, visibleFrom,
 } from "../src/core/functionGraph.js";

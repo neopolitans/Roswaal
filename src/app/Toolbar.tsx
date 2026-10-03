@@ -31,6 +31,7 @@
 
 import type { RoswaalConfig, ScriptClass, Target, TypecheckMode } from "../core/schema.js";
 import { VERSION } from "../cli/version.js";
+import { cx } from "./cx.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
 import { Popout, usePhone } from "./Popout.jsx";
@@ -50,7 +51,6 @@ export interface ProjectBarProps {
 	/** The node designer, in its own window: a form over a node definition. */
 	onOpenDesigner: () => void;
 	onOpenSettings: () => void;
-	/** Opens the project menu, anchored under the mark. */
 	/**
 	 * Open the introduction panel. No anchor: it is centred rather than dropped
 	 * under the mark, because the same panel opens from a header in two other
@@ -230,7 +230,7 @@ export function DocumentBar(props: DocumentBarProps) {
 	if (props.kind === "map") {
 		return (
 			<div className="docbar">
-				<span className={`doc-name${props.dirty ? " dirty" : ""}`}>{props.name}</span>
+				<span className={cx("doc-name", props.dirty && "dirty")}>{props.name}</span>
 				<span className="doc-kind">Node Map</span>
 				<span className="spacer" />
 				<button
@@ -285,7 +285,7 @@ export function DocumentBar(props: DocumentBarProps) {
 	const targetSetting = (
 			<span className="target-pick">
 			<select
-				className={`tb doc-target ${props.target}`}
+				className={cx("tb doc-target", props.target)}
 				title={
 					props.target === "lune"
 						? "Compiles for Lune, which is experimental. Roblox-only nodes are errors here."
@@ -311,7 +311,7 @@ export function DocumentBar(props: DocumentBarProps) {
 			{/* The name is a preference; the tab and the watermark already say it.
 			    Unsaved edits are marked either way. */}
 			{props.showName ? (
-				<span className={`doc-name${props.dirty ? " dirty" : ""}`}>
+				<span className={cx("doc-name", props.dirty && "dirty")}>
 					{props.functionName ? (
 						<>ƒ {props.functionName} <span className="doc-of">({props.name})</span></>
 					) : (
@@ -352,7 +352,7 @@ export function DocumentBar(props: DocumentBarProps) {
 				<Icon name="layout" size={16} />
 			</button>
 			<button
-				className={`tb with-icon tb-collapsible${props.alignExec ? " on" : ""}`}
+				className={cx("tb with-icon tb-collapsible", props.alignExec && "on")}
 				aria-pressed={props.alignExec}
 				title={
 					props.alignExec

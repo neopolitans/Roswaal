@@ -9,16 +9,18 @@
 import { memo, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import type { TreeEntry } from "./api.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
+import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { NOT_HERE, useHostCan } from "./host.js";
+import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
 	nodescript: "document",
 	nodemap: "map",
 	luau: "luauScript",
-	// The gear it used to be reached by, kept as the glyph: it is the project's
-	// settings for requires, and the shape people already associate with that.
+	// A gear: it is the project's settings for requires, and the shape people
+	// already associate with that.
 	luaurc: "settings",
 	// The project's other settings file for what it requires, so the same gear.
 	wally: "settings",
@@ -75,34 +77,22 @@ export interface ProjectTreeProps {
  * stable. `App` hoists all six handlers into `useCallback` for that reason; a
  * new inline arrow in the JSX would quietly undo this.
  */
-export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
-	const { tree, openPath, sourceDir, nodePaths, targetDir, onOpen, onMove, onTargetDir } = props;
+export const ProjectTree = memo(function ProjectTree({
+	tree, openPath, openGraph, outline, onOpenFunction, sourceDir, nodePaths, targetDir,
+	onOpen, onMove, onTargetDir, onNewGraph, onNewMap, onNewFolder, onRename, onDelete, onReveal,
+	onPackage,
+}: ProjectTreeProps) {
 	// A file manager to show a file in is something only a machine has.
 	const canReveal = useHostCan("reveal");
 	const canGithub = useHostCan("githubDownload");
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
 
-	// Closed by a click outside it, deferred by a tick — a right-click also
-	// delivers a click here, and without the delay the menu would close on the
-	// very gesture that opened it.
-	useEffect(() => {
-		if (!menu) return;
-		const onDown = (e: MouseEvent) => {
-			if (!menuRef.current?.contains(e.target as Node)) setMenu(null);
-		};
-		const id = window.setTimeout(() => window.addEventListener("mousedown", onDown), 0);
-		return () => {
-			window.clearTimeout(id);
-			window.removeEventListener("mousedown", onDown);
-		};
-	}, [menu]);
+	useDismiss(menuRef, () => setMenu(null), { enabled: menu !== null, escape: true });
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-	/**
-	 * Wally's folders start shut: `_Index` holds every file of every package,
-	 * and opened it is most of the tree. Once each, so shutting is not undone
-	 * every time the tree is read again.
-	 */
+	// Wally's folders start shut: `_Index` holds every file of every package,
+	// and opened it is most of the tree. Once each, so shutting is not undone
+	// every time the tree is read again.
 	const seenPackages = useRef(new Set<string>());
 	useEffect(() => {
 		const fresh = tree.filter((e) => e.role === "packages" && !seenPackages.current.has(e.path));
@@ -110,23 +100,19 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		for (const e of fresh) seenPackages.current.add(e.path);
 		setCollapsed((prev) => new Set([...prev, ...fresh.map((e) => e.path)]));
 	}, [tree]);
-	/** Graphs whose functions are listed. Shut until asked, unlike folders. */
+	// Graphs whose functions are listed. Shut until asked, unlike folders.
 	const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 	const [dropTarget, setDropTarget] = useState<string | null>(null);
-	const { outline } = props;
 
-	/**
-	 * The two halves of a Roswaal project, which the tree used to show as a flat
-	 * repository listing with `.roswaal` and `src` sitting beside each other as
-	 * though they were the same kind of thing.
-	 *
-	 * They are not. One half you author and Roswaal reads; the other half
-	 * Roswaal writes and you do not edit. Everything about how a file behaves —
-	 * whether it can be renamed, whether a new graph can go beside it, whether
-	 * the next compile will overwrite it — follows from which half it is in, and
-	 * the tree said none of that.
-	 */
+	// The two halves of a Roswaal project, shown as two rather than as a flat
+	// repository listing with `.roswaal` and `src` beside each other as though
+	// they were the same kind of thing.
+	//
+	// They are not. One half you author and Roswaal reads; the other half
+	// Roswaal writes and you do not edit. Everything about how a file behaves —
+	// whether it can be renamed, whether a new graph can go beside it, whether
+	// the next compile will overwrite it — follows from which half it is in.
 	const groups = useMemo(() => {
 		const owned = [sourceDir, ...nodePaths].filter(Boolean);
 		// Overlap in either direction: `.roswaal` contains `sourceDir`, and a
@@ -146,7 +132,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		};
 	}, [tree, sourceDir, nodePaths]);
 
-	/** Visible rows in display order, which is what shift-range needs. */
+	// Visible rows in display order, which is what shift-range needs.
 	const rows = useMemo(() => {
 		const fnsOf = (entry: TreeEntry) => outline.get(entry.path) ?? entry.functions ?? [];
 		const out: Row[] = [];
@@ -166,13 +152,11 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		return slash === -1 ? "" : entry.path.slice(0, slash);
 	}
 
-	/**
-	 * Whether a new graph or map can go here at all.
-	 *
-	 * Only under `sourceDir`. The tree also shows the compiled output, and
-	 * offering "New graph" inside a folder Roswaal regenerates would be offering
-	 * to write a file the next compile deletes.
-	 */
+	// Whether a new graph or map can go here at all.
+	//
+	// Only under `sourceDir`. The tree also shows the compiled output, and
+	// offering "New graph" inside a folder Roswaal regenerates would be offering
+	// to write a file the next compile deletes.
 	function holdsGraphs(dir: string): boolean {
 		return dir === sourceDir || dir.startsWith(sourceDir + "/");
 	}
@@ -250,14 +234,14 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 		<div className="tree">
 			{rows.map(({ entry, depth, section, fn }) => {
 				if (fn) {
-					const open = props.openPath === entry.path && props.openGraph === fn.id;
+					const open = openPath === entry.path && openGraph === fn.id;
 					return (
 						<div
 							key={`${entry.path}#${fn.id}`}
-							className={`tree-row function-row${open ? " open-doc" : ""}`}
+							className={cx("tree-row function-row", open && "open-doc")}
 							style={{ paddingLeft: 6 + (depth + fn.depth) * 13 }}
 							title={`${fn.name} in ${entry.name}. Double-click to open its graph.`}
-							onDoubleClick={() => props.onOpenFunction(entry.path, fn.id)}
+							onDoubleClick={() => onOpenFunction(entry.path, fn.id)}
 						>
 							<Icon name="function" size={15} className="kind function" />
 							<span className="label">{fn.name}</span>
@@ -270,7 +254,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 					return (
 						<div
 							key={sectionKey(section.id)}
-							className={`tree-section${shut ? " shut" : ""}`}
+							className={cx("tree-section", shut && "shut")}
 							title={section.hint}
 							onClick={() => toggle(sectionKey(section.id))}
 						>
@@ -288,19 +272,17 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 				return (
 					<div
 						key={entry.path}
-						className={[
+						className={cx(
 							"tree-row",
-							selected.has(entry.path) ? "selected" : "",
+							selected.has(entry.path) && "selected",
 							// The folder the toolbar's New graph would use. Marked
 							// rather than left implicit, because a button that acts
 							// on something you clicked earlier has to show what.
-							isDir && entry.path === targetDir && holdsGraphs(entry.path)
-								? "target-dir"
-								: "",
-							openPath === entry.path ? "open-doc" : "",
-							readonly ? "readonly" : "",
-							dropTarget === entry.path ? "drop-target" : "",
-						].filter(Boolean).join(" ")}
+							isDir && entry.path === targetDir && holdsGraphs(entry.path) && "target-dir",
+							openPath === entry.path && "open-doc",
+							readonly && "readonly",
+							dropTarget === entry.path && "drop-target",
+						)}
 						style={{ paddingLeft: 6 + depth * 13 }}
 						draggable={!isDir && !isListed(entry)}
 						onDragStart={(e) => onDragStart(e, entry)}
@@ -318,7 +300,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							e.preventDefault();
 							// wally.toml and its packages: a menu of their own, for adding.
 							if (isListed(entry)) {
-								if (props.onPackage) setMenu({ x: e.clientX, y: e.clientY, entry });
+								if (onPackage) setMenu({ x: e.clientX, y: e.clientY, entry });
 								return;
 							}
 							if (!selected.has(entry.path)) setSelected(new Set([entry.path]));
@@ -374,7 +356,11 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 								<Icon
 									name={KIND_ICONS[entry.kind as keyof typeof KIND_ICONS]}
 									size={15}
-									className={`kind ${entry.kind}${entry.kind === "luau" ? ` ${scriptClass(entry.name)}` : ""}`}
+									className={cx(
+										"kind",
+										entry.kind,
+										entry.kind === "luau" && scriptClass(entry.name),
+									)}
 								/>
 							</>
 						)}
@@ -391,7 +377,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 				</div>
 			)}
 
-			{menu && isListed(menu.entry) && props.onPackage && (
+			{menu && isListed(menu.entry) && onPackage && (
 				<div
 					className="menu tree-menu"
 					ref={menuRef}
@@ -402,7 +388,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							<div
 								className="item"
 								onClick={() => {
-									props.onPackage!("zip", menu.entry);
+									onPackage("zip", menu.entry);
 									setMenu(null);
 								}}
 							>
@@ -414,7 +400,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							<div
 								className="item danger"
 								onClick={() => {
-									props.onPackage!("remove", menu.entry);
+									onPackage("remove", menu.entry);
 									setMenu(null);
 								}}
 							>
@@ -425,7 +411,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						<div
 							className="item"
 							onClick={() => {
-								props.onPackage!("wally");
+								onPackage("wally");
 								setMenu(null);
 							}}
 						>
@@ -435,7 +421,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						<div
 							className="item"
 							onClick={() => {
-								props.onPackage!("zip");
+								onPackage("zip");
 								setMenu(null);
 							}}
 						>
@@ -443,11 +429,11 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							<span>Insert package zip…</span>
 						</div>
 						<div
-							className={`item${canGithub ? "" : " item-unavailable"}`}
+							className={cx("item", !canGithub && "item-unavailable")}
 							title={canGithub ? undefined : NOT_HERE}
 							onClick={() => {
 								if (!canGithub) return;
-								props.onPackage!("github");
+								onPackage("github");
 								setMenu(null);
 							}}
 						>
@@ -473,7 +459,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 								<div
 									className="item"
 									onClick={() => {
-										props.onNewGraph(parentDirOf(menu.entry));
+										onNewGraph(parentDirOf(menu.entry));
 										setMenu(null);
 									}}
 								>
@@ -483,7 +469,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 								<div
 									className="item"
 									onClick={() => {
-										props.onNewMap(parentDirOf(menu.entry));
+										onNewMap(parentDirOf(menu.entry));
 										setMenu(null);
 									}}
 								>
@@ -495,7 +481,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						<div
 							className="item"
 							onClick={() => {
-								props.onNewFolder(parentDirOf(menu.entry));
+								onNewFolder(parentDirOf(menu.entry));
 								setMenu(null);
 							}}
 						>
@@ -503,11 +489,11 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							<span>New folder</span>
 						</div>
 						<div
-							className={`item${canReveal ? "" : " item-unavailable"}`}
+							className={cx("item", !canReveal && "item-unavailable")}
 							title={canReveal ? undefined : NOT_HERE}
 							onClick={() => {
 								if (!canReveal) return;
-								props.onReveal(menu.entry.path);
+								onReveal(menu.entry.path);
 								setMenu(null);
 							}}
 						>
@@ -517,7 +503,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 						<div
 							className="item"
 							onClick={() => {
-								props.onRename(menu.entry.path);
+								onRename(menu.entry.path);
 								setMenu(null);
 							}}
 						>
@@ -528,7 +514,7 @@ export const ProjectTree = memo(function ProjectTree(props: ProjectTreeProps) {
 							className="item danger"
 							onClick={() => {
 								const paths = selected.has(menu.entry.path) ? [...selected] : [menu.entry.path];
-								props.onDelete(paths);
+								onDelete(paths);
 								setMenu(null);
 							}}
 						>

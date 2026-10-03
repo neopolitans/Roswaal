@@ -16,6 +16,7 @@ import {
 	hoistedFunctions, visibleFrom, withFunctionGraphs, type GraphId,
 } from "../core/functionGraph.js";
 import type { Registry } from "../core/nodes/index.js";
+import { cx } from "./cx.js";
 import {
 	addModule, addVariable, defaultLiteralFor, deleteModule, deleteSelection, deleteVariable,
 	localRefFor, moduleUsageCount, updateModule, updateVariable, variableUsageCount,
@@ -25,6 +26,7 @@ import { isConstLocal } from "../core/nodes/variables.js";
 import { pinColor } from "./palette.js";
 import { SPECIFIER_HINTS } from "../core/schema.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
+import { configText } from "./nodeConfig.js";
 import { store, useEditor } from "./store.js";
 import { specifierSuggestions, useProjectLuaurc } from "./projectAliases.js";
 import { TypePicker } from "./TypePicker.jsx";
@@ -47,21 +49,19 @@ export interface VariablesPanelProps {
 }
 
 export function VariablesPanel({ script, graph, registry, confirm, locked }: VariablesPanelProps) {
-	/**
-	 * Deletes the node that declares a local or a function, as the canvas would.
-	 *
-	 * The nodes that refer to it stay, as a variable's Get and Set do, and
-	 * report an error until they are repointed or removed. A function's own
-	 * graph goes with it, which the canvas also does -- so the question says how
-	 * much of each.
-	 */
+	// Deletes the node that declares a local or a function, as the canvas would.
+	//
+	// The nodes that refer to it stay, as a variable's Get and Set do, and
+	// report an error until they are repointed or removed. A function's own
+	// graph goes with it, which the canvas also does -- so the question says how
+	// much of each.
 	const deleteDeclaration = async (node: GraphNode, kind: "local" | "function") => {
 		const name = kind === "local"
 			? localRefFor(node).name || "local"
-			: (node.config as { name?: string } | undefined)?.name || "function";
+			: configText(node, "name") || "function";
 		const key = kind === "local" ? "local" : "function";
 		const uses = script.nodes.filter(
-			(n) => n.id !== node.id && (n.config as Record<string, unknown> | undefined)?.[key] === node.id,
+			(n) => n.id !== node.id && configText(n, key) === node.id,
 		).length;
 		const inside = kind === "function" ? withFunctionGraphs(script, new Set([node.id])).size - 1 : 0;
 		const parts = [`Delete "${name}"?`];
@@ -88,7 +88,7 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 	const declaredTypes = script.nodes.filter(
 		(n) =>
 			(n.def === "type.declareTop" || n.def === "type.declareHere") &&
-			((n.config as { name?: string } | undefined)?.name ?? "").trim() !== "" &&
+			(configText(n, "name") ?? "").trim() !== "" &&
 			// A type declared inside a function is scoped to it exactly as a
 			// local is; a hoisted one is written above everything and always is.
 			(n.def === "type.declareTop" || visibleFrom(n, graph, hoisted)),
@@ -96,7 +96,7 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 	const required = requiredTypes(script, useProjectTypes());
 
 	return (
-		<div className={`variables${locked ? " editing-locked" : ""}`}>
+		<div className={cx("variables", locked && "editing-locked")}>
 			<h2>
 				<span>Variables</span>
 				<button
@@ -200,17 +200,15 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 				{(declaredTypes.length > 0 || required.length > 0) && (
 					<>
 						<h3 className="variables-sub">Types</h3>
-						{declaredTypes.map((node) => {
-							const config = (node.config ?? {}) as { name?: string; export?: boolean };
-							return (
-								<TypeRow
-									key={node.id}
-									type={config.name!.trim()}
-									detail={config.export === false ? "type" : "export"}
-									onClick={() => store.reveal(node.id)}
-								/>
-							);
-						})}
+						{declaredTypes.map((node) => (
+							<TypeRow
+								key={node.id}
+								// Only types with a name are listed; see `declaredTypes`.
+								type={(configText(node, "name") ?? "").trim()}
+								detail={node.config?.export === false ? "type" : "export"}
+								onClick={() => store.reveal(node.id)}
+							/>
+						))}
 						{required.map((entry) => (
 							<TypeRow
 								key={entry.type}
@@ -252,7 +250,6 @@ function TypeRow({
 	);
 }
 
-/** One Declare Local: drag it for a Get Local, click it to find the node. */
 /**
  * One module the script requires: the name it binds, and where it comes from.
  *
@@ -278,7 +275,7 @@ function ModuleRow(
 	}
 
 	return (
-		<div className={`variable${expanded ? " expanded" : ""}`}>
+		<div className={cx("variable", expanded && "expanded")}>
 			<div
 				className="variable-head"
 				draggable
@@ -396,9 +393,10 @@ function RowDelete({ name, onDelete }: { name: string; onDelete: () => void }) {
 	);
 }
 
+/** One Declare Local: drag it for a Get Local, click it to find the node. */
 function LocalRow({ node, onDelete }: { node: GraphNode; onDelete: () => void }) {
 	const ref = localRefFor(node);
-	const declared = (node.config as { type?: string } | undefined)?.type?.trim();
+	const declared = configText(node, "type")?.trim();
 
 	function onDragStart(e: DragEvent) {
 		e.dataTransfer.setData("application/x-roswaal-local", JSON.stringify({ id: node.id }));
@@ -435,7 +433,7 @@ function LocalRow({ node, onDelete }: { node: GraphNode; onDelete: () => void })
  * to the top of the file, or declared where the node sits.
  */
 function FunctionRow({ node, onDelete }: { node: GraphNode; onDelete: () => void }) {
-	const sig = (node.config ?? {}) as { name?: string };
+	const name = configText(node, "name") || "function";
 
 	function onDragStart(e: DragEvent) {
 		e.dataTransfer.setData("application/x-roswaal-function", JSON.stringify({ id: node.id }));
@@ -455,9 +453,9 @@ function FunctionRow({ node, onDelete }: { node: GraphNode; onDelete: () => void
 				}}
 			>
 				<span className="swatch" style={{ background: pinColor("function", "data") }} />
-				<span className="name">{sig.name || "function"}</span>
+				<span className="name">{name}</span>
 				<span className="type">{node.def === "function.entry" ? "hoisted" : "here"}</span>
-				<RowDelete name={sig.name || "function"} onDelete={onDelete} />
+				<RowDelete name={name} onDelete={onDelete} />
 			</div>
 		</div>
 	);
@@ -484,7 +482,7 @@ function VariableRow({ variable, script, expanded, onToggle, confirm }: Variable
 	}
 
 	return (
-		<div className={`variable${expanded ? " expanded" : ""}`}>
+		<div className={cx("variable", expanded && "expanded")}>
 			<div className="variable-head" draggable onDragStart={onDragStart} onClick={onToggle}>
 				<span className="swatch" style={{ background: pinColor(variable.type, "data") }} />
 				<span className="name">{variable.name}</span>

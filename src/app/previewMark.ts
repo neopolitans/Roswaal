@@ -122,9 +122,8 @@ export function markChipMarkup(mark: BuildMark, title = MARK_BESIDE_LINK[mark]):
 // ---------------------------------------------------------------------------
 
 /**
- * 0.60.0 shipped this file with one mark in it, and these three names are what
- * the rest of the tree imports. Kept as aliases rather than renamed across
- * eight call sites in a release that is about something else.
+ * The preview mark's label, under the name the rest of the tree imports. An
+ * alias of `MARK_LABEL.preview`, as the two below are of theirs.
  */
 export const PREVIEW_LABEL = MARK_LABEL.preview;
 export const PREVIEW_ON_SURFACE = MARK_ON_SURFACE.preview;

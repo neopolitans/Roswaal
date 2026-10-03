@@ -33,6 +33,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { classChain } from "../core/roblox.js";
+import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 
@@ -89,13 +90,11 @@ export function ValuePicker(props: ValuePickerProps) {
 
 	const needle = query.trim().toLowerCase();
 
-	/**
-	 * What the list shows: everything, or what matches, in rank order.
-	 *
-	 * Grouping is dropped while searching. Six matches spread over four headings
-	 * is four headings too many, and the thing you are doing when you type is
-	 * reading one list top to bottom.
-	 */
+	// What the list shows: everything, or what matches, in rank order.
+	//
+	// Grouping is dropped while searching. Six matches spread over four headings
+	// is four headings too many, and the thing you are doing when you type is
+	// reading one list top to bottom.
 	const matches = useMemo(() => {
 		if (needle === "") return null;
 		return options
@@ -127,7 +126,7 @@ export function ValuePicker(props: ValuePickerProps) {
 		);
 	}, [options, matches, groupOf, groupsFirst]);
 
-	/** Every value in the order it is drawn, which is what the arrow keys walk. */
+	// Every value in the order it is drawn, which is what the arrow keys walk.
 	const order = useMemo(
 		() => matches ?? (groups ? groups.flatMap(([, names]) => names) : [...options]),
 		[matches, groups, options],
@@ -179,7 +178,11 @@ export function ValuePicker(props: ValuePickerProps) {
 	const option = (name: string) => (
 		<button
 			key={name}
-			className={`value-option${name === active ? " on" : ""}${name === props.value ? " current" : ""}`}
+			className={cx(
+				"value-option",
+				name === active && "on",
+				name === props.value && "current",
+			)}
 			onPointerEnter={() => setActive(name)}
 			onClick={() => commit(name)}
 		>
@@ -187,20 +190,18 @@ export function ValuePicker(props: ValuePickerProps) {
 		</button>
 	);
 
-	/**
-	 * Through a portal, and not for tidiness.
-	 *
-	 * The canvas scales and pans with a `transform`, and **a transformed
-	 * ancestor becomes the containing block for `position: fixed`** — so an
-	 * overlay rendered where this one belongs, inside the pin inside the node,
-	 * is laid out against the node rather than the window. It came out 64px wide
-	 * in the corner of the graph, which reads exactly like a z-index problem and
-	 * is not one: no index reaches out of a containing block.
-	 *
-	 * The palette and the pin menu avoid this by being rendered from `App`, at
-	 * the top of the tree. A portal is the same escape without moving the
-	 * control away from the pin it belongs to.
-	 */
+	// Through a portal, and not for tidiness.
+	//
+	// The canvas scales and pans with a `transform`, and **a transformed
+	// ancestor becomes the containing block for `position: fixed`** — so an
+	// overlay rendered where this one belongs, inside the pin inside the node,
+	// is laid out against the node rather than the window. It came out 64px wide
+	// in the corner of the graph, which reads exactly like a z-index problem and
+	// is not one: no index reaches out of a containing block.
+	//
+	// The palette and the pin menu avoid this by being rendered from `App`, at
+	// the top of the tree. A portal is the same escape without moving the
+	// control away from the pin it belongs to.
 	return createPortal(
 		<div className="docs-backdrop" style={{ zIndex: LAYER.menu + 1 }} onPointerDown={props.onClose}>
 			<div

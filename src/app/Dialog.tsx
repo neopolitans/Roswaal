@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { cx } from "./cx.js";
 import { LAYER } from "./layers.js";
 
 export type DialogRequest =
@@ -190,7 +191,10 @@ export function Dialog({ request, resolve }: PendingDialog) {
 								);
 							}
 							return (
-								<label key={field.id} className={`dialog-option${offered(field) ? "" : " dialog-option-off"}`}>
+								<label
+									key={field.id}
+									className={cx("dialog-option", !offered(field) && "dialog-option-off")}
+								>
 									<input
 										type="checkbox"
 										disabled={!offered(field)}
@@ -222,7 +226,7 @@ export function Dialog({ request, resolve }: PendingDialog) {
 					{request.kind === "choice" && request.choices.map((choice) => (
 						<button
 							key={choice.value}
-							className={`tb${choice.primary ? " primary" : ""}`}
+							className={cx("tb", choice.primary && "primary")}
 							autoFocus={choice.primary}
 							onClick={() => resolve(choice.value)}
 						>
@@ -230,7 +234,10 @@ export function Dialog({ request, resolve }: PendingDialog) {
 						</button>
 					))}
 					{request.kind !== "choice" && <button
-						className={`tb primary${request.kind === "confirm" && request.danger ? " danger" : ""}`}
+						className={cx(
+							"tb primary",
+							request.kind === "confirm" && request.danger && "danger",
+						)}
 						autoFocus={request.kind !== "prompt"}
 						onClick={accept}
 					>

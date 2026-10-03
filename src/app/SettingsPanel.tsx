@@ -23,6 +23,7 @@ import {
 	CODE_ROLES, ROLES, themeSlug, type Theme,
 } from "../core/theme.js";
 import { LICENCE_TEXTS } from "../core/themeData.js";
+import { cx } from "./cx.js";
 import { BUILTIN_THEMES } from "./theme.js";
 import {
 	ACTION_LABEL_CHOICES, ACTION_ROW_CHOICES, AUTOSAVE_CHOICES, DOCS_FONTS, FUNCTION_TAB_CHOICES, PREVIEW_SCALE, previewScaleOf, WHEEL_CHOICES, WIRE_STYLES,
@@ -102,7 +103,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 						{tabs.map((t) => (
 							<button
 								key={t.id}
-								className={`docs-link settings-tab${tab === t.id ? " on" : ""}`}
+								className={cx("docs-link settings-tab", tab === t.id && "on")}
 								onClick={() => setTab(t.id)}
 							>
 								<span>{t.title}</span>
@@ -653,7 +654,7 @@ function ThemeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 
 			<div className="theme-grid">
 				<button
-					className={`theme-card${prefs.theme === null ? " on" : ""}`}
+					className={cx("theme-card", prefs.theme === null && "on")}
 					onClick={() => onPrefs({ theme: null })}
 				>
 					<SystemSwatch />
@@ -664,7 +665,7 @@ function ThemeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				{schemes.map((theme) => (
 					<button
 						key={theme.name}
-						className={`theme-card${prefs.theme === theme.name ? " on" : ""}`}
+						className={cx("theme-card", prefs.theme === theme.name && "on")}
 						onClick={() => onPrefs({ theme: theme.name })}
 					>
 						<ThemeSwatch theme={theme} />

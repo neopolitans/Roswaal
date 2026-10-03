@@ -2,12 +2,11 @@
  * A `.luau` file in the project, shown properly.
  *
  * Roswaal writes Luau and also lives in a repository full of Luau it did not
- * write. Both kinds turn up in the tree and both used to open as an
- * unhighlighted `<pre>` — which is a dead end twice over: the generated file is
- * the thing you most want to *read* carefully, and the hand-written one is the
- * thing you most want to *edit*, and the view offered neither.
+ * write. Both kinds turn up in the tree: the generated file is the thing you
+ * most want to *read* carefully, and the hand-written one is the thing you
+ * most want to *edit*.
  *
- * So it is a real editor view now, read-only, using the same tokeniser and the
+ * So it is a real editor view, read-only, using the same tokeniser and the
  * same colours as the pop-out code editor. And it says which kind of file it
  * is, because that changes what you should do with it:
  *
@@ -24,21 +23,19 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, lineNumbers, highlightActiveLine } from "@codemirror/view";
-import { syntaxHighlighting } from "@codemirror/language";
-
-import { luauLanguage } from "./luauMode.js";
-import { luauHover } from "./luauHover.js";
-import type { Target } from "../core/schema.js";
-import type { TableMember } from "../core/luau/infer.js";
-import type { ModuleInfo } from "../core/luau/hover.js";
-import { api } from "./api.js";
-import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
 import { lintGutter } from "@codemirror/lint";
-import { luauWarnings } from "./luauLint.js";
+import { Compartment, EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+
+import type { ModuleInfo } from "../core/luau/hover.js";
+import type { TableMember } from "../core/luau/infer.js";
+import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
+import type { Target } from "../core/schema.js";
+import { api } from "./api.js";
+import { cx } from "./cx.js";
 import { NOT_HERE, useHostCan } from "./host.js";
-import { editorTheme, luauHighlight } from "./luauTheme.js";
+import { luauExtensions } from "./luauExtensions.js";
+import { luauWarnings } from "./luauLint.js";
 
 export interface SourceDoc {
 	path: string;
@@ -79,18 +76,14 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 
 	// Rebuilt when the file changes rather than reconfigured: the document is
 	// read-only, so there is no state in here worth preserving across a switch.
-	/**
-	 * What the file's `require`s hold, followed by the host: `Flux.new` hovers
-	 * with the module's own signature and comment. Asked once per file, and
-	 * read through refs, so the editor is not rebuilt when the answer lands.
-	 */
+	// What the file's `require`s hold, followed by the host: `Flux.new` hovers
+	// with the module's own signature and comment. Asked once per file, and
+	// read through refs, so the editor is not rebuilt when the answer lands.
 	const members = useRef<ReadonlyMap<string, TableMember[]>>(new Map());
 	const modules = useRef<ReadonlyMap<string, ModuleInfo>>(new Map());
-	/**
-	 * The DataModel the project knows, and where this file is in it: for a
-	 * name like `Shared` to hover as the instance it is, and a name that is
-	 * nowhere to be marked. Kept in state, since the marks are drawn from it.
-	 */
+	// The DataModel the project knows, and where this file is in it: for a
+	// name like `Shared` to hover as the instance it is, and a name that is
+	// nowhere to be marked. Kept in state, since the marks are drawn from it.
 	const [instances, setInstances] = useState<{ root: InstanceNode; self?: string[] } | null>(null);
 	const warnings = useRef(new Compartment());
 	const instancesRef = useRef(instances);
@@ -104,7 +97,10 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 			members.current = new Map(found.map((m) => [m.name, m.members]));
 			modules.current = new Map(found.map((m) => [m.name, m]));
 			setInstances({ root: indexFromOutline(outline), ...(self ? { self } : {}) });
-		}, () => {});
+		}, () => {
+			// The file still shows, highlighted; only the hover on requires and
+			// the instance warnings are missing, and they are extras on a view.
+		});
 		return () => {
 			live = false;
 		};
@@ -115,28 +111,24 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 		const instance = new EditorView({
 			state: EditorState.create({
 				doc: doc.text,
-				extensions: [
-					lineNumbers(),
-					highlightActiveLine(),
-					// Read-only, but focusable: the text cursor shows and moves with
-					// the arrow keys, Page Up/Down and Home/End, and the highlighted
-					// line follows it. `editable.of(false)` hid the cursor, so the
-					// line only moved where the file was clicked. Typing is still
-					// refused by `readOnly`, and `inputmode="none"` keeps a tablet's
-					// on-screen keyboard from opening for text that takes no input.
-					EditorState.readOnly.of(true),
-					EditorView.contentAttributes.of({ inputmode: "none" }),
-					luauLanguage,
-					syntaxHighlighting(luauHighlight),
-					editorTheme,
+				// Read-only, but focusable: the cursor shows and moves with the
+				// arrow keys, and the highlighted line follows it. `editable.of(false)`
+				// would hide the cursor, so the line only moved where it was clicked.
+				extensions: luauExtensions({
+					readOnly: true,
 					// The code editor's hover, here too: what every name is and
 					// where its Roblox docs page is, in a file that cannot be edited.
-					luauHover(() => targetOfSource(doc.text), () => members.current, () => modules.current, () => instancesRef.current),
+					hover: {
+						target: () => targetOfSource(doc.text),
+						members: () => members.current,
+						modules: () => modules.current,
+						instances: () => instancesRef.current,
+					},
 					// Names the place and the project do not have, under the
 					// containers that are settled before the game runs: filled in
 					// once the host answers, without rebuilding the view.
-					warnings.current.of([]),
-				],
+					extra: [warnings.current.of([])],
+				}),
 			}),
 			parent: host.current,
 		});
@@ -170,7 +162,7 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 		<div className="source">
 			<div className="source-head">
 				<span className="name">{name}</span>
-				<span className={`badge${generated ? " generated" : ""}`}>
+				<span className={cx("badge", generated && "generated")}>
 					{generated ? "generated" : "hand-written"}
 				</span>
 				<span className="meta">{lines} lines</span>

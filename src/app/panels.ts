@@ -371,12 +371,6 @@ export function dropZone(
 	return null;
 }
 
-/**
- * Moves a panel into a dock, at the end of whatever is already there.
- *
- * Orders are renumbered wholesale rather than nudged, so they cannot drift into
- * duplicates or gaps however many times a panel is moved.
- */
 /** The panels drawn over the centre, in a window each. */
 export function floatingPanels(layout: Layout): PanelId[] {
 	return PANEL_IDS.filter((id) => layout.panels[id].floating && layout.panels[id].open);
@@ -421,6 +415,12 @@ export function framePanel(layout: Layout, panel: PanelId, frame: PanelFrame): L
 	};
 }
 
+/**
+ * Moves a panel into a dock, at the end of whatever is already there.
+ *
+ * Orders are renumbered wholesale rather than nudged, so they cannot drift into
+ * duplicates or gaps however many times a panel is moved.
+ */
 export function movePanel(layout: Layout, panel: PanelId, side: DockSide): Layout {
 	if (layout.panels[panel].dock === side && !layout.panels[panel].floating) return layout;
 

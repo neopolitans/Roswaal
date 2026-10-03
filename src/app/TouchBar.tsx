@@ -7,6 +7,7 @@
  */
 
 import type { NodeScript } from "../core/schema.js";
+import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import type { ActionLabels, ActionRowStyle } from "./preferences.js";
 import { store } from "./store.js";
@@ -38,11 +39,9 @@ export function TouchBar({ selected, canPaste, locked, labels = "icons", style =
 	// Read at render: the bar redraws with the editor on every edit.
 	const history = { undo: store.canUndo(), redo: store.canRedo() };
 
-	/**
-	 * One action. Its name is always its accessible name and its tooltip -- a
-	 * long press shows it on an iPad -- so choosing icons hides a word, never
-	 * the meaning.
-	 */
+	// One action. Its name is always its accessible name and its tooltip -- a
+	// long press shows it on an iPad -- so choosing icons hides a word, never
+	// the meaning.
 	const action = (
 		name: string, icon: IconName, key: string, withMod: boolean, disabled: boolean,
 	) => (
@@ -59,7 +58,7 @@ export function TouchBar({ selected, canPaste, locked, labels = "icons", style =
 	);
 
 	return (
-		<div className={`touch-bar-group${style === "unified" ? " unified" : ""}`}>
+		<div className={cx("touch-bar-group", style === "unified" && "unified")}>
 			{action("Undo", "undo", "z", true, locked || !history.undo)}
 			{action("Redo", "redo", "y", true, locked || !history.redo)}
 			{/* A lines the selection up on the node picked first. */}

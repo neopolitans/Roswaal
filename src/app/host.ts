@@ -31,8 +31,7 @@ import { api } from "./api.js";
  * be pointed at another directory by typing the path, so `browse` gates the
  * button and `inspect` gates everything about a second project — switching to
  * one, the recent list, copying a node pack between two.
- */
-/**
+ *
  * `reset` is the one a machine does *not* have: throwing the project away and
  * starting from the demo only means anything where the project is the host's
  * own copy. On the daemon it would mean deleting a repository.
@@ -113,16 +112,6 @@ export function useHostCan(capability: Capability): boolean {
 	);
 }
 
-/**
- * Why a control is there but cannot be used, for its tooltip.
- *
- * The file-manager and editor buttons are disabled rather than hidden, and the
- * difference is deliberate: they describe something the tool genuinely does,
- * just not here, and somebody trying Roswaal in a browser is exactly who should
- * find that out. The ones that need a *second project* are hidden instead —
- * there is nothing to say about them that would help, because there is no
- * action behind them to take.
- */
 /**
  * Opening a folder on the developer's own disk.
  *
@@ -319,4 +308,14 @@ export function useCanOpenDirectory(): boolean {
 	return useSyncExternalStore(subscribe, () => opener !== null, () => false);
 }
 
+/**
+ * Why a control is there but cannot be used, for its tooltip.
+ *
+ * The file-manager and editor buttons are disabled rather than hidden, and the
+ * difference is deliberate: they describe something the tool genuinely does,
+ * just not here, and somebody trying Roswaal in a browser is exactly who should
+ * find that out. The ones that need a *second project* are hidden instead —
+ * there is nothing to say about them that would help, because there is no
+ * action behind them to take.
+ */
 export const NOT_HERE = "Not in the browser version — this needs Roswaal running on your machine.";

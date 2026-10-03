@@ -12,12 +12,14 @@
  * know, and "Promote to Variable" is not a phrase to improve on.
  */
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 import type { NodeScript, PinDef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins } from "../core/nodes/index.js";
+import { cx } from "./cx.js";
 import { canPromoteToVariable, pinLinkCount, splitModesFor } from "./edits.js";
+import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
 import { pinColor } from "./palette.js";
 import { pinTypeText } from "../core/nodes/variables.js";
@@ -50,26 +52,12 @@ interface Entry {
 	onPick: () => void;
 }
 
-export function PinMenu(props: PinMenuProps) {
-	const { target, script, registry, onClose } = props;
+export function PinMenu({
+	target, script, registry, onPromote, onBreakLinks, onSplit, onRecombine, onClose,
+}: PinMenuProps) {
 	const root = useRef<HTMLDivElement>(null);
 
-	useEffect(() => {
-		const onDown = (e: MouseEvent) => {
-			if (!root.current?.contains(e.target as Node)) onClose();
-		};
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === "Escape") onClose();
-		};
-		// Deferred so the click that opened the menu does not close it again.
-		const id = window.setTimeout(() => window.addEventListener("mousedown", onDown), 0);
-		window.addEventListener("keydown", onKey, true);
-		return () => {
-			window.clearTimeout(id);
-			window.removeEventListener("mousedown", onDown);
-			window.removeEventListener("keydown", onKey, true);
-		};
-	}, [onClose]);
+	useDismiss(root, onClose, { escape: true });
 
 	const links = pinLinkCount(script, target.nodeId, target.pin.id, target.side);
 
@@ -80,7 +68,7 @@ export function PinMenu(props: PinMenuProps) {
 			key: "promote",
 			label: "Promote to Variable",
 			onPick: () => {
-				props.onPromote();
+				onPromote();
 				onClose();
 			},
 		});
@@ -99,7 +87,7 @@ export function PinMenu(props: PinMenuProps) {
 				// Only worth naming the mode when there is a choice to make.
 				hint: splitModesFor(target.pin).length > 1 ? mode.name : undefined,
 				onPick: () => {
-					props.onSplit(mode.id);
+					onSplit(mode.id);
 					onClose();
 				},
 			});
@@ -111,7 +99,7 @@ export function PinMenu(props: PinMenuProps) {
 			key: "recombine",
 			label: "Recombine Struct Pin",
 			onPick: () => {
-				props.onRecombine(parent);
+				onRecombine(parent);
 				onClose();
 			},
 		});
@@ -123,18 +111,16 @@ export function PinMenu(props: PinMenuProps) {
 			label: links === 1 ? "Break Link" : `Break ${links} Links`,
 			hint: "Shift-click",
 			onPick: () => {
-				props.onBreakLinks();
+				onBreakLinks();
 				onClose();
 			},
 		});
 	}
 
-	/**
-	 * An empty menu should still answer the question that opened it. The
-	 * literal-only case is the one worth spelling out: that pin looks like every
-	 * other value pin and behaves differently, and this is the only place the
-	 * editor gets to say so before the compiler does.
-	 */
+	// An empty menu should still answer the question that opened it. The
+	// literal-only case is the one worth spelling out: that pin looks like every
+	// other value pin and behaves differently, and this is the only place the
+	// editor gets to say so before the compiler does.
 	function emptyReason(): string {
 		const node = script.nodes.find((n) => n.id === target.nodeId);
 		const def = node && registry.get(node.def);
@@ -159,7 +145,7 @@ export function PinMenu(props: PinMenuProps) {
 		<div className="menu pin-menu" ref={root} style={style}>
 			<div className="pin-head">
 				<span
-					className={`swatch ${target.pin.kind}`}
+					className={cx("swatch", target.pin.kind)}
 					style={{ background: pinColor(target.pin.type, target.pin.kind) }}
 				/>
 				<span className="name">{target.pin.name || target.pin.id}</span>
