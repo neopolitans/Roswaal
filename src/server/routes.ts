@@ -42,7 +42,7 @@ import {
 	createPack, deleteEntry, deletePack, deletePackNode, duplicatePack, exportedTypes, findOrphanOutputs,
 	graphName, initProject, listPacks, locateFile, moveEntry, openProject, packUsage, readConfig,
 	readLuaurcFiles, readMap, readPack, readScript, readText, removeOutputs, renameEntry, safeJoin,
-	graphOutputPath, placeEntries, readPlaceBytes, savePackNode, scanProjectPacks, setPackRequires, writeConfig,
+	graphOutputPath, placeEntries, placeReport, readPlaceBytes, savePackNode, scanProjectPacks, setPackRequires, writeConfig,
 	writeLuaurcFile, writeMap, writeScript,
 	type CompileStep, type OpenProject,
 } from "./project.js";
@@ -800,9 +800,7 @@ export class ApiSession {
 					const written = await exportPlace(project);
 					if (written) {
 						binaries[written.file] = toBase64(written.bytes);
-						const { changes, added, ...report } = written.update;
-						const folders = added.filter((a) => a.source === undefined).length;
-						place = { file: written.file, report: { ...report, scripts: changes.length, folders } };
+						place = { file: written.file, report: placeReport(written.update) };
 					}
 				}
 				return {

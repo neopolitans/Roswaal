@@ -28,9 +28,13 @@ export {
 } from "./compile.js";
 export {
 	initProject,
+	isInitialised,
 	openProject,
+	parseConfig,
 	readConfig,
 	writeConfig,
+	type InitOptions,
+	type InitOutcome,
 	type OpenProject,
 } from "./config.js";
 export {
@@ -72,6 +76,7 @@ export {
 	exportPlace,
 	findPlaceFile,
 	placeEntries,
+	placeReport,
 	readPlaceBytes,
 	writePlaceImport,
 	type PlaceExport,

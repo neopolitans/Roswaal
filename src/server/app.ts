@@ -20,6 +20,7 @@ import { ApiSession, type RouteRequest } from "./routes.js";
 import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
 import { openInEditor, revealInFileManager } from "./reveal.js";
+import { isInitialised } from "./project.js";
 import { DynamicCompiler } from "./watcher.js";
 import { DEMO_PROJECTS } from "../core/demoProjects.js";
 
@@ -188,12 +189,7 @@ const session = new ApiSession({
 			const stat = await fs.promises.stat(root).catch(() => null);
 			if (!stat) return { root, exists: false, directory: false, initialised: false };
 			if (!stat.isDirectory()) return { root, exists: true, directory: false, initialised: false };
-			return {
-				root,
-				exists: true,
-				directory: true,
-				initialised: fs.existsSync(path.join(root, "roswaal.json")),
-			};
+			return { root, exists: true, directory: true, initialised: await isInitialised(root) };
 		},
 		/**
 		 * Copy a demo into a directory of the developer's own.

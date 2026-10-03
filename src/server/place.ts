@@ -10,7 +10,7 @@ import { fs, path } from "./host.js";
 
 import { addInstances } from "../core/rbx/adder.js";
 import { readRbx } from "../core/rbx/index.js";
-import { planPlaceUpdate, type PlaceEntry, type PlaceUpdate } from "../core/rbx/placeExport.js";
+import { planPlaceUpdate, type PlaceEntry, type PlaceReport, type PlaceUpdate } from "../core/rbx/placeExport.js";
 import { LINKS_FILE, type PlaceImport, type PlaceLinks } from "../core/rbx/placeImport.js";
 import { writeSources } from "../core/rbx/writer.js";
 import { isFilesystemMap, locateSegments } from "../core/nodemap.js";
@@ -108,6 +108,17 @@ export async function exportPlace(project: OpenProject): Promise<PlaceExport | n
 		const addError = errorMessage(err);
 		return { file, bytes: written, update: { ...update, added: [], addedFiles: [], addError, notInPlace: [...update.notInPlace, ...update.addedFiles] } };
 	}
+}
+
+/**
+ * What an export did, as the editor and `roswaal export` both report it: the
+ * update without the instances themselves, counted.
+ */
+export function placeReport(update: PlaceUpdate): PlaceReport {
+	const { changes, added, ...report } = update;
+	// A folder is an addition with no script source to write into it.
+	const folders = added.filter((one) => one.source === undefined).length;
+	return { ...report, scripts: changes.length, folders };
 }
 
 /**

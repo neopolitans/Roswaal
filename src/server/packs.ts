@@ -12,7 +12,7 @@ import { parseLuauData } from "../core/luauData.js";
 import { parseNodePack } from "../core/nodes/index.js";
 import { clashingIds, namespaceFor, packRequires, packTargets, renamespace } from "../core/packs.js";
 import type { NodeDef, Target } from "../core/schema.js";
-import { readConfig, type OpenProject } from "./config.js";
+import { isInitialised, readConfig, type OpenProject } from "./config.js";
 import { collectScripts, readScript } from "./documents.js";
 import { UserError } from "./errors.js";
 import { exists } from "./files.js";
@@ -245,7 +245,7 @@ export async function scanProjectPacks(
 	root: string,
 ): Promise<{ root: string; target: Target; packs: PackFile[] }> {
 	const resolved = path.resolve(root);
-	if (!(await exists(path.join(resolved, "roswaal.json")))) {
+	if (!(await isInitialised(resolved))) {
 		throw new UserError(`${resolved} is not a Roswaal project: it has no roswaal.json.`);
 	}
 	const config = await readConfig(resolved);

@@ -23,18 +23,20 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { DEFAULT_PORT, hasBundledEditor, startDaemon } from "../server/app.js";
-import {
-	collectMaps, compileAll, compileMap, compileScript, findOrphanOutputs,
-	exportPlace, importRojoProject, initProject, openProject, removeOutputs, writeConfig, writePlaceImport,
-} from "../server/project.js";
 import { describePlaceReport } from "../core/rbx/placeExport.js";
 import { readRbx } from "../core/rbx/index.js";
 import { planImport, surveyPlace } from "../core/rbx/placeImport.js";
-import { CLI_COMMANDS, CLI_OPTIONS } from "../core/docs/cli.js";
-import { defaultConfig } from "../core/schema.js";
+import { DEFAULT_PORT, hasBundledEditor, startDaemon } from "../server/app.js";
+import { errorMessage } from "../server/errors.js";
+import {
+	collectMaps, compileAll, compileMap, compileScript, describeOutcome, exportPlace, findOrphanOutputs,
+	importRojoProject, initProject, isInitialised, openProject, placeReport, removeOutputs, writePlaceImport,
+	type CompileOutcome, type OpenProject,
+} from "../server/project.js";
 import { DynamicCompiler } from "../server/watcher.js";
+import { flagNumber, flagString, parseInvocation, type Args } from "./args.js";
 import { EXAMPLE_PACK } from "./examplePack.js";
+import { helpLines } from "./help.js";
 import { banner, bold, cyan, dim, green, red, yellow } from "./style.js";
 import { VERSION } from "./version.js";
 
@@ -43,107 +45,36 @@ const STOP_TIMEOUT_MS = 5000;
 const STOP_POLL_MS = 150;
 
 // ---------------------------------------------------------------------------
-// Help
+// Arguments
 // ---------------------------------------------------------------------------
 
-/**
- * The commands and options, from the one list the documentation renders too.
- *
- * They were written out here and described again on no page at all, which is
- * how `--yes` came to be missing from this output while the tool had it.
- */
-const COMMANDS = CLI_COMMANDS;
-const OPTIONS = CLI_OPTIONS;
-
-function printHelp(): void {
-	console.log(`${bold("roswaal")} — visual scripting for Roblox Luau, and Lune Luau (experimental)`);
-	console.log(dim(`v${VERSION}`));
-	console.log("");
-	console.log(bold("USAGE"));
-	console.log("  roswaal <command> [options]");
-	console.log("");
-	console.log(bold("COMMANDS"));
-	for (const command of COMMANDS) {
-		console.log(`  ${cyan(command.name.padEnd(10))} ${command.blurb}`);
-	}
-	console.log("");
-	console.log(bold("OPTIONS"));
-	for (const option of OPTIONS) {
-		console.log(`  ${option.flag.padEnd(16)} ${option.blurb}`);
-	}
-	console.log("");
-	console.log(dim("  Graphs live in .roswaal/scripts and compile to the outDir in roswaal.json."));
-	console.log(dim("  Rojo syncs the result; Roswaal never talks to Studio itself."));
-}
-
-// ---------------------------------------------------------------------------
-// Argument parsing
-// ---------------------------------------------------------------------------
-
-interface Args {
-	positional: string[];
-	flags: Record<string, string | boolean>;
-}
-
-/**
- * Hand-rolled, about twenty lines, and supports the three forms anyone
- * actually types: `--key value`, `--key=value`, and a bare `--flag`.
- */
-/**
- * Flags that never take a value, so the word after one stays a positional:
- * `compile --force Main.nodescript` compiles that graph rather than reading
- * the path as what `--force` was set to.
- */
-const BOOLEAN_FLAGS = new Set(["force", "no-open", "yes", "no-merge"]);
-
-function parseArgs(argv: string[]): Args {
-	const positional: string[] = [];
-	const flags: Record<string, string | boolean> = {};
-
-	for (let i = 0; i < argv.length; i++) {
-		const arg = argv[i];
-		if (!arg.startsWith("--")) {
-			positional.push(arg);
-			continue;
-		}
-		const body = arg.slice(2);
-		const eq = body.indexOf("=");
-		if (eq !== -1) {
-			flags[body.slice(0, eq)] = body.slice(eq + 1);
-			continue;
-		}
-		const next = argv[i + 1];
-		if (!BOOLEAN_FLAGS.has(body) && next !== undefined && !next.startsWith("--")) {
-			flags[body] = next;
-			i++;
-		} else {
-			flags[body] = true;
-		}
-	}
-	return { positional, flags };
-}
-
-function flagString(args: Args, name: string): string | undefined {
-	const value = args.flags[name];
-	return typeof value === "string" ? value : undefined;
-}
-
-/**
- * Accepts a number from either the command line (a string) or a config file (a
- * number), because reading only one of those is a bug that hides for months.
- */
-function flagNumber(args: Args, name: string, fallback: number): number {
-	const value = args.flags[name];
-	const parsed = typeof value === "string" ? Number(value) : NaN;
-	return Number.isFinite(parsed) ? parsed : fallback;
-}
-
+/** The project directory: `--root`, or wherever the command was typed. */
 function resolveRoot(args: Args): string {
 	// The shim records where the user actually was, because it may have changed
 	// directory to find the tool's own files.
 	const launchedFrom = process.env.ROSWAAL_CWD ?? process.cwd();
 	const given = flagString(args, "root");
 	return given ? path.resolve(launchedFrom, given) : launchedFrom;
+}
+
+/**
+ * The project a command works on, or null after saying why there is none.
+ *
+ * Any folder opens, with the default settings, so a command that works on a
+ * project refuses one with no `roswaal.json` here -- rather than serving or
+ * compiling a folder that only looks like a project because nothing checked.
+ */
+async function projectHere(root: string): Promise<OpenProject | null> {
+	try {
+		const project = await openProject(root);
+		if (project.initialised) return project;
+		console.log(red(`${root} is not a Roswaal project: it has no roswaal.json`));
+	} catch (err) {
+		console.log(red(`could not open ${root}`));
+		console.log(dim(`  ${errorMessage(err)}`));
+	}
+	console.log(dim("  run `roswaal init` here first"));
+	return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,31 +159,10 @@ async function commandInit(args: Args): Promise<number> {
 	const root = resolveRoot(args);
 	console.log(`${bold("roswaal init")} ${dim(root)}`);
 
-	const config = defaultConfig();
-	const ledger: string[] = [];
-
-	const record = async (relPath: string, make: () => Promise<void>) => {
-		const abs = path.join(root, relPath);
-		if (await exists(abs)) {
-			ledger.push(`${dim("kept    ")} ${relPath}`);
-			return;
-		}
-		await make();
-		ledger.push(`${green("created ")} ${relPath}`);
-	};
-
-	await record("roswaal.json", async () => void (await writeConfig(root, config)));
-	await record(config.sourceDir, async () => {
-		await fs.mkdir(path.join(root, config.sourceDir), { recursive: true });
-	});
-	await record(config.nodePaths[0], async () => {
-		await fs.mkdir(path.join(root, config.nodePaths[0]), { recursive: true });
-	});
-	await record(".roswaal/nodes/example.nodedef.luau", () =>
-		fs.writeFile(path.join(root, ".roswaal/nodes/example.nodedef.luau"), EXAMPLE_PACK, "utf8"),
-	);
-
-	for (const line of ledger) console.log(`  ${line}`);
+	const { config, steps } = await initProject(root, { examplePack: EXAMPLE_PACK });
+	for (const step of steps) {
+		console.log(`  ${step.created ? green("created ") : dim("kept    ")} ${step.path}`);
+	}
 	console.log("");
 	console.log(dim("  Next: roswaal serve"));
 	console.log(dim("  Graphs are committed. Generated Luau goes to " + config.outDir + "."));
@@ -267,7 +177,7 @@ async function commandInit(args: Args): Promise<number> {
 async function commandImportRojo(file: string): Promise<number> {
 	const root = path.dirname(file);
 	console.log(`${bold("roswaal import")} ${dim(file)}`);
-	const hadConfig = await fs.access(path.join(root, "roswaal.json")).then(() => true, () => false);
+	const hadConfig = await isInitialised(root);
 	try {
 		if (!hadConfig) await initProject(root);
 		const outcome = await importRojoProject(await openProject(root), path.basename(file));
@@ -281,7 +191,7 @@ async function commandImportRojo(file: string): Promise<number> {
 		}
 		return 0;
 	} catch (err) {
-		console.log(red(`  ${(err as Error).message}`));
+		console.log(red(`  ${errorMessage(err)}`));
 		return 1;
 	}
 }
@@ -322,7 +232,7 @@ async function commandImport(args: Args): Promise<number> {
 	try {
 		doc = readRbx(bytes);
 	} catch (err) {
-		console.log(red(`  ${(err as Error).message}`));
+		console.log(red(`  ${errorMessage(err)}`));
 		return 1;
 	}
 	const survey = surveyPlace(doc);
@@ -373,7 +283,7 @@ async function commandExport(args: Args): Promise<number> {
 	try {
 		written = await exportPlace(await openProject(root));
 	} catch (err) {
-		console.log(red(`  ${(err as Error).message}`));
+		console.log(red(`  ${errorMessage(err)}`));
 		return 1;
 	}
 	if (!written) {
@@ -388,8 +298,7 @@ async function commandExport(args: Args): Promise<number> {
 	await fs.mkdir(path.dirname(target), { recursive: true });
 	await fs.writeFile(target, written.bytes);
 
-	const { changes, added: _added, ...report } = written.update;
-	const { title, detail } = describePlaceReport(written.file, { ...report, scripts: changes.length });
+	const { title, detail } = describePlaceReport(written.file, placeReport(written.update));
 	console.log(`  ${green("wrote   ")} ${target}`);
 	console.log(`  ${title}.`);
 	console.log(dim(`  ${detail}`));
@@ -408,24 +317,15 @@ async function commandServe(args: Args): Promise<number> {
 		return 1;
 	}
 
-	let project;
-	try {
-		project = await openProject(root);
-	} catch (err) {
-		console.log(red(`could not open ${root}`));
-		console.log(dim(`  ${(err as Error).message}`));
-		console.log(dim("  run `roswaal init` here first"));
-		return 1;
-	}
+	const project = await projectHere(root);
+	if (!project) return 1;
 
 	await startDaemon({ port, root });
 
 	const url = `http://127.0.0.1:${port}`;
-	/**
-	 * A packaged build has no editor beside it, and saying "editor <url>" over
-	 * a URL that answers 404 is worse than not offering one. The API is still
-	 * there, which is what a compile-in-CI install actually wants.
-	 */
+	// A packaged build has no editor beside it, and saying "editor <url>" over
+	// a URL that answers 404 is worse than not offering one. The API is still
+	// there, which is what a compile-in-CI install actually wants.
 	const editor = hasBundledEditor();
 	banner([
 		`${bold("roswaal")} ${dim("v" + VERSION)}`,
@@ -501,42 +401,39 @@ async function commandStatus(args: Args): Promise<number> {
 	return 0;
 }
 
+/**
+ * What `roswaal compile` was asked to compile: one map, one graph, or -- with
+ * no target -- every map and every graph.
+ */
+async function compileTargets(
+	project: OpenProject, target: string | undefined,
+): Promise<{ maps: string[]; graph?: string }> {
+	if (target === undefined) return { maps: await collectMaps(project) };
+	// A target ending in .nodemap compiles to a Rojo project file rather than Luau.
+	if (target.endsWith(".nodemap")) return { maps: [target] };
+	return { maps: [], graph: target };
+}
+
 async function commandCompile(args: Args): Promise<number> {
 	const root = resolveRoot(args);
 	const force = args.flags.force === true;
 	const target = args.positional[1];
 
-	let project;
-	try {
-		project = await openProject(root);
-	} catch (err) {
-		console.log(red((err as Error).message));
-		return 1;
-	}
+	const project = await projectHere(root);
+	if (!project) return 1;
 
-	// A target ending in .nodemap compiles to a Rojo project file rather than
-	// Luau; with no target, both kinds are compiled.
-	const mapTargets = target
-		? target.endsWith(".nodemap") ? [target] : []
-		: await collectMaps(project);
-	const scriptResults = target && !target.endsWith(".nodemap")
-		? [await compileScript(project, target, { write: true, force })]
-		: target
-			? []
-			: await compileAll(project, { write: true, force });
+	const { maps, graph } = await compileTargets(project, target);
+	let results: CompileOutcome[];
+	if (graph !== undefined) results = [await compileScript(project, graph, { write: true, force })];
+	else if (target === undefined) results = await compileAll(project, { write: true, force });
+	else results = [];
 
-	const results = scriptResults;
-	/**
-	 * Counted apart, because the summary needs them apart. They used to share
-	 * one `failures`, which was then subtracted from the *map* count — so a
-	 * skipped script quietly took a written map off the total, and a compile
-	 * that wrote two files could report "0 of 5 written". Invisible while skips
-	 * were rare; the output-collision refusal made them ordinary.
-	 */
+	// Counted apart, because the summary needs them apart: a skipped script
+	// must not take a written map off the total.
 	let mapFailures = 0;
 	let scriptFailures = 0;
 
-	for (const mapPath of mapTargets) {
+	for (const mapPath of maps) {
 		const outcome = await compileMap(project, mapPath, { write: true, force });
 		if (outcome.unchanged) {
 			console.log(`${green("same    ")} ${outcome.outputPath} ${dim("already says this; left as it is")}`);
@@ -554,40 +451,36 @@ async function commandCompile(args: Args): Promise<number> {
 	}
 
 	for (const result of results) {
-		const errors = result.diagnostics.filter((d) => d.severity === "error");
-		if (result.written) {
+		// The verdict the editor's compile panel shows, so the two agree.
+		const { state, note } = describeOutcome(result);
+		if (state === "wrote") {
 			console.log(`${green("wrote   ")} ${result.outputPath}`);
 			for (const gone of result.superseded ?? []) console.log(`${dim("removed ")} ${gone}`);
-		} else if (result.skipped) {
+		} else if (state === "skipped" || state === "failed") {
 			scriptFailures++;
-			console.log(`${yellow("skipped ")} ${result.scriptPath}`);
-			console.log(dim(`           ${result.skipped}`));
+			console.log(`${yellow(state.padEnd(8))} ${result.scriptPath}`);
+			if (note) console.log(dim(`           ${note}`));
 		}
-		for (const diagnostic of errors) {
+		for (const diagnostic of result.diagnostics) {
+			if (diagnostic.severity !== "error") continue;
 			console.log(`${red("error   ")} ${result.scriptPath}: ${diagnostic.message}`);
 		}
 	}
 
-	if (results.length === 0 && mapTargets.length === 0) {
+	if (results.length === 0 && maps.length === 0) {
 		console.log(dim(`nothing to compile in ${project.config.sourceDir}`));
 		return 0;
 	}
-	const written = results.filter((r) => r.written).length + (mapTargets.length - mapFailures);
-	const total = results.length + mapTargets.length;
+	const written = results.filter((r) => r.written).length + (maps.length - mapFailures);
+	const total = results.length + maps.length;
 	console.log("");
 	console.log(dim(`  ${written} of ${total} written`));
 	return mapFailures + scriptFailures > 0 ? 1 : 0;
 }
 
 async function commandWatch(args: Args): Promise<number> {
-	const root = resolveRoot(args);
-	let project;
-	try {
-		project = await openProject(root);
-	} catch (err) {
-		console.log(red((err as Error).message));
-		return 1;
-	}
+	const project = await projectHere(resolveRoot(args));
+	if (!project) return 1;
 
 	const dynamic = new DynamicCompiler();
 	dynamic.subscribe((event) => {
@@ -615,14 +508,8 @@ async function commandWatch(args: Args): Promise<number> {
 }
 
 async function commandPrune(args: Args): Promise<number> {
-	const root = resolveRoot(args);
-	let project;
-	try {
-		project = await openProject(root);
-	} catch (err) {
-		console.log(red((err as Error).message));
-		return 1;
-	}
+	const project = await projectHere(resolveRoot(args));
+	if (!project) return 1;
 
 	const orphans = await findOrphanOutputs(project);
 	if (orphans.length === 0) {
@@ -659,14 +546,14 @@ async function commandCheck(args: Args): Promise<number> {
 
 	try {
 		const project = await openProject(root);
-		console.log(`project: ok`);
+		console.log(`project: ${project.initialised ? "ok" : "not initialised (no roswaal.json)"}`);
 		console.log(`source: ${project.config.sourceDir}`);
 		console.log(`out: ${project.config.outDir}`);
 		console.log(`mode: ${project.config.compileMode}`);
 		console.log(`node packs: ${project.packCount}`);
 		console.log(`pack errors: ${project.packErrors.length}`);
 	} catch (err) {
-		console.log(`project: ${(err as Error).message}`);
+		console.log(`project: ${errorMessage(err)}`);
 	}
 
 	const health = await probeDaemon(port);
@@ -676,13 +563,12 @@ async function commandCheck(args: Args): Promise<number> {
 
 // ---------------------------------------------------------------------------
 
-async function exists(abs: string): Promise<boolean> {
-	return fs.access(abs).then(() => true, () => false);
+function printHelp(topic?: string): void {
+	for (const line of helpLines(topic)) console.log(line);
 }
 
 async function main(): Promise<number> {
-	const args = parseArgs(process.argv.slice(2));
-	const command = args.positional[0] ?? "help";
+	const { command, topic, args } = parseInvocation(process.argv.slice(2));
 
 	switch (command) {
 		case "init": return commandInit(args);
@@ -697,12 +583,9 @@ async function main(): Promise<number> {
 		case "prune": return commandPrune(args);
 		case "check": return commandCheck(args);
 		case "help":
-		case "--help":
-		case "-h":
-			printHelp();
+			printHelp(topic);
 			return 0;
 		case "version":
-		case "--version":
 			console.log(VERSION);
 			return 0;
 		default:
@@ -715,8 +598,8 @@ async function main(): Promise<number> {
 
 main().then(
 	(code) => process.exit(code),
-	(err: Error) => {
-		console.error(red(err.message));
+	(err: unknown) => {
+		console.error(red(errorMessage(err)));
 		process.exit(1);
 	},
 );

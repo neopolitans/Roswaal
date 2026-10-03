@@ -14,7 +14,10 @@ import { LuauParseError, parseLuauData } from "../core/luauData.js";
 import { createRegistry, parseNodePack, type Registry } from "../core/nodes/index.js";
 import { defaultConfig, SCHEMA_VERSION, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import { errorMessage, UserError } from "./errors.js";
-import { writeTextAtomically } from "./files.js";
+import { exists, writeTextAtomically } from "./files.js";
+
+/** The file that makes a folder a Roswaal project. */
+const CONFIG_FILE = "roswaal.json";
 
 export interface OpenProject {
 	root: string;
@@ -34,10 +37,19 @@ export interface OpenProject {
 	packs: NodeDef[];
 	packErrors: string[];
 	packCount: number;
+	/**
+	 * Whether the folder has a `roswaal.json`. Any directory opens -- with the
+	 * defaults, when it has none -- and what to do with one that is not a
+	 * project yet is the caller's to decide: the daemon's picker offers to
+	 * initialise it, `roswaal serve` refuses it, the web worker asks.
+	 */
+	initialised: boolean;
 }
 
+/** Opens the project at `root`, which must be a directory. See `initialised`. */
 export async function openProject(root: string): Promise<OpenProject> {
 	const resolved = path.resolve(root);
+	// Missing and unreadable are the same answer here: not something to open.
 	const stat = await fs.stat(resolved).catch(() => null);
 	if (!stat?.isDirectory()) throw new UserError(`Not a directory: ${resolved}`);
 
@@ -51,12 +63,18 @@ export async function openProject(root: string): Promise<OpenProject> {
 		packs: defs,
 		packErrors: errors,
 		packCount: defs.length,
+		initialised: await isInitialised(resolved),
 	};
+}
+
+/** Whether `root` is a Roswaal project: whether it has a `roswaal.json`. */
+export async function isInitialised(root: string): Promise<boolean> {
+	return exists(path.join(root, CONFIG_FILE));
 }
 
 /** A project's `roswaal.json`, or the defaults when it has none. */
 export async function readConfig(root: string): Promise<RoswaalConfig> {
-	const file = path.join(root, "roswaal.json");
+	const file = path.join(root, CONFIG_FILE);
 	// Absent is a folder that is not a project yet; `openProject` says which.
 	const raw = await fs.readFile(file, "utf8").catch(() => null);
 	if (raw === null) return defaultConfig();
@@ -76,7 +94,7 @@ export async function readConfig(root: string): Promise<RoswaalConfig> {
 export async function writeConfig(root: string, config: unknown): Promise<RoswaalConfig> {
 	const checked = parseConfig(config);
 	await writeTextAtomically(
-		path.join(root, "roswaal.json"),
+		path.join(root, CONFIG_FILE),
 		JSON.stringify({ ...checked, schemaVersion: SCHEMA_VERSION }, null, 2) + "\n",
 	);
 	return checked;
@@ -138,14 +156,53 @@ export function parseConfig(value: unknown): RoswaalConfig {
 	return config as unknown as RoswaalConfig;
 }
 
-/** Creates roswaal.json and the source directory if they are not there yet. */
-export async function initProject(root: string): Promise<RoswaalConfig> {
+export interface InitOptions {
+	/**
+	 * A pack to write into the first node path as `example.nodedef.luau`, for
+	 * somebody starting from nothing to read. `roswaal init` passes one; a
+	 * folder an editor was pointed at gets only what it needs.
+	 */
+	examplePack?: string;
+}
+
+/** What `initProject` did: the config it settled on, and each path made or found. */
+export interface InitOutcome {
+	config: RoswaalConfig;
+	/** Project-relative, in the order they were seen to. */
+	steps: { path: string; created: boolean }[];
+}
+
+/**
+ * Makes a folder a Roswaal project: `roswaal.json`, the graphs directory and
+ * the first node path.
+ *
+ * Anything already there is kept rather than overwritten, the config
+ * included, and the directories are the ones that config names -- so running
+ * it in a project that has moved its graphs does not make the default folder
+ * beside them. One implementation for `roswaal init`, the daemon's Initialise
+ * and the web editor's, so the three cannot make different projects.
+ */
+export async function initProject(root: string, options: InitOptions = {}): Promise<InitOutcome> {
 	const resolved = path.resolve(root);
+	const steps: InitOutcome["steps"] = [];
+	const ensure = async (rel: string, make: () => Promise<unknown>) => {
+		const there = await exists(path.join(resolved, rel));
+		if (!there) await make();
+		steps.push({ path: rel, created: !there });
+	};
+
+	await fs.mkdir(resolved, { recursive: true });
 	const config = await readConfig(resolved);
-	await fs.mkdir(path.join(resolved, config.sourceDir), { recursive: true });
-	await fs.mkdir(path.join(resolved, config.nodePaths[0] ?? ".roswaal/nodes"), { recursive: true });
-	await writeConfig(resolved, config);
-	return config;
+	await ensure(CONFIG_FILE, () => writeConfig(resolved, config));
+	await ensure(config.sourceDir, () => fs.mkdir(path.join(resolved, config.sourceDir), { recursive: true }));
+	const nodes = config.nodePaths[0] ?? ".roswaal/nodes";
+	await ensure(nodes, () => fs.mkdir(path.join(resolved, nodes), { recursive: true }));
+	const example = options.examplePack;
+	if (example !== undefined) {
+		const rel = path.posix.join(nodes, "example.nodedef.luau");
+		await ensure(rel, () => fs.writeFile(path.join(resolved, rel), example, "utf8"));
+	}
+	return { config, steps };
 }
 
 async function loadNodePacks(
