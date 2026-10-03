@@ -31,7 +31,9 @@
  * build looked like the day somebody remembered to take it. This is built from
  * the same class names the editor uses, so it takes the reader's theme, reflows
  * on a narrow page, and goes stale only when somebody changes the bar and not
- * this file — which a test can see, and a stale PNG cannot.
+ * this file — which a test can see, and a stale PNG cannot:
+ * `tests/toolbardrift.test.ts` reads the editor's, the graph's, Node Design's
+ * and the docs window's bars against the components that draw them.
  *
  * It is inert: `aria-hidden`, no tab stops, and no pointer events. Everything
  * it says is said again in the legend, which is the part a screen reader gets.
