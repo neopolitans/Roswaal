@@ -43,7 +43,7 @@ import { FloatingTools, ToolGroup } from "../FloatingTools.jsx";
 import { Icon } from "../icons.jsx";
 import { autoLayout } from "../layout.js";
 import { NodeMenu, type MenuAnchor } from "../NodeMenu.jsx";
-import { readPreferences, wheelAction, writePreferences } from "../preferences.js";
+import { wheelAction, type Preferences } from "../preferences.js";
 import { store, useEditor } from "../store.js";
 import { liveSelection, TouchBar } from "../TouchBar.jsx";
 import { useCompact } from "../Workspace.jsx";
@@ -89,27 +89,33 @@ export interface LogicCanvasProps {
 	onChange: (graph: LogicGraph) => void;
 	/** More tools for the canvas's own bar: Node Design's Luau preview. */
 	tools?: ReactNode;
+	/**
+	 * The page's preferences. The canvas draws with the editor's: wire style,
+	 * wide nodes, the wheel, the touch bar, and Straighten -- a habit set on a
+	 * graph holds on a node's logic too.
+	 */
+	prefs: Preferences;
+	/** Changes preferences, as the page's settings panel does. */
+	onPrefs: (patch: Partial<Preferences>) => void;
 }
 
-export function LogicCanvas({ graph, shape, registry, target, onChange, tools }: LogicCanvasProps) {
+export function LogicCanvas({
+	graph, shape, registry, target, onChange, tools, prefs, onPrefs,
+}: LogicCanvasProps) {
 	const editor = useEditor();
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
-	/**
-	 * Straighten, shared with the editor: it is the same preference, read the
-	 * same way, so a habit set on a graph holds on a node's logic too.
-	 */
-	const [alignExec, setAlignExec] = useState(() => readPreferences().alignExec);
+	const { alignExec, wideNodes } = prefs;
 	const container = useRef<HTMLDivElement>(null);
 
 	/** Tidies into columns: the selection when there is more than one node in it, else everything. */
 	const realign = useCallback(() => {
 		const state = store.getSnapshot();
-		if (!state.script) return;
-		const selected = new Set([...state.selection].filter((id) => state.script!.nodes.some((n) => n.id === id)));
+		const script = state.script;
+		if (!script) return;
+		const selected = new Set([...state.selection].filter((id) => script.nodes.some((n) => n.id === id)));
 		const only = selected.size > 1 ? selected : undefined;
-		const wideNodes = readPreferences().wideNodes;
 		store.edit((s) => autoLayout(s, registry, { only, alignExec, wideNodes }));
-	}, [registry, alignExec]);
+	}, [registry, alignExec, wideNodes]);
 
 	/** Opens the node menu in the middle of what the canvas is showing. */
 	const menuAtCentre = useCallback(() => {
@@ -305,7 +311,9 @@ export function LogicCanvas({ graph, shape, registry, target, onChange, tools }:
 					onRequestPinMenu={NOOP}
 					onEditCode={NOOP}
 					onDropFile={NOOP}
-					wheel={wheelAction(readPreferences().wheel)}
+					wheel={wheelAction(prefs.wheel)}
+					wireStyle={prefs.wireStyle}
+					wideNodes={wideNodes}
 				/>
 			)}
 			{/* The same bar the editor's graph has on a touch screen, sending the
@@ -317,8 +325,8 @@ export function LogicCanvas({ graph, shape, registry, target, onChange, tools }:
 							selected={liveSelection(editor.script, editor.selection)}
 							canPaste={hasClip}
 							locked={false}
-							labels={readPreferences().actionLabels}
-							style={readPreferences().actionRow}
+							labels={prefs.actionLabels}
+							style={prefs.actionRow}
 						/>
 					</div>
 				</div>
@@ -350,11 +358,7 @@ export function LogicCanvas({ graph, shape, registry, target, onChange, tools }:
 								? "Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
 								: "Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
 						}
-						onClick={() => {
-							const next = !alignExec;
-							setAlignExec(next);
-							writePreferences({ ...readPreferences(), alignExec: next });
-						}}
+						onClick={() => onPrefs({ alignExec: !alignExec })}
 					>
 						Straighten
 					</button>

@@ -33,6 +33,7 @@ import { cx } from "../cx.js";
 import { Icon } from "../icons.jsx";
 import { NODE } from "../layers.js";
 import { nodeColor, pinColor } from "../palette.js";
+import type { Preferences } from "../preferences.js";
 import type { PackNode } from "./draft.js";
 import { NodeEditor } from "./NodeEditor.jsx";
 import { useCompact } from "../Workspace.jsx";
@@ -52,9 +53,15 @@ export interface PackViewProps {
 	/** The pack changed on disk; read the pack list again. */
 	onChanged: () => Promise<void>;
 	notify: Notify;
+	/** The page's preferences, which the open node's logic canvas draws with. */
+	prefs: Preferences;
+	/** Changes preferences, as the page's settings panel does. */
+	onPrefs: (patch: Partial<Preferences>) => void;
 }
 
-export function PackView({ open, packs, target, onBack, onChanged, notify }: PackViewProps) {
+export function PackView({
+	open, packs, target, onBack, onChanged, notify, prefs, onPrefs,
+}: PackViewProps) {
 	const [defs, setDefs] = useState<NodeDef[] | null>(null);
 	/** Each node's saved logic graph, by id, which the loader's defs leave out. */
 	const [logicById, setLogicById] = useState<Map<string, LogicGraph>>(new Map());
@@ -359,6 +366,8 @@ export function PackView({ open, packs, target, onBack, onChanged, notify }: Pac
 					onDeleted={() => void afterDelete()}
 					onDirty={onDirty}
 					notify={notify}
+					prefs={prefs}
+					onPrefs={onPrefs}
 					toolbarSlot={compact ? slot : null}
 				/>
 			)}

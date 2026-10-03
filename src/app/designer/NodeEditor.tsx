@@ -40,6 +40,7 @@ import { Icon } from "../icons.jsx";
 import { NodeView } from "../NodeView.jsx";
 import { pinColor } from "../palette.js";
 import { trackPointer } from "../pointer.js";
+import type { Preferences } from "../preferences.js";
 import { TypePicker } from "../TypePicker.jsx";
 import {
 	addPin, defOf, draftOf, movePin, newDraft, pillShape, problemsOf, purityOf, removePin, renamePin,
@@ -109,11 +110,15 @@ export interface NodeEditorProps {
 	/** Whether there are edits not yet saved, for the pack view to guard. */
 	onDirty: (dirty: boolean) => void;
 	notify: Notify;
+	/** The page's preferences, which the logic canvas draws with. */
+	prefs: Preferences;
+	/** Changes preferences, as the page's settings panel does. */
+	onPrefs: (patch: Partial<Preferences>) => void;
 }
 
 export function NodeEditor({
 	packPath, original, requiredDefs, missingRequires, target, namespace, otherIds, onSaved, onDeleted, onDirty, notify,
-	toolbarSlot = null,
+	toolbarSlot = null, prefs, onPrefs,
 }: NodeEditorProps) {
 	const [draft, setDraft] = useState<Draft>(() => (original ? draftOf(original) : newDraft(namespace, otherIds)));
 	const [pin, setPin] = useState<{ side: Side; index: number } | null>(null);
@@ -753,6 +758,8 @@ export function NodeEditor({
 							registry={logicRegistry}
 							target={target ?? "roblox"}
 							onChange={onLogicChange}
+							prefs={prefs}
+							onPrefs={onPrefs}
 							tools={
 								<button
 									className={cx("tb icon-only", showLuau && "on")}

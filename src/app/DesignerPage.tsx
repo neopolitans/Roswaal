@@ -202,6 +202,8 @@ export function DesignerPage() {
 					target={target}
 					onBack={() => setOpen(null)}
 					onChanged={refresh}
+					prefs={prefs}
+					onPrefs={updatePrefs}
 					notify={notify}
 				/>
 			) : (
