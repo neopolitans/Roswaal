@@ -59,10 +59,12 @@ export interface ProjectInfo {
 	place?: string | null;
 }
 
-/** The project's place as the DataModel browser reads it. See `core/rbx/browse.ts`. */
+/**
+ * The project's place as the DataModel browser reads it. See `core/rbx/browse.ts`.
+ * A place that cannot be read is an error answer (422), not one of these.
+ */
 export type PlaceTree =
 	| { file: null }
-	| { file: string; error: string }
 	| { file: string; stamp: string; outline: PlaceOutline; scripts: Record<number, string> };
 
 /** A node pack on disk. The daemon's copy is in `src/server/project.ts`. */

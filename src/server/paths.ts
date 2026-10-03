@@ -7,6 +7,7 @@
  */
 
 import { path } from "./host.js";
+import { normalisePath } from "../core/rojoPaths.js";
 
 import { UserError } from "./errors.js";
 
@@ -42,7 +43,7 @@ export function toPosix(p: string): string {
  * project produced: forward slashes, no leading `./`, no trailing slash.
  */
 export function tidyPath(p: string): string {
-	return toPosix(p).replace(/^\.\//, "").replace(/\/+$/, "");
+	return normalisePath(toPosix(p));
 }
 
 /** Refuses any path that would escape the project root. */

@@ -9,6 +9,7 @@ import { useHostCan, useHostFailure } from "./host.js";
 import { IS_STATIC_HOST } from "./pages.js";
 import { MarkedLogo } from "./previewBuild.jsx";
 import { forget, recentProjects } from "./recents.js";
+import { errorMessage } from "../core/errorMessage.js";
 
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
@@ -100,7 +101,7 @@ export function ProjectPicker({
 			const { path: chosen } = await api.browseForProject(typed || undefined);
 			if (chosen) setRoot(chosen);
 		} catch (err) {
-			setNoPicker((err as Error).message);
+			setNoPicker(errorMessage(err));
 		} finally {
 			setBrowsing(false);
 		}

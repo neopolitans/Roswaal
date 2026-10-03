@@ -16,6 +16,7 @@ import { LAYER } from "./layers.js";
 import { download, zip } from "./zip.js";
 import { fromBase64 } from "../core/base64.js";
 import { describePlaceReport, type PlaceReport } from "../core/rbx/placeExport.js";
+import { errorMessage } from "../core/errorMessage.js";
 
 type Exported = Awaited<ReturnType<typeof api.exportProject>>;
 
@@ -97,7 +98,7 @@ export function ExportMenu({ onClose, onError }: ExportMenuProps) {
 			onClose();
 		} catch (err) {
 			onClose();
-			onError("The project could not be exported", (err as Error).message);
+			onError("The project could not be exported", errorMessage(err));
 		}
 	}
 

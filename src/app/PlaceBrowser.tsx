@@ -10,6 +10,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type PlaceTree } from "./api.js";
 import { classGlyph, groupProperties, isScriptClass, type PlaceInstanceInfo, type PlaceProperty } from "../core/rbx/browse.js";
+import { errorMessage } from "../core/errorMessage.js";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 
@@ -75,9 +76,6 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 			if (answer.file === null) {
 				setPlace(null);
 				setProblem("The project has no place file.");
-			} else if ("error" in answer) {
-				setPlace(null);
-				setProblem(`${answer.file} could not be read: ${answer.error}`);
 			} else {
 				if (stampRef.current !== null && stampRef.current !== answer.stamp) {
 					setOpen(new Set());
@@ -90,7 +88,9 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 				setProblem(null);
 			}
 		} catch (err) {
-			setProblem((err as Error).message);
+			// An unreadable place answers with an error, whose message names the file.
+			setPlace(null);
+			setProblem(errorMessage(err));
 		} finally {
 			setLoading(false);
 		}

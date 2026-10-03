@@ -39,6 +39,7 @@ import { NodeEditor } from "./NodeEditor.jsx";
 import { useCompact } from "../Workspace.jsx";
 import { setLeaveWarning } from "../pages.js";
 import { targetsLabel, type Notify, type OpenPack } from "./PackBrowser.jsx";
+import { errorMessage } from "../../core/errorMessage.js";
 
 const PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor, scale: 2 };
 
@@ -194,7 +195,7 @@ export function PackView({
 			await api.setPackRequires(pack.path, next);
 			await onChanged();
 		} catch (err) {
-			notify((err as Error).message, "failed");
+			notify(errorMessage(err), "failed");
 		}
 	};
 

@@ -52,6 +52,7 @@ import { useCompact } from "../Workspace.jsx";
 import { Popout, usePhone } from "../Popout.jsx";
 import { LuauField } from "./LuauField.jsx";
 import type { Notify } from "./PackBrowser.jsx";
+import { errorMessage } from "../../core/errorMessage.js";
 
 /** How much larger than on a graph the node is drawn. */
 const SCALE = 1.6;
@@ -271,7 +272,7 @@ export function NodeEditor({
 			notify(`${def.title} is saved. It is in the palette now.`);
 			onSaved(def);
 		} catch (err) {
-			notify((err as Error).message, "failed");
+			notify(errorMessage(err), "failed");
 		} finally {
 			setSaving(false);
 		}
@@ -449,7 +450,7 @@ export function NodeEditor({
 												notify(`${original.title} was deleted.`);
 												onDeleted();
 											} catch (err) {
-												notify((err as Error).message, "failed");
+												notify(errorMessage(err), "failed");
 											}
 										}}
 									>
@@ -781,6 +782,9 @@ export function NodeEditor({
 						key={purity === "pure" ? `expr:${exprPin!.id}` : "template"}
 						value={purity === "pure" ? (draft.expressions[exprPin!.id] ?? "") : draft.template}
 						placeholders={placeholders}
+						// A pure node's expression and a call with a result are one value;
+						// anything else is statements.
+						kind={purity === "pure" || draft.result ? "expression" : "block"}
 						onChange={(text) =>
 							update((d) =>
 								purity === "pure"

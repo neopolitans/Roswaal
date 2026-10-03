@@ -21,6 +21,7 @@ import type { SourceDoc } from "./SourceView.jsx";
 import { store } from "./store.js";
 import { findTreeEntry } from "./treeEntry.js";
 import type { Dialogs } from "./useDialogs.js";
+import { errorMessage } from "../core/errorMessage.js";
 
 /** What the actions need from the editor around them. */
 export interface ProjectActionsContext {
@@ -127,7 +128,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 					: `${out.file} is left as it is: the map would write it differently. Compile the map with force to take it over.`) + kept,
 			);
 		} catch (err) {
-			notify("Could not import the Rojo project", (err as Error).message);
+			notify("Could not import the Rojo project", errorMessage(err));
 		}
 	}, [ask, notify, refreshTree, openEntry, pickProjectFile]);
 
@@ -225,7 +226,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			await refreshTree();
 			reportPackage(out);
 		} catch (err) {
-			notify("Could not add the package", (err as Error).message);
+			notify("Could not add the package", errorMessage(err));
 		}
 	}, [ask, notify, refreshTree, reportPackage]);
 	const onPackageZip = useCallback(async (file: File) => {
@@ -235,7 +236,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			await refreshTree();
 			reportPackage(out);
 		} catch (err) {
-			notify("Could not insert that zip", (err as Error).message);
+			notify("Could not insert that zip", errorMessage(err));
 		}
 	}, [notify, refreshTree, reportPackage]);
 
@@ -275,7 +276,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				notify("Could not open that function", "It is no longer in the graph.");
 			}
 		} catch (err) {
-			notify("Could not open that graph", (err as Error).message);
+			notify("Could not open that graph", errorMessage(err));
 		}
 	}, [notify]);
 
@@ -345,7 +346,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				await followMove(path, moved);
 			}
 		} catch (err) {
-			notify("Could not move that", (err as Error).message);
+			notify("Could not move that", errorMessage(err));
 		}
 		await refreshTree();
 	}, [refreshTree, flushUnder, followMove, notify]);
@@ -409,7 +410,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			await loadProject(made.root);
 			await importRojo("folder");
 		} catch (err) {
-			notify("That folder could not be opened", (err as Error).message);
+			notify("That folder could not be opened", errorMessage(err));
 		}
 	}, [ask, loadProject, notify, importRojo]);
 
@@ -465,7 +466,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			}
 			await importRojo("zip");
 		} catch (err) {
-			notify("That zip could not be opened", (err as Error).message);
+			notify("That zip could not be opened", errorMessage(err));
 		}
 	}, [ask, loadProject, notify, importRojo]);
 
@@ -529,7 +530,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				);
 			}
 		} catch (err) {
-			notify("That place could not be opened", (err as Error).message);
+			notify("That place could not be opened", errorMessage(err));
 		}
 	}, [ask, loadProject, notify]);
 
@@ -555,7 +556,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			if ("root" in opened) return loadProject(opened.root, false, true);
 			return false;
 		} catch (err) {
-			notify(`${folder.name} could not be reopened`, (err as Error).message);
+			notify(`${folder.name} could not be reopened`, errorMessage(err));
 			return false;
 		}
 	}, [loadProject, notify]);
@@ -581,7 +582,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			await forgetRememberedFolder();
 			window.location.reload();
 		} catch (err) {
-			notify("The project could not be reset", (err as Error).message);
+			notify("The project could not be reset", errorMessage(err));
 		}
 	}, [ask, notify]);
 
@@ -589,7 +590,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 		try {
 			await api.reveal(target);
 		} catch (err) {
-			notify("Could not show that file", (err as Error).message);
+			notify("Could not show that file", errorMessage(err));
 		}
 	}, [notify]);
 
@@ -632,7 +633,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			setAliasDoc(null);
 			setMapDoc(null);
 		} catch (err) {
-			notify("Could not create that graph", (err as Error).message);
+			notify("Could not create that graph", errorMessage(err));
 		}
 	}, [ask, notify, refreshTree]);
 
@@ -652,7 +653,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			setAliasDoc(null);
 			setMapDoc({ path: created.path, map: created.map, dirty: false });
 		} catch (err) {
-			notify("Could not create that map", (err as Error).message);
+			notify("Could not create that map", errorMessage(err));
 		}
 	}, [ask, notify, refreshTree]);
 
@@ -668,7 +669,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			await api.createFolder(`${parentDir}/${name}`.replace(/^\//, ""));
 			await refreshTree();
 		} catch (err) {
-			notify("Something went wrong", (err as Error).message);
+			notify("Something went wrong", errorMessage(err));
 		}
 	}, [ask, notify, refreshTree]);
 
@@ -692,7 +693,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			// nothing about the document. A folder takes its open graphs with it.
 			await followMove(target, renamed);
 		} catch (err) {
-			notify("Something went wrong", (err as Error).message);
+			notify("Something went wrong", errorMessage(err));
 		}
 	}, [ask, notify, refreshTree, flushUnder, followMove]);
 
@@ -723,7 +724,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			if (source && paths.some((target) => under(source.path, target))) setSource(null);
 			await refreshTree();
 		} catch (err) {
-			notify("Something went wrong", (err as Error).message);
+			notify("Something went wrong", errorMessage(err));
 		}
 	}, [ask, notify, refreshTree, mapDoc, source, saves]);
 

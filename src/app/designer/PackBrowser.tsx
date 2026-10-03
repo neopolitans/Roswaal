@@ -30,6 +30,7 @@ import { api, type PackFile } from "../api.js";
 import { cx } from "../cx.js";
 import { Icon } from "../icons.jsx";
 import { NOT_HERE, useHostCan } from "../host.js";
+import { errorMessage } from "../../core/errorMessage.js";
 
 /** What the designer has open: a built-in category, or one of the project's packs. */
 export type OpenPack = { kind: "builtin"; category: string } | { kind: "project"; path: string };
@@ -109,7 +110,7 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 			await onChanged();
 			onOpen({ kind: "project", path: pack.path });
 		} catch (err) {
-			notify((err as Error).message, "failed");
+			notify(errorMessage(err), "failed");
 		}
 	};
 
@@ -124,7 +125,7 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 			}
 			setImporting({ ...scanned, done: new Set() });
 		} catch (err) {
-			notify((err as Error).message, "failed");
+			notify(errorMessage(err), "failed");
 		}
 	};
 
@@ -256,7 +257,7 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 														await onChanged();
 														notify(`${pack.name} is in this project now.`);
 													} catch (err) {
-														notify((err as Error).message, "failed");
+														notify(errorMessage(err), "failed");
 													}
 												}}
 											>

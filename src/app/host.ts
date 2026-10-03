@@ -22,6 +22,7 @@
 import { useSyncExternalStore } from "react";
 
 import { api } from "./api.js";
+import { errorMessage } from "../core/errorMessage.js";
 
 /**
  * The four the routes gate on, named as the routes name them.
@@ -84,7 +85,7 @@ export async function loadCapabilities(): Promise<void> {
 		failure = null;
 	} catch (err) {
 		capabilities = new Set();
-		failure = (err as Error).message || "It did not answer.";
+		failure = errorMessage(err) || "It did not answer.";
 	}
 	announce();
 }

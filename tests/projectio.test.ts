@@ -21,6 +21,7 @@ import { readManifest, recordGenerated } from "../src/server/manifest.js";
 import {
 	collectMaps, deletePack, openProject, writeConfig, writeMap, writePlaceImport, writeScript,
 } from "../src/server/project.js";
+import { collectScripts } from "../src/server/documents.js";
 import { walkFiles } from "../src/server/files.js";
 import { tidyPath, toPosix } from "../src/server/paths.js";
 
@@ -144,3 +145,20 @@ describe("the shared walk", () => {
 	});
 });
 
+
+describe("finding graphs", () => {
+	/** `build` and `out` are build output at the project's root, and somebody's graphs under sourceDir. */
+	it("finds graphs in a folder named like build output", async () => {
+		await scratch({
+			"roswaal.json": JSON.stringify({ ...defaultConfig(), sourceDir: ".roswaal/scripts" }),
+			".roswaal/scripts/build/Spawn.nodescript": "{}",
+			".roswaal/scripts/out/Score.nodescript": "{}",
+			".roswaal/scripts/node_modules/Ignored.nodescript": "{}",
+		});
+		const project = await openProject(root);
+		expect(await collectScripts(project)).toEqual([
+			".roswaal/scripts/build/Spawn.nodescript",
+			".roswaal/scripts/out/Score.nodescript",
+		]);
+	});
+});

@@ -9,8 +9,10 @@
  * the request. This is where it is written down.
  */
 
+import { errorMessage } from "../core/errorMessage.js";
 import { LuauParseError } from "../core/luauData.js";
 import { RbxError } from "../core/rbx/dom.js";
+import { ZipError } from "../core/unzip.js";
 
 /**
  * A mistake in what was asked: a name that is taken, a path outside the
@@ -49,10 +51,7 @@ export class HttpError extends Error {
 	}
 }
 
-/** The message of anything thrown, which is not always an `Error`. */
-export function errorMessage(err: unknown): string {
-	return err instanceof Error ? err.message : String(err);
-}
+export { errorMessage };
 
 /**
  * Filesystem codes that describe the request rather than the machine: asking
@@ -72,14 +71,14 @@ const REQUEST_CODES: Readonly<Record<string, number>> = {
  *
  * Known problems keep their own status: an `HttpError` its own, a
  * `UserError` 400, a file that is not what it claims to be -- a place, a pack,
- * JSON that will not parse -- 422, and a filesystem refusal its matching 4xx.
+ * JSON that will not parse, or a zip it cannot read -- 422, and a filesystem refusal its matching 4xx.
  * Anything else is a bug and answers 500.
  */
 export function errorResponse(err: unknown): { status: number; body: ErrorBody } {
 	const error = errorMessage(err);
 	if (err instanceof HttpError) return { status: err.status, body: { error, ...err.details } };
 	if (err instanceof UserError) return { status: 400, body: { error } };
-	if (err instanceof RbxError || err instanceof LuauParseError || err instanceof SyntaxError) {
+	if (err instanceof RbxError || err instanceof ZipError || err instanceof LuauParseError || err instanceof SyntaxError) {
 		return { status: 422, body: { error } };
 	}
 	const code = (err as { code?: unknown } | null)?.code;

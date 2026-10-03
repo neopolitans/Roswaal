@@ -19,16 +19,12 @@
 
 import { useEffect, useRef } from "react";
 
-import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, type CompletionContext } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { syntaxHighlighting } from "@codemirror/language";
+import type { CompletionContext } from "@codemirror/autocomplete";
 import { EditorState } from "@codemirror/state";
-import { EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 
 import { checkTemplate, type LuauFragment } from "../../core/luau/check.js";
-import { luauLint } from "../luauLint.js";
-import { luauLanguage } from "../luauMode.js";
-import { editorTheme, luauHighlight } from "../luauTheme.js";
+import { luauExtensions } from "../luauExtensions.js";
 
 export interface LuauFieldProps {
 	value: string;
@@ -69,22 +65,13 @@ export function LuauField({ value, onChange, placeholders, kind }: LuauFieldProp
 			parent: host.current,
 			state: EditorState.create({
 				doc: value,
-				extensions: [
-					lineNumbers(),
-					highlightActiveLine(),
-					history(),
-					closeBrackets(),
-					autocompletion({ override: [source], icons: false }),
-					keymap.of([...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
-					luauLanguage,
-					syntaxHighlighting(luauHighlight),
-					luauLint((text) => checkTemplate(text, kindRef.current)),
-					editorTheme,
-					EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { overflow: "auto" } }),
-					EditorView.updateListener.of((update) => {
-						if (update.docChanged) onChangeRef.current(update.state.doc.toString());
-					}),
-				],
+				extensions: luauExtensions({
+					completion: source,
+					lint: (text) => checkTemplate(text, kindRef.current),
+					gutter: false,
+					onChange: (text) => onChangeRef.current(text),
+					extra: [EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { overflow: "auto" } })],
+				}),
 			}),
 		});
 		view.current = instance;

@@ -66,6 +66,7 @@ import { SaveQueue } from "./saveQueue.js";
 import { CompileToast } from "./CompileToast.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { StatusPanel } from "./StatusPanel.jsx";
+import { errorMessage } from "../core/errorMessage.js";
 
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
@@ -358,7 +359,7 @@ export function App() {
 			// the card itself, with the cross to take it off the list beside it.
 			// A dialog as well would be the same news twice, over the top of the
 			// one place the reader can act on it.
-			if (!quiet) notify("Something went wrong", (err as Error).message);
+			if (!quiet) notify("Something went wrong", errorMessage(err));
 			return false;
 		} finally {
 			setBusy(null);
@@ -393,7 +394,7 @@ export function App() {
 				notify(
 					"Staying where we are",
 					`Something still had unsaved changes and they could not be written: ${
-						(err as Error).message
+						errorMessage(err)
 					}. Nothing was closed and the project has not changed.`,
 				);
 				return false;
@@ -427,7 +428,7 @@ export function App() {
 			const typed = await ask({
 				kind: "prompt",
 				title: "Open a project",
-				label: `This machine has no folder dialog (${(err as Error).message})`,
+				label: `This machine has no folder dialog (${errorMessage(err)})`,
 				placeholder: "C:" + SEP + "path" + SEP + "to" + SEP + "project",
 			});
 			chosen = typeof typed === "string" && typed.trim() !== "" ? typed.trim() : null;
@@ -642,7 +643,7 @@ export function App() {
 			const { script } = await api.readScript(path);
 			store.open(path, script);
 		} catch (err) {
-			notify("Could not open that graph", (err as Error).message);
+			notify("Could not open that graph", errorMessage(err));
 		}
 	}, [notify]);
 
@@ -694,7 +695,7 @@ export function App() {
 				setStatusOpen(true);
 				await refreshTree();
 			} catch (err) {
-				notify("Something went wrong", (err as Error).message);
+				notify("Something went wrong", errorMessage(err));
 			} finally {
 				setBusy(null);
 			}
@@ -712,7 +713,7 @@ export function App() {
 				setStatusOpen(true);
 				if (write) await refreshTree();
 			} catch (err) {
-				notify("Something went wrong", (err as Error).message);
+				notify("Something went wrong", errorMessage(err));
 			} finally {
 				setBusy(null);
 				setCompiling(false);
@@ -742,7 +743,7 @@ export function App() {
 			if (rereads.some((key) => key in patch)) await refreshTree();
 		} catch (err) {
 			if (err instanceof ProjectChangedError) void onProjectChanged(err);
-			else notify("That setting was not saved", (err as Error).message);
+			else notify("That setting was not saved", errorMessage(err));
 		}
 	}, [project, refreshTree, notify, onProjectChanged]);
 
@@ -1102,7 +1103,7 @@ export function App() {
 								void api.writeLuaurc(dir, text).then(
 									(written) => setAliasDoc({ dir: aliasDoc.dir, files: written.files }),
 									(err: unknown) =>
-										notify("The .luaurc was not written", (err as Error).message),
+										notify("The .luaurc was not written", errorMessage(err)),
 								);
 							}}
 						/>
@@ -1122,7 +1123,7 @@ export function App() {
 									const { editor: found } = await api.openInEditor(path);
 									notify("Handed over", `Opened ${path.split("/").pop()} in ${found}.`);
 								} catch (err) {
-									notify("Could not open it", (err as Error).message);
+									notify("Could not open it", errorMessage(err));
 								}
 							}}
 							onReveal={(path) => void api.reveal(path)}
@@ -1225,7 +1226,7 @@ export function App() {
 									}
 									setDropMenu({ screen, world, name, location });
 								} catch (err) {
-									notify("Could not resolve that file", (err as Error).message);
+									notify("Could not resolve that file", errorMessage(err));
 								}
 							}}
 						/>

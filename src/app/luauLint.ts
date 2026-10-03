@@ -9,9 +9,9 @@
  *
  * Each editor passes the check it wants. Custom Code and Luau Expression use
  * `checkLuau`, the parse the compiler runs, so the editor cannot disagree
- * with the build. Node Design's logic field keeps the bracket balance check:
- * its templates hold `$in.name` placeholders, which are not Luau until they
- * are filled in.
+ * with the build. Node Design's logic field uses `checkTemplate`, the same
+ * parse with each `$in.name` placeholder read as a name of its own length, so
+ * a problem is still marked where it is written.
  */
 
 import { linter, type Diagnostic as LintDiagnostic } from "@codemirror/lint";

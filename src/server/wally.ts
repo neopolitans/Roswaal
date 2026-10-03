@@ -184,7 +184,7 @@ function unwrapped(files: ZipEntry[]): ZipEntry[] {
 export async function installZip(
 	project: OpenProject, bytes: Uint8Array, options: { alias?: string; realm?: WallyRealm; fileName?: string; vendor?: boolean } = {},
 ): Promise<WallyOutcome> {
-	const files = unwrapped((await readZip(bytes)).files);
+	const files = unwrapped((await unzip(bytes)).files);
 	const byPath = new Map(files.map((f) => [f.path, f]));
 	const text = (rel: string) => {
 		const found = byPath.get(rel);
@@ -245,18 +245,6 @@ export async function installZip(
 	}
 	if (written === 0) throw new UserError("Nothing in that zip's module was Luau.");
 	return { installed: [target], requests: 0 };
-}
-
-/**
- * A zip somebody handed over, read. Anything `unzip` refuses is about those
- * bytes -- not a zip, damaged, too large a format -- so it is theirs to fix.
- */
-async function readZip(bytes: Uint8Array): ReturnType<typeof unzip> {
-	try {
-		return await unzip(bytes);
-	} catch (err) {
-		throw new UserError(errorMessage(err));
-	}
 }
 
 /** Vendors a GitHub repository, `owner/repo[@ref]`, fetched by the host. */

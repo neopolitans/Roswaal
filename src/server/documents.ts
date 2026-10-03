@@ -180,9 +180,17 @@ export async function collectScripts(project: OpenProject): Promise<string[]> {
 	return documentsUnder(project, ".nodescript");
 }
 
+/**
+ * Folders a graph is never in. Narrower than `SKIP_DIRS` on purpose: under
+ * `sourceDir` a folder called `build` or `out` is somebody's graphs, not a
+ * build's output, and skipping it would hide them.
+ */
+const NOT_GRAPHS: ReadonlySet<string> = new Set(["node_modules", ".git"]);
+
 async function documentsUnder(project: OpenProject, extension: string): Promise<string[]> {
 	const files = await walkFiles(project.root, {
 		from: project.config.sourceDir,
+		skip: NOT_GRAPHS,
 		accept: (name) => name.endsWith(extension),
 	});
 	return files.map((file) => file.path);
