@@ -167,3 +167,34 @@ describe("a header's text as Luau", () => {
 		]);
 	});
 });
+
+/**
+ * The source hash covers what changes the file. A header is part of the file,
+ * so its text and the nodes it heads are covered — but only where headers are
+ * written, so every graph without one keeps the hash it always had.
+ */
+describe("the source hash and comment headers", () => {
+	const hashOf = (box: typeof BOTH | null, options: { comments?: boolean } = on, text = "Say hello") => {
+		const script = graph(box ?? BOTH, text);
+		if (box === null) script.comments = [];
+		return compile(script, registry, options).sourceHash;
+	};
+
+	/** Pinned: the value this graph has hashed to since before headers counted. */
+	it("leaves a graph with no headers hashing as it did", () => {
+		expect(hashOf(null)).toBe("ef792b301fad667c");
+		expect(hashOf(BOTH, {})).toBe("ef792b301fad667c");
+	});
+
+	it("changes when a header's text does", () => {
+		expect(hashOf(BOTH, on, "Say goodbye")).not.toBe(hashOf(BOTH));
+	});
+
+	it("changes when a node leaves the comment", () => {
+		expect(hashOf(FIRST_ONLY)).not.toBe(hashOf(BOTH));
+	});
+
+	it("stays when the comment is nudged without changing what it holds", () => {
+		expect(hashOf({ ...BOTH, x: BOTH.x - 10 })).toBe(hashOf(BOTH));
+	});
+});
