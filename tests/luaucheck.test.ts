@@ -38,6 +38,13 @@ describe("checkLuau", () => {
 		expect(messages("  return 1", "expression")[0]).toContain('"return" starts a statement');
 	});
 
+	it("takes an if-expression as a value, and names an if statement as a statement", () => {
+		expect(messages("if a then 1 else 2", "expression")).toEqual([]);
+		expect(messages("  if a then 1 elseif b then 2 else 3", "expression")).toEqual([]);
+		expect(messages("if a then f() end", "expression")[0]).toContain('"if" starts a statement');
+		expect(messages("if a then 1", "expression")[0]).toContain("an if-expression always has an else");
+	});
+
 	it("still takes an anonymous function as a value", () => {
 		expect(messages("function(x) return x end", "expression")).toEqual([]);
 	});

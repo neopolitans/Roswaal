@@ -195,6 +195,17 @@ describe("errors", () => {
 		expect(messages("return 1\nprint(2)")).toContain("Nothing can follow a return in the same block.");
 	});
 
+	it("refuses anything after a break or a continue, and says so once", () => {
+		expect(messages("while x do break print(1) end")).toEqual(["Nothing can follow a break in the same block."]);
+		expect(messages("for i = 1, 2 do continue; f() end")).toEqual(["Nothing can follow a continue in the same block."]);
+		expect(messages("while x do if y then break end continue end")).toEqual([]);
+	});
+
+	it("leaves the end for its block when a statement stops at it", () => {
+		expect(messages("if a then\n\tlocal x =\nend")).toEqual(['Expected a value, but found "end".']);
+		expect(messages("function f()\n\tg(\nend")).toEqual(['Expected a value, but found "end".']);
+	});
+
 	it("says an if-expression needs its else", () => {
 		expect(messages("local x = if a then 1")[0]).toBe(
 			'Expected "else" — an if-expression always has an else, but found the end of the code.',

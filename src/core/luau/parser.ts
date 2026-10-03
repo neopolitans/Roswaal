@@ -149,18 +149,23 @@ class Parser {
 		const out: Block = [];
 		for (;;) {
 			const token = this.peek();
-			if (token.kind === "eof" || (token.kind === "keyword" && BLOCK_END.has(token.text))) return out;
+			if (this.endsBlock(token)) return out;
 			try {
 				const stat = this.statement();
 				out.push(stat);
 				this.accept(";");
-				if (stat.kind === "return") {
+				// `return`, `break` and `continue` end their block: Luau reads
+				// nothing after one, so `break print(1)` is a mistake. Said
+				// once, and the rest is still read, so the block's `end` is
+				// not reported missing as well.
+				if (stat.kind === "return" || stat.kind === "break" || stat.kind === "continue") {
 					const after = this.peek();
-					if (after.kind !== "eof" && !(after.kind === "keyword" && BLOCK_END.has(after.text))) {
+					if (!this.endsBlock(after)) {
 						this.errors.push({
 							start: after.start, end: after.end,
-							message: "Nothing can follow a return in the same block.",
+							message: `Nothing can follow a ${stat.kind} in the same block.`,
 						});
+						out.push(...this.block());
 					}
 					return out;
 				}
@@ -171,8 +176,19 @@ class Parser {
 		}
 	}
 
-	/** Skips to where the next statement can start, taking at least one token. */
+	/** The end of the code, or a word that closes a block: `end`, `else`, `elseif`, `until`. */
+	private endsBlock(token: Token): boolean {
+		return token.kind === "eof" || (token.kind === "keyword" && BLOCK_END.has(token.text));
+	}
+
+	/**
+	 * Skips to where the next statement can start. A statement that stopped at
+	 * a word closing its block leaves that word for the block, so `local x =
+	 * end` is one mistake rather than a second, missing `end`; anything else
+	 * is taken, so the parser always moves on.
+	 */
 	private recover(): void {
+		if (this.endsBlock(this.peek())) return;
 		this.next();
 		for (;;) {
 			const token = this.peek();
@@ -908,8 +924,12 @@ export function parseChunk(src: string): ParseResult<Block> {
 	return { value, errors: parser.errors };
 }
 
-/** Words that can only start a statement, never a value. */
-const STATEMENT_WORDS = /^(local|if|for|while|repeat|return|do|end|else|elseif|until|break|function\s+[A-Za-z_])\b/;
+/**
+ * Words that can only start a statement, never a value. `if` is not among
+ * them: `if a then 1 else 2` is an if-expression. An `if` that reads only as
+ * a statement is caught below, once the expression has failed.
+ */
+const STATEMENT_WORDS = /^(local|for|while|repeat|return|do|end|else|elseif|until|break|function\s+[A-Za-z_])\b/;
 
 /**
  * Exactly one value: what a Luau Expression node holds, or code typed into a
@@ -917,21 +937,26 @@ const STATEMENT_WORDS = /^(local|if|for|while|repeat|return|do|end|else|elseif|u
  * apart, so it is named as that rather than as a stray token.
  */
 export function parseExpression(src: string): ParseResult<Expr | undefined> {
-	const opener = STATEMENT_WORDS.exec(src.trimStart());
-	if (opener) {
-		const start = src.length - src.trimStart().length;
-		const word = opener[1].split(/\s/)[0];
-		return {
-			value: undefined,
-			errors: [{
-				start, end: start + word.length,
-				message:
-					`"${word}" starts a statement, and this is a value. Use Custom Code for ` +
-					"statements; it sits in the execution chain instead.",
-			}],
-		};
+	const trimmed = src.trimStart();
+	const start = src.length - trimmed.length;
+	const statementError = (word: string): ParseResult<Expr | undefined> => ({
+		value: undefined,
+		errors: [{
+			start, end: start + word.length,
+			message:
+				`"${word}" starts a statement, and this is a value. Use Custom Code for ` +
+				"statements; it sits in the execution chain instead.",
+		}],
+	});
+	const opener = STATEMENT_WORDS.exec(trimmed);
+	if (opener) return statementError(opener[1].split(/\s/)[0]);
+	const parsed = parseWhole(src, (parser) => parser.expr(), "one value");
+	// `if a then f() end` is an if statement, which is the clearer thing to say
+	// than that an if-expression wants its `else`.
+	if (parsed.errors.length > 0 && /^if\b/.test(trimmed) && parseChunk(src).errors.length === 0) {
+		return statementError("if");
 	}
-	return parseWhole(src, (parser) => parser.expr(), "one value");
+	return parsed;
 }
 
 /** Exactly one type: a Declare Type written out, or a type typed into a picker. */
