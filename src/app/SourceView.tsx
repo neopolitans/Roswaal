@@ -24,21 +24,18 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, lineNumbers, highlightActiveLine } from "@codemirror/view";
-import { syntaxHighlighting } from "@codemirror/language";
-
-import { luauLanguage } from "./luauMode.js";
-import { luauHover } from "./luauHover.js";
-import type { Target } from "../core/schema.js";
-import type { TableMember } from "../core/luau/infer.js";
-import type { ModuleInfo } from "../core/luau/hover.js";
-import { api } from "./api.js";
-import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
 import { lintGutter } from "@codemirror/lint";
-import { luauWarnings } from "./luauLint.js";
+import { Compartment, EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+
+import type { ModuleInfo } from "../core/luau/hover.js";
+import type { TableMember } from "../core/luau/infer.js";
+import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
+import type { Target } from "../core/schema.js";
+import { api } from "./api.js";
 import { NOT_HERE, useHostCan } from "./host.js";
-import { editorTheme, luauHighlight } from "./luauTheme.js";
+import { luauExtensions } from "./luauExtensions.js";
+import { luauWarnings } from "./luauLint.js";
 
 export interface SourceDoc {
 	path: string;
@@ -115,28 +112,24 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 		const instance = new EditorView({
 			state: EditorState.create({
 				doc: doc.text,
-				extensions: [
-					lineNumbers(),
-					highlightActiveLine(),
-					// Read-only, but focusable: the text cursor shows and moves with
-					// the arrow keys, Page Up/Down and Home/End, and the highlighted
-					// line follows it. `editable.of(false)` hid the cursor, so the
-					// line only moved where the file was clicked. Typing is still
-					// refused by `readOnly`, and `inputmode="none"` keeps a tablet's
-					// on-screen keyboard from opening for text that takes no input.
-					EditorState.readOnly.of(true),
-					EditorView.contentAttributes.of({ inputmode: "none" }),
-					luauLanguage,
-					syntaxHighlighting(luauHighlight),
-					editorTheme,
+				// Read-only, but focusable: the cursor shows and moves with the
+				// arrow keys, and the highlighted line follows it. `editable.of(false)`
+				// would hide the cursor, so the line only moved where it was clicked.
+				extensions: luauExtensions({
+					readOnly: true,
 					// The code editor's hover, here too: what every name is and
 					// where its Roblox docs page is, in a file that cannot be edited.
-					luauHover(() => targetOfSource(doc.text), () => members.current, () => modules.current, () => instancesRef.current),
+					hover: {
+						target: () => targetOfSource(doc.text),
+						members: () => members.current,
+						modules: () => modules.current,
+						instances: () => instancesRef.current,
+					},
 					// Names the place and the project do not have, under the
 					// containers that are settled before the game runs: filled in
 					// once the host answers, without rebuilding the view.
-					warnings.current.of([]),
-				],
+					extra: [warnings.current.of([])],
+				}),
 			}),
 			parent: host.current,
 		});

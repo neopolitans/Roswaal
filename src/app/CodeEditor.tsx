@@ -9,36 +9,23 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api } from "./api.js";
-import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
-import type { TableMember } from "../core/luau/infer.js";
-import type { ModuleInfo } from "../core/luau/hover.js";
-import { luauWarnings } from "./luauLint.js";
 
+import type { Completion } from "@codemirror/autocomplete";
 import { EditorState } from "@codemirror/state";
-import {
-	EditorView, keymap, lineNumbers, highlightActiveLine,
-} from "@codemirror/view";
-import {
-	closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap,
-	type Completion,
-} from "@codemirror/autocomplete";
-import { lintGutter } from "@codemirror/lint";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { syntaxHighlighting } from "@codemirror/language";
+import { EditorView } from "@codemirror/view";
 
-import type { NodeScript } from "../core/schema.js";
-import type { Registry } from "../core/nodes/index.js";
 import { checkLuau, type LuauFragment } from "../core/luau/check.js";
-import { luauLint } from "./luauLint.js";
-import { luauHover } from "./luauHover.js";
-import { luauSignature } from "./luauSignature.js";
-import { luauLanguage } from "./luauMode.js";
+import type { ModuleInfo } from "../core/luau/hover.js";
+import type { TableMember } from "../core/luau/infer.js";
+import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
+import type { Registry } from "../core/nodes/index.js";
+import type { NodeScript } from "../core/schema.js";
+import { api } from "./api.js";
+import { LAYER } from "./layers.js";
 import {
 	graphTableMembers, luauCompletionSource, precedingLocals, scopeCompletions,
 } from "./luauCompletions.js";
-import { LAYER } from "./layers.js";
-import { editorTheme, luauHighlight } from "./luauTheme.js";
+import { luauExtensions } from "./luauExtensions.js";
 
 export interface CodeEditorProps {
 	title: string;
@@ -131,42 +118,27 @@ export function CodeEditor({
 
 		const state = EditorState.create({
 			doc: value,
-			extensions: [
-				lineNumbers(),
-				lintGutter(),
-				highlightActiveLine(),
-				history(),
-				closeBrackets(),
-				autocompletion({
-					override: [luauCompletionSource(() => scopeRef.current, () => targetRef.current, allMembers, () => instancesRef.current)],
-					icons: false,
-				}),
-				// Completion and bracket keymaps first: they only claim keys while
-				// they are actually active, and indentWithTab must not shadow them.
-				keymap.of([
-					...closeBracketsKeymap,
-					...completionKeymap,
-					...defaultKeymap,
-					...historyKeymap,
-					indentWithTab,
-				]),
-				luauLanguage,
-				syntaxHighlighting(luauHighlight),
+			extensions: luauExtensions({
+				completion: luauCompletionSource(
+					() => scopeRef.current, () => targetRef.current, allMembers, () => instancesRef.current,
+				),
 				// The same structural check that runs on every compile, shown here
 				// as you type so a stray `end` is caught in the box you typed it in.
-				luauLint((code) => checkLuau(code, kind)),
-				luauHover(() => targetRef.current, allMembers, () => modulesRef.current, () => instancesRef.current),
-				luauSignature(() => targetRef.current, allMembers),
+				lint: (code) => checkLuau(code, kind),
+				hover: {
+					target: () => targetRef.current,
+					members: allMembers,
+					modules: () => modulesRef.current,
+					instances: () => instancesRef.current,
+				},
+				signature: true,
 				// Instance paths the place and the project do not have, from where
 				// the graph's code runs.
-				luauWarnings((code) => (instancesRef.current && targetRef.current !== "lune"
+				warnings: (code) => (instancesRef.current && targetRef.current !== "lune"
 					? instanceProblems(code, instancesRef.current.root, instancesRef.current.self)
-					: [])),
-				editorTheme,
-				EditorView.updateListener.of((update) => {
-					if (update.docChanged) setText(update.state.doc.toString());
-				}),
-			],
+					: []),
+				onChange: setText,
+			}),
 		});
 
 		const instance = new EditorView({ state, parent: host.current });
