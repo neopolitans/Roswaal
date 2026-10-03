@@ -29,7 +29,6 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { faviconHref } from "../src/app/logo.tsx";
 import { buildGraphViewer } from "./lib/graphViewer.mjs";
 import { LANDING_SCRIPT, landingPage } from "./lib/landing.mjs";
 import { notFoundPage } from "./lib/notFound.mjs";

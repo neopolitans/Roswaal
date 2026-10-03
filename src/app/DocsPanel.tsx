@@ -444,7 +444,7 @@ function Page({ page, site, go }: { page: DocPage; site: DocSite; go: (next: str
 						<Icon name="rename" size={15} />
 					</button>
 				</h1>
-				<p className="summary">{page.summary}</p>
+				<p className="summary"><Rich text={page.summary} /></p>
 				{page.review && (
 					<p className="docs-status">
 						<ReviewBadge review={page.review} />
@@ -1176,7 +1176,7 @@ function PinTable({ title, pins }: { title: string; pins: PinDoc[] }) {
 						</div>
 						{(pin.description || pin.splitModes.length > 0) && (
 							<div className="detail">
-								{pin.description}
+								{pin.description && <Rich text={pin.description} />}
 								{pin.splitModes.length > 0 && (
 									<> Splits into {pin.splitModes.join(", or ")}.</>
 								)}

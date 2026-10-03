@@ -7,7 +7,7 @@
  * a heading and a note came out as the same grey text, and the two things a
  * contributor most wants to add — a node picture and a graph picture — could
  * not be expressed at all. Which meant, in practice, that the only person who
- * could add one was somebody editing `site.ts` directly.
+ * could add one was somebody editing the page's module directly.
  *
  * So this edits the page **as the page**. Every block stays rendered where it
  * is; clicking one turns that block, and only that block, into its editor.
@@ -21,7 +21,7 @@
  * prose leaves somebody else to turn it back into blocks. What a maintainer can
  * act on immediately is the block array itself, so that is what Propose hands
  * over: paste-ready source, with the pictures written the way the rest of
- * `site.ts` writes them.
+ * a page module writes them.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -50,7 +50,7 @@ const PROPOSAL_LIMIT = 6000;
  * One block, plus what the *source* form of it needs that the rendered form
  * does not.
  *
- * A preview block holds fat `NodePreview` objects; `site.ts` writes it as
+ * A preview block holds fat `NodePreview` objects; a page module writes it as
  * `...previews(registry, ["math.add"])`, so the ids are what a draft carries. A
  * graph block holds a whole script, and where it came from is worth saying in
  * the source even though the block does not need it.
@@ -99,7 +99,7 @@ function draftsOf(page: DocPage): Draft[] {
 const str = (text: string): string => JSON.stringify(text);
 
 /**
- * One block as the source `site.ts` would hold.
+ * One block as the source a page module would hold.
  *
  * Previews are written as the `previews()` call the rest of the file uses, so a
  * pasted block reads like the ones around it rather than like generated output.
@@ -133,7 +133,7 @@ function blockSource(draft: Draft, indent = "\t\t"): string {
 	if (block.t === "code") {
 		return `${indent}{ t: "code", lang: ${str(block.lang)}, text: ${str(block.text)} },`;
 	}
-	// A bar is a module constant in `site.ts`, not a literal. Written out as
+	// A bar is a module constant in `toolbars.ts`, not a literal. Written out as
 	// JSON it would bury the page it sits on.
 	if (block.t === "toolbar") {
 		const hint = block.hint ? ", hint: true" : "";
@@ -353,7 +353,7 @@ export function PageEditor({ page, registry, preview, render, onClose }: PageEdi
 
 			<h3>The blocks, as source</h3>
 			<p className="hint">
-				Paste this into the page's entry in <code>src/core/docs/site.ts</code>. Propose sends it
+				Paste this into the page's module in <code>src/core/docs/pages/</code>. Propose sends it
 				as an issue; for a long page, copy it instead — a URL will not carry it all.
 			</p>
 			<pre className="page-editor-source">{source}</pre>
@@ -484,7 +484,7 @@ function BlockEditor({
 	// through a worse control than the one that made them.
 	return (
 		<p className="hint">
-			A {block.t} block is handed back unchanged. Edit it in <code>site.ts</code>, or remove it
+			A {block.t} block is handed back unchanged. Edit it in the page's module in <code>src/core/docs/pages/</code>, or remove it
 			here and describe what it should say.
 		</p>
 	);

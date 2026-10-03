@@ -27,6 +27,7 @@ import { pinTypeText } from "../nodes/variables.js";
 import { STRUCTS, type StructRegistry } from "../structs.js";
 import { previewOf, type NodePreview } from "./preview.js";
 import { CURATED, EXAMPLE_NOTES } from "./examples.js";
+import { CONTEXTUAL_WORDS, RESERVED_WORDS } from "../luau/lexer.js";
 
 export interface PinDoc {
 	id: string;
@@ -298,10 +299,8 @@ const RESERVED = new Set([
 	// Globals.
 	"table", "string", "math", "os", "task", "game", "script", "workspace",
 	"type", "select", "next", "print", "require", "shared", "coroutine",
-	// Keywords.
-	"and", "break", "do", "else", "elseif", "end", "false", "for", "function",
-	"if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true",
-	"until", "while", "continue", "export",
+	// Keywords, from the lexer that reads them.
+	...RESERVED_WORDS, ...CONTEXTUAL_WORDS,
 ]);
 
 /**

@@ -40,20 +40,20 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
-	state: State = { error: null, componentStack: null };
+	override state: State = { error: null, componentStack: null };
 
 	static getDerivedStateFromError(error: Error): Partial<State> {
 		return { error };
 	}
 
-	componentDidCatch(error: Error, info: ErrorInfo): void {
+	override componentDidCatch(error: Error, info: ErrorInfo): void {
 		// Still logged. The console stack points at the real frame, which the
 		// component stack below does not.
 		console.error("Roswaal crashed:", error, info.componentStack);
 		this.setState({ componentStack: info.componentStack ?? null });
 	}
 
-	render(): ReactNode {
+	override render(): ReactNode {
 		const { error, componentStack } = this.state;
 		if (!error) return this.props.children;
 

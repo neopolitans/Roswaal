@@ -48,6 +48,7 @@ import type { View } from "./geometry.js";
 import { retypeReroutes } from "../core/reroutes.js";
 import { retypeClassReads } from "../core/classReads.js";
 import type { Registry } from "../core/nodes/index.js";
+import { functionNameOf } from "./nodeConfig.js";
 
 const HISTORY_LIMIT = 100;
 
@@ -200,11 +201,10 @@ class Store {
 		this.tabs = this.tabList.map((t) => {
 			const open = this.docs.get(t.path)!;
 			const fn = t.graph === null ? undefined : open.script.nodes.find((n) => n.id === t.graph);
-			const fnName = (fn?.config as { name?: string } | undefined)?.name?.trim();
 			return {
 				key: t.key,
 				path: t.path,
-				name: t.graph === null ? open.script.name : fnName || "function",
+				name: t.graph === null ? open.script.name : functionNameOf(fn),
 				scriptName: open.script.name,
 				graph: t.graph,
 				dirty: open.dirty,

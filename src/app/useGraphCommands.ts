@@ -33,6 +33,7 @@ import type { SourceDoc } from "./SourceView.jsx";
 import { store, type EditorState } from "./store.js";
 import type { Dialogs } from "./useDialogs.js";
 import type { LayoutPrefs } from "./useLayoutPrefs.js";
+import { configEntries, configText } from "./nodeConfig.js";
 
 /** The two nodes whose first data pin is the service the call is made on. */
 const SERVICE_NODES = new Set([SERVICE_CALL, SERVICE_VALUE]);
@@ -185,8 +186,8 @@ export function useGraphCommands(context: GraphCommandsContext) {
 				 */
 				if (def.id === "function.return" && graphNow !== null) {
 					const owner = s.nodes.find((n) => n.id === graphNow);
-					const returns = (owner?.config as { returns?: unknown } | undefined)?.returns;
-					if (Array.isArray(returns) && returns.length > 0) starting.returns = returns;
+					const returns = configEntries(owner, "returns");
+					if (returns.length > 0) starting.returns = returns;
 				}
 				const withDefaults = Object.keys(starting).length > 0
 					? { ...starting, ...config }
@@ -246,7 +247,7 @@ export function useGraphCommands(context: GraphCommandsContext) {
 				 * the service and leave Item empty. The pin exists for one
 				 * gesture; every other drag should land where it always did.
 				 */
-				const wanted = (config as { service?: string } | undefined)?.service;
+				const wanted = configText({ config }, "service");
 				if (SERVICE_NODES.has(def.id) && from.service !== wanted) {
 					candidates = candidates.filter((pin) => pin.id !== "service");
 				}

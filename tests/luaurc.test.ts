@@ -117,14 +117,14 @@ describe("inheriting up the tree", () => {
 			["src", json({ a: "./near" })],
 			["", json({ a: "./far", b: "./far-b" })],
 		);
-		expect(lookupAlias(files, "a")).toMatchObject({ t: "found", alias: { path: "src/near" } });
-		expect(lookupAlias(files, "b")).toMatchObject({ t: "found", alias: { path: "far-b" } });
+		expect(lookupAlias(files, "a")).toMatchObject({ kind: "found", alias: { path: "src/near" } });
+		expect(lookupAlias(files, "b")).toMatchObject({ kind: "found", alias: { path: "far-b" } });
 	});
 
 	it("matches a name regardless of case, in either file", () => {
 		const files = chain(["", json({ Roact: "./Packages/Roact" })]);
 		for (const spelling of ["roact", "Roact", "ROACT", "rOaCt"]) {
-			expect(lookupAlias(files, spelling), spelling).toMatchObject({ t: "found" });
+			expect(lookupAlias(files, spelling), spelling).toMatchObject({ kind: "found" });
 		}
 	});
 });
@@ -143,17 +143,17 @@ describe("where a relative value lands", () => {
 			["", json({ far: "./Packages/Thing" })],
 		);
 		expect(lookupAlias(files, "far")).toMatchObject({
-			t: "found", alias: { path: "Packages/Thing", from: "" },
+			kind: "found", alias: { path: "Packages/Thing", from: "" },
 		});
 		expect(lookupAlias(files, "near")).toMatchObject({
-			t: "found", alias: { path: "src/ui/panels/x" },
+			kind: "found", alias: { path: "src/ui/panels/x" },
 		});
 	});
 
 	it("walks `..` out of the defining directory", () => {
 		const files = chain(["src/ui", json({ shared: "../shared/lib" })]);
 		expect(lookupAlias(files, "shared")).toMatchObject({
-			t: "found", alias: { path: "src/shared/lib" },
+			kind: "found", alias: { path: "src/shared/lib" },
 		});
 	});
 
@@ -161,7 +161,7 @@ describe("where a relative value lands", () => {
 	it("leaves an absolute value alone", () => {
 		const files = chain(["src", json({ vendor: "/opt/luau/vendor" })]);
 		expect(lookupAlias(files, "vendor")).toMatchObject({
-			t: "found", alias: { path: "/opt/luau/vendor" },
+			kind: "found", alias: { path: "/opt/luau/vendor" },
 		});
 	});
 });
@@ -171,7 +171,7 @@ describe("chains", () => {
 	it("follows an alias bound to another alias", () => {
 		const files = chain(["", json({ ui: "@roact", roact: "./Packages/Roact" })]);
 		expect(lookupAlias(files, "ui")).toMatchObject({
-			t: "found",
+			kind: "found",
 			// The definition is what the file says; the path is what it means.
 			alias: { name: "ui", value: "@roact", path: "Packages/Roact" },
 		});
@@ -180,7 +180,7 @@ describe("chains", () => {
 	it("keeps the tail of an aliased value", () => {
 		const files = chain(["", json({ comp: "@roact/Component", roact: "./Packages/Roact" })]);
 		expect(lookupAlias(files, "comp")).toMatchObject({
-			t: "found", alias: { path: "Packages/Roact/Component" },
+			kind: "found", alias: { path: "Packages/Roact/Component" },
 		});
 	});
 
@@ -191,7 +191,7 @@ describe("chains", () => {
 			["", json({ widgets: "./Packages/Widgets" })],
 		);
 		expect(lookupAlias(files, "ui")).toMatchObject({
-			t: "found", alias: { path: "Packages/Widgets" },
+			kind: "found", alias: { path: "Packages/Widgets" },
 		});
 	});
 
@@ -199,18 +199,18 @@ describe("chains", () => {
 	it("reports a cycle as the ring it walked", () => {
 		const files = chain(["", json({ a: "@b", b: "@c", c: "@a" })]);
 		const found = lookupAlias(files, "a");
-		expect(found.t).toBe("cycle");
-		expect(found.t === "cycle" && found.names).toEqual(["a", "b", "c", "a"]);
+		expect(found.kind).toBe("cycle");
+		expect(found.kind === "cycle" && found.names).toEqual(["a", "b", "c", "a"]);
 	});
 
 	it("reports an alias that points at one nothing defines", () => {
 		const files = chain(["", json({ a: "@nowhere" })]);
-		expect(lookupAlias(files, "a")).toMatchObject({ t: "missing", name: "nowhere" });
+		expect(lookupAlias(files, "a")).toMatchObject({ kind: "missing", name: "nowhere" });
 	});
 
 	it("reports a name nothing defines", () => {
 		expect(lookupAlias(chain(["", json({})]), "roact"))
-			.toMatchObject({ t: "missing", name: "roact" });
+			.toMatchObject({ kind: "missing", name: "roact" });
 	});
 });
 
@@ -219,12 +219,12 @@ describe("a whole specifier", () => {
 
 	it("puts what follows the alias on the end of its path", () => {
 		expect(resolveSpecifier(files, "@roact/Component/init"))
-			.toMatchObject({ t: "found", alias: { path: "Packages/Roact/Component/init" } });
+			.toMatchObject({ kind: "found", alias: { path: "Packages/Roact/Component/init" } });
 	});
 
 	it("is the alias itself when there is nothing after it", () => {
 		expect(resolveSpecifier(files, "@roact"))
-			.toMatchObject({ t: "found", alias: { path: "Packages/Roact" } });
+			.toMatchObject({ kind: "found", alias: { path: "Packages/Roact" } });
 	});
 
 	it("reads the alias out of a specifier, and nothing out of a path", () => {
@@ -366,8 +366,8 @@ describe("writing one", () => {
 			"}",
 		].join("\n");
 		const after = withAliases(before, aliases);
-		expect(after.t).toBe("text");
-		const text = after.t === "text" ? after.text : "";
+		expect(after.kind).toBe("text");
+		const text = after.kind === "text" ? after.text : "";
 		expect(text).toContain('"languageMode": "strict"');
 		expect(text).toContain('"lint": { "*": true }');
 		expect(text).toContain('"roact": "./Packages/Roact"');
@@ -385,7 +385,7 @@ describe("writing one", () => {
 			"}",
 		].join("\n");
 		const after = withAliases(before, aliases);
-		expect(after.t === "text" && after.text).toContain("// strict everywhere, on purpose");
+		expect(after.kind === "text" && after.text).toContain("// strict everywhere, on purpose");
 	});
 
 	/**
@@ -403,30 +403,30 @@ describe("writing one", () => {
 			"}",
 		].join("\n");
 		const after = withAliases(before, aliases);
-		expect(after.t).toBe("refused");
-		expect(after.t === "refused" && after.why).toContain("by hand");
+		expect(after.kind).toBe("refused");
+		expect(after.kind === "refused" && after.why).toContain("by hand");
 	});
 
 	it("refuses a file it cannot read", () => {
-		expect(withAliases('{ "aliases": ', aliases).t).toBe("refused");
+		expect(withAliases('{ "aliases": ', aliases).kind).toBe("refused");
 	});
 
 	it("adds the field to a file that has no aliases at all", () => {
 		const after = withAliases('{\n\t"languageMode": "strict"\n}', aliases);
-		expect(after.t).toBe("text");
-		const text = after.t === "text" ? after.text : "";
+		expect(after.kind).toBe("text");
+		const text = after.kind === "text" ? after.text : "";
 		expect(parseLuaurc("", text).aliases.get("roact")?.value).toBe("./Packages/Roact");
 		expect(text).toContain("languageMode");
 	});
 
 	it("writes a whole file when there was none", () => {
 		const after = withAliases("", aliases);
-		expect(after.t === "text" && parseLuaurc("", after.text).aliases.size).toBe(1);
+		expect(after.kind === "text" && parseLuaurc("", after.text).aliases.size).toBe(1);
 	});
 
 	it("writes an empty object when the last alias goes", () => {
 		const after = withAliases('{ "aliases": { "a": "./x" } }', []);
-		expect(after.t === "text" && parseLuaurc("", after.text).aliases.size).toBe(0);
+		expect(after.kind === "text" && parseLuaurc("", after.text).aliases.size).toBe(0);
 	});
 
 	/** `aliases` inside some other field is somebody else's field. */
@@ -434,7 +434,7 @@ describe("writing one", () => {
 		const before =
 			'{\n\t"lint": { "aliases": { "nested": "./no" } },\n\t"aliases": {}\n}';
 		const after = withAliases(before, aliases);
-		const text = after.t === "text" ? after.text : "";
+		const text = after.kind === "text" ? after.text : "";
 		expect(text).toContain('"nested": "./no"');
 		expect(parseLuaurc("", text).aliases.get("roact")).toBeDefined();
 	});

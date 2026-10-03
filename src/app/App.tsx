@@ -67,6 +67,7 @@ import { CompileToast } from "./CompileToast.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { StatusPanel } from "./StatusPanel.jsx";
 import { errorMessage } from "../core/errorMessage.js";
+import { functionNameOf } from "./nodeConfig.js";
 
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
@@ -314,9 +315,7 @@ export function App() {
 		const fn = selection === editor.selection
 			? undefined
 			: editor.script.nodes.find((n) => n.id === editor.graph);
-		const functionName = fn
-			? (fn.config as { name?: string } | undefined)?.name?.trim() || "function"
-			: undefined;
+		const functionName = fn ? functionNameOf(fn) : undefined;
 		return { selection, functionName };
 	}, [editor.script, editor.graph, editor.selection]);
 

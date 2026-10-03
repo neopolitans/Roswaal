@@ -158,7 +158,7 @@ class Resolver {
 		if (spec.startsWith("@")) {
 			if (!this.luaurc) this.luaurc = (await readLuaurcFiles(this.project)).map((f) => parseLuaurc(f.dir, f.text));
 			const found = resolveSpecifier(chainFor(this.luaurc, from), spec);
-			return found.t === "found" ? this.moduleAt(normalisePath(found.alias.path)) : null;
+			return found.kind === "found" ? this.moduleAt(normalisePath(found.alias.path)) : null;
 		}
 		return null;
 	}

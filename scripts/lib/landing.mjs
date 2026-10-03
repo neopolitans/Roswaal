@@ -35,7 +35,7 @@ import { NODE } from "../../src/app/layers.ts";
 import { faviconHref, logoMarkup } from "../../src/app/logo.tsx";
 import { ICONS } from "../../src/app/icons.tsx";
 import {
-	BACKUP_BANNER, CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, PREVIEW_BESIDE_LINK,
+	BACKUP_BANNER, CANARY_BANNER, MARK_BESIDE_LINK, MARK_LABEL, PREVIEW_BESIDE_LINK,
 	PREVIEW_LABEL,
 } from "../../src/app/previewMark.ts";
 
@@ -102,6 +102,7 @@ function highlight(code) {
  */
 function heroGraph() {
 	const registry = createRegistry();
+	/** @type {import("../../src/core/schema.ts").NodeScript} */
 	const script = {
 		...emptyScript("Touched", "landing-hero"),
 		nodes: [
@@ -580,6 +581,7 @@ const buildIsBackup = () => process.env.ROSWAAL_BACKUP === "1";
 export function landingPage(version, { canary = channelIsCanary(), backup = buildIsBackup() } = {}) {
 	const IS_CANARY = canary;
 	const { svg, luau } = example();
+	const tagline = taglineFor(version);
 
 	return `<!doctype html>
 <html lang="en">
@@ -859,9 +861,7 @@ ${IS_CANARY ? `<div class="landing-strip" role="note">
   </div>
 
   <div class="landing-foot">
-    <span class="landing-version">Roswaal ${escapeHtml(version)}${
-      taglineFor(version) ? ` — ${escapeHtml(taglineFor(version))}` : ""
-    }</span>
+    <span class="landing-version">Roswaal ${escapeHtml(version)}${tagline ? ` — ${escapeHtml(tagline)}` : ""}</span>
     <a href="https://github.com/neopolitans/roswaal-feedback/issues/new">Report something</a>
     <a href="docs/release-notes.html">Release notes</a>
     <a href="docs/attributions.html">Attributions and licence</a>

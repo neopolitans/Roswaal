@@ -92,7 +92,7 @@ export const CLI_COMMANDS: CliCommand[] = [
 		blurb: "Print the version and exit.",
 		detail: "The number alone, for a script that needs to know which build it is talking to.",
 	},
-	{ name: "help", blurb: "This list." },
+	{ name: "help", blurb: "This list. Add `--help` to any command to describe that one." },
 ];
 
 export const CLI_OPTIONS: CliOption[] = [
@@ -106,4 +106,6 @@ export const CLI_OPTIONS: CliOption[] = [
 	{ flag: "--yes", blurb: "For prune: delete the files it lists, rather than only listing them." },
 	{ flag: "--scripts <rojo|all>", blurb: "For import: only scripts Rojo can sync (default), or all of them." },
 	{ flag: "--no-merge", blurb: "For import: keep identical scripts as separate files." },
+	{ flag: "--help, -h", blurb: "Describe the command it follows, without running it." },
+	{ flag: "--version", blurb: "Print the version and exit." },
 ];

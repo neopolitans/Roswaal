@@ -87,7 +87,7 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 
 	function write(next: AliasEntry[]) {
 		const edited = withAliases(source?.text ?? "", next);
-		if (edited.t === "refused") {
+		if (edited.kind === "refused") {
 			setRefused(edited.why);
 			return;
 		}
@@ -256,8 +256,8 @@ function place(dir: string): string {
  */
 function lands(files: Luaurc[], dir: string, name: string): string {
 	const found = lookupAlias(chainFor(files, dir === "" ? "x" : `${dir}/x`), name);
-	if (found.t === "cycle") return `Goes in a circle: ${found.names.join(" → ")}`;
-	if (found.t === "missing") return `Points at @${found.name}, which nothing defines`;
+	if (found.kind === "cycle") return `Goes in a circle: ${found.names.join(" → ")}`;
+	if (found.kind === "missing") return `Points at @${found.name}, which nothing defines`;
 	return found.alias.path === "" ? "The project root" : found.alias.path;
 }
 

@@ -9,6 +9,7 @@ import type { ExportedType } from "./api.js";
 import type { Preset } from "./NodeMenu.jsx";
 import { pinColor } from "./palette.js";
 import { requiredTypes } from "./projectTypes.js";
+import { configText } from "./nodeConfig.js";
 
 /**
  * One entry per member of anything the graph names: `input.throttle`.
@@ -41,9 +42,8 @@ export function memberPresets(
 	for (const preset of base) {
 		// The getters, and only them: a Set has nothing to read a member off.
 		if (!MEMBER_SOURCES.has(preset.defId)) continue;
-		const config = (preset.config ?? {}) as { type?: string; name?: string };
-		const owner = config.name ?? preset.title.replace(/^Get /, "");
-		for (const field of membersOfType(lookup, config.type)) {
+		const owner = configText(preset, "name") ?? preset.title.replace(/^Get /, "");
+		for (const field of membersOfType(lookup, configText(preset, "type"))) {
 			out.push({
 				key: `${preset.key}.${field.name}`,
 				title: `${owner}.${field.name}`,

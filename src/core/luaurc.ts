@@ -249,9 +249,9 @@ export interface Alias {
 }
 
 export type AliasLookup =
-	| { t: "found"; alias: Alias }
-	| { t: "missing"; name: string }
-	| { t: "cycle"; names: string[] };
+	| { kind: "found"; alias: Alias }
+	| { kind: "missing"; name: string }
+	| { kind: "cycle"; names: string[] };
 
 /**
  * Every alias this chain offers, nearest definition winning.
@@ -293,9 +293,9 @@ function isAbsolute(value: string): boolean {
 }
 
 type Landed =
-	| { t: "found"; path: string }
-	| { t: "missing"; name: string }
-	| { t: "cycle"; names: string[] };
+	| { kind: "found"; path: string }
+	| { kind: "missing"; name: string }
+	| { kind: "cycle"; names: string[] };
 
 /**
  * One link of the chain, and then the rest of it.
@@ -310,24 +310,24 @@ function land(
 	walked: string[],
 ): Landed {
 	const entry = table.get(key);
-	if (entry === undefined) return { t: "missing", name: key };
-	if (walked.includes(entry.name)) return { t: "cycle", names: [...walked, entry.name] };
+	if (entry === undefined) return { kind: "missing", name: key };
+	if (walked.includes(entry.name)) return { kind: "cycle", names: [...walked, entry.name] };
 
 	const next = aliasNameOf(entry.value);
 	if (next === null) {
 		// A plain path, resolved against the file that defined *this* link —
 		// not against the requiring file, and not against the nearest one.
 		return {
-			t: "found",
+			kind: "found",
 			path: isAbsolute(entry.value) ? entry.value : joinPath(entry.from, entry.value),
 		};
 	}
-	if (next === "") return { t: "missing", name: "@" };
+	if (next === "") return { kind: "missing", name: "@" };
 
 	const tail = entry.value.trim().slice(1).split("/").slice(1).join("/");
 	const inner = land(table, next.toLowerCase(), [...walked, entry.name]);
-	if (inner.t !== "found") return inner;
-	return { t: "found", path: tail === "" ? inner.path : joinPath(inner.path, tail) };
+	if (inner.kind !== "found") return inner;
+	return { kind: "found", path: tail === "" ? inner.path : joinPath(inner.path, tail) };
 }
 
 /**
@@ -341,13 +341,13 @@ function land(
 export function lookupAlias(chain: LuaurcChain, name: string): AliasLookup {
 	const table = aliasesOf(chain);
 	const entry = table.get(name.toLowerCase());
-	if (entry === undefined) return { t: "missing", name };
+	if (entry === undefined) return { kind: "missing", name };
 
 	const landed = land(table, name.toLowerCase(), []);
-	if (landed.t === "cycle") return landed;
-	if (landed.t === "missing") return landed;
+	if (landed.kind === "cycle") return landed;
+	if (landed.kind === "missing") return landed;
 	return {
-		t: "found",
+		kind: "found",
 		alias: { name: entry.name, value: entry.value, from: entry.from, path: landed.path },
 	};
 }
@@ -360,12 +360,12 @@ export function lookupAlias(chain: LuaurcChain, name: string): AliasLookup {
  */
 export function resolveSpecifier(chain: LuaurcChain, specifier: string): AliasLookup {
 	const name = aliasNameOf(specifier);
-	if (name === null || name === "") return { t: "missing", name: specifier.trim() };
+	if (name === null || name === "") return { kind: "missing", name: specifier.trim() };
 	const found = lookupAlias(chain, name);
-	if (found.t !== "found") return found;
+	if (found.kind !== "found") return found;
 	const tail = specifier.trim().slice(1).split("/").slice(1).join("/");
 	if (tail === "") return found;
-	return { t: "found", alias: { ...found.alias, path: joinPath(found.alias.path, tail) } };
+	return { kind: "found", alias: { ...found.alias, path: joinPath(found.alias.path, tail) } };
 }
 
 /**
@@ -500,8 +500,8 @@ function aliasesSpan(text: string): Span | null {
 }
 
 export type AliasEdit =
-	| { t: "text"; text: string }
-	| { t: "refused"; why: string };
+	| { kind: "text"; text: string }
+	| { kind: "refused"; why: string };
 
 /**
  * The same file with a different set of aliases, and nothing else touched.
@@ -525,13 +525,13 @@ export function withAliases(text: string, aliases: readonly AliasEntry[]): Alias
 		return `{\n${members}\n${indent}}`;
 	};
 
-	if (text.trim() === "") return { t: "text", text: `{\n\t"aliases": ${body("\t")}\n}\n` };
+	if (text.trim() === "") return { kind: "text", text: `{\n\t"aliases": ${body("\t")}\n}\n` };
 
 	const parsed = parseLuaurc("", text);
 	const broken = parsed.problems.find((problem) => problem.alias === undefined);
 	if (broken !== undefined) {
 		return {
-			t: "refused",
+			kind: "refused",
 			why: "This `.luaurc` cannot be read, so changing it would mean guessing what it says.",
 		};
 	}
@@ -541,12 +541,12 @@ export function withAliases(text: string, aliases: readonly AliasEntry[]): Alias
 		// No `aliases` field: add one inside the object it is missing from.
 		const close = text.lastIndexOf("}");
 		if (close < 0) {
-			return { t: "refused", why: "This `.luaurc` is not an object, so it has nowhere to put an alias." };
+			return { kind: "refused", why: "This `.luaurc` is not an object, so it has nowhere to put an alias." };
 		}
 		const before = text.slice(0, close).replace(/\s*$/, "");
 		const comma = before.endsWith("{") ? "" : ",";
 		return {
-			t: "text",
+			kind: "text",
 			text: `${before}${comma}\n\t"aliases": ${body("\t")}\n${text.slice(close)}`,
 		};
 	}
@@ -554,7 +554,7 @@ export function withAliases(text: string, aliases: readonly AliasEntry[]): Alias
 	const inside = text.slice(span.open, span.close);
 	if (/\/\/|\/\*/.test(inside)) {
 		return {
-			t: "refused",
+			kind: "refused",
 			why:
 				"There are comments inside this file's `aliases`, and an edit here would reorder " +
 				"the entries and lose them. Change it by hand instead.",
@@ -562,7 +562,7 @@ export function withAliases(text: string, aliases: readonly AliasEntry[]): Alias
 	}
 
 	return {
-		t: "text",
+		kind: "text",
 		text: text.slice(0, span.open) + body(span.indent) + text.slice(span.close),
 	};
 }
