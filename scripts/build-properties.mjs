@@ -31,7 +31,7 @@ import { dirname, join } from "node:path";
 
 import { CLASSES, ENUMS } from "../src/core/robloxData.ts";
 import { INSTANCE_CLASSES } from "../src/core/roblox.ts";
-import { parseYaml, propertiesOf } from "./lib/creatorDocs.ts";
+import { fetchReference, parseYaml, propertiesOf } from "./lib/creatorDocs.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BASE =
@@ -53,12 +53,13 @@ const classes = {};
 const missing = [];
 
 for (const className of wanted) {
-	const response = await fetch(`${BASE}/${encodeURIComponent(className)}.yaml`);
-	if (!response.ok) {
+	// Throws on anything but a page or a 404, rather than leaving a class out.
+	const text = await fetchReference(`${BASE}/${encodeURIComponent(className)}.yaml`);
+	if (text === undefined) {
 		missing.push(className);
 		continue;
 	}
-	const properties = propertiesOf(parseYaml(await response.text()), isEnum);
+	const properties = propertiesOf(parseYaml(text), isEnum);
 	properties.sort((a, b) => a.name.localeCompare(b.name));
 	if (properties.length > 0) classes[className] = properties;
 }
@@ -84,7 +85,7 @@ const header = `/**
  *
  * **No summaries.** Every property documents one and they were two thirds of
  * this file; nothing in the editor shows them, and a tablet downloads this. Run
- * `npm run build:properties -- --summaries` to put them back.
+ * \`npm run build:properties -- --summaries\` to put them back.
  *
  * Like every other generated list this is a **suggestion rather than a gate**:
  * the property name is a dropdown you can type past, so a property newer than
@@ -176,4 +177,7 @@ await writeFile(join(ROOT, "src/core/robloxProperties.ts"), lines.join("\n"), "u
 const count = Object.values(classes).reduce((n, list) => n + list.length, 0);
 const enumed = Object.values(classes).reduce((n, list) => n + list.filter((p) => p.enum).length, 0);
 console.log(`${Object.keys(classes).length} classes, ${count} properties (${enumed} enum-valued)`);
-if (missing.length > 0) console.log(`no page for: ${missing.join(", ")}`);
+if (missing.length > 0) {
+	console.error(`no page for: ${missing.join(", ")}`);
+	process.exitCode = 1;
+}

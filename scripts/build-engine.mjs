@@ -37,7 +37,7 @@ import { writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseYaml } from "./lib/creatorDocs.ts";
+import { fetchReference, parseYaml } from "./lib/creatorDocs.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = "Roblox/creator-docs";
@@ -100,22 +100,29 @@ async function folder(name) {
 	return entries.map((e) => e.name).filter((n) => n.endsWith(".yaml")).map((n) => n.slice(0, -5));
 }
 
-/** Fetches every file in a folder, a few at a time, as parsed YAML by name. */
+/** Files a folder listed and then had no page for. Any one fails the run. */
+const missing = [];
+
+/**
+ * Fetches every file in a folder, a few at a time, as parsed YAML by name.
+ * A file the listing named and the download did not find is missing; any
+ * other failure throws, rather than leaving the file out.
+ */
 async function fetchAll(name, names, width = 16) {
 	const out = new Map();
-	const missing = [];
 	for (let i = 0; i < names.length; i += width) {
 		await Promise.all(names.slice(i, i + width).map(async (file) => {
-			const response = await fetch(`${RAW}/${name}/${encodeURIComponent(file)}.yaml`);
-			if (response.ok) out.set(file, parseYaml(await response.text()));
-			else missing.push(file);
+			const text = await fetchReference(`${RAW}/${name}/${encodeURIComponent(file)}.yaml`);
+			if (text === undefined) missing.push(`${name}/${file}`);
+			else out.set(file, parseYaml(text));
 		}));
 	}
-	if (missing.length > 0) console.log(`  ${name}: no page for ${missing.join(", ")}`);
 	return out;
 }
 
-const studioVersion = (await (await fetch(`${RAW}/STUDIO_VERSION`)).text()).trim().split(/\s+/)[0];
+const versionFile = await fetchReference(`${RAW}/STUDIO_VERSION`);
+if (versionFile === undefined) throw new Error(`${RAW}/STUDIO_VERSION: no such file`);
+const studioVersion = versionFile.trim().split(/\s+/)[0];
 
 const classes = {};
 for (const [name, doc] of [...(await fetchAll("classes", await folder("classes")))].sort()) {
@@ -200,3 +207,7 @@ console.log(
 	`${Object.keys(globals).length} globals, ${Object.keys(libraries).length} libraries ` +
 	"-> src/core/robloxEngine.json",
 );
+if (missing.length > 0) {
+	console.error(`no page for: ${missing.join(", ")}`);
+	process.exitCode = 1;
+}
