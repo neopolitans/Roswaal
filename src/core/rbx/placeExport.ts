@@ -10,6 +10,7 @@
  * place yet.
  */
 
+import { scriptClassOf } from "../rojoPaths.js";
 import { isScript, pathOf, type RbxDocument, type RbxInstance, stringProp } from "./dom.js";
 import type { NewInstance } from "./adder.js";
 import type { SourceChange } from "./writer.js";
@@ -140,8 +141,16 @@ export function planPlaceUpdate(
 	return out;
 }
 
-const classFor = (entry: PlaceEntry): string =>
-	entry.className ?? (entry.isModule ? "ModuleScript" : /\.client\.luau?$/.test(entry.file) ? "LocalScript" : "Script");
+/**
+ * The class a new script is made as: what its link says, or what its file
+ * name says. A file the caller knows is not a module is a Script unless its
+ * name says client.
+ */
+function classFor(entry: PlaceEntry): string {
+	if (entry.className) return entry.className;
+	if (entry.isModule) return "ModuleScript";
+	return scriptClassOf(entry.file) === "LocalScript" ? "LocalScript" : "Script";
+}
 
 /**
  * New scripts, under the deepest instance of their path the place already has,

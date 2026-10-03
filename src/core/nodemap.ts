@@ -13,6 +13,7 @@
  */
 
 import { ROBLOX_SERVICES } from "./roblox.js";
+import { instanceNameOf, isModuleFile, locateUnder, mappedPaths } from "./rojoPaths.js";
 import { SCHEMA_VERSION, type Target } from "./schema.js";
 
 /** Instances Rojo will create for us, beyond the services it already knows. */
@@ -556,58 +557,11 @@ export function locateInDataModel(map: NodeMap, diskPath: string): InstanceLocat
  * path cannot say where one name ends.
  */
 export function locateSegments(map: NodeMap, diskPath: string): { segments: string[]; isModule: boolean } | null {
-	const file = normalise(diskPath);
-	const candidates: { segments: string[]; base: string }[] = [];
-
-	const visit = (node: MapNode, trail: string[]) => {
-		// The DataModel itself contributes no segment; services and folders do.
-		const here = node === map.root ? trail : [...trail, node.name];
-		if (node.path) candidates.push({ segments: here, base: normalise(node.path) });
-		for (const child of node.children) visit(child, here);
-	};
-	visit(map.root, []);
-
-	// Longest base wins, so a nested mapping beats the one containing it.
-	candidates.sort((a, b) => b.base.length - a.base.length);
-
-	for (const candidate of candidates) {
-		const inside =
-			file === candidate.base || file.startsWith(candidate.base + "/");
-		if (!inside) continue;
-
-		const remainder = file === candidate.base ? "" : file.slice(candidate.base.length + 1);
-		const parts = remainder === "" ? [] : remainder.split("/");
-		const leaf = parts.pop();
-		const named = leaf === undefined ? [] : instanceNamesFor(leaf);
-
-		const segments = [...candidate.segments, ...parts, ...named];
-		if (segments.length === 0) return null;
-
-		return { segments, isModule: leaf === undefined ? false : isModuleFile(leaf) };
-	}
-	return null;
-}
-
-/**
- * The instance a filename becomes. `init.luau` is Rojo's way of saying "this
- * file *is* the folder", so it contributes no segment of its own.
- */
-function instanceNamesFor(fileName: string): string[] {
-	const base = fileName.replace(/\.(luau|lua|nodescript)$/i, "");
-	const stripped = base.replace(/\.(server|client)$/i, "");
-	return stripped.toLowerCase() === "init" ? [] : [stripped];
-}
-
-function isModuleFile(fileName: string): boolean {
-	const base = fileName.replace(/\.(luau|lua|nodescript)$/i, "");
-	return !/\.(server|client)$/i.test(base);
-}
-
-function normalise(value: string): string {
-	const BACKSLASH = String.fromCharCode(92);
-	return value
-		.split(BACKSLASH)
-		.join("/")
-		.replace(/^\.\//, "")
-		.replace(/\/+$/, "");
+	// The deepest mapping wins, so a nested one beats the one containing it.
+	const found = locateUnder(mappedPaths(map.root), diskPath);
+	if (!found) return null;
+	const named = found.leaf === undefined ? undefined : instanceNameOf(found.leaf);
+	const segments = [...found.segments, ...found.parts, ...(named === undefined ? [] : [named])];
+	if (segments.length === 0) return null;
+	return { segments, isModule: found.leaf === undefined ? false : isModuleFile(found.leaf) };
 }
