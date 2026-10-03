@@ -124,11 +124,9 @@ export function NodeEditor({
 	const [pin, setPin] = useState<{ side: Side; index: number } | null>(null);
 	const [output, setOutput] = useState<string | null>(null);
 	const [confirmDelete, setConfirmDelete] = useState(false);
-	/**
-	 * The node's details — id, title, category, summary — expand out from the
-	 * floating tools rather than sitting over the canvas the whole time. The
-	 * summary is what the node's documentation reads, so it gets room to write in.
-	 */
+	// The node's details — id, title, category, summary — expand out from the
+	// floating tools rather than sitting over the canvas the whole time. The
+	// summary is what the node's documentation reads, so it gets room to write in.
 	const [detailsOpen, setDetailsOpen] = useState(() => {
 		try {
 			return localStorage.getItem(DETAILS_KEY) === "open";
@@ -147,23 +145,19 @@ export function NodeEditor({
 		});
 	const [saving, setSaving] = useState(false);
 	const [logicHeight, setLogicHeight] = useState(readLogicHeight);
-	/**
-	 * On a phone or a tablet the node and its logic take turns at the whole
-	 * editor, switched from a bar at the top, instead of splitting it. Split,
-	 * the logic graph was a strip under the node too short to move around in
-	 * the way the editor's graph is, and the divider between them was a
-	 * five-pixel target for a finger.
-	 */
+	// On a phone or a tablet the node and its logic take turns at the whole
+	// editor, switched from a bar at the top, instead of splitting it. Split,
+	// the logic graph was a strip under the node too short to move around in
+	// the way the editor's graph is, and the divider between them was a
+	// five-pixel target for a finger.
 	const split = useCompact();
-	/** On a phone the node's tools fold behind buttons: see `Popout`. */
+	// On a phone the node's tools fold behind buttons: see `Popout`.
 	const phone = usePhone();
 	const [view, setView] = useState<"preview" | "logic">("preview");
-	/**
-	 * The Luau the logic compiles to, shown when asked for -- as the editor's
-	 * graph shows its Luau from a button rather than beside it all the time.
-	 * Beside the graph it took a third of the width, or a quarter of the height
-	 * on a touch screen, from the thing being built.
-	 */
+	// The Luau the logic compiles to, shown when asked for -- as the editor's
+	// graph shows its Luau from a button rather than beside it all the time.
+	// Beside the graph it took a third of the width, or a quarter of the height
+	// on a touch screen, from the thing being built.
 	const [showLuau, setShowLuau] = useState(false);
 	const stage = useRef<HTMLDivElement>(null);
 	const [size, setSize] = useState({ w: 900, h: 500 });
@@ -342,8 +336,8 @@ export function NodeEditor({
 	const pill = pillShape(draft);
 	const compact = isCompact(drawDef);
 
-	/** Luau or Nodes: how the logic is written. Drawn in the logic's head, or in
-	 *  the pack's bar on a touch screen. */
+	// Luau or Nodes: how the logic is written. Drawn in the logic's head, or in
+	//  the pack's bar on a touch screen.
 	const modeSwitch = (
 		<div className="segmented">
 			<button
@@ -801,7 +795,6 @@ export function NodeEditor({
 	);
 }
 
-/** Everything about one pin that does not fit on the pin. */
 /**
  * The values a pin offers, from a comma-separated field.
  *
@@ -822,6 +815,7 @@ function readChoices(text: string): string[] | undefined {
 	return unique.length > 0 ? unique : undefined;
 }
 
+/** Everything about one pin that does not fit on the pin. */
 function PinPopover(props: {
 	pin: DraftPin;
 	side: Side;

@@ -66,7 +66,7 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 
 	const aliases = here ? [...here.aliases.values()] : [];
 
-	/** What this file can see, which is its own and its parents'. */
+	// What this file can see, which is its own and its parents'.
 	const chain = useMemo(
 		() => chainFor(parsed, dir === "" ? "x" : `${dir}/x`),
 		[parsed, dir],
@@ -76,7 +76,7 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 		[chain, dir],
 	);
 
-	/** Every name in scope here, for the duplicate check. */
+	// Every name in scope here, for the duplicate check.
 	const taken = useMemo(() => {
 		const out = new Map<string, string>();
 		for (const [key, entry] of aliasesOf(chain)) {

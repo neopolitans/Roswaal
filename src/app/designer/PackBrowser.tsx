@@ -303,7 +303,7 @@ function ProjectPackCard({
 	const [confirming, setConfirming] = useState<{ graph: string; count: number }[] | null>(null);
 	const luau = pack.format === "luau";
 
-	/** Runs an action without the click reaching the card, which opens it. */
+	// Runs an action without the click reaching the card, which opens it.
 	const act = (fn: () => Promise<void>) => (e: React.MouseEvent) => {
 		e.stopPropagation();
 		void fn().catch((err: Error) => notify(err.message, "failed"));

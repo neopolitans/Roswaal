@@ -7,7 +7,7 @@
  * before you place it. A menu of titles cannot do that, and a graph full of
  * nodes you placed and deleted again is what the missing picture costs.
  *
- * So: the picker shape from 0.38.0 — search at the top, everything under it,
+ * So: the picker shape (`ValuePicker`) — search at the top, everything under it,
  * grouped, arrows to move — with the **node drawn** beside the list as you walk
  * it, by the same renderer the documentation uses. What you see here is what
  * lands on the canvas.
@@ -123,27 +123,23 @@ export function NodePicker(
 	const [active, setActive] = useState(0);
 	const field = useRef<HTMLInputElement>(null);
 	const list = useRef<HTMLDivElement>(null);
-	/** What the last press on a row was, so a click knows whether it was a tap. */
+	// What the last press on a row was, so a click knows whether it was a tap.
 	const pressedWith = useRef<string>("mouse");
-	/**
-	 * A row is being dragged out. The picker stands aside while it is -- faded
-	 * and letting the pointer through -- so the graph under it can be seen and
-	 * dropped on. Placing closes the picker; a drag let go elsewhere brings it
-	 * back.
-	 */
+	// A row is being dragged out. The picker stands aside while it is -- faded
+	// and letting the pointer through -- so the graph under it can be seen and
+	// dropped on. Placing closes the picker; a drag let go elsewhere brings it
+	// back.
 	const [dragging, setDragging] = useState(false);
 
 	useEffect(() => {
 		field.current?.focus();
 	}, []);
 
-	/**
-	 * Everything on offer: what the graph declares, then the library.
-	 *
-	 * The graph's own first, deliberately. A name you chose is a name you are
-	 * more likely to be looking for than a node called something similar, and
-	 * with equal scores the earlier one wins.
-	 */
+	// Everything on offer: what the graph declares, then the library.
+	//
+	// The graph's own first, deliberately. A name you chose is a name you are
+	// more likely to be looking for than a node called something similar, and
+	// with equal scores the earlier one wins.
 	const forTarget = useMemo((): Hit[] => {
 		const mine: Hit[] = presets.flatMap((preset) => {
 			const def = registry.get(preset.defId);
@@ -175,7 +171,7 @@ export function NodePicker(
 		return [...mine, ...library];
 	}, [registry, target, presets]);
 
-	/** What the list is narrowed to. The same preference the menu uses. */
+	// What the list is narrowed to. The same preference the menu uses.
 	const [runtime, setRuntime] = useState<MenuFilter | null>(() => readPreferences().nodeFilter);
 
 	const chooseRuntime = (next: MenuFilter | null) => {
@@ -208,13 +204,11 @@ export function NodePicker(
 			.map((x) => x.hit);
 	}, [all, query]);
 
-	/**
-	 * Grouped by category while browsing, flat while searching.
-	 *
-	 * The same rule the palette follows, for the same reason: six matches under
-	 * four headings is four headings too many, and a search is a list you read
-	 * top to bottom.
-	 */
+	// Grouped by category while browsing, flat while searching.
+	//
+	// The same rule the palette follows, for the same reason: six matches under
+	// four headings is four headings too many, and a search is a list you read
+	// top to bottom.
 	const groups = useMemo(() => {
 		if (query.trim() !== "") return [{ label: "", defs: matches }];
 		const order = categories(registry);

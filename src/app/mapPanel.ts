@@ -56,7 +56,7 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 	const fieldOf = (name: string) =>
 		figure.querySelector<HTMLElement>(`[data-map-field="${name}"]`);
 
-	/** The row the Inspector is showing. Core marks the first one. */
+	// The row the Inspector is showing. Core marks the first one.
 	let picked: string = rows.find((r) => r.classList.contains("selected"))?.dataset.control
 		?? rows[0].dataset.control
 		?? "";
@@ -73,13 +73,11 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 		}
 	};
 
-	/**
-	 * Light the lines belonging to a node, and nothing else.
-	 *
-	 * `key` is the row under the pointer if there is one, and the selected row
-	 * otherwise, so moving away puts the highlight back where the selection
-	 * left it rather than clearing it.
-	 */
+	// Light the lines belonging to a node, and nothing else.
+	//
+	// `key` is the row under the pointer if there is one, and the selected row
+	// otherwise, so moving away puts the highlight back where the selection
+	// left it rather than clearing it.
 	const paint = (key: string) => {
 		for (const line of lines) {
 			line.classList.toggle("lit", line.dataset.control === key);
@@ -142,23 +140,21 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 		}
 	};
 
-	/**
-	 * Bring the lines a row writes into view.
-	 *
-	 * The project file sits at the foot of the Inspector, as it does in the
-	 * editor, which on a figure this size puts it below the fold and inside a
-	 * box with its own scrollbar. Lighting lines the reader cannot see is worse
-	 * than not lighting them.
-	 *
-	 * Every scroller between the line and the figure is moved, innermost first,
-	 * because there are two: the project file scrolls inside the Inspector, and
-	 * the Inspector scrolls inside the panel. Centring rather than nudging to
-	 * the edge -- a stanza is several lines and the reader wants the ones around
-	 * it too.
-	 *
-	 * Never `scrollIntoView`: that would move the whole page, which is the one
-	 * thing somebody who clicked a row in a figure did not ask for.
-	 */
+	// Bring the lines a row writes into view.
+	//
+	// The project file sits at the foot of the Inspector, as it does in the
+	// editor, which on a figure this size puts it below the fold and inside a
+	// box with its own scrollbar. Lighting lines the reader cannot see is worse
+	// than not lighting them.
+	//
+	// Every scroller between the line and the figure is moved, innermost first,
+	// because there are two: the project file scrolls inside the Inspector, and
+	// the Inspector scrolls inside the panel. Centring rather than nudging to
+	// the edge -- a stanza is several lines and the reader wants the ones around
+	// it too.
+	//
+	// Never `scrollIntoView`: that would move the whole page, which is the one
+	// thing somebody who clicked a row in a figure did not ask for.
 	const reveal = (key: string) => {
 		const target = lines.find((line) => line.dataset.control === key);
 		if (!target) return;
@@ -191,13 +187,11 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 		if (!first) reveal(key);
 	};
 
-	/**
-	 * Fold a row's children away, as the editor's disclosure arrow does.
-	 *
-	 * Depth comes from the indent core wrote, because that is the only place
-	 * the drawn tree records its shape — the rows are siblings in the markup,
-	 * not nested, exactly as the editor renders them.
-	 */
+	// Fold a row's children away, as the editor's disclosure arrow does.
+	//
+	// Depth comes from the indent core wrote, because that is the only place
+	// the drawn tree records its shape — the rows are siblings in the markup,
+	// not nested, exactly as the editor renders them.
 	const depthOf = (row: HTMLElement) => parseInt(row.style.paddingLeft || "8", 10);
 
 	const folded = new Set<string>();
@@ -275,21 +269,19 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 		figure.classList.toggle("pointing", part !== null);
 	};
 
-	/**
-	 * What the pointer is asking about, which is not the same as what lights.
-	 *
-	 * The tree body and the project file both light — hovering "The tree" in
-	 * the legend should ring the whole tree — but neither may *trigger*,
-	 * because the reader is inside them the whole time they are using the
-	 * other pairing. Hovering a row to watch its lines light, and having the
-	 * project file dim for being the part you are not pointing at, is the
-	 * figure putting out the thing it was asked to show.
-	 *
-	 * So they carry `data-quiet`, and the header above each carries the grip
-	 * instead: the map's own bar for the tree, the "Project file" heading for
-	 * the output. Point at the heading and you are asking where that section
-	 * is; point inside it and you are reading it.
-	 */
+	// What the pointer is asking about, which is not the same as what lights.
+	//
+	// The tree body and the project file both light — hovering "The tree" in
+	// the legend should ring the whole tree — but neither may *trigger*,
+	// because the reader is inside them the whole time they are using the
+	// other pairing. Hovering a row to watch its lines light, and having the
+	// project file dim for being the part you are not pointing at, is the
+	// figure putting out the thing it was asked to show.
+	//
+	// So they carry `data-quiet`, and the header above each carries the grip
+	// instead: the map's own bar for the tree, the "Project file" heading for
+	// the output. Point at the heading and you are asking where that section
+	// is; point inside it and you are reading it.
 	const partAt = (target: EventTarget | null): string | null => {
 		if (!(target instanceof Element)) return null;
 		const one = target.closest<HTMLElement>("[data-grip],[data-part]:not([data-quiet])");

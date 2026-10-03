@@ -2,12 +2,11 @@
  * A `.luau` file in the project, shown properly.
  *
  * Roswaal writes Luau and also lives in a repository full of Luau it did not
- * write. Both kinds turn up in the tree and both used to open as an
- * unhighlighted `<pre>` — which is a dead end twice over: the generated file is
- * the thing you most want to *read* carefully, and the hand-written one is the
- * thing you most want to *edit*, and the view offered neither.
+ * write. Both kinds turn up in the tree: the generated file is the thing you
+ * most want to *read* carefully, and the hand-written one is the thing you
+ * most want to *edit*.
  *
- * So it is a real editor view now, read-only, using the same tokeniser and the
+ * So it is a real editor view, read-only, using the same tokeniser and the
  * same colours as the pop-out code editor. And it says which kind of file it
  * is, because that changes what you should do with it:
  *
@@ -77,18 +76,14 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 
 	// Rebuilt when the file changes rather than reconfigured: the document is
 	// read-only, so there is no state in here worth preserving across a switch.
-	/**
-	 * What the file's `require`s hold, followed by the host: `Flux.new` hovers
-	 * with the module's own signature and comment. Asked once per file, and
-	 * read through refs, so the editor is not rebuilt when the answer lands.
-	 */
+	// What the file's `require`s hold, followed by the host: `Flux.new` hovers
+	// with the module's own signature and comment. Asked once per file, and
+	// read through refs, so the editor is not rebuilt when the answer lands.
 	const members = useRef<ReadonlyMap<string, TableMember[]>>(new Map());
 	const modules = useRef<ReadonlyMap<string, ModuleInfo>>(new Map());
-	/**
-	 * The DataModel the project knows, and where this file is in it: for a
-	 * name like `Shared` to hover as the instance it is, and a name that is
-	 * nowhere to be marked. Kept in state, since the marks are drawn from it.
-	 */
+	// The DataModel the project knows, and where this file is in it: for a
+	// name like `Shared` to hover as the instance it is, and a name that is
+	// nowhere to be marked. Kept in state, since the marks are drawn from it.
 	const [instances, setInstances] = useState<{ root: InstanceNode; self?: string[] } | null>(null);
 	const warnings = useRef(new Compartment());
 	const instancesRef = useRef(instances);

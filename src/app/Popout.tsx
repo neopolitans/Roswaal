@@ -63,12 +63,10 @@ export function Popout({ label, title, end = false, up = false, closeOnPick = fa
 	const [fixedAt, setFixedAt] = useState<{ left: number; bottom: number } | null>(null);
 	const box = useRef<HTMLDivElement>(null);
 	const panel = useRef<HTMLDivElement>(null);
-	/**
-	 * Which way the panel hangs. `end` is where it would like to open, but the
-	 * groups wrap on a narrow screen and the one at the right-hand edge can end
-	 * up at the left of the second row -- so it is measured once it is drawn,
-	 * and turned round if it would run off either side.
-	 */
+	// Which way the panel hangs. `end` is where it would like to open, but the
+	// groups wrap on a narrow screen and the one at the right-hand edge can end
+	// up at the left of the second row -- so it is measured once it is drawn,
+	// and turned round if it would run off either side.
 	const [side, setSide] = useState<"start" | "end">(end ? "end" : "start");
 	useLayoutEffect(() => {
 		if (!open || !up || !box.current) return;

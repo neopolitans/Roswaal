@@ -107,7 +107,7 @@ export function LogicCanvas({
 	const { alignExec, wideNodes } = prefs;
 	const container = useRef<HTMLDivElement>(null);
 
-	/** Tidies into columns: the selection when there is more than one node in it, else everything. */
+	// Tidies into columns: the selection when there is more than one node in it, else everything.
 	const realign = useCallback(() => {
 		const state = store.getSnapshot();
 		const script = state.script;
@@ -117,7 +117,7 @@ export function LogicCanvas({
 		store.edit((s) => autoLayout(s, registry, { only, alignExec, wideNodes }));
 	}, [registry, alignExec, wideNodes]);
 
-	/** Opens the node menu in the middle of what the canvas is showing. */
+	// Opens the node menu in the middle of what the canvas is showing.
 	const menuAtCentre = useCallback(() => {
 		const box = container.current?.getBoundingClientRect();
 		if (!box) return;
@@ -129,7 +129,7 @@ export function LogicCanvas({
 			world: { x: (cx - view.x) / view.zoom, y: (cy - view.y) / view.zoom },
 		});
 	}, []);
-	/** The last script this and the draft agreed on, so an echo is not an edit. */
+	// The last script this and the draft agreed on, so an echo is not an edit.
 	const agreed = useRef<NodeScript | null>(null);
 	const shapeKey = JSON.stringify(shape);
 	const openedShape = useRef(shapeKey);
@@ -197,19 +197,17 @@ export function LogicCanvas({
 		[menu, registry],
 	);
 
-	/**
-	 * Copy and paste, which the logic canvas did not have.
-	 *
-	 * The graph editor's shell owns these on a nodescript, and the designer page
-	 * has no shell — so a canvas that was meant to behave like the graph editor
-	 * quietly did not, in the one way you notice while building a node out of
-	 * three copies of the same pair.
-	 *
-	 * The same helpers, so a comment brings what it is drawn around and a paste
-	 * lands at the pointer here exactly as it does on a graph.
-	 */
+	// Copy and paste, which the logic canvas did not have.
+	//
+	// The graph editor's shell owns these on a nodescript, and the designer page
+	// has no shell — so a canvas that was meant to behave like the graph editor
+	// quietly did not, in the one way you notice while building a node out of
+	// three copies of the same pair.
+	//
+	// The same helpers, so a comment brings what it is drawn around and a paste
+	// lands at the pointer here exactly as it does on a graph.
 	const clipboard = useRef<Clipping | null>(null);
-	/** Whether there is anything to paste, for the touch bar. */
+	// Whether there is anything to paste, for the touch bar.
 	const [hasClip, setHasClip] = useState(false);
 	const touch = useCompact();
 	const pointerAt = useRef<{ x: number; y: number } | null>(null);

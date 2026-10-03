@@ -51,7 +51,6 @@ export interface ProjectBarProps {
 	/** The node designer, in its own window: a form over a node definition. */
 	onOpenDesigner: () => void;
 	onOpenSettings: () => void;
-	/** Opens the project menu, anchored under the mark. */
 	/**
 	 * Open the introduction panel. No anchor: it is centred rather than dropped
 	 * under the mark, because the same panel opens from a header in two other

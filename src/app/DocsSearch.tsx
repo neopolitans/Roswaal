@@ -66,14 +66,12 @@ export function DocsSearch({ index, recent, onPick, onClose }: DocsSearchProps) 
 		return rankDocs(index, query, LIMIT);
 	}, [index, bySlug, query, recent]);
 
-	/**
-	 * Two lists, in one order.
-	 *
-	 * **Best match** is the pages called what you typed; **Related** is the ones
-	 * that merely say it somewhere. Splitting them is what makes the second half
-	 * skippable — and the arrows still walk the whole thing top to bottom,
-	 * because a heading between two rows is not a reason to stop.
-	 */
+	// Two lists, in one order.
+	//
+	// **Best match** is the pages called what you typed; **Related** is the ones
+	// that merely say it somewhere. Splitting them is what makes the second half
+	// skippable — and the arrows still walk the whole thing top to bottom,
+	// because a heading between two rows is not a reason to stop.
 	const sections = useMemo(() => {
 		if (query.trim() === "") return [{ head: "Recently visited", hits }];
 		const best = hits.filter((hit) => hit.named);
@@ -84,7 +82,7 @@ export function DocsSearch({ index, recent, onPick, onClose }: DocsSearchProps) 
 		];
 	}, [hits, query]);
 
-	/** The rows as the arrows walk them, which is the sections flattened. */
+	// The rows as the arrows walk them, which is the sections flattened.
 	const flat = useMemo(() => sections.flatMap((section) => section.hits), [sections]);
 
 	useEffect(() => setActive(0), [query]);

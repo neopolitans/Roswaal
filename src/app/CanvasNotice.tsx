@@ -2,8 +2,8 @@
  * A short message at the foot of the graph, for something the canvas did or
  * would not do.
  *
- * A wire dropped on a pin that refused it used to end the drag and say
- * nothing, which reads as the editor missing the drop. Now it says why.
+ * A wire dropped on a pin that refuses it says why here, rather than the drag
+ * simply ending, which reads as the editor missing the drop.
  *
  * A module-level channel rather than props, because the canvas that knows what
  * happened and the centre that draws the notice are several components apart.

@@ -54,16 +54,16 @@ export function attachGraphView(
 	let dragging = false;
 	let lastX = 0;
 	let lastY = 0;
-	/** Fingers down, by pointer id, in client coordinates. */
+	// Fingers down, by pointer id, in client coordinates.
 	const touches = new Map<number, { x: number; y: number }>();
-	/** Two fingers: the view and their spread and middle when the second landed. */
+	// Two fingers: the view and their spread and middle when the second landed.
 	let pinch: { x: number; y: number; zoom: number; spread: number; mx: number; my: number } | null = null;
-	/** Safari's own pinch — a Mac trackpad's, or an iPad's with no fingers tracked. */
+	// Safari's own pinch — a Mac trackpad's, or an iPad's with no fingers tracked.
 	let gesture: { x: number; y: number; zoom: number; sx: number; sy: number } | null = null;
-	/** The last quick tap, for a double tap: Safari on iOS sends no dblclick. */
+	// The last quick tap, for a double tap: Safari on iOS sends no dblclick.
 	let lastTap = { at: -1e9, x: 0, y: 0 };
 	let downAt = { at: 0, x: 0, y: 0 };
-	/** What a press landed on, and where: a press that does not move is a click. */
+	// What a press landed on, and where: a press that does not move is a click.
 	let press: { x: number; y: number; target: EventTarget | null } | null = null;
 
 	const clamp = (value: number, low: number, high: number) =>
@@ -79,11 +79,11 @@ export function attachGraphView(
 		current.style.transform = "translate(" + x + "px," + y + "px) scale(" + zoom + ")";
 	};
 
-	/** The whole graph, centred, and never bigger than its frame. Not magnified
-	 *  past `scale` either — the reader's preview size, 1 unless they chose
-	 *  otherwise: a two-node scene blown up to fill a wide page looks like a
-	 *  mistake rather than a diagram. The frame itself grows with the preview
-	 *  size, so a larger size is a larger picture that still fits. */
+	// The whole graph, centred, and never bigger than its frame. Not magnified
+	//  past `scale` either — the reader's preview size, 1 unless they chose
+	//  otherwise: a two-node scene blown up to fill a wide page looks like a
+	//  mistake rather than a diagram. The frame itself grows with the preview
+	//  size, so a larger size is a larger picture that still fits.
 	const fit = () => {
 		const box = viewport.getBoundingClientRect();
 		if (box.width === 0 || natural.w === 0) return;
@@ -94,11 +94,9 @@ export function attachGraphView(
 		apply();
 	};
 
-	/**
-	 * Zoom to `next` about a point in the viewport, from a given view. The
-	 * canvas's arithmetic; changing it here would make the docs feel unlike the
-	 * editor.
-	 */
+	// Zoom to `next` about a point in the viewport, from a given view. The
+	// canvas's arithmetic; changing it here would make the docs feel unlike the
+	// editor.
 	const zoomAt = (
 		sx: number, sy: number, next: number,
 		from: { x: number; y: number; zoom: number } = { x, y, zoom },
@@ -153,7 +151,7 @@ export function attachGraphView(
 		gesture = null;
 	};
 
-	/** The two fingers' spread and middle, relative to the viewport. */
+	// The two fingers' spread and middle, relative to the viewport.
 	const spreadOf = () => {
 		const [a, b] = [...touches.values()];
 		const box = viewport.getBoundingClientRect();

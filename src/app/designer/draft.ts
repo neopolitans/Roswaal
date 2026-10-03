@@ -351,11 +351,9 @@ export function pillShape(draft: Draft): { ok: true } | { ok: false; reason: str
  * saved beside it for the designer to read back; the loader never looks at it.
  */
 export function defOf(draft: Draft, compiled?: LogicCompile | null): PackNode {
-	/**
-	 * `side` rather than `p.kind`, because an output pin is `data` too and the
-	 * two fields below are an input's alone: a default is what is used when
-	 * nothing is wired, and a dropdown is a value nobody can set on an output.
-	 */
+	// `side` rather than `p.kind`, because an output pin is `data` too and the
+	// two fields below are an input's alone: a default is what is used when
+	// nothing is wired, and a dropdown is a value nobody can set on an output.
 	const pin = (side: Side) => (p: DraftPin): PinDef => ({
 		id: p.id,
 		name: p.name,

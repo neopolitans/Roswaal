@@ -94,9 +94,8 @@ export type WireStyle = "curved" | "rigid" | "angular";
  * Where a wire is allowed to bend, before any style is applied.
  *
  * The route for `rigid`, and for the wires `angular` has no straight line to
- * take — see `diagonal`. It was the route for both until 0.47.0, when angular
- * turned out to be drawing a chamfered right angle where it was meant to be
- * drawing a diagonal.
+ * take — see `diagonal`, which is the rest of `angular`: a diagonal, not a
+ * chamfered right angle.
  *
  * There is deliberately no obstacle avoidance. A router that dodged nodes would
  * reroute every wire in the graph whenever one node moved, and a wire that
@@ -110,10 +109,10 @@ function manhattan(from: Vec, to: Vec): Vec[] {
 	// halfway between them, so two wires between the same pair of columns do
 	// not sit on top of each other's corners.
 	//
-	// Any forward gap counts, however short. This used to ask for two stubs'
-	// worth of room, and nodes set closer than that took the backwards detour
-	// below — a loop out and around, for a wire whose input was plainly to the
-	// right. The vertical run just sits closer to both pins.
+	// Any forward gap counts, however short. Asking for two stubs' worth of room
+	// would send nodes set closer than that round the backwards detour below — a
+	// loop out and around, for a wire whose input is plainly to the right. The
+	// vertical run just sits closer to both pins.
 	if (to.x > from.x) {
 		if (from.y === to.y) return [from, to];
 		const midX = (from.x + to.x) / 2;

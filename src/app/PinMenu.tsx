@@ -117,12 +117,10 @@ export function PinMenu({
 		});
 	}
 
-	/**
-	 * An empty menu should still answer the question that opened it. The
-	 * literal-only case is the one worth spelling out: that pin looks like every
-	 * other value pin and behaves differently, and this is the only place the
-	 * editor gets to say so before the compiler does.
-	 */
+	// An empty menu should still answer the question that opened it. The
+	// literal-only case is the one worth spelling out: that pin looks like every
+	// other value pin and behaves differently, and this is the only place the
+	// editor gets to say so before the compiler does.
 	function emptyReason(): string {
 		const node = script.nodes.find((n) => n.id === target.nodeId);
 		const def = node && registry.get(node.def);

@@ -103,24 +103,22 @@ export function Workspace({
 	onFramePanel, onFramePanelEnd, onDockPanel, onFloatPanel, drawerKey, touchBar, showDrawer,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
-	/** The centre, which a window's coordinates are measured from. */
+	// The centre, which a window's coordinates are measured from.
 	const centreBox = useRef<HTMLDivElement>(null);
-	/** The panel under the pointer, and where it would land if released now. */
+	// The panel under the pointer, and where it would land if released now.
 	const [dragging, setDragging] = useState<{ panel: PanelId; over: DockSide | null } | null>(null);
-	/**
-	 * A panel with nothing to draw is not open.
-	 *
-	 * The inspector only has content while exactly one node is selected, and
-	 * the variables panel only while a graph is open. Asking `gridTemplate` for
-	 * tracks from the raw layout reserves those columns anyway — 290px of dead
-	 * space to the right of the graph whenever nothing is selected, which is
-	 * exactly the column the old fixed layout only added when it had something
-	 * to put in it.
-	 *
-	 * Derived here rather than in `panels.ts` because it is a fact about
-	 * rendering, not about the layout: the developer did not close the
-	 * inspector, and it must come back the moment it has something to say.
-	 */
+	// A panel with nothing to draw is not open.
+	//
+	// The inspector only has content while exactly one node is selected, and
+	// the variables panel only while a graph is open. Asking `gridTemplate` for
+	// tracks from the raw layout reserves those columns anyway — 290px of dead
+	// space to the right of the graph whenever nothing is selected, which is
+	// exactly the column the old fixed layout only added when it had something
+	// to put in it.
+	//
+	// Derived here rather than in `panels.ts` because it is a fact about
+	// rendering, not about the layout: the developer did not close the
+	// inspector, and it must come back the moment it has something to say.
 	const effective: Layout = {
 		...layout,
 		panels: Object.fromEntries(
@@ -134,11 +132,9 @@ export function Workspace({
 	};
 
 	const compact = useCompact();
-	/**
-	 * Which panel's drawer is out, on a phone or a tablet. Never more than one,
-	 * and one panel per drawer: the tree and Variables shared a drawer at
-	 * first and each got half of it, which is not enough of either.
-	 */
+	// Which panel's drawer is out, on a phone or a tablet. Never more than one,
+	// and one panel per drawer: the tree and Variables shared a drawer at
+	// first and each got half of it, which is not enough of either.
 	const [drawer, setDrawer] = useState<PanelId | null>(null);
 	useEffect(() => setDrawer(null), [drawerKey]);
 	useEffect(() => {
@@ -160,26 +156,22 @@ export function Workspace({
 		return () => element.removeEventListener("dragstart", onStart);
 	}, [compact]);
 
-	/**
-	 * A phone has room for the graph or a panel, not both side by side: the
-	 * centre's minimum alone is most of its width, which left the tree as a
-	 * strip a few letters wide. So the side docks come out of the grid and
-	 * slide over the graph instead, one at a time. The layout itself is not
-	 * touched, and a wider window gets it back exactly as it was.
-	 */
+	// A phone has room for the graph or a panel, not both side by side: the
+	// centre's minimum alone is most of its width, which left the tree as a
+	// strip a few letters wide. So the side docks come out of the grid and
+	// slide over the graph instead, one at a time. The layout itself is not
+	// touched, and a wider window gets it back exactly as it was.
 	const full = gridTemplate(effective);
 	const tracks = compact
 		? { columns: "0px 0px minmax(0, 1fr) 0px 0px", rows: full.rows }
 		: full;
-	/**
-	 * The panels a side's drawers offer, in the order the dock stacks them.
-	 *
-	 * Floating panels too, by the dock they came from: a window over the graph
-	 * is a desktop's arrangement, and on a tablet it would sit on top of the
-	 * only thing there is room for. And a collapsed dock still offers its
-	 * panels -- collapsing is a choice about a wide window, and the splitter
-	 * that would undo it is not drawn here.
-	 */
+	// The panels a side's drawers offer, in the order the dock stacks them.
+	//
+	// Floating panels too, by the dock they came from: a window over the graph
+	// is a desktop's arrangement, and on a tablet it would sit on top of the
+	// only thing there is room for. And a collapsed dock still offers its
+	// panels -- collapsing is a choice about a wide window, and the splitter
+	// that would undo it is not drawn here.
 	const drawerPanels = (side: "left" | "right"): PanelId[] =>
 		PANEL_IDS.filter(
 			(id) => layout.panels[id].dock === side && layout.panels[id].open && contents[id] !== undefined,
@@ -283,19 +275,17 @@ export function Workspace({
 		</div>
 	);
 
-	/**
-	 * A press on a panel's own heading, which may become a drag.
-	 *
-	 * The heading is the handle rather than a bar the dock adds, because every
-	 * panel already has one — the project name, "Variables", "Node", the
-	 * diagnostics summary — and a second title strip above those would be a row
-	 * of chrome repeating what is directly beneath it.
-	 *
-	 * Nothing happens until the pointer has moved `DRAG_THRESHOLD`. That is what
-	 * lets the headings keep the jobs they already had: the Add button inside
-	 * the Variables heading still adds, and clicking the diagnostics bar still
-	 * collapses it, because neither is a drag until you move.
-	 */
+	// A press on a panel's own heading, which may become a drag.
+	//
+	// The heading is the handle rather than a bar the dock adds, because every
+	// panel already has one — the project name, "Variables", "Node", the
+	// diagnostics summary — and a second title strip above those would be a row
+	// of chrome repeating what is directly beneath it.
+	//
+	// Nothing happens until the pointer has moved `DRAG_THRESHOLD`. That is what
+	// lets the headings keep the jobs they already had: the Add button inside
+	// the Variables heading still adds, and clicking the diagnostics bar still
+	// collapses it, because neither is a drag until you move.
 	function startDrag(panel: PanelId, event: ReactPointerEvent<HTMLElement>) {
 		if (event.button !== 0) return;
 		const target = event.target as HTMLElement;
@@ -377,13 +367,11 @@ function FloatingPanel({
 	onDock?: (panel: PanelId) => void;
 	children: ReactNode;
 }) {
-	/**
-	 * The frame the drag started from.
-	 *
-	 * Held rather than read per frame, for the reason the comment resize holds
-	 * its starting box: working the next frame out from the current one
-	 * accumulates rounding, and a window walks away from the pointer.
-	 */
+	// The frame the drag started from.
+	//
+	// Held rather than read per frame, for the reason the comment resize holds
+	// its starting box: working the next frame out from the current one
+	// accumulates rounding, and a window walks away from the pointer.
 	const start = useRef<{ frame: PanelFrame; x: number; y: number } | null>(null);
 
 	function drag(e: ReactPointerEvent<HTMLElement>, mode: "move" | "nw" | "se") {
@@ -610,21 +598,19 @@ function Splitter({
 }) {
 	const axis = side === "bottom" ? "row" : "col";
 
-	/**
-	 * Drag to resize, on the **window** rather than on the handle.
-	 *
-	 * A pointer capture on the handle is the tidier shape and has one failure
-	 * that matters: if the capture is not granted — or is lost, which a
-	 * browser may do for its own reasons — the release happens somewhere else
-	 * and the handle never hears about it. The move listener then survives the
-	 * drag, and the next time the pointer *passes over* the splitter with no
-	 * button held it carries on resizing, which is the dock walking outwards on
-	 * its own.
-	 *
-	 * On the window, the release is heard wherever it happens. `buttons` is
-	 * checked as well, so a move that arrives with nothing held ends the drag
-	 * rather than acting on it — belt and braces for the same failure.
-	 */
+	// Drag to resize, on the **window** rather than on the handle.
+	//
+	// A pointer capture on the handle is the tidier shape and has one failure
+	// that matters: if the capture is not granted — or is lost, which a
+	// browser may do for its own reasons — the release happens somewhere else
+	// and the handle never hears about it. The move listener then survives the
+	// drag, and the next time the pointer *passes over* the splitter with no
+	// button held it carries on resizing, which is the dock walking outwards on
+	// its own.
+	//
+	// On the window, the release is heard wherever it happens. `buttons` is
+	// checked as well, so a move that arrives with nothing held ends the drag
+	// rather than acting on it — belt and braces for the same failure.
 	function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
 		if (e.button !== 0) return;
 		e.preventDefault();

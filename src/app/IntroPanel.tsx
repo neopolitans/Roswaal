@@ -2,15 +2,10 @@
  * The way in, from whichever window you are already in.
  *
  * Roswaal is three surfaces — the editor, Node Design and the documentation —
- * and until now the mark in the corner of each did something different, or
- * nothing. In the editor it dropped a project menu; in the other two it was
- * decoration. So "click the Roswaal mark" had three answers, and two of them
- * were no.
- *
- * It has one answer now: the projects you were in, the projects that shipped,
- * and the way to the other two windows. The same panel in all three, because
- * the question somebody has when they reach for the mark is the same one in
- * all three.
+ * and "click the Roswaal mark" has one answer in all of them: the projects you
+ * were in, the projects that shipped, and the way to the other two windows.
+ * The same panel in all three, because the question somebody has when they
+ * reach for the mark is the same one in all three.
  *
  * ## What it shows depends on where it is
  *
@@ -195,14 +190,14 @@ export function IntroPanel(props: IntroPanelProps) {
 	} = props;
 
 	const [recent] = useState<string[]>(() => recentProjects());
-	/** Demo folder name -> its root here. Empty until the host answers. */
+	// Demo folder name -> its root here. Empty until the host answers.
 	const [demoRoots, setDemoRoots] = useState<Record<string, string>>({});
-	/** The demo being copied, and why the last attempt did not finish. */
+	// The demo being copied, and why the last attempt did not finish.
 	const [busy, setBusy] = useState<string | null>(null);
 	const [trouble, setTrouble] = useState<string | null>(null);
-	/** A recent project that would not open, and so is offered for removal. */
+	// A recent project that would not open, and so is offered for removal.
 	const [gone, setGone] = useState<string | null>(null);
-	/** Roots taken off the list in this panel, so the row goes at once. */
+	// Roots taken off the list in this panel, so the row goes at once.
 	const [dropped, setDropped] = useState<string[]>([]);
 
 	useEffect(() => {
@@ -228,13 +223,11 @@ export function IntroPanel(props: IntroPanelProps) {
 		return () => window.removeEventListener("keydown", onKey);
 	}, [onClose]);
 
-	/**
-	 * Open a project from whichever window this is.
-	 *
-	 * In the editor that is a local matter. Anywhere else it is the host's:
-	 * point the daemon at it, then open the editor, which adopts what the
-	 * daemon has.
-	 */
+	// Open a project from whichever window this is.
+	//
+	// In the editor that is a local matter. Anywhere else it is the host's:
+	// point the daemon at it, then open the editor, which adopts what the
+	// daemon has.
 	const open = (root: string) => {
 		if (onOpen) {
 			setTrouble(null);
@@ -263,7 +256,7 @@ export function IntroPanel(props: IntroPanelProps) {
 	const listed = recent.filter((root) => !dropped.includes(root));
 	const offered = (folders ?? []).filter((one) => !dropped.includes(one.id));
 
-	/** A remembered folder, which may have to ask before it can be read. */
+	// A remembered folder, which may have to ask before it can be read.
 	const takeFolder = (folder: RememberedFolder) => {
 		if (!onOpenFolder) return;
 		setTrouble(null);
@@ -274,19 +267,17 @@ export function IntroPanel(props: IntroPanelProps) {
 	};
 	const demos = DEMO_PROJECTS.filter((one) => demoRoots[one.dir] !== undefined);
 
-	/**
-	 * Take a copy of a demo, and open that.
-	 *
-	 * Never the original. The demos are files that shipped beside the tool, so
-	 * the first thing anybody does to try one would otherwise be to edit the
-	 * copy every other user of that install gets — and here, where they are in
-	 * the repository, it turns up as a change to Roswaal rather than as
-	 * somebody's own work. That is not a hypothetical; it is what happened to
-	 * the Lune demo the day it was added.
-	 *
-	 * The developer picks where it goes, because a demo they cannot find again
-	 * is barely better than one they could not take.
-	 */
+	// Take a copy of a demo, and open that.
+	//
+	// Never the original. The demos are files that shipped beside the tool, so
+	// the first thing anybody does to try one would otherwise be to edit the
+	// copy every other user of that install gets — and here, where they are in
+	// the repository, it turns up as a change to Roswaal rather than as
+	// somebody's own work. That is not a hypothetical; it is what happened to
+	// the Lune demo the day it was added.
+	//
+	// The developer picks where it goes, because a demo they cannot find again
+	// is barely better than one they could not take.
 	const take = (demo: DemoProject) => {
 		setBusy(demo.dir);
 		setTrouble(null);

@@ -7,8 +7,7 @@
  * across four files.
  *
  * **The daemon** serves `index.html` for every path that is not `/api`, so the
- * pages are clean routes off the root: `/`, `/docs`, `/designer`. That is what
- * the links used to be written as, by hand.
+ * pages are clean routes off the root: `/`, `/docs`, `/designer`.
  *
  * **A static host** has no such fallback and no server to ask, so each page is
  * a file that exists: `try.html` and `designer.html`. The documentation is not

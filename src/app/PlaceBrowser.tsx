@@ -65,7 +65,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	const [filter, setFilter] = useState("");
 	const [selected, setSelected] = useState<number | null>(null);
 	const treeRef = useRef<HTMLDivElement>(null);
-	/** The version of the file on screen: a new one renumbers everything. */
+	// The version of the file on screen: a new one renumbers everything.
 	const stampRef = useRef<string | null>(null);
 
 	const load = useCallback(async () => {
@@ -103,7 +103,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	const nodes = place?.outline.nodes;
 	const classes = place?.outline.classes;
 
-	/** Children of each node, and the roots, in the outline's order. */
+	// Children of each node, and the roots, in the outline's order.
 	const children = useMemo(() => {
 		const map = new Map<number, number[]>();
 		nodes?.forEach(([, , parent], i) => {
@@ -130,13 +130,13 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		};
 	}, [nodes, classes, place]);
 
-	/** Picks an instance, and shows it in Properties when that is open or asked for. */
+	// Picks an instance, and shows it in Properties when that is open or asked for.
 	const pick = useCallback((index: number, openPanel: boolean) => {
 		setSelected(index);
 		if (openPanel || inspecting !== null) onInspect(targetOf(index), openPanel);
 	}, [inspecting, onInspect, targetOf]);
 
-	/** Picks an instance and opens every folder above it, so it can be seen. */
+	// Picks an instance and opens every folder above it, so it can be seen.
 	const reveal = useCallback((index: number, openPanel = false) => {
 		if (!nodes) return;
 		pick(index, openPanel);

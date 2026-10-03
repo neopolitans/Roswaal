@@ -66,14 +66,12 @@ export function NodeMenu({
 		[registry, target, presets],
 	);
 
-	/**
-	 * Which runtime the list is narrowed to, remembered between openings.
-	 *
-	 * On top of the target's own filter rather than instead of it — `allItems`
-	 * has already dropped anything this graph cannot compile. What is left to
-	 * narrow is mostly "show me only what is portable", which is the question
-	 * somebody asks when they are thinking about moving a graph.
-	 */
+	// Which runtime the list is narrowed to, remembered between openings.
+	//
+	// On top of the target's own filter rather than instead of it — `allItems`
+	// has already dropped anything this graph cannot compile. What is left to
+	// narrow is mostly "show me only what is portable", which is the question
+	// somebody asks when they are thinking about moving a graph.
 	const [runtime, setRuntime] = useState<MenuFilter | null>(() => readPreferences().nodeFilter);
 
 	const chooseRuntime = (next: MenuFilter | null) => {
@@ -115,12 +113,10 @@ export function NodeMenu({
 		return memberItems({ script, registry, external }, from);
 	}, [from, registry, script, projectTypes]);
 
-	/**
-	 * Placing what an entry stands for.
-	 *
-	 * One function for the click and for Enter, so an entry that places a
-	 * getter and a Get Member on it does both whichever way it is picked.
-	 */
+	// Placing what an entry stands for.
+	//
+	// One function for the click and for Enter, so an entry that places a
+	// getter and a Get Member on it does both whichever way it is picked.
 	const pick = (item: MenuItem) => onPick(item.def, item.config, item.literals, item.member);
 
 	const matches = useMemo(
@@ -133,7 +129,7 @@ export function NodeMenu({
 		[matches, query, registry, from?.service],
 	);
 
-	/** Flat order, so arrow keys move through the list the eye reads. */
+	// Flat order, so arrow keys move through the list the eye reads.
 	const flat = useMemo(() => flattenGroups(grouped), [grouped]);
 
 	useEffect(() => setActive(0), [query]);

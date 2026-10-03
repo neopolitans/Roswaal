@@ -93,41 +93,37 @@ export function installTouchGestures(target: Window = window): void {
 	if (installed) return;
 	installed = true;
 
-	/**
-	 * The one finger that might become a long press, while it is down.
-	 *
-	 * `source` is the draggable thing it landed in, if any. On one of those the
-	 * long press does not open the menu straight away: it *arms* a drag, and
-	 * what the finger does next decides -- move and it drags, lift and the menu
-	 * opens then. The same bargain as holding on empty canvas.
-	 */
+	// The one finger that might become a long press, while it is down.
+	//
+	// `source` is the draggable thing it landed in, if any. On one of those the
+	// long press does not open the menu straight away: it *arms* a drag, and
+	// what the finger does next decides -- move and it drags, lift and the menu
+	// opens then. The same bargain as holding on empty canvas.
 	let press: {
 		id: number; x: number; y: number; element: Element; timer: number;
 		fired: boolean; source: HTMLElement | null; armed: boolean;
 	} | null = null;
-	/** A drag in progress, carried by one finger. */
+	// A drag in progress, carried by one finger.
 	let drag: {
 		id: number; source: HTMLElement; transfer: TouchDataTransfer; ghost: HTMLElement;
 		over: Element | null; accepted: boolean;
 		/** Where the finger is on a drag image, which is then drawn from there. */
 		offset: { x: number; y: number } | null;
 	} | null = null;
-	/**
-	 * Two fingers held still together, which lifted is Ctrl and the right
-	 * button: the mouse gesture for the visual node search.
-	 *
-	 * Answered on the lift, not when the timer runs out, so a pinch that starts
-	 * slowly is still a pinch: it only stops being one if the fingers are
-	 * held and then let go without having moved.
-	 */
+	// Two fingers held still together, which lifted is Ctrl and the right
+	// button: the mouse gesture for the visual node search.
+	//
+	// Answered on the lift, not when the timer runs out, so a pinch that starts
+	// slowly is still a pinch: it only stops being one if the fingers are
+	// held and then let go without having moved.
 	let pair: {
 		start: Map<number, { x: number; y: number }>; timer: number; held: boolean;
 	} | null = null;
-	/** Where the last quick tap ended, for recognising the second. */
+	// Where the last quick tap ended, for recognising the second.
 	let lastTap: { x: number; y: number; at: number } | null = null;
-	/** Touches currently down, by id, so a lost release cannot leave a count stuck. */
+	// Touches currently down, by id, so a lost release cannot leave a count stuck.
 	const fingers = new Set<number>();
-	/** When this module last sent each kind, so the browser's echo is ignored. */
+	// When this module last sent each kind, so the browser's echo is ignored.
 	let sentMenuAt = -Infinity;
 	let sentDoubleAt = -Infinity;
 	let swallowClickUntil = -Infinity;
@@ -161,11 +157,9 @@ export function installTouchGestures(target: Window = window): void {
 		}));
 	};
 
-	/**
-	 * A drag event carrying the transfer. A `MouseEvent` with `dataTransfer`
-	 * defined on it rather than a `DragEvent`, whose constructor not every
-	 * Safari has; React and every handler here read the property either way.
-	 */
+	// A drag event carrying the transfer. A `MouseEvent` with `dataTransfer`
+	// defined on it rather than a `DragEvent`, whose constructor not every
+	// Safari has; React and every handler here read the property either way.
 	const dragEvent = (type: string, transfer: TouchDataTransfer, x: number, y: number) => {
 		const event = new MouseEvent(type, {
 			bubbles: true,
@@ -316,14 +310,12 @@ export function installTouchGestures(target: Window = window): void {
 		else cancelPress();
 	}, true);
 
-	/**
-	 * An armed press or a drag keeps the page where it is. Without this the
-	 * finger that has just been held still on a tree row scrolls the tree the
-	 * moment it moves -- and the browser, having started a scroll, cancels the
-	 * pointer, so the drag never happens. A touch-move is the one event that can
-	 * still refuse the scroll at that point; the first one after a still hold is
-	 * always cancelable.
-	 */
+	// An armed press or a drag keeps the page where it is. Without this the
+	// finger that has just been held still on a tree row scrolls the tree the
+	// moment it moves -- and the browser, having started a scroll, cancels the
+	// pointer, so the drag never happens. A touch-move is the one event that can
+	// still refuse the scroll at that point; the first one after a still hold is
+	// always cancelable.
 	target.addEventListener("touchmove", (e) => {
 		if (drag || press?.armed) e.preventDefault();
 	}, { capture: true, passive: false });

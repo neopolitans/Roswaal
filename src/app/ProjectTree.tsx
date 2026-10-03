@@ -19,8 +19,8 @@ const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
 	nodescript: "document",
 	nodemap: "map",
 	luau: "luauScript",
-	// The gear it used to be reached by, kept as the glyph: it is the project's
-	// settings for requires, and the shape people already associate with that.
+	// A gear: it is the project's settings for requires, and the shape people
+	// already associate with that.
 	luaurc: "settings",
 	// The project's other settings file for what it requires, so the same gear.
 	wally: "settings",
@@ -90,11 +90,9 @@ export const ProjectTree = memo(function ProjectTree({
 
 	useDismiss(menuRef, () => setMenu(null), { enabled: menu !== null, escape: true });
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-	/**
-	 * Wally's folders start shut: `_Index` holds every file of every package,
-	 * and opened it is most of the tree. Once each, so shutting is not undone
-	 * every time the tree is read again.
-	 */
+	// Wally's folders start shut: `_Index` holds every file of every package,
+	// and opened it is most of the tree. Once each, so shutting is not undone
+	// every time the tree is read again.
 	const seenPackages = useRef(new Set<string>());
 	useEffect(() => {
 		const fresh = tree.filter((e) => e.role === "packages" && !seenPackages.current.has(e.path));
@@ -102,22 +100,19 @@ export const ProjectTree = memo(function ProjectTree({
 		for (const e of fresh) seenPackages.current.add(e.path);
 		setCollapsed((prev) => new Set([...prev, ...fresh.map((e) => e.path)]));
 	}, [tree]);
-	/** Graphs whose functions are listed. Shut until asked, unlike folders. */
+	// Graphs whose functions are listed. Shut until asked, unlike folders.
 	const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 	const [dropTarget, setDropTarget] = useState<string | null>(null);
 
-	/**
-	 * The two halves of a Roswaal project, which the tree used to show as a flat
-	 * repository listing with `.roswaal` and `src` sitting beside each other as
-	 * though they were the same kind of thing.
-	 *
-	 * They are not. One half you author and Roswaal reads; the other half
-	 * Roswaal writes and you do not edit. Everything about how a file behaves —
-	 * whether it can be renamed, whether a new graph can go beside it, whether
-	 * the next compile will overwrite it — follows from which half it is in, and
-	 * the tree said none of that.
-	 */
+	// The two halves of a Roswaal project, shown as two rather than as a flat
+	// repository listing with `.roswaal` and `src` beside each other as though
+	// they were the same kind of thing.
+	//
+	// They are not. One half you author and Roswaal reads; the other half
+	// Roswaal writes and you do not edit. Everything about how a file behaves —
+	// whether it can be renamed, whether a new graph can go beside it, whether
+	// the next compile will overwrite it — follows from which half it is in.
 	const groups = useMemo(() => {
 		const owned = [sourceDir, ...nodePaths].filter(Boolean);
 		// Overlap in either direction: `.roswaal` contains `sourceDir`, and a
@@ -137,7 +132,7 @@ export const ProjectTree = memo(function ProjectTree({
 		};
 	}, [tree, sourceDir, nodePaths]);
 
-	/** Visible rows in display order, which is what shift-range needs. */
+	// Visible rows in display order, which is what shift-range needs.
 	const rows = useMemo(() => {
 		const fnsOf = (entry: TreeEntry) => outline.get(entry.path) ?? entry.functions ?? [];
 		const out: Row[] = [];
@@ -157,13 +152,11 @@ export const ProjectTree = memo(function ProjectTree({
 		return slash === -1 ? "" : entry.path.slice(0, slash);
 	}
 
-	/**
-	 * Whether a new graph or map can go here at all.
-	 *
-	 * Only under `sourceDir`. The tree also shows the compiled output, and
-	 * offering "New graph" inside a folder Roswaal regenerates would be offering
-	 * to write a file the next compile deletes.
-	 */
+	// Whether a new graph or map can go here at all.
+	//
+	// Only under `sourceDir`. The tree also shows the compiled output, and
+	// offering "New graph" inside a folder Roswaal regenerates would be offering
+	// to write a file the next compile deletes.
 	function holdsGraphs(dir: string): boolean {
 		return dir === sourceDir || dir.startsWith(sourceDir + "/");
 	}

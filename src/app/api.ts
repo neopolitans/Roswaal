@@ -316,8 +316,10 @@ export const api = {
 	createFolder: (path: string) => post<{ path: string }>("/api/folder/create", { path }),
 	/** Throws away what the host has stored. The caller reloads afterwards. */
 	resetProject: () => post<{ ok: true }>("/api/reset", {}),
-	/** The whole project as text, for `zip.ts` to turn into a download. */
-	/** The project's files; with `modify`, its place holds the project's scripts. */
+	/**
+	 * The whole project, for `zip.ts` to turn into a download. With `modify`,
+	 * its place holds the project's scripts.
+	 */
 	exportProject: (modify = false) =>
 		request<{
 			name: string;

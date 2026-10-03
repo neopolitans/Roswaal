@@ -40,12 +40,10 @@ export function attachWalkthrough(figure: HTMLElement): () => void {
 	let here: HTMLElement | null = null;
 	const view = figure.querySelector<HTMLElement>(".docs-walk-window");
 
-	/**
-	 * The drawing at its real size where it fits, and scaled down to fit where
-	 * it does not -- a desktop bar in a phone-width column -- so the whole bar
-	 * and the ringed control are in view. Past 60% it scrolls instead, and
-	 * brings the ringed control into view.
-	 */
+	// The drawing at its real size where it fits, and scaled down to fit where
+	// it does not -- a desktop bar in a phone-width column -- so the whole bar
+	// and the ringed control are in view. Past 60% it scrolls instead, and
+	// brings the ringed control into view.
 	const fit = () => {
 		const frame = frames[at];
 		if (!view || !frame) return;

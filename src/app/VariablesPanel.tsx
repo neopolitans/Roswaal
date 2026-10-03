@@ -49,14 +49,12 @@ export interface VariablesPanelProps {
 }
 
 export function VariablesPanel({ script, graph, registry, confirm, locked }: VariablesPanelProps) {
-	/**
-	 * Deletes the node that declares a local or a function, as the canvas would.
-	 *
-	 * The nodes that refer to it stay, as a variable's Get and Set do, and
-	 * report an error until they are repointed or removed. A function's own
-	 * graph goes with it, which the canvas also does -- so the question says how
-	 * much of each.
-	 */
+	// Deletes the node that declares a local or a function, as the canvas would.
+	//
+	// The nodes that refer to it stay, as a variable's Get and Set do, and
+	// report an error until they are repointed or removed. A function's own
+	// graph goes with it, which the canvas also does -- so the question says how
+	// much of each.
 	const deleteDeclaration = async (node: GraphNode, kind: "local" | "function") => {
 		const name = kind === "local"
 			? localRefFor(node).name || "local"
@@ -252,7 +250,6 @@ function TypeRow({
 	);
 }
 
-/** One Declare Local: drag it for a Get Local, click it to find the node. */
 /**
  * One module the script requires: the name it binds, and where it comes from.
  *
@@ -396,6 +393,7 @@ function RowDelete({ name, onDelete }: { name: string; onDelete: () => void }) {
 	);
 }
 
+/** One Declare Local: drag it for a Get Local, click it to find the node. */
 function LocalRow({ node, onDelete }: { node: GraphNode; onDelete: () => void }) {
 	const ref = localRefFor(node);
 	const declared = configText(node, "type")?.trim();

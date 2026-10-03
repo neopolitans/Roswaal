@@ -465,15 +465,13 @@ function renderLiteral(props: NodeViewProps, pin: PinDef) {
 		props.onLiteralChange(props.node.id, pin.id, value);
 	const stop = (e: ReactPointerEvent) => e.stopPropagation();
 
-	/**
-	 * An optional pin nobody has touched.
-	 *
-	 * Drawn as the word "default" rather than as its default *value*, because
-	 * the two are different things here and showing the value would be a lie:
-	 * the argument is not passed at all, and what the call does instead is the
-	 * engine's business rather than ours. Clicking adopts the default as a
-	 * starting point, which is the only sensible thing a click can mean.
-	 */
+	// An optional pin nobody has touched.
+	//
+	// Drawn as the word "default" rather than as its default *value*, because
+	// the two are different things here and showing the value would be a lie:
+	// the argument is not passed at all, and what the call does instead is the
+	// engine's business rather than ours. Clicking adopts the default as a
+	// starting point, which is the only sensible thing a click can mean.
 	if (pin.optional === true && typed === undefined) {
 		return (
 			<button
@@ -597,6 +595,19 @@ const CUSTOM = "__roswaal_other__";
 const TOO_MANY_TO_SCROLL = 24;
 
 /**
+ * How a pin's options are grouped in the picker, or nothing for a flat list.
+ *
+ * By identity on the shared arrays rather than by inspecting the values: these
+ * are the two lists long enough to need headings, and a list a pack author
+ * wrote is theirs to show as they gave it.
+ */
+function groupingFor(pin: PinDef): ((value: string) => string) | undefined {
+	if (pin.options === CLASS_OPTIONS) return classGroup;
+	if (pin.options === TYPE_OPTIONS) return typeGroup;
+	return undefined;
+}
+
+/**
  * A pin with a known set of values, in whichever control suits the set.
  *
  * The list is suggestions rather than a gate either way: a value that is not on
@@ -612,20 +623,6 @@ const TOO_MANY_TO_SCROLL = 24;
  * Nobody scrolls six hundred options, and "Other…" is not the escape you want
  * when the list you are escaping is the one you were going to type into anyway.
  */
-/**
- * How a pin's options are grouped in the picker, or nothing for a flat list.
- *
- * By identity on the shared arrays rather than by inspecting the values: these
- * are the two lists long enough to need headings, and a list a pack author
- * wrote is theirs to show as they gave it.
- */
-function groupingFor(pin: PinDef): ((value: string) => string) | undefined {
-	if (pin.options === CLASS_OPTIONS) return classGroup;
-	if (pin.options === TYPE_OPTIONS) return typeGroup;
-	return undefined;
-}
-
-
 function OptionEditor({
 	pin, value, onChange,
 }: { pin: PinDef; value: string; onChange: (value: string) => void }) {
@@ -641,15 +638,13 @@ function OptionEditor({
 	const stop = (e: ReactPointerEvent) => e.stopPropagation();
 
 	if (known.length > TOO_MANY_TO_SCROLL) {
-		/**
-		 * A button that opens the picker, showing the value it holds.
-		 *
-		 * Not a text field with a `datalist` behind it, which is what this was
-		 * first and is the wrong shape for the job: a datalist only narrows what
-		 * you have already started typing, so it helps somebody who knows the
-		 * name and not somebody looking for one. Browsing is half of what a list
-		 * of six hundred classes is for.
-		 */
+		// A button that opens the picker, showing the value it holds.
+		//
+		// Not a text field with a `datalist` behind it, which is what this was
+		// first and is the wrong shape for the job: a datalist only narrows what
+		// you have already started typing, so it helps somebody who knows the
+		// name and not somebody looking for one. Browsing is half of what a list
+		// of six hundred classes is for.
 		return (
 			<>
 				<button

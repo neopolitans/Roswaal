@@ -399,19 +399,17 @@ export function syncFunctionReturns(script: NodeScript, entryId: string): NodeSc
 	if (!entry) return script;
 	const returns = entry.config?.returns ?? [];
 
-	/**
-	 * Every Return **in the function's graph**, wired or not.
-	 *
-	 * This walked the execution wires out of the entry node, which reaches a
-	 * Return only once something runs into it — so a Return placed first and
-	 * wired second kept whatever signature it was born with, and editing the
-	 * returns to fix it did nothing, because the walk could not see it either.
-	 * A graph *is* the function's body, so membership is the honest test and it
-	 * needs no wires to be true.
-	 *
-	 * A nested function's Returns belong to the nested function's graph, so
-	 * they are not in this set — the same boundary the walk stopped at.
-	 */
+	// Every Return **in the function's graph**, wired or not.
+	//
+	// This walked the execution wires out of the entry node, which reaches a
+	// Return only once something runs into it — so a Return placed first and
+	// wired second kept whatever signature it was born with, and editing the
+	// returns to fix it did nothing, because the walk could not see it either.
+	// A graph *is* the function's body, so membership is the honest test and it
+	// needs no wires to be true.
+	//
+	// A nested function's Returns belong to the nested function's graph, so
+	// they are not in this set — the same boundary the walk stopped at.
 	const targets = new Set(
 		script.nodes
 			.filter((n) => n.def === "function.return" && graphOf(n) === entryId)
@@ -453,9 +451,9 @@ export interface ConnectionCheck {
  * dragged wire could actually reach requires. `canConnect` calls it too, so the
  * menu cannot offer a node the canvas would then refuse.
  *
- * `from` is the output and `to` the input. It used to be whichever end was
- * dragged, which was fine while the rule was symmetric; a `Model` fitting an
- * `Instance` pin, and a pair fitting only a dictionary, are not.
+ * `from` is the output and `to` the input, never whichever end was dragged:
+ * the rule is not symmetric. A `Model` fits an `Instance` pin, and a pair fits
+ * only a dictionary, but not the other way round.
  */
 export function acceptsWire(from: PinDef, to: PinDef): boolean {
 	if (from.kind !== to.kind) return false;
@@ -1395,16 +1393,14 @@ export function promoteToVariable(
 	const declared = rawType === WILDCARD ? ANY : rawType;
 	const initial = target.literals?.[pin.id] ?? pin.default;
 
-	/**
-	 * What the value in the pin says, when the pin itself will not say.
-	 *
-	 * Some pins are `any` because Luau lets them be, not because nothing is
-	 * known: a Branch condition takes any value because `nil` and `false` are
-	 * the only false ones, and it still defaults to a boolean. Promoting one
-	 * used to make a `boolean` variable and would now make an `any`, which is a
-	 * worse variable for no reason — the literal sitting in the pin is better
-	 * evidence than the pin's own type in exactly this case.
-	 */
+	// What the value in the pin says, when the pin itself will not say.
+	//
+	// Some pins are `any` because Luau lets them be, not because nothing is
+	// known: a Branch condition takes any value because `nil` and `false` are
+	// the only false ones, and it still defaults to a boolean. Promoting one
+	// should make a `boolean` variable, not an `any`, which is a worse variable
+	// for no reason — the literal sitting in the pin is better evidence than
+	// the pin's own type in exactly this case.
 	const fromLiteral =
 		initial?.t === "boolean" || initial?.t === "number" || initial?.t === "string"
 			? initial.t
@@ -1675,30 +1671,26 @@ export function pasteClipping(
 	// fills in for a node with no graph.
 	const graphFor = (graph: string | undefined) => (graph !== undefined ? remap.get(graph) : undefined);
 
-	/**
-	 * Does this item land in the graph being pasted into?
-	 *
-	 * Everything does **except** what belongs to a function whose declaration is
-	 * in this same clipping: that keeps its position in the copy's own graph,
-	 * which is not the graph anybody is pointing at.
-	 *
-	 * Not `graph === undefined`, which is what this asked at first and is a
-	 * different question — it is "was this copied from the nodescript's own
-	 * graph". Copy anything while a **function's** graph is open and every item
-	 * carries that function's id, so the answer was no for all of them, the set
-	 * below came out empty, and the paste fell back to the offset. Which is to
-	 * say: pasting at the pointer worked everywhere except the graphs most of
-	 * the work happens in.
-	 */
+	// Does this item land in the graph being pasted into?
+	//
+	// Everything does **except** what belongs to a function whose declaration is
+	// in this same clipping: that keeps its position in the copy's own graph,
+	// which is not the graph anybody is pointing at.
+	//
+	// Not `graph === undefined`, which is what this asked at first and is a
+	// different question — it is "was this copied from the nodescript's own
+	// graph". Copy anything while a **function's** graph is open and every item
+	// carries that function's id, so the answer was no for all of them, the set
+	// below came out empty, and the paste fell back to the offset. Which is to
+	// say: pasting at the pointer worked everywhere except the graphs most of
+	// the work happens in.
 	const landsHere = (item: { graph?: string }) => graphFor(item.graph) === undefined;
 
-	/**
-	 * How far everything landing in this graph moves.
-	 *
-	 * A clipping with nothing landing here has no corner to place, so it falls
-	 * back to the offset rather than to `at`, which would otherwise read as
-	 * `-Infinity`.
-	 */
+	// How far everything landing in this graph moves.
+	//
+	// A clipping with nothing landing here has no corner to place, so it falls
+	// back to the offset rather than to `at`, which would otherwise read as
+	// `-Infinity`.
 	const landing = [...clip.nodes.filter(landsHere), ...clip.comments.filter(landsHere)];
 	let dx = offset;
 	let dy = offset;

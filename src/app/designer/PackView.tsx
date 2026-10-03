@@ -63,19 +63,17 @@ export function PackView({
 	open, packs, target, onBack, onChanged, notify, prefs, onPrefs,
 }: PackViewProps) {
 	const [defs, setDefs] = useState<NodeDef[] | null>(null);
-	/** Each node's saved logic graph, by id, which the loader's defs leave out. */
+	// Each node's saved logic graph, by id, which the loader's defs leave out.
 	const [logicById, setLogicById] = useState<Map<string, LogicGraph>>(new Map());
 	const [chosen, setChosen] = useState<Chosen>(null);
 	const [dirty, setDirty] = useState(false);
 	const [pending, setPending] = useState<Chosen | "back" | undefined>(undefined);
-	/**
-	 * On a phone or a tablet the node list is a drawer over the editor, as the
-	 * editor's panels are: beside it, it left a phone's editor sixty pixels
-	 * wide. Out to begin with, since nothing is open until a node is picked.
-	 */
+	// On a phone or a tablet the node list is a drawer over the editor, as the
+	// editor's panels are: beside it, it left a phone's editor sixty pixels
+	// wide. Out to begin with, since nothing is open until a node is picked.
 	const compact = useCompact();
 	const [listOpen, setListOpen] = useState(true);
-	/** The bar's slot for the open node's own switches; see `toolbarSlot`. */
+	// The bar's slot for the open node's own switches; see `toolbarSlot`.
 	const [slot, setSlot] = useState<HTMLElement | null>(null);
 	const [requiredDefs, setRequiredDefs] = useState<NodeDef[]>([]);
 
@@ -143,7 +141,7 @@ export function PackView({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [requiresKey, packs, notify]);
 
-	/** Moves somewhere else, asking first when the node has edits in it. */
+	// Moves somewhere else, asking first when the node has edits in it.
 	const go = (next: Chosen | "back") => {
 		if (dirty && !readOnly) {
 			setPending(next);

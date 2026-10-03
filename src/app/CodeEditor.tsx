@@ -87,11 +87,9 @@ export function CodeEditor({
 			live = false;
 		};
 	}, []);
-	/**
-	 * What the code's requires hold, and where the graph's code runs from, as
-	 * the host answers for the text being typed -- asked a moment after typing
-	 * stops, not on every key.
-	 */
+	// What the code's requires hold, and where the graph's code runs from, as
+	// the host answers for the text being typed -- asked a moment after typing
+	// stops, not on every key.
 	const requiredRef = useRef<ReadonlyMap<string, TableMember[]>>(new Map());
 	const modulesRef = useRef<ReadonlyMap<string, ModuleInfo>>(new Map());
 	useEffect(() => {
@@ -111,7 +109,7 @@ export function CodeEditor({
 			window.clearTimeout(id);
 		};
 	}, [graphPath, text]);
-	/** The graph's own table members, with what the code's requires hold. */
+	// The graph's own table members, with what the code's requires hold.
 	const allMembers = () => new Map([...membersRef.current, ...requiredRef.current]);
 
 	useEffect(() => {

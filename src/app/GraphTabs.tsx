@@ -64,7 +64,7 @@ const DRAG_THRESHOLD = 5;
 
 export function GraphTabs({ documents, functionTabs, onActivate, onClose, onReorder }: GraphTabsProps) {
 	const row = useRef<HTMLDivElement>(null);
-	/** The tab being dragged, and the one it would land before. */
+	// The tab being dragged, and the one it would land before.
 	const [drag, setDrag] = useState<{ key: string; before: string | null } | null>(null);
 	const [listOpen, setListOpen] = useState(false);
 
@@ -74,14 +74,12 @@ export function GraphTabs({ documents, functionTabs, onActivate, onClose, onReor
 	// graph of it this is.
 	const shown = documents.length >= 2 || documents.some((d) => d.graph !== null);
 
-	/**
-	 * Where a tab dropped at this x would land.
-	 *
-	 * The midpoint of each tab, not its edges: dropping on the left half of a
-	 * tab means "before this one" and on the right half "after it", which is the
-	 * rule every editor with draggable tabs uses and the only one that lets a
-	 * tab be dropped at either end of the row.
-	 */
+	// Where a tab dropped at this x would land.
+	//
+	// The midpoint of each tab, not its edges: dropping on the left half of a
+	// tab means "before this one" and on the right half "after it", which is the
+	// rule every editor with draggable tabs uses and the only one that lets a
+	// tab be dropped at either end of the row.
 	const landingAt = (clientX: number): string | null => {
 		const tabs = [...(row.current?.querySelectorAll<HTMLElement>("[data-tab]") ?? [])];
 		for (const tab of tabs) {
@@ -209,14 +207,12 @@ interface TabListProps {
 function TabList({ documents, functionTabs, open, onOpen, onActivate }: TabListProps) {
 	const root = useRef<HTMLDivElement>(null);
 	const button = useRef<HTMLButtonElement>(null);
-	/**
-	 * Where the menu is drawn, in viewport coordinates.
-	 *
-	 * The tab row scrolls sideways, which means it clips its children -- an
-	 * absolutely-placed menu inside it is cut off at the row's bottom edge and
-	 * cannot be shown at all. So the menu is `position: fixed` and told where
-	 * the button ended up, the same way the node palette is.
-	 */
+	// Where the menu is drawn, in viewport coordinates.
+	//
+	// The tab row scrolls sideways, which means it clips its children -- an
+	// absolutely-placed menu inside it is cut off at the row's bottom edge and
+	// cannot be shown at all. So the menu is `position: fixed` and told where
+	// the button ended up, the same way the node palette is.
 	const [at, setAt] = useState<{ x: number; y: number } | null>(null);
 
 	useDismiss(root, () => onOpen(false), { enabled: open, escape: true });

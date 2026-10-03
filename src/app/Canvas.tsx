@@ -189,13 +189,11 @@ export function Canvas({
 	onDropFile, locked = false, wireStyle = "curved", wideNodes = false, wheel = "zoom",
 }: CanvasProps) {
 	const { selection, path } = useEditor();
-	/**
-	 * The graph on screen, as a script of its own.
-	 *
-	 * Everything below that reads, draws or hit-tests reads this; everything that
-	 * edits goes through `store.edit` against the whole script, by id. That split
-	 * is what keeps select-all, marquee and delete to what you can see.
-	 */
+	// The graph on screen, as a script of its own.
+	//
+	// Everything below that reads, draws or hit-tests reads this; everything that
+	// edits goes through `store.edit` against the whole script, by id. That split
+	// is what keeps select-all, marquee and delete to what you can see.
 	const script = useMemo(() => viewOf(whole, graph), [whole, graph]);
 	const functionName = useMemo(() => {
 		if (graph === null) return null;
@@ -212,15 +210,13 @@ export function Canvas({
 	const [pointer, setPointer] = useState<Vec | null>(null);
 	const [marquee, setMarquee] = useState<Rect | null>(null);
 	const [wireDrag, setWireDrag] = useState<PinDragState | null>(null);
-	/**
-	 * Whether a pin took the wire. A drop that lands on a pin the wire cannot
-	 * join used to be swallowed silently — which is most of the pin column,
-	 * since a pin's hit area is deliberately larger than its dot. Now it falls
-	 * through to the node, which grows a pin for it.
-	 */
+	// Whether a pin took the wire. A drop on a pin the wire cannot join is not
+	// taken — which is most of the pin column, since a pin's hit area is
+	// deliberately larger than its dot — and falls through to the node, which
+	// grows a pin for it.
 	const wireHandled = useRef(false);
 	const [editingComment, setEditingComment] = useState<string | null>(null);
-	/** Where a held finger is, relative to the canvas, so it can be ringed. */
+	// Where a held finger is, relative to the canvas, so it can be ringed.
 	const [holdAt, setHoldAt] = useState<Vec | null>(null);
 
 	// -- derived -----------------------------------------------------------
@@ -247,13 +243,11 @@ export function Canvas({
 		return map;
 	}, [diagnostics]);
 
-	/**
-	 * Warnings, so a node can say it needs attention before it needs fixing.
-	 *
-	 * The case this exists for: a Lune call whose module nothing requires. The
-	 * Inspector says so and offers the button, and until now the canvas said
-	 * nothing — so a node you had put down and not yet opened looked fine.
-	 */
+	// Warnings, so a node can say it needs attention before it needs fixing.
+	//
+	// The case this exists for: a Lune call whose module nothing requires. The
+	// Inspector says so and offers the button; without a mark here, a node you
+	// had put down and not yet opened would look fine.
 	const warningsByNode = useMemo(() => {
 		const map = new Map<string, number>();
 		for (const d of diagnostics) {
@@ -266,12 +260,10 @@ export function Canvas({
 		return map;
 	}, [diagnostics]);
 
-	/**
-	 * The node the rest of a selection would line up on, marked on the canvas.
-	 *
-	 * Null with fewer than two selected: one node is already where it would be
-	 * put, so calling it the anchor is a badge with nothing behind it.
-	 */
+	// The node the rest of a selection would line up on, marked on the canvas.
+	//
+	// Null with fewer than two selected: one node is already where it would be
+	// put, so calling it the anchor is a badge with nothing behind it.
 	const anchorId = useMemo(
 		() => (selection.size > 1 ? selectionAnchor(script, selection) : null),
 		[script, selection],
@@ -318,25 +310,23 @@ export function Canvas({
 
 	// -- zoom and scroll ---------------------------------------------------
 
-	/** Read by listeners bound once, so a changed preference reaches them. */
+	// Read by listeners bound once, so a changed preference reaches them.
 	const wheelMode = useRef(wheel);
 	wheelMode.current = wheel;
 
-	/** Touches down on the canvas, by pointer id, in client coordinates. */
+	// Touches down on the canvas, by pointer id, in client coordinates.
 	const touches = useRef(new Map<number, Vec>());
-	/**
-	 * The pointer driving the gesture in progress.
-	 *
-	 * A mouse has one, so this never mattered. Fingers are several, and without
-	 * it the second finger of a pinch moved whatever the first had grabbed.
-	 */
+	// The pointer driving the gesture in progress.
+	//
+	// A mouse has one, so this never mattered. Fingers are several, and without
+	// it the second finger of a pinch moved whatever the first had grabbed.
 	const activePointer = useRef<number | null>(null);
 
 	useEffect(() => {
 		const element = surface.current;
 		if (!element) return;
 
-		/** Zoom by `factor` about a point on the canvas, which stays where it is. */
+		// Zoom by `factor` about a point on the canvas, which stays where it is.
 		const zoomAbout = (sx: number, sy: number, factor: number, from = store.getView()) => {
 			const zoom = clamp(from.zoom * factor, ZOOM.min, ZOOM.max);
 			if (zoom === store.getView().zoom) return;
@@ -345,7 +335,7 @@ export function Canvas({
 			store.setView({ x: sx - wx * zoom, y: sy - wy * zoom, zoom });
 		};
 
-		/** Safari's own pinch, while one is in progress. See below. */
+		// Safari's own pinch, while one is in progress. See below.
 		let pinch: { view: View; sx: number; sy: number } | null = null;
 
 		const onWheel = (e: WheelEvent) => {
@@ -510,16 +500,14 @@ export function Canvas({
 				case "resize": {
 					const dx = world.x - g.origin.x;
 					const dy = world.y - g.origin.y;
-					/**
-					 * The bottom-right corner grows the box. The top-left moves it
-					 * *and* shrinks it by the same amount, so the opposite corner
-					 * stays where it is — which is the whole reason to grab that
-					 * corner rather than the other one.
-					 *
-					 * Clamped by taking the smaller of the drag and what is left
-					 * above the minimum, so a top-left drag that runs out of box
-					 * stops moving instead of sliding on past its own bottom-right.
-					 */
+					// The bottom-right corner grows the box. The top-left moves it
+					// *and* shrinks it by the same amount, so the opposite corner
+					// stays where it is — which is the whole reason to grab that
+					// corner rather than the other one.
+					//
+					// Clamped by taking the smaller of the drag and what is left
+					// above the minimum, so a top-left drag that runs out of box
+					// stops moving instead of sliding on past its own bottom-right.
 					const patch = g.corner === "se"
 						? {
 								w: Math.max(COMMENT_MIN.w, g.start.w + dx),
@@ -577,7 +565,7 @@ export function Canvas({
 				//
 				// Only when the new pin could take the wire. A Sequence grows an
 				// execution output and a function grows a parameter, which is an
-				// output too, so dropping a data wire on either used to add a pin
+				// output too, so dropping a data wire on either would add a pin
 				// nothing could connect to and leave it there.
 				if (onNode && g.side === "out" && g.pin.kind === "data") {
 					const nodeId = onNode.dataset.nodeId;
@@ -619,11 +607,9 @@ export function Canvas({
 			endGesture();
 		};
 
-		/**
-		 * The browser took the pointer back, which iPadOS does when a system
-		 * gesture starts. Whatever was half-done stays where it got to, and no
-		 * menu opens for a release that never happened.
-		 */
+		// The browser took the pointer back, which iPadOS does when a system
+		// gesture starts. Whatever was half-done stays where it got to, and no
+		// menu opens for a release that never happened.
 		const onCancel = (e: PointerEvent) => {
 			touches.current.delete(e.pointerId);
 			const g = gesture.current;
@@ -706,8 +692,7 @@ export function Canvas({
 		// A knot is 22px across and its two pins are stacked at its centre, so a
 		// click meant for the knot lands on a pin more often than not. With a
 		// modifier held that is unambiguous -- nobody shift-clicks a knot to cut
-		// the wire they can see, and cutting it is what used to happen -- so it
-		// goes to the selection instead. The wire is still severed by shift- or
+		// the wire they can see -- so it goes to the selection instead. The wire is still severed by shift- or
 		// alt-clicking the wire itself, which is where it is visible.
 		if ((e.shiftKey || e.ctrlKey) && isReroute(registry.get(nodesById.get(nodeId)?.def ?? ""))) {
 			onNodePointerDown(e, nodeId);
@@ -739,7 +724,7 @@ export function Canvas({
 		startWire(e, { node: nodeId, pin: pin.id }, side, pin);
 	}
 
-	/** Every wire gesture starts here, so each one starts unhandled. */
+	// Every wire gesture starts here, so each one starts unhandled.
 	function startWire(e: ReactPointerEvent, from: PinRef, side: "in" | "out", pin: PinDef) {
 		wireHandled.current = false;
 		gesture.current = { kind: "wire", from, side, pin };
@@ -789,14 +774,12 @@ export function Canvas({
 		endGesture();
 	}
 
-	/**
-	 * Whether the wire being dragged could land on this pin.
-	 *
-	 * The same question the drop asks, through the same function. This used to
-	 * keep its own shorter list of what fits — same type, `any`, `wildcard` — so
-	 * a number dimmed a string pin it would then connect to, and a pin whose
-	 * text is pasted into the source lit up and then refused the drop.
-	 */
+	// Whether the wire being dragged could land on this pin.
+	//
+	// The same question the drop asks, through the same function. A shorter list
+	// of its own — same type, `any`, `wildcard` — would dim a string pin a number
+	// connects to, and light up a pin whose text is pasted into the source and
+	// then refuse the drop.
 	const canAccept = useCallback(
 		(nodeId: string, pin: PinDef, side: "in" | "out"): boolean => {
 			const drag = wireDrag;
@@ -1445,7 +1428,7 @@ function CommentView({
 	const color = commentColor(comment.color);
 	const bar = useRef<HTMLDivElement>(null);
 
-	/** Keeps the field exactly as tall as what it holds. */
+	// Keeps the field exactly as tall as what it holds.
 	const fit = (field: HTMLTextAreaElement) => {
 		field.style.height = "auto";
 		field.style.height = `${field.scrollHeight}px`;
