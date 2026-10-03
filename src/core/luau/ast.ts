@@ -92,8 +92,7 @@ export type Expr =
 	| ({ kind: "unary"; op: string; operand: Expr } & Span)
 	| ({ kind: "binary"; op: string; left: Expr; right: Expr } & Span)
 	| ({ kind: "cast"; value: Expr; type: TypeNode } & Span)
-	| ({ kind: "ifElse"; clauses: { condition: Expr; value: Expr }[]; orElse: Expr } & Span)
-	| ({ kind: "error" } & Span);
+	| ({ kind: "ifElse"; clauses: { condition: Expr; value: Expr }[]; orElse: Expr } & Span);
 
 export type TableField =
 	| ({ kind: "positional"; value: Expr } & Span)
@@ -130,8 +129,7 @@ export type TypeNode =
 	| ({ kind: "union"; types: TypeNode[] } & Span)
 	| ({ kind: "intersection"; types: TypeNode[] } & Span)
 	| ({ kind: "optional"; inner: TypeNode } & Span)
-	| ({ kind: "parenType"; inner: TypeNode } & Span)
-	| ({ kind: "errorType" } & Span);
+	| ({ kind: "parenType"; inner: TypeNode } & Span);
 
 export interface TableTypeProp extends Span {
 	name: string;
