@@ -16,9 +16,8 @@ import {
 } from "./infer.js";
 import { ENGINE, signatureText } from "../robloxEngine.js";
 import { docCommentBefore, docFor, docRegistry, mergeDocs, withRelated, type DocComment } from "./docComment.js";
-import { tokenize } from "./lexer.js";
+import { luauFile } from "./file.js";
 import { declarationAt, localsAt, localsInFile, type LocalKind } from "./scope.js";
-import { parseChunk } from "./parser.js";
 import type { Expr, Stat } from "./ast.js";
 import { isRequire } from "./requires.js";
 import { instanceAt, type InstanceNode } from "./instances.js";
@@ -165,7 +164,7 @@ export function hoverAt(
 ): Hover | null {
 	// A class written as the string a call is given: `Instance.new("Part")`.
 	if (roblox) {
-		const token = tokenize(src).find((t) => t.kind === "string" && t.start < pos && pos < t.end);
+		const token = luauFile(src).tokens.find((t) => t.kind === "string" && t.start < pos && pos < t.end);
 		if (token) {
 			const name = stringValue({ kind: "string", raw: token.text, start: token.start, end: token.end });
 			if (name && CLASS_SET.has(name) && CLASS_CALL.test(src.slice(0, token.start))) {
@@ -376,7 +375,7 @@ export function hoverAt(
 /** `function name()` at any depth of the file, with no table in front of it. */
 function globalFunction(src: string, name: string): Extract<Stat, { kind: "functionStat" }> | undefined {
 	let found: Extract<Stat, { kind: "functionStat" }> | undefined;
-	visitBlock(parseChunk(src).value, {
+	visitBlock(luauFile(src).block, {
 		stat: (stat) => {
 			if (found) return false;
 			if (stat.kind === "functionStat" && stat.path.length === 1 && !stat.method && stat.path[0].name === name) found = stat;
@@ -400,7 +399,7 @@ function tableKeyAt(src: string, from: number, to: number): { owner?: string; fi
 		return v?.kind === "table" ? { table: v, owner } : undefined;
 	};
 	const tables: { table: Extract<Expr, { kind: "table" }>; owner?: string }[] = [];
-	visitBlock(parseChunk(src).value, {
+	visitBlock(luauFile(src).block, {
 		stat: (stat) => {
 			if (found) return false;
 			if (stat.kind === "local" || stat.kind === "const") {

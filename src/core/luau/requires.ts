@@ -15,8 +15,7 @@ import { docCommentBefore, docFor, docRegistry, type DocComment } from "./docCom
 import {
 	memberFor, membersInCode, signatureOf, stringValue, type TableMember, typeOfValue, withRegistry,
 } from "./infer.js";
-import { tokenize } from "./lexer.js";
-import { parseChunk } from "./parser.js";
+import { luauFile } from "./file.js";
 import { localsInFile, localsInParsed } from "./scope.js";
 import { visitBlock } from "./visit.js";
 
@@ -112,7 +111,7 @@ export function requiresIn(src: string): RequireBinding[] {
 		if (table?.kind !== "table") return;
 		for (const field of table.fields) if (field.kind === "named") push(`${owner}.${field.name.name}`, field.value);
 	};
-	visitBlock(parseChunk(src).value, {
+	visitBlock(luauFile(src).block, {
 		stat: (stat) => {
 			if (stat.kind === "local" || stat.kind === "const") {
 				stat.names.forEach((binding, i) => {
@@ -150,7 +149,7 @@ export interface ModuleExports {
  * module passed straight through.
  */
 export function moduleExports(src: string): ModuleExports {
-	const block = parseChunk(src).value;
+	const block = luauFile(src).block;
 	const last = [...block].reverse().find((s) => s.kind === "return") as Extract<Stat, { kind: "return" }> | undefined;
 	const first = block[0];
 	// A block comment says what the module is; `-- SERVICES` above the first
@@ -226,7 +225,6 @@ function unwrap(expr: Expr, depth = 0): Expr {
  * them -- or, for a table called `owner`, what its `@prop`s say.
  */
 function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string, owner?: string): TableMember[] {
-	const tokens = tokenize(src);
 	const out: TableMember[] = [];
 	for (const field of table.fields) {
 		if (field.kind !== "named") continue;
@@ -239,8 +237,8 @@ function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string, owner?: 
 				continue;
 			}
 		}
-		const doc = docFor(docCommentBefore(src, field.start, tokens), field.name.name);
+		const doc = docFor(docCommentBefore(src, field.start), field.name.name);
 		out.push({ ...memberFor(field.name.name, field.value, src), ...(doc ? { doc } : {}) });
 	}
-	return withRegistry(out, src, owner, tokens);
+	return withRegistry(out, src, owner);
 }

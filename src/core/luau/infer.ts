@@ -17,8 +17,7 @@
 
 import type { Expr, FunctionBody, Stat } from "./ast.js";
 import { docCommentBefore, docFor, docRegistry, registeredDoc, withRelated, type DocComment } from "./docComment.js";
-import { tokenize, type Token } from "./lexer.js";
-import { parseChunk } from "./parser.js";
+import { luauFile } from "./file.js";
 import { visitBlock } from "./visit.js";
 import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
 import { isService } from "../roblox.js";
@@ -271,13 +270,11 @@ function chainOf(expr: Expr): string | undefined {
 export function membersInCode(src: string, owner: string): TableMember[] {
 	const out: TableMember[] = [];
 	const seen = new Set<string>();
-	let tokens: Token[] | undefined;
-	const docAt = (at: number) => docCommentBefore(src, at, (tokens ??= tokenize(src)));
 	const aliases: { member: TableMember; of: string }[] = [];
 	const add = (member: TableMember, at: number) => {
 		if (seen.has(member.name)) return;
 		seen.add(member.name);
-		const doc = docFor(docAt(at), member.name);
+		const doc = docFor(docCommentBefore(src, at), member.name);
 		out.push(doc ? { ...member, doc } : member);
 	};
 	const onStat = (stat: Stat): void => {
@@ -313,7 +310,7 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 			});
 		}
 	};
-	visitBlock(parseChunk(src).value, { stat: onStat });
+	visitBlock(luauFile(src).block, { stat: onStat });
 	for (const { member, of } of aliases) {
 		const original = out.find((m) => m.name === of);
 		if (!original || original === member) continue;
@@ -325,7 +322,7 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 			...(member.doc || !original.doc ? {} : { doc: original.doc }),
 		});
 	}
-	return withRegistry(out, src, owner.split(".")[0], tokens);
+	return withRegistry(out, src, owner.split(".")[0]);
 }
 
 /**
@@ -333,9 +330,9 @@ export function membersInCode(src: string, owner: string): TableMember[] {
  * stand: `--- @prop Array Array` / `--- @within Sift` for `Sift.Array`, and
  * the `@interface`s and `@type`s their parameters and returns name.
  */
-export function withRegistry(members: TableMember[], src: string, owner?: string, tokens?: Token[]): TableMember[] {
+export function withRegistry(members: TableMember[], src: string, owner?: string): TableMember[] {
 	if (!/@(prop|function|method|interface|type|class)\b/.test(src)) return members;
-	const entries = docRegistry(src, tokens ?? tokenize(src));
+	const entries = docRegistry(src);
 	return members.map((m) => {
 		const doc = m.doc ?? registeredDoc(entries, m.name, owner);
 		return doc ? { ...m, doc: withRelated(doc, entries) } : m;

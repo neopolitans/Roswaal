@@ -11,6 +11,7 @@
  */
 
 import type { Block, Expr } from "./ast.js";
+import { luauFile } from "./file.js";
 import { parseChunk } from "./parser.js";
 import { stringValue } from "./infer.js";
 import { targetOf, type RequireTarget } from "./requires.js";
@@ -113,9 +114,9 @@ export interface InstanceProblem {
  * and services are checked.
  */
 export function instanceProblems(src: string, root: InstanceNode, self?: readonly string[]): InstanceProblem[] {
-	const parsed = parseChunk(src);
+	const parsed = luauFile(src);
 	if (parsed.errors.length > 0) return [];
-	const block = parsed.value;
+	const block = parsed.block;
 	const out: InstanceProblem[] = [];
 	const check = (holderExpr: Expr, name: string, from: number, to: number, how: "index" | "wait") => {
 		const path = pathOf(holderExpr, src, block, self);
@@ -148,9 +149,9 @@ export function instanceProblems(src: string, root: InstanceNode, self?: readonl
 export function instanceAt(
 	src: string, pos: number, root: InstanceNode, self?: readonly string[],
 ): { from: number; to: number; path: string[]; node: InstanceNode } | undefined {
-	const parsed = parseChunk(src);
+	const parsed = luauFile(src);
 	if (parsed.errors.length > 0) return undefined;
-	const block = parsed.value;
+	const block = parsed.block;
 	let found: { from: number; to: number; expr: Expr } | undefined;
 	visitBlock(block, {
 		stat: () => !found,

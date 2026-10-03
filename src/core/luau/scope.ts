@@ -13,6 +13,7 @@
  */
 
 import type { Binding, Block, Expr, FunctionBody, Stat } from "./ast.js";
+import { luauFile } from "./file.js";
 import { parseChunk } from "./parser.js";
 import { contains, visitBlock, visitExpr, visitStat, type Visitor } from "./visit.js";
 
@@ -62,7 +63,7 @@ function declared(stat: Stat, src: string): ScopedName[] {
 export function topLevelLocals(src: string): string[] {
 	const seen = new Set<string>();
 	const out: string[] = [];
-	for (const stat of parseChunk(src).value) {
+	for (const stat of luauFile(src).block) {
 		for (const { name } of declared(stat, src)) {
 			if (seen.has(name)) continue;
 			seen.add(name);
@@ -107,9 +108,9 @@ export function localsAt(src: string, offset: number): ScopedName[] {
  * Undefined when the file does not parse, for the caller to fall back.
  */
 export function localsInFile(src: string, offset: number): ScopedName[] | undefined {
-	const parsed = parseChunk(src);
-	if (parsed.errors.length > 0) return undefined;
-	return localsInParsed(parsed.value, src, offset);
+	const file = luauFile(src);
+	if (file.errors.length > 0) return undefined;
+	return localsInParsed(file.block, src, offset);
 }
 
 /** `localsInFile` over a parse already made: a check that asks at every name parses once. */
@@ -254,7 +255,7 @@ class ScopeWalk {
  */
 export function declarationAt(src: string, offset: number): ScopedName | undefined {
 	let found: ScopedName | undefined;
-	visitBlock(parseChunk(src).value, {
+	visitBlock(luauFile(src).block, {
 		stat: (stat) => {
 			if (found) return false;
 			if (stat.kind === "localFunction" && contains(stat.name, offset)) {
