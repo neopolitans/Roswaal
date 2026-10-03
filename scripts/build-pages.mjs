@@ -30,6 +30,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { faviconHref } from "../src/app/logo.tsx";
+import { buildGraphViewer } from "./lib/graphViewer.mjs";
 import { LANDING_SCRIPT, landingPage } from "./lib/landing.mjs";
 import { notFoundPage } from "./lib/notFound.mjs";
 
@@ -98,7 +99,9 @@ async function main() {
 	await cp(docs, join(out, "docs"), { recursive: true });
 
 	await writeFile(join(out, "index.html"), landingPage(version), "utf8");
-	await writeFile(join(out, "landing.js"), LANDING_SCRIPT, "utf8");
+	// The docs' graph viewer, so the landing page's graph pans and zooms with
+	// the editor's own code, then the bar between the graph and its Luau.
+	await writeFile(join(out, "landing.js"), [await buildGraphViewer(), LANDING_SCRIPT].join("\n"), "utf8");
 	await writeFile(join(out, "404.html"), notFoundPage(base, version), "utf8");
 
 	// Tells Pages not to run the files through Jekyll, which would drop every

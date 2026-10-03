@@ -15,8 +15,8 @@
  *
  * Almost no script of its own. The graph scales by its `viewBox` and the code
  * is highlighted at build time, so the page is whole as markup and cannot break
- * the way `docs.js` broke. `landing.js` only makes the bar between the two
- * halves draggable; without it the split stays at its default.
+ * the way `docs.js` broke. `landing.js` makes the graph pan and zoom and the
+ * bar between the two halves draggable; without it both stay as drawn.
  */
 
 import { buildSite } from "../../src/core/docs/site.ts";
@@ -167,36 +167,28 @@ body.roswaal-landing {
    it is tall -- and at 68rem it rendered at three quarters of life size for no
    reason other than a number chosen for paragraphs. The prose keeps a reading
    measure of its own; only the demonstration takes the room. */
-.landing { max-width: min(96vw, 1460px); margin: 0 auto; padding: 7vh 24px 4rem; }
+.landing { max-width: min(96vw, 1460px); margin: 0 auto; padding: 48px 24px 4rem; }
 
-/* A wash of the accent behind the hero, so the first screen is not four greys.
-   Fixed and behind everything, and it fades out well before the content does. */
-.landing-glow {
-  position: fixed; inset: 0 0 auto 0; height: 60vh; pointer-events: none; z-index: -1;
-  background:
-    radial-gradient(60rem 26rem at 22% -8%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
-    radial-gradient(44rem 22rem at 78% -14%, color-mix(in srgb, var(--category-values, #4c7fd4) 14%, transparent), transparent 70%);
-}
-/* Centred, because it is a masthead rather than the start of a paragraph.
-   Everything below the demonstration goes back to being read left to right. */
-.landing-top { text-align: center; margin-bottom: 64px; }
-.landing-top .landing-targets { margin-left: auto; margin-right: auto; }
-/* The banner: the mark, the name and a graph, on a piece of canvas.
-   The graph is drawn by the docs' renderer, so it is the editor's node style
-   and it follows the theme; its first node fades into the left edge. */
+/* The banner runs the width of the window, a strip of canvas with the mark,
+   the name and a graph on it; its contents keep the page's column. The graph
+   is drawn by the docs' renderer, so it is the editor's node style and follows
+   the theme, and its first node fades into the left. The line under it is the
+   page's divider: everything below starts there, the glow included. */
 .landing-banner {
-  position: relative; display: grid; align-items: center; text-align: left;
-  grid-template-columns: auto minmax(0, auto) minmax(0, 1fr); gap: 0 32px;
-  margin: 0 0 30px; padding: 40px 44px; border-radius: 16px; overflow: hidden;
-  border: 1px solid var(--border);
+  position: relative; overflow: hidden;
   background-color: var(--bg-canvas);
   background-image:
     linear-gradient(to right, var(--bg-canvas) 20%, transparent 75%),
     radial-gradient(circle, color-mix(in srgb, var(--fg) 9%, transparent) 1.2px, transparent 1.4px);
   background-size: 100% 100%, 22px 22px;
-  box-shadow: inset 0 -5px 0 var(--accent);
+  border-bottom: 5px solid var(--accent);
 }
-.landing-banner.canary { box-shadow: inset 0 -5px 0 var(--warning); }
+.landing-banner.canary { border-bottom-color: var(--warning); }
+.banner-inner {
+  display: grid; align-items: center; text-align: left;
+  grid-template-columns: auto minmax(0, auto) minmax(0, 1fr); gap: 0 32px;
+  max-width: min(96vw, 1460px); margin: 0 auto; padding: 48px 68px;
+}
 /* The mark draws with currentColor, so this is the whole of colouring it. */
 .banner-mark .logo-mark { display: block; color: var(--fg); }
 .landing-banner.canary .banner-mark .logo-mark { color: var(--warning); }
@@ -215,15 +207,33 @@ body.roswaal-landing {
 }
 /* Narrower, the graph goes under the name rather than squeezing it. */
 @media (max-width: 1100px) {
-  .landing-banner { grid-template-columns: auto minmax(0, 1fr); padding: 32px 28px; }
+  .banner-inner { grid-template-columns: auto minmax(0, 1fr); padding: 36px 40px; }
   .banner-graph { grid-column: 1 / -1; margin-top: 22px; }
 }
 @media (max-width: 640px) {
-  .landing-banner { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .banner-inner { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 28px 20px; }
   .banner-mark .logo-mark { height: 56px; width: auto; }
   .banner-name h1 { font-size: 44px; }
   .banner-sub { font-size: 19px; }
 }
+/* Above the banner when there is one: where this copy of the site is, which
+   is the first thing anybody here needs to know. */
+.landing-notices { max-width: min(96vw, 1460px); margin: 0 auto; padding: 14px 24px 0; }
+.landing-notices .landing-canary { margin-bottom: 14px; }
+
+/* A wash of the accent under the divider, so the page is not four greys. It
+   starts at the line and fades out well before the content does. */
+.landing-below { position: relative; isolation: isolate; }
+.landing-glow {
+  position: absolute; inset: 0 0 auto 0; height: 60vh; pointer-events: none; z-index: -1;
+  background:
+    radial-gradient(60rem 26rem at 22% -8%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
+    radial-gradient(44rem 22rem at 78% -14%, color-mix(in srgb, var(--category-values, #4c7fd4) 14%, transparent), transparent 70%);
+}
+/* Centred, because it is a masthead rather than the start of a paragraph.
+   Everything below the demonstration goes back to being read left to right. */
+.landing-top { text-align: center; margin-bottom: 64px; }
+.landing-top .landing-targets { margin-left: auto; margin-right: auto; }
 .landing-top .landing-lede,
 .landing-top .landing-sub,
 .landing-top .landing-note { margin-left: auto; margin-right: auto; }
@@ -303,7 +313,6 @@ body.roswaal-landing {
     background: var(--accent);
   }
   .landing-split:focus-visible { outline: none; }
-  .landing-show .landing-graph { height: calc(100% - 38px); display: flex; align-items: center; }
 }
 .landing-pane {
   border: 1px solid var(--border); border-radius: 10px; background: var(--bg-panel);
@@ -322,21 +331,29 @@ body.roswaal-landing {
 /* On the canvas, with the canvas's own grid at rest — the same background the
    docs give a drawn graph, so the frame reads as a piece of the editor rather
    than as a picture pasted onto a panel. */
-.landing-graph {
-  padding: 18px; overflow-x: auto;
-  background: var(--bg-canvas);
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px);
-  background-size: 24px 24px;
+/* The docs' graph viewer, the editor's own pan-and-zoom code (landing.js):
+   drag to pan, scroll to zoom, double-click to fit. It refits as its frame
+   changes size until the reader takes over, so dragging the frame's bottom
+   edge to make it taller or shorter needs nothing else. */
+.landing-graph { margin: 0; }
+.docs-preview.graph.landing-graph .graph-viewport {
+  height: 320px; min-height: 200px; max-height: 80vh; border: 0; border-radius: 0;
 }
-.landing-graph svg { min-width: 30rem; }
-.landing-graph svg {
-  display: block; width: 100%; height: auto;
-  /* A tall graph would otherwise push everything else off the screen. Nothing
-     is cropped -- the viewBox scales -- it simply stops growing. */
-  max-height: 46vh;
+/* The grip under the graph sets its height. A native resize corner cannot
+   work here: the viewer takes every press inside the frame as a pan. */
+.landing-graph-grip {
+  height: 12px; cursor: row-resize; position: relative; touch-action: none;
+  border-top: 1px solid var(--border);
 }
+.landing-graph-grip::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 4px;
+  transform: translate(-50%, -50%); border-radius: 2px; background: var(--border);
+  transition: background 0.12s;
+}
+.landing-graph-grip:hover::after, .landing-graph-grip:focus-visible::after, .landing-graph-grip.dragging::after {
+  background: var(--accent);
+}
+.landing-graph-grip:focus-visible { outline: none; }
 /* Roswaal writes tabs. Eight columns is the browser default and makes a
    two-level function body look like an accident. */
 .landing-code { margin: 0; padding: 14px; overflow-x: auto; font-size: 13px; line-height: 1.55; tab-size: 2; }
@@ -414,55 +431,85 @@ body.roswaal-landing {
 `;
 
 /**
- * The landing page's one script of its own: the bar between the graph and its
- * Luau. Written by `build-pages` as `landing.js`.
+ * The landing page's own script: the two handles around the demonstration.
+ * `build-pages` writes it into `landing.js` after the docs' graph viewer.
  *
- * Only an enhancement. The 60/40 split is CSS, so a page whose script did not
- * load still shows both halves; this makes the bar draggable, steps it with
- * the arrow keys, resets it on a double-click, and remembers it in this browser.
+ * The bar between the graph and its Luau sets the split, and the grip under
+ * the graph sets its height. Each drags, steps with the arrow keys, resets on
+ * a double-click, and is remembered in this browser. Only an enhancement: the
+ * 60/40 split and the graph's height are CSS, so without this both stay put.
  */
 export const LANDING_SCRIPT = `(() => {
+  const remember = (key, value) => { try { localStorage.setItem(key, String(value)); } catch {} };
+  const recall = (key) => { try { return Number(localStorage.getItem(key)) || 0; } catch { return 0; } };
+
+  // One handle: a separator that sets a value by dragging along one axis.
+  const handle = (grip, { key, axis, min, max, step, initial, read, apply }) => {
+    const set = (value) => {
+      const clamped = Math.round(Math.min(max(), Math.max(min, value)));
+      apply(clamped);
+      grip.setAttribute("aria-valuenow", String(clamped));
+      return clamped;
+    };
+    const kept = recall(key);
+    if (kept) set(kept);
+    grip.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      grip.setPointerCapture(event.pointerId);
+      grip.classList.add("dragging");
+      const start = axis === "x" ? event.clientX : event.clientY;
+      const from = read();
+      const at = (e) => read.fromDrag(from, (axis === "x" ? e.clientX : e.clientY) - start);
+      const move = (e) => set(at(e));
+      const end = (e) => {
+        grip.classList.remove("dragging");
+        grip.removeEventListener("pointermove", move);
+        grip.removeEventListener("pointerup", end);
+        grip.removeEventListener("pointercancel", end);
+        remember(key, set(at(e)));
+      };
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", end);
+      grip.addEventListener("pointercancel", end);
+    });
+    grip.addEventListener("keydown", (event) => {
+      const now = read();
+      const back = axis === "x" ? "ArrowLeft" : "ArrowUp";
+      const on = axis === "x" ? "ArrowRight" : "ArrowDown";
+      if (event.key === back) remember(key, set(now - step));
+      else if (event.key === on) remember(key, set(now + step));
+      else if (event.key === "Home") remember(key, set(min));
+      else if (event.key === "End") remember(key, set(max()));
+      else return;
+      event.preventDefault();
+    });
+    grip.addEventListener("dblclick", () => remember(key, set(initial)));
+  };
+
   const show = document.querySelector(".landing-show");
   const bar = show && show.querySelector(".landing-split");
-  if (!bar) return;
-  const KEY = "roswaal.landingSplit";
-  const set = (percent) => {
-    const value = Math.round(Math.min(75, Math.max(25, percent)));
-    show.style.setProperty("--split", value + "%");
-    bar.setAttribute("aria-valuenow", String(value));
-    return value;
-  };
-  const save = (value) => { try { localStorage.setItem(KEY, String(value)); } catch {} };
-  try {
-    const kept = Number(localStorage.getItem(KEY));
-    if (kept) set(kept);
-  } catch {}
-  bar.addEventListener("pointerdown", (event) => {
-    bar.setPointerCapture(event.pointerId);
-    bar.classList.add("dragging");
-    const box = show.getBoundingClientRect();
-    const move = (e) => set(((e.clientX - box.left) / box.width) * 100);
-    const end = (e) => {
-      bar.classList.remove("dragging");
-      bar.removeEventListener("pointermove", move);
-      bar.removeEventListener("pointerup", end);
-      bar.removeEventListener("pointercancel", end);
-      save(set(((e.clientX - box.left) / box.width) * 100));
-    };
-    bar.addEventListener("pointermove", move);
-    bar.addEventListener("pointerup", end);
-    bar.addEventListener("pointercancel", end);
-  });
-  bar.addEventListener("keydown", (event) => {
-    const now = Number(bar.getAttribute("aria-valuenow"));
-    if (event.key === "ArrowLeft") save(set(now - 5));
-    else if (event.key === "ArrowRight") save(set(now + 5));
-    else if (event.key === "Home") save(set(25));
-    else if (event.key === "End") save(set(75));
-    else return;
-    event.preventDefault();
-  });
-  bar.addEventListener("dblclick", () => save(set(60)));
+  if (bar) {
+    const percent = () => Number(bar.getAttribute("aria-valuenow")) || 60;
+    percent.fromDrag = (from, delta) => from + (delta / show.getBoundingClientRect().width) * 100;
+    handle(bar, {
+      key: "roswaal.landingSplit", axis: "x", min: 25, max: () => 75, step: 5, initial: 60,
+      read: percent,
+      apply: (value) => show.style.setProperty("--split", value + "%"),
+    });
+  }
+
+  const viewport = document.querySelector(".landing-graph .graph-viewport");
+  const grip = document.querySelector(".landing-graph-grip");
+  if (viewport && grip) {
+    const height = () => viewport.getBoundingClientRect().height;
+    height.fromDrag = (from, delta) => from + delta;
+    handle(grip, {
+      key: "roswaal.landingGraphHeight", axis: "y", min: 200, max: () => Math.round(window.innerHeight * 0.8),
+      step: 40, initial: 320,
+      read: height,
+      apply: (value) => { viewport.style.height = value + "px"; },
+    });
+  }
 })();
 `;
 
@@ -501,32 +548,36 @@ ${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
 <script src="landing.js?v=${encodeURIComponent(version)}" defer></script>
 </head>
 <body class="roswaal-landing">
+${backup || IS_CANARY ? `<div class="landing-notices">
+  ${backup ? `<p class="landing-canary landing-backup">
+    <span class="flag">${escapeHtml(BACKUP_BANNER.mark)}</span>
+    ${escapeHtml(BACKUP_BANNER.app)}
+    <a href="${STABLE_SITE}">${escapeHtml(BACKUP_BANNER.wayOut)}</a>
+  </p>` : ""}
+  ${IS_CANARY ? `<p class="landing-canary">
+    <span class="flag canary">${escapeHtml(MARK_LABEL.canary)}</span>
+    ${escapeHtml(CANARY_BANNER.app)}
+    <a href="${STABLE_SITE}">${escapeHtml(CANARY_BANNER.wayOut)}</a>
+  </p>` : ""}
+</div>` : ""}
+<header class="landing-banner${IS_CANARY ? " canary" : ""}">
+  <div class="banner-inner">
+    <div class="banner-mark">${logoMarkup(96)}</div>
+    <div class="banner-copy">
+      <div class="banner-name">
+        <h1>Roswaal</h1>
+        <span class="tag">${escapeHtml(version)}</span>
+      </div>
+      <p class="banner-sub">Visual scripting for Luau, reimagined.</p>
+      <p class="banner-flow">.nodescript → .luau → Rojo → Studio</p>
+    </div>
+    <div class="banner-graph" aria-hidden="true">${heroGraph()}</div>
+  </div>
+</header>
+<div class="landing-below">
 <div class="landing-glow" aria-hidden="true"></div>
 <main class="landing">
   <div class="landing-top">
-    ${backup ? `<p class="landing-canary landing-backup">
-      <span class="flag">${escapeHtml(BACKUP_BANNER.mark)}</span>
-      ${escapeHtml(BACKUP_BANNER.app)}
-      <a href="${STABLE_SITE}">${escapeHtml(BACKUP_BANNER.wayOut)}</a>
-    </p>` : ""}
-    ${IS_CANARY ? `<p class="landing-canary">
-      <span class="flag canary">${escapeHtml(MARK_LABEL.canary)}</span>
-      ${escapeHtml(CANARY_BANNER.app)}
-      <a href="${STABLE_SITE}">${escapeHtml(CANARY_BANNER.wayOut)}</a>
-    </p>` : ""}
-    <header class="landing-banner${IS_CANARY ? " canary" : ""}">
-      <div class="banner-mark">${logoMarkup(96)}</div>
-      <div class="banner-copy">
-        <div class="banner-name">
-          <h1>Roswaal</h1>
-          <span class="tag">${escapeHtml(version)}</span>
-        </div>
-        <p class="banner-sub">Visual scripting for Luau, reimagined.</p>
-        <p class="banner-flow">.nodescript → .luau → Rojo → Studio</p>
-      </div>
-      <div class="banner-graph" aria-hidden="true">${heroGraph()}</div>
-    </header>
-
     <p class="landing-lede"><em>Completely free, forever.</em></p>
     <p class="landing-sub">
       Graphs live on disk as <code>.nodescript</code> files and compile to plain
@@ -567,7 +618,9 @@ ${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
   <div class="landing-show" style="--split: 60%">
     <section class="landing-pane">
       <h2>The graph you see</h2>
-      <div class="landing-graph">${svg}</div>
+      <figure class="docs-preview graph landing-graph"><div class="graph-viewport">${svg}</div></figure>
+      <div class="landing-graph-grip" role="separator" aria-orientation="horizontal" aria-label="Resize the graph"
+        aria-valuemin="200" aria-valuenow="320" tabindex="0"></div>
     </section>
     <div class="landing-split" role="separator" aria-orientation="vertical" aria-label="Resize the graph and the Luau"
       aria-valuemin="25" aria-valuemax="75" aria-valuenow="60" tabindex="0"></div>
@@ -761,6 +814,7 @@ ${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
     <a href="docs/attributions.html">Attributions and licence</a>
   </div>
 </main>
+</div>
 </body>
 </html>
 `;

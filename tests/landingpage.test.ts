@@ -85,6 +85,12 @@ describe("the landing page", () => {
 		expect(() => new Function(LANDING_SCRIPT)).not.toThrow();
 	});
 
+	/** Its graph is the docs' viewer: a pan-and-zoom frame with a grip that sets its height. */
+	it("makes the graph a viewer whose height can be dragged", () => {
+		expect(html).toContain('class="docs-preview graph landing-graph"><div class="graph-viewport">');
+		expect(html).toContain('class="landing-graph-grip" role="separator"');
+	});
+
 	it("opens on a banner whose graph is drawn, not pictured", () => {
 		const banner = /<header class="landing-banner[^"]*">([\s\S]*?)<\/header>/.exec(html)?.[1] ?? "";
 		expect(banner).toContain("<h1>Roswaal</h1>");
