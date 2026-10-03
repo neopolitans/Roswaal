@@ -10,7 +10,10 @@ import { isBinaryRbx, readBinary } from "./binary.js";
 import { asRbxError, type RbxDocument, RbxError } from "./dom.js";
 import { readXml } from "./xml.js";
 
-export * from "./dom.js";
+export {
+	asRbxError, type CFrameValue, isScript, pathOf, type Prop, type PropType, type RbxDocument, RbxError,
+	type RbxInstance, SCRIPT_CLASSES, stringProp, text, walk,
+} from "./dom.js";
 
 /** File extensions a place or model can have. */
 export const PLACE_EXTENSIONS = [".rbxl", ".rbxlx", ".rbxm", ".rbxmx"] as const;
