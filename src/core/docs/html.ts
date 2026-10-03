@@ -19,7 +19,7 @@
 import type { Block, DocPage, DocSection, DocSite } from "./site.js";
 import type { Registry } from "../nodes/index.js";
 import {
-	allPages, isPageLink, parseInline, TAG_LABELS, neighbours, type Neighbour,
+	allPages, isPageLink, parseInline, stripMarkup, TAG_LABELS, neighbours, type Neighbour,
 } from "./site.js";
 import { graphSvg, previewSvg, type PreviewOptions } from "./preview.js";
 import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
@@ -234,7 +234,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			);
 		}
 		case "pins":
-			return renderPins(block, options);
+			return renderPins(block, options, up);
 		case "graph": {
 			// No geometry passed in means no picture, rather than one at invented
 			// sizes — the same bargain the node previews make.
@@ -451,7 +451,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 /** Past this many, a pin's values are counted rather than listed. */
 const NAMEABLE_OPTIONS = 8;
 
-function renderPins(block: Block & { t: "pins" }, options: RenderOptions): string {
+function renderPins(block: Block & { t: "pins" }, options: RenderOptions, up: string): string {
 	const rows = block.pins
 		.map((pin) => {
 			const badges = [
@@ -481,7 +481,7 @@ function renderPins(block: Block & { t: "pins" }, options: RenderOptions): strin
 
 			const detail =
 				pin.description || pin.splitModes.length > 0 || choices
-					? `<div class="detail">${escapeHtml(pin.description ?? "")}` +
+					? `<div class="detail">${inline(pin.description ?? "", up)}` +
 						(pin.splitModes.length > 0
 							? ` Splits into ${escapeHtml(pin.splitModes.join(", or "))}.`
 							: "") +
@@ -697,7 +697,7 @@ export function renderPage(site: DocSite, page: DocPage, options: RenderOptions)
 <meta name="viewport" content="width=device-width, initial-scale=1">
 ${options.noindex ? `<meta name="robots" content="noindex">
 ` : ""}<title>${escapeHtml(page.title)} · Roswaal docs</title>
-<meta name="description" content="${escapeHtml(page.summary)}">
+<meta name="description" content="${escapeHtml(stripMarkup(page.summary))}">
 ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(options.logo.icon)}">\n` : ""}<link rel="stylesheet" href="${up}theme.css${stamp(options)}">
 <script src="${up}theme.js${stamp(options)}"></script>
 </head>
@@ -720,7 +720,7 @@ ${renderNav(site, page)}
 <div class="docs-article${page.narrow ? " narrow" : ""}">
 <header class="docs-title">
 <h1>${escapeHtml(page.title)}${runtimeBadge(page)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}<a class="tb icon-only docs-edit" href="${escapeHtml(proposeHref(page))}" rel="noreferrer noopener" title="Suggest an edit — opens an issue for this page" aria-label="Suggest an edit">✎</a></h1>
-<p class="summary">${escapeHtml(page.summary)}</p>
+<p class="summary">${inline(page.summary, up)}</p>
 ${page.review ? `<p class="docs-status">${reviewBadge(page.review)}</p>\n` : ""}</header>
 ${body}
 ${renderNeighbours(site, page)}${page.review ? `<p class="docs-reviewed">${inline(reviewLine(page.review), up)}</p>\n` : ""}${page.review?.verify ? `<p class="docs-verify"><strong>To verify:</strong> ${inline(page.review.verify, up)}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>

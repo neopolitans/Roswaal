@@ -463,88 +463,161 @@ export function isPageLink(href: string): boolean {
 	return !/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith("#") && !href.startsWith("/");
 }
 
-/** The words in a block, with markup removed. Feeds the search index. */
-export function blockText(block: Block): string {
+/**
+ * How a renderer treats one string of a block.
+ *
+ * - `inline` goes through `parseInline`, so it may carry markup.
+ * - `plain` is escaped and printed as it is: markup in it reaches the reader
+ *   as backticks and asterisks.
+ * - `code` is source, printed or highlighted verbatim.
+ * - `key` is never printed. It is there for search: the node ids in a graph,
+ *   which are what somebody looking for a node in a guide will type.
+ */
+export type StringSlot = "inline" | "plain" | "code" | "key";
+
+export interface BlockString {
+	text: string;
+	slot: StringSlot;
+	/** False for a string the search index leaves out. */
+	indexed: boolean;
+}
+
+/**
+ * Every string a block holds, nested blocks included, in reading order.
+ *
+ * One walker for every consumer — the search index and the markup tests — so
+ * a new string slot is added in one place and both see it. A slot left out
+ * here is a slot whose markup nobody checks.
+ */
+export function blockStrings(block: Block): BlockString[] {
+	const out: BlockString[] = [];
+	const add = (slot: StringSlot, text: string | undefined, indexed = true): void => {
+		if (text !== undefined && text !== "") out.push({ text, slot, indexed });
+	};
 	switch (block.t) {
 		case "h":
-			return [block.text, block.badge ?? "", block.aside ?? ""].join(" ").trim();
+			add("inline", block.text);
+			add("plain", block.badge);
+			add("plain", block.aside);
+			break;
 		case "p":
-			return parseInline(block.text).map((i) => i.text).join("");
+			add("inline", block.text);
+			break;
 		case "ul":
 		case "ol":
-			return block.items.map((i) => parseInline(i).map((x) => x.text).join("")).join(" ");
+			for (const item of block.items) add("inline", item);
+			break;
 		case "code":
-			return block.text;
+			add("code", block.text);
+			break;
 		case "table":
-			return [...(block.head ?? []), ...block.rows.flat()].join(" ");
+			for (const cell of block.head ?? []) add("plain", cell);
+			for (const cell of block.rows.flat()) add("inline", cell);
+			break;
 		case "tags":
-			return block.tags.map((tag) => TAG_LABELS[tag]).join(" ");
+			for (const tag of block.tags) add("plain", TAG_LABELS[tag]);
+			break;
 		case "note":
-			return [block.text, ...(block.items ?? [])]
-				.map((t) => parseInline(t).map((i) => i.text).join(""))
-				.join(" ");
+			add("inline", block.text);
+			for (const item of block.items ?? []) add("inline", item);
+			break;
 		case "pins":
-			return block.pins.map((p) => `${p.name} ${p.type ?? ""}`).join(" ");
+			// The name and the type are what a search is for; the rest of a pin
+			// is said again on the page it links to.
+			add("plain", block.title, false);
+			for (const pin of block.pins) {
+				add("plain", pin.name);
+				add("plain", pin.type);
+				add("inline", pin.description, false);
+				add("code", pin.default, false);
+			}
+			break;
 		case "preview":
-			return [...block.nodes.map((n) => n.title), block.caption ?? ""].join(" ").trim();
+			for (const node of block.nodes) add("plain", node.title);
+			add("inline", block.caption);
+			break;
 		case "graph":
-			// The node ids rather than their titles: titles need a registry, and
-			// an id is what somebody searching for a node in a guide will type.
-			return [...block.script.nodes.map((n) => n.def), block.caption ?? ""]
-				.join(" ").trim();
+			for (const node of block.script.nodes) add("key", node.def);
+			add("inline", block.caption);
+			break;
 		case "graphs":
 			// Every graph's, including the ones not showing: a search finds the
 			// page, and the page has them all in it.
-			return [
-				block.label ?? "",
-				...block.graphs.flatMap((one) => [
-					one.title,
-					one.caption ?? "",
-					...one.script.nodes.map((n) => n.def),
-				]),
-			].join(" ").trim();
+			add("inline", block.label);
+			for (const one of block.graphs) {
+				add("plain", one.title);
+				add("inline", one.caption);
+				for (const node of one.script.nodes) add("key", node.def);
+			}
+			break;
 		case "toggle":
 			// The label, not the hint. Somebody searching for "pre-release" should
 			// land on the page that has the switch for them.
-			return block.label;
+			add("inline", block.label);
+			add("inline", block.hint, false);
+			break;
 		case "nodemap":
 			// The names in the tree, which is what somebody looks for: they are
 			// the services and folders a reader recognises from their own project.
 			// The generated JSON is not indexed -- searching the documentation for
 			// `$className` should find the page that explains it, not every page
 			// that happens to draw a map.
-			return [...mapFigure(block.map).rows.map((r) => r.name), block.caption ?? ""]
-				.join(" ").trim();
+			for (const row of mapFigure(block.map).rows) add("plain", row.name);
+			add("inline", block.caption);
+			break;
 		case "details":
-			return [block.summary, block.aside ?? "", ...block.blocks.map(blockText)].join(" ").trim();
+			add("inline", block.summary);
+			add("plain", block.aside);
+			for (const inner of block.blocks) out.push(...blockStrings(inner));
+			break;
 		case "tabs":
-			return [
-				block.label ?? "",
-				...block.tabs.flatMap((tab) => [tab.title, ...tab.blocks.map(blockText)]),
-			].join(" ").trim();
+			add("inline", block.label);
+			for (const tab of block.tabs) {
+				add("plain", tab.title);
+				for (const inner of tab.blocks) out.push(...blockStrings(inner));
+			}
+			break;
 		case "walkthrough":
-			return block.steps.map((step) => step.text).join(" ");
+			for (const step of block.steps) add("inline", step.text);
+			break;
 		case "layout":
-			return [
-				block.layout.title,
-				block.layout.summary,
-				...listedRegions(block.layout).flatMap((r) => [r.name, r.where ?? "", r.what ?? ""]),
-			].join(" ").trim();
+			add("plain", block.layout.title);
+			add("inline", block.layout.summary);
+			for (const region of listedRegions(block.layout)) {
+				add("plain", region.name);
+				add("plain", region.where);
+				add("inline", region.what);
+			}
+			add("inline", block.caption);
+			break;
 		case "toolbar":
 			// The legend, not the drawing. Somebody who cannot find Node Design
 			// searches for "Node Design", and the control's name is the only place
 			// on the page those two words sit together.
-			return [
-				block.bar.title,
-				block.bar.summary,
-				...legendOf(block.bar).flatMap((item) => [
-					item.name,
-					item.where ?? "",
-					parseInline(item.what ?? "").map((i) => i.text).join(""),
-				]),
-				block.caption ?? "",
-			].join(" ").replace(/\s+/g, " ").trim();
+			add("plain", block.bar.title);
+			add("inline", block.bar.summary);
+			for (const item of legendOf(block.bar)) {
+				add("plain", item.name);
+				add("plain", item.where);
+				add("inline", item.what);
+			}
+			add("inline", block.caption);
+			break;
 	}
+	return out;
+}
+
+/** A line of inline markup as the words a reader sees. */
+export function stripMarkup(text: string): string {
+	return parseInline(text).map((run) => run.text).join("");
+}
+
+/** The words in a block, with markup removed. Feeds the search index. */
+export function blockText(block: Block): string {
+	return blockStrings(block)
+		.filter((one) => one.indexed)
+		.map((one) => (one.slot === "inline" ? stripMarkup(one.text) : one.text))
+		.join(" ");
 }
 
 // ---------------------------------------------------------------------------
@@ -2850,7 +2923,7 @@ const MODULES_PAGE: DocPage = {
 				["`@self/name`", "Yes", "—", "A child of this script"],
 				["`@game/Service/name`", "Yes", "—", "Down from the DataModel root"],
 				["`@lune/fs`", "—", "Yes", "Lune's standard library"],
-				["`@alias/name`", "Not yet", "Yes", "An alias from a [`.luaurc`](aliases)"],
+				["`@alias/name`", "Not yet", "Yes", "An [alias](aliases) from a `.luaurc`"],
 			],
 		},
 		{
@@ -2976,7 +3049,7 @@ const MEMBERS_PAGE = (registry: Registry): DocPage => ({
 		{
 			t: "p",
 			text:
-				"A type is declared by a [Declare Type](types-and-typechecking) node — at the top " +
+				"A type is declared by a [Declare Type](casting) node — at the top " +
 				"of the file or where it sits — and what it is *written as* decides whether it has " +
 				"members to offer. A table of fixed fields does; everything else is a type Luau " +
 				"understands and this cannot enumerate.",
@@ -5913,7 +5986,7 @@ const CUSTOM_NODES: DocPage = {
 						{
 							t: "p",
 							text:
-								"**A `.nodedef.luau` or `.nodedef.json` file, written by hand.** Luau is the " +
+								"**A** `.nodedef.luau` **or** `.nodedef.json` **file, written by hand.** Luau is the " +
 								"friendlier of the two: it is the language you already write, and it can carry " +
 								"comments — which is the reason to choose it, and why Node Design opens one " +
 								"read-only. `roswaal init` writes a commented example to start from.",
@@ -5953,10 +6026,10 @@ const CUSTOM_NODES: DocPage = {
 						{
 							t: "p",
 							text:
-								"Two more keys, both optional. **`requires`**, beside `nodes`, lists the packs " +
-								"whose nodes this pack's logic is built from. **`logic`**, on a node saved from " +
+								"Two more keys, both optional. `requires`, beside `nodes`, lists the packs " +
+								"whose nodes this pack's logic is built from. `logic`, on a node saved from " +
 								"Node Design, is the graph its logic was built from — the loader ignores it and " +
-								"reads `compilesTo`. **`display = \"compact\"`** draws a pure node with no inputs " +
+								"reads `compilesTo`. `display = \"compact\"` draws a pure node with no inputs " +
 								"and one output as a pill.",
 						},
 						{
@@ -6551,7 +6624,8 @@ export function buildSearchIndex(site: DocSite): SearchEntry[] {
 			out.push({
 				slug: page.slug,
 				title: page.title,
-				summary: page.summary,
+				// Without its markup: the search box prints it as it is.
+				summary: stripMarkup(page.summary),
 				section: section.title,
 				body: page.blocks.map(blockText).join(" ").toLowerCase(),
 				nodeId: page.nodeId,
