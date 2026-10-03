@@ -174,7 +174,25 @@ export function headingId(text: string): string {
 	return `h-${text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 }
 
-function renderBlock(block: Block, options: RenderOptions, up = ""): string {
+/** What one page's render keeps between its blocks. */
+interface PageState {
+	/** Graphs drawn so far, which numbers each one's id scope. */
+	drawn: number;
+}
+
+/**
+ * The drawing options for the next graph on a page, with an id scope no other
+ * graph on it has. Numbered in render order, which is the page's own order,
+ * so the same page builds to the same bytes.
+ */
+function drawing(preview: PreviewOptions, page: PageState): PreviewOptions {
+	page.drawn += 1;
+	return { ...preview, idScope: `g${page.drawn}` };
+}
+
+function renderBlock(
+	block: Block, options: RenderOptions, up = "", page: PageState = { drawn: 0 },
+): string {
 	switch (block.t) {
 		case "h": {
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
@@ -248,9 +266,9 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 					graphs: views.map((view, i) => ({ ...view, ...(i === 0 && block.caption ? { caption: block.caption } : {}) })),
 					...(block.panel ? { panel: block.panel } : {}),
 					...(block.asAuthored ? { asAuthored: true } : {}),
-				}, options, up);
+				}, options, up, page);
 			}
-			const svg = graphSvg(block.script, options.registry, options.preview, block.asAuthored);
+			const svg = graphSvg(block.script, options.registry, drawing(options.preview, page), block.asAuthored);
 			if (svg === "") return "";
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
 			// What the graph declares, to the left of it. Absent on a graph
@@ -273,7 +291,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 			const name = `graphs-${block.graphs.map((one) => one.id).join("-")}`;
 			const drawn = block.graphs.map((one) => ({
 				one,
-				svg: graphSvg(one.script, options.registry!, options.preview!, block.asAuthored),
+				svg: graphSvg(one.script, options.registry!, drawing(options.preview!, page), block.asAuthored),
 			}));
 			if (drawn.some(({ svg }) => svg === "")) return "";
 			const inputs = drawn
@@ -423,7 +441,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 				.map(
 					(tab) =>
 						`<section class="docs-tab-panel">` +
-						tab.blocks.map((b) => renderBlock(b, options, up)).join("\n") +
+						tab.blocks.map((b) => renderBlock(b, options, up, page)).join("\n") +
 						`</section>`,
 				)
 				.join("");
@@ -437,7 +455,7 @@ function renderBlock(block: Block, options: RenderOptions, up = ""): string {
 		case "details": {
 			// A plain `<details>`: it opens and closes with no script at all.
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
-			const inner = block.blocks.map((b) => renderBlock(b, options, up)).join("\n");
+			const inner = block.blocks.map((b) => renderBlock(b, options, up, page)).join("\n");
 			return (
 				`<details class="docs-details"${block.open ? " open" : ""}` +
 				`${block.prerelease ? " data-prerelease" : ""}>` +
@@ -688,7 +706,8 @@ function renderNeighbours(site: DocSite, page: DocPage): string {
 
 export function renderPage(site: DocSite, page: DocPage, options: RenderOptions): string {
 	const up = upTo(page.slug);
-	const body = page.blocks.map((b) => renderBlock(b, options, up)).join("\n");
+	const state: PageState = { drawn: 0 };
+	const body = page.blocks.map((b) => renderBlock(b, options, up, state)).join("\n");
 
 	return `<!doctype html>
 <html lang="en" data-slug="${escapeHtml(page.slug)}">

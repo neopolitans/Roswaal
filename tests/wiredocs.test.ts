@@ -13,6 +13,8 @@ import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import { allPages, blockText, buildSite } from "../src/core/docs/site.js";
 import { GUIDE_SCENES } from "../src/core/docs/examples.js";
 import { graphSvg } from "../src/core/docs/preview.js";
+import { renderPage } from "../src/core/docs/html.js";
+import { VERSION } from "../src/cli/version.js";
 import { nodeColor, pinColor } from "../src/app/palette.js";
 import { wirePath } from "../src/app/geometry.js";
 import { NODE } from "../src/app/layers.js";
@@ -43,6 +45,24 @@ describe("wire pictures", () => {
 		const fades = ids(graphSvg(GUIDE_SCENES.wireFades(), registry, options));
 		const knots = ids(graphSvg(GUIDE_SCENES.wireKnots(), registry, options));
 		for (const id of fades) expect(knots).not.toContain(id);
+	});
+
+	/**
+	 * Ids are page-wide. Members and fields drew two graphs with the same node
+	 * and link ids, so a wire on one took the other's gradient.
+	 */
+	it("defines each gradient id once on every page of the site", () => {
+		const repeated: string[] = [];
+		for (const page of allPages(site)) {
+			const html = renderPage(site, page, { version: VERSION, preview: options, registry });
+			const ids = [...html.matchAll(/<linearGradient id="([^"]+)"/g)].map((m) => m[1]);
+			const seen = new Set<string>();
+			for (const id of ids) {
+				if (seen.has(id)) repeated.push(`${page.slug}: ${id}`);
+				seen.add(id);
+			}
+		}
+		expect(repeated).toEqual([]);
 	});
 
 	it("shows its pictures on the Wires and pins page", () => {
