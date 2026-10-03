@@ -1120,22 +1120,10 @@ class Emitter {
 			// function, and are released with it -- so the next function may call
 			// its own parameter `character` too. Closed by `pop` below.
 			this.names.push();
-			const params = (sig.params ?? []).map((p, i) => {
-				const ident = this.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
-				scope.bindings.set(`${fn.node.id}/p${i}`, ident);
-				return `${ident}: ${luauType(p.type)}`;
-			});
-
-			const returns = sig.returns ?? [];
-			const retType =
-				returns.length === 0
-					? "()"
-					: returns.length === 1
-						? luauType(returns[0].type)
-						: `(${returns.map((r) => luauType(r.type)).join(", ")})`;
+			const { params, returns } = this.signatureOf(sig, fn.node.id, scope);
 
 			this.blank();
-			this.push(`local function ${name}(${params.join(", ")}): ${retType}`, fn.node.id);
+			this.push(`local function ${name}(${params})${returns}`, fn.node.id);
 			this.indent++;
 			this.walk(this.index.execTarget(fn.node.id, "then"), scope);
 			this.indent--;
@@ -1146,6 +1134,32 @@ class Emitter {
 			// Bind the function itself so Module Exports and Connect can wire it.
 			root.bindings.set(`${fn.node.id}/self`, name);
 		}
+	}
+
+	/**
+	 * A function's parameter list and return annotation, as Luau writes them.
+	 *
+	 * Each parameter is named here and bound into `body` under the key Get
+	 * Parameter reads, `<owner>/p<i>`. Types are written only when the mode line
+	 * asks for annotations, the same rule every other annotation follows; the
+	 * return annotation comes back with its colon, or empty.
+	 */
+	private signatureOf(sig: Signature, ownerId: string, body: Scope): { params: string; returns: string } {
+		const params = (sig.params ?? []).map((p, i) => {
+			const ident = this.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
+			body.bindings.set(`${ownerId}/p${i}`, ident);
+			return this.annotates ? `${ident}: ${luauType(p.type)}` : ident;
+		});
+		if (!this.annotates) return { params: params.join(", "), returns: "" };
+
+		const returns = sig.returns ?? [];
+		const written =
+			returns.length === 0
+				? "()"
+				: returns.length === 1
+					? luauType(returns[0].type)
+					: `(${returns.map((r) => luauType(r.type)).join(", ")})`;
+		return { params: params.join(", "), returns: `: ${written}` };
 	}
 
 	private emitMainFlow(root: Scope): void {
@@ -1669,27 +1683,14 @@ class Emitter {
 				// As for a hoisted function: the parameters and the body's locals
 				// are this function's, and go out of scope with its `end`.
 				this.names.push();
-				const params = (sig.params ?? []).map((p, i) => {
-					const arg = this.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
-					body.bindings.set(`${id}/p${i}`, arg);
-					return this.annotates ? `${arg}: ${luauType(p.type)}` : arg;
-				});
-
-				const returns = sig.returns ?? [];
-				const retType =
-					returns.length === 0
-						? "()"
-						: returns.length === 1
-							? luauType(returns[0].type)
-							: `(${returns.map((x) => luauType(x.type)).join(", ")})`;
-				const signature = this.annotates ? `: ${retType}` : "";
+				const { params, returns } = this.signatureOf(sig, id, body);
 
 				// A blank line either side, the same as a hoisted function gets. A
 				// declaration is a change of subject, and two of them run together read
 				// as one long block with an `end` somewhere in the middle of it.
 				// `blank` will not double up, so a run of them gets one line each.
 				this.blank();
-				this.push(`${owner ? "" : "local "}function ${ident}(${params.join(", ")})${signature}`, id);
+				this.push(`${owner ? "" : "local "}function ${ident}(${params})${returns}`, id);
 				this.indent++;
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
@@ -2063,12 +2064,8 @@ class Emitter {
 				// The handler is a function literal, so its parameters and its
 				// locals are its own. Closed after the walk, below.
 				this.names.push();
-				const params = (sig.params ?? []).map((p, i) => {
-					const ident = this.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
-					body.bindings.set(`${id}/p${i}`, ident);
-					return this.annotates ? `${ident}: ${luauType(p.type)}` : ident;
-				});
-				this.push(`${prefix}${signal}:${method}(function(${params.join(", ")})`, id);
+				const { params } = this.signatureOf(sig, id, body);
+				this.push(`${prefix}${signal}:${method}(function(${params})`, id);
 				this.indent++;
 				this.walk(this.index.execTarget(id, "body"), body);
 				this.indent--;
