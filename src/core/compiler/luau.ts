@@ -1,5 +1,6 @@
 /** Luau lexical helpers: identifiers, literals, and safe expression splicing. */
 
+import { significant, tokenize } from "../luau/lexer.js";
 import type { Literal } from "../schema.js";
 import { quoteString } from "./quote.js";
 
@@ -392,134 +393,105 @@ function operandPrecedence(op: string): { left: number; right: number } {
  */
 const BINARY_SPELLINGS = ["==", "~=", "<=", ">=", "//", "..", "<", ">", "+", "-", "*", "/", "%", "^"];
 
-/** A Lua numeral: hexadecimal, or decimal with an optional fraction and exponent. */
-const NUMERAL = /^(?:0[xX][0-9a-fA-F_]+|[0-9][0-9_]*(?:\.[0-9_]*)?(?:[eE][+-]?[0-9]+)?)/;
-
 /**
- * How tightly an expression binds, judged from its text.
+ * How tightly an expression binds, judged from its tokens.
  *
  * Lexical rather than parsed, for the same reason `isAtomic` is: the emitter
  * builds strings, and the alternative is carrying a precedence alongside every
  * expression through every template, fold and split in the file. What it has to
  * be right about is generated Luau, which is one line, well-formed, and made of
- * the operators listed above.
+ * the operators listed above. The tokens are the Luau lexer's, so a string, a
+ * long bracket or a numeral is one token here exactly as it is everywhere else.
  *
  * Returns `PREC.postfix` for anything with no operator at the top level, which
- * is the answer for an identifier, a call chain, a table, and a parenthesised
- * group alike.
+ * is the answer for an identifier, a call chain, a table, a string and a
+ * parenthesised group alike.
  */
 export function expressionPrecedence(expr: string): number {
-	const e = expr.trim();
-	if (e === "") return PREC.postfix;
-	// Luau has no negative literals: `-2` is unary minus applied to `2`, so
-	// `-2 ^ 2` is -4 and `-2` needs brackets as the base of a power.
-	if (/^-\d+(\.\d+)?([eE][+-]?\d+)?$/.test(e)) return PREC.unary;
+	const tokens = significant(tokenize(expr.trim())).filter((t) => t.kind !== "eof");
+	if (tokens.length === 0) return PREC.postfix;
 	// Luau's if-expression and a function literal both run to the end of
 	// themselves, so anything placed after one belongs to it.
-	if (/^(if|function)\b/.test(e)) return PREC.lowest;
+	const first = tokens[0];
+	if (first.kind === "keyword" && (first.text === "if" || first.text === "function")) return PREC.lowest;
 
 	let lowest: number = PREC.postfix;
 	let depth = 0;
 	let previous: "operand" | "operator" = "operator";
+	const atTop = (prec: number) => {
+		if (depth === 0) lowest = Math.min(lowest, prec);
+	};
 
-	for (let i = 0; i < e.length; ) {
-		const c = e[i];
-
-		if (c === '"' || c === "'") {
-			i = skipString(e, i);
-			previous = "operand";
-			continue;
-		}
-		if (c === "[" && (e[i + 1] === "[" || e[i + 1] === "=")) {
-			const end = skipLongString(e, i);
-			if (end > i) {
-				i = end;
+	for (const token of tokens) {
+		const text = token.text;
+		switch (token.kind) {
+			case "keyword":
+				if (text === "and" || text === "or") {
+					atTop(BINARY[text].prec);
+					previous = "operator";
+				} else if (text === "not") {
+					atTop(PREC.unary);
+					previous = "operator";
+				} else {
+					previous = "operand";
+				}
+				continue;
+			// A hole in an interpolated string holds an expression of its own,
+			// so it nests as a bracket does; the string as a whole is an operand.
+			case "interpBegin":
+				depth++;
+				previous = "operator";
+				continue;
+			case "interpMid":
+				previous = "operator";
+				continue;
+			case "interpEnd":
+				depth--;
 				previous = "operand";
 				continue;
-			}
+			case "symbol":
+				break;
+			case "error":
+				// Something unreadable at the top level: assume the worst.
+				atTop(PREC.lowest);
+				previous = "operand";
+				continue;
+			default:
+				// A name, a number, a string.
+				previous = "operand";
+				continue;
 		}
-		if (c === "(" || c === "[" || c === "{") {
+
+		if (text === "(" || text === "[" || text === "{") {
 			depth++;
-			i++;
 			// An opening bracket after an operand is a call or an index, which
 			// leaves us with an operand again; after an operator it opens one.
 			previous = "operand";
-			continue;
-		}
-		if (c === ")" || c === "]" || c === "}") {
+		} else if (text === ")" || text === "]" || text === "}") {
 			depth--;
-			i++;
 			previous = "operand";
-			continue;
-		}
-		if (/\s/.test(c)) {
-			i++;
-			continue;
-		}
-
-		// A numeral, taken whole. Piecemeal, its `.` reads as a field access and
-		// its `e+` as an addition, and `2 ^ 8` came out as "something unknown".
-		if (/[0-9]/.test(c)) {
-			const number = NUMERAL.exec(e.slice(i));
-			i += number ? number[0].length : 1;
-			previous = "operand";
-			continue;
-		}
-
-		if (/[A-Za-z_]/.test(c)) {
-			const word = /^[A-Za-z_][A-Za-z0-9_]*/.exec(e.slice(i))![0];
-			i += word.length;
-			if (depth === 0 && (word === "and" || word === "or")) {
-				lowest = Math.min(lowest, BINARY[word].prec);
-				previous = "operator";
-			} else if (word === "not") {
-				if (depth === 0) lowest = Math.min(lowest, PREC.unary);
-				previous = "operator";
-			} else {
-				previous = "operand";
-			}
-			continue;
-		}
-
-		if (c === ":" && e[i + 1] === ":") {
-			if (depth === 0) lowest = Math.min(lowest, PREC.cast);
-			i += 2;
+		} else if (text === "::") {
+			atTop(PREC.cast);
 			previous = "operator";
-			continue;
-		}
-		if (c === "#") {
-			if (depth === 0) lowest = Math.min(lowest, PREC.unary);
-			i++;
+		} else if (text === "#") {
+			atTop(PREC.unary);
 			previous = "operator";
-			continue;
-		}
-
-		// Before the single characters below, because `.` is the start of `..`
-		// and `=` the start of `==`, and taking either one character at a time
-		// loses the operator entirely.
-		const op = BINARY_SPELLINGS.find((spelling) => e.startsWith(spelling, i));
-		if (op) {
+		} else if (text in BINARY) {
 			// A `-` directly after another operator is unary, and a unary
 			// application binds tighter than any binary one.
-			const unary = op === "-" && previous === "operator";
-			if (depth === 0) lowest = Math.min(lowest, unary ? PREC.unary : BINARY[op].prec);
-			i += op.length;
+			atTop(text === "-" && previous === "operator" ? PREC.unary : BINARY[text].prec);
 			previous = "operator";
-			continue;
-		}
-
-		if (c === ":" || c === "." || c === "," || c === ";" || c === "=") {
-			i++;
-			previous = c === "," || c === ";" ? "operator" : "operand";
+		} else if (text === "," || text === ";") {
 			// A comma at depth 0 is an expression list, not an expression.
-			if (depth === 0 && (c === "," || c === ";")) lowest = PREC.lowest;
-			continue;
+			atTop(PREC.lowest);
+			previous = "operator";
+		} else if (text === "." || text === ":" || text === "=" || text === "...") {
+			previous = "operand";
+		} else {
+			// A symbol that has no place in an expression: assume the worst.
+			atTop(PREC.lowest);
+			previous = "operand";
 		}
-
-		// Something unrecognised at the top level: assume the worst.
-		if (depth === 0) lowest = PREC.lowest;
-		i++;
-		previous = "operand";
 	}
 
 	return lowest;
@@ -535,15 +507,6 @@ function skipString(text: string, start: number): number {
 		if (text[i] === quote) return i + 1;
 	}
 	return text.length;
-}
-
-/** `[[ … ]]`, `[==[ … ]==]`. Returns `start` when this is not one. */
-function skipLongString(text: string, start: number): number {
-	const open = /^\[(=*)\[/.exec(text.slice(start));
-	if (!open) return start;
-	const close = `]${open[1]}]`;
-	const end = text.indexOf(close, start + open[0].length);
-	return end === -1 ? text.length : end + close.length;
 }
 
 /**

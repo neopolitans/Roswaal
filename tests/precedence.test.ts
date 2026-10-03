@@ -56,6 +56,14 @@ describe("how tightly an expression binds", () => {
 		expect(expressionPrecedence('"a" .. "b or c"')).toBe(PREC.concat);
 	});
 
+	/** The lexer's tokens: a long bracket and an interpolated string are one each. */
+	it("reads long brackets and interpolated strings whole", () => {
+		expect(expressionPrecedence("[==[a or b]==]")).toBe(PREC.postfix);
+		expect(expressionPrecedence("`{a + b} or {c}`")).toBe(PREC.postfix);
+		expect(expressionPrecedence("`{a}` .. b")).toBe(PREC.concat);
+		expect(expressionPrecedence("0x1F + 2.5e3")).toBe(PREC.add);
+	});
+
 	it("wraps only when the position needs more than the expression gives", () => {
 		expect(parenAt("not part", PREC.or)).toBe("not part");
 		expect(parenAt("a or b", PREC.and)).toBe("(a or b)");
