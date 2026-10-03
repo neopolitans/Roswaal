@@ -97,7 +97,10 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 			members.current = new Map(found.map((m) => [m.name, m.members]));
 			modules.current = new Map(found.map((m) => [m.name, m]));
 			setInstances({ root: indexFromOutline(outline), ...(self ? { self } : {}) });
-		}, () => {});
+		}, () => {
+			// The file still shows, highlighted; only the hover on requires and
+			// the instance warnings are missing, and they are extras on a view.
+		});
 		return () => {
 			live = false;
 		};

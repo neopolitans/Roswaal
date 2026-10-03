@@ -82,7 +82,10 @@ export function CodeEditor({
 		let live = true;
 		api.instances().then(({ outline }) => {
 			if (live) instancesRef.current = { root: indexFromOutline(outline), ...(selfRef.current ? { self: selfRef.current } : {}) };
-		}, () => {});
+		}, () => {
+			// No outline means no instance completion or warnings, and the
+			// editor works without them; there is nothing to tell anyone.
+		});
 		return () => {
 			live = false;
 		};
@@ -102,7 +105,10 @@ export function CodeEditor({
 				modulesRef.current = new Map(modules.map((m) => [m.name, m]));
 				selfRef.current = self ?? undefined;
 				if (instancesRef.current) instancesRef.current = { ...instancesRef.current, ...(self ? { self } : {}) };
-			}, () => {});
+			}, () => {
+				// The requires stay as last answered: completion and hover offer
+				// less, and the next pause in typing asks again.
+			});
 		}, 400);
 		return () => {
 			live = false;
