@@ -89,7 +89,8 @@ export class NameScope {
 		}
 	}
 
-	private taken(name: string): boolean {
+	/** Whether this block, or any block enclosing it, has claimed `name`. */
+	isTaken(name: string): boolean {
 		return this.frames.some((frame) => frame.has(name));
 	}
 
@@ -97,13 +98,13 @@ export class NameScope {
 	unique(hint: string, fallback = "value"): string {
 		const base = toIdentifier(hint, fallback);
 		const frame = this.frames[this.frames.length - 1];
-		if (!this.taken(base)) {
+		if (!this.isTaken(base)) {
 			frame.add(base);
 			return base;
 		}
 		for (let i = 2; ; i++) {
 			const candidate = `${base}${i}`;
-			if (!this.taken(candidate)) {
+			if (!this.isTaken(candidate)) {
 				frame.add(candidate);
 				return candidate;
 			}

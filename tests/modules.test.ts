@@ -347,6 +347,52 @@ describe("naming a module yourself", () => {
 		expect(out).toContain('local util = require("./combat/util")');
 		expect(out).toContain('local inventoryUtil = require("./inventory/util")');
 	});
+
+	/** Two nodes requiring different modules, both told to call it `util`. */
+	const twoNamed = (firstAs: string, secondAs: string, script: Partial<NodeScript> = {}) => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const first = b.node("module.requireTop");
+		const second = b.node("module.requireTop");
+		b.lit(first, "specifier", { t: "string", v: "./combat/util" });
+		b.lit(first, "as", { t: "string", v: firstAs });
+		b.lit(second, "specifier", { t: "string", v: "./inventory/util" });
+		b.lit(second, "as", { t: "string", v: secondAs });
+		const a = b.node("debug.print");
+		const c = b.node("debug.print");
+		b.link(start, "then", a, "in").link(a, "then", c, "in");
+		b.link(first, "exports", a, "value").link(second, "exports", c, "value");
+		return { ...b.build(), target: "lune" as const, ...script };
+	};
+
+	it("says so when two Require at Top nodes choose one name", () => {
+		const result = compile(twoNamed("util", "util"), registry, {});
+		const errors = result.diagnostics.filter((d) => d.severity === "error");
+		expect(errors.map((d) => d.message).join(" ")).toContain('"util"');
+		expect(errors.map((d) => d.message).join(" ")).toContain("./inventory/util");
+		expect(result.code.match(/local util =/g)).toHaveLength(1);
+	});
+
+	it("says so when Require at Top's As is a declared module's name", () => {
+		const script = twoNamed("combat", "util", {
+			modules: [{ id: "m", name: "util", specifier: "./shared/util" }],
+		});
+		const result = compile(script, registry, {});
+		expect(result.diagnostics.filter((d) => d.severity === "error").map((d) => d.message).join(" "))
+			.toContain('"util"');
+		expect(result.code.match(/local util =/g)).toHaveLength(1);
+	});
+
+	it("says so when Require at Top's As is already a variable", () => {
+		const script = twoNamed("combat", "config", {
+			variables: [{ id: "v", name: "config", type: "number", default: { t: "number", v: 1 } }],
+		});
+		const result = compile(script, registry, {});
+		const errors = result.diagnostics.filter((d) => d.severity === "error");
+		expect(errors).toHaveLength(1);
+		expect(errors[0].message).toContain('"config"');
+		expect(result.code.match(/local config\b/g)).toHaveLength(1);
+	});
 });
 
 /**

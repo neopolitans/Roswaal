@@ -375,6 +375,12 @@ class Emitter {
 	 * case-insensitive.
 	 */
 	private moduleBySpecifier = new Map<string, string>();
+	/**
+	 * Local name -> the specifier that chose it, for every module whose name
+	 * was typed rather than derived: a declaration or a Require at Top's `As`.
+	 * See `claimModuleName`.
+	 */
+	private moduleClaims = new Map<string, string>();
 	private preamble: OutLine[] = [];
 	/** Node id -> the comment whose header goes above its code. */
 	private headers = new Map<string, Comment>();
@@ -575,8 +581,6 @@ class Emitter {
 	private declareModules(): void {
 		// A template has no top of the file to hoist to; it is one expression.
 		if (this.options.inline) return;
-		/** Local name -> the module that asked for it, for the clash below. */
-		const claimed = new Map<string, string>();
 
 		for (const module of this.script.modules ?? []) {
 			const specifier = module.specifier.trim();
@@ -609,15 +613,7 @@ class Emitter {
 			 * if we tell them.
 			 */
 			const wanted = toIdentifier(module.name.trim() || specifierName(specifier) || "module");
-
-			const already = claimed.get(wanted);
-			if (already !== undefined) {
-				this.error(
-					`Two modules are both called "${wanted}" — ${already} and ${specifier}. ` +
-						"Rename one of them: a generated file can only bind the name once.",
-				);
-				continue;
-			}
+			if (!this.claimModuleName(wanted, specifier)) continue;
 			if (PROVIDED_GLOBALS.includes(wanted)) {
 				this.warn(
 					`The module "${wanted}" shadows something Luau provides. That is allowed and is ` +
@@ -625,8 +621,6 @@ class Emitter {
 						"rather than the global.",
 				);
 			}
-			claimed.set(wanted, specifier);
-			this.names.reserve(wanted);
 
 			const ident = wanted;
 			this.moduleIdents.set(module.id, ident);
@@ -658,6 +652,31 @@ class Emitter {
 					}),
 			});
 		}
+	}
+
+	/**
+	 * Claims a module's chosen name for the whole file, or says why it cannot.
+	 *
+	 * Shared by a declaration and Require at Top's `As`, because both take the
+	 * name verbatim and so both can collide: two modules that want `util`, or a
+	 * module named after a variable the file already declares. Either way the
+	 * second `local` would shadow the first, and the graph would say one thing
+	 * while the file did another. A name Luau provides is left to the caller,
+	 * which warns rather than refuses.
+	 */
+	private claimModuleName(name: string, specifier: string, node?: string): boolean {
+		const already = this.moduleClaims.get(name);
+		if (already !== undefined) {
+			this.error(
+				`Two modules are both called "${name}" — ${already} and ${specifier}. ` +
+					"Rename one of them: a generated file can only bind the name once.",
+				node,
+			);
+			return false;
+		}
+		this.moduleClaims.set(name, specifier);
+		this.names.reserve(name);
+		return true;
 	}
 
 	/**
@@ -2448,7 +2467,18 @@ class Emitter {
 					? this.names.uniqueForFile(specifierName(specifier) || "module", "module")
 					: toIdentifier(chosen);
 				if (chosen !== "") {
-					if (PROVIDED_GLOBALS.includes(ident)) {
+					const shadows = PROVIDED_GLOBALS.includes(ident);
+					if (!shadows && !this.moduleClaims.has(ident) && this.names.isTaken(ident)) {
+						this.error(
+							`Require at Top binds "${ident}", which already names something else in ` +
+								"this file. Give the module another name in As.",
+							src.node.id,
+							"as",
+						);
+						return "nil";
+					}
+					if (!this.claimModuleName(ident, specifier, src.node.id)) return "nil";
+					if (shadows) {
 						this.warn(
 							`Require at Top binds "${ident}", which shadows something Luau provides. ` +
 								"Everything below it in this file sees the module rather than the global.",
@@ -2456,7 +2486,6 @@ class Emitter {
 							"as",
 						);
 					}
-					this.names.reserve(ident);
 				}
 				this.requires.set(key, { ident, expression: quoteString(specifier) });
 				return ident;
