@@ -15,8 +15,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { CLI_COMMANDS, CLI_OPTIONS } from "../src/core/docs/cli.js";
-import { blockText, buildSite, findPage, type Block, type DocSite } from "../src/core/docs/site.js";
 import { renderPage } from "../src/core/docs/html.js";
+import { type Block, blockText, buildSite, type DocSite, findPage } from "../src/core/docs/site.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import { DEFAULT_PORT } from "../src/server/app.js";
 
@@ -74,9 +74,16 @@ describe("a page with tabs", () => {
 	});
 
 	it("renders every panel in the static site, and switches with no script", () => {
-		const html = renderPage({ sections: [] } as DocSite, {
-			slug: "test", title: "Test", summary: "Test", blocks: [block],
-		}, { version: "test" });
+		const html = renderPage(
+			{ sections: [] } as DocSite,
+			{
+				slug: "test",
+				title: "Test",
+				summary: "Test",
+				blocks: [block],
+			},
+			{ version: "test" },
+		);
 
 		expect(html).toContain("A form over a node.");
 		expect(html).toContain("A table of literals.");

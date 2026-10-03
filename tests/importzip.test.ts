@@ -11,9 +11,8 @@
 import { deflateRawSync } from "node:zlib";
 
 import { describe, expect, it } from "vitest";
-
-import { zip } from "../src/app/zip.js";
 import { unzip, ZipError } from "../src/app/unzip.js";
+import { zip } from "../src/app/zip.js";
 import { keepEntry, projectFromZip, projectName } from "../src/web/importZip.js";
 import { persistence, type SnapshotStore } from "../src/web/persist.js";
 
@@ -103,9 +102,12 @@ describe("reading a zip", () => {
 	});
 
 	it("says so when a file is not a zip", async () => {
-		await expect(unzip(new TextEncoder().encode("not a zip at all, just words"))).rejects.toBeInstanceOf(ZipError);
-		await expect(unzip(new TextEncoder().encode("not a zip at all, just words"))).rejects
-			.toThrow("not a zip");
+		await expect(
+			unzip(new TextEncoder().encode("not a zip at all, just words")),
+		).rejects.toBeInstanceOf(ZipError);
+		await expect(unzip(new TextEncoder().encode("not a zip at all, just words"))).rejects.toThrow(
+			"not a zip",
+		);
 	});
 });
 
@@ -114,18 +116,28 @@ describe("what counts as the project", () => {
 		projectFromZip(name, await unzip(deflated(files, dirs)));
 
 	it("unwraps the folder around it, and takes its name", async () => {
-		const got = await project("Archive.zip", {
-			"tank-game/roswaal.json": "{}",
-			"tank-game/.roswaal/scripts/Main.nodescript": "{}",
-		}, ["tank-game", "tank-game/src"]);
+		const got = await project(
+			"Archive.zip",
+			{
+				"tank-game/roswaal.json": "{}",
+				"tank-game/.roswaal/scripts/Main.nodescript": "{}",
+			},
+			["tank-game", "tank-game/src"],
+		);
 		expect(got.name).toBe("tank-game");
-		expect(Object.keys(got.files).sort()).toEqual([".roswaal/scripts/Main.nodescript", "roswaal.json"]);
+		expect(Object.keys(got.files).sort()).toEqual([
+			".roswaal/scripts/Main.nodescript",
+			"roswaal.json",
+		]);
 		expect(got.dirs).toEqual(["src"]);
 		expect(got.isProject).toBe(true);
 	});
 
 	it("unwraps more than one folder when that is where the project is", async () => {
-		const got = await project("backup.zip", { "games/tank/roswaal.json": "{}", "games/tank/src/a.luau": "" });
+		const got = await project("backup.zip", {
+			"games/tank/roswaal.json": "{}",
+			"games/tank/src/a.luau": "",
+		});
 		expect(got.name).toBe("tank");
 		expect(Object.keys(got.files).sort()).toEqual(["roswaal.json", "src/a.luau"]);
 	});
@@ -194,8 +206,12 @@ describe("the browser's project, remembered with its name", () => {
 		const store = {
 			text: null as string | null,
 			read: async () => store.text,
-			write: async (next: string) => { store.text = next; },
-			clear: async () => { store.text = null; },
+			write: async (next: string) => {
+				store.text = next;
+			},
+			clear: async () => {
+				store.text = null;
+			},
 		};
 		return store;
 	}
@@ -210,7 +226,11 @@ describe("the browser's project, remembered with its name", () => {
 
 	it("is the demo's when the stored project predates import", async () => {
 		const store = memory();
-		store.text = JSON.stringify({ format: 1, version: "0.72.0", files: { "/demo/roswaal.json": "{}" } });
+		store.text = JSON.stringify({
+			format: 1,
+			version: "0.72.0",
+			files: { "/demo/roswaal.json": "{}" },
+		});
 		expect((await persistence(store, "test").restore())?.root).toBeUndefined();
 	});
 });

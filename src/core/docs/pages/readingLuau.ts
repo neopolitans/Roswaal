@@ -14,7 +14,8 @@ export function readingLuauPage(): DocPage {
 		slug: "reading-luau",
 		narrow: true,
 		title: "Reading your Luau",
-		summary: "What hover, completion and warnings know about Luau: doc comments, required modules and the place's instances.",
+		summary:
+			"What hover, completion and warnings know about Luau: doc comments, required modules and the place's instances.",
 		blocks: [
 			{
 				t: "p",
@@ -62,10 +63,19 @@ export function readingLuauPage(): DocPage {
 				t: "table",
 				head: ["Written", "Followed through"],
 				rows: [
-					["`require(ReplicatedStorage.Shared.Util)`", "The node map, to the file that becomes that instance"],
+					[
+						"`require(ReplicatedStorage.Shared.Util)`",
+						"The node map, to the file that becomes that instance",
+					],
 					["`require(script.Parent.Util)`", "Where this file ends up in the DataModel"],
-					["`require(\"./Util\")`, `require(\"@shared/Util\")`", "The file's own folder, or a `.luaurc` alias"],
-					["`require(ReplicatedStorage.Packages.Flux)`", "Wally's `Packages/`; see [Wally packages](wally-packages)"],
+					[
+						'`require("./Util")`, `require("@shared/Util")`',
+						"The file's own folder, or a `.luaurc` alias",
+					],
+					[
+						"`require(ReplicatedStorage.Packages.Flux)`",
+						"Wally's `Packages/`; see [Wally packages](wally-packages)",
+					],
 				],
 			},
 			{
@@ -81,7 +91,7 @@ export function readingLuauPage(): DocPage {
 				text:
 					"Paths like `ReplicatedStorage.Shared.Util` are checked against the place and the " +
 					"files a node map places. Hover a name for its class and where it is. In the code " +
-					"editor, a dot or `:WaitForChild(\"` offers what is there.",
+					'editor, a dot or `:WaitForChild("` offers what is there.',
 			},
 			{
 				t: "p",

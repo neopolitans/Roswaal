@@ -25,7 +25,7 @@
  * build rather than believed.
  */
 
-import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -65,8 +65,8 @@ function checkClaimedBase(base) {
 	if (claimed === undefined || claimed === base) return;
 	throw new Error(
 		`dist-site was built for a base of ${JSON.stringify(base)}, and this was asked for ` +
-		`${JSON.stringify(claimed)}. Rebuild the editor, or drop the argument and let the ` +
-		"build say where it goes.",
+			`${JSON.stringify(claimed)}. Rebuild the editor, or drop the argument and let the ` +
+			"build say where it goes.",
 	);
 }
 
@@ -78,12 +78,15 @@ async function main() {
 	const editor = join(root, "dist-site");
 	const docs = join(root, "dist-docs");
 
-	for (const [what, where] of [["the editor", editor], ["the documentation", docs]]) {
+	for (const [what, where] of [
+		["the editor", editor],
+		["the documentation", docs],
+	]) {
 		const found = await readdir(where).catch(() => null);
 		if (!found?.length) {
 			throw new Error(
 				`${where} is empty, so ${what} has not been built. ` +
-				"Run `npm run build:site` and `npm run build:docs` first.",
+					"Run `npm run build:site` and `npm run build:docs` first.",
 			);
 		}
 	}
@@ -100,7 +103,11 @@ async function main() {
 	await writeFile(join(out, "index.html"), landingPage(version), "utf8");
 	// The docs' graph viewer, so the landing page's graph pans and zooms with
 	// the editor's own code, then the bar between the graph and its Luau.
-	await writeFile(join(out, "landing.js"), [await buildGraphViewer(), LANDING_SCRIPT].join("\n"), "utf8");
+	await writeFile(
+		join(out, "landing.js"),
+		[await buildGraphViewer(), LANDING_SCRIPT].join("\n"),
+		"utf8",
+	);
 	await writeFile(join(out, "404.html"), notFoundPage(base, version), "utf8");
 
 	// Tells Pages not to run the files through Jekyll, which would drop every

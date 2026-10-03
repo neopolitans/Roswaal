@@ -15,18 +15,17 @@
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import { buildSite, findPage } from "../src/core/docs/site.js";
-import { renderPage } from "../src/core/docs/html.js";
-// @ts-expect-error -- build tooling, plain JS, no declarations to import.
-import { buildThemePaint } from "../scripts/lib/themePaint.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { landingPage } from "../scripts/lib/landing.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { notFoundPage } from "../scripts/lib/notFound.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { buildThemePaint } from "../scripts/lib/themePaint.mjs";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { themeShellPlugin } from "../scripts/theme-shell.mjs";
+import { renderPage } from "../src/core/docs/html.js";
+import { buildSite, findPage } from "../src/core/docs/site.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 
 const registry = createRegistry();
 const site = buildSite(registry, new Set(BUILTIN_NODES.map((d) => d.id)));
@@ -56,8 +55,7 @@ describe("the site's colour scheme", () => {
 			.flatMap((section) => section.pages)
 			.find((page) => page.slug.includes("/"));
 		expect(nested, "no nested page to check").toBeDefined();
-		expect(renderPage(site, nested!, { version: "9.9.9" }))
-			.toContain('src="../theme.js?v=9.9.9"');
+		expect(renderPage(site, nested!, { version: "9.9.9" })).toContain('src="../theme.js?v=9.9.9"');
 	});
 });
 
@@ -114,7 +112,7 @@ describe("the 404 page", () => {
 describe("the app shell", () => {
 	const SHELL = [
 		"<!doctype html>",
-		"<html lang=\"en\">",
+		'<html lang="en">',
 		"\t<head>",
 		"\t\t<title>Roswaal</title>",
 		"\t</head>",
@@ -156,9 +154,7 @@ describe("the app shell", () => {
  * second theme list, a second ranking, or a page that needs it to be readable.
  */
 describe("the site's chrome script", () => {
-	const script = readFileSync(
-		new URL("../scripts/lib/docsChrome.js", import.meta.url), "utf8",
-	);
+	const script = readFileSync(new URL("../scripts/lib/docsChrome.js", import.meta.url), "utf8");
 
 	it("takes its data from the page rather than carrying its own", () => {
 		// The schemes, the fonts and the preference keys all arrive from the

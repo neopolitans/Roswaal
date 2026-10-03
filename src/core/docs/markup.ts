@@ -212,7 +212,9 @@ export function blockStrings(block: Block): BlockString[] {
 
 /** A line of inline markup as the words a reader sees. */
 export function stripMarkup(text: string): string {
-	return parseInline(text).map((run) => run.text).join("");
+	return parseInline(text)
+		.map((run) => run.text)
+		.join("");
 }
 
 /** The words in a block, with markup removed. Feeds the search index. */

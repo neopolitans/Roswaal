@@ -7,15 +7,14 @@
  */
 
 import { describe, expect, it } from "vitest";
-
+import { pinColor } from "../src/app/palette.js";
+import { hoverAt } from "../src/core/luau/hover.js";
 import { membersFor, membersOfType } from "../src/core/members.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import { pinTypeText } from "../src/core/nodes/variables.js";
+import { isInstanceClass } from "../src/core/roblox.js";
 import { NILABLE_PROPERTIES, nilableProperty } from "../src/core/robloxNilable.js";
 import { propertiesOf } from "../src/core/robloxProperties.js";
-import { isInstanceClass } from "../src/core/roblox.js";
-import { hoverAt } from "../src/core/luau/hover.js";
-import { pinColor } from "../src/app/palette.js";
 import { Builder } from "./helpers.js";
 
 const registry = createRegistry();
@@ -31,7 +30,9 @@ describe("the nil-able properties", () => {
 			for (const name of names) {
 				const property = propertiesOf(className).find((p) => p.name === name);
 				expect(property, `${className}.${name}`).toBeDefined();
-				expect(isInstanceClass(property!.type), `${className}.${name}: ${property!.type}`).toBe(true);
+				expect(isInstanceClass(property!.type), `${className}.${name}: ${property!.type}`).toBe(
+					true,
+				);
 			}
 		}
 	});
@@ -47,8 +48,10 @@ describe("the nil-able properties", () => {
 
 describe("Player.Character", () => {
 	it("is offered to Get Member as a Model?", () => {
-		const character = membersOfType({ script: { nodes: [], links: [], target: "roblox" }, registry }, "Player")
-			.find((m) => m.name === "Character");
+		const character = membersOfType(
+			{ script: { nodes: [], links: [], target: "roblox" }, registry },
+			"Player",
+		).find((m) => m.name === "Character");
 		expect(character?.type).toBe("Model?");
 	});
 
@@ -56,7 +59,9 @@ describe("Player.Character", () => {
 		const pin = outputOf("value.member", "result", { member: "Character", type: "Model?" });
 		expect(pin.type).toBe("Model");
 		expect(pinTypeText(pin)).toBe("Model?");
-		expect(pinTypeText(outputOf("value.member", "result", { member: "UserId", type: "number" }))).toBe("number");
+		expect(
+			pinTypeText(outputOf("value.member", "result", { member: "UserId", type: "number" })),
+		).toBe("number");
 	});
 
 	it("still offers a Model's members", () => {
@@ -66,7 +71,9 @@ describe("Player.Character", () => {
 		const read = b.node("value.member");
 		b.link(player, "player", character, "object");
 		b.link(character, "result", read, "object");
-		expect(membersFor({ script: b.build(), registry }, read).map((m) => m.name)).toContain("PrimaryPart");
+		expect(membersFor({ script: b.build(), registry }, read).map((m) => m.name)).toContain(
+			"PrimaryPart",
+		);
 	});
 
 	it("is a Model? on hover", () => {

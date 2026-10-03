@@ -16,23 +16,27 @@
  * same reason: it lives in `src/app` and depends on CodeMirror.
  */
 
-import type { Block, DocPage, DocSection, DocSite } from "./site.js";
 import type { Registry } from "../nodes/index.js";
-import {
-	allPages, isPageLink, parseInline, stripMarkup, TAG_LABELS, neighbours, type Neighbour,
-} from "./site.js";
-import { graphSvg, previewSvg, type PreviewOptions } from "./preview.js";
-import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
-import {
-	controlKey, legendOf, TOOLBAR_HINT, toolbarHtml, type ToolbarArt,
-} from "./toolbars.js";
-import { layoutHtml, listedRegions } from "./layouts.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
-import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "./reviews.js";
-import { mapFigure, mapFigureHtml } from "./mapFigure.js";
-import { noteHeadHtml } from "./notes.js";
 import { graphViews } from "./graphViews.js";
+import { layoutHtml, listedRegions } from "./layouts.js";
+import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
+import { mapFigure, mapFigureHtml } from "./mapFigure.js";
 import { nodeCodeHtml } from "./nodeCode.js";
+import { noteHeadHtml } from "./notes.js";
+import { graphSvg, type PreviewOptions, previewSvg } from "./preview.js";
+import { REVIEW_DETAILS, REVIEW_LABELS, type Review, reviewLine } from "./reviews.js";
+import type { Block, DocPage, DocSection, DocSite } from "./site.js";
+import {
+	allPages,
+	isPageLink,
+	type Neighbour,
+	neighbours,
+	parseInline,
+	stripMarkup,
+	TAG_LABELS,
+} from "./site.js";
+import { controlKey, legendOf, TOOLBAR_HINT, type ToolbarArt, toolbarHtml } from "./toolbars.js";
 
 export interface RenderOptions {
 	/** Turns Luau into HTML. Returns escaped text when absent. */
@@ -146,10 +150,14 @@ function inline(text: string, up = ""): string {
 		.map((run) => {
 			const body = escapeHtml(run.text);
 			switch (run.t) {
-				case "text": return body;
-				case "code": return `<code>${body}</code>`;
-				case "strong": return `<strong>${body}</strong>`;
-				case "em": return `<em>${body}</em>`;
+				case "text":
+					return body;
+				case "code":
+					return `<code>${body}</code>`;
+				case "strong":
+					return `<strong>${body}</strong>`;
+				case "em":
+					return `<em>${body}</em>`;
 				case "link":
 					// Another page of these docs is a file beside this one; written
 					// as its bare slug, it resolved to an address that did not exist.
@@ -162,7 +170,8 @@ function inline(text: string, up = ""): string {
 }
 
 function swatchStyle(
-	pin: { type?: string; kind: "exec" | "data" }, options: RenderOptions,
+	pin: { type?: string; kind: "exec" | "data" },
+	options: RenderOptions,
 ): string {
 	const colour = options.pinColor?.(pin.type, pin.kind);
 	return colour ? ` style="background:${escapeHtml(colour)}"` : "";
@@ -170,7 +179,10 @@ function swatchStyle(
 
 /** Shared with the in-app outline, so an anchor means the same in both. */
 export function headingId(text: string): string {
-	return `h-${text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+	return `h-${text
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "")}`;
 }
 
 /** What one page's render keeps between its blocks. */
@@ -190,12 +202,17 @@ function drawing(preview: PreviewOptions, page: PageState): PreviewOptions {
 }
 
 function renderBlock(
-	block: Block, options: RenderOptions, up = "", page: PageState = { drawn: 0 },
+	block: Block,
+	options: RenderOptions,
+	up = "",
+	page: PageState = { drawn: 0 },
 ): string {
 	switch (block.t) {
 		case "h": {
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
-			const badge = block.badge ? `<span class="badge latest">${escapeHtml(block.badge)}</span>` : "";
+			const badge = block.badge
+				? `<span class="badge latest">${escapeHtml(block.badge)}</span>`
+				: "";
 			return block.level === 2
 				? `<h2 id="${headingId(block.text)}">${inline(block.text, up)}${badge}${aside}</h2>`
 				: `<h${block.level}>${inline(block.text, up)}${badge}${aside}</h${block.level}>`;
@@ -259,27 +276,43 @@ function renderBlock(
 			// editor opens it.
 			const views = graphViews(block.script);
 			if (views.length > 0) {
-				return renderBlock({
-					t: "graphs",
-					graphs: views.map((view, i) => ({ ...view, ...(i === 0 && block.caption ? { caption: block.caption } : {}) })),
-					...(block.panel ? { panel: block.panel } : {}),
-					...(block.asAuthored ? { asAuthored: true } : {}),
-				}, options, up, page);
+				return renderBlock(
+					{
+						t: "graphs",
+						graphs: views.map((view, i) => ({
+							...view,
+							...(i === 0 && block.caption ? { caption: block.caption } : {}),
+						})),
+						...(block.panel ? { panel: block.panel } : {}),
+						...(block.asAuthored ? { asAuthored: true } : {}),
+					},
+					options,
+					up,
+					page,
+				);
 			}
-			const svg = graphSvg(block.script, options.registry, drawing(options.preview, page), block.asAuthored);
+			const svg = graphSvg(
+				block.script,
+				options.registry,
+				drawing(options.preview, page),
+				block.asAuthored,
+			);
 			if (svg === "") return "";
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
 			// What the graph declares, to the left of it. Absent on a graph
 			// that declares nothing, which is most of them.
-			const panel = block.panel && options.toolbars
-				? `<div class="graph-declares">` +
-					`${toolbarHtml(block.panel, { ...options.toolbars, version: options.version })}</div>`
-				: "";
+			const panel =
+				block.panel && options.toolbars
+					? `<div class="graph-declares">` +
+						`${toolbarHtml(block.panel, { ...options.toolbars, version: options.version })}</div>`
+					: "";
 			// The viewport clips; the script that makes it pan and zoom is an
 			// enhancement, and without it this is still a readable picture.
-			return `<figure class="docs-preview graph${panel ? " with-panel" : ""}">` +
+			return (
+				`<figure class="docs-preview graph${panel ? " with-panel" : ""}">` +
 				`${panel}<div class="graph-viewport">${svg}</div>` +
-				`${nodeCodeHtml(block.script, options.highlight)}${caption}</figure>`;
+				`${nodeCodeHtml(block.script, options.highlight)}${caption}</figure>`
+			);
 		}
 		case "graphs": {
 			if (!options.preview || !options.registry) return "";
@@ -289,64 +322,82 @@ function renderBlock(
 			const name = `graphs-${block.graphs.map((one) => one.id).join("-")}`;
 			const drawn = block.graphs.map((one) => ({
 				one,
-				svg: graphSvg(one.script, options.registry!, drawing(options.preview!, page), block.asAuthored),
+				svg: graphSvg(
+					one.script,
+					options.registry!,
+					drawing(options.preview!, page),
+					block.asAuthored,
+				),
 			}));
 			if (drawn.some(({ svg }) => svg === "")) return "";
 			const inputs = drawn
-				.map(({ one }, i) =>
-					`<input type="radio" name="${escapeHtml(name)}" ` +
-					`id="${escapeHtml(`${name}-${one.id}`)}"${i === 0 ? " checked" : ""}>`)
+				.map(
+					({ one }, i) =>
+						`<input type="radio" name="${escapeHtml(name)}" ` +
+						`id="${escapeHtml(`${name}-${one.id}`)}"${i === 0 ? " checked" : ""}>`,
+				)
 				.join("");
 			const labels = drawn
-				.map(({ one }) =>
-					`<label for="${escapeHtml(`${name}-${one.id}`)}">${escapeHtml(one.title)}</label>`)
+				.map(
+					({ one }) =>
+						`<label for="${escapeHtml(`${name}-${one.id}`)}">${escapeHtml(one.title)}</label>`,
+				)
 				.join("");
 			// What the file declares, once, level with the graphs: a function's
 			// graph reads the same variables the script's own does. A column of
 			// the tabs block rather than of each figure, so the tab bar sits over
 			// the graph it switches and not over the panel.
-			const declares = block.panel && options.toolbars
-				? `<div class="graph-declares">` +
-					`${toolbarHtml(block.panel, { ...options.toolbars, version: options.version })}</div>`
-				: "";
+			const declares =
+				block.panel && options.toolbars
+					? `<div class="graph-declares">` +
+						`${toolbarHtml(block.panel, { ...options.toolbars, version: options.version })}</div>`
+					: "";
 			const panels = drawn
-				.map(({ one, svg }) =>
-					`<figure class="docs-preview graph docs-graph-panel">` +
-					`<div class="graph-viewport">${svg}</div>${nodeCodeHtml(one.script, options.highlight)}` +
-					`${one.caption ? `<figcaption>${inline(one.caption, up)}</figcaption>` : ""}` +
-					`</figure>`)
+				.map(
+					({ one, svg }) =>
+						`<figure class="docs-preview graph docs-graph-panel">` +
+						`<div class="graph-viewport">${svg}</div>${nodeCodeHtml(one.script, options.highlight)}` +
+						`${one.caption ? `<figcaption>${inline(one.caption, up)}</figcaption>` : ""}` +
+						`</figure>`,
+				)
 				.join("");
-			return `<div class="docs-graph-tabs${declares ? " with-panel" : ""}">` +
+			return (
+				`<div class="docs-graph-tabs${declares ? " with-panel" : ""}">` +
 				`${block.label ? `<p class="docs-tabs-label">${inline(block.label, up)}</p>` : ""}` +
 				`${inputs}${declares}<div class="docs-tab-bar">${labels}</div>` +
-				`<div class="docs-tab-panels">${panels}</div></div>`;
+				`<div class="docs-tab-panels">${panels}</div></div>`
+			);
 		}
 		case "toggle": {
 			// `data-pref` is what the script reads; the checkbox is checked by that
 			// script rather than here, because the answer lives in the reader's own
 			// storage and this markup is the same for everybody.
-			return `<label class="docs-toggle"><input type="checkbox"` +
+			return (
+				`<label class="docs-toggle"><input type="checkbox"` +
 				` data-pref="${escapeHtml(block.pref)}">` +
 				`<span class="docs-toggle-label">${inline(block.label, up)}</span>` +
 				`${block.hint ? `<span class="docs-toggle-hint">${inline(block.hint, up)}</span>` : ""}` +
-				`</label>`;
+				`</label>`
+			);
 		}
 		case "nodemap": {
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
 			// One string, built in core, for the reason the toolbars are: the
 			// panel is chrome, and two hand-written copies of chrome drift.
-			return `<figure class="docs-map">` +
+			return (
+				`<figure class="docs-map">` +
 				`<div class="docs-map-body">${mapFigureHtml(mapFigure(block.map))}</div>` +
-				`${caption}</figure>`;
+				`${caption}</figure>`
+			);
 		}
 		case "preview": {
 			if (!options.preview) return "";
 			const svgs = block.nodes
-				.map((node) => `<div class="node-preview-frame">${previewSvg(node, options.preview!)}</div>`)
+				.map(
+					(node) => `<div class="node-preview-frame">${previewSvg(node, options.preview!)}</div>`,
+				)
 				.join("");
-			const caption = block.caption
-				? `<figcaption>${inline(block.caption, up)}</figcaption>`
-				: "";
+			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
 			return `<figure class="docs-preview"><div class="row">${svgs}</div>${caption}</figure>`;
 		}
 		case "layout": {
@@ -378,11 +429,17 @@ function renderBlock(
 			// where it starts. See `src/app/docsWalk.ts` for the stepping.
 			const art = options.toolbars;
 			const frames = block.steps
-				.map((step, i) =>
-					`<div class="docs-walk-frame"${step.point ? ` data-point="${escapeHtml(controlKey(step.point))}"` : ""}` +
-					`${i > 0 ? " hidden" : ""}>` +
-					(art ? step.picture.map((bar) => toolbarHtml(bar, { ...art, version: options.version })).join("") : "") +
-					`</div>`)
+				.map(
+					(step, i) =>
+						`<div class="docs-walk-frame"${step.point ? ` data-point="${escapeHtml(controlKey(step.point))}"` : ""}` +
+						`${i > 0 ? " hidden" : ""}>` +
+						(art
+							? step.picture
+									.map((bar) => toolbarHtml(bar, { ...art, version: options.version }))
+									.join("")
+							: "") +
+						`</div>`,
+				)
 				.join("");
 			const steps = block.steps.map((step) => `<li>${inline(step.text, up)}</li>`).join("");
 			return (
@@ -443,7 +500,9 @@ function renderBlock(
 						`</section>`,
 				)
 				.join("");
-			const label = block.label ? `<div class="docs-tabs-label">${inline(block.label, up)}</div>` : "";
+			const label = block.label
+				? `<div class="docs-tabs-label">${inline(block.label, up)}</div>`
+				: "";
 			return (
 				`<div class="docs-tabs">${label}${inputs}` +
 				`<div class="docs-tab-bar" role="tablist">${labels}</div>` +
@@ -489,11 +548,12 @@ function renderPins(block: Block & { t: "pins" }, options: RenderOptions, up: st
 			 * Either way it says the list is not a gate, because that is the thing
 			 * a reader would otherwise have to find out by trying.
 			 */
-			const choices = !pin.options || pin.options.length === 0
-				? ""
-				: pin.options.length <= NAMEABLE_OPTIONS
-					? ` One of ${escapeHtml(pin.options.join(", "))} — or anything else, typed in.`
-					: ` Offers ${pin.options.length} values to pick from, and takes anything else typed in.`;
+			const choices =
+				!pin.options || pin.options.length === 0
+					? ""
+					: pin.options.length <= NAMEABLE_OPTIONS
+						? ` One of ${escapeHtml(pin.options.join(", "))} — or anything else, typed in.`
+						: ` Offers ${pin.options.length} values to pick from, and takes anything else typed in.`;
 
 			const detail =
 				pin.description || pin.splitModes.length > 0 || choices
@@ -510,8 +570,10 @@ function renderPins(block: Block & { t: "pins" }, options: RenderOptions, up: st
 				`<span class="docs-swatch ${pin.kind}"${swatchStyle(pin, options)}></span>` +
 				`<span class="name">${escapeHtml(pin.name || pin.id)}</span>` +
 				`<span class="sep">:</span>` +
-				`<span class="type">${escapeHtml(pin.kind === "exec" ? "execution" : pin.type ?? "any")}</span>` +
-				(pin.default !== undefined ? `<span class="def">= <code>${escapeHtml(pin.default)}</code></span>` : "") +
+				`<span class="type">${escapeHtml(pin.kind === "exec" ? "execution" : (pin.type ?? "any"))}</span>` +
+				(pin.default !== undefined
+					? `<span class="def">= <code>${escapeHtml(pin.default)}</code></span>`
+					: "") +
 				badges +
 				`</div>${detail}</li>`
 			);
@@ -668,12 +730,13 @@ function runtimeBadge(page: DocPage): string {
 	// text that goes in the field to declare it — "Lune" in front of it would
 	// be the part carrying no information.
 	if (page.runtimeVia === undefined) return own;
-	return own +
+	return (
+		own +
 		`<span class="badge runtime lune"` +
 		` title="Lune has this through ${escapeHtml(page.runtimeVia)}, which the graph must require">` +
-		`${escapeHtml(page.runtimeVia)}</span>`;
+		`${escapeHtml(page.runtimeVia)}</span>`
+	);
 }
-
 
 /**
  * The pages either side of this one, at the foot of it.
@@ -710,8 +773,12 @@ export function renderPage(site: DocSite, page: DocPage, options: RenderOptions)
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-${options.noindex ? `<meta name="robots" content="noindex">
-` : ""}<title>${escapeHtml(page.title)} · Roswaal docs</title>
+${
+	options.noindex
+		? `<meta name="robots" content="noindex">
+`
+		: ""
+}<title>${escapeHtml(page.title)} · Roswaal docs</title>
 <meta name="description" content="${escapeHtml(stripMarkup(page.summary))}">
 ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(options.logo.icon)}">\n` : ""}<link rel="stylesheet" href="${up}theme.css${stamp(options)}">
 <script src="${up}theme.js${stamp(options)}"></script>

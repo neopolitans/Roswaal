@@ -21,9 +21,9 @@
  * back to Get Field, which is the node for exactly that value.
  */
 
-import type { NodeScript } from "./schema.js";
-import { typeShapeOf } from "./nodes/flow.js";
 import { parseType } from "./luau/parser.js";
+import { typeShapeOf } from "./nodes/flow.js";
+import type { NodeScript } from "./schema.js";
 
 /** One named field of a table type. */
 export interface TypeField {
@@ -89,14 +89,14 @@ export function fieldsOfDeclaration(
  * answer from "there is no such type" — one sends you to Get Field, the other
  * is a mistake in the graph.
  */
-export function declaredTypeFields(
-	script: Pick<NodeScript, "nodes">,
-): Map<string, TypeField[]> {
+export function declaredTypeFields(script: Pick<NodeScript, "nodes">): Map<string, TypeField[]> {
 	const out = new Map<string, TypeField[]>();
 	for (const node of script.nodes) {
 		if (node.def !== "type.declareTop" && node.def !== "type.declareHere") continue;
 		const config = (node.config ?? {}) as {
-			name?: string; shape?: string; definition?: string;
+			name?: string;
+			shape?: string;
+			definition?: string;
 			fields?: { name?: string; type?: string }[];
 		};
 		const name = (config.name ?? "").trim();

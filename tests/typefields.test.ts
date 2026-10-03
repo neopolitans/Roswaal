@@ -26,7 +26,10 @@ describe("fieldsOfTableType", () => {
 	});
 
 	it("takes ; as a separator, a trailing one, and read/write modifiers", () => {
-		expect(fieldsOfTableType("{ read id: number; name: string, }").map((f) => f.name)).toEqual(["id", "name"]);
+		expect(fieldsOfTableType("{ read id: number; name: string, }").map((f) => f.name)).toEqual([
+			"id",
+			"name",
+		]);
 	});
 
 	it("gives nothing for what has no fixed field list", () => {

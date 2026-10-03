@@ -32,14 +32,22 @@ export function growthRule(def: NodeDef | undefined): GrowthRule | null {
 	// still comes from the definition so it lives in one place.
 	if (def.id === "table.dictionary" && def.variadic) {
 		return {
-			field: "args", kind: "count", prefix: "p", label: "pairs",
-			min: def.variadic.min, max: def.variadic.max,
+			field: "args",
+			kind: "count",
+			prefix: "p",
+			label: "pairs",
+			min: def.variadic.min,
+			max: def.variadic.max,
 		};
 	}
 	if (def.variadic) {
 		return {
-			field: "args", kind: "count", prefix: "a", label: "operands",
-			min: def.variadic.min, max: def.variadic.max,
+			field: "args",
+			kind: "count",
+			prefix: "a",
+			label: "operands",
+			min: def.variadic.min,
+			max: def.variadic.max,
 		};
 	}
 	switch (def.id) {
@@ -61,7 +69,9 @@ export function growthRule(def: NodeDef | undefined): GrowthRule | null {
 }
 
 export function currentArity(
-	node: Pick<GraphNode, "config">, def: NodeDef | undefined, rule: GrowthRule,
+	node: Pick<GraphNode, "config">,
+	def: NodeDef | undefined,
+	rule: GrowthRule,
 ): number {
 	const config = (node.config ?? {}) as Record<string, unknown>;
 	if (rule.kind === "list") return (config[rule.field] as unknown[] | undefined)?.length ?? 0;
@@ -71,7 +81,8 @@ export function currentArity(
 
 /** Which of a node's header buttons are live, or null for a node that cannot grow. */
 export function growthState(
-	def: NodeDef | undefined, config: GraphNode["config"],
+	def: NodeDef | undefined,
+	config: GraphNode["config"],
 ): { canAdd: boolean; canRemove: boolean } | null {
 	const rule = growthRule(def);
 	if (!rule) return null;

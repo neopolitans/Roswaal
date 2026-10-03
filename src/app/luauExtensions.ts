@@ -13,20 +13,23 @@
  */
 
 import {
-	autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, type CompletionSource,
+	autocompletion,
+	type CompletionSource,
+	closeBrackets,
+	closeBracketsKeymap,
+	completionKeymap,
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { syntaxHighlighting } from "@codemirror/language";
 import { lintGutter } from "@codemirror/lint";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
-
-import type { TableMember } from "../core/luau/infer.js";
 import type { ModuleInfo } from "../core/luau/hover.js";
+import type { TableMember } from "../core/luau/infer.js";
 import type { InstanceNode } from "../core/luau/instances.js";
 import type { Target } from "../core/schema.js";
 import { luauHover } from "./luauHover.js";
-import { luauLint, luauWarnings, type LuauChecker } from "./luauLint.js";
+import { type LuauChecker, luauLint, luauWarnings } from "./luauLint.js";
 import { luauLanguage } from "./luauMode.js";
 import { luauSignature } from "./luauSignature.js";
 import { editorTheme, luauHighlight } from "./luauTheme.js";
@@ -91,13 +94,15 @@ export function luauExtensions(options: LuauExtensionOptions = {}): Extension[] 
 		if (completion) extensions.push(autocompletion({ override: [completion], icons: false }));
 		// Completion and bracket keymaps first: they only claim keys while
 		// they are actually active, and indentWithTab must not shadow them.
-		extensions.push(keymap.of([
-			...closeBracketsKeymap,
-			...completionKeymap,
-			...defaultKeymap,
-			...historyKeymap,
-			indentWithTab,
-		]));
+		extensions.push(
+			keymap.of([
+				...closeBracketsKeymap,
+				...completionKeymap,
+				...defaultKeymap,
+				...historyKeymap,
+				indentWithTab,
+			]),
+		);
 	}
 
 	extensions.push(luauLanguage, syntaxHighlighting(luauHighlight));
@@ -109,9 +114,11 @@ export function luauExtensions(options: LuauExtensionOptions = {}): Extension[] 
 	if (warnings) extensions.push(luauWarnings(warnings));
 	extensions.push(editorTheme);
 	if (onChange) {
-		extensions.push(EditorView.updateListener.of((update) => {
-			if (update.docChanged) onChange(update.state.doc.toString());
-		}));
+		extensions.push(
+			EditorView.updateListener.of((update) => {
+				if (update.docChanged) onChange(update.state.doc.toString());
+			}),
+		);
 	}
 	extensions.push(...(options.extra ?? []));
 	return extensions;

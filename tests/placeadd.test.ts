@@ -26,7 +26,10 @@ const place = (compression: Compression) =>
 	buildPlace(
 		[
 			service("ServerScriptService", [
-				script("Script", "Main", "print('main')", { ...scriptProps("a"), RunContext: { type: 18, value: 0 } }),
+				script("Script", "Main", "print('main')", {
+					...scriptProps("a"),
+					RunContext: { type: 18, value: 0 },
+				}),
 			]),
 			service("ReplicatedStorage", [
 				{
@@ -46,7 +49,10 @@ const place = (compression: Compression) =>
 	);
 
 const entry = (file: string, path: string[], text: string, isModule = true) => ({
-	file, text, isModule, targets: [{ path }],
+	file,
+	text,
+	isModule,
+	targets: [{ path }],
 });
 
 describe("adding scripts to a binary place", () => {
@@ -62,7 +68,11 @@ describe("adding scripts to a binary place", () => {
 				entry("Pack/Child.luau", ["ReplicatedStorage", "Pack", "Child"], "return 'child'"),
 			]);
 			expect([...update.addedFiles].sort()).toEqual([
-				"Client.client.luau", "New.luau", "Pack/Child.luau", "Pack/init.luau", "Thing.luau",
+				"Client.client.luau",
+				"New.luau",
+				"Pack/Child.luau",
+				"Pack/init.luau",
+				"Thing.luau",
 			]);
 			const out = addInstances(writeSources(bytes, doc, update.changes), doc, update.added);
 			const back = readRbx(out);
@@ -70,7 +80,9 @@ describe("adding scripts to a binary place", () => {
 
 			// Five scripts and two folders, and the header says so.
 			expect(back.instances.length).toBe(doc.instances.length + 7);
-			expect(new DataView(out.buffer, out.byteOffset).getInt32(20, true)).toBe(doc.instances.length + 7);
+			expect(new DataView(out.buffer, out.byteOffset).getInt32(20, true)).toBe(
+				doc.instances.length + 7,
+			);
 			expect(at("ReplicatedStorage.Shared.New").className).toBe("ModuleScript");
 			expect(stringProp(at("ReplicatedStorage.Shared.New"), "Source")).toBe("return 'new'");
 			expect(at("ReplicatedStorage.Deep").className).toBe("Folder");
@@ -95,7 +107,9 @@ describe("adding scripts to a binary place", () => {
 			expect(util.props.get("UniqueId")?.value).toBe("b".repeat(32));
 			expect(util.props.get("SourceAssetId")?.value).toBe(123n);
 			expect(new TextDecoder().decode(util.props.get("Tags")!.value as Uint8Array)).toBe("tagged");
-			expect(new TextDecoder().decode(util.props.get("AttributesSerialize")!.value as Uint8Array)).toBe("attrs");
+			expect(
+				new TextDecoder().decode(util.props.get("AttributesSerialize")!.value as Uint8Array),
+			).toBe("attrs");
 		});
 	}
 
@@ -113,11 +127,21 @@ describe("adding scripts to a binary place", () => {
 	it("refuses a class it cannot add to rather than half-writing it", () => {
 		const bytes = buildPlace([
 			service("ServerScriptService", [
-				script("Script", "Main", "print(1)", { Odd: { type: 21, value: [[0, 1, 0], [1, 1, 0]] } }),
+				script("Script", "Main", "print(1)", {
+					Odd: {
+						type: 21,
+						value: [
+							[0, 1, 0],
+							[1, 1, 0],
+						],
+					},
+				}),
 			]),
 		]);
 		const doc = readRbx(bytes);
-		const update = planPlaceUpdate(doc, [entry("New.server.luau", ["ServerScriptService", "New"], "print(2)", false)]);
+		const update = planPlaceUpdate(doc, [
+			entry("New.server.luau", ["ServerScriptService", "New"], "print(2)", false),
+		]);
 		expect(() => addInstances(bytes, doc, update.added)).toThrow(/Script\.Odd/);
 	});
 });
@@ -129,7 +153,9 @@ describe("adding scripts to an XML place", () => {
 			'<string name="Name">ReplicatedStorage</string></Properties></Item></roblox>';
 		const bytes = new TextEncoder().encode(XML);
 		const doc = readRbx(bytes);
-		const update = planPlaceUpdate(doc, [entry("Deep/Thing.luau", ["ReplicatedStorage", "Deep", "Thing"], "return 'a < b'")]);
+		const update = planPlaceUpdate(doc, [
+			entry("Deep/Thing.luau", ["ReplicatedStorage", "Deep", "Thing"], "return 'a < b'"),
+		]);
 		const back = readRbx(addInstances(bytes, doc, update.added));
 		const thing = back.instances.find((i) => i.name === "Thing")!;
 		expect(pathOf(thing)).toEqual(["ReplicatedStorage", "Deep", "Thing"]);

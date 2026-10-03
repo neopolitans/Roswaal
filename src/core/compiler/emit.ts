@@ -43,7 +43,10 @@ export interface EmitResult {
 
 /** Writes a script's generated file: header, declarations, flow and return. */
 export function emit(
-	script: NodeScript, registry: Registry, sourceHash: string, options: EmitOptions = {},
+	script: NodeScript,
+	registry: Registry,
+	sourceHash: string,
+	options: EmitOptions = {},
 ): EmitResult {
 	return new Emitter(script, registry, sourceHash, options).run();
 }
@@ -121,13 +124,11 @@ export interface LogicEnds {
  * See `compileLogic` in `logic.ts`, which is the only caller and the place the
  * rules about what a logic graph may hold are kept.
  */
-export function emitLogic(
-	script: NodeScript,
-	registry: Registry,
-	shape: LogicEnds,
-): LogicEmit {
-	return new Emitter(script, registry, "", { inline: true, expressionsOnly: shape.pure }).runLogic(shape);
+export function emitLogic(script: NodeScript, registry: Registry, shape: LogicEnds): LogicEmit {
+	return new Emitter(script, registry, "", { inline: true, expressionsOnly: shape.pure }).runLogic(
+		shape,
+	);
 }
 
-export { hashString } from "./hash.js";
 export { logicInputName, logicOutputName } from "./emitScope.js";
+export { hashString } from "./hash.js";

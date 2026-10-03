@@ -84,16 +84,20 @@ export async function buildLuneDemo() {
 
 	for (const demo of DEMOS) {
 		const script = demo.script();
-		written.push(await write(
-			`.roswaal/scripts/${demo.slug}.nodescript`,
-			`${JSON.stringify(script, null, 2)}\n`,
-		));
+		written.push(
+			await write(
+				`.roswaal/scripts/${demo.slug}.nodescript`,
+				`${JSON.stringify(script, null, 2)}\n`,
+			),
+		);
 	}
 	return written;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`.replace(/\\/g, "/")
-	|| process.argv[1]?.endsWith("build-lune-demo.mjs")) {
+if (
+	import.meta.url === `file://${process.argv[1]}`.replace(/\\/g, "/") ||
+	process.argv[1]?.endsWith("build-lune-demo.mjs")
+) {
 	const written = await buildLuneDemo();
 	console.log(`lune demo: ${written.length} files -> examples/lune-demo/`);
 	console.log("now run `roswaal compile` inside it to write src/");

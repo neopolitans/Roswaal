@@ -8,12 +8,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { NODE_ALIASES, aliasScore } from "../src/core/aliases.js";
-import { createRegistry } from "../src/core/nodes/index.js";
-import { classify } from "../src/core/nodes/runtimes.js";
 import { score as menuScore } from "../src/app/menuSearch.js";
 import { score as pickerScore } from "../src/app/NodePicker.jsx";
+import { aliasScore, NODE_ALIASES } from "../src/core/aliases.js";
+import { createRegistry } from "../src/core/nodes/index.js";
+import { classify } from "../src/core/nodes/runtimes.js";
 
 const registry = createRegistry();
 
@@ -46,21 +45,44 @@ const library = [...registry.values()];
 function top(query: string, count: number): { menu: string[]; picker: string[] } {
 	const q = query.toLowerCase();
 	const rank = (scored: { id: string; score: number }[]) =>
-		scored.filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, count).map((x) => x.id);
+		scored
+			.filter((x) => x.score > 0)
+			.sort((a, b) => b.score - a.score)
+			.slice(0, count)
+			.map((x) => x.id);
 	return {
-		menu: rank(library.map((def) => ({
-			id: def.id,
-			score: menuScore({
-				key: def.id, title: def.title, category: def.category, color: "",
-				pure: def.pure === true, runtime: classify(def), def,
-			}, q),
-		}))),
-		picker: rank(library.map((def) => ({
-			id: def.id,
-			score: pickerScore({
-				key: def.id, title: def.title, category: def.category, def, filter: classify(def),
-			}, q),
-		}))),
+		menu: rank(
+			library.map((def) => ({
+				id: def.id,
+				score: menuScore(
+					{
+						key: def.id,
+						title: def.title,
+						category: def.category,
+						color: "",
+						pure: def.pure === true,
+						runtime: classify(def),
+						def,
+					},
+					q,
+				),
+			})),
+		),
+		picker: rank(
+			library.map((def) => ({
+				id: def.id,
+				score: pickerScore(
+					{
+						key: def.id,
+						title: def.title,
+						category: def.category,
+						def,
+						filter: classify(def),
+					},
+					q,
+				),
+			})),
+		),
 	};
 }
 
@@ -91,12 +113,31 @@ describe("searching by an alias", () => {
 
 	it("does not reach a preset, whose title is a name somebody chose", () => {
 		const def = registry.get("function.entry")!;
-		expect(menuScore({
-			key: "preset", title: "greet", category: def.category, color: "",
-			pure: false, runtime: "graph", def,
-		}, "define function")).toBe(0);
-		expect(pickerScore({
-			key: "preset", title: "greet", category: def.category, def, filter: "graph",
-		}, "define function")).toBe(0);
+		expect(
+			menuScore(
+				{
+					key: "preset",
+					title: "greet",
+					category: def.category,
+					color: "",
+					pure: false,
+					runtime: "graph",
+					def,
+				},
+				"define function",
+			),
+		).toBe(0);
+		expect(
+			pickerScore(
+				{
+					key: "preset",
+					title: "greet",
+					category: def.category,
+					def,
+					filter: "graph",
+				},
+				"define function",
+			),
+		).toBe(0);
 	});
 });

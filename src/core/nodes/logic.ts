@@ -52,7 +52,14 @@ export const LOGIC_NODES: NodeDef[] = [
 				inputs: [],
 				outputs: [
 					...(shape.pure ? [] : [exec("then")]),
-					...shape.inputs.map((p): PinDef => ({ id: p.id, name: p.name || p.id, kind: "data", type: p.type ?? "any" })),
+					...shape.inputs.map(
+						(p): PinDef => ({
+							id: p.id,
+							name: p.name || p.id,
+							kind: "data",
+							type: p.type ?? "any",
+						}),
+					),
 				],
 			};
 		},
@@ -73,9 +80,15 @@ export const LOGIC_NODES: NodeDef[] = [
 					...(shape.pure ? [] : [exec("in")]),
 					// Not required: an output nobody sets is nil, and `compileLogic`
 					// says so as a warning rather than refusing the whole node.
-					...shape.outputs.map((p): PinDef => ({
-						id: p.id, name: p.name || p.id, kind: "data", type: p.type ?? "any", required: false,
-					})),
+					...shape.outputs.map(
+						(p): PinDef => ({
+							id: p.id,
+							name: p.name || p.id,
+							kind: "data",
+							type: p.type ?? "any",
+							required: false,
+						}),
+					),
 				],
 				outputs: [],
 			};
@@ -93,7 +106,10 @@ export const LOGIC_NODES: NodeDef[] = [
 export const LOGIC_DENIED: ReadonlyMap<string, string> = new Map([
 	["script.begin", "a node's logic starts at Node Inputs, not Script Start."],
 	["script.end", "a node's logic ends at Node Outputs, not Script End."],
-	["module.exports", "a node's logic is part of somebody else's script, so it has nothing to export."],
+	[
+		"module.exports",
+		"a node's logic is part of somebody else's script, so it has nothing to export.",
+	],
 	["function.entry", "a function belongs to a whole script, not a node's logic."],
 	["function.declareHere", "a function belongs to a whole script, not a node's logic."],
 	["function.return", "it would return from the script the node is placed in."],
@@ -102,5 +118,8 @@ export const LOGIC_DENIED: ReadonlyMap<string, string> = new Map([
 	["variable.get", "a node's logic has no script variables. Use a Declare Local."],
 	["variable.set", "a node's logic has no script variables. Use a Declare Local."],
 	["variable.init", "a node's logic has no script variables. Use a Declare Local."],
-	["type.declareTop", "a hoisted type needs the top of a file, and a node's logic has none. Use Declare Type."],
+	[
+		"type.declareTop",
+		"a hoisted type needs the top of a file, and a node's logic has none. Use Declare Type.",
+	],
 ]);

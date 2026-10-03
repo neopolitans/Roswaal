@@ -25,8 +25,9 @@ import { createRegistry } from "../src/core/nodes/index.js";
 
 describe("shortening a summary", () => {
 	it("stops at the first full stop that has said enough", () => {
-		expect(briefSummary("Reads a script variable from anywhere in the graph. And more besides."))
-			.toBe("Reads a script variable from anywhere in the graph.");
+		expect(
+			briefSummary("Reads a script variable from anywhere in the graph. And more besides."),
+		).toBe("Reads a script variable from anywhere in the graph.");
 	});
 
 	it("leaves a summary that is already short alone", () => {
@@ -42,14 +43,16 @@ describe("shortening a summary", () => {
 	 * say about a node and a useless one to show on its own.
 	 */
 	it("keeps going past an opening label", () => {
-		expect(briefSummary("Escape hatch. Whatever you type here is pasted in as it stands."))
-			.toBe("Escape hatch. Whatever you type here is pasted in as it stands.");
+		expect(briefSummary("Escape hatch. Whatever you type here is pasted in as it stands.")).toBe(
+			"Escape hatch. Whatever you type here is pasted in as it stands.",
+		);
 	});
 
 	/** `Vector3.new` is not the end of a sentence; there is no space after it. */
 	it("is not fooled by a method call", () => {
-		expect(briefSummary("Makes a vector with Vector3.new and hands it straight back. Then more."))
-			.toBe("Makes a vector with Vector3.new and hands it straight back.");
+		expect(
+			briefSummary("Makes a vector with Vector3.new and hands it straight back. Then more."),
+		).toBe("Makes a vector with Vector3.new and hands it straight back.");
 	});
 
 	/** The library has one of these today, which is how these things start. */
@@ -61,13 +64,15 @@ describe("shortening a summary", () => {
 
 	/** A stop inside backticks belongs to the code, not to the prose. */
 	it("does not end inside a code span", () => {
-		expect(briefSummary("Writes `a. b` to the file and then stops there. Then more."))
-			.toBe("Writes `a. b` to the file and then stops there.");
+		expect(briefSummary("Writes `a. b` to the file and then stops there. Then more.")).toBe(
+			"Writes `a. b` to the file and then stops there.",
+		);
 	});
 
 	it("ends on a question mark as readily as a full stop", () => {
-		expect(briefSummary("Is the child you are waiting for there yet, or not? Find out."))
-			.toBe("Is the child you are waiting for there yet, or not?");
+		expect(briefSummary("Is the child you are waiting for there yet, or not? Find out.")).toBe(
+			"Is the child you are waiting for there yet, or not?",
+		);
 	});
 });
 

@@ -13,8 +13,8 @@ import { toIdentifier } from "../core/compiler/luau.js";
 import { createRegistry } from "../core/nodes/index.js";
 import { lastSegment } from "../core/roblox.js";
 import type { GraphNode, NodeScript } from "../core/schema.js";
-import type { ExportedType } from "./api.js";
 import type { TypeField } from "../core/typeFields.js";
+import type { ExportedType } from "./api.js";
 
 let current: ExportedType[] = [];
 const listeners = new Set<() => void>();
@@ -30,7 +30,11 @@ function subscribe(listener: () => void): () => void {
 }
 
 export function useProjectTypes(): ExportedType[] {
-	return useSyncExternalStore(subscribe, () => current, () => current);
+	return useSyncExternalStore(
+		subscribe,
+		() => current,
+		() => current,
+	);
 }
 
 /** For the defaults of Require Module's pins, which are the library's. */
@@ -38,7 +42,11 @@ const BUILTINS = createRegistry();
 
 /** A dotted instance path, spelled one way. */
 function normalise(path: string): string {
-	return path.split(".").map((s) => s.trim()).filter(Boolean).join(".");
+	return path
+		.split(".")
+		.map((s) => s.trim())
+		.filter(Boolean)
+		.join(".");
 }
 
 /** A pin's text, typed or defaulted. */
@@ -59,7 +67,8 @@ function textOf(node: Pick<GraphNode, "def" | "literals">, pin: string): string 
  * types would need the require first.
  */
 export function requiredTypes(
-	script: Pick<NodeScript, "nodes">, types: ExportedType[],
+	script: Pick<NodeScript, "nodes">,
+	types: ExportedType[],
 ): { type: string; graph: string; fields?: TypeField[] }[] {
 	const out: { type: string; graph: string; fields?: TypeField[] }[] = [];
 	const seen = new Set<string>();

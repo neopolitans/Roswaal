@@ -55,10 +55,16 @@ export function controlsPage(): DocPage {
 									],
 									["`Ctrl` + `D`", "Duplicate the selection, at the pointer"],
 									["`Ctrl` + `Shift` + `L`", "Realign the graph on screen"],
-									["`Delete`, `Backspace`", "Delete the selection. A function takes its graph, and asks first"],
+									[
+										"`Delete`, `Backspace`",
+										"Delete the selection. A function takes its graph, and asks first",
+									],
 									["`A`", "Align the selection, walking it in the order you picked it"],
 									["`C`", "Comment around the selection, or an empty one if nothing is selected"],
-									["`P`", "Preview the Luau the selection compiles to. With nothing selected: the function on screen, or the whole script"],
+									[
+										"`P`",
+										"Preview the Luau the selection compiles to. With nothing selected: the function on screen, or the whole script",
+									],
 								],
 							},
 							{
@@ -91,19 +97,46 @@ export function controlsPage(): DocPage {
 									["Two fingers", "Pinch to zoom, drag to pan"],
 									["Press and hold empty space, then drag", "Marquee select"],
 									["Press and hold empty space, then lift", "Node menu, where you held"],
-									["Press and hold with two fingers, then lift", "The node picker, as `Ctrl` + right-click opens"],
-									["Tap a node in the node picker", "Preview it. Double tap it, tap **Spawn node**, or hold and drag it onto the graph to place it"],
+									[
+										"Press and hold with two fingers, then lift",
+										"The node picker, as `Ctrl` + right-click opens",
+									],
+									[
+										"Tap a node in the node picker",
+										"Preview it. Double tap it, tap **Spawn node**, or hold and drag it onto the graph to place it",
+									],
 									["Long press a node or a pin", "Its menu, as a right-click opens"],
-									["Press and hold a variable, a file or a tab, then drag", "Drag it, as a mouse does — onto the graph, into a folder"],
-									["Press and hold a variable, a file or a tab, then lift", "Its menu, if it has one"],
+									[
+										"Press and hold a variable, a file or a tab, then drag",
+										"Drag it, as a mouse does — onto the graph, into a folder",
+									],
+									[
+										"Press and hold a variable, a file or a tab, then lift",
+										"Its menu, if it has one",
+									],
 									["**Undo** and **Redo**, under the graph", "As `Ctrl` + `Z` and `Ctrl` + `Y` do"],
-									["**Align**, **Copy**, **Cut**, **Duplicate**, **Delete**, **Paste**, under the graph", "What their shortcuts do, to the selection. Node Design's logic graph has the same bar. Icons or words: **Settings → Editor → Action buttons**"],
-									["**Preview** and **Logic**, in Node Design", "Show the node, or its logic, with the whole editor to itself"],
-									["Double tap", "Open a graph from the tree, add a reroute knot, rename a comment"],
+									[
+										"**Align**, **Copy**, **Cut**, **Duplicate**, **Delete**, **Paste**, under the graph",
+										"What their shortcuts do, to the selection. Node Design's logic graph has the same bar. Icons or words: **Settings → Editor → Action buttons**",
+									],
+									[
+										"**Preview** and **Logic**, in Node Design",
+										"Show the node, or its logic, with the whole editor to itself",
+									],
+									[
+										"Double tap",
+										"Open a graph from the tree, add a reroute knot, rename a comment",
+									],
 									["Double tap an instance in DataModel", "Slide Properties out with it"],
 									["Drag a node, or from a pin", "As with a mouse"],
-									["**Project**, **Variables** and **Inspector**, under the graph", "Slide that panel out over the graph, one at a time"],
-									["The search button beside **Contents**, in these pages", "Search the docs, as `Ctrl` + `K` does"],
+									[
+										"**Project**, **Variables** and **Inspector**, under the graph",
+										"Slide that panel out over the graph, one at a time",
+									],
+									[
+										"The search button beside **Contents**, in these pages",
+										"Search the docs, as `Ctrl` + `K` does",
+									],
 								],
 							},
 							{
@@ -200,7 +233,10 @@ export function controlsPage(): DocPage {
 					["Drag the divider beside a dock", "Resize it; double-click to collapse"],
 					["**Settings → Variables → Window**", "The same choice, remembered as a preference"],
 					["Drag the window by its heading", "Move it"],
-					["Drag either corner of the window", "Resize it. The top-left moves it as it shrinks, so the far corner stays put"],
+					[
+						"Drag either corner of the window",
+						"Resize it. The top-left moves it as it shrinks, so the far corner stays put",
+					],
 					["The **⇤** button on the window", "Put it back in the dock it came from"],
 				],
 			},
@@ -209,7 +245,10 @@ export function controlsPage(): DocPage {
 				t: "table",
 				head: ["Gesture", "What it does"],
 				rows: [
-					["Drag a type from the palette onto the node", "Add a pin: the left half an input, the right half an output"],
+					[
+						"Drag a type from the palette onto the node",
+						"Add a pin: the left half an input, the right half an output",
+					],
 					["Click a pin, or its label", "Edit its name, type, default and tooltip"],
 					["`Ctrl` + `S`", "Save the node"],
 					["Right-click the logic canvas", "Add a node to the node's logic"],
@@ -227,8 +266,14 @@ export function controlsPage(): DocPage {
 				rows: [
 					["Drag from a pin", "Start a wire; everything it cannot reach dims"],
 					["Drop a wire on empty space", "Node menu, showing only what can take that wire"],
-					["Drop a wire from a service", "That service's methods, listed first — see [Services and their methods](services)"],
-					["Type a service or class name in the menu", "**ReplicatedStorage** gives Get Service; **Part** gives New Instance, each filled in"],
+					[
+						"Drop a wire from a service",
+						"That service's methods, listed first — see [Services and their methods](services)",
+					],
+					[
+						"Type a service or class name in the menu",
+						"**ReplicatedStorage** gives Get Service; **Part** gives New Instance, each filled in",
+					],
 					["Drag from a wired input", "Pick that wire up and move it somewhere else"],
 					["`Shift` + click a pin", "Disconnect everything on it"],
 					["Right-click a pin", "Pin menu — split a struct, promote to a variable"],
@@ -263,10 +308,16 @@ export function controlsPage(): DocPage {
 				t: "table",
 				head: ["Typed", "What you get"],
 				rows: [
-					["`and`, `or`, `not`, `==`, `..`, `#`", "The node that writes that Luau, first in the list"],
+					[
+						"`and`, `or`, `not`, `==`, `..`, `#`",
+						"The node that writes that Luau, first in the list",
+					],
 					["`if`, `else`, `elseif`", "Branch"],
 					["`for`, `while`, `break`, `return`", "The loop or the flow node that writes it"],
-					["Another name for a node: `Define Function`, `Define Type`, `Sleep`, `Log`", "That node, below any node actually called it"],
+					[
+						"Another name for a node: `Define Function`, `Define Type`, `Sleep`, `Log`",
+						"That node, below any node actually called it",
+					],
 					["A service or class name", "Get Service or New Instance, filled in"],
 					["A method name", "`RunService:IsServer` and the rest of that service's methods"],
 				],
@@ -281,7 +332,10 @@ export function controlsPage(): DocPage {
 					["Drag", "Move it, and the nodes that were inside it when you grabbed it"],
 					["`Ctrl` + `C`", "Copy it, and the nodes it is drawn around"],
 					["Select it", "Its colour, in the Inspector: eight swatches or a hex you type"],
-					["Double-click", "Edit the text. Enter adds a line; Esc, Ctrl+Enter or a click away saves"],
+					[
+						"Double-click",
+						"Edit the text. Enter adds a line; Esc, Ctrl+Enter or a click away saves",
+					],
 					["Drag the bottom-right corner", "Resize"],
 					["Drag the top-left corner", "Resize, keeping the bottom-right where it is"],
 				],
@@ -298,7 +352,10 @@ export function controlsPage(): DocPage {
 					["Double-click an instance in DataModel", "Open it in Properties"],
 					["Drag a property from Properties", "**Get Member** on an Instance node at its path"],
 					["`Ctrl` while dropping it", "**Set Property** instead"],
-					["Drag an attribute from Properties", "**Get Attribute**, or **Set Attribute** with `Ctrl`"],
+					[
+						"Drag an attribute from Properties",
+						"**Get Attribute**, or **Set Attribute** with `Ctrl`",
+					],
 					["Drag the instance's name from Properties", "An Instance node at its path"],
 				],
 			},

@@ -19,7 +19,10 @@ describe("autosave", () => {
 		vi.useFakeTimers();
 		written = [];
 		failures = [];
-		queue = new SaveQueue(() => 600, (error) => failures.push(error));
+		queue = new SaveQueue(
+			() => 600,
+			(error) => failures.push(error),
+		);
 	});
 
 	afterEach(() => {
@@ -77,12 +80,16 @@ describe("autosave", () => {
 	it("writes one file one write at a time, in order", async () => {
 		const order: string[] = [];
 		let release!: () => void;
-		queue.put("a", () => new Promise<void>((resolve) => {
-			release = () => {
-				order.push("slow");
-				resolve();
-			};
-		}));
+		queue.put(
+			"a",
+			() =>
+				new Promise<void>((resolve) => {
+					release = () => {
+						order.push("slow");
+						resolve();
+					};
+				}),
+		);
 		await vi.advanceTimersByTimeAsync(600);
 		queue.put("a", async () => {
 			order.push("fast");

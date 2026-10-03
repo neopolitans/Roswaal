@@ -139,12 +139,18 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 			else binaries[at] = contents;
 		}
 		const document: Document = {
-			format: 1, version, files: text, dirs: taken.dirs,
+			format: 1,
+			version,
+			files: text,
+			dirs: taken.dirs,
 			...(taken.root ? { root: taken.root } : {}),
 		};
 		try {
 			await store.write(JSON.stringify(document));
-			if (store.writeBinaries && (writtenStamp === undefined || taken.binaryStamp !== writtenStamp)) {
+			if (
+				store.writeBinaries &&
+				(writtenStamp === undefined || taken.binaryStamp !== writtenStamp)
+			) {
 				await store.writeBinaries(binaries);
 				writtenStamp = taken.binaryStamp;
 			}
@@ -331,7 +337,11 @@ async function readText(directory: FileSystemDirectoryHandle, file: string): Pro
 }
 
 /** A small file, written whole: the browser commits it when the writable closes. */
-async function writeText(directory: FileSystemDirectoryHandle, file: string, text: string): Promise<void> {
+async function writeText(
+	directory: FileSystemDirectoryHandle,
+	file: string,
+	text: string,
+): Promise<void> {
 	const handle = await directory.getFileHandle(file, { create: true });
 	const writable = await handle.createWritable();
 	await writable.write(text);
@@ -355,7 +365,10 @@ async function currentBinaries(directory: FileSystemDirectoryHandle): Promise<st
 		}
 		return typeof named === "string" ? named : null;
 	}
-	const legacy = await directory.getDirectoryHandle(BINARIES).then(() => true, () => false);
+	const legacy = await directory.getDirectoryHandle(BINARIES).then(
+		() => true,
+		() => false,
+	);
 	return legacy ? BINARIES : null;
 }
 
@@ -363,7 +376,10 @@ async function currentBinaries(directory: FileSystemDirectoryHandle): Promise<st
 async function binaryFolders(directory: FileSystemDirectoryHandle): Promise<string[]> {
 	const out: string[] = [];
 	for await (const handle of directory.values()) {
-		if (handle.kind === "directory" && (handle.name === BINARIES || handle.name.startsWith(`${BINARIES}-`))) {
+		if (
+			handle.kind === "directory" &&
+			(handle.name === BINARIES || handle.name.startsWith(`${BINARIES}-`))
+		) {
 			out.push(handle.name);
 		}
 	}

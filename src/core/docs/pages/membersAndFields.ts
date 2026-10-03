@@ -3,9 +3,9 @@
  */
 
 import { GUIDE_SCENES } from "../examples.js";
-import { code, previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
 import { TYPE_FIELDS_INSPECTOR, TYPE_OPEN_INSPECTOR, TYPE_WRITTEN_INSPECTOR } from "../toolbars.js";
+import { code, previews } from "./blocks.js";
 
 /**
  * Reading what a value holds.
@@ -21,7 +21,8 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 		slug: "members-and-fields",
 		narrow: true,
 		title: "Members and fields",
-		summary: "Reading a field from a value whose type says what it holds, and what to use when it doesn't.",
+		summary:
+			"Reading a field from a value whose type says what it holds, and what to use when it doesn't.",
 		blocks: [
 			{
 				t: "p",
@@ -50,7 +51,7 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 				registry,
 				["value.member", "value.field"],
 				"Get Member is one line: the access it writes, one input, one output. Get Field " +
-				"takes the key as a pin, because the key is yours to name.",
+					"takes the key as a pin, because the key is yours to name.",
 			),
 
 			{ t: "h", level: 2, text: "A type you declared" },
@@ -78,7 +79,7 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 					],
 					[
 						"**Custom Luau**, anything else",
-						"`\"idle\" | \"driving\"`, `(number) -> string`",
+						'`"idle" | "driving"`, `(number) -> string`',
 						"None. There is no fixed field list to offer, and a Get Member on one is refused.",
 					],
 					[
@@ -195,7 +196,8 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 							{
 								t: "graph",
 								script: GUIDE_SCENES.typeFieldsOpen(),
-								caption: "A table keyed by name: the keys are the program's business, so the key is a pin.",
+								caption:
+									"A table keyed by name: the keys are the program's business, so the key is a pin.",
 							},
 							{
 								t: "code",
@@ -235,7 +237,8 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 						id: "module-user",
 						title: "Remotes",
 						script: GUIDE_SCENES.memberOfModule(),
-						caption: "The graph that requires it: Get Field takes the key, Get Member reads the type's field.",
+						caption:
+							"The graph that requires it: Get Field takes the key, Get Member reads the type's field.",
 					},
 				],
 			},
@@ -279,11 +282,15 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 				script: GUIDE_SCENES.memberOfInstance(),
 				caption: "New Instance gives a Part; the pill reads its Anchored, which is a boolean.",
 			},
-			{ t: "code", lang: "luau", text: code`
+			{
+				t: "code",
+				lang: "luau",
+				text: code`
 				local part: Part = Instance.new("Part")
 				if part.Anchored then
 				end
-				` },
+				`,
+			},
 			{
 				t: "p",
 				text:
@@ -305,9 +312,18 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 				t: "table",
 				head: ["Gesture", "What you get"],
 				rows: [
-					["Drag a wire out of a typed pin", "That type's members in the node menu, under their own heading. Picking one places a Get Member already wired"],
-					["Type `input.` in either node search", "Every member of everything this graph names — a variable, a local, a parameter. Picking one places the getter and the Get Member on it, wired"],
-					["Select a Get Member", "Its **Member** in the Inspector, as a list of what the wired type declares"],
+					[
+						"Drag a wire out of a typed pin",
+						"That type's members in the node menu, under their own heading. Picking one places a Get Member already wired",
+					],
+					[
+						"Type `input.` in either node search",
+						"Every member of everything this graph names — a variable, a local, a parameter. Picking one places the getter and the Get Member on it, wired",
+					],
+					[
+						"Select a Get Member",
+						"Its **Member** in the Inspector, as a list of what the wired type declares",
+					],
 				],
 			},
 

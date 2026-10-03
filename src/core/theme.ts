@@ -97,17 +97,37 @@ export interface Theme {
 // ---------------------------------------------------------------------------
 
 export type ColorRole =
-	| "app" | "panel" | "canvas" | "input"
-	| "text" | "subText" | "dimText"
-	| "border" | "borderStrong"
-	| "nodeBody" | "nodeBorder"
+	| "app"
+	| "panel"
+	| "canvas"
+	| "input"
+	| "text"
+	| "subText"
+	| "dimText"
+	| "border"
+	| "borderStrong"
+	| "nodeBody"
+	| "nodeBorder"
 	| "wireExec"
-	| "accent" | "danger" | "warning" | "ok" | "select" | "pure"
-	| "capsule" | "capsuleBorder";
+	| "accent"
+	| "danger"
+	| "warning"
+	| "ok"
+	| "select"
+	| "pure"
+	| "capsule"
+	| "capsuleBorder";
 
 export type CodeRole =
-	| "keyword" | "string" | "number" | "comment"
-	| "operator" | "property" | "global" | "function" | "type";
+	| "keyword"
+	| "string"
+	| "number"
+	| "comment"
+	| "operator"
+	| "property"
+	| "global"
+	| "function"
+	| "type";
 
 /**
  * Every colour role, the CSS variable it sets, and what it is for.
@@ -192,9 +212,7 @@ export function derivedTokens(dark: boolean): Record<string, string> {
 		"--grid-fine": `rgba(${ink}, ${dark ? 0.05 : 0.07})`,
 		"--grid-coarse": `rgba(${ink}, ${dark ? 0.1 : 0.14})`,
 		"--watermark": `rgba(${ink}, ${dark ? 0.14 : 0.16})`,
-		"--node-shadow": dark
-			? "0 3px 10px rgba(0, 0, 0, 0.45)"
-			: "0 2px 6px rgba(0, 0, 0, 0.14)",
+		"--node-shadow": dark ? "0 3px 10px rgba(0, 0, 0, 0.45)" : "0 2px 6px rgba(0, 0, 0, 0.14)",
 		"--comment-fill": dark ? "0.14" : "0.1",
 		// The project tree's script and folder colours. Fixed hues -- they say
 		// what a thing is in Studio, not how the scheme looks -- with a shade for
@@ -319,13 +337,19 @@ export function validateTheme(value: unknown, where: string): string[] {
 	 */
 	for (const ground of ["app", "panel"] as const) {
 		if (contrast(c.text, c[ground]) < 4.5) {
-			say(`text (${c.text}) on ${ground} (${c[ground]}) is ${contrast(c.text, c[ground]).toFixed(2)}:1, below 4.5:1`);
+			say(
+				`text (${c.text}) on ${ground} (${c[ground]}) is ${contrast(c.text, c[ground]).toFixed(2)}:1, below 4.5:1`,
+			);
 		}
 		if (contrast(c.subText, c[ground]) < 3) {
-			say(`subText (${c.subText}) on ${ground} (${c[ground]}) is ${contrast(c.subText, c[ground]).toFixed(2)}:1, below 3:1`);
+			say(
+				`subText (${c.subText}) on ${ground} (${c[ground]}) is ${contrast(c.subText, c[ground]).toFixed(2)}:1, below 3:1`,
+			);
 		}
 		if (contrast(c.dimText, c[ground]) < 2) {
-			say(`dimText (${c.dimText}) on ${ground} (${c[ground]}) is ${contrast(c.dimText, c[ground]).toFixed(2)}:1, below 2:1`);
+			say(
+				`dimText (${c.dimText}) on ${ground} (${c[ground]}) is ${contrast(c.dimText, c[ground]).toFixed(2)}:1, below 2:1`,
+			);
 		}
 	}
 
@@ -343,7 +367,9 @@ export function validateTheme(value: unknown, where: string): string[] {
 		const floor = role === "comment" ? 2 : 3;
 		const ratio = contrast(colour, c.input);
 		if (ratio < floor) {
-			say(`code.${role} (${colour}) on input (${c.input}) is ${ratio.toFixed(2)}:1, below ${floor}:1`);
+			say(
+				`code.${role} (${colour}) on input (${c.input}) is ${ratio.toFixed(2)}:1, below ${floor}:1`,
+			);
 		}
 	}
 
@@ -358,5 +384,9 @@ export function validateTheme(value: unknown, where: string): string[] {
  * creating a new one.
  */
 export function themeSlug(name: string): string {
-	return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+	return name
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "");
 }

@@ -22,7 +22,8 @@ function isTarget(value: unknown): value is Target {
  * part by hand. The pack's own declared `targets` narrows it the same way.
  */
 export function packTargets(
-	defs: readonly Pick<NodeDef, "targets">[], declared?: unknown,
+	defs: readonly Pick<NodeDef, "targets">[],
+	declared?: unknown,
 ): Target[] | null {
 	let out: Target[] | null = Array.isArray(declared) ? declared.filter(isTarget) : null;
 	for (const def of defs) {
@@ -39,7 +40,9 @@ export function runsOn(targets: readonly Target[] | null, target: Target): boole
 
 /** A pack's `requires`, as the names it lists and nothing else. */
 export function packRequires(declared: unknown): string[] {
-	return Array.isArray(declared) ? declared.filter((r): r is string => typeof r === "string" && r !== "") : [];
+	return Array.isArray(declared)
+		? declared.filter((r): r is string => typeof r === "string" && r !== "")
+		: [];
 }
 
 /** The namespace a pack's node ids take from its file name. */

@@ -9,7 +9,7 @@
  * and ATTRIBUTIONS.md. Deprecated members are left out of all of it.
  */
 
-import { ENGINE, signatureText, type EngineParam } from "./robloxEngine.js";
+import { ENGINE, type EngineParam, signatureText } from "./robloxEngine.js";
 
 export interface DatatypeStatic {
 	name: string;
@@ -30,7 +30,12 @@ export interface ClassMethod {
 
 /** A constructor with overloads is listed once: its first signature, and how many more. */
 function withOverloads(
-	entries: readonly { name: string; summary: string; params: EngineParam[]; deprecated?: boolean }[],
+	entries: readonly {
+		name: string;
+		summary: string;
+		params: EngineParam[];
+		deprecated?: boolean;
+	}[],
 	kind: DatatypeStatic["kind"],
 ): DatatypeStatic[] {
 	const out: DatatypeStatic[] = [];
@@ -40,7 +45,12 @@ function withOverloads(
 		const seen = counts.get(entry.name);
 		counts.set(entry.name, (seen ?? 0) + 1);
 		if (seen === undefined) {
-			out.push({ name: entry.name, kind, detail: signatureText(entry.params), summary: entry.summary });
+			out.push({
+				name: entry.name,
+				kind,
+				detail: signatureText(entry.params),
+				summary: entry.summary,
+			});
 		}
 	}
 	return out.map((item) => {
@@ -55,7 +65,12 @@ function staticsOf(name: string): DatatypeStatic[] {
 		...withOverloads(datatype.constructors, "constructor"),
 		...datatype.constants
 			.filter((c) => !c.deprecated)
-			.map((c) => ({ name: c.name, kind: "constant" as const, detail: c.type, summary: c.summary })),
+			.map((c) => ({
+				name: c.name,
+				kind: "constant" as const,
+				detail: c.type,
+				summary: c.summary,
+			})),
 		...withOverloads(datatype.functions, "function"),
 	];
 }
@@ -67,18 +82,33 @@ export const DATATYPE_STATICS: Record<string, readonly DatatypeStatic[]> = Objec
 );
 
 export const CLASS_SUMMARIES: Record<string, string> = Object.fromEntries(
-	Object.entries(ENGINE.classes).filter(([, c]) => c.summary !== "").map(([name, c]) => [name, c.summary]),
+	Object.entries(ENGINE.classes)
+		.filter(([, c]) => c.summary !== "")
+		.map(([name, c]) => [name, c.summary]),
 );
 
 export const DATATYPE_SUMMARIES: Record<string, string> = Object.fromEntries(
-	Object.entries(ENGINE.datatypes).filter(([, d]) => d.summary !== "").map(([name, d]) => [name, d.summary]),
+	Object.entries(ENGINE.datatypes)
+		.filter(([, d]) => d.summary !== "")
+		.map(([name, d]) => [name, d.summary]),
 );
 
 /** Each class's own methods, not inherited ones, by class name. */
 export const CLASS_METHODS: Record<string, readonly ClassMethod[]> = Object.fromEntries(
 	Object.entries(ENGINE.classes)
-		.map(([name, c]) => [name, c.methods
-			.filter((m) => !m.deprecated)
-			.map((m) => ({ name: m.name, detail: signatureText(m.params), returns: m.returns, summary: m.summary }))] as const)
+		.map(
+			([name, c]) =>
+				[
+					name,
+					c.methods
+						.filter((m) => !m.deprecated)
+						.map((m) => ({
+							name: m.name,
+							detail: signatureText(m.params),
+							returns: m.returns,
+							summary: m.summary,
+						})),
+				] as const,
+		)
 		.filter(([, list]) => list.length > 0),
 );

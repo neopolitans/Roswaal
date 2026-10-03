@@ -34,7 +34,10 @@ export class Scope {
 	 * runs when it is called rather than where it is written — so a loop
 	 * enclosing the declaration does not enclose the body.
 	 */
-	constructor(readonly parent?: Scope, readonly kind: "block" | "loop" | "function" = "block") {}
+	constructor(
+		readonly parent?: Scope,
+		readonly kind: "block" | "loop" | "function" = "block",
+	) {}
 
 	lookup(key: string): string | undefined {
 		return this.bindings.get(key) ?? this.parent?.lookup(key);

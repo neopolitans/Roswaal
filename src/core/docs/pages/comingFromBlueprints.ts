@@ -16,8 +16,7 @@ export function comingFromBlueprintsPage(): DocPage {
 		{
 			t: "note",
 			kind: "good",
-			text:
-				"**Where there is no equivalent, this page says so** — Construction Scripts, for one.",
+			text: "**Where there is no equivalent, this page says so** — Construction Scripts, for one.",
 		},
 		{
 			t: "note",
@@ -113,12 +112,17 @@ export function comingFromBlueprintsPage(): DocPage {
 				],
 				["`TMap<K, V>`", "`{ [K]: V }`", "`table`", "The same type as an array."],
 				["`TSet<T>`", "`{ [T]: true }`", "`table`", "A table used as a set, by convention."],
-				["`UObject*`, `AActor*`", "`Instance`", "`Instance`", "A class such as `Model` narrows it. **Is A** asks at runtime."],
+				[
+					"`UObject*`, `AActor*`",
+					"`Instance`",
+					"`Instance`",
+					"A class such as `Model` narrows it. **Is A** asks at runtime.",
+				],
 				[
 					"`TSubclassOf<T>`",
 					"`string`",
 					"`string`",
-					"A class name is just text: `Instance.new(\"Part\")`, `:IsA(\"BasePart\")`.",
+					'A class name is just text: `Instance.new("Part")`, `:IsA("BasePart")`.',
 				],
 				[
 					"`USTRUCT`",

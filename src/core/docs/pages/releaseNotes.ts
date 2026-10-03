@@ -2,7 +2,7 @@
  * The `release-notes` page of the documentation. `buildSite` places it.
  */
 
-import { type Release, RELEASES } from "../releases.js";
+import { RELEASES, type Release } from "../releases.js";
 import { releaseTags } from "../releaseTags.js";
 import type { Block, DocPage } from "../site.js";
 
@@ -11,13 +11,21 @@ import type { Block, DocPage } from "../site.js";
  * 2 and 3 for the release shown in full; 3 and 4 inside a fold.
  */
 function releaseBlocks(
-	release: Release, titles: ReadonlyMap<string, string>, level: 2 | 3, latest = false,
+	release: Release,
+	titles: ReadonlyMap<string, string>,
+	level: 2 | 3,
+	latest = false,
 ): Block[] {
 	const sub = level === 2 ? 3 : 4;
-	const blocks: Block[] = [{
-		t: "h", level, text: release.version, aside: release.date,
-		...(latest ? { badge: "Latest" } : {}),
-	}];
+	const blocks: Block[] = [
+		{
+			t: "h",
+			level,
+			text: release.version,
+			aside: release.date,
+			...(latest ? { badge: "Latest" } : {}),
+		},
+	];
 
 	const tags = releaseTags(release);
 	if (tags.length > 0) blocks.push({ t: "tags", tags });

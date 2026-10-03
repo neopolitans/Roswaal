@@ -9,16 +9,15 @@
  * `outputs.ts`.
  */
 
-import { formatLuau, fs, path } from "./host.js";
-
-import { compile, hashString, type CompileResult } from "../core/compiler/index.js";
+import { type CompileResult, compile, hashString } from "../core/compiler/index.js";
+import type { LuaurcSource } from "../core/luaurc.js";
 import { compileNodeMap, type MapDiagnostic, type MapNode, type NodeMap } from "../core/nodemap.js";
 import { formatLike, parseProject, sameProject } from "../core/rojoImport.js";
 import { indentUnit } from "../core/schema.js";
-import type { LuaurcSource } from "../core/luaurc.js";
 import type { OpenProject } from "./config.js";
 import { collectScripts, readMap, readScript } from "./documents.js";
 import { errorMessage } from "./errors.js";
+import { formatLuau, fs, path } from "./host.js";
 import { readLuaurcFiles, specifierContext } from "./luaurc.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
 import { generatedIndex, outputPathFor, removeEmptyFolders } from "./outputs.js";
@@ -60,7 +59,9 @@ export interface CompileOutcome {
  * `compileAll` so a single-file compile has no opinion about it.
  */
 export function outputCollision(
-	claimed: Map<string, string> | undefined, outputPath: string, relPath: string,
+	claimed: Map<string, string> | undefined,
+	outputPath: string,
+	relPath: string,
 ): string | null {
 	const owner = claimed?.get(outputPath);
 	return owner !== undefined && owner !== relPath ? owner : null;
@@ -87,7 +88,9 @@ export function outputCollision(
  * checkable without a temporary directory and a project to put in it.
  */
 export function supersededOutputs(
-	generated: Map<string, string>, graphId: string, keepPath: string,
+	generated: Map<string, string>,
+	graphId: string,
+	keepPath: string,
 ): string[] {
 	const out: string[] = [];
 	for (const [outPath, owner] of generated) {
@@ -97,7 +100,9 @@ export function supersededOutputs(
 }
 
 async function removeSupersededOutputs(
-	project: OpenProject, graphId: string, keepPath: string,
+	project: OpenProject,
+	graphId: string,
+	keepPath: string,
 ): Promise<string[]> {
 	const stale = supersededOutputs(await generatedIndex(project), graphId, keepPath);
 	for (const relPath of stale) {
@@ -126,7 +131,7 @@ export async function compileScript(
 	} = {},
 ): Promise<CompileOutcome> {
 	const script = await readScript(project, relPath);
-	const sources = opts.luaurc ?? await readLuaurcFiles(project);
+	const sources = opts.luaurc ?? (await readLuaurcFiles(project));
 	const result = compile(script, project.registry, {
 		indent: indentUnit(project.config),
 		comments: project.config.comments,
@@ -167,10 +172,7 @@ export async function compileScript(
 		// An error rather than a skip, so it is counted with the failures and the
 		// panel does not offer to overwrite: overwriting is what already happened,
 		// and doing it again just picks a different winner.
-		outcome.diagnostics = [
-			...outcome.diagnostics,
-			{ severity: "error", message: outcome.skipped },
-		];
+		outcome.diagnostics = [...outcome.diagnostics, { severity: "error", message: outcome.skipped }];
 		return outcome;
 	}
 
@@ -283,8 +285,6 @@ export async function compileAll(
 	return out;
 }
 
-
-
 /**
  * Returns a warning when the target file no longer matches the output hash in
  * its own header, which means somebody edited generated code by hand. Roswaal
@@ -337,12 +337,8 @@ function hashBody(body: string): string {
 export function stampOutputHash(code: string): string {
 	const parts = splitGenerated(code);
 	if (!parts) return code;
-	return code.replace(
-		/^-- roswaal-output: .*$/m,
-		`-- roswaal-output: ${hashBody(parts.body)}`,
-	);
+	return code.replace(/^-- roswaal-output: .*$/m, `-- roswaal-output: ${hashBody(parts.body)}`);
 }
-
 
 export interface MapOutcome {
 	mapPath: string;
@@ -365,7 +361,9 @@ export interface MapOutcome {
  * refused outright rather than hashed.
  */
 export async function compileMap(
-	project: OpenProject, relPath: string, opts: { write?: boolean; force?: boolean } = {},
+	project: OpenProject,
+	relPath: string,
+	opts: { write?: boolean; force?: boolean } = {},
 ): Promise<MapOutcome> {
 	const map = await readMap(project, relPath);
 	const result = compileNodeMap(map);
@@ -397,7 +395,9 @@ export async function compileMap(
 	const legacyStamp = existing?.includes(LEGACY_OWNERSHIP_KEY) === true;
 
 	if (
-		existing !== null && !opts.force && !legacyStamp &&
+		existing !== null &&
+		!opts.force &&
+		!legacyStamp &&
 		!(await isGenerated(project.root, result.outputPath))
 	) {
 		outcome.skipped =
@@ -435,9 +435,7 @@ export async function compileMap(
  * Lives here rather than in compileNodeMap because it needs the filesystem,
  * and the core compiler deliberately has none.
  */
-export async function checkMapPaths(
-	project: OpenProject, map: NodeMap,
-): Promise<MapDiagnostic[]> {
+export async function checkMapPaths(project: OpenProject, map: NodeMap): Promise<MapDiagnostic[]> {
 	const out: MapDiagnostic[] = [];
 	const paths: { node: MapNode; path: string }[] = [];
 

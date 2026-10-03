@@ -11,11 +11,17 @@
  */
 
 import type { Block, Expr, Stat } from "./ast.js";
-import { docCommentBefore, docFor, docRegistry, type DocComment } from "./docComment.js";
-import {
-	memberFor, membersInCode, signatureOf, stringValue, type TableMember, typeOfValue, withRegistry,
-} from "./infer.js";
+import { type DocComment, docCommentBefore, docFor, docRegistry } from "./docComment.js";
 import { luauFile } from "./file.js";
+import {
+	memberFor,
+	membersInCode,
+	signatureOf,
+	stringValue,
+	type TableMember,
+	typeOfValue,
+	withRegistry,
+} from "./infer.js";
 import { localsInFile, localsInParsed } from "./scope.js";
 import { visitBlock } from "./visit.js";
 
@@ -41,7 +47,12 @@ const DEPTH = 12;
  * `parsed` is the file's parse, when the caller has one: locals are looked up
  * in it rather than by parsing the file again at every name.
  */
-export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): RequireTarget | undefined {
+export function targetOf(
+	expr: Expr,
+	src: string,
+	depth = 0,
+	parsed?: Block,
+): RequireTarget | undefined {
 	if (depth > DEPTH) return undefined;
 	switch (expr.kind) {
 		case "string": {
@@ -55,14 +66,22 @@ export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): Re
 		case "name": {
 			if (expr.name === "game") return { kind: "instance", from: "game", names: [] };
 			if (expr.name === "script") return { kind: "instance", from: "script", names: [] };
-			if (expr.name === "workspace") return { kind: "instance", from: "game", names: ["Workspace"] };
-			const locals = parsed ? localsInParsed(parsed, src, expr.start) : localsInFile(src, expr.start);
+			if (expr.name === "workspace")
+				return { kind: "instance", from: "game", names: ["Workspace"] };
+			const locals = parsed
+				? localsInParsed(parsed, src, expr.start)
+				: localsInFile(src, expr.start);
 			const local = locals?.find((n) => n.name === expr.name);
 			return local?.value ? targetOf(local.value, src, depth + 1, parsed) : undefined;
 		}
 		case "index":
 		case "indexExpr": {
-			const name = expr.kind === "index" ? expr.name.name : expr.key.kind === "string" ? stringValue(expr.key) : undefined;
+			const name =
+				expr.kind === "index"
+					? expr.name.name
+					: expr.key.kind === "string"
+						? stringValue(expr.key)
+						: undefined;
 			if (name === undefined) return undefined;
 			const base = targetOf(expr.object, src, depth + 1, parsed);
 			if (base?.kind !== "instance") return undefined;
@@ -74,11 +93,13 @@ export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): Re
 			if (arg === undefined) return undefined;
 			const base = targetOf(expr.object, src, depth + 1, parsed);
 			if (base?.kind !== "instance") return undefined;
-			if (method === "GetService" && base.from === "game" && base.names.length === 0) return { ...base, names: [arg] };
+			if (method === "GetService" && base.from === "game" && base.names.length === 0)
+				return { ...base, names: [arg] };
 			if (method === "WaitForChild") return { ...base, names: [...base.names, arg] };
 			// `FindFirstChild(name, true)` searches every descendant, so where
 			// it lands is not a path the code says.
-			if (method === "FindFirstChild" && expr.args.length === 1) return { ...base, names: [...base.names, arg] };
+			if (method === "FindFirstChild" && expr.args.length === 1)
+				return { ...base, names: [...base.names, arg] };
 			return undefined;
 		}
 		default:
@@ -87,7 +108,10 @@ export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): Re
 }
 
 const isRequireCall = (expr: Expr | undefined): expr is Extract<Expr, { kind: "call" }> =>
-	expr?.kind === "call" && expr.callee.kind === "name" && expr.callee.name === "require" && expr.args.length === 1;
+	expr?.kind === "call" &&
+	expr.callee.kind === "name" &&
+	expr.callee.name === "require" &&
+	expr.args.length === 1;
 
 /** Whether a local's value is a `require(…)`, so what it holds is a module. */
 export const isRequire = (expr: Expr | undefined): boolean => isRequireCall(expr);
@@ -107,9 +131,11 @@ export function requiresIn(src: string): RequireBinding[] {
 	};
 	const fields = (owner: string, value: Expr | undefined) => {
 		let table = value;
-		while (table && (table.kind === "cast" || table.kind === "paren")) table = table.kind === "cast" ? table.value : table.inner;
+		while (table && (table.kind === "cast" || table.kind === "paren"))
+			table = table.kind === "cast" ? table.value : table.inner;
 		if (table?.kind !== "table") return;
-		for (const field of table.fields) if (field.kind === "named") push(`${owner}.${field.name.name}`, field.value);
+		for (const field of table.fields)
+			if (field.kind === "named") push(`${owner}.${field.name.name}`, field.value);
 	};
 	visitBlock(luauFile(src).block, {
 		stat: (stat) => {
@@ -120,7 +146,8 @@ export function requiresIn(src: string): RequireBinding[] {
 				});
 			} else if (stat.kind === "assign") {
 				stat.targets.forEach((target, i) => {
-					if (target.kind === "index" && target.object.kind === "name") push(`${target.object.name}.${target.name.name}`, stat.values[i]);
+					if (target.kind === "index" && target.object.kind === "name")
+						push(`${target.object.name}.${target.name.name}`, stat.values[i]);
 				});
 			}
 		},
@@ -150,25 +177,33 @@ export interface ModuleExports {
  */
 export function moduleExports(src: string): ModuleExports {
 	const block = luauFile(src).block;
-	const last = [...block].reverse().find((s) => s.kind === "return") as Extract<Stat, { kind: "return" }> | undefined;
+	const last = [...block].reverse().find((s) => s.kind === "return") as
+		| Extract<Stat, { kind: "return" }>
+		| undefined;
 	const first = block[0];
 	// A block comment says what the module is; `-- SERVICES` above the first
 	// line of code is a heading, not a description.
 	const top = first ? docCommentBefore(src, first.start) : undefined;
 	const value = last?.values[0] ? unwrap(last.values[0]) : undefined;
 	// Or the `@class` Moonwave gives the table it returns, wherever that stands.
-	const classDoc = value?.kind === "name" && /@class\b/.test(src)
-		? docRegistry(src).find((e) => e.tag === "class" && e.name === value.name)?.doc
-		: undefined;
+	const classDoc =
+		value?.kind === "name" && /@class\b/.test(src)
+			? docRegistry(src).find((e) => e.tag === "class" && e.name === value.name)?.doc
+			: undefined;
 	const doc = (top?.style === "block" && !top.subject ? top : undefined) ?? classDoc;
 	const owner = value?.kind === "name" ? value.name : undefined;
-	const out = (e: Omit<ModuleExports, "doc">): ModuleExports => ({ ...e, ...(doc ? { doc } : {}), ...(owner ? { owner } : {}) });
+	const out = (e: Omit<ModuleExports, "doc">): ModuleExports => ({
+		...e,
+		...(doc ? { doc } : {}),
+		...(owner ? { owner } : {}),
+	});
 	if (!value) return out({ kind: "value", members: [] });
 	if (isRequireCall(value)) {
 		const target = targetOf(value.args[0], src);
 		return out({ kind: "module", members: [], ...(target ? { reexport: target } : {}) });
 	}
-	if (value.kind === "function") return out({ kind: "function", members: [], detail: signatureOf(value.func, src) });
+	if (value.kind === "function")
+		return out({ kind: "function", members: [], detail: signatureOf(value.func, src) });
 	if (value.kind === "table") return out({ kind: "table", members: fieldsOf(value, src) });
 	if (value.kind === "name") {
 		const local = localsInFile(src, value.start)?.find((n) => n.name === value.name);
@@ -182,25 +217,48 @@ export function moduleExports(src: string): ModuleExports {
 			if (held.kind === "table") {
 				const put = membersInCode(src, value.name);
 				const written = fieldsOf(held, src, value.name);
-				return out({ kind: "table", members: [...put, ...written.filter((w) => !put.some((p) => p.name === w.name))] });
+				return out({
+					kind: "table",
+					members: [...put, ...written.filter((w) => !put.some((p) => p.name === w.name))],
+				});
 			}
 		}
 		const written = local?.value?.kind === "table" ? fieldsOf(local.value, src, value.name) : [];
 		const put = membersInCode(src, value.name);
 		// What the file puts on the table after, over what it was written with.
 		const members = [...put, ...written.filter((w) => !put.some((p) => p.name === w.name))];
-		if (local?.func) return out({ kind: "function", members, detail: signatureOf(local.func, src) });
+		if (local?.func)
+			return out({ kind: "function", members, detail: signatureOf(local.func, src) });
 		// `function Button(props) … end` then `return Button`: a global the
 		// file defines, and the comment above it says what the module is.
-		const global = local ? undefined : block.find((s): s is Extract<Stat, { kind: "functionStat" }> =>
-			s.kind === "functionStat" && s.path.length === 1 && !s.method && s.path[0].name === value.name);
+		const global = local
+			? undefined
+			: block.find(
+					(s): s is Extract<Stat, { kind: "functionStat" }> =>
+						s.kind === "functionStat" &&
+						s.path.length === 1 &&
+						!s.method &&
+						s.path[0].name === value.name,
+				);
 		if (global) {
 			const above = docFor(docCommentBefore(src, global.start), value.name) ?? doc;
-			return { kind: "function", members, detail: signatureOf(global.func, src), ...(above ? { doc: above } : {}) };
+			return {
+				kind: "function",
+				members,
+				detail: signatureOf(global.func, src),
+				...(above ? { doc: above } : {}),
+			};
 		}
-		return out({ kind: members.length || local?.value?.kind === "table" ? "table" : "value", members });
+		return out({
+			kind: members.length || local?.value?.kind === "table" ? "table" : "value",
+			members,
+		});
 	}
-	return out({ kind: "value", members: [], ...(typeOfValue(value, src) ? { detail: typeOfValue(value, src) } : {}) });
+	return out({
+		kind: "value",
+		members: [],
+		...(typeOfValue(value, src) ? { detail: typeOfValue(value, src) } : {}),
+	});
 }
 
 /**
@@ -213,7 +271,11 @@ function unwrap(expr: Expr, depth = 0): Expr {
 	if (expr.kind === "cast") return unwrap(expr.value, depth + 1);
 	if (expr.kind === "call" && expr.args.length > 0) {
 		const callee = expr.callee;
-		const isFreeze = callee.kind === "index" && callee.object.kind === "name" && callee.object.name === "table" && callee.name.name === "freeze";
+		const isFreeze =
+			callee.kind === "index" &&
+			callee.object.kind === "name" &&
+			callee.object.name === "table" &&
+			callee.name.name === "freeze";
 		const isSetmetatable = callee.kind === "name" && callee.name === "setmetatable";
 		if (isFreeze || isSetmetatable) return unwrap(expr.args[0], depth + 1);
 	}
@@ -224,7 +286,11 @@ function unwrap(expr: Expr, depth = 0): Expr {
  * A table constructor's named fields, as members, with the comments above
  * them -- or, for a table called `owner`, what its `@prop`s say.
  */
-function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string, owner?: string): TableMember[] {
+function fieldsOf(
+	table: Extract<Expr, { kind: "table" }>,
+	src: string,
+	owner?: string,
+): TableMember[] {
 	const out: TableMember[] = [];
 	for (const field of table.fields) {
 		if (field.kind !== "named") continue;
@@ -233,7 +299,11 @@ function fieldsOf(table: Extract<Expr, { kind: "table" }>, src: string, owner?: 
 		if (value.kind === "index" && value.object.kind === "name") {
 			const source = membersInCode(src, value.object.name).find((m) => m.name === value.name.name);
 			if (source) {
-				out.push({ ...source, name: field.name.name, kind: source.kind === "method" ? "function" : source.kind });
+				out.push({
+					...source,
+					name: field.name.name,
+					kind: source.kind === "method" ? "function" : source.kind,
+				});
 				continue;
 			}
 		}

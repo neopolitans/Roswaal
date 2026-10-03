@@ -85,11 +85,11 @@ export const REVIEWS: Record<
 	// Both were found by looking at the page rather than at the diff.
 	// Verified again for 0.72.0, with its Desktop, Tablet and Phone tabs and
 	// the two bars only a touch screen has.
-	"toolbars": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
+	toolbars: { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.29.1.
 	// Read again for 0.31.6, when C stopped needing a selection and the
 	// Comments table gained the two ways to make one.
-	"controls": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
+	controls: { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
 	// Read by the author against the editor and Node Design, both ways, for 0.72.0.
 	// Read by the author against the editor and Node Design on a computer, a
 	// tablet and a phone, for 0.72.0.
@@ -103,24 +103,24 @@ export const REVIEWS: Record<
 	// the setting does; Hand-written Luau once each code node had its own
 	// graph and the Luau it compiles to. Lune is marked experimental on the
 	// pages that mention it, which is what verifying them covers.
-	"types": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
+	types: { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	// Verified for 0.31.4, once it described the picker itself rather than only
 	// the nodes: the grouped list, the field Other… opens for a type the list
 	// cannot show, and the two Declare Type shapes for a type that is a
 	// declaration rather than a name.
-	"casting": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
+	casting: { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.64.8, after the page was rewritten in 0.64.2:
 	// it had been written for 0.33.0, when function graphs were the new thing,
 	// and had never said how to *call* one. Read again with the Variables panel
 	// drawn on it and the pre-0.33.0 migration note taken out -- a note no
 	// reader could have needed, the tool having been public only since 0.59.1.
-	"functions": { status: "verified", date: "2026-09-16", reviewers: ["neopolitans"] },
+	functions: { status: "verified", date: "2026-09-16", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.65.3, reading the page against the editor.
 	// The read found the drawn graph under the node previews had two Prints
 	// exactly on top of each other -- which turned out to be six graphs and a
 	// bug in Realign rather than a mistake in this scene. The contents were
 	// verified as they stood; the picture is what changed.
-	"services": { status: "verified", date: "2026-09-16", reviewers: ["neopolitans"] },
+	services: { status: "verified", date: "2026-09-16", reviewers: ["neopolitans"] },
 	// Read again for 0.32.0, when Get Parameter joined the locals it sits
 	// beside: the same idea of reading something by name instead of by a wire.
 	"variables-and-locals": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
@@ -129,10 +129,10 @@ export const REVIEWS: Record<
 	// Read again for 0.31.4, when Long names was added to its table of
 	// preferences: a badge that covered text nobody had checked would be the
 	// one thing the ledger exists to prevent.
-	"settings": { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
+	settings: { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.43.1, once What Roswaal is designed for named
 	// Lune, Luau and Roblox alongside the borrowed names it credits.
-	"attributions": { status: "verified", date: "2026-09-15", reviewers: ["neopolitans"] },
+	attributions: { status: "verified", date: "2026-09-15", reviewers: ["neopolitans"] },
 	// Read by the author for 0.65.0, against the RFC and against the editor.
 	// Not verified, and deliberately: every rule on it is checked against
 	// `require-by-string-aliases.html` and against what Roswaal does with it,
@@ -141,7 +141,7 @@ export const REVIEWS: Record<
 	// on -- inheritance, and which file a relative path resolves against -- are
 	// exactly the two that look correct in any project with one `.luaurc` at
 	// the root, which is where reading a spec stops being enough.
-	"aliases": {
+	aliases: {
 		status: "reviewed",
 		date: "2026-09-16",
 		reviewers: ["neopolitans"],
@@ -166,8 +166,18 @@ export function reviewOf(slug: string): Review {
 }
 
 const MONTHS = [
-	"January", "February", "March", "April", "May", "June",
-	"July", "August", "September", "October", "November", "December",
+	"January",
+	"February",
+	"March",
+	"April",
+	"May",
+	"June",
+	"July",
+	"August",
+	"September",
+	"October",
+	"November",
+	"December",
 ];
 
 /**
@@ -187,9 +197,7 @@ export function formatReviewDate(iso: string): string {
  */
 export function reviewLine(review: Review): string {
 	if (!review.date) return "Not reviewed yet";
-	const by = review.reviewers?.length
-		? ` by ${joinNames(review.reviewers.map(reviewerLink))}`
-		: "";
+	const by = review.reviewers?.length ? ` by ${joinNames(review.reviewers.map(reviewerLink))}` : "";
 	return `Last reviewed ${formatReviewDate(review.date)}${by}`;
 }
 

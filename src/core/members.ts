@@ -23,12 +23,12 @@
  * the build then rejects.
  */
 
-import type { NodeScript } from "./schema.js";
 import type { Registry } from "./nodes/index.js";
 import { resolveNodePins } from "./nodes/index.js";
-import { declaredTypeFields, type TypeField } from "./typeFields.js";
-import { propertiesOf } from "./robloxProperties.js";
 import { nilableProperty } from "./robloxNilable.js";
+import { propertiesOf } from "./robloxProperties.js";
+import type { NodeScript } from "./schema.js";
+import { declaredTypeFields, type TypeField } from "./typeFields.js";
 
 export interface MemberLookup {
 	/** The graph the node is in, as a script. */
@@ -48,9 +48,7 @@ export interface MemberLookup {
  * The *source* pin's type, because that is where a value's type is decided: an
  * input pin is typed `any` on Get Member and says nothing about what arrived.
  */
-export function typeInto(
-	lookup: MemberLookup, nodeId: string, pinId: string,
-): string | undefined {
+export function typeInto(lookup: MemberLookup, nodeId: string, pinId: string): string | undefined {
 	const link = lookup.script.links.find((l) => l.to.node === nodeId && l.to.pin === pinId);
 	if (!link) return undefined;
 	const from = lookup.script.nodes.find((n) => n.id === link.from.node);
@@ -72,7 +70,8 @@ export function typeInto(
  * is declared at all — is the compiler's to report, not the picker's.
  */
 export function membersOfType(
-	lookup: MemberLookup, typeName: string | undefined,
+	lookup: MemberLookup,
+	typeName: string | undefined,
 ): readonly TypeField[] {
 	const name = typeName?.trim();
 	if (!name || name === "any" || name === "table") return [];
@@ -89,9 +88,9 @@ export function membersOfType(
 	// Roblox's own, and only where a Roblox build is what is being written. A
 	// reference that can be empty is typed as one: `Character` is a `Model?`.
 	if (lookup.script.target !== "lune") {
-		return propertiesOf(bare).map((p) => (
-			nilableProperty(bare, p.name) ? { ...p, type: `${p.type}?` } : p
-		));
+		return propertiesOf(bare).map((p) =>
+			nilableProperty(bare, p.name) ? { ...p, type: `${p.type}?` } : p,
+		);
 	}
 	return [];
 }

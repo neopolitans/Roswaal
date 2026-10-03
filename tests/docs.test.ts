@@ -9,15 +9,18 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import {
-	documentNode, documentRegistry, exampleFor, OMISSION_REASONS, stripHeader,
-} from "../src/core/docs/nodeReference.js";
-import { BLUEPRINT_MAP, referencedNodeIds } from "../src/core/docs/blueprints.js";
-import { buildSearchIndex, buildSite, rankDocs } from "../src/core/docs/site.js";
-import { CURATED, GUIDE_SCENES } from "../src/core/docs/examples.js";
 import { compile } from "../src/core/compiler/index.js";
+import { BLUEPRINT_MAP, referencedNodeIds } from "../src/core/docs/blueprints.js";
+import { CURATED, GUIDE_SCENES } from "../src/core/docs/examples.js";
+import {
+	documentNode,
+	documentRegistry,
+	exampleFor,
+	OMISSION_REASONS,
+	stripHeader,
+} from "../src/core/docs/nodeReference.js";
+import { buildSearchIndex, buildSite, rankDocs } from "../src/core/docs/site.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import type { NodeDef } from "../src/core/schema.js";
 
 const registry = createRegistry();
@@ -51,8 +54,12 @@ describe("node reference", () => {
 
 	it("tells a pack's node apart from a built-in", () => {
 		const pack: NodeDef = {
-			id: "pack.thing", title: "Thing", category: "Custom",
-			pure: true, inputs: [], outputs: [{ id: "result", name: "", kind: "data", type: "number" }],
+			id: "pack.thing",
+			title: "Thing",
+			category: "Custom",
+			pure: true,
+			inputs: [],
+			outputs: [{ id: "result", name: "", kind: "data", type: "number" }],
 			compilesTo: { kind: "expr", outputs: { result: "1" } },
 		};
 		const withPack = createRegistry([pack]);
@@ -66,9 +73,7 @@ describe("node reference", () => {
 		/** The whole point: a page cannot claim output the emitter would not produce. */
 		it("compiles a pure node into the position it would really appear in", () => {
 			const example = exampleFor(registry.get("cframe.lookAt")!, registry);
-			expect(example.luau).toBe(
-				"print(CFrame.lookAt(Vector3.zero, Vector3.zero))",
-			);
+			expect(example.luau).toBe("print(CFrame.lookAt(Vector3.zero, Vector3.zero))");
 		});
 
 		it("hangs an impure node off Script Start", () => {
@@ -111,7 +116,10 @@ describe("node reference", () => {
 
 				const result = compile(CURATED[id](), registry);
 				const errors = result.diagnostics.filter((d) => d.severity === "error");
-				expect(errors.map((e) => e.message), `${id} example`).toEqual([]);
+				expect(
+					errors.map((e) => e.message),
+					`${id} example`,
+				).toEqual([]);
 				expect(stripHeader(result.code), `${id} example`).not.toBe("");
 			}
 		});
@@ -129,7 +137,10 @@ describe("node reference", () => {
 			for (const id of ids) {
 				const result = compile(GUIDE_SCENES[id](), registry);
 				const errors = result.diagnostics.filter((d) => d.severity === "error");
-				expect(errors.map((e) => e.message), `${id} scene`).toEqual([]);
+				expect(
+					errors.map((e) => e.message),
+					`${id} scene`,
+				).toEqual([]);
 			}
 		});
 

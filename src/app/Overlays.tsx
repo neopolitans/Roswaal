@@ -31,22 +31,26 @@
  */
 
 import { useRef } from "react";
-
-import type {
-	Literal, NodeConfig, NodeDef, NodeScript, PinDef, RoswaalConfig,
-} from "../core/schema.js";
-import type { Registry } from "../core/nodes/index.js";
+import type { LuauFragment } from "../core/luau/check.js";
 import type { InstanceLocation } from "../core/nodemap.js";
+import type { Registry } from "../core/nodes/index.js";
+import type {
+	Literal,
+	NodeConfig,
+	NodeDef,
+	NodeScript,
+	PinDef,
+	RoswaalConfig,
+} from "../core/schema.js";
 import { CodeEditor } from "./CodeEditor.jsx";
 import { Dialog, type PendingDialog } from "./Dialog.jsx";
-import { NodeMenu, type MenuAnchor, type Preset } from "./NodeMenu.jsx";
-import { PinMenu, type PinMenuTarget } from "./PinMenu.jsx";
-import { SelectionPreview } from "./SelectionPreview.jsx";
-import { SettingsPanel } from "./SettingsPanel.jsx";
 import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
+import { type MenuAnchor, NodeMenu, type Preset } from "./NodeMenu.jsx";
+import { PinMenu, type PinMenuTarget } from "./PinMenu.jsx";
 import type { Preferences } from "./preferences.js";
-import type { LuauFragment } from "../core/luau/check.js";
+import { SelectionPreview } from "./SelectionPreview.jsx";
+import { SettingsPanel } from "./SettingsPanel.jsx";
 
 /** A file dragged onto the canvas, once we know what can be made from it. */
 export interface DropMenuState {
@@ -121,7 +125,6 @@ export interface OverlaysProps {
 	codeEdit: CodeEditState | null;
 	onCodeCommit: (value: string) => void;
 	onCodeClose: () => void;
-
 }
 
 export function Overlays(props: OverlaysProps) {
@@ -265,8 +268,7 @@ function DropMenu({ screen, name, location, onPick, onClose }: DropMenuProps) {
 				</div>
 				{!location.isModule && (
 					<p className="drop-note">
-						This compiles to a Script rather than a ModuleScript, so there is nothing to
-						require.
+						This compiles to a Script rather than a ModuleScript, so there is nothing to require.
 					</p>
 				)}
 			</div>

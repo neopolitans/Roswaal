@@ -40,19 +40,26 @@ describe("reading wally.toml", () => {
 	});
 
 	it("follows a thunk to the names below script.Parent", () => {
-		expect(thunkTarget('return require(script.Parent._Index["sleitnick_signal@2.0.0"]["signal"])\n'))
-			.toEqual(["_Index", "sleitnick_signal@2.0.0", "signal"]);
+		expect(
+			thunkTarget('return require(script.Parent._Index["sleitnick_signal@2.0.0"]["signal"])\n'),
+		).toEqual(["_Index", "sleitnick_signal@2.0.0", "signal"]);
 		expect(thunkTarget("return {}")).toBeUndefined();
 		expect(indexVersion("sleitnick_signal@2.0.0")).toBe("2.0.0");
 	});
 
 	it("reads a package's own thunk, and nothing that only looks like one", () => {
-		expect(thunkTarget('return require(script.Parent.Parent["sleitnick_signal@2.0.0"].signal)'))
-			.toEqual(["Parent", "sleitnick_signal@2.0.0", "signal"]);
-		expect(thunkTarget('--[[\nreturn require(script.Parent._Index["a_b@1.0.0"]["b"])\n]]\nreturn {}')).toBeUndefined();
-		expect(thunkTarget('local x = 1\nreturn require(script.Parent._Index["a_b@1.0.0"]["b"])')).toBeUndefined();
-		expect(thunkTarget('return require(script.Parent:WaitForChild("_Index")["a_b@1.0.0"].b)'))
-			.toEqual(["_Index", "a_b@1.0.0", "b"]);
+		expect(
+			thunkTarget('return require(script.Parent.Parent["sleitnick_signal@2.0.0"].signal)'),
+		).toEqual(["Parent", "sleitnick_signal@2.0.0", "signal"]);
+		expect(
+			thunkTarget('--[[\nreturn require(script.Parent._Index["a_b@1.0.0"]["b"])\n]]\nreturn {}'),
+		).toBeUndefined();
+		expect(
+			thunkTarget('local x = 1\nreturn require(script.Parent._Index["a_b@1.0.0"]["b"])'),
+		).toBeUndefined();
+		expect(
+			thunkTarget('return require(script.Parent:WaitForChild("_Index")["a_b@1.0.0"].b)'),
+		).toEqual(["_Index", "a_b@1.0.0", "b"]);
 	});
 });
 
@@ -71,11 +78,20 @@ describe("Wally in the project tree", () => {
 		await put("roswaal.json", JSON.stringify({ schemaVersion: 1 }));
 		await put("wally.toml", TOML);
 		// A package with its module at the top of its folder.
-		await put("Packages/Signal.lua", 'return require(script.Parent._Index["sleitnick_signal@2.0.3"]["signal"])\n');
+		await put(
+			"Packages/Signal.lua",
+			'return require(script.Parent._Index["sleitnick_signal@2.0.3"]["signal"])\n',
+		);
 		await put("Packages/_Index/sleitnick_signal@2.0.3/signal/init.luau", "return {}\n");
 		// One that is a Rojo project of its own, its module under src/.
-		await put("Packages/Sift.lua", 'return require(script.Parent._Index["csqrl_sift@0.0.11"]["sift"])\n');
-		await put("Packages/_Index/csqrl_sift@0.0.11/sift/default.project.json", '{ "name": "sift", "tree": { "$path": "src" } }');
+		await put(
+			"Packages/Sift.lua",
+			'return require(script.Parent._Index["csqrl_sift@0.0.11"]["sift"])\n',
+		);
+		await put(
+			"Packages/_Index/csqrl_sift@0.0.11/sift/default.project.json",
+			'{ "name": "sift", "tree": { "$path": "src" } }',
+		);
 		await put("Packages/_Index/csqrl_sift@0.0.11/sift/src/init.lua", "return {}\n");
 		await put("src/main.server.luau", "print('hi')\n");
 		// Store and TestEZ are listed, not installed.
@@ -85,7 +101,14 @@ describe("Wally in the project tree", () => {
 	it("lists wally.toml's packages with their versions and modules", async () => {
 		const tree = await buildTree(await project());
 		const wally = tree.find((e) => e.kind === "wally")!;
-		expect(wally.children!.map((p: TreeEntry) => [p.name, p.version ?? null, p.target ?? null, p.missing ?? false])).toEqual([
+		expect(
+			wally.children!.map((p: TreeEntry) => [
+				p.name,
+				p.version ?? null,
+				p.target ?? null,
+				p.missing ?? false,
+			]),
+		).toEqual([
 			["Signal", "2.0.3", "Packages/_Index/sleitnick_signal@2.0.3/signal/init.luau", false],
 			["Sift", "0.0.11", "Packages/_Index/csqrl_sift@0.0.11/sift/src/init.lua", false],
 			["Store", null, null, true],

@@ -14,7 +14,9 @@ import { RbxError } from "../src/core/rbx/dom.js";
 import { isZstd, zstdDecompress } from "../src/core/rbx/zstd.js";
 
 const compress = (data: Uint8Array, level: number): Uint8Array =>
-	new Uint8Array(zstdCompressSync(data, { params: { [constants.ZSTD_c_compressionLevel]: level } }));
+	new Uint8Array(
+		zstdCompressSync(data, { params: { [constants.ZSTD_c_compressionLevel]: level } }),
+	);
 
 /** A deterministic pseudo-random source, so a failure reproduces. */
 function random(seed: number): () => number {
@@ -29,12 +31,32 @@ const text = (s: string) => new TextEncoder().encode(s);
 
 function luauLike(lines: number, seed: number): Uint8Array {
 	const r = random(seed);
-	const words = ["local", "function", "end", "if", "then", "return", "game", "workspace", "Players", "Instance.new", "Vector3.new", "CFrame", "self", "nil", "true", "false"];
+	const words = [
+		"local",
+		"function",
+		"end",
+		"if",
+		"then",
+		"return",
+		"game",
+		"workspace",
+		"Players",
+		"Instance.new",
+		"Vector3.new",
+		"CFrame",
+		"self",
+		"nil",
+		"true",
+		"false",
+	];
 	let out = "";
 	for (let i = 0; i < lines; i++) {
 		const n = 2 + Math.floor(r() * 8);
 		const parts: string[] = [];
-		for (let k = 0; k < n; k++) parts.push(words[Math.floor(r() * words.length)] + (r() < 0.3 ? String(Math.floor(r() * 1000)) : ""));
+		for (let k = 0; k < n; k++)
+			parts.push(
+				words[Math.floor(r() * words.length)] + (r() < 0.3 ? String(Math.floor(r() * 1000)) : ""),
+			);
 		out += "\t".repeat(Math.floor(r() * 4)) + parts.join(" ") + "\n";
 	}
 	return text(out);
@@ -55,7 +77,14 @@ function propertyLike(length: number, seed: number): Uint8Array {
 		const kind = r();
 		const run = 1 + Math.floor(r() * 200);
 		for (let k = 0; k < run && i < length; k++, i++) {
-			out[i] = kind < 0.4 ? 0 : kind < 0.7 ? Math.floor(r() * 8) : kind < 0.85 ? out[Math.max(0, i - 16)] : Math.floor(r() * 256);
+			out[i] =
+				kind < 0.4
+					? 0
+					: kind < 0.7
+						? Math.floor(r() * 8)
+						: kind < 0.85
+							? out[Math.max(0, i - 16)]
+							: Math.floor(r() * 256);
 		}
 	}
 	return out;
@@ -69,7 +98,16 @@ const CASES: [string, Uint8Array][] = [
 	["Luau-like text", luauLike(2_000, 1)],
 	["a lot of Luau-like text", luauLike(40_000, 2)],
 	["noise", noise(50_000, 3)],
-	["noise with repeats", (() => { const n = noise(4_000, 4); const out = new Uint8Array(200_000); for (let i = 0; i < out.length; i += n.length) out.set(n.subarray(0, Math.min(n.length, out.length - i)), i); return out; })()],
+	[
+		"noise with repeats",
+		(() => {
+			const n = noise(4_000, 4);
+			const out = new Uint8Array(200_000);
+			for (let i = 0; i < out.length; i += n.length)
+				out.set(n.subarray(0, Math.min(n.length, out.length - i)), i);
+			return out;
+		})(),
+	],
 	["property-like arrays", propertyLike(300_000, 5)],
 	["small property-like arrays", propertyLike(700, 6)],
 ];
@@ -96,7 +134,9 @@ describe("zstd", () => {
 		const a = luauLike(300, 8);
 		const b = propertyLike(3_000, 9);
 		const both = new Uint8Array([...compress(a, 3), ...compress(b, 5)]);
-		expect(Buffer.from(zstdDecompress(both)).equals(Buffer.from(new Uint8Array([...a, ...b])))).toBe(true);
+		expect(
+			Buffer.from(zstdDecompress(both)).equals(Buffer.from(new Uint8Array([...a, ...b]))),
+		).toBe(true);
 	});
 
 	/**
@@ -124,10 +164,18 @@ describe("zstd", () => {
 	it("refuses a raw block shorter than it says", () => {
 		const header = (100 << 3) | 1;
 		const frame = Uint8Array.of(
-			0x28, 0xb5, 0x2f, 0xfd, // magic
-			0x20, 100, // single segment, content size 100
-			header & 0xff, (header >> 8) & 0xff, header >> 16,
-			1, 2, 3,
+			0x28,
+			0xb5,
+			0x2f,
+			0xfd, // magic
+			0x20,
+			100, // single segment, content size 100
+			header & 0xff,
+			(header >> 8) & 0xff,
+			header >> 16,
+			1,
+			2,
+			3,
 		);
 		expect(() => zstdDecompress(frame, 100)).toThrow(RbxError);
 	});

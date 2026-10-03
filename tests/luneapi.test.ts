@@ -13,19 +13,19 @@
  * siblings, while reporting nothing missing.
  */
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-
+import { listedTypes, listGroups, searchTypes } from "../src/app/TypePicker.jsx";
+import { categoryLabel, ROBLOX_NAMED_CATEGORIES } from "../src/core/categories.js";
 import {
-	LUNE_MODULES, LUNE_ROBLOX_DATATYPES, LUNE_VERSION, type LuneFunction,
+	LUNE_MODULES,
+	LUNE_ROBLOX_DATATYPES,
+	LUNE_VERSION,
+	type LuneFunction,
 } from "../src/core/luneApi.js";
 import { requiresLuneRoblox } from "../src/core/luneTypes.js";
-import { listedTypes, listGroups, searchTypes } from "../src/app/TypePicker.jsx";
-import {
-	emptyScript, ENGINE_TYPES, type NodeScript,
-} from "../src/core/schema.js";
 import { createRegistry } from "../src/core/nodes/index.js";
-import { readFileSync } from "node:fs";
-import { categoryLabel, ROBLOX_NAMED_CATEGORIES } from "../src/core/categories.js";
+import { ENGINE_TYPES, emptyScript, type NodeScript } from "../src/core/schema.js";
 
 const byAlias = new Map(LUNE_MODULES.map((module) => [module.alias, module]));
 
@@ -34,9 +34,10 @@ function fn(alias: string, name: string): LuneFunction | undefined {
 }
 
 function method(alias: string, className: string, name: string): LuneFunction | undefined {
-	return byAlias.get(alias)?.classes
-		.find((one) => one.name === className)?.methods
-		.find((one) => one.name === name);
+	return byAlias
+		.get(alias)
+		?.classes.find((one) => one.name === className)
+		?.methods.find((one) => one.name === name);
 }
 
 describe("which Lune it describes", () => {
@@ -47,8 +48,16 @@ describe("which Lune it describes", () => {
 
 	it("has the ten standard library modules", () => {
 		expect([...byAlias.keys()].sort()).toEqual([
-			"datetime", "fs", "luau", "net", "process",
-			"regex", "roblox", "serde", "stdio", "task",
+			"datetime",
+			"fs",
+			"luau",
+			"net",
+			"process",
+			"regex",
+			"roblox",
+			"serde",
+			"stdio",
+			"task",
 		]);
 	});
 
@@ -210,10 +219,15 @@ describe("the types a graph can pick from", () => {
 	/** The canvas is the other way of asking, and counts the same. */
 	it("counts a Require at Top as having asked", () => {
 		const onCanvas = graph("lune", {
-			nodes: [{
-				id: "n1", def: "module.requireTop", x: 0, y: 0,
-				literals: { specifier: { t: "raw", v: "@lune/roblox" } },
-			}],
+			nodes: [
+				{
+					id: "n1",
+					def: "module.requireTop",
+					x: 0,
+					y: 0,
+					literals: { specifier: { t: "raw", v: "@lune/roblox" } },
+				},
+			],
 		});
 		expect(requiresLuneRoblox(onCanvas)).toBe(true);
 		expect(listedTypes(onCanvas)).toContain("Instance");

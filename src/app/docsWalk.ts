@@ -67,7 +67,9 @@ export function attachWalkthrough(figure: HTMLElement): () => void {
 
 	const show = (index: number) => {
 		at = Math.max(0, Math.min(steps.length - 1, index));
-		frames.forEach((frame, i) => { frame.hidden = i !== at; });
+		frames.forEach((frame, i) => {
+			frame.hidden = i !== at;
+		});
 		steps.forEach((step, i) => {
 			const state = stepState(i, at);
 			step.classList.toggle("walk-done", state === "done");

@@ -17,16 +17,15 @@
  * Declare Type at Top.
  */
 
-import { describe, expect, it } from "vitest";
-
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 
 import { bindNodeToFunction, syncFunctionRefs } from "../src/app/edits.js";
 import { compile } from "../src/core/compiler/index.js";
-import { createRegistry } from "../src/core/nodes/index.js";
 import { FUNCTION_NODES } from "../src/core/nodes/flow.js";
+import { createRegistry } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { Builder, body } from "./helpers.js";
 
@@ -35,7 +34,9 @@ const registry = createRegistry();
 
 const code = (script: NodeScript) => body(compile(script, registry).code);
 const errors = (script: NodeScript) =>
-	compile(script, registry).diagnostics.filter((d) => d.severity === "error").map((d) => d.message);
+	compile(script, registry)
+		.diagnostics.filter((d) => d.severity === "error")
+		.map((d) => d.message);
 
 /**
  * A script that declares a table, then hangs a function off it — the shape of
@@ -60,7 +61,9 @@ function onTable(options: { owner?: boolean; name?: string } = {}) {
 	b.link(fn, "body", ret, "in");
 
 	if (options.owner !== false) {
-		const get = b.node("variable.get", { config: { variable: table, name: "TankConfig", type: "table" } });
+		const get = b.node("variable.get", {
+			config: { variable: table, name: "TankConfig", type: "table" },
+		});
 		b.link(get, "value", fn, "owner");
 	}
 	return b.build();
@@ -97,9 +100,13 @@ describe("Declare Function, onto a table", () => {
 	it("refuses a table that is not a name", () => {
 		const b = new Builder();
 		const begin = b.node("script.begin");
-		const dict = b.node("table.dictionary", { config: { args: 1, split: { "in:p0": "keyValue" } } });
+		const dict = b.node("table.dictionary", {
+			config: { args: 1, split: { "in:p0": "keyValue" } },
+		});
 		b.lit(dict, "p0.key", { t: "string", v: "a" });
-		const fn = b.node("function.declareHere", { config: { name: "read", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "read", params: [], returns: [] },
+		});
 		b.link(begin, "then", fn, "in");
 		b.link(dict, "result", fn, "owner");
 
@@ -125,7 +132,9 @@ describe("Declare Function, where it sits", () => {
 		const begin = b.node("script.begin");
 		const before = b.node("debug.print");
 		b.lit(before, "value", { t: "string", v: "first" });
-		const fn = b.node("function.declareHere", { config: { name: "later", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "later", params: [], returns: [] },
+		});
 		const inner = b.node("debug.print");
 		b.lit(inner, "value", { t: "string", v: "inside" });
 		b.link(begin, "then", before, "in");
@@ -140,7 +149,9 @@ describe("Declare Function, where it sits", () => {
 	it("leaves the hoisted Function where it was", () => {
 		const b = new Builder();
 		const begin = b.node("script.begin");
-		const hoisted = b.node("function.entry", { config: { name: "early", params: [], returns: [] } });
+		const hoisted = b.node("function.entry", {
+			config: { name: "early", params: [], returns: [] },
+		});
 		const hoistedBody = b.node("debug.print");
 		b.lit(hoistedBody, "value", { t: "string", v: "hoisted" });
 		b.link(hoisted, "then", hoistedBody, "in");
@@ -190,7 +201,9 @@ describe("Declare Function, where it sits", () => {
 	it("can call itself", () => {
 		const b = new Builder();
 		const begin = b.node("script.begin");
-		const fn = b.node("function.declareHere", { config: { name: "again", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "again", params: [], returns: [] },
+		});
 		const ref = b.node("function.get", { config: { function: undefined, name: "again" } });
 		const call = b.node("call.function", { config: { args: 0 } });
 		b.link(begin, "then", fn, "in");
@@ -210,8 +223,12 @@ describe("Declare Function, where it sits", () => {
 	it("keeps two functions with the same name apart", () => {
 		const b = new Builder();
 		const begin = b.node("script.begin");
-		const first = b.node("function.declareHere", { config: { name: "f", params: [], returns: [] } });
-		const second = b.node("function.declareHere", { config: { name: "f", params: [], returns: [] } });
+		const first = b.node("function.declareHere", {
+			config: { name: "f", params: [], returns: [] },
+		});
+		const second = b.node("function.declareHere", {
+			config: { name: "f", params: [], returns: [] },
+		});
 		b.link(begin, "then", first, "in");
 		b.link(first, "then", second, "in");
 
@@ -234,7 +251,9 @@ describe("its function, as a value", () => {
 		const fn = b.node("function.declareHere", {
 			config: { name: "readNumber", params: [], returns: [{ name: "n", type: "number" }] },
 		});
-		const inner = b.node("function.return", { config: { returns: [{ name: "n", type: "number" }] } });
+		const inner = b.node("function.return", {
+			config: { returns: [{ name: "n", type: "number" }] },
+		});
 		b.lit(inner, "r0", { t: "number", v: 1 });
 		const call = b.node("call.function", { config: { args: 0 } });
 
@@ -256,7 +275,9 @@ describe("its function, as a value", () => {
 		const fn = b.node("function.declareHere", {
 			config: { name: "roll", params: [], returns: [{ name: "n", type: "number" }] },
 		});
-		const inner = b.node("function.return", { config: { returns: [{ name: "n", type: "number" }] } });
+		const inner = b.node("function.return", {
+			config: { returns: [{ name: "n", type: "number" }] },
+		});
 		b.lit(inner, "r0", { t: "number", v: 1 });
 		const call = b.node("call.value", { config: { args: 0 } });
 		const print = b.node("debug.print");
@@ -276,8 +297,12 @@ describe("its function, as a value", () => {
 		const b = new Builder();
 		const table = b.variable("TankConfig", "table", { t: "raw", v: "{}" });
 		const begin = b.node("script.begin");
-		const get = b.node("variable.get", { config: { variable: table, name: "TankConfig", type: "table" } });
-		const fn = b.node("function.declareHere", { config: { name: "read", params: [], returns: [] } });
+		const get = b.node("variable.get", {
+			config: { variable: table, name: "TankConfig", type: "table" },
+		});
+		const fn = b.node("function.declareHere", {
+			config: { name: "read", params: [], returns: [] },
+		});
 		const inner = b.node("debug.print");
 		b.lit(inner, "value", { t: "string", v: "x" });
 		const print = b.node("debug.print");
@@ -299,7 +324,9 @@ describe("its function, as a value", () => {
 		const b = new Builder();
 		const begin = b.node("script.begin");
 		const print = b.node("debug.print");
-		const fn = b.node("function.declareHere", { config: { name: "later", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "later", params: [], returns: [] },
+		});
 		const inner = b.node("debug.print");
 		b.lit(inner, "value", { t: "string", v: "x" });
 
@@ -340,7 +367,9 @@ describe("Get Function can point at one", () => {
 	it("does not call it a function that is no longer in the graph", () => {
 		const b = new Builder();
 		const begin = b.node("script.begin");
-		const fn = b.node("function.declareHere", { config: { name: "readNumber", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "readNumber", params: [], returns: [] },
+		});
 		const inner = b.node("debug.print");
 		b.lit(inner, "value", { t: "string", v: "x" });
 		const ref = b.node("function.get");
@@ -427,12 +456,16 @@ describe("choosing one, and renaming it", () => {
 	/** The inspector offered it, took the click, and did nothing. */
 	it("can be bound to a Get Function", () => {
 		const b = new Builder();
-		const fn = b.node("function.declareHere", { config: { name: "readNumbers", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "readNumbers", params: [], returns: [] },
+		});
 		const ref = b.node("function.get");
 		const bound = bindNodeToFunction(b.build(), ref, fn);
 
-		expect((bound.nodes.find((n) => n.id === ref)!.config as Record<string, unknown>))
-			.toEqual({ function: fn, name: "readNumbers" });
+		expect(bound.nodes.find((n) => n.id === ref)!.config as Record<string, unknown>).toEqual({
+			function: fn,
+			name: "readNumbers",
+		});
 	});
 
 	it("still refuses a node that is not a function at all", () => {
@@ -447,12 +480,15 @@ describe("choosing one, and renaming it", () => {
 	/** A rename has to reach the references, or they show a name that is gone. */
 	it("keeps a reference's cached name in step with a rename", () => {
 		const b = new Builder();
-		const fn = b.node("function.declareHere", { config: { name: "readNumbers", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "readNumbers", params: [], returns: [] },
+		});
 		const ref = b.node("function.get", { config: { function: fn, name: "oldName" } });
 
 		const synced = syncFunctionRefs(b.build());
-		expect((synced.nodes.find((n) => n.id === ref)!.config as { name?: string }).name)
-			.toBe("readNumbers");
+		expect((synced.nodes.find((n) => n.id === ref)!.config as { name?: string }).name).toBe(
+			"readNumbers",
+		);
 	});
 });
 
@@ -461,10 +497,14 @@ describe("room around a declaration", () => {
 	function twoFunctions() {
 		const b = new Builder();
 		const begin = b.node("script.begin");
-		const first = b.node("function.declareHere", { config: { name: "one", params: [], returns: [] } });
+		const first = b.node("function.declareHere", {
+			config: { name: "one", params: [], returns: [] },
+		});
 		const firstBody = b.node("debug.print");
 		b.lit(firstBody, "value", { t: "string", v: "a" });
-		const second = b.node("function.declareHere", { config: { name: "two", params: [], returns: [] } });
+		const second = b.node("function.declareHere", {
+			config: { name: "two", params: [], returns: [] },
+		});
 		const secondBody = b.node("debug.print");
 		b.lit(secondBody, "value", { t: "string", v: "b" });
 
@@ -489,7 +529,9 @@ describe("room around a declaration", () => {
 		const begin = b.node("script.begin");
 		const before = b.node("debug.print");
 		b.lit(before, "value", { t: "string", v: "x" });
-		const fn = b.node("function.declareHere", { config: { name: "after", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "after", params: [], returns: [] },
+		});
 		const inner = b.node("debug.print");
 		b.lit(inner, "value", { t: "string", v: "y" });
 		b.link(begin, "then", before, "in");
@@ -502,7 +544,9 @@ describe("room around a declaration", () => {
 	it("separates it from the statement below it", () => {
 		const b = new Builder();
 		const begin = b.node("script.begin");
-		const fn = b.node("function.declareHere", { config: { name: "before", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "before", params: [], returns: [] },
+		});
 		const inner = b.node("debug.print");
 		b.lit(inner, "value", { t: "string", v: "y" });
 		const after = b.node("debug.print");
@@ -549,7 +593,11 @@ describe("what the node says it is", () => {
 
 	it("shows the signature underneath, like the hoisted one", () => {
 		const def = registry.get("function.declareHere")!;
-		const sig = { name: "read", params: [{ name: "tank", type: "Model" }], returns: [{ name: "c", type: "Config" }] };
+		const sig = {
+			name: "read",
+			params: [{ name: "tank", type: "Model" }],
+			returns: [{ name: "c", type: "Config" }],
+		};
 		expect(def.subtitle?.(sig)).toBe("(tank: Model) → Config");
 		expect(def.subtitle?.(sig)).toBe(registry.get("function.entry")!.subtitle?.(sig));
 	});

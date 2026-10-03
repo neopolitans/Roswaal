@@ -15,16 +15,21 @@
  */
 
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
 import {
-	ATTRIBUTIONS, DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, TARGETS, TESTED_WITH,
+	ATTRIBUTIONS,
+	DEPENDENCIES,
+	INSPIRATIONS,
+	NAME_NOTICE,
+	TARGETS,
+	TESTED_WITH,
 } from "../src/core/docs/attributions.js";
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import { blockText, buildSite, findPage } from "../src/core/docs/site.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 
 const NOTICE = readFileSync(
 	join(dirname(fileURLToPath(import.meta.url)), "..", "ATTRIBUTIONS.md"),
@@ -98,7 +103,9 @@ describe("ATTRIBUTIONS.md and the attributions page", () => {
 	 */
 	it("list the same projects", () => {
 		for (const entry of ATTRIBUTIONS) {
-			expect(NOTICE, `${entry.name} is on the page but not in ATTRIBUTIONS.md`).toContain(entry.name);
+			expect(NOTICE, `${entry.name} is on the page but not in ATTRIBUTIONS.md`).toContain(
+				entry.name,
+			);
 		}
 	});
 
@@ -126,10 +133,13 @@ describe("ATTRIBUTIONS.md and the attributions page", () => {
  */
 describe("what Roswaal uses, learned from, and writes for", () => {
 	it("puts every entry in exactly one of the four", () => {
-		expect(DEPENDENCIES.length + INSPIRATIONS.length + TARGETS.length + TESTED_WITH.length)
-			.toBe(ATTRIBUTIONS.length);
+		expect(DEPENDENCIES.length + INSPIRATIONS.length + TARGETS.length + TESTED_WITH.length).toBe(
+			ATTRIBUTIONS.length,
+		);
 		for (const entry of ATTRIBUTIONS) {
-			expect(["uses", "inspired-by", "designed-for", "tested-with"], entry.name).toContain(entry.relation);
+			expect(["uses", "inspired-by", "designed-for", "tested-with"], entry.name).toContain(
+				entry.relation,
+			);
 		}
 	});
 

@@ -8,12 +8,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { classify } from "../src/core/nodes/runtimes.js";
-
-import { LUAU_KEYWORDS, keywordNodes } from "../src/core/keywords.js";
-import { createRegistry } from "../src/core/nodes/index.js";
 import { score } from "../src/app/menuSearch.js";
+
+import { keywordNodes, LUAU_KEYWORDS } from "../src/core/keywords.js";
+import { createRegistry } from "../src/core/nodes/index.js";
+import { classify } from "../src/core/nodes/runtimes.js";
 
 const registry = createRegistry();
 

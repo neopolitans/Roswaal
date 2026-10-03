@@ -64,8 +64,7 @@ export function robloxDemosPage({ registry }: PageContext): DocPage {
 		{
 			t: "note",
 			kind: "info",
-			text:
-				"Each **Function** has a tab of its own, as in the editor. See [Functions](functions).",
+			text: "Each **Function** has a tab of its own, as in the editor. See [Functions](functions).",
 		},
 
 		{ t: "h", level: 2, text: "A script that runs when the place does" },

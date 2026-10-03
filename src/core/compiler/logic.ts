@@ -31,14 +31,25 @@
  *   the node rather than shadowing a name in the script it is placed in.
  */
 
-import { emitLogic, logicInputName, logicOutputName } from "./emit.js";
-import { LOGIC_DENIED, LOGIC_INPUTS, LOGIC_OUTPUTS, shapeConfig, type LogicShape } from "../nodes/logic.js";
-import { nodeTitle, resolveNodePins, type Registry } from "../nodes/index.js";
+import { nodeTitle, type Registry, resolveNodePins } from "../nodes/index.js";
+import {
+	LOGIC_DENIED,
+	LOGIC_INPUTS,
+	LOGIC_OUTPUTS,
+	type LogicShape,
+	shapeConfig,
+} from "../nodes/logic.js";
 import { packTargets } from "../packs.js";
 import {
+	type Comment,
 	emptyScript,
-	type Comment, type GraphNode, type Link, type NodeDef, type NodeScript, type Target,
+	type GraphNode,
+	type Link,
+	type NodeDef,
+	type NodeScript,
+	type Target,
 } from "../schema.js";
+import { emitLogic, logicInputName, logicOutputName } from "./emit.js";
 
 /** A node's logic as a pack stores it. */
 export interface LogicGraph {
@@ -69,7 +80,15 @@ export function defaultLogic(shape: LogicShape): LogicGraph {
 			{ id: INPUTS_ID, def: LOGIC_INPUTS, x: 80, y: 120, config },
 			{ id: OUTPUTS_ID, def: LOGIC_OUTPUTS, x: 640, y: 120, config },
 		],
-		links: shape.pure ? [] : [{ id: "logic-flow", from: { node: INPUTS_ID, pin: "then" }, to: { node: OUTPUTS_ID, pin: "in" } }],
+		links: shape.pure
+			? []
+			: [
+					{
+						id: "logic-flow",
+						from: { node: INPUTS_ID, pin: "then" },
+						to: { node: OUTPUTS_ID, pin: "in" },
+					},
+				],
 		comments: [],
 	};
 }
@@ -85,7 +104,9 @@ export function defaultLogic(shape: LogicShape): LogicGraph {
 export function logicScript(graph: LogicGraph, shape: LogicShape, registry: Registry): NodeScript {
 	const config = shapeConfig(shape);
 	const nodes = graph.nodes.map((node) =>
-		node.def === LOGIC_INPUTS || node.def === LOGIC_OUTPUTS ? { ...node, config: { ...node.config, ...config } } : node,
+		node.def === LOGIC_INPUTS || node.def === LOGIC_OUTPUTS
+			? { ...node, config: { ...node.config, ...config } }
+			: node,
 	);
 	const pins = new Map(
 		nodes.map((node) => {
@@ -97,8 +118,10 @@ export function logicScript(graph: LogicGraph, shape: LogicShape, registry: Regi
 		const from = pins.get(link.from.node);
 		const to = pins.get(link.to.node);
 		if (from === undefined || to === undefined) return false;
-		return (from === null || from.outputs.some((p) => p.id === link.from.pin))
-			&& (to === null || to.inputs.some((p) => p.id === link.to.pin));
+		return (
+			(from === null || from.outputs.some((p) => p.id === link.from.pin)) &&
+			(to === null || to.inputs.some((p) => p.id === link.to.pin))
+		);
 	});
 	return { ...emptyScript("logic", "logic"), nodes, links, comments: graph.comments ?? [] };
 }
@@ -116,28 +139,46 @@ function restore(text: string): string {
 /** How many times each input placeholder is read. */
 function inputReads(text: string): Map<string, number> {
 	const counts = new Map<string, number>();
-	for (const match of text.matchAll(IN_PLACEHOLDER)) counts.set(match[1], (counts.get(match[1]) ?? 0) + 1);
+	for (const match of text.matchAll(IN_PLACEHOLDER))
+		counts.set(match[1], (counts.get(match[1]) ?? 0) + 1);
 	return counts;
 }
 
-export function compileLogic(graph: LogicGraph, shape: LogicShape, registry: Registry): LogicCompile {
+export function compileLogic(
+	graph: LogicGraph,
+	shape: LogicShape,
+	registry: Registry,
+): LogicCompile {
 	const script = logicScript(graph, shape, registry);
 	const errors: string[] = [];
 	const warnings: string[] = [];
 	const titleOf = (node: GraphNode) => nodeTitle(registry.get(node.def), node);
-	const nameOf = (list: LogicShape["inputs"], id: string) => list.find((p) => p.id === id)?.name || id;
+	const nameOf = (list: LogicShape["inputs"], id: string) =>
+		list.find((p) => p.id === id)?.name || id;
 
 	const starts = script.nodes.filter((n) => n.def === LOGIC_INPUTS);
 	const ends = script.nodes.filter((n) => n.def === LOGIC_OUTPUTS);
-	if (starts.length !== 1) errors.push(starts.length === 0 ? "The logic needs its Node Inputs back." : "The logic has more than one Node Inputs.");
-	if (ends.length !== 1) errors.push(ends.length === 0 ? "The logic needs its Node Outputs back." : "The logic has more than one Node Outputs.");
+	if (starts.length !== 1)
+		errors.push(
+			starts.length === 0
+				? "The logic needs its Node Inputs back."
+				: "The logic has more than one Node Inputs.",
+		);
+	if (ends.length !== 1)
+		errors.push(
+			ends.length === 0
+				? "The logic needs its Node Outputs back."
+				: "The logic has more than one Node Outputs.",
+		);
 
 	const used: NodeDef[] = [];
 	for (const node of script.nodes) {
 		if (node.def === LOGIC_INPUTS || node.def === LOGIC_OUTPUTS) continue;
 		const def = registry.get(node.def);
 		if (!def) {
-			errors.push(`${node.def} is not a node this pack can use. Add the pack it comes from to the pack's requires.`);
+			errors.push(
+				`${node.def} is not a node this pack can use. Add the pack it comes from to the pack's requires.`,
+			);
 			continue;
 		}
 		const denied = LOGIC_DENIED.get(def.id);
@@ -170,9 +211,12 @@ export function compileLogic(graph: LogicGraph, shape: LogicShape, registry: Reg
 	}
 
 	const wired = (pinId: string) =>
-		script.links.some((l) => l.to.node === ends[0].id && (l.to.pin === pinId || l.to.pin.startsWith(`${pinId}.`)));
+		script.links.some(
+			(l) => l.to.node === ends[0].id && (l.to.pin === pinId || l.to.pin.startsWith(`${pinId}.`)),
+		);
 	for (const out of shape.outputs) {
-		if (!wired(out.id)) warnings.push(`${out.name || out.id} is never given a value, so it is nil.`);
+		if (!wired(out.id))
+			warnings.push(`${out.name || out.id} is never given a value, so it is nil.`);
 	}
 
 	if (shape.pure) {
@@ -183,13 +227,19 @@ export function compileLogic(graph: LogicGraph, shape: LogicShape, registry: Reg
 				if (count > 1) {
 					warnings.push(
 						`${nameOf(shape.inputs, id)} is read ${count} times in ${out.name || out.id}, so a wired value ` +
-						`is worked out ${count} times. A pure node has nowhere to keep it.`,
+							`is worked out ${count} times. A pure node has nowhere to keep it.`,
 					);
 				}
 			}
 			outputs[out.id] = restore(text);
 		}
-		return { compilesTo: errors.length > 0 ? null : { kind: "expr", outputs }, errors, warnings, latent, targets };
+		return {
+			compilesTo: errors.length > 0 ? null : { kind: "expr", outputs },
+			errors,
+			warnings,
+			latent,
+			targets,
+		};
 	}
 
 	let body = emitted.body.replace(/\n+$/, "");
@@ -205,11 +255,16 @@ export function compileLogic(graph: LogicGraph, shape: LogicShape, registry: Reg
 	}
 
 	const lines = [...prelude, ...(body === "" ? [] : body.split("\n"))];
-	if (shape.outputs.length > 0 && !lines.some((line) => shape.outputs.some((o) => line.includes(logicOutputName(o.id))))) {
+	if (
+		shape.outputs.length > 0 &&
+		!lines.some((line) => shape.outputs.some((o) => line.includes(logicOutputName(o.id))))
+	) {
 		warnings.push("Node Outputs is never reached, so the node's outputs stay nil.");
 	}
 	const declares = lines.some((line) => /^local\s/.test(line));
-	const text = declares ? ["do", ...lines.map((line) => (line === "" ? "" : `\t${line}`)), "end"].join("\n") : lines.join("\n");
+	const text = declares
+		? ["do", ...lines.map((line) => (line === "" ? "" : `\t${line}`)), "end"].join("\n")
+		: lines.join("\n");
 
 	return {
 		compilesTo: errors.length > 0 ? null : { kind: "statement", template: restore(text) },

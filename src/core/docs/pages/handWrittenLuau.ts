@@ -7,8 +7,8 @@ import type { Registry } from "../../nodes/index.js";
 import type { NodeScript } from "../../schema.js";
 import { GUIDE_SCENES } from "../examples.js";
 import { stripHeader } from "../nodeReference.js";
-import { previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
+import { previews } from "./blocks.js";
 
 /**
  * A guide scene's generated Luau, without its header. Compiled rather than
@@ -48,7 +48,11 @@ export function handWrittenLuauPage({ registry }: PageContext): DocPage {
 					["Lands where", "a **statement** goes", "a **value** goes"],
 					["Execution pins", "Yes — it is a step in the flow", "None. It is pure"],
 					["Hands a value back", "No output pin", "Its output, wired anywhere"],
-					["Length", "As many statements as you like", "One expression, however many lines that takes"],
+					[
+						"Length",
+						"As many statements as you like",
+						"One expression, however many lines that takes",
+					],
 					["Reach for it when", "you are *doing* something", "you are *computing* something"],
 				],
 			},

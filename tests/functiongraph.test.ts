@@ -15,15 +15,20 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { copySelection, deleteSelection, pasteClipping, placeNodes } from "../src/app/edits.js";
-import { body } from "./helpers.js";
 import { compile, serialiseScript } from "../src/core/compiler/index.js";
 import {
-	crossingLinks, ENTRY_HOME, functionOutline, graphMembers, hasMembership, mergeLayout, viewOf,
+	crossingLinks,
+	ENTRY_HOME,
+	functionOutline,
+	graphMembers,
+	hasMembership,
+	mergeLayout,
+	viewOf,
 } from "../src/core/functionGraph.js";
 import { migrateScript } from "../src/core/migrate.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
-import { Builder } from "./helpers.js";
+import { Builder, body } from "./helpers.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const registry = createRegistry();
@@ -56,7 +61,10 @@ const pinIds = (script: NodeScript, id: string) => {
 describe("a Declare Function, drawn in two graphs", () => {
 	it("has the flow's pins in the flow", () => {
 		const { script, fn } = declared();
-		expect(pinIds(viewOf(script, null), fn)).toEqual({ inputs: ["in", "owner"], outputs: ["then", "self"] });
+		expect(pinIds(viewOf(script, null), fn)).toEqual({
+			inputs: ["in", "owner"],
+			outputs: ["then", "self"],
+		});
 	});
 
 	it("has its body and parameters as the entry of its own graph", () => {
@@ -81,9 +89,10 @@ describe("a Declare Function, drawn in two graphs", () => {
 		const start = new Map([[fn, { ...ENTRY_HOME }]]);
 		const moved = placeNodes(script, start, 40, 20, fn).nodes.find((n) => n.id === fn)!;
 		expect(moved.inner).toEqual({ x: ENTRY_HOME.x + 40, y: ENTRY_HOME.y + 20 });
-		expect({ x: moved.x, y: moved.y }, "its place in the flow did not move").toEqual(
-			{ x: script.nodes.find((n) => n.id === fn)!.x, y: script.nodes.find((n) => n.id === fn)!.y },
-		);
+		expect({ x: moved.x, y: moved.y }, "its place in the flow did not move").toEqual({
+			x: script.nodes.find((n) => n.id === fn)!.x,
+			y: script.nodes.find((n) => n.id === fn)!.y,
+		});
 	});
 
 	it("takes a layout made against one graph back without touching the other", () => {
@@ -92,7 +101,9 @@ describe("a Declare Function, drawn in two graphs", () => {
 		const laid = { ...view, nodes: view.nodes.map((n) => ({ ...n, x: n.x + 100 })) };
 		const merged = mergeLayout(script, fn, laid);
 		expect(merged.nodes.find((n) => n.id === fn)!.inner?.x).toBe(ENTRY_HOME.x + 100);
-		expect(merged.nodes.find((n) => n.id === "after")).toBe(script.nodes.find((n) => n.id === "after"));
+		expect(merged.nodes.find((n) => n.id === "after")).toBe(
+			script.nodes.find((n) => n.id === "after"),
+		);
 	});
 });
 
@@ -122,7 +133,10 @@ describe("what compiles", () => {
 		const { script, after, inside } = declared();
 		const broken = {
 			...script,
-			links: [...script.links, { id: "x", from: { node: inside, pin: "then" }, to: { node: after, pin: "in" } }],
+			links: [
+				...script.links,
+				{ id: "x", from: { node: inside, pin: "then" }, to: { node: after, pin: "in" } },
+			],
 		};
 		expect(crossingLinks(broken).map((l) => l.id)).toEqual(["x"]);
 		const messages = compile(broken, registry).diagnostics.map((d) => d.message);
@@ -140,7 +154,10 @@ describe("what compiles", () => {
 		const { script, fn } = declared();
 		const withEntry = placeNodes(script, new Map([[fn, { ...ENTRY_HOME }]]), 0, 10, fn);
 		const written = JSON.parse(serialiseScript(withEntry)) as NodeScript;
-		expect(written.nodes.find((n) => n.id === fn)?.inner).toEqual({ x: ENTRY_HOME.x, y: ENTRY_HOME.y + 10 });
+		expect(written.nodes.find((n) => n.id === fn)?.inner).toEqual({
+			x: ENTRY_HOME.x,
+			y: ENTRY_HOME.y + 10,
+		});
 		expect(written.nodes.filter((n) => n.graph === fn)).toHaveLength(1);
 	});
 });
@@ -155,7 +172,10 @@ describe("a function as a whole", () => {
 
 	it("is copied with its graph, and the copy's graph is its own", () => {
 		const { script, fn } = declared();
-		const { script: pasted, ids } = pasteClipping(script, copySelection(script, new Set([fn]), registry));
+		const { script: pasted, ids } = pasteClipping(
+			script,
+			copySelection(script, new Set([fn]), registry),
+		);
 		const copy = pasted.nodes.find((n) => ids.includes(n.id) && n.def === "function.declareHere")!;
 		const members = graphMembers(pasted, copy.id);
 		expect(members.size).toBe(1);

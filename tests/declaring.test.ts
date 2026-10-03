@@ -27,7 +27,9 @@ import { Builder, body } from "./helpers.js";
 const registry = createRegistry();
 
 const errors = (script: NodeScript) =>
-	compile(script, registry).diagnostics.filter((d) => d.severity === "error").map((d) => d.message);
+	compile(script, registry)
+		.diagnostics.filter((d) => d.severity === "error")
+		.map((d) => d.message);
 
 const code = (script: NodeScript) => body(compile(script, registry).code);
 
@@ -37,7 +39,9 @@ describe("Initialize Variable", () => {
 		const b = new Builder();
 		const id = b.variable("Tuning", "table", { t: "raw", v: "{}" });
 		const start = b.node("script.begin");
-		const init = b.node("variable.init", { config: { variable: id, name: "Tuning", type: "table" } });
+		const init = b.node("variable.init", {
+			config: { variable: id, name: "Tuning", type: "table" },
+		});
 		const value = b.node("value.expression");
 		b.lit(value, "code", { t: "raw", v: "{ turnRate = 45 }" });
 		b.link(start, "then", init, "in");
@@ -54,7 +58,9 @@ describe("Initialize Variable", () => {
 		const tuning = b.variable("Tuning", "table", { t: "raw", v: "{}" });
 		b.variable("speed", "number", { t: "number", v: 44 });
 		const start = b.node("script.begin");
-		const init = b.node("variable.init", { config: { variable: tuning, name: "Tuning", type: "table" } });
+		const init = b.node("variable.init", {
+			config: { variable: tuning, name: "Tuning", type: "table" },
+		});
 		b.link(start, "then", init, "in");
 
 		expect(code(b.build())).toContain("local speed: number = 44");
@@ -72,7 +78,9 @@ describe("where it refuses to go", () => {
 		const id = b.variable("Tuning", "table", { t: "raw", v: "{}" });
 		const start = b.node("script.begin");
 		const branch = b.node("flow.branch");
-		const init = b.node("variable.init", { config: { variable: id, name: "Tuning", type: "table" } });
+		const init = b.node("variable.init", {
+			config: { variable: id, name: "Tuning", type: "table" },
+		});
 		b.link(start, "then", branch, "in");
 		b.link(branch, "true", init, "in");
 		return b.build();
@@ -90,8 +98,12 @@ describe("where it refuses to go", () => {
 		const b = new Builder();
 		const id = b.variable("Tuning", "table", { t: "raw", v: "{}" });
 		const start = b.node("script.begin");
-		const first = b.node("variable.init", { config: { variable: id, name: "Tuning", type: "table" } });
-		const second = b.node("variable.init", { config: { variable: id, name: "Tuning", type: "table" } });
+		const first = b.node("variable.init", {
+			config: { variable: id, name: "Tuning", type: "table" },
+		});
+		const second = b.node("variable.init", {
+			config: { variable: id, name: "Tuning", type: "table" },
+		});
 		b.link(start, "then", first, "in");
 		b.link(first, "then", second, "in");
 
@@ -208,14 +220,16 @@ describe("Declare Type at Top", () => {
 	}
 
 	it("writes an export type at the top of the file", () => {
-		expect(code(typeNode({ name: "Config", definition: "{ movementSpeed: number }" })))
-			.toContain("export type Config = { movementSpeed: number }");
+		expect(code(typeNode({ name: "Config", definition: "{ movementSpeed: number }" }))).toContain(
+			"export type Config = { movementSpeed: number }",
+		);
 	});
 
 	/** The case that prompted it: a type following a variable it cannot see. */
 	it("takes a typeof as its definition, because the definition is Luau", () => {
-		expect(code(typeNode({ name: "Tuning", definition: "typeof(Tuning)" })))
-			.toContain("export type Tuning = typeof(Tuning)");
+		expect(code(typeNode({ name: "Tuning", definition: "typeof(Tuning)" }))).toContain(
+			"export type Tuning = typeof(Tuning)",
+		);
 	});
 
 	it("keeps it to the module when export is off", () => {
@@ -255,7 +269,9 @@ describe("what Declare Type at Top refuses", () => {
 	/** Whatever is typed here lands in the file verbatim, so the name is checked. */
 	it("will not take a name Luau would reject", () => {
 		expect(only({ name: "2Fast", definition: "number" })).toContain("not a name Luau will take");
-		expect(only({ name: "has space", definition: "number" })).toContain("not a name Luau will take");
+		expect(only({ name: "has space", definition: "number" })).toContain(
+			"not a name Luau will take",
+		);
 		expect(only({ name: "local", definition: "number" })).toContain("not a name Luau will take");
 		expect(only({ name: "end", definition: "number" })).toContain("not a name Luau will take");
 	});
@@ -329,8 +345,9 @@ describe("Declare Type, in the flow", () => {
 
 	/** The identifier is the compiler's, so a renamed local cannot strand it. */
 	it("follows the identifier the compiler chose, not the one you typed", () => {
-		expect(code(afterLocal({ name: "Config" }, "settings")))
-			.toContain("export type Config = typeof(settings)");
+		expect(code(afterLocal({ name: "Config" }, "settings"))).toContain(
+			"export type Config = typeof(settings)",
+		);
 	});
 
 	/** `export type local = ...` does not parse, so the name is refused. */
@@ -475,26 +492,33 @@ describe("a type built from fields", () => {
 	};
 
 	it("writes the pairs out as a table type", () => {
-		expect(code(fromFields([
-			{ name: "movementSpeed", type: "number" },
-			{ name: "hp", type: "number" },
-		]))).toContain("export type Config = { movementSpeed: number, hp: number }");
+		expect(
+			code(
+				fromFields([
+					{ name: "movementSpeed", type: "number" },
+					{ name: "hp", type: "number" },
+				]),
+			),
+		).toContain("export type Config = { movementSpeed: number, hp: number }");
 	});
 
 	/** Free text, because a closed list could not offer `Instance?` or `{ Player }`. */
 	it("takes any Luau type text for a field", () => {
-		expect(code(fromFields([{ name: "parts", type: "{ BasePart }" }])))
-			.toContain("export type Config = { parts: { BasePart } }");
+		expect(code(fromFields([{ name: "parts", type: "{ BasePart }" }]))).toContain(
+			"export type Config = { parts: { BasePart } }",
+		);
 	});
 
 	it("refuses a field name Luau would not take", () => {
-		expect(errors(fromFields([{ name: "2fast", type: "number" }])).join(" "))
-			.toContain("not a name Luau will take for a field");
+		expect(errors(fromFields([{ name: "2fast", type: "number" }])).join(" ")).toContain(
+			"not a name Luau will take for a field",
+		);
 	});
 
 	it("refuses a field with half of itself missing", () => {
-		expect(errors(fromFields([{ name: "speed", type: "" }])).join(" "))
-			.toContain("no name or no type");
+		expect(errors(fromFields([{ name: "speed", type: "" }])).join(" ")).toContain(
+			"no name or no type",
+		);
 	});
 
 	/**
@@ -502,10 +526,12 @@ describe("a type built from fields", () => {
 	 * because you filled in fields and then switched — would emit the wrong one.
 	 */
 	it("uses the written definition when that shape is chosen", () => {
-		const out = code(fromFields(
-			[{ name: "speed", type: "number" }],
-			{ shape: "written", definition: '"idle" | "driving"' },
-		));
+		const out = code(
+			fromFields([{ name: "speed", type: "number" }], {
+				shape: "written",
+				definition: '"idle" | "driving"',
+			}),
+		);
 		expect(out).toContain('export type Config = "idle" | "driving"');
 		expect(out).not.toContain("speed");
 	});
@@ -520,23 +546,32 @@ describe("a type built from fields", () => {
 
 	/** Make Dictionary's Layout, on the type that describes such a table. */
 	it("puts one field on each line when asked", () => {
-		expect(code(fromFields(
-			[{ name: "movementSpeed", type: "number" }, { name: "hp", type: "number" }],
-			{ layout: "lines" },
-		))).toContain(
+		expect(
+			code(
+				fromFields(
+					[
+						{ name: "movementSpeed", type: "number" },
+						{ name: "hp", type: "number" },
+					],
+					{ layout: "lines" },
+				),
+			),
+		).toContain(
 			["export type Config = {", "\tmovementSpeed: number,", "\thp: number,", "}"].join("\n"),
 		);
 	});
 
 	it("stays on one line when the layout says inline", () => {
-		expect(code(fromFields([{ name: "hp", type: "number" }], { layout: "inline" })))
-			.toContain("export type Config = { hp: number }");
+		expect(code(fromFields([{ name: "hp", type: "number" }], { layout: "inline" }))).toContain(
+			"export type Config = { hp: number }",
+		);
 	});
 
 	/** Ignored by the written shape, which is laid out however it was typed. */
 	it("leaves a written definition as it was typed", () => {
-		expect(code(fromFields([], { shape: "written", definition: "{ a: number }", layout: "lines" })))
-			.toContain("export type Config = { a: number }");
+		expect(
+			code(fromFields([], { shape: "written", definition: "{ a: number }", layout: "lines" })),
+		).toContain("export type Config = { a: number }");
 	});
 
 	it("indents the fields relative to an in-flow declaration", () => {
@@ -545,7 +580,10 @@ describe("a type built from fields", () => {
 		const branch = b.node("flow.branch");
 		const type = b.node("type.declareHere", {
 			config: {
-				name: "Inner", export: false, shape: "fields", layout: "lines",
+				name: "Inner",
+				export: false,
+				shape: "fields",
+				layout: "lines",
 				fields: [{ name: "hp", type: "number" }],
 			},
 		});
@@ -858,7 +896,8 @@ describe("conditions take any value", () => {
 		const out = compile(b.build(), registry);
 		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
 		// No `: boolean` on it, because the value is a part or the workspace.
-		expect(body(out.code))
-			.toContain('local chosen = workspace:FindFirstChild("Handle") or workspace');
+		expect(body(out.code)).toContain(
+			'local chosen = workspace:FindFirstChild("Handle") or workspace',
+		);
 	});
 });

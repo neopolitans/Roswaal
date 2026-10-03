@@ -61,8 +61,27 @@ export interface Token {
  * it from here.
  */
 export const RESERVED_WORDS: ReadonlySet<string> = new Set([
-	"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if",
-	"in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while",
+	"and",
+	"break",
+	"do",
+	"else",
+	"elseif",
+	"end",
+	"false",
+	"for",
+	"function",
+	"if",
+	"in",
+	"local",
+	"nil",
+	"not",
+	"or",
+	"repeat",
+	"return",
+	"then",
+	"true",
+	"until",
+	"while",
 ]);
 
 /**
@@ -72,22 +91,64 @@ export const RESERVED_WORDS: ReadonlySet<string> = new Set([
  * that writes names should still avoid them: a local called `type` hides the
  * global function.
  */
-export const CONTEXTUAL_WORDS: ReadonlySet<string> = new Set(["continue", "export", "type", "typeof"]);
+export const CONTEXTUAL_WORDS: ReadonlySet<string> = new Set([
+	"continue",
+	"export",
+	"type",
+	"typeof",
+]);
 
 /** Longest first, so `...` wins over `..` and `//=` over `//`. */
 const SYMBOLS = [
-	"...", "//=", "..=",
-	"::", "->", "==", "~=", "<=", ">=", "..", "//",
-	"+=", "-=", "*=", "/=", "%=", "^=",
-	"+", "-", "*", "/", "%", "^", "#", "<", ">", "=", "(", ")", "{", "}", "[", "]",
-	";", ":", ",", ".", "?", "|", "&", "@",
+	"...",
+	"//=",
+	"..=",
+	"::",
+	"->",
+	"==",
+	"~=",
+	"<=",
+	">=",
+	"..",
+	"//",
+	"+=",
+	"-=",
+	"*=",
+	"/=",
+	"%=",
+	"^=",
+	"+",
+	"-",
+	"*",
+	"/",
+	"%",
+	"^",
+	"#",
+	"<",
+	">",
+	"=",
+	"(",
+	")",
+	"{",
+	"}",
+	"[",
+	"]",
+	";",
+	":",
+	",",
+	".",
+	"?",
+	"|",
+	"&",
+	"@",
 ];
 
 const isDigit = (c: string) => c >= "0" && c <= "9";
 const isNameStart = (c: string) => (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c === "_";
 const isNameChar = (c: string) => isNameStart(c) || isDigit(c);
 const isHex = (c: string) => isDigit(c) || (c >= "a" && c <= "f") || (c >= "A" && c <= "F");
-const isSpace = (c: string) => c === " " || c === "\t" || c === "\r" || c === "\n" || c === "\f" || c === "\v";
+const isSpace = (c: string) =>
+	c === " " || c === "\t" || c === "\r" || c === "\n" || c === "\f" || c === "\v";
 
 /** The level of a long bracket opening at `at` — `[[` is 0, `[==[` is 2 — or -1. */
 function longBracketLevel(src: string, at: number): number {
@@ -150,7 +211,8 @@ export function tokenize(src: string): Token[] {
 		while (j < src.length) {
 			const c = src[j];
 			if (c === quote) return { end: j + 1 };
-			if (c === "\n" || c === "\r") return { end: j, error: "This string is not closed before the end of the line." };
+			if (c === "\n" || c === "\r")
+				return { end: j, error: "This string is not closed before the end of the line." };
 			j = c === "\\" ? pastEscape(j) : j + 1;
 		}
 		return { end: src.length, error: "This string is not closed before the end of the code." };
@@ -167,11 +229,19 @@ export function tokenize(src: string): Token[] {
 			if (c === "`") return { end: j + 1, opened: false };
 			if (c === "{") return { end: j + 1, opened: true };
 			if (c === "\n" || c === "\r") {
-				return { end: j, opened: false, error: "This string is not closed before the end of the line." };
+				return {
+					end: j,
+					opened: false,
+					error: "This string is not closed before the end of the line.",
+				};
 			}
 			j = c === "\\" ? pastEscape(j) : j + 1;
 		}
-		return { end: src.length, opened: false, error: "This string is not closed before the end of the code." };
+		return {
+			end: src.length,
+			opened: false,
+			error: "This string is not closed before the end of the code.",
+		};
 	};
 
 	while (i < src.length) {
@@ -190,7 +260,12 @@ export function tokenize(src: string): Token[] {
 			if (level >= 0) {
 				const end = closeLong(i + 2 + level + 2, level);
 				if (end < 0) {
-					push("error", start, src.length, "This comment is not closed before the end of the code.");
+					push(
+						"error",
+						start,
+						src.length,
+						"This comment is not closed before the end of the code.",
+					);
 					i = src.length;
 				} else {
 					push("comment", start, end);
@@ -249,7 +324,7 @@ export function tokenize(src: string): Token[] {
 			continue;
 		}
 
-		if (c === "\"" || c === "'") {
+		if (c === '"' || c === "'") {
 			const { end, error } = closeQuoted(i + 1, c);
 			push(error ? "error" : "string", start, end, error);
 			i = end;

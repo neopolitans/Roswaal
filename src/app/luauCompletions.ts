@@ -9,29 +9,44 @@
  * there.
  */
 
-import type { CompletionContext, CompletionResult, Completion } from "@codemirror/autocomplete";
-import type { NodeScript, Target } from "../core/schema.js";
-import {
-	continuesEnclosingBlock, resolveNodePins, type Registry, type Signature,
-} from "../core/nodes/index.js";
-import { FUNCTION_NODES } from "../core/nodes/flow.js";
-import { localNameOf } from "../core/nodes/variables.js";
+import type { Completion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import { toIdentifier } from "../core/compiler/luau.js";
-import { CONTEXTUAL_WORDS, RESERVED_WORDS, significant, tokenize } from "../core/luau/lexer.js";
-import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
-import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
-import { propertiesOf } from "../core/robloxProperties.js";
-import { nilableProperty } from "../core/robloxNilable.js";
 import {
-	classCallBefore, classOfGlobal, dotKeys, eventsOf, formatSignature, heldBy, membersInCode, methodsOf,
-	type FunctionSignature, type TableMember,
+	classCallBefore,
+	classOfGlobal,
+	dotKeys,
+	eventsOf,
+	type FunctionSignature,
+	formatSignature,
+	heldBy,
+	membersInCode,
+	methodsOf,
+	type TableMember,
 } from "../core/luau/infer.js";
-import { ENGINE, signatureText } from "../core/robloxEngine.js";
 import { childrenOfChain, type InstanceNode } from "../core/luau/instances.js";
-import { DATATYPE_STATICS } from "../core/robloxStatics.js";
+import { CONTEXTUAL_WORDS, RESERVED_WORDS, significant, tokenize } from "../core/luau/lexer.js";
+import { type LocalKind, localsAt, topLevelLocals } from "../core/luau/scope.js";
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import {
-	CLASSES as ROBLOX_CLASSES, DATATYPES as ENGINE_DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
+	continuesEnclosingBlock,
+	type Registry,
+	resolveNodePins,
+	type Signature,
+} from "../core/nodes/index.js";
+import { localNameOf } from "../core/nodes/variables.js";
+import { lastSegment, ROBLOX_SERVICES } from "../core/roblox.js";
+import {
+	DATATYPES as ENGINE_DATATYPES,
+	LIBRARIES,
+	LUAU_GLOBALS,
+	CLASSES as ROBLOX_CLASSES,
+	ROBLOX_GLOBALS,
 } from "../core/robloxData.js";
+import { ENGINE, signatureText } from "../core/robloxEngine.js";
+import { nilableProperty } from "../core/robloxNilable.js";
+import { propertiesOf } from "../core/robloxProperties.js";
+import { DATATYPE_STATICS } from "../core/robloxStatics.js";
+import type { NodeScript, Target } from "../core/schema.js";
 import { surfacesIn } from "./edits.js";
 
 /**
@@ -50,12 +65,22 @@ function libraryMembers(name: string): Completion[] {
 		return true;
 	};
 	return [
-		...library.functions.filter((f) => !f.deprecated && once(f.name)).map((f) => ({
-			label: f.name, type: "function", detail: `${signatureText(f.params)}${f.returns ? ` → ${f.returns}` : ""}`, info: f.summary,
-		})),
-		...library.properties.filter((p) => !p.deprecated && once(p.name)).map((p) => ({
-			label: p.name, type: "constant", detail: p.type, info: p.summary,
-		})),
+		...library.functions
+			.filter((f) => !f.deprecated && once(f.name))
+			.map((f) => ({
+				label: f.name,
+				type: "function",
+				detail: `${signatureText(f.params)}${f.returns ? ` → ${f.returns}` : ""}`,
+				info: f.summary,
+			})),
+		...library.properties
+			.filter((p) => !p.deprecated && once(p.name))
+			.map((p) => ({
+				label: p.name,
+				type: "constant",
+				detail: p.type,
+				info: p.summary,
+			})),
 	];
 }
 
@@ -63,11 +88,15 @@ function libraryMembers(name: string): Completion[] {
 function classMembers(className: string): Completion[] {
 	return [
 		...propertiesOf(className).map((p) => ({
-			label: p.name, type: "property",
+			label: p.name,
+			type: "property",
 			detail: p.enum ?? `${p.type ?? ""}${nilableProperty(className, p.name) ? "?" : ""}`,
 		})),
 		...eventsOf(className).map((e) => ({
-			label: e.name, type: "event", detail: `event${signatureText(e.params)}`, info: e.summary,
+			label: e.name,
+			type: "event",
+			detail: `event${signatureText(e.params)}`,
+			info: e.summary,
 		})),
 	];
 }
@@ -84,9 +113,9 @@ function classMembers(className: string): Completion[] {
  * the way a hand-maintained list is: `buffer` and `vector` were libraries it
  * knew, `bit32` was one it did not.
  */
-const GLOBALS = [...new Set([
-	...LUAU_GLOBALS, ...ROBLOX_GLOBALS, ...LIBRARIES, ...ENGINE_DATATYPES,
-])].sort((a, b) => a.localeCompare(b));
+const GLOBALS = [
+	...new Set([...LUAU_GLOBALS, ...ROBLOX_GLOBALS, ...LIBRARIES, ...ENGINE_DATATYPES]),
+].sort((a, b) => a.localeCompare(b));
 
 /**
  * Names the generated file will have in scope around this node.
@@ -132,9 +161,8 @@ export function scopeCompletions(script: NodeScript | null): Completion[] {
 				const as = node.literals?.as;
 				const path = node.literals?.path;
 				const explicit = as && (as.t === "string" || as.t === "raw") ? as.v.trim() : "";
-				const derived = path && (path.t === "string" || path.t === "raw")
-					? lastSegment(path.v)
-					: "";
+				const derived =
+					path && (path.t === "string" || path.t === "raw") ? lastSegment(path.v) : "";
 				if (explicit || derived) add(explicit || derived, "namespace", "required module");
 				break;
 			}
@@ -162,15 +190,24 @@ export function graphTableMembers(script: NodeScript | null): Map<string, TableM
 		const variableId = (source.config as { variable?: string } | undefined)?.variable;
 		const table = script.variables?.find((v) => v.id === variableId)?.name;
 		const config = (node.config ?? {}) as {
-			name?: string; params?: { name: string; type?: string }[]; returns?: { name: string; type?: string }[];
+			name?: string;
+			params?: { name: string; type?: string }[];
+			returns?: { name: string; type?: string }[];
 		};
 		if (!table || !config.name) continue;
 		const signature: FunctionSignature = {
-			params: (config.params ?? []).map((p) => (p.type ? { name: p.name, type: p.type } : { name: p.name })),
+			params: (config.params ?? []).map((p) =>
+				p.type ? { name: p.name, type: p.type } : { name: p.name },
+			),
 			returns: (config.returns ?? []).map((r) => r.type || "any").join(", "),
 		};
 		const list = out.get(table) ?? [];
-		list.push({ name: config.name, kind: "function", detail: formatSignature(signature), signature });
+		list.push({
+			name: config.name,
+			kind: "function",
+			detail: formatSignature(signature),
+			signature,
+		});
 		out.set(table, list);
 	}
 	return out;
@@ -182,7 +219,9 @@ const KEYWORD_COMPLETIONS: Completion[] = [...RESERVED_WORDS, ...CONTEXTUAL_WORD
 	.map((label) => ({ label, type: "keyword" }));
 
 const GLOBAL_COMPLETIONS: Completion[] = GLOBALS.map((label) => ({
-	label, type: ENGINE.libraries[label] ? "namespace" : "variable", detail: "Luau",
+	label,
+	type: ENGINE.libraries[label] ? "namespace" : "variable",
+	detail: "Luau",
 }));
 
 /** How a name in scope in the code itself is described in the list. */
@@ -204,7 +243,16 @@ const TYPE_POSITION = /(?:::\s*|\w\s*:\s+|\w\s+:\s*)([A-Za-z_]\w*)?$/;
 const ENUM_PATH = /\bEnum\.(?:([A-Za-z_]\w*)\.)?(\w*)$/;
 
 const LUAU_TYPE_NAMES = [
-	"any", "boolean", "buffer", "never", "nil", "number", "string", "thread", "unknown", "vector",
+	"any",
+	"boolean",
+	"buffer",
+	"never",
+	"nil",
+	"number",
+	"string",
+	"thread",
+	"unknown",
+	"vector",
 ];
 
 /**
@@ -230,7 +278,9 @@ export function luauCompletionSource(
 		// there is no tree to read it from yet.
 		const quoted = roblox ? context.matchBefore(/["'][A-Za-z0-9_]*$/) : null;
 		const named = quoted
-			? classCallBefore(significant(tokenize(context.state.doc.sliceString(0, quoted.from))).slice(0, -1))
+			? classCallBefore(
+					significant(tokenize(context.state.doc.sliceString(0, quoted.from))).slice(0, -1),
+				)
 			: undefined;
 		if (quoted && named) {
 			const names = named === "service" ? ROBLOX_SERVICES : ROBLOX_CLASSES;
@@ -246,13 +296,18 @@ export function luauCompletionSource(
 		// the ones a dot can, and a class's properties the same way.
 		const bracket = context.matchBefore(/([A-Za-z_][A-Za-z0-9_]*)\s*\[\s*(["']?)([^"'\]]*)$/);
 		if (bracket) {
-			const [, owner, quote, typed] = /([A-Za-z_][A-Za-z0-9_]*)\s*\[\s*(["']?)([^"'\]]*)$/.exec(bracket.text)!;
-			const local = localsAt(context.state.doc.toString(), bracket.from).find((n) => n.name === owner);
+			const [, owner, quote, typed] = /([A-Za-z_][A-Za-z0-9_]*)\s*\[\s*(["']?)([^"'\]]*)$/.exec(
+				bracket.text,
+			)!;
+			const local = localsAt(context.state.doc.toString(), bracket.from).find(
+				(n) => n.name === owner,
+			);
 			if (local) {
 				const held = heldBy(local.typeText, local.value);
-				const keys = held.className && roblox
-					? propertiesOf(held.className).map((p) => p.name)
-					: held.keys ?? [];
+				const keys =
+					held.className && roblox
+						? propertiesOf(held.className).map((p) => p.name)
+						: (held.keys ?? []);
 				if (keys.length > 0) {
 					return {
 						from: bracket.to - typed.length,
@@ -275,11 +330,14 @@ export function luauCompletionSource(
 		if (enumPath) {
 			const [, enumName, written] = ENUM_PATH.exec(enumPath.text)!;
 			const options = enumName
-				? (ENGINE.enums[enumName]?.items ?? []).filter((i) => !i.deprecated)
-					.map((i) => ({ label: i.name, type: "enum", detail: String(i.value), info: i.summary }))
-				: Object.entries(ENGINE.enums).filter(([, e]) => !e.deprecated)
-					.map(([name, e]) => ({ label: name, type: "enum", info: e.summary }));
-			if (options.length > 0) return { from: enumPath.to - written.length, options, validFor: /^\w*$/ };
+				? (ENGINE.enums[enumName]?.items ?? [])
+						.filter((i) => !i.deprecated)
+						.map((i) => ({ label: i.name, type: "enum", detail: String(i.value), info: i.summary }))
+				: Object.entries(ENGINE.enums)
+						.filter(([, e]) => !e.deprecated)
+						.map(([name, e]) => ({ label: name, type: "enum", info: e.summary }));
+			if (options.length > 0)
+				return { from: enumPath.to - written.length, options, validFor: /^\w*$/ };
 		}
 
 		// An instance the project knows: `ReplicatedStorage.Shared.` offers
@@ -291,7 +349,13 @@ export function luauCompletionSource(
 			const waiting = context.matchBefore(INSTANCE_WAIT);
 			if (waiting) {
 				const [, chain, typed] = INSTANCE_WAIT.exec(waiting.text)!;
-				const kids = childrenOfChain(text, waiting.from, chain.split("."), instances.root, instances.self);
+				const kids = childrenOfChain(
+					text,
+					waiting.from,
+					chain.split("."),
+					instances.root,
+					instances.self,
+				);
 				if (kids.length > 0) {
 					return {
 						from: waiting.to - typed.length,
@@ -303,14 +367,27 @@ export function luauCompletionSource(
 			const dotted = context.matchBefore(INSTANCE_CHAIN);
 			if (dotted) {
 				const [, chain, typed] = INSTANCE_CHAIN.exec(dotted.text)!;
-				const kids = childrenOfChain(text, dotted.from, chain.split("."), instances.root, instances.self);
+				const kids = childrenOfChain(
+					text,
+					dotted.from,
+					chain.split("."),
+					instances.root,
+					instances.self,
+				);
 				if (kids.length > 0) {
 					const className = instanceClassOfChain(text, dotted.from, chain.split("."), instances);
-					const properties = className ? propertiesOf(className).map((p) => ({ label: p.name, type: "property", detail: p.enum ?? p.type ?? "" })) : [];
+					const properties = className
+						? propertiesOf(className).map((p) => ({
+								label: p.name,
+								type: "property",
+								detail: p.enum ?? p.type ?? "",
+							}))
+						: [];
 					return {
 						from: dotted.to - typed.length,
 						options: [
-							...kids.filter((k) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(k.name))
+							...kids
+								.filter((k) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(k.name))
 								.map((k) => ({ label: k.name, type: "class", detail: k.className, boost: 1 })),
 							...properties,
 						],
@@ -337,29 +414,37 @@ export function luauCompletionSource(
 			// wired onto a table variable. A module's exports are these.
 			const onTable = [
 				...membersInCode(doc, owner),
-				...(local ? [] : getMembers().get(owner) ?? []),
-			].filter((m, i, all) => all.findIndex((n) => n.name === m.name) === i && m.kind !== "method")
-				.map((m) => ({ label: m.name, type: m.kind === "field" ? "property" : "function", detail: m.detail }));
+				...(local ? [] : (getMembers().get(owner) ?? [])),
+			]
+				.filter((m, i, all) => all.findIndex((n) => n.name === m.name) === i && m.kind !== "method")
+				.map((m) => ({
+					label: m.name,
+					type: m.kind === "field" ? "property" : "function",
+					detail: m.detail,
+				}));
 
 			if (local) {
 				const held = heldBy(local.typeText, local.value);
-				const options = held.className && roblox
-					? classMembers(held.className)
-					: [
-						...dotKeys(held).map((key) => ({ label: key, type: "property", detail: "key" })),
-						...onTable.filter((m) => !dotKeys(held).includes(m.label)),
-					];
+				const options =
+					held.className && roblox
+						? classMembers(held.className)
+						: [
+								...dotKeys(held).map((key) => ({ label: key, type: "property", detail: "key" })),
+								...onTable.filter((m) => !dotKeys(held).includes(m.label)),
+							];
 				return options.length > 0 ? { from, options, validFor: /^\w*$/ } : null;
 			}
 			if (onTable.length > 0) return { from, options: onTable, validFor: /^\w*$/ };
 			// `game.`, `workspace.` and `script.` are instances: their class's
 			// properties and events, as a local holding one offers.
-			const globalClass = roblox ? classOfGlobal(owner) ?? (owner === "script" ? "LuaSourceContainer" : undefined) : undefined;
+			const globalClass = roblox
+				? (classOfGlobal(owner) ?? (owner === "script" ? "LuaSourceContainer" : undefined))
+				: undefined;
 			if (globalClass) return { from, options: classMembers(globalClass), validFor: /^\w*$/ };
 			// A datatype's own name reaches its constructors and constants:
 			// `Instance.new`, `Vector3.zero`. `Instance` is a class as well, and
 			// its members are reached from an instance, not from the name.
-			const statics = roblox ? DATATYPE_STATICS[owner] ?? [] : [];
+			const statics = roblox ? (DATATYPE_STATICS[owner] ?? []) : [];
 			const options = [
 				...statics.map((item) => ({
 					label: item.name,
@@ -378,8 +463,12 @@ export function luauCompletionSource(
 		const colon = roblox ? context.matchBefore(/([A-Za-z_][A-Za-z0-9_]*):(\w*)$/) : null;
 		if (colon) {
 			const [, owner, written] = /([A-Za-z_][A-Za-z0-9_]*):(\w*)$/.exec(colon.text)!;
-			const local = localsAt(context.state.doc.toString(), colon.from).find((n) => n.name === owner);
-			const className = local ? heldBy(local.typeText, local.value).className : classOfGlobal(owner);
+			const local = localsAt(context.state.doc.toString(), colon.from).find(
+				(n) => n.name === owner,
+			);
+			const className = local
+				? heldBy(local.typeText, local.value).className
+				: classOfGlobal(owner);
 			const methods = className ? methodsOf(className) : [];
 			if (methods.length > 0) {
 				return {
@@ -403,8 +492,10 @@ export function luauCompletionSource(
 				from: typePosition.to - written.length,
 				options: [
 					...LUAU_TYPE_NAMES.map((label) => ({ label, type: "type" })),
-					...(roblox ? [...ROBLOX_CLASSES, ...ENGINE_DATATYPES] : [])
-						.map((label) => ({ label, type: "class" })),
+					...(roblox ? [...ROBLOX_CLASSES, ...ENGINE_DATATYPES] : []).map((label) => ({
+						label,
+						type: "class",
+					})),
 				],
 				validFor: /^\w*$/,
 			};
@@ -415,8 +506,9 @@ export function luauCompletionSource(
 
 		// What this code itself has in scope at the cursor — its own locals,
 		// the parameters and loop variables around it — ahead of the graph's.
-		const here = localsAt(context.state.doc.toString(), word ? word.from : context.pos)
-			.map((n) => ({ label: n.name, type: "variable", detail: LOCAL_DETAIL[n.kind] }));
+		const here = localsAt(context.state.doc.toString(), word ? word.from : context.pos).map(
+			(n) => ({ label: n.name, type: "variable", detail: LOCAL_DETAIL[n.kind] }),
+		);
 
 		return {
 			from: word ? word.from : context.pos,
@@ -454,7 +546,9 @@ const RAW_STATEMENT_NODES = new Set(["code.custom"]);
  * a later one even though it is a sibling rather than an ancestor.
  */
 export function precedingLocals(
-	script: NodeScript | null, registry: Registry, nodeId: string | null,
+	script: NodeScript | null,
+	registry: Registry,
+	nodeId: string | null,
 ): Completion[] {
 	if (!script || !nodeId) return [];
 
@@ -570,7 +664,11 @@ export function precedingLocals(
 }
 
 function isExecPin(
-	script: NodeScript, registry: Registry, nodeId: string, pinId: string, side: "in" | "out",
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	pinId: string,
+	side: "in" | "out",
 ): boolean {
 	const node = script.nodes.find((n) => n.id === nodeId);
 	const def = node && registry.get(node.def);
@@ -584,11 +682,15 @@ function isExecPin(
 const INSTANCE_CHAIN = /([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\.(\w*)$/;
 
 /** `a.b:WaitForChild("x`: a chain, then the name being typed in the string. */
-const INSTANCE_WAIT = /([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*):(?:WaitForChild|FindFirstChild)\(\s*["']([^"']*)$/;
+const INSTANCE_WAIT =
+	/([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*):(?:WaitForChild|FindFirstChild)\(\s*["']([^"']*)$/;
 
 /** The class of the instance a chain ends at, for its properties. */
 function instanceClassOfChain(
-	text: string, pos: number, chain: string[], instances: { root: InstanceNode; self?: string[] },
+	text: string,
+	pos: number,
+	chain: string[],
+	instances: { root: InstanceNode; self?: string[] },
 ): string | undefined {
 	if (chain.length < 2) {
 		// `ReplicatedStorage.`: the service itself, when the local names one.

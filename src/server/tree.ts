@@ -7,9 +7,7 @@
  * `entries.ts`.
  */
 
-import { fs, path } from "./host.js";
-
-import { functionOutline, type FunctionInfo } from "../core/functionGraph.js";
+import { type FunctionInfo, functionOutline } from "../core/functionGraph.js";
 import { isFilesystemMap, type MapNode } from "../core/nodemap.js";
 import { PLACE_DIR } from "../core/rbx/placeImport.js";
 import { parseProject } from "../core/rojoImport.js";
@@ -17,6 +15,7 @@ import type { NodeScript } from "../core/schema.js";
 import { indexVersion, parseWallyToml, REALM_DIRS, thunkTarget } from "../core/wally.js";
 import type { OpenProject } from "./config.js";
 import { collectMaps, readMap } from "./documents.js";
+import { fs, path } from "./host.js";
 import { generatedIndex } from "./outputs.js";
 import { safeJoin, tidyPath, toPosix } from "./paths.js";
 
@@ -71,7 +70,13 @@ export async function buildTree(project: OpenProject): Promise<TreeEntry[]> {
 	// Empty folders are noise everywhere except under sourceDir, where one is a
 	// folder the developer just created and is about to put a graph in.
 	const keepEmptyUnder = [project.config.sourceDir, ...project.config.nodePaths];
-	const tree = await walk(project.root, project.root, generated, keepEmptyUnder, await serviceFolders(project));
+	const tree = await walk(
+		project.root,
+		project.root,
+		generated,
+		keepEmptyUnder,
+		await serviceFolders(project),
+	);
 	const wally = await wallyEntry(project);
 	if (!wally) return tree;
 	// It opens like a folder, so it is listed with the folders: after them and
@@ -96,7 +101,9 @@ async function wallyEntry(project: OpenProject): Promise<TreeEntry | null> {
 			path: `wally.toml/${dep.realm}/${dep.alias}`,
 			name: dep.alias,
 			kind: "package",
-			...(found ? { target: found.module, ...(found.version ? { version: found.version } : {}) } : { missing: true }),
+			...(found
+				? { target: found.module, ...(found.version ? { version: found.version } : {}) }
+				: { missing: true }),
 		});
 	}
 	return { path: "wally.toml", name: "wally.toml", kind: "wally", children };
@@ -108,13 +115,27 @@ async function wallyEntry(project: OpenProject): Promise<TreeEntry | null> {
  * every Wally package is, wherever its `default.project.json` points the tree.
  */
 async function moduleAt(project: OpenProject, base: string, depth = 0): Promise<string | null> {
-	const isFile = (rel: string) => fs.stat(safeJoin(project.root, rel)).then((s) => s.isFile(), () => false);
-	for (const candidate of [`${base}.luau`, `${base}.lua`, `${base}/init.luau`, `${base}/init.lua`]) {
+	const isFile = (rel: string) =>
+		fs.stat(safeJoin(project.root, rel)).then(
+			(s) => s.isFile(),
+			() => false,
+		);
+	for (const candidate of [
+		`${base}.luau`,
+		`${base}.lua`,
+		`${base}/init.luau`,
+		`${base}/init.lua`,
+	]) {
 		if (await isFile(candidate)) return candidate;
 	}
 	if (depth > 4) return null;
-	const text = await fs.readFile(safeJoin(project.root, `${base}/default.project.json`), "utf8").catch(() => null);
-	const tree = text === null ? undefined : (parseProject(text) as { tree?: { $path?: unknown } } | undefined)?.tree;
+	const text = await fs
+		.readFile(safeJoin(project.root, `${base}/default.project.json`), "utf8")
+		.catch(() => null);
+	const tree =
+		text === null
+			? undefined
+			: (parseProject(text) as { tree?: { $path?: unknown } } | undefined)?.tree;
 	if (typeof tree?.$path !== "string") return null;
 	return moduleAt(project, path.posix.join(base, tree.$path).replace(/\/+$/, ""), depth + 1);
 }
@@ -124,7 +145,9 @@ async function moduleAt(project: OpenProject, base: string, depth = 0): Promise<
  * followed into `_Index`, to the module file. Null when it is not installed.
  */
 export async function resolveWallyPackage(
-	project: OpenProject, alias: string, folder: string,
+	project: OpenProject,
+	alias: string,
+	folder: string,
 ): Promise<{ thunk: string; module: string; version?: string } | null> {
 	for (const ext of [".lua", ".luau"]) {
 		const thunk = `${folder}/${alias}${ext}`;
@@ -150,7 +173,8 @@ async function serviceFolders(project: OpenProject): Promise<Set<string>> {
 			// StarterPlayerScripts in StarterPlayer -- makes the folder above it
 			// the service's, when it is named for it.
 			const above = at.includes("/") ? at.slice(0, at.lastIndexOf("/")) : "";
-			if (parent && !parent.path && !parent.className && above.split("/").pop() === parent.name) out.add(above);
+			if (parent && !parent.path && !parent.className && above.split("/").pop() === parent.name)
+				out.add(above);
 		}
 		node.children.forEach((child) => visit(child, node));
 	};
@@ -163,7 +187,11 @@ async function serviceFolders(project: OpenProject): Promise<Set<string>> {
 
 const INIT_FILE = /^init(\.server|\.client)?\.luau?$/;
 
-function folderRole(rel: string, children: readonly TreeEntry[], services: ReadonlySet<string>): FolderRole | undefined {
+function folderRole(
+	rel: string,
+	children: readonly TreeEntry[],
+	services: ReadonlySet<string>,
+): FolderRole | undefined {
 	if (rel === PLACE_DIR || rel.startsWith(PLACE_DIR + "/")) return "place";
 	if (WALLY_DIRS.has(rel)) return "packages";
 	if (services.has(rel)) return "service";
@@ -172,7 +200,10 @@ function folderRole(rel: string, children: readonly TreeEntry[], services: Reado
 }
 
 async function walk(
-	root: string, dir: string, generated: Map<string, string>, keepEmptyUnder: string[],
+	root: string,
+	dir: string,
+	generated: Map<string, string>,
+	keepEmptyUnder: string[],
 	services: ReadonlySet<string> = new Set(),
 ): Promise<TreeEntry[]> {
 	const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
@@ -187,10 +218,18 @@ async function walk(
 			const children = await walk(root, abs, generated, keepEmptyUnder, services);
 			const keep =
 				children.length > 0 ||
-				keepEmptyUnder.some((base) => rel === base || rel.startsWith(base + "/") || base.startsWith(rel + "/"));
+				keepEmptyUnder.some(
+					(base) => rel === base || rel.startsWith(base + "/") || base.startsWith(rel + "/"),
+				);
 			if (!keep) continue;
 			const role = folderRole(rel, children, services);
-			out.push({ path: rel, name: entry.name, kind: "directory", children, ...(role ? { role } : {}) });
+			out.push({
+				path: rel,
+				name: entry.name,
+				kind: "directory",
+				children,
+				...(role ? { role } : {}),
+			});
 			continue;
 		}
 		const kind = classify(entry.name);

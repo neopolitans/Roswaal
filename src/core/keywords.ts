@@ -20,9 +20,9 @@
 /** Node ids for a piece of Luau, best first. */
 export const LUAU_KEYWORDS: Readonly<Record<string, readonly string[]>> = {
 	// Logic, which is where this started: the pills say what they write.
-	"and": ["logic.and"],
-	"or": ["logic.or"],
-	"not": ["logic.not"],
+	and: ["logic.and"],
+	or: ["logic.or"],
+	not: ["logic.not"],
 	"==": ["compare.eq"],
 	"~=": ["compare.neq"],
 	"!=": ["compare.neq"],
@@ -30,29 +30,29 @@ export const LUAU_KEYWORDS: Readonly<Record<string, readonly string[]>> = {
 	"<=": ["compare.lte"],
 	">": ["compare.gt"],
 	">=": ["compare.gte"],
-	"nil": ["value.nil"],
+	nil: ["value.nil"],
 	// Both nodes that ask a value what it is: the call, and the name it
 	// answers with, which is what the call is nearly always compared against.
-	"typeof": ["value.typeof", "value.typeName"],
-	"true": ["value.boolean"],
-	"false": ["value.boolean"],
+	typeof: ["value.typeof", "value.typeName"],
+	true: ["value.boolean"],
+	false: ["value.boolean"],
 
 	// Flow. `if` is Branch, and `elseif` and `else` are Branch too — the node
 	// chains, so the answer to all three is the same node.
-	"if": ["flow.branch"],
-	"then": ["flow.branch"],
-	"else": ["flow.branch"],
-	"elseif": ["flow.branch"],
-	"for": ["flow.forRange", "flow.forEach", "flow.forIndex"],
-	"ipairs": ["flow.forIndex"],
-	"pairs": ["flow.forEach"],
-	"while": ["flow.while"],
-	"repeat": ["flow.while"],
-	"break": ["flow.break"],
-	"continue": ["flow.continue"],
-	"return": ["function.return"],
-	"function": ["function.entry", "function.declareHere"],
-	"local": ["local.declare"],
+	if: ["flow.branch"],
+	then: ["flow.branch"],
+	else: ["flow.branch"],
+	elseif: ["flow.branch"],
+	for: ["flow.forRange", "flow.forEach", "flow.forIndex"],
+	ipairs: ["flow.forIndex"],
+	pairs: ["flow.forEach"],
+	while: ["flow.while"],
+	repeat: ["flow.while"],
+	break: ["flow.break"],
+	continue: ["flow.continue"],
+	return: ["function.return"],
+	function: ["function.entry", "function.declareHere"],
+	local: ["local.declare"],
 
 	// Indexing. Both nodes write it: one for a member a type declares, one for
 	// a key named on the spot.
@@ -73,8 +73,8 @@ export const LUAU_KEYWORDS: Readonly<Record<string, readonly string[]>> = {
 	"::": ["cast.as", "cast.array", "cast.any"],
 
 	// The two that are a call rather than syntax, and are typed as often.
-	"require": ["module.requirePath"],
-	"print": ["debug.print"],
+	require: ["module.requirePath"],
+	print: ["debug.print"],
 };
 
 /**

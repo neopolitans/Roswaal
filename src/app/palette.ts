@@ -89,9 +89,12 @@ const SUBCATEGORY_COLORS: Record<string, string> = {
  * these tables. A `NodeDef` satisfies the shape, so every existing call still
  * passes one.
  */
-export function nodeColor(
-	def: { id?: string; category: string; subcategory?: string; role?: string },
-): string {
+export function nodeColor(def: {
+	id?: string;
+	category: string;
+	subcategory?: string;
+	role?: string;
+}): string {
 	if (def.role === "entry" || def.role === "terminal") return FLOW_RED;
 	if (def.id !== undefined && FUNCTION_NODES.has(def.id)) return FLOW_RED;
 	if (def.subcategory && SUBCATEGORY_COLORS[def.subcategory]) {
@@ -219,6 +222,10 @@ export function commentColor(hex: string | undefined): string {
 export function readHexColor(text: string): string | undefined {
 	const hex = text.trim().replace(/^#/, "").toLowerCase();
 	if (/^[0-9a-f]{6}$/.test(hex)) return hex;
-	if (/^[0-9a-f]{3}$/.test(hex)) return hex.split("").map((c) => c + c).join("");
+	if (/^[0-9a-f]{3}$/.test(hex))
+		return hex
+			.split("")
+			.map((c) => c + c)
+			.join("");
 	return undefined;
 }

@@ -36,9 +36,9 @@
  * them is one parse rather than a lookup per field.
  */
 
-import type { WireStyle } from "./geometry.js";
-import { DEFAULT_LAYOUT, readLayout, type Layout } from "./panels.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY, RUNTIMES, type Runtime } from "../core/nodes/runtimes.js";
+import type { WireStyle } from "./geometry.js";
+import { DEFAULT_LAYOUT, type Layout, readLayout } from "./panels.js";
 
 /**
  * What the node menu can be narrowed to.
@@ -262,8 +262,16 @@ export const AUTOSAVE_CHOICES = [
 
 export const WIRE_STYLES: { style: WireStyle; label: string; what: string }[] = [
 	{ style: "curved", label: "Curved", what: "A bezier out of each pin. The default." },
-	{ style: "rigid", label: "Rigid", what: "Right angles only — horizontal and vertical runs, square corners." },
-	{ style: "angular", label: "Angular", what: "The same route, with each corner cut to a 45-degree slope." },
+	{
+		style: "rigid",
+		label: "Rigid",
+		what: "Right angles only — horizontal and vertical runs, square corners.",
+	},
+	{
+		style: "angular",
+		label: "Angular",
+		what: "The same route, with each corner cut to a 45-degree slope.",
+	},
 ];
 
 export type ActionLabels = "icons" | "text";
@@ -284,7 +292,11 @@ export type WheelChoice = "auto" | "zoom" | "pan";
 
 export const WHEEL_CHOICES: { value: WheelChoice; label: string; what: string }[] = [
 	{ value: "auto", label: "Automatic", what: "Pans on a Mac or iPad, zooms elsewhere." },
-	{ value: "pan", label: "Pan", what: "Scrolling moves the graph. Pinch, or hold Ctrl or ⌘, to zoom." },
+	{
+		value: "pan",
+		label: "Pan",
+		what: "Scrolling moves the graph. Pinch, or hold Ctrl or ⌘, to zoom.",
+	},
 	{ value: "zoom", label: "Zoom", what: "Scrolling zooms. Sideways scrolling still pans." },
 ];
 
@@ -388,7 +400,8 @@ export function readPreferences(): Preferences {
 		theme: typeof stored.theme === "string" ? stored.theme : DEFAULTS.theme,
 		alignExec: typeof stored.alignExec === "boolean" ? stored.alignExec : legacyAlignExec(),
 		autosaveMs:
-			typeof stored.autosaveMs === "number" && AUTOSAVE_CHOICES.some((c) => c.ms === stored.autosaveMs)
+			typeof stored.autosaveMs === "number" &&
+			AUTOSAVE_CHOICES.some((c) => c.ms === stored.autosaveMs)
 				? stored.autosaveMs
 				: DEFAULTS.autosaveMs,
 		reopenLastProject:
@@ -409,12 +422,10 @@ export function readPreferences(): Preferences {
 		wheel: WHEEL_CHOICES.some((c) => c.value === stored.wheel)
 			? (stored.wheel as WheelChoice)
 			: DEFAULTS.wheel,
-		wideNodes:
-			typeof stored.wideNodes === "boolean" ? stored.wideNodes : DEFAULTS.wideNodes,
+		wideNodes: typeof stored.wideNodes === "boolean" ? stored.wideNodes : DEFAULTS.wideNodes,
 		logicParens:
 			typeof stored.logicParens === "boolean" ? stored.logicParens : DEFAULTS.logicParens,
-		castNames:
-			typeof stored.castNames === "boolean" ? stored.castNames : DEFAULTS.castNames,
+		castNames: typeof stored.castNames === "boolean" ? stored.castNames : DEFAULTS.castNames,
 		concatInterpolate:
 			typeof stored.concatInterpolate === "boolean"
 				? stored.concatInterpolate

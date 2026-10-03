@@ -10,22 +10,22 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { compile } from "../src/core/compiler/index.js";
-import { createRegistry } from "../src/core/nodes/index.js";
-import type { NodeScript } from "../src/core/schema.js";
-import { fieldsOfTableType, declaredTypeFields } from "../src/core/typeFields.js";
-import { membersOfType, typeInto } from "../src/core/members.js";
-import { Builder, body } from "./helpers.js";
-import { operatorSymbol } from "../src/core/operatorLayout.js";
-import { resolveNodePins } from "../src/core/nodes/index.js";
-import { migrateScript } from "../src/core/migrate.js";
 import { landingPins, setConfig, syncFunctionReturns } from "../src/app/edits.js";
+import { compile } from "../src/core/compiler/index.js";
+import { membersOfType, typeInto } from "../src/core/members.js";
+import { migrateScript } from "../src/core/migrate.js";
+import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
+import { operatorSymbol } from "../src/core/operatorLayout.js";
+import type { NodeScript } from "../src/core/schema.js";
+import { declaredTypeFields, fieldsOfTableType } from "../src/core/typeFields.js";
+import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
 const code = (script: NodeScript) => body(compile(script, registry).code);
 const errors = (script: NodeScript) =>
-	compile(script, registry).diagnostics.filter((d) => d.severity === "error").map((d) => d.message);
+	compile(script, registry)
+		.diagnostics.filter((d) => d.severity === "error")
+		.map((d) => d.message);
 
 describe("reading a table type's fields", () => {
 	it("takes them from the rows of a Table of Fields", () => {
@@ -33,7 +33,10 @@ describe("reading a table type's fields", () => {
 		b.node("type.declareTop", {
 			config: {
 				name: "Input",
-				fields: [{ name: "throttle", type: "number" }, { name: "aim", type: "Vector3" }],
+				fields: [
+					{ name: "throttle", type: "number" },
+					{ name: "aim", type: "Vector3" },
+				],
 			},
 		});
 		expect(declaredTypeFields(b.build()).get("Input")).toEqual([
@@ -86,7 +89,10 @@ function reading(member: string, extra: { shape?: string; definition?: string } 
 	b.node("type.declareTop", {
 		config: {
 			name: "Input",
-			fields: [{ name: "throttle", type: "number" }, { name: "aim", type: "Vector3" }],
+			fields: [
+				{ name: "throttle", type: "number" },
+				{ name: "aim", type: "Vector3" },
+			],
 			...extra,
 		},
 	});
@@ -128,8 +134,9 @@ describe("what Get Member offers", () => {
 	it("takes an external type's fields as given", () => {
 		const script = reading("aim");
 		const external = new Map([["Config.Tuning", [{ name: "turnRate", type: "number" }]]]);
-		expect(membersOfType({ script, registry, external }, "Config.Tuning"))
-			.toEqual([{ name: "turnRate", type: "number" }]);
+		expect(membersOfType({ script, registry, external }, "Config.Tuning")).toEqual([
+			{ name: "turnRate", type: "number" },
+		]);
 	});
 });
 
@@ -139,8 +146,9 @@ describe("what Get Member writes", () => {
 	});
 
 	it("refuses a member the declared type does not have", () => {
-		expect(errors(reading("brake")).join(" "))
-			.toContain('"Input" has no member "brake". It holds throttle, aim.');
+		expect(errors(reading("brake")).join(" ")).toContain(
+			'"Input" has no member "brake". It holds throttle, aim.',
+		);
 	});
 
 	it("refuses a type that is not a table of fixed fields", () => {
@@ -191,10 +199,15 @@ describe("the shape of it", () => {
 	it("moves a 0.76.0 member off its pin", () => {
 		const raw = {
 			...new Builder().build(),
-			nodes: [{
-				id: "n1", def: "value.member", x: 0, y: 0,
-				literals: { member: { t: "string" as const, v: "throttle" } },
-			}],
+			nodes: [
+				{
+					id: "n1",
+					def: "value.member",
+					x: 0,
+					y: 0,
+					literals: { member: { t: "string" as const, v: "throttle" } },
+				},
+			],
 		};
 		const { script, notes } = migrateScript(raw, registry);
 		const node = script.nodes[0];
@@ -232,8 +245,10 @@ describe("a member dragged off a pin", () => {
 
 	it("offers a declared type's fields for a pin typed as that type", () => {
 		const script = reading("aim");
-		expect(membersOfType({ script, registry }, "Input").map((m) => m.name))
-			.toEqual(["throttle", "aim"]);
+		expect(membersOfType({ script, registry }, "Input").map((m) => m.name)).toEqual([
+			"throttle",
+			"aim",
+		]);
 	});
 });
 
@@ -307,15 +322,20 @@ describe("a function's returns reach its Return nodes", () => {
 
 	const pinsOfReturn = (script: NodeScript, id: string) => {
 		const node = script.nodes.find((n) => n.id === id)!;
-		return resolveNodePins(registry.get(node.def)!, node.config).inputs
-			.filter((p) => p.kind === "data")
+		return resolveNodePins(registry.get(node.def)!, node.config)
+			.inputs.filter((p) => p.kind === "data")
 			.map((p) => p.name);
 	};
 
 	it("updates a Return that is wired into the flow", () => {
 		const { script, fn, ret } = withFunction(true);
 		const next = syncFunctionReturns(
-			setConfig(script, fn, { returns: [{ name: "ok", type: "boolean" }, { name: "why", type: "string" }] }),
+			setConfig(script, fn, {
+				returns: [
+					{ name: "ok", type: "boolean" },
+					{ name: "why", type: "string" },
+				],
+			}),
 			fn,
 		);
 		expect(pinsOfReturn(next, ret)).toEqual(["ok", "why"]);
@@ -335,6 +355,8 @@ describe("a function's returns reach its Return nodes", () => {
 		const { script, fn } = withFunction(false);
 		const other = script.nodes.find((n) => n.def === "function.return")!;
 		const next = syncFunctionReturns(setConfig(script, fn, { returns: [] }), "someone-else");
-		expect(next.nodes.find((n) => n.id === other.id)!.config).toEqual(script.nodes.find((n) => n.id === other.id)!.config);
+		expect(next.nodes.find((n) => n.id === other.id)!.config).toEqual(
+			script.nodes.find((n) => n.id === other.id)!.config,
+		);
 	});
 });

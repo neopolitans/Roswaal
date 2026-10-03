@@ -16,7 +16,7 @@
  * Keep them small. The reader is looking up one node, not reading a program.
  */
 
-import type { NodeScript, Literal, NodeConfig } from "../schema.js";
+import type { Literal, NodeConfig, NodeScript } from "../schema.js";
 import { emptyScript } from "../schema.js";
 import { partPinId } from "../structs.js";
 
@@ -97,7 +97,8 @@ export class G {
 		// Luau it compiled to — so a column has to clear a 216px node, and an arm
 		// has to clear the node above it.
 		this.script.nodes.push({
-			id, def,
+			id,
+			def,
 			x: at * this.spacing.column + (dx ?? 0),
 			y: (row ?? 0) * this.spacing.row + (dy ?? 0),
 			...rest,
@@ -224,7 +225,9 @@ export const CURATED: Record<string, () => NodeScript> = {
 	"flow.forRange": () => {
 		const g = new G();
 		const begin = g.node("script.begin");
-		const loop = g.node("flow.forRange", { literals: { first: num(1), last: num(3), step: num(1) } });
+		const loop = g.node("flow.forRange", {
+			literals: { first: num(1), last: num(3), step: num(1) },
+		});
 		g.link(begin, "then", loop, "in");
 		const p = g.node("debug.print");
 		g.link(loop, "body", p, "in").link(loop, "index", p, "value");
@@ -266,7 +269,9 @@ export const CURATED: Record<string, () => NodeScript> = {
 	"flow.break": () => {
 		const g = new G();
 		const begin = g.node("script.begin");
-		const loop = g.node("flow.forRange", { literals: { first: num(1), last: num(10), step: num(1) } });
+		const loop = g.node("flow.forRange", {
+			literals: { first: num(1), last: num(10), step: num(1) },
+		});
 		g.link(begin, "then", loop, "in");
 		const found = g.stand("found");
 		const branch = g.node("flow.branch");
@@ -279,7 +284,9 @@ export const CURATED: Record<string, () => NodeScript> = {
 	"flow.continue": () => {
 		const g = new G();
 		const begin = g.node("script.begin");
-		const loop = g.node("flow.forRange", { literals: { first: num(1), last: num(10), step: num(1) } });
+		const loop = g.node("flow.forRange", {
+			literals: { first: num(1), last: num(10), step: num(1) },
+		});
 		g.link(begin, "then", loop, "in");
 		const skip = g.stand("shouldSkip");
 		const branch = g.node("flow.branch");
@@ -325,7 +332,11 @@ export const CURATED: Record<string, () => NodeScript> = {
 		const fn = g.node("function.entry", { config: { name: "onHit", params: [], returns: [] } });
 		g.inside(fn, printAfter(g, fn, "then", "Hit"));
 		const begin = g.node("script.begin", { column: 0 });
-		const ref = g.node("function.get", { config: { function: fn, name: "onHit" }, column: 1, row: 1 });
+		const ref = g.node("function.get", {
+			config: { function: fn, name: "onHit" },
+			column: 1,
+			row: 1,
+		});
 		const p = g.node("debug.print", { column: 2 });
 		g.link(begin, "then", p, "in").link(ref, "fn", p, "value");
 		return g.out();
@@ -343,7 +354,10 @@ export const CURATED: Record<string, () => NodeScript> = {
 		// A Function is in its own graph, so the module's graph reaches it as
 		// the editor does: a Get Function, wired into the export.
 		const ref = g.node("function.get", { config: { function: fn, name: "greet" }, column: 0 });
-		const exports = g.node("module.exports", { config: { exports: [{ name: "greet" }] }, column: 1 });
+		const exports = g.node("module.exports", {
+			config: { exports: [{ name: "greet" }] },
+			column: 1,
+		});
 		g.link(ref, "fn", exports, "e0");
 		return g.out();
 	},
@@ -387,8 +401,16 @@ export const CURATED: Record<string, () => NodeScript> = {
 		g.inside(fn, printAfter(g, fn, "then", "Hello"));
 
 		const begin = g.node("script.begin", { column: 0 });
-		const ref = g.node("function.get", { config: { function: fn, name: "greet" }, column: 1, row: 1 });
-		const call = g.node("call.function", { config: { args: 1 }, literals: { a0: str("world") }, column: 2 });
+		const ref = g.node("function.get", {
+			config: { function: fn, name: "greet" },
+			column: 1,
+			row: 1,
+		});
+		const call = g.node("call.function", {
+			config: { args: 1 },
+			literals: { a0: str("world") },
+			column: 2,
+		});
 		g.link(begin, "then", call, "in").link(ref, "fn", call, "fn");
 		return g.out();
 	},
@@ -415,7 +437,10 @@ export const CURATED: Record<string, () => NodeScript> = {
 		g.node("type.declareTop", {
 			config: {
 				name: "Input",
-				fields: [{ name: "throttle", type: "number" }, { name: "aim", type: "Vector3" }],
+				fields: [
+					{ name: "throttle", type: "number" },
+					{ name: "aim", type: "Vector3" },
+				],
 			},
 		});
 		const declare = g.node("local.declare", {
@@ -518,13 +543,18 @@ export const CURATED: Record<string, () => NodeScript> = {
 		const g = new G();
 		const begin = g.node("script.begin", { column: 0 });
 		const declare = g.node("local.declare", {
-			column: 1, literals: { name: str("greeting"), value: str("Hello") },
+			column: 1,
+			literals: { name: str("greeting"), value: str("Hello") },
 		});
 		const get = g.node("local.get", {
-			column: 1, row: 1, config: { local: declare, name: "greeting" },
+			column: 1,
+			row: 1,
+			config: { local: declare, name: "greeting" },
 		});
 		const p = g.node("debug.print", { column: 2 });
-		g.link(begin, "then", declare, "in").link(declare, "then", p, "in").link(get, "value", p, "value");
+		g.link(begin, "then", declare, "in")
+			.link(declare, "then", p, "in")
+			.link(get, "value", p, "value");
 		return g.out();
 	},
 
@@ -533,12 +563,16 @@ export const CURATED: Record<string, () => NodeScript> = {
 		const g = new G();
 		const begin = g.node("script.begin", { column: 0 });
 		const pair = g.node("table.pair", {
-			column: 0, row: 1, literals: { key: str("walkSpeed"), value: num(16) },
+			column: 0,
+			row: 1,
+			literals: { key: str("walkSpeed"), value: num(16) },
 		});
 		// The first row split, so it shows a key typed in beside one arriving as
 		// a pair; the second left whole, which is the pin the pair lands on.
 		const dict = g.node("table.dictionary", {
-			column: 1, row: 1, config: { args: 2, split: { "in:p0": "keyValue" } },
+			column: 1,
+			row: 1,
+			config: { args: 2, split: { "in:p0": "keyValue" } },
 			literals: { "p0.key": str("jumpHeight"), "p0.value": num(7.2) },
 		});
 		const p = g.node("debug.print", { column: 2 });
@@ -590,7 +624,8 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	typeFieldsRows: () => {
 		const g = new G({}, TIGHT);
 		g.node("type.declareTop", {
-			column: 0, row: 0,
+			column: 0,
+			row: 0,
 			config: {
 				name: "Input",
 				fields: [
@@ -604,28 +639,35 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		// A table written out, so the scene holds everything it reads: the
 		// value is the type's three fields, filled in.
 		const from = g.node("table.dictionary", {
-			column: 0, row: 2,
+			column: 0,
+			row: 2,
 			config: {
 				args: 3,
 				split: { "in:p0": "keyValue", "in:p1": "keyValue", "in:p2": "keyValue" },
 				layout: "lines",
 			},
 			literals: {
-				"p0.key": str("throttle"), "p0.value": num(1),
-				"p1.key": str("steer"), "p1.value": num(0),
-				"p2.key": str("aim"), "p2.value": { t: "raw", v: "Vector3.zAxis" },
+				"p0.key": str("throttle"),
+				"p0.value": num(1),
+				"p1.key": str("steer"),
+				"p1.value": num(0),
+				"p2.key": str("aim"),
+				"p2.value": { t: "raw", v: "Vector3.zAxis" },
 			},
 		});
 		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const declare = g.node("local.declare", {
-			column: 1, row: 1,
+			column: 1,
+			row: 1,
 			config: { type: "Input" },
 			literals: { name: str("input") },
 		});
 		g.link(begin, "then", declare, "in");
 		g.link(from, "result", declare, "value");
 		const read = g.node("value.member", {
-			column: 2, row: 1, config: { member: "aim", type: "Vector3" },
+			column: 2,
+			row: 1,
+			config: { member: "aim", type: "Vector3" },
 		});
 		const print = g.node("debug.print", { column: 3, row: 1 });
 		g.link(declare, "ref", read, "object");
@@ -638,7 +680,8 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	typeFieldsWritten: () => {
 		const g = new G({}, TIGHT);
 		g.node("type.declareTop", {
-			column: 0, row: 0,
+			column: 0,
+			row: 0,
 			config: {
 				name: "Shot",
 				shape: "written",
@@ -646,23 +689,29 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 			},
 		});
 		const from = g.node("table.dictionary", {
-			column: 0, row: 2,
+			column: 0,
+			row: 2,
 			config: { args: 2, split: { "in:p0": "keyValue", "in:p1": "keyValue" } },
 			literals: {
-				"p0.key": str("damage"), "p0.value": num(25),
-				"p1.key": str("from"), "p1.value": { t: "raw", v: "Vector3.zero" },
+				"p0.key": str("damage"),
+				"p0.value": num(25),
+				"p1.key": str("from"),
+				"p1.value": { t: "raw", v: "Vector3.zero" },
 			},
 		});
 		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const declare = g.node("local.declare", {
-			column: 1, row: 1,
+			column: 1,
+			row: 1,
 			config: { type: "Shot" },
 			literals: { name: str("shot") },
 		});
 		g.link(begin, "then", declare, "in");
 		g.link(from, "result", declare, "value");
 		const read = g.node("value.member", {
-			column: 2, row: 1, config: { member: "damage", type: "number" },
+			column: 2,
+			row: 1,
+			config: { member: "damage", type: "number" },
 		});
 		const print = g.node("debug.print", { column: 3, row: 1 });
 		g.link(declare, "ref", read, "object");
@@ -675,27 +724,34 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	typeFieldsOpen: () => {
 		const g = new G({}, TIGHT);
 		g.node("type.declareTop", {
-			column: 0, row: 0,
+			column: 0,
+			row: 0,
 			config: { name: "Scores", shape: "written", definition: "{ [string]: number }" },
 		});
 		const from = g.node("table.dictionary", {
-			column: 0, row: 2,
+			column: 0,
+			row: 2,
 			config: { args: 2, split: { "in:p0": "keyValue", "in:p1": "keyValue" } },
 			literals: {
-				"p0.key": str("alice"), "p0.value": num(12),
-				"p1.key": str("bob"), "p1.value": num(9),
+				"p0.key": str("alice"),
+				"p0.value": num(12),
+				"p1.key": str("bob"),
+				"p1.value": num(9),
 			},
 		});
 		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const declare = g.node("local.declare", {
-			column: 1, row: 1,
+			column: 1,
+			row: 1,
 			config: { type: "Scores" },
 			literals: { name: str("scores") },
 		});
 		g.link(begin, "then", declare, "in");
 		g.link(from, "result", declare, "value");
 		const read = g.node("value.field", {
-			column: 2, row: 1, literals: { field: str("alice") },
+			column: 2,
+			row: 1,
+			literals: { field: str("alice") },
 		});
 		const print = g.node("debug.print", { column: 3, row: 1 });
 		g.link(declare, "ref", read, "object");
@@ -715,7 +771,8 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	tankConfigModule: () => {
 		const g = new G({ scriptClass: "ModuleScript" }, TIGHT);
 		g.node("type.declareTop", {
-			column: 0, row: 0,
+			column: 0,
+			row: 0,
 			config: {
 				name: "Tuning",
 				fields: [
@@ -726,7 +783,8 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 			},
 		});
 		const tuning = g.node("table.dictionary", {
-			column: 0, row: 1,
+			column: 0,
+			row: 1,
 			config: { args: 2, split: { "in:p0": "keyValue", "in:p1": "keyValue" }, layout: "lines" },
 			literals: {
 				"p0.key": str("turnRate"),
@@ -736,7 +794,9 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 			},
 		});
 		const exports = g.node("module.exports", {
-			column: 1, row: 1, config: { exports: [{ name: "tuning" }] },
+			column: 1,
+			row: 1,
+			config: { exports: [{ name: "tuning" }] },
 		});
 		g.link(tuning, "result", exports, "e0");
 		return g.out();
@@ -754,23 +814,30 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0, row: 0 });
 		const mod = g.node("module.requirePath", {
-			column: 0, row: 1,
+			column: 0,
+			row: 1,
 			literals: { root: str("ReplicatedStorage"), path: str("Tank.Config"), as: str("") },
 		});
 		const field = g.node("value.field", {
-			column: 1, row: 1, literals: { field: str("tuning") },
+			column: 1,
+			row: 1,
+			literals: { field: str("tuning") },
 		});
 		const declare = g.node("local.declare", {
-			column: 2, row: 0,
+			column: 2,
+			row: 0,
 			config: { type: "Config.Tuning" },
 			literals: { name: str("tuning") },
 		});
 		const get = g.node("local.get", {
-			column: 3, row: 1,
+			column: 3,
+			row: 1,
 			config: { local: declare, name: "tuning", type: "Config.Tuning" },
 		});
 		const rate = g.node("value.member", {
-			column: 4, row: 1, config: { member: "turnRate", type: "number" },
+			column: 4,
+			row: 1,
+			config: { member: "turnRate", type: "number" },
 		});
 		const print = g.node("debug.print", { column: 5, row: 0 });
 		g.link(mod, "exports", field, "object");
@@ -787,10 +854,15 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0, row: 0 });
 		const made = g.node("roblox.instanceNew", {
-			column: 1, row: 0, label: "part", literals: { className: str("Part") },
+			column: 1,
+			row: 0,
+			label: "part",
+			literals: { className: str("Part") },
 		});
 		const anchored = g.node("value.member", {
-			column: 2, row: 0, config: { member: "Anchored", type: "boolean" },
+			column: 2,
+			row: 0,
+			config: { member: "Anchored", type: "boolean" },
 		});
 		const branch = g.node("flow.branch", { column: 3, row: 0 });
 		g.link(begin, "then", made, "in");
@@ -809,10 +881,14 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0, row: 0 });
 		const door = g.node("roblox.instancePath", {
-			column: 1, row: 1, literals: { root: str("Workspace"), path: str("House.Door") },
+			column: 1,
+			row: 1,
+			literals: { root: str("Workspace"), path: str("House.Door") },
 		});
 		const anchored = g.node("value.member", {
-			column: 2, row: 1, config: { member: "Anchored", type: "boolean" },
+			column: 2,
+			row: 1,
+			config: { member: "Anchored", type: "boolean" },
 		});
 		const print = g.node("debug.print", { column: 3, row: 0 });
 		g.link(begin, "then", print, "in");
@@ -826,10 +902,14 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0, row: 0 });
 		const door = g.node("roblox.instancePath", {
-			column: 1, row: 1, literals: { root: str("Workspace"), path: str("House.Door") },
+			column: 1,
+			row: 1,
+			literals: { root: str("Workspace"), path: str("House.Door") },
 		});
 		const set = g.node("roblox.setProperty", {
-			column: 2, row: 0, literals: { property: str("Anchored"), value: { t: "boolean", v: false } },
+			column: 2,
+			row: 0,
+			literals: { property: str("Anchored"), value: { t: "boolean", v: false } },
 		});
 		g.link(begin, "then", set, "in");
 		g.link(door, "instance", set, "instance");
@@ -841,10 +921,14 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0, row: 0 });
 		const door = g.node("roblox.instancePath", {
-			column: 1, row: 1, literals: { root: str("Workspace"), path: str("House.Door") },
+			column: 1,
+			row: 1,
+			literals: { root: str("Workspace"), path: str("House.Door") },
 		});
 		const open = g.node("instance.getAttribute", {
-			column: 2, row: 1, literals: { name: str("IsOpen") },
+			column: 2,
+			row: 1,
+			literals: { name: str("IsOpen") },
 		});
 		const print = g.node("debug.print", { column: 3, row: 0 });
 		g.link(begin, "then", print, "in");
@@ -902,21 +986,27 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	wireColours: () => {
 		const g = new G({}, TIGHT);
 		const at = g.node("roblox.vector3", {
-			column: 0, row: 0, literals: { x: num(0), y: num(10), z: num(0) },
+			column: 0,
+			row: 0,
+			literals: { x: num(0), y: num(10), z: num(0) },
 		});
 		const frame = g.node("cframe.new", { column: 1, row: 0 });
 		const position = g.node("cframe.position", { column: 2, row: 0 });
 		g.link(at, "result", frame, "position").link(frame, "result", position, "cframe");
 
 		const offset = g.node("roblox.vector3", {
-			column: 0, row: 1, literals: { x: num(3), y: num(4), z: num(0) },
+			column: 0,
+			row: 1,
+			literals: { x: num(3), y: num(4), z: num(0) },
 		});
 		const length = g.node("vector3.magnitude", { column: 1, row: 1 });
 		const far = g.node("compare.gt", { column: 2, row: 1, literals: { b: num(5) } });
 		g.link(offset, "result", length, "v").link(length, "result", far, "a");
 
 		const workspace = g.node("roblox.getService", {
-			column: 0, row: 2, literals: { service: str("Workspace") },
+			column: 0,
+			row: 2,
+			literals: { service: str("Workspace") },
 		});
 		const name = g.node("instance.getName", { column: 1, row: 2 });
 		const loud = g.node("string.upper", { column: 2, row: 2 });
@@ -932,12 +1022,12 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		// to show its fade rather than a hop across a 24px gap.
 		const sum = g.node("math.add", { column: 0, row: 2, literals: { a0: num(2), a1: num(3) } });
 		const text = g.node("string.concat", {
-			column: 1, row: 1, literals: { a0: str("Score: ") },
+			column: 1,
+			row: 1,
+			literals: { a0: str("Score: ") },
 		});
 		const p = g.node("debug.print", { column: 2, row: 0 });
-		g.link(begin, "then", p, "in")
-			.link(sum, "result", text, "a1")
-			.link(text, "result", p, "value");
+		g.link(begin, "then", p, "in").link(sum, "result", text, "a1").link(text, "result", p, "value");
 		return g.out();
 	},
 
@@ -952,7 +1042,9 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0, row: 1 });
 		const health = g.node("value.expression", {
-			column: 0, row: 2, literals: { code: { t: "raw", v: "health" } },
+			column: 0,
+			row: 2,
+			literals: { code: { t: "raw", v: "health" } },
 		});
 		// Level with Print's execution pin, and with its Value pin.
 		const turn = g.node("flow.rerouteExec", { column: 1, row: 0, dx: 60, dy: 31 });
@@ -972,11 +1064,16 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const height = g.variable("Height", "number", num(12));
 		g.node("cframe.new", { column: 1, row: 0 });
 		const split = g.node("cframe.new", {
-			column: 1, row: 1, config: { split: { "in:position": "xyz" } },
+			column: 1,
+			row: 1,
+			config: { split: { "in:position": "xyz" } },
 		});
 		// Level with the split node's Y: header 30, one row of 24, half a row.
 		const get = g.node("variable.get", {
-			column: 0, row: 1, dx: 90, dy: 52,
+			column: 0,
+			row: 1,
+			dx: 90,
+			dy: 52,
 			config: { variable: height, name: "Height", type: "number" },
 		});
 		g.link(get, "value", split, partPinId("position", "y"));
@@ -988,7 +1085,8 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0 });
 		const code = g.node("code.custom", {
-			column: 1, literals: { code: { t: "raw", v: "local hits = 0\nhits += 1\nprint(hits)" } },
+			column: 1,
+			literals: { code: { t: "raw", v: "local hits = 0\nhits += 1\nprint(hits)" } },
 		});
 		g.link(begin, "then", code, "in");
 		printAfter(g, code, "then", "Done");
@@ -1000,7 +1098,9 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0, row: 0 });
 		const expr = g.node("value.expression", {
-			column: 0, row: 1, literals: { code: { t: "raw", v: "os.clock() * 2" } },
+			column: 0,
+			row: 1,
+			literals: { code: { t: "raw", v: "os.clock() * 2" } },
 		});
 		const p = g.node("debug.print", { column: 1, row: 0 });
 		g.link(begin, "then", p, "in").link(expr, "result", p, "value");
@@ -1021,7 +1121,9 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const begin = g.node("script.begin", { column: 0, row: 0 });
 		const branch = g.node("flow.branch", { column: 1, row: 0 });
 		const isServer = g.node("roblox.serviceValue", {
-			column: 0, row: 1, config: { service: "RunService", method: "IsServer" },
+			column: 0,
+			row: 1,
+			config: { service: "RunService", method: "IsServer" },
 		});
 		g.link(begin, "then", branch, "in").link(isServer, "result", branch, "condition");
 		printAfter(g, branch, "true", "On the server", 0);
@@ -1035,7 +1137,9 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		const seq = g.node("flow.sequence", { column: 1, row: 0, config: { count: 3 } });
 		g.link(begin, "then", seq, "in");
 		g.node("math.add", {
-			column: 0, row: 1, config: { args: 3 },
+			column: 0,
+			row: 1,
+			config: { args: 3 },
 			literals: { a0: num(1), a1: num(2), a2: num(3) },
 		});
 		return g.out();
@@ -1053,8 +1157,7 @@ export const EXAMPLE_NOTES: Record<string, string> = {
 		"The Players service is reached for you, and hoisted the same way — no Get Service node needed. Used in a Script rather than a LocalScript, this compiles fine and is nil at runtime, so Roswaal warns instead.",
 	"players.localCharacter":
 		"Nil until the character has spawned. Connect to CharacterAdded when you need to be sure, rather than reading this at the top of a script.",
-	"module.requirePath":
-		"Requires hoist alongside services, and asking twice reuses the one local.",
+	"module.requirePath": "Requires hoist alongside services, and asking twice reuses the one local.",
 	"script.end":
 		"Look at what is not there: Script End emits nothing. Falling off the end of a script does the same thing, so it is optional — it is worth placing only to say out loud that the flow stops here.",
 };

@@ -15,7 +15,7 @@
 
 import { useEffect } from "react";
 
-import { PREFERENCES_KEY, readPreferences, type Preferences } from "./preferences.js";
+import { PREFERENCES_KEY, type Preferences, readPreferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 
 /**

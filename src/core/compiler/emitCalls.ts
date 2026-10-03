@@ -14,14 +14,19 @@ import { DATATYPES } from "../robloxData.js";
 import type { NodeConfig, PinDef } from "../schema.js";
 import { methodOf, serviceMethod, serviceOf } from "../serviceCalls.js";
 import { luauType, resolveRoot } from "./emitDeclarations.js";
-import { VARIADIC_PIN, type Scope } from "./emitScope.js";
+import { type Scope, VARIADIC_PIN } from "./emitScope.js";
 import { callArguments, renderTemplate } from "./emitTemplates.js";
 import type { Emitter } from "./emitter.js";
 import type { ResolvedNode } from "./graph.js";
 import { isCallExpression, parenPrefix, toIdentifier } from "./luau.js";
 
 /** Statements that name the value on their `value` pin. See `foldsInto`. */
-export const STATEMENT_READERS = new Set(["local.declare", "local.set", "variable.set", "variable.init"]);
+export const STATEMENT_READERS = new Set([
+	"local.declare",
+	"local.set",
+	"variable.set",
+	"variable.init",
+]);
 
 /**
  * A call into Lune's standard library, as an expression.
@@ -51,15 +56,17 @@ export function luneCall(e: Emitter, src: ResolvedNode, scope: Scope): string {
 		// typed into the panel to fix this.
 		e.error(
 			`This calls \`${alias}.${call}\`, and nothing in this script requires ` +
-			`\`${specifier}\`. Declare it in the Variables panel — Roswaal will not add a ` +
-			"require you did not ask for.",
+				`\`${specifier}\`. Declare it in the Variables panel — Roswaal will not add a ` +
+				"require you did not ask for.",
 			src.node.id,
 		);
 		return "nil";
 	}
 
 	const fn = luneFunction(alias, call);
-	const pins = Array.from({ length: fn?.params.length ?? 0 }, (_unused, i) => e.pin(src, argPinId(i), "in"));
+	const pins = Array.from({ length: fn?.params.length ?? 0 }, (_unused, i) =>
+		e.pin(src, argPinId(i), "in"),
+	);
 	const args = callArguments(e, src, pins, (pin) => e.resolveInput(src, pin, scope));
 	return `${ident}.${call}(${args.join(", ")})`;
 }
@@ -93,7 +100,8 @@ export function serviceCall(e: Emitter, r: ResolvedNode, scope: Scope): string {
 	const known = serviceMethod(service, name);
 	const pins = r.inputs.filter((p) => VARIADIC_PIN.test(p.id));
 	const args = callArguments(e, r, pins, (pin, index) =>
-		serviceArgument(e, r, pin, scope, known?.params[index]?.enum));
+		serviceArgument(e, r, pin, scope, known?.params[index]?.enum),
+	);
 	return `${serviceReceiver(e, r, service, scope)}:${toIdentifier(name, "method")}(${args.join(", ")})`;
 }
 
@@ -136,24 +144,30 @@ function serviceReceiver(e: Emitter, r: ResolvedNode, service: string, scope: Sc
  * whatever it is.
  */
 function serviceArgument(
-	e: Emitter, r: ResolvedNode, pin: PinDef, scope: Scope, enumName: string | undefined,
+	e: Emitter,
+	r: ResolvedNode,
+	pin: PinDef,
+	scope: Scope,
+	enumName: string | undefined,
 ): string {
 	if (!enumName || e.index.sourceOf(r.node.id, pin.id)) {
 		return e.resolveInput(r, pin, scope);
 	}
 	const member = e.literalText(r, pin.id);
 	if (member === "") {
-		e.error(
-			`"${pin.name || pin.id}" needs an Enum.${enumName} value, by name.`,
-			r.node.id,
-			pin.id,
-		);
+		e.error(`"${pin.name || pin.id}" needs an Enum.${enumName} value, by name.`, r.node.id, pin.id);
 		return "nil";
 	}
 	return `Enum.${enumName}.${toIdentifier(member, "value")}`;
 }
 
-export function emitCall(e: Emitter, r: ResolvedNode, template: string, resultPin: string, scope: Scope): string | undefined {
+export function emitCall(
+	e: Emitter,
+	r: ResolvedNode,
+	template: string,
+	resultPin: string,
+	scope: Scope,
+): string | undefined {
 	return writeCall(e, r, renderTemplate(e, r, template, scope), resultPin, scope);
 }
 
@@ -168,7 +182,11 @@ export function emitCall(e: Emitter, r: ResolvedNode, template: string, resultPi
  * leaves the annotation off, for a result whose type is not a name in scope.
  */
 export function writeCall(
-	e: Emitter, r: ResolvedNode, rendered: string, resultPin: string, scope: Scope,
+	e: Emitter,
+	r: ResolvedNode,
+	rendered: string,
+	resultPin: string,
+	scope: Scope,
 	how: { fallback?: string; typed?: boolean } = {},
 ): string | undefined {
 	const fallback = how.fallback;
@@ -188,9 +206,10 @@ export function writeCall(
 
 	if (consumed) {
 		const ident = e.names.unique(resultHint(r, pin, fallback), fallback ?? "value");
-		const annotation = e.annotates && how.typed !== false && pin?.type && pin.type !== "any"
-			? `: ${luauType(pin.type)}${pin.nilable ? "?" : ""}`
-			: "";
+		const annotation =
+			e.annotates && how.typed !== false && pin?.type && pin.type !== "any"
+				? `: ${luauType(pin.type)}${pin.nilable ? "?" : ""}`
+				: "";
 		e.push(`local ${ident}${annotation} = ${rendered}`, r.node.id);
 		scope.bindings.set(`${r.node.id}/${resultPin}`, ident);
 	} else if (isCallExpression(rendered)) {

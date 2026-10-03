@@ -10,7 +10,7 @@
  * One message at a time: a newer one replaces the last.
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 type Listener = (text: string | null) => void;
 const listeners = new Set<Listener>();
@@ -25,7 +25,9 @@ export function showCanvasNotice(text: string): void {
 
 /** `**bold**` spans as `<strong>`; everything else as it is. */
 function emphasised(text: string): ReactNode[] {
-	return text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 === 1 ? <strong key={i}>{part}</strong> : part));
+	return text
+		.split(/\*\*(.+?)\*\*/g)
+		.map((part, i) => (i % 2 === 1 ? <strong key={i}>{part}</strong> : part));
 }
 
 export function CanvasNotice() {
@@ -46,7 +48,9 @@ export function CanvasNotice() {
 	return (
 		<div className="centre-notice" role="status">
 			<span>{emphasised(text)}</span>
-			<button type="button" className="tb" onClick={() => setText(null)} aria-label="Dismiss">✕</button>
+			<button type="button" className="tb" onClick={() => setText(null)} aria-label="Dismiss">
+				✕
+			</button>
 		</div>
 	);
 }

@@ -11,8 +11,8 @@
  */
 
 import { scriptClassOf } from "../rojoPaths.js";
-import { isScript, pathOf, type RbxDocument, type RbxInstance, stringProp } from "./dom.js";
 import type { NewInstance } from "./adder.js";
+import { isScript, pathOf, type RbxDocument, type RbxInstance, stringProp } from "./dom.js";
 import type { SourceChange } from "./writer.js";
 
 export interface PlaceTarget {
@@ -74,7 +74,9 @@ const key = (path: readonly string[]) => path.join("\u0001");
  * changes: the DataModel browser's answer to which file writes which script.
  */
 export function planPlaceUpdate(
-	doc: RbxDocument, entries: readonly PlaceEntry[], onMatch?: (inst: RbxInstance, file: string) => void,
+	doc: RbxDocument,
+	entries: readonly PlaceEntry[],
+	onMatch?: (inst: RbxInstance, file: string) => void,
 ): PlaceUpdate {
 	const byId = new Map<string, RbxInstance>();
 	const byPath = new Map<string, RbxInstance[]>();
@@ -87,7 +89,14 @@ export function planPlaceUpdate(
 	}
 
 	const out: PlaceUpdate = {
-		changes: [], updated: [], unchanged: [], notInPlace: [], ambiguous: [], wrongClass: [], added: [], addedFiles: [],
+		changes: [],
+		updated: [],
+		unchanged: [],
+		notInPlace: [],
+		ambiguous: [],
+		wrongClass: [],
+		added: [],
+		addedFiles: [],
 	};
 	const claimed = new Set<RbxInstance>();
 	/** Files whose script is not in the place, for adding once every match is known. */
@@ -121,7 +130,7 @@ export function planPlaceUpdate(
 		const fits = (inst: RbxInstance) =>
 			entry.className
 				? inst.className === entry.className
-				: entry.isModule === undefined || (entry.isModule === (inst.className === "ModuleScript"));
+				: entry.isModule === undefined || entry.isModule === (inst.className === "ModuleScript");
 		if (!found.every(fits)) {
 			out.wrongClass.push(entry.file);
 			continue;
@@ -181,7 +190,9 @@ function planAdditions(doc: RbxDocument, missing: PlaceEntry[], out: PlaceUpdate
 		return inst;
 	};
 
-	for (const entry of [...missing].sort((a, b) => a.targets[0].path.length - b.targets[0].path.length)) {
+	for (const entry of [...missing].sort(
+		(a, b) => a.targets[0].path.length - b.targets[0].path.length,
+	)) {
 		if (done.has(entry)) continue;
 		const path = entry.targets[0].path;
 		const services = doc.roots.filter((r) => r.name === path[0]);
@@ -193,7 +204,8 @@ function planAdditions(doc: RbxDocument, missing: PlaceEntry[], out: PlaceUpdate
 		let blocked: "ambiguous" | "taken" | null = null;
 		for (let i = 1; i < path.length; i++) {
 			const last = i === path.length - 1;
-			const existing: RbxInstance[] = "children" in cur ? cur.children.filter((c) => c.name === path[i]) : [];
+			const existing: RbxInstance[] =
+				"children" in cur ? cur.children.filter((c) => c.name === path[i]) : [];
 			if (existing.length > 1) {
 				blocked = "ambiguous";
 				break;
@@ -219,23 +231,34 @@ function planAdditions(doc: RbxDocument, missing: PlaceEntry[], out: PlaceUpdate
  * and the files it could not write, by why. Shared, so the editor and
  * `roswaal export` say the same thing.
  */
-export function describePlaceReport(file: string, report: PlaceReport): { title: string; detail: string } {
+export function describePlaceReport(
+	file: string,
+	report: PlaceReport,
+): { title: string; detail: string } {
 	const s = (n: number) => (n === 1 ? "" : "s");
 	const adds = report.addedFiles.length;
-	const title = report.scripts === 0 && adds === 0
-		? `${file} already holds the project's scripts`
-		: report.scripts === 0
-			? `Added ${adds} script${s(adds)} to ${file}`
-			: `Wrote ${report.scripts} script${s(report.scripts)} into ${file}${adds ? `, and added ${adds}` : ""}`;
+	const title =
+		report.scripts === 0 && adds === 0
+			? `${file} already holds the project's scripts`
+			: report.scripts === 0
+				? `Added ${adds} script${s(adds)} to ${file}`
+				: `Wrote ${report.scripts} script${s(report.scripts)} into ${file}${adds ? `, and added ${adds}` : ""}`;
 	const list = (files: string[]) => {
 		const shown = files.slice(0, 4).map((f) => f.split("/").pop());
 		return files.length > 4 ? `${shown.join(", ")} and ${files.length - 4} more` : shown.join(", ");
 	};
 	const lines: string[] = [];
 	if (report.addError) lines.push(`Nothing could be added: ${report.addError}.`);
-	if (report.notInPlace.length) lines.push(`No service in the place for: ${list(report.notInPlace)}.`);
-	if (report.ambiguous.length) lines.push(`More than one script with that path: ${list(report.ambiguous)}.`);
-	if (report.wrongClass.length) lines.push(`A different kind of script in the place: ${list(report.wrongClass)}.`);
-	if (report.leftInPlace?.length) lines.push(`Still in the place, with no file now: ${list(report.leftInPlace)}.`);
-	return { title, detail: lines.length ? lines.join(" ") : "Every script the project has a file for is in it." };
+	if (report.notInPlace.length)
+		lines.push(`No service in the place for: ${list(report.notInPlace)}.`);
+	if (report.ambiguous.length)
+		lines.push(`More than one script with that path: ${list(report.ambiguous)}.`);
+	if (report.wrongClass.length)
+		lines.push(`A different kind of script in the place: ${list(report.wrongClass)}.`);
+	if (report.leftInPlace?.length)
+		lines.push(`Still in the place, with no file now: ${list(report.leftInPlace)}.`);
+	return {
+		title,
+		detail: lines.length ? lines.join(" ") : "Every script the project has a file for is in it.",
+	};
 }

@@ -499,9 +499,7 @@ function aliasesSpan(text: string): Span | null {
 	return null;
 }
 
-export type AliasEdit =
-	| { kind: "text"; text: string }
-	| { kind: "refused"; why: string };
+export type AliasEdit = { kind: "text"; text: string } | { kind: "refused"; why: string };
 
 /**
  * The same file with a different set of aliases, and nothing else touched.
@@ -541,7 +539,10 @@ export function withAliases(text: string, aliases: readonly AliasEntry[]): Alias
 		// No `aliases` field: add one inside the object it is missing from.
 		const close = text.lastIndexOf("}");
 		if (close < 0) {
-			return { kind: "refused", why: "This `.luaurc` is not an object, so it has nowhere to put an alias." };
+			return {
+				kind: "refused",
+				why: "This `.luaurc` is not an object, so it has nowhere to put an alias.",
+			};
 		}
 		const before = text.slice(0, close).replace(/\s*$/, "");
 		const comma = before.endsWith("{") ? "" : ",";

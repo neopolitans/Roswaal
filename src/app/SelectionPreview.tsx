@@ -33,10 +33,10 @@
 
 import { useMemo, useState } from "react";
 
-import { graphMembers, type GraphId } from "../core/functionGraph.js";
-import type { NodeScript } from "../core/schema.js";
+import { type GraphId, graphMembers } from "../core/functionGraph.js";
 import type { Registry } from "../core/nodes/index.js";
 import { nodeTitle } from "../core/nodes/index.js";
+import type { NodeScript } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { surfacesIn } from "./edits.js";
 import { highlightLuau } from "./highlight.js";
@@ -56,7 +56,9 @@ const CONTEXT = 2;
  * narrower than the file, so it keeps meaning the whole script.
  */
 export function previewSelection(
-	script: NodeScript, graph: GraphId, selection: ReadonlySet<string>,
+	script: NodeScript,
+	graph: GraphId,
+	selection: ReadonlySet<string>,
 ): ReadonlySet<string> {
 	if (selection.size > 0 || graph === null) return selection;
 	return new Set([graph, ...graphMembers(script, graph)]);
@@ -112,7 +114,11 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 				<div className="docs-head">
 					<Icon name="terminal" size={16} />
 					<strong>
-						{whole ? "Script preview" : props.functionName ? `ƒ ${props.functionName}` : "Selection preview"}
+						{whole
+							? "Script preview"
+							: props.functionName
+								? `ƒ ${props.functionName}`
+								: "Selection preview"}
 					</strong>
 					<span className="sub">
 						{whole
@@ -120,11 +126,17 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 							: props.functionName
 								? `${direct} line${direct === 1 ? "" : "s"}`
 								: `${props.selection.size} node${props.selection.size === 1 ? "" : "s"}`}
-						{!whole && !props.functionName && direct > 0 && ` · ${direct} line${direct === 1 ? "" : "s"}`}
+						{!whole &&
+							!props.functionName &&
+							direct > 0 &&
+							` · ${direct} line${direct === 1 ? "" : "s"}`}
 					</span>
 					<span className="spacer" />
 					{!whole && (
-						<label className="preview-toggle" title="Show the whole generated file, not just what these nodes produced">
+						<label
+							className="preview-toggle"
+							title="Show the whole generated file, not just what these nodes produced"
+						>
 							<input
 								type="checkbox"
 								checked={showAll}
@@ -141,20 +153,19 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 				<div className="preview-body">
 					{!anything && !whole && (
 						<p className="preview-note">
-							These nodes produced no lines of their own, and nothing they feed into
-							did either. That usually means they are not reachable from Script Start
-							or a function — a node nothing runs is not compiled.
+							These nodes produced no lines of their own, and nothing they feed into did either.
+							That usually means they are not reachable from Script Start or a function — a node
+							nothing runs is not compiled.
 						</p>
 					)}
 
 					{inlined.length > 0 && (
 						<p className="preview-note">
-							{inlined.length === 1 ? "This node is pure" : "Some of these nodes are pure"},
-							so {inlined.length === 1 ? "its value is" : "their values are"} written
-							straight into the line that uses{" "}
-							{inlined.length === 1 ? "it" : "them"} rather than onto a line of{" "}
-							{inlined.length === 1 ? "its" : "their"} own:{" "}
-							<strong>{inlined.join(", ")}</strong>. The lines below are where
+							{inlined.length === 1 ? "This node is pure" : "Some of these nodes are pure"}, so{" "}
+							{inlined.length === 1 ? "its value is" : "their values are"} written straight into the
+							line that uses {inlined.length === 1 ? "it" : "them"} rather than onto a line of{" "}
+							{inlined.length === 1 ? "its" : "their"} own: <strong>{inlined.join(", ")}</strong>.
+							The lines below are where
 							{inlined.length === 1 ? " it ends" : " they end"} up.
 						</p>
 					)}
@@ -168,11 +179,7 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 							) : (
 								<span
 									key={row.line}
-									className={cx(
-										"ln",
-										row.mine && "mine",
-										row.downstream && "downstream",
-									)}
+									className={cx("ln", row.mine && "mine", row.downstream && "downstream")}
 								>
 									<span className="num">{row.line}</span>
 									<span className="text">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createRegistry } from "../src/core/nodes/index.js";
 import { precedingLocals } from "../src/app/luauCompletions.js";
+import { createRegistry } from "../src/core/nodes/index.js";
 import { Builder } from "./helpers.js";
 
 const registry = createRegistry();

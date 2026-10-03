@@ -53,7 +53,8 @@ function tokenise(source: string): Token[] {
 const styles = (source: string) => tokenise(source).map((t) => t.style);
 
 describe("keywords", () => {
-	const styleOf = (source: string, word: string) => tokenise(source).find((t) => t.text === word)?.style;
+	const styleOf = (source: string, word: string) =>
+		tokenise(source).find((t) => t.text === word)?.style;
 
 	it("colours Luau's words, and not Lua's goto", () => {
 		expect(styleOf("while true do continue end", "continue")).toBe("keyword");
@@ -125,8 +126,9 @@ describe("the things Lua's own mode gets wrong", () => {
 	});
 
 	it("marks Roblox globals apart from ordinary names", () => {
-		expect(tokenise("workspace").find((t) => t.text === "workspace")?.style)
-			.toBe("variableName.standard");
+		expect(tokenise("workspace").find((t) => t.text === "workspace")?.style).toBe(
+			"variableName.standard",
+		);
 		expect(tokenise("myThing").find((t) => t.text === "myThing")?.style).toBe("variableName");
 	});
 
@@ -149,15 +151,20 @@ describe("the things Lua's own mode gets wrong", () => {
  */
 describe("types", () => {
 	const typed = (source: string) =>
-		tokenise(source).filter((t) => t.style === "typeName").map((t) => t.text);
+		tokenise(source)
+			.filter((t) => t.style === "typeName")
+			.map((t) => t.text);
 
 	it("colours the names in an annotation, and not the value after it", () => {
 		expect(typed("local restores: { [Model]: Restore } = {}")).toEqual(["Model", "Restore"]);
 	});
 
 	it("colours parameters and the return type", () => {
-		expect(typed("function Occupancy.hide(character: Model, hull: BasePart): boolean"))
-			.toEqual(["Model", "BasePart", "boolean"]);
+		expect(typed("function Occupancy.hide(character: Model, hull: BasePart): boolean")).toEqual([
+			"Model",
+			"BasePart",
+			"boolean",
+		]);
 	});
 
 	it("does not take a method call for an annotation", () => {
@@ -178,14 +185,18 @@ describe("types", () => {
 	});
 
 	it("carries a table type over several lines, and ends with it", () => {
-		const source = "type Restore = {\n\ttransparency: { [Instance]: number },\n\twalkSpeed: number,\n}\nlocal x = 1";
+		const source =
+			"type Restore = {\n\ttransparency: { [Instance]: number },\n\twalkSpeed: number,\n}\nlocal x = 1";
 		expect(typed(source)).toEqual(["Restore", "Instance", "number", "number"]);
 		expect(tokenise(source).find((t) => t.text === "x")?.style).toBe("variableName");
 	});
 
 	it("ends an annotation at the end of its line", () => {
 		const found = tokenise("local n: number\nprint(n)");
-		expect(found.filter((t) => t.text === "n").map((t) => t.style)).toEqual(["variableName", "variableName"]);
+		expect(found.filter((t) => t.text === "n").map((t) => t.style)).toEqual([
+			"variableName",
+			"variableName",
+		]);
 	});
 
 	it("reads a function type through its arrow", () => {

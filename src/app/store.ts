@@ -40,14 +40,19 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { retypeClassReads } from "../core/classReads.js";
 import {
-	functionOutline, graphExists, graphOf, positionIn, type FunctionInfo, type GraphId,
+	type FunctionInfo,
+	functionOutline,
+	type GraphId,
+	graphExists,
+	graphOf,
+	positionIn,
 } from "../core/functionGraph.js";
+import type { Registry } from "../core/nodes/index.js";
+import { retypeReroutes } from "../core/reroutes.js";
 import type { NodeScript } from "../core/schema.js";
 import type { View } from "./geometry.js";
-import { retypeReroutes } from "../core/reroutes.js";
-import { retypeClassReads } from "../core/classReads.js";
-import type { Registry } from "../core/nodes/index.js";
 import { functionNameOf } from "./nodeConfig.js";
 
 const HISTORY_LIMIT = 100;
@@ -185,18 +190,19 @@ class Store {
 	private changed(): void {
 		const tab = this.activeTab();
 		const doc = tab ? this.docs.get(tab.path) : undefined;
-		this.snapshot = tab && doc
-			? {
-					path: doc.path,
-					script: doc.script,
-					graph: tab.graph,
-					selection: tab.selection,
-					dirty: doc.dirty,
-					locked: this.locked,
-				}
-			: this.locked === NOTHING_OPEN.locked
-				? NOTHING_OPEN
-				: { ...NOTHING_OPEN, locked: this.locked };
+		this.snapshot =
+			tab && doc
+				? {
+						path: doc.path,
+						script: doc.script,
+						graph: tab.graph,
+						selection: tab.selection,
+						dirty: doc.dirty,
+						locked: this.locked,
+					}
+				: this.locked === NOTHING_OPEN.locked
+					? NOTHING_OPEN
+					: { ...NOTHING_OPEN, locked: this.locked };
 
 		this.tabs = this.tabList.map((t) => {
 			const open = this.docs.get(t.path)!;
@@ -222,7 +228,8 @@ class Store {
 			outline.set(path, list);
 		}
 		if (outlineChanged) {
-			for (const path of [...this.outlineKeys.keys()]) if (!this.docs.has(path)) this.outlineKeys.delete(path);
+			for (const path of [...this.outlineKeys.keys()])
+				if (!this.docs.has(path)) this.outlineKeys.delete(path);
 			this.outline = outline;
 		}
 
@@ -230,7 +237,9 @@ class Store {
 	}
 
 	private activeTab(): Tab | null {
-		return this.activeKey === null ? null : (this.tabList.find((t) => t.key === this.activeKey) ?? null);
+		return this.activeKey === null
+			? null
+			: (this.tabList.find((t) => t.key === this.activeKey) ?? null);
 	}
 
 	private active(): Doc | null {
@@ -342,7 +351,8 @@ class Store {
 		if (from === -1 || key === before) return;
 
 		const [tab] = this.tabList.splice(from, 1);
-		const at = before === null ? this.tabList.length : this.tabList.findIndex((t) => t.key === before);
+		const at =
+			before === null ? this.tabList.length : this.tabList.findIndex((t) => t.key === before);
 		if (at === -1) this.tabList.push(tab);
 		else this.tabList.splice(at, 0, tab);
 		this.changed();
@@ -517,7 +527,8 @@ class Store {
 		this.tabList = this.tabList.filter((t) => !gone(t.path));
 		for (const path of [...this.docs.keys()]) if (gone(path)) this.docs.delete(path);
 		if (activePath !== undefined && gone(activePath)) {
-			this.activeKey = (this.tabList[index] ?? this.tabList[index - 1] ?? this.tabList.at(-1))?.key ?? null;
+			this.activeKey =
+				(this.tabList[index] ?? this.tabList[index - 1] ?? this.tabList.at(-1))?.key ?? null;
 		}
 		this.changed();
 	}
@@ -721,7 +732,8 @@ class Store {
 		if (!graphExists(doc.script, graph)) graph = null;
 
 		if (graph === null) {
-			if (!this.tabList.some((t) => t.key === doc.path)) this.tabList.push(this.newTab(doc.path, null));
+			if (!this.tabList.some((t) => t.key === doc.path))
+				this.tabList.push(this.newTab(doc.path, null));
 			this.activeKey = doc.path;
 		} else {
 			this.openFunction(doc.path, graph);
@@ -753,9 +765,13 @@ class Store {
 
 /** Puts what an edit added, with no graph of its own, into `graph`. */
 function adopt(before: NodeScript, after: NodeScript, graph: string): NodeScript {
-	const grew = after.nodes.length > before.nodes.length || after.comments.length > before.comments.length;
+	const grew =
+		after.nodes.length > before.nodes.length || after.comments.length > before.comments.length;
 	if (!grew && after.nodes === before.nodes && after.comments === before.comments) return after;
-	const had = new Set<string>([...before.nodes.map((n) => n.id), ...before.comments.map((c) => c.id)]);
+	const had = new Set<string>([
+		...before.nodes.map((n) => n.id),
+		...before.comments.map((c) => c.id),
+	]);
 	let changed = false;
 	const nodes = after.nodes.map((n) => {
 		// A hoisted function is in no flow, so it is in no graph but its own.

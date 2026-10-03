@@ -52,7 +52,9 @@ export const fs: ProjectFs = {
 	stat: (target) => backing.stat(target),
 	// Passed through as called: with an encoding a file is text, without one bytes.
 	readFile: ((target: string, encoding?: "utf8") =>
-		encoding ? backing.readFile(target, encoding) : backing.readFile(target)) as ProjectFs["readFile"],
+		encoding
+			? backing.readFile(target, encoding)
+			: backing.readFile(target)) as ProjectFs["readFile"],
 	writeFile: ((target: string, data: string | Uint8Array, encoding?: "utf8") =>
 		typeof data === "string"
 			? backing.writeFile(target, data, encoding ?? "utf8")

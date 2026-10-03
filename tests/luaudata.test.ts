@@ -24,7 +24,12 @@ describe("Luau data parser", () => {
 					{ id = "b", title = "B" },
 				},
 			}`),
-		).toEqual({ nodes: [{ id: "a", title: "A" }, { id: "b", title: "B" }] });
+		).toEqual({
+			nodes: [
+				{ id: "a", title: "A" },
+				{ id: "b", title: "B" },
+			],
+		});
 	});
 
 	it("handles comments, long strings and escapes", () => {

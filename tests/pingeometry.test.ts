@@ -18,8 +18,8 @@
  */
 
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
@@ -97,8 +97,9 @@ describe("the pin geometry in theme.css and in NODE", () => {
 			// slot.
 			expect(left![1], `${start} uses tokens`).toContain("var(--pin-pad)");
 			expect(left![1], `${start} carries the border`).toContain("var(--node-stroke)");
-			expect(left![1].replace(/var\(--[\w-]+\)/g, ""), `${start} has no literal px`)
-				.not.toMatch(/\dpx/);
+			expect(left![1].replace(/var\(--[\w-]+\)/g, ""), `${start} has no literal px`).not.toMatch(
+				/\dpx/,
+			);
 		}
 	});
 });

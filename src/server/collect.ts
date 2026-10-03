@@ -3,19 +3,16 @@
  * and models as base64.
  */
 
-import { fs } from "./host.js";
-
 import { toBase64 } from "../core/base64.js";
 import type { OpenProject } from "./config.js";
 import { walkFiles } from "./files.js";
+import { fs } from "./host.js";
 
 /**
  * The extensions a Roswaal project is made of: the graphs, the maps, the
  * packs, the config, the generated Luau and the Rojo project beside it.
  */
-const EXPORTABLE = [
-	".nodescript", ".nodemap", ".luau", ".lua", ".json", ".toml", ".md", ".txt",
-];
+const EXPORTABLE = [".nodescript", ".nodemap", ".luau", ".lua", ".json", ".toml", ".md", ".txt"];
 
 /**
  * Every text file in the project, for handing the whole thing over at once.

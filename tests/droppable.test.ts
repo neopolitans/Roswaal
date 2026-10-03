@@ -18,10 +18,16 @@ const canvas = read("src/app/Canvas.tsx");
 const panel = read("src/app/VariablesPanel.tsx");
 
 const kinds = (source: string, call: "setData" | "getData") =>
-	new Set([...source.matchAll(new RegExp(`${call}\\("(application/x-roswaal[\\w-]*)"`, "g"))].map((m) => m[1]));
+	new Set(
+		[...source.matchAll(new RegExp(`${call}\\("(application/x-roswaal[\\w-]*)"`, "g"))].map(
+			(m) => m[1],
+		),
+	);
 
 const droppable = new Set(
-	[...canvas.match(/export const DROPPABLE = \[([\s\S]*?)\]/)![1].matchAll(/"([^"]+)"/g)].map((m) => m[1]),
+	[...canvas.match(/export const DROPPABLE = \[([\s\S]*?)\]/)![1].matchAll(/"([^"]+)"/g)].map(
+		(m) => m[1],
+	),
 );
 
 describe("what the canvas accepts", () => {

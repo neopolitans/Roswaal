@@ -8,12 +8,19 @@
 import { checkSpecifier } from "../modules.js";
 import { signatureOf } from "../nodes/flow.js";
 import {
-	functionRefOf, localRefOf, moduleRefOf, paramRefOf, variableRefOf,
+	functionRefOf,
+	localRefOf,
+	moduleRefOf,
+	paramRefOf,
+	variableRefOf,
 } from "../nodes/variables.js";
 import { lastSegment, renderPath } from "../roblox.js";
 import { luneCall, serviceCall } from "./emitCalls.js";
 import {
-	claimModuleName, PROVIDED_GLOBALS, resolveRoot, specifierName,
+	claimModuleName,
+	PROVIDED_GLOBALS,
+	resolveRoot,
+	specifierName,
 } from "./emitDeclarations.js";
 import type { Scope } from "./emitScope.js";
 import type { Emitter } from "./emitter.js";
@@ -72,8 +79,8 @@ function readVariable(e: Emitter, src: ResolvedNode): string {
 	if (e.initialisedLater.has(ref.variable) && !e.declaredSoFar.has(ref.variable)) {
 		e.error(
 			`"${ref.name ?? "That variable"}" is read here, before the Initialize Variable ` +
-			"node that declares it. Move the initialisation earlier, or give the " +
-			"variable a value in the variables panel and use Set Variable.",
+				"node that declares it. Move the initialisation earlier, or give the " +
+				"variable a value in the variables panel and use Set Variable.",
 			src.node.id,
 		);
 		return "nil";
@@ -123,9 +130,9 @@ function readParameter(e: Emitter, src: ResolvedNode, scope: Scope): string {
 	const owning = signature.name || owner.node.label || "that function";
 	e.error(
 		`"${ref.param}" is a parameter of "${owning}", and this node is not inside its ` +
-		"body. A parameter exists only where the function runs — wire this into " +
-		"something on the function's Body, or use a variable for a value the whole " +
-		"script reads.",
+			"body. A parameter exists only where the function runs — wire this into " +
+			"something on the function's Body, or use a variable for a value the whole " +
+			"script reads.",
 		src.node.id,
 	);
 	return "nil";
@@ -155,8 +162,8 @@ function readLocal(e: Emitter, src: ResolvedNode, scope: Scope): string {
 	if (bound) return bound;
 	e.error(
 		`"${ref.name ?? "That local"}" is not in scope here. A local exists after its ` +
-		"Declare Local runs, and only inside the block that declared it. For a value the " +
-		"whole script reads, use a variable.",
+			"Declare Local runs, and only inside the block that declared it. For a value the " +
+			"whole script reads, use a variable.",
 		src.node.id,
 	);
 	return "nil";
@@ -268,9 +275,10 @@ function requireAtTop(e: Emitter, src: ResolvedNode): string {
 	// quietly handing back a different one leaves the node saying
 	// `util` and the file saying `util2`.
 	const chosen = e.literalText(src, "as").trim();
-	const ident = chosen === ""
-		? e.names.uniqueForFile(specifierName(specifier) || "module", "module")
-		: toIdentifier(chosen);
+	const ident =
+		chosen === ""
+			? e.names.uniqueForFile(specifierName(specifier) || "module", "module")
+			: toIdentifier(chosen);
 	if (chosen !== "") {
 		const shadows = PROVIDED_GLOBALS.includes(ident);
 		if (!shadows && !e.moduleClaims.has(ident) && e.names.isTaken(ident)) {
@@ -317,7 +325,7 @@ function getModule(e: Emitter, src: ResolvedNode): string {
 		id === ""
 			? "Get Module has no module chosen."
 			: `"${name || "That module"}" is not declared by this script any more. ` +
-				"Declare it in the Variables panel, or point this at one that is.",
+					"Declare it in the Variables panel, or point this at one that is.",
 		src.node.id,
 	);
 	return "nil";
@@ -394,7 +402,11 @@ const VALUE_HANDLERS = new Map<string, ValueHandler>([
 
 /** What a pure builtin node resolves to where `consumer` reads it. */
 export function pureBuiltin(
-	e: Emitter, handler: string, src: ResolvedNode, consumer: ResolvedNode, scope: Scope,
+	e: Emitter,
+	handler: string,
+	src: ResolvedNode,
+	consumer: ResolvedNode,
+	scope: Scope,
 ): string {
 	const resolve = VALUE_HANDLERS.get(handler);
 	if (resolve) return resolve(e, src, scope, consumer);

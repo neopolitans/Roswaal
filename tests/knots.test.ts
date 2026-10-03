@@ -15,7 +15,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	canConnect, connect, deleteSelection, disconnectPin, insertReroute, removeLink,
+	canConnect,
+	connect,
+	deleteSelection,
+	disconnectPin,
+	insertReroute,
+	removeLink,
 	retypeReroutes,
 } from "../src/app/edits.js";
 import { createRegistry } from "../src/core/nodes/index.js";
@@ -24,8 +29,7 @@ import { Builder } from "./helpers.js";
 
 const registry = createRegistry();
 
-const at = (script: NodeScript, id: string): GraphNode =>
-	script.nodes.find((n) => n.id === id)!;
+const at = (script: NodeScript, id: string): GraphNode => script.nodes.find((n) => n.id === id)!;
 
 const typeOf = (script: NodeScript, id: string): string | undefined =>
 	(at(script, id).config as { type?: string } | undefined)?.type;
@@ -82,9 +86,7 @@ describe("a knot takes the type of what feeds it", () => {
 		const { script, knot, finder } = wired();
 		const cut = disconnectPin(script, knot, "in", "in", registry);
 
-		const out = connect(
-			cut, registry, { node: finder, pin: "result" }, { node: knot, pin: "in" },
-		);
+		const out = connect(cut, registry, { node: finder, pin: "result" }, { node: knot, pin: "in" });
 		// `Humanoid` rather than `Instance` since 0.77.0: a node that names a
 		// class hands back that class, and Find First Child Of Class starts on
 		// Humanoid.

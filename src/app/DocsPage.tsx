@@ -18,21 +18,20 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-
+import { VERSION } from "../cli/version.js";
 import { createRegistry } from "../core/nodes/index.js";
-import { cx } from "./cx.js";
-import { pageHref, pagesShareTab } from "./pages.js";
 import type { NodeDef } from "../core/schema.js";
 import { api } from "./api.js";
+import { cx } from "./cx.js";
 import { DocsView } from "./DocsPanel.jsx";
-import { Icon } from "./icons.jsx";
-import { SiteBanner, MarkedLogo } from "./previewBuild.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
-import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
-import { SettingsPanel } from "./SettingsPanel.jsx";
+import { Icon } from "./icons.jsx";
+import { pageHref, pagesShareTab } from "./pages.js";
 import { usePreferenceSync } from "./preferenceSync.js";
+import { type Preferences, readPreferences, writePreferences } from "./preferences.js";
+import { MarkedLogo, SiteBanner } from "./previewBuild.jsx";
+import { SettingsPanel } from "./SettingsPanel.jsx";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
-import { VERSION } from "../cli/version.js";
 
 /** The slug in the address bar, so a docs page can be linked and bookmarked. */
 function slugFromHash(): string | undefined {
@@ -98,89 +97,92 @@ export function DocsPage() {
 
 	return (
 		<>
-		<div className={cx("docs-page", navOpen && "nav-open")}>
-			{/* The sharper wording: these pages describe a build that is not out. */}
-			<SiteBanner kind="docs" />
-			<header className="docs-page-head">
-				{/* The mark and what this window is. "Roswaal Documentation" said
+			<div className={cx("docs-page", navOpen && "nav-open")}>
+				{/* The sharper wording: these pages describe a build that is not out. */}
+				<SiteBanner kind="docs" />
+				<header className="docs-page-head">
+					{/* The mark and what this window is. "Roswaal Documentation" said
 				    both of those in six syllables and neither of them quickly. */}
-				<button
-					className="logo as-chip"
-					onClick={() => setIntroOpen(true)}
-					title="Recent projects, the demos, and the other windows"
-				>
-					{/* The build's colour, as the editor's mark wears it. Plain today:
+					<button
+						className="logo as-chip"
+						onClick={() => setIntroOpen(true)}
+						title="Recent projects, the demos, and the other windows"
+					>
+						{/* The build's colour, as the editor's mark wears it. Plain today:
 					    the browser build sends Docs to the published site rather than
 					    to this window. Here anyway, because the rule is every surface
 					    of that build. */}
-					<MarkedLogo height={17} title="Roswaal" />
-					Docs
-					<span className="version">{VERSION}</span>
-				</button>
-				<button
-					className={cx("tb docs-nav-toggle", navOpen && "on")}
-					aria-expanded={navOpen}
-					onClick={() => setNavOpen((open) => !open)}
-				>
-					Contents
-				</button>
-				<button
-					className="tb icon-only docs-search-toggle"
-					title="Search the docs"
-					aria-label="Search the docs"
-					onClick={() => {
-						setNavOpen(false);
-						setSearches((n) => n + 1);
-					}}
-				>
-					<Icon name="search" size={15} />
-				</button>
-				{packsFailed && (
-					<span className="warn" title="Start the daemon and reload to include them">
-						built-in nodes only — no daemon
-					</span>
-				)}
-				<span style={{ flex: 1 }} />
-				<button className="tb" onClick={() => setSettingsOpen(true)} title="Settings">
-					<Icon name="settings" size={15} />
-					Settings
-				</button>
-				<a className="tb" href={pageHref("editor")} target={pagesShareTab() ? "_self" : "_blank"} rel="noreferrer">
-					Open Editor
-				</a>
-			</header>
+						<MarkedLogo height={17} title="Roswaal" />
+						Docs
+						<span className="version">{VERSION}</span>
+					</button>
+					<button
+						className={cx("tb docs-nav-toggle", navOpen && "on")}
+						aria-expanded={navOpen}
+						onClick={() => setNavOpen((open) => !open)}
+					>
+						Contents
+					</button>
+					<button
+						className="tb icon-only docs-search-toggle"
+						title="Search the docs"
+						aria-label="Search the docs"
+						onClick={() => {
+							setNavOpen(false);
+							setSearches((n) => n + 1);
+						}}
+					>
+						<Icon name="search" size={15} />
+					</button>
+					{packsFailed && (
+						<span className="warn" title="Start the daemon and reload to include them">
+							built-in nodes only — no daemon
+						</span>
+					)}
+					<span style={{ flex: 1 }} />
+					<button className="tb" onClick={() => setSettingsOpen(true)} title="Settings">
+						<Icon name="settings" size={15} />
+						Settings
+					</button>
+					<a
+						className="tb"
+						href={pageHref("editor")}
+						target={pagesShareTab() ? "_self" : "_blank"}
+						rel="noreferrer"
+					>
+						Open Editor
+					</a>
+				</header>
 
-			{introOpen && (
-				<IntroPanel surface="docs" onClose={() => setIntroOpen(false)} />
-			)}
+				{introOpen && <IntroPanel surface="docs" onClose={() => setIntroOpen(false)} />}
 
-			{/* Tapping beside the drawer puts it away, as on the static site.
+				{/* Tapping beside the drawer puts it away, as on the static site.
 			    Here rather than inside the body, which `DocsView` draws. */}
-			{navOpen && <div className="docs-nav-scrim" onClick={() => setNavOpen(false)} />}
+				{navOpen && <div className="docs-nav-scrim" onClick={() => setNavOpen(false)} />}
 
-			<DocsView
-				registry={registry}
-				prefs={prefs}
-				initialSlug={slug}
-				onNavigate={onNavigate}
-				searchRequest={searches}
-			/>
-		</div>
+				<DocsView
+					registry={registry}
+					prefs={prefs}
+					initialSlug={slug}
+					onNavigate={onNavigate}
+					searchRequest={searches}
+				/>
+			</div>
 
-		{/* Outside `.docs-page`, as it is outside the editor's shell: the
+			{/* Outside `.docs-page`, as it is outside the editor's shell: the
 		    panel borrows the docs' class names for its frame, so inside this
 		    window's rules it picked up the reading layout and cramped every row.
 
 		    No project here, so no Project tab: those settings are the
 		    repository's, and they are changed from the editor. */}
-		{settingsOpen && (
-			<SettingsPanel
-				prefs={prefs}
-				onPrefs={updatePrefs}
-				onClose={() => setSettingsOpen(false)}
-				initialTab="docs"
-			/>
-		)}
+			{settingsOpen && (
+				<SettingsPanel
+					prefs={prefs}
+					onPrefs={updatePrefs}
+					onClose={() => setSettingsOpen(false)}
+					initialTab="docs"
+				/>
+			)}
 		</>
 	);
 }

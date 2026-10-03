@@ -11,38 +11,61 @@
  * heading, the summary and the label above these.
  */
 
-import { useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { type ComponentType, type ReactNode, useMemo, useState } from "react";
 
 import { checkLuau } from "../core/luau/check.js";
 import { LUNE_ROBLOX_DATATYPES } from "../core/luneApi.js";
 import {
-	callLabel as luneCallLabel, luneCallDetail, luneFunction, requiredSpecifier, splitLuneCall,
-	LUNE_CALL, LUNE_CALL_OPTIONS, LUNE_VALUE,
+	LUNE_CALL,
+	LUNE_CALL_OPTIONS,
+	LUNE_VALUE,
+	luneCallDetail,
+	callLabel as luneCallLabel,
+	luneFunction,
+	requiredSpecifier,
+	splitLuneCall,
 } from "../core/luneCalls.js";
 import { membersFor } from "../core/members.js";
 import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../core/nodes/flow.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
 import { isConstLocal, localNameOf, pinTypeText } from "../core/nodes/variables.js";
 import {
-	ENGINE_TYPES, type GraphNode, type Literal, type NodeDef, type NodeScript,
+	ENGINE_TYPES,
+	type GraphNode,
+	type Literal,
+	type NodeDef,
+	type NodeScript,
 } from "../core/schema.js";
 import {
-	CALL_OPTIONS, SERVICE_CALL, SERVICE_VALUE, callDetail, callLabel, serviceMethod, splitCall,
+	CALL_OPTIONS,
+	callDetail,
+	callLabel,
+	SERVICE_CALL,
+	SERVICE_VALUE,
+	serviceMethod,
+	splitCall,
 } from "../core/serviceCalls.js";
 import { requestCodeEdit } from "./codeEditRequests.js";
 import { cx } from "./cx.js";
 import { useEditBurst } from "./editBurst.js";
 import {
-	addModule, addVariable, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable,
-	disconnectInput, setConfig, setLiteral, syncFunctionRefs, syncFunctionReturns, syncParamRefs,
+	addModule,
+	addVariable,
+	bindNodeToFunction,
+	bindNodeToLocal,
+	bindNodeToVariable,
+	disconnectInput,
+	setConfig,
+	setLiteral,
+	syncFunctionRefs,
+	syncFunctionReturns,
+	syncParamRefs,
 	updateModule,
 } from "./edits.js";
 import { resolvePins } from "./geometry.js";
 import { highlightLuau } from "./highlight.js";
 import { Icon } from "./icons.jsx";
-import {
-	configEntries, configFlag, configText, paramsOf, type NamedEntry,
-} from "./nodeConfig.js";
+import { configEntries, configFlag, configText, type NamedEntry, paramsOf } from "./nodeConfig.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { store, useEditor } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
@@ -110,9 +133,9 @@ const INSPECTOR_SECTIONS: readonly SectionRule[] = [
 
 /** The sections for one node, drawn in table order. */
 export function InspectorSections(props: SectionProps): ReactNode {
-	return INSPECTOR_SECTIONS
-		.filter((rule) => rule.applies(props.def))
-		.map(({ Section }, i) => <Section key={i} {...props} />);
+	return INSPECTOR_SECTIONS.filter((rule) => rule.applies(props.def)).map(({ Section }, i) => (
+		<Section key={i} {...props} />
+	));
 }
 
 /**
@@ -128,10 +151,8 @@ function namesResult(def: NodeDef): boolean {
 	// twice -- Find First Child is one. A pure *builtin* stays out: it
 	// resolves to a bare identifier and is never bound, so a name there would
 	// do nothing.
-	return def.compilesTo.kind === "expr"
-		&& (def.outputs ?? []).some((pin) => pin.kind === "data");
+	return def.compilesTo.kind === "expr" && (def.outputs ?? []).some((pin) => pin.kind === "data");
 }
-
 
 /** A Return's values, kept in step with the function it returns from. */
 function ReturnList({ node }: SectionProps) {
@@ -242,9 +263,7 @@ function MemberEditor({ node }: { node: GraphNode }) {
 						className="tb"
 						value={current}
 						placeholder="member"
-						onChange={(e) =>
-							typing.edit((s) => setConfig(s, node.id, { member: e.target.value }))
-						}
+						onChange={(e) => typing.edit((s) => setConfig(s, node.id, { member: e.target.value }))}
 						{...typing.field}
 					/>
 				)}
@@ -334,8 +353,7 @@ function FunctionEditor({ node }: { node: GraphNode }) {
 function TypeFields({ node }: { node: GraphNode }) {
 	const typing = useEditBurst();
 	const fields = configEntries(node, "fields");
-	const write = (next: NamedEntry[]) =>
-		store.edit((s) => setConfig(s, node.id, { fields: next }));
+	const write = (next: NamedEntry[]) => store.edit((s) => setConfig(s, node.id, { fields: next }));
 
 	return (
 		<div className="list-editor">
@@ -369,7 +387,11 @@ function TypeFields({ node }: { node: GraphNode }) {
 							write(next);
 						}}
 					/>
-					<button className="tb" title="Remove" onClick={() => write(fields.filter((_, j) => j !== i))}>
+					<button
+						className="tb"
+						title="Remove"
+						onClick={() => write(fields.filter((_, j) => j !== i))}
+					>
 						×
 					</button>
 				</div>
@@ -387,17 +409,26 @@ function TypeFields({ node }: { node: GraphNode }) {
  * you write, with the same parser the build runs, and this preview carries
  * the first mistake so it is seen without opening it.
  */
-function WrittenType({ node, name, definition }: { node: GraphNode; name?: string; definition?: string }) {
+function WrittenType({
+	node,
+	name,
+	definition,
+}: {
+	node: GraphNode;
+	name?: string;
+	definition?: string;
+}) {
 	const text = definition ?? "";
 	const problem = text.trim() === "" ? undefined : checkLuau(text, "type")[0];
-	const open = () => requestCodeEdit({
-		nodeId: node.id,
-		field: "definition",
-		value: text,
-		kind: "type",
-		title: `type ${name || "Name"}`,
-		hint: "Written into the generated file as this type's definition",
-	});
+	const open = () =>
+		requestCodeEdit({
+			nodeId: node.id,
+			field: "definition",
+			value: text,
+			kind: "type",
+			title: `type ${name || "Name"}`,
+			hint: "Written into the generated file as this type's definition",
+		});
 	return (
 		<Field label="Definition">
 			<button
@@ -411,9 +442,15 @@ function WrittenType({ node, name, definition }: { node: GraphNode; name?: strin
 				) : (
 					highlightLuau(text).map((line, i) => (
 						<span className="line" key={i}>
-							{line.map((token, j) => (token.cls === ""
-								? token.text
-								: <span key={j} className={token.cls}>{token.text}</span>))}
+							{line.map((token, j) =>
+								token.cls === "" ? (
+									token.text
+								) : (
+									<span key={j} className={token.cls}>
+										{token.text}
+									</span>
+								),
+							)}
 						</span>
 					))
 				)}
@@ -480,8 +517,8 @@ function TypeEditor({ node }: { node: GraphNode }) {
 			{shape === "typeof" && (
 				<p className="summary">
 					The definition is whatever you wire into <strong>Value</strong>:{" "}
-					<code>type {name || "Name"} = typeof(that value)</code>. Put the node after
-					the thing it describes.
+					<code>type {name || "Name"} = typeof(that value)</code>. Put the node after the thing it
+					describes.
 				</p>
 			)}
 
@@ -513,9 +550,7 @@ function TypeEditor({ node }: { node: GraphNode }) {
  * not depend on whether an optional tool happens to be on PATH.
  */
 function TableLayout({ node }: { node: GraphNode }) {
-	const current = configText(node, "layout") === "lines"
-		? "lines"
-		: "inline";
+	const current = configText(node, "layout") === "lines" ? "lines" : "inline";
 	return (
 		<Field label="Layout">
 			<select
@@ -611,9 +646,11 @@ function CastMode({ node }: { node: GraphNode }) {
 				className="tb"
 				value={current}
 				onChange={(e) =>
-					store.edit((s) => setConfig(s, node.id, {
-						cast: e.target.value === "auto" ? undefined : e.target.value,
-					}))
+					store.edit((s) =>
+						setConfig(s, node.id, {
+							cast: e.target.value === "auto" ? undefined : e.target.value,
+						}),
+					)
 				}
 			>
 				{CAST_MODES.map((m) => (
@@ -796,7 +833,9 @@ function DatatypeFromLune({ def }: { def: NodeDef }) {
 		<div className="inspector-warn">
 			<p>
 				Lune has <code>{datatype}</code> only through <code>@lune/roblox</code>
-				{existing ? ", and this script does not pull it off the module." : ", which this script does not require."}
+				{existing
+					? ", and this script does not pull it off the module."
+					: ", which this script does not require."}
 			</p>
 			<button className="tb" onClick={give}>
 				{existing ? `Add ${datatype} to ${existing.name}` : `Require @lune/roblox for ${datatype}`}
@@ -839,10 +878,7 @@ function LuneCallPicker({ node }: { node: GraphNode }) {
 
 	return (
 		<>
-			<Field
-				label="Call"
-				hint={known?.summary ?? "A function from Lune's standard library."}
-			>
+			<Field label="Call" hint={known?.summary ?? "A function from Lune's standard library."}>
 				<button className="tb literal picker" onClick={() => setPicking(true)}>
 					<span className="preview">{label ?? "Choose a call…"}</span>
 					<Icon name="chevron" size={12} />
@@ -852,12 +888,14 @@ function LuneCallPicker({ node }: { node: GraphNode }) {
 			{label && !declared && (
 				<div className="inspector-warn">
 					<p>
-						This needs <code>{specifier}</code>, and nothing in this script requires it.
-						Roswaal will not add a require you did not ask for.
+						This needs <code>{specifier}</code>, and nothing in this script requires it. Roswaal
+						will not add a require you did not ask for.
 					</p>
 					<button
 						className="tb"
-						onClick={() => store.edit((s) => addModule(s, split?.module ?? "module", specifier).script)}
+						onClick={() =>
+							store.edit((s) => addModule(s, split?.module ?? "module", specifier).script)
+						}
 					>
 						Declare {specifier}
 					</button>
@@ -955,9 +993,7 @@ function LoopNames({ node, def }: SectionProps) {
  * stays bracketed whatever this says.
  */
 function KeyStyle({ node }: { node: GraphNode }) {
-	const current = configText(node, "keys") === "brackets"
-		? "brackets"
-		: "plain";
+	const current = configText(node, "keys") === "brackets" ? "brackets" : "plain";
 	return (
 		<Field label="String keys">
 			<select
@@ -993,7 +1029,8 @@ function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
 	const key = node.literals?.key ?? fallback("key");
 	const value = node.literals?.value ?? fallback("value") ?? BLANK.nil;
 	const typing = useEditBurst();
-	const set = (pin: string, literal: Literal) => store.edit((s) => setLiteral(s, node.id, pin, literal));
+	const set = (pin: string, literal: Literal) =>
+		store.edit((s) => setLiteral(s, node.id, pin, literal));
 	const type = (pin: string, literal: Literal) =>
 		typing.edit((s) => setLiteral(s, node.id, pin, literal));
 
@@ -1202,8 +1239,7 @@ function ParamPicker({ script, node }: { script: NodeScript; node: GraphNode }) 
 							{/* A handler has no name of its own — it is identified by the
 						    signal it listens to, which is a wire rather than a
 						    label — so it is named by what it is. */}
-						{configText(fn, "name")
-								|| (FUNCTION_NODES.has(fn.def) ? "function" : "handler")}
+							{configText(fn, "name") || (FUNCTION_NODES.has(fn.def) ? "function" : "handler")}
 						</option>
 					))}
 				</select>
@@ -1320,7 +1356,12 @@ function ListEditor({ node, field, title, hint }: ListEditorProps) {
 				<span>{title}</span>
 				<button
 					className="tb"
-					onClick={() => write([...list, { name: `${field === "returns" ? "value" : "arg"}${list.length + 1}`, type: "any" }])}
+					onClick={() =>
+						write([
+							...list,
+							{ name: `${field === "returns" ? "value" : "arg"}${list.length + 1}`, type: "any" },
+						])
+					}
 				>
 					Add
 				</button>
@@ -1380,9 +1421,15 @@ function PinSummary({ def, node }: { def: NodeDef; node: GraphNode }) {
 }
 
 /** A labelled row of the panel, with its hint as the tooltip. */
-export function Field(
-	{ label, hint, children }: { label: string; hint?: string; children: ReactNode },
-) {
+export function Field({
+	label,
+	hint,
+	children,
+}: {
+	label: string;
+	hint?: string;
+	children: ReactNode;
+}) {
 	return (
 		<label className="field" title={hint}>
 			<span>{label}</span>

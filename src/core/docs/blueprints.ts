@@ -184,7 +184,11 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 				note: "For Each walks values; For Index walks index and value, Luau's `ipairs`.",
 			},
 			{ unreal: "While Loop", roswaal: "While Loop", nodes: ["flow.while"] },
-			{ unreal: "Break / Continue", roswaal: "Break / Continue", nodes: ["flow.break", "flow.continue"] },
+			{
+				unreal: "Break / Continue",
+				roswaal: "Break / Continue",
+				nodes: ["flow.break", "flow.continue"],
+			},
 			{
 				unreal: "Return Node",
 				roswaal: "Return",
@@ -321,8 +325,11 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 				unreal: "Replicated function / RPC",
 				roswaal: "RemoteEvent and RemoteFunction",
 				nodes: [
-					"remote.fireServer", "remote.fireClient", "remote.fireAllClients",
-					"remote.invokeServer", "remote.onServerInvoke",
+					"remote.fireServer",
+					"remote.fireClient",
+					"remote.fireAllClients",
+					"remote.invokeServer",
+					"remote.onServerInvoke",
 				],
 				note:
 					"Unreal marks a function `Server` or `Client` and the engine routes it. Roblox makes " +
@@ -390,7 +397,9 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 				unreal: "Get Components By Class / Get All Child Actors",
 				roswaal: "Get Children, Get Descendants, Find First Child Which Is A",
 				nodes: [
-					"instance.getChildren", "instance.getDescendants", "instance.findFirstChildWhichIsA",
+					"instance.getChildren",
+					"instance.getDescendants",
+					"instance.findFirstChildWhichIsA",
 					"roblox.findFirstChild",
 				],
 				note:

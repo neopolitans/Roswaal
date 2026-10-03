@@ -29,8 +29,8 @@
  * layout changes underneath them.
  */
 
-import type { RoswaalConfig, ScriptClass, Target, TypecheckMode } from "../core/schema.js";
 import { VERSION } from "../cli/version.js";
+import type { RoswaalConfig, ScriptClass, Target, TypecheckMode } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
@@ -150,9 +150,11 @@ export function ProjectBar(props: ProjectBarProps) {
 			    on that site. */}
 			<button
 				className="tb icon-only"
-				title={IS_STATIC_HOST
-					? "Docs — guides, and a page for every built-in node. Opens the published documentation in its own tab; a project's own packs are documented in the editor the daemon serves."
-					: "Docs — guides, and a page for every node including this project's packs. Opens in its own window."}
+				title={
+					IS_STATIC_HOST
+						? "Docs — guides, and a page for every built-in node. Opens the published documentation in its own tab; a project's own packs are documented in the editor the daemon serves."
+						: "Docs — guides, and a page for every node including this project's packs. Opens in its own window."
+				}
 				aria-label="Open the documentation"
 				onClick={props.onOpenDocs}
 			>
@@ -283,7 +285,7 @@ export function DocumentBar(props: DocumentBarProps) {
 	// The target by name alone; Lune's being experimental is the triangle
 	// after it and the tooltip, rather than a word in every option.
 	const targetSetting = (
-			<span className="target-pick">
+		<span className="target-pick">
 			<select
 				className={cx("tb doc-target", props.target)}
 				title={
@@ -299,7 +301,7 @@ export function DocumentBar(props: DocumentBarProps) {
 				<option value="lune">Lune</option>
 			</select>
 			{props.target === "lune" && <Icon name="warning" size={14} className="target-warn" />}
-			</span>
+		</span>
 	);
 
 	// Floats over the canvas's top edge in three groups — the document's own
@@ -308,107 +310,124 @@ export function DocumentBar(props: DocumentBarProps) {
 	return (
 		<FloatingTools label="Graph">
 			<ToolGroup>
-			{/* The name is a preference; the tab and the watermark already say it.
+				{/* The name is a preference; the tab and the watermark already say it.
 			    Unsaved edits are marked either way. */}
-			{props.showName ? (
-				<span className={cx("doc-name", props.dirty && "dirty")}>
-					{props.functionName ? (
-						<>ƒ {props.functionName} <span className="doc-of">({props.name})</span></>
-					) : (
-						props.name
-					)}
-				</span>
-			) : (
-				props.dirty && <span className="doc-dirty" title="Edits not written yet" />
-			)}
-			{phone ? (
-				<Popout
-					label={props.target === "lune" ? TYPECHECK_SHORT[props.typecheck] : CLASS_SHORT[props.scriptClass]}
-					title="What this graph compiles to, and its typechecking mode"
-				>
-					{scriptSettings}
-				</Popout>
-			) : scriptSettings}
+				{props.showName ? (
+					<span className={cx("doc-name", props.dirty && "dirty")}>
+						{props.functionName ? (
+							<>
+								ƒ {props.functionName} <span className="doc-of">({props.name})</span>
+							</>
+						) : (
+							props.name
+						)}
+					</span>
+				) : (
+					props.dirty && <span className="doc-dirty" title="Edits not written yet" />
+				)}
+				{phone ? (
+					<Popout
+						label={
+							props.target === "lune"
+								? TYPECHECK_SHORT[props.typecheck]
+								: CLASS_SHORT[props.scriptClass]
+						}
+						title="What this graph compiles to, and its typechecking mode"
+					>
+						{scriptSettings}
+					</Popout>
+				) : (
+					scriptSettings
+				)}
 			</ToolGroup>
 
 			<ToolGroup>
+				<button
+					className="tb icon-only"
+					disabled={props.locked}
+					title="Add node — at the centre of the view. Right-clicking the canvas does the same, where you click."
+					aria-label="Add a node"
+					onClick={props.onAddNode}
+				>
+					<Icon name="search" size={16} />
+				</button>
+				<button
+					className="tb icon-only"
+					disabled={props.locked}
+					title="Realign — tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
+					aria-label="Realign the graph"
+					onClick={props.onRealign}
+				>
+					<Icon name="layout" size={16} />
+				</button>
+				<button
+					className={cx("tb with-icon tb-collapsible", props.alignExec && "on")}
+					aria-pressed={props.alignExec}
+					title={
+						props.alignExec
+							? "Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
+							: "Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
+					}
+					onClick={props.onToggleAlignExec}
+				>
+					<Icon name="straighten" size={16} className="tb-icon-when-narrow" />
+					<span className="tb-label">Straighten</span>
+				</button>
 
-			<button
-				className="tb icon-only"
-				disabled={props.locked}
-				title="Add node — at the centre of the view. Right-clicking the canvas does the same, where you click."
-				aria-label="Add a node"
-				onClick={props.onAddNode}
-			>
-				<Icon name="search" size={16} />
-			</button>
-			<button
-				className="tb icon-only"
-				disabled={props.locked}
-				title="Realign — tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
-				aria-label="Realign the graph"
-				onClick={props.onRealign}
-			>
-				<Icon name="layout" size={16} />
-			</button>
-			<button
-				className={cx("tb with-icon tb-collapsible", props.alignExec && "on")}
-				aria-pressed={props.alignExec}
-				title={
-					props.alignExec
-						? "Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
-						: "Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
-				}
-				onClick={props.onToggleAlignExec}
-			>
-				<Icon name="straighten" size={16} className="tb-icon-when-narrow" />
-				<span className="tb-label">Straighten</span>
-			</button>
-
-			{/* With a selection it picks out what those nodes produced; without
+				{/* With a selection it picks out what those nodes produced; without
 			    one it is the whole script. `P` does the same. */}
-			<button
-				className="tb icon-only"
-				title={
-					props.selected > 0
-						? "Preview — the Luau these nodes produced, in the generated file (P)"
-						: props.inFunction
-							? "Preview — this function's Luau (P)"
-							: "Preview — the whole script's Luau (P)"
-				}
-				aria-label={props.selected > 0 ? "Preview the selection's Luau" : "Preview the script's Luau"}
-				onClick={props.onPreview}
-			>
-				<Icon name="terminal" size={16} />
-			</button>
+				<button
+					className="tb icon-only"
+					title={
+						props.selected > 0
+							? "Preview — the Luau these nodes produced, in the generated file (P)"
+							: props.inFunction
+								? "Preview — this function's Luau (P)"
+								: "Preview — the whole script's Luau (P)"
+					}
+					aria-label={
+						props.selected > 0 ? "Preview the selection's Luau" : "Preview the script's Luau"
+					}
+					onClick={props.onPreview}
+				>
+					<Icon name="terminal" size={16} />
+				</button>
 			</ToolGroup>
 
 			<span className="spacer" />
 
 			<ToolGroup>
-			{/* What the graph compiles for, beside the button that compiles it:
+				{/* What the graph compiles for, beside the button that compiles it:
 			    it is a compilation setting, and a Roblox-only node in a Lune graph
 			    being an error is the fact it explains. */}
-			{phone ? (
-				<Popout
-					label={props.target === "lune"
-						? <>Lune <Icon name="warning" size={14} className="target-warn-inline" /></>
-						: "Roblox"}
-					title="What this graph compiles for"
-					end
+				{phone ? (
+					<Popout
+						label={
+							props.target === "lune" ? (
+								<>
+									Lune <Icon name="warning" size={14} className="target-warn-inline" />
+								</>
+							) : (
+								"Roblox"
+							)
+						}
+						title="What this graph compiles for"
+						end
+					>
+						{targetSetting}
+					</Popout>
+				) : (
+					targetSetting
+				)}
+				<button
+					className="tb primary with-icon tb-collapsible"
+					title="Compile just this document (Ctrl+S)"
+					disabled={!props.hasPath || props.busy !== null}
+					onClick={props.onCompile}
 				>
-					{targetSetting}
-				</Popout>
-			) : targetSetting}
-			<button
-				className="tb primary with-icon tb-collapsible"
-				title="Compile just this document (Ctrl+S)"
-				disabled={!props.hasPath || props.busy !== null}
-				onClick={props.onCompile}
-			>
-				<Icon name="build" size={15} />
-				<span className="tb-label">Compile script</span>
-			</button>
+					<Icon name="build" size={15} />
+					<span className="tb-label">Compile script</span>
+				</button>
 			</ToolGroup>
 		</FloatingTools>
 	);
@@ -420,7 +439,9 @@ export function DocumentBar(props: DocumentBarProps) {
  * says them in full.
  */
 const CLASS_SHORT: Record<ScriptClass, string> = {
-	Script: "Script", LocalScript: "Local", ModuleScript: "Module",
+	Script: "Script",
+	LocalScript: "Local",
+	ModuleScript: "Module",
 };
 
 /** A mode's name as a button shows it, where the word "Mode" is room it has not got. */

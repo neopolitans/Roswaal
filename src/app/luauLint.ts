@@ -14,10 +14,14 @@
  * a problem is still marked where it is written.
  */
 
-import { linter, type Diagnostic as LintDiagnostic } from "@codemirror/lint";
-import { RangeSetBuilder, type Extension } from "@codemirror/state";
+import { type Diagnostic as LintDiagnostic, linter } from "@codemirror/lint";
+import { type Extension, RangeSetBuilder } from "@codemirror/state";
 import {
-	Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate,
+	Decoration,
+	type DecorationSet,
+	type EditorView,
+	ViewPlugin,
+	type ViewUpdate,
 } from "@codemirror/view";
 
 /** What a check reports: the same shape from the parser and the balance check. */

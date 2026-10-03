@@ -40,8 +40,8 @@ describe("Find First Descendant", () => {
 	it("tells a graph still using it what to use instead", () => {
 		const b = new Builder();
 		b.node("instance.findFirstDescendant");
-		const errors = compile(b.build(), registry).diagnostics
-			.filter((d) => d.severity === "error")
+		const errors = compile(b.build(), registry)
+			.diagnostics.filter((d) => d.severity === "error")
 			.map((d) => d.message);
 		expect(errors.join("\n")).toContain("Use Find First Child with Recursive set");
 		expect(errors.join("\n")).not.toContain("node pack");
@@ -54,8 +54,9 @@ describe("Find First Child's Recursive", () => {
 	});
 
 	it("searches every descendant when it is set", () => {
-		expect(findChild({ recursive: { t: "boolean", v: true } }))
-			.toContain(`workspace:FindFirstChild("Handle", true)`);
+		expect(findChild({ recursive: { t: "boolean", v: true } })).toContain(
+			`workspace:FindFirstChild("Handle", true)`,
+		);
 	});
 });
 
@@ -160,8 +161,9 @@ describe("naming a pure result", () => {
 	 * experiment to find that out.
 	 */
 	it("binds on a name you typed even where one place reads it", () => {
-		expect(reads(1, { config: { resultName: "value" } }))
-			.toContain(`local value = container:FindFirstChild("MovementSpeed")`);
+		expect(reads(1, { config: { resultName: "value" } })).toContain(
+			`local value = container:FindFirstChild("MovementSpeed")`,
+		);
 	});
 
 	it("still splices an unnamed value read once", () => {
@@ -173,8 +175,9 @@ describe("naming a pure result", () => {
 	/** The label named results before the field existed, as it does for Clone. */
 	it("honours a label behind the field, and the field in front of it", () => {
 		expect(reads(2, { label: "fromLabel" })).toMatch(/^local fromLabel = /m);
-		expect(reads(2, { label: "ignored", config: { resultName: "chosen" } }))
-			.toMatch(/^local chosen = /m);
+		expect(reads(2, { label: "ignored", config: { resultName: "chosen" } })).toMatch(
+			/^local chosen = /m,
+		);
 	});
 
 	it("shows the chosen name under the header, not instead of it", () => {

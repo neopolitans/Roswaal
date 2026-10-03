@@ -18,7 +18,7 @@
 
 import { useSyncExternalStore } from "react";
 
-import { aliasesOf, chainFor, parseLuaurc, type LuaurcSource } from "../core/luaurc.js";
+import { aliasesOf, chainFor, type LuaurcSource, parseLuaurc } from "../core/luaurc.js";
 import { LUNE_MODULES } from "../core/luneApi.js";
 import { ROBLOX_ALIASES } from "../core/modules.js";
 import type { Target } from "../core/schema.js";
@@ -37,7 +37,11 @@ function subscribe(listener: () => void): () => void {
 }
 
 export function useProjectLuaurc(): LuaurcSource[] {
-	return useSyncExternalStore(subscribe, () => current, () => current);
+	return useSyncExternalStore(
+		subscribe,
+		() => current,
+		() => current,
+	);
 }
 
 export interface SpecifierSuggestion {
@@ -60,11 +64,16 @@ export interface SpecifierSuggestion {
  * cannot disagree about what exists.
  */
 export function specifierSuggestions(
-	files: LuaurcSource[], filePath: string, target: Target,
+	files: LuaurcSource[],
+	filePath: string,
+	target: Target,
 ): SpecifierSuggestion[] {
 	const out: SpecifierSuggestion[] = [];
 
-	const chain = chainFor(files.map((file) => parseLuaurc(file.dir, file.text)), filePath);
+	const chain = chainFor(
+		files.map((file) => parseLuaurc(file.dir, file.text)),
+		filePath,
+	);
 	for (const [, alias] of aliasesOf(chain)) {
 		out.push({
 			value: `@${alias.name}`,
@@ -82,9 +91,7 @@ export function specifierSuggestions(
 		for (const alias of ROBLOX_ALIASES) {
 			out.push({
 				value: `@${alias}/`,
-				what: alias === "self"
-					? "this script's own children"
-					: "down from the DataModel root",
+				what: alias === "self" ? "this script's own children" : "down from the DataModel root",
 			});
 		}
 	}

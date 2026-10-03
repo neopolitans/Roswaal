@@ -34,7 +34,7 @@
  */
 
 import { FUNCTION_NODES } from "./nodes/flow.js";
-import { resolveNodePins, type Registry } from "./nodes/index.js";
+import { type Registry, resolveNodePins } from "./nodes/index.js";
 import type { Link, NodeScript } from "./schema.js";
 
 /** Every node's outgoing links, so the walk does not rescan the list. */
@@ -82,7 +82,9 @@ export function bindsParameters(defId: string): boolean {
  * that is not a function at all.
  */
 export function functionBody(
-	script: NodeScript, registry: Registry, functionId: string,
+	script: NodeScript,
+	registry: Registry,
+	functionId: string,
 ): Set<string> {
 	const fn = script.nodes.find((n) => n.id === functionId);
 	const startPin = fn && bodyPinOf(fn.def);
@@ -109,8 +111,8 @@ export function functionBody(
 		const def = registry.get(node.def);
 		if (!def) continue;
 		const execOut = new Set(
-			resolveNodePins(def, node.config, node.literals).outputs
-				.filter((pin) => pin.kind === "exec")
+			resolveNodePins(def, node.config, node.literals)
+				.outputs.filter((pin) => pin.kind === "exec")
 				.map((pin) => pin.id),
 		);
 

@@ -7,12 +7,17 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { DEFAULTS, DOCS_FONTS, PREVIEW_SCALE, previewScaleOf, readPreferences } from "../src/app/preferences.js";
-import { createRegistry } from "../src/core/nodes/index.js";
-import { previewOf, previewSvg } from "../src/core/docs/preview.js";
-import { nodeColor, pinColor } from "../src/app/palette.js";
 import { NODE } from "../src/app/layers.js";
+import { nodeColor, pinColor } from "../src/app/palette.js";
+import {
+	DEFAULTS,
+	DOCS_FONTS,
+	PREVIEW_SCALE,
+	previewScaleOf,
+	readPreferences,
+} from "../src/app/preferences.js";
+import { previewOf, previewSvg } from "../src/core/docs/preview.js";
+import { createRegistry } from "../src/core/nodes/index.js";
 
 const size = (svg: string) => {
 	const match = /width="([\d.]+)" height="([\d.]+)"/.exec(svg)!;

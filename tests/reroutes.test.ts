@@ -16,16 +16,15 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-
-import { Builder } from "./helpers.js";
 import { connect, setConfig, updateVariable, wireLanding } from "../src/app/edits.js";
-import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
-import { store } from "../src/app/store.js";
-import { retypeReroutes } from "../src/core/reroutes.js";
-import { graphSvg } from "../src/core/docs/preview.js";
 import { NODE } from "../src/app/layers.js";
 import { nodeColor, pinColor } from "../src/app/palette.js";
+import { store } from "../src/app/store.js";
+import { graphSvg } from "../src/core/docs/preview.js";
+import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
+import { retypeReroutes } from "../src/core/reroutes.js";
 import type { NodeScript } from "../src/core/schema.js";
+import { Builder } from "./helpers.js";
 
 const registry = createRegistry();
 const PATH = "scripts/Knots.nodescript";
@@ -41,8 +40,8 @@ beforeEach(() => {
  * what `retypeReroutes` leaves rather than writing the word out.
  */
 const typeOf = (id: string) =>
-	(store.getSnapshot().script?.nodes.find((n) => n.id === id)?.config as { type?: string })?.type
-	?? "any";
+	(store.getSnapshot().script?.nodes.find((n) => n.id === id)?.config as { type?: string })?.type ??
+	"any";
 
 /** A Declare Local feeding a knot, which feeds a second knot. */
 function chain(): NodeScript {
@@ -59,8 +58,12 @@ function chain(): NodeScript {
 describe("a knot wired to an output", () => {
 	beforeEach(() => {
 		store.open(PATH, chain());
-		store.edit((s) => connect(s, registry, { node: "local", pin: "ref" }, { node: "knot", pin: "in" }));
-		store.edit((s) => connect(s, registry, { node: "knot", pin: "out" }, { node: "knot2", pin: "in" }));
+		store.edit((s) =>
+			connect(s, registry, { node: "local", pin: "ref" }, { node: "knot", pin: "in" }),
+		);
+		store.edit((s) =>
+			connect(s, registry, { node: "knot", pin: "out" }, { node: "knot2", pin: "in" }),
+		);
 	});
 
 	it("takes the type it is given when the wire is drawn", () => {
@@ -106,7 +109,9 @@ describe("a knot wired to a loop's value", () => {
 		b.link(table, "then", loop, "in");
 		b.link(table, "result", loop, "table");
 		store.open(PATH, b.build());
-		store.edit((s) => connect(s, registry, { node: "loop", pin: "value" }, { node: "knot", pin: "in" }));
+		store.edit((s) =>
+			connect(s, registry, { node: "loop", pin: "value" }, { node: "knot", pin: "in" }),
+		);
 
 		expect(typeOf("knot")).toBe("any");
 		store.edit((s) => setConfig(s, "loop", { valueType: "BasePart" }));
@@ -121,7 +126,9 @@ describe("a knot wired to a variable", () => {
 		b.node("variable.get", { id: "get", config: { variable: id, name: "health", type: "number" } });
 		b.node("flow.reroute", { id: "knot" });
 		store.open(PATH, b.build());
-		store.edit((s) => connect(s, registry, { node: "get", pin: "value" }, { node: "knot", pin: "in" }));
+		store.edit((s) =>
+			connect(s, registry, { node: "get", pin: "value" }, { node: "knot", pin: "in" }),
+		);
 
 		expect(typeOf("knot")).toBe("number");
 		store.edit((s) => updateVariable(s, id, { type: "string" }));
@@ -153,21 +160,24 @@ describe("a knot in a drawn graph", () => {
 		const b = new Builder();
 		const id = b.variable("health", "number", { t: "number", v: 100 });
 		const get = b.node("variable.get", {
-			id: "get", config: { variable: id, name: "health", type: "number" },
+			id: "get",
+			config: { variable: id, name: "health", type: "number" },
 		});
 		const knot = b.node("flow.reroute", { id: "knot" });
 		b.link(get, "value", knot, "in");
 
 		const typed = retypeReroutes(b.build(), registry);
-		expect((typed.nodes.find((n) => n.id === "knot")?.config as { type?: string }).type)
-			.toBe("number");
+		expect((typed.nodes.find((n) => n.id === "knot")?.config as { type?: string }).type).toBe(
+			"number",
+		);
 	});
 
 	/** Reached through the function every docs graph is drawn by. */
 	it("reaches the drawn picture", () => {
 		const b = new Builder();
 		const code = b.node("value.expression", {
-			id: "code", literals: { code: { t: "raw", v: "health" } },
+			id: "code",
+			literals: { code: { t: "raw", v: "health" } },
 		});
 		const knot = b.node("flow.reroute", { id: "knot", x: 300, y: 0 });
 		b.link(code, "result", knot, "in");

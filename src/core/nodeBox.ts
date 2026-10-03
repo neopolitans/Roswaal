@@ -11,12 +11,16 @@
  */
 
 import { NODE } from "./nodeMetrics.js";
-import {
-	operatorEditorWidth, operatorFields, operatorLayout, operatorSymbol, type OperatorLayout,
-} from "./operatorLayout.js";
-import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "./schema.js";
 import type { Registry } from "./nodes/index.js";
 import { nodeTitle, resolveNodePins } from "./nodes/index.js";
+import {
+	type OperatorLayout,
+	operatorEditorWidth,
+	operatorFields,
+	operatorLayout,
+	operatorSymbol,
+} from "./operatorLayout.js";
+import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "./schema.js";
 
 export interface Rect {
 	x: number;
@@ -28,10 +32,10 @@ export interface Rect {
 /** Whether `outer` completely contains `inner`. */
 export function rectContains(outer: Rect, inner: Rect): boolean {
 	return (
-		inner.x >= outer.x
-		&& inner.y >= outer.y
-		&& inner.x + inner.w <= outer.x + outer.w
-		&& inner.y + inner.h <= outer.y + outer.h
+		inner.x >= outer.x &&
+		inner.y >= outer.y &&
+		inner.x + inner.w <= outer.x + outer.w &&
+		inner.y + inner.h <= outer.y + outer.h
 	);
 }
 
@@ -41,7 +45,9 @@ export function rectContains(outer: Rect, inner: Rect): boolean {
  * only place that knows about splitting.
  */
 export function resolvePins(
-	def: NodeDef, config?: NodeConfig, literals?: Record<string, Literal>,
+	def: NodeDef,
+	config?: NodeConfig,
+	literals?: Record<string, Literal>,
 ): { inputs: PinDef[]; outputs: PinDef[] } {
 	return resolveNodePins(def, config, literals);
 }
@@ -73,7 +79,9 @@ export function isOperator(def: NodeDef | undefined): boolean {
  * column and drawn with one.
  */
 export function operatorLayoutOf(
-	def: NodeDef, config?: NodeConfig, literals?: Record<string, Literal | undefined>,
+	def: NodeDef,
+	config?: NodeConfig,
+	literals?: Record<string, Literal | undefined>,
 ): OperatorLayout {
 	const { inputs } = resolvePins(def, config);
 	return operatorLayout(
@@ -126,9 +134,7 @@ export function compactWidth(def: NodeDef, node: GraphNode): number {
  * would leave every graph ragged, and this is about names that do not fit
  * rather than about packing.
  */
-export function nodeWidth(
-	def: NodeDef | undefined, node: GraphNode, wide = false,
-): number {
+export function nodeWidth(def: NodeDef | undefined, node: GraphNode, wide = false): number {
 	if (!wide || !def) return NODE.width;
 	const subtitle = def.subtitle?.(node.config ?? {}) ?? "";
 	const longest = Math.max(nodeTitle(def, node).length, subtitle.length);
@@ -146,7 +152,10 @@ export function headerHeight(def: NodeDef | undefined, config?: NodeConfig): num
 }
 
 export function nodeHeight(
-	inputs: PinDef[], outputs: PinDef[], def?: NodeDef, config?: NodeConfig,
+	inputs: PinDef[],
+	outputs: PinDef[],
+	def?: NodeDef,
+	config?: NodeConfig,
 ): number {
 	const rows = Math.max(inputs.length, outputs.length, 1);
 	return headerHeight(def, config) + rows * NODE.rowHeight + NODE.footer;
@@ -160,8 +169,10 @@ export function nodeBounds(node: GraphNode, registry: Registry, wide = false): R
 	}
 	if (isCompact(def)) {
 		return {
-			x: node.x, y: node.y,
-			w: compactWidth(def, node), h: NODE.compactHeight,
+			x: node.x,
+			y: node.y,
+			w: compactWidth(def, node),
+			h: NODE.compactHeight,
 		};
 	}
 	if (isOperator(def)) {
@@ -170,7 +181,9 @@ export function nodeBounds(node: GraphNode, registry: Registry, wide = false): R
 	}
 	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
 	return {
-		x: node.x, y: node.y, w: nodeWidth(def, node, wide),
+		x: node.x,
+		y: node.y,
+		w: nodeWidth(def, node, wide),
 		h: nodeHeight(inputs, outputs, def, node.config),
 	};
 }

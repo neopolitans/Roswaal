@@ -8,38 +8,68 @@
  * cheaper and sharper than scaling a drawn grid.
  */
 
-import { propertiesOf } from "../core/robloxProperties.js";
-import { nilableProperty } from "../core/robloxNilable.js";
 import {
-	useCallback, useEffect, useMemo, useRef, useState,
-	type CSSProperties, type PointerEvent as ReactPointerEvent,
+	type CSSProperties,
+	type PointerEvent as ReactPointerEvent,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
 } from "react";
-
-import type { Comment, Literal, NodeConfig, NodeScript, PinDef, PinRef } from "../core/schema.js";
-import { resolveNodePins, type Registry } from "../core/nodes/index.js";
 import type { Diagnostic } from "../core/compiler/index.js";
-import { viewOf, type GraphId } from "../core/functionGraph.js";
+import { type GraphId, viewOf } from "../core/functionGraph.js";
+import { type Registry, resolveNodePins } from "../core/nodes/index.js";
+import { nilableProperty } from "../core/robloxNilable.js";
+import { propertiesOf } from "../core/robloxProperties.js";
+import type { Comment, Literal, NodeConfig, NodeScript, PinDef, PinRef } from "../core/schema.js";
+import { serviceFromSource } from "../core/serviceCalls.js";
+import { showCanvasNotice } from "./CanvasNotice.jsx";
 import { cx } from "./cx.js";
 import {
-	isReroute, nodeBounds, pinPosition, rectFromPoints, rectsIntersect, screenToWorld, wirePath,
+	addNode,
+	bindNodeToFunction,
+	bindNodeToLocal,
+	bindNodeToVariable,
+	canConnect,
+	capturePlacements,
+	castFor,
+	commentContents,
+	commentsByArea,
+	connect,
+	connectThroughCast,
+	currentArity,
+	disconnectPin,
+	growNode,
+	growthRule,
+	insertReroute,
+	type Placement,
+	pinLinkCount,
+	placeNodes,
+	removeLink,
+	selectionAnchor,
+	setConfig,
+	setLiteral,
+	updateComment,
+	wireLanding,
+} from "./edits.js";
+import {
+	isReroute,
+	nodeBounds,
+	pinPosition,
+	type Rect,
+	rectFromPoints,
+	rectsIntersect,
+	screenToWorld,
+	type Vec,
+	type View,
 	type WireStyle,
-	type Rect, type Vec, type View,
+	wirePath,
 } from "./geometry.js";
 import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
+import { NodeView, type PinDragState } from "./NodeView.jsx";
 import { configText, functionNameOf } from "./nodeConfig.js";
 import { commentColor, pinColor } from "./palette.js";
-import { serviceFromSource } from "../core/serviceCalls.js";
-import { NodeView, type PinDragState } from "./NodeView.jsx";
-import {
-	addNode, bindNodeToFunction, bindNodeToLocal, bindNodeToVariable, canConnect, castFor, commentContents, connectThroughCast,
-	wireLanding,
-	commentsByArea, connect,
-	capturePlacements, currentArity, disconnectPin, growNode, growthRule,
-	insertReroute, pinLinkCount, placeNodes, removeLink, selectionAnchor, setConfig, setLiteral,
-	updateComment,
-	type Placement,
-} from "./edits.js";
-import { showCanvasNotice } from "./CanvasNotice.jsx";
 import { store, useEditor, useView } from "./store.js";
 
 /**
@@ -62,7 +92,6 @@ export const DROPPABLE = [
 	"application/x-roswaal",
 ] as const;
 
-
 export interface CanvasProps {
 	/** The whole script. The canvas draws one graph of it. */
 	script: NodeScript;
@@ -75,7 +104,8 @@ export interface CanvasProps {
 	 * canvas, so the node picked can be wired up rather than the wire dropped.
 	 */
 	onRequestMenu: (
-		screen: Vec, world: Vec,
+		screen: Vec,
+		world: Vec,
 		from?: { ref: PinRef; side: "in" | "out"; pin: PinDef; service?: string },
 	) => void;
 	/**
@@ -141,7 +171,9 @@ export interface CanvasProps {
 type Gesture =
 	| { kind: "none" }
 	| {
-			kind: "pan"; startView: View; origin: Vec;
+			kind: "pan";
+			startView: View;
+			origin: Vec;
 			/**
 			 * A finger on empty canvas pans rather than drawing a marquee, so it
 			 * cannot clear the selection on the way down the way a click does.
@@ -173,20 +205,31 @@ type Gesture =
 	  }
 	| { kind: "wire"; from: PinRef; side: "in" | "out"; pin: PinDef }
 	/**
- * Resizing a comment, from either corner.
- *
- * The **whole** starting box, not just its size: dragging the top-left moves
- * the box as well as resizing it, and it has to move by exactly what the size
- * lost. Working that out from the current box each frame accumulates rounding
- * and the opposite corner creeps.
- */
-| { kind: "resize"; id: string; corner: "nw" | "se"; origin: Vec; start: Rect };
+	 * Resizing a comment, from either corner.
+	 *
+	 * The **whole** starting box, not just its size: dragging the top-left moves
+	 * the box as well as resizing it, and it has to move by exactly what the size
+	 * lost. Working that out from the current box each frame accumulates rounding
+	 * and the opposite corner creeps.
+	 */
+	| { kind: "resize"; id: string; corner: "nw" | "se"; origin: Vec; start: Rect };
 
 export function Canvas({
-	script: whole, graph = null, registry, diagnostics, onRequestMenu, onRequestNodePicker, onDropNode,
-	onRequestPinMenu, onEditCode,
+	script: whole,
+	graph = null,
+	registry,
+	diagnostics,
+	onRequestMenu,
+	onRequestNodePicker,
+	onDropNode,
+	onRequestPinMenu,
+	onEditCode,
 	onPointerAt,
-	onDropFile, locked = false, wireStyle = "curved", wideNodes = false, wheel = "zoom",
+	onDropFile,
+	locked = false,
+	wireStyle = "curved",
+	wideNodes = false,
+	wheel = "zoom",
 }: CanvasProps) {
 	const { selection, path } = useEditor();
 	// The graph on screen, as a script of its own.
@@ -200,9 +243,12 @@ export function Canvas({
 		const fn = whole.nodes.find((n) => n.id === graph);
 		return functionNameOf(fn);
 	}, [whole, graph]);
-	const openFunction = useCallback((id: string) => {
-		if (path) store.openFunction(path, id);
-	}, [path]);
+	const openFunction = useCallback(
+		(id: string) => {
+			if (path) store.openFunction(path, id);
+		},
+		[path],
+	);
 	const view = useView();
 	const surface = useRef<HTMLDivElement>(null);
 	const gesture = useRef<Gesture>({ kind: "none" });
@@ -269,10 +315,7 @@ export function Canvas({
 		[script, selection],
 	);
 
-	const nodesById = useMemo(
-		() => new Map(script.nodes.map((n) => [n.id, n])),
-		[script.nodes],
-	);
+	const nodesById = useMemo(() => new Map(script.nodes.map((n) => [n.id, n])), [script.nodes]);
 
 	const growth = useMemo(() => {
 		const map = new Map<string, { canAdd: boolean; canRemove: boolean; label: string }>();
@@ -299,14 +342,11 @@ export function Canvas({
 
 	// -- coordinate helpers ------------------------------------------------
 
-	const toWorld = useCallback(
-		(clientX: number, clientY: number): Vec => {
-			const box = surface.current?.getBoundingClientRect();
-			const v = store.getView();
-			return screenToWorld(v, clientX - (box?.left ?? 0), clientY - (box?.top ?? 0));
-		},
-		[],
-	);
+	const toWorld = useCallback((clientX: number, clientY: number): Vec => {
+		const box = surface.current?.getBoundingClientRect();
+		const v = store.getView();
+		return screenToWorld(v, clientX - (box?.left ?? 0), clientY - (box?.top ?? 0));
+	}, []);
 
 	// -- zoom and scroll ---------------------------------------------------
 
@@ -363,9 +403,12 @@ export function Canvas({
 			if (dy === 0) return;
 			// A wheel notch is one step, whatever size the browser calls it. A
 			// pinch arrives as a stream of small deltas and follows the fingers.
-			const factor = e.deltaMode !== 0 || Math.abs(dy) >= 50
-				? (dy < 0 ? ZOOM.step : 1 / ZOOM.step)
-				: Math.exp(-dy * 0.01);
+			const factor =
+				e.deltaMode !== 0 || Math.abs(dy) >= 50
+					? dy < 0
+						? ZOOM.step
+						: 1 / ZOOM.step
+					: Math.exp(-dy * 0.01);
 			zoomAbout(sx, sy, factor);
 		};
 
@@ -438,8 +481,9 @@ export function Canvas({
 				if (!a || !b) return;
 				const box = surface.current!.getBoundingClientRect();
 				const zoom = clamp(
-					g.startView.zoom * Math.hypot(a.x - b.x, a.y - b.y) / g.distance,
-					ZOOM.min, ZOOM.max,
+					(g.startView.zoom * Math.hypot(a.x - b.x, a.y - b.y)) / g.distance,
+					ZOOM.min,
+					ZOOM.max,
 				);
 				// The world point that was between the fingers stays between them,
 				// wherever they have moved to.
@@ -508,21 +552,22 @@ export function Canvas({
 					// Clamped by taking the smaller of the drag and what is left
 					// above the minimum, so a top-left drag that runs out of box
 					// stops moving instead of sliding on past its own bottom-right.
-					const patch = g.corner === "se"
-						? {
-								w: Math.max(COMMENT_MIN.w, g.start.w + dx),
-								h: Math.max(COMMENT_MIN.h, g.start.h + dy),
-							}
-						: (() => {
-								const takeX = Math.min(dx, g.start.w - COMMENT_MIN.w);
-								const takeY = Math.min(dy, g.start.h - COMMENT_MIN.h);
-								return {
-									x: g.start.x + takeX,
-									y: g.start.y + takeY,
-									w: g.start.w - takeX,
-									h: g.start.h - takeY,
-								};
-							})();
+					const patch =
+						g.corner === "se"
+							? {
+									w: Math.max(COMMENT_MIN.w, g.start.w + dx),
+									h: Math.max(COMMENT_MIN.h, g.start.h + dy),
+								}
+							: (() => {
+									const takeX = Math.min(dx, g.start.w - COMMENT_MIN.w);
+									const takeY = Math.min(dy, g.start.h - COMMENT_MIN.h);
+									return {
+										x: g.start.x + takeX,
+										y: g.start.y + takeY,
+										w: g.start.w - takeX,
+										h: g.start.h - takeY,
+									};
+								})();
 					store.apply((s) => updateComment(s, g.id, patch));
 					break;
 				}
@@ -549,7 +594,8 @@ export function Canvas({
 			if (g.kind === "pan" && g.tap) {
 				const box = surface.current!.getBoundingClientRect();
 				const moved = Math.hypot(
-					e.clientX - box.left - g.origin.x, e.clientY - box.top - g.origin.y,
+					e.clientX - box.left - g.origin.x,
+					e.clientY - box.top - g.origin.y,
 				);
 				if (moved < 8) store.clearSelection();
 			}
@@ -594,9 +640,7 @@ export function Canvas({
 					// Which service the wire carries, if any, so the menu can open
 					// on that service's methods rather than on everything.
 					const source = script.nodes.find((n) => n.id === g.from.node);
-					const service = g.side === "out"
-						? serviceFromSource(source, g.pin.type)
-						: undefined;
+					const service = g.side === "out" ? serviceFromSource(source, g.pin.type) : undefined;
 					onRequestMenu(
 						{ x: e.clientX - box.left, y: e.clientY - box.top },
 						toWorld(e.clientX, e.clientY),
@@ -614,7 +658,9 @@ export function Canvas({
 			touches.current.delete(e.pointerId);
 			const g = gesture.current;
 			if (g.kind === "none") return;
-			if (g.kind === "pinch" ? g.ids.includes(e.pointerId) : e.pointerId === activePointer.current) {
+			if (
+				g.kind === "pinch" ? g.ids.includes(e.pointerId) : e.pointerId === activePointer.current
+			) {
 				endGesture();
 			}
 		};
@@ -683,9 +729,7 @@ export function Canvas({
 		};
 	}
 
-	function onPinPointerDown(
-		e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out",
-	) {
+	function onPinPointerDown(e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") {
 		if (e.button !== 0) return;
 		e.stopPropagation();
 
@@ -738,9 +782,7 @@ export function Canvas({
 		[nodesById, registry],
 	);
 
-	function onPinPointerUp(
-		e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out",
-	) {
+	function onPinPointerUp(e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") {
 		const g = gesture.current;
 		if (g.kind !== "wire") return;
 		const target = dropTarget(nodeId, pin, side, g.side);
@@ -799,9 +841,12 @@ export function Canvas({
 		[wireDrag, script, registry, dropTarget],
 	);
 
-	const onLiteralChange = useCallback((nodeId: string, pinId: string, value: Literal | undefined) => {
-		store.edit((s) => setLiteral(s, nodeId, pinId, value));
-	}, []);
+	const onLiteralChange = useCallback(
+		(nodeId: string, pinId: string, value: Literal | undefined) => {
+			store.edit((s) => setLiteral(s, nodeId, pinId, value));
+		},
+		[],
+	);
 
 	// -- comments ----------------------------------------------------------
 
@@ -984,11 +1029,7 @@ export function Canvas({
 					e.preventDefault();
 					const paths = JSON.parse(files) as string[];
 					if (paths[0]) {
-						onDropFile(
-							paths[0],
-							{ x: e.clientX, y: e.clientY },
-							toWorld(e.clientX, e.clientY),
-						);
+						onDropFile(paths[0], { x: e.clientX, y: e.clientY }, toWorld(e.clientX, e.clientY));
 					}
 					return;
 				}
@@ -1002,25 +1043,39 @@ export function Canvas({
 				if (dragged) {
 					e.preventDefault();
 					const { path, className, property, attribute } = JSON.parse(dragged) as {
-						path: string[]; className?: string; property?: string; attribute?: string;
+						path: string[];
+						className?: string;
+						property?: string;
+						attribute?: string;
 					};
 					const pathDef = registry.get("roblox.instancePath");
 					if (!pathDef || path.length === 0) return;
 					const set = e.ctrlKey;
 					const member = property !== undefined && !set;
-					const reader = attribute !== undefined
-						? registry.get(set ? "instance.setAttribute" : "instance.getAttribute")
-						: property !== undefined
-							? registry.get(set ? "roblox.setProperty" : "value.member")
-							: undefined;
+					const reader =
+						attribute !== undefined
+							? registry.get(set ? "instance.setAttribute" : "instance.getAttribute")
+							: property !== undefined
+								? registry.get(set ? "roblox.setProperty" : "value.member")
+								: undefined;
 					// The type the member picker would give it, nilable as Character is.
-					const field = member && className ? propertiesOf(className).find((p) => p.name === property) : undefined;
+					const field =
+						member && className
+							? propertiesOf(className).find((p) => p.name === property)
+							: undefined;
 					const memberType = field
-						? (nilableProperty(className!, field.name) ? `${field.type}?` : field.type)
+						? nilableProperty(className!, field.name)
+							? `${field.type}?`
+							: field.type
 						: undefined;
 					const world = toWorld(e.clientX, e.clientY);
 					store.edit((s) => {
-						const at = addNode(s, pathDef, world.x - (reader ? NODE.width + 40 : NODE.width / 2), world.y - 20);
+						const at = addNode(
+							s,
+							pathDef,
+							world.x - (reader ? NODE.width + 40 : NODE.width / 2),
+							world.y - 20,
+						);
 						let next = setLiteral(at.script, at.id, "root", { t: "string", v: path[0] });
 						next = setLiteral(next, at.id, "path", { t: "string", v: path.slice(1).join(".") });
 						if (!reader) {
@@ -1029,13 +1084,32 @@ export function Canvas({
 						}
 						const read = addNode(next, reader, world.x, world.y - 20);
 						if (member) {
-							next = setConfig(read.script, read.id, { member: property, ...(memberType ? { type: memberType } : {}) });
-							next = connect(next, registry, { node: at.id, pin: "instance" }, { node: read.id, pin: "object" });
-						} else {
-							next = setLiteral(read.script, read.id, attribute !== undefined ? "name" : "property", {
-								t: "string", v: (attribute ?? property)!,
+							next = setConfig(read.script, read.id, {
+								member: property,
+								...(memberType ? { type: memberType } : {}),
 							});
-							next = connect(next, registry, { node: at.id, pin: "instance" }, { node: read.id, pin: "instance" });
+							next = connect(
+								next,
+								registry,
+								{ node: at.id, pin: "instance" },
+								{ node: read.id, pin: "object" },
+							);
+						} else {
+							next = setLiteral(
+								read.script,
+								read.id,
+								attribute !== undefined ? "name" : "property",
+								{
+									t: "string",
+									v: (attribute ?? property)!,
+								},
+							);
+							next = connect(
+								next,
+								registry,
+								{ node: at.id, pin: "instance" },
+								{ node: read.id, pin: "instance" },
+							);
 						}
 						queueMicrotask(() => store.select([at.id, read.id]));
 						return next;
@@ -1048,7 +1122,9 @@ export function Canvas({
 				if (picked) {
 					e.preventDefault();
 					const { def, config, member } = JSON.parse(picked) as {
-						def: string; config?: NodeConfig; member?: { name: string; type?: string };
+						def: string;
+						config?: NodeConfig;
+						member?: { name: string; type?: string };
 					};
 					onDropNode?.(def, config, toWorld(e.clientX, e.clientY), member);
 					return;
@@ -1088,7 +1164,8 @@ export function Canvas({
 					store.edit((s) => {
 						const declared = (s.modules ?? []).find((m) => m.id === id);
 						const added = addNode(
-							s, def,
+							s,
+							def,
 							world.x - NODE.compactMinWidth / 2,
 							world.y - NODE.compactHeight / 2,
 						);
@@ -1112,7 +1189,12 @@ export function Canvas({
 					if (!def) return;
 					const world = toWorld(e.clientX, e.clientY);
 					store.edit((s) => {
-						const added = addNode(s, def, world.x - NODE.compactMinWidth / 2, world.y - NODE.compactHeight / 2);
+						const added = addNode(
+							s,
+							def,
+							world.x - NODE.compactMinWidth / 2,
+							world.y - NODE.compactHeight / 2,
+						);
 						queueMicrotask(() => store.select([added.id]));
 						return bindNodeToLocal(added.script, added.id, id);
 					});
@@ -1130,7 +1212,12 @@ export function Canvas({
 					if (!def) return;
 					const world = toWorld(e.clientX, e.clientY);
 					store.edit((s) => {
-						const added = addNode(s, def, world.x - NODE.compactMinWidth / 2, world.y - NODE.compactHeight / 2);
+						const added = addNode(
+							s,
+							def,
+							world.x - NODE.compactMinWidth / 2,
+							world.y - NODE.compactHeight / 2,
+						);
 						queueMicrotask(() => store.select([added.id]));
 						return bindNodeToFunction(added.script, added.id, id);
 					});
@@ -1163,8 +1250,7 @@ export function Canvas({
 					</>
 				) : (
 					<>
-						<small>{script.name}</small>
-						ƒ {functionName}
+						<small>{script.name}</small>ƒ {functionName}
 					</>
 				)}
 			</div>
@@ -1268,19 +1354,13 @@ export function Canvas({
 											: coerces
 												? `${fromPin?.type ?? "any"} → ${toPin?.type ?? "any"}`
 												: (fromPin?.type ?? "any")) +
-												"\nShift-click or alt-click to disconnect" +
-												"\nDouble-click to add a reroute knot"}
+											"\nShift-click or alt-click to disconnect" +
+											"\nDouble-click to add a reroute knot"}
 									</title>
 								</path>
 								<path
 									d={path}
-									stroke={
-										isExec
-											? "var(--wire-exec)"
-											: coerces
-												? `url(#${gradientId})`
-												: fromColor
-									}
+									stroke={isExec ? "var(--wire-exec)" : coerces ? `url(#${gradientId})` : fromColor}
 									strokeWidth={isExec ? 2.4 : 1.8}
 									opacity={isExec ? 0.95 : 0.85}
 								/>
@@ -1321,11 +1401,7 @@ export function Canvas({
 						onEditCode={onEditCode}
 						onGrow={onGrow}
 						growth={growth.get(node.id) ?? null}
-						onOpen={
-							configText(node, "presence") === "outer"
-								? openFunction
-								: undefined
-						}
+						onOpen={configText(node, "presence") === "outer" ? openFunction : undefined}
 						onContextMenu={(e, id) => {
 							if (!selection.has(id)) store.select([id]);
 							onRequestMenu({ x: e.clientX, y: e.clientY }, toWorld(e.clientX, e.clientY));
@@ -1423,7 +1499,14 @@ interface CommentViewProps {
 }
 
 function CommentView({
-	comment, depth, selected, editing, onPointerDown, onResize, onStartEdit, onCommit,
+	comment,
+	depth,
+	selected,
+	editing,
+	onPointerDown,
+	onResize,
+	onStartEdit,
+	onCommit,
 }: CommentViewProps) {
 	const color = commentColor(comment.color);
 	const bar = useRef<HTMLDivElement>(null);
@@ -1496,7 +1579,10 @@ function CommentView({
 // ---------------------------------------------------------------------------
 
 function pinDefOf(
-	registry: Registry, script: NodeScript, ref: PinRef, side: "in" | "out",
+	registry: Registry,
+	script: NodeScript,
+	ref: PinRef,
+	side: "in" | "out",
 ): PinDef | undefined {
 	const node = script.nodes.find((n) => n.id === ref.node);
 	const def = node && registry.get(node.def);

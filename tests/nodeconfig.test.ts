@@ -6,7 +6,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	configEntries, configFlag, configText, functionNameOf, paramsOf,
+	configEntries,
+	configFlag,
+	configText,
+	functionNameOf,
+	paramsOf,
 } from "../src/app/nodeConfig.js";
 
 describe("node config accessors", () => {

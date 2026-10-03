@@ -10,13 +10,12 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-
+import { fromBase64 } from "../core/base64.js";
+import { errorMessage } from "../core/errorMessage.js";
+import { describePlaceReport, type PlaceReport } from "../core/rbx/placeExport.js";
 import { api } from "./api.js";
 import { LAYER } from "./layers.js";
 import { download, zip } from "./zip.js";
-import { fromBase64 } from "../core/base64.js";
-import { describePlaceReport, type PlaceReport } from "../core/rbx/placeExport.js";
-import { errorMessage } from "../core/errorMessage.js";
 
 type Exported = Awaited<ReturnType<typeof api.exportProject>>;
 
@@ -70,9 +69,14 @@ export function ExportMenu({ onClose, onError }: ExportMenuProps) {
 	const report = place?.report;
 	const extension = place ? (/\.rbxlx$/i.test(place.file) ? ".rbxlx" : ".rbxl") : "";
 	const problems = report ? describePlaceReport(place!.file, report).detail : "";
-	const hasProblems = !!report && (
-		report.notInPlace.length + report.ambiguous.length + report.wrongClass.length + (report.leftInPlace?.length ?? 0) > 0 || !!report.addError
-	);
+	const hasProblems =
+		!!report &&
+		(report.notInPlace.length +
+			report.ambiguous.length +
+			report.wrongClass.length +
+			(report.leftInPlace?.length ?? 0) >
+			0 ||
+			!!report.addError);
 
 	async function run() {
 		if (!modified || busy) return;
@@ -89,9 +93,14 @@ export function ExportMenu({ onClose, onError }: ExportMenuProps) {
 					Object.keys(exported.binaries ?? {}).map((path) => [path, bytesOf(path)]),
 				);
 				download(
-					zip(Object.fromEntries(
-						Object.entries({ ...exported.files, ...places }).map(([path, contents]) => [`${base}/${path}`, contents]),
-					)),
+					zip(
+						Object.fromEntries(
+							Object.entries({ ...exported.files, ...places }).map(([path, contents]) => [
+								`${base}/${path}`,
+								contents,
+							]),
+						),
+					),
 					`${base}.zip`,
 				);
 			}
@@ -175,17 +184,27 @@ export function ExportMenu({ onClose, onError }: ExportMenuProps) {
 									<span className="export-menu-label">{place.file}</span>
 									<span className="export-menu-control">
 										<span className="segmented">
-											<button type="button" className={modify ? "on" : ""} onClick={() => setModify(true)}>
+											<button
+												type="button"
+												className={modify ? "on" : ""}
+												onClick={() => setModify(true)}
+											>
 												Modify RBXL
 											</button>
-											<button type="button" className={!modify ? "on" : ""} onClick={() => setModify(false)}>
+											<button
+												type="button"
+												className={!modify ? "on" : ""}
+												onClick={() => setModify(false)}
+											>
 												Don't Modify RBXL
 											</button>
 										</span>
 										<span className="export-menu-note">
 											{modify ? summary(place.file, report) : "The place as it was."}
 										</span>
-										{modify && hasProblems && <span className="export-menu-problem">{problems}</span>}
+										{modify && hasProblems && (
+											<span className="export-menu-problem">{problems}</span>
+										)}
 									</span>
 								</div>
 							</>
@@ -201,7 +220,9 @@ export function ExportMenu({ onClose, onError }: ExportMenuProps) {
 								: "The project itself is not changed"}
 						</span>
 					)}
-					<button className="tb" onClick={onClose}>Cancel</button>
+					<button className="tb" onClick={onClose}>
+						Cancel
+					</button>
 					<button className="tb primary" disabled={!modified || busy} onClick={() => void run()}>
 						{busy ? "Exporting…" : "Export"}
 					</button>

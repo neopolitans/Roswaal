@@ -17,7 +17,9 @@ import { Builder, body } from "./helpers.js";
 
 /** A step that wants a Model, standing in for any pin typed as a class. */
 const WANTS_MODEL: NodeDef = {
-	id: "test.pivot", title: "Pivot", category: "Instances",
+	id: "test.pivot",
+	title: "Pivot",
+	category: "Instances",
 	inputs: [
 		{ id: "in", name: "", kind: "exec" },
 		{ id: "model", name: "Model", kind: "data", type: "Model" },
@@ -50,13 +52,22 @@ describe("castFor", () => {
 
 	it("refuses two unrelated classes, and says why", () => {
 		const { script, find, pivot } = scene("Humanoid");
-		const cast = castFor(script, registry, { node: find, pin: "result" }, { node: pivot, pin: "model" });
-		expect(cast).toEqual({ reason: "**Humanoid** cannot be cast to **Model** due to incompatible classes." });
+		const cast = castFor(
+			script,
+			registry,
+			{ node: find, pin: "result" },
+			{ node: pivot, pin: "model" },
+		);
+		expect(cast).toEqual({
+			reason: "**Humanoid** cannot be cast to **Model** due to incompatible classes.",
+		});
 	});
 
 	it("has nothing to say about a wire that already fits", () => {
 		const { script, find, pivot } = scene("Model");
-		expect(castFor(script, registry, { node: find, pin: "result" }, { node: pivot, pin: "model" })).toBeNull();
+		expect(
+			castFor(script, registry, { node: find, pin: "result" }, { node: pivot, pin: "model" }),
+		).toBeNull();
 	});
 
 	it("leaves an execution wire on a data pin to the canvas", () => {
@@ -64,7 +75,9 @@ describe("castFor", () => {
 		const start = b.node("script.begin");
 		const pivot = b.node("test.pivot");
 		const script = b.build();
-		expect(castFor(script, registry, { node: start, pin: "then" }, { node: pivot, pin: "model" })).toBeNull();
+		expect(
+			castFor(script, registry, { node: start, pin: "then" }, { node: pivot, pin: "model" }),
+		).toBeNull();
 	});
 });
 
@@ -72,26 +85,40 @@ describe("connectThroughCast", () => {
 	it("places a Cast between the two and wires both halves", () => {
 		const { script, find, pivot } = scene("PVInstance");
 		const made = connectThroughCast(
-			script, registry, { node: find, pin: "result" }, { node: pivot, pin: "model" }, "Model",
+			script,
+			registry,
+			{ node: find, pin: "result" },
+			{ node: pivot, pin: "model" },
+			"Model",
 		)!;
 		const cast = made.script.nodes.find((n) => n.id === made.id)!;
 		expect(cast.def).toBe("cast.as");
 		expect(cast.literals?.type).toEqual({ t: "string", v: "Model" });
-		expect(made.script.links).toContainEqual(expect.objectContaining({
-			from: { node: find, pin: "result" }, to: { node: made.id, pin: "value" },
-		}));
-		expect(made.script.links).toContainEqual(expect.objectContaining({
-			from: { node: made.id, pin: "result" }, to: { node: pivot, pin: "model" },
-		}));
+		expect(made.script.links).toContainEqual(
+			expect.objectContaining({
+				from: { node: find, pin: "result" },
+				to: { node: made.id, pin: "value" },
+			}),
+		);
+		expect(made.script.links).toContainEqual(
+			expect.objectContaining({
+				from: { node: made.id, pin: "result" },
+				to: { node: pivot, pin: "model" },
+			}),
+		);
 	});
 
 	it("compiles to the cast the canvas now shows", () => {
 		const { script, find, pivot } = scene("PVInstance");
 		const made = connectThroughCast(
-			script, registry, { node: find, pin: "result" }, { node: pivot, pin: "model" }, "Model",
+			script,
+			registry,
+			{ node: find, pin: "result" },
+			{ node: pivot, pin: "model" },
+			"Model",
 		)!;
 		const result = compile(made.script, registry);
 		expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
-		expect(body(result.code)).toContain(':: Model):PivotTo(CFrame.identity)');
+		expect(body(result.code)).toContain(":: Model):PivotTo(CFrame.identity)");
 	});
 });

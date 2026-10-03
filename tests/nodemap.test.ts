@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	compileNodeMap, emptyMap, locateInDataModel, type NodeMap,
-} from "../src/core/nodemap.js";
+import { compileNodeMap, emptyMap, locateInDataModel, type NodeMap } from "../src/core/nodemap.js";
 
 let counter = 0;
 const id = () => `id${++counter}`;
@@ -89,12 +87,23 @@ describe("node maps", () => {
  */
 describe("Rojo compatibility", () => {
 	const ROJO_TOP_LEVEL = new Set([
-		"name", "tree", "servePort", "serveAddress", "servePlaceIds",
-		"placeId", "gameId", "globIgnorePaths", "emitLegacyScripts",
+		"name",
+		"tree",
+		"servePort",
+		"serveAddress",
+		"servePlaceIds",
+		"placeId",
+		"gameId",
+		"globIgnorePaths",
+		"emitLegacyScripts",
 	]);
 
 	const ROJO_TREE_KEYS = new Set([
-		"$className", "$path", "$properties", "$ignoreUnknownInstances", "$attributes",
+		"$className",
+		"$path",
+		"$properties",
+		"$ignoreUnknownInstances",
+		"$attributes",
 	]);
 
 	it("emits only top-level keys Rojo knows", () => {
@@ -211,9 +220,9 @@ describe("locating a file in the DataModel", () => {
 	it("resolves a graph as well as its compiled output", () => {
 		const map = serviceMap();
 		map.root.children[0].path = ".roswaal/scripts/ReplicatedStorage";
-		expect(
-			locateInDataModel(map, ".roswaal/scripts/ReplicatedStorage/Greeter.nodescript"),
-		).toEqual({ root: "ReplicatedStorage", path: "Greeter", isModule: true });
+		expect(locateInDataModel(map, ".roswaal/scripts/ReplicatedStorage/Greeter.nodescript")).toEqual(
+			{ root: "ReplicatedStorage", path: "Greeter", isModule: true },
+		);
 	});
 
 	it("prefers the most specific mapping when one nests inside another", () => {

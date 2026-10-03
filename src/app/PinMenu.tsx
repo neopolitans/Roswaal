@@ -13,16 +13,15 @@
  */
 
 import { useRef } from "react";
-
-import type { NodeScript, PinDef } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins } from "../core/nodes/index.js";
+import { pinTypeText } from "../core/nodes/variables.js";
+import type { NodeScript, PinDef } from "../core/schema.js";
 import { cx } from "./cx.js";
-import { canPromoteToVariable, pinLinkCount, splitModesFor } from "./edits.js";
 import { useDismiss } from "./dismiss.js";
+import { canPromoteToVariable, pinLinkCount, splitModesFor } from "./edits.js";
 import { LAYER } from "./layers.js";
 import { pinColor } from "./palette.js";
-import { pinTypeText } from "../core/nodes/variables.js";
 
 export interface PinMenuTarget {
 	/** Viewport position; the menu is `position: fixed`. */
@@ -53,7 +52,14 @@ interface Entry {
 }
 
 export function PinMenu({
-	target, script, registry, onPromote, onBreakLinks, onSplit, onRecombine, onClose,
+	target,
+	script,
+	registry,
+	onPromote,
+	onBreakLinks,
+	onSplit,
+	onRecombine,
+	onClose,
 }: PinMenuProps) {
 	const root = useRef<HTMLDivElement>(null);
 

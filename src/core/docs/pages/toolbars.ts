@@ -4,10 +4,25 @@
 
 import type { DocPage } from "../site.js";
 import {
-	ACTION_ROW, DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_PHONE, DESIGNER_BAR_TABLET,
-	DESIGNER_TOUCH_BAR, DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_PHONE, DOCS_SITE_BAR_TOUCH, EDITOR_BAR,
-	EDITOR_BAR_BROWSER, EDITOR_BAR_PHONE, EDITOR_BAR_TABLET, GRAPH_BAR, GRAPH_BAR_PHONE,
-	GRAPH_BAR_TABLET, MAP_BAR, PROJECT_PANEL_HEAD,
+	ACTION_ROW,
+	DESIGNER_BAR,
+	DESIGNER_BAR_BROWSER,
+	DESIGNER_BAR_PHONE,
+	DESIGNER_BAR_TABLET,
+	DESIGNER_TOUCH_BAR,
+	DOCS_BAR,
+	DOCS_SITE_BAR,
+	DOCS_SITE_BAR_PHONE,
+	DOCS_SITE_BAR_TOUCH,
+	EDITOR_BAR,
+	EDITOR_BAR_BROWSER,
+	EDITOR_BAR_PHONE,
+	EDITOR_BAR_TABLET,
+	GRAPH_BAR,
+	GRAPH_BAR_PHONE,
+	GRAPH_BAR_TABLET,
+	MAP_BAR,
+	PROJECT_PANEL_HEAD,
 } from "../toolbars.js";
 
 /**
@@ -123,9 +138,24 @@ export function toolbarsPage(): DocPage {
 				t: "tabs",
 				label: "Where are you working?",
 				tabs: [
-					{ id: "graph-desktop", title: "Desktop", device: ["localhost", "webapp"], blocks: [{ t: "toolbar", bar: GRAPH_BAR }] },
-					{ id: "graph-tablet", title: "Tablet (Webapp)", device: ["tablet"], blocks: [{ t: "toolbar", bar: GRAPH_BAR_TABLET }] },
-					{ id: "graph-phone", title: "Phone (Webapp)", device: ["phone"], blocks: [{ t: "toolbar", bar: GRAPH_BAR_PHONE }] },
+					{
+						id: "graph-desktop",
+						title: "Desktop",
+						device: ["localhost", "webapp"],
+						blocks: [{ t: "toolbar", bar: GRAPH_BAR }],
+					},
+					{
+						id: "graph-tablet",
+						title: "Tablet (Webapp)",
+						device: ["tablet"],
+						blocks: [{ t: "toolbar", bar: GRAPH_BAR_TABLET }],
+					},
+					{
+						id: "graph-phone",
+						title: "Phone (Webapp)",
+						device: ["phone"],
+						blocks: [{ t: "toolbar", bar: GRAPH_BAR_PHONE }],
+					},
 				],
 			},
 			{

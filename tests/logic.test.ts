@@ -8,18 +8,25 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { body, Builder } from "./helpers.js";
 import { compile } from "../src/core/compiler/index.js";
 import { compileLogic, defaultLogic, type LogicGraph } from "../src/core/compiler/logic.js";
 import { createRegistry, parseNodePack } from "../src/core/nodes/index.js";
-import { LOGIC_INPUTS, LOGIC_NODES, LOGIC_OUTPUTS, type LogicShape } from "../src/core/nodes/logic.js";
+import {
+	LOGIC_INPUTS,
+	LOGIC_NODES,
+	LOGIC_OUTPUTS,
+	type LogicShape,
+} from "../src/core/nodes/logic.js";
 import type { NodeDef } from "../src/core/schema.js";
+import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry(LOGIC_NODES);
 
 /** A logic graph built the way a test builds a script, from its two ends outwards. */
-function logic(shape: LogicShape, build: (b: Builder, ends: { inputs: string; outputs: string }) => void): LogicGraph {
+function logic(
+	shape: LogicShape,
+	build: (b: Builder, ends: { inputs: string; outputs: string }) => void,
+): LogicGraph {
 	const b = new Builder();
 	const base = defaultLogic(shape);
 	for (const node of base.nodes) b.node(node.def, { id: node.id, config: node.config });
@@ -39,17 +46,22 @@ const impure = (inputs: string[], outputs: string[] = []): LogicShape => ({
 	inputs: inputs.map((id) => ({ id, name: id, type: "any" })),
 	outputs: outputs.map((id) => ({ id, name: id, type: "any" })),
 });
-const pure = (inputs: string[], outputs: string[]): LogicShape => ({ ...impure(inputs, outputs), pure: true });
+const pure = (inputs: string[], outputs: string[]): LogicShape => ({
+	...impure(inputs, outputs),
+	pure: true,
+});
 
 describe("a step's logic", () => {
 	it("compiles to a template that reads its inputs", () => {
 		const shape = impure(["message"]);
-		const graph = unlinkFlow(logic(shape, (b, ends) => {
-			const print = b.node("debug.print", { id: "print" });
-			b.link(ends.inputs, "then", print, "in");
-			b.link(print, "then", ends.outputs, "in");
-			b.link(ends.inputs, "message", print, "value");
-		}));
+		const graph = unlinkFlow(
+			logic(shape, (b, ends) => {
+				const print = b.node("debug.print", { id: "print" });
+				b.link(ends.inputs, "then", print, "in");
+				b.link(print, "then", ends.outputs, "in");
+				b.link(ends.inputs, "message", print, "value");
+			}),
+		);
 		const result = compileLogic(graph, shape, registry);
 		expect(result.errors).toEqual([]);
 		expect(result.compilesTo).toEqual({ kind: "statement", template: "print($in.message)" });
@@ -58,17 +70,24 @@ describe("a step's logic", () => {
 	/** Otherwise a wired call would run once per read. */
 	it("reads an input used twice once, into a local, inside do … end", () => {
 		const shape = impure(["message"]);
-		const graph = unlinkFlow(logic(shape, (b, ends) => {
-			const first = b.node("debug.print", { id: "first" });
-			const second = b.node("debug.print", { id: "second" });
-			b.link(ends.inputs, "then", first, "in");
-			b.link(first, "then", second, "in");
-			b.link(second, "then", ends.outputs, "in");
-			b.link(ends.inputs, "message", first, "value");
-			b.link(ends.inputs, "message", second, "value");
-		}));
-		const template = (compileLogic(graph, shape, registry).compilesTo as { template: string }).template;
-		expect(template).toBe(["do", "\tlocal message = $in.message", "\tprint(message)", "\tprint(message)", "end"].join("\n"));
+		const graph = unlinkFlow(
+			logic(shape, (b, ends) => {
+				const first = b.node("debug.print", { id: "first" });
+				const second = b.node("debug.print", { id: "second" });
+				b.link(ends.inputs, "then", first, "in");
+				b.link(first, "then", second, "in");
+				b.link(second, "then", ends.outputs, "in");
+				b.link(ends.inputs, "message", first, "value");
+				b.link(ends.inputs, "message", second, "value");
+			}),
+		);
+		const template = (compileLogic(graph, shape, registry).compilesTo as { template: string })
+			.template;
+		expect(template).toBe(
+			["do", "\tlocal message = $in.message", "\tprint(message)", "\tprint(message)", "end"].join(
+				"\n",
+			),
+		);
 	});
 
 	it("assigns its outputs where Node Outputs is reached", () => {
@@ -87,11 +106,16 @@ describe("a step's logic", () => {
 	it("writes a service where it is used, since a template has no top of the file", () => {
 		const shape = impure([], ["players"]);
 		const graph = logic(shape, (b, ends) => {
-			const service = b.node("roblox.getService", { id: "svc", literals: { service: { t: "string", v: "Players" } } });
+			const service = b.node("roblox.getService", {
+				id: "svc",
+				literals: { service: { t: "string", v: "Players" } },
+			});
 			b.link(service, "service", ends.outputs, "players");
 		});
 		const result = compileLogic(graph, shape, registry);
-		expect((result.compilesTo as { template: string }).template).toBe('$out.players = game:GetService("Players")');
+		expect((result.compilesTo as { template: string }).template).toBe(
+			'$out.players = game:GetService("Players")',
+		);
 		// Get Service is Roblox-only, so a node built from it is too.
 		expect(result.targets).toEqual(["roblox"]);
 	});
@@ -106,7 +130,10 @@ describe("a pure node's logic", () => {
 			b.link(ends.inputs, "b", add, "a1");
 			b.link(add, "result", ends.outputs, "sum");
 		});
-		expect(compileLogic(graph, shape, registry).compilesTo).toEqual({ kind: "expr", outputs: { sum: "$in.a + $in.b" } });
+		expect(compileLogic(graph, shape, registry).compilesTo).toEqual({
+			kind: "expr",
+			outputs: { sum: "$in.a + $in.b" },
+		});
 	});
 
 	it("refuses a step, which is not a value", () => {
@@ -154,11 +181,13 @@ describe("what a node's logic may hold", () => {
 
 	it("carries a yielding node into the node, and a Roblox-only one into its targets", () => {
 		const shape = impure([]);
-		const graph = unlinkFlow(logic(shape, (b, ends) => {
-			const wait = b.node("task.wait", { id: "wait" });
-			b.link(ends.inputs, "then", wait, "in");
-			b.link(wait, "then", ends.outputs, "in");
-		}));
+		const graph = unlinkFlow(
+			logic(shape, (b, ends) => {
+				const wait = b.node("task.wait", { id: "wait" });
+				b.link(ends.inputs, "then", wait, "in");
+				b.link(wait, "then", ends.outputs, "in");
+			}),
+		);
 		expect(compileLogic(graph, shape, registry).latent).toBe(true);
 	});
 
@@ -176,14 +205,27 @@ describe("what a node's logic may hold", () => {
 describe("a pack stays data", () => {
 	/** The plan said to confirm this with a test before relying on it. */
 	it("loads a node with logic, ignoring the logic entirely", () => {
-		const parsed = parseNodePack({
-			nodes: [{
-				id: "p.n", title: "N",
-				inputs: [{ id: "in", kind: "exec" }], outputs: [{ id: "then", kind: "exec" }],
-				compilesTo: { kind: "statement", template: "x()" },
-				logic: { nodes: [{ id: "a", def: LOGIC_INPUTS }, { id: "b", def: LOGIC_OUTPUTS }], links: [] },
-			}],
-		}, "pack");
+		const parsed = parseNodePack(
+			{
+				nodes: [
+					{
+						id: "p.n",
+						title: "N",
+						inputs: [{ id: "in", kind: "exec" }],
+						outputs: [{ id: "then", kind: "exec" }],
+						compilesTo: { kind: "statement", template: "x()" },
+						logic: {
+							nodes: [
+								{ id: "a", def: LOGIC_INPUTS },
+								{ id: "b", def: LOGIC_OUTPUTS },
+							],
+							links: [],
+						},
+					},
+				],
+			},
+			"pack",
+		);
 		expect(parsed.errors).toEqual([]);
 		expect("logic" in parsed.defs[0]).toBe(false);
 	});
@@ -193,25 +235,35 @@ describe("a pack stays data", () => {
 describe("a node built from nodes, placed in a graph", () => {
 	it("compiles into the graph the way a hand-written template would", () => {
 		const shape = impure(["message"], ["length"]);
-		const graph = unlinkFlow(logic(shape, (b, ends) => {
-			const first = b.node("debug.print", { id: "first" });
-			const second = b.node("debug.print", { id: "second" });
-			const len = b.node("string.len", { id: "len" });
-			b.link(ends.inputs, "then", first, "in");
-			b.link(first, "then", second, "in");
-			b.link(second, "then", ends.outputs, "in");
-			b.link(ends.inputs, "message", first, "value");
-			b.link(ends.inputs, "message", second, "value");
-			b.link(ends.inputs, "message", len, "value");
-			b.link(len, "result", ends.outputs, "length");
-		}));
+		const graph = unlinkFlow(
+			logic(shape, (b, ends) => {
+				const first = b.node("debug.print", { id: "first" });
+				const second = b.node("debug.print", { id: "second" });
+				const len = b.node("string.len", { id: "len" });
+				b.link(ends.inputs, "then", first, "in");
+				b.link(first, "then", second, "in");
+				b.link(second, "then", ends.outputs, "in");
+				b.link(ends.inputs, "message", first, "value");
+				b.link(ends.inputs, "message", second, "value");
+				b.link(ends.inputs, "message", len, "value");
+				b.link(len, "result", ends.outputs, "length");
+			}),
+		);
 		const compiled = compileLogic(graph, shape, registry);
 		expect(compiled.errors).toEqual([]);
 
 		const def: NodeDef = {
-			id: "p.shout", title: "Shout", category: "Custom",
-			inputs: [{ id: "in", name: "", kind: "exec" }, { id: "message", name: "Message", kind: "data", type: "string" }],
-			outputs: [{ id: "then", name: "", kind: "exec" }, { id: "length", name: "Length", kind: "data", type: "number" }],
+			id: "p.shout",
+			title: "Shout",
+			category: "Custom",
+			inputs: [
+				{ id: "in", name: "", kind: "exec" },
+				{ id: "message", name: "Message", kind: "data", type: "string" },
+			],
+			outputs: [
+				{ id: "then", name: "", kind: "exec" },
+				{ id: "length", name: "Length", kind: "data", type: "number" },
+			],
 			compilesTo: compiled.compilesTo!,
 		};
 		const host = new Builder();
@@ -225,15 +277,17 @@ describe("a node built from nodes, placed in a graph", () => {
 		const result = compile(host.build(), createRegistry([def]));
 		expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
 		// The output's local takes the pin's name, as any statement node's does.
-		expect(body(result.code)).toBe([
-			"local Length",
-			"do",
-			'\tlocal message = "hi"',
-			"\tprint(message)",
-			"\tprint(message)",
-			"\tLength = #message",
-			"end",
-			"print(Length)",
-		].join("\n"));
+		expect(body(result.code)).toBe(
+			[
+				"local Length",
+				"do",
+				'\tlocal message = "hi"',
+				"\tprint(message)",
+				"\tprint(message)",
+				"\tLength = #message",
+				"end",
+				"print(Length)",
+			].join("\n"),
+		);
 	});
 });

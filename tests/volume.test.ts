@@ -18,7 +18,7 @@
  * tests use and would stop proving anything the day the schema moved.
  */
 
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -43,13 +43,24 @@ vi.mock("../src/server/host.js", async () => {
 	return { volume, fs: volume, path, formatLuau: (_cwd: string, code: string) => code };
 });
 
-const { volume } = await import("../src/server/host.js") as unknown as { volume: Volume };
-const { buildTree, compileAll, createFolder, deleteEntry, moveEntry, openProject, readScript, writeScript } =
-	await import("../src/server/project.js");
+const { volume } = (await import("../src/server/host.js")) as unknown as { volume: Volume };
+const {
+	buildTree,
+	compileAll,
+	createFolder,
+	deleteEntry,
+	moveEntry,
+	openProject,
+	readScript,
+	writeScript,
+} = await import("../src/server/project.js");
 const { splitGenerated } = await import("../src/server/project.js");
 
 const DEMO = nodePath.resolve(
-	nodePath.dirname(fileURLToPath(import.meta.url)), "..", "examples", "demo",
+	nodePath.dirname(fileURLToPath(import.meta.url)),
+	"..",
+	"examples",
+	"demo",
 );
 
 /** Every file under a directory on the real disk, as a snapshot to mount. */
@@ -82,25 +93,44 @@ describe("path arithmetic on the volume", () => {
 	 * empty string.
 	 */
 	const cases = [
-		"", ".", "/", "a", "/a", "a/b", "/a/b/", "a//b", "./a", "a/./b", "a/../b",
-		"/a/../..", "../a", "/a/b/../c", "a/b/", ".roswaal/scripts",
+		"",
+		".",
+		"/",
+		"a",
+		"/a",
+		"a/b",
+		"/a/b/",
+		"a//b",
+		"./a",
+		"a/./b",
+		"a/../b",
+		"/a/../..",
+		"../a",
+		"/a/b/../c",
+		"a/b/",
+		".roswaal/scripts",
 	];
 
 	it("normalises the way node does", () => {
 		for (const target of cases) {
-			expect([target, posixPath.normalize(target)])
-				.toEqual([target, nodePath.posix.normalize(target)]);
+			expect([target, posixPath.normalize(target)]).toEqual([
+				target,
+				nodePath.posix.normalize(target),
+			]);
 		}
 	});
 
 	it("resolves, dirnames and basenames the way node does", () => {
 		for (const target of cases) {
-			expect([target, posixPath.dirname(target)])
-				.toEqual([target, nodePath.posix.dirname(target)]);
-			expect([target, posixPath.basename(target)])
-				.toEqual([target, nodePath.posix.basename(target)]);
-			expect([target, posixPath.isAbsolute(target)])
-				.toEqual([target, nodePath.posix.isAbsolute(target)]);
+			expect([target, posixPath.dirname(target)]).toEqual([target, nodePath.posix.dirname(target)]);
+			expect([target, posixPath.basename(target)]).toEqual([
+				target,
+				nodePath.posix.basename(target),
+			]);
+			expect([target, posixPath.isAbsolute(target)]).toEqual([
+				target,
+				nodePath.posix.isAbsolute(target),
+			]);
 		}
 	});
 
@@ -114,16 +144,26 @@ describe("path arithmetic on the volume", () => {
 	 */
 	it("strips a suffix from a basename the way node does", () => {
 		const suffixed = [
-			"Greeter.nodescript", "x.nodescript", ".nodescript", "a/b/C.nodescript",
-			"a/b/.nodescript", "nodescript", ".a.nodescript", "a/b/",
+			"Greeter.nodescript",
+			"x.nodescript",
+			".nodescript",
+			"a/b/C.nodescript",
+			"a/b/.nodescript",
+			"nodescript",
+			".a.nodescript",
+			"a/b/",
 		];
 		for (const target of suffixed) {
-			expect([target, posixPath.basename(target, ".nodescript")])
-				.toEqual([target, nodePath.posix.basename(target, ".nodescript")]);
+			expect([target, posixPath.basename(target, ".nodescript")]).toEqual([
+				target,
+				nodePath.posix.basename(target, ".nodescript"),
+			]);
 		}
 		for (const target of ["a.b", "b", "a/b", "b/b"]) {
-			expect([target, posixPath.basename(target, "b")])
-				.toEqual([target, nodePath.posix.basename(target, "b")]);
+			expect([target, posixPath.basename(target, "b")]).toEqual([
+				target,
+				nodePath.posix.basename(target, "b"),
+			]);
 		}
 	});
 
@@ -135,10 +175,16 @@ describe("path arithmetic on the volume", () => {
 			["a/b", "a/b"],
 		];
 		for (const [from, to] of pairs) {
-			expect([from, to, posixPath.relative(from, to)])
-				.toEqual([from, to, nodePath.posix.relative(from, to)]);
-			expect([from, to, posixPath.join(from, to)])
-				.toEqual([from, to, nodePath.posix.join(from, to)]);
+			expect([from, to, posixPath.relative(from, to)]).toEqual([
+				from,
+				to,
+				nodePath.posix.relative(from, to),
+			]);
+			expect([from, to, posixPath.join(from, to)]).toEqual([
+				from,
+				to,
+				nodePath.posix.join(from, to),
+			]);
 		}
 	});
 });
@@ -369,8 +415,12 @@ describe("what the tree may not do to a project", () => {
 		const project = await openProject("/demo");
 		await createFolder(project, ".roswaal/scripts/Inner");
 		await createFolder(project, ".roswaal/scripts/Inner/Deeper");
-		await expect(moveEntry(project, ".roswaal/scripts/Inner", ".roswaal/scripts/Inner")).rejects.toThrow("into itself");
-		await expect(moveEntry(project, ".roswaal/scripts/Inner", ".roswaal/scripts/Inner/Deeper")).rejects.toThrow("into itself");
+		await expect(
+			moveEntry(project, ".roswaal/scripts/Inner", ".roswaal/scripts/Inner"),
+		).rejects.toThrow("into itself");
+		await expect(
+			moveEntry(project, ".roswaal/scripts/Inner", ".roswaal/scripts/Inner/Deeper"),
+		).rejects.toThrow("into itself");
 		expect((await volume.stat("/demo/.roswaal/scripts/Inner/Deeper")).isDirectory()).toBe(true);
 		await deleteEntry(project, ".roswaal/scripts/Inner");
 	});

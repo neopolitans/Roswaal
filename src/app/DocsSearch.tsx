@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { rankDocs, type DocsHit, type SearchEntry } from "../core/docs/site.js";
+import { type DocsHit, rankDocs, type SearchEntry } from "../core/docs/site.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
@@ -179,9 +179,16 @@ export function DocsSearch({ index, recent, onPick, onClose }: DocsSearchProps) 
 				</div>
 
 				<div className="docs-palette-foot">
-					<span><kbd>↑</kbd><kbd>↓</kbd> to move</span>
-					<span><kbd>Enter</kbd> to open</span>
-					<span><kbd>Esc</kbd> to close</span>
+					<span>
+						<kbd>↑</kbd>
+						<kbd>↓</kbd> to move
+					</span>
+					<span>
+						<kbd>Enter</kbd> to open
+					</span>
+					<span>
+						<kbd>Esc</kbd> to close
+					</span>
 				</div>
 			</div>
 		</div>,

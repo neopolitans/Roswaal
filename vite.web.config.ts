@@ -38,8 +38,7 @@ const DEMO = fileURLToPath(new URL("examples/demo", import.meta.url));
  * Only in a production build, and only on Windows — dev normalises ids before
  * this matters, and a posix machine has nothing to normalise.
  */
-const WEB_HOST = fileURLToPath(new URL("src/web/host.ts", import.meta.url))
-	.replace(/\\/g, "/");
+const WEB_HOST = fileURLToPath(new URL("src/web/host.ts", import.meta.url)).replace(/\\/g, "/");
 
 /**
  * Points the project layer at the volume instead of the disk.
@@ -78,11 +77,9 @@ function noindexOnCanary(): Plugin {
 		transformIndexHtml: {
 			order: "pre",
 			handler(html) {
-				if (process.env.ROSWAAL_CHANNEL !== "canary" && process.env.ROSWAAL_BACKUP !== "1") return html;
-				return html.replace(
-					"</head>",
-					'\t\t<meta name="robots" content="noindex" />\n\t</head>',
-				);
+				if (process.env.ROSWAAL_CHANNEL !== "canary" && process.env.ROSWAAL_BACKUP !== "1")
+					return html;
+				return html.replace("</head>", '\t\t<meta name="robots" content="noindex" />\n\t</head>');
 			},
 		},
 	};
@@ -127,9 +124,13 @@ export default defineConfig({
 		 */
 		watch: {
 			ignored: [
-				"**/node_modules/**", "**/.git/**",
-				"**/dist/**", "**/dist-site/**", "**/dist-docs/**",
-				"**/dist-cli/**", "**/dist-pages/**",
+				"**/node_modules/**",
+				"**/.git/**",
+				"**/dist/**",
+				"**/dist-site/**",
+				"**/dist-docs/**",
+				"**/dist-cli/**",
+				"**/dist-pages/**",
 			],
 		},
 	},

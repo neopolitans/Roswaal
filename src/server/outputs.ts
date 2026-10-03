@@ -6,12 +6,11 @@
  * already on disk, read from the header each one carries.
  */
 
-import { fs, path } from "./host.js";
-
 import { outputFileName } from "../core/compiler/index.js";
 import type { OpenProject } from "./config.js";
 import { collectScripts, readScript } from "./documents.js";
 import { walkFiles } from "./files.js";
+import { fs, path } from "./host.js";
 import { safeJoin, toPosix } from "./paths.js";
 
 /** Maps generated Luau back to the graph that produced it, via the header. */
@@ -43,7 +42,10 @@ export function outputPathFor(project: OpenProject, relPath: string, fileName: s
  * The Luau file a graph compiles to, project-relative, or null when it cannot
  * be read. Where its code runs from, for `script.Parent`.
  */
-export async function graphOutputPath(project: OpenProject, relPath: string): Promise<string | null> {
+export async function graphOutputPath(
+	project: OpenProject,
+	relPath: string,
+): Promise<string | null> {
 	// A graph that will not read has no output to name; the caller says so.
 	const script = await readScript(project, relPath).catch(() => null);
 	return script ? outputPathFor(project, relPath, outputFileName(script)) : null;

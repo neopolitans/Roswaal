@@ -10,7 +10,10 @@ import { bodyPinOf } from "../functionBody.js";
 import { checkLuau } from "../luau/check.js";
 import { checkSpecifier } from "../modules.js";
 import {
-	signatureOf, typeDeclarationOf, type Signature, type TypeDeclaration,
+	type Signature,
+	signatureOf,
+	type TypeDeclaration,
+	typeDeclarationOf,
 } from "../nodes/flow.js";
 import { variableRefOf } from "../nodes/variables.js";
 import { isService as isRobloxService } from "../roblox.js";
@@ -19,7 +22,12 @@ import { Scope } from "./emitScope.js";
 import type { Emitter } from "./emitter.js";
 import type { ResolvedNode } from "./graph.js";
 import {
-	isFieldName, isIdentifier, literalToLuau, notAName, quoteString, toIdentifier,
+	isFieldName,
+	isIdentifier,
+	literalToLuau,
+	notAName,
+	quoteString,
+	toIdentifier,
 } from "./luau.js";
 
 /**
@@ -31,9 +39,30 @@ import {
  * breaks `table.insert` for the rest of the file.
  */
 export const PROVIDED_GLOBALS = [
-	"game", "workspace", "script", "shared", "require", "print", "warn", "table", "math",
-	"string", "task", "Instance", "Vector3", "Color3", "CFrame", "Enum", "tostring",
-	"tonumber", "pairs", "ipairs", "next", "select", "type", "typeof",
+	"game",
+	"workspace",
+	"script",
+	"shared",
+	"require",
+	"print",
+	"warn",
+	"table",
+	"math",
+	"string",
+	"task",
+	"Instance",
+	"Vector3",
+	"Color3",
+	"CFrame",
+	"Enum",
+	"tostring",
+	"tonumber",
+	"pairs",
+	"ipairs",
+	"next",
+	"select",
+	"type",
+	"typeof",
 ];
 
 /**
@@ -43,7 +72,10 @@ export const PROVIDED_GLOBALS = [
  * which splits on dots for instance paths and would make it `lune_fs`.
  */
 export function specifierName(specifier: string): string {
-	const parts = specifier.replace(/^@/, "").split(/[\\/]+/).filter((part) => part !== "");
+	const parts = specifier
+		.replace(/^@/, "")
+		.split(/[\\/]+/)
+		.filter((part) => part !== "");
 	// `./util/config.luau` is called config, not luau.
 	return (parts[parts.length - 1] ?? "").replace(/\.(luau|lua)$/, "");
 }
@@ -193,7 +225,12 @@ export function declareModules(e: Emitter): void {
  * while the file did another. A name Luau provides is left to the caller,
  * which warns rather than refuses.
  */
-export function claimModuleName(e: Emitter, name: string, specifier: string, node?: string): boolean {
+export function claimModuleName(
+	e: Emitter,
+	name: string,
+	specifier: string,
+	node?: string,
+): boolean {
 	const already = e.moduleClaims.get(name);
 	if (already !== undefined) {
 		e.error(
@@ -388,19 +425,14 @@ export function emitVariables(e: Emitter): void {
 	// Two passes: claim every name before emitting, so a variable declared
 	// later cannot be renamed out from under an earlier one.
 	for (const variable of variables) {
-		e.variableNames.set(
-			variable.id,
-			e.names.unique(variable.name || "variable", "variable"),
-		);
+		e.variableNames.set(variable.id, e.names.unique(variable.name || "variable", "variable"));
 	}
 	let written = 0;
 	for (const variable of variables) {
 		if (e.initialisedLater.has(variable.id)) continue;
 		const ident = e.variableNames.get(variable.id)!;
 		const annotation =
-			e.annotates && variable.type && variable.type !== "any"
-				? `: ${luauType(variable.type)}`
-				: "";
+			e.annotates && variable.type && variable.type !== "any" ? `: ${luauType(variable.type)}` : "";
 		if (variable.description) e.push(`-- ${variable.description}`);
 		const keyword = variable.const === true ? "const" : "local";
 		e.push(`${keyword} ${ident}${annotation} = ${literalToLuau(variable.default)}`);
@@ -414,7 +446,9 @@ export function emitFunctions(e: Emitter, root: Scope): void {
 	const entries = e.index
 		.all()
 		.filter((r) => r.def.id === "function.entry")
-		.sort((a, b) => a.node.y - b.node.y || a.node.x - b.node.x || a.node.id.localeCompare(b.node.id));
+		.sort(
+			(a, b) => a.node.y - b.node.y || a.node.x - b.node.x || a.node.id.localeCompare(b.node.id),
+		);
 
 	// Reserve every function name up front so mutual recursion resolves.
 	for (const fn of entries) {
@@ -456,7 +490,12 @@ export function emitFunctions(e: Emitter, root: Scope): void {
  * asks for annotations, the same rule every other annotation follows; the
  * return annotation comes back with its colon, or empty.
  */
-export function luauSignature(e: Emitter, sig: Signature, ownerId: string, body: Scope): { params: string; returns: string } {
+export function luauSignature(
+	e: Emitter,
+	sig: Signature,
+	ownerId: string,
+	body: Scope,
+): { params: string; returns: string } {
 	const params = (sig.params ?? []).map((p, i) => {
 		const ident = e.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
 		body.bindings.set(`${ownerId}/p${i}`, ident);

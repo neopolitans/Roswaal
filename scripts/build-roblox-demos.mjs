@@ -57,7 +57,9 @@ import type { NodeScript } from "../schema.js";
 function literal(value) {
 	const tab = String.fromCharCode(9);
 	const newline = String.fromCharCode(10);
-	return JSON.stringify(value, null, tab).split(newline).join(newline + tab);
+	return JSON.stringify(value, null, tab)
+		.split(newline)
+		.join(newline + tab);
 }
 
 const scripts = {};

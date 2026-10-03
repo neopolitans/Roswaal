@@ -34,7 +34,10 @@ const utf8 = new TextDecoder();
 const encode = new TextEncoder();
 
 class VolumeError extends Error {
-	constructor(readonly code: string, message: string) {
+	constructor(
+		readonly code: string,
+		message: string,
+	) {
 		super(message);
 		this.name = "Error";
 	}
@@ -67,7 +70,8 @@ export class Volume implements ProjectFs {
 
 	/** Sets a file, noting when bytes came or went. */
 	private put(full: string, contents: string | Uint8Array): void {
-		if (contents instanceof Uint8Array || this.files.get(full) instanceof Uint8Array) this.binaryStamp++;
+		if (contents instanceof Uint8Array || this.files.get(full) instanceof Uint8Array)
+			this.binaryStamp++;
 		this.files.set(full, contents);
 	}
 
@@ -171,7 +175,8 @@ export class Volume implements ProjectFs {
 	async readFile(target: string, encoding?: "utf8"): Promise<string | Uint8Array> {
 		const full = resolve(target);
 		const contents = this.files.get(full);
-		if (contents === undefined) throw this.dirs.has(full) ? eisdir("read", full) : enoent("open", full);
+		if (contents === undefined)
+			throw this.dirs.has(full) ? eisdir("read", full) : enoent("open", full);
 		// Either kind reads back as the other, as a file on disk does.
 		if (encoding === "utf8") return typeof contents === "string" ? contents : utf8.decode(contents);
 		return typeof contents === "string" ? encode.encode(contents) : contents.slice();
@@ -204,9 +209,7 @@ export class Volume implements ProjectFs {
 
 	async readdir(target: string): Promise<string[]>;
 	async readdir(target: string, options: { withFileTypes: true }): Promise<DirEntry[]>;
-	async readdir(
-		target: string, options?: { withFileTypes: true },
-	): Promise<string[] | DirEntry[]> {
+	async readdir(target: string, options?: { withFileTypes: true }): Promise<string[] | DirEntry[]> {
 		const full = resolve(target);
 		if (this.files.has(full)) throw enotdir("scandir", full);
 		if (!this.dirs.has(full)) throw enoent("scandir", full);

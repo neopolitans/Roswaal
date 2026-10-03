@@ -11,11 +11,11 @@
  * that service (`players:GetPlayerByUserId(`).
  */
 
+import { ENGINE, type EngineParam } from "../robloxEngine.js";
+import { SERVICE_METHODS } from "../robloxMembers.js";
 import { classOfGlobal, heldBy, membersInCode, methodsOf, type TableMember } from "./infer.js";
 import { significant, tokenize } from "./lexer.js";
 import { localsAt } from "./scope.js";
-import { ENGINE, type EngineParam } from "../robloxEngine.js";
-import { SERVICE_METHODS } from "../robloxMembers.js";
 
 export interface Parameter {
 	name: string;
@@ -43,11 +43,15 @@ function parametersOf(params: readonly EngineParam[]): Parameter[] {
 function datatypeFunction(owner: string, name: string): readonly EngineParam[] | undefined {
 	const datatype = ENGINE.datatypes[owner];
 	if (!datatype) return undefined;
-	return [...datatype.constructors, ...datatype.functions].find((f) => f.name === name && !f.deprecated)?.params;
+	return [...datatype.constructors, ...datatype.functions].find(
+		(f) => f.name === name && !f.deprecated,
+	)?.params;
 }
 
 export function signatureAt(
-	src: string, pos: number, roblox = true,
+	src: string,
+	pos: number,
+	roblox = true,
 	tableMembers: ReadonlyMap<string, TableMember[]> = new Map(),
 ): Signature | null {
 	const tokens = significant(tokenize(src.slice(0, pos))).filter((t) => t.kind !== "eof");
@@ -75,8 +79,10 @@ export function signatureAt(
 
 	if (separator.text === ".") {
 		// A function put on a table, by the code or the graph: `Occupancy.value(`.
-		const onTable = [...membersInCode(src, owner.text), ...(tableMembers.get(owner.text) ?? [])]
-			.find((m) => m.name === name.text && m.kind === "function");
+		const onTable = [
+			...membersInCode(src, owner.text),
+			...(tableMembers.get(owner.text) ?? []),
+		].find((m) => m.name === name.text && m.kind === "function");
 		if (onTable?.signature) {
 			const params = onTable.signature.params.map((p) => ({ name: p.name, type: p.type ?? "" }));
 			const returns = onTable.signature.returns;
@@ -100,12 +106,17 @@ export function signatureAt(
 
 	if (separator.text === ":" && roblox) {
 		const local = localsAt(src, owner.start).find((n) => n.name === owner.text);
-		const className = local ? heldBy(local.typeText, local.value).className : classOfGlobal(owner.text);
-		const method = className ? SERVICE_METHODS[className]?.find((m) => m.name === name.text) : undefined;
+		const className = local
+			? heldBy(local.typeText, local.value).className
+			: classOfGlobal(owner.text);
+		const method = className
+			? SERVICE_METHODS[className]?.find((m) => m.name === name.text)
+			: undefined;
 		if (!method) {
 			// Any class's method, found up the hierarchy: `existing:IsA(`.
 			const found = className ? methodsOf(className).find((m) => m.name === name.text) : undefined;
-			const declared = found && ENGINE.classes[found.from]?.methods.find((m) => m.name === found.name);
+			const declared =
+				found && ENGINE.classes[found.from]?.methods.find((m) => m.name === found.name);
 			if (!found || !declared) return null;
 			const params = parametersOf(declared.params);
 			return {

@@ -39,7 +39,8 @@ describe.skipIf(!root)("the place corpus", () => {
 				p += 16 + (compressed || length);
 				if (!compressed || !isZstd(raw)) continue;
 				const ours = zstdDecompress(raw, length);
-				if (!Buffer.from(ours).equals(zstdDecompressSync(raw))) problems.push(`${name} at byte ${p}`);
+				if (!Buffer.from(ours).equals(zstdDecompressSync(raw)))
+					problems.push(`${name} at byte ${p}`);
 			}
 		}
 		expect(problems).toEqual([]);
@@ -50,7 +51,8 @@ describe.skipIf(!root)("the place corpus", () => {
 		for (const name of files) {
 			try {
 				const doc = readRbx(new Uint8Array(readFileSync(join(root!, name))));
-				if ([...walk(doc.roots)].length !== doc.instances.length) problems.push(`${name}: the tree misses instances`);
+				if ([...walk(doc.roots)].length !== doc.instances.length)
+					problems.push(`${name}: the tree misses instances`);
 			} catch (err) {
 				problems.push(`${name}: ${(err as Error).message}`);
 			}
@@ -62,7 +64,13 @@ describe.skipIf(!root)("the place corpus", () => {
 		for (const name of files) {
 			const doc = readRbx(new Uint8Array(readFileSync(join(root!, name))));
 			const survey = surveyPlace(doc);
-			const plan = planImport(survey, { scope: "all", dedupe: true, outDir: "src", placeFile: name, name: "Corpus" });
+			const plan = planImport(survey, {
+				scope: "all",
+				dedupe: true,
+				outDir: "src",
+				placeFile: name,
+				name: "Corpus",
+			});
 			const linked = plan.links.scripts.reduce((n, l) => n + l.instances.length, 0);
 			expect(linked, name).toBe(doc.instances.filter(isScript).length);
 		}

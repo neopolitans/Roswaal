@@ -26,17 +26,16 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-
-import { api } from "./api.js";
-import { DEMO_PROJECTS, type DemoProject } from "../core/demoProjects.js";
-import { cx } from "./cx.js";
-import { Icon } from "./icons.jsx";
-import { MarkedLogo } from "./previewBuild.jsx";
-import { IS_STATIC_HOST, pageHref, type Page, guardLeave, openPage, pageTarget } from "./pages.js";
-import { projectName, projectTail, recentProjects } from "./recents.js";
-import type { RememberedFolder } from "./host.js";
-import { RUNTIME_LABEL } from "../core/nodes/runtimes.js";
 import { VERSION } from "../cli/version.js";
+import { DEMO_PROJECTS, type DemoProject } from "../core/demoProjects.js";
+import { RUNTIME_LABEL } from "../core/nodes/runtimes.js";
+import { api } from "./api.js";
+import { cx } from "./cx.js";
+import type { RememberedFolder } from "./host.js";
+import { Icon } from "./icons.jsx";
+import { guardLeave, IS_STATIC_HOST, openPage, type Page, pageHref, pageTarget } from "./pages.js";
+import { MarkedLogo } from "./previewBuild.jsx";
+import { projectName, projectTail, recentProjects } from "./recents.js";
 
 /** What each surface calls itself, for the chip and for the buttons out. */
 const SURFACE_NAME: Record<Page, string> = {
@@ -152,7 +151,9 @@ function Carousel({ label, children }: { label: string; children: React.ReactNod
 					</span>
 				)}
 			</div>
-			<div className="intro-rail" ref={rail}>{children}</div>
+			<div className="intro-rail" ref={rail}>
+				{children}
+			</div>
 		</section>
 	);
 }
@@ -169,13 +170,13 @@ function Carousel({ label, children }: { label: string; children: React.ReactNod
 function emptyReason(surface: Page): string {
 	if (surface === "editor") {
 		return IS_STATIC_HOST
-			? "Nothing opened yet. Open a folder from your machine, or carry on in the demo — "
-				+ "this editor keeps its project in your browser."
+			? "Nothing opened yet. Open a folder from your machine, or carry on in the demo — " +
+					"this editor keeps its project in your browser."
 			: "Nothing opened yet. Open a folder to get started.";
 	}
 	return IS_STATIC_HOST
-		? "This is the published documentation, so there are no projects here. "
-			+ "The editor is where one is opened."
+		? "This is the published documentation, so there are no projects here. " +
+				"The editor is where one is opened."
 		: "No projects yet. The editor is where one is opened.";
 }
 
@@ -185,9 +186,8 @@ function TargetChip({ target }: { target: DemoProject["target"] }) {
 }
 
 export function IntroPanel(props: IntroPanelProps) {
-	const {
-		surface, current, onOpen, onForget, folders, onOpenFolder, onHome, actions, onClose,
-	} = props;
+	const { surface, current, onOpen, onForget, folders, onOpenFolder, onHome, actions, onClose } =
+		props;
 
 	const [recent] = useState<string[]>(() => recentProjects());
 	// Demo folder name -> its root here. Empty until the host answers.
@@ -202,7 +202,8 @@ export function IntroPanel(props: IntroPanelProps) {
 
 	useEffect(() => {
 		let live = true;
-		void api.demos()
+		void api
+			.demos()
 			.then((answer) => {
 				if (live) setDemoRoots(answer.demos ?? {});
 			})
@@ -241,7 +242,8 @@ export function IntroPanel(props: IntroPanelProps) {
 			});
 			return;
 		}
-		void api.openProject(root)
+		void api
+			.openProject(root)
 			.then(() => {
 				void openPage("editor");
 				onClose();
@@ -281,7 +283,8 @@ export function IntroPanel(props: IntroPanelProps) {
 	const take = (demo: DemoProject) => {
 		setBusy(demo.dir);
 		setTrouble(null);
-		void api.browseForProject()
+		void api
+			.browseForProject()
 			.then(({ path: into }) => {
 				if (into === null) {
 					setBusy(null);
@@ -325,16 +328,15 @@ export function IntroPanel(props: IntroPanelProps) {
 					{(listed.length > 0 || offered.length > 0) && (
 						<Carousel label="Recent">
 							{offered.map((folder) => (
-								<div
-									key={folder.id}
-									className={cx("intro-card", folder.id === gone && "gone")}
-								>
+								<div key={folder.id} className={cx("intro-card", folder.id === gone && "gone")}>
 									<button
 										className="intro-card-open-it"
 										onClick={() => takeFolder(folder)}
-										title={folder.granted
-											? `Open ${folder.name} again`
-											: `Open ${folder.name} again. Your browser will ask first.`}
+										title={
+											folder.granted
+												? `Open ${folder.name} again`
+												: `Open ${folder.name} again. Your browser will ask first.`
+										}
 									>
 										<span className="intro-card-name">{folder.name}</span>
 										<span className="intro-card-what">
@@ -357,11 +359,7 @@ export function IntroPanel(props: IntroPanelProps) {
 							{listed.map((root) => (
 								<div
 									key={root}
-									className={cx(
-										"intro-card",
-										root === current && "on",
-										root === gone && "gone",
-									)}
+									className={cx("intro-card", root === current && "on", root === gone && "gone")}
 								>
 									<button className="intro-card-open-it" onClick={() => open(root)} title={root}>
 										<span className="intro-card-name">{projectName(root)}</span>
@@ -426,10 +424,19 @@ export function IntroPanel(props: IntroPanelProps) {
 					{onHome && (
 						<button
 							className="tb with-icon"
-							onClick={() => { onHome(); onClose(); }}
-							title={IS_STATIC_HOST ? "Back to the front page" : "Close this project and go back to the start"}
+							onClick={() => {
+								onHome();
+								onClose();
+							}}
+							title={
+								IS_STATIC_HOST
+									? "Back to the front page"
+									: "Close this project and go back to the start"
+							}
 						>
-							<span className="turn-left"><Icon name="chevron" size={15} /></span>
+							<span className="turn-left">
+								<Icon name="chevron" size={15} />
+							</span>
 							Home
 						</button>
 					)}

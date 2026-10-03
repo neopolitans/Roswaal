@@ -75,7 +75,7 @@ export const RELEASES_0_0: Release[] = [
 		],
 		fixed: [
 			"An *On this page* link sent you back to Getting Started. The hash names the page, so a heading anchor was being read as a page slug that does not exist.",
-			"The *Coming from Blueprints* page still called cast pins \"planned, not built\" a release after they shipped.",
+			'The *Coming from Blueprints* page still called cast pins "planned, not built" a release after they shipped.',
 		],
 	},
 	{
@@ -104,7 +104,7 @@ export const RELEASES_0_0: Release[] = [
 			"**Cast** and **Cast Array** — Luau's `::`. `Get Descendants` is `{ Instance }` however much you know about it, and Cast Array is how you say what is really in there.",
 		],
 		changed: [
-			"The *Coming from Blueprints* page said Cast To maps to \"just index it\", which was wrong. It is two halves of one node: **Is A** asks at runtime and gives you a boolean to branch on, **Cast** asserts to the typechecker and emits nothing. Ask, then assert.",
+			'The *Coming from Blueprints* page said Cast To maps to "just index it", which was wrong. It is two halves of one node: **Is A** asks at runtime and gives you a boolean to branch on, **Cast** asserts to the typechecker and emits nothing. Ask, then assert.',
 		],
 	},
 	{
@@ -118,7 +118,7 @@ export const RELEASES_0_0: Release[] = [
 		],
 		fixed: [
 			"A capsule getter — Get Variable, Get Function — showed no selection highlight. Its own styling was quietly overriding the ring.",
-			"Every output pin claimed \"must be wired\". Only an input can be required.",
+			'Every output pin claimed "must be wired". Only an input can be required.',
 		],
 	},
 	{

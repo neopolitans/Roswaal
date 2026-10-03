@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { COMPACT_QUERY } from "../src/app/panels.js";
-import { DEFAULTS, readPreferences, wheelAction, WHEEL_CHOICES } from "../src/app/preferences.js";
+import { DEFAULTS, readPreferences, WHEEL_CHOICES, wheelAction } from "../src/app/preferences.js";
 
 describe("scrolling the graph", () => {
 	it("pans on Apple's platforms and zooms elsewhere, when left automatic", () => {

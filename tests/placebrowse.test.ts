@@ -35,43 +35,54 @@ function attributes(list: [string, number, (view: DataView, at: number) => numbe
 	return bytes.slice(0, p);
 }
 
-const f32s = (...values: number[]) => (view: DataView, at: number) => {
-	values.forEach((v, i) => view.setFloat32(at + i * 4, v, true));
-	return at + values.length * 4;
-};
+const f32s =
+	(...values: number[]) =>
+	(view: DataView, at: number) => {
+		values.forEach((v, i) => view.setFloat32(at + i * 4, v, true));
+		return at + values.length * 4;
+	};
 
-const place = () => buildPlace([
-	service("TestService"),
-	service("ReplicatedStorage", [
-		folder("item10"),
-		folder("Item2"),
-		script("ModuleScript", "Util", "return {}"),
-	]),
-	service("Workspace", [
-		{
-			className: "Part",
-			name: "Signpost",
-			props: {
-				Material: { type: 18, value: 256 },
-				Color3uint8: { type: 12, value: [1, 0.5, 0] },
-				Tags: { type: 1, value: new TextEncoder().encode("Night\0Road") },
-				AttributesSerialize: {
-					type: 1,
-					value: attributes([
-						["Height", 0x06, (v, at) => (v.setFloat64(at, 12.5, true), at + 8)],
-						["Lit", 0x03, (v, at) => (v.setUint8(at, 1), at + 1)],
-					]),
+const place = () =>
+	buildPlace([
+		service("TestService"),
+		service("ReplicatedStorage", [
+			folder("item10"),
+			folder("Item2"),
+			script("ModuleScript", "Util", "return {}"),
+		]),
+		service("Workspace", [
+			{
+				className: "Part",
+				name: "Signpost",
+				props: {
+					Material: { type: 18, value: 256 },
+					Color3uint8: { type: 12, value: [1, 0.5, 0] },
+					Tags: { type: 1, value: new TextEncoder().encode("Night\0Road") },
+					AttributesSerialize: {
+						type: 1,
+						value: attributes([
+							["Height", 0x06, (v, at) => (v.setFloat64(at, 12.5, true), at + 8)],
+							["Lit", 0x03, (v, at) => (v.setUint8(at, 1), at + 1)],
+						]),
+					},
 				},
 			},
-		},
-	]),
-]);
+		]),
+	]);
 
 describe("the outline of a place", () => {
 	it("lists services in the Explorer's order, then children by name", () => {
 		const { outline, order } = outlinePlace(readRbx(place()));
 		const names = outline.nodes.map(([, name]) => name);
-		expect(names).toEqual(["Workspace", "Signpost", "ReplicatedStorage", "Item2", "item10", "Util", "TestService"]);
+		expect(names).toEqual([
+			"Workspace",
+			"Signpost",
+			"ReplicatedStorage",
+			"Item2",
+			"item10",
+			"Util",
+			"TestService",
+		]);
 		// Parents are indices into the same list, and the order matches it.
 		const util = names.indexOf("Util");
 		expect(names[outline.nodes[util][2]]).toBe("ReplicatedStorage");
@@ -81,7 +92,9 @@ describe("the outline of a place", () => {
 
 	it("tucks away empty services the Explorer does not list", () => {
 		const { outline } = outlinePlace(readRbx(place()));
-		const flags = Object.fromEntries(outline.nodes.filter(([, , parent]) => parent === -1).map(([, name, , f]) => [name, f]));
+		const flags = Object.fromEntries(
+			outline.nodes.filter(([, , parent]) => parent === -1).map(([, name, , f]) => [name, f]),
+		);
 		expect(flags).toEqual({ Workspace: 0, ReplicatedStorage: 0, TestService: TUCKED });
 	});
 });
@@ -102,8 +115,13 @@ describe("an instance's properties", () => {
 
 	it("reads tags and attributes, not the bytes that hold them", () => {
 		const props = signpost().properties;
-		expect(props.filter((p) => p.category === "Tags").map((p) => p.name)).toEqual(["Night", "Road"]);
-		expect(props.filter((p) => p.category === "Attributes").map((p) => `${p.name}=${p.value}`)).toEqual(["Height=12.5", "Lit=true"]);
+		expect(props.filter((p) => p.category === "Tags").map((p) => p.name)).toEqual([
+			"Night",
+			"Road",
+		]);
+		expect(
+			props.filter((p) => p.category === "Attributes").map((p) => `${p.name}=${p.value}`),
+		).toEqual(["Height=12.5", "Lit=true"]);
 		expect(props.some((p) => p.name === "AttributesSerialize" || p.name === "Tags")).toBe(false);
 	});
 
@@ -116,30 +134,45 @@ describe("an instance's properties", () => {
 
 describe("attributes", () => {
 	it("reads the common types", () => {
-		const read = readAttributes(attributes([
-			["Name", 0x02, (v, at) => {
-				v.setUint32(at, 2, true);
-				v.setUint8(at + 4, 104);
-				v.setUint8(at + 5, 105);
-				return at + 6;
-			}],
-			["Count", 0x04, (v, at) => (v.setInt32(at, -3, true), at + 4)],
-			["Tint", 0x0f, f32s(0, 1, 0)],
-			["Offset", 0x11, f32s(1, 2.5, -3)],
-		]));
+		const read = readAttributes(
+			attributes([
+				[
+					"Name",
+					0x02,
+					(v, at) => {
+						v.setUint32(at, 2, true);
+						v.setUint8(at + 4, 104);
+						v.setUint8(at + 5, 105);
+						return at + 6;
+					},
+				],
+				["Count", 0x04, (v, at) => (v.setInt32(at, -3, true), at + 4)],
+				["Tint", 0x0f, f32s(0, 1, 0)],
+				["Offset", 0x11, f32s(1, 2.5, -3)],
+			]),
+		);
 		expect(read.map((p) => `${p.name}:${p.type}=${p.value}`)).toEqual([
-			"Name:string=hi", "Count:number=-3", "Tint:Color3=0, 255, 0", "Offset:Vector3=1, 2.5, -3",
+			"Name:string=hi",
+			"Count:number=-3",
+			"Tint:Color3=0, 255, 0",
+			"Offset:Vector3=1, 2.5, -3",
 		]);
 		expect(read[2].color).toBe("#00ff00");
 	});
 
 	it("stops at a type it does not know rather than misreading the rest", () => {
-		const read = readAttributes(attributes([
-			["Known", 0x03, (v, at) => (v.setUint8(at, 0), at + 1)],
-			["Odd", 0x7f, (_v, at) => at + 3],
-			["After", 0x03, (v, at) => (v.setUint8(at, 1), at + 1)],
-		]));
-		expect(read.map((p) => `${p.name}=${p.value}`)).toEqual(["Known=false", "Odd=not read", "…=1 more not read"]);
+		const read = readAttributes(
+			attributes([
+				["Known", 0x03, (v, at) => (v.setUint8(at, 0), at + 1)],
+				["Odd", 0x7f, (_v, at) => at + 3],
+				["After", 0x03, (v, at) => (v.setUint8(at, 1), at + 1)],
+			]),
+		);
+		expect(read.map((p) => `${p.name}=${p.value}`)).toEqual([
+			"Known=false",
+			"Odd=not read",
+			"…=1 more not read",
+		]);
 	});
 });
 
@@ -151,13 +184,20 @@ describe("the place routes", () => {
 
 	async function openImported() {
 		root = await mkdtemp(path.join(os.tmpdir(), "roswaal-browse-"));
-		const bytes = buildPlace([
-			service("ServerScriptService", [script("Script", "Main", "print('main')")]),
-			service("Workspace", [folder("Door", [script("Script", "Open", "open()")], "Model")]),
-		], "lz4");
+		const bytes = buildPlace(
+			[
+				service("ServerScriptService", [script("Script", "Main", "print('main')")]),
+				service("Workspace", [folder("Door", [script("Script", "Open", "open()")], "Model")]),
+			],
+			"lz4",
+		);
 		await writeFile(path.join(root, "Game.rbxl"), bytes);
 		const plan = planImport(surveyPlace(readRbx(bytes)), {
-			scope: "all", dedupe: true, outDir: "src", placeFile: "Game.rbxl", name: "Game",
+			scope: "all",
+			dedupe: true,
+			outDir: "src",
+			placeFile: "Game.rbxl",
+			name: "Game",
 		});
 		await writePlaceImport(root, plan.files, "Game.rbxl");
 		const session = new ApiSession({});
@@ -165,7 +205,12 @@ describe("the place routes", () => {
 		return session;
 	}
 
-	type Tree = { file: string; stamp: string; outline: { nodes: [number, string, number, number][] }; scripts: Record<number, string> };
+	type Tree = {
+		file: string;
+		stamp: string;
+		outline: { nodes: [number, string, number, number][] };
+		scripts: Record<number, string>;
+	};
 
 	it("answer with the outline and which file writes each script", async () => {
 		const session = await openImported();
@@ -186,8 +231,9 @@ describe("the place routes", () => {
 		const session = await openImported();
 		const tree = (await session.handle("GET", "/place")) as Tree;
 		await writeFile(path.join(root, "Game.rbxl"), buildPlace([service("Workspace")], "none"));
-		await expect(session.handle("GET", "/place/instance", { query: { stamp: tree.stamp, index: "0" } }))
-			.rejects.toMatchObject({ status: 409 });
+		await expect(
+			session.handle("GET", "/place/instance", { query: { stamp: tree.stamp, index: "0" } }),
+		).rejects.toMatchObject({ status: 409 });
 		const again = (await session.handle("GET", "/place")) as Tree;
 		expect(again.stamp).not.toBe(tree.stamp);
 		expect(again.outline.nodes.map(([, n]) => n)).toEqual(["Workspace"]);

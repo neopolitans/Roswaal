@@ -47,7 +47,9 @@ describe("hoverAt", () => {
 
 	it("describes a datatype and its constants", () => {
 		expect(over("zero")).toMatchObject({ code: "Vector3.zero: Vector3", role: "constant" });
-		expect(over("Vector3")!.link?.href).toBe("https://create.roblox.com/docs/reference/engine/datatypes/Vector3");
+		expect(over("Vector3")!.link?.href).toBe(
+			"https://create.roblox.com/docs/reference/engine/datatypes/Vector3",
+		);
 	});
 
 	it("says nothing Roblox's in a Lune graph", () => {
@@ -74,18 +76,25 @@ describe("the cases from the generated Remotes file", () => {
 
 	it("types a local function by its signature", () => {
 		expect(over("event", 1, REMOTES)).toMatchObject({
-			code: "event: (name: string) -> (RemoteEvent)", role: "local function",
+			code: "event: (name: string) -> (RemoteEvent)",
+			role: "local function",
 		});
 	});
 
 	it("knows FindFirstChild may find nothing", () => {
-		expect(over("existing", 1, REMOTES)).toMatchObject({ code: "existing: Instance?", role: "local" });
+		expect(over("existing", 1, REMOTES)).toMatchObject({
+			code: "existing: Instance?",
+			role: "local",
+		});
 	});
 
 	/** Roblox documents IsA on Object, the class above Instance. */
 	it("describes a method, found on the class that declares it", () => {
 		const hover = over("IsA", 0, REMOTES)!;
-		expect(hover).toMatchObject({ code: "Object:IsA(className: string) → boolean", role: "method" });
+		expect(hover).toMatchObject({
+			code: "Object:IsA(className: string) → boolean",
+			role: "method",
+		});
 		expect(hover.link?.label).toBe("Object - Roblox Creator Docs");
 	});
 });
@@ -94,7 +103,10 @@ describe("where a name stands, read off the tree", () => {
 	it("reads only a bare name before a dot as a local", () => {
 		const src = 'local b = Instance.new("Part")\nprint(x.b.Name, b.Name)';
 		expect(hoverAt(src, src.indexOf("Name") + 1)).toBeNull();
-		expect(hoverAt(src, src.lastIndexOf("Name") + 1)).toMatchObject({ code: "Part.Name: string", role: "property" });
+		expect(hoverAt(src, src.lastIndexOf("Name") + 1)).toMatchObject({
+			code: "Part.Name: string",
+			role: "property",
+		});
 	});
 
 	it("does not take a string that only follows a class call for its argument", () => {
@@ -114,7 +126,10 @@ describe("events and enums, from the engine catalogue", () => {
 
 	it("describes an enum and one of its items", () => {
 		const src = "local m = Enum.Material.Plastic";
-		expect(hoverAt(src, src.indexOf("Material") + 1)).toMatchObject({ code: "Enum.Material", role: "enum" });
+		expect(hoverAt(src, src.indexOf("Material") + 1)).toMatchObject({
+			code: "Enum.Material",
+			role: "enum",
+		});
 		const item = hoverAt(src, src.indexOf("Plastic") + 1)!;
 		expect(item).toMatchObject({ code: "Enum.Material.Plastic = 256", role: "enum item" });
 		expect(item.link?.href).toBe("https://create.roblox.com/docs/reference/engine/enums/Material");
@@ -122,17 +137,27 @@ describe("events and enums, from the engine catalogue", () => {
 });
 
 describe("functions put on a table", () => {
-	const MODULE = "local Occupancy = {}\nfunction Occupancy.value(tank: Model): Instance\n\treturn tank\nend\nprint(Occupancy.value(workspace))";
+	const MODULE =
+		"local Occupancy = {}\nfunction Occupancy.value(tank: Model): Instance\n\treturn tank\nend\nprint(Occupancy.value(workspace))";
 
 	it("describes one declared in the file", () => {
 		const at = MODULE.lastIndexOf("value") + 1;
-		expect(hoverAt(MODULE, at)).toMatchObject({ code: "Occupancy.value: (tank: Model) -> (Instance)", role: "function" });
+		expect(hoverAt(MODULE, at)).toMatchObject({
+			code: "Occupancy.value: (tank: Model) -> (Instance)",
+			role: "function",
+		});
 	});
 
 	it("describes one the graph declares on a table variable", () => {
-		const members = new Map([["Occupancy", [{ name: "show", kind: "function" as const, detail: "(character: Model) -> ()" }]]]);
+		const members = new Map([
+			[
+				"Occupancy",
+				[{ name: "show", kind: "function" as const, detail: "(character: Model) -> ()" }],
+			],
+		]);
 		expect(hoverAt("Occupancy.show(x)", 12, true, members)).toMatchObject({
-			code: "Occupancy.show: (character: Model) -> ()", role: "function",
+			code: "Occupancy.show: (character: Model) -> ()",
+			role: "function",
 		});
 	});
 });

@@ -11,13 +11,15 @@ import { errorMessage } from "./errors.js";
 
 const port = Number(process.env.ROSWAAL_PORT ?? DEFAULT_PORT);
 
-createDaemon().start({
-	port,
-	root: process.env.ROSWAAL_ROOT,
-	onListening: (bound) => {
-		console.log(`Roswaal daemon listening on http://127.0.0.1:${bound}`);
-	},
-}).catch((err: unknown) => {
-	console.error(`Roswaal daemon failed to start: ${errorMessage(err)}`);
-	process.exit(1);
-});
+createDaemon()
+	.start({
+		port,
+		root: process.env.ROSWAAL_ROOT,
+		onListening: (bound) => {
+			console.log(`Roswaal daemon listening on http://127.0.0.1:${bound}`);
+		},
+	})
+	.catch((err: unknown) => {
+		console.error(`Roswaal daemon failed to start: ${errorMessage(err)}`);
+		process.exit(1);
+	});

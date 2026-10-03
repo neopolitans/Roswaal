@@ -18,7 +18,12 @@ import { SCHEMA_VERSION, type Target } from "./schema.js";
 
 /** Instances Rojo will create for us, beyond the services it already knows. */
 export const CONTAINER_CLASSES = [
-	"Folder", "Model", "Configuration", "ScreenGui", "Part", "Tool",
+	"Folder",
+	"Model",
+	"Configuration",
+	"ScreenGui",
+	"Part",
+	"Tool",
 ] as const;
 
 /**
@@ -138,7 +143,9 @@ export function emptyMap(name: string, id: string, makeId: () => string): NodeMa
 				{
 					id: makeId(),
 					name: "ServerScriptService",
-					children: [{ id: makeId(), name: "Source", className: "Folder", path: "src", children: [] }],
+					children: [
+						{ id: makeId(), name: "Source", className: "Folder", path: "src", children: [] },
+					],
 				},
 			],
 		},
@@ -326,7 +333,7 @@ export function compileNodeMap(map: NodeMap): MapCompileResult {
 	if (map.root.className !== "DataModel") {
 		diagnostics.push({
 			severity: "warning",
-			message: 'The root of a node map is normally a DataModel.',
+			message: "The root of a node map is normally a DataModel.",
 			node: map.root.id,
 		});
 	}
@@ -355,8 +362,12 @@ function validateNode(node: MapNode, diagnostics: MapDiagnostic[], isRoot: boole
 		diagnostics.push({ severity: "error", message: "An instance has no name.", node: node.id });
 	}
 	// Properties alone do something: they are how Lighting is set up.
-	const saysSomething = node.path || node.className || node.statedClass ||
-		(node.properties && Object.keys(node.properties).length > 0) || node.rojo;
+	const saysSomething =
+		node.path ||
+		node.className ||
+		node.statedClass ||
+		(node.properties && Object.keys(node.properties).length > 0) ||
+		node.rojo;
 	if (!isRoot && node.children.length === 0 && !saysSomething) {
 		diagnostics.push({
 			severity: "warning",
@@ -457,9 +468,7 @@ export function findMapNode(root: MapNode, id: string): MapNode | null {
 }
 
 /** Returns a new tree with `id` replaced by `fn`'s result. */
-export function mapNodeUpdate(
-	root: MapNode, id: string, fn: (node: MapNode) => MapNode,
-): MapNode {
+export function mapNodeUpdate(root: MapNode, id: string, fn: (node: MapNode) => MapNode): MapNode {
 	if (root.id === id) return fn(root);
 	return { ...root, children: root.children.map((c) => mapNodeUpdate(c, id, fn)) };
 }
@@ -487,23 +496,25 @@ export function mapNodeParent(root: MapNode, id: string): MapNode | null {
  * were, from 0.67.0, which turned every saved Lune map back into a DataModel.
  */
 export function serialiseMap(map: NodeMap): string {
-	return JSON.stringify(
-		{
-			schemaVersion: map.schemaVersion,
-			kind: map.kind,
-			id: map.id,
-			name: map.name,
-			...(map.target ? { target: map.target } : {}),
-			output: map.output,
-			...(map.globIgnorePaths && map.globIgnorePaths.length
-			? { globIgnorePaths: map.globIgnorePaths }
-			: {}),
-			...(map.rojo && Object.keys(map.rojo).length ? { rojo: map.rojo } : {}),
-		root: cleanNode(map.root),
-		},
-		null,
-		2,
-	) + "\n";
+	return (
+		JSON.stringify(
+			{
+				schemaVersion: map.schemaVersion,
+				kind: map.kind,
+				id: map.id,
+				name: map.name,
+				...(map.target ? { target: map.target } : {}),
+				output: map.output,
+				...(map.globIgnorePaths && map.globIgnorePaths.length
+					? { globIgnorePaths: map.globIgnorePaths }
+					: {}),
+				...(map.rojo && Object.keys(map.rojo).length ? { rojo: map.rojo } : {}),
+				root: cleanNode(map.root),
+			},
+			null,
+			2,
+		) + "\n"
+	);
 }
 
 function cleanNode(node: MapNode): Record<string, unknown> {
@@ -548,7 +559,11 @@ export interface InstanceLocation {
 export function locateInDataModel(map: NodeMap, diskPath: string): InstanceLocation | null {
 	const found = locateSegments(map, diskPath);
 	if (!found) return null;
-	return { root: found.segments[0], path: found.segments.slice(1).join("."), isModule: found.isModule };
+	return {
+		root: found.segments[0],
+		path: found.segments.slice(1).join("."),
+		isModule: found.isModule,
+	};
 }
 
 /**
@@ -556,7 +571,10 @@ export function locateInDataModel(map: NodeMap, diskPath: string): InstanceLocat
  * name may hold a dot -- a package folder carries its version -- and a dotted
  * path cannot say where one name ends.
  */
-export function locateSegments(map: NodeMap, diskPath: string): { segments: string[]; isModule: boolean } | null {
+export function locateSegments(
+	map: NodeMap,
+	diskPath: string,
+): { segments: string[]; isModule: boolean } | null {
 	// The deepest mapping wins, so a nested one beats the one containing it.
 	const found = locateUnder(mappedPaths(map.root), diskPath);
 	if (!found) return null;

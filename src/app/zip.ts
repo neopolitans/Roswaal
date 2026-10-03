@@ -39,8 +39,10 @@ function dosStamp(when: Date): { time: number; date: number } {
 	return {
 		time: (when.getHours() << 11) | (when.getMinutes() << 5) | (when.getSeconds() >> 1),
 		// Years count from 1980, and a file older than that is not our problem.
-		date: ((Math.max(when.getFullYear(), 1980) - 1980) << 9)
-			| ((when.getMonth() + 1) << 5) | when.getDate(),
+		date:
+			((Math.max(when.getFullYear(), 1980) - 1980) << 9) |
+			((when.getMonth() + 1) << 5) |
+			when.getDate(),
 	};
 }
 
@@ -82,16 +84,16 @@ export function zip(files: Record<string, string | Uint8Array>, when = new Date(
 		const header = new Uint8Array(LOCAL_HEADER + name.length);
 		const view = new DataView(header.buffer);
 		view.setUint32(0, 0x04034b50, true);
-		view.setUint16(4, 20, true);          // version needed
+		view.setUint16(4, 20, true); // version needed
 		view.setUint16(6, UTF8_NAME, true);
-		view.setUint16(8, 0, true);           // stored
+		view.setUint16(8, 0, true); // stored
 		view.setUint16(10, time, true);
 		view.setUint16(12, date, true);
 		view.setUint32(14, crc, true);
 		view.setUint32(18, body.length, true); // compressed == uncompressed
 		view.setUint32(22, body.length, true);
 		view.setUint16(26, name.length, true);
-		view.setUint16(28, 0, true);          // no extra field
+		view.setUint16(28, 0, true); // no extra field
 		header.set(name, LOCAL_HEADER);
 
 		entries.push({ name, body, crc, offset });
@@ -105,21 +107,21 @@ export function zip(files: Record<string, string | Uint8Array>, when = new Date(
 		const record = new Uint8Array(CENTRAL_HEADER + entry.name.length);
 		const view = new DataView(record.buffer);
 		view.setUint32(0, 0x02014b50, true);
-		view.setUint16(4, 20, true);           // version made by
-		view.setUint16(6, 20, true);           // version needed
+		view.setUint16(4, 20, true); // version made by
+		view.setUint16(6, 20, true); // version needed
 		view.setUint16(8, UTF8_NAME, true);
-		view.setUint16(10, 0, true);           // stored
+		view.setUint16(10, 0, true); // stored
 		view.setUint16(12, time, true);
 		view.setUint16(14, date, true);
 		view.setUint32(16, entry.crc, true);
 		view.setUint32(20, entry.body.length, true);
 		view.setUint32(24, entry.body.length, true);
 		view.setUint16(28, entry.name.length, true);
-		view.setUint16(30, 0, true);           // extra
-		view.setUint16(32, 0, true);           // comment
-		view.setUint16(34, 0, true);           // disk
-		view.setUint16(36, 0, true);           // internal attributes
-		view.setUint32(38, 0, true);           // external attributes
+		view.setUint16(30, 0, true); // extra
+		view.setUint16(32, 0, true); // comment
+		view.setUint16(34, 0, true); // disk
+		view.setUint16(36, 0, true); // internal attributes
+		view.setUint32(38, 0, true); // external attributes
 		view.setUint32(42, entry.offset, true);
 		record.set(entry.name, CENTRAL_HEADER);
 
@@ -130,13 +132,13 @@ export function zip(files: Record<string, string | Uint8Array>, when = new Date(
 	const end = new Uint8Array(END_RECORD);
 	const endView = new DataView(end.buffer);
 	endView.setUint32(0, 0x06054b50, true);
-	endView.setUint16(4, 0, true);                       // this disk
-	endView.setUint16(6, 0, true);                       // disk the directory starts on
+	endView.setUint16(4, 0, true); // this disk
+	endView.setUint16(6, 0, true); // disk the directory starts on
 	endView.setUint16(8, entries.length, true);
 	endView.setUint16(10, entries.length, true);
 	endView.setUint32(12, offset - directoryStart, true);
 	endView.setUint32(16, directoryStart, true);
-	endView.setUint16(20, 0, true);                      // no comment
+	endView.setUint16(20, 0, true); // no comment
 	parts.push(end);
 
 	return new Blob(parts as BlobPart[], { type: "application/zip" });

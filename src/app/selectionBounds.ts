@@ -6,11 +6,17 @@ import type { Registry } from "../core/nodes/index.js";
 
 /** The box around `ids`, or null when none of them is in the script. */
 export function boundsOf(
-	script: { nodes: { id: string; x: number; y: number }[]; comments: { id: string; x: number; y: number; w: number; h: number }[] },
+	script: {
+		nodes: { id: string; x: number; y: number }[];
+		comments: { id: string; x: number; y: number; w: number; h: number }[];
+	},
 	ids: ReadonlySet<string>,
 	registry: Registry,
 ) {
-	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+	let minX = Infinity,
+		minY = Infinity,
+		maxX = -Infinity,
+		maxY = -Infinity;
 	let found = false;
 
 	for (const node of script.nodes) {

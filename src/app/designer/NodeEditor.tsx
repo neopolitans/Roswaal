@@ -23,12 +23,18 @@
  */
 
 import {
-	useCallback, useEffect, useMemo, useRef, useState,
-	type DragEvent, type PointerEvent as ReactPointerEvent,
+	type DragEvent,
+	type PointerEvent as ReactPointerEvent,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
 } from "react";
 import { createPortal } from "react-dom";
 
 import { compileLogic, defaultLogic, type LogicGraph } from "../../core/compiler/logic.js";
+import { errorMessage } from "../../core/errorMessage.js";
 import { createRegistry, type Registry } from "../../core/nodes/index.js";
 import { LOGIC_NODES } from "../../core/nodes/logic.js";
 import type { GraphNode, Literal, NodeDef, PinDef, Target } from "../../core/schema.js";
@@ -38,21 +44,37 @@ import { FloatingTools, ToolGroup } from "../FloatingTools.jsx";
 import { headerHeight, isCompact, nodeBounds, nodeWidth, pinPosition } from "../geometry.js";
 import { Icon } from "../icons.jsx";
 import { NodeView } from "../NodeView.jsx";
+import { Popout, usePhone } from "../Popout.jsx";
 import { pinColor } from "../palette.js";
 import { trackPointer } from "../pointer.js";
 import type { Preferences } from "../preferences.js";
 import { TypePicker } from "../TypePicker.jsx";
+import { useCompact } from "../Workspace.jsx";
 import {
-	addPin, defOf, draftOf, movePin, newDraft, pillShape, problemsOf, purityOf, removePin, renamePin,
-	retypePin, setPinDefault, setResult, shapeOfDraft, targetsOf, targetsText,
-	type Draft, type DraftPin, type PackNode, type Side,
+	addPin,
+	type Draft,
+	type DraftPin,
+	defOf,
+	draftOf,
+	movePin,
+	newDraft,
+	type PackNode,
+	pillShape,
+	problemsOf,
+	purityOf,
+	removePin,
+	renamePin,
+	retypePin,
+	type Side,
+	setPinDefault,
+	setResult,
+	shapeOfDraft,
+	targetsOf,
+	targetsText,
 } from "./draft.js";
 import { LogicCanvas } from "./LogicCanvas.jsx";
-import { useCompact } from "../Workspace.jsx";
-import { Popout, usePhone } from "../Popout.jsx";
 import { LuauField } from "./LuauField.jsx";
 import type { Notify } from "./PackBrowser.jsx";
-import { errorMessage } from "../../core/errorMessage.js";
 
 /** How much larger than on a graph the node is drawn. */
 const SCALE = 1.6;
@@ -67,8 +89,17 @@ const DETAILS_KEY = "roswaal.designer.details";
 
 /** The palette: execution, then the types a custom node reaches for most. */
 const PALETTE = [
-	"exec", "any", "boolean", "number", "string", "table", "function",
-	"Instance", "Vector3", "CFrame", "Color3",
+	"exec",
+	"any",
+	"boolean",
+	"number",
+	"string",
+	"table",
+	"function",
+	"Instance",
+	"Vector3",
+	"CFrame",
+	"Color3",
 ];
 
 const NOOP = () => {};
@@ -118,10 +149,24 @@ export interface NodeEditorProps {
 }
 
 export function NodeEditor({
-	packPath, original, requiredDefs, missingRequires, target, namespace, otherIds, onSaved, onDeleted, onDirty, notify,
-	toolbarSlot = null, prefs, onPrefs,
+	packPath,
+	original,
+	requiredDefs,
+	missingRequires,
+	target,
+	namespace,
+	otherIds,
+	onSaved,
+	onDeleted,
+	onDirty,
+	notify,
+	toolbarSlot = null,
+	prefs,
+	onPrefs,
 }: NodeEditorProps) {
-	const [draft, setDraft] = useState<Draft>(() => (original ? draftOf(original) : newDraft(namespace, otherIds)));
+	const [draft, setDraft] = useState<Draft>(() =>
+		original ? draftOf(original) : newDraft(namespace, otherIds),
+	);
 	const [pin, setPin] = useState<{ side: Side; index: number } | null>(null);
 	const [output, setOutput] = useState<string | null>(null);
 	const [confirmDelete, setConfirmDelete] = useState(false);
@@ -166,7 +211,9 @@ export function NodeEditor({
 	useEffect(() => {
 		const element = stage.current;
 		if (!element) return;
-		const observer = new ResizeObserver(() => setSize({ w: element.clientWidth, h: element.clientHeight }));
+		const observer = new ResizeObserver(() =>
+			setSize({ w: element.clientWidth, h: element.clientHeight }),
+		);
 		observer.observe(element);
 		return () => observer.disconnect();
 	}, []);
@@ -174,25 +221,38 @@ export function NodeEditor({
 	const update = useCallback((fn: (d: Draft) => Draft) => setDraft((d) => fn(d)), []);
 
 	const purity = purityOf(draft);
-	const logicRegistry = useMemo(() => createRegistry([...LOGIC_NODES, ...requiredDefs]), [requiredDefs]);
+	const logicRegistry = useMemo(
+		() => createRegistry([...LOGIC_NODES, ...requiredDefs]),
+		[requiredDefs],
+	);
 	const shape = useMemo(() => shapeOfDraft(draft), [draft]);
 	const shapeKey = JSON.stringify(shape);
 	// Recompiled on every change to the logic or the pins, so the node on the
 	// canvas, the problems and the Luau beside the graph are always the logic's.
 	const compiled = useMemo(
-		() => (draft.logicMode === "nodes" && draft.logic ? compileLogic(draft.logic, shape, logicRegistry) : null),
+		() =>
+			draft.logicMode === "nodes" && draft.logic
+				? compileLogic(draft.logic, shape, logicRegistry)
+				: null,
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[draft.logicMode, draft.logic, shapeKey, logicRegistry],
 	);
 	const def = useMemo(() => defOf(draft, compiled), [draft, compiled]);
-	const problems = useMemo(() => problemsOf(draft, otherIds, compiled), [draft, otherIds, compiled]);
+	const problems = useMemo(
+		() => problemsOf(draft, otherIds, compiled),
+		[draft, otherIds, compiled],
+	);
 	const targets = targetsOf(draft, compiled);
 	const warnings = [
-		...missingRequires.map((name) => `This pack requires ${name}, which this project does not have.`),
+		...missingRequires.map(
+			(name) => `This pack requires ${name}, which this project does not have.`,
+		),
 		// Worth knowing rather than a reason not to save: a pack is often written
 		// for somewhere other than the project it happens to be open in.
 		...(target && targets && targets.length > 0 && !targets.includes(target)
-			? [`It runs on ${targetsText(targets)}, and this project compiles for ${target === "lune" ? "Lune" : "Roblox"}.`]
+			? [
+					`It runs on ${targetsText(targets)}, and this project compiles for ${target === "lune" ? "Lune" : "Roblox"}.`,
+				]
 			: []),
 		...(compiled?.warnings ?? []),
 	];
@@ -200,11 +260,16 @@ export function NodeEditor({
 		if (!original) return null;
 		const saved = draftOf(original);
 		const savedCompile =
-			saved.logicMode === "nodes" && saved.logic ? compileLogic(saved.logic, shapeOfDraft(saved), logicRegistry) : null;
+			saved.logicMode === "nodes" && saved.logic
+				? compileLogic(saved.logic, shapeOfDraft(saved), logicRegistry)
+				: null;
 		return JSON.stringify(defOf(saved, savedCompile));
 	}, [original, logicRegistry]);
 	const dirty = savedJson === null || JSON.stringify(def) !== savedJson;
-	const onLogicChange = useCallback((logic: LogicGraph) => update((d) => ({ ...d, logic })), [update]);
+	const onLogicChange = useCallback(
+		(logic: LogicGraph) => update((d) => ({ ...d, logic })),
+		[update],
+	);
 	useEffect(() => onDirty(dirty), [dirty, onDirty]);
 
 	// -- the drawn node ----------------------------------------------------
@@ -217,7 +282,10 @@ export function NodeEditor({
 		x: Math.round(size.w / 2 - (bounds.w * SCALE) / 2),
 		y: Math.round(Math.max(90, (size.h - bounds.h * SCALE) / 2)),
 	};
-	const toStage = (p: { x: number; y: number }) => ({ x: offset.x + p.x * SCALE, y: offset.y + p.y * SCALE });
+	const toStage = (p: { x: number; y: number }) => ({
+		x: offset.x + p.x * SCALE,
+		y: offset.y + p.y * SCALE,
+	});
 
 	const pinsOn = (side: Side) => (side === "in" ? draft.inputs : draft.outputs);
 
@@ -233,7 +301,13 @@ export function NodeEditor({
 
 	const onLiteralChange = useCallback(
 		(_node: string, pinId: string, value: Literal | undefined) => {
-			update((d) => setPinDefault(d, d.inputs.findIndex((p) => p.id === pinId), value));
+			update((d) =>
+				setPinDefault(
+					d,
+					d.inputs.findIndex((p) => p.id === pinId),
+					value,
+				),
+			);
 		},
 		[update],
 	);
@@ -292,7 +366,8 @@ export function NodeEditor({
 	// -- logic -------------------------------------------------------------
 
 	const dataOutputs = draft.outputs.filter((p) => p.kind === "data");
-	const exprPin = purity === "pure" ? (dataOutputs.find((p) => p.id === output) ?? dataOutputs[0]) : undefined;
+	const exprPin =
+		purity === "pure" ? (dataOutputs.find((p) => p.id === output) ?? dataOutputs[0]) : undefined;
 	const placeholders = [
 		...draft.inputs.filter((p) => p.kind === "data").map((p) => `$in.${p.id}`),
 		...(purity !== "pure" ? dataOutputs.map((p) => `$out.${p.id}`) : []),
@@ -301,7 +376,7 @@ export function NodeEditor({
 	];
 	const logicHint =
 		purity === "pure"
-			? `One expression for ${exprPin ? (exprPin.name || exprPin.id) : "each output"}. $in.pin reads an input.`
+			? `One expression for ${exprPin ? exprPin.name || exprPin.id : "each output"}. $in.pin reads an input.`
 			: draft.result
 				? "An expression, whose value lands in the result pin. $in.pin reads an input."
 				: "Runs where the node sits. $in.pin reads an input; assign to $out.pin to set an output.";
@@ -332,7 +407,10 @@ export function NodeEditor({
 	// -- the selected pin's popover ----------------------------------------
 
 	const selected = pin ? pinsOn(pin.side)[pin.index] : undefined;
-	const popoverAt = selected && pin ? toStage(pinPosition(node, registry, selected.id, pin.side) ?? { x: 0, y: 0 }) : null;
+	const popoverAt =
+		selected && pin
+			? toStage(pinPosition(node, registry, selected.id, pin.side) ?? { x: 0, y: 0 })
+			: null;
 
 	const pill = pillShape(draft);
 	const compact = isCompact(drawDef);
@@ -352,7 +430,10 @@ export function NodeEditor({
 						if (spec?.kind === "statement" && d.template.trim() === "") {
 							return { ...d, logicMode: "luau", template: spec.template, result: undefined };
 						}
-						if (spec?.kind === "expr" && Object.values(d.expressions).every((e) => e.trim() === "")) {
+						if (
+							spec?.kind === "expr" &&
+							Object.values(d.expressions).every((e) => e.trim() === "")
+						) {
 							return { ...d, logicMode: "luau", expressions: { ...spec.outputs } };
 						}
 						return { ...d, logicMode: "luau" };
@@ -364,7 +445,13 @@ export function NodeEditor({
 			<button
 				className={draft.logicMode === "nodes" ? "on" : ""}
 				title="Build the logic from nodes, compiled to Luau as you go"
-				onClick={() => update((d) => ({ ...d, logicMode: "nodes", logic: d.logic ?? defaultLogic(shapeOfDraft(d)) }))}
+				onClick={() =>
+					update((d) => ({
+						...d,
+						logicMode: "nodes",
+						logic: d.logic ?? defaultLogic(shapeOfDraft(d)),
+					}))
+				}
 			>
 				Nodes
 			</button>
@@ -376,118 +463,159 @@ export function NodeEditor({
 	const typeChips = (
 		<>
 			{PALETTE.map((type) => (
-							<span
-								key={type}
-								className="pin-chip"
-								draggable
-								onDragStart={(e) => {
-									e.dataTransfer.setData(PIN_DRAG, type);
-									e.dataTransfer.effectAllowed = "copy";
-								}}
-							>
-								<span
-									className={cx("chip-dot", type === "exec" ? "exec" : "data")}
-									style={{ color: pinColor(type === "exec" ? undefined : type, type === "exec" ? "exec" : "data") }}
-								/>
-								{type === "exec" ? "Execution" : type}
-							</span>
-						))}
+				<span
+					key={type}
+					className="pin-chip"
+					draggable
+					onDragStart={(e) => {
+						e.dataTransfer.setData(PIN_DRAG, type);
+						e.dataTransfer.effectAllowed = "copy";
+					}}
+				>
+					<span
+						className={cx("chip-dot", type === "exec" ? "exec" : "data")}
+						style={{
+							color: pinColor(
+								type === "exec" ? undefined : type,
+								type === "exec" ? "exec" : "data",
+							),
+						}}
+					/>
+					{type === "exec" ? "Execution" : type}
+				</span>
+			))}
 		</>
 	);
 	const pinCounts = (
 		<>
-						<span className="tool-label">Inputs</span>
-						<button className="tb icon-only" title="Take the last input off" onClick={() => removeLast("in")}>−</button>
-						<button className="tb icon-only" title="Add an input" onClick={() => structural((d) => addPin(d, "in", "any"))}>+</button>
-						<span className="divider" />
-						<span className="tool-label">Outputs</span>
-						<button className="tb icon-only" title="Take the last output off" onClick={() => removeLast("out")}>−</button>
-						<button className="tb icon-only" title="Add an output" onClick={() => structural((d) => addPin(d, "out", "any"))}>+</button>
+			<span className="tool-label">Inputs</span>
+			<button
+				className="tb icon-only"
+				title="Take the last input off"
+				onClick={() => removeLast("in")}
+			>
+				−
+			</button>
+			<button
+				className="tb icon-only"
+				title="Add an input"
+				onClick={() => structural((d) => addPin(d, "in", "any"))}
+			>
+				+
+			</button>
+			<span className="divider" />
+			<span className="tool-label">Outputs</span>
+			<button
+				className="tb icon-only"
+				title="Take the last output off"
+				onClick={() => removeLast("out")}
+			>
+				−
+			</button>
+			<button
+				className="tb icon-only"
+				title="Add an output"
+				onClick={() => structural((d) => addPin(d, "out", "any"))}
+			>
+				+
+			</button>
 		</>
 	);
 	const nodeKind = (
 		<>
-						<span
-							className={cx("badge", purity === "unrunnable" && "warn")}
-							title={
-								purity === "pure"
-									? "No execution pins: a value, evaluated where it is used."
-									: purity === "impure"
-										? "Has an execution input: a step, run where it sits."
-										: "An execution output with no input: nothing can run it."
-							}
+			<span
+				className={cx("badge", purity === "unrunnable" && "warn")}
+				title={
+					purity === "pure"
+						? "No execution pins: a value, evaluated where it is used."
+						: purity === "impure"
+							? "Has an execution input: a step, run where it sits."
+							: "An execution output with no input: nothing can run it."
+				}
+			>
+				{purity === "pure" ? "Pure" : purity === "impure" ? "Impure" : "Cannot run"}
+			</span>
+			{purity === "pure" && (
+				<div className="segmented">
+					<button
+						className={draft.display === "normal" ? "on" : ""}
+						onClick={() => update((d) => ({ ...d, display: "normal" }))}
+					>
+						Normal
+					</button>
+					<button
+						className={draft.display === "compact" ? "on" : ""}
+						disabled={!pill.ok}
+						title={pill.ok ? "Drawn as a pill, like a getter" : pill.reason}
+						onClick={() => update((d) => ({ ...d, display: "compact" }))}
+					>
+						Pill
+					</button>
+				</div>
+			)}
+			<span className="divider" />
+			{original &&
+				(confirmDelete ? (
+					<>
+						<span className="tool-label">Delete {original.title}?</span>
+						<button
+							className="tb danger"
+							onClick={async () => {
+								try {
+									await api.deletePackNode(packPath, original.id);
+									notify(`${original.title} was deleted.`);
+									onDeleted();
+								} catch (err) {
+									notify(errorMessage(err), "failed");
+								}
+							}}
 						>
-							{purity === "pure" ? "Pure" : purity === "impure" ? "Impure" : "Cannot run"}
-						</span>
-						{purity === "pure" && (
-							<div className="segmented">
-								<button
-									className={draft.display === "normal" ? "on" : ""}
-									onClick={() => update((d) => ({ ...d, display: "normal" }))}
-								>
-									Normal
-								</button>
-								<button
-									className={draft.display === "compact" ? "on" : ""}
-									disabled={!pill.ok}
-									title={pill.ok ? "Drawn as a pill, like a getter" : pill.reason}
-									onClick={() => update((d) => ({ ...d, display: "compact" }))}
-								>
-									Pill
-								</button>
-							</div>
-						)}
-						<span className="divider" />
-						{original &&
-							(confirmDelete ? (
-								<>
-									<span className="tool-label">Delete {original.title}?</span>
-									<button
-										className="tb danger"
-										onClick={async () => {
-											try {
-												await api.deletePackNode(packPath, original.id);
-												notify(`${original.title} was deleted.`);
-												onDeleted();
-											} catch (err) {
-												notify(errorMessage(err), "failed");
-											}
-										}}
-									>
-										Delete
-									</button>
-									<button className="tb" onClick={() => setConfirmDelete(false)}>Keep</button>
-								</>
-							) : (
-								<button className="tb icon-only" title="Delete this node…" onClick={() => setConfirmDelete(true)}>
-									<Icon name="remove" size={15} />
-								</button>
-							))}
+							Delete
+						</button>
+						<button className="tb" onClick={() => setConfirmDelete(false)}>
+							Keep
+						</button>
+					</>
+				) : (
+					<button
+						className="tb icon-only"
+						title="Delete this node…"
+						onClick={() => setConfirmDelete(true)}
+					>
+						<Icon name="remove" size={15} />
+					</button>
+				))}
 		</>
 	);
 
 	return (
 		<div className={cx("node-editor", split && "split", split && `view-${view}`)}>
-			{split && (() => {
-				// Preview or Logic, and with Logic which way it is written: one
-				// row's worth of switches, in the pack's bar where there is one.
-				const switches = (
-					<>
-						<div className="segmented">
-							<button className={view === "preview" ? "on" : ""} onClick={() => setView("preview")}>
-								Preview
-							</button>
-							<button className={view === "logic" ? "on" : ""} onClick={() => setView("logic")}>
-								Logic
-							</button>
-						</div>
-						{view === "logic" && modeSwitch}
-					</>
-				);
-				return toolbarSlot
-					? createPortal(switches, toolbarSlot)
-					: <div className="node-editor-views">{switches}</div>;
-			})()}
+			{split &&
+				(() => {
+					// Preview or Logic, and with Logic which way it is written: one
+					// row's worth of switches, in the pack's bar where there is one.
+					const switches = (
+						<>
+							<div className="segmented">
+								<button
+									className={view === "preview" ? "on" : ""}
+									onClick={() => setView("preview")}
+								>
+									Preview
+								</button>
+								<button className={view === "logic" ? "on" : ""} onClick={() => setView("logic")}>
+									Logic
+								</button>
+							</div>
+							{view === "logic" && modeSwitch}
+						</>
+					);
+					return toolbarSlot ? (
+						createPortal(switches, toolbarSlot)
+					) : (
+						<div className="node-editor-views">{switches}</div>
+					);
+				})()}
 			<div
 				className="node-editor-stage"
 				ref={stage}
@@ -509,7 +637,12 @@ export function NodeEditor({
 					    shrinks with the node as pins come and go. */}
 					<div
 						className="node-plate"
-						style={{ left: -PLATE, top: -PLATE, width: bounds.w + PLATE * 2, height: bounds.h + PLATE * 2 }}
+						style={{
+							left: -PLATE,
+							top: -PLATE,
+							width: bounds.w + PLATE * 2,
+							height: bounds.h + PLATE * 2,
+						}}
 					/>
 					<NodeView
 						node={node}
@@ -565,14 +698,18 @@ export function NodeEditor({
 							<Popout label="Types" title="Types to drag onto the node">
 								<div className="pin-chip-grid">{typeChips}</div>
 							</Popout>
-						) : typeChips}
+						) : (
+							typeChips
+						)}
 					</ToolGroup>
 					<ToolGroup>
 						{phone ? (
 							<Popout label="Pins" title="How many inputs and outputs">
 								<div className="pin-counts">{pinCounts}</div>
 							</Popout>
-						) : pinCounts}
+						) : (
+							pinCounts
+						)}
 					</ToolGroup>
 					<span className="spacer" />
 					<ToolGroup>
@@ -584,80 +721,118 @@ export function NodeEditor({
 							>
 								<div className="pin-counts">{nodeKind}</div>
 							</Popout>
-						) : nodeKind}
+						) : (
+							nodeKind
+						)}
 						<button
 							className="tb primary with-icon"
 							disabled={problems.length > 0 || saving || !dirty}
-							title={problems.length > 0 ? "Fix the problems first" : dirty ? "Save into the pack (Ctrl+S)" : "Saved"}
+							title={
+								problems.length > 0
+									? "Fix the problems first"
+									: dirty
+										? "Save into the pack (Ctrl+S)"
+										: "Saved"
+							}
 							onClick={() => void save()}
 						>
 							<Icon name="build" size={15} />
-							{phone
-								? <span className="visually-hidden">{dirty ? "Save" : "Saved"}</span>
-								: dirty ? "Save" : "Saved"}
+							{phone ? (
+								<span className="visually-hidden">{dirty ? "Save" : "Saved"}</span>
+							) : dirty ? (
+								"Save"
+							) : (
+								"Saved"
+							)}
 						</button>
 					</ToolGroup>
 				</FloatingTools>
 
 				{detailsOpen && (
-				<div className="node-details" onPointerDown={(e) => e.stopPropagation()}>
-					<div className="node-details-head">
-						<strong>Details</strong>
-						<span style={{ flex: 1 }} />
-						<button className="tb icon-only" title="Close" aria-label="Close the details" onClick={toggleDetails}>
-							<Icon name="close" size={14} />
-						</button>
-					</div>
-					<label>
-						<span>Id</span>
-						<input className="tb" value={draft.id} spellCheck={false} onChange={(e) => update((d) => ({ ...d, id: e.target.value }))} />
-					</label>
-					<label>
-						<span>Title</span>
-						<input className="tb" value={draft.title} onChange={(e) => update((d) => ({ ...d, title: e.target.value }))} />
-					</label>
-					<label>
-						<span>Category</span>
-						<input className="tb" value={draft.category} onChange={(e) => update((d) => ({ ...d, category: e.target.value }))} />
-					</label>
-					<label>
-						<span>Runs on</span>
-						<div className="segmented" title="The targets this node declares. Logic built from nodes can narrow it further.">
-							{([
-								["both", "Roblox and Lune", undefined],
-								["roblox", "Roblox", ["roblox"]],
-								["lune", "Lune", ["lune"]],
-							] as const).map(([key, label, value]) => {
-								const declared = draft.targets?.length === 1 ? draft.targets[0] : "both";
-								return (
-									<button
-										key={key}
-										className={declared === key ? "on" : ""}
-										onClick={() => update((d) => ({ ...d, targets: value ? [...value] : undefined }))}
-									>
-										{label}
-									</button>
-								);
-							})}
+					<div className="node-details" onPointerDown={(e) => e.stopPropagation()}>
+						<div className="node-details-head">
+							<strong>Details</strong>
+							<span style={{ flex: 1 }} />
+							<button
+								className="tb icon-only"
+								title="Close"
+								aria-label="Close the details"
+								onClick={toggleDetails}
+							>
+								<Icon name="close" size={14} />
+							</button>
 						</div>
-					</label>
-					{/* What building from nodes did to that, said where the choice is made. */}
-					{draft.logicMode === "nodes" && compiled?.targets && (
-						<p className="hint targets-note">
-							Its logic uses nodes that run on {targetsText(compiled.targets)}, so the node runs on {targetsText(targets)}.
-						</p>
-					)}
-					<label className="summary">
-						<span>Summary</span>
-						<textarea
-							className="tb"
-							rows={3}
-							value={draft.summary}
-							placeholder="What it does, for the node's documentation. The Inspector shows the first sentence."
-							onChange={(e) => update((d) => ({ ...d, summary: e.target.value }))}
-						/>
-					</label>
-				</div>
+						<label>
+							<span>Id</span>
+							<input
+								className="tb"
+								value={draft.id}
+								spellCheck={false}
+								onChange={(e) => update((d) => ({ ...d, id: e.target.value }))}
+							/>
+						</label>
+						<label>
+							<span>Title</span>
+							<input
+								className="tb"
+								value={draft.title}
+								onChange={(e) => update((d) => ({ ...d, title: e.target.value }))}
+							/>
+						</label>
+						<label>
+							<span>Category</span>
+							<input
+								className="tb"
+								value={draft.category}
+								onChange={(e) => update((d) => ({ ...d, category: e.target.value }))}
+							/>
+						</label>
+						<label>
+							<span>Runs on</span>
+							<div
+								className="segmented"
+								title="The targets this node declares. Logic built from nodes can narrow it further."
+							>
+								{(
+									[
+										["both", "Roblox and Lune", undefined],
+										["roblox", "Roblox", ["roblox"]],
+										["lune", "Lune", ["lune"]],
+									] as const
+								).map(([key, label, value]) => {
+									const declared = draft.targets?.length === 1 ? draft.targets[0] : "both";
+									return (
+										<button
+											key={key}
+											className={declared === key ? "on" : ""}
+											onClick={() =>
+												update((d) => ({ ...d, targets: value ? [...value] : undefined }))
+											}
+										>
+											{label}
+										</button>
+									);
+								})}
+							</div>
+						</label>
+						{/* What building from nodes did to that, said where the choice is made. */}
+						{draft.logicMode === "nodes" && compiled?.targets && (
+							<p className="hint targets-note">
+								Its logic uses nodes that run on {targetsText(compiled.targets)}, so the node runs
+								on {targetsText(targets)}.
+							</p>
+						)}
+						<label className="summary">
+							<span>Summary</span>
+							<textarea
+								className="tb"
+								rows={3}
+								value={draft.summary}
+								placeholder="What it does, for the node's documentation. The Inspector shows the first sentence."
+								onChange={(e) => update((d) => ({ ...d, summary: e.target.value }))}
+							/>
+						</label>
+					</div>
 				)}
 
 				<div className={cx("node-problems", problems.length && "bad")}>
@@ -665,13 +840,17 @@ export function NodeEditor({
 						<span>{dirty ? "Ready to save." : "Saved, and the project loads it."}</span>
 					) : (
 						<ul>
-							{problems.map((problem) => <li key={problem}>{problem}</li>)}
+							{problems.map((problem) => (
+								<li key={problem}>{problem}</li>
+							))}
 						</ul>
 					)}
 					{/* Worth knowing, and no reason not to save. */}
 					{warnings.length > 0 && (
 						<ul className="warnings">
-							{warnings.map((warning) => <li key={warning}>{warning}</li>)}
+							{warnings.map((warning) => (
+								<li key={warning}>{warning}</li>
+							))}
 						</ul>
 					)}
 				</div>
@@ -685,12 +864,21 @@ export function NodeEditor({
 						count={pinsOn(pin.side).length}
 						isResult={pin.side === "out" && draft.result === selected.id}
 						canBeResult={
-							pin.side === "out" && selected.kind === "data" && purity === "impure" && draft.logicMode === "luau"
+							pin.side === "out" &&
+							selected.kind === "data" &&
+							purity === "impure" &&
+							draft.logicMode === "luau"
 						}
 						style={
 							pin.side === "in"
-								? { right: Math.max(8, size.w - popoverAt.x + 18), top: Math.max(8, popoverAt.y - 24) }
-								: { left: Math.min(size.w - 280, popoverAt.x + 18), top: Math.max(8, popoverAt.y - 24) }
+								? {
+										right: Math.max(8, size.w - popoverAt.x + 18),
+										top: Math.max(8, popoverAt.y - 24),
+									}
+								: {
+										left: Math.min(size.w - 280, popoverAt.x + 18),
+										top: Math.max(8, popoverAt.y - 24),
+									}
 						}
 						onRename={(name) => update((d) => renamePin(d, pin.side, pin.index, name))}
 						onRetype={(type) => update((d) => retypePin(d, pin.side, pin.index, type))}
@@ -698,15 +886,16 @@ export function NodeEditor({
 						onDescription={(text) =>
 							update((d) => {
 								const list = pin.side === "in" ? d.inputs : d.outputs;
-								const next = list.map((p, i) => (i === pin.index ? { ...p, description: text || undefined } : p));
+								const next = list.map((p, i) =>
+									i === pin.index ? { ...p, description: text || undefined } : p,
+								);
 								return pin.side === "in" ? { ...d, inputs: next } : { ...d, outputs: next };
 							})
 						}
 						onChoices={(text) =>
 							update((d) => {
 								const options = readChoices(text);
-								const next = d.inputs.map((p, i) =>
-									(i === pin.index ? { ...p, options } : p));
+								const next = d.inputs.map((p, i) => (i === pin.index ? { ...p, options } : p));
 								return { ...d, inputs: next };
 							})
 						}
@@ -729,7 +918,11 @@ export function NodeEditor({
 					{draft.logicMode === "luau" && purity === "pure" && dataOutputs.length > 1 && (
 						<div className="segmented">
 							{dataOutputs.map((p) => (
-								<button key={p.id} className={exprPin?.id === p.id ? "on" : ""} onClick={() => setOutput(p.id)}>
+								<button
+									key={p.id}
+									className={exprPin?.id === p.id ? "on" : ""}
+									onClick={() => setOutput(p.id)}
+								>
 									{p.name || p.id}
 								</button>
 							))}
@@ -767,16 +960,25 @@ export function NodeEditor({
 								</button>
 							}
 						/>
-						{showLuau && <pre className="logic-compiled" title="What the nodes compile to, and what the node is saved as">
-							{compiled?.compilesTo?.kind === "statement"
-								? compiled.compilesTo.template || "-- Nothing yet"
-								: compiled?.compilesTo?.kind === "expr"
-									? Object.entries(compiled.compilesTo.outputs).map(([id, text]) => `-- ${id}\n${text}`).join("\n\n")
-									: "-- Fix the problems to see the Luau it compiles to."}
-						</pre>}
+						{showLuau && (
+							<pre
+								className="logic-compiled"
+								title="What the nodes compile to, and what the node is saved as"
+							>
+								{compiled?.compilesTo?.kind === "statement"
+									? compiled.compilesTo.template || "-- Nothing yet"
+									: compiled?.compilesTo?.kind === "expr"
+										? Object.entries(compiled.compilesTo.outputs)
+												.map(([id, text]) => `-- ${id}\n${text}`)
+												.join("\n\n")
+										: "-- Fix the problems to see the Luau it compiles to."}
+							</pre>
+						)}
 					</div>
 				) : purity === "pure" && !exprPin ? (
-					<p className="hint logic-empty">A pure node's logic is one expression per output. Add an output first.</p>
+					<p className="hint logic-empty">
+						A pure node's logic is one expression per output. Add an output first.
+					</p>
 				) : (
 					<LuauField
 						key={purity === "pure" ? `expr:${exprPin!.id}` : "template"}
@@ -883,7 +1085,12 @@ function PinPopover(props: {
 							onKeyDown={(e) => e.key === "Enter" && commitName()}
 						/>
 					</label>
-					<div className="hint">In the logic: <code>${side === "in" ? "in" : "out"}.{pin.id}</code></div>
+					<div className="hint">
+						In the logic:{" "}
+						<code>
+							${side === "in" ? "in" : "out"}.{pin.id}
+						</code>
+					</div>
 					<label>
 						<span>Type</span>
 						<TypePicker value={pin.type} onChange={props.onRetype} />
@@ -897,10 +1104,14 @@ function PinPopover(props: {
 								onChange={(e) => {
 									const kind = e.target.value;
 									props.onDefault(
-										kind === "none" ? undefined
-											: kind === "number" ? { t: "number", v: 0 }
-												: kind === "boolean" ? { t: "boolean", v: false }
-													: kind === "raw" ? { t: "raw", v: "nil" }
+										kind === "none"
+											? undefined
+											: kind === "number"
+												? { t: "number", v: 0 }
+												: kind === "boolean"
+													? { t: "boolean", v: false }
+													: kind === "raw"
+														? { t: "raw", v: "nil" }
 														: { t: "string", v: "" },
 									);
 								}}
@@ -929,8 +1140,14 @@ function PinPopover(props: {
 					)}
 					{props.canBeResult && (
 						<label className="check">
-							<input type="checkbox" checked={props.isResult} onChange={(e) => props.onResult(e.target.checked)} />
-							<span>The call's result — its logic is one expression, and this pin holds its value</span>
+							<input
+								type="checkbox"
+								checked={props.isResult}
+								onChange={(e) => props.onResult(e.target.checked)}
+							/>
+							<span>
+								The call's result — its logic is one expression, and this pin holds its value
+							</span>
 						</label>
 					)}
 					{side === "in" && (
@@ -961,12 +1178,23 @@ function PinPopover(props: {
 			<div className="pin-popover-actions">
 				{pin.kind === "data" && (
 					<>
-						<button className="tb icon-only" title="Move up" onClick={() => props.onMove(-1)}>↑</button>
-						<button className="tb icon-only" title="Move down" disabled={props.index >= props.count - 1} onClick={() => props.onMove(1)}>↓</button>
+						<button className="tb icon-only" title="Move up" onClick={() => props.onMove(-1)}>
+							↑
+						</button>
+						<button
+							className="tb icon-only"
+							title="Move down"
+							disabled={props.index >= props.count - 1}
+							onClick={() => props.onMove(1)}
+						>
+							↓
+						</button>
 					</>
 				)}
 				<span style={{ flex: 1 }} />
-				<button className="tb danger" onClick={props.onRemove}>Remove</button>
+				<button className="tb danger" onClick={props.onRemove}>
+					Remove
+				</button>
 			</div>
 		</div>
 	);

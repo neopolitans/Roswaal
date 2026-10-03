@@ -12,7 +12,8 @@ export function variablesAndLocalsPage(): DocPage {
 		slug: "variables-and-locals",
 		narrow: true,
 		title: "Variables and locals",
-		summary: "Two different things, deliberately named apart — and what the code editor can see of each.",
+		summary:
+			"Two different things, deliberately named apart — and what the code editor can see of each.",
 		blocks: [
 			{
 				t: "p",

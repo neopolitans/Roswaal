@@ -22,7 +22,7 @@
  */
 
 import { graphOf, viewOf } from "./functionGraph.js";
-import { nodeBounds, rectContains, type Rect } from "./nodeBox.js";
+import { nodeBounds, type Rect, rectContains } from "./nodeBox.js";
 import type { Registry } from "./nodes/index.js";
 import type { Comment, NodeScript } from "./schema.js";
 
@@ -34,13 +34,14 @@ export interface CommentArea {
 }
 
 const boxOf = (comment: Comment): Rect => ({
-	x: comment.x, y: comment.y, w: comment.w, h: comment.h,
+	x: comment.x,
+	y: comment.y,
+	w: comment.w,
+	h: comment.h,
 });
 
 /** What one comment is drawn around, within the graph it is drawn in. */
-export function commentHolds(
-	view: NodeScript, registry: Registry, comment: Comment,
-): Set<string> {
+export function commentHolds(view: NodeScript, registry: Registry, comment: Comment): Set<string> {
 	const holds = new Set<string>();
 	const box = boxOf(comment);
 	for (const node of view.nodes) {
@@ -89,9 +90,7 @@ export function commentAreas(script: NodeScript, registry: Registry): CommentAre
  * no nodes — a note about nothing in particular is a legitimate thing to write
  * on a canvas and has no code to sit above.
  */
-export function headersByNode(
-	script: NodeScript, registry: Registry,
-): Map<string, Comment> {
+export function headersByNode(script: NodeScript, registry: Registry): Map<string, Comment> {
 	const out = new Map<string, Comment>();
 	for (const area of commentAreas(script, registry)) {
 		if (area.comment.text.trim() === "") continue;
@@ -137,13 +136,12 @@ export function bracketLevel(text: string): number {
  * project indents with spaces.
  */
 export function commentLines(text: string): string[] {
-	const lines = text.replace(/\r\n?/g, "\n").split("\n").map((line) => line.trimEnd());
+	const lines = text
+		.replace(/\r\n?/g, "\n")
+		.split("\n")
+		.map((line) => line.trimEnd());
 	if (lines.length === 1) return [`-- ${lines[0]}`.trimEnd()];
 
 	const eq = "=".repeat(bracketLevel(text));
-	return [
-		`--[${eq}[`,
-		...lines.map((line) => (line === "" ? "" : `\t${line}`)),
-		`]${eq}]`,
-	];
+	return [`--[${eq}[`, ...lines.map((line) => (line === "" ? "" : `\t${line}`)), `]${eq}]`];
 }

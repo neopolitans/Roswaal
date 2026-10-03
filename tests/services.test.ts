@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compile } from "../src/core/compiler/index.js";
-import { createRegistry, literalOnlyPins } from "../src/core/nodes/index.js";
 import { migrateScript } from "../src/core/migrate.js";
+import { createRegistry, literalOnlyPins } from "../src/core/nodes/index.js";
 import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
@@ -308,10 +308,16 @@ describe("migration to a pure Get Service", () => {
 		// Start now runs straight into the print, and the data wire follows the
 		// renamed pin.
 		expect(script.links).toContainEqual(
-			expect.objectContaining({ from: { node: start, pin: "then" }, to: { node: print, pin: "in" } }),
+			expect.objectContaining({
+				from: { node: start, pin: "then" },
+				to: { node: print, pin: "in" },
+			}),
 		);
 		expect(script.links).toContainEqual(
-			expect.objectContaining({ from: { node: "svc", pin: "service" }, to: { node: print, pin: "value" } }),
+			expect.objectContaining({
+				from: { node: "svc", pin: "service" },
+				to: { node: print, pin: "value" },
+			}),
 		);
 		expect(errors(compile(script, registry))).toEqual([]);
 	});

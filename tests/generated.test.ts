@@ -44,7 +44,9 @@ function filesUnder(dir: string, out: string[] = []): string[] {
 	return out;
 }
 
-const scripts = filesUnder(join(ROOT, "scripts")).map((path) => readFileSync(path, "utf8")).join("\n");
+const scripts = filesUnder(join(ROOT, "scripts"))
+	.map((path) => readFileSync(path, "utf8"))
+	.join("\n");
 
 describe("generated modules", () => {
 	it.each(Object.entries(GENERATED))("%s says which script writes it", (file, script) => {

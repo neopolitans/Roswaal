@@ -14,7 +14,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	CreatorDocsError, fetchReference, firstSentence, methodsOf, parseYaml, pinType,
+	CreatorDocsError,
+	fetchReference,
+	firstSentence,
+	methodsOf,
+	parseYaml,
+	pinType,
 } from "../scripts/lib/creatorDocs.js";
 
 /** A fetch that answers every request with one status. */
@@ -32,9 +37,12 @@ describe("fetching a reference file", () => {
 	});
 
 	/** A 429 on WorldRoot once read as "no page" took Workspace:Raycast with it. */
-	it.each([429, 403, 500, 502, 503])("throws on a %i rather than calling it no page", async (status) => {
-		await expect(fetchReference("u", answering(status))).rejects.toBeInstanceOf(CreatorDocsError);
-	});
+	it.each([429, 403, 500, 502, 503])(
+		"throws on a %i rather than calling it no page",
+		async (status) => {
+			await expect(fetchReference("u", answering(status))).rejects.toBeInstanceOf(CreatorDocsError);
+		},
+	);
 
 	it("throws when the connection fails", async () => {
 		const offline: typeof fetch = async () => {
@@ -178,8 +186,9 @@ describe("a summary", () => {
 	});
 
 	it("renders a documentation cross-reference as what it links to", () => {
-		expect(firstSentence("Calls `Class.RunService:IsServer()|IsServer()` first."))
-			.toBe("Calls `IsServer()` first.");
+		expect(firstSentence("Calls `Class.RunService:IsServer()|IsServer()` first.")).toBe(
+			"Calls `IsServer()` first.",
+		);
 		expect(firstSentence("Takes an `Enum.KeyCode` value.")).toBe("Takes an `KeyCode` value.");
 	});
 });

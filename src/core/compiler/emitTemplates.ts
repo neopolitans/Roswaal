@@ -8,11 +8,16 @@
 
 import type { Literal, NodeConfig, PinDef } from "../schema.js";
 import { partPinId } from "../structs.js";
-import { VARIADIC_PIN, type Scope } from "./emitScope.js";
+import { type Scope, VARIADIC_PIN } from "./emitScope.js";
 import type { Emitter } from "./emitter.js";
 import type { ResolvedNode } from "./graph.js";
 import {
-	foldPrecedence, isAccessPath, isFieldName, parenAt, parenPrefix, spliceIntoTemplate,
+	foldPrecedence,
+	isAccessPath,
+	isFieldName,
+	parenAt,
+	parenPrefix,
+	spliceIntoTemplate,
 	toIdentifier,
 } from "./luau.js";
 
@@ -69,7 +74,12 @@ function bracketsOnly(r: ResolvedNode): boolean {
  * conversion should not be an execution step. It is here so that the next
  * node that does need it finds working machinery rather than a trap.
  */
-export function emitStatement(e: Emitter, r: ResolvedNode, template: string, scope: Scope): string | undefined {
+export function emitStatement(
+	e: Emitter,
+	r: ResolvedNode,
+	template: string,
+	scope: Scope,
+): string | undefined {
 	const referenced = new Set(
 		[...template.matchAll(/\$out\.([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]),
 	);
@@ -121,7 +131,10 @@ function isSet(e: Emitter, r: ResolvedNode, pin: PinDef): boolean {
  * since leaving it off would shift every argument after it.
  */
 export function callArguments(
-	e: Emitter, r: ResolvedNode, pins: readonly PinDef[], render: (pin: PinDef, index: number) => string,
+	e: Emitter,
+	r: ResolvedNode,
+	pins: readonly PinDef[],
+	render: (pin: PinDef, index: number) => string,
 ): string[] {
 	const set = pins.map((pin) => isSet(e, r, pin));
 	let last = pins.length - 1;
@@ -178,7 +191,12 @@ export function interpolated(e: Emitter, r: ResolvedNode, scope: Scope): string 
  * Nothing is bound in a logic graph, which is one expression with nowhere
  * to put a local; there the value is worked out where it is read.
  */
-function readOnce(e: Emitter, r: ResolvedNode, template: string, scope: Scope): Map<string, string> {
+function readOnce(
+	e: Emitter,
+	r: ResolvedNode,
+	template: string,
+	scope: Scope,
+): Map<string, string> {
 	const out = new Map<string, string>();
 	if (e.options.expressionsOnly) return out;
 
@@ -211,7 +229,12 @@ function readOnce(e: Emitter, r: ResolvedNode, template: string, scope: Scope): 
 	return out;
 }
 
-export function renderTemplate(e: Emitter, r: ResolvedNode, template: string, scope: Scope): string {
+export function renderTemplate(
+	e: Emitter,
+	r: ResolvedNode,
+	template: string,
+	scope: Scope,
+): string {
 	// `$config.<key>` — a name the node carries rather than a pin it has.
 	//
 	// Get Member's member is the case: it is chosen from what the wired
@@ -220,14 +243,11 @@ export function renderTemplate(e: Emitter, r: ResolvedNode, template: string, sc
 	// the picker put there. Written out as an identifier, and a key that is
 	// missing or is not one leaves the template empty for the node's own
 	// validation to report.
-	template = template.replace(
-		/\$config\.([A-Za-z_][A-Za-z0-9_]*)/g,
-		(_match, key: string) => {
-			const value = r.node.config?.[key];
-			const text = typeof value === "string" ? value.trim() : "";
-			return isFieldName(text) ? text : "";
-		},
-	);
+	template = template.replace(/\$config\.([A-Za-z_][A-Za-z0-9_]*)/g, (_match, key: string) => {
+		const value = r.node.config?.[key];
+		const text = typeof value === "string" ? value.trim() : "";
+		return isFieldName(text) ? text : "";
+	});
 
 	// `$args(<separator>)` folds every variadic input pin into one list, so a
 	// node whose arity is chosen per instance still compiles from a static
@@ -249,9 +269,12 @@ export function renderTemplate(e: Emitter, r: ResolvedNode, template: string, sc
 		const args = r.inputs.filter((p) => VARIADIC_PIN.test(p.id));
 		if (args.length === 0) return "";
 		const needed = foldPrecedence(separator);
-		return separator + args
-			.map((p, i) => parenAt(e.resolveInput(r, p, scope), i === 0 ? needed.first : needed.rest))
-			.join(separator);
+		return (
+			separator +
+			args
+				.map((p, i) => parenAt(e.resolveInput(r, p, scope), i === 0 ? needed.first : needed.rest))
+				.join(separator)
+		);
 	});
 
 	// `$opt(<sep>)` folds the optional trailing arguments of a call.
@@ -375,51 +398,53 @@ export function renderTemplate(e: Emitter, r: ResolvedNode, template: string, sc
 	const once = readOnce(e, r, template, scope);
 
 	const re = /\$(in|out)\.([A-Za-z_][A-Za-z0-9_]*)(?:!(ident|raw))?/g;
-	return template.replace(re, (match: string, side: string, pinId: string, modifier: string | undefined, offset: number) => {
-		if (side === "out") {
-			const bound = scope.lookup(`${r.node.id}/${pinId}`);
-			if (bound) return bound;
-			// Nothing bound it. `_` rather than a fresh unique name, because
-			// a unique name here is *undeclared* — on the left of an
-			// assignment that makes a global, which is the failure
-			// `emitStatement` declares its referenced outputs to avoid.
-			// This is the last line of defence for a spec that reaches here
-			// some other way, and it should discard rather than leak.
-			return "_";
-		}
-		const pin = e.pin(r, pinId, "in");
-
-		// Read twice by this template: the same text both times, and a local
-		// above it where the value could not be repeated safely.
-		const shared = modifier === undefined ? once.get(pinId) : undefined;
-		if (shared !== undefined) {
-			return spliceIntoTemplate(shared, template, offset, offset + match.length);
-		}
-
-		if (modifier) {
-			const link = e.index.sourceOf(r.node.id, pinId);
-			if (link) {
-				e.error(
-					`"${pin.name || pinId}" on "${r.def.title}" must be typed in directly; ` +
-						"it becomes part of the generated code, not a runtime value.",
-					r.node.id,
-					pinId,
-				);
-				return modifier === "ident" ? "_invalid" : "";
+	return template.replace(
+		re,
+		(match: string, side: string, pinId: string, modifier: string | undefined, offset: number) => {
+			if (side === "out") {
+				const bound = scope.lookup(`${r.node.id}/${pinId}`);
+				if (bound) return bound;
+				// Nothing bound it. `_` rather than a fresh unique name, because
+				// a unique name here is *undeclared* — on the left of an
+				// assignment that makes a global, which is the failure
+				// `emitStatement` declares its referenced outputs to avoid.
+				// This is the last line of defence for a spec that reaches here
+				// some other way, and it should discard rather than leak.
+				return "_";
 			}
-			const lit: Literal | undefined = r.node.literals?.[pinId] ?? pin.default;
-			const text =
-				lit === undefined || lit.t === "nil" ? "" : String(lit.v);
-			return modifier === "ident" ? toIdentifier(text, "field") : text;
-		}
+			const pin = e.pin(r, pinId, "in");
 
-		const expr = e.resolveInput(r, pin, scope);
-		// Only guard precedence where the template actually places the value
-		// next to an operator, and only as far as that position needs.
-		// Wrapping every argument would be correct but would make print((x))
-		// of everything.
-		return spliceIntoTemplate(expr, template, offset, offset + match.length);
-	});
+			// Read twice by this template: the same text both times, and a local
+			// above it where the value could not be repeated safely.
+			const shared = modifier === undefined ? once.get(pinId) : undefined;
+			if (shared !== undefined) {
+				return spliceIntoTemplate(shared, template, offset, offset + match.length);
+			}
+
+			if (modifier) {
+				const link = e.index.sourceOf(r.node.id, pinId);
+				if (link) {
+					e.error(
+						`"${pin.name || pinId}" on "${r.def.title}" must be typed in directly; ` +
+							"it becomes part of the generated code, not a runtime value.",
+						r.node.id,
+						pinId,
+					);
+					return modifier === "ident" ? "_invalid" : "";
+				}
+				const lit: Literal | undefined = r.node.literals?.[pinId] ?? pin.default;
+				const text = lit === undefined || lit.t === "nil" ? "" : String(lit.v);
+				return modifier === "ident" ? toIdentifier(text, "field") : text;
+			}
+
+			const expr = e.resolveInput(r, pin, scope);
+			// Only guard precedence where the template actually places the value
+			// next to an operator, and only as far as that position needs.
+			// Wrapping every argument would be correct but would make print((x))
+			// of everything.
+			return spliceIntoTemplate(expr, template, offset, offset + match.length);
+		},
+	);
 }
 
 /**

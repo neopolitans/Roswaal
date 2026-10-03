@@ -28,15 +28,20 @@
  */
 
 import { useMemo, useState } from "react";
-
-import { cx } from "./cx.js";
-import { Icon } from "./icons.jsx";
 import {
-	aliasesOf, chainFor, lookupAlias, parseLuaurc, withAliases,
-	type AliasEntry, type Luaurc, type LuaurcSource,
+	type AliasEntry,
+	aliasesOf,
+	chainFor,
+	type Luaurc,
+	type LuaurcSource,
+	lookupAlias,
+	parseLuaurc,
+	withAliases,
 } from "../core/luaurc.js";
 import { ROBLOX_REQUIRE_ANNOUNCEMENT } from "../core/modules.js";
 import type { Target } from "../core/schema.js";
+import { cx } from "./cx.js";
+import { Icon } from "./icons.jsx";
 
 export interface AliasDocumentProps {
 	/** The directory of the file being edited; `""` is the project root. */
@@ -54,10 +59,7 @@ export interface AliasDocumentProps {
 }
 
 export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProps) {
-	const parsed = useMemo(
-		() => files.map((file) => parseLuaurc(file.dir, file.text)),
-		[files],
-	);
+	const parsed = useMemo(() => files.map((file) => parseLuaurc(file.dir, file.text)), [files]);
 	const source = files.find((file) => file.dir === dir);
 	const here = parsed.find((file) => file.dir === dir);
 
@@ -67,10 +69,7 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 	const aliases = here ? [...here.aliases.values()] : [];
 
 	// What this file can see, which is its own and its parents'.
-	const chain = useMemo(
-		() => chainFor(parsed, dir === "" ? "x" : `${dir}/x`),
-		[parsed, dir],
-	);
+	const chain = useMemo(() => chainFor(parsed, dir === "" ? "x" : `${dir}/x`), [parsed, dir]);
 	const inherited = useMemo(
 		() => [...aliasesOf(chain)].filter(([, entry]) => entry.from !== dir),
 		[chain, dir],
@@ -100,11 +99,13 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 	return (
 		<div className="alias-doc">
 			<header className="alias-doc-head">
-				<h1><code>{dir === "" ? ".luaurc" : `${dir}/.luaurc`}</code></h1>
+				<h1>
+					<code>{dir === "" ? ".luaurc" : `${dir}/.luaurc`}</code>
+				</h1>
 				<p className="alias-scope">
 					Aliases for {dir === "" ? "the whole project" : <code>{dir}/</code>}
-					{dir === "" ? "" : " and everything under it"}. Committed, so everyone working
-					here gets the same ones.
+					{dir === "" ? "" : " and everything under it"}. Committed, so everyone working here gets
+					the same ones.
 				</p>
 			</header>
 
@@ -114,11 +115,11 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 					<a href={ROBLOX_REQUIRE_ANNOUNCEMENT} target="_blank" rel="noreferrer noopener">
 						Introducing Require-by-String
 					</a>
-					, answers “custom aliased paths?” with “Not yet, but we’re working on it!”, and
-					its update of 8 January 2026 says they are working on custom aliases — checked
-					16 September 2026. Until then this file is one Rojo will happily sync and the
-					engine will ignore. <code>@self/</code> and <code>@game/</code> do work, and so
-					do <code>./</code> and <code>../</code>.
+					, answers “custom aliased paths?” with “Not yet, but we’re working on it!”, and its update
+					of 8 January 2026 says they are working on custom aliases — checked 16 September 2026.
+					Until then this file is one Rojo will happily sync and the engine will ignore.{" "}
+					<code>@self/</code> and <code>@game/</code> do work, and so do <code>./</code> and{" "}
+					<code>../</code>.
 				</div>
 			)}
 
@@ -141,7 +142,9 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 			{aliases.map((alias) => (
 				<div className="setting alias-row" key={alias.name}>
 					<div className="setting-label">
-						<strong><code>@{alias.name}</code></strong>
+						<strong>
+							<code>@{alias.name}</code>
+						</strong>
 						<span>{lands(parsed, dir, alias.name)}</span>
 					</div>
 					<div className="setting-control alias-control">
@@ -149,10 +152,13 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 							className="tb"
 							value={alias.value}
 							aria-label={`What @${alias.name} points at`}
-							onChange={(e) => write(aliases.map((other) =>
-								other.name === alias.name
-									? { ...other, value: e.currentTarget.value }
-									: other))}
+							onChange={(e) =>
+								write(
+									aliases.map((other) =>
+										other.name === alias.name ? { ...other, value: e.currentTarget.value } : other,
+									),
+								)
+							}
 						/>
 						<button
 							type="button"
@@ -201,17 +207,15 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 						>
 							Add
 						</button>
-						<button type="button" className="tb" onClick={() => setDraft(null)}>Cancel</button>
+						<button type="button" className="tb" onClick={() => setDraft(null)}>
+							Cancel
+						</button>
 					</div>
 				</div>
 			)}
 
 			{draft === null && (
-				<button
-					type="button"
-					className="tb"
-					onClick={() => setDraft({ name: "", value: "" })}
-				>
+				<button type="button" className="tb" onClick={() => setDraft({ name: "", value: "" })}>
 					Add an alias
 				</button>
 			)}
@@ -222,13 +226,15 @@ export function AliasDocument({ dir, files, target, onWrite }: AliasDocumentProp
 				<section className="alias-inherited">
 					<h2>Also in scope here</h2>
 					<p className="settings-note">
-						Inherited from the <code>.luaurc</code> files above this one. A name defined
-						here takes the place of one from above; the rest still arrive.
+						Inherited from the <code>.luaurc</code> files above this one. A name defined here takes
+						the place of one from above; the rest still arrive.
 					</p>
 					{inherited.map(([key, entry]) => (
 						<div className="setting alias-row" key={key}>
 							<div className="setting-label">
-								<strong><code>@{entry.name}</code></strong>
+								<strong>
+									<code>@{entry.name}</code>
+								</strong>
 								<span>{lands(parsed, entry.from, entry.name)}</span>
 							</div>
 							<div className="setting-control alias-from">

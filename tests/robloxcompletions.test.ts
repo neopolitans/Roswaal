@@ -20,7 +20,10 @@ function offered(source: string, target: Target = "roblox"): string[] {
 	const pos = source.indexOf("|");
 	const doc = source.replace("|", "");
 	const context = new CompletionContext(EditorState.create({ doc }), pos, false);
-	const result = luauCompletionSource(() => [], () => target)(context);
+	const result = luauCompletionSource(
+		() => [],
+		() => target,
+	)(context);
 	return result ? result.options.map((o) => o.label) : [];
 }
 
@@ -30,8 +33,12 @@ describe("after a datatype's name and a dot", () => {
 	});
 
 	it("offers constructors and constants", () => {
-		expect(offered("local v = Vector3.|")).toEqual(expect.arrayContaining(["new", "zero", "one", "xAxis"]));
-		expect(offered("local c = CFrame.|")).toEqual(expect.arrayContaining(["new", "lookAt", "identity"]));
+		expect(offered("local v = Vector3.|")).toEqual(
+			expect.arrayContaining(["new", "zero", "one", "xAxis"]),
+		);
+		expect(offered("local c = CFrame.|")).toEqual(
+			expect.arrayContaining(["new", "lookAt", "identity"]),
+		);
 		expect(offered("local c = Color3.|")).toEqual(expect.arrayContaining(["fromRGB", "fromHex"]));
 	});
 
@@ -114,12 +121,18 @@ describe("the cases from the first test of the editor", () => {
 
 	it("offers a Part's properties on a local typed or made as one", () => {
 		expect(offered('local Temp : Part = Instance.new("Part")\nTemp.Na|')).toContain("Name");
-		expect(offered('local Temp = Instance.new("Part")\nTemp.|')).toEqual(expect.arrayContaining(["Anchored", "Size", "Name"]));
-		expect(offered('local players = game:GetService("Players")\nplayers.|')).toContain("LocalPlayer");
+		expect(offered('local Temp = Instance.new("Part")\nTemp.|')).toEqual(
+			expect.arrayContaining(["Anchored", "Size", "Name"]),
+		);
+		expect(offered('local players = game:GetService("Players")\nplayers.|')).toContain(
+			"LocalPlayer",
+		);
 	});
 
 	it("offers the keys of a table written out in its declaration", () => {
-		const keys = offered('local tbl = {\n["Anne"] = 500,\n["James"] = 300,\nEmma = 475\n}\n\ntbl.An|');
+		const keys = offered(
+			'local tbl = {\n["Anne"] = 500,\n["James"] = 300,\nEmma = 475\n}\n\ntbl.An|',
+		);
 		expect(keys).toEqual(["Anne", "James", "Emma"]);
 	});
 
@@ -169,12 +182,16 @@ describe("a method after a colon", () => {
 
 describe("events and enums", () => {
 	it("offers a class's events after a dot, with its properties", () => {
-		expect(offered('local part = Instance.new("Part")\npart.|')).toEqual(expect.arrayContaining(["Touched", "Anchored"]));
+		expect(offered('local part = Instance.new("Part")\npart.|')).toEqual(
+			expect.arrayContaining(["Touched", "Anchored"]),
+		);
 	});
 
 	it("offers the enums after Enum, and an enum's items after its name", () => {
 		expect(offered("local m = Enum.|")).toEqual(expect.arrayContaining(["Material", "KeyCode"]));
-		expect(offered("local m = Enum.Material.|")).toEqual(expect.arrayContaining(["Plastic", "Neon"]));
+		expect(offered("local m = Enum.Material.|")).toEqual(
+			expect.arrayContaining(["Plastic", "Neon"]),
+		);
 	});
 });
 
@@ -194,12 +211,19 @@ describe("functions put on a table", () => {
 	});
 
 	it("offers the functions the graph declares on a table variable", () => {
-		const members = new Map([["Occupancy", [
-			{ name: "hide", kind: "function" as const, detail: "(character: Model) -> (boolean)" },
-		]]]);
+		const members = new Map([
+			[
+				"Occupancy",
+				[{ name: "hide", kind: "function" as const, detail: "(character: Model) -> (boolean)" }],
+			],
+		]);
 		const pos = "Occupancy.h".length;
 		const context = new CompletionContext(EditorState.create({ doc: "Occupancy.h" }), pos, false);
-		const result = luauCompletionSource(() => [], () => "roblox", () => members)(context);
+		const result = luauCompletionSource(
+			() => [],
+			() => "roblox",
+			() => members,
+		)(context);
 		expect(result?.options.map((o) => o.label)).toEqual(["hide"]);
 	});
 });

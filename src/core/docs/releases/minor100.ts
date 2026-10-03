@@ -170,9 +170,7 @@ export const RELEASES_0_100: Release[] = [
 		date: "2026-09-29",
 		headline: "Members and fields is reviewed.",
 		affects: ["docs"],
-		changed: [
-			"**Members and fields** has a plainer summary.",
-		],
+		changed: ["**Members and fields** has a plainer summary."],
 		reviewed: ["members-and-fields"],
 	},
 	{
@@ -201,9 +199,7 @@ export const RELEASES_0_100: Release[] = [
 		added: [
 			"**Export Project**, from Project → Export…, takes the project out as a zip or its place file alone. For a project with a place it says what Modify RBXL would write and add, and what it cannot place, before you choose.",
 		],
-		changed: [
-			"**Download is now Export…** in the Project menu.",
-		],
+		changed: ["**Download is now Export…** in the Project menu."],
 	},
 	{
 		version: "0.101.2",
@@ -257,8 +253,6 @@ export const RELEASES_0_100: Release[] = [
 			"**Exporting from the CLI.** `roswaal export out.rbxl` writes the modified place to a file.",
 			"**What was written** is said after each export, with any file whose script is not in the place yet.",
 		],
-		watch: [
-			"**Only scripts already in the place are written.** A new one is listed, not added.",
-		],
+		watch: ["**Only scripts already in the place are written.** A new one is listed, not added."],
 	},
 ];

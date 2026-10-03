@@ -9,19 +9,18 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { buildSite, allPages, type Block } from "../src/core/docs/site.js";
+import { wirePath } from "../src/app/geometry.js";
+import { NODE } from "../src/app/layers.js";
+import { nodeColor, pinColor } from "../src/app/palette.js";
+import { compile } from "../src/core/compiler/index.js";
 import { graphViews } from "../src/core/docs/graphViews.js";
+import { nodeCodeHtml } from "../src/core/docs/nodeCode.js";
+import { graphSvg } from "../src/core/docs/preview.js";
+import { ROBLOX_DEMO_GRAPHS } from "../src/core/docs/robloxDemos.gen.js";
+import { allPages, type Block, buildSite } from "../src/core/docs/site.js";
 import { sideGraph } from "../src/core/functionGraph.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
-import { compile } from "../src/core/compiler/index.js";
-import { graphSvg } from "../src/core/docs/preview.js";
-import { nodeCodeHtml } from "../src/core/docs/nodeCode.js";
-import { ROBLOX_DEMO_GRAPHS } from "../src/core/docs/robloxDemos.gen.js";
-import { NODE } from "../src/app/layers.js";
-import { nodeColor, pinColor } from "../src/app/palette.js";
-import { wirePath } from "../src/app/geometry.js";
 
 const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
 
@@ -31,8 +30,11 @@ function drawn(): { where: string; script: NodeScript }[] {
 	const walk = (slug: string, blocks: readonly Block[]) => {
 		for (const block of blocks) {
 			if (block.t === "graph") out.push({ where: slug, script: block.script });
-			if (block.t === "graphs") for (const one of block.graphs) out.push({ where: `${slug} (${one.title})`, script: one.script });
-			if (block.t === "tabs") for (const tab of block.tabs) walk(`${slug} › ${tab.title}`, tab.blocks);
+			if (block.t === "graphs")
+				for (const one of block.graphs)
+					out.push({ where: `${slug} (${one.title})`, script: one.script });
+			if (block.t === "tabs")
+				for (const tab of block.tabs) walk(`${slug} › ${tab.title}`, tab.blocks);
 		}
 	};
 	for (const page of allPages(site)) {
@@ -72,18 +74,21 @@ describe("the documentation's graphs", () => {
 		const registry = createRegistry();
 		const withoutHeader = (code: string) => {
 			const lines = code.split("\n");
-			while (lines.length > 0 && (lines[0].startsWith("--") || lines[0].trim() === "")) lines.shift();
+			while (lines.length > 0 && (lines[0].startsWith("--") || lines[0].trim() === ""))
+				lines.shift();
 			return lines.join("\n").trim();
 		};
 		const differ: string[] = [];
 		let checked = 0;
 		const walk = (slug: string, blocks: readonly Block[]) => {
 			blocks.forEach((block, i) => {
-				if (block.t === "tabs") for (const tab of block.tabs) walk(`${slug} › ${tab.title}`, tab.blocks);
+				if (block.t === "tabs")
+					for (const tab of block.tabs) walk(`${slug} › ${tab.title}`, tab.blocks);
 				const next = blocks[i + 1];
 				if (block.t !== "graph" || next?.t !== "code" || next.lang !== "luau") return;
 				checked++;
-				if (withoutHeader(compile(block.script, registry).code) !== next.text.trim()) differ.push(slug);
+				if (withoutHeader(compile(block.script, registry).code) !== next.text.trim())
+					differ.push(slug);
 			});
 		};
 		for (const page of allPages(site)) walk(page.slug, page.blocks);
@@ -98,9 +103,11 @@ describe("the documentation's graphs", () => {
 	it("build the values Members and fields reads, rather than standing in for them", () => {
 		const stands = scripts
 			.filter(({ where }) => where.startsWith("members-and-fields"))
-			.flatMap(({ where, script }) => script.nodes
-				.filter((n) => n.def === "value.expression")
-				.map((n) => `${where}: ${(n.literals?.code as { v?: string } | undefined)?.v}`));
+			.flatMap(({ where, script }) =>
+				script.nodes
+					.filter((n) => n.def === "value.expression")
+					.map((n) => `${where}: ${(n.literals?.code as { v?: string } | undefined)?.v}`),
+			);
 		expect(stands).toEqual([]);
 	});
 

@@ -8,13 +8,16 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { body, Builder } from "./helpers.js";
 import { compile } from "../src/core/compiler/index.js";
-import { createRegistry } from "../src/core/nodes/index.js";
 import {
-	expressionPrecedence, foldPrecedence, parenAt, PREC, templatePrecedence,
+	expressionPrecedence,
+	foldPrecedence,
+	PREC,
+	parenAt,
+	templatePrecedence,
 } from "../src/core/compiler/luau.js";
+import { createRegistry } from "../src/core/nodes/index.js";
+import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
 
@@ -155,9 +158,7 @@ describe("a graph of logic nodes", () => {
 		b.link(either, "result", branch, "condition");
 		b.link(branch, "true", b.node("script.end"), "in");
 
-		expect(body(compile(b.build(), registry).code)).toContain(
-			"if (not humanoid) or spare then",
-		);
+		expect(body(compile(b.build(), registry).code)).toContain("if (not humanoid) or spare then");
 	});
 
 	/** An `or` inside an `and` still gets its brackets, asked for or not. */
@@ -175,9 +176,7 @@ describe("a graph of logic nodes", () => {
 		b.link(start, "then", branch, "in");
 		b.link(branch, "true", b.node("script.end"), "in");
 
-		expect(body(compile(b.build(), registry).code)).toContain(
-			"if guard and (a or b) then",
-		);
+		expect(body(compile(b.build(), registry).code)).toContain("if guard and (a or b) then");
 	});
 });
 
@@ -255,53 +254,63 @@ describe("unary minus and prefix positions", () => {
 
 	/** `--3` is the start of a comment, and the line would print nothing. */
 	it("brackets a negative number under Negate", () => {
-		expect(printed((b, print) => {
-			const neg = b.node("math.neg");
-			b.lit(neg, "a", { t: "number", v: -3 });
-			b.link(neg, "result", print, "value");
-		})).toContain("print(-(-3))");
+		expect(
+			printed((b, print) => {
+				const neg = b.node("math.neg");
+				b.lit(neg, "a", { t: "number", v: -3 });
+				b.link(neg, "result", print, "value");
+			}),
+		).toContain("print(-(-3))");
 	});
 
 	it("brackets Negate under Negate", () => {
-		expect(printed((b, print) => {
-			const inner = b.node("math.neg");
-			const outer = b.node("math.neg");
-			b.lit(inner, "a", { t: "raw", v: "speed" });
-			b.link(inner, "result", outer, "a");
-			b.link(outer, "result", print, "value");
-		})).toContain("print(-(-speed))");
+		expect(
+			printed((b, print) => {
+				const inner = b.node("math.neg");
+				const outer = b.node("math.neg");
+				b.lit(inner, "a", { t: "raw", v: "speed" });
+				b.link(inner, "result", outer, "a");
+				b.link(outer, "result", print, "value");
+			}),
+		).toContain("print(-(-speed))");
 	});
 
 	/** `-2 ^ 2` is -(2 ^ 2), which is -4. */
 	it("brackets a negative base of a power", () => {
-		expect(printed((b, print) => {
-			const pow = b.node("math.pow");
-			b.lit(pow, "a", { t: "number", v: -2 });
-			b.lit(pow, "b", { t: "number", v: 2 });
-			b.link(pow, "result", print, "value");
-		})).toContain("print((-2) ^ 2)");
+		expect(
+			printed((b, print) => {
+				const pow = b.node("math.pow");
+				b.lit(pow, "a", { t: "number", v: -2 });
+				b.lit(pow, "b", { t: "number", v: 2 });
+				b.link(pow, "result", print, "value");
+			}),
+		).toContain("print((-2) ^ 2)");
 	});
 
 	it("leaves a negative number bare where nothing binds it", () => {
-		expect(printed((b, print) => {
-			const add = b.node("math.add");
-			b.lit(add, "a0", { t: "raw", v: "speed" });
-			b.lit(add, "a1", { t: "number", v: -1 });
-			b.link(add, "result", print, "value");
-		})).toContain("print(speed + -1)");
+		expect(
+			printed((b, print) => {
+				const add = b.node("math.add");
+				b.lit(add, "a0", { t: "raw", v: "speed" });
+				b.lit(add, "a1", { t: "number", v: -1 });
+				b.link(add, "result", print, "value");
+			}),
+		).toContain("print(speed + -1)");
 	});
 
 	/** Without them this reads `defaults.speed`, from the wrong table. */
 	it("brackets an expression that Get Key indexes", () => {
-		expect(printed((b, print) => {
-			const either = b.node("logic.or");
-			b.lit(either, "a0", { t: "raw", v: "config" });
-			b.lit(either, "a1", { t: "raw", v: "defaults" });
-			const get = b.node("table.getKey");
-			b.link(either, "result", get, "table");
-			b.lit(get, "key", { t: "string", v: "speed" });
-			b.link(get, "result", print, "value");
-		})).toContain("print((config or defaults).speed)");
+		expect(
+			printed((b, print) => {
+				const either = b.node("logic.or");
+				b.lit(either, "a0", { t: "raw", v: "config" });
+				b.lit(either, "a1", { t: "raw", v: "defaults" });
+				const get = b.node("table.getKey");
+				b.link(either, "result", get, "table");
+				b.lit(get, "key", { t: "string", v: "speed" });
+				b.link(get, "result", print, "value");
+			}),
+		).toContain("print((config or defaults).speed)");
 	});
 
 	/** `"hello":upper()` is not Luau; a string has to be bracketed to be called on. */

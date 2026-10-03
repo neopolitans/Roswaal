@@ -37,7 +37,13 @@
  */
 
 import {
-	argumentPin, callLabelOf, execPin, memberOf, ownerOf, splitCallText, type CallSpelling,
+	argumentPin,
+	type CallSpelling,
+	callLabelOf,
+	execPin,
+	memberOf,
+	ownerOf,
+	splitCallText,
 } from "./callNodes.js";
 import { LUNE_MODULES, type LuneFunction, type LuneParam } from "./luneApi.js";
 import type { NodeConfig, PinDef } from "./schema.js";
@@ -53,7 +59,8 @@ function functionsOf(alias: string): readonly LuneFunction[] {
 }
 
 export function luneFunction(
-	alias: string | undefined, name: string | undefined,
+	alias: string | undefined,
+	name: string | undefined,
 ): LuneFunction | undefined {
 	if (!alias || !name) return undefined;
 	return functionsOf(alias).find((one) => one.name === name);
@@ -154,7 +161,8 @@ export function isValueCall(fn: LuneFunction): boolean {
 
 /** The pins of a Lune Function node, for either shape. */
 export function lunePins(
-	c: NodeConfig | undefined, pure: boolean,
+	c: NodeConfig | undefined,
+	pure: boolean,
 ): { inputs: PinDef[]; outputs: PinDef[] } {
 	const fn = luneFunction(moduleOf(c), callOf(c));
 	const args = fn ? argumentPins(fn) : [];

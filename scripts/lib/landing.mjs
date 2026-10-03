@@ -19,25 +19,32 @@
  * bar between the two halves draggable; without it both stay as drawn.
  */
 
-import { buildSite } from "../../src/core/docs/site.ts";
-import { escapeHtml } from "../../src/core/docs/html.ts";
-import { BUILTIN_NODES, createRegistry } from "../../src/core/nodes/index.ts";
-import { growthState } from "../../src/core/nodes/growth.ts";
-import { graphSvg } from "../../src/core/docs/preview.ts";
-import { emptyScript } from "../../src/core/schema.ts";
-import { SOURCE_REPOSITORY, STABLE_SITE } from "../../src/core/docs/links.ts";
-import { taglineFor } from "../../src/core/docs/releases.ts";
-import { highlightLuau } from "../../src/app/highlight.ts";
-import { nodeColor, pinColor } from "../../src/app/palette.ts";
-import { BUILTIN_NODES as ALL_NODES } from "../../src/core/nodes/index.ts";
 import { wirePath } from "../../src/app/geometry.ts";
+import { highlightLuau } from "../../src/app/highlight.ts";
+import { ICONS } from "../../src/app/icons.tsx";
 import { NODE } from "../../src/app/layers.ts";
 import { faviconHref, logoMarkup } from "../../src/app/logo.tsx";
-import { ICONS } from "../../src/app/icons.tsx";
+import { nodeColor, pinColor } from "../../src/app/palette.ts";
 import {
-	BACKUP_BANNER, CANARY_BANNER, MARK_BESIDE_LINK, MARK_LABEL, PREVIEW_BESIDE_LINK,
+	BACKUP_BANNER,
+	CANARY_BANNER,
+	MARK_BESIDE_LINK,
+	MARK_LABEL,
+	PREVIEW_BESIDE_LINK,
 	PREVIEW_LABEL,
 } from "../../src/app/previewMark.ts";
+import { escapeHtml } from "../../src/core/docs/html.ts";
+import { SOURCE_REPOSITORY, STABLE_SITE } from "../../src/core/docs/links.ts";
+import { graphSvg } from "../../src/core/docs/preview.ts";
+import { taglineFor } from "../../src/core/docs/releases.ts";
+import { buildSite } from "../../src/core/docs/site.ts";
+import { growthState } from "../../src/core/nodes/growth.ts";
+import {
+	BUILTIN_NODES as ALL_NODES,
+	BUILTIN_NODES,
+	createRegistry,
+} from "../../src/core/nodes/index.ts";
+import { emptyScript } from "../../src/core/schema.ts";
 
 /**
  * Which example to show.
@@ -48,8 +55,6 @@ import {
  * than against a toy.
  */
 const EXAMPLE = "node/event.connect";
-
-
 
 /**
  * A node's colour, from the function the canvas itself uses.
@@ -74,9 +79,10 @@ function colourOf(id) {
 function icon(name) {
 	const path = ICONS[name];
 	if (!path) throw new Error(`The landing page asks for an icon that is gone: ${name}`);
-	const stroke = name === "function"
-		? ' fill="none" stroke="currentColor" stroke-width="80" stroke-linecap="round"'
-		: ' fill="currentColor"';
+	const stroke =
+		name === "function"
+			? ' fill="none" stroke="currentColor" stroke-width="80" stroke-linecap="round"'
+			: ' fill="currentColor"';
 	return `<svg viewBox="0 -960 960 960" aria-hidden="true"><path d="${path}"${stroke}/></svg>`;
 }
 
@@ -85,9 +91,9 @@ function highlight(code) {
 	return highlightLuau(code)
 		.map((tokens) =>
 			tokens
-				.map((t) => (t.cls === ""
-					? escapeHtml(t.text)
-					: `<span class="${t.cls}">${escapeHtml(t.text)}</span>`))
+				.map((t) =>
+					t.cls === "" ? escapeHtml(t.text) : `<span class="${t.cls}">${escapeHtml(t.text)}</span>`,
+				)
 				.join(""),
 		)
 		.join(String.fromCharCode(10));
@@ -106,8 +112,20 @@ function heroGraph() {
 	const script = {
 		...emptyScript("Touched", "landing-hero"),
 		nodes: [
-			{ id: "event", def: "roblox.getEvent", x: 0, y: 40, literals: { event: { t: "string", v: "Touched" } } },
-			{ id: "connect", def: "event.connect", x: 260, y: 0, config: { params: [{ name: "hit", type: "BasePart" }] } },
+			{
+				id: "event",
+				def: "roblox.getEvent",
+				x: 0,
+				y: 40,
+				literals: { event: { t: "string", v: "Touched" } },
+			},
+			{
+				id: "connect",
+				def: "event.connect",
+				x: 260,
+				y: 0,
+				config: { params: [{ name: "hit", type: "BasePart" }] },
+			},
 			{ id: "print", def: "debug.print", x: 540, y: 30 },
 		],
 		links: [
@@ -578,7 +596,10 @@ const channelIsCanary = () => process.env.ROSWAAL_CHANNEL === "canary";
 /** The copy at the site's old address. See `IS_BACKUP` in `src/app/pages.ts`. */
 const buildIsBackup = () => process.env.ROSWAAL_BACKUP === "1";
 
-export function landingPage(version, { canary = channelIsCanary(), backup = buildIsBackup() } = {}) {
+export function landingPage(
+	version,
+	{ canary = channelIsCanary(), backup = buildIsBackup() } = {},
+) {
 	const IS_CANARY = canary;
 	const { svg, luau } = example();
 	const tagline = taglineFor(version);
@@ -588,8 +609,12 @@ export function landingPage(version, { canary = channelIsCanary(), backup = buil
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
-` : ""}<title>Roswaal${IS_CANARY ? " canary" : ""} - Visual Scripting for Luau</title>
+${
+	IS_CANARY || backup
+		? `<meta name="robots" content="noindex" />
+`
+		: ""
+}<title>Roswaal${IS_CANARY ? " canary" : ""} - Visual Scripting for Luau</title>
 <meta name="description" content="Visual scripting for Roblox Luau and Lune Luau. Graphs live on disk and compile to plain Luau that Rojo syncs. Try it in your browser, with nothing installed." />
 <link rel="icon" href="${faviconHref()}" />
 <link rel="stylesheet" href="docs/theme.css?v=${encodeURIComponent(version)}" />
@@ -598,13 +623,17 @@ ${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
 <script src="landing.js?v=${encodeURIComponent(version)}" defer></script>
 </head>
 <body class="roswaal-landing">
-${backup ? `<div class="landing-notices">
+${
+	backup
+		? `<div class="landing-notices">
   <p class="landing-canary landing-backup">
     <span class="flag">${escapeHtml(BACKUP_BANNER.mark)}</span>
     ${escapeHtml(BACKUP_BANNER.app)}
     <a href="${STABLE_SITE}">${escapeHtml(BACKUP_BANNER.wayOut)}</a>
   </p>
-</div>` : ""}
+</div>`
+		: ""
+}
 <header class="landing-banner${IS_CANARY ? " canary" : ""}">
   <div class="banner-inner">
     <div class="banner-mark">${logoMarkup(96)}</div>
@@ -619,7 +648,9 @@ ${backup ? `<div class="landing-notices">
     <div class="banner-graph" aria-hidden="true">${heroGraph()}</div>
   </div>
 </header>
-${IS_CANARY ? `<div class="landing-strip" role="note">
+${
+	IS_CANARY
+		? `<div class="landing-strip" role="note">
   <div class="strip-inner">
     <span class="strip-flag">${escapeHtml(MARK_LABEL.canary)}</span>
     <span class="strip-text">${escapeHtml(CANARY_BANNER.app)}</span>
@@ -627,7 +658,9 @@ ${IS_CANARY ? `<div class="landing-strip" role="note">
       Roswaal <span class="flag">stable</span>
     </a>
   </div>
-</div>` : ""}
+</div>`
+		: ""
+}
 <div class="landing-below">
 <div class="landing-glow" aria-hidden="true"></div>
 <main class="landing">
@@ -644,11 +677,11 @@ ${IS_CANARY ? `<div class="landing-strip" role="note">
     <ul class="landing-doors">
       <li>
         <a class="door first" href="try.html" title="${escapeHtml(
-          IS_CANARY ? MARK_BESIDE_LINK.canary : PREVIEW_BESIDE_LINK,
-        )}">
+					IS_CANARY ? MARK_BESIDE_LINK.canary : PREVIEW_BESIDE_LINK,
+				)}">
           Try it in your browser <span class="flag ${IS_CANARY ? "canary" : "preview"}">${escapeHtml(
-            IS_CANARY ? MARK_LABEL.canary : PREVIEW_LABEL,
-          )}</span>
+						IS_CANARY ? MARK_LABEL.canary : PREVIEW_LABEL,
+					)}</span>
         </a>
       </li>
       <li><a href="docs/">Read the documentation</a></li>

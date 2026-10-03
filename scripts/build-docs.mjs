@@ -14,31 +14,35 @@
  */
 
 import { createHash } from "node:crypto";
-import { mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
-import { growthState } from "../src/core/nodes/growth.ts";
-import { buildSearchIndex, buildSite } from "../src/core/docs/site.ts";
+import { wirePath } from "../src/app/geometry.ts";
+import { highlightLuau } from "../src/app/highlight.ts";
+import { EVEN_ODD, ICONS, STROKED, VIEW_BOX } from "../src/app/icons.tsx";
+import { NODE } from "../src/app/layers.ts";
+import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
+import { nodeColor, pinColor } from "../src/app/palette.ts";
+import {
+	BACKUP_BANNER,
+	CANARY_BANNER,
+	MARK_LABEL,
+	markChipMarkup,
+	previewChipMarkup,
+} from "../src/app/previewMark.ts";
+import { VERSION } from "../src/cli/version.ts";
 import { escapeHtml, renderSite } from "../src/core/docs/html.ts";
 import { STABLE_SITE } from "../src/core/docs/links.ts";
-import { highlightLuau } from "../src/app/highlight.ts";
-import { nodeColor, pinColor } from "../src/app/palette.ts";
-import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
-import { EVEN_ODD, ICONS, STROKED, VIEW_BOX } from "../src/app/icons.tsx";
-import { BACKUP_BANNER, CANARY_BANNER, markChipMarkup, MARK_LABEL, previewChipMarkup } from "../src/app/previewMark.ts";
-
-import { wirePath } from "../src/app/geometry.ts";
-import { NODE } from "../src/app/layers.ts";
+import { buildSearchIndex, buildSite } from "../src/core/docs/site.ts";
+import { growthState } from "../src/core/nodes/growth.ts";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
+import { buildDocsClient } from "./lib/docsClient.mjs";
+import { buildDocsToggle } from "./lib/docsToggle.mjs";
 import { buildGraphViewer } from "./lib/graphViewer.mjs";
+import { buildMapPanel } from "./lib/mapPanel.mjs";
 import { buildThemePaint } from "./lib/themePaint.mjs";
 import { buildToolbarLinker } from "./lib/toolbarLinker.mjs";
-import { buildMapPanel } from "./lib/mapPanel.mjs";
-import { buildDocsToggle } from "./lib/docsToggle.mjs";
-import { buildDocsClient } from "./lib/docsClient.mjs";
-import { VERSION } from "../src/cli/version.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -50,9 +54,7 @@ function highlight(code) {
 		.map((tokens) =>
 			tokens
 				.map((t) =>
-					t.cls === ""
-						? escapeHtml(t.text)
-						: `<span class="${t.cls}">${escapeHtml(t.text)}</span>`,
+					t.cls === "" ? escapeHtml(t.text) : `<span class="${t.cls}">${escapeHtml(t.text)}</span>`,
 				)
 				.join(""),
 		)
@@ -69,7 +71,10 @@ async function main() {
 	// The defaults for everything a reader can change in the editor: this site
 	// has no preferences to read, so it draws what a fresh install draws.
 	const preview = {
-		geometry: NODE, nodeColor, pinColor, wirePath,
+		geometry: NODE,
+		nodeColor,
+		pinColor,
+		wirePath,
 		growth: (p) => growthState(registry.get(p.id), p.config),
 	};
 	// Which line this site was built from. Read off the environment rather than
@@ -78,7 +83,10 @@ async function main() {
 	// The mark in the site's colour, as every window of the web app wears it:
 	// the published site is the web app's, so blue, and yellow on the canary.
 	const logo = {
-		mark: logoMarkup(18).replace('class="logo-mark"', `class="logo-mark mark-${isCanary ? "canary" : "preview"}"`),
+		mark: logoMarkup(18).replace(
+			'class="logo-mark"',
+			`class="logo-mark mark-${isCanary ? "canary" : "preview"}"`,
+		),
 		icon: faviconHref(),
 	};
 	// The copy at the old address says where the site went, in the accent colour.
@@ -90,25 +98,32 @@ async function main() {
 			`<a class="canary-banner-out" href="${STABLE_SITE}">${escapeHtml(BACKUP_BANNER.wayOut)}</a></div>
 `
 		: isCanary
-		? `<div class="canary-banner" role="status">` +
-			`<span class="canary-banner-mark">${escapeHtml(MARK_LABEL.canary)}</span>` +
-			`<span class="canary-banner-text">${escapeHtml(CANARY_BANNER.docs)}</span>` +
-			`<a class="canary-banner-out" href="${STABLE_SITE}"` +
-			` rel="noreferrer noopener">${escapeHtml(CANARY_BANNER.wayOut)}</a></div>
+			? `<div class="canary-banner" role="status">` +
+				`<span class="canary-banner-mark">${escapeHtml(MARK_LABEL.canary)}</span>` +
+				`<span class="canary-banner-text">${escapeHtml(CANARY_BANNER.docs)}</span>` +
+				`<a class="canary-banner-out" href="${STABLE_SITE}"` +
+				` rel="noreferrer noopener">${escapeHtml(CANARY_BANNER.wayOut)}</a></div>
 `
-		: undefined;
+			: undefined;
 	// The glyphs and the mark a drawn toolbar needs. Core cannot import either,
 	// so the build hands them over the same way it hands over the palette.
-	const toolbars = { viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), pinColor, strokes: STROKED, evenOdd: EVEN_ODD };
+	const toolbars = {
+		viewBox: VIEW_BOX,
+		paths: ICONS,
+		mark: logoMarkup(15),
+		pinColor,
+		strokes: STROKED,
+		evenOdd: EVEN_ODD,
+	};
 
 	// The three shared assets, made before any page so every page can name
 	// exactly the bytes it was built against. See `assetStamp` in html.ts.
 	const docsJs =
-		(await buildDocsClient())
-		+ (await buildGraphViewer())
-		+ (await buildToolbarLinker())
-		+ (await buildMapPanel())
-		+ (await buildDocsToggle());
+		(await buildDocsClient()) +
+		(await buildGraphViewer()) +
+		(await buildToolbarLinker()) +
+		(await buildMapPanel()) +
+		(await buildDocsToggle());
 	// The editor's own stylesheet, so the site and the in-app window are styled
 	// by one file rather than by two that have to be kept in step.
 	const themeCss = await readFile(join(root, "src/app/theme.css"), "utf8");
@@ -116,14 +131,26 @@ async function main() {
 	// Loaded blocking from the head, so the page never paints twice.
 	const themeJs = await buildThemePaint();
 	const assetStamp = createHash("sha256")
-		.update(docsJs).update("\0").update(themeCss).update("\0").update(themeJs)
+		.update(docsJs)
+		.update("\0")
+		.update(themeCss)
+		.update("\0")
+		.update(themeJs)
 		.digest("hex")
 		.slice(0, 12);
 
 	const files = renderSite(site, {
-		highlight, pinColor, preview, logo, registry, toolbars,
+		highlight,
+		pinColor,
+		preview,
+		logo,
+		registry,
+		toolbars,
 		previewChip: isCanary ? markChipMarkup("canary") : previewChipMarkup(),
-		canaryBanner, noindex: isCanary || isBackup, version: VERSION, assetStamp,
+		canaryBanner,
+		noindex: isCanary || isBackup,
+		version: VERSION,
+		assetStamp,
 	});
 
 	for (const file of files) {

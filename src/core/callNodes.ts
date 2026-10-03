@@ -44,7 +44,10 @@ export function ownerOf(spelling: CallSpelling, config: NodeConfig | undefined):
 }
 
 /** The call chosen on the node, or undefined before one is picked. */
-export function memberOf(spelling: CallSpelling, config: NodeConfig | undefined): string | undefined {
+export function memberOf(
+	spelling: CallSpelling,
+	config: NodeConfig | undefined,
+): string | undefined {
 	return configText(config, spelling.memberKey);
 }
 
@@ -54,19 +57,26 @@ export function memberOf(spelling: CallSpelling, config: NodeConfig | undefined)
  * One string is what the picker offers, what the node's subtitle shows and what
  * a menu entry is named, so it is built in one place.
  */
-export function callLabelOf(spelling: CallSpelling, config: NodeConfig | undefined): string | undefined {
+export function callLabelOf(
+	spelling: CallSpelling,
+	config: NodeConfig | undefined,
+): string | undefined {
 	const member = memberOf(spelling, config);
 	return member ? `${ownerOf(spelling, config)}${spelling.separator}${member}` : undefined;
 }
 
 /** The two halves of a written call, ignoring a trailing argument list. */
 export function splitCallText(
-	spelling: CallSpelling, text: string,
+	spelling: CallSpelling,
+	text: string,
 ): { owner: string; member: string } | undefined {
 	const at = text.indexOf(spelling.separator);
 	if (at <= 0) return undefined;
 	const owner = text.slice(0, at).trim();
-	const member = text.slice(at + 1).replace(/\(.*\)$/, "").trim();
+	const member = text
+		.slice(at + 1)
+		.replace(/\(.*\)$/, "")
+		.trim();
 	if (owner === "" || member === "") return undefined;
 	return { owner, member };
 }

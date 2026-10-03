@@ -11,11 +11,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { compile } from "../src/core/compiler/index.js";
+import { compile, serialiseScript } from "../src/core/compiler/index.js";
 import { migrateScript } from "../src/core/migrate.js";
 import { createRegistry } from "../src/core/nodes/index.js";
-import { serialiseScript } from "../src/core/compiler/index.js";
 import type { NodeScript, TypecheckMode } from "../src/core/schema.js";
 import { Builder } from "./helpers.js";
 
@@ -114,7 +112,7 @@ describe("graphs written before the dropdown existed", () => {
 		const raw = { ...graph("strict"), strict: true } as unknown as NodeScript;
 		const migrated = migrateScript(raw).script;
 		expect("strict" in migrated).toBe(false);
-		expect(serialiseScript(migrated)).not.toContain("strict\":");
+		expect(serialiseScript(migrated)).not.toContain('strict":');
 	});
 });
 

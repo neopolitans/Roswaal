@@ -8,12 +8,11 @@
  * only draws it, and redraws it as the cursor moves.
  */
 
-import { StateField, type EditorState, type Extension } from "@codemirror/state";
+import { type EditorState, type Extension, StateField } from "@codemirror/state";
 import { showTooltip, type Tooltip } from "@codemirror/view";
-
-import { signatureAt, type Signature } from "../core/luau/signature.js";
-import type { Target } from "../core/schema.js";
 import type { TableMember } from "../core/luau/infer.js";
+import { type Signature, signatureAt } from "../core/luau/signature.js";
+import type { Target } from "../core/schema.js";
 
 function span(text: string, cls: string): HTMLSpanElement {
 	const el = document.createElement("span");

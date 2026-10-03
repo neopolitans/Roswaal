@@ -2,11 +2,15 @@
  * The `wally-packages` page of the documentation. `buildSite` places it.
  */
 
-import { code } from "./blocks.js";
 import type { DocPage } from "../site.js";
 import {
-	ADD_FROM_WALLY, PROJECT_TREE_WALLY, PROJECT_TREE_WALLY_ADDED, REMOVE_PACKAGE, WALLY_MENU,
+	ADD_FROM_WALLY,
+	PROJECT_TREE_WALLY,
+	PROJECT_TREE_WALLY_ADDED,
+	REMOVE_PACKAGE,
+	WALLY_MENU,
 } from "../toolbars.js";
+import { code } from "./blocks.js";
 
 /**
  * Wally, as Roswaal reads and writes it.
@@ -16,7 +20,8 @@ export function wallyPackagesPage(): DocPage {
 		slug: "wally-packages",
 		narrow: true,
 		title: "Wally packages",
-		summary: "Packages in the project tree, how a require reaches one, and adding and removing them.",
+		summary:
+			"Packages in the project tree, how a require reaches one, and adding and removing them.",
 		blocks: [
 			{
 				t: "p",
@@ -68,9 +73,18 @@ export function wallyPackagesPage(): DocPage {
 				t: "table",
 				head: ["", "What it does"],
 				rows: [
-					["**Add from Wally…**", "Puts the line in `wally.toml` and installs the package, with what it depends on"],
-					["**Insert package zip…**", "Installs a zip. A Wally package goes where `wally install` puts one; any other module is copied into `Packages/`"],
-					["**Insert GitHub repo…**", "Copies a repository's module into `Packages/`, found through its project file. In the installed editor"],
+					[
+						"**Add from Wally…**",
+						"Puts the line in `wally.toml` and installs the package, with what it depends on",
+					],
+					[
+						"**Insert package zip…**",
+						"Installs a zip. A Wally package goes where `wally install` puts one; any other module is copied into `Packages/`",
+					],
+					[
+						"**Insert GitHub repo…**",
+						"Copies a repository's module into `Packages/`, found through its project file. In the installed editor",
+					],
 				],
 			},
 			{
@@ -132,7 +146,11 @@ export function wallyPackagesPage(): DocPage {
 			{
 				t: "walkthrough",
 				steps: [
-					{ text: "Right-click the package under `wally.toml`.", picture: [PROJECT_TREE_WALLY], point: "A package" },
+					{
+						text: "Right-click the package under `wally.toml`.",
+						picture: [PROJECT_TREE_WALLY],
+						point: "A package",
+					},
 					{ text: "Choose **Remove package…**.", picture: [WALLY_MENU], point: "Remove package…" },
 					{
 						text: "It lists the files that still require it. Press **Remove** to take it out.",

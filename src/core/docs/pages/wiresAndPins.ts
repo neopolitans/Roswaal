@@ -3,8 +3,8 @@
  */
 
 import { GUIDE_SCENES } from "../examples.js";
-import { previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
+import { previews } from "./blocks.js";
 
 export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 	return {
@@ -111,8 +111,14 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 				head: ["Gesture", "What it does"],
 				rows: [
 					["Drag from a pin", "Start a wire. Pins of other types dim"],
-					["Drop it on empty space", "The node menu, showing only nodes that can take it. Picking one connects it"],
-					["Drop a value on Add, Make Dictionary or a call", "Adds an input for it and connects it"],
+					[
+						"Drop it on empty space",
+						"The node menu, showing only nodes that can take it. Picking one connects it",
+					],
+					[
+						"Drop a value on Add, Make Dictionary or a call",
+						"Adds an input for it and connects it",
+					],
 					["Drag from a wired input", "Pick the wire up and move it"],
 					["`Shift` + click a pin", "Disconnect everything on it"],
 					["`Shift` or `Alt` + click a wire", "Disconnect it"],

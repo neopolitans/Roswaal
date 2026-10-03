@@ -12,23 +12,25 @@
  */
 
 import { aliasScore } from "../core/aliases.js";
-import { FUNCTION_NODES } from "../core/nodes/flow.js";
-import { hoistedFunctions, paramsVisibleFrom, visibleFrom, type GraphId } from "../core/functionGraph.js";
+import { categoryLabel } from "../core/categories.js";
+import {
+	type GraphId,
+	hoistedFunctions,
+	paramsVisibleFrom,
+	visibleFrom,
+} from "../core/functionGraph.js";
 import { keywordNodes } from "../core/keywords.js";
 import { luneMenuItems, lunePins } from "../core/luneCalls.js";
-import { membersOfType, type MemberLookup } from "../core/members.js";
-import { categories, subcategories, type Registry } from "../core/nodes/index.js";
+import { type MemberLookup, membersOfType } from "../core/members.js";
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import { categories, type Registry, subcategories } from "../core/nodes/index.js";
 import { classify, classifyFor, runtimeLabelFor } from "../core/nodes/runtimes.js";
-import {
-	type GraphNode, type Literal, type NodeConfig, type NodeDef, type PinDef,
-	type PinRef,
-} from "../core/schema.js";
+import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
 import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
 import { landingPins, localRefFor } from "./edits.js";
 import { configText, functionNameOf, paramsOf } from "./nodeConfig.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { MENU_FILTERS, type MenuFilter } from "./preferences.js";
-import { categoryLabel } from "../core/categories.js";
 
 /** The pin a menu was dragged off. See `MenuAnchor.from`. */
 export interface WireFrom {
@@ -160,7 +162,9 @@ export interface MenuGroup {
  * an instance of.
  */
 export function libraryItems(
-	registry: Registry, target: "roblox" | "lune", presets: Preset[],
+	registry: Registry,
+	target: "roblox" | "lune",
+	presets: Preset[],
 ): MenuItem[] {
 	const fromDefs = [...registry.values()]
 		.filter((def) => !def.targets || def.targets.includes(target))
@@ -182,23 +186,25 @@ export function libraryItems(
 	const fromPresets = presets.flatMap((preset): MenuItem[] => {
 		const def = registry.get(preset.defId);
 		if (!def) return [];
-		return [{
-			key: preset.key,
-			title: preset.title,
-			category: preset.category,
-			summary: preset.summary,
-			color: preset.color,
-			pure: def.pure === true,
-			// A preset is a thing this graph declares -- a variable you named,
-			// a local, a function, one of its parameters. Which runtime the
-			// node behind it needs is not the interesting question about it:
-			// it is as portable as the graph is.
-			runtime: "graph",
-			def,
-			config: preset.config,
-			member: preset.member,
-			deep: preset.deep,
-		}];
+		return [
+			{
+				key: preset.key,
+				title: preset.title,
+				category: preset.category,
+				summary: preset.summary,
+				color: preset.color,
+				pure: def.pure === true,
+				// A preset is a thing this graph declares -- a variable you named,
+				// a local, a function, one of its parameters. Which runtime the
+				// node behind it needs is not the interesting question about it:
+				// it is as portable as the graph is.
+				runtime: "graph",
+				def,
+				config: preset.config,
+				member: preset.member,
+				deep: preset.deep,
+			},
+		];
 	});
 
 	return [...fromPresets, ...fromDefs];
@@ -244,9 +250,12 @@ export function reachableDefs(registry: Registry, from: WireFrom | undefined): S
 
 /** The items a wire can reach, narrowed to one runtime when one is chosen. */
 export function narrowItems(
-	items: readonly MenuItem[], reachable: ReadonlySet<string> | null, runtime: MenuFilter | null,
+	items: readonly MenuItem[],
+	reachable: ReadonlySet<string> | null,
+	runtime: MenuFilter | null,
 ): MenuItem[] {
-	const byWire = reachable === null ? [...items] : items.filter((item) => reachable.has(item.def.id));
+	const byWire =
+		reachable === null ? [...items] : items.filter((item) => reachable.has(item.def.id));
 	return runtime === null ? byWire : byWire.filter((item) => item.runtime === runtime);
 }
 
@@ -263,7 +272,9 @@ export function narrowItems(
  * are named by the method alone and grouped under the service.
  */
 export function serviceItems(
-	registry: Registry, target: "roblox" | "lune", dragged: string | undefined,
+	registry: Registry,
+	target: "roblox" | "lune",
+	dragged: string | undefined,
 ): MenuItem[] {
 	// Roblox-only twice over: this guard, and the node each entry configures.
 	if (target !== "roblox") return [];
@@ -272,22 +283,24 @@ export function serviceItems(
 		if (!def) return [];
 		const pure = def.pure === true;
 		const own = entry.service === dragged;
-		return [{
-			runtime: classify(def),
-			// Off a service's own pin the service is not news — it is what you
-			// dragged — so the entries are the method names under a heading of
-			// the service, which is how the Creator Hub lists them. Searched
-			// from nowhere in particular, the service is half the name.
-			key: `service:${entry.service}:${entry.method.name}`,
-			title: own ? entry.method.name : `${entry.service}:${entry.method.name}`,
-			category: own ? entry.service : "Engine",
-			summary: entry.method.summary,
-			color: nodeColor(def),
-			pure,
-			def,
-			config: entry.config,
-			pins: servicePins(entry.config, pure),
-		}];
+		return [
+			{
+				runtime: classify(def),
+				// Off a service's own pin the service is not news — it is what you
+				// dragged — so the entries are the method names under a heading of
+				// the service, which is how the Creator Hub lists them. Searched
+				// from nowhere in particular, the service is half the name.
+				key: `service:${entry.service}:${entry.method.name}`,
+				title: own ? entry.method.name : `${entry.service}:${entry.method.name}`,
+				category: own ? entry.service : "Engine",
+				summary: entry.method.summary,
+				color: nodeColor(def),
+				pure,
+				def,
+				config: entry.config,
+				pins: servicePins(entry.config, pure),
+			},
+		];
 	});
 }
 
@@ -306,18 +319,20 @@ export function luneItems(registry: Registry, target: "roblox" | "lune"): MenuIt
 		if (!def) return [];
 		const pure = def.pure === true;
 		const config = { module: entry.module, call: entry.call };
-		return [{
-			runtime: classify(def),
-			key: `lune:${entry.label}`,
-			title: entry.label,
-			category: "Lune",
-			summary: entry.summary,
-			color: nodeColor(def),
-			pure,
-			def,
-			config,
-			pins: lunePins(config, pure),
-		}];
+		return [
+			{
+				runtime: classify(def),
+				key: `lune:${entry.label}`,
+				title: entry.label,
+				category: "Lune",
+				summary: entry.summary,
+				color: nodeColor(def),
+				pure,
+				def,
+				config,
+				pins: lunePins(config, pure),
+			},
+		];
 	});
 }
 
@@ -335,17 +350,19 @@ export function namedItems(registry: Registry, target: "roblox" | "lune"): MenuI
 	return nameItems().flatMap((entry): MenuItem[] => {
 		const def = registry.get(entry.defId);
 		if (!def) return [];
-		return [{
-			runtime: classify(def),
-			key: `name:${entry.defId}:${entry.name}`,
-			title: entry.name,
-			category: entry.category,
-			summary: entry.summary,
-			color: nodeColor(def),
-			pure: def.pure === true,
-			def,
-			literals: entry.literals,
-		}];
+		return [
+			{
+				runtime: classify(def),
+				key: `name:${entry.defId}:${entry.name}`,
+				title: entry.name,
+				category: entry.category,
+				summary: entry.summary,
+				color: nodeColor(def),
+				pure: def.pure === true,
+				def,
+				literals: entry.literals,
+			},
+		];
 	});
 }
 
@@ -359,7 +376,8 @@ export function namedItems(registry: Registry, target: "roblox" | "lune"): MenuI
  * node in the library that takes an Instance — answers a question nobody put.
  */
 export function draggedServiceItems(
-	services: readonly MenuItem[], from: WireFrom | undefined,
+	services: readonly MenuItem[],
+	from: WireFrom | undefined,
 ): MenuItem[] {
 	const service = from?.service;
 	if (!service || from?.side !== "out") return [];
@@ -413,7 +431,9 @@ export interface MenuSources {
  * scrolled past (see `Preset.deep`).
  */
 export function searchMenu(
-	query: string, sources: MenuSources, from: WireFrom | undefined,
+	query: string,
+	sources: MenuSources,
+	from: WireFrom | undefined,
 ): MenuItem[] {
 	const { items, services, lune, names, draggedService, draggedMembers } = sources;
 	const q = query.trim().toLowerCase();
@@ -645,14 +665,15 @@ export function buildPresets(
  * size, and three identical entries is a list you cannot pick from.
  */
 function parameterPresets(
-	nodes: Pick<GraphNode, "id" | "def" | "config" | "graph">[], graph: GraphId,
+	nodes: Pick<GraphNode, "id" | "def" | "config" | "graph">[],
+	graph: GraphId,
 ): Preset[] {
 	const owners = nodes.filter(
 		(node) =>
-			(FUNCTION_NODES.has(node.def) || node.def === "event.connect" || node.def === "event.once")
+			(FUNCTION_NODES.has(node.def) || node.def === "event.connect" || node.def === "event.once") &&
 			// A parameter exists only where its body runs, so a function's are
 			// offered in its own graph and a handler's where its Connect is drawn.
-			&& paramsVisibleFrom(node, graph),
+			paramsVisibleFrom(node, graph),
 	);
 	const counts = new Map<string, number>();
 	for (const owner of owners) {

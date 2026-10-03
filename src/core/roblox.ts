@@ -15,7 +15,7 @@
 
 import { quoteString } from "./compiler/quote.js";
 import { RESERVED_WORDS } from "./luau/lexer.js";
-import { CLASSES, CLASS_PARENTS, DATATYPES } from "./robloxData.js";
+import { CLASS_PARENTS, CLASSES, DATATYPES } from "./robloxData.js";
 
 /** Services offered in the Get Service dropdown, in rough order of use. */
 export const ROBLOX_SERVICES = [
@@ -90,7 +90,10 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
  * typing does not produce broken code.
  */
 export function renderPath(base: string, path: string): string {
-	const segments = path.split(".").map((s) => s.trim()).filter((s) => s !== "");
+	const segments = path
+		.split(".")
+		.map((s) => s.trim())
+		.filter((s) => s !== "");
 	return segments.reduce((acc, segment) => {
 		return IDENTIFIER.test(segment) && !RESERVED_WORDS.has(segment)
 			? `${acc}.${segment}`
@@ -100,7 +103,10 @@ export function renderPath(base: string, path: string): string {
 
 /** The last segment of a path, which is the natural name for its local. */
 export function lastSegment(path: string): string {
-	const segments = path.split(".").map((s) => s.trim()).filter((s) => s !== "");
+	const segments = path
+		.split(".")
+		.map((s) => s.trim())
+		.filter((s) => s !== "");
 	return segments[segments.length - 1] ?? "";
 }
 
@@ -117,17 +123,60 @@ export function lastSegment(path: string): string {
  * `CLASSES` is for now.
  */
 export const INSTANCE_CLASSES: string[] = [
-	"Accessory", "Animation", "AnimationTrack", "Animator", "Attachment",
-	"BasePart", "BillboardGui", "BindableEvent", "BindableFunction", "BoolValue",
-	"Camera", "CFrameValue", "ClickDetector", "Configuration", "Decal",
-	"Folder", "Frame", "GuiButton", "GuiObject", "Highlight", "Humanoid",
-	"HumanoidDescription", "ImageLabel", "IntValue", "Model", "Motor6D",
-	"MeshPart", "NumberValue", "ObjectValue", "Part", "ParticleEmitter",
-	"Player", "PlayerGui", "PointLight", "ProximityPrompt", "RemoteEvent",
-	"RemoteFunction", "ScreenGui", "Seat", "Sound", "Sparkles",
-	"StringValue", "SurfaceGui", "TextBox", "TextButton", "TextLabel", "Tool",
-	"Trail", "UICorner", "UIListLayout", "UIPadding", "Vector3Value",
-	"VehicleSeat", "WeldConstraint",
+	"Accessory",
+	"Animation",
+	"AnimationTrack",
+	"Animator",
+	"Attachment",
+	"BasePart",
+	"BillboardGui",
+	"BindableEvent",
+	"BindableFunction",
+	"BoolValue",
+	"Camera",
+	"CFrameValue",
+	"ClickDetector",
+	"Configuration",
+	"Decal",
+	"Folder",
+	"Frame",
+	"GuiButton",
+	"GuiObject",
+	"Highlight",
+	"Humanoid",
+	"HumanoidDescription",
+	"ImageLabel",
+	"IntValue",
+	"Model",
+	"Motor6D",
+	"MeshPart",
+	"NumberValue",
+	"ObjectValue",
+	"Part",
+	"ParticleEmitter",
+	"Player",
+	"PlayerGui",
+	"PointLight",
+	"ProximityPrompt",
+	"RemoteEvent",
+	"RemoteFunction",
+	"ScreenGui",
+	"Seat",
+	"Sound",
+	"Sparkles",
+	"StringValue",
+	"SurfaceGui",
+	"TextBox",
+	"TextButton",
+	"TextLabel",
+	"Tool",
+	"Trail",
+	"UICorner",
+	"UIListLayout",
+	"UIPadding",
+	"Vector3Value",
+	"VehicleSeat",
+	"WeldConstraint",
 ];
 
 /**
@@ -148,7 +197,16 @@ export const CLASS_OPTIONS: string[] = [
 
 /** What Luau has before Roblox adds anything, in the order a graph reaches. */
 const LUAU_TYPES = [
-	"any", "unknown", "never", "boolean", "number", "string", "table", "function", "thread", "nil",
+	"any",
+	"unknown",
+	"never",
+	"boolean",
+	"number",
+	"string",
+	"table",
+	"function",
+	"thread",
+	"nil",
 ];
 
 /**
@@ -158,8 +216,20 @@ const LUAU_TYPES = [
  * question — "what could this be" — and two lists would drift.
  */
 const COMMON_DATATYPES = [
-	"Instance", "Vector3", "Vector2", "CFrame", "Color3", "UDim", "UDim2", "BrickColor",
-	"EnumItem", "TweenInfo", "Ray", "Region3", "RBXScriptSignal", "RBXScriptConnection",
+	"Instance",
+	"Vector3",
+	"Vector2",
+	"CFrame",
+	"Color3",
+	"UDim",
+	"UDim2",
+	"BrickColor",
+	"EnumItem",
+	"TweenInfo",
+	"Ray",
+	"Region3",
+	"RBXScriptSignal",
+	"RBXScriptConnection",
 ];
 
 /**
@@ -178,9 +248,7 @@ export const TYPE_OPTIONS: string[] = [
 	...LUAU_TYPES,
 	...COMMON_DATATYPES.filter((name) => !LUAU_TYPES.includes(name)),
 	...DATATYPES.filter((name) => !LUAU_TYPES.includes(name) && !COMMON_DATATYPES.includes(name)),
-	...CLASS_OPTIONS.filter(
-		(name) => !LUAU_TYPES.includes(name) && !COMMON_DATATYPES.includes(name),
-	),
+	...CLASS_OPTIONS.filter((name) => !LUAU_TYPES.includes(name) && !COMMON_DATATYPES.includes(name)),
 ];
 
 const LUAU_SET = new Set(LUAU_TYPES);

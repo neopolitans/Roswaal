@@ -6,14 +6,14 @@
  * behind, empty, for Rojo to sync as empty Folders.
  */
 
-import { mkdtemp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import { defaultConfig } from "../src/core/schema.js";
-import { removeOutputs, type OpenProject } from "../src/server/project.js";
+import { type OpenProject, removeOutputs } from "../src/server/project.js";
 
 const GENERATED = "-- roswaal-graph: g1\nreturn nil\n";
 let root = "";
@@ -31,10 +31,15 @@ describe("removing a stale output", () => {
 	it("removes the folders it leaves empty, up to the out directory", async () => {
 		const open = await project();
 		await mkdir(join(root, "src/StarterPlayer/StarterPlayerScripts"), { recursive: true });
-		await writeFile(join(root, "src/StarterPlayer/StarterPlayerScripts/Demo.server.luau"), GENERATED);
+		await writeFile(
+			join(root, "src/StarterPlayer/StarterPlayerScripts/Demo.server.luau"),
+			GENERATED,
+		);
 		await mkdir(join(root, "src/ReplicatedStorage"), { recursive: true });
 
-		expect(await removeOutputs(open, ["src/StarterPlayer/StarterPlayerScripts/Demo.server.luau"])).toBe(1);
+		expect(
+			await removeOutputs(open, ["src/StarterPlayer/StarterPlayerScripts/Demo.server.luau"]),
+		).toBe(1);
 		expect((await readdir(join(root, "src"))).sort()).toEqual(["ReplicatedStorage"]);
 	});
 

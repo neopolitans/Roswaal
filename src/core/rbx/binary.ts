@@ -17,10 +17,17 @@
  * that property and nothing else.
  */
 
-import {
-	asRbxError, type CFrameValue, type Prop, type PropType, type RbxDocument, RbxError, type RbxInstance, text,
-} from "./dom.js";
 import { chunkData, readChunks, readReferents, transposedU32s, unzigzag } from "./chunks.js";
+import {
+	asRbxError,
+	type CFrameValue,
+	type Prop,
+	type PropType,
+	type RbxDocument,
+	RbxError,
+	type RbxInstance,
+	text,
+} from "./dom.js";
 
 const MAGIC = "<roblox!";
 const SIGNATURE = [0x89, 0xff, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -33,12 +40,40 @@ export function isBinaryRbx(bytes: Uint8Array): boolean {
 }
 
 const TYPE_NAMES: Record<number, string> = {
-	1: "String", 2: "Bool", 3: "Int32", 4: "Float32", 5: "Float64", 6: "UDim", 7: "UDim2", 8: "Ray",
-	9: "Faces", 10: "Axes", 11: "BrickColor", 12: "Color3", 13: "Vector2", 14: "Vector3",
-	15: "Vector2int16", 16: "CFrame", 17: "Quaternion", 18: "Enum", 19: "Ref", 20: "Vector3int16",
-	21: "NumberSequence", 22: "ColorSequence", 23: "NumberRange", 24: "Rect", 25: "PhysicalProperties",
-	26: "Color3uint8", 27: "Int64", 28: "SharedString", 29: "ProtectedString", 30: "OptionalCFrame",
-	31: "UniqueId", 32: "Font", 33: "SecurityCapabilities", 34: "Content",
+	1: "String",
+	2: "Bool",
+	3: "Int32",
+	4: "Float32",
+	5: "Float64",
+	6: "UDim",
+	7: "UDim2",
+	8: "Ray",
+	9: "Faces",
+	10: "Axes",
+	11: "BrickColor",
+	12: "Color3",
+	13: "Vector2",
+	14: "Vector3",
+	15: "Vector2int16",
+	16: "CFrame",
+	17: "Quaternion",
+	18: "Enum",
+	19: "Ref",
+	20: "Vector3int16",
+	21: "NumberSequence",
+	22: "ColorSequence",
+	23: "NumberRange",
+	24: "Rect",
+	25: "PhysicalProperties",
+	26: "Color3uint8",
+	27: "Int64",
+	28: "SharedString",
+	29: "ProtectedString",
+	30: "OptionalCFrame",
+	31: "UniqueId",
+	32: "Font",
+	33: "SecurityCapabilities",
+	34: "Content",
 };
 
 class Reader {
@@ -112,13 +147,21 @@ function unrotate(v: number): number {
 /** The 24 axis-aligned rotations a CFrame can store as one byte. */
 function basicRotation(id: number): number[] {
 	const axes = [
-		[1, 0, 0], [0, 1, 0], [0, 0, 1],
-		[-1, 0, 0], [0, -1, 0], [0, 0, -1],
+		[1, 0, 0],
+		[0, 1, 0],
+		[0, 0, 1],
+		[-1, 0, 0],
+		[0, -1, 0],
+		[0, 0, -1],
 	];
 	const r0 = axes[Math.floor((id - 1) / 6)];
 	const r1 = axes[(id - 1) % 6];
 	if (!r0 || !r1) throw new RbxError(`a CFrame with rotation id ${id}`);
-	const r2 = [r0[1] * r1[2] - r0[2] * r1[1], r0[2] * r1[0] - r0[0] * r1[2], r0[0] * r1[1] - r0[1] * r1[0]];
+	const r2 = [
+		r0[1] * r1[2] - r0[2] * r1[1],
+		r0[2] * r1[0] - r0[0] * r1[2],
+		r0[0] * r1[1] - r0[1] * r1[0],
+	];
 	return [r0[0], r1[0], r2[0], r0[1], r1[1], r2[1], r0[2], r1[2], r2[2]];
 }
 
@@ -156,7 +199,12 @@ function readInt64s(r: Reader, count: number): bigint[] {
  * Values of one property for `count` instances, or undefined for a type this
  * does not decode. Refs come back as referent numbers, resolved by the caller.
  */
-function readValues(r: Reader, type: number, count: number, shared: Uint8Array[]): [PropType, unknown[]] | undefined {
+function readValues(
+	r: Reader,
+	type: number,
+	count: number,
+	shared: Uint8Array[],
+): [PropType, unknown[]] | undefined {
 	switch (type) {
 		case 1:
 		case 29: {
@@ -332,7 +380,8 @@ function decodeBinary(bytes: Uint8Array): RbxDocument {
 					return;
 				}
 				inst.props.set(prop, { type: propType, value: values[i] } satisfies Prop);
-				if (prop === "Name" && (propType === "String" || propType === "ProtectedString")) inst.name = text(values[i]);
+				if (prop === "Name" && (propType === "String" || propType === "ProtectedString"))
+					inst.name = text(values[i]);
 			});
 		} else if (name === "PRNT") {
 			r.u8();

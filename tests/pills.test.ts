@@ -17,14 +17,24 @@ import { isOperator, nodeBounds, pinPosition } from "../src/app/geometry.js";
 import { NODE } from "../src/app/layers.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import {
-	operatorEditorWidth, operatorFields, operatorLayout, operatorSymbol,
+	operatorEditorWidth,
+	operatorFields,
+	operatorLayout,
+	operatorSymbol,
 } from "../src/core/operatorLayout.js";
 import type { GraphNode, NodeConfig } from "../src/core/schema.js";
 
 const registry = createRegistry();
 
-const node = (def: string, config?: NodeConfig): GraphNode => ({ id: "n", def, x: 0, y: 0, config });
-const fieldsOf = (id: string) => operatorFields(resolveNodePins(registry.get(id)!, undefined).inputs);
+const node = (def: string, config?: NodeConfig): GraphNode => ({
+	id: "n",
+	def,
+	x: 0,
+	y: 0,
+	config,
+});
+const fieldsOf = (id: string) =>
+	operatorFields(resolveNodePins(registry.get(id)!, undefined).inputs);
 
 describe("which nodes are pills", () => {
 	it("is the ones whose whole meaning is one symbol", () => {
@@ -33,20 +43,56 @@ describe("which nodes are pills", () => {
 			.map((def) => def.id)
 			.sort();
 		expect(ids).toEqual([
-			"cast.any", "cast.array", "cast.as",
-			"cframe.lookVector", "cframe.mul", "cframe.position", "cframe.rightVector",
-			"cframe.rotation", "cframe.translate", "cframe.upVector",
-			"compare.eq", "compare.gt", "compare.gte", "compare.lt", "compare.lte", "compare.neq",
+			"cast.any",
+			"cast.array",
+			"cast.as",
+			"cframe.lookVector",
+			"cframe.mul",
+			"cframe.position",
+			"cframe.rightVector",
+			"cframe.rotation",
+			"cframe.translate",
+			"cframe.upVector",
+			"compare.eq",
+			"compare.gt",
+			"compare.gte",
+			"compare.lt",
+			"compare.lte",
+			"compare.neq",
 			"compare.selfNeq",
-			"logic.and", "logic.not", "logic.or",
-			"math.add", "math.div", "math.mod", "math.mul", "math.neg", "math.pow", "math.sub",
+			"logic.and",
+			"logic.not",
+			"logic.or",
+			"math.add",
+			"math.div",
+			"math.mod",
+			"math.mul",
+			"math.neg",
+			"math.pow",
+			"math.sub",
 			"tween.completed",
-			"udim.add", "udim.sub", "udim2.add", "udim2.sub",
-			"value.member", "value.nil", "value.typeof",
-			"vector2.add", "vector2.divide", "vector2.magnitude", "vector2.negate", "vector2.scale",
-			"vector2.sub", "vector2.unit",
-			"vector3.add", "vector3.divide", "vector3.magnitude", "vector3.mul", "vector3.negate",
-			"vector3.scale", "vector3.sub", "vector3.unit",
+			"udim.add",
+			"udim.sub",
+			"udim2.add",
+			"udim2.sub",
+			"value.member",
+			"value.nil",
+			"value.typeof",
+			"vector2.add",
+			"vector2.divide",
+			"vector2.magnitude",
+			"vector2.negate",
+			"vector2.scale",
+			"vector2.sub",
+			"vector2.unit",
+			"vector3.add",
+			"vector3.divide",
+			"vector3.magnitude",
+			"vector3.mul",
+			"vector3.negate",
+			"vector3.scale",
+			"vector3.sub",
+			"vector3.unit",
 		]);
 	});
 
@@ -118,13 +164,15 @@ describe("a pill's size", () => {
 	it("keeps one corner size whatever its height", () => {
 		// Half a capsule's height, so a one-row pill is still exactly a capsule.
 		expect(NODE.operatorRadius).toBe(NODE.compactHeight / 2);
-		expect(nodeBounds(node("logic.and", { args: 4 }), registry).h)
-			.toBeGreaterThan(NODE.operatorRadius * 2);
+		expect(nodeBounds(node("logic.and", { args: 4 }), registry).h).toBeGreaterThan(
+			NODE.operatorRadius * 2,
+		);
 	});
 
 	it("takes a row for each operand", () => {
-		expect(nodeBounds(node("compare.lt"), registry).h)
-			.toBe(2 * NODE.rowHeight + NODE.operatorPad * 2);
+		expect(nodeBounds(node("compare.lt"), registry).h).toBe(
+			2 * NODE.rowHeight + NODE.operatorPad * 2,
+		);
 		const two = nodeBounds(node("logic.and", { args: 2 }), registry).h;
 		const four = nodeBounds(node("logic.and", { args: 4 }), registry).h;
 		expect(four - two).toBe(2 * NODE.rowHeight);
@@ -133,8 +181,9 @@ describe("a pill's size", () => {
 	it("is wider when its rows carry a field than when they carry nothing", () => {
 		// Less Than takes numbers and shows two boxes; Equal takes anything and
 		// shows none, because an `any` pin has no value to type.
-		expect(nodeBounds(node("compare.lt"), registry).w)
-			.toBeGreaterThan(nodeBounds(node("compare.eq"), registry).w);
+		expect(nodeBounds(node("compare.lt"), registry).w).toBeGreaterThan(
+			nodeBounds(node("compare.eq"), registry).w,
+		);
 	});
 
 	it("measures that field from the pin's default, not from what is wired", () => {

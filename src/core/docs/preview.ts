@@ -38,14 +38,18 @@
  * all the time, so they are part of what the node looks like.
  */
 
-import type { GraphNode, Literal, NodeConfig, NodeDef, NodeScript, PinDef } from "../schema.js";
-import { nodeTitle, resolveNodePins, type Registry } from "../nodes/index.js";
+import { nodeTitle, type Registry, resolveNodePins } from "../nodes/index.js";
+import {
+	type OperatorField,
+	type OperatorLayout,
+	operatorEditorWidth,
+	operatorFields,
+	operatorLayout,
+	operatorSymbol,
+} from "../operatorLayout.js";
 import { execReach, execWidth } from "../pinLayout.js";
 import { retypeReroutes } from "../reroutes.js";
-import {
-	operatorEditorWidth, operatorFields, operatorLayout, operatorSymbol,
-	type OperatorField, type OperatorLayout,
-} from "../operatorLayout.js";
+import type { GraphNode, Literal, NodeConfig, NodeDef, NodeScript, PinDef } from "../schema.js";
 
 // ---------------------------------------------------------------------------
 // The model
@@ -237,7 +241,9 @@ export interface PreviewOptions {
  * variable in a graph would preview as an identical nameless capsule.
  */
 export function previewOf(
-	def: NodeDef, config?: NodeConfig, literals?: Record<string, Literal>,
+	def: NodeDef,
+	config?: NodeConfig,
+	literals?: Record<string, Literal>,
 ): NodePreview {
 	const { inputs, outputs } = resolveNodePins(def, config, literals);
 	return {
@@ -259,7 +265,9 @@ export function previewOf(
 
 /** What a pill needs to be drawn, or nothing for a node that is not one. */
 function operatorOf(
-	def: NodeDef, inputs: PinDef[], config?: NodeConfig,
+	def: NodeDef,
+	inputs: PinDef[],
+	config?: NodeConfig,
 	literals?: Record<string, Literal | undefined>,
 ): NodePreview["operator"] {
 	if (def.display !== "operator") return undefined;
@@ -314,7 +322,8 @@ function valueOf(pin: PinDef, typed?: Literal): PreviewValue | undefined {
 }
 
 function editorOf(
-	pin: PinDef, literal: Literal | undefined,
+	pin: PinDef,
+	literal: Literal | undefined,
 ): Exclude<PreviewValue, { shape: "unset" }> | undefined {
 	if (!literal) return undefined;
 
@@ -544,20 +553,31 @@ function drawOperator(preview: NodePreview, options: PreviewOptions): string {
 	const layout = operatorLayoutOf(preview, g);
 	const parts: string[] = [
 		`<rect x="0.5" y="0.5" width="${n(layout.width - 1)}" height="${n(layout.height - 1)}" ` +
-		`rx="${n(g.operatorRadius - 0.5)}" fill="var(--node-body, #fbfbfd)" ` +
-		`stroke="var(--node-border, #b3b9c4)"/>`,
+			`rx="${n(g.operatorRadius - 0.5)}" fill="var(--node-body, #fbfbfd)" ` +
+			`stroke="var(--node-border, #b3b9c4)"/>`,
 	];
 
-	preview.inputs.filter((pin) => pin.kind === "data").forEach((pin, i) => {
-		const y = layout.rowsTop + i * g.rowHeight + g.rowHeight / 2;
-		parts.push(pinAt(pin, 0, y, g.pinSlot, options, "node", "in"));
-		if (pin.value) parts.push(drawValue(pin.value, layout.symbolLeft - 5, y).svg);
-	});
+	preview.inputs
+		.filter((pin) => pin.kind === "data")
+		.forEach((pin, i) => {
+			const y = layout.rowsTop + i * g.rowHeight + g.rowHeight / 2;
+			parts.push(pinAt(pin, 0, y, g.pinSlot, options, "node", "in"));
+			if (pin.value) parts.push(drawValue(pin.value, layout.symbolLeft - 5, y).svg);
+		});
 
 	parts.push(
-		text(layout.symbolLeft + layout.symbolWidth / 2, layout.height / 2, preview.operator?.symbol ?? "", {
-			size: 13, weight: 700, fill: "var(--fg, #1c1f24)", anchor: "middle", mono: true,
-		}),
+		text(
+			layout.symbolLeft + layout.symbolWidth / 2,
+			layout.height / 2,
+			preview.operator?.symbol ?? "",
+			{
+				size: 13,
+				weight: 700,
+				fill: "var(--fg, #1c1f24)",
+				anchor: "middle",
+				mono: true,
+			},
+		),
 	);
 
 	const growth = options.growth?.(preview) ?? null;
@@ -569,7 +589,9 @@ function drawOperator(preview: NodePreview, options: PreviewOptions): string {
 			`<rect x="${n(x + 0.5)}" y="${n(y + 0.5)}" width="${size - 1}" height="${size - 1}" ` +
 			`rx="3" fill="var(--bg-input, #fff)" stroke="var(--border, #c6cad2)"/>` +
 			text(x + size / 2, y + size / 2, glyph, {
-				size: 10, fill: "var(--fg-muted, #5c636e)", anchor: "middle",
+				size: 10,
+				fill: "var(--fg-muted, #5c636e)",
+				anchor: "middle",
 			}) +
 			`</g>`;
 		const top = layout.height / 2 - size - 1;
@@ -603,12 +625,12 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	// the same stacking the DOM gets from a rounded parent clipping its child.
 	parts.push(
 		`<rect x="0" y="0" width="${n(width)}" height="${n(height)}" rx="${n(r)}" ` +
-		`fill="var(--node-body, #fbfbfd)"/>`,
+			`fill="var(--node-body, #fbfbfd)"/>`,
 	);
 	parts.push(
 		`<path d="M0 ${n(r)}A${n(r)} ${n(r)} 0 0 1 ${n(r)} 0H${n(width - r)}` +
-		`A${n(r)} ${n(r)} 0 0 1 ${n(width)} ${n(r)}V${n(head)}H0Z" ` +
-		`fill="${escapeXml(options.nodeColor(preview))}"/>`,
+			`A${n(r)} ${n(r)} 0 0 1 ${n(width)} ${n(r)}V${n(head)}H0Z" ` +
+			`fill="${escapeXml(options.nodeColor(preview))}"/>`,
 	);
 
 	// Header text. White with no shadow: the shadow on the canvas is there to
@@ -620,25 +642,36 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	if (preview.subtitle) {
 		parts.push(
 			text(9, 16.75, fit(preview.title, titleRoom, TYPE.title), {
-				size: TYPE.title, weight: 600, fill: "#fff",
+				size: TYPE.title,
+				weight: 600,
+				fill: "#fff",
 			}),
 		);
 		parts.push(
 			text(9, 30.5, fit(preview.subtitle, titleRoom, TYPE.subtitle, true), {
-				size: TYPE.subtitle, weight: 500, fill: "#fff", opacity: 0.78, mono: true,
+				size: TYPE.subtitle,
+				weight: 500,
+				fill: "#fff",
+				opacity: 0.78,
+				mono: true,
 			}),
 		);
 	} else {
 		parts.push(
 			text(9, head / 2, fit(preview.title, titleRoom, TYPE.title), {
-				size: TYPE.title, weight: 600, fill: "#fff",
+				size: TYPE.title,
+				weight: 600,
+				fill: "#fff",
 			}),
 		);
 	}
 	if (preview.latent) {
 		parts.push(
 			text(width - 9 - buttons, head / 2, "⏳", {
-				size: TYPE.subtitle, fill: "#fff", opacity: 0.85, anchor: "end",
+				size: TYPE.subtitle,
+				fill: "#fff",
+				opacity: 0.85,
+				anchor: "end",
 			}),
 		);
 	}
@@ -652,7 +685,7 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	// through every pin, because a pin sits on the edge rather than inside it.
 	parts.push(
 		`<rect x="0.5" y="0.5" width="${n(width - 1)}" height="${n(height - 1)}" rx="${n(r - 0.5)}" ` +
-		`fill="none" stroke="var(--node-border, #b3b9c4)"/>`,
+			`fill="none" stroke="var(--node-border, #b3b9c4)"/>`,
 	);
 
 	const rows = Math.max(preview.inputs.length, preview.outputs.length, 1);
@@ -671,7 +704,11 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 				const room = width / 2;
 				const label = fit(output.name, room, TYPE.label);
 				parts.push(
-					text(rightEdge - 5, y, label, { size: TYPE.label, fill: "var(--fg-muted, #5c636e)", anchor: "end" }),
+					text(rightEdge - 5, y, label, {
+						size: TYPE.label,
+						fill: "var(--fg-muted, #5c636e)",
+						anchor: "end",
+					}),
 				);
 				rightEdge -= textWidth(label, TYPE.label) + 5;
 			}
@@ -708,17 +745,25 @@ const GROW = { size: 16, gap: 2, inset: 8 } as const;
  * shows it disabled.
  */
 function drawGrowth(
-	width: number, head: number, growth: { canAdd: boolean; canRemove: boolean },
+	width: number,
+	head: number,
+	growth: { canAdd: boolean; canRemove: boolean },
 ): string {
 	const y = (head - GROW.size) / 2;
 	const button = (x: number, glyph: string, live: boolean) =>
 		`<g${live ? "" : ` opacity="0.3"`}>` +
 		`<rect x="${n(x + 0.5)}" y="${n(y + 0.5)}" width="${GROW.size - 1}" height="${GROW.size - 1}" ` +
 		`rx="3" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.35)"/>` +
-		text(x + GROW.size / 2, y + GROW.size / 2, glyph, { size: 12, fill: "#fff", anchor: "middle" }) +
+		text(x + GROW.size / 2, y + GROW.size / 2, glyph, {
+			size: 12,
+			fill: "#fff",
+			anchor: "middle",
+		}) +
 		`</g>`;
 	const plus = width - GROW.inset - GROW.size;
-	return button(plus - GROW.gap - GROW.size, "−", growth.canRemove) + button(plus, "+", growth.canAdd);
+	return (
+		button(plus - GROW.gap - GROW.size, "−", growth.canRemove) + button(plus, "+", growth.canAdd)
+	);
 }
 
 /**
@@ -732,15 +777,17 @@ function drawCapsule(preview: NodePreview, options: PreviewOptions): string {
 	const output = preview.outputs[0];
 	const parts: string[] = [
 		`<rect x="0.5" y="0.5" width="${n(width - 1)}" height="${n(height - 1)}" ` +
-		`rx="${n(height / 2)}" fill="var(--capsule-bg, #e9ebf0)" ` +
-		`stroke="var(--capsule-border, #b3b9c4)"/>`,
+			`rx="${n(height / 2)}" fill="var(--capsule-bg, #e9ebf0)" ` +
+			`stroke="var(--capsule-border, #b3b9c4)"/>`,
 	];
 
 	// Padding is `0 10px 0 12px`, and the label takes what the pin leaves.
 	const room = width - 12 - 10 - g.pinSlot - 8;
 	parts.push(
 		text(12, height / 2, fit(previewLabel(preview), room, TYPE.title), {
-			size: TYPE.title, weight: 500, fill: "var(--fg, #1c1f24)",
+			size: TYPE.title,
+			weight: 500,
+			fill: "var(--fg, #1c1f24)",
 		}),
 	);
 	if (output) {
@@ -756,7 +803,7 @@ function drawReroute(preview: NodePreview, options: PreviewOptions): string {
 	const pin = preview.inputs[0] ?? preview.outputs[0];
 	const parts = [
 		`<circle cx="${n(size / 2)}" cy="${n(size / 2)}" r="${n(size / 2 - 0.5)}" ` +
-		`fill="var(--capsule-bg, #e9ebf0)" stroke="var(--capsule-border, #b3b9c4)"/>`,
+			`fill="var(--capsule-bg, #e9ebf0)" stroke="var(--capsule-border, #b3b9c4)"/>`,
 	];
 	// A knot's slot shrinks to 12px so the rim stays grabbable; the preview
 	// shrinks with it, or the dot would cover the ring that says it is a knot.
@@ -769,7 +816,11 @@ function drawReroute(preview: NodePreview, options: PreviewOptions): string {
 // ---------------------------------------------------------------------------
 
 function drawPin(
-	pin: PreviewPin, side: "in" | "out", y: number, edge: number, options: PreviewOptions,
+	pin: PreviewPin,
+	side: "in" | "out",
+	y: number,
+	edge: number,
+	options: PreviewOptions,
 ): string {
 	return pinAt(pin, edge, y, options.geometry.pinSlot, options, "node", side);
 }
@@ -798,12 +849,16 @@ const EXEC_SHRINK = 0.433;
  * body colour would show a pale notch against the capsule it is actually on.
  */
 function pinAt(
-	pin: PreviewPin, edge: number, y: number, slot: number,
-	options: PreviewOptions, surface: "node" | "capsule", side: "in" | "out" | "centre",
+	pin: PreviewPin,
+	edge: number,
+	y: number,
+	slot: number,
+	options: PreviewOptions,
+	surface: "node" | "capsule",
+	side: "in" | "out" | "centre",
 ): string {
 	const colour = escapeXml(options.pinColor(pin.type, pin.kind));
-	const hollow =
-		surface === "node" ? "var(--node-body, #fbfbfd)" : "var(--capsule-bg, #e9ebf0)";
+	const hollow = surface === "node" ? "var(--node-body, #fbfbfd)" : "var(--capsule-bg, #e9ebf0)";
 
 	if (pin.kind === "exec") {
 		const g = options.geometry;
@@ -814,9 +869,7 @@ function pinAt(
 		// output's base faces the node and its point leads the wire away. Both
 		// stand clear of the edge, so the wire is visible arriving at them.
 		const x =
-			side === "in" ? edge - w - g.execGap
-			: side === "out" ? edge + g.execGap
-			: edge - w / 2;
+			side === "in" ? edge - w - g.execGap : side === "out" ? edge + g.execGap : edge - w / 2;
 		const top = y - slot / 2;
 		const solid = `<path d="${arrow(x, top, w, slot)}" fill="${colour}"/>`;
 		if (pin.wired) return solid;
@@ -874,7 +927,9 @@ function drawValue(value: PreviewValue, right: number, y: number): { svg: string
 			`height="${n(FIELD.height - 1)}" rx="3" fill="none" ` +
 			`stroke="var(--border-strong, #9aa2af)" stroke-dasharray="3 2"/>`;
 		return {
-			svg: box + text(x + 6, y, label, { size: TYPE.unset, fill: "var(--fg-faint, #8b93a0)", italic: true }),
+			svg:
+				box +
+				text(x + 6, y, label, { size: TYPE.unset, fill: "var(--fg-faint, #8b93a0)", italic: true }),
 			left: x,
 		};
 	}
@@ -883,9 +938,13 @@ function drawValue(value: PreviewValue, right: number, y: number): { svg: string
 	if (value.clearable) {
 		const inner = drawValue({ ...value, clearable: false }, right - 12, y);
 		return {
-			svg: inner.svg + text(right - 5, y, "×", {
-				size: 12, fill: "var(--fg-faint, #8b93a0)", anchor: "middle",
-			}),
+			svg:
+				inner.svg +
+				text(right - 5, y, "×", {
+					size: 12,
+					fill: "var(--fg-faint, #8b93a0)",
+					anchor: "middle",
+				}),
 			left: inner.left,
 		};
 	}
@@ -911,7 +970,10 @@ function drawValue(value: PreviewValue, right: number, y: number): { svg: string
 		const label = fit(value.text, FIELD.constantMax, TYPE.constant, true);
 		return {
 			svg: text(right, y, label, {
-				size: TYPE.constant, fill: "var(--fg-faint, #8b93a0)", anchor: "end", mono: true,
+				size: TYPE.constant,
+				fill: "var(--fg-faint, #8b93a0)",
+				anchor: "end",
+				mono: true,
 			}),
 			left: right - textWidth(label, TYPE.constant, true),
 		};
@@ -926,7 +988,8 @@ function drawValue(value: PreviewValue, right: number, y: number): { svg: string
 	// A dropdown keeps room for its arrow, so its text stops short of one.
 	const room = w - 10 - (value.shape === "choice" ? 10 : 0);
 	const inner = text(x + 5, y, fit(value.text, room, TYPE.value), {
-		size: TYPE.value, fill: "var(--fg, #1c1f24)",
+		size: TYPE.value,
+		fill: "var(--fg, #1c1f24)",
 	});
 	const chevron =
 		value.shape === "choice"
@@ -967,7 +1030,9 @@ function text(x: number, y: number, body: string, options: TextOptions): string 
 			? `font-family="Cascadia Mono, Consolas, ui-monospace, monospace"`
 			: `font-family="inherit"`,
 		options.weight ? `font-weight="${options.weight}"` : "",
-		options.anchor === "end" || options.anchor === "middle" ? `text-anchor="${options.anchor}"` : "",
+		options.anchor === "end" || options.anchor === "middle"
+			? `text-anchor="${options.anchor}"`
+			: "",
 		options.italic ? `font-style="italic"` : "",
 		options.opacity !== undefined ? `opacity="${options.opacity}"` : "",
 		`fill="${options.fill}"`,
@@ -991,11 +1056,14 @@ function text(x: number, y: number, body: string, options: TextOptions): string 
  * to the pin's default exactly as `NodeView` does.
  */
 export function previewOfPlaced(
-	node: GraphNode, def: NodeDef, wired?: ReadonlySet<string>,
+	node: GraphNode,
+	def: NodeDef,
+	wired?: ReadonlySet<string>,
 ): NodePreview {
 	const config = node.config ?? {};
 	const { inputs, outputs } = resolveNodePins(def, node.config, node.literals);
-	const isWired = (side: "in" | "out", pin: string) => wired?.has(`${side}:${node.id}:${pin}`) === true;
+	const isWired = (side: "in" | "out", pin: string) =>
+		wired?.has(`${side}:${node.id}:${pin}`) === true;
 
 	return {
 		id: def.id,
@@ -1042,7 +1110,9 @@ export interface PlacedPreview {
  * already settled.
  */
 export function placeGraph(
-	script: NodeScript, registry: Registry, options: PreviewOptions,
+	script: NodeScript,
+	registry: Registry,
+	options: PreviewOptions,
 ): PlacedPreview[] {
 	// One pass over the links, so every node can ask "is this pin connected"
 	// without walking them again.
@@ -1084,7 +1154,9 @@ export function placeGraph(
  * something has to win and the first is the one the eye starts from.
  */
 export function straighten(
-	script: NodeScript, registry: Registry, options: PreviewOptions,
+	script: NodeScript,
+	registry: Registry,
+	options: PreviewOptions,
 ): NodeScript {
 	const moved = new Map<string, number>();
 	// Left to right, so a node is only ever aligned against one already settled.
@@ -1172,8 +1244,9 @@ export function straighten(
 		for (const node of placed) {
 			if (node.node.id === link.from.node || node.node.id === link.to.node) continue;
 			// A node that carries flow of its own belongs on the lane.
-			const hasExec = [...node.preview.inputs, ...node.preview.outputs]
-				.some((pin) => pin.kind === "exec");
+			const hasExec = [...node.preview.inputs, ...node.preview.outputs].some(
+				(pin) => pin.kind === "exec",
+			);
 			if (hasExec) continue;
 			if (node.x + node.width <= left || node.x >= right) continue;
 			if (lane <= node.y || lane >= node.y + node.height) continue;
@@ -1204,8 +1277,9 @@ export function straighten(
 	 * behind it.
 	 */
 	const spaced = script.nodes.map((node) => ({ ...node, y: node.y + (moved.get(node.id) ?? 0) }));
-	const boxes = placeGraph({ ...script, nodes: spaced }, registry, options)
-		.sort((a, b) => a.y - b.y || a.x - b.x);
+	const boxes = placeGraph({ ...script, nodes: spaced }, registry, options).sort(
+		(a, b) => a.y - b.y || a.x - b.x,
+	);
 
 	/** Air between two nodes that had to be separated, not a hard touch. */
 	const GAP = Math.round(options.geometry.rowHeight / 2);
@@ -1240,7 +1314,10 @@ export function straighten(
  * link outlives the pin it was attached to.
  */
 export function placedPinAnchor(
-	placed: PlacedPreview, pinId: string, side: "in" | "out", g: PreviewGeometry,
+	placed: PlacedPreview,
+	pinId: string,
+	side: "in" | "out",
+	g: PreviewGeometry,
 ): { x: number; y: number } | null {
 	const pins = side === "in" ? placed.preview.inputs : placed.preview.outputs;
 	const index = pins.findIndex((pin) => pin.id === pinId);
@@ -1289,7 +1366,9 @@ export function placedPinAnchor(
  * authored anywhere on an infinite canvas crops to itself.
  */
 export function graphSvg(
-	source: NodeScript, registry: Registry, options: PreviewOptions,
+	source: NodeScript,
+	registry: Registry,
+	options: PreviewOptions,
 	/**
 	 * Drawn where its nodes are, without levelling: for a real project's graph,
 	 * laid out in the editor, where the page promises what you would open.
@@ -1323,7 +1402,10 @@ export function graphSvg(
 	// outside every node's own bounds and so outside the box measured below.
 	const MARGIN = Math.max(12, Math.ceil(execWidth(g) + g.execGap));
 
-	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+	let minX = Infinity,
+		minY = Infinity,
+		maxX = -Infinity,
+		maxY = -Infinity;
 	for (const entry of placed) {
 		minX = Math.min(minX, entry.x);
 		minY = Math.min(minY, entry.y);
@@ -1334,7 +1416,8 @@ export function graphSvg(
 	// Wires first, so a curve passes behind the nodes it joins rather than over
 	// their headers — the same order the canvas stacks them in.
 	const wires: string[] = [];
-	const key = options.idScope === undefined ? graphKey(script) : `${options.idScope}-${graphKey(script)}`;
+	const key =
+		options.idScope === undefined ? graphKey(script) : `${options.idScope}-${graphKey(script)}`;
 	if (options.wirePath) {
 		for (const link of script.links) {
 			const from = byId.get(link.from.node);
@@ -1369,9 +1452,9 @@ export function graphSvg(
 			}
 			wires.push(
 				gradient +
-				`<path d="${escapeXml(options.wirePath(a, b))}" fill="none" ` +
-				`stroke="${escapeXml(stroke)}" ` +
-				`stroke-width="${exec ? 2.4 : 1.8}" opacity="${exec ? 0.95 : 0.85}"/>`,
+					`<path d="${escapeXml(options.wirePath(a, b))}" fill="none" ` +
+					`stroke="${escapeXml(stroke)}" ` +
+					`stroke-width="${exec ? 2.4 : 1.8}" opacity="${exec ? 0.95 : 0.85}"/>`,
 			);
 		}
 	}
@@ -1379,9 +1462,10 @@ export function graphSvg(
 	// A Custom Code node opens its Luau when clicked, as it does in the editor:
 	// `data-code-node` is what the graph's script looks for. See `nodeCodeHtml`.
 	const bodies = placed.map((entry) => {
-		const opens = entry.node.def === "code.custom"
-			? ` class="docs-code-node" data-code-node="${escapeXml(entry.node.id)}"`
-			: "";
+		const opens =
+			entry.node.def === "code.custom"
+				? ` class="docs-code-node" data-code-node="${escapeXml(entry.node.id)}"`
+				: "";
 		return `<g${opens} transform="translate(${n(entry.x)} ${n(entry.y)})">${drawBody(entry.preview, options)}</g>`;
 	});
 
@@ -1393,7 +1477,8 @@ export function graphSvg(
 		`viewBox="${n(minX - MARGIN)} ${n(minY - MARGIN)} ${n(width)} ${n(height)}" ` +
 		`xmlns="http://www.w3.org/2000/svg" role="img" ` +
 		`aria-label="${escapeXml(describeGraph(script, placed))}">` +
-		wires.join("") + bodies.join("") +
+		wires.join("") +
+		bodies.join("") +
 		`</svg>`
 	);
 }
@@ -1406,7 +1491,8 @@ export function graphSvg(
  */
 function graphKey(script: NodeScript): string {
 	const text =
-		script.nodes.map((node) => `${node.id}:${node.def}`).join(",") + "|" +
+		script.nodes.map((node) => `${node.id}:${node.def}`).join(",") +
+		"|" +
 		script.links.map((link) => link.id).join(",");
 	let hash = 5381;
 	for (let i = 0; i < text.length; i++) hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;

@@ -11,16 +11,11 @@ describe("finding locals in hand-written Luau", () => {
 	});
 
 	it("keeps a type annotation out of the names", () => {
-		expect(topLevelLocals("local count: number, name: string = 0, 'x'")).toEqual([
-			"count",
-			"name",
-		]);
+		expect(topLevelLocals("local count: number, name: string = 0, 'x'")).toEqual(["count", "name"]);
 	});
 
 	it("finds a local function", () => {
-		expect(topLevelLocals("local function helper(a, b)\n\treturn a + b\nend")).toEqual([
-			"helper",
-		]);
+		expect(topLevelLocals("local function helper(a, b)\n\treturn a + b\nend")).toEqual(["helper"]);
 	});
 
 	/** A `local` inside a string or comment is not a declaration. */
@@ -28,10 +23,7 @@ describe("finding locals in hand-written Luau", () => {
 		expect(topLevelLocals('local real = "local fake = 1"')).toEqual(["real"]);
 		expect(topLevelLocals("-- local commented = 1\nlocal real = 2")).toEqual(["real"]);
 		expect(topLevelLocals("--[[ local block = 1 ]]\nlocal real = 2")).toEqual(["real"]);
-		expect(topLevelLocals("local s = `local {x} = 1`\nlocal real = 2")).toEqual([
-			"s",
-			"real",
-		]);
+		expect(topLevelLocals("local s = `local {x} = 1`\nlocal real = 2")).toEqual(["s", "real"]);
 	});
 
 	it("does not repeat a name declared twice", () => {
@@ -80,23 +72,34 @@ function atInFile(source: string): string[] {
 
 describe("what is in scope at the cursor", () => {
 	it("offers a local inside its block, and not after it", () => {
-		expect(at("local a = 1\nif a then\n  local inner = 2\n  |\nend")).toEqual(["a:local", "inner:local"]);
+		expect(at("local a = 1\nif a then\n  local inner = 2\n  |\nend")).toEqual([
+			"a:local",
+			"inner:local",
+		]);
 		expect(at("local a = 1\nif a then\n  local inner = 2\nend\n|")).toEqual(["a:local"]);
 	});
 
 	it("reads code still being typed, with its blocks not yet closed", () => {
-		expect(at("local a = 1\nif a then\n  local inner = 2\n  pri|")).toEqual(["a:local", "inner:local"]);
+		expect(at("local a = 1\nif a then\n  local inner = 2\n  pri|")).toEqual([
+			"a:local",
+			"inner:local",
+		]);
 	});
 
 	it("offers parameters, and a local function's own name inside it", () => {
 		expect(at("local function move(part, speed)\n  |\nend")).toEqual([
-			"move:function", "part:parameter", "speed:parameter",
+			"move:function",
+			"part:parameter",
+			"speed:parameter",
 		]);
 		expect(at("local cb = function(hit)\n  |\nend")).toEqual(["hit:parameter"]);
 	});
 
 	it("offers loop variables inside the loop only", () => {
-		expect(at("for i, v in ipairs(t) do\n  |\nend")).toEqual(["i:loop variable", "v:loop variable"]);
+		expect(at("for i, v in ipairs(t) do\n  |\nend")).toEqual([
+			"i:loop variable",
+			"v:loop variable",
+		]);
 		expect(at("for i = 1, 10 do end\n|")).toEqual([]);
 	});
 

@@ -8,15 +8,24 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { body, Builder } from "./helpers.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import {
-	CALL_OPTIONS, SERVICE_CALL, SERVICE_VALUE, SERVICES_WITH_METHODS, argumentPins, callDetail,
-	methodsOfService, nameItems, serviceFromSource, serviceMenuItems, serviceMethod, servicePins,
+	argumentPins,
+	CALL_OPTIONS,
+	callDetail,
+	methodsOfService,
+	nameItems,
+	SERVICE_CALL,
+	SERVICE_VALUE,
+	SERVICES_WITH_METHODS,
+	serviceFromSource,
+	serviceMenuItems,
+	serviceMethod,
+	servicePins,
 	splitCall,
 } from "../src/core/serviceCalls.js";
+import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
 
@@ -112,7 +121,8 @@ describe("a Service Function node's pins", () => {
 	/** The list is a dropdown, not a gate — see `robloxMembers.ts`. */
 	it("fall back to a typed argument count for a method nobody has heard of", () => {
 		const { inputs, outputs } = servicePins(
-			{ service: "RunService", method: "SomethingShippedLastWeek", args: 2 }, false,
+			{ service: "RunService", method: "SomethingShippedLastWeek", args: 2 },
+			false,
 		);
 		expect(inputs.map((p) => p.id)).toEqual(["in", "service", "a0", "a1"]);
 		expect(outputs.map((p) => p.id)).toEqual(["then", "result"]);
@@ -123,7 +133,8 @@ describe("a Service Function node's pins", () => {
 		expect(CALL_OPTIONS).toContain("RunService:IsServer");
 		expect(CALL_OPTIONS).toContain("Players:GetPlayers");
 		expect(splitCall("RunService:IsServer")).toEqual({
-			service: "RunService", method: "IsServer",
+			service: "RunService",
+			method: "IsServer",
 		});
 		expect(splitCall("RunService")).toBeUndefined();
 		expect(callDetail("RunService:IsServer")).toContain("boolean");
@@ -152,7 +163,8 @@ describe("what it compiles to", () => {
 		const get = b.node("roblox.getService", { id: "get" });
 		b.lit(get, "service", { t: "string", v: "RunService" });
 		const ask = b.node(SERVICE_VALUE, {
-			id: "ask", config: { service: "RunService", method: "IsStudio" },
+			id: "ask",
+			config: { service: "RunService", method: "IsStudio" },
 		});
 		const print = b.node("debug.print", { id: "print" });
 		const second = b.node("debug.print", { id: "second" });
@@ -171,7 +183,8 @@ describe("what it compiles to", () => {
 		const part = b.node("roblox.instanceNew", { id: "part" });
 		b.lit(part, "className", { t: "string", v: "Part" });
 		const add = b.node(SERVICE_CALL, {
-			id: "add", config: { service: "Debris", method: "AddItem" },
+			id: "add",
+			config: { service: "Debris", method: "AddItem" },
 		});
 		b.lit(add, "a1", { t: "number", v: 5 });
 		b.link(start, "then", part, "in");
@@ -191,7 +204,8 @@ describe("what it compiles to", () => {
 		const part = b.node("roblox.instanceNew", { id: "part" });
 		b.lit(part, "className", { t: "string", v: "Part" });
 		const add = b.node(SERVICE_CALL, {
-			id: "add", config: { service: "Debris", method: "AddItem" },
+			id: "add",
+			config: { service: "Debris", method: "AddItem" },
 		});
 		b.link(start, "then", part, "in");
 		b.link(part, "then", add, "in");
@@ -211,7 +225,9 @@ describe("what it compiles to", () => {
 		const b = new Builder();
 		const start = b.node("script.begin", { id: "start" });
 		const ask = b.node(SERVICE_CALL, {
-			id: "ask", config: { service: "Players", method: "GetPlayers" }, label: "players",
+			id: "ask",
+			config: { service: "Players", method: "GetPlayers" },
+			label: "players",
 		});
 		const print = b.node("debug.print", { id: "print" });
 		b.link(start, "then", ask, "in");
@@ -232,10 +248,13 @@ describe("what it compiles to", () => {
 		const b = new Builder();
 		const start = b.node("script.begin", { id: "start" });
 		const ask = b.node(SERVICE_CALL, {
-			id: "ask", config: { service: "HttpService", method: "GenerateGUID", resultName: "token" },
+			id: "ask",
+			config: { service: "HttpService", method: "GenerateGUID", resultName: "token" },
 		});
 		const print = b.node("debug.print", { id: "print" });
-		b.link(start, "then", ask, "in").link(ask, "then", print, "in").link(ask, "result", print, "value");
+		b.link(start, "then", ask, "in")
+			.link(ask, "then", print, "in")
+			.link(ask, "result", print, "value");
 		expect(body(compile(b.build(), registry, {}).code)).toContain(
 			"local token: string = HttpService:GenerateGUID()",
 		);
@@ -268,7 +287,10 @@ describe("dragging a service out", () => {
 	 * Service and ask what that service can do.
 	 */
 	it("reads the service off a Get Service node", () => {
-		const node = { def: "roblox.getService", literals: { service: { t: "string", v: "RunService" } } };
+		const node = {
+			def: "roblox.getService",
+			literals: { service: { t: "string", v: "RunService" } },
+		};
 		expect(serviceFromSource(node as never, "Instance")).toBe("RunService");
 	});
 
@@ -297,7 +319,8 @@ describe("a service wired into the receiver", () => {
 		const get = b.node("roblox.getService", { id: "get" });
 		b.lit(get, "service", { t: "string", v: "Debris" });
 		const add = b.node(SERVICE_CALL, {
-			id: "add", config: { service: "Debris", method: "AddItem" },
+			id: "add",
+			config: { service: "Debris", method: "AddItem" },
 		});
 		const part = b.node("roblox.instanceNew", { id: "part" });
 		b.lit(part, "className", { t: "string", v: "Part" });
@@ -323,12 +346,14 @@ describe("a service wired into the receiver", () => {
 		const start = b.node("script.begin", { id: "start" });
 		const humanoid = b.variable("target", "Humanoid", { t: "nil" });
 		const get = b.node("variable.get", {
-			id: "get", config: { variable: humanoid, name: "target", type: "Humanoid" },
+			id: "get",
+			config: { variable: humanoid, name: "target", type: "Humanoid" },
 		});
 		const part = b.node("roblox.instanceNew", { id: "part" });
 		b.lit(part, "className", { t: "string", v: "Part" });
 		const add = b.node(SERVICE_CALL, {
-			id: "add", config: { service: "Debris", method: "AddItem" },
+			id: "add",
+			config: { service: "Debris", method: "AddItem" },
 		});
 		b.link(start, "then", part, "in");
 		b.link(part, "then", add, "in");
@@ -347,23 +372,27 @@ describe("a service or a class by its name", () => {
 	const named = (name: string) => items.filter((item) => item.name === name);
 
 	it("offers a service as Get Service, filled in", () => {
-		expect(named("ReplicatedStorage")).toEqual([{
-			name: "ReplicatedStorage",
-			defId: "roblox.getService",
-			literals: { service: { t: "string", v: "ReplicatedStorage" } },
-			summary: "Get Service — ReplicatedStorage, as a local at the top of the file.",
-			category: "Engine",
-		}]);
+		expect(named("ReplicatedStorage")).toEqual([
+			{
+				name: "ReplicatedStorage",
+				defId: "roblox.getService",
+				literals: { service: { t: "string", v: "ReplicatedStorage" } },
+				summary: "Get Service — ReplicatedStorage, as a local at the top of the file.",
+				category: "Engine",
+			},
+		]);
 	});
 
 	it("offers a class as New Instance, filled in", () => {
-		expect(named("ProximityPrompt")).toEqual([{
-			name: "ProximityPrompt",
-			defId: "roblox.instanceNew",
-			literals: { className: { t: "string", v: "ProximityPrompt" } },
-			summary: 'New Instance — Instance.new("ProximityPrompt").',
-			category: "Instances",
-		}]);
+		expect(named("ProximityPrompt")).toEqual([
+			{
+				name: "ProximityPrompt",
+				defId: "roblox.instanceNew",
+				literals: { className: { t: "string", v: "ProximityPrompt" } },
+				summary: 'New Instance — Instance.new("ProximityPrompt").',
+				category: "Instances",
+			},
+		]);
 	});
 
 	/** `Instance.new("Players")` is a runtime error, so only one of the two. */
@@ -383,7 +412,10 @@ describe("a service or a class by its name", () => {
 		for (const item of items) {
 			const def = registry.get(item.defId)!;
 			for (const pin of Object.keys(item.literals)) {
-				expect(def.inputs.some((p) => p.id === pin), `${item.defId}/${pin}`).toBe(true);
+				expect(
+					def.inputs.some((p) => p.id === pin),
+					`${item.defId}/${pin}`,
+				).toBe(true);
 			}
 		}
 	});
@@ -398,7 +430,8 @@ describe("a value read in two places", () => {
 		const b = new Builder();
 		const start = b.node("script.begin", { id: "start" });
 		const guid = b.node(SERVICE_VALUE, {
-			id: "guid", config: { service: "HttpService", method: "GenerateGUID" },
+			id: "guid",
+			config: { service: "HttpService", method: "GenerateGUID" },
 		});
 		const first = b.node("debug.print", { id: "first" });
 		const second = b.node("debug.print", { id: "second" });
@@ -421,6 +454,8 @@ describe("a value read in two places", () => {
 		});
 		const print = b.node("debug.print", { id: "print" });
 		b.link(start, "then", print, "in").link(guid, "result", print, "value");
-		expect(body(compile(b.build(), registry).code)).toContain("local token = HttpService:GenerateGUID()");
+		expect(body(compile(b.build(), registry).code)).toContain(
+			"local token = HttpService:GenerateGUID()",
+		);
 	});
 });

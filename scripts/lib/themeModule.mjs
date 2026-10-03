@@ -39,7 +39,9 @@ export async function loadThemes(root) {
 		try {
 			parsed = JSON.parse(await readFile(join(source, file), "utf8"));
 		} catch (err) {
-			problems.push(`themes/${file}: not valid JSON — ${err instanceof Error ? err.message : String(err)}`);
+			problems.push(
+				`themes/${file}: not valid JSON — ${err instanceof Error ? err.message : String(err)}`,
+			);
 			continue;
 		}
 		const found = validateTheme(parsed, `themes/${file}`);
@@ -52,11 +54,17 @@ export async function loadThemes(root) {
 	const bySlug = new Map();
 	for (const { file, theme } of themes) {
 		const name = theme.name.toLowerCase();
-		if (byName.has(name)) problems.push(`themes/${file} and themes/${byName.get(name)} both define a theme named "${theme.name}"`);
+		if (byName.has(name))
+			problems.push(
+				`themes/${file} and themes/${byName.get(name)} both define a theme named "${theme.name}"`,
+			);
 		else byName.set(name, file);
 
 		const slug = themeSlug(theme.name);
-		if (bySlug.has(slug)) problems.push(`themes/${file} and themes/${bySlug.get(slug)} both resolve to the slug "${slug}"`);
+		if (bySlug.has(slug))
+			problems.push(
+				`themes/${file} and themes/${bySlug.get(slug)} both resolve to the slug "${slug}"`,
+			);
 		else bySlug.set(slug, file);
 
 		// The file name is not the identity — the slug of the name is — but a

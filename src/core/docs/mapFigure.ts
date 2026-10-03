@@ -111,7 +111,11 @@ function rowsOf(map: NodeMap): MapFigureRow[] {
 			kind: kindOf(node, depth, filesystem),
 			parent: node.children.length > 0,
 			heading: filesystem
-				? depth === 0 ? "Directory" : node.file ? "File" : "Directory"
+				? depth === 0
+					? "Directory"
+					: node.file
+						? "File"
+						: "Directory"
 				: "Instance",
 			ignorePaths: node.ignorePaths ?? [],
 			root: depth === 0,
@@ -199,8 +203,7 @@ function nodeEntries(node: MapNode, indent: number, isRoot: boolean): MapFigureL
 	return entries;
 }
 
-const isService = (node: MapNode) =>
-	node.className === undefined || node.className === "";
+const isService = (node: MapNode) => node.className === undefined || node.className === "";
 
 /** One child, as `"Name": { … }`, opened and closed at `indent`. */
 function childLines(node: MapNode, indent: number): MapFigureLine[] {
@@ -214,7 +217,10 @@ function childLines(node: MapNode, indent: number): MapFigureLine[] {
  * shape of its own stanza even when everything inside it belongs to a child.
  */
 function objectLines(
-	node: MapNode, indent: number, label: string, isRoot: boolean,
+	node: MapNode,
+	indent: number,
+	label: string,
+	isRoot: boolean,
 ): MapFigureLine[] {
 	const key = node.id;
 	const entries = nodeEntries(node, indent + 1, isRoot);
@@ -361,22 +367,25 @@ export function mapParts(figure: MapFigure): MapPart[] {
 	const tree: MapPart = {
 		part: "tree",
 		name: "The tree",
-		what: figure.target === "lune"
-			? "Every directory and file the project has. Pick one and the Inspector follows."
-			: "Every instance the map describes. Pick one and the Inspector follows.",
+		what:
+			figure.target === "lune"
+				? "Every directory and file the project has. Pick one and the Inspector follows."
+				: "Every instance the map describes. Pick one and the Inspector follows.",
 	};
 	const describes: MapPart = {
 		part: "describes",
 		name: "Describes",
-		what: "Whether this is a DataModel for Roblox or a filesystem for Lune. It decides "
-			+ "what the rest of the panel is.",
+		what:
+			"Whether this is a DataModel for Roblox or a filesystem for Lune. It decides " +
+			"what the rest of the panel is.",
 	};
 	const name: MapPart = {
 		part: "name",
 		name: "Name",
-		what: figure.target === "lune"
-			? "What it is called on disk — with no extension, which the row on the right adds."
-			: "The instance's name in the DataModel.",
+		what:
+			figure.target === "lune"
+				? "What it is called on disk — with no extension, which the row on the right adds."
+				: "The instance's name in the DataModel.",
 	};
 
 	if (figure.target === "lune") {
@@ -387,8 +396,9 @@ export function mapParts(figure: MapFigure): MapPart[] {
 			{
 				part: "kind",
 				name: "Kind",
-				what: "A directory, or a file Roswaal writes a .luau for. Absent on the project "
-					+ "root, which is neither.",
+				what:
+					"A directory, or a file Roswaal writes a .luau for. Absent on the project " +
+					"root, which is neither.",
 			},
 			{
 				part: "actions",
@@ -398,8 +408,9 @@ export function mapParts(figure: MapFigure): MapPart[] {
 			{
 				part: "preview",
 				name: "The layout",
-				what: "The directories and files as they land, and the require that reaches each "
-					+ "one. Nothing is written — compiling a filesystem map checks it.",
+				what:
+					"The directories and files as they land, and the require that reaches each " +
+					"one. Nothing is written — compiling a filesystem map checks it.",
 			},
 		];
 	}
@@ -411,8 +422,9 @@ export function mapParts(figure: MapFigure): MapPart[] {
 		{
 			part: "class",
 			name: "Class",
-			what: "Blank on a service, because Rojo infers it from the key and rejects it being "
-				+ "said twice.",
+			what:
+				"Blank on a service, because Rojo infers it from the key and rejects it being " +
+				"said twice.",
 		},
 		{
 			part: "path",
@@ -460,32 +472,41 @@ export function mapParts(figure: MapFigure): MapPart[] {
  * arriving by the only route a bundled script has.
  */
 function field(label: string, control: string, part: string): string {
-	return `<label class="field" data-part="${escapeXml(part)}">` +
-		`<span>${escapeXml(label)}</span>${control}</label>`;
+	return (
+		`<label class="field" data-part="${escapeXml(part)}">` +
+		`<span>${escapeXml(label)}</span>${control}</label>`
+	);
 }
 
 function input(name: string, value: string, placeholder = ""): string {
-	return `<input class="tb" readonly data-map-field="${name}" value="${escapeXml(value)}"` +
-		`${placeholder ? ` placeholder="${escapeXml(placeholder)}"` : ""}>`;
+	return (
+		`<input class="tb" readonly data-map-field="${name}" value="${escapeXml(value)}"` +
+		`${placeholder ? ` placeholder="${escapeXml(placeholder)}"` : ""}>`
+	);
 }
 
 /** A select showing one fixed answer. It is a demonstrator, so it does not open. */
 function select(name: string, value: string): string {
-	return `<select class="tb" disabled data-map-field="${name}">` +
-		`<option>${escapeXml(value)}</option></select>`;
+	return (
+		`<select class="tb" disabled data-map-field="${name}">` +
+		`<option>${escapeXml(value)}</option></select>`
+	);
 }
 
 function listField(label: string, hint: string, values: string[], name: string): string {
 	const rows = values
-		.map((value) =>
-			`<div class="map-list-row"><input class="tb" readonly value="${escapeXml(value)}">` +
-			`<button class="tb" disabled>&times;</button></div>`,
+		.map(
+			(value) =>
+				`<div class="map-list-row"><input class="tb" readonly value="${escapeXml(value)}">` +
+				`<button class="tb" disabled>&times;</button></div>`,
 		)
 		.join("");
-	return `<div class="map-list" data-map-list="${name}" data-part="${escapeXml(name)}">` +
+	return (
+		`<div class="map-list" data-map-list="${name}" data-part="${escapeXml(name)}">` +
 		`<div class="map-list-head"><span>${escapeXml(label)}</span>` +
 		`<button class="tb" disabled>Add</button></div>` +
-		`<p class="summary">${escapeXml(hint)}</p>${rows}</div>`;
+		`<p class="summary">${escapeXml(hint)}</p>${rows}</div>`
+	);
 }
 
 const IGNORE_HINT =
@@ -500,8 +521,7 @@ const IGNORE_HINT =
  * hang `dangerouslySetInnerHTML` on and the template does not.
  */
 export function mapFigureHtml(figure: MapFigure): string {
-	return `<div class="docs-map-frame">${mapPanelHtml(figure)}</div>` +
-		mapLegendHtml(figure);
+	return `<div class="docs-map-frame">${mapPanelHtml(figure)}</div>` + mapLegendHtml(figure);
 }
 
 /**
@@ -513,10 +533,11 @@ export function mapFigureHtml(figure: MapFigure): string {
  */
 export function mapLegendHtml(figure: MapFigure): string {
 	const items = mapParts(figure)
-		.map((item) =>
-			`<li data-part="${escapeXml(item.part)}">` +
-			`<span class="docs-map-part">${escapeXml(item.name)}</span>` +
-			`<span class="docs-map-what">${escapeXml(item.what)}</span></li>`,
+		.map(
+			(item) =>
+				`<li data-part="${escapeXml(item.part)}">` +
+				`<span class="docs-map-part">${escapeXml(item.name)}</span>` +
+				`<span class="docs-map-what">${escapeXml(item.what)}</span></li>`,
 		)
 		.join("");
 	return `<ul class="docs-map-legend">${items}</ul>`;
@@ -553,24 +574,26 @@ export function mapPanelHtml(figure: MapFigure): string {
 				ignorePaths: row.ignorePaths,
 				root: row.root,
 			});
-			return `<div class="map-row${row.key === first.key ? " selected" : ""}"` +
+			return (
+				`<div class="map-row${row.key === first.key ? " selected" : ""}"` +
 				` data-control="${escapeXml(row.key)}"` +
 				` data-map-node="${escapeXml(inspect)}"` +
 				` style="padding-left:${8 + row.depth * 14}px">` +
 				`<span class="glyph"${row.parent ? "" : ` style="visibility:hidden"`}>&#9656;</span>` +
 				bits.join("") +
-				`</div>`;
+				`</div>`
+			);
 		})
 		.join("");
 
 	const preview = figure.lines
 		.map((line) => {
 			const keyed = line.key ? ` data-control="${escapeXml(line.key)}"` : "";
-			const note = line.note
-				? `<span class="map-reach">${escapeXml(line.note)}</span>`
-				: "";
-			return `<span class="map-preview-line"${keyed}>` +
-				`${escapeXml("  ".repeat(line.indent) + line.text)}${note}</span>`;
+			const note = line.note ? `<span class="map-reach">${escapeXml(line.note)}</span>` : "";
+			return (
+				`<span class="map-preview-line"${keyed}>` +
+				`${escapeXml("  ".repeat(line.indent) + line.text)}${note}</span>`
+			);
 		})
 		.join("");
 
@@ -578,15 +601,9 @@ export function mapPanelHtml(figure: MapFigure): string {
 
 	const inspector = lune
 		? field("Name", input("name", first.name), "name") +
-			(first.root
-				? ""
-				: field("Kind", select("kind", first.file ? "File" : "Directory"), "kind"))
+			(first.root ? "" : field("Kind", select("kind", first.file ? "File" : "Directory"), "kind"))
 		: field("Name", input("name", first.name), "name") +
-			field(
-				"Class",
-				select("class", first.className ?? "(service — Rojo infers it)"),
-				"class",
-			) +
+			field("Class", select("class", first.className ?? "(service — Rojo infers it)"), "class") +
 			field("Path", input("path", first.path ?? "", "src/systems"), "path") +
 			field(
 				"Ignore unknown",
@@ -625,7 +642,8 @@ export function mapPanelHtml(figure: MapFigure): string {
 			`<select class="tb" disabled><option>Add service&hellip;</option></select>` +
 			`<button class="tb" disabled>Delete</button>`;
 
-	return `<div class="map-editor">` +
+	return (
+		`<div class="map-editor">` +
 		`<div class="map-tree" data-part="tree" data-quiet>` +
 		`<div class="map-bar" data-grip="tree"><span>${escapeXml(figure.name)}</span>` +
 		`<span style="flex:1"></span><button class="tb" disabled>Undo</button></div>` +
@@ -643,5 +661,6 @@ export function mapPanelHtml(figure: MapFigure): string {
 		ignorePaths +
 		`<div class="map-actions" data-part="actions">${actions}</div>` +
 		tail +
-		`</div></div>`;
+		`</div></div>`
+	);
 }

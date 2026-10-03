@@ -6,8 +6,8 @@
  * node_modules resolving from the right place, and without a global install.
  */
 
-import { build } from "esbuild";
 import { mkdir, writeFile } from "node:fs/promises";
+import { build } from "esbuild";
 
 await mkdir("dist-cli", { recursive: true });
 

@@ -22,7 +22,9 @@ const registry = createRegistry();
 
 const code = (script: NodeScript) => body(compile(script, registry).code);
 const errors = (script: NodeScript) =>
-	compile(script, registry).diagnostics.filter((d) => d.severity === "error").map((d) => d.message);
+	compile(script, registry)
+		.diagnostics.filter((d) => d.severity === "error")
+		.map((d) => d.message);
 
 /** Occupancy's shape: a local under Then 0, a function on a table under Then 1. */
 function occupancy() {
@@ -35,7 +37,9 @@ function occupancy() {
 	b.lit(declare, "name", { t: "string", v: "restores" });
 	b.lit(declare, "value", { t: "raw", v: "{}" });
 
-	const owner = b.node("variable.get", { config: { variable: table, name: "Occupancy", type: "table" } });
+	const owner = b.node("variable.get", {
+		config: { variable: table, name: "Occupancy", type: "table" },
+	});
 	const fn = b.node("function.declareHere", {
 		config: { name: "hide", params: [{ name: "character", type: "Model" }], returns: [] },
 	});
@@ -127,7 +131,10 @@ describe("Get Local", () => {
 		const other = b.node("local.declare");
 		b.lit(other, "name", { t: "string", v: "count" });
 		const bound = bindNodeToLocal(b.build(), read, other);
-		expect(bound.nodes.find((n) => n.id === read)!.config).toMatchObject({ local: other, name: "count" });
+		expect(bound.nodes.find((n) => n.id === read)!.config).toMatchObject({
+			local: other,
+			name: "count",
+		});
 		// Pointing at something that is not a Declare Local changes nothing.
 		expect(bindNodeToLocal(script, read, read)).toBe(script);
 	});
@@ -135,7 +142,9 @@ describe("Get Local", () => {
 	it("names an unnamed local the way the emitter does", () => {
 		expect(localNameOf({ literals: { name: { t: "string", v: "  " } } })).toBe("local");
 		expect(localNameOf({ label: "cache" })).toBe("cache");
-		expect(localNameOf({ label: "cache", literals: { name: { t: "string", v: "saved" } } })).toBe("saved");
+		expect(localNameOf({ label: "cache", literals: { name: { t: "string", v: "saved" } } })).toBe(
+			"saved",
+		);
 	});
 
 	/**

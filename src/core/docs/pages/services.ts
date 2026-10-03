@@ -3,8 +3,8 @@
  */
 
 import { GUIDE_SCENES } from "../examples.js";
-import { code, previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
+import { code, previews } from "./blocks.js";
 
 /**
  * Services and the methods on them.
@@ -40,7 +40,7 @@ export function servicesPage({ registry }: PageContext): DocPage {
 				registry,
 				["roblox.getService", "roblox.serviceValue", "roblox.serviceCall"],
 				"Both Service Function nodes arrive blank. Pick the call in the Inspector, or " +
-				"search the palette for the method by name and the node comes configured.",
+					"search the palette for the method by name and the node comes configured.",
 			),
 			{
 				t: "graph",
@@ -111,11 +111,11 @@ export function servicesPage({ registry }: PageContext): DocPage {
 				t: "ul",
 				items: [
 					"An **enum** argument is typed as its member name — `E`, `Begin` — and written " +
-					"out in full as `Enum.KeyCode.E`. Wire one instead and the wire wins.",
+						"out in full as `Enum.KeyCode.E`. Wire one instead and the wire wins.",
 					"A method that **returns nothing** has no Result pin, because a pin that can " +
-					"only be nil is one somebody will try to use.",
+						"only be nil is one somebody will try to use.",
 					"A method that **yields** says so in the Inspector. Those are never offered as " +
-					"the value node: a call that stops the thread belongs in the chain.",
+						"the value node: a call that stops the thread belongs in the chain.",
 				],
 			},
 

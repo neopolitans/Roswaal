@@ -6,7 +6,7 @@
  */
 
 import { isSubclassOf } from "../roblox.js";
-import { VARIADIC_PIN, type Scope } from "./emitScope.js";
+import { type Scope, VARIADIC_PIN } from "./emitScope.js";
 import type { Emitter } from "./emitter.js";
 import type { ResolvedNode } from "./graph.js";
 import { isIdentifier } from "./luau.js";
@@ -69,7 +69,8 @@ export function alreadyNarrowed(e: Emitter, src: ResolvedNode, scope: Scope): bo
 	const known = scope.narrowedTo(key);
 	if (!known) return false;
 
-	const claimed = e.literalText(src, "type")
+	const claimed = e
+		.literalText(src, "type")
 		.split("|")
 		.map((part) => part.trim())
 		.filter((part) => part !== "");

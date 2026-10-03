@@ -25,10 +25,10 @@
  * silently mis-rendered page when a block is malformed.
  */
 
+import { categoryLabel } from "../categories.js";
 import type { NodeMap } from "../nodemap.js";
 import { categories, type Registry, subcategories, ZUP_CONVERSIONS } from "../nodes/index.js";
 import type { Runtime } from "../nodes/runtimes.js";
-import { categoryLabel } from "../categories.js";
 import { ENGINE_TYPES, type NodeScript } from "../schema.js";
 import type { LayoutSpec } from "./layouts.js";
 import { documentRegistry, type NodeDoc } from "./nodeReference.js";
@@ -68,12 +68,18 @@ import { type Review, reviewOf } from "./reviews.js";
 import type { ToolbarSpec } from "./toolbars.js";
 
 export {
-	blockStrings, blockText, isPageLink, parseInline, stripMarkup,
-	type BlockString, type Inline, type StringSlot,
+	type BlockString,
+	blockStrings,
+	blockText,
+	type Inline,
+	isPageLink,
+	parseInline,
+	type StringSlot,
+	stripMarkup,
 } from "./markup.js";
 export { ROJO_SAMPLE } from "./pages/placesAndRojo.js";
 export { releaseTags, SURFACES, TAG_LABELS } from "./releaseTags.js";
-export { rankDocs, searchDocs, type DocsHit, type SearchEntry } from "./search.js";
+export { type DocsHit, rankDocs, type SearchEntry, searchDocs } from "./search.js";
 export { buildSearchIndex } from "./searchIndex.js";
 
 // ---------------------------------------------------------------------------
@@ -94,9 +100,7 @@ export { buildSearchIndex } from "./searchIndex.js";
  * release note. A release states them, and an absent one means *not stated*
  * rather than *not affected*: the oldest releases state none.
  */
-export type ReleaseTag =
-	| "feature" | "change" | "fix" | "breaking"
-	| "docs" | "editor" | "designer";
+export type ReleaseTag = "feature" | "change" | "fix" | "breaking" | "docs" | "editor" | "designer";
 
 /**
  * What a note is, which its heading says in a word: Info, Tip, Warning, or
@@ -487,16 +491,22 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	const conversionSections = (): DocSection[] => {
 		const pages = (byCategory.get(ZUP_CONVERSIONS) ?? []).filter((p) => !p.custom);
 		if (pages.length === 0) return [];
-		return [{
-			title: ZUP_CONVERSIONS,
-			slug: `nodes/${slugify(ZUP_CONVERSIONS)}`,
-			pages,
-			group: GROUPS.conversions,
-		}];
+		return [
+			{
+				title: ZUP_CONVERSIONS,
+				slug: `nodes/${slugify(ZUP_CONVERSIONS)}`,
+				pages,
+				group: GROUPS.conversions,
+			},
+		];
 	};
 
 	const start = shelf([
-		gettingStartedPage, theInterfacePage, controlsPage, toolbarsPage, projectPanelPage,
+		gettingStartedPage,
+		theInterfacePage,
+		controlsPage,
+		toolbarsPage,
+		projectPanelPage,
 		comingFromBlueprintsPage,
 	]);
 	/**
@@ -515,11 +525,21 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	 * whose Get Parameter they lean on.
 	 */
 	const writingGraphs = shelf([
-		wiresAndPinsPage, typesPage, castingPage, variablesAndLocalsPage, membersAndFieldsPage,
-		functionsPage, modulesPage, handWrittenLuauPage,
+		wiresAndPinsPage,
+		typesPage,
+		castingPage,
+		variablesAndLocalsPage,
+		membersAndFieldsPage,
+		functionsPage,
+		modulesPage,
+		handWrittenLuauPage,
 	]);
 	const forRoblox = shelf([
-		servicesPage, buildingAndRojoPage, placesAndRojoPage, wallyPackagesPage, readingLuauPage,
+		servicesPage,
+		buildingAndRojoPage,
+		placesAndRojoPage,
+		wallyPackagesPage,
+		readingLuauPage,
 		robloxDemosPage,
 	]);
 	const forLune = shelf([luneLibraryPage, aliasesPage, compilingForLunePage, luneDemosPage]);
@@ -577,7 +597,10 @@ function withReviews(sections: DocSection[]): DocSection[] {
 }
 
 function slugify(text: string): string {
-	return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+	return text
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "");
 }
 
 export function allPages(site: DocSite): DocPage[] {
@@ -604,7 +627,8 @@ export interface Neighbour {
  * them anyway.
  */
 export function neighbours(
-	site: DocSite, slug: string,
+	site: DocSite,
+	slug: string,
 ): { previous?: Neighbour; next?: Neighbour } {
 	const pages = allPages(site);
 	const at = pages.findIndex((page) => page.slug === slug);

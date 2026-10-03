@@ -43,14 +43,17 @@ describe("one rule for what fits", () => {
 		const b = new Builder();
 		const tank = b.variable("tank", "Model", { t: "nil" });
 		const begin = b.node("script.begin");
-		const read = b.node("variable.get", { config: { variable: tank, name: "tank", type: "Model" } });
+		const read = b.node("variable.get", {
+			config: { variable: tank, name: "tank", type: "Model" },
+		});
 		const use = b.node("test.takesInstance");
 		b.link(begin, "then", use, "in");
 		b.link(read, "value", use, "target");
 
 		const script = b.build();
-		expect(canConnect(script, withPack, { node: read, pin: "value" }, { node: use, pin: "target" }).ok)
-			.toBe(true);
+		expect(
+			canConnect(script, withPack, { node: read, pin: "value" }, { node: use, pin: "target" }).ok,
+		).toBe(true);
 		expect(validate(script, withPack).filter((d) => /expects/.test(d.message))).toEqual([]);
 	});
 });
@@ -66,10 +69,12 @@ describe("pins a dropped wire is offered", () => {
 		const text = b.node("value.string");
 		const cast = b.node("cast.as");
 		const script = b.build();
-		expect(canConnect(script, registry, { node: text, pin: "result" }, { node: cast, pin: "type" }).ok)
-			.toBe(false);
-		expect(canConnect(script, registry, { node: text, pin: "result" }, { node: cast, pin: "value" }).ok)
-			.toBe(true);
+		expect(
+			canConnect(script, registry, { node: text, pin: "result" }, { node: cast, pin: "type" }).ok,
+		).toBe(false);
+		expect(
+			canConnect(script, registry, { node: text, pin: "result" }, { node: cast, pin: "value" }).ok,
+		).toBe(true);
 	});
 
 	/**
@@ -84,7 +89,12 @@ describe("pins a dropped wire is offered", () => {
 		const grown = growNode(b.build(), registry, seq, 1, {});
 		expect(grown.pin).toBeDefined();
 		expect(
-			canConnect(grown.script, registry, { node: text, pin: "result" }, { node: seq, pin: grown.pin! }).ok,
+			canConnect(
+				grown.script,
+				registry,
+				{ node: text, pin: "result" },
+				{ node: seq, pin: grown.pin! },
+			).ok,
 		).toBe(false);
 	});
 });

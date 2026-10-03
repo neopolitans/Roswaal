@@ -116,5 +116,10 @@ export interface ImportPlaceMessage {
 	place: Uint8Array;
 }
 
-export type ToWorker = ApiRequestMessage | FlushMessage | MountMessage | ImportMessage | ImportPlaceMessage;
+export type ToWorker =
+	| ApiRequestMessage
+	| FlushMessage
+	| MountMessage
+	| ImportMessage
+	| ImportPlaceMessage;
 export type FromWorker = ApiResponseMessage | ApiEventMessage;

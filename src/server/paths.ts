@@ -6,10 +6,9 @@
  * for the helpers that do.
  */
 
-import { path } from "./host.js";
 import { normalisePath } from "../core/rojoPaths.js";
-
 import { UserError } from "./errors.js";
+import { path } from "./host.js";
 
 /**
  * A path with forward slashes, whatever produced it.
@@ -65,7 +64,8 @@ export function safeJoin(root: string, relPath: string): string {
  */
 export function entryPath(root: string, relPath: string): string {
 	const abs = safeJoin(root, relPath);
-	if (path.relative(root, abs) === "") throw new UserError("That is the project folder itself, not something in it.");
+	if (path.relative(root, abs) === "")
+		throw new UserError("That is the project folder itself, not something in it.");
 	return abs;
 }
 

@@ -18,7 +18,8 @@ export function creatingCustomNodesPage(): DocPage {
 	return {
 		slug: "creating-custom-nodes",
 		title: "Creating custom nodes",
-		summary: "Node Design, pack files and TypeScript: the ways to define a node of your own, and what they share.",
+		summary:
+			"Node Design, pack files and TypeScript: the ways to define a node of your own, and what they share.",
 		narrow: true,
 		blocks: [
 			{
@@ -119,8 +120,16 @@ export function creatingCustomNodesPage(): DocPage {
 									"An execution input and output. The template is statements, run where the node " +
 									"sits. `$in.force` is whatever is wired into Force, or the value typed into it.",
 							},
-							{ t: "code", lang: "luau", text: "$in.character.HumanoidRootPart:ApplyImpulse($in.force)" },
-							{ t: "code", lang: "luau", text: "character.HumanoidRootPart:ApplyImpulse(Vector3.new(0, 50, 0))" },
+							{
+								t: "code",
+								lang: "luau",
+								text: "$in.character.HumanoidRootPart:ApplyImpulse($in.force)",
+							},
+							{
+								t: "code",
+								lang: "luau",
+								text: "character.HumanoidRootPart:ApplyImpulse(Vector3.new(0, 50, 0))",
+							},
 							{ t: "h", level: 3, text: "A step that sets an output" },
 							{
 								t: "p",
@@ -128,11 +137,19 @@ export function creatingCustomNodesPage(): DocPage {
 									"Give the node a data output and **assign** it. Roswaal declares the local before " +
 									"the template runs, so the template sets it rather than declaring it.",
 							},
-							{ t: "code", lang: "luau", text: "$out.hit = workspace:Raycast($in.origin, $in.direction)" },
-							{ t: "code", lang: "luau", text: code`
+							{
+								t: "code",
+								lang: "luau",
+								text: "$out.hit = workspace:Raycast($in.origin, $in.direction)",
+							},
+							{
+								t: "code",
+								lang: "luau",
+								text: code`
 								local hit
 								hit = workspace:Raycast(origin, direction)
-								` },
+								`,
+							},
 							{ t: "h", level: 3, text: "A call with a result" },
 							{
 								t: "p",
@@ -141,7 +158,11 @@ export function creatingCustomNodesPage(): DocPage {
 									"expression, and its value lands in that pin.",
 							},
 							{ t: "code", lang: "luau", text: '$in.character:FindFirstChildOfClass("Tool")' },
-							{ t: "code", lang: "luau", text: 'local tool = character:FindFirstChildOfClass("Tool")' },
+							{
+								t: "code",
+								lang: "luau",
+								text: 'local tool = character:FindFirstChildOfClass("Tool")',
+							},
 							{ t: "h", level: 3, text: "A pure node" },
 							{
 								t: "p",
@@ -201,8 +222,8 @@ export function creatingCustomNodesPage(): DocPage {
 							{
 								t: "p",
 								text:
-									"A pin default may be written plainly — `default = 5`, `default = \"Part\"` — " +
-									"rather than as a tagged `{ t = \"number\", v = 5 }`. The tagged form is still " +
+									'A pin default may be written plainly — `default = 5`, `default = "Part"` — ' +
+									'rather than as a tagged `{ t = "number", v = 5 }`. The tagged form is still ' +
 									"there, and is the only way to write a `raw` default, which is emitted verbatim " +
 									"rather than quoted.",
 							},
@@ -212,7 +233,7 @@ export function creatingCustomNodesPage(): DocPage {
 									"Two more keys, both optional. `requires`, beside `nodes`, lists the packs " +
 									"whose nodes this pack's logic is built from. `logic`, on a node saved from " +
 									"Node Design, is the graph its logic was built from — the loader ignores it and " +
-									"reads `compilesTo`. `display = \"compact\"` draws a pure node with no inputs " +
+									'reads `compilesTo`. `display = "compact"` draws a pure node with no inputs ' +
 									"and one output as a pill.",
 							},
 							{
@@ -285,7 +306,11 @@ export function creatingCustomNodesPage(): DocPage {
 				t: "table",
 				head: ["Kind", "Shape", "Emits"],
 				rows: [
-					["`expr`", "Pure, no execution pins", "One expression per output pin, spliced into whatever reads it"],
+					[
+						"`expr`",
+						"Pure, no execution pins",
+						"One expression per output pin, spliced into whatever reads it",
+					],
 					["`call`", "Impure, produces one value", "`local x = <template>`"],
 					["`statement`", "Impure, any outputs", "The template, as statements"],
 				],
@@ -302,9 +327,15 @@ export function creatingCustomNodesPage(): DocPage {
 				t: "table",
 				head: ["Placeholder", "Meaning"],
 				rows: [
-					["`$in.<pin>`", "The input's expression — the wired source, or the value typed into it — parenthesised where precedence needs it"],
+					[
+						"`$in.<pin>`",
+						"The input's expression — the wired source, or the value typed into it — parenthesised where precedence needs it",
+					],
 					["`$out.<pin>`", "The local this output was bound to"],
-					["`$in.<pin>!ident`", "An unconnected literal, sanitised to a Luau identifier. The pin cannot be wired"],
+					[
+						"`$in.<pin>!ident`",
+						"An unconnected literal, sanitised to a Luau identifier. The pin cannot be wired",
+					],
 					["`$in.<pin>!raw`", "An unconnected literal, inserted verbatim"],
 					["`$args(<sep>)`", "A variadic node's inputs, folded with that separator"],
 					["`$opt(<sep>)`", "The optional trailing arguments, dropping the ones nobody set"],

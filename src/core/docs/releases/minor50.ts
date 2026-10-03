@@ -104,9 +104,7 @@ export const RELEASES_0_50: Release[] = [
 			"**A folder you opened in the browser is opened again next time.** Where the permission has lapsed — which it does between sessions — the project menu offers it by name, and the click that accepts is the click that asks for permission back.",
 			"**A folder with no** `roswaal.json` **can be set up from the browser**, so trying Roswaal on your own project no longer means installing it first. It asks before writing, and writes what `roswaal init` writes: `roswaal.json`, `.roswaal/scripts` and `.roswaal/nodes`. Nothing else in the folder is touched.",
 		],
-		changed: [
-			"**Start again from the demo** also forgets the folder it was remembering.",
-		],
+		changed: ["**Start again from the demo** also forgets the folder it was remembering."],
 	},
 	{
 		version: "0.53.2",

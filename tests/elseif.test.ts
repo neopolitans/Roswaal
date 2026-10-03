@@ -13,10 +13,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { body, Builder } from "./helpers.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
+import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
 
@@ -44,13 +43,9 @@ describe("a Branch wired into a Branch's False pin", () => {
 
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
-		expect(body(out.code)).toBe([
-			"if true then",
-			`\tprint("a")`,
-			"elseif false then",
-			`\tprint("b")`,
-			"end",
-		].join("\n"));
+		expect(body(out.code)).toBe(
+			["if true then", `\tprint("a")`, "elseif false then", `\tprint("b")`, "end"].join("\n"),
+		);
 	});
 
 	it("keeps a final else, and closes the whole chain with one end", () => {
@@ -99,16 +94,18 @@ describe("a Branch wired into a Branch's False pin", () => {
 
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
-		expect(body(out.code)).toBe([
-			"if true then",
-			`\tprint("a")`,
-			"else",
-			"\tlocal ready = not false",
-			"\tif ready then",
-			`\t\tprint("b")`,
-			"\tend",
-			"end",
-		].join("\n"));
+		expect(body(out.code)).toBe(
+			[
+				"if true then",
+				`\tprint("a")`,
+				"else",
+				"\tlocal ready = not false",
+				"\tif ready then",
+				`\t\tprint("b")`,
+				"\tend",
+				"end",
+			].join("\n"),
+		);
 	});
 
 	it("does not chain through a Branch that is not the whole else arm", () => {
@@ -178,8 +175,10 @@ describe("a loop variable's type", () => {
 
 	it("annotates both bindings of a For Each", () => {
 		const { b } = loop("flow.forEach", {
-			keyName: "part", valueName: "transparency",
-			keyType: "BasePart", valueType: "number",
+			keyName: "part",
+			valueName: "transparency",
+			keyType: "BasePart",
+			valueType: "number",
 		});
 		expect(body(compile(b.build(), registry).code)).toContain(
 			"for part: BasePart, transparency: number in pairs(",
@@ -188,17 +187,13 @@ describe("a loop variable's type", () => {
 
 	it("annotates only the one that is set", () => {
 		const { b } = loop("flow.forEach", { valueType: "BasePart" });
-		expect(body(compile(b.build(), registry).code)).toContain(
-			"for key, value: BasePart in pairs(",
-		);
+		expect(body(compile(b.build(), registry).code)).toContain("for key, value: BasePart in pairs(");
 	});
 
 	/** `ipairs` hands back a number; saying so would repeat the loop. */
 	it("leaves an array's index alone and annotates its value", () => {
 		const { b } = loop("flow.forIndex", { valueType: "BasePart" });
-		expect(body(compile(b.build(), registry).code)).toContain(
-			"for i, value: BasePart in ipairs(",
-		);
+		expect(body(compile(b.build(), registry).code)).toContain("for i, value: BasePart in ipairs(");
 	});
 
 	it("writes nothing when the graph asks for no annotations", () => {

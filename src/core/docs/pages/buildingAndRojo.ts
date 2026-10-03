@@ -109,7 +109,11 @@ export function buildingAndRojoPage(): DocPage {
 				head: ["Kind", "File", "In Studio"],
 				rows: [
 					["Script", "`Greeter.server.luau`", "A `Script`, running on the server"],
-					["LocalScript", "`Greeter.client.luau`", "A `LocalScript`, running on a player's machine"],
+					[
+						"LocalScript",
+						"`Greeter.client.luau`",
+						"A `LocalScript`, running on a player's machine",
+					],
 					["ModuleScript", "`Greeter.luau`", "A `ModuleScript`, run by whatever requires it"],
 				],
 			},
@@ -121,7 +125,10 @@ export function buildingAndRojoPage(): DocPage {
 				rows: [
 					["**Compile script**, or `Ctrl` + `S`", "The open graph"],
 					["**Compile project**", "Every graph, then every node map"],
-					["**Compile: Dynamic**", "Each graph as you edit it, and any that change on disk — after a `git pull`, say"],
+					[
+						"**Compile: Dynamic**",
+						"Each graph as you edit it, and any that change on disk — after a `git pull`, say",
+					],
 					["`roswaal compile`", "Everything, or the one graph or map you give it"],
 					["`roswaal watch`", "The same, without the editor"],
 				],
@@ -204,7 +211,10 @@ export function buildingAndRojoPage(): DocPage {
 						"Class",
 						"Blank for a service, because Rojo already knows what ServerScriptService is. Otherwise Folder, Model, Configuration, ScreenGui, Part or Tool",
 					],
-					["Path", "The folder or file on disk that fills the instance. Marked when Roswaal cannot find it"],
+					[
+						"Path",
+						"The folder or file on disk that fills the instance. Marked when Roswaal cannot find it",
+					],
 					["Ignore unknown", "Rojo leaves alone anything in Studio that it did not put there"],
 					[
 						"Ignore paths",

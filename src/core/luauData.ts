@@ -17,7 +17,10 @@
  */
 
 export class LuauParseError extends Error {
-	constructor(message: string, readonly line: number) {
+	constructor(
+		message: string,
+		readonly line: number,
+	) {
 		super(`line ${line}: ${message}`);
 	}
 }
@@ -150,12 +153,24 @@ function tokenize(source: string): Token[] {
 }
 
 const ESCAPES: Record<string, string> = {
-	n: "\n", t: "\t", r: "\r", a: "\x07", b: "\b", f: "\f", v: "\v",
-	"\\": "\\", '"': '"', "'": "'", "\n": "\n",
+	n: "\n",
+	t: "\t",
+	r: "\r",
+	a: "\x07",
+	b: "\b",
+	f: "\f",
+	v: "\v",
+	"\\": "\\",
+	'"': '"',
+	"'": "'",
+	"\n": "\n",
 };
 
 function readQuoted(
-	source: string, start: number, quote: string, line: number,
+	source: string,
+	start: number,
+	quote: string,
+	line: number,
 ): { value: string; next: number; lines: number } {
 	let i = start + 1;
 	let out = "";
@@ -305,10 +320,7 @@ class Parser {
 		if (!this.isPunct("}")) {
 			// Reported against the opening brace, not the end of the file: in a
 			// pack of forty nodes, "line 12" is the useful half of the answer.
-			throw new LuauParseError(
-				`unterminated table opened here (expected "}")`,
-				open.line,
-			);
+			throw new LuauParseError(`unterminated table opened here (expected "}")`, open.line);
 		}
 		this.next();
 

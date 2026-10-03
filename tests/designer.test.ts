@@ -17,8 +17,16 @@ import { afterEach, describe, expect, it } from "vitest";
 import { runsOn } from "../src/core/packs.js";
 import type { NodeDef } from "../src/core/schema.js";
 import {
-	copyPackBetween, deletePack, duplicatePack, listPacks, openProject, packUsage, readConfig,
-	savePackNode, scanProjectPacks, setPackRequires,
+	copyPackBetween,
+	deletePack,
+	duplicatePack,
+	listPacks,
+	openProject,
+	packUsage,
+	readConfig,
+	savePackNode,
+	scanProjectPacks,
+	setPackRequires,
 } from "../src/server/project.js";
 
 const PACK = ".roswaal/nodes/combat.nodedef.json";
@@ -32,7 +40,10 @@ const KNOCKBACK: NodeDef = {
 		{ id: "character", name: "Character", kind: "data", type: "Instance" },
 	],
 	outputs: [{ id: "then", name: "", kind: "exec" }],
-	compilesTo: { kind: "statement", template: "$in.character.HumanoidRootPart:ApplyImpulse(Vector3.zero)" },
+	compilesTo: {
+		kind: "statement",
+		template: "$in.character.HumanoidRootPart:ApplyImpulse(Vector3.zero)",
+	},
 };
 
 async function project(): Promise<string> {
@@ -56,10 +67,17 @@ describe("saving a designed node", () => {
 
 		const packs = await listPacks(await openProject(root));
 		expect(packs.map((p) => p.path)).toEqual([PACK]);
-		expect(packs[0]).toMatchObject({ name: "combat", format: "json", nodes: ["combat.knockback"], errors: [] });
+		expect(packs[0]).toMatchObject({
+			name: "combat",
+			format: "json",
+			nodes: ["combat.knockback"],
+			errors: [],
+		});
 
 		// And the registry has it, which is what makes it placeable.
-		expect((await openProject(root)).registry.get("combat.knockback")?.title).toBe("Apply Knockback");
+		expect((await openProject(root)).registry.get("combat.knockback")?.title).toBe(
+			"Apply Knockback",
+		);
 	});
 
 	it("replaces the node with the same id rather than adding a second", async () => {
@@ -67,7 +85,9 @@ describe("saving a designed node", () => {
 		await savePackNode(await openProject(root), PACK, KNOCKBACK);
 		await savePackNode(await openProject(root), PACK, { ...KNOCKBACK, title: "Knock Back" });
 
-		const document = JSON.parse(await readFile(path.join(root, PACK), "utf8")) as { nodes: NodeDef[] };
+		const document = JSON.parse(await readFile(path.join(root, PACK), "utf8")) as {
+			nodes: NodeDef[];
+		};
 		expect(document.nodes).toHaveLength(1);
 		expect(document.nodes[0].title).toBe("Knock Back");
 	});
@@ -75,7 +95,11 @@ describe("saving a designed node", () => {
 	it("keeps the other nodes in the pack", async () => {
 		root = await project();
 		await savePackNode(await openProject(root), PACK, KNOCKBACK);
-		await savePackNode(await openProject(root), PACK, { ...KNOCKBACK, id: "combat.stun", title: "Stun" });
+		await savePackNode(await openProject(root), PACK, {
+			...KNOCKBACK,
+			id: "combat.stun",
+			title: "Stun",
+		});
 
 		const packs = await listPacks(await openProject(root));
 		expect(packs[0].nodes).toEqual(["combat.knockback", "combat.stun"]);
@@ -85,7 +109,10 @@ describe("saving a designed node", () => {
 	it("refuses a node the loader would not take", async () => {
 		root = await project();
 		const p = await openProject(root);
-		const reserved = { ...KNOCKBACK, compilesTo: { kind: "builtin", handler: "flow.branch" } } as NodeDef;
+		const reserved = {
+			...KNOCKBACK,
+			compilesTo: { kind: "builtin", handler: "flow.branch" },
+		} as NodeDef;
 
 		await expect(savePackNode(p, PACK, reserved)).rejects.toThrow(/builtin/);
 		await expect(readFile(path.join(root, PACK), "utf8")).rejects.toThrow();
@@ -95,9 +122,12 @@ describe("saving a designed node", () => {
 		root = await project();
 		const p = await openProject(root);
 
-		await expect(savePackNode(p, "src/sneaky.nodedef.json", KNOCKBACK)).rejects.toThrow(/node path/);
-		await expect(savePackNode(p, ".roswaal/nodes/hand.nodedef.luau", KNOCKBACK))
-			.rejects.toThrow(/nodedef\.json/);
+		await expect(savePackNode(p, "src/sneaky.nodedef.json", KNOCKBACK)).rejects.toThrow(
+			/node path/,
+		);
+		await expect(savePackNode(p, ".roswaal/nodes/hand.nodedef.luau", KNOCKBACK)).rejects.toThrow(
+			/nodedef\.json/,
+		);
 	});
 
 	it("lists a hand-written Luau pack, and says which it is", async () => {
@@ -138,7 +168,10 @@ describe("managing packs", () => {
 		const root = await fresh();
 		await savePackNode(await openProject(root), PACK, KNOCKBACK);
 		await savePackNode(await openProject(root), PACK, {
-			...KNOCKBACK, id: "combat.players", title: "Players", targets: ["roblox"],
+			...KNOCKBACK,
+			id: "combat.players",
+			title: "Players",
+			targets: ["roblox"],
 		});
 		const [pack] = await listPacks(await openProject(root));
 		expect(pack.targets).toEqual(["roblox"]);
@@ -174,8 +207,16 @@ describe("managing packs", () => {
 		await writeFile(
 			path.join(root, ".roswaal/scripts/Main.nodescript"),
 			JSON.stringify({
-				schemaVersion: 1, kind: "script", id: "g", name: "Main", scriptClass: "Script",
-				target: "roblox", typecheck: "strict", variables: [], links: [], comments: [],
+				schemaVersion: 1,
+				kind: "script",
+				id: "g",
+				name: "Main",
+				scriptClass: "Script",
+				target: "roblox",
+				typecheck: "strict",
+				variables: [],
+				links: [],
+				comments: [],
 				nodes: [
 					{ id: "a", def: "combat.knockback", x: 0, y: 0 },
 					{ id: "b", def: "combat.knockback", x: 0, y: 0 },
@@ -184,8 +225,12 @@ describe("managing packs", () => {
 		);
 
 		const p = await openProject(root);
-		expect(await packUsage(p, PACK)).toEqual([{ graph: ".roswaal/scripts/Main.nodescript", count: 2 }]);
-		await expect(deletePack(p, ".roswaal/scripts/Main.nodescript")).rejects.toThrow(/not a node pack/);
+		expect(await packUsage(p, PACK)).toEqual([
+			{ graph: ".roswaal/scripts/Main.nodescript", count: 2 },
+		]);
+		await expect(deletePack(p, ".roswaal/scripts/Main.nodescript")).rejects.toThrow(
+			/not a node pack/,
+		);
 		await deletePack(p, PACK);
 		expect(await listPacks(await openProject(root))).toEqual([]);
 	});
@@ -199,9 +244,13 @@ describe("managing packs", () => {
 		expect(scanned.packs.map((p) => p.path)).toEqual([".roswaal/nodes/hand.nodedef.luau"]);
 
 		await copyPackBetween(
-			{ root: from, config: await readConfig(from) }, ".roswaal/nodes/hand.nodedef.luau", await openProject(to),
+			{ root: from, config: await readConfig(from) },
+			".roswaal/nodes/hand.nodedef.luau",
+			await openProject(to),
 		);
-		expect(await readFile(path.join(to, ".roswaal/nodes/hand.nodedef.luau"), "utf8")).toBe(LUAU_PACK);
+		expect(await readFile(path.join(to, ".roswaal/nodes/hand.nodedef.luau"), "utf8")).toBe(
+			LUAU_PACK,
+		);
 	});
 
 	/** Otherwise the copy would silently replace nodes graphs there already use. */
@@ -220,11 +269,17 @@ describe("managing packs", () => {
 	it("keeps what a pack requires when a node is saved into it", async () => {
 		const root = await fresh();
 		await savePackNode(await openProject(root), PACK, KNOCKBACK);
-		const set = await setPackRequires(await openProject(root), PACK, ["inventory", "inventory", ""]);
+		const set = await setPackRequires(await openProject(root), PACK, [
+			"inventory",
+			"inventory",
+			"",
+		]);
 		expect(set.requires).toEqual(["inventory"]);
 
 		await savePackNode(await openProject(root), PACK, { ...KNOCKBACK, title: "Knock Back" });
-		const document = JSON.parse(await readFile(path.join(root, PACK), "utf8")) as { requires?: string[] };
+		const document = JSON.parse(await readFile(path.join(root, PACK), "utf8")) as {
+			requires?: string[];
+		};
 		expect(document.requires).toEqual(["inventory"]);
 		expect(Object.keys(document)[0], "and it is written above the nodes").toBe("requires");
 

@@ -30,12 +30,7 @@ import { BUILTIN_NODES, createRegistry, parseNodePack } from "../src/core/nodes/
 import { openProject } from "../src/server/project.js";
 import { Builder } from "./helpers.js";
 
-const DEMO = path.resolve(
-	path.dirname(fileURLToPath(import.meta.url)),
-	"..",
-	"examples",
-	"demo",
-);
+const DEMO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "examples", "demo");
 
 describe("what counts as a node pack", () => {
 	it("hands over the project's own packs and nothing else", async () => {
@@ -99,18 +94,30 @@ describe("definitions carry code the wire cannot", () => {
  * rather than writing `nil` into the call.
  */
 describe("a pack pin with nothing on it", () => {
-	const pack = (required?: boolean) => parseNodePack({
-		nodes: [{
-			id: "combat.hit",
-			title: "Hit",
-			inputs: [
-				{ id: "in", kind: "exec" },
-				{ id: "target", name: "Target", kind: "data", type: "Instance", ...(required === undefined ? {} : { required }) },
-			],
-			outputs: [{ id: "then", kind: "exec" }],
-			compilesTo: { kind: "statement", template: "$in.target:Destroy()" },
-		}],
-	}, "pack").defs;
+	const pack = (required?: boolean) =>
+		parseNodePack(
+			{
+				nodes: [
+					{
+						id: "combat.hit",
+						title: "Hit",
+						inputs: [
+							{ id: "in", kind: "exec" },
+							{
+								id: "target",
+								name: "Target",
+								kind: "data",
+								type: "Instance",
+								...(required === undefined ? {} : { required }),
+							},
+						],
+						outputs: [{ id: "then", kind: "exec" }],
+						compilesTo: { kind: "statement", template: "$in.target:Destroy()" },
+					},
+				],
+			},
+			"pack",
+		).defs;
 
 	const compiled = (required?: boolean) => {
 		const b = new Builder();

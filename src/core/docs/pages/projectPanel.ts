@@ -16,7 +16,8 @@ export function projectPanelPage(): DocPage {
 		slug: "project-panel",
 		narrow: true,
 		title: "The Project panel",
-		summary: "The project's files and its place's DataModel, and what each colour, icon and menu in them means.",
+		summary:
+			"The project's files and its place's DataModel, and what each colour, icon and menu in them means.",
 		blocks: [
 			{
 				t: "p",
@@ -56,8 +57,14 @@ export function projectPanelPage(): DocPage {
 				t: "table",
 				head: ["Right-click", "Offers"],
 				rows: [
-					["A folder or a file", "**New graph here** and **New map here** under `.roswaal/`, **New folder**, **Show in file manager**, **Rename** and **Delete**"],
-					["`wally.toml`, or a package under it", "Adding and removing packages. See [Wally packages](wally-packages)"],
+					[
+						"A folder or a file",
+						"**New graph here** and **New map here** under `.roswaal/`, **New folder**, **Show in file manager**, **Rename** and **Delete**",
+					],
+					[
+						"`wally.toml`, or a package under it",
+						"Adding and removing packages. See [Wally packages](wally-packages)",
+					],
 				],
 			},
 

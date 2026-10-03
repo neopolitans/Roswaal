@@ -119,10 +119,7 @@ export function ValuePicker(props: ValuePickerProps) {
 			return at === -1 ? Number.MAX_SAFE_INTEGER : at;
 		};
 		return [...byGroup].sort(
-			(a, b) =>
-				lead(a[0]) - lead(b[0])
-				|| b[1].length - a[1].length
-				|| a[0].localeCompare(b[0]),
+			(a, b) => lead(a[0]) - lead(b[0]) || b[1].length - a[1].length || a[0].localeCompare(b[0]),
 		);
 	}, [options, matches, groupOf, groupsFirst]);
 
@@ -178,11 +175,7 @@ export function ValuePicker(props: ValuePickerProps) {
 	const option = (name: string) => (
 		<button
 			key={name}
-			className={cx(
-				"value-option",
-				name === active && "on",
-				name === props.value && "current",
-			)}
+			className={cx("value-option", name === active && "on", name === props.value && "current")}
 			onPointerEnter={() => setActive(name)}
 			onClick={() => commit(name)}
 		>
@@ -228,8 +221,8 @@ export function ValuePicker(props: ValuePickerProps) {
 				<div className="value-list">
 					{nothing ? (
 						<p className="value-empty">
-							Nothing matches “{query}”. <strong>Enter</strong> uses it anyway — the list is
-							what this build knows, not what the pin will take.
+							Nothing matches “{query}”. <strong>Enter</strong> uses it anyway — the list is what
+							this build knows, not what the pin will take.
 						</p>
 					) : groups ? (
 						groups.map(([label, names]) => (

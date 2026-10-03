@@ -6,20 +6,25 @@
  * it; this is the part that decides which files belong in it.
  */
 
-import { fs, path } from "./host.js";
+import { isFilesystemMap, locateSegments } from "../core/nodemap.js";
 
 import { addInstances } from "../core/rbx/adder.js";
 import { readRbx } from "../core/rbx/index.js";
-import { planPlaceUpdate, type PlaceEntry, type PlaceReport, type PlaceUpdate } from "../core/rbx/placeExport.js";
+import {
+	type PlaceEntry,
+	type PlaceReport,
+	type PlaceUpdate,
+	planPlaceUpdate,
+} from "../core/rbx/placeExport.js";
 import { LINKS_FILE, type PlaceImport, type PlaceLinks } from "../core/rbx/placeImport.js";
 import { writeSources } from "../core/rbx/writer.js";
-import { isFilesystemMap, locateSegments } from "../core/nodemap.js";
 import { defaultConfig, type RoswaalConfig } from "../core/schema.js";
 import { compileMap, type MapOutcome } from "./compile.js";
-import { openProject, writeConfig, type OpenProject } from "./config.js";
-import { errorMessage, UserError } from "./errors.js";
+import { type OpenProject, openProject, writeConfig } from "./config.js";
 import { collectMaps, readMap } from "./documents.js";
+import { errorMessage, UserError } from "./errors.js";
 import { walkFiles } from "./files.js";
+import { fs, path } from "./host.js";
 import { safeJoin, toPosix } from "./paths.js";
 
 /**
@@ -51,11 +56,15 @@ export async function findPlaceFile(root: string, config: RoswaalConfig): Promis
  * written, since the map is what the Rojo project is compiled from.
  */
 export async function writePlaceImport(
-	root: string, files: PlaceImport["files"], placeFile: string,
+	root: string,
+	files: PlaceImport["files"],
+	placeFile: string,
 ): Promise<MapOutcome> {
 	const mapPath = Object.keys(files).find((f) => f.endsWith(".nodemap"));
 	if (mapPath === undefined) {
-		throw new UserError("This import plans no node map, so there is no Rojo project to write from it.");
+		throw new UserError(
+			"This import plans no node map, so there is no Rojo project to write from it.",
+		);
 	}
 	const config: RoswaalConfig = { ...defaultConfig(), place: placeFile };
 	await fs.mkdir(root, { recursive: true });
@@ -106,7 +115,17 @@ export async function exportPlace(project: OpenProject): Promise<PlaceExport | n
 	} catch (err) {
 		// The sources still go in; the new scripts are reported, not half-added.
 		const addError = errorMessage(err);
-		return { file, bytes: written, update: { ...update, added: [], addedFiles: [], addError, notInPlace: [...update.notInPlace, ...update.addedFiles] } };
+		return {
+			file,
+			bytes: written,
+			update: {
+				...update,
+				added: [],
+				addedFiles: [],
+				addError,
+				notInPlace: [...update.notInPlace, ...update.addedFiles],
+			},
+		};
 	}
 }
 
@@ -136,7 +155,10 @@ export async function placeEntries(project: OpenProject): Promise<PlaceEntry[]> 
 		linked.add(link.file);
 		const text = await fs.readFile(safeJoin(project.root, link.file), "utf8").catch(() => null);
 		entries.push({
-			file: link.file, text: text ?? "", className: link.className, targets: link.instances,
+			file: link.file,
+			text: text ?? "",
+			className: link.className,
+			targets: link.instances,
 			...(text === null ? { gone: true } : {}),
 		});
 	}

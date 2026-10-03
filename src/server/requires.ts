@@ -9,16 +9,27 @@
  * not resolved, and hover says nothing rather than something wrong.
  */
 
+import { type DocComment, mergeDocs } from "../core/luau/docComment.js";
+import type { TableMember } from "../core/luau/infer.js";
+import { FROM_PROJECT, type InstanceOutline } from "../core/luau/instances.js";
+import {
+	type ModuleExports,
+	moduleExports,
+	type RequireTarget,
+	requiresIn,
+} from "../core/luau/requires.js";
 import { chainFor, parseLuaurc, resolveSpecifier } from "../core/luaurc.js";
 import { isFilesystemMap, type MapNode, type NodeMap } from "../core/nodemap.js";
-import { instanceNameOf, locateUnder, mappedPaths, normalisePath, scriptClassOf } from "../core/rojoPaths.js";
-import type { TableMember } from "../core/luau/infer.js";
-import { moduleExports, requiresIn, type ModuleExports, type RequireTarget } from "../core/luau/requires.js";
-import { mergeDocs, type DocComment } from "../core/luau/docComment.js";
 import { parseProject } from "../core/rojoImport.js";
-import { FROM_PROJECT, type InstanceOutline } from "../core/luau/instances.js";
+import {
+	instanceNameOf,
+	locateUnder,
+	mappedPaths,
+	normalisePath,
+	scriptClassOf,
+} from "../core/rojoPaths.js";
 import { fs, path } from "./host.js";
-import { collectMaps, readLuaurcFiles, readMap, safeJoin, type OpenProject } from "./project.js";
+import { collectMaps, type OpenProject, readLuaurcFiles, readMap, safeJoin } from "./project.js";
 
 /** A module a local holds, as hover and completion are handed it. */
 export interface ResolvedModule {
@@ -52,23 +63,42 @@ class Resolver {
 		return (this.maps = out);
 	}
 
-	private isFile = (rel: string) => fs.stat(safeJoin(this.project.root, rel)).then((s) => s.isFile(), () => false);
-	private isDir = (rel: string) => fs.stat(safeJoin(this.project.root, rel)).then((s) => s.isDirectory(), () => false);
+	private isFile = (rel: string) =>
+		fs.stat(safeJoin(this.project.root, rel)).then(
+			(s) => s.isFile(),
+			() => false,
+		);
+	private isDir = (rel: string) =>
+		fs.stat(safeJoin(this.project.root, rel)).then(
+			(s) => s.isDirectory(),
+			() => false,
+		);
 
 	/** Where a folder's own `default.project.json` points its tree, if it has one. */
 	private async projectPath(dir: string): Promise<string | null> {
 		if (this.projectPaths.has(dir)) return this.projectPaths.get(dir)!;
-		const text = await fs.readFile(safeJoin(this.project.root, `${dir}/default.project.json`), "utf8").catch(() => null);
-		const tree = text === null ? undefined : (parseProject(text) as { tree?: { $path?: unknown } } | undefined)?.tree;
-		const found = typeof tree?.$path === "string" ? normalisePath(path.posix.join(dir, tree.$path)) : null;
+		const text = await fs
+			.readFile(safeJoin(this.project.root, `${dir}/default.project.json`), "utf8")
+			.catch(() => null);
+		const tree =
+			text === null
+				? undefined
+				: (parseProject(text) as { tree?: { $path?: unknown } } | undefined)?.tree;
+		const found =
+			typeof tree?.$path === "string" ? normalisePath(path.posix.join(dir, tree.$path)) : null;
 		this.projectPaths.set(dir, found);
 		return found;
 	}
 
 	/** The module file an instance on disk is: `name.luau`, a folder's `init`, or a project folder's tree. */
 	async moduleAt(base: string, depth = 0): Promise<string | null> {
-		if (/\.luau?$/.test(base) && await this.isFile(base)) return base;
-		for (const candidate of [`${base}.luau`, `${base}.lua`, `${base}/init.luau`, `${base}/init.lua`]) {
+		if (/\.luau?$/.test(base) && (await this.isFile(base))) return base;
+		for (const candidate of [
+			`${base}.luau`,
+			`${base}.lua`,
+			`${base}/init.luau`,
+			`${base}/init.lua`,
+		]) {
 			if (await this.isFile(candidate)) return candidate;
 		}
 		const inner = depth < 4 ? await this.projectPath(base) : null;
@@ -94,7 +124,7 @@ class Resolver {
 				if (await this.isDir(`${dir}/${name}`)) {
 					dir = `${dir}/${name}`;
 					const inner = await this.projectPath(dir);
-					if (inner && await this.isDir(inner)) dir = inner;
+					if (inner && (await this.isDir(inner))) dir = inner;
 					continue;
 				}
 				dir = `${dir}/${name}`;
@@ -107,7 +137,10 @@ class Resolver {
 
 	/** The instance path a file is at, with a package folder's `src/` taken out. */
 	async pathOf(file: string): Promise<string[] | null> {
-		const found = locateUnder((await this.dataModelMaps()).flatMap((map) => mappedPaths(map.root)), file);
+		const found = locateUnder(
+			(await this.dataModelMaps()).flatMap((map) => mappedPaths(map.root)),
+			file,
+		);
 		if (!found) return null;
 		const { parts, leaf } = found;
 		const out = [...found.segments];
@@ -148,7 +181,9 @@ class Resolver {
 		const isInit = /(^|\/)init(\.server|\.client)?\.luau?$/i.test(from);
 		const dir = path.posix.dirname(normalisePath(from));
 		if (spec.startsWith("./") || spec.startsWith("../")) {
-			return this.moduleAt(normalisePath(path.posix.join(isInit ? path.posix.dirname(dir) : dir, spec)));
+			return this.moduleAt(
+				normalisePath(path.posix.join(isInit ? path.posix.dirname(dir) : dir, spec)),
+			);
 		}
 		if (spec.startsWith("@self/")) {
 			const own = isInit ? dir : normalisePath(from).replace(/\.luau?$/i, "");
@@ -156,7 +191,8 @@ class Resolver {
 		}
 		if (spec.startsWith("@game/")) return this.fileAt(spec.slice("@game/".length).split("/"));
 		if (spec.startsWith("@")) {
-			if (!this.luaurc) this.luaurc = (await readLuaurcFiles(this.project)).map((f) => parseLuaurc(f.dir, f.text));
+			if (!this.luaurc)
+				this.luaurc = (await readLuaurcFiles(this.project)).map((f) => parseLuaurc(f.dir, f.text));
 			const found = resolveSpecifier(chainFor(this.luaurc, from), spec);
 			return found.kind === "found" ? this.moduleAt(normalisePath(found.alias.path)) : null;
 		}
@@ -164,7 +200,10 @@ class Resolver {
 	}
 
 	/** What a module gives back, following a thunk -- or any module that returns another's -- to the end. */
-	async exportsOf(file: string, depth = 0): Promise<{ file: string; exports: ModuleExports } | null> {
+	async exportsOf(
+		file: string,
+		depth = 0,
+	): Promise<{ file: string; exports: ModuleExports } | null> {
 		const text = await fs.readFile(safeJoin(this.project.root, file), "utf8").catch(() => null);
 		if (text === null) return null;
 		const exports = moduleExports(text);
@@ -188,7 +227,10 @@ class Resolver {
 			// And an alias of one takes what that one now has: `Sift.List = Sift.Array`.
 			for (const member of exports.members) {
 				if (!member.aliasOf || (member.doc?.text ?? "").trim() !== "") continue;
-				const doc = mergeDocs(member.doc, exports.members.find((m) => m.name === member.aliasOf)?.doc);
+				const doc = mergeDocs(
+					member.doc,
+					exports.members.find((m) => m.name === member.aliasOf)?.doc,
+				);
 				if (doc) member.doc = doc;
 			}
 		}
@@ -201,8 +243,12 @@ class Resolver {
  * `local X = require(…)` that can be followed, with what the module gives
  * back. `text` is the file as the editor has it, when that is not yet saved.
  */
-export async function modulesRequiredBy(project: OpenProject, file: string, text?: string): Promise<ResolvedModule[]> {
-	const src = text ?? await fs.readFile(safeJoin(project.root, file), "utf8").catch(() => "");
+export async function modulesRequiredBy(
+	project: OpenProject,
+	file: string,
+	text?: string,
+): Promise<ResolvedModule[]> {
+	const src = text ?? (await fs.readFile(safeJoin(project.root, file), "utf8").catch(() => ""));
 	const resolver = new Resolver(project);
 	const out: ResolvedModule[] = [];
 	for (const binding of requiresIn(src)) {
@@ -242,9 +288,14 @@ const NOT_WALKED = new Set(["_Index", "node_modules", ".git"]);
  * script and folder the node maps put there that the place does not have yet
  * -- a module written since the place was saved -- marked as the project's.
  */
-export async function projectInstances(project: OpenProject, place: InstanceOutline | null): Promise<InstanceOutline> {
+export async function projectInstances(
+	project: OpenProject,
+	place: InstanceOutline | null,
+): Promise<InstanceOutline> {
 	const classes: string[] = [...(place?.classes ?? [])];
-	const nodes: InstanceOutline["nodes"] = place ? place.nodes.map((n) => [...n] as [number, string, number, number]) : [];
+	const nodes: InstanceOutline["nodes"] = place
+		? place.nodes.map((n) => [...n] as [number, string, number, number])
+		: [];
 	const classIndex = (name: string) => {
 		const i = classes.indexOf(name);
 		return i === -1 ? classes.push(name) - 1 : i;
@@ -273,7 +324,9 @@ export async function projectInstances(project: OpenProject, place: InstanceOutl
 
 	const resolver = new Resolver(project);
 	const walk = async (dir: string): Promise<void> => {
-		for (const entry of await fs.readdir(safeJoin(project.root, dir), { withFileTypes: true }).catch(() => [])) {
+		for (const entry of await fs
+			.readdir(safeJoin(project.root, dir), { withFileTypes: true })
+			.catch(() => [])) {
 			const rel = `${dir}/${entry.name}`;
 			if (entry.isDirectory()) {
 				if (!NOT_WALKED.has(entry.name)) await walk(rel);
@@ -286,10 +339,14 @@ export async function projectInstances(project: OpenProject, place: InstanceOutl
 	};
 	const visit = async (node: MapNode, trail: string[], root: boolean): Promise<void> => {
 		const here = root ? trail : [...trail, node.name];
-		if (!root && here.length) add(here, node.className || (here.length === 1 ? node.name : "Folder"));
+		if (!root && here.length)
+			add(here, node.className || (here.length === 1 ? node.name : "Folder"));
 		if (node.path) {
 			const target = normalisePath(node.path);
-			const isFile = await fs.stat(safeJoin(project.root, target)).then((s) => s.isFile(), () => false);
+			const isFile = await fs.stat(safeJoin(project.root, target)).then(
+				(s) => s.isFile(),
+				() => false,
+			);
 			if (isFile) {
 				if (here.length) add(here, scriptClassOf(target));
 			} else {

@@ -6,35 +6,63 @@
  * components free of graph bookkeeping.
  */
 
+import { literalToLuau } from "../core/compiler/luau.js";
+import { pinsCompatible } from "../core/compiler/validate.js";
+import {
+	type GraphId,
+	graphOf,
+	placeIn,
+	positionIn,
+	viewOf,
+	withFunctionGraphs,
+} from "../core/functionGraph.js";
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import { currentArity, type GrowthRule, growthRule } from "../core/nodes/growth.js";
+import type { Registry } from "../core/nodes/index.js";
+import { literalOnlyPins, resolveNodePins } from "../core/nodes/index.js";
+import { type LocalRef, localNameOf, pinDefaultFor, pinTypeOf } from "../core/nodes/variables.js";
+import { retypeReroutes } from "../core/reroutes.js";
+import { isInstanceClass, isSubclassOf } from "../core/roblox.js";
 import type {
-	Comment, GraphNode, Link, Literal, NodeDef, NodeScript, PinDef, PinRef, ScriptModule,
+	Comment,
+	GraphNode,
+	Link,
+	Literal,
+	NodeDef,
+	NodeScript,
+	PinDef,
+	PinRef,
+	ScriptModule,
 	ScriptVariable,
 } from "../core/schema.js";
 import { ANY, PAIR, WILDCARD } from "../core/schema.js";
-import type { Registry } from "../core/nodes/index.js";
-import { literalOnlyPins, resolveNodePins } from "../core/nodes/index.js";
 import {
-	decompose, modeOf, partPinId, splitKey, splitsOf, STRUCTS, type StructMode,
+	decompose,
+	modeOf,
+	partPinId,
+	STRUCTS,
+	type StructMode,
+	splitKey,
+	splitsOf,
 } from "../core/structs.js";
-import { literalToLuau } from "../core/compiler/luau.js";
-import { retypeReroutes } from "../core/reroutes.js";
-import { pinsCompatible } from "../core/compiler/validate.js";
-import { isInstanceClass, isSubclassOf } from "../core/roblox.js";
-import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import {
-	graphOf, placeIn, positionIn, viewOf, withFunctionGraphs, type GraphId,
-} from "../core/functionGraph.js";
-import { localNameOf, pinDefaultFor, pinTypeOf, type LocalRef } from "../core/nodes/variables.js";
-import { currentArity, growthRule, type GrowthRule } from "../core/nodes/growth.js";
-import {
-	compactWidth, isReroute, nodeBounds, pinPosition, rectContains, type Rect, type Vec,
+	compactWidth,
+	isReroute,
+	nodeBounds,
+	pinPosition,
+	type Rect,
+	rectContains,
+	type Vec,
 } from "./geometry.js";
 import { NODE } from "./layers.js";
 import { configEntries, configText } from "./nodeConfig.js";
 import { newId } from "./store.js";
 
 export function addNode(
-	script: NodeScript, def: NodeDef, x: number, y: number,
+	script: NodeScript,
+	def: NodeDef,
+	x: number,
+	y: number,
 ): { script: NodeScript; id: string } {
 	const id = newId();
 	const node: GraphNode = { id, def: def.id, x: Math.round(x), y: Math.round(y) };
@@ -47,9 +75,7 @@ export function addNode(
 	// to the first candidate rather than spawning an error.
 	if (def.id === "variable.get" || def.id === "variable.set") {
 		const first = script.variables[0];
-		node.config = first
-			? { variable: first.id, name: first.name, type: first.type }
-			: {};
+		node.config = first ? { variable: first.id, name: first.name, type: first.type } : {};
 	}
 	if (def.id === "function.get") {
 		const first = script.nodes.find((n) => FUNCTION_NODES.has(n.def));
@@ -73,7 +99,9 @@ export function addNode(
 }
 
 /** What a Get Local caches about the Declare Local it reads. */
-export function localRefFor(node: Pick<GraphNode, "id" | "literals" | "label" | "config">): LocalRef {
+export function localRefFor(
+	node: Pick<GraphNode, "id" | "literals" | "label" | "config">,
+): LocalRef {
 	const declared = configText(node, "type");
 	return { local: node.id, name: localNameOf(node), type: pinTypeOf(declared) };
 }
@@ -165,15 +193,16 @@ export function surfacesIn(script: NodeScript, registry: Registry, start: string
 }
 
 export function moveNodes(
-	script: NodeScript, ids: ReadonlySet<string>, dx: number, dy: number,
+	script: NodeScript,
+	ids: ReadonlySet<string>,
+	dx: number,
+	dy: number,
 ): NodeScript {
 	if (ids.size === 0) return script;
 	return {
 		...script,
 		nodes: script.nodes.map((n) => (ids.has(n.id) ? { ...n, x: n.x + dx, y: n.y + dy } : n)),
-		comments: script.comments.map((c) =>
-			ids.has(c.id) ? { ...c, x: c.x + dx, y: c.y + dy } : c,
-		),
+		comments: script.comments.map((c) => (ids.has(c.id) ? { ...c, x: c.x + dx, y: c.y + dy } : c)),
 	};
 }
 
@@ -184,7 +213,8 @@ export interface Placement {
 }
 
 export function capturePlacements(
-	script: NodeScript, ids: ReadonlySet<string>,
+	script: NodeScript,
+	ids: ReadonlySet<string>,
 ): Map<string, Placement> {
 	const out = new Map<string, Placement>();
 	for (const node of script.nodes) if (ids.has(node.id)) out.set(node.id, { x: node.x, y: node.y });
@@ -199,7 +229,10 @@ export function capturePlacements(
  * snapping needs a fixed origin to snap against anyway.
  */
 export function placeNodes(
-	script: NodeScript, start: ReadonlyMap<string, Placement>, dx: number, dy: number,
+	script: NodeScript,
+	start: ReadonlyMap<string, Placement>,
+	dx: number,
+	dy: number,
 	graph: GraphId = null,
 ): NodeScript {
 	if (start.size === 0) return script;
@@ -212,7 +245,9 @@ export function placeNodes(
 		...script,
 		// A declaration is placed in the graph being dragged in, which for the
 		// graph it opens is its second position.
-		nodes: script.nodes.map((n) => (start.has(n.id) ? placeIn(n, graph, at(n.id, positionIn(n, graph))) : n)),
+		nodes: script.nodes.map((n) =>
+			start.has(n.id) ? placeIn(n, graph, at(n.id, positionIn(n, graph))) : n,
+		),
 		comments: script.comments.map((c) => (start.has(c.id) ? { ...c, ...at(c.id, c) } : c)),
 	};
 }
@@ -263,7 +298,10 @@ export function selectionAnchor(script: NodeScript, ids: ReadonlySet<string>): s
  * sliding it off them to line it up with a node is not a tidy-up.
  */
 export function alignToAnchor(
-	script: NodeScript, registry: Registry, ids: ReadonlySet<string>, anchorId: string,
+	script: NodeScript,
+	registry: Registry,
+	ids: ReadonlySet<string>,
+	anchorId: string,
 ): NodeScript {
 	const byId = new Map(script.nodes.map((n) => [n.id, n]));
 	const anchor = byId.get(anchorId);
@@ -282,9 +320,7 @@ export function alignToAnchor(
 		// more than once. Rare, and one of them has to win.
 		for (const link of script.links) {
 			const other =
-				link.from.node === id ? link.to.node
-				: link.to.node === id ? link.from.node
-				: null;
+				link.from.node === id ? link.to.node : link.to.node === id ? link.from.node : null;
 			if (other === null || other === id || placed.has(other) || !ids.has(other)) continue;
 
 			const node = byId.get(other);
@@ -302,9 +338,7 @@ export function alignToAnchor(
 		if (node) placed.set(id, { ...node, y: anchor.y });
 	}
 
-	const moved = new Map(
-		[...placed].filter(([id, node]) => node.y !== byId.get(id)!.y),
-	);
+	const moved = new Map([...placed].filter(([id, node]) => node.y !== byId.get(id)!.y));
 	if (moved.size === 0) return script;
 	return { ...script, nodes: script.nodes.map((n) => moved.get(n.id) ?? n) };
 }
@@ -316,7 +350,10 @@ export function alignToAnchor(
  * longer has, which is a graph mid-repair rather than something to guess at.
  */
 function wiredOffset(
-	onto: GraphNode, node: GraphNode, link: Link, registry: Registry,
+	onto: GraphNode,
+	node: GraphNode,
+	link: Link,
+	registry: Registry,
 ): number | null {
 	const out = link.from.node === onto.id;
 	const here = pinPosition(onto, registry, out ? link.from.pin : link.to.pin, out ? "out" : "in");
@@ -332,18 +369,23 @@ function wiredOffset(
  * open. The editor asks first when that is more than the selection itself.
  */
 export function deleteSelection(
-	script: NodeScript, picked: ReadonlySet<string>, registry: Registry,
+	script: NodeScript,
+	picked: ReadonlySet<string>,
+	registry: Registry,
 ): NodeScript {
 	if (picked.size === 0) return script;
 	const ids = withFunctionGraphs(script, picked);
 	const nodes = script.nodes.filter((n) => !ids.has(n.id));
 	const live = new Set(nodes.map((n) => n.id));
-	return retypeReroutes({
-		...script,
-		nodes,
-		links: script.links.filter((l) => live.has(l.from.node) && live.has(l.to.node)),
-		comments: script.comments.filter((c) => !ids.has(c.id)),
-	}, registry);
+	return retypeReroutes(
+		{
+			...script,
+			nodes,
+			links: script.links.filter((l) => live.has(l.from.node) && live.has(l.to.node)),
+			comments: script.comments.filter((c) => !ids.has(c.id)),
+		},
+		registry,
+	);
 }
 
 /**
@@ -357,7 +399,10 @@ export function deleteSelection(
  * touched it and changed its mind end up identical on disk.
  */
 export function setLiteral(
-	script: NodeScript, nodeId: string, pinId: string, value: Literal | undefined,
+	script: NodeScript,
+	nodeId: string,
+	pinId: string,
+	value: Literal | undefined,
 ): NodeScript {
 	const next = {
 		...script,
@@ -373,7 +418,9 @@ export function setLiteral(
 }
 
 export function setConfig(
-	script: NodeScript, nodeId: string, config: Record<string, unknown>,
+	script: NodeScript,
+	nodeId: string,
+	config: Record<string, unknown>,
 ): NodeScript {
 	const node = script.nodes.find((n) => n.id === nodeId);
 	if (!node) return script;
@@ -462,7 +509,10 @@ export function acceptsWire(from: PinDef, to: PinDef): boolean {
 }
 
 export function canConnect(
-	script: NodeScript, registry: Registry, from: PinRef, to: PinRef,
+	script: NodeScript,
+	registry: Registry,
+	from: PinRef,
+	to: PinRef,
 ): ConnectionCheck {
 	if (from.node === to.node) return { ok: false, reason: "A node cannot wire into itself." };
 
@@ -514,7 +564,10 @@ export function canConnect(
  * is not about data types (an execution wire, a pin that must be typed in).
  */
 export function castFor(
-	script: NodeScript, registry: Registry, from: PinRef, to: PinRef,
+	script: NodeScript,
+	registry: Registry,
+	from: PinRef,
+	to: PinRef,
 ): { type: string } | { reason: string } | null {
 	if (canConnect(script, registry, from, to).ok) return null;
 	const fromNode = script.nodes.find((n) => n.id === from.node);
@@ -541,7 +594,11 @@ export function castFor(
  * See `castFor`, which says whether it can and to what.
  */
 export function connectThroughCast(
-	script: NodeScript, registry: Registry, from: PinRef, to: PinRef, type: string,
+	script: NodeScript,
+	registry: Registry,
+	from: PinRef,
+	to: PinRef,
+	type: string,
 ): { script: NodeScript; id: string } | null {
 	const fromNode = script.nodes.find((n) => n.id === from.node);
 	const toNode = script.nodes.find((n) => n.id === to.node);
@@ -560,9 +617,16 @@ export function connectThroughCast(
 	const into = connect(placed, registry, from, { node: id, pin: "value" });
 	const out = connect(into, registry, { node: id, pin: "result" }, to);
 	// Both halves or neither: a Cast left hanging off one end is litter.
-	const joined = (a: PinRef, b: PinRef) => out.links.some((l) =>
-		l.from.node === a.node && l.from.pin === a.pin && l.to.node === b.node && l.to.pin === b.pin);
-	if (!joined(from, { node: id, pin: "value" }) || !joined({ node: id, pin: "result" }, to)) return null;
+	const joined = (a: PinRef, b: PinRef) =>
+		out.links.some(
+			(l) =>
+				l.from.node === a.node &&
+				l.from.pin === a.pin &&
+				l.to.node === b.node &&
+				l.to.pin === b.pin,
+		);
+	if (!joined(from, { node: id, pin: "value" }) || !joined({ node: id, pin: "result" }, to))
+		return null;
 	return { script: out, id };
 }
 
@@ -611,10 +675,16 @@ export function wireLanding(
  * method name — which `canConnect` then refused. The palette and the landing
  * rule both ask here, so neither offers a pin the canvas would turn down.
  */
-export function landingPins(def: NodeDef, pins: PinDef[], from: PinDef, side: "in" | "out"): PinDef[] {
+export function landingPins(
+	def: NodeDef,
+	pins: PinDef[],
+	from: PinDef,
+	side: "in" | "out",
+): PinDef[] {
 	const literal = side === "in" ? literalOnlyPins(def) : new Set<string>();
 	return pins.filter(
-		(pin) => !literal.has(pin.id) && (side === "in" ? acceptsWire(from, pin) : acceptsWire(pin, from)),
+		(pin) =>
+			!literal.has(pin.id) && (side === "in" ? acceptsWire(from, pin) : acceptsWire(pin, from)),
 	);
 }
 
@@ -624,7 +694,10 @@ export function landingPins(def: NodeDef, pins: PinDef[], from: PinDef, side: "i
  * replaces rather than piling up — which is what makes rewiring feel direct.
  */
 export function connect(
-	script: NodeScript, registry: Registry, from: PinRef, to: PinRef,
+	script: NodeScript,
+	registry: Registry,
+	from: PinRef,
+	to: PinRef,
 ): NodeScript {
 	if (!canConnect(script, registry, from, to).ok) return script;
 
@@ -648,9 +721,7 @@ export function disconnectInput(script: NodeScript, to: PinRef): NodeScript {
 	};
 }
 
-export function removeLink(
-	script: NodeScript, linkId: string, registry: Registry,
-): NodeScript {
+export function removeLink(script: NodeScript, linkId: string, registry: Registry): NodeScript {
 	return retypeReroutes(
 		{ ...script, links: script.links.filter((l) => l.id !== linkId) },
 		registry,
@@ -665,7 +736,11 @@ export function removeLink(
  * pin" means either way.
  */
 export function disconnectPin(
-	script: NodeScript, nodeId: string, pinId: string, side: "in" | "out", registry: Registry,
+	script: NodeScript,
+	nodeId: string,
+	pinId: string,
+	side: "in" | "out",
+	registry: Registry,
 ): NodeScript {
 	const links = script.links.filter((l) => {
 		const end = side === "in" ? l.to : l.from;
@@ -678,7 +753,10 @@ export function disconnectPin(
 
 /** How many wires a pin currently carries. */
 export function pinLinkCount(
-	script: NodeScript, nodeId: string, pinId: string, side: "in" | "out",
+	script: NodeScript,
+	nodeId: string,
+	pinId: string,
+	side: "in" | "out",
 ): number {
 	return script.links.filter((l) => {
 		const end = side === "in" ? l.to : l.from;
@@ -694,7 +772,10 @@ export function pinLinkCount(
  * generated code changes; this is purely a place for the wire to bend.
  */
 export function insertReroute(
-	script: NodeScript, registry: Registry, linkId: string, at: { x: number; y: number },
+	script: NodeScript,
+	registry: Registry,
+	linkId: string,
+	at: { x: number; y: number },
 ): { script: NodeScript; id: string } | null {
 	const link = script.links.find((l) => l.id === linkId);
 	if (!link) return null;
@@ -761,7 +842,7 @@ function pinsOf(def: NodeDef, node: GraphNode) {
 
 // The rule itself lives in core, so the documentation can draw the same
 // buttons the canvas does.
-export { currentArity, growthRule, type GrowthRule } from "../core/nodes/growth.js";
+export { currentArity, type GrowthRule, growthRule } from "../core/nodes/growth.js";
 
 /**
  * Adds or removes one input. Returns the new script and, when one was added,
@@ -769,7 +850,10 @@ export { currentArity, growthRule, type GrowthRule } from "../core/nodes/growth.
  * it immediately.
  */
 export function growNode(
-	script: NodeScript, registry: Registry, nodeId: string, delta: number,
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	delta: number,
 	hint?: { name?: string; type?: string },
 ): { script: NodeScript; pin?: string } {
 	const node = script.nodes.find((n) => n.id === nodeId);
@@ -801,7 +885,13 @@ export function growNode(
 		const list = configEntries(node, rule.field);
 		const grown =
 			delta > 0
-				? [...list, { name: hint?.name ?? `${defaultEntryName(rule)}${list.length + 1}`, type: hint?.type ?? "any" }]
+				? [
+						...list,
+						{
+							name: hint?.name ?? `${defaultEntryName(rule)}${list.length + 1}`,
+							type: hint?.type ?? "any",
+						},
+					]
 				: list.slice(0, -1);
 		updated = setConfig(script, nodeId, { [rule.field]: grown });
 
@@ -863,7 +953,11 @@ export function findOwningFunction(script: NodeScript, nodeId: string): string |
 // Comments
 // ---------------------------------------------------------------------------
 
-export function addComment(script: NodeScript, rect: Rect, text = "Comment"): { script: NodeScript; id: string } {
+export function addComment(
+	script: NodeScript,
+	rect: Rect,
+	text = "Comment",
+): { script: NodeScript; id: string } {
 	const id = newId();
 	const comment: Comment = {
 		id,
@@ -876,9 +970,7 @@ export function addComment(script: NodeScript, rect: Rect, text = "Comment"): { 
 	return { script: { ...script, comments: [...script.comments, comment] }, id };
 }
 
-export function updateComment(
-	script: NodeScript, id: string, patch: Partial<Comment>,
-): NodeScript {
+export function updateComment(script: NodeScript, id: string, patch: Partial<Comment>): NodeScript {
 	return {
 		...script,
 		comments: script.comments.map((c) => (c.id === id ? { ...c, ...patch } : c)),
@@ -893,7 +985,9 @@ export function updateComment(
  * to reconcile.
  */
 export function commentContents(
-	script: NodeScript, registry: Registry, commentId: string,
+	script: NodeScript,
+	registry: Registry,
+	commentId: string,
 ): Set<string> {
 	const comment = script.comments.find((c) => c.id === commentId);
 	if (!comment) return new Set<string>();
@@ -968,7 +1062,10 @@ export function defaultLiteralFor(type: string): Literal {
 const VARIABLE_NODES = new Set(["variable.get", "variable.set", "variable.init"]);
 
 export function addVariable(
-	script: NodeScript, name = "newVariable", type = "number", initial?: Literal,
+	script: NodeScript,
+	name = "newVariable",
+	type = "number",
+	initial?: Literal,
 ): { script: NodeScript; id: string } {
 	const id = newId();
 	const taken = new Set(script.variables.map((v) => v.name));
@@ -993,7 +1090,9 @@ export function addVariable(
  * config, so without this a rename would leave the graph showing stale labels.
  */
 export function updateVariable(
-	script: NodeScript, id: string, patch: Partial<ScriptVariable>,
+	script: NodeScript,
+	id: string,
+	patch: Partial<ScriptVariable>,
 ): NodeScript {
 	const existing = script.variables.find((v) => v.id === id);
 	if (!existing) return script;
@@ -1017,11 +1116,8 @@ export function updateVariable(
 
 /** How many nodes read or write this variable. Shown before deleting one. */
 export function variableUsageCount(script: NodeScript, id: string): number {
-	return script.nodes.filter(
-		(n) =>
-			VARIABLE_NODES.has(n.def) &&
-			configText(n, "variable") === id,
-	).length;
+	return script.nodes.filter((n) => VARIABLE_NODES.has(n.def) && configText(n, "variable") === id)
+		.length;
 }
 
 /**
@@ -1046,7 +1142,9 @@ export function deleteVariable(script: NodeScript, id: string): NodeScript {
  * other where they expect it.
  */
 export function addModule(
-	script: NodeScript, name = "module", specifier = "",
+	script: NodeScript,
+	name = "module",
+	specifier = "",
 ): { script: NodeScript; id: string } {
 	const id = newId();
 	const taken = new Set((script.modules ?? []).map((m) => m.name));
@@ -1068,7 +1166,9 @@ export function addModule(
  * name the panel no longer has.
  */
 export function updateModule(
-	script: NodeScript, id: string, patch: Partial<ScriptModule>,
+	script: NodeScript,
+	id: string,
+	patch: Partial<ScriptModule>,
 ): NodeScript {
 	const existing = (script.modules ?? []).find((m) => m.id === id);
 	if (!existing) return script;
@@ -1087,9 +1187,8 @@ export function updateModule(
 
 /** How many Get Module nodes read this one. Shown before deleting it. */
 export function moduleUsageCount(script: NodeScript, id: string): number {
-	return script.nodes.filter(
-		(n) => n.def === "module.get" && configText(n, "module") === id,
-	).length;
+	return script.nodes.filter((n) => n.def === "module.get" && configText(n, "module") === id)
+		.length;
 }
 
 /**
@@ -1114,7 +1213,11 @@ export function splitModesFor(pin: PinDef): { id: string; name: string }[] {
 }
 
 /** The split currently applied to a pin, if any. */
-export function splitModeOf(node: GraphNode, side: "in" | "out", pinId: string): string | undefined {
+export function splitModeOf(
+	node: GraphNode,
+	side: "in" | "out",
+	pinId: string,
+): string | undefined {
 	return splitsOf(node.config)[splitKey(side, pinId)];
 }
 
@@ -1126,8 +1229,12 @@ export function splitModeOf(node: GraphNode, side: "in" | "out", pinId: string):
  * confirms first — see `splitCost`.
  */
 export function splitPin(
-	script: NodeScript, registry: Registry, nodeId: string, side: "in" | "out",
-	pinId: string, mode: string,
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	side: "in" | "out",
+	pinId: string,
+	mode: string,
 ): NodeScript {
 	const node = script.nodes.find((n) => n.id === nodeId);
 	if (!node) return script;
@@ -1150,13 +1257,19 @@ export function splitPin(
 					: n,
 			),
 		},
-		nodeId, side, [pinId],
+		nodeId,
+		side,
+		[pinId],
 	);
 }
 
 /** The component literals a pin's current value decomposes into, if it can. */
 function spreadToComponents(
-	registry: Registry, node: GraphNode, side: "in" | "out", pinId: string, mode: string,
+	registry: Registry,
+	node: GraphNode,
+	side: "in" | "out",
+	pinId: string,
+	mode: string,
 ): Record<string, Literal> | undefined {
 	const pin = basePinOf(registry, node, side, pinId);
 	const struct = modeOf(STRUCTS, pin?.type, mode);
@@ -1187,8 +1300,12 @@ function spreadToComponents(
  * after.
  */
 export function splitValueWarning(
-	script: NodeScript, registry: Registry, nodeId: string, side: "in" | "out",
-	pinId: string, mode: string,
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	side: "in" | "out",
+	pinId: string,
+	mode: string,
 ): string | null {
 	if (side !== "in") return null;
 
@@ -1217,7 +1334,11 @@ export function splitValueWarning(
  * again brings them straight back.
  */
 export function recombinePin(
-	script: NodeScript, registry: Registry, nodeId: string, side: "in" | "out", pinId: string,
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	side: "in" | "out",
+	pinId: string,
 ): NodeScript {
 	const node = script.nodes.find((n) => n.id === nodeId);
 	if (!node) return script;
@@ -1255,7 +1376,9 @@ export function recombinePin(
 					: n,
 			),
 		},
-		nodeId, side, parts.map((p) => partPinId(pinId, p.id)),
+		nodeId,
+		side,
+		parts.map((p) => partPinId(pinId, p.id)),
 	);
 }
 
@@ -1273,9 +1396,7 @@ export function recombinePin(
  * if no component was touched at all, nothing is written — a pin left alone
  * should come back reading `Vector3.zero`, not `Vector3.new(0, 0, 0)`.
  */
-function foldComponents(
-	node: GraphNode, pinId: string, mode: StructMode,
-): Literal | undefined {
+function foldComponents(node: GraphNode, pinId: string, mode: StructMode): Literal | undefined {
 	const values = new Map<string, string>();
 	let touched = false;
 
@@ -1288,15 +1409,20 @@ function foldComponents(
 
 	return {
 		t: "raw",
-		v: mode.make.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (match, id: string) =>
-			values.get(id) ?? match,
+		v: mode.make.replace(
+			/\$([A-Za-z_][A-Za-z0-9_]*)/g,
+			(match, id: string) => values.get(id) ?? match,
 		),
 	};
 }
 
 /** How many wires splitting or recombining this pin would drop. */
 export function splitCost(
-	script: NodeScript, registry: Registry, nodeId: string, side: "in" | "out", pinId: string,
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	side: "in" | "out",
+	pinId: string,
 ): number {
 	const node = script.nodes.find((n) => n.id === nodeId);
 	if (!node) return 0;
@@ -1316,7 +1442,10 @@ export function splitCost(
  * pin's type still lives once its components have replaced it.
  */
 function basePinOf(
-	registry: Registry, node: GraphNode, side: "in" | "out", pinId: string,
+	registry: Registry,
+	node: GraphNode,
+	side: "in" | "out",
+	pinId: string,
 ): PinDef | undefined {
 	const def = registry.get(node.def);
 	if (!def) return undefined;
@@ -1325,7 +1454,10 @@ function basePinOf(
 }
 
 function dropLinksOn(
-	script: NodeScript, nodeId: string, side: "in" | "out", pinIds: string[],
+	script: NodeScript,
+	nodeId: string,
+	side: "in" | "out",
+	pinIds: string[],
 ): NodeScript {
 	const drop = new Set(pinIds);
 	const links = script.links.filter((l) => {
@@ -1352,7 +1484,11 @@ const PROMOTE_GAP = 40;
  * variable to be read into.
  */
 export function canPromoteToVariable(
-	script: NodeScript, registry: Registry, nodeId: string, pin: PinDef, side: "in" | "out",
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	pin: PinDef,
+	side: "in" | "out",
 ): boolean {
 	if (side !== "in" || pin.kind !== "data") return false;
 	if (!registry.has("variable.get")) return false;
@@ -1377,7 +1513,10 @@ export function canPromoteToVariable(
  * tidying afterwards.
  */
 export function promoteToVariable(
-	script: NodeScript, registry: Registry, nodeId: string, pin: PinDef,
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	pin: PinDef,
 ): { script: NodeScript; variable: string; node: string } | null {
 	if (!canPromoteToVariable(script, registry, nodeId, pin, "in")) return null;
 
@@ -1429,7 +1568,8 @@ export function promoteToVariable(
 	};
 
 	const linked = connect(
-		placed, registry,
+		placed,
+		registry,
 		{ node: getterId, pin: "value" },
 		{ node: nodeId, pin: pin.id },
 	);
@@ -1453,7 +1593,9 @@ function variableNameFor(pin: PinDef): string {
 
 /** Points a Get or Set node at a variable, caching what pin derivation needs. */
 export function bindNodeToVariable(
-	script: NodeScript, nodeId: string, variableId: string,
+	script: NodeScript,
+	nodeId: string,
+	variableId: string,
 ): NodeScript {
 	const variable = script.variables.find((v) => v.id === variableId);
 	if (!variable) return script;
@@ -1466,7 +1608,9 @@ export function bindNodeToVariable(
 
 /** Points a Get Function node at a function entry node. */
 export function bindNodeToFunction(
-	script: NodeScript, nodeId: string, functionNodeId: string,
+	script: NodeScript,
+	nodeId: string,
+	functionNodeId: string,
 ): NodeScript {
 	const entry = script.nodes.find((n) => n.id === functionNodeId);
 	// Either node that declares a function. Refusing a Declare Function here
@@ -1594,7 +1738,9 @@ export interface Clipping {
  * bring the comment, exactly as dragging the node alone does not.
  */
 export function withCommentContents(
-	script: NodeScript, picked: ReadonlySet<string>, registry: Registry,
+	script: NodeScript,
+	picked: ReadonlySet<string>,
+	registry: Registry,
 ): Set<string> {
 	const out = new Set(picked);
 	// One view per graph rather than one per comment: two comments in the same
@@ -1623,7 +1769,9 @@ export function withCommentContents(
  * `withCommentContents`.
  */
 export function copySelection(
-	script: NodeScript, picked: ReadonlySet<string>, registry: Registry,
+	script: NodeScript,
+	picked: ReadonlySet<string>,
+	registry: Registry,
 ): Clipping {
 	const ids = withFunctionGraphs(script, withCommentContents(script, picked, registry));
 	const nodes = script.nodes.filter((n) => ids.has(n.id));
@@ -1659,7 +1807,9 @@ export interface PasteInto {
  * copied. See `PasteInto`.
  */
 export function pasteClipping(
-	script: NodeScript, clip: Clipping, into: PasteInto = {},
+	script: NodeScript,
+	clip: Clipping,
+	into: PasteInto = {},
 ): { script: NodeScript; ids: string[] } {
 	const offset = into.offset ?? 32;
 	const remap = new Map<string, string>();
@@ -1669,7 +1819,8 @@ export function pasteClipping(
 	// Inside a pasted function stays inside the copy. Anything else was copied
 	// from the graph on screen and lands in the one on screen, which the store
 	// fills in for a node with no graph.
-	const graphFor = (graph: string | undefined) => (graph !== undefined ? remap.get(graph) : undefined);
+	const graphFor = (graph: string | undefined) =>
+		graph !== undefined ? remap.get(graph) : undefined;
 
 	// Does this item land in the graph being pasted into?
 	//

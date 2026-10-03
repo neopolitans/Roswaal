@@ -28,7 +28,8 @@ export const DEMO_LAYOUT: Record<string, Record<string, { x: number; y: number }
  * @returns {string}
  */
 export function demoLayoutSource(layout) {
-	const key = (/** @type {string} */ id) => (/^[A-Za-z_$][\w$]*$/.test(id) ? id : JSON.stringify(id));
+	const key = (/** @type {string} */ id) =>
+		/^[A-Za-z_$][\w$]*$/.test(id) ? id : JSON.stringify(id);
 	const body = Object.entries(layout)
 		.map(([slug, nodes]) => {
 			const rows = Object.entries(nodes)

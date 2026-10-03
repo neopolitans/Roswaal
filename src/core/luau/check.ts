@@ -14,7 +14,7 @@
  */
 
 import { lineIndex } from "./lexer.js";
-import { parseChunk, type ParseOptions, parseExpression, parseType } from "./parser.js";
+import { type ParseOptions, parseChunk, parseExpression, parseType } from "./parser.js";
 
 export type LuauFragment = "block" | "expression" | "type";
 
@@ -31,7 +31,8 @@ export interface SyntaxProblem {
  * A node template's placeholders: `$in.force`, `$out.hit`, `$in.name!ident`,
  * and the folds, `$args(, )`, `$opt(, )`, `$index(t, k)`.
  */
-const PLACEHOLDER = /\$[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?(?:![A-Za-z]+)?(?:\([^)\n]*\))?/g;
+const PLACEHOLDER =
+	/\$[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?(?:![A-Za-z]+)?(?:\([^)\n]*\))?/g;
 
 /**
  * Checks a node template from Node Design: Luau with placeholders in it.
@@ -52,12 +53,17 @@ export function checkTemplate(source: string, kind?: LuauFragment): SyntaxProble
 	return checkLuau(filled, "expression").length === 0 ? [] : asBlock;
 }
 
-export function checkLuau(source: string, kind: LuauFragment, options: ParseOptions = {}): SyntaxProblem[] {
-	const { errors } = kind === "block"
-		? parseChunk(source, options)
-		: kind === "expression"
-			? parseExpression(source)
-			: parseType(source);
+export function checkLuau(
+	source: string,
+	kind: LuauFragment,
+	options: ParseOptions = {},
+): SyntaxProblem[] {
+	const { errors } =
+		kind === "block"
+			? parseChunk(source, options)
+			: kind === "expression"
+				? parseExpression(source)
+				: parseType(source);
 	const at = lineIndex(source);
 	return errors.map((error) => ({
 		message: error.message,

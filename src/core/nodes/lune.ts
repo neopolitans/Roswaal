@@ -11,7 +11,13 @@
  */
 
 import {
-	callLabel, luneFunction, lunePins, moduleOf, callOf, LUNE_CALL, LUNE_VALUE,
+	callLabel,
+	callOf,
+	LUNE_CALL,
+	LUNE_VALUE,
+	luneFunction,
+	lunePins,
+	moduleOf,
 } from "../luneCalls.js";
 import type { NodeConfig, NodeDef } from "../schema.js";
 

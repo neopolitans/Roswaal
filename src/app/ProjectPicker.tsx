@@ -3,13 +3,12 @@
  */
 
 import { useEffect, useState } from "react";
-
+import { errorMessage } from "../core/errorMessage.js";
 import { api } from "./api.js";
 import { useHostCan, useHostFailure } from "./host.js";
 import { IS_STATIC_HOST } from "./pages.js";
 import { MarkedLogo } from "./previewBuild.jsx";
 import { forget, recentProjects } from "./recents.js";
-import { errorMessage } from "../core/errorMessage.js";
 
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
@@ -25,13 +24,19 @@ const SEP = String.fromCharCode(92);
  * back to and an absolute path is not something to retype.
  */
 export function ProjectPicker({
-	onOpen, busy,
-}: { onOpen: (root: string, init?: boolean) => void; busy: string | null }) {
+	onOpen,
+	busy,
+}: {
+	onOpen: (root: string, init?: boolean) => void;
+	busy: string | null;
+}) {
 	const [root, setRoot] = useState("");
 	const [recent, setRecent] = useState<string[]>(() => recentProjects());
-	const [look, setLook] = useState<
-		{ exists: boolean; directory: boolean; initialised: boolean } | null
-	>(null);
+	const [look, setLook] = useState<{
+		exists: boolean;
+		directory: boolean;
+		initialised: boolean;
+	} | null>(null);
 	/**
 	 * Browse is offered until the daemon says it cannot do it.
 	 *
@@ -74,16 +79,21 @@ export function ProjectPicker({
 	}, [typed]);
 
 	const verdict =
-		typed === "" ? null
-		: look === null ? { can: false, label: "Open", note: "" }
-		: !look.exists ? { can: false, label: "Open", note: "There is nothing at that path." }
-		: !look.directory ? { can: false, label: "Open", note: "That is a file, not a directory." }
-		: look.initialised
-			? { can: true, label: "Open", note: "A Roswaal project. Opens where you left it." }
-			: {
-				can: true, label: "Initialise",
-				note: "Not a Roswaal project yet. Initialising writes a roswaal.json and nothing else.",
-			};
+		typed === ""
+			? null
+			: look === null
+				? { can: false, label: "Open", note: "" }
+				: !look.exists
+					? { can: false, label: "Open", note: "There is nothing at that path." }
+					: !look.directory
+						? { can: false, label: "Open", note: "That is a file, not a directory." }
+						: look.initialised
+							? { can: true, label: "Open", note: "A Roswaal project. Opens where you left it." }
+							: {
+									can: true,
+									label: "Initialise",
+									note: "Not a Roswaal project yet. Initialising writes a roswaal.json and nothing else.",
+								};
 
 	const go = () => {
 		if (verdict?.can) onOpen(typed, verdict.label === "Initialise");
@@ -110,7 +120,9 @@ export function ProjectPicker({
 	if (hostFailure !== null) {
 		return (
 			<div className="placeholder shell">
-				<h1 className="logo"><MarkedLogo height={26} /> Roswaal</h1>
+				<h1 className="logo">
+					<MarkedLogo height={26} /> Roswaal
+				</h1>
 				<p className="shell-broken">
 					{IS_STATIC_HOST
 						? "Roswaal could not start in this tab. Nothing here can open a project until it does."
@@ -140,8 +152,13 @@ export function ProjectPicker({
 		<div className="placeholder shell">
 			{/* Here the name stays in text beside the mark. This is the first
 			    screen, and it is the one place that has to say what it is. */}
-			<h1 className="logo"><MarkedLogo height={26} /> Roswaal</h1>
-			<p>Open a Roblox repository, or a Lune one (experimental). Roswaal writes Luau into it; Rojo does the rest.</p>
+			<h1 className="logo">
+				<MarkedLogo height={26} /> Roswaal
+			</h1>
+			<p>
+				Open a Roblox repository, or a Lune one (experimental). Roswaal writes Luau into it; Rojo
+				does the rest.
+			</p>
 
 			<div className="row">
 				<input
@@ -163,11 +180,7 @@ export function ProjectPicker({
 						{browsing ? "Choosing…" : "Browse…"}
 					</button>
 				)}
-				<button
-					className="tb primary"
-					disabled={!verdict?.can || !!busy}
-					onClick={go}
-				>
+				<button className="tb primary" disabled={!verdict?.can || !!busy} onClick={go}>
 					{verdict?.label ?? "Open"}
 				</button>
 			</div>

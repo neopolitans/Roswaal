@@ -7,7 +7,7 @@
  * command line asks for, and that `init` makes the project every host makes.
  */
 
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -27,7 +27,10 @@ describe("which command a command line asks for", () => {
 	it("prints a command's help rather than running it", () => {
 		expect(parseInvocation(["serve", "--help"])).toMatchObject({ command: "help", topic: "serve" });
 		expect(parseInvocation(["init", "-h"])).toMatchObject({ command: "help", topic: "init" });
-		expect(parseInvocation(["help", "compile"])).toMatchObject({ command: "help", topic: "compile" });
+		expect(parseInvocation(["help", "compile"])).toMatchObject({
+			command: "help",
+			topic: "compile",
+		});
 		expect(parseInvocation(["--help", "serve"])).toMatchObject({ command: "help", topic: "serve" });
 	});
 

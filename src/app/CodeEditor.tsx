@@ -8,23 +8,25 @@
  * typed it in rather than in the generated file.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
-
 import type { Completion } from "@codemirror/autocomplete";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { checkLuau, type LuauFragment } from "../core/luau/check.js";
 import type { ModuleInfo } from "../core/luau/hover.js";
 import type { TableMember } from "../core/luau/infer.js";
-import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
+import { type InstanceNode, indexFromOutline, instanceProblems } from "../core/luau/instances.js";
 import type { Registry } from "../core/nodes/index.js";
 import type { NodeScript } from "../core/schema.js";
 import { api } from "./api.js";
 import { cx } from "./cx.js";
 import { LAYER } from "./layers.js";
 import {
-	graphTableMembers, luauCompletionSource, precedingLocals, scopeCompletions,
+	graphTableMembers,
+	luauCompletionSource,
+	precedingLocals,
+	scopeCompletions,
 } from "./luauCompletions.js";
 import { luauExtensions } from "./luauExtensions.js";
 
@@ -47,7 +49,16 @@ export interface CodeEditorProps {
 }
 
 export function CodeEditor({
-	title, value, hint, kind: given, script, registry, nodeId, graphPath, onCommit, onClose,
+	title,
+	value,
+	hint,
+	kind: given,
+	script,
+	registry,
+	nodeId,
+	graphPath,
+	onCommit,
+	onClose,
 }: CodeEditorProps) {
 	const host = useRef<HTMLDivElement>(null);
 	const view = useRef<EditorView | null>(null);
@@ -55,8 +66,9 @@ export function CodeEditor({
 
 	// Custom Code is statements; a Luau Expression, or code typed into any
 	// other pin, is one value. The compiler parses each the same way.
-	const kind: LuauFragment = given
-		?? (script?.nodes.find((n) => n.id === nodeId)?.def === "code.custom" ? "block" : "expression");
+	const kind: LuauFragment =
+		given ??
+		(script?.nodes.find((n) => n.id === nodeId)?.def === "code.custom" ? "block" : "expression");
 	const problems = useMemo(() => checkLuau(text, kind), [text, kind]);
 	// Recomputed only when the graph changes, and read through a ref so the
 	// editor is built once rather than torn down on every keystroke.
@@ -80,12 +92,19 @@ export function CodeEditor({
 	const selfRef = useRef<string[] | undefined>(undefined);
 	useEffect(() => {
 		let live = true;
-		api.instances().then(({ outline }) => {
-			if (live) instancesRef.current = { root: indexFromOutline(outline), ...(selfRef.current ? { self: selfRef.current } : {}) };
-		}, () => {
-			// No outline means no instance completion or warnings, and the
-			// editor works without them; there is nothing to tell anyone.
-		});
+		api.instances().then(
+			({ outline }) => {
+				if (live)
+					instancesRef.current = {
+						root: indexFromOutline(outline),
+						...(selfRef.current ? { self: selfRef.current } : {}),
+					};
+			},
+			() => {
+				// No outline means no instance completion or warnings, and the
+				// editor works without them; there is nothing to tell anyone.
+			},
+		);
 		return () => {
 			live = false;
 		};
@@ -99,16 +118,20 @@ export function CodeEditor({
 		if (!graphPath) return;
 		let live = true;
 		const id = window.setTimeout(() => {
-			api.luauModules(graphPath, text).then(({ modules, self }) => {
-				if (!live) return;
-				requiredRef.current = new Map(modules.map((m) => [m.name, m.members]));
-				modulesRef.current = new Map(modules.map((m) => [m.name, m]));
-				selfRef.current = self ?? undefined;
-				if (instancesRef.current) instancesRef.current = { ...instancesRef.current, ...(self ? { self } : {}) };
-			}, () => {
-				// The requires stay as last answered: completion and hover offer
-				// less, and the next pause in typing asks again.
-			});
+			api.luauModules(graphPath, text).then(
+				({ modules, self }) => {
+					if (!live) return;
+					requiredRef.current = new Map(modules.map((m) => [m.name, m.members]));
+					modulesRef.current = new Map(modules.map((m) => [m.name, m]));
+					selfRef.current = self ?? undefined;
+					if (instancesRef.current)
+						instancesRef.current = { ...instancesRef.current, ...(self ? { self } : {}) };
+				},
+				() => {
+					// The requires stay as last answered: completion and hover offer
+					// less, and the next pause in typing asks again.
+				},
+			);
 		}, 400);
 		return () => {
 			live = false;
@@ -125,7 +148,10 @@ export function CodeEditor({
 			doc: value,
 			extensions: luauExtensions({
 				completion: luauCompletionSource(
-					() => scopeRef.current, () => targetRef.current, allMembers, () => instancesRef.current,
+					() => scopeRef.current,
+					() => targetRef.current,
+					allMembers,
+					() => instancesRef.current,
 				),
 				// The same structural check that runs on every compile, shown here
 				// as you type so a stray `end` is caught in the box you typed it in.
@@ -139,9 +165,10 @@ export function CodeEditor({
 				signature: true,
 				// Instance paths the place and the project do not have, from where
 				// the graph's code runs.
-				warnings: (code) => (instancesRef.current && targetRef.current !== "lune"
-					? instanceProblems(code, instancesRef.current.root, instancesRef.current.self)
-					: []),
+				warnings: (code) =>
+					instancesRef.current && targetRef.current !== "lune"
+						? instanceProblems(code, instancesRef.current.root, instancesRef.current.self)
+						: [],
 				onChange: setText,
 			}),
 		});

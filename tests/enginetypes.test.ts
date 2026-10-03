@@ -16,11 +16,10 @@
  */
 
 import { describe, expect, it } from "vitest";
-
+import { nodeColor } from "../src/app/palette.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry, subcategories } from "../src/core/nodes/index.js";
 import { ENGINE_TYPES } from "../src/core/schema.js";
-import { nodeColor } from "../src/app/palette.js";
 import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
@@ -29,8 +28,7 @@ const engineTypes = [...registry.values()].filter((def) => def.category === ENGI
 describe("the category", () => {
 	it("puts every datatype node in a subcategory", () => {
 		for (const def of engineTypes) {
-			expect(def.subcategory, `${def.id} is in ${ENGINE_TYPES} with no subcategory`)
-				.toBeTruthy();
+			expect(def.subcategory, `${def.id} is in ${ENGINE_TYPES} with no subcategory`).toBeTruthy();
 		}
 	});
 
@@ -44,8 +42,9 @@ describe("the category", () => {
 		const known = subcategories(registry, ENGINE_TYPES);
 		const used = new Set(engineTypes.map((def) => def.subcategory!));
 		expect([...used].sort()).toEqual([...known].sort());
-		expect(known[0], "vectors come first; almost everything positional starts there")
-			.toBe("Vector3");
+		expect(known[0], "vectors come first; almost everything positional starts there").toBe(
+			"Vector3",
+		);
 	});
 
 	/**
@@ -59,8 +58,7 @@ describe("the category", () => {
 		for (const sub of subcategories(registry, ENGINE_TYPES)) {
 			const def = engineTypes.find((d) => d.subcategory === sub)!;
 			const colour = nodeColor(def);
-			expect(colours.has(colour), `${sub} shares a colour with ${colours.get(colour)}`)
-				.toBe(false);
+			expect(colours.has(colour), `${sub} shares a colour with ${colours.get(colour)}`).toBe(false);
 			colours.set(colour, sub);
 		}
 	});
@@ -75,24 +73,47 @@ describe("the category", () => {
 describe("node ids that predate the reorganisation", () => {
 	const KEPT = [
 		// Were in the Engine category, titled plain "Vector3" and "Color3".
-		"roblox.vector3", "roblox.color3",
+		"roblox.vector3",
+		"roblox.color3",
 		// Were in Vectors.
-		"vector3.zero", "vector3.one", "vector3.axis", "vector3.add", "vector3.sub",
-		"vector3.scale", "vector3.dot", "vector3.cross", "vector3.magnitude",
-		"vector3.unit", "vector3.lerp", "vector3.distance", "vector2.new",
+		"vector3.zero",
+		"vector3.one",
+		"vector3.axis",
+		"vector3.add",
+		"vector3.sub",
+		"vector3.scale",
+		"vector3.dot",
+		"vector3.cross",
+		"vector3.magnitude",
+		"vector3.unit",
+		"vector3.lerp",
+		"vector3.distance",
+		"vector2.new",
 		// Were in CFrames.
-		"cframe.identity", "cframe.new", "cframe.lookAt", "cframe.angles",
-		"cframe.fromAxisAngle", "cframe.mul", "cframe.translate", "cframe.inverse",
-		"cframe.lerp", "cframe.toWorldSpace", "cframe.toObjectSpace",
-		"cframe.pointToWorldSpace", "cframe.pointToObjectSpace",
-		"cframe.vectorToWorldSpace", "cframe.position", "cframe.rotation",
-		"cframe.lookVector", "cframe.rightVector", "cframe.upVector",
+		"cframe.identity",
+		"cframe.new",
+		"cframe.lookAt",
+		"cframe.angles",
+		"cframe.fromAxisAngle",
+		"cframe.mul",
+		"cframe.translate",
+		"cframe.inverse",
+		"cframe.lerp",
+		"cframe.toWorldSpace",
+		"cframe.toObjectSpace",
+		"cframe.pointToWorldSpace",
+		"cframe.pointToObjectSpace",
+		"cframe.vectorToWorldSpace",
+		"cframe.position",
+		"cframe.rotation",
+		"cframe.lookVector",
+		"cframe.rightVector",
+		"cframe.upVector",
 	];
 
 	it("all still resolve", () => {
 		for (const id of KEPT) {
-			expect(registry.get(id), `${id} was renamed; every graph using it breaks`)
-				.toBeDefined();
+			expect(registry.get(id), `${id} was renamed; every graph using it breaks`).toBeDefined();
 		}
 	});
 
@@ -103,15 +124,16 @@ describe("node ids that predate the reorganisation", () => {
 		const add = b.node("vector3.add");
 		b.link(start, "then", print, "in").link(add, "result", print, "value");
 
-		expect(body(compile(b.build(), registry).code)).toContain(
-			"print(Vector3.zero + Vector3.zero)",
-		);
+		expect(body(compile(b.build(), registry).code)).toContain("print(Vector3.zero + Vector3.zero)");
 	});
 });
 
 describe("what the new datatypes compile to", () => {
 	/** One value into `print`, which is the shortest way to see an expression. */
-	function emitted(defId: string, literals: Record<string, { t: "string"; v: string } | { t: "number"; v: number }> = {}): string {
+	function emitted(
+		defId: string,
+		literals: Record<string, { t: "string"; v: string } | { t: "number"; v: number }> = {},
+	): string {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const print = b.node("debug.print");
@@ -148,8 +170,9 @@ describe("what the new datatypes compile to", () => {
 		const luau = emitted("tweeninfo.new");
 		expect(luau).toContain("Enum.EasingStyle.Quad");
 		expect(luau).toContain("Enum.EasingDirection.Out");
-		expect(luau, "the style is a name in the source, never a quoted string")
-			.not.toContain('"Quad"');
+		expect(luau, "the style is a name in the source, never a quoted string").not.toContain(
+			'"Quad"',
+		);
 	});
 
 	/**

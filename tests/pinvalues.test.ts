@@ -60,7 +60,10 @@ describe("a Return's values", () => {
 
 describe("Module Exports' pins", () => {
 	it("carry the same literals, for the same reason", () => {
-		const [n, s] = exports([{ name: "count", type: "number" }, { name: "id", type: "string" }]);
+		const [n, s] = exports([
+			{ name: "count", type: "number" },
+			{ name: "id", type: "string" },
+		]);
 		expect(n.default).toEqual({ t: "number", v: 0 });
 		expect(s.default).toEqual({ t: "string", v: "" });
 	});

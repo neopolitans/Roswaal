@@ -15,7 +15,7 @@
  * the route says 501 rather than failing some other way.
  */
 
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -30,11 +30,14 @@ vi.mock("../src/server/host.js", async () => {
 	return { volume, fs: volume, path, formatLuau: (_cwd: string, code: string) => code };
 });
 
-const { volume } = await import("../src/server/host.js") as unknown as { volume: Volume };
+const { volume } = (await import("../src/server/host.js")) as unknown as { volume: Volume };
 const { ApiSession, errorResponse } = await import("../src/server/routes.js");
 
 const DEMO = nodePath.resolve(
-	nodePath.dirname(fileURLToPath(import.meta.url)), "..", "examples", "demo",
+	nodePath.dirname(fileURLToPath(import.meta.url)),
+	"..",
+	"examples",
+	"demo",
 );
 
 async function snapshotOf(dir: string, mountAt: string): Promise<Record<string, string>> {
@@ -86,15 +89,18 @@ async function statusOf(call: Promise<unknown>): Promise<number | null> {
 
 describe("what the API says about the project it has open", () => {
 	it("is healthy, and says which project and which version", async () => {
-		const health = await get("/health") as { ok: boolean; project: string; version: string };
+		const health = (await get("/health")) as { ok: boolean; project: string; version: string };
 		expect(health.ok).toBe(true);
 		expect(health.project).toBe("/demo");
 		expect(health.version).toMatch(/^\d+\.\d+\.\d+/);
 	});
 
 	it("describes the open project, tree and all", async () => {
-		const project = await get("/project") as {
-			open: boolean; root: string; packErrors: string[]; tree: { path: string }[];
+		const project = (await get("/project")) as {
+			open: boolean;
+			root: string;
+			packErrors: string[];
+			tree: { path: string }[];
 		};
 		expect(project.open).toBe(true);
 		expect(project.root).toBe("/demo");
@@ -109,7 +115,7 @@ describe("what the API says about the project it has open", () => {
 	 */
 	it("hands over the project's own node definitions and no built-ins", async () => {
 		const { BUILTIN_NODES } = await import("../src/core/nodes/index.js");
-		const nodes = await get("/nodes") as { custom: { id: string }[]; errors: string[] };
+		const nodes = (await get("/nodes")) as { custom: { id: string }[]; errors: string[] };
 		const builtin = new Set(BUILTIN_NODES.map((def) => def.id));
 
 		expect(nodes.custom.length).toBeGreaterThan(0);
@@ -118,7 +124,7 @@ describe("what the API says about the project it has open", () => {
 	});
 
 	it("lists the packs and where a new one would go", async () => {
-		const packs = await get("/packs") as { packs: { path: string }[]; dir: string };
+		const packs = (await get("/packs")) as { packs: { path: string }[]; dir: string };
 		expect(packs.packs.length).toBeGreaterThan(0);
 		expect(packs.dir).toBe(".roswaal/nodes");
 	});
@@ -128,19 +134,22 @@ describe("reading and writing through the API", () => {
 	const GRAPH = ".roswaal/scripts/ReplicatedStorage/Shared/Greeter.nodescript";
 
 	it("reads a graph", async () => {
-		const { script } = await get("/script", { path: GRAPH }) as { script: { name: string } };
+		const { script } = (await get("/script", { path: GRAPH })) as { script: { name: string } };
 		expect(script.name).toBe("Greeter");
 	});
 
 	it("writes one back and reads the change", async () => {
-		const { script } = await get("/script", { path: GRAPH }) as
-			{ script: { nodes: unknown[]; name: string } };
+		const { script } = (await get("/script", { path: GRAPH })) as {
+			script: { nodes: unknown[]; name: string };
+		};
 		const before = script.nodes.length;
 		script.nodes.push({ id: "routes-test", def: "script.begin", x: 0, y: 0 });
 
 		expect(await put("/script", { path: GRAPH, script })).toEqual({ ok: true });
 
-		const after = await get("/script", { path: GRAPH }) as { script: { nodes: { id: string }[] } };
+		const after = (await get("/script", { path: GRAPH })) as {
+			script: { nodes: { id: string }[] };
+		};
 		expect(after.script.nodes.length).toBe(before + 1);
 
 		after.script.nodes = after.script.nodes.filter((node) => node.id !== "routes-test");
@@ -148,9 +157,10 @@ describe("reading and writing through the API", () => {
 	});
 
 	it("creates a graph with somewhere for execution to start", async () => {
-		const created = await post("/script/create", {
-			dir: ".roswaal/scripts", name: "Made By Test",
-		}) as { path: string; script: { nodes: { def: string }[] } };
+		const created = (await post("/script/create", {
+			dir: ".roswaal/scripts",
+			name: "Made By Test",
+		})) as { path: string; script: { nodes: { def: string }[] } };
 
 		expect(created.path).toBe(".roswaal/scripts/Made By Test.nodescript");
 		expect(created.script.nodes.map((node) => node.def)).toContain("script.begin");
@@ -159,9 +169,9 @@ describe("reading and writing through the API", () => {
 	});
 
 	it("reads generated Luau back as text", async () => {
-		const source = await get("/source", {
+		const source = (await get("/source", {
 			path: "src/ReplicatedStorage/Shared/Greeter.luau",
-		}) as { text: string };
+		})) as { text: string };
 		expect(source.text).toContain("roswaal-graph:");
 	});
 });
@@ -169,8 +179,9 @@ describe("reading and writing through the API", () => {
 describe("compiling through the API", () => {
 	it("compiles the project and narrates the walk while it runs", async () => {
 		steps.length = 0;
-		const { results } = await post("/compile", { write: true }) as
-			{ results: { written: boolean; scriptPath: string }[] };
+		const { results } = (await post("/compile", { write: true })) as {
+			results: { written: boolean; scriptPath: string }[];
+		};
 
 		expect(results.length).toBeGreaterThan(0);
 		expect(results.every((result) => result.written)).toBe(true);
@@ -184,9 +195,9 @@ describe("compiling through the API", () => {
 
 	it("compiles one graph without narrating anything", async () => {
 		steps.length = 0;
-		const { results } = await post("/compile", {
+		const { results } = (await post("/compile", {
 			path: ".roswaal/scripts/ReplicatedStorage/Shared/Greeter.nodescript",
-		}) as { results: unknown[] };
+		})) as { results: unknown[] };
 
 		expect(results.length).toBe(1);
 		expect(steps).toEqual([]);
@@ -248,7 +259,7 @@ describe("what the API refuses", () => {
 	 */
 	it("refuses a config that would not read back, and leaves roswaal.json as it was", async () => {
 		const before = await volume.readFile("/demo/roswaal.json", "utf8");
-		const { config } = await get("/project") as { config: Record<string, unknown> };
+		const { config } = (await get("/project")) as { config: Record<string, unknown> };
 		expect(await statusOf(put("/project/config", { ...config, nodePaths: null }))).toBe(400);
 		expect(await statusOf(put("/project/config", { ...config, target: "xbox" }))).toBe(400);
 		expect(await statusOf(put("/project/config", [1, 2]))).toBe(400);
@@ -256,21 +267,25 @@ describe("what the API refuses", () => {
 	});
 
 	it("saves a config that is one, and answers with what it saved", async () => {
-		const { config } = await get("/project") as { config: Record<string, unknown> };
-		const saved = await put("/project/config", { ...config, comments: !config.comments }) as
-			{ config: { comments: boolean } };
+		const { config } = (await get("/project")) as { config: Record<string, unknown> };
+		const saved = (await put("/project/config", { ...config, comments: !config.comments })) as {
+			config: { comments: boolean };
+		};
 		expect(saved.config.comments).toBe(!config.comments);
 		await put("/project/config", config);
 	});
 
 	/** A graph saved over hand-written Luau would skip the hand-edit guard. */
 	it("saves graphs and maps only to their own kind of file", async () => {
-		const { script } = await get("/script", {
+		const { script } = (await get("/script", {
 			path: ".roswaal/scripts/ReplicatedStorage/Shared/Greeter.nodescript",
-		}) as { script: unknown };
-		expect(await statusOf(put("/script", { path: "src/ReplicatedStorage/Shared/Greeter.luau", script })))
-			.toBe(400);
-		expect(await statusOf(put("/map", { path: "default.project.json", map: { root: {} } }))).toBe(400);
+		})) as { script: unknown };
+		expect(
+			await statusOf(put("/script", { path: "src/ReplicatedStorage/Shared/Greeter.luau", script })),
+		).toBe(400);
+		expect(await statusOf(put("/map", { path: "default.project.json", map: { root: {} } }))).toBe(
+			400,
+		);
 	});
 
 	/**
@@ -282,7 +297,10 @@ describe("what the API refuses", () => {
 		await volume.writeFile("/demo/Broken.rbxl", new Uint8Array([1, 2, 3, 4]));
 		await put("/project/config", { ...JSON.parse(config), place: "Broken.rbxl" });
 		try {
-			const refused = await get("/place").then(() => null, (err: unknown) => errorResponse(err));
+			const refused = await get("/place").then(
+				() => null,
+				(err: unknown) => errorResponse(err),
+			);
 			expect(refused?.status).toBe(422);
 			expect(refused?.body.code).toBe("place-unreadable");
 			expect(refused?.body.error).toContain("Broken.rbxl could not be read");
@@ -303,7 +321,7 @@ describe("what the host tells the editor it can do", () => {
 	 * gaining one does not change the shape.
 	 */
 	it("reports none for a host with no machine under it", async () => {
-		const health = await get("/health") as { capabilities: string[] };
+		const health = (await get("/health")) as { capabilities: string[] };
 		expect(health.capabilities).toEqual([]);
 	});
 
@@ -314,7 +332,7 @@ describe("what the host tells the editor it can do", () => {
 				edit: async () => "code",
 			},
 		});
-		const health = await withMachine.handle("GET", "/health") as { capabilities: string[] };
+		const health = (await withMachine.handle("GET", "/health")) as { capabilities: string[] };
 		expect(health.capabilities).toEqual(["edit", "reveal"]);
 	});
 
@@ -336,8 +354,12 @@ describe("what the host tells the editor it can do", () => {
 
 		for (const [capability, route] of Object.entries(refusals)) {
 			const [method, path] = route.split(" ");
-			const message = await session.handle(method, path, { body: { path: "x" }, query: { root: "/" } })
-				.then(() => "", (err: Error) => err.message);
+			const message = await session
+				.handle(method, path, { body: { path: "x" }, query: { root: "/" } })
+				.then(
+					() => "",
+					(err: Error) => err.message,
+				);
 			expect([route, message.includes(capability)]).toEqual([route, true]);
 		}
 	});
@@ -360,7 +382,7 @@ describe("alias maps", () => {
 				aliases: { near: "./here" },
 			}),
 		});
-		const { files } = await get("/luaurc") as { files: { dir: string; text: string }[] };
+		const { files } = (await get("/luaurc")) as { files: { dir: string; text: string }[] };
 		expect(files.map((file) => file.dir).sort()).toEqual(["", "src"]);
 		// Text, not a parsed map: the parser has one home and a file's own
 		// complaints survive the trip.
@@ -369,9 +391,11 @@ describe("alias maps", () => {
 
 	it("writes one whole, keeping what it does not understand", async () => {
 		const text = JSON.stringify(
-			{ languageMode: "nonstrict", aliases: { roact: "./Packages/Roact" } }, null, 2,
+			{ languageMode: "nonstrict", aliases: { roact: "./Packages/Roact" } },
+			null,
+			2,
 		);
-		const { files } = await put("/luaurc", { dir: "", text }) as {
+		const { files } = (await put("/luaurc", { dir: "", text })) as {
 			files: { dir: string; text: string }[];
 		};
 		const root = files.find((file) => file.dir === "");
@@ -400,13 +424,12 @@ describe("alias maps", () => {
  */
 describe("taking a copy of a demo", () => {
 	it("lists what the host has, and says nothing when it has none", async () => {
-		const answer = await get("/demos") as { demos: Record<string, string> };
+		const answer = (await get("/demos")) as { demos: Record<string, string> };
 		expect(answer.demos).toEqual({});
 	});
 
 	it("refuses with 501 on a host that cannot copy", async () => {
-		expect(await statusOf(post("/demos/duplicate", { dir: "demo", into: "/somewhere" })))
-			.toBe(501);
+		expect(await statusOf(post("/demos/duplicate", { dir: "demo", into: "/somewhere" }))).toBe(501);
 	});
 
 	it("asks for both halves before it asks the host for anything", async () => {
@@ -428,9 +451,9 @@ describe("taking a copy of a demo", () => {
 				},
 			},
 		});
-		const answer = await able.handle("POST", "/demos/duplicate", {
+		const answer = (await able.handle("POST", "/demos/duplicate", {
 			body: { dir: "lune-demo", into: "/work" },
-		}) as { root: string };
+		})) as { root: string };
 
 		expect(asked).toEqual([["lune-demo", "/work"]]);
 		expect(answer.root).toBe("/work/lune-demo");

@@ -16,14 +16,20 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { NodeMap } from "../src/core/nodemap.js";
 import { defaultConfig, emptyScript } from "../src/core/schema.js";
 import { parseConfig } from "../src/server/config.js";
-import { errorResponse, HttpError, UserError } from "../src/server/errors.js";
-import { readManifest, recordGenerated } from "../src/server/manifest.js";
-import {
-	collectMaps, deletePack, openProject, writeConfig, writeMap, writePlaceImport, writeScript,
-} from "../src/server/project.js";
 import { collectScripts } from "../src/server/documents.js";
+import { errorResponse, HttpError, UserError } from "../src/server/errors.js";
 import { walkFiles } from "../src/server/files.js";
+import { readManifest, recordGenerated } from "../src/server/manifest.js";
 import { tidyPath, toPosix } from "../src/server/paths.js";
+import {
+	collectMaps,
+	deletePack,
+	openProject,
+	writeConfig,
+	writeMap,
+	writePlaceImport,
+	writeScript,
+} from "../src/server/project.js";
 
 let root = "";
 
@@ -52,12 +58,14 @@ describe("paths", () => {
 describe("what an error is answered with", () => {
 	it("keeps a known problem's status, and calls anything else a bug", () => {
 		expect(errorResponse(new UserError("taken")).status).toBe(400);
-		expect(errorResponse(new HttpError(409, "moved", { code: "project-changed", root: "/x" })))
-			.toEqual({ status: 409, body: { error: "moved", code: "project-changed", root: "/x" } });
+		expect(
+			errorResponse(new HttpError(409, "moved", { code: "project-changed", root: "/x" })),
+		).toEqual({ status: 409, body: { error: "moved", code: "project-changed", root: "/x" } });
 		expect(errorResponse(new SyntaxError("Unexpected token")).status).toBe(422);
 		expect(errorResponse(Object.assign(new Error("gone"), { code: "ENOENT" })).status).toBe(404);
 		expect(errorResponse(new TypeError("x is undefined"))).toEqual({
-			status: 500, body: { error: "x is undefined" },
+			status: 500,
+			body: { error: "x is undefined" },
 		});
 		expect(errorResponse("thrown string").status).toBe(500);
 	});
@@ -65,7 +73,10 @@ describe("what an error is answered with", () => {
 
 describe("roswaal.json", () => {
 	it("is read with defaults for what it leaves out", () => {
-		expect(parseConfig({ outDir: "out" })).toMatchObject({ outDir: "out", sourceDir: ".roswaal/scripts" });
+		expect(parseConfig({ outDir: "out" })).toMatchObject({
+			outDir: "out",
+			sourceDir: ".roswaal/scripts",
+		});
 	});
 
 	it("is refused, with the key named, when a setting is the wrong kind of thing", async () => {
@@ -78,7 +89,9 @@ describe("roswaal.json", () => {
 
 	it("is never written in a shape that would not read back", async () => {
 		await scratch({ "roswaal.json": "{}\n" });
-		await expect(writeConfig(root, { ...defaultConfig(), sourceDir: "" })).rejects.toThrow(UserError);
+		await expect(writeConfig(root, { ...defaultConfig(), sourceDir: "" })).rejects.toThrow(
+			UserError,
+		);
 		expect(await readFile(join(root, "roswaal.json"), "utf8")).toBe("{}\n");
 	});
 });
@@ -87,17 +100,20 @@ describe("a project made from a place", () => {
 	it("is refused before anything is written when the plan has no node map", async () => {
 		await scratch();
 		const into = join(root, "made");
-		await expect(writePlaceImport(into, { "src/A.luau": "return 1" }, "place.rbxl"))
-			.rejects.toThrow(/no node map/);
+		await expect(
+			writePlaceImport(into, { "src/A.luau": "return 1" }, "place.rbxl"),
+		).rejects.toThrow(/no node map/);
 		await expect(readFile(join(into, "roswaal.json"), "utf8")).rejects.toThrow();
 	});
 });
 
 describe("pack paths", () => {
 	it("are normalised before they are held against the node paths", async () => {
-		await scratch({ "roswaal.json": "{}", "x.nodedef.json": "{\"nodes\":[]}" });
+		await scratch({ "roswaal.json": "{}", "x.nodedef.json": '{"nodes":[]}' });
 		const project = await openProject(root);
-		await expect(deletePack(project, ".roswaal/nodes/../../x.nodedef.json")).rejects.toThrow(/not in a node path/);
+		await expect(deletePack(project, ".roswaal/nodes/../../x.nodedef.json")).rejects.toThrow(
+			/not in a node path/,
+		);
 		expect(await readFile(join(root, "x.nodedef.json"), "utf8")).toContain("nodes");
 	});
 });
@@ -106,7 +122,9 @@ describe("saving documents", () => {
 	it("writes a graph only to a .nodescript and a map only to a .nodemap", async () => {
 		await scratch({ "roswaal.json": "{}", "src/Hand.luau": "return 'mine'" });
 		const project = await openProject(root);
-		await expect(writeScript(project, "src/Hand.luau", emptyScript("Hand", "g1"))).rejects.toThrow(/\.nodescript/);
+		await expect(writeScript(project, "src/Hand.luau", emptyScript("Hand", "g1"))).rejects.toThrow(
+			/\.nodescript/,
+		);
 		await expect(writeMap(project, "src/Hand.luau", {} as NodeMap)).rejects.toThrow(/\.nodemap/);
 		expect(await readFile(join(root, "src/Hand.luau"), "utf8")).toBe("return 'mine'");
 	});
@@ -144,7 +162,6 @@ describe("the shared walk", () => {
 		expect(await collectMaps(project)).toEqual([".roswaal/scripts/Main.nodemap"]);
 	});
 });
-
 
 describe("finding graphs", () => {
 	/** `build` and `out` are build output at the project's root, and somebody's graphs under sourceDir. */

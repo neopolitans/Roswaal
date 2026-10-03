@@ -33,9 +33,7 @@
  * both have a Docs button do not light each other.
  */
 export function attachToolbarLink(figure: HTMLElement): () => void {
-	const parts = Array.from(
-		figure.querySelectorAll<HTMLElement>("[data-control]"),
-	);
+	const parts = Array.from(figure.querySelectorAll<HTMLElement>("[data-control]"));
 	if (parts.length === 0) return () => {};
 
 	const byKey = new Map<string, HTMLElement[]>();
@@ -102,7 +100,7 @@ export function attachToolbarLink(figure: HTMLElement): () => void {
 	const keyAt = (target: EventTarget | null): string | null => {
 		if (!(target instanceof Element)) return null;
 		const part = target.closest<HTMLElement>("[data-control]");
-		return part && figure.contains(part) ? part.dataset.control ?? null : null;
+		return part && figure.contains(part) ? (part.dataset.control ?? null) : null;
 	};
 
 	const onOver = (e: Event) => {

@@ -14,7 +14,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { opfsStore, persistence, type RestoredVolume, type SnapshotStore } from "../src/web/persist.js";
+import {
+	opfsStore,
+	persistence,
+	type RestoredVolume,
+	type SnapshotStore,
+} from "../src/web/persist.js";
 import type { VolumeSnapshot } from "../src/web/volume.js";
 
 /** A store in a variable, which is all the real one is with extra steps. */
@@ -134,8 +139,10 @@ describe("when the writing happens", () => {
 		held = { files: { "/demo/a.nodescript": "second" }, dirs: ["/demo"] };
 		await settle();
 
-		expect(await persistence(store, "0.0.0").restore())
-			.toEqual({ files: { "/demo/a.nodescript": "second" }, dirs: ["/demo"] });
+		expect(await persistence(store, "0.0.0").restore()).toEqual({
+			files: { "/demo/a.nodescript": "second" },
+			dirs: ["/demo"],
+		});
 	});
 });
 
@@ -253,11 +260,13 @@ describe("a folder with nothing in it", () => {
 	 */
 	it("reads a document from before this without complaining", async () => {
 		const store = fakeStore();
-		await store.write(JSON.stringify({
-			format: 1,
-			version: "0.0.0",
-			files: { "/demo/roswaal.json": "{}" },
-		}));
+		await store.write(
+			JSON.stringify({
+				format: 1,
+				version: "0.0.0",
+				files: { "/demo/roswaal.json": "{}" },
+			}),
+		);
 
 		const back = await persistence(store, "0.0.0").restore();
 		expect(back?.files).toEqual({ "/demo/roswaal.json": "{}" });
@@ -320,7 +329,11 @@ describe("a stored place", () => {
 		await keeping.restore();
 		keeping.restoredAt(3);
 
-		keeping.touch(() => ({ files: { ...FILES, "/demo/place.rbxl": PLACE }, dirs: [], binaryStamp: 3 }));
+		keeping.touch(() => ({
+			files: { ...FILES, "/demo/place.rbxl": PLACE },
+			dirs: [],
+			binaryStamp: 3,
+		}));
 		await settle();
 		expect(store.binaryWrites).toBe(1);
 	});
@@ -329,7 +342,10 @@ describe("a stored place", () => {
 describe("binaries in the origin private filesystem", () => {
 	it("are read back as they were written", async () => {
 		const root = new FakeDir("root");
-		const store = opfsStore("project.json", async () => root as unknown as FileSystemDirectoryHandle);
+		const store = opfsStore(
+			"project.json",
+			async () => root as unknown as FileSystemDirectoryHandle,
+		);
 		await store.writeBinaries!({ "/demo/place.rbxl": PLACE });
 		expect(await store.readBinaries!()).toEqual({ "/demo/place.rbxl": PLACE });
 		await store.writeBinaries!({});
@@ -340,13 +356,19 @@ describe("binaries in the origin private filesystem", () => {
 	/** A tab closed part-way through writing a new place keeps the old one. */
 	it("keep the stored set until a new one is completely written", async () => {
 		const root = new FakeDir("root");
-		const store = opfsStore("project.json", async () => root as unknown as FileSystemDirectoryHandle);
+		const store = opfsStore(
+			"project.json",
+			async () => root as unknown as FileSystemDirectoryHandle,
+		);
 		await store.writeBinaries!({ "/demo/place.rbxl": PLACE });
 
 		FakeDir.failWritesAfter = 1;
-		await expect(store.writeBinaries!({
-			"/demo/a.rbxl": new Uint8Array([1]), "/demo/b.rbxl": new Uint8Array([2]),
-		})).rejects.toThrow(/closed/);
+		await expect(
+			store.writeBinaries!({
+				"/demo/a.rbxl": new Uint8Array([1]),
+				"/demo/b.rbxl": new Uint8Array([2]),
+			}),
+		).rejects.toThrow(/closed/);
 		FakeDir.failWritesAfter = Number.POSITIVE_INFINITY;
 
 		expect(await store.readBinaries!()).toEqual({ "/demo/place.rbxl": PLACE });
@@ -355,9 +377,14 @@ describe("binaries in the origin private filesystem", () => {
 	it("reads a store written before the pointer, and clears every set", async () => {
 		const root = new FakeDir("root");
 		const legacy = await root.getDirectoryHandle("binaries", { create: true });
-		const file = await legacy.getFileHandle(encodeURIComponent("/demo/place.rbxl"), { create: true });
+		const file = await legacy.getFileHandle(encodeURIComponent("/demo/place.rbxl"), {
+			create: true,
+		});
 		await (await file.createWritable()).write(PLACE);
-		const store = opfsStore("project.json", async () => root as unknown as FileSystemDirectoryHandle);
+		const store = opfsStore(
+			"project.json",
+			async () => root as unknown as FileSystemDirectoryHandle,
+		);
 		expect(await store.readBinaries!()).toEqual({ "/demo/place.rbxl": PLACE });
 
 		await store.clear();
@@ -394,7 +421,8 @@ class FakeDir {
 	}
 
 	async removeEntry(name: string): Promise<void> {
-		if (!this.files.delete(name) && !this.dirs.delete(name)) throw new DOMException(name, "NotFoundError");
+		if (!this.files.delete(name) && !this.dirs.delete(name))
+			throw new DOMException(name, "NotFoundError");
 	}
 
 	async *values(): AsyncGenerator<FakeDir | FakeEntry> {
@@ -422,7 +450,8 @@ class FakeEntry {
 		FakeDir.failWritesAfter--;
 		return {
 			write: async (chunk: string | Uint8Array) => {
-				this.data = typeof chunk === "string" ? new TextEncoder().encode(chunk) : new Uint8Array(chunk);
+				this.data =
+					typeof chunk === "string" ? new TextEncoder().encode(chunk) : new Uint8Array(chunk);
 			},
 			close: async () => undefined,
 		};

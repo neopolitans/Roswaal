@@ -23,19 +23,23 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES, categories, createRegistry } from "../src/core/nodes/index.js";
-import { allPages, buildSite, findPage } from "../src/core/docs/site.js";
-import { renderPage } from "../src/core/docs/html.js";
-import {
-	CATEGORY_RUNTIME, classify, crossRuntimeModule, NODE_RUNTIME, RUNTIME_LABEL,
-	RUNTIME_SUMMARY, RUNTIMES,
-	runtimeOf, targetsFor, withRuntimes,
-} from "../src/core/nodes/runtimes.js";
-import {
-	FILTER_LABEL, FILTER_SUMMARY, MENU_FILTERS,
-} from "../src/app/preferences.js";
 import { buildPresets, libraryItems, narrowItems } from "../src/app/menuSearch.js";
+import { FILTER_LABEL, FILTER_SUMMARY, MENU_FILTERS } from "../src/app/preferences.js";
+import { renderPage } from "../src/core/docs/html.js";
+import { allPages, buildSite, findPage } from "../src/core/docs/site.js";
+import { BUILTIN_NODES, categories, createRegistry } from "../src/core/nodes/index.js";
+import {
+	CATEGORY_RUNTIME,
+	classify,
+	crossRuntimeModule,
+	NODE_RUNTIME,
+	RUNTIME_LABEL,
+	RUNTIME_SUMMARY,
+	RUNTIMES,
+	runtimeOf,
+	targetsFor,
+	withRuntimes,
+} from "../src/core/nodes/runtimes.js";
 import type { NodeDef } from "../src/core/schema.js";
 
 const registry = createRegistry();
@@ -60,8 +64,9 @@ describe("every node says what it runs on", () => {
 	it("names no category that is not in the registry", () => {
 		const real = new Set(categories(registry));
 		for (const named of Object.keys(CATEGORY_RUNTIME)) {
-			expect(real.has(named), `CATEGORY_RUNTIME names "${named}", which is not a category`)
-				.toBe(true);
+			expect(real.has(named), `CATEGORY_RUNTIME names "${named}", which is not a category`).toBe(
+				true,
+			);
 		}
 	});
 
@@ -156,14 +161,21 @@ describe("what a Lune graph is offered", () => {
 		expect(offered.length).toBeGreaterThan(held.length);
 		// The ones held back are exactly the two families Lune has no
 		// implementation of, rather than an arbitrary remainder.
-		expect([...new Set(held.map((def) => def.subcategory))].sort())
-			.toEqual(["Tween", "TweenInfo"]);
+		expect([...new Set(held.map((def) => def.subcategory))].sort()).toEqual(["Tween", "TweenInfo"]);
 	});
 
 	it("keeps the language in it", () => {
 		const lune = new Set(forTarget("lune").map((d) => d.id));
-		for (const id of ["math.add", "string.format", "table.insert", "debug.print", "debug.warn",
-			"coroutine.create", "flow.branch", "value.number"]) {
+		for (const id of [
+			"math.add",
+			"string.format",
+			"table.insert",
+			"debug.print",
+			"debug.warn",
+			"coroutine.create",
+			"flow.branch",
+			"value.number",
+		]) {
 			expect(lune.has(id), `${id} is missing from a Lune graph`).toBe(true);
 		}
 	});
@@ -274,7 +286,10 @@ describe("runtime as an axis", () => {
 	 * graph has, or about which of a function's parameters are in scope.
 	 */
 	it("offers This graph in both searches, from one source", () => {
-		const [preset] = buildPresets({ variables: [{ id: "v", name: "hp", type: "number" }], nodes: [] });
+		const [preset] = buildPresets({
+			variables: [{ id: "v", name: "hp", type: "number" }],
+			nodes: [],
+		});
 		const [item] = libraryItems(registry, "roblox", [preset]);
 		expect(item.key).toBe(preset.key);
 		expect(item.runtime).toBe("graph");
@@ -293,8 +308,7 @@ describe("runtime as an axis", () => {
 	 * variable in a graph previews as the same nameless capsule.
 	 */
 	it("draws a graph's own entry as the node it will place", () => {
-		expect(source("src/app/NodePicker.tsx"))
-			.toContain("previewOf(chosen.def, chosen.config)");
+		expect(source("src/app/NodePicker.tsx")).toContain("previewOf(chosen.def, chosen.config)");
 	});
 
 	/** Runtimes still cover the library, with `graph` added on top rather than into it. */
@@ -444,8 +458,13 @@ describe("the tag on a node's page", () => {
 describe("stamping the runtimes on", () => {
 	it("leaves a definition that declares its own alone", () => {
 		const declared: NodeDef = {
-			id: "x.y", title: "X", category: "Math", targets: ["lune"],
-			pure: true, inputs: [], outputs: [],
+			id: "x.y",
+			title: "X",
+			category: "Math",
+			targets: ["lune"],
+			pure: true,
+			inputs: [],
+			outputs: [],
 			compilesTo: { kind: "expr", outputs: { result: "1" } },
 		};
 		expect(withRuntimes([declared])[0].targets).toEqual(["lune"]);
@@ -467,8 +486,12 @@ describe("stamping the runtimes on", () => {
 	/** A pack's node is the project's to classify; we do not guess for it. */
 	it("does not stamp a node pack's nodes", () => {
 		const pack: NodeDef = {
-			id: "mypack.thing", title: "Thing", category: "Math",
-			pure: true, inputs: [], outputs: [],
+			id: "mypack.thing",
+			title: "Thing",
+			category: "Math",
+			pure: true,
+			inputs: [],
+			outputs: [],
 			compilesTo: { kind: "expr", outputs: { result: "1" } },
 		};
 		expect(createRegistry([pack]).get("mypack.thing")!.targets).toBeUndefined();

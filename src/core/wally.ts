@@ -70,8 +70,10 @@ export function thunkTarget(text: string): string[] | undefined {
 	// or a module that returns another among code of its own -- a package
 	// vendored in its place, as some projects do -- is not one.
 	const { block } = luauFile(text);
-	const target = block.length === 1 && block[0].kind === "return" ? moduleExports(text).reexport : undefined;
-	if (target?.kind !== "instance" || target.from !== "script" || target.names[0] !== "..") return undefined;
+	const target =
+		block.length === 1 && block[0].kind === "return" ? moduleExports(text).reexport : undefined;
+	if (target?.kind !== "instance" || target.from !== "script" || target.names[0] !== "..")
+		return undefined;
 	// Below `script.Parent`, a further `.Parent` is named as written: a
 	// package's own thunks reach `script.Parent.Parent[folder]`.
 	const names = target.names.slice(1).map((name) => (name === ".." ? "Parent" : name));
@@ -89,10 +91,16 @@ export function indexVersion(folder: string): string | undefined {
 // ---------------------------------------------------------------------------
 
 /** `sleitnick/signal@^2.0.0`, as its parts. The version is optional when adding. */
-export function parseSpec(spec: string): { scope: string; name: string; version?: string } | undefined {
+export function parseSpec(
+	spec: string,
+): { scope: string; name: string; version?: string } | undefined {
 	const found = /^\s*([a-z0-9_-]+)\/([a-z0-9_-]+)(?:@([^\s]+))?\s*$/i.exec(spec);
 	if (!found) return undefined;
-	return { scope: found[1].toLowerCase(), name: found[2].toLowerCase(), ...(found[3] ? { version: found[3] } : {}) };
+	return {
+		scope: found[1].toLowerCase(),
+		name: found[2].toLowerCase(),
+		...(found[3] ? { version: found[3] } : {}),
+	};
 }
 
 type Semver = [number, number, number];
@@ -111,7 +119,9 @@ const compare = (a: Semver, b: Semver) => a[0] - b[0] || a[1] - b[1] || a[2] - b
  * Pre-releases are left out, as Wally leaves them out unless named.
  */
 export function pickVersion(versions: readonly string[], requirement?: string): string | undefined {
-	const parsed = versions.map((v) => [v, semver(v)] as const).filter((p): p is readonly [string, Semver] => p[1] !== undefined);
+	const parsed = versions
+		.map((v) => [v, semver(v)] as const)
+		.filter((p): p is readonly [string, Semver] => p[1] !== undefined);
 	const req = requirement?.trim().replace(/^\^/, "");
 	let allowed = parsed;
 	if (req && req.startsWith("=")) {
@@ -119,14 +129,16 @@ export function pickVersion(versions: readonly string[], requirement?: string): 
 	} else if (req) {
 		const low = semver(req);
 		if (!low) return undefined;
-		const high: Semver = low[0] > 0 ? [low[0] + 1, 0, 0] : low[1] > 0 ? [0, low[1] + 1, 0] : [0, 0, low[2] + 1];
+		const high: Semver =
+			low[0] > 0 ? [low[0] + 1, 0, 0] : low[1] > 0 ? [0, low[1] + 1, 0] : [0, 0, low[2] + 1];
 		allowed = parsed.filter(([, v]) => compare(v, low) >= 0 && compare(v, high) < 0);
 	}
 	return [...allowed].sort((a, b) => compare(b[1], a[1]))[0]?.[0];
 }
 
 /** `_Index`'s folder for a package: `sleitnick_signal@2.0.3`. */
-export const indexFolder = (scope: string, name: string, version: string) => `${scope}_${name}@${version}`;
+export const indexFolder = (scope: string, name: string, version: string) =>
+	`${scope}_${name}@${version}`;
 
 /**
  * The thunk Wally writes for a dependency: in the realm's folder, reaching
@@ -138,14 +150,23 @@ export function thunkFor(folder: string, name: string, inIndex = false): string 
 	return `return require(${index}["${folder}"]["${name}"])\n`;
 }
 
-const SECTION_OF: Record<WallyRealm, string> = { shared: "dependencies", server: "server-dependencies", dev: "dev-dependencies" };
+const SECTION_OF: Record<WallyRealm, string> = {
+	shared: "dependencies",
+	server: "server-dependencies",
+	dev: "dev-dependencies",
+};
 
 /**
  * `wally.toml` with `alias = "spec"` in the realm's table: the line replaced
  * when the alias is there, added at the end of the table when not, and the
  * table added when the file has none. Everything else is left as written.
  */
-export function withDependency(text: string, realm: WallyRealm, alias: string, spec: string): string {
+export function withDependency(
+	text: string,
+	realm: WallyRealm,
+	alias: string,
+	spec: string,
+): string {
 	const eol = text.includes("\r\n") ? "\r\n" : "\n";
 	const lines = text.split(/\r?\n/);
 	const section = SECTION_OF[realm];
@@ -157,7 +178,9 @@ export function withDependency(text: string, realm: WallyRealm, alias: string, s
 	}
 	let end = start + 1;
 	while (end < lines.length && !/^\s*\[/.test(lines[end])) end++;
-	const existing = lines.slice(start + 1, end).findIndex((l) => new RegExp(`^\\s*["']?${alias}["']?\\s*=`).test(l));
+	const existing = lines
+		.slice(start + 1, end)
+		.findIndex((l) => new RegExp(`^\\s*["']?${alias}["']?\\s*=`).test(l));
 	if (existing !== -1) {
 		lines[start + 1 + existing] = line;
 	} else {
@@ -174,15 +197,20 @@ export function withoutDependency(text: string, alias: string): string {
 	const eol = text.includes("\r\n") ? "\r\n" : "\n";
 	const pattern = new RegExp(`^\\s*["']?${alias}["']?\\s*=`);
 	let inDependencies = false;
-	return text.split(/\r?\n/).filter((line) => {
-		const table = /^\s*\[([^\]]+)\]/.exec(line);
-		if (table) inDependencies = table[1].trim() in SECTIONS;
-		return !(inDependencies && pattern.test(line));
-	}).join(eol);
+	return text
+		.split(/\r?\n/)
+		.filter((line) => {
+			const table = /^\s*\[([^\]]+)\]/.exec(line);
+			if (table) inDependencies = table[1].trim() in SECTIONS;
+			return !(inDependencies && pattern.test(line));
+		})
+		.join(eol);
 }
 
 /** What a Wally package's own `wally.toml` says it is, from `[package]`. */
-export function packageOf(text: string): { scope: string; name: string; version: string; realm?: WallyRealm } | undefined {
+export function packageOf(
+	text: string,
+): { scope: string; name: string; version: string; realm?: WallyRealm } | undefined {
 	let inPackage = false;
 	const out: Record<string, string> = {};
 	for (const raw of text.split(/\r?\n/)) {

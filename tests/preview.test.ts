@@ -14,23 +14,29 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import {
-	graphSvg, placeGraph, placedPinAnchor, previewOf, previewOfPlaced, previewRowY, previewSize,
-	straighten,
-	previewSvg,
-	describe as describePreview, type PreviewOptions,
-} from "../src/core/docs/preview.js";
-import { buildSite } from "../src/core/docs/site.js";
-import { documentRegistry } from "../src/core/docs/nodeReference.js";
-import { CURATED, GUIDE_SCENES } from "../src/core/docs/examples.js";
-import { renderPage } from "../src/core/docs/html.js";
 import { nodeBounds, pinPosition, wirePath } from "../src/app/geometry.js";
 import { NODE } from "../src/app/layers.js";
 import { nodeColor, pinColor } from "../src/app/palette.js";
-import { emptyScript, type GraphNode, type NodeDef, type NodeScript } from "../src/core/schema.js";
+import { CURATED, GUIDE_SCENES } from "../src/core/docs/examples.js";
 import { graphViews } from "../src/core/docs/graphViews.js";
+import { renderPage } from "../src/core/docs/html.js";
+import { documentRegistry } from "../src/core/docs/nodeReference.js";
+import {
+	describe as describePreview,
+	graphSvg,
+	type PreviewOptions,
+	placedPinAnchor,
+	placeGraph,
+	previewOf,
+	previewOfPlaced,
+	previewRowY,
+	previewSize,
+	previewSvg,
+	straighten,
+} from "../src/core/docs/preview.js";
+import { buildSite } from "../src/core/docs/site.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
+import { emptyScript, type GraphNode, type NodeDef, type NodeScript } from "../src/core/schema.js";
 
 const registry = createRegistry();
 const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
@@ -76,7 +82,10 @@ describe("preview geometry", () => {
 		// A Declare Local showing a long name is the case the option exists for.
 		const declare = registry.get("local.declare")!;
 		const named = {
-			id: "n", def: declare.id, x: 0, y: 0,
+			id: "n",
+			def: declare.id,
+			x: 0,
+			y: 0,
 			literals: { name: { t: "string", v: "restoresByCharacterModel" } },
 		} as const;
 		expect(nodeBounds(named, registry, true).w).toBeGreaterThan(NODE.width);
@@ -101,8 +110,7 @@ describe("preview geometry", () => {
 				pins.forEach((pin, i) => {
 					const onCanvas = pinPosition(node, registry, pin.id, side);
 					expect(onCanvas, `${def.id} ${side}:${pin.id}`).not.toBeNull();
-					expect(previewRowY(preview, NODE, i), `${def.id} ${side}:${pin.id}`)
-						.toBe(onCanvas!.y);
+					expect(previewRowY(preview, NODE, i), `${def.id} ${side}:${pin.id}`).toBe(onCanvas!.y);
 				});
 			}
 		}
@@ -201,8 +209,9 @@ describe("preview geometry", () => {
 				["out", preview.outputs] as const,
 			]) {
 				for (const pin of pins) {
-					expect(placedPinAnchor(entry, pin.id, side, NODE), `${def.id} ${side}:${pin.id}`)
-						.toEqual(pinPosition(node, registry, pin.id, side));
+					expect(placedPinAnchor(entry, pin.id, side, NODE), `${def.id} ${side}:${pin.id}`).toEqual(
+						pinPosition(node, registry, pin.id, side),
+					);
 				}
 			}
 		}
@@ -303,12 +312,12 @@ describe("previews in the documentation", () => {
 	});
 
 	it("shows the two escape hatches side by side", () => {
-		const page = site.sections
-			.flatMap((s) => s.pages)
-			.find((p) => p.slug === "hand-written-luau")!;
+		const page = site.sections.flatMap((s) => s.pages).find((p) => p.slug === "hand-written-luau")!;
 		const block = page.blocks.find((b) => b.t === "preview");
-		expect(block?.t === "preview" && block.nodes.map((n) => n.id))
-			.toEqual(["code.custom", "value.expression"]);
+		expect(block?.t === "preview" && block.nodes.map((n) => n.id)).toEqual([
+			"code.custom",
+			"value.expression",
+		]);
 	});
 
 	it("omits previews rather than inventing sizes when none are configured", () => {
@@ -318,7 +327,7 @@ describe("previews in the documentation", () => {
 
 		const with_ = renderPage(site, page, { version: "test", preview: options });
 		expect(with_).toContain("docs-preview");
-		expect(with_).toContain("<svg class=\"node-preview\"");
+		expect(with_).toContain('<svg class="node-preview"');
 	});
 });
 
@@ -398,10 +407,13 @@ describe("graph preview geometry", () => {
 			const placedNodes = placeGraph(script, registry, graphOptions);
 			for (let i = 0; i < placedNodes.length; i++) {
 				for (let j = i + 1; j < placedNodes.length; j++) {
-					const a = placedNodes[i], b = placedNodes[j];
+					const a = placedNodes[i],
+						b = placedNodes[j];
 					const overlaps =
-						a.x < b.x + b.width && a.x + a.width > b.x &&
-						a.y < b.y + b.height && a.y + a.height > b.y;
+						a.x < b.x + b.width &&
+						a.x + a.width > b.x &&
+						a.y < b.y + b.height &&
+						a.y + a.height > b.y;
 					expect(overlaps, `${id}: ${a.node.def} overlaps ${b.node.def}`).toBe(false);
 				}
 			}
@@ -414,8 +426,8 @@ describe("graph preview geometry", () => {
 		const scene = scenes.find(([, s]) => s.links.length > 0)!;
 		const withoutWires = graphSvg(scene[1], registry, options);
 		const withWires = graphSvg(scene[1], registry, graphOptions);
-		expect(withoutWires).not.toContain("<path d=\"M ");
-		expect(withWires).toContain("<path d=\"M ");
+		expect(withoutWires).not.toContain('<path d="M ');
+		expect(withWires).toContain('<path d="M ');
 	});
 
 	/**
@@ -425,7 +437,7 @@ describe("graph preview geometry", () => {
 	it("escapes a hostile node title in the label it builds", () => {
 		const hostile: NodeDef = {
 			id: "pack.evil",
-			title: '</text><script>alert(1)</script>',
+			title: "</text><script>alert(1)</script>",
 			category: "Debug",
 			inputs: [],
 			outputs: [],

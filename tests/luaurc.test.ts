@@ -13,8 +13,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	aliasesOf, aliasNameOf, chainFor, lookupAlias, parseLuaurc, resolveSpecifier, withAliases,
+	aliasesOf,
+	aliasNameOf,
+	chainFor,
 	type LuaurcChain,
+	lookupAlias,
+	parseLuaurc,
+	resolveSpecifier,
+	withAliases,
 } from "../src/core/luaurc.js";
 import { checkSpecifier } from "../src/core/modules.js";
 
@@ -27,10 +33,13 @@ const json = (aliases: Record<string, string>) => JSON.stringify({ aliases });
 
 describe("reading one", () => {
 	it("takes the aliases and leaves everything else alone", () => {
-		const file = parseLuaurc("", JSON.stringify({
-			languageMode: "strict",
-			aliases: { roact: "./Packages/Roact" },
-		}));
+		const file = parseLuaurc(
+			"",
+			JSON.stringify({
+				languageMode: "strict",
+				aliases: { roact: "./Packages/Roact" },
+			}),
+		);
 		expect(file.problems).toEqual([]);
 		expect(file.aliases.get("roact")?.value).toBe("./Packages/Roact");
 	});
@@ -41,14 +50,17 @@ describe("reading one", () => {
 	 * and refusing it would be refusing the project rather than the file.
 	 */
 	it("tolerates comments and a trailing comma", () => {
-		const file = parseLuaurc("", [
-			"{",
-			'  // what the UI code is built on',
-			'  "aliases": {',
-			'    "roact": "./Packages/Roact", /* vendored */',
-			"  },",
-			"}",
-		].join("\n"));
+		const file = parseLuaurc(
+			"",
+			[
+				"{",
+				"  // what the UI code is built on",
+				'  "aliases": {',
+				'    "roact": "./Packages/Roact", /* vendored */',
+				"  },",
+				"}",
+			].join("\n"),
+		);
 		expect(file.problems).toEqual([]);
 		expect(file.aliases.get("roact")?.value).toBe("./Packages/Roact");
 	});
@@ -113,10 +125,7 @@ describe("inheriting up the tree", () => {
 	});
 
 	it("lets a nearer file override one name without taking the rest", () => {
-		const files = chain(
-			["src", json({ a: "./near" })],
-			["", json({ a: "./far", b: "./far-b" })],
-		);
+		const files = chain(["src", json({ a: "./near" })], ["", json({ a: "./far", b: "./far-b" })]);
 		expect(lookupAlias(files, "a")).toMatchObject({ kind: "found", alias: { path: "src/near" } });
 		expect(lookupAlias(files, "b")).toMatchObject({ kind: "found", alias: { path: "far-b" } });
 	});
@@ -143,17 +152,20 @@ describe("where a relative value lands", () => {
 			["", json({ far: "./Packages/Thing" })],
 		);
 		expect(lookupAlias(files, "far")).toMatchObject({
-			kind: "found", alias: { path: "Packages/Thing", from: "" },
+			kind: "found",
+			alias: { path: "Packages/Thing", from: "" },
 		});
 		expect(lookupAlias(files, "near")).toMatchObject({
-			kind: "found", alias: { path: "src/ui/panels/x" },
+			kind: "found",
+			alias: { path: "src/ui/panels/x" },
 		});
 	});
 
 	it("walks `..` out of the defining directory", () => {
 		const files = chain(["src/ui", json({ shared: "../shared/lib" })]);
 		expect(lookupAlias(files, "shared")).toMatchObject({
-			kind: "found", alias: { path: "src/shared/lib" },
+			kind: "found",
+			alias: { path: "src/shared/lib" },
 		});
 	});
 
@@ -161,7 +173,8 @@ describe("where a relative value lands", () => {
 	it("leaves an absolute value alone", () => {
 		const files = chain(["src", json({ vendor: "/opt/luau/vendor" })]);
 		expect(lookupAlias(files, "vendor")).toMatchObject({
-			kind: "found", alias: { path: "/opt/luau/vendor" },
+			kind: "found",
+			alias: { path: "/opt/luau/vendor" },
 		});
 	});
 });
@@ -180,7 +193,8 @@ describe("chains", () => {
 	it("keeps the tail of an aliased value", () => {
 		const files = chain(["", json({ comp: "@roact/Component", roact: "./Packages/Roact" })]);
 		expect(lookupAlias(files, "comp")).toMatchObject({
-			kind: "found", alias: { path: "Packages/Roact/Component" },
+			kind: "found",
+			alias: { path: "Packages/Roact/Component" },
 		});
 	});
 
@@ -191,7 +205,8 @@ describe("chains", () => {
 			["", json({ widgets: "./Packages/Widgets" })],
 		);
 		expect(lookupAlias(files, "ui")).toMatchObject({
-			kind: "found", alias: { path: "Packages/Widgets" },
+			kind: "found",
+			alias: { path: "Packages/Widgets" },
 		});
 	});
 
@@ -209,8 +224,10 @@ describe("chains", () => {
 	});
 
 	it("reports a name nothing defines", () => {
-		expect(lookupAlias(chain(["", json({})]), "roact"))
-			.toMatchObject({ kind: "missing", name: "roact" });
+		expect(lookupAlias(chain(["", json({})]), "roact")).toMatchObject({
+			kind: "missing",
+			name: "roact",
+		});
 	});
 });
 
@@ -218,13 +235,17 @@ describe("a whole specifier", () => {
 	const files = chain(["", json({ roact: "./Packages/Roact" })]);
 
 	it("puts what follows the alias on the end of its path", () => {
-		expect(resolveSpecifier(files, "@roact/Component/init"))
-			.toMatchObject({ kind: "found", alias: { path: "Packages/Roact/Component/init" } });
+		expect(resolveSpecifier(files, "@roact/Component/init")).toMatchObject({
+			kind: "found",
+			alias: { path: "Packages/Roact/Component/init" },
+		});
 	});
 
 	it("is the alias itself when there is nothing after it", () => {
-		expect(resolveSpecifier(files, "@roact"))
-			.toMatchObject({ kind: "found", alias: { path: "Packages/Roact" } });
+		expect(resolveSpecifier(files, "@roact")).toMatchObject({
+			kind: "found",
+			alias: { path: "Packages/Roact" },
+		});
 	});
 
 	it("reads the alias out of a specifier, and nothing out of a path", () => {
@@ -250,8 +271,9 @@ describe("checking a specifier against the map", () => {
 	const empty = chain(["", json({})]);
 
 	it("says nothing about an alias the project defines", () => {
-		expect(checkSpecifier("@roact/Component", "lune", { luaurc: defined, hasLuaurc: true }))
-			.toBeNull();
+		expect(
+			checkSpecifier("@roact/Component", "lune", { luaurc: defined, hasLuaurc: true }),
+		).toBeNull();
 	});
 
 	it("matches the definition regardless of case", () => {
@@ -298,8 +320,10 @@ describe("checking a specifier against the map", () => {
 	/** `@self` and `@game` are the engine's and are in no alias map. */
 	it("leaves Roblox's own prefixes alone", () => {
 		for (const specifier of ["@self/Child", "@game/ReplicatedStorage"]) {
-			expect(checkSpecifier(specifier, "roblox", { luaurc: empty, hasLuaurc: true }), specifier)
-				.toBeNull();
+			expect(
+				checkSpecifier(specifier, "roblox", { luaurc: empty, hasLuaurc: true }),
+				specifier,
+			).toBeNull();
 		}
 	});
 });
@@ -330,8 +354,11 @@ describe("the chain for a file", () => {
 	});
 
 	it("skips directories with no file of their own", () => {
-		expect(chainFor(files, "src/ui/deep/er/Panel.nodescript").map((f) => f.dir))
-			.toEqual(["src/ui", "src", ""]);
+		expect(chainFor(files, "src/ui/deep/er/Panel.nodescript").map((f) => f.dir)).toEqual([
+			"src/ui",
+			"src",
+			"",
+		]);
 	});
 
 	it("is the root alone for a file at the top", () => {
@@ -340,8 +367,11 @@ describe("the chain for a file", () => {
 
 	/** A path off a Windows filesystem still names the same directories. */
 	it("reads a backslash path the same way", () => {
-		expect(chainFor(files, "src\\ui\\Panel.nodescript").map((f) => f.dir))
-			.toEqual(["src/ui", "src", ""]);
+		expect(chainFor(files, "src\\ui\\Panel.nodescript").map((f) => f.dir)).toEqual([
+			"src/ui",
+			"src",
+			"",
+		]);
 	});
 });
 
@@ -431,8 +461,7 @@ describe("writing one", () => {
 
 	/** `aliases` inside some other field is somebody else's field. */
 	it("only touches the top-level aliases", () => {
-		const before =
-			'{\n\t"lint": { "aliases": { "nested": "./no" } },\n\t"aliases": {}\n}';
+		const before = '{\n\t"lint": { "aliases": { "nested": "./no" } },\n\t"aliases": {}\n}';
 		const after = withAliases(before, aliases);
 		const text = after.kind === "text" ? after.text : "";
 		expect(text).toContain('"nested": "./no"');

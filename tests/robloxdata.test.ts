@@ -9,17 +9,27 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import {
-	CLASSES, DATATYPES, ENUMS, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
-} from "../src/core/robloxData.js";
-import {
-	CLASS_OPTIONS, classChain, classGroup, INSTANCE_CLASSES, isInstanceClass, isSubclassOf, renderPath,
-} from "../src/core/roblox.js";
+import { type DraftPin, defOf, draftOf, newDraft } from "../src/app/designer/draft.js";
+import { searchTypes } from "../src/app/TypePicker.jsx";
 import { typesCompatible } from "../src/core/compiler/validate.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
-import { searchTypes } from "../src/app/TypePicker.jsx";
-import { defOf, draftOf, newDraft, type DraftPin } from "../src/app/designer/draft.js";
+import {
+	CLASS_OPTIONS,
+	classChain,
+	classGroup,
+	INSTANCE_CLASSES,
+	isInstanceClass,
+	isSubclassOf,
+	renderPath,
+} from "../src/core/roblox.js";
+import {
+	CLASSES,
+	DATATYPES,
+	ENUMS,
+	LIBRARIES,
+	LUAU_GLOBALS,
+	ROBLOX_GLOBALS,
+} from "../src/core/robloxData.js";
 
 const registry = createRegistry();
 
@@ -141,8 +151,12 @@ describe("the type search behind Other…", () => {
  */
 describe("a pin's choices in Node Design", () => {
 	const pin = (over: Partial<DraftPin> = {}): DraftPin => ({
-		id: "className", name: "Class Name", kind: "data", type: "string",
-		default: { t: "string", v: "Part" }, ...over,
+		id: "className",
+		name: "Class Name",
+		kind: "data",
+		type: "string",
+		default: { t: "string", v: "Part" },
+		...over,
 	});
 
 	it("survives a round trip through the pack and back", () => {
@@ -172,7 +186,14 @@ describe("a pin's choices in Node Design", () => {
  */
 describe("the class hierarchy", () => {
 	it("reads a chain from a class to the root", () => {
-		expect(classChain("Part")).toEqual(["Part", "FormFactorPart", "BasePart", "PVInstance", "Instance", "Object"]);
+		expect(classChain("Part")).toEqual([
+			"Part",
+			"FormFactorPart",
+			"BasePart",
+			"PVInstance",
+			"Instance",
+			"Object",
+		]);
 	});
 
 	it("gives an unknown name back on its own", () => {

@@ -11,8 +11,19 @@ import { asRbxError, type RbxDocument, RbxError } from "./dom.js";
 import { readXml } from "./xml.js";
 
 export {
-	asRbxError, type CFrameValue, isScript, pathOf, type Prop, type PropType, type RbxDocument, RbxError,
-	type RbxInstance, SCRIPT_CLASSES, stringProp, text, walk,
+	asRbxError,
+	type CFrameValue,
+	isScript,
+	type Prop,
+	type PropType,
+	pathOf,
+	type RbxDocument,
+	RbxError,
+	type RbxInstance,
+	SCRIPT_CLASSES,
+	stringProp,
+	text,
+	walk,
 } from "./dom.js";
 
 /** File extensions a place or model can have. */
@@ -23,7 +34,8 @@ export function readRbx(bytes: Uint8Array): RbxDocument {
 	try {
 		if (isBinaryRbx(bytes)) return readBinary(bytes);
 		const head = new TextDecoder().decode(bytes.subarray(0, 512)).trimStart();
-		if (head.startsWith("<roblox") || head.startsWith("<?xml")) return readXml(new TextDecoder().decode(bytes));
+		if (head.startsWith("<roblox") || head.startsWith("<?xml"))
+			return readXml(new TextDecoder().decode(bytes));
 	} catch (error) {
 		throw asRbxError(error, "the file is damaged");
 	}

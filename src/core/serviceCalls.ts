@@ -34,10 +34,16 @@
  */
 
 import {
-	argPinId, argumentPin, callLabelOf, execPin, memberOf, ownerOf, splitCallText,
+	argPinId,
+	argumentPin,
 	type CallSpelling,
+	callLabelOf,
+	execPin,
+	memberOf,
+	ownerOf,
+	splitCallText,
 } from "./callNodes.js";
-import { CLASS_OPTIONS, ROBLOX_SERVICES, isService } from "./roblox.js";
+import { CLASS_OPTIONS, isService, ROBLOX_SERVICES } from "./roblox.js";
 import { SERVICE_METHODS, type ServiceMethod } from "./robloxMembers.js";
 import type { Literal, NodeConfig, PinDef } from "./schema.js";
 
@@ -55,7 +61,8 @@ export function methodsOfService(service: string): readonly ServiceMethod[] {
 }
 
 export function serviceMethod(
-	service: string | undefined, method: string | undefined,
+	service: string | undefined,
+	method: string | undefined,
 ): ServiceMethod | undefined {
 	if (!service || !method) return undefined;
 	return methodsOfService(service).find((m) => m.name === method);
@@ -101,13 +108,16 @@ export function argumentPins(method: ServiceMethod): PinDef[] {
 function unknownArgPins(c: NodeConfig | undefined): PinDef[] {
 	const raw = c?.args;
 	const count = typeof raw === "number" && raw >= 0 ? Math.min(Math.floor(raw), 12) : 0;
-	return Array.from({ length: count }, (_unused, i): PinDef => ({
-		id: argPinId(i),
-		name: `Argument ${i + 1}`,
-		kind: "data",
-		type: "any",
-		default: { t: "nil" },
-	}));
+	return Array.from(
+		{ length: count },
+		(_unused, i): PinDef => ({
+			id: argPinId(i),
+			name: `Argument ${i + 1}`,
+			kind: "data",
+			type: "any",
+			default: { t: "nil" },
+		}),
+	);
 }
 
 /**
@@ -153,7 +163,8 @@ function serviceReceiverPin(service: string): PinDef {
  * node, because which node you placed is a decision you made.
  */
 export function servicePins(
-	c: NodeConfig | undefined, pure: boolean,
+	c: NodeConfig | undefined,
+	pure: boolean,
 ): { inputs: PinDef[]; outputs: PinDef[] } {
 	const method = serviceMethod(serviceOf(c), methodOf(c));
 
@@ -169,9 +180,16 @@ export function servicePins(
 	const returns = method ? method.returns : "any";
 	const outputs: PinDef[] = [
 		...(pure ? [] : [execPin("then")]),
-		...(returns === "" ? [] : [{
-			id: "result", name: pure ? "" : "Result", kind: "data" as const, type: returns,
-		}]),
+		...(returns === ""
+			? []
+			: [
+					{
+						id: "result",
+						name: pure ? "" : "Result",
+						kind: "data" as const,
+						type: returns,
+					},
+				]),
 	];
 
 	return { inputs, outputs };

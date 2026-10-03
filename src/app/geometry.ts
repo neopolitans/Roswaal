@@ -6,10 +6,10 @@
  * layout never depends on when React commits.
  */
 
-import { NODE } from "./layers.js";
+import type { Registry } from "../core/nodes/index.js";
 import { execReach } from "../core/pinLayout.js";
 import type { GraphNode } from "../core/schema.js";
-import type { Registry } from "../core/nodes/index.js";
+import { NODE } from "./layers.js";
 
 export interface Vec {
 	x: number;
@@ -23,18 +23,40 @@ export interface Vec {
  * still reaches for it in the place it always did.
  */
 export {
-	compactLabel, compactWidth, headerHeight, isCompact, isOperator, isReroute, nodeBounds,
-	nodeHeight, nodeWidth, operatorLayoutOf, rectContains, resolvePins, type Rect,
+	compactLabel,
+	compactWidth,
+	headerHeight,
+	isCompact,
+	isOperator,
+	isReroute,
+	nodeBounds,
+	nodeHeight,
+	nodeWidth,
+	operatorLayoutOf,
+	type Rect,
+	rectContains,
+	resolvePins,
 } from "../core/nodeBox.js";
 
 import {
-	compactWidth, headerHeight, isCompact, isOperator, isReroute, nodeWidth,
-	operatorLayoutOf, resolvePins, type Rect,
+	compactWidth,
+	headerHeight,
+	isCompact,
+	isOperator,
+	isReroute,
+	nodeWidth,
+	operatorLayoutOf,
+	type Rect,
+	resolvePins,
 } from "../core/nodeBox.js";
 
 /** World position of a pin's connection point. */
 export function pinPosition(
-	node: GraphNode, registry: Registry, pinId: string, side: "in" | "out", wide = false,
+	node: GraphNode,
+	registry: Registry,
+	pinId: string,
+	side: "in" | "out",
+	wide = false,
 ): Vec | null {
 	const def = registry.get(node.def);
 	if (!def) return null;
@@ -71,11 +93,7 @@ export function pinPosition(
 	const reach = list[index].kind === "exec" ? execReach(NODE) : 0;
 	return {
 		x: side === "in" ? node.x - reach : node.x + nodeWidth(def, node, wide) + reach,
-		y:
-			node.y +
-			headerHeight(def, node.config) +
-			index * NODE.rowHeight +
-			NODE.rowHeight / 2,
+		y: node.y + headerHeight(def, node.config) + index * NODE.rowHeight + NODE.rowHeight / 2,
 	};
 }
 
@@ -127,9 +145,7 @@ function manhattan(from: Vec, to: Vec): Vec[] {
 	// Two pins at the same height would put the lane straight through both
 	// nodes and the whole detour would collapse onto one invisible line.
 	const midY =
-		Math.abs(to.y - from.y) < NODE.rowHeight
-			? from.y + NODE.wireBackstep
-			: (from.y + to.y) / 2;
+		Math.abs(to.y - from.y) < NODE.rowHeight ? from.y + NODE.wireBackstep : (from.y + to.y) / 2;
 
 	return [
 		from,

@@ -15,7 +15,12 @@ import type { EventStream, Transport } from "../app/api.js";
 import type { ErrorBody } from "../server/errors.js";
 
 import type {
-	ApiRequestMessage, FromWorker, ImportMessage, ImportPlaceMessage, MountMessage, ToWorker,
+	ApiRequestMessage,
+	FromWorker,
+	ImportMessage,
+	ImportPlaceMessage,
+	MountMessage,
+	ToWorker,
 } from "./protocol.js";
 
 export interface WorkerTransport {
@@ -28,16 +33,25 @@ export interface WorkerTransport {
 	 * `roswaal.json`: that is an answer the caller acts on by asking, not a
 	 * failure. Calling again with `initialise` is what the yes turns into.
 	 */
-	mount: (handle: FileSystemDirectoryHandle, initialise?: boolean)
-		=> Promise<{ root: string } | { notAProject: string }>;
+	mount: (
+		handle: FileSystemDirectoryHandle,
+		initialise?: boolean,
+	) => Promise<{ root: string } | { notAProject: string }>;
 	/** A project out of a zip, replacing the browser's own. Answers as `mount` does. */
 	importProject: (
-		name: string, files: Record<string, string>, dirs: string[], initialise?: boolean,
+		name: string,
+		files: Record<string, string>,
+		dirs: string[],
+		initialise?: boolean,
 		binaries?: Record<string, Uint8Array>,
 	) => Promise<{ root: string } | { notAProject: string }>;
 	/** A project made from a place, replacing the browser's own. */
-	importPlace: (name: string, files: Record<string, string>, placeFile: string, place: Uint8Array)
-		=> Promise<{ root: string }>;
+	importPlace: (
+		name: string,
+		files: Record<string, string>,
+		placeFile: string,
+		place: Uint8Array,
+	) => Promise<{ root: string }>;
 }
 
 export function workerTransport(worker: Worker): WorkerTransport {
@@ -82,10 +96,12 @@ export function workerTransport(worker: Worker): WorkerTransport {
 
 		return new Promise<Response>((resolve) => {
 			pending.set(message.id, (reply) => {
-				resolve(new Response(JSON.stringify(reply.payload), {
-					status: reply.status,
-					headers: { "Content-Type": "application/json" },
-				}));
+				resolve(
+					new Response(JSON.stringify(reply.payload), {
+						status: reply.status,
+						headers: { "Content-Type": "application/json" },
+					}),
+				);
 			});
 			worker.postMessage(message);
 		});
@@ -119,7 +135,8 @@ export function workerTransport(worker: Worker): WorkerTransport {
 			const id = nextId++;
 			pending.set(id, (reply) => {
 				const payload = (reply.payload ?? {}) as Partial<ErrorBody> & { root?: string };
-				if (reply.status === 200 && typeof payload.root === "string") resolve({ root: payload.root });
+				if (reply.status === 200 && typeof payload.root === "string")
+					resolve({ root: payload.root });
 				else if (payload.code === "not-a-project") resolve({ notAProject: payload.name ?? "" });
 				else reject(new Error(payload.error ?? "It would not open."));
 			});
@@ -137,13 +154,19 @@ export function workerTransport(worker: Worker): WorkerTransport {
 
 	// A project out of a zip, replacing the browser's. See `importZip.ts`.
 	const importProject = (
-		name: string, files: Record<string, string>, dirs: string[], initialise?: boolean,
+		name: string,
+		files: Record<string, string>,
+		dirs: string[],
+		initialise?: boolean,
 		binaries?: Record<string, Uint8Array>,
 	) => call({ kind: "import", name, files, binaries, dirs, initialise });
 
 	// A project made from a place, replacing the browser's. Always one: it has a config.
 	const importPlace = async (
-		name: string, files: Record<string, string>, placeFile: string, place: Uint8Array,
+		name: string,
+		files: Record<string, string>,
+		placeFile: string,
+		place: Uint8Array,
 	) => {
 		const made = await call({ kind: "importPlace", name, files, placeFile, place });
 		if (!("root" in made)) throw new Error("It could not be set up.");

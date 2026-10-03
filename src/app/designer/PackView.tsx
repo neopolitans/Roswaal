@@ -24,7 +24,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { LogicGraph } from "../../core/compiler/logic.js";
-import { previewOf, previewSvg, type PreviewOptions } from "../../core/docs/preview.js";
+import { type PreviewOptions, previewOf, previewSvg } from "../../core/docs/preview.js";
+import { errorMessage } from "../../core/errorMessage.js";
 import { BUILTIN_NODES, parseNodePack } from "../../core/nodes/index.js";
 import { namespaceFor } from "../../core/packs.js";
 import type { NodeDef, Target } from "../../core/schema.js";
@@ -32,14 +33,13 @@ import { api, type PackFile } from "../api.js";
 import { cx } from "../cx.js";
 import { Icon } from "../icons.jsx";
 import { NODE } from "../layers.js";
+import { setLeaveWarning } from "../pages.js";
 import { nodeColor, pinColor } from "../palette.js";
 import type { Preferences } from "../preferences.js";
+import { useCompact } from "../Workspace.jsx";
 import type { PackNode } from "./draft.js";
 import { NodeEditor } from "./NodeEditor.jsx";
-import { useCompact } from "../Workspace.jsx";
-import { setLeaveWarning } from "../pages.js";
-import { targetsLabel, type Notify, type OpenPack } from "./PackBrowser.jsx";
-import { errorMessage } from "../../core/errorMessage.js";
+import { type Notify, type OpenPack, targetsLabel } from "./PackBrowser.jsx";
 
 const PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor, scale: 2 };
 
@@ -61,7 +61,14 @@ export interface PackViewProps {
 }
 
 export function PackView({
-	open, packs, target, onBack, onChanged, notify, prefs, onPrefs,
+	open,
+	packs,
+	target,
+	onBack,
+	onChanged,
+	notify,
+	prefs,
+	onPrefs,
 }: PackViewProps) {
 	const [defs, setDefs] = useState<NodeDef[] | null>(null);
 	// Each node's saved logic graph, by id, which the loader's defs leave out.
@@ -87,9 +94,15 @@ export function PackView({
 				? "A Luau pack is written by hand and opens read-only. Save as JSON pack makes an editable copy."
 				: null;
 
-	const load = useCallback(async (): Promise<{ defs: NodeDef[]; logic: Map<string, LogicGraph> }> => {
+	const load = useCallback(async (): Promise<{
+		defs: NodeDef[];
+		logic: Map<string, LogicGraph>;
+	}> => {
 		if (open.kind === "builtin") {
-			return { defs: BUILTIN_NODES.filter((def) => def.category === open.category), logic: new Map() };
+			return {
+				defs: BUILTIN_NODES.filter((def) => def.category === open.category),
+				logic: new Map(),
+			};
 		}
 		const { nodes } = await api.readPack(open.path);
 		const logic = new Map<string, LogicGraph>();
@@ -132,7 +145,11 @@ export function PackView({
 		const paths = requires
 			.map((name) => packs.find((p) => p.name === name)?.path)
 			.filter((p): p is string => p !== undefined);
-		Promise.all(paths.map((path) => api.readPack(path).then(({ nodes }) => parseNodePack({ nodes }, path).defs))).then(
+		Promise.all(
+			paths.map((path) =>
+				api.readPack(path).then(({ nodes }) => parseNodePack({ nodes }, path).defs),
+			),
+		).then(
 			(lists) => !cancelled && setRequiredDefs(lists.flat()),
 			(err: Error) => notify(err.message, "failed"),
 		);
@@ -160,11 +177,16 @@ export function PackView({
 		const logic = logicById.get(current.id);
 		return logic ? { ...current, logic } : current;
 	}, [current, logicById]);
-	const svg = useMemo(() => (readOnly && current ? previewSvg(previewOf(current), PREVIEW) : ""), [readOnly, current]);
+	const svg = useMemo(
+		() => (readOnly && current ? previewSvg(previewOf(current), PREVIEW) : ""),
+		[readOnly, current],
+	);
 	const onDirty = useCallback((value: boolean) => setDirty(value), []);
 	// Where the pages share a tab, leaving Node Design is leaving this node.
 	useEffect(() => {
-		setLeaveWarning(dirty ? "This node has edits that are not saved. Leave Node Design anyway?" : null);
+		setLeaveWarning(
+			dirty ? "This node has edits that are not saved. Leave Node Design anyway?" : null,
+		);
 		return () => setLeaveWarning(null);
 	}, [dirty]);
 
@@ -217,11 +239,7 @@ export function PackView({
 			)}
 			{compact && listOpen && <div className="pack-scrim" onClick={() => setListOpen(false)} />}
 			<aside
-				className={cx(
-					"pack-nodes",
-					compact && "drawer",
-					compact && listOpen && "drawer-open",
-				)}
+				className={cx("pack-nodes", compact && "drawer", compact && listOpen && "drawer-open")}
 				inert={compact && !listOpen}
 			>
 				<button className="tb with-icon pack-back" onClick={() => go("back")}>
@@ -231,19 +249,27 @@ export function PackView({
 				<h1>{title}</h1>
 				<div className="pack-badges">
 					<span className="badge">
-						{open.kind === "builtin" ? "Built in" : pack?.format === "luau" ? "Luau · read-only" : "JSON"}
+						{open.kind === "builtin"
+							? "Built in"
+							: pack?.format === "luau"
+								? "Luau · read-only"
+								: "JSON"}
 					</span>
 					{pack && <span className="badge">{targetsLabel(pack.targets)}</span>}
 				</div>
 				{readOnly && <p className="hint">{readOnly}</p>}
 				{target && pack?.targets && !pack.targets.includes(target) && (
 					<p className="designer-failed">
-						This project compiles for {target === "lune" ? "Lune" : "Roblox"}, and these nodes do not run there.
+						This project compiles for {target === "lune" ? "Lune" : "Roblox"}, and these nodes do
+						not run there.
 					</p>
 				)}
 
 				{pack && !readOnly && (
-					<div className="pack-requires" title="Packs whose nodes this pack's logic can be built from">
+					<div
+						className="pack-requires"
+						title="Packs whose nodes this pack's logic can be built from"
+					>
 						<span className="tool-label">Requires</span>
 						{requires.length === 0 && <span className="hint">Nothing else</span>}
 						{requires.map((name) => (
@@ -296,7 +322,9 @@ export function PackView({
 						>
 							Discard them
 						</button>
-						<button className="tb" onClick={() => setPending(undefined)}>Keep editing</button>
+						<button className="tb" onClick={() => setPending(undefined)}>
+							Keep editing
+						</button>
 					</div>
 				)}
 
@@ -349,7 +377,9 @@ export function PackView({
 				</section>
 			) : chosen === null ? (
 				<section className="designer-stage">
-					<p className="hint">{defs && defs.length === 0 ? "Make the first node with New node." : ""}</p>
+					<p className="hint">
+						{defs && defs.length === 0 ? "Make the first node with New node." : ""}
+					</p>
 				</section>
 			) : (
 				<NodeEditor

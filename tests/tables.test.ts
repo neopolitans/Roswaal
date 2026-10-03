@@ -26,7 +26,9 @@ const registry = createRegistry();
 
 const code = (script: NodeScript) => body(compile(script, registry).code);
 const errors = (script: NodeScript) =>
-	compile(script, registry).diagnostics.filter((d) => d.severity === "error").map((d) => d.message);
+	compile(script, registry)
+		.diagnostics.filter((d) => d.severity === "error")
+		.map((d) => d.message);
 
 /** A table, then one assignment into it, keyed by a literal or by a wire. */
 function assign(def: string, key: Literal | "wired"): string {
@@ -34,9 +36,13 @@ function assign(def: string, key: Literal | "wired"): string {
 	const start = b.node("script.begin");
 	const table = b.node("table.new");
 	const set = b.node(def);
-	b.link(start, "then", table, "in").link(table, "then", set, "in").link(table, "result", set, "table");
+	b.link(start, "then", table, "in")
+		.link(table, "then", set, "in")
+		.link(table, "result", set, "table");
 	if (key === "wired") {
-		const character = b.node("value.expression", { literals: { code: { t: "raw", v: "character" } } });
+		const character = b.node("value.expression", {
+			literals: { code: { t: "raw", v: "character" } },
+		});
 		b.link(character, "result", set, "key");
 	} else {
 		b.lit(set, "key", key);
@@ -74,7 +80,9 @@ describe("Index and Key", () => {
 		const get = b.node("table.getKey");
 		b.lit(get, "key", { t: "string", v: "turnRate" });
 		const print = b.node("debug.print");
-		b.link(start, "then", print, "in").link(read, "value", get, "table").link(get, "result", print, "value");
+		b.link(start, "then", print, "in")
+			.link(read, "value", get, "table")
+			.link(get, "result", print, "value");
 		expect(code(b.build())).toContain("print(tuning.turnRate)");
 	});
 });
@@ -112,17 +120,22 @@ describe("an Index keyed by a name, from an earlier build", () => {
 
 	it("keeps what was typed into the key, and migrates once", () => {
 		const once = migrateScript(old("table.set", { t: "string", v: "VALUE_NAME" })).script;
-		expect(once.nodes.find((n) => n.id === "subject")!.literals?.key).toEqual({ t: "string", v: "VALUE_NAME" });
+		expect(once.nodes.find((n) => n.id === "subject")!.literals?.key).toEqual({
+			t: "string",
+			v: "VALUE_NAME",
+		});
 		expect(migrateScript(once).notes).toEqual([]);
 	});
 
 	it("turns Occupancy's VALUE_NAME assignment into a Set Key", () => {
 		const file = path.join(
-			ROOT, "examples/m103/graph/.roswaal/scripts/ReplicatedStorage/Tank/Occupancy.nodescript",
+			ROOT,
+			"examples/m103/graph/.roswaal/scripts/ReplicatedStorage/Tank/Occupancy.nodescript",
 		);
 		const script = migrateScript(JSON.parse(readFileSync(file, "utf8")) as NodeScript).script;
-		expect(script.nodes.find((n) => n.id === "00dc4866-e7c2-4e06-a476-a2c4f39633ad")!.def)
-			.toBe("table.setKey");
+		expect(script.nodes.find((n) => n.id === "00dc4866-e7c2-4e06-a476-a2c4f39633ad")!.def).toBe(
+			"table.setKey",
+		);
 		expect(code(script)).toContain('Occupancy.VALUE_NAME = "Occupant"');
 	});
 });
@@ -188,7 +201,9 @@ describe("Key Value Pair", () => {
 
 	it("is offered when a wire is dragged back out of a dictionary's row", () => {
 		const def = registry.get("table.pair")!;
-		const into = registry.get("table.dictionary")!.derivePins!({ args: 1 }).inputs.find((p) => p.id === "p0")!;
+		const into = registry.get("table.dictionary")!.derivePins!({ args: 1 }).inputs.find(
+			(p) => p.id === "p0",
+		)!;
 		expect(landingPins(def, def.outputs, into, "out").map((p) => p.id)).toEqual(["result"]);
 	});
 
@@ -196,7 +211,9 @@ describe("Key Value Pair", () => {
 		const b = new Builder();
 		const pair = b.node("table.pair");
 		const print = b.node("debug.print");
-		expect(canConnect(b.build(), registry, { node: pair, pin: "result" }, { node: print, pin: "value" }).ok)
-			.toBe(false);
+		expect(
+			canConnect(b.build(), registry, { node: pair, pin: "result" }, { node: print, pin: "value" })
+				.ok,
+		).toBe(false);
 	});
 });

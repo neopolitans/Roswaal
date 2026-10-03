@@ -353,5 +353,5 @@ export const DEMOS: Demo[] = [
  */
 export function demoLuau(demo: Demo, registry: Registry): string {
 	const result = compile(demo.script(), registry);
-    return stripHeader(result.code);
+	return stripHeader(result.code);
 }

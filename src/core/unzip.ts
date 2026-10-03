@@ -58,7 +58,9 @@ export const LARGEST_ENTRY = 8 * 1024 * 1024;
 export class ZipError extends Error {}
 
 async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
-	const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+	const stream = new Blob([bytes as BlobPart])
+		.stream()
+		.pipeThrough(new DecompressionStream("deflate-raw"));
 	return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
@@ -91,7 +93,9 @@ export async function unzip(
 	const count = view.getUint16(end + 10, true);
 	let at = view.getUint32(end + 16, true);
 	if (count === 0xffff || at === 0xffffffff) {
-		throw new ZipError("This zip is in the ZIP64 format, which is for archives far larger than a project.");
+		throw new ZipError(
+			"This zip is in the ZIP64 format, which is for archives far larger than a project.",
+		);
 	}
 
 	const out: Unzipped = { files: [], dirs: [], skipped: [] };

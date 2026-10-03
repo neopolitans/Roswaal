@@ -1,6 +1,10 @@
 import {
 	emptyScript,
-	type GraphNode, type Link, type Literal, type NodeScript, type ScriptVariable,
+	type GraphNode,
+	type Link,
+	type Literal,
+	type NodeScript,
+	type ScriptVariable,
 } from "../src/core/schema.js";
 
 /** Terse graph construction, so the tests read like the graph they describe. */
@@ -57,5 +61,8 @@ export class Builder {
 export function body(code: string): string {
 	const lines = code.split("\n");
 	const start = lines.findIndex((l) => l.startsWith("-- roswaal-output:"));
-	return lines.slice(start + 1).join("\n").trim();
+	return lines
+		.slice(start + 1)
+		.join("\n")
+		.trim();
 }

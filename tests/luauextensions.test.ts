@@ -4,9 +4,8 @@
  * Checked through the state CodeMirror builds, which needs no DOM.
  */
 
-import { describe, expect, it } from "vitest";
-
 import { EditorState } from "@codemirror/state";
+import { describe, expect, it } from "vitest";
 
 import { luauExtensions } from "../src/app/luauExtensions.js";
 

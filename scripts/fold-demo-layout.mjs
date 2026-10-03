@@ -38,8 +38,10 @@ for (const demo of DEMOS) {
 	const file = join(PROJECT, `${demo.slug}.nodescript`);
 	const script = JSON.parse(await readFile(file, "utf8"));
 	layout[demo.slug] = Object.fromEntries(
-		script.nodes.map((/** @type {{ id: string; x: number; y: number }} */ node) =>
-			[node.id, { x: node.x, y: node.y }]),
+		script.nodes.map((/** @type {{ id: string; x: number; y: number }} */ node) => [
+			node.id,
+			{ x: node.x, y: node.y },
+		]),
 	);
 }
 

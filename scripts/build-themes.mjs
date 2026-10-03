@@ -26,7 +26,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-	loadThemes, renderThemeModule, ThemeProblems, themeModuleIsCurrent, themeModulePath,
+	loadThemes,
+	renderThemeModule,
+	ThemeProblems,
+	themeModuleIsCurrent,
+	themeModulePath,
 } from "./lib/themeModule.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -42,9 +46,7 @@ const current = await themeModuleIsCurrent(root);
 
 if (process.argv.includes("--check")) {
 	if (!current) {
-		console.error(
-			"src/core/themeData.ts has drifted from themes/. Run `npm run build:themes`.",
-		);
+		console.error("src/core/themeData.ts has drifted from themes/. Run `npm run build:themes`.");
 		process.exit(1);
 	}
 	console.log(`themes: ${themes.length} schemes, generated file is current`);

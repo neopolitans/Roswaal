@@ -9,11 +9,10 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { body, Builder } from "./helpers.js";
+import { bracketLevel, commentLines, headersByNode } from "../src/core/comments.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
-import { bracketLevel, commentLines, headersByNode } from "../src/core/comments.js";
+import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
 const on = { comments: true };
@@ -40,11 +39,7 @@ const FIRST_ONLY = { x: 260, y: 60, w: 400, h: 130 };
 describe("a comment holding nodes", () => {
 	it("writes its header above their code", () => {
 		const out = compile(graph(BOTH), registry, on);
-		expect(body(out.code)).toBe([
-			"-- Say hello",
-			'print("one")',
-			'print("two")',
-		].join("\n"));
+		expect(body(out.code)).toBe(["-- Say hello", 'print("one")', 'print("two")'].join("\n"));
 	});
 
 	/** Once, above the block — not above every statement in it. */
@@ -55,11 +50,7 @@ describe("a comment holding nodes", () => {
 
 	it("heads only the nodes it is actually drawn around", () => {
 		const out = compile(graph(FIRST_ONLY), registry, on);
-		expect(body(out.code)).toBe([
-			"-- Say hello",
-			'print("one")',
-			'print("two")',
-		].join("\n"));
+		expect(body(out.code)).toBe(["-- Say hello", 'print("one")', 'print("two")'].join("\n"));
 		// The second print is outside the box, so the header sits above the
 		// first and the second follows it uncommented — which is the same text
 		// here, and is asserted by membership below rather than by the output.
@@ -126,12 +117,9 @@ describe("a header inside a block", () => {
 		b.link(branch, "true", print, "in");
 		b.script.comments.push({ id: "note", x: 660, y: 60, w: 400, h: 200, text: "The true arm" });
 
-		expect(body(compile(b.build(), registry, on).code)).toBe([
-			"if true then",
-			"\t-- The true arm",
-			`\tprint("yes")`,
-			"end",
-		].join("\n"));
+		expect(body(compile(b.build(), registry, on).code)).toBe(
+			["if true then", "\t-- The true arm", `\tprint("yes")`, "end"].join("\n"),
+		);
 	});
 });
 
@@ -163,7 +151,10 @@ describe("a header's text as Luau", () => {
 		expect(bracketLevel("t[a[1]]")).toBe(1);
 		expect(bracketLevel("both ]] and ]=]")).toBe(2);
 		expect(commentLines("t[a[1]]\nsecond line")).toEqual([
-			"--[=[", "\tt[a[1]]", "\tsecond line", "]=]",
+			"--[=[",
+			"\tt[a[1]]",
+			"\tsecond line",
+			"]=]",
 		]);
 	});
 });
@@ -174,7 +165,11 @@ describe("a header's text as Luau", () => {
  * written, so every graph without one keeps the hash it always had.
  */
 describe("the source hash and comment headers", () => {
-	const hashOf = (box: typeof BOTH | null, options: { comments?: boolean } = on, text = "Say hello") => {
+	const hashOf = (
+		box: typeof BOTH | null,
+		options: { comments?: boolean } = on,
+		text = "Say hello",
+	) => {
 		const script = graph(box ?? BOTH, text);
 		if (box === null) script.comments = [];
 		return compile(script, registry, options).sourceHash;

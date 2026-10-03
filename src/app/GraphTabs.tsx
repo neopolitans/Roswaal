@@ -29,11 +29,11 @@
  * outgrown the window and the tab you are after has scrolled off it.
  */
 
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
 
 import { cx } from "./cx.js";
-import { Icon } from "./icons.jsx";
 import { useDismiss } from "./dismiss.js";
+import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 import { trackPointer } from "./pointer.js";
 import type { FunctionTabs } from "./preferences.js";
@@ -62,7 +62,13 @@ export function tabLabel(doc: OpenDocument, functionTabs: FunctionTabs): string 
 /** How far the pointer must travel before a press on a tab becomes a drag. */
 const DRAG_THRESHOLD = 5;
 
-export function GraphTabs({ documents, functionTabs, onActivate, onClose, onReorder }: GraphTabsProps) {
+export function GraphTabs({
+	documents,
+	functionTabs,
+	onActivate,
+	onClose,
+	onReorder,
+}: GraphTabsProps) {
 	const row = useRef<HTMLDivElement>(null);
 	// The tab being dragged, and the one it would land before.
 	const [drag, setDrag] = useState<{ key: string; before: string | null } | null>(null);

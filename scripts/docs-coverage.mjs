@@ -4,8 +4,8 @@
  * example; it is a reporting aid, not part of the build.
  */
 
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
 import { documentRegistry } from "../src/core/docs/nodeReference.ts";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
 
 const registry = createRegistry();
 const docs = documentRegistry(registry, new Set(BUILTIN_NODES.map((d) => d.id)));

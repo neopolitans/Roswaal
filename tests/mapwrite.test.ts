@@ -42,8 +42,9 @@ describe("writing a node map", () => {
 		const outcome = await compileMap(await openProject(root), MAP, { write: true });
 
 		expect(outcome.written).toBe(false);
-		expect(outcome.diagnostics.some((d) => d.severity === "error" && /not on disk/.test(d.message)))
-			.toBe(true);
+		expect(
+			outcome.diagnostics.some((d) => d.severity === "error" && /not on disk/.test(d.message)),
+		).toBe(true);
 		await expect(readFile(path.join(root, "default.project.json"), "utf8")).rejects.toThrow();
 	});
 
@@ -54,6 +55,8 @@ describe("writing a node map", () => {
 		const outcome = await compileMap(await openProject(root), MAP, { write: true });
 
 		expect(outcome.written).toBe(true);
-		expect(await readFile(path.join(root, "default.project.json"), "utf8")).toContain('"$path": "src"');
+		expect(await readFile(path.join(root, "default.project.json"), "utf8")).toContain(
+			'"$path": "src"',
+		);
 	});
 });

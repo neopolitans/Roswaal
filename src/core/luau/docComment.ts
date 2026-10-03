@@ -11,7 +11,7 @@
  * Prose does not: "Fires when a player's region changes." is not a statement.
  */
 
-import { luauFile, type LuauFile } from "./file.js";
+import { type LuauFile, luauFile } from "./file.js";
 import { parseChunk } from "./parser.js";
 
 export interface DocComment {
@@ -40,7 +40,12 @@ export interface DocComment {
 	 * `@interface`s and `@type`s of the same file that the parameters or
 	 * returns name, looked up so the tooltip can say what they are.
 	 */
-	related?: { name: string; type?: string; text: string; fields?: { name: string; type?: string; description?: string }[] }[];
+	related?: {
+		name: string;
+		type?: string;
+		text: string;
+		fields?: { name: string; type?: string; description?: string }[];
+	}[];
 	/**
 	 * How it was written: a `--[[ ]]` or `--[=[ ]=]` block, or a run of
 	 * `--` or `---` lines. A run of lines at the top of a file is as often a
@@ -65,7 +70,10 @@ export function docFor(doc: DocComment | undefined, name: string): DocComment | 
  * `own`, or where it says nothing, `from`: a bare `@prop Array Array` keeps
  * its type and takes the description of the module the field requires.
  */
-export function mergeDocs(own: DocComment | undefined, from: DocComment | undefined): DocComment | undefined {
+export function mergeDocs(
+	own: DocComment | undefined,
+	from: DocComment | undefined,
+): DocComment | undefined {
 	if (!own || !from) return own ?? from;
 	if (own.text.trim() !== "" || own.params.length || own.returns.length) return own;
 	return { ...from, ...(own.subject ? { subject: own.subject } : {}) };
@@ -99,7 +107,12 @@ export function docRegistry(src: string): readonly DocEntry[] {
 		if (tokens[j]?.kind === "comment") continue;
 		const doc = docCommentBefore(src, tokens[i].end);
 		if (doc?.subject?.name) {
-			out.push({ tag: doc.subject.tag, name: doc.subject.name, ...(doc.within ? { within: doc.within } : {}), doc });
+			out.push({
+				tag: doc.subject.tag,
+				name: doc.subject.name,
+				...(doc.within ? { within: doc.within } : {}),
+				doc,
+			});
 		}
 	}
 	registries.set(file, out);
@@ -114,27 +127,41 @@ const registries = new WeakMap<LuauFile, readonly DocEntry[]>();
  * `@function` or `@method` of that name, `@within` the owner or said of no
  * class at all.
  */
-export function registeredDoc(entries: readonly DocEntry[], name: string, owner?: string): DocComment | undefined {
-	const matches = entries.filter((e) =>
-		e.name === name && ["prop", "function", "method", "class"].includes(e.tag) && (!e.within || !owner || e.within === owner));
+export function registeredDoc(
+	entries: readonly DocEntry[],
+	name: string,
+	owner?: string,
+): DocComment | undefined {
+	const matches = entries.filter(
+		(e) =>
+			e.name === name &&
+			["prop", "function", "method", "class"].includes(e.tag) &&
+			(!e.within || !owner || e.within === owner),
+	);
 	return (matches.find((e) => e.within === owner) ?? matches[0])?.doc;
 }
 
 /** The doc with what its parameter and return types name from the registry. */
 export function withRelated(doc: DocComment, entries: readonly DocEntry[]): DocComment {
-	const named = new Map(entries.filter((e) => e.tag === "interface" || e.tag === "type").map((e) => [e.name, e]));
+	const named = new Map(
+		entries.filter((e) => e.tag === "interface" || e.tag === "type").map((e) => [e.name, e]),
+	);
 	if (named.size === 0) return doc;
-	const types = [...doc.params.map((p) => p.type ?? ""), ...doc.returns.map((r) => r.type)].join(" ");
+	const types = [...doc.params.map((p) => p.type ?? ""), ...doc.returns.map((r) => r.type)].join(
+		" ",
+	);
 	// The name as written in a comment, so anything may be in it: `@type Foo[`
 	// must not become a pattern.
 	const names = (name: string) =>
 		new RegExp(`(?<![A-Za-z0-9_])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Za-z0-9_])`);
-	const related = [...named.values()].filter((e) => names(e.name).test(types)).map((e) => ({
-		name: e.name,
-		...(e.doc.subject?.type ? { type: e.doc.subject.type } : {}),
-		text: e.doc.text,
-		...(e.doc.fields?.length ? { fields: e.doc.fields } : {}),
-	}));
+	const related = [...named.values()]
+		.filter((e) => names(e.name).test(types))
+		.map((e) => ({
+			name: e.name,
+			...(e.doc.subject?.type ? { type: e.doc.subject.type } : {}),
+			text: e.doc.text,
+			...(e.doc.fields?.length ? { fields: e.doc.fields } : {}),
+		}));
 	return related.length ? { ...doc, related } : doc;
 }
 
@@ -196,7 +223,11 @@ export function docCommentBefore(src: string, offset: number): DocComment | unde
  * reads as neither.
  */
 function readsAsCode(text: string): boolean {
-	const body = text.split("\n").filter((line) => !/^\s*@\w/.test(line)).join("\n").trim();
+	const body = text
+		.split("\n")
+		.filter((line) => !/^\s*@\w/.test(line))
+		.join("\n")
+		.trim();
 	if (body === "") return false;
 	const parsed = parseChunk(body);
 	return parsed.errors.length === 0 && parsed.value.length > 0;
@@ -207,7 +238,9 @@ function dedent(raw: string): string[] {
 	const lines = raw.replace(/\r/g, "").split("\n");
 	while (lines.length && lines[0].trim() === "") lines.shift();
 	while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
-	const indent = Math.min(...lines.filter((l) => l.trim()).map((l) => /^[ \t]*/.exec(l)![0].length));
+	const indent = Math.min(
+		...lines.filter((l) => l.trim()).map((l) => /^[ \t]*/.exec(l)![0].length),
+	);
 	return lines.map((l) => l.slice(Number.isFinite(indent) ? indent : 0));
 }
 
@@ -263,7 +296,7 @@ export function parseDoc(raw: string): DocComment {
 				// `@prop name type` / `@type name type` say what it is.
 				const [, first = "", after = ""] = /^(\S+)\s*(.*)$/.exec(rest) ?? [];
 				const named = first.split(/[.:]/).pop();
-				const type = (name === "prop" || name === "type") ? typeAndText(after).type : undefined;
+				const type = name === "prop" || name === "type" ? typeAndText(after).type : undefined;
 				doc.subject ??= { tag: name, ...(named ? { name: named } : {}), ...(type ? { type } : {}) };
 				break;
 			}

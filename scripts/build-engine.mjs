@@ -47,7 +47,9 @@ const API = `https://api.github.com/repos/${REPO}/contents/${REFERENCE}`;
 
 /** The first sentence of a summary, on one line, with the doc links unwrapped. */
 function brief(text) {
-	const line = String(text ?? "").replace(/\s+/g, " ").trim();
+	const line = String(text ?? "")
+		.replace(/\s+/g, " ")
+		.trim();
 	const stop = line.search(/\.(\s|$)/);
 	return (stop >= 0 ? line.slice(0, stop + 1) : line)
 		.replace(/`(?:Datatype|Class|Enum|Library|Global)\.([^`|]+)(?:\|[^`]+)?`/g, "$1")
@@ -55,8 +57,8 @@ function brief(text) {
 }
 
 const list = (value) => (Array.isArray(value) ? value : []);
-const deprecated = (entry) => String(entry.deprecation_message ?? "").trim() !== ""
-	|| list(entry.tags).includes("Deprecated");
+const deprecated = (entry) =>
+	String(entry.deprecation_message ?? "").trim() !== "" || list(entry.tags).includes("Deprecated");
 
 /** A member's own name: `BasePart.Touched` is `Touched`, `Instance:IsA` is `IsA`. */
 function own(full) {
@@ -70,12 +72,16 @@ function params(entry) {
 		name: String(p.name ?? ""),
 		type: String(p.type ?? ""),
 		...(p.default !== null && p.default !== undefined && String(p.default) !== ""
-			? { default: String(p.default) } : {}),
+			? { default: String(p.default) }
+			: {}),
 	}));
 }
 
 function returns(entry) {
-	return list(entry.returns).map((r) => String(r.type ?? "")).filter((t) => t !== "" && t !== "()").join(", ");
+	return list(entry.returns)
+		.map((r) => String(r.type ?? ""))
+		.filter((t) => t !== "" && t !== "()")
+		.join(", ");
 }
 
 /** What every member keeps: its words, and the facts that decide where it can be used. */
@@ -83,9 +89,13 @@ function common(entry) {
 	return {
 		name: own(entry.name),
 		summary: brief(entry.summary),
-		...(entry.security !== undefined && entry.security !== "None" ? { security: entry.security } : {}),
+		...(entry.security !== undefined && entry.security !== "None"
+			? { security: entry.security }
+			: {}),
 		...(entry.thread_safety ? { threadSafety: String(entry.thread_safety) } : {}),
-		...(list(entry.capabilities).length > 0 ? { capabilities: list(entry.capabilities).map(String) } : {}),
+		...(list(entry.capabilities).length > 0
+			? { capabilities: list(entry.capabilities).map(String) }
+			: {}),
 		...(list(entry.tags).length > 0 ? { tags: list(entry.tags).map(String) } : {}),
 		...(deprecated(entry) ? { deprecated: true } : {}),
 	};
@@ -93,11 +103,16 @@ function common(entry) {
 
 async function folder(name) {
 	const response = await fetch(`${API}/${name}`, {
-		headers: process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {},
+		headers: process.env.GITHUB_TOKEN
+			? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
+			: {},
 	});
 	if (!response.ok) throw new Error(`listing ${name}: ${response.status} ${response.statusText}`);
 	const entries = await response.json();
-	return entries.map((e) => e.name).filter((n) => n.endsWith(".yaml")).map((n) => n.slice(0, -5));
+	return entries
+		.map((e) => e.name)
+		.filter((n) => n.endsWith(".yaml"))
+		.map((n) => n.slice(0, -5));
 }
 
 /** Files a folder listed and then had no page for. Any one fails the run. */
@@ -111,11 +126,13 @@ const missing = [];
 async function fetchAll(name, names, width = 16) {
 	const out = new Map();
 	for (let i = 0; i < names.length; i += width) {
-		await Promise.all(names.slice(i, i + width).map(async (file) => {
-			const text = await fetchReference(`${RAW}/${name}/${encodeURIComponent(file)}.yaml`);
-			if (text === undefined) missing.push(`${name}/${file}`);
-			else out.set(file, parseYaml(text));
-		}));
+		await Promise.all(
+			names.slice(i, i + width).map(async (file) => {
+				const text = await fetchReference(`${RAW}/${name}/${encodeURIComponent(file)}.yaml`);
+				if (text === undefined) missing.push(`${name}/${file}`);
+				else out.set(file, parseYaml(text));
+			}),
+		);
 	}
 	return out;
 }
@@ -137,9 +154,17 @@ for (const [name, doc] of [...(await fetchAll("classes", await folder("classes")
 			type: String(e.type ?? ""),
 			...(e.category ? { category: String(e.category) } : {}),
 		})),
-		methods: list(doc.methods).map((e) => ({ ...common(e), params: params(e), returns: returns(e) })),
+		methods: list(doc.methods).map((e) => ({
+			...common(e),
+			params: params(e),
+			returns: returns(e),
+		})),
 		events: list(doc.events).map((e) => ({ ...common(e), params: params(e) })),
-		callbacks: list(doc.callbacks).map((e) => ({ ...common(e), params: params(e), returns: returns(e) })),
+		callbacks: list(doc.callbacks).map((e) => ({
+			...common(e),
+			params: params(e),
+			returns: returns(e),
+		})),
 	};
 }
 
@@ -164,8 +189,16 @@ for (const [name, doc] of [...(await fetchAll("datatypes", await folder("datatyp
 		constructors: list(doc.constructors).map((e) => ({ ...common(e), params: params(e) })),
 		constants: list(doc.constants).map((e) => ({ ...common(e), type: String(e.type ?? "") })),
 		properties: list(doc.properties).map((e) => ({ ...common(e), type: String(e.type ?? "") })),
-		methods: list(doc.methods).map((e) => ({ ...common(e), params: params(e), returns: returns(e) })),
-		functions: list(doc.functions).map((e) => ({ ...common(e), params: params(e), returns: returns(e) })),
+		methods: list(doc.methods).map((e) => ({
+			...common(e),
+			params: params(e),
+			returns: returns(e),
+		})),
+		functions: list(doc.functions).map((e) => ({
+			...common(e),
+			params: params(e),
+			returns: returns(e),
+		})),
 	};
 }
 
@@ -173,14 +206,20 @@ for (const [name, doc] of [...(await fetchAll("datatypes", await folder("datatyp
 function reachable(doc) {
 	return {
 		summary: brief(doc.summary),
-		functions: list(doc.functions).map((e) => ({ ...common(e), params: params(e), returns: returns(e) })),
+		functions: list(doc.functions).map((e) => ({
+			...common(e),
+			params: params(e),
+			returns: returns(e),
+		})),
 		properties: list(doc.properties).map((e) => ({ ...common(e), type: String(e.type ?? "") })),
 	};
 }
 const globals = {};
-for (const [name, doc] of await fetchAll("globals", await folder("globals"))) globals[name] = reachable(doc);
+for (const [name, doc] of await fetchAll("globals", await folder("globals")))
+	globals[name] = reachable(doc);
 const libraries = {};
-for (const [name, doc] of await fetchAll("libraries", await folder("libraries"))) libraries[name] = reachable(doc);
+for (const [name, doc] of await fetchAll("libraries", await folder("libraries")))
+	libraries[name] = reachable(doc);
 
 const catalogue = {
 	licence:
@@ -199,13 +238,14 @@ const catalogue = {
 await writeFile(join(ROOT, "src/core/robloxEngine.json"), `${JSON.stringify(catalogue)}\n`);
 
 const members = Object.values(classes).reduce(
-	(n, c) => n + c.properties.length + c.methods.length + c.events.length + c.callbacks.length, 0,
+	(n, c) => n + c.properties.length + c.methods.length + c.events.length + c.callbacks.length,
+	0,
 );
 console.log(
 	`Studio ${studioVersion}: ${Object.keys(classes).length} classes (${members} members), ` +
-	`${Object.keys(enums).length} enums, ${Object.keys(datatypes).length} datatypes, ` +
-	`${Object.keys(globals).length} globals, ${Object.keys(libraries).length} libraries ` +
-	"-> src/core/robloxEngine.json",
+		`${Object.keys(enums).length} enums, ${Object.keys(datatypes).length} datatypes, ` +
+		`${Object.keys(globals).length} globals, ${Object.keys(libraries).length} libraries ` +
+		"-> src/core/robloxEngine.json",
 );
 if (missing.length > 0) {
 	console.error(`no page for: ${missing.join(", ")}`);

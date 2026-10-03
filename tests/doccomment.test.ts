@@ -5,13 +5,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { docCommentBefore, parseDoc } from "../src/core/luau/docComment.js";
+import { docCommentBefore, docRegistry, parseDoc } from "../src/core/luau/docComment.js";
 import { hoverAt, withDocTypes } from "../src/core/luau/hover.js";
+import { membersInCode } from "../src/core/luau/infer.js";
 import { parseChunk } from "../src/core/luau/parser.js";
 import { moduleExports } from "../src/core/luau/requires.js";
-import { docRegistry } from "../src/core/luau/docComment.js";
-import { membersInCode } from "../src/core/luau/infer.js";
 
 const QUEUE = [
 	"local Queue = {}",
@@ -60,7 +58,9 @@ const at = (needle: string, word: string, src = QUEUE) => {
 describe("reading a doc comment", () => {
 	it("takes the prose, the example and the tags from a block", () => {
 		const doc = docCommentBefore(QUEUE, QUEUE.indexOf("function Queue.from"))!;
-		expect(doc.text).toBe("Makes a queue holding the given items.\n\n```lua\nlocal q = Queue.from(1, 2)\n```");
+		expect(doc.text).toBe(
+			"Makes a queue holding the given items.\n\n```lua\nlocal q = Queue.from(1, 2)\n```",
+		);
 		expect(doc.params).toEqual([{ name: "...", type: "any", description: "the first items" }]);
 		expect(doc.returns).toEqual([{ type: "Queue" }]);
 	});
@@ -68,14 +68,22 @@ describe("reading a doc comment", () => {
 	it("reads a run of --- lines", () => {
 		const doc = docCommentBefore(QUEUE, QUEUE.indexOf("function Queue.prototype:each"))!;
 		expect(doc.text).toBe("Runs `callback` on each item.");
-		expect(doc.params[0]).toEqual({ name: "callback?", type: "(item: any) -> ()", description: "called once an item" });
+		expect(doc.params[0]).toEqual({
+			name: "callback?",
+			type: "(item: any) -> ()",
+			description: "called once an item",
+		});
 		expect(doc.yields).toBe(true);
 	});
 
 	it("takes prose in plain comments, and leaves code switched off alone", () => {
-		expect(docCommentBefore(QUEUE, QUEUE.indexOf("local function helper"))?.text).toBe("Not documentation: a plain comment.");
+		expect(docCommentBefore(QUEUE, QUEUE.indexOf("local function helper"))?.text).toBe(
+			"Not documentation: a plain comment.",
+		);
 		const block = "--[[\n\tFired when a player's region changes.\n]]\nlocal changed = 1";
-		expect(docCommentBefore(block, block.indexOf("local"))?.text).toBe("Fired when a player's region changes.");
+		expect(docCommentBefore(block, block.indexOf("local"))?.text).toBe(
+			"Fired when a player's region changes.",
+		);
 		expect(docCommentBefore("-- local x = 1\nlocal y = 2", 15)).toBeUndefined();
 		expect(docCommentBefore('--[[ print("off") ]]\nlocal y = 2', 21)).toBeUndefined();
 		expect(docCommentBefore("--- about y\n\nlocal y = 1", 13)).toBeUndefined();
@@ -110,14 +118,18 @@ describe("a table's functions", () => {
 
 	it("include a method on a table inside the table", () => {
 		const hover = at("function Queue.prototype:each", "each")!;
-		expect(hover).toMatchObject({ code: "Queue.prototype:each: (callback: ((item: any) -> ())?) -> ()", role: "method" });
+		expect(hover).toMatchObject({
+			code: "Queue.prototype:each: (callback: ((item: any) -> ())?) -> ()",
+			role: "method",
+		});
 		expect(hover.doc?.yields).toBe(true);
 	});
 });
 
 describe("a local's doc comment", () => {
 	it("shows on the local", () => {
-		const src = "--- Doubles it.\n--- @param n number\n--- @return number\nlocal function double(n)\n\treturn n * 2\nend\nprint(double(2))";
+		const src =
+			"--- Doubles it.\n--- @param n number\n--- @return number\nlocal function double(n)\n\treturn n * 2\nend\nprint(double(2))";
 		const hover = hoverAt(src, src.lastIndexOf("double") + 1, true)!;
 		expect(hover.code).toBe("double: (n: number) -> number");
 		expect(hover.doc?.text).toBe("Doubles it.");
@@ -127,16 +139,22 @@ describe("a local's doc comment", () => {
 describe("types from a doc comment", () => {
 	it("never replace types the code writes", () => {
 		const written = { params: [{ name: "n", type: "string" }], returns: "boolean" };
-		expect(withDocTypes(written, parseDoc("@param n number\n@return number"))).toBe("(n: string) -> (boolean)");
+		expect(withDocTypes(written, parseDoc("@param n number\n@return number"))).toBe(
+			"(n: string) -> (boolean)",
+		);
 	});
 
 	it("give several returns as a tuple", () => {
-		expect(withDocTypes({ params: [], returns: "" }, parseDoc("@return boolean\n@return string"))).toBe("() -> (boolean, string)");
+		expect(
+			withDocTypes({ params: [], returns: "" }, parseDoc("@return boolean\n@return string")),
+		).toBe("() -> (boolean, string)");
 	});
 
 	it("fill in a parameter whose own type is a function type", () => {
 		const doc = parseDoc("@param cb (x: number) -> ()\n@param n number");
-		expect(withDocTypes({ params: [{ name: "cb" }, { name: "n" }], returns: "" }, doc)).toBe("(cb: (x: number) -> (), n: number) -> ()");
+		expect(withDocTypes({ params: [{ name: "cb" }, { name: "n" }], returns: "" }, doc)).toBe(
+			"(cb: (x: number) -> (), n: number) -> ()",
+		);
 	});
 });
 
@@ -150,15 +168,20 @@ describe("declarations the first sweep missed", () => {
 	});
 
 	it("finds a local function whose parameters run onto the next lines", () => {
-		const src = "--- Counts matches.\nlocal function count<T>(\n\tlist: { T },\n\tpredicate: (T) -> boolean\n): number\n\treturn 0\nend";
+		const src =
+			"--- Counts matches.\nlocal function count<T>(\n\tlist: { T },\n\tpredicate: (T) -> boolean\n): number\n\treturn 0\nend";
 		const hover = hoverOn(src, "local function count", "count")!;
 		expect(hover.code).toBe("count: (list: { T }, predicate: (T) -> boolean) -> (number)");
 		expect(hover.doc?.text).toBe("Counts matches.");
 	});
 
 	it("describes a global function, where it is declared and where it is called", () => {
-		const src = "--- Says hello.\n--- @return string\nfunction greet()\n\treturn \"hi\"\nend\nprint(greet())";
-		expect(hoverOn(src, "function greet", "greet")).toMatchObject({ code: "greet: () -> string", role: "function" });
+		const src =
+			'--- Says hello.\n--- @return string\nfunction greet()\n\treturn "hi"\nend\nprint(greet())';
+		expect(hoverOn(src, "function greet", "greet")).toMatchObject({
+			code: "greet: () -> string",
+			role: "function",
+		});
 		expect(hoverAt(src, src.lastIndexOf("greet") + 1, true)?.doc?.text).toBe("Says hello.");
 	});
 
@@ -171,36 +194,48 @@ describe("declarations the first sweep missed", () => {
 
 describe("a comment about something else", () => {
 	it("is not given to the declaration under it", () => {
-		const src = "local Store = {}\n--[=[\n\t@class Store\n\tKeeps things.\n]=]\nfunction Store:init() end";
+		const src =
+			"local Store = {}\n--[=[\n\t@class Store\n\tKeeps things.\n]=]\nfunction Store:init() end";
 		expect(hoverAt(src, src.indexOf(":init") + 2, true)?.doc).toBeUndefined();
 	});
 
 	it("is given when @function names that declaration, and not when it names another", () => {
-		const doc = (name: string) => `local Store = {}\n--[=[\n\t@function ${name}\n\t@within Store\n\tOpens it.\n]=]\nfunction Store.open() end`;
-		expect(hoverAt(doc("open"), doc("open").indexOf(".open") + 2, true)?.doc?.text).toBe("Opens it.");
+		const doc = (name: string) =>
+			`local Store = {}\n--[=[\n\t@function ${name}\n\t@within Store\n\tOpens it.\n]=]\nfunction Store.open() end`;
+		expect(hoverAt(doc("open"), doc("open").indexOf(".open") + 2, true)?.doc?.text).toBe(
+			"Opens it.",
+		);
 		expect(hoverAt(doc("close"), doc("close").indexOf(".open") + 2, true)?.doc).toBeUndefined();
 	});
 });
 
 describe("plain comments as documentation", () => {
 	it("documents a field set on a table, from a --[[ ]] block", () => {
-		const src = "local Region = {}\n\n--[[\n\tFired when a player's region changes.\n\n\tSends Player and Region (string)\n]]\nRegion.Changed = Signal.new()\nRegion.Changed:Fire()";
+		const src =
+			"local Region = {}\n\n--[[\n\tFired when a player's region changes.\n\n\tSends Player and Region (string)\n]]\nRegion.Changed = Signal.new()\nRegion.Changed:Fire()";
 		const hover = hoverAt(src, src.lastIndexOf("Changed") + 1, true)!;
-		expect(hover.doc?.text).toBe("Fired when a player's region changes.\n\nSends Player and Region (string)");
+		expect(hover.doc?.text).toBe(
+			"Fired when a player's region changes.\n\nSends Player and Region (string)",
+		);
 	});
 
 	it("reads a run of -- lines, with a bare -- as a paragraph break", () => {
-		const src = "-- Detects the character.\n--\n-- Returns nil for anything else.\nlocal function detect(part) end";
-		expect(docCommentBefore(src, src.indexOf("local"))?.text).toBe("Detects the character.\n\nReturns nil for anything else.");
+		const src =
+			"-- Detects the character.\n--\n-- Returns nil for anything else.\nlocal function detect(part) end";
+		expect(docCommentBefore(src, src.indexOf("local"))?.text).toBe(
+			"Detects the character.\n\nReturns nil for anything else.",
+		);
 	});
 
 	it("gives a forward-declared local the comment above the function that defines it", () => {
-		const src = "local Clean: (obj: any) -> ()\n\n--[[\n\tCleans it up.\n]]\nfunction Clean(obj)\nend\nClean(1)";
+		const src =
+			"local Clean: (obj: any) -> ()\n\n--[[\n\tCleans it up.\n]]\nfunction Clean(obj)\nend\nClean(1)";
 		expect(hoverAt(src, src.lastIndexOf("Clean") + 1, true)?.doc?.text).toBe("Cleans it up.");
 	});
 
 	it("finds a local called from inside a callback passed to a call", () => {
-		const src = "-- Tries again.\nlocal function retry(n)\n\ttask.spawn(function()\n\t\tretry(n - 1)\n\tend)\nend";
+		const src =
+			"-- Tries again.\nlocal function retry(n)\n\ttask.spawn(function()\n\t\tretry(n - 1)\n\tend)\nend";
 		expect(hoverAt(src, src.lastIndexOf("retry") + 1, true)?.doc?.text).toBe("Tries again.");
 	});
 });
@@ -237,14 +272,22 @@ describe("Moonwave comments that name what they are about", () => {
 	].join("\n");
 
 	it("take a type named with a bracket in it as a name, not a pattern", () => {
-		const src = ["--- @type Foo[ string", "", "--[=[", "\t@return Foo[", "]=]", "local function make() end"].join("\n");
+		const src = [
+			"--- @type Foo[ string",
+			"",
+			"--[=[",
+			"\t@return Foo[",
+			"]=]",
+			"local function make() end",
+		].join("\n");
 		const hover = hoverAt(src, src.indexOf("make") + 1, true);
 		expect(hover?.doc?.related?.map((r) => r.name)).toEqual(["Foo["]);
 	});
 
 	it("are read wherever they stand, by name", () => {
-		expect(docRegistry(LIB).map((e) => `${e.tag} ${e.name}${e.within ? ` in ${e.within}` : ""}`))
-			.toEqual(["class Crate", "prop Shelf in Crate", "interface Lid in Crate"]);
+		expect(
+			docRegistry(LIB).map((e) => `${e.tag} ${e.name}${e.within ? ` in ${e.within}` : ""}`),
+		).toEqual(["class Crate", "prop Shelf in Crate", "interface Lid in Crate"]);
 	});
 
 	it("describe a module by its @class and a field by its @prop", () => {
@@ -268,16 +311,28 @@ describe("Moonwave comments that name what they are about", () => {
 
 	it("describe a key of a table no name holds by the comment above it", () => {
 		const src = "print({\n\t-- How many.\n\tcount = 3,\n})";
-		expect(hoverAt(src, src.indexOf("count") + 1, true)).toMatchObject({ code: "count: number", role: "field", doc: { text: "How many." } });
+		expect(hoverAt(src, src.indexOf("count") + 1, true)).toMatchObject({
+			code: "count: number",
+			role: "field",
+			doc: { text: "How many." },
+		});
 	});
 
 	it("list an @interface's fields where a return names it", () => {
 		const hover = hoverAt(LIB, LIB.indexOf("Crate.lid") + 7, true)!;
-		expect(hover.doc?.related).toEqual([{
-			name: "Lid",
-			text: "The top of a crate.",
-			fields: [{ name: "Open", type: "boolean", description: "whether it is" }, { name: "Close", type: "(Lid) -> ()" }],
-		}]);
-		expect(hoverAt(LIB, LIB.indexOf("@return Lid") + 9, true)).toMatchObject({ code: "type Lid", role: "interface" });
+		expect(hover.doc?.related).toEqual([
+			{
+				name: "Lid",
+				text: "The top of a crate.",
+				fields: [
+					{ name: "Open", type: "boolean", description: "whether it is" },
+					{ name: "Close", type: "(Lid) -> ()" },
+				],
+			},
+		]);
+		expect(hoverAt(LIB, LIB.indexOf("@return Lid") + 9, true)).toMatchObject({
+			code: "type Lid",
+			role: "interface",
+		});
 	});
 });

@@ -3,12 +3,11 @@
  * written whole when the editor changes one.
  */
 
-import { fs, path } from "./host.js";
-
-import { chainFor, parseLuaurc, type LuaurcSource } from "../core/luaurc.js";
+import { chainFor, type LuaurcSource, parseLuaurc } from "../core/luaurc.js";
 import type { SpecifierContext } from "../core/modules.js";
 import type { OpenProject } from "./config.js";
 import { walkFiles } from "./files.js";
+import { fs, path } from "./host.js";
 import { safeJoin } from "./paths.js";
 
 /**
@@ -51,7 +50,9 @@ export async function readLuaurcFiles(project: OpenProject): Promise<LuaurcSourc
  * would silently drop the rest.
  */
 export async function writeLuaurcFile(
-	project: OpenProject, dir: string, text: string,
+	project: OpenProject,
+	dir: string,
+	text: string,
 ): Promise<void> {
 	const abs = safeJoin(project.root, dir === "" ? ".luaurc" : `${dir}/.luaurc`);
 	await fs.mkdir(path.dirname(abs), { recursive: true });

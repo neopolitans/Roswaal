@@ -10,14 +10,25 @@ import { loopNamesOf, loopTypes, signatureOf, typeDeclarationOf } from "../nodes
 import { isConstLocal, localTypeOf, variableRefOf } from "../nodes/variables.js";
 import { isRobloxTypeName, luneCall, serviceCall, writeCall } from "./emitCalls.js";
 import {
-	bodyOf, claimTypeName, luauSignature, luauType, typeDefinition, typeNameRefused,
+	bodyOf,
+	claimTypeName,
+	luauSignature,
+	luauType,
+	typeDefinition,
+	typeNameRefused,
 } from "./emitDeclarations.js";
 import { narrowingsOf } from "./emitNarrowing.js";
 import { logicOutputName, Scope, VARIADIC_PIN } from "./emitScope.js";
 import type { Emitter } from "./emitter.js";
 import type { ResolvedNode } from "./graph.js";
 import {
-	isFieldName, isIdentifier, notAName, parenAt, parenPrefix, PREC, toIdentifier,
+	isFieldName,
+	isIdentifier,
+	notAName,
+	PREC,
+	parenAt,
+	parenPrefix,
+	toIdentifier,
 } from "./luau.js";
 
 /**
@@ -43,7 +54,13 @@ import {
  * The condition is resolved in the arm's own scope either way, because that
  * is where it is evaluated in both shapes.
  */
-function emitBranch(e: Emitter, r: ResolvedNode, scope: Scope, keyword: "if" | "elseif", condition?: string): void {
+function emitBranch(
+	e: Emitter,
+	r: ResolvedNode,
+	scope: Scope,
+	keyword: "if" | "elseif",
+	condition?: string,
+): void {
 	const id = r.node.id;
 	const cond = condition ?? e.resolveInput(r, e.pin(r, "condition", "in"), scope);
 	e.push(`${keyword} ${cond} then`, id);
@@ -131,7 +148,12 @@ function chainedBranch(e: Emitter, target: string | undefined): ResolvedNode | u
 }
 
 /** Writes one builtin flow node and returns the next node in the chain, if any. */
-type FlowHandler = (e: Emitter, r: ResolvedNode, scope: Scope, handler: string) => string | undefined;
+type FlowHandler = (
+	e: Emitter,
+	r: ResolvedNode,
+	scope: Scope,
+	handler: string,
+) => string | undefined;
 
 /** Script Start, and a knot on an execution wire: nothing is written. */
 function passThrough(e: Emitter, r: ResolvedNode): string | undefined {
@@ -230,7 +252,8 @@ function callInvoke(e: Emitter, r: ResolvedNode, scope: Scope): string | undefin
 function luneStep(e: Emitter, r: ResolvedNode, scope: Scope): string | undefined {
 	const type = e.pin(r, "result", "out").type ?? "any";
 	return writeCall(e, r, luneCall(e, r, scope), "result", scope, {
-		fallback: "result", typed: LUAU_PRIMITIVES.includes(type),
+		fallback: "result",
+		typed: LUAU_PRIMITIVES.includes(type),
 	});
 }
 
@@ -244,7 +267,8 @@ function luneStep(e: Emitter, r: ResolvedNode, scope: Scope): string | undefined
 function serviceStep(e: Emitter, r: ResolvedNode, scope: Scope): string | undefined {
 	const type = e.pin(r, "result", "out").type ?? "any";
 	return writeCall(e, r, serviceCall(e, r, scope), "result", scope, {
-		fallback: "result", typed: isRobloxTypeName(type),
+		fallback: "result",
+		typed: isRobloxTypeName(type),
 	});
 }
 
@@ -277,7 +301,7 @@ function declareFunction(e: Emitter, r: ResolvedNode, scope: Scope): string | un
 		if (!resolved.split(".").every(isFieldName)) {
 			e.error(
 				"On Table has to be a name Luau can attach a function to — a variable or " +
-				`a local, not an expression. This one came out as \`${resolved}\`.`,
+					`a local, not an expression. This one came out as \`${resolved}\`.`,
 				id,
 			);
 			return e.index.execTarget(id, "then");
@@ -336,7 +360,7 @@ function declareType(e: Emitter, r: ResolvedNode, scope: Scope): string | undefi
 		if (e.feederOf(id, "value")?.def.id === "value.typeof") {
 			e.error(
 				"Declare Type already takes the type of what you wire in, so the Type Of " +
-				"node makes it the type of a string. Wire the value in directly.",
+					"node makes it the type of a string. Wire the value in directly.",
 				id,
 			);
 			return e.index.execTarget(id, "then");
@@ -364,7 +388,7 @@ function declareType(e: Emitter, r: ResolvedNode, scope: Scope): string | undefi
 	if (declaration.exported && scope.parent !== undefined) {
 		e.error(
 			`"${name}" is exported, and Luau only allows that at the top level of a ` +
-			"module. Move it out of the branch, loop or function, or untick Export.",
+				"module. Move it out of the branch, loop or function, or untick Export.",
 			id,
 		);
 		return e.index.execTarget(id, "then");
@@ -386,7 +410,7 @@ function declareLocal(e: Emitter, r: ResolvedNode, scope: Scope): string | undef
 	if (e.index.sourceOf(id, "name")) {
 		e.error(
 			"Declare Local's Name is written into the generated Luau, so it has to be " +
-			"typed in rather than wired. Leave it blank for an automatic one.",
+				"typed in rather than wired. Leave it blank for an automatic one.",
 			id,
 		);
 	}
@@ -399,10 +423,7 @@ function declareLocal(e: Emitter, r: ResolvedNode, scope: Scope): string | undef
 	if (e.annotates && declared !== "" && declared !== "any") {
 		const written = luauType(declared);
 		if (written === "any") {
-			e.error(
-				`"${declared}" is not a type Roswaal can write. Check its brackets are closed.`,
-				id,
-			);
+			e.error(`"${declared}" is not a type Roswaal can write. Check its brackets are closed.`, id);
 		} else {
 			annotation = `: ${written}`;
 		}
@@ -439,8 +460,8 @@ function initialiseVariable(e: Emitter, r: ResolvedNode, scope: Scope): string |
 	if (scope.parent !== undefined) {
 		e.error(
 			`Initialize Variable declares "${ref.name ?? "the variable"}", so it has to sit ` +
-			"in the main flow. Inside a branch, a loop or a function the declaration " +
-			"would go out of scope. Use Set Variable there instead.",
+				"in the main flow. Inside a branch, a loop or a function the declaration " +
+				"would go out of scope. Use Set Variable there instead.",
 			id,
 		);
 		return e.index.execTarget(id, "then");
@@ -448,16 +469,14 @@ function initialiseVariable(e: Emitter, r: ResolvedNode, scope: Scope): string |
 	if (e.declaredSoFar.has(ref.variable)) {
 		e.error(
 			`"${ref.name ?? "That variable"}" is initialised more than once. A variable is ` +
-			"declared once; the later ones should be Set Variable.",
+				"declared once; the later ones should be Set Variable.",
 			id,
 		);
 		return e.index.execTarget(id, "then");
 	}
 	const variable = (e.script.variables ?? []).find((v) => v.id === ref.variable);
 	const annotation =
-		e.annotates && variable?.type && variable.type !== "any"
-			? `: ${luauType(variable.type)}`
-			: "";
+		e.annotates && variable?.type && variable.type !== "any" ? `: ${luauType(variable.type)}` : "";
 	e.push(`local ${ident}${annotation} = ${value}`, id);
 	e.declaredSoFar.add(ref.variable);
 	scope.bindings.set(`${id}/value`, ident);
@@ -483,10 +502,7 @@ function setVariable(e: Emitter, r: ResolvedNode, scope: Scope): string | undefi
 /** A pure node wired into a chain, which it cannot be. */
 function pureInChain(e: Emitter, r: ResolvedNode): string | undefined {
 	const id = r.node.id;
-	e.error(
-		`"${r.def.title}" is a pure node and cannot be placed in an execution chain.`,
-		id,
-	);
+	e.error(`"${r.def.title}" is a pure node and cannot be placed in an execution chain.`, id);
 	return undefined;
 }
 
@@ -587,7 +603,10 @@ function forPairs(e: Emitter, r: ResolvedNode, scope: Scope, handler: string): s
 	const bind = (ident: string, type: string | undefined) =>
 		e.annotates && type ? `${ident}: ${luauType(type)}` : ident;
 	const keyBinding = isArray ? k : bind(k, types.key);
-	e.push(`for ${keyBinding}, ${bind(v, types.value)} in ${isArray ? "ipairs" : "pairs"}(${source}) do`, id);
+	e.push(
+		`for ${keyBinding}, ${bind(v, types.value)} in ${isArray ? "ipairs" : "pairs"}(${source}) do`,
+		id,
+	);
 	e.indent++;
 	e.walk(e.index.execTarget(id, "body"), body);
 	e.indent--;
@@ -636,7 +655,12 @@ function whileLoop(e: Emitter, r: ResolvedNode, scope: Scope): string | undefine
 }
 
 /** Break and Continue. */
-function breakOrContinue(e: Emitter, r: ResolvedNode, scope: Scope, handler: string): string | undefined {
+function breakOrContinue(
+	e: Emitter,
+	r: ResolvedNode,
+	scope: Scope,
+	handler: string,
+): string | undefined {
 	const id = r.node.id;
 	const keyword = handler === "flow.break" ? "break" : "continue";
 	if (!scope.inLoop()) {
@@ -649,7 +673,12 @@ function breakOrContinue(e: Emitter, r: ResolvedNode, scope: Scope, handler: str
 }
 
 /** Connect and Once. */
-function connectHandler(e: Emitter, r: ResolvedNode, scope: Scope, handler: string): string | undefined {
+function connectHandler(
+	e: Emitter,
+	r: ResolvedNode,
+	scope: Scope,
+	handler: string,
+): string | undefined {
 	const id = r.node.id;
 	// Once is Connect that unbinds itself after one fire. Identical in
 	// every other respect, so it is the same handler with a different
@@ -718,7 +747,12 @@ const FLOW_HANDLERS = new Map<string, FlowHandler>([
 ]);
 
 /** Writes a builtin node on the execution chain and returns the next node, if any. */
-export function emitBuiltin(e: Emitter, handler: string, r: ResolvedNode, scope: Scope): string | undefined {
+export function emitBuiltin(
+	e: Emitter,
+	handler: string,
+	r: ResolvedNode,
+	scope: Scope,
+): string | undefined {
 	const emitHandler = FLOW_HANDLERS.get(handler);
 	if (emitHandler) return emitHandler(e, r, scope, handler);
 	e.error(`Unimplemented builtin handler "${handler}".`, r.node.id);

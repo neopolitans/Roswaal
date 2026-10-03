@@ -26,9 +26,20 @@ export const TUCKED = 1;
 
 /** The services Studio's Explorer shows, in its order. */
 const EXPLORER_SERVICES = [
-	"Workspace", "Players", "Lighting", "MaterialService", "ReplicatedFirst", "ReplicatedStorage",
-	"ServerScriptService", "ServerStorage", "StarterGui", "StarterPack", "StarterPlayer", "Teams",
-	"SoundService", "TextChatService",
+	"Workspace",
+	"Players",
+	"Lighting",
+	"MaterialService",
+	"ReplicatedFirst",
+	"ReplicatedStorage",
+	"ServerScriptService",
+	"ServerStorage",
+	"StarterGui",
+	"StarterPack",
+	"StarterPlayer",
+	"Teams",
+	"SoundService",
+	"TextChatService",
 ];
 
 const byName = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
@@ -115,7 +126,21 @@ export interface PlaceInstanceInfo {
 }
 
 /** Studio's Properties headings, in its order; anything else after, by name. */
-const CATEGORY_ORDER = ["Data", "Appearance", "Text", "Image", "Behavior", "Part", "Transform", "Pivot", "Collision", "Assembly", "Character", "Physics", "Surface"];
+const CATEGORY_ORDER = [
+	"Data",
+	"Appearance",
+	"Text",
+	"Image",
+	"Behavior",
+	"Part",
+	"Transform",
+	"Pivot",
+	"Collision",
+	"Assembly",
+	"Character",
+	"Physics",
+	"Surface",
+];
 const LAST = ["Other", "Tags", "Attributes"];
 
 /** Properties under their headings, the headings in the order Studio shows them. */
@@ -150,9 +175,14 @@ const CONTAINERS = new Set(["StarterPlayerScripts", "StarterCharacterScripts", "
  * The glyph an instance is drawn with, and the class that colours it: the
  * project tree's for the same thing, and a cube for the rest.
  */
-export function classGlyph(className: string, service: boolean, open: boolean): { icon: string; tone: string } {
+export function classGlyph(
+	className: string,
+	service: boolean,
+	open: boolean,
+): { icon: string; tone: string } {
 	if (isScriptClass(className)) {
-		const tone = className === "Script" ? "server" : className === "LocalScript" ? "local" : "module";
+		const tone =
+			className === "Script" ? "server" : className === "LocalScript" ? "local" : "module";
 		return { icon: "luauScript", tone: `luau tree-script-${tone}` };
 	}
 	const folder = open ? "folderOpen" : "folder";
@@ -169,7 +199,16 @@ const RENAMED: Record<string, string> = {
 };
 
 /** Kept in the file for Studio's own bookkeeping; nothing a developer reads. */
-const INTERNAL = new Set(["AttributesSerialize", "Tags", "SourceAssetId", "HistoryId", "ScriptGuid", "UniqueId", "Capabilities", "DefinesCapabilities"]);
+const INTERNAL = new Set([
+	"AttributesSerialize",
+	"Tags",
+	"SourceAssetId",
+	"HistoryId",
+	"ScriptGuid",
+	"UniqueId",
+	"Capabilities",
+	"DefinesCapabilities",
+]);
 
 function engineProperty(className: string, name: string): EngineProperty | undefined {
 	const lower = name.toLowerCase();
@@ -186,7 +225,15 @@ const num = (n: number) => {
 	return Object.is(r, -0) ? "0" : String(r);
 };
 
-const hex = (rgb: number[]) => "#" + rgb.map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0")).join("");
+const hex = (rgb: number[]) =>
+	"#" +
+	rgb
+		.map((c) =>
+			Math.max(0, Math.min(255, Math.round(c)))
+				.toString(16)
+				.padStart(2, "0"),
+		)
+		.join("");
 
 /** Studio's Orientation: the rotation as degrees about X, Y and Z, applied Y, X, Z. */
 function orientation(r: number[]): number[] {
@@ -200,7 +247,9 @@ function orientation(r: number[]): number[] {
 function cframe(value: { position: number[]; rotation: number[] }): string {
 	const at = value.position.map(num).join(", ");
 	const turned = orientation(value.rotation);
-	return turned.every((d) => Math.abs(d) < 0.0005) ? at : `${at} · turned ${turned.map(num).join(", ")}°`;
+	return turned.every((d) => Math.abs(d) < 0.0005)
+		? at
+		: `${at} · turned ${turned.map(num).join(", ")}°`;
 }
 
 /** Printable text, or undefined for bytes that are not. */
@@ -219,7 +268,10 @@ function enumName(enumType: string | undefined, value: number): string | undefin
 }
 
 function formatValue(
-	prop: Prop, name: string, engine: EngineProperty | undefined, indexOf: (inst: RbxInstance) => number | undefined,
+	prop: Prop,
+	name: string,
+	engine: EngineProperty | undefined,
+	indexOf: (inst: RbxInstance) => number | undefined,
 ): Pick<PlaceProperty, "value" | "color" | "ref"> {
 	const v = prop.value as never;
 	switch (prop.type) {
@@ -288,7 +340,9 @@ function formatValue(
 
 /** Everything the browser shows about one instance. */
 export function describeInstance(
-	inst: RbxInstance, index: number, indexOf: (inst: RbxInstance) => number | undefined,
+	inst: RbxInstance,
+	index: number,
+	indexOf: (inst: RbxInstance) => number | undefined,
 ): PlaceInstanceInfo {
 	const properties: PlaceProperty[] = [];
 	for (const [stored, prop] of inst.props) {
@@ -309,7 +363,8 @@ export function describeInstance(
 		}
 	}
 	const attributes = inst.props.get("AttributesSerialize")?.value;
-	if (attributes instanceof Uint8Array && attributes.length > 4) properties.push(...readAttributes(attributes));
+	if (attributes instanceof Uint8Array && attributes.length > 4)
+		properties.push(...readAttributes(attributes));
 
 	const path: string[] = [];
 	for (let cur: RbxInstance | null = inst; cur; cur = cur.parent) path.unshift(cur.name);
@@ -362,32 +417,59 @@ export function readAttributes(bytes: Uint8Array): PlaceProperty[] {
 			const name = str();
 			const type = u8();
 			switch (type) {
-				case 0x02: add(name, "string", clip(str())); break;
-				case 0x03: add(name, "boolean", String(u8() !== 0)); break;
-				case 0x04: add(name, "number", String(i32())); break;
-				case 0x05: add(name, "number", num(f32())); break;
-				case 0x06: add(name, "number", num(f64())); break;
-				case 0x09: { const s = f32(); add(name, "UDim", `${num(s)}, ${i32()}`); break; }
+				case 0x02:
+					add(name, "string", clip(str()));
+					break;
+				case 0x03:
+					add(name, "boolean", String(u8() !== 0));
+					break;
+				case 0x04:
+					add(name, "number", String(i32()));
+					break;
+				case 0x05:
+					add(name, "number", num(f32()));
+					break;
+				case 0x06:
+					add(name, "number", num(f64()));
+					break;
+				case 0x09: {
+					const s = f32();
+					add(name, "UDim", `${num(s)}, ${i32()}`);
+					break;
+				}
 				case 0x0a: {
-					const sx = f32(), ox = i32(), sy = f32(), oy = i32();
+					const sx = f32(),
+						ox = i32(),
+						sy = f32(),
+						oy = i32();
 					add(name, "UDim2", `{${num(sx)}, ${ox}}, {${num(sy)}, ${oy}}`);
 					break;
 				}
-				case 0x0e: add(name, "BrickColor", `BrickColor ${u32()}`); break;
+				case 0x0e:
+					add(name, "BrickColor", `BrickColor ${u32()}`);
+					break;
 				case 0x0f: {
 					const rgb = floats(3).map((c) => c * 255);
 					add(name, "Color3", rgb.map((c) => String(Math.round(c))).join(", "), hex(rgb));
 					break;
 				}
-				case 0x10: add(name, "Vector2", floats(2).map(num).join(", ")); break;
-				case 0x11: add(name, "Vector3", floats(3).map(num).join(", ")); break;
+				case 0x10:
+					add(name, "Vector2", floats(2).map(num).join(", "));
+					break;
+				case 0x11:
+					add(name, "Vector3", floats(3).map(num).join(", "));
+					break;
 				case 0x14: {
 					const position = floats(3);
 					const id = u8();
 					const rotation = id === 0 ? floats(9) : [1, 0, 0, 0, 1, 0, 0, 0, 1];
 					// A non-zero id names one of the axis-aligned rotations,
 					// which are not worth a table here: say where it is.
-					add(name, "CFrame", id === 0 ? cframe({ position, rotation }) : `${position.map(num).join(", ")} · turned`);
+					add(
+						name,
+						"CFrame",
+						id === 0 ? cframe({ position, rotation }) : `${position.map(num).join(", ")} · turned`,
+					);
 					break;
 				}
 				case 0x15: {
@@ -399,7 +481,11 @@ export function readAttributes(bytes: Uint8Array): PlaceProperty[] {
 				case 0x17: {
 					const n = u32();
 					const keys = Array.from({ length: n }, () => floats(3));
-					add(name, "NumberSequence", `${n} keypoint${n === 1 ? "" : "s"}, ${keys.map((k) => num(k[2])).join(" → ")}`);
+					add(
+						name,
+						"NumberSequence",
+						`${n} keypoint${n === 1 ? "" : "s"}, ${keys.map((k) => num(k[2])).join(" → ")}`,
+					);
 					break;
 				}
 				case 0x19: {
@@ -408,8 +494,12 @@ export function readAttributes(bytes: Uint8Array): PlaceProperty[] {
 					add(name, "ColorSequence", `${n} keypoint${n === 1 ? "" : "s"}`);
 					break;
 				}
-				case 0x1b: add(name, "NumberRange", floats(2).map(num).join(", ")); break;
-				case 0x1c: add(name, "Rect", floats(4).map(num).join(", ")); break;
+				case 0x1b:
+					add(name, "NumberRange", floats(2).map(num).join(", "));
+					break;
+				case 0x1c:
+					add(name, "Rect", floats(4).map(num).join(", "));
+					break;
 				default:
 					add(name, "?", "not read");
 					if (count - i - 1 > 0) add("…", "?", `${count - i - 1} more not read`);

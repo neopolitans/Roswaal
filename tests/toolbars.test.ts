@@ -20,30 +20,53 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import {
-	blockText, buildSearchIndex, buildSite, findPage, searchDocs, type Block,
-} from "../src/core/docs/site.js";
-import { renderPage } from "../src/core/docs/html.js";
-import {
-	controlKey, controlsOf, DOCS_SITE_BAR, EDITOR_BAR, EDITOR_BAR_BROWSER, iconsOf, legendOf,
-	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DOCS_BAR,
-	FUNCTIONS_PANEL, MODULES_PANEL, pointingElsewhere, TOOLBAR_HINT, toolbarConstant,
-	toolbarHtml, TOOLBARS, VARIABLES_PAGE_PANEL, VARIABLES_PANEL,
-	type ToolbarArt, type ToolbarSpec,
-} from "../src/core/docs/toolbars.js";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { buildToolbarLinker } from "../scripts/lib/toolbarLinker.mjs";
-import * as toolbars from "../src/core/docs/toolbars.js";
-import { pageSource } from "../src/app/PageEditor.jsx";
 import { ICONS, VIEW_BOX } from "../src/app/icons.js";
 import { logoMarkup } from "../src/app/logo.js";
+import { pageSource } from "../src/app/PageEditor.jsx";
+import { renderPage } from "../src/core/docs/html.js";
+import {
+	type Block,
+	blockText,
+	buildSearchIndex,
+	buildSite,
+	findPage,
+	searchDocs,
+} from "../src/core/docs/site.js";
+import * as toolbars from "../src/core/docs/toolbars.js";
+import {
+	controlKey,
+	controlsOf,
+	DESIGNER_BAR,
+	DESIGNER_BAR_BROWSER,
+	DOCS_BAR,
+	DOCS_SITE_BAR,
+	EDITOR_BAR,
+	EDITOR_BAR_BROWSER,
+	FUNCTIONS_PANEL,
+	iconsOf,
+	legendOf,
+	MODULES_PANEL,
+	pointingElsewhere,
+	TOOLBAR_HINT,
+	TOOLBARS,
+	type ToolbarArt,
+	type ToolbarSpec,
+	toolbarConstant,
+	toolbarHtml,
+	VARIABLES_PAGE_PANEL,
+	VARIABLES_PANEL,
+} from "../src/core/docs/toolbars.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 
 const registry = createRegistry();
 const site = buildSite(registry, new Set(BUILTIN_NODES.map((d) => d.id)));
 const art: ToolbarArt = {
-	viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: "test",
+	viewBox: VIEW_BOX,
+	paths: ICONS,
+	mark: logoMarkup(15),
+	version: "test",
 };
 /** Built once, at the top level: a describe callback cannot await. */
 const linker: string = await buildToolbarLinker();
@@ -162,11 +185,11 @@ describe("the toolbar specs", () => {
 		const editor = TOOLBARS.find((bar) => bar.id === "editor-bar")!;
 		const items = controlsOf(editor);
 		expect(items.slice(-3).map((item) => item.t === "icon" && item.icon)).toEqual([
-			"document", "palette", "settings",
+			"document",
+			"palette",
+			"settings",
 		]);
-		expect(items.slice(-3).map((item) => item.name)).toEqual([
-			"Docs", "Node Design", "Settings",
-		]);
+		expect(items.slice(-3).map((item) => item.name)).toEqual(["Docs", "Node Design", "Settings"]);
 	});
 });
 
@@ -202,7 +225,8 @@ describe("drawing one", () => {
 
 	it("takes the version it is given rather than holding one", () => {
 		const shown = TOOLBARS.find((bar) =>
-			bar.groups.some((g) => g.items.some((i) => i.t === "mark" && i.version)))!;
+			bar.groups.some((g) => g.items.some((i) => i.t === "mark" && i.version)),
+		)!;
 		expect(toolbarHtml(shown, art)).toContain(">test<");
 	});
 
@@ -220,7 +244,7 @@ describe("drawing one", () => {
 	/** No artwork means no picture, rather than a row of empty squares. */
 	it("draws nothing for a glyph the set does not have", () => {
 		const bare: ToolbarArt = { ...art, paths: {} };
-		expect(toolbarHtml(TOOLBARS[0], bare)).not.toContain("<svg class=\"icon\"");
+		expect(toolbarHtml(TOOLBARS[0], bare)).not.toContain('<svg class="icon"');
 	});
 });
 
@@ -354,9 +378,7 @@ describe("the documentation's toolbar linker", () => {
 	});
 
 	it("defines every transpiler helper it calls", () => {
-		const called = new Set(
-			[...linker.matchAll(/(__[A-Za-z]\w*)\s*\(/g)].map((found) => found[1]),
-		);
+		const called = new Set([...linker.matchAll(/(__[A-Za-z]\w*)\s*\(/g)].map((found) => found[1]));
 		const undeclared = [...called].filter(
 			(name) => !new RegExp("(?:var|let|const|function)\s+" + name + "\b").test(linker),
 		);
@@ -396,7 +418,10 @@ describe("the documentation's toolbar linker", () => {
 			contains: () => true,
 			addEventListener: (name: string, fn: (e: unknown) => void) => void (listeners[name] = fn),
 			removeEventListener: () => {},
-			classList: { add: (n: string) => figureClasses.add(n), remove: (n: string) => figureClasses.delete(n) },
+			classList: {
+				add: (n: string) => figureClasses.add(n),
+				remove: (n: string) => figureClasses.delete(n),
+			},
 		};
 		const document = { querySelectorAll: () => [figure] };
 
@@ -473,7 +498,10 @@ describe("the tab switch does not move the window", () => {
  */
 describe("drawing a panel", () => {
 	const art: ToolbarArt = {
-		viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: "test",
+		viewBox: VIEW_BOX,
+		paths: ICONS,
+		mark: logoMarkup(15),
+		version: "test",
 		pinColor: (type) => (type === "number" ? "#8fbf3f" : "#888"),
 	};
 
@@ -539,7 +567,10 @@ describe("drawing a panel", () => {
  */
 describe("pointing a section at its own page", () => {
 	const art: ToolbarArt = {
-		viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: "test",
+		viewBox: VIEW_BOX,
+		paths: ICONS,
+		mark: logoMarkup(15),
+		version: "test",
 	};
 
 	/** Each variant, and the sections that page is the page for. */
@@ -572,9 +603,9 @@ describe("pointing a section at its own page", () => {
 	it("lights the sections it explains and dims the rest", () => {
 		for (const [slug, spec, mine] of VARIANTS) {
 			const html = toolbarHtml(spec, art);
-			const sections = [...html.matchAll(
-				/<div class="panel-section( dim| focus)?">.*?<span>([^<]+)<\/span>/g,
-			)];
+			const sections = [
+				...html.matchAll(/<div class="panel-section( dim| focus)?">.*?<span>([^<]+)<\/span>/g),
+			];
 			expect(sections.length, slug).toBe(legendOf(VARIABLES_PANEL).length);
 			for (const [, state, text] of sections) {
 				const owned = mine.some((name) => name.toUpperCase() === text.toUpperCase());
@@ -595,8 +626,7 @@ describe("pointing a section at its own page", () => {
 		for (const [slug, spec, mine] of VARIANTS) {
 			for (const item of legendOf(spec)) {
 				if (mine.includes(item.name)) {
-					expect(item.what, `${slug}: ${item.name}`)
-						.toEqual(whatOf(VARIABLES_PANEL, item.name));
+					expect(item.what, `${slug}: ${item.name}`).toEqual(whatOf(VARIABLES_PANEL, item.name));
 				} else {
 					expect(item.what, `${slug}: ${item.name}`).toContain("](");
 				}
@@ -648,7 +678,10 @@ describe("pointing a section at its own page", () => {
 describe("suggesting an edit", () => {
 	it("writes a bar as the constant it is, not as its spec", () => {
 		const page = findPage(site, "toolbars")!;
-		const source = pageSource(page, page.blocks.map((block) => ({ block })));
+		const source = pageSource(
+			page,
+			page.blocks.map((block) => ({ block })),
+		);
 
 		expect(source).toContain('{ t: "toolbar", bar: DESIGNER_BAR },');
 		// Including the ones inside a tab, which is where it first leaked: a

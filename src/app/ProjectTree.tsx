@@ -6,13 +6,13 @@
  * marked so it is obvious which Luau is Roswaal's to overwrite.
  */
 
-import { memo, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import type { TreeEntry } from "./api.js";
+import { type DragEvent, memo, useEffect, useMemo, useRef, useState } from "react";
 import type { FunctionInfo } from "../core/functionGraph.js";
+import type { TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
-import { Icon, type IconName } from "./icons.jsx";
-import { NOT_HERE, useHostCan } from "./host.js";
 import { useDismiss } from "./dismiss.js";
+import { NOT_HERE, useHostCan } from "./host.js";
+import { Icon, type IconName } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
@@ -78,8 +78,23 @@ export interface ProjectTreeProps {
  * new inline arrow in the JSX would quietly undo this.
  */
 export const ProjectTree = memo(function ProjectTree({
-	tree, openPath, openGraph, outline, onOpenFunction, sourceDir, nodePaths, targetDir,
-	onOpen, onMove, onTargetDir, onNewGraph, onNewMap, onNewFolder, onRename, onDelete, onReveal,
+	tree,
+	openPath,
+	openGraph,
+	outline,
+	onOpenFunction,
+	sourceDir,
+	nodePaths,
+	targetDir,
+	onOpen,
+	onMove,
+	onTargetDir,
+	onNewGraph,
+	onNewMap,
+	onNewFolder,
+	onRename,
+	onDelete,
+	onReveal,
 	onPackage,
 }: ProjectTreeProps) {
 	// A file manager to show a file in is something only a machine has.
@@ -192,7 +207,8 @@ export const ProjectTree = memo(function ProjectTree({
 				const [lo, hi] = from < to ? [from, to] : [to, from];
 				setSelected(
 					new Set(
-						rows.slice(lo, hi + 1)
+						rows
+							.slice(lo, hi + 1)
 							.filter((r) => r.entry.kind !== "directory" && !r.fn)
 							.map((r) => r.entry.path),
 					),
@@ -226,7 +242,9 @@ export const ProjectTree = memo(function ProjectTree({
 		const raw = e.dataTransfer.getData("application/x-roswaal");
 		if (!raw) return;
 		const paths = JSON.parse(raw) as string[];
-		const movable = paths.filter((p) => !p.startsWith(dir + "/") || p.slice(dir.length + 1).includes("/"));
+		const movable = paths.filter(
+			(p) => !p.startsWith(dir + "/") || p.slice(dir.length + 1).includes("/"),
+		);
 		if (movable.length) onMove(movable, dir);
 	}
 
@@ -295,7 +313,9 @@ export const ProjectTree = memo(function ProjectTree({
 						onDragLeave={() => setDropTarget((t) => (t === entry.path ? null : t))}
 						onDrop={(e) => isDir && onDrop(e, entry.path)}
 						onClick={(e) => click(e, entry)}
-						onDoubleClick={() => !isDir && entry.kind !== "wally" && !entry.missing && onOpen(entry)}
+						onDoubleClick={() =>
+							!isDir && entry.kind !== "wally" && !entry.missing && onOpen(entry)
+						}
 						onContextMenu={(e) => {
 							e.preventDefault();
 							// wally.toml and its packages: a menu of their own, for adding.
@@ -314,23 +334,35 @@ export const ProjectTree = memo(function ProjectTree({
 								? entry.missing
 									? `${entry.name} is in wally.toml, and not installed: run wally install.`
 									: `${entry.name}${entry.version ? ` ${entry.version}` : ""}. Double-click to open ${entry.target}.`
-								: isDir && !groups.isGraph(entry) && entry.role ? `${entry.path}: ${FOLDER_TITLE[entry.role]}` : entry.path
+								: isDir && !groups.isGraph(entry) && entry.role
+									? `${entry.path}: ${FOLDER_TITLE[entry.role]}`
+									: entry.path
 						}
 					>
 						{entry.kind === "wally" ? (
 							<>
-								<Icon name="chevron" size={14} className="twist"
-									rotate={collapsed.has(entry.path) ? -90 : 0} />
+								<Icon
+									name="chevron"
+									size={14}
+									className="twist"
+									rotate={collapsed.has(entry.path) ? -90 : 0}
+								/>
 								<Icon name="settings" size={15} className="kind wally" />
 							</>
 						) : isDir ? (
 							<>
-								<Icon name="chevron" size={14} className="twist"
-									rotate={collapsed.has(entry.path) ? -90 : 0} />
+								<Icon
+									name="chevron"
+									size={14}
+									className="twist"
+									rotate={collapsed.has(entry.path) ? -90 : 0}
+								/>
 								<Icon
 									name={collapsed.has(entry.path) ? "folder" : "folderOpen"}
 									size={15}
-									className={groups.isGraph(entry) ? "kind" : `kind ${FOLDER_CLASS[entry.role ?? "plain"]}`}
+									className={
+										groups.isGraph(entry) ? "kind" : `kind ${FOLDER_CLASS[entry.role ?? "plain"]}`
+									}
 								/>
 							</>
 						) : (
@@ -349,8 +381,12 @@ export const ProjectTree = memo(function ProjectTree({
 										}}
 										onDoubleClick={(e) => e.stopPropagation()}
 									>
-										<Icon name="chevron" size={14} className="twist"
-											rotate={expanded.has(entry.path) ? 0 : -90} />
+										<Icon
+											name="chevron"
+											size={14}
+											className="twist"
+											rotate={expanded.has(entry.path) ? 0 : -90}
+										/>
 									</span>
 								)}
 								<Icon

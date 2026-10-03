@@ -100,13 +100,23 @@ export function installTouchGestures(target: Window = window): void {
 	// what the finger does next decides -- move and it drags, lift and the menu
 	// opens then. The same bargain as holding on empty canvas.
 	let press: {
-		id: number; x: number; y: number; element: Element; timer: number;
-		fired: boolean; source: HTMLElement | null; armed: boolean;
+		id: number;
+		x: number;
+		y: number;
+		element: Element;
+		timer: number;
+		fired: boolean;
+		source: HTMLElement | null;
+		armed: boolean;
 	} | null = null;
 	// A drag in progress, carried by one finger.
 	let drag: {
-		id: number; source: HTMLElement; transfer: TouchDataTransfer; ghost: HTMLElement;
-		over: Element | null; accepted: boolean;
+		id: number;
+		source: HTMLElement;
+		transfer: TouchDataTransfer;
+		ghost: HTMLElement;
+		over: Element | null;
+		accepted: boolean;
 		/** Where the finger is on a drag image, which is then drawn from there. */
 		offset: { x: number; y: number } | null;
 	} | null = null;
@@ -117,7 +127,9 @@ export function installTouchGestures(target: Window = window): void {
 	// slowly is still a pinch: it only stops being one if the fingers are
 	// held and then let go without having moved.
 	let pair: {
-		start: Map<number, { x: number; y: number }>; timer: number; held: boolean;
+		start: Map<number, { x: number; y: number }>;
+		timer: number;
+		held: boolean;
 	} | null = null;
 	// Where the last quick tap ended, for recognising the second.
 	let lastTap: { x: number; y: number; at: number } | null = null;
@@ -142,19 +154,25 @@ export function installTouchGestures(target: Window = window): void {
 	};
 
 	const fire = (
-		type: "contextmenu" | "dblclick", element: Element, x: number, y: number, ctrlKey = false,
+		type: "contextmenu" | "dblclick",
+		element: Element,
+		x: number,
+		y: number,
+		ctrlKey = false,
 	) => {
-		element.dispatchEvent(new MouseEvent(type, {
-			bubbles: true,
-			cancelable: true,
-			composed: true,
-			clientX: x,
-			clientY: y,
-			ctrlKey,
-			button: type === "contextmenu" ? 2 : 0,
-			detail: type === "dblclick" ? 2 : 0,
-			view: window,
-		}));
+		element.dispatchEvent(
+			new MouseEvent(type, {
+				bubbles: true,
+				cancelable: true,
+				composed: true,
+				clientX: x,
+				clientY: y,
+				ctrlKey,
+				button: type === "contextmenu" ? 2 : 0,
+				detail: type === "dblclick" ? 2 : 0,
+				view: window,
+			}),
+		);
 	};
 
 	// A drag event carrying the transfer. A `MouseEvent` with `dataTransfer`
@@ -221,7 +239,12 @@ export function installTouchGestures(target: Window = window): void {
 		document.body.appendChild(ghost);
 
 		drag = {
-			id: held.id, source, transfer, ghost, over: null, accepted: false,
+			id: held.id,
+			source,
+			transfer,
+			ghost,
+			over: null,
+			accepted: false,
 			offset: image ? { x: image.x, y: image.y } : null,
 		};
 		moveDrag(x, y);
@@ -238,77 +261,85 @@ export function installTouchGestures(target: Window = window): void {
 		swallowClickUntil = performance.now() + ECHO_MS;
 	};
 
-	target.addEventListener("pointerdown", (e) => {
-		if (e.pointerType === "mouse") {
-			cancelPress();
-			return;
-		}
-		fingers.add(e.pointerId);
-		// A second finger is a pinch, not a press that is taking its time --
-		// unless the two are held still, which `pair` watches for. Only when
-		// the first had not already become something: a menu opened by its
-		// long press, or a drag it armed.
-		if (fingers.size > 1) {
-			const first = press && !press.fired && !press.armed && fingers.size === 2 ? press : null;
-			cancelPress();
-			cancelPair();
-			lastTap = null;
-			if (first) {
-				const start = new Map([
-					[first.id, { x: first.x, y: first.y }],
-					[e.pointerId, { x: e.clientX, y: e.clientY }],
-				]);
-				pair = {
-					start,
-					held: false,
-					timer: window.setTimeout(() => {
-						if (pair && pair.start === start) pair.held = true;
-					}, LONG_PRESS_MS),
-				};
+	target.addEventListener(
+		"pointerdown",
+		(e) => {
+			if (e.pointerType === "mouse") {
+				cancelPress();
+				return;
 			}
-			return;
-		}
-		const element = e.target instanceof Element ? e.target : null;
-		if (!element) return;
-		cancelPress();
-		const source = element.closest<HTMLElement>('[draggable="true"]');
-		const at = { id: e.pointerId, x: e.clientX, y: e.clientY, element, source };
-		press = {
-			...at,
-			fired: false,
-			armed: false,
-			timer: window.setTimeout(() => {
-				if (!press || press.id !== at.id) return;
-				if (at.source) {
-					// Held on something draggable: wait to see which it is.
-					press.armed = true;
-					at.source.classList.add("touch-lifted");
-					return;
+			fingers.add(e.pointerId);
+			// A second finger is a pinch, not a press that is taking its time --
+			// unless the two are held still, which `pair` watches for. Only when
+			// the first had not already become something: a menu opened by its
+			// long press, or a drag it armed.
+			if (fingers.size > 1) {
+				const first = press && !press.fired && !press.armed && fingers.size === 2 ? press : null;
+				cancelPress();
+				cancelPair();
+				lastTap = null;
+				if (first) {
+					const start = new Map([
+						[first.id, { x: first.x, y: first.y }],
+						[e.pointerId, { x: e.clientX, y: e.clientY }],
+					]);
+					pair = {
+						start,
+						held: false,
+						timer: window.setTimeout(() => {
+							if (pair && pair.start === start) pair.held = true;
+						}, LONG_PRESS_MS),
+					};
 				}
-				press.fired = true;
-				sentMenuAt = performance.now();
-				fire("contextmenu", element.isConnected ? element : document.body, at.x, at.y);
-			}, LONG_PRESS_MS),
-		};
-	}, true);
+				return;
+			}
+			const element = e.target instanceof Element ? e.target : null;
+			if (!element) return;
+			cancelPress();
+			const source = element.closest<HTMLElement>('[draggable="true"]');
+			const at = { id: e.pointerId, x: e.clientX, y: e.clientY, element, source };
+			press = {
+				...at,
+				fired: false,
+				armed: false,
+				timer: window.setTimeout(() => {
+					if (!press || press.id !== at.id) return;
+					if (at.source) {
+						// Held on something draggable: wait to see which it is.
+						press.armed = true;
+						at.source.classList.add("touch-lifted");
+						return;
+					}
+					press.fired = true;
+					sentMenuAt = performance.now();
+					fire("contextmenu", element.isConnected ? element : document.body, at.x, at.y);
+				}, LONG_PRESS_MS),
+			};
+		},
+		true,
+	);
 
-	target.addEventListener("pointermove", (e) => {
-		if (drag && e.pointerId === drag.id) {
-			moveDrag(e.clientX, e.clientY);
-			return;
-		}
-		const from = pair?.start.get(e.pointerId);
-		if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > SLOP) {
-			// It moved, so it is the pinch or the pan it looked like.
-			cancelPair();
-			return;
-		}
-		if (!press || e.pointerId !== press.id || press.fired) return;
-		const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y) > SLOP;
-		if (!moved) return;
-		if (press.armed) startDrag(press, e.clientX, e.clientY);
-		else cancelPress();
-	}, true);
+	target.addEventListener(
+		"pointermove",
+		(e) => {
+			if (drag && e.pointerId === drag.id) {
+				moveDrag(e.clientX, e.clientY);
+				return;
+			}
+			const from = pair?.start.get(e.pointerId);
+			if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > SLOP) {
+				// It moved, so it is the pinch or the pan it looked like.
+				cancelPair();
+				return;
+			}
+			if (!press || e.pointerId !== press.id || press.fired) return;
+			const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y) > SLOP;
+			if (!moved) return;
+			if (press.armed) startDrag(press, e.clientX, e.clientY);
+			else cancelPress();
+		},
+		true,
+	);
 
 	// An armed press or a drag keeps the page where it is. Without this the
 	// finger that has just been held still on a tree row scrolls the tree the
@@ -316,9 +347,13 @@ export function installTouchGestures(target: Window = window): void {
 	// pointer, so the drag never happens. A touch-move is the one event that can
 	// still refuse the scroll at that point; the first one after a still hold is
 	// always cancelable.
-	target.addEventListener("touchmove", (e) => {
-		if (drag || press?.armed) e.preventDefault();
-	}, { capture: true, passive: false });
+	target.addEventListener(
+		"touchmove",
+		(e) => {
+			if (drag || press?.armed) e.preventDefault();
+		},
+		{ capture: true, passive: false },
+	);
 
 	const lift = (e: PointerEvent, cancelled: boolean) => {
 		if (e.pointerType === "mouse") return;
@@ -357,7 +392,12 @@ export function installTouchGestures(target: Window = window): void {
 			// Held and lifted without moving: it was the menu after all.
 			if (!cancelled) {
 				sentMenuAt = performance.now();
-				fire("contextmenu", held.element.isConnected ? held.element : document.body, held.x, held.y);
+				fire(
+					"contextmenu",
+					held.element.isConnected ? held.element : document.body,
+					held.x,
+					held.y,
+				);
 			}
 			swallowClickUntil = performance.now() + ECHO_MS;
 			lastTap = null;
@@ -374,9 +414,9 @@ export function installTouchGestures(target: Window = window): void {
 
 		const now = performance.now();
 		if (
-			lastTap
-			&& now - lastTap.at < DOUBLE_TAP_MS
-			&& Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < DOUBLE_TAP_SLOP
+			lastTap &&
+			now - lastTap.at < DOUBLE_TAP_MS &&
+			Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < DOUBLE_TAP_SLOP
 		) {
 			lastTap = null;
 			sentDoubleAt = now;
@@ -391,30 +431,42 @@ export function installTouchGestures(target: Window = window): void {
 	target.addEventListener("pointercancel", (e) => lift(e, true), true);
 
 	// The browser's own versions, where it has them, arriving after ours.
-	target.addEventListener("contextmenu", (e) => {
-		if (!e.isTrusted) return;
-		if (press && !press.fired) {
-			// It beat the timer: let it through and stand ours down.
-			cancelPress();
-			return;
-		}
-		if (performance.now() - sentMenuAt < ECHO_MS) {
-			e.preventDefault();
-			e.stopImmediatePropagation();
-		}
-	}, true);
+	target.addEventListener(
+		"contextmenu",
+		(e) => {
+			if (!e.isTrusted) return;
+			if (press && !press.fired) {
+				// It beat the timer: let it through and stand ours down.
+				cancelPress();
+				return;
+			}
+			if (performance.now() - sentMenuAt < ECHO_MS) {
+				e.preventDefault();
+				e.stopImmediatePropagation();
+			}
+		},
+		true,
+	);
 
-	target.addEventListener("dblclick", (e) => {
-		if (e.isTrusted && performance.now() - sentDoubleAt < ECHO_MS) {
-			e.stopImmediatePropagation();
-		}
-	}, true);
+	target.addEventListener(
+		"dblclick",
+		(e) => {
+			if (e.isTrusted && performance.now() - sentDoubleAt < ECHO_MS) {
+				e.stopImmediatePropagation();
+			}
+		},
+		true,
+	);
 
-	target.addEventListener("click", (e) => {
-		if (performance.now() < swallowClickUntil) {
-			swallowClickUntil = -Infinity;
-			e.preventDefault();
-			e.stopImmediatePropagation();
-		}
-	}, true);
+	target.addEventListener(
+		"click",
+		(e) => {
+			if (performance.now() < swallowClickUntil) {
+				swallowClickUntil = -Infinity;
+				e.preventDefault();
+				e.stopImmediatePropagation();
+			}
+		},
+		true,
+	);
 }

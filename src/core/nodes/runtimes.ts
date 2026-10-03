@@ -39,8 +39,8 @@
  * first place.
  */
 
-import { ENGINE_TYPES, type NodeDef, type Target } from "../schema.js";
 import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
+import { ENGINE_TYPES, type NodeDef, type Target } from "../schema.js";
 
 /**
  * What a runtime answer can be, before it becomes a `targets` array.
@@ -76,21 +76,21 @@ export type Runtime = "luau" | "roblox" | "lune";
  */
 export const CATEGORY_RUNTIME: Record<string, Runtime> = {
 	// The language, and what Roswaal makes out of it.
-	"Flow": "luau",
-	"Variables": "luau",
-	"Values": "luau",
-	"Logic": "luau",
-	"Math": "luau",
-	"Strings": "luau",
-	"Tables": "luau",
-	"Modules": "luau",
+	Flow: "luau",
+	Variables: "luau",
+	Values: "luau",
+	Logic: "luau",
+	Math: "luau",
+	Strings: "luau",
+	Tables: "luau",
+	Modules: "luau",
 	// `print`, `warn`, `error`, `assert` and `debug.traceback` are all globals
 	// in Lune as well as in Roblox -- `warn` included, which is worth saying
 	// because it reads like a Roblox invention. Checked against Lune's own
 	// source: it ships `crates/lune-std/src/globals/warn.rs`.
-	"Debug": "luau",
+	Debug: "luau",
 	// `coroutine` is Luau's. `task` is not, and is listed in NODE_RUNTIME.
-	"Threads": "luau",
+	Threads: "luau",
 
 	// The engine.
 	/**
@@ -100,15 +100,15 @@ export const CATEGORY_RUNTIME: Record<string, Runtime> = {
 	 * have — so a Roblox graph should never be offered one, which is what this
 	 * line does.
 	 */
-	"Lune": "lune",
+	Lune: "lune",
 
 	"Engine Types": "roblox",
-	"Instances": "roblox",
-	"Engine": "roblox",
-	"Events": "roblox",
-	"Networking": "roblox",
-	"Players": "roblox",
-	"Time": "roblox",
+	Instances: "roblox",
+	Engine: "roblox",
+	Events: "roblox",
+	Networking: "roblox",
+	Players: "roblox",
+	Time: "roblox",
 	"Z-Up Conversions": "roblox",
 };
 
@@ -272,8 +272,11 @@ export function runtimeOf(
 	// The node is *offered*, not silently made to work: it still needs the
 	// module declared, and says so. Same arrangement as a Lune call, for the
 	// same reason — a require happens because somebody asked.
-	if (def.category === ENGINE_TYPES && def.subcategory &&
-		LUNE_ROBLOX_DATATYPES.includes(def.subcategory)) {
+	if (
+		def.category === ENGINE_TYPES &&
+		def.subcategory &&
+		LUNE_ROBLOX_DATATYPES.includes(def.subcategory)
+	) {
 		return "luau";
 	}
 

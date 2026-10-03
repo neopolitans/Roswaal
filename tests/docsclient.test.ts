@@ -8,10 +8,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { rankDocs, type SearchEntry } from "../src/core/docs/search.js";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { buildDocsClient } from "../scripts/lib/docsClient.mjs";
+import { rankDocs, type SearchEntry } from "../src/core/docs/search.js";
 
 const client: string = await buildDocsClient();
 
@@ -42,7 +41,13 @@ class FakeElement {
 class FakeInput extends FakeElement {}
 
 const INDEX: SearchEntry[] = [
-	{ slug: "b", title: "Zeta <img src=x onerror=alert(1)>", summary: "", section: "S", body: "loop" },
+	{
+		slug: "b",
+		title: "Zeta <img src=x onerror=alert(1)>",
+		summary: "",
+		section: "S",
+		body: "loop",
+	},
 	{ slug: "a", title: "Alpha", summary: "", section: "<b>S</b>", body: "loop" },
 	{ slug: "c", title: "Loop", summary: "", section: "S", body: "" },
 ];
@@ -62,7 +67,13 @@ async function search(query: string): Promise<FakeElement[]> {
 	const window: Record<string, unknown> = {};
 	const fetch = async () => ({ json: async () => INDEX });
 	const run = new Function(
-		"window", "document", "fetch", "HTMLInputElement", "Element", "navigator", "setTimeout",
+		"window",
+		"document",
+		"fetch",
+		"HTMLInputElement",
+		"Element",
+		"navigator",
+		"setTimeout",
 		client,
 	);
 	run(window, document, fetch, FakeInput, FakeElement, {}, () => 0);
@@ -83,7 +94,9 @@ describe("the site's search box", () => {
 		// The two passing mentions score the same, and sort by title as the
 		// app's palette sorts them -- not by where they sit in the index.
 		expect(hits.map((hit) => hit.children[0].textContent)).toEqual([
-			"Loop", "Alpha", "Zeta <img src=x onerror=alert(1)>",
+			"Loop",
+			"Alpha",
+			"Zeta <img src=x onerror=alert(1)>",
 		]);
 	});
 

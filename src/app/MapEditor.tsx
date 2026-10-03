@@ -11,8 +11,16 @@
 import { useMemo, useState } from "react";
 
 import {
-	COMMON_SERVICES, CONTAINER_CLASSES, compileNodeMap, findMapNode, mapNodeParent,
-	isFilesystemMap, mapNodeRemove, mapNodeUpdate, type MapNode, type NodeMap,
+	COMMON_SERVICES,
+	CONTAINER_CLASSES,
+	compileNodeMap,
+	findMapNode,
+	isFilesystemMap,
+	type MapNode,
+	mapNodeParent,
+	mapNodeRemove,
+	mapNodeUpdate,
+	type NodeMap,
 } from "../core/nodemap.js";
 import type { TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
@@ -180,69 +188,70 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 					)}
 
 					{!filesystem && (
-					<label className="field">
-						<span>Class</span>
-						<select
-							className="tb"
-							value={current.className ?? ""}
-							onChange={(e) =>
-								updateNode(current.id, { className: e.target.value || undefined })
-							}
-						>
-							<option value="">(service — Rojo infers it)</option>
-							{CONTAINER_CLASSES.map((c) => (
-								<option key={c}>{c}</option>
-							))}
-							{current.id === map.root.id && <option>DataModel</option>}
-						</select>
-					</label>
-					)}
-
-					{!filesystem && (
-					<label className="field">
-						<span>Path</span>
-						<span className="path-field">
-							<input
+						<label className="field">
+							<span>Class</span>
+							<select
 								className="tb"
-								placeholder="src/systems"
-								value={current.path ?? ""}
-								title="A directory or file on disk whose contents fill this instance"
-								onChange={(e) => updateNode(current.id, { path: e.target.value || undefined })}
-							/>
-							{pathResolves(current.path) === false && (
-								<span className="path-missing" title="Nothing is at this path. Rojo will build an empty instance.">
-									<Icon name="warning" size={14} />
-									not found
-								</span>
-							)}
-						</span>
-					</label>
+								value={current.className ?? ""}
+								onChange={(e) => updateNode(current.id, { className: e.target.value || undefined })}
+							>
+								<option value="">(service — Rojo infers it)</option>
+								{CONTAINER_CLASSES.map((c) => (
+									<option key={c}>{c}</option>
+								))}
+								{current.id === map.root.id && <option>DataModel</option>}
+							</select>
+						</label>
 					)}
 
 					{!filesystem && (
-					<label className="field">
-						<span>Ignore unknown</span>
-						<input
-							type="checkbox"
-							checked={current.ignoreUnknown ?? false}
-							onChange={(e) =>
-								updateNode(current.id, { ignoreUnknown: e.target.checked || undefined })
-							}
-						/>
-					</label>
+						<label className="field">
+							<span>Path</span>
+							<span className="path-field">
+								<input
+									className="tb"
+									placeholder="src/systems"
+									value={current.path ?? ""}
+									title="A directory or file on disk whose contents fill this instance"
+									onChange={(e) => updateNode(current.id, { path: e.target.value || undefined })}
+								/>
+								{pathResolves(current.path) === false && (
+									<span
+										className="path-missing"
+										title="Nothing is at this path. Rojo will build an empty instance."
+									>
+										<Icon name="warning" size={14} />
+										not found
+									</span>
+								)}
+							</span>
+						</label>
+					)}
+
+					{!filesystem && (
+						<label className="field">
+							<span>Ignore unknown</span>
+							<input
+								type="checkbox"
+								checked={current.ignoreUnknown ?? false}
+								onChange={(e) =>
+									updateNode(current.id, { ignoreUnknown: e.target.checked || undefined })
+								}
+							/>
+						</label>
 					)}
 				</div>
 
 				{!filesystem && (
-				<ListField
-					label="Ignore paths"
-					hint="Globs under this instance's path that Rojo should skip, e.g. shared/** — how you stop a nested mapping syncing twice."
-					values={current.ignorePaths ?? []}
-					placeholder="shared/**"
-					onChange={(next) =>
-						updateNode(current.id, { ignorePaths: next.length ? next : undefined })
-					}
-				/>
+					<ListField
+						label="Ignore paths"
+						hint="Globs under this instance's path that Rojo should skip, e.g. shared/** — how you stop a nested mapping syncing twice."
+						values={current.ignorePaths ?? []}
+						placeholder="shared/**"
+						onChange={(next) =>
+							updateNode(current.id, { ignorePaths: next.length ? next : undefined })
+						}
+					/>
 				)}
 
 				<div className="map-actions">
@@ -297,9 +306,9 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 						    the layout is one Luau can require through -- which is
 						    the part Rojo was doing incidentally. */}
 						<p className="summary">
-							Directories and files, as they sit on disk. Nothing is written when this is
-							compiled — a Lune program has no project file, so what compiling does is
-							check the layout holds together.
+							Directories and files, as they sit on disk. Nothing is written when this is compiled —
+							a Lune program has no project file, so what compiling does is check the layout holds
+							together.
 						</p>
 					</>
 				) : (
@@ -346,7 +355,11 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 
 /** A small editable list of strings, for the two kinds of ignore glob. */
 function ListField({
-	label, hint, values, placeholder, onChange,
+	label,
+	hint,
+	values,
+	placeholder,
+	onChange,
 }: {
 	label: string;
 	hint: string;

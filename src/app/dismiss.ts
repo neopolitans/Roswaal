@@ -14,7 +14,7 @@
  * Not a focus trap and not a modal: a dialog has its own rules (`Dialog.tsx`).
  */
 
-import { useEffect, useRef, type RefObject } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 
 export interface DismissOptions {
 	/** Listen only while this is true -- a popover that is shut has nothing to close. */

@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { wirePath, type Vec, type WireStyle } from "../src/app/geometry.js";
+import { type Vec, type WireStyle, wirePath } from "../src/app/geometry.js";
 import { NODE } from "../src/app/layers.js";
 
 /**
@@ -64,9 +64,7 @@ describe("every style", () => {
 				expect(d, `${style} / ${c.name}`).toMatch(
 					new RegExp(`^M\\s*${c.from.x}\\s+${c.from.y}\\b`),
 				);
-				expect(d, `${style} / ${c.name}`).toMatch(
-					new RegExp(`${c.to.x}\\s+${c.to.y}\\s*$`),
-				);
+				expect(d, `${style} / ${c.name}`).toMatch(new RegExp(`${c.to.x}\\s+${c.to.y}\\s*$`));
 			}
 		}
 	});
@@ -91,8 +89,9 @@ describe("rigid", () => {
 		for (const c of CASES) {
 			for (const s of segments(wirePath(c.from, c.to, "rigid"))) {
 				if (degenerate(s)) continue;
-				expect(axisAligned(s), `${c.name}: segment (${s.x}, ${s.y}) is not axis-aligned`)
-					.toBe(true);
+				expect(axisAligned(s), `${c.name}: segment (${s.x}, ${s.y}) is not axis-aligned`).toBe(
+					true,
+				);
 			}
 		}
 	});
@@ -152,10 +151,7 @@ describe("angular", () => {
 		for (const c of CASES) {
 			const segs = segments(wirePath(c.from, c.to, "angular"));
 			expect(axisAligned(segs[0]), `${c.name}: leaves at an angle`).toBe(true);
-			expect(
-				axisAligned(segs[segs.length - 1]),
-				`${c.name}: arrives at an angle`,
-			).toBe(true);
+			expect(axisAligned(segs[segs.length - 1]), `${c.name}: arrives at an angle`).toBe(true);
 		}
 	});
 

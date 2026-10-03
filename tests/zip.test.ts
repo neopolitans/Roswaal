@@ -87,8 +87,10 @@ describe("the archive a project is handed over in", () => {
 		for (const entry of readDirectory(buf)) {
 			const found = readEntry(buf, entry.offset);
 			expect([entry.name, found.name]).toEqual([entry.name, entry.name]);
-			expect([entry.name, found.body.toString("utf8")])
-				.toEqual([entry.name, PROJECT[entry.name as keyof typeof PROJECT]]);
+			expect([entry.name, found.body.toString("utf8")]).toEqual([
+				entry.name,
+				PROJECT[entry.name as keyof typeof PROJECT],
+			]);
 		}
 	});
 

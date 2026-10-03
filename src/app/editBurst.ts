@@ -102,13 +102,16 @@ export function useEditBurst(): {
 		};
 	}, [burst]);
 
-	return useMemo(() => ({
-		edit: (fn: (script: NodeScript) => NodeScript) => burst.edit(fn),
-		field: {
-			onBlur: () => burst.end(),
-			onKeyDown: (e: { key: string }) => {
-				if (e.key === "Enter") burst.end();
+	return useMemo(
+		() => ({
+			edit: (fn: (script: NodeScript) => NodeScript) => burst.edit(fn),
+			field: {
+				onBlur: () => burst.end(),
+				onKeyDown: (e: { key: string }) => {
+					if (e.key === "Enter") burst.end();
+				},
 			},
-		},
-	}), [burst]);
+		}),
+		[burst],
+	);
 }

@@ -24,8 +24,7 @@ import { Builder } from "./helpers.js";
 
 const registry = createRegistry();
 
-const at = (script: NodeScript, id: string): GraphNode =>
-	script.nodes.find((n) => n.id === id)!;
+const at = (script: NodeScript, id: string): GraphNode => script.nodes.find((n) => n.id === id)!;
 
 /** The y a wire leaves or arrives at, in world coordinates. */
 const pinY = (script: NodeScript, id: string, pin: string, side: "in" | "out"): number =>
@@ -248,8 +247,10 @@ describe("aligning to the anchor", () => {
 
 		// The knot moved, so a Print aligned to the knot's old y would be wrong.
 		expect(at(out, knot).y).not.toBe(at(script, knot).y);
-		expect(pinY(out, print, "value", "in"))
-			.toBeCloseTo(pinPosition(at(stale, knot), registry, "out", "out")!.y, 5);
+		expect(pinY(out, print, "value", "in")).toBeCloseTo(
+			pinPosition(at(stale, knot), registry, "out", "out")!.y,
+			5,
+		);
 	});
 
 	/**
@@ -307,8 +308,10 @@ describe("aligning to the anchor", () => {
 		expect(at(backwards, print)).toEqual(at(script, print));
 		expect(at(forwards, source)).toEqual(at(script, source));
 		// Both straighten the chain; they just straighten it onto different ends.
-		expect(pinY(backwards, source, "result", "out"))
-			.toBeCloseTo(pinY(backwards, knot, "in", "in"), 5);
+		expect(pinY(backwards, source, "result", "out")).toBeCloseTo(
+			pinY(backwards, knot, "in", "in"),
+			5,
+		);
 	});
 
 	/** A chain that is already straight is a chain nothing touches. */
@@ -346,14 +349,22 @@ describe("aligning to the anchor", () => {
 		const script = b.build();
 
 		for (const order of [
-			[knot, full, cat], [cat, knot, full], [full, cat, knot],
-			[cat, full, knot], [knot, cat, full], [full, knot, cat],
+			[knot, full, cat],
+			[cat, knot, full],
+			[full, cat, knot],
+			[cat, full, knot],
+			[knot, cat, full],
+			[full, knot, cat],
 		]) {
 			const out = alignToAnchor(script, registry, new Set(order), order[0]);
-			expect(pinY(out, full, "instance", "in"), order.join(","))
-				.toBeCloseTo(pinY(out, knot, "out", "out"), 5);
-			expect(pinY(out, cat, "a0", "in"), order.join(","))
-				.toBeCloseTo(pinY(out, full, "result", "out"), 5);
+			expect(pinY(out, full, "instance", "in"), order.join(",")).toBeCloseTo(
+				pinY(out, knot, "out", "out"),
+				5,
+			);
+			expect(pinY(out, cat, "a0", "in"), order.join(",")).toBeCloseTo(
+				pinY(out, full, "result", "out"),
+				5,
+			);
 		}
 	});
 

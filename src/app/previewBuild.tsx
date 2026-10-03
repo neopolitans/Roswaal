@@ -16,13 +16,25 @@ import { cx } from "./cx.js";
 import { Logo } from "./logo.jsx";
 import { IS_BACKUP, IS_CANARY, IS_STATIC_HOST } from "./pages.js";
 import {
-	BACKUP_BANNER, CANARY_BANNER, MARK_LABEL, MARK_ON_SURFACE, type BuildMark,
+	BACKUP_BANNER,
+	type BuildMark,
+	CANARY_BANNER,
+	MARK_LABEL,
+	MARK_ON_SURFACE,
 } from "./previewMark.js";
 
 export {
-	BACKUP_BANNER, CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, MARK_ON_SURFACE,
-	PREVIEW_BESIDE_LINK, PREVIEW_LABEL, PREVIEW_ON_SURFACE, previewChipMarkup,
+	BACKUP_BANNER,
 	type BuildMark,
+	CANARY_BANNER,
+	MARK_BESIDE_LINK,
+	MARK_LABEL,
+	MARK_ON_SURFACE,
+	markChipMarkup,
+	PREVIEW_BESIDE_LINK,
+	PREVIEW_LABEL,
+	PREVIEW_ON_SURFACE,
+	previewChipMarkup,
 } from "./previewMark.js";
 
 /**
@@ -67,7 +79,9 @@ export function MarkedLogo({ height = 17, title }: { height?: number; title?: st
 /** What the mark means, for a tooltip beside a tinted logo. Empty for a stable build. */
 export function markTooltip(): string {
 	const mark = buildMark();
-	return mark === null ? "" : `${MARK_LABEL[mark][0].toUpperCase()}${MARK_LABEL[mark].slice(1)}. ${MARK_ON_SURFACE[mark]}`;
+	return mark === null
+		? ""
+		: `${MARK_LABEL[mark][0].toUpperCase()}${MARK_LABEL[mark].slice(1)}. ${MARK_ON_SURFACE[mark]}`;
 }
 
 /**

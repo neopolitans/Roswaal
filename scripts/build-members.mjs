@@ -25,8 +25,8 @@
  */
 
 import { writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { ROBLOX_SERVICES } from "../src/core/roblox.ts";
 import { CLASS_PARENTS, ENUMS } from "../src/core/robloxData.ts";

@@ -29,7 +29,9 @@ const registry = createRegistry();
 
 const code = (script: NodeScript) => body(compile(script, registry).code);
 const errors = (script: NodeScript) =>
-	compile(script, registry).diagnostics.filter((d) => d.severity === "error").map((d) => d.message);
+	compile(script, registry)
+		.diagnostics.filter((d) => d.severity === "error")
+		.map((d) => d.message);
 
 /**
  * `readNumber(container, name)`, and a `read(tank)` that returns a table built
@@ -41,11 +43,16 @@ function readerAndCaller(callDef: string) {
 	const reader = b.node("function.entry", {
 		config: {
 			name: "readNumber",
-			params: [{ name: "container", type: "Instance" }, { name: "name", type: "string" }],
+			params: [
+				{ name: "container", type: "Instance" },
+				{ name: "name", type: "string" },
+			],
 			returns: [{ name: "n", type: "number" }],
 		},
 	});
-	const readerReturn = b.node("function.return", { config: { returns: [{ name: "n", type: "number" }] } });
+	const readerReturn = b.node("function.return", {
+		config: { returns: [{ name: "n", type: "number" }] },
+	});
 	b.lit(readerReturn, "r0", { t: "number", v: 0 });
 	b.link(reader, "then", readerReturn, "in");
 
@@ -97,7 +104,7 @@ describe("Call For Value", () => {
 	it("is the difference between it and Call Function", () => {
 		const wired = code(readerAndCaller("call.function"));
 		expect(wired).toMatch(/local \w+ = readNumber\(tank, "MovementSpeed"\)/);
-		expect(wired).not.toContain('{ movementSpeed = readNumber(');
+		expect(wired).not.toContain("{ movementSpeed = readNumber(");
 	});
 
 	/** Pure means no execution pins at all, which is what lets it sit anywhere. */
@@ -109,8 +116,12 @@ describe("Call For Value", () => {
 
 	it("takes as many arguments as it is given", () => {
 		const b = new Builder();
-		const fn = b.node("function.entry", { config: { name: "noArgs", params: [], returns: [{ name: "n", type: "number" }] } });
-		const fnRet = b.node("function.return", { config: { returns: [{ name: "n", type: "number" }] } });
+		const fn = b.node("function.entry", {
+			config: { name: "noArgs", params: [], returns: [{ name: "n", type: "number" }] },
+		});
+		const fnRet = b.node("function.return", {
+			config: { returns: [{ name: "n", type: "number" }] },
+		});
 		b.lit(fnRet, "r0", { t: "number", v: 1 });
 		b.link(fn, "then", fnRet, "in");
 
@@ -131,8 +142,12 @@ describe("Call For Value", () => {
 	 */
 	it("is bound to a local when two things read it", () => {
 		const b = new Builder();
-		const fn = b.node("function.entry", { config: { name: "roll", params: [], returns: [{ name: "n", type: "number" }] } });
-		const fnRet = b.node("function.return", { config: { returns: [{ name: "n", type: "number" }] } });
+		const fn = b.node("function.entry", {
+			config: { name: "roll", params: [], returns: [{ name: "n", type: "number" }] },
+		});
+		const fnRet = b.node("function.return", {
+			config: { returns: [{ name: "n", type: "number" }] },
+		});
 		b.lit(fnRet, "r0", { t: "number", v: 1 });
 		b.link(fn, "then", fnRet, "in");
 
@@ -153,9 +168,9 @@ describe("Call For Value", () => {
 		// this test counted and why it looked broken.
 		const bound = out.match(/^local (\w+) = roll\(\)$/m);
 		expect(bound, out).not.toBeNull();
-		const calls = out.split("\n").filter(
-			(line) => line.includes("roll()") && !line.startsWith("local function"),
-		);
+		const calls = out
+			.split("\n")
+			.filter((line) => line.includes("roll()") && !line.startsWith("local function"));
 		expect(calls, out).toHaveLength(1);
 		expect(out).toContain(`print(${bound![1]})`);
 	});

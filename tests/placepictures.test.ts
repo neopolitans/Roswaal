@@ -11,23 +11,37 @@
 import { describe, expect, it } from "vitest";
 
 import { EVEN_ODD, ICONS, STROKED, VIEW_BOX } from "../src/app/icons.js";
-import { compileNodeMap } from "../src/core/nodemap.js";
 import { renderPage } from "../src/core/docs/html.js";
-import { buildSite, findPage, ROJO_SAMPLE, type Block } from "../src/core/docs/site.js";
+import { type Block, buildSite, findPage, ROJO_SAMPLE } from "../src/core/docs/site.js";
 import * as toolbars from "../src/core/docs/toolbars.js";
 import {
-	controlsOf, iconsOf, legendOf, PLACE_BARS, PROPERTIES_PANEL, toolbarConstant, toolbarHtml,
+	controlsOf,
+	iconsOf,
+	legendOf,
+	PLACE_BARS,
+	PROPERTIES_PANEL,
+	toolbarConstant,
+	toolbarHtml,
 } from "../src/core/docs/toolbars.js";
-import { projectToMap, sameProject } from "../src/core/rojoImport.js";
+import { compileNodeMap } from "../src/core/nodemap.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
+import { projectToMap, sameProject } from "../src/core/rojoImport.js";
 
-const art = { viewBox: VIEW_BOX, paths: ICONS, mark: "<svg></svg>", version: "test", strokes: STROKED, evenOdd: EVEN_ODD };
+const art = {
+	viewBox: VIEW_BOX,
+	paths: ICONS,
+	mark: "<svg></svg>",
+	version: "test",
+	strokes: STROKED,
+	evenOdd: EVEN_ODD,
+};
 const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
 
 describe("the place and package pictures", () => {
 	it("draw only glyphs the icon set has", () => {
 		for (const bar of PLACE_BARS) {
-			for (const name of iconsOf(bar)) expect(ICONS, `${bar.id} draws "${name}"`).toHaveProperty(name);
+			for (const name of iconsOf(bar))
+				expect(ICONS, `${bar.id} draws "${name}"`).toHaveProperty(name);
 		}
 	});
 
@@ -54,19 +68,40 @@ describe("the place and package pictures", () => {
 	});
 
 	it("fill Properties as the editor would, under Studio's headings in its order", () => {
-		const headings = controlsOf(PROPERTIES_PANEL).flatMap((item) => (item.t === "propGroup" ? [item.text] : []));
-		expect(headings).toEqual(["Data", "Appearance", "Part", "Transform", "Collision", "Tags", "Attributes"]);
-		const values = Object.fromEntries(
-			controlsOf(PROPERTIES_PANEL).flatMap((item) => (item.t === "prop" ? [[item.label, item.value]] : [])),
+		const headings = controlsOf(PROPERTIES_PANEL).flatMap((item) =>
+			item.t === "propGroup" ? [item.text] : [],
 		);
-		expect(values).toMatchObject({ Anchored: "true", Color: "105, 64, 40", Size: "4, 7, 1", IsOpen: "false" });
+		expect(headings).toEqual([
+			"Data",
+			"Appearance",
+			"Part",
+			"Transform",
+			"Collision",
+			"Tags",
+			"Attributes",
+		]);
+		const values = Object.fromEntries(
+			controlsOf(PROPERTIES_PANEL).flatMap((item) =>
+				item.t === "prop" ? [[item.label, item.value]] : [],
+			),
+		);
+		expect(values).toMatchObject({
+			Anchored: "true",
+			Color: "105, 64, 40",
+			Size: "4, 7, 1",
+			IsOpen: "false",
+		});
 	});
 });
 
 describe("the Rojo sample", () => {
 	it("writes back the project file it was read from", () => {
 		let n = 0;
-		const { map, problems } = projectToMap(ROJO_SAMPLE, { output: "default.project.json", fallbackName: "orchard", makeId: () => `x${n++}` });
+		const { map, problems } = projectToMap(ROJO_SAMPLE, {
+			output: "default.project.json",
+			fallbackName: "orchard",
+			makeId: () => `x${n++}`,
+		});
 		expect(problems).toEqual([]);
 		expect(sameProject(JSON.parse(compileNodeMap(map).json), ROJO_SAMPLE)).toBe(true);
 	});

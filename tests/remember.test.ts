@@ -34,7 +34,10 @@ function handleFor(name: string): FileSystemDirectoryHandle {
 }
 
 const record = (id: string, name: string, at: number) => ({
-	id, name, handle: handleFor(name), at,
+	id,
+	name,
+	handle: handleFor(name),
+	at,
 });
 
 describe("what the store's contents mean", () => {

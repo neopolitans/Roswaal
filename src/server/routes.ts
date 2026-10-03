@@ -22,32 +22,77 @@
  * already knows how to read as "drop the button" rather than as a failure.
  */
 
-import { path } from "./host.js";
-
 import { VERSION } from "../cli/version.js";
 import { fromBase64, toBase64 } from "../core/base64.js";
 import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
-import { describeInstance, fingerprint, outlinePlace, type PlaceOutline } from "../core/rbx/browse.js";
-import { RbxError, readRbx, type RbxDocument, type RbxInstance } from "../core/rbx/index.js";
-import { planPlaceUpdate, type PlaceReport } from "../core/rbx/placeExport.js";
+import {
+	describeInstance,
+	fingerprint,
+	outlinePlace,
+	type PlaceOutline,
+} from "../core/rbx/browse.js";
+import { type RbxDocument, RbxError, type RbxInstance, readRbx } from "../core/rbx/index.js";
+import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
 import { emptyScript, type NodeDef, type NodeScript } from "../core/schema.js";
 import { errorMessage, HttpError } from "./errors.js";
+import { path } from "./host.js";
 import { toPosix } from "./paths.js";
 import {
-	buildTree, collectBinaries, collectMaps, collectProject, compileAll, compileMap, compileScript,
-	copyPackBetween, createFolder, createPack, deleteEntry, deletePack, deletePackNode, duplicatePack,
-	exportedTypes, exportPlace, findOrphanOutputs, findPlaceFile, findRojoProjects, graphName,
-	graphOutputPath, importRojoProject, initProject, listPacks, locateFile, moveEntry, openProject,
-	packUsage, placeEntries, placeReport, readConfig, readLuaurcFiles, readMap, readPack, readPlaceBytes,
-	readScript, readText, removeOutputs, renameEntry, safeJoin, savePackNode, scanProjectPacks,
-	setPackRequires, writeConfig, writeLuaurcFile, writeMap, writeScript,
-	type CompileStep, type OpenProject,
+	buildTree,
+	type CompileStep,
+	collectBinaries,
+	collectMaps,
+	collectProject,
+	compileAll,
+	compileMap,
+	compileScript,
+	copyPackBetween,
+	createFolder,
+	createPack,
+	deleteEntry,
+	deletePack,
+	deletePackNode,
+	duplicatePack,
+	exportedTypes,
+	exportPlace,
+	findOrphanOutputs,
+	findPlaceFile,
+	findRojoProjects,
+	graphName,
+	graphOutputPath,
+	importRojoProject,
+	initProject,
+	listPacks,
+	locateFile,
+	moveEntry,
+	type OpenProject,
+	openProject,
+	packUsage,
+	placeEntries,
+	placeReport,
+	readConfig,
+	readLuaurcFiles,
+	readMap,
+	readPack,
+	readPlaceBytes,
+	readScript,
+	readText,
+	removeOutputs,
+	renameEntry,
+	safeJoin,
+	savePackNode,
+	scanProjectPacks,
+	setPackRequires,
+	writeConfig,
+	writeLuaurcFile,
+	writeMap,
+	writeScript,
 } from "./project.js";
-import { fields, need, optionalQuery, query, realmOf, text, type RouteRequest } from "./request.js";
+import { fields, need, optionalQuery, query, type RouteRequest, realmOf, text } from "./request.js";
 import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
 import { addFromWally, installGithub, installZip, packageUses, removePackage } from "./wally.js";
 
-export { errorResponse, HttpError, UserError, type ErrorBody } from "./errors.js";
+export { type ErrorBody, errorResponse, HttpError, UserError } from "./errors.js";
 export type { RouteRequest } from "./request.js";
 
 export type RouteHandler = (req: RouteRequest) => Promise<unknown>;
@@ -63,7 +108,10 @@ export type RouteHandler = (req: RouteRequest) => Promise<unknown>;
  */
 export interface HostCapabilities {
 	inspect?(root: string): Promise<{
-		root: string; exists: boolean; directory: boolean; initialised: boolean;
+		root: string;
+		exists: boolean;
+		directory: boolean;
+		initialised: boolean;
 	}>;
 	browse?(startIn?: string): Promise<string | null>;
 	/**
@@ -162,7 +210,10 @@ export class ApiSession {
 	private ability<K extends keyof HostCapabilities>(name: K): NonNullable<HostCapabilities[K]> {
 		const able = this.hooks.capabilities?.[name];
 		if (!able) {
-			throw new HttpError(501, `This copy of Roswaal cannot do that: no ${name} is available here.`);
+			throw new HttpError(
+				501,
+				`This copy of Roswaal cannot do that: no ${name} is available here.`,
+			);
 		}
 		return able as NonNullable<HostCapabilities[K]>;
 	}
@@ -317,7 +368,10 @@ export class ApiSession {
 
 			"GET /tree": async () => {
 				const project = this.project();
-				return { tree: await buildTree(project), place: await findPlaceFile(project.root, project.config) };
+				return {
+					tree: await buildTree(project),
+					place: await findPlaceFile(project.root, project.config),
+				};
 			},
 
 			/**
@@ -374,7 +428,8 @@ export class ApiSession {
 				const file = await findPlaceFile(project.root, project.config);
 				if (!file) throw new HttpError(404, "The project has no place file.");
 				const loaded = await this.loadPlace(project, file);
-				if (query(req, "stamp") !== loaded.stamp) throw new HttpError(409, "The place file has changed. Reload it.");
+				if (query(req, "stamp") !== loaded.stamp)
+					throw new HttpError(409, "The place file has changed. Reload it.");
 				const index = Number(query(req, "index"));
 				const inst = loaded.order[index];
 				if (!inst) throw new HttpError(404, `No instance ${index} in the place.`);
@@ -391,7 +446,11 @@ export class ApiSession {
 				const file = await findPlaceFile(project.root, project.config);
 				let place: PlaceOutline | null = null;
 				// A place that will not read leaves the files' instances to answer with.
-				if (file) place = await this.loadPlace(project, file).then((p) => p.outline, () => null);
+				if (file)
+					place = await this.loadPlace(project, file).then(
+						(p) => p.outline,
+						() => null,
+					);
 				return { outline: await projectInstances(project, place) };
 			},
 		};
@@ -411,7 +470,9 @@ export class ApiSession {
 				const file = need(given, "path", "Which file? Pass its `path`.");
 				const project = this.project();
 				// A graph's code runs from the file it compiles to.
-				const runsFrom = file.endsWith(".nodescript") ? (await graphOutputPath(project, file)) ?? file : file;
+				const runsFrom = file.endsWith(".nodescript")
+					? ((await graphOutputPath(project, file)) ?? file)
+					: file;
 				return {
 					modules: await modulesRequiredBy(project, runsFrom, edited),
 					// Where the file is in the DataModel, for `script.Parent`.
@@ -468,15 +529,23 @@ export class ApiSession {
 
 			/** A package from a zip: a Wally package where `wally install` puts one, anything else vendored. */
 			"POST /wally/zip": async (req) => {
-				const { data, alias, realm, fileName } =
-					fields<{ data: string; alias: string; realm: string; fileName: string }>(req);
+				const { data, alias, realm, fileName } = fields<{
+					data: string;
+					alias: string;
+					realm: string;
+					fileName: string;
+				}>(req);
 				const bytes = fromBase64(need(data, "data", "Pass the zip as base64 `data`."));
 				return installZip(this.project(), bytes, { alias, realm: realmOf(realm), fileName });
 			},
 
 			/** Files that still require a Wally package, before it is removed. */
 			"GET /wally/uses": async (req) => ({
-				uses: await packageUses(this.project(), query(req, "alias"), realmOf(req.query?.realm) ?? "shared"),
+				uses: await packageUses(
+					this.project(),
+					query(req, "alias"),
+					realmOf(req.query?.realm) ?? "shared",
+				),
 			}),
 
 			/** Takes a Wally dependency out, with the `_Index` folders only it kept. */
@@ -501,7 +570,11 @@ export class ApiSession {
 
 			/** Reads a Rojo project file into a node map. See `importRojoProject`. */
 			"POST /rojo/import": async (req) => {
-				const file = need(fields<{ file: string }>(req).file, "file", "Which project file? Pass its `file`.");
+				const file = need(
+					fields<{ file: string }>(req).file,
+					"file",
+					"Which project file? Pass its `file`.",
+				);
 				return importRojoProject(this.project(), file);
 			},
 		};
@@ -522,8 +595,11 @@ export class ApiSession {
 
 			"POST /script/create": async (req) => {
 				const project = this.project();
-				const { dir, name, scriptClass } =
-					fields<{ dir: string; name: string; scriptClass: NodeScript["scriptClass"] }>(req);
+				const { dir, name, scriptClass } = fields<{
+					dir: string;
+					name: string;
+					scriptClass: NodeScript["scriptClass"];
+				}>(req);
 				// The same function renaming uses, so a graph created as "My Graph"
 				// and one renamed to it end up called the same thing.
 				const safeName = graphName(name ?? "Untitled") || "Untitled";
@@ -571,9 +647,10 @@ export class ApiSession {
 				// different shape per runtime. The project already says which
 				// one it is, so a new map starts as the kind that project needs
 				// rather than as the kind Roblox needed.
-				const map = project.config.target === "lune"
-					? emptyFilesystemMap(safeName, newId(), newId)
-					: emptyMap(safeName, newId(), newId);
+				const map =
+					project.config.target === "lune"
+						? emptyFilesystemMap(safeName, newId(), newId)
+						: emptyMap(safeName, newId(), newId);
 				await writeMap(project, relPath, map);
 				return { path: relPath, map };
 			},
@@ -610,7 +687,9 @@ export class ApiSession {
 
 			"POST /entry/rename": async (req) => {
 				const { path: relPath, name } = fields<{ path: string; name: string }>(req);
-				return { path: await renameEntry(this.project(), need(relPath, "path"), need(name, "name")) };
+				return {
+					path: await renameEntry(this.project(), need(relPath, "path"), need(name, "name")),
+				};
 			},
 
 			"GET /source": async (req) => ({
@@ -688,7 +767,9 @@ export class ApiSession {
 				const from = await scanProjectPacks(need(root, "root"));
 				const fromConfig = await readConfig(from.root);
 				const pack = await copyPackBetween(
-					{ root: from.root, config: fromConfig }, need(relPath, "path"), this.project(),
+					{ root: from.root, config: fromConfig },
+					need(relPath, "path"),
+					this.project(),
 				);
 				await this.reload();
 				return { pack };
@@ -699,7 +780,10 @@ export class ApiSession {
 				const to = await scanProjectPacks(need(root, "root"));
 				const toConfig = await readConfig(to.root);
 				return {
-					pack: await copyPackBetween(this.project(), need(relPath, "path"), { root: to.root, config: toConfig }),
+					pack: await copyPackBetween(this.project(), need(relPath, "path"), {
+						root: to.root,
+						config: toConfig,
+					}),
 				};
 			},
 
@@ -709,14 +793,24 @@ export class ApiSession {
 			 * is a node you have to take on trust.
 			 */
 			"PUT /packs/node": async (req) => {
-				const { path: relPath, def, replaces } = fields<{ path: string; def: NodeDef; replaces: string }>(req);
-				const written = await savePackNode(this.project(), need(relPath, "path"), need(def, "def"), replaces);
+				const {
+					path: relPath,
+					def,
+					replaces,
+				} = fields<{ path: string; def: NodeDef; replaces: string }>(req);
+				const written = await savePackNode(
+					this.project(),
+					need(relPath, "path"),
+					need(def, "def"),
+					replaces,
+				);
 				return { pack: written, packs: (await this.reload()).packs };
 			},
 
 			"POST /packs/requires": async (req) => {
 				const { path: relPath, requires } = fields<{ path: string; requires: string[] }>(req);
-				if (!Array.isArray(requires)) throw new HttpError(400, "Provide a path and a requires list.");
+				if (!Array.isArray(requires))
+					throw new HttpError(400, "Provide a path and a requires list.");
 				const pack = await setPackRequires(this.project(), need(relPath, "path"), requires);
 				await this.reload();
 				return { pack };
@@ -736,7 +830,11 @@ export class ApiSession {
 		return {
 			"POST /compile": async (req) => {
 				const project = this.project();
-				const { path: relPath, write, force } = fields<{ path: string; write: boolean; force: boolean }>(req);
+				const {
+					path: relPath,
+					write,
+					force,
+				} = fields<{ path: string; write: boolean; force: boolean }>(req);
 				// Only the whole-project walk narrates itself. One file has nothing
 				// to report a position in, and the POST answering is the news.
 				const results = relPath
@@ -747,10 +845,15 @@ export class ApiSession {
 
 			"POST /map/compile": async (req) => {
 				const project = this.project();
-				const { path: relPath, write, force } = fields<{ path: string; write: boolean; force: boolean }>(req);
+				const {
+					path: relPath,
+					write,
+					force,
+				} = fields<{ path: string; write: boolean; force: boolean }>(req);
 				const targets = relPath ? [relPath] : await collectMaps(project);
 				const results = [];
-				for (const target of targets) results.push(await compileMap(project, target, { write, force }));
+				for (const target of targets)
+					results.push(await compileMap(project, target, { write, force }));
 				return { results };
 			},
 
@@ -782,7 +885,9 @@ export class ApiSession {
 				const modify = optionalQuery(req, "place", ["modify"]) === "modify";
 				const binaries = await collectBinaries(project);
 				const placeFile = await findPlaceFile(project.root, project.config);
-				let place: { file: string; report?: PlaceReport } | undefined = placeFile ? { file: placeFile } : undefined;
+				let place: { file: string; report?: PlaceReport } | undefined = placeFile
+					? { file: placeFile }
+					: undefined;
 				if (placeFile && modify) {
 					const written = await exportPlace(project);
 					if (written) {

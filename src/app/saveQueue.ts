@@ -67,9 +67,11 @@ export class SaveQueue {
 		// What the next write to this path waits for: that this one has
 		// finished, not that it worked. Its failure is reported once, by
 		// whoever started it.
-		const settled: Promise<void> = run.catch(() => undefined).finally(() => {
-			if (this.running.get(path) === settled) this.running.delete(path);
-		});
+		const settled: Promise<void> = run
+			.catch(() => undefined)
+			.finally(() => {
+				if (this.running.get(path) === settled) this.running.delete(path);
+			});
 		this.running.set(path, settled);
 		return run;
 	}

@@ -9,15 +9,14 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import { buildSite, findPage, type Block } from "../src/core/docs/site.js";
-import { renderPage } from "../src/core/docs/html.js";
-import { LAYOUTS, layoutConstant, layoutHtml, listedRegions } from "../src/core/docs/layouts.js";
-import * as layouts from "../src/core/docs/layouts.js";
-import { controlKey } from "../src/core/docs/toolbars.js";
 import { ICONS, VIEW_BOX } from "../src/app/icons.js";
 import { logoMarkup } from "../src/app/logo.js";
+import { renderPage } from "../src/core/docs/html.js";
+import * as layouts from "../src/core/docs/layouts.js";
+import { LAYOUTS, layoutConstant, layoutHtml, listedRegions } from "../src/core/docs/layouts.js";
+import { type Block, buildSite, findPage } from "../src/core/docs/site.js";
+import { controlKey } from "../src/core/docs/toolbars.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 
 const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
 const page = findPage(site, "the-interface")!;
@@ -45,9 +44,11 @@ function trackCount(template: string): number {
 
 function layoutsIn(blocks: Block[]): string[] {
 	return blocks.flatMap((b) =>
-		b.t === "layout" ? [b.layout.id]
-		: b.t === "tabs" ? b.tabs.flatMap((tab) => layoutsIn(tab.blocks))
-		: [],
+		b.t === "layout"
+			? [b.layout.id]
+			: b.t === "tabs"
+				? b.tabs.flatMap((tab) => layoutsIn(tab.blocks))
+				: [],
 	);
 }
 
@@ -55,7 +56,9 @@ describe("the window diagrams", () => {
 	it("draw only glyphs the icon set has", () => {
 		for (const layout of LAYOUTS) {
 			for (const region of layout.regions) {
-				const mixed = (region.endItems ?? []).flatMap((item) => ("icon" in item ? [item.icon] : []));
+				const mixed = (region.endItems ?? []).flatMap((item) =>
+					"icon" in item ? [item.icon] : [],
+				);
 				for (const icon of [...(region.icons ?? []), ...(region.iconsEnd ?? []), ...mixed]) {
 					expect(ICONS, `${layout.id}: ${icon}`).toHaveProperty(icon);
 				}

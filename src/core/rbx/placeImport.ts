@@ -149,7 +149,8 @@ function whyPlaceOnly(script: RbxInstance): string | undefined {
 	const service = serviceOf(script);
 	if (!service) return "it is not under a service";
 	const chain: RbxInstance[] = [];
-	for (let cur: RbxInstance | null = script; cur && cur !== service; cur = cur.parent) chain.unshift(cur);
+	for (let cur: RbxInstance | null = script; cur && cur !== service; cur = cur.parent)
+		chain.unshift(cur);
 	// A StarterPlayer script container straight under its service is a root too.
 	const start = chain.length > 1 && ROOT_CONTAINERS.has(chain[0].className) ? 1 : 0;
 	for (let i = start; i < chain.length - 1; i++) {
@@ -182,7 +183,9 @@ export function surveyPlace(doc: RbxDocument): PlaceSurvey {
 		copies.set(key, (copies.get(key) ?? 0) + 1);
 	}
 	const counts = [...copies.values()];
-	const placeOnlyKeys = new Set(scripts.filter((s) => s.placeOnly).map((s) => `${s.className}\0${s.source}`));
+	const placeOnlyKeys = new Set(
+		scripts.filter((s) => s.placeOnly).map((s) => `${s.className}\0${s.source}`),
+	);
 	return {
 		scripts,
 		rojo: scripts.filter((s) => !s.placeOnly).length,
@@ -201,7 +204,12 @@ const RUN_CONTEXT = ["Legacy", "Server", "Client", "Plugin"];
 function scriptMeta(inst: RbxInstance): Record<string, unknown> | undefined {
 	const properties: Record<string, unknown> = {};
 	const runContext = inst.props.get("RunContext");
-	if (inst.className === "Script" && runContext && typeof runContext.value === "number" && runContext.value !== 0) {
+	if (
+		inst.className === "Script" &&
+		runContext &&
+		typeof runContext.value === "number" &&
+		runContext.value !== 0
+	) {
 		properties.RunContext = RUN_CONTEXT[runContext.value] ?? runContext.value;
 	}
 	if (inst.props.get("Disabled")?.value === true) properties.Disabled = true;
@@ -242,7 +250,8 @@ export function planImport(survey: PlaceSurvey, options: PlaceImportOptions): Pl
 	const imported = new Set(rojo.map((s) => s.inst));
 	/** A Folder whose whole subtree is imported scripts and such folders. */
 	const isFolderOfImports = (inst: RbxInstance): boolean =>
-		inst.className === "Folder" && inst.children.length > 0 &&
+		inst.className === "Folder" &&
+		inst.children.length > 0 &&
 		inst.children.every((c) => imported.has(c) || isFolderOfImports(c));
 	const scriptsWithChildren = new Set(rojo.map((s) => s.inst).filter((i) => i.children.length > 0));
 	/** Folders written for place instances, so each can get its meta file once. */
@@ -259,7 +268,11 @@ export function planImport(survey: PlaceSurvey, options: PlaceImportOptions): Pl
 		files[file] = s.source;
 		const meta = scriptMeta(s.inst);
 		// Children the import leaves in the place are kept by saying so.
-		const keepsOthers = hasChildren && !s.inst.children.every((c) => imported.has(c) || scriptsWithChildren.has(c) || isFolderOfImports(c));
+		const keepsOthers =
+			hasChildren &&
+			!s.inst.children.every(
+				(c) => imported.has(c) || scriptsWithChildren.has(c) || isFolderOfImports(c),
+			);
 		if (meta || keepsOthers) {
 			const metaFile = hasChildren
 				? `${options.outDir}/${segments.join("/")}/init.meta.json`
@@ -325,7 +338,8 @@ export function planImport(survey: PlaceSurvey, options: PlaceImportOptions): Pl
 		// its copies live as well: "Script (Street Light)", not "Script (7)".
 		const shared = [...groups.values()].filter((g) => g.length > 1);
 		const sharedNames = new Map<string, number>();
-		for (const g of shared) sharedNames.set(mostCommonName(g), (sharedNames.get(mostCommonName(g)) ?? 0) + 1);
+		for (const g of shared)
+			sharedNames.set(mostCommonName(g), (sharedNames.get(mostCommonName(g)) ?? 0) + 1);
 		const sharedName = (group: PlaceScript[]): string => {
 			const name = mostCommonName(group);
 			if ((sharedNames.get(name) ?? 0) < 2) return name;
@@ -350,7 +364,8 @@ export function planImport(survey: PlaceSurvey, options: PlaceImportOptions): Pl
 			});
 		}
 	} else {
-		for (const s of survey.scripts) if (s.placeOnly) skipped.push({ path: s.path.join("."), reason: s.placeOnly });
+		for (const s of survey.scripts)
+			if (s.placeOnly) skipped.push({ path: s.path.join("."), reason: s.placeOnly });
 	}
 
 	const map = buildMap(options, services);
@@ -387,7 +402,9 @@ function buildMap(
 ): NodeMap {
 	const byService = new Map<string, MapNode>();
 	const slug = (s: string) => s.replace(/[^A-Za-z0-9]+/g, "-").toLowerCase();
-	for (const [key, { service, container }] of [...services].sort(([a], [b]) => a.localeCompare(b))) {
+	for (const [key, { service, container }] of [...services].sort(([a], [b]) =>
+		a.localeCompare(b),
+	)) {
 		let node = byService.get(service.name);
 		if (!node) {
 			node = { id: `place-${slug(service.name)}`, name: service.name, children: [] };
@@ -413,6 +430,11 @@ function buildMap(
 		id: "place-map",
 		name: options.name,
 		output: "default.project.json",
-		root: { id: "place-root", name: "DataModel", className: "DataModel", children: [...byService.values()] },
+		root: {
+			id: "place-root",
+			name: "DataModel",
+			className: "DataModel",
+			children: [...byService.values()],
+		},
 	};
 }

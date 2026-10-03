@@ -18,8 +18,8 @@
  * script unchanged and identical when there is nothing to do.
  */
 
-import type { NodeScript } from "./schema.js";
 import { CLASS_TYPED } from "./nodes/library.js";
+import type { NodeScript } from "./schema.js";
 
 const PIN = "className";
 

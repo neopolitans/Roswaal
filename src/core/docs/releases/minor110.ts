@@ -25,7 +25,7 @@ export const RELEASES_0_110: Release[] = [
 			"**An edit made while a save was under way** is no longer marked as saved, and a save that finishes while another tab is in front no longer marks that tab saved.",
 			"**Deleting from the project tree** closes the function tabs and graphs it took, and a waiting save no longer brings a deleted file back.",
 			"**Negate** of a negative number, or of another Negate, no longer writes `--`, which Luau reads as a comment. A negative number raised to a power is bracketed: `(-2) ^ 2`.",
-			"**Get Key, Set Key and Call Method** bracket what they index or call on: `(config or defaults).speed`, `(\"hello\"):upper()`.",
+			'**Get Key, Set Key and Call Method** bracket what they index or call on: `(config or defaults).speed`, `("hello"):upper()`.',
 			"**A While loop whose condition is read elsewhere** works the condition out on every pass. It was worked out once above the loop, which then never ended.",
 			"**Lune functions** compile with their optional arguments left empty: `task.wait()` no longer asks for a duration.",
 			"**A constant variable** stays constant after the graph is reloaded.",
@@ -152,8 +152,6 @@ export const RELEASES_0_110: Release[] = [
 			"**Moonwave's @class, @prop, @interface and @type** are read wherever they stand in a file: a module and its table show their @class, a field its @prop and type, and a function whose parameters or returns name an @interface lists its fields.",
 			"**Doc tags in comments are coloured** in the Luau viewer and the code editor, as the tooltips set them apart.",
 		],
-		fixed: [
-			"**Fields written in a table's constructor** hover in the file that writes them.",
-		],
+		fixed: ["**Fields written in a table's constructor** hover in the file that writes them."],
 	},
 ];

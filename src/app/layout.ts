@@ -13,10 +13,10 @@
  * something readable, without moving it somewhere you have to go and find.
  */
 
-import type { GraphNode, NodeScript, PinKind } from "../core/schema.js";
 import type { Registry } from "../core/nodes/index.js";
-import { nodeBounds, pinPosition, resolvePins } from "./geometry.js";
+import type { GraphNode, NodeScript, PinKind } from "../core/schema.js";
 import { commentContents } from "./edits.js";
+import { nodeBounds, pinPosition, resolvePins } from "./geometry.js";
 
 /** Horizontal gap between ranks, and vertical gap between nodes in a rank. */
 const GAP_X = 90;
@@ -50,7 +50,9 @@ export interface LayoutOptions {
 
 /** Repositions nodes into ranked columns. */
 export function autoLayout(
-	script: NodeScript, registry: Registry, options: LayoutOptions = {},
+	script: NodeScript,
+	registry: Registry,
+	options: LayoutOptions = {},
 ): NodeScript {
 	const { only, alignExec = false, wideNodes = false } = options;
 	const subject = script.nodes.filter((n) => !only || only.has(n.id));
@@ -71,8 +73,14 @@ export function autoLayout(
 		.filter((l) => ids.has(l.from.node) && ids.has(l.to.node) && l.from.node !== l.to.node)
 		.map((l) => ({ from: l.from.node, to: l.to.node }));
 
-	const rank = rankNodes(subject.map((n) => n.id), edges);
-	const columns = groupByRank(subject.map((n) => n.id), rank);
+	const rank = rankNodes(
+		subject.map((n) => n.id),
+		edges,
+	);
+	const columns = groupByRank(
+		subject.map((n) => n.id),
+		rank,
+	);
 	orderWithinColumns(columns, edges, script, rank);
 
 	// -- placement ---------------------------------------------------------
@@ -171,7 +179,10 @@ function groupByRank(ids: string[], rank: Map<string, number>): string[][] {
  * buys little on graphs this size.
  */
 function orderWithinColumns(
-	columns: string[][], edges: Edge[], script: NodeScript, rank: Map<string, number>,
+	columns: string[][],
+	edges: Edge[],
+	script: NodeScript,
+	rank: Map<string, number>,
 ): void {
 	const originalY = new Map(script.nodes.map((n) => [n.id, n.y]));
 	const incoming = new Map<string, string[]>();
@@ -296,7 +307,10 @@ function alignToExecPins(
 
 /** The kind of one named pin, or undefined if the node has no such pin. */
 function pinKind(
-	node: GraphNode, registry: Registry, pinId: string, side: "in" | "out",
+	node: GraphNode,
+	registry: Registry,
+	pinId: string,
+	side: "in" | "out",
 ): PinKind | undefined {
 	const def = registry.get(node.def);
 	if (!def) return undefined;
@@ -312,7 +326,9 @@ function pinKind(
  * small and clip the very nodes it is meant to enclose.
  */
 function refitComments(
-	script: NodeScript, registry: Registry, members: Map<string, Set<string>>,
+	script: NodeScript,
+	registry: Registry,
+	members: Map<string, Set<string>>,
 	wide = false,
 ): NodeScript["comments"] {
 	return script.comments.map((comment) => {
@@ -334,7 +350,10 @@ function refitComments(
 }
 
 function boundsOf(nodes: NodeScript["nodes"], registry: Registry, wide = false) {
-	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+	let minX = Infinity,
+		minY = Infinity,
+		maxX = -Infinity,
+		maxY = -Infinity;
 	for (const node of nodes) {
 		const box = nodeBounds(node, registry, wide);
 		minX = Math.min(minX, box.x);

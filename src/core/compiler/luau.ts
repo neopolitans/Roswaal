@@ -47,7 +47,10 @@ export function notAName(name: string, what: string): string {
  * because generated files are committed.
  */
 export function toIdentifier(s: string, fallback = "value"): string {
-	let out = s.trim().replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+	let out = s
+		.trim()
+		.replace(/[^A-Za-z0-9_]+/g, "_")
+		.replace(/^_+|_+$/g, "");
 	if (out === "") out = fallback;
 	if (/^[0-9]/.test(out)) out = "_" + out;
 	if (RESERVED.has(out)) out = out + "_";
@@ -171,11 +174,16 @@ function numberLiteral(n: number): string {
 
 export function literalToLuau(lit: Literal): string {
 	switch (lit.t) {
-		case "nil": return "nil";
-		case "boolean": return lit.v ? "true" : "false";
-		case "number": return numberLiteral(lit.v);
-		case "string": return quoteString(lit.v);
-		case "raw": return lit.v;
+		case "nil":
+			return "nil";
+		case "boolean":
+			return lit.v ? "true" : "false";
+		case "number":
+			return numberLiteral(lit.v);
+		case "string":
+			return quoteString(lit.v);
+		case "raw":
+			return lit.v;
 	}
 }
 
@@ -295,7 +303,12 @@ export function parenPrefix(expr: string): string {
  * before a value that itself starts with `-` reads as `--`, which Luau takes
  * as the start of a comment.
  */
-export function spliceIntoTemplate(expr: string, template: string, start: number, end: number): string {
+export function spliceIntoTemplate(
+	expr: string,
+	template: string,
+	start: number,
+	end: number,
+): string {
 	const e = expr.trim();
 	const before = template.slice(0, start).trimEnd();
 	const after = template.slice(end).trimStart();
@@ -384,7 +397,22 @@ function operandPrecedence(op: string): { left: number; right: number } {
  * Operators long enough that a shorter one is a prefix of them, longest first.
  * `<=` has to be tried before `<`, or every `a <= b` reads as `a < (= b)`.
  */
-const BINARY_SPELLINGS = ["==", "~=", "<=", ">=", "//", "..", "<", ">", "+", "-", "*", "/", "%", "^"];
+const BINARY_SPELLINGS = [
+	"==",
+	"~=",
+	"<=",
+	">=",
+	"//",
+	"..",
+	"<",
+	">",
+	"+",
+	"-",
+	"*",
+	"/",
+	"%",
+	"^",
+];
 
 /**
  * How tightly an expression binds, judged from its tokens.
@@ -406,7 +434,8 @@ export function expressionPrecedence(expr: string): number {
 	// Luau's if-expression and a function literal both run to the end of
 	// themselves, so anything placed after one belongs to it.
 	const first = tokens[0];
-	if (first.kind === "keyword" && (first.text === "if" || first.text === "function")) return PREC.lowest;
+	if (first.kind === "keyword" && (first.text === "if" || first.text === "function"))
+		return PREC.lowest;
 
 	let lowest: number = PREC.postfix;
 	let depth = 0;
@@ -560,7 +589,10 @@ function fromPreceding(before: string): number {
 	if (before.endsWith("::")) return PREC.postfix;
 	// A lone "=" is an assignment or a comparison's right-hand side; both are
 	// already at the lowest precedence, so nothing needs wrapping.
-	if (before.endsWith("=") && !BINARY_SPELLINGS.some((op) => op.length > 1 && before.endsWith(op))) {
+	if (
+		before.endsWith("=") &&
+		!BINARY_SPELLINGS.some((op) => op.length > 1 && before.endsWith(op))
+	) {
 		return PREC.lowest;
 	}
 	if (before.endsWith("#")) return PREC.unary;
@@ -568,7 +600,11 @@ function fromPreceding(before: string): number {
 	// any binary operator: `-(a + b)`, not `-a + b`.
 	if (before.endsWith("-") && !before.endsWith("--")) {
 		const rest = before.slice(0, -1).trimEnd();
-		if (rest === "" || /[-+*/%^#=<>~(,{[]$/.test(rest) || /\b(and|or|not|return|then|do|else|in|until)$/.test(rest)) {
+		if (
+			rest === "" ||
+			/[-+*/%^#=<>~(,{[]$/.test(rest) ||
+			/\b(and|or|not|return|then|do|else|in|until)$/.test(rest)
+		) {
 			return PREC.unary;
 		}
 	}
@@ -622,13 +658,26 @@ function isBalancedChain(e: string): boolean {
 	for (let i = 0; i < e.length; i++) {
 		const c = e[i];
 		if (inString) {
-			if (c === "\\") { i++; continue; }
+			if (c === "\\") {
+				i++;
+				continue;
+			}
 			if (c === inString) inString = null;
 			continue;
 		}
-		if (c === '"' || c === "'") { inString = c; continue; }
-		if (c === "(" || c === "[" || c === "{") { depth++; continue; }
-		if (c === ")" || c === "]" || c === "}") { depth--; if (depth < 0) return false; continue; }
+		if (c === '"' || c === "'") {
+			inString = c;
+			continue;
+		}
+		if (c === "(" || c === "[" || c === "{") {
+			depth++;
+			continue;
+		}
+		if (c === ")" || c === "]" || c === "}") {
+			depth--;
+			if (depth < 0) return false;
+			continue;
+		}
 		// At the top level anything other than chain punctuation means this is a
 		// compound expression, which needs parentheses to splice safely.
 		if (depth === 0 && !/[A-Za-z0-9_.:]/.test(c)) return false;

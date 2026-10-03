@@ -1,7 +1,7 @@
 /** Indexed, query-friendly view over a NodeScript. Built once per compile. */
 
-import type { GraphNode, Link, NodeDef, NodeScript, PinDef } from "../schema.js";
 import { resolveNodePins } from "../nodes/index.js";
+import type { GraphNode, Link, NodeDef, NodeScript, PinDef } from "../schema.js";
 import { splitPinId } from "../structs.js";
 
 export interface ResolvedNode {
@@ -92,8 +92,9 @@ export class GraphIndex {
 	readersOf(nodeId: string, pinId: string, options: { parts?: boolean } = {}): Link[] {
 		const whole = this.wholeReaders(nodeId, pinId, 0);
 		if (!options.parts) return whole;
-		const parts = (this.partLinks.get(key(nodeId, pinId)) ?? [])
-			.flatMap((link) => this.throughKnots(link, 0));
+		const parts = (this.partLinks.get(key(nodeId, pinId)) ?? []).flatMap((link) =>
+			this.throughKnots(link, 0),
+		);
 		return [...whole, ...parts];
 	}
 
@@ -130,7 +131,9 @@ export class GraphIndex {
 	entryNodes(): ResolvedNode[] {
 		return this.all()
 			.filter((r) => r.def.role === "entry")
-			.sort((a, b) => a.node.y - b.node.y || a.node.x - b.node.x || a.node.id.localeCompare(b.node.id));
+			.sort(
+				(a, b) => a.node.y - b.node.y || a.node.x - b.node.x || a.node.id.localeCompare(b.node.id),
+			);
 	}
 }
 

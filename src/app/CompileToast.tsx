@@ -52,11 +52,14 @@ export function CompileToast({ progress }: { progress: CompileStep[] }) {
 
 	// What actually happened, in the order it matters. A compile that wrote
 	// nothing because nothing needed writing is not worth a line of its own.
-	const summary = [
-		wrote > 0 ? `${wrote} written` : null,
-		skipped > 0 ? `${skipped} skipped` : null,
-		failed > 0 ? `${failed} failed` : null,
-	].filter(Boolean).join(" · ") || `${settled.length} checked`;
+	const summary =
+		[
+			wrote > 0 ? `${wrote} written` : null,
+			skipped > 0 ? `${skipped} skipped` : null,
+			failed > 0 ? `${failed} failed` : null,
+		]
+			.filter(Boolean)
+			.join(" · ") || `${settled.length} checked`;
 
 	return (
 		<div

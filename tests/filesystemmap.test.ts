@@ -16,14 +16,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	compileNodeMap, emptyFilesystemMap, emptyMap, isFilesystemMap, type MapNode, type NodeMap,
+	compileNodeMap,
+	emptyFilesystemMap,
+	emptyMap,
+	isFilesystemMap,
+	type MapNode,
+	type NodeMap,
 } from "../src/core/nodemap.js";
 
 let n = 0;
 const makeId = () => `n${n++}`;
 
-const dir = (name: string, children: MapNode[] = []): MapNode =>
-	({ id: makeId(), name, children });
+const dir = (name: string, children: MapNode[] = []): MapNode => ({ id: makeId(), name, children });
 const file = (name: string): MapNode => ({ id: makeId(), name, file: true, children: [] });
 
 const mapOf = (children: MapNode[]): NodeMap => ({
@@ -32,7 +36,9 @@ const mapOf = (children: MapNode[]): NodeMap => ({
 });
 
 const errors = (map: NodeMap) =>
-	compileNodeMap(map).diagnostics.filter((one) => one.severity === "error").map((one) => one.message);
+	compileNodeMap(map)
+		.diagnostics.filter((one) => one.severity === "error")
+		.map((one) => one.message);
 
 describe("which kind of map it is", () => {
 	it("is a DataModel unless it says otherwise", () => {
@@ -59,7 +65,7 @@ describe("which kind of map it is", () => {
 	it("still writes one for a DataModel map", () => {
 		const built = compileNodeMap(emptyMap("Game", "g", makeId));
 		expect(built.outputPath).toBe("default.project.json");
-		expect(built.json).toContain("\"tree\"");
+		expect(built.json).toContain('"tree"');
 	});
 });
 
@@ -102,11 +108,15 @@ describe("a layout Luau would refuse", () => {
 
 	/** A layout that is fine says nothing, which is most of them. */
 	it("is quiet about a layout that works", () => {
-		expect(errors(mapOf([
-			file("main"),
-			dir("lib", [file("init"), file("util")]),
-			dir("tests", [file("util")]),
-		]))).toEqual([]);
+		expect(
+			errors(
+				mapOf([
+					file("main"),
+					dir("lib", [file("init"), file("util")]),
+					dir("tests", [file("util")]),
+				]),
+			),
+		).toEqual([]);
 	});
 
 	/** The same name in two different directories is two different requires. */
@@ -130,8 +140,8 @@ describe("a layout Luau would refuse", () => {
  */
 describe("a name that carries its own extension", () => {
 	const warnings = (map: NodeMap) =>
-		compileNodeMap(map).diagnostics
-			.filter((one) => one.severity === "warning")
+		compileNodeMap(map)
+			.diagnostics.filter((one) => one.severity === "warning")
 			.map((one) => one.message);
 
 	it("says the extension is not needed, and what to call it instead", () => {

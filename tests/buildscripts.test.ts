@@ -14,14 +14,13 @@ import { fileURLToPath } from "node:url";
 
 import { transformSync } from "esbuild";
 import { describe, expect, it } from "vitest";
-
-import { DEMO_LAYOUT } from "../src/core/docs/demoLayout.gen.js";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { demoLayoutSource } from "../scripts/lib/demoLayoutSource.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { bundleHasVersion } from "../scripts/lib/distVersion.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { themeModuleIsCurrent } from "../scripts/lib/themeModule.mjs";
+import { DEMO_LAYOUT } from "../src/core/docs/demoLayout.gen.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPTS = join(ROOT, "scripts");
@@ -51,7 +50,10 @@ describe("the scripts' commands", () => {
 	it("gives every one of them an npm script that runs it through tsx", () => {
 		const commands = Object.values(PACKAGE.scripts);
 		for (const name of importsTypeScript()) {
-			expect(commands.some((c) => c.includes(`tsx scripts/${name}`)), name).toBe(true);
+			expect(
+				commands.some((c) => c.includes(`tsx scripts/${name}`)),
+				name,
+			).toBe(true);
 		}
 	});
 });
@@ -98,8 +100,10 @@ describe("the folded demo layout", () => {
 	});
 
 	it("writes back the committed module from its own data", () => {
-		const committed = readFileSync(join(ROOT, "src/core/docs/demoLayout.gen.ts"), "utf8")
-			.replace(/\r\n/g, "\n");
+		const committed = readFileSync(join(ROOT, "src/core/docs/demoLayout.gen.ts"), "utf8").replace(
+			/\r\n/g,
+			"\n",
+		);
 		expect(demoLayoutSource(DEMO_LAYOUT)).toBe(committed);
 	});
 });

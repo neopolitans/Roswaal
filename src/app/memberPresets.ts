@@ -2,14 +2,14 @@
  * Node-menu entries for the members of what a graph names: `input.throttle`.
  */
 
-import type { NodeScript } from "../core/schema.js";
-import type { Registry } from "../core/nodes/index.js";
 import { membersOfType } from "../core/members.js";
+import type { Registry } from "../core/nodes/index.js";
+import type { NodeScript } from "../core/schema.js";
 import type { ExportedType } from "./api.js";
 import type { Preset } from "./NodeMenu.jsx";
+import { configText } from "./nodeConfig.js";
 import { pinColor } from "./palette.js";
 import { requiredTypes } from "./projectTypes.js";
-import { configText } from "./nodeConfig.js";
 
 /**
  * One entry per member of anything the graph names: `input.throttle`.

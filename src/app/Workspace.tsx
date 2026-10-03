@@ -29,14 +29,28 @@
  */
 
 import {
-	useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode,
+	type ReactNode,
+	type PointerEvent as ReactPointerEvent,
+	useEffect,
+	useRef,
+	useState,
 } from "react";
 
 import { cx } from "./cx.js";
 import {
-	COMPACT_QUERY, dockVisible, dropZone, floatingPanels, gridTemplate, panelsIn, MIN_FLOAT,
-	PANEL_IDS, PANEL_TITLES,
-	type DockSide, type Layout, type PanelFrame, type PanelId,
+	COMPACT_QUERY,
+	type DockSide,
+	dockVisible,
+	dropZone,
+	floatingPanels,
+	gridTemplate,
+	type Layout,
+	MIN_FLOAT,
+	PANEL_IDS,
+	PANEL_TITLES,
+	type PanelFrame,
+	type PanelId,
+	panelsIn,
 } from "./panels.js";
 import { trackPointer } from "./pointer.js";
 
@@ -99,8 +113,21 @@ export interface WorkspaceProps {
 const DRAG_THRESHOLD = 4;
 
 export function Workspace({
-	layout, contents, centre, floating, onResize, onResizeEnd, onToggle, onMovePanel,
-	onFramePanel, onFramePanelEnd, onDockPanel, onFloatPanel, drawerKey, touchBar, showDrawer,
+	layout,
+	contents,
+	centre,
+	floating,
+	onResize,
+	onResizeEnd,
+	onToggle,
+	onMovePanel,
+	onFramePanel,
+	onFramePanelEnd,
+	onDockPanel,
+	onFloatPanel,
+	drawerKey,
+	touchBar,
+	showDrawer,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
 	// The centre, which a window's coordinates are measured from.
@@ -124,9 +151,7 @@ export function Workspace({
 		panels: Object.fromEntries(
 			PANEL_IDS.map((id) => [
 				id,
-				contents[id] === undefined
-					? { ...layout.panels[id], open: false }
-					: layout.panels[id],
+				contents[id] === undefined ? { ...layout.panels[id], open: false } : layout.panels[id],
 			]),
 		) as Layout["panels"],
 	};
@@ -162,9 +187,7 @@ export function Workspace({
 	// slide over the graph instead, one at a time. The layout itself is not
 	// touched, and a wider window gets it back exactly as it was.
 	const full = gridTemplate(effective);
-	const tracks = compact
-		? { columns: "0px 0px minmax(0, 1fr) 0px 0px", rows: full.rows }
-		: full;
+	const tracks = compact ? { columns: "0px 0px minmax(0, 1fr) 0px 0px", rows: full.rows } : full;
 	// The panels a side's drawers offer, in the order the dock stacks them.
 	//
 	// Floating panels too, by the dock they came from: a window over the graph
@@ -174,7 +197,8 @@ export function Workspace({
 	// that would undo it is not drawn here.
 	const drawerPanels = (side: "left" | "right"): PanelId[] =>
 		PANEL_IDS.filter(
-			(id) => layout.panels[id].dock === side && layout.panels[id].open && contents[id] !== undefined,
+			(id) =>
+				layout.panels[id].dock === side && layout.panels[id].open && contents[id] !== undefined,
 		).sort((a, b) => layout.panels[a].order - layout.panels[b].order || a.localeCompare(b));
 	const drawers = compact
 		? { left: drawerPanels("left"), right: drawerPanels("right") }
@@ -193,9 +217,9 @@ export function Workspace({
 						side={side}
 						layout={effective}
 						contents={contents}
-						drawer={compact && side !== "bottom"
-							? { ids: drawers[side], open: openPanel }
-							: undefined}
+						drawer={
+							compact && side !== "bottom" ? { ids: drawers[side], open: openPanel } : undefined
+						}
 						onDragPanel={onMovePanel && !compact ? startDrag : undefined}
 						onFloat={
 							onFloatPanel && !compact
@@ -330,9 +354,12 @@ export function Workspace({
 			const centre = centreBox.current?.getBoundingClientRect();
 			if (!centre || !onFloatPanel) return;
 			if (
-				e.clientX < centre.x || e.clientX > centre.right
-				|| e.clientY < centre.y || e.clientY > centre.bottom
-			) return;
+				e.clientX < centre.x ||
+				e.clientX > centre.right ||
+				e.clientY < centre.y ||
+				e.clientY > centre.bottom
+			)
+				return;
 			onFloatPanel(panel, {
 				// Under the pointer by its own heading, which is what was grabbed.
 				x: Math.round(e.clientX - centre.x - 40),
@@ -358,7 +385,12 @@ export function Workspace({
  * and a heading that is already carrying an Add button has no room for it.
  */
 function FloatingPanel({
-	id, frame, onFrame, onFrameEnd, onDock, children,
+	id,
+	frame,
+	onFrame,
+	onFrameEnd,
+	onDock,
+	children,
 }: {
 	id: PanelId;
 	frame: PanelFrame;
@@ -464,16 +496,8 @@ function FloatingPanel({
 			{/* Both corners, for the reason a comment has both: growing a window
 			    upwards or leftwards otherwise means resizing it from the bottom
 			    and then dragging the whole thing back. */}
-			<div
-				className="float-size nw"
-				title="Drag to resize"
-				onPointerDown={(e) => drag(e, "nw")}
-			/>
-			<div
-				className="float-size se"
-				title="Drag to resize"
-				onPointerDown={(e) => drag(e, "se")}
-			/>
+			<div className="float-size nw" title="Drag to resize" onPointerDown={(e) => drag(e, "nw")} />
+			<div className="float-size se" title="Drag to resize" onPointerDown={(e) => drag(e, "se")} />
 		</div>
 	);
 }
@@ -512,7 +536,12 @@ function DropPreview({ side, layout }: { side: DockSide; layout: Layout }) {
  * per dock and a strip has something to say.
  */
 function Dock({
-	side, layout, contents, drawer, onDragPanel, onFloat,
+	side,
+	layout,
+	contents,
+	drawer,
+	onDragPanel,
+	onFloat,
 }: {
 	side: DockSide;
 	layout: Layout;
@@ -588,7 +617,11 @@ function Dock({
  * five-pixel strip.
  */
 function Splitter({
-	side, size, onResize, onResizeEnd, onToggle,
+	side,
+	size,
+	onResize,
+	onResizeEnd,
+	onToggle,
 }: {
 	side: DockSide;
 	size: number;
@@ -626,9 +659,11 @@ function Splitter({
 			// Each side grows in a different direction: the left dock follows the
 			// pointer, the right and bottom grow as it moves back towards them.
 			const delta =
-				side === "left" ? move.clientX - startX
-				: side === "right" ? startX - move.clientX
-				: startY - move.clientY;
+				side === "left"
+					? move.clientX - startX
+					: side === "right"
+						? startX - move.clientX
+						: startY - move.clientY;
 			onResize(size + delta);
 		};
 		const stop = trackPointer(e, { move, end: () => onResizeEnd?.() });

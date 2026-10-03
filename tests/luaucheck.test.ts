@@ -7,9 +7,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { checkLuau, checkTemplate } from "../src/core/luau/check.js";
 import { compile } from "../src/core/compiler/index.js";
+import { checkLuau, checkTemplate } from "../src/core/luau/check.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { Builder } from "./helpers.js";
 
@@ -42,7 +41,9 @@ describe("checkLuau", () => {
 		expect(messages("if a then 1 else 2", "expression")).toEqual([]);
 		expect(messages("  if a then 1 elseif b then 2 else 3", "expression")).toEqual([]);
 		expect(messages("if a then f() end", "expression")[0]).toContain('"if" starts a statement');
-		expect(messages("if a then 1", "expression")[0]).toContain("an if-expression always has an else");
+		expect(messages("if a then 1", "expression")[0]).toContain(
+			"an if-expression always has an else",
+		);
 	});
 
 	it("still takes an anonymous function as a value", () => {
@@ -50,7 +51,9 @@ describe("checkLuau", () => {
 	});
 
 	it("refuses two values side by side", () => {
-		expect(messages("a b", "expression")).toEqual(['Only one value goes here, but "b" follows it.']);
+		expect(messages("a b", "expression")).toEqual([
+			'Only one value goes here, but "b" follows it.',
+		]);
 	});
 
 	it("reads a type, and refuses what is not one", () => {
@@ -84,7 +87,9 @@ describe("checkLuau", () => {
 	});
 
 	it("finds a bracket closed by the wrong one", () => {
-		expect(messages("print(1]", "block")).toEqual(['Expected ")" to close the call\'s arguments, but found "]".']);
+		expect(messages("print(1]", "block")).toEqual([
+			'Expected ")" to close the call\'s arguments, but found "]".',
+		]);
 	});
 });
 
@@ -108,8 +113,12 @@ describe("checkTemplate", () => {
 
 	it("takes a template as statements or as one value, unless told which", () => {
 		expect(checkTemplate("$in.a + $in.b")).toEqual([]);
-		expect(checkTemplate("$in.a + $in.b", "block")[0].message).toContain("This is a value on its own");
-		expect(checkTemplate("local x = $in.a", "expression")[0].message).toContain('"local" starts a statement');
+		expect(checkTemplate("$in.a + $in.b", "block")[0].message).toContain(
+			"This is a value on its own",
+		);
+		expect(checkTemplate("local x = $in.a", "expression")[0].message).toContain(
+			'"local" starts a statement',
+		);
 		expect(checkTemplate("if $in.a then")[0].message).toContain('Expected "end" to close the if');
 	});
 });

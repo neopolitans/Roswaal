@@ -76,7 +76,7 @@ export function highlightLuau(source: string): Token[][] {
 			if (stream.pos === stream.start) stream.next();
 
 			const text = line.slice(stream.start, stream.pos);
-			const cls = name === null ? "" : CLASSES[name] ?? "";
+			const cls = name === null ? "" : (CLASSES[name] ?? "");
 
 			// Runs of the same colour are merged so the DOM stays small: an
 			// indented block is otherwise one span per space.

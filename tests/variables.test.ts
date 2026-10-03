@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compile } from "../src/core/compiler/index.js";
-import { createRegistry, nodeTitle } from "../src/core/nodes/index.js";
 import { migrateScript } from "../src/core/migrate.js";
+import { createRegistry, nodeTitle } from "../src/core/nodes/index.js";
 import type { Literal } from "../src/core/schema.js";
 import { Builder, body } from "./helpers.js";
 
@@ -95,13 +95,7 @@ describe("script variables", () => {
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
 		expect(body(out.code)).toBe(
-			[
-				"local count: number = 1",
-				"",
-				"print(count)",
-				"count = 2",
-				"print(count)",
-			].join("\n"),
+			["local count: number = 1", "", "print(count)", "count = 2", "print(count)"].join("\n"),
 		);
 	});
 
@@ -137,7 +131,9 @@ describe("script variables", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const print = b.node("debug.print");
-		const get = b.node("variable.get", { config: { variable: "gone", name: "gone", type: "number" } });
+		const get = b.node("variable.get", {
+			config: { variable: "gone", name: "gone", type: "number" },
+		});
 		b.link(start, "then", print, "in");
 		b.link(get, "value", print, "value");
 
@@ -211,22 +207,26 @@ describe("node titles", () => {
 
 	it("lets a typed label win over the name", () => {
 		const def = registry.get("function.entry")!;
-		expect(nodeTitle(def, named("function.entry", { name: "greet" }, "Say hello")))
-			.toBe("Say hello");
+		expect(nodeTitle(def, named("function.entry", { name: "greet" }, "Say hello"))).toBe(
+			"Say hello",
+		);
 	});
 
 	it("names a capsule getter after what it holds", () => {
-		expect(nodeTitle(registry.get("variable.get")!, named("variable.get", { name: "Health" })))
-			.toBe("Health");
-		expect(nodeTitle(registry.get("function.get")!, named("function.get", { name: "tick" })))
-			.toBe("tick");
+		expect(
+			nodeTitle(registry.get("variable.get")!, named("variable.get", { name: "Health" })),
+		).toBe("Health");
+		expect(nodeTitle(registry.get("function.get")!, named("function.get", { name: "tick" }))).toBe(
+			"tick",
+		);
 	});
 
 	it("leaves a node that is only *about* a name alone", () => {
 		// Set Variable would lose its verb: "Accumulator" does not say it assigns.
 		// The variable's name is on its subtitle, which is where it belongs.
-		expect(nodeTitle(registry.get("variable.set")!, named("variable.set", { name: "Health" })))
-			.toBe("Set Variable");
+		expect(
+			nodeTitle(registry.get("variable.set")!, named("variable.set", { name: "Health" })),
+		).toBe("Set Variable");
 	});
 
 	/**
@@ -239,7 +239,9 @@ describe("node titles", () => {
 	 */
 	it("shows a local's name beside Declare Local, not instead of it", () => {
 		const def = registry.get("local.declare")!;
-		const withName = named("local.declare", {}, undefined, { name: { t: "string", v: "restores" } });
+		const withName = named("local.declare", {}, undefined, {
+			name: { t: "string", v: "restores" },
+		});
 		expect(nodeTitle(def, withName)).toBe("Declare Local (restores)");
 	});
 

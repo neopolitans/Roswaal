@@ -22,8 +22,6 @@
 
 import { RELEASES_0_0 } from "./releases/minor0.js";
 import { RELEASES_0_10 } from "./releases/minor10.js";
-import { RELEASES_0_100 } from "./releases/minor100.js";
-import { RELEASES_0_110 } from "./releases/minor110.js";
 import { RELEASES_0_20 } from "./releases/minor20.js";
 import { RELEASES_0_30 } from "./releases/minor30.js";
 import { RELEASES_0_40 } from "./releases/minor40.js";
@@ -32,6 +30,8 @@ import { RELEASES_0_60 } from "./releases/minor60.js";
 import { RELEASES_0_70 } from "./releases/minor70.js";
 import { RELEASES_0_80 } from "./releases/minor80.js";
 import { RELEASES_0_90 } from "./releases/minor90.js";
+import { RELEASES_0_100 } from "./releases/minor100.js";
+import { RELEASES_0_110 } from "./releases/minor110.js";
 
 /**
  * A part of the tool a release can say it touched.

@@ -41,7 +41,8 @@ function open(): Promise<IDBDatabase> {
 
 /** One transaction, wrapped so a caller sees a promise rather than four events. */
 async function transact<T>(
-	mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>,
+	mode: IDBTransactionMode,
+	run: (store: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T> {
 	const database = await open();
 	try {
@@ -86,7 +87,10 @@ const isHandle = (value: unknown): value is FileSystemDirectoryHandle =>
  * Leaving it out is the safe reading — the alternative is offering a card that
  * cannot be opened.
  */
-export function foldersFrom(keys: readonly IDBValidKey[], values: readonly unknown[]): StoredFolder[] {
+export function foldersFrom(
+	keys: readonly IDBValidKey[],
+	values: readonly unknown[],
+): StoredFolder[] {
 	const out: StoredFolder[] = [];
 	values.forEach((value, index) => {
 		const key = String(keys[index] ?? index);
@@ -189,9 +193,7 @@ export async function forgetFolder(id?: string): Promise<void> {
  * be reopened with no interruption at all. `prompt` means it can be asked for,
  * but only from a click. `denied` means it cannot.
  */
-export async function permissionFor(
-	handle: FileSystemDirectoryHandle,
-): Promise<PermissionState> {
+export async function permissionFor(handle: FileSystemDirectoryHandle): Promise<PermissionState> {
 	try {
 		return await handle.queryPermission({ mode: "readwrite" });
 	} catch {

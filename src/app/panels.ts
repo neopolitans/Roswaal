@@ -167,9 +167,8 @@ const MIN_CENTRE = 320;
  */
 export function panelsIn(layout: Layout, side: DockSide): PanelId[] {
 	return PANEL_IDS.filter(
-		(id) => layout.panels[id].dock === side
-			&& layout.panels[id].open
-			&& !layout.panels[id].floating,
+		(id) =>
+			layout.panels[id].dock === side && layout.panels[id].open && !layout.panels[id].floating,
 	).sort((a, b) => layout.panels[a].order - layout.panels[b].order || a.localeCompare(b));
 }
 
@@ -241,12 +240,19 @@ export function maxDockSize(layout: Layout, side: DockSide, width: number, heigh
 
 /** A dock resized by dragging, clamped to something usable. */
 export function resizeDock(
-	layout: Layout, side: DockSide, size: number, width: number, height: number,
+	layout: Layout,
+	side: DockSide,
+	size: number,
+	width: number,
+	height: number,
 ): Layout {
 	const clamped = Math.round(
 		Math.min(maxDockSize(layout, side, width, height), Math.max(MIN_DOCK, size)),
 	);
-	return { ...layout, docks: { ...layout.docks, [side]: { ...layout.docks[side], size: clamped } } };
+	return {
+		...layout,
+		docks: { ...layout.docks, [side]: { ...layout.docks[side], size: clamped } },
+	};
 }
 
 /** Collapses a dock, or brings it back. */
@@ -309,9 +315,10 @@ export function readLayout(stored: unknown): Layout {
 			dock: DOCK_SIDES.includes(value?.dock as DockSide) ? value!.dock : fallback.dock,
 			open: typeof value?.open === "boolean" ? value.open : fallback.open,
 			order: typeof value?.order === "number" ? value.order : fallback.order,
-			floating: typeof (value as { floating?: unknown } | undefined)?.floating === "boolean"
-				? (value as { floating: boolean }).floating
-				: fallback.floating,
+			floating:
+				typeof (value as { floating?: unknown } | undefined)?.floating === "boolean"
+					? (value as { floating: boolean }).floating
+					: fallback.floating,
 			frame: {
 				x: typeof frame?.x === "number" ? Math.max(0, frame.x) : fallback.frame.x,
 				y: typeof frame?.y === "number" ? Math.max(0, frame.y) : fallback.frame.y,
@@ -326,8 +333,7 @@ export function readLayout(stored: unknown): Layout {
 		const fallback = DEFAULT_LAYOUT.docks[side];
 		const value = raw.docks?.[side];
 		docks[side] = {
-			size:
-				typeof value?.size === "number" && value.size >= MIN_DOCK ? value.size : fallback.size,
+			size: typeof value?.size === "number" && value.size >= MIN_DOCK ? value.size : fallback.size,
 			open: typeof value?.open === "boolean" ? value.open : fallback.open,
 		};
 	}

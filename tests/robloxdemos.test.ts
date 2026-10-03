@@ -20,15 +20,14 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { compile } from "../src/core/compiler/index.js";
+import { ROBLOX_DEMO_GRAPHS, ROBLOX_DEMO_MAP } from "../src/core/docs/robloxDemos.gen.js";
 import { compileNodeMap } from "../src/core/nodemap.js";
 import { createRegistry } from "../src/core/nodes/index.js";
-import { ROBLOX_DEMO_GRAPHS, ROBLOX_DEMO_MAP } from "../src/core/docs/robloxDemos.gen.js";
 
 const registry = createRegistry();
 const project = new URL("../examples/demo/.roswaal/scripts/", import.meta.url);
 
-const onDisk = (rel: string): unknown =>
-	JSON.parse(readFileSync(new URL(rel, project), "utf8"));
+const onDisk = (rel: string): unknown => JSON.parse(readFileSync(new URL(rel, project), "utf8"));
 
 /** Where each of the page's graphs lives in the project. */
 const GRAPHS: Array<[string, string]> = [
@@ -54,8 +53,9 @@ describe("the Roblox demo page is drawn from the project", () => {
 describe("what the page shows underneath each picture", () => {
 	it.each(GRAPHS)("%s compiles with no errors", (id) => {
 		const result = compile(ROBLOX_DEMO_GRAPHS[id], registry);
-		expect(result.diagnostics.filter((d) => d.severity === "error").map((d) => d.message))
-			.toEqual([]);
+		expect(result.diagnostics.filter((d) => d.severity === "error").map((d) => d.message)).toEqual(
+			[],
+		);
 	});
 
 	it.each(GRAPHS)("%s writes something", (id) => {
@@ -75,7 +75,7 @@ describe("what the page shows underneath each picture", () => {
 	it("compiles the map to a project file with nothing wrong in it", () => {
 		const built = compileNodeMap(ROBLOX_DEMO_MAP);
 		expect(built.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
-		expect(built.json).toContain("\"tree\"");
+		expect(built.json).toContain('"tree"');
 	});
 
 	/**

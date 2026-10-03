@@ -48,7 +48,7 @@ export const RELEASES_0_70: Release[] = [
 		],
 		watch: [
 			"**A Get Member from 0.76.0 is moved to the new shape** when its graph is opened, and its member is kept.",
-			"**A generated annotation names the class**: `local weld: WeldConstraint = Instance.new(\"WeldConstraint\")` where it used to say `Instance`. Recompiling rewrites those lines.",
+			'**A generated annotation names the class**: `local weld: WeldConstraint = Instance.new("WeldConstraint")` where it used to say `Instance`. Recompiling rewrites those lines.',
 		],
 	},
 	{

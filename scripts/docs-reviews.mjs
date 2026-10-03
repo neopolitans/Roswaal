@@ -7,9 +7,9 @@
  * first, because the oldest is the next one due.
  */
 
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
-import { buildSite } from "../src/core/docs/site.ts";
 import { REVIEW_LABELS } from "../src/core/docs/reviews.ts";
+import { buildSite } from "../src/core/docs/site.ts";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
 
 const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
 const pages = site.sections.flatMap((section) => section.pages);

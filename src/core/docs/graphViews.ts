@@ -8,8 +8,8 @@
  * example and a guide's scene alike — draws a function where the editor does.
  */
 
-import { FUNCTION_NODES } from "../nodes/flow.js";
 import { viewOf } from "../functionGraph.js";
+import { FUNCTION_NODES } from "../nodes/flow.js";
 import type { NodeScript } from "../schema.js";
 
 export interface GraphView {

@@ -17,11 +17,11 @@
  * itself, and every other command can import from here without a server.
  */
 
-import express from "express";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import sea from "node:sea";
+import { fileURLToPath } from "node:url";
+import express from "express";
 
 import { DEMO_PROJECTS } from "../core/demoProjects.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
@@ -97,7 +97,8 @@ function hostnameOf(value: string): string {
  * already running locally is a threat this cannot answer anyway.
  */
 export function refusesConnection(
-	host: string | undefined, origin: string | undefined,
+	host: string | undefined,
+	origin: string | undefined,
 ): string | null {
 	if (host !== undefined && !LOOPBACK.has(hostnameOf(host))) {
 		return `Roswaal only answers on localhost. This request asked for "${host}".`;
@@ -145,7 +146,10 @@ const SWITCHES_PROJECT = new Set(["/project/open", "/project/init"]);
  * too loose and the bug it exists for comes back.
  */
 export function refusesRequest(
-	method: string, routePath: string, claimed: string | undefined, open: string | null,
+	method: string,
+	routePath: string,
+	claimed: string | undefined,
+	open: string | null,
 ): boolean {
 	// Reading is harmless: the worst case is showing the new project's files,
 	// which is what the tab is about to be told to do anyway.
@@ -258,11 +262,20 @@ function mountRoutes(app: express.Express, session: ApiSession): void {
 		const [method, routePath] = key.split(" ");
 		const mount = `/api${routePath}`;
 		switch (method) {
-			case "GET": app.get(mount, route(handler)); break;
-			case "POST": app.post(mount, route(handler)); break;
-			case "PUT": app.put(mount, route(handler)); break;
-			case "DELETE": app.delete(mount, route(handler)); break;
-			default: throw new Error(`Unsupported method in the route table: ${key}`);
+			case "GET":
+				app.get(mount, route(handler));
+				break;
+			case "POST":
+				app.post(mount, route(handler));
+				break;
+			case "PUT":
+				app.put(mount, route(handler));
+				break;
+			case "DELETE":
+				app.delete(mount, route(handler));
+				break;
+			default:
+				throw new Error(`Unsupported method in the route table: ${key}`);
 		}
 	}
 }
@@ -288,7 +301,11 @@ function route(handler: (req: RouteRequest) => Promise<unknown>): express.Reques
 }
 
 /** The routes only a daemon has: its event stream, and stopping it. */
-function mountDaemonRoutes(app: express.Express, session: ApiSession, dynamic: DynamicCompiler): void {
+function mountDaemonRoutes(
+	app: express.Express,
+	session: ApiSession,
+	dynamic: DynamicCompiler,
+): void {
 	app.get("/api/events", (req, res) => streamEvents(dynamic, req, res));
 
 	// The route keeps its path, and the reply its field names: both are the
@@ -322,7 +339,10 @@ function hostCapabilities(): HostCapabilities {
 				headers: { "User-Agent": "Roswaal", Accept: "application/vnd.github+json" },
 			});
 			if (!response.ok) {
-				throw new HttpError(502, `GitHub answered ${response.status} for ${owner}/${repo}${ref ? `@${ref}` : ""}.`);
+				throw new HttpError(
+					502,
+					`GitHub answered ${response.status} for ${owner}/${repo}${ref ? `@${ref}` : ""}.`,
+				);
 			}
 			return new Uint8Array(await response.arrayBuffer());
 		},

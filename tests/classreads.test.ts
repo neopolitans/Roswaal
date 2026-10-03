@@ -19,8 +19,9 @@ const registry = createRegistry();
 
 function outputType(script: NodeScript, nodeId: string): string | undefined {
 	const node = script.nodes.find((n) => n.id === nodeId)!;
-	return resolveNodePins(registry.get(node.def)!, node.config, node.literals)
-		.outputs.find((p) => p.id === "result")?.type;
+	return resolveNodePins(registry.get(node.def)!, node.config, node.literals).outputs.find(
+		(p) => p.id === "result",
+	)?.type;
 }
 
 /** A Find First Child Of Class printed, in the given typechecking mode. */

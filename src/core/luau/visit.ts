@@ -11,7 +11,16 @@
  * point is inside; this only says what is in the tree.
  */
 
-import type { Block, Expr, FunctionBody, Span, Stat, TableField, TypeNode, TypePack } from "./ast.js";
+import type {
+	Block,
+	Expr,
+	FunctionBody,
+	Span,
+	Stat,
+	TableField,
+	TypeNode,
+	TypePack,
+} from "./ast.js";
 
 /**
  * What a walk calls at each node. Each is optional; returning `false` from
@@ -92,7 +101,8 @@ export function visitStat(stat: Stat, visitor: Visitor): void {
 			exprs(stat.values);
 			return;
 		case "typeAlias":
-			for (const generic of stat.generics) if (generic.defaultType) visitTypeOrPack(generic.defaultType, visitor);
+			for (const generic of stat.generics)
+				if (generic.defaultType) visitTypeOrPack(generic.defaultType, visitor);
 			visitType(stat.type, visitor);
 			return;
 		case "break":
@@ -166,7 +176,8 @@ function visitField(field: TableField, visitor: Visitor): void {
 
 export function visitFunction(func: FunctionBody, visitor: Visitor): void {
 	if (visitor.func?.(func) === false) return;
-	for (const generic of func.generics) if (generic.defaultType) visitTypeOrPack(generic.defaultType, visitor);
+	for (const generic of func.generics)
+		if (generic.defaultType) visitTypeOrPack(generic.defaultType, visitor);
 	for (const param of func.params) if (param.type) visitType(param.type, visitor);
 	if (func.varargs?.type) visitType(func.varargs.type, visitor);
 	if (func.returns) visitPack(func.returns, visitor);

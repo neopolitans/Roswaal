@@ -16,10 +16,10 @@ import { describe, expect, it } from "vitest";
 import { addNode, growNode } from "../src/app/edits.js";
 import { compile } from "../src/core/compiler/index.js";
 import { migrateScript } from "../src/core/migrate.js";
-import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import { growthRule } from "../src/core/nodes/growth.js";
-import { PAIR } from "../src/core/schema.js";
+import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
+import { PAIR } from "../src/core/schema.js";
 import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
@@ -27,7 +27,9 @@ const dictionary = registry.get("table.dictionary")!;
 
 const code = (script: NodeScript) => body(compile(script, registry).code);
 const errors = (script: NodeScript) =>
-	compile(script, registry).diagnostics.filter((d) => d.severity === "error").map((d) => d.message);
+	compile(script, registry)
+		.diagnostics.filter((d) => d.severity === "error")
+		.map((d) => d.message);
 
 const pinIds = (config: Record<string, unknown>) =>
 	resolveNodePins(dictionary, config).inputs.map((p) => p.id);

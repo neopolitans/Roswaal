@@ -22,8 +22,8 @@
  */
 
 import { spawn } from "node:child_process";
-import path from "node:path";
 import fs from "node:fs/promises";
+import path from "node:path";
 
 /**
  * True while a dialog is on screen.
@@ -144,10 +144,10 @@ async function macPicker(start?: string): Promise<string | null> {
 	const script = [
 		"on run argv",
 		"  if (count of argv) > 0 then",
-		"    set f to (choose folder with prompt \"Choose a Roswaal project folder\"" +
+		'    set f to (choose folder with prompt "Choose a Roswaal project folder"' +
 			" default location (POSIX file (item 1 of argv)))",
 		"  else",
-		"    set f to (choose folder with prompt \"Choose a Roswaal project folder\")",
+		'    set f to (choose folder with prompt "Choose a Roswaal project folder")',
 		"  end if",
 		"  return POSIX path of f",
 		"end run",
@@ -228,13 +228,22 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<s
 }
 
 async function isDirectory(target: string): Promise<boolean> {
-	return fs.stat(target).then((s) => s.isDirectory(), () => false);
+	return fs.stat(target).then(
+		(s) => s.isDirectory(),
+		() => false,
+	);
 }
 
 /** Looks up one command across PATH without asking a shell to do it. */
 async function onPath(filename: string): Promise<boolean> {
 	for (const dir of (process.env.PATH ?? "").split(path.delimiter).filter(Boolean)) {
-		if (await fs.access(path.join(dir, filename)).then(() => true, () => false)) return true;
+		if (
+			await fs.access(path.join(dir, filename)).then(
+				() => true,
+				() => false,
+			)
+		)
+			return true;
 	}
 	return false;
 }

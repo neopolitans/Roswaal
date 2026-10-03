@@ -55,9 +55,9 @@ export function graphOf(item: { graph?: string }): GraphId {
  * above every local the main flow declares and closes over none of them. A
  * Declare Function sits in the flow and closes over everything above it.
  */
-export function hoistedFunctions(
-	script: { nodes: readonly Pick<GraphNode, "id" | "def">[] },
-): Set<string> {
+export function hoistedFunctions(script: {
+	nodes: readonly Pick<GraphNode, "id" | "def">[];
+}): Set<string> {
 	return new Set(script.nodes.filter((n) => n.def === "function.entry").map((n) => n.id));
 }
 
@@ -83,7 +83,9 @@ export function hoistedFunctions(
  * and the list was the thing that said it was there.
  */
 export function visibleFrom(
-	node: Pick<GraphNode, "graph">, graph: GraphId, hoisted: ReadonlySet<string>,
+	node: Pick<GraphNode, "graph">,
+	graph: GraphId,
+	hoisted: ReadonlySet<string>,
 ): boolean {
 	if (node.graph !== undefined) return node.graph === graph;
 	return graph === null || !hoisted.has(graph);
@@ -98,7 +100,10 @@ export function visibleFrom(
  * Connect handler's body is **not** a separate graph: it is nested inside the
  * one the Connect node is drawn in, so its parameters are readable there.
  */
-export function paramsVisibleFrom(owner: Pick<GraphNode, "id" | "def" | "graph">, graph: GraphId): boolean {
+export function paramsVisibleFrom(
+	owner: Pick<GraphNode, "id" | "def" | "graph">,
+	graph: GraphId,
+): boolean {
 	if (FUNCTION_NODES.has(owner.def)) return owner.id === graph;
 	return graphOf(owner) === graph;
 }
@@ -106,7 +111,8 @@ export function paramsVisibleFrom(owner: Pick<GraphNode, "id" | "def" | "graph">
 /** Whether this pin belongs to the graph a declaration opens. */
 function isEntryPin(defId: string, pinId: string): boolean {
 	if (defId === "function.entry") return true;
-	if (defId === "function.declareHere") return pinId === bodyPinOf(defId) || /^p\d+(\.|$)/.test(pinId);
+	if (defId === "function.declareHere")
+		return pinId === bodyPinOf(defId) || /^p\d+(\.|$)/.test(pinId);
 	return false;
 }
 
@@ -162,14 +168,21 @@ export function viewOf(script: NodeScript, graph: GraphId): NodeScript {
 			nodes.push(node);
 			continue;
 		}
-		nodes.push({ ...node, ...positionIn(node, graph), config: { ...node.config, [PRESENCE]: presence } });
+		nodes.push({
+			...node,
+			...positionIn(node, graph),
+			config: { ...node.config, [PRESENCE]: presence },
+		});
 	}
 	const links = script.links.filter((link) => {
 		const from = byId.get(link.from.node);
 		const to = byId.get(link.to.node);
-		return !!from && !!to
-			&& sideGraph(from, link.from.pin, "out") === graph
-			&& sideGraph(to, link.to.pin, "in") === graph;
+		return (
+			!!from &&
+			!!to &&
+			sideGraph(from, link.from.pin, "out") === graph &&
+			sideGraph(to, link.to.pin, "in") === graph
+		);
 	});
 	const comments = script.comments.filter((c) => graphOf(c) === graph);
 	return { ...script, nodes, links, comments };
@@ -269,7 +282,10 @@ export function functionOutline(script: Pick<NodeScript, "nodes">): FunctionInfo
 
 /** Whether any node or comment says which graph it is in. */
 export function hasMembership(script: NodeScript): boolean {
-	return script.nodes.some((n) => n.graph !== undefined) || script.comments.some((c) => c.graph !== undefined);
+	return (
+		script.nodes.some((n) => n.graph !== undefined) ||
+		script.comments.some((c) => c.graph !== undefined)
+	);
 }
 
 /**
@@ -285,7 +301,9 @@ export function crossingLinks(script: NodeScript): Link[] {
 	return script.links.filter((link) => {
 		const from = byId.get(link.from.node);
 		const to = byId.get(link.to.node);
-		return !!from && !!to && sideGraph(from, link.from.pin, "out") !== sideGraph(to, link.to.pin, "in");
+		return (
+			!!from && !!to && sideGraph(from, link.from.pin, "out") !== sideGraph(to, link.to.pin, "in")
+		);
 	});
 }
 
@@ -302,7 +320,8 @@ export function crossingLinks(script: NodeScript): Link[] {
  * every read.
  */
 export function assignMembership(
-	script: NodeScript, registry: Registry,
+	script: NodeScript,
+	registry: Registry,
 ): { script: NodeScript; moved: number; crossings: number } {
 	const unchanged = { script, moved: 0, crossings: 0 };
 	if (hasMembership(script)) return unchanged;
@@ -323,13 +342,13 @@ export function assignMembership(
 	};
 
 	// Pure nodes, readers first: a value is decided once everything reading it is.
-	const decided = new Set(
-		script.nodes.filter((n) => !registry.get(n.def)?.pure).map((n) => n.id),
-	);
+	const decided = new Set(script.nodes.filter((n) => !registry.get(n.def)?.pure).map((n) => n.id));
 	const readers = new Map<string, Link[]>();
 	const sources = new Map<string, Link[]>();
 	for (const link of script.links) {
-		(readers.get(link.from.node) ?? readers.set(link.from.node, []).get(link.from.node)!).push(link);
+		(readers.get(link.from.node) ?? readers.set(link.from.node, []).get(link.from.node)!).push(
+			link,
+		);
 		(sources.get(link.to.node) ?? sources.set(link.to.node, []).get(link.to.node)!).push(link);
 	}
 	const sideOf = (id: string, pin: string, side: "in" | "out"): GraphId => {
@@ -390,15 +409,23 @@ export function assignMembership(
 		if (from.def !== "function.entry" || link.from.pin !== "self") continue;
 		const id = `${link.id}-get`;
 		const name = signatureOf(from.config).name ?? "function";
-		nodes = [...nodes, {
-			id, def: "function.get", x: to.x - 180, y: to.y,
-			config: { function: from.id, name },
-			...(to.graph ? { graph: to.graph } : {}),
-		}];
+		nodes = [
+			...nodes,
+			{
+				id,
+				def: "function.get",
+				x: to.x - 180,
+				y: to.y,
+				config: { function: from.id, name },
+				...(to.graph ? { graph: to.graph } : {}),
+			},
+		];
 		links = links.map((l) => (l === link ? { ...l, from: { node: id, pin: "fn" } } : l));
 		result = { ...result, nodes, links };
 	}
 
-	const moved = new Set(declarations.filter((fn) => nodes.some((n) => n.graph === fn.id)).map((n) => n.id)).size;
+	const moved = new Set(
+		declarations.filter((fn) => nodes.some((n) => n.graph === fn.id)).map((n) => n.id),
+	).size;
 	return { script: result, moved, crossings: crossingLinks(result).length };
 }

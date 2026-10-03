@@ -22,15 +22,14 @@
  */
 
 import { useMemo, useState } from "react";
-
+import { errorMessage } from "../../core/errorMessage.js";
 import { BUILTIN_NODES } from "../../core/nodes/index.js";
 import { packTargets, runsOn } from "../../core/packs.js";
 import type { Target } from "../../core/schema.js";
 import { api, type PackFile } from "../api.js";
 import { cx } from "../cx.js";
-import { Icon } from "../icons.jsx";
 import { NOT_HERE, useHostCan } from "../host.js";
-import { errorMessage } from "../../core/errorMessage.js";
+import { Icon } from "../icons.jsx";
 
 /** What the designer has open: a built-in category, or one of the project's packs. */
 export type OpenPack = { kind: "builtin"; category: string } | { kind: "project"; path: string };
@@ -80,16 +79,26 @@ export interface PackBrowserProps {
 	notify: Notify;
 }
 
-export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notify }: PackBrowserProps) {
+export function PackBrowser({
+	packs,
+	target,
+	noProject,
+	onOpen,
+	onChanged,
+	notify,
+}: PackBrowserProps) {
 	// Copying a pack between projects needs a second project to copy to, which
 	// needs a filesystem holding more than this one. `inspect` is that
 	// question: a daemon with no folder picker can still be given a path.
 	const canUseOtherProjects = useHostCan("inspect");
 	const [layout, setLayout] = useState(readLayout);
 	const [naming, setNaming] = useState<string | null>(null);
-	const [importing, setImporting] = useState<
-		{ root: string; target: Target; packs: PackFile[]; done: Set<string> } | null
-	>(null);
+	const [importing, setImporting] = useState<{
+		root: string;
+		target: Target;
+		packs: PackFile[];
+		done: Set<string>;
+	} | null>(null);
 	const builtins = useMemo(builtinPacks, []);
 	const names = useMemo(() => new Set((packs ?? []).map((p) => p.name)), [packs]);
 
@@ -152,7 +161,11 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 					</button>
 				)}
 				{naming === null ? (
-					<button className="tb primary with-icon" disabled={noProject} onClick={() => setNaming("")}>
+					<button
+						className="tb primary with-icon"
+						disabled={noProject}
+						onClick={() => setNaming("")}
+					>
 						<Icon name="newFile" size={15} />
 						New pack
 					</button>
@@ -172,8 +185,12 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 							onChange={(e) => setNaming(e.target.value)}
 							onKeyDown={(e) => e.key === "Escape" && setNaming(null)}
 						/>
-						<button className="tb primary" type="submit">Create</button>
-						<button className="tb" type="button" onClick={() => setNaming(null)}>Cancel</button>
+						<button className="tb primary" type="submit">
+							Create
+						</button>
+						<button className="tb" type="button" onClick={() => setNaming(null)}>
+							Cancel
+						</button>
 					</form>
 				)}
 			</div>
@@ -210,14 +227,18 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 						role="button"
 						tabIndex={0}
 						onClick={() => onOpen({ kind: "builtin", category: b.category })}
-						onKeyDown={(e) => e.key === "Enter" && onOpen({ kind: "builtin", category: b.category })}
+						onKeyDown={(e) =>
+							e.key === "Enter" && onOpen({ kind: "builtin", category: b.category })
+						}
 					>
 						<div className="pack-card-head">
 							<h3>{b.category}</h3>
 							<span className="badge">Built in</span>
 						</div>
 						<div className="pack-badges">
-							<span className="count">{b.count} node{b.count === 1 ? "" : "s"}</span>
+							<span className="count">
+								{b.count} node{b.count === 1 ? "" : "s"}
+							</span>
 							<TargetBadge targets={b.targets} target={target} />
 						</div>
 					</div>
@@ -245,7 +266,9 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 										<TargetBadge targets={pack.targets} target={target} />
 										<span className="spacer" />
 										{pack.errors.length > 0 ? (
-											<span className="badge warn" title={pack.errors.join("\n")}>Has problems</span>
+											<span className="badge warn" title={pack.errors.join("\n")}>
+												Has problems
+											</span>
 										) : (
 											<button
 												className="tb"
@@ -253,7 +276,9 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 												onClick={async () => {
 													try {
 														await api.importPack(importing.root, pack.path);
-														setImporting((m) => (m ? { ...m, done: new Set([...m.done, pack.path]) } : m));
+														setImporting((m) =>
+															m ? { ...m, done: new Set([...m.done, pack.path]) } : m,
+														);
 														await onChanged();
 														notify(`${pack.name} is in this project now.`);
 													} catch (err) {
@@ -276,12 +301,22 @@ export function PackBrowser({ packs, target, noProject, onOpen, onChanged, notif
 }
 
 /** What a pack runs on, marked when the project compiles for something else. */
-function TargetBadge({ targets, target }: { targets: readonly Target[] | null; target: Target | null }) {
+function TargetBadge({
+	targets,
+	target,
+}: {
+	targets: readonly Target[] | null;
+	target: Target | null;
+}) {
 	const fits = target === null || runsOn(targets, target);
 	return (
 		<span
 			className={cx("badge", !fits && "warn")}
-			title={fits ? "Runs on what this project compiles for." : "This project compiles for something these nodes do not run on."}
+			title={
+				fits
+					? "Runs on what this project compiles for."
+					: "This project compiles for something these nodes do not run on."
+			}
 		>
 			{targetsLabel(targets)}
 		</span>
@@ -289,7 +324,12 @@ function TargetBadge({ targets, target }: { targets: readonly Target[] | null; t
 }
 
 function ProjectPackCard({
-	pack, target, missing, onOpen, onChanged, notify,
+	pack,
+	target,
+	missing,
+	onOpen,
+	onChanged,
+	notify,
 }: {
 	pack: PackFile;
 	target: Target | null;
@@ -311,16 +351,27 @@ function ProjectPackCard({
 	};
 
 	return (
-		<div className="pack-card" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => e.key === "Enter" && onOpen()}>
+		<div
+			className="pack-card"
+			role="button"
+			tabIndex={0}
+			onClick={onOpen}
+			onKeyDown={(e) => e.key === "Enter" && onOpen()}
+		>
 			<div className="pack-card-head">
 				<h3>{pack.name}</h3>
-				<span className="badge" title={luau ? "Hand-written. The designer opens it read-only." : undefined}>
+				<span
+					className="badge"
+					title={luau ? "Hand-written. The designer opens it read-only." : undefined}
+				>
 					{luau ? "Luau · read-only" : "JSON"}
 				</span>
 			</div>
 			<div className="pack-path">{pack.path}</div>
 			<div className="pack-badges">
-				<span className="count">{pack.nodes.length} node{pack.nodes.length === 1 ? "" : "s"}</span>
+				<span className="count">
+					{pack.nodes.length} node{pack.nodes.length === 1 ? "" : "s"}
+				</span>
 				<TargetBadge targets={pack.targets} target={target} />
 				{pack.errors.length > 0 && (
 					<span className="badge warn" title={pack.errors.join("\n")}>
@@ -328,7 +379,10 @@ function ProjectPackCard({
 					</span>
 				)}
 				{missing.length > 0 && (
-					<span className="badge warn" title="Its nodes' logic is built from these, and this project does not have them.">
+					<span
+						className="badge warn"
+						title="Its nodes' logic is built from these, and this project does not have them."
+					>
 						Needs {missing.join(", ")}
 					</span>
 				)}
@@ -353,7 +407,13 @@ function ProjectPackCard({
 					>
 						Delete
 					</button>
-					<button className="tb" onClick={(e) => { e.stopPropagation(); setConfirming(null); }}>
+					<button
+						className="tb"
+						onClick={(e) => {
+							e.stopPropagation();
+							setConfirming(null);
+						}}
+					>
 						Keep
 					</button>
 				</div>
@@ -361,7 +421,9 @@ function ProjectPackCard({
 				<div className="pack-actions">
 					<button
 						className="tb"
-						title={luau ? "An editable JSON copy, beside it" : "A copy beside it, in its own namespace"}
+						title={
+							luau ? "An editable JSON copy, beside it" : "A copy beside it, in its own namespace"
+						}
 						onClick={act(async () => {
 							const { pack: copy } = await api.duplicatePack(pack.path);
 							await onChanged();
@@ -392,7 +454,8 @@ function ProjectPackCard({
 						aria-label="Copy the pack as JSON"
 						onClick={act(async () => {
 							const { nodes } = await api.readPack(pack.path);
-							const document = pack.requires.length > 0 ? { requires: pack.requires, nodes } : { nodes };
+							const document =
+								pack.requires.length > 0 ? { requires: pack.requires, nodes } : { nodes };
 							await navigator.clipboard.writeText(JSON.stringify(document, null, 2));
 							notify(`${pack.name} was copied as JSON.`);
 						})}

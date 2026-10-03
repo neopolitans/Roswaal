@@ -33,9 +33,7 @@ function read(): Record<string, unknown> {
 		const raw = localStorage.getItem(KEY);
 		if (raw === null) return {};
 		const parsed: unknown = JSON.parse(raw);
-		return typeof parsed === "object" && parsed !== null
-			? (parsed as Record<string, unknown>)
-			: {};
+		return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
 	} catch {
 		return {};
 	}
@@ -82,7 +80,9 @@ export function attachDocsToggle(box: HTMLInputElement): () => void {
 
 /** Every toggle on the page. What the static site's script runs. */
 export function attachDocsToggles(root: ParentNode): void {
-	for (const box of Array.from(root.querySelectorAll<HTMLInputElement>(".docs-toggle [data-pref]"))) {
+	for (const box of Array.from(
+		root.querySelectorAll<HTMLInputElement>(".docs-toggle [data-pref]"),
+	)) {
 		attachDocsToggle(box);
 	}
 }

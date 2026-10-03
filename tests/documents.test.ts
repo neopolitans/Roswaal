@@ -257,10 +257,16 @@ describe("function graphs", () => {
 
 	/** Every way of making a node goes through `apply`, so this covers them all. */
 	it("puts what is added in its tab into its graph", () => {
-		store.edit((s) => ({ ...s, nodes: [...s.nodes, { id: "new", def: "debug.print", x: 0, y: 0 }] }));
+		store.edit((s) => ({
+			...s,
+			nodes: [...s.nodes, { id: "new", def: "debug.print", x: 0, y: 0 }],
+		}));
 		expect(store.getSnapshot().script?.nodes.find((n) => n.id === "new")?.graph).toBe("fn");
 		store.activate(A);
-		store.edit((s) => ({ ...s, nodes: [...s.nodes, { id: "outer", def: "debug.print", x: 0, y: 0 }] }));
+		store.edit((s) => ({
+			...s,
+			nodes: [...s.nodes, { id: "outer", def: "debug.print", x: 0, y: 0 }],
+		}));
 		expect(store.getSnapshot().script?.nodes.find((n) => n.id === "outer")?.graph).toBeUndefined();
 	});
 

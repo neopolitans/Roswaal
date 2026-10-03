@@ -90,7 +90,7 @@ export const RELEASES_0_60: Release[] = [
 		affects: ["editor"],
 		added: [
 			"**A map says which runtime it describes.** A DataModel map is what one has always been: services, and a `default.project.json` for Rojo. A **filesystem map** is directories and files, which is what a Lune program actually has. A new map starts as the kind the project needs.",
-			"**A filesystem map is checked against Luau's own require rules.** A file beside a directory of the same name is an error, because `require(\"./foo\")` cannot mean both `foo.luau` and `foo/init.luau` and the language refuses an ambiguous path rather than picking one. Two files differing only by extension are the same collision one step along.",
+			'**A filesystem map is checked against Luau\'s own require rules.** A file beside a directory of the same name is an error, because `require("./foo")` cannot mean both `foo.luau` and `foo/init.luau` and the language refuses an ambiguous path rather than picking one. Two files differing only by extension are the same collision one step along.',
 			"**A file's name carries no extension.** Typing one is a warning saying so, and what to call it instead — the extension follows from the node being a file, and writing it into the name is how you get `main.luau.luau`.",
 		],
 		changed: [
@@ -124,7 +124,7 @@ export const RELEASES_0_60: Release[] = [
 			"**An unwired Lune call says so too.** The compiler refuses an undeclared module, but only for a node it reaches — so one dropped on the canvas and not yet wired said nothing, while the Inspector was already saying it.",
 		],
 		watch: [
-			"A warning marks the node only when it is **about the node**. Most are about where a node sits — \"not connected to anything that runs\" is true of every node the moment you drop it — and marking those would put a pip on each one while you were still building the graph.",
+			'A warning marks the node only when it is **about the node**. Most are about where a node sits — "not connected to anything that runs" is true of every node the moment you drop it — and marking those would put a pip on each one while you were still building the graph.',
 		],
 	},
 	{
@@ -156,9 +156,7 @@ export const RELEASES_0_60: Release[] = [
 			"**Realign put a Branch's two arms on top of each other.** It aligns a node onto the pin that feeds it, which is right for a chain and wrong for a fan-out: two execution pins are one pin row apart and a node is at least 64px tall. The topmost arm keeps its straight wire now and the rest move down to clear it.",
 			"**Six drawn graphs had a pair of nodes in the same place** for that reason — Branch, Sequence, Continue, and the scenes under [Wires and pins](wires-and-pins), [Variables and locals](variables-and-locals) and [Services and their methods](services), where the two Prints overlapped exactly and read as one node.",
 		],
-		changed: [
-			"**Verified**: [Services and their methods](services).",
-		],
+		changed: ["**Verified**: [Services and their methods](services)."],
 	},
 	{
 		version: "0.65.2",
@@ -194,7 +192,7 @@ export const RELEASES_0_60: Release[] = [
 		changed: [
 			"An alias map is resolved the way [the RFC](https://rfcs.luau.org/require-by-string-aliases.html) specifies, checked against it rather than remembered. A nearer `.luaurc` **inherits** what it does not say instead of replacing the map, and a relative path resolves against the file that **defined** it rather than the file requiring — both of which look correct in any project with one `.luaurc` at the root.",
 			"Names are case-insensitive, so `@Roact` and `@roact` are one alias. Defining both in one file is reported rather than written.",
-			"A chain of aliases is followed, and a ring is reported as the ring it walked — `a → b → c → a` rather than \"cycle detected\".",
+			'A chain of aliases is followed, and a ring is reported as the ring it walked — `a → b → c → a` rather than "cycle detected".',
 			"Editing a `.luaurc` **splices its aliases** and leaves the rest of the file exactly as it was. A file with comments inside its `aliases` is refused with the reason instead of rewritten: an edit reorders the entries, and a note about why a package is vendored cannot survive that.",
 			"Roblox's position on aliases is now linked rather than only quoted, so the claim can be checked instead of taken on trust.",
 		],
@@ -339,7 +337,7 @@ export const RELEASES_0_60: Release[] = [
 			"**Modules are declared, in the Variables panel.** A name, what to require, and optionally what to pull off it. The generated file gets one `require` per declaration, at the top and below the GetService calls — so four uses of one module write one `require`.",
 			"**Get Module**, the pill for a declared module. Drag one out of the panel, the way you drag a variable. It reads the local the require was bound to rather than requiring again.",
 			"**Require at Top**, for declaring one on the canvas instead. It takes the specifier verbatim, so it works for both runtimes and for forms neither has shipped yet.",
-			"**Members**: names pulled off a module into locals of their own. Lune's own idiom — `local roblox = require(\"@lune/roblox\")` and then `local Vector3 = roblox.Vector3` — and what lets the Vector3 and CFrame nodes compile unchanged in a Lune graph.",
+			'**Members**: names pulled off a module into locals of their own. Lune\'s own idiom — `local roblox = require("@lune/roblox")` and then `local Vector3 = roblox.Vector3` — and what lets the Vector3 and CFrame nodes compile unchanged in a Lune graph.',
 			"**Specifiers are checked against the runtime you compile for.** `@self/` and `@game/` are Roblox's; `@lune/*` is Lune's; `./` and `../` work anywhere; and an unprefixed path is refused, because that is now an error in Luau itself rather than a fallback.",
 		],
 		changed: [
@@ -449,9 +447,9 @@ export const RELEASES_0_60: Release[] = [
 		affects: ["editor", "docs"],
 		added: [
 			"**A runtime filter in the node menu and the node picker** — All, Luau, Roblox — remembered between openings. It narrows what the graph's target already allows rather than replacing it, so a Lune graph never gains a Roblox node by picking a chip.",
-			"**Luau** is the useful one: it answers \"which of these still works if I move this graph to the other runtime\".",
+			'**Luau** is the useful one: it answers "which of these still works if I move this graph to the other runtime".',
 			"**A badge on a node that needs something.** Base Luau is unmarked — badging four rows in five would be noise, and the absence is the claim: this one runs anywhere.",
-			"**Every node's page says which runtime it is for**, base Luau included. Said nowhere, \"works in both\" and \"nobody has decided\" look identical, and for 237 nodes they were the same thing until 0.61.0.",
+			'**Every node\'s page says which runtime it is for**, base Luau included. Said nowhere, "works in both" and "nobody has decided" look identical, and for 237 nodes they were the same thing until 0.61.0.',
 		],
 		changed: [
 			"The filter offers only the runtimes actually present. A Lune graph has no Roblox nodes left to narrow to, so the chip is not there — a filter that can only return nothing is worse than no filter — and with one runtime present the row goes entirely.",
@@ -471,7 +469,7 @@ export const RELEASES_0_60: Release[] = [
 		],
 		changed: [
 			"The Engine Types, Instances, Engine, Events, Networking, Players, Time and Z-Up Conversions nodes are **Roblox only**. Lune carries its own `Vector3` and friends behind `@lune/roblox`, so the datatypes become available there once there is a node that can require one — not before, because a node that appears and then always errors is worse than one that does not appear.",
-			"The `task` nodes are Roblox only. Lune's scheduler is not a global: it is `require(\"@lune/task\")`, so `task.wait(1)` in a Lune file indexes nil.",
+			'The `task` nodes are Roblox only. Lune\'s scheduler is not a global: it is `require("@lune/task")`, so `task.wait(1)` in a Lune file indexes nil.',
 		],
 		fixed: [
 			"`Resume Coroutine` **and** `Yield` **were hidden from Lune graphs.** `coroutine` is Luau's own primitive and works in both runtimes — six of its eight nodes were offered and these two were not, because the helper that built them filled in a Roblox tag on every node it made. A node's runtime is no longer a property of how its definition happened to be written.",

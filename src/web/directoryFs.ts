@@ -27,7 +27,10 @@ const FILE: FileStat = { isDirectory: () => false, isFile: () => true };
 const DIRECTORY: FileStat = { isDirectory: () => true, isFile: () => false };
 
 class DirectoryError extends Error {
-	constructor(readonly code: string, message: string) {
+	constructor(
+		readonly code: string,
+		message: string,
+	) {
 		super(message);
 		this.name = "Error";
 	}
@@ -53,12 +56,16 @@ export class DirectoryFs implements ProjectFs {
 		const full = resolve(target);
 		if (full === this.mount) return [];
 		if (!full.startsWith(this.mount + "/")) return null;
-		return full.slice(this.mount.length + 1).split("/").filter((part) => part !== "");
+		return full
+			.slice(this.mount.length + 1)
+			.split("/")
+			.filter((part) => part !== "");
 	}
 
 	/** Walks to the directory holding a path, without creating anything. */
 	private async parentOf(
-		target: string, create = false,
+		target: string,
+		create = false,
 	): Promise<{ parent: FileSystemDirectoryHandle; name: string } | null> {
 		const parts = this.segments(target);
 		if (parts === null || parts.length === 0) return null;
@@ -116,8 +123,7 @@ export class DirectoryFs implements ProjectFs {
 	async writeFile(target: string, data: string | Uint8Array, _encoding?: "utf8"): Promise<void> {
 		const found = await this.parentOf(target);
 		if (!found) throw enoent("open", resolve(target));
-		const handle = await found.parent.getFileHandle(found.name, { create: true })
-			.catch(() => null);
+		const handle = await found.parent.getFileHandle(found.name, { create: true }).catch(() => null);
 		if (!handle) throw enoent("open", resolve(target));
 
 		const writable = await handle.createWritable();
@@ -145,9 +151,7 @@ export class DirectoryFs implements ProjectFs {
 
 	async readdir(target: string): Promise<string[]>;
 	async readdir(target: string, options: { withFileTypes: true }): Promise<DirEntry[]>;
-	async readdir(
-		target: string, options?: { withFileTypes: true },
-	): Promise<string[] | DirEntry[]> {
+	async readdir(target: string, options?: { withFileTypes: true }): Promise<string[] | DirEntry[]> {
 		const handle = await this.directoryAt(target);
 		if (!handle) throw enoent("scandir", resolve(target));
 
@@ -199,7 +203,10 @@ export class DirectoryFs implements ProjectFs {
 		// Copying a folder into itself would find its own copy on every pass
 		// and nest on the real disk until the browser gave up.
 		if (resolve(to).startsWith(`${resolve(from)}/`)) {
-			throw new DirectoryError("EINVAL", `EINVAL: invalid argument, rename '${resolve(from)}' -> '${resolve(to)}'`);
+			throw new DirectoryError(
+				"EINVAL",
+				`EINVAL: invalid argument, rename '${resolve(from)}' -> '${resolve(to)}'`,
+			);
 		}
 
 		if (await this.fileAt(from)) {
@@ -220,8 +227,7 @@ export class DirectoryFs implements ProjectFs {
 
 		const found = await this.parentOf(to);
 		if (!found) throw enoent("copyfile", resolve(to));
-		const handle = await found.parent.getFileHandle(found.name, { create: true })
-			.catch(() => null);
+		const handle = await found.parent.getFileHandle(found.name, { create: true }).catch(() => null);
 		if (!handle) throw enoent("copyfile", resolve(to));
 
 		const writable = await handle.createWritable();
@@ -242,8 +248,9 @@ export class DirectoryFs implements ProjectFs {
 
 /** Whether this browser can hand over a folder at all. Chrome and Edge can. */
 export function canOpenDirectory(): boolean {
-	return typeof (globalThis as { showDirectoryPicker?: unknown }).showDirectoryPicker
-		=== "function";
+	return (
+		typeof (globalThis as { showDirectoryPicker?: unknown }).showDirectoryPicker === "function"
+	);
 }
 
 /** Where a picked folder is mounted: its own name, so the editor shows that. */

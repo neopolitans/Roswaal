@@ -33,7 +33,10 @@ export function StatusPanel(props: StatusPanelProps) {
 				<span className="count" style={{ color: props.errorCount ? "var(--danger)" : undefined }}>
 					{props.errorCount} error{props.errorCount === 1 ? "" : "s"}
 				</span>
-				<span className="count" style={{ color: props.warningCount ? "var(--warning)" : undefined }}>
+				<span
+					className="count"
+					style={{ color: props.warningCount ? "var(--warning)" : undefined }}
+				>
 					{props.warningCount} warning{props.warningCount === 1 ? "" : "s"}
 				</span>
 				<span className="spacer" style={{ flex: 1 }} />
@@ -104,33 +107,46 @@ export function StatusPanel(props: StatusPanelProps) {
 						return (
 							<Fragment key={outcome.scriptPath}>
 								<div className="entry">
-									<span className="sev" style={{ color: "var(--ok)" }}>wrote</span>
+									<span className="sev" style={{ color: "var(--ok)" }}>
+										wrote
+									</span>
 									<span>{outcome.outputPath}</span>
 								</div>
 								{/* Deleted because this graph now writes somewhere else. */}
 								{(outcome.superseded ?? []).map((gone) => (
 									<div className="entry" key={gone}>
 										<span className="sev">removed</span>
-										<span>{gone} → {outcome.outputPath}</span>
+										<span>
+											{gone} → {outcome.outputPath}
+										</span>
 									</div>
 								))}
 							</Fragment>
 						);
 					})}
 					{diagnostics.map((d, i) => (
-						<div className={`entry ${d.severity}`} key={i} onClick={() => d.node && store.reveal(d.node)}>
+						<div
+							className={`entry ${d.severity}`}
+							key={i}
+							onClick={() => d.node && store.reveal(d.node)}
+						>
 							<span className="sev">{d.severity}</span>
 							<span>{d.message}</span>
 							{d.pin && <span className="where">{d.pin}</span>}
 						</div>
 					))}
-					{diagnostics.length === 0 && outcomes.length === 0 && props.mapOutcomes.length === 0 &&
-						props.orphans.length === 0 && props.packErrors.length === 0 && (
-						<div className="entry">
-							<span className="sev" style={{ color: "var(--ok)" }}>ok</span>
-							<span>No problems found.</span>
-						</div>
-					)}
+					{diagnostics.length === 0 &&
+						outcomes.length === 0 &&
+						props.mapOutcomes.length === 0 &&
+						props.orphans.length === 0 &&
+						props.packErrors.length === 0 && (
+							<div className="entry">
+								<span className="sev" style={{ color: "var(--ok)" }}>
+									ok
+								</span>
+								<span>No problems found.</span>
+							</div>
+						)}
 				</div>
 			)}
 		</div>

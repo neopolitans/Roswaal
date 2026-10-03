@@ -2,7 +2,7 @@
  * The `lune-demos` page of the documentation. `buildSite` places it.
  */
 
-import { demoLuau, DEMOS } from "../demos.js";
+import { DEMOS, demoLuau } from "../demos.js";
 import type { Block, DocPage, PageContext } from "../site.js";
 import { declarationsPanel } from "../toolbars.js";
 
@@ -73,8 +73,7 @@ export function luneDemosPage({ registry }: PageContext): DocPage {
 		// wrong for one that is mostly pictures of seven-column graphs: capped
 		// at 78ch every one of them was drawn at half size to fit.
 		title: "Lune demos",
-		summary:
-			"Four small programmes: read a file, fetch JSON, walk a directory, take an argument.",
+		summary: "Four small programmes: read a file, fetch JSON, walk a directory, take an argument.",
 		// No `runtime` tag: that is a node page's, and this is a guide. The
 		// badge answers "what does this node need", and nobody asked that of a
 		// page whose title already says Lune.

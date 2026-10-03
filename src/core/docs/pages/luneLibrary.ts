@@ -3,8 +3,8 @@
  */
 
 import { LUNE_MODULES, LUNE_VERSION } from "../../luneApi.js";
-import { code, previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
+import { code, previews } from "./blocks.js";
 
 /**
  * Lune's standard library.
@@ -50,7 +50,7 @@ export function luneLibraryPage({ registry }: PageContext): DocPage {
 				registry,
 				["lune.call", "lune.value"],
 				"Both arrive blank. Pick the call in the Inspector — or search the palette for it " +
-				"by name, and the node comes configured.",
+					"by name, and the node comes configured.",
 			),
 			{
 				t: "p",
@@ -110,11 +110,7 @@ export function luneLibraryPage({ registry }: PageContext): DocPage {
 			{
 				t: "table",
 				head: ["Module", "What it is for", "Functions"],
-				rows: counts.map((one) => [
-					`\`@lune/${one.alias}\``,
-					one.what,
-					String(one.functions),
-				]),
+				rows: counts.map((one) => [`\`@lune/${one.alias}\``, one.what, String(one.functions)]),
 			},
 			{
 				t: "p",

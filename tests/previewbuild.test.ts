@@ -30,17 +30,29 @@ import { describe, expect, it } from "vitest";
 
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { landingPage } from "../scripts/lib/landing.mjs";
-import {
-	BACKUP_BANNER, CANARY_BANNER, markChipMarkup, MARK_BESIDE_LINK, MARK_LABEL, MARK_ON_SURFACE,
-	PREVIEW_LABEL, PREVIEW_ON_SURFACE, previewChipMarkup,
-} from "../src/app/previewMark.js";
-import { SOURCE_REPOSITORY } from "../src/core/docs/links.js";
-import { BROWSER_TOOLBARS, TOOLBARS, toolbarHtml, type ToolbarArt } from "../src/core/docs/toolbars.js";
 import { ICONS, VIEW_BOX } from "../src/app/icons.js";
 import { logoMarkup } from "../src/app/logo.js";
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import { buildSite, findPage } from "../src/core/docs/site.js";
+import {
+	BACKUP_BANNER,
+	CANARY_BANNER,
+	MARK_BESIDE_LINK,
+	MARK_LABEL,
+	MARK_ON_SURFACE,
+	markChipMarkup,
+	PREVIEW_LABEL,
+	PREVIEW_ON_SURFACE,
+	previewChipMarkup,
+} from "../src/app/previewMark.js";
 import { renderPage } from "../src/core/docs/html.js";
+import { SOURCE_REPOSITORY } from "../src/core/docs/links.js";
+import { buildSite, findPage } from "../src/core/docs/site.js";
+import {
+	BROWSER_TOOLBARS,
+	TOOLBARS,
+	type ToolbarArt,
+	toolbarHtml,
+} from "../src/core/docs/toolbars.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const source = (path: string) => readFileSync(join(root, path), "utf8");
@@ -51,11 +63,7 @@ const source = (path: string) => readFileSync(join(root, path), "utf8");
  * docs window is in the bundle and is listed so it cannot be the exception
  * somebody discovers later.
  */
-const SURFACES = [
-	"src/app/Toolbar.tsx",
-	"src/app/DesignerPage.tsx",
-	"src/app/DocsPage.tsx",
-];
+const SURFACES = ["src/app/Toolbar.tsx", "src/app/DesignerPage.tsx", "src/app/DocsPage.tsx"];
 
 describe("the rule", () => {
 	/**
@@ -211,8 +219,9 @@ describe("keeping the canary out of search", () => {
 	const page = findPage(site, "toolbars")!;
 
 	it("marks a canary page noindex and a stable one not", () => {
-		expect(renderPage(site, page, { version: "t", noindex: true }))
-			.toContain('<meta name="robots" content="noindex">');
+		expect(renderPage(site, page, { version: "t", noindex: true })).toContain(
+			'<meta name="robots" content="noindex">',
+		);
 		expect(renderPage(site, page, { version: "t" })).not.toContain("noindex");
 	});
 
@@ -225,7 +234,10 @@ describe("keeping the canary out of search", () => {
 		const build = source("scripts/build-docs.mjs");
 		const web = source("vite.web.config.ts");
 
-		for (const [name, text] of [["build-docs", build], ["vite.web.config", web]] as const) {
+		for (const [name, text] of [
+			["build-docs", build],
+			["vite.web.config", web],
+		] as const) {
 			// No robots.txt is written anywhere.
 			expect(text, name).not.toMatch(/writeFile\([^)]*robots\.txt/);
 			// And no Disallow directive is emitted in any form.
@@ -343,7 +355,8 @@ describe("links into the browser build", () => {
 		const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
 		const page = findPage(site, "toolbars")!;
 		const rendered = renderPage(site, page, {
-			version: "test", previewChip: previewChipMarkup(),
+			version: "test",
+			previewChip: previewChipMarkup(),
 		});
 		expect(rendered).toContain(`Try it in your browser${previewChipMarkup()}`);
 	});
@@ -359,7 +372,10 @@ describe("links into the browser build", () => {
 
 describe("the bars the documentation draws", () => {
 	const art: ToolbarArt = {
-		viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: "test",
+		viewBox: VIEW_BOX,
+		paths: ICONS,
+		mark: logoMarkup(15),
+		version: "test",
 	};
 
 	it("marks every browser bar and no daemon bar", () => {
@@ -379,9 +395,15 @@ describe("the bars the documentation draws", () => {
 	 */
 	it("draws every window the web app serves, on each kind of screen", () => {
 		expect(BROWSER_TOOLBARS.map((bar) => bar.id)).toEqual([
-			"editor-bar-browser", "editor-bar-tablet", "editor-bar-phone",
-			"designer-bar-browser", "designer-bar-tablet", "designer-bar-phone",
-			"docs-site-bar", "docs-site-bar-touch", "docs-site-bar-phone",
+			"editor-bar-browser",
+			"editor-bar-tablet",
+			"editor-bar-phone",
+			"designer-bar-browser",
+			"designer-bar-tablet",
+			"designer-bar-phone",
+			"docs-site-bar",
+			"docs-site-bar-touch",
+			"docs-site-bar-phone",
 		]);
 	});
 

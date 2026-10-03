@@ -3,7 +3,12 @@
  */
 
 import {
-	type Attribution, DEPENDENCIES, INSPIRATIONS, NAME_NOTICE, TARGETS, TESTED_WITH,
+	type Attribution,
+	DEPENDENCIES,
+	INSPIRATIONS,
+	NAME_NOTICE,
+	TARGETS,
+	TESTED_WITH,
 } from "../attributions.js";
 import type { Block, DocPage } from "../site.js";
 
@@ -35,9 +40,7 @@ export function attributionsPage(): DocPage {
 	 * second is work it only learned from. Listing an inspiration under "built
 	 * on" would claim a relationship that does not exist.
 	 */
-	const group = (
-		heading: string, lede: string, entries: Attribution[], what = "Project",
-	) => {
+	const group = (heading: string, lede: string, entries: Attribution[], what = "Project") => {
 		if (entries.length === 0) return;
 		blocks.push({ t: "h", level: 2, text: heading });
 		blocks.push({ t: "p", text: lede });

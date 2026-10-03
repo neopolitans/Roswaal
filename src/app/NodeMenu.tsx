@@ -13,28 +13,44 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-
-import type { Registry } from "../core/nodes/index.js";
 import { categoryLabel } from "../core/categories.js";
+import type { Registry } from "../core/nodes/index.js";
 import type { Literal, NodeConfig, NodeDef } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { useDismiss } from "./dismiss.js";
 import { LAYER } from "./layers.js";
 import {
-	buildPresets, draggedServiceItems, flattenGroups, groupMenu, libraryItems, luneItems,
-	memberItems, namedItems, narrowItems, presentRuntimes, reachableDefs, searchMenu,
-	serviceItems, type MenuAnchor, type MenuItem, type Preset,
+	buildPresets,
+	draggedServiceItems,
+	flattenGroups,
+	groupMenu,
+	libraryItems,
+	luneItems,
+	type MenuAnchor,
+	type MenuItem,
+	memberItems,
+	namedItems,
+	narrowItems,
+	type Preset,
+	presentRuntimes,
+	reachableDefs,
+	searchMenu,
+	serviceItems,
 } from "./menuSearch.js";
 import { COMMENT_DEFAULT_COLOR, pinColor } from "./palette.js";
 import {
-	FILTER_LABEL, FILTER_SUMMARY, readPreferences, writePreferences, type MenuFilter,
+	FILTER_LABEL,
+	FILTER_SUMMARY,
+	type MenuFilter,
+	readPreferences,
+	writePreferences,
 } from "./preferences.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { useEditor } from "./store.js";
 
+export type { MenuAnchor, Preset };
 // What the rest of the editor imports from here, defined beside the search.
 export { buildPresets };
-export type { MenuAnchor, Preset };
 
 export interface NodeMenuProps {
 	anchor: MenuAnchor;
@@ -52,7 +68,13 @@ export interface NodeMenuProps {
 }
 
 export function NodeMenu({
-	anchor, registry, target, presets, onPick, onAddComment, onClose,
+	anchor,
+	registry,
+	target,
+	presets,
+	onPick,
+	onAddComment,
+	onClose,
 }: NodeMenuProps) {
 	// What the open graph declares, for the members of a dragged wire's type.
 	const script = useEditor().script;
@@ -153,7 +175,10 @@ export function NodeMenu({
 				   also answers "which pin am I still holding" after a drag
 				   across the graph. */
 				<div className="menu-from">
-					<span className="dot" style={{ background: pinColor(anchor.from.pin.type, anchor.from.pin.kind) }} />
+					<span
+						className="dot"
+						style={{ background: pinColor(anchor.from.pin.type, anchor.from.pin.kind) }}
+					/>
 					<span>
 						{anchor.from.side === "out" ? "Wire from" : "Wire into"}{" "}
 						<strong>{anchor.from.pin.name || anchor.from.pin.id}</strong>

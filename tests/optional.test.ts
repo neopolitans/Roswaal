@@ -108,8 +108,7 @@ describe("optional arguments", () => {
 		const def = registry.get("tweeninfo.new")!;
 		const repeat = def.inputs.find((p) => p.id === "repeatCount")!;
 		expect(repeat.optional).toBe(true);
-		expect(repeat.default, "the default is still there, as a starting point")
-			.toBeDefined();
+		expect(repeat.default, "the default is still there, as a starting point").toBeDefined();
 
 		const b = new Builder();
 		const info = b.node("tweeninfo.new");
@@ -254,8 +253,6 @@ describe("a statement node with several outputs", () => {
 		expect(luau).not.toContain("_");
 		const declaration = luau.match(/local (\w+), (\w+), (\w+)/);
 		expect(declaration).not.toBeNull();
-		expect(luau).toContain(
-			`${declaration![1]}, ${declaration![2]}, ${declaration![3]} = three()`,
-		);
+		expect(luau).toContain(`${declaration![1]}, ${declaration![2]}, ${declaration![3]} = three()`);
 	});
 });

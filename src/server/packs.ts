@@ -6,16 +6,21 @@
  * opened; this is the designer's side, which reads and writes the files.
  */
 
-import { fs, path } from "./host.js";
-
 import { parseLuauData } from "../core/luauData.js";
 import { parseNodePack } from "../core/nodes/index.js";
-import { clashingIds, namespaceFor, packRequires, packTargets, renamespace } from "../core/packs.js";
+import {
+	clashingIds,
+	namespaceFor,
+	packRequires,
+	packTargets,
+	renamespace,
+} from "../core/packs.js";
 import type { NodeDef, Target } from "../core/schema.js";
-import { isInitialised, readConfig, type OpenProject } from "./config.js";
+import { isInitialised, type OpenProject, readConfig } from "./config.js";
 import { collectScripts, readScript } from "./documents.js";
 import { errorMessage, UserError } from "./errors.js";
 import { exists } from "./files.js";
+import { fs, path } from "./host.js";
 import { safeJoin, toPosix } from "./paths.js";
 
 /** One node pack on disk, and what it defines. */
@@ -80,7 +85,9 @@ async function readPackAt(root: string, relPath: string): Promise<PackContents> 
 		pack.errors = parsed.errors;
 		pack.targets = packTargets(parsed.defs, document.targets);
 		pack.requires = packRequires(document.requires);
-		const nodes = Array.isArray(document.nodes) ? (document.nodes as Record<string, unknown>[]) : [];
+		const nodes = Array.isArray(document.nodes)
+			? (document.nodes as Record<string, unknown>[])
+			: [];
 		return { pack, nodes, defs: parsed.defs };
 	} catch (err) {
 		pack.errors = [errorMessage(err)];
@@ -120,11 +127,17 @@ export async function listPacks(project: PackProject): Promise<PackFile[]> {
 function assertPackPath(project: PackProject, relPath: string): string {
 	const target = path.posix.normalize(toPosix(relPath));
 	if (!packFormat(path.posix.basename(target))) {
-		throw new UserError(`${target} is not a node pack. A pack is a .nodedef.json or .nodedef.luau file.`);
+		throw new UserError(
+			`${target} is not a node pack. A pack is a .nodedef.json or .nodedef.luau file.`,
+		);
 	}
-	const dirs = project.config.nodePaths.map((d) => path.posix.normalize(toPosix(d)).replace(/\/+$/, ""));
+	const dirs = project.config.nodePaths.map((d) =>
+		path.posix.normalize(toPosix(d)).replace(/\/+$/, ""),
+	);
 	if (!dirs.some((dir) => target.startsWith(dir + "/"))) {
-		throw new UserError(`${target} is not in a node path. This project loads packs from ${dirs.join(", ")}.`);
+		throw new UserError(
+			`${target} is not in a node path. This project loads packs from ${dirs.join(", ")}.`,
+		);
 	}
 	return target;
 }
@@ -136,7 +149,11 @@ function assertPackPath(project: PackProject, relPath: string): string {
  * wants to know before reading them. An empty list removes the key rather than
  * writing `"requires": []`.
  */
-export async function setPackRequires(project: PackProject, relPath: string, requires: string[]): Promise<PackFile> {
+export async function setPackRequires(
+	project: PackProject,
+	relPath: string,
+	requires: string[],
+): Promise<PackFile> {
 	const target = assertPackPath(project, relPath);
 	if (!target.endsWith(PACK_SUFFIX)) {
 		throw new UserError(`${target} is a Luau pack, which the designer does not rewrite.`);
@@ -145,19 +162,29 @@ export async function setPackRequires(project: PackProject, relPath: string, req
 	const parsed = JSON.parse(await fs.readFile(abs, "utf8")) as Record<string, unknown> | unknown[];
 	const { requires: _old, nodes, ...rest } = Array.isArray(parsed) ? { nodes: parsed } : parsed;
 	const clean = [...new Set(packRequires(requires))];
-	const document = { ...(clean.length > 0 ? { requires: clean } : {}), ...rest, nodes: nodes ?? [] };
+	const document = {
+		...(clean.length > 0 ? { requires: clean } : {}),
+		...rest,
+		nodes: nodes ?? [],
+	};
 	await fs.writeFile(abs, JSON.stringify(document, null, 2) + "\n", "utf8");
 	return (await readPackAt(project.root, target)).pack;
 }
 
 /** Takes one node out of a JSON pack. */
-export async function deletePackNode(project: PackProject, relPath: string, id: string): Promise<PackFile> {
+export async function deletePackNode(
+	project: PackProject,
+	relPath: string,
+	id: string,
+): Promise<PackFile> {
 	const target = assertPackPath(project, relPath);
 	if (!target.endsWith(PACK_SUFFIX)) {
 		throw new UserError(`${target} is a Luau pack, which the designer does not rewrite.`);
 	}
 	const abs = safeJoin(project.root, target);
-	const parsed = JSON.parse(await fs.readFile(abs, "utf8")) as { nodes?: { id: string }[] } | { id: string }[];
+	const parsed = JSON.parse(await fs.readFile(abs, "utf8")) as
+		| { nodes?: { id: string }[] }
+		| { id: string }[];
 	const document = Array.isArray(parsed) ? { nodes: parsed } : parsed;
 	const nodes = (document.nodes ?? []).filter((node) => node.id !== id);
 	await fs.writeFile(abs, JSON.stringify({ ...document, nodes }, null, 2) + "\n", "utf8");
@@ -182,7 +209,11 @@ export async function createPack(project: PackProject, rawName: string): Promise
 	}
 	const target = `${dir}/${name}${PACK_SUFFIX}`;
 	await fs.mkdir(safeJoin(project.root, dir), { recursive: true });
-	await fs.writeFile(safeJoin(project.root, target), JSON.stringify({ nodes: [] }, null, 2) + "\n", "utf8");
+	await fs.writeFile(
+		safeJoin(project.root, target),
+		JSON.stringify({ nodes: [] }, null, 2) + "\n",
+		"utf8",
+	);
 	return (await readPackAt(project.root, target)).pack;
 }
 
@@ -203,7 +234,9 @@ export async function readPack(project: PackProject, relPath: string): Promise<P
 export async function duplicatePack(project: PackProject, relPath: string): Promise<PackFile> {
 	const source = await readPack(project, relPath);
 	if (source.pack.errors.length > 0) {
-		throw new UserError(`${source.pack.path} has problems to fix before it can be copied: ${source.pack.errors.join(" ")}`);
+		throw new UserError(
+			`${source.pack.path} has problems to fix before it can be copied: ${source.pack.errors.join(" ")}`,
+		);
 	}
 	const dir = path.posix.dirname(source.pack.path);
 	let name = `${source.pack.name}-copy`;
@@ -217,13 +250,18 @@ export async function duplicatePack(project: PackProject, relPath: string): Prom
 
 	const check = parseNodePack(document, path.posix.basename(target));
 	if (check.errors.length > 0) throw new UserError(check.errors.join(" "));
-	await fs.writeFile(safeJoin(project.root, target), JSON.stringify(document, null, 2) + "\n", "utf8");
+	await fs.writeFile(
+		safeJoin(project.root, target),
+		JSON.stringify(document, null, 2) + "\n",
+		"utf8",
+	);
 	return (await readPackAt(project.root, target)).pack;
 }
 
 /** Which graphs place a node from this pack, and how many each. */
 export async function packUsage(
-	project: OpenProject, relPath: string,
+	project: OpenProject,
+	relPath: string,
 ): Promise<{ graph: string; count: number }[]> {
 	const ids = new Set((await readPack(project, relPath)).pack.nodes);
 	const out: { graph: string; count: number }[] = [];
@@ -249,7 +287,11 @@ export async function scanProjectPacks(
 		throw new UserError(`${resolved} is not a Roswaal project: it has no roswaal.json.`);
 	}
 	const config = await readConfig(resolved);
-	return { root: resolved, target: config.target, packs: await listPacks({ root: resolved, config }) };
+	return {
+		root: resolved,
+		target: config.target,
+		packs: await listPacks({ root: resolved, config }),
+	};
 }
 
 /**
@@ -261,14 +303,18 @@ export async function scanProjectPacks(
  * Import and *Copy to another project* are this in the two directions.
  */
 export async function copyPackBetween(
-	from: PackProject, relPath: string, to: PackProject,
+	from: PackProject,
+	relPath: string,
+	to: PackProject,
 ): Promise<PackFile> {
 	if (path.resolve(from.root) === path.resolve(to.root)) {
 		throw new UserError("That is this project. Use Duplicate to copy a pack within it.");
 	}
 	const source = await readPack(from, relPath);
 	if (source.pack.errors.length > 0) {
-		throw new UserError(`${source.pack.path} has problems to fix first: ${source.pack.errors.join(" ")}`);
+		throw new UserError(
+			`${source.pack.path} has problems to fix first: ${source.pack.errors.join(" ")}`,
+		);
 	}
 
 	const existing = await listPacks(to);
@@ -303,13 +349,17 @@ export async function copyPackBetween(
  * before it reaches disk rather than after.
  */
 export async function savePackNode(
-	project: OpenProject, relPath: string, def: NodeDef,
+	project: OpenProject,
+	relPath: string,
+	def: NodeDef,
 	/** The id the node had before, when the designer renamed it. */
 	replaces?: string,
 ): Promise<PackFile> {
 	const named = toPosix(relPath);
 	if (!named.endsWith(PACK_SUFFIX)) {
-		throw new UserError(`A pack the designer writes is a ${PACK_SUFFIX} file. This one is ${named}.`);
+		throw new UserError(
+			`A pack the designer writes is a ${PACK_SUFFIX} file. This one is ${named}.`,
+		);
 	}
 	const target = assertPackPath(project, named);
 
@@ -320,7 +370,9 @@ export async function savePackNode(
 	// Writing back only the nodes would silently drop them.
 	let settings: Record<string, unknown> = {};
 	if (existing !== null) {
-		const parsed = JSON.parse(existing) as ({ nodes?: NodeDef[] } & Record<string, unknown>) | NodeDef[];
+		const parsed = JSON.parse(existing) as
+			| ({ nodes?: NodeDef[] } & Record<string, unknown>)
+			| NodeDef[];
 		if (Array.isArray(parsed)) {
 			nodes = parsed;
 		} else {

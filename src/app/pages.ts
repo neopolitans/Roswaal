@@ -77,9 +77,7 @@ const base = import.meta.env.BASE_URL;
  * build — the flag is compiled in — and a wrong answer here is a dead link on
  * a published site rather than an error anybody sees while working.
  */
-export function hrefFor(
-	base: string, staticHost: boolean, page: Page, hash?: string,
-): string {
+export function hrefFor(base: string, staticHost: boolean, page: Page, hash?: string): string {
 	const root = base.endsWith("/") ? base : base + "/";
 	const fragment = hash ? `#${hash}` : "";
 
@@ -136,9 +134,11 @@ export const PAGE_TARGET: Record<Page, string> = {
  * button returns.
  */
 export function pagesShareTab(): boolean {
-	return typeof window !== "undefined"
-		&& typeof window.matchMedia === "function"
-		&& window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+	return (
+		typeof window !== "undefined" &&
+		typeof window.matchMedia === "function" &&
+		window.matchMedia("(hover: none) and (pointer: coarse)").matches
+	);
 }
 
 /** The `target` for a link to a page: its own tab, or this one. */

@@ -41,7 +41,9 @@ function signature(paramType: string, returnType: string): string {
 			returns: [{ name: "cfg", type: returnType }],
 		},
 	});
-	const ret = b.node("function.return", { config: { returns: [{ name: "cfg", type: returnType }] } });
+	const ret = b.node("function.return", {
+		config: { returns: [{ name: "cfg", type: returnType }] },
+	});
 	b.lit(ret, "r0", { t: "raw", v: "nil" });
 	b.link(fn, "then", ret, "in");
 	return code(b.build());

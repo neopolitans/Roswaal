@@ -20,9 +20,8 @@
  */
 
 import { useSyncExternalStore } from "react";
-
-import { api } from "./api.js";
 import { errorMessage } from "../core/errorMessage.js";
+import { api } from "./api.js";
 
 /**
  * The four the routes gate on, named as the routes name them.
@@ -96,7 +95,11 @@ export function hostCan(capability: Capability): boolean {
 
 /** Why the host is unreachable, or `null` while it is answering. */
 export function useHostFailure(): string | null {
-	return useSyncExternalStore(subscribe, () => failure, () => null);
+	return useSyncExternalStore(
+		subscribe,
+		() => failure,
+		() => null,
+	);
 }
 
 function subscribe(listener: () => void): () => void {
@@ -193,7 +196,11 @@ export function setRememberedFolders(next: RememberedFolder[]): void {
 const NONE: RememberedFolder[] = [];
 
 export function useRememberedFolders(): RememberedFolder[] {
-	return useSyncExternalStore(subscribe, () => remembered, () => NONE);
+	return useSyncExternalStore(
+		subscribe,
+		() => remembered,
+		() => NONE,
+	);
 }
 
 /**
@@ -252,7 +259,11 @@ export async function readZip(file: File): Promise<ZipPreview> {
 
 /** Whether this build can open a project from a zip, redrawing when that changes. */
 export function useCanImportZip(): boolean {
-	return useSyncExternalStore(subscribe, () => zipImporter !== null, () => false);
+	return useSyncExternalStore(
+		subscribe,
+		() => zipImporter !== null,
+		() => false,
+	);
 }
 
 /**
@@ -301,12 +312,20 @@ export async function readPlace(file: File): Promise<PlacePreview> {
 
 /** Whether this build can make a project from a place, redrawing when that changes. */
 export function useCanImportPlace(): boolean {
-	return useSyncExternalStore(subscribe, () => placeImporter !== null, () => false);
+	return useSyncExternalStore(
+		subscribe,
+		() => placeImporter !== null,
+		() => false,
+	);
 }
 
 /** `canOpenDirectory`, for a component that should redraw when it is installed. */
 export function useCanOpenDirectory(): boolean {
-	return useSyncExternalStore(subscribe, () => opener !== null, () => false);
+	return useSyncExternalStore(
+		subscribe,
+		() => opener !== null,
+		() => false,
+	);
 }
 
 /**

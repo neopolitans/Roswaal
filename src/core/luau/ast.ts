@@ -33,9 +33,21 @@ export type Stat =
 	| ({ kind: "local"; names: Binding[]; values: Expr[]; attributes: Attribute[] } & Span)
 	| ({ kind: "const"; names: Binding[]; values: Expr[] } & Span)
 	/** `constant`: written `const function`, which cannot be reassigned. */
-	| ({ kind: "localFunction"; name: Name; func: FunctionBody; attributes: Attribute[]; constant?: true } & Span)
+	| ({
+			kind: "localFunction";
+			name: Name;
+			func: FunctionBody;
+			attributes: Attribute[];
+			constant?: true;
+	  } & Span)
 	/** `function a.b:c()`. Not `"function"`: that is the expression's kind, and one kind for both was read as the other. */
-	| ({ kind: "functionStat"; path: Name[]; method?: Name; func: FunctionBody; attributes: Attribute[] } & Span)
+	| ({
+			kind: "functionStat";
+			path: Name[];
+			method?: Name;
+			func: FunctionBody;
+			attributes: Attribute[];
+	  } & Span)
 	| ({ kind: "assign"; targets: Expr[]; values: Expr[] } & Span)
 	| ({ kind: "compoundAssign"; op: string; target: Expr; value: Expr } & Span)
 	/** A call standing as a statement; `call` is the call or method call itself. */
@@ -43,16 +55,41 @@ export type Stat =
 	| ({ kind: "do"; body: Block; endKeyword: Span } & Span)
 	| ({ kind: "while"; condition: Expr; doKeyword: Span; body: Block; endKeyword: Span } & Span)
 	| ({ kind: "repeat"; body: Block; untilKeyword: Span; condition: Expr } & Span)
-	| ({ kind: "if"; clauses: IfClause[]; elseKeyword?: Span; orElse?: Block; endKeyword: Span } & Span)
 	| ({
-		kind: "numericFor"; variable: Binding; from: Expr; to: Expr; step?: Expr;
-		doKeyword: Span; body: Block; endKeyword: Span;
-	} & Span)
-	| ({ kind: "genericFor"; variables: Binding[]; values: Expr[]; doKeyword: Span; body: Block; endKeyword: Span } & Span)
+			kind: "if";
+			clauses: IfClause[];
+			elseKeyword?: Span;
+			orElse?: Block;
+			endKeyword: Span;
+	  } & Span)
+	| ({
+			kind: "numericFor";
+			variable: Binding;
+			from: Expr;
+			to: Expr;
+			step?: Expr;
+			doKeyword: Span;
+			body: Block;
+			endKeyword: Span;
+	  } & Span)
+	| ({
+			kind: "genericFor";
+			variables: Binding[];
+			values: Expr[];
+			doKeyword: Span;
+			body: Block;
+			endKeyword: Span;
+	  } & Span)
 	| ({ kind: "return"; values: Expr[] } & Span)
 	| ({ kind: "break" } & Span)
 	| ({ kind: "continue" } & Span)
-	| ({ kind: "typeAlias"; exported: boolean; name: Name; generics: GenericParam[]; type: TypeNode } & Span)
+	| ({
+			kind: "typeAlias";
+			exported: boolean;
+			name: Name;
+			generics: GenericParam[];
+			type: TypeNode;
+	  } & Span)
 	| ({ kind: "typeFunction"; exported: boolean; name: Name; func: FunctionBody } & Span);
 
 /**

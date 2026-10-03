@@ -39,10 +39,10 @@
  * it says is said again in the legend, which is the part a screen reader gets.
  */
 
-import { escapeXml } from "./preview.js";
-import type { NodeScript } from "../schema.js";
 import { classGlyph, describeInstance, groupProperties } from "../rbx/browse.js";
 import type { Prop, RbxInstance } from "../rbx/dom.js";
+import type { NodeScript } from "../schema.js";
+import { escapeXml } from "./preview.js";
 
 // ---------------------------------------------------------------------------
 // The model
@@ -111,16 +111,19 @@ interface Documented {
  * real glyph rather than a stand-in.
  */
 export type ToolbarItem = Documented &
+	/**
+	 * The Roswaal mark, optionally with a word and the version beside it.
+	 *
+	 * `preview` is the chip the hosted build carries and the daemon does
+	 * not — the one visible difference between the two editors, and the
+	 * thing a reader on the website is looking at while they read this.
+	 */
 	(
-		/**
-		 * The Roswaal mark, optionally with a word and the version beside it.
-		 *
-		 * `preview` is the chip the hosted build carries and the daemon does
-		 * not — the one visible difference between the two editors, and the
-		 * thing a reader on the website is looking at while they read this.
-		 */
 		| {
-				t: "mark"; text?: string; version?: boolean; preview?: boolean;
+				t: "mark";
+				text?: string;
+				version?: boolean;
+				preview?: boolean;
 				/**
 				 * The mark in a build's colour rather than beside a chip: the editor's
 				 * top bar wears it this way. See `MarkedLogo`.
@@ -130,7 +133,14 @@ export type ToolbarItem = Documented &
 		/** An icon on its own: the shape of most of the chrome. */
 		| { t: "icon"; icon: string; on?: boolean; primary?: boolean }
 		/** A button with words, and an icon before them when it has one. */
-		| { t: "button"; text: string; icon?: string; primary?: boolean; on?: boolean; danger?: boolean }
+		| {
+				t: "button";
+				text: string;
+				icon?: string;
+				primary?: boolean;
+				on?: boolean;
+				danger?: boolean;
+		  }
 		/** A pair or trio of buttons where one is lit: a setting, not an action. */
 		| { t: "segmented"; options: string[]; on: number }
 		/** A dropdown, shown holding whatever it is set to. */
@@ -329,7 +339,17 @@ export interface ToolbarGroup {
  * `popmenu` rather than `menu`: the frame carries the chrome as a class, and
  * the editor's context menus are `.menu`, fixed to the screen.
  */
-export type ToolbarChrome = "bar" | "head" | "float" | "panel" | "popmenu" | "inspector" | "filetree" | "place" | "properties" | "modal";
+export type ToolbarChrome =
+	| "bar"
+	| "head"
+	| "float"
+	| "panel"
+	| "popmenu"
+	| "inspector"
+	| "filetree"
+	| "place"
+	| "properties"
+	| "modal";
 
 export interface ToolbarSpec {
 	/** Stable; the anchor the docs page gives this bar's section. */
@@ -374,7 +394,10 @@ export function legendOf(spec: ToolbarSpec): (ToolbarItem & { name: string })[] 
  * a Docs button without lighting each other.
  */
 export function controlKey(name: string): string {
-	return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+	return name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "");
 }
 
 /**
@@ -393,9 +416,11 @@ export function toolbarConstant(spec: ToolbarSpec): string {
 /** Every glyph a bar draws, for the test that holds them against the icon set. */
 export function iconsOf(spec: ToolbarSpec): string[] {
 	return controlsOf(spec).flatMap((item) =>
-		(item.t === "icon" || item.t === "button") && item.icon ? [item.icon]
-			: item.t === "treeRow" || item.t === "propHead" ? [item.icon]
-			: [],
+		(item.t === "icon" || item.t === "button") && item.icon
+			? [item.icon]
+			: item.t === "treeRow" || item.t === "propHead"
+				? [item.icon]
+				: [],
 	);
 }
 
@@ -403,7 +428,13 @@ export function iconsOf(spec: ToolbarSpec): string[] {
 // Drawing one
 // ---------------------------------------------------------------------------
 
-function iconSvg(name: string, size: number, art: ToolbarArt, cls?: string, rotate?: number): string {
+function iconSvg(
+	name: string,
+	size: number,
+	art: ToolbarArt,
+	cls?: string,
+	rotate?: number,
+): string {
 	const path = art.paths[name];
 	if (path === undefined) return "";
 	const stroke = art.strokes?.[name];
@@ -483,14 +514,13 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			// button beside it is the editor's own `.tb`.
 			return item.level === 3 || item.level === undefined
 				? `<h3 class="variables-sub"${tie}><span>${escapeXml(item.text)}</span>` +
-					`${item.action ? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>` : ""}</h3>`
+						`${item.action ? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>` : ""}</h3>`
 				: `<h2${tie}><span>${escapeXml(item.text)}</span>` +
-					`${item.action ? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>` : ""}</h2>`;
+						`${item.action ? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>` : ""}</h2>`;
 
 		case "row": {
-			const colour = item.swatch && item.swatch !== "outline"
-				? art.pinColor?.(item.swatch, "data")
-				: undefined;
+			const colour =
+				item.swatch && item.swatch !== "outline" ? art.pinColor?.(item.swatch, "data") : undefined;
 			return (
 				`<div class="variable"${tie}><div class="variable-head">` +
 				`<span class="swatch${colour ? "" : " module"}"` +
@@ -512,14 +542,13 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 					`${item.on ? " checked" : ""} disabled><span>${escapeXml(item.label)}</span></label>`
 				);
 			}
-			const box = item.control === "select"
-				? `<span class="tb docs-bar-select">${escapeXml(item.value)}</span>`
-				: item.control === "code"
-					? `<span class="tb docs-bar-field docs-bar-code">${escapeXml(item.value)}</span>`
-					: `<span class="tb docs-bar-field">${escapeXml(item.value)}</span>`;
-			return (
-				`<label class="field"${tie}><span>${escapeXml(item.label)}</span>${box}</label>`
-			);
+			const box =
+				item.control === "select"
+					? `<span class="tb docs-bar-select">${escapeXml(item.value)}</span>`
+					: item.control === "code"
+						? `<span class="tb docs-bar-field docs-bar-code">${escapeXml(item.value)}</span>`
+						: `<span class="tb docs-bar-field">${escapeXml(item.value)}</span>`;
+			return `<label class="field"${tie}><span>${escapeXml(item.label)}</span>${box}</label>`;
 		}
 
 		case "listTitle":
@@ -551,9 +580,14 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				: "";
 			const twist = item.place ? `<span class="place-twist">${chevron}</span>` : chevron;
 			const classes = [
-				"tree-row", item.place ? "place-row" : "", item.selected ? "selected" : "",
-				item.current ? "open-doc" : "", item.readonly ? "readonly" : "",
-			].filter(Boolean).join(" ");
+				"tree-row",
+				item.place ? "place-row" : "",
+				item.selected ? "selected" : "",
+				item.current ? "open-doc" : "",
+				item.readonly ? "readonly" : "",
+			]
+				.filter(Boolean)
+				.join(" ");
 			return (
 				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 13}px">` +
 				twist +
@@ -603,15 +637,20 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 		case "formSection":
 			return `<div class="export-menu-section"${tie}>${escapeXml(item.text)}</div>`;
 		case "formRow": {
-			const control = item.control === "select"
-				? `<span class="tb docs-bar-select">${escapeXml(item.value)}</span>`
-				: item.control === "segmented"
-					? `<span class="segmented">` +
-						(item.options ?? []).map((option, i) =>
-							`<button type="button" tabindex="-1"${i === item.on ? ` class="on"` : ""}>${escapeXml(option)}</button>`).join("") +
-						`</span>`
-					: `<span class="export-menu-name"><span class="tb docs-bar-field">${escapeXml(item.value)}</span>` +
-						`${item.suffix ? `<span class="export-menu-suffix">${escapeXml(item.suffix)}</span>` : ""}</span>`;
+			const control =
+				item.control === "select"
+					? `<span class="tb docs-bar-select">${escapeXml(item.value)}</span>`
+					: item.control === "segmented"
+						? `<span class="segmented">` +
+							(item.options ?? [])
+								.map(
+									(option, i) =>
+										`<button type="button" tabindex="-1"${i === item.on ? ` class="on"` : ""}>${escapeXml(option)}</button>`,
+								)
+								.join("") +
+							`</span>`
+						: `<span class="export-menu-name"><span class="tb docs-bar-field">${escapeXml(item.value)}</span>` +
+							`${item.suffix ? `<span class="export-menu-suffix">${escapeXml(item.suffix)}</span>` : ""}</span>`;
 			return (
 				`<div class="export-menu-row"${tie}><span class="export-menu-label">${escapeXml(item.label)}</span>` +
 				`<span class="export-menu-control">${control}` +
@@ -699,12 +738,13 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 
 	// The trees and panels nest the way the editor nests them, rather than
 	// running their groups along a row.
-	if (spec.chrome === "filetree") return frame(`<div class="tree">${spec.groups.map(itemsOf).join("")}</div>`);
+	if (spec.chrome === "filetree")
+		return frame(`<div class="tree">${spec.groups.map(itemsOf).join("")}</div>`);
 	if (spec.chrome === "place") {
 		const [head, ...rows] = spec.groups;
 		return frame(
 			`<div class="place-browser-head">${itemsOf(head)}</div>` +
-			`<div class="tree place-tree">${rows.map(itemsOf).join("")}</div>`,
+				`<div class="tree place-tree">${rows.map(itemsOf).join("")}</div>`,
 		);
 	}
 	if (spec.chrome === "properties") {
@@ -714,22 +754,25 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 		const before = rest.filter((g) => g.items[0]?.t !== "propGroup");
 		return frame(
 			itemsOf(head) +
-			`<div class="place-props">${before.map(itemsOf).join("")}` +
-			`<div class="place-groups">${groups.map((g) => `<div class="place-group">${itemsOf(g)}</div>`).join("")}</div></div>`,
+				`<div class="place-props">${before.map(itemsOf).join("")}` +
+				`<div class="place-groups">${groups.map((g) => `<div class="place-group">${itemsOf(g)}</div>`).join("")}</div></div>`,
 		);
 	}
 	if (spec.chrome === "modal") {
-		return frame(spec.groups
-			.map((g) => {
-				const wrap = [g.actions ? "dialog-actions" : "", g.wrap ?? ""].filter(Boolean).join(" ");
-				return wrap ? `<div class="${escapeXml(wrap)}">${itemsOf(g)}</div>` : itemsOf(g);
-			})
-			.join(""));
+		return frame(
+			spec.groups
+				.map((g) => {
+					const wrap = [g.actions ? "dialog-actions" : "", g.wrap ?? ""].filter(Boolean).join(" ");
+					return wrap ? `<div class="${escapeXml(wrap)}">${itemsOf(g)}</div>` : itemsOf(g);
+				})
+				.join(""),
+		);
 	}
 
 	const inner = spec.groups
 		.map((group) => {
-			const gap = (group.row ? `<span class="docs-bar-break"></span>` : "") +
+			const gap =
+				(group.row ? `<span class="docs-bar-break"></span>` : "") +
 				(group.apart ? `<span class="${gapClass}"></span>` : "");
 			const items = group.items.map((item) => itemHtml(item, art)).join("");
 			// A floating bar's groups are separate panels over the canvas; a bar
@@ -1219,7 +1262,8 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 export const DOCS_SITE_BAR: ToolbarSpec = {
 	id: "docs-site-bar",
 	title: "The published documentation's top bar",
-	summary: "Across the top of these pages on the project site, where there is no daemon behind them.",
+	summary:
+		"Across the top of these pages on the project site, where there is no daemon behind them.",
 	chrome: "head",
 	groups: [
 		{
@@ -1359,7 +1403,8 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 export const VARIABLES_PANEL: ToolbarSpec = {
 	id: "variables-panel",
 	title: "The Variables panel",
-	summary: "Everything this script declares: its variables, its modules, its locals and its functions.",
+	summary:
+		"Everything this script declares: its variables, its modules, its locals and its functions.",
 	chrome: "panel",
 	groups: [
 		{
@@ -1435,7 +1480,8 @@ export const VARIABLES_PANEL: ToolbarSpec = {
  * So the drawing is shared and only the words move.
  */
 export function pointingElsewhere(
-	spec: ToolbarSpec, pointers: Record<string, string>,
+	spec: ToolbarSpec,
+	pointers: Record<string, string>,
 ): ToolbarSpec {
 	return {
 		...spec,
@@ -1457,7 +1503,8 @@ export function pointingElsewhere(
 
 /** How each section reads when it is not the page's subject. */
 const POINTERS = {
-	variables: "Values the whole script reads and writes. See [Variables and locals](variables-and-locals).",
+	variables:
+		"Values the whole script reads and writes. See [Variables and locals](variables-and-locals).",
 	modules: "What this script requires, one `require` each. See [Modules](modules).",
 	locals: "Values that exist inside one block. See [Variables and locals](variables-and-locals).",
 	functions: "Every function this script declares. See [Functions](functions).",
@@ -1533,8 +1580,14 @@ export const EDITOR_BAR_TABLET: ToolbarSpec = {
 		{
 			items: [
 				{
-					t: "mark", text: "", tint: "preview",
-					...as(EDITOR_BAR_BROWSER, "The Roswaal mark", `${SHORT_OF_ROOM} the version beside it steps aside; it is in the mark's tooltip.`),
+					t: "mark",
+					text: "",
+					tint: "preview",
+					...as(
+						EDITOR_BAR_BROWSER,
+						"The Roswaal mark",
+						`${SHORT_OF_ROOM} the version beside it steps aside; it is in the mark's tooltip.`,
+					),
 				},
 				{ t: "icon", icon: "refresh", ...as(EDITOR_BAR_BROWSER, "Refresh") },
 				{ t: "icon", icon: "newFile", ...as(EDITOR_BAR_BROWSER, "New graph") },
@@ -1545,12 +1598,27 @@ export const EDITOR_BAR_TABLET: ToolbarSpec = {
 			apart: true,
 			items: [
 				{
-					t: "segmented", options: ["Manual", "Dynamic"], on: 1,
-					...as(EDITOR_BAR_BROWSER, "Compile: Manual | Dynamic", `${SHORT_OF_ROOM} the Compile caption goes.`),
+					t: "segmented",
+					options: ["Manual", "Dynamic"],
+					on: 1,
+					...as(
+						EDITOR_BAR_BROWSER,
+						"Compile: Manual | Dynamic",
+						`${SHORT_OF_ROOM} the Compile caption goes.`,
+					),
 				},
-				{ t: "icon", icon: "build", ...as(EDITOR_BAR_BROWSER, "Compile project", `${SHORT_OF_ROOM} it is its icon.`) },
+				{
+					t: "icon",
+					icon: "build",
+					...as(EDITOR_BAR_BROWSER, "Compile project", `${SHORT_OF_ROOM} it is its icon.`),
+				},
 				{ t: "icon", icon: "document", ...as(EDITOR_BAR_BROWSER, "Docs", SAME_TAB) },
-				{ t: "icon", icon: "palette", ...as(EDITOR_BAR_BROWSER, "Node Design"), what: NODE_DESIGN_HERE },
+				{
+					t: "icon",
+					icon: "palette",
+					...as(EDITOR_BAR_BROWSER, "Node Design"),
+					what: NODE_DESIGN_HERE,
+				},
 				{ t: "icon", icon: "settings", ...as(EDITOR_BAR_BROWSER, "Settings") },
 			],
 		},
@@ -1562,13 +1630,16 @@ export const EDITOR_BAR_PHONE: ToolbarSpec = {
 	id: "editor-bar-phone",
 	device: "phone",
 	title: "The editor's top bar, on a phone",
-	summary: "The tablet's bar held upright, in two rows: Docs, Node Design and Settings go under the rest.",
+	summary:
+		"The tablet's bar held upright, in two rows: Docs, Node Design and Settings go under the rest.",
 	chrome: "bar",
 	groups: [
 		{
 			items: [
 				{
-					t: "mark", text: "", tint: "preview",
+					t: "mark",
+					text: "",
+					tint: "preview",
 					...as(EDITOR_BAR_BROWSER, "The Roswaal mark", "The version is in its tooltip."),
 				},
 				{ t: "icon", icon: "refresh", ...as(EDITOR_BAR_BROWSER, "Refresh") },
@@ -1579,21 +1650,40 @@ export const EDITOR_BAR_PHONE: ToolbarSpec = {
 		{
 			apart: true,
 			items: [
-				{ t: "segmented", options: ["Manual", "Dynamic"], on: 1, ...as(EDITOR_BAR_BROWSER, "Compile: Manual | Dynamic") },
+				{
+					t: "segmented",
+					options: ["Manual", "Dynamic"],
+					on: 1,
+					...as(EDITOR_BAR_BROWSER, "Compile: Manual | Dynamic"),
+				},
 				{ t: "icon", icon: "build", ...as(EDITOR_BAR_BROWSER, "Compile project", "As its icon.") },
 			],
 		},
 		{
 			items: [
-				{ t: "icon", icon: "document", ...as(EDITOR_BAR_BROWSER, "Docs", SAME_TAB, "second row, first") },
-				{ t: "icon", icon: "palette", ...as(EDITOR_BAR_BROWSER, "Node Design", undefined, "second row, second"), what: NODE_DESIGN_HERE },
-				{ t: "icon", icon: "settings", ...as(EDITOR_BAR_BROWSER, "Settings", undefined, "second row, last") },
+				{
+					t: "icon",
+					icon: "document",
+					...as(EDITOR_BAR_BROWSER, "Docs", SAME_TAB, "second row, first"),
+				},
+				{
+					t: "icon",
+					icon: "palette",
+					...as(EDITOR_BAR_BROWSER, "Node Design", undefined, "second row, second"),
+					what: NODE_DESIGN_HERE,
+				},
+				{
+					t: "icon",
+					icon: "settings",
+					...as(EDITOR_BAR_BROWSER, "Settings", undefined, "second row, last"),
+				},
 			],
 		},
 	],
 };
 
-const HOLD_TO_ADD = "On a touch screen, pressing and holding the graph does the same, where you held.";
+const HOLD_TO_ADD =
+	"On a touch screen, pressing and holding the graph does the same, where you held.";
 
 /** The graph's tools on a tablet. */
 export const GRAPH_BAR_TABLET: ToolbarSpec = {
@@ -1615,15 +1705,29 @@ export const GRAPH_BAR_TABLET: ToolbarSpec = {
 			items: [
 				{ t: "icon", icon: "search", ...as(GRAPH_BAR, "Add node", HOLD_TO_ADD) },
 				{ t: "icon", icon: "layout", ...as(GRAPH_BAR, "Realign") },
-				{ t: "icon", icon: "straighten", on: true, ...as(GRAPH_BAR, "Straighten", `${SHORT_OF_ROOM} it is its icon, lit while it is on.`) },
+				{
+					t: "icon",
+					icon: "straighten",
+					on: true,
+					...as(GRAPH_BAR, "Straighten", `${SHORT_OF_ROOM} it is its icon, lit while it is on.`),
+				},
 				{ t: "icon", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
 			],
 		},
 		{
 			apart: true,
 			items: [
-				{ t: "select", text: "Roblox", ...as(GRAPH_BAR, "Target", "Lune shows a warning triangle after its name.") },
-				{ t: "icon", icon: "build", primary: true, ...as(GRAPH_BAR, "Compile script", `${SHORT_OF_ROOM} it is its icon.`) },
+				{
+					t: "select",
+					text: "Roblox",
+					...as(GRAPH_BAR, "Target", "Lune shows a warning triangle after its name."),
+				},
+				{
+					t: "icon",
+					icon: "build",
+					primary: true,
+					...as(GRAPH_BAR, "Compile script", `${SHORT_OF_ROOM} it is its icon.`),
+				},
 			],
 		},
 	],
@@ -1640,7 +1744,8 @@ export const GRAPH_BAR_PHONE: ToolbarSpec = {
 		{
 			items: [
 				{
-					t: "select", text: "Script",
+					t: "select",
+					text: "Script",
 					name: "Script and mode",
 					what:
 						"What this graph compiles to — a Script, a LocalScript or a ModuleScript — and which " +
@@ -1654,7 +1759,12 @@ export const GRAPH_BAR_PHONE: ToolbarSpec = {
 			items: [
 				{ t: "icon", icon: "search", ...as(GRAPH_BAR, "Add node", HOLD_TO_ADD) },
 				{ t: "icon", icon: "layout", ...as(GRAPH_BAR, "Realign") },
-				{ t: "icon", icon: "straighten", on: true, ...as(GRAPH_BAR, "Straighten", "As its icon, lit while it is on.") },
+				{
+					t: "icon",
+					icon: "straighten",
+					on: true,
+					...as(GRAPH_BAR, "Straighten", "As its icon, lit while it is on."),
+				},
 				{ t: "icon", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
 			],
 		},
@@ -1662,10 +1772,20 @@ export const GRAPH_BAR_PHONE: ToolbarSpec = {
 			apart: true,
 			items: [
 				{
-					t: "select", text: "Roblox",
-					...as(GRAPH_BAR, "Target", "Behind a button that names it, with a warning triangle after Lune."),
+					t: "select",
+					text: "Roblox",
+					...as(
+						GRAPH_BAR,
+						"Target",
+						"Behind a button that names it, with a warning triangle after Lune.",
+					),
 				},
-				{ t: "icon", icon: "build", primary: true, ...as(GRAPH_BAR, "Compile script", "As its icon.") },
+				{
+					t: "icon",
+					icon: "build",
+					primary: true,
+					...as(GRAPH_BAR, "Compile script", "As its icon."),
+				},
 			],
 		},
 	],
@@ -1683,16 +1803,27 @@ export const DESIGNER_BAR_TABLET: ToolbarSpec = {
 	groups: [
 		{
 			items: [
-				{ t: "mark", text: "Node Design", tint: "preview", ...as(DESIGNER_BAR_BROWSER, "Node Design") },
+				{
+					t: "mark",
+					text: "Node Design",
+					tint: "preview",
+					...as(DESIGNER_BAR_BROWSER, "Node Design"),
+				},
 			],
 		},
 		{
 			apart: true,
 			items: [
 				{ t: "icon", icon: "help", ...as(DESIGNER_BAR_BROWSER, "How custom nodes work") },
-				{ t: "button", text: "Docs", icon: "document", ...as(DESIGNER_BAR_BROWSER, "Docs", SAME_TAB) },
 				{
-					t: "button", text: "Open Editor",
+					t: "button",
+					text: "Docs",
+					icon: "document",
+					...as(DESIGNER_BAR_BROWSER, "Docs", SAME_TAB),
+				},
+				{
+					t: "button",
+					text: "Open Editor",
 					name: "Open Editor",
 					what: `The editor. ${SAME_TAB} Leaving a node with unsaved edits asks first.`,
 				},
@@ -1713,7 +1844,9 @@ export const DESIGNER_BAR_PHONE: ToolbarSpec = {
 		{
 			items: [
 				{
-					t: "mark", text: "Node Design", tint: "preview",
+					t: "mark",
+					text: "Node Design",
+					tint: "preview",
 					...as(DESIGNER_BAR_BROWSER, "Node Design", "The version steps aside on a phone."),
 				},
 			],
@@ -1722,9 +1855,14 @@ export const DESIGNER_BAR_PHONE: ToolbarSpec = {
 			apart: true,
 			items: [
 				{ t: "icon", icon: "help", ...as(DESIGNER_BAR_BROWSER, "How custom nodes work") },
-				{ t: "icon", icon: "document", ...as(DESIGNER_BAR_BROWSER, "Docs", `As its icon. ${SAME_TAB}`) },
 				{
-					t: "button", text: "Open Editor",
+					t: "icon",
+					icon: "document",
+					...as(DESIGNER_BAR_BROWSER, "Docs", `As its icon. ${SAME_TAB}`),
+				},
+				{
+					t: "button",
+					text: "Open Editor",
 					name: "Open Editor",
 					what: `The editor. ${SAME_TAB} Leaving a node with unsaved edits asks first.`,
 				},
@@ -1746,18 +1884,35 @@ export const DOCS_SITE_BAR_TOUCH: ToolbarSpec = {
 	groups: [
 		{
 			items: [
-				{ t: "mark", text: "Docs", version: true, tint: "preview", ...as(DOCS_SITE_BAR, "The mark, and Docs") },
 				{
-					t: "button", text: "Contents",
-					name: "Contents", what: "Slides the contents out over the page. Tap beside them to put them away.",
+					t: "mark",
+					text: "Docs",
+					version: true,
+					tint: "preview",
+					...as(DOCS_SITE_BAR, "The mark, and Docs"),
 				},
-				{ t: "icon", icon: "search", name: "Search", what: "The search `Ctrl` + `K` opens, for a screen with no keyboard." },
+				{
+					t: "button",
+					text: "Contents",
+					name: "Contents",
+					what: "Slides the contents out over the page. Tap beside them to put them away.",
+				},
+				{
+					t: "icon",
+					icon: "search",
+					name: "Search",
+					what: "The search `Ctrl` + `K` opens, for a screen with no keyboard.",
+				},
 			],
 		},
 		{
 			apart: true,
 			items: [
-				{ t: "button", text: "Try it in your browser", ...as(DOCS_SITE_BAR, "Try it in your browser", SAME_TAB) },
+				{
+					t: "button",
+					text: "Try it in your browser",
+					...as(DOCS_SITE_BAR, "Try it in your browser", SAME_TAB),
+				},
 				{ t: "button", text: "Source", ...as(DOCS_SITE_BAR, "Source") },
 				{ t: "icon", icon: "settings", ...as(DOCS_SITE_BAR, "Settings") },
 			],
@@ -1776,7 +1931,9 @@ export const DOCS_SITE_BAR_PHONE: ToolbarSpec = {
 		{
 			items: [
 				{
-					t: "mark", text: "Docs", tint: "preview",
+					t: "mark",
+					text: "Docs",
+					tint: "preview",
 					...as(DOCS_SITE_BAR, "The mark, and Docs", "The version steps aside on a phone."),
 				},
 				{ t: "button", text: "Contents", ...as(DOCS_SITE_BAR_TOUCH, "Contents") },
@@ -1786,9 +1943,17 @@ export const DOCS_SITE_BAR_PHONE: ToolbarSpec = {
 		{
 			row: true,
 			items: [
-				{ t: "button", text: "Try it in your browser", ...as(DOCS_SITE_BAR, "Try it in your browser", SAME_TAB, "second row") },
+				{
+					t: "button",
+					text: "Try it in your browser",
+					...as(DOCS_SITE_BAR, "Try it in your browser", SAME_TAB, "second row"),
+				},
 				{ t: "button", text: "Source", ...as(DOCS_SITE_BAR, "Source", undefined, "second row") },
-				{ t: "icon", icon: "settings", ...as(DOCS_SITE_BAR, "Settings", undefined, "second row, at the end") },
+				{
+					t: "icon",
+					icon: "settings",
+					...as(DOCS_SITE_BAR, "Settings", undefined, "second row, at the end"),
+				},
 			],
 		},
 	],
@@ -1812,8 +1977,19 @@ export const PROJECTS_FOOT: ToolbarSpec = {
 	groups: [
 		{
 			items: [
-				{ t: "button", text: "Home", icon: "chevron", name: "Home", what: "Closes the project, for the start page." },
-				{ t: "button", text: "Project", name: "Project", what: "Opening, downloading and starting again." },
+				{
+					t: "button",
+					text: "Home",
+					icon: "chevron",
+					name: "Home",
+					what: "Closes the project, for the start page.",
+				},
+				{
+					t: "button",
+					text: "Project",
+					name: "Project",
+					what: "Opening, downloading and starting again.",
+				},
 			],
 		},
 		{
@@ -1835,12 +2011,48 @@ export const PROJECT_MENU: ToolbarSpec = {
 	groups: [
 		{
 			items: [
-				{ t: "button", text: "Open folder…", icon: "folder", name: "Open folder…", what: "A folder on your computer, in Chrome and Edge." },
-				{ t: "button", text: "Open .zip…", icon: "folderOpen", name: "Open .zip…", what: "A project from a zip, in any browser." },
-				{ t: "button", text: "Open place…", icon: "folderOpen", name: "Open place…", what: "A project made from a .rbxl or .rbxlx." },
-				{ t: "button", text: "Import Rojo project…", icon: "map", name: "Import Rojo project…", what: "A node map read from the project's default.project.json." },
-				{ t: "button", text: "Export…", icon: "copy", name: "Export…", what: "The project as a zip, or its place file alone." },
-				{ t: "button", text: "Start again", icon: "refresh", name: "Start again", what: "Back to the demo." },
+				{
+					t: "button",
+					text: "Open folder…",
+					icon: "folder",
+					name: "Open folder…",
+					what: "A folder on your computer, in Chrome and Edge.",
+				},
+				{
+					t: "button",
+					text: "Open .zip…",
+					icon: "folderOpen",
+					name: "Open .zip…",
+					what: "A project from a zip, in any browser.",
+				},
+				{
+					t: "button",
+					text: "Open place…",
+					icon: "folderOpen",
+					name: "Open place…",
+					what: "A project made from a .rbxl or .rbxlx.",
+				},
+				{
+					t: "button",
+					text: "Import Rojo project…",
+					icon: "map",
+					name: "Import Rojo project…",
+					what: "A node map read from the project's default.project.json.",
+				},
+				{
+					t: "button",
+					text: "Export…",
+					icon: "copy",
+					name: "Export…",
+					what: "The project as a zip, or its place file alone.",
+				},
+				{
+					t: "button",
+					text: "Start again",
+					icon: "refresh",
+					name: "Start again",
+					what: "Back to the demo.",
+				},
 			],
 		},
 	],
@@ -1883,7 +2095,11 @@ export const PROJECT_PANEL_HEAD: ToolbarSpec = {
 // ---------------------------------------------------------------------------
 
 const graphFolder = (label: string, depth: number, open: boolean): ToolbarItem => ({
-	t: "treeRow", label, depth, twist: open ? "open" : "shut", icon: open ? "folderOpen" : "folder",
+	t: "treeRow",
+	label,
+	depth,
+	twist: open ? "open" : "shut",
+	icon: open ? "folderOpen" : "folder",
 });
 
 /**
@@ -1902,26 +2118,56 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 				graphFolder(".roswaal", 0, true),
 				graphFolder("scripts", 1, false),
 				{
-					t: "treeRow", label: "wally.toml", depth: 0, twist: "open", icon: "settings", tone: "wally",
-					name: "wally.toml", what: "What the project depends on. Right-click it to add a package.",
+					t: "treeRow",
+					label: "wally.toml",
+					depth: 0,
+					twist: "open",
+					icon: "settings",
+					tone: "wally",
+					name: "wally.toml",
+					what: "What the project depends on. Right-click it to add a package.",
 				},
 				{
-					t: "treeRow", label: "Signal", depth: 1, icon: "instance", tone: "package", badge: "1.5.0",
+					t: "treeRow",
+					label: "Signal",
+					depth: 1,
+					icon: "instance",
+					tone: "package",
+					badge: "1.5.0",
 					name: "A package",
 					what: "Listed by the name you require it by, with the version installed. Double-click it for its code.",
 				},
 				{
-					t: "treeRow", label: "Promise", depth: 1, icon: "instance", tone: "package", badge: "not installed", readonly: true,
+					t: "treeRow",
+					label: "Promise",
+					depth: 1,
+					icon: "instance",
+					tone: "package",
+					badge: "not installed",
+					readonly: true,
 					name: "Not installed",
 					what: "In wally.toml with nothing in Packages/ yet. Right-click it to insert its zip.",
 				},
 				{ t: "treeRow", label: ".luaurc", depth: 0, icon: "settings", tone: "luaurc" },
 				{ t: "treeSection", text: "Compile content" },
 				{
-					t: "treeRow", label: "Packages", depth: 0, twist: "shut", icon: "folder", tone: "tree-folder-packages",
-					name: "Packages/", what: "What Wally installs, in purple. It starts closed.",
+					t: "treeRow",
+					label: "Packages",
+					depth: 0,
+					twist: "shut",
+					icon: "folder",
+					tone: "tree-folder-packages",
+					name: "Packages/",
+					what: "What Wally installs, in purple. It starts closed.",
 				},
-				{ t: "treeRow", label: "src", depth: 0, twist: "shut", icon: "folder", tone: "tree-folder-plain" },
+				{
+					t: "treeRow",
+					label: "src",
+					depth: 0,
+					twist: "shut",
+					icon: "folder",
+					tone: "tree-folder-plain",
+				},
 			],
 		},
 	],
@@ -1939,17 +2185,60 @@ export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 				{ t: "treeSection", text: "Graph content" },
 				graphFolder(".roswaal", 0, true),
 				graphFolder("scripts", 1, false),
-				{ t: "treeRow", label: "wally.toml", depth: 0, twist: "open", icon: "settings", tone: "wally" },
-				{ t: "treeRow", label: "Signal", depth: 1, icon: "instance", tone: "package", badge: "1.5.0" },
-				{ t: "treeRow", label: "Promise", depth: 1, icon: "instance", tone: "package", badge: "not installed", readonly: true },
 				{
-					t: "treeRow", label: "Flux", depth: 1, icon: "instance", tone: "package", badge: "0.2.0", selected: true,
-					name: "The new package", what: "Its line is in wally.toml, and it is installed in Packages/.",
+					t: "treeRow",
+					label: "wally.toml",
+					depth: 0,
+					twist: "open",
+					icon: "settings",
+					tone: "wally",
+				},
+				{
+					t: "treeRow",
+					label: "Signal",
+					depth: 1,
+					icon: "instance",
+					tone: "package",
+					badge: "1.5.0",
+				},
+				{
+					t: "treeRow",
+					label: "Promise",
+					depth: 1,
+					icon: "instance",
+					tone: "package",
+					badge: "not installed",
+					readonly: true,
+				},
+				{
+					t: "treeRow",
+					label: "Flux",
+					depth: 1,
+					icon: "instance",
+					tone: "package",
+					badge: "0.2.0",
+					selected: true,
+					name: "The new package",
+					what: "Its line is in wally.toml, and it is installed in Packages/.",
 				},
 				{ t: "treeRow", label: ".luaurc", depth: 0, icon: "settings", tone: "luaurc" },
 				{ t: "treeSection", text: "Compile content" },
-				{ t: "treeRow", label: "Packages", depth: 0, twist: "shut", icon: "folder", tone: "tree-folder-packages" },
-				{ t: "treeRow", label: "src", depth: 0, twist: "shut", icon: "folder", tone: "tree-folder-plain" },
+				{
+					t: "treeRow",
+					label: "Packages",
+					depth: 0,
+					twist: "shut",
+					icon: "folder",
+					tone: "tree-folder-packages",
+				},
+				{
+					t: "treeRow",
+					label: "src",
+					depth: 0,
+					twist: "shut",
+					icon: "folder",
+					tone: "tree-folder-plain",
+				},
 			],
 		},
 	],
@@ -1967,11 +2256,44 @@ export const WALLY_MENU: ToolbarSpec = {
 	groups: [
 		{
 			items: [
-				{ t: "button", text: "Insert its zip…", icon: "folderOpen", name: "Insert its zip…", where: "On a package not installed", what: "Installs that package from a zip you downloaded." },
-				{ t: "button", text: "Remove package…", icon: "remove", name: "Remove package…", where: "On a package", what: "Takes it out of wally.toml and Packages/, after listing what still requires it." },
-				{ t: "button", text: "Add from Wally…", icon: "instance", name: "Add from Wally…", what: "A package from the Wally registry, with what it depends on." },
-				{ t: "button", text: "Insert package zip…", icon: "folderOpen", name: "Insert package zip…", what: "A package, or any module, from a zip." },
-				{ t: "button", text: "Insert GitHub repo…", icon: "external", name: "Insert GitHub repo…", where: "In the installed editor", what: "A repository's module, copied into Packages/." },
+				{
+					t: "button",
+					text: "Insert its zip…",
+					icon: "folderOpen",
+					name: "Insert its zip…",
+					where: "On a package not installed",
+					what: "Installs that package from a zip you downloaded.",
+				},
+				{
+					t: "button",
+					text: "Remove package…",
+					icon: "remove",
+					name: "Remove package…",
+					where: "On a package",
+					what: "Takes it out of wally.toml and Packages/, after listing what still requires it.",
+				},
+				{
+					t: "button",
+					text: "Add from Wally…",
+					icon: "instance",
+					name: "Add from Wally…",
+					what: "A package from the Wally registry, with what it depends on.",
+				},
+				{
+					t: "button",
+					text: "Insert package zip…",
+					icon: "folderOpen",
+					name: "Insert package zip…",
+					what: "A package, or any module, from a zip.",
+				},
+				{
+					t: "button",
+					text: "Insert GitHub repo…",
+					icon: "external",
+					name: "Insert GitHub repo…",
+					where: "In the installed editor",
+					what: "A repository's module, copied into Packages/.",
+				},
 			],
 		},
 	],
@@ -1994,28 +2316,50 @@ export const ADD_FROM_WALLY: ToolbarSpec = {
 			],
 		},
 		{
-			items: [{
-				t: "setting", label: "Package", value: "someone/flux",
-				name: "Package", what: "`scope/name`, or `scope/name@version` for a version other than the newest.",
-			}],
+			items: [
+				{
+					t: "setting",
+					label: "Package",
+					value: "someone/flux",
+					name: "Package",
+					what: "`scope/name`, or `scope/name@version` for a version other than the newest.",
+				},
+			],
 		},
 		{
-			items: [{
-				t: "setting", label: "Required as (optional)", value: "",
-				name: "Required as", what: "The name in wally.toml and Packages/. Left empty, it is the package's own.",
-			}],
+			items: [
+				{
+					t: "setting",
+					label: "Required as (optional)",
+					value: "",
+					name: "Required as",
+					what: "The name in wally.toml and Packages/. Left empty, it is the package's own.",
+				},
+			],
 		},
 		{
-			items: [{
-				t: "setting", label: "Realm", value: "Shared (Packages)", control: "select",
-				name: "Realm", what: "Shared, Server or Dev: which table of wally.toml the line goes in, and which folder it installs into.",
-			}],
+			items: [
+				{
+					t: "setting",
+					label: "Realm",
+					value: "Shared (Packages)",
+					control: "select",
+					name: "Realm",
+					what: "Shared, Server or Dev: which table of wally.toml the line goes in, and which folder it installs into.",
+				},
+			],
 		},
 		{
 			actions: true,
 			items: [
 				{ t: "button", text: "Cancel" },
-				{ t: "button", text: "Add", primary: true, name: "Add", what: "Writes the line, then asks the registry." },
+				{
+					t: "button",
+					text: "Add",
+					primary: true,
+					name: "Add",
+					what: "Writes the line, then asks the registry.",
+				},
 			],
 		},
 	],
@@ -2036,8 +2380,10 @@ export const REMOVE_PACKAGE: ToolbarSpec = {
 					text: "It comes out of wally.toml and Packages/, with any package only it needed. These still require it, and will fail to:",
 				},
 				{
-					t: "list", items: ["src/server/Doors.server.luau"],
-					name: "Still requires it", what: "Every file with a require that reaches the package.",
+					t: "list",
+					items: ["src/server/Doors.server.luau"],
+					name: "Still requires it",
+					what: "Every file with a require that reaches the package.",
 				},
 			],
 		},
@@ -2045,7 +2391,14 @@ export const REMOVE_PACKAGE: ToolbarSpec = {
 			actions: true,
 			items: [
 				{ t: "button", text: "Cancel" },
-				{ t: "button", text: "Remove", primary: true, danger: true, name: "Remove", what: "Takes it out. Code copied in over its file in Packages/ stays." },
+				{
+					t: "button",
+					text: "Remove",
+					primary: true,
+					danger: true,
+					name: "Remove",
+					what: "Takes it out. Code copied in over its file in Packages/ stays.",
+				},
 			],
 		},
 	],
@@ -2053,13 +2406,28 @@ export const REMOVE_PACKAGE: ToolbarSpec = {
 
 /** A row of the DataModel browser, glyph and colour as `PlaceBrowser.tsx` picks them. */
 function placeRow(
-	label: string, className: string, depth: number,
-	opts: { service?: boolean; open?: boolean; kids?: boolean; selected?: boolean; name?: string; what?: string } = {},
+	label: string,
+	className: string,
+	depth: number,
+	opts: {
+		service?: boolean;
+		open?: boolean;
+		kids?: boolean;
+		selected?: boolean;
+		name?: string;
+		what?: string;
+	} = {},
 ): ToolbarItem {
 	const { icon, tone } = classGlyph(className, opts.service ?? false, opts.open ?? false);
 	return {
-		t: "treeRow", place: true, label, depth, icon, tone, className,
-		...(opts.kids ? { twist: opts.open ? "open" as const : "shut" as const } : {}),
+		t: "treeRow",
+		place: true,
+		label,
+		depth,
+		icon,
+		tone,
+		className,
+		...(opts.kids ? { twist: opts.open ? ("open" as const) : ("shut" as const) } : {}),
 		...(opts.selected ? { selected: true, current: true } : {}),
 		...(opts.name ? { name: opts.name, what: opts.what } : {}),
 	};
@@ -2074,7 +2442,13 @@ export const DATAMODEL_BROWSER: ToolbarSpec = {
 	groups: [
 		{
 			items: [
-				{ t: "field", text: "Filter by name or class", fill: true, name: "Filter", what: "Lists what matches by name, or by a class typed in full, with where each one is." },
+				{
+					t: "field",
+					text: "Filter by name or class",
+					fill: true,
+					name: "Filter",
+					what: "Lists what matches by name, or by a class typed in full, with where each one is.",
+				},
 				{ t: "icon", icon: "refresh", name: "Read again", what: "Reads the place file again." },
 			],
 		},
@@ -2084,14 +2458,24 @@ export const DATAMODEL_BROWSER: ToolbarSpec = {
 				placeRow("House", "Model", 1, { open: true, kids: true }),
 				placeRow("Door", "Part", 2, {
 					selected: true,
-					name: "An instance", what: "Its name and class. Double-click it, or double tap, for Properties.",
+					name: "An instance",
+					what: "Its name and class. Double-click it, or double tap, for Properties.",
 				}),
-				placeRow("ReplicatedStorage", "ReplicatedStorage", 0, { service: true, open: true, kids: true }),
+				placeRow("ReplicatedStorage", "ReplicatedStorage", 0, {
+					service: true,
+					open: true,
+					kids: true,
+				}),
 				placeRow("Shared", "Folder", 1, { open: true, kids: true }),
 				placeRow("Config", "ModuleScript", 2, {
-					name: "A script", what: "Coloured by kind, as the project tree colours it. Properties has Open for the file that writes it.",
+					name: "A script",
+					what: "Coloured by kind, as the project tree colours it. Properties has Open for the file that writes it.",
 				}),
-				placeRow("ServerScriptService", "ServerScriptService", 0, { service: true, open: true, kids: true }),
+				placeRow("ServerScriptService", "ServerScriptService", 0, {
+					service: true,
+					open: true,
+					kids: true,
+				}),
 				placeRow("Doors", "Script", 1),
 				placeRow("StarterPlayer", "StarterPlayer", 0, { service: true, kids: true }),
 			],
@@ -2115,8 +2499,12 @@ function sampleDoor(): RbxInstance {
 	attributes.set(name, 8);
 	attributes[8 + name.length] = 0x03;
 	attributes[9 + name.length] = 0;
-	const at = (className: string, label: string, parent: RbxInstance | null, service = false): RbxInstance =>
-		({ className, name: label, parent, children: [], props: new Map(), service });
+	const at = (
+		className: string,
+		label: string,
+		parent: RbxInstance | null,
+		service = false,
+	): RbxInstance => ({ className, name: label, parent, children: [], props: new Map(), service });
 	const workspace = at("Workspace", "Workspace", null, true);
 	const house = at("Model", "House", workspace);
 	const door = at("Part", "Door", house);
@@ -2142,15 +2530,33 @@ export const PROPERTIES_PANEL: ToolbarSpec = (() => {
 		items: [
 			{ t: "propGroup", text: category },
 			...(category === "Tags"
-				? [{ t: "tags", tags: list.map((p) => p.name), name: "Tags", what: "The instance's tags, as CollectionService reads them." } as ToolbarItem]
-				: list.map((p): ToolbarItem => ({
-					t: "prop", label: p.name, value: p.value, ...(p.color ? { color: p.color } : {}),
-					...(p.name === "Anchored"
-						? { name: "A property", what: "Drag it onto a graph for a Get Member. Hold `Ctrl` as you drop for Set Property." }
-						: category === "Attributes"
-							? { name: "An attribute", what: "Drag it for Get Attribute, or Set Attribute with `Ctrl`." }
-							: {}),
-				}))),
+				? [
+						{
+							t: "tags",
+							tags: list.map((p) => p.name),
+							name: "Tags",
+							what: "The instance's tags, as CollectionService reads them.",
+						} as ToolbarItem,
+					]
+				: list.map(
+						(p): ToolbarItem => ({
+							t: "prop",
+							label: p.name,
+							value: p.value,
+							...(p.color ? { color: p.color } : {}),
+							...(p.name === "Anchored"
+								? {
+										name: "A property",
+										what: "Drag it onto a graph for a Get Member. Hold `Ctrl` as you drop for Set Property.",
+									}
+								: category === "Attributes"
+									? {
+											name: "An attribute",
+											what: "Drag it for Get Attribute, or Set Attribute with `Ctrl`.",
+										}
+									: {}),
+						}),
+					)),
 		],
 	}));
 	return {
@@ -2159,15 +2565,35 @@ export const PROPERTIES_PANEL: ToolbarSpec = (() => {
 		summary: "An instance opened from the DataModel, on the right under the Inspector.",
 		chrome: "properties",
 		groups: [
-			{ items: [{ t: "heading", level: 2, text: "Properties", action: "Close", name: "Close", what: "Stops showing the instance." }] },
 			{
-				items: [{
-					t: "propHead", label: info.name, className: info.className, icon: glyph.icon, tone: glyph.tone,
-					name: "The instance", what: "Drag it onto a graph for an Instance node at its path.",
-				}],
+				items: [
+					{
+						t: "heading",
+						level: 2,
+						text: "Properties",
+						action: "Close",
+						name: "Close",
+						what: "Stops showing the instance.",
+					},
+				],
+			},
+			{
+				items: [
+					{
+						t: "propHead",
+						label: info.name,
+						className: info.className,
+						icon: glyph.icon,
+						tone: glyph.tone,
+						name: "The instance",
+						what: "Drag it onto a graph for an Instance node at its path.",
+					},
+				],
 			},
 			{ items: [{ t: "propPath", text: info.path.join(" › ") }] },
-			...(info.summary ? [{ items: [{ t: "propSummary", text: info.summary } as ToolbarItem] }] : []),
+			...(info.summary
+				? [{ items: [{ t: "propSummary", text: info.summary } as ToolbarItem] }]
+				: []),
 			...groups,
 		],
 	};
@@ -2186,15 +2612,32 @@ export const EXPORT_PANEL: ToolbarSpec = {
 			wrap: "export-menu-form",
 			items: [
 				{
-					t: "formRow", label: "Format", control: "select", value: "Project (.zip)",
+					t: "formRow",
+					label: "Format",
+					control: "select",
+					value: "Project (.zip)",
 					note: "A zip: graphs, Luau and the Rojo project, with the place in its root.",
-					name: "Format", what: "The whole project as a zip, or the place file alone.",
+					name: "Format",
+					what: "The whole project as a zip, or the place file alone.",
 				},
 				{ t: "formSection", text: "File" },
-				{ t: "formRow", label: "Name", control: "field", value: "my-game", suffix: ".zip", name: "Name", what: "The file's name." },
+				{
+					t: "formRow",
+					label: "Name",
+					control: "field",
+					value: "my-game",
+					suffix: ".zip",
+					name: "Name",
+					what: "The file's name.",
+				},
 				{ t: "formSection", text: "Place file" },
 				{
-					t: "formRow", label: "place.rbxl", control: "segmented", value: "", options: ["Modify RBXL", "Don't Modify RBXL"], on: 0,
+					t: "formRow",
+					label: "place.rbxl",
+					control: "segmented",
+					value: "",
+					options: ["Modify RBXL", "Don't Modify RBXL"],
+					on: 0,
 					note: "Writes 12 scripts and adds 1.",
 					name: "Modify RBXL | Don't Modify RBXL",
 					what: "Modify writes the project's scripts into the copy of the place, and says how many; Don't sends the place as it was.",
@@ -2207,7 +2650,13 @@ export const EXPORT_PANEL: ToolbarSpec = {
 			items: [
 				{ t: "footNote", text: "34 files and place.rbxl · the project itself is not changed" },
 				{ t: "button", text: "Cancel" },
-				{ t: "button", text: "Export", primary: true, name: "Export", what: "Downloads it. The project's own files are not changed." },
+				{
+					t: "button",
+					text: "Export",
+					primary: true,
+					name: "Export",
+					what: "Downloads it. The project's own files are not changed.",
+				},
 			],
 		},
 	],
@@ -2215,8 +2664,14 @@ export const EXPORT_PANEL: ToolbarSpec = {
 
 /** Every picture on Places and Rojo projects and on Wally packages. */
 export const PLACE_BARS: ToolbarSpec[] = [
-	PROJECT_TREE_WALLY, PROJECT_TREE_WALLY_ADDED, WALLY_MENU, ADD_FROM_WALLY, REMOVE_PACKAGE,
-	DATAMODEL_BROWSER, PROPERTIES_PANEL, EXPORT_PANEL,
+	PROJECT_TREE_WALLY,
+	PROJECT_TREE_WALLY_ADDED,
+	WALLY_MENU,
+	ADD_FROM_WALLY,
+	REMOVE_PACKAGE,
+	DATAMODEL_BROWSER,
+	PROPERTIES_PANEL,
+	EXPORT_PANEL,
 ];
 
 /** The daemon's start page: a path, Browse, and Open. */
@@ -2229,8 +2684,19 @@ export const START_PAGE: ToolbarSpec = {
 		{
 			items: [
 				{ t: "field", text: "C:\\path\\to\\project", name: "Path", what: "The folder to open." },
-				{ t: "button", text: "Browse…", name: "Browse…", what: "Chooses the folder with your computer's own dialog." },
-				{ t: "button", text: "Open", primary: true, name: "Open", what: "Opens it, or Initialise for a folder that is not a project yet." },
+				{
+					t: "button",
+					text: "Browse…",
+					name: "Browse…",
+					what: "Chooses the folder with your computer's own dialog.",
+				},
+				{
+					t: "button",
+					text: "Open",
+					primary: true,
+					name: "Open",
+					what: "Opens it, or Initialise for a folder that is not a project yet.",
+				},
 			],
 		},
 	],
@@ -2248,19 +2714,61 @@ export const WALK_BARS: ToolbarSpec[] = [PROJECTS_FOOT, PROJECT_MENU, START_PAGE
 export const ACTION_ROW: ToolbarSpec = {
 	id: "action-row",
 	title: "The action row",
-	summary: "Under the graph on a phone or a tablet, and under Node Design's logic graph. Icons or words with **Settings → Editor → Action buttons**; separate buttons or one bar with **Action row**.",
+	summary:
+		"Under the graph on a phone or a tablet, and under Node Design's logic graph. Icons or words with **Settings → Editor → Action buttons**; separate buttons or one bar with **Action row**.",
 	chrome: "float",
 	groups: [
 		{
 			items: [
-				{ t: "icon", icon: "undo", name: "Undo", what: "As `Ctrl` + `Z`. Greyed when there is nothing to undo." },
+				{
+					t: "icon",
+					icon: "undo",
+					name: "Undo",
+					what: "As `Ctrl` + `Z`. Greyed when there is nothing to undo.",
+				},
 				{ t: "icon", icon: "redo", name: "Redo", what: "As `Ctrl` + `Y`." },
-				{ t: "icon", icon: "straighten", name: "Align", what: "Lines the selection up on the node picked first, as `A` does.", where: "Two or more selected" },
-				{ t: "icon", icon: "copy", name: "Copy", what: "As `Ctrl` + `C`.", where: "Something selected" },
-				{ t: "icon", icon: "cut", name: "Cut", what: "As `Ctrl` + `X`.", where: "Something selected" },
-				{ t: "icon", icon: "duplicate", name: "Duplicate", what: "As `Ctrl` + `D`.", where: "Something selected" },
-				{ t: "icon", icon: "remove", name: "Delete", what: "As `Delete`.", where: "Something selected" },
-				{ t: "icon", icon: "paste", name: "Paste", what: "As `Ctrl` + `V`, where the graph was last touched.", where: "Something copied" },
+				{
+					t: "icon",
+					icon: "straighten",
+					name: "Align",
+					what: "Lines the selection up on the node picked first, as `A` does.",
+					where: "Two or more selected",
+				},
+				{
+					t: "icon",
+					icon: "copy",
+					name: "Copy",
+					what: "As `Ctrl` + `C`.",
+					where: "Something selected",
+				},
+				{
+					t: "icon",
+					icon: "cut",
+					name: "Cut",
+					what: "As `Ctrl` + `X`.",
+					where: "Something selected",
+				},
+				{
+					t: "icon",
+					icon: "duplicate",
+					name: "Duplicate",
+					what: "As `Ctrl` + `D`.",
+					where: "Something selected",
+				},
+				{
+					t: "icon",
+					icon: "remove",
+					name: "Delete",
+					what: "As `Delete`.",
+					where: "Something selected",
+				},
+				{
+					t: "icon",
+					icon: "paste",
+					name: "Paste",
+					what: "As `Ctrl` + `V`, where the graph was last touched.",
+					where: "Something copied",
+				},
 			],
 		},
 	],
@@ -2275,20 +2783,40 @@ export const ACTION_ROW: ToolbarSpec = {
 export const DESIGNER_TOUCH_BAR: ToolbarSpec = {
 	id: "designer-touch-bar",
 	title: "Node Design's bar, on a phone or a tablet",
-	summary: "Above the node on a phone or a tablet: the pack, the node, and which view of it is showing.",
+	summary:
+		"Above the node on a phone or a tablet: the pack, the node, and which view of it is showing.",
 	chrome: "bar",
 	groups: [
 		{
 			items: [
-				{ t: "button", text: "combat", icon: "chevron", name: "The pack", what: "Slides the pack's node list out over the editor. Pick a node and it goes away again." },
+				{
+					t: "button",
+					text: "combat",
+					icon: "chevron",
+					name: "The pack",
+					what: "Slides the pack's node list out over the editor. Pick a node and it goes away again.",
+				},
 				{ t: "name", text: "Apply Knockback" },
 			],
 		},
 		{
 			apart: true,
 			items: [
-				{ t: "segmented", options: ["Preview", "Logic"], on: 1, name: "Preview and Logic", what: "The node as a graph draws it, or what it does when it runs." },
-				{ t: "segmented", options: ["Luau", "Nodes"], on: 1, name: "Luau and Nodes", what: "Write the logic as Luau, or build it from nodes.", where: "With Logic showing" },
+				{
+					t: "segmented",
+					options: ["Preview", "Logic"],
+					on: 1,
+					name: "Preview and Logic",
+					what: "The node as a graph draws it, or what it does when it runs.",
+				},
+				{
+					t: "segmented",
+					options: ["Luau", "Nodes"],
+					on: 1,
+					name: "Luau and Nodes",
+					what: "Write the logic as Luau, or build it from nodes.",
+					where: "With Logic showing",
+				},
 			],
 		},
 	],
@@ -2296,11 +2824,25 @@ export const DESIGNER_TOUCH_BAR: ToolbarSpec = {
 
 /** Every bar the documentation draws, in the order the page walks them. */
 export const TOOLBARS: ToolbarSpec[] = [
-	EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_TABLET, EDITOR_BAR_PHONE, PROJECT_PANEL_HEAD,
-	GRAPH_BAR, GRAPH_BAR_TABLET, GRAPH_BAR_PHONE, MAP_BAR,
-	DESIGNER_BAR, DESIGNER_BAR_BROWSER, DESIGNER_BAR_TABLET, DESIGNER_BAR_PHONE,
-	DOCS_BAR, DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH, DOCS_SITE_BAR_PHONE,
-	ACTION_ROW, DESIGNER_TOUCH_BAR,
+	EDITOR_BAR,
+	EDITOR_BAR_BROWSER,
+	EDITOR_BAR_TABLET,
+	EDITOR_BAR_PHONE,
+	PROJECT_PANEL_HEAD,
+	GRAPH_BAR,
+	GRAPH_BAR_TABLET,
+	GRAPH_BAR_PHONE,
+	MAP_BAR,
+	DESIGNER_BAR,
+	DESIGNER_BAR_BROWSER,
+	DESIGNER_BAR_TABLET,
+	DESIGNER_BAR_PHONE,
+	DOCS_BAR,
+	DOCS_SITE_BAR,
+	DOCS_SITE_BAR_TOUCH,
+	DOCS_SITE_BAR_PHONE,
+	ACTION_ROW,
+	DESIGNER_TOUCH_BAR,
 ];
 
 /**
@@ -2311,9 +2853,15 @@ export const TOOLBARS: ToolbarSpec[] = [
  * page telling somebody they are in the tool when they are in the preview.
  */
 export const BROWSER_TOOLBARS: ToolbarSpec[] = [
-	EDITOR_BAR_BROWSER, EDITOR_BAR_TABLET, EDITOR_BAR_PHONE,
-	DESIGNER_BAR_BROWSER, DESIGNER_BAR_TABLET, DESIGNER_BAR_PHONE,
-	DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH, DOCS_SITE_BAR_PHONE,
+	EDITOR_BAR_BROWSER,
+	EDITOR_BAR_TABLET,
+	EDITOR_BAR_PHONE,
+	DESIGNER_BAR_BROWSER,
+	DESIGNER_BAR_TABLET,
+	DESIGNER_BAR_PHONE,
+	DOCS_SITE_BAR,
+	DOCS_SITE_BAR_TOUCH,
+	DOCS_SITE_BAR_PHONE,
 ];
 
 /**
@@ -2398,7 +2946,16 @@ export const TYPE_WRITTEN_INSPECTOR: ToolbarSpec = {
 	groups: [
 		{ items: [{ t: "setting", label: "Type name", value: "Shot" }] },
 		{ items: [{ t: "setting", label: "Shape", value: "Custom Luau", control: "select" }] },
-		{ items: [{ t: "setting", label: "Definition", value: "{ damage: number, from: Vector3 }", control: "code" }] },
+		{
+			items: [
+				{
+					t: "setting",
+					label: "Definition",
+					value: "{ damage: number, from: Vector3 }",
+					control: "code",
+				},
+			],
+		},
 		{ items: [{ t: "setting", label: "Is Export Type", value: "", control: "check", on: true }] },
 	],
 };
@@ -2412,7 +2969,11 @@ export const TYPE_OPEN_INSPECTOR: ToolbarSpec = {
 	groups: [
 		{ items: [{ t: "setting", label: "Type name", value: "Scores" }] },
 		{ items: [{ t: "setting", label: "Shape", value: "Custom Luau", control: "select" }] },
-		{ items: [{ t: "setting", label: "Definition", value: "{ [string]: number }", control: "code" }] },
+		{
+			items: [
+				{ t: "setting", label: "Definition", value: "{ [string]: number }", control: "code" },
+			],
+		},
 		{ items: [{ t: "setting", label: "Is Export Type", value: "", control: "check", on: true }] },
 	],
 };

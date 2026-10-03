@@ -9,10 +9,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { createRegistry } from "../src/core/nodes/index.js";
-import { autoLayout } from "../src/app/layout.js";
 import { nodeBounds, pinPosition } from "../src/app/geometry.js";
+import { autoLayout } from "../src/app/layout.js";
+import { createRegistry } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { Builder } from "./helpers.js";
 

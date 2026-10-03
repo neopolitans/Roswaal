@@ -40,8 +40,7 @@ function joined(parts: (string | null)[], interpolate: boolean): string {
 
 describe("what Concatenate writes", () => {
 	it("joins with .. by default", () => {
-		expect(joined(["a ", null, " b"], false))
-			.toContain('print("a " .. value1 .. " b")');
+		expect(joined(["a ", null, " b"], false)).toContain('print("a " .. value1 .. " b")');
 	});
 
 	it("writes an interpolated string when the node says so", () => {
@@ -71,8 +70,7 @@ describe("what Concatenate writes", () => {
 	});
 
 	it("escapes what interpolation would otherwise read", () => {
-		expect(joined(["a `tick`, a {brace}"], true))
-			.toContain("print(`a \\`tick\\`, a \\{brace}`)");
+		expect(joined(["a `tick`, a {brace}"], true)).toContain("print(`a \\`tick\\`, a \\{brace}`)");
 	});
 
 	it("takes a number pin as a hole", () => {

@@ -2,9 +2,9 @@
  * The `functions` page of the documentation. `buildSite` places it.
  */
 
-import { code, previews } from "./blocks.js";
 import type { DocPage, PageContext } from "../site.js";
 import { FUNCTIONS_PANEL } from "../toolbars.js";
+import { code, previews } from "./blocks.js";
 
 /** Functions, and the graph each one opens in. */
 export function functionsPage({ registry }: PageContext): DocPage {
@@ -34,15 +34,23 @@ export function functionsPage({ registry }: PageContext): DocPage {
 				t: "table",
 				head: ["Node", "Written", "Drawn in"],
 				rows: [
-					["**Function**", "At the top of the file, so anything can call it", "Its own graph only, as the entry node"],
-					["**Declare Function**", "Where the node sits in the flow, or onto a table with **On Table**", "The flow, and its own graph as the entry node"],
+					[
+						"**Function**",
+						"At the top of the file, so anything can call it",
+						"Its own graph only, as the entry node",
+					],
+					[
+						"**Declare Function**",
+						"Where the node sits in the flow, or onto a table with **On Table**",
+						"The flow, and its own graph as the entry node",
+					],
 				],
 			},
 			...previews(
 				registry,
 				["function.entry", "function.declareHere"],
 				"As the reference draws them, with every pin. On the canvas Declare Function shows " +
-				"half of these in each of its two graphs.",
+					"half of these in each of its two graphs.",
 			),
 			{
 				t: "p",
@@ -73,8 +81,14 @@ export function functionsPage({ registry }: PageContext): DocPage {
 				head: ["Field", "What it does"],
 				rows: [
 					["**Name**", "What the function is called, and what a Get Function offers"],
-					["**Parameters**", "Name and optional Luau type each. They become data outputs on the entry node, in this order"],
-					["**Return values**", "Name and optional Luau type each. They become input pins on every **Return** in this function"],
+					[
+						"**Parameters**",
+						"Name and optional Luau type each. They become data outputs on the entry node, in this order",
+					],
+					[
+						"**Return values**",
+						"Name and optional Luau type each. They become input pins on every **Return** in this function",
+					],
 				],
 			},
 			{
@@ -123,7 +137,10 @@ export function functionsPage({ registry }: PageContext): DocPage {
 				t: "table",
 				head: ["Graph", "Its pins there"],
 				rows: [
-					["The flow it is declared in", "In, Then, On Table, and Function — the function as a value"],
+					[
+						"The flow it is declared in",
+						"In, Then, On Table, and Function — the function as a value",
+					],
 					["Its own graph", "Body, and one output per parameter"],
 				],
 			},
@@ -147,13 +164,12 @@ export function functionsPage({ registry }: PageContext): DocPage {
 				registry,
 				["function.return"],
 				"A Return with no values configured is the bare `return`. Each value you add to the " +
-				"signature adds a pin here.",
+					"signature adds a pin here.",
 			),
 			{
 				t: "note",
 				kind: "info",
-				text:
-					"A function with no Return is fine: it returns nothing, like the Luau it compiles to.",
+				text: "A function with no Return is fine: it returns nothing, like the Luau it compiles to.",
 			},
 
 			{ t: "h", level: 2, text: "Calling one" },
@@ -169,16 +185,25 @@ export function functionsPage({ registry }: PageContext): DocPage {
 				t: "table",
 				head: ["Node", "When"],
 				rows: [
-					["**Call Function**", "The call does something. It sits in the execution chain and binds its result to a local"],
-					["**Call For Value**", "The call asks something. No execution wire, so it goes where a value goes — inside a table, an argument, an expression"],
-					["**Call Method**", "The call is colon-style, on an object: `part:Destroy()`. See [Services and their methods](services) for the service case"],
+					[
+						"**Call Function**",
+						"The call does something. It sits in the execution chain and binds its result to a local",
+					],
+					[
+						"**Call For Value**",
+						"The call asks something. No execution wire, so it goes where a value goes — inside a table, an argument, an expression",
+					],
+					[
+						"**Call Method**",
+						"The call is colon-style, on an object: `part:Destroy()`. See [Services and their methods](services) for the service case",
+					],
 				],
 			},
 			...previews(
 				registry,
 				["function.get", "call.function", "call.value"],
 				"Both call nodes take the function on a wire, and the argument count is set in the " +
-				"Inspector rather than fixed by the node.",
+					"Inspector rather than fixed by the node.",
 			),
 			{
 				t: "code",
@@ -223,8 +248,7 @@ export function functionsPage({ registry }: PageContext): DocPage {
 			{
 				t: "note",
 				kind: "warn",
-				text:
-					"A **Get Parameter** outside its function's body creates an error pointing to both.",
+				text: "A **Get Parameter** outside its function's body creates an error pointing to both.",
 			},
 
 			{ t: "h", level: 2, text: "Finding one" },

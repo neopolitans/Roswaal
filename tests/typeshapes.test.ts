@@ -31,7 +31,9 @@ const registry = createRegistry();
 
 const code = (script: NodeScript) => body(compile(script, registry).code);
 const errors = (script: NodeScript) =>
-	compile(script, registry).diagnostics.filter((d) => d.severity === "error").map((d) => d.message);
+	compile(script, registry)
+		.diagnostics.filter((d) => d.severity === "error")
+		.map((d) => d.message);
 
 /** A Declare Type in the flow, after a local, with the config given. */
 function declared(config: Record<string, unknown>): NodeScript {
@@ -59,7 +61,9 @@ describe("Declare Type's shapes", () => {
 			],
 		});
 		expect(errors(script)).toEqual([]);
-		expect(code(script)).toContain("export type Restore = { walkSpeed: number, weld: WeldConstraint? }");
+		expect(code(script)).toContain(
+			"export type Restore = { walkSpeed: number, weld: WeldConstraint? }",
+		);
 	});
 
 	it("writes Luau written out, over several lines", () => {
@@ -70,13 +74,18 @@ describe("Declare Type's shapes", () => {
 	});
 
 	it("refuses a definition whose brackets do not close", () => {
-		const script = declared({ name: "Restore", shape: "written", definition: "{ walkSpeed: number" });
+		const script = declared({
+			name: "Restore",
+			shape: "written",
+			definition: "{ walkSpeed: number",
+		});
 		expect(errors(script).join(" ")).toMatch(/this type's definition/);
 	});
 
 	it("says when there is nothing to write", () => {
-		expect(errors(declared({ name: "Restore", shape: "fields", fields: [] })).join(" "))
-			.toMatch(/needs a definition/);
+		expect(errors(declared({ name: "Restore", shape: "fields", fields: [] })).join(" ")).toMatch(
+			/needs a definition/,
+		);
 	});
 
 	it("has a Value pin only for the type of a value", () => {
@@ -101,7 +110,9 @@ describe("a typed Declare Local", () => {
 	}
 
 	it("writes its type after the name", () => {
-		expect(code(local("{ [Model]: Restore }"))).toContain("local restores: { [Model]: Restore } = {}");
+		expect(code(local("{ [Model]: Restore }"))).toContain(
+			"local restores: { [Model]: Restore } = {}",
+		);
 	});
 
 	it("writes no type when the mode writes no annotations", () => {
@@ -142,11 +153,13 @@ describe("pin types for Luau types", () => {
 describe("types a required module brings", () => {
 	const exported: ExportedType[] = [
 		{
-			graph: "a/Config.nodescript", name: "Tuning",
+			graph: "a/Config.nodescript",
+			name: "Tuning",
 			location: { root: "ReplicatedStorage", path: "Tank.Config", isModule: true },
 		},
 		{
-			graph: "b/Other.nodescript", name: "Elsewhere",
+			graph: "b/Other.nodescript",
+			name: "Elsewhere",
 			location: { root: "ServerStorage", path: "Other", isModule: true },
 		},
 		{ graph: "c/Unmapped.nodescript", name: "Lost", location: null },
@@ -160,8 +173,9 @@ describe("types a required module brings", () => {
 	}
 
 	it("names them after the module's local", () => {
-		expect(requiredTypes(requiring({ root: "ReplicatedStorage", path: "Tank.Config" }), exported))
-			.toEqual([{ type: "Config.Tuning", graph: "a/Config.nodescript" }]);
+		expect(
+			requiredTypes(requiring({ root: "ReplicatedStorage", path: "Tank.Config" }), exported),
+		).toEqual([{ type: "Config.Tuning", graph: "a/Config.nodescript" }]);
 	});
 
 	it("uses the As name when there is one", () => {
@@ -170,7 +184,9 @@ describe("types a required module brings", () => {
 	});
 
 	it("offers nothing from a module the graph does not require", () => {
-		expect(requiredTypes(requiring({ root: "ReplicatedStorage", path: "Tank.Other" }), exported)).toEqual([]);
+		expect(
+			requiredTypes(requiring({ root: "ReplicatedStorage", path: "Tank.Other" }), exported),
+		).toEqual([]);
 		expect(requiredTypes(new Builder().build(), exported)).toEqual([]);
 	});
 
@@ -180,7 +196,8 @@ describe("types a required module brings", () => {
 		const types = await exportedTypes(project);
 		const tuning = types.find((t) => t.name === "Tuning");
 		expect(tuning?.graph).toMatch(/Config\.nodescript$/);
-		expect(readFileSync(path.join(ROOT, tuning!.graph.replace(/^/, "examples/m103/graph/")), "utf8"))
-			.toContain('"Tuning"');
+		expect(
+			readFileSync(path.join(ROOT, tuning!.graph.replace(/^/, "examples/m103/graph/")), "utf8"),
+		).toContain('"Tuning"');
 	});
 });

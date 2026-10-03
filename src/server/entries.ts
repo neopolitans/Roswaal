@@ -6,12 +6,11 @@
  * itself, and through `assertEditable`, which refuses the output directory.
  */
 
-import { fs, path } from "./host.js";
-
 import type { OpenProject } from "./config.js";
 import { graphName, readScript, writeScript } from "./documents.js";
 import { UserError } from "./errors.js";
 import { exists } from "./files.js";
+import { fs, path } from "./host.js";
 import { entryPath, isInside, safeJoin, toPosix } from "./paths.js";
 
 /**
@@ -48,7 +47,9 @@ export async function createFolder(project: OpenProject, relPath: string): Promi
 }
 
 export async function renameEntry(
-	project: OpenProject, relPath: string, newName: string,
+	project: OpenProject,
+	relPath: string,
+	newName: string,
 ): Promise<string> {
 	assertEditable(project, relPath, "rename anything");
 	const clean = newName.replace(/[\\/:*?"<>|]/g, "").trim();
@@ -86,7 +87,9 @@ export async function renameEntry(
 }
 
 export async function moveEntry(
-	project: OpenProject, from: string, toDir: string,
+	project: OpenProject,
+	from: string,
+	toDir: string,
 ): Promise<string> {
 	assertEditable(project, from, "move anything");
 	assertEditable(project, toDir, "move anything");

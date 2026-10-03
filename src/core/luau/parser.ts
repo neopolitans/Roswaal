@@ -15,18 +15,42 @@
  */
 
 import type {
-	Attribute, Binding, Block, Diagnostic, Expr, FunctionBody, GenericParam, IfClause, Name,
-	ParseResult, Span, Stat, TableField, TableIndexer, TableTypeProp, TypeNode, TypePack,
+	Attribute,
+	Binding,
+	Block,
+	Diagnostic,
+	Expr,
+	FunctionBody,
+	GenericParam,
+	IfClause,
+	Name,
+	ParseResult,
+	Span,
+	Stat,
+	TableField,
+	TableIndexer,
+	TableTypeProp,
+	TypeNode,
+	TypePack,
 } from "./ast.js";
-import { significant, tokenize, type Token } from "./lexer.js";
+import { significant, type Token, tokenize } from "./lexer.js";
 
 /** Binary operators: left and right binding power, as in Luau's parser. */
 const BINARY: Record<string, [number, number]> = {
-	"+": [6, 6], "-": [6, 6],
-	"*": [7, 7], "/": [7, 7], "//": [7, 7], "%": [7, 7],
+	"+": [6, 6],
+	"-": [6, 6],
+	"*": [7, 7],
+	"/": [7, 7],
+	"//": [7, 7],
+	"%": [7, 7],
 	"^": [10, 9],
 	"..": [5, 4],
-	"==": [3, 3], "~=": [3, 3], "<": [3, 3], "<=": [3, 3], ">": [3, 3], ">=": [3, 3],
+	"==": [3, 3],
+	"~=": [3, 3],
+	"<": [3, 3],
+	"<=": [3, 3],
+	">": [3, 3],
+	">=": [3, 3],
 	and: [2, 2],
 	or: [1, 1],
 };
@@ -39,8 +63,19 @@ const BLOCK_END = new Set(["end", "else", "elseif", "until"]);
 
 /** Tokens a statement can start with, for skipping past a mistake. */
 const STATEMENT_START = new Set([
-	"local", "function", "if", "for", "while", "repeat", "return", "do", "break",
-	"end", "else", "elseif", "until",
+	"local",
+	"function",
+	"if",
+	"for",
+	"while",
+	"repeat",
+	"return",
+	"do",
+	"break",
+	"end",
+	"else",
+	"elseif",
+	"until",
 ]);
 
 /** Where a token is, without its text: a keyword's place in the tree. */
@@ -59,7 +94,10 @@ class Parser {
 	readonly errors: Diagnostic[] = [];
 
 	/** `all` is every token of the source, as `tokenize` gives them; it is not changed. */
-	constructor(all: readonly Token[], private readonly options: ParseOptions = {}) {
+	constructor(
+		all: readonly Token[],
+		private readonly options: ParseOptions = {},
+	) {
 		for (const bad of all) {
 			if (bad.kind === "error") {
 				this.errors.push({ start: bad.start, end: bad.end, message: bad.message ?? "Unreadable." });
@@ -113,7 +151,9 @@ class Parser {
 		}
 		const token = this.accept(text);
 		if (token) return token;
-		return this.fail(`Expected "${text}"${what ? ` ${what}` : ""}, but found ${this.describe(this.peek())}.`);
+		return this.fail(
+			`Expected "${text}"${what ? ` ${what}` : ""}, but found ${this.describe(this.peek())}.`,
+		);
 	}
 
 	private expectName(what: string): Name {
@@ -145,7 +185,8 @@ class Parser {
 		if (this.peek().kind !== "eof") {
 			const token = this.peek();
 			this.errors.push({
-				start: token.start, end: token.end,
+				start: token.start,
+				end: token.end,
 				message: `${this.describe(token)} does not close anything here.`,
 			});
 		}
@@ -169,7 +210,8 @@ class Parser {
 					const after = this.peek();
 					if (!this.endsBlock(after)) {
 						this.errors.push({
-							start: after.start, end: after.end,
+							start: after.start,
+							end: after.end,
 							message: `Nothing can follow a ${stat.kind} in the same block.`,
 						});
 						out.push(...this.block());
@@ -214,9 +256,12 @@ class Parser {
 
 		if (token.kind === "keyword") {
 			switch (token.text) {
-				case "local": return this.local(start, attributes);
-				case "function": return this.functionStat(start, attributes);
-				case "if": return this.ifStat(start);
+				case "local":
+					return this.local(start, attributes);
+				case "function":
+					return this.functionStat(start, attributes);
+				case "if":
+					return this.ifStat(start);
 				case "while": {
 					this.next();
 					const condition = this.expr();
@@ -231,7 +276,8 @@ class Parser {
 					const endKeyword = spanOf(this.expect("end", "to close the do"));
 					return { kind: "do", body, endKeyword, ...this.span(start) };
 				}
-				case "for": return this.forStat(start);
+				case "for":
+					return this.forStat(start);
 				case "repeat": {
 					this.next();
 					const body = this.loopBody();
@@ -242,9 +288,12 @@ class Parser {
 				case "return": {
 					this.next();
 					const next = this.peek();
-					const values = next.kind === "eof" || this.is(";") || (next.kind === "keyword" && BLOCK_END.has(next.text))
-						? []
-						: this.exprList();
+					const values =
+						next.kind === "eof" ||
+						this.is(";") ||
+						(next.kind === "keyword" && BLOCK_END.has(next.text))
+							? []
+							: this.exprList();
 					return { kind: "return", values, ...this.span(start) };
 				}
 				case "break":
@@ -273,7 +322,14 @@ class Parser {
 				this.next();
 				const name = this.expectName("a function name");
 				const func = this.functionBody(start);
-				return { kind: "localFunction", name, func, attributes: [], constant: true, ...this.span(start) };
+				return {
+					kind: "localFunction",
+					name,
+					func,
+					attributes: [],
+					constant: true,
+					...this.span(start),
+				};
 			}
 			if (token.text === "const" && this.isName(undefined, 1)) {
 				this.next();
@@ -291,8 +347,10 @@ class Parser {
 	private continuesAsExpression(ahead: number): boolean {
 		const next = this.peek(ahead);
 		if (next.kind === "string") return true;
-		return next.kind === "symbol" && ["(", ".", "[", ":", "=", ",", "{"].includes(next.text)
-			|| (next.kind === "symbol" && COMPOUND.has(next.text));
+		return (
+			(next.kind === "symbol" && ["(", ".", "[", ":", "=", ",", "{"].includes(next.text)) ||
+			(next.kind === "symbol" && COMPOUND.has(next.text))
+		);
 	}
 
 	private attributes(): Attribute[] {
@@ -347,7 +405,14 @@ class Parser {
 		while (this.accept(".")) path.push(this.expectName("a name after the dot"));
 		const method = this.accept(":") ? this.expectName("a method name after the colon") : undefined;
 		const func = this.functionBody(start);
-		return { kind: "functionStat", path, ...(method ? { method } : {}), func, attributes, ...this.span(start) };
+		return {
+			kind: "functionStat",
+			path,
+			...(method ? { method } : {}),
+			func,
+			attributes,
+			...this.span(start),
+		};
 	}
 
 	private ifStat(start: number): Stat {
@@ -363,9 +428,11 @@ class Parser {
 		const orElse = elseToken ? this.block() : undefined;
 		const endKeyword = spanOf(this.expect("end", "to close the if"));
 		return {
-			kind: "if", clauses,
+			kind: "if",
+			clauses,
 			...(elseToken && orElse ? { elseKeyword: spanOf(elseToken), orElse } : {}),
-			endKeyword, ...this.span(start),
+			endKeyword,
+			...this.span(start),
 		};
 	}
 
@@ -381,8 +448,15 @@ class Parser {
 			const body = this.loopBody();
 			const endKeyword = spanOf(this.expect("end", "to close the for loop"));
 			return {
-				kind: "numericFor", variable: first[0], from, to, ...(step ? { step } : {}),
-				doKeyword, body, endKeyword, ...this.span(start),
+				kind: "numericFor",
+				variable: first[0],
+				from,
+				to,
+				...(step ? { step } : {}),
+				doKeyword,
+				body,
+				endKeyword,
+				...this.span(start),
 			};
 		}
 		this.expect("in", "after the loop's names");
@@ -390,7 +464,15 @@ class Parser {
 		const doKeyword = spanOf(this.expect("do", "after what the loop walks"));
 		const body = this.loopBody();
 		const endKeyword = spanOf(this.expect("end", "to close the for loop"));
-		return { kind: "genericFor", variables: first, values, doKeyword, body, endKeyword, ...this.span(start) };
+		return {
+			kind: "genericFor",
+			variables: first,
+			values,
+			doKeyword,
+			body,
+			endKeyword,
+			...this.span(start),
+		};
 	}
 
 	private typeStat(start: number, exported: boolean): Stat {
@@ -426,8 +508,10 @@ class Parser {
 		}
 		if (target.kind !== "call" && target.kind !== "methodCall") {
 			this.errors.push({
-				start: target.start, end: target.end,
-				message: "This is a value on its own. A statement must call something or assign to something.",
+				start: target.start,
+				end: target.end,
+				message:
+					"This is a value on its own. A statement must call something or assign to something.",
 			});
 			throw new Stop();
 		}
@@ -436,7 +520,11 @@ class Parser {
 
 	private assignable(target: Expr): void {
 		if (target.kind === "name" || target.kind === "index" || target.kind === "indexExpr") return;
-		this.errors.push({ start: target.start, end: target.end, message: "This cannot be assigned to." });
+		this.errors.push({
+			start: target.start,
+			end: target.end,
+			message: "This cannot be assigned to.",
+		});
 		throw new Stop();
 	}
 
@@ -457,7 +545,11 @@ class Parser {
 	 */
 	private outsideLoop(word: Token, text: string): void {
 		if (!this.options.wholeFile || this.loops > 0) return;
-		this.errors.push({ start: word.start, end: word.end, message: `\`${text}\` is only allowed inside a loop.` });
+		this.errors.push({
+			start: word.start,
+			end: word.end,
+			message: `\`${text}\` is only allowed inside a loop.`,
+		});
 	}
 
 	private functionBody(start: number): FunctionBody {
@@ -488,8 +580,14 @@ class Parser {
 		this.loops = outerLoops;
 		const endKeyword = spanOf(this.expect("end", "to close the function"));
 		return {
-			generics, params, ...(varargs ? { varargs } : {}), ...(returns ? { returns } : {}),
-			body, paramsClose, endKeyword, ...this.span(start),
+			generics,
+			params,
+			...(varargs ? { varargs } : {}),
+			...(returns ? { returns } : {}),
+			body,
+			paramsClose,
+			endKeyword,
+			...this.span(start),
 		};
 	}
 
@@ -512,7 +610,12 @@ class Parser {
 				const pack = !!this.accept("...");
 				let defaultType: TypeNode | TypePack | undefined;
 				if (defaults && this.accept("=")) defaultType = pack ? this.typeOrPack() : this.type();
-				out.push({ name: name.name, pack, ...(defaultType ? { defaultType } : {}), ...this.span(name.start) });
+				out.push({
+					name: name.name,
+					pack,
+					...(defaultType ? { defaultType } : {}),
+					...this.span(name.start),
+				});
 			} while (this.accept(","));
 		}
 		this.expect(">", "to close the generics");
@@ -531,7 +634,10 @@ class Parser {
 		const start = this.peek().start;
 		let left: Expr;
 		const token = this.peek();
-		if (token.text === "not" && token.kind === "keyword" || (token.kind === "symbol" && (token.text === "-" || token.text === "#"))) {
+		if (
+			(token.text === "not" && token.kind === "keyword") ||
+			(token.kind === "symbol" && (token.text === "-" || token.text === "#"))
+		) {
 			this.next();
 			const operand = this.expr(UNARY_POWER);
 			left = { kind: "unary", op: token.text, operand, ...this.span(start) };
@@ -540,7 +646,7 @@ class Parser {
 		}
 		for (;;) {
 			const op = this.peek();
-			const power = (op.kind === "symbol" || op.kind === "keyword") ? BINARY[op.text] : undefined;
+			const power = op.kind === "symbol" || op.kind === "keyword" ? BINARY[op.text] : undefined;
 			if (!power || power[0] <= limit) return left;
 			this.next();
 			const right = this.expr(power[1]);
@@ -574,14 +680,26 @@ class Parser {
 				return this.interpolated();
 			case "keyword":
 				switch (token.text) {
-					case "nil": this.next(); return { kind: "nil", ...this.span(start) };
-					case "true": this.next(); return { kind: "boolean", value: true, ...this.span(start) };
-					case "false": this.next(); return { kind: "boolean", value: false, ...this.span(start) };
+					case "nil":
+						this.next();
+						return { kind: "nil", ...this.span(start) };
+					case "true":
+						this.next();
+						return { kind: "boolean", value: true, ...this.span(start) };
+					case "false":
+						this.next();
+						return { kind: "boolean", value: false, ...this.span(start) };
 					case "function": {
 						this.next();
-						return { kind: "function", func: this.functionBody(start), attributes: [], ...this.span(start) };
+						return {
+							kind: "function",
+							func: this.functionBody(start),
+							attributes: [],
+							...this.span(start),
+						};
 					}
-					case "if": return this.ifExpr();
+					case "if":
+						return this.ifExpr();
 				}
 				break;
 			case "symbol":
@@ -594,7 +712,12 @@ class Parser {
 					const attributes = this.attributes();
 					if (!this.is("function")) this.fail("An attribute must be followed by a function.");
 					this.next();
-					return { kind: "function", func: this.functionBody(start), attributes, ...this.span(start) };
+					return {
+						kind: "function",
+						func: this.functionBody(start),
+						attributes,
+						...this.span(start),
+					};
 				}
 				break;
 		}
@@ -605,7 +728,12 @@ class Parser {
 		const start = this.peek().start;
 		const first = this.next();
 		if (first.kind === "interpSimple") {
-			return { kind: "interpolated", parts: [first.text.slice(1, -1)], values: [], ...this.span(start) };
+			return {
+				kind: "interpolated",
+				parts: [first.text.slice(1, -1)],
+				values: [],
+				...this.span(start),
+			};
 		}
 		const parts = [first.text.slice(1, -1)];
 		const values: Expr[] = [];
@@ -787,7 +915,9 @@ class Parser {
 			if (pack.types.length === 1 && !pack.tail) {
 				return { kind: "parenType", inner: pack.types[0], ...this.span(start) };
 			}
-			return this.fail("A list of types in brackets is only a type as a function's parameters or results.");
+			return this.fail(
+				"A list of types in brackets is only a type as a function's parameters or results.",
+			);
 		}
 		return this.fail(`Expected a type, but found ${this.describe(token)}.`);
 	}
@@ -845,7 +975,12 @@ class Parser {
 		}
 		if (this.is("...")) {
 			this.next();
-			return { kind: "pack", types: [], tail: { kind: "variadic", type: this.type() }, ...this.span(start) };
+			return {
+				kind: "pack",
+				types: [],
+				tail: { kind: "variadic", type: this.type() },
+				...this.span(start),
+			};
 		}
 		if (this.isName() && this.is("...", 1)) {
 			const name = this.next().text;
@@ -887,7 +1022,12 @@ class Parser {
 		const start = this.peek().start;
 		if (this.is("...")) {
 			this.next();
-			return { kind: "pack", types: [], tail: { kind: "variadic", type: this.type() }, ...this.span(start) };
+			return {
+				kind: "pack",
+				types: [],
+				tail: { kind: "variadic", type: this.type() },
+				...this.span(start),
+			};
 		}
 		if (this.isName() && this.is("...", 1)) {
 			const name = this.next().text;
@@ -898,7 +1038,11 @@ class Parser {
 			const pack = this.parenPack();
 			if (this.is("->")) return this.continueType(start, this.functionTypeFrom(start, [], pack));
 			if (pack.types.length === 1 && !pack.tail) {
-				return this.continueType(start, { kind: "parenType", inner: pack.types[0], ...this.span(start) });
+				return this.continueType(start, {
+					kind: "parenType",
+					inner: pack.types[0],
+					...this.span(start),
+				});
 			}
 			return pack;
 		}
@@ -911,8 +1055,11 @@ class Parser {
 		let indexer: TableIndexer | undefined;
 
 		// `{ T }`: an array.
-		const arrayLike = !this.is("}") && !this.is("[") && !(this.isName() && this.is(":", 1))
-			&& !(this.isName("read") || this.isName("write")) ;
+		const arrayLike =
+			!this.is("}") &&
+			!this.is("[") &&
+			!(this.isName() && this.is(":", 1)) &&
+			!(this.isName("read") || this.isName("write"));
 		if (arrayLike) {
 			const array = this.type();
 			this.expect("}", "to close the array type");
@@ -922,7 +1069,10 @@ class Parser {
 		while (!this.is("}")) {
 			const fieldStart = this.peek().start;
 			let access: "read" | "write" | undefined;
-			if ((this.isName("read") || this.isName("write")) && (this.isName(undefined, 1) || this.is("[", 1))) {
+			if (
+				(this.isName("read") || this.isName("write")) &&
+				(this.isName(undefined, 1) || this.is("[", 1))
+			) {
 				access = this.next().text as "read" | "write";
 			}
 			if (this.accept("[")) {
@@ -931,7 +1081,12 @@ class Parser {
 					const name = this.next().text;
 					this.next();
 					this.expect(":", "after the property");
-					props.push({ name, ...(access ? { access } : {}), type: this.type(), ...this.span(fieldStart) });
+					props.push({
+						name,
+						...(access ? { access } : {}),
+						type: this.type(),
+						...this.span(fieldStart),
+					});
 				} else {
 					const key = this.type();
 					this.expect("]", "to close the indexer's key");
@@ -942,7 +1097,12 @@ class Parser {
 			} else {
 				const name = this.expectName("a property name");
 				this.expect(":", "after the property name");
-				props.push({ name: name.name, ...(access ? { access } : {}), type: this.type(), ...this.span(fieldStart) });
+				props.push({
+					name: name.name,
+					...(access ? { access } : {}),
+					type: this.type(),
+					...this.span(fieldStart),
+				});
 			}
 			if (!this.accept(",") && !this.accept(";")) break;
 		}
@@ -967,7 +1127,10 @@ export function parseChunk(src: string, options: ParseOptions = {}): ParseResult
 }
 
 /** `parseChunk` over tokens already read, for a caller that keeps them: see `file.ts`. */
-export function parseTokens(tokens: readonly Token[], options: ParseOptions = {}): ParseResult<Block> {
+export function parseTokens(
+	tokens: readonly Token[],
+	options: ParseOptions = {},
+): ParseResult<Block> {
 	const parser = new Parser(tokens, options);
 	const value = parser.parseChunk();
 	return { value, errors: parser.errors };
@@ -978,7 +1141,8 @@ export function parseTokens(tokens: readonly Token[], options: ParseOptions = {}
  * them: `if a then 1 else 2` is an if-expression. An `if` that reads only as
  * a statement is caught below, once the expression has failed.
  */
-const STATEMENT_WORDS = /^(local|for|while|repeat|return|do|end|else|elseif|until|break|function\s+[A-Za-z_])\b/;
+const STATEMENT_WORDS =
+	/^(local|for|while|repeat|return|do|end|else|elseif|until|break|function\s+[A-Za-z_])\b/;
 
 /**
  * Exactly one value: what a Luau Expression node holds, or code typed into a
@@ -990,12 +1154,15 @@ export function parseExpression(src: string): ParseResult<Expr | undefined> {
 	const start = src.length - trimmed.length;
 	const statementError = (word: string): ParseResult<Expr | undefined> => ({
 		value: undefined,
-		errors: [{
-			start, end: start + word.length,
-			message:
-				`"${word}" starts a statement, and this is a value. Use Custom Code for ` +
-				"statements; it sits in the execution chain instead.",
-		}],
+		errors: [
+			{
+				start,
+				end: start + word.length,
+				message:
+					`"${word}" starts a statement, and this is a value. Use Custom Code for ` +
+					"statements; it sits in the execution chain instead.",
+			},
+		],
 	});
 	const opener = STATEMENT_WORDS.exec(trimmed);
 	if (opener) return statementError(opener[1].split(/\s/)[0]);
@@ -1013,7 +1180,11 @@ export function parseType(src: string): ParseResult<TypeNode | undefined> {
 	return parseWhole(src, (parser) => parser.type(), "one type");
 }
 
-function parseWhole<T>(src: string, read: (parser: Parser) => T, what: string): ParseResult<T | undefined> {
+function parseWhole<T>(
+	src: string,
+	read: (parser: Parser) => T,
+	what: string,
+): ParseResult<T | undefined> {
 	const parser = new Parser(tokenize(src));
 	let value: T | undefined;
 	try {

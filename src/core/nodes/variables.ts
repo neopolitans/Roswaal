@@ -105,11 +105,16 @@ export function pinTypeText(pin: Pick<PinDef, "type" | "nilable">): string {
  */
 export function pinDefaultFor(pinType: string | undefined): Literal | undefined {
 	switch (pinType) {
-		case "boolean": return { t: "boolean", v: false };
-		case "number": return { t: "number", v: 0 };
-		case "string": return { t: "string", v: "" };
-		case "table": return { t: "raw", v: "{}" };
-		default: return undefined;
+		case "boolean":
+			return { t: "boolean", v: false };
+		case "number":
+			return { t: "number", v: 0 };
+		case "string":
+			return { t: "string", v: "" };
+		case "table":
+			return { t: "raw", v: "{}" };
+		default:
+			return undefined;
 	}
 }
 
@@ -196,7 +201,10 @@ export function localTypeOf(config: NodeConfig | undefined): string {
 
 const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
 const data = (id: string, name: string, type: string): PinDef => ({
-	id, name, kind: "data", type,
+	id,
+	name,
+	kind: "data",
+	type,
 });
 
 export const VARIABLE_NODES: NodeDef[] = [
@@ -230,7 +238,8 @@ export const VARIABLE_NODES: NodeDef[] = [
 		id: "variable.get",
 		title: "Get Variable",
 		category: "Variables",
-		summary: "Reads a script variable. Pure, so it can be wired anywhere without an execution line.",
+		summary:
+			"Reads a script variable. Pure, so it can be wired anywhere without an execution line.",
 		pure: true,
 		inputs: [],
 		outputs: [data("value", "", "any")],
@@ -248,7 +257,8 @@ export const VARIABLE_NODES: NodeDef[] = [
 		id: "variable.set",
 		title: "Set Variable",
 		category: "Variables",
-		summary: "Assigns a script variable. The output passes the value through, so a Set can sit mid-chain.",
+		summary:
+			"Assigns a script variable. The output passes the value through, so a Set can sit mid-chain.",
 		inputs: [exec("in"), data("value", "Value", "any")],
 		outputs: [exec("then"), data("value", "", "any")],
 		compilesTo: { kind: "builtin", handler: "variable.set" },

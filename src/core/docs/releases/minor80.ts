@@ -15,7 +15,7 @@ export const RELEASES_0_80: Release[] = [
 		affects: ["editor"],
 		added: [
 			"**After a datatype's name and a dot**, the code editor offers its constructors and constants with their signatures: `Instance.new`, `Vector3.zero`, `CFrame.lookAt`, `Color3.fromRGB`. Read from Roblox's creator-docs, with `npm run build:statics` to refresh.",
-			"**Class names complete inside the string they are given as**: `Instance.new(\"Pa`, `:IsA(\"`, the Find First … Of Class and Which Is A calls, and services in `:GetService(\"`.",
+			'**Class names complete inside the string they are given as**: `Instance.new("Pa`, `:IsA("`, the Find First … Of Class and Which Is A calls, and services in `:GetService("`.',
 			"**Types complete** after an annotation's colon and after `::`: Luau's own, and Roblox's classes and datatypes.",
 			"All of it only in a graph that compiles for Roblox; a Lune graph is offered Luau's own.",
 		],
@@ -71,11 +71,11 @@ export const RELEASES_0_80: Release[] = [
 		headline: "Hand-written Luau is parsed before the file is written.",
 		affects: ["editor", "docs"],
 		added: [
-			"**Custom Code is parsed as statements**, and a **Luau Expression** — or code typed into any other pin — as one value. A syntax mistake stops the build, against the node, with its line: \"Expected \\\"end\\\" to close the for loop, but found the end of the code.\"",
+			'**Custom Code is parsed as statements**, and a **Luau Expression** — or code typed into any other pin — as one value. A syntax mistake stops the build, against the node, with its line: "Expected \\"end\\" to close the for loop, but found the end of the code."',
 			"**The code editor marks the same mistakes as you type**, from the same parser, so the editor and the build cannot disagree.",
 		],
 		changed: [
-			"A statement in a Luau Expression is an **error** rather than a warning: `\"local\" starts a statement, and this is a value.`",
+			'A statement in a Luau Expression is an **error** rather than a warning: `"local" starts a statement, and this is a value.`',
 			"A written Declare Type, and a type typed into a picker, are parsed as types.",
 		],
 		fixed: [
@@ -88,7 +88,7 @@ export const RELEASES_0_80: Release[] = [
 		headline: "A refused wire's types are in bold.",
 		affects: ["editor"],
 		changed: [
-			"The types in a refused wire's message are **bold**: \"**Humanoid** cannot be cast to **Model** due to incompatible classes.\"",
+			'The types in a refused wire\'s message are **bold**: "**Humanoid** cannot be cast to **Model** due to incompatible classes."',
 		],
 	},
 	{
@@ -97,7 +97,7 @@ export const RELEASES_0_80: Release[] = [
 		headline: "A refused cast names both classes.",
 		affects: ["editor"],
 		changed: [
-			"A wire refused between two unrelated classes now reads **\"Humanoid cannot be cast to Model due to incompatible classes.\"**",
+			'A wire refused between two unrelated classes now reads **"Humanoid cannot be cast to Model due to incompatible classes."**',
 		],
 	},
 	{
@@ -131,7 +131,7 @@ export const RELEASES_0_80: Release[] = [
 		headline: "A project can leave out casts a subclass already proved.",
 		affects: ["editor", "docs"],
 		added: [
-			"**Casts proved by a subclass**, in Settings → Project: off by default. On, an Implicit Cast inside an Is A branch is left out when the branch proved a class derived from the one it casts to — `IsA(\"Part\")` covering a cast to `BasePart`. Stored in `roswaal.json` as `castsByHierarchy`.",
+			'**Casts proved by a subclass**, in Settings → Project: off by default. On, an Implicit Cast inside an Is A branch is left out when the branch proved a class derived from the one it casts to — `IsA("Part")` covering a cast to `BasePart`. Stored in `roswaal.json` as `castsByHierarchy`.',
 		],
 	},
 	{
@@ -160,7 +160,7 @@ export const RELEASES_0_80: Release[] = [
 		headline: "A Find First node's class reaches the file.",
 		affects: ["editor", "docs"],
 		changed: [
-			"**Find First Child Of Class, Which Is A, and the two Find First Ancestor nodes** cast their result to the class or `nil` — `(x:FindFirstChildOfClass(\"Humanoid\") :: Humanoid?)` — in Nonstrict and Strict. Default writes no cast.",
+			'**Find First Child Of Class, Which Is A, and the two Find First Ancestor nodes** cast their result to the class or `nil` — `(x:FindFirstChildOfClass("Humanoid") :: Humanoid?)` — in Nonstrict and Strict. Default writes no cast.',
 		],
 		fixed: [
 			"A **Class Name wired in** no longer keeps the class last typed into the pin. Wired from a String node, directly or through reroute knots, the output takes that class; from anything else, it is an `Instance`.",

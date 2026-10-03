@@ -13,49 +13,67 @@
  */
 
 import {
-	createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties,
+	type CSSProperties,
+	createContext,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
 } from "react";
-
-import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
-import {
-	buildSearchIndex, buildSite, findPage, isPageLink, neighbours, parseInline, searchDocs,
-	TAG_LABELS,
-	type Block, type DocPage, type DocSection, type DocSite, type Inline,
-} from "../core/docs/site.js";
-import type { PinDoc } from "../core/docs/nodeReference.js";
-import { REVIEW_DETAILS, REVIEW_LABELS, reviewLine, type Review } from "../core/docs/reviews.js";
-import type { NodeScript } from "../core/schema.js";
-import {
-	graphSvg, previewSvg, type NodePreview, type PreviewOptions,
-} from "../core/docs/preview.js";
-import { noteHeadHtml } from "../core/docs/notes.js";
-import { headingId } from "../core/docs/html.js";
-import { DocsSearch } from "./DocsSearch.jsx";
-import { highlightLuau } from "./highlight.js";
-import { EVEN_ODD, Icon, ICONS, STROKED, VIEW_BOX } from "./icons.jsx";
-import { logoMarkup } from "./logo.jsx";
-import { NODE, ZOOM } from "./layers.js";
-import { nodeColor, pinColor } from "./palette.js";
-import { wirePath } from "./geometry.js";
-import { attachGraphView } from "./graphView.js";
-import { readPreferences, wheelAction, writePreferences, type Preferences } from "./preferences.js";
-import { applyDocsToggle } from "./docsToggle.js";
-import { chosenDevice, pickTab, readerDevice, rememberPick } from "./docsDevice.js";
-import { IS_STATIC_HOST } from "./pages.js";
-import { growthState } from "../core/nodes/growth.js";
-import { PageEditor } from "./PageEditor.jsx";
-import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
-import { layoutHtml, listedRegions, type LayoutSpec } from "../core/docs/layouts.js";
-import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../core/nodes/runtimes.js";
-import { attachToolbarLink } from "./toolbarLink.js";
-import { attachWalkthrough } from "./docsWalk.js";
-import { attachMapPanel } from "./mapPanel.js";
-import { mapFigure, mapFigureHtml } from "../core/docs/mapFigure.js";
-import type { NodeMap } from "../core/nodemap.js";
-import type { ToolbarSpec } from "../core/docs/toolbars.js";
 import { VERSION } from "../cli/version.js";
 import { graphViews } from "../core/docs/graphViews.js";
+import { headingId } from "../core/docs/html.js";
+import { type LayoutSpec, layoutHtml, listedRegions } from "../core/docs/layouts.js";
+import { mapFigure, mapFigureHtml } from "../core/docs/mapFigure.js";
 import { nodeCodeHtml } from "../core/docs/nodeCode.js";
+import type { PinDoc } from "../core/docs/nodeReference.js";
+import { noteHeadHtml } from "../core/docs/notes.js";
+import {
+	graphSvg,
+	type NodePreview,
+	type PreviewOptions,
+	previewSvg,
+} from "../core/docs/preview.js";
+import { REVIEW_DETAILS, REVIEW_LABELS, type Review, reviewLine } from "../core/docs/reviews.js";
+import {
+	type Block,
+	buildSearchIndex,
+	buildSite,
+	type DocPage,
+	type DocSection,
+	type DocSite,
+	findPage,
+	type Inline,
+	isPageLink,
+	neighbours,
+	parseInline,
+	searchDocs,
+	TAG_LABELS,
+} from "../core/docs/site.js";
+import type { ToolbarSpec } from "../core/docs/toolbars.js";
+import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
+import type { NodeMap } from "../core/nodemap.js";
+import { growthState } from "../core/nodes/growth.js";
+import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
+import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../core/nodes/runtimes.js";
+import type { NodeScript } from "../core/schema.js";
+import { DocsSearch } from "./DocsSearch.jsx";
+import { chosenDevice, pickTab, readerDevice, rememberPick } from "./docsDevice.js";
+import { applyDocsToggle } from "./docsToggle.js";
+import { attachWalkthrough } from "./docsWalk.js";
+import { wirePath } from "./geometry.js";
+import { attachGraphView } from "./graphView.js";
+import { highlightLuau } from "./highlight.js";
+import { EVEN_ODD, ICONS, Icon, STROKED, VIEW_BOX } from "./icons.jsx";
+import { NODE, ZOOM } from "./layers.js";
+import { logoMarkup } from "./logo.jsx";
+import { attachMapPanel } from "./mapPanel.js";
+import { PageEditor } from "./PageEditor.jsx";
+import { IS_STATIC_HOST } from "./pages.js";
+import { nodeColor, pinColor } from "./palette.js";
+import { type Preferences, readPreferences, wheelAction, writePreferences } from "./preferences.js";
+import { attachToolbarLink } from "./toolbarLink.js";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
 
@@ -147,7 +165,11 @@ export interface DocsViewProps {
 }
 
 export function DocsView({
-	registry, prefs, initialSlug, onNavigate, searchRequest = 0,
+	registry,
+	prefs,
+	initialSlug,
+	onNavigate,
+	searchRequest = 0,
 }: DocsViewProps) {
 	const site = useMemo(() => buildSite(registry, BUILTIN_IDS), [registry]);
 	const index = useMemo(() => buildSearchIndex(site), [site]);
@@ -224,128 +246,126 @@ export function DocsView({
 
 	return (
 		<RegistryContext.Provider value={registry}>
-		<PreviewContext.Provider value={preview}>
-		<NavigateContext.Provider value={go}>
-		<div className="docs-body">
-			{palette && (
-				<DocsSearch
-					index={index}
-					recent={recent}
-					onPick={go}
-					onClose={() => setPalette(false)}
-				/>
-			)}
-			{/* The nav, the page, and its outline. */}
-					<nav className="docs-nav">
-						<input
-							className="search"
-							placeholder="Search the docs (Ctrl+K)"
-							value={query}
-							autoFocus
-							onChange={(e) => setQuery(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" && results[0]) go(results[0].slug);
-								if (e.key === "Escape" && query !== "") {
-									e.stopPropagation();
-									setQuery("");
-								}
-							}}
-						/>
-
-						{query.trim() !== "" ? (
-							<div className="docs-results">
-								{results.length === 0 && <div className="empty">Nothing matches “{query}”.</div>}
-								{results.map((hit) => (
-									<button
-										key={hit.slug}
-										className={`docs-hit${hit.slug === slug ? " on" : ""}`}
-										onClick={() => go(hit.slug)}
-									>
-										<span className="title">{hit.title}</span>
-										<span className="where">{hit.section}</span>
-									</button>
-								))}
-							</div>
-						) : (
-							groupsOf(site.sections).map(([group, sections]) => (
-								<div key={group} className="docs-group">
-									<div className="docs-group-head">{group}</div>
-									{sections.map((section) => {
-										// A section holding one page is that page. Making somebody
-										// open a drawer to reveal the single thing inside it is a
-										// click that buys nothing.
-										if (section.pages.length === 1) {
-											const only = section.pages[0];
-											return (
-												<button
-													key={section.slug}
-													className={`docs-section-head solo${
-														only.slug === slug ? " on" : ""
-													}`}
-													onClick={() => setSlug(only.slug)}
-												>
-													{section.title}
-												</button>
-											);
-										}
-
-										const expanded = open.has(section.slug);
-										return (
-											<div key={section.slug} className="docs-section">
-												<button
-													className="docs-section-head"
-													aria-expanded={expanded}
-													onClick={() =>
-														setOpen((prev) => {
-															const next = new Set(prev);
-															if (next.has(section.slug)) next.delete(section.slug);
-															else next.add(section.slug);
-															return next;
-														})
-													}
-												>
-													<Icon name="chevron" size={12} />
-													{section.title}
-													<span className="count">{section.pages.length}</span>
-												</button>
-												{expanded && (
-													<div className="docs-pages">
-														{section.pages.map((p) => (
-															<button
-																key={p.slug}
-																className={`docs-link${p.slug === slug ? " on" : ""}`}
-																onClick={() => setSlug(p.slug)}
-															>
-																{p.title}
-															</button>
-														))}
-													</div>
-												)}
-											</div>
-										);
-									})}
-								</div>
-							))
+			<PreviewContext.Provider value={preview}>
+				<NavigateContext.Provider value={go}>
+					<div className="docs-body">
+						{palette && (
+							<DocsSearch
+								index={index}
+								recent={recent}
+								onPick={go}
+								onClose={() => setPalette(false)}
+							/>
 						)}
-					</nav>
+						{/* The nav, the page, and its outline. */}
+						<nav className="docs-nav">
+							<input
+								className="search"
+								placeholder="Search the docs (Ctrl+K)"
+								value={query}
+								autoFocus
+								onChange={(e) => setQuery(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" && results[0]) go(results[0].slug);
+									if (e.key === "Escape" && query !== "") {
+										e.stopPropagation();
+										setQuery("");
+									}
+								}}
+							/>
 
-					<article className="docs-content" ref={body}>
-						{/* The measure lives on an inner wrapper so the article itself
+							{query.trim() !== "" ? (
+								<div className="docs-results">
+									{results.length === 0 && <div className="empty">Nothing matches “{query}”.</div>}
+									{results.map((hit) => (
+										<button
+											key={hit.slug}
+											className={`docs-hit${hit.slug === slug ? " on" : ""}`}
+											onClick={() => go(hit.slug)}
+										>
+											<span className="title">{hit.title}</span>
+											<span className="where">{hit.section}</span>
+										</button>
+									))}
+								</div>
+							) : (
+								groupsOf(site.sections).map(([group, sections]) => (
+									<div key={group} className="docs-group">
+										<div className="docs-group-head">{group}</div>
+										{sections.map((section) => {
+											// A section holding one page is that page. Making somebody
+											// open a drawer to reveal the single thing inside it is a
+											// click that buys nothing.
+											if (section.pages.length === 1) {
+												const only = section.pages[0];
+												return (
+													<button
+														key={section.slug}
+														className={`docs-section-head solo${only.slug === slug ? " on" : ""}`}
+														onClick={() => setSlug(only.slug)}
+													>
+														{section.title}
+													</button>
+												);
+											}
+
+											const expanded = open.has(section.slug);
+											return (
+												<div key={section.slug} className="docs-section">
+													<button
+														className="docs-section-head"
+														aria-expanded={expanded}
+														onClick={() =>
+															setOpen((prev) => {
+																const next = new Set(prev);
+																if (next.has(section.slug)) next.delete(section.slug);
+																else next.add(section.slug);
+																return next;
+															})
+														}
+													>
+														<Icon name="chevron" size={12} />
+														{section.title}
+														<span className="count">{section.pages.length}</span>
+													</button>
+													{expanded && (
+														<div className="docs-pages">
+															{section.pages.map((p) => (
+																<button
+																	key={p.slug}
+																	className={`docs-link${p.slug === slug ? " on" : ""}`}
+																	onClick={() => setSlug(p.slug)}
+																>
+																	{p.title}
+																</button>
+															))}
+														</div>
+													)}
+												</div>
+											);
+										})}
+									</div>
+								))
+							)}
+						</nav>
+
+						<article className="docs-content" ref={body}>
+							{/* The measure lives on an inner wrapper so the article itself
 						    can centre in whatever room the window gives it. */}
-						<div className={`docs-article${page.narrow ? " narrow" : ""}`}>
-							<Page page={page} site={site} go={go} />
-							<div className="docs-tail" aria-hidden="true" />
-						</div>
-					</article>
+							<div className={`docs-article${page.narrow ? " narrow" : ""}`}>
+								<Page page={page} site={site} go={go} />
+								<div className="docs-tail" aria-hidden="true" />
+							</div>
+						</article>
 
-					{/* "On this page", as reference documentation usually has. Long
+						{/* "On this page", as reference documentation usually has. Long
 					    node pages and the longer guides are the ones that need it. */}
-					<aside className="docs-toc">
-						<PageOutline page={page} />
-					</aside>
-				</div>
-		</NavigateContext.Provider>
-		</PreviewContext.Provider>
+						<aside className="docs-toc">
+							<PageOutline page={page} />
+						</aside>
+					</div>
+				</NavigateContext.Provider>
+			</PreviewContext.Provider>
 		</RegistryContext.Provider>
 	);
 }
@@ -412,10 +432,7 @@ function Page({ page, site, go }: { page: DocPage; site: DocSite; go: (next: str
 					{/* The same tag the node menu puts on a row, so the two are
 					    recognisably one thing. */}
 					{page.runtime && (
-						<span
-							className={`badge runtime ${page.runtime}`}
-							title={RUNTIME_SUMMARY[page.runtime]}
-						>
+						<span className={`badge runtime ${page.runtime}`} title={RUNTIME_SUMMARY[page.runtime]}>
 							{RUNTIME_LABEL[page.runtime]}
 						</span>
 					)}
@@ -437,14 +454,20 @@ function Page({ page, site, go }: { page: DocPage; site: DocSite; go: (next: str
 					    finished reading rather than where you notice the mistake. */}
 					<button
 						className="tb icon-only docs-edit"
-						title={editing ? "Stop editing this page" : "Suggest an edit — change this page and propose it"}
+						title={
+							editing
+								? "Stop editing this page"
+								: "Suggest an edit — change this page and propose it"
+						}
 						aria-label="Suggest an edit"
 						onClick={() => setEditing((on) => !on)}
 					>
 						<Icon name="rename" size={15} />
 					</button>
 				</h1>
-				<p className="summary"><Rich text={page.summary} /></p>
+				<p className="summary">
+					<Rich text={page.summary} />
+				</p>
 				{page.review && (
 					<p className="docs-status">
 						<ReviewBadge review={page.review} />
@@ -465,7 +488,9 @@ function Page({ page, site, go }: { page: DocPage; site: DocSite; go: (next: str
 			{/* Where to go next, above the line about this page's own review. */}
 			{!editing && <Neighbours site={site} slug={page.slug} go={go} />}
 			{!editing && page.review && (
-				<p className="docs-reviewed"><Rich text={reviewLine(page.review)} /></p>
+				<p className="docs-reviewed">
+					<Rich text={reviewLine(page.review)} />
+				</p>
 			)}
 			{!editing && page.review?.verify && (
 				<p className="docs-verify">
@@ -476,8 +501,6 @@ function Page({ page, site, go }: { page: DocPage; site: DocSite; go: (next: str
 	);
 }
 
-
-
 /**
  * The pages either side of this one, at the foot of it.
  *
@@ -485,7 +508,15 @@ function Page({ page, site, go }: { page: DocPage; site: DocSite; go: (next: str
  * the same whether they are open in the editor or on the website. Clicking one
  * navigates in place, as every other page link here does.
  */
-function Neighbours({ site, slug, go }: { site: DocSite; slug: string; go: (next: string) => void }) {
+function Neighbours({
+	site,
+	slug,
+	go,
+}: {
+	site: DocSite;
+	slug: string;
+	go: (next: string) => void;
+}) {
 	const { previous, next } = neighbours(site, slug);
 	if (!previous && !next) return null;
 	const side = (one: { slug: string; title: string } | undefined, which: string, label: string) =>
@@ -572,9 +603,7 @@ function CodeBlock({ lang, text }: { lang: string; text: string }) {
 					{label}
 				</button>
 			</div>
-			<pre ref={code}>
-				{lang === "luau" ? <Highlighted source={text} /> : text}
-			</pre>
+			<pre ref={code}>{lang === "luau" ? <Highlighted source={text} /> : text}</pre>
 		</div>
 	);
 }
@@ -596,7 +625,9 @@ function Highlighted({ source }: { source: string }) {
 						token.cls === "" ? (
 							<span key={j}>{token.text}</span>
 						) : (
-							<span key={j} className={token.cls}>{token.text}</span>
+							<span key={j} className={token.cls}>
+								{token.text}
+							</span>
 						),
 					)}
 					{i < lines.length - 1 ? NEWLINE : null}
@@ -621,7 +652,13 @@ function BlockView({ block }: { block: Block }) {
 				);
 			}
 			const Heading = block.level === 3 ? "h3" : "h4";
-			return <Heading><Rich text={block.text} />{badge}{aside}</Heading>;
+			return (
+				<Heading>
+					<Rich text={block.text} />
+					{badge}
+					{aside}
+				</Heading>
+			);
 		}
 		case "toggle":
 			return <PreferenceToggle pref={block.pref} label={block.label} hint={block.hint} />;
@@ -636,18 +673,36 @@ function BlockView({ block }: { block: Block }) {
 						<Rich text={block.summary} />
 						{block.aside && <span className="aside">{block.aside}</span>}
 					</summary>
-					{block.blocks.map((inner, i) => <BlockView key={i} block={inner} />)}
+					{block.blocks.map((inner, i) => (
+						<BlockView key={i} block={inner} />
+					))}
 				</details>
 			);
 		case "p":
-			return <p><Rich text={block.text} /></p>;
+			return (
+				<p>
+					<Rich text={block.text} />
+				</p>
+			);
 		case "ul":
 			return (
-				<ul>{block.items.map((item, i) => <li key={i}><Rich text={item} /></li>)}</ul>
+				<ul>
+					{block.items.map((item, i) => (
+						<li key={i}>
+							<Rich text={item} />
+						</li>
+					))}
+				</ul>
 			);
 		case "ol":
 			return (
-				<ol>{block.items.map((item, i) => <li key={i}><Rich text={item} /></li>)}</ol>
+				<ol>
+					{block.items.map((item, i) => (
+						<li key={i}>
+							<Rich text={item} />
+						</li>
+					))}
+				</ol>
 			);
 		case "code":
 			return <CodeBlock lang={block.lang} text={block.text} />;
@@ -659,13 +714,21 @@ function BlockView({ block }: { block: Block }) {
 						    still draws a rule and still takes the space. */}
 						{block.head && (
 							<thead>
-								<tr>{block.head.map((h, i) => <th key={i}>{h}</th>)}</tr>
+								<tr>
+									{block.head.map((h, i) => (
+										<th key={i}>{h}</th>
+									))}
+								</tr>
 							</thead>
 						)}
 						<tbody>
 							{block.rows.map((row, i) => (
 								<tr key={i}>
-									{row.map((cell, j) => <td key={j}><Rich text={cell} /></td>)}
+									{row.map((cell, j) => (
+										<td key={j}>
+											<Rich text={cell} />
+										</td>
+									))}
 								</tr>
 							))}
 						</tbody>
@@ -676,20 +739,27 @@ function BlockView({ block }: { block: Block }) {
 			return (
 				<p className="docs-tags">
 					{block.tags.map((tag) => (
-						<span className={`docs-tag tag-${tag}`} key={tag}>{TAG_LABELS[tag]}</span>
+						<span className={`docs-tag tag-${tag}`} key={tag}>
+							{TAG_LABELS[tag]}
+						</span>
 					))}
 				</p>
 			);
 		case "note":
 			return (
 				<div className={`docs-note note-${block.kind}`}>
-					<div dangerouslySetInnerHTML={{ __html: noteHeadHtml(block.kind) }} style={{ display: "contents" }} />
+					<div
+						dangerouslySetInnerHTML={{ __html: noteHeadHtml(block.kind) }}
+						style={{ display: "contents" }}
+					/>
 					<div className="docs-note-body">
 						<Rich text={block.text} />
 						{block.items && (
 							<ul>
 								{block.items.map((item, i) => (
-									<li key={i}><Rich text={item} /></li>
+									<li key={i}>
+										<Rich text={item} />
+									</li>
 								))}
 							</ul>
 						)}
@@ -709,7 +779,9 @@ function BlockView({ block }: { block: Block }) {
 					<GraphTabs
 						block={{
 							t: "graphs",
-							graphs: views.map((view, i) => (i === 0 && block.caption ? { ...view, caption: block.caption } : view)),
+							graphs: views.map((view, i) =>
+								i === 0 && block.caption ? { ...view, caption: block.caption } : view,
+							),
 							...(block.panel ? { panel: block.panel } : {}),
 							...(block.asAuthored ? { asAuthored: true } : {}),
 						}}
@@ -717,7 +789,12 @@ function BlockView({ block }: { block: Block }) {
 				);
 			}
 			return (
-				<GraphFigure script={block.script} caption={block.caption} panel={block.panel} asAuthored={block.asAuthored} />
+				<GraphFigure
+					script={block.script}
+					caption={block.caption}
+					panel={block.panel}
+					asAuthored={block.asAuthored}
+				/>
 			);
 		}
 		case "graphs":
@@ -734,7 +811,6 @@ function BlockView({ block }: { block: Block }) {
 			return <WalkthroughFigure block={block} />;
 	}
 }
-
 
 /**
  * Several graphs behind tabs, as the editor shows two open documents.
@@ -768,7 +844,11 @@ function GraphTabs({ block }: { block: Block & { t: "graphs" } }) {
 					</button>
 				))}
 			</div>
-			<GraphFigure script={showing.script} caption={showing.caption} asAuthored={block.asAuthored} />
+			<GraphFigure
+				script={showing.script}
+				caption={showing.caption}
+				asAuthored={block.asAuthored}
+			/>
 		</div>
 	);
 }
@@ -783,7 +863,10 @@ function GraphTabs({ block }: { block: Block & { t: "graphs" } }) {
 function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
 	const figure = useRef<HTMLElement>(null);
 	const frames = useMemo(
-		() => block.steps.map((step) => ({ __html: step.picture.map((bar) => toolbarHtml(bar, TOOLBAR_ART)).join("") })),
+		() =>
+			block.steps.map((step) => ({
+				__html: step.picture.map((bar) => toolbarHtml(bar, TOOLBAR_ART)).join(""),
+			})),
 		[block],
 	);
 	useEffect(() => {
@@ -805,12 +888,20 @@ function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
 				))}
 			</div>
 			<div className="docs-walk-nav">
-				<button type="button" className="tb" data-walk="back">Back</button>
+				<button type="button" className="tb" data-walk="back">
+					Back
+				</button>
 				<span className="docs-walk-count" />
-				<button type="button" className="tb primary" data-walk="next">Next</button>
+				<button type="button" className="tb primary" data-walk="next">
+					Next
+				</button>
 			</div>
 			<ol className="docs-walk-steps">
-				{block.steps.map((step, i) => <li key={i}><Rich text={step.text} /></li>)}
+				{block.steps.map((step, i) => (
+					<li key={i}>
+						<Rich text={step.text} />
+					</li>
+				))}
 			</ol>
 		</figure>
 	);
@@ -825,7 +916,13 @@ function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
  * objects the real bars are drawn from.
  */
 const TOOLBAR_ART = {
-	viewBox: VIEW_BOX, paths: ICONS, mark: logoMarkup(15), version: VERSION, pinColor, strokes: STROKED, evenOdd: EVEN_ODD,
+	viewBox: VIEW_BOX,
+	paths: ICONS,
+	mark: logoMarkup(15),
+	version: VERSION,
+	pinColor,
+	strokes: STROKED,
+	evenOdd: EVEN_ODD,
 };
 
 /**
@@ -848,9 +945,15 @@ const TOOLBAR_ART = {
  * holds the preferences and re-renders when they change, and the static site
  * has neither.
  */
-function PreferenceToggle(
-	{ pref, label, hint }: { pref: "showPreReleaseNotes"; label: string; hint?: string },
-) {
+function PreferenceToggle({
+	pref,
+	label,
+	hint,
+}: {
+	pref: "showPreReleaseNotes";
+	label: string;
+	hint?: string;
+}) {
 	const [on, setOn] = useState(() => readPreferences()[pref]);
 
 	// The stylesheet decides what the answer hides, from an attribute on the
@@ -871,8 +974,14 @@ function PreferenceToggle(
 					writePreferences({ ...readPreferences(), [pref]: next });
 				}}
 			/>
-			<span className="docs-toggle-label"><Rich text={label} /></span>
-			{hint && <span className="docs-toggle-hint"><Rich text={hint} /></span>}
+			<span className="docs-toggle-label">
+				<Rich text={label} />
+			</span>
+			{hint && (
+				<span className="docs-toggle-hint">
+					<Rich text={hint} />
+				</span>
+			)}
 		</label>
 	);
 }
@@ -896,14 +1005,24 @@ function MapFigureView({ map, caption }: { map: NodeMap; caption?: string }) {
 	return (
 		<figure className="docs-map" ref={host}>
 			<div className="docs-map-body" dangerouslySetInnerHTML={html} />
-			{caption && <figcaption><Rich text={caption} /></figcaption>}
+			{caption && (
+				<figcaption>
+					<Rich text={caption} />
+				</figcaption>
+			)}
 		</figure>
 	);
 }
 
-function ToolbarFigure(
-	{ bar, caption, hint }: { bar: ToolbarSpec; caption?: string; hint?: boolean },
-) {
+function ToolbarFigure({
+	bar,
+	caption,
+	hint,
+}: {
+	bar: ToolbarSpec;
+	caption?: string;
+	hint?: boolean;
+}) {
 	const html = useMemo(() => ({ __html: toolbarHtml(bar, TOOLBAR_ART) }), [bar]);
 	const figure = useRef<HTMLElement>(null);
 
@@ -918,7 +1037,9 @@ function ToolbarFigure(
 	return (
 		<figure className="docs-bar" ref={figure}>
 			<div className="docs-bar-picture" dangerouslySetInnerHTML={html} />
-			<p className="docs-bar-summary"><Rich text={bar.summary} /></p>
+			<p className="docs-bar-summary">
+				<Rich text={bar.summary} />
+			</p>
 			{hint && <p className="docs-bar-hint">{TOOLBAR_HINT}</p>}
 			<ul className="docs-bar-legend">
 				{legendOf(bar).map((item) => (
@@ -928,12 +1049,18 @@ function ToolbarFigure(
 							{item.where && <span className="docs-bar-where">{item.where}</span>}
 						</span>
 						{item.what && (
-							<span className="docs-bar-what"><Rich text={item.what} /></span>
+							<span className="docs-bar-what">
+								<Rich text={item.what} />
+							</span>
 						)}
 					</li>
 				))}
 			</ul>
-			{caption && <figcaption><Rich text={caption} /></figcaption>}
+			{caption && (
+				<figcaption>
+					<Rich text={caption} />
+				</figcaption>
+			)}
 		</figure>
 	);
 }
@@ -946,9 +1073,15 @@ function ToolbarFigure(
  * and the same linking script, which pairs a region and its row by
  * `data-control` as it pairs a button and its row.
  */
-function LayoutFigure(
-	{ layout, caption, hint }: { layout: LayoutSpec; caption?: string; hint?: boolean },
-) {
+function LayoutFigure({
+	layout,
+	caption,
+	hint,
+}: {
+	layout: LayoutSpec;
+	caption?: string;
+	hint?: boolean;
+}) {
 	const html = useMemo(() => ({ __html: layoutHtml(layout, TOOLBAR_ART) }), [layout]);
 	const figure = useRef<HTMLElement>(null);
 
@@ -960,7 +1093,9 @@ function LayoutFigure(
 	return (
 		<figure className="docs-bar docs-layout" ref={figure}>
 			<div className="docs-bar-picture" dangerouslySetInnerHTML={html} />
-			<p className="docs-bar-summary"><Rich text={layout.summary} /></p>
+			<p className="docs-bar-summary">
+				<Rich text={layout.summary} />
+			</p>
 			{hint && <p className="docs-bar-hint">{TOOLBAR_HINT}</p>}
 			<ol className="docs-bar-legend docs-layout-legend">
 				{listedRegions(layout).map((region, i) => (
@@ -971,12 +1106,18 @@ function LayoutFigure(
 							{region.where && <span className="docs-bar-where">{region.where}</span>}
 						</span>
 						{region.what && (
-							<span className="docs-bar-what"><Rich text={region.what} /></span>
+							<span className="docs-bar-what">
+								<Rich text={region.what} />
+							</span>
 						)}
 					</li>
 				))}
 			</ol>
-			{caption && <figcaption><Rich text={caption} /></figcaption>}
+			{caption && (
+				<figcaption>
+					<Rich text={caption} />
+				</figcaption>
+			)}
 		</figure>
 	);
 }
@@ -1003,7 +1144,11 @@ function Tabs({ block }: { block: Block & { t: "tabs" } }) {
 
 	return (
 		<div className="docs-tabs">
-			{block.label && <div className="docs-tabs-label"><Rich text={block.label} /></div>}
+			{block.label && (
+				<div className="docs-tabs-label">
+					<Rich text={block.label} />
+				</div>
+			)}
 			<div className="docs-tab-bar" role="tablist">
 				{block.tabs.map((tab) => (
 					<button
@@ -1023,7 +1168,9 @@ function Tabs({ block }: { block: Block & { t: "tabs" } }) {
 			</div>
 			<div className="docs-tab-panels">
 				<section className="docs-tab-panel on">
-					{current.blocks.map((inner, i) => <BlockView key={i} block={inner} />)}
+					{current.blocks.map((inner, i) => (
+						<BlockView key={i} block={inner} />
+					))}
 				</section>
 			</div>
 		</div>
@@ -1053,7 +1200,11 @@ function PreviewFigure({ nodes, caption }: { nodes: NodePreview[]; caption?: str
 					/>
 				))}
 			</div>
-			{caption && <figcaption><Rich text={caption} /></figcaption>}
+			{caption && (
+				<figcaption>
+					<Rich text={caption} />
+				</figcaption>
+			)}
 		</figure>
 	);
 }
@@ -1066,10 +1217,17 @@ function PreviewFigure({ nodes, caption }: { nodes: NodePreview[]; caption?: str
  * about what a graph looks like. The registry comes from context because a
  * graph stores node ids, and a project's own packs have to draw too.
  */
-function GraphFigure(
-	{ script, caption, panel, asAuthored }:
-	{ script: NodeScript; caption?: string; panel?: ToolbarSpec; asAuthored?: boolean },
-) {
+function GraphFigure({
+	script,
+	caption,
+	panel,
+	asAuthored,
+}: {
+	script: NodeScript;
+	caption?: string;
+	panel?: ToolbarSpec;
+	asAuthored?: boolean;
+}) {
 	const registry = useContext(RegistryContext);
 	const preview = useContext(PreviewContext);
 	const svg = registry ? graphSvg(script, registry, preview, asAuthored) : "";
@@ -1114,18 +1272,27 @@ function GraphFigure(
 			/>
 			{/* Each Custom Code node's Luau, for the graph's script to open. */}
 			{codes !== "" && <div hidden dangerouslySetInnerHTML={{ __html: codes }} />}
-			{caption && <figcaption><Rich text={caption} /></figcaption>}
+			{caption && (
+				<figcaption>
+					<Rich text={caption} />
+				</figcaption>
+			)}
 		</figure>
 	);
 }
 
 /** Luau to HTML, a line per newline: the published site's highlighter. */
 function highlightHtml(code: string): string {
-	const escape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	const escape = (text: string) =>
+		text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 	return highlightLuau(code)
-		.map((tokens) => tokens
-			.map((t) => (t.cls === "" ? escape(t.text) : `<span class="${t.cls}">${escape(t.text)}</span>`))
-			.join(""))
+		.map((tokens) =>
+			tokens
+				.map((t) =>
+					t.cls === "" ? escape(t.text) : `<span class="${t.cls}">${escape(t.text)}</span>`,
+				)
+				.join(""),
+		)
 		.join(NEWLINE);
 }
 
@@ -1162,7 +1329,7 @@ function PinTable({ title, pins }: { title: string; pins: PinDoc[] }) {
 							<span className="name">{pin.name || pin.id}</span>
 							<span className="sep">:</span>
 							<span className="type">
-								{pin.kind === "exec" ? "execution" : pin.type ?? "any"}
+								{pin.kind === "exec" ? "execution" : (pin.type ?? "any")}
 							</span>
 							{pin.default !== undefined && (
 								<span className="def">
@@ -1177,9 +1344,7 @@ function PinTable({ title, pins }: { title: string; pins: PinDoc[] }) {
 						{(pin.description || pin.splitModes.length > 0) && (
 							<div className="detail">
 								{pin.description && <Rich text={pin.description} />}
-								{pin.splitModes.length > 0 && (
-									<> Splits into {pin.splitModes.join(", or ")}.</>
-								)}
+								{pin.splitModes.length > 0 && <> Splits into {pin.splitModes.join(", or ")}.</>}
 							</div>
 						)}
 					</li>
@@ -1202,10 +1367,14 @@ function Rich({ text }: { text: string }) {
 function Run({ run }: { run: Inline }) {
 	const navigate = useContext(NavigateContext);
 	switch (run.t) {
-		case "text": return <>{run.text}</>;
-		case "code": return <code>{run.text}</code>;
-		case "strong": return <strong>{run.text}</strong>;
-		case "em": return <em>{run.text}</em>;
+		case "text":
+			return <>{run.text}</>;
+		case "code":
+			return <code>{run.text}</code>;
+		case "strong":
+			return <strong>{run.text}</strong>;
+		case "em":
+			return <em>{run.text}</em>;
 		case "link":
 			// Another page of these docs opens here. As a plain link it opened a
 			// new tab at the slug, which is not an address the daemon serves.

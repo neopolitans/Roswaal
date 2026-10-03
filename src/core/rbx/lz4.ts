@@ -23,7 +23,8 @@ export function lz4Decompress(src: Uint8Array, length: number): Uint8Array {
 				literals += b;
 			} while (b === 255);
 		}
-		if (d + literals > length || s + literals > src.length) throw new RbxError("an LZ4 block that runs past its end");
+		if (d + literals > length || s + literals > src.length)
+			throw new RbxError("an LZ4 block that runs past its end");
 		out.set(src.subarray(s, s + literals), d);
 		s += literals;
 		d += literals;
@@ -39,7 +40,8 @@ export function lz4Decompress(src: Uint8Array, length: number): Uint8Array {
 			} while (b === 255);
 		}
 		match += 4;
-		if (offset === 0 || offset > d || d + match > length) throw new RbxError("an LZ4 match outside the block");
+		if (offset === 0 || offset > d || d + match > length)
+			throw new RbxError("an LZ4 match outside the block");
 		let from = d - offset;
 		for (let i = 0; i < match; i++) out[d++] = out[from++];
 	}
@@ -79,7 +81,8 @@ export function lz4Compress(src: Uint8Array): Uint8Array {
 		out[o++] = offset >> 8;
 		if (matchCode >= 15) lengthBytes(matchCode - 15);
 	};
-	const read32 = (p: number) => src[p] | (src[p + 1] << 8) | (src[p + 2] << 16) | (src[p + 3] << 24);
+	const read32 = (p: number) =>
+		src[p] | (src[p + 1] << 8) | (src[p + 2] << 16) | (src[p + 3] << 24);
 
 	const table = new Int32Array(1 << 16).fill(-1);
 	let anchor = 0;

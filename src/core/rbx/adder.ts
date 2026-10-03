@@ -17,7 +17,17 @@
  */
 
 import { isBinaryRbx } from "./binary.js";
-import { cdata, type Chunk, chunkData, FIRST_CHUNK, readChunks, readReferents, sealChunk, u32, zigzag } from "./chunks.js";
+import {
+	type Chunk,
+	cdata,
+	chunkData,
+	FIRST_CHUNK,
+	readChunks,
+	readReferents,
+	sealChunk,
+	u32,
+	zigzag,
+} from "./chunks.js";
 import { type RbxDocument, RbxError, type RbxInstance } from "./dom.js";
 import { parseXml, type XmlElement } from "./xml.js";
 
@@ -32,7 +42,11 @@ export interface NewInstance {
 
 const isNew = (p: RbxInstance | NewInstance): p is NewInstance => !("children" in p);
 
-export function addInstances(bytes: Uint8Array, doc: RbxDocument, added: readonly NewInstance[]): Uint8Array {
+export function addInstances(
+	bytes: Uint8Array,
+	doc: RbxDocument,
+	added: readonly NewInstance[],
+): Uint8Array {
 	if (added.length === 0) return bytes.slice();
 	if (doc.format === "binary") {
 		if (!isBinaryRbx(bytes)) throw new RbxError("the document was read from a different file");
@@ -96,10 +110,14 @@ function transpose(values: readonly Uint8Array[], width: number): Uint8Array {
 	return out;
 }
 
-const be32 = (v: number) => Uint8Array.of((v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255);
+const be32 = (v: number) =>
+	Uint8Array.of((v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255);
 
 function encodeReferents(refs: readonly number[]): Uint8Array {
-	return transpose(refs.map((r, i) => be32(zigzag(i === 0 ? r : r - refs[i - 1]))), 4);
+	return transpose(
+		refs.map((r, i) => be32(zigzag(i === 0 ? r : r - refs[i - 1]))),
+		4,
+	);
 }
 
 /**
@@ -107,7 +125,10 @@ function encodeReferents(refs: readonly number[]): Uint8Array {
  * a value of: fixed-width values in `arrays` transposed runs of `width` bytes,
  * or one length-prefixed string each, or one byte each.
  */
-type Layout = { kind: "fixed"; arrays: number; width: number } | { kind: "string" } | { kind: "byte" };
+type Layout =
+	| { kind: "fixed"; arrays: number; width: number }
+	| { kind: "string" }
+	| { kind: "byte" };
 
 const LAYOUTS: Record<number, Layout> = {
 	1: { kind: "string" }, // String
@@ -139,10 +160,13 @@ function readProp(body: Uint8Array, layout: Layout, count: number): Value[] | nu
 		}
 		return p === body.length ? out : null;
 	}
-	if (layout.kind === "byte") return body.length === count ? Array.from(body, (b) => Uint8Array.of(b)) : null;
+	if (layout.kind === "byte")
+		return body.length === count ? Array.from(body, (b) => Uint8Array.of(b)) : null;
 	const run = count * layout.width;
 	if (body.length !== run * layout.arrays) return null;
-	const arrays = Array.from({ length: layout.arrays }, (_, a) => untranspose(body, a * run, count, layout.width));
+	const arrays = Array.from({ length: layout.arrays }, (_, a) =>
+		untranspose(body, a * run, count, layout.width),
+	);
 	return Array.from({ length: count }, (_, i) => {
 		const v = new Uint8Array(layout.arrays * layout.width);
 		arrays.forEach((arr, a) => v.set(arr[i], a * layout.width));
@@ -158,7 +182,12 @@ function writeProp(values: readonly Value[], layout: Layout): Uint8Array {
 		out.bytes(Uint8Array.from(values, (v) => v[0]));
 	} else {
 		for (let a = 0; a < layout.arrays; a++) {
-			out.bytes(transpose(values.map((v) => v.subarray(a * layout.width, (a + 1) * layout.width)), layout.width));
+			out.bytes(
+				transpose(
+					values.map((v) => v.subarray(a * layout.width, (a + 1) * layout.width)),
+					layout.width,
+				),
+			);
 		}
 	}
 	return out.done();
@@ -189,9 +218,10 @@ interface Opened extends Chunk {
 
 function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array {
 	const chunks: Opened[] = readChunks(bytes).map((chunk) =>
-		(chunk.name === "INST" || chunk.name === "PROP" || chunk.name === "PRNT" || chunk.name === "SSTR"
+		chunk.name === "INST" || chunk.name === "PROP" || chunk.name === "PRNT" || chunk.name === "SSTR"
 			? { ...chunk, data: chunkData(chunk) }
-			: chunk));
+			: chunk,
+	);
 
 	// What the file already holds.
 	const classes = new Map<string, { id: number; index: number; refs: number[] }>();
@@ -216,7 +246,8 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 	const parentRef = (inst: NewInstance) => {
 		const parent = inst.parent;
 		const ref = isNew(parent) ? refOf.get(parent) : parent.ref;
-		if (typeof ref !== "number") throw new RbxError(`"${inst.name}" has a parent the file cannot name`);
+		if (typeof ref !== "number")
+			throw new RbxError(`"${inst.name}" has a parent the file cannot name`);
 		return ref;
 	};
 
@@ -240,7 +271,9 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 	const emptySharedIndex = () => {
 		if (emptyShared >= 0) return emptyShared;
 		// MD5 of nothing, which is what Roblox keys an empty shared string by.
-		const md5 = Uint8Array.from("d41d8cd98f00b204e9800998ecf8427e".match(/../g)!, (h) => parseInt(h, 16));
+		const md5 = Uint8Array.from("d41d8cd98f00b204e9800998ecf8427e".match(/../g)!, (h) =>
+			parseInt(h, 16),
+		);
 		sharedEntries = [...sharedEntries, { hash: md5, value: new Uint8Array(0) }];
 		emptyShared = sharedEntries.length - 1;
 		sharedChanged = true;
@@ -248,7 +281,8 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 	};
 
 	const byClass = new Map<string, NewInstance[]>();
-	for (const inst of added) byClass.set(inst.className, [...(byClass.get(inst.className) ?? []), inst]);
+	for (const inst of added)
+		byClass.set(inst.className, [...(byClass.get(inst.className) ?? []), inst]);
 
 	const replaced = new Map<number, Uint8Array>();
 	const newInst: Uint8Array[] = [];
@@ -270,7 +304,8 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 			inst.bytes(encodeReferents(refs));
 			newInst.push(sealChunk("INST", inst.done()));
 			const props: [string, number, (i: NewInstance) => string][] = [["Name", 1, (i) => i.name]];
-			if (list.some((i) => i.source !== undefined)) props.push(["Source", 1, (i) => i.source ?? ""]);
+			if (list.some((i) => i.source !== undefined))
+				props.push(["Source", 1, (i) => i.source ?? ""]);
 			for (const [prop, type, value] of props) {
 				const out = new Out();
 				out.u32(id);
@@ -314,7 +349,8 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 				if (layout.kind === "string") return new Uint8Array(0);
 				if (layout.kind === "byte") return Uint8Array.of(0);
 				if (type === 28) return be32(emptySharedIndex());
-				if (type === 31 || type === 27 || type === 33 || type === 18) return new Uint8Array(layout.arrays * layout.width);
+				if (type === 31 || type === 27 || type === 33 || type === 18)
+					return new Uint8Array(layout.arrays * layout.width);
 				// No obvious empty value: an existing instance's, as a template.
 				return template.slice();
 			});
@@ -388,10 +424,16 @@ function addBinary(bytes: Uint8Array, added: readonly NewInstance[]): Uint8Array
 // ---------------------------------------------------------------------------
 // XML
 
-const escapeText = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const escapeText = (s: string) =>
+	s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 function referent(): string {
-	return "RBX" + Array.from(randomId(), (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+	return (
+		"RBX" +
+		Array.from(randomId(), (b) => b.toString(16).padStart(2, "0"))
+			.join("")
+			.toUpperCase()
+	);
 }
 
 function addXml(source: string, added: readonly NewInstance[]): Uint8Array {
@@ -400,7 +442,8 @@ function addXml(source: string, added: readonly NewInstance[]): Uint8Array {
 
 	const item = (inst: NewInstance): string => {
 		const props = [`<string name="Name">${escapeText(inst.name)}</string>`];
-		if (inst.source !== undefined) props.push(`<ProtectedString name="Source">${cdata(inst.source)}</ProtectedString>`);
+		if (inst.source !== undefined)
+			props.push(`<ProtectedString name="Source">${cdata(inst.source)}</ProtectedString>`);
 		const inner = (children.get(inst) ?? []).map(item).join("");
 		return `<Item class="${inst.className}" referent="${referent()}"><Properties>${props.join("")}</Properties>${inner}</Item>`;
 	};

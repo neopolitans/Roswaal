@@ -19,15 +19,15 @@
 
 import { compile } from "../compiler/index.js";
 import { literalToLuau } from "../compiler/luau.js";
-import type { NodeDef, NodeScript, PinDef } from "../schema.js";
-import { emptyScript } from "../schema.js";
+import { CONTEXTUAL_WORDS, RESERVED_WORDS } from "../luau/lexer.js";
 import type { Registry } from "../nodes/index.js";
 import { literalOnlyPins, resolveNodePins } from "../nodes/index.js";
 import { pinTypeText } from "../nodes/variables.js";
+import type { NodeDef, NodeScript, PinDef } from "../schema.js";
+import { emptyScript } from "../schema.js";
 import { STRUCTS, type StructRegistry } from "../structs.js";
-import { previewOf, type NodePreview } from "./preview.js";
 import { CURATED, EXAMPLE_NOTES } from "./examples.js";
-import { CONTEXTUAL_WORDS, RESERVED_WORDS } from "../luau/lexer.js";
+import { type NodePreview, previewOf } from "./preview.js";
 
 export interface PinDoc {
 	id: string;
@@ -97,7 +97,10 @@ export interface NodeDoc {
 // ---------------------------------------------------------------------------
 
 export function documentPin(
-	def: NodeDef, pin: PinDef, side: "in" | "out", structs: StructRegistry = STRUCTS,
+	def: NodeDef,
+	pin: PinDef,
+	side: "in" | "out",
+	structs: StructRegistry = STRUCTS,
 ): PinDoc {
 	const struct = pin.kind === "data" ? structs.get(pin.type ?? "") : undefined;
 	return {
@@ -119,7 +122,9 @@ export function documentPin(
 }
 
 export function documentNode(
-	def: NodeDef, registry: Registry, builtinIds: ReadonlySet<string>,
+	def: NodeDef,
+	registry: Registry,
+	builtinIds: ReadonlySet<string>,
 ): NodeDoc {
 	const { inputs, outputs } = resolveNodePins(def, undefined);
 	const example = exampleFor(def, registry);
@@ -148,9 +153,7 @@ export function documentNode(
 }
 
 /** Every node in a registry, in the order the palette lists them. */
-export function documentRegistry(
-	registry: Registry, builtinIds: ReadonlySet<string>,
-): NodeDoc[] {
+export function documentRegistry(registry: Registry, builtinIds: ReadonlySet<string>): NodeDoc[] {
 	return [...registry.values()]
 		.map((def) => documentNode(def, registry, builtinIds))
 		.sort((a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title));
@@ -175,7 +178,8 @@ export function documentRegistry(
  * produce an example that is technically emitted and actually misleading.
  */
 export function exampleFor(
-	def: NodeDef, registry: Registry,
+	def: NodeDef,
+	registry: Registry,
 ): { luau?: string; note?: string; omitted?: ExampleOmission; graph?: NodeScript } {
 	// Control flow needs a scene rather than a bare node: a Branch with nothing
 	// inside it emits an empty `if`. Those graphs are hand-authored, and still
@@ -203,9 +207,7 @@ export function exampleFor(
 	// two operands is exactly what you get when you drop one on the canvas.
 	const { inputs, outputs } = resolveNodePins(def, undefined);
 
-	const script = def.pure
-		? pureExample(def, inputs, outputs)
-		: statementExample(def, inputs);
+	const script = def.pure ? pureExample(def, inputs, outputs) : statementExample(def, inputs);
 	if (!script) return { omitted: "needs-wiring" };
 
 	const result = compile(script, registry);
@@ -297,10 +299,24 @@ function addPlaceholders(script: NodeScript, def: NodeDef, inputs: PinDef[]): vo
  */
 const RESERVED = new Set([
 	// Globals.
-	"table", "string", "math", "os", "task", "game", "script", "workspace",
-	"type", "select", "next", "print", "require", "shared", "coroutine",
+	"table",
+	"string",
+	"math",
+	"os",
+	"task",
+	"game",
+	"script",
+	"workspace",
+	"type",
+	"select",
+	"next",
+	"print",
+	"require",
+	"shared",
+	"coroutine",
 	// Keywords, from the lexer that reads them.
-	...RESERVED_WORDS, ...CONTEXTUAL_WORDS,
+	...RESERVED_WORDS,
+	...CONTEXTUAL_WORDS,
 ]);
 
 /**
@@ -324,7 +340,10 @@ function placeholderName(pin: PinDef): string {
 export function stripHeader(code: string): string {
 	const lines = code.split("\n");
 	const start = lines.findIndex((l) => l.startsWith("-- roswaal-output:"));
-	return lines.slice(start + 1).join("\n").trim();
+	return lines
+		.slice(start + 1)
+		.join("\n")
+		.trim();
 }
 
 /** Why a node has no worked example, in words a reader can act on. */

@@ -57,7 +57,11 @@ export const RELEASES_0_20: Release[] = [
 			"A Lune graph with a Roblox-only node in it no longer compiles. Remove the node, or make the graph a Roblox one.",
 		],
 		verified: [
-			"types", "variables-and-locals", "building-and-rojo", "hand-written-luau", "settings",
+			"types",
+			"variables-and-locals",
+			"building-and-rojo",
+			"hand-written-luau",
+			"settings",
 		],
 	},
 	{
@@ -126,7 +130,7 @@ export const RELEASES_0_20: Release[] = [
 		breaking: true,
 		added: [
 			"**Every documentation page says whether a person has read it.** A badge beside the title reads Pending review, Reviewed or Verified, and the foot of the page says when it was last reviewed. Every page starts as Pending review. `npm run docs:reviews` lists where each one stands.",
-			"**Find First Child has Recursive**, an optional input that searches every descendant rather than only the children: `part:FindFirstChild(\"Handle\", true)`. Left unset, the call is unchanged.",
+			'**Find First Child has Recursive**, an optional input that searches every descendant rather than only the children: `part:FindFirstChild("Handle", true)`. Left unset, the call is unchanged.',
 		],
 		changed: [
 			"**Wires and pins** and **Building, and node maps** are rewritten to match the current editor.",
@@ -191,7 +195,7 @@ export const RELEASES_0_20: Release[] = [
 		date: "2026-09-09",
 		headline: "Say Model, and put a call where a value goes.",
 		added: [
-			"**Call For Value**, a pure call. It has no execution wire, so a call can sit where a value goes — inside a table, an argument, an expression: `return { movementSpeed = readNumber(hullSettings, \"MovementSpeed\") }`. Call Function still binds its result to a local, which is what you want when the call changes something.",
+			'**Call For Value**, a pure call. It has no execution wire, so a call can sit where a value goes — inside a table, an argument, an expression: `return { movementSpeed = readNumber(hullSettings, "MovementSpeed") }`. Call Function still binds its result to a local, which is what you want when the call changes something.',
 			"**Any Luau type can be typed into a type field.** The dropdown of twelve is now a list attached to a text field: the same names, the Instance classes under them, and the types this graph declares above them.",
 		],
 		changed: [
@@ -206,9 +210,7 @@ export const RELEASES_0_20: Release[] = [
 		version: "0.22.1",
 		date: "2026-09-09",
 		headline: "Align reads the wires, and a knot stops keeping a type it lost.",
-		added: [
-			"**Get Name**, a pure node giving `instance.Name` as a `string`.",
-		],
+		added: ["**Get Name**, a pure node giving `instance.Name` as a `string`."],
 		fixed: [
 			"**Align follows the wires out from the anchor** rather than the order you clicked. A chain picked out of order left its last hop bent — with a knot, a Get Full Name and a Concatenate, the first two came out flat and Concatenate did not. A selected node with no wired path to the anchor takes the anchor's top edge.",
 			"**A knot takes the type of whatever is wired into it, and** `any` **when nothing is.** Its type was fixed when it was made, so cutting the wire into a string knot left a knot that still refused everything but a string — and the only way to rewire it was to delete it.",
@@ -281,7 +283,7 @@ export const RELEASES_0_20: Release[] = [
 		headline: "Node descriptions in the panel are short, with the rest a click away.",
 		changed: [
 			"**The Node panel shows the opening of a description rather than all of it**, and ends it with a *See docs page* link to that node's reference entry. Summaries are written for the reference, where a paragraph is right; beside the graph it was a wall.",
-			"**Make Dictionary, Get Index and Set Index** call their key styles *Property-like — t.name* and *Bracketed — t[\"name\"]*.",
+			'**Make Dictionary, Get Index and Set Index** call their key styles *Property-like — t.name* and *Bracketed — t["name"]*.',
 		],
 		watch: [
 			"It takes sentences until it has said something rather than exactly one, because plenty of nodes open with a label — *Escape hatch.*, *if / else.* — and one of those alone says less than nothing.",
@@ -300,7 +302,7 @@ export const RELEASES_0_20: Release[] = [
 		date: "2026-09-08",
 		headline: "String keys are written the way you would write them.",
 		changed: [
-			"**A string key that is a valid Luau name is now written plainly**: `TankConfig.tuning = TUNING` and `{ turnRate = 45 }`, where before it was always `TankConfig[\"tuning\"]` and `{ [\"turnRate\"] = 45 }`. Both are the same access and Luau takes either, but only one of them is what anybody writes — and generated files are meant to be read beside hand-written ones.",
+			'**A string key that is a valid Luau name is now written plainly**: `TankConfig.tuning = TUNING` and `{ turnRate = 45 }`, where before it was always `TankConfig["tuning"]` and `{ ["turnRate"] = 45 }`. Both are the same access and Luau takes either, but only one of them is what anybody writes — and generated files are meant to be read beside hand-written ones.',
 			"**Make Dictionary, Get Index and Set Index carry a String keys setting** with the other behaviour kept: *Always brackets*. Which reads better depends on the table, so it is a setting rather than a rule.",
 			"Declare Type at Top's shape is called **Table of Fields** or **Custom Luau**.",
 		],

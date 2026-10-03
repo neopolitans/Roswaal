@@ -7,17 +7,29 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import {
-	allPages, blockStrings, blockText, buildSearchIndex, buildSite, findPage, GROUPS, isPageLink,
-	parseInline, releaseTags, searchDocs, TAG_LABELS, type Block, type DocPage, type StringSlot,
-} from "../src/core/docs/site.js";
-import { reviewLine } from "../src/core/docs/reviews.js";
+import { VERSION } from "../src/cli/version.js";
+import { renderPage } from "../src/core/docs/html.js";
 import { code } from "../src/core/docs/pages/blocks.js";
 import { RELEASES } from "../src/core/docs/releases.js";
-import { renderPage } from "../src/core/docs/html.js";
-import { VERSION } from "../src/cli/version.js";
+import { reviewLine } from "../src/core/docs/reviews.js";
+import {
+	allPages,
+	type Block,
+	blockStrings,
+	blockText,
+	buildSearchIndex,
+	buildSite,
+	type DocPage,
+	findPage,
+	GROUPS,
+	isPageLink,
+	parseInline,
+	releaseTags,
+	type StringSlot,
+	searchDocs,
+	TAG_LABELS,
+} from "../src/core/docs/site.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import type { NodeDef } from "../src/core/schema.js";
 
 const registry = createRegistry();
@@ -45,8 +57,9 @@ describe("inline markup", () => {
 
 	/** The search index is built from this, so markup must not leak into it. */
 	it("strips markup when flattening a block to text", () => {
-		expect(blockText({ t: "p", text: "wire a `Vector3` in **first**" }))
-			.toBe("wire a Vector3 in first");
+		expect(blockText({ t: "p", text: "wire a `Vector3` in **first**" })).toBe(
+			"wire a Vector3 in first",
+		);
 	});
 });
 
@@ -69,15 +82,19 @@ describe("code samples", () => {
 	});
 
 	it("refuses a line left of the margin, rather than shifting it", () => {
-		expect(() => code`
+		expect(
+			() => code`
 			fine
 		left
-			`).toThrow(/left of its closing backtick/);
+			`,
+		).toThrow(/left of its closing backtick/);
 	});
 
 	it("refuses a sample that starts on the backtick's line", () => {
-		expect(() => code`x
-			`).toThrow(/lines of their own/);
+		expect(
+			() => code`x
+			`,
+		).toThrow(/lines of their own/);
 	});
 });
 
@@ -120,14 +137,23 @@ describe("the site", () => {
 	it("gives every datatype its own section, and lists each node once", () => {
 		const engine = site.sections.filter((s) => s.group === GROUPS.engineTypes);
 		expect(engine.map((s) => s.title)).toEqual([
-			"Vector3", "Vector2", "CFrame", "Color3", "BrickColor", "UDim", "UDim2",
-			"TweenInfo", "Tween",
+			"Vector3",
+			"Vector2",
+			"CFrame",
+			"Color3",
+			"BrickColor",
+			"UDim",
+			"UDim2",
+			"TweenInfo",
+			"Tween",
 		]);
 
 		const builtin = site.sections.filter((s) => s.group === GROUPS.builtin);
 		expect(builtin.map((s) => s.title)).not.toContain("Engine Types");
 
-		const ids = allPages(site).map((p) => p.nodeId).filter(Boolean);
+		const ids = allPages(site)
+			.map((p) => p.nodeId)
+			.filter(Boolean);
 		expect(new Set(ids).size, "a node is documented on exactly one page").toBe(ids.length);
 	});
 
@@ -137,8 +163,12 @@ describe("the site", () => {
 	 */
 	it("keeps pack nodes in their own nav group", () => {
 		const pack: NodeDef = {
-			id: "mypack.thing", title: "Thing", category: "Math",
-			pure: true, inputs: [], outputs: [{ id: "result", name: "", kind: "data", type: "number" }],
+			id: "mypack.thing",
+			title: "Thing",
+			category: "Math",
+			pure: true,
+			inputs: [],
+			outputs: [{ id: "result", name: "", kind: "data", type: "number" }],
 			compilesTo: { kind: "expr", outputs: { result: "1" } },
 		};
 		const withPack = buildSite(createRegistry([pack]), builtinIds);
@@ -206,8 +236,10 @@ describe("inline markup in the pages themselves", () => {
 		for (const page of allPages(site)) {
 			for (const text of [page.title, ...pageStrings(page, "plain")]) {
 				const runs = parseInline(text);
-				expect(runs.every((run) => run.t === "text"), `${page.slug}: ${text.slice(0, 60)}`)
-					.toBe(true);
+				expect(
+					runs.every((run) => run.t === "text"),
+					`${page.slug}: ${text.slice(0, 60)}`,
+				).toBe(true);
 			}
 		}
 	});
@@ -246,9 +278,10 @@ describe("inline markup in the pages themselves", () => {
  * the review lines under it) and every block's, nested blocks included.
  */
 function pageStrings(page: DocPage, slot: StringSlot): string[] {
-	const own = slot === "inline"
-		? [page.summary, ...(page.review ? [reviewLine(page.review)] : []), page.review?.verify ?? ""]
-		: [];
+	const own =
+		slot === "inline"
+			? [page.summary, ...(page.review ? [reviewLine(page.review)] : []), page.review?.verify ?? ""]
+			: [];
 	const blocks = page.blocks
 		.flatMap((block) => blockStrings(block))
 		.filter((one) => one.slot === slot)
@@ -266,7 +299,9 @@ describe("release notes", () => {
 		const minor = (v: string) => v.split(".").slice(0, 2).join(".") + ".x";
 		const folds = page.blocks.filter((b): b is Block & { t: "details" } => b.t === "details");
 
-		expect(folds.map((f) => f.summary)).toEqual([...new Set(RELEASES.map((r) => minor(r.version)))]);
+		expect(folds.map((f) => f.summary)).toEqual([
+			...new Set(RELEASES.map((r) => minor(r.version))),
+		]);
 		for (const release of RELEASES) {
 			const fold = folds.find((f) => f.summary === minor(release.version))!;
 			expect(blockText(fold), release.version).toContain(release.version);
@@ -275,7 +310,9 @@ describe("release notes", () => {
 		expect(folds.map((f) => f.open === true)).toEqual(folds.map((_, i) => i === 0));
 		expect(page.blocks.some((b) => b.t === "h")).toBe(false);
 
-		const marked = folds.flatMap((f) => f.blocks).filter((b) => b.t === "h" && b.badge === "Latest");
+		const marked = folds
+			.flatMap((f) => f.blocks)
+			.filter((b) => b.t === "h" && b.badge === "Latest");
 		expect(marked).toHaveLength(1);
 		expect(blockText(marked[0])).toContain(RELEASES[0].version);
 	});
@@ -299,9 +336,12 @@ describe("release notes", () => {
 	it("says something in every entry it lists", () => {
 		for (const release of RELEASES) {
 			const bullets = [
-				...(release.added ?? []), ...(release.changed ?? []),
-				...(release.fixed ?? []), ...(release.watch ?? []),
-				...(release.reviewed ?? []), ...(release.verified ?? []),
+				...(release.added ?? []),
+				...(release.changed ?? []),
+				...(release.fixed ?? []),
+				...(release.watch ?? []),
+				...(release.reviewed ?? []),
+				...(release.verified ?? []),
 			];
 			expect(bullets.length, `${release.version} lists nothing`).toBeGreaterThan(0);
 			for (const line of bullets) expect(line.trim()).not.toBe("");
@@ -438,29 +478,45 @@ describe("release tags", () => {
 	/** An empty list is not a section. It would otherwise tag a release Feature
 	 *  for an `added: []` somebody left behind while editing. */
 	it("ignores a section that is present but empty", () => {
-		expect(releaseTags({ version: "1.0.0", date: "2026-01-01", headline: "", added: [] }))
-			.toEqual([]);
+		expect(releaseTags({ version: "1.0.0", date: "2026-01-01", headline: "", added: [] })).toEqual(
+			[],
+		);
 	});
 
 	it("puts breaking first, where it will be read first", () => {
 		const tags = releaseTags({
-			version: "1.0.0", date: "2026-01-01", headline: "",
-			breaking: true, added: ["a"], changed: ["b"], fixed: ["c"],
+			version: "1.0.0",
+			date: "2026-01-01",
+			headline: "",
+			breaking: true,
+			added: ["a"],
+			changed: ["b"],
+			fixed: ["c"],
 		});
 		expect(tags).toEqual(["breaking", "feature", "change", "fix"]);
 	});
 
 	/** `watch` is often just worth knowing; it must not imply a break. */
 	it("does not treat a watch note as breaking", () => {
-		expect(releaseTags({
-			version: "1.0.0", date: "2026-01-01", headline: "", watch: ["mind this"],
-		})).toEqual([]);
+		expect(
+			releaseTags({
+				version: "1.0.0",
+				date: "2026-01-01",
+				headline: "",
+				watch: ["mind this"],
+			}),
+		).toEqual([]);
 	});
 
 	it("has a label for every tag it can produce", () => {
 		for (const tag of releaseTags({
-			version: "1.0.0", date: "2026-01-01", headline: "",
-			breaking: true, added: ["a"], changed: ["b"], fixed: ["c"],
+			version: "1.0.0",
+			date: "2026-01-01",
+			headline: "",
+			breaking: true,
+			added: ["a"],
+			changed: ["b"],
+			fixed: ["c"],
 		})) {
 			expect(TAG_LABELS[tag]).toBeTruthy();
 		}
@@ -505,9 +561,17 @@ describe("release tag classes", () => {
  * wrong climb is a 404 on 283 of the 301 pages, or on the other 18.
  */
 describe("the header of a published page", () => {
-	const page = (slug: string) => renderPage(site, {
-		slug, title: "T", summary: "S", blocks: [],
-	}, { version: "test" });
+	const page = (slug: string) =>
+		renderPage(
+			site,
+			{
+				slug,
+				title: "T",
+				summary: "S",
+				blocks: [],
+			},
+			{ version: "test" },
+		);
 
 	it("offers the editor and the source, not just the mark", () => {
 		const html = page("getting-started");
@@ -534,15 +598,20 @@ describe("the header of a published page", () => {
 	 * passes a hash of the assets, and that is what the links carry.
 	 */
 	it("stamps its stylesheet and script with the build's hash, not the version", () => {
-		const html = renderPage(site, { slug: "getting-started", title: "T", summary: "S", blocks: [] },
-			{ version: "0.71.0", assetStamp: "2f841e432a53" });
+		const html = renderPage(
+			site,
+			{ slug: "getting-started", title: "T", summary: "S", blocks: [] },
+			{ version: "0.71.0", assetStamp: "2f841e432a53" },
+		);
 		expect(html).toContain('theme.css?v=2f841e432a53"');
 		expect(html).toContain('docs.js?v=2f841e432a53"');
 		expect(html).not.toContain("?v=0.71.0");
 	});
 
 	it("points the mark at the project picker", () => {
-		expect(page("node/event.connect")).toContain('class="logo as-chip" href="../../try.html#picker"');
+		expect(page("node/event.connect")).toContain(
+			'class="logo as-chip" href="../../try.html#picker"',
+		);
 		expect(page("getting-started")).toContain('class="logo as-chip" href="../try.html#picker"');
 	});
 });

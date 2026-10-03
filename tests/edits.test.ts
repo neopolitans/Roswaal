@@ -7,14 +7,21 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { createRegistry, literalOnlyPins } from "../src/core/nodes/index.js";
-import { compile } from "../src/core/compiler/index.js";
 import {
-	canConnect, canPromoteToVariable, connect, promoteToVariable, recombinePin,
-	setLiteral, splitCost, splitModesFor, splitPin, splitValueWarning,
+	canConnect,
+	canPromoteToVariable,
+	connect,
+	promoteToVariable,
+	recombinePin,
+	setLiteral,
+	splitCost,
+	splitModesFor,
+	splitPin,
+	splitValueWarning,
 } from "../src/app/edits.js";
 import { pinPosition } from "../src/app/geometry.js";
+import { compile } from "../src/core/compiler/index.js";
+import { createRegistry, literalOnlyPins } from "../src/core/nodes/index.js";
 import type { NodeScript, PinDef } from "../src/core/schema.js";
 import { Builder, body } from "./helpers.js";
 
@@ -49,7 +56,8 @@ describe("literal-only pins", () => {
 		const script = b.build();
 
 		const check = canConnect(
-			script, registry,
+			script,
+			registry,
 			{ node: getter, pin: "value" },
 			{ node: get, pin: "property" },
 		);
@@ -58,7 +66,8 @@ describe("literal-only pins", () => {
 
 		// And `connect` is a no-op rather than making a wire the compiler rejects.
 		const after = connect(
-			script, registry,
+			script,
+			registry,
 			{ node: getter, pin: "value" },
 			{ node: get, pin: "property" },
 		);
@@ -130,7 +139,11 @@ describe("splitting and recombining a pin", () => {
 		const script = b.build();
 		const back = splitPin(
 			recombinePin(script, registry, look, "in", "from"),
-			registry, look, "in", "from", "xyz",
+			registry,
+			look,
+			"in",
+			"from",
+			"xyz",
 		);
 		expect(back.nodes.find((n) => n.id === look)!.literals).toMatchObject({
 			"from.y": { t: "number", v: 7 },
@@ -254,9 +267,7 @@ describe("splitting and recombining a pin", () => {
 		// components' defaults were chosen to mean the same thing.
 		const untouched = new Builder();
 		const plain = untouched.node("cframe.lookAt");
-		expect(
-			splitValueWarning(untouched.build(), registry, plain, "in", "from", "xyz"),
-		).toBeNull();
+		expect(splitValueWarning(untouched.build(), registry, plain, "in", "from", "xyz")).toBeNull();
 	});
 
 	it("leaves the other side alone when both sides share a pin id", () => {
@@ -281,7 +292,12 @@ describe("promote to variable", () => {
 
 	it("names the variable after the pin and takes its type", () => {
 		const { script, branch } = branchGraph();
-		const result = promoteToVariable(script, registry, branch, inputPin("flow.branch", "condition"))!;
+		const result = promoteToVariable(
+			script,
+			registry,
+			branch,
+			inputPin("flow.branch", "condition"),
+		)!;
 
 		expect(result).not.toBeNull();
 		expect(result.script.variables).toHaveLength(1);
@@ -297,14 +313,24 @@ describe("promote to variable", () => {
 		const { script, branch } = branchGraph();
 		const edited = setLiteral(script, branch, "condition", { t: "boolean", v: false });
 
-		const result = promoteToVariable(edited, registry, branch, inputPin("flow.branch", "condition"))!;
+		const result = promoteToVariable(
+			edited,
+			registry,
+			branch,
+			inputPin("flow.branch", "condition"),
+		)!;
 
 		expect(result.script.variables[0].default).toEqual({ t: "boolean", v: false });
 	});
 
 	it("wires the getter into the pin it was promoted from", () => {
 		const { script, branch } = branchGraph();
-		const result = promoteToVariable(script, registry, branch, inputPin("flow.branch", "condition"))!;
+		const result = promoteToVariable(
+			script,
+			registry,
+			branch,
+			inputPin("flow.branch", "condition"),
+		)!;
 
 		const link = result.script.links.find((l) => l.to.node === branch && l.to.pin === "condition");
 		expect(link).toBeDefined();
@@ -318,7 +344,12 @@ describe("promote to variable", () => {
 	/** Placed so the wire it creates comes out flat, not dumped at the pointer. */
 	it("places the getter level with the pin, and to its left", () => {
 		const { script, branch } = branchGraph();
-		const result = promoteToVariable(script, registry, branch, inputPin("flow.branch", "condition"))!;
+		const result = promoteToVariable(
+			script,
+			registry,
+			branch,
+			inputPin("flow.branch", "condition"),
+		)!;
 
 		const getter = result.script.nodes.find((n) => n.id === result.node)!;
 		const target = result.script.nodes.find((n) => n.id === branch)!;
@@ -336,10 +367,16 @@ describe("promote to variable", () => {
 		const other = b.node("flow.branch");
 
 		const first = promoteToVariable(
-			b.build(), registry, branch, inputPin("flow.branch", "condition"),
+			b.build(),
+			registry,
+			branch,
+			inputPin("flow.branch", "condition"),
 		)!;
 		const second = promoteToVariable(
-			first.script, registry, other, inputPin("flow.branch", "condition"),
+			first.script,
+			registry,
+			other,
+			inputPin("flow.branch", "condition"),
 		)!;
 
 		expect(second.script.variables.map((v) => v.name)).toEqual(["condition", "condition2"]);

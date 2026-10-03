@@ -48,9 +48,21 @@ export type DialogRequest =
 
 export type FormField =
 	| { id: string; kind: "text"; label: string; value: string }
-	| { id: string; kind: "choice"; label: string; value: string; options: { value: string; label: string }[] }
+	| {
+			id: string;
+			kind: "choice";
+			label: string;
+			value: string;
+			options: { value: string; label: string }[];
+	  }
 	/** One of however many, as a dropdown: a list that could be long. */
-	| { id: string; kind: "select"; label: string; value: string; options: { value: string; label: string }[] }
+	| {
+			id: string;
+			kind: "select";
+			label: string;
+			value: string;
+			options: { value: string; label: string }[];
+	  }
 	| {
 			id: string;
 			kind: "check";
@@ -86,7 +98,11 @@ export function Dialog({ request, resolve }: PendingDialog) {
 	}, []);
 
 	function cancel() {
-		resolve(request.kind === "prompt" || request.kind === "form" || request.kind === "choice" ? null : false);
+		resolve(
+			request.kind === "prompt" || request.kind === "form" || request.kind === "choice"
+				? null
+				: false,
+		);
 	}
 
 	function accept() {
@@ -98,17 +114,14 @@ export function Dialog({ request, resolve }: PendingDialog) {
 		} else if (request.kind === "form") {
 			// A check that is not on offer answers false, whatever it was left at.
 			const out: FormAnswers = {};
-			for (const field of request.fields) out[field.id] = offered(field) ? answers[field.id] : false;
+			for (const field of request.fields)
+				out[field.id] = offered(field) ? answers[field.id] : false;
 			resolve(JSON.stringify(out));
 		} else resolve(true);
 	}
 
 	return (
-		<div
-			className="dialog-backdrop"
-			style={{ zIndex: LAYER.menu + 1 }}
-			onPointerDown={cancel}
-		>
+		<div className="dialog-backdrop" style={{ zIndex: LAYER.menu + 1 }} onPointerDown={cancel}>
 			<div
 				className="dialog"
 				role="dialog"
@@ -166,7 +179,9 @@ export function Dialog({ request, resolve }: PendingDialog) {
 											onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.value })}
 										>
 											{field.options.map((option) => (
-												<option key={option.value} value={option.value}>{option.label}</option>
+												<option key={option.value} value={option.value}>
+													{option.label}
+												</option>
 											))}
 										</select>
 									</label>
@@ -211,7 +226,9 @@ export function Dialog({ request, resolve }: PendingDialog) {
 						<p>{request.message}</p>
 						{request.kind === "confirm" && request.items && request.items.length > 0 && (
 							<ul className="dialog-list">
-								{request.items.map((item) => <li key={item}>{item}</li>)}
+								{request.items.map((item) => (
+									<li key={item}>{item}</li>
+								))}
 							</ul>
 						)}
 					</>
@@ -223,28 +240,28 @@ export function Dialog({ request, resolve }: PendingDialog) {
 							Cancel
 						</button>
 					)}
-					{request.kind === "choice" && request.choices.map((choice) => (
+					{request.kind === "choice" &&
+						request.choices.map((choice) => (
+							<button
+								key={choice.value}
+								className={cx("tb", choice.primary && "primary")}
+								autoFocus={choice.primary}
+								onClick={() => resolve(choice.value)}
+							>
+								{choice.label}
+							</button>
+						))}
+					{request.kind !== "choice" && (
 						<button
-							key={choice.value}
-							className={cx("tb", choice.primary && "primary")}
-							autoFocus={choice.primary}
-							onClick={() => resolve(choice.value)}
+							className={cx("tb primary", request.kind === "confirm" && request.danger && "danger")}
+							autoFocus={request.kind !== "prompt"}
+							onClick={accept}
 						>
-							{choice.label}
+							{request.kind === "notice"
+								? "OK"
+								: (request.confirmLabel ?? (request.kind === "prompt" ? "Create" : "Confirm"))}
 						</button>
-					))}
-					{request.kind !== "choice" && <button
-						className={cx(
-							"tb primary",
-							request.kind === "confirm" && request.danger && "danger",
-						)}
-						autoFocus={request.kind !== "prompt"}
-						onClick={accept}
-					>
-						{request.kind === "notice"
-							? "OK"
-							: (request.confirmLabel ?? (request.kind === "prompt" ? "Create" : "Confirm"))}
-					</button>}
+					)}
 				</div>
 			</div>
 		</div>

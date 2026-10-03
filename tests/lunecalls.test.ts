@@ -17,11 +17,19 @@ import { describe, expect, it } from "vitest";
 
 import { argPinId } from "../src/core/callNodes.js";
 import { compile } from "../src/core/compiler/index.js";
-import { createRegistry } from "../src/core/nodes/index.js";
 import {
-	argumentPins, callLabel, isValueCall, luneFunction, luneMenuItems, lunePins,
-	pinTypeFor, resultPin, LUNE_CALL, LUNE_VALUE,
+	argumentPins,
+	callLabel,
+	isValueCall,
+	LUNE_CALL,
+	LUNE_VALUE,
+	luneFunction,
+	luneMenuItems,
+	lunePins,
+	pinTypeFor,
+	resultPin,
 } from "../src/core/luneCalls.js";
+import { createRegistry } from "../src/core/nodes/index.js";
 import { emptyScript, type NodeScript } from "../src/core/schema.js";
 
 const registry = createRegistry();
@@ -122,7 +130,10 @@ describe("compiling one", () => {
 		nodes: [
 			{ id: "begin", def: "script.begin", x: 0, y: 0 },
 			{
-				id: "read", def: LUNE_VALUE, x: 200, y: 120,
+				id: "read",
+				def: LUNE_VALUE,
+				x: 200,
+				y: 120,
 				config: { module: "fs", call: "readFile" },
 				literals: { a0: { t: "string", v: "notes.txt" } },
 			},
@@ -144,7 +155,7 @@ describe("compiling one", () => {
 		expect(error?.message).toContain("@lune/fs");
 		// And it says what to do, naming the specifier that fixes it.
 		expect(error?.message).toContain("Variables panel");
-		expect(result.code).not.toContain("require(\"@lune/fs\")");
+		expect(result.code).not.toContain('require("@lune/fs")');
 	});
 
 	it("calls it through the local the declaration bound", () => {
@@ -156,9 +167,7 @@ describe("compiling one", () => {
 
 	/** The name is the declaration's, not the module's. */
 	it("uses the name the developer chose", () => {
-		const result = compile(
-			graph([{ id: "m1", name: "disk", specifier: "@lune/fs" }]), registry,
-		);
+		const result = compile(graph([{ id: "m1", name: "disk", specifier: "@lune/fs" }]), registry);
 		expect(result.code).toContain('local disk = require("@lune/fs")');
 		expect(result.code).toContain('disk.readFile("notes.txt")');
 	});
@@ -177,9 +186,7 @@ describe("compiling one", () => {
 				{ id: "begin", def: "script.begin", x: 0, y: 0 },
 				{ id: "wait", def: LUNE_CALL, x: 200, y: 0, config: { module: "task", call: "wait" } },
 			],
-			links: [
-				{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "wait", pin: "in" } },
-			],
+			links: [{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "wait", pin: "in" } }],
 		};
 		const result = compile(script, registry);
 		expect(result.ok).toBe(true);
@@ -195,14 +202,18 @@ describe("compiling one", () => {
 			nodes: [
 				{ id: "begin", def: "script.begin", x: 0, y: 0 },
 				{
-					id: "exec", def: LUNE_CALL, x: 200, y: 0,
+					id: "exec",
+					def: LUNE_CALL,
+					x: 200,
+					y: 0,
 					config: { module: "process", call: "exec" },
-					literals: { [argPinId(0)]: { t: "string", v: "ls" }, [argPinId(2)]: { t: "raw", v: "options" } },
+					literals: {
+						[argPinId(0)]: { t: "string", v: "ls" },
+						[argPinId(2)]: { t: "raw", v: "options" },
+					},
 				},
 			],
-			links: [
-				{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "exec", pin: "in" } },
-			],
+			links: [{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "exec", pin: "in" } }],
 		};
 		const result = compile(script, registry);
 		expect(result.ok).toBe(true);
@@ -218,9 +229,7 @@ describe("compiling one", () => {
 				{ id: "begin", def: "script.begin", x: 0, y: 0 },
 				{ id: "call", def: LUNE_CALL, x: 200, y: 0, config: { module: "fs" } },
 			],
-			links: [
-				{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "call", pin: "in" } },
-			],
+			links: [{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "call", pin: "in" } }],
 		};
 		const error = compile(script, registry).diagnostics.find((d) => d.severity === "error");
 		expect(error?.message).toContain("no call chosen");
@@ -250,7 +259,10 @@ describe("a node that needs attention", () => {
 		nodes: [
 			{ id: "begin", def: "script.begin", x: 0, y: 0 },
 			{
-				id: "read", def: LUNE_VALUE, x: 200, y: 200,
+				id: "read",
+				def: LUNE_VALUE,
+				x: 200,
+				y: 200,
 				config: { module: "fs", call: "readFile" },
 			},
 		],
@@ -294,9 +306,7 @@ describe("a node that needs attention", () => {
 				{ id: "begin", def: "script.begin", x: 0, y: 0 },
 				{ id: "write", def: LUNE_CALL, x: 200, y: 0, config: { module: "fs", call: "writeFile" } },
 			],
-			links: [
-				{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "write", pin: "in" } },
-			],
+			links: [{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "write", pin: "in" } }],
 		};
 		const found = compile(script, registry).diagnostics.filter((one) => one.node === "write");
 		expect(found).toHaveLength(1);
@@ -320,9 +330,14 @@ describe("a Roblox datatype in Lune", () => {
 		nodes: [
 			{ id: "begin", def: "script.begin", x: 0, y: 0 },
 			{
-				id: "v", def: "roblox.vector3", x: 200, y: 120,
+				id: "v",
+				def: "roblox.vector3",
+				x: 200,
+				y: 120,
 				literals: {
-					x: { t: "number", v: 0 }, y: { t: "number", v: 10 }, z: { t: "number", v: 0 },
+					x: { t: "number", v: 0 },
+					y: { t: "number", v: 10 },
+					z: { t: "number", v: 0 },
 				},
 			},
 			{ id: "p", def: "debug.print", x: 400, y: 0 },
@@ -387,7 +402,10 @@ describe("a Lune step's result", () => {
 			nodes: [
 				{ id: "begin", def: "script.begin", x: 0, y: 0 },
 				{
-					id: "get", def: LUNE_CALL, x: 200, y: 0,
+					id: "get",
+					def: LUNE_CALL,
+					x: 200,
+					y: 0,
 					config: { module: "net", call: "request", resultName: "response" },
 					literals: { a0: { t: "string", v: "https://example.com" } },
 				},
@@ -415,7 +433,10 @@ describe("a Lune value read in two places", () => {
 			nodes: [
 				{ id: "begin", def: "script.begin", x: 0, y: 0 },
 				{
-					id: "read", def: LUNE_VALUE, x: 200, y: 120,
+					id: "read",
+					def: LUNE_VALUE,
+					x: 200,
+					y: 120,
 					config: { module: "fs", call: "readFile" },
 					literals: { a0: { t: "string", v: "notes.txt" } },
 				},

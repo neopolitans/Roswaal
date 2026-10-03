@@ -24,9 +24,14 @@ const tree = () => [
 	service("ServerScriptService", [script("Script", "Main", "print('main')", id("a"))]),
 	service("ReplicatedStorage", [
 		script("ModuleScript", "Util", "return {}", id("b")),
-		folder("Twins", [script("ModuleScript", "Same", "return 1"), script("ModuleScript", "Same", "return 2")]),
+		folder("Twins", [
+			script("ModuleScript", "Same", "return 1"),
+			script("ModuleScript", "Same", "return 2"),
+		]),
 	]),
-	service("Workspace", [{ className: "Part", name: "Coin", props: { Transparency: { type: 4, value: 0.25 } } }]),
+	service("Workspace", [
+		{ className: "Part", name: "Coin", props: { Transparency: { type: 4, value: 0.25 } } },
+	]),
 ];
 
 const sourceOf = (bytes: Uint8Array, name: string) =>
@@ -43,14 +48,18 @@ describe("writing sources into a binary place", () => {
 			expect(sourceOf(out, "Util")).toBe("return {}");
 			const back = readRbx(out);
 			expect(back.instances.length).toBe(doc.instances.length);
-			expect(back.instances.find((i) => i.name === "Coin")!.props.get("Transparency")?.value).toBe(0.25);
+			expect(back.instances.find((i) => i.name === "Coin")!.props.get("Transparency")?.value).toBe(
+				0.25,
+			);
 		});
 	}
 
 	it("keeps every chunk it does not rewrite byte for byte", () => {
 		const bytes = buildPlace(tree(), "zstd");
 		const doc = readRbx(bytes);
-		const out = writeSources(bytes, doc, [{ inst: doc.instances.find((i) => i.name === "Util")!, source: "return 2" }]);
+		const out = writeSources(bytes, doc, [
+			{ inst: doc.instances.find((i) => i.name === "Util")!, source: "return 2" },
+		]);
 		// The ModuleScript class's Source chunk is the only one that differs.
 		const chunks = (b: Uint8Array) => {
 			const list: string[] = [];
@@ -70,7 +79,9 @@ describe("writing sources into a binary place", () => {
 
 	it("returns an unchanged copy when there is nothing to write", () => {
 		const bytes = buildPlace(tree());
-		expect(Buffer.from(writeSources(bytes, readRbx(bytes), [])).equals(Buffer.from(bytes))).toBe(true);
+		expect(Buffer.from(writeSources(bytes, readRbx(bytes), [])).equals(Buffer.from(bytes))).toBe(
+			true,
+		);
 	});
 });
 
@@ -110,8 +121,18 @@ describe("matching files to scripts", () => {
 
 	it("finds a script by its id, then by its path", () => {
 		const update = planPlaceUpdate(doc, [
-			{ file: "a.luau", text: "print('a')", className: "Script", targets: [{ path: ["Elsewhere"], id: "a".repeat(32) }] },
-			{ file: "b.luau", text: "return {}", isModule: true, targets: [{ path: ["ReplicatedStorage", "Util"] }] },
+			{
+				file: "a.luau",
+				text: "print('a')",
+				className: "Script",
+				targets: [{ path: ["Elsewhere"], id: "a".repeat(32) }],
+			},
+			{
+				file: "b.luau",
+				text: "return {}",
+				isModule: true,
+				targets: [{ path: ["ReplicatedStorage", "Util"] }],
+			},
 		]);
 		expect(update.updated).toEqual(["a.luau"]);
 		expect(update.unchanged).toEqual(["b.luau"]);
@@ -121,8 +142,18 @@ describe("matching files to scripts", () => {
 	it("reports what it cannot place for certain", () => {
 		const update = planPlaceUpdate(doc, [
 			{ file: "new.luau", text: "", isModule: true, targets: [{ path: ["Lighting", "New"] }] },
-			{ file: "twin.luau", text: "", isModule: true, targets: [{ path: ["ReplicatedStorage", "Twins", "Same"] }] },
-			{ file: "main.luau", text: "", isModule: true, targets: [{ path: ["ServerScriptService", "Main"] }] },
+			{
+				file: "twin.luau",
+				text: "",
+				isModule: true,
+				targets: [{ path: ["ReplicatedStorage", "Twins", "Same"] }],
+			},
+			{
+				file: "main.luau",
+				text: "",
+				isModule: true,
+				targets: [{ path: ["ServerScriptService", "Main"] }],
+			},
 		]);
 		expect(update.notInPlace).toEqual(["new.luau"]);
 		expect(update.ambiguous).toEqual(["twin.luau"]);
@@ -132,8 +163,20 @@ describe("matching files to scripts", () => {
 
 	it("says which scripts are left for files the project no longer has", () => {
 		const update = planPlaceUpdate(doc, [
-			{ file: "main.luau", text: "", gone: true, className: "Script", targets: [{ path: ["ServerScriptService", "Main"] }] },
-			{ file: "never.luau", text: "", gone: true, className: "Script", targets: [{ path: ["ServerScriptService", "Never"] }] },
+			{
+				file: "main.luau",
+				text: "",
+				gone: true,
+				className: "Script",
+				targets: [{ path: ["ServerScriptService", "Main"] }],
+			},
+			{
+				file: "never.luau",
+				text: "",
+				gone: true,
+				className: "Script",
+				targets: [{ path: ["ServerScriptService", "Never"] }],
+			},
 		]);
 		expect(update.leftInPlace).toEqual(["main.luau"]);
 		expect(update.changes).toHaveLength(0);
@@ -149,16 +192,23 @@ describe("exporting a project's place", () => {
 
 	it("writes edited files, merged copies included, and adds new ones", async () => {
 		root = await mkdtemp(path.join(os.tmpdir(), "roswaal-export-"));
-		const place = buildPlace([
-			service("ServerScriptService", [script("Script", "Main", "print('main')")]),
-			service("Workspace", [
-				folder("Door1", [script("Script", "Open", "open()")], "Model"),
-				folder("Door2", [script("Script", "Open", "open()")], "Model"),
-			]),
-		], "zstd");
+		const place = buildPlace(
+			[
+				service("ServerScriptService", [script("Script", "Main", "print('main')")]),
+				service("Workspace", [
+					folder("Door1", [script("Script", "Open", "open()")], "Model"),
+					folder("Door2", [script("Script", "Open", "open()")], "Model"),
+				]),
+			],
+			"zstd",
+		);
 		await writeFile(path.join(root, "Game.rbxl"), place);
 		const plan = planImport(surveyPlace(readRbx(place)), {
-			scope: "all", dedupe: true, outDir: "src", placeFile: "Game.rbxl", name: "Game",
+			scope: "all",
+			dedupe: true,
+			outDir: "src",
+			placeFile: "Game.rbxl",
+			name: "Game",
 		});
 		await writePlaceImport(root, plan.files, "Game.rbxl");
 
@@ -168,10 +218,16 @@ describe("exporting a project's place", () => {
 
 		const out = (await exportPlace(await openProject(root)))!;
 		expect(out.file).toBe("Game.rbxl");
-		expect(out.update.updated.sort()).toEqual(["place/Shared/Open.server.luau", "src/ServerScriptService/Main.server.luau"]);
+		expect(out.update.updated.sort()).toEqual([
+			"place/Shared/Open.server.luau",
+			"src/ServerScriptService/Main.server.luau",
+		]);
 		expect(out.update.addedFiles).toEqual(["src/ServerScriptService/Added.server.luau"]);
 		const back = readRbx(out.bytes);
-		const sources = back.instances.filter(isScript).map((i) => `${pathOf(i).join(".")}=${stringProp(i, "Source")}`).sort();
+		const sources = back.instances
+			.filter(isScript)
+			.map((i) => `${pathOf(i).join(".")}=${stringProp(i, "Source")}`)
+			.sort();
 		expect(sources).toEqual([
 			"ServerScriptService.Added=print('new')",
 			"ServerScriptService.Main=print('edited')",
@@ -179,7 +235,9 @@ describe("exporting a project's place", () => {
 			"Workspace.Door2.Open=open(true)",
 		]);
 		// Nothing on disk changed: the place is only read.
-		expect(Buffer.from(await readFile(path.join(root, "Game.rbxl"))).equals(Buffer.from(place))).toBe(true);
+		expect(
+			Buffer.from(await readFile(path.join(root, "Game.rbxl"))).equals(Buffer.from(place)),
+		).toBe(true);
 	});
 });
 
@@ -199,7 +257,7 @@ describe("the export's name", () => {
 		await writeFile(path.join(root, "roswaal.json"), JSON.stringify({ schemaVersion: 1 }));
 		const session = new ApiSession({});
 		await session.openAt(root);
-		const exported = await session.handle("GET", "/export", { query: {} }) as { name: string };
+		const exported = (await session.handle("GET", "/export", { query: {} })) as { name: string };
 		expect(exported.name).toBe(path.basename(root));
 		expect(exported.name).not.toMatch(/[\\/]/);
 	});

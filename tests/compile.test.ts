@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { compile, serialiseScript } from "../src/core/compiler/index.js";
-import { emptyScript, type NodeScript, type ScriptVariable } from "../src/core/schema.js";
-import { createRegistry } from "../src/core/nodes/index.js";
 import { migrateScript } from "../src/core/migrate.js";
+import { createRegistry } from "../src/core/nodes/index.js";
+import { emptyScript, type NodeScript, type ScriptVariable } from "../src/core/schema.js";
 import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
@@ -239,13 +239,17 @@ describe("emitter", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const loop = b.node("flow.forRange");
-		const fn = b.node("function.declareHere", { config: { name: "stop", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "stop", params: [], returns: [] },
+		});
 		const brk = b.node("flow.break");
 		b.link(start, "then", loop, "in");
 		b.link(loop, "body", fn, "in");
 		b.link(fn, "body", brk, "in");
 
-		expect(errors(compile(b.build(), registry)).join(" ")).toContain('"break" is only valid inside a loop');
+		expect(errors(compile(b.build(), registry)).join(" ")).toContain(
+			'"break" is only valid inside a loop',
+		);
 	});
 
 	it("rejects continue inside a handler connected in a loop", () => {
@@ -259,7 +263,9 @@ describe("emitter", () => {
 		b.link(loop, "body", connect, "in");
 		b.link(connect, "body", skip, "in");
 
-		expect(errors(compile(b.build(), registry)).join(" ")).toContain('"continue" is only valid inside a loop');
+		expect(errors(compile(b.build(), registry)).join(" ")).toContain(
+			'"continue" is only valid inside a loop',
+		);
 	});
 
 	it("still takes break in a loop inside a function", () => {
@@ -289,9 +295,15 @@ describe("emitter", () => {
 	it("builds a module return table from exported functions", () => {
 		const b = new Builder();
 		const fn = b.node("function.entry", {
-			config: { name: "greet", params: [{ name: "who", type: "string" }], returns: [{ name: "message", type: "string" }] },
+			config: {
+				name: "greet",
+				params: [{ name: "who", type: "string" }],
+				returns: [{ name: "message", type: "string" }],
+			},
 		});
-		const ret = b.node("function.return", { config: { returns: [{ name: "message", type: "string" }] } });
+		const ret = b.node("function.return", {
+			config: { returns: [{ name: "message", type: "string" }] },
+		});
 		const concat = b.node("string.concat");
 		const exports = b.node("module.exports", { config: { exports: [{ name: "greet" }] } });
 		b.lit(concat, "a0", { t: "string", v: "hi " });
@@ -359,11 +371,18 @@ describe("emitter", () => {
 
 	it("names output files the way Rojo expects", () => {
 		const b = new Builder("Greeter");
-		expect(compile(b.build({ scriptClass: "ModuleScript" }), registry).fileName).toBe("Greeter.luau");
-		expect(compile(b.build({ scriptClass: "LocalScript" }), registry).fileName).toBe("Greeter.client.luau");
-		expect(compile(b.build({ scriptClass: "Script" }), registry).fileName).toBe("Greeter.server.luau");
-		expect(compile(b.build({ scriptClass: "Script", runContext: "Client" }), registry).fileName)
-			.toBe("Greeter.client.luau");
+		expect(compile(b.build({ scriptClass: "ModuleScript" }), registry).fileName).toBe(
+			"Greeter.luau",
+		);
+		expect(compile(b.build({ scriptClass: "LocalScript" }), registry).fileName).toBe(
+			"Greeter.client.luau",
+		);
+		expect(compile(b.build({ scriptClass: "Script" }), registry).fileName).toBe(
+			"Greeter.server.luau",
+		);
+		expect(
+			compile(b.build({ scriptClass: "Script", runContext: "Client" }), registry).fileName,
+		).toBe("Greeter.client.luau");
 	});
 
 	it("is deterministic and ignores node positions", () => {
@@ -509,7 +528,9 @@ describe("block termination", () => {
 			config: { name: "pick", params: [], returns: [{ name: "v", type: "number" }] },
 		});
 		const branch = b.node("flow.branch");
-		const early = b.node("function.return", { config: { returns: [{ name: "v", type: "number" }] } });
+		const early = b.node("function.return", {
+			config: { returns: [{ name: "v", type: "number" }] },
+		});
 		const seq = b.node("flow.sequence", { config: { count: 2 } });
 		const after = b.node("debug.print");
 		b.lit(early, "r0", { t: "number", v: 0 });
@@ -672,7 +693,9 @@ describe("a While condition", () => {
 		expect(errors(result)).toEqual([]);
 		const code = body(result.code);
 		expect(code).toContain("while true do");
-		expect(code).toMatch(/while true do\n\tlocal (\w+) = count < 10\n\tif not \1 then break end\n\tprint\(\1\)\nend/);
+		expect(code).toMatch(
+			/while true do\n\tlocal (\w+) = count < 10\n\tif not \1 then break end\n\tprint\(\1\)\nend/,
+		);
 	});
 
 	it("stays on the while line when only the loop reads it", () => {
@@ -698,8 +721,12 @@ describe("saving a graph", () => {
 	 */
 	it("keeps every field of a variable", () => {
 		const variable: ScriptVariable = {
-			id: "v1", name: "MAX_SPEED", type: "number",
-			default: { t: "number", v: 16 }, description: "Top speed.", const: true,
+			id: "v1",
+			name: "MAX_SPEED",
+			type: "number",
+			default: { t: "number", v: 16 },
+			description: "Top speed.",
+			const: true,
 		};
 		const script: NodeScript = { ...emptyScript("Car", "car"), variables: [variable] };
 		const back = JSON.parse(serialiseScript(script)) as NodeScript;

@@ -17,9 +17,17 @@
  * base are compiled in, and a build can only ever be one of the two shapes.
  */
 
-import { describe, expect, it, afterEach, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { homeHref, hrefFor, pageAt, PAGE_TARGET, type Page, pagesShareTab, pageTarget } from "../src/app/pages.js";
+import {
+	homeHref,
+	hrefFor,
+	PAGE_TARGET,
+	type Page,
+	pageAt,
+	pagesShareTab,
+	pageTarget,
+} from "../src/app/pages.js";
 
 const PAGES: Page[] = ["editor", "docs", "designer"];
 
@@ -117,8 +125,7 @@ describe("which page a path is", () => {
 				for (const page of PAGES) {
 					if (staticHost && page === "docs") continue;
 					const href = hrefFor(base, staticHost, page);
-					expect([base, staticHost, page, pageAt(href)])
-						.toEqual([base, staticHost, page, page]);
+					expect([base, staticHost, page, pageAt(href)]).toEqual([base, staticHost, page, page]);
 				}
 			}
 		}
@@ -172,4 +179,3 @@ describe("Home", () => {
 		expect(homeHref("/", false)).toBeNull();
 	});
 });
-

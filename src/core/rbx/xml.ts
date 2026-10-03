@@ -15,7 +15,13 @@
 
 import { ENGINE } from "../robloxEngine.js";
 import {
-	asRbxError, type CFrameValue, type Prop, type PropType, type RbxDocument, RbxError, type RbxInstance,
+	asRbxError,
+	type CFrameValue,
+	type Prop,
+	type PropType,
+	type RbxDocument,
+	RbxError,
+	type RbxInstance,
 } from "./dom.js";
 
 export interface XmlElement {
@@ -45,7 +51,14 @@ function decodeEntities(s: string): string {
 
 export function parseXml(src: string): XmlElement {
 	let p = 0;
-	const root: XmlElement = { name: "#document", attrs: {}, children: [], text: "", start: 0, end: src.length };
+	const root: XmlElement = {
+		name: "#document",
+		attrs: {},
+		children: [],
+		text: "",
+		start: 0,
+		end: src.length,
+	};
 	const stack: XmlElement[] = [root];
 	const fail = (what: string): never => {
 		const line = src.slice(0, p).split("\n").length;
@@ -85,7 +98,14 @@ export function parseXml(src: string): XmlElement {
 		} else {
 			const match = /^<([A-Za-z_][\w.:-]*)/.exec(src.slice(p, p + 256));
 			if (!match) fail("has a tag that is not one");
-			const el: XmlElement = { name: match![1], attrs: {}, children: [], text: "", start: 0, end: 0 };
+			const el: XmlElement = {
+				name: match![1],
+				attrs: {},
+				children: [],
+				text: "",
+				start: 0,
+				end: 0,
+			};
 			p += match![0].length;
 			for (;;) {
 				while (/\s/.test(src[p] ?? "")) p++;
@@ -102,14 +122,17 @@ export function parseXml(src: string): XmlElement {
 					top.children.push(el);
 					break;
 				}
-				const attr = /^([A-Za-z_][\w.:-]*)\s*=\s*("([^"]*)"|'([^']*)')/.exec(src.slice(p, p + 4096));
+				const attr = /^([A-Za-z_][\w.:-]*)\s*=\s*("([^"]*)"|'([^']*)')/.exec(
+					src.slice(p, p + 4096),
+				);
 				if (!attr) fail(`has a malformed attribute in <${el.name}>`);
 				el.attrs[attr![1]] = decodeEntities(attr![3] ?? attr![4]);
 				p += attr![0].length;
 			}
 		}
 	}
-	if (stack.length !== 1) throw new RbxError(`the XML ends inside <${stack[stack.length - 1].name}>`);
+	if (stack.length !== 1)
+		throw new RbxError(`the XML ends inside <${stack[stack.length - 1].name}>`);
 	return root;
 }
 
@@ -123,7 +146,8 @@ function base64(s: string): Uint8Array {
 	return out;
 }
 
-const child = (el: XmlElement, name: string): string => el.children.find((c) => c.name === name)?.text.trim() ?? "0";
+const child = (el: XmlElement, name: string): string =>
+	el.children.find((c) => c.name === name)?.text.trim() ?? "0";
 const num = (s: string): number => {
 	const t = s.trim();
 	if (t === "INF") return Infinity;
@@ -133,12 +157,17 @@ const num = (s: string): number => {
 };
 
 function cframe(el: XmlElement): CFrameValue {
-	const r = ["R00", "R01", "R02", "R10", "R11", "R12", "R20", "R21", "R22"].map((n) => num(child(el, n)));
+	const r = ["R00", "R01", "R02", "R10", "R11", "R12", "R20", "R21", "R22"].map((n) =>
+		num(child(el, n)),
+	);
 	return { position: [num(child(el, "X")), num(child(el, "Y")), num(child(el, "Z"))], rotation: r };
 }
 
 /** A property element's value, or undefined for a type this does not decode. */
-function readValue(el: XmlElement, shared: Map<string, Uint8Array>): [PropType, unknown] | undefined {
+function readValue(
+	el: XmlElement,
+	shared: Map<string, Uint8Array>,
+): [PropType, unknown] | undefined {
 	const t = el.text;
 	switch (el.name) {
 		case "string":
@@ -153,7 +182,10 @@ function readValue(el: XmlElement, shared: Map<string, Uint8Array>): [PropType, 
 			return ["Int32", num(t)];
 		case "int64": {
 			const digits = t.trim() || "0";
-			if (!/^-?\d+$/.test(digits)) throw new RbxError(`an int64 property holds "${digits.slice(0, 40)}", which is not a whole number`);
+			if (!/^-?\d+$/.test(digits))
+				throw new RbxError(
+					`an int64 property holds "${digits.slice(0, 40)}", which is not a whole number`,
+				);
 			return ["Int64", BigInt(digits)];
 		}
 		case "float":
@@ -189,7 +221,10 @@ function readValue(el: XmlElement, shared: Map<string, Uint8Array>): [PropType, 
 		case "UDim":
 			return ["UDim", [num(child(el, "S")), num(child(el, "O"))]];
 		case "UDim2":
-			return ["UDim2", [num(child(el, "XS")), num(child(el, "XO")), num(child(el, "YS")), num(child(el, "YO"))]];
+			return [
+				"UDim2",
+				[num(child(el, "XS")), num(child(el, "XO")), num(child(el, "YS")), num(child(el, "YO"))],
+			];
 		case "NumberRange": {
 			const [a, b] = t.trim().split(/\s+/).map(num);
 			return ["NumberRange", [a ?? 0, b ?? 0]];
@@ -197,7 +232,15 @@ function readValue(el: XmlElement, shared: Map<string, Uint8Array>): [PropType, 
 		case "Rect2D": {
 			const min = el.children.find((c) => c.name === "min");
 			const max = el.children.find((c) => c.name === "max");
-			return ["Rect", [num(min ? child(min, "X") : "0"), num(min ? child(min, "Y") : "0"), num(max ? child(max, "X") : "0"), num(max ? child(max, "Y") : "0")]];
+			return [
+				"Rect",
+				[
+					num(min ? child(min, "X") : "0"),
+					num(min ? child(min, "Y") : "0"),
+					num(max ? child(max, "X") : "0"),
+					num(max ? child(max, "Y") : "0"),
+				],
+			];
 		}
 		default:
 			return undefined;
@@ -223,7 +266,8 @@ function decodeXml(source: string): RbxDocument {
 
 	const shared = new Map<string, Uint8Array>();
 	for (const block of roblox.children.filter((c) => c.name === "SharedStrings")) {
-		for (const s of block.children) if (s.attrs.md5 !== undefined) shared.set(s.attrs.md5, base64(s.text));
+		for (const s of block.children)
+			if (s.attrs.md5 !== undefined) shared.set(s.attrs.md5, base64(s.text));
 	}
 
 	const instances: RbxInstance[] = [];

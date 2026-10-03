@@ -12,9 +12,8 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-
-import { DEMOS } from "../src/core/docs/demos.js";
 import { DEMO_PROJECTS, demoFor } from "../src/core/demoProjects.js";
+import { DEMOS } from "../src/core/docs/demos.js";
 import type { NodeScript } from "../src/core/schema.js";
 
 const root = new URL("../examples/lune-demo/", import.meta.url);
@@ -54,8 +53,9 @@ describe("the Lune demo project", () => {
 		links: [...script.links]
 			.map(({ id: _id, ...rest }) => rest)
 			.sort((a, b) =>
-				`${a.from.node}.${a.from.pin}>${a.to.node}.${a.to.pin}`
-					.localeCompare(`${b.from.node}.${b.from.pin}>${b.to.node}.${b.to.pin}`),
+				`${a.from.node}.${a.from.pin}>${a.to.node}.${a.to.pin}`.localeCompare(
+					`${b.from.node}.${b.from.pin}>${b.to.node}.${b.to.pin}`,
+				),
 			),
 	});
 

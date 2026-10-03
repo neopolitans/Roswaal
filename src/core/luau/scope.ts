@@ -15,7 +15,7 @@
 import type { Binding, Block, Expr, FunctionBody, Stat } from "./ast.js";
 import { luauFile } from "./file.js";
 import { parseChunk } from "./parser.js";
-import { contains, visitBlock, visitExpr, visitStat, type Visitor } from "./visit.js";
+import { contains, type Visitor, visitBlock, visitExpr, visitStat } from "./visit.js";
 
 export type LocalKind = "local" | "function" | "parameter" | "loop variable";
 
@@ -125,7 +125,10 @@ export function localsInParsed(block: Block, src: string, offset: number): Scope
 class ScopeWalk {
 	private readonly found: ScopedName[] = [];
 
-	constructor(private readonly src: string, private readonly at: number) {}
+	constructor(
+		private readonly src: string,
+		private readonly at: number,
+	) {}
 
 	/** The names in scope, innermost declaration of each, in declaration order. */
 	names(block: Block, to: number): ScopedName[] {
@@ -161,7 +164,12 @@ class ScopeWalk {
 		switch (stat.kind) {
 			case "localFunction":
 				// Its own name is in scope inside it: a local function can recurse.
-				this.found.push({ name: stat.name.name, kind: "function", func: stat.func, declaredAt: stat.start });
+				this.found.push({
+					name: stat.name.name,
+					kind: "function",
+					func: stat.func,
+					declaredAt: stat.start,
+				});
 				this.function(stat.func);
 				return;
 			case "functionStat":
@@ -192,19 +200,25 @@ class ScopeWalk {
 					const next = stat.clauses[i + 1]?.keyword ?? stat.elseKeyword ?? stat.endKeyword;
 					this.block(clause.body, clause.thenKeyword.end, next.start);
 				});
-				if (stat.orElse && stat.elseKeyword) this.block(stat.orElse, stat.elseKeyword.end, stat.endKeyword.start);
+				if (stat.orElse && stat.elseKeyword)
+					this.block(stat.orElse, stat.elseKeyword.end, stat.endKeyword.start);
 				return;
 			case "numericFor": {
 				const range = stat.step ?? stat.to;
 				if (at <= range.end) return this.functionsIn(range);
-				this.found.push({ name: stat.variable.name, kind: "loop variable", ...typeTextOf(stat.variable, this.src) });
+				this.found.push({
+					name: stat.variable.name,
+					kind: "loop variable",
+					...typeTextOf(stat.variable, this.src),
+				});
 				this.block(stat.body, stat.doKeyword.end, stat.endKeyword.start);
 				return;
 			}
 			case "genericFor": {
 				const last = stat.values[stat.values.length - 1];
 				if (last && at <= last.end) return this.functionsIn(last);
-				for (const v of stat.variables) this.found.push({ name: v.name, kind: "loop variable", ...typeTextOf(v, this.src) });
+				for (const v of stat.variables)
+					this.found.push({ name: v.name, kind: "loop variable", ...typeTextOf(v, this.src) });
 				this.block(stat.body, stat.doKeyword.end, stat.endKeyword.start);
 				return;
 			}
@@ -216,7 +230,8 @@ class ScopeWalk {
 	}
 
 	private function(func: FunctionBody): void {
-		for (const param of func.params) this.found.push({ name: param.name, kind: "parameter", ...typeTextOf(param, this.src) });
+		for (const param of func.params)
+			this.found.push({ name: param.name, kind: "parameter", ...typeTextOf(param, this.src) });
 		this.block(func.body, func.paramsClose.end, func.endKeyword.start);
 	}
 
@@ -262,7 +277,9 @@ export function declarationAt(src: string, offset: number): ScopedName | undefin
 				found = declared(stat, src)[0];
 			} else if (stat.kind === "local" || stat.kind === "const") {
 				// The name only: a binding's span runs on over its type, `x: Part`.
-				const i = stat.names.findIndex((b) => b.start <= offset && offset <= b.start + b.name.length);
+				const i = stat.names.findIndex(
+					(b) => b.start <= offset && offset <= b.start + b.name.length,
+				);
 				if (i !== -1) found = declared(stat, src)[i];
 			}
 			return !found;

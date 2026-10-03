@@ -28,8 +28,8 @@ const registry = createRegistry();
 
 const code = (script: NodeScript) => body(compile(script, registry).code);
 const errors = (script: NodeScript) =>
-	compile(script, registry).diagnostics
-		.filter((d) => d.severity === "error")
+	compile(script, registry)
+		.diagnostics.filter((d) => d.severity === "error")
 		.map((d) => d.message);
 
 describe("Get Parameter inside a function", () => {
@@ -125,8 +125,9 @@ describe("a Get Parameter that has lost its footing", () => {
 	});
 
 	it("says so when the function is gone", () => {
-		expect(errors(pointingAt({ function: "n_gone", param: "who" })).join(" "))
-			.toContain("no longer in the graph");
+		expect(errors(pointingAt({ function: "n_gone", param: "who" })).join(" ")).toContain(
+			"no longer in the graph",
+		);
 	});
 
 	/** A function that still exists can stop having the parameter asked for. */

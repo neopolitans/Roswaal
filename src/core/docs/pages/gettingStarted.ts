@@ -5,7 +5,12 @@
 import { STABLE_SITE } from "../links.js";
 import type { DocPage } from "../site.js";
 import {
-	EDITOR_BAR, EDITOR_BAR_BROWSER, EDITOR_BAR_TABLET, PROJECT_MENU, PROJECTS_FOOT, START_PAGE,
+	EDITOR_BAR,
+	EDITOR_BAR_BROWSER,
+	EDITOR_BAR_TABLET,
+	PROJECT_MENU,
+	PROJECTS_FOOT,
+	START_PAGE,
 } from "../toolbars.js";
 import { code } from "./blocks.js";
 
@@ -173,8 +178,7 @@ export function gettingStartedPage(): DocPage {
 								steps: [
 									{
 										text:
-											`Open [the web app](${STABLE_SITE}try.html) and tap the ` +
-											"Roswaal mark.",
+											`Open [the web app](${STABLE_SITE}try.html) and tap the ` + "Roswaal mark.",
 										picture: [EDITOR_BAR_TABLET],
 										point: "The Roswaal mark",
 									},

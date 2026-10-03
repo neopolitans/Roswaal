@@ -94,7 +94,8 @@ function chunk(name: string, data: Uint8Array, compression: Compression): Uint8A
 		w.u32(0);
 		w.bytes(data);
 	} else {
-		const packed = compression === "lz4" ? lz4Literal(data) : new Uint8Array(zstdCompressSync(data));
+		const packed =
+			compression === "lz4" ? lz4Literal(data) : new Uint8Array(zstdCompressSync(data));
 		w.u32(packed.length);
 		w.u32(data.length);
 		w.u32(0);
@@ -105,11 +106,16 @@ function chunk(name: string, data: Uint8Array, compression: Compression): Uint8A
 
 function defaultFor(type: number): unknown {
 	switch (type) {
-		case 1: return "";
-		case 2: return false;
-		case 31: return "00".repeat(16);
-		case 21: return [];
-		default: return 0;
+		case 1:
+			return "";
+		case 2:
+			return false;
+		case 31:
+			return "00".repeat(16);
+		case 21:
+			return [];
+		default:
+			return 0;
 	}
 }
 
@@ -185,7 +191,11 @@ function writeValues(w: Writer, type: number, values: unknown[]): void {
  * A binary place holding `roots`, every chunk compressed as asked. `shared` is
  * the SSTR table a SharedString property's index points into.
  */
-export function buildPlace(roots: FixtureInstance[], compression: Compression = "none", shared?: Uint8Array[]): Uint8Array {
+export function buildPlace(
+	roots: FixtureInstance[],
+	compression: Compression = "none",
+	shared?: Uint8Array[],
+): Uint8Array {
 	const all: { inst: FixtureInstance; ref: number; parent: number }[] = [];
 	const visit = (inst: FixtureInstance, parent: number) => {
 		const ref = all.length;
@@ -238,7 +248,8 @@ export function buildPlace(roots: FixtureInstance[], compression: Compression = 
 	}
 	for (const [className, list] of classes) {
 		const props = new Map<string, number>([["Name", 1]]);
-		for (const e of list) for (const [k, p] of Object.entries(e.inst.props ?? {})) props.set(k, p.type);
+		for (const e of list)
+			for (const [k, p] of Object.entries(e.inst.props ?? {})) props.set(k, p.type);
 		for (const [prop, type] of props) {
 			const w = new Writer();
 			w.u32(ids.get(className)!);
@@ -247,7 +258,9 @@ export function buildPlace(roots: FixtureInstance[], compression: Compression = 
 			writeValues(
 				w,
 				type,
-				list.map((e) => (prop === "Name" ? e.inst.name : (e.inst.props?.[prop]?.value ?? defaultFor(type)))),
+				list.map((e) =>
+					prop === "Name" ? e.inst.name : (e.inst.props?.[prop]?.value ?? defaultFor(type)),
+				),
 			);
 			chunks.push(chunk("PROP", w.done(), compression));
 		}
@@ -270,14 +283,24 @@ export function buildPlace(roots: FixtureInstance[], compression: Compression = 
 	return out;
 }
 
-export const script = (className: string, name: string, source: string, extra: Record<string, FixtureProp> = {}, children: FixtureInstance[] = []): FixtureInstance => ({
+export const script = (
+	className: string,
+	name: string,
+	source: string,
+	extra: Record<string, FixtureProp> = {},
+	children: FixtureInstance[] = [],
+): FixtureInstance => ({
 	className,
 	name,
 	props: { Source: { type: 1, value: source }, ...extra },
 	children,
 });
 
-export const folder = (name: string, children: FixtureInstance[] = [], className = "Folder"): FixtureInstance => ({
+export const folder = (
+	name: string,
+	children: FixtureInstance[] = [],
+	className = "Folder",
+): FixtureInstance => ({
 	className,
 	name,
 	children,

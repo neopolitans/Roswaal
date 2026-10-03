@@ -13,15 +13,22 @@
  *   `themes/` and still compile perfectly.
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
 import {
-	CODE_ROLES, COLOR_ROLES, ROLES, contrast, derivedTokens, themeSlug, themeTokens,
-	validateTheme, type Theme,
+	CODE_ROLES,
+	COLOR_ROLES,
+	contrast,
+	derivedTokens,
+	ROLES,
+	type Theme,
+	themeSlug,
+	themeTokens,
+	validateTheme,
 } from "../src/core/theme.js";
 import { BUILTIN_THEMES, LICENCE_TEXTS } from "../src/core/themeData.js";
 
@@ -214,24 +221,25 @@ describe("the generated module", () => {
  * declaration. Neither produces an error, in the browser or in the build.
  */
 describe("every role reaches the stylesheet", () => {
-	const declared = new Set(
-		[...css.matchAll(/^\s*(--[a-z-]+)\s*:/gm)].map((m) => m[1]),
-	);
+	const declared = new Set([...css.matchAll(/^\s*(--[a-z-]+)\s*:/gm)].map((m) => m[1]));
 	const read = new Set([...appSource.matchAll(/var\(\s*(--[a-z-]+)/g)].map((m) => m[1]));
 
 	const every = [...ROLES, ...CODE_ROLES];
 
 	it("declares a default for every one, so an unthemed page still has a colour", () => {
 		for (const { role, css: variable } of every) {
-			expect(declared.has(variable), `${role} sets ${variable}, which theme.css never declares`)
-				.toBe(true);
+			expect(
+				declared.has(variable),
+				`${role} sets ${variable}, which theme.css never declares`,
+			).toBe(true);
 		}
 	});
 
 	it("actually reads every one somewhere", () => {
 		for (const { role, css: variable } of every) {
-			expect(read.has(variable), `${role} sets ${variable}, which nothing in theme.css reads`)
-				.toBe(true);
+			expect(read.has(variable), `${role} sets ${variable}, which nothing in theme.css reads`).toBe(
+				true,
+			);
 		}
 	});
 
@@ -258,15 +266,15 @@ describe("every role reaches the stylesheet", () => {
 describe("every token class is coloured somewhere", () => {
 	/** The classes `highlightLuau` can emit, read from its own map. */
 	const emitted = [
-		...readFileSync(join(root, "src", "app", "highlight.ts"), "utf8")
-			.matchAll(/"(tok-[a-z]+)"/g),
+		...readFileSync(join(root, "src", "app", "highlight.ts"), "utf8").matchAll(/"(tok-[a-z]+)"/g),
 	].map((m) => m[1]);
 
 	it("styles each one", () => {
 		expect(emitted.length, "the highlighter emits classes at all").toBeGreaterThan(5);
 		for (const cls of new Set(emitted)) {
-			expect(css.includes(`.${cls}`), `${cls} is emitted but theme.css never colours it`)
-				.toBe(true);
+			expect(css.includes(`.${cls}`), `${cls} is emitted but theme.css never colours it`).toBe(
+				true,
+			);
 		}
 	});
 
@@ -278,9 +286,7 @@ describe("every token class is coloured somewhere", () => {
 	it("colours them in every place that shows Luau", () => {
 		// Whatever stands to the left of `.tok-keyword` in every rule that
 		// styles it — flat selectors and `:is(...)` groups alike.
-		const selectors = [...css.matchAll(/^(.*)\.tok-keyword\s*\{/gm)]
-			.map((m) => m[1])
-			.join(" ");
+		const selectors = [...css.matchAll(/^(.*)\.tok-keyword\s*\{/gm)].map((m) => m[1]).join(" ");
 		expect(selectors, "nothing styles .tok-keyword at all").not.toBe("");
 
 		for (const container of [".docs-code", ".preview-code"]) {
@@ -319,8 +325,7 @@ describe("no rule is scoped to a container that does not exist", () => {
 		const ancestors = new Set(
 			[...css.matchAll(/^\s*\.([a-z][a-z0-9-]*)(?:\.[a-z0-9-]+)?\s+[.a-z]/gm)].map((m) => m[1]),
 		);
-		expect(ancestors.size, "the stylesheet has ancestor-scoped rules at all")
-			.toBeGreaterThan(20);
+		expect(ancestors.size, "the stylesheet has ancestor-scoped rules at all").toBeGreaterThan(20);
 
 		for (const cls of ancestors) {
 			expect(
@@ -372,42 +377,58 @@ describe("what the validator refuses", () => {
 
 	rejects(
 		"a scheme that misreports whether it is dark",
-		(t) => { t.dark = false; },
+		(t) => {
+			t.dark = false;
+		},
 		/dark is false but app/,
 	);
 	rejects(
 		"a node the same colour as the canvas it sits on",
-		(t) => { t.colors.nodeBody = t.colors.canvas; },
+		(t) => {
+			t.colors.nodeBody = t.colors.canvas;
+		},
 		/indistinguishable from canvas/,
 	);
 	rejects(
 		"body text nobody could read",
-		(t) => { t.colors.text = "#20242a"; },
+		(t) => {
+			t.colors.text = "#20242a";
+		},
 		/below 4\.5:1/,
 	);
 	rejects(
 		"a three-digit hex",
-		(t) => { t.colors.accent = "#fff"; },
+		(t) => {
+			t.colors.accent = "#fff";
+		},
 		/not a #rrggbb colour/,
 	);
 	rejects(
 		"a missing role",
-		(t) => { delete (t.colors as Record<string, string>).pure; },
+		(t) => {
+			delete (t.colors as Record<string, string>).pure;
+		},
 		/colors\.pure is missing/,
 	);
 	rejects(
 		"a role that is not one",
-		(t) => { (t.colors as Record<string, string>).sparkle = "#ffffff"; },
+		(t) => {
+			(t.colors as Record<string, string>).sparkle = "#ffffff";
+		},
 		/colors\.sparkle is not a role/,
 	);
 	rejects(
 		"a comment the same colour as the editor background",
-		(t) => { t.code.comment = "#25292f"; },
+		(t) => {
+			t.code.comment = "#25292f";
+		},
 		/code\.comment .* below 2:1/,
 	);
 	rejects(
 		"a licence with nothing behind it",
-		(t) => { t.licence = { spdx: "", holder: "", textFile: "" }; },
+		(t) => {
+			t.licence = { spdx: "", holder: "", textFile: "" };
+		},
 		/licence\.spdx is missing/,
 	);
 
@@ -485,8 +506,7 @@ describe("the buttons that move a panel between a dock and a window", () => {
 	it("offsets both buttons by a variable, not a measurement", () => {
 		for (const selector of [".float-panel .float-dock", ".panel .panel-float"]) {
 			const body = rule(selector);
-			expect([selector, /top:\s*var\(--dock-button-top\)/.test(body)])
-				.toEqual([selector, true]);
+			expect([selector, /top:\s*var\(--dock-button-top\)/.test(body)]).toEqual([selector, true]);
 			expect([selector, /top:\s*-?\d/.test(body)]).toEqual([selector, false]);
 		}
 	});
@@ -519,7 +539,12 @@ describe("the buttons that move a panel between a dock and a window", () => {
  * two to differ.
  */
 describe("no button paints its text in its own background", () => {
-	interface Rule { classes: Set<string>; states: number; at: number; body: string }
+	interface Rule {
+		classes: Set<string>;
+		states: number;
+		at: number;
+		body: string;
+	}
 
 	const bare = withoutComments(css);
 
@@ -571,9 +596,7 @@ describe("no button paints its text in its own background", () => {
 			// Anything with a descendant or sibling combinator is scoped to a
 			// container, and is not in play for a button on its own.
 			if (/[\s>+~]/.test(selector.replace(/:not\([^)]*\)/g, ""))) continue;
-			const classes = new Set(
-				[...selector.matchAll(/\.([a-zA-Z0-9-]+)/g)].map((c) => c[1]),
-			);
+			const classes = new Set([...selector.matchAll(/\.([a-zA-Z0-9-]+)/g)].map((c) => c[1]));
 			// `:hover` and `:not(:disabled)` both add specificity, and both are
 			// what let a hover rule outrank a more specific resting one.
 			const states = (selector.match(/:(?!not\()[a-z-]+/g) ?? []).length;
@@ -597,9 +620,7 @@ describe("no button paints its text in its own background", () => {
 			// just `s`. The first version of this read `(?:^|;)s*colors*:`,
 			// matched nothing, and returned null for every property -- which
 			// this function treats as "inherits", so every case passed.
-			const found = [...r.body.matchAll(
-				new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`, "g"),
-			)];
+			const found = [...r.body.matchAll(new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`, "g"))];
 			if (found.length === 0) continue;
 			const rank = r.classes.size + r.states;
 			const value = found[found.length - 1][1].trim();

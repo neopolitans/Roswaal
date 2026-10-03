@@ -11,11 +11,19 @@ import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 
 import {
-	clampLayout, COMPACT_QUERY, floatPanel, framePanel, movePanel, resizeDock, toggleDock,
-	type DockSide, type PanelFrame, type PanelId,
+	COMPACT_QUERY,
+	clampLayout,
+	type DockSide,
+	floatPanel,
+	framePanel,
+	movePanel,
+	type PanelFrame,
+	type PanelId,
+	resizeDock,
+	toggleDock,
 } from "./panels.js";
-import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
 import { usePreferenceSync } from "./preferenceSync.js";
+import { type Preferences, readPreferences, writePreferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 
 export interface LayoutPrefs {
@@ -67,9 +75,10 @@ export function useLayoutPrefs(): LayoutPrefs {
 				window.matchMedia(COMPACT_QUERY).matches
 					? current
 					: {
-						...current,
-						layout: clampLayout(current.layout, window.innerWidth, window.innerHeight),
-					});
+							...current,
+							layout: clampLayout(current.layout, window.innerWidth, window.innerHeight),
+						},
+			);
 		onResize();
 		window.addEventListener("resize", onResize);
 		return () => window.removeEventListener("resize", onResize);
@@ -170,8 +179,10 @@ export function useLayoutPrefs(): LayoutPrefs {
 		setPrefs((current) => {
 			const panel = current.layout.panels[id];
 			let layout = current.layout;
-			if (!panel.open) layout = { ...layout, panels: { ...layout.panels, [id]: { ...panel, open: true } } };
-			if (!panel.floating && !layout.docks[panel.dock].open) layout = toggleDock(layout, panel.dock);
+			if (!panel.open)
+				layout = { ...layout, panels: { ...layout.panels, [id]: { ...panel, open: true } } };
+			if (!panel.floating && !layout.docks[panel.dock].open)
+				layout = toggleDock(layout, panel.dock);
 			if (layout === current.layout) return current;
 			const next = { ...current, layout };
 			writePreferences(next);
@@ -180,7 +191,16 @@ export function useLayoutPrefs(): LayoutPrefs {
 	}, []);
 
 	return {
-		prefs, setPrefs, updatePrefs, revealPanel,
-		onDockResize, onDockResizeEnd, onDockToggle, onFloatPanel, onFramePanel, onFramePanelEnd, onMovePanel,
+		prefs,
+		setPrefs,
+		updatePrefs,
+		revealPanel,
+		onDockResize,
+		onDockResizeEnd,
+		onDockToggle,
+		onFloatPanel,
+		onFramePanel,
+		onFramePanelEnd,
+		onMovePanel,
 	};
 }

@@ -173,7 +173,7 @@ export const RELEASES_0_90: Release[] = [
 		headline: "Keys complete in brackets as well as after a dot.",
 		affects: ["editor"],
 		added: [
-			"**A key in brackets completes**: `tbl[\"A` offers the table's keys inside the string, and `tbl[` offers them quoted. Brackets reach every string key — `[\"two words\"]` included — where a dot offers only the ones that are names. A class's properties complete the same way.",
+			'**A key in brackets completes**: `tbl["A` offers the table\'s keys inside the string, and `tbl[` offers them quoted. Brackets reach every string key — `["two words"]` included — where a dot offers only the ones that are names. A class\'s properties complete the same way.',
 		],
 	},
 	{
@@ -192,8 +192,8 @@ export const RELEASES_0_90: Release[] = [
 		headline: "The code editor says what a name is, and what a local holds.",
 		affects: ["editor"],
 		added: [
-			"**Hovering a name in the code editor** says what it is: `Instance.new(\"Part\")` returns a Part, with a sentence on what a Part is and a link to its Roblox docs page. The same for a class written as a string or a type, a datatype and its constants, a local, and a property read off one.",
-			"**A local's members are offered after a dot** when its declaration says what it holds: `local part: Part`, `= Instance.new(\"Part\")`, `= game:GetService(\"Players\")` and `:: Model` offer that class's properties, and a table written out offers its keys.",
+			'**Hovering a name in the code editor** says what it is: `Instance.new("Part")` returns a Part, with a sentence on what a Part is and a link to its Roblox docs page. The same for a class written as a string or a type, a datatype and its constants, a local, and a property read off one.',
+			'**A local\'s members are offered after a dot** when its declaration says what it holds: `local part: Part`, `= Instance.new("Part")`, `= game:GetService("Players")` and `:: Model` offer that class\'s properties, and a table written out offers its keys.',
 			"`npm run build:statics` also fetches a one-line summary of every class and datatype for the hover.",
 		],
 		fixed: [

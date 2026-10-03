@@ -15,24 +15,23 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-
+import { VERSION } from "../cli/version.js";
+import { buildSearchIndex, buildSite } from "../core/docs/site.js";
+import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import type { Target } from "../core/schema.js";
 import { api, type PackFile } from "./api.js";
 import { cx } from "./cx.js";
-import { PackBrowser, type OpenPack } from "./designer/PackBrowser.jsx";
-import { PackView } from "./designer/PackView.jsx";
 import { DocsSearch } from "./DocsSearch.jsx";
-import { buildSearchIndex, buildSite } from "../core/docs/site.js";
-import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
-import { pageHref, guardLeave, openPage, pageTarget, pagesShareTab } from "./pages.js";
+import { type OpenPack, PackBrowser } from "./designer/PackBrowser.jsx";
+import { PackView } from "./designer/PackView.jsx";
+import { IntroPanel } from "./IntroPanel.jsx";
+import { Icon } from "./icons.jsx";
+import { guardLeave, openPage, pageHref, pagesShareTab, pageTarget } from "./pages.js";
 import { usePreferenceSync } from "./preferenceSync.js";
-import { readPreferences, writePreferences, type Preferences } from "./preferences.js";
+import { type Preferences, readPreferences, writePreferences } from "./preferences.js";
+import { MarkedLogo, SiteBanner } from "./previewBuild.jsx";
 import { SettingsPanel } from "./SettingsPanel.jsx";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
-import { Icon } from "./icons.jsx";
-import { SiteBanner, MarkedLogo } from "./previewBuild.jsx";
-import { IntroPanel } from "./IntroPanel.jsx";
-import { VERSION } from "../cli/version.js";
 
 export function DesignerPage() {
 	const [introOpen, setIntroOpen] = useState(false);
@@ -74,9 +73,7 @@ export function DesignerPage() {
 	// project's own packs are documented in the editor, where the registry is
 	// live — which is the same index the graph's shortcut searches.
 	const docsIndex = useMemo(
-		() => buildSearchIndex(
-			buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id))),
-		),
+		() => buildSearchIndex(buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)))),
 		[],
 	);
 
@@ -108,13 +105,19 @@ export function DesignerPage() {
 		void refresh();
 	}, [refresh]);
 
-	const notify = useCallback((text: string, kind: "ok" | "failed" = "ok") => setNotice({ text, kind }), []);
+	const notify = useCallback(
+		(text: string, kind: "ok" | "failed" = "ok") => setNotice({ text, kind }),
+		[],
+	);
 
 	// A toast that says something worked goes on its own. One that says
 	// something failed stays until it is dismissed, so it cannot be missed.
 	useEffect(() => {
 		if (!notice || notice.kind !== "ok") return;
-		const timer = window.setTimeout(() => setNotice((current) => (current === notice ? null : current)), 4000);
+		const timer = window.setTimeout(
+			() => setNotice((current) => (current === notice ? null : current)),
+			4000,
+		);
 		return () => window.clearTimeout(timer);
 	}, [notice]);
 
@@ -175,9 +178,7 @@ export function DesignerPage() {
 				</button>
 			</header>
 
-			{introOpen && (
-				<IntroPanel surface="designer" onClose={() => setIntroOpen(false)} />
-			)}
+			{introOpen && <IntroPanel surface="designer" onClose={() => setIntroOpen(false)} />}
 
 			{notice && (
 				<div
@@ -214,11 +215,7 @@ export function DesignerPage() {
 			)}
 
 			{settingsOpen && (
-				<SettingsPanel
-					prefs={prefs}
-					onPrefs={updatePrefs}
-					onClose={() => setSettingsOpen(false)}
-				/>
+				<SettingsPanel prefs={prefs} onPrefs={updatePrefs} onClose={() => setSettingsOpen(false)} />
 			)}
 
 			{docsJump && (

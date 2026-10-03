@@ -15,7 +15,15 @@ import { toPosix } from "./paths.js";
  * cleanup, export. Wally's folders are here because they are Wally's.
  */
 export const SKIP_DIRS: ReadonlySet<string> = new Set([
-	"node_modules", ".git", ".vscode", "dist", "build", "out", "Packages", "ServerPackages", "DevPackages",
+	"node_modules",
+	".git",
+	".vscode",
+	"dist",
+	"build",
+	"out",
+	"Packages",
+	"ServerPackages",
+	"DevPackages",
 ]);
 
 /** A file a walk found. */
@@ -89,5 +97,8 @@ export async function writeTextAtomically(abs: string, text: string): Promise<vo
 
 /** Whether anything is at `abs`: a file or a folder. */
 export async function exists(abs: string): Promise<boolean> {
-	return fs.access(abs).then(() => true, () => false);
+	return fs.access(abs).then(
+		() => true,
+		() => false,
+	);
 }

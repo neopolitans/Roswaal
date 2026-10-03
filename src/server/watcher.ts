@@ -20,12 +20,12 @@
  * autosave would write the graph it was showing over the one just checked out.
  */
 
-import chokidar, { type FSWatcher } from "chokidar";
 import path from "node:path";
+import chokidar, { type FSWatcher } from "chokidar";
 
 import { errorMessage } from "./errors.js";
 import { toPosix } from "./paths.js";
-import { compileScript, type CompileOutcome, type OpenProject } from "./project.js";
+import { type CompileOutcome, compileScript, type OpenProject } from "./project.js";
 
 /** Long enough to coalesce a save, short enough to feel immediate. */
 const DEBOUNCE_MS = 200;

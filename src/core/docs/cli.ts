@@ -46,7 +46,8 @@ export const CLI_COMMANDS: CliCommand[] = [
 	},
 	{
 		name: "export",
-		blurb: "Write the project's place, holding its scripts, to a file: roswaal export <place.rbxl>.",
+		blurb:
+			"Write the project's place, holding its scripts, to a file: roswaal export <place.rbxl>.",
 		detail:
 			"Every script the project has a file for is written into a copy of its place, and one " +
 			"not in the place yet is added, with the folders it needs. Nothing else in the place " +
@@ -60,8 +61,19 @@ export const CLI_COMMANDS: CliCommand[] = [
 			"The editor at `http://127.0.0.1:4471`, the documentation at `/docs`, and — when " +
 			"Compile is set to Dynamic — a watcher recompiling graphs as they change.",
 	},
-	{ name: "stop", blurb: "Stop a running daemon on this port.", detail: "Over HTTP rather than a PID file, and it reports success only once the daemon has actually gone quiet." },
-	{ name: "restart", blurb: "Stop a running daemon, then serve again.", blocks: true, detail: "What to run after rebuilding: `serve` loads the CLI bundle once, so a rebuild does not reach a daemon that is already up." },
+	{
+		name: "stop",
+		blurb: "Stop a running daemon on this port.",
+		detail:
+			"Over HTTP rather than a PID file, and it reports success only once the daemon has actually gone quiet.",
+	},
+	{
+		name: "restart",
+		blurb: "Stop a running daemon, then serve again.",
+		blocks: true,
+		detail:
+			"What to run after rebuilding: `serve` loads the CLI bundle once, so a rebuild does not reach a daemon that is already up.",
+	},
 	{ name: "status", blurb: "Is a daemon running here, and what is it serving?" },
 	{
 		name: "compile",
@@ -79,8 +91,7 @@ export const CLI_COMMANDS: CliCommand[] = [
 	{
 		name: "prune",
 		blurb: "Remove generated files whose graph has moved or gone.",
-		detail:
-			"Lists what it would delete and stops. `--yes` is you saying you have read the list.",
+		detail: "Lists what it would delete and stops. `--yes` is you saying you have read the list.",
 	},
 	{
 		name: "check",
@@ -104,7 +115,10 @@ export const CLI_OPTIONS: CliOption[] = [
 	{ flag: "--force", blurb: "For compile: overwrite generated files edited by hand." },
 	{ flag: "--no-open", blurb: "For serve: do not print the editor URL as a hint." },
 	{ flag: "--yes", blurb: "For prune: delete the files it lists, rather than only listing them." },
-	{ flag: "--scripts <rojo|all>", blurb: "For import: only scripts Rojo can sync (default), or all of them." },
+	{
+		flag: "--scripts <rojo|all>",
+		blurb: "For import: only scripts Rojo can sync (default), or all of them.",
+	},
 	{ flag: "--no-merge", blurb: "For import: keep identical scripts as separate files." },
 	{ flag: "--help, -h", blurb: "Describe the command it follows, without running it." },
 	{ flag: "--version", blurb: "Print the version and exit." },

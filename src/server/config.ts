@@ -8,13 +8,12 @@
  * is in the modules beside this one, which `project.ts` gathers.
  */
 
-import { fs, path } from "./host.js";
-
 import { parseLuauData } from "../core/luauData.js";
 import { createRegistry, parseNodePack, type Registry } from "../core/nodes/index.js";
-import { defaultConfig, SCHEMA_VERSION, type NodeDef, type RoswaalConfig } from "../core/schema.js";
+import { defaultConfig, type NodeDef, type RoswaalConfig, SCHEMA_VERSION } from "../core/schema.js";
 import { errorMessage, UserError } from "./errors.js";
 import { exists, writeTextAtomically } from "./files.js";
+import { fs, path } from "./host.js";
 
 /** The file that makes a folder a Roswaal project. */
 const CONFIG_FILE = "roswaal.json";
@@ -129,7 +128,8 @@ export function parseConfig(value: unknown): RoswaalConfig {
 		if (typeof config[key] !== "string" || config[key] === "") throw wrong(key, "a folder path");
 	}
 	for (const key of ["place", "rojoProject"]) {
-		if (config[key] !== undefined && typeof config[key] !== "string") throw wrong(key, "a file path");
+		if (config[key] !== undefined && typeof config[key] !== "string")
+			throw wrong(key, "a file path");
 	}
 	for (const key of ["format", "comments"]) {
 		if (typeof config[key] !== "boolean") throw wrong(key, "true or false");
@@ -141,7 +141,8 @@ export function parseConfig(value: unknown): RoswaalConfig {
 	if (!Array.isArray(nodePaths) || nodePaths.some((dir) => typeof dir !== "string" || dir === "")) {
 		throw wrong("nodePaths", "a list of folder paths");
 	}
-	if (!TARGETS.includes(config.target as string)) throw wrong("target", `one of ${TARGETS.join(", ")}`);
+	if (!TARGETS.includes(config.target as string))
+		throw wrong("target", `one of ${TARGETS.join(", ")}`);
 	if (!COMPILE_MODES.includes(config.compileMode as string)) {
 		throw wrong("compileMode", `one of ${COMPILE_MODES.join(", ")}`);
 	}
@@ -193,7 +194,9 @@ export async function initProject(root: string, options: InitOptions = {}): Prom
 	await fs.mkdir(resolved, { recursive: true });
 	const config = await readConfig(resolved);
 	await ensure(CONFIG_FILE, () => writeConfig(resolved, config));
-	await ensure(config.sourceDir, () => fs.mkdir(path.join(resolved, config.sourceDir), { recursive: true }));
+	await ensure(config.sourceDir, () =>
+		fs.mkdir(path.join(resolved, config.sourceDir), { recursive: true }),
+	);
 	const nodes = config.nodePaths[0] ?? ".roswaal/nodes";
 	await ensure(nodes, () => fs.mkdir(path.join(resolved, nodes), { recursive: true }));
 	const example = options.examplePack;
@@ -205,7 +208,8 @@ export async function initProject(root: string, options: InitOptions = {}): Prom
 }
 
 async function loadNodePacks(
-	root: string, config: RoswaalConfig,
+	root: string,
+	config: RoswaalConfig,
 ): Promise<{ defs: NodeDef[]; errors: string[] }> {
 	const defs: NodeDef[] = [];
 	const errors: string[] = [];

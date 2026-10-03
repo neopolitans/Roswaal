@@ -12,7 +12,7 @@ import { stepState } from "../src/app/docsWalk.js";
 import { ICONS } from "../src/app/icons.js";
 import { pageSource } from "../src/app/PageEditor.jsx";
 import { renderPage } from "../src/core/docs/html.js";
-import { buildSite, type Block, type WalkStep } from "../src/core/docs/site.js";
+import { type Block, buildSite, type WalkStep } from "../src/core/docs/site.js";
 import * as toolbars from "../src/core/docs/toolbars.js";
 import { iconsOf, legendOf, toolbarConstant, WALK_BARS } from "../src/core/docs/toolbars.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
@@ -60,7 +60,8 @@ describe("walkthroughs", () => {
 
 	it("draw only glyphs the icon set has", () => {
 		for (const bar of WALK_BARS) {
-			for (const name of iconsOf(bar)) expect(ICONS, `${bar.id} draws "${name}"`).toHaveProperty(name);
+			for (const name of iconsOf(bar))
+				expect(ICONS, `${bar.id} draws "${name}"`).toHaveProperty(name);
 		}
 	});
 
@@ -78,8 +79,12 @@ describe("a walkthrough on the page", () => {
 
 	it("draws every step's screen, the first one showing", () => {
 		const figure = html.slice(html.indexOf('<figure class="docs-walk">'));
-		expect(figure).toMatch(/^<figure class="docs-walk"><div class="docs-walk-window"><div class="docs-walk-frame" data-point="[^"]+">/);
-		expect(figure.slice(0, figure.indexOf("</figure>"))).toContain('class="docs-walk-frame" data-point="home" hidden');
+		expect(figure).toMatch(
+			/^<figure class="docs-walk"><div class="docs-walk-window"><div class="docs-walk-frame" data-point="[^"]+">/,
+		);
+		expect(figure.slice(0, figure.indexOf("</figure>"))).toContain(
+			'class="docs-walk-frame" data-point="home" hidden',
+		);
 	});
 
 	it("numbers its steps from 1, as its counter does", () => {
@@ -87,7 +92,10 @@ describe("a walkthrough on the page", () => {
 	});
 
 	it("is written back as source by Suggest an edit, bars by name", () => {
-		const source = pageSource(page, page.blocks.map((block) => ({ block })));
+		const source = pageSource(
+			page,
+			page.blocks.map((block) => ({ block })),
+		);
 		expect(source).toContain('t: "walkthrough"');
 		expect(source).toContain("picture: [PROJECT_MENU, PROJECTS_FOOT]");
 		expect(source).toContain('point: "Open .zip…"');

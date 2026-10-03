@@ -7,14 +7,19 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import { allPages, blockText, buildSite, findPage, type Block } from "../src/core/docs/site.js";
 import { renderPage } from "../src/core/docs/html.js";
-import {
-	formatReviewDate, GITHUB_HANDLE, REVIEW_DETAILS, REVIEW_LABELS, REVIEWS, reviewLine, reviewOf,
-} from "../src/core/docs/reviews.js";
 import { RELEASES } from "../src/core/docs/releases.js";
+import {
+	formatReviewDate,
+	GITHUB_HANDLE,
+	REVIEW_DETAILS,
+	REVIEW_LABELS,
+	REVIEWS,
+	reviewLine,
+	reviewOf,
+} from "../src/core/docs/reviews.js";
+import { allPages, type Block, blockText, buildSite, findPage } from "../src/core/docs/site.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import type { NodeDef } from "../src/core/schema.js";
 
 const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
@@ -38,8 +43,12 @@ describe("page reviews", () => {
 
 	it("leaves a node pack's pages out", () => {
 		const pack: NodeDef = {
-			id: "mypack.thing", title: "Thing", category: "Math",
-			pure: true, inputs: [], outputs: [{ id: "result", name: "", kind: "data", type: "number" }],
+			id: "mypack.thing",
+			title: "Thing",
+			category: "Math",
+			pure: true,
+			inputs: [],
+			outputs: [{ id: "result", name: "", kind: "data", type: "number" }],
 			compilesTo: { kind: "expr", outputs: { result: "1" } },
 		};
 		const withPack = buildSite(createRegistry([pack]), builtinIds);
@@ -103,10 +112,14 @@ describe("reviewers", () => {
 	});
 
 	it("credits them in the foot of the page, as links", () => {
-		expect(reviewLine({ status: "reviewed", date: "2026-09-11", reviewers: ["octocat"] }))
-			.toBe("Last reviewed 11 September 2026 by [@octocat](https://github.com/octocat)");
-		expect(reviewLine({ status: "verified", date: "2026-09-11", reviewers: ["a", "b", "c"] }))
-			.toContain("[@a](https://github.com/a), [@b](https://github.com/b) and [@c](https://github.com/c)");
+		expect(reviewLine({ status: "reviewed", date: "2026-09-11", reviewers: ["octocat"] })).toBe(
+			"Last reviewed 11 September 2026 by [@octocat](https://github.com/octocat)",
+		);
+		expect(
+			reviewLine({ status: "verified", date: "2026-09-11", reviewers: ["a", "b", "c"] }),
+		).toContain(
+			"[@a](https://github.com/a), [@b](https://github.com/b) and [@c](https://github.com/c)",
+		);
 	});
 
 	it("renders the credit as a link on the static site", () => {
@@ -116,11 +129,15 @@ describe("reviewers", () => {
 			{ ...page, review: { status: "verified", date: "2026-09-11", reviewers: ["octocat"] } },
 			{ version: "test" },
 		);
-		expect(html).toContain(`<a href="https://github.com/octocat" rel="noreferrer noopener">@octocat</a>`);
+		expect(html).toContain(
+			`<a href="https://github.com/octocat" rel="noreferrer noopener">@octocat</a>`,
+		);
 	});
 
 	it("lists reviewers on Contributing, or says there are none yet", () => {
-		const text = blockText({ t: "p", text: "" }) + findPage(site, "contributing")!.blocks.map(blockText).join(" ");
+		const text =
+			blockText({ t: "p", text: "" }) +
+			findPage(site, "contributing")!.blocks.map(blockText).join(" ");
 		expect(text).toContain("Reviewers");
 		expect(text).toMatch(/Nobody is credited yet|@\w/);
 	});
@@ -134,15 +151,20 @@ describe("the last-reviewed line", () => {
 
 	it("says when a page was read, or that it has not been", () => {
 		expect(reviewLine({ status: "pending" })).toBe("Not reviewed yet");
-		expect(reviewLine({ status: "verified", date: "2026-09-11" }))
-			.toBe("Last reviewed 11 September 2026");
+		expect(reviewLine({ status: "verified", date: "2026-09-11" })).toBe(
+			"Last reviewed 11 September 2026",
+		);
 	});
 
 	it("puts the badge under the summary and the line at the foot of a static page", () => {
 		const page = findPage(site, "wires-and-pins")!;
-		const html = renderPage(site, { ...page, review: { status: "reviewed", date: "2026-09-11" } }, {
-			version: "test",
-		});
+		const html = renderPage(
+			site,
+			{ ...page, review: { status: "reviewed", date: "2026-09-11" } },
+			{
+				version: "test",
+			},
+		);
 		// The heading opens with the title; what follows it inside the h1 is the
 		// page's own controls — the pack badge, and the pencil that proposes an
 		// edit — which is where the badge has always been.

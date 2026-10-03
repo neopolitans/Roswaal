@@ -26,11 +26,10 @@
  */
 
 import { writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-
-import { CLASSES, ENUMS } from "../src/core/robloxData.ts";
+import { fileURLToPath } from "node:url";
 import { INSTANCE_CLASSES } from "../src/core/roblox.ts";
+import { CLASSES, ENUMS } from "../src/core/robloxData.ts";
 import { fetchReference, parseYaml, propertiesOf } from "./lib/creatorDocs.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");

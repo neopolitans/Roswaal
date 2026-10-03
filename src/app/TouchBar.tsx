@@ -25,7 +25,13 @@ export function liveSelection(script: NodeScript, selection: ReadonlySet<string>
 	return live;
 }
 
-export function TouchBar({ selected, canPaste, locked, labels = "icons", style = "separate" }: {
+export function TouchBar({
+	selected,
+	canPaste,
+	locked,
+	labels = "icons",
+	style = "separate",
+}: {
 	selected: number;
 	canPaste: boolean;
 	locked: boolean;
@@ -35,7 +41,9 @@ export function TouchBar({ selected, canPaste, locked, labels = "icons", style =
 	style?: ActionRowStyle;
 }) {
 	const press = (key: string, withMod: boolean) =>
-		document.body.dispatchEvent(new KeyboardEvent("keydown", { key, ctrlKey: withMod, bubbles: true }));
+		document.body.dispatchEvent(
+			new KeyboardEvent("keydown", { key, ctrlKey: withMod, bubbles: true }),
+		);
 	// Read at render: the bar redraws with the editor on every edit.
 	const history = { undo: store.canUndo(), redo: store.canRedo() };
 
@@ -43,7 +51,11 @@ export function TouchBar({ selected, canPaste, locked, labels = "icons", style =
 	// long press shows it on an iPad -- so choosing icons hides a word, never
 	// the meaning.
 	const action = (
-		name: string, icon: IconName, key: string, withMod: boolean, disabled: boolean,
+		name: string,
+		icon: IconName,
+		key: string,
+		withMod: boolean,
+		disabled: boolean,
 	) => (
 		<button
 			key={name}

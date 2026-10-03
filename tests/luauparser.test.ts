@@ -29,18 +29,30 @@ function shape(src: string): string {
 
 function show(e: Expr): string {
 	switch (e.kind) {
-		case "binary": return `(${show(e.left)} ${e.op} ${show(e.right)})`;
-		case "unary": return `(${e.op}${e.op === "not" ? " " : ""}${show(e.operand)})`;
-		case "name": return e.name;
-		case "number": return e.raw;
-		case "string": return e.raw;
-		case "cast": return `(${show(e.value)} :: ${e.type.kind})`;
-		case "paren": return `[${show(e.inner)}]`;
-		case "call": return `${show(e.callee)}(${e.args.map(show).join(", ")})`;
-		case "methodCall": return `${show(e.object)}:${e.method.name}(${e.args.map(show).join(", ")})`;
-		case "index": return `${show(e.object)}.${e.name.name}`;
-		case "indexExpr": return `${show(e.object)}[${show(e.key)}]`;
-		default: return e.kind;
+		case "binary":
+			return `(${show(e.left)} ${e.op} ${show(e.right)})`;
+		case "unary":
+			return `(${e.op}${e.op === "not" ? " " : ""}${show(e.operand)})`;
+		case "name":
+			return e.name;
+		case "number":
+			return e.raw;
+		case "string":
+			return e.raw;
+		case "cast":
+			return `(${show(e.value)} :: ${e.type.kind})`;
+		case "paren":
+			return `[${show(e.inner)}]`;
+		case "call":
+			return `${show(e.callee)}(${e.args.map(show).join(", ")})`;
+		case "methodCall":
+			return `${show(e.object)}:${e.method.name}(${e.args.map(show).join(", ")})`;
+		case "index":
+			return `${show(e.object)}.${e.name.name}`;
+		case "indexExpr":
+			return `${show(e.object)}[${show(e.key)}]`;
+		default:
+			return e.kind;
 	}
 }
 
@@ -107,22 +119,47 @@ describe("statements", () => {
 			return a
 		`).map((s) => s.kind);
 		expect(kinds).toEqual([
-			"local", "const", "localFunction", "functionStat", "functionStat", "assign", "compoundAssign",
-			"compoundAssign", "callStat", "do", "while", "repeat", "if", "numericFor", "genericFor",
-			"typeAlias", "typeAlias", "return",
+			"local",
+			"const",
+			"localFunction",
+			"functionStat",
+			"functionStat",
+			"assign",
+			"compoundAssign",
+			"compoundAssign",
+			"callStat",
+			"do",
+			"while",
+			"repeat",
+			"if",
+			"numericFor",
+			"genericFor",
+			"typeAlias",
+			"typeAlias",
+			"return",
 		]);
 	});
 
 	it("keeps where each block's keywords are", () => {
-		const src = "if a then elseif b then else end while c do end repeat until d for i = 1, 2 do end\n"
-			+ "local function f(x) end";
-		const text = (span: { start: number; end: number } | undefined) => span && src.slice(span.start, span.end);
+		const src =
+			"if a then elseif b then else end while c do end repeat until d for i = 1, 2 do end\n" +
+			"local function f(x) end";
+		const text = (span: { start: number; end: number } | undefined) =>
+			span && src.slice(span.start, span.end);
 		const [ifStat, whileStat, repeatStat, forStat, fn] = ok(src);
-		if (ifStat.kind !== "if" || whileStat.kind !== "while" || repeatStat.kind !== "repeat") throw new Error();
+		if (ifStat.kind !== "if" || whileStat.kind !== "while" || repeatStat.kind !== "repeat")
+			throw new Error();
 		if (forStat.kind !== "numericFor" || fn.kind !== "localFunction") throw new Error();
-		expect(ifStat.clauses.map((c) => [text(c.keyword), text(c.thenKeyword)])).toEqual([["if", "then"], ["elseif", "then"]]);
+		expect(ifStat.clauses.map((c) => [text(c.keyword), text(c.thenKeyword)])).toEqual([
+			["if", "then"],
+			["elseif", "then"],
+		]);
 		expect([text(ifStat.elseKeyword), text(ifStat.endKeyword)]).toEqual(["else", "end"]);
-		expect([text(whileStat.doKeyword), text(whileStat.endKeyword), text(repeatStat.untilKeyword)]).toEqual(["do", "end", "until"]);
+		expect([
+			text(whileStat.doKeyword),
+			text(whileStat.endKeyword),
+			text(repeatStat.untilKeyword),
+		]).toEqual(["do", "end", "until"]);
 		expect([text(forStat.doKeyword), text(forStat.endKeyword)]).toEqual(["do", "end"]);
 		expect([text(fn.func.paramsClose), text(fn.func.endKeyword)]).toEqual([")", "end"]);
 	});
@@ -148,7 +185,10 @@ describe("statements", () => {
 
 describe("types", () => {
 	it("reads unions, optionals and intersections", () => {
-		expect(typeOf("A | B?")).toMatchObject({ kind: "union", types: [{ kind: "reference" }, { kind: "optional" }] });
+		expect(typeOf("A | B?")).toMatchObject({
+			kind: "union",
+			types: [{ kind: "reference" }, { kind: "optional" }],
+		});
 		expect(typeOf("A & B")).toMatchObject({ kind: "intersection" });
 		expect(typeOf("| A | B")).toMatchObject({ kind: "union" });
 	});
@@ -165,10 +205,13 @@ describe("types", () => {
 	it("reads function types, generic and not", () => {
 		expect(typeOf("(number, string) -> boolean")).toMatchObject({ kind: "functionType" });
 		expect(typeOf("<T>(T) -> (T, number)")).toMatchObject({
-			kind: "functionType", generics: [{ name: "T" }], returns: { types: [{}, {}] },
+			kind: "functionType",
+			generics: [{ name: "T" }],
+			returns: { types: [{}, {}] },
 		});
 		expect(typeOf("(...number) -> ...string")).toMatchObject({
-			params: { tail: { kind: "variadic" } }, returns: { tail: { kind: "variadic" } },
+			params: { tail: { kind: "variadic" } },
+			returns: { tail: { kind: "variadic" } },
 		});
 	});
 
@@ -185,7 +228,8 @@ describe("types", () => {
 	it("reads typeof and singletons", () => {
 		expect(typeOf("typeof(workspace)")).toMatchObject({ kind: "typeof" });
 		expect(typeOf('"left" | "right" | true')).toMatchObject({
-			kind: "union", types: [{ kind: "singleton" }, { kind: "singleton" }, { kind: "singleton" }],
+			kind: "union",
+			types: [{ kind: "singleton" }, { kind: "singleton" }, { kind: "singleton" }],
 		});
 	});
 
@@ -197,7 +241,9 @@ describe("types", () => {
 describe("errors", () => {
 	it("says what is missing and where", () => {
 		const { errors } = parseChunk("if a then\n  print(a)\n");
-		expect(errors[0].message).toBe('Expected "end" to close the if, but found the end of the code.');
+		expect(errors[0].message).toBe(
+			'Expected "end" to close the if, but found the end of the code.',
+		);
 	});
 
 	it("refuses a value standing on its own", () => {
@@ -207,12 +253,18 @@ describe("errors", () => {
 	});
 
 	it("refuses anything after a return", () => {
-		expect(messages("return 1\nprint(2)")).toContain("Nothing can follow a return in the same block.");
+		expect(messages("return 1\nprint(2)")).toContain(
+			"Nothing can follow a return in the same block.",
+		);
 	});
 
 	it("refuses anything after a break or a continue, and says so once", () => {
-		expect(messages("while x do break print(1) end")).toEqual(["Nothing can follow a break in the same block."]);
-		expect(messages("for i = 1, 2 do continue; f() end")).toEqual(["Nothing can follow a continue in the same block."]);
+		expect(messages("while x do break print(1) end")).toEqual([
+			"Nothing can follow a break in the same block.",
+		]);
+		expect(messages("for i = 1, 2 do continue; f() end")).toEqual([
+			"Nothing can follow a continue in the same block.",
+		]);
 		expect(messages("while x do if y then break end continue end")).toEqual([]);
 	});
 
@@ -232,17 +284,21 @@ describe("errors", () => {
 	});
 
 	it("reports what the lexer could not read", () => {
-		expect(messages("local s = 'open\nprint(s)")).toContain("This string is not closed before the end of the line.");
+		expect(messages("local s = 'open\nprint(s)")).toContain(
+			"This string is not closed before the end of the line.",
+		);
 	});
 });
 
 describe("walking the tree", () => {
 	it("reaches every name, in statements, expressions, function bodies and types", () => {
-		const block = ok([
-			"local a: typeof(b) = function(c) return d[e] end",
-			"function M.f() g(h, `x {i}`) end",
-			"for _, j in k do l += if m then n else o end",
-		].join("\n"));
+		const block = ok(
+			[
+				"local a: typeof(b) = function(c) return d[e] end",
+				"function M.f() g(h, `x {i}`) end",
+				"for _, j in k do l += if m then n else o end",
+			].join("\n"),
+		);
 		const names: string[] = [];
 		visitBlock(block, {
 			expr: (e) => {
@@ -255,7 +311,11 @@ describe("walking the tree", () => {
 	it("finds the nodes around a point, outermost first", () => {
 		const src = "print(a.b, c)";
 		const path = nodesAt(ok(src), src.indexOf("b"));
-		expect(path.map((n) => `${n.role}:${n.role === "func" ? "body" : n.node.kind}`)).toEqual(["stat:callStat", "expr:call", "expr:index"]);
+		expect(path.map((n) => `${n.role}:${n.role === "func" ? "body" : n.node.kind}`)).toEqual([
+			"stat:callStat",
+			"expr:call",
+			"expr:index",
+		]);
 		expect(nodeAt(ok(src), src.indexOf("c"))?.node).toMatchObject({ kind: "name", name: "c" });
 		expect(nodesAt(ok("f()\n\ng()"), 4)).toEqual([]);
 	});
@@ -273,15 +333,18 @@ describe("walking the tree", () => {
 });
 
 describe("a break with no loop around it", () => {
-	const errorsOf = (src: string) => parseChunk(src, { wholeFile: true }).errors.map((e) => e.message);
+	const errorsOf = (src: string) =>
+		parseChunk(src, { wholeFile: true }).errors.map((e) => e.message);
 
 	/** Luau refuses it, so generated Luau that holds one must not pass the check. */
 	it("is an error in a whole file, inside a function inside a loop too", () => {
 		expect(errorsOf("break")).toEqual(["`break` is only allowed inside a loop."]);
-		expect(errorsOf("for i = 1, 3 do local function f() break end end"))
-			.toEqual(["`break` is only allowed inside a loop."]);
-		expect(errorsOf("while true do task.spawn(function() continue end) end"))
-			.toEqual(["`continue` is only allowed inside a loop."]);
+		expect(errorsOf("for i = 1, 3 do local function f() break end end")).toEqual([
+			"`break` is only allowed inside a loop.",
+		]);
+		expect(errorsOf("while true do task.spawn(function() continue end) end")).toEqual([
+			"`continue` is only allowed inside a loop.",
+		]);
 	});
 
 	it("is fine in a loop, and in a loop inside a function", () => {

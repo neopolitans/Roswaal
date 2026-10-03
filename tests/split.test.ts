@@ -23,7 +23,10 @@ const PACK: NodeDef[] = [
 		inputs: [
 			{ id: "in", name: "", kind: "exec" },
 			{
-				id: "target", name: "Target", kind: "data", type: "Vector3",
+				id: "target",
+				name: "Target",
+				kind: "data",
+				type: "Vector3",
 				default: { t: "raw", v: "Vector3.zero" },
 			},
 		],
@@ -37,7 +40,10 @@ const PACK: NodeDef[] = [
 		inputs: [
 			{ id: "in", name: "", kind: "exec" },
 			{
-				id: "at", name: "At", kind: "data", type: "CFrame",
+				id: "at",
+				name: "At",
+				kind: "data",
+				type: "CFrame",
 				default: { t: "raw", v: "CFrame.identity" },
 			},
 		],
@@ -219,9 +225,7 @@ describe("splitting an output", () => {
 
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
-		expect(body(out.code)).toBe(
-			["local Origin = getOrigin()", "move(Origin.Position)"].join("\n"),
-		);
+		expect(body(out.code)).toBe(["local Origin = getOrigin()", "move(Origin.Position)"].join("\n"));
 	});
 
 	it("does not re-evaluate the source once per component", () => {

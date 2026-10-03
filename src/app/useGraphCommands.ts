@@ -8,16 +8,31 @@ import type React from "react";
 import { useCallback, useEffect, useMemo } from "react";
 
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
-import { resolveNodePins, type Registry } from "../core/nodes/index.js";
+import { type Registry, resolveNodePins } from "../core/nodes/index.js";
 import { canShowName } from "../core/operatorLayout.js";
 import type { Literal, NodeDef } from "../core/schema.js";
 import { SERVICE_CALL, SERVICE_VALUE } from "../core/serviceCalls.js";
 import type { ProjectInfo } from "./api.js";
 import type { MapDocument } from "./centreDocument.js";
 import {
-	addComment, addNode, alignToAnchor, connect, copySelection, deleteSelection, landingPins, pasteClipping,
-	promoteToVariable, recombinePin, selectionAnchor, setConfig as setNodeConfig, setLiteral, splitCost, splitPin,
-	splitValueWarning, withCommentContents, type Clipping,
+	addComment,
+	addNode,
+	alignToAnchor,
+	type Clipping,
+	connect,
+	copySelection,
+	deleteSelection,
+	landingPins,
+	pasteClipping,
+	promoteToVariable,
+	recombinePin,
+	selectionAnchor,
+	setLiteral,
+	setConfig as setNodeConfig,
+	splitCost,
+	splitPin,
+	splitValueWarning,
+	withCommentContents,
 } from "./edits.js";
 import { screenToWorld } from "./geometry.js";
 import { isEditableTarget } from "./keys.js";
@@ -25,15 +40,15 @@ import { NODE } from "./layers.js";
 import { autoLayout } from "./layout.js";
 import { memberPresets } from "./memberPresets.js";
 import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
+import { configEntries, configText } from "./nodeConfig.js";
 import type { PinMenuTarget } from "./PinMenu.jsx";
 import type { Preferences } from "./preferences.js";
 import { useProjectTypes } from "./projectTypes.js";
-import { boundsOf } from "./selectionBounds.js";
 import type { SourceDoc } from "./SourceView.jsx";
-import { store, type EditorState } from "./store.js";
+import { boundsOf } from "./selectionBounds.js";
+import { type EditorState, store } from "./store.js";
 import type { Dialogs } from "./useDialogs.js";
 import type { LayoutPrefs } from "./useLayoutPrefs.js";
-import { configEntries, configText } from "./nodeConfig.js";
 
 /** The two nodes whose first data pin is the service the call is made on. */
 const SERVICE_NODES = new Set([SERVICE_CALL, SERVICE_VALUE]);
@@ -65,27 +80,40 @@ export interface GraphCommandsContext {
 
 export function useGraphCommands(context: GraphCommandsContext) {
 	const {
-		editor, project, registry, prefs, updatePrefs, ask, dialogOpen, clipboard, setHasClip, pointerAt,
-		menu, setMenu, setPreviewOpen, setDocsJump, compiling, runCompile, runCompileMap, source, mapDoc,
+		editor,
+		project,
+		registry,
+		prefs,
+		updatePrefs,
+		ask,
+		dialogOpen,
+		clipboard,
+		setHasClip,
+		pointerAt,
+		menu,
+		setMenu,
+		setPreviewOpen,
+		setDocsJump,
+		compiling,
+		runCompile,
+		runCompileMap,
+		source,
+		mapDoc,
 	} = context;
 	const alignExec = prefs.alignExec;
 	// Laying out has to use the width the canvas is drawing, or columns spaced
 	// by the fixed width overlap the wider nodes sitting in them.
 	const wideNodes = prefs.wideNodes;
 
-
 	// One palette entry per variable, local, function and parameter the graph on
 	// screen can reach, so "Get health" is searchable by name rather than by node
 	// type — and so nothing is offered that would not compile where it lands.
 	const projectTypes = useProjectTypes();
-	const presets = useMemo(
-		() => {
-			if (!editor.script) return [];
-			const base = buildPresets(editor.script, editor.graph);
-			return [...base, ...memberPresets(base, editor.script, registry, projectTypes)];
-		},
-		[editor.script, editor.graph, registry, projectTypes],
-	);
+	const presets = useMemo(() => {
+		if (!editor.script) return [];
+		const base = buildPresets(editor.script, editor.graph);
+		return [...base, ...memberPresets(base, editor.script, registry, projectTypes)];
+	}, [editor.script, editor.graph, registry, projectTypes]);
 
 	/**
 	 * Pastes a clipping where the pointer is.
@@ -189,9 +217,7 @@ export function useGraphCommands(context: GraphCommandsContext) {
 					const returns = configEntries(owner, "returns");
 					if (returns.length > 0) starting.returns = returns;
 				}
-				const withDefaults = Object.keys(starting).length > 0
-					? { ...starting, ...config }
-					: config;
+				const withDefaults = Object.keys(starting).length > 0 ? { ...starting, ...config } : config;
 				let next = withDefaults
 					? setNodeConfig(added.script, added.id, withDefaults)
 					: added.script;
@@ -212,10 +238,12 @@ export function useGraphCommands(context: GraphCommandsContext) {
 				if (member) {
 					const reader = registry.get("value.member");
 					const source = next.nodes.find((n) => n.id === added.id);
-					const out = reader && source
-						? resolveNodePins(def, source.config, source.literals).outputs
-							.find((p) => p.kind === "data")
-						: undefined;
+					const out =
+						reader && source
+							? resolveNodePins(def, source.config, source.literals).outputs.find(
+									(p) => p.kind === "data",
+								)
+							: undefined;
 					if (reader && out) {
 						const placedMember = addNode(next, reader, at.x + NODE.width + 40, at.y);
 						next = setNodeConfig(placedMember.script, placedMember.id, {
@@ -223,7 +251,8 @@ export function useGraphCommands(context: GraphCommandsContext) {
 							type: member.type,
 						});
 						next = connect(
-							next, registry,
+							next,
+							registry,
 							{ node: added.id, pin: out.id },
 							{ node: placedMember.id, pin: "object" },
 						);
@@ -234,7 +263,9 @@ export function useGraphCommands(context: GraphCommandsContext) {
 				if (!from || hoisted) return next;
 
 				const placed = next.nodes.find((n) => n.id === added.id);
-				const pins = placed ? resolveNodePins(def, placed.config, placed.literals) : { inputs: [], outputs: [] };
+				const pins = placed
+					? resolveNodePins(def, placed.config, placed.literals)
+					: { inputs: [], outputs: [] };
 				const side = from.side === "out" ? "in" : "out";
 				let candidates = side === "in" ? pins.inputs : pins.outputs;
 				/**
@@ -255,9 +286,10 @@ export function useGraphCommands(context: GraphCommandsContext) {
 				if (!landing) return next;
 
 				const target = { node: added.id, pin: landing.id };
-				next = from.side === "out"
-					? connect(next, registry, from.ref, target)
-					: connect(next, registry, target, from.ref);
+				next =
+					from.side === "out"
+						? connect(next, registry, from.ref, target)
+						: connect(next, registry, target, from.ref);
 				return next;
 			});
 			setMenu(null);
@@ -265,29 +297,32 @@ export function useGraphCommands(context: GraphCommandsContext) {
 		[menu, registry, prefs.logicParens, prefs.castNames, prefs.concatInterpolate],
 	);
 
-	const spawnComment = useCallback((world: { x: number; y: number }) => {
-		const { selection: selected, graph } = store.getSnapshot();
-		store.edit((s) => {
-			// Wrapping a selection is the common case, so a comment created with
-			// nodes selected sizes itself to enclose them. With nothing selected
-			// it is a plain box at the point given: a comment is a note on the
-			// canvas, and one about nothing in particular — a heading, a reminder,
-			// a space left for work not done yet — is a fair thing to write.
-			//
-			// Measured in the graph on screen. A Declare Function is drawn in two
-			// graphs at two positions, and the whole script only holds the outer
-			// one — so a comment around it inside its own graph went to where it
-			// sits in the other.
-			const box = boundsOf(viewOf(s, graph), selected, registry);
-			const rect = box
-				? { x: box.x - 24, y: box.y - 52, w: box.w + 48, h: box.h + 76 }
-				: { x: world.x, y: world.y, w: 320, h: 200 };
-			const { script, id } = addComment(s, rect);
-			queueMicrotask(() => store.select([id]));
-			return script;
-		});
-		setMenu(null);
-	}, [registry]);
+	const spawnComment = useCallback(
+		(world: { x: number; y: number }) => {
+			const { selection: selected, graph } = store.getSnapshot();
+			store.edit((s) => {
+				// Wrapping a selection is the common case, so a comment created with
+				// nodes selected sizes itself to enclose them. With nothing selected
+				// it is a plain box at the point given: a comment is a note on the
+				// canvas, and one about nothing in particular — a heading, a reminder,
+				// a space left for work not done yet — is a fair thing to write.
+				//
+				// Measured in the graph on screen. A Declare Function is drawn in two
+				// graphs at two positions, and the whole script only holds the outer
+				// one — so a comment around it inside its own graph went to where it
+				// sits in the other.
+				const box = boundsOf(viewOf(s, graph), selected, registry);
+				const rect = box
+					? { x: box.x - 24, y: box.y - 52, w: box.w + 48, h: box.h + 76 }
+					: { x: world.x, y: world.y, w: 320, h: 200 };
+				const { script, id } = addComment(s, rect);
+				queueMicrotask(() => store.select([id]));
+				return script;
+			});
+			setMenu(null);
+		},
+		[registry],
+	);
 
 	/**
 	 * Tidies the graph into ranked columns. Acts on the selection when there is
@@ -315,24 +350,27 @@ export function useGraphCommands(context: GraphCommandsContext) {
 	 * along — nodes that are not on screen. A delete that only ever removes what
 	 * you can see needs no question.
 	 */
-	const removeSelection = useCallback(async (ids: ReadonlySet<string>) => {
-		const script = store.getSnapshot().script;
-		if (!script || ids.size === 0) return;
-		const inside = [...withFunctionGraphs(script, ids)].filter(
-			(id) => !ids.has(id) && script.nodes.some((n) => n.id === id),
-		).length;
-		if (inside > 0) {
-			const ok = await ask({
-				kind: "confirm",
-				title: "Delete the function's graph too?",
-				message: `${inside} node${inside === 1 ? " is" : "s are"} inside it, and go${inside === 1 ? "es" : ""} with it.`,
-				confirmLabel: "Delete",
-				danger: true,
-			});
-			if (ok !== true) return;
-		}
-		store.edit((s) => deleteSelection(s, ids, registry));
-	}, [ask, registry]);
+	const removeSelection = useCallback(
+		async (ids: ReadonlySet<string>) => {
+			const script = store.getSnapshot().script;
+			if (!script || ids.size === 0) return;
+			const inside = [...withFunctionGraphs(script, ids)].filter(
+				(id) => !ids.has(id) && script.nodes.some((n) => n.id === id),
+			).length;
+			if (inside > 0) {
+				const ok = await ask({
+					kind: "confirm",
+					title: "Delete the function's graph too?",
+					message: `${inside} node${inside === 1 ? " is" : "s are"} inside it, and go${inside === 1 ? "es" : ""} with it.`,
+					confirmLabel: "Delete",
+					danger: true,
+				});
+				if (ok !== true) return;
+			}
+			store.edit((s) => deleteSelection(s, ids, registry));
+		},
+		[ask, registry],
+	);
 
 	/**
 	 * Turns a pin's typed-in value into a script variable, then selects the
@@ -544,7 +582,9 @@ export function useGraphCommands(context: GraphCommandsContext) {
 				e.preventDefault();
 				const ids = state.selection;
 				const graph = state.graph;
-				store.edit((s) => mergeLayout(s, graph, alignToAnchor(viewOf(s, graph), registry, ids, anchor)));
+				store.edit((s) =>
+					mergeLayout(s, graph, alignToAnchor(viewOf(s, graph), registry, ids, anchor)),
+				);
 				return;
 			}
 			if (e.key.toLowerCase() === "c" && !mod) {
@@ -571,8 +611,28 @@ export function useGraphCommands(context: GraphCommandsContext) {
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [editor.path, mapDoc, source, runCompile, runCompileMap, spawnComment, realign, removeSelection, locked, registry, paste]);
+	}, [
+		editor.path,
+		mapDoc,
+		source,
+		runCompile,
+		runCompileMap,
+		spawnComment,
+		realign,
+		removeSelection,
+		locked,
+		registry,
+		paste,
+	]);
 
-
-	return { locked, presets, promotePin, realign, spawn, spawnComment, splitOrRecombine, toggleAlignExec };
+	return {
+		locked,
+		presets,
+		promotePin,
+		realign,
+		spawn,
+		spawnComment,
+		splitOrRecombine,
+		toggleAlignExec,
+	};
 }

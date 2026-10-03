@@ -13,12 +13,14 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import {
-	compileNodeMap, isFilesystemMap, type MapNode, type NodeMap,
-} from "../src/core/nodemap.js";
 import { figureText, mapFigure } from "../src/core/docs/mapFigure.js";
-import { allPages, buildSite, type Block } from "../src/core/docs/site.js";
+import { allPages, type Block, buildSite } from "../src/core/docs/site.js";
+import {
+	compileNodeMap,
+	isFilesystemMap,
+	type MapNode,
+	type NodeMap,
+} from "../src/core/nodemap.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 
 let next = 0;

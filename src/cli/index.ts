@@ -22,19 +22,31 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-
-import { describePlaceReport } from "../core/rbx/placeExport.js";
 import { readRbx } from "../core/rbx/index.js";
+import { describePlaceReport } from "../core/rbx/placeExport.js";
 import { planImport, surveyPlace } from "../core/rbx/placeImport.js";
 import { createDaemon, DEFAULT_PORT, hasBundledEditor } from "../server/app.js";
 import { errorMessage } from "../server/errors.js";
 import {
-	collectMaps, compileAll, compileMap, compileScript, describeOutcome, exportPlace, findOrphanOutputs,
-	importRojoProject, initProject, isInitialised, openProject, placeReport, removeOutputs, writePlaceImport,
-	type CompileOutcome, type OpenProject,
+	type CompileOutcome,
+	collectMaps,
+	compileAll,
+	compileMap,
+	compileScript,
+	describeOutcome,
+	exportPlace,
+	findOrphanOutputs,
+	importRojoProject,
+	initProject,
+	isInitialised,
+	type OpenProject,
+	openProject,
+	placeReport,
+	removeOutputs,
+	writePlaceImport,
 } from "../server/project.js";
 import { DynamicCompiler } from "../server/watcher.js";
-import { flagNumber, flagString, parseInvocation, type Args } from "./args.js";
+import { type Args, flagNumber, flagString, parseInvocation } from "./args.js";
 import { EXAMPLE_PACK } from "./examplePack.js";
 import { helpLines } from "./help.js";
 import { banner, bold, cyan, dim, green, red, yellow } from "./style.js";
@@ -181,13 +193,18 @@ async function commandImportRojo(file: string): Promise<number> {
 	try {
 		if (!hadConfig) await initProject(root);
 		const outcome = await importRojoProject(await openProject(root), path.basename(file));
-		if (!hadConfig) console.log(`  ${green("config  ")} roswaal.json, so this folder is a Roswaal project`);
+		if (!hadConfig)
+			console.log(`  ${green("config  ")} roswaal.json, so this folder is a Roswaal project`);
 		console.log(`  ${green("map     ")} ${outcome.mapPath}`);
 		for (const problem of outcome.problems) console.log(`  ${yellow("kept    ")} ${problem}`);
 		if (outcome.takenOver) {
-			console.log(`  ${green("rojo    ")} ${outcome.file} is written from the map now; compiling leaves it as it is until the map changes`);
+			console.log(
+				`  ${green("rojo    ")} ${outcome.file} is written from the map now; compiling leaves it as it is until the map changes`,
+			);
 		} else {
-			console.log(`  ${yellow("rojo    ")} ${outcome.file} is left to you: the map would write it differently. Compile with --force to take it over.`);
+			console.log(
+				`  ${yellow("rojo    ")} ${outcome.file} is left to you: the map would write it differently. Compile with --force to take it over.`,
+			);
 		}
 		return 0;
 	} catch (err) {
@@ -200,7 +217,11 @@ async function commandImport(args: Args): Promise<number> {
 	const launchedFrom = process.env.ROSWAAL_CWD ?? process.cwd();
 	const given = args.positional[1];
 	if (!given) {
-		console.log(red("roswaal import needs a place file or a Rojo project file: roswaal import <place.rbxl> [directory], or roswaal import default.project.json"));
+		console.log(
+			red(
+				"roswaal import needs a place file or a Rojo project file: roswaal import <place.rbxl> [directory], or roswaal import default.project.json",
+			),
+		);
 		return 2;
 	}
 	if (/\.project\.json$/i.test(given)) return commandImportRojo(path.resolve(launchedFrom, given));
@@ -217,7 +238,11 @@ async function commandImport(args: Args): Promise<number> {
 
 	const existing = await fs.readdir(root).catch(() => null);
 	if (existing !== null && existing.length > 0) {
-		console.log(red(`  ${root} already has files in it. Import makes a new project; name an empty directory.`));
+		console.log(
+			red(
+				`  ${root} already has files in it. Import makes a new project; name an empty directory.`,
+			),
+		);
 		return 1;
 	}
 
@@ -254,14 +279,21 @@ async function commandImport(args: Args): Promise<number> {
 
 	const luau = Object.keys(plan.files).filter((f) => f.endsWith(".luau"));
 	const placeOnly = luau.filter((f) => f.startsWith("place/")).length;
-	console.log(`  ${green("scripts ")} ${survey.scripts.length} in the place, ${luau.length} files written`);
-	console.log(`  ${green("rojo    ")} ${luau.length - placeOnly} under src/, mapped in default.project.json`);
+	console.log(
+		`  ${green("scripts ")} ${survey.scripts.length} in the place, ${luau.length} files written`,
+	);
+	console.log(
+		`  ${green("rojo    ")} ${luau.length - placeOnly} under src/, mapped in default.project.json`,
+	);
 	if (scope === "all") {
 		console.log(`  ${green("place   ")} ${placeOnly} under place/, for scripts Rojo cannot sync`);
 	} else if (plan.skipped.length > 0) {
-		console.log(`  ${yellow("left    ")} ${plan.skipped.length} only the place can hold; --scripts all brings them in`);
+		console.log(
+			`  ${yellow("left    ")} ${plan.skipped.length} only the place can hold; --scripts all brings them in`,
+		);
 	}
-	if (!map.written) console.log(`  ${yellow("map     ")} ${map.skipped ?? "default.project.json was not written"}`);
+	if (!map.written)
+		console.log(`  ${yellow("map     ")} ${map.skipped ?? "default.project.json was not written"}`);
 	console.log(`  ${green("created ")} ${root}`);
 	console.log("");
 	console.log(dim(`  Next: cd ${path.relative(launchedFrom, root) || "."} && roswaal serve`));
@@ -287,7 +319,9 @@ async function commandExport(args: Args): Promise<number> {
 		return 1;
 	}
 	if (!written) {
-		console.log(red("  This project has no place file: set `place` in roswaal.json, or put one in its root."));
+		console.log(
+			red("  This project has no place file: set `place` in roswaal.json, or put one in its root."),
+		);
 		return 1;
 	}
 	const extension = path.extname(written.file).toLowerCase();
@@ -406,7 +440,8 @@ async function commandStatus(args: Args): Promise<number> {
  * no target -- every map and every graph.
  */
 async function compileTargets(
-	project: OpenProject, target: string | undefined,
+	project: OpenProject,
+	target: string | undefined,
 ): Promise<{ maps: string[]; graph?: string }> {
 	if (target === undefined) return { maps: await collectMaps(project) };
 	// A target ending in .nodemap compiles to a Rojo project file rather than Luau.
@@ -436,7 +471,9 @@ async function commandCompile(args: Args): Promise<number> {
 	for (const mapPath of maps) {
 		const outcome = await compileMap(project, mapPath, { write: true, force });
 		if (outcome.unchanged) {
-			console.log(`${green("same    ")} ${outcome.outputPath} ${dim("already says this; left as it is")}`);
+			console.log(
+				`${green("same    ")} ${outcome.outputPath} ${dim("already says this; left as it is")}`,
+			);
 		} else if (outcome.written) {
 			console.log(`${green("wrote   ")} ${outcome.outputPath}`);
 		} else {
@@ -571,17 +608,28 @@ async function main(): Promise<number> {
 	const { command, topic, args } = parseInvocation(process.argv.slice(2));
 
 	switch (command) {
-		case "init": return commandInit(args);
-		case "import": return commandImport(args);
-		case "export": return commandExport(args);
-		case "serve": return commandServe(args);
-		case "stop": return commandStop(args);
-		case "restart": return commandRestart(args);
-		case "status": return commandStatus(args);
-		case "compile": return commandCompile(args);
-		case "watch": return commandWatch(args);
-		case "prune": return commandPrune(args);
-		case "check": return commandCheck(args);
+		case "init":
+			return commandInit(args);
+		case "import":
+			return commandImport(args);
+		case "export":
+			return commandExport(args);
+		case "serve":
+			return commandServe(args);
+		case "stop":
+			return commandStop(args);
+		case "restart":
+			return commandRestart(args);
+		case "status":
+			return commandStatus(args);
+		case "compile":
+			return commandCompile(args);
+		case "watch":
+			return commandWatch(args);
+		case "prune":
+			return commandPrune(args);
+		case "check":
+			return commandCheck(args);
 		case "help":
 			printHelp(topic);
 			return 0;

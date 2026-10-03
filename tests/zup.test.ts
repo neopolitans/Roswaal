@@ -66,7 +66,12 @@ describe("CFrame from Z-Up Rotation", () => {
 		{ x: 0.2, y: -0.4, z: 0.1, w: 0.9 },
 		{ x: -0.7, y: 0.1, z: 0.5, w: -0.3 },
 	].map(normalised);
-	const vectors: V[] = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [3, -2, 5]];
+	const vectors: V[] = [
+		[1, 0, 0],
+		[0, 1, 0],
+		[0, 0, 1],
+		[3, -2, 5],
+	];
 
 	it("rotates a vector across the same way either way round", () => {
 		for (const q of quaternions) {
@@ -86,10 +91,14 @@ describe("CFrame from Z-Up Rotation", () => {
 	});
 
 	it("puts the quaternion's parts where the arithmetic above assumes", () => {
-		expect(compiled("zup.rotation", {
-			x: { t: "number", v: 1 }, y: { t: "number", v: 2 },
-			z: { t: "number", v: 3 }, w: { t: "number", v: 4 },
-		})).toContain("CFrame.new(0, 0, 0, -(2), -(3), 1, 4)");
+		expect(
+			compiled("zup.rotation", {
+				x: { t: "number", v: 1 },
+				y: { t: "number", v: 2 },
+				z: { t: "number", v: 3 },
+				w: { t: "number", v: 4 },
+			}),
+		).toContain("CFrame.new(0, 0, 0, -(2), -(3), 1, 4)");
 	});
 });
 
@@ -111,15 +120,21 @@ function rotatorQuat(pitch: number, yaw: number, roll: number): Q {
 }
 
 // Roblox's rotations about its own axes, right-handed.
-const rx = (a: number) => ([x, y, z]: V): V =>
-	[x, y * Math.cos(a) - z * Math.sin(a), y * Math.sin(a) + z * Math.cos(a)];
-const ry = (a: number) => ([x, y, z]: V): V =>
-	[x * Math.cos(a) + z * Math.sin(a), y, -x * Math.sin(a) + z * Math.cos(a)];
-const rz = (a: number) => ([x, y, z]: V): V =>
-	[x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), z];
+const rx =
+	(a: number) =>
+	([x, y, z]: V): V => [x, y * Math.cos(a) - z * Math.sin(a), y * Math.sin(a) + z * Math.cos(a)];
+const ry =
+	(a: number) =>
+	([x, y, z]: V): V => [x * Math.cos(a) + z * Math.sin(a), y, -x * Math.sin(a) + z * Math.cos(a)];
+const rz =
+	(a: number) =>
+	([x, y, z]: V): V => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), z];
 
 /** `CFrame.fromEulerAnglesYXZ(ax, ay, az)`: Z applied first, then X, then Y. */
-const yxz = (ax: number, ay: number, az: number) => (v: V): V => ry(ay)(rx(ax)(rz(az)(v)));
+const yxz =
+	(ax: number, ay: number, az: number) =>
+	(v: V): V =>
+		ry(ay)(rx(ax)(rz(az)(v)));
 
 /** What CFrame from Z-Up Rotator's template does, in degrees. */
 const rotator = (pitch: number, yaw: number, roll: number) => {
@@ -128,8 +143,17 @@ const rotator = (pitch: number, yaw: number, roll: number) => {
 };
 
 describe("CFrame from Z-Up Rotator", () => {
-	const rotators: [number, number, number][] = [[0, 90, 0], [30, -45, 10], [-60, 120, 75]];
-	const vectors: V[] = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [3, -2, 5]];
+	const rotators: [number, number, number][] = [
+		[0, 90, 0],
+		[30, -45, 10],
+		[-60, 120, 75],
+	];
+	const vectors: V[] = [
+		[1, 0, 0],
+		[0, 1, 0],
+		[0, 0, 1],
+		[3, -2, 5],
+	];
 
 	it("agrees with the quaternion the source tool would compute", () => {
 		for (const [p, y, r] of rotators) {
@@ -158,23 +182,33 @@ describe("CFrame from Z-Up Rotator", () => {
 	});
 
 	it("writes the conversion into the call it compiles to", () => {
-		expect(compiled("zup.rotator", {
-			pitch: { t: "number", v: 10 }, yaw: { t: "number", v: -20 }, roll: { t: "number", v: 30 },
-		})).toContain("CFrame.fromEulerAnglesYXZ(math.rad(10), -math.rad(-20), -math.rad(30))");
+		expect(
+			compiled("zup.rotator", {
+				pitch: { t: "number", v: 10 },
+				yaw: { t: "number", v: -20 },
+				roll: { t: "number", v: 30 },
+			}),
+		).toContain("CFrame.fromEulerAnglesYXZ(math.rad(10), -math.rad(-20), -math.rad(30))");
 	});
 });
 
 describe("Vector3 from Z-Up", () => {
 	it("swaps the axes and divides by units per stud", () => {
-		expect(compiled("zup.vector3", {
-			x: { t: "number", v: 100 }, y: { t: "number", v: 20 }, z: { t: "number", v: 5 },
-		})).toContain("Vector3.new(20, 5, -(100)) / 28");
+		expect(
+			compiled("zup.vector3", {
+				x: { t: "number", v: 100 },
+				y: { t: "number", v: 20 },
+				z: { t: "number", v: 5 },
+			}),
+		).toContain("Vector3.new(20, 5, -(100)) / 28");
 	});
 
 	/** The trap the template is written around: `-` then `-3` is `--3`, a comment. */
 	it("never writes two minus signs together", () => {
 		const code = compiled("zup.vector3", {
-			x: { t: "number", v: -3 }, y: { t: "number", v: -1 }, z: { t: "number", v: -2 },
+			x: { t: "number", v: -3 },
+			y: { t: "number", v: -1 },
+			z: { t: "number", v: -2 },
 		});
 		expect(code).not.toContain("--");
 		expect(code).toContain("-(-3)");
@@ -184,7 +218,9 @@ describe("Vector3 from Z-Up", () => {
 describe("CFrame from Z-Up Transform", () => {
 	it("scales the location, converts the rotation, and hands scale back on its own", () => {
 		const code = compiled("zup.transform", {
-			lx: { t: "number", v: 280 }, ly: { t: "number", v: 56 }, lz: { t: "number", v: 28 },
+			lx: { t: "number", v: 280 },
+			ly: { t: "number", v: 56 },
+			lz: { t: "number", v: 28 },
 		});
 		expect(code).toContain("CFrame.new(56 / 28, 28 / 28, -(280) / 28, -(0), -(0), 0, 1)");
 	});

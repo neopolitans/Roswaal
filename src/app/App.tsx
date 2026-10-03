@@ -11,63 +11,73 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 
 import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
-import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
-import { DocsSearch } from "./DocsSearch.jsx";
-import { NodePicker } from "./NodePicker.jsx";
-import { previewFor } from "./DocsPanel.jsx";
-import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
-import {
-	api, openEventStream, ProjectChangedError, type CompileOutcome, type CompileStep, type MapOutcome,
-	type ProjectInfo, type TreeEntry,
-} from "./api.js";
+import { errorMessage } from "../core/errorMessage.js";
 import type { InstanceLocation } from "../core/nodemap.js";
-import { MapEditor } from "./MapEditor.jsx";
-import { SourceView, type SourceDoc } from "./SourceView.jsx";
+import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
+import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
+import { AliasDocument } from "./AliasDocument.jsx";
+import {
+	api,
+	type CompileOutcome,
+	type CompileStep,
+	type MapOutcome,
+	openEventStream,
+	ProjectChangedError,
+	type ProjectInfo,
+	type TreeEntry,
+} from "./api.js";
 import { Canvas } from "./Canvas.jsx";
 import { CanvasNotice } from "./CanvasNotice.jsx";
+import { CompileToast } from "./CompileToast.jsx";
+import type { LuaurcDocument, MapDocument } from "./centreDocument.js";
 import { onCodeEditRequest } from "./codeEditRequests.js";
-import { previewSelection } from "./SelectionPreview.jsx";
-import { type MenuAnchor } from "./NodeMenu.jsx";
-import type { PinMenuTarget } from "./PinMenu.jsx";
-import { Inspector } from "./Inspector.jsx";
-import { ProjectTree } from "./ProjectTree.jsx";
-import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
-import { IntroPanel } from "./IntroPanel.jsx";
-import { Popout } from "./Popout.jsx";
-import { Icon } from "./icons.jsx";
-import { liveSelection, TouchBar } from "./TouchBar.jsx";
-import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
-import { Overlays, type CodeEditState } from "./Overlays.jsx";
+import { previewFor } from "./DocsPanel.jsx";
+import { DocsSearch } from "./DocsSearch.jsx";
+import { ExportMenu } from "./ExportMenu.jsx";
+import { type Clipping, disconnectPin, setLiteral, setConfig as setNodeConfig } from "./edits.js";
 import { GraphTabs } from "./GraphTabs.jsx";
+import {
+	useCanImportPlace,
+	useCanImportZip,
+	useCanOpenDirectory,
+	useHostCan,
+	useRememberedFolders,
+} from "./host.js";
+import { Inspector } from "./Inspector.jsx";
+import { IntroPanel } from "./IntroPanel.jsx";
+import { Icon } from "./icons.jsx";
+import { MapEditor } from "./MapEditor.jsx";
+import type { MenuAnchor } from "./NodeMenu.jsx";
+import { NodePicker } from "./NodePicker.jsx";
+import { functionNameOf } from "./nodeConfig.js";
+import { type CodeEditState, Overlays } from "./Overlays.jsx";
+import type { PinMenuTarget } from "./PinMenu.jsx";
 import { PlaceBrowser, PlaceProperties, type PlaceTarget } from "./PlaceBrowser.jsx";
-import { Workspace } from "./Workspace.jsx";
+import { Popout } from "./Popout.jsx";
+import { ProjectPicker } from "./ProjectPicker.jsx";
+import { ProjectTree } from "./ProjectTree.jsx";
+import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
 import type { PanelId } from "./panels.js";
 import { readPreferences, wheelAction } from "./preferences.js";
-import { AliasDocument } from "./AliasDocument.jsx";
-import type { LuaurcDocument, MapDocument } from "./centreDocument.js";
+import { SiteBanner } from "./previewBuild.jsx";
+import { setProjectAliases } from "./projectAliases.js";
+import { setProjectTypes } from "./projectTypes.js";
+import { forget, lastProject, remember } from "./recents.js";
+import { previewSelection } from "./SelectionPreview.jsx";
+import { type SourceDoc, SourceView } from "./SourceView.jsx";
+import { StatusPanel } from "./StatusPanel.jsx";
+import { SaveQueue } from "./saveQueue.js";
+import { store, useDocuments, useEditor, useOutline } from "./store.js";
+import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
+import { liveSelection, TouchBar } from "./TouchBar.jsx";
 import { useAutosave } from "./useAutosave.js";
 import { useDialogs } from "./useDialogs.js";
 import { useGraphCommands } from "./useGraphCommands.js";
-import { useProjectActions } from "./useProjectActions.js";
 import { useLayoutPrefs } from "./useLayoutPrefs.js";
-import { disconnectPin, setConfig as setNodeConfig, setLiteral, type Clipping } from "./edits.js";
-import { setProjectTypes } from "./projectTypes.js";
-import { setProjectAliases } from "./projectAliases.js";
-import { forget, lastProject, remember } from "./recents.js";
-import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
-import { SiteBanner } from "./previewBuild.jsx";
-import {
-	useCanImportPlace, useCanImportZip, useCanOpenDirectory, useHostCan, useRememberedFolders,
-} from "./host.js";
-import { ExportMenu } from "./ExportMenu.jsx";
-import { store, useDocuments, useEditor, useOutline } from "./store.js";
-import { SaveQueue } from "./saveQueue.js";
-import { CompileToast } from "./CompileToast.jsx";
-import { ProjectPicker } from "./ProjectPicker.jsx";
-import { StatusPanel } from "./StatusPanel.jsx";
-import { errorMessage } from "../core/errorMessage.js";
-import { functionNameOf } from "./nodeConfig.js";
+import { useProjectActions } from "./useProjectActions.js";
+import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
+import { Workspace } from "./Workspace.jsx";
 
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
@@ -77,7 +87,10 @@ const SEP = String.fromCharCode(92);
  * daemon from before 0.30.0 has no answer, and the lists simply go without.
  */
 function refreshTypes(): void {
-	void api.exportedTypes().then(({ types }) => setProjectTypes(types), () => setProjectTypes([]));
+	void api.exportedTypes().then(
+		({ types }) => setProjectTypes(types),
+		() => setProjectTypes([]),
+	);
 }
 
 /**
@@ -133,8 +146,16 @@ export function App() {
 	const [compiling, setCompiling] = useState(false);
 	const [statusOpen, setStatusOpen] = useState(true);
 	const {
-		prefs, updatePrefs, revealPanel,
-		onDockResize, onDockResizeEnd, onDockToggle, onFloatPanel, onFramePanel, onFramePanelEnd, onMovePanel,
+		prefs,
+		updatePrefs,
+		revealPanel,
+		onDockResize,
+		onDockResizeEnd,
+		onDockToggle,
+		onFloatPanel,
+		onFramePanel,
+		onFramePanelEnd,
+		onMovePanel,
 	} = useLayoutPrefs();
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	/**
@@ -191,12 +212,15 @@ export function App() {
 	 * a double tap -- it also brings the panel out: its drawer on a tablet,
 	 * and its dock back if that was collapsed.
 	 */
-	const onPlaceInspect = useCallback((target: PlaceTarget | null, open: boolean) => {
-		setPlaceInspect(target);
-		if (!target || !open) return;
-		setShowDrawer((prev) => ({ panel: "properties", seq: (prev?.seq ?? 0) + 1 }));
-		revealPanel("properties");
-	}, [revealPanel]);
+	const onPlaceInspect = useCallback(
+		(target: PlaceTarget | null, open: boolean) => {
+			setPlaceInspect(target);
+			if (!target || !open) return;
+			setShowDrawer((prev) => ({ panel: "properties", seq: (prev?.seq ?? 0) + 1 }));
+			revealPanel("properties");
+		},
+		[revealPanel],
+	);
 	const onPlacePick = useCallback((index: number) => {
 		setPlaceReveal((prev) => ({ index, seq: (prev?.seq ?? 0) + 1 }));
 	}, []);
@@ -223,10 +247,12 @@ export function App() {
 	const [introOpen, setIntroOpen] = useState(OPENED_FOR_PICKER);
 	// A file dropped on the canvas, once we know where it lives in the DataModel
 	// and therefore what can usefully be made from it.
-	const [dropMenu, setDropMenu] = useState<
-		{ screen: { x: number; y: number }; world: { x: number; y: number };
-		  name: string; location: InstanceLocation } | null
-	>(null);
+	const [dropMenu, setDropMenu] = useState<{
+		screen: { x: number; y: number };
+		world: { x: number; y: number };
+		name: string;
+		location: InstanceLocation;
+	} | null>(null);
 
 	const { dialog, dialogOpen, ask, notify } = useDialogs();
 
@@ -244,7 +270,11 @@ export function App() {
 	/** Whether the host compiles a graph when it sees it written: the daemon, in Dynamic mode. */
 	const hostCompilesOnSave = useRef(false);
 	const saves = useMemo(
-		() => new SaveQueue(() => autosaveMs.current, (error) => writeFailed.current(error)),
+		() =>
+			new SaveQueue(
+				() => autosaveMs.current,
+				(error) => writeFailed.current(error),
+			),
 		[],
 	);
 	const [busy, setBusy] = useState<string | null>(null);
@@ -301,9 +331,10 @@ export function App() {
 	// moment, skipping the scripts it no longer needs.
 	const compileSource = useDeferredValue(editor.script);
 	const compiled = useMemo(
-		() => (compileSource
-			? compile(compileSource, registry, { indent, comments: withComments, castsByHierarchy })
-			: null),
+		() =>
+			compileSource
+				? compile(compileSource, registry, { indent, comments: withComments, castsByHierarchy })
+				: null,
 		[compileSource, registry, indent, withComments, castsByHierarchy],
 	);
 	const diagnostics: Diagnostic[] = compiled?.diagnostics ?? [];
@@ -312,9 +343,10 @@ export function App() {
 	const previewScope = useMemo(() => {
 		if (!editor.script) return { selection: editor.selection, functionName: undefined };
 		const selection = previewSelection(editor.script, editor.graph, editor.selection);
-		const fn = selection === editor.selection
-			? undefined
-			: editor.script.nodes.find((n) => n.id === editor.graph);
+		const fn =
+			selection === editor.selection
+				? undefined
+				: editor.script.nodes.find((n) => n.id === editor.graph);
 		const functionName = fn ? functionNameOf(fn) : undefined;
 		return { selection, functionName };
 	}, [editor.script, editor.graph, editor.selection]);
@@ -330,40 +362,41 @@ export function App() {
 	 * and the panel needs to know the open failed so it can offer to take it
 	 * off rather than closing over a dialog that says only what went wrong.
 	 */
-	const loadProject = useCallback(async (
-		root: string, init = false, quiet = false,
-	): Promise<boolean> => {
-		setBusy("Opening project…");
-		try {
-			const info = init ? await api.initProject(root) : await api.openProject(root);
-			api.setProjectRoot(info.root);
-			setProject(info);
-			/**
-			 * Only where a root means something next time.
-			 *
-			 * The browser build's roots are *mount points* on its own volume —
-			 * `/lune_test` for a folder whose real name is all the page is ever
-			 * told. Between sessions that path means nothing: the folder is
-			 * reached through the handle the browser kept, and the mount point
-			 * is made again from its name. Remembering it produced a card that
-			 * looked openable and was not.
-			 */
-			if (!IS_STATIC_HOST) remember(info.root);
-			setCustomNodes((await api.customNodes()).custom);
-			refreshTypes();
-			refreshAliases();
-			return true;
-		} catch (err) {
-			// `quiet` is the introduction panel, which stays open and says so on
-			// the card itself, with the cross to take it off the list beside it.
-			// A dialog as well would be the same news twice, over the top of the
-			// one place the reader can act on it.
-			if (!quiet) notify("Something went wrong", errorMessage(err));
-			return false;
-		} finally {
-			setBusy(null);
-		}
-	}, []);
+	const loadProject = useCallback(
+		async (root: string, init = false, quiet = false): Promise<boolean> => {
+			setBusy("Opening project…");
+			try {
+				const info = init ? await api.initProject(root) : await api.openProject(root);
+				api.setProjectRoot(info.root);
+				setProject(info);
+				/**
+				 * Only where a root means something next time.
+				 *
+				 * The browser build's roots are *mount points* on its own volume —
+				 * `/lune_test` for a folder whose real name is all the page is ever
+				 * told. Between sessions that path means nothing: the folder is
+				 * reached through the handle the browser kept, and the mount point
+				 * is made again from its name. Remembering it produced a card that
+				 * looked openable and was not.
+				 */
+				if (!IS_STATIC_HOST) remember(info.root);
+				setCustomNodes((await api.customNodes()).custom);
+				refreshTypes();
+				refreshAliases();
+				return true;
+			} catch (err) {
+				// `quiet` is the introduction panel, which stays open and says so on
+				// the card itself, with the cross to take it off the list beside it.
+				// A dialog as well would be the same news twice, over the top of the
+				// one place the reader can act on it.
+				if (!quiet) notify("Something went wrong", errorMessage(err));
+				return false;
+			} finally {
+				setBusy(null);
+			}
+		},
+		[],
+	);
 
 	/**
 	 * Leaves the project that is open and opens another.
@@ -392,9 +425,9 @@ export function App() {
 			} catch (err) {
 				notify(
 					"Staying where we are",
-					`Something still had unsaved changes and they could not be written: ${
-						errorMessage(err)
-					}. Nothing was closed and the project has not changed.`,
+					`Something still had unsaved changes and they could not be written: ${errorMessage(
+						err,
+					)}. Nothing was closed and the project has not changed.`,
 				);
 				return false;
 			}
@@ -521,7 +554,10 @@ export function App() {
 
 		stream.addEventListener("hot", (event) => {
 			const detail = JSON.parse((event as MessageEvent).data) as {
-				type: string; path: string; outcome?: CompileOutcome; message?: string;
+				type: string;
+				path: string;
+				outcome?: CompileOutcome;
+				message?: string;
 			};
 			if (detail.outcome) setOutcomes([detail.outcome]);
 			void api.tree().then(({ tree, place }) => setProject((p) => (p ? { ...p, tree, place } : p)));
@@ -588,7 +624,12 @@ export function App() {
 	const openEntry = useCallback(async (entry: TreeEntry): Promise<void> => {
 		// A package listed under wally.toml opens the module a require of it reaches.
 		if (entry.kind === "package") {
-			if (entry.target) return openEntry({ path: entry.target, name: entry.target.split("/").pop()!, kind: "luau" });
+			if (entry.target)
+				return openEntry({
+					path: entry.target,
+					name: entry.target.split("/").pop()!,
+					kind: "luau",
+				});
 			return;
 		}
 		if (entry.kind === "wally") return;
@@ -633,19 +674,21 @@ export function App() {
 	 * and hunting for that entry in the tree to open it the long way round would
 	 * be work for its own sake.
 	 */
-	const openGraphPath = useCallback(async (path: string) => {
-		try {
-			setSource(null);
-			setAliasDoc(null);
-			setMapDoc(null);
-			if (store.showGraph(path)) return;
-			const { script } = await api.readScript(path);
-			store.open(path, script);
-		} catch (err) {
-			notify("Could not open that graph", errorMessage(err));
-		}
-	}, [notify]);
-
+	const openGraphPath = useCallback(
+		async (path: string) => {
+			try {
+				setSource(null);
+				setAliasDoc(null);
+				setMapDoc(null);
+				if (store.showGraph(path)) return;
+				const { script } = await api.readScript(path);
+				store.open(path, script);
+			} catch (err) {
+				notify("Could not open that graph", errorMessage(err));
+			}
+		},
+		[notify],
+	);
 
 	/**
 	 * A write the daemon refused because it is now serving a different project.
@@ -729,42 +772,108 @@ export function App() {
 	 * settings panel writes paths, and a path the daemon refuses has to say so —
 	 * otherwise the field goes on showing the value that was not saved.
 	 */
-	const setConfig = useCallback(async (patch: Partial<RoswaalConfig>) => {
-		if (!project) return;
-		const config = { ...project.config, ...patch };
-		try {
-			const saved = await api.saveConfig(config);
-			setProject({ ...project, config: saved.config });
-			// Only the settings that decide what is on disk, and where. A
-			// compile-mode toggle changes nothing the tree shows, and it is the
-			// one of these that gets pressed repeatedly.
-			const rereads = ["sourceDir", "outDir", "nodePaths", "rojoProject"];
-			if (rereads.some((key) => key in patch)) await refreshTree();
-		} catch (err) {
-			if (err instanceof ProjectChangedError) void onProjectChanged(err);
-			else notify("That setting was not saved", errorMessage(err));
-		}
-	}, [project, refreshTree, notify, onProjectChanged]);
+	const setConfig = useCallback(
+		async (patch: Partial<RoswaalConfig>) => {
+			if (!project) return;
+			const config = { ...project.config, ...patch };
+			try {
+				const saved = await api.saveConfig(config);
+				setProject({ ...project, config: saved.config });
+				// Only the settings that decide what is on disk, and where. A
+				// compile-mode toggle changes nothing the tree shows, and it is the
+				// one of these that gets pressed repeatedly.
+				const rereads = ["sourceDir", "outDir", "nodePaths", "rojoProject"];
+				if (rereads.some((key) => key in patch)) await refreshTree();
+			} catch (err) {
+				if (err instanceof ProjectChangedError) void onProjectChanged(err);
+				else notify("That setting was not saved", errorMessage(err));
+			}
+		},
+		[project, refreshTree, notify, onProjectChanged],
+	);
 
 	const { writeGraph, followDiskRef } = useAutosave({
-		saves, project, ask, notify, onWriteFailed, runCompile, hostCompilesOnSave, mapDoc, setMapDoc,
+		saves,
+		project,
+		ask,
+		notify,
+		onWriteFailed,
+		runCompile,
+		hostCompilesOnSave,
+		mapDoc,
+		setMapDoc,
 	});
 
 	const {
-		locked, presets, promotePin, realign, spawn, spawnComment, splitOrRecombine, toggleAlignExec,
+		locked,
+		presets,
+		promotePin,
+		realign,
+		spawn,
+		spawnComment,
+		splitOrRecombine,
+		toggleAlignExec,
 	} = useGraphCommands({
-		editor, project, registry, prefs, updatePrefs, ask, dialogOpen, clipboard, setHasClip, pointerAt,
-		menu, setMenu, setPreviewOpen, setDocsJump, compiling, runCompile, runCompileMap, source, mapDoc,
+		editor,
+		project,
+		registry,
+		prefs,
+		updatePrefs,
+		ask,
+		dialogOpen,
+		clipboard,
+		setHasClip,
+		pointerAt,
+		menu,
+		setMenu,
+		setPreviewOpen,
+		setDocsJump,
+		compiling,
+		runCompile,
+		runCompileMap,
+		source,
+		mapDoc,
 	});
 
 	const {
-		createGraphIn, createMapIn, exportOpen, importPlace, importRojo, importZip,
-		inDir, onPackageZip, onPlaceOpenFile, onTreeDelete, onTreeMove, onTreeNewFolder,
-		onTreeOpen, onTreeOpenFunction, onTreePackage, onTreeRename, onTreeReveal, openFolder,
-		packageZipInput, placeGraphFor, reopenFolder, resetProject, setExportOpen,
+		createGraphIn,
+		createMapIn,
+		exportOpen,
+		importPlace,
+		importRojo,
+		importZip,
+		inDir,
+		onPackageZip,
+		onPlaceOpenFile,
+		onTreeDelete,
+		onTreeMove,
+		onTreeNewFolder,
+		onTreeOpen,
+		onTreeOpenFunction,
+		onTreePackage,
+		onTreeRename,
+		onTreeReveal,
+		openFolder,
+		packageZipInput,
+		placeGraphFor,
+		reopenFolder,
+		resetProject,
+		setExportOpen,
 	} = useProjectActions({
-		project, ask, notify, saves, writeGraph, loadProject, refreshTree, openEntry,
-		source, setSource, mapDoc, setMapDoc, setAliasDoc, setIntroOpen,
+		project,
+		ask,
+		notify,
+		saves,
+		writeGraph,
+		loadProject,
+		refreshTree,
+		openEntry,
+		source,
+		setSource,
+		mapDoc,
+		setMapDoc,
+		setAliasDoc,
+		setIntroOpen,
 	});
 
 	// -- render ------------------------------------------------------------
@@ -814,82 +923,85 @@ export function App() {
 					folders={rememberedFolders}
 					onOpenFolder={reopenFolder}
 					onForget={forget}
-					onHome={() => { if (IS_STATIC_HOST) void openHome(); else setProject(null); }}
+					onHome={() => {
+						if (IS_STATIC_HOST) void openHome();
+						else setProject(null);
+					}}
 					onClose={() => setIntroOpen(false)}
 					actions={
 						<>
-						{/* One button for what can be done to the project, so the
+							{/* One button for what can be done to the project, so the
 						    footer is Home, Project, and the other two windows. */}
-						<Popout label="Project" title="Open, export or start again" up closeOnPick>
-							{hostCanBrowse && (
-								<button className="tb with-icon" onClick={() => void browseForProject()}>
-									<Icon name="folderOpen" size={15} />
-									Browse&hellip;
+							<Popout label="Project" title="Open, export or start again" up closeOnPick>
+								{hostCanBrowse && (
+									<button className="tb with-icon" onClick={() => void browseForProject()}>
+										<Icon name="folderOpen" size={15} />
+										Browse&hellip;
+									</button>
+								)}
+								{hostCanOpenFolder && (
+									<button className="tb with-icon" onClick={() => void openFolder()}>
+										<Icon name="folder" size={15} />
+										Open folder&hellip;
+									</button>
+								)}
+								{hostCanImportZip && (
+									<button className="tb with-icon" onClick={() => zipInput.current?.click()}>
+										<Icon name="folderOpen" size={15} />
+										Open .zip&hellip;
+									</button>
+								)}
+								{hostCanImportPlace && (
+									<button className="tb with-icon" onClick={() => placeInput.current?.click()}>
+										<Icon name="folderOpen" size={15} />
+										Open place&hellip;
+									</button>
+								)}
+								<button className="tb with-icon" onClick={() => void importRojo()}>
+									<Icon name="map" size={15} />
+									Import Rojo project&hellip;
 								</button>
-							)}
-							{hostCanOpenFolder && (
-								<button className="tb with-icon" onClick={() => void openFolder()}>
-									<Icon name="folder" size={15} />
-									Open folder&hellip;
+								<button className="tb with-icon" onClick={() => setExportOpen(true)}>
+									<Icon name="copy" size={15} />
+									Export&hellip;
 								</button>
+								{hostCanReset && <span className="tool-popout-rule" />}
+								{hostCanReset && (
+									<button className="tb with-icon" onClick={() => void resetProject()}>
+										<Icon name="refresh" size={15} />
+										Start again
+									</button>
+								)}
+							</Popout>
+							{/* Outside the menu, which closes on the tap that opens
+						    the picker; the input has to outlast it. */}
+							{hostCanImportPlace && (
+								<input
+									ref={placeInput}
+									type="file"
+									accept=".rbxl,.rbxlx,application/octet-stream"
+									hidden
+									onChange={(event) => {
+										const file = event.target.files?.[0];
+										event.target.value = "";
+										if (file) void importPlace(file);
+									}}
+								/>
 							)}
 							{hostCanImportZip && (
-								<button className="tb with-icon" onClick={() => zipInput.current?.click()}>
-									<Icon name="folderOpen" size={15} />
-									Open .zip&hellip;
-								</button>
+								<input
+									ref={zipInput}
+									type="file"
+									accept=".zip,application/zip"
+									hidden
+									onChange={(event) => {
+										const file = event.target.files?.[0];
+										// Cleared, so picking the same zip again is a change.
+										event.target.value = "";
+										if (file) void importZip(file);
+									}}
+								/>
 							)}
-							{hostCanImportPlace && (
-								<button className="tb with-icon" onClick={() => placeInput.current?.click()}>
-									<Icon name="folderOpen" size={15} />
-									Open place&hellip;
-								</button>
-							)}
-							<button className="tb with-icon" onClick={() => void importRojo()}>
-								<Icon name="map" size={15} />
-								Import Rojo project&hellip;
-							</button>
-							<button className="tb with-icon" onClick={() => setExportOpen(true)}>
-								<Icon name="copy" size={15} />
-								Export&hellip;
-							</button>
-							{hostCanReset && <span className="tool-popout-rule" />}
-							{hostCanReset && (
-								<button className="tb with-icon" onClick={() => void resetProject()}>
-									<Icon name="refresh" size={15} />
-									Start again
-								</button>
-							)}
-						</Popout>
-						{/* Outside the menu, which closes on the tap that opens
-						    the picker; the input has to outlast it. */}
-						{hostCanImportPlace && (
-							<input
-								ref={placeInput}
-								type="file"
-								accept=".rbxl,.rbxlx,application/octet-stream"
-								hidden
-								onChange={(event) => {
-									const file = event.target.files?.[0];
-									event.target.value = "";
-									if (file) void importPlace(file);
-								}}
-							/>
-						)}
-						{hostCanImportZip && (
-							<input
-								ref={zipInput}
-								type="file"
-								accept=".zip,application/zip"
-								hidden
-								onChange={(event) => {
-									const file = event.target.files?.[0];
-									// Cleared, so picking the same zip again is a change.
-									event.target.value = "";
-									if (file) void importZip(file);
-								}}
-							/>
-						)}
 						</>
 					}
 				/>
@@ -913,17 +1025,15 @@ export function App() {
 				drawerKey={`${editor.path}|${editor.graph}|${source?.path}|${mapDoc?.path}|${aliasDoc ? "alias" : ""}`}
 				showDrawer={showDrawer}
 				touchBar={
-					editor.script && !source && !mapDoc && !aliasDoc
-						? (
-							<TouchBar
-								selected={liveSelection(editor.script, editor.selection)}
-								canPaste={hasClip}
-								locked={locked}
-								labels={prefs.actionLabels}
-								style={prefs.actionRow}
-							/>
-						)
-						: undefined
+					editor.script && !source && !mapDoc && !aliasDoc ? (
+						<TouchBar
+							selected={liveSelection(editor.script, editor.selection)}
+							canPaste={hasClip}
+							locked={locked}
+							labels={prefs.actionLabels}
+							style={prefs.actionRow}
+						/>
+					) : undefined
 				}
 				onResize={onDockResize}
 				onResizeEnd={onDockResizeEnd}
@@ -942,26 +1052,28 @@ export function App() {
 							{/* The switch on the name's row, right-aligned, so the tree
 							    keeps its height on a phone. */}
 							<h2 className={project.place ? "project-head" : undefined}>
-								<span className="project-name" title={project.root.split(/[\\/]/).pop()}>{project.root.split(/[\\/]/).pop()}</span>
-								{project.place && (
-								<span className="segmented project-views">
-									<button
-										className={projectView === "files" ? "on" : ""}
-										onClick={() => setProjectView("files")}
-									>
-										Files
-									</button>
-									<button
-										className={projectView === "datamodel" ? "on" : ""}
-										title={`The instances in ${project.place}`}
-										onClick={() => {
-											setProjectView("datamodel");
-											setPlaceSeen(true);
-										}}
-									>
-										DataModel
-									</button>
+								<span className="project-name" title={project.root.split(/[\\/]/).pop()}>
+									{project.root.split(/[\\/]/).pop()}
 								</span>
+								{project.place && (
+									<span className="segmented project-views">
+										<button
+											className={projectView === "files" ? "on" : ""}
+											onClick={() => setProjectView("files")}
+										>
+											Files
+										</button>
+										<button
+											className={projectView === "datamodel" ? "on" : ""}
+											title={`The instances in ${project.place}`}
+											onClick={() => {
+												setProjectView("datamodel");
+												setPlaceSeen(true);
+											}}
+										>
+											DataModel
+										</button>
+									</span>
 								)}
 							</h2>
 							{project.place && placeSeen && (
@@ -975,38 +1087,41 @@ export function App() {
 									/>
 								</div>
 							)}
-							<div className="project-view" hidden={Boolean(project.place) && projectView === "datamodel"}>
-							<ProjectTree
-								tree={project.tree}
-								openPath={editor.path ?? source?.path ?? null}
-								openGraph={source || mapDoc ? null : editor.graph}
-								outline={outline}
-								onOpenFunction={onTreeOpenFunction}
-								sourceDir={project.config.sourceDir}
-								nodePaths={project.config.nodePaths}
-								targetDir={targetDir}
-								onOpen={onTreeOpen}
-								onMove={onTreeMove}
-								onReveal={onTreeReveal}
-								onTargetDir={setTargetDir}
-								onNewGraph={createGraphIn}
-								onNewMap={createMapIn}
-								onNewFolder={onTreeNewFolder}
-								onRename={onTreeRename}
-								onDelete={onTreeDelete}
-								onPackage={onTreePackage}
-							/>
-							<input
-								ref={packageZipInput}
-								type="file"
-								accept=".zip,application/zip"
-								hidden
-								onChange={(event) => {
-									const file = event.target.files?.[0];
-									event.target.value = "";
-									if (file) void onPackageZip(file);
-								}}
-							/>
+							<div
+								className="project-view"
+								hidden={Boolean(project.place) && projectView === "datamodel"}
+							>
+								<ProjectTree
+									tree={project.tree}
+									openPath={editor.path ?? source?.path ?? null}
+									openGraph={source || mapDoc ? null : editor.graph}
+									outline={outline}
+									onOpenFunction={onTreeOpenFunction}
+									sourceDir={project.config.sourceDir}
+									nodePaths={project.config.nodePaths}
+									targetDir={targetDir}
+									onOpen={onTreeOpen}
+									onMove={onTreeMove}
+									onReveal={onTreeReveal}
+									onTargetDir={setTargetDir}
+									onNewGraph={createGraphIn}
+									onNewMap={createMapIn}
+									onNewFolder={onTreeNewFolder}
+									onRename={onTreeRename}
+									onDelete={onTreeDelete}
+									onPackage={onTreePackage}
+								/>
+								<input
+									ref={packageZipInput}
+									type="file"
+									accept=".zip,application/zip"
+									hidden
+									onChange={(event) => {
+										const file = event.target.files?.[0];
+										event.target.value = "";
+										if (file) void onPackageZip(file);
+									}}
+								/>
 							</div>
 						</>
 					),
@@ -1019,7 +1134,8 @@ export function App() {
 								selection={editor.selection}
 								registry={registry}
 								confirm={async (title, message, confirmLabel) =>
-									(await ask({ kind: "confirm", title, message, confirmLabel, danger: true })) === true
+									(await ask({ kind: "confirm", title, message, confirmLabel, danger: true })) ===
+									true
 								}
 							/>
 						) : undefined,
@@ -1074,7 +1190,12 @@ export function App() {
 						/>
 					),
 				}}
-				floating={<><CompileToast progress={progress} /><CanvasNotice /></>}
+				floating={
+					<>
+						<CompileToast progress={progress} />
+						<CanvasNotice />
+					</>
+				}
 				centre={
 					<>
 						{/* Above the centre's content, and only when there is a
@@ -1093,149 +1214,154 @@ export function App() {
 							onReorder={(key, before) => store.reorder(key, before)}
 						/>
 						<div className="centre-body">
-						{aliasDoc ? (
-						<AliasDocument
-							dir={aliasDoc.dir}
-							files={aliasDoc.files}
-							target={project.config.target}
-							onWrite={(dir, text) => {
-								void api.writeLuaurc(dir, text).then(
-									(written) => setAliasDoc({ dir: aliasDoc.dir, files: written.files }),
-									(err: unknown) =>
-										notify("The .luaurc was not written", errorMessage(err)),
-								);
-							}}
-						/>
-					) : mapDoc ? (
-						<MapEditor
-							map={mapDoc.map}
-							dirty={mapDoc.dirty}
-							tree={project.tree}
-							onChange={(next) => setMapDoc({ ...mapDoc, map: next, dirty: true })}
-						/>
-					) : source ? (
-						<SourceView
-							doc={source}
-							onOpenGraph={(path) => void openGraphPath(path)}
-							onEdit={async (path) => {
-								try {
-									const { editor: found } = await api.openInEditor(path);
-									notify("Handed over", `Opened ${path.split("/").pop()} in ${found}.`);
-								} catch (err) {
-									notify("Could not open it", errorMessage(err));
-								}
-							}}
-							onReveal={(path) => void api.reveal(path)}
-						/>
-					) : editor.script ? (
-						<>
-						{/* The graph's own tools, floating over the canvas's top edge
+							{aliasDoc ? (
+								<AliasDocument
+									dir={aliasDoc.dir}
+									files={aliasDoc.files}
+									target={project.config.target}
+									onWrite={(dir, text) => {
+										void api.writeLuaurc(dir, text).then(
+											(written) => setAliasDoc({ dir: aliasDoc.dir, files: written.files }),
+											(err: unknown) => notify("The .luaurc was not written", errorMessage(err)),
+										);
+									}}
+								/>
+							) : mapDoc ? (
+								<MapEditor
+									map={mapDoc.map}
+									dirty={mapDoc.dirty}
+									tree={project.tree}
+									onChange={(next) => setMapDoc({ ...mapDoc, map: next, dirty: true })}
+								/>
+							) : source ? (
+								<SourceView
+									doc={source}
+									onOpenGraph={(path) => void openGraphPath(path)}
+									onEdit={async (path) => {
+										try {
+											const { editor: found } = await api.openInEditor(path);
+											notify("Handed over", `Opened ${path.split("/").pop()} in ${found}.`);
+										} catch (err) {
+											notify("Could not open it", errorMessage(err));
+										}
+									}}
+									onReveal={(path) => void api.reveal(path)}
+								/>
+							) : editor.script ? (
+								<>
+									{/* The graph's own tools, floating over the canvas's top edge
 						    rather than a row above it. A node map keeps its bar: it
 						    has no canvas to float over. */}
-						<DocumentBar
-							kind="graph"
-							name={editor.script.name}
-							dirty={editor.dirty}
-							busy={busy}
-							scriptClass={editor.script.scriptClass}
-							target={editor.script.target}
-							typecheck={editor.script.typecheck}
-							locked={locked}
-							alignExec={alignExec}
-							selected={editor.selection.size}
-							inFunction={editor.graph !== null}
-							showName={prefs.toolbarName}
-							functionName={
-								editor.graph === null
-									? undefined
-									: (editor.script.nodes.find((n) => n.id === editor.graph)?.config as
-										| { name?: string }
-										| undefined)?.name?.trim() || "function"
-							}
-							hasPath={editor.path !== null}
-							onScriptClass={(value) => store.edit((s) => ({ ...s, scriptClass: value }))}
-							onTarget={async (value) => {
-								// Nodes written only for the other target would all become
-								// errors, so say how many and ask before switching. The same
-								// test `validate` reports them with.
-								const off = offTargetNodes(editor.script!, registry, value);
-								if (off.length > 0) {
-									const name = value === "lune" ? "Lune" : "Roblox";
-									const ok = await ask({
-										kind: "confirm",
-										title: `Compile this graph for ${name}?`,
-										message:
-											`${off.length === 1 ? "This node is" : `These ${off.length} nodes are`} ` +
-											`not available for ${name}, and will show as errors until removed:`,
-										items: offTargetNames(editor.script!, registry, value),
-										confirmLabel: `Switch to ${name}`,
-									});
-									if (ok !== true) return;
-								}
-								store.edit((s) => ({ ...s, target: value }));
-							}}
-							onTypecheck={(value) => store.edit((s) => ({ ...s, typecheck: value }))}
-							onAddNode={() => {
-								const view = store.getView();
-								setMenu({
-									screen: { x: 320, y: 120 },
-									world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
-								});
-							}}
-							onRealign={realign}
-							onToggleAlignExec={toggleAlignExec}
-							onPreview={() => setPreviewOpen(true)}
-							onCompile={() => {
-								if (editor.path) void runCompile(editor.path, true);
-							}}
-						/>
-						<Canvas
-							script={editor.script}
-							graph={editor.graph}
-							registry={registry}
-							diagnostics={diagnostics}
-							locked={locked}
-							onPointerAt={(world) => { pointerAt.current = world; }}
-							wireStyle={prefs.wireStyle}
-							wheel={wheelAction(prefs.wheel)}
-							wideNodes={prefs.wideNodes}
-							onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
-							onRequestNodePicker={(world) => setNodePicker(world)}
-							onDropNode={(defId, config, world, member) => {
-								const def = registry.get(defId);
-								if (def) spawn(def, world, config, undefined, member);
-								setNodePicker(null);
-							}}
-							onRequestPinMenu={(screen, nodeId, pin, side) =>
-								setPinMenu({ screen, nodeId, pin, side })
-							}
-							onEditCode={(nodeId, pin, value) => setCodeEdit({ nodeId, pin, value })}
-							onDropFile={async (dropped, screen, world) => {
-								const name = dropped.split("/").pop() ?? dropped;
-								try {
-									const { location } = await api.resolve(dropped);
-									if (!location) {
-										notify(
-											"Nothing to make from that",
-											`No node map says where ${name} ends up in the DataModel, so ` +
-												"there is no path to require it by. Add one, or point an " +
-												"existing map at the folder it is in.",
-										);
-										return;
-									}
-									setDropMenu({ screen, world, name, location });
-								} catch (err) {
-									notify("Could not resolve that file", errorMessage(err));
-								}
-							}}
-						/>
-						</>
-						) : (
-							<div className="placeholder">
-								<h1>No graph open</h1>
-								<p>Double-click a <code>.nodescript</code> in the tree, or make a new one.</p>
-							</div>
-						)}
+									<DocumentBar
+										kind="graph"
+										name={editor.script.name}
+										dirty={editor.dirty}
+										busy={busy}
+										scriptClass={editor.script.scriptClass}
+										target={editor.script.target}
+										typecheck={editor.script.typecheck}
+										locked={locked}
+										alignExec={alignExec}
+										selected={editor.selection.size}
+										inFunction={editor.graph !== null}
+										showName={prefs.toolbarName}
+										functionName={
+											editor.graph === null
+												? undefined
+												: (
+														editor.script.nodes.find((n) => n.id === editor.graph)?.config as
+															| { name?: string }
+															| undefined
+													)?.name?.trim() || "function"
+										}
+										hasPath={editor.path !== null}
+										onScriptClass={(value) => store.edit((s) => ({ ...s, scriptClass: value }))}
+										onTarget={async (value) => {
+											// Nodes written only for the other target would all become
+											// errors, so say how many and ask before switching. The same
+											// test `validate` reports them with.
+											const off = offTargetNodes(editor.script!, registry, value);
+											if (off.length > 0) {
+												const name = value === "lune" ? "Lune" : "Roblox";
+												const ok = await ask({
+													kind: "confirm",
+													title: `Compile this graph for ${name}?`,
+													message:
+														`${off.length === 1 ? "This node is" : `These ${off.length} nodes are`} ` +
+														`not available for ${name}, and will show as errors until removed:`,
+													items: offTargetNames(editor.script!, registry, value),
+													confirmLabel: `Switch to ${name}`,
+												});
+												if (ok !== true) return;
+											}
+											store.edit((s) => ({ ...s, target: value }));
+										}}
+										onTypecheck={(value) => store.edit((s) => ({ ...s, typecheck: value }))}
+										onAddNode={() => {
+											const view = store.getView();
+											setMenu({
+												screen: { x: 320, y: 120 },
+												world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
+											});
+										}}
+										onRealign={realign}
+										onToggleAlignExec={toggleAlignExec}
+										onPreview={() => setPreviewOpen(true)}
+										onCompile={() => {
+											if (editor.path) void runCompile(editor.path, true);
+										}}
+									/>
+									<Canvas
+										script={editor.script}
+										graph={editor.graph}
+										registry={registry}
+										diagnostics={diagnostics}
+										locked={locked}
+										onPointerAt={(world) => {
+											pointerAt.current = world;
+										}}
+										wireStyle={prefs.wireStyle}
+										wheel={wheelAction(prefs.wheel)}
+										wideNodes={prefs.wideNodes}
+										onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
+										onRequestNodePicker={(world) => setNodePicker(world)}
+										onDropNode={(defId, config, world, member) => {
+											const def = registry.get(defId);
+											if (def) spawn(def, world, config, undefined, member);
+											setNodePicker(null);
+										}}
+										onRequestPinMenu={(screen, nodeId, pin, side) =>
+											setPinMenu({ screen, nodeId, pin, side })
+										}
+										onEditCode={(nodeId, pin, value) => setCodeEdit({ nodeId, pin, value })}
+										onDropFile={async (dropped, screen, world) => {
+											const name = dropped.split("/").pop() ?? dropped;
+											try {
+												const { location } = await api.resolve(dropped);
+												if (!location) {
+													notify(
+														"Nothing to make from that",
+														`No node map says where ${name} ends up in the DataModel, so ` +
+															"there is no path to require it by. Add one, or point an " +
+															"existing map at the folder it is in.",
+													);
+													return;
+												}
+												setDropMenu({ screen, world, name, location });
+											} catch (err) {
+												notify("Could not resolve that file", errorMessage(err));
+											}
+										}}
+									/>
+								</>
+							) : (
+								<div className="placeholder">
+									<h1>No graph open</h1>
+									<p>
+										Double-click a <code>.nodescript</code> in the tree, or make a new one.
+									</p>
+								</div>
+							)}
 						</div>
 					</>
 				}
@@ -1284,7 +1410,6 @@ export function App() {
 				selection={editor.selection}
 				previewSelection={previewScope.selection}
 				previewFunction={previewScope.functionName}
-
 				drop={dropMenu}
 				onDropPick={(defId, config) => {
 					const def = registry.get(defId);
@@ -1292,36 +1417,31 @@ export function App() {
 					setDropMenu(null);
 				}}
 				onDropClose={() => setDropMenu(null)}
-
 				menu={menu}
 				presets={presets}
 				onMenuPick={(def, config, literals, member) =>
-					menu && spawn(def, menu.world, config, literals, member)}
+					menu && spawn(def, menu.world, config, literals, member)
+				}
 				onAddComment={() => menu && spawnComment(menu.world)}
 				onMenuClose={() => setMenu(null)}
-
 				pinMenu={pinMenu}
 				onPromote={() => pinMenu && promotePin(pinMenu)}
 				onBreakLinks={() =>
 					pinMenu &&
-					store.edit((s) => disconnectPin(s, pinMenu.nodeId, pinMenu.pin.id, pinMenu.side, registry))
+					store.edit((s) =>
+						disconnectPin(s, pinMenu.nodeId, pinMenu.pin.id, pinMenu.side, registry),
+					)
 				}
 				onSplit={(mode) => pinMenu && void splitOrRecombine(pinMenu, undefined, mode)}
 				onRecombine={(parent) => pinMenu && void splitOrRecombine(pinMenu, parent, undefined)}
 				onPinMenuClose={() => setPinMenu(null)}
-
 				preview={previewOpen && compiled ? compiled : null}
 				onPreviewClose={() => setPreviewOpen(false)}
-
-				settings={
-					settingsOpen ? { root: project.root, config: project.config, prefs } : null
-				}
+				settings={settingsOpen ? { root: project.root, config: project.config, prefs } : null}
 				onConfig={(patch) => void setConfig(patch)}
 				onPrefs={updatePrefs}
 				onSettingsClose={() => setSettingsOpen(false)}
-
 				dialog={dialog}
-
 				codeEdit={codeEdit}
 				onCodeCommit={(next) => {
 					if (!codeEdit) return;

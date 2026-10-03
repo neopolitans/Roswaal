@@ -23,20 +23,31 @@
 import { commentLines, headersByNode } from "../comments.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
-import { CAST_NODES, castModeOf, NILABLE_CLASS_READS, type CastMode } from "../nodes/library.js";
-import { PAIR, type Comment, type NodeScript, type PinDef } from "../schema.js";
+import { CAST_NODES, type CastMode, castModeOf, NILABLE_CLASS_READS } from "../nodes/library.js";
+import { type Comment, type NodeScript, PAIR, type PinDef } from "../schema.js";
 import {
-	modeOf, partPinId, splitKey, splitPinId, splitsOf, STRUCTS, type StructMode,
+	modeOf,
+	partPinId,
+	STRUCTS,
+	type StructMode,
+	splitKey,
+	splitPinId,
+	splitsOf,
 } from "../structs.js";
 import type { Diagnostic, EmitOptions, EmitResult, LogicEmit, LogicEnds } from "./emit.js";
 import { emitCall, resultHint, resultNameOf, STATEMENT_READERS } from "./emitCalls.js";
 import {
-	declareModules, emitFunctions, emitModuleReturn, emitTypes, emitVariables, flushPreamble,
+	declareModules,
+	emitFunctions,
+	emitModuleReturn,
+	emitTypes,
+	emitVariables,
+	flushPreamble,
 	PROVIDED_GLOBALS,
 } from "./emitDeclarations.js";
 import { emitBuiltin } from "./emitFlow.js";
 import { alreadyNarrowed } from "./emitNarrowing.js";
-import { logicInputName, logicOutputName, Scope, type OutLine } from "./emitScope.js";
+import { logicInputName, logicOutputName, type OutLine, Scope } from "./emitScope.js";
 import { emitStatement, interpolated, isInterpolated, renderTemplate } from "./emitTemplates.js";
 import { CALLING_BUILTINS, pureBuiltin } from "./emitValues.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
@@ -89,12 +100,15 @@ export class Emitter {
 	 * What gets required at the top, keyed by what asked for it: `"root/path"`
 	 * for a Require Module node, `"module:<id>"` for a declared one.
 	 */
-	requires = new Map<string, {
-		ident: string;
-		expression: string;
-		/** Names pulled off it into locals of their own, for a declared module. */
-		members?: { member: string; ident: string }[];
-	}>();
+	requires = new Map<
+		string,
+		{
+			ident: string;
+			expression: string;
+			/** Names pulled off it into locals of their own, for a declared module. */
+			members?: { member: string; ident: string }[];
+		}
+	>();
 	/** Declared module id -> the local it was bound to, for Get Module. */
 	moduleIdents = new Map<string, string>();
 	/**
@@ -209,7 +223,11 @@ export class Emitter {
 		}
 
 		this.walk(this.index.execTarget(shape.inputsId, "then"), root);
-		return { body: this.out.length > 0 ? this.render(this.out) : "", expressions, diagnostics: this.diagnostics };
+		return {
+			body: this.out.length > 0 ? this.render(this.out) : "",
+			expressions,
+			diagnostics: this.diagnostics,
+		};
 	}
 
 	// -- output plumbing ---------------------------------------------------
@@ -279,9 +297,7 @@ export class Emitter {
 
 	private render(lines: OutLine[]): string {
 		const unit = this.options.indent ?? "\t";
-		const body = lines
-			.map((l) => (l.text === "" ? "" : unit.repeat(l.indent) + l.text))
-			.join("\n");
+		const body = lines.map((l) => (l.text === "" ? "" : unit.repeat(l.indent) + l.text)).join("\n");
 		return body.endsWith("\n") ? body : body + "\n";
 	}
 
@@ -492,9 +508,7 @@ export class Emitter {
 	 * purely presentational as far as the rest of the emitter is concerned —
 	 * the template still gets one expression for `$in.position`.
 	 */
-	private buildSplitInput(
-		r: ResolvedNode, parent: PinDef, mode: StructMode, scope: Scope,
-	): string {
+	private buildSplitInput(r: ResolvedNode, parent: PinDef, mode: StructMode, scope: Scope): string {
 		// A pair splits into a key and a value, and there is nothing to rebuild
 		// those into: `{ walkSpeed = 16 }` is syntax, not a value. Make
 		// Dictionary's fold reads the parts where there is a table for them to
@@ -516,8 +530,9 @@ export class Emitter {
 				({ id, name: part.name, kind: "data", type: part.type, default: part.default } as PinDef);
 			values.set(part.id, paren(this.resolveInput(r, child, scope)));
 		}
-		return mode.make.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (match, id: string) =>
-			values.get(id) ?? match,
+		return mode.make.replace(
+			/\$([A-Za-z_][A-Za-z0-9_]*)/g,
+			(match, id: string) => values.get(id) ?? match,
 		);
 	}
 
@@ -530,7 +545,10 @@ export class Emitter {
 	 * needs no defensive parentheses.
 	 */
 	private bindWhole(
-		src: ResolvedNode, parentPin: string, scope: Scope, consumer: ResolvedNode,
+		src: ResolvedNode,
+		parentPin: string,
+		scope: Scope,
+		consumer: ResolvedNode,
 	): string {
 		const existing = scope.lookup(`${src.node.id}/${parentPin}`);
 		if (existing) return existing;
@@ -576,14 +594,20 @@ export class Emitter {
 	}
 
 	private resolveOutput(
-		nodeId: string, pinId: string, scope: Scope, consumer: ResolvedNode,
+		nodeId: string,
+		pinId: string,
+		scope: Scope,
+		consumer: ResolvedNode,
 	): string {
 		const bound = scope.lookup(`${nodeId}/${pinId}`);
 		if (bound) return bound;
 
 		const src = this.index.get(nodeId);
 		if (!src) {
-			this.error(`"${consumer.def.title}" reads from a node that no longer exists.`, consumer.node.id);
+			this.error(
+				`"${consumer.def.title}" reads from a node that no longer exists.`,
+				consumer.node.id,
+			);
 			return "nil";
 		}
 
@@ -613,8 +637,8 @@ export class Emitter {
 			// is a real mistake, and a different one from "not in the graph".
 			this.error(
 				`"${nodeTitle(src.def, src.node)}" is declared further down the flow than this, ` +
-				"so it does not exist yet. Move the Declare Function above this, or use the " +
-				"hoisted Function node.",
+					"so it does not exist yet. Move the Declare Function above this, or use the " +
+					"hoisted Function node.",
 				consumer.node.id,
 			);
 			return "nil";
@@ -663,17 +687,15 @@ export class Emitter {
 
 		// Guard against a cycle among pure nodes, which would recurse forever.
 		if (this.execStack.has(`pure:${nodeId}`)) {
-			this.error(
-				`"${src.def.title}" feeds itself through a loop of data wires.`,
-				nodeId,
-			);
+			this.error(`"${src.def.title}" feeds itself through a loop of data wires.`, nodeId);
 			return "nil";
 		}
 		this.execStack.add(`pure:${nodeId}`);
 		// Concatenate writes the interpolated form when the node says so.
-		let expr = src.def.id === "string.concat" && isInterpolated(src.node.config)
-			? interpolated(this, src, scope)
-			: renderTemplate(this, src, template, scope);
+		let expr =
+			src.def.id === "string.concat" && isInterpolated(src.node.config)
+				? interpolated(this, src, scope)
+				: renderTemplate(this, src, template, scope);
 		this.execStack.delete(`pure:${nodeId}`);
 
 		// An operator pill asked to bracket what it works out.
@@ -699,8 +721,11 @@ export class Emitter {
 		// all: Default writes none, and a cast would be the one annotation in it.
 		const typed = src.outputs.find((p) => p.id === pinId)?.type;
 		if (
-			this.annotates && NILABLE_CLASS_READS.has(src.def.id)
-			&& typed !== undefined && typed !== "Instance" && typed !== "any"
+			this.annotates &&
+			NILABLE_CLASS_READS.has(src.def.id) &&
+			typed !== undefined &&
+			typed !== "Instance" &&
+			typed !== "any"
 		) {
 			expr = `(${expr} :: ${typed}?)`;
 		}
@@ -719,7 +744,10 @@ export class Emitter {
 	 * else does, ahead of the pin's own name.
 	 */
 	private bindForReaders(
-		src: ResolvedNode, pinId: string, expr: string, scope: Scope,
+		src: ResolvedNode,
+		pinId: string,
+		expr: string,
+		scope: Scope,
 		how: { cast?: CastMode; fallback?: string } = {},
 	): string {
 		const nodeId = src.node.id;

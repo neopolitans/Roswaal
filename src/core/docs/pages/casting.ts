@@ -3,8 +3,8 @@
  */
 
 import type { Registry } from "../../nodes/index.js";
-import { code, previews } from "./blocks.js";
 import type { Block, DocPage, PageContext } from "../site.js";
+import { code, previews } from "./blocks.js";
 
 /**
  * Luau's types, where a graph meets them.
@@ -18,7 +18,8 @@ export function castingPage({ registry }: PageContext): DocPage {
 	return {
 		slug: "casting",
 		title: "Casting and annotations",
-		summary: "Where a pin's type ends and Luau's begins: casts, declared types, and what gets written.",
+		summary:
+			"Where a pin's type ends and Luau's begins: casts, declared types, and what gets written.",
 		narrow: true,
 		blocks: castingBlocks(registry),
 	};
@@ -77,7 +78,7 @@ function castingBlocks(registry: Registry): Block[] {
 			registry,
 			["cast.as", "cast.array", "cast.any"],
 			"The three of them. The type is picked from the list or typed, and either way it " +
-			"becomes text in the generated file rather than a value at runtime.",
+				"becomes text in the generated file rather than a value at runtime.",
 		),
 		{
 			t: "code",
@@ -88,8 +89,16 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "table",
 			head: ["Node", "Writes", "For"],
 			rows: [
-				["**Cast**", "`(value :: T)`", "Saying what a value is, when you know and the typechecker does not."],
-				["**Cast Array**", "`(value :: { T })`", "A collection you know more about than its type says — Get Descendants is `{ Instance }`."],
+				[
+					"**Cast**",
+					"`(value :: T)`",
+					"Saying what a value is, when you know and the typechecker does not.",
+				],
+				[
+					"**Cast Array**",
+					"`(value :: { T })`",
+					"A collection you know more about than its type says — Get Descendants is `{ Instance }`.",
+				],
 				[
 					"**Cast Through Any**",
 					"`((value :: any) :: T)`",
@@ -108,7 +117,7 @@ function castingBlocks(registry: Registry): Block[] {
 			registry,
 			["instance.isA"],
 			"Is A asks the question a cast assumes the answer to. Branch on it, and cast inside " +
-			"the arm where it is true.",
+				"the arm where it is true.",
 		),
 
 		{ t: "h", level: 2, text: "Where the cast is written" },
@@ -148,7 +157,7 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "p",
 			text:
 				"Luau narrows a value for the length of the arm that tested it. Inside " +
-				"`if part:IsA(\"BasePart\") then`, `part` **is** a BasePart as far as the " +
+				'`if part:IsA("BasePart") then`, `part` **is** a BasePart as far as the ' +
 				"typechecker is concerned, and a cast there tells it nothing it does not know. An " +
 				"implicit Cast in that arm therefore writes nothing at all and hands the value " +
 				"through, which is what the hand-written Luau does too.",
@@ -182,7 +191,7 @@ function castingBlocks(registry: Registry): Block[] {
 			text:
 				"The match must be **exact**: the branch's classes and the cast's must be the same " +
 				"set, or the cast is written. **Settings → Project → Casts proved by a subclass** also " +
-				"leaves one out when the branch proved a derived class — `IsA(\"Part\")` for a " +
+				'leaves one out when the branch proved a derived class — `IsA("Part")` for a ' +
 				"cast to `BasePart`.",
 		},
 		{
@@ -205,14 +214,22 @@ function castingBlocks(registry: Registry): Block[] {
 			registry,
 			["type.declareTop", "type.declareHere"],
 			"The hoisted one has no pins at all — it declares rather than runs. The in-flow one " +
-			"sits in the execution chain, and shows a Value pin only for the typeof shape.",
+				"sits in the execution chain, and shows a Value pin only for the typeof shape.",
 		),
 		{
 			t: "table",
 			head: ["Shape", "Writes", "When"],
 			rows: [
-				["**Table of Fields**", "`{ walkSpeed: number, weld: WeldConstraint? }`", "A record. The fields are rows in the Inspector, so a brace cannot go missing. **Layout** writes it on one line or one field to a line, as Make Dictionary does."],
-				["**Custom Luau**", "What you write in the code editor, checked as a type", "A union, a function type, a generic — everything the row editor cannot say."],
+				[
+					"**Table of Fields**",
+					"`{ walkSpeed: number, weld: WeldConstraint? }`",
+					"A record. The fields are rows in the Inspector, so a brace cannot go missing. **Layout** writes it on one line or one field to a line, as Make Dictionary does.",
+				],
+				[
+					"**Custom Luau**",
+					"What you write in the code editor, checked as a type",
+					"A union, a function type, a generic — everything the row editor cannot say.",
+				],
 				[
 					"**Type of a Value**",
 					"`typeof(Tuning)`",
@@ -262,9 +279,18 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "table",
 			head: ["Where the members come from", "When"],
 			rows: [
-				["**A type this graph declares**", "A Declare Type of either kind, entered as fields or written as a table."],
-				["**A type a required module exports**", "`Config.Tuning`, read from the graph that declares it."],
-				["**A Roblox class**", "`BasePart.Position`, `Humanoid.WalkSpeed`. Roblox graphs only — a Lune program has no instances."],
+				[
+					"**A type this graph declares**",
+					"A Declare Type of either kind, entered as fields or written as a table.",
+				],
+				[
+					"**A type a required module exports**",
+					"`Config.Tuning`, read from the graph that declares it.",
+				],
+				[
+					"**A Roblox class**",
+					"`BasePart.Position`, `Humanoid.WalkSpeed`. Roblox graphs only — a Lune program has no instances.",
+				],
 			],
 		},
 		{
@@ -298,7 +324,7 @@ function castingBlocks(registry: Registry): Block[] {
 			registry,
 			["local.declare", "local.get"],
 			"Declare Local carries the type, and shows it under its title once set. Get Local " +
-			"reads the value by name, with its pin taking the type's own colour.",
+				"reads the value by name, with its pin taking the type's own colour.",
 		),
 		{
 			t: "table",

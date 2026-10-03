@@ -45,6 +45,8 @@ describe("the Players nodes", () => {
 		const read = b.node("value.member");
 		b.link(player, "player", character, "object");
 		b.link(character, "result", read, "object");
-		expect(membersFor({ script: b.build(), registry }, read).map((m) => m.name)).toContain("PrimaryPart");
+		expect(membersFor({ script: b.build(), registry }, read).map((m) => m.name)).toContain(
+			"PrimaryPart",
+		);
 	});
 });

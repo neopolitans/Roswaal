@@ -16,7 +16,16 @@
  */
 
 import { isBinaryRbx } from "./binary.js";
-import { cdata, chunkData, FIRST_CHUNK, putU32, readChunks, readReferents, sealChunk, u32 } from "./chunks.js";
+import {
+	cdata,
+	chunkData,
+	FIRST_CHUNK,
+	putU32,
+	readChunks,
+	readReferents,
+	sealChunk,
+	u32,
+} from "./chunks.js";
 import { type RbxDocument, RbxError, type RbxInstance, SCRIPT_CLASSES } from "./dom.js";
 import { parseXml, type XmlElement } from "./xml.js";
 
@@ -26,11 +35,17 @@ export interface SourceChange {
 }
 
 /** The place, with each change's script holding its new source. */
-export function writeSources(bytes: Uint8Array, doc: RbxDocument, changes: readonly SourceChange[]): Uint8Array {
+export function writeSources(
+	bytes: Uint8Array,
+	doc: RbxDocument,
+	changes: readonly SourceChange[],
+): Uint8Array {
 	if (changes.length === 0) return bytes.slice();
 	for (const change of changes) {
-		if (change.inst.ref === undefined) throw new RbxError(`"${change.inst.name}" has no identity in the file`);
-		if (!SCRIPT_CLASSES.has(change.inst.className)) throw new RbxError(`"${change.inst.name}" is not a script`);
+		if (change.inst.ref === undefined)
+			throw new RbxError(`"${change.inst.name}" has no identity in the file`);
+		if (!SCRIPT_CLASSES.has(change.inst.className))
+			throw new RbxError(`"${change.inst.name}" is not a script`);
 	}
 	if (doc.format === "binary") {
 		if (!isBinaryRbx(bytes)) throw new RbxError("the document was read from a different file");
@@ -72,7 +87,12 @@ function writeBinary(bytes: Uint8Array, changes: readonly SourceChange[]): Uint8
 
 		const refs = scriptClasses.get(classId);
 		const type = data[8 + nameLength];
-		if (!refs || label !== "Source" || (type !== 1 && type !== 29) || !refs.some((r) => bySource.has(r))) {
+		if (
+			!refs ||
+			label !== "Source" ||
+			(type !== 1 && type !== 29) ||
+			!refs.some((r) => bySource.has(r))
+		) {
 			parts.push(whole);
 			continue;
 		}
@@ -121,9 +141,15 @@ function writeXml(source: string, changes: readonly SourceChange[]): Uint8Array 
 	const visit = (el: XmlElement) => {
 		if (el.name === "Item" && el.attrs.referent !== undefined && bySource.has(el.attrs.referent)) {
 			const props = el.children.find((c) => c.name === "Properties");
-			const target = props?.children.find((c) => c.attrs.name === "Source" && (c.name === "ProtectedString" || c.name === "string"));
+			const target = props?.children.find(
+				(c) => c.attrs.name === "Source" && (c.name === "ProtectedString" || c.name === "string"),
+			);
 			if (!target) throw new RbxError(`"${el.attrs.referent}" has no Source to write`);
-			splices.push({ start: target.start, end: target.end, text: cdata(bySource.get(el.attrs.referent)!) });
+			splices.push({
+				start: target.start,
+				end: target.end,
+				text: cdata(bySource.get(el.attrs.referent)!),
+			});
 		}
 		el.children.forEach(visit);
 	};

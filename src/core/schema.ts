@@ -286,7 +286,8 @@ export interface NodeDef {
 	 * that uses it must still answer without it.
 	 */
 	derivePins?: (
-		config: NodeConfig, literals?: Record<string, Literal>,
+		config: NodeConfig,
+		literals?: Record<string, Literal>,
 	) => { inputs: PinDef[]; outputs: PinDef[] };
 	/**
 	 * Second header line, smaller, under the title. For nodes whose identity is
@@ -531,7 +532,9 @@ export interface NodeScript {
  * when it has something to return. So on Lune a Module Exports node is what
  * decides, and `scriptClass` is not read at all.
  */
-export function isModuleScript(script: Pick<NodeScript, "target" | "scriptClass" | "nodes">): boolean {
+export function isModuleScript(
+	script: Pick<NodeScript, "target" | "scriptClass" | "nodes">,
+): boolean {
 	if (script.target === "lune") return script.nodes.some((n) => n.def === "module.exports");
 	return script.scriptClass === "ModuleScript";
 }

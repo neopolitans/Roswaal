@@ -110,7 +110,11 @@ export function settingsPage(): DocPage {
 						"unset",
 						"The project's place file, set by `roswaal import`. Unset, a `.rbxl` or `.rbxlx` in the project root, `place.rbxl` first.",
 					],
-					["`schemaVersion`", "set for you", "Which schema the file was written against. `migrate.ts` reads it."],
+					[
+						"`schemaVersion`",
+						"set for you",
+						"Which schema the file was written against. `migrate.ts` reads it.",
+					],
 				],
 			},
 
@@ -181,8 +185,7 @@ export function settingsPage(): DocPage {
 			{
 				t: "note",
 				kind: "info",
-				text:
-					"**Wires and node corners change how a graph looks, never what it compiles to.**",
+				text: "**Wires and node corners change how a graph looks, never what it compiles to.**",
 			},
 
 			{ t: "h", level: 2, text: "Themes" },
@@ -201,7 +204,9 @@ export function settingsPage(): DocPage {
 					.map((t) => [
 						t.name,
 						t.credit ?? "—",
-						t.licence ? `${t.licence.spdx}, in full under Settings → Licences` : "0BSD, with the repository",
+						t.licence
+							? `${t.licence.spdx}, in full under Settings → Licences`
+							: "0BSD, with the repository",
 					]),
 			},
 			{
@@ -284,8 +289,7 @@ export function settingsPage(): DocPage {
 			{
 				t: "note",
 				kind: "warn",
-				text:
-					"A data wire takes its pin's colour, not a theme's. Themes have no data-wire role.",
+				text: "A data wire takes its pin's colour, not a theme's. Themes have no data-wire role.",
 			},
 		],
 	};

@@ -13,29 +13,29 @@
 
 export { collectBinaries, collectProject } from "./collect.js";
 export {
+	type CompileOutcome,
+	type CompileStep,
 	checkMapPaths,
 	compileAll,
 	compileMap,
 	compileScript,
 	describeOutcome,
+	type MapOutcome,
 	outputCollision,
 	splitGenerated,
 	stampOutputHash,
 	supersededOutputs,
-	type CompileOutcome,
-	type CompileStep,
-	type MapOutcome,
 } from "./compile.js";
 export {
+	type InitOptions,
+	type InitOutcome,
 	initProject,
 	isInitialised,
+	type OpenProject,
 	openProject,
 	parseConfig,
 	readConfig,
 	writeConfig,
-	type InitOptions,
-	type InitOutcome,
-	type OpenProject,
 } from "./config.js";
 export {
 	collectMaps,
@@ -43,17 +43,17 @@ export {
 	graphName,
 	graphNameFor,
 	importRojoProject,
+	type RojoImportOutcome,
+	type RojoProjectFile,
 	readMap,
 	readScript,
 	readText,
 	writeMap,
 	writeScript,
-	type RojoImportOutcome,
-	type RojoProjectFile,
 } from "./documents.js";
 export { createFolder, deleteEntry, moveEntry, renameEntry } from "./entries.js";
 export { formatLuau } from "./host.js";
-export { exportedTypes, locateFile, type ExportedType } from "./locate.js";
+export { type ExportedType, exportedTypes, locateFile } from "./locate.js";
 export { readLuaurcFiles, writeLuaurcFile } from "./luaurc.js";
 export { findOrphanOutputs, graphOutputPath, removeOutputs } from "./outputs.js";
 export {
@@ -63,22 +63,22 @@ export {
 	deletePackNode,
 	duplicatePack,
 	listPacks,
+	type PackContents,
+	type PackFile,
 	packUsage,
 	readPack,
 	savePackNode,
 	scanProjectPacks,
 	setPackRequires,
-	type PackContents,
-	type PackFile,
 } from "./packs.js";
 export { entryPath, safeJoin } from "./paths.js";
 export {
 	exportPlace,
 	findPlaceFile,
+	type PlaceExport,
 	placeEntries,
 	placeReport,
 	readPlaceBytes,
 	writePlaceImport,
-	type PlaceExport,
 } from "./place.js";
-export { buildTree, resolveWallyPackage, type FolderRole, type TreeEntry } from "./tree.js";
+export { buildTree, type FolderRole, resolveWallyPackage, type TreeEntry } from "./tree.js";

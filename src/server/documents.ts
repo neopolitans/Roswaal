@@ -5,16 +5,15 @@
  * Reading and writing only. What a document compiles to is `compile.ts`.
  */
 
-import { fs, path } from "./host.js";
-
 import { serialiseScript } from "../core/compiler/index.js";
 import { migrateScript } from "../core/migrate.js";
-import { compileNodeMap, isFilesystemMap, serialiseMap, type NodeMap } from "../core/nodemap.js";
+import { compileNodeMap, isFilesystemMap, type NodeMap, serialiseMap } from "../core/nodemap.js";
 import { parseProject, projectToMap, sameProject } from "../core/rojoImport.js";
-import { SCHEMA_VERSION, type NodeScript } from "../core/schema.js";
+import { type NodeScript, SCHEMA_VERSION } from "../core/schema.js";
 import type { OpenProject } from "./config.js";
 import { UserError } from "./errors.js";
 import { walkFiles, writeTextAtomically } from "./files.js";
+import { fs, path } from "./host.js";
 import { recordGenerated } from "./manifest.js";
 import { safeJoin, toPosix } from "./paths.js";
 
@@ -60,7 +59,9 @@ export function graphNameFor(relPath: string): string {
  * save there would replace it without the hand-edit guard ever asking.
  */
 export async function writeScript(
-	project: OpenProject, relPath: string, script: NodeScript,
+	project: OpenProject,
+	relPath: string,
+	script: NodeScript,
 ): Promise<void> {
 	assertExtension(relPath, ".nodescript", "graph");
 	const abs = safeJoin(project.root, relPath);
@@ -88,9 +89,7 @@ export async function readMap(project: OpenProject, relPath: string): Promise<No
 }
 
 /** Saves a node map. Only to a `.nodemap`, for the reason `writeScript` gives. */
-export async function writeMap(
-	project: OpenProject, relPath: string, map: NodeMap,
-): Promise<void> {
+export async function writeMap(project: OpenProject, relPath: string, map: NodeMap): Promise<void> {
 	assertExtension(relPath, ".nodemap", "node map");
 	const abs = safeJoin(project.root, relPath);
 	await fs.mkdir(path.dirname(abs), { recursive: true });
@@ -144,7 +143,10 @@ export interface RojoImportOutcome {
  * the map is written and the file is left to its author, who can compile with
  * force once they have looked.
  */
-export async function importRojoProject(project: OpenProject, file: string): Promise<RojoImportOutcome> {
+export async function importRojoProject(
+	project: OpenProject,
+	file: string,
+): Promise<RojoImportOutcome> {
 	const rel = toPosix(file);
 	const text = await fs.readFile(safeJoin(project.root, rel), "utf8");
 	const json = parseProject(text);
@@ -160,7 +162,14 @@ export async function importRojoProject(project: OpenProject, file: string): Pro
 	});
 	const base = graphName(map.name) || graphName(stem) || "project";
 	let mapPath = path.posix.join(project.config.sourceDir, `${base}.nodemap`);
-	for (let n = 2; await fs.access(safeJoin(project.root, mapPath)).then(() => true, () => false); n++) {
+	for (
+		let n = 2;
+		await fs.access(safeJoin(project.root, mapPath)).then(
+			() => true,
+			() => false,
+		);
+		n++
+	) {
 		mapPath = path.posix.join(project.config.sourceDir, `${base} ${n}.nodemap`);
 	}
 	await writeMap(project, mapPath, map);

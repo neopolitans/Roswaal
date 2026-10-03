@@ -22,7 +22,8 @@ export function aliasesPage(): DocPage {
 	return {
 		slug: "aliases",
 		title: "Aliases and .luaurc",
-		summary: "A short name for a path, shared by the project: where it is defined, and what it reaches.",
+		summary:
+			"A short name for a path, shared by the project: where it is defined, and what it reaches.",
 		narrow: true,
 		blocks: [
 			{
@@ -83,8 +84,8 @@ export function aliasesPage(): DocPage {
 				t: "p",
 				text:
 					"Against **the** `.luaurc` **that defined it** — not against the file doing the " +
-					"requiring. *\"If an alias is bound to a relative path, the path will be evaluated " +
-					"relative to the .luaurc file in which the alias was defined.\"*",
+					'requiring. *"If an alias is bound to a relative path, the path will be evaluated ' +
+					'relative to the .luaurc file in which the alias was defined."*',
 			},
 			{
 				t: "note",
@@ -111,16 +112,15 @@ export function aliasesPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Allowed, and followed: *\"This search continues iteratively if a chain of aliases " +
-					"must be resolved.\"* So `\"ui\": \"@roact/Component\"` is `Packages/Roact/Component` " +
+					'Allowed, and followed: *"This search continues iteratively if a chain of aliases ' +
+					'must be resolved."* So `"ui": "@roact/Component"` is `Packages/Roact/Component` ' +
 					"if `@roact` is `./Packages/Roact`, and each link resolves against the file that " +
 					"defined **that** link rather than the first one.",
 			},
 			{
 				t: "note",
 				kind: "warn",
-				text:
-					"A ring is an error, reported as the ring it walked: `a → b → c → a`.",
+				text: "A ring is an error, reported as the ring it walked: `a → b → c → a`.",
 			},
 
 			{ t: "h", level: 2, text: "Editing one" },

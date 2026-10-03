@@ -19,20 +19,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { INDENT_WIDTHS, type RoswaalConfig, type Target } from "../core/schema.js";
-import {
-	CODE_ROLES, ROLES, themeSlug, type Theme,
-} from "../core/theme.js";
+import { CODE_ROLES, ROLES, type Theme, themeSlug } from "../core/theme.js";
 import { LICENCE_TEXTS } from "../core/themeData.js";
 import { cx } from "./cx.js";
-import { BUILTIN_THEMES } from "./theme.js";
-import {
-	ACTION_LABEL_CHOICES, ACTION_ROW_CHOICES, AUTOSAVE_CHOICES, DOCS_FONTS, FUNCTION_TAB_CHOICES, PREVIEW_SCALE, previewScaleOf, WHEEL_CHOICES, WIRE_STYLES,
-	type Preferences,
-} from "./preferences.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
-import { floatPanel } from "./panels.js";
 import { nodeColor, pinColor } from "./palette.js";
+import { floatPanel } from "./panels.js";
+import {
+	ACTION_LABEL_CHOICES,
+	ACTION_ROW_CHOICES,
+	AUTOSAVE_CHOICES,
+	DOCS_FONTS,
+	FUNCTION_TAB_CHOICES,
+	PREVIEW_SCALE,
+	type Preferences,
+	previewScaleOf,
+	WHEEL_CHOICES,
+	WIRE_STYLES,
+} from "./preferences.js";
+import { BUILTIN_THEMES } from "./theme.js";
 
 const TABS = [
 	{ id: "project", title: "Project", sub: "roswaal.json" },
@@ -71,11 +77,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 	}, []);
 
 	return (
-		<div
-			className="docs-backdrop"
-			style={{ zIndex: LAYER.menu + 1 }}
-			onPointerDown={props.onClose}
-		>
+		<div className="docs-backdrop" style={{ zIndex: LAYER.menu + 1 }} onPointerDown={props.onClose}>
 			<div
 				className="docs settings"
 				ref={panel}
@@ -131,7 +133,10 @@ export function SettingsPanel(props: SettingsPanelProps) {
 // Project
 // ---------------------------------------------------------------------------
 
-function ProjectSettings({ config, onConfig }: {
+function ProjectSettings({
+	config,
+	onConfig,
+}: {
 	config: RoswaalConfig;
 	onConfig: (patch: Partial<RoswaalConfig>) => void;
 }) {
@@ -139,8 +144,8 @@ function ProjectSettings({ config, onConfig }: {
 		<>
 			<h2>Project</h2>
 			<p className="settings-note">
-				Written to <code>roswaal.json</code> in the project root. This file is
-				committed, so everyone working on this repository gets these.
+				Written to <code>roswaal.json</code> in the project root. This file is committed, so
+				everyone working on this repository gets these.
 			</p>
 
 			<Row
@@ -273,14 +278,10 @@ function ProjectSettings({ config, onConfig }: {
 
 			<h3>Node packs</h3>
 			<p className="settings-note">
-				Directories scanned for <code>.nodedef.json</code>. A pack's nodes join the
-				palette and get their own reference pages, built from the same registry the
-				built-in ones use.
+				Directories scanned for <code>.nodedef.json</code>. A pack's nodes join the palette and get
+				their own reference pages, built from the same registry the built-in ones use.
 			</p>
-			<PathList
-				paths={config.nodePaths}
-				onChange={(nodePaths) => onConfig({ nodePaths })}
-			/>
+			<PathList paths={config.nodePaths} onChange={(nodePaths) => onConfig({ nodePaths })} />
 		</>
 	);
 }
@@ -294,8 +295,8 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 		<>
 			<h2>Editor</h2>
 			<p className="settings-note">
-				Stored in this browser and nowhere else. They do not travel with the project
-				and they never appear in a diff.
+				Stored in this browser and nowhere else. They do not travel with the project and they never
+				appear in a diff.
 			</p>
 
 			<Row
@@ -321,10 +322,7 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				</div>
 			</Row>
 
-			<Row
-				label="Wires"
-				help={WIRE_STYLES.find((w) => w.style === prefs.wireStyle)?.what ?? ""}
-			>
+			<Row label="Wires" help={WIRE_STYLES.find((w) => w.style === prefs.wireStyle)?.what ?? ""}>
 				<div className="segmented">
 					{WIRE_STYLES.map((w) => (
 						<button
@@ -446,17 +444,21 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				<div className="segmented">
 					<button
 						className={!prefs.layout.panels.variables.floating ? "on" : ""}
-						onClick={() => onPrefs({
-							layout: floatPanel(prefs.layout, "variables", false),
-						})}
+						onClick={() =>
+							onPrefs({
+								layout: floatPanel(prefs.layout, "variables", false),
+							})
+						}
 					>
 						Docked
 					</button>
 					<button
 						className={prefs.layout.panels.variables.floating ? "on" : ""}
-						onClick={() => onPrefs({
-							layout: floatPanel(prefs.layout, "variables", true),
-						})}
+						onClick={() =>
+							onPrefs({
+								layout: floatPanel(prefs.layout, "variables", true),
+							})
+						}
 					>
 						Window
 					</button>
@@ -577,7 +579,9 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				<Toggle
 					on={prefs.reopenLastProject}
 					onChange={(on) => onPrefs({ reopenLastProject: on })}
-					label={prefs.reopenLastProject ? "Reopen the last project" : "Start at the project picker"}
+					label={
+						prefs.reopenLastProject ? "Reopen the last project" : "Start at the project picker"
+					}
 				/>
 			</Row>
 		</>
@@ -624,7 +628,9 @@ function DocsSettings({ prefs, onPrefs }: SettingsPanelProps) {
 						max={PREVIEW_SCALE.max * 100}
 						step={PREVIEW_SCALE.step * 100}
 						value={percent}
-						onChange={(e) => onPrefs({ docsPreviewScale: previewScaleOf(Number(e.target.value) / 100) })}
+						onChange={(e) =>
+							onPrefs({ docsPreviewScale: previewScaleOf(Number(e.target.value) / 100) })
+						}
 					/>
 					<span className="value">{percent}%</span>
 				</div>
@@ -648,8 +654,8 @@ function ThemeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 		<>
 			<h2>Themes</h2>
 			<p className="settings-note">
-				One JSON file each, in <code>themes/</code>. Roswaal and Beako use the same
-				format, so a scheme written for one reads in the other.
+				One JSON file each, in <code>themes/</code>. Roswaal and Beako use the same format, so a
+				scheme written for one reads in the other.
 			</p>
 
 			<div className="theme-grid">
@@ -689,23 +695,22 @@ function ThemeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 
 			<h3>What a theme sets</h3>
 			<p className="settings-note">
-				Every scheme names all of these. There is no inheritance, so a palette
-				cannot half-apply by quietly borrowing another one's colours.
+				Every scheme names all of these. There is no inheritance, so a palette cannot half-apply by
+				quietly borrowing another one's colours.
 			</p>
 			<RoleTable theme={chosen ?? schemes[0]} />
 
 			<h3>What it does not</h3>
 			<p className="settings-note">
-				Node category colours and pin type colours are fixed and no theme changes
-				them. Red is a boolean, green is a number, gold is a vector — that mapping
-				is most of what makes a Roswaal graph readable at a glance, and a scheme
-				that moved it would be trading the one thing the
+				Node category colours and pin type colours are fixed and no theme changes them. Red is a
+				boolean, green is a number, gold is a vector — that mapping is most of what makes a Roswaal
+				graph readable at a glance, and a scheme that moved it would be trading the one thing the
 				colours are for against a matter of taste.
 			</p>
 			<p className="settings-note">
-				Grid, hover and shadow are not authored either. They are overlays, computed
-				from whether the scheme is dark, so a palette cannot ship a hover state that
-				is invisible on its own background.
+				Grid, hover and shadow are not authored either. They are overlays, computed from whether the
+				scheme is dark, so a palette cannot ship a hover state that is invisible on its own
+				background.
 			</p>
 		</>
 	);
@@ -746,15 +751,7 @@ function ThemeSwatch({ theme }: { theme: Theme }) {
 			/>
 
 			<g>
-				<rect
-					x="38"
-					y="24"
-					width="72"
-					height="34"
-					rx="4"
-					fill={c.nodeBody}
-					stroke={c.nodeBorder}
-				/>
+				<rect x="38" y="24" width="72" height="34" rx="4" fill={c.nodeBody} stroke={c.nodeBorder} />
 				<path d="M38 28 a4 4 0 0 1 4 -4 h64 a4 4 0 0 1 4 4 v6 h-72 z" fill={header} />
 				<rect x="44" y="27" width="30" height="4" rx="2" fill="#ffffff" opacity="0.8" />
 				<rect x="44" y="40" width="22" height="3" rx="1.5" fill={c.subText} />
@@ -828,8 +825,8 @@ function Licences() {
 		<>
 			<h2>Licences</h2>
 			<p className="settings-note">
-				Roswaal is 0BSD. These are the schemes that are somebody else's work, and
-				the terms they came with.
+				Roswaal is 0BSD. These are the schemes that are somebody else's work, and the terms they
+				came with.
 			</p>
 
 			{carried.map((theme) => {
@@ -846,8 +843,7 @@ function Licences() {
 							<pre className="licence-text">{LICENCE_TEXTS[licence.textFile]}</pre>
 						) : (
 							<p className="settings-note">
-								Same licence and same holder as above — one upstream project, two
-								schemes.
+								Same licence and same holder as above — one upstream project, two schemes.
 							</p>
 						)}
 					</div>
@@ -855,9 +851,9 @@ function Licences() {
 			})}
 
 			<p className="settings-note">
-				The schemes credited to <strong>neopolitans</strong> are the maintainer's own
-				and carry no third-party claim. Everything Roswaal ships is listed on the
-				Attributions page in the docs, and in <code>ATTRIBUTIONS.md</code>.
+				The schemes credited to <strong>neopolitans</strong> are the maintainer's own and carry no
+				third-party claim. Everything Roswaal ships is listed on the Attributions page in the docs,
+				and in <code>ATTRIBUTIONS.md</code>.
 			</p>
 		</>
 	);
@@ -955,13 +951,7 @@ function Toggle({
 }
 
 /** The node-path list: rows of directories, with the last row adding one. */
-function PathList({
-	paths,
-	onChange,
-}: {
-	paths: string[];
-	onChange: (paths: string[]) => void;
-}) {
+function PathList({ paths, onChange }: { paths: string[]; onChange: (paths: string[]) => void }) {
 	const [adding, setAdding] = useState("");
 
 	return (

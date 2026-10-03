@@ -53,7 +53,7 @@ describe("the landing page", () => {
 	 * stopped showing the line a Roblox developer came to judge.
 	 */
 	it("shows the Luau that graph compiles to", () => {
-		expect(text).toContain("game:GetService(\"Players\")");
+		expect(text).toContain('game:GetService("Players")');
 		expect(text).toContain("PlayerAdded:Connect(");
 		// Highlighted, using the editor's own token classes rather than a second
 		// colour scheme invented for this page.
@@ -159,7 +159,10 @@ describe("the landing page", () => {
 	 */
 	/** Every third-party name the page uses, with whose it is and that Roswaal is not theirs. */
 	it("says whose names it uses, and that Roswaal is independent of them", () => {
-		const legal = (/<p class="landing-legal">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? "").replace(/\s+/g, " ");
+		const legal = (/<p class="landing-legal">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? "").replace(
+			/\s+/g,
+			" ",
+		);
 		for (const owner of ["Roblox Corporation", "Rojo Developers", "Filip Tibell", "Epic Games"]) {
 			expect(legal).toContain(owner);
 		}
@@ -266,7 +269,10 @@ describe("what is planned, told apart from what is there", () => {
 	});
 
 	it("marks every planned card as planned", () => {
-		const plans = html.slice(html.indexOf('class="landing-note-plan"'), html.indexOf('class="landing-foot"'));
+		const plans = html.slice(
+			html.indexOf('class="landing-note-plan"'),
+			html.indexOf('class="landing-foot"'),
+		);
 		const cards = [...plans.matchAll(/<div class="landing-card([^"]*)"/g)].map((m) => m[1]);
 		expect(cards.length).toBeGreaterThan(0);
 		expect(cards.every((c) => c.includes("planned"))).toBe(true);
@@ -295,7 +301,9 @@ describe("the canary's strip", () => {
 		expect(strip).toContain("unreleased build");
 		expect(strip).toContain('class="strip-stable" href="https://roswaal.app/"');
 		expect(strip).toMatch(/Roswaal <span class="flag">stable<\/span>/);
-		expect(canary.indexOf('<div class="landing-strip"')).toBeGreaterThan(canary.indexOf('<header class="landing-banner'));
+		expect(canary.indexOf('<div class="landing-strip"')).toBeGreaterThan(
+			canary.indexOf('<header class="landing-banner'),
+		);
 	});
 
 	it("is only on the canary", () => {

@@ -1,23 +1,28 @@
 /** Node registry: built-ins plus any custom packs loaded from disk. */
 
-import { ENGINE_TYPES } from "../schema.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
+import { ENGINE_TYPES } from "../schema.js";
 import {
-	modeOf, partPinId, splitKey, splitsOf, STRUCTS,
-	type SplitMap, type StructRegistry,
+	modeOf,
+	partPinId,
+	type SplitMap,
+	STRUCTS,
+	type StructRegistry,
+	splitKey,
+	splitsOf,
 } from "../structs.js";
 import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
 import { LUNE_NODES } from "./lune.js";
-import { VARIABLE_NODES } from "./variables.js";
 import { withRuntimes } from "./runtimes.js";
+import { VARIABLE_NODES } from "./variables.js";
 
-export { FLOW_NODES, continuesEnclosingBlock, signatureText } from "./flow.js";
+export type { Signature } from "./flow.js";
+export { continuesEnclosingBlock, FLOW_NODES, signatureText } from "./flow.js";
 export { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
 export { isLuneCall, LUNE_NODES } from "./lune.js";
-export { VARIABLE_NODES } from "./variables.js";
-export type { Signature } from "./flow.js";
 export type { FunctionRef, VariableRef } from "./variables.js";
+export { VARIABLE_NODES } from "./variables.js";
 
 /**
  * Every built-in node, each carrying the runtime it is for.
@@ -27,7 +32,10 @@ export type { FunctionRef, VariableRef } from "./variables.js";
  * why the answer is not left to the definitions alone.
  */
 export const BUILTIN_NODES: NodeDef[] = withRuntimes([
-	...FLOW_NODES, ...VARIABLE_NODES, ...LIBRARY_NODES, ...LUNE_NODES,
+	...FLOW_NODES,
+	...VARIABLE_NODES,
+	...LIBRARY_NODES,
+	...LUNE_NODES,
 ]);
 
 /**
@@ -112,7 +120,10 @@ export function resolveNodePins(
 }
 
 function applySplits(
-	pins: PinDef[], side: "in" | "out", splits: SplitMap, structs: StructRegistry,
+	pins: PinDef[],
+	side: "in" | "out",
+	splits: SplitMap,
+	structs: StructRegistry,
 ): PinDef[] {
 	const out: PinDef[] = [];
 	for (const pin of pins) {
@@ -197,10 +208,25 @@ export function nodeTitle(def: NodeDef | undefined, node: GraphNode): string {
 }
 
 const CATEGORY_ORDER = [
-	"Flow", "Events", "Variables", "Values", "Math", "Logic", "Strings", "Tables",
-	ENGINE_TYPES, "Engine", "Instances", "Players", "Networking", "Modules",
+	"Flow",
+	"Events",
+	"Variables",
+	"Values",
+	"Math",
+	"Logic",
+	"Strings",
+	"Tables",
+	ENGINE_TYPES,
+	"Engine",
+	"Instances",
+	"Players",
+	"Networking",
+	"Modules",
 	"Lune",
-	"Time", "Threads", "Debug", ZUP_CONVERSIONS,
+	"Time",
+	"Threads",
+	"Debug",
+	ZUP_CONVERSIONS,
 ];
 
 /**
@@ -212,8 +238,15 @@ const CATEGORY_ORDER = [
  * rather than describes something.
  */
 const SUBCATEGORY_ORDER = [
-	"Vector3", "Vector2", "CFrame", "Color3", "BrickColor", "UDim", "UDim2",
-	"TweenInfo", "Tween",
+	"Vector3",
+	"Vector2",
+	"CFrame",
+	"Color3",
+	"BrickColor",
+	"UDim",
+	"UDim2",
+	"TweenInfo",
+	"Tween",
 ];
 
 /** Every distinct category present in a registry, in display order. */
@@ -304,7 +337,9 @@ export function parseNodePack(source: unknown, origin: string): PackParseResult 
 			return;
 		}
 		if (spec.kind !== "expr" && spec.kind !== "call" && spec.kind !== "statement") {
-			errors.push(`${where} (${n.id}): unknown compilesTo.kind "${(spec as { kind: string }).kind}".`);
+			errors.push(
+				`${where} (${n.id}): unknown compilesTo.kind "${(spec as { kind: string }).kind}".`,
+			);
 			return;
 		}
 		const inputs = normalisePins(n.inputs, where, n.id, errors);
@@ -330,7 +365,9 @@ export function parseNodePack(source: unknown, origin: string): PackParseResult 
 		// A pill has nowhere to draw an input, so only a getter's shape may be one.
 		const display = n.display === "compact" ? "compact" : undefined;
 		if (display === "compact" && (!isPure || inputs.length > 0 || outputs.length !== 1)) {
-			errors.push(`${where} (${n.id}): a pill ("display": "compact") is a pure node with no inputs and one output.`);
+			errors.push(
+				`${where} (${n.id}): a pill ("display": "compact") is a pure node with no inputs and one output.`,
+			);
 			return;
 		}
 
@@ -339,7 +376,7 @@ export function parseNodePack(source: unknown, origin: string): PackParseResult 
 		if (!isPure && !inputs.some((p) => p.kind === "exec")) {
 			warnings.push(
 				`${where} (${n.id}): a "${spec.kind}" node with no execution input is never run. ` +
-				'Give it an "in" pin, or make it "expr".',
+					'Give it an "in" pin, or make it "expr".',
 			);
 		}
 
@@ -350,8 +387,7 @@ export function parseNodePack(source: unknown, origin: string): PackParseResult 
 			// A pack may group its own nodes too. Nothing validates the name
 			// against the built-in list: a pack's subcategories are its own
 			// business, and its nodes sit under its own category anyway.
-			subcategory:
-				typeof n.subcategory === "string" && n.subcategory ? n.subcategory : undefined,
+			subcategory: typeof n.subcategory === "string" && n.subcategory ? n.subcategory : undefined,
 			summary: typeof n.summary === "string" ? n.summary : undefined,
 			role: n.role === "flow" ? "flow" : "normal",
 			pure: isPure,
@@ -389,9 +425,7 @@ function coerceLiteral(value: unknown): Literal | undefined {
 	return undefined;
 }
 
-function normalisePins(
-	value: unknown, where: string, nodeId: string, errors: string[],
-): PinDef[] {
+function normalisePins(value: unknown, where: string, nodeId: string, errors: string[]): PinDef[] {
 	if (value === undefined) return [];
 	if (!Array.isArray(value)) {
 		errors.push(`${where} (${nodeId}): pins must be an array.`);

@@ -69,7 +69,13 @@ describe("a pure result read by a setter or a table field", () => {
 		const set = b.node("variable.set", { config: { variable: "v1" } });
 		b.link(start, "then", set, "in");
 		b.link(find, "result", set, "value");
-		const out = code(b.build({ variables: [{ id: "v1", name: "Handle", type: "Instance", default: { t: "raw", v: "nil" } }] }));
+		const out = code(
+			b.build({
+				variables: [
+					{ id: "v1", name: "Handle", type: "Instance", default: { t: "raw", v: "nil" } },
+				],
+			}),
+		);
 		expect(out).toContain('Handle = parent:FindFirstChild("Handle")');
 		expect(out).not.toContain("local child");
 	});

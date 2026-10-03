@@ -7,28 +7,43 @@
  * one.
  */
 
-import { useMemo, useState, type DragEvent } from "react";
-
-import type {
-	GraphNode, Literal, NodeScript, ScriptModule, ScriptVariable,
-} from "../core/schema.js";
+import { type DragEvent, useMemo, useState } from "react";
 import {
-	hoistedFunctions, visibleFrom, withFunctionGraphs, type GraphId,
+	type GraphId,
+	hoistedFunctions,
+	visibleFrom,
+	withFunctionGraphs,
 } from "../core/functionGraph.js";
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import type { Registry } from "../core/nodes/index.js";
+import { isConstLocal } from "../core/nodes/variables.js";
+import type {
+	GraphNode,
+	Literal,
+	NodeScript,
+	ScriptModule,
+	ScriptVariable,
+} from "../core/schema.js";
+import { SPECIFIER_HINTS } from "../core/schema.js";
 import { cx } from "./cx.js";
 import {
-	addModule, addVariable, defaultLiteralFor, deleteModule, deleteSelection, deleteVariable,
-	localRefFor, moduleUsageCount, updateModule, updateVariable, variableUsageCount,
+	addModule,
+	addVariable,
+	defaultLiteralFor,
+	deleteModule,
+	deleteSelection,
+	deleteVariable,
+	localRefFor,
+	moduleUsageCount,
+	updateModule,
+	updateVariable,
+	variableUsageCount,
 } from "./edits.js";
-import { FUNCTION_NODES } from "../core/nodes/flow.js";
-import { isConstLocal } from "../core/nodes/variables.js";
-import { pinColor } from "./palette.js";
-import { SPECIFIER_HINTS } from "../core/schema.js";
-import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { configText } from "./nodeConfig.js";
-import { store, useEditor } from "./store.js";
+import { pinColor } from "./palette.js";
 import { specifierSuggestions, useProjectLuaurc } from "./projectAliases.js";
+import { requiredTypes, useProjectTypes } from "./projectTypes.js";
+import { store, useEditor } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
 
 export interface VariablesPanelProps {
@@ -56,18 +71,23 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 	// graph goes with it, which the canvas also does -- so the question says how
 	// much of each.
 	const deleteDeclaration = async (node: GraphNode, kind: "local" | "function") => {
-		const name = kind === "local"
-			? localRefFor(node).name || "local"
-			: configText(node, "name") || "function";
+		const name =
+			kind === "local" ? localRefFor(node).name || "local" : configText(node, "name") || "function";
 		const key = kind === "local" ? "local" : "function";
 		const uses = script.nodes.filter(
 			(n) => n.id !== node.id && configText(n, key) === node.id,
 		).length;
-		const inside = kind === "function" ? withFunctionGraphs(script, new Set([node.id])).size - 1 : 0;
+		const inside =
+			kind === "function" ? withFunctionGraphs(script, new Set([node.id])).size - 1 : 0;
 		const parts = [`Delete "${name}"?`];
-		if (inside > 0) parts.push(`${inside} node${inside === 1 ? " is" : "s are"} inside it, and go${inside === 1 ? "es" : ""} with it.`);
+		if (inside > 0)
+			parts.push(
+				`${inside} node${inside === 1 ? " is" : "s are"} inside it, and go${inside === 1 ? "es" : ""} with it.`,
+			);
 		if (uses > 0) {
-			parts.push(`${uses} node${uses === 1 ? "" : "s"} still reference it, and will report an error until repointed or removed.`);
+			parts.push(
+				`${uses} node${uses === 1 ? "" : "s"} still reference it, and will report an error until repointed or removed.`,
+			);
 		}
 		const title = kind === "local" ? "Delete local" : "Delete function";
 		if (await confirm(title, parts.join(" "), "Delete")) {
@@ -167,8 +187,8 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 				))}
 				{(script.modules ?? []).length === 0 && (
 					<p className="hint">
-						None. A module is required once at the top of the generated file and read wherever
-						you drag it — so four uses write one <code>require</code>.
+						None. A module is required once at the top of the generated file and read wherever you
+						drag it — so four uses write one <code>require</code>.
 					</p>
 				)}
 
@@ -178,7 +198,11 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 					<>
 						<h3 className="variables-sub">Locals</h3>
 						{locals.map((node) => (
-							<LocalRow key={node.id} node={node} onDelete={() => deleteDeclaration(node, "local")} />
+							<LocalRow
+								key={node.id}
+								node={node}
+								onDelete={() => deleteDeclaration(node, "local")}
+							/>
 						))}
 					</>
 				)}
@@ -190,7 +214,11 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 					<>
 						<h3 className="variables-sub">Functions</h3>
 						{functions.map((node) => (
-							<FunctionRow key={node.id} node={node} onDelete={() => deleteDeclaration(node, "function")} />
+							<FunctionRow
+								key={node.id}
+								node={node}
+								onDelete={() => deleteDeclaration(node, "function")}
+							/>
 						))}
 					</>
 				)}
@@ -226,8 +254,16 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 
 /** One type: drag it for a Declare Local of that type, or a Cast with Ctrl. */
 function TypeRow({
-	type, detail, title, onClick,
-}: { type: string; detail: string; title?: string; onClick?: () => void }) {
+	type,
+	detail,
+	title,
+	onClick,
+}: {
+	type: string;
+	detail: string;
+	title?: string;
+	onClick?: () => void;
+}) {
 	function onDragStart(e: DragEvent) {
 		e.dataTransfer.setData("application/x-roswaal-type", JSON.stringify({ type }));
 		e.dataTransfer.effectAllowed = "copy";
@@ -258,15 +294,19 @@ function TypeRow({
  * part you scan for — two modules called `util` are told apart by where they
  * came from, not by their names.
  */
-function ModuleRow(
-	{ module, script, expanded, onToggle, confirm }: {
-		module: ScriptModule;
-		script: NodeScript;
-		expanded: boolean;
-		onToggle: () => void;
-		confirm: VariablesPanelProps["confirm"];
-	},
-) {
+function ModuleRow({
+	module,
+	script,
+	expanded,
+	onToggle,
+	confirm,
+}: {
+	module: ScriptModule;
+	script: NodeScript;
+	expanded: boolean;
+	onToggle: () => void;
+	confirm: VariablesPanelProps["confirm"];
+}) {
 	const uses = moduleUsageCount(script, module.id);
 
 	function onDragStart(e: DragEvent) {
@@ -474,10 +514,7 @@ function VariableRow({ variable, script, expanded, onToggle, confirm }: Variable
 
 	function onDragStart(e: DragEvent) {
 		// The canvas reads this to decide what to spawn where it is dropped.
-		e.dataTransfer.setData(
-			"application/x-roswaal-variable",
-			JSON.stringify({ id: variable.id }),
-		);
+		e.dataTransfer.setData("application/x-roswaal-variable", JSON.stringify({ id: variable.id }));
 		e.dataTransfer.effectAllowed = "copy";
 	}
 
@@ -506,9 +543,7 @@ function VariableRow({ variable, script, expanded, onToggle, confirm }: Variable
 						<span>Type</span>
 						<TypePicker
 							value={variable.type}
-							onChange={(type) =>
-								store.edit((s) => updateVariable(s, variable.id, { type }))
-							}
+							onChange={(type) => store.edit((s) => updateVariable(s, variable.id, { type }))}
 						/>
 					</label>
 					{/* `local` or `const`, per variable. A constant is declared once at
@@ -528,9 +563,7 @@ function VariableRow({ variable, script, expanded, onToggle, confirm }: Variable
 							<button
 								className={variable.const === true ? "on" : ""}
 								title="Luau's const: the name cannot be reassigned. Needs a runtime that has it."
-								onClick={() =>
-									store.edit((s) => updateVariable(s, variable.id, { const: true }))
-								}
+								onClick={() => store.edit((s) => updateVariable(s, variable.id, { const: true }))}
 							>
 								const
 							</button>
@@ -589,8 +622,14 @@ function VariableRow({ variable, script, expanded, onToggle, confirm }: Variable
 }
 
 function DefaultEditor({
-	type, value, onChange,
-}: { type: string; value: Literal; onChange: (next: Literal) => void }) {
+	type,
+	value,
+	onChange,
+}: {
+	type: string;
+	value: Literal;
+	onChange: (next: Literal) => void;
+}) {
 	const current = value ?? defaultLiteralFor(type);
 
 	if (current.t === "boolean") {

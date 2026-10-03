@@ -40,9 +40,16 @@ export interface Autosave {
 
 export function useAutosave(context: AutosaveContext): Autosave {
 	const {
-		saves, project, ask, notify, onWriteFailed, runCompile, hostCompilesOnSave, mapDoc, setMapDoc,
+		saves,
+		project,
+		ask,
+		notify,
+		onWriteFailed,
+		runCompile,
+		hostCompilesOnSave,
+		mapDoc,
+		setMapDoc,
 	} = context;
-
 
 	// Autosave. The graph on disk is the document; there is no separate "saved"
 	// copy to diverge from, so an explicit save button would only be ceremony.
@@ -54,7 +61,8 @@ export function useAutosave(context: AutosaveContext): Autosave {
 	compileAfterSave.current = (path) => {
 		// The daemon's watcher compiles the file it sees written; compiling it
 		// here as well did every compile twice.
-		if (project?.config.compileMode === "hot" && !hostCompilesOnSave.current) void runCompile(path, true);
+		if (project?.config.compileMode === "hot" && !hostCompilesOnSave.current)
+			void runCompile(path, true);
 	};
 	/** What this tab last wrote to each graph, to tell its own writes from somebody else's. */
 	const lastWritten = useRef(new Map<string, string>());
@@ -109,45 +117,54 @@ export function useAutosave(context: AutosaveContext): Autosave {
 	 * is gone is closed. This tab's own writes come back here too and are
 	 * recognised by their content.
 	 */
-	const followDisk = useCallback(async (type: string, path: string) => {
-		if (!path.endsWith(".nodescript") || !store.document(path)) return;
-		const disk = await api.readScript(path).then((reply) => reply.script, () => null);
-		const open = store.document(path);
-		if (!open) return;
+	const followDisk = useCallback(
+		async (type: string, path: string) => {
+			if (!path.endsWith(".nodescript") || !store.document(path)) return;
+			const disk = await api.readScript(path).then(
+				(reply) => reply.script,
+				() => null,
+			);
+			const open = store.document(path);
+			if (!open) return;
 
-		if (disk === null) {
-			if (type !== "removed") return;
-			if (open.dirty) {
-				notify("A graph was deleted on disk", `${path} is gone. Your edits are still open, and saving them will bring the file back.`);
+			if (disk === null) {
+				if (type !== "removed") return;
+				if (open.dirty) {
+					notify(
+						"A graph was deleted on disk",
+						`${path} is gone. Your edits are still open, and saving them will bring the file back.`,
+					);
+					return;
+				}
+				saves.drop(path);
+				store.closePath(path);
 				return;
 			}
+
+			const text = serialiseScript(disk);
+			if (text === lastWritten.current.get(path) || text === serialiseScript(open.script)) return;
+			if (!open.dirty) {
+				store.reload(path, disk);
+				return;
+			}
+
 			saves.drop(path);
-			store.closePath(path);
-			return;
-		}
-
-		const text = serialiseScript(disk);
-		if (text === lastWritten.current.get(path) || text === serialiseScript(open.script)) return;
-		if (!open.dirty) {
-			store.reload(path, disk);
-			return;
-		}
-
-		saves.drop(path);
-		const choice = await ask({
-			kind: "choice",
-			title: "This graph changed on disk",
-			message: `${path} was changed outside this tab while you had edits that were not saved yet.`,
-			choices: [
-				{ value: "disk", label: "Use the file" },
-				{ value: "mine", label: "Keep my edits", primary: true },
-			],
-		});
-		const now = store.document(path);
-		if (!now) return;
-		if (choice === "disk") store.reload(path, disk);
-		else saves.put(path, () => writeGraph(path, now.script));
-	}, [ask, notify, saves, writeGraph]);
+			const choice = await ask({
+				kind: "choice",
+				title: "This graph changed on disk",
+				message: `${path} was changed outside this tab while you had edits that were not saved yet.`,
+				choices: [
+					{ value: "disk", label: "Use the file" },
+					{ value: "mine", label: "Keep my edits", primary: true },
+				],
+			});
+			const now = store.document(path);
+			if (!now) return;
+			if (choice === "disk") store.reload(path, disk);
+			else saves.put(path, () => writeGraph(path, now.script));
+		},
+		[ask, notify, saves, writeGraph],
+	);
 	const followDiskRef = useRef(followDisk);
 	followDiskRef.current = followDisk;
 

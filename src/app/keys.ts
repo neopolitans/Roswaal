@@ -11,6 +11,7 @@
 export function isEditableTarget(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false;
 	if (target.isContentEditable) return true;
-	if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return true;
+	if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")
+		return true;
 	return target.closest('[role="dialog"]') !== null;
 }

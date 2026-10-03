@@ -53,13 +53,13 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 
 	// Untyped, because these are a mix of inputs, checkboxes and selects and
 	// each use narrows to the one it wants.
-	const fieldOf = (name: string) =>
-		figure.querySelector<HTMLElement>(`[data-map-field="${name}"]`);
+	const fieldOf = (name: string) => figure.querySelector<HTMLElement>(`[data-map-field="${name}"]`);
 
 	// The row the Inspector is showing. Core marks the first one.
-	let picked: string = rows.find((r) => r.classList.contains("selected"))?.dataset.control
-		?? rows[0].dataset.control
-		?? "";
+	let picked: string =
+		rows.find((r) => r.classList.contains("selected"))?.dataset.control ??
+		rows[0].dataset.control ??
+		"";
 
 	const read = (row: HTMLElement): Inspected | null => {
 		const raw = row.dataset.mapNode;
@@ -214,7 +214,7 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 	const keyAt = (target: EventTarget | null): string | null => {
 		if (!(target instanceof Element)) return null;
 		const part = target.closest<HTMLElement>("[data-control]");
-		return part && figure.contains(part) ? part.dataset.control ?? null : null;
+		return part && figure.contains(part) ? (part.dataset.control ?? null) : null;
 	};
 
 	// Both of these say what the state *is* for wherever the pointer now is,

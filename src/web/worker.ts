@@ -22,13 +22,23 @@
 
 import { VERSION } from "../cli/version.js";
 import { errorMessage } from "../server/errors.js";
-import { initProject, isInitialised, writePlaceImport, type OpenProject } from "../server/project.js";
-import { ApiSession, errorResponse, type ErrorBody } from "../server/routes.js";
+import {
+	initProject,
+	isInitialised,
+	type OpenProject,
+	writePlaceImport,
+} from "../server/project.js";
+import { ApiSession, type ErrorBody, errorResponse } from "../server/routes.js";
 import { DirectoryFs, mountFor } from "./directoryFs.js";
 import { useFilesystem, usingVolume, volume } from "./host.js";
 import { opfsStore, persistence } from "./persist.js";
 import type {
-	ApiRequestMessage, FromWorker, ImportMessage, ImportPlaceMessage, MountMessage, ToWorker,
+	ApiRequestMessage,
+	FromWorker,
+	ImportMessage,
+	ImportPlaceMessage,
+	MountMessage,
+	ToWorker,
 } from "./protocol.js";
 import { PLAYGROUND_ROOT, playgroundFiles } from "./seed.js";
 
@@ -157,9 +167,9 @@ async function dynamicCompile(method: string, path: string, body: unknown): Prom
 	if (typeof relPath !== "string" || relPath === "") return;
 
 	try {
-		const { results } = await session.handle("POST", "/compile", {
+		const { results } = (await session.handle("POST", "/compile", {
 			body: { path: relPath, write: true },
-		}) as { results: unknown[] };
+		})) as { results: unknown[] };
 		post({
 			kind: "event",
 			event: "hot",
@@ -251,7 +261,10 @@ async function mountFolder(message: MountMessage): Promise<Reply> {
  * the daemon serves one. Mounted at its own name, so the editor, the window
  * title and the next Download all call it what its owner does.
  */
-async function replaceProject(name: string, write: (root: string) => Promise<void>): Promise<OpenProject> {
+async function replaceProject(
+	name: string,
+	write: (root: string) => Promise<void>,
+): Promise<OpenProject> {
 	const before = snapshot();
 	const next = `/${name}`;
 	try {
@@ -284,14 +297,20 @@ async function importZip(message: ImportMessage): Promise<Reply> {
 	const hasConfig = "roswaal.json" in message.files;
 	if (!hasConfig && !message.initialise) return notAProject(message.name);
 	try {
-		return opened(await replaceProject(message.name, async (root) => {
-			volume.mount(Object.fromEntries(
-				Object.entries({ ...message.files, ...message.binaries })
-					.map(([rel, contents]) => [`${root}/${rel}`, contents]),
-			));
-			volume.mountDirs([root, ...message.dirs.map((dir) => `${root}/${dir}`)]);
-			if (!hasConfig) await initProject(root);
-		}));
+		return opened(
+			await replaceProject(message.name, async (root) => {
+				volume.mount(
+					Object.fromEntries(
+						Object.entries({ ...message.files, ...message.binaries }).map(([rel, contents]) => [
+							`${root}/${rel}`,
+							contents,
+						]),
+					),
+				);
+				volume.mountDirs([root, ...message.dirs.map((dir) => `${root}/${dir}`)]);
+				if (!hasConfig) await initProject(root);
+			}),
+		);
 	} catch (err) {
 		return answer(err);
 	}
@@ -358,7 +377,9 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
 	}
 	// Every handler answers its own errors; this catch is for a bug in one,
 	// which must not stop the queue for every message after it.
-	queue = queue.then(() => receive(message)).catch((err: unknown) => {
-		console.error("Roswaal worker:", err);
-	});
+	queue = queue
+		.then(() => receive(message))
+		.catch((err: unknown) => {
+			console.error("Roswaal worker:", err);
+		});
 };

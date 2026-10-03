@@ -68,18 +68,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
 			<div className="crash">
 				<h1>{this.props.what} stopped</h1>
 				<p>
-					Nothing has been lost — every graph is on disk and the daemon is still
-					running. Reloading picks up where you were.
+					Nothing has been lost — every graph is on disk and the daemon is still running. Reloading
+					picks up where you were.
 				</p>
 				<pre className="crash-detail">{report}</pre>
 				<div className="crash-actions">
 					<button className="tb primary" onClick={() => window.location.reload()}>
 						Reload
 					</button>
-					<button
-						className="tb"
-						onClick={() => void navigator.clipboard?.writeText(report)}
-					>
+					<button className="tb" onClick={() => void navigator.clipboard?.writeText(report)}>
 						Copy the error
 					</button>
 				</div>

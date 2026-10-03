@@ -15,15 +15,22 @@
  * value holds would be a completion list that lies.
  */
 
+import { isService } from "../roblox.js";
+import { CLASS_PARENTS, CLASSES } from "../robloxData.js";
+import { ENGINE, type EngineClass, type EngineEvent } from "../robloxEngine.js";
+import { CLASS_METHODS, type ClassMethod } from "../robloxStatics.js";
 import type { Expr, FunctionBody, Stat } from "./ast.js";
-import { docCommentBefore, docFor, docRegistry, registeredDoc, withRelated, type DocComment } from "./docComment.js";
+import {
+	type DocComment,
+	docCommentBefore,
+	docFor,
+	docRegistry,
+	registeredDoc,
+	withRelated,
+} from "./docComment.js";
 import { luauFile } from "./file.js";
 import type { Token } from "./lexer.js";
 import { visitBlock } from "./visit.js";
-import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
-import { isService } from "../roblox.js";
-import { CLASS_METHODS, type ClassMethod } from "../robloxStatics.js";
-import { ENGINE, type EngineClass, type EngineEvent } from "../robloxEngine.js";
 
 export interface Held {
 	/** A Roblox class the value is an instance of. */
@@ -37,21 +44,28 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** Calls on an instance whose string argument names the class they return. */
 const CLASS_NAMING_CALLS = new Set([
-	"GetService", "FindFirstChildOfClass", "FindFirstChildWhichIsA",
-	"FindFirstAncestorOfClass", "FindFirstAncestorWhichIsA",
+	"GetService",
+	"FindFirstChildOfClass",
+	"FindFirstChildWhichIsA",
+	"FindFirstAncestorOfClass",
+	"FindFirstAncestorWhichIsA",
 ]);
 
 /** A quoted string's text, for the simple strings class names are written as. */
 export function stringValue(expr: Expr | undefined): string | undefined {
 	if (!expr || expr.kind !== "string") return undefined;
 	const raw = expr.raw;
-	if ((raw.startsWith("\"") || raw.startsWith("'")) && raw.length >= 2) return raw.slice(1, -1);
+	if ((raw.startsWith('"') || raw.startsWith("'")) && raw.length >= 2) return raw.slice(1, -1);
 	return undefined;
 }
 
 /** A class name from a written type: `Part`, `Part?`, `(Model)`. */
 export function classOfTypeText(text: string | undefined): string | undefined {
-	const bare = (text ?? "").trim().replace(/^\((.*)\)$/, "$1").replace(/\?$/, "").trim();
+	const bare = (text ?? "")
+		.trim()
+		.replace(/^\((.*)\)$/, "$1")
+		.replace(/\?$/, "")
+		.trim();
 	return CLASS_SET.has(bare) ? bare : undefined;
 }
 
@@ -124,8 +138,12 @@ export const CLASS_ARGUMENT_METHODS: ReadonlySet<string> = new Set(["IsA", ...CL
 
 /** Whether `callee` is `Instance.new`, the one function whose first argument names a class. */
 function isInstanceNew(callee: Expr): boolean {
-	return callee.kind === "index" && callee.object.kind === "name" && callee.object.name === "Instance"
-		&& callee.name.name === "new";
+	return (
+		callee.kind === "index" &&
+		callee.object.kind === "name" &&
+		callee.object.name === "Instance" &&
+		callee.name.name === "new"
+	);
 }
 
 /** Whether a call's first argument names a class: `Instance.new("Part")`, `x:IsA("Model")`. */
@@ -143,7 +161,8 @@ export function takesClassName(call: Expr): boolean {
 export function classCallBefore(tokens: readonly Token[]): "class" | "service" | undefined {
 	const at = (back: number) => tokens[tokens.length - back]?.text;
 	if (at(1) !== "(") return undefined;
-	if (at(3) === ":" && CLASS_ARGUMENT_METHODS.has(at(2) ?? "")) return at(2) === "GetService" ? "service" : "class";
+	if (at(3) === ":" && CLASS_ARGUMENT_METHODS.has(at(2) ?? ""))
+		return at(2) === "GetService" ? "service" : "class";
 	return at(2) === "new" && at(3) === "." && at(4) === "Instance" ? "class" : undefined;
 }
 
@@ -178,8 +197,12 @@ export interface FunctionSignature {
 export function signatureParts(func: FunctionBody, src: string): FunctionSignature {
 	const text = (span: { start: number; end: number }) => src.slice(span.start, span.end).trim();
 	const params: FunctionSignature["params"] = func.params.map((p) =>
-		(p.type ? { name: p.name, type: text(p.type) } : { name: p.name }));
-	if (func.varargs) params.push(func.varargs.type ? { name: "...", type: text(func.varargs.type) } : { name: "..." });
+		p.type ? { name: p.name, type: text(p.type) } : { name: p.name },
+	);
+	if (func.varargs)
+		params.push(
+			func.varargs.type ? { name: "...", type: text(func.varargs.type) } : { name: "..." },
+		);
 	const returns = func.returns ? text(func.returns).replace(/^\((.*)\)$/s, "$1") : "";
 	return { params, returns };
 }
@@ -242,7 +265,8 @@ export function typeOfValue(expr: Expr | undefined, src: string): string | undef
 				return INSTANCE_FINDERS[value.method.name];
 			}
 			const called = classOfCall(value);
-			if (called && value.kind === "methodCall" && value.method.name.startsWith("FindFirst")) return `${called}?`;
+			if (called && value.kind === "methodCall" && value.method.name.startsWith("FindFirst"))
+				return `${called}?`;
 			return called;
 		}
 	}
@@ -272,7 +296,12 @@ export function memberFor(name: string, value: Expr | undefined, src: string): T
 }
 
 /** A member for a function written with its body: `function M.f(…)`. */
-export function functionMember(name: string, kind: "function" | "method", func: FunctionBody, src: string): TableMember {
+export function functionMember(
+	name: string,
+	kind: "function" | "method",
+	func: FunctionBody,
+	src: string,
+): TableMember {
 	const signature = signatureParts(func, src);
 	return { name, kind, detail: formatSignature(signature), signature };
 }
@@ -321,7 +350,8 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 			// `local Crate = { Shelf = … }`: what the table is written with.
 			stat.names.forEach((binding, i) => {
 				let value = stat.values[i];
-				while (value?.kind === "cast" || value?.kind === "paren") value = value.kind === "cast" ? value.value : value.inner;
+				while (value?.kind === "cast" || value?.kind === "paren")
+					value = value.kind === "cast" ? value.value : value.inner;
 				if (binding.name !== owner || value?.kind !== "table") return;
 				for (const field of value.fields) {
 					if (field.kind !== "named") continue;
@@ -393,9 +423,12 @@ export function heldBy(typeText: string | undefined, value: Expr | undefined): H
 	if (expr.kind === "table") {
 		const keys: string[] = [];
 		for (const field of expr.fields) {
-			const key = field.kind === "named"
-				? field.name.name
-				: field.kind === "keyed" ? stringValue(field.key) : undefined;
+			const key =
+				field.kind === "named"
+					? field.name.name
+					: field.kind === "keyed"
+						? stringValue(field.key)
+						: undefined;
 			// Every string key: brackets reach `["two words"]`, and a dot only
 			// the ones that are names — `dotKeys` is that narrower list.
 			if (key !== undefined && !keys.includes(key)) keys.push(key);

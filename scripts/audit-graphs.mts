@@ -14,13 +14,18 @@
  * rather than before it, which is how to judge a change to the pass.
  */
 
-import { buildSite } from "../src/core/docs/site.ts";
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
-import { growthState } from "../src/core/nodes/growth.ts";
-import { placeGraph, placedPinAnchor, previewOfPlaced, straighten } from "../src/core/docs/preview.ts";
-import { nodeColor, pinColor } from "../src/app/palette.ts";
 import { wirePath } from "../src/app/geometry.ts";
 import { NODE } from "../src/app/layers.ts";
+import { nodeColor, pinColor } from "../src/app/palette.ts";
+import {
+	placedPinAnchor,
+	placeGraph,
+	previewOfPlaced,
+	straighten,
+} from "../src/core/docs/preview.ts";
+import { buildSite } from "../src/core/docs/site.ts";
+import { growthState } from "../src/core/nodes/growth.ts";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
 
 const registry = createRegistry();
 const site = buildSite(registry, new Set(BUILTIN_NODES.map((d) => d.id)));
@@ -36,7 +41,8 @@ const options = {
 
 let graphs = 0;
 let links = 0;
-const offenders: { page: string; bent: number; total: number; worst: number; crossings: number }[] = [];
+const offenders: { page: string; bent: number; total: number; worst: number; crossings: number }[] =
+	[];
 
 for (const section of site.sections) {
 	for (const page of section.pages) {
@@ -79,7 +85,10 @@ for (const section of site.sections) {
 			 * execution wire already occupies, and the wire then passes behind
 			 * it — which reads as a wire going into the node.
 			 */
-			const anchors = (link: { from: { node: string; pin: string }; to: { node: string; pin: string } }) => {
+			const anchors = (link: {
+				from: { node: string; pin: string };
+				to: { node: string; pin: string };
+			}) => {
 				const from = byId.get(link.from.node);
 				const to = byId.get(link.to.node);
 				if (!from || !to) return null;
@@ -111,7 +120,9 @@ offenders.sort((a, b) => b.worst - a.worst);
 const bentGraphs = offenders.filter((x) => x.bent > 0);
 const bentLinks = offenders.reduce((n, x) => n + x.bent, 0);
 const crossed = offenders.reduce((n, x) => n + x.crossings, 0);
-console.log(`graphs: ${graphs}   links: ${links}   graphs with a bent wire: ${bentGraphs.length}   bent links: ${bentLinks}   wires crossing a node: ${crossed}`);
+console.log(
+	`graphs: ${graphs}   links: ${links}   graphs with a bent wire: ${bentGraphs.length}   bent links: ${bentLinks}   wires crossing a node: ${crossed}`,
+);
 console.log("");
 console.log("CLEAN (every wire runs straight):");
 for (const o of offenders.filter((x) => x.bent === 0)) {
@@ -119,7 +130,9 @@ for (const o of offenders.filter((x) => x.bent === 0)) {
 }
 console.log("");
 for (const o of offenders.filter((x) => x.bent > 0).slice(0, 4)) {
-	console.log(`  ${o.page.padEnd(34)} ${o.bent}/${o.total} bent, worst ${o.worst}px, ${o.crossings} crossing(s)`);
+	console.log(
+		`  ${o.page.padEnd(34)} ${o.bent}/${o.total} bent, worst ${o.worst}px, ${o.crossings} crossing(s)`,
+	);
 }
 if (offenders.length > 25) console.log(`  ... and ${offenders.length - 25} more`);
 

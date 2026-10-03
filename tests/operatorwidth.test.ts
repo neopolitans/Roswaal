@@ -19,12 +19,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES } from "../src/core/nodes/index.js";
 import { NODE } from "../src/core/nodeMetrics.js";
-import {
-	operatorEditorWidth, operatorFields, operatorLayout,
-} from "../src/core/operatorLayout.js";
+import { BUILTIN_NODES } from "../src/core/nodes/index.js";
+import { operatorEditorWidth, operatorFields, operatorLayout } from "../src/core/operatorLayout.js";
 import type { Literal, NodeDef } from "../src/core/schema.js";
 
 const def = (id: string): NodeDef => {
@@ -101,8 +98,11 @@ describe("a pill leaves room for the fields it draws", () => {
 				{ t: "string", v: "x" },
 				{ t: "boolean", v: true },
 			] as Literal[]) {
-				expect([id, literal.t, widthOf(id, { [first.id]: literal }) >= widthOf(id)])
-					.toEqual([id, literal.t, true]);
+				expect([id, literal.t, widthOf(id, { [first.id]: literal }) >= widthOf(id)]).toEqual([
+					id,
+					literal.t,
+					true,
+				]);
 			}
 		},
 	);

@@ -17,11 +17,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import {
-	blockStrings, blockText, buildSite, findPage, parseInline, type Block,
+	type Block,
+	blockStrings,
+	blockText,
+	buildSite,
+	findPage,
+	parseInline,
 } from "../src/core/docs/site.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
@@ -103,8 +107,9 @@ describe("the Controls page", () => {
 	it("sends only keys the editor binds, from the touch bar", () => {
 		const source = readFileSync(path.join(ROOT, "src/app/TouchBar.tsx"), "utf8");
 		const bar = source.slice(source.indexOf("function TouchBar("));
-		const sent = [...bar.matchAll(/action\("\w+", "\w+", "(\w+)"/g)]
-			.map((m) => (m[1].length === 1 ? m[1].toUpperCase() : m[1]));
+		const sent = [...bar.matchAll(/action\("\w+", "\w+", "(\w+)"/g)].map((m) =>
+			m[1].length === 1 ? m[1].toUpperCase() : m[1],
+		);
 		expect(sent.length).toBeGreaterThanOrEqual(5);
 		const bound = boundKeys();
 		expect(sent.filter((key) => !bound.includes(key))).toEqual([]);
@@ -119,7 +124,7 @@ describe("the Controls page", () => {
 	});
 
 	it("says what the align key does and what it lines up on", () => {
-		const text = (page!.blocks).map(blockText).join("\n").toLowerCase();
+		const text = page!.blocks.map(blockText).join("\n").toLowerCase();
 		expect(text).toContain("anchor");
 		expect(text).toContain("reroute knot");
 	});
@@ -138,7 +143,9 @@ describe("the Controls page", () => {
 	});
 
 	it("covers the mouse as well as the keyboard", () => {
-		const headings = page!.blocks.filter((b) => b.t === "h").map((b) => (b as { text: string }).text);
+		const headings = page!.blocks
+			.filter((b) => b.t === "h")
+			.map((b) => (b as { text: string }).text);
 		expect(headings).toContain("Keys and gestures");
 		expect(headings).toContain("The canvas");
 		expect(headings).toContain("Pins and wires");

@@ -8,9 +8,15 @@
  */
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, type PlaceTree } from "./api.js";
-import { classGlyph, groupProperties, isScriptClass, type PlaceInstanceInfo, type PlaceProperty } from "../core/rbx/browse.js";
 import { errorMessage } from "../core/errorMessage.js";
+import {
+	classGlyph,
+	groupProperties,
+	isScriptClass,
+	type PlaceInstanceInfo,
+	type PlaceProperty,
+} from "../core/rbx/browse.js";
+import { api, type PlaceTree } from "./api.js";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 
@@ -116,41 +122,51 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 
 	const classOf = (i: number) => classes![nodes![i][0]];
 
-	const targetOf = useCallback((index: number): PlaceTarget => {
-		const [cls, name, parent] = nodes![index];
-		const owner = place!.scripts[index];
-		return {
-			stamp: place!.stamp,
-			index,
-			name,
-			className: classes![cls],
-			path: pathTo(nodes!, index),
-			service: parent === -1,
-			...(owner ? { file: owner } : {}),
-		};
-	}, [nodes, classes, place]);
+	const targetOf = useCallback(
+		(index: number): PlaceTarget => {
+			const [cls, name, parent] = nodes![index];
+			const owner = place!.scripts[index];
+			return {
+				stamp: place!.stamp,
+				index,
+				name,
+				className: classes![cls],
+				path: pathTo(nodes!, index),
+				service: parent === -1,
+				...(owner ? { file: owner } : {}),
+			};
+		},
+		[nodes, classes, place],
+	);
 
 	// Picks an instance, and shows it in Properties when that is open or asked for.
-	const pick = useCallback((index: number, openPanel: boolean) => {
-		setSelected(index);
-		if (openPanel || inspecting !== null) onInspect(targetOf(index), openPanel);
-	}, [inspecting, onInspect, targetOf]);
+	const pick = useCallback(
+		(index: number, openPanel: boolean) => {
+			setSelected(index);
+			if (openPanel || inspecting !== null) onInspect(targetOf(index), openPanel);
+		},
+		[inspecting, onInspect, targetOf],
+	);
 
 	// Picks an instance and opens every folder above it, so it can be seen.
-	const reveal = useCallback((index: number, openPanel = false) => {
-		if (!nodes) return;
-		pick(index, openPanel);
-		const above: number[] = [];
-		for (let p = nodes[index][2]; p !== -1; p = nodes[p][2]) above.push(p);
-		// Past the first children of a big folder too, or it stays unseen.
-		setOpen((prev) => new Set([...prev, ...above]));
-		setShowAll((prev) => new Set([...prev, ...above]));
-		if (nodes[index][3] & TUCKED) setTucked(true);
-	}, [nodes, pick]);
+	const reveal = useCallback(
+		(index: number, openPanel = false) => {
+			if (!nodes) return;
+			pick(index, openPanel);
+			const above: number[] = [];
+			for (let p = nodes[index][2]; p !== -1; p = nodes[p][2]) above.push(p);
+			// Past the first children of a big folder too, or it stays unseen.
+			setOpen((prev) => new Set([...prev, ...above]));
+			setShowAll((prev) => new Set([...prev, ...above]));
+			if (nodes[index][3] & TUCKED) setTucked(true);
+		},
+		[nodes, pick],
+	);
 
 	// A reference followed in Properties: shown here, and there.
 	useEffect(() => {
-		if (revealRequest && nodes && revealRequest.index < nodes.length) reveal(revealRequest.index, true);
+		if (revealRequest && nodes && revealRequest.index < nodes.length)
+			reveal(revealRequest.index, true);
 		// Only a new request; `reveal` changes with every pick.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [revealRequest]);
@@ -158,7 +174,9 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	// Keep the picked row in view when it was picked from somewhere else.
 	useEffect(() => {
 		if (selected === null) return;
-		treeRef.current?.querySelector(`[data-index="${selected}"]`)?.scrollIntoView({ block: "nearest" });
+		treeRef.current
+			?.querySelector(`[data-index="${selected}"]`)
+			?.scrollIntoView({ block: "nearest" });
 	}, [selected, filter]);
 
 	const rows = useMemo(() => {
@@ -172,7 +190,12 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 					out.push({ kind: "node", index: i, depth: 0, match: true });
 				}
 			}
-			if (out.length === MATCH_LIMIT) out.push({ kind: "more", depth: 0, text: `First ${MATCH_LIMIT} shown. Narrow the filter to see the rest.` });
+			if (out.length === MATCH_LIMIT)
+				out.push({
+					kind: "more",
+					depth: 0,
+					text: `First ${MATCH_LIMIT} shown. Narrow the filter to see the rest.`,
+				});
 			return out;
 		}
 		const add = (index: number, depth: number) => {
@@ -182,7 +205,12 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 			const shown = showAll.has(index) ? kids : kids.slice(0, CHILD_LIMIT);
 			for (const kid of shown) add(kid, depth + 1);
 			if (shown.length < kids.length) {
-				out.push({ kind: "more", depth: depth + 1, parent: index, text: `Show all ${kids.length}` });
+				out.push({
+					kind: "more",
+					depth: depth + 1,
+					parent: index,
+					text: `Show all ${kids.length}`,
+				});
 			}
 		};
 		const roots = children.get(-1) ?? [];
@@ -190,8 +218,11 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		for (const root of roots) if (!(nodes[root][3] & TUCKED)) add(root, 0);
 		if (hidden.length) {
 			out.push({
-				kind: "tucked", depth: 0,
-				text: tucked ? `Hide ${hidden.length} empty services` : `${hidden.length} more services, all empty`,
+				kind: "tucked",
+				depth: 0,
+				text: tucked
+					? `Hide ${hidden.length} empty services`
+					: `${hidden.length} more services, all empty`,
 			});
 			if (tucked) for (const root of hidden) add(root, 0);
 		}
@@ -282,7 +313,9 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 							)}
 							<ClassIcon className={cls} service={parent === -1} open={isOpen} />
 							<span className="label">{name}</span>
-							{row.match && parent !== -1 && <span className="place-where">{nodes![parent][1]}</span>}
+							{row.match && parent !== -1 && (
+								<span className="place-where">{nodes![parent][1]}</span>
+							)}
 							<span className="place-class">{cls}</span>
 						</div>
 					);
@@ -325,7 +358,9 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 		<div className="place-properties">
 			<h2>
 				<span>Properties</span>
-				<button className="tb" title="Stop showing this instance" onClick={onClose}>Close</button>
+				<button className="tb" title="Stop showing this instance" onClick={onClose}>
+					Close
+				</button>
 			</h2>
 			<div className="place-props">
 				<div
@@ -339,7 +374,9 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 					<span className="place-class">{target.className}</span>
 				</div>
 				<div className="place-path">{target.path.join(" › ")}</div>
-				{info?.summary && info.index === target.index && <p className="place-summary">{info.summary}</p>}
+				{info?.summary && info.index === target.index && (
+					<p className="place-summary">{info.summary}</p>
+				)}
 				{target.file ? (
 					<div className="place-owner">
 						<button className="tb" onClick={() => onOpenFile(target.file!)} title={target.file}>
@@ -359,7 +396,12 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 				{problem ? (
 					<p className="place-note">{problem}</p>
 				) : info && info.index === target.index ? (
-					<Properties properties={info.properties} onPick={onPick} path={target.path} className={target.className} />
+					<Properties
+						properties={info.properties}
+						onPick={onPick}
+						path={target.path}
+						className={target.className}
+					/>
 				) : (
 					<p className="place-note">Reading…</p>
 				)}
@@ -388,7 +430,15 @@ function pathTo(nodes: readonly [number, string, number, number][], index: numbe
 }
 
 /** The glyph the project tree uses for the same thing, and a cube for the rest. */
-function ClassIcon({ className, service, open }: { className: string; service: boolean; open: boolean }) {
+function ClassIcon({
+	className,
+	service,
+	open,
+}: {
+	className: string;
+	service: boolean;
+	open: boolean;
+}) {
 	const { icon, tone } = classGlyph(className, service, open);
 	return <Icon name={icon as IconName} size={15} className={cx("kind", tone)} />;
 }
@@ -409,8 +459,16 @@ function dragOut(e: React.DragEvent, payload: PropertyDrag) {
 	e.dataTransfer.effectAllowed = "copy";
 }
 
-function Properties({ properties, onPick, path, className }: {
-	properties: PlaceProperty[]; onPick: (index: number) => void; path: string[]; className: string;
+function Properties({
+	properties,
+	onPick,
+	path,
+	className,
+}: {
+	properties: PlaceProperty[];
+	onPick: (index: number) => void;
+	path: string[];
+	className: string;
 }) {
 	const groups = useMemo(() => groupProperties(properties), [properties]);
 
@@ -422,7 +480,11 @@ function Properties({ properties, onPick, path, className }: {
 					<div className="place-group-name">{category}</div>
 					{category === "Tags" ? (
 						<div className="place-tags">
-							{list.map((p) => <span className="place-tag" key={p.name}>{p.name}</span>)}
+							{list.map((p) => (
+								<span className="place-tag" key={p.name}>
+									{p.name}
+								</span>
+							))}
 						</div>
 					) : (
 						list.map((p) => (
@@ -431,13 +493,22 @@ function Properties({ properties, onPick, path, className }: {
 								key={p.name}
 								title={`${p.name}: ${p.type}. Drag onto a graph for a Get Member; hold Ctrl as you drop to set it.`}
 								draggable
-								onDragStart={(e) => dragOut(e, category === "Attributes" ? { path, className, attribute: p.name } : { path, className, property: p.name })}
+								onDragStart={(e) =>
+									dragOut(
+										e,
+										category === "Attributes"
+											? { path, className, attribute: p.name }
+											: { path, className, property: p.name },
+									)
+								}
 							>
 								<span className="place-prop-name">{p.name}</span>
 								<span className="place-prop-value">
 									{p.color && <span className="place-swatch" style={{ background: p.color }} />}
 									{p.ref !== undefined ? (
-										<button className="place-ref" onClick={() => onPick(p.ref!)}>{p.value}</button>
+										<button className="place-ref" onClick={() => onPick(p.ref!)}>
+											{p.value}
+										</button>
 									) : (
 										p.value
 									)}

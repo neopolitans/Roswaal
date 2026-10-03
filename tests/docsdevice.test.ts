@@ -8,14 +8,22 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { chosenDevice, pickTab, readerDevice, rememberPick, type Device } from "../src/app/docsDevice.js";
-import { buildSite, type Block } from "../src/core/docs/site.js";
+import {
+	chosenDevice,
+	type Device,
+	pickTab,
+	readerDevice,
+	rememberPick,
+} from "../src/app/docsDevice.js";
 import { renderPage } from "../src/core/docs/html.js";
+import { type Block, buildSite } from "../src/core/docs/site.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 
 /** A window whose media queries answer from a set of true ones. */
 function screen(...truths: string[]): Window {
-	return { matchMedia: (query: string) => ({ matches: truths.includes(query) }) } as unknown as Window;
+	return {
+		matchMedia: (query: string) => ({ matches: truths.includes(query) }),
+	} as unknown as Window;
 }
 
 const PHONE = "(max-width: 699px)";
@@ -36,7 +44,11 @@ describe("the reader's screen", () => {
 	});
 
 	it("is a desktop when media queries cannot be asked", () => {
-		const broken = { matchMedia: () => { throw new Error("no"); } } as unknown as Window;
+		const broken = {
+			matchMedia: () => {
+				throw new Error("no");
+			},
+		} as unknown as Window;
 		expect(readerDevice(broken, false)).toBe("webapp");
 	});
 });
@@ -94,13 +106,17 @@ describe("the pages that split by device", () => {
 			}
 		}
 	};
-	for (const section of site.sections) for (const page of section.pages) walk(page.slug, page.blocks);
+	for (const section of site.sections)
+		for (const page of section.pages) walk(page.slug, page.blocks);
 	const byDevice = switches.filter(({ block }) => block.tabs.some((tab) => tab.device));
 
 	it("are the four pages that have them", () => {
-		expect([...new Set(byDevice.map((s) => s.page))].sort()).toEqual(
-			["controls", "getting-started", "the-interface", "toolbars"],
-		);
+		expect([...new Set(byDevice.map((s) => s.page))].sort()).toEqual([
+			"controls",
+			"getting-started",
+			"the-interface",
+			"toolbars",
+		]);
 	});
 
 	it("have a tab for every screen, and tag every tab", () => {

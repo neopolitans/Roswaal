@@ -1,10 +1,10 @@
 /** Thin wrapper over the daemon's HTTP API. */
 
-import type { PlaceReport } from "../core/rbx/placeExport.js";
-import type { PlaceInstanceInfo, PlaceOutline } from "../core/rbx/browse.js";
-import type { TableMember } from "../core/luau/infer.js";
 import type { DocComment } from "../core/luau/docComment.js";
+import type { TableMember } from "../core/luau/infer.js";
 import type { InstanceOutline } from "../core/luau/instances.js";
+import type { PlaceInstanceInfo, PlaceOutline } from "../core/rbx/browse.js";
+import type { PlaceReport } from "../core/rbx/placeExport.js";
 
 /** What adding a package did. See `src/server/wally.ts`. */
 export interface WallyOutcome {
@@ -24,11 +24,12 @@ export interface RequiredModule {
 	detail?: string;
 	doc?: DocComment;
 }
-import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "../core/schema.js";
+
 import type { Diagnostic } from "../core/compiler/index.js";
-import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
 import type { LuaurcSource } from "../core/luaurc.js";
+import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
+import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "../core/schema.js";
 import type { TypeField } from "../core/typeFields.js";
 
 export interface TreeEntry {
@@ -141,7 +142,10 @@ let projectRoot: string | null = null;
 
 /** Thrown when the daemon has moved to a different project under this tab. */
 export class ProjectChangedError extends Error {
-	constructor(message: string, readonly root: string) {
+	constructor(
+		message: string,
+		readonly root: string,
+	) {
 		super(message);
 		this.name = "ProjectChangedError";
 	}
@@ -212,9 +216,13 @@ export const api = {
 	},
 
 	/** What is serving, and what it can do — see `host.ts`. */
-	health: () => request<{
-		ok: boolean; project: string | null; version: string; capabilities: string[];
-	}>("/api/health"),
+	health: () =>
+		request<{
+			ok: boolean;
+			project: string | null;
+			version: string;
+			capabilities: string[];
+		}>("/api/health"),
 
 	/**
 	 * The demo projects this host has, keyed by the folder name in
@@ -233,8 +241,7 @@ export const api = {
 		post<{ root: string }>("/api/demos/duplicate", { dir, into }),
 
 	/** What the daemon already has open, if `roswaal serve` opened one. */
-	currentProject: () =>
-		request<({ open: false } | ({ open: true } & ProjectInfo))>("/api/project"),
+	currentProject: () => request<{ open: false } | ({ open: true } & ProjectInfo)>("/api/project"),
 	/** What is at a path, before committing to opening it. */
 	inspectProject: (root: string) =>
 		request<{ root: string; exists: boolean; directory: boolean; initialised: boolean }>(
@@ -261,7 +268,10 @@ export const api = {
 	tree: () => request<{ tree: TreeEntry[]; place: string | null }>("/api/tree"),
 	/** What each `local X = require(…)` in a Luau file holds, followed to the module. */
 	luauModules: (path: string, text?: string) =>
-		post<{ modules: RequiredModule[]; self: string[] | null }>("/api/luau/modules", { path, ...(text === undefined ? {} : { text }) }),
+		post<{ modules: RequiredModule[]; self: string[] | null }>("/api/luau/modules", {
+			path,
+			...(text === undefined ? {} : { text }),
+		}),
 	/** The DataModel as the project knows it: the place and what the node maps add. */
 	instances: () => request<{ outline: InstanceOutline }>("/api/instances"),
 	/** Adds a Wally package to wally.toml and installs it from the registry. */
@@ -269,21 +279,35 @@ export const api = {
 		post<WallyOutcome>("/api/wally/add", { spec, realm, ...(alias ? { alias } : {}) }),
 	/** A package from a zip, base64: a Wally package installed, anything else vendored. */
 	wallyZip: (data: string, fileName: string, alias?: string, realm?: "shared" | "server" | "dev") =>
-		post<WallyOutcome>("/api/wally/zip", { data, fileName, ...(alias ? { alias } : {}), ...(realm ? { realm } : {}) }),
+		post<WallyOutcome>("/api/wally/zip", {
+			data,
+			fileName,
+			...(alias ? { alias } : {}),
+			...(realm ? { realm } : {}),
+		}),
 	/** Files that still require a Wally package. */
 	wallyUses: (alias: string, realm: string) =>
-		request<{ uses: string[] }>(`/api/wally/uses?alias=${encodeURIComponent(alias)}&realm=${encodeURIComponent(realm)}`),
+		request<{ uses: string[] }>(
+			`/api/wally/uses?alias=${encodeURIComponent(alias)}&realm=${encodeURIComponent(realm)}`,
+		),
 	/** Takes a Wally dependency out of wally.toml and Packages/. */
 	wallyRemove: (alias: string, realm: string) =>
-		post<{ removed: string[]; uses: string[]; kept?: string }>("/api/wally/remove", { alias, realm }),
+		post<{ removed: string[]; uses: string[]; kept?: string }>("/api/wally/remove", {
+			alias,
+			realm,
+		}),
 	/** A GitHub repository vendored into Packages/. The daemon's alone. */
 	wallyGithub: (repo: string, alias?: string) =>
 		post<WallyOutcome>("/api/wally/github", { repo, ...(alias ? { alias } : {}) }),
 	/** The `*.project.json` files in the project's root, and the maps that write them. */
-	rojoProjects: () => request<{ projects: { file: string; mappedBy: string | null }[] }>("/api/rojo/projects"),
+	rojoProjects: () =>
+		request<{ projects: { file: string; mappedBy: string | null }[] }>("/api/rojo/projects"),
 	/** Reads a Rojo project file into a node map. */
 	importRojo: (file: string) =>
-		post<{ file: string; mapPath: string; takenOver: boolean; problems: string[] }>("/api/rojo/import", { file }),
+		post<{ file: string; mapPath: string; takenOver: boolean; problems: string[] }>(
+			"/api/rojo/import",
+			{ file },
+		),
 	/** The place as a tree of names and classes, for the DataModel browser. */
 	place: () => request<PlaceTree>("/api/place"),
 	/** One instance of the place, its properties as text. */
@@ -306,8 +330,7 @@ export const api = {
 		post<{ path: string }>("/api/script/move", { from, toDir }),
 	deleteScript: (path: string) => post<{ ok: true }>("/api/script/delete", { path }),
 
-	readMap: (path: string) =>
-		request<{ map: NodeMap }>(`/api/map?path=${encodeURIComponent(path)}`),
+	readMap: (path: string) => request<{ map: NodeMap }>(`/api/map?path=${encodeURIComponent(path)}`),
 	writeMap: (path: string, map: NodeMap) =>
 		request<{ ok: true }>("/api/map", { method: "PUT", body: JSON.stringify({ path, map }) }),
 	createMap: (dir: string, name: string) =>
@@ -331,8 +354,7 @@ export const api = {
 		}>(`/api/export${modify ? "?place=modify" : ""}`),
 	/** Generated files whose graph has moved or gone. */
 	orphans: () => request<{ orphans: string[] }>("/api/orphans"),
-	removeOrphans: (paths: string[]) =>
-		post<{ removed: number }>("/api/orphans/remove", { paths }),
+	removeOrphans: (paths: string[]) => post<{ removed: number }>("/api/orphans/remove", { paths }),
 
 	/** The project's node packs, the directory a new one belongs in, and its target. */
 	packs: () => request<{ packs: PackFile[]; dir: string; target: Target }>("/api/packs"),

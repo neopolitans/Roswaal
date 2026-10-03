@@ -17,8 +17,9 @@ describe("header colours", () => {
 
 	it("draws a preview of it the same, from the fields a preview carries", () => {
 		const def = registry.get("function.declareHere")!;
-		expect(nodeColor({ id: def.id, category: def.category, role: def.role }))
-			.toBe(colourOf("function.entry"));
+		expect(nodeColor({ id: def.id, category: def.category, role: def.role })).toBe(
+			colourOf("function.entry"),
+		);
 	});
 
 	it("leaves the rest of Flow its own colour", () => {

@@ -23,7 +23,7 @@
  * it always did.
  */
 
-import { themeTokens, type Theme } from "../core/theme.js";
+import { type Theme, themeTokens } from "../core/theme.js";
 import { BUILTIN_THEMES } from "../core/themeData.js";
 import { NODE } from "./layers.js";
 import type { Preferences } from "./preferences.js";

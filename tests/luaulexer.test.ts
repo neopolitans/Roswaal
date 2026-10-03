@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { lineIndex, significant, tokenize, type Token } from "../src/core/luau/lexer.js";
+import { lineIndex, significant, type Token, tokenize } from "../src/core/luau/lexer.js";
 
 /** The significant tokens as `kind:text`, for compact expectations. */
 function lex(src: string): string[] {
@@ -41,13 +41,21 @@ describe("lossless", () => {
 describe("names and keywords", () => {
 	it("keeps reserved words apart from names", () => {
 		expect(lex("local function f() end")).toEqual([
-			"keyword:local", "keyword:function", "name:f", "symbol:(", "symbol:)", "keyword:end",
+			"keyword:local",
+			"keyword:function",
+			"name:f",
+			"symbol:(",
+			"symbol:)",
+			"keyword:end",
 		]);
 	});
 
 	it("leaves Luau's contextual words as names", () => {
 		expect(lex("continue type export typeof")).toEqual([
-			"name:continue", "name:type", "name:export", "name:typeof",
+			"name:continue",
+			"name:type",
+			"name:export",
+			"name:typeof",
 		]);
 	});
 });
@@ -55,8 +63,15 @@ describe("names and keywords", () => {
 describe("numbers", () => {
 	it("reads every form Luau has", () => {
 		expect(lex("1 1.5 .5 5. 1e10 2E-3 0xFF_FF 0b1010_0101 1_000_000")).toEqual([
-			"number:1", "number:1.5", "number:.5", "number:5.", "number:1e10", "number:2E-3",
-			"number:0xFF_FF", "number:0b1010_0101", "number:1_000_000",
+			"number:1",
+			"number:1.5",
+			"number:.5",
+			"number:5.",
+			"number:1e10",
+			"number:2E-3",
+			"number:0xFF_FF",
+			"number:0b1010_0101",
+			"number:1_000_000",
 		]);
 	});
 
@@ -77,28 +92,35 @@ describe("numbers", () => {
 
 describe("strings", () => {
 	it("reads both quotes, with escapes", () => {
-		expect(lex(String.raw`"a\"b" 'c\'d' "\u{48}\x41\65\z
-			tail"`)).toEqual([
-			String.raw`string:"a\"b"`, String.raw`string:'c\'d'`,
-			"string:\"\\u{48}\\x41\\65\\z\n\t\t\ttail\"",
+		expect(
+			lex(String.raw`"a\"b" 'c\'d' "\u{48}\x41\65\z
+			tail"`),
+		).toEqual([
+			String.raw`string:"a\"b"`,
+			String.raw`string:'c\'d'`,
+			'string:"\\u{48}\\x41\\65\\z\n\t\t\ttail"',
 		]);
 	});
 
 	it("reads long strings at any level", () => {
 		expect(lex("[[a]] [=[b]]c]=] [==[d]=]e]==]")).toEqual([
-			"string:[[a]]", "string:[=[b]]c]=]", "string:[==[d]=]e]==]",
+			"string:[[a]]",
+			"string:[=[b]]c]=]",
+			"string:[==[d]=]e]==]",
 		]);
 	});
 
 	it("reports a string left open at the end of the line, and carries on", () => {
-		const tokens = tokenize("local s = \"open\nlocal t = 1");
+		const tokens = tokenize('local s = "open\nlocal t = 1');
 		const bad = tokens.find((t) => t.kind === "error")!;
 		expect(bad.message).toBe("This string is not closed before the end of the line.");
 		expect(significant(tokens).map((t) => t.text)).toContain("t");
 	});
 
 	it("reports a long string never closed", () => {
-		expect(errors("x = [==[ never")[0].message).toBe("This string is not closed before the end of the code.");
+		expect(errors("x = [==[ never")[0].message).toBe(
+			"This string is not closed before the end of the code.",
+		);
 	});
 });
 
@@ -109,20 +131,36 @@ describe("interpolated strings", () => {
 
 	it("splits around each hole, and lexes the hole as Luau", () => {
 		expect(lex("`a {b + 1} c {d} e`")).toEqual([
-			"interpBegin:`a {", "name:b", "symbol:+", "number:1", "interpMid:} c {", "name:d", "interpEnd:} e`",
+			"interpBegin:`a {",
+			"name:b",
+			"symbol:+",
+			"number:1",
+			"interpMid:} c {",
+			"name:d",
+			"interpEnd:} e`",
 		]);
 	});
 
 	it("counts a table inside a hole, so its brace does not end the hole", () => {
 		expect(lex("`n = {#{1, 2}}`")).toEqual([
-			"interpBegin:`n = {", "symbol:#", "symbol:{", "number:1", "symbol:,", "number:2", "symbol:}",
+			"interpBegin:`n = {",
+			"symbol:#",
+			"symbol:{",
+			"number:1",
+			"symbol:,",
+			"number:2",
+			"symbol:}",
 			"interpEnd:}`",
 		]);
 	});
 
 	it("nests one interpolated string inside another", () => {
 		expect(lex("`a {`b {c}`} d`")).toEqual([
-			"interpBegin:`a {", "interpBegin:`b {", "name:c", "interpEnd:}`", "interpEnd:} d`",
+			"interpBegin:`a {",
+			"interpBegin:`b {",
+			"name:c",
+			"interpEnd:}`",
+			"interpEnd:} d`",
 		]);
 	});
 
@@ -154,16 +192,43 @@ describe("comments", () => {
 describe("symbols", () => {
 	it("takes the longest one", () => {
 		expect(lex("... .. . //= // / ..= :: : -> - ~= == =")).toEqual([
-			"symbol:...", "symbol:..", "symbol:.", "symbol://=", "symbol://", "symbol:/", "symbol:..=",
-			"symbol:::", "symbol::", "symbol:->", "symbol:-", "symbol:~=", "symbol:==", "symbol:=",
+			"symbol:...",
+			"symbol:..",
+			"symbol:.",
+			"symbol://=",
+			"symbol://",
+			"symbol:/",
+			"symbol:..=",
+			"symbol:::",
+			"symbol::",
+			"symbol:->",
+			"symbol:-",
+			"symbol:~=",
+			"symbol:==",
+			"symbol:=",
 		]);
 	});
 
 	it("reads type syntax as symbols the parser can use", () => {
 		expect(lex("x :: Part? | { [string]: number } & T<U...>")).toEqual([
-			"name:x", "symbol:::", "name:Part", "symbol:?", "symbol:|", "symbol:{", "symbol:[", "name:string",
-			"symbol:]", "symbol::", "name:number", "symbol:}", "symbol:&", "name:T", "symbol:<", "name:U",
-			"symbol:...", "symbol:>",
+			"name:x",
+			"symbol:::",
+			"name:Part",
+			"symbol:?",
+			"symbol:|",
+			"symbol:{",
+			"symbol:[",
+			"name:string",
+			"symbol:]",
+			"symbol::",
+			"name:number",
+			"symbol:}",
+			"symbol:&",
+			"name:T",
+			"symbol:<",
+			"name:U",
+			"symbol:...",
+			"symbol:>",
 		]);
 	});
 

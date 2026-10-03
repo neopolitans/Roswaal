@@ -20,7 +20,12 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
-	controlsOf, DESIGNER_BAR, DOCS_BAR, EDITOR_BAR, GRAPH_BAR, type ToolbarSpec,
+	controlsOf,
+	DESIGNER_BAR,
+	DOCS_BAR,
+	EDITOR_BAR,
+	GRAPH_BAR,
+	type ToolbarSpec,
 } from "../src/core/docs/toolbars.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -78,7 +83,12 @@ function names(label: string, name: string): boolean {
 const BARS: [string, ToolbarSpec, string, string][] = [
 	["the editor's top bar", EDITOR_BAR, "src/app/Toolbar.tsx", "export function ProjectBar("],
 	["the graph's bar", GRAPH_BAR, "src/app/Toolbar.tsx", "export function DocumentBar("],
-	["Node Design's header", DESIGNER_BAR, "src/app/DesignerPage.tsx", "export function DesignerPage("],
+	[
+		"Node Design's header",
+		DESIGNER_BAR,
+		"src/app/DesignerPage.tsx",
+		"export function DesignerPage(",
+	],
 	["the docs window's header", DOCS_BAR, "src/app/DocsPage.tsx", "export function DocsPage("],
 ];
 
@@ -97,8 +107,10 @@ describe.each(BARS)("%s", (_title, spec, file, start) => {
 		for (const item of controlsOf(spec)) {
 			if (item.t !== "button" || item.name === undefined) continue;
 			const text = item.text;
-			expect(drawn.some((c) => c.labels.some((l) => names(l, text))), `${spec.id}: ${text}`)
-				.toBe(true);
+			expect(
+				drawn.some((c) => c.labels.some((l) => names(l, text))),
+				`${spec.id}: ${text}`,
+			).toBe(true);
 		}
 	});
 });
@@ -122,17 +134,25 @@ function misdrawnIcons(spec: ToolbarSpec, drawn: Control[]): string[] {
 describe("the check itself", () => {
 	const drawn = controls(component("src/app/Toolbar.tsx", "export function ProjectBar("));
 	const one = (items: ToolbarSpec["groups"][number]["items"]): ToolbarSpec => ({
-		...EDITOR_BAR, groups: [{ items }],
+		...EDITOR_BAR,
+		groups: [{ items }],
 	});
 
 	it("notices a renamed control, a changed glyph and a swapped order", () => {
-		expect(misdrawnIcons(one([{ t: "icon", icon: "refresh", name: "Reload" }]), drawn))
-			.toEqual(["refresh Reload"]);
-		expect(misdrawnIcons(one([{ t: "icon", icon: "map", name: "Refresh" }]), drawn))
-			.toEqual(["map Refresh"]);
-		expect(misdrawnIcons(one([
-			{ t: "icon", icon: "settings", name: "Settings" },
-			{ t: "icon", icon: "refresh", name: "Refresh" },
-		]), drawn)).toEqual(["refresh Refresh"]);
+		expect(misdrawnIcons(one([{ t: "icon", icon: "refresh", name: "Reload" }]), drawn)).toEqual([
+			"refresh Reload",
+		]);
+		expect(misdrawnIcons(one([{ t: "icon", icon: "map", name: "Refresh" }]), drawn)).toEqual([
+			"map Refresh",
+		]);
+		expect(
+			misdrawnIcons(
+				one([
+					{ t: "icon", icon: "settings", name: "Settings" },
+					{ t: "icon", icon: "refresh", name: "Refresh" },
+				]),
+				drawn,
+			),
+		).toEqual(["refresh Refresh"]);
 	});
 });

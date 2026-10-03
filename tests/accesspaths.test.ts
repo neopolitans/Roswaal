@@ -13,11 +13,10 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { body, Builder } from "./helpers.js";
 import { compile } from "../src/core/compiler/index.js";
-import { createRegistry } from "../src/core/nodes/index.js";
 import { isAccessPath } from "../src/core/compiler/luau.js";
+import { createRegistry } from "../src/core/nodes/index.js";
+import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
 
@@ -82,12 +81,14 @@ describe("a pure value read twice", () => {
 
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
-		expect(body(out.code)).toBe([
-			"local restore = restores[character]",
-			"if restore.weld then",
-			"\tprint(restore.weld)",
-			"end",
-		].join("\n"));
+		expect(body(out.code)).toBe(
+			[
+				"local restore = restores[character]",
+				"if restore.weld then",
+				"\tprint(restore.weld)",
+				"end",
+			].join("\n"),
+		);
 	});
 
 	/** A call is the case the rule was written for, and it still binds. */

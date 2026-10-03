@@ -15,8 +15,8 @@ import { App } from "./App.jsx";
 import { DesignerPage } from "./DesignerPage.jsx";
 import { DocsPage } from "./DocsPage.jsx";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
-import { installFavicon } from "./logo.jsx";
 import { loadCapabilities } from "./host.js";
+import { installFavicon } from "./logo.jsx";
 import { currentPage } from "./pages.js";
 import { readPreferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
@@ -70,9 +70,7 @@ export function bootEditor(): void {
 
 	createRoot(container).render(
 		<StrictMode>
-			<ErrorBoundary
-				what={isDocs ? "The documentation" : isDesigner ? "Node Design" : "Roswaal"}
-			>
+			<ErrorBoundary what={isDocs ? "The documentation" : isDesigner ? "Node Design" : "Roswaal"}>
 				{isDocs ? <DocsPage /> : isDesigner ? <DesignerPage /> : <App />}
 			</ErrorBoundary>
 		</StrictMode>,

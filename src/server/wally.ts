@@ -15,16 +15,25 @@
  * the realm's folder, and each package in `_Index/scope_name@version/name/`.
  */
 
+import { parseProject } from "../core/rojoImport.js";
 import { unzip, type ZipEntry } from "../core/unzip.js";
 import {
-	indexFolder, packageOf, parseSpec, parseWallyToml, pickVersion, REALM_DIRS, thunkFor, thunkTarget, withDependency,
-	withoutDependency, type WallyRealm,
+	indexFolder,
+	packageOf,
+	parseSpec,
+	parseWallyToml,
+	pickVersion,
+	REALM_DIRS,
+	thunkFor,
+	thunkTarget,
+	type WallyRealm,
+	withDependency,
+	withoutDependency,
 } from "../core/wally.js";
-import { parseProject } from "../core/rojoImport.js";
-import { fs, path } from "./host.js";
 import { errorMessage, HttpError, UserError } from "./errors.js";
 import { walkFiles } from "./files.js";
-import { safeJoin, type OpenProject } from "./project.js";
+import { fs, path } from "./host.js";
+import { type OpenProject, safeJoin } from "./project.js";
 
 const REGISTRY = "https://api.wally.run/v1";
 
@@ -50,13 +59,19 @@ export interface WallyOutcome {
  * folder and file names, so `../` in any one of them would write, or delete,
  * somewhere else in the project.
  */
-function assertPlainNames(names: { scope?: string; name?: string; version?: string; alias?: string }): void {
+function assertPlainNames(names: {
+	scope?: string;
+	name?: string;
+	version?: string;
+	alias?: string;
+}): void {
 	// Dots are fine in a folder name, as long as that is not all it is.
 	const word = /^(?!\.+$)[A-Za-z0-9_.-]+$/;
 	const version = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]*)?$/;
 	for (const key of ["scope", "name", "alias"] as const) {
 		const value = names[key];
-		if (value !== undefined && !word.test(value)) throw new UserError(`"${value}" is not a package ${key} Roswaal can install.`);
+		if (value !== undefined && !word.test(value))
+			throw new UserError(`"${value}" is not a package ${key} Roswaal can install.`);
 	}
 	if (names.version !== undefined && !version.test(names.version)) {
 		throw new UserError(`"${names.version}" is not a version Roswaal can install.`);
@@ -65,7 +80,11 @@ function assertPlainNames(names: { scope?: string; name?: string; version?: stri
 
 /** A name to require a package by: `signal` gives `Signal`, `rbx-util` gives `RbxUtil`. */
 export function aliasFor(name: string): string {
-	return name.split(/[-_]/).filter(Boolean).map((part) => part[0].toUpperCase() + part.slice(1)).join("");
+	return name
+		.split(/[-_]/)
+		.filter(Boolean)
+		.map((part) => part[0].toUpperCase() + part.slice(1))
+		.join("");
 }
 
 interface VersionMetadata {
@@ -81,11 +100,17 @@ class Installer {
 
 	private async ask(url: string): Promise<Response> {
 		if (this.requests >= REQUEST_BUDGET) {
-			throw new UserError(`Stopped after ${REQUEST_BUDGET} requests to the Wally registry, to go easy on it.`);
+			throw new UserError(
+				`Stopped after ${REQUEST_BUDGET} requests to the Wally registry, to go easy on it.`,
+			);
 		}
 		this.requests++;
 		const response = await fetch(url, { headers: { "Wally-Version": "0.3.2" } });
-		if (!response.ok) throw new HttpError(502, `The Wally registry answered ${response.status} for ${url.replace(REGISTRY, "")}.`);
+		if (!response.ok)
+			throw new HttpError(
+				502,
+				`The Wally registry answered ${response.status} for ${url.replace(REGISTRY, "")}.`,
+			);
 		return response;
 	}
 
@@ -96,7 +121,11 @@ class Installer {
 		else await fs.writeFile(abs, data);
 	}
 
-	private exists = (rel: string) => fs.stat(safeJoin(this.project.root, rel)).then(() => true, () => false);
+	private exists = (rel: string) =>
+		fs.stat(safeJoin(this.project.root, rel)).then(
+			() => true,
+			() => false,
+		);
 
 	/**
 	 * One package and what it depends on: its thunk -- in the realm's folder,
@@ -104,18 +133,33 @@ class Installer {
 	 * is already there, its archive.
 	 */
 	async install(
-		scope: string, name: string, requirement: string | undefined, folder: string, alias: string, parent?: string,
+		scope: string,
+		name: string,
+		requirement: string | undefined,
+		folder: string,
+		alias: string,
+		parent?: string,
 	): Promise<string> {
-		const metadata = (await (await this.ask(`${REGISTRY}/package-metadata/${scope}/${name}`)).json()) as { versions: VersionMetadata[] };
-		const version = pickVersion(metadata.versions.map((v) => v.package.version), requirement);
-		if (!version) throw new UserError(`No version of ${scope}/${name} matches ${requirement ?? "anything"}.`);
+		const metadata = (await (
+			await this.ask(`${REGISTRY}/package-metadata/${scope}/${name}`)
+		).json()) as { versions: VersionMetadata[] };
+		const version = pickVersion(
+			metadata.versions.map((v) => v.package.version),
+			requirement,
+		);
+		if (!version)
+			throw new UserError(`No version of ${scope}/${name} matches ${requirement ?? "anything"}.`);
 		assertPlainNames({ scope, name, version, alias });
 		const index = indexFolder(scope, name, version);
 		const thunk = parent ? `${folder}/_Index/${parent}/${alias}.lua` : `${folder}/${alias}.lua`;
 		await this.write(thunk, thunkFor(index, name, parent !== undefined));
 		const home = `${folder}/_Index/${index}/${name}`;
 		if (!(await this.exists(home))) {
-			const bytes = new Uint8Array(await (await this.ask(`${REGISTRY}/package-contents/${scope}/${name}/${version}`)).arrayBuffer());
+			const bytes = new Uint8Array(
+				await (
+					await this.ask(`${REGISTRY}/package-contents/${scope}/${name}/${version}`)
+				).arrayBuffer(),
+			);
 			const { files } = await unzip(bytes);
 			for (const file of files) await this.write(`${home}/${file.path}`, file.bytes);
 			this.installed.push(index);
@@ -139,24 +183,45 @@ async function readToml(project: OpenProject): Promise<string> {
  * leaves a package the tree says is not installed, for its zip to fill.
  */
 export async function addFromWally(
-	project: OpenProject, spec: string, realm: WallyRealm = "shared", alias?: string,
+	project: OpenProject,
+	spec: string,
+	realm: WallyRealm = "shared",
+	alias?: string,
 ): Promise<WallyOutcome> {
 	const parsed = parseSpec(spec);
-	if (!parsed) throw new UserError(`"${spec}" is not a package: write it as scope/name, or scope/name@version.`);
+	if (!parsed)
+		throw new UserError(
+			`"${spec}" is not a package: write it as scope/name, or scope/name@version.`,
+		);
 	const name = alias?.trim() || aliasFor(parsed.name);
 	const installer = new Installer(project);
 	let line: WallyOutcome["line"];
 	const writeLine = async (version: string) => {
-		const text = withDependency(await readToml(project), realm, name, `${parsed.scope}/${parsed.name}@${version}`);
+		const text = withDependency(
+			await readToml(project),
+			realm,
+			name,
+			`${parsed.scope}/${parsed.name}@${version}`,
+		);
 		await installer.write("wally.toml", text);
 		line = { realm, alias: name, spec: `${parsed.scope}/${parsed.name}@${version}` };
 	};
 	// Asked for a version: the line can go in before anything is fetched.
 	if (parsed.version) await writeLine(parsed.version);
 	try {
-		const version = await installer.install(parsed.scope, parsed.name, parsed.version, REALM_DIRS[realm], name);
+		const version = await installer.install(
+			parsed.scope,
+			parsed.name,
+			parsed.version,
+			REALM_DIRS[realm],
+			name,
+		);
 		if (!parsed.version) await writeLine(`^${version}`);
-		return { ...(line ? { line } : {}), installed: installer.installed, requests: installer.requests };
+		return {
+			...(line ? { line } : {}),
+			installed: installer.installed,
+			requests: installer.requests,
+		};
 	} catch (err) {
 		return {
 			...(line ? { line } : {}),
@@ -172,7 +237,9 @@ function unwrapped(files: ZipEntry[]): ZipEntry[] {
 	const tops = new Set(files.map((f) => f.path.split("/")[0]));
 	if (tops.size !== 1 || files.every((f) => !f.path.includes("/"))) return files;
 	const [top] = tops;
-	return files.map((f) => ({ ...f, path: f.path.slice(top.length + 1) })).filter((f) => f.path !== "");
+	return files
+		.map((f) => ({ ...f, path: f.path.slice(top.length + 1) }))
+		.filter((f) => f.path !== "");
 }
 
 /**
@@ -182,7 +249,9 @@ function unwrapped(files: ZipEntry[]): ZipEntry[] {
  * project file or its `init` file, copied into `Packages/<alias>/`.
  */
 export async function installZip(
-	project: OpenProject, bytes: Uint8Array, options: { alias?: string; realm?: WallyRealm; fileName?: string; vendor?: boolean } = {},
+	project: OpenProject,
+	bytes: Uint8Array,
+	options: { alias?: string; realm?: WallyRealm; fileName?: string; vendor?: boolean } = {},
 ): Promise<WallyOutcome> {
 	const files = unwrapped((await unzip(bytes)).files);
 	const byPath = new Map(files.map((f) => [f.path, f]));
@@ -200,40 +269,70 @@ export async function installZip(
 		const alias = options.alias?.trim() || aliasFor(pkg.name);
 		assertPlainNames({ ...pkg, alias });
 		const index = indexFolder(pkg.scope, pkg.name, pkg.version);
-		for (const file of files) await installer.write(`${folder}/_Index/${index}/${pkg.name}/${file.path}`, file.bytes);
+		for (const file of files)
+			await installer.write(`${folder}/_Index/${index}/${pkg.name}/${file.path}`, file.bytes);
 		await installer.write(`${folder}/${alias}.lua`, thunkFor(index, pkg.name));
 		const spec = `${pkg.scope}/${pkg.name}@${pkg.version}`;
-		await installer.write("wally.toml", withDependency(await readToml(project), realm, alias, spec));
+		await installer.write(
+			"wally.toml",
+			withDependency(await readToml(project), realm, alias, spec),
+		);
 		// Its own dependencies are not fetched: a zip is what is used when the
 		// registry is not reachable. The tree says which are missing.
-		const needs = parseWallyToml(manifest ?? "").filter((d) => d.realm !== "dev").map((d) => d.alias);
+		const needs = parseWallyToml(manifest ?? "")
+			.filter((d) => d.realm !== "dev")
+			.map((d) => d.alias);
 		return {
 			line: { realm, alias, spec },
 			installed: [index],
-			...(needs.length ? { problem: `It depends on ${needs.join(", ")}, which the zip does not include.` } : {}),
+			...(needs.length
+				? { problem: `It depends on ${needs.join(", ")}, which the zip does not include.` }
+				: {}),
 			requests: 0,
 		};
 	}
 
 	// Not a Wally package: find its module and vendor it.
 	const projectFile = text("default.project.json");
-	const treePath = projectFile ? (parseProject(projectFile) as { tree?: { $path?: unknown } } | undefined)?.tree?.$path : undefined;
-	const candidates = [typeof treePath === "string" ? treePath.replace(/^\.\//, "").replace(/\/+$/, "") : undefined, "", "src", "lib"]
-		.filter((c): c is string => c !== undefined);
-	const root = candidates.find((dir) => ["init.luau", "init.lua"].some((init) => byPath.has(dir ? `${dir}/${init}` : init)))
-		?? candidates.find((dir) => dir !== "" && byPath.has(`${dir}.luau`));
+	const treePath = projectFile
+		? (parseProject(projectFile) as { tree?: { $path?: unknown } } | undefined)?.tree?.$path
+		: undefined;
+	const candidates = [
+		typeof treePath === "string" ? treePath.replace(/^\.\//, "").replace(/\/+$/, "") : undefined,
+		"",
+		"src",
+		"lib",
+	].filter((c): c is string => c !== undefined);
+	const root =
+		candidates.find((dir) =>
+			["init.luau", "init.lua"].some((init) => byPath.has(dir ? `${dir}/${init}` : init)),
+		) ?? candidates.find((dir) => dir !== "" && byPath.has(`${dir}.luau`));
 	if (root === undefined) {
-		throw new UserError("There is no module in that zip to vendor: no init.luau at its top, in src/ or lib/, and no project file saying where.");
+		throw new UserError(
+			"There is no module in that zip to vendor: no init.luau at its top, in src/ or lib/, and no project file saying where.",
+		);
 	}
-	const base = (options.fileName ?? "Package").replace(/\.zip$/i, "").split(/[^A-Za-z0-9_-]/).filter(Boolean).pop() ?? "Package";
+	const base =
+		(options.fileName ?? "Package")
+			.replace(/\.zip$/i, "")
+			.split(/[^A-Za-z0-9_-]/)
+			.filter(Boolean)
+			.pop() ?? "Package";
 	const alias = options.alias?.trim() || aliasFor(base);
 	assertPlainNames({ alias });
 	const target = `Packages/${alias}`;
 	// A thunk or a folder of that name already: Rojo cannot have both, and one
 	// would be written over.
 	for (const taken of [`${target}.lua`, `${target}.luau`, target]) {
-		if (await fs.stat(safeJoin(project.root, taken)).then(() => true, () => false)) {
-			throw new UserError(`Packages already has ${alias}. Give this one another name to be required by.`);
+		if (
+			await fs.stat(safeJoin(project.root, taken)).then(
+				() => true,
+				() => false,
+			)
+		) {
+			throw new UserError(
+				`Packages already has ${alias}. Give this one another name to be required by.`,
+			);
 		}
 	}
 	const prefix = root === "" ? "" : `${root}/`;
@@ -249,13 +348,25 @@ export async function installZip(
 
 /** Vendors a GitHub repository, `owner/repo[@ref]`, fetched by the host. */
 export async function installGithub(
-	project: OpenProject, repo: string, download: (owner: string, repo: string, ref: string) => Promise<Uint8Array>, alias?: string,
+	project: OpenProject,
+	repo: string,
+	download: (owner: string, repo: string, ref: string) => Promise<Uint8Array>,
+	alias?: string,
 ): Promise<WallyOutcome> {
-	const found = /^\s*([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:@(\S+))?\s*$/.exec(repo.replace(/^https?:\/\/github\.com\//, ""));
-	if (!found) throw new UserError(`"${repo}" is not a repository: write it as owner/repo, or owner/repo@branch.`);
+	const found = /^\s*([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:@(\S+))?\s*$/.exec(
+		repo.replace(/^https?:\/\/github\.com\//, ""),
+	);
+	if (!found)
+		throw new UserError(
+			`"${repo}" is not a repository: write it as owner/repo, or owner/repo@branch.`,
+		);
 	const [, owner, name, ref = ""] = found;
 	const bytes = await download(owner, name.replace(/\.git$/, ""), ref);
-	return installZip(project, bytes, { alias: alias || aliasFor(name.replace(/\.git$/, "")), fileName: name, vendor: true });
+	return installZip(project, bytes, {
+		alias: alias || aliasFor(name.replace(/\.git$/, "")),
+		fileName: name,
+		vendor: true,
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -269,10 +380,16 @@ const NOT_SEARCHED = new Set(["Packages", "ServerPackages", "DevPackages", "node
  * Files that still reach for `Packages.<alias>` -- a require in Luau, or a
  * graph's node holding that path -- so removing it can say what would break.
  */
-export async function packageUses(project: OpenProject, alias: string, realm: WallyRealm = "shared"): Promise<string[]> {
+export async function packageUses(
+	project: OpenProject,
+	alias: string,
+	realm: WallyRealm = "shared",
+): Promise<string[]> {
 	assertPlainNames({ alias });
 	const folder = REALM_DIRS[realm];
-	const pattern = new RegExp(`\\b${folder}\\s*(?:\\.\\s*|:\\s*WaitForChild\\s*\\(\\s*["']|\\[\\s*["'])${alias}\\b`);
+	const pattern = new RegExp(
+		`\\b${folder}\\s*(?:\\.\\s*|:\\s*WaitForChild\\s*\\(\\s*["']|\\[\\s*["'])${alias}\\b`,
+	);
 	const out: string[] = [];
 	const files = await walkFiles(project.root, {
 		skip: NOT_SEARCHED,
@@ -302,13 +419,22 @@ export interface RemovedPackage {
  * folder a vendored package stopped using is the project's to clear, not a
  * side effect of removing something else.
  */
-export async function removePackage(project: OpenProject, alias: string, realm: WallyRealm = "shared"): Promise<RemovedPackage> {
+export async function removePackage(
+	project: OpenProject,
+	alias: string,
+	realm: WallyRealm = "shared",
+): Promise<RemovedPackage> {
 	assertPlainNames({ alias });
 	const folder = REALM_DIRS[realm];
 	const uses = await packageUses(project, alias, realm);
 	const before = await reachable(project, folder);
 	const toml = await fs.readFile(safeJoin(project.root, "wally.toml"), "utf8").catch(() => null);
-	if (toml !== null) await fs.writeFile(safeJoin(project.root, "wally.toml"), withoutDependency(toml, alias), "utf8");
+	if (toml !== null)
+		await fs.writeFile(
+			safeJoin(project.root, "wally.toml"),
+			withoutDependency(toml, alias),
+			"utf8",
+		);
 	// Only Wally's thunk goes. A file of code put there in its place -- a
 	// package vendored over its thunk -- is somebody's, and stays.
 	let kept: string | undefined;
@@ -322,7 +448,10 @@ export async function removePackage(project: OpenProject, alias: string, realm: 
 	const after = await reachable(project, folder);
 	const removed = [...before].filter((f) => !after.has(f)).sort();
 	for (const index of removed) {
-		await fs.rm(safeJoin(project.root, `${folder}/_Index/${index}`), { recursive: true, force: true });
+		await fs.rm(safeJoin(project.root, `${folder}/_Index/${index}`), {
+			recursive: true,
+			force: true,
+		});
 	}
 	return { removed, uses, ...(kept ? { kept } : {}) };
 }
@@ -330,8 +459,10 @@ export async function removePackage(project: OpenProject, alias: string, realm: 
 /** The `_Index` folders the realm's thunks reach, following each package's own thunks. */
 async function reachable(project: OpenProject, folder: string): Promise<Set<string>> {
 	const read = (rel: string) => fs.readFile(safeJoin(project.root, rel), "utf8").catch(() => "");
-	const thunksIn = async (dir: string) => (await fs.readdir(safeJoin(project.root, dir), { withFileTypes: true }).catch(() => []))
-		.filter((e) => !e.isDirectory() && /\.luau?$/i.test(e.name)).map((e) => `${dir}/${e.name}`);
+	const thunksIn = async (dir: string) =>
+		(await fs.readdir(safeJoin(project.root, dir), { withFileTypes: true }).catch(() => []))
+			.filter((e) => !e.isDirectory() && /\.luau?$/i.test(e.name))
+			.map((e) => `${dir}/${e.name}`);
 	const reached = new Set<string>();
 	const queue: string[] = [];
 	const follow = async (thunk: string) => {

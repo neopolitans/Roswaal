@@ -34,8 +34,8 @@
  */
 
 import { writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -64,8 +64,7 @@ const MODULES = [
 ];
 
 async function typedef(crate) {
-	const url =
-		`https://raw.githubusercontent.com/lune-org/lune/${TAG}/crates/${crate}/types.d.luau`;
+	const url = `https://raw.githubusercontent.com/lune-org/lune/${TAG}/crates/${crate}/types.d.luau`;
 	const response = await fetch(url);
 	if (!response.ok) throw new Error(`${crate}: ${response.status} ${response.statusText}`);
 	return response.text();
@@ -217,7 +216,8 @@ for (const module of MODULES) {
 		const entry = {
 			name,
 			// `self` is the receiver, not an argument somebody passes.
-			params: splitParams(args).map(parseParam)
+			params: splitParams(args)
+				.map(parseParam)
 				.filter((one) => one.name !== "self")
 				.map((one) => ({ ...one, what: "" })),
 			returns: (ret ?? "").trim(),
@@ -238,12 +238,12 @@ for (const module of MODULES) {
 	 * missing is finding out too late.
 	 */
 	const declared = (source.match(/^function\s+\w+[.:]\w+/gm) ?? []).length;
-	const captured = functions.length +
-		[...classes.values()].reduce((sum, list) => sum + list.length, 0);
+	const captured =
+		functions.length + [...classes.values()].reduce((sum, list) => sum + list.length, 0);
 	if (declared !== captured) {
 		throw new Error(
 			`${module.crate}: ${declared} functions declared, ${captured} captured. ` +
-			"A declaration is written in a shape the parser does not read.",
+				"A declaration is written in a shape the parser does not read.",
 		);
 	}
 
@@ -255,8 +255,8 @@ for (const module of MODULES) {
 	const methods = [...classes.values()].reduce((sum, list) => sum + list.length, 0);
 	console.log(
 		`  @lune/${module.alias.padEnd(9)} ${String(functions.length).padStart(3)} functions` +
-		(methods > 0 ? `, ${methods} methods on ${classes.size} class(es)` : "") +
-		(undocumented > 0 ? `  (${undocumented} undocumented)` : ""),
+			(methods > 0 ? `, ${methods} methods on ${classes.size} class(es)` : "") +
+			(undocumented > 0 ? `  (${undocumented} undocumented)` : ""),
 	);
 }
 
@@ -275,13 +275,13 @@ for (const module of MODULES) {
 const datatypesSource = await (
 	await fetch(
 		`https://raw.githubusercontent.com/lune-org/lune/${TAG}` +
-		"/crates/lune-roblox/src/datatypes/types/mod.rs",
+			"/crates/lune-roblox/src/datatypes/types/mod.rs",
 	)
 ).text();
 
-const robloxDatatypes = [...new Set(
-	[...datatypesSource.matchAll(/^pub use (?:r#)?\w+::(\w+);/gm)].map((one) => one[1]),
-)].sort();
+const robloxDatatypes = [
+	...new Set([...datatypesSource.matchAll(/^pub use (?:r#)?\w+::(\w+);/gm)].map((one) => one[1])),
+].sort();
 
 if (robloxDatatypes.length === 0) {
 	throw new Error("lune-roblox: no datatypes found. The module listing has changed shape.");
@@ -320,7 +320,7 @@ const lines = [
 	"export interface LuneFunction {",
 	"\tname: string;",
 	"\tparams: LuneParam[];",
-	"\t/** The return type verbatim, or `\"\"` when it returns nothing. */",
+	'\t/** The return type verbatim, or `""` when it returns nothing. */',
 	"\treturns: string;",
 	"\t/** Lune's own `@return` line. */",
 	"\treturnsWhat: string;",

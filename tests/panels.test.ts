@@ -16,9 +16,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	clampLayout, DEFAULT_FRAME, DEFAULT_LAYOUT, dockVisible, dropZone, floatingPanels, floatPanel,
-	framePanel, gridTemplate, maxDockSize, MIN_DOCK, MIN_FLOAT, movePanel, panelsIn, readLayout,
-	resizeDock, toggleDock, type Layout,
+	clampLayout,
+	DEFAULT_FRAME,
+	DEFAULT_LAYOUT,
+	dockVisible,
+	dropZone,
+	floatingPanels,
+	floatPanel,
+	framePanel,
+	gridTemplate,
+	type Layout,
+	MIN_DOCK,
+	MIN_FLOAT,
+	maxDockSize,
+	movePanel,
+	panelsIn,
+	readLayout,
+	resizeDock,
+	toggleDock,
 } from "../src/app/panels.js";
 
 /** A copy, so a test that moves a panel cannot move it for the next one. */
@@ -122,8 +137,9 @@ describe("resizing", () => {
 		const alone = base();
 		alone.panels.inspector.open = false;
 		alone.panels.properties.open = false;
-		expect(maxDockSize(alone, "left", WIDE.w, WIDE.h))
-			.toBeGreaterThan(maxDockSize(both, "left", WIDE.w, WIDE.h));
+		expect(maxDockSize(alone, "left", WIDE.w, WIDE.h)).toBeGreaterThan(
+			maxDockSize(both, "left", WIDE.w, WIDE.h),
+		);
 	});
 
 	it("changes only the dock that was dragged", () => {
@@ -201,8 +217,9 @@ describe("reading a stored layout", () => {
 		expect(read.panels.tree.dock, "an invented dock").toBe(DEFAULT_LAYOUT.panels.tree.dock);
 		expect(read.panels.tree.open, "a string where a boolean goes").toBe(true);
 		expect(read.docks.left.size, "a size below the minimum").toBe(DEFAULT_LAYOUT.docks.left.size);
-		expect(read.panels.inspector, "a panel the stored layout never mentioned")
-			.toEqual(DEFAULT_LAYOUT.panels.inspector);
+		expect(read.panels.inspector, "a panel the stored layout never mentioned").toEqual(
+			DEFAULT_LAYOUT.panels.inspector,
+		);
 	});
 
 	it("survives a panel that no longer exists", () => {
@@ -331,7 +348,10 @@ describe("a panel in a window", () => {
 		const dx = 40;
 		const dy = 25;
 		const dragged = framePanel(start, "variables", {
-			x: frame.x + dx, y: frame.y + dy, w: frame.w - dx, h: frame.h - dy,
+			x: frame.x + dx,
+			y: frame.y + dy,
+			w: frame.w - dx,
+			h: frame.h - dy,
 		}).panels.variables.frame;
 		expect(dragged.x + dragged.w).toBe(frame.x + frame.w);
 		expect(dragged.y + dragged.h).toBe(frame.y + frame.h);
@@ -354,8 +374,15 @@ describe("a panel in a window", () => {
 
 	it("takes a saved frame back, clamped", () => {
 		const saved = readLayout({
-			panels: { variables: { dock: "left", open: true, order: 1, floating: true,
-				frame: { x: 40, y: 60, w: 12, h: 900 } } },
+			panels: {
+				variables: {
+					dock: "left",
+					open: true,
+					order: 1,
+					floating: true,
+					frame: { x: 40, y: 60, w: 12, h: 900 },
+				},
+			},
 		});
 		expect(saved.panels.variables.floating).toBe(true);
 		expect(saved.panels.variables.frame).toEqual({ x: 40, y: 60, w: MIN_FLOAT.w, h: 900 });

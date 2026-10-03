@@ -140,7 +140,9 @@ export function draftOf(def: PackNode): Draft {
 		display: def.display === "compact" ? "compact" : "normal",
 		...(def.targets ? { targets: def.targets } : {}),
 		latent: def.latent === true,
-		...(def.logic ? { logicMode: "nodes" as const, logic: def.logic } : { logicMode: "luau" as const }),
+		...(def.logic
+			? { logicMode: "nodes" as const, logic: def.logic }
+			: { logicMode: "luau" as const }),
 	};
 }
 
@@ -174,7 +176,11 @@ export function targetsText(targets: readonly Target[] | null): string {
 export function shapeOfDraft(draft: Draft): LogicShape {
 	const data = (pins: DraftPin[]) =>
 		pins.filter((p) => p.kind === "data").map((p) => ({ id: p.id, name: p.name, type: p.type }));
-	return { pure: purityOf(draft) === "pure", inputs: data(draft.inputs), outputs: data(draft.outputs) };
+	return {
+		pure: purityOf(draft) === "pure",
+		inputs: data(draft.inputs),
+		outputs: data(draft.outputs),
+	};
 }
 
 /** What the pins make the node. */
@@ -201,7 +207,9 @@ function withPins(draft: Draft, side: Side, pins: DraftPin[]): Draft {
 export function pinIdFor(name: string, taken: Iterable<string>): string {
 	const words = name.split(/[^A-Za-z0-9]+/).filter(Boolean);
 	let base = words
-		.map((w, i) => (i === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w.charAt(0).toUpperCase() + w.slice(1)))
+		.map((w, i) =>
+			i === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w.charAt(0).toUpperCase() + w.slice(1),
+		)
 		.join("");
 	if (base === "") base = "value";
 	if (/^[0-9]/.test(base)) base = `pin${base}`;
@@ -229,16 +237,25 @@ export function addPin(draft: Draft, side: Side, type: string, name?: string): D
 		return withPins(draft, side, [execPin(side === "in" ? EXEC_IN : EXEC_OUT), ...pins]);
 	}
 	const label = name ?? nameForType(type);
-	const id = pinIdFor(label, pins.map((p) => p.id));
+	const id = pinIdFor(
+		label,
+		pins.map((p) => p.id),
+	);
 	const next = withPins(draft, side, [...pins, { id, name: label, kind: "data", type }]);
-	return side === "out" ? { ...next, expressions: { ...next.expressions, [id]: next.expressions[id] ?? "" } } : next;
+	return side === "out"
+		? { ...next, expressions: { ...next.expressions, [id]: next.expressions[id] ?? "" } }
+		: next;
 }
 
 export function removePin(draft: Draft, side: Side, index: number): Draft {
 	const pins = pinsOf(draft, side);
 	const pin = pins[index];
 	if (!pin) return draft;
-	let next = withPins(draft, side, pins.filter((_, i) => i !== index));
+	let next = withPins(
+		draft,
+		side,
+		pins.filter((_, i) => i !== index),
+	);
 	if (side === "out" && pin.kind === "data") {
 		const { [pin.id]: _gone, ...expressions } = next.expressions;
 		next = { ...next, expressions, ...(next.result === pin.id ? { result: undefined } : {}) };
@@ -253,7 +270,8 @@ export function removePin(draft: Draft, side: Side, index: number): Draft {
 export function movePin(draft: Draft, side: Side, index: number, delta: -1 | 1): Draft {
 	const pins = [...pinsOf(draft, side)];
 	const to = index + delta;
-	if (!pins[index] || !pins[to] || pins[index].kind === "exec" || pins[to].kind === "exec") return draft;
+	if (!pins[index] || !pins[to] || pins[index].kind === "exec" || pins[to].kind === "exec")
+		return draft;
 	[pins[index], pins[to]] = [pins[to], pins[index]];
 	return withPins(draft, side, pins);
 }
@@ -273,11 +291,19 @@ export function renamePin(draft: Draft, side: Side, index: number, name: string)
 	const pins = pinsOf(draft, side);
 	const pin = pins[index];
 	if (!pin || pin.kind === "exec") return draft;
-	const id = pinIdFor(name, pins.filter((_, i) => i !== index).map((p) => p.id));
-	let next = withPins(draft, side, pins.map((p, i) => (i === index ? { ...p, name, id } : p)));
+	const id = pinIdFor(
+		name,
+		pins.filter((_, i) => i !== index).map((p) => p.id),
+	);
+	let next = withPins(
+		draft,
+		side,
+		pins.map((p, i) => (i === index ? { ...p, name, id } : p)),
+	);
 	if (id === pin.id) return next;
 
-	const rewrite = (text: string) => text.replace(reference(side, pin.id), `$${side === "in" ? "in" : "out"}.${id}`);
+	const rewrite = (text: string) =>
+		text.replace(reference(side, pin.id), `$${side === "in" ? "in" : "out"}.${id}`);
 	const expressions: Record<string, string> = {};
 	for (const [key, text] of Object.entries(next.expressions)) {
 		expressions[side === "out" && key === pin.id ? id : key] = rewrite(text);
@@ -325,7 +351,8 @@ export function setPinDefault(draft: Draft, index: number, value: Literal | unde
 
 /** Marks an output as the call's result, or with `undefined` makes the node a statement. */
 export function setResult(draft: Draft, outputId: string | undefined): Draft {
-	if (outputId !== undefined && !draft.outputs.some((p) => p.id === outputId && p.kind === "data")) return draft;
+	if (outputId !== undefined && !draft.outputs.some((p) => p.id === outputId && p.kind === "data"))
+		return draft;
 	return { ...draft, result: outputId };
 }
 
@@ -337,7 +364,8 @@ export function setResult(draft: Draft, outputId: string | undefined): Draft {
  * rather than hidden.
  */
 export function pillShape(draft: Draft): { ok: true } | { ok: false; reason: string } {
-	if (purityOf(draft) !== "pure") return { ok: false, reason: "A pill is a value: take the execution pins off first." };
+	if (purityOf(draft) !== "pure")
+		return { ok: false, reason: "A pill is a value: take the execution pins off first." };
 	if (draft.inputs.length > 0) return { ok: false, reason: "A pill has nowhere to draw an input." };
 	if (draft.outputs.length !== 1) return { ok: false, reason: "A pill has exactly one output." };
 	return { ok: true };
@@ -354,17 +382,19 @@ export function defOf(draft: Draft, compiled?: LogicCompile | null): PackNode {
 	// `side` rather than `p.kind`, because an output pin is `data` too and the
 	// two fields below are an input's alone: a default is what is used when
 	// nothing is wired, and a dropdown is a value nobody can set on an output.
-	const pin = (side: Side) => (p: DraftPin): PinDef => ({
-		id: p.id,
-		name: p.name,
-		kind: p.kind,
-		...(p.kind === "data" ? { type: p.type || "any" } : {}),
-		...(side === "in" && p.kind === "data" && p.default ? { default: p.default } : {}),
-		...(side === "in" && p.kind === "data" && p.options && p.options.length > 0
-			? { options: [...p.options] }
-			: {}),
-		...(p.description ? { description: p.description } : {}),
-	});
+	const pin =
+		(side: Side) =>
+		(p: DraftPin): PinDef => ({
+			id: p.id,
+			name: p.name,
+			kind: p.kind,
+			...(p.kind === "data" ? { type: p.type || "any" } : {}),
+			...(side === "in" && p.kind === "data" && p.default ? { default: p.default } : {}),
+			...(side === "in" && p.kind === "data" && p.options && p.options.length > 0
+				? { options: [...p.options] }
+				: {}),
+			...(p.description ? { description: p.description } : {}),
+		});
 	const purity = purityOf(draft);
 	const outputs = draft.outputs.map(pin("out"));
 
@@ -376,7 +406,8 @@ export function defOf(draft: Draft, compiled?: LogicCompile | null): PackNode {
 			(purity === "pure" ? { kind: "expr", outputs: {} } : { kind: "statement", template: "" });
 	} else if (purity === "pure") {
 		const exprs: Record<string, string> = {};
-		for (const out of outputs) if (out.kind === "data") exprs[out.id] = draft.expressions[out.id] ?? "";
+		for (const out of outputs)
+			if (out.kind === "data") exprs[out.id] = draft.expressions[out.id] ?? "";
 		compilesTo = { kind: "expr", outputs: exprs };
 	} else if (draft.result && outputs.some((p) => p.id === draft.result)) {
 		compilesTo = { kind: "call", template: draft.template, result: draft.result };
@@ -412,7 +443,9 @@ export function defOf(draft: Draft, compiled?: LogicCompile | null): PackNode {
  * repeat.
  */
 export function problemsOf(
-	draft: Draft, takenIds: Iterable<string> = [], compiled?: LogicCompile | null,
+	draft: Draft,
+	takenIds: Iterable<string> = [],
+	compiled?: LogicCompile | null,
 ): string[] {
 	const out: string[] = [];
 	const purity = purityOf(draft);
@@ -457,7 +490,11 @@ export function problemsOf(
 		out.push("Write what it compiles to.");
 	}
 
-	const texts = fromNodes ? [] : purity === "pure" ? Object.values(draft.expressions) : [draft.template];
+	const texts = fromNodes
+		? []
+		: purity === "pure"
+			? Object.values(draft.expressions)
+			: [draft.template];
 	const inputs = new Set(draft.inputs.map((p) => p.id));
 	const outputs = new Set(draft.outputs.map((p) => p.id));
 	const seen = new Set<string>();
@@ -468,7 +505,9 @@ export function problemsOf(
 			const key = `${side}.${id}`;
 			if (!known && !seen.has(key)) {
 				seen.add(key);
-				out.push(`It reads $${key}, and there is no ${side === "in" ? "input" : "output"} called ${id}.`);
+				out.push(
+					`It reads $${key}, and there is no ${side === "in" ? "input" : "output"} called ${id}.`,
+				);
 			}
 		}
 	}
@@ -484,7 +523,7 @@ export function problemsOf(
 	if (targets !== null && targets.length === 0) {
 		out.push(
 			`It runs on nothing: it says ${targetsText(draft.targets ?? null)}, and its logic uses nodes that ` +
-			`run on ${targetsText(compiled?.targets ?? null)}.`,
+				`run on ${targetsText(compiled?.targets ?? null)}.`,
 		);
 	}
 

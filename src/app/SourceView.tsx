@@ -21,15 +21,14 @@
  * already use is a better answer than a second-rate one built in here.
  */
 
-import { useEffect, useRef, useState } from "react";
-
 import { lintGutter } from "@codemirror/lint";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { useEffect, useRef, useState } from "react";
 
 import type { ModuleInfo } from "../core/luau/hover.js";
 import type { TableMember } from "../core/luau/infer.js";
-import { indexFromOutline, instanceProblems, type InstanceNode } from "../core/luau/instances.js";
+import { type InstanceNode, indexFromOutline, instanceProblems } from "../core/luau/instances.js";
 import type { Target } from "../core/schema.js";
 import { api } from "./api.js";
 import { cx } from "./cx.js";
@@ -92,15 +91,18 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 		members.current = new Map();
 		modules.current = new Map();
 		let live = true;
-		Promise.all([api.luauModules(doc.path), api.instances()]).then(([{ modules: found, self }, { outline }]) => {
-			if (!live) return;
-			members.current = new Map(found.map((m) => [m.name, m.members]));
-			modules.current = new Map(found.map((m) => [m.name, m]));
-			setInstances({ root: indexFromOutline(outline), ...(self ? { self } : {}) });
-		}, () => {
-			// The file still shows, highlighted; only the hover on requires and
-			// the instance warnings are missing, and they are extras on a view.
-		});
+		Promise.all([api.luauModules(doc.path), api.instances()]).then(
+			([{ modules: found, self }, { outline }]) => {
+				if (!live) return;
+				members.current = new Map(found.map((m) => [m.name, m.members]));
+				modules.current = new Map(found.map((m) => [m.name, m]));
+				setInstances({ root: indexFromOutline(outline), ...(self ? { self } : {}) });
+			},
+			() => {
+				// The file still shows, highlighted; only the hover on requires and
+				// the instance warnings are missing, and they are extras on a view.
+			},
+		);
 		return () => {
 			live = false;
 		};
@@ -142,9 +144,11 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 	useEffect(() => {
 		const known = instances;
 		view.current?.dispatch({
-			effects: warnings.current.reconfigure(known && targetOfSource(doc.text) !== "lune"
-				? [lintGutter(), luauWarnings((text) => instanceProblems(text, known.root, known.self))]
-				: []),
+			effects: warnings.current.reconfigure(
+				known && targetOfSource(doc.text) !== "lune"
+					? [lintGutter(), luauWarnings((text) => instanceProblems(text, known.root, known.self))]
+					: [],
+			),
 		});
 	}, [instances, doc.text]);
 
@@ -213,13 +217,13 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 			<p className="source-note">
 				{generated ? (
 					<>
-						Roswaal writes this file. Anything you change here is replaced by the next
-						compile — edit the graph instead.
+						Roswaal writes this file. Anything you change here is replaced by the next compile —
+						edit the graph instead.
 					</>
 				) : (
 					<>
-						Roswaal does not touch this file. It is read-only here so nothing can be
-						changed by accident; open it in your editor to work on it.
+						Roswaal does not touch this file. It is read-only here so nothing can be changed by
+						accident; open it in your editor to work on it.
 					</>
 				)}
 			</p>

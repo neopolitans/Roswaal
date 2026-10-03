@@ -9,11 +9,10 @@ import os from "node:os";
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
-
+import { serialiseScript } from "../src/core/compiler/index.js";
 import { hoverAt } from "../src/core/luau/hover.js";
 import { moduleExports, requiresIn } from "../src/core/luau/requires.js";
-import { serialiseScript } from "../src/core/compiler/index.js";
-import { serialiseMap, type NodeMap } from "../src/core/nodemap.js";
+import { type NodeMap, serialiseMap } from "../src/core/nodemap.js";
 import { emptyScript } from "../src/core/schema.js";
 import { openProject } from "../src/server/project.js";
 import { modulesRequiredBy } from "../src/server/requires.js";
@@ -31,8 +30,18 @@ describe("where a require goes", () => {
 			"local Computed = require(pick())",
 		].join("\n");
 		expect(requiresIn(src)).toEqual([
-			{ name: "Flux", target: { kind: "instance", from: "game", names: ["ReplicatedStorage", "Packages", "Flux"] } },
-			{ name: "Shared", target: { kind: "instance", from: "game", names: ["ReplicatedStorage", "Shared", "Util"] } },
+			{
+				name: "Flux",
+				target: {
+					kind: "instance",
+					from: "game",
+					names: ["ReplicatedStorage", "Packages", "Flux"],
+				},
+			},
+			{
+				name: "Shared",
+				target: { kind: "instance", from: "game", names: ["ReplicatedStorage", "Shared", "Util"] },
+			},
 			{ name: "Sibling", target: { kind: "instance", from: "script", names: ["..", "Sibling"] } },
 			{ name: "Path", target: { kind: "string", spec: "./path" } },
 		]);
@@ -49,34 +58,71 @@ describe("where a require goes", () => {
 
 describe("what a module gives back", () => {
 	it("a table and what the file puts on it, with comments", () => {
-		const exports = moduleExports("local Fruit = {}\n\n-- Picks one.\nfunction Fruit.pick(n: number): string\n\treturn \"\"\nend\n\nreturn Fruit");
+		const exports = moduleExports(
+			'local Fruit = {}\n\n-- Picks one.\nfunction Fruit.pick(n: number): string\n\treturn ""\nend\n\nreturn Fruit',
+		);
 		expect(exports.kind).toBe("table");
-		expect(exports.members).toMatchObject([{ name: "pick", kind: "function", detail: "(n: number) -> (string)", doc: { text: "Picks one." } }]);
+		expect(exports.members).toMatchObject([
+			{
+				name: "pick",
+				kind: "function",
+				detail: "(n: number) -> (string)",
+				doc: { text: "Picks one." },
+			},
+		]);
 	});
 
 	it("looks through casts, table.freeze and setmetatable", () => {
-		expect(moduleExports("local M = {}\nM.x = 1\nreturn M :: any").members.map((m) => m.name)).toEqual(["x"]);
-		expect(moduleExports("return table.freeze({ a = 1, b = function() end })").members.map((m) => [m.name, m.kind]))
-			.toEqual([["a", "field"], ["b", "function"]]);
-		expect(moduleExports("local M = {}\nM.y = 2\nreturn table.freeze(setmetatable(M, {}))").members.map((m) => m.name)).toEqual(["y"]);
+		expect(
+			moduleExports("local M = {}\nM.x = 1\nreturn M :: any").members.map((m) => m.name),
+		).toEqual(["x"]);
+		expect(
+			moduleExports("return table.freeze({ a = 1, b = function() end })").members.map((m) => [
+				m.name,
+				m.kind,
+			]),
+		).toEqual([
+			["a", "field"],
+			["b", "function"],
+		]);
+		expect(
+			moduleExports("local M = {}\nM.y = 2\nreturn table.freeze(setmetatable(M, {}))").members.map(
+				(m) => m.name,
+			),
+		).toEqual(["y"]);
 	});
 
 	it("takes a field's signature and comment from the function it names", () => {
-		const src = "local Signal = {}\n--- Makes one.\nfunction Signal.new() end\nreturn table.freeze({ new = Signal.new })";
-		expect(moduleExports(src).members).toMatchObject([{ name: "new", kind: "function", doc: { text: "Makes one." } }]);
+		const src =
+			"local Signal = {}\n--- Makes one.\nfunction Signal.new() end\nreturn table.freeze({ new = Signal.new })";
+		expect(moduleExports(src).members).toMatchObject([
+			{ name: "new", kind: "function", doc: { text: "Makes one." } },
+		]);
 	});
 
 	it("passes another module's through, and describes a returned global function", () => {
-		expect(moduleExports('return require(script.Parent._Index["a_b@1.0.0"]["b"])').reexport)
-			.toEqual({ kind: "instance", from: "script", names: ["..", "_Index", "a_b@1.0.0", "b"] });
-		expect(moduleExports("local Inner = require(script.Inner)\nreturn Inner").reexport)
-			.toEqual({ kind: "instance", from: "script", names: ["Inner"] });
-		const button = moduleExports("--[[ A button. ]]\nfunction Button(props: {}) end\nreturn Button");
-		expect(button).toMatchObject({ kind: "function", detail: "(props: {}) -> ()", doc: { text: "A button." } });
+		expect(
+			moduleExports('return require(script.Parent._Index["a_b@1.0.0"]["b"])').reexport,
+		).toEqual({ kind: "instance", from: "script", names: ["..", "_Index", "a_b@1.0.0", "b"] });
+		expect(moduleExports("local Inner = require(script.Inner)\nreturn Inner").reexport).toEqual({
+			kind: "instance",
+			from: "script",
+			names: ["Inner"],
+		});
+		const button = moduleExports(
+			"--[[ A button. ]]\nfunction Button(props: {}) end\nreturn Button",
+		);
+		expect(button).toMatchObject({
+			kind: "function",
+			detail: "(props: {}) -> ()",
+			doc: { text: "A button." },
+		});
 	});
 
 	it("takes a block comment at the top as the module's, and not a heading", () => {
-		expect(moduleExports("--[[ Keeps fruit. ]]\nlocal M = {}\nreturn M").doc?.text).toBe("Keeps fruit.");
+		expect(moduleExports("--[[ Keeps fruit. ]]\nlocal M = {}\nreturn M").doc?.text).toBe(
+			"Keeps fruit.",
+		);
 		expect(moduleExports("-- SERVICES\nlocal M = {}\nreturn M").doc).toBeUndefined();
 	});
 });
@@ -94,36 +140,69 @@ describe("following requires in a project", () => {
 			await writeFile(path.join(root, rel), text);
 		};
 		const map: NodeMap = {
-			schemaVersion: 1, kind: "map", id: "m", name: "Orchard", output: "default.project.json",
+			schemaVersion: 1,
+			kind: "map",
+			id: "m",
+			name: "Orchard",
+			output: "default.project.json",
 			root: {
-				id: "r", name: "DataModel", className: "DataModel", children: [
-					{ id: "rs", name: "ReplicatedStorage", children: [
-						{ id: "sh", name: "Shared", path: "src/shared", children: [] },
-						{ id: "pk", name: "Packages", path: "Packages", children: [] },
-					] },
-					{ id: "ss", name: "ServerScriptService", children: [{ id: "sv", name: "Server", path: "src/server", children: [] }] },
+				id: "r",
+				name: "DataModel",
+				className: "DataModel",
+				children: [
+					{
+						id: "rs",
+						name: "ReplicatedStorage",
+						children: [
+							{ id: "sh", name: "Shared", path: "src/shared", children: [] },
+							{ id: "pk", name: "Packages", path: "Packages", children: [] },
+						],
+					},
+					{
+						id: "ss",
+						name: "ServerScriptService",
+						children: [{ id: "sv", name: "Server", path: "src/server", children: [] }],
+					},
 				],
 			},
 		};
 		await put("roswaal.json", JSON.stringify({ schemaVersion: 1 }));
 		await put(".roswaal/scripts/Orchard.nodemap", serialiseMap(map));
 		// A package reached through its thunk, and itself a Rojo project.
-		await put("Packages/Flux.lua", 'return require(script.Parent._Index["someone_flux@0.2.0"]["flux"])\n');
-		await put("Packages/_Index/someone_flux@0.2.0/flux/default.project.json", '{ "name": "flux", "tree": { "$path": "src" } }');
-		await put("Packages/_Index/someone_flux@0.2.0/flux/src/init.luau", "local Flux = {}\n--- Makes state.\nfunction Flux.state(v) return v end\nreturn Flux\n");
+		await put(
+			"Packages/Flux.lua",
+			'return require(script.Parent._Index["someone_flux@0.2.0"]["flux"])\n',
+		);
+		await put(
+			"Packages/_Index/someone_flux@0.2.0/flux/default.project.json",
+			'{ "name": "flux", "tree": { "$path": "src" } }',
+		);
+		await put(
+			"Packages/_Index/someone_flux@0.2.0/flux/src/init.luau",
+			"local Flux = {}\n--- Makes state.\nfunction Flux.state(v) return v end\nreturn Flux\n",
+		);
 		// One vendored in the thunk's place.
-		await put("Packages/Signal.lua", "-- return require(script.Parent._Index[\"x_signal@1.0.0\"][\"signal\"])\nlocal Signal = {}\nfunction Signal.new() end\nreturn Signal\n");
-		await put("src/shared/Fruit.luau", "local Fruit = {}\n-- Picks one.\nfunction Fruit.pick() end\nreturn Fruit\n");
+		await put(
+			"Packages/Signal.lua",
+			'-- return require(script.Parent._Index["x_signal@1.0.0"]["signal"])\nlocal Signal = {}\nfunction Signal.new() end\nreturn Signal\n',
+		);
+		await put(
+			"src/shared/Fruit.luau",
+			"local Fruit = {}\n-- Picks one.\nfunction Fruit.pick() end\nreturn Fruit\n",
+		);
 		await put("src/server/Helpers.luau", "return { help = function() end }\n");
-		await put("src/server/main.server.luau", [
-			'local ReplicatedStorage = game:GetService("ReplicatedStorage")',
-			"local Flux = require(ReplicatedStorage.Packages.Flux)",
-			"local Signal = require(ReplicatedStorage.Packages.Signal)",
-			"local Fruit = require(ReplicatedStorage.Shared.Fruit)",
-			"local Helpers = require(script.Parent.Helpers)",
-			'local Same = require("./Helpers")',
-			"print(Flux.state(1), Fruit.pick())",
-		].join("\n"));
+		await put(
+			"src/server/main.server.luau",
+			[
+				'local ReplicatedStorage = game:GetService("ReplicatedStorage")',
+				"local Flux = require(ReplicatedStorage.Packages.Flux)",
+				"local Signal = require(ReplicatedStorage.Packages.Signal)",
+				"local Fruit = require(ReplicatedStorage.Shared.Fruit)",
+				"local Helpers = require(script.Parent.Helpers)",
+				'local Same = require("./Helpers")',
+				"print(Flux.state(1), Fruit.pick())",
+			].join("\n"),
+		);
 		return openProject(root);
 	}
 
@@ -137,33 +216,53 @@ describe("following requires in a project", () => {
 			["Same", "src/server/Helpers.luau", "help"],
 		]);
 		// A package's instance path leaves out the src/ its project file walks through.
-		expect(found[0].path).toEqual(["ReplicatedStorage", "Packages", "_Index", "someone_flux@0.2.0", "flux"]);
+		expect(found[0].path).toEqual([
+			"ReplicatedStorage",
+			"Packages",
+			"_Index",
+			"someone_flux@0.2.0",
+			"flux",
+		]);
 	});
 
 	it("gives a field that holds a module, and its alias, that module's description", async () => {
 		const opened = await project();
 		const put = (rel: string, text: string) => writeFile(path.join(root, rel), text);
 		await mkdir(path.join(root, "src/shared/Crate"), { recursive: true });
-		await put("src/shared/Crate/init.luau", [
-			"local Crate = {",
-			"\tShelf = require(script.Shelf),",
-			"}",
-			"Crate.Rack = Crate.Shelf",
-			"",
-			"--- @prop Shelf Shelf",
-			"--- @within Crate",
-			"",
-			"--- @prop Rack Shelf",
-			"--- @within Crate",
-			"",
-			"return Crate",
-		].join("\n"));
-		await put("src/shared/Crate/Shelf.luau", "--[=[\n\t@class Shelf\n\n\tHolds what is put on it.\n]=]\nlocal Shelf = {}\nreturn Shelf\n");
-		await put("src/server/uses.server.luau", "local Crate = require(game:GetService(\"ReplicatedStorage\").Shared.Crate)\n");
+		await put(
+			"src/shared/Crate/init.luau",
+			[
+				"local Crate = {",
+				"\tShelf = require(script.Shelf),",
+				"}",
+				"Crate.Rack = Crate.Shelf",
+				"",
+				"--- @prop Shelf Shelf",
+				"--- @within Crate",
+				"",
+				"--- @prop Rack Shelf",
+				"--- @within Crate",
+				"",
+				"return Crate",
+			].join("\n"),
+		);
+		await put(
+			"src/shared/Crate/Shelf.luau",
+			"--[=[\n\t@class Shelf\n\n\tHolds what is put on it.\n]=]\nlocal Shelf = {}\nreturn Shelf\n",
+		);
+		await put(
+			"src/server/uses.server.luau",
+			'local Crate = require(game:GetService("ReplicatedStorage").Shared.Crate)\n',
+		);
 		const [crate] = await modulesRequiredBy(opened, "src/server/uses.server.luau");
 		const shelf = crate.members.find((m) => m.name === "Shelf")!;
-		expect(shelf.doc).toMatchObject({ text: "Holds what is put on it.", subject: { tag: "prop", name: "Shelf", type: "Shelf" } });
-		expect(crate.members.find((m) => m.name === "Rack")!.doc?.text).toBe("Holds what is put on it.");
+		expect(shelf.doc).toMatchObject({
+			text: "Holds what is put on it.",
+			subject: { tag: "prop", name: "Shelf", type: "Shelf" },
+		});
+		expect(crate.members.find((m) => m.name === "Rack")!.doc?.text).toBe(
+			"Holds what is put on it.",
+		);
 		// In the library's own file, the key's field is followed too.
 		const own = await modulesRequiredBy(opened, "src/shared/Crate/init.luau");
 		expect(own.find((m) => m.name === "Crate.Shelf")?.doc?.text).toBe("Holds what is put on it.");
@@ -173,22 +272,36 @@ describe("following requires in a project", () => {
 		await project();
 		const session = new ApiSession({});
 		await session.openAt(root);
-		const { modules } = (await session.handle("POST", "/luau/modules", { body: { path: "src/server/main.server.luau" } })) as { modules: { name: string; members: never[] }[] };
+		const { modules } = (await session.handle("POST", "/luau/modules", {
+			body: { path: "src/server/main.server.luau" },
+		})) as { modules: { name: string; members: never[] }[] };
 		const members = new Map(modules.map((m) => [m.name, m.members]));
 		const src = "local Flux = require(ReplicatedStorage.Packages.Flux)\nprint(Flux.state(1))";
-		expect(hoverAt(src, src.lastIndexOf("state") + 1, true, members)).toMatchObject({ code: "Flux.state: (v) -> ()", doc: { text: "Makes state." } });
+		expect(hoverAt(src, src.lastIndexOf("state") + 1, true, members)).toMatchObject({
+			code: "Flux.state: (v) -> ()",
+			doc: { text: "Makes state." },
+		});
 		const info = new Map(modules.map((m) => [m.name, m as never]));
-		expect(hoverAt(src, src.indexOf("Flux") + 1, true, members, info)).toMatchObject({ code: "Flux: module", role: "module · ReplicatedStorage.Packages._Index.someone_flux@0.2.0.flux" });
+		expect(hoverAt(src, src.indexOf("Flux") + 1, true, members, info)).toMatchObject({
+			code: "Flux: module",
+			role: "module · ReplicatedStorage.Packages._Index.someone_flux@0.2.0.flux",
+		});
 	});
 
 	it("follows a graph's code from the file the graph compiles to", async () => {
 		await project();
 		await mkdir(path.join(root, ".roswaal/scripts/server"), { recursive: true });
-		await writeFile(path.join(root, ".roswaal/scripts/server/Grow.nodescript"), serialiseScript(emptyScript("Grow", "grow")));
+		await writeFile(
+			path.join(root, ".roswaal/scripts/server/Grow.nodescript"),
+			serialiseScript(emptyScript("Grow", "grow")),
+		);
 		const session = new ApiSession({});
 		await session.openAt(root);
 		const { modules, self } = (await session.handle("POST", "/luau/modules", {
-			body: { path: ".roswaal/scripts/server/Grow.nodescript", text: "local Helpers = require(script.Parent.Helpers)" },
+			body: {
+				path: ".roswaal/scripts/server/Grow.nodescript",
+				text: "local Helpers = require(script.Parent.Helpers)",
+			},
 		})) as { modules: { name: string; file: string }[]; self: string[] };
 		expect(self).toEqual(["ServerScriptService", "Server", "Grow"]);
 		expect(modules.map((m) => [m.name, m.file])).toEqual([["Helpers", "src/server/Helpers.luau"]]);

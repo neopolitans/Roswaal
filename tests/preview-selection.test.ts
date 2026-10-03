@@ -9,10 +9,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-
+import { analyse, fold, previewSelection, type Row } from "../src/app/SelectionPreview.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
-import { analyse, fold, previewSelection, type Row } from "../src/app/SelectionPreview.js";
 
 /**
  * `P` with nothing selected previews what is on screen. In a function's tab
@@ -22,7 +21,9 @@ describe("previewing with nothing selected", () => {
 	function withFunction() {
 		const b = new Builder();
 		b.node("script.begin");
-		const fn = b.node("function.declareHere", { config: { name: "hide", params: [], returns: [] } });
+		const fn = b.node("function.declareHere", {
+			config: { name: "hide", params: [], returns: [] },
+		});
 		const inside = b.node("debug.print", { graph: fn });
 		const outside = b.node("debug.print");
 		return { script: b.build(), fn, inside, outside };
@@ -46,6 +47,7 @@ describe("previewing with nothing selected", () => {
 		expect(previewSelection(script, fn, selection)).toBe(selection);
 	});
 });
+
 import { Builder } from "./helpers.js";
 
 const registry = createRegistry();
@@ -141,7 +143,12 @@ describe("attributing lines to nodes", () => {
 		const { ids } = scene();
 		const out = look([ids.first, ids.third]);
 		expect(out.direct).toBe(2);
-		expect(out.rows.filter((r) => r.mine).map(text).join("\n")).toContain('print("one")');
+		expect(
+			out.rows
+				.filter((r) => r.mine)
+				.map(text)
+				.join("\n"),
+		).toContain('print("one")');
 	});
 
 	/**
@@ -180,7 +187,8 @@ describe("attributing lines to nodes", () => {
 		const script = b.build();
 		const result = compile(script, registry);
 		const out = analyse({
-			script, registry,
+			script,
+			registry,
 			selection: new Set([orphan]),
 			code: result.code,
 			sourceMap: result.sourceMap,
@@ -197,7 +205,9 @@ describe("folding the rest of the file away", () => {
 
 	it("keeps a couple of lines either side of a marked one", () => {
 		const rows = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => row(n, n === 6));
-		const kept = fold(rows).filter((r): r is Row => r !== null).map((r) => r.line);
+		const kept = fold(rows)
+			.filter((r): r is Row => r !== null)
+			.map((r) => r.line);
 		expect(kept).toEqual([4, 5, 6, 7, 8]);
 	});
 

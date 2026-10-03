@@ -17,11 +17,10 @@
  * through the parent, change nothing.
  */
 
-import { useEffect, useRef } from "react";
-
 import type { CompletionContext } from "@codemirror/autocomplete";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { useEffect, useRef } from "react";
 
 import { checkTemplate, type LuauFragment } from "../../core/luau/check.js";
 import { luauExtensions } from "../luauExtensions.js";
@@ -70,7 +69,9 @@ export function LuauField({ value, onChange, placeholders, kind }: LuauFieldProp
 					lint: (text) => checkTemplate(text, kindRef.current),
 					gutter: false,
 					onChange: (text) => onChangeRef.current(text),
-					extra: [EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { overflow: "auto" } })],
+					extra: [
+						EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { overflow: "auto" } }),
+					],
 				}),
 			}),
 		});

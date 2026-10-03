@@ -112,20 +112,35 @@ describe("deleting a parameter", () => {
 describe("a parameter's type", () => {
 	it("is refreshed on the nodes reading it", () => {
 		const { script, fn, readsFirst } = graph([FIRST, SECOND]);
-		const out = syncParamRefs(script, fn, [FIRST, SECOND], [{ name: "first", type: "Model" }, SECOND]);
+		const out = syncParamRefs(
+			script,
+			fn,
+			[FIRST, SECOND],
+			[{ name: "first", type: "Model" }, SECOND],
+		);
 		expect(typeOf(out, readsFirst)).toBe("Model");
 	});
 
 	/** A Luau type becomes the pin type the canvas can colour and compare. */
 	it("is stored as a pin type, not as whatever Luau was written", () => {
 		const { script, fn, readsFirst } = graph([FIRST, SECOND]);
-		const out = syncParamRefs(script, fn, [FIRST, SECOND], [{ name: "first", type: "Model?" }, SECOND]);
+		const out = syncParamRefs(
+			script,
+			fn,
+			[FIRST, SECOND],
+			[{ name: "first", type: "Model?" }, SECOND],
+		);
 		expect(typeOf(out, readsFirst)).toBe("Model");
 	});
 
 	it("follows a rename and a retype at once", () => {
 		const { script, fn, readsFirst } = graph([FIRST, SECOND]);
-		const out = syncParamRefs(script, fn, [FIRST, SECOND], [{ name: "who", type: "number" }, SECOND]);
+		const out = syncParamRefs(
+			script,
+			fn,
+			[FIRST, SECOND],
+			[{ name: "who", type: "number" }, SECOND],
+		);
 		expect(paramOf(out, readsFirst)).toBe("who");
 		expect(typeOf(out, readsFirst)).toBe("number");
 	});

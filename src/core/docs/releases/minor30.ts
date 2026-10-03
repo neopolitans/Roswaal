@@ -59,7 +59,7 @@ export const RELEASES_0_30: Release[] = [
 			"**Non-affiliation said outright for each**, rather than left to be inferred from a licence column.",
 		],
 		changed: [
-			"**Luau moved there from \"What Roswaal is built on\".** No Luau ships inside Roswaal — Roswaal writes it — and listing it beside the libraries that do overstated the relationship. The attribution its README asks for is unchanged and is still on the page, with the quote.",
+			'**Luau moved there from "What Roswaal is built on".** No Luau ships inside Roswaal — Roswaal writes it — and listing it beside the libraries that do overstated the relationship. The attribution its README asks for is unchanged and is still on the page, with the quote.',
 		],
 		watch: [
 			"**Nothing about the tool changed.** This is what the project says about itself, which is the sort of thing that goes stale quietly — Lune had been a compile target for eight releases and was named nowhere.",
@@ -197,10 +197,10 @@ export const RELEASES_0_30: Release[] = [
 			"**A path reached through a call still gets its local**, because the call would otherwise run twice. So does an expression, and anything else that is work rather than a name.",
 		],
 		fixed: [
-			"**A field read twice now really is read twice.** The local was a snapshot: a Set Index between the two reads never reached it, so the graph said \"read this field here\" and the file did not.",
+			'**A field read twice now really is read twice.** The local was a snapshot: a Set Index between the two reads never reached it, so the graph said "read this field here" and the file did not.',
 		],
 		watch: [
-			"**Naming the result still asks for the local**, and is now the way to say \"read this once and keep it\" — worth it for an instance property read several times in a row, where each read crosses into the engine.",
+			'**Naming the result still asks for the local**, and is now the way to say "read this once and keep it" — worth it for an instance property read several times in a row, where each read crosses into the engine.',
 			"**Recompiling will drop these locals from generated files.** Every graph that read a field or a constant twice loses a line and reads the path at each use instead.",
 		],
 	},
@@ -276,7 +276,7 @@ export const RELEASES_0_30: Release[] = [
 		changed: [
 			"**The graph's tools float over the canvas** in three groups, instead of taking a row above it.",
 			"**The node designer is called Node Design**, and its header has help and Docs buttons. Both headers say Open Editor.",
-			"**A node pack can draw a pure node as a pill**, with `\"display\": \"compact\"`.",
+			'**A node pack can draw a pure node as a pill**, with `"display": "compact"`.',
 		],
 		watch: [
 			"**A step node with no execution input loads with a warning**: nothing can run it.",
@@ -358,7 +358,7 @@ export const RELEASES_0_30: Release[] = [
 			"**The toolbar names what the buttons set**, reading Compile: Manual | Dynamic rather than leaving it to a hover title. Settings says the same two words, where it used to say Manually and On every change.",
 		],
 		watch: [
-			"`roswaal.json` **is untouched.** The setting is still stored as `compileMode: \"hot\"`, so every existing project keeps working and an older Roswaal can still read a file this one writes. The settings page names both, for anyone editing that file by hand.",
+			'`roswaal.json` **is untouched.** The setting is still stored as `compileMode: "hot"`, so every existing project keeps working and an older Roswaal can still read a file this one writes. The settings page names both, for anyone editing that file by hand.',
 		],
 	},
 	{

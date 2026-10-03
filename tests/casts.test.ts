@@ -8,10 +8,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { body, Builder } from "./helpers.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
+import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
 
@@ -75,10 +74,9 @@ describe("a Cast's mode", () => {
 
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
-		expect(body(out.code)).toBe([
-			"print((thing :: BasePart))",
-			"print((thing :: BasePart))",
-		].join("\n"));
+		expect(body(out.code)).toBe(
+			["print((thing :: BasePart))", "print((thing :: BasePart))"].join("\n"),
+		);
 	});
 });
 

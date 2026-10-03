@@ -33,9 +33,7 @@ const viewer: string = await buildGraphViewer();
  * pattern quietly matches nothing.
  */
 function undeclaredHelpers(script: string): string[] {
-	const called = new Set(
-		[...script.matchAll(/\b(__[A-Za-z]\w*)\s*\(/g)].map((found) => found[1]),
-	);
+	const called = new Set([...script.matchAll(/\b(__[A-Za-z]\w*)\s*\(/g)].map((found) => found[1]));
 	return [...called].filter(
 		(name) => !new RegExp("(?:var|let|const|function)\\s+" + name + "\\b").test(script),
 	);
@@ -146,10 +144,18 @@ describe("the documentation's graph viewer", () => {
 
 		const scale = () => Number(/scale\(([\d.]+)\)/.exec(style.transform)?.[1]);
 		const left = () => Number(/translate\((-?[\d.]+)px/.exec(style.transform)?.[1]);
-		const wheel = (init: Record<string, unknown>) => handlers.wheel({
-			preventDefault: () => {}, clientX: 200, clientY: 150, deltaX: 0, deltaY: 0, deltaMode: 0,
-			ctrlKey: false, metaKey: false, ...init,
-		});
+		const wheel = (init: Record<string, unknown>) =>
+			handlers.wheel({
+				preventDefault: () => {},
+				clientX: 200,
+				clientY: 150,
+				deltaX: 0,
+				deltaY: 0,
+				deltaMode: 0,
+				ctrlKey: false,
+				metaKey: false,
+				...init,
+			});
 
 		const fitted = { scale: scale(), left: left() };
 		wheel({ deltaY: 40 });

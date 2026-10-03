@@ -49,9 +49,13 @@ export default defineConfig({
 		 */
 		watch: {
 			ignored: [
-				"**/node_modules/**", "**/.git/**",
-				"**/dist/**", "**/dist-site/**", "**/dist-docs/**",
-				"**/dist-cli/**", "**/dist-pages/**",
+				"**/node_modules/**",
+				"**/.git/**",
+				"**/dist/**",
+				"**/dist-site/**",
+				"**/dist-docs/**",
+				"**/dist-cli/**",
+				"**/dist-pages/**",
 			],
 		},
 		proxy: {

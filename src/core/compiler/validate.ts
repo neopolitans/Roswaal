@@ -7,34 +7,47 @@
  * context.
  */
 
-import {
-	ENGINE_TYPES, PAIR, type GraphNode, type NodeScript, type PinDef, type Target,
-} from "../schema.js";
-import { checkLuau } from "../luau/check.js";
-import { crossingLinks, graphExists } from "../functionGraph.js";
 import { bindsParameters } from "../functionBody.js";
+import { crossingLinks, graphExists } from "../functionGraph.js";
+import { checkLuau } from "../luau/check.js";
+import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
+import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
+import { typeInto } from "../members.js";
 import { FUNCTION_NODES, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { memberNameOf } from "../nodes/library.js";
-import { isSubclassOf } from "../roblox.js";
-import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
 import { isLuneCall } from "../nodes/lune.js";
-import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
 import {
-	functionRefOf, isConstLocal, localNameOf, paramRefOf, variableRefOf,
+	functionRefOf,
+	isConstLocal,
+	localNameOf,
+	paramRefOf,
+	variableRefOf,
 } from "../nodes/variables.js";
+import { isSubclassOf } from "../roblox.js";
+import {
+	ENGINE_TYPES,
+	type GraphNode,
+	type NodeScript,
+	PAIR,
+	type PinDef,
+	type Target,
+} from "../schema.js";
 import { declaredTypeFields } from "../typeFields.js";
-import { typeInto } from "../members.js";
+import type { Diagnostic } from "./emit.js";
 import { GraphIndex } from "./graph.js";
 import { isFieldName, notAName } from "./luau.js";
-import type { Diagnostic } from "./emit.js";
 
 /**
  * The nodes in a graph written only for targets other than `target`: what
  * would become errors if the graph compiled for it. The editor asks before a
  * switch that would make any.
  */
-export function offTargetNodes(script: NodeScript, registry: Registry, target: Target): GraphNode[] {
+export function offTargetNodes(
+	script: NodeScript,
+	registry: Registry,
+	target: Target,
+): GraphNode[] {
 	return script.nodes.filter((node) => {
 		const def = registry.get(node.def);
 		return def?.targets !== undefined && !def.targets.includes(target);
@@ -99,7 +112,8 @@ export function typesCompatible(from: string | undefined, to: string | undefined
  * those. Everything else is `typesCompatible`.
  */
 export function pinsCompatible(
-	from: Pick<PinDef, "type">, to: Pick<PinDef, "type" | "pairs">,
+	from: Pick<PinDef, "type">,
+	to: Pick<PinDef, "type" | "pairs">,
 ): boolean {
 	if (from.type === PAIR) return to.type === PAIR || to.pairs === true;
 	if (to.type === PAIR) return false;
@@ -200,9 +214,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	// runtime only knows the line that broke it.
 	for (const node of script.nodes) {
 		if (node.def !== "local.set") continue;
-		const link = script.links.find(
-			(l) => l.to.node === node.id && l.to.pin === "variable",
-		);
+		const link = script.links.find((l) => l.to.node === node.id && l.to.pin === "variable");
 		const source = link && script.nodes.find((n) => n.id === link.from.node);
 		if (!source || source.def !== "local.declare" || !isConstLocal(source.config)) continue;
 		out.push({
@@ -233,10 +245,10 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				severity: "error",
 				message:
 					node.def === "variable.set"
-						? `"${name}" is a constant, so it cannot be assigned again. Make it an ordinary `
-							+ "variable, or bind the new value to a local."
-						: `"${name}" is a constant, so it is given its value where it is declared. `
-							+ "Set its starting value in the Variables panel, or make it an ordinary variable.",
+						? `"${name}" is a constant, so it cannot be assigned again. Make it an ordinary ` +
+							"variable, or bind the new value to a local."
+						: `"${name}" is a constant, so it is given its value where it is declared. ` +
+							"Set its starting value in the Variables panel, or make it an ordinary variable.",
 				node: node.id,
 			});
 		}
@@ -275,7 +287,6 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				node: node.id,
 			});
 		}
-
 	}
 
 	// -- links -------------------------------------------------------------
@@ -402,7 +413,11 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		if (node.def === "function.get") {
 			const ref = functionRefOf(node.config);
 			if (!ref.function) {
-				out.push({ severity: "error", message: "Get Function has no function chosen.", node: node.id });
+				out.push({
+					severity: "error",
+					message: "Get Function has no function chosen.",
+					node: node.id,
+				});
 			} else if (!functionIds.has(ref.function)) {
 				out.push({
 					severity: "error",
@@ -426,7 +441,11 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				? script.nodes.find((n) => n.id === ref.function && bindsParameters(n.def))
 				: undefined;
 			if (!ref.function) {
-				out.push({ severity: "error", message: "Get Parameter has no function chosen.", node: node.id });
+				out.push({
+					severity: "error",
+					message: "Get Parameter has no function chosen.",
+					node: node.id,
+				});
 			} else if (!owner) {
 				out.push({
 					severity: "error",
@@ -440,8 +459,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 					const owning = signature.name || owner.label || "that function";
 					out.push({
 						severity: "error",
-						message:
-							`"${ref.param ?? "That parameter"}" is not a parameter of "${owning}" any more.`,
+						message: `"${ref.param ?? "That parameter"}" is not a parameter of "${owning}" any more.`,
 						node: node.id,
 					});
 				}
@@ -575,13 +593,14 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 
 			out.push({
 				severity: "error",
-				message: roblox === undefined
-					? `"${nodeTitle(r.def, r.node)}" writes \`${datatype}\`, which Lune has only ` +
-						"through `@lune/roblox`. Declare that module with " +
-						`\`${datatype}\` as a member.`
-					: `"${nodeTitle(r.def, r.node)}" writes \`${datatype}\`, and "${roblox.name}" ` +
-						`does not pull \`${datatype}\` off \`@lune/roblox\`. Add it to that ` +
-						"module's members.",
+				message:
+					roblox === undefined
+						? `"${nodeTitle(r.def, r.node)}" writes \`${datatype}\`, which Lune has only ` +
+							"through `@lune/roblox`. Declare that module with " +
+							`\`${datatype}\` as a member.`
+						: `"${nodeTitle(r.def, r.node)}" writes \`${datatype}\`, and "${roblox.name}" ` +
+							`does not pull \`${datatype}\` off \`@lune/roblox\`. Add it to that ` +
+							"module's members.",
 				node: r.node.id,
 				attention: true,
 			});

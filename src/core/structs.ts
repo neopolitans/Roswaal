@@ -22,8 +22,8 @@
  * its literal, so recombining is total — there is no "half a Vector3".
  */
 
-import { PAIR } from "./schema.js";
 import type { DataType, Literal } from "./schema.js";
+import { PAIR } from "./schema.js";
 
 export interface StructPart {
 	/** Unique within the mode. Becomes the second half of `parent.part`. */
@@ -51,7 +51,11 @@ export interface StructType {
 }
 
 const num = (id: string, name: string, get: string, v = 0): StructPart => ({
-	id, name, type: "number", get, default: { t: "number", v },
+	id,
+	name,
+	type: "number",
+	get,
+	default: { t: "number", v },
 });
 
 /**
@@ -67,7 +71,10 @@ const UNREACHABLE = `error("a key/value pair is not a value", 0)`;
  * that behind something prettier would be a lie about the cost.
  */
 const component = (id: string, name: string, index: number, v = 0): StructPart => ({
-	id, name, type: "number", get: `select(${index}, $v:GetComponents())`,
+	id,
+	name,
+	type: "number",
+	get: `select(${index}, $v:GetComponents())`,
 	default: { t: "number", v },
 });
 
@@ -100,11 +107,17 @@ const BUILTIN_STRUCTS: StructType[] = [
 				name: "Position, Rotation",
 				parts: [
 					{
-						id: "position", name: "Position", type: "Vector3", get: "$v.Position",
+						id: "position",
+						name: "Position",
+						type: "Vector3",
+						get: "$v.Position",
 						default: { t: "raw", v: "Vector3.zero" },
 					},
 					{
-						id: "rotation", name: "Rotation", type: "CFrame", get: "$v.Rotation",
+						id: "rotation",
+						name: "Rotation",
+						type: "CFrame",
+						get: "$v.Rotation",
 						default: { t: "raw", v: "CFrame.identity" },
 					},
 				],
@@ -116,15 +129,24 @@ const BUILTIN_STRUCTS: StructType[] = [
 				name: "Position and axes",
 				parts: [
 					{
-						id: "position", name: "Position", type: "Vector3", get: "$v.Position",
+						id: "position",
+						name: "Position",
+						type: "Vector3",
+						get: "$v.Position",
 						default: { t: "raw", v: "Vector3.zero" },
 					},
 					{
-						id: "right", name: "Right", type: "Vector3", get: "$v.RightVector",
+						id: "right",
+						name: "Right",
+						type: "Vector3",
+						get: "$v.RightVector",
 						default: { t: "raw", v: "Vector3.xAxis" },
 					},
 					{
-						id: "up", name: "Up", type: "Vector3", get: "$v.UpVector",
+						id: "up",
+						name: "Up",
+						type: "Vector3",
+						get: "$v.UpVector",
 						default: { t: "raw", v: "Vector3.yAxis" },
 					},
 				],
@@ -136,15 +158,20 @@ const BUILTIN_STRUCTS: StructType[] = [
 			components: {
 				name: "12 components",
 				parts: [
-					num("x", "X", "$v.X"), num("y", "Y", "$v.Y"), num("z", "Z", "$v.Z"),
-					component("r00", "R00", 4, 1), component("r01", "R01", 5),
-					component("r02", "R02", 6), component("r10", "R10", 7),
-					component("r11", "R11", 8, 1), component("r12", "R12", 9),
-					component("r20", "R20", 10), component("r21", "R21", 11),
+					num("x", "X", "$v.X"),
+					num("y", "Y", "$v.Y"),
+					num("z", "Z", "$v.Z"),
+					component("r00", "R00", 4, 1),
+					component("r01", "R01", 5),
+					component("r02", "R02", 6),
+					component("r10", "R10", 7),
+					component("r11", "R11", 8, 1),
+					component("r12", "R12", 9),
+					component("r20", "R20", 10),
+					component("r21", "R21", 11),
 					component("r22", "R22", 12, 1),
 				],
-				make:
-					"CFrame.new($x, $y, $z, $r00, $r01, $r02, $r10, $r11, $r12, $r20, $r21, $r22)",
+				make: "CFrame.new($x, $y, $z, $r00, $r01, $r02, $r10, $r11, $r12, $r20, $r21, $r22)",
 			},
 		},
 	},
@@ -204,12 +231,18 @@ const BUILTIN_STRUCTS: StructType[] = [
 				name: "Key, Value",
 				parts: [
 					{
-						id: "key", name: "Key", type: "string",
-						get: UNREACHABLE, default: { t: "string", v: "" },
+						id: "key",
+						name: "Key",
+						type: "string",
+						get: UNREACHABLE,
+						default: { t: "string", v: "" },
 					},
 					{
-						id: "value", name: "Value", type: "any",
-						get: UNREACHABLE, default: { t: "nil" },
+						id: "value",
+						name: "Value",
+						type: "any",
+						get: UNREACHABLE,
+						default: { t: "nil" },
 					},
 				],
 				make: UNREACHABLE,
@@ -241,7 +274,9 @@ function defaultMode(struct: StructType): string {
 }
 
 export function modeOf(
-	structs: StructRegistry, type: DataType | undefined, mode: string | undefined,
+	structs: StructRegistry,
+	type: DataType | undefined,
+	mode: string | undefined,
 ): StructMode | undefined {
 	if (!type) return undefined;
 	const struct = structs.get(type);

@@ -2,9 +2,9 @@
  * The `modules` page of the documentation. `buildSite` places it.
  */
 
-import { code } from "./blocks.js";
 import type { DocPage } from "../site.js";
 import { MODULES_PANEL } from "../toolbars.js";
+import { code } from "./blocks.js";
 
 /**
  * Requiring, in both runtimes.
@@ -47,7 +47,10 @@ export function modulesPage(): DocPage {
 				t: "table",
 				head: ["Field", "What it is"],
 				rows: [
-					["**Name**", "The local it binds to, and what the pill shows. Yours to choose — see below"],
+					[
+						"**Name**",
+						"The local it binds to, and what the pill shows. Yours to choose — see below",
+					],
 					["**Module**", "What goes inside `require(...)`, verbatim"],
 					["**Members**", "Names pulled off it into locals of their own, comma separated"],
 				],
@@ -71,7 +74,7 @@ export function modulesPage(): DocPage {
 				text:
 					"A specifier must start with a prefix. That is not a house style: an unprefixed " +
 					"path is **an error in Luau itself**, since the require rules were amended — " +
-					"`require(\"Foo\")` used to resolve and now does not.",
+					'`require("Foo")` used to resolve and now does not.',
 			},
 			{
 				t: "table",

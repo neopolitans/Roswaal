@@ -26,7 +26,9 @@ export function signatureOf(config: NodeConfig | undefined): Signature {
 	const c = config ?? {};
 	const entries = (value: unknown) =>
 		(Array.isArray(value) ? value : [])
-			.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null)
+			.filter(
+				(entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null,
+			)
 			.map((entry) => ({
 				name: typeof entry.name === "string" ? entry.name : "",
 				...(typeof entry.type === "string" ? { type: entry.type } : {}),
@@ -41,7 +43,11 @@ export function signatureOf(config: NodeConfig | undefined): Signature {
 
 const exec = (id: string, name: string): PinDef => ({ id, name, kind: "exec" });
 const data = (id: string, name: string, type: string, def?: PinDef["default"]): PinDef => ({
-	id, name, kind: "data", type, default: def,
+	id,
+	name,
+	kind: "data",
+	type,
+	default: def,
 });
 
 /**
@@ -91,7 +97,7 @@ export function signatureText(sig: Signature): string {
 		returns.length === 0
 			? "()"
 			: returns.length === 1
-				? returns[0].type ?? "any"
+				? (returns[0].type ?? "any")
 				: `(${returns.map((r) => r.type ?? "any").join(", ")})`;
 	return `(${params}) → ${result}`;
 }
@@ -192,7 +198,8 @@ export function typeDeclarationOf(defId: string, config: NodeConfig | undefined)
 		lines: c.layout === "lines",
 		fields: fields.map((field: unknown) => {
 			// An object of no known shape: each key is checked as it is read.
-			const f = typeof field === "object" && field !== null ? (field as Record<string, unknown>) : {};
+			const f =
+				typeof field === "object" && field !== null ? (field as Record<string, unknown>) : {};
 			return { name: text(f.name), type: text(f.type) };
 		}),
 	};
@@ -275,11 +282,7 @@ export const FLOW_NODES: NodeDef[] = [
 			"where it is the entry node with Body and the parameters.",
 		role: "flow",
 		inputs: [exec("in", ""), data("owner", "On Table", "table", undefined)],
-		outputs: [
-			exec("then", ""),
-			exec("body", "Body"),
-			data("self", "Function", "function"),
-		],
+		outputs: [exec("then", ""), exec("body", "Body"), data("self", "Function", "function")],
 		compilesTo: { kind: "builtin", handler: "function.declareHere" },
 		derivePins(config: NodeConfig) {
 			const sig = signatureOf(config);
@@ -353,7 +356,7 @@ export const FLOW_NODES: NodeDef[] = [
 			"Declares a Luau type above everything else in the generated file. Export it and other " +
 			"modules can use it with `require`. The definition is written as Luau, the way Custom " +
 			"Code is, because a type is not built from values and there are no nodes to build one " +
-			"from — `{ speed: number }`, or `\"a\" | \"b\"`. For a type that has to come *after* " +
+			'from — `{ speed: number }`, or `"a" | "b"`. For a type that has to come *after* ' +
 			"something, use Declare Type.",
 		role: "terminal",
 		inputs: [],
@@ -375,9 +378,10 @@ export const FLOW_NODES: NodeDef[] = [
 		// the Inspector, and a pin nothing reads would be one to wire by mistake.
 		derivePins(config: NodeConfig) {
 			return {
-				inputs: typeShapeOf("type.declareHere", config) === "typeof"
-					? [exec("in", ""), data("value", "Value", "any")]
-					: [exec("in", "")],
+				inputs:
+					typeShapeOf("type.declareHere", config) === "typeof"
+						? [exec("in", ""), data("value", "Value", "any")]
+						: [exec("in", "")],
 				outputs: [exec("then", "")],
 			};
 		},
@@ -394,9 +398,7 @@ export const FLOW_NODES: NodeDef[] = [
 		outputs: [],
 		compilesTo: { kind: "builtin", handler: "module.exports" },
 		derivePins(config: NodeConfig) {
-			const exports = (config.exports as { name: string; type?: string }[]) ?? [
-				{ name: "value" },
-			];
+			const exports = (config.exports as { name: string; type?: string }[]) ?? [{ name: "value" }];
 			return {
 				inputs: exports.map((e, i) => {
 					const type = pinTypeOf(e.type);
@@ -426,7 +428,7 @@ export const FLOW_NODES: NodeDef[] = [
 		category: "Flow",
 		role: "flow",
 		summary:
-			'One thing after another: each output runs to completion before the next starts. Add or remove outputs with the + and - in the header.',
+			"One thing after another: each output runs to completion before the next starts. Add or remove outputs with the + and - in the header.",
 		inputs: [exec("in", "")],
 		outputs: [exec("s0", "Then 0"), exec("s1", "Then 1")],
 		compilesTo: { kind: "builtin", handler: "flow.sequence" },
@@ -450,7 +452,11 @@ export const FLOW_NODES: NodeDef[] = [
 			data("last", "Last", "number", { t: "number", v: 10 }),
 			data("step", "Step", "number", { t: "number", v: 1 }),
 		],
-		outputs: [exec("body", "Body"), exec("completed", "Completed"), data("index", "Index", "number")],
+		outputs: [
+			exec("body", "Body"),
+			exec("completed", "Completed"),
+			data("index", "Index", "number"),
+		],
 		compilesTo: { kind: "builtin", handler: "flow.forRange" },
 	},
 	{
@@ -598,7 +604,9 @@ export const FLOW_NODES: NodeDef[] = [
 					exec("then", ""),
 					exec("body", "Body"),
 					data("connection", "Connection", "RBXScriptConnection"),
-					...(sig.params ?? []).map((p, i) => data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type))),
+					...(sig.params ?? []).map((p, i) =>
+						data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type)),
+					),
 				],
 			};
 		},

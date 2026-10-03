@@ -8,7 +8,7 @@
  * button that says what it holds, and opens under it.
  */
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { cx } from "./cx.js";
 import { useDismiss } from "./dismiss.js";
@@ -43,7 +43,14 @@ export function usePhone(): boolean {
  * for. A tap anywhere else puts the panel away; choosing does not, because the
  * script's panel holds two settings and the second is usually why it was opened.
  */
-export function Popout({ label, title, end = false, up = false, closeOnPick = false, children }: {
+export function Popout({
+	label,
+	title,
+	end = false,
+	up = false,
+	closeOnPick = false,
+	children,
+}: {
 	/** What is chosen, or what the panel holds: words, or a glyph and words. */
 	label: ReactNode;
 	title: string;
@@ -102,9 +109,13 @@ export function Popout({ label, title, end = false, up = false, closeOnPick = fa
 					aria-label={title}
 					ref={panel}
 					style={up && fixedAt ? { position: "fixed", top: "auto", ...fixedAt } : undefined}
-					onClick={closeOnPick ? (e) => {
-						if ((e.target as Element).closest("button")) setOpen(false);
-					} : undefined}
+					onClick={
+						closeOnPick
+							? (e) => {
+									if ((e.target as Element).closest("button")) setOpen(false);
+								}
+							: undefined
+					}
 				>
 					{children}
 				</div>
@@ -112,4 +123,3 @@ export function Popout({ label, title, end = false, up = false, closeOnPick = fa
 		</div>
 	);
 }
-

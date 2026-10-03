@@ -2,9 +2,9 @@
  * A node's page in the reference, generated from its definition.
  */
 
+import { categoryLabel } from "../../categories.js";
 import { LUNE_ROBLOX_DATATYPES } from "../../luneApi.js";
 import { classify, type Runtime } from "../../nodes/runtimes.js";
-import { categoryLabel } from "../../categories.js";
 import { ENGINE_TYPES } from "../../schema.js";
 import { type NodeDoc, OMISSION_REASONS } from "../nodeReference.js";
 import type { Block, DocPage } from "../site.js";
@@ -41,11 +41,14 @@ export function nodePage(doc: NodeDoc): DocPage {
 	 * `@lune/roblox` implements it and you required it.
 	 */
 	const crossOver =
-		doc.category === ENGINE_TYPES && doc.subcategory !== undefined &&
+		doc.category === ENGINE_TYPES &&
+		doc.subcategory !== undefined &&
 		LUNE_ROBLOX_DATATYPES.includes(doc.subcategory);
-	traits.push(crossOver
-		? "Roblox's, and Lune's too — a Lune graph needs `@lune/roblox` required for it"
-		: RUNTIME_TRAIT[classify(doc)]);
+	traits.push(
+		crossOver
+			? "Roblox's, and Lune's too — a Lune graph needs `@lune/roblox` required for it"
+			: RUNTIME_TRAIT[classify(doc)],
+	);
 	if (doc.pure) traits.push("pure — no execution pins, wire it anywhere");
 	if (doc.latent) traits.push("latent — it yields, and is never inlined");
 	if (doc.role === "entry") traits.push("an entry point: nothing wires into it");
@@ -59,13 +62,13 @@ export function nodePage(doc: NodeDoc): DocPage {
 	// -- and the pairing with Declare Local is worth saying before they find
 	// two locals where they wanted one.
 	if (
-		(doc.compiles === "call" || doc.compiles === "expr")
-		&& doc.outputs.some((pin) => pin.kind === "data")
+		(doc.compiles === "call" || doc.compiles === "expr") &&
+		doc.outputs.some((pin) => pin.kind === "data")
 	) {
 		traits.push(
 			"names its result — **Result name** in the Inspector is the local it binds, and a " +
-			"Declare Local reading that result makes a second one: see " +
-			"[Variables and locals](variables-and-locals)",
+				"Declare Local reading that result makes a second one: see " +
+				"[Variables and locals](variables-and-locals)",
 		);
 	}
 

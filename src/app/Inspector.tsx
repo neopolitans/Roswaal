@@ -17,7 +17,11 @@ import { useEditBurst } from "./editBurst.js";
 import { renameNode, updateComment } from "./edits.js";
 import { Field, InspectorSections } from "./InspectorSections.jsx";
 import {
-	COMMENT_COLORS, COMMENT_DEFAULT_COLOR, commentColor, nodeColor, readHexColor,
+	COMMENT_COLORS,
+	COMMENT_DEFAULT_COLOR,
+	commentColor,
+	nodeColor,
+	readHexColor,
 } from "./palette.js";
 import { store } from "./store.js";
 
@@ -163,8 +167,8 @@ function CommentInspector({ comment, locked }: { comment: Comment; locked?: bool
 					Comment
 				</div>
 				<p className="summary">
-					A note on the canvas. Double-click its header to write in it; drag it to take
-					what it encloses with it.
+					A note on the canvas. Double-click its header to write in it; drag it to take what it
+					encloses with it.
 				</p>
 
 				<Field
@@ -180,9 +184,7 @@ function CommentInspector({ comment, locked }: { comment: Comment; locked?: bool
 								title={choice.name}
 								aria-label={choice.name}
 								aria-pressed={choice.hex === current}
-								onClick={() =>
-									set(choice.hex === COMMENT_DEFAULT_COLOR ? undefined : choice.hex)
-								}
+								onClick={() => set(choice.hex === COMMENT_DEFAULT_COLOR ? undefined : choice.hex)}
 							/>
 						))}
 					</div>
@@ -208,5 +210,3 @@ function CommentInspector({ comment, locked }: { comment: Comment; locked?: bool
 		</div>
 	);
 }
-
-

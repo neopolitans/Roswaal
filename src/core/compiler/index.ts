@@ -1,18 +1,18 @@
 /** Public compiler surface. */
 
-import type { Comment, NodeScript, ScriptClass, Target } from "../schema.js";
-import type { Registry } from "../nodes/index.js";
-import type { SpecifierContext } from "../modules.js";
-import { emit, hashString, type Diagnostic, type EmitResult } from "./emit.js";
-import { validate } from "./validate.js";
 import { retypeClassReads } from "../classReads.js";
 import { headersByNode } from "../comments.js";
 import { checkLuau } from "../luau/check.js";
+import type { SpecifierContext } from "../modules.js";
+import type { Registry } from "../nodes/index.js";
+import type { Comment, NodeScript, ScriptClass, Target } from "../schema.js";
+import { type Diagnostic, type EmitResult, emit, hashString } from "./emit.js";
+import { validate } from "./validate.js";
 
-export { validate } from "./validate.js";
-export { emit, hashString } from "./emit.js";
 export type { Diagnostic, EmitResult } from "./emit.js";
+export { emit, hashString } from "./emit.js";
 export { GraphIndex } from "./graph.js";
+export { validate } from "./validate.js";
 
 export interface CompileResult {
 	code: string;
@@ -52,7 +52,9 @@ export interface CompileOptions {
 }
 
 export function compile(
-	source: NodeScript, registry: Registry, options: CompileOptions = {},
+	source: NodeScript,
+	registry: Registry,
+	options: CompileOptions = {},
 ): CompileResult {
 	// Hashed as saved; compiled with every wired Class Name followed, so a file
 	// edited by hand cannot carry a stale class into the build.
@@ -97,13 +99,15 @@ function unparsedOutput(emitted: EmitResult): Diagnostic[] {
 	const problem = checkLuau(emitted.code, "block", { wholeFile: true })[0];
 	if (problem === undefined) return [];
 	const node = emitted.sourceMap.find((entry) => entry.line === problem.line)?.node;
-	return [{
-		severity: "error",
-		message:
-			`The Luau written for this graph does not parse (line ${problem.line}: ${problem.message}). ` +
-			"This is a bug in Roswaal — please report it with the graph.",
-		...(node !== undefined ? { node } : {}),
-	}];
+	return [
+		{
+			severity: "error",
+			message:
+				`The Luau written for this graph does not parse (line ${problem.line}: ${problem.message}). ` +
+				"This is a bug in Roswaal — please report it with the graph.",
+			...(node !== undefined ? { node } : {}),
+		},
+	];
 }
 
 /**
@@ -143,9 +147,7 @@ export function outputFileName(script: NodeScript): string {
  * The `headers` field is added only when there is a header, so a graph with
  * none hashes exactly as it did before headers counted.
  */
-function semanticJson(
-	script: NodeScript, layout: { headers?: Map<string, Comment> } = {},
-): string {
+function semanticJson(script: NodeScript, layout: { headers?: Map<string, Comment> } = {}): string {
 	const nodes = [...script.nodes]
 		.sort((a, b) => a.id.localeCompare(b.id))
 		.map((n) => ({
@@ -167,14 +169,21 @@ function semanticJson(
 		target: script.target,
 		typecheck: script.typecheck,
 		variables: (script.variables ?? []).map((v) => ({
-			id: v.id, name: v.name, type: v.type, default: v.default,
-			description: v.description ?? null, ...(v.const === true ? { const: true } : {}),
+			id: v.id,
+			name: v.name,
+			type: v.type,
+			default: v.default,
+			description: v.description ?? null,
+			...(v.const === true ? { const: true } : {}),
 		})),
 		// Modules change the generated file, so they have to change the hash
 		// that decides whether it needs rewriting.
 		modules: (script.modules ?? []).map((m) => ({
-			id: m.id, name: m.name, specifier: m.specifier,
-			members: m.members ?? null, description: m.description ?? null,
+			id: m.id,
+			name: m.name,
+			specifier: m.specifier,
+			members: m.members ?? null,
+			description: m.description ?? null,
 		})),
 		nodes,
 		links,
@@ -183,9 +192,9 @@ function semanticJson(
 }
 
 /** Each written header's text and the nodes it heads, ordered by comment id. */
-function headerProjection(
-	headers: Map<string, Comment> | undefined,
-): { headers?: { text: string; nodes: string[] }[] } {
+function headerProjection(headers: Map<string, Comment> | undefined): {
+	headers?: { text: string; nodes: string[] }[];
+} {
 	if (headers === undefined || headers.size === 0) return {};
 	const byComment = new Map<string, { text: string; nodes: string[] }>();
 	for (const [nodeId, comment] of headers) {
@@ -225,14 +234,14 @@ export function serialiseScript(script: NodeScript): string {
 		// come out in, which a reader of the generated file sees.
 		...((script.modules ?? []).length > 0
 			? {
-				modules: (script.modules ?? []).map((m) => ({
-					id: m.id,
-					name: m.name,
-					specifier: m.specifier,
-					...(m.members && m.members.length > 0 ? { members: m.members } : {}),
-					...(m.description ? { description: m.description } : {}),
-				})),
-			}
+					modules: (script.modules ?? []).map((m) => ({
+						id: m.id,
+						name: m.name,
+						specifier: m.specifier,
+						...(m.members && m.members.length > 0 ? { members: m.members } : {}),
+						...(m.description ? { description: m.description } : {}),
+					})),
+				}
 			: {}),
 		nodes: [...script.nodes]
 			.sort((a, b) => a.id.localeCompare(b.id))
@@ -245,7 +254,9 @@ export function serialiseScript(script: NodeScript): string {
 				...(n.inner ? { inner: { x: round(n.inner.x), y: round(n.inner.y) } } : {}),
 				...(n.label ? { label: n.label } : {}),
 				...(n.literals && Object.keys(n.literals).length ? { literals: sortKeys(n.literals) } : {}),
-				...(n.config && Object.keys(n.config).length ? { config: sortKeys(n.config as Record<string, unknown>) } : {}),
+				...(n.config && Object.keys(n.config).length
+					? { config: sortKeys(n.config as Record<string, unknown>) }
+					: {}),
 			})),
 		links: [...script.links]
 			.sort((a, b) => a.id.localeCompare(b.id))
@@ -253,8 +264,13 @@ export function serialiseScript(script: NodeScript): string {
 		comments: [...script.comments]
 			.sort((a, b) => a.id.localeCompare(b.id))
 			.map((c) => ({
-				id: c.id, x: round(c.x), y: round(c.y), w: round(c.w), h: round(c.h),
-				text: c.text, ...(c.color ? { color: c.color } : {}),
+				id: c.id,
+				x: round(c.x),
+				y: round(c.y),
+				w: round(c.w),
+				h: round(c.h),
+				text: c.text,
+				...(c.color ? { color: c.color } : {}),
 				...(c.graph ? { graph: c.graph } : {}),
 			})),
 	};
@@ -271,4 +287,4 @@ function sortKeys<T extends Record<string, unknown>>(obj: T): T {
 	return out as T;
 }
 
-export type { NodeScript, Target, ScriptClass };
+export type { NodeScript, ScriptClass, Target };

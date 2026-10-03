@@ -93,7 +93,11 @@ function parseBlock(lines: Line[], at: number, indent: number): [Yaml, number] {
 	if (lines[at].text.trim().startsWith("- ")) {
 		const out: Yaml[] = [];
 		let i = at;
-		while (i < lines.length && lines[i].indent === indent && lines[i].text.trim().startsWith("- ")) {
+		while (
+			i < lines.length &&
+			lines[i].indent === indent &&
+			lines[i].text.trim().startsWith("- ")
+		) {
 			const rest = lines[i].text.trim().slice(2);
 			// `- name: x` is a mapping whose first key shares the dash's line, so
 			// it is re-read as though it had started two columns in.
@@ -180,7 +184,9 @@ export async function fetchReference(
 
 /** The first sentence, which is what a menu and a tooltip have room for. */
 export function firstSentence(summary: Yaml | undefined): string {
-	const text = String(summary ?? "").replace(/\s+/g, " ").trim();
+	const text = String(summary ?? "")
+		.replace(/\s+/g, " ")
+		.trim();
 	if (text === "") return "";
 	// `Class.RunService:IsServer()|IsServer()` is a docs cross-reference; the
 	// half after the pipe is what the Creator Hub renders it as.

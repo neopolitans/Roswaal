@@ -33,7 +33,9 @@ let styluaCommand: string | null | undefined;
  * stylua cannot parse turn formatting off for every file after it.
  */
 export function formatLuau(
-	cwd: string, code: string, config?: Pick<RoswaalConfig, "indentStyle" | "indentWidth">,
+	cwd: string,
+	code: string,
+	config?: Pick<RoswaalConfig, "indentStyle" | "indentWidth">,
 ): string {
 	if (styluaCommand === null) return code;
 
@@ -45,10 +47,14 @@ export function formatLuau(
 	// who care what their generated files look like.
 	const spaces = config?.indentStyle === "space";
 	const indent = config
-		? ["--indent-type", spaces ? "Spaces" : "Tabs",
-			// A tab has no width, but stylua still counts one against its column
-			// limit, so the number is told either way.
-			"--indent-width", String(spaces ? indentUnit(config).length : config.indentWidth || 4)]
+		? [
+				"--indent-type",
+				spaces ? "Spaces" : "Tabs",
+				// A tab has no width, but stylua still counts one against its column
+				// limit, so the number is told either way.
+				"--indent-width",
+				String(spaces ? indentUnit(config).length : config.indentWidth || 4),
+			]
 		: [];
 
 	// Each candidate is tried without a shell. Going through one would resolve
@@ -56,7 +62,9 @@ export function formatLuau(
 	// rather than passed, which Node now warns about — and we do not need it.
 	const candidates = styluaCommand
 		? [styluaCommand]
-		: process.platform === "win32" ? ["stylua.exe", "stylua.cmd", "stylua.bat"] : ["stylua"];
+		: process.platform === "win32"
+			? ["stylua.exe", "stylua.cmd", "stylua.bat"]
+			: ["stylua"];
 
 	for (const command of candidates) {
 		const run = spawnSync(command, [...indent, "-"], { cwd, input: code, encoding: "utf8" });

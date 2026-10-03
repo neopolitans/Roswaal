@@ -25,7 +25,10 @@ import { describe, expect, it } from "vitest";
 import { PLAYGROUND_ROOT, playgroundFiles } from "../src/web/seed.js";
 
 const DEMO = nodePath.resolve(
-	nodePath.dirname(fileURLToPath(import.meta.url)), "..", "examples", "demo",
+	nodePath.dirname(fileURLToPath(import.meta.url)),
+	"..",
+	"examples",
+	"demo",
 );
 
 async function filesOnDisk(dir: string): Promise<string[]> {
@@ -67,8 +70,10 @@ describe("the project the playground starts on", () => {
 
 	it("keeps the contents, not just the names", () => {
 		const seeded = playgroundFiles();
-		const config = JSON.parse(seeded[`${PLAYGROUND_ROOT}/roswaal.json`]) as
-			{ sourceDir: string; outDir: string };
+		const config = JSON.parse(seeded[`${PLAYGROUND_ROOT}/roswaal.json`]) as {
+			sourceDir: string;
+			outDir: string;
+		};
 
 		expect(config.sourceDir).toBe(".roswaal/scripts");
 		expect(config.outDir).toBe("src");

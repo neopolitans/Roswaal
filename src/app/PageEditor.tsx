@@ -25,17 +25,16 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-
-import type { Block, DocPage } from "../core/docs/site.js";
-import { previewOf, previewSvg, type PreviewOptions } from "../core/docs/preview.js";
-import { FEEDBACK_REPOSITORY } from "../core/docs/links.js";
-import { toolbarConstant } from "../core/docs/toolbars.js";
+import { VERSION } from "../cli/version.js";
 import { layoutConstant } from "../core/docs/layouts.js";
-import type { NodeScript } from "../core/schema.js";
+import { FEEDBACK_REPOSITORY } from "../core/docs/links.js";
+import { type PreviewOptions, previewOf, previewSvg } from "../core/docs/preview.js";
+import type { Block, DocPage } from "../core/docs/site.js";
+import { toolbarConstant } from "../core/docs/toolbars.js";
 import type { Registry } from "../core/nodes/index.js";
+import type { NodeScript } from "../core/schema.js";
 import { api } from "./api.js";
 import { Icon } from "./icons.jsx";
-import { VERSION } from "../cli/version.js";
 
 /** Written as a code unit so no escape has to survive a build step. */
 const NEWLINE = String.fromCharCode(10);
@@ -74,13 +73,20 @@ const ADDABLE = [
 
 function blank(kind: (typeof ADDABLE)[number]["kind"]): Draft {
 	switch (kind) {
-		case "p": return { block: { t: "p", text: "" } };
-		case "h": return { block: { t: "h", level: 2, text: "" } };
-		case "ul": return { block: { t: "ul", items: [""] } };
-		case "code": return { block: { t: "code", lang: "luau", text: "" } };
-		case "note": return { block: { t: "note", kind: "info", text: "" } };
-		case "preview": return { block: { t: "preview", nodes: [] }, ids: [] };
-		case "graph": return { block: { t: "p", text: "" }, path: "" };
+		case "p":
+			return { block: { t: "p", text: "" } };
+		case "h":
+			return { block: { t: "h", level: 2, text: "" } };
+		case "ul":
+			return { block: { t: "ul", items: [""] } };
+		case "code":
+			return { block: { t: "code", lang: "luau", text: "" } };
+		case "note":
+			return { block: { t: "note", kind: "info", text: "" } };
+		case "preview":
+			return { block: { t: "preview", nodes: [] }, ids: [] };
+		case "graph":
+			return { block: { t: "p", text: "" }, path: "" };
 	}
 }
 
@@ -150,9 +156,11 @@ function blockSource(draft: Draft, indent = "\t\t"): string {
 	if (block.t === "walkthrough") {
 		const inner = `${indent}\t\t`;
 		const steps = block.steps
-			.map((step) =>
-				`${inner}{ text: ${str(step.text)}, picture: [${step.picture.map(toolbarConstant).join(", ")}]` +
-				`${step.point ? `, point: ${str(step.point)}` : ""} },`)
+			.map(
+				(step) =>
+					`${inner}{ text: ${str(step.text)}, picture: [${step.picture.map(toolbarConstant).join(", ")}]` +
+					`${step.point ? `, point: ${str(step.point)}` : ""} },`,
+			)
 			.join(NEWLINE);
 		return `${indent}{${NEWLINE}${indent}\tt: "walkthrough",${NEWLINE}${indent}\tsteps: [${NEWLINE}${steps}${NEWLINE}${indent}\t],${NEWLINE}${indent}},`;
 	}
@@ -169,14 +177,15 @@ function blockSource(draft: Draft, indent = "\t\t"): string {
 	if (block.t === "tabs") {
 		const inner = `${indent}\t\t`;
 		const tabs = block.tabs
-			.map((tab) =>
-				`${inner}{${NEWLINE}` +
-				`${inner}\tid: ${str(tab.id)},${NEWLINE}` +
-				`${inner}\ttitle: ${str(tab.title)},${NEWLINE}` +
-				(tab.device ? `${inner}\tdevice: [${tab.device.map(str).join(", ")}],${NEWLINE}` : "") +
-				`${inner}\tblocks: [${NEWLINE}` +
-				tab.blocks.map((b) => blockSource({ block: b }, `${inner}\t\t`)).join(NEWLINE) +
-				`${NEWLINE}${inner}\t],${NEWLINE}${inner}},`,
+			.map(
+				(tab) =>
+					`${inner}{${NEWLINE}` +
+					`${inner}\tid: ${str(tab.id)},${NEWLINE}` +
+					`${inner}\ttitle: ${str(tab.title)},${NEWLINE}` +
+					(tab.device ? `${inner}\tdevice: [${tab.device.map(str).join(", ")}],${NEWLINE}` : "") +
+					`${inner}\tblocks: [${NEWLINE}` +
+					tab.blocks.map((b) => blockSource({ block: b }, `${inner}\t\t`)).join(NEWLINE) +
+					`${NEWLINE}${inner}\t],${NEWLINE}${inner}},`,
 			)
 			.join(NEWLINE);
 		const label = block.label ? `${indent}\tlabel: ${str(block.label)},${NEWLINE}` : "";
@@ -266,7 +275,9 @@ export function PageEditor({ page, registry, preview, render, onClose }: PageEdi
 		"```ts",
 		source,
 		"```",
-	].join(NEWLINE).slice(0, PROPOSAL_LIMIT);
+	]
+		.join(NEWLINE)
+		.slice(0, PROPOSAL_LIMIT);
 
 	const href =
 		`${REPOSITORY}/issues/new?title=${encodeURIComponent(`Docs: ${page.title}`)}` +
@@ -285,15 +296,18 @@ export function PageEditor({ page, registry, preview, render, onClose }: PageEdi
 				<Icon name="rename" size={15} />
 				<strong>Editing this page</strong>
 				<span className="hint">
-					Click a block to change it. Nothing is saved here — Propose sends the blocks as an
-					issue.
+					Click a block to change it. Nothing is saved here — Propose sends the blocks as an issue.
 				</span>
 				<span style={{ flex: 1 }} />
-				<button className="tb" onClick={copy}>Copy TypeScript</button>
+				<button className="tb" onClick={copy}>
+					Copy TypeScript
+				</button>
 				<a className="tb primary" href={href} target="_blank" rel="noreferrer noopener">
 					Propose the change
 				</a>
-				<button className="tb" onClick={onClose}>Done</button>
+				<button className="tb" onClick={onClose}>
+					Done
+				</button>
 			</div>
 
 			{said && <p className="page-editor-said">{said}</p>}
@@ -301,11 +315,19 @@ export function PageEditor({ page, registry, preview, render, onClose }: PageEdi
 			{drafts.map((draft, i) => (
 				<div className="page-block" key={i}>
 					<div className="page-block-tools">
-						<button className="tb" title="Edit this block" onClick={() => setEditing(editing === i ? null : i)}>
+						<button
+							className="tb"
+							title="Edit this block"
+							onClick={() => setEditing(editing === i ? null : i)}
+						>
 							<Icon name="rename" size={13} />
 						</button>
-						<button className="tb" title="Move up" onClick={() => move(i, -1)}>↑</button>
-						<button className="tb" title="Move down" onClick={() => move(i, 1)}>↓</button>
+						<button className="tb" title="Move up" onClick={() => move(i, -1)}>
+							↑
+						</button>
+						<button className="tb" title="Move down" onClick={() => move(i, 1)}>
+							↓
+						</button>
 						<button
 							className="tb"
 							title="Remove"
@@ -313,7 +335,11 @@ export function PageEditor({ page, registry, preview, render, onClose }: PageEdi
 						>
 							×
 						</button>
-						<button className="tb" title="Add a block here" onClick={() => setAdding(adding === i ? null : i)}>
+						<button
+							className="tb"
+							title="Add a block here"
+							onClick={() => setAdding(adding === i ? null : i)}
+						>
 							+
 						</button>
 					</div>
@@ -353,8 +379,8 @@ export function PageEditor({ page, registry, preview, render, onClose }: PageEdi
 
 			<h3>The blocks, as source</h3>
 			<p className="hint">
-				Paste this into the page's module in <code>src/core/docs/pages/</code>. Propose sends it
-				as an issue; for a long page, copy it instead — a URL will not carry it all.
+				Paste this into the page's module in <code>src/core/docs/pages/</code>. Propose sends it as
+				an issue; for a long page, copy it instead — a URL will not carry it all.
 			</p>
 			<pre className="page-editor-source">{source}</pre>
 		</div>
@@ -366,7 +392,10 @@ export function PageEditor({ page, registry, preview, render, onClose }: PageEdi
 // ---------------------------------------------------------------------------
 
 function BlockEditor({
-	draft, registry, preview, onChange,
+	draft,
+	registry,
+	preview,
+	onChange,
 }: {
 	draft: Draft;
 	registry: Registry;
@@ -484,8 +513,8 @@ function BlockEditor({
 	// through a worse control than the one that made them.
 	return (
 		<p className="hint">
-			A {block.t} block is handed back unchanged. Edit it in the page's module in <code>src/core/docs/pages/</code>, or remove it
-			here and describe what it should say.
+			A {block.t} block is handed back unchanged. Edit it in the page's module in{" "}
+			<code>src/core/docs/pages/</code>, or remove it here and describe what it should say.
 		</p>
 	);
 }
@@ -497,7 +526,10 @@ function BlockEditor({
  * contributor sees while choosing is what the page will show.
  */
 function NodePicker({
-	draft, registry, preview, onChange,
+	draft,
+	registry,
+	preview,
+	onChange,
 }: {
 	draft: Draft;
 	registry: Registry;
@@ -599,7 +631,7 @@ function GraphPicker({ draft, onChange }: { draft: Draft; onChange: (draft: Draf
 	const [graphs, setGraphs] = useState<string[]>([]);
 	const [failed, setFailed] = useState(false);
 	const block = draft.block;
-	const caption = block.t === "graph" ? block.caption ?? "" : "";
+	const caption = block.t === "graph" ? (block.caption ?? "") : "";
 
 	useEffect(() => {
 		void api.tree().then(
@@ -630,8 +662,8 @@ function GraphPicker({ draft, onChange }: { draft: Draft; onChange: (draft: Draf
 	if (failed) {
 		return (
 			<p className="hint">
-				No daemon answered, so the project's graphs cannot be listed. A graph picture has to
-				come from a graph — open a project in the editor and reload this window.
+				No daemon answered, so the project's graphs cannot be listed. A graph picture has to come
+				from a graph — open a project in the editor and reload this window.
 			</p>
 		);
 	}
@@ -642,7 +674,9 @@ function GraphPicker({ draft, onChange }: { draft: Draft; onChange: (draft: Draf
 				<select className="tb" value={draft.path ?? ""} onChange={(e) => choose(e.target.value)}>
 					<option value="">Choose a graph…</option>
 					{graphs.map((path) => (
-						<option key={path} value={path}>{path}</option>
+						<option key={path} value={path}>
+							{path}
+						</option>
 					))}
 				</select>
 				<input
@@ -650,7 +684,8 @@ function GraphPicker({ draft, onChange }: { draft: Draft; onChange: (draft: Draf
 					placeholder="Caption, if it needs one"
 					value={caption}
 					onChange={(e) =>
-						block.t === "graph" && onChange({ ...draft, block: { ...block, caption: e.target.value } })
+						block.t === "graph" &&
+						onChange({ ...draft, block: { ...block, caption: e.target.value } })
 					}
 				/>
 			</div>

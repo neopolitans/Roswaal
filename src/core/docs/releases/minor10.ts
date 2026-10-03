@@ -49,7 +49,7 @@ export const RELEASES_0_10: Release[] = [
 		headline: "Declare Luau types, and make a variable without leaving the node.",
 		added: [
 			"**Define Type.** Writes `export type Name = …` at the top of the generated file, above the variables. Untick Export and it stays inside the module. The definition is written as Luau — a type is not built out of values, so `{ speed: number }` describes something no wire can carry.",
-			"**Type Of**, Roblox's `typeof`. A `Vector3` answers `\"Vector3\"` where Lua's `type` only says `\"userdata\"`. For `typeof(x)` *inside* a type, write it in a Define Type definition — that one is a type expression, not a call.",
+			'**Type Of**, Roblox\'s `typeof`. A `Vector3` answers `"Vector3"` where Lua\'s `type` only says `"userdata"`. For `typeof(x)` *inside* a type, write it in a Define Type definition — that one is a type expression, not a call.',
 			"**New…** beside the variable picker on Get, Set and Initialize Variable. Initialize Variable could not be used at all until you had been to the Variables panel and made one first.",
 		],
 		fixed: [
@@ -68,7 +68,7 @@ export const RELEASES_0_10: Release[] = [
 			"**Declare Local has a Name.** An optional input on the node face; leave it blank and one is chosen. The Inspector's Label did this already and was findable only by guessing that a cosmetic field was load-bearing.",
 		],
 		changed: [
-			"**Make Dictionary goes up to 24 pairs**, from 8. A settings table of ten entries is ordinary, and there is no way to say \"a table with ten keys\" by adding more nodes.",
+			'**Make Dictionary goes up to 24 pairs**, from 8. A settings table of ten entries is ordinary, and there is no way to say "a table with ten keys" by adding more nodes.',
 		],
 		watch: [
 			"Initialize Variable has to sit in the main flow. Inside a branch, a loop or a function the declaration would go out of scope and every later mention would read as an empty global, so it is refused with an error naming Set Variable as the alternative. Reading the variable before the node that declares it is refused for the same reason.",
@@ -78,7 +78,8 @@ export const RELEASES_0_10: Release[] = [
 	{
 		version: "0.19.0",
 		date: "2026-09-08",
-		headline: "A moved graph takes its generated file with it, and the tree says which half is which.",
+		headline:
+			"A moved graph takes its generated file with it, and the tree says which half is which.",
 		fixed: [
 			"**Renaming, moving or reclassing a graph left its old generated file behind** and wrote a new one beside it. Rojo went on syncing both, so the game ended up with two copies of the module and nothing maintaining one of them. The file a graph used to write is now removed when it writes a different one, and the compile report names what went.",
 			"The count of stale generated files was only refreshed by a compile, so renaming or deleting a graph left it describing whatever the last compile saw. It updates whenever the tree does.",
@@ -148,9 +149,7 @@ export const RELEASES_0_10: Release[] = [
 		version: "0.18.1",
 		date: "2026-09-08",
 		headline: "Three typechecking modes, and a second way to cut a wire.",
-		added: [
-			"**Shift-click a wire to disconnect it.** Alt-click already did, and still does.",
-		],
+		added: ["**Shift-click a wire to disconnect it.** Alt-click already did, and still does."],
 		changed: [
 			"**The** `strict` **checkbox is now a typechecking mode**, with three settings. *Default* writes no mode line at all, leaving the generated file to whatever the project says. *Nonstrict Mode* writes `--!nonstrict`, and *Strict Mode* writes `--!strict`.",
 			"**Both checked modes annotate the types** of generated locals and function parameters. *Default* leaves them off, which is what an unticked `strict` did.",
@@ -185,7 +184,7 @@ export const RELEASES_0_10: Release[] = [
 		date: "2026-09-08",
 		headline: "Worth-knowing notes are a list.",
 		changed: [
-			"**\"Worth knowing before you upgrade\" is bulleted**, one point per bullet. It was one run-on paragraph, so telling its separate claims apart meant reading the whole thing.",
+			'**"Worth knowing before you upgrade" is bulleted**, one point per bullet. It was one run-on paragraph, so telling its separate claims apart meant reading the whole thing.',
 			"A few entries that carried two claims have been split into two.",
 		],
 	},
@@ -312,14 +311,14 @@ export const RELEASES_0_10: Release[] = [
 			"**The graph is read-only while it is being compiled**, framed and labelled so it is obvious why. An edit made during the walk landed in the written file or did not, depending on where the walk had got to when you made it — and the file then disagreed with the graph, with nothing to say so.",
 		],
 		changed: [
-			"**The node category called \"Roblox\" is now called \"Engine\".** It holds Get Service, New Instance, Find First Child, Destroy and the rest — engine and DataModel work — and *Engine* says what they do, where the old name said only which platform they were for. The nodes and their ids are unchanged, so nothing in your graphs moves; only the drawer they sit in is labelled differently.",
+			'**The node category called "Roblox" is now called "Engine".** It holds Get Service, New Instance, Find First Child, Destroy and the rest — engine and DataModel work — and *Engine* says what they do, where the old name said only which platform they were for. The nodes and their ids are unchanged, so nothing in your graphs moves; only the drawer they sit in is labelled differently.',
 			"The toolbar, the opening screen and the docs window carry **the Roswaal mark** — a file, a wire leaving it, and an empty pin. It takes the colour of the text beside it, so it works in both themes, and it is the tab's icon as well; the browser tab was still showing a default.",
 		],
 		fixed: [
 			"**Renaming a graph renames the file it compiles to.** A graph carries its own name, and that name — not the file's — is what the compiler writes out. Renaming `Greeter.nodescript` to `Hello.nodescript` used to leave the graph still called Greeter, so it went on producing `Greeter.luau` with nothing anywhere saying so. Renaming now keeps the two in step, and creating and renaming run the name through the same function so they cannot drift apart again.",
-			"**Two graphs with the same name no longer overwrite each other silently.** They compile to one file, and the second used to win and report *wrote* for both — a project of 1202 graphs cheerfully said \"1202 of 1202 written\" when 1200 of them were the same file. The second is now refused, naming the graph that got there first and telling you to rename one.",
+			'**Two graphs with the same name no longer overwrite each other silently.** They compile to one file, and the second used to win and report *wrote* for both — a project of 1202 graphs cheerfully said "1202 of 1202 written" when 1200 of them were the same file. The second is now refused, naming the graph that got there first and telling you to rename one.',
 			"**Generated files stop being reported as hand-edited on Windows.** The hash in a generated file's header is what tells Roswaal you have edited it. Roswaal writes LF; Git on Windows checks the same file out as CRLF, so after a clone the hash no longer described the bytes on disk and every generated file was refused as edited by hand — files nobody had touched. A line ending applied by version control is not somebody changing the code, and the hash now says so.",
-			"A compile that skipped a script **miscounted the summary**, subtracting it from the number of *node maps* written: a run that wrote two files could report \"0 of 5 written\". Rare before, because skipping was rare.",
+			'A compile that skipped a script **miscounted the summary**, subtracting it from the number of *node maps* written: a run that wrote two files could report "0 of 5 written". Rare before, because skipping was rare.',
 			"**The daemon no longer answers other websites.** It listens on 127.0.0.1, which keeps the network out — but not the browser already running beside it, and it used to tell every origin that asked that it was welcome to read the reply. Any page you had open could therefore point Roswaal at a directory and read files out of it. It now refuses a request whose `Origin` is not local, and one whose `Host` is not local either, which is the same attack wearing a DNS answer instead. Nothing you do changes: the editor is served by the daemon itself, and `roswaal` on the command line was never a browser.",
 			"**The canvas no longer slows down when a large folder is open in the tree.** Panning, zooming and dragging a node all re-rendered the whole project tree, once per frame, for no reason — nothing in the tree depends on the graph you are editing or on where the canvas is looking. With 1200 graphs showing, a frame took 20ms instead of 4ms and dragging visibly stuttered. It is now the same speed with the folder open as with it closed.",
 			"**A tab is told again when the daemon changes project.** The mechanism has been broken since it was introduced in 0.12.0: the list of listening editors was read by the sender and written by nobody, so every daemon-wide message went out to an empty room. Nothing failed and nothing was logged, which is why it survived a release. Compile progress travels the same channel and would have been just as silent.",

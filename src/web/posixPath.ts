@@ -71,8 +71,12 @@ export function resolve(...parts: string[]): string {
 }
 
 export function relative(from: string, to: string): string {
-	const a = resolve(from).split("/").filter((part) => part !== "");
-	const b = resolve(to).split("/").filter((part) => part !== "");
+	const a = resolve(from)
+		.split("/")
+		.filter((part) => part !== "");
+	const b = resolve(to)
+		.split("/")
+		.filter((part) => part !== "");
 
 	let shared = 0;
 	while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared++;

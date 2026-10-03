@@ -10,8 +10,23 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	addPin, defOf, draftOf, movePin, newDraft, pillShape, pinIdFor, problemsOf, purityOf,
-	removePin, renamePin, retypePin, setPinDefault, setResult, shapeOfDraft, targetsOf, targetsText,
+	addPin,
+	defOf,
+	draftOf,
+	movePin,
+	newDraft,
+	pillShape,
+	pinIdFor,
+	problemsOf,
+	purityOf,
+	removePin,
+	renamePin,
+	retypePin,
+	setPinDefault,
+	setResult,
+	shapeOfDraft,
+	targetsOf,
+	targetsText,
 } from "../src/app/designer/draft.js";
 import { compileLogic, defaultLogic } from "../src/core/compiler/logic.js";
 import { createRegistry, parseNodePack } from "../src/core/nodes/index.js";
@@ -49,7 +64,11 @@ describe("pure, by its pins", () => {
 	});
 
 	it("allows a step that ends the flow: an input and no output", () => {
-		const draft = removePin({ ...newDraft("combat", []), title: "Stop", template: "stop()" }, "out", 0);
+		const draft = removePin(
+			{ ...newDraft("combat", []), title: "Stop", template: "stop()" },
+			"out",
+			0,
+		);
 		expect(purityOf(draft)).toBe("impure");
 		expect(problemsOf(draft)).toEqual([]);
 	});
@@ -114,7 +133,10 @@ describe("pins", () => {
 	});
 
 	it("drop a default that no longer fits the type", () => {
-		let draft = setPinDefault(addPin(newDraft("combat", []), "in", "number", "N"), 1, { t: "number", v: 3 });
+		let draft = setPinDefault(addPin(newDraft("combat", []), "in", "number", "N"), 1, {
+			t: "number",
+			v: 3,
+		});
 		expect(retypePin(draft, "in", 1, "any").inputs[1].default).toEqual({ t: "number", v: 3 });
 		draft = retypePin(draft, "in", 1, "string");
 		expect(draft.inputs[1].default).toBeUndefined();
@@ -122,7 +144,9 @@ describe("pins", () => {
 
 	it("say when a template reads a pin that is not there", () => {
 		const draft = { ...newDraft("combat", []), title: "T", template: "go($in.missing)" };
-		expect(problemsOf(draft)).toContain("It reads $in.missing, and there is no input called missing.");
+		expect(problemsOf(draft)).toContain(
+			"It reads $in.missing, and there is no input called missing.",
+		);
 	});
 });
 
@@ -137,7 +161,11 @@ describe("the pill", () => {
 
 	it("is written as compact, and the loader takes it", () => {
 		let draft = removePin(removePin(newDraft("combat", []), "in", 0), "out", 0);
-		draft = { ...addPin(draft, "out", "number", "Health"), title: "Health", display: "compact" as const };
+		draft = {
+			...addPin(draft, "out", "number", "Health"),
+			title: "Health",
+			display: "compact" as const,
+		};
 		draft = { ...draft, expressions: { health: "humanoid.Health" } };
 		expect(problemsOf(draft)).toEqual([]);
 		const parsed = parseNodePack({ nodes: [defOf(draft)] }, "pack");
@@ -148,8 +176,13 @@ describe("the pill", () => {
 describe("the loader's new rules", () => {
 	// Pins as a pack file writes them, which is looser than `PinDef`.
 	const statement = (inputs: { id: string; kind: string }[], display?: string) => ({
-		id: "p.n", title: "N", inputs, outputs: [{ id: "v", kind: "data", type: "number" }],
-		compilesTo: display ? { kind: "expr", outputs: { v: "1" } } : { kind: "statement", template: "x()" },
+		id: "p.n",
+		title: "N",
+		inputs,
+		outputs: [{ id: "v", kind: "data", type: "number" }],
+		compilesTo: display
+			? { kind: "expr", outputs: { v: "1" } }
+			: { kind: "statement", template: "x()" },
 		...(display ? { display } : {}),
 	});
 
@@ -162,7 +195,10 @@ describe("the loader's new rules", () => {
 	});
 
 	it("refuses a pill that is not in the getter shape", () => {
-		const parsed = parseNodePack({ nodes: [statement([{ id: "a", kind: "data" }], "compact")] }, "pack");
+		const parsed = parseNodePack(
+			{ nodes: [statement([{ id: "a", kind: "data" }], "compact")] },
+			"pack",
+		);
 		expect(parsed.defs).toEqual([]);
 		expect(parsed.errors[0]).toMatch(/pill/);
 	});
@@ -185,7 +221,11 @@ describe("logic built from nodes", () => {
 		logic.links = [
 			{ id: "a", from: { node: "logic-inputs", pin: "then" }, to: { node: "print", pin: "in" } },
 			{ id: "b", from: { node: "print", pin: "then" }, to: { node: "logic-outputs", pin: "in" } },
-			{ id: "c", from: { node: "logic-inputs", pin: "message" }, to: { node: "print", pin: "value" } },
+			{
+				id: "c",
+				from: { node: "logic-inputs", pin: "message" },
+				to: { node: "print", pin: "value" },
+			},
 		];
 		return { ...draft, logicMode: "nodes" as const, logic };
 	}
@@ -238,13 +278,32 @@ describe("targets", () => {
 
 	/** A node whose logic reads Players through Get Service, which is Roblox-only. */
 	function usingGetService(declared?: ("roblox" | "lune")[]) {
-		let draft = removePin(removePin({ ...newDraft("combat", []), title: "Players" }, "in", 0), "out", 0);
+		let draft = removePin(
+			removePin({ ...newDraft("combat", []), title: "Players" }, "in", 0),
+			"out",
+			0,
+		);
 		draft = addPin(draft, "out", "Instance", "Players");
 		const shape = shapeOfDraft(draft);
 		const logic = defaultLogic(shape);
-		logic.nodes.push({ id: "svc", def: "roblox.getService", x: 300, y: 120, literals: { service: { t: "string", v: "Players" } } });
-		logic.links.push({ id: "l", from: { node: "svc", pin: "service" }, to: { node: "logic-outputs", pin: "players" } });
-		const full = { ...draft, logicMode: "nodes" as const, logic, ...(declared ? { targets: declared } : {}) };
+		logic.nodes.push({
+			id: "svc",
+			def: "roblox.getService",
+			x: 300,
+			y: 120,
+			literals: { service: { t: "string", v: "Players" } },
+		});
+		logic.links.push({
+			id: "l",
+			from: { node: "svc", pin: "service" },
+			to: { node: "logic-outputs", pin: "players" },
+		});
+		const full = {
+			...draft,
+			logicMode: "nodes" as const,
+			logic,
+			...(declared ? { targets: declared } : {}),
+		};
 		return { draft: full, compiled: compileLogic(logic, shape, registry) };
 	}
 
@@ -268,7 +327,12 @@ describe("targets", () => {
 	});
 
 	it("keeps a declared target its logic allows", () => {
-		const draft = { ...newDraft("combat", []), title: "T", template: "x()", targets: ["roblox" as const] };
+		const draft = {
+			...newDraft("combat", []),
+			title: "T",
+			template: "x()",
+			targets: ["roblox" as const],
+		};
 		expect(defOf(draft).targets).toEqual(["roblox"]);
 		expect(problemsOf(draft)).toEqual([]);
 	});
@@ -283,10 +347,19 @@ describe("targets", () => {
 describe("round trip", () => {
 	it("gives back the node it was made from", () => {
 		const def: NodeDef = {
-			id: "inventory.give", title: "Give Item", category: "Inventory", summary: "Adds an item.",
+			id: "inventory.give",
+			title: "Give Item",
+			category: "Inventory",
+			summary: "Adds an item.",
 			inputs: [
 				{ id: "in", name: "", kind: "exec" },
-				{ id: "item", name: "Item", kind: "data", type: "string", default: { t: "string", v: "Sword" } },
+				{
+					id: "item",
+					name: "Item",
+					kind: "data",
+					type: "string",
+					default: { t: "string", v: "Sword" },
+				},
 			],
 			outputs: [{ id: "then", name: "", kind: "exec" }],
 			compilesTo: { kind: "statement", template: "give($in.item)" },

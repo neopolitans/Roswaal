@@ -176,7 +176,7 @@ export function compilingForLunePage(): DocPage {
 			{
 				t: "ul",
 				items: [
-					"**A file beside a directory of the same name.** `require(\"./foo\")` cannot mean " +
+					'**A file beside a directory of the same name.** `require("./foo")` cannot mean ' +
 						"both `foo.luau` and `foo/init.luau`.",
 					"**Two files differing only by extension.** `foo.luau` and `foo.lua` both answer " +
 						"to `./foo`.",

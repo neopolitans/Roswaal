@@ -1,25 +1,34 @@
 /** One node on the canvas: header, pin rows, and inline literal editors. */
 
 import {
-	memo, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode,
+	type CSSProperties,
+	memo,
+	type ReactNode,
+	type PointerEvent as ReactPointerEvent,
+	useState,
 } from "react";
-
-import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { nodeTitle } from "../core/nodes/index.js";
-import { cx } from "./cx.js";
-import { Icon } from "./icons.jsx";
-import { NODE, LAYER } from "./layers.js";
-import { nodeColor } from "./palette.js";
-import { CLASS_OPTIONS, TYPE_OPTIONS, classGroup, typeGroup } from "../core/roblox.js";
-import { classDetail, ValuePicker } from "./ValuePicker.jsx";
-import { useTypeChoices } from "./TypePicker.jsx";
-import { pinColor } from "./palette.js";
-import {
-	compactLabel, compactWidth, headerHeight, isCompact, isOperator, isReroute,
-	nodeWidth, operatorLayoutOf, resolvePins,
-} from "./geometry.js";
-import { operatorSymbol } from "../core/operatorLayout.js";
 import { pinTypeText } from "../core/nodes/variables.js";
+import { operatorSymbol } from "../core/operatorLayout.js";
+import { CLASS_OPTIONS, classGroup, TYPE_OPTIONS, typeGroup } from "../core/roblox.js";
+import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
+import { cx } from "./cx.js";
+import {
+	compactLabel,
+	compactWidth,
+	headerHeight,
+	isCompact,
+	isOperator,
+	isReroute,
+	nodeWidth,
+	operatorLayoutOf,
+	resolvePins,
+} from "./geometry.js";
+import { Icon } from "./icons.jsx";
+import { LAYER, NODE } from "./layers.js";
+import { nodeColor, pinColor } from "./palette.js";
+import { useTypeChoices } from "./TypePicker.jsx";
+import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 
 const NEWLINE = String.fromCharCode(10);
 
@@ -90,7 +99,12 @@ export interface NodeViewProps {
 	 * row shows it can be picked. On a graph a row is not a target, so the
 	 * canvas leaves this unset.
 	 */
-	onPinRowPointerDown?: (e: ReactPointerEvent, nodeId: string, pin: PinDef, side: "in" | "out") => void;
+	onPinRowPointerDown?: (
+		e: ReactPointerEvent,
+		nodeId: string,
+		pin: PinDef,
+		side: "in" | "out",
+	) => void;
 }
 
 /**
@@ -171,7 +185,9 @@ function NodeViewInner(props: NodeViewProps) {
 		>
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
 			{props.errorCount === 0 && props.warningCount > 0 && (
-				<span className="badge-count warn" title="Needs attention — see the Inspector">!</span>
+				<span className="badge-count warn" title="Needs attention — see the Inspector">
+					!
+				</span>
 			)}
 			<div
 				className={cx("head", subtitle && "two-line")}
@@ -181,7 +197,11 @@ function NodeViewInner(props: NodeViewProps) {
 					<span className="title">{nodeTitle(def, node)}</span>
 					{subtitle && <span className="subtitle">{subtitle}</span>}
 				</span>
-				{def.latent && <span className="marker" title="This node yields">⏳</span>}
+				{def.latent && (
+					<span className="marker" title="This node yields">
+						⏳
+					</span>
+				)}
 				{props.onOpen && (
 					<button
 						className="open-graph"
@@ -221,7 +241,8 @@ function NodeViewInner(props: NodeViewProps) {
 							{inputs[i] && pinTarget(props, inputs[i], "in", renderPin(props, inputs[i], "in"))}
 						</span>
 						<span className="side right">
-							{outputs[i] && pinTarget(props, outputs[i], "out", renderPin(props, outputs[i], "out"))}
+							{outputs[i] &&
+								pinTarget(props, outputs[i], "out", renderPin(props, outputs[i], "out"))}
 						</span>
 					</div>
 				))}
@@ -236,7 +257,9 @@ function NodeViewInner(props: NodeViewProps) {
  * knot reads as a bend rather than a node.
  */
 function renderReroute(
-	props: NodeViewProps, input: PinDef | undefined, output: PinDef | undefined,
+	props: NodeViewProps,
+	input: PinDef | undefined,
+	output: PinDef | undefined,
 ) {
 	const { node, selected } = props;
 	return (
@@ -294,7 +317,9 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
 		>
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
 			{props.errorCount === 0 && props.warningCount > 0 && (
-				<span className="badge-count warn" title="Needs attention — see the Inspector">!</span>
+				<span className="badge-count warn" title="Needs attention — see the Inspector">
+					!
+				</span>
 			)}
 			<span className="capsule-label">{compactLabel(def, node)}</span>
 			{output && renderPin(props, output, "out")}
@@ -311,7 +336,10 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
  * what it is, and a title bar reading "Not Equal" over a `~=` says it twice.
  */
 function renderOperator(
-	props: NodeViewProps, def: NodeDef, inputs: PinDef[], output: PinDef | undefined,
+	props: NodeViewProps,
+	def: NodeDef,
+	inputs: PinDef[],
+	output: PinDef | undefined,
 ) {
 	const { node, selected } = props;
 	const layout = operatorLayoutOf(def, node.config, node.literals);
@@ -340,7 +368,9 @@ function renderOperator(
 		>
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
 			{props.errorCount === 0 && props.warningCount > 0 && (
-				<span className="badge-count warn" title="Needs attention — see the Inspector">!</span>
+				<span className="badge-count warn" title="Needs attention — see the Inspector">
+					!
+				</span>
 			)}
 
 			<div className="operator-rows" style={{ top: layout.rowsTop }}>
@@ -431,8 +461,11 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	// An unwired data input is edited in place, which is what keeps simple
 	// graphs from filling up with literal nodes.
 	const editor =
-		side === "in" && pin.kind === "data" && !wired && pin.required !== true
-			&& pin.hideEditor !== true
+		side === "in" &&
+		pin.kind === "data" &&
+		!wired &&
+		pin.required !== true &&
+		pin.hideEditor !== true
 			? renderLiteral(props, pin)
 			: null;
 
@@ -461,8 +494,7 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
  */
 function renderLiteral(props: NodeViewProps, pin: PinDef) {
 	const typed = props.node.literals?.[pin.id];
-	const set = (value: Literal | undefined) =>
-		props.onLiteralChange(props.node.id, pin.id, value);
+	const set = (value: Literal | undefined) => props.onLiteralChange(props.node.id, pin.id, value);
 	const stop = (e: ReactPointerEvent) => e.stopPropagation();
 
 	// An optional pin nobody has touched.
@@ -545,7 +577,10 @@ function renderLiteralEditor(props: NodeViewProps, pin: PinDef) {
 		// code inside a node whose title says "Look At".
 		if (!pin.code) {
 			return (
-				<span className="literal constant" title={`${current.v}${NEWLINE}${NEWLINE}A constant. Wire a node in, or split the pin, to change it.`}>
+				<span
+					className="literal constant"
+					title={`${current.v}${NEWLINE}${NEWLINE}A constant. Wire a node in, or split the pin, to change it.`}
+				>
 					{preview}
 				</span>
 			);
@@ -624,14 +659,20 @@ function groupingFor(pin: PinDef): ((value: string) => string) | undefined {
  * when the list you are escaping is the one you were going to type into anyway.
  */
 function OptionEditor({
-	pin, value, onChange,
-}: { pin: PinDef; value: string; onChange: (value: string) => void }) {
+	pin,
+	value,
+	onChange,
+}: {
+	pin: PinDef;
+	value: string;
+	onChange: (value: string) => void;
+}) {
 	// A pin naming a Luau type -- what a Cast asserts -- offers what the
 	// Inspector's type fields do, this graph's own types first, rather than the
 	// engine's list alone.
 	const types = useTypeChoices();
 	const isType = pin.options === TYPE_OPTIONS;
-	const known = isType ? types.options : pin.options ?? [];
+	const known = isType ? types.options : (pin.options ?? []);
 	const listed = known.includes(value) || value === "";
 	const [typing, setTyping] = useState(!listed);
 	const [picking, setPicking] = useState(false);

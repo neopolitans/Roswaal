@@ -106,7 +106,9 @@ export interface SpecifierContext {
  * about a field you have not filled in yet is nagging, not checking.
  */
 export function checkSpecifier(
-	specifier: string, target: Target, context: SpecifierContext = {},
+	specifier: string,
+	target: Target,
+	context: SpecifierContext = {},
 ): SpecifierProblem | null {
 	const text = specifier.trim();
 	if (text === "") return null;

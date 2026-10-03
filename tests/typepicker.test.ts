@@ -13,11 +13,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { declaredTypes, listGroups, listedTypes, searchTypes } from "../src/app/TypePicker.js";
-import { INSTANCE_CLASSES } from "../src/core/roblox.js";
-import { pinTypeOf } from "../src/core/nodes/variables.js";
+import { declaredTypes, listedTypes, listGroups, searchTypes } from "../src/app/TypePicker.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
+import { pinTypeOf } from "../src/core/nodes/variables.js";
+import { INSTANCE_CLASSES } from "../src/core/roblox.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { Builder } from "./helpers.js";
 
@@ -56,7 +56,9 @@ describe("the list", () => {
 
 	it("has no group for them when there are none", () => {
 		expect(listGroups(undefined).map((g) => g.label)).toEqual([
-			"Basic", "Roblox values", "Instances",
+			"Basic",
+			"Roblox values",
+			"Instances",
 		]);
 	});
 
@@ -132,7 +134,11 @@ describe("unknown and never, written out", () => {
 		const b = new Builder();
 		b.node("script.begin");
 		b.node("function.entry", {
-			config: { name: "check", params: [{ name: "packet", type: "unknown" }], returns: [{ name: "out", type: "never" }] },
+			config: {
+				name: "check",
+				params: [{ name: "packet", type: "unknown" }],
+				returns: [{ name: "out", type: "never" }],
+			},
 		});
 		const script = { ...b.build(), mode: "strict" } as NodeScript;
 		const out = compile(script, createRegistry()).code;

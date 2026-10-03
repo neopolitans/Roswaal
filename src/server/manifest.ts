@@ -47,7 +47,11 @@ export async function readManifest(root: string): Promise<GeneratedManifest> {
 const writing = new Map<string, Promise<void>>();
 
 /** Records that `outputPath` was generated from `sourcePath`. One write at a time per project. */
-export function recordGenerated(root: string, outputPath: string, sourcePath: string): Promise<void> {
+export function recordGenerated(
+	root: string,
+	outputPath: string,
+	sourcePath: string,
+): Promise<void> {
 	const before = writing.get(root) ?? Promise.resolve();
 	// A failed record is reported to its own caller below; the next one still runs.
 	const next = before.catch(() => undefined).then(() => record(root, outputPath, sourcePath));

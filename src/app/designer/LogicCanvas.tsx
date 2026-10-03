@@ -27,27 +27,42 @@
  * rule.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { logicScript, type LogicGraph } from "../../core/compiler/logic.js";
-import { resolveNodePins, type Registry } from "../../core/nodes/index.js";
-import { LOGIC_DENIED, LOGIC_INPUTS, LOGIC_OUTPUTS, type LogicShape } from "../../core/nodes/logic.js";
+import { type LogicGraph, logicScript } from "../../core/compiler/logic.js";
+import { type Registry, resolveNodePins } from "../../core/nodes/index.js";
+import {
+	LOGIC_DENIED,
+	LOGIC_INPUTS,
+	LOGIC_OUTPUTS,
+	type LogicShape,
+} from "../../core/nodes/logic.js";
 import type { NodeConfig, NodeDef, NodeScript, Target } from "../../core/schema.js";
 import { Canvas } from "../Canvas.jsx";
 import { cx } from "../cx.js";
 import {
-	addComment, addNode, alignToAnchor, connect, copySelection, deleteSelection, landingPins,
-	pasteClipping, selectionAnchor, setConfig, withCommentContents, type Clipping,
+	addComment,
+	addNode,
+	alignToAnchor,
+	type Clipping,
+	connect,
+	copySelection,
+	deleteSelection,
+	landingPins,
+	pasteClipping,
+	selectionAnchor,
+	setConfig,
+	withCommentContents,
 } from "../edits.js";
 import { FloatingTools, ToolGroup } from "../FloatingTools.jsx";
 import { Icon } from "../icons.jsx";
+import { isEditableTarget } from "../keys.js";
 import { autoLayout } from "../layout.js";
-import { NodeMenu, type MenuAnchor } from "../NodeMenu.jsx";
-import { wheelAction, type Preferences } from "../preferences.js";
+import { type MenuAnchor, NodeMenu } from "../NodeMenu.jsx";
+import { type Preferences, wheelAction } from "../preferences.js";
 import { store, useEditor } from "../store.js";
 import { liveSelection, TouchBar } from "../TouchBar.jsx";
 import { useCompact } from "../Workspace.jsx";
-import { isEditableTarget } from "../keys.js";
 
 /** The store path the logic graph is open under. Never a file. */
 const PATH = "designer:logic";
@@ -100,7 +115,14 @@ export interface LogicCanvasProps {
 }
 
 export function LogicCanvas({
-	graph, shape, registry, target, onChange, tools, prefs, onPrefs,
+	graph,
+	shape,
+	registry,
+	target,
+	onChange,
+	tools,
+	prefs,
+	onPrefs,
 }: LogicCanvasProps) {
 	const editor = useEditor();
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
@@ -112,7 +134,9 @@ export function LogicCanvas({
 		const state = store.getSnapshot();
 		const script = state.script;
 		if (!script) return;
-		const selected = new Set([...state.selection].filter((id) => script.nodes.some((n) => n.id === id)));
+		const selected = new Set(
+			[...state.selection].filter((id) => script.nodes.some((n) => n.id === id)),
+		);
 		const only = selected.size > 1 ? selected : undefined;
 		store.edit((s) => autoLayout(s, registry, { only, alignExec, wideNodes }));
 	}, [registry, alignExec, wideNodes]);
@@ -168,7 +192,12 @@ export function LogicCanvas({
 	}, [editor.script, onChange]);
 
 	const menuRegistry = useMemo(
-		() => new Map([...registry].filter(([id]) => !LOGIC_DENIED.has(id) && id !== LOGIC_INPUTS && id !== LOGIC_OUTPUTS)) as Registry,
+		() =>
+			new Map(
+				[...registry].filter(
+					([id]) => !LOGIC_DENIED.has(id) && id !== LOGIC_INPUTS && id !== LOGIC_OUTPUTS,
+				),
+			) as Registry,
 		[registry],
 	);
 
@@ -182,14 +211,22 @@ export function LogicCanvas({
 				let next = config ? setConfig(added.script, added.id, config) : added.script;
 				if (!from) return next;
 				const placed = next.nodes.find((n) => n.id === added.id);
-				const pins = placed ? resolveNodePins(def, placed.config, placed.literals) : { inputs: [], outputs: [] };
+				const pins = placed
+					? resolveNodePins(def, placed.config, placed.literals)
+					: { inputs: [], outputs: [] };
 				const side = from.side === "out" ? "in" : "out";
-				const landing = landingPins(def, side === "in" ? pins.inputs : pins.outputs, from.pin, side)[0];
+				const landing = landingPins(
+					def,
+					side === "in" ? pins.inputs : pins.outputs,
+					from.pin,
+					side,
+				)[0];
 				if (!landing) return next;
 				const target = { node: added.id, pin: landing.id };
-				next = from.side === "out"
-					? connect(next, registry, from.ref, target)
-					: connect(next, registry, target, from.ref);
+				next =
+					from.side === "out"
+						? connect(next, registry, from.ref, target)
+						: connect(next, registry, target, from.ref);
 				return next;
 			});
 			setMenu(null);
@@ -271,7 +308,10 @@ export function LogicCanvas({
 				clipboard.current = withoutEnds(copySelection(state.script, state.selection, registry));
 				setHasClip(true);
 				if (key === "x") {
-					const ids = removable(state.script, withCommentContents(state.script, state.selection, registry));
+					const ids = removable(
+						state.script,
+						withCommentContents(state.script, state.selection, registry),
+					);
 					if (ids.size > 0) store.edit((s) => deleteSelection(s, ids, registry));
 				}
 			} else if (mod && key === "v") {
@@ -304,7 +344,9 @@ export function LogicCanvas({
 					graph={null}
 					registry={registry}
 					diagnostics={[]}
-					onPointerAt={(world) => { pointerAt.current = world; }}
+					onPointerAt={(world) => {
+						pointerAt.current = world;
+					}}
 					onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
 					onRequestPinMenu={NOOP}
 					onEditCode={NOOP}

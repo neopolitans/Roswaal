@@ -78,7 +78,12 @@ export function errorResponse(err: unknown): { status: number; body: ErrorBody }
 	const error = errorMessage(err);
 	if (err instanceof HttpError) return { status: err.status, body: { error, ...err.details } };
 	if (err instanceof UserError) return { status: 400, body: { error } };
-	if (err instanceof RbxError || err instanceof ZipError || err instanceof LuauParseError || err instanceof SyntaxError) {
+	if (
+		err instanceof RbxError ||
+		err instanceof ZipError ||
+		err instanceof LuauParseError ||
+		err instanceof SyntaxError
+	) {
 		return { status: 422, body: { error } };
 	}
 	const code = (err as { code?: unknown } | null)?.code;

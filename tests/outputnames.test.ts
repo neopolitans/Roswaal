@@ -18,10 +18,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { graphName, graphNameFor, outputCollision } from "../src/server/project.js";
 import { outputFileName } from "../src/core/compiler/index.js";
 import type { NodeScript } from "../src/core/schema.js";
+import { graphName, graphNameFor, outputCollision } from "../src/server/project.js";
 
 /** Only the four fields `outputFileName` reads. */
 function script(over: Partial<NodeScript> = {}): NodeScript {
@@ -86,8 +85,9 @@ describe("two graphs claiming one output file", () => {
 
 	it("names the graph that got there first", () => {
 		const claimed = new Map([[OUT, "scripts/Greeter.nodescript"]]);
-		expect(outputCollision(claimed, OUT, "scripts/Copy.nodescript"))
-			.toBe("scripts/Greeter.nodescript");
+		expect(outputCollision(claimed, OUT, "scripts/Copy.nodescript")).toBe(
+			"scripts/Greeter.nodescript",
+		);
 	});
 
 	/**
@@ -133,8 +133,9 @@ describe("two graphs claiming one output file", () => {
 describe("the name a graph gets from where it lives", () => {
 	it("is the file name, without the extension", () => {
 		expect(graphNameFor("scripts/Shared/Greeter.nodescript")).toBe("Greeter");
-		expect(graphNameFor(".roswaal/scripts/A/B/Player_Controller.nodescript"))
-			.toBe("Player_Controller");
+		expect(graphNameFor(".roswaal/scripts/A/B/Player_Controller.nodescript")).toBe(
+			"Player_Controller",
+		);
 	});
 
 	it("takes a rename made outside Roswaal, which is the point", () => {
@@ -167,8 +168,9 @@ describe("the name a graph gets from where it lives", () => {
 	 */
 	it("reads a backslash path the same as a forward-slash one", () => {
 		expect(graphNameFor("scripts\\Shared\\Greeter.nodescript")).toBe("Greeter");
-		expect(graphNameFor("scripts\\Shared\\Greeter.nodescript"))
-			.toBe(graphNameFor("scripts/Shared/Greeter.nodescript"));
+		expect(graphNameFor("scripts\\Shared\\Greeter.nodescript")).toBe(
+			graphNameFor("scripts/Shared/Greeter.nodescript"),
+		);
 		expect(graphNameFor("a\\b/c\\Player_Controller.nodescript")).toBe("Player_Controller");
 	});
 });

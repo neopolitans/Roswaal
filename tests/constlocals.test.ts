@@ -12,11 +12,10 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { body, Builder } from "./helpers.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { isConstLocal } from "../src/core/nodes/variables.js";
+import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
 
@@ -111,7 +110,8 @@ describe("a constant variable", () => {
 		} else {
 			const print = b.node("debug.print", { id: "print" });
 			const get = b.node("variable.get", {
-				id: "get", config: { variable: id, name: "limit", type: "number" },
+				id: "get",
+				config: { variable: id, name: "limit", type: "number" },
 			});
 			b.link(start, "then", print, "in");
 			b.link(get, "value", print, "value");
@@ -130,22 +130,27 @@ describe("a constant variable", () => {
 	});
 
 	it("refuses a Set Variable", () => {
-		const errors = compile(withVariable(true, "variable.set"), registry, {}).diagnostics
-			.filter((d) => d.severity === "error");
+		const errors = compile(withVariable(true, "variable.set"), registry, {}).diagnostics.filter(
+			(d) => d.severity === "error",
+		);
 		expect(errors.map((d) => d.message).join(" ")).toContain('"limit" is a constant');
 	});
 
 	/** A constant is given its value where it is declared, and nowhere else. */
 	it("refuses an Initialize Variable", () => {
-		const errors = compile(withVariable(true, "variable.init"), registry, {}).diagnostics
-			.filter((d) => d.severity === "error");
+		const errors = compile(withVariable(true, "variable.init"), registry, {}).diagnostics.filter(
+			(d) => d.severity === "error",
+		);
 		expect(errors.map((d) => d.message).join(" ")).toContain("declared");
 	});
 
 	it("allows both on an ordinary variable", () => {
 		for (const writer of ["variable.set", "variable.init"] as const) {
 			const out = compile(withVariable(false, writer), registry, {});
-			expect(out.diagnostics.filter((d) => d.severity === "error"), writer).toEqual([]);
+			expect(
+				out.diagnostics.filter((d) => d.severity === "error"),
+				writer,
+			).toEqual([]);
 		}
 	});
 });

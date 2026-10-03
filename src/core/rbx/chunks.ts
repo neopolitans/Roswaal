@@ -58,8 +58,15 @@ export function readChunks(bytes: Uint8Array): Chunk[] {
 		const compressed = u32(bytes, p + 4);
 		const length = u32(bytes, p + 8);
 		const size = compressed === 0 ? length : compressed;
-		if (p + 16 + size > bytes.length) throw new RbxError(`the ${name.trim()} chunk runs past the end of the file`);
-		out.push({ name, whole: bytes.subarray(p, p + 16 + size), raw: bytes.subarray(p + 16, p + 16 + size), compressed, length });
+		if (p + 16 + size > bytes.length)
+			throw new RbxError(`the ${name.trim()} chunk runs past the end of the file`);
+		out.push({
+			name,
+			whole: bytes.subarray(p, p + 16 + size),
+			raw: bytes.subarray(p + 16, p + 16 + size),
+			compressed,
+			length,
+		});
 		p += 16 + size;
 		if (name === "END\0") return out;
 	}
@@ -69,8 +76,11 @@ export function readChunks(bytes: Uint8Array): Chunk[] {
 /** A chunk's payload, opened: stored as it is, or LZ4, or zstd, as its own magic says. */
 export function chunkData(chunk: Chunk): Uint8Array {
 	if (chunk.compressed === 0) return chunk.raw;
-	const data = isZstd(chunk.raw) ? zstdDecompress(chunk.raw, chunk.length) : lz4Decompress(chunk.raw, chunk.length);
-	if (data.length !== chunk.length) throw new RbxError(`the ${chunk.name.trim()} chunk decompressed to the wrong length`);
+	const data = isZstd(chunk.raw)
+		? zstdDecompress(chunk.raw, chunk.length)
+		: lz4Decompress(chunk.raw, chunk.length);
+	if (data.length !== chunk.length)
+		throw new RbxError(`the ${chunk.name.trim()} chunk decompressed to the wrong length`);
 	return data;
 }
 
@@ -100,7 +110,13 @@ export function zigzag(v: number): number {
 export function transposedU32s(b: Uint8Array, at: number, count: number): number[] {
 	const out: number[] = [];
 	for (let i = 0; i < count; i++) {
-		out.push(((b[at + i] << 24) | (b[at + count + i] << 16) | (b[at + 2 * count + i] << 8) | b[at + 3 * count + i]) >>> 0);
+		out.push(
+			((b[at + i] << 24) |
+				(b[at + count + i] << 16) |
+				(b[at + 2 * count + i] << 8) |
+				b[at + 3 * count + i]) >>>
+				0,
+		);
 	}
 	return out;
 }

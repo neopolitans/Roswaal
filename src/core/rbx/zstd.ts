@@ -139,7 +139,12 @@ interface FseTable {
 }
 
 /** Reads a table description; returns the table and the bytes it took. */
-function readFseTable(b: Uint8Array, start: number, maxLog: number, maxSymbol: number): [FseTable, number] {
+function readFseTable(
+	b: Uint8Array,
+	start: number,
+	maxLog: number,
+	maxSymbol: number,
+): [FseTable, number] {
 	const input = new ForwardBits(b, start);
 	const log = input.read(4) + 5;
 	if (log > maxLog) throw new ZstdError(`an FSE table of accuracy ${log}, past ${maxLog}`);
@@ -168,7 +173,8 @@ function readFseTable(b: Uint8Array, start: number, maxLog: number, maxSymbol: n
 			}
 		}
 	}
-	if (remaining !== 0 || freqs.length > maxSymbol + 1) throw new ZstdError("an FSE table that does not add up");
+	if (remaining !== 0 || freqs.length > maxSymbol + 1)
+		throw new ZstdError("an FSE table that does not add up");
 	return [buildFseTable(freqs, log), input.bytes];
 }
 
@@ -215,13 +221,16 @@ function rleTable(s: number): FseTable {
 
 // Predefined distributions, RFC 8878 section 3.1.1.3.2.2.
 const LL_DEFAULT = buildFseTable(
-	[4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1, -1, -1, -1, -1],
+	[
+		4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1,
+		-1, -1, -1, -1,
+	],
 	6,
 );
 const ML_DEFAULT = buildFseTable(
 	[
-		1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1,
+		1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1, -1,
 	],
 	6,
 );
@@ -232,19 +241,21 @@ const OF_DEFAULT = buildFseTable(
 
 // Baselines and extra bits for the literal length and match length codes.
 const LL_BASE = [
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32, 40, 48, 64, 128, 256, 512,
-	1024, 2048, 4096, 8192, 16384, 32768, 65536,
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32, 40, 48, 64, 128,
+	256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536,
 ];
 const LL_BITS = [
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9, 10, 11, 12,
+	13, 14, 15, 16,
 ];
 const ML_BASE = [
-	3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-	33, 34, 35, 37, 39, 41, 43, 47, 51, 59, 67, 83, 99, 131, 259, 515, 1027, 2051, 4099, 8195, 16387, 32771, 65539,
+	3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+	29, 30, 31, 32, 33, 34, 35, 37, 39, 41, 43, 47, 51, 59, 67, 83, 99, 131, 259, 515, 1027, 2051,
+	4099, 8195, 16387, 32771, 65539,
 ];
 const ML_BITS = [
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2,
-	3, 3, 4, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+	1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 ];
 
 // ---------------------------------------------------------------------------
@@ -372,7 +383,11 @@ function ensure(state: FrameState, more: number): void {
  * so the common case never grows the buffer.
  */
 export function zstdDecompress(input: Uint8Array, sizeHint = 0): Uint8Array {
-	const state: FrameState = { out: new Uint8Array(sizeHint || input.length * 4), length: 0, reps: [1, 4, 8] };
+	const state: FrameState = {
+		out: new Uint8Array(sizeHint || input.length * 4),
+		length: 0,
+		reps: [1, 4, 8],
+	};
 	let p = 0;
 	while (p < input.length) {
 		const magic = readU32(input, p);
@@ -464,7 +479,13 @@ function decodeBlock(b: Uint8Array, start: number, end: number, state: FrameStat
 	}
 
 	const modes = b[p++];
-	const pick = (mode: number, previous: FseTable | undefined, fallback: FseTable, maxLog: number, maxSymbol: number): FseTable => {
+	const pick = (
+		mode: number,
+		previous: FseTable | undefined,
+		fallback: FseTable,
+		maxLog: number,
+		maxSymbol: number,
+	): FseTable => {
 		switch (mode) {
 			case 0:
 				return fallback;
@@ -495,7 +516,8 @@ function decodeBlock(b: Uint8Array, start: number, end: number, state: FrameStat
 		const ofCode = of.symbol[ofState];
 		const llCode = ll.symbol[llState];
 		const mlCode = ml.symbol[mlState];
-		if (llCode > 35 || mlCode > 52 || ofCode > 31) throw new ZstdError("a sequence code out of range");
+		if (llCode > 35 || mlCode > 52 || ofCode > 31)
+			throw new ZstdError("a sequence code out of range");
 
 		const ofValue = 2 ** ofCode + input.read(ofCode);
 		const matchLength = ML_BASE[mlCode] + input.read(ML_BITS[mlCode]);
@@ -525,7 +547,8 @@ function decodeBlock(b: Uint8Array, start: number, end: number, state: FrameStat
 		out.set(literals.subarray(lit, lit + literalLength), state.length);
 		state.length += literalLength;
 		lit += literalLength;
-		if (offset === 0 || offset > state.length) throw new ZstdError("a match before the start of the output");
+		if (offset === 0 || offset > state.length)
+			throw new ZstdError("a match before the start of the output");
 		let from = state.length - offset;
 		for (let k = 0; k < matchLength; k++) out[state.length++] = out[from++];
 

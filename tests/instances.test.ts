@@ -15,9 +15,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import { luauCompletionSource } from "../src/app/luauCompletions.js";
 
 import {
-	childrenOfChain, FROM_PROJECT, indexFromOutline, instanceAt, instanceProblems, type InstanceOutline,
+	childrenOfChain,
+	FROM_PROJECT,
+	type InstanceOutline,
+	indexFromOutline,
+	instanceAt,
+	instanceProblems,
 } from "../src/core/luau/instances.js";
-import { serialiseMap, type NodeMap } from "../src/core/nodemap.js";
+import { type NodeMap, serialiseMap } from "../src/core/nodemap.js";
 import { openProject } from "../src/server/project.js";
 import { projectInstances } from "../src/server/requires.js";
 import { ApiSession } from "../src/server/routes.js";
@@ -60,7 +65,12 @@ describe("names the place does not have", () => {
 		const src = `${RS}local remotes = ReplicatedStorage.Shared:WaitForChild("Remote")`;
 		const [problem] = instanceProblems(src, root);
 		expect(problem.message).toContain('Nothing called "Remote" is in ReplicatedStorage.Shared');
-		expect(instanceProblems(`${RS}local remotes = ReplicatedStorage.Shared:WaitForChild("Remotes")`, root)).toEqual([]);
+		expect(
+			instanceProblems(
+				`${RS}local remotes = ReplicatedStorage.Shared:WaitForChild("Remotes")`,
+				root,
+			),
+		).toEqual([]);
 	});
 
 	it("follows script.Parent from where the file is", () => {
@@ -84,15 +94,22 @@ describe("the instance a name is", () => {
 
 	it("offers what is in the instance a chain being typed reaches", () => {
 		const src = `${RS}local x = ReplicatedStorage.Shared.`;
-		expect(childrenOfChain(src, src.length, ["ReplicatedStorage", "Shared"], root).map((k) => k.name)).toEqual(["Util", "Remotes"]);
-		expect(childrenOfChain("game.", 5, ["game"], root).map((k) => k.name)).toEqual(["ReplicatedStorage", "Workspace"]);
+		expect(
+			childrenOfChain(src, src.length, ["ReplicatedStorage", "Shared"], root).map((k) => k.name),
+		).toEqual(["Util", "Remotes"]);
+		expect(childrenOfChain("game.", 5, ["game"], root).map((k) => k.name)).toEqual([
+			"ReplicatedStorage",
+			"Workspace",
+		]);
 	});
 
 	it("follows the local in scope, not one in a closed block or a comment", () => {
 		const hidden = `do\n\t${RS}end\nlocal x = ReplicatedStorage.`;
 		expect(childrenOfChain(hidden, hidden.length, ["ReplicatedStorage"], root)).toEqual([]);
 		const commented = `${RS}-- local ReplicatedStorage = game.Workspace\nlocal x = ReplicatedStorage.`;
-		expect(childrenOfChain(commented, commented.length, ["ReplicatedStorage"], root).map((k) => k.name)).toEqual(["Shared"]);
+		expect(
+			childrenOfChain(commented, commented.length, ["ReplicatedStorage"], root).map((k) => k.name),
+		).toEqual(["Shared"]);
 	});
 });
 
@@ -109,10 +126,23 @@ describe("what the project's files add", () => {
 			await writeFile(path.join(dir, rel), text);
 		};
 		const map: NodeMap = {
-			schemaVersion: 1, kind: "map", id: "m", name: "Orchard", output: "default.project.json",
-			root: { id: "r", name: "DataModel", className: "DataModel", children: [
-				{ id: "rs", name: "ReplicatedStorage", children: [{ id: "sh", name: "Shared", path: "src/shared", children: [] }] },
-			] },
+			schemaVersion: 1,
+			kind: "map",
+			id: "m",
+			name: "Orchard",
+			output: "default.project.json",
+			root: {
+				id: "r",
+				name: "DataModel",
+				className: "DataModel",
+				children: [
+					{
+						id: "rs",
+						name: "ReplicatedStorage",
+						children: [{ id: "sh", name: "Shared", path: "src/shared", children: [] }],
+					},
+				],
+			},
 		};
 		await put("roswaal.json", JSON.stringify({ schemaVersion: 1 }));
 		await put(".roswaal/scripts/Orchard.nodemap", serialiseMap(map));
@@ -127,7 +157,10 @@ describe("what the project's files add", () => {
 		const index = indexFromOutline(merged);
 		const shared = index.children.get("ReplicatedStorage")!.children.get("Shared")!;
 		expect([...shared.children.keys()].sort()).toEqual(["Fresh", "Remotes", "Tools", "Util"]);
-		expect(shared.children.get("Fresh")).toMatchObject({ className: "ModuleScript", fromProject: true });
+		expect(shared.children.get("Fresh")).toMatchObject({
+			className: "ModuleScript",
+			fromProject: true,
+		});
 		expect(shared.children.get("Util")!.fromProject).toBeUndefined();
 		expect(merged.nodes.filter((n) => n[3] & FROM_PROJECT)).toHaveLength(2);
 	});
@@ -138,7 +171,9 @@ describe("what the project's files add", () => {
 		await session.openAt(dir);
 		const { outline } = (await session.handle("GET", "/instances")) as { outline: InstanceOutline };
 		const index = indexFromOutline(outline);
-		expect([...index.children.get("ReplicatedStorage")!.children.get("Shared")!.children.keys()].sort()).toEqual(["Fresh", "Tools", "Util"]);
+		expect(
+			[...index.children.get("ReplicatedStorage")!.children.get("Shared")!.children.keys()].sort(),
+		).toEqual(["Fresh", "Tools", "Util"]);
 	});
 });
 
@@ -147,7 +182,12 @@ describe("completing an instance path", () => {
 		const pos = source.indexOf("|");
 		const doc = source.replace("|", "");
 		const context = new CompletionContext(EditorState.create({ doc }), pos, false);
-		const result = luauCompletionSource(() => [], () => "roblox", () => new Map(), () => ({ root }))(context);
+		const result = luauCompletionSource(
+			() => [],
+			() => "roblox",
+			() => new Map(),
+			() => ({ root }),
+		)(context);
 		return result ? result.options.map((o) => o.label) : [];
 	};
 
@@ -158,7 +198,10 @@ describe("completing an instance path", () => {
 	});
 
 	it("offers the children inside WaitForChild's string", () => {
-		expect(offered(`${RS}local x = ReplicatedStorage.Shared:WaitForChild("|`)).toEqual(["Util", "Remotes"]);
+		expect(offered(`${RS}local x = ReplicatedStorage.Shared:WaitForChild("|`)).toEqual([
+			"Util",
+			"Remotes",
+		]);
 	});
 
 	it("says nothing it does not know, and leaves the rest to the usual completion", () => {

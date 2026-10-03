@@ -12,7 +12,11 @@
 import type { NodeScript } from "../schema.js";
 
 function escapeHtml(text: string): string {
-	return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
 }
 
 /** What a new Custom Code node holds, for one whose Code was never typed into. */
@@ -34,9 +38,11 @@ export function nodeCodeHtml(script: NodeScript, highlight?: (code: string) => s
 			// rows line up because neither column wraps.
 			const numbers = lines.map((_, i) => i + 1).join("\n");
 			const title = node.label || "Custom Code";
-			return `<template data-code-for="${escapeHtml(node.id)}" data-title="${escapeHtml(title)}">` +
+			return (
+				`<template data-code-for="${escapeHtml(node.id)}" data-title="${escapeHtml(title)}">` +
 				`<div class="code-view"><pre class="code-view-gutter" aria-hidden="true">${numbers}</pre>` +
-				`<pre class="code-view-code"><code>${lines.join("\n")}</code></pre></div></template>`;
+				`<pre class="code-view-code"><code>${lines.join("\n")}</code></pre></div></template>`
+			);
 		})
 		.join("");
 }

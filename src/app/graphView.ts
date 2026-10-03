@@ -31,7 +31,10 @@
 export function attachGraphView(
 	viewport: HTMLElement,
 	limits: {
-		min: number; max: number; step: number; scale?: number;
+		min: number;
+		max: number;
+		step: number;
+		scale?: number;
 		/**
 		 * What scrolling does with nothing held, as on the canvas: the caller
 		 * resolves the reader's preference with `wheelAction`. Zoom if absent,
@@ -57,7 +60,8 @@ export function attachGraphView(
 	// Fingers down, by pointer id, in client coordinates.
 	const touches = new Map<number, { x: number; y: number }>();
 	// Two fingers: the view and their spread and middle when the second landed.
-	let pinch: { x: number; y: number; zoom: number; spread: number; mx: number; my: number } | null = null;
+	let pinch: { x: number; y: number; zoom: number; spread: number; mx: number; my: number } | null =
+		null;
 	// Safari's own pinch — a Mac trackpad's, or an iPad's with no fingers tracked.
 	let gesture: { x: number; y: number; zoom: number; sx: number; sy: number } | null = null;
 	// The last quick tap, for a double tap: Safari on iOS sends no dblclick.
@@ -88,7 +92,11 @@ export function attachGraphView(
 		const box = viewport.getBoundingClientRect();
 		if (box.width === 0 || natural.w === 0) return;
 		const cap = limits.scale ?? 1;
-		zoom = clamp(Math.min(box.width / natural.w, box.height / natural.h, cap), limits.min, limits.max);
+		zoom = clamp(
+			Math.min(box.width / natural.w, box.height / natural.h, cap),
+			limits.min,
+			limits.max,
+		);
 		x = (box.width - natural.w * zoom) / 2;
 		y = (box.height - natural.h * zoom) / 2;
 		apply();
@@ -98,7 +106,9 @@ export function attachGraphView(
 	// canvas's arithmetic; changing it here would make the docs feel unlike the
 	// editor.
 	const zoomAt = (
-		sx: number, sy: number, next: number,
+		sx: number,
+		sy: number,
+		next: number,
 		from: { x: number; y: number; zoom: number } = { x, y, zoom },
 	) => {
 		const clamped = clamp(next, limits.min, limits.max);
@@ -127,9 +137,12 @@ export function attachGraphView(
 			return;
 		}
 		if (dy === 0) return;
-		const factor = event.deltaMode !== 0 || Math.abs(dy) >= 50
-			? (dy < 0 ? limits.step : 1 / limits.step)
-			: Math.exp(-dy * 0.01);
+		const factor =
+			event.deltaMode !== 0 || Math.abs(dy) >= 50
+				? dy < 0
+					? limits.step
+					: 1 / limits.step
+				: Math.exp(-dy * 0.01);
 		zoomAt(event.clientX - box.left, event.clientY - box.top, zoom * factor);
 	};
 
@@ -200,7 +213,7 @@ export function attachGraphView(
 			// Zoom by the change in spread, and keep the point that was between
 			// the fingers between them wherever they have gone.
 			const now = spreadOf();
-			const next = clamp(pinch.zoom * now.spread / pinch.spread, limits.min, limits.max);
+			const next = clamp((pinch.zoom * now.spread) / pinch.spread, limits.min, limits.max);
 			const wx = (pinch.mx - pinch.x) / pinch.zoom;
 			const wy = (pinch.my - pinch.y) / pinch.zoom;
 			x = now.mx - wx * next;
@@ -224,8 +237,10 @@ export function attachGraphView(
 		const pressed = press;
 		press = null;
 		if (
-			event.type === "pointerup" && !pinch && pressed
-			&& Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) < 6
+			event.type === "pointerup" &&
+			!pinch &&
+			pressed &&
+			Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) < 6
 		) {
 			const node = (pressed.target as Element | null)?.closest?.("[data-code-node]");
 			const id = node?.getAttribute("data-code-node");
@@ -236,7 +251,8 @@ export function attachGraphView(
 			// Either finger ends it, and the one left does not start a drag
 			// from wherever the pinch left it.
 			if (touches.size < 2) pinch = null;
-			if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+			if (viewport.hasPointerCapture(event.pointerId))
+				viewport.releasePointerCapture(event.pointerId);
 			dragging = false;
 			viewport.classList.remove("panning");
 			return;
@@ -245,7 +261,10 @@ export function attachGraphView(
 			const now = performance.now();
 			const still = Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) < 10;
 			if (still && now - downAt.at < 300) {
-				if (now - lastTap.at < 320 && Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < 24) {
+				if (
+					now - lastTap.at < 320 &&
+					Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < 24
+				) {
 					lastTap = { at: -1e9, x: 0, y: 0 };
 					fit();
 				} else {
@@ -276,14 +295,18 @@ export function attachGraphView(
 	// Refit while the reader has not touched it, so opening a narrow window does
 	// not leave the graph parked off-screen.
 	let touched = false;
-	const markTouched = () => { touched = true; };
+	const markTouched = () => {
+		touched = true;
+	};
 	viewport.addEventListener("wheel", markTouched, { passive: true });
 	viewport.addEventListener("pointerdown", markTouched);
 
 	const observer =
 		typeof ResizeObserver === "undefined"
 			? null
-			: new ResizeObserver(() => { if (!touched) fit(); });
+			: new ResizeObserver(() => {
+					if (!touched) fit();
+				});
 	observer?.observe(viewport);
 
 	viewport.classList.add("interactive");
@@ -315,8 +338,9 @@ export function attachGraphView(
  */
 function openNodeCode(viewport: HTMLElement, id: string): void {
 	const figure = viewport.parentElement;
-	const template = Array.from(figure?.querySelectorAll("template[data-code-for]") ?? [])
-		.find((one) => one.getAttribute("data-code-for") === id) as HTMLTemplateElement | undefined;
+	const template = Array.from(figure?.querySelectorAll("template[data-code-for]") ?? []).find(
+		(one) => one.getAttribute("data-code-for") === id,
+	) as HTMLTemplateElement | undefined;
 	if (!template) return;
 
 	const backdrop = document.createElement("div");
@@ -355,7 +379,9 @@ function openNodeCode(viewport: HTMLElement, id: string): void {
 			shut();
 		}
 	};
-	backdrop.addEventListener("pointerdown", (event) => { if (event.target === backdrop) shut(); });
+	backdrop.addEventListener("pointerdown", (event) => {
+		if (event.target === backdrop) shut();
+	});
 	close.addEventListener("click", shut);
 	document.addEventListener("keydown", onKey, true);
 	document.body.append(backdrop);

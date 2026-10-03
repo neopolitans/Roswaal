@@ -7,11 +7,15 @@
 
 import { assignMembership } from "./functionGraph.js";
 import { RENAMED_NODES, type Registry } from "./nodes/index.js";
-import { parseSplitKey, partPinId, splitKey, splitPinId, splitsOf } from "./structs.js";
 import {
-	emptyScript, SCHEMA_VERSION, TYPECHECK_MODES,
-	type Link, type NodeScript, type TypecheckMode,
+	emptyScript,
+	type Link,
+	type NodeScript,
+	SCHEMA_VERSION,
+	TYPECHECK_MODES,
+	type TypecheckMode,
 } from "./schema.js";
+import { parseSplitKey, partPinId, splitKey, splitPinId, splitsOf } from "./structs.js";
 
 /**
  * Applies a pin rename, following it into the components of a split pin.
@@ -20,9 +24,7 @@ import {
  * `position` has to carry all three with it; handling only the exact id would
  * leave three wires pointing at a pin that no longer exists.
  */
-function renamePin(
-	renames: Record<string, string> | undefined, pinId: string,
-): string | undefined {
+function renamePin(renames: Record<string, string> | undefined, pinId: string): string | undefined {
 	if (!renames) return undefined;
 	const direct = renames[pinId];
 	if (direct) return direct;
@@ -58,8 +60,15 @@ const RENAMED_PINS: Record<string, Record<string, string>> = {
 	// first two of a numbered run.
 	...Object.fromEntries(
 		[
-			"math.add", "math.sub", "math.mul", "math.div",
-			"math.min", "math.max", "logic.and", "logic.or", "string.concat",
+			"math.add",
+			"math.sub",
+			"math.mul",
+			"math.div",
+			"math.min",
+			"math.max",
+			"logic.and",
+			"logic.or",
+			"string.concat",
 		].map((id) => [id, { a: "a0", b: "a1" }]),
 	),
 };
@@ -180,7 +189,7 @@ export function migrateScript(raw: NodeScript, registry?: Registry): MigrationRe
 	if (keyed > 0) {
 		notes.push(
 			`${keyed} Index node${keyed === 1 ? " was" : "s were"} keyed by a name, so ` +
-			`${keyed === 1 ? "it is" : "they are"} now Set Key or Get Key.`,
+				`${keyed === 1 ? "it is" : "they are"} now Set Key or Get Key.`,
 		);
 	}
 
@@ -237,7 +246,9 @@ export function migrateScript(raw: NodeScript, registry?: Registry): MigrationRe
 		return next;
 	});
 	if (literalFixes > 0) {
-		notes.push(`Moved typed-in values on ${literalFixes} node${literalFixes === 1 ? "" : "s"} to renamed pins.`);
+		notes.push(
+			`Moved typed-in values on ${literalFixes} node${literalFixes === 1 ? "" : "s"} to renamed pins.`,
+		);
 	}
 
 	let pinFixes = 0;
@@ -254,7 +265,8 @@ export function migrateScript(raw: NodeScript, registry?: Registry): MigrationRe
 			to: toPin ? { ...link.to, pin: toPin } : link.to,
 		};
 	});
-	if (pinFixes > 0) notes.push(`Repointed ${pinFixes} wire${pinFixes === 1 ? "" : "s"} to renamed pins.`);
+	if (pinFixes > 0)
+		notes.push(`Repointed ${pinFixes} wire${pinFixes === 1 ? "" : "s"} to renamed pins.`);
 
 	// -- a dictionary's rows became pair pins ------------------------------
 	//
@@ -310,7 +322,7 @@ export function migrateScript(raw: NodeScript, registry?: Registry): MigrationRe
 	if (dictionaries > 0) {
 		notes.push(
 			`${dictionaries} Make Dictionary node${dictionaries === 1 ? " now takes" : "s now take"} ` +
-			"one Key Value Pair per row, split into Key and Value.",
+				"one Key Value Pair per row, split into Key and Value.",
 		);
 	}
 
@@ -363,7 +375,7 @@ export function migrateScript(raw: NodeScript, registry?: Registry): MigrationRe
 		if (graphs.crossings > 0) {
 			notes.push(
 				`${graphs.crossings} wire${graphs.crossings === 1 ? " crosses" : "s cross"} between graphs, and ` +
-				`${graphs.crossings === 1 ? "is" : "are"} marked as an error.`,
+					`${graphs.crossings === 1 ? "is" : "are"} marked as an error.`,
 			);
 		}
 		return { script: graphs.script, notes };

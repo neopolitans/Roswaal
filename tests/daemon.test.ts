@@ -17,14 +17,12 @@
 
 import { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
-
+import type { Request, Response } from "express";
 import { describe, expect, it } from "vitest";
 
-import type { Request, Response } from "express";
-
 import { createDaemon, refusesConnection, refusesRequest } from "../src/server/app.js";
-import { describeOutcome, type CompileOutcome } from "../src/server/project.js";
 import { streamCount, streamEvents } from "../src/server/events.js";
+import { type CompileOutcome, describeOutcome } from "../src/server/project.js";
 import type { DynamicCompiler } from "../src/server/watcher.js";
 
 const HERE = "/projects/one";
@@ -106,19 +104,27 @@ describe("a compile step's verdict", () => {
 			note: guard,
 		});
 
-		expect(describeOutcome(outcome({
-			skipped: "The graph has errors, so no file was written.",
-			diagnostics: [{ severity: "error", message: "Print has no value" }],
-		}))).toEqual({
+		expect(
+			describeOutcome(
+				outcome({
+					skipped: "The graph has errors, so no file was written.",
+					diagnostics: [{ severity: "error", message: "Print has no value" }],
+				}),
+			),
+		).toEqual({
 			state: "failed",
 			note: "The graph has errors, so no file was written.",
 		});
 	});
 
 	it("falls back to the error itself when nothing else says why", () => {
-		expect(describeOutcome(outcome({
-			diagnostics: [{ severity: "error", message: "Print has no value" }],
-		}))).toEqual({ state: "failed", note: "Print has no value" });
+		expect(
+			describeOutcome(
+				outcome({
+					diagnostics: [{ severity: "error", message: "Print has no value" }],
+				}),
+			),
+		).toEqual({ state: "failed", note: "Print has no value" });
 	});
 
 	/**
@@ -130,10 +136,14 @@ describe("a compile step's verdict", () => {
 	});
 
 	it("does not let a warning fail a file", () => {
-		expect(describeOutcome(outcome({
-			written: true,
-			diagnostics: [{ severity: "warning", message: "Unused variable" }],
-		}))).toEqual({ state: "wrote" });
+		expect(
+			describeOutcome(
+				outcome({
+					written: true,
+					diagnostics: [{ severity: "warning", message: "Unused variable" }],
+				}),
+			),
+		).toEqual({ state: "wrote" });
 	});
 });
 
@@ -259,7 +269,9 @@ describe("who the daemon answers", () => {
  */
 async function through(
 	app: (req: IncomingMessage, res: ServerResponse) => void,
-	method: string, url: string, headers: Record<string, string> = {},
+	method: string,
+	url: string,
+	headers: Record<string, string> = {},
 ): Promise<{ status: number; body: Record<string, unknown> }> {
 	const req = new IncomingMessage(new Socket());
 	req.method = method;

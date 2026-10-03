@@ -7,7 +7,15 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { isScript, pathOf, RbxError, readRbx, stringProp, text, walk } from "../src/core/rbx/index.js";
+import {
+	isScript,
+	pathOf,
+	RbxError,
+	readRbx,
+	stringProp,
+	text,
+	walk,
+} from "../src/core/rbx/index.js";
 import { lz4Compress, lz4Decompress } from "../src/core/rbx/lz4.js";
 import { buildPlace, type Compression, folder, script, service } from "./rbxfixture.js";
 
@@ -16,10 +24,18 @@ const place = () => [
 		script("Script", "Main", 'print("hello")', { RunContext: { type: 18, value: 2 } }),
 	]),
 	service("ReplicatedStorage", [
-		folder("Shared", [script("ModuleScript", "Util", "return {}", { UniqueId: { type: 31, value: "0123456789abcdef0123456789abcdef" } })]),
+		folder("Shared", [
+			script("ModuleScript", "Util", "return {}", {
+				UniqueId: { type: 31, value: "0123456789abcdef0123456789abcdef" },
+			}),
+		]),
 	]),
 	service("Workspace", [
-		{ className: "Part", name: "Coin", props: { Anchored: { type: 2, value: true }, Transparency: { type: 4, value: 0.5 } } },
+		{
+			className: "Part",
+			name: "Coin",
+			props: { Anchored: { type: 2, value: true }, Transparency: { type: 4, value: 0.5 } },
+		},
 	]),
 ];
 
@@ -28,10 +44,17 @@ describe("the binary reader", () => {
 		it(`reads a place with ${compression} chunks`, () => {
 			const doc = readRbx(buildPlace(place(), compression));
 			expect(doc.format).toBe("binary");
-			expect(doc.roots.map((r) => r.name)).toEqual(["ServerScriptService", "ReplicatedStorage", "Workspace"]);
+			expect(doc.roots.map((r) => r.name)).toEqual([
+				"ServerScriptService",
+				"ReplicatedStorage",
+				"Workspace",
+			]);
 			expect(doc.roots.every((r) => r.service)).toBe(true);
 			const scripts = doc.instances.filter(isScript);
-			expect(scripts.map((s) => pathOf(s).join("."))).toEqual(["ServerScriptService.Main", "ReplicatedStorage.Shared.Util"]);
+			expect(scripts.map((s) => pathOf(s).join("."))).toEqual([
+				"ServerScriptService.Main",
+				"ReplicatedStorage.Shared.Util",
+			]);
 			expect(stringProp(scripts[0], "Source")).toBe('print("hello")');
 			expect(scripts[0].props.get("RunContext")?.value).toBe(2);
 			expect(scripts[1].props.get("UniqueId")?.value).toBe("0123456789abcdef0123456789abcdef");
@@ -44,13 +67,42 @@ describe("the binary reader", () => {
 
 	it("keeps text properties as bytes, so binary ones survive", () => {
 		const blob = Uint8Array.of(0, 255, 1, 128);
-		const doc = readRbx(buildPlace([service("Workspace", [{ className: "Part", name: "P", props: { AttributesSerialize: { type: 1, value: blob } } }])]));
-		const value = doc.instances.find((i) => i.name === "P")!.props.get("AttributesSerialize")!.value as Uint8Array;
+		const doc = readRbx(
+			buildPlace([
+				service("Workspace", [
+					{
+						className: "Part",
+						name: "P",
+						props: { AttributesSerialize: { type: 1, value: blob } },
+					},
+				]),
+			]),
+		);
+		const value = doc.instances.find((i) => i.name === "P")!.props.get("AttributesSerialize")!
+			.value as Uint8Array;
 		expect(Array.from(value)).toEqual([0, 255, 1, 128]);
 	});
 
 	it("counts a property type it does not decode, and reads the rest", () => {
-		const doc = readRbx(buildPlace([service("Workspace", [{ className: "ParticleEmitter", name: "Sparks", props: { Size: { type: 21, value: [[0, 1, 0], [1, 2, 0]] } } }])]));
+		const doc = readRbx(
+			buildPlace([
+				service("Workspace", [
+					{
+						className: "ParticleEmitter",
+						name: "Sparks",
+						props: {
+							Size: {
+								type: 21,
+								value: [
+									[0, 1, 0],
+									[1, 2, 0],
+								],
+							},
+						},
+					},
+				]),
+			]),
+		);
 		expect(doc.undecoded.get("NumberSequence")).toBe(1);
 		const sparks = doc.instances.find((i) => i.name === "Sparks")!;
 		expect(sparks.props.has("Size")).toBe(false);
@@ -117,7 +169,11 @@ describe("the XML reader", () => {
 		expect(doc.format).toBe("xml");
 		expect(doc.roots.map((r) => r.name)).toEqual(["ServerScriptService", "Workspace"]);
 		expect(doc.roots.every((r) => r.service)).toBe(true);
-		expect([...walk(doc.roots)].map((i) => i.name)).toEqual(["ServerScriptService", "Main & Friends", "Workspace"]);
+		expect([...walk(doc.roots)].map((i) => i.name)).toEqual([
+			"ServerScriptService",
+			"Main & Friends",
+			"Workspace",
+		]);
 	});
 
 	it("reads each property type it knows", () => {
@@ -126,7 +182,9 @@ describe("the XML reader", () => {
 		expect(main.props.get("RunContext")?.value).toBe(1);
 		expect(main.props.get("Disabled")?.value).toBe(false);
 		expect(main.props.get("UniqueId")?.value).toBe("44b188dace632b4702e9c68d004815fc");
-		expect(Array.from(main.props.get("AttributesSerialize")!.value as Uint8Array)).toEqual([0, 1, 2]);
+		expect(Array.from(main.props.get("AttributesSerialize")!.value as Uint8Array)).toEqual([
+			0, 1, 2,
+		]);
 		expect(main.props.get("Target")?.value).toBe(doc.roots[1]);
 		const ws = doc.roots[1];
 		expect(ws.props.get("Gravity2")?.value).toEqual([0, -196.2, 0]);
@@ -135,7 +193,9 @@ describe("the XML reader", () => {
 	});
 
 	it("says where malformed XML goes wrong", () => {
-		expect(() => readRbx(new TextEncoder().encode("<roblox><Item class='A'></roblox>"))).toThrow(/closes <roblox> inside <Item>/);
+		expect(() => readRbx(new TextEncoder().encode("<roblox><Item class='A'></roblox>"))).toThrow(
+			/closes <roblox> inside <Item>/,
+		);
 	});
 });
 
@@ -146,7 +206,9 @@ describe("a damaged file", () => {
 			readRbx(bytes);
 			return "read";
 		} catch (error) {
-			return error instanceof RbxError ? "RbxError" : `${(error as Error).name}: ${(error as Error).message}`;
+			return error instanceof RbxError
+				? "RbxError"
+				: `${(error as Error).name}: ${(error as Error).message}`;
 		}
 	};
 
@@ -167,7 +229,7 @@ describe("a damaged file", () => {
 				const spoiled = whole.slice();
 				seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 				const at = 32 + (seed % (whole.length - 32));
-				spoiled[at] ^= 1 + (seed >>> 24) % 255;
+				spoiled[at] ^= 1 + ((seed >>> 24) % 255);
 				seen.add(outcome(spoiled));
 			}
 			seen.delete("read");
@@ -177,7 +239,9 @@ describe("a damaged file", () => {
 
 	it("throws RbxError for XML it cannot decode", () => {
 		const props = (inner: string) =>
-			new TextEncoder().encode(`<roblox><Item class="Part" referent="A"><Properties>${inner}</Properties></Item></roblox>`);
+			new TextEncoder().encode(
+				`<roblox><Item class="Part" referent="A"><Properties>${inner}</Properties></Item></roblox>`,
+			);
 		expect(outcome(props('<int64 name="Id">1.5</int64>'))).toBe("RbxError");
 		expect(outcome(props('<BinaryString name="B">not base64!</BinaryString>'))).toBe("RbxError");
 		expect(outcome(props('<string name="Name">&#x110000;</string>'))).toBe("read");
@@ -189,18 +253,36 @@ describe("a damaged file", () => {
 });
 
 describe("LZ4 compression", () => {
-	const r = (seed: number) => () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32);
+	const r = (seed: number) => () =>
+		(seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
 	const cases: [string, Uint8Array][] = [
 		["empty", new Uint8Array(0)],
 		["short", new TextEncoder().encode("local x = 1")],
 		["repetitive", new TextEncoder().encode("print('hello')\n".repeat(5000))],
-		["noise", (() => { const g = r(1); return Uint8Array.from({ length: 100_000 }, () => Math.floor(g() * 256)); })()],
-		["runs", (() => { const g = r(2); const a = new Uint8Array(300_000); for (let i = 0; i < a.length; i++) a[i] = g() < 0.9 ? a[Math.max(0, i - 40)] : Math.floor(g() * 256); return a; })()],
+		[
+			"noise",
+			(() => {
+				const g = r(1);
+				return Uint8Array.from({ length: 100_000 }, () => Math.floor(g() * 256));
+			})(),
+		],
+		[
+			"runs",
+			(() => {
+				const g = r(2);
+				const a = new Uint8Array(300_000);
+				for (let i = 0; i < a.length; i++)
+					a[i] = g() < 0.9 ? a[Math.max(0, i - 40)] : Math.floor(g() * 256);
+				return a;
+			})(),
+		],
 	];
 	for (const [name, data] of cases) {
 		it(`round-trips ${name}`, () => {
 			const packed = lz4Compress(data);
-			expect(Array.from(lz4Decompress(packed, data.length)).every((b, i) => b === data[i])).toBe(true);
+			expect(Array.from(lz4Decompress(packed, data.length)).every((b, i) => b === data[i])).toBe(
+				true,
+			);
 		});
 	}
 	it("compresses what repeats", () => {

@@ -10,14 +10,27 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { compileNodeMap, emptyFilesystemMap, serialiseMap, type NodeMap } from "../src/core/nodemap.js";
+import {
+	compileNodeMap,
+	emptyFilesystemMap,
+	type NodeMap,
+	serialiseMap,
+} from "../src/core/nodemap.js";
 import { formatLike, projectToMap, sameProject } from "../src/core/rojoImport.js";
-import { compileMap, findRojoProjects, importRojoProject, openProject, readMap, writeMap } from "../src/server/project.js";
+import {
+	compileMap,
+	findRojoProjects,
+	importRojoProject,
+	openProject,
+	readMap,
+	writeMap,
+} from "../src/server/project.js";
 import { ApiSession } from "../src/server/routes.js";
 
 let n = 0;
 const makeId = () => `id${n++}`;
-const read = (json: unknown) => projectToMap(json, { output: "default.project.json", fallbackName: "Game", makeId });
+const read = (json: unknown) =>
+	projectToMap(json, { output: "default.project.json", fallbackName: "Game", makeId });
 const roundTrip = (json: unknown) => JSON.parse(compileNodeMap(read(json).map).json);
 
 const GAME = {
@@ -35,7 +48,11 @@ const GAME = {
 			StarterPlayerScripts: { $className: "StarterPlayerScripts", Client: { $path: "src/client" } },
 		},
 		Lighting: { $properties: { Brightness: 2, Ambient: [0, 0, 0], GlobalShadows: true } },
-		Workspace: { $className: "Workspace", $ignoreUnknownInstances: true, $attributes: { Season: "Autumn" } },
+		Workspace: {
+			$className: "Workspace",
+			$ignoreUnknownInstances: true,
+			$attributes: { Season: "Autumn" },
+		},
 	},
 	globIgnorePaths: ["**/*.spec.luau"],
 };
@@ -60,13 +77,19 @@ describe("reading a project file", () => {
 		expect(map.rojo).toEqual({ servePort: 34873 });
 		expect(map.globIgnorePaths).toEqual(["**/*.spec.luau"]);
 		const workspace = map.root.children.find((c) => c.name === "Workspace")!;
-		expect(workspace).toMatchObject({ ignoreUnknown: true, rojo: { $attributes: { Season: "Autumn" } } });
+		expect(workspace).toMatchObject({
+			ignoreUnknown: true,
+			rojo: { $attributes: { Season: "Autumn" } },
+		});
 		const lighting = map.root.children.find((c) => c.name === "Lighting")!;
 		expect(lighting.properties).toEqual({ Brightness: 2, Ambient: [0, 0, 0], GlobalShadows: true });
 	});
 
 	it("carries a $path given as an object, which the map has no field for", () => {
-		const json = { name: "X", tree: { $className: "DataModel", ServerStorage: { Maybe: { $path: { optional: "extra" } } } } };
+		const json = {
+			name: "X",
+			tree: { $className: "DataModel", ServerStorage: { Maybe: { $path: { optional: "extra" } } } },
+		};
 		expect(sameProject(roundTrip(json), json)).toBe(true);
 	});
 
@@ -118,7 +141,8 @@ describe("importing into a project", () => {
 	async function project(json: unknown, text = JSON.stringify(json, null, "\t")) {
 		root = await mkdtemp(path.join(os.tmpdir(), "roswaal-rojo-"));
 		await writeFile(path.join(root, "roswaal.json"), JSON.stringify({ schemaVersion: 1 }));
-		for (const dir of ["src/shared", "src/server", "src/client", "assets"]) await mkdir(path.join(root, dir), { recursive: true });
+		for (const dir of ["src/shared", "src/server", "src/client", "assets"])
+			await mkdir(path.join(root, dir), { recursive: true });
 		await writeFile(path.join(root, "default.project.json"), text);
 		return text;
 	}
@@ -137,7 +161,11 @@ describe("importing into a project", () => {
 		const opened = await openProject(root);
 		const { mapPath } = await importRojoProject(opened, "default.project.json");
 		const map = await readMap(opened, mapPath);
-		map.root.children.push({ id: "new", name: "ServerStorage", children: [{ id: "n2", name: "Kept", className: "Folder", children: [] }] });
+		map.root.children.push({
+			id: "new",
+			name: "ServerStorage",
+			children: [{ id: "n2", name: "Kept", className: "Folder", children: [] }],
+		});
 		await writeMap(opened, mapPath, map);
 		const compiled = await compileMap(opened, mapPath, { write: true });
 		expect(compiled.unchanged).toBeUndefined();
@@ -148,7 +176,10 @@ describe("importing into a project", () => {
 
 	it("leaves a file alone that the map would write differently", async () => {
 		// Two keys of one name: JSON keeps the last, so the map cannot say the first.
-		await project(null, '{ "name": "Dup", "tree": { "$className": "DataModel", "A": { "$path": "src/shared" }, "A": { "$path": "src/server" } }, "globIgnorePaths": [] }');
+		await project(
+			null,
+			'{ "name": "Dup", "tree": { "$className": "DataModel", "A": { "$path": "src/shared" }, "A": { "$path": "src/server" } }, "globIgnorePaths": [] }',
+		);
 		const out = await importRojoProject(await openProject(root), "default.project.json");
 		expect(out.takenOver).toBe(false);
 		const compiled = await compileMap(await openProject(root), out.mapPath, { write: true });
@@ -158,10 +189,16 @@ describe("importing into a project", () => {
 	it("lists the project files, and which a map already writes", async () => {
 		await project(GAME);
 		const opened = await openProject(root);
-		expect(await findRojoProjects(opened)).toEqual([{ file: "default.project.json", mappedBy: null }]);
+		expect(await findRojoProjects(opened)).toEqual([
+			{ file: "default.project.json", mappedBy: null },
+		]);
 		const { mapPath } = await importRojoProject(opened, "default.project.json");
-		expect(await findRojoProjects(opened)).toEqual([{ file: "default.project.json", mappedBy: mapPath }]);
-		await expect(importRojoProject(opened, "default.project.json")).rejects.toThrow(/already written/);
+		expect(await findRojoProjects(opened)).toEqual([
+			{ file: "default.project.json", mappedBy: mapPath },
+		]);
+		await expect(importRojoProject(opened, "default.project.json")).rejects.toThrow(
+			/already written/,
+		);
 	});
 
 	it("is reached through the routes both hosts answer", async () => {
@@ -170,7 +207,9 @@ describe("importing into a project", () => {
 		await session.openAt(root);
 		const listed = (await session.handle("GET", "/rojo/projects")) as { projects: unknown[] };
 		expect(listed.projects).toHaveLength(1);
-		const out = (await session.handle("POST", "/rojo/import", { body: { file: "default.project.json" } })) as { mapPath: string; takenOver: boolean };
+		const out = (await session.handle("POST", "/rojo/import", {
+			body: { file: "default.project.json" },
+		})) as { mapPath: string; takenOver: boolean };
 		expect(out.takenOver).toBe(true);
 		expect(out.mapPath).toMatch(/Orchard\.nodemap$/);
 	});

@@ -5,9 +5,9 @@
 import type { NodeMap } from "../../nodemap.js";
 import { projectToMap } from "../../rojoImport.js";
 import { GUIDE_SCENES } from "../examples.js";
-import { code } from "./blocks.js";
 import type { DocPage } from "../site.js";
 import { DATAMODEL_BROWSER, EXPORT_PANEL, PROPERTIES_PANEL } from "../toolbars.js";
+import { code } from "./blocks.js";
 
 /**
  * A Rojo project as a Wally game usually has one: shared code and packages in
@@ -36,7 +36,11 @@ export const ROJO_SAMPLE = {
 
 const ROJO_IMPORTED: NodeMap = (() => {
 	let n = 0;
-	return projectToMap(ROJO_SAMPLE, { output: "default.project.json", fallbackName: "orchard", makeId: () => `rojo-${n++}` }).map;
+	return projectToMap(ROJO_SAMPLE, {
+		output: "default.project.json",
+		fallbackName: "orchard",
+		makeId: () => `rojo-${n++}`,
+	}).map;
 })();
 
 /**
@@ -49,7 +53,8 @@ export function placesAndRojoPage(): DocPage {
 		slug: "places-and-rojo",
 		narrow: true,
 		title: "Places and Rojo projects",
-		summary: "Bringing a game in from its Rojo project or its place, browsing the place, and writing scripts back into it.",
+		summary:
+			"Bringing a game in from its Rojo project or its place, browsing the place, and writing scripts back into it.",
 		blocks: [
 			{
 				t: "p",
@@ -142,7 +147,10 @@ export function placesAndRojoPage(): DocPage {
 				t: "table",
 				head: ["Drag from Properties", "What it makes"],
 				rows: [
-					["A property", "An **Instance** node at the instance's path, wired into **Get Member**, typed as the property is"],
+					[
+						"A property",
+						"An **Instance** node at the instance's path, wired into **Get Member**, typed as the property is",
+					],
 					["A property, with `Ctrl` held as you drop", "The same, into **Set Property**"],
 					["An attribute", "**Get Attribute**, or **Set Attribute** with `Ctrl`"],
 					["The instance's name", "The Instance node alone"],
@@ -156,36 +164,60 @@ export function placesAndRojoPage(): DocPage {
 						id: "drop-property",
 						title: "A property",
 						blocks: [
-							{ t: "graph", script: GUIDE_SCENES.dropProperty(), caption: "Anchored, dropped: Get Member, typed boolean, printed here." },
-							{ t: "code", lang: "luau", text: code`
+							{
+								t: "graph",
+								script: GUIDE_SCENES.dropProperty(),
+								caption: "Anchored, dropped: Get Member, typed boolean, printed here.",
+							},
+							{
+								t: "code",
+								lang: "luau",
+								text: code`
 								local Workspace = game:GetService("Workspace")
 
 								print(Workspace.House.Door.Anchored)
-								` },
+								`,
+							},
 						],
 					},
 					{
 						id: "drop-property-set",
 						title: "With Ctrl",
 						blocks: [
-							{ t: "graph", script: GUIDE_SCENES.dropPropertySet(), caption: "The same drop with `Ctrl` held: Set Property." },
-							{ t: "code", lang: "luau", text: code`
+							{
+								t: "graph",
+								script: GUIDE_SCENES.dropPropertySet(),
+								caption: "The same drop with `Ctrl` held: Set Property.",
+							},
+							{
+								t: "code",
+								lang: "luau",
+								text: code`
 								local Workspace = game:GetService("Workspace")
 
 								Workspace.House.Door.Anchored = false
-								` },
+								`,
+							},
 						],
 					},
 					{
 						id: "drop-attribute",
 						title: "An attribute",
 						blocks: [
-							{ t: "graph", script: GUIDE_SCENES.dropAttribute(), caption: "IsOpen, an attribute: Get Attribute." },
-							{ t: "code", lang: "luau", text: code`
+							{
+								t: "graph",
+								script: GUIDE_SCENES.dropAttribute(),
+								caption: "IsOpen, an attribute: Get Attribute.",
+							},
+							{
+								t: "code",
+								lang: "luau",
+								text: code`
 								local Workspace = game:GetService("Workspace")
 
 								print(Workspace.House.Door:GetAttribute("IsOpen"))
-								` },
+								`,
+							},
 						],
 					},
 				],
@@ -214,9 +246,18 @@ export function placesAndRojoPage(): DocPage {
 				head: ["Export says", "Why the file was not written"],
 				rows: [
 					["No service in the place for", "Its path starts at a service the place does not have"],
-					["More than one script with that path", "Two siblings share a name, so which one is meant is not certain"],
-					["A different kind of script in the place", "Module code where the place has a Script, or the other way round"],
-					["Still in the place, with no file now", "The file was removed or renamed. The script stays; delete it in Studio if it should go"],
+					[
+						"More than one script with that path",
+						"Two siblings share a name, so which one is meant is not certain",
+					],
+					[
+						"A different kind of script in the place",
+						"Module code where the place has a Script, or the other way round",
+					],
+					[
+						"Still in the place, with no file now",
+						"The file was removed or renamed. The script stays; delete it in Studio if it should go",
+					],
 				],
 			},
 		],

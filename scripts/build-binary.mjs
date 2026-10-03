@@ -41,7 +41,13 @@
 
 import { spawnSync } from "node:child_process";
 import {
-	copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync,
+	copyFileSync,
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	statSync,
 	writeFileSync,
 } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
@@ -56,8 +62,8 @@ const out = join(root, "dist-binary");
 
 /** What the asset is called, which is how a toolchain manager picks it. */
 function assetName(version) {
-	const os = { win32: "windows", darwin: "macos", linux: "linux" }[process.platform]
-		?? process.platform;
+	const os =
+		{ win32: "windows", darwin: "macos", linux: "linux" }[process.platform] ?? process.platform;
 	const arch = { x64: "x86_64", arm64: "aarch64" }[process.arch] ?? process.arch;
 	return `roswaal-${version}-${os}-${arch}`;
 }
@@ -128,7 +134,9 @@ function editorAssets() {
 		.filter((abs) => abs.endsWith(".js"))
 		.map((abs) => readFileSync(abs, "utf8"));
 	if (!bundleHasVersion(scripts, version)) {
-		console.error(`roswaal: dist/ was not built at ${version}, so the binary would carry another editor.`);
+		console.error(
+			`roswaal: dist/ was not built at ${version}, so the binary would carry another editor.`,
+		);
 		console.error("  Run:  npm run build:web");
 		process.exit(1);
 	}
@@ -140,12 +148,16 @@ const assets = editorAssets();
 const config = join(out, "sea-config.json");
 writeFileSync(
 	config,
-	`${JSON.stringify({
-		main: bundle,
-		output: join(out, "roswaal.blob"),
-		disableExperimentalSEAWarning: true,
-		assets,
-	}, null, 2)}\n`,
+	`${JSON.stringify(
+		{
+			main: bundle,
+			output: join(out, "roswaal.blob"),
+			disableExperimentalSEAWarning: true,
+			assets,
+		},
+		null,
+		2,
+	)}\n`,
 	"utf8",
 );
 
@@ -182,6 +194,6 @@ if (inject.status !== 0) {
 const megabytes = (statSync(binary).size / 1024 / 1024).toFixed(0);
 console.log(
 	`roswaal binary: ${megabytes} MB -> dist-binary/roswaal${exe}` +
-	` (editor: ${Object.keys(assets).length} files)`,
+		` (editor: ${Object.keys(assets).length} files)`,
 );
 console.log(`  release asset name: ${assetName(version)}.zip`);

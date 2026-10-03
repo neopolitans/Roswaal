@@ -14,21 +14,32 @@
  * miss it.
  */
 
-import { bootEditor } from "../app/boot.jsx";
 import { useTransport } from "../app/api.js";
+import { bootEditor } from "../app/boot.jsx";
 import {
-	setRememberedFolders, useDirectoryOpener, useFolderForgetter, usePlaceImporter, useZipImporter,
-	type DirectoryPick, type PlacePreview, type RememberedFolder, type ZipPreview,
+	type DirectoryPick,
+	type PlacePreview,
+	type RememberedFolder,
+	setRememberedFolders,
+	useDirectoryOpener,
+	useFolderForgetter,
+	usePlaceImporter,
+	useZipImporter,
+	type ZipPreview,
 } from "../app/host.js";
 import { unzip } from "../app/unzip.js";
 import { readRbx } from "../core/rbx/index.js";
 import { planImport, surveyPlace } from "../core/rbx/placeImport.js";
 
 import { canOpenDirectory } from "./directoryFs.js";
-import {
-	askPermissionFor, forgetFolder, permissionFor, rememberedFolders, rememberFolder,
-} from "./remember.js";
 import { keepEntry, projectFromZip, projectName } from "./importZip.js";
+import {
+	askPermissionFor,
+	forgetFolder,
+	permissionFor,
+	rememberedFolders,
+	rememberFolder,
+} from "./remember.js";
 import { workerTransport } from "./transport.js";
 
 const worker = new Worker(new URL("./worker.js", import.meta.url), {
@@ -84,20 +95,29 @@ async function readProjectZip(file: File): Promise<ZipPreview> {
 	if (count === 0) throw new Error("There is no project in this zip: it has no text files in it.");
 
 	const send = (initialise?: boolean) =>
-		transport.importProject(project.name, project.files, project.dirs, initialise, project.binaries);
+		transport.importProject(
+			project.name,
+			project.files,
+			project.dirs,
+			initialise,
+			project.binaries,
+		);
 	return {
 		name: project.name,
 		files: count,
 		open: async () => {
 			const opened = await send();
-			const pick: DirectoryPick = "root" in opened ? opened : {
-				notAProject: opened.notAProject,
-				initialise: async () => {
-					const made = await send(true);
-					if (!("root" in made)) throw new Error("It could not be set up.");
-					return made;
-				},
-			};
+			const pick: DirectoryPick =
+				"root" in opened
+					? opened
+					: {
+							notAProject: opened.notAProject,
+							initialise: async () => {
+								const made = await send(true);
+								if (!("root" in made)) throw new Error("It could not be set up.");
+								return made;
+							},
+						};
 			return { pick, skipped: project.skipped };
 		},
 	};
@@ -123,7 +143,11 @@ async function readProjectPlace(file: File): Promise<PlacePreview> {
 			const name = projectName(choice.name);
 			const placeFile = `${projectName(stem)}${ext}`;
 			const plan = planImport(survey, {
-				scope: choice.scope, dedupe: choice.dedupe, outDir: "src", placeFile, name,
+				scope: choice.scope,
+				dedupe: choice.dedupe,
+				outDir: "src",
+				placeFile,
+				name,
 			});
 			const { root } = await transport.importPlace(name, plan.files, placeFile, bytes);
 			return { root, leftInPlace: plan.skipped.length };
@@ -196,8 +220,10 @@ async function start(): Promise<void> {
 			name: one.name,
 			granted: permission === "granted",
 			open: async () => {
-				if (await permissionFor(one.handle) !== "granted"
-					&& await askPermissionFor(one.handle) !== "granted") {
+				if (
+					(await permissionFor(one.handle)) !== "granted" &&
+					(await askPermissionFor(one.handle)) !== "granted"
+				) {
 					return null;
 				}
 				return openFolder(one.handle);

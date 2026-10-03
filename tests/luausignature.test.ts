@@ -30,8 +30,9 @@ describe("signatureAt", () => {
 	});
 
 	it("reads a service's method on a local that holds the service", () => {
-		expect(at('local players = game:GetService("Players")\nplayers:GetPlayerByUserId(|'))
-			.toBe("players:GetPlayerByUserId([userId]) -> Player");
+		expect(at('local players = game:GetService("Players")\nplayers:GetPlayerByUserId(|')).toBe(
+			"players:GetPlayerByUserId([userId]) -> Player",
+		);
 	});
 
 	it("shows nothing for a call it does not know, or inside a table", () => {
@@ -50,14 +51,20 @@ describe("signatureAt", () => {
 
 describe("a function put on a table", () => {
 	it("shows its parameters while its call is typed", () => {
-		expect(at("local T = {}\nfunction T.value(tank: Model, n: number): Instance end\nT.value(workspace, |"))
-			.toBe("T.value(tank, [n]) -> Instance");
+		expect(
+			at(
+				"local T = {}\nfunction T.value(tank: Model, n: number): Instance end\nT.value(workspace, |",
+			),
+		).toBe("T.value(tank, [n]) -> Instance");
 	});
 
 	it("keeps a parameter whose type is a function type whole", () => {
 		const src = "local M = {}\nfunction M.on(cb: (x: number) -> (), n: number) end\nM.on(f, |";
 		const signature = signatureAt(src.replace("|", ""), src.indexOf("|"));
-		expect(signature?.params).toEqual([{ name: "cb", type: "(x: number) -> ()" }, { name: "n", type: "number" }]);
+		expect(signature?.params).toEqual([
+			{ name: "cb", type: "(x: number) -> ()" },
+			{ name: "n", type: "number" },
+		]);
 		expect(signature?.active).toBe(1);
 		expect(signature?.returns).toBeUndefined();
 	});

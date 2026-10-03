@@ -45,7 +45,11 @@ export function query(req: RouteRequest, name: string): string {
 }
 
 /** An optional query parameter, which must be one of `allowed` when it is given. */
-export function optionalQuery<T extends string>(req: RouteRequest, name: string, allowed: readonly T[]): T | undefined {
+export function optionalQuery<T extends string>(
+	req: RouteRequest,
+	name: string,
+	allowed: readonly T[],
+): T | undefined {
 	const value = req.query?.[name];
 	if (value === undefined || value === "") return undefined;
 	if (!(allowed as readonly string[]).includes(value)) {
@@ -59,6 +63,7 @@ const REALMS: readonly WallyRealm[] = ["shared", "server", "dev"];
 /** A Wally realm from a request, or undefined for the default; anything else is a 400. */
 export function realmOf(value: unknown): WallyRealm | undefined {
 	if (value === undefined || value === null || value === "") return undefined;
-	if (typeof value === "string" && (REALMS as readonly string[]).includes(value)) return value as WallyRealm;
+	if (typeof value === "string" && (REALMS as readonly string[]).includes(value))
+		return value as WallyRealm;
 	throw new HttpError(400, `"realm" is ${REALMS.join(", ")} or nothing, not "${String(value)}".`);
 }

@@ -12,8 +12,8 @@ import { describe, expect, it } from "vitest";
 
 import { pageSource } from "../src/app/PageEditor.js";
 import { previewOf } from "../src/core/docs/preview.js";
-import { createRegistry } from "../src/core/nodes/index.js";
 import type { DocPage } from "../src/core/docs/site.js";
+import { createRegistry } from "../src/core/nodes/index.js";
 
 const registry = createRegistry();
 
@@ -61,7 +61,10 @@ describe("a page as source", () => {
 	it("says where a graph came from, and that a named scene belongs elsewhere", () => {
 		const script = { ...emptyish(), nodes: [{ id: "n", def: "script.begin", x: 0, y: 0 }] };
 		const out = source([
-			{ block: { t: "graph", script, caption: "A branch." }, path: ".roswaal/scripts/Demo.nodescript" },
+			{
+				block: { t: "graph", script, caption: "A branch." },
+				path: ".roswaal/scripts/Demo.nodescript",
+			},
 		]);
 
 		expect(out).toContain("// Built from .roswaal/scripts/Demo.nodescript.");
@@ -76,9 +79,7 @@ describe("a page as source", () => {
 	 * work nobody notices until later.
 	 */
 	it("hands back a block it cannot edit, unchanged", () => {
-		const out = source([
-			{ block: { t: "table", head: ["A", "B"], rows: [["1", "2"]] } },
-		]);
+		const out = source([{ block: { t: "table", head: ["A", "B"], rows: [["1", "2"]] } }]);
 		expect(out).toContain('{"t":"table","head":["A","B"],"rows":[["1","2"]]},');
 	});
 

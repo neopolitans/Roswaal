@@ -17,10 +17,10 @@
 import { describe, expect, it } from "vitest";
 
 import { compile } from "../src/core/compiler/index.js";
-import { createRegistry } from "../src/core/nodes/index.js";
 import { DEMOS, demoLuau } from "../src/core/docs/demos.js";
 import { LUNE_MODULES } from "../src/core/luneApi.js";
 import { callOf, moduleOf } from "../src/core/luneCalls.js";
+import { createRegistry } from "../src/core/nodes/index.js";
 import { isLuneCall } from "../src/core/nodes/lune.js";
 
 const registry = createRegistry();
@@ -82,8 +82,9 @@ describe("every Lune demo", () => {
 	 * with no warning is the page describing something that stopped happening.
 	 */
 	it.each(DEMOS)("$slug warns exactly where the page says it does", (demo) => {
-		const warnings = compile(demo.script(), registry).diagnostics
-			.filter((d) => d.severity === "warning");
+		const warnings = compile(demo.script(), registry).diagnostics.filter(
+			(d) => d.severity === "warning",
+		);
 		if (demo.warns === undefined) {
 			expect(warnings.map((w) => w.message)).toEqual([]);
 		} else {

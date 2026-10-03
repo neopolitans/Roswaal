@@ -3,7 +3,7 @@
  * types its module graphs export from there.
  */
 
-import { locateInDataModel, type InstanceLocation } from "../core/nodemap.js";
+import { type InstanceLocation, locateInDataModel } from "../core/nodemap.js";
 import { isModuleScript } from "../core/schema.js";
 import { fieldsOfDeclaration, type TypeField } from "../core/typeFields.js";
 import type { OpenProject } from "./config.js";
@@ -18,7 +18,8 @@ import { graphOutputPath } from "./outputs.js";
  * a map aimed straight at the graphs directory works too.
  */
 export async function locateFile(
-	project: OpenProject, relPath: string,
+	project: OpenProject,
+	relPath: string,
 ): Promise<InstanceLocation | null> {
 	const candidates = [relPath];
 
@@ -75,7 +76,10 @@ export async function exportedTypes(project: OpenProject): Promise<ExportedType[
 		for (const node of script.nodes) {
 			if (node.def !== "type.declareTop" && node.def !== "type.declareHere") continue;
 			const config = (node.config ?? {}) as {
-				name?: string; export?: boolean; shape?: string; definition?: string;
+				name?: string;
+				export?: boolean;
+				shape?: string;
+				definition?: string;
 				fields?: { name?: string; type?: string }[];
 			};
 			const name = (config.name ?? "").trim();

@@ -10,13 +10,13 @@
  * and a Rojo project fill before anything runs.
  */
 
+import { ENGINE } from "../robloxEngine.js";
 import type { Block, Expr } from "./ast.js";
 import { luauFile } from "./file.js";
-import { localsAt } from "./scope.js";
 import { stringValue } from "./infer.js";
-import { targetOf, type RequireTarget } from "./requires.js";
+import { type RequireTarget, targetOf } from "./requires.js";
+import { localsAt } from "./scope.js";
 import { contains, visitBlock } from "./visit.js";
-import { ENGINE } from "../robloxEngine.js";
 
 export interface InstanceNode {
 	name: string;
@@ -66,8 +66,16 @@ export function nodeAt(root: InstanceNode, path: readonly string[]): InstanceNod
  * while it does, and a name missing there is ordinary.
  */
 const SETTLED = new Set([
-	"ReplicatedStorage", "ReplicatedFirst", "ServerScriptService", "ServerStorage",
-	"StarterGui", "StarterPack", "StarterPlayer", "Lighting", "SoundService", "Teams",
+	"ReplicatedStorage",
+	"ReplicatedFirst",
+	"ServerScriptService",
+	"ServerStorage",
+	"StarterGui",
+	"StarterPack",
+	"StarterPlayer",
+	"Lighting",
+	"SoundService",
+	"Teams",
 ]);
 
 /** Whether a name is a property, method, event or callback of the class, or one above it. */
@@ -75,19 +83,32 @@ export function isMemberOf(className: string, name: string): boolean {
 	for (let cls: string | undefined = className; cls; cls = ENGINE.classes[cls]?.superclass) {
 		const c = ENGINE.classes[cls];
 		if (!c) break;
-		if (c.properties.some((m) => m.name === name) || c.methods.some((m) => m.name === name)
-			|| c.events.some((m) => m.name === name) || c.callbacks.some((m) => m.name === name)) return true;
+		if (
+			c.properties.some((m) => m.name === name) ||
+			c.methods.some((m) => m.name === name) ||
+			c.events.some((m) => m.name === name) ||
+			c.callbacks.some((m) => m.name === name)
+		)
+			return true;
 	}
 	return false;
 }
 
 /** An instance path an expression names, absolute from `game`, when the code says. */
-function pathOf(expr: Expr, src: string, block: Block, self: readonly string[] | undefined): string[] | undefined {
+function pathOf(
+	expr: Expr,
+	src: string,
+	block: Block,
+	self: readonly string[] | undefined,
+): string[] | undefined {
 	const target = targetOf(expr, src, 0, block);
 	return target ? absolute(target, self) : undefined;
 }
 
-function absolute(target: RequireTarget, self: readonly string[] | undefined): string[] | undefined {
+function absolute(
+	target: RequireTarget,
+	self: readonly string[] | undefined,
+): string[] | undefined {
 	if (target.kind !== "instance") return undefined;
 	const out = target.from === "game" ? [] : self ? [...self] : undefined;
 	if (!out) return undefined;
@@ -113,12 +134,22 @@ export interface InstanceProblem {
  * own instance path, for `script.Parent`; without it only paths from `game`
  * and services are checked.
  */
-export function instanceProblems(src: string, root: InstanceNode, self?: readonly string[]): InstanceProblem[] {
+export function instanceProblems(
+	src: string,
+	root: InstanceNode,
+	self?: readonly string[],
+): InstanceProblem[] {
 	const parsed = luauFile(src);
 	if (parsed.errors.length > 0) return [];
 	const block = parsed.block;
 	const out: InstanceProblem[] = [];
-	const check = (holderExpr: Expr, name: string, from: number, to: number, how: "index" | "wait") => {
+	const check = (
+		holderExpr: Expr,
+		name: string,
+		from: number,
+		to: number,
+		how: "index" | "wait",
+	) => {
 		const path = pathOf(holderExpr, src, block, self);
 		if (!path || path.length === 0 || !SETTLED.has(path[0])) return;
 		const holder = nodeAt(root, path);
@@ -126,19 +157,26 @@ export function instanceProblems(src: string, root: InstanceNode, self?: readonl
 		if (how === "index" && isMemberOf(holder.className, name)) return;
 		const where = path.join(".");
 		out.push({
-			from, to,
-			message: how === "wait"
-				? `Nothing called "${name}" is in ${where}, in the place or the project. WaitForChild will wait for it.`
-				: `${where} has no child called "${name}" in the place or the project, and ${holder.className} has no member of that name.`,
+			from,
+			to,
+			message:
+				how === "wait"
+					? `Nothing called "${name}" is in ${where}, in the place or the project. WaitForChild will wait for it.`
+					: `${where} has no child called "${name}" in the place or the project, and ${holder.className} has no member of that name.`,
 		});
 	};
 	visitBlock(block, {
 		expr: (expr) => {
 			if (expr.kind === "index") {
 				check(expr.object, expr.name.name, expr.name.start, expr.name.end, "index");
-			} else if (expr.kind === "methodCall" && expr.method.name === "WaitForChild" && expr.args[0]?.kind === "string") {
+			} else if (
+				expr.kind === "methodCall" &&
+				expr.method.name === "WaitForChild" &&
+				expr.args[0]?.kind === "string"
+			) {
 				const name = stringValue(expr.args[0]);
-				if (name !== undefined) check(expr.object, name, expr.args[0].start, expr.args[0].end, "wait");
+				if (name !== undefined)
+					check(expr.object, name, expr.args[0].start, expr.args[0].end, "wait");
 			}
 		},
 	});
@@ -147,7 +185,10 @@ export function instanceProblems(src: string, root: InstanceNode, self?: readonl
 
 /** The instance a name in code stands for, at `pos`: for hover. */
 export function instanceAt(
-	src: string, pos: number, root: InstanceNode, self?: readonly string[],
+	src: string,
+	pos: number,
+	root: InstanceNode,
+	self?: readonly string[],
 ): { from: number; to: number; path: string[]; node: InstanceNode } | undefined {
 	const parsed = luauFile(src);
 	if (parsed.errors.length > 0) return undefined;
@@ -159,8 +200,12 @@ export function instanceAt(
 			if (found) return false;
 			if (expr.kind === "index" && contains(expr.name, pos)) {
 				found = { from: expr.name.start, to: expr.name.end, expr };
-			} else if (expr.kind === "methodCall" && (expr.method.name === "WaitForChild" || expr.method.name === "FindFirstChild")
-				&& expr.args[0]?.kind === "string" && contains(expr.args[0], pos)) {
+			} else if (
+				expr.kind === "methodCall" &&
+				(expr.method.name === "WaitForChild" || expr.method.name === "FindFirstChild") &&
+				expr.args[0]?.kind === "string" &&
+				contains(expr.args[0], pos)
+			) {
 				found = { from: expr.args[0].start, to: expr.args[0].end, expr };
 			}
 			return !found;
@@ -179,7 +224,11 @@ export function instanceAt(
  * first name is a local, looked up in the text above, or `game` or `script`.
  */
 export function childrenOfChain(
-	src: string, pos: number, chain: readonly string[], root: InstanceNode, self?: readonly string[],
+	src: string,
+	pos: number,
+	chain: readonly string[],
+	root: InstanceNode,
+	self?: readonly string[],
 ): InstanceNode[] {
 	if (chain.length === 0) return [];
 	const [head, ...rest] = chain;
@@ -194,10 +243,13 @@ export function childrenOfChain(
 		base = target ? absolute(target, self) : undefined;
 	}
 	if (!base) return [];
-	const node = nodeAt(root, [...base, ...rest.map((n) => (n === "Parent" ? ".." : n))].reduce<string[]>((acc, n) => {
-		if (n === "..") acc.pop();
-		else acc.push(n);
-		return acc;
-	}, []));
+	const node = nodeAt(
+		root,
+		[...base, ...rest.map((n) => (n === "Parent" ? ".." : n))].reduce<string[]>((acc, n) => {
+			if (n === "..") acc.pop();
+			else acc.push(n);
+			return acc;
+		}, []),
+	);
 	return node ? [...node.children.values()] : [];
 }

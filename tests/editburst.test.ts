@@ -7,7 +7,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { EditBurst, type BurstStore } from "../src/app/editBurst.js";
+import { type BurstStore, EditBurst } from "../src/app/editBurst.js";
 import { store } from "../src/app/store.js";
 import { Builder } from "./helpers.js";
 

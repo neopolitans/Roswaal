@@ -8,16 +8,15 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
-import { allPages, blockText, buildSite } from "../src/core/docs/site.js";
-import { GUIDE_SCENES } from "../src/core/docs/examples.js";
-import { graphSvg } from "../src/core/docs/preview.js";
-import { renderPage } from "../src/core/docs/html.js";
-import { VERSION } from "../src/cli/version.js";
-import { nodeColor, pinColor } from "../src/app/palette.js";
 import { wirePath } from "../src/app/geometry.js";
 import { NODE } from "../src/app/layers.js";
+import { nodeColor, pinColor } from "../src/app/palette.js";
+import { VERSION } from "../src/cli/version.js";
+import { GUIDE_SCENES } from "../src/core/docs/examples.js";
+import { renderPage } from "../src/core/docs/html.js";
+import { graphSvg } from "../src/core/docs/preview.js";
+import { allPages, blockText, buildSite } from "../src/core/docs/site.js";
+import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 
 const registry = createRegistry();
 const site = buildSite(registry, new Set(BUILTIN_NODES.map((d) => d.id)));
@@ -41,7 +40,8 @@ describe("wire pictures", () => {
 	});
 
 	it("gives two graphs on one page different gradient ids", () => {
-		const ids = (svg: string) => [...svg.matchAll(/<linearGradient id="([^"]+)"/g)].map((m) => m[1]);
+		const ids = (svg: string) =>
+			[...svg.matchAll(/<linearGradient id="([^"]+)"/g)].map((m) => m[1]);
 		const fades = ids(graphSvg(GUIDE_SCENES.wireFades(), registry, options));
 		const knots = ids(graphSvg(GUIDE_SCENES.wireKnots(), registry, options));
 		for (const id of fades) expect(knots).not.toContain(id);

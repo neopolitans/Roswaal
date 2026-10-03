@@ -189,7 +189,8 @@ describe("what counts as inside", () => {
 describe("Occupancy.hide, from the m103 example", () => {
 	function occupancy(): { script: NodeScript; hide: string } {
 		const file = path.join(
-			ROOT, "examples/m103/graph/.roswaal/scripts/ReplicatedStorage/Tank/Occupancy.nodescript",
+			ROOT,
+			"examples/m103/graph/.roswaal/scripts/ReplicatedStorage/Tank/Occupancy.nodescript",
 		);
 		const script = migrateScript(JSON.parse(readFileSync(file, "utf8")) as NodeScript).script;
 		const hide = script.nodes.find(

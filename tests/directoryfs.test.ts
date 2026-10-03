@@ -19,7 +19,7 @@
  * refusing to be removed without `recursive` — and those do not need Chrome.
  */
 
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,7 +31,10 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 class FakeFile {
 	readonly kind = "file" as const;
-	constructor(public name: string, public data = new Uint8Array()) {}
+	constructor(
+		public name: string,
+		public data = new Uint8Array(),
+	) {}
 
 	async getFile() {
 		const data = this.data;
@@ -49,9 +52,8 @@ class FakeFile {
 		const file = this;
 		return {
 			async write(chunk: string | ArrayBuffer) {
-				file.data = typeof chunk === "string"
-					? new TextEncoder().encode(chunk)
-					: new Uint8Array(chunk);
+				file.data =
+					typeof chunk === "string" ? new TextEncoder().encode(chunk) : new Uint8Array(chunk);
 			},
 			async close() {},
 		};
@@ -128,11 +130,15 @@ vi.mock("../src/server/host.js", async () => {
 	return { fs, path, formatLuau: (_cwd: string, code: string) => code };
 });
 
-const { buildTree, compileAll, openProject, readScript, writeScript } =
-	await import("../src/server/project.js");
+const { buildTree, compileAll, openProject, readScript, writeScript } = await import(
+	"../src/server/project.js"
+);
 
 const DEMO = nodePath.resolve(
-	nodePath.dirname(fileURLToPath(import.meta.url)), "..", "examples", "demo",
+	nodePath.dirname(fileURLToPath(import.meta.url)),
+	"..",
+	"examples",
+	"demo",
 );
 
 beforeAll(async () => {
@@ -143,8 +149,11 @@ beforeAll(async () => {
 				await walk(abs);
 				continue;
 			}
-			place(ROOT, nodePath.relative(DEMO, abs).split(nodePath.sep).join("/"),
-				await readFile(abs, "utf8"));
+			place(
+				ROOT,
+				nodePath.relative(DEMO, abs).split(nodePath.sep).join("/"),
+				await readFile(abs, "utf8"),
+			);
 		}
 	};
 	await walk(DEMO);
@@ -184,8 +193,11 @@ describe("a project opened from a folder on disk", () => {
 		}
 
 		// Straight out of the fake tree: the bytes really landed where Rojo looks.
-		const written = ROOT.dirs.get("src")?.dirs.get("ReplicatedStorage")
-			?.dirs.get("Shared")?.files.get("Greeter.luau");
+		const written = ROOT.dirs
+			.get("src")
+			?.dirs.get("ReplicatedStorage")
+			?.dirs.get("Shared")
+			?.files.get("Greeter.luau");
 		expect(await written?.getFile().then((f) => f.text())).toContain("roswaal-output:");
 	});
 
@@ -202,9 +214,12 @@ describe("a project opened from a folder on disk", () => {
 		const project = await openProject("/demo");
 		const [first] = await compileAll(project, { write: true });
 
-		const target = ROOT.dirs.get("src")?.dirs.get("ReplicatedStorage")
-			?.dirs.get("Shared")?.files.get("Greeter.luau")!;
-		const edited = await target.getFile().then((f) => f.text()) + "\n-- a hand edit\n";
+		const target = ROOT.dirs
+			.get("src")
+			?.dirs.get("ReplicatedStorage")
+			?.dirs.get("Shared")
+			?.files.get("Greeter.luau")!;
+		const edited = (await target.getFile().then((f) => f.text())) + "\n-- a hand edit\n";
 		target.data = new TextEncoder().encode(edited);
 
 		const again = await compileAll(project, { write: true });
@@ -314,7 +329,10 @@ describe("setting up a folder that is not a project yet", () => {
 
 		// A real config, not an empty file: the editor opens it straight after.
 		const config = JSON.parse(
-			await blank.files.get("roswaal.json")!.getFile().then((f) => f.text()),
+			await blank.files
+				.get("roswaal.json")!
+				.getFile()
+				.then((f) => f.text()),
 		) as { sourceDir: string; outDir: string };
 		expect(config.sourceDir).toBe(".roswaal/scripts");
 		expect(config.outDir).toBe("src");

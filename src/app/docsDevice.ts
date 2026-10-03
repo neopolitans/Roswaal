@@ -44,7 +44,9 @@ export function readerDevice(win: Window, local: boolean): Device {
 export function chosenDevice(): Device | null {
 	try {
 		const raw = sessionStorage.getItem(KEY);
-		return raw === "localhost" || raw === "webapp" || raw === "tablet" || raw === "phone" ? raw : null;
+		return raw === "localhost" || raw === "webapp" || raw === "tablet" || raw === "phone"
+			? raw
+			: null;
 	} catch {
 		return null;
 	}
@@ -84,14 +86,20 @@ export function attachDeviceTabs(doc: Document, local = false): void {
 	const show = (device: Device) => {
 		for (const group of groups) {
 			const inputs = [...group.querySelectorAll<HTMLInputElement>(":scope > input[type=radio]")];
-			const i = pickTab(inputs.map((input) => ({ device: devicesOf(input) })), device);
+			const i = pickTab(
+				inputs.map((input) => ({ device: devicesOf(input) })),
+				device,
+			);
 			if (i >= 0) inputs[i]!.checked = true;
 		}
 	};
 
 	for (const group of groups) {
 		const inputs = [...group.querySelectorAll<HTMLInputElement>(":scope > input[type=radio]")];
-		const mine = pickTab(inputs.map((input) => ({ device: devicesOf(input) })), own);
+		const mine = pickTab(
+			inputs.map((input) => ({ device: devicesOf(input) })),
+			own,
+		);
 		if (mine >= 0) {
 			const label = group.querySelector(`label[for="${CSS.escape(inputs[mine]!.id)}"]`);
 			if (label && !label.querySelector(".docs-tab-here")) {

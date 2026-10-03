@@ -86,7 +86,8 @@ export type OperatorField = "field" | "wide" | "check";
  * column simply stays empty, which is the thing that must not move.
  */
 export function operatorFields(
-	inputs: PinDef[], literals?: Record<string, Literal | undefined>,
+	inputs: PinDef[],
+	literals?: Record<string, Literal | undefined>,
 ): OperatorField[] {
 	const out: OperatorField[] = [];
 	for (const pin of inputs) {

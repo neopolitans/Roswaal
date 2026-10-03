@@ -15,8 +15,8 @@
  * before the file is taken over.
  */
 
-import { SCHEMA_VERSION } from "./schema.js";
 import type { MapNode, NodeMap } from "./nodemap.js";
+import { SCHEMA_VERSION } from "./schema.js";
 
 export interface RojoImport {
 	map: NodeMap;
@@ -38,18 +38,28 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
  * the map's output so compiling writes the same file.
  */
 export function projectToMap(
-	json: unknown, opts: { output: string; fallbackName: string; makeId: () => string },
+	json: unknown,
+	opts: { output: string; fallbackName: string; makeId: () => string },
 ): RojoImport {
 	const problems: string[] = [];
 	if (!isObject(json) || !isObject(json.tree)) {
-		return { map: emptyImport(opts), problems: ["It has no `tree`, so it is not a Rojo project file."] };
+		return {
+			map: emptyImport(opts),
+			problems: ["It has no `tree`, so it is not a Rojo project file."],
+		};
 	}
 
 	const rojo: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(json)) if (!MODELLED_TOP.has(key)) rojo[key] = value;
 
 	/** `service`: directly under a DataModel root, where Rojo names a service by its key. */
-	const read = (raw: Record<string, unknown>, name: string, where: string, isRoot: boolean, service: boolean): MapNode => {
+	const read = (
+		raw: Record<string, unknown>,
+		name: string,
+		where: string,
+		isRoot: boolean,
+		service: boolean,
+	): MapNode => {
 		const node: MapNode = { id: opts.makeId(), name, children: [] };
 		const extra: Record<string, unknown> = {};
 		const className = raw.$className;
@@ -70,7 +80,8 @@ export function projectToMap(
 		if (isObject(raw.$properties)) node.properties = raw.$properties;
 		else if (raw.$properties !== undefined) extra.$properties = raw.$properties;
 		if (raw.$ignoreUnknownInstances === true) node.ignoreUnknown = true;
-		else if (raw.$ignoreUnknownInstances !== undefined) extra.$ignoreUnknownInstances = raw.$ignoreUnknownInstances;
+		else if (raw.$ignoreUnknownInstances !== undefined)
+			extra.$ignoreUnknownInstances = raw.$ignoreUnknownInstances;
 
 		for (const [key, value] of Object.entries(raw)) {
 			if (key.startsWith("$")) {
@@ -82,7 +93,9 @@ export function projectToMap(
 				extra[key] = value;
 				continue;
 			}
-			node.children.push(read(value, key, `${where}.${key}`, false, isRoot && node.className === "DataModel"));
+			node.children.push(
+				read(value, key, `${where}.${key}`, false, isRoot && node.className === "DataModel"),
+			);
 		}
 		if (Object.keys(extra).length > 0) node.rojo = extra;
 		return node;
@@ -91,7 +104,8 @@ export function projectToMap(
 	const tree = json.tree as Record<string, unknown>;
 	const root = read(tree, "DataModel", "tree", true, false);
 	// A model project's root is not a DataModel; the map names it after the project.
-	if (root.className !== "DataModel") root.name = typeof json.name === "string" ? json.name : opts.fallbackName;
+	if (root.className !== "DataModel")
+		root.name = typeof json.name === "string" ? json.name : opts.fallbackName;
 
 	const map: NodeMap = {
 		schemaVersion: SCHEMA_VERSION,
@@ -100,13 +114,19 @@ export function projectToMap(
 		name: typeof json.name === "string" && json.name !== "" ? json.name : opts.fallbackName,
 		output: opts.output,
 		root,
-		...(Array.isArray(json.globIgnorePaths) ? { globIgnorePaths: json.globIgnorePaths as string[] } : {}),
+		...(Array.isArray(json.globIgnorePaths)
+			? { globIgnorePaths: json.globIgnorePaths as string[] }
+			: {}),
 		...(Object.keys(rojo).length > 0 ? { rojo } : {}),
 	};
 	return { map, problems };
 }
 
-function emptyImport(opts: { output: string; fallbackName: string; makeId: () => string }): NodeMap {
+function emptyImport(opts: {
+	output: string;
+	fallbackName: string;
+	makeId: () => string;
+}): NodeMap {
 	return {
 		schemaVersion: SCHEMA_VERSION,
 		kind: "map",
@@ -124,11 +144,18 @@ function emptyImport(opts: { output: string; fallbackName: string; makeId: () =>
  */
 export function sameProject(a: unknown, b: unknown): boolean {
 	if (Array.isArray(a) || Array.isArray(b)) {
-		return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => sameProject(v, b[i]));
+		return (
+			Array.isArray(a) &&
+			Array.isArray(b) &&
+			a.length === b.length &&
+			a.every((v, i) => sameProject(v, b[i]))
+		);
 	}
 	if (isObject(a) && isObject(b)) {
 		const keys = Object.keys(a);
-		return keys.length === Object.keys(b).length && keys.every((k) => k in b && sameProject(a[k], b[k]));
+		return (
+			keys.length === Object.keys(b).length && keys.every((k) => k in b && sameProject(a[k], b[k]))
+		);
 	}
 	return a === b;
 }
@@ -144,7 +171,8 @@ export function formatLike(json: string, existing: string | null): string {
 	const indent = /\n([ \t]+)"/.exec(existing)?.[1];
 	let out = json;
 	if (indent && indent !== "  ") {
-		out = JSON.stringify(JSON.parse(json), null, indent.includes("\t") ? "\t" : indent.length) + "\n";
+		out =
+			JSON.stringify(JSON.parse(json), null, indent.includes("\t") ? "\t" : indent.length) + "\n";
 	}
 	if (!/\n$/.test(existing)) out = out.replace(/\n$/, "");
 	return existing.includes("\r\n") ? out.replace(/\n/g, "\r\n") : out;

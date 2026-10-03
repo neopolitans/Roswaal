@@ -28,8 +28,17 @@ import type { NodeScript } from "./schema.js";
  * `unknown` and `never`, the top and bottom of Luau's types, until 0.74.3.
  */
 export const LUAU_PRIMITIVES = [
-	"any", "unknown", "never",
-	"boolean", "number", "string", "table", "function", "thread", "buffer", "nil",
+	"any",
+	"unknown",
+	"never",
+	"boolean",
+	"number",
+	"string",
+	"table",
+	"function",
+	"thread",
+	"buffer",
+	"nil",
 ];
 
 const PRIMITIVE = new Set([...LUAU_PRIMITIVES, "true", "false", "never", "unknown"]);
@@ -56,14 +65,18 @@ function namesIn(type: string): string[] {
  * given graph should be *offered* is a question about that graph's requires,
  * and belongs where the picker can see them rather than here.
  */
-export const LUNE_TYPES: string[] = [...new Set(
-	LUNE_MODULES.flatMap((module) =>
-		[...module.functions, ...module.classes.flatMap((one) => one.methods)]
-			.flatMap((fn) => [...fn.params.map((p) => p.type), fn.returns])
-			.filter((type) => type !== "")
-			.flatMap(namesIn),
+export const LUNE_TYPES: string[] = [
+	...new Set(
+		LUNE_MODULES.flatMap((module) =>
+			[...module.functions, ...module.classes.flatMap((one) => one.methods)]
+				.flatMap((fn) => [...fn.params.map((p) => p.type), fn.returns])
+				.filter((type) => type !== "")
+				.flatMap(namesIn),
+		),
 	),
-)].filter((name) => !PRIMITIVE.has(name)).sort();
+]
+	.filter((name) => !PRIMITIVE.has(name))
+	.sort();
 
 /** Which module each type comes from, for saying so beside it. */
 export const LUNE_TYPE_MODULE: Record<string, string> = Object.fromEntries(
@@ -86,14 +99,16 @@ export const LUNE_TYPE_MODULE: Record<string, string> = Object.fromEntries(
  * this project is built on is that a require happens because somebody asked
  * for it, not because a type picker assumed it.
  */
-export const LUNE_ROBLOX_TYPES: string[] = [...new Set([
-	...LUNE_TYPES.filter((name) => LUNE_TYPE_MODULE[name] === "roblox"),
-	// The datatypes the module implements, which is not every Roblox datatype:
-	// `TweenInfo` is Roblox's and is not one of them, so a Lune graph that
-	// requires `@lune/roblox` still cannot make one. Generated from the crate's
-	// own module listing rather than assumed from the Roblox side.
-	...LUNE_ROBLOX_DATATYPES,
-])];
+export const LUNE_ROBLOX_TYPES: string[] = [
+	...new Set([
+		...LUNE_TYPES.filter((name) => LUNE_TYPE_MODULE[name] === "roblox"),
+		// The datatypes the module implements, which is not every Roblox datatype:
+		// `TweenInfo` is Roblox's and is not one of them, so a Lune graph that
+		// requires `@lune/roblox` still cannot make one. Generated from the crate's
+		// own module listing rather than assumed from the Roblox side.
+		...LUNE_ROBLOX_DATATYPES,
+	]),
+];
 
 /**
  * Whether this graph has asked for `@lune/roblox`.

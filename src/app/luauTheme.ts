@@ -10,8 +10,8 @@
  * follows the app's theme instead of shipping its own light and dark sets.
  */
 
-import { EditorView } from "@codemirror/view";
 import { HighlightStyle } from "@codemirror/language";
+import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 
 export const luauHighlight = HighlightStyle.define([

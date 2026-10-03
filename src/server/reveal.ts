@@ -81,7 +81,7 @@ export async function openInEditor(absolutePath: string): Promise<string> {
 		throw new HttpError(
 			501,
 			"Could not find VS Code. Install it, or make sure `code` is on your PATH — " +
-			"in VS Code that is “Shell Command: Install 'code' command in PATH”.",
+				"in VS Code that is “Shell Command: Install 'code' command in PATH”.",
 		);
 	}
 
@@ -160,5 +160,8 @@ async function firstThere(...candidates: string[]): Promise<string | null> {
 }
 
 async function isThere(target: string): Promise<boolean> {
-	return fs.access(target).then(() => true, () => false);
+	return fs.access(target).then(
+		() => true,
+		() => false,
+	);
 }

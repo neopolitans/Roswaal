@@ -14,10 +14,17 @@ import { compileNodeMap } from "../src/core/nodemap.js";
 import { readRbx } from "../src/core/rbx/index.js";
 import { type PlaceImportOptions, planImport, surveyPlace } from "../src/core/rbx/placeImport.js";
 import { defaultConfig } from "../src/core/schema.js";
-import { buildTree, findPlaceFile, openProject, type TreeEntry, writePlaceImport } from "../src/server/project.js";
+import {
+	buildTree,
+	findPlaceFile,
+	openProject,
+	type TreeEntry,
+	writePlaceImport,
+} from "../src/server/project.js";
 import { buildPlace, folder, script, service } from "./rbxfixture.js";
 
-const open = (id: string) => script("Script", "Open", "door:Open()", { UniqueId: { type: 31, value: id.repeat(32) } });
+const open = (id: string) =>
+	script("Script", "Open", "door:Open()", { UniqueId: { type: 31, value: id.repeat(32) } });
 
 const PLACE = buildPlace([
 	service("ServerScriptService", [
@@ -27,14 +34,20 @@ const PLACE = buildPlace([
 	]),
 	service("ReplicatedStorage", [
 		folder("Shared", [
-			script("ModuleScript", "Util", "return {}", {}, [script("ModuleScript", "Inner", "return 1")]),
+			script("ModuleScript", "Util", "return {}", {}, [
+				script("ModuleScript", "Inner", "return 1"),
+			]),
 			{ className: "RemoteEvent", name: "Ping" },
 		]),
 		folder("Empty"),
 		folder("Pkg", [folder("thing@1.2.0", [script("ModuleScript", "Lib", "return 'lib'")])]),
 	]),
 	service("StarterPlayer", [
-		folder("StarterPlayerScripts", [script("LocalScript", "Controls", "print('controls')")], "StarterPlayerScripts"),
+		folder(
+			"StarterPlayerScripts",
+			[script("LocalScript", "Controls", "print('controls')")],
+			"StarterPlayerScripts",
+		),
 	]),
 	service("Workspace", [
 		folder("Door1", [open("a")], "Model"),
@@ -47,7 +60,12 @@ const PLACE = buildPlace([
 ]);
 
 const options = (over: Partial<PlaceImportOptions> = {}): PlaceImportOptions => ({
-	scope: "rojo", dedupe: true, outDir: "src", placeFile: "place.rbxl", name: "Game", ...over,
+	scope: "rojo",
+	dedupe: true,
+	outDir: "src",
+	placeFile: "place.rbxl",
+	name: "Game",
+	...over,
 });
 
 describe("surveying a place", () => {
@@ -83,21 +101,29 @@ describe("planning the files", () => {
 		expect(files["src/ReplicatedStorage/Shared/Util/init.luau"]).toBe("return {}");
 		expect(files["src/ReplicatedStorage/Shared/Util/Inner.luau"]).toBe("return 1");
 		expect(files["src/ReplicatedStorage/Pkg/thing@1.2.0/Lib.luau"]).toBe("return 'lib'");
-		expect(files["src/StarterPlayer/StarterPlayerScripts/Controls.client.luau"]).toBe("print('controls')");
+		expect(files["src/StarterPlayer/StarterPlayerScripts/Controls.client.luau"]).toBe(
+			"print('controls')",
+		);
 		expect(Object.keys(files).some((f) => f.startsWith("place/"))).toBe(false);
 		expect(skipped).toHaveLength(6);
 	});
 
 	it("says in a meta file what a file name cannot", () => {
 		const { files } = planImport(survey, options());
-		expect(JSON.parse(files["src/ServerScriptService/ClientSide.meta.json"])).toEqual({ properties: { RunContext: "Client" } });
-		expect(JSON.parse(files["src/ServerScriptService/Off.meta.json"])).toEqual({ properties: { Disabled: true } });
+		expect(JSON.parse(files["src/ServerScriptService/ClientSide.meta.json"])).toEqual({
+			properties: { RunContext: "Client" },
+		});
+		expect(JSON.parse(files["src/ServerScriptService/Off.meta.json"])).toEqual({
+			properties: { Disabled: true },
+		});
 	});
 
 	it("keeps what the import leaves in a folder", () => {
 		const { files } = planImport(survey, options());
 		// Shared holds a RemoteEvent the import does not bring out.
-		expect(JSON.parse(files["src/ReplicatedStorage/Shared/init.meta.json"])).toEqual({ ignoreUnknownInstances: true });
+		expect(JSON.parse(files["src/ReplicatedStorage/Shared/init.meta.json"])).toEqual({
+			ignoreUnknownInstances: true,
+		});
 		// Util's only child is imported, so it needs no meta file.
 		expect(files["src/ReplicatedStorage/Shared/Util/init.meta.json"]).toBeUndefined();
 		expect(files["src/ReplicatedStorage/Pkg/init.meta.json"]).toBeUndefined();
@@ -106,8 +132,14 @@ describe("planning the files", () => {
 	it("maps each service to its folder, ignoring what it does not know", () => {
 		const { map } = planImport(survey, options());
 		const project = JSON.parse(compileNodeMap(map).json);
-		expect(project.tree.ServerScriptService).toEqual({ $path: "src/ServerScriptService", $ignoreUnknownInstances: true });
-		expect(project.tree.ReplicatedStorage).toEqual({ $path: "src/ReplicatedStorage", $ignoreUnknownInstances: true });
+		expect(project.tree.ServerScriptService).toEqual({
+			$path: "src/ServerScriptService",
+			$ignoreUnknownInstances: true,
+		});
+		expect(project.tree.ReplicatedStorage).toEqual({
+			$path: "src/ReplicatedStorage",
+			$ignoreUnknownInstances: true,
+		});
 		expect(project.tree.StarterPlayer.StarterPlayerScripts).toEqual({
 			$className: "StarterPlayerScripts",
 			$path: "src/StarterPlayer/StarterPlayerScripts",
@@ -121,7 +153,10 @@ describe("planning the files", () => {
 		const { files, links } = planImport(survey, options({ scope: "all" }));
 		expect(files["place/Shared/Open.server.luau"]).toBe("door:Open()");
 		const shared = links.scripts.find((l) => l.file === "place/Shared/Open.server.luau")!;
-		expect(shared.instances.map((i) => i.path.join("."))).toEqual(["Workspace.Door1.Open", "Workspace.Door2.Open"]);
+		expect(shared.instances.map((i) => i.path.join("."))).toEqual([
+			"Workspace.Door1.Open",
+			"Workspace.Door2.Open",
+		]);
 		expect(shared.instances.map((i) => i.id)).toEqual(["a".repeat(32), "b".repeat(32)]);
 		expect(files["place/Workspace/Coin/Spin.server.luau"]).toBe("spin()");
 		// Two folders whose names differ only by case stay apart on disk.
@@ -176,14 +211,19 @@ describe("writing the project", () => {
 		expect(config.place).toBe("Game.rbxl");
 		const project = JSON.parse(await readFile(path.join(root, "default.project.json"), "utf8"));
 		expect(project.tree.ServerScriptService.$ignoreUnknownInstances).toBe(true);
-		expect(await readFile(path.join(root, "src/ServerScriptService/Main.server.luau"), "utf8")).toBe("print('main')");
+		expect(
+			await readFile(path.join(root, "src/ServerScriptService/Main.server.luau"), "utf8"),
+		).toBe("print('main')");
 		expect(await findPlaceFile(root, config)).toBe("Game.rbxl");
 	});
 
 	it("says in the tree which folders are services, scripts or place-only", async () => {
 		root = await mkdtemp(path.join(os.tmpdir(), "roswaal-import-"));
 		await writeFile(path.join(root, "Game.rbxl"), PLACE);
-		const plan = planImport(surveyPlace(readRbx(PLACE)), options({ scope: "all", placeFile: "Game.rbxl" }));
+		const plan = planImport(
+			surveyPlace(readRbx(PLACE)),
+			options({ scope: "all", placeFile: "Game.rbxl" }),
+		);
 		await writePlaceImport(root, plan.files, "Game.rbxl");
 		const roles = new Map<string, string | undefined>();
 		const visit = (entries: TreeEntry[]) => {

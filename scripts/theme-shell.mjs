@@ -91,8 +91,7 @@ export function themeShellPlugin() {
 				// rest of the head rather than one tab in from it.
 				return html.replace(
 					/([ \t]*)<\/head>/,
-					(_all, indent) =>
-						`${indent}\t<script src="${src}"></script>\n${indent}</head>`,
+					(_all, indent) => `${indent}\t<script src="${src}"></script>\n${indent}</head>`,
 				);
 			},
 		},

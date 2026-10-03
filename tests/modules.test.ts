@@ -14,10 +14,10 @@
 import { describe, expect, it } from "vitest";
 
 import { compile, serialiseScript } from "../src/core/compiler/index.js";
-import { createRegistry } from "../src/core/nodes/index.js";
-import { emptyScript, type NodeScript, type ScriptModule } from "../src/core/schema.js";
 import { migrateScript } from "../src/core/migrate.js";
 import { checkSpecifier } from "../src/core/modules.js";
+import { createRegistry } from "../src/core/nodes/index.js";
+import { emptyScript, type NodeScript, type ScriptModule } from "../src/core/schema.js";
 import { Builder } from "./helpers.js";
 
 const registry = createRegistry();
@@ -35,35 +35,50 @@ function withModules(modules: ScriptModule[], target: "roblox" | "lune" = "lune"
 
 /** The generated file with its header stripped, which is what a reader sees. */
 const body = (script: NodeScript) =>
-	compile(script, registry, {}).code.split("\n").filter((l) => !l.startsWith("--")).join("\n").trim();
+	compile(script, registry, {})
+		.code.split("\n")
+		.filter((l) => !l.startsWith("--"))
+		.join("\n")
+		.trim();
 
 describe("a declared module", () => {
 	it("compiles to a require at the top", () => {
-		expect(body(withModules([{ id: "m1", name: "fs", specifier: "@lune/fs" }])))
-			.toBe('local fs = require("@lune/fs")');
+		expect(body(withModules([{ id: "m1", name: "fs", specifier: "@lune/fs" }]))).toBe(
+			'local fs = require("@lune/fs")',
+		);
 	});
 
 	it("takes the name the declaration asks for", () => {
-		const out = body(withModules([
-			{ id: "m1", name: "filesystem", specifier: "@lune/fs" },
-		]));
+		const out = body(withModules([{ id: "m1", name: "filesystem", specifier: "@lune/fs" }]));
 		expect(out).toContain("local filesystem = require");
 	});
 
 	it("keeps the specifier exactly as written", () => {
-		for (const specifier of ["@lune/fs", "./util/strings", "../shared/config", "@game/ReplicatedStorage/Combat"]) {
-			expect(body(withModules([{ id: "m", name: "m", specifier }])))
-				.toContain(`require(${JSON.stringify(specifier)})`);
+		for (const specifier of [
+			"@lune/fs",
+			"./util/strings",
+			"../shared/config",
+			"@game/ReplicatedStorage/Combat",
+		]) {
+			expect(body(withModules([{ id: "m", name: "m", specifier }]))).toContain(
+				`require(${JSON.stringify(specifier)})`,
+			);
 		}
 	});
 
 	it("declares them in the order they were written", () => {
-		const out = body(withModules([
-			{ id: "a", name: "fs", specifier: "@lune/fs" },
-			{ id: "b", name: "net", specifier: "@lune/net" },
-			{ id: "c", name: "process", specifier: "@lune/process" },
-		]));
-		expect(out.split("\n").map((l) => l.match(/local (\w+)/)?.[1])).toEqual(["fs", "net", "process"]);
+		const out = body(
+			withModules([
+				{ id: "a", name: "fs", specifier: "@lune/fs" },
+				{ id: "b", name: "net", specifier: "@lune/net" },
+				{ id: "c", name: "process", specifier: "@lune/process" },
+			]),
+		);
+		expect(out.split("\n").map((l) => l.match(/local (\w+)/)?.[1])).toEqual([
+			"fs",
+			"net",
+			"process",
+		]);
 	});
 
 	/** An empty specifier is a declaration somebody started and did not finish. */
@@ -78,13 +93,19 @@ describe("members pulled off a module", () => {
 	 * `local Instance = roblox.Instance`. Bound beneath the require, in order.
 	 */
 	it("binds each one under the module it came from", () => {
-		expect(body(withModules([
-			{ id: "m", name: "roblox", specifier: "@lune/roblox", members: ["Instance", "Vector3"] },
-		]))).toBe([
-			'local roblox = require("@lune/roblox")',
-			"local Instance = roblox.Instance",
-			"local Vector3 = roblox.Vector3",
-		].join("\n"));
+		expect(
+			body(
+				withModules([
+					{ id: "m", name: "roblox", specifier: "@lune/roblox", members: ["Instance", "Vector3"] },
+				]),
+			),
+		).toBe(
+			[
+				'local roblox = require("@lune/roblox")',
+				"local Instance = roblox.Instance",
+				"local Vector3 = roblox.Vector3",
+			].join("\n"),
+		);
 	});
 
 	/**
@@ -99,9 +120,16 @@ describe("members pulled off a module", () => {
 	 * accident that rule guards against.
 	 */
 	it("lets a member shadow the global it is named after", () => {
-		const out = body(withModules([
-			{ id: "m", name: "roblox", specifier: "@lune/roblox", members: ["Vector3", "CFrame", "Instance"] },
-		]));
+		const out = body(
+			withModules([
+				{
+					id: "m",
+					name: "roblox",
+					specifier: "@lune/roblox",
+					members: ["Vector3", "CFrame", "Instance"],
+				},
+			]),
+		);
 		expect(out).toContain("local Vector3 = roblox.Vector3");
 		expect(out).toContain("local CFrame = roblox.CFrame");
 		expect(out).toContain("local Instance = roblox.Instance");
@@ -110,12 +138,13 @@ describe("members pulled off a module", () => {
 	});
 
 	it("ignores a blank member rather than binding nothing", () => {
-		expect(body(withModules([
-			{ id: "m", name: "roblox", specifier: "@lune/roblox", members: ["", "  ", "Vector3"] },
-		]))).toBe([
-			'local roblox = require("@lune/roblox")',
-			"local Vector3 = roblox.Vector3",
-		].join("\n"));
+		expect(
+			body(
+				withModules([
+					{ id: "m", name: "roblox", specifier: "@lune/roblox", members: ["", "  ", "Vector3"] },
+				]),
+			),
+		).toBe(['local roblox = require("@lune/roblox")', "local Vector3 = roblox.Vector3"].join("\n"));
 	});
 });
 
@@ -212,8 +241,9 @@ describe("Require at Top", () => {
 
 	it("says so when it has nothing to require", () => {
 		const out = compile(requiring("   "), registry, {});
-		expect(out.diagnostics.map((d) => d.message).join(" "))
-			.toContain("Require at Top has no module to require");
+		expect(out.diagnostics.map((d) => d.message).join(" ")).toContain(
+			"Require at Top has no module to require",
+		);
 	});
 });
 
@@ -265,19 +295,25 @@ describe("Get Module", () => {
 describe("naming a module yourself", () => {
 	const declaring = (modules: ScriptModule[]) => compile(withModules(modules), registry, {});
 	const said = (modules: ScriptModule[]) =>
-		declaring(modules).diagnostics.map((d) => `${d.severity}: ${d.message}`).join(" | ");
+		declaring(modules)
+			.diagnostics.map((d) => `${d.severity}: ${d.message}`)
+			.join(" | ");
 
 	it("binds each to the name it was given", () => {
-		const out = body(withModules([
-			{ id: "a", name: "combatUtil", specifier: "./combat/util" },
-			{ id: "b", name: "inventoryUtil", specifier: "./inventory/util" },
-		]));
+		const out = body(
+			withModules([
+				{ id: "a", name: "combatUtil", specifier: "./combat/util" },
+				{ id: "b", name: "inventoryUtil", specifier: "./inventory/util" },
+			]),
+		);
 		expect(out).toContain('local combatUtil = require("./combat/util")');
 		expect(out).toContain('local inventoryUtil = require("./inventory/util")');
-		expect(said([
-			{ id: "a", name: "combatUtil", specifier: "./combat/util" },
-			{ id: "b", name: "inventoryUtil", specifier: "./inventory/util" },
-		])).toBe("");
+		expect(
+			said([
+				{ id: "a", name: "combatUtil", specifier: "./combat/util" },
+				{ id: "b", name: "inventoryUtil", specifier: "./inventory/util" },
+			]),
+		).toBe("");
 	});
 
 	/**
@@ -316,13 +352,15 @@ describe("naming a module yourself", () => {
 		expect(problem).toContain("warning");
 		expect(problem).toContain("shadows");
 		// And it still binds what was asked for.
-		expect(body(withModules([{ id: "a", name: "table", specifier: "./util/table" }])))
-			.toContain('local table = require("./util/table")');
+		expect(body(withModules([{ id: "a", name: "table", specifier: "./util/table" }]))).toContain(
+			'local table = require("./util/table")',
+		);
 	});
 
 	it("falls back to the specifier when no name was given", () => {
-		expect(body(withModules([{ id: "a", name: "  ", specifier: "@lune/fs" }])))
-			.toContain("local fs = require");
+		expect(body(withModules([{ id: "a", name: "  ", specifier: "@lune/fs" }]))).toContain(
+			"local fs = require",
+		);
 	});
 
 	/** The same rule on the node: `As` is a choice, the default is not. */
@@ -378,8 +416,12 @@ describe("naming a module yourself", () => {
 			modules: [{ id: "m", name: "util", specifier: "./shared/util" }],
 		});
 		const result = compile(script, registry, {});
-		expect(result.diagnostics.filter((d) => d.severity === "error").map((d) => d.message).join(" "))
-			.toContain('"util"');
+		expect(
+			result.diagnostics
+				.filter((d) => d.severity === "error")
+				.map((d) => d.message)
+				.join(" "),
+		).toContain('"util"');
 		expect(result.code.match(/local util =/g)).toHaveLength(1);
 	});
 
@@ -534,11 +576,9 @@ describe("what a require string may be", () => {
 
 describe("where a bad specifier is reported", () => {
 	const saidAbout = (specifier: string, target: "roblox" | "lune") =>
-		compile(
-			{ ...withModules([{ id: "m", name: "thing", specifier }], target) },
-			registry,
-			{},
-		).diagnostics.map((d) => `${d.severity}: ${d.message}`).join(" | ");
+		compile({ ...withModules([{ id: "m", name: "thing", specifier }], target) }, registry, {})
+			.diagnostics.map((d) => `${d.severity}: ${d.message}`)
+			.join(" | ");
 
 	it("reports a declaration's specifier, naming the module", () => {
 		const said = saidAbout("@lune/fs", "roblox");
@@ -552,8 +592,9 @@ describe("where a bad specifier is reported", () => {
 	 * them less than a line plus an error saying why it will not resolve.
 	 */
 	it("still writes the require, so the file matches the graph", () => {
-		expect(body(withModules([{ id: "m", name: "fs", specifier: "@lune/fs" }], "roblox")))
-			.toContain('require("@lune/fs")');
+		expect(body(withModules([{ id: "m", name: "fs", specifier: "@lune/fs" }], "roblox"))).toContain(
+			'require("@lune/fs")',
+		);
 	});
 
 	it("reports a Require at Top node's specifier against the node", () => {

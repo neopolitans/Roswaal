@@ -27,13 +27,13 @@ export function typesPage(): DocPage {
 					["`boolean`", "true or false", ""],
 					["`number`", "A Luau number", "No integer/float split; Luau has one number type."],
 					["`string`", "Text", "Quoted for you when it is emitted."],
-					[
-						"`table`",
-						"Any Luau table",
-						"One type for arrays, maps and sets, because Lua has one.",
-					],
+					["`table`", "Any Luau table", "One type for arrays, maps and sets, because Lua has one."],
 					["`function`", "A function value", "Get Function produces one."],
-					["`Instance`", "Any Roblox instance", "A class such as `Model` narrows it. **Is A** asks at runtime."],
+					[
+						"`Instance`",
+						"Any Roblox instance",
+						"A class such as `Model` narrows it. **Is A** asks at runtime.",
+					],
 					[
 						"`Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim`, `UDim2`",
 						"Roblox value types",
@@ -51,16 +51,8 @@ export function typesPage(): DocPage {
 					],
 					["`RBXScriptSignal`", "A Roblox event", "Wires into Connect Event."],
 					["`RBXScriptConnection`", "A live connection", "What Connect Event hands back."],
-					[
-						"`luau`",
-						"Hand-written Luau",
-						"Only on Custom Code and Luau Expression. See below.",
-					],
-					[
-						"`any`",
-						"Anything",
-						"Connects both ways. What a node returns when it cannot say more.",
-					],
+					["`luau`", "Hand-written Luau", "Only on Custom Code and Luau Expression. See below."],
+					["`any`", "Anything", "Connects both ways. What a node returns when it cannot say more."],
 					[
 						"`wildcard`",
 						"Anything, so far",

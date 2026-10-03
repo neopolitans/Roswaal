@@ -14,9 +14,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildPresets } from "../src/app/menuSearch.js";
-import {
-	hoistedFunctions, paramsVisibleFrom, visibleFrom,
-} from "../src/core/functionGraph.js";
+import { hoistedFunctions, paramsVisibleFrom, visibleFrom } from "../src/core/functionGraph.js";
 import { Builder } from "./helpers.js";
 
 /** No hoisted functions, which is the ordinary case. */
@@ -98,8 +96,14 @@ describe("the node search's presets", () => {
 	function occupancy() {
 		const b = new Builder("Occupancy");
 		b.variable("Occupancy", "table", { t: "raw", v: "{}" });
-		const hide = b.node("function.declareHere", { id: "hide", config: { name: "hide", params: [{ name: "character", type: "Model" }] } });
-		b.node("function.declareHere", { id: "show", config: { name: "show", params: [{ name: "exitAt", type: "CFrame" }] } });
+		const hide = b.node("function.declareHere", {
+			id: "hide",
+			config: { name: "hide", params: [{ name: "character", type: "Model" }] },
+		});
+		b.node("function.declareHere", {
+			id: "show",
+			config: { name: "show", params: [{ name: "exitAt", type: "CFrame" }] },
+		});
 		// At the file level, which both functions close over.
 		const restores = b.node("local.declare", { id: "restores" });
 		b.lit(restores, "name", { t: "string", v: "restores" });
@@ -109,8 +113,7 @@ describe("the node search's presets", () => {
 		return b.build();
 	}
 
-	const titles = (graph: string | null) =>
-		buildPresets(occupancy(), graph).map((p) => p.title);
+	const titles = (graph: string | null) => buildPresets(occupancy(), graph).map((p) => p.title);
 
 	it("offers a local of another function nowhere but that function", () => {
 		expect(titles("hide")).toContain("Get restore");
@@ -136,9 +139,15 @@ describe("the node search's presets", () => {
 	it("narrows This graph to what that graph actually declares", () => {
 		const inHide = titles("hide");
 		// Its own parameter, its own local, and the file's variables and functions.
-		expect(inHide).toEqual(expect.arrayContaining([
-			"Get character", "Get restore", "Get restores", "Get Occupancy", "Get hide",
-		]));
+		expect(inHide).toEqual(
+			expect.arrayContaining([
+				"Get character",
+				"Get restore",
+				"Get restores",
+				"Get Occupancy",
+				"Get hide",
+			]),
+		);
 		// And nothing belonging to the function next door.
 		expect(inHide).not.toContain("Get exitAt");
 

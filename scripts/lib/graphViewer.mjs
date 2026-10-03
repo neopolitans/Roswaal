@@ -24,7 +24,7 @@ export async function buildGraphViewer() {
 		// reaches the graphs here. Automatic when there is none.
 		'let choice = "auto";',
 		"try {",
-		"  const stored = JSON.parse(localStorage.getItem(PREFERENCES_KEY) || \"{}\");",
+		'  const stored = JSON.parse(localStorage.getItem(PREFERENCES_KEY) || "{}");',
 		'  if (stored && (stored.wheel === "zoom" || stored.wheel === "pan")) choice = stored.wheel;',
 		"} catch {}",
 		"const wheel = wheelAction(choice);",

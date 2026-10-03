@@ -8,8 +8,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	buildPresets, flattenGroups, groupMenu, libraryItems, searchMenu, type MenuItem,
+	buildPresets,
+	flattenGroups,
+	groupMenu,
+	libraryItems,
+	type MenuItem,
 	type MenuSources,
+	searchMenu,
 } from "../src/app/menuSearch.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 
@@ -20,7 +25,10 @@ function sources(items: MenuItem[]): MenuSources {
 }
 
 describe("searching the palette", () => {
-	const presets = buildPresets({ variables: [{ id: "v1", name: "health", type: "number" }], nodes: [] });
+	const presets = buildPresets({
+		variables: [{ id: "v1", name: "health", type: "number" }],
+		nodes: [],
+	});
 	const items = libraryItems(registry, "roblox", presets);
 
 	it("browses everything but the deep entries", () => {
@@ -65,7 +73,9 @@ describe("grouping the matches", () => {
 		const def = items[0].def;
 		const service = { ...items[0], key: "svc", category: "RunService", def };
 		const groups = groupMenu([...items.slice(1, 5), service], {
-			registry, searching: true, service: "RunService",
+			registry,
+			searching: true,
+			service: "RunService",
 		});
 		expect(groups[0].category).toBe("RunService");
 	});
@@ -74,7 +84,9 @@ describe("grouping the matches", () => {
 describe("presets", () => {
 	it("names a parameter by its owner when two owners share it", () => {
 		const handler = (id: string, name?: string) => ({
-			id, def: "event.connect", config: { ...(name ? { name } : {}), params: [{ name: "character" }] },
+			id,
+			def: "event.connect",
+			config: { ...(name ? { name } : {}), params: [{ name: "character" }] },
 		});
 		const presets = buildPresets({ variables: [], nodes: [handler("a", "added"), handler("b")] });
 		const params = presets.filter((p) => p.defId === "function.getParam").map((p) => p.title);
@@ -82,7 +94,11 @@ describe("presets", () => {
 	});
 
 	it("offers a function's parameters only inside that function", () => {
-		const fn = { id: "f", def: "function.entry", config: { name: "show", params: [{ name: "who" }] } };
+		const fn = {
+			id: "f",
+			def: "function.entry",
+			config: { name: "show", params: [{ name: "who" }] },
+		};
 		const params = (graph: string | null) =>
 			buildPresets({ variables: [], nodes: [fn] }, graph)
 				.filter((p) => p.defId === "function.getParam")
@@ -92,7 +108,10 @@ describe("presets", () => {
 	});
 
 	it("offers a Get and a Set per variable", () => {
-		const presets = buildPresets({ variables: [{ id: "v", name: "hp", type: "number" }], nodes: [] });
+		const presets = buildPresets({
+			variables: [{ id: "v", name: "hp", type: "number" }],
+			nodes: [],
+		});
 		expect(presets.map((p) => p.title)).toEqual(["Get hp", "Set hp"]);
 	});
 });

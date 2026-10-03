@@ -25,21 +25,24 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-
+import { aliasScore } from "../core/aliases.js";
 import { categoryLabel } from "../core/categories.js";
+import { type PreviewOptions, previewOf, previewSvg } from "../core/docs/preview.js";
+import { keywordNodes } from "../core/keywords.js";
+import { categories, type Registry } from "../core/nodes/index.js";
+import { classify } from "../core/nodes/runtimes.js";
 import type { NodeConfig, NodeDef } from "../core/schema.js";
 import { cx } from "./cx.js";
-import type { Preset } from "./NodeMenu.jsx";
-import { categories, type Registry } from "../core/nodes/index.js";
-import { previewOf, previewSvg, type PreviewOptions } from "../core/docs/preview.js";
-import { aliasScore } from "../core/aliases.js";
-import { keywordNodes } from "../core/keywords.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
-import { classify } from "../core/nodes/runtimes.js";
+import type { Preset } from "./NodeMenu.jsx";
 import {
-	FILTER_LABEL, FILTER_SUMMARY, MENU_FILTERS, readPreferences, writePreferences,
+	FILTER_LABEL,
+	FILTER_SUMMARY,
+	MENU_FILTERS,
 	type MenuFilter,
+	readPreferences,
+	writePreferences,
 } from "./preferences.js";
 
 export interface NodePickerProps {
@@ -59,9 +62,7 @@ export interface NodePickerProps {
 	presets?: Preset[];
 	/** How the picture is drawn: the reader's own geometry and colours. */
 	preview: PreviewOptions;
-	onPick: (
-		def: NodeDef, config?: NodeConfig, member?: { name: string; type?: string },
-	) => void;
+	onPick: (def: NodeDef, config?: NodeConfig, member?: { name: string; type?: string }) => void;
 	onClose: () => void;
 }
 
@@ -116,9 +117,14 @@ export function score(hit: Hit, query: string): number {
 	return 0;
 }
 
-export function NodePicker(
-	{ registry, target, presets = [], preview, onPick, onClose }: NodePickerProps,
-) {
+export function NodePicker({
+	registry,
+	target,
+	presets = [],
+	preview,
+	onPick,
+	onClose,
+}: NodePickerProps) {
 	const [query, setQuery] = useState("");
 	const [active, setActive] = useState(0);
 	const field = useRef<HTMLInputElement>(null);
@@ -144,17 +150,19 @@ export function NodePicker(
 		const mine: Hit[] = presets.flatMap((preset) => {
 			const def = registry.get(preset.defId);
 			if (!def) return [];
-			return [{
-				key: preset.key,
-				title: preset.title,
-				category: preset.category,
-				summary: preset.summary,
-				def,
-				config: preset.config,
-				member: preset.member,
-				deep: preset.deep,
-				filter: "graph" as const,
-			}];
+			return [
+				{
+					key: preset.key,
+					title: preset.title,
+					category: preset.category,
+					summary: preset.summary,
+					def,
+					config: preset.config,
+					member: preset.member,
+					deep: preset.deep,
+					filter: "graph" as const,
+				},
+			];
 		});
 
 		const library: Hit[] = [...registry.values()]
@@ -307,9 +315,7 @@ export function NodePicker(
 
 				<div className="node-picker-body">
 					<div className="node-picker-list" ref={list}>
-						{flat.length === 0 && (
-							<div className="empty">Nothing matches “{query.trim()}”.</div>
-						)}
+						{flat.length === 0 && <div className="empty">Nothing matches “{query.trim()}”.</div>}
 						{groups.map((group) => (
 							<div key={group.label || "all"} className="node-picker-group">
 								{group.label && <div className="head">{group.label}</div>}
@@ -327,13 +333,15 @@ export function NodePicker(
 												pressedWith.current = e.pointerType;
 											}}
 											onClick={() => {
-												if (pressedWith.current === "mouse") onPick(hit.def, hit.config, hit.member);
+												if (pressedWith.current === "mouse")
+													onPick(hit.def, hit.config, hit.member);
 												else setActive(i);
 											}}
 											// A mouse's first click has already placed, so this
 											// is a finger's: `touch.ts` makes a double tap one.
 											onDoubleClick={() => {
-												if (pressedWith.current !== "mouse") onPick(hit.def, hit.config, hit.member);
+												if (pressedWith.current !== "mouse")
+													onPick(hit.def, hit.config, hit.member);
 											}}
 											onDragStart={(e) => {
 												setActive(i);
@@ -350,7 +358,11 @@ export function NodePicker(
 												setTimeout(() => image.remove(), 0);
 												e.dataTransfer.setData(
 													"application/x-roswaal-node",
-													JSON.stringify({ def: hit.def.id, config: hit.config, member: hit.member }),
+													JSON.stringify({
+														def: hit.def.id,
+														config: hit.config,
+														member: hit.member,
+													}),
 												);
 												e.dataTransfer.effectAllowed = "copy";
 												// After the browser has taken its picture of the row:
@@ -409,14 +421,23 @@ export function NodePicker(
 				{/* Both, and the stylesheet shows the one for the screen: the keys on
 				    a computer, the gestures on a touch screen with no pointer. */}
 				<div className="node-picker-foot node-picker-foot-keys">
-					<span><kbd>↑</kbd><kbd>↓</kbd> to move</span>
-					<span><kbd>Enter</kbd> to place</span>
+					<span>
+						<kbd>↑</kbd>
+						<kbd>↓</kbd> to move
+					</span>
+					<span>
+						<kbd>Enter</kbd> to place
+					</span>
 					<span>Drag onto the graph</span>
-					<span><kbd>Esc</kbd> to close</span>
+					<span>
+						<kbd>Esc</kbd> to close
+					</span>
 				</div>
 				<div className="node-picker-foot node-picker-foot-touch">
 					<span>Tap to preview</span>
-					<span>Double tap or <strong>Spawn node</strong> to place</span>
+					<span>
+						Double tap or <strong>Spawn node</strong> to place
+					</span>
 					<span>Hold and drag onto the graph</span>
 				</div>
 			</div>

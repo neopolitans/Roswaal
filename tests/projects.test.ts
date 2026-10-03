@@ -41,8 +41,9 @@ describe("naming a project in the menu", () => {
  */
 describe("shortening a path", () => {
 	it("keeps the end", () => {
-		expect(projectTail("V:/Infinite Studios/roswaal-node-scripter/examples/demo", 2))
-			.toBe("…/examples/demo");
+		expect(projectTail("V:/Infinite Studios/roswaal-node-scripter/examples/demo", 2)).toBe(
+			"…/examples/demo",
+		);
 	});
 
 	it("keeps the separator the path was written with", () => {
@@ -137,7 +138,12 @@ describe("what has not reached disk yet", () => {
 		store.open(B, graph("B"));
 		store.edit((s) => ({ ...s, name: "B edited" }));
 
-		expect(store.unsaved().map((p) => p.path).sort()).toEqual([A, B]);
+		expect(
+			store
+				.unsaved()
+				.map((p) => p.path)
+				.sort(),
+		).toEqual([A, B]);
 	});
 });
 

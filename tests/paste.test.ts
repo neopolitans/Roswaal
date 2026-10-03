@@ -13,15 +13,17 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { Builder } from "./helpers.js";
+import { removable, withoutEnds } from "../src/app/designer/LogicCanvas.jsx";
 import {
-	commentContents, copySelection, pasteClipping, withCommentContents,
+	commentContents,
+	copySelection,
+	pasteClipping,
+	withCommentContents,
 } from "../src/app/edits.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import { LOGIC_INPUTS, LOGIC_OUTPUTS } from "../src/core/nodes/logic.js";
-import { removable, withoutEnds } from "../src/app/designer/LogicCanvas.jsx";
 import type { NodeScript } from "../src/core/schema.js";
+import { Builder } from "./helpers.js";
 
 const registry = createRegistry();
 
@@ -77,8 +79,11 @@ describe("copying a comment", () => {
 	it("leaves a node outside the box alone", () => {
 		const { script } = graph();
 		script.nodes.push({ id: "far", def: "debug.print", x: 2000, y: 2000 });
-		expect([...withCommentContents(script, new Set(["note"]), registry)].sort())
-			.toEqual(["left", "note", "right"]);
+		expect([...withCommentContents(script, new Set(["note"]), registry)].sort()).toEqual([
+			"left",
+			"note",
+			"right",
+		]);
 	});
 });
 
@@ -122,7 +127,11 @@ describe("a clipping pasted at a point", () => {
 		const box = addedComments(script, after)[0];
 		const inside = new Set(withCommentContents(after, new Set([box.id]), registry));
 		inside.delete(box.id);
-		expect([...inside].sort()).toEqual(added(script, after).map((n) => n.id).sort());
+		expect([...inside].sort()).toEqual(
+			added(script, after)
+				.map((n) => n.id)
+				.sort(),
+		);
 		for (const original of ["left", "right"]) expect(inside.has(original), original).toBe(false);
 	});
 
@@ -154,7 +163,10 @@ describe("a pasted function", () => {
 	it("places the declaration and leaves its body's layout alone", () => {
 		const b = new Builder();
 		const fn = b.node("function.declareHere", {
-			id: "fn", x: 100, y: 100, config: { name: "hide" },
+			id: "fn",
+			x: 100,
+			y: 100,
+			config: { name: "hide" },
 		});
 		b.node("debug.print", { id: "inner", x: 500, y: 300, graph: fn });
 		const script = b.build();
@@ -182,7 +194,11 @@ describe("a file with more than one graph", () => {
 		const b = new Builder();
 		const here = b.node("debug.print", { id: "here", x: 200, y: 140 });
 		const fn = b.node("function.declareHere", {
-			id: "fn", x: 900, y: 900, inner: { x: 40, y: 40 }, config: { name: "value" },
+			id: "fn",
+			x: 900,
+			y: 900,
+			inner: { x: 40, y: 40 },
+			config: { name: "value" },
 		});
 		// Deliberately at the same coordinates as the comment in the other graph.
 		b.node("debug.print", { id: "elsewhere", x: 220, y: 150, graph: fn });

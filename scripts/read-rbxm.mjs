@@ -341,7 +341,9 @@ const num = (v) => (Math.abs(v) < 1e-4 ? 0 : Math.round(v * 1000) / 1000);
 function main() {
 	const [file, ...flags] = process.argv.slice(2);
 	if (!file) {
-		console.error("usage: node scripts/read-rbxm.mjs <file.rbxm|.rbxl> [--tree] [--joints] [--props [name]] [--skipped]");
+		console.error(
+			"usage: node scripts/read-rbxm.mjs <file.rbxm|.rbxl> [--tree] [--joints] [--props [name]] [--skipped]",
+		);
 		process.exit(2);
 	}
 	const doc = parse(file);
@@ -364,7 +366,10 @@ function main() {
 	for (const [, i] of inst) byClass.set(i.class, (byClass.get(i.class) ?? 0) + 1);
 	console.log(
 		"\n## classes\n" +
-			[...byClass].sort().map(([c, n]) => `${n.toString().padStart(4)}  ${c}`).join("\n"),
+			[...byClass]
+				.sort()
+				.map(([c, n]) => `${n.toString().padStart(4)}  ${c}`)
+				.join("\n"),
 	);
 
 	if (want.has("--tree")) {
@@ -435,12 +440,14 @@ function main() {
 						? fullName(doc, v)
 						: "nil"
 					: Array.isArray(v)
-					? `(${v.map(num).join(", ")})`
-					: typeof v === "object" && v?.pos
-						? `(${v.pos.map(num).join(", ")})`
-						: typeof v === "number"
-							? num(v)
-							: String(v).replace(/[^\x20-\x7e]/g, ".").slice(0, 80);
+						? `(${v.map(num).join(", ")})`
+						: typeof v === "object" && v?.pos
+							? `(${v.pos.map(num).join(", ")})`
+							: typeof v === "number"
+								? num(v)
+								: String(v)
+										.replace(/[^\x20-\x7e]/g, ".")
+										.slice(0, 80);
 				console.log(`    ${k} = ${shown}`);
 			}
 		}

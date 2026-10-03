@@ -14,18 +14,20 @@
  */
 
 import { useMemo, useState } from "react";
-
+import {
+	LUAU_PRIMITIVES,
+	LUNE_ROBLOX_TYPES,
+	LUNE_TYPES,
+	requiresLuneRoblox,
+} from "../core/luneTypes.js";
 import { INSTANCE_CLASSES, typeGroup } from "../core/roblox.js";
 import { CLASSES, DATATYPES as ENGINE_DATATYPES } from "../core/robloxData.js";
 import type { NodeScript } from "../core/schema.js";
-import { requiredTypes, useProjectTypes } from "./projectTypes.js";
-import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 import { Icon } from "./icons.jsx";
 import { configText } from "./nodeConfig.js";
+import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { useEditor } from "./store.js";
-import {
-	LUAU_PRIMITIVES, LUNE_ROBLOX_TYPES, LUNE_TYPES, requiresLuneRoblox,
-} from "../core/luneTypes.js";
+import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 
 /**
  * What Luau has, before either runtime adds anything.
@@ -44,9 +46,20 @@ const BASIC_TYPES = LUAU_PRIMITIVES;
  * where every one of them is a suggestion.
  */
 const DATATYPES = [
-	"Instance", "Vector3", "Vector2", "CFrame", "Color3", "UDim", "UDim2",
-	"BrickColor", "EnumItem", "TweenInfo", "Ray", "Region3",
-	"RBXScriptSignal", "RBXScriptConnection",
+	"Instance",
+	"Vector3",
+	"Vector2",
+	"CFrame",
+	"Color3",
+	"UDim",
+	"UDim2",
+	"BrickColor",
+	"EnumItem",
+	"TweenInfo",
+	"Ray",
+	"Region3",
+	"RBXScriptSignal",
+	"RBXScriptConnection",
 ];
 
 /**
@@ -57,9 +70,21 @@ const DATATYPES = [
  * and the point of the split is that a list nobody can scan is not a shortcut.
  */
 const COMMON_CLASSES = [
-	"Model", "Part", "BasePart", "MeshPart", "Folder", "Configuration",
-	"Humanoid", "Player", "Attachment", "Motor6D", "ProximityPrompt",
-	"NumberValue", "StringValue", "BoolValue", "ObjectValue",
+	"Model",
+	"Part",
+	"BasePart",
+	"MeshPart",
+	"Folder",
+	"Configuration",
+	"Humanoid",
+	"Player",
+	"Attachment",
+	"Motor6D",
+	"ProximityPrompt",
+	"NumberValue",
+	"StringValue",
+	"BoolValue",
+	"ObjectValue",
 ];
 
 /**
@@ -109,16 +134,18 @@ export function listGroups(script: NodeScript | undefined, required: string[] = 
 		...(required.length > 0 ? [{ label: "Required modules", types: required }] : []),
 		{ label: "Basic", types: BASIC_TYPES },
 		...(lune
-			? [{
-				label: "Lune",
-				// The `@lune/roblox` ones are offered under their own heading
-				// below, or not at all, so they are not in here twice.
-				types: LUNE_TYPES.filter((type) => !LUNE_ROBLOX_TYPES.includes(type)),
-			}]
+			? [
+					{
+						label: "Lune",
+						// The `@lune/roblox` ones are offered under their own heading
+						// below, or not at all, so they are not in here twice.
+						types: LUNE_TYPES.filter((type) => !LUNE_ROBLOX_TYPES.includes(type)),
+					},
+				]
 			: [
-				{ label: "Roblox values", types: DATATYPES },
-				{ label: "Instances", types: COMMON_CLASSES },
-			]),
+					{ label: "Roblox values", types: DATATYPES },
+					{ label: "Instances", types: COMMON_CLASSES },
+				]),
 		// The module's own list, not Roswaal's. `TweenInfo` is a Roblox datatype
 		// `@lune/roblox` does not implement, and offering it here would offer a
 		// constructor the runtime has not got.
@@ -146,11 +173,13 @@ export function searchTypes(script: NodeScript | undefined, required: string[] =
 	// opens a place file does deal in `Part` and `Model`, and one that does not
 	// has no use for either.
 	const engine = script?.target !== "lune" || requiresLuneRoblox(script);
-	return [...new Set([
-		...listed,
-		...(engine ? [...INSTANCE_CLASSES, ...CLASSES, ...ENGINE_DATATYPES] : []),
-		...(script?.target === "lune" ? LUNE_TYPES : []),
-	])];
+	return [
+		...new Set([
+			...listed,
+			...(engine ? [...INSTANCE_CLASSES, ...CLASSES, ...ENGINE_DATATYPES] : []),
+			...(script?.target === "lune" ? LUNE_TYPES : []),
+		]),
+	];
 }
 
 export interface TypePickerProps {
@@ -184,9 +213,10 @@ export function useTypeChoices(): {
 
 	// The groups that are about this project rather than about the engine.
 	const local = useMemo(
-		() => listGroups(script, required).filter(
-			(g) => g.label === "This graph" || g.label === "Required modules",
-		),
+		() =>
+			listGroups(script, required).filter(
+				(g) => g.label === "This graph" || g.label === "Required modules",
+			),
 		[script, required],
 	);
 	const options = useMemo(() => searchTypes(script, required), [script, required]);
@@ -206,12 +236,16 @@ export function useTypeChoices(): {
 	// use. So a `Part` is under `PVInstance` here exactly as it is when you pick
 	// a class on a node, rather than under a second heading that means the same
 	// thing and holds a different fifteen of them.
-	const groupOf = useMemo(() => (type: string): string => {
-		for (const group of local) {
-			if (group.types.includes(type)) return group.label;
-		}
-		return typeGroup(type);
-	}, [local]);
+	const groupOf = useMemo(
+		() =>
+			(type: string): string => {
+				for (const group of local) {
+					if (group.types.includes(type)) return group.label;
+				}
+				return typeGroup(type);
+			},
+		[local],
+	);
 
 	return { options, groupOf, groupsFirst };
 }

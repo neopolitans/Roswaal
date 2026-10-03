@@ -20,14 +20,19 @@ vi.mock("../src/server/host.js", async () => {
 	return { volume, fs: volume, path, formatLuau: (_cwd: string, code: string) => code };
 });
 
-const { volume } = await import("../src/server/host.js") as unknown as { volume: Volume };
+const { volume } = (await import("../src/server/host.js")) as unknown as { volume: Volume };
 const { collectBinaries, collectProject, findPlaceFile, openProject, writePlaceImport } =
 	await import("../src/server/project.js");
 
-const PLACE = buildPlace([
-	service("ServerScriptService", [script("Script", "Main", "print('hi')")]),
-	service("Workspace", [{ className: "Part", name: "Coin", children: [script("Script", "Spin", "spin()")] }]),
-], "zstd");
+const PLACE = buildPlace(
+	[
+		service("ServerScriptService", [script("Script", "Main", "print('hi')")]),
+		service("Workspace", [
+			{ className: "Part", name: "Coin", children: [script("Script", "Spin", "spin()")] },
+		]),
+	],
+	"zstd",
+);
 
 describe("a volume holding bytes", () => {
 	it("reads a file back as text or as bytes, as Node does", async () => {
@@ -59,7 +64,11 @@ describe("a place imported in the browser", () => {
 
 	it("is written as the CLI writes it, with the place kept as bytes", async () => {
 		const plan = planImport(surveyPlace(readRbx(PLACE)), {
-			scope: "all", dedupe: true, outDir: "src", placeFile: "Game.rbxl", name: "Game",
+			scope: "all",
+			dedupe: true,
+			outDir: "src",
+			placeFile: "Game.rbxl",
+			name: "Game",
 		});
 		await volume.mkdir(root, { recursive: true });
 		await volume.writeFile(`${root}/Game.rbxl`, PLACE);
@@ -69,9 +78,15 @@ describe("a place imported in the browser", () => {
 		const project = await openProject(root);
 		expect(project.config.place).toBe("Game.rbxl");
 		expect(await findPlaceFile(root, project.config)).toBe("Game.rbxl");
-		expect(await volume.readFile(`${root}/src/ServerScriptService/Main.server.luau`, "utf8")).toBe("print('hi')");
-		expect(await volume.readFile(`${root}/place/Workspace/Coin/Spin.server.luau`, "utf8")).toBe("spin()");
-		expect(JSON.parse(await volume.readFile(`${root}/default.project.json`, "utf8")).name).toBe("Game");
+		expect(await volume.readFile(`${root}/src/ServerScriptService/Main.server.luau`, "utf8")).toBe(
+			"print('hi')",
+		);
+		expect(await volume.readFile(`${root}/place/Workspace/Coin/Spin.server.luau`, "utf8")).toBe(
+			"spin()",
+		);
+		expect(JSON.parse(await volume.readFile(`${root}/default.project.json`, "utf8")).name).toBe(
+			"Game",
+		);
 	});
 
 	it("goes out with the project when it is downloaded", async () => {
@@ -94,11 +109,23 @@ describe("keeping a place across a reload", () => {
 		const s: SnapshotStore & { binaryWrites: number; document: () => string | null } = {
 			binaryWrites: 0,
 			document: () => document,
-			async read() { return document; },
-			async write(text) { document = text; },
-			async clear() { document = null; binaries = {}; },
-			async readBinaries() { return binaries; },
-			async writeBinaries(files) { s.binaryWrites++; binaries = files; },
+			async read() {
+				return document;
+			},
+			async write(text) {
+				document = text;
+			},
+			async clear() {
+				document = null;
+				binaries = {};
+			},
+			async readBinaries() {
+				return binaries;
+			},
+			async writeBinaries(files) {
+				s.binaryWrites++;
+				binaries = files;
+			},
 		};
 		return s;
 	}
@@ -113,12 +140,19 @@ describe("keeping a place across a reload", () => {
 		expect(JSON.parse(s.document()!).files).toEqual({ "/Game/roswaal.json": "{}" });
 
 		// A text change with the same stamp does not write the place again.
-		kept.touch(() => ({ files: { ...files, "/Game/roswaal.json": "{ }" }, dirs: [], root: "/Game", binaryStamp: 1 }));
+		kept.touch(() => ({
+			files: { ...files, "/Game/roswaal.json": "{ }" },
+			dirs: [],
+			root: "/Game",
+			binaryStamp: 1,
+		}));
 		await vi.advanceTimersByTimeAsync(500);
 		expect(s.binaryWrites).toBe(1);
 
 		const back = await persistence(s, "9.9.9").restore();
-		expect(Buffer.from(back!.files["/Game/Game.rbxl"] as Uint8Array).equals(Buffer.from(PLACE))).toBe(true);
+		expect(
+			Buffer.from(back!.files["/Game/Game.rbxl"] as Uint8Array).equals(Buffer.from(PLACE)),
+		).toBe(true);
 		expect(back!.files["/Game/roswaal.json"]).toBe("{ }");
 	});
 });
