@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { isScript, pathOf, readRbx, stringProp, text, walk } from "../src/core/rbx/index.js";
+import { isScript, pathOf, RbxError, readRbx, stringProp, text, walk } from "../src/core/rbx/index.js";
 import { lz4Compress, lz4Decompress } from "../src/core/rbx/lz4.js";
 import { buildPlace, type Compression, folder, script, service } from "./rbxfixture.js";
 
@@ -136,6 +136,55 @@ describe("the XML reader", () => {
 
 	it("says where malformed XML goes wrong", () => {
 		expect(() => readRbx(new TextEncoder().encode("<roblox><Item class='A'></roblox>"))).toThrow(/closes <roblox> inside <Item>/);
+	});
+});
+
+describe("a damaged file", () => {
+	/** What reading threw, or "read" when it did not. */
+	const outcome = (bytes: Uint8Array): string => {
+		try {
+			readRbx(bytes);
+			return "read";
+		} catch (error) {
+			return error instanceof RbxError ? "RbxError" : `${(error as Error).name}: ${(error as Error).message}`;
+		}
+	};
+
+	it("throws RbxError for a binary header cut short", () => {
+		const whole = buildPlace(place(), "none");
+		expect(outcome(whole.subarray(0, 14))).toBe("RbxError");
+		expect(outcome(whole.subarray(0, 15))).toBe("RbxError");
+		expect(() => readRbx(whole.subarray(0, 15))).toThrow(/header/);
+	});
+
+	it("throws only RbxError however a binary place is cut or spoiled", () => {
+		for (const compression of ["none", "lz4", "zstd"] as Compression[]) {
+			const whole = buildPlace(place(), compression);
+			const seen = new Set<string>();
+			for (let n = 8; n < whole.length; n++) seen.add(outcome(whole.subarray(0, n)));
+			let seed = 7;
+			for (let k = 0; k < 300; k++) {
+				const spoiled = whole.slice();
+				seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+				const at = 32 + (seed % (whole.length - 32));
+				spoiled[at] ^= 1 + (seed >>> 24) % 255;
+				seen.add(outcome(spoiled));
+			}
+			seen.delete("read");
+			expect([...seen]).toEqual(["RbxError"]);
+		}
+	});
+
+	it("throws RbxError for XML it cannot decode", () => {
+		const props = (inner: string) =>
+			new TextEncoder().encode(`<roblox><Item class="Part" referent="A"><Properties>${inner}</Properties></Item></roblox>`);
+		expect(outcome(props('<int64 name="Id">1.5</int64>'))).toBe("RbxError");
+		expect(outcome(props('<BinaryString name="B">not base64!</BinaryString>'))).toBe("RbxError");
+		expect(outcome(props('<string name="Name">&#x110000;</string>'))).toBe("read");
+		for (let n = 1; n < XML.length; n += 7) {
+			const cut = outcome(new TextEncoder().encode(XML.slice(0, n)));
+			expect(["RbxError", "read"]).toContain(cut);
+		}
 	});
 });
 

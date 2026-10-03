@@ -17,7 +17,9 @@
  * that property and nothing else.
  */
 
-import { type CFrameValue, type Prop, type PropType, type RbxDocument, RbxError, type RbxInstance, text } from "./dom.js";
+import {
+	asRbxError, type CFrameValue, type Prop, type PropType, type RbxDocument, RbxError, type RbxInstance, text,
+} from "./dom.js";
 import { lz4Decompress } from "./lz4.js";
 import { isZstd, zstdDecompress } from "./zstd.js";
 
@@ -266,9 +268,18 @@ interface ClassChunk {
 	instances: RbxInstance[];
 }
 
-/** Reads a binary place or model. Throws `RbxError` for a file it cannot read. */
+/** Reads a binary place or model. Throws `RbxError` for a file it cannot read, and nothing else. */
 export function readBinary(bytes: Uint8Array): RbxDocument {
+	try {
+		return decodeBinary(bytes);
+	} catch (error) {
+		throw asRbxError(error, "the file is damaged");
+	}
+}
+
+function decodeBinary(bytes: Uint8Array): RbxDocument {
 	if (!isBinaryRbx(bytes)) throw new RbxError("not a binary Roblox place or model");
+	if (bytes.length < 32) throw new RbxError("the file stops inside its header");
 	const header = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	const version = header.getUint16(14, true);
 	if (version !== 0) throw new RbxError(`format version ${version}, where this reads version 0`);
