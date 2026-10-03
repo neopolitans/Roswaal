@@ -223,6 +223,39 @@ export function isPrefixExpression(expr: string): boolean {
 	return e.startsWith("(") && closesAtEnd(e);
 }
 
+/**
+ * True when `expr` is a function or method call, and so may stand as a
+ * statement: a name or a parenthesised group, then a postfix chain ending in an
+ * argument list. `("s"):upper()` is one; `(f)` alone is a group, not a call.
+ */
+export function isCallExpression(expr: string): boolean {
+	const e = expr.trim();
+	if (!e.endsWith(")")) return false;
+	if (!e.startsWith("(")) return isPrefixExpression(e);
+	const close = groupEnd(e);
+	if (close === -1 || close === e.length - 1) return false;
+	const chain = e.slice(close + 1);
+	return /^[.:[(]/.test(chain) && isBalancedChain(chain);
+}
+
+/** Where the bracket opening `e` closes, skipping strings; -1 if it never does. */
+function groupEnd(e: string): number {
+	let depth = 0;
+	for (let i = 0; i < e.length; i++) {
+		const c = e[i];
+		if (c === '"' || c === "'") {
+			i = skipString(e, i) - 1;
+			continue;
+		}
+		if (c === "(" || c === "[" || c === "{") depth++;
+		else if (c === ")" || c === "]" || c === "}") {
+			depth--;
+			if (depth === 0) return i;
+		}
+	}
+	return -1;
+}
+
 /** Wraps `expr` in parentheses unless it may be indexed or called as it is. */
 export function parenPrefix(expr: string): string {
 	const e = expr.trim();

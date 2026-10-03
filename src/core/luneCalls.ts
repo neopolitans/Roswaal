@@ -31,11 +31,17 @@
  * wrong — a file that quietly gained `local fs = require("@lune/fs")` because
  * somebody dropped a node is a file whose dependencies are not what its author
  * can see, and that is true whoever wrote the module.
+ *
+ * The shape this shares with the Service Function nodes is in `callNodes.ts`;
+ * this file is Lune's catalogue's side of it.
  */
 
+import {
+	argumentPin, callLabelOf, execPin, memberOf, ownerOf, splitCallText, type CallSpelling,
+} from "./callNodes.js";
 import { LUNE_MODULES, type LuneFunction, type LuneParam } from "./luneApi.js";
 import { LUAU_PRIMITIVES } from "./luneTypes.js";
-import type { Literal, NodeConfig, PinDef } from "./schema.js";
+import type { NodeConfig, PinDef } from "./schema.js";
 
 /** The node ids, named because the emitter and the menu both test for them. */
 export const LUNE_CALL = "lune.call";
@@ -60,22 +66,21 @@ export function luneFunction(
 /** What a module is required as: `@lune/fs`. */
 export const specifierFor = (alias: string): string => `@lune/${alias}`;
 
-const config = (c: NodeConfig | undefined, key: string): string | undefined => {
-	const value = (c as Record<string, unknown> | undefined)?.[key];
-	return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+/** How a Lune Function stores and writes its call: `fs.readFile`. */
+const LUNE_SPELLING: CallSpelling = {
+	ownerKey: "module",
+	memberKey: "call",
+	defaultOwner: "fs",
+	separator: ".",
 };
 
-export const moduleOf = (c: NodeConfig | undefined): string => config(c, "module") ?? "fs";
-export const callOf = (c: NodeConfig | undefined): string | undefined => config(c, "call");
+export function moduleOf(c: NodeConfig | undefined): string {
+	return ownerOf(LUNE_SPELLING, c);
+}
 
-/**
- * Argument pin ids, positional for the reason the service call's are.
- *
- * A literal typed into argument two stays on argument two when Lune renames a
- * parameter underneath it, which naming the pins after the parameters would
- * lose the day it happened.
- */
-export const argPinId = (index: number): string => `a${index}`;
+export function callOf(c: NodeConfig | undefined): string | undefined {
+	return memberOf(LUNE_SPELLING, c);
+}
 
 /**
  * A Luau type from the catalogue as a pin type.
@@ -102,26 +107,6 @@ export function pinTypeFor(luau: string): string {
 /** True when the pin type had to give something up, so the description says it. */
 const lossy = (luau: string): boolean => pinTypeFor(luau) === "any" && luau.trim() !== "any";
 
-/**
- * A starting value for an argument, where there is an obvious one.
- *
- * A string, number or boolean pin becomes a field you type into, and everything
- * else stays empty so an unwired one is an error naming the pin rather than a
- * silent `nil`.
- *
- * **Only for a required argument.** A default on an optional one means the call
- * always passes it, and there is then no way to leave it out — `task.wait()`
- * came out as `task.wait(0)`, which is a different call. An optional pin starts
- * empty so that unset means absent, and a developer who wants the zero types
- * one.
- */
-function defaultFor(type: string): Literal | undefined {
-	if (type === "string") return { t: "string", v: "" };
-	if (type === "number") return { t: "number", v: 0 };
-	if (type === "boolean") return { t: "boolean", v: false };
-	return undefined;
-}
-
 /** What a pin should say about itself: Lune's words, and the type when it differs. */
 function describe(param: LuneParam): string | undefined {
 	const parts: string[] = [];
@@ -135,18 +120,13 @@ export function argumentPins(fn: LuneFunction): PinDef[] {
 	return fn.params.map((param, index) => {
 		// `...` is variadic: one pin for it rather than a guess at how many.
 		const variadic = param.name === "...";
-		const type = pinTypeFor(param.type);
-		const pin: PinDef = {
-			id: argPinId(index),
+		return argumentPin({
+			index,
 			name: variadic ? "Arguments" : param.name,
-			kind: "data",
-			type,
-			default: param.optional || variadic ? undefined : defaultFor(type),
-		};
-		if (param.optional || variadic) pin.optional = true;
-		const description = describe(param);
-		if (description !== undefined) pin.description = description;
-		return pin;
+			type: pinTypeFor(param.type),
+			optional: param.optional || variadic,
+			description: describe(param),
+		});
 	});
 }
 
@@ -176,8 +156,6 @@ export function isValueCall(fn: LuneFunction): boolean {
 	return fn.mustUse && fn.returns !== "";
 }
 
-const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
-
 /** The pins of a Lune Function node, for either shape. */
 export function lunePins(
 	c: NodeConfig | undefined, pure: boolean,
@@ -195,15 +173,14 @@ export function lunePins(
 		};
 	}
 	return {
-		inputs: [exec("in"), ...args],
-		outputs: [exec("then"), ...(result ? [result] : [])],
+		inputs: [execPin("in"), ...args],
+		outputs: [execPin("then"), ...(result ? [result] : [])],
 	};
 }
 
 /** `fs.readFile`, for a node's header. */
 export function callLabel(c: NodeConfig | undefined): string | undefined {
-	const call = callOf(c);
-	return call ? `${moduleOf(c)}.${call}` : undefined;
+	return callLabelOf(LUNE_SPELLING, c);
 }
 
 export interface LuneMenuItem {
@@ -244,12 +221,8 @@ export const LUNE_CALL_OPTIONS: string[] = LUNE_MODULES.flatMap((module) =>
 
 /** The two halves of `fs.readFile`. */
 export function splitLuneCall(text: string): { module: string; call: string } | undefined {
-	const at = text.indexOf(".");
-	if (at <= 0) return undefined;
-	const module = text.slice(0, at).trim();
-	const call = text.slice(at + 1).replace(/\(.*\)$/, "").trim();
-	if (module === "" || call === "") return undefined;
-	return { module, call };
+	const split = splitCallText(LUNE_SPELLING, text);
+	return split && { module: split.owner, call: split.member };
 }
 
 /**

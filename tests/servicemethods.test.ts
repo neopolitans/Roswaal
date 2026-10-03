@@ -218,8 +218,26 @@ describe("what it compiles to", () => {
 		b.link(ask, "then", print, "in");
 		b.link(ask, "result", print, "value");
 
+		// Annotated as every step's result is, because the graph is strict.
 		expect(body(compile(b.build(), registry, {}).code)).toContain(
+			"local players: { [any]: any } = Players:GetPlayers()",
+		);
+		expect(body(compile(b.build({ typecheck: "default" }), registry, {}).code)).toContain(
 			"local players = Players:GetPlayers()",
+		);
+	});
+
+	/** Result Name names the local, as it does on every other step. */
+	it("names the impure node's local after its result name", () => {
+		const b = new Builder();
+		const start = b.node("script.begin", { id: "start" });
+		const ask = b.node(SERVICE_CALL, {
+			id: "ask", config: { service: "HttpService", method: "GenerateGUID", resultName: "token" },
+		});
+		const print = b.node("debug.print", { id: "print" });
+		b.link(start, "then", ask, "in").link(ask, "then", print, "in").link(ask, "result", print, "value");
+		expect(body(compile(b.build(), registry, {}).code)).toContain(
+			"local token: string = HttpService:GenerateGUID()",
 		);
 	});
 

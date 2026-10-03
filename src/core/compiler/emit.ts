@@ -14,7 +14,7 @@
  */
 
 import {
-	foldPrecedence, indentBlock, isAccessPath, isAtomic, isIdentifier, literalToLuau, NameScope,
+	foldPrecedence, indentBlock, isAccessPath, isCallExpression, isIdentifier, literalToLuau, NameScope,
 	paren, parenAt,
 	parenPrefix, PREC, quoteString, spliceIntoTemplate, toIdentifier,
 } from "./luau.js";
@@ -24,7 +24,10 @@ import { CAST_NODES, NILABLE_CLASS_READS, castModeOf, type CastMode } from "../n
 import { checkLuau } from "../luau/check.js";
 import { isModuleScript, PAIR } from "../schema.js";
 import { checkSpecifier, type SpecifierContext } from "../modules.js";
-import { argPinId, callOf, luneFunction, moduleOf, specifierFor } from "../luneCalls.js";
+import { argPinId } from "../callNodes.js";
+import { callOf, luneFunction, moduleOf, specifierFor } from "../luneCalls.js";
+import { LUAU_PRIMITIVES } from "../luneTypes.js";
+import { DATATYPES } from "../robloxData.js";
 import { commentLines, headersByNode } from "../comments.js";
 import type { Comment, Literal, NodeConfig, NodeScript, PinDef } from "../schema.js";
 import type { Signature } from "../nodes/flow.js";
@@ -1308,17 +1311,32 @@ class Emitter {
 	}
 
 	private emitCall(r: ResolvedNode, template: string, resultPin: string, scope: Scope): string | undefined {
+		return this.writeCall(r, this.renderTemplate(r, template, scope), resultPin, scope);
+	}
+
+	/**
+	 * A call on the execution chain, with its result bound for whoever reads it.
+	 *
+	 * Every step that returns a value comes through here: a template call node,
+	 * Call Function and Call Method, and the Service and Lune Function steps. So
+	 * all of them name the local the same way, annotate it the same way and fold
+	 * into the next statement the same way. `fallback` names the local when
+	 * nothing on the node does, ahead of the pin's own name. `typed: false`
+	 * leaves the annotation off, for a result whose type is not a name in scope.
+	 */
+	private writeCall(
+		r: ResolvedNode, rendered: string, resultPin: string, scope: Scope,
+		how: { fallback?: string; typed?: boolean } = {},
+	): string | undefined {
+		const fallback = how.fallback;
 		const pin = r.baseOutputs.find((p) => p.id === resultPin);
 		const consumed = this.index.consumerCount(r.node.id, resultPin) > 0;
-		const rendered = this.renderTemplate(r, template, scope);
 		const next = this.index.execTarget(r.node.id, "then");
 
-		/**
-		 * A step whose one reader is the very next statement is written into it:
-		 * `local copy = model:Clone()`, not a local and then a copy of it. Only
-		 * the next statement, and only a Declare Local or a setter, so the call
-		 * still runs exactly where it did — nothing else happens in between.
-		 */
+		// A step whose one reader is the very next statement is written into it:
+		// `local copy = model:Clone()`, not a local and then a copy of it. Only
+		// the next statement, and only a Declare Local or a setter, so the call
+		// still runs exactly where it did — nothing else happens in between.
 		const reader = consumed ? this.foldsInto(r.node.id, resultPin) : undefined;
 		if (reader && reader.node.id === next && STATEMENT_READERS.has(reader.def.id)) {
 			scope.bindings.set(`${r.node.id}/${resultPin}`, rendered);
@@ -1326,29 +1344,19 @@ class Emitter {
 		}
 
 		if (consumed) {
-			/**
-			 * What to call the local this result lands in.
-			 *
-			 * `resultName` first, which is the field that says so. The label is
-			 * still honoured behind it: it named results before there was a field
-			 * for it, and a graph built that way should go on emitting what it
-			 * always did.
-			 */
-			const named = (r.node.config as { resultName?: string } | undefined)?.resultName;
-			const hint = named || r.node.label || pin?.name || r.def.title;
-			const ident = this.names.unique(hint, "value");
-			const annotation = this.annotates && pin?.type && pin.type !== "any"
+			const ident = this.names.unique(resultHint(r, pin, fallback), fallback ?? "value");
+			const annotation = this.annotates && how.typed !== false && pin?.type && pin.type !== "any"
 				? `: ${luauType(pin.type)}${pin.nilable ? "?" : ""}`
 				: "";
 			this.push(`local ${ident}${annotation} = ${rendered}`, r.node.id);
 			scope.bindings.set(`${r.node.id}/${resultPin}`, ident);
-		} else if (isCallStatement(rendered)) {
+		} else if (isCallExpression(rendered)) {
 			this.push(rendered, r.node.id);
 		} else {
 			// A bare expression is not a statement in Luau, so bind and discard.
 			this.push(`local ${this.names.temp()} = ${rendered}`, r.node.id);
 		}
-		return this.index.execTarget(r.node.id, "then");
+		return next;
 	}
 
 	/**
@@ -1598,39 +1606,26 @@ class Emitter {
 					callee = parenPrefix(this.resolveInput(r, this.pin(r, "fn", "in"), scope));
 				}
 
-				const expression = `${callee}(${args.join(", ")})`;
-				if (this.index.consumerCount(id, "result") > 0) {
-					const ident = this.names.unique(r.node.label || "result", "result");
-					this.push(`local ${ident} = ${expression}`, id);
-					scope.bindings.set(`${id}/result`, ident);
-				} else {
-					this.push(expression, id);
-				}
-				return this.index.execTarget(id, "then");
+				return this.writeCall(r, `${callee}(${args.join(", ")})`, "result", scope, { fallback: "result" });
 			}
 
+			// A Lune type other than Luau's own belongs to its module — `net.FetchResponse`
+			// — and is not a name in scope, so only a primitive result is annotated.
 			case "lune.call": {
-				const expression = this.luneCall(r, scope);
-				if (this.index.consumerCount(id, "result") > 0) {
-					const ident = this.names.unique(r.node.label || "result", "result");
-					this.push(`local ${ident} = ${expression}`, id);
-					scope.bindings.set(`${id}/result`, ident);
-				} else {
-					this.push(expression, id);
-				}
-				return this.index.execTarget(id, "then");
+				const type = this.pin(r, "result", "out").type ?? "any";
+				return this.writeCall(r, this.luneCall(r, scope), "result", scope, {
+					fallback: "result", typed: LUAU_PRIMITIVES.includes(type),
+				});
 			}
 
+			// The catalogue names some results by an enum's bare name or by an
+			// internal type, neither of which Luau can see, so only a type every
+			// Roblox file has in scope is annotated.
 			case "service.call": {
-				const expression = this.serviceCall(r, scope);
-				if (this.index.consumerCount(id, "result") > 0) {
-					const ident = this.names.unique(r.node.label || "result", "result");
-					this.push(`local ${ident} = ${expression}`, id);
-					scope.bindings.set(`${id}/result`, ident);
-				} else {
-					this.push(expression, id);
-				}
-				return this.index.execTarget(id, "then");
+				const type = this.pin(r, "result", "out").type ?? "any";
+				return this.writeCall(r, this.serviceCall(r, scope), "result", scope, {
+					fallback: "result", typed: isRobloxTypeName(type),
+				});
 			}
 
 			case "function.declareHere": {
@@ -2888,7 +2883,7 @@ class Emitter {
 	): string {
 		const nodeId = src.node.id;
 		const cast = how.cast;
-		const named = (src.node.config as { resultName?: string } | undefined)?.resultName;
+		const named = resultNameOf(src.node.config);
 
 		// One consumer: splice it in. More: bind it once, so a side-effecting or
 		// merely expensive expression is not worked out twice.
@@ -2921,8 +2916,7 @@ class Emitter {
 		}
 
 		const outPin = src.outputs.find((p) => p.id === pinId);
-		const hint = named || src.node.label || how.fallback || outPin?.name || src.def.title;
-		const ident = this.names.unique(hint, "value");
+		const ident = this.names.unique(resultHint(src, outPin, how.fallback), "value");
 		this.push(`local ${ident} = ${expr}`, nodeId);
 		scope.bindings.set(`${nodeId}/${pinId}`, ident);
 		return ident;
@@ -3263,17 +3257,32 @@ function escapeInterpolated(text: string): string {
 		.replace(/\r/g, "\\r");
 }
 
+/** Whether a type is a name Luau knows in every Roblox file. */
+function isRobloxTypeName(type: string): boolean {
+	return LUAU_PRIMITIVES.includes(type) || isRobloxClass(type) || DATATYPES.includes(type);
+}
+
+/** The name typed for a node's result, if one was. */
+function resultNameOf(config: NodeConfig | undefined): string | undefined {
+	const named = config?.resultName;
+	return typeof named === "string" && named !== "" ? named : undefined;
+}
+
+/**
+ * What to call the local a node's result lands in.
+ *
+ * `resultName` first, which is the field that says so. The label is still
+ * honoured behind it: it named results before there was a field for it, and a
+ * graph built that way should go on emitting what it always did. Then the
+ * caller's fallback, the pin's own name and the node's title.
+ */
+function resultHint(r: ResolvedNode, pin: PinDef | undefined, fallback?: string): string {
+	return resultNameOf(r.node.config) || r.node.label || fallback || pin?.name || r.def.title;
+}
+
 /** Whether this Concatenate writes an interpolated string rather than a join. */
 export function isInterpolated(config: NodeConfig | undefined): boolean {
 	return (config as { interpolate?: unknown } | undefined)?.interpolate === true;
-}
-
-/** True when the expression is also a valid Luau statement (a function call). */
-function isCallStatement(expr: string): boolean {
-	const e = expr.trim();
-	if (!e.endsWith(")")) return false;
-	if (!/^[A-Za-z_(]/.test(e)) return false;
-	return isAtomic(e) && /[.:\w]\s*\(/.test(e);
 }
 
 /**
