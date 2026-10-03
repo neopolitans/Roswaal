@@ -13,9 +13,11 @@
  */
 
 (function () {
-  var api = window.__roswaal;
+  var published = window.__roswaal;
   var search = window.__roswaalSearch;
-  if (!api) return;
+  if (!published) return;
+  // Bound after the check, so the functions below see it as present.
+  const api = published;
 
   var up = (document.documentElement.dataset.slug || "").split("/").length - 1;
   var prefix = new Array(up + 1).join("../");
@@ -40,9 +42,10 @@
      * with the keyboard still up and nothing the reader could see to type in.
      * Inert, there is nowhere else to go, and the arrows grey out.
      */
-    var behind = [].slice.call(document.body.children).filter(function (el) {
-      return !el.inert;
-    });
+    // Cast: a page body's children are HTML elements, which `children` does
+    // not promise because it is typed for any document, SVG included.
+    var behind = /** @type {HTMLElement[]} */ (Array.from(document.body.children))
+      .filter(function (el) { return !el.inert; });
     behind.forEach(function (el) { el.inert = true; });
     function shut() {
       back.remove();
@@ -158,7 +161,9 @@
     page.appendChild(setting(
       "Theme",
       "The same preference the editor writes, so a scheme picked there is what these pages are in.",
-      [{ value: null, label: "System", what: "Light or dark, whichever your OS is set to." }].concat(
+      // Typed, so the System row's `null` and a scheme's name share one list.
+      /** @type {{ value: string | null; label: string; what: string }[]} */
+      ([{ value: null, label: "System", what: "Light or dark, whichever your OS is set to." }]).concat(
         api.themes.map(function (t) {
           return { value: t.name, label: t.name, what: t.credit || "" };
         }),
@@ -329,7 +334,7 @@
     finder.hidden = false;
     finder.addEventListener("click", function () {
       var contents = document.getElementById("docs-nav-open");
-      if (contents) contents.checked = false;
+      if (contents instanceof HTMLInputElement) contents.checked = false;
       overlay("docs-palette-backdrop", palette);
     });
   }

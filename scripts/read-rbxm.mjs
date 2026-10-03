@@ -314,7 +314,7 @@ export function parse(path) {
 					inst.get(ref).props[prop] = values[i];
 				});
 			} catch (err) {
-				skipped.push(`${cls.name}.${prop}: ${err.message}`);
+				skipped.push(`${cls.name}.${prop}: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		} else if (name === "PRNT") {
 			r.u8();

@@ -10,6 +10,16 @@ import { join } from "node:path";
 
 import { themeSlug, validateTheme } from "../../src/core/theme.ts";
 
+/** Everything wrong across `themes/`, collected before any of it is reported. */
+export class ThemeProblems extends Error {
+	/** @param {string[]} problems */
+	constructor(problems) {
+		super(`${problems.length} problem(s) in themes/`);
+		this.name = "ThemeProblems";
+		this.problems = problems;
+	}
+}
+
 /**
  * Reads and checks every scheme.
  *
@@ -29,7 +39,7 @@ export async function loadThemes(root) {
 		try {
 			parsed = JSON.parse(await readFile(join(source, file), "utf8"));
 		} catch (err) {
-			problems.push(`themes/${file}: not valid JSON — ${err.message}`);
+			problems.push(`themes/${file}: not valid JSON — ${err instanceof Error ? err.message : String(err)}`);
 			continue;
 		}
 		const found = validateTheme(parsed, `themes/${file}`);
@@ -82,11 +92,7 @@ export async function loadThemes(root) {
 		}
 	}
 
-	if (problems.length > 0) {
-		const error = new Error(`${problems.length} problem(s) in themes/`);
-		error.problems = problems;
-		throw error;
-	}
+	if (problems.length > 0) throw new ThemeProblems(problems);
 
 	themes.sort((a, b) => a.theme.order - b.theme.order || a.theme.name.localeCompare(b.theme.name));
 	return { themes: themes.map((t) => t.theme), texts };

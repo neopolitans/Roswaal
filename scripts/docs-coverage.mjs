@@ -24,7 +24,7 @@ console.log(`${withExample.length} of ${docs.length} nodes have a worked example
 const sample = process.argv.includes("--samples");
 if (sample) {
 	for (const doc of withExample) {
-		console.log(`  ${doc.id.padEnd(24)} ${doc.example.split("\n").join(" ⏎ ")}`);
+		console.log(`  ${doc.id.padEnd(24)} ${(doc.example ?? "").split("\n").join(" ⏎ ")}`);
 	}
 	console.log("");
 }

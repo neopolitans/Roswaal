@@ -1,0 +1,20 @@
+// The build scripts, type-checked as JavaScript against the TypeScript they
+// import. `npm run typecheck` runs it after the main project.
+//
+// Implicit `any` is allowed here and nowhere else: most script parameters
+// carry no annotation, and requiring one is a pass of its own. Everything
+// else the main project checks is checked.
+//
+// `build-pages.mjs` and `lib/landing.mjs` are left out while the landing page
+// is reworked; they have errors of their own to fix first.
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"allowImportingTsExtensions": true,
+		"noImplicitAny": false
+	},
+	"include": ["scripts"],
+	"exclude": ["scripts/build-pages.mjs", "scripts/lib/landing.mjs"]
+}

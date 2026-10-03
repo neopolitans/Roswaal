@@ -26,14 +26,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-	loadThemes, renderThemeModule, themeModuleIsCurrent, themeModulePath,
+	loadThemes, renderThemeModule, ThemeProblems, themeModuleIsCurrent, themeModulePath,
 } from "./lib/themeModule.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const target = themeModulePath(root);
 
 const loaded = await loadThemes(root).catch((err) => {
-	console.error(err.problems ? err.problems.join("\n") : err.message);
+	console.error(err instanceof ThemeProblems ? err.problems.join("\n") : String(err));
 	process.exit(1);
 });
 

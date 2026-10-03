@@ -16,7 +16,7 @@
     "roswaal": "node dist-cli/roswaal.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.scripts.json",
     "build:themes": "tsx scripts/build-themes.mjs",
     "build:roblox": "node scripts/build-roblox.mjs",
     "build:members": "tsx scripts/build-members.mjs",
