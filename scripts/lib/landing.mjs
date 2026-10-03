@@ -195,20 +195,20 @@ body.roswaal-landing {
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
   border: 1px solid rgb(0 0 0 / 45%); border-radius: 3px; padding: 1px 6px;
 }
-/* The way out, as a door rather than a link: the stable build, named. A deep
-   navy rather than the accent, which against the canary's yellow was two loud
-   colours meeting; fixed colours, since the strip is yellow in either theme. */
+/* The way out: the stable build, named, outlined in the strip's own ink so it
+   reads as a button without a second loud colour beside the canary's yellow.
+   The blue that says "stable" is kept to the chip. Fixed colours, since the
+   strip is yellow in either theme. */
 .strip-stable {
-  display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 6px;
-  background: #24476b; color: #f1f5fa; font-weight: 600; text-decoration: none;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 30%), inset 0 1px 0 rgb(255 255 255 / 12%);
+  display: inline-flex; align-items: center; gap: 8px; padding: 4px 11px; border-radius: 6px;
+  border: 1.5px solid #14161a; color: #14161a; font-weight: 600; text-decoration: none;
   transition: background 0.12s;
 }
-.strip-stable:hover { background: #2d5784; }
+.strip-stable:hover { background: rgb(0 0 0 / 8%); }
 .strip-stable:focus-visible { outline: 2px solid #14161a; outline-offset: 2px; }
 .strip-stable .flag {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
-  border: 1px solid rgb(255 255 255 / 45%); border-radius: 3px; padding: 1px 5px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  border-radius: 3px; padding: 1px 5px; background: #14161a; color: #7fb3e6;
 }
 @media (max-width: 640px) { .strip-inner { padding: 9px 20px; } }
 .banner-inner {
