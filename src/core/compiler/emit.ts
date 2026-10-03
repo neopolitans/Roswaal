@@ -27,6 +27,7 @@ import { checkLuau } from "../luau/check.js";
 import { isModuleScript, PAIR } from "../schema.js";
 import { checkSpecifier, type SpecifierContext } from "../modules.js";
 import { argPinId } from "../callNodes.js";
+import { bodyPinOf } from "../functionBody.js";
 import { callOf, luneFunction, moduleOf, specifierFor } from "../luneCalls.js";
 import { LUAU_PRIMITIVES } from "../luneTypes.js";
 import { DATATYPES } from "../robloxData.js";
@@ -1116,7 +1117,7 @@ class Emitter {
 			this.blank();
 			this.push(`local function ${name}(${params})${returns}`, fn.node.id);
 			this.indent++;
-			this.walk(this.index.execTarget(fn.node.id, "then"), scope);
+			this.walk(this.bodyOf(fn), scope);
 			this.indent--;
 			this.names.pop();
 			this.push("end", fn.node.id);
@@ -1151,6 +1152,12 @@ class Emitter {
 					? luauType(returns[0].type)
 					: `(${returns.map((r) => luauType(r.type)).join(", ")})`;
 		return { params: params.join(", "), returns: `: ${written}` };
+	}
+
+	/** The first node of a function's body. See `bodyPinOf` for which pin that is. */
+	private bodyOf(fn: ResolvedNode): string | undefined {
+		const pin = bodyPinOf(fn.def.id);
+		return pin === undefined ? undefined : this.index.execTarget(fn.node.id, pin);
 	}
 
 	private emitMainFlow(root: Scope): void {
@@ -1677,7 +1684,7 @@ class Emitter {
 				this.blank();
 				this.push(`${owner ? "" : "local "}function ${ident}(${params})${returns}`, id);
 				this.indent++;
-				this.walk(this.index.execTarget(id, "body"), body);
+				this.walk(this.bodyOf(r), body);
 				this.indent--;
 				this.names.pop();
 				this.push("end", id);

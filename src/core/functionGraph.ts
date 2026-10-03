@@ -106,7 +106,7 @@ export function paramsVisibleFrom(owner: Pick<GraphNode, "id" | "def" | "graph">
 /** Whether this pin belongs to the graph a declaration opens. */
 export function isEntryPin(defId: string, pinId: string): boolean {
 	if (defId === "function.entry") return true;
-	if (defId === "function.declareHere") return pinId === "body" || /^p\d+(\.|$)/.test(pinId);
+	if (defId === "function.declareHere") return pinId === bodyPinOf(defId) || /^p\d+(\.|$)/.test(pinId);
 	return false;
 }
 
@@ -402,5 +402,3 @@ export function assignMembership(
 	const moved = new Set(declarations.filter((fn) => nodes.some((n) => n.graph === fn.id)).map((n) => n.id)).size;
 	return { script: result, moved, crossings: crossingLinks(result).length };
 }
-
-export { bodyPinOf };
