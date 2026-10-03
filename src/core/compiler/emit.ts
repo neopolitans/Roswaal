@@ -1282,11 +1282,13 @@ class Emitter {
 	 * the second does not. Those readers name the value themselves, so it goes
 	 * straight into them.
 	 *
-	 * One direct wire only. A second reader needs the local, and a knot is left
-	 * alone rather than followed, so what folds is what the canvas shows joined.
+	 * One reader only, of the whole value. A second reader needs the local, and
+	 * so does a split output, whose parts are read off a local. A knot on the
+	 * way is seen through, as it is everywhere: inserting one changes nothing.
 	 */
 	private foldsInto(nodeId: string, pinId: string): ResolvedNode | undefined {
-		const links = this.script.links.filter((l) => l.from.node === nodeId && l.from.pin === pinId);
+		if (this.index.readerCount(nodeId, pinId, { parts: true }) !== 1) return undefined;
+		const links = this.index.readersOf(nodeId, pinId);
 		if (links.length !== 1) return undefined;
 		const to = links[0].to;
 		const reader = this.index.get(to.node);
@@ -1318,7 +1320,7 @@ class Emitter {
 	): string | undefined {
 		const fallback = how.fallback;
 		const pin = r.baseOutputs.find((p) => p.id === resultPin);
-		const consumed = this.index.consumerCount(r.node.id, resultPin) > 0;
+		const consumed = this.index.readerCount(r.node.id, resultPin, { parts: true }) > 0;
 		const next = this.index.execTarget(r.node.id, "then");
 
 		// A step whose one reader is the very next statement is written into it:
@@ -1376,12 +1378,12 @@ class Emitter {
 		const outs = r.baseOutputs.filter(
 			(p) =>
 				p.kind === "data" &&
-				(this.index.consumerCount(r.node.id, p.id) > 0 || referenced.has(p.id)),
+				(this.index.readerCount(r.node.id, p.id, { parts: true }) > 0 || referenced.has(p.id)),
 		);
 
 		const idents: string[] = [];
 		for (const pin of outs) {
-			const consumed = this.index.consumerCount(r.node.id, pin.id) > 0;
+			const consumed = this.index.readerCount(r.node.id, pin.id, { parts: true }) > 0;
 			const ident = consumed ? this.names.unique(pin.name || pin.id, "value") : "_";
 			// Bound either way. An unconsumed one still has to resolve to
 			// something the template can assign to, and leaving it unbound is
@@ -2015,7 +2017,7 @@ class Emitter {
 				// The connection is a local in the *enclosing* block, so it is
 				// named before the handler's own frame is opened.
 				let prefix = "";
-				if (this.index.consumerCount(id, "connection") > 0) {
+				if (this.index.readerCount(id, "connection") > 0) {
 					const ident = this.names.unique(r.node.label || "connection", "connection");
 					scope.bindings.set(`${id}/connection`, ident);
 					prefix = `local ${ident} = `;
@@ -2039,30 +2041,6 @@ class Emitter {
 				this.error(`Unimplemented builtin handler "${handler}".`, id);
 				return undefined;
 		}
-	}
-
-	/**
-	 * How many places actually read this output, seeing through reroute knots.
-	 *
-	 * A knot is meant to be invisible, and it would not be if inserting one
-	 * turned a value that was bound once into one evaluated twice. Counting
-	 * through it keeps the generated code identical either way.
-	 */
-	private effectiveConsumers(nodeId: string, pinId: string, depth = 0): number {
-		// A knot wired into itself is a graph error, not a reason to recurse
-		// forever; the cap is generous enough that no real chain reaches it.
-		if (depth > 64) return 2;
-
-		let total = 0;
-		for (const link of this.index.targetsOf(nodeId, pinId)) {
-			const target = this.index.get(link.to.node);
-			if (target?.def.id === "flow.reroute") {
-				total += this.effectiveConsumers(link.to.node, "out", depth + 1);
-			} else {
-				total += 1;
-			}
-		}
-		return total;
 	}
 
 	/**
@@ -2848,7 +2826,7 @@ class Emitter {
 		// setter, a table field — is written straight into it. The Result name
 		// would only make a second local holding the same value.
 		if (cast !== "explicit" && (!named || this.foldsInto(nodeId, pinId) !== undefined)) {
-			if (this.effectiveConsumers(nodeId, pinId) <= 1) return expr;
+			if (this.index.readerCount(nodeId, pinId) <= 1) return expr;
 			if (isAccessPath(expr)) return expr;
 		}
 
