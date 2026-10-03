@@ -220,6 +220,13 @@ describe("what the API refuses", () => {
 		expect(await statusOf(post("/folder/create", {}))).toBe(400);
 	});
 
+	it("answers 400 for a parameter that is not one of its values", async () => {
+		expect(await statusOf(get("/wally/uses", { alias: "Signal", realm: "elsewhere" }))).toBe(400);
+		expect(await statusOf(post("/wally/remove", { alias: "Signal", realm: 3 }))).toBe(400);
+		expect(await statusOf(get("/export", { place: "replace" }))).toBe(400);
+		expect(await statusOf(post("/script/move", { from: "x.nodescript" }))).toBe(400);
+	});
+
 	it("answers 404 for a route that is not there", async () => {
 		expect(await statusOf(session.handle("GET", "/nope"))).toBe(404);
 		expect(await statusOf(session.handle("DELETE", "/script"))).toBe(404);
