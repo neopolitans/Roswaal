@@ -13,6 +13,7 @@
  * apart with nothing to say which was right.
  */
 
+import { CAST_NODES } from "./nodes/library.js";
 import type { Literal, NodeConfig, NodeDef, PinDef } from "./schema.js";
 
 /** Canvas geometry this needs, structurally satisfied by `NODE`. */
@@ -160,16 +161,16 @@ export function operatorLayout(shape: OperatorShape, g: OperatorGeometry): Opera
 }
 
 /**
- * The nodes that can show their name instead of their symbol.
+ * Whether a node can show its name instead of its symbol.
  *
  * The casts, and only them. `==` is `==` to anybody who has read a line of code
  * in any language; `::` is Luau's own and is the one symbol here that somebody
  * arriving from Blueprints has no reason to recognise — so a cast can say
  * "Cast" on its face instead, and go on being a pill.
  */
-const NAMEABLE = new Set(["cast.as", "cast.array", "cast.any"]);
-
-export const canShowName = (id: string): boolean => NAMEABLE.has(id);
+export function canShowName(id: string): boolean {
+	return CAST_NODES.has(id);
+}
 
 /**
  * What a pill writes in its middle.
