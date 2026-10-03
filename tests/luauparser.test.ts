@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Expr, Stat, TypeNode } from "../src/core/luau/ast.js";
 import { parseChunk } from "../src/core/luau/parser.js";
-import { visitBlock } from "../src/core/luau/visit.js";
+import { nodeAt, nodesAt, visitBlock } from "../src/core/luau/visit.js";
 
 function ok(src: string): Stat[] {
 	const { value, errors } = parseChunk(src);
@@ -250,6 +250,14 @@ describe("walking the tree", () => {
 			},
 		});
 		expect(names).toEqual(["b", "d", "e", "g", "h", "i", "k", "l", "m", "n", "o"]);
+	});
+
+	it("finds the nodes around a point, outermost first", () => {
+		const src = "print(a.b, c)";
+		const path = nodesAt(ok(src), src.indexOf("b"));
+		expect(path.map((n) => `${n.role}:${n.role === "func" ? "body" : n.node.kind}`)).toEqual(["stat:callStat", "expr:call", "expr:index"]);
+		expect(nodeAt(ok(src), src.indexOf("c"))?.node).toMatchObject({ kind: "name", name: "c" });
+		expect(nodesAt(ok("f()\n\ng()"), 4)).toEqual([]);
 	});
 
 	it("leaves a node's children out when the visitor says so", () => {

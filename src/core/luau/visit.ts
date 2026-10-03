@@ -221,3 +221,47 @@ function visitTypeOrPack(node: TypeNode | TypePack, visitor: Visitor): void {
 export function contains(span: Span, offset: number): boolean {
 	return span.start <= offset && offset <= span.end;
 }
+
+/** A node of the tree, with which kind of node it is. */
+export type AnyNode =
+	| { role: "stat"; node: Stat }
+	| { role: "expr"; node: Expr }
+	| { role: "type"; node: TypeNode }
+	| { role: "func"; node: FunctionBody };
+
+/**
+ * The nodes around `offset`, outermost first and innermost last: the
+ * statement, then each expression, function and type inside it that the
+ * offset is in. Empty when it is in no statement, as between two.
+ *
+ * What a tool asks before it says anything about a point: hover reads "the
+ * name after a dot" off an `index` node here, not off the characters before
+ * the cursor.
+ */
+export function nodesAt(block: Block, offset: number): AnyNode[] {
+	const path: AnyNode[] = [];
+	const enter = (found: AnyNode): boolean => {
+		if (!contains(found.node, offset)) return false;
+		// Pre-order, so anything left on the path that does not hold this node
+		// is a sibling before it that touched the offset, not an ancestor.
+		while (path.length > 0 && !holds(path[path.length - 1].node, found.node)) path.pop();
+		path.push(found);
+		return true;
+	};
+	visitBlock(block, {
+		stat: (node) => enter({ role: "stat", node }),
+		expr: (node) => enter({ role: "expr", node }),
+		type: (node) => enter({ role: "type", node }),
+		func: (node) => enter({ role: "func", node }),
+	});
+	return path;
+}
+
+/** The innermost node at `offset`: `nodesAt`'s last. */
+export function nodeAt(block: Block, offset: number): AnyNode | undefined {
+	return nodesAt(block, offset).at(-1);
+}
+
+function holds(outer: Span, inner: Span): boolean {
+	return outer.start <= inner.start && inner.end <= outer.end;
+}

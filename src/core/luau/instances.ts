@@ -12,7 +12,7 @@
 
 import type { Block, Expr } from "./ast.js";
 import { luauFile } from "./file.js";
-import { parseChunk } from "./parser.js";
+import { localsAt } from "./scope.js";
 import { stringValue } from "./infer.js";
 import { targetOf, type RequireTarget } from "./requires.js";
 import { contains, visitBlock } from "./visit.js";
@@ -188,18 +188,10 @@ export function childrenOfChain(
 	else if (head === "workspace") base = ["Workspace"];
 	else if (head === "script") base = self ? [...self] : undefined;
 	else {
-		// The local's own declaration, read from the text above the cursor.
-		const before = src.slice(0, pos);
-		const decl = new RegExp(`local\\s+${head}\\s*(?::[^=\\n]+)?=\\s*([^\\n]+)`, "g");
-		let last: RegExpExecArray | null = null;
-		for (let m = decl.exec(before); m; m = decl.exec(before)) last = m;
-		if (last) {
-			const parsed = parseChunk(`local __ = ${last[1]}`);
-			const stat = parsed.value[0];
-			const value = stat && stat.kind === "local" ? stat.values[0] : undefined;
-			const target = value ? targetOf(value, before) : undefined;
-			base = target ? absolute(target, self) : undefined;
-		}
+		// The local in scope at the cursor, and what it was declared with.
+		const value = localsAt(src, pos).find((n) => n.name === head)?.value;
+		const target = value ? targetOf(value, src.slice(0, pos)) : undefined;
+		base = target ? absolute(target, self) : undefined;
 	}
 	if (!base) return [];
 	const node = nodeAt(root, [...base, ...rest.map((n) => (n === "Parent" ? ".." : n))].reduce<string[]>((acc, n) => {

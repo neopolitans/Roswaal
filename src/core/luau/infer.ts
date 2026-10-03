@@ -18,6 +18,7 @@
 import type { Expr, FunctionBody, Stat } from "./ast.js";
 import { docCommentBefore, docFor, docRegistry, registeredDoc, withRelated, type DocComment } from "./docComment.js";
 import { luauFile } from "./file.js";
+import type { Token } from "./lexer.js";
 import { visitBlock } from "./visit.js";
 import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
 import { isService } from "../roblox.js";
@@ -114,11 +115,42 @@ export function eventsOf(className: string): (EngineEvent & { from: string })[] 
 	return out;
 }
 
+/**
+ * Methods whose first argument, as a string, is a class name: what the
+ * hover over `x:IsA("Model")` and the completion inside its quotes both ask.
+ * `GetService` names a service, which is a class too.
+ */
+export const CLASS_ARGUMENT_METHODS: ReadonlySet<string> = new Set(["IsA", ...CLASS_NAMING_CALLS]);
+
+/** Whether `callee` is `Instance.new`, the one function whose first argument names a class. */
+function isInstanceNew(callee: Expr): boolean {
+	return callee.kind === "index" && callee.object.kind === "name" && callee.object.name === "Instance"
+		&& callee.name.name === "new";
+}
+
+/** Whether a call's first argument names a class: `Instance.new("Part")`, `x:IsA("Model")`. */
+export function takesClassName(call: Expr): boolean {
+	if (call.kind === "call") return isInstanceNew(call.callee);
+	return call.kind === "methodCall" && CLASS_ARGUMENT_METHODS.has(call.method.name);
+}
+
+/**
+ * What the string being typed after `tokens` names, when they end with the
+ * opening bracket of a call that takes a class: `"service"` after
+ * `:GetService(`, `"class"` after `Instance.new(` or `:IsA(`. Read from the
+ * lexer's tokens, since a call being typed does not parse yet.
+ */
+export function classCallBefore(tokens: readonly Token[]): "class" | "service" | undefined {
+	const at = (back: number) => tokens[tokens.length - back]?.text;
+	if (at(1) !== "(") return undefined;
+	if (at(3) === ":" && CLASS_ARGUMENT_METHODS.has(at(2) ?? "")) return at(2) === "GetService" ? "service" : "class";
+	return at(2) === "new" && at(3) === "." && at(4) === "Instance" ? "class" : undefined;
+}
+
 /** The class a call names, when it is one of the calls that name one. */
 export function classOfCall(expr: Expr): string | undefined {
 	if (expr.kind === "methodCall" && INSTANCE_FINDERS[expr.method.name]) return "Instance";
-	if (expr.kind === "call" && expr.callee.kind === "index" && expr.callee.object.kind === "name"
-		&& expr.callee.object.name === "Instance" && expr.callee.name.name === "new") {
+	if (expr.kind === "call" && isInstanceNew(expr.callee)) {
 		const name = stringValue(expr.args[0]);
 		return name && CLASS_SET.has(name) ? name : undefined;
 	}
@@ -246,7 +278,7 @@ export function functionMember(name: string, kind: "function" | "method", func: 
 }
 
 /** `a.b.c` as its names, or undefined for anything that is not a chain of them. */
-function chainOf(expr: Expr): string | undefined {
+export function chainOf(expr: Expr): string | undefined {
 	if (expr.kind === "name") return expr.name;
 	if (expr.kind === "index") {
 		const object = chainOf(expr.object);

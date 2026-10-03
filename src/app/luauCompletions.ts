@@ -17,13 +17,13 @@ import {
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { localNameOf } from "../core/nodes/variables.js";
 import { toIdentifier } from "../core/compiler/luau.js";
-import { CONTEXTUAL_WORDS, RESERVED_WORDS } from "../core/luau/lexer.js";
+import { CONTEXTUAL_WORDS, RESERVED_WORDS, significant, tokenize } from "../core/luau/lexer.js";
 import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
 import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
 import { propertiesOf } from "../core/robloxProperties.js";
 import { nilableProperty } from "../core/robloxNilable.js";
 import {
-	classOfGlobal, dotKeys, eventsOf, formatSignature, heldBy, membersInCode, methodsOf,
+	classCallBefore, classOfGlobal, dotKeys, eventsOf, formatSignature, heldBy, membersInCode, methodsOf,
 	type FunctionSignature, type TableMember,
 } from "../core/luau/infer.js";
 import { ENGINE, signatureText } from "../core/robloxEngine.js";
@@ -182,10 +182,6 @@ const LOCAL_DETAIL: Record<LocalKind, string> = {
 	"loop variable": "loop variable",
 };
 
-/** Calls whose first argument, as a string, is a class name — or a service's. */
-const CLASS_STRING =
-	/(Instance\.new|:IsA|:FindFirstChildOfClass|:FindFirstChildWhichIsA|:FindFirstAncestorOfClass|:FindFirstAncestorWhichIsA|:GetService)\s*\(\s*["']([A-Za-z0-9_]*)$/;
-
 /**
  * A type position: after `::`, or after a name and a colon with a space on
  * either side — `local x: Part`, `local x : Part`, `(hit: BasePart)`. A method
@@ -218,12 +214,17 @@ export function luauCompletionSource(
 		const roblox = getTarget() !== "lune";
 
 		// A class name inside the string it is given as: `Instance.new("Pa`.
-		const quoted = roblox ? context.matchBefore(CLASS_STRING) : null;
-		if (quoted) {
-			const [, call, typed] = CLASS_STRING.exec(quoted.text)!;
-			const names = call === ":GetService" ? ROBLOX_SERVICES : ROBLOX_CLASSES;
+		// The call before the quote is read from the lexer's tokens, which
+		// know a comment or a string from code; the call is not finished, so
+		// there is no tree to read it from yet.
+		const quoted = roblox ? context.matchBefore(/["'][A-Za-z0-9_]*$/) : null;
+		const named = quoted
+			? classCallBefore(significant(tokenize(context.state.doc.sliceString(0, quoted.from))).slice(0, -1))
+			: undefined;
+		if (quoted && named) {
+			const names = named === "service" ? ROBLOX_SERVICES : ROBLOX_CLASSES;
 			return {
-				from: quoted.to - typed.length,
+				from: quoted.from + 1,
 				options: names.map((label) => ({ label, type: "class" })),
 				validFor: /^\w*$/,
 			};

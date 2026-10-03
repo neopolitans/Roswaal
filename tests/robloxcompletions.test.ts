@@ -55,6 +55,11 @@ describe("a class name in the string it is given as", () => {
 		expect(offered("character:FindFirstChildOfClass('Hum|")).toContain("Humanoid");
 	});
 
+	it("reads the call from code, not from a comment that looks like one", () => {
+		expect(offered('-- Instance.new("Pa|')).not.toContain("Part");
+		expect(offered('Instance.new( "Pa|')).toContain("Part");
+	});
+
 	it("completes a service for GetService", () => {
 		const services = offered('game:GetService("|');
 		expect(services).toContain("Players");
