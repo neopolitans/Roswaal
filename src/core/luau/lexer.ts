@@ -56,14 +56,23 @@ export interface Token {
 }
 
 /**
- * Reserved words: never a name. `continue`, `type`, `export` and `typeof` are
- * not here — Luau keeps them usable as names and decides from context, so the
- * parser does too.
+ * Reserved words: never a name, so never after a dot either. Luau's one list:
+ * the editor's colours, its completions and the code Roswaal writes all read
+ * it from here.
  */
-export const KEYWORDS: ReadonlySet<string> = new Set([
+export const RESERVED_WORDS: ReadonlySet<string> = new Set([
 	"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if",
 	"in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while",
 ]);
+
+/**
+ * Words Luau reads as keywords only where they stand -- `continue` as a
+ * statement, `export type`, `type X =`, `typeof(…)` in a type -- and as
+ * ordinary names everywhere else, so the parser decides from context. Code
+ * that writes names should still avoid them: a local called `type` hides the
+ * global function.
+ */
+export const CONTEXTUAL_WORDS: ReadonlySet<string> = new Set(["continue", "export", "type", "typeof"]);
 
 /** Longest first, so `...` wins over `..` and `//=` over `//`. */
 const SYMBOLS = [
@@ -196,7 +205,7 @@ export function tokenize(src: string): Token[] {
 
 		if (isNameStart(c)) {
 			while (i < src.length && isNameChar(src[i])) i++;
-			push(KEYWORDS.has(src.slice(start, i)) ? "keyword" : "name", start, i);
+			push(RESERVED_WORDS.has(src.slice(start, i)) ? "keyword" : "name", start, i);
 			continue;
 		}
 

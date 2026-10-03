@@ -17,6 +17,7 @@ import {
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { localNameOf } from "../core/nodes/variables.js";
 import { toIdentifier } from "../core/compiler/luau.js";
+import { CONTEXTUAL_WORDS, RESERVED_WORDS } from "../core/luau/lexer.js";
 import { localsAt, topLevelLocals, type LocalKind } from "../core/luau/scope.js";
 import { ROBLOX_SERVICES, lastSegment } from "../core/roblox.js";
 import { propertiesOf } from "../core/robloxProperties.js";
@@ -59,12 +60,6 @@ const LIBRARY_MEMBERS: Record<string, string[]> = {
 	script: ["Parent", "Name", "GetChildren", "FindFirstChild", "WaitForChild"],
 	workspace: ["CurrentCamera", "GetChildren", "FindFirstChild", "WaitForChild", "Raycast"],
 };
-
-const KEYWORDS = [
-	"and", "break", "continue", "do", "else", "elseif", "end", "export", "false",
-	"for", "function", "if", "in", "local", "nil", "not", "or", "repeat",
-	"return", "then", "true", "type", "until", "while",
-];
 
 /**
  * What is in scope before this graph has put anything there.
@@ -170,9 +165,10 @@ export function graphTableMembers(script: NodeScript | null): Map<string, TableM
 	return out;
 }
 
-const KEYWORD_COMPLETIONS: Completion[] = KEYWORDS.map((label) => ({
-	label, type: "keyword",
-}));
+/** Luau's keywords, the contextual ones -- `continue`, `export type` -- among them. */
+const KEYWORD_COMPLETIONS: Completion[] = [...RESERVED_WORDS, ...CONTEXTUAL_WORDS]
+	.sort((a, b) => a.localeCompare(b))
+	.map((label) => ({ label, type: "keyword" }));
 
 const GLOBAL_COMPLETIONS: Completion[] = GLOBALS.map((label) => ({
 	label, type: LIBRARY_MEMBERS[label] ? "namespace" : "variable", detail: "Luau",

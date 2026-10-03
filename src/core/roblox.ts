@@ -14,7 +14,7 @@
  */
 
 import { quoteString } from "./compiler/quote.js";
-import { KEYWORDS } from "./luau/lexer.js";
+import { RESERVED_WORDS } from "./luau/lexer.js";
 import { CLASSES, CLASS_PARENTS, DATATYPES } from "./robloxData.js";
 
 /** Services offered in the Get Service dropdown, in rough order of use. */
@@ -92,7 +92,7 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 export function renderPath(base: string, path: string): string {
 	const segments = path.split(".").map((s) => s.trim()).filter((s) => s !== "");
 	return segments.reduce((acc, segment) => {
-		return IDENTIFIER.test(segment) && !KEYWORDS.has(segment)
+		return IDENTIFIER.test(segment) && !RESERVED_WORDS.has(segment)
 			? `${acc}.${segment}`
 			: `${acc}[${quoteString(segment)}]`;
 	}, base);

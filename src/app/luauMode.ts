@@ -22,14 +22,14 @@
 
 import { StreamLanguage, type StreamParser, type StringStream } from "@codemirror/language";
 
-const KEYWORDS = new Set([
-	"and", "break", "do", "else", "elseif", "end", "false", "for", "function",
-	"goto", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then",
-	"true", "until", "while",
-	// Luau's additions. Contextual in the grammar, but colouring them always is
-	// closer to right than never.
-	"continue", "export", "type",
-]);
+import { CONTEXTUAL_WORDS, RESERVED_WORDS } from "../core/luau/lexer.js";
+
+/**
+ * The lexer's words. The contextual ones are coloured as keywords wherever
+ * they are not a global -- `continue` always; `type` and `typeof` read as the
+ * functions they also are, and `type` and `export` are decided below.
+ */
+const KEYWORDS: ReadonlySet<string> = new Set([...RESERVED_WORDS, ...CONTEXTUAL_WORDS]);
 
 /** Globals Roblox and Luau put in scope without a require. */
 const GLOBALS = new Set([
@@ -204,8 +204,8 @@ function readLuau(stream: StringStream, state: LuauState): string | null {
 			state.aliasPending = true;
 			return "typeName";
 		}
-		if (KEYWORDS.has(word)) return "keyword";
 		if (GLOBALS.has(word)) return "variableName.standard";
+		if (KEYWORDS.has(word)) return "keyword";
 		// A name immediately followed by "(" is being called.
 		if (stream.peek() === "(" || stream.peek() === "{" || stream.peek() === '"') {
 			return "variableName.function";

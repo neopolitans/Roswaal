@@ -52,6 +52,19 @@ function tokenise(source: string): Token[] {
 
 const styles = (source: string) => tokenise(source).map((t) => t.style);
 
+describe("keywords", () => {
+	const styleOf = (source: string, word: string) => tokenise(source).find((t) => t.text === word)?.style;
+
+	it("colours Luau's words, and not Lua's goto", () => {
+		expect(styleOf("while true do continue end", "continue")).toBe("keyword");
+		expect(styleOf("goto done", "goto")).not.toBe("keyword");
+	});
+
+	it("reads typeof outside a type as the function it is", () => {
+		expect(styleOf("print(typeof(x))", "typeof")).toBe("variableName.standard");
+	});
+});
+
 describe("long comments and long strings", () => {
 	/** The exact shape that blanked the editor. Every native M103 file opens with one. */
 	it("does not throw on a block comment", () => {
