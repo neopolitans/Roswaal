@@ -3,18 +3,48 @@
 import type { Literal } from "../schema.js";
 import { quoteString } from "./quote.js";
 
-const RESERVED = new Set([
+/** Lua's keywords: never a name, in any position. */
+const KEYWORDS = new Set([
 	"and", "break", "do", "else", "elseif", "end", "false", "for", "function",
 	"if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true",
 	"until", "while",
+]);
+
+/** The keywords, and the words Roswaal will not declare as a name either. */
+const RESERVED = new Set([
+	...KEYWORDS,
 	// Contextual in Luau, but shadowing them produces baffling code.
 	"continue", "export", "type", "self",
 ]);
 
 const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/**
+ * A name Roswaal may declare: a local, a function, a type. Letters, digits and
+ * underscores, not starting with a digit, and not a reserved word.
+ */
 export function isIdentifier(s: string): boolean {
 	return IDENT_RE.test(s) && !RESERVED.has(s);
+}
+
+/**
+ * A name that may follow a dot or label a table type's field: `t.type`,
+ * `{ type: string }`. Wider than `isIdentifier`, because a contextual word
+ * such as `type` is an ordinary field name; only Lua's keywords are refused.
+ */
+export function isFieldName(s: string): boolean {
+	return IDENT_RE.test(s) && !KEYWORDS.has(s);
+}
+
+/**
+ * The message for a typed name that `isIdentifier` or `isFieldName` refused.
+ * `what` is what the name was for: "a type", "a field".
+ */
+export function notAName(name: string, what: string): string {
+	return (
+		`"${name}" is not a name Luau will take for ${what}. Letters, digits and ` +
+		"underscores, not starting with a digit, and not a word Luau reserves."
+	);
 }
 
 /**

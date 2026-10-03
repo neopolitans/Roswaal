@@ -14,12 +14,12 @@
  */
 
 import {
-	foldPrecedence, indentBlock, isAccessPath, isCallExpression, isIdentifier, literalToLuau, NameScope,
-	paren, parenAt,
-	parenPrefix, PREC, quoteString, spliceIntoTemplate, toIdentifier,
+	foldPrecedence, indentBlock, isAccessPath, isCallExpression, isFieldName, isIdentifier,
+	literalToLuau, NameScope, notAName, paren, parenAt, parenPrefix, PREC, quoteString,
+	spliceIntoTemplate, toIdentifier,
 } from "./luau.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
-import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../nodes/flow.js";
+import { FUNCTION_NODES, loopTypes, typeDeclarationOf, type TypeDeclaration } from "../nodes/flow.js";
 import { CAST_NODES, NILABLE_CLASS_READS, castModeOf, type CastMode } from "../nodes/library.js";
 import { checkLuau } from "../luau/check.js";
 import { isModuleScript, PAIR } from "../schema.js";
@@ -148,32 +148,22 @@ class Scope {
 }
 
 /**
- * Lua's reserved words, which cannot be a field name written plainly.
- *
- * `continue` is in here and is not actually reserved in Luau — it is
- * contextual, and `t.continue` compiles. Bracketing it anyway costs three
- * characters in a file nobody will notice, and the alternative is being subtly
- * wrong about a keyword list if Luau ever tightens one.
- */
-const LUAU_RESERVED = new Set([
-	"and", "break", "do", "else", "elseif", "end", "false", "for", "function",
-	"if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true",
-	"until", "while", "continue",
-]);
-
-/**
  * The name inside a rendered key, when the key can be written without brackets.
  *
  * `t["tuning"]` and `t.tuning` are the same table access, and Luau accepts
  * both — but only one of them is what anybody writes, and the generated file is
  * meant to be read beside hand-written Luau. Returns null whenever the short
  * form would change the meaning or not compile: a computed key, a key with a
- * space in it, a number, a reserved word.
+ * space in it, a number, a keyword.
+ *
+ * `continue` is bracketed as well, though it is contextual in Luau and
+ * `t.continue` compiles. Bracketing it costs three characters in a file nobody
+ * will notice, and the alternative is being subtly wrong about a keyword list
+ * if Luau ever tightens one.
  */
 function plainKey(rendered: string): string | null {
-	const match = /^"([A-Za-z_][A-Za-z0-9_]*)"$/.exec(rendered);
-	if (!match) return null;
-	return LUAU_RESERVED.has(match[1]) ? null : match[1];
+	const name = /^"([^"\\]*)"$/.exec(rendered)?.[1];
+	return name !== undefined && isFieldName(name) && name !== "continue" ? name : null;
 }
 
 /**
@@ -944,11 +934,78 @@ class Emitter {
 	// -- top-level sections ------------------------------------------------
 
 	/**
-	 * Script variables become file-level locals, declared before anything else
-	 * so that functions and the main flow can both see them. They are emitted in
-	 * declaration order rather than sorted, because the order is the author's
-	 * and shows up in the generated file.
+	 * The Luau on the right of a type declaration.
+	 *
+	 * Two shapes rather than one. A table of fields is a list of pairs, which is
+	 * what the editor can lay out and check — and it is what most exported types
+	 * in a Roblox module actually are. Everything else Luau can say about a type
+	 * is written out, because building a grammar for unions, generics and
+	 * function types would be building a second language inside the first.
+	 *
+	 * Empty when there is nothing to write, or when something is wrong with it
+	 * and has been said against the node.
 	 */
+	private typeDefinition(declaration: TypeDeclaration, nodeId: string): string {
+		// Written out is pasted in as it stands, so an unclosed brace here breaks
+		// the file somewhere after it. Said against the node, like Custom Code.
+		if (declaration.shape === "written") {
+			const problem = checkLuau(declaration.definition, "type")[0];
+			if (problem) {
+				this.error(`${problem.message} (line ${problem.line} of this type's definition)`, nodeId);
+				return "";
+			}
+			return declaration.definition;
+		}
+
+		// No fields is a node that was made before the field list existed, or one
+		// somebody typed into and then switched away from; either way its
+		// written definition is what it means.
+		if (declaration.fields.length === 0) return declaration.definition;
+
+		const parts: string[] = [];
+		for (const field of declaration.fields) {
+			if (field.name === "" || field.type === "") {
+				this.error("A field in this type has no name or no type.", nodeId);
+				return "";
+			}
+			if (!isFieldName(field.name)) {
+				this.error(notAName(field.name, "a field"), nodeId);
+				return "";
+			}
+			parts.push(`${field.name}: ${field.type}`);
+		}
+		// One field to a line, the way Make Dictionary lays out one key to a
+		// line: trailing comma on the last, leading tab relative to wherever the
+		// declaration itself is indented.
+		if (declaration.lines) return `{\n${parts.map((part) => `\t${part},`).join("\n")}\n}`;
+		return `{ ${parts.join(", ")} }`;
+	}
+
+	/** Whether a type cannot be called `name`, said against the node when so. */
+	private typeNameRefused(name: string, nodeId: string): boolean {
+		if (!isIdentifier(name)) {
+			this.error(notAName(name, "a type"), nodeId);
+			return true;
+		}
+		if (this.declaredTypes.has(name)) {
+			this.error(`The type "${name}" is declared more than once.`, nodeId);
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Takes a type's name for the file, once `typeNameRefused` has passed it.
+	 *
+	 * Reserved as a value name too, so a variable or local can never be given
+	 * the same identifier: Luau keeps types and values apart, but a reader does
+	 * not.
+	 */
+	private claimTypeName(name: string): void {
+		this.declaredTypes.add(name);
+		this.names.reserve(name);
+	}
+
 	/**
 	 * `type` and `export type` declarations, at the very top.
 	 *
@@ -962,107 +1019,36 @@ class Emitter {
 	 * meaning to wire up. This is the same escape hatch Custom Code is, and it
 	 * is the honest one here rather than a shortcut.
 	 */
-	/**
-	 * The Luau on the right of a type declaration.
-	 *
-	 * Two shapes rather than one. A table of fields is a list of pairs, which is
-	 * what the editor can lay out and check — and it is what most exported types
-	 * in a Roblox module actually are. Everything else Luau can say about a type
-	 * is written out, because building a grammar for unions, generics and
-	 * function types would be building a second language inside the first.
-	 */
-	private typeDefinition(
-		config: {
-			definition?: string; shape?: string; layout?: string;
-			fields?: { name?: string; type?: string }[];
-		},
-		nodeId: string,
-	): string {
-		// Written out is pasted in as it stands, so an unclosed brace here breaks
-		// the file somewhere after it. Said against the node, like Custom Code.
-		if (config.shape === "written") {
-			const text = (config.definition ?? "").trim();
-			const problem = checkLuau(text, "type")[0];
-			if (problem) {
-				this.error(`${problem.message} (line ${problem.line} of this type's definition)`, nodeId);
-				return "";
-			}
-			return text;
-		}
-
-		const fields = config.fields ?? [];
-		// No shape recorded and no fields is a node that was made before the
-		// field list existed, or one somebody typed into and then switched away
-		// from; either way its written definition is what it means.
-		if (fields.length === 0) return (config.definition ?? "").trim();
-
-		const parts: string[] = [];
-		for (const field of fields) {
-			const fieldName = (field.name ?? "").trim();
-			const fieldType = (field.type ?? "").trim();
-			if (fieldName === "" || fieldType === "") {
-				this.error("A field in this type has no name or no type.", nodeId);
-				return "";
-			}
-			if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(fieldName)) {
-				this.error(
-					`"${fieldName}" is not a name Luau will take for a field. Letters, digits and ` +
-					"underscores, not starting with a digit.",
-					nodeId,
-				);
-				return "";
-			}
-			parts.push(`${fieldName}: ${fieldType}`);
-		}
-		// One field to a line, the way Make Dictionary lays out one key to a
-		// line: trailing comma on the last, leading tab relative to wherever the
-		// declaration itself is indented.
-		if (config.layout === "lines") return `{\n${parts.map((part) => `\t${part},`).join("\n")}\n}`;
-		return `{ ${parts.join(", ")} }`;
-	}
-
 	private emitTypes(): void {
 		const nodes = this.index.all().filter((r) => r.def.id === "type.declareTop");
 		if (nodes.length === 0) return;
 
 		let written = 0;
 		for (const r of nodes) {
-			const config = (r.node.config ?? {}) as {
-				name?: string; definition?: string; export?: boolean;
-				shape?: string; layout?: string; fields?: { name?: string; type?: string }[];
-			};
-			const name = (config.name ?? "").trim();
-			const definition = this.typeDefinition(config, r.node.id);
-			if (name === "" || definition === "") {
+			const declaration = typeDeclarationOf(r.def.id, r.node.config);
+			const definition = this.typeDefinition(declaration, r.node.id);
+			if (declaration.name === "" || definition === "") {
 				this.error(
 					"Declare Type at Top needs both a name and a definition before it can be written.",
 					r.node.id,
 				);
 				continue;
 			}
-			if (!isIdentifier(name)) {
-				this.error(
-					`"${name}" is not a name Luau will take for a type. Letters, digits and ` +
-					"underscores, not starting with a digit.",
-					r.node.id,
-				);
-				continue;
-			}
-			if (this.declaredTypes.has(name)) {
-				this.error(`The type "${name}" is declared more than once.`, r.node.id);
-				continue;
-			}
-			this.declaredTypes.add(name);
-			// Reserved so a variable or local can never be given the same
-			// identifier: Luau keeps types and values apart, but a reader does not.
-			this.names.reserve(name);
-			const prefix = config.export === false ? "type" : "export type";
-			this.push(`${prefix} ${name} = ${definition}`, r.node.id);
+			if (this.typeNameRefused(declaration.name, r.node.id)) continue;
+			this.claimTypeName(declaration.name);
+			const prefix = declaration.exported ? "export type" : "type";
+			this.push(`${prefix} ${declaration.name} = ${definition}`, r.node.id);
 			written++;
 		}
 		if (written > 0) this.blank();
 	}
 
+	/**
+	 * Script variables become file-level locals, declared before anything else
+	 * so that functions and the main flow can both see them. They are emitted in
+	 * declaration order rather than sorted, because the order is the author's
+	 * and shows up in the generated file.
+	 */
 	private emitVariables(): void {
 		const variables = this.script.variables ?? [];
 		if (variables.length === 0) return;
@@ -1635,28 +1621,24 @@ class Emitter {
 					this.error("Declare Function needs a name before it can be written.", id);
 					return this.index.execTarget(id, "then");
 				}
-				if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
-					this.error(
-						`"${name}" is not a name Luau will take for a function. Letters, digits and ` +
-						"underscores, not starting with a digit.",
-						id,
-					);
+				// A field name at least, since `T.type` is a fine method. One that
+				// is not owned is a local, and is held to a local's rule below.
+				if (!isFieldName(name)) {
+					this.error(notAName(name, "a function"), id);
 					return this.index.execTarget(id, "then");
 				}
 
-				/**
-				 * The table it hangs off, if any.
-				 *
-				 * `function T.name()` needs `T` to be a name -- Luau has no syntax
-				 * for attaching a function to an expression, and `(expr).name = ...`
-				 * is a different statement with different semantics. A variable or a
-				 * local resolves to a bare identifier and works; anything else is
-				 * refused rather than half-written.
-				 */
+				// The table it hangs off, if any.
+				//
+				// `function T.name()` needs `T` to be a name -- Luau has no syntax
+				// for attaching a function to an expression, and `(expr).name = ...`
+				// is a different statement with different semantics. A variable or a
+				// local resolves to a bare identifier (or a path of field names)
+				// and works; anything else is refused rather than half-written.
 				let owner: string | undefined;
 				if (this.index.sourceOf(id, "owner")) {
 					const resolved = this.resolveInput(r, this.pin(r, "owner", "in"), scope);
-					if (!/^[A-Za-z_][A-Za-z0-9_.]*$/.test(resolved)) {
+					if (!resolved.split(".").every(isFieldName)) {
 						this.error(
 							"On Table has to be a name Luau can attach a function to — a variable or " +
 							`a local, not an expression. This one came out as \`${resolved}\`.`,
@@ -1665,6 +1647,10 @@ class Emitter {
 						return this.index.execTarget(id, "then");
 					}
 					owner = resolved;
+				}
+				if (owner === undefined && !isIdentifier(name)) {
+					this.error(notAName(name, "a local function"), id);
+					return this.index.execTarget(id, "then");
 				}
 
 				// An owned function is a field, not a local, so it takes no name of
@@ -1697,15 +1683,11 @@ class Emitter {
 			}
 
 			case "type.declareHere": {
-				const config = (r.node.config ?? {}) as {
-					name?: string; export?: boolean; shape?: string; definition?: string; layout?: string;
-					fields?: { name?: string; type?: string }[];
-				};
-				const name = (config.name ?? "").trim();
-				const shape = typeShapeOf(r.def.id, config);
+				const declaration = typeDeclarationOf(r.def.id, r.node.config);
+				const name = declaration.name;
 
 				let definition: string;
-				if (shape === "typeof") {
+				if (declaration.shape === "typeof") {
 					const value = this.resolveInput(r, this.pin(r, "value", "in"), scope);
 					// The node writes `typeof(...)` itself, so a Type Of on the way in
 					// makes `typeof(typeof(x))`. That is not a mistake Luau catches:
@@ -1724,7 +1706,7 @@ class Emitter {
 					definition = `typeof(${value})`;
 				} else {
 					const before = this.diagnostics.length;
-					definition = this.typeDefinition({ ...config, shape }, id);
+					definition = this.typeDefinition(declaration, id);
 					if (definition === "") {
 						// A field with no type has already said what is wrong.
 						if (this.diagnostics.length === before) {
@@ -1737,23 +1719,11 @@ class Emitter {
 					this.error("Declare Type needs a name before it can be written.", id);
 					return this.index.execTarget(id, "then");
 				}
-				if (!isIdentifier(name)) {
-					this.error(
-						`"${name}" is not a name Luau will take for a type. Letters, digits and ` +
-						"underscores, not starting with a digit.",
-						id,
-					);
-					return this.index.execTarget(id, "then");
-				}
-				if (this.declaredTypes.has(name)) {
-					this.error(`The type "${name}" is declared more than once.`, id);
-					return this.index.execTarget(id, "then");
-				}
+				if (this.typeNameRefused(name, id)) return this.index.execTarget(id, "then");
 				// `export type` is only legal at the top level of a module. A plain
 				// `type` inside a block is fine and stays scoped to it, so only the
 				// export is refused rather than the whole node.
-				const exported = config.export !== false;
-				if (exported && scope.parent !== undefined) {
+				if (declaration.exported && scope.parent !== undefined) {
 					this.error(
 						`"${name}" is exported, and Luau only allows that at the top level of a ` +
 						"module. Move it out of the branch, loop or function, or untick Export.",
@@ -1761,9 +1731,8 @@ class Emitter {
 					);
 					return this.index.execTarget(id, "then");
 				}
-				this.declaredTypes.add(name);
-				this.names.reserve(name);
-				this.push(`${exported ? "export type" : "type"} ${name} = ${definition}`, id);
+				this.claimTypeName(name);
+				this.push(`${declaration.exported ? "export type" : "type"} ${name} = ${definition}`, id);
 				return this.index.execTarget(id, "then");
 			}
 
@@ -2185,7 +2154,7 @@ class Emitter {
 		if (node.def.id === "instance.isA") {
 			const key = this.valueKey(node, "instance");
 			const className = this.literalText(node, "className");
-			if (key && /^[A-Za-z_][A-Za-z0-9_]*$/.test(className)) out.set(key, new Set([className]));
+			if (key && isIdentifier(className)) out.set(key, new Set([className]));
 			return out;
 		}
 
@@ -2654,7 +2623,7 @@ class Emitter {
 		if (existing) return existing;
 
 		const expr = this.resolveOutput(src.node.id, parentPin, scope, consumer);
-		if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(expr)) return expr;
+		if (isIdentifier(expr)) return expr;
 
 		// Named after the node, not the pin. A split output's pin is usually
 		// named for its type ("CFrame"), which both reads poorly as a local and
@@ -3021,7 +2990,7 @@ class Emitter {
 			(_match, key: string) => {
 				const value = (r.node.config as Record<string, unknown> | undefined)?.[key];
 				const text = typeof value === "string" ? value.trim() : "";
-				return /^[A-Za-z_][A-Za-z0-9_]*$/.test(text) ? text : "";
+				return isFieldName(text) ? text : "";
 			},
 		);
 

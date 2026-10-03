@@ -22,6 +22,7 @@ import { isConstLocal, localNameOf } from "../nodes/variables.js";
 import { declaredTypeFields } from "../typeFields.js";
 import { typeInto } from "../members.js";
 import { GraphIndex } from "./graph.js";
+import { isFieldName, notAName } from "./luau.js";
 import type { Diagnostic } from "./emit.js";
 
 /**
@@ -155,12 +156,10 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 			});
 			continue;
 		}
-		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(member)) {
+		if (!isFieldName(member)) {
 			out.push({
 				severity: "error",
-				message:
-					`"${member}" is not a name Luau will take for a member. Letters, digits and ` +
-					"underscores, not starting with a digit — for a key that is not a name, use Get Field.",
+				message: `${notAName(member, "a member")} For a key that is not a name, use Get Field.`,
 				node: node.id,
 			});
 			continue;

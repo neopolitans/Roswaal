@@ -129,9 +129,41 @@ export const FUNCTION_NODES: ReadonlySet<string> = new Set([
 export function typeShapeOf(defId: string, config: NodeConfig): "typeof" | "fields" | "written" {
 	if (config.shape === "fields" || config.shape === "written") return config.shape;
 	if (defId === "type.declareHere") return "typeof";
-	const fields = (config.fields as unknown[] | undefined) ?? [];
+	const fields = Array.isArray(config.fields) ? config.fields : [];
 	const definition = typeof config.definition === "string" ? config.definition : "";
 	return definition !== "" && fields.length === 0 ? "written" : "fields";
+}
+
+/** What a Declare Type node declares, read from its config with every field trimmed. */
+export interface TypeDeclaration {
+	name: string;
+	/** `export type` rather than `type`. On unless the node says otherwise. */
+	exported: boolean;
+	shape: "typeof" | "fields" | "written";
+	/** The Luau typed out, for the written shape. */
+	definition: string;
+	/** One field to a line, rather than all on one. */
+	lines: boolean;
+	fields: { name: string; type: string }[];
+}
+
+/** A Declare Type node's config, for either of the two nodes. */
+export function typeDeclarationOf(defId: string, config: NodeConfig | undefined): TypeDeclaration {
+	const c = config ?? {};
+	const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+	const fields = Array.isArray(c.fields) ? c.fields : [];
+	return {
+		name: text(c.name),
+		exported: c.export !== false,
+		shape: typeShapeOf(defId, c),
+		definition: text(c.definition),
+		lines: c.layout === "lines",
+		fields: fields.map((field: unknown) => {
+			// An object of no known shape: each key is checked as it is read.
+			const f = typeof field === "object" && field !== null ? (field as Record<string, unknown>) : {};
+			return { name: text(f.name), type: text(f.type) };
+		}),
+	};
 }
 
 export const FLOW_NODES: NodeDef[] = [
