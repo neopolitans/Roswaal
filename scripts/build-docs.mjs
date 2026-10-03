@@ -37,6 +37,7 @@ import { buildThemePaint } from "./lib/themePaint.mjs";
 import { buildToolbarLinker } from "./lib/toolbarLinker.mjs";
 import { buildMapPanel } from "./lib/mapPanel.mjs";
 import { buildDocsToggle } from "./lib/docsToggle.mjs";
+import { buildDocsClient } from "./lib/docsClient.mjs";
 import { VERSION } from "../src/cli/version.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -57,82 +58,6 @@ function highlight(code) {
 		)
 		.join("\n");
 }
-
-/**
- * The whole client-side script: filter the nav by the prebuilt index, and copy
- * a code block. Small enough to inline as a file rather than bundle, and the
- * page is readable without it.
- */
-const CLIENT = `
-(function () {
-  var box = document.getElementById("q");
-  var results = document.getElementById("results");
-  var tree = document.getElementById("tree");
-  var up = (document.documentElement.dataset.slug || "").split("/").length - 1;
-  var prefix = new Array(up + 1).join("../");
-
-  function score(e, q) {
-    var t = e.title.toLowerCase();
-    if (t === q) return 120;
-    if (t.indexOf(q) === 0) return 100;
-    if (t.indexOf(q) >= 0) return 60;
-    if (e.id && e.id.toLowerCase().indexOf(q) >= 0) return 40;
-    if (e.summary.toLowerCase().indexOf(q) >= 0) return 25;
-    if (e.body.indexOf(q) >= 0) return 10;
-    return 0;
-  }
-
-  // Shared with the palette, which is the same search in a different shape.
-  // One index and one ranking, so the two cannot disagree about which page is
-  // the best answer -- and one fetch, because it is the same file.
-  var shared = { score: score, index: null, ready: null };
-  window.__roswaalSearch = shared;
-
-  shared.ready = fetch(prefix + "search.json")
-    .then(function (r) { return r.json(); })
-    .then(function (index) {
-    shared.index = index;
-    box.addEventListener("input", function () {
-      var q = box.value.trim().toLowerCase();
-      if (!q) { results.hidden = true; tree.hidden = false; return; }
-      var hits = index
-        .map(function (e) { return { e: e, s: score(e, q) }; })
-        .filter(function (x) { return x.s > 0; })
-        .sort(function (a, b) { return b.s - a.s; })
-        .slice(0, 25);
-      results.innerHTML = hits.length
-        ? hits.map(function (x) {
-            return '<a class="docs-hit" href="' + prefix + x.e.slug + '.html">' +
-              '<span class="title">' + x.e.title + '</span>' +
-              '<span class="where">' + x.e.section + "</span></a>";
-          }).join("")
-        : '<div class="empty">Nothing matches.</div>';
-      results.hidden = false;
-      tree.hidden = true;
-    });
-  });
-
-  document.addEventListener("click", function (e) {
-    var button = e.target.closest("[data-copy]");
-    if (!button) return;
-    var text = button.closest(".docs-code").querySelector("pre").innerText;
-    navigator.clipboard.writeText(text).then(
-      function () { button.textContent = "Copied"; },
-      function () {
-        // Refused, so select it instead and say what to press. Same fallback
-        // the in-app panel uses, for the same reason.
-        var range = document.createRange();
-        range.selectNodeContents(button.closest(".docs-code").querySelector("pre"));
-        var sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-        button.textContent = "Press Ctrl+C";
-      },
-    );
-    setTimeout(function () { button.textContent = "Copy"; }, 1800);
-  });
-})();
-`;
 
 async function main() {
 	await rm(out, { recursive: true, force: true });
@@ -179,8 +104,7 @@ async function main() {
 	// The three shared assets, made before any page so every page can name
 	// exactly the bytes it was built against. See `assetStamp` in html.ts.
 	const docsJs =
-		CLIENT
-		+ (await readFile(join(root, "scripts/lib/docsChrome.js"), "utf8"))
+		(await buildDocsClient())
 		+ (await buildGraphViewer())
 		+ (await buildToolbarLinker())
 		+ (await buildMapPanel())
@@ -208,16 +132,9 @@ async function main() {
 		await writeFile(target, file.contents, "utf8");
 	}
 
-	// The index is trimmed: the full body text of 160 pages is most of the
-	// payload, and a substring match does not need the markup or the case.
-	const index = buildSearchIndex(site).map((e) => ({
-		slug: e.slug,
-		title: e.title,
-		summary: e.summary,
-		section: e.section,
-		id: e.nodeId,
-		body: e.body,
-	}));
+	// The index as the editor builds it, so the site ranks with the same
+	// fields: `rankDocs` reads `nodeId`, and the summaries are already plain.
+	const index = buildSearchIndex(site);
 	await writeFile(join(out, "search.json"), JSON.stringify(index), "utf8");
 	await writeFile(join(out, "docs.js"), docsJs, "utf8");
 	await writeFile(join(out, "theme.css"), themeCss, "utf8");

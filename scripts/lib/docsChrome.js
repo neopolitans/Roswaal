@@ -1,11 +1,11 @@
 /**
  * The published site's own chrome: its settings popover and its search palette.
  *
- * Plain ES5-ish JavaScript rather than a bundle, because there is nothing here
- * to share with the app -- the *data* is shared (the theme list, the
- * preference keys, the search index and its ranking all arrive from elsewhere
- * on the page) and only the few dozen lines of DOM are local. Appended to
- * `docs.js`, after the script that publishes `window.__roswaalSearch`.
+ * Plain ES5-ish JavaScript with no imports, because there is nothing here to
+ * share with the app -- the *data* is shared (the theme list, the preference
+ * keys, the search index and its ranking all arrive from elsewhere on the
+ * page) and only the few dozen lines of DOM are local. Bundled into `docs.js`
+ * after `docsSearch.ts`, which publishes `window.__roswaalSearch`.
  *
  * Neither surface is needed to read a page. The gear is an addition to a header
  * that works without it, and the palette is a second way to reach the search
@@ -260,7 +260,7 @@
         hit.href = href(entry);
         // `kind-node`, not `node`: the same trap the app's copy carries a note
         // about, `.node` being the canvas node in a stylesheet this size.
-        var kind = entry.id ? "node" : "article";
+        var kind = entry.nodeId ? "node" : "article";
         hit.appendChild(el("span", "kind kind-" + kind, kind === "node" ? "Node" : "Article"));
         var body = el("span", "body");
         body.appendChild(el("span", "title", entry.title));
@@ -278,17 +278,12 @@
     }
 
     function run() {
-      var q = input.value.trim().toLowerCase();
+      var q = input.value.trim();
       at = 0;
       if (!q || !search || !search.index) { hits = []; draw(); return; }
       // The sidebar's ranking, not a second one: two searches on one page that
       // disagree about which page is the best answer is worse than either.
-      hits = search.index
-        .map(function (e) { return { e: e, s: search.score(e, q) }; })
-        .filter(function (x) { return x.s > 0; })
-        .sort(function (a, b) { return b.s - a.s; })
-        .slice(0, 25)
-        .map(function (x) { return x.e; });
+      hits = search.rank(q, 25);
       draw();
     }
 

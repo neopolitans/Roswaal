@@ -9,7 +9,7 @@
  *
  * - `pages/` — one module per hand-written page, and the node reference's.
  * - `markup.ts` — inline markup, and every string a block holds.
- * - `search.ts` — the search index and its ranking.
+ * - `search.ts` — the search ranking; `searchIndex.ts` — the index it ranks.
  * - `releaseTags.ts` — the tags under a release's version.
  *
  * What other modules import from here is re-exported below, so they need not
@@ -72,9 +72,8 @@ export {
 } from "./markup.js";
 export { ROJO_SAMPLE } from "./pages/placesAndRojo.js";
 export { releaseTags, SURFACES, TAG_LABELS } from "./releaseTags.js";
-export {
-	buildSearchIndex, rankDocs, searchDocs, type DocsHit, type SearchEntry,
-} from "./search.js";
+export { rankDocs, searchDocs, type DocsHit, type SearchEntry } from "./search.js";
+export { buildSearchIndex } from "./searchIndex.js";
 
 // ---------------------------------------------------------------------------
 // Blocks
