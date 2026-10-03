@@ -231,6 +231,48 @@ describe("emitter", () => {
 		expect(errors(out).join(" ")).toContain("only valid inside a loop");
 	});
 
+	/**
+	 * A function declared in a loop body is not in the loop: its body runs
+	 * whenever it is called. Luau rejects `break` there, so the graph must too.
+	 */
+	it("rejects break inside a function declared in a loop", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const loop = b.node("flow.forRange");
+		const fn = b.node("function.declareHere", { config: { name: "stop", params: [], returns: [] } });
+		const brk = b.node("flow.break");
+		b.link(start, "then", loop, "in");
+		b.link(loop, "body", fn, "in");
+		b.link(fn, "body", brk, "in");
+
+		expect(errors(compile(b.build(), registry)).join(" ")).toContain('"break" is only valid inside a loop');
+	});
+
+	it("rejects continue inside a handler connected in a loop", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const loop = b.node("flow.forRange");
+		const connect = b.node("event.connect");
+		const skip = b.node("flow.continue");
+		b.lit(connect, "signal", { t: "raw", v: "workspace.ChildAdded" });
+		b.link(start, "then", loop, "in");
+		b.link(loop, "body", connect, "in");
+		b.link(connect, "body", skip, "in");
+
+		expect(errors(compile(b.build(), registry)).join(" ")).toContain('"continue" is only valid inside a loop');
+	});
+
+	it("still takes break in a loop inside a function", () => {
+		const b = new Builder();
+		const fn = b.node("function.entry", { config: { name: "scan", params: [], returns: [] } });
+		const loop = b.node("flow.forRange");
+		const brk = b.node("flow.break");
+		b.link(fn, "then", loop, "in");
+		b.link(loop, "body", brk, "in");
+
+		expect(errors(compile(b.build(), registry))).toEqual([]);
+	});
+
 	it("rejects an execution cycle instead of emitting forever", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");

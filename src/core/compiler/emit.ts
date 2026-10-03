@@ -119,7 +119,12 @@ class Scope {
 	 * the same Branch gets a fresh scope and knows nothing.
 	 */
 	narrowings = new Map<string, Set<string>>();
-	constructor(readonly parent?: Scope, readonly loop = false) {}
+	/**
+	 * What opened this scope. A `function` is a function or handler body, which
+	 * runs when it is called rather than where it is written — so a loop
+	 * enclosing the declaration does not enclose the body.
+	 */
+	constructor(readonly parent?: Scope, readonly kind: "block" | "loop" | "function" = "block") {}
 
 	lookup(key: string): string | undefined {
 		return this.bindings.get(key) ?? this.parent?.lookup(key);
@@ -130,8 +135,11 @@ class Scope {
 		return this.narrowings.get(key) ?? this.parent?.narrowedTo(key);
 	}
 
+	/** Whether `break` and `continue` are allowed here: a loop, short of a function. */
 	inLoop(): boolean {
-		return this.loop || (this.parent?.inLoop() ?? false);
+		if (this.kind === "loop") return true;
+		if (this.kind === "function") return false;
+		return this.parent?.inLoop() ?? false;
 	}
 }
 
@@ -1105,7 +1113,7 @@ class Emitter {
 		for (const fn of entries) {
 			const sig = (fn.node.config ?? {}) as Signature;
 			const name = this.functionNames.get(fn.node.id)!;
-			const scope = new Scope(root);
+			const scope = new Scope(root, "function");
 
 			// The parameters and everything the body declares belong to this
 			// function, and are released with it -- so the next function may call
@@ -1656,7 +1664,7 @@ class Emitter {
 				// so a Get Function inside it resolves.
 				this.functionNames.set(id, ident);
 
-				const body = new Scope(scope);
+				const body = new Scope(scope, "function");
 				// As for a hoisted function: the parameters and the body's locals
 				// are this function's, and go out of scope with its `end`.
 				this.names.push();
@@ -1918,7 +1926,7 @@ class Emitter {
 				const first = this.resolveInput(r, this.pin(r, "first", "in"), scope);
 				const last = this.resolveInput(r, this.pin(r, "last", "in"), scope);
 				const step = this.resolveInput(r, this.pin(r, "step", "in"), scope);
-				const body = new Scope(scope, true);
+				const body = new Scope(scope, "loop");
 				// The loop variable belongs to the body, so the next loop in the
 				// same block may call its own counter `i` as well.
 				this.names.push();
@@ -1939,7 +1947,7 @@ class Emitter {
 			case "flow.forIndex": {
 				const isArray = handler === "flow.forIndex";
 				const source = this.resolveInput(r, this.pin(r, "table", "in"), scope);
-				const body = new Scope(scope, true);
+				const body = new Scope(scope, "loop");
 				const keyPin = isArray ? "index" : "key";
 				/**
 				 * What the two loop variables are called.
@@ -1999,7 +2007,7 @@ class Emitter {
 				// The condition is worked out inside the loop, so that it is read
 				// again on every pass. Resolved before the loop, a condition with
 				// two readers was bound to a local once and never changed.
-				const loop = new Scope(scope, true);
+				const loop = new Scope(scope, "loop");
 				this.indent++;
 				this.names.push();
 				const captured = this.capture(() => this.resolveInput(r, condPin, loop));
@@ -2040,7 +2048,7 @@ class Emitter {
 				const method = handler === "event.once" ? "Once" : "Connect";
 				const signal = this.resolveInput(r, this.pin(r, "signal", "in"), scope);
 				const sig = (r.node.config ?? {}) as Signature;
-				const body = new Scope(scope);
+				const body = new Scope(scope, "function");
 
 				// The connection is a local in the *enclosing* block, so it is
 				// named before the handler's own frame is opened.
