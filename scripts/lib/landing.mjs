@@ -277,7 +277,16 @@ body.roswaal-landing {
 /* Its own line: it is a second sentence and the only promise on the page,
    and wrapped mid-phrase it read as an afterthought. */
 .landing-lede em { display: block; font-style: normal; color: var(--accent); }
-.landing-sub { color: var(--fg-faint); max-width: 40rem; margin: 0 0 30px; font-size: 16px; }
+.landing-sub { color: var(--fg-faint); max-width: 40rem; margin: 0 0 30px; font-size: 16px; text-wrap: pretty; }
+/* The licence, as a chip that opens it: the claim and its proof in one place. */
+.landing-sub .licence-chip {
+  display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; line-height: 1.4;
+  padding: 0 7px; border: 1px solid var(--border); border-radius: 4px;
+  color: var(--accent); text-decoration: none; vertical-align: 1px;
+}
+.landing-sub .licence-chip:hover { border-color: var(--accent); }
+/* A chip and the comma after it: an inline-block is a place to break the line. */
+.landing-sub .nowrap { white-space: nowrap; }
 .landing-doors { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; padding: 0; list-style: none; }
 .landing-doors a {
   display: inline-block; padding: 10px 18px; border-radius: 7px; text-decoration: none;
@@ -618,10 +627,11 @@ ${IS_CANARY ? `<div class="landing-strip" role="note">
   <div class="landing-top">
     <p class="landing-lede"><em>And it's completely free, forever.</em></p>
     <p class="landing-sub">
-      Graphs live on disk as <code>.nodescript</code> files and compile to plain
-      <code>.luau</code> that Rojo syncs like any other source file. No plugin, no
-      runtime, nothing of Roswaal's left in your game — and it is 0BSD, so the
-      code and the graphs are yours to keep, sell, or walk away with.
+      Graphs live as <code>.nodescript</code> files and compile to <code>.luau</code>
+      that Rojo syncs like any other source file. No plugin or runtime, nothing of
+      Roswaal stays in your game. And it's
+      <span class="nowrap"><a class="licence-chip" href="${SOURCE_REPOSITORY}/blob/main/LICENSE" rel="noreferrer noopener">0BSD</a>,</span>
+      so Roswaal and anything you make with it are yours to keep, sell, modify or walk away with.
     </p>
 
     <ul class="landing-doors">
