@@ -42,7 +42,6 @@ export interface WallyOutcome {
 	requests: number;
 }
 
-/** A name to require a package by: `signal` gives `Signal`, `rbx-util` gives `RbxUtil`. */
 /**
  * Refuses a package's names unless each is a plain path segment.
  *
@@ -64,6 +63,7 @@ function assertPlainNames(names: { scope?: string; name?: string; version?: stri
 	}
 }
 
+/** A name to require a package by: `signal` gives `Signal`, `rbx-util` gives `RbxUtil`. */
 export function aliasFor(name: string): string {
 	return name.split(/[-_]/).filter(Boolean).map((part) => part[0].toUpperCase() + part.slice(1)).join("");
 }

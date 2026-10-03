@@ -61,15 +61,13 @@ export async function renameEntry(
 	if (await exists(dest)) throw new UserError(`${destRel} already exists.`);
 	await fs.rename(source, dest);
 
-	/**
-	 * A graph carries its own name, and that name — not the file's — is what the
-	 * compiler writes out. Renaming the file alone left the two disagreeing with
-	 * nothing to say so: `Hello.nodescript` went on producing `Greeter.luau`, and
-	 * if some other graph was already called Hello, they silently shared a file.
-	 *
-	 * Only for graphs. A `.nodemap` takes its output from the map, a `.luau` is
-	 * not ours to edit, and a folder has no inside to update.
-	 */
+	// A graph carries its own name, and that name — not the file's — is what the
+	// compiler writes out. Renaming the file alone would leave the two disagreeing
+	// with nothing to say so -- `Hello.nodescript` producing `Greeter.luau`, and
+	// if another graph were already called Hello, the two sharing a file.
+	//
+	// Only for graphs. A `.nodemap` takes its output from the map, a `.luau` is
+	// not ours to edit, and a folder has no inside to update.
 	if (destRel.endsWith(".nodescript")) {
 		const wanted = graphName(path.posix.basename(destRel, ".nodescript"));
 		// An empty result means the new file name was punctuation all the way

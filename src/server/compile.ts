@@ -250,11 +250,9 @@ export async function compileAll(
 	const scripts = await collectScripts(project);
 	const out: CompileOutcome[] = [];
 	const total = scripts.length;
-	/**
-	 * What each output file was written by, so the second graph to claim a path
-	 * is refused rather than quietly overwriting the first. Per compile, not per
-	 * project: a file left over from last time is the hand-edit guard's problem.
-	 */
+	// What each output file was written by, so the second graph to claim a path
+	// is refused rather than quietly overwriting the first. Per compile, not per
+	// project: a file left over from last time is the hand-edit guard's problem.
 	const claimed = new Map<string, string>();
 	// Once for the whole project, rather than a tree walk per graph.
 	const luaurc = await readLuaurcFiles(project);

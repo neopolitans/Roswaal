@@ -17,7 +17,7 @@
  *
  * It runs in Manual mode too, without compiling, because an open graph has
  * to hear about those changes either way. Without that, the editor's next
- * autosave wrote the graph it was showing over the one just checked out.
+ * autosave would write the graph it was showing over the one just checked out.
  */
 
 import chokidar, { type FSWatcher } from "chokidar";

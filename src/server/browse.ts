@@ -51,16 +51,10 @@ export class NoPickerError extends Error {
  * the text field beside the button already works.
  */
 export async function chooseDirectory(startIn?: string): Promise<string | null> {
-	/**
-	 * A second ask joins the first rather than being refused.
-	 *
-	 * This used to throw, and the message went to the one person it could not
-	 * help: somebody clicks Browse, the dialog opens somewhere they cannot see
-	 * it, so they click Browse again — and are told a picker is already open,
-	 * which reads as the button being broken. Handing back the same promise
-	 * makes the second click wait for the answer to the first, which is what
-	 * they meant by it.
-	 */
+	// A second ask joins the first rather than being refused. Somebody clicks
+	// Browse, the dialog opens somewhere they cannot see it, so they click
+	// again: being told a picker is already open reads as the button being
+	// broken, and waiting for the answer to the first is what they meant.
 	if (inFlight) return inFlight;
 
 	// Only offered as a starting point, so a path that has gone stale should

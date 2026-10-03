@@ -119,13 +119,11 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 	let writing: Promise<void> = Promise.resolve();
 	let stopped = false;
 	let failure: string | null = null;
-	/**
-	 * The stamp the stored binaries match: set by a restore, and by each write
-	 * of them. Undefined until one or the other, when they are written on the
-	 * first write.
-	 */
+	// The stamp the stored binaries match: set by a restore, and by each write
+	// of them. Undefined until one or the other, when they are written on the
+	// first write.
 	let writtenStamp: number | undefined;
-	/** Whether the restore read the stored binaries, so they can be trusted as written. */
+	// Whether the restore read the stored binaries, so they can be trusted as written.
 	let binariesRestored = false;
 
 	async function writeNow(): Promise<void> {
@@ -160,7 +158,7 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 		}
 	}
 
-	/** The stored binaries, or none -- and then they are written again on the first write. */
+	// The stored binaries, or none -- and then they are written again on the first write.
 	async function readBinaries(): Promise<Record<string, Uint8Array>> {
 		if (!store.readBinaries) return {};
 		try {

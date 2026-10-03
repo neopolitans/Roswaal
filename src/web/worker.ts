@@ -346,14 +346,12 @@ let queue: Promise<void> = Promise.resolve();
 self.onmessage = (event: MessageEvent<ToWorker>) => {
 	const message = event.data;
 	if (!message || typeof message !== "object") return;
-	/**
-	 * The tab is going away, or has at least stopped being looked at.
-	 *
-	 * Not queued: it may be the last thing the tab gets to do, and waiting
-	 * behind a long compile would lose the change made in the last four hundred
-	 * milliseconds -- the one somebody is most likely to notice. Writing what has
-	 * settled so far is safe beside a request, which only ever adds to it.
-	 */
+	// The tab is going away, or has at least stopped being looked at.
+	//
+	// Not queued: it may be the last thing the tab gets to do, and waiting
+	// behind a long compile would lose the change made in the last four hundred
+	// milliseconds -- the one somebody is most likely to notice. Writing what has
+	// settled so far is safe beside a request, which only ever adds to it.
 	if (message.kind === "flush") {
 		void store.flush();
 		return;

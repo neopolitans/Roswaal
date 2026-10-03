@@ -43,7 +43,7 @@ export interface WorkerTransport {
 export function workerTransport(worker: Worker): WorkerTransport {
 	let nextId = 1;
 	const pending = new Map<number, (message: Extract<FromWorker, { kind: "response" }>) => void>();
-	/** Live listeners by event name, across every stream the editor has opened. */
+	// Live listeners by event name, across every stream the editor has opened.
 	const listeners = new Map<string, Set<(event: MessageEvent) => void>>();
 
 	worker.addEventListener("message", (event: MessageEvent<FromWorker>) => {
@@ -92,7 +92,7 @@ export function workerTransport(worker: Worker): WorkerTransport {
 	};
 
 	const events = (): EventStream => {
-		/** This stream's own handlers, so closing it takes out only its own. */
+		// This stream's own handlers, so closing it takes out only its own.
 		const mine: [string, (event: MessageEvent) => void][] = [];
 
 		return {
@@ -112,10 +112,8 @@ export function workerTransport(worker: Worker): WorkerTransport {
 		};
 	};
 
-	/**
-	 * Hands the worker a project to take, and reads its answer: the root it
-	 * opened, or the name of a folder or archive that is not a project yet.
-	 */
+	// Hands the worker a project to take, and reads its answer: the root it
+	// opened, or the name of a folder or archive that is not a project yet.
 	const call = (message: WithoutId<ProjectMessage>) =>
 		new Promise<{ root: string } | { notAProject: string }>((resolve, reject) => {
 			const id = nextId++;
@@ -128,24 +126,22 @@ export function workerTransport(worker: Worker): WorkerTransport {
 			worker.postMessage({ ...message, id } as ToWorker);
 		});
 
-	/**
-	 * The folder itself, not its contents.
-	 *
-	 * A directory handle is structured-cloneable and carries its permission with
-	 * it, so the worker gets the real thing rather than a copy of the files. The
-	 * picker cannot be called from a worker — it needs a window and a gesture —
-	 * which is the whole reason this crosses the boundary in this direction.
-	 */
+	// The folder itself, not its contents.
+	//
+	// A directory handle is structured-cloneable and carries its permission with
+	// it, so the worker gets the real thing rather than a copy of the files. The
+	// picker cannot be called from a worker — it needs a window and a gesture —
+	// which is the whole reason this crosses the boundary in this direction.
 	const mount = (handle: FileSystemDirectoryHandle, initialise?: boolean) =>
 		call({ kind: "mount", handle, initialise });
 
-	/** A project out of a zip, replacing the browser's. See `importZip.ts`. */
+	// A project out of a zip, replacing the browser's. See `importZip.ts`.
 	const importProject = (
 		name: string, files: Record<string, string>, dirs: string[], initialise?: boolean,
 		binaries?: Record<string, Uint8Array>,
 	) => call({ kind: "import", name, files, binaries, dirs, initialise });
 
-	/** A project made from a place, replacing the browser's. Always one: it has a config. */
+	// A project made from a place, replacing the browser's. Always one: it has a config.
 	const importPlace = async (
 		name: string, files: Record<string, string>, placeFile: string, place: Uint8Array,
 	) => {
@@ -154,13 +150,11 @@ export function workerTransport(worker: Worker): WorkerTransport {
 		return made;
 	};
 
-	/**
-	 * Tell the worker to finish writing while there is still time.
-	 *
-	 * `visibilitychange` rather than `beforeunload`: a hidden tab may be
-	 * discarded without any further warning, and every close is preceded by a
-	 * hide. `pagehide` as well, for a navigation that never hides first.
-	 */
+	// Tell the worker to finish writing while there is still time.
+	//
+	// `visibilitychange` rather than `beforeunload`: a hidden tab may be
+	// discarded without any further warning, and every close is preceded by a
+	// hide. `pagehide` as well, for a navigation that never hides first.
 	const flush = () => worker.postMessage({ kind: "flush" } satisfies ToWorker);
 	document.addEventListener("visibilitychange", () => {
 		if (document.visibilityState === "hidden") flush();

@@ -297,15 +297,13 @@ function mountDaemonRoutes(app: express.Express, session: ApiSession, dynamic: D
 		res.json({ running: dynamic.running, mode: session.current?.config.compileMode ?? null });
 	});
 
-	/**
-	 * How `roswaal stop` and `roswaal restart` work.
-	 *
-	 * An HTTP call rather than a PID file and a platform-specific kill: there is
-	 * no stale pid to reason about when a daemon dies unexpectedly, and no
-	 * divergence between Windows and everything else. The reply is sent before
-	 * the process exits, on a short delay, so the caller reads a clean answer
-	 * instead of a dropped connection it would have to interpret.
-	 */
+	// How `roswaal stop` and `roswaal restart` work.
+	//
+	// An HTTP call rather than a PID file and a platform-specific kill: there is
+	// no stale pid to reason about when a daemon dies unexpectedly, and no
+	// divergence between Windows and everything else. The reply is sent before
+	// the process exits, on a short delay, so the caller reads a clean answer
+	// instead of a dropped connection it would have to interpret.
 	app.post("/api/shutdown", (_req, res) => {
 		res.json({ ok: true, stopping: true });
 		setTimeout(() => process.exit(0), SHUTDOWN_DELAY_MS);

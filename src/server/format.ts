@@ -27,25 +27,22 @@ let styluaCommand: string | null | undefined;
  * correct Luau and lets the formatter the project already uses make it look
  * like the rest of the codebase.
  *
- * **Absent and refusing are different answers.** This used to treat stylua
- * exiting non-zero the same as stylua not existing, so one file it could not
- * parse turned formatting off for every file after it until the daemon was
- * restarted. Now only a command that will not start counts as absent; one that
- * ran and refused leaves that file as emitted and formats the next.
+ * **Absent and refusing are different answers.** Only a command that will not
+ * start counts as absent; one that ran and refused leaves that file as
+ * emitted and formats the next. Treating the two alike would let one file
+ * stylua cannot parse turn formatting off for every file after it.
  */
 export function formatLuau(
 	cwd: string, code: string, config?: Pick<RoswaalConfig, "indentStyle" | "indentWidth">,
 ): string {
 	if (styluaCommand === null) return code;
 
-	/**
-	 * The indentation setting, handed to stylua as arguments.
-	 *
-	 * Without them a project's `stylua.toml` decides, and the setting in
-	 * `roswaal.json` would appear to do nothing for everyone who has both --
-	 * which is the whole of its audience, since the setting exists for people
-	 * who care what their generated files look like.
-	 */
+	// The indentation setting, handed to stylua as arguments.
+	//
+	// Without them a project's `stylua.toml` decides, and the setting in
+	// `roswaal.json` would appear to do nothing for everyone who has both --
+	// which is the whole of its audience, since the setting exists for people
+	// who care what their generated files look like.
 	const spaces = config?.indentStyle === "space";
 	const indent = config
 		? ["--indent-type", spaces ? "Spaces" : "Tabs",

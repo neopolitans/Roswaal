@@ -336,8 +336,8 @@ async function commandServe(args: Args): Promise<number> {
 		editor
 			? `editor    ${cyan(url)}`
 			: `editor    ${dim("not in this build — install Roswaal from npm for the editor")}`,
-		// The documentation is the same daemon, and nothing said so: it was
-		// reachable only from a button inside the editor you had not opened yet.
+		// The documentation is the same daemon; said here, because otherwise it
+		// is reachable only from a button inside the editor.
 		...(editor ? [`docs      ${cyan(`${url}/docs`)}`] : []),
 	]);
 	if (project.packErrors.length > 0) {

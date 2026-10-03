@@ -2,11 +2,11 @@
  * The filesystem the project layer talks to, as an interface rather than an
  * import.
  *
- * `project.ts` used to reach for `node:fs/promises` directly, which is the
- * obvious thing to do for a daemon that owns a directory on disk. It also
- * pinned the whole of the project layer — opening, the tree, packs, the
- * hand-edit guard, compiling — to a machine with a disk on it. The hosted
- * editor has no disk and needs every one of those.
+ * Reaching for `node:fs/promises` directly is the obvious thing to do for a
+ * daemon that owns a directory on disk, and it would pin the whole of the
+ * project layer — opening, the tree, packs, the hand-edit guard, compiling —
+ * to a machine with a disk on it. The hosted editor has no disk and needs
+ * every one of those.
  *
  * So the project layer imports `./host.js`, and this is the shape `host.js`
  * has to supply. There are two bindings: `src/server/host.ts` binds it to Node,

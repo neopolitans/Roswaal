@@ -19,15 +19,14 @@ import { UserError } from "./errors.js";
  * *that* machine calls a path -- which may be a backslash while the daemon is
  * on Linux.
  *
- * Splitting on `path.sep` handled the first and silently kept the second, so
- * `scripts\Shared\Greeter.nodescript` derived a graph called
- * `scriptsSharedGreeter` on a Linux daemon and `Greeter` on a Windows one. The
- * test for it had been passing since it was written, because it had only ever
- * run on Windows; the first CI run on Linux is what found this.
+ * Splitting on `path.sep` handles the first and silently keeps the second, so
+ * `scripts\Shared\Greeter.nodescript` would derive a graph called
+ * `scriptsSharedGreeter` on a Linux daemon and `Greeter` on a Windows one.
  *
- * Every caller-supplied path goes through here -- `assertPackPath`,
- * `savePackNode`, `assertEditable`, `renameEntry`, `graphNameFor` -- so the
- * separator stops mattering at the edge rather than at each of them.
+ * Every path the server turns round goes through here -- caller-supplied ones
+ * in `assertPackPath`, `savePackNode`, `assertEditable`, `renameEntry` and
+ * `graphNameFor`, and the ones `path.relative` makes in the walks, the tree
+ * and the watcher -- so the separator stops mattering at the edge.
  *
  * The cost is that a backslash can no longer be part of a file name on a
  * platform that allows one. Roswaal will not write such a name (`renameEntry`

@@ -29,10 +29,9 @@ export interface OpenProject {
 	 * Kept apart from the registry because the editor has to be told which ones
 	 * are packs — it bundles the built-ins itself, and their pin derivation and
 	 * display rules are code that cannot survive a round trip through JSON.
-	 * Working that out by inspecting the registry is what went wrong before: a
-	 * filter for "looks like data" matched most of the built-in library, so the
-	 * editor was handed 215 function-less copies of nodes it already had, and
-	 * they shadowed the real ones.
+	 * Working it out from the registry does not work: a filter for "looks like
+	 * data" matches most of the built-in library, and function-less copies of
+	 * those shadow the real ones in the editor.
 	 */
 	packs: NodeDef[];
 	packErrors: string[];

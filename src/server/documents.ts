@@ -29,24 +29,13 @@ export async function readScript(project: OpenProject, relPath: string): Promise
 
 	const script = migrateScript(parsed, project.registry).script;
 
-	/**
-	 * **The file name is the name.**
-	 *
-	 * `name` is still stored — it is what a graph loaded without a path is
-	 * called, and what `outputFileName` reads — but the value on disk is no
-	 * longer *trusted*. Whenever a graph is read from a path, the path wins.
-	 *
-	 * This is what makes the two impossible to disagree rather than merely kept
-	 * in step. 0.13.0 fixed the drift by having `renameEntry` write the new name
-	 * into the file, which works but leaves the invariant depending on every
-	 * future code path remembering to maintain it; deriving it here means there
-	 * is nothing to remember. It also matches Rojo, which takes an instance's
-	 * name from the file name and never from anything inside it.
-	 *
-	 * A consequence worth noticing: two graphs can no longer share a name within
-	 * a folder, because two files cannot. The collision check in `compileScript`
-	 * becomes a net under a floor rather than something you can walk off.
-	 */
+	// The file name is the name. `name` is still stored -- it is what a graph
+	// loaded without a path is called, and what `outputFileName` reads -- but
+	// whenever a graph is read from a path, the path wins, so the two cannot
+	// disagree rather than merely being kept in step. Rojo does the same: an
+	// instance's name comes from its file name and never from inside it. Two
+	// graphs therefore cannot share a name within a folder, because two files
+	// cannot, and the collision check in `compileScript` is a net under that.
 	const derived = graphNameFor(relPath);
 	if (derived !== "") script.name = derived;
 
@@ -202,11 +191,10 @@ async function documentsUnder(project: OpenProject, extension: string): Promise<
 /**
  * The name a graph carries inside itself, from a file or folder name.
  *
- * One function, because the two places that decide it used to be two places:
- * creating a graph sanitised the name it was given, and renaming the file did
- * not touch the name at all. A graph's own name is what the compiler writes
- * out — see `outputFileName` — so the second of those meant `Hello.nodescript`
- * went on compiling to `Greeter.luau` with nothing anywhere saying so.
+ * One function for creating a graph and renaming one, so the two cannot
+ * disagree: a graph's own name is what the compiler writes out -- see
+ * `outputFileName` -- and a rename that left it alone would have
+ * `Hello.nodescript` compiling to `Greeter.luau` with nothing saying so.
  *
  * Returns "" when nothing survives sanitising; the caller decides what to do
  * about that, because creating and renaming want different answers.
