@@ -10,7 +10,7 @@
  * that makes a picture readable.
  *
  * So: open the project, tidy a graph, save, and run this. What it writes is
- * `src/core/docs/demoLayout.ts`, which the page applies over the graphs it
+ * `src/core/docs/demoLayout.gen.ts`, which the page applies over the graphs it
  * builds — so the picture in the documentation is the arrangement somebody
  * actually made.
  *
@@ -30,7 +30,7 @@ import { demoLayoutSource } from "./lib/demoLayoutSource.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PROJECT = join(root, "examples", "lune-demo", ".roswaal", "scripts");
-const OUT = join(root, "src", "core", "docs", "demoLayout.ts");
+const OUT = join(root, "src", "core", "docs", "demoLayout.gen.ts");
 
 /** @type {Record<string, Record<string, { x: number; y: number }>>} */
 const layout = {};
@@ -44,4 +44,4 @@ for (const demo of DEMOS) {
 }
 
 await writeFile(OUT, demoLayoutSource(layout), "utf8");
-console.log(`demo layout: ${DEMOS.length} graphs -> src/core/docs/demoLayout.ts`);
+console.log(`demo layout: ${DEMOS.length} graphs -> src/core/docs/demoLayout.gen.ts`);

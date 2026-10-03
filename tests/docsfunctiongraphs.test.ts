@@ -18,7 +18,7 @@ import type { NodeScript } from "../src/core/schema.js";
 import { compile } from "../src/core/compiler/index.js";
 import { graphSvg } from "../src/core/docs/preview.js";
 import { nodeCodeHtml } from "../src/core/docs/nodeCode.js";
-import { ROBLOX_DEMO_GRAPHS } from "../src/core/docs/robloxDemos.js";
+import { ROBLOX_DEMO_GRAPHS } from "../src/core/docs/robloxDemos.gen.js";
 import { NODE } from "../src/app/layers.js";
 import { nodeColor, pinColor } from "../src/app/palette.js";
 import { wirePath } from "../src/app/geometry.js";

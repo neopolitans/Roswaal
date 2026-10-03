@@ -5,7 +5,7 @@
 import { compile } from "../../compiler/index.js";
 import type { NodeScript } from "../../schema.js";
 import { stripHeader } from "../nodeReference.js";
-import { ROBLOX_DEMO_GRAPHS, ROBLOX_DEMO_MAP } from "../robloxDemos.js";
+import { ROBLOX_DEMO_GRAPHS, ROBLOX_DEMO_MAP } from "../robloxDemos.gen.js";
 import type { Block, DocPage, PageContext } from "../site.js";
 import { declarationsPanel } from "../toolbars.js";
 import { code } from "./blocks.js";

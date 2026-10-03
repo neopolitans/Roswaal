@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { transformSync } from "esbuild";
 import { describe, expect, it } from "vitest";
 
-import { DEMO_LAYOUT } from "../src/core/docs/demoLayout.js";
+import { DEMO_LAYOUT } from "../src/core/docs/demoLayout.gen.js";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { demoLayoutSource } from "../scripts/lib/demoLayoutSource.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
@@ -98,7 +98,7 @@ describe("the folded demo layout", () => {
 	});
 
 	it("writes back the committed module from its own data", () => {
-		const committed = readFileSync(join(ROOT, "src/core/docs/demoLayout.ts"), "utf8")
+		const committed = readFileSync(join(ROOT, "src/core/docs/demoLayout.gen.ts"), "utf8")
 			.replace(/\r\n/g, "\n");
 		expect(demoLayoutSource(DEMO_LAYOUT)).toBe(committed);
 	});
