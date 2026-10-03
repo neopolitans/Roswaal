@@ -34,7 +34,9 @@ own commit, listed in `.git-blame-ignore-revs`, never mixed into a change.
   main export is a React component, `kebab-case.mjs` for build scripts, and
   `flatlowercase.test.ts` for tests. *Google says `snake_case`; renaming 350
   files would break history and every docs link for no gain.*
-- **Named exports only.** No `export default`. **(tool)**
+- **Named exports only.** No `export default`. **(tool)** The exceptions are files a tool
+  reads by its default export: `vite.config.ts`, `vite.web.config.ts` and the virtual-module
+  declaration in `src/web/virtual.d.ts`.
 - **No `export *`.** Re-export names explicitly, so a reader can see what a
   module offers without opening the one behind it. **(tool)**
 - **`import type`** for an import used only as a type. **(tool)**

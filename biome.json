@@ -1,0 +1,81 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": [
+			"src/**/*.ts",
+			"src/**/*.tsx",
+			"tests/**/*.ts",
+			"scripts/**/*.mjs",
+			"scripts/**/*.mts",
+			"scripts/**/*.ts",
+			"scripts/**/*.js",
+			"*.ts",
+			"!!**/dist",
+			"!!.claude",
+			"!src/core/luneApi.ts",
+			"!src/core/robloxMembers.ts",
+			"!src/core/robloxProperties.ts",
+			"!src/core/robloxData.ts",
+			"!src/core/themeData.ts",
+			"!src/core/docs/robloxDemos.gen.ts",
+			"!src/core/docs/demoLayout.gen.ts"
+		]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 100
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"semicolons": "always",
+			"trailingCommas": "all",
+			"arrowParentheses": "always"
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": false,
+			"suspicious": {
+				"noExplicitAny": "error",
+				"noDoubleEquals": { "level": "error", "options": { "ignoreNull": true } },
+				"noEmptyBlockStatements": "warn"
+			},
+			"style": {
+				"noDefaultExport": "error",
+				"useImportType": "error",
+				"useNodejsImportProtocol": "error",
+				"noNonNullAssertion": "warn",
+				"noEnum": "error",
+				"noExportedImports": "off"
+			},
+			"complexity": {
+				"noExcessiveLinesPerFunction": { "level": "warn", "options": { "maxLines": 150 } }
+			},
+			"correctness": {
+				"useExhaustiveDependencies": "warn"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["vite.config.ts", "vite.web.config.ts", "src/web/virtual.d.ts"],
+			"linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+		}
+	],
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	}
+}

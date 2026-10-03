@@ -33,7 +33,8 @@ export function contributingPage(): DocPage {
 					npm install
 					npm run dev          # the daemon and the editor, reloading as you edit
 					npm test             # the test suite
-					npm run typecheck
+					npm run typecheck    # the code and the build scripts
+					npm run lint         # formatting, import order and the style rules
 					npm run build        # themes, the editor and the command line
 					npm run build:docs   # these docs, as a static site
 					`,
@@ -44,9 +45,10 @@ export function contributingPage(): DocPage {
 				t: "ul",
 				items: [
 					"**Tests**, in `tests/`, run with `npm test`.",
-					"**A release-notes entry** in `src/core/docs/releases.ts`, saying what changed, and the version bumped in `version.json` and `package.json`. A test fails when the notes and the version disagree.",
+					"**A release-notes entry** at the top of the newest file in `src/core/docs/releases/`, saying what changed, and the version bumped in `version.json` and `package.json`. A test fails when the notes and the version disagree.",
 					"**The reasoning**, where a later reader will find it: a comment on the code it explains, and the pull request. The maintainer's working notes, the architecture map and the wording rules are kept out of the repository until they have been read through for publication.",
 					"**Words that name the result.** A label, a heading or a message says what happened, not which rule produced it.",
+					"**Code that follows the style guide**, [STYLE.md](https://github.com/neopolitans/Roswaal/blob/main/STYLE.md) in the repository root. `npm run format` fixes what a tool can; the rest is for review.",
 				],
 			},
 
