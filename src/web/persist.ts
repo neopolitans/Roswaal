@@ -23,6 +23,8 @@
  * browser. `opfsStore()` is the real one, and it is eleven lines.
  */
 
+import { errorMessage } from "../server/errors.js";
+
 import type { VolumeSnapshot } from "./volume.js";
 
 /** Somewhere a document survives a reload. */
@@ -81,6 +83,15 @@ export interface RestoredVolume {
 export interface Persistence {
 	/** The stored project, or `null` when there is not one to restore. */
 	restore(): Promise<RestoredVolume | null>;
+	/**
+	 * Says that the binaries now on the volume, at `binaryStamp`, are the ones
+	 * the store already holds: the restore just mounted them.
+	 *
+	 * Without it the first write of a session took every binary to be new and
+	 * wrote megabytes of place back over itself -- on the first settled edit,
+	 * which is when a tab is often closed.
+	 */
+	restoredAt(binaryStamp: number): void;
 	/** Notes that the volume changed. Writes settle rather than happening at once. */
 	touch(snapshot: () => RestoredVolume): void;
 	/** Finishes any pending write. */
@@ -108,8 +119,12 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 	let writing: Promise<void> = Promise.resolve();
 	let stopped = false;
 	let failure: string | null = null;
-	/** The stamp the binaries were last written at; undefined before the first write. */
+	// The stamp the stored binaries match: set by a restore, and by each write
+	// of them. Undefined until one or the other, when they are written on the
+	// first write.
 	let writtenStamp: number | undefined;
+	// Whether the restore read the stored binaries, so they can be trusted as written.
+	let binariesRestored = false;
 
 	async function writeNow(): Promise<void> {
 		const take = pending;
@@ -138,8 +153,22 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 			// Reported once and then left alone. A quota that is full will be full
 			// again in four hundred milliseconds, and a retry loop writing a whole
 			// project each time is a good way to make a slow tab a stuck one.
-			failure = (err as Error).message || "The browser refused to store it.";
+			failure = errorMessage(err) || "The browser refused to store it.";
 			stopped = true;
+		}
+	}
+
+	// The stored binaries, or none -- and then they are written again on the first write.
+	async function readBinaries(): Promise<Record<string, Uint8Array>> {
+		if (!store.readBinaries) return {};
+		try {
+			const binaries = await store.readBinaries();
+			binariesRestored = true;
+			return binaries;
+		} catch {
+			// The text still restores; a place that would not read is written
+			// again from the volume rather than trusted.
+			return {};
 		}
 	}
 
@@ -154,7 +183,7 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 				if (parsed.format !== 1 || typeof parsed.files !== "object" || !parsed.files) {
 					return null;
 				}
-				const binaries = store.readBinaries ? await store.readBinaries().catch(() => ({})) : {};
+				const binaries = await readBinaries();
 				return {
 					files: { ...parsed.files, ...binaries },
 					// Absent on a document written before directories were kept.
@@ -166,9 +195,13 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 						: {}),
 				};
 			} catch (err) {
-				failure = (err as Error).message || "The stored project could not be read.";
+				failure = errorMessage(err) || "The stored project could not be read.";
 				return null;
 			}
+		},
+
+		restoredAt(binaryStamp) {
+			if (binariesRestored) writtenStamp = binaryStamp;
 		},
 
 		touch(snapshot) {
@@ -208,22 +241,21 @@ export function persistence(store: SnapshotStore, version: string): Persistence 
 }
 
 /**
- * The origin private filesystem, as a single document.
+ * The origin private filesystem, as a single document and a set of binaries.
  *
  * Every call opens the directory again rather than holding a handle: this runs
  * a handful of times a minute at most, and a stored handle is a thing that can
- * go stale while a tab is asleep.
+ * go stale while a tab is asleep. `root` is there for a test to hand in a
+ * directory of its own.
  */
-export function opfsStore(name = "project.json"): SnapshotStore {
-	async function directory(): Promise<FileSystemDirectoryHandle> {
-		return navigator.storage.getDirectory();
-	}
-
+export function opfsStore(
+	name = "project.json",
+	root: () => Promise<FileSystemDirectoryHandle> = () => navigator.storage.getDirectory(),
+): SnapshotStore {
 	return {
 		async read() {
 			try {
-				const handle = await (await directory()).getFileHandle(name);
-				return await (await handle.getFile()).text();
+				return await readText(await root(), name);
 			} catch {
 				// Absent is the common case and not a failure: it is what a first
 				// visit looks like. A refusal reads the same way here, and the
@@ -233,41 +265,113 @@ export function opfsStore(name = "project.json"): SnapshotStore {
 		},
 
 		async write(text) {
-			const handle = await (await directory()).getFileHandle(name, { create: true });
-			const writable = await handle.createWritable();
-			await writable.write(text);
-			await writable.close();
+			await writeText(await root(), name, text);
 		},
 
 		async clear() {
-			await (await directory()).removeEntry(name).catch(() => {});
-			await (await directory()).removeEntry(BINARIES, { recursive: true }).catch(() => {});
+			const directory = await root();
+			for (const entry of [name, BINARIES_POINTER, ...(await binaryFolders(directory))]) {
+				// Already gone is what clearing wants.
+				await directory.removeEntry(entry, { recursive: true }).catch(() => undefined);
+			}
 		},
+
 		async readBinaries() {
+			const directory = await root();
 			const out: Record<string, Uint8Array> = {};
-			const folder = await (await directory()).getDirectoryHandle(BINARIES).catch(() => null);
-			if (!folder) return out;
-			for await (const [key, handle] of folder.entries()) {
+			const current = await currentBinaries(directory);
+			if (current === null) return out;
+			const folder = await directory.getDirectoryHandle(current);
+			for await (const handle of folder.values()) {
 				if (handle.kind !== "file") continue;
 				const file = await (handle as FileSystemFileHandle).getFile();
-				out[decodeURIComponent(key)] = new Uint8Array(await file.arrayBuffer());
+				out[decodeURIComponent(handle.name)] = new Uint8Array(await file.arrayBuffer());
 			}
 			return out;
 		},
+
+		/**
+		 * Replaces the stored binaries as a set: a place that went must not come
+		 * back on reload.
+		 *
+		 * Written into a new folder first, and swapped in by rewriting the small
+		 * pointer file once every byte is down. Removing the old set before
+		 * writing the new one left a window -- megabytes long, and exactly when
+		 * a closing tab flushes -- in which the stored place was gone.
+		 */
 		async writeBinaries(files) {
-			// Replaced as a set: a place that went must not come back on reload.
-			await (await directory()).removeEntry(BINARIES, { recursive: true }).catch(() => {});
-			if (Object.keys(files).length === 0) return;
-			const folder = await (await directory()).getDirectoryHandle(BINARIES, { create: true });
-			for (const [at, bytes] of Object.entries(files)) {
-				const handle = await folder.getFileHandle(encodeURIComponent(at), { create: true });
-				const writable = await handle.createWritable();
-				await writable.write(bytes as BlobPart);
-				await writable.close();
+			const directory = await root();
+			let next: string | null = null;
+			if (Object.keys(files).length > 0) {
+				next = `${BINARIES}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+				const folder = await directory.getDirectoryHandle(next, { create: true });
+				for (const [at, bytes] of Object.entries(files)) {
+					const handle = await folder.getFileHandle(encodeURIComponent(at), { create: true });
+					const writable = await handle.createWritable();
+					await writable.write(bytes as BlobPart);
+					await writable.close();
+				}
+			}
+			await writeText(directory, BINARIES_POINTER, JSON.stringify({ folder: next }));
+			// Only now is the old set unreferenced, and any set a write abandoned
+			// before its swap with it.
+			for (const folder of await binaryFolders(directory)) {
+				if (folder === next) continue;
+				// Left behind is only space; the pointer no longer names it.
+				await directory.removeEntry(folder, { recursive: true }).catch(() => undefined);
 			}
 		},
 	};
 }
 
-/** The folder beside the document that holds binary files, one per file. */
+/** A small file's text, read whole. Rejects when it is not there. */
+async function readText(directory: FileSystemDirectoryHandle, file: string): Promise<string> {
+	const handle = await directory.getFileHandle(file);
+	return (await handle.getFile()).text();
+}
+
+/** A small file, written whole: the browser commits it when the writable closes. */
+async function writeText(directory: FileSystemDirectoryHandle, file: string, text: string): Promise<void> {
+	const handle = await directory.getFileHandle(file, { create: true });
+	const writable = await handle.createWritable();
+	await writable.write(text);
+	await writable.close();
+}
+
+/**
+ * The folder holding the binaries now: the one the pointer names, or the
+ * plain `binaries` folder a store written before the pointer existed has.
+ */
+async function currentBinaries(directory: FileSystemDirectoryHandle): Promise<string | null> {
+	// No pointer is a store from before it, or one with no binaries yet.
+	const pointer = await readText(directory, BINARIES_POINTER).catch(() => null);
+	if (pointer !== null) {
+		let named: unknown;
+		try {
+			named = (JSON.parse(pointer) as { folder?: unknown } | null)?.folder;
+		} catch {
+			// A pointer that will not parse names nothing; the next write replaces it.
+			return null;
+		}
+		return typeof named === "string" ? named : null;
+	}
+	const legacy = await directory.getDirectoryHandle(BINARIES).then(() => true, () => false);
+	return legacy ? BINARIES : null;
+}
+
+/** Every folder of binaries in the store, current or not. */
+async function binaryFolders(directory: FileSystemDirectoryHandle): Promise<string[]> {
+	const out: string[] = [];
+	for await (const handle of directory.values()) {
+		if (handle.kind === "directory" && (handle.name === BINARIES || handle.name.startsWith(`${BINARIES}-`))) {
+			out.push(handle.name);
+		}
+	}
+	return out;
+}
+
+/** The folders beside the document that hold binary files, one per file. */
 const BINARIES = "binaries";
+
+/** Names the folder of binaries in use, so a new set is swapped in by one small write. */
+const BINARIES_POINTER = "binaries.json";

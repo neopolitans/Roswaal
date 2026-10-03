@@ -15,11 +15,14 @@
  * cannot switch projects at all, too loose and the bug comes back.
  */
 
+import { IncomingMessage, ServerResponse } from "node:http";
+import { Socket } from "node:net";
+
 import { describe, expect, it } from "vitest";
 
 import type { Request, Response } from "express";
 
-import { refusesConnection, refusesRequest } from "../src/server/app.js";
+import { createDaemon, refusesConnection, refusesRequest } from "../src/server/app.js";
 import { describeOutcome, type CompileOutcome } from "../src/server/project.js";
 import { streamCount, streamEvents } from "../src/server/events.js";
 import type { DynamicCompiler } from "../src/server/watcher.js";
@@ -247,5 +250,51 @@ describe("who the daemon answers", () => {
 		expect(refusesConnection("127.0.0.1", "http://127.0.0.1")).toBeNull();
 		// Not loopback merely because it starts with it.
 		expect(refusesConnection("127.0.0.1.evil.example:4471", undefined)).not.toBeNull();
+	});
+});
+
+/**
+ * A request through the Express app itself, with no socket bound: the request
+ * and response are Node's own, on a socket that never connects.
+ */
+async function through(
+	app: (req: IncomingMessage, res: ServerResponse) => void,
+	method: string, url: string, headers: Record<string, string> = {},
+): Promise<{ status: number; body: Record<string, unknown> }> {
+	const req = new IncomingMessage(new Socket());
+	req.method = method;
+	req.url = url;
+	req.headers = { host: "127.0.0.1:4471", ...headers };
+	req.push(null);
+	const res = new ServerResponse(req);
+	return new Promise((resolve) => {
+		const chunks: Buffer[] = [];
+		res.write = ((chunk: string | Uint8Array) => {
+			chunks.push(Buffer.from(chunk));
+			return true;
+		}) as ServerResponse["write"];
+		res.end = ((chunk?: string | Uint8Array) => {
+			if (chunk) chunks.push(Buffer.from(chunk));
+			resolve({ status: res.statusCode, body: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
+			return res;
+		}) as ServerResponse["end"];
+		app(req, res);
+	});
+}
+
+describe("a daemon, before it listens", () => {
+	it("answers the API with nothing bound", async () => {
+		const { app } = createDaemon();
+		const health = await through(app, "GET", "/api/health");
+		expect(health.status).toBe(200);
+		expect(health.body).toMatchObject({ ok: true, project: null });
+	});
+
+	it("answers a refusal in the one error shape", async () => {
+		const { app } = createDaemon();
+		const refused = await through(app, "GET", "/api/tree");
+		expect(refused.status).toBe(409);
+		expect(refused.body).toEqual({ error: "No project is open. Open one first." });
+		expect((await through(app, "GET", "/api/health", { host: "evil.example" })).status).toBe(403);
 	});
 });

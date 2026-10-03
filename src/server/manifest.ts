@@ -36,9 +36,31 @@ export async function readManifest(root: string): Promise<GeneratedManifest> {
 	}
 }
 
-export async function recordGenerated(
-	root: string, outputPath: string, sourcePath: string,
-): Promise<void> {
+/**
+ * The write in progress for each project, so the next waits for it.
+ *
+ * Recording is read, change, write. Two compiles at once -- the watcher and a
+ * button press, or two maps compiled together -- each read the manifest before
+ * either wrote it, and whichever wrote second lost the other's entry. Queued
+ * per root, each record reads what the one before it wrote.
+ */
+const writing = new Map<string, Promise<void>>();
+
+/** Records that `outputPath` was generated from `sourcePath`. One write at a time per project. */
+export function recordGenerated(root: string, outputPath: string, sourcePath: string): Promise<void> {
+	const before = writing.get(root) ?? Promise.resolve();
+	// A failed record is reported to its own caller below; the next one still runs.
+	const next = before.catch(() => undefined).then(() => record(root, outputPath, sourcePath));
+	writing.set(root, next);
+	// Forgotten once it is the last in line, so the map does not keep every root ever seen.
+	const forget = () => {
+		if (writing.get(root) === next) writing.delete(root);
+	};
+	next.then(forget, forget);
+	return next;
+}
+
+async function record(root: string, outputPath: string, sourcePath: string): Promise<void> {
 	const manifest = await readManifest(root);
 	if (manifest.outputs[outputPath] === sourcePath) return;
 

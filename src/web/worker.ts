@@ -13,25 +13,62 @@
  * matter; it will matter the moment the hosted editor is pointed at somebody's
  * real repository, and moving it afterwards would mean moving this boundary
  * afterwards too.
+ *
+ * Unlike the rest of `src/web`, this module runs when it is loaded: it is the
+ * worker's entry point, and loading it is starting it.
  */
 
 /// <reference lib="webworker" />
 
-import { initProject, writePlaceImport } from "../server/project.js";
-import { ApiSession, HttpError } from "../server/routes.js";
-
 import { VERSION } from "../cli/version.js";
-
+import { errorMessage } from "../server/errors.js";
+import { initProject, isInitialised, writePlaceImport, type OpenProject } from "../server/project.js";
+import { ApiSession, errorResponse, type ErrorBody } from "../server/routes.js";
 import { DirectoryFs, mountFor } from "./directoryFs.js";
 import { useFilesystem, usingVolume, volume } from "./host.js";
 import { opfsStore, persistence } from "./persist.js";
-import type { FromWorker, ToWorker } from "./protocol.js";
+import type {
+	ApiRequestMessage, FromWorker, ImportMessage, ImportPlaceMessage, MountMessage, ToWorker,
+} from "./protocol.js";
 import { PLAYGROUND_ROOT, playgroundFiles } from "./seed.js";
 
 declare const self: DedicatedWorkerGlobalScope;
 
+/** A reply to a message that asked for one. */
+interface Reply {
+	status: number;
+	payload: unknown;
+}
+
 function post(message: FromWorker): void {
 	self.postMessage(message);
+}
+
+/** A reply's status and payload for an error, as the daemon would give them. */
+function answer(err: unknown): Reply {
+	const { status, body } = errorResponse(err);
+	return { status, payload: body };
+}
+
+/**
+ * The answer for a folder or archive with no `roswaal.json`: a 409 the editor
+ * acts on by asking, carrying the name it asks about.
+ */
+function notAProject(name: string): Reply {
+	const payload: ErrorBody = {
+		error: `${name} is not a Roswaal project: it has no roswaal.json.`,
+		code: "not-a-project",
+		name,
+	};
+	return { status: 409, payload };
+}
+
+/** The answer for a project taken in: what the editor needs to show it. */
+function opened(project: OpenProject): Reply {
+	return {
+		status: 200,
+		payload: { root: project.root, config: project.config, packErrors: project.packErrors },
+	};
 }
 
 const store = persistence(opfsStore(), VERSION);
@@ -55,6 +92,12 @@ const session = new ApiSession({
 });
 
 /**
+ * Where the browser's own project is on the volume: the demo's root until a
+ * zip replaces it, and then the name that zip carried.
+ */
+let playgroundRoot = PLAYGROUND_ROOT;
+
+/**
  * Mounted and opened before the first request is answered, not before the first
  * one arrives — the editor starts asking as soon as it renders, and making it
  * wait for a handshake would be a second thing to get wrong.
@@ -63,18 +106,17 @@ const session = new ApiSession({
  * working in wants what they left; somebody arriving for the first time has
  * nothing stored and gets the demo. Neither needs to be asked.
  */
-/**
- * Where the browser's own project is on the volume: the demo's root until a
- * zip replaces it, and then the name that zip carried.
- */
-let playgroundRoot = PLAYGROUND_ROOT;
-
 const ready = (async () => {
 	const stored = await store.restore();
 	volume.mount(stored ? stored.files : playgroundFiles());
-	// After the files: a directory with nothing in it is not implied by any of
-	// them, and is the whole reason the directories are stored separately.
-	if (stored) volume.mountDirs(stored.dirs);
+	if (stored) {
+		// After the files: a directory with nothing in it is not implied by any
+		// of them, and is the whole reason the directories are stored separately.
+		volume.mountDirs(stored.dirs);
+		// The binaries just mounted are the ones stored, so the first edit does
+		// not write them all again.
+		store.restoredAt(volume.binaryStamp);
+	}
 	if (stored?.root) playgroundRoot = stored.root;
 	await session.openAt(playgroundRoot);
 })();
@@ -89,8 +131,6 @@ function snapshot() {
 	};
 }
 
-
-
 /**
  * Dynamic compiling, without a file watcher.
  *
@@ -101,9 +141,9 @@ function snapshot() {
  * unnecessary rather than impossible: every event it would have reported passes
  * through the line below.
  *
- * Without this the editor showed Dynamic as on and nothing recompiled, which is
- * worse than not offering it — the setting was there, it said it was working,
- * and the generated Luau silently stopped matching the graph.
+ * Without this the editor would show Dynamic as on and nothing would
+ * recompile: the setting there, saying it was working, and the generated Luau
+ * silently no longer matching the graph.
  *
  * Compiled through the route table rather than by calling the compiler, so the
  * refusals a manual compile makes — a hand-edited file, a name collision — are
@@ -113,7 +153,7 @@ async function dynamicCompile(method: string, path: string, body: unknown): Prom
 	if (method !== "PUT" || path !== "/script") return;
 	if (session.current?.config.compileMode !== "hot") return;
 
-	const relPath = (body as { path?: string })?.path;
+	const relPath = (body as { path?: unknown } | undefined)?.path;
 	if (typeof relPath !== "string" || relPath === "") return;
 
 	try {
@@ -132,193 +172,13 @@ async function dynamicCompile(method: string, path: string, body: unknown): Prom
 		post({
 			kind: "event",
 			event: "hot",
-			data: { type: "error", path: relPath, message: (err as Error).message },
+			data: { type: "error", path: relPath, message: errorMessage(err) },
 		});
 	}
 }
 
-self.onmessage = async (event: MessageEvent<ToWorker>) => {
-	const message = event.data;
-
-	/**
-	 * The tab is going away, or has at least stopped being looked at.
-	 *
-	 * Writes settle rather than happening at once, so without this the change
-	 * made in the last four hundred milliseconds is the one change that does not
-	 * survive — which is precisely the one somebody is most likely to notice.
-	 * The main thread sends it, because this side cannot see a page unload.
-	 */
-	if (message?.kind === "flush") {
-		await store.flush();
-		return;
-	}
-
-	/**
-	 * A folder the developer picked, taking the place of the volume.
-	 *
-	 * From here on the project layer reads and writes their disk, so the
-	 * generated Luau lands where Rojo is already watching. The stored copy is
-	 * left alone rather than deleted — it is the playground project, and coming
-	 * back to it is a reload away.
-	 */
-	if (message?.kind === "mount") {
-		try {
-			await ready;
-			const mount = mountFor(message.handle);
-
-			/**
-			 * A folder is not a project just because somebody picked it.
-			 *
-			 * `openProject` falls back to a default config when there is no
-			 * `roswaal.json`, which is right for the daemon — where a directory is
-			 * only ever reached after the shell has inspected it and offered
-			 * *Initialise* as a deliberate choice. Nothing asked that here, so a
-			 * folder of holiday photos opened as an empty project and the next
-			 * compile would have written `src/*.luau` into it.
-			 *
-			 * Reported rather than refused, and rather than adopted. The editor
-			 * asks and comes back with `initialise`, so setting up somebody's
-			 * folder is always a yes they gave.
-			 */
-			const initialised = await message.handle.getFileHandle("roswaal.json")
-				.then(() => true, () => false);
-			if (!initialised && !message.initialise) {
-				post({
-					kind: "response",
-					id: message.id,
-					status: 409,
-					payload: { code: "not-a-project", name: message.handle.name },
-				});
-				return;
-			}
-
-			useFilesystem(new DirectoryFs(message.handle, mount));
-			// The same `roswaal init` the command line runs, over the folder they
-			// just handed over: `roswaal.json`, the graphs directory and the node
-			// path, and nothing else.
-			if (!initialised) await initProject(mount);
-			// Stops the playground's project being overwritten by the one that
-			// replaced it: the disk is its own persistence now.
-			await store.flush();
-			const project = await session.openAt(mount);
-			post({
-				kind: "response",
-				id: message.id,
-				status: 200,
-				payload: { root: project.root, config: project.config, packErrors: project.packErrors },
-			});
-		} catch (err) {
-			// Back to the volume, so a folder that is not a project leaves the
-			// editor with the one it had rather than with nothing.
-			useFilesystem(volume);
-			await session.openAt(playgroundRoot).catch(() => {});
-			post({
-				kind: "response",
-				id: message.id,
-				status: 400,
-				payload: { error: (err as Error).message },
-			});
-		}
-		return;
-	}
-
-	/**
-	 * A project from a zip, in place of the one the browser was holding.
-	 *
-	 * Replaced rather than added beside: the browser holds one project, the
-	 * way the daemon serves one. The editor has already asked, and offered a
-	 * download of the old one first. Mounted at the zip's own name, so the
-	 * editor, the window title and the next Download all call it what its
-	 * owner does.
-	 */
-	if (message?.kind === "import") {
-		await ready;
-		const before = snapshot();
-		const next = `/${message.name}`;
-		try {
-			if (!("roswaal.json" in message.files) && !message.initialise) {
-				post({
-					kind: "response",
-					id: message.id,
-					status: 409,
-					payload: { code: "not-a-project", name: message.name },
-				});
-				return;
-			}
-			// From a folder on disk, if one was open: the zip replaces the
-			// browser's project, and that is what the editor shows next.
-			useFilesystem(volume);
-			await volume.rm(playgroundRoot, { recursive: true, force: true });
-			await volume.rm(next, { recursive: true, force: true });
-			volume.mount(Object.fromEntries(
-				Object.entries({ ...message.files, ...message.binaries }).map(([rel, contents]) => [`${next}/${rel}`, contents]),
-			));
-			volume.mountDirs([next, ...message.dirs.map((dir) => `${next}/${dir}`)]);
-			if (!("roswaal.json" in message.files)) await initProject(next);
-			playgroundRoot = next;
-			const project = await session.openAt(next);
-			store.touch(snapshot);
-			await store.flush();
-			post({
-				kind: "response",
-				id: message.id,
-				status: 200,
-				payload: { root: project.root, config: project.config, packErrors: project.packErrors },
-			});
-		} catch (err) {
-			// Back to what the browser held, so a zip that would not open costs
-			// nothing.
-			await volume.rm(next, { recursive: true, force: true }).catch(() => {});
-			volume.mount(before.files);
-			volume.mountDirs(before.dirs);
-			playgroundRoot = before.root;
-			await session.openAt(playgroundRoot).catch(() => {});
-			post({
-				kind: "response",
-				id: message.id,
-				status: 400,
-				payload: { error: (err as Error).message },
-			});
-		}
-		return;
-	}
-
-	/**
-	 * A project made from a place, in place of the one the browser holds.
-	 *
-	 * The same replacement as a zip, and the same way back if it fails. The
-	 * place goes in first, as bytes; `writePlaceImport` writes the rest.
-	 */
-	if (message?.kind === "importPlace") {
-		await ready;
-		const before = snapshot();
-		const next = `/${message.name}`;
-		try {
-			useFilesystem(volume);
-			await volume.rm(playgroundRoot, { recursive: true, force: true });
-			await volume.rm(next, { recursive: true, force: true });
-			await volume.mkdir(next, { recursive: true });
-			await volume.writeFile(`${next}/${message.placeFile}`, message.place);
-			const map = await writePlaceImport(next, message.files, message.placeFile);
-			if (!map.written) throw new Error(map.skipped ?? "Its Rojo project could not be written.");
-			playgroundRoot = next;
-			const project = await session.openAt(next);
-			store.touch(snapshot);
-			await store.flush();
-			post({ kind: "response", id: message.id, status: 200, payload: { root: project.root } });
-		} catch (err) {
-			await volume.rm(next, { recursive: true, force: true }).catch(() => {});
-			volume.mount(before.files);
-			volume.mountDirs(before.dirs);
-			playgroundRoot = before.root;
-			await session.openAt(playgroundRoot).catch(() => {});
-			post({ kind: "response", id: message.id, status: 400, payload: { error: (err as Error).message } });
-		}
-		return;
-	}
-
-	if (message?.kind !== "request") return;
-
+/** One route, answered as the daemon would answer it. */
+async function request(message: ApiRequestMessage): Promise<void> {
 	try {
 		await ready;
 		const payload = await session.handle(message.method, message.path, {
@@ -326,21 +186,179 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 			body: message.body,
 		});
 		post({ kind: "response", id: message.id, status: 200, payload });
-		// After the reply, so the save is confirmed before the compile it causes
-		// starts reporting on itself.
-		await dynamicCompile(message.method, message.path, message.body);
-		// Anything that is not a read may have changed the volume, and the
-		// compile above writes too. Debounced, so a burst costs one write.
-		if (message.method !== "GET" && usingVolume()) store.touch(snapshot);
 	} catch (err) {
-		// The same mapping `app.ts` makes for Express: a thrown `HttpError` knows
-		// its own status, and anything else is the caller's fault at 400.
-		const status = err instanceof HttpError ? err.status : 400;
-		post({
-			kind: "response",
-			id: message.id,
-			status,
-			payload: { error: (err as Error).message },
-		});
+		// The same mapping `app.ts` makes for Express, so a failure reads the same
+		// whichever host answered it.
+		post({ kind: "response", id: message.id, ...answer(err) });
+		return;
 	}
+	// After the reply, so the save is confirmed before the compile it causes
+	// starts reporting on itself.
+	await dynamicCompile(message.method, message.path, message.body);
+	// Anything that is not a read may have changed the volume, and the
+	// compile above writes too. Debounced, so a burst costs one write.
+	if (message.method !== "GET" && usingVolume()) store.touch(snapshot);
+}
+
+/**
+ * A folder the developer picked, taking the place of the volume.
+ *
+ * From here on the project layer reads and writes their disk, so the
+ * generated Luau lands where Rojo is already watching. The stored copy is
+ * left alone rather than deleted — it is the playground project, and coming
+ * back to it is a reload away.
+ *
+ * A folder is not a project just because somebody picked it. Any folder opens
+ * -- with the default settings -- so one with no `roswaal.json` is reported
+ * rather than adopted, and the next compile does not write `src/*.luau` into
+ * somebody's holiday photos. The editor asks and comes back with
+ * `initialise`, so setting up their folder is always a yes they gave.
+ */
+async function mountFolder(message: MountMessage): Promise<Reply> {
+	await ready;
+	const mount = mountFor(message.handle);
+	try {
+		useFilesystem(new DirectoryFs(message.handle, mount));
+		const initialised = await isInitialised(mount);
+		if (!initialised && !message.initialise) {
+			useFilesystem(volume);
+			return notAProject(message.handle.name);
+		}
+		// The same `roswaal init` the command line runs, over the folder they
+		// just handed over: `roswaal.json`, the graphs directory and the node
+		// path, and nothing else.
+		if (!initialised) await initProject(mount);
+		// Stops the playground's project being overwritten by the one that
+		// replaced it: the disk is its own persistence now.
+		await store.flush();
+		return opened(await session.openAt(mount));
+	} catch (err) {
+		// Back to the volume, so a folder that will not open leaves the editor
+		// with the project it had rather than with nothing.
+		useFilesystem(volume);
+		// Reopening what was open already: if even that fails, the error
+		// worth reporting is still the one above.
+		await session.openAt(playgroundRoot).catch(() => undefined);
+		return answer(err);
+	}
+}
+
+/**
+ * Puts a new project where the browser's own was, at `/<name>`, or puts the
+ * old one back if anything in `write` fails.
+ *
+ * Replaced rather than added beside: the browser holds one project, the way
+ * the daemon serves one. Mounted at its own name, so the editor, the window
+ * title and the next Download all call it what its owner does.
+ */
+async function replaceProject(name: string, write: (root: string) => Promise<void>): Promise<OpenProject> {
+	const before = snapshot();
+	const next = `/${name}`;
+	try {
+		// From a folder on disk, if one was open: the new project replaces the
+		// browser's, and that is what the editor shows next.
+		useFilesystem(volume);
+		await volume.rm(playgroundRoot, { recursive: true, force: true });
+		await volume.rm(next, { recursive: true, force: true });
+		await write(next);
+		playgroundRoot = next;
+		const project = await session.openAt(next);
+		store.touch(snapshot);
+		await store.flush();
+		return project;
+	} catch (err) {
+		// Back to what the browser held, so a project that would not open costs
+		// nothing. Each step is best done; the error to report is `err`.
+		await volume.rm(next, { recursive: true, force: true }).catch(() => undefined);
+		volume.mount(before.files);
+		volume.mountDirs(before.dirs);
+		playgroundRoot = before.root;
+		await session.openAt(playgroundRoot).catch(() => undefined);
+		throw err;
+	}
+}
+
+/** A project from a zip, in place of the one the browser was holding. */
+async function importZip(message: ImportMessage): Promise<Reply> {
+	await ready;
+	const hasConfig = "roswaal.json" in message.files;
+	if (!hasConfig && !message.initialise) return notAProject(message.name);
+	try {
+		return opened(await replaceProject(message.name, async (root) => {
+			volume.mount(Object.fromEntries(
+				Object.entries({ ...message.files, ...message.binaries })
+					.map(([rel, contents]) => [`${root}/${rel}`, contents]),
+			));
+			volume.mountDirs([root, ...message.dirs.map((dir) => `${root}/${dir}`)]);
+			if (!hasConfig) await initProject(root);
+		}));
+	} catch (err) {
+		return answer(err);
+	}
+}
+
+/**
+ * A project made from a place, in place of the one the browser holds.
+ *
+ * The same replacement as a zip, and the same way back if it fails. The
+ * place goes in first, as bytes; `writePlaceImport` writes the rest.
+ */
+async function importPlace(message: ImportPlaceMessage): Promise<Reply> {
+	await ready;
+	try {
+		const project = await replaceProject(message.name, async (root) => {
+			await volume.mkdir(root, { recursive: true });
+			await volume.writeFile(`${root}/${message.placeFile}`, message.place);
+			const map = await writePlaceImport(root, message.files, message.placeFile);
+			if (!map.written) throw new Error(map.skipped ?? "Its Rojo project could not be written.");
+		});
+		return { status: 200, payload: { root: project.root } };
+	} catch (err) {
+		return answer(err);
+	}
+}
+
+/** One message, handled. Requests answer themselves; the rest answer here. */
+async function receive(message: ToWorker): Promise<void> {
+	switch (message.kind) {
+		case "request":
+			return request(message);
+		case "mount":
+			return post({ kind: "response", id: message.id, ...(await mountFolder(message)) });
+		case "import":
+			return post({ kind: "response", id: message.id, ...(await importZip(message)) });
+		case "importPlace":
+			return post({ kind: "response", id: message.id, ...(await importPlace(message)) });
+		case "flush":
+			return store.flush();
+	}
+}
+
+/**
+ * Messages are handled one at a time, in the order they came.
+ *
+ * Handled as they arrived, a request could be half-way through the project
+ * when a mount swapped the filesystem under it, or a zip replaced the project
+ * it was reading -- and answer from a mixture of the two.
+ */
+let queue: Promise<void> = Promise.resolve();
+
+self.onmessage = (event: MessageEvent<ToWorker>) => {
+	const message = event.data;
+	if (!message || typeof message !== "object") return;
+	// The tab is going away, or has at least stopped being looked at.
+	//
+	// Not queued: it may be the last thing the tab gets to do, and waiting
+	// behind a long compile would lose the change made in the last four hundred
+	// milliseconds -- the one somebody is most likely to notice. Writing what has
+	// settled so far is safe beside a request, which only ever adds to it.
+	if (message.kind === "flush") {
+		void store.flush();
+		return;
+	}
+	// Every handler answers its own errors; this catch is for a bug in one,
+	// which must not stop the queue for every message after it.
+	queue = queue.then(() => receive(message)).catch((err: unknown) => {
+		console.error("Roswaal worker:", err);
+	});
 };

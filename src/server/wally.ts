@@ -22,6 +22,8 @@ import {
 } from "../core/wally.js";
 import { parseProject } from "../core/rojoImport.js";
 import { fs, path } from "./host.js";
+import { errorMessage, HttpError, UserError } from "./errors.js";
+import { walkFiles } from "./files.js";
 import { safeJoin, type OpenProject } from "./project.js";
 
 const REGISTRY = "https://api.wally.run/v1";
@@ -40,7 +42,6 @@ export interface WallyOutcome {
 	requests: number;
 }
 
-/** A name to require a package by: `signal` gives `Signal`, `rbx-util` gives `RbxUtil`. */
 /**
  * Refuses a package's names unless each is a plain path segment.
  *
@@ -55,13 +56,14 @@ function assertPlainNames(names: { scope?: string; name?: string; version?: stri
 	const version = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]*)?$/;
 	for (const key of ["scope", "name", "alias"] as const) {
 		const value = names[key];
-		if (value !== undefined && !word.test(value)) throw new Error(`"${value}" is not a package ${key} Roswaal can install.`);
+		if (value !== undefined && !word.test(value)) throw new UserError(`"${value}" is not a package ${key} Roswaal can install.`);
 	}
 	if (names.version !== undefined && !version.test(names.version)) {
-		throw new Error(`"${names.version}" is not a version Roswaal can install.`);
+		throw new UserError(`"${names.version}" is not a version Roswaal can install.`);
 	}
 }
 
+/** A name to require a package by: `signal` gives `Signal`, `rbx-util` gives `RbxUtil`. */
 export function aliasFor(name: string): string {
 	return name.split(/[-_]/).filter(Boolean).map((part) => part[0].toUpperCase() + part.slice(1)).join("");
 }
@@ -79,11 +81,11 @@ class Installer {
 
 	private async ask(url: string): Promise<Response> {
 		if (this.requests >= REQUEST_BUDGET) {
-			throw new Error(`Stopped after ${REQUEST_BUDGET} requests to the Wally registry, to go easy on it.`);
+			throw new UserError(`Stopped after ${REQUEST_BUDGET} requests to the Wally registry, to go easy on it.`);
 		}
 		this.requests++;
 		const response = await fetch(url, { headers: { "Wally-Version": "0.3.2" } });
-		if (!response.ok) throw new Error(`The Wally registry answered ${response.status} for ${url.replace(REGISTRY, "")}.`);
+		if (!response.ok) throw new HttpError(502, `The Wally registry answered ${response.status} for ${url.replace(REGISTRY, "")}.`);
 		return response;
 	}
 
@@ -106,7 +108,7 @@ class Installer {
 	): Promise<string> {
 		const metadata = (await (await this.ask(`${REGISTRY}/package-metadata/${scope}/${name}`)).json()) as { versions: VersionMetadata[] };
 		const version = pickVersion(metadata.versions.map((v) => v.package.version), requirement);
-		if (!version) throw new Error(`No version of ${scope}/${name} matches ${requirement ?? "anything"}.`);
+		if (!version) throw new UserError(`No version of ${scope}/${name} matches ${requirement ?? "anything"}.`);
 		assertPlainNames({ scope, name, version, alias });
 		const index = indexFolder(scope, name, version);
 		const thunk = parent ? `${folder}/_Index/${parent}/${alias}.lua` : `${folder}/${alias}.lua`;
@@ -140,7 +142,7 @@ export async function addFromWally(
 	project: OpenProject, spec: string, realm: WallyRealm = "shared", alias?: string,
 ): Promise<WallyOutcome> {
 	const parsed = parseSpec(spec);
-	if (!parsed) throw new Error(`"${spec}" is not a package: write it as scope/name, or scope/name@version.`);
+	if (!parsed) throw new UserError(`"${spec}" is not a package: write it as scope/name, or scope/name@version.`);
 	const name = alias?.trim() || aliasFor(parsed.name);
 	const installer = new Installer(project);
 	let line: WallyOutcome["line"];
@@ -159,7 +161,7 @@ export async function addFromWally(
 		return {
 			...(line ? { line } : {}),
 			installed: installer.installed,
-			problem: (err as Error).message,
+			problem: errorMessage(err),
 			requests: installer.requests,
 		};
 	}
@@ -182,7 +184,7 @@ function unwrapped(files: ZipEntry[]): ZipEntry[] {
 export async function installZip(
 	project: OpenProject, bytes: Uint8Array, options: { alias?: string; realm?: WallyRealm; fileName?: string; vendor?: boolean } = {},
 ): Promise<WallyOutcome> {
-	const files = unwrapped((await unzip(bytes)).files);
+	const files = unwrapped((await readZip(bytes)).files);
 	const byPath = new Map(files.map((f) => [f.path, f]));
 	const text = (rel: string) => {
 		const found = byPath.get(rel);
@@ -221,7 +223,7 @@ export async function installZip(
 	const root = candidates.find((dir) => ["init.luau", "init.lua"].some((init) => byPath.has(dir ? `${dir}/${init}` : init)))
 		?? candidates.find((dir) => dir !== "" && byPath.has(`${dir}.luau`));
 	if (root === undefined) {
-		throw new Error("There is no module in that zip to vendor: no init.luau at its top, in src/ or lib/, and no project file saying where.");
+		throw new UserError("There is no module in that zip to vendor: no init.luau at its top, in src/ or lib/, and no project file saying where.");
 	}
 	const base = (options.fileName ?? "Package").replace(/\.zip$/i, "").split(/[^A-Za-z0-9_-]/).filter(Boolean).pop() ?? "Package";
 	const alias = options.alias?.trim() || aliasFor(base);
@@ -231,7 +233,7 @@ export async function installZip(
 	// would be written over.
 	for (const taken of [`${target}.lua`, `${target}.luau`, target]) {
 		if (await fs.stat(safeJoin(project.root, taken)).then(() => true, () => false)) {
-			throw new Error(`Packages already has ${alias}. Give this one another name to be required by.`);
+			throw new UserError(`Packages already has ${alias}. Give this one another name to be required by.`);
 		}
 	}
 	const prefix = root === "" ? "" : `${root}/`;
@@ -241,8 +243,20 @@ export async function installZip(
 		await installer.write(`${target}/${file.path.slice(prefix.length)}`, file.bytes);
 		written++;
 	}
-	if (written === 0) throw new Error("Nothing in that zip's module was Luau.");
+	if (written === 0) throw new UserError("Nothing in that zip's module was Luau.");
 	return { installed: [target], requests: 0 };
+}
+
+/**
+ * A zip somebody handed over, read. Anything `unzip` refuses is about those
+ * bytes -- not a zip, damaged, too large a format -- so it is theirs to fix.
+ */
+async function readZip(bytes: Uint8Array): ReturnType<typeof unzip> {
+	try {
+		return await unzip(bytes);
+	} catch (err) {
+		throw new UserError(errorMessage(err));
+	}
 }
 
 /** Vendors a GitHub repository, `owner/repo[@ref]`, fetched by the host. */
@@ -250,7 +264,7 @@ export async function installGithub(
 	project: OpenProject, repo: string, download: (owner: string, repo: string, ref: string) => Promise<Uint8Array>, alias?: string,
 ): Promise<WallyOutcome> {
 	const found = /^\s*([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:@(\S+))?\s*$/.exec(repo.replace(/^https?:\/\/github\.com\//, ""));
-	if (!found) throw new Error(`"${repo}" is not a repository: write it as owner/repo, or owner/repo@branch.`);
+	if (!found) throw new UserError(`"${repo}" is not a repository: write it as owner/repo, or owner/repo@branch.`);
 	const [, owner, name, ref = ""] = found;
 	const bytes = await download(owner, name.replace(/\.git$/, ""), ref);
 	return installZip(project, bytes, { alias: alias || aliasFor(name.replace(/\.git$/, "")), fileName: name, vendor: true });
@@ -272,20 +286,16 @@ export async function packageUses(project: OpenProject, alias: string, realm: Wa
 	const folder = REALM_DIRS[realm];
 	const pattern = new RegExp(`\\b${folder}\\s*(?:\\.\\s*|:\\s*WaitForChild\\s*\\(\\s*["']|\\[\\s*["'])${alias}\\b`);
 	const out: string[] = [];
-	const walk = async (dir: string): Promise<void> => {
-		for (const entry of await fs.readdir(safeJoin(project.root, dir || "."), { withFileTypes: true }).catch(() => [])) {
-			const rel = dir ? `${dir}/${entry.name}` : entry.name;
-			if (entry.isDirectory()) {
-				if (!NOT_SEARCHED.has(entry.name)) await walk(rel);
-				continue;
-			}
-			if (!/\.(luau?|nodescript)$/i.test(entry.name)) continue;
-			const text = await fs.readFile(safeJoin(project.root, rel), "utf8").catch(() => "");
-			if (pattern.test(text)) out.push(rel);
-		}
-	};
-	await walk("");
-	return out.sort();
+	const files = await walkFiles(project.root, {
+		skip: NOT_SEARCHED,
+		accept: (name) => /\.(luau?|nodescript)$/i.test(name),
+	});
+	for (const file of files) {
+		// Gone since the walk listed it: then it uses nothing.
+		const text = await fs.readFile(file.abs, "utf8").catch(() => "");
+		if (pattern.test(text)) out.push(file.path);
+	}
+	return out;
 }
 
 export interface RemovedPackage {

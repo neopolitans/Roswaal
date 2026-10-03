@@ -31,7 +31,7 @@ vi.mock("../src/server/host.js", async () => {
 });
 
 const { volume } = await import("../src/server/host.js") as unknown as { volume: Volume };
-const { ApiSession, HttpError } = await import("../src/server/routes.js");
+const { ApiSession, errorResponse } = await import("../src/server/routes.js");
 
 const DEMO = nodePath.resolve(
 	nodePath.dirname(fileURLToPath(import.meta.url)), "..", "examples", "demo",
@@ -78,7 +78,7 @@ async function statusOf(call: Promise<unknown>): Promise<number | null> {
 		await call;
 		return null;
 	} catch (err) {
-		return err instanceof HttpError ? err.status : 400;
+		return errorResponse(err).status;
 	}
 }
 
@@ -220,6 +220,13 @@ describe("what the API refuses", () => {
 		expect(await statusOf(post("/folder/create", {}))).toBe(400);
 	});
 
+	it("answers 400 for a parameter that is not one of its values", async () => {
+		expect(await statusOf(get("/wally/uses", { alias: "Signal", realm: "elsewhere" }))).toBe(400);
+		expect(await statusOf(post("/wally/remove", { alias: "Signal", realm: 3 }))).toBe(400);
+		expect(await statusOf(get("/export", { place: "replace" }))).toBe(400);
+		expect(await statusOf(post("/script/move", { from: "x.nodescript" }))).toBe(400);
+	});
+
 	it("answers 404 for a route that is not there", async () => {
 		expect(await statusOf(session.handle("GET", "/nope"))).toBe(404);
 		expect(await statusOf(session.handle("DELETE", "/script"))).toBe(404);
@@ -233,6 +240,57 @@ describe("what the API refuses", () => {
 
 	it("refuses a structural edit inside the output directory", async () => {
 		expect(await statusOf(post("/folder/create", { path: "src/Invented" }))).toBe(400);
+	});
+
+	/**
+	 * A config that would not read back used to be written anyway, and the next
+	 * `roswaal serve` could not open the project it had just saved.
+	 */
+	it("refuses a config that would not read back, and leaves roswaal.json as it was", async () => {
+		const before = await volume.readFile("/demo/roswaal.json", "utf8");
+		const { config } = await get("/project") as { config: Record<string, unknown> };
+		expect(await statusOf(put("/project/config", { ...config, nodePaths: null }))).toBe(400);
+		expect(await statusOf(put("/project/config", { ...config, target: "xbox" }))).toBe(400);
+		expect(await statusOf(put("/project/config", [1, 2]))).toBe(400);
+		expect(await volume.readFile("/demo/roswaal.json", "utf8")).toBe(before);
+	});
+
+	it("saves a config that is one, and answers with what it saved", async () => {
+		const { config } = await get("/project") as { config: Record<string, unknown> };
+		const saved = await put("/project/config", { ...config, comments: !config.comments }) as
+			{ config: { comments: boolean } };
+		expect(saved.config.comments).toBe(!config.comments);
+		await put("/project/config", config);
+	});
+
+	/** A graph saved over hand-written Luau would skip the hand-edit guard. */
+	it("saves graphs and maps only to their own kind of file", async () => {
+		const { script } = await get("/script", {
+			path: ".roswaal/scripts/ReplicatedStorage/Shared/Greeter.nodescript",
+		}) as { script: unknown };
+		expect(await statusOf(put("/script", { path: "src/ReplicatedStorage/Shared/Greeter.luau", script })))
+			.toBe(400);
+		expect(await statusOf(put("/map", { path: "default.project.json", map: { root: {} } }))).toBe(400);
+	});
+
+	/**
+	 * It answered 200 with an `error` field, so a client that checks the status
+	 * took a broken place for a working one.
+	 */
+	it("answers a place that will not read with an error status", async () => {
+		const config = String(await volume.readFile("/demo/roswaal.json", "utf8"));
+		await volume.writeFile("/demo/Broken.rbxl", new Uint8Array([1, 2, 3, 4]));
+		await put("/project/config", { ...JSON.parse(config), place: "Broken.rbxl" });
+		try {
+			const refused = await get("/place").then(() => null, (err: unknown) => errorResponse(err));
+			expect(refused?.status).toBe(422);
+			expect(refused?.body.code).toBe("place-unreadable");
+			expect(refused?.body.error).toContain("Broken.rbxl could not be read");
+		} finally {
+			await volume.writeFile("/demo/roswaal.json", config, "utf8");
+			await volume.rm("/demo/Broken.rbxl");
+			await session.openAt("/demo");
+		}
 	});
 });
 

@@ -22,41 +22,33 @@
  * already knows how to read as "drop the button" rather than as a failure.
  */
 
-import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
-import { emptyScript, type NodeDef, type NodeScript, type RoswaalConfig } from "../core/schema.js";
-import { VERSION } from "../cli/version.js";
+import { path } from "./host.js";
 
-import { toBase64 } from "../core/base64.js";
+import { VERSION } from "../cli/version.js";
+import { fromBase64, toBase64 } from "../core/base64.js";
+import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
 import { describeInstance, fingerprint, outlinePlace, type PlaceOutline } from "../core/rbx/browse.js";
 import { RbxError, readRbx, type RbxDocument, type RbxInstance } from "../core/rbx/index.js";
 import { planPlaceUpdate, type PlaceReport } from "../core/rbx/placeExport.js";
-import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
-import { addFromWally, installGithub, installZip, packageUses, removePackage } from "./wally.js";
-import { fromBase64 } from "../core/base64.js";
-import type { WallyRealm } from "../core/wally.js";
-import { path } from "./host.js";
+import { emptyScript, type NodeDef, type NodeScript } from "../core/schema.js";
+import { errorMessage, HttpError } from "./errors.js";
+import { toPosix } from "./paths.js";
 import {
-	buildTree, collectBinaries, collectMaps, collectProject, compileAll, exportPlace, findPlaceFile, compileMap, compileScript, copyPackBetween, createFolder,
-	findRojoProjects, importRojoProject,
-	createPack, deleteEntry, deletePack, deletePackNode, duplicatePack, exportedTypes, findOrphanOutputs,
-	graphName, initProject, listPacks, locateFile, moveEntry, openProject, packUsage, readConfig,
-	readLuaurcFiles, readMap, readPack, readScript, readText, removeOutputs, renameEntry, safeJoin,
-	graphOutputPath, placeEntries, readPlaceBytes, savePackNode, scanProjectPacks, setPackRequires, writeConfig,
-	writeLuaurcFile, writeMap, writeScript,
+	buildTree, collectBinaries, collectMaps, collectProject, compileAll, compileMap, compileScript,
+	copyPackBetween, createFolder, createPack, deleteEntry, deletePack, deletePackNode, duplicatePack,
+	exportedTypes, exportPlace, findOrphanOutputs, findPlaceFile, findRojoProjects, graphName,
+	graphOutputPath, importRojoProject, initProject, listPacks, locateFile, moveEntry, openProject,
+	packUsage, placeEntries, placeReport, readConfig, readLuaurcFiles, readMap, readPack, readPlaceBytes,
+	readScript, readText, removeOutputs, renameEntry, safeJoin, savePackNode, scanProjectPacks,
+	setPackRequires, writeConfig, writeLuaurcFile, writeMap, writeScript,
 	type CompileStep, type OpenProject,
 } from "./project.js";
+import { fields, need, optionalQuery, query, realmOf, text, type RouteRequest } from "./request.js";
+import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
+import { addFromWally, installGithub, installZip, packageUses, removePackage } from "./wally.js";
 
-export class HttpError extends Error {
-	constructor(readonly status: number, message: string) {
-		super(message);
-	}
-}
-
-/** A request, reduced to the two things any of these handlers reads. */
-export interface RouteRequest {
-	query?: Record<string, string | undefined>;
-	body?: unknown;
-}
+export { errorResponse, HttpError, UserError, type ErrorBody } from "./errors.js";
+export type { RouteRequest } from "./request.js";
 
 export type RouteHandler = (req: RouteRequest) => Promise<unknown>;
 
@@ -221,29 +213,23 @@ export class ApiSession {
 		return this.place;
 	}
 
+	/** The route table, gathered from one method per area. */
 	private build(): Record<string, RouteHandler> {
-		const query = (req: RouteRequest, name: string): string => {
-			const value = req.query?.[name];
-			if (typeof value !== "string" || value === "") {
-				throw new HttpError(400, `Missing "${name}".`);
-			}
-			return value;
-		};
-		const body = <T>(req: RouteRequest): T => (req.body ?? {}) as T;
-
 		return {
-			// -----------------------------------------------------------------
-			// Project
-			// -----------------------------------------------------------------
+			...this.projectRoutes(),
+			...this.placeRoutes(),
+			...this.luauRoutes(),
+			...this.packageRoutes(),
+			...this.documentRoutes(),
+			...this.entryRoutes(),
+			...this.packRoutes(),
+			...this.compileRoutes(),
+		};
+	}
 
-			/**
-			 * What is serving, and what it can do.
-			 *
-			 * The capability list is the editor's, not a diagnostic: it hides the
-			 * controls behind anything absent rather than offering them and
-			 * failing on the click. Names, not a boolean each, so a host that
-			 * gains one does not need this shape changed.
-			 */
+	/** What is serving, the open project, its settings, and the demos. */
+	private projectRoutes(): Record<string, RouteHandler> {
+		return {
 			/**
 			 * The demo projects this host can open, by folder name.
 			 *
@@ -262,16 +248,20 @@ export class ApiSession {
 			 * change what the next person who tries it will see.
 			 */
 			"POST /demos/duplicate": async (req) => {
-				const body = req.body as { dir?: unknown; into?: unknown };
-				if (typeof body.dir !== "string" || body.dir === "") {
-					throw new HttpError(400, "Which demo? Pass its `dir`.");
-				}
-				if (typeof body.into !== "string" || body.into === "") {
-					throw new HttpError(400, "Where should it go? Pass `into`.");
-				}
-				return { root: await this.ability("duplicateDemo")(body.dir, body.into) };
+				const { dir, into } = fields<{ dir: string; into: string }>(req);
+				const demo = need(text(dir), "dir", "Which demo? Pass its `dir`.");
+				const where = need(text(into), "into", "Where should it go? Pass `into`.");
+				return { root: await this.ability("duplicateDemo")(demo, where) };
 			},
 
+			/**
+			 * What is serving, and what it can do.
+			 *
+			 * The capability list is the editor's, not a diagnostic: it hides the
+			 * controls behind anything absent rather than offering them and
+			 * failing on the click. Names, not a boolean each, so a host that
+			 * gains one does not need this shape changed.
+			 */
 			"GET /health": async () => ({
 				ok: true,
 				project: this.current?.root ?? null,
@@ -294,8 +284,7 @@ export class ApiSession {
 				this.ability("inspect")(path.resolve(query(req, "root"))),
 
 			"POST /project/open": async (req) => {
-				const { root } = body<{ root?: string }>(req);
-				if (!root) throw new HttpError(400, "Provide a project root.");
+				const root = need(fields<{ root: string }>(req).root, "root", "Provide a project root.");
 				return this.described(await this.open(root, true));
 			},
 
@@ -309,20 +298,20 @@ export class ApiSession {
 			 * Open versus Initialise — belongs between them.
 			 */
 			"POST /project/browse": async (req) => {
-				const { startIn } = body<{ startIn?: string }>(req);
+				const { startIn } = fields<{ startIn: string }>(req);
 				return { path: await this.ability("browse")(startIn) };
 			},
 
 			"POST /project/init": async (req) => {
-				const { root } = body<{ root?: string }>(req);
-				if (!root) throw new HttpError(400, "Provide a project root.");
+				const root = need(fields<{ root: string }>(req).root, "root", "Provide a project root.");
 				await initProject(root);
 				return this.described(await this.open(root, true));
 			},
 
 			"PUT /project/config": async (req) => {
 				const project = this.project();
-				await writeConfig(project.root, body<RoswaalConfig>(req));
+				// Checked before it is written, and written before the reload reads it.
+				await writeConfig(project.root, req.body);
 				return { config: (await this.reload()).config };
 			},
 
@@ -332,10 +321,27 @@ export class ApiSession {
 			},
 
 			/**
+			 * Forgets what the host has stored. The caller reloads afterwards:
+			 * the editor is holding open documents that name graphs which are
+			 * about to stop existing, and a reload is a shorter answer than
+			 * reconciling every one of them.
+			 */
+			"POST /reset": async () => {
+				await this.ability("reset")();
+				return { ok: true };
+			},
+		};
+	}
+
+	/** The project's place file, for the DataModel browser. */
+	private placeRoutes(): Record<string, RouteHandler> {
+		return {
+			/**
 			 * The project's place as a tree, for the DataModel browser: classes
 			 * and names only, and which project file writes each script -- the
 			 * match Modify RBXL makes. `stamp` names this version of the file,
-			 * for asking about one instance of it.
+			 * for asking about one instance of it. A place that will not read
+			 * is a 422 saying why.
 			 */
 			"GET /place": async () => {
 				const project = this.project();
@@ -345,8 +351,10 @@ export class ApiSession {
 				try {
 					loaded = await this.loadPlace(project, file);
 				} catch (err) {
-					if (err instanceof RbxError) return { file, error: err.message };
-					throw err;
+					if (!(err instanceof RbxError)) throw err;
+					throw new HttpError(422, `${file} could not be read: ${errorMessage(err)}`, {
+						code: "place-unreadable",
+					});
 				}
 				const scripts: Record<number, string> = {};
 				planPlaceUpdate(loaded.doc, await placeEntries(project), (inst, owner) => {
@@ -354,105 +362,6 @@ export class ApiSession {
 					if (i !== undefined) scripts[i] = owner;
 				});
 				return { file, stamp: loaded.stamp, outline: loaded.outline, scripts };
-			},
-
-			/**
-			 * The modules a Luau file's locals hold -- `local Flux =
-			 * require(Packages.Flux)` -- followed to what each gives back, for
-			 * hover to describe `Flux.new`. `text` is the file as the editor
-			 * has it, when that differs from the disk.
-			 */
-			"POST /luau/modules": async (req) => {
-				const { path: file, text } = body<{ path?: string; text?: string }>(req);
-				if (!file) throw new HttpError(400, "Which file? Pass its `path`.");
-				const project = this.project();
-				// A graph's code runs from the file it compiles to.
-				const runsFrom = file.endsWith(".nodescript") ? (await graphOutputPath(project, file)) ?? file : file;
-				return {
-					modules: await modulesRequiredBy(project, runsFrom, text),
-					// Where the file is in the DataModel, for `script.Parent`.
-					self: await instancePathOf(project, runsFrom),
-				};
-			},
-
-			/**
-			 * The DataModel as the project knows it: the place's instances and
-			 * what the node maps' files add, for instance-aware lint, hover and
-			 * completion. Answers without a place too, from the files alone.
-			 */
-			"GET /instances": async () => {
-				const project = this.project();
-				const file = await findPlaceFile(project.root, project.config);
-				let place: PlaceOutline | null = null;
-				if (file) place = await this.loadPlace(project, file).then((p) => p.outline, () => null);
-				return { outline: await projectInstances(project, place) };
-			},
-
-			/**
-			 * Adds `scope/name[@version]` to wally.toml and installs it, with what
-			 * it depends on, from the Wally registry -- asking it as little as it
-			 * can. What could not be installed is said, not retried.
-			 */
-			"POST /wally/add": async (req) => {
-				const { spec, realm, alias } = body<{ spec?: string; realm?: WallyRealm; alias?: string }>(req);
-				if (!spec) throw new HttpError(400, "Which package? Pass its `spec`, scope/name.");
-				try {
-					return await addFromWally(this.project(), spec, realm, alias);
-				} catch (err) {
-					throw new HttpError(400, (err as Error).message);
-				}
-			},
-
-			/** A package from a zip: a Wally package where `wally install` puts one, anything else vendored. */
-			"POST /wally/zip": async (req) => {
-				const { data, alias, realm, fileName } = body<{ data?: string; alias?: string; realm?: WallyRealm; fileName?: string }>(req);
-				if (!data) throw new HttpError(400, "Pass the zip as base64 `data`.");
-				try {
-					return await installZip(this.project(), fromBase64(data), { alias, realm, fileName });
-				} catch (err) {
-					throw new HttpError(400, (err as Error).message);
-				}
-			},
-
-			/** Files that still require a Wally package, before it is removed. */
-			"GET /wally/uses": async (req) => ({
-				uses: await packageUses(this.project(), query(req, "alias"), (req.query?.realm as WallyRealm | undefined) ?? "shared"),
-			}),
-
-			/** Takes a Wally dependency out, with the `_Index` folders only it kept. */
-			"POST /wally/remove": async (req) => {
-				const { alias, realm } = body<{ alias?: string; realm?: WallyRealm }>(req);
-				if (!alias) throw new HttpError(400, "Which package? Pass its `alias`.");
-				return removePackage(this.project(), alias, realm);
-			},
-
-			/** A GitHub repository, vendored into Packages/. The daemon's alone; see `githubDownload`. */
-			"POST /wally/github": async (req) => {
-				const { repo, alias } = body<{ repo?: string; alias?: string }>(req);
-				if (!repo) throw new HttpError(400, "Which repository? Pass `repo`, owner/repo.");
-				const download = this.ability("githubDownload");
-				try {
-					return await installGithub(this.project(), repo, download, alias);
-				} catch (err) {
-					throw new HttpError(400, (err as Error).message);
-				}
-			},
-
-			/**
-			 * The Rojo project files in the project's root, and which already
-			 * have a map writing them: what Import Rojo project offers.
-			 */
-			"GET /rojo/projects": async () => ({ projects: await findRojoProjects(this.project()) }),
-
-			/** Reads a Rojo project file into a node map. See `importRojoProject`. */
-			"POST /rojo/import": async (req) => {
-				const { file } = body<{ file?: string }>(req);
-				if (!file) throw new HttpError(400, "Which project file? Pass its `file`.");
-				try {
-					return await importRojoProject(this.project(), file);
-				} catch (err) {
-					throw new HttpError(400, (err as Error).message);
-				}
 			},
 
 			/**
@@ -473,41 +382,148 @@ export class ApiSession {
 			},
 
 			/**
-			 * Custom node packs only. The editor bundles the built-in definitions,
-			 * because their pin derivation and display rules are code and cannot
-			 * survive a round trip through JSON.
-			 *
-			 * **The project says which ones are packs; this does not work it out.**
-			 * It used to, with a filter for definitions that were not
-			 * builtin-handled and had no pin derivation — which is most of the
-			 * built-in library. So the editor was handed 215 function-less copies
-			 * of nodes it already had, they shadowed the real ones by loading last,
-			 * and every field that was a function quietly stopped existing.
+			 * The DataModel as the project knows it: the place's instances and
+			 * what the node maps' files add, for instance-aware lint, hover and
+			 * completion. Answers without a place too, from the files alone.
 			 */
-			"GET /nodes": async () => {
+			"GET /instances": async () => {
 				const project = this.project();
-				return { custom: project.packs, errors: project.packErrors };
+				const file = await findPlaceFile(project.root, project.config);
+				let place: PlaceOutline | null = null;
+				// A place that will not read leaves the files' instances to answer with.
+				if (file) place = await this.loadPlace(project, file).then((p) => p.outline, () => null);
+				return { outline: await projectInstances(project, place) };
+			},
+		};
+	}
+
+	/** What Luau and graphs can see: modules, types, locations and `.luaurc`. */
+	private luauRoutes(): Record<string, RouteHandler> {
+		return {
+			/**
+			 * The modules a Luau file's locals hold -- `local Flux =
+			 * require(Packages.Flux)` -- followed to what each gives back, for
+			 * hover to describe `Flux.new`. `text` is the file as the editor
+			 * has it, when that differs from the disk.
+			 */
+			"POST /luau/modules": async (req) => {
+				const { path: given, text: edited } = fields<{ path: string; text: string }>(req);
+				const file = need(given, "path", "Which file? Pass its `path`.");
+				const project = this.project();
+				// A graph's code runs from the file it compiles to.
+				const runsFrom = file.endsWith(".nodescript") ? (await graphOutputPath(project, file)) ?? file : file;
+				return {
+					modules: await modulesRequiredBy(project, runsFrom, edited),
+					// Where the file is in the DataModel, for `script.Parent`.
+					self: await instancePathOf(project, runsFrom),
+				};
 			},
 
-			// -----------------------------------------------------------------
-			// Graphs
-			// -----------------------------------------------------------------
+			"GET /types": async () => ({ types: await exportedTypes(this.project()) }),
 
+			"GET /resolve": async (req) => ({
+				location: await locateFile(this.project(), query(req, "path")),
+			}),
+
+			/**
+			 * Every `.luaurc` in the project, as text.
+			 *
+			 * All of them rather than the chain for one script: the editor keeps
+			 * several graphs open and asks which aliases are in scope on every
+			 * keystroke in a specifier field, and `chainFor` turns this into that
+			 * answer without a round trip.
+			 */
+			"GET /luaurc": async () => ({ files: await readLuaurcFiles(this.project()) }),
+
+			/**
+			 * Writes one, whole.
+			 *
+			 * The caller sends the file's whole text because a `.luaurc` is the
+			 * developer's: it may carry `languageMode` and settings that are none
+			 * of our business, and rebuilding it from the aliases we understood
+			 * would drop the rest without saying so.
+			 */
+			"PUT /luaurc": async (req) => {
+				const { dir, text: contents } = fields<{ dir: string; text: string }>(req);
+				if (typeof contents !== "string") throw new HttpError(400, "text is required");
+				await writeLuaurcFile(this.project(), typeof dir === "string" ? dir : "", contents);
+				return { files: await readLuaurcFiles(this.project()) };
+			},
+		};
+	}
+
+	/** Wally packages, vendored code, and Rojo project files read into maps. */
+	private packageRoutes(): Record<string, RouteHandler> {
+		return {
+			/**
+			 * Adds `scope/name[@version]` to wally.toml and installs it, with what
+			 * it depends on, from the Wally registry -- asking it as little as it
+			 * can. What could not be installed is said, not retried.
+			 */
+			"POST /wally/add": async (req) => {
+				const { spec, realm, alias } = fields<{ spec: string; realm: string; alias: string }>(req);
+				const wanted = need(spec, "spec", "Which package? Pass its `spec`, scope/name.");
+				return addFromWally(this.project(), wanted, realmOf(realm), alias);
+			},
+
+			/** A package from a zip: a Wally package where `wally install` puts one, anything else vendored. */
+			"POST /wally/zip": async (req) => {
+				const { data, alias, realm, fileName } =
+					fields<{ data: string; alias: string; realm: string; fileName: string }>(req);
+				const bytes = fromBase64(need(data, "data", "Pass the zip as base64 `data`."));
+				return installZip(this.project(), bytes, { alias, realm: realmOf(realm), fileName });
+			},
+
+			/** Files that still require a Wally package, before it is removed. */
+			"GET /wally/uses": async (req) => ({
+				uses: await packageUses(this.project(), query(req, "alias"), realmOf(req.query?.realm) ?? "shared"),
+			}),
+
+			/** Takes a Wally dependency out, with the `_Index` folders only it kept. */
+			"POST /wally/remove": async (req) => {
+				const { alias, realm } = fields<{ alias: string; realm: string }>(req);
+				const name = need(alias, "alias", "Which package? Pass its `alias`.");
+				return removePackage(this.project(), name, realmOf(realm));
+			},
+
+			/** A GitHub repository, vendored into Packages/. The daemon's alone; see `githubDownload`. */
+			"POST /wally/github": async (req) => {
+				const { repo, alias } = fields<{ repo: string; alias: string }>(req);
+				const named = need(repo, "repo", "Which repository? Pass `repo`, owner/repo.");
+				return installGithub(this.project(), named, this.ability("githubDownload"), alias);
+			},
+
+			/**
+			 * The Rojo project files in the project's root, and which already
+			 * have a map writing them: what Import Rojo project offers.
+			 */
+			"GET /rojo/projects": async () => ({ projects: await findRojoProjects(this.project()) }),
+
+			/** Reads a Rojo project file into a node map. See `importRojoProject`. */
+			"POST /rojo/import": async (req) => {
+				const file = need(fields<{ file: string }>(req).file, "file", "Which project file? Pass its `file`.");
+				return importRojoProject(this.project(), file);
+			},
+		};
+	}
+
+	/** Graphs and node maps: reading, saving and creating them. */
+	private documentRoutes(): Record<string, RouteHandler> {
+		return {
 			"GET /script": async (req) => ({
 				script: await readScript(this.project(), query(req, "path")),
 			}),
 
 			"PUT /script": async (req) => {
-				const { path: relPath, script } = body<{ path?: string; script?: NodeScript }>(req);
-				if (!relPath || !script) throw new HttpError(400, "Provide both path and script.");
-				await writeScript(this.project(), relPath, script);
+				const { path: relPath, script } = fields<{ path: string; script: NodeScript }>(req);
+				await writeScript(this.project(), need(relPath, "path"), need(script, "script"));
 				return { ok: true };
 			},
 
 			"POST /script/create": async (req) => {
 				const project = this.project();
 				const { dir, name, scriptClass } =
-					body<{ dir?: string; name?: string; scriptClass?: NodeScript["scriptClass"] }>(req);
+					fields<{ dir: string; name: string; scriptClass: NodeScript["scriptClass"] }>(req);
 				// The same function renaming uses, so a graph created as "My Graph"
 				// and one renamed to it end up called the same thing.
 				const safeName = graphName(name ?? "Untitled") || "Untitled";
@@ -529,32 +545,27 @@ export class ApiSession {
 			},
 
 			"POST /script/move": async (req) => {
-				const { from, toDir } = body<{ from: string; toDir: string }>(req);
-				return { path: await moveEntry(this.project(), from, toDir) };
+				const { from, toDir } = fields<{ from: string; toDir: string }>(req);
+				return { path: await moveEntry(this.project(), need(from, "from"), need(toDir, "toDir")) };
 			},
 
 			"POST /script/delete": async (req) => {
-				await deleteEntry(this.project(), String(body<{ path?: string }>(req).path ?? ""));
+				await deleteEntry(this.project(), String(fields<{ path: string }>(req).path ?? ""));
 				return { ok: true };
 			},
-
-			// -----------------------------------------------------------------
-			// Node maps
-			// -----------------------------------------------------------------
 
 			"GET /map": async (req) => ({ map: await readMap(this.project(), query(req, "path")) }),
 
 			"PUT /map": async (req) => {
-				const { path: relPath, map } = body<{ path?: string; map?: NodeMap }>(req);
-				if (!relPath || !map) throw new HttpError(400, "Provide both path and map.");
-				await writeMap(this.project(), relPath, map);
+				const { path: relPath, map } = fields<{ path: string; map: NodeMap }>(req);
+				await writeMap(this.project(), need(relPath, "path"), need(map, "map"));
 				return { ok: true };
 			},
 
 			"POST /map/create": async (req) => {
 				const project = this.project();
-				const { dir, name } = body<{ dir?: string; name?: string }>(req);
-				const safeName = (name ?? "Tree").replace(/[^A-Za-z0-9_ -]/g, "").trim() || "Tree";
+				const { dir, name } = fields<{ dir: string; name: string }>(req);
+				const safeName = graphName(name ?? "Tree") || "Tree";
 				const relPath = path.posix.join(dir ?? project.config.sourceDir, `${safeName}.nodemap`);
 				// A map describes where files end up, and that question has a
 				// different shape per runtime. The project already says which
@@ -566,30 +577,20 @@ export class ApiSession {
 				await writeMap(project, relPath, map);
 				return { path: relPath, map };
 			},
+		};
+	}
 
-			"POST /map/compile": async (req) => {
-				const project = this.project();
-				const { path: relPath, write, force } =
-					body<{ path?: string; write?: boolean; force?: boolean }>(req);
-				const targets = relPath ? [relPath] : await collectMaps(project);
-				const results = [];
-				for (const target of targets) results.push(await compileMap(project, target, { write, force }));
-				return { results };
-			},
-
-			// -----------------------------------------------------------------
-			// Folders and entries
-			// -----------------------------------------------------------------
-
+	/** Folders and entries in the tree, and handing one to the machine. */
+	private entryRoutes(): Record<string, RouteHandler> {
+		return {
 			"POST /folder/create": async (req) => {
-				const { path: relPath } = body<{ path?: string }>(req);
-				if (!relPath) throw new HttpError(400, "Provide a path.");
+				const relPath = need(fields<{ path: string }>(req).path, "path", "Provide a path.");
 				return { path: await createFolder(this.project(), relPath) };
 			},
 
 			"POST /entry/reveal": async (req) => {
 				const project = this.project();
-				const { path: relPath } = body<{ path?: string }>(req);
+				const { path: relPath } = fields<{ path: string }>(req);
 				await this.ability("reveal")(relPath ? safeJoin(project.root, relPath) : project.root);
 				return { ok: true };
 			},
@@ -603,24 +604,38 @@ export class ApiSession {
 			 */
 			"POST /entry/edit": async (req) => {
 				const project = this.project();
-				const relPath = String(body<{ path?: string }>(req).path ?? "");
-				if (!relPath) throw new HttpError(400, "Provide a path.");
+				const relPath = need(fields<{ path: string }>(req).path, "path", "Provide a path.");
 				return { editor: await this.ability("edit")(safeJoin(project.root, relPath)) };
 			},
 
 			"POST /entry/rename": async (req) => {
-				const { path: relPath, name } = body<{ path?: string; name?: string }>(req);
-				if (!relPath || !name) throw new HttpError(400, "Provide both path and name.");
-				return { path: await renameEntry(this.project(), relPath, name) };
+				const { path: relPath, name } = fields<{ path: string; name: string }>(req);
+				return { path: await renameEntry(this.project(), need(relPath, "path"), need(name, "name")) };
 			},
 
 			"GET /source": async (req) => ({
 				text: await readText(this.project(), query(req, "path")),
 			}),
+		};
+	}
 
-			// -----------------------------------------------------------------
-			// Node packs
-			// -----------------------------------------------------------------
+	/** Node packs, for the designer: listing, editing, and moving between projects. */
+	private packRoutes(): Record<string, RouteHandler> {
+		return {
+			/**
+			 * Custom node packs only. The editor bundles the built-in definitions,
+			 * because their pin derivation and display rules are code and cannot
+			 * survive a round trip through JSON.
+			 *
+			 * **The project says which ones are packs; this does not work it out.**
+			 * A filter for definitions that look like data matches most of the
+			 * built-in library, and copies of those shadow the real ones in the
+			 * editor, losing every field that is a function.
+			 */
+			"GET /nodes": async () => {
+				const project = this.project();
+				return { custom: project.packs, errors: project.packErrors };
+			},
 
 			/**
 			 * The node packs on disk, and where a new one would go. The designer
@@ -642,15 +657,13 @@ export class ApiSession {
 			},
 
 			"POST /packs/create": async (req) => {
-				const { name } = body<{ name?: string }>(req);
-				const pack = await createPack(this.project(), name ?? "");
+				const pack = await createPack(this.project(), fields<{ name: string }>(req).name ?? "");
 				await this.reload();
 				return { pack };
 			},
 
 			"POST /packs/duplicate": async (req) => {
-				const { path: relPath } = body<{ path?: string }>(req);
-				if (!relPath) throw new HttpError(400, "Provide a path.");
+				const relPath = need(fields<{ path: string }>(req).path, "path", "Provide a path.");
 				const pack = await duplicatePack(this.project(), relPath);
 				await this.reload();
 				return { pack };
@@ -661,8 +674,7 @@ export class ApiSession {
 			}),
 
 			"POST /packs/delete": async (req) => {
-				const { path: relPath } = body<{ path?: string }>(req);
-				if (!relPath) throw new HttpError(400, "Provide a path.");
+				const relPath = need(fields<{ path: string }>(req).path, "path", "Provide a path.");
 				await deletePack(this.project(), relPath);
 				await this.reload();
 				return { ok: true };
@@ -672,24 +684,22 @@ export class ApiSession {
 			"GET /packs/scan": async (req) => scanProjectPacks(query(req, "root")),
 
 			"POST /packs/import": async (req) => {
-				const { root, path: relPath } = body<{ root?: string; path?: string }>(req);
-				if (!root || !relPath) throw new HttpError(400, "Provide both root and path.");
-				const from = await scanProjectPacks(root);
+				const { root, path: relPath } = fields<{ root: string; path: string }>(req);
+				const from = await scanProjectPacks(need(root, "root"));
 				const fromConfig = await readConfig(from.root);
 				const pack = await copyPackBetween(
-					{ root: from.root, config: fromConfig }, relPath, this.project(),
+					{ root: from.root, config: fromConfig }, need(relPath, "path"), this.project(),
 				);
 				await this.reload();
 				return { pack };
 			},
 
 			"POST /packs/export": async (req) => {
-				const { root, path: relPath } = body<{ root?: string; path?: string }>(req);
-				if (!root || !relPath) throw new HttpError(400, "Provide both root and path.");
-				const to = await scanProjectPacks(root);
+				const { root, path: relPath } = fields<{ root: string; path: string }>(req);
+				const to = await scanProjectPacks(need(root, "root"));
 				const toConfig = await readConfig(to.root);
 				return {
-					pack: await copyPackBetween(this.project(), relPath, { root: to.root, config: toConfig }),
+					pack: await copyPackBetween(this.project(), need(relPath, "path"), { root: to.root, config: toConfig }),
 				};
 			},
 
@@ -699,80 +709,34 @@ export class ApiSession {
 			 * is a node you have to take on trust.
 			 */
 			"PUT /packs/node": async (req) => {
-				const { path: relPath, def, replaces } =
-					body<{ path?: string; def?: NodeDef; replaces?: string }>(req);
-				if (!relPath || !def) throw new HttpError(400, "Provide both path and def.");
-				const written = await savePackNode(this.project(), relPath, def, replaces);
+				const { path: relPath, def, replaces } = fields<{ path: string; def: NodeDef; replaces: string }>(req);
+				const written = await savePackNode(this.project(), need(relPath, "path"), need(def, "def"), replaces);
 				return { pack: written, packs: (await this.reload()).packs };
 			},
 
 			"POST /packs/requires": async (req) => {
-				const { path: relPath, requires } =
-					body<{ path?: string; requires?: string[] }>(req);
-				if (!relPath || !Array.isArray(requires)) {
-					throw new HttpError(400, "Provide a path and a requires list.");
-				}
-				const pack = await setPackRequires(this.project(), relPath, requires);
+				const { path: relPath, requires } = fields<{ path: string; requires: string[] }>(req);
+				if (!Array.isArray(requires)) throw new HttpError(400, "Provide a path and a requires list.");
+				const pack = await setPackRequires(this.project(), need(relPath, "path"), requires);
 				await this.reload();
 				return { pack };
 			},
 
 			"POST /packs/node/delete": async (req) => {
-				const { path: relPath, id } = body<{ path?: string; id?: string }>(req);
-				if (!relPath || !id) throw new HttpError(400, "Provide both path and id.");
-				const pack = await deletePackNode(this.project(), relPath, id);
+				const { path: relPath, id } = fields<{ path: string; id: string }>(req);
+				const pack = await deletePackNode(this.project(), need(relPath, "path"), need(id, "id"));
 				await this.reload();
 				return { pack };
 			},
+		};
+	}
 
-			// -----------------------------------------------------------------
-			// Types and resolution
-			// -----------------------------------------------------------------
-
-			"GET /types": async () => ({ types: await exportedTypes(this.project()) }),
-
-			"GET /resolve": async (req) => ({
-				location: await locateFile(this.project(), query(req, "path")),
-			}),
-
-			// -----------------------------------------------------------------
-			// `.luaurc`
-			// -----------------------------------------------------------------
-
-			/**
-			 * Every `.luaurc` in the project, as text.
-			 *
-			 * All of them rather than the chain for one script: the editor keeps
-			 * several graphs open and asks which aliases are in scope on every
-			 * keystroke in a specifier field, and `chainFor` turns this into that
-			 * answer without a round trip.
-			 */
-			"GET /luaurc": async () => ({ files: await readLuaurcFiles(this.project()) }),
-
-			/**
-			 * Writes one, whole.
-			 *
-			 * The caller sends the file's whole text because a `.luaurc` is the
-			 * developer's: it may carry `languageMode` and settings that are none
-			 * of our business, and rebuilding it from the aliases we understood
-			 * would drop the rest without saying so.
-			 */
-			"PUT /luaurc": async (req) => {
-				const body = req.body as { dir?: unknown; text?: unknown };
-				if (typeof body.text !== "string") throw new HttpError(400, "text is required");
-				const dir = typeof body.dir === "string" ? body.dir : "";
-				await writeLuaurcFile(this.project(), dir, body.text);
-				return { files: await readLuaurcFiles(this.project()) };
-			},
-
-			// -----------------------------------------------------------------
-			// Compilation
-			// -----------------------------------------------------------------
-
+	/** Compiling, what it leaves behind, and the whole project handed over. */
+	private compileRoutes(): Record<string, RouteHandler> {
+		return {
 			"POST /compile": async (req) => {
 				const project = this.project();
-				const { path: relPath, write, force } =
-					body<{ path?: string; write?: boolean; force?: boolean }>(req);
+				const { path: relPath, write, force } = fields<{ path: string; write: boolean; force: boolean }>(req);
 				// Only the whole-project walk narrates itself. One file has nothing
 				// to report a position in, and the POST answering is the news.
 				const results = relPath
@@ -781,10 +745,26 @@ export class ApiSession {
 				return { results };
 			},
 
+			"POST /map/compile": async (req) => {
+				const project = this.project();
+				const { path: relPath, write, force } = fields<{ path: string; write: boolean; force: boolean }>(req);
+				const targets = relPath ? [relPath] : await collectMaps(project);
+				const results = [];
+				for (const target of targets) results.push(await compileMap(project, target, { write, force }));
+				return { results };
+			},
+
 			/**
 			 * Generated files whose graph has moved or gone. Reported rather than
 			 * removed: deleting files is not something to do behind somebody's back.
 			 */
+			"GET /orphans": async () => ({ orphans: await findOrphanOutputs(this.project()) }),
+
+			"POST /orphans/remove": async (req) => {
+				const { paths } = fields<{ paths: string[] }>(req);
+				return { removed: await removeOutputs(this.project(), paths ?? []) };
+			},
+
 			/**
 			 * The whole project, as text, for the editor to zip and hand over.
 			 *
@@ -793,49 +773,29 @@ export class ApiSession {
 			 * and a route that only exists on one of them is a route that only
 			 * works on one of them, which is the arrangement this whole file
 			 * exists to avoid.
+			 *
+			 * `place=modify` writes the project's scripts into its place; the
+			 * report says what went in and what could not.
 			 */
-			/**
-			 * Forgets what the host has stored. The caller reloads afterwards:
-			 * the editor is holding open documents that name graphs which are
-			 * about to stop existing, and a reload is a shorter answer than
-			 * reconciling every one of them.
-			 */
-			"POST /reset": async () => {
-				await this.ability("reset")();
-				return { ok: true };
-			},
-
 			"GET /export": async (req) => {
 				const project = this.project();
+				const modify = optionalQuery(req, "place", ["modify"]) === "modify";
 				const binaries = await collectBinaries(project);
-				// `place=modify` writes the project's scripts into its place; the
-				// report says what went in and what could not.
 				const placeFile = await findPlaceFile(project.root, project.config);
 				let place: { file: string; report?: PlaceReport } | undefined = placeFile ? { file: placeFile } : undefined;
-				if (placeFile && req.query?.place === "modify") {
+				if (placeFile && modify) {
 					const written = await exportPlace(project);
 					if (written) {
 						binaries[written.file] = toBase64(written.bytes);
-						const { changes, added, ...report } = written.update;
-						const folders = added.filter((a) => a.source === undefined).length;
-						place = { file: written.file, report: { ...report, scripts: changes.length, folders } };
+						place = { file: written.file, report: placeReport(written.update) };
 					}
 				}
 				return {
-					// Either separator: the daemon's root on Windows is a Windows
-					// path, and a posix basename of it is the whole path.
-					name: project.root.split(/[\\/]/).filter(Boolean).pop() || "project",
+					name: path.posix.basename(toPosix(project.root)) || "project",
 					files: await collectProject(project),
 					binaries,
 					...(place ? { place } : {}),
 				};
-			},
-
-			"GET /orphans": async () => ({ orphans: await findOrphanOutputs(this.project()) }),
-
-			"POST /orphans/remove": async (req) => {
-				const { paths } = body<{ paths?: string[] }>(req);
-				return { removed: await removeOutputs(this.project(), paths ?? []) };
 			},
 		};
 	}

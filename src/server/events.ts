@@ -22,9 +22,9 @@ function frame(event: string, data: unknown): string {
  * of them.
  *
  * A dynamic-compile event is about one file and comes from the watcher; this is
- * about the daemon as a whole, and every tab needs it at once. Pointing the
- * daemon at another project used to leave a tab quietly editing a document that
- * no longer belonged to it, and the tab had no way to find out.
+ * about the daemon as a whole, and every tab needs it at once. Without it, a
+ * tab left open when the daemon is pointed at another project goes on quietly
+ * editing a document that no longer belongs to it, with no way to find out.
  */
 const streams = new Set<Response>();
 
@@ -44,10 +44,9 @@ export function streamCount(): number {
  *
  * Each write is isolated, and a stream that fails is dropped rather than
  * retried. `close` normally takes a response out of the set, but a socket can
- * die between the last event and that firing — and this loop only started
- * carrying anything at all in 0.13.0, so an unguarded throw halfway through
- * would be a new way for one dead tab to silence every live one. A compile
- * pushes two of these per file, which is a great many chances to find out.
+ * die between the last event and that firing, and an unguarded throw halfway
+ * through would let one dead tab silence every live one. A compile pushes two
+ * of these per file, which is a great many chances to find out.
  */
 function broadcast(event: string, data: unknown): void {
 	for (const res of [...streams]) {

@@ -17,12 +17,14 @@
  *
  * It runs in Manual mode too, without compiling, because an open graph has
  * to hear about those changes either way. Without that, the editor's next
- * autosave wrote the graph it was showing over the one just checked out.
+ * autosave would write the graph it was showing over the one just checked out.
  */
 
 import chokidar, { type FSWatcher } from "chokidar";
 import path from "node:path";
 
+import { errorMessage } from "./errors.js";
+import { toPosix } from "./paths.js";
 import { compileScript, type CompileOutcome, type OpenProject } from "./project.js";
 
 /** Long enough to coalesce a save, short enough to feel immediate. */
@@ -76,7 +78,7 @@ export class DynamicCompiler {
 			this.emit({ type: "removed", path: relative(project, file) });
 		});
 		this.watcher.on("error", (err) => {
-			this.emit({ type: "error", path: dir, message: (err as Error).message });
+			this.emit({ type: "error", path: dir, message: errorMessage(err) });
 		});
 	}
 
@@ -111,7 +113,7 @@ export class DynamicCompiler {
 			const outcome = await compileScript(project, rel, { write: true });
 			this.emit({ type: "compiled", path: rel, outcome });
 		} catch (err) {
-			this.emit({ type: "error", path: rel, message: (err as Error).message });
+			this.emit({ type: "error", path: rel, message: errorMessage(err) });
 		}
 	}
 
@@ -121,5 +123,5 @@ export class DynamicCompiler {
 }
 
 function relative(project: OpenProject, file: string): string {
-	return path.relative(project.root, file).split(path.sep).join("/");
+	return toPosix(path.relative(project.root, file));
 }

@@ -173,6 +173,8 @@ export async function rememberFolder(handle: FileSystemDirectoryHandle): Promise
 
 /** Forgets one folder, or all of them when nothing is named. */
 export async function forgetFolder(id?: string): Promise<void> {
+	// Forgetting is a convenience: a store that refuses only leaves the folder
+	// in the list, which is where it was before anybody asked.
 	if (id === undefined) {
 		await transact("readwrite", (store) => store.clear()).catch(() => {});
 		return;

@@ -12,9 +12,11 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { HttpError } from "./errors.js";
+
 export async function revealInFileManager(absolutePath: string): Promise<void> {
 	const stat = await fs.stat(absolutePath).catch(() => null);
-	if (!stat) throw new Error(`${path.basename(absolutePath)} is not on disk.`);
+	if (!stat) throw new HttpError(404, `${path.basename(absolutePath)} is not on disk.`);
 
 	// Selecting the file itself is nicer than opening its folder, where
 	// supported; a directory is opened rather than selected in its parent.
@@ -72,11 +74,12 @@ function detach(command: string, args: string[]): void {
  */
 export async function openInEditor(absolutePath: string): Promise<string> {
 	const stat = await fs.stat(absolutePath).catch(() => null);
-	if (!stat) throw new Error(`${path.basename(absolutePath)} is not on disk.`);
+	if (!stat) throw new HttpError(404, `${path.basename(absolutePath)} is not on disk.`);
 
 	const found = await findVsCode();
 	if (!found) {
-		throw new Error(
+		throw new HttpError(
+			501,
 			"Could not find VS Code. Install it, or make sure `code` is on your PATH — " +
 			"in VS Code that is “Shell Command: Install 'code' command in PATH”.",
 		);
