@@ -14,7 +14,7 @@ import {
 	CLASSES, DATATYPES, ENUMS, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS,
 } from "../src/core/robloxData.js";
 import {
-	CLASS_OPTIONS, classChain, classGroup, INSTANCE_CLASSES, isInstanceClass, isSubclassOf,
+	CLASS_OPTIONS, classChain, classGroup, INSTANCE_CLASSES, isInstanceClass, isSubclassOf, renderPath,
 } from "../src/core/roblox.js";
 import { typesCompatible } from "../src/core/compiler/validate.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
@@ -228,5 +228,18 @@ describe("a wire between two classes", () => {
 		expect(typesCompatible("number", "string")).toBe(true);
 		expect(typesCompatible("any", "Part")).toBe(true);
 		expect(typesCompatible("Part", "Color3")).toBe(false);
+	});
+});
+
+describe("an instance path written as Luau", () => {
+	it("brackets a reserved word, which Luau will not take after a dot", () => {
+		expect(renderPath("script", "Parent.end.Util")).toBe('script.Parent["end"].Util');
+		expect(renderPath("game", "ReplicatedStorage.then")).toBe('game.ReplicatedStorage["then"]');
+	});
+
+	it("brackets any other name with Luau's own escapes, not JSON's", () => {
+		expect(renderPath("script", "Main Menu")).toBe('script["Main Menu"]');
+		expect(renderPath("script", "a\u0001b")).toBe('script["a\\1b"]');
+		expect(renderPath("script", 'say "hi"')).toBe('script["say \\"hi\\""]');
 	});
 });
