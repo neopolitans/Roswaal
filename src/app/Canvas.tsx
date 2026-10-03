@@ -424,6 +424,10 @@ export function Canvas({
 		if (g.kind === "move" || g.kind === "resize") store.end();
 		gesture.current = { kind: "none" };
 		activePointer.current = null;
+		// Cleared with the gesture, so the next wire starts unhandled whichever
+		// way it was picked up. Left set, a wire lifted off a wired input after
+		// any earlier pin drop vanished on release instead of opening the palette.
+		wireHandled.current = false;
 		setMarquee(null);
 		setWireDrag(null);
 		setHoldAt(null);
@@ -725,23 +729,19 @@ export function Canvas({
 			if (existing) {
 				const sourcePin = pinDefOf(registry, script, existing.from, "out");
 				store.edit((s) => removeLink(s, existing.id, registry));
-				if (sourcePin) {
-					gesture.current = { kind: "wire", from: existing.from, side: "out", pin: sourcePin };
-					setWireDrag({
-						from: existing.from,
-						side: "out",
-						kind: sourcePin.kind,
-						type: sourcePin.type,
-					});
-					setPointer(toWorld(e.clientX, e.clientY));
-				}
+				if (sourcePin) startWire(e, existing.from, "out", sourcePin);
 				return;
 			}
 		}
 
+		startWire(e, { node: nodeId, pin: pin.id }, side, pin);
+	}
+
+	/** Every wire gesture starts here, so each one starts unhandled. */
+	function startWire(e: ReactPointerEvent, from: PinRef, side: "in" | "out", pin: PinDef) {
 		wireHandled.current = false;
-		gesture.current = { kind: "wire", from: { node: nodeId, pin: pin.id }, side, pin };
-		setWireDrag({ from: { node: nodeId, pin: pin.id }, side, kind: pin.kind, type: pin.type });
+		gesture.current = { kind: "wire", from, side, pin };
+		setWireDrag({ from, side, kind: pin.kind, type: pin.type });
 		setPointer(toWorld(e.clientX, e.clientY));
 	}
 
