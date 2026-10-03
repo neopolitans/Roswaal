@@ -2,20 +2,19 @@
  * The colour scheme, for the documentation site.
  *
  * The site ships `theme.css`, which follows the operating system — so a
- * developer who picked Nord in the editor and clicked Docs got the reference in
- * whatever the OS was set to. The editor's Docs *window* never had this problem
- * because it is the same bundle; the published site is plain HTML and had no
- * way to ask.
+ * developer who picked Nord in the editor and clicked Docs would get the
+ * reference in whatever the OS was set to. The editor's Docs *window* is the
+ * same bundle and needs nothing; the published site is plain HTML and has to
+ * ask.
  *
  * It can ask, because a preference lives in `localStorage` and the site is the
  * same origin as the editor. That is the whole reason preferences are stored
  * there rather than by the daemon — written up in `preferences.ts` — and this
  * is the case it was stored there for.
  *
- * Bundled from the editor's own modules for the reason `toolbarLinker.mjs`
- * gives: a scheme applied by a copy of `applyTheme` would be a second
- * implementation of the one thing that must not disagree between the app and
- * the site.
+ * Bundled from the editor's own modules (see `bundleBrowser.mjs`): a scheme
+ * applied by a copy of `applyTheme` would be a second implementation of the
+ * one thing that must not disagree between the app and the site.
  *
  * ## Why it blocks
  *
@@ -26,56 +25,38 @@
  * right trade for the thing a reader sees first.
  */
 
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-import { build } from "esbuild";
-
-const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+import { bundleBrowser } from "./bundleBrowser.mjs";
 
 /** The developer's scheme, as a self-contained script for the site. */
 export async function buildThemePaint() {
-	const bundled = await build({
-		stdin: {
-			contents: [
-				'import { DOCS_FONTS, PREFERENCES_KEY, readPreferences, writePreferences }',
-				'\tfrom "./src/app/preferences.ts";',
-				'import { BUILTIN_THEMES } from "./src/core/themeData.ts";',
-				'import { applyChrome, applyTheme, findTheme } from "./src/app/theme.ts";',
-				"",
-				"function paint() {",
-				"\tconst prefs = readPreferences();",
-				"\tapplyTheme(findTheme(prefs.theme));",
-				"\tapplyChrome(prefs);",
-				"}",
-				"",
-				"paint();",
-				"",
-				"// The editor is open in another tab and the reader just changed scheme.",
-				"// The same event the app's own windows listen for, for the same reason.",
-				"addEventListener('storage', (event) => {",
-				"\tif (event.key !== null && event.key !== PREFERENCES_KEY) return;",
-				"\tpaint();",
-				"});",
-				"",
-				"// Handed to `docs.js`, which draws the site's settings popover and has",
-				"// to offer the same schemes and write the same key. Exported rather",
-				"// than bundled a second time: two copies of the theme list is two",
-				"// lists to keep in step, and this one is already on the page.",
-				"window.__roswaal = {",
-				"\tread: readPreferences, write: writePreferences, paint,",
-				"\tthemes: BUILTIN_THEMES, fonts: DOCS_FONTS,",
-				"};",
-			].join(String.fromCharCode(10)),
-			resolveDir: root,
-			loader: "ts",
-		},
-		bundle: true,
-		format: "iife",
-		target: "es2020",
-		minify: true,
-		write: false,
-		legalComments: "none",
-	});
-	return bundled.outputFiles[0].text;
+	return bundleBrowser([
+		'import { DOCS_FONTS, PREFERENCES_KEY, readPreferences, writePreferences }',
+		'\tfrom "./src/app/preferences.ts";',
+		'import { BUILTIN_THEMES } from "./src/core/themeData.ts";',
+		'import { applyChrome, applyTheme, findTheme } from "./src/app/theme.ts";',
+		"",
+		"function paint() {",
+		"\tconst prefs = readPreferences();",
+		"\tapplyTheme(findTheme(prefs.theme));",
+		"\tapplyChrome(prefs);",
+		"}",
+		"",
+		"paint();",
+		"",
+		"// The editor is open in another tab and the reader just changed scheme.",
+		"// The same event the app's own windows listen for, for the same reason.",
+		"addEventListener('storage', (event) => {",
+		"\tif (event.key !== null && event.key !== PREFERENCES_KEY) return;",
+		"\tpaint();",
+		"});",
+		"",
+		"// Handed to `docs.js`, which draws the site's settings popover and has",
+		"// to offer the same schemes and write the same key. Exported rather",
+		"// than bundled a second time: two copies of the theme list is two",
+		"// lists to keep in step, and this one is already on the page.",
+		"window.__roswaal = {",
+		"\tread: readPreferences, write: writePreferences, paint,",
+		"\tthemes: BUILTIN_THEMES, fonts: DOCS_FONTS,",
+		"};",
+	], { minify: true });
 }
