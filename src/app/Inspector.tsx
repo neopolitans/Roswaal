@@ -41,6 +41,7 @@ import { LUNE_ROBLOX_DATATYPES } from "../core/luneApi.js";
 import { ENGINE_TYPES } from "../core/schema.js";
 import { checkLuau } from "../core/luau/check.js";
 import { requestCodeEdit } from "./codeEditRequests.js";
+import { useEditBurst } from "./editBurst.js";
 import { highlightLuau } from "./highlight.js";
 
 /**
@@ -149,19 +150,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 					</p>
 				)}
 
-				{/* The placeholder is what the node is called *now*, which for a
-				    named node is its function or variable name rather than the
-				    definition's title — so an empty field reads as "this is
-				    already fine" instead of as a suggestion to type the name a
-				    second time. */}
-				<Field label="Label">
-					<input
-						className="tb"
-						placeholder={nodeTitle(def, node)}
-						value={node.label ?? ""}
-						onChange={(e) => store.edit((s) => renameNode(s, id, e.target.value))}
-					/>
-				</Field>
+				<LabelField node={node} def={def} />
 
 				{namesResult(def) && <ResultName node={node} />}
 				{FUNCTION_NODES.has(def.id) && <FunctionEditor node={node} />}
@@ -232,6 +221,29 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 				<PinSummary def={def} node={node} />
 			</div>
 		</div>
+	);
+}
+
+/**
+ * The node's label.
+ *
+ * The placeholder is what the node is called *now*, which for a named node is
+ * its function or variable name rather than the definition's title — so an
+ * empty field reads as "this is already fine" instead of as a suggestion to
+ * type the name a second time.
+ */
+function LabelField({ node, def }: { node: GraphNode; def: NodeDef }) {
+	const typing = useEditBurst();
+	return (
+		<Field label="Label">
+			<input
+				className="tb"
+				placeholder={nodeTitle(def, node)}
+				value={node.label ?? ""}
+				onChange={(e) => typing.edit((s) => renameNode(s, node.id, e.target.value))}
+				{...typing.field}
+			/>
+		</Field>
 	);
 }
 
@@ -323,6 +335,7 @@ function MemberEditor({ node }: { node: GraphNode }) {
 	const editor = useEditor();
 	const projectTypes = useProjectTypes();
 	const [picking, setPicking] = useState(false);
+	const typing = useEditBurst();
 	const current = ((node.config ?? {}) as { member?: string }).member ?? "";
 
 	const members = useMemo(() => {
@@ -369,8 +382,9 @@ function MemberEditor({ node }: { node: GraphNode }) {
 						value={current}
 						placeholder="member"
 						onChange={(e) =>
-							store.edit((s) => setConfig(s, node.id, { member: e.target.value }))
+							typing.edit((s) => setConfig(s, node.id, { member: e.target.value }))
 						}
+						{...typing.field}
 					/>
 				)}
 			</Field>
@@ -397,6 +411,7 @@ function MemberEditor({ node }: { node: GraphNode }) {
  * Declare Type shows the type it declares.
  */
 function ResultName({ node }: { node: GraphNode }) {
+	const typing = useEditBurst();
 	const current = (node.config as { resultName?: string } | undefined)?.resultName ?? "";
 	return (
 		<Field label="Result name" hint="The local this node's result lands in.">
@@ -404,13 +419,15 @@ function ResultName({ node }: { node: GraphNode }) {
 				className="tb"
 				value={current}
 				placeholder="chosen for you"
-				onChange={(e) => store.edit((s) => setConfig(s, node.id, { resultName: e.target.value }))}
+				onChange={(e) => typing.edit((s) => setConfig(s, node.id, { resultName: e.target.value }))}
+				{...typing.field}
 			/>
 		</Field>
 	);
 }
 
 function FunctionEditor({ node }: { node: GraphNode }) {
+	const typing = useEditBurst();
 	const sig = (node.config ?? {}) as Signature;
 	return (
 		<>
@@ -420,8 +437,9 @@ function FunctionEditor({ node }: { node: GraphNode }) {
 					value={sig.name ?? ""}
 					placeholder="doSomething"
 					onChange={(e) =>
-						store.edit((s) => syncFunctionRefs(setConfig(s, node.id, { name: e.target.value })))
+						typing.edit((s) => syncFunctionRefs(setConfig(s, node.id, { name: e.target.value })))
 					}
+					{...typing.field}
 				/>
 			</Field>
 			<ListEditor node={node} field="params" title="Parameters" />
@@ -462,6 +480,7 @@ function FunctionEditor({ node }: { node: GraphNode }) {
  * `Model?` are typed in as they always were.
  */
 function TypeFields({ node }: { node: GraphNode }) {
+	const typing = useEditBurst();
 	const fields = ((node.config ?? {}).fields as { name: string; type: string }[]) ?? [];
 	const write = (next: { name: string; type: string }[]) =>
 		store.edit((s) => setConfig(s, node.id, { fields: next }));
@@ -486,8 +505,9 @@ function TypeFields({ node }: { node: GraphNode }) {
 						onChange={(e) => {
 							const next = [...fields];
 							next[i] = { ...entry, name: e.target.value };
-							write(next);
+							typing.edit((s) => setConfig(s, node.id, { fields: next }));
 						}}
+						{...typing.field}
 					/>
 					<TypePicker
 						value={entry.type}
@@ -556,6 +576,7 @@ function WrittenType({ node, name, definition }: { node: GraphNode; name?: strin
 }
 
 function TypeEditor({ node }: { node: GraphNode }) {
+	const typing = useEditBurst();
 	const config = (node.config ?? {}) as {
 		name?: string; definition?: string; export?: boolean; shape?: string;
 	};
@@ -582,7 +603,8 @@ function TypeEditor({ node }: { node: GraphNode }) {
 					className="tb"
 					value={config.name ?? ""}
 					placeholder="Config"
-					onChange={(e) => store.edit((s) => setConfig(s, node.id, { name: e.target.value }))}
+					onChange={(e) => typing.edit((s) => setConfig(s, node.id, { name: e.target.value }))}
+					{...typing.field}
 				/>
 			</Field>
 
@@ -1028,6 +1050,7 @@ function LuneCallPicker({ node }: { node: GraphNode }) {
  * way to a good name is a field that is wrong more often than it is right.
  */
 function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
+	const typing = useEditBurst();
 	const config = (node.config ?? {}) as { keyName?: string; valueName?: string };
 	const types = loopTypes(node.config ?? {});
 	/** Blank clears the annotation rather than writing `any`. */
@@ -1041,7 +1064,8 @@ function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
 					className="tb"
 					value={config.keyName ?? ""}
 					placeholder={array ? "i" : "key"}
-					onChange={(e) => store.edit((s) => setConfig(s, node.id, { keyName: e.target.value }))}
+					onChange={(e) => typing.edit((s) => setConfig(s, node.id, { keyName: e.target.value }))}
+					{...typing.field}
 				/>
 			</Field>
 			{/* An array's index is a number and has nothing to choose, so the
@@ -1059,7 +1083,8 @@ function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
 					className="tb"
 					value={config.valueName ?? ""}
 					placeholder="value"
-					onChange={(e) => store.edit((s) => setConfig(s, node.id, { valueName: e.target.value }))}
+					onChange={(e) => typing.edit((s) => setConfig(s, node.id, { valueName: e.target.value }))}
+					{...typing.field}
 				/>
 			</Field>
 			<Field
@@ -1110,7 +1135,10 @@ function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
 	const fallback = (pin: string) => def.inputs.find((p) => p.id === pin)?.default;
 	const key = node.literals?.key ?? fallback("key");
 	const value = node.literals?.value ?? fallback("value") ?? BLANK.nil;
+	const typing = useEditBurst();
 	const set = (pin: string, literal: Literal) => store.edit((s) => setLiteral(s, node.id, pin, literal));
+	const type = (pin: string, literal: Literal) =>
+		typing.edit((s) => setLiteral(s, node.id, pin, literal));
 
 	return (
 		<>
@@ -1119,7 +1147,8 @@ function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
 					className="tb"
 					value={key?.t === "string" ? key.v : ""}
 					placeholder="name"
-					onChange={(e) => set("key", { t: "string", v: e.target.value })}
+					onChange={(e) => type("key", { t: "string", v: e.target.value })}
+					{...typing.field}
 				/>
 			</Field>
 			<Field label="Value" hint="Ignored while a wire is plugged into Value.">
@@ -1136,14 +1165,20 @@ function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
 						<option value="nil">nil</option>
 					</select>
 					{value.t === "string" && (
-						<input className="tb" value={value.v} onChange={(e) => set("value", { t: "string", v: e.target.value })} />
+						<input
+							className="tb"
+							value={value.v}
+							onChange={(e) => type("value", { t: "string", v: e.target.value })}
+							{...typing.field}
+						/>
 					)}
 					{value.t === "number" && (
 						<input
 							className="tb"
 							type="number"
 							value={value.v}
-							onChange={(e) => set("value", { t: "number", v: Number(e.target.value) || 0 })}
+							onChange={(e) => type("value", { t: "number", v: Number(e.target.value) || 0 })}
+							{...typing.field}
 						/>
 					)}
 					{value.t === "boolean" && (
@@ -1159,7 +1194,8 @@ function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
 							spellCheck={false}
 							value={value.v}
 							placeholder="Vector3.zero"
-							onChange={(e) => set("value", { t: "raw", v: e.target.value })}
+							onChange={(e) => type("value", { t: "raw", v: e.target.value })}
+							{...typing.field}
 						/>
 					)}
 				</div>
@@ -1381,6 +1417,7 @@ interface CountEditorProps {
 
 /** A numeric config field that changes how many pins a node has. */
 function CountEditor({ node, field, label, min, max, fallback }: CountEditorProps) {
+	const typing = useEditBurst();
 	const value = Number((node.config ?? {})[field] ?? fallback);
 	return (
 		<Field label={label}>
@@ -1392,10 +1429,11 @@ function CountEditor({ node, field, label, min, max, fallback }: CountEditorProp
 				value={value}
 				onChange={(e) => {
 					const next = Math.max(min, Math.min(max, Number(e.target.value)));
-					store.edit((s) =>
+					typing.edit((s) =>
 						setConfig(s, node.id, { [field]: Number.isFinite(next) ? next : fallback }),
 					);
 				}}
+				{...typing.field}
 			/>
 		</Field>
 	);
@@ -1409,23 +1447,23 @@ interface ListEditorProps {
 }
 
 function ListEditor({ node, field, title, hint }: ListEditorProps) {
+	const typing = useEditBurst();
 	const list = ((node.config ?? {})[field] as { name: string; type?: string }[]) ?? [];
 
-	const write = (next: { name: string; type?: string }[]) => {
-		store.edit((s) => {
-			const updated = setConfig(s, node.id, { [field]: next });
-			// Changing a function's returns has to reach its Return nodes, or the
-			// graph and the signature drift apart silently.
-			if (field === "returns" && FUNCTION_NODES.has(node.def)) {
-				return syncFunctionReturns(updated, node.id);
-			}
-			// And renaming a parameter has to reach every Get Parameter reading
-			// it. The whole array is rewritten on each keystroke, so the sync is
-			// handed both versions and works out what actually happened.
-			if (field === "params") return syncParamRefs(updated, node.id, list, next);
-			return updated;
-		});
+	const change = (next: { name: string; type?: string }[]) => (s: NodeScript) => {
+		const updated = setConfig(s, node.id, { [field]: next });
+		// Changing a function's returns has to reach its Return nodes, or the
+		// graph and the signature drift apart silently.
+		if (field === "returns" && FUNCTION_NODES.has(node.def)) {
+			return syncFunctionReturns(updated, node.id);
+		}
+		// And renaming a parameter has to reach every Get Parameter reading
+		// it. The whole array is rewritten on each keystroke, so the sync is
+		// handed both versions and works out what actually happened.
+		if (field === "params") return syncParamRefs(updated, node.id, list, next);
+		return updated;
 	};
+	const write = (next: { name: string; type?: string }[]) => store.edit(change(next));
 
 	return (
 		<div className="list-editor">
@@ -1447,8 +1485,9 @@ function ListEditor({ node, field, title, hint }: ListEditorProps) {
 						onChange={(e) => {
 							const next = [...list];
 							next[i] = { ...entry, name: e.target.value };
-							write(next);
+							typing.edit(change(next));
 						}}
+						{...typing.field}
 					/>
 					<TypePicker
 						value={entry.type}
