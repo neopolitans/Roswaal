@@ -276,6 +276,23 @@ describe("the mark on the front page", () => {
 	});
 });
 
+describe("the canary's strip", () => {
+	const canary: string = landingPage("9.9.9", { canary: true });
+
+	/** The divider becomes the notice: what this build is, and a door to the stable one. */
+	it("says what the canary is under the banner, with a way to the stable build", () => {
+		const strip = /<div class="landing-strip"[\s\S]*?<\/div>\n<\/div>/.exec(canary)?.[0] ?? "";
+		expect(strip).toContain("unreleased build");
+		expect(strip).toContain('class="strip-stable" href="https://roswaal.app/"');
+		expect(strip).toMatch(/Roswaal <span class="flag">stable<\/span>/);
+		expect(canary.indexOf('<div class="landing-strip"')).toBeGreaterThan(canary.indexOf('<header class="landing-banner'));
+	});
+
+	it("is only on the canary", () => {
+		expect(html).not.toContain('class="landing-strip"');
+	});
+});
+
 describe("the copy at the old address", () => {
 	const backup: string = landingPage("9.9.9", { canary: false, backup: true });
 

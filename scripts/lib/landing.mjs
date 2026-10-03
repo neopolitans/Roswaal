@@ -183,7 +183,31 @@ body.roswaal-landing {
   background-size: 100% 100%, 22px 22px;
   border-bottom: 5px solid var(--accent);
 }
-.landing-banner.canary { border-bottom-color: var(--warning); }
+/* On the canary the divider is a strip: what this build is, and the way out. */
+.landing-banner.canary { border-bottom: 0; }
+.landing-strip { background: var(--warning); color: #14161a; }
+.strip-inner {
+  max-width: min(96vw, 1460px); margin: 0 auto; padding: 9px 68px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px;
+  font-size: 14px; font-weight: 500; text-align: center;
+}
+.strip-flag {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  border: 1px solid rgb(0 0 0 / 45%); border-radius: 3px; padding: 1px 6px;
+}
+/* The way out, as a door rather than a link: the stable build, named. */
+.strip-stable {
+  display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 6px;
+  background: var(--accent); color: #fff; font-weight: 600; text-decoration: none;
+  box-shadow: 0 1px 0 rgb(0 0 0 / 25%);
+}
+.strip-stable:hover { filter: brightness(1.1); }
+.strip-stable:focus-visible { outline: 2px solid #14161a; outline-offset: 2px; }
+.strip-stable .flag {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  border: 1px solid rgb(255 255 255 / 55%); border-radius: 3px; padding: 1px 5px;
+}
+@media (max-width: 640px) { .strip-inner { padding: 9px 20px; } }
 .banner-inner {
   display: grid; align-items: center; text-align: left;
   grid-template-columns: auto minmax(0, auto) minmax(0, 1fr); gap: 0 32px;
@@ -548,17 +572,12 @@ ${IS_CANARY || backup ? `<meta name="robots" content="noindex" />
 <script src="landing.js?v=${encodeURIComponent(version)}" defer></script>
 </head>
 <body class="roswaal-landing">
-${backup || IS_CANARY ? `<div class="landing-notices">
-  ${backup ? `<p class="landing-canary landing-backup">
+${backup ? `<div class="landing-notices">
+  <p class="landing-canary landing-backup">
     <span class="flag">${escapeHtml(BACKUP_BANNER.mark)}</span>
     ${escapeHtml(BACKUP_BANNER.app)}
     <a href="${STABLE_SITE}">${escapeHtml(BACKUP_BANNER.wayOut)}</a>
-  </p>` : ""}
-  ${IS_CANARY ? `<p class="landing-canary">
-    <span class="flag canary">${escapeHtml(MARK_LABEL.canary)}</span>
-    ${escapeHtml(CANARY_BANNER.app)}
-    <a href="${STABLE_SITE}">${escapeHtml(CANARY_BANNER.wayOut)}</a>
-  </p>` : ""}
+  </p>
 </div>` : ""}
 <header class="landing-banner${IS_CANARY ? " canary" : ""}">
   <div class="banner-inner">
@@ -574,6 +593,15 @@ ${backup || IS_CANARY ? `<div class="landing-notices">
     <div class="banner-graph" aria-hidden="true">${heroGraph()}</div>
   </div>
 </header>
+${IS_CANARY ? `<div class="landing-strip" role="note">
+  <div class="strip-inner">
+    <span class="strip-flag">${escapeHtml(MARK_LABEL.canary)}</span>
+    <span class="strip-text">${escapeHtml(CANARY_BANNER.app)}</span>
+    <a class="strip-stable" href="${STABLE_SITE}" title="${escapeHtml(CANARY_BANNER.wayOut)}">
+      Roswaal <span class="flag">stable</span>
+    </a>
+  </div>
+</div>` : ""}
 <div class="landing-below">
 <div class="landing-glow" aria-hidden="true"></div>
 <main class="landing">
