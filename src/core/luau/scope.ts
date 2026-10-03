@@ -12,8 +12,9 @@
  *   blocks, function parameters, loop variables — for completing as you type.
  */
 
-import type { Block, Expr, FunctionBody, Stat } from "./ast.js";
+import type { Binding, Block, Expr, FunctionBody, Stat } from "./ast.js";
 import { parseChunk } from "./parser.js";
+import { contains, visitBlock, visitExpr, visitStat, type Visitor } from "./visit.js";
 
 export type LocalKind = "local" | "function" | "parameter" | "loop variable";
 
@@ -30,8 +31,13 @@ export interface ScopedName {
 	declaredAt?: number;
 }
 
+/** A binding's written type as text, for a name that carries it. */
+function typeTextOf(binding: Binding, src: string): { typeText?: string } {
+	return binding.type ? { typeText: src.slice(binding.type.start, binding.type.end).trim() } : {};
+}
+
 /** Names a statement leaves in scope for the statements after it. */
-function declared(stat: Stat): ScopedName[] {
+function declared(stat: Stat, src: string): ScopedName[] {
 	switch (stat.kind) {
 		case "local":
 		case "const":
@@ -39,7 +45,7 @@ function declared(stat: Stat): ScopedName[] {
 				name: b.name,
 				kind: "local" as const,
 				declaredAt: stat.start,
-				...(b.type ? { typeSpan: b.type } : {}),
+				...typeTextOf(b, src),
 				...(stat.values[i] ? { value: stat.values[i] } : {}),
 			}));
 		case "localFunction":
@@ -57,7 +63,7 @@ export function topLevelLocals(src: string): string[] {
 	const seen = new Set<string>();
 	const out: string[] = [];
 	for (const stat of parseChunk(src).value) {
-		for (const { name } of declared(stat)) {
+		for (const { name } of declared(stat, src)) {
 			if (seen.has(name)) continue;
 			seen.add(name);
 			out.push(name);
@@ -88,7 +94,7 @@ export function localsAt(src: string, offset: number): ScopedName[] {
 		}
 	}
 
-	return scoped(best.value, offset, before, offset);
+	return new ScopeWalk(before, offset).names(best.value, offset);
 }
 
 /**
@@ -103,139 +109,138 @@ export function localsAt(src: string, offset: number): ScopedName[] {
 export function localsInFile(src: string, offset: number): ScopedName[] | undefined {
 	const parsed = parseChunk(src);
 	if (parsed.errors.length > 0) return undefined;
-	return scoped(parsed.value, offset, src, src.length);
+	return localsInParsed(parsed.value, src, offset);
 }
 
 /** `localsInFile` over a parse already made: a check that asks at every name parses once. */
 export function localsInParsed(block: Block, src: string, offset: number): ScopedName[] {
-	return scoped(block, offset, src, src.length);
-}
-
-function scoped(block: Block, offset: number, text: string, to: number): ScopedName[] {
-	const found: ScopedName[] = [];
-	walkBlock(block, offset, found, 0, to);
-	// A written type as its text, so a caller need not keep the source.
-	for (const item of found as (ScopedName & { typeSpan?: { start: number; end: number } })[]) {
-		if (item.typeSpan) item.typeText = text.slice(item.typeSpan.start, item.typeSpan.end).trim();
-		delete item.typeSpan;
-	}
-
-	// The innermost declaration of a name is the one in scope.
-	const out: ScopedName[] = [];
-	const seen = new Set<string>();
-	for (let i = found.length - 1; i >= 0; i--) {
-		if (seen.has(found[i].name)) continue;
-		seen.add(found[i].name);
-		out.unshift(found[i]);
-	}
-	return out;
+	return new ScopeWalk(src, offset).names(block, src.length);
 }
 
 /**
- * Walks the statements of a block that begins at `from` and ends at `to`,
- * adding what each finished statement declares and descending into the one
- * the offset is inside.
+ * One question -- what is in scope at `at` -- asked of one tree. `src` is the
+ * text the tree was read from, for the types written beside names.
  */
-function walkBlock(block: Block, at: number, out: ScopedName[], from: number, to: number): void {
-	if (at < from || at > to) return;
-	for (const stat of block) {
-		if (stat.end <= at) {
-			out.push(...declared(stat));
-			continue;
-		}
-		if (stat.start <= at) enter(stat, at, out);
-		return;
-	}
-}
+class ScopeWalk {
+	private readonly found: ScopedName[] = [];
 
-function enter(stat: Stat, at: number, out: ScopedName[]): void {
-	switch (stat.kind) {
-		case "localFunction":
-			// Its own name is in scope inside it: a local function can recurse.
-			out.push({ name: stat.name.name, kind: "function", func: stat.func, declaredAt: stat.start });
-			enterFunction(stat.func, at, out);
-			return;
-		case "function":
-		case "typeFunction":
-			enterFunction(stat.func, at, out);
-			return;
-		// A block runs from the keyword that opens it to the one that closes
-		// it, so a point in an empty block, or before its first statement, is
-		// still inside that block and no other.
-		case "do":
-			walkBlock(stat.body, at, out, stat.start, stat.endKeyword.start);
-			return;
-		case "while": {
-			if (at <= stat.condition.end) return enterExpr(stat.condition, at, out);
-			walkBlock(stat.body, at, out, stat.doKeyword.end, stat.endKeyword.start);
-			return;
+	constructor(private readonly src: string, private readonly at: number) {}
+
+	/** The names in scope, innermost declaration of each, in declaration order. */
+	names(block: Block, to: number): ScopedName[] {
+		this.block(block, 0, to);
+		const out: ScopedName[] = [];
+		const seen = new Set<string>();
+		for (let i = this.found.length - 1; i >= 0; i--) {
+			if (seen.has(this.found[i].name)) continue;
+			seen.add(this.found[i].name);
+			out.unshift(this.found[i]);
 		}
-		case "repeat": {
-			// The condition sees the body's locals: `repeat local x = f() until x`.
-			if (at >= stat.untilKeyword.end) {
-				for (const inner of stat.body) out.push(...declared(inner));
-				return enterExpr(stat.condition, at, out);
+		return out;
+	}
+
+	/**
+	 * The statements of a block that begins at `from` and ends at `to`: what
+	 * each finished statement declares, then into the one the point is inside.
+	 */
+	private block(block: Block, from: number, to: number): void {
+		if (this.at < from || this.at > to) return;
+		for (const stat of block) {
+			if (stat.end <= this.at) {
+				this.found.push(...declared(stat, this.src));
+				continue;
 			}
-			walkBlock(stat.body, at, out, stat.start, stat.untilKeyword.start);
+			if (stat.start <= this.at) this.enter(stat);
 			return;
 		}
-		case "if": {
-			stat.clauses.forEach((clause, i) => {
-				if (at >= clause.condition.start && at <= clause.condition.end) enterExpr(clause.condition, at, out);
-				const next = stat.clauses[i + 1]?.keyword ?? stat.elseKeyword ?? stat.endKeyword;
-				walkBlock(clause.body, at, out, clause.thenKeyword.end, next.start);
-			});
-			if (stat.orElse && stat.elseKeyword) {
-				walkBlock(stat.orElse, at, out, stat.elseKeyword.end, stat.endKeyword.start);
+	}
+
+	private enter(stat: Stat): void {
+		const at = this.at;
+		switch (stat.kind) {
+			case "localFunction":
+				// Its own name is in scope inside it: a local function can recurse.
+				this.found.push({ name: stat.name.name, kind: "function", func: stat.func, declaredAt: stat.start });
+				this.function(stat.func);
+				return;
+			case "functionStat":
+			case "typeFunction":
+				this.function(stat.func);
+				return;
+			// A block runs from the keyword that opens it to the one that closes
+			// it, so a point in an empty block, or before its first statement, is
+			// still inside that block and no other.
+			case "do":
+				this.block(stat.body, stat.start, stat.endKeyword.start);
+				return;
+			case "while":
+				if (at <= stat.condition.end) return this.functionsIn(stat.condition);
+				this.block(stat.body, stat.doKeyword.end, stat.endKeyword.start);
+				return;
+			case "repeat":
+				// The condition sees the body's locals: `repeat local x = f() until x`.
+				if (at >= stat.untilKeyword.end) {
+					for (const inner of stat.body) this.found.push(...declared(inner, this.src));
+					return this.functionsIn(stat.condition);
+				}
+				this.block(stat.body, stat.start, stat.untilKeyword.start);
+				return;
+			case "if":
+				stat.clauses.forEach((clause, i) => {
+					if (contains(clause.condition, at)) this.functionsIn(clause.condition);
+					const next = stat.clauses[i + 1]?.keyword ?? stat.elseKeyword ?? stat.endKeyword;
+					this.block(clause.body, clause.thenKeyword.end, next.start);
+				});
+				if (stat.orElse && stat.elseKeyword) this.block(stat.orElse, stat.elseKeyword.end, stat.endKeyword.start);
+				return;
+			case "numericFor": {
+				const range = stat.step ?? stat.to;
+				if (at <= range.end) return this.functionsIn(range);
+				this.found.push({ name: stat.variable.name, kind: "loop variable", ...typeTextOf(stat.variable, this.src) });
+				this.block(stat.body, stat.doKeyword.end, stat.endKeyword.start);
+				return;
 			}
-			return;
+			case "genericFor": {
+				const last = stat.values[stat.values.length - 1];
+				if (last && at <= last.end) return this.functionsIn(last);
+				for (const v of stat.variables) this.found.push({ name: v.name, kind: "loop variable", ...typeTextOf(v, this.src) });
+				this.block(stat.body, stat.doKeyword.end, stat.endKeyword.start);
+				return;
+			}
+			default:
+				// A local's own name is not in scope in its value — `local x = x`
+				// reads the outer one — so only functions written inside it matter.
+				this.functionsInStat(stat);
 		}
-		case "numericFor": {
-			const range = stat.step ?? stat.to;
-			if (at <= range.end) return enterExpr(range, at, out);
-			out.push({ name: stat.variable.name, kind: "loop variable" });
-			walkBlock(stat.body, at, out, stat.doKeyword.end, stat.endKeyword.start);
-			return;
-		}
-		case "genericFor": {
-			const last = stat.values[stat.values.length - 1];
-			if (last && at <= last.end) return enterExpr(last, at, out);
-			for (const v of stat.variables) out.push({ name: v.name, kind: "loop variable" });
-			walkBlock(stat.body, at, out, stat.doKeyword.end, stat.endKeyword.start);
-			return;
-		}
-		default:
-			// A local's own name is not in scope in its value — `local x = x`
-			// reads the outer one — so only functions written inside it matter.
-			enterExpr(stat, at, out);
 	}
-}
 
-function enterFunction(func: FunctionBody, at: number, out: ScopedName[]): void {
-	for (const param of func.params) {
-		out.push({ name: param.name, kind: "parameter", ...(param.type ? { typeSpan: param.type } : {}) } as ScopedName);
+	private function(func: FunctionBody): void {
+		for (const param of func.params) this.found.push({ name: param.name, kind: "parameter", ...typeTextOf(param, this.src) });
+		this.block(func.body, func.paramsClose.end, func.endKeyword.start);
 	}
-	walkBlock(func.body, at, out, func.paramsClose.end, func.endKeyword.start);
-}
 
-/** Finds a function expression the offset is inside, anywhere in `node`. */
-function enterExpr(node: unknown, at: number, out: ScopedName[]): void {
-	if (Array.isArray(node)) {
-		for (const item of node) enterExpr(item, at, out);
-		return;
+	/** Into the function expression the point is inside, anywhere in `node`. */
+	private functionsIn(node: Expr): void {
+		visitExpr(node, this.intoFunctions());
 	}
-	if (!node || typeof node !== "object") return;
-	const span = node as { start?: number; end?: number; kind?: string };
-	if (typeof span.start === "number" && typeof span.end === "number" && (at < span.start || at > span.end)) {
-		return;
+
+	/** `functionsIn`, for a statement that opens no block of its own. */
+	private functionsInStat(stat: Stat): void {
+		visitStat(stat, this.intoFunctions());
 	}
-	const expr = node as Expr;
-	if (expr.kind === "function") {
-		enterFunction(expr.func, at, out);
-		return;
-	}
-	for (const value of Object.values(node)) {
-		if (value && typeof value === "object") enterExpr(value, at, out);
+
+	/** A walk that keeps to the nodes around the point and enters the function it finds. */
+	private intoFunctions(): Visitor {
+		return {
+			stat: (stat) => contains(stat, this.at),
+			type: (type) => contains(type, this.at),
+			expr: (expr) => {
+				if (!contains(expr, this.at)) return false;
+				if (expr.kind !== "function") return true;
+				this.function(expr.func);
+				return false;
+			},
+		};
 	}
 }
 
@@ -249,31 +254,19 @@ function enterExpr(node: unknown, at: number, out: ScopedName[]): void {
  */
 export function declarationAt(src: string, offset: number): ScopedName | undefined {
 	let found: ScopedName | undefined;
-	const visit = (node: unknown): void => {
-		if (found) return;
-		if (Array.isArray(node)) {
-			for (const item of node) visit(item);
-			return;
-		}
-		if (!node || typeof node !== "object") return;
-		const stat = node as Stat;
-		if (stat.kind === "localFunction" && stat.name.start <= offset && offset <= stat.name.end) {
-			found = declared(stat)[0];
-			return;
-		}
-		if ((stat.kind === "local" || stat.kind === "const") && Array.isArray(stat.names)) {
-			// The name only: a binding's span runs on over its type, `x: Part`.
-			const i = stat.names.findIndex((b) => b.start <= offset && offset <= b.start + b.name.length);
-			if (i !== -1) {
-				const named = declared(stat)[i] as ScopedName & { typeSpan?: { start: number; end: number } };
-				if (named.typeSpan) named.typeText = src.slice(named.typeSpan.start, named.typeSpan.end).trim();
-				delete named.typeSpan;
-				found = named;
-				return;
+	visitBlock(parseChunk(src).value, {
+		stat: (stat) => {
+			if (found) return false;
+			if (stat.kind === "localFunction" && contains(stat.name, offset)) {
+				found = declared(stat, src)[0];
+			} else if (stat.kind === "local" || stat.kind === "const") {
+				// The name only: a binding's span runs on over its type, `x: Part`.
+				const i = stat.names.findIndex((b) => b.start <= offset && offset <= b.start + b.name.length);
+				if (i !== -1) found = declared(stat, src)[i];
 			}
-		}
-		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
-	};
-	visit(parseChunk(src).value);
+			return !found;
+		},
+		expr: () => !found,
+	});
 	return found;
 }

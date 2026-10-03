@@ -19,6 +19,7 @@ import type { Expr, FunctionBody, Stat } from "./ast.js";
 import { docCommentBefore, docFor, docRegistry, registeredDoc, withRelated, type DocComment } from "./docComment.js";
 import { tokenize, type Token } from "./lexer.js";
 import { parseChunk } from "./parser.js";
+import { visitBlock } from "./visit.js";
 import { CLASSES, CLASS_PARENTS } from "../robloxData.js";
 import { isService } from "../roblox.js";
 import { CLASS_METHODS, type ClassMethod } from "../robloxStatics.js";
@@ -279,29 +280,18 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 		const doc = docFor(docAt(at), member.name);
 		out.push(doc ? { ...member, doc } : member);
 	};
-	const visit = (node: unknown): void => {
-		if (Array.isArray(node)) {
-			for (const item of node) visit(item);
-			return;
-		}
-		if (!node || typeof node !== "object") return;
-		const stat = node as { kind?: string };
-		// A function *statement*: a function expression shares the kind and
-		// has no path, and reading one as the other threw, taking every hover
-		// in the file with it.
-		if (stat.kind === "function" && "path" in node) {
-			const fn = node as Extract<Stat, { kind: "function" }>;
-			const names = fn.path.map((n) => n.name);
-			if (fn.method && names.join(".") === owner) {
-				add(functionMember(fn.method.name, "method", fn.func, src), fn.start);
-			} else if (!fn.method && names.length >= 2 && names.slice(0, -1).join(".") === owner) {
-				add(functionMember(names[names.length - 1], "function", fn.func, src), fn.start);
+	const onStat = (stat: Stat): void => {
+		if (stat.kind === "functionStat") {
+			const names = stat.path.map((n) => n.name);
+			if (stat.method && names.join(".") === owner) {
+				add(functionMember(stat.method.name, "method", stat.func, src), stat.start);
+			} else if (!stat.method && names.length >= 2 && names.slice(0, -1).join(".") === owner) {
+				add(functionMember(names[names.length - 1], "function", stat.func, src), stat.start);
 			}
 		} else if ((stat.kind === "local" || stat.kind === "const") && !owner.includes(".")) {
 			// `local Crate = { Shelf = … }`: what the table is written with.
-			const decl = node as Extract<Stat, { kind: "local" }>;
-			decl.names.forEach((binding, i) => {
-				let value = decl.values[i];
+			stat.names.forEach((binding, i) => {
+				let value = stat.values[i];
 				while (value?.kind === "cast" || value?.kind === "paren") value = value.kind === "cast" ? value.value : value.inner;
 				if (binding.name !== owner || value?.kind !== "table") return;
 				for (const field of value.fields) {
@@ -310,23 +300,20 @@ export function membersInCode(src: string, owner: string): TableMember[] {
 				}
 			});
 		} else if (stat.kind === "assign") {
-			const assign = node as Extract<Stat, { kind: "assign" }>;
-			assign.targets.forEach((target, i) => {
-				if (target.kind === "index" && chainOf(target.object) === owner) {
-					const value = assign.values[i];
-					const member = memberFor(target.name.name, value, src);
-					add(member, assign.start);
-					if (value?.kind === "index" && chainOf(value.object) === owner) {
-						aliases.push({ member: out.find((m) => m.name === member.name)!, of: value.name.name });
-					}
+			stat.targets.forEach((target, i) => {
+				if (target.kind !== "index" || chainOf(target.object) !== owner) return;
+				const value = stat.values[i];
+				const member = memberFor(target.name.name, value, src);
+				add(member, stat.start);
+				// The member as kept: `add` keeps the first of a name, with its doc.
+				const kept = out.find((m) => m.name === member.name);
+				if (kept && value?.kind === "index" && chainOf(value.object) === owner) {
+					aliases.push({ member: kept, of: value.name.name });
 				}
 			});
 		}
-		for (const value of Object.values(node)) {
-			if (value && typeof value === "object") visit(value);
-		}
 	};
-	visit(parseChunk(src).value);
+	visitBlock(parseChunk(src).value, { stat: onStat });
 	for (const { member, of } of aliases) {
 		const original = out.find((m) => m.name === of);
 		if (!original || original === member) continue;

@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Expr, Stat, TypeNode } from "../src/core/luau/ast.js";
 import { parseChunk } from "../src/core/luau/parser.js";
+import { visitBlock } from "../src/core/luau/visit.js";
 
 function ok(src: string): Stat[] {
 	const { value, errors } = parseChunk(src);
@@ -106,8 +107,8 @@ describe("statements", () => {
 			return a
 		`).map((s) => s.kind);
 		expect(kinds).toEqual([
-			"local", "const", "localFunction", "function", "function", "assign", "compoundAssign",
-			"compoundAssign", "call", "do", "while", "repeat", "if", "numericFor", "genericFor",
+			"local", "const", "localFunction", "functionStat", "functionStat", "assign", "compoundAssign",
+			"compoundAssign", "callStat", "do", "while", "repeat", "if", "numericFor", "genericFor",
 			"typeAlias", "typeAlias", "return",
 		]);
 	});
@@ -232,5 +233,33 @@ describe("errors", () => {
 
 	it("reports what the lexer could not read", () => {
 		expect(messages("local s = 'open\nprint(s)")).toContain("This string is not closed before the end of the line.");
+	});
+});
+
+describe("walking the tree", () => {
+	it("reaches every name, in statements, expressions, function bodies and types", () => {
+		const block = ok([
+			"local a: typeof(b) = function(c) return d[e] end",
+			"function M.f() g(h, `x {i}`) end",
+			"for _, j in k do l += if m then n else o end",
+		].join("\n"));
+		const names: string[] = [];
+		visitBlock(block, {
+			expr: (e) => {
+				if (e.kind === "name") names.push(e.name);
+			},
+		});
+		expect(names).toEqual(["b", "d", "e", "g", "h", "i", "k", "l", "m", "n", "o"]);
+	});
+
+	it("leaves a node's children out when the visitor says so", () => {
+		const calls: string[] = [];
+		visitBlock(ok("f(function() g() end)"), {
+			expr: (e) => {
+				if (e.kind === "call" && e.callee.kind === "name") calls.push(e.callee.name);
+				return e.kind !== "function";
+			},
+		});
+		expect(calls).toEqual(["f"]);
 	});
 });

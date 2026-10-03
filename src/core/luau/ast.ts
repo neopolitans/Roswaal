@@ -34,10 +34,12 @@ export type Stat =
 	| ({ kind: "const"; names: Binding[]; values: Expr[] } & Span)
 	/** `constant`: written `const function`, which cannot be reassigned. */
 	| ({ kind: "localFunction"; name: Name; func: FunctionBody; attributes: Attribute[]; constant?: true } & Span)
-	| ({ kind: "function"; path: Name[]; method?: Name; func: FunctionBody; attributes: Attribute[] } & Span)
+	/** `function a.b:c()`. Not `"function"`: that is the expression's kind, and one kind for both was read as the other. */
+	| ({ kind: "functionStat"; path: Name[]; method?: Name; func: FunctionBody; attributes: Attribute[] } & Span)
 	| ({ kind: "assign"; targets: Expr[]; values: Expr[] } & Span)
 	| ({ kind: "compoundAssign"; op: string; target: Expr; value: Expr } & Span)
-	| ({ kind: "call"; call: Expr } & Span)
+	/** A call standing as a statement; `call` is the call or method call itself. */
+	| ({ kind: "callStat"; call: Extract<Expr, { kind: "call" | "methodCall" }> } & Span)
 	| ({ kind: "do"; body: Block; endKeyword: Span } & Span)
 	| ({ kind: "while"; condition: Expr; doKeyword: Span; body: Block; endKeyword: Span } & Span)
 	| ({ kind: "repeat"; body: Block; untilKeyword: Span; condition: Expr } & Span)

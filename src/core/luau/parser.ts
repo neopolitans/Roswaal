@@ -56,8 +56,8 @@ class Parser {
 	private pos = 0;
 	readonly errors: Diagnostic[] = [];
 
-	constructor(src: string) {
-		const all = tokenize(src);
+	/** `all` is every token of the source, as `tokenize` gives them; it is not changed. */
+	constructor(all: readonly Token[]) {
 		for (const bad of all) {
 			if (bad.kind === "error") {
 				this.errors.push({ start: bad.start, end: bad.end, message: bad.message ?? "Unreadable." });
@@ -345,7 +345,7 @@ class Parser {
 		while (this.accept(".")) path.push(this.expectName("a name after the dot"));
 		const method = this.accept(":") ? this.expectName("a method name after the colon") : undefined;
 		const func = this.functionBody(start);
-		return { kind: "function", path, ...(method ? { method } : {}), func, attributes, ...this.span(start) };
+		return { kind: "functionStat", path, ...(method ? { method } : {}), func, attributes, ...this.span(start) };
 	}
 
 	private ifStat(start: number): Stat {
@@ -429,7 +429,7 @@ class Parser {
 			});
 			throw new Stop();
 		}
-		return { kind: "call", call: target, ...this.span(start) };
+		return { kind: "callStat", call: target, ...this.span(start) };
 	}
 
 	private assignable(target: Expr): void {
@@ -928,7 +928,12 @@ class Parser {
 
 /** A whole file or a Custom Code body: a block of statements. */
 export function parseChunk(src: string): ParseResult<Block> {
-	const parser = new Parser(src);
+	return parseTokens(tokenize(src));
+}
+
+/** `parseChunk` over tokens already read, for a caller that keeps them: see `file.ts`. */
+export function parseTokens(tokens: readonly Token[]): ParseResult<Block> {
+	const parser = new Parser(tokens);
 	const value = parser.parseChunk();
 	return { value, errors: parser.errors };
 }
@@ -974,7 +979,7 @@ export function parseType(src: string): ParseResult<TypeNode | undefined> {
 }
 
 function parseWhole<T>(src: string, read: (parser: Parser) => T, what: string): ParseResult<T | undefined> {
-	const parser = new Parser(src);
+	const parser = new Parser(tokenize(src));
 	let value: T | undefined;
 	try {
 		value = read(parser);

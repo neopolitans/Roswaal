@@ -14,6 +14,7 @@ import type { Block, Expr } from "./ast.js";
 import { parseChunk } from "./parser.js";
 import { stringValue } from "./infer.js";
 import { targetOf, type RequireTarget } from "./requires.js";
+import { contains, visitBlock } from "./visit.js";
 import { ENGINE } from "../robloxEngine.js";
 
 export interface InstanceNode {
@@ -130,19 +131,16 @@ export function instanceProblems(src: string, root: InstanceNode, self?: readonl
 				: `${where} has no child called "${name}" in the place or the project, and ${holder.className} has no member of that name.`,
 		});
 	};
-	const visit = (node: unknown): void => {
-		if (Array.isArray(node)) return node.forEach(visit);
-		if (!node || typeof node !== "object") return;
-		const expr = node as Expr;
-		if (expr.kind === "index") {
-			check(expr.object, expr.name.name, expr.name.start, expr.name.end, "index");
-		} else if (expr.kind === "methodCall" && expr.method.name === "WaitForChild" && expr.args[0]?.kind === "string") {
-			const name = stringValue(expr.args[0]);
-			if (name !== undefined) check(expr.object, name, expr.args[0].start, expr.args[0].end, "wait");
-		}
-		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
-	};
-	visit(block);
+	visitBlock(block, {
+		expr: (expr) => {
+			if (expr.kind === "index") {
+				check(expr.object, expr.name.name, expr.name.start, expr.name.end, "index");
+			} else if (expr.kind === "methodCall" && expr.method.name === "WaitForChild" && expr.args[0]?.kind === "string") {
+				const name = stringValue(expr.args[0]);
+				if (name !== undefined) check(expr.object, name, expr.args[0].start, expr.args[0].end, "wait");
+			}
+		},
+	});
 	return out;
 }
 
@@ -154,23 +152,19 @@ export function instanceAt(
 	if (parsed.errors.length > 0) return undefined;
 	const block = parsed.value;
 	let found: { from: number; to: number; expr: Expr } | undefined;
-	const visit = (node: unknown): void => {
-		if (found) return;
-		if (Array.isArray(node)) return node.forEach(visit);
-		if (!node || typeof node !== "object") return;
-		const expr = node as Expr;
-		if (expr.kind === "index" && expr.name.start <= pos && pos <= expr.name.end) {
-			found = { from: expr.name.start, to: expr.name.end, expr };
-			return;
-		}
-		if (expr.kind === "methodCall" && (expr.method.name === "WaitForChild" || expr.method.name === "FindFirstChild")
-			&& expr.args[0]?.kind === "string" && expr.args[0].start <= pos && pos <= expr.args[0].end) {
-			found = { from: expr.args[0].start, to: expr.args[0].end, expr };
-			return;
-		}
-		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
-	};
-	visit(block);
+	visitBlock(block, {
+		stat: () => !found,
+		expr: (expr) => {
+			if (found) return false;
+			if (expr.kind === "index" && contains(expr.name, pos)) {
+				found = { from: expr.name.start, to: expr.name.end, expr };
+			} else if (expr.kind === "methodCall" && (expr.method.name === "WaitForChild" || expr.method.name === "FindFirstChild")
+				&& expr.args[0]?.kind === "string" && contains(expr.args[0], pos)) {
+				found = { from: expr.args[0].start, to: expr.args[0].end, expr };
+			}
+			return !found;
+		},
+	});
 	if (!found) return undefined;
 	const path = pathOf(found.expr, src, block, self);
 	const node = path ? nodeAt(root, path) : undefined;

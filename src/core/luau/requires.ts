@@ -18,6 +18,7 @@ import {
 import { tokenize } from "./lexer.js";
 import { parseChunk } from "./parser.js";
 import { localsInFile, localsInParsed } from "./scope.js";
+import { visitBlock } from "./visit.js";
 
 /**
  * Where a require goes. An instance path starts at `game` or at the requiring
@@ -111,23 +112,20 @@ export function requiresIn(src: string): RequireBinding[] {
 		if (table?.kind !== "table") return;
 		for (const field of table.fields) if (field.kind === "named") push(`${owner}.${field.name.name}`, field.value);
 	};
-	const visit = (node: unknown): void => {
-		if (Array.isArray(node)) return node.forEach(visit);
-		if (!node || typeof node !== "object") return;
-		const stat = node as Stat;
-		if ((stat.kind === "local" || stat.kind === "const") && Array.isArray(stat.names)) {
-			stat.names.forEach((binding, i) => {
-				push(binding.name, stat.values[i]);
-				fields(binding.name, stat.values[i]);
-			});
-		} else if (stat.kind === "assign") {
-			stat.targets.forEach((target, i) => {
-				if (target.kind === "index" && target.object.kind === "name") push(`${target.object.name}.${target.name.name}`, stat.values[i]);
-			});
-		}
-		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
-	};
-	visit(parseChunk(src).value);
+	visitBlock(parseChunk(src).value, {
+		stat: (stat) => {
+			if (stat.kind === "local" || stat.kind === "const") {
+				stat.names.forEach((binding, i) => {
+					push(binding.name, stat.values[i]);
+					fields(binding.name, stat.values[i]);
+				});
+			} else if (stat.kind === "assign") {
+				stat.targets.forEach((target, i) => {
+					if (target.kind === "index" && target.object.kind === "name") push(`${target.object.name}.${target.name.name}`, stat.values[i]);
+				});
+			}
+		},
+	});
 	return out;
 }
 
@@ -195,8 +193,8 @@ export function moduleExports(src: string): ModuleExports {
 		if (local?.func) return out({ kind: "function", members, detail: signatureOf(local.func, src) });
 		// `function Button(props) … end` then `return Button`: a global the
 		// file defines, and the comment above it says what the module is.
-		const global = local ? undefined : block.find((s): s is Extract<Stat, { kind: "function" }> =>
-			s.kind === "function" && s.path.length === 1 && !s.method && s.path[0].name === value.name);
+		const global = local ? undefined : block.find((s): s is Extract<Stat, { kind: "functionStat" }> =>
+			s.kind === "functionStat" && s.path.length === 1 && !s.method && s.path[0].name === value.name);
 		if (global) {
 			const above = docFor(docCommentBefore(src, global.start), value.name) ?? doc;
 			return { kind: "function", members, detail: signatureOf(global.func, src), ...(above ? { doc: above } : {}) };

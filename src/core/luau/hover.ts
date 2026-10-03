@@ -22,6 +22,7 @@ import { parseChunk } from "./parser.js";
 import type { Expr, Stat } from "./ast.js";
 import { isRequire } from "./requires.js";
 import { instanceAt, type InstanceNode } from "./instances.js";
+import { visitBlock } from "./visit.js";
 
 /**
  * A name that is an instance the project knows: `Shared` in
@@ -373,23 +374,16 @@ export function hoverAt(
 }
 
 /** `function name()` at any depth of the file, with no table in front of it. */
-function globalFunction(src: string, name: string): Extract<Stat, { kind: "function" }> | undefined {
-	let found: Extract<Stat, { kind: "function" }> | undefined;
-	const visit = (node: unknown): void => {
-		if (found) return;
-		if (Array.isArray(node)) {
-			for (const item of node) visit(item);
-			return;
-		}
-		if (!node || typeof node !== "object") return;
-		const stat = node as Stat;
-		if (stat.kind === "function" && "path" in stat && stat.path.length === 1 && !stat.method && stat.path[0].name === name) {
-			found = stat;
-			return;
-		}
-		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
-	};
-	visit(parseChunk(src).value);
+function globalFunction(src: string, name: string): Extract<Stat, { kind: "functionStat" }> | undefined {
+	let found: Extract<Stat, { kind: "functionStat" }> | undefined;
+	visitBlock(parseChunk(src).value, {
+		stat: (stat) => {
+			if (found) return false;
+			if (stat.kind === "functionStat" && stat.path.length === 1 && !stat.method && stat.path[0].name === name) found = stat;
+			return !found;
+		},
+		expr: () => !found,
+	});
 	return found;
 }
 
@@ -400,42 +394,39 @@ function globalFunction(src: string, name: string): Extract<Stat, { kind: "funct
  */
 function tableKeyAt(src: string, from: number, to: number): { owner?: string; fieldStart: number; detail?: string } | undefined {
 	let found: { owner?: string; fieldStart: number; detail?: string } | undefined;
-	const ownerOf = (value: unknown, owner: string | undefined) => {
-		let v = value as Expr | undefined;
+	const ownerOf = (value: Expr | undefined, owner: string | undefined) => {
+		let v = value;
 		while (v && (v.kind === "cast" || v.kind === "paren")) v = v.kind === "cast" ? v.value : v.inner;
 		return v?.kind === "table" ? { table: v, owner } : undefined;
 	};
 	const tables: { table: Extract<Expr, { kind: "table" }>; owner?: string }[] = [];
-	const visit = (node: unknown): void => {
-		if (found) return;
-		if (Array.isArray(node)) return node.forEach(visit);
-		if (!node || typeof node !== "object") return;
-		const stat = node as Stat;
-		if (stat.kind === "local" || stat.kind === "const") {
-			stat.names.forEach((b, i) => {
-				const t = ownerOf(stat.values[i], b.name);
-				if (t) tables.push(t);
-			});
-		} else if (stat.kind === "assign") {
-			stat.targets.forEach((target, i) => {
-				const t = ownerOf(stat.values[i], target.kind === "name" ? target.name : undefined);
-				if (t) tables.push(t);
-			});
-		}
-		const expr = node as Expr;
-		if (expr.kind === "table") {
-			for (const field of expr.fields) {
-				if (field.kind === "named" && field.name.start === from && field.name.end === to) {
-					const owner = tables.find((t) => t.table === expr)?.owner;
-					const detail = field.value.kind === "function" ? signatureOf(field.value.func, src) : typeOfValue(field.value, src);
-					found = { ...(owner ? { owner } : {}), fieldStart: field.start, ...(detail ? { detail } : {}) };
-					return;
-				}
+	visitBlock(parseChunk(src).value, {
+		stat: (stat) => {
+			if (found) return false;
+			if (stat.kind === "local" || stat.kind === "const") {
+				stat.names.forEach((b, i) => {
+					const t = ownerOf(stat.values[i], b.name);
+					if (t) tables.push(t);
+				});
+			} else if (stat.kind === "assign") {
+				stat.targets.forEach((target, i) => {
+					const t = ownerOf(stat.values[i], target.kind === "name" ? target.name : undefined);
+					if (t) tables.push(t);
+				});
 			}
-		}
-		for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
-	};
-	visit(parseChunk(src).value);
+			return true;
+		},
+		expr: (expr) => {
+			if (found) return false;
+			if (expr.kind !== "table") return true;
+			const field = expr.fields.find((f) => f.kind === "named" && f.name.start === from && f.name.end === to);
+			if (field?.kind !== "named") return true;
+			const owner = tables.find((t) => t.table === expr)?.owner;
+			const detail = typeOfValue(field.value, src);
+			found = { ...(owner ? { owner } : {}), fieldStart: field.start, ...(detail ? { detail } : {}) };
+			return false;
+		},
+	});
 	return found;
 }
 
