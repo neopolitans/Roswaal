@@ -16,10 +16,9 @@
  */
 
 import { isBinaryRbx } from "./binary.js";
+import { cdata, chunkData, FIRST_CHUNK, putU32, readChunks, readReferents, sealChunk, u32 } from "./chunks.js";
 import { type RbxDocument, RbxError, type RbxInstance, SCRIPT_CLASSES } from "./dom.js";
-import { lz4Compress, lz4Decompress } from "./lz4.js";
 import { parseXml, type XmlElement } from "./xml.js";
-import { isZstd, zstdDecompress } from "./zstd.js";
 
 export interface SourceChange {
 	inst: RbxInstance;
@@ -42,54 +41,22 @@ export function writeSources(bytes: Uint8Array, doc: RbxDocument, changes: reado
 
 const utf8 = new TextEncoder();
 
-function u32(b: Uint8Array, o: number): number {
-	return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
-}
-
-function putU32(out: Uint8Array, o: number, v: number): void {
-	out[o] = v & 255;
-	out[o + 1] = (v >>> 8) & 255;
-	out[o + 2] = (v >>> 16) & 255;
-	out[o + 3] = (v >>> 24) & 255;
-}
-
-/** Delta-encoded, zigzagged, transposed referents, as an INST chunk lists them. */
-function referents(b: Uint8Array, o: number, count: number): number[] {
-	const out: number[] = [];
-	let acc = 0;
-	for (let i = 0; i < count; i++) {
-		const raw = ((b[o + i] << 24) | (b[o + count + i] << 16) | (b[o + 2 * count + i] << 8) | b[o + 3 * count + i]) >>> 0;
-		acc += (raw >>> 1) ^ -(raw & 1);
-		out.push(acc);
-	}
-	return out;
-}
-
 function writeBinary(bytes: Uint8Array, changes: readonly SourceChange[]): Uint8Array {
 	const bySource = new Map<number, string>();
 	for (const change of changes) bySource.set(change.inst.ref as number, change.source);
 
-	const parts: Uint8Array[] = [bytes.subarray(0, 32)];
+	const parts: Uint8Array[] = [bytes.subarray(0, FIRST_CHUNK)];
 	/** Class id to its referents, for the script classes only. */
 	const scriptClasses = new Map<number, number[]>();
-	let p = 32;
 	let written = 0;
 
-	while (p + 16 <= bytes.length) {
-		const name = String.fromCharCode(bytes[p], bytes[p + 1], bytes[p + 2], bytes[p + 3]);
-		const compressed = u32(bytes, p + 4);
-		const length = u32(bytes, p + 8);
-		const size = compressed === 0 ? length : compressed;
-		const whole = bytes.subarray(p, p + 16 + size);
-		const raw = bytes.subarray(p + 16, p + 16 + size);
-		p += 16 + size;
-
+	for (const chunk of readChunks(bytes)) {
+		const { name, whole } = chunk;
 		if (name !== "INST" && name !== "PROP") {
 			parts.push(whole);
-			if (name === "END\0") break;
 			continue;
 		}
-		const data = compressed === 0 ? raw : isZstd(raw) ? zstdDecompress(raw, length) : lz4Decompress(raw, length);
+		const data = chunkData(chunk);
 		const classId = u32(data, 0);
 		const nameLength = u32(data, 4);
 		const label = new TextDecoder().decode(data.subarray(8, 8 + nameLength));
@@ -97,7 +64,7 @@ function writeBinary(bytes: Uint8Array, changes: readonly SourceChange[]): Uint8
 		if (name === "INST") {
 			if (SCRIPT_CLASSES.has(label)) {
 				const count = u32(data, 8 + nameLength + 1);
-				scriptClasses.set(classId, referents(data, 8 + nameLength + 5, count));
+				scriptClasses.set(classId, readReferents(data, 8 + nameLength + 5, count));
 			}
 			parts.push(whole);
 			continue;
@@ -131,14 +98,7 @@ function writeBinary(bytes: Uint8Array, changes: readonly SourceChange[]): Uint8
 			payload.set(v, o + 4);
 			o += 4 + v.length;
 		}
-		const packed = lz4Compress(payload);
-		const chunk = new Uint8Array(16 + packed.length);
-		chunk.set(utf8.encode("PROP"), 0);
-		putU32(chunk, 4, packed.length);
-		putU32(chunk, 8, payload.length);
-		putU32(chunk, 12, 0);
-		chunk.set(packed, 16);
-		parts.push(chunk);
+		parts.push(sealChunk("PROP", payload));
 	}
 	if (written !== bySource.size) {
 		throw new RbxError(`only ${written} of ${bySource.size} scripts were found in the file`);
@@ -151,11 +111,6 @@ function writeBinary(bytes: Uint8Array, changes: readonly SourceChange[]): Uint8
 		o += part.length;
 	}
 	return out;
-}
-
-/** Text as CDATA, with any `]]>` in it split across two sections. */
-function cdata(text: string): string {
-	return `<![CDATA[${text.split("]]>").join("]]]]><![CDATA[>")}]]>`;
 }
 
 function writeXml(source: string, changes: readonly SourceChange[]): Uint8Array {

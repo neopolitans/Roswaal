@@ -20,8 +20,7 @@
 import {
 	asRbxError, type CFrameValue, type Prop, type PropType, type RbxDocument, RbxError, type RbxInstance, text,
 } from "./dom.js";
-import { lz4Decompress } from "./lz4.js";
-import { isZstd, zstdDecompress } from "./zstd.js";
+import { chunkData, readChunks, readReferents, transposedU32s, unzigzag } from "./chunks.js";
 
 const MAGIC = "<roblox!";
 const SIGNATURE = [0x89, 0xff, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -83,32 +82,26 @@ class Reader {
 		return this.bytes(this.u32());
 	}
 	/** `count` transposed big-endian u32s. */
-	interleaved(count: number): Uint32Array {
+	interleaved(count: number): number[] {
 		this.need(count * 4);
-		const out = new Uint32Array(count);
-		const b = this.b;
-		const o = this.o;
-		for (let i = 0; i < count; i++) {
-			out[i] = ((b[o + i] << 24) | (b[o + count + i] << 16) | (b[o + 2 * count + i] << 8) | b[o + 3 * count + i]) >>> 0;
-		}
+		const out = transposedU32s(this.b, this.o, count);
 		this.o += count * 4;
 		return out;
 	}
 	ints(count: number): number[] {
-		return Array.from(this.interleaved(count), unzigzag);
+		return this.interleaved(count).map(unzigzag);
 	}
 	floats(count: number): number[] {
-		return Array.from(this.interleaved(count), unrotate);
+		return this.interleaved(count).map(unrotate);
 	}
 	/** Delta-encoded referents. */
 	referents(count: number): number[] {
-		const raw = this.ints(count);
-		let acc = 0;
-		return raw.map((v) => (acc += v));
+		this.need(count * 4);
+		const out = readReferents(this.b, this.o, count);
+		this.o += count * 4;
+		return out;
 	}
 }
-
-const unzigzag = (v: number): number => (v >>> 1) ^ -(v & 1);
 
 const floatBits = new DataView(new ArrayBuffer(4));
 function unrotate(v: number): number {
@@ -198,7 +191,7 @@ function readValues(r: Reader, type: number, count: number, shared: Uint8Array[]
 			return ["UDim2", sx.map((s, i) => [s, ox[i], sy[i], oy[i]])];
 		}
 		case 11:
-			return ["BrickColor", Array.from(r.interleaved(count))];
+			return ["BrickColor", r.interleaved(count)];
 		case 12: {
 			const [x, y, z] = [r.floats(count), r.floats(count), r.floats(count)];
 			return ["Color3", x.map((_, i) => [x[i], y[i], z[i]])];
@@ -214,7 +207,7 @@ function readValues(r: Reader, type: number, count: number, shared: Uint8Array[]
 		case 16:
 			return ["CFrame", readCFrames(r, count)];
 		case 18:
-			return ["Enum", Array.from(r.interleaved(count))];
+			return ["Enum", r.interleaved(count)];
 		case 19:
 			return ["Ref", r.referents(count)];
 		case 23: {
@@ -292,25 +285,10 @@ function decodeBinary(bytes: Uint8Array): RbxDocument {
 	const pendingRefs: { inst: RbxInstance; prop: string; ref: number }[] = [];
 	const parents: [number, number][] = [];
 
-	let p = 32;
-	let ended = false;
-	while (p + 16 <= bytes.length) {
-		const name = String.fromCharCode(bytes[p], bytes[p + 1], bytes[p + 2], bytes[p + 3]);
-		const compressed = header.getUint32(p + 4, true);
-		const length = header.getUint32(p + 8, true);
-		p += 16;
-		const stored = compressed === 0;
-		const size = stored ? length : compressed;
-		if (p + size > bytes.length) throw new RbxError(`the ${name.trim()} chunk runs past the end of the file`);
-		const raw = bytes.subarray(p, p + size);
-		p += size;
-		if (name === "END\0") {
-			ended = true;
-			break;
-		}
-		const data = stored ? raw : isZstd(raw) ? zstdDecompress(raw, length) : lz4Decompress(raw, length);
-		if (data.length !== length) throw new RbxError(`the ${name.trim()} chunk decompressed to the wrong length`);
-		const r = new Reader(data);
+	for (const chunk of readChunks(bytes)) {
+		const { name } = chunk;
+		if (name === "END\0") break;
+		const r = new Reader(chunkData(chunk));
 
 		if (name === "INST") {
 			const id = r.u32();
@@ -372,7 +350,6 @@ function decodeBinary(bytes: Uint8Array): RbxDocument {
 		}
 		// META and anything newer carry nothing the tree needs.
 	}
-	if (!ended) throw new RbxError("the file stops before its END chunk");
 
 	for (const { inst, prop, ref } of pendingRefs) {
 		inst.props.set(prop, { type: "Ref", value: byRef.get(ref) ?? null });
