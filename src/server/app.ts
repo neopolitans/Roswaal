@@ -5,8 +5,16 @@
  * is what lets dynamic compiling be a file watcher calling the same compileScript()
  * the manual button calls, rather than a second code path that can drift.
  *
- * Exported rather than self-starting, so the CLI can run it in-process instead
- * of shelling out to a second copy of itself.
+ * The API itself is not Express's and does not live here: `routes.ts` holds
+ * every handler, and this file is what puts them on a socket -- the loopback
+ * guard, the project guard, the event stream, the static editor. The same table
+ * is mounted by the worker behind the hosted editor with a volume in memory
+ * underneath it, so there is one description of what Roswaal does and two ways
+ * to reach it.
+ *
+ * Nothing is built when this module is imported. `createDaemon()` builds one,
+ * so the CLI can run it in-process instead of shelling out to a second copy of
+ * itself, and every other command can import from here without a server.
  */
 
 import express from "express";
@@ -15,14 +23,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sea from "node:sea";
 
-import { errorResponse, HttpError } from "./errors.js";
-import { ApiSession, type RouteRequest } from "./routes.js";
-import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
-import { chooseDirectory, NoPickerError } from "./browse.js";
-import { openInEditor, revealInFileManager } from "./reveal.js";
-import { isInitialised } from "./project.js";
-import { DynamicCompiler } from "./watcher.js";
 import { DEMO_PROJECTS } from "../core/demoProjects.js";
+import { chooseDirectory, NoPickerError } from "./browse.js";
+import { errorResponse, HttpError } from "./errors.js";
+import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
+import { isInitialised } from "./project.js";
+import { openInEditor, revealInFileManager } from "./reveal.js";
+import { ApiSession, type HostCapabilities, type RouteRequest } from "./routes.js";
+import { DynamicCompiler } from "./watcher.js";
 
 export const DEFAULT_PORT = 4471;
 
@@ -59,9 +67,9 @@ function hostnameOf(value: string): string {
  *
  * The daemon listens on 127.0.0.1, which stops anything on the network reaching
  * it — but not the browser already running on this machine. Every page the
- * developer has open can reach a loopback port, and `cors()` used to answer all
- * of them with "yes, read the response". That was enough for any website to run
- * this against a developer with the daemon up:
+ * developer has open can reach a loopback port, so answering all of them with
+ * "yes, read the response" would let any website run this against a developer
+ * with the daemon up:
  *
  *     POST /api/project/init  { root: "C:/Users/someone" }
  *     GET  /api/source?path=...
@@ -100,50 +108,248 @@ export function refusesConnection(
 	return null;
 }
 
-const app = express();
+/**
+ * The project a request believes it is talking to.
+ *
+ * One editor tab, one daemon, one project — and the daemon can be pointed at a
+ * different project while a tab is still open on the old one. A tab left like
+ * that goes on autosaving its document against whatever root the daemon now
+ * serves, and the graph is written into the wrong repository with nothing
+ * going wrong from either side's point of view.
+ *
+ * So every request that writes carries the root it thinks is open, and a
+ * mismatch is refused rather than obeyed. The header is what the daemon itself
+ * handed the client, so an exact comparison is right: normalising here would
+ * only invent ways for two spellings of the same path to disagree.
+ *
+ * A client that sends no header is an older one, and is let through — the guard
+ * is a safety net for a race, not an authentication scheme.
+ */
+const PROJECT_HEADER = "x-roswaal-project";
+
+/**
+ * Deliberately changes the project, so it cannot be asked to match the old one.
+ *
+ * Paths are relative to the `/api` mount, because that is what `req.path` is
+ * inside the middleware — spelling them in full here would match nothing and
+ * quietly lock the editor out of switching projects at all.
+ */
+const SWITCHES_PROJECT = new Set(["/project/open", "/project/init"]);
+
+/**
+ * Whether this request must be refused because it belongs to another project.
+ *
+ * A pure decision, exported so it can be tested: what is worth pinning down is
+ * which requests the guard lets through. Getting that wrong in either
+ * direction is bad — too strict and the editor cannot switch projects at all,
+ * too loose and the bug it exists for comes back.
+ */
+export function refusesRequest(
+	method: string, routePath: string, claimed: string | undefined, open: string | null,
+): boolean {
+	// Reading is harmless: the worst case is showing the new project's files,
+	// which is what the tab is about to be told to do anyway.
+	if (method === "GET" || method === "HEAD") return false;
+	// The two routes whose whole job is to change the answer, and shutdown,
+	// which is not about a project at all.
+	if (SWITCHES_PROJECT.has(routePath) || routePath === "/shutdown") return false;
+	// No claim means an older client. The guard is a safety net for a race, not
+	// an authentication scheme, so it does not lock anyone out.
+	if (!claimed || !open) return false;
+	return claimed !== open;
+}
+
+/** A daemon, built and not yet listening. */
+export interface Daemon {
+	/** The Express app, with the API mounted, for a test to drive. */
+	readonly app: express.Express;
+	readonly session: ApiSession;
+	/** Opens `root` if given, mounts the editor, and listens on loopback. */
+	start(options?: DaemonOptions): Promise<void>;
+}
+
+/**
+ * Builds a daemon: the session, the watcher and the Express app with every
+ * route on it. Nothing listens until `start` is called.
+ */
+export function createDaemon(): Daemon {
+	const app = express();
+	const dynamic = new DynamicCompiler();
+	const session: ApiSession = new ApiSession({
+		capabilities: hostCapabilities(),
+		projectChanged: (project, { switched }) => {
+			// Watches the open project, compiling on change in Dynamic mode only.
+			// The stored value is still `"hot"`. Manual mode is watched too, so an
+			// open graph hears that its file changed underneath it.
+			dynamic.start(project, project.config.compileMode === "hot");
+			// Only a real switch is broadcast. Reopening the same project because
+			// its packs moved is not news another tab needs, and telling it so
+			// would close every document it has open.
+			if (switched) broadcastProject(project.root);
+		},
+		compileStep: broadcastCompile,
+		demos: installedDemos,
+	});
+
+	guardConnections(app);
+	app.use(express.json({ limit: "32mb" }));
+	guardProject(app, session);
+	mountRoutes(app, session);
+	mountDaemonRoutes(app, session, dynamic);
+
+	return {
+		app,
+		session,
+		async start(options = {}) {
+			if (options.root) await session.openAt(options.root);
+			mountEditor(app, options.staticDir);
+			await listen(app, options);
+		},
+	};
+}
 
 /**
  * Before anything is parsed, so a refused request costs a header read.
  *
- * This replaced `cors()`, which was not merely loose but unnecessary: in
- * development Vite proxies `/api` to the daemon server-side, and in production
- * the daemon serves the editor itself. The browser never makes a cross-origin
- * request to it, so there was never anything for CORS to permit.
+ * There is no `cors()`, and none is needed: in development Vite proxies `/api`
+ * to the daemon server-side, and in production the daemon serves the editor
+ * itself. The browser never makes a cross-origin request to it.
  */
-app.use((req, res, next) => {
-	const refusal = refusesConnection(req.headers.host, req.headers.origin);
-	if (refusal) {
-		res.status(403).json({ error: refusal });
-		return;
-	}
-	next();
-});
+function guardConnections(app: express.Express): void {
+	app.use((req, res, next) => {
+		const refusal = refusesConnection(req.headers.host, req.headers.origin);
+		if (refusal) {
+			res.status(403).json({ error: refusal });
+			return;
+		}
+		next();
+	});
+}
 
-app.use(express.json({ limit: "32mb" }));
+/** Refuses a write meant for a project the daemon has left. See `PROJECT_HEADER`. */
+function guardProject(app: express.Express, session: ApiSession): void {
+	app.use("/api", (req, res, next) => {
+		const claimed = req.header(PROJECT_HEADER);
+		const open = session.current?.root ?? null;
+		if (open === null || !refusesRequest(req.method, req.path, claimed, open)) return next();
 
-const dynamic = new DynamicCompiler();
-
-/**
- * Watches the open project, compiling on change in Dynamic mode only.
- *
- * The stored value is still `"hot"` — what a person reads changed, what a
- * committed `roswaal.json` holds did not. Manual mode is watched too, so an
- * open graph hears that its file changed underneath it.
- */
-function syncDynamicCompile(): void {
-	if (session.current) dynamic.start(session.current, session.current.config.compileMode === "hot");
-	else dynamic.stop();
+		res.status(409).json({
+			code: "project-changed",
+			root: open,
+			error:
+				`This editor is open on ${claimed}, and the daemon is now serving ` +
+				`${open}. Nothing was written. Reload to follow the daemon, or ` +
+				`point it back at the project you were working in.`,
+		});
+	});
 }
 
 /**
- * The API itself, which is not Express's and does not live here.
+ * Every route in `routes.ts`, put on Express under `/api`.
  *
- * `routes.ts` holds every handler, and this file is what puts them on a socket:
- * the loopback guard, the project guard, the event stream, the static editor.
- * The same table is mounted by the worker behind the hosted editor with a
- * volume in memory underneath it, so there is one description of what Roswaal
- * does and two ways to reach it.
+ * A loop rather than forty-odd registrations, so a route added to the table is
+ * served by the daemon and by the hosted editor without either being edited.
+ * The table's keys are `"METHOD /path"` with the path relative to this mount —
+ * which is also what `req.path` is inside the project guard, so the two agree
+ * by construction rather than by being kept in step.
  */
+function mountRoutes(app: express.Express, session: ApiSession): void {
+	for (const [key, handler] of Object.entries(session.routes)) {
+		const [method, routePath] = key.split(" ");
+		const mount = `/api${routePath}`;
+		switch (method) {
+			case "GET": app.get(mount, route(handler)); break;
+			case "POST": app.post(mount, route(handler)); break;
+			case "PUT": app.put(mount, route(handler)); break;
+			case "DELETE": app.delete(mount, route(handler)); break;
+			default: throw new Error(`Unsupported method in the route table: ${key}`);
+		}
+	}
+}
+
+/**
+ * Wraps a handler so a thrown error becomes a clean JSON response, with the
+ * status `errorResponse` gives it -- the same one the web worker answers with.
+ */
+function route(handler: (req: RouteRequest) => Promise<unknown>): express.RequestHandler {
+	return (req, res) => {
+		const asRequest: RouteRequest = {
+			query: req.query as Record<string, string | undefined>,
+			body: req.body,
+		};
+		handler(asRequest).then(
+			(value) => res.json(value),
+			(err: unknown) => {
+				const { status, body } = errorResponse(err);
+				res.status(status).json(body);
+			},
+		);
+	};
+}
+
+/** The routes only a daemon has: its event stream, and stopping it. */
+function mountDaemonRoutes(app: express.Express, session: ApiSession, dynamic: DynamicCompiler): void {
+	app.get("/api/events", (req, res) => streamEvents(dynamic, req, res));
+
+	// The route keeps its path, and the reply its field names: both are the
+	// contract a running editor is already speaking.
+	app.get("/api/hot/status", (_req, res) => {
+		res.json({ running: dynamic.running, mode: session.current?.config.compileMode ?? null });
+	});
+
+	/**
+	 * How `roswaal stop` and `roswaal restart` work.
+	 *
+	 * An HTTP call rather than a PID file and a platform-specific kill: there is
+	 * no stale pid to reason about when a daemon dies unexpectedly, and no
+	 * divergence between Windows and everything else. The reply is sent before
+	 * the process exits, on a short delay, so the caller reads a clean answer
+	 * instead of a dropped connection it would have to interpret.
+	 */
+	app.post("/api/shutdown", (_req, res) => {
+		res.json({ ok: true, stopping: true });
+		setTimeout(() => process.exit(0), SHUTDOWN_DELAY_MS);
+	});
+}
+
+/** Everything the daemon can do that a browser tab cannot. */
+function hostCapabilities(): HostCapabilities {
+	return {
+		// GitHub's archive download, which a web page cannot make: the API
+		// redirects to codeload, and codeload refuses other sites' pages.
+		githubDownload: async (owner, repo, ref) => {
+			// No ref is the repository's default branch.
+			const at = ref ? `/${encodeURIComponent(ref)}` : "";
+			const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/zipball${at}`, {
+				headers: { "User-Agent": "Roswaal", Accept: "application/vnd.github+json" },
+			});
+			if (!response.ok) {
+				throw new HttpError(502, `GitHub answered ${response.status} for ${owner}/${repo}${ref ? `@${ref}` : ""}.`);
+			}
+			return new Uint8Array(await response.arrayBuffer());
+		},
+		inspect: async (root) => {
+			// Missing and unreadable both answer "not there".
+			const stat = await fs.promises.stat(root).catch(() => null);
+			if (!stat) return { root, exists: false, directory: false, initialised: false };
+			if (!stat.isDirectory()) return { root, exists: true, directory: false, initialised: false };
+			return { root, exists: true, directory: true, initialised: await isInitialised(root) };
+		},
+		duplicateDemo,
+		browse: async (startIn) => {
+			try {
+				return await chooseDirectory(startIn);
+			} catch (err) {
+				// 501: the machine cannot do this, which is not the caller's fault
+				// and not worth retrying. The editor drops the button and says why.
+				if (err instanceof NoPickerError) throw new HttpError(501, err.message);
+				throw err;
+			}
+		},
+		reveal: revealInFileManager,
+		edit: openInEditor,
+	};
+}
 
 /**
  * Where Roswaal itself is installed, for finding the demo projects.
@@ -171,291 +377,86 @@ function installRoot(): string | null {
 	return null;
 }
 
-const session = new ApiSession({
-	/** Everything the daemon can do that a browser tab cannot. */
-	capabilities: {
-		// GitHub's archive download, which a web page cannot make: the API
-		// redirects to codeload, and codeload refuses other sites' pages.
-		githubDownload: async (owner, repo, ref) => {
-			// No ref is the repository's default branch.
-			const at = ref ? `/${encodeURIComponent(ref)}` : "";
-			const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/zipball${at}`, {
-				headers: { "User-Agent": "Roswaal", Accept: "application/vnd.github+json" },
-			});
-			if (!response.ok) throw new HttpError(502, `GitHub answered ${response.status} for ${owner}/${repo}${ref ? `@${ref}` : ""}.`);
-			return new Uint8Array(await response.arrayBuffer());
-		},
-		inspect: async (root) => {
-			const stat = await fs.promises.stat(root).catch(() => null);
-			if (!stat) return { root, exists: false, directory: false, initialised: false };
-			if (!stat.isDirectory()) return { root, exists: true, directory: false, initialised: false };
-			return { root, exists: true, directory: true, initialised: await isInitialised(root) };
-		},
-		/**
-		 * Copy a demo into a directory of the developer's own.
-		 *
-		 * Named after the demo, and never over the top of something already
-		 * there — a second copy becomes `lune-demo-2`. Taking a demo is meant
-		 * to be safe twice, and a copy that silently replaced an earlier one
-		 * would lose whatever had been done to it.
-		 */
-		duplicateDemo: async (dir, into) => {
-			const home = installRoot();
-			if (home === null) throw new HttpError(501, "This copy of Roswaal has no demos.");
-			if (!DEMO_PROJECTS.some((one) => one.dir === dir)) {
-				throw new HttpError(404, `There is no demo called "${dir}".`);
-			}
-			const from = path.join(home, "examples", dir);
-			if (!fs.existsSync(path.join(from, "roswaal.json"))) {
-				throw new HttpError(404, `The "${dir}" demo is not in this install.`);
-			}
-
-			const parent = path.resolve(into);
-			if (!fs.existsSync(parent)) throw new HttpError(400, `There is no directory at ${parent}.`);
-
-			let root = path.join(parent, dir);
-			for (let n = 2; fs.existsSync(root); n += 1) root = path.join(parent, `${dir}-${n}`);
-
-			// `.roswaal` and everything else. `recursive` copies the dot
-			// directory too, which is where the graphs are -- a copy without it
-			// would be the generated Luau and nothing to regenerate it from.
-			await fs.promises.cp(from, root, { recursive: true });
-			return root;
-		},
-
-		browse: async (startIn) => {
-			try {
-				return await chooseDirectory(startIn);
-			} catch (err) {
-				// 501: the machine cannot do this, which is not the caller's fault
-				// and not worth retrying. The editor drops the button and says why.
-				if (err instanceof NoPickerError) throw new HttpError(501, err.message);
-				throw err;
-			}
-		},
-		reveal: revealInFileManager,
-		edit: openInEditor,
-	},
-	projectChanged: (project, { switched }) => {
-		syncDynamicCompile();
-		// Only a real switch is broadcast. Reopening the same project because its
-		// packs moved is not news another tab needs, and telling it so would close
-		// every document it has open.
-		if (switched) broadcastProject(project.root);
-	},
-	compileStep: broadcastCompile,
-	/** The demos that shipped with this copy, by folder name. */
-	demos: async () => {
-		const home = installRoot();
-		if (home === null) return {};
-		const out: Record<string, string> = {};
-		for (const demo of DEMO_PROJECTS) {
-			const root = path.join(home, "examples", demo.dir);
-			if (fs.existsSync(path.join(root, "roswaal.json"))) out[demo.dir] = root;
-		}
-		return out;
-	},
-});
+/** The demos that shipped with this copy, by folder name. */
+async function installedDemos(): Promise<Record<string, string>> {
+	const home = installRoot();
+	if (home === null) return {};
+	const out: Record<string, string> = {};
+	for (const demo of DEMO_PROJECTS) {
+		const root = path.join(home, "examples", demo.dir);
+		if (fs.existsSync(path.join(root, "roswaal.json"))) out[demo.dir] = root;
+	}
+	return out;
+}
 
 /**
- * Wraps a handler so a thrown error becomes a clean JSON response, with the
- * status `errorResponse` gives it -- the same one the web worker answers with.
+ * Copy a demo into a directory of the developer's own.
+ *
+ * Named after the demo, and never over the top of something already
+ * there — a second copy becomes `lune-demo-2`. Taking a demo is meant
+ * to be safe twice, and a copy that silently replaced an earlier one
+ * would lose whatever had been done to it.
  */
-function route(handler: (req: RouteRequest) => Promise<unknown>): express.RequestHandler {
-	return (req, res) => {
-		const asRequest: RouteRequest = {
-			query: req.query as Record<string, string | undefined>,
-			body: req.body,
-		};
-		handler(asRequest).then(
-			(value) => res.json(value),
-			(err: unknown) => {
-				const { status, body } = errorResponse(err);
-				res.status(status).json(body);
-			},
-		);
+async function duplicateDemo(dir: string, into: string): Promise<string> {
+	const home = installRoot();
+	if (home === null) throw new HttpError(501, "This copy of Roswaal has no demos.");
+	if (!DEMO_PROJECTS.some((one) => one.dir === dir)) {
+		throw new HttpError(404, `There is no demo called "${dir}".`);
+	}
+	const from = path.join(home, "examples", dir);
+	if (!fs.existsSync(path.join(from, "roswaal.json"))) {
+		throw new HttpError(404, `The "${dir}" demo is not in this install.`);
+	}
+
+	const parent = path.resolve(into);
+	if (!fs.existsSync(parent)) throw new HttpError(400, `There is no directory at ${parent}.`);
+
+	let root = path.join(parent, dir);
+	for (let n = 2; fs.existsSync(root); n += 1) root = path.join(parent, `${dir}-${n}`);
+
+	// `.roswaal` and everything else. `recursive` copies the dot
+	// directory too, which is where the graphs are -- a copy without it
+	// would be the generated Luau and nothing to regenerate it from.
+	await fs.promises.cp(from, root, { recursive: true });
+	return root;
+}
+
+/**
+ * The built editor, when there is one: from inside the executable first, and
+ * otherwise from a directory on disk. In development Vite serves it instead
+ * and proxies /api here, so this is simply absent.
+ */
+function mountEditor(app: express.Express, staticDir: string | undefined): void {
+	// A packaged build carries the editor as assets, and should use them rather
+	// than looking for a directory it will not find.
+	if (mountEmbeddedEditor(app)) return;
+
+	const dir = staticDir ?? defaultStaticDir();
+	if (!dir || !fs.existsSync(path.join(dir, "index.html"))) return;
+	// The asset filenames carry a content hash, so they can be cached hard.
+	// `index.html` is the one file that must not be: it is what names the
+	// current hashes, and a cached copy pins the browser to whichever build it
+	// was fetched with, still reporting the old version number.
+	const noCacheHtml = (res: express.Response, filePath: string) => {
+		if (filePath.endsWith(".html")) res.setHeader("Cache-Control", "no-cache");
 	};
-}
-
-/**
- * The project a request believes it is talking to.
- *
- * One editor tab, one daemon, one project — and the daemon can be pointed at a
- * different project while a tab is still open on the old one. When that
- * happened the tab went on autosaving its document against whatever root the
- * daemon now served, and the graph was written into the wrong repository. Two
- * stray files turned up in `examples/demo` that way, and nothing had gone
- * wrong from either side's point of view.
- *
- * So every request that writes carries the root it thinks is open, and a
- * mismatch is refused rather than obeyed. The header is what the daemon itself
- * handed the client, so an exact comparison is right: normalising here would
- * only invent ways for two spellings of the same path to disagree.
- *
- * A client that sends no header is an older one, and is let through — the guard
- * is a safety net for a race, not an authentication scheme.
- */
-const PROJECT_HEADER = "x-roswaal-project";
-
-/**
- * Deliberately changes the project, so it cannot be asked to match the old one.
- *
- * Paths are relative to the `/api` mount, because that is what `req.path` is
- * inside the middleware — spelling them in full here would have matched nothing
- * and quietly locked the editor out of switching projects at all.
- */
-const SWITCHES_PROJECT = new Set(["/project/open", "/project/init"]);
-
-/**
- * Whether this request must be refused because it belongs to another project.
- *
- * A pure decision, exported so it can be tested: an integration test would have
- * to bind a port, and what is actually worth pinning down is which requests the
- * guard lets through. Getting that wrong in either direction is bad — too
- * strict and the editor cannot switch projects at all, too loose and the bug it
- * exists for comes back.
- */
-export function refusesRequest(
-	method: string, routePath: string, claimed: string | undefined, open: string | null,
-): boolean {
-	// Reading is harmless: the worst case is showing the new project's files,
-	// which is what the tab is about to be told to do anyway.
-	if (method === "GET" || method === "HEAD") return false;
-	// The two routes whose whole job is to change the answer, and shutdown,
-	// which is not about a project at all.
-	if (SWITCHES_PROJECT.has(routePath) || routePath === "/shutdown") return false;
-	// No claim means an older client. The guard is a safety net for a race, not
-	// an authentication scheme, so it does not lock anyone out.
-	if (!claimed || !open) return false;
-	return claimed !== open;
-}
-
-app.use("/api", (req, res, next) => {
-	const claimed = req.header(PROJECT_HEADER);
-	if (!refusesRequest(req.method, req.path, claimed, session.current?.root ?? null)) return next();
-
-	res.status(409).json({
-		code: "project-changed",
-		root: session.current!.root,
-		error:
-			`This editor is open on ${claimed}, and the daemon is now serving ` +
-			`${session.current!.root}. Nothing was written. Reload to follow the daemon, or ` +
-			`point it back at the project you were working in.`,
+	app.use(express.static(dir, { setHeaders: noCacheHtml }));
+	app.get(/^(?!\/api\/).*/, (_req, res) => {
+		res.setHeader("Cache-Control", "no-cache");
+		res.sendFile(path.join(dir, "index.html"));
 	});
-});
-
-// ---------------------------------------------------------------------------
-// The API
-// ---------------------------------------------------------------------------
-
-/**
- * Every route in `routes.ts`, put on Express under `/api`.
- *
- * A loop rather than forty-odd registrations, so a route added to the table is
- * served by the daemon and by the hosted editor without either being edited.
- * The table's keys are `"METHOD /path"` with the path relative to this mount —
- * which is also what `req.path` is inside the guard above, so the two agree by
- * construction rather than by being kept in step.
- */
-for (const [key, handler] of Object.entries(session.routes)) {
-	const [method, routePath] = key.split(" ");
-	const mount = `/api${routePath}`;
-	switch (method) {
-		case "GET": app.get(mount, route(handler)); break;
-		case "POST": app.post(mount, route(handler)); break;
-		case "PUT": app.put(mount, route(handler)); break;
-		case "DELETE": app.delete(mount, route(handler)); break;
-		default: throw new Error(`Unsupported method in the route table: ${key}`);
-	}
 }
 
-// ---------------------------------------------------------------------------
-// Dynamic compiling
-// ---------------------------------------------------------------------------
-
-app.get("/api/events", (req, res) => streamEvents(dynamic, req, res));
-
-// The route keeps its path, and the reply its field names: both are the
-// contract a running editor is already speaking. Only what a person reads
-// changed.
-app.get("/api/hot/status", (_req, res) => {
-	res.json({ running: dynamic.running, mode: session.current?.config.compileMode ?? null });
-});
-
-/**
- * How `roswaal stop` and `roswaal restart` work.
- *
- * An HTTP call rather than a PID file and a platform-specific kill: there is no
- * stale pid to reason about when a daemon dies unexpectedly, and no divergence
- * between Windows and everything else. The reply is sent before the process
- * exits, on a short delay, so the caller reads a clean answer instead of a
- * dropped connection it would have to interpret.
- */
-app.post("/api/shutdown", (_req, res) => {
-	res.json({ ok: true, stopping: true });
-	setTimeout(() => process.exit(0), SHUTDOWN_DELAY_MS);
-});
-
-// ---------------------------------------------------------------------------
-// Starting
-// ---------------------------------------------------------------------------
-
-export async function startDaemon(options: DaemonOptions = {}): Promise<void> {
+/** Listens on loopback, resolving once the socket is open. */
+function listen(app: express.Express, options: DaemonOptions): Promise<void> {
 	const port = options.port ?? DEFAULT_PORT;
-
-	if (options.root) await session.openAt(options.root);
-
-	/**
-	 * The built editor, carried inside the executable.
-	 *
-	 * A packaged build has no `dist/` beside it -- it has no beside -- so the
-	 * editor and the documentation travel in the binary itself, as assets, and
-	 * are served from memory. Four files and under two megabytes, which is what
-	 * makes this worth doing at all: the localhost editor is one bundle, one
-	 * stylesheet and the page that names them.
-	 *
-	 * First, because a build that has them should use them rather than looking
-	 * for a directory it will not find.
-	 */
-	if (mountEmbeddedEditor(app)) {
-		await listen();
-		return;
-	}
-
-	// The built editor, when there is one. In development Vite serves it instead
-	// and proxies /api here, so this is simply absent.
-	const staticDir = options.staticDir ?? defaultStaticDir();
-	if (staticDir && fs.existsSync(path.join(staticDir, "index.html"))) {
-		/**
-		 * The asset filenames carry a content hash, so they can be cached hard.
-		 * `index.html` is the one file that must not be: it is what names the
-		 * current hashes, and a cached copy pins the browser to whichever build
-		 * it was fetched with. Rebuilding then changes nothing on screen — the
-		 * editor keeps running an old bundle and reports an old version number,
-		 * which is a confusing way to find out you are debugging yesterday.
-		 */
-		const noCacheHtml = (res: express.Response, filePath: string) => {
-			if (filePath.endsWith(".html")) res.setHeader("Cache-Control", "no-cache");
-		};
-
-		app.use(express.static(staticDir, { setHeaders: noCacheHtml }));
-		app.get(/^(?!\/api\/).*/, (_req, res) => {
-			res.setHeader("Cache-Control", "no-cache");
-			res.sendFile(path.join(staticDir, "index.html"));
+	return new Promise<void>((resolve, reject) => {
+		const server = app.listen(port, "127.0.0.1", () => {
+			options.onListening?.(port);
+			resolve();
 		});
-	}
-
-	await listen();
-
-	function listen(): Promise<void> {
-		return new Promise<void>((resolve, reject) => {
-			const server = app.listen(port, "127.0.0.1", () => {
-				options.onListening?.(port);
-				resolve();
-			});
-			server.on("error", reject);
-		});
-	}
+		server.on("error", reject);
+	});
 }
 
 /**
@@ -471,6 +472,7 @@ function embeddedAsset(name: string): Buffer | null {
 	try {
 		return Buffer.from(sea.getRawAsset(name));
 	} catch {
+		// Not embedded: see above.
 		return null;
 	}
 }
@@ -551,11 +553,7 @@ function defaultStaticDir(): string | null {
 		const here = path.dirname(fileURLToPath(import.meta.url));
 		return path.resolve(here, "..", "dist");
 	} catch {
+		// Not a file URL (a bundle loaded some other way): no directory beside it.
 		return null;
 	}
 }
-
-export function isProjectOpen(): boolean {
-	return session.current !== null;
-}
-

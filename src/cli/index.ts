@@ -26,7 +26,7 @@ import path from "node:path";
 import { describePlaceReport } from "../core/rbx/placeExport.js";
 import { readRbx } from "../core/rbx/index.js";
 import { planImport, surveyPlace } from "../core/rbx/placeImport.js";
-import { DEFAULT_PORT, hasBundledEditor, startDaemon } from "../server/app.js";
+import { createDaemon, DEFAULT_PORT, hasBundledEditor } from "../server/app.js";
 import { errorMessage } from "../server/errors.js";
 import {
 	collectMaps, compileAll, compileMap, compileScript, describeOutcome, exportPlace, findOrphanOutputs,
@@ -320,7 +320,7 @@ async function commandServe(args: Args): Promise<number> {
 	const project = await projectHere(root);
 	if (!project) return 1;
 
-	await startDaemon({ port, root });
+	await createDaemon().start({ port, root });
 
 	const url = `http://127.0.0.1:${port}`;
 	// A packaged build has no editor beside it, and saying "editor <url>" over
@@ -351,7 +351,7 @@ async function commandServe(args: Args): Promise<number> {
 
 	exitOnInterrupt(`stopped the daemon on :${port}`);
 
-	// startDaemon resolves once the socket is listening, but the process should
+	// start() resolves once the socket is listening, but the process should
 	// stay alive; the open server handle does that on its own.
 	await new Promise<never>(() => {});
 	return 0;
