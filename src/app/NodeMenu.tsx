@@ -103,7 +103,8 @@ export function NodeMenu({
 	const draggedService = useMemo(() => draggedServiceItems(services, from), [services, from]);
 
 	const draggedMembers = useMemo(() => {
-		if (!script) return [];
+		// Only a wire dragged out of a value has members to offer.
+		if (!script || from?.side !== "out") return [];
 		const external = new Map(
 			requiredTypes(script, projectTypes)
 				.filter((entry) => entry.fields && entry.fields.length > 0)
