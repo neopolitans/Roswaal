@@ -161,7 +161,7 @@ export async function addFromWally(
 		return {
 			...(line ? { line } : {}),
 			installed: installer.installed,
-			problem: (err as Error).message,
+			problem: errorMessage(err),
 			requests: installer.requests,
 		};
 	}

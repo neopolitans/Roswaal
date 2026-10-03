@@ -107,6 +107,7 @@ export async function removeEmptyFolders(project: OpenProject, relPath: string):
 		try {
 			entries = await fs.readdir(abs);
 		} catch {
+			// Already gone, or not a folder: there is nothing here to tidy.
 			return;
 		}
 		if (entries.length > 0) return;

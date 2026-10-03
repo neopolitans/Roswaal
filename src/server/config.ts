@@ -10,7 +10,7 @@
 
 import { fs, path } from "./host.js";
 
-import { LuauParseError, parseLuauData } from "../core/luauData.js";
+import { parseLuauData } from "../core/luauData.js";
 import { createRegistry, parseNodePack, type Registry } from "../core/nodes/index.js";
 import { defaultConfig, SCHEMA_VERSION, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import { errorMessage, UserError } from "./errors.js";
@@ -231,9 +231,7 @@ async function loadNodePacks(
 				defs.push(...parsed.defs);
 				errors.push(...parsed.errors, ...parsed.warnings);
 			} catch (err) {
-				const detail =
-					err instanceof LuauParseError ? err.message : (err as Error).message;
-				errors.push(`${entry.name}: ${detail}`);
+				errors.push(`${entry.name}: ${errorMessage(err)}`);
 			}
 		}
 	}

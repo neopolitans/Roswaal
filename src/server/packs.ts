@@ -14,7 +14,7 @@ import { clashingIds, namespaceFor, packRequires, packTargets, renamespace } fro
 import type { NodeDef, Target } from "../core/schema.js";
 import { isInitialised, readConfig, type OpenProject } from "./config.js";
 import { collectScripts, readScript } from "./documents.js";
-import { UserError } from "./errors.js";
+import { errorMessage, UserError } from "./errors.js";
 import { exists } from "./files.js";
 import { safeJoin, toPosix } from "./paths.js";
 
@@ -83,7 +83,7 @@ async function readPackAt(root: string, relPath: string): Promise<PackContents> 
 		const nodes = Array.isArray(document.nodes) ? (document.nodes as Record<string, unknown>[]) : [];
 		return { pack, nodes, defs: parsed.defs };
 	} catch (err) {
-		pack.errors = [(err as Error).message];
+		pack.errors = [errorMessage(err)];
 		return { pack, nodes: [], defs: [] };
 	}
 }

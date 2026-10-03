@@ -18,6 +18,7 @@ import { indentUnit } from "../core/schema.js";
 import type { LuaurcSource } from "../core/luaurc.js";
 import type { OpenProject } from "./config.js";
 import { collectScripts, readMap, readScript } from "./documents.js";
+import { errorMessage } from "./errors.js";
 import { readLuaurcFiles, specifierContext } from "./luaurc.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
 import { generatedIndex, outputPathFor, removeEmptyFolders } from "./outputs.js";
@@ -266,7 +267,7 @@ export async function compileAll(
 			out.push(outcome);
 			onStep?.({ ...where, ...describeOutcome(outcome) });
 		} catch (err) {
-			const message = (err as Error).message;
+			const message = errorMessage(err);
 			out.push({
 				scriptPath: rel,
 				outputPath: "",
