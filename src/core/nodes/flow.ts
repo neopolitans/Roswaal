@@ -17,6 +17,28 @@ export interface Signature {
 	exported?: boolean;
 }
 
+/**
+ * A signature read from a node's config: a Function, a Declare Function, or a
+ * Connect or Once handler. A parameter or return with no usable name has an
+ * empty one, which the emitter writes as `argN`.
+ */
+export function signatureOf(config: NodeConfig | undefined): Signature {
+	const c = config ?? {};
+	const entries = (value: unknown) =>
+		(Array.isArray(value) ? value : [])
+			.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null)
+			.map((entry) => ({
+				name: typeof entry.name === "string" ? entry.name : "",
+				...(typeof entry.type === "string" ? { type: entry.type } : {}),
+			}));
+	return {
+		...(typeof c.name === "string" ? { name: c.name } : {}),
+		params: entries(c.params),
+		returns: entries(c.returns),
+		...(typeof c.exported === "boolean" ? { exported: c.exported } : {}),
+	};
+}
+
 const exec = (id: string, name: string): PinDef => ({ id, name, kind: "exec" });
 const data = (id: string, name: string, type: string, def?: PinDef["default"]): PinDef => ({
 	id, name, kind: "data", type, default: def,
@@ -42,11 +64,21 @@ export interface LoopTypes {
 	value?: string;
 }
 
+/** A config value as trimmed text, or undefined when it is not text or is blank. */
+function trimmedText(value: unknown): string | undefined {
+	return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+}
+
 export function loopTypes(config: NodeConfig): LoopTypes {
-	const c = config as { keyType?: unknown; valueType?: unknown };
-	const read = (v: unknown) =>
-		typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
-	return { key: read(c.keyType), value: read(c.valueType) };
+	return { key: trimmedText(config.keyType), value: trimmedText(config.valueType) };
+}
+
+/**
+ * What a For Each or For Index node calls its two loop variables, when it was
+ * told. Blank is undefined, and the emitter's own `key` and `value` stand in.
+ */
+export function loopNamesOf(config: NodeConfig | undefined): LoopTypes {
+	return { key: trimmedText(config?.keyName), value: trimmedText(config?.valueName) };
 }
 
 /** Renders a signature the way it will read in the generated Luau. */
@@ -129,9 +161,41 @@ export const FUNCTION_NODES: ReadonlySet<string> = new Set([
 export function typeShapeOf(defId: string, config: NodeConfig): "typeof" | "fields" | "written" {
 	if (config.shape === "fields" || config.shape === "written") return config.shape;
 	if (defId === "type.declareHere") return "typeof";
-	const fields = (config.fields as unknown[] | undefined) ?? [];
+	const fields = Array.isArray(config.fields) ? config.fields : [];
 	const definition = typeof config.definition === "string" ? config.definition : "";
 	return definition !== "" && fields.length === 0 ? "written" : "fields";
+}
+
+/** What a Declare Type node declares, read from its config with every field trimmed. */
+export interface TypeDeclaration {
+	name: string;
+	/** `export type` rather than `type`. On unless the node says otherwise. */
+	exported: boolean;
+	shape: "typeof" | "fields" | "written";
+	/** The Luau typed out, for the written shape. */
+	definition: string;
+	/** One field to a line, rather than all on one. */
+	lines: boolean;
+	fields: { name: string; type: string }[];
+}
+
+/** A Declare Type node's config, for either of the two nodes. */
+export function typeDeclarationOf(defId: string, config: NodeConfig | undefined): TypeDeclaration {
+	const c = config ?? {};
+	const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+	const fields = Array.isArray(c.fields) ? c.fields : [];
+	return {
+		name: text(c.name),
+		exported: c.export !== false,
+		shape: typeShapeOf(defId, c),
+		definition: text(c.definition),
+		lines: c.layout === "lines",
+		fields: fields.map((field: unknown) => {
+			// An object of no known shape: each key is checked as it is read.
+			const f = typeof field === "object" && field !== null ? (field as Record<string, unknown>) : {};
+			return { name: text(f.name), type: text(f.type) };
+		}),
+	};
 }
 
 export const FLOW_NODES: NodeDef[] = [
@@ -168,7 +232,7 @@ export const FLOW_NODES: NodeDef[] = [
 		outputs: [exec("then", ""), data("self", "Function", "function")],
 		compilesTo: { kind: "builtin", handler: "function.entry" },
 		derivePins(config: NodeConfig) {
-			const sig = config as Signature;
+			const sig = signatureOf(config);
 			return {
 				inputs: [],
 				outputs: [
@@ -182,8 +246,8 @@ export const FLOW_NODES: NodeDef[] = [
 		},
 		// The name goes on the title line and the signature underneath it, so a
 		// graph full of functions can be read without opening any of them.
-		defaultLabel: (config) => (config as Signature).name,
-		subtitle: (config) => signatureText(config as Signature),
+		defaultLabel: (config) => signatureOf(config).name,
+		subtitle: (config) => signatureText(signatureOf(config)),
 	},
 	{
 		/**
@@ -218,7 +282,7 @@ export const FLOW_NODES: NodeDef[] = [
 		],
 		compilesTo: { kind: "builtin", handler: "function.declareHere" },
 		derivePins(config: NodeConfig) {
-			const sig = config as Signature;
+			const sig = signatureOf(config);
 			const params = (sig.params ?? []).map((p, i) =>
 				data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type)),
 			);
@@ -251,10 +315,10 @@ export const FLOW_NODES: NodeDef[] = [
 		 * here -- is the thing you are looking at it to find out.
 		 */
 		defaultLabel: (config) => {
-			const name = (config as Signature).name;
+			const name = signatureOf(config).name;
 			return name ? `Declare Function (${name})` : undefined;
 		},
-		subtitle: (config) => signatureText(config as Signature),
+		subtitle: (config) => signatureText(signatureOf(config)),
 	},
 	{
 		id: "function.return",
@@ -266,7 +330,7 @@ export const FLOW_NODES: NodeDef[] = [
 		outputs: [],
 		compilesTo: { kind: "builtin", handler: "function.return" },
 		derivePins(config: NodeConfig) {
-			const sig = config as Signature;
+			const sig = signatureOf(config);
 			return {
 				inputs: [
 					exec("in", ""),
@@ -527,7 +591,7 @@ export const FLOW_NODES: NodeDef[] = [
 		],
 		compilesTo: { kind: "builtin", handler: "event.connect" },
 		derivePins(config: NodeConfig) {
-			const sig = config as Signature;
+			const sig = signatureOf(config);
 			return {
 				inputs: [exec("in", ""), data("signal", "Signal", "RBXScriptSignal")],
 				outputs: [

@@ -24,7 +24,7 @@
  */
 
 import { bodyPinOf, functionBody } from "./functionBody.js";
-import { FUNCTION_NODES } from "./nodes/flow.js";
+import { FUNCTION_NODES, signatureOf } from "./nodes/flow.js";
 import type { Registry } from "./nodes/index.js";
 import type { Comment, GraphNode, Link, NodeScript } from "./schema.js";
 
@@ -39,10 +39,10 @@ export const ENTRY_HOME = { x: 80, y: 160 } as const;
  * to the ones this graph shows. Only ever set on a copy made by `viewOf`, and
  * never written to a file.
  */
-export const PRESENCE = "presence";
+const PRESENCE = "presence";
 
 /** How a node appears in one graph. */
-export type Presence = "whole" | "entry" | "outer";
+type Presence = "whole" | "entry" | "outer";
 
 export function graphOf(item: { graph?: string }): GraphId {
 	return item.graph ?? null;
@@ -104,9 +104,9 @@ export function paramsVisibleFrom(owner: Pick<GraphNode, "id" | "def" | "graph">
 }
 
 /** Whether this pin belongs to the graph a declaration opens. */
-export function isEntryPin(defId: string, pinId: string): boolean {
+function isEntryPin(defId: string, pinId: string): boolean {
 	if (defId === "function.entry") return true;
-	if (defId === "function.declareHere") return pinId === "body" || /^p\d+(\.|$)/.test(pinId);
+	if (defId === "function.declareHere") return pinId === bodyPinOf(defId) || /^p\d+(\.|$)/.test(pinId);
 	return false;
 }
 
@@ -118,7 +118,7 @@ export function sideGraph(node: GraphNode, pinId: string, side: "in" | "out"): G
 }
 
 /** How a node is drawn in `graph`, or null when it is not drawn there. */
-export function presenceIn(node: GraphNode, graph: GraphId): Presence | null {
+function presenceIn(node: GraphNode, graph: GraphId): Presence | null {
 	if (node.def === "function.entry") return graph === node.id ? "whole" : null;
 	if (node.def === "function.declareHere") {
 		if (graph === node.id) return "entry";
@@ -254,7 +254,7 @@ export function functionOutline(script: Pick<NodeScript, "nodes">): FunctionInfo
 	const out: FunctionInfo[] = [];
 	const visit = (node: GraphNode, depth: number) => {
 		if (out.some((f) => f.id === node.id)) return;
-		const name = (node.config as { name?: string } | undefined)?.name?.trim();
+		const name = signatureOf(node.config).name?.trim();
 		out.push({ id: node.id, name: name || "function", depth });
 		for (const child of functions) {
 			if (child.def === "function.declareHere" && child.graph === node.id) visit(child, depth + 1);
@@ -389,7 +389,7 @@ export function assignMembership(
 		const to = nodeById.get(link.to.node)!;
 		if (from.def !== "function.entry" || link.from.pin !== "self") continue;
 		const id = `${link.id}-get`;
-		const name = (from.config as { name?: string } | undefined)?.name ?? "function";
+		const name = signatureOf(from.config).name ?? "function";
 		nodes = [...nodes, {
 			id, def: "function.get", x: to.x - 180, y: to.y,
 			config: { function: from.id, name },
@@ -402,5 +402,3 @@ export function assignMembership(
 	const moved = new Set(declarations.filter((fn) => nodes.some((n) => n.graph === fn.id)).map((n) => n.id)).size;
 	return { script: result, moved, crossings: crossingLinks(result).length };
 }
-
-export { bodyPinOf };

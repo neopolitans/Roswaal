@@ -418,7 +418,9 @@ function normalisePins(
 			kind,
 			type: typeof p.type === "string" ? p.type : "any",
 			default: coerceLiteral(p.default),
-			required: p.required === true,
+			// Kept as the pack wrote it, absent included: absent is the ordinary
+			// pin, which needs a value as a built-in one does. See `PinDef`.
+			...(typeof p.required === "boolean" ? { required: p.required } : {}),
 			description: typeof p.description === "string" ? p.description : undefined,
 		});
 	}

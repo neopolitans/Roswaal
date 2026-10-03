@@ -1,18 +1,18 @@
 /** Public compiler surface. */
 
-import type { NodeScript, ScriptClass, Target } from "../schema.js";
+import type { Comment, NodeScript, ScriptClass, Target } from "../schema.js";
 import type { Registry } from "../nodes/index.js";
 import type { SpecifierContext } from "../modules.js";
 import { emit, hashString, type Diagnostic, type EmitResult } from "./emit.js";
 import { validate } from "./validate.js";
 import { retypeClassReads } from "../classReads.js";
+import { headersByNode } from "../comments.js";
 import { checkLuau } from "../luau/check.js";
 
 export { validate } from "./validate.js";
 export { emit, hashString } from "./emit.js";
 export type { Diagnostic, EmitResult } from "./emit.js";
 export { GraphIndex } from "./graph.js";
-export * from "./luau.js";
 
 export interface CompileResult {
 	code: string;
@@ -56,7 +56,8 @@ export function compile(
 ): CompileResult {
 	// Hashed as saved; compiled with every wired Class Name followed, so a file
 	// edited by hand cannot carry a stale class into the build.
-	const sourceHash = hashString(semanticJson(source));
+	const headers = options.comments ? headersByNode(source, registry) : undefined;
+	const sourceHash = hashString(semanticJson(source, { headers }));
 	const script = retypeClassReads(source);
 	const structural = validate(script, registry);
 	const emitted: EmitResult = emit(script, registry, sourceHash, {
@@ -122,19 +123,29 @@ export function outputFileName(script: NodeScript): string {
 	}
 }
 
-export function scriptClassFor(fileName: string): { name: string; scriptClass: ScriptClass } {
-	const base = fileName.replace(/\.luau?$/i, "");
-	if (base.endsWith(".client")) return { name: base.slice(0, -7), scriptClass: "LocalScript" };
-	if (base.endsWith(".server")) return { name: base.slice(0, -7), scriptClass: "Script" };
-	return { name: base, scriptClass: "ModuleScript" };
-}
-
 /**
- * A stable projection of everything that affects the generated Luau, with
- * layout deliberately excluded. Nudging a node must not change the output
- * hash, or every cosmetic tidy-up would show as a diff in compiled files.
+ * A stable projection of a graph, hashed into the generated file's
+ * `roswaal-source` line.
+ *
+ * Covered: the script's own settings (name, class, run context, target, mode
+ * line), its variables and modules in declaration order, every node's id,
+ * definition, label, literals and config, and every link. When comment headers
+ * are written, `headers` adds each header's text and the ids of the nodes it
+ * heads — what a comment changes in the file, rather than where it is drawn.
+ *
+ * Not covered: positions, sizes, colours and comments that write no header.
+ * Nudging a node must not change the hash, or every cosmetic tidy-up would
+ * show as a diff in compiled files. Two things positions do decide are left
+ * out for that reason, and changing them changes the output without changing
+ * the hash: the order of hoisted Functions and of Script Starts, which are
+ * written top to bottom as drawn.
+ *
+ * The `headers` field is added only when there is a header, so a graph with
+ * none hashes exactly as it did before headers counted.
  */
-export function semanticJson(script: NodeScript): string {
+function semanticJson(
+	script: NodeScript, layout: { headers?: Map<string, Comment> } = {},
+): string {
 	const nodes = [...script.nodes]
 		.sort((a, b) => a.id.localeCompare(b.id))
 		.map((n) => ({
@@ -167,7 +178,26 @@ export function semanticJson(script: NodeScript): string {
 		})),
 		nodes,
 		links,
+		...headerProjection(layout.headers),
 	});
+}
+
+/** Each written header's text and the nodes it heads, ordered by comment id. */
+function headerProjection(
+	headers: Map<string, Comment> | undefined,
+): { headers?: { text: string; nodes: string[] }[] } {
+	if (headers === undefined || headers.size === 0) return {};
+	const byComment = new Map<string, { text: string; nodes: string[] }>();
+	for (const [nodeId, comment] of headers) {
+		const entry = byComment.get(comment.id) ?? { text: comment.text, nodes: [] };
+		entry.nodes.push(nodeId);
+		byComment.set(comment.id, entry);
+	}
+	return {
+		headers: [...byComment]
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([, entry]) => ({ text: entry.text, nodes: entry.nodes.sort() })),
+	};
 }
 
 /** Canonical on-disk form: sorted keys and stable ordering, for sane diffs. */

@@ -231,6 +231,48 @@ describe("emitter", () => {
 		expect(errors(out).join(" ")).toContain("only valid inside a loop");
 	});
 
+	/**
+	 * A function declared in a loop body is not in the loop: its body runs
+	 * whenever it is called. Luau rejects `break` there, so the graph must too.
+	 */
+	it("rejects break inside a function declared in a loop", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const loop = b.node("flow.forRange");
+		const fn = b.node("function.declareHere", { config: { name: "stop", params: [], returns: [] } });
+		const brk = b.node("flow.break");
+		b.link(start, "then", loop, "in");
+		b.link(loop, "body", fn, "in");
+		b.link(fn, "body", brk, "in");
+
+		expect(errors(compile(b.build(), registry)).join(" ")).toContain('"break" is only valid inside a loop');
+	});
+
+	it("rejects continue inside a handler connected in a loop", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const loop = b.node("flow.forRange");
+		const connect = b.node("event.connect");
+		const skip = b.node("flow.continue");
+		b.lit(connect, "signal", { t: "raw", v: "workspace.ChildAdded" });
+		b.link(start, "then", loop, "in");
+		b.link(loop, "body", connect, "in");
+		b.link(connect, "body", skip, "in");
+
+		expect(errors(compile(b.build(), registry)).join(" ")).toContain('"continue" is only valid inside a loop');
+	});
+
+	it("still takes break in a loop inside a function", () => {
+		const b = new Builder();
+		const fn = b.node("function.entry", { config: { name: "scan", params: [], returns: [] } });
+		const loop = b.node("flow.forRange");
+		const brk = b.node("flow.break");
+		b.link(fn, "then", loop, "in");
+		b.link(loop, "body", brk, "in");
+
+		expect(errors(compile(b.build(), registry))).toEqual([]);
+	});
+
 	it("rejects an execution cycle instead of emitting forever", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
@@ -512,6 +554,32 @@ describe("block termination", () => {
 });
 
 describe("reroute knots", () => {
+	/**
+	 * A step's result folds into the Declare Local that is its one reader, and
+	 * a knot on the wire between them changes nothing.
+	 */
+	it("folds a result into its one reader through a knot", () => {
+		const graph = (knotted: boolean) => {
+			const b = new Builder();
+			const start = b.node("script.begin");
+			const clone = b.node("instance.clone");
+			const declare = b.node("local.declare");
+			b.lit(clone, "instance", { t: "raw", v: "workspace.Part" });
+			b.lit(declare, "name", { t: "string", v: "copy" });
+			b.link(start, "then", clone, "in").link(clone, "then", declare, "in");
+			if (knotted) {
+				const knot = b.node("flow.reroute", { config: { type: "Instance" } });
+				b.link(clone, "result", knot, "in").link(knot, "out", declare, "value");
+			} else {
+				b.link(clone, "result", declare, "value");
+			}
+			return compile(b.build(), registry);
+		};
+		expect(errors(graph(true))).toEqual([]);
+		expect(body(graph(true).code)).toBe(body(graph(false).code));
+		expect(body(graph(true).code)).toBe("local copy = workspace.Part:Clone()");
+	});
+
 	/** A knot is a bend in a wire, so it must leave the output untouched. */
 	it("passes a data wire through and emits nothing", () => {
 		const b = new Builder();

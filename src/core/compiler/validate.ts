@@ -12,16 +12,21 @@ import {
 } from "../schema.js";
 import { checkLuau } from "../luau/check.js";
 import { crossingLinks, graphExists } from "../functionGraph.js";
-import { FUNCTION_NODES } from "../nodes/flow.js";
+import { bindsParameters } from "../functionBody.js";
+import { FUNCTION_NODES, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
+import { memberNameOf } from "../nodes/library.js";
 import { isSubclassOf } from "../roblox.js";
 import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
 import { isLuneCall } from "../nodes/lune.js";
 import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
-import { isConstLocal, localNameOf } from "../nodes/variables.js";
+import {
+	functionRefOf, isConstLocal, localNameOf, paramRefOf, variableRefOf,
+} from "../nodes/variables.js";
 import { declaredTypeFields } from "../typeFields.js";
 import { typeInto } from "../members.js";
 import { GraphIndex } from "./graph.js";
+import { isFieldName, notAName } from "./luau.js";
 import type { Diagnostic } from "./emit.js";
 
 /**
@@ -60,9 +65,8 @@ const UNIVERSAL = new Set(["any", "wildcard"]);
  * Whether a value of one type may be wired into a pin of another.
  *
  * The one rule, used by the canvas when a wire is dropped and by the compile
- * when it checks the wires already there. They were two copies until 0.30.0,
- * and the canvas's had learned that a `Model` fits an `Instance` pin while this
- * one had not — so a wire the editor accepted was warned about at compile.
+ * when it checks the wires already there. Two copies could disagree, and a
+ * wire the editor accepted would then be warned about at compile.
  */
 export function typesCompatible(from: string | undefined, to: string | undefined): boolean {
 	const a = from ?? "any";
@@ -72,18 +76,16 @@ export function typesCompatible(from: string | undefined, to: string | undefined
 	// Numbers stringify implicitly in Luau, and it is more annoying than useful
 	// to flag it.
 	if ((a === "number" && b === "string") || (a === "string" && b === "number")) return true;
-	/**
-	 * A class goes wherever one it derives from is wanted: a `Model` into an
-	 * `Instance`, a `Part` into a `BasePart`, a `TextButton` into a `GuiObject`.
-	 * Luau's `IsA`, answered from the engine's own hierarchy.
-	 *
-	 * Only `Instance` was known before the hierarchy was, so every narrower
-	 * version of the same fact wanted a Cast asserting something already true.
-	 *
-	 * The other way round stays refused. `Instance` into `Part` is a claim about
-	 * what the value *is* rather than a fact about its type, and Cast is the node
-	 * that makes that claim out loud.
-	 */
+	// A class goes wherever one it derives from is wanted: a `Model` into an
+	// `Instance`, a `Part` into a `BasePart`, a `TextButton` into a `GuiObject`.
+	// Luau's `IsA`, answered from the engine's own hierarchy.
+	//
+	// Only `Instance` was known before the hierarchy was, so every narrower
+	// version of the same fact wanted a Cast asserting something already true.
+	//
+	// The other way round stays refused. `Instance` into `Part` is a claim about
+	// what the value *is* rather than a fact about its type, and Cast is the node
+	// that makes that claim out loud.
 	if (isSubclassOf(a, b)) return true;
 	return false;
 }
@@ -145,8 +147,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	const declaredFields = declaredTypeFields(script);
 	for (const node of script.nodes) {
 		if (node.def !== "value.member") continue;
-		const named = (node.config as { member?: unknown } | undefined)?.member;
-		const member = typeof named === "string" ? named.trim() : "";
+		const member = memberNameOf(node.config);
 		if (member === "") {
 			out.push({
 				severity: "error",
@@ -155,12 +156,10 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 			});
 			continue;
 		}
-		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(member)) {
+		if (!isFieldName(member)) {
 			out.push({
 				severity: "error",
-				message:
-					`"${member}" is not a name Luau will take for a member. Letters, digits and ` +
-					"underscores, not starting with a digit — for a key that is not a name, use Get Field.",
+				message: `${notAName(member, "a member")} For a key that is not a name, use Get Field.`,
 				node: node.id,
 			});
 			continue;
@@ -227,7 +226,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	if (constants.size > 0) {
 		for (const node of script.nodes) {
 			if (node.def !== "variable.set" && node.def !== "variable.init") continue;
-			const id = (node.config as { variable?: string } | undefined)?.variable;
+			const id = variableRefOf(node.config).variable;
 			const name = id && constants.get(id);
 			if (!name) continue;
 			out.push({
@@ -383,83 +382,66 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id),
 	);
 
-	/**
-	 * Everything that binds parameters, which is a wider set than the two that
-	 * declare a function: Connect and Once bind their handler's parameters the
-	 * same way, into the same `p{i}` keys. Get Parameter works inside a handler
-	 * for that reason, so checking it against `functionIds` would report a
-	 * working graph as pointing at something that is not there.
-	 */
-	const paramOwnerIds = new Set(
-		script.nodes
-			.filter((n) => FUNCTION_NODES.has(n.def) || n.def === "event.connect" || n.def === "event.once")
-			.map((n) => n.id),
-	);
-
+	// The references by id: a variable, a function, a parameter. Reported here
+	// and only here, for every node, so a deleted variable is one error rather
+	// than one from here and another from the emitter for each reader it walks.
 	for (const node of script.nodes) {
 		if (node.def === "variable.get" || node.def === "variable.set") {
-			const ref = (node.config ?? {}) as { variable?: string };
+			const ref = variableRefOf(node.config);
+			const title = node.def === "variable.get" ? "Get Variable" : "Set Variable";
 			if (!ref.variable) {
-				out.push({
-					severity: "error",
-					message: `${node.def === "variable.get" ? "Get" : "Set"} Variable has no variable chosen.`,
-					node: node.id,
-				});
+				out.push({ severity: "error", message: `${title} has no variable chosen.`, node: node.id });
 			} else if (!variableIds.has(ref.variable)) {
 				out.push({
 					severity: "error",
-					message: "This node points at a variable that has been deleted.",
+					message: `${title} points at a variable that has been deleted.`,
 					node: node.id,
 				});
 			}
 		}
 		if (node.def === "function.get") {
-			const ref = (node.config ?? {}) as { function?: string };
+			const ref = functionRefOf(node.config);
 			if (!ref.function) {
 				out.push({ severity: "error", message: "Get Function has no function chosen.", node: node.id });
 			} else if (!functionIds.has(ref.function)) {
 				out.push({
 					severity: "error",
-					message: "This node points at a function that is no longer in the graph.",
+					message: "Get Function points at a function that is no longer in the graph.",
 					node: node.id,
 				});
 			}
 		}
-		/**
-		 * Get Parameter, which can point at a *handler* as well as a function:
-		 * Connect binds its parameters exactly as the two declarations do, so
-		 * `FUNCTION_NODES` is the wrong set here and would report a working
-		 * graph as broken.
-		 *
-		 * The second check is the one the others do not need. A function that
-		 * still exists can stop having a parameter by that name, and the node
-		 * left behind is pointing at something real that no longer has what it
-		 * asked for — which deserves to say so rather than fail at compile.
-		 */
+		// Get Parameter, which can point at a *handler* as well as a function:
+		// Connect binds its parameters exactly as the two declarations do, so
+		// `FUNCTION_NODES` is the wrong set here and would report a working
+		// graph as broken.
+		//
+		// The second check is the one the others do not need. A function that
+		// still exists can stop having a parameter by that name, and the node
+		// left behind is pointing at something real that no longer has what it
+		// asked for — which deserves to say so rather than fail at compile.
 		if (node.def === "function.getParam") {
-			const ref = (node.config ?? {}) as { function?: string; param?: string };
+			const ref = paramRefOf(node.config);
 			const owner = ref.function
-				? script.nodes.find((n) => n.id === ref.function && paramOwnerIds.has(n.id))
+				? script.nodes.find((n) => n.id === ref.function && bindsParameters(n.def))
 				: undefined;
 			if (!ref.function) {
 				out.push({ severity: "error", message: "Get Parameter has no function chosen.", node: node.id });
 			} else if (!owner) {
 				out.push({
 					severity: "error",
-					message: "This node points at a function that is no longer in the graph.",
+					message: "Get Parameter points at a function that is no longer in the graph.",
 					node: node.id,
 				});
 			} else {
-				const signature = (owner.config ?? {}) as {
-					name?: string; params?: { name?: string }[];
-				};
+				const signature = signatureOf(owner.config);
 				const named = (signature.params ?? []).some((p) => p.name === ref.param);
 				if (!named) {
+					const owning = signature.name || owner.label || "that function";
 					out.push({
 						severity: "error",
 						message:
-							`"${ref.param ?? "That parameter"}" is not a parameter of ` +
-							`"${signature.name ?? "that function"}" any more.`,
+							`"${ref.param ?? "That parameter"}" is not a parameter of "${owning}" any more.`,
 						node: node.id,
 					});
 				}
@@ -536,18 +518,16 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		}
 	}
 
-	/**
-	 * A Lune call whose module nothing requires.
-	 *
-	 * The emitter already refuses this, and says so with an error — but only
-	 * for a node it actually reaches. A node dropped on the canvas and not yet
-	 * wired is exactly where somebody needs to be told, because it is where
-	 * they are about to wire it, and the Inspector is already saying so.
-	 *
-	 * So this covers the half the emitter cannot see, and only that half:
-	 * **unreachable nodes only**, or a wired one would carry the same complaint
-	 * twice under two severities.
-	 */
+	// A Lune call whose module nothing requires.
+	//
+	// The emitter already refuses this, and says so with an error — but only
+	// for a node it actually reaches. A node dropped on the canvas and not yet
+	// wired is exactly where somebody needs to be told, because it is where
+	// they are about to wire it, and the Inspector is already saying so.
+	//
+	// So this covers the half the emitter cannot see, and only that half:
+	// **unreachable nodes only**, or a wired one would carry the same complaint
+	// twice under two severities.
 	const declared = new Set(
 		(script.modules ?? []).map((module) => module.specifier.trim().toLowerCase()),
 	);
@@ -569,20 +549,18 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		});
 	}
 
-	/**
-	 * A Roblox datatype in a Lune graph, without the module that provides it.
-	 *
-	 * `Vector3.new(0, 10, 0)` is what these nodes write, and in Lune `Vector3`
-	 * is not a global — it is a member of `@lune/roblox`, bound by a
-	 * declaration that names it. Without that the generated file indexes nil at
-	 * runtime, which is the failure this whole design exists to prevent: a
-	 * graph that looks right and a file that does not work.
-	 *
-	 * An error rather than a warning, and for every such node rather than only
-	 * the wired ones. An undeclared module is wrong whether or not the node has
-	 * been connected yet — unlike "not connected", which is a state every node
-	 * passes through.
-	 */
+	// A Roblox datatype in a Lune graph, without the module that provides it.
+	//
+	// `Vector3.new(0, 10, 0)` is what these nodes write, and in Lune `Vector3`
+	// is not a global — it is a member of `@lune/roblox`, bound by a
+	// declaration that names it. Without that the generated file indexes nil at
+	// runtime, which is the failure this whole design exists to prevent: a
+	// graph that looks right and a file that does not work.
+	//
+	// An error rather than a warning, and for every such node rather than only
+	// the wired ones. An undeclared module is wrong whether or not the node has
+	// been connected yet — unlike "not connected", which is a state every node
+	// passes through.
 	if (script.target === "lune") {
 		const roblox = (script.modules ?? []).find(
 			(module) => module.specifier.trim().toLowerCase() === "@lune/roblox",

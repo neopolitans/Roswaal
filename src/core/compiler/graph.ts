@@ -2,7 +2,7 @@
 
 import type { GraphNode, Link, NodeDef, NodeScript, PinDef } from "../schema.js";
 import { resolveNodePins } from "../nodes/index.js";
-import { partPinId } from "../structs.js";
+import { splitPinId } from "../structs.js";
 
 export interface ResolvedNode {
 	node: GraphNode;
@@ -28,6 +28,10 @@ export class GraphIndex {
 	private inLink = new Map<string, Link>();
 	/** Output pin "node/pin" -> every link leaving it. */
 	private outLinks = new Map<string, Link[]>();
+	/** Split output "node/pin" -> every link leaving one of its parts. */
+	private partLinks = new Map<string, Link[]>();
+	/** Output pin "node/pin" -> its readers through knots, worked out once. */
+	private readers = new Map<string, Link[]>();
 
 	constructor(script: NodeScript, defs: Map<string, NodeDef>) {
 		this.script = script;
@@ -38,10 +42,9 @@ export class GraphIndex {
 		}
 		for (const link of script.links) {
 			this.inLink.set(key(link.to.node, link.to.pin), link);
-			const k = key(link.from.node, link.from.pin);
-			const list = this.outLinks.get(k);
-			if (list) list.push(link);
-			else this.outLinks.set(k, [link]);
+			append(this.outLinks, key(link.from.node, link.from.pin), link);
+			const part = splitPinId(link.from.pin);
+			if (part) append(this.partLinks, key(link.from.node, part.parent), link);
 		}
 	}
 
@@ -70,21 +73,52 @@ export class GraphIndex {
 	}
 
 	/**
-	 * How many inputs read this output. Drives the inline-vs-hoist decision:
-	 * a pure value with one consumer is spliced in place, two or more is bound
-	 * to a local so the expression is evaluated exactly once.
+	 * The wires into the inputs that read this output, one per reader.
 	 *
-	 * Counts the components too. When an output is split, nothing wires to the
-	 * pin itself — the wires are on `position.x` and friends — and an output
-	 * whose parts are all being read is emphatically consumed.
+	 * Reroute knots are seen through: a wire into a knot stands for whatever the
+	 * knot feeds. A knot is meant to be invisible, and it would not be if
+	 * inserting one turned a value bound once into one evaluated twice, or
+	 * stopped a result folding into the statement that names it.
+	 *
+	 * With `parts`, a split output's components count as reads of it too. When
+	 * an output is split nothing wires to the pin itself — the wires are on
+	 * `position.x` and friends — and an output whose parts are read is
+	 * emphatically consumed.
+	 *
+	 * One answer for every question the emitter asks about readers: whether a
+	 * step's result is read at all, whether a value is read more than once, and
+	 * which statement its one reader is.
 	 */
-	consumerCount(nodeId: string, pinId: string): number {
-		let total = this.targetsOf(nodeId, pinId).length;
-		const prefix = partPinId(pinId, "");
-		for (const [k, links] of this.outLinks) {
-			if (k.startsWith(`${nodeId}/${prefix}`)) total += links.length;
-		}
-		return total;
+	readersOf(nodeId: string, pinId: string, options: { parts?: boolean } = {}): Link[] {
+		const whole = this.wholeReaders(nodeId, pinId, 0);
+		if (!options.parts) return whole;
+		const parts = (this.partLinks.get(key(nodeId, pinId)) ?? [])
+			.flatMap((link) => this.throughKnots(link, 0));
+		return [...whole, ...parts];
+	}
+
+	/** How many inputs read this output. See `readersOf`. */
+	readerCount(nodeId: string, pinId: string, options: { parts?: boolean } = {}): number {
+		return this.readersOf(nodeId, pinId, options).length;
+	}
+
+	private wholeReaders(nodeId: string, pinId: string, depth: number): Link[] {
+		const k = key(nodeId, pinId);
+		const known = this.readers.get(k);
+		if (known) return known;
+		const found = this.targetsOf(nodeId, pinId).flatMap((link) => this.throughKnots(link, depth));
+		this.readers.set(k, found);
+		return found;
+	}
+
+	/**
+	 * The link itself, or what the knot it lands on feeds. A knot wired into
+	 * itself is a graph error, not a reason to recurse forever; past the cap the
+	 * knot is taken as the reader, which no real chain reaches.
+	 */
+	private throughKnots(link: Link, depth: number): Link[] {
+		if (this.byId.get(link.to.node)?.def.id !== "flow.reroute" || depth > 64) return [link];
+		return this.wholeReaders(link.to.node, "out", depth + 1);
 	}
 
 	/** The node fed by an exec output, if the pin is wired. */
@@ -100,6 +134,12 @@ export class GraphIndex {
 	}
 }
 
-export function key(nodeId: string, pinId: string): string {
+function key(nodeId: string, pinId: string): string {
 	return `${nodeId}/${pinId}`;
+}
+
+function append(map: Map<string, Link[]>, k: string, link: Link): void {
+	const list = map.get(k);
+	if (list) list.push(link);
+	else map.set(k, [link]);
 }

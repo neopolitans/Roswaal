@@ -77,7 +77,21 @@ export interface PinDef {
 	type?: DataType;
 	/** Data inputs only: value used when the pin is left unconnected. */
 	default?: Literal;
-	/** Data inputs only: suppress the inline literal editor (must be wired). */
+	/**
+	 * Data inputs only: whether the pin may be left with no value.
+	 *
+	 * Three states, one meaning each, read the same way for a built-in pin and
+	 * a pack's:
+	 *
+	 * - absent: the ordinary pin. A wire, a typed literal or the `default`
+	 *   gives it a value, and with none of them the compile reports an error
+	 *   naming the pin.
+	 * - `true`: as absent, and the value has to come down a wire, so the canvas
+	 *   draws no literal field to type into.
+	 * - `false`: nothing is needed. Left empty, the pin is written as `nil`
+	 *   and nothing is reported, as for a call's receiver that falls back to a
+	 *   service.
+	 */
 	required?: boolean;
 	/**
 	 * Data inputs only: the underlying call takes this argument or nothing.
@@ -309,11 +323,9 @@ export interface NodeDef {
 	outputs: PinDef[];
 	compilesTo: CompileSpec;
 	/**
-	 * Builtins whose pins depend on per-instance config (function signatures,
-	 * module exports) derive them here. Data-only custom nodes never set this.
-	 */
-	/**
-	 * The pins this node has, given what it carries.
+	 * The pins this node has, given what it carries. For a builtin whose pins
+	 * depend on per-instance config — a function's signature, a module's
+	 * exports. A node pack's nodes never set it.
 	 *
 	 * `literals` is what has been typed into its pins, and is how a node whose
 	 * shape depends on a *value* rather than on a setting derives it: New
@@ -348,8 +360,7 @@ export interface NodeDef {
 	 * A Set Variable node is *about* a variable rather than named after one, and
 	 * showing "Accumulator" where "Set Variable" was would lose the verb; that
 	 * belongs in `subtitle`, which is where it already is.
-	 */
-	/**
+	 *
 	 * The node itself is passed as well, because not everything that names a
 	 * node lives in its config. A Declare Local's name is a literal on its Name
 	 * pin -- typed on the node face, where you would expect to type a name --

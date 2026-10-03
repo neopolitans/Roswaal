@@ -38,10 +38,10 @@ export interface MigrationResult {
 	notes: string[];
 }
 
-/** Pins that changed id, keyed by node type. */
 /** Make Dictionary's cap, and so how many rows a rename has to cover. */
 const DICTIONARY_ROWS = 24;
 
+/** Pins that changed id, keyed by node type. */
 const RENAMED_PINS: Record<string, Record<string, string>> = {
 	"roblox.getService": { result: "service" },
 	// A dictionary's rows are one Key Value Pair pin each now, split into Key

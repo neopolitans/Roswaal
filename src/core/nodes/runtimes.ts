@@ -166,15 +166,6 @@ export const RUNTIME_SUMMARY: Record<Runtime, string> = {
 export const RUNTIMES: readonly Runtime[] = ["luau", "roblox", "lune"];
 
 /**
- * What a node runs on, read off the node itself.
- *
- * The counterpart to {@link runtimeOf}, which answers from the tables for a
- * built-in. This one answers for **any** node including a project's own pack,
- * whose runtime is the project's to declare and is on the definition or
- * nowhere. Targeting both runtimes explicitly is the same claim as targeting
- * neither, so both come back as base Luau.
- */
-/**
  * The module a node needs to work in the runtime that is not its own.
  *
  * `Vector3` is Roblox's datatype and Lune implements it, so the node works in
@@ -219,20 +210,27 @@ export function runtimeLabelFor(
 ): string {
 	const via = crossRuntimeModule(def);
 	const runtime = classifyFor(def, target);
-	/**
-	 * The borrowed side is tagged with the **require string itself**.
-	 *
-	 * `Lune: @lune/roblox` said the runtime and then the module, and the
-	 * runtime was the part carrying no information — you are reading this in a
-	 * Lune graph. The specifier is the whole answer: it is what has to be
-	 * declared, and it is the text that goes in the field to declare it.
-	 *
-	 * In its own runtime the node is simply that runtime's, and
-	 * `Roblox: @lune/roblox` would be nonsense.
-	 */
+	// The borrowed side is tagged with the **require string itself**.
+	//
+	// `Lune: @lune/roblox` said the runtime and then the module, and the
+	// runtime was the part carrying no information — you are reading this in a
+	// Lune graph. The specifier is the whole answer: it is what has to be
+	// declared, and it is the text that goes in the field to declare it.
+	//
+	// In its own runtime the node is simply that runtime's, and
+	// `Roblox: @lune/roblox` would be nonsense.
 	return via !== undefined && runtime === "lune" ? via : RUNTIME_LABEL[runtime];
 }
 
+/**
+ * What a node runs on, read off the node itself.
+ *
+ * The counterpart to {@link runtimeOf}, which answers from the tables for a
+ * built-in. This one answers for **any** node including a project's own pack,
+ * whose runtime is the project's to declare and is on the definition or
+ * nowhere. Targeting both runtimes explicitly is the same claim as targeting
+ * neither, so both come back as base Luau.
+ */
 export function classify(def: { targets?: readonly string[] }): Runtime {
 	const targets = def.targets;
 	if (!targets || targets.length === 0) return "luau";
@@ -259,23 +257,21 @@ export function runtimeOf(
 	const named = NODE_RUNTIME[def.id];
 	if (named !== undefined) return named;
 
-	/**
-	 * A Roblox datatype `@lune/roblox` implements works in both.
-	 *
-	 * The category is Roblox's, and for most of it that is the whole answer.
-	 * But `Vector3` is not the engine — it is a table with a `new`, and Lune
-	 * ships an implementation of it. A Lune program that requires
-	 * `@lune/roblox` genuinely has `Vector3.new(0, 10, 0)`, so hiding the node
-	 * from a Lune graph hid something that works.
-	 *
-	 * Which datatypes is generated from the module's own source, so this
-	 * follows a Lune release rather than a list somebody kept up. `TweenInfo`
-	 * is a Roblox datatype Lune does not implement, and stays Roblox-only.
-	 *
-	 * The node is *offered*, not silently made to work: it still needs the
-	 * module declared, and says so. Same arrangement as a Lune call, for the
-	 * same reason — a require happens because somebody asked.
-	 */
+	// A Roblox datatype `@lune/roblox` implements works in both.
+	//
+	// The category is Roblox's, and for most of it that is the whole answer.
+	// But `Vector3` is not the engine — it is a table with a `new`, and Lune
+	// ships an implementation of it. A Lune program that requires
+	// `@lune/roblox` genuinely has `Vector3.new(0, 10, 0)`, so hiding the node
+	// from a Lune graph hid something that works.
+	//
+	// Which datatypes is generated from the module's own source, so this
+	// follows a Lune release rather than a list somebody kept up. `TweenInfo`
+	// is a Roblox datatype Lune does not implement, and stays Roblox-only.
+	//
+	// The node is *offered*, not silently made to work: it still needs the
+	// module declared, and says so. Same arrangement as a Lune call, for the
+	// same reason — a require happens because somebody asked.
 	if (def.category === ENGINE_TYPES && def.subcategory &&
 		LUNE_ROBLOX_DATATYPES.includes(def.subcategory)) {
 		return "luau";

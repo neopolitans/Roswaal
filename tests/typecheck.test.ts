@@ -64,6 +64,23 @@ describe("type annotations", () => {
 			expect(compile(graph(mode), registry).code, mode).toContain("local health: number = 100");
 		}
 	});
+
+	/** The hoisted Function follows the mode as Declare Function and Connect do. */
+	it("follow the mode on a hoisted function", () => {
+		const hoisted = (typecheck: TypecheckMode) => {
+			const b = new Builder();
+			b.node("function.entry", {
+				config: {
+					name: "heal",
+					params: [{ name: "amount", type: "number" }],
+					returns: [{ name: "health", type: "number" }],
+				},
+			});
+			return compile(b.build({ typecheck }), registry).code;
+		};
+		expect(hoisted("default")).toContain("local function heal(amount)\n");
+		expect(hoisted("strict")).toContain("local function heal(amount: number): number\n");
+	});
 });
 
 describe("graphs written before the dropdown existed", () => {

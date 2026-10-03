@@ -63,7 +63,7 @@ export const ROBLOX_REQUIRE_ANNOUNCEMENT =
 export const ROBLOX_ALIASES = ["self", "game"] as const;
 
 /** The alias Lune reserves for its standard library. */
-export const LUNE_ALIAS = "lune";
+const LUNE_ALIAS = "lune";
 
 /** A specifier's alias, or `null` when it is a relative path or unprefixed. */
 export function aliasOf(specifier: string): string | null {
@@ -73,14 +73,6 @@ export function aliasOf(specifier: string): string | null {
 	return trimmed.slice(1).split("/")[0] ?? "";
 }
 
-/**
- * What is wrong with this specifier for this target, or `null` if nothing is.
- *
- * An empty specifier is *not* a problem here. A declaration somebody has
- * started and not finished is a normal state to be in while typing, and the
- * emitter skips it rather than compiling half of one — saying "this is wrong"
- * about a field you have not filled in yet is nagging, not checking.
- */
 /**
  * What the project's `.luaurc` files say, when we have been told.
  *
@@ -105,6 +97,14 @@ export interface SpecifierContext {
 	hasLuaurc?: boolean;
 }
 
+/**
+ * What is wrong with this specifier for this target, or `null` if nothing is.
+ *
+ * An empty specifier is *not* a problem here. A declaration somebody has
+ * started and not finished is a normal state to be in while typing, and the
+ * emitter skips it rather than compiling half of one — saying "this is wrong"
+ * about a field you have not filled in yet is nagging, not checking.
+ */
 export function checkSpecifier(
 	specifier: string, target: Target, context: SpecifierContext = {},
 ): SpecifierProblem | null {

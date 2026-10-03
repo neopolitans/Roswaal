@@ -47,7 +47,7 @@ export function retypeClassReads(script: NodeScript): NodeScript {
 	let changed = false;
 	const nodes = script.nodes.map((node) => {
 		if (!CLASS_TYPED.has(node.def)) return node;
-		const config = (node.config ?? {}) as { wiredClass?: string };
+		const config = node.config ?? {};
 		const wired = script.links.some((l) => l.to.node === node.id && l.to.pin === PIN);
 		if (!wired) {
 			if (config.wiredClass === undefined) return node;

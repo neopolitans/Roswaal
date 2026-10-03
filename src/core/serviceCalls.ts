@@ -28,8 +28,15 @@
  * A method the catalogue has never heard of still works. The picker commits
  * whatever is typed, and a node whose method is unknown falls back to the
  * argument count in its config, exactly as Call Method does.
+ *
+ * The shape this shares with the Lune Function nodes is in `callNodes.ts`; this
+ * file is the Roblox catalogue's side of it.
  */
 
+import {
+	argPinId, argumentPin, callLabelOf, execPin, memberOf, ownerOf, splitCallText,
+	type CallSpelling,
+} from "./callNodes.js";
 import { CLASS_OPTIONS, ROBLOX_SERVICES, isService } from "./roblox.js";
 import { SERVICE_METHODS, type ServiceMethod } from "./robloxMembers.js";
 import type { Literal, NodeConfig, PinDef } from "./schema.js";
@@ -54,73 +61,52 @@ export function serviceMethod(
 	return methodsOfService(service).find((m) => m.name === method);
 }
 
-const config = (c: NodeConfig | undefined, key: string): string | undefined => {
-	const value = (c as Record<string, unknown> | undefined)?.[key];
-	return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+/** How a Service Function stores and writes its call: `RunService:IsServer`. */
+const SERVICE_SPELLING: CallSpelling = {
+	ownerKey: "service",
+	memberKey: "method",
+	defaultOwner: "RunService",
+	separator: ":",
 };
 
-export const serviceOf = (c: NodeConfig | undefined): string => config(c, "service") ?? "RunService";
-export const methodOf = (c: NodeConfig | undefined): string | undefined => config(c, "method");
-
-/**
- * The argument pin ids, which are positional.
- *
- * `a0`, `a1`, … the same as every other call node, so the emitter's existing
- * rule for folding arguments applies unchanged — and so a literal typed into
- * argument two stays on argument two when a method is renamed underneath it.
- * Naming them after the documented parameter would be prettier and would lose
- * the value the day Roblox renames `userId` to `user`.
- */
-export const argPinId = (index: number): string => `a${index}`;
-
-/**
- * A starting value for an argument, where there is an obvious one.
- *
- * Strings, numbers and booleans get one: the pin is then a field you type in,
- * which is what an argument of that kind almost always is. Everything else —
- * an Instance, a table, a Vector3 — gets none, so an unwired one is an error
- * that names the pin rather than a silent `nil` passed to the engine.
- */
-function defaultFor(type: string): Literal | undefined {
-	if (type === "string") return { t: "string", v: "" };
-	if (type === "number") return { t: "number", v: 0 };
-	if (type === "boolean") return { t: "boolean", v: false };
-	return undefined;
+export function serviceOf(c: NodeConfig | undefined): string {
+	return ownerOf(SERVICE_SPELLING, c);
 }
 
-const exec = (id: string, name = ""): PinDef => ({ id, name, kind: "exec" });
+export function methodOf(c: NodeConfig | undefined): string | undefined {
+	return memberOf(SERVICE_SPELLING, c);
+}
 
-/** A method's arguments as pins, in order. */
+/**
+ * A method's arguments as pins, in order.
+ *
+ * An enum argument is typed in by member name, so it is a text field however
+ * the catalogue types it.
+ */
 export function argumentPins(method: ServiceMethod): PinDef[] {
-	return method.params.map((param, index) => {
-		const type = param.enum ? "string" : param.type || "any";
-		const pin: PinDef = {
-			id: argPinId(index),
+	return method.params.map((param, index) =>
+		argumentPin({
+			index,
 			name: param.name,
-			kind: "data",
-			type,
-			default: param.enum ? { t: "string", v: "" } : defaultFor(type),
-		};
-		if (param.optional) pin.optional = true;
-		if (param.enum) {
-			pin.description = `An ${param.enum} value, by name — ${param.summary ?? "Enum." + param.enum}`;
-		} else if (param.summary) {
-			pin.description = param.summary;
-		}
-		return pin;
-	});
+			type: param.enum ? "string" : param.type || "any",
+			optional: param.optional === true,
+			description: param.enum
+				? `An ${param.enum} value, by name — ${param.summary ?? "Enum." + param.enum}`
+				: param.summary || undefined,
+		}),
+	);
 }
 
 /** Argument pins for a method nothing is known about: as many as asked for. */
 function unknownArgPins(c: NodeConfig | undefined): PinDef[] {
-	const raw = (c as { args?: unknown } | undefined)?.args;
+	const raw = c?.args;
 	const count = typeof raw === "number" && raw >= 0 ? Math.min(Math.floor(raw), 12) : 0;
-	return Array.from({ length: count }, (_unused, i) => ({
+	return Array.from({ length: count }, (_unused, i): PinDef => ({
 		id: argPinId(i),
 		name: `Argument ${i + 1}`,
-		kind: "data" as const,
+		kind: "data",
 		type: "any",
-		default: { t: "nil" } as Literal,
+		default: { t: "nil" },
 	}));
 }
 
@@ -138,7 +124,7 @@ function unknownArgPins(c: NodeConfig | undefined): PinDef[] {
  * nowhere — so the pin is here, typed `Instance` because that is what Get
  * Service gives back, and the value on it wins when there is one.
  */
-export function serviceReceiverPin(service: string): PinDef {
+function serviceReceiverPin(service: string): PinDef {
 	return {
 		id: "service",
 		name: service,
@@ -172,7 +158,7 @@ export function servicePins(
 	const method = serviceMethod(serviceOf(c), methodOf(c));
 
 	const inputs: PinDef[] = [
-		...(pure ? [] : [exec("in")]),
+		...(pure ? [] : [execPin("in")]),
 		serviceReceiverPin(serviceOf(c)),
 		...(method ? argumentPins(method) : unknownArgPins(c)),
 	];
@@ -182,7 +168,7 @@ export function servicePins(
 	// what is honestly known about it.
 	const returns = method ? method.returns : "any";
 	const outputs: PinDef[] = [
-		...(pure ? [] : [exec("then")]),
+		...(pure ? [] : [execPin("then")]),
 		...(returns === "" ? [] : [{
 			id: "result", name: pure ? "" : "Result", kind: "data" as const, type: returns,
 		}]),
@@ -191,15 +177,9 @@ export function servicePins(
 	return { inputs, outputs };
 }
 
-/**
- * The call, written the way it will appear in the file: `RunService:IsServer`.
- *
- * One string is what the picker offers, what the node's subtitle shows and what
- * a menu entry is named, so it is built in one place.
- */
+/** The call, written the way it will appear in the file: `RunService:IsServer`. */
 export function callLabel(c: NodeConfig | undefined): string | undefined {
-	const method = methodOf(c);
-	return method ? `${serviceOf(c)}:${method}` : undefined;
+	return callLabelOf(SERVICE_SPELLING, c);
 }
 
 /** Every call the catalogue knows, as the picker lists them. */
@@ -207,14 +187,10 @@ export const CALL_OPTIONS: string[] = SERVICES_WITH_METHODS.flatMap((service) =>
 	methodsOfService(service).map((method) => `${service}:${method.name}`),
 );
 
-/** The service half of a `Service:Method` string; the whole of it is the call. */
+/** The two halves of a `Service:Method` string. */
 export function splitCall(text: string): { service: string; method: string } | undefined {
-	const at = text.indexOf(":");
-	if (at <= 0) return undefined;
-	const service = text.slice(0, at).trim();
-	const method = text.slice(at + 1).replace(/\(.*\)$/, "").trim();
-	if (service === "" || method === "") return undefined;
-	return { service, method };
+	const split = splitCallText(SERVICE_SPELLING, text);
+	return split && { service: split.owner, method: split.member };
 }
 
 /** What the picker shows under the highlighted row: the method's own summary. */

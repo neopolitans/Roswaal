@@ -15,10 +15,11 @@
 
 import { describe, expect, it } from "vitest";
 
+import { argPinId } from "../src/core/callNodes.js";
 import { compile } from "../src/core/compiler/index.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import {
-	argPinId, argumentPins, callLabel, isValueCall, luneFunction, luneMenuItems, lunePins,
+	argumentPins, callLabel, isValueCall, luneFunction, luneMenuItems, lunePins,
 	pinTypeFor, resultPin, LUNE_CALL, LUNE_VALUE,
 } from "../src/core/luneCalls.js";
 import { emptyScript, type NodeScript } from "../src/core/schema.js";
@@ -368,5 +369,69 @@ describe("a Roblox datatype in Lune", () => {
 		const script = { ...graph([]), target: "roblox" as const };
 		expect(errorsOf(script)).toEqual([]);
 		expect(compile(script, registry).code).toContain("Vector3.new(0, 10, 0)");
+	});
+});
+
+/**
+ * A Lune step's result is bound as every step's is. `FetchResponse` is
+ * `@lune/net`'s type, not a name in scope, so it is not written as an
+ * annotation even in a strict file.
+ */
+describe("a Lune step's result", () => {
+	it("is bound without a type Luau cannot see", () => {
+		const script: NodeScript = {
+			...emptyScript("Fetch", "fetch"),
+			target: "lune",
+			typecheck: "strict",
+			modules: [{ id: "m1", name: "net", specifier: "@lune/net" }],
+			nodes: [
+				{ id: "begin", def: "script.begin", x: 0, y: 0 },
+				{
+					id: "get", def: LUNE_CALL, x: 200, y: 0,
+					config: { module: "net", call: "request", resultName: "response" },
+					literals: { a0: { t: "string", v: "https://example.com" } },
+				},
+				{ id: "p", def: "debug.print", x: 400, y: 0 },
+			],
+			links: [
+				{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "get", pin: "in" } },
+				{ id: "l2", from: { node: "get", pin: "then" }, to: { node: "p", pin: "in" } },
+				{ id: "l3", from: { node: "get", pin: "result" }, to: { node: "p", pin: "value" } },
+			],
+		};
+		const result = compile(script, registry);
+		expect(result.ok).toBe(true);
+		expect(result.code).toContain('local response = net.request("https://example.com")');
+	});
+});
+
+describe("a Lune value read in two places", () => {
+	/** `fs.readFile` read by two prints reads the file once. */
+	it("calls once and binds the answer", () => {
+		const script: NodeScript = {
+			...emptyScript("Read", "read"),
+			target: "lune",
+			modules: [{ id: "m1", name: "fs", specifier: "@lune/fs" }],
+			nodes: [
+				{ id: "begin", def: "script.begin", x: 0, y: 0 },
+				{
+					id: "read", def: LUNE_VALUE, x: 200, y: 120,
+					config: { module: "fs", call: "readFile" },
+					literals: { a0: { t: "string", v: "notes.txt" } },
+				},
+				{ id: "p1", def: "debug.print", x: 400, y: 0 },
+				{ id: "p2", def: "debug.print", x: 600, y: 0 },
+			],
+			links: [
+				{ id: "l1", from: { node: "begin", pin: "then" }, to: { node: "p1", pin: "in" } },
+				{ id: "l2", from: { node: "p1", pin: "then" }, to: { node: "p2", pin: "in" } },
+				{ id: "l3", from: { node: "read", pin: "result" }, to: { node: "p1", pin: "value" } },
+				{ id: "l4", from: { node: "read", pin: "result" }, to: { node: "p2", pin: "value" } },
+			],
+		};
+		const result = compile(script, registry);
+		expect(result.ok).toBe(true);
+		expect(result.code.match(/fs\.readFile\(/g)).toHaveLength(1);
+		expect(result.code).toContain('local result = fs.readFile("notes.txt")');
 	});
 });
