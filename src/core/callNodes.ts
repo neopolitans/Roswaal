@@ -33,7 +33,7 @@ export interface CallSpelling {
 }
 
 /** A config value as trimmed text, or undefined when it is missing or blank. */
-export function configText(config: NodeConfig | undefined, key: string): string | undefined {
+function configText(config: NodeConfig | undefined, key: string): string | undefined {
 	const value = config?.[key];
 	return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
 }
@@ -94,7 +94,7 @@ export function argPinId(index: number): string {
  * means absent: the call leaves it off, and a developer who wants the zero
  * types one.
  */
-export function startingValue(type: string, optional: boolean): Literal | undefined {
+function startingValue(type: string, optional: boolean): Literal | undefined {
 	if (optional) return undefined;
 	if (type === "string") return { t: "string", v: "" };
 	if (type === "number") return { t: "number", v: 0 };

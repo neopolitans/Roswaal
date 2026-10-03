@@ -46,7 +46,7 @@ import {
  * The condition is resolved in the arm's own scope either way, because that
  * is where it is evaluated in both shapes.
  */
-export function emitBranch(e: Emitter, r: ResolvedNode, scope: Scope, keyword: "if" | "elseif", condition?: string): void {
+function emitBranch(e: Emitter, r: ResolvedNode, scope: Scope, keyword: "if" | "elseif", condition?: string): void {
 	const id = r.node.id;
 	const cond = condition ?? e.resolveInput(r, e.pin(r, "condition", "in"), scope);
 	e.push(`${keyword} ${cond} then`, id);
@@ -115,7 +115,7 @@ export function emitBranch(e: Emitter, r: ResolvedNode, scope: Scope, keyword: "
  * emits nothing. A Branch already on the execution stack is refused: that is
  * a loop, and `walk` is the thing that reports it.
  */
-export function chainedBranch(e: Emitter, target: string | undefined): ResolvedNode | undefined {
+function chainedBranch(e: Emitter, target: string | undefined): ResolvedNode | undefined {
 	const seen = new Set<string>();
 	let current = target;
 	while (current !== undefined && !seen.has(current)) {

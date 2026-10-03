@@ -40,7 +40,6 @@ import {
 	argumentPin, callLabelOf, execPin, memberOf, ownerOf, splitCallText, type CallSpelling,
 } from "./callNodes.js";
 import { LUNE_MODULES, type LuneFunction, type LuneParam } from "./luneApi.js";
-import { LUAU_PRIMITIVES } from "./luneTypes.js";
 import type { NodeConfig, PinDef } from "./schema.js";
 
 /** The node ids, named because the emitter and the menu both test for them. */
@@ -49,10 +48,7 @@ export const LUNE_VALUE = "lune.value";
 
 const BY_ALIAS = new Map(LUNE_MODULES.map((module) => [module.alias, module]));
 
-/** Every module, in the order the catalogue lists them. */
-export const LUNE_ALIASES: string[] = LUNE_MODULES.map((module) => module.alias);
-
-export function functionsOf(alias: string): readonly LuneFunction[] {
+function functionsOf(alias: string): readonly LuneFunction[] {
 	return BY_ALIAS.get(alias)?.functions ?? [];
 }
 
@@ -210,9 +206,6 @@ export function luneMenuItems(): LuneMenuItem[] {
 		})),
 	);
 }
-
-/** Primitives a pin type may be, for a test that the mapping stays honest. */
-export const PIN_PRIMITIVES = LUAU_PRIMITIVES;
 
 /** Every call the catalogue knows, as the picker lists them: `fs.readFile`. */
 export const LUNE_CALL_OPTIONS: string[] = LUNE_MODULES.flatMap((module) =>

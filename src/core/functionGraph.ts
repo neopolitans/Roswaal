@@ -39,10 +39,10 @@ export const ENTRY_HOME = { x: 80, y: 160 } as const;
  * to the ones this graph shows. Only ever set on a copy made by `viewOf`, and
  * never written to a file.
  */
-export const PRESENCE = "presence";
+const PRESENCE = "presence";
 
 /** How a node appears in one graph. */
-export type Presence = "whole" | "entry" | "outer";
+type Presence = "whole" | "entry" | "outer";
 
 export function graphOf(item: { graph?: string }): GraphId {
 	return item.graph ?? null;
@@ -104,7 +104,7 @@ export function paramsVisibleFrom(owner: Pick<GraphNode, "id" | "def" | "graph">
 }
 
 /** Whether this pin belongs to the graph a declaration opens. */
-export function isEntryPin(defId: string, pinId: string): boolean {
+function isEntryPin(defId: string, pinId: string): boolean {
 	if (defId === "function.entry") return true;
 	if (defId === "function.declareHere") return pinId === bodyPinOf(defId) || /^p\d+(\.|$)/.test(pinId);
 	return false;
@@ -118,7 +118,7 @@ export function sideGraph(node: GraphNode, pinId: string, side: "in" | "out"): G
 }
 
 /** How a node is drawn in `graph`, or null when it is not drawn there. */
-export function presenceIn(node: GraphNode, graph: GraphId): Presence | null {
+function presenceIn(node: GraphNode, graph: GraphId): Presence | null {
 	if (node.def === "function.entry") return graph === node.id ? "whole" : null;
 	if (node.def === "function.declareHere") {
 		if (graph === node.id) return "entry";

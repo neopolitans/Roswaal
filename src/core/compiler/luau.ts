@@ -169,7 +169,7 @@ export class NameScope {
 
 export { quoteString } from "./quote.js";
 
-export function numberLiteral(n: number): string {
+function numberLiteral(n: number): string {
 	if (Number.isNaN(n)) return "0/0";
 	if (n === Infinity) return "math.huge";
 	if (n === -Infinity) return "-math.huge";
@@ -192,7 +192,7 @@ export function literalToLuau(lit: Literal): string {
  * Conservative on purpose: a false negative costs a redundant pair of parens,
  * a false positive silently changes precedence.
  */
-export function isAtomic(expr: string): boolean {
+function isAtomic(expr: string): boolean {
 	const e = expr.trim();
 	if (e === "") return true;
 	if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(e)) return true;
@@ -246,7 +246,7 @@ export function paren(expr: string): string {
  * Narrower than `isAtomic`, which also admits literals. `"s":upper()`,
  * `{1}[1]` and `nil.x` are not Luau, and each needs its parentheses.
  */
-export function isPrefixExpression(expr: string): boolean {
+function isPrefixExpression(expr: string): boolean {
 	const e = expr.trim();
 	if (/^(true|false|nil)\b/.test(e)) return false;
 	if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(e)) return true;
@@ -641,13 +641,4 @@ function isBalancedChain(e: string): boolean {
 		if (depth === 0 && !/[A-Za-z0-9_.:]/.test(c)) return false;
 	}
 	return depth === 0 && inString === null;
-}
-
-/** Indents a multi-line snippet by `n` tabs, leaving blank lines untouched. */
-export function indentBlock(text: string, n: number): string {
-	const pad = "\t".repeat(n);
-	return text
-		.split("\n")
-		.map((l) => (l.trim() === "" ? l : pad + l))
-		.join("\n");
 }

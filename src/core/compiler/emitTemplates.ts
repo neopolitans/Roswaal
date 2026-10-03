@@ -50,7 +50,7 @@ function plainKey(rendered: string): string | null {
  * `tuning.turnRate`, and a table keyed by names that only happen to be
  * identifiers today wants the brackets it will still need tomorrow.
  */
-export function bracketsOnly(r: ResolvedNode): boolean {
+function bracketsOnly(r: ResolvedNode): boolean {
 	return r.node.config?.keys === "brackets";
 }
 
@@ -116,7 +116,7 @@ export function emitStatement(e: Emitter, r: ResolvedNode, template: string, sco
  * would have used anyway, so passing it explicitly is the thing an optional
  * pin exists to avoid.
  */
-export function isSet(e: Emitter, r: ResolvedNode, pin: PinDef): boolean {
+function isSet(e: Emitter, r: ResolvedNode, pin: PinDef): boolean {
 	if (e.index.sourceOf(r.node.id, pin.id)) return true;
 	if (e.splitOf(r, pin.id, "in")) return true;
 	return r.node.literals?.[pin.id] !== undefined;
@@ -190,7 +190,7 @@ export function interpolated(e: Emitter, r: ResolvedNode, scope: Scope): string 
  * to put a local; there the value is worked out where it is read, as it was
  * before this existed.
  */
-export function readOnce(e: Emitter, r: ResolvedNode, template: string, scope: Scope): Map<string, string> {
+function readOnce(e: Emitter, r: ResolvedNode, template: string, scope: Scope): Map<string, string> {
 	const out = new Map<string, string>();
 	if (e.options.expressionsOnly) return out;
 

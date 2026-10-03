@@ -71,7 +71,7 @@ const component = (id: string, name: string, index: number, v = 0): StructPart =
 	default: { t: "number", v },
 });
 
-export const BUILTIN_STRUCTS: StructType[] = [
+const BUILTIN_STRUCTS: StructType[] = [
 	{
 		type: "Vector2",
 		modes: {
@@ -224,7 +224,7 @@ export const BUILTIN_STRUCTS: StructType[] = [
 
 export type StructRegistry = Map<DataType, StructType>;
 
-export function createStructRegistry(extra: StructType[] = []): StructRegistry {
+function createStructRegistry(extra: StructType[] = []): StructRegistry {
 	const map: StructRegistry = new Map();
 	for (const s of BUILTIN_STRUCTS) map.set(s.type, s);
 	// Packs load last, so a project can deliberately shadow a built-in — the
@@ -236,7 +236,7 @@ export function createStructRegistry(extra: StructType[] = []): StructRegistry {
 export const STRUCTS: StructRegistry = createStructRegistry();
 
 /** The mode a plain "Split Struct Pin" uses: the first one declared. */
-export function defaultMode(struct: StructType): string {
+function defaultMode(struct: StructType): string {
 	return Object.keys(struct.modes)[0];
 }
 
@@ -247,10 +247,6 @@ export function modeOf(
 	const struct = structs.get(type);
 	if (!struct) return undefined;
 	return struct.modes[mode ?? defaultMode(struct)];
-}
-
-export function isSplittable(structs: StructRegistry, type: DataType | undefined): boolean {
-	return type !== undefined && structs.has(type);
 }
 
 // ---------------------------------------------------------------------------

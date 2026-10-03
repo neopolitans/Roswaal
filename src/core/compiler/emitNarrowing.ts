@@ -29,7 +29,7 @@ import { isIdentifier } from "./luau.js";
  * falls back to its own literal, so `Is A` on a typed-in path and a Cast on
  * the same typed-in path also agree.
  */
-export function valueKey(e: Emitter, r: ResolvedNode, pinId: string): string | undefined {
+function valueKey(e: Emitter, r: ResolvedNode, pinId: string): string | undefined {
 	const link = e.index.sourceOf(r.node.id, pinId);
 	if (link) return `${link.from.node}/${link.from.pin}`;
 	const text = e.literalText(r, pinId);
@@ -89,7 +89,7 @@ export function alreadyNarrowed(e: Emitter, src: ResolvedNode, scope: Scope): bo
 	return [...known].every((proved) => claimed.some((part) => isSubclassOf(proved, part)));
 }
 
-export function narrowingsFrom(e: Emitter, node: ResolvedNode, depth = 0): Map<string, Set<string>> {
+function narrowingsFrom(e: Emitter, node: ResolvedNode, depth = 0): Map<string, Set<string>> {
 	const out = new Map<string, Set<string>>();
 	if (depth > 8) return out;
 

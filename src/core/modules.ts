@@ -63,7 +63,7 @@ export const ROBLOX_REQUIRE_ANNOUNCEMENT =
 export const ROBLOX_ALIASES = ["self", "game"] as const;
 
 /** The alias Lune reserves for its standard library. */
-export const LUNE_ALIAS = "lune";
+const LUNE_ALIAS = "lune";
 
 /** A specifier's alias, or `null` when it is a relative path or unprefixed. */
 export function aliasOf(specifier: string): string | null {

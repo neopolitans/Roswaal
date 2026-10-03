@@ -124,7 +124,7 @@ function unknownArgPins(c: NodeConfig | undefined): PinDef[] {
  * nowhere — so the pin is here, typed `Instance` because that is what Get
  * Service gives back, and the value on it wins when there is one.
  */
-export function serviceReceiverPin(service: string): PinDef {
+function serviceReceiverPin(service: string): PinDef {
 	return {
 		id: "service",
 		name: service,

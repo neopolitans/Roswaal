@@ -13,7 +13,6 @@ export { validate } from "./validate.js";
 export { emit, hashString } from "./emit.js";
 export type { Diagnostic, EmitResult } from "./emit.js";
 export { GraphIndex } from "./graph.js";
-export * from "./luau.js";
 
 export interface CompileResult {
 	code: string;
@@ -124,13 +123,6 @@ export function outputFileName(script: NodeScript): string {
 	}
 }
 
-export function scriptClassFor(fileName: string): { name: string; scriptClass: ScriptClass } {
-	const base = fileName.replace(/\.luau?$/i, "");
-	if (base.endsWith(".client")) return { name: base.slice(0, -7), scriptClass: "LocalScript" };
-	if (base.endsWith(".server")) return { name: base.slice(0, -7), scriptClass: "Script" };
-	return { name: base, scriptClass: "ModuleScript" };
-}
-
 /**
  * A stable projection of a graph, hashed into the generated file's
  * `roswaal-source` line.
@@ -151,7 +143,7 @@ export function scriptClassFor(fileName: string): { name: string; scriptClass: S
  * The `headers` field is added only when there is a header, so a graph with
  * none hashes exactly as it did before headers counted.
  */
-export function semanticJson(
+function semanticJson(
 	script: NodeScript, layout: { headers?: Map<string, Comment> } = {},
 ): string {
 	const nodes = [...script.nodes]

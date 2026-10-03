@@ -37,7 +37,7 @@ export const CALLING_BUILTINS = new Set(["service.call", "lune.value"]);
  * A warning rather than an error, because a ModuleScript can legitimately be
  * written for the client and Roswaal cannot tell where it will be required.
  */
-export function requireClient(e: Emitter, r: ResolvedNode, title: string): void {
+function requireClient(e: Emitter, r: ResolvedNode, title: string): void {
 	if (e.script.scriptClass === "LocalScript") return;
 	const where =
 		e.script.scriptClass === "ModuleScript"

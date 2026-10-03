@@ -110,7 +110,7 @@ export function serviceCall(e: Emitter, r: ResolvedNode, scope: Scope): string {
  * name on it — but only as a warning, because the pin is typed `Instance`
  * and a value narrowed elsewhere may be exactly right.
  */
-export function serviceReceiver(e: Emitter, r: ResolvedNode, service: string, scope: Scope): string {
+function serviceReceiver(e: Emitter, r: ResolvedNode, service: string, scope: Scope): string {
 	const link = e.index.sourceOf(r.node.id, "service");
 	if (!link) return resolveRoot(e, service);
 
@@ -135,7 +135,7 @@ export function serviceReceiver(e: Emitter, r: ResolvedNode, service: string, sc
  * wire wins over the name: the value then comes from the graph and is already
  * whatever it is.
  */
-export function serviceArgument(
+function serviceArgument(
 	e: Emitter, r: ResolvedNode, pin: PinDef, scope: Scope, enumName: string | undefined,
 ): string {
 	if (!enumName || e.index.sourceOf(r.node.id, pin.id)) {
