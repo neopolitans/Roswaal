@@ -1,7 +1,7 @@
 /**
  * How much of the node reference carries a worked example, and why the rest
- * does not. Run with `node --experimental-strip-types scripts/docs-coverage.mjs`
- * or through tsx; it is a reporting aid, not part of the build.
+ * does not. Run with `npm run docs:coverage`, or `-- --samples` to print each
+ * example; it is a reporting aid, not part of the build.
  */
 
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
