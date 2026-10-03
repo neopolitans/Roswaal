@@ -26,6 +26,7 @@ import type { NodeScript } from "../core/schema.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 import { Icon } from "./icons.jsx";
+import { configText } from "./nodeConfig.js";
 import { useEditor } from "./store.js";
 import {
 	LUAU_PRIMITIVES, LUNE_ROBLOX_TYPES, LUNE_TYPES, requiresLuneRoblox,
@@ -78,7 +79,7 @@ export function declaredTypes(script: NodeScript | undefined): string[] {
 	const names = new Set<string>();
 	for (const node of script.nodes) {
 		if (node.def !== "type.declareTop" && node.def !== "type.declareHere") continue;
-		const name = (node.config as { name?: string } | undefined)?.name?.trim();
+		const name = configText(node, "name")?.trim();
 		if (name) names.add(name);
 	}
 	return [...names].sort();

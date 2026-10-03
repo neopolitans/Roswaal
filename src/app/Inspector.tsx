@@ -11,7 +11,6 @@ import { useMemo, useState } from "react";
 
 import type { Comment, GraphNode, Literal, NodeDef, NodeScript } from "../core/schema.js";
 import { nodeTitle, type Registry } from "../core/nodes/index.js";
-import type { Signature } from "../core/nodes/index.js";
 import { resolvePins } from "./geometry.js";
 import {
 	COMMENT_COLORS, COMMENT_DEFAULT_COLOR, commentColor, nodeColor, readHexColor,
@@ -42,6 +41,9 @@ import { ENGINE_TYPES } from "../core/schema.js";
 import { checkLuau } from "../core/luau/check.js";
 import { requestCodeEdit } from "./codeEditRequests.js";
 import { useEditBurst } from "./editBurst.js";
+import {
+	configEntries, configFlag, configText, paramsOf, type NamedEntry,
+} from "./nodeConfig.js";
 import { highlightLuau } from "./highlight.js";
 
 /**
@@ -336,7 +338,7 @@ function MemberEditor({ node }: { node: GraphNode }) {
 	const projectTypes = useProjectTypes();
 	const [picking, setPicking] = useState(false);
 	const typing = useEditBurst();
-	const current = ((node.config ?? {}) as { member?: string }).member ?? "";
+	const current = configText(node, "member") ?? "";
 
 	const members = useMemo(() => {
 		const registry = store.getRegistry();
@@ -412,7 +414,7 @@ function MemberEditor({ node }: { node: GraphNode }) {
  */
 function ResultName({ node }: { node: GraphNode }) {
 	const typing = useEditBurst();
-	const current = (node.config as { resultName?: string } | undefined)?.resultName ?? "";
+	const current = configText(node, "resultName") ?? "";
 	return (
 		<Field label="Result name" hint="The local this node's result lands in.">
 			<input
@@ -428,13 +430,13 @@ function ResultName({ node }: { node: GraphNode }) {
 
 function FunctionEditor({ node }: { node: GraphNode }) {
 	const typing = useEditBurst();
-	const sig = (node.config ?? {}) as Signature;
+	const name = configText(node, "name") ?? "";
 	return (
 		<>
 			<Field label="Function name">
 				<input
 					className="tb"
-					value={sig.name ?? ""}
+					value={name}
 					placeholder="doSomething"
 					onChange={(e) =>
 						typing.edit((s) => syncFunctionRefs(setConfig(s, node.id, { name: e.target.value })))
@@ -481,8 +483,8 @@ function FunctionEditor({ node }: { node: GraphNode }) {
  */
 function TypeFields({ node }: { node: GraphNode }) {
 	const typing = useEditBurst();
-	const fields = ((node.config ?? {}).fields as { name: string; type: string }[]) ?? [];
-	const write = (next: { name: string; type: string }[]) =>
+	const fields = configEntries(node, "fields");
+	const write = (next: NamedEntry[]) =>
 		store.edit((s) => setConfig(s, node.id, { fields: next }));
 
 	return (
@@ -577,16 +579,13 @@ function WrittenType({ node, name, definition }: { node: GraphNode; name?: strin
 
 function TypeEditor({ node }: { node: GraphNode }) {
 	const typing = useEditBurst();
-	const config = (node.config ?? {}) as {
-		name?: string; definition?: string; export?: boolean; shape?: string;
-	};
+	const name = configText(node, "name");
+	const definition = configText(node, "definition");
 	// The in-flow node can also be the type of a wired value; the hoisted one is
 	// written above every value there is, so it cannot.
 	const inFlow = node.def === "type.declareHere";
-	/**
-	 * Which shape to show, when the node has not said. The same rule the
-	 * compiler uses, so the dropdown cannot claim a shape the file is not using.
-	 */
+	// Which shape to show, when the node has not said. The same rule the
+	// compiler uses, so the dropdown cannot claim a shape the file is not using.
 	const shape = typeShapeOf(node.def, node.config ?? {});
 	const setShape = (next: string) =>
 		store.edit((s) => {
@@ -601,7 +600,7 @@ function TypeEditor({ node }: { node: GraphNode }) {
 			<Field label="Type name">
 				<input
 					className="tb"
-					value={config.name ?? ""}
+					value={name ?? ""}
 					placeholder="Config"
 					onChange={(e) => typing.edit((s) => setConfig(s, node.id, { name: e.target.value }))}
 					{...typing.field}
@@ -619,12 +618,12 @@ function TypeEditor({ node }: { node: GraphNode }) {
 			{shape === "fields" && <TypeFields node={node} />}
 			{shape === "fields" && <TableLayout node={node} />}
 
-			{shape === "written" && <WrittenType node={node} name={config.name} definition={config.definition} />}
+			{shape === "written" && <WrittenType node={node} name={name} definition={definition} />}
 
 			{shape === "typeof" && (
 				<p className="summary">
 					The definition is whatever you wire into <strong>Value</strong>:{" "}
-					<code>type {config.name || "Name"} = typeof(that value)</code>. Put the node after
+					<code>type {name || "Name"} = typeof(that value)</code>. Put the node after
 					the thing it describes.
 				</p>
 			)}
@@ -637,7 +636,7 @@ function TypeEditor({ node }: { node: GraphNode }) {
 			<label className="check-row" title="Can other scripts see or use this type definition?">
 				<input
 					type="checkbox"
-					checked={config.export !== false}
+					checked={node.config?.export !== false}
 					onChange={(e) => store.edit((s) => setConfig(s, node.id, { export: e.target.checked }))}
 				/>
 				<span>Is Export Type</span>
@@ -671,7 +670,7 @@ function TypeEditor({ node }: { node: GraphNode }) {
  * not depend on whether an optional tool happens to be on PATH.
  */
 function TableLayout({ node }: { node: GraphNode }) {
-	const current = (node.config as { layout?: string } | undefined)?.layout === "lines"
+	const current = configText(node, "layout") === "lines"
 		? "lines"
 		: "inline";
 	return (
@@ -701,7 +700,7 @@ function TableLayout({ node }: { node: GraphNode }) {
  * decides what one you drop today starts as.
  */
 function ConcatStyle({ node }: { node: GraphNode }) {
-	const on = (node.config as { interpolate?: unknown } | undefined)?.interpolate === true;
+	const on = configFlag(node, "interpolate");
 	return (
 		<Field
 			label="Concatenation Type"
@@ -736,7 +735,7 @@ function ConcatStyle({ node }: { node: GraphNode }) {
  * What a new pill starts as comes from Settings — see `logicParens`.
  */
 function OperatorBrackets({ node }: { node: GraphNode }) {
-	const on = (node.config as { parens?: unknown } | undefined)?.parens === true;
+	const on = configFlag(node, "parens");
 	return (
 		<Field
 			label="Brackets"
@@ -834,7 +833,7 @@ function LocalBinding({ node }: { node: GraphNode }) {
  * node two people's comments hold differently.
  */
 function CastLabel({ node }: { node: GraphNode }) {
-	const named = (node.config as { castLabel?: unknown } | undefined)?.castLabel === "name";
+	const named = configText(node, "castLabel") === "name";
 	return (
 		<Field label="Shows" hint="What the pill writes between its pins and its result.">
 			<div className="segmented">
@@ -1051,7 +1050,8 @@ function LuneCallPicker({ node }: { node: GraphNode }) {
  */
 function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
 	const typing = useEditBurst();
-	const config = (node.config ?? {}) as { keyName?: string; valueName?: string };
+	const keyName = configText(node, "keyName") ?? "";
+	const valueName = configText(node, "valueName") ?? "";
 	const types = loopTypes(node.config ?? {});
 	/** Blank clears the annotation rather than writing `any`. */
 	const setType = (field: "keyType" | "valueType") => (type: string) =>
@@ -1062,7 +1062,7 @@ function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
 			<Field label={array ? "Index name" : "Key name"}>
 				<input
 					className="tb"
-					value={config.keyName ?? ""}
+					value={keyName}
 					placeholder={array ? "i" : "key"}
 					onChange={(e) => typing.edit((s) => setConfig(s, node.id, { keyName: e.target.value }))}
 					{...typing.field}
@@ -1081,7 +1081,7 @@ function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
 			<Field label="Value name">
 				<input
 					className="tb"
-					value={config.valueName ?? ""}
+					value={valueName}
 					placeholder="value"
 					onChange={(e) => typing.edit((s) => setConfig(s, node.id, { valueName: e.target.value }))}
 					{...typing.field}
@@ -1098,7 +1098,7 @@ function LoopNames({ node, array }: { node: GraphNode; array: boolean }) {
 }
 
 function KeyStyle({ node }: { node: GraphNode }) {
-	const current = (node.config as { keys?: string } | undefined)?.keys === "brackets"
+	const current = configText(node, "keys") === "brackets"
 		? "brackets"
 		: "plain";
 	return (
@@ -1205,7 +1205,7 @@ function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
 }
 
 function VariablePicker({ script, node }: { script: NodeScript; node: GraphNode }) {
-	const current = (node.config as { variable?: string } | undefined)?.variable ?? "";
+	const current = configText(node, "variable") ?? "";
 
 	/**
 	 * Making the variable from here, rather than sending you to the panel.
@@ -1255,7 +1255,7 @@ function VariablePicker({ script, node }: { script: NodeScript; node: GraphNode 
 }
 
 function FunctionPicker({ script, node }: { script: NodeScript; node: GraphNode }) {
-	const current = (node.config as { function?: string } | undefined)?.function ?? "";
+	const current = configText(node, "function") ?? "";
 	const functions = script.nodes.filter((n) => FUNCTION_NODES.has(n.def));
 	if (functions.length === 0) {
 		return <p className="summary">This graph declares no functions yet.</p>;
@@ -1270,7 +1270,7 @@ function FunctionPicker({ script, node }: { script: NodeScript; node: GraphNode 
 				{current === "" && <option value="">Choose a function…</option>}
 				{functions.map((fn) => (
 					<option key={fn.id} value={fn.id}>
-						{(fn.config as { name?: string } | undefined)?.name ?? "function"}
+						{configText(fn, "name") ?? "function"}
 					</option>
 				))}
 			</select>
@@ -1285,7 +1285,7 @@ function FunctionPicker({ script, node }: { script: NodeScript; node: GraphNode 
  * Other… for `{ [Model]: Restore }`.
  */
 function LocalType({ node }: { node: GraphNode }) {
-	const current = (node.config as { type?: string } | undefined)?.type;
+	const current = configText(node, "type");
 	return (
 		<Field label="Type" hint="Written after the name when the graph is Nonstrict or Strict.">
 			<TypePicker
@@ -1311,7 +1311,7 @@ function LocalType({ node }: { node: GraphNode }) {
  * here would make a working graph unbuildable from the Inspector.
  */
 function ParamPicker({ script, node }: { script: NodeScript; node: GraphNode }) {
-	const ref = (node.config ?? {}) as { function?: string; param?: string };
+	const ref = { function: configText(node, "function"), param: configText(node, "param") };
 	// The function whose graph this node is in comes first: it is nearly always
 	// the one meant.
 	const owners = script.nodes
@@ -1323,13 +1323,13 @@ function ParamPicker({ script, node }: { script: NodeScript; node: GraphNode }) 
 
 	const owner = owners.find((n) => n.id === ref.function);
 	const params =
-		((owner?.config as { params?: { name: string; type?: string }[] } | undefined)?.params) ?? [];
+		paramsOf(owner);
 
 	/** Picking an owner clears a parameter that owner does not have. */
 	const chooseOwner = (id: string) => {
 		const next = owners.find((n) => n.id === id);
 		const list =
-			((next?.config as { params?: { name: string }[] } | undefined)?.params) ?? [];
+			paramsOf(next);
 		const keep = list.some((p) => p.name === ref.param) ? ref.param : list[0]?.name;
 		store.edit((s) => setConfig(s, node.id, { function: id, param: keep, type: undefined }));
 	};
@@ -1353,7 +1353,7 @@ function ParamPicker({ script, node }: { script: NodeScript; node: GraphNode }) 
 							{/* A handler has no name of its own — it is identified by the
 						    signal it listens to, which is a wire rather than a
 						    label — so it is named by what it is. */}
-						{(fn.config as { name?: string } | undefined)?.name
+						{configText(fn, "name")
 								|| (FUNCTION_NODES.has(fn.def) ? "function" : "handler")}
 						</option>
 					))}
@@ -1383,7 +1383,7 @@ function ParamPicker({ script, node }: { script: NodeScript; node: GraphNode }) 
 }
 
 function LocalPicker({ script, node }: { script: NodeScript; node: GraphNode }) {
-	const current = (node.config as { local?: string } | undefined)?.local ?? "";
+	const current = configText(node, "local") ?? "";
 	const locals = script.nodes.filter((n) => n.def === "local.declare");
 	if (locals.length === 0) {
 		return <p className="summary">This graph declares no locals yet.</p>;
@@ -1448,9 +1448,9 @@ interface ListEditorProps {
 
 function ListEditor({ node, field, title, hint }: ListEditorProps) {
 	const typing = useEditBurst();
-	const list = ((node.config ?? {})[field] as { name: string; type?: string }[]) ?? [];
+	const list = configEntries(node, field);
 
-	const change = (next: { name: string; type?: string }[]) => (s: NodeScript) => {
+	const change = (next: NamedEntry[]) => (s: NodeScript) => {
 		const updated = setConfig(s, node.id, { [field]: next });
 		// Changing a function's returns has to reach its Return nodes, or the
 		// graph and the signature drift apart silently.
@@ -1463,7 +1463,7 @@ function ListEditor({ node, field, title, hint }: ListEditorProps) {
 		if (field === "params") return syncParamRefs(updated, node.id, list, next);
 		return updated;
 	};
-	const write = (next: { name: string; type?: string }[]) => store.edit(change(next));
+	const write = (next: NamedEntry[]) => store.edit(change(next));
 
 	return (
 		<div className="list-editor">

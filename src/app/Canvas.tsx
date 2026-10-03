@@ -25,6 +25,7 @@ import {
 	type Rect, type Vec, type View,
 } from "./geometry.js";
 import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
+import { configText, functionNameOf } from "./nodeConfig.js";
 import { commentColor, pinColor } from "./palette.js";
 import { serviceFromSource } from "../core/serviceCalls.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
@@ -198,7 +199,7 @@ export function Canvas({
 	const functionName = useMemo(() => {
 		if (graph === null) return null;
 		const fn = whole.nodes.find((n) => n.id === graph);
-		return (fn?.config as { name?: string } | undefined)?.name?.trim() || "function";
+		return functionNameOf(fn);
 	}, [whole, graph]);
 	const openFunction = useCallback((id: string) => {
 		if (path) store.openFunction(path, id);
@@ -1337,7 +1338,7 @@ export function Canvas({
 						onGrow={onGrow}
 						growth={growth.get(node.id) ?? null}
 						onOpen={
-							(node.config as { presence?: string } | undefined)?.presence === "outer"
+							configText(node, "presence") === "outer"
 								? openFunction
 								: undefined
 						}
