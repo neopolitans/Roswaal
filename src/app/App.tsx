@@ -9,29 +9,27 @@
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
-import { compile, serialiseScript, type Diagnostic } from "../core/compiler/index.js";
+import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
-import { BUILTIN_NODES, createRegistry, resolveNodePins } from "../core/nodes/index.js";
+import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { NodePicker } from "./NodePicker.jsx";
 import { previewFor } from "./DocsPanel.jsx";
 import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import {
-	api, openEventStream, ProjectChangedError,
-	type CompileOutcome, type CompileStep, type MapOutcome, type ProjectInfo, type TreeEntry,
+	api, openEventStream, ProjectChangedError, type CompileOutcome, type CompileStep, type MapOutcome,
+	type ProjectInfo, type TreeEntry,
 } from "./api.js";
 import type { InstanceLocation } from "../core/nodemap.js";
 import { MapEditor } from "./MapEditor.jsx";
 import { SourceView, type SourceDoc } from "./SourceView.jsx";
-import type { Literal } from "../core/schema.js";
 import { Canvas } from "./Canvas.jsx";
 import { CanvasNotice } from "./CanvasNotice.jsx";
 import { onCodeEditRequest } from "./codeEditRequests.js";
 import { previewSelection } from "./SelectionPreview.jsx";
-import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
+import { type MenuAnchor } from "./NodeMenu.jsx";
 import type { PinMenuTarget } from "./PinMenu.jsx";
-import { autoLayout } from "./layout.js";
 import { Inspector } from "./Inspector.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
@@ -45,22 +43,16 @@ import { GraphTabs } from "./GraphTabs.jsx";
 import { PlaceBrowser, PlaceProperties, type PlaceTarget } from "./PlaceBrowser.jsx";
 import { Workspace } from "./Workspace.jsx";
 import type { PanelId } from "./panels.js";
-import { screenToWorld } from "./geometry.js";
 import { readPreferences, wheelAction } from "./preferences.js";
 import { AliasDocument } from "./AliasDocument.jsx";
 import type { LuaurcDocument, MapDocument } from "./centreDocument.js";
+import { useAutosave } from "./useAutosave.js";
 import { useDialogs } from "./useDialogs.js";
+import { useGraphCommands } from "./useGraphCommands.js";
 import { useProjectActions } from "./useProjectActions.js";
 import { useLayoutPrefs } from "./useLayoutPrefs.js";
-import {
-	addComment, addNode, alignToAnchor, landingPins, connect, copySelection, deleteSelection, disconnectPin, pasteClipping,
-	withCommentContents,
-	promoteToVariable, recombinePin, selectionAnchor, setConfig as setNodeConfig, setLiteral, splitCost,
-	splitPin, splitValueWarning, type Clipping,
-} from "./edits.js";
-import { setProjectTypes, useProjectTypes } from "./projectTypes.js";
-import { NODE } from "./layers.js";
-import type { NodeScript } from "../core/schema.js";
+import { disconnectPin, setConfig as setNodeConfig, setLiteral, type Clipping } from "./edits.js";
+import { setProjectTypes } from "./projectTypes.js";
 import { setProjectAliases } from "./projectAliases.js";
 import { forget, lastProject, remember } from "./recents.js";
 import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
@@ -72,17 +64,8 @@ import { ExportMenu } from "./ExportMenu.jsx";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
 import { SaveQueue } from "./saveQueue.js";
 import { CompileToast } from "./CompileToast.jsx";
-import { memberPresets } from "./memberPresets.js";
 import { ProjectPicker } from "./ProjectPicker.jsx";
-import { boundsOf } from "./selectionBounds.js";
 import { StatusPanel } from "./StatusPanel.jsx";
-import { isEditableTarget } from "./keys.js";
-import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
-import { SERVICE_CALL, SERVICE_VALUE } from "../core/serviceCalls.js";
-import { canShowName } from "../core/operatorLayout.js";
-
-/** The two nodes whose first data pin is the service the call is made on. */
-const SERVICE_NODES = new Set([SERVICE_CALL, SERVICE_VALUE]);
 
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
@@ -166,9 +149,6 @@ export function App() {
 	/** The selection preview, which is opened deliberately and never sits open. */
 	const [previewOpen, setPreviewOpen] = useState(false);
 	const alignExec = prefs.alignExec;
-	// Laying out has to use the width the canvas is drawing, or columns spaced
-	// by the fixed width overlap the wider nodes sitting in them.
-	const wideNodes = prefs.wideNodes;
 
 	const [source, setSource] = useState<SourceDoc | null>(null);
 	// A node map is a tree, not a graph, so it lives beside the graph store
@@ -666,20 +646,6 @@ export function App() {
 		}
 	}, [notify]);
 
-	/**
-	 * Node maps autosave on the same terms graphs do, through the same queue.
-	 *
-	 * No cleanup on purpose: the write belongs to the file. Opening anything
-	 * else sets the map to null, and that used to cancel the pending write.
-	 */
-	useEffect(() => {
-		if (!mapDoc?.dirty) return;
-		const { path, map } = mapDoc;
-		saves.put(path, async () => {
-			await api.writeMap(path, map);
-			setMapDoc((d) => (d && d.path === path && d.map === map ? { ...d, dirty: false } : d));
-		});
-	}, [mapDoc, saves]);
 
 	/**
 	 * A write the daemon refused because it is now serving a different project.
@@ -716,113 +682,6 @@ export function App() {
 	);
 
 	writeFailed.current = onWriteFailed;
-
-	// Autosave. The graph on disk is the document; there is no separate "saved"
-	// copy to diverge from, so an explicit save button would only be ceremony.
-	//
-	// Every dirty graph is queued, not only the one on screen: the queue holds
-	// a write per file, so a tab switched away from or closed inside the pause
-	// is still written.
-	const compileAfterSave = useRef<(path: string) => void>(() => undefined);
-	compileAfterSave.current = (path) => {
-		// The daemon's watcher compiles the file it sees written; compiling it
-		// here as well did every compile twice.
-		if (project?.config.compileMode === "hot" && !hostCompilesOnSave.current) void runCompile(path, true);
-	};
-	/** What this tab last wrote to each graph, to tell its own writes from somebody else's. */
-	const lastWritten = useRef(new Map<string, string>());
-	const writeGraph = useCallback(async (path: string, script: NodeScript) => {
-		lastWritten.current.set(path, serialiseScript(script));
-		await api.writeScript(path, script);
-		store.markSaved(path, script);
-		compileAfterSave.current(path);
-	}, []);
-	useEffect(() => {
-		const queued = new Map<string, NodeScript>();
-		return store.subscribe(() => {
-			for (const { path, script } of store.unsaved()) {
-				if (queued.get(path) === script) continue;
-				queued.set(path, script);
-				saves.put(path, () => writeGraph(path, script));
-			}
-		});
-	}, [saves, writeGraph]);
-
-	/**
-	 * Leaving the page: write what is waiting, and say so if there is any.
-	 *
-	 * A hidden tab may be closed without another chance, so the queue is
-	 * written as soon as the page is hidden. The browser's own "leave this
-	 * page?" question is asked only while something has not been written yet.
-	 */
-	useEffect(() => {
-		const hidden = () => {
-			if (document.visibilityState === "hidden") saves.flushAll().catch(onWriteFailed);
-		};
-		const leaving = (event: BeforeUnloadEvent) => {
-			if (!saves.busy()) return;
-			saves.flushAll().catch(onWriteFailed);
-			event.preventDefault();
-		};
-		document.addEventListener("visibilitychange", hidden);
-		window.addEventListener("beforeunload", leaving);
-		return () => {
-			document.removeEventListener("visibilitychange", hidden);
-			window.removeEventListener("beforeunload", leaving);
-		};
-	}, [saves, onWriteFailed]);
-
-	/**
-	 * An open graph's file changed or went on disk: a branch switch, a pull,
-	 * another editor.
-	 *
-	 * Nothing used to listen, so the next autosave wrote the graph on screen
-	 * over the one just checked out. Now a clean graph takes what the file
-	 * says, one with edits of its own asks which to keep, and one whose file
-	 * is gone is closed. This tab's own writes come back here too and are
-	 * recognised by their content.
-	 */
-	const followDisk = useCallback(async (type: string, path: string) => {
-		if (!path.endsWith(".nodescript") || !store.document(path)) return;
-		const disk = await api.readScript(path).then((reply) => reply.script, () => null);
-		const open = store.document(path);
-		if (!open) return;
-
-		if (disk === null) {
-			if (type !== "removed") return;
-			if (open.dirty) {
-				notify("A graph was deleted on disk", `${path} is gone. Your edits are still open, and saving them will bring the file back.`);
-				return;
-			}
-			saves.drop(path);
-			store.closePath(path);
-			return;
-		}
-
-		const text = serialiseScript(disk);
-		if (text === lastWritten.current.get(path) || text === serialiseScript(open.script)) return;
-		if (!open.dirty) {
-			store.reload(path, disk);
-			return;
-		}
-
-		saves.drop(path);
-		const choice = await ask({
-			kind: "choice",
-			title: "This graph changed on disk",
-			message: `${path} was changed outside this tab while you had edits that were not saved yet.`,
-			choices: [
-				{ value: "disk", label: "Use the file" },
-				{ value: "mine", label: "Keep my edits", primary: true },
-			],
-		});
-		const now = store.document(path);
-		if (!now) return;
-		if (choice === "disk") store.reload(path, disk);
-		else saves.put(path, () => writeGraph(path, now.script));
-	}, [ask, notify, saves, writeGraph]);
-	const followDiskRef = useRef(followDisk);
-	followDiskRef.current = followDisk;
 
 	// -- compiling ---------------------------------------------------------
 
@@ -887,506 +746,16 @@ export function App() {
 		}
 	}, [project, refreshTree, notify, onProjectChanged]);
 
-	// -- canvas actions ----------------------------------------------------
+	const { writeGraph, followDiskRef } = useAutosave({
+		saves, project, ask, notify, onWriteFailed, runCompile, hostCompilesOnSave, mapDoc, setMapDoc,
+	});
 
-	// One palette entry per variable, local, function and parameter the graph on
-	// screen can reach, so "Get health" is searchable by name rather than by node
-	// type — and so nothing is offered that would not compile where it lands.
-	const projectTypes = useProjectTypes();
-	const presets = useMemo(
-		() => {
-			if (!editor.script) return [];
-			const base = buildPresets(editor.script, editor.graph);
-			return [...base, ...memberPresets(base, editor.script, registry, projectTypes)];
-		},
-		[editor.script, editor.graph, registry, projectTypes],
-	);
-
-	/**
-	 * Pastes a clipping where the pointer is.
-	 *
-	 * Both Ctrl+V and Ctrl+D come here, because they are the same act with a
-	 * different source, and a duplicate landing beside its original has the same
-	 * problem a paste did: a copied **comment** is drawn over the nodes it was
-	 * copied from, and membership is geometric, so dragging it afterwards takes
-	 * the originals along with the copies.
-	 *
-	 * The pointer is only a landing point while it is over the canvas. A
-	 * keystroke pressed with the mouse in a panel, or off the window entirely,
-	 * falls back to the old offset — which is still a sensible answer, and is
-	 * what a graph pasted from the keyboard alone has always done.
-	 */
-	const paste = useCallback((clip: Clipping) => {
-		const at = pointerAt.current ?? undefined;
-		store.edit((s) => {
-			const { script, ids } = pasteClipping(s, clip, { at });
-			queueMicrotask(() => store.select(ids));
-			return script;
-		});
-	}, []);
-
-	/**
-	 * Places a node, and — when the menu was opened by dragging a wire off a pin
-	 * — joins it up.
-	 *
-	 * The pin chosen is the **first** compatible one in declaration order, which
-	 * is not a heuristic so much as the node author's own answer: pins are
-	 * declared in the order they matter, so the first that fits is the one the
-	 * node is mostly about. It is also what someone who knows node graphs will
-	 * expect, and picking differently would mean a wire that lands somewhere
-	 * surprising and has to be redone.
-	 *
-	 * A node with nothing compatible still gets placed. The menu narrows itself
-	 * to nodes that can take the wire, so this is only reachable for a pack node
-	 * whose derived pins disagree with its declared ones — and placing it
-	 * unconnected is better than refusing a pick with no explanation.
-	 */
-	const spawn = useCallback(
-		(
-			def: NodeDef,
-			world: { x: number; y: number },
-			config?: Record<string, unknown>,
-			literals?: Record<string, Literal>,
-			/**
-			 * An entry like `input.throttle`: this node, and a Get Member on its
-			 * output, wired. Both are placed because both are what the graph
-			 * holds — the entry saves the placing, not the nodes.
-			 */
-			member?: { name: string; type?: string },
-		) => {
-			const from = menu?.from;
-			// A hoisted Function is in no flow, so it goes straight into a graph of
-			// its own, and that graph opens.
-			const hoisted = def.id === "function.entry";
-			const { path, graph: graphNow } = store.getSnapshot();
-			store.edit((s) => {
-				const at = hoisted ? ENTRY_HOME : world;
-				const added = addNode(s, def, at.x, at.y);
-				queueMicrotask(() => {
-					if (hoisted && path) store.openFunction(path, added.id);
-					store.select([added.id]);
-				});
-				/**
-				 * An operator pill starts bracketed when Settings says so.
-				 *
-				 * Written onto the node rather than read from preferences at
-				 * compile time, because the brackets are part of the file every
-				 * developer on the project reads. A preference that silently
-				 * reshaped everyone else's generated Luau would be the wrong kind
-				 * of personal setting.
-				 */
-				/**
-				 * A new pill starts as Settings says, and then the node carries it.
-				 *
-				 * Both of these are written onto the node rather than read at draw
-				 * time, because both are part of what everybody else sees: the
-				 * brackets reach the generated file, and the cast's label sets the
-				 * pill's width.
-				 */
-				const starting: Record<string, unknown> = {};
-				if (def.display === "operator" && prefs.logicParens && !canShowName(def.id)) {
-					starting.parens = true;
-				}
-				if (canShowName(def.id) && prefs.castNames) starting.castLabel = "name";
-				if (def.id === "string.concat" && prefs.concatInterpolate) starting.interpolate = true;
-				/**
-				 * A Return arrives with the pins its function returns.
-				 *
-				 * Editing a signature already reaches every Return inside it —
-				 * see `syncFunctionReturns` — but a Return placed *after* the
-				 * signature was written arrived bare, with nothing to wire the
-				 * values into, and the way to fix it was to retype the returns
-				 * on the function so the sync ran. The graph on screen is the
-				 * function it belongs to, so it can simply be asked.
-				 */
-				if (def.id === "function.return" && graphNow !== null) {
-					const owner = s.nodes.find((n) => n.id === graphNow);
-					const returns = (owner?.config as { returns?: unknown } | undefined)?.returns;
-					if (Array.isArray(returns) && returns.length > 0) starting.returns = returns;
-				}
-				const withDefaults = Object.keys(starting).length > 0
-					? { ...starting, ...config }
-					: config;
-				let next = withDefaults
-					? setNodeConfig(added.script, added.id, withDefaults)
-					: added.script;
-				// A menu entry that named a service or a class fills the pin in,
-				// which is the whole of what picking it saves you.
-				for (const [pin, value] of Object.entries(literals ?? {})) {
-					next = setLiteral(next, added.id, pin, value);
-				}
-				/**
-				 * The Get Member half of a `name.member` entry.
-				 *
-				 * To the right of the getter by one node's width, wired to its
-				 * first data output — which is the only output any of these
-				 * getters has. The member is selected rather than the getter:
-				 * it is the node the entry was about, and the one whose
-				 * Inspector says which member it reads.
-				 */
-				if (member) {
-					const reader = registry.get("value.member");
-					const source = next.nodes.find((n) => n.id === added.id);
-					const out = reader && source
-						? resolveNodePins(def, source.config, source.literals).outputs
-							.find((p) => p.kind === "data")
-						: undefined;
-					if (reader && out) {
-						const placedMember = addNode(next, reader, at.x + NODE.width + 40, at.y);
-						next = setNodeConfig(placedMember.script, placedMember.id, {
-							member: member.name,
-							type: member.type,
-						});
-						next = connect(
-							next, registry,
-							{ node: added.id, pin: out.id },
-							{ node: placedMember.id, pin: "object" },
-						);
-						queueMicrotask(() => store.select([placedMember.id]));
-					}
-				}
-
-				if (!from || hoisted) return next;
-
-				const placed = next.nodes.find((n) => n.id === added.id);
-				const pins = placed ? resolveNodePins(def, placed.config, placed.literals) : { inputs: [], outputs: [] };
-				const side = from.side === "out" ? "in" : "out";
-				let candidates = side === "in" ? pins.inputs : pins.outputs;
-				/**
-				 * A Service Function's receiver pin takes the wire only when the
-				 * wire *is* that service.
-				 *
-				 * It is typed `Instance`, because that is what Get Service gives
-				 * back, and it is declared first — so without this, dragging a
-				 * Part out and picking Debris:AddItem would wire the part in as
-				 * the service and leave Item empty. The pin exists for one
-				 * gesture; every other drag should land where it always did.
-				 */
-				const wanted = (config as { service?: string } | undefined)?.service;
-				if (SERVICE_NODES.has(def.id) && from.service !== wanted) {
-					candidates = candidates.filter((pin) => pin.id !== "service");
-				}
-				const landing = landingPins(def, candidates, from.pin, side)[0];
-				if (!landing) return next;
-
-				const target = { node: added.id, pin: landing.id };
-				next = from.side === "out"
-					? connect(next, registry, from.ref, target)
-					: connect(next, registry, target, from.ref);
-				return next;
-			});
-			setMenu(null);
-		},
-		[menu, registry, prefs.logicParens, prefs.castNames, prefs.concatInterpolate],
-	);
-
-	const spawnComment = useCallback((world: { x: number; y: number }) => {
-		const { selection: selected, graph } = store.getSnapshot();
-		store.edit((s) => {
-			// Wrapping a selection is the common case, so a comment created with
-			// nodes selected sizes itself to enclose them. With nothing selected
-			// it is a plain box at the point given: a comment is a note on the
-			// canvas, and one about nothing in particular — a heading, a reminder,
-			// a space left for work not done yet — is a fair thing to write.
-			//
-			// Measured in the graph on screen. A Declare Function is drawn in two
-			// graphs at two positions, and the whole script only holds the outer
-			// one — so a comment around it inside its own graph went to where it
-			// sits in the other.
-			const box = boundsOf(viewOf(s, graph), selected, registry);
-			const rect = box
-				? { x: box.x - 24, y: box.y - 52, w: box.w + 48, h: box.h + 76 }
-				: { x: world.x, y: world.y, w: 320, h: 200 };
-			const { script, id } = addComment(s, rect);
-			queueMicrotask(() => store.select([id]));
-			return script;
-		});
-		setMenu(null);
-	}, [registry]);
-
-	/**
-	 * Tidies the graph into ranked columns. Acts on the selection when there is
-	 * more than one node in it, so a corner can be straightened without moving
-	 * everything else.
-	 */
-	const realign = useCallback(() => {
-		const state = store.getSnapshot();
-		if (!state.script) return;
-		// The graph on screen, and only that: laying out the whole file would
-		// arrange every function's nodes around each other.
-		const graph = state.graph;
-		const view = viewOf(state.script, graph);
-		const selected = new Set(
-			[...state.selection].filter((id) => view.nodes.some((n) => n.id === id)),
-		);
-		const only = selected.size > 1 ? selected : undefined;
-		store.edit((s) =>
-			mergeLayout(s, graph, autoLayout(viewOf(s, graph), registry, { only, alignExec, wideNodes })),
-		);
-	}, [registry, alignExec, wideNodes]);
-
-	/**
-	 * Deletes a selection, asking first when a function in it takes its graph
-	 * along — nodes that are not on screen. A delete that only ever removes what
-	 * you can see needs no question.
-	 */
-	const removeSelection = useCallback(async (ids: ReadonlySet<string>) => {
-		const script = store.getSnapshot().script;
-		if (!script || ids.size === 0) return;
-		const inside = [...withFunctionGraphs(script, ids)].filter(
-			(id) => !ids.has(id) && script.nodes.some((n) => n.id === id),
-		).length;
-		if (inside > 0) {
-			const ok = await ask({
-				kind: "confirm",
-				title: "Delete the function's graph too?",
-				message: `${inside} node${inside === 1 ? " is" : "s are"} inside it, and go${inside === 1 ? "es" : ""} with it.`,
-				confirmLabel: "Delete",
-				danger: true,
-			});
-			if (ok !== true) return;
-		}
-		store.edit((s) => deleteSelection(s, ids, registry));
-	}, [ask, registry]);
-
-	/**
-	 * Turns a pin's typed-in value into a script variable, then selects the
-	 * getter it made — the next thing you do is almost always to that getter,
-	 * and leaving the selection on the node behind it means going to find it.
-	 */
-	const promotePin = useCallback(
-		(pin: PinMenuTarget) => {
-			const state = store.getSnapshot();
-			if (!state.script) return;
-			const result = promoteToVariable(state.script, registry, pin.nodeId, pin.pin);
-			if (!result) return;
-			store.edit(() => result.script);
-			store.select([result.node]);
-		},
-		[registry],
-	);
-
-	/**
-	 * Breaks a struct pin into components, or puts one back.
-	 *
-	 * Either direction can strand wires — there is nowhere for them to land on
-	 * the other side of the change. The simple thing is to drop them without
-	 * asking; here more than one gets a confirmation, because a graph you cannot
-	 * see all at once should not lose wiring silently.
-	 */
-	const splitOrRecombine = useCallback(
-		async (target: PinMenuTarget, parent: string | undefined, mode: string | undefined) => {
-			const state = store.getSnapshot();
-			if (!state.script) return;
-
-			const pinId = parent ?? target.pin.id;
-			const stranded = splitCost(state.script, registry, target.nodeId, target.side, pinId);
-			if (stranded > 1) {
-				const ok = await ask({
-					kind: "confirm",
-					title: mode ? "Split this pin?" : "Recombine this pin?",
-					message:
-						`${stranded} wires are attached and cannot follow the change. ` +
-						"They will be disconnected; the values typed into the pins are kept.",
-					confirmLabel: mode ? "Split" : "Recombine",
-				});
-				if (ok !== true) return;
-			}
-
-			// Splitting is meant to change how a value is shown, never what it
-			// is. When the value cannot be taken apart, that promise breaks —
-			// so say so first rather than letting the graph quietly compile to
-			// something else.
-			const lost =
-				mode !== undefined
-					? splitValueWarning(state.script, registry, target.nodeId, target.side, pinId, mode)
-					: null;
-			if (lost !== null) {
-				const ok = await ask({
-					kind: "confirm",
-					title: "This value cannot be split",
-					message:
-						`"${target.pin.name || pinId}" holds ${lost}, which Roswaal cannot take apart. ` +
-						"The components would start at their defaults, so the script would compile " +
-						"differently. Wire a node in instead, or split anyway and set the components " +
-						"by hand.",
-					confirmLabel: "Split anyway",
-					danger: true,
-				});
-				if (ok !== true) return;
-			}
-
-			store.edit((s) =>
-				mode !== undefined
-					? splitPin(s, registry, target.nodeId, target.side, pinId, mode)
-					: recombinePin(s, registry, target.nodeId, target.side, pinId),
-			);
-		},
-		[registry, ask],
-	);
-
-	const toggleAlignExec = useCallback(() => {
-		updatePrefs({ alignExec: !alignExec });
-	}, [alignExec, updatePrefs]);
-
-	/**
-	 * The graph is read-only because it is being compiled.
-	 *
-	 * Only outside Dynamic. On Dynamic a compile follows every autosave, so
-	 * locking on one would lock the canvas roughly whenever you stopped typing —
-	 * the mode exists precisely so that compiling is not a thing you think about.
-	 * Outside it a compile is something you asked for and then wait for, and an
-	 * edit made during the walk lands in the written file or does not, depending
-	 * on where the walk had got to. That file then disagrees with the graph and
-	 * nothing says so.
-	 */
-	const locked = compiling && project?.config.compileMode !== "hot";
-
-	// The policy is decided here, because the compile mode is; the refusal
-	// happens in the store, because that is the one place every edit goes
-	// through. Disabling the controls below is the courtesy on top of it.
-	useEffect(() => {
-		store.setLocked(locked);
-	}, [locked]);
-
-	// -- keyboard ----------------------------------------------------------
-
-	useEffect(() => {
-		const onKey = (e: KeyboardEvent) => {
-			// A dialog is a question about the graph; nothing changes it meanwhile.
-			if (isEditableTarget(e.target) || dialogOpen.current) return;
-			const mod = e.ctrlKey || e.metaKey;
-
-			// Selecting and copying are reading. Everything else below changes
-			// the graph, and while it is locked none of it may.
-			// Selecting, copying and previewing are reading. Everything else below
-			// changes the graph, and while it is locked none of it may.
-			const reading =
-				(mod && (e.key.toLowerCase() === "a" || e.key.toLowerCase() === "c")) ||
-				e.key.toLowerCase() === "p";
-			if (locked && !reading) return;
-
-			if (mod && e.key.toLowerCase() === "z") {
-				e.preventDefault();
-				if (e.shiftKey) store.redo();
-				else store.undo();
-				return;
-			}
-			if (mod && e.key.toLowerCase() === "y") {
-				e.preventDefault();
-				store.redo();
-				return;
-			}
-			// Compiles what is on screen. A node map open over a graph tab used to
-			// compile the graph behind it, which is not what its button says.
-			if (mod && e.key.toLowerCase() === "s") {
-				e.preventDefault();
-				if (mapDoc) void runCompileMap(mapDoc.path);
-				else if (!source && editor.path) void runCompile(editor.path, true);
-				return;
-			}
-			// The documentation, from wherever you are in the editor. It opens the
-			// docs window on the page you pick, which is the same window the
-			// toolbar's button opens and the same search it has.
-			if (mod && e.key.toLowerCase() === "k") {
-				e.preventDefault();
-				setDocsJump(true);
-				return;
-			}
-			if (mod && e.shiftKey && e.key.toLowerCase() === "l") {
-				e.preventDefault();
-				realign();
-				return;
-			}
-			if (mod && e.key.toLowerCase() === "a") {
-				e.preventDefault();
-				const state = store.getSnapshot();
-				// Everything in the graph on screen. Selecting nodes you cannot see
-				// is how the next Delete removes them.
-				if (state.script) {
-					const s = viewOf(state.script, state.graph);
-					store.select([...s.nodes.map((n) => n.id), ...s.comments.map((c) => c.id)]);
-				}
-				return;
-			}
-			if (mod && (e.key.toLowerCase() === "c" || e.key.toLowerCase() === "x")) {
-				const state = store.getSnapshot();
-				if (!state.script || state.selection.size === 0) return;
-				e.preventDefault();
-				clipboard.current = copySelection(state.script, state.selection, registry);
-				setHasClip(true);
-				/**
-				 * Cut takes away exactly what it took a copy of.
-				 *
-				 * A comment carries what it encloses, so cutting one and cutting
-				 * only its box would leave the nodes behind and the paste would
-				 * be a second set of them. Delete is deliberately not changed:
-				 * removing a comment has always meant removing the note, and a
-				 * key that quietly took eleven nodes with it is not a key anybody
-				 * should have to find out about.
-				 */
-				if (e.key.toLowerCase() === "x") {
-					void removeSelection(withCommentContents(state.script, state.selection, registry));
-				}
-				return;
-			}
-			if (mod && e.key.toLowerCase() === "v") {
-				const clip = clipboard.current;
-				if (!clip) return;
-				e.preventDefault();
-				paste(clip);
-				return;
-			}
-			if (mod && e.key.toLowerCase() === "d") {
-				const state = store.getSnapshot();
-				if (!state.script || state.selection.size === 0) return;
-				e.preventDefault();
-				paste(copySelection(state.script, state.selection, registry));
-				return;
-			}
-			if (e.key === "Delete" || e.key === "Backspace") {
-				e.preventDefault();
-				void removeSelection(store.getSnapshot().selection);
-				return;
-			}
-			// Two or more, because one node is already aligned with itself.
-			if (e.key.toLowerCase() === "a" && !mod && store.getSnapshot().selection.size > 1) {
-				const state = store.getSnapshot();
-				const script = state.script;
-				if (!script) return;
-				const anchor = selectionAnchor(script, state.selection);
-				if (!anchor) return;
-				e.preventDefault();
-				const ids = state.selection;
-				const graph = state.graph;
-				store.edit((s) => mergeLayout(s, graph, alignToAnchor(viewOf(s, graph), registry, ids, anchor)));
-				return;
-			}
-			if (e.key.toLowerCase() === "c" && !mod) {
-				e.preventDefault();
-				/**
-				 * Where the canvas is looking, rather than world origin.
-				 *
-				 * With a selection the point is ignored — the comment sizes
-				 * itself around what is selected. Without one it is the whole
-				 * answer, and `(0, 0)` would drop the comment at the world's
-				 * origin, which is usually nowhere near the screen. The view's
-				 * offset and zoom say where its top-left corner is without
-				 * anyone needing to know how big the canvas is.
-				 */
-				const inset = 64;
-				spawnComment(screenToWorld(store.getView(), inset, inset));
-			}
-			// Unmodified. With a selection it picks out what those nodes produced;
-			// with nothing picked it is the whole script.
-			if (e.key.toLowerCase() === "p" && !mod && store.getSnapshot().script) {
-				e.preventDefault();
-				setPreviewOpen(true);
-			}
-		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
-	}, [editor.path, mapDoc, source, runCompile, runCompileMap, spawnComment, realign, removeSelection, locked, registry, paste]);
+	const {
+		locked, presets, promotePin, realign, spawn, spawnComment, splitOrRecombine, toggleAlignExec,
+	} = useGraphCommands({
+		editor, project, registry, prefs, updatePrefs, ask, dialogOpen, clipboard, setHasClip, pointerAt,
+		menu, setMenu, setPreviewOpen, setDocsJump, compiling, runCompile, runCompileMap, source, mapDoc,
+	});
 
 	const {
 		createGraphIn, createMapIn, exportOpen, importPlace, importRojo, importZip,

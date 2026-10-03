@@ -269,7 +269,7 @@ describe("runtime as an axis", () => {
 	 * The picker listed the library and nothing else until 0.62.5, so the one
 	 * search that shows you what a node *looks* like could not find the node
 	 * you named yourself. It takes `buildPresets`' output now -- built once in
-	 * `App.tsx` and scoped there -- so the two cannot disagree about what this
+	 * `useGraphCommands.ts` and scoped there -- so the two cannot disagree about what this
 	 * graph has, or about which of a function's parameters are in scope.
 	 */
 	it("offers This graph in both searches, from one source", () => {
@@ -278,9 +278,8 @@ describe("runtime as an axis", () => {
 		// One call site, and both surfaces take the result as a prop. (The
 		// builder itself lives in NodeMenu.tsx, which is why this asks App
 		// rather than asking the components what they do not contain.)
-		const app = source("src/app/App.tsx");
-		expect(app.match(/buildPresets\(/g)).toHaveLength(1);
-		expect(app).toContain("presets={presets}");
+		expect(source("src/app/useGraphCommands.ts").match(/buildPresets\(/g)).toHaveLength(1);
+		expect(source("src/app/App.tsx")).toContain("presets={presets}");
 		expect(source("src/app/NodePicker.tsx")).toContain("presets = []");
 	});
 

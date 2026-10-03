@@ -25,9 +25,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
 const page = findPage(site, "controls");
 
-/** The body of `App.tsx`'s global keydown handler, and nothing else. */
+/** The body of the editor's global keydown handler (`useGraphCommands.ts`), and nothing else. */
 function keyHandler(): string {
-	const source = readFileSync(path.join(ROOT, "src/app/App.tsx"), "utf8");
+	const source = readFileSync(path.join(ROOT, "src/app/useGraphCommands.ts"), "utf8");
 	const from = source.indexOf("const onKey = (e: KeyboardEvent)");
 	const to = source.indexOf('window.addEventListener("keydown", onKey)');
 	expect(from, "the key handler moved").toBeGreaterThan(-1);
@@ -84,7 +84,7 @@ describe("the Controls page", () => {
 	it("lists every key the editor binds", () => {
 		const spans = codeSpans();
 		const missing = boundKeys().filter((key) => !spans.has(key));
-		expect(missing, "bound in App.tsx but not on the Controls page").toEqual([]);
+		expect(missing, "bound in the editor but not on the Controls page").toEqual([]);
 	});
 
 	/**
