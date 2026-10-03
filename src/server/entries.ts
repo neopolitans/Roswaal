@@ -10,6 +10,7 @@ import { fs, path } from "./host.js";
 
 import type { OpenProject } from "./config.js";
 import { graphName, readScript, writeScript } from "./documents.js";
+import { UserError } from "./errors.js";
 import { exists } from "./files.js";
 import { entryPath, isInside, safeJoin, toPosix } from "./paths.js";
 
@@ -26,7 +27,7 @@ function assertEditable(project: OpenProject, relPath: string, verb: string): vo
 	const normalised = toPosix(relPath).replace(/^\.\//, "");
 	if (normalised !== out && !normalised.startsWith(out + "/")) return;
 
-	throw new Error(
+	throw new UserError(
 		`${out} holds generated files, so there is nothing to ${verb} there. ` +
 			`Work in ${project.config.sourceDir}; the folders you make there appear under ` +
 			`${out} when you compile.`,
@@ -41,7 +42,7 @@ function assertEditable(project: OpenProject, relPath: string, verb: string): vo
 export async function createFolder(project: OpenProject, relPath: string): Promise<string> {
 	assertEditable(project, relPath, "create a folder");
 	const abs = safeJoin(project.root, relPath);
-	if (await exists(abs)) throw new Error(`${relPath} already exists.`);
+	if (await exists(abs)) throw new UserError(`${relPath} already exists.`);
 	await fs.mkdir(abs, { recursive: true });
 	return relPath;
 }
@@ -51,13 +52,13 @@ export async function renameEntry(
 ): Promise<string> {
 	assertEditable(project, relPath, "rename anything");
 	const clean = newName.replace(/[\\/:*?"<>|]/g, "").trim();
-	if (clean === "") throw new Error("A name cannot be empty.");
+	if (clean === "") throw new UserError("A name cannot be empty.");
 
 	const source = entryPath(project.root, relPath);
 	const destRel = path.posix.join(path.posix.dirname(toPosix(relPath)), clean);
 	const dest = entryPath(project.root, destRel);
 	if (source === dest) return destRel;
-	if (await exists(dest)) throw new Error(`${destRel} already exists.`);
+	if (await exists(dest)) throw new UserError(`${destRel} already exists.`);
 	await fs.rename(source, dest);
 
 	/**
@@ -96,8 +97,8 @@ export async function moveEntry(
 	const destRel = path.posix.join(toDir, name);
 	const dest = entryPath(project.root, destRel);
 	if (source === dest) return destRel;
-	if (isInside(dest, source)) throw new Error(`${toPosix(from)} cannot be moved into itself.`);
-	if (await exists(dest)) throw new Error(`${destRel} already exists.`);
+	if (isInside(dest, source)) throw new UserError(`${toPosix(from)} cannot be moved into itself.`);
+	if (await exists(dest)) throw new UserError(`${destRel} already exists.`);
 	await fs.mkdir(path.dirname(dest), { recursive: true });
 	await fs.rename(source, dest);
 	return destRel;

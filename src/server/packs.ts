@@ -14,6 +14,7 @@ import { clashingIds, namespaceFor, packRequires, packTargets, renamespace } fro
 import type { NodeDef, Target } from "../core/schema.js";
 import { readConfig, type OpenProject } from "./config.js";
 import { collectScripts, readScript } from "./documents.js";
+import { UserError } from "./errors.js";
 import { exists } from "./files.js";
 import { safeJoin, toPosix } from "./paths.js";
 
@@ -108,15 +109,22 @@ export async function listPacks(project: PackProject): Promise<PackFile[]> {
 	return out.sort((a, b) => a.path.localeCompare(b.path));
 }
 
-/** A pack file that is in one of the project's node paths, or an error saying where they are. */
+/**
+ * A pack file that is in one of the project's node paths, or an error saying
+ * where they are.
+ *
+ * Normalised before the prefix is compared, both sides: otherwise
+ * `.roswaal/nodes/../../x.nodedef.json` starts with a node path and lands
+ * outside it.
+ */
 function assertPackPath(project: PackProject, relPath: string): string {
-	const target = toPosix(relPath);
+	const target = path.posix.normalize(toPosix(relPath));
 	if (!packFormat(path.posix.basename(target))) {
-		throw new Error(`${target} is not a node pack. A pack is a .nodedef.json or .nodedef.luau file.`);
+		throw new UserError(`${target} is not a node pack. A pack is a .nodedef.json or .nodedef.luau file.`);
 	}
-	const dirs = project.config.nodePaths.map((d) => toPosix(d).replace(/\/+$/, ""));
+	const dirs = project.config.nodePaths.map((d) => path.posix.normalize(toPosix(d)).replace(/\/+$/, ""));
 	if (!dirs.some((dir) => target.startsWith(dir + "/"))) {
-		throw new Error(`${target} is not in a node path. This project loads packs from ${dirs.join(", ")}.`);
+		throw new UserError(`${target} is not in a node path. This project loads packs from ${dirs.join(", ")}.`);
 	}
 	return target;
 }
@@ -131,7 +139,7 @@ function assertPackPath(project: PackProject, relPath: string): string {
 export async function setPackRequires(project: PackProject, relPath: string, requires: string[]): Promise<PackFile> {
 	const target = assertPackPath(project, relPath);
 	if (!target.endsWith(PACK_SUFFIX)) {
-		throw new Error(`${target} is a Luau pack, which the designer does not rewrite.`);
+		throw new UserError(`${target} is a Luau pack, which the designer does not rewrite.`);
 	}
 	const abs = safeJoin(project.root, target);
 	const parsed = JSON.parse(await fs.readFile(abs, "utf8")) as Record<string, unknown> | unknown[];
@@ -146,7 +154,7 @@ export async function setPackRequires(project: PackProject, relPath: string, req
 export async function deletePackNode(project: PackProject, relPath: string, id: string): Promise<PackFile> {
 	const target = assertPackPath(project, relPath);
 	if (!target.endsWith(PACK_SUFFIX)) {
-		throw new Error(`${target} is a Luau pack, which the designer does not rewrite.`);
+		throw new UserError(`${target} is a Luau pack, which the designer does not rewrite.`);
 	}
 	const abs = safeJoin(project.root, target);
 	const parsed = JSON.parse(await fs.readFile(abs, "utf8")) as { nodes?: { id: string }[] } | { id: string }[];
@@ -165,11 +173,11 @@ export async function deletePackNode(project: PackProject, relPath: string, id: 
  */
 export async function createPack(project: PackProject, rawName: string): Promise<PackFile> {
 	const name = rawName.trim().replace(/[^A-Za-z0-9_-]/g, "");
-	if (name === "") throw new Error("A pack needs a name: letters, digits, - and _.");
+	if (name === "") throw new UserError("A pack needs a name: letters, digits, - and _.");
 	const dir = toPosix(project.config.nodePaths[0] ?? ".roswaal/nodes").replace(/\/+$/, "");
 	for (const suffix of [PACK_SUFFIX, ".nodedef.luau", ".nodedef.lua"]) {
 		if (await exists(safeJoin(project.root, `${dir}/${name}${suffix}`))) {
-			throw new Error(`There is already a pack called ${name}.`);
+			throw new UserError(`There is already a pack called ${name}.`);
 		}
 	}
 	const target = `${dir}/${name}${PACK_SUFFIX}`;
@@ -195,7 +203,7 @@ export async function readPack(project: PackProject, relPath: string): Promise<P
 export async function duplicatePack(project: PackProject, relPath: string): Promise<PackFile> {
 	const source = await readPack(project, relPath);
 	if (source.pack.errors.length > 0) {
-		throw new Error(`${source.pack.path} has problems to fix before it can be copied: ${source.pack.errors.join(" ")}`);
+		throw new UserError(`${source.pack.path} has problems to fix before it can be copied: ${source.pack.errors.join(" ")}`);
 	}
 	const dir = path.posix.dirname(source.pack.path);
 	let name = `${source.pack.name}-copy`;
@@ -208,7 +216,7 @@ export async function duplicatePack(project: PackProject, relPath: string): Prom
 	if (source.pack.requires.length > 0) document.requires = source.pack.requires;
 
 	const check = parseNodePack(document, path.posix.basename(target));
-	if (check.errors.length > 0) throw new Error(check.errors.join(" "));
+	if (check.errors.length > 0) throw new UserError(check.errors.join(" "));
 	await fs.writeFile(safeJoin(project.root, target), JSON.stringify(document, null, 2) + "\n", "utf8");
 	return (await readPackAt(project.root, target)).pack;
 }
@@ -238,7 +246,7 @@ export async function scanProjectPacks(
 ): Promise<{ root: string; target: Target; packs: PackFile[] }> {
 	const resolved = path.resolve(root);
 	if (!(await exists(path.join(resolved, "roswaal.json")))) {
-		throw new Error(`${resolved} is not a Roswaal project: it has no roswaal.json.`);
+		throw new UserError(`${resolved} is not a Roswaal project: it has no roswaal.json.`);
 	}
 	const config = await readConfig(resolved);
 	return { root: resolved, target: config.target, packs: await listPacks({ root: resolved, config }) };
@@ -256,11 +264,11 @@ export async function copyPackBetween(
 	from: PackProject, relPath: string, to: PackProject,
 ): Promise<PackFile> {
 	if (path.resolve(from.root) === path.resolve(to.root)) {
-		throw new Error("That is this project. Use Duplicate to copy a pack within it.");
+		throw new UserError("That is this project. Use Duplicate to copy a pack within it.");
 	}
 	const source = await readPack(from, relPath);
 	if (source.pack.errors.length > 0) {
-		throw new Error(`${source.pack.path} has problems to fix first: ${source.pack.errors.join(" ")}`);
+		throw new UserError(`${source.pack.path} has problems to fix first: ${source.pack.errors.join(" ")}`);
 	}
 
 	const existing = await listPacks(to);
@@ -268,12 +276,12 @@ export async function copyPackBetween(
 	const dir = toPosix(to.config.nodePaths[0] ?? ".roswaal/nodes").replace(/\/+$/, "");
 	const target = `${dir}/${fileName}`;
 	if (await exists(safeJoin(to.root, target))) {
-		throw new Error(`${target} already exists there.`);
+		throw new UserError(`${target} already exists there.`);
 	}
 	for (const pack of existing) {
 		const clash = clashingIds(source.pack.nodes, pack.nodes);
 		if (clash.length > 0) {
-			throw new Error(`${pack.path} there already defines ${clash.join(", ")}.`);
+			throw new UserError(`${pack.path} there already defines ${clash.join(", ")}.`);
 		}
 	}
 
@@ -299,16 +307,11 @@ export async function savePackNode(
 	/** The id the node had before, when the designer renamed it. */
 	replaces?: string,
 ): Promise<PackFile> {
-	const target = toPosix(relPath);
-	if (!target.endsWith(PACK_SUFFIX)) {
-		throw new Error(`A pack the designer writes is a ${PACK_SUFFIX} file. This one is ${target}.`);
+	const named = toPosix(relPath);
+	if (!named.endsWith(PACK_SUFFIX)) {
+		throw new UserError(`A pack the designer writes is a ${PACK_SUFFIX} file. This one is ${named}.`);
 	}
-	const dirs = project.config.nodePaths.map((d) => toPosix(d).replace(/\/+$/, ""));
-	if (!dirs.some((dir) => target.startsWith(dir + "/"))) {
-		throw new Error(
-			`${target} is not in a node path. This project loads packs from ${dirs.join(", ")}.`,
-		);
-	}
+	const target = assertPackPath(project, named);
 
 	const abs = safeJoin(project.root, target);
 	const existing = await fs.readFile(abs, "utf8").catch(() => null);
@@ -332,7 +335,7 @@ export async function savePackNode(
 	// the new id.
 	if (replaces !== undefined && replaces !== def.id) {
 		if (nodes.some((node) => node.id === def.id)) {
-			throw new Error(`${target} already has a node called ${def.id}.`);
+			throw new UserError(`${target} already has a node called ${def.id}.`);
 		}
 		const old = nodes.findIndex((node) => node.id === replaces);
 		if (old !== -1) nodes[old] = def;
@@ -345,7 +348,7 @@ export async function savePackNode(
 
 	const document = { ...settings, nodes };
 	const check = parseNodePack(document, path.posix.basename(target));
-	if (check.errors.length > 0) throw new Error(check.errors.join(" "));
+	if (check.errors.length > 0) throw new UserError(check.errors.join(" "));
 
 	await fs.mkdir(path.dirname(abs), { recursive: true });
 	await fs.writeFile(abs, JSON.stringify(document, null, 2) + "\n", "utf8");

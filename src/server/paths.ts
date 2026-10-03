@@ -8,6 +8,8 @@
 
 import { path } from "./host.js";
 
+import { UserError } from "./errors.js";
+
 /**
  * A path with forward slashes, whatever produced it.
  *
@@ -49,7 +51,7 @@ export function safeJoin(root: string, relPath: string): string {
 	const abs = path.resolve(root, relPath);
 	const rel = path.relative(root, abs);
 	if (rel.startsWith("..") || path.isAbsolute(rel)) {
-		throw new Error(`Path escapes the project: ${relPath}`);
+		throw new UserError(`Path escapes the project: ${relPath}`);
 	}
 	return abs;
 }
@@ -63,7 +65,7 @@ export function safeJoin(root: string, relPath: string): string {
  */
 export function entryPath(root: string, relPath: string): string {
 	const abs = safeJoin(root, relPath);
-	if (path.relative(root, abs) === "") throw new Error("That is the project folder itself, not something in it.");
+	if (path.relative(root, abs) === "") throw new UserError("That is the project folder itself, not something in it.");
 	return abs;
 }
 

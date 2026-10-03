@@ -241,7 +241,7 @@ async function commandInit(args: Args): Promise<number> {
 		ledger.push(`${green("created ")} ${relPath}`);
 	};
 
-	await record("roswaal.json", () => writeConfig(root, config));
+	await record("roswaal.json", async () => void (await writeConfig(root, config)));
 	await record(config.sourceDir, async () => {
 		await fs.mkdir(path.join(root, config.sourceDir), { recursive: true });
 	});

@@ -17,8 +17,9 @@
 
 /// <reference lib="webworker" />
 
+import { errorMessage } from "../server/errors.js";
 import { initProject, writePlaceImport } from "../server/project.js";
-import { ApiSession, HttpError } from "../server/routes.js";
+import { ApiSession, errorResponse, type ErrorBody } from "../server/routes.js";
 
 import { VERSION } from "../cli/version.js";
 
@@ -32,6 +33,24 @@ declare const self: DedicatedWorkerGlobalScope;
 
 function post(message: FromWorker): void {
 	self.postMessage(message);
+}
+
+/** A reply's status and payload for an error, as the daemon would give them. */
+function answer(err: unknown): { status: number; payload: ErrorBody } {
+	const { status, body } = errorResponse(err);
+	return { status, payload: body };
+}
+
+/**
+ * The answer for a folder or archive with no `roswaal.json`: a 409 the editor
+ * acts on by asking, carrying the name it asks about.
+ */
+function notAProject(name: string): ErrorBody {
+	return {
+		error: `${name} is not a Roswaal project: it has no roswaal.json.`,
+		code: "not-a-project",
+		name,
+	};
 }
 
 const store = persistence(opfsStore(), VERSION);
@@ -132,7 +151,7 @@ async function dynamicCompile(method: string, path: string, body: unknown): Prom
 		post({
 			kind: "event",
 			event: "hot",
-			data: { type: "error", path: relPath, message: (err as Error).message },
+			data: { type: "error", path: relPath, message: errorMessage(err) },
 		});
 	}
 }
@@ -187,7 +206,7 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 					kind: "response",
 					id: message.id,
 					status: 409,
-					payload: { code: "not-a-project", name: message.handle.name },
+					payload: notAProject(message.handle.name),
 				});
 				return;
 			}
@@ -215,8 +234,7 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 			post({
 				kind: "response",
 				id: message.id,
-				status: 400,
-				payload: { error: (err as Error).message },
+				...answer(err),
 			});
 		}
 		return;
@@ -241,7 +259,7 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 					kind: "response",
 					id: message.id,
 					status: 409,
-					payload: { code: "not-a-project", name: message.name },
+					payload: notAProject(message.name),
 				});
 				return;
 			}
@@ -276,8 +294,7 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 			post({
 				kind: "response",
 				id: message.id,
-				status: 400,
-				payload: { error: (err as Error).message },
+				...answer(err),
 			});
 		}
 		return;
@@ -312,7 +329,7 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 			volume.mountDirs(before.dirs);
 			playgroundRoot = before.root;
 			await session.openAt(playgroundRoot).catch(() => {});
-			post({ kind: "response", id: message.id, status: 400, payload: { error: (err as Error).message } });
+			post({ kind: "response", id: message.id, ...answer(err) });
 		}
 		return;
 	}
@@ -333,14 +350,8 @@ self.onmessage = async (event: MessageEvent<ToWorker>) => {
 		// compile above writes too. Debounced, so a burst costs one write.
 		if (message.method !== "GET" && usingVolume()) store.touch(snapshot);
 	} catch (err) {
-		// The same mapping `app.ts` makes for Express: a thrown `HttpError` knows
-		// its own status, and anything else is the caller's fault at 400.
-		const status = err instanceof HttpError ? err.status : 400;
-		post({
-			kind: "response",
-			id: message.id,
-			status,
-			payload: { error: (err as Error).message },
-		});
+		// The same mapping `app.ts` makes for Express, so a failure reads the same
+		// whichever host answered it.
+		post({ kind: "response", id: message.id, ...answer(err) });
 	}
 };

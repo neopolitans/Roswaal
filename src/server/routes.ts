@@ -23,7 +23,7 @@
  */
 
 import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
-import { emptyScript, type NodeDef, type NodeScript, type RoswaalConfig } from "../core/schema.js";
+import { emptyScript, type NodeDef, type NodeScript } from "../core/schema.js";
 import { VERSION } from "../cli/version.js";
 
 import { toBase64 } from "../core/base64.js";
@@ -35,6 +35,7 @@ import { addFromWally, installGithub, installZip, packageUses, removePackage } f
 import { fromBase64 } from "../core/base64.js";
 import type { WallyRealm } from "../core/wally.js";
 import { path } from "./host.js";
+import { errorMessage, HttpError } from "./errors.js";
 import {
 	buildTree, collectBinaries, collectMaps, collectProject, compileAll, exportPlace, findPlaceFile, compileMap, compileScript, copyPackBetween, createFolder,
 	findRojoProjects, importRojoProject,
@@ -46,11 +47,7 @@ import {
 	type CompileStep, type OpenProject,
 } from "./project.js";
 
-export class HttpError extends Error {
-	constructor(readonly status: number, message: string) {
-		super(message);
-	}
-}
+export { errorResponse, HttpError, UserError, type ErrorBody } from "./errors.js";
 
 /** A request, reduced to the two things any of these handlers reads. */
 export interface RouteRequest {
@@ -322,7 +319,8 @@ export class ApiSession {
 
 			"PUT /project/config": async (req) => {
 				const project = this.project();
-				await writeConfig(project.root, body<RoswaalConfig>(req));
+				// Checked before it is written, and written before the reload reads it.
+				await writeConfig(project.root, req.body);
 				return { config: (await this.reload()).config };
 			},
 
@@ -345,8 +343,10 @@ export class ApiSession {
 				try {
 					loaded = await this.loadPlace(project, file);
 				} catch (err) {
-					if (err instanceof RbxError) return { file, error: err.message };
-					throw err;
+					if (!(err instanceof RbxError)) throw err;
+					throw new HttpError(422, `${file} could not be read: ${errorMessage(err)}`, {
+						code: "place-unreadable",
+					});
 				}
 				const scripts: Record<number, string> = {};
 				planPlaceUpdate(loaded.doc, await placeEntries(project), (inst, owner) => {
@@ -396,22 +396,14 @@ export class ApiSession {
 			"POST /wally/add": async (req) => {
 				const { spec, realm, alias } = body<{ spec?: string; realm?: WallyRealm; alias?: string }>(req);
 				if (!spec) throw new HttpError(400, "Which package? Pass its `spec`, scope/name.");
-				try {
-					return await addFromWally(this.project(), spec, realm, alias);
-				} catch (err) {
-					throw new HttpError(400, (err as Error).message);
-				}
+				return addFromWally(this.project(), spec, realm, alias);
 			},
 
 			/** A package from a zip: a Wally package where `wally install` puts one, anything else vendored. */
 			"POST /wally/zip": async (req) => {
 				const { data, alias, realm, fileName } = body<{ data?: string; alias?: string; realm?: WallyRealm; fileName?: string }>(req);
 				if (!data) throw new HttpError(400, "Pass the zip as base64 `data`.");
-				try {
-					return await installZip(this.project(), fromBase64(data), { alias, realm, fileName });
-				} catch (err) {
-					throw new HttpError(400, (err as Error).message);
-				}
+				return installZip(this.project(), fromBase64(data), { alias, realm, fileName });
 			},
 
 			/** Files that still require a Wally package, before it is removed. */
@@ -431,11 +423,7 @@ export class ApiSession {
 				const { repo, alias } = body<{ repo?: string; alias?: string }>(req);
 				if (!repo) throw new HttpError(400, "Which repository? Pass `repo`, owner/repo.");
 				const download = this.ability("githubDownload");
-				try {
-					return await installGithub(this.project(), repo, download, alias);
-				} catch (err) {
-					throw new HttpError(400, (err as Error).message);
-				}
+				return installGithub(this.project(), repo, download, alias);
 			},
 
 			/**
@@ -448,11 +436,7 @@ export class ApiSession {
 			"POST /rojo/import": async (req) => {
 				const { file } = body<{ file?: string }>(req);
 				if (!file) throw new HttpError(400, "Which project file? Pass its `file`.");
-				try {
-					return await importRojoProject(this.project(), file);
-				} catch (err) {
-					throw new HttpError(400, (err as Error).message);
-				}
+				return importRojoProject(this.project(), file);
 			},
 
 			/**

@@ -9,7 +9,6 @@
 import { fs, path } from "./host.js";
 
 import { addInstances } from "../core/rbx/adder.js";
-import { RbxError } from "../core/rbx/dom.js";
 import { readRbx } from "../core/rbx/index.js";
 import { planPlaceUpdate, type PlaceEntry, type PlaceUpdate } from "../core/rbx/placeExport.js";
 import { LINKS_FILE, type PlaceImport, type PlaceLinks } from "../core/rbx/placeImport.js";
@@ -18,6 +17,7 @@ import { isFilesystemMap, locateSegments } from "../core/nodemap.js";
 import { defaultConfig, type RoswaalConfig } from "../core/schema.js";
 import { compileMap, type MapOutcome } from "./compile.js";
 import { openProject, writeConfig, type OpenProject } from "./config.js";
+import { errorMessage, UserError } from "./errors.js";
 import { collectMaps, readMap } from "./documents.js";
 import { walkFiles } from "./files.js";
 import { safeJoin, toPosix } from "./paths.js";
@@ -47,11 +47,16 @@ export async function findPlaceFile(root: string, config: RoswaalConfig): Promis
  *
  * The caller has put the place file itself in the root already -- it is bytes,
  * and the project filesystem carries text -- and passes its name so the config
- * can point at it.
+ * can point at it. A plan with no node map is refused before anything is
+ * written, since the map is what the Rojo project is compiled from.
  */
 export async function writePlaceImport(
 	root: string, files: PlaceImport["files"], placeFile: string,
 ): Promise<MapOutcome> {
+	const mapPath = Object.keys(files).find((f) => f.endsWith(".nodemap"));
+	if (mapPath === undefined) {
+		throw new UserError("This import plans no node map, so there is no Rojo project to write from it.");
+	}
 	const config: RoswaalConfig = { ...defaultConfig(), place: placeFile };
 	await fs.mkdir(root, { recursive: true });
 	await writeConfig(root, config);
@@ -62,9 +67,7 @@ export async function writePlaceImport(
 		await fs.mkdir(path.dirname(abs), { recursive: true });
 		await fs.writeFile(abs, content, "utf8");
 	}
-	const project = await openProject(root);
-	const mapPath = Object.keys(files).find((f) => f.endsWith(".nodemap"))!;
-	return compileMap(project, mapPath, { write: true });
+	return compileMap(await openProject(root), mapPath, { write: true });
 }
 
 /** A place file's bytes, by its project-relative path. */
@@ -102,7 +105,7 @@ export async function exportPlace(project: OpenProject): Promise<PlaceExport | n
 		return { file, bytes: addInstances(written, doc, update.added), update };
 	} catch (err) {
 		// The sources still go in; the new scripts are reported, not half-added.
-		const addError = err instanceof RbxError ? err.message : (err as Error).message;
+		const addError = errorMessage(err);
 		return { file, bytes: written, update: { ...update, added: [], addedFiles: [], addError, notInPlace: [...update.notInPlace, ...update.addedFiles] } };
 	}
 }

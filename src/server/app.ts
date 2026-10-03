@@ -15,7 +15,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sea from "node:sea";
 
-import { ApiSession, HttpError, type RouteRequest } from "./routes.js";
+import { errorResponse, HttpError } from "./errors.js";
+import { ApiSession, type RouteRequest } from "./routes.js";
 import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
 import { openInEditor, revealInFileManager } from "./reveal.js";
@@ -180,7 +181,7 @@ const session = new ApiSession({
 			const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/zipball${at}`, {
 				headers: { "User-Agent": "Roswaal", Accept: "application/vnd.github+json" },
 			});
-			if (!response.ok) throw new Error(`GitHub answered ${response.status} for ${owner}/${repo}${ref ? `@${ref}` : ""}.`);
+			if (!response.ok) throw new HttpError(502, `GitHub answered ${response.status} for ${owner}/${repo}${ref ? `@${ref}` : ""}.`);
 			return new Uint8Array(await response.arrayBuffer());
 		},
 		inspect: async (root) => {
@@ -260,7 +261,10 @@ const session = new ApiSession({
 	},
 });
 
-/** Wraps a handler so a thrown error becomes a clean JSON response. */
+/**
+ * Wraps a handler so a thrown error becomes a clean JSON response, with the
+ * status `errorResponse` gives it -- the same one the web worker answers with.
+ */
 function route(handler: (req: RouteRequest) => Promise<unknown>): express.RequestHandler {
 	return (req, res) => {
 		const asRequest: RouteRequest = {
@@ -269,9 +273,9 @@ function route(handler: (req: RouteRequest) => Promise<unknown>): express.Reques
 		};
 		handler(asRequest).then(
 			(value) => res.json(value),
-			(err: Error) => {
-				const status = err instanceof HttpError ? err.status : 400;
-				res.status(status).json({ error: err.message });
+			(err: unknown) => {
+				const { status, body } = errorResponse(err);
+				res.status(status).json(body);
 			},
 		);
 	};

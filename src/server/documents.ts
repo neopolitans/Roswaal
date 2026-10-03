@@ -13,6 +13,7 @@ import { compileNodeMap, isFilesystemMap, serialiseMap, type NodeMap } from "../
 import { parseProject, projectToMap, sameProject } from "../core/rojoImport.js";
 import { SCHEMA_VERSION, type NodeScript } from "../core/schema.js";
 import type { OpenProject } from "./config.js";
+import { UserError } from "./errors.js";
 import { walkFiles, writeTextAtomically } from "./files.js";
 import { recordGenerated } from "./manifest.js";
 import { safeJoin, toPosix } from "./paths.js";
@@ -21,7 +22,7 @@ export async function readScript(project: OpenProject, relPath: string): Promise
 	const abs = safeJoin(project.root, relPath);
 	const parsed = JSON.parse(await fs.readFile(abs, "utf8")) as NodeScript;
 	if (parsed.schemaVersion > SCHEMA_VERSION) {
-		throw new Error(
+		throw new UserError(
 			`${relPath} was written by a newer version of Roswaal (schema ${parsed.schemaVersion}).`,
 		);
 	}
@@ -64,9 +65,15 @@ export function graphNameFor(relPath: string): string {
 	return graphName(path.posix.basename(toPosix(relPath), ".nodescript"));
 }
 
+/**
+ * Saves a graph. Only to a `.nodescript`: anything else at that path -- the
+ * Luau a graph compiles to, a hand-written module -- is not a graph, and a
+ * save there would replace it without the hand-edit guard ever asking.
+ */
 export async function writeScript(
 	project: OpenProject, relPath: string, script: NodeScript,
 ): Promise<void> {
+	assertExtension(relPath, ".nodescript", "graph");
 	const abs = safeJoin(project.root, relPath);
 	await fs.mkdir(path.dirname(abs), { recursive: true });
 	await writeTextAtomically(abs, serialiseScript(script));
@@ -84,19 +91,27 @@ export async function readMap(project: OpenProject, relPath: string): Promise<No
 	const abs = safeJoin(project.root, relPath);
 	const parsed = JSON.parse(await fs.readFile(abs, "utf8")) as NodeMap;
 	if (parsed.schemaVersion > SCHEMA_VERSION) {
-		throw new Error(
+		throw new UserError(
 			`${relPath} was written by a newer version of Roswaal (schema ${parsed.schemaVersion}).`,
 		);
 	}
 	return parsed;
 }
 
+/** Saves a node map. Only to a `.nodemap`, for the reason `writeScript` gives. */
 export async function writeMap(
 	project: OpenProject, relPath: string, map: NodeMap,
 ): Promise<void> {
+	assertExtension(relPath, ".nodemap", "node map");
 	const abs = safeJoin(project.root, relPath);
 	await fs.mkdir(path.dirname(abs), { recursive: true });
 	await writeTextAtomically(abs, serialiseMap(map));
+}
+
+function assertExtension(relPath: string, extension: string, kind: string): void {
+	if (!relPath.toLowerCase().endsWith(extension)) {
+		throw new UserError(`A ${kind} is saved as a ${extension} file, and ${relPath} is not one.`);
+	}
 }
 
 /** A Rojo project file in the project's root, and the map that writes it, if one does. */
@@ -144,9 +159,9 @@ export async function importRojoProject(project: OpenProject, file: string): Pro
 	const rel = toPosix(file);
 	const text = await fs.readFile(safeJoin(project.root, rel), "utf8");
 	const json = parseProject(text);
-	if (json === undefined) throw new Error(`${rel} is not valid JSON.`);
+	if (json === undefined) throw new UserError(`${rel} is not valid JSON.`);
 	const owner = (await findRojoProjects(project)).find((p) => p.file === rel)?.mappedBy;
-	if (owner) throw new Error(`${rel} is already written by ${owner}.`);
+	if (owner) throw new UserError(`${rel} is already written by ${owner}.`);
 
 	const stem = path.posix.basename(rel).replace(/\.project\.json$/i, "") || "project";
 	const { map, problems } = projectToMap(json, {
