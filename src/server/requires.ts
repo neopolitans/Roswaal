@@ -148,7 +148,7 @@ class Resolver {
 
 	/** The file a require from `from` reaches. */
 	async resolve(from: string, target: RequireTarget): Promise<string | null> {
-		if (target.t === "instance") {
+		if (target.kind === "instance") {
 			const start = target.from === "game" ? [] : await this.pathOf(from);
 			if (!start) return null;
 			const segments = [...start];

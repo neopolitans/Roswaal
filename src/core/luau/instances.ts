@@ -88,7 +88,7 @@ function pathOf(expr: Expr, src: string, block: Block, self: readonly string[] |
 }
 
 function absolute(target: RequireTarget, self: readonly string[] | undefined): string[] | undefined {
-	if (target.t !== "instance") return undefined;
+	if (target.kind !== "instance") return undefined;
 	const out = target.from === "game" ? [] : self ? [...self] : undefined;
 	if (!out) return undefined;
 	for (const name of target.names) {

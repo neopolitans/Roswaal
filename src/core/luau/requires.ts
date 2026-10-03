@@ -24,8 +24,8 @@ import { visitBlock } from "./visit.js";
  * script, and `..` is `.Parent`. A string is a path, as written.
  */
 export type RequireTarget =
-	| { t: "instance"; from: "game" | "script"; names: string[] }
-	| { t: "string"; spec: string };
+	| { kind: "instance"; from: "game" | "script"; names: string[] }
+	| { kind: "string"; spec: string };
 
 /** A local that holds a module: `local Flux = require(Packages.Flux)`. */
 export interface RequireBinding {
@@ -46,16 +46,16 @@ export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): Re
 	switch (expr.kind) {
 		case "string": {
 			const spec = stringValue(expr);
-			return spec === undefined ? undefined : { t: "string", spec };
+			return spec === undefined ? undefined : { kind: "string", spec };
 		}
 		case "paren":
 			return targetOf(expr.inner, src, depth + 1, parsed);
 		case "cast":
 			return targetOf(expr.value, src, depth + 1, parsed);
 		case "name": {
-			if (expr.name === "game") return { t: "instance", from: "game", names: [] };
-			if (expr.name === "script") return { t: "instance", from: "script", names: [] };
-			if (expr.name === "workspace") return { t: "instance", from: "game", names: ["Workspace"] };
+			if (expr.name === "game") return { kind: "instance", from: "game", names: [] };
+			if (expr.name === "script") return { kind: "instance", from: "script", names: [] };
+			if (expr.name === "workspace") return { kind: "instance", from: "game", names: ["Workspace"] };
 			const locals = parsed ? localsInParsed(parsed, src, expr.start) : localsInFile(src, expr.start);
 			const local = locals?.find((n) => n.name === expr.name);
 			return local?.value ? targetOf(local.value, src, depth + 1, parsed) : undefined;
@@ -65,7 +65,7 @@ export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): Re
 			const name = expr.kind === "index" ? expr.name.name : expr.key.kind === "string" ? stringValue(expr.key) : undefined;
 			if (name === undefined) return undefined;
 			const base = targetOf(expr.object, src, depth + 1, parsed);
-			if (base?.t !== "instance") return undefined;
+			if (base?.kind !== "instance") return undefined;
 			return { ...base, names: [...base.names, name === "Parent" ? ".." : name] };
 		}
 		case "methodCall": {
@@ -73,7 +73,7 @@ export function targetOf(expr: Expr, src: string, depth = 0, parsed?: Block): Re
 			const arg = expr.args[0]?.kind === "string" ? stringValue(expr.args[0]) : undefined;
 			if (arg === undefined) return undefined;
 			const base = targetOf(expr.object, src, depth + 1, parsed);
-			if (base?.t !== "instance") return undefined;
+			if (base?.kind !== "instance") return undefined;
 			if (method === "GetService" && base.from === "game" && base.names.length === 0) return { ...base, names: [arg] };
 			if (method === "WaitForChild") return { ...base, names: [...base.names, arg] };
 			// `FindFirstChild(name, true)` searches every descendant, so where

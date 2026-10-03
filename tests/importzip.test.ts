@@ -13,7 +13,7 @@ import { deflateRawSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
 import { zip } from "../src/app/zip.js";
-import { unzip } from "../src/app/unzip.js";
+import { unzip, ZipError } from "../src/app/unzip.js";
 import { keepEntry, projectFromZip, projectName } from "../src/web/importZip.js";
 import { persistence, type SnapshotStore } from "../src/web/persist.js";
 
@@ -103,6 +103,7 @@ describe("reading a zip", () => {
 	});
 
 	it("says so when a file is not a zip", async () => {
+		await expect(unzip(new TextEncoder().encode("not a zip at all, just words"))).rejects.toBeInstanceOf(ZipError);
 		await expect(unzip(new TextEncoder().encode("not a zip at all, just words"))).rejects
 			.toThrow("not a zip");
 	});
