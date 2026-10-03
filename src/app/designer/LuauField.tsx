@@ -5,7 +5,9 @@
  * Done. The designer's logic panel is not a dialog — the node on the canvas and
  * its template are one thing being edited, and a problem about `$in.force`
  * should update as you type it. So this is the same CodeMirror setup, the same
- * highlighting and the same balance check, without the modal around it.
+ * highlighting and the same parse the compiler runs, without the modal around
+ * it. The template's placeholders are read as names of their own length, so a
+ * problem is still marked where it is written.
  *
  * ## A value that changes underneath it
  *
@@ -23,7 +25,7 @@ import { syntaxHighlighting } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
 
-import { checkLuauBalance } from "../../core/luauCheck.js";
+import { checkTemplate, type LuauFragment } from "../../core/luau/check.js";
 import { luauLint } from "../luauLint.js";
 import { luauLanguage } from "../luauMode.js";
 import { editorTheme, luauHighlight } from "../luauTheme.js";
@@ -33,15 +35,24 @@ export interface LuauFieldProps {
 	onChange: (value: string) => void;
 	/** Placeholders to offer after a `$`: the node's own pins, and the folds. */
 	placeholders: string[];
+	/**
+	 * Whether the template is statements or one value. Left out, either is
+	 * accepted.
+	 */
+	kind?: LuauFragment;
 }
 
-export function LuauField({ value, onChange, placeholders }: LuauFieldProps) {
+export function LuauField({ value, onChange, placeholders, kind }: LuauFieldProps) {
 	const host = useRef<HTMLDivElement>(null);
 	const view = useRef<EditorView | null>(null);
 	const onChangeRef = useRef(onChange);
 	onChangeRef.current = onChange;
 	const placeholdersRef = useRef(placeholders);
 	placeholdersRef.current = placeholders;
+	// Read by the lint on every pass, so a node switched between pure and
+	// impure is checked as what it is now without rebuilding the editor.
+	const kindRef = useRef(kind);
+	kindRef.current = kind;
 
 	useEffect(() => {
 		if (!host.current) return;
@@ -67,7 +78,7 @@ export function LuauField({ value, onChange, placeholders }: LuauFieldProps) {
 					keymap.of([...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
 					luauLanguage,
 					syntaxHighlighting(luauHighlight),
-					luauLint(checkLuauBalance),
+					luauLint((text) => checkTemplate(text, kindRef.current)),
 					editorTheme,
 					EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { overflow: "auto" } }),
 					EditorView.updateListener.of((update) => {

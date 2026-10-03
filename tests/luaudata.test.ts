@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LuauParseError, parseLuauData } from "../src/core/luauData.js";
 import { parseNodePack } from "../src/core/nodes/index.js";
-import { checkLuauBalance } from "../src/core/luauCheck.js";
 
 describe("Luau data parser", () => {
 	it("parses a return of a named table", () => {
@@ -99,77 +98,5 @@ text]],
 		expect(defs[0].pure).toBe(true);
 		// A plain default is accepted and tagged for us.
 		expect(defs[0].inputs[0].default).toEqual({ t: "number", v: 2 });
-	});
-});
-
-describe("Luau balance check", () => {
-	it("accepts well-formed code", () => {
-		expect(
-			checkLuauBalance(`
-				local t = { a = 1 }
-				if t.a > 0 then
-					print("yes")
-				end
-			`),
-		).toEqual([]);
-	});
-
-	it("finds an unclosed block", () => {
-		const problems = checkLuauBalance(`if x then\n\tprint(1)`);
-		expect(problems[0].message).toContain("never closed");
-	});
-
-	it("finds an unclosed string and points at its line", () => {
-		const problems = checkLuauBalance(`local a = 1\nlocal b = "oops`);
-		expect(problems[0].message).toContain("string is never closed");
-		expect(problems[0].line).toBe(2);
-	});
-
-	it("finds a mismatched bracket", () => {
-		expect(checkLuauBalance(`print(1]`)[0].message).toContain("closed by");
-	});
-
-	it("ignores block keywords inside strings and comments", () => {
-		expect(checkLuauBalance(`local s = "end end end" -- end`)).toEqual([]);
-		expect(checkLuauBalance(`--[[ if then ]] print(1)`)).toEqual([]);
-	});
-
-	it("does not count elseif twice", () => {
-		expect(
-			checkLuauBalance(`if a then\n\tx()\nelseif b then\n\ty()\nend`),
-		).toEqual([]);
-	});
-});
-
-describe("balance check offsets", () => {
-	it("points an unclosed block at the keyword that opened it", () => {
-		const source = 'if x then\n\tprint(1)\n';
-		const [problem] = checkLuauBalance(source);
-
-		expect(problem.message).toContain('This "then" is never closed');
-		expect(problem.line).toBe(1);
-		// The span covers the keyword itself, so an editor underlines that word.
-		expect(source.slice(problem.from, problem.to)).toBe("then");
-	});
-
-	it("points an unclosed string at its opening quote", () => {
-		const source = 'local a = 1\nlocal b = "oops';
-		const [problem] = checkLuauBalance(source);
-
-		expect(problem.line).toBe(2);
-		expect(source.slice(problem.from, problem.from + 1)).toBe('"');
-	});
-
-	it("points an unmatched bracket at the bracket", () => {
-		const source = "print(1))";
-		const [problem] = checkLuauBalance(source);
-
-		expect(source.slice(problem.from, problem.to)).toBe(")");
-	});
-
-	it("reports every unclosed block, innermost first", () => {
-		const problems = checkLuauBalance("function f()\n\tif x then\n");
-		expect(problems).toHaveLength(2);
-		expect(problems.map((p) => p.line)).toEqual([1, 2]);
 	});
 });

@@ -27,6 +27,31 @@ export interface SyntaxProblem {
 	to: number;
 }
 
+/**
+ * A node template's placeholders: `$in.force`, `$out.hit`, `$in.name!ident`,
+ * and the folds, `$args(, )`, `$opt(, )`, `$index(t, k)`.
+ */
+const PLACEHOLDER = /\$[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?(?:![A-Za-z]+)?(?:\([^)\n]*\))?/g;
+
+/**
+ * Checks a node template from Node Design: Luau with placeholders in it.
+ *
+ * Each placeholder stands where a value will, so it is read as a name of
+ * exactly its own length -- `$in.force` as `_in_force` -- and every offset
+ * the parser reports is still an offset into the template as written.
+ *
+ * `kind` says whether the template is statements or one value. Without it
+ * either is accepted, and a template that is neither is reported as
+ * statements, which is what most templates are.
+ */
+export function checkTemplate(source: string, kind?: LuauFragment): SyntaxProblem[] {
+	const filled = source.replace(PLACEHOLDER, (found) => `_${found.slice(1).replace(/\W/g, "_")}`);
+	if (kind) return checkLuau(filled, kind);
+	const asBlock = checkLuau(filled, "block");
+	if (asBlock.length === 0) return asBlock;
+	return checkLuau(filled, "expression").length === 0 ? [] : asBlock;
+}
+
 export function checkLuau(source: string, kind: LuauFragment): SyntaxProblem[] {
 	const { errors } = kind === "block"
 		? parseChunk(source)
