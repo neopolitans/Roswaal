@@ -157,6 +157,16 @@ describe("the landing page", () => {
 	 * A landing page is chrome; the claim belongs in the documentation, where
 	 * somebody looking for it will find it in full.
 	 */
+	/** Every third-party name the page uses, with whose it is and that Roswaal is not theirs. */
+	it("says whose names it uses, and that Roswaal is independent of them", () => {
+		const legal = (/<p class="landing-legal">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? "").replace(/\s+/g, " ");
+		for (const owner of ["Roblox Corporation", "Rojo Developers", "Filip Tibell", "Epic Games"]) {
+			expect(legal).toContain(owner);
+		}
+		expect(legal).toContain("not affiliated with");
+		expect(legal).toContain("independent open-source project");
+	});
+
 	it("links the attributions rather than reciting them", () => {
 		expect(html).toContain("docs/attributions.html");
 		expect(html).not.toMatch(/KADOKAWA|Re:Zero/i);

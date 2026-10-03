@@ -471,6 +471,11 @@ body.roswaal-landing {
   .landing-foot .landing-version { margin-right: 0; }
 }
 .landing-foot a { color: var(--fg-muted, #8fa6dd); }
+/* Whose names this page uses, and that Roswaal is none of theirs. */
+.landing-legal {
+  max-width: 46rem; margin: 22px auto 0; text-align: center; text-wrap: pretty;
+  font-size: 12px; line-height: 1.6; color: var(--fg-faint);
+}
 `;
 
 /**
@@ -861,6 +866,12 @@ ${IS_CANARY ? `<div class="landing-strip" role="note">
     <a href="docs/release-notes.html">Release notes</a>
     <a href="docs/attributions.html">Attributions and licence</a>
   </div>
+  <p class="landing-legal">
+    Roblox, Roblox Studio and the Luau name belong to Roblox Corporation. Rojo is by the
+    Rojo Developers, and Lune by Filip Tibell and its contributors. Unreal Engine and
+    Blueprint are trademarks of Epic Games, Inc. Roswaal is an independent open-source
+    project, not affiliated with, endorsed by or approved by any of them.
+  </p>
 </main>
 </div>
 </body>
