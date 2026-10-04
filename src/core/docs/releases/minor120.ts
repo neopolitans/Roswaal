@@ -9,6 +9,26 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.125.0",
+		date: "2026-10-04",
+		headline: "The front page, brought up to date.",
+		affects: ["docs"],
+		added: [
+			"**The front page wears the windows' floating chrome**: the mark, Docs, Release notes, Source and Try it, still there once you scroll.",
+			"**Three examples** to switch between: a player joining, a loop, and reading a file with Lune. Each is a docs graph beside the Luau it compiles to.",
+			"**Lately**: the latest minor releases from the release notes, eight on a computer and six on a tablet or phone.",
+			"**Works with what you have**: Rojo, place files, Wally, Lune, your own Luau modules and stylua, each linked to its docs page.",
+			"**Inside the editor** adds On Event, places and Rojo projects, and panels that float and dock, and each card names the version it arrived in.",
+		],
+		changed: [
+			"Try it and Getting started are in the banner, with Roblox, Lune, the licence and the devices under them.",
+			"The feature cards are drawn as nodes, and the planned ones as dashed nodes not yet placed.",
+			"The cards say stylua formats the output when it is installed.",
+			"On a phone the example graph's frame is shorter, and the banner's graph is left out.",
+		],
+		fixed: ["What is planned no longer lists event nodes for instances, which shipped in 0.119.0."],
+	},
+	{
 		version: "0.124.0",
 		date: "2026-10-04",
 		headline: "A new start page, and a new node packs page.",

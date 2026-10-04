@@ -308,7 +308,11 @@ describe("links into the browser build", () => {
 		expect(door).toBeGreaterThan(-1);
 		expect(note).toBeGreaterThan(door);
 
-		const doorMark = canary.slice(door, note);
+		// The banner's drawn graph sits between them now, and its class names
+		// say preview; it is a picture, not a statement about this build.
+		const doorMark = canary
+			.slice(door, note)
+			.replace(/<div class="banner-graph"[\s\S]*?<\/svg><\/div>/, "");
 		expect(doorMark).toContain(MARK_LABEL.canary);
 		expect(doorMark).not.toContain(PREVIEW_LABEL);
 
@@ -339,10 +343,12 @@ describe("links into the browser build", () => {
 	 */
 	it("does not put the word back on the product itself", () => {
 		// The name and its tagline: not the stylesheet above, which names the
-		// class first, and not the drawn graph beside, whose class says preview.
+		// class first, not the doors under them, the first of which is the
+		// preview and says so, and not the drawn graph beside, whose class
+		// says preview.
 		const head = html.slice(
 			html.indexOf('<div class="banner-copy">'),
-			html.indexOf('<div class="banner-graph"'),
+			html.indexOf('<ul class="landing-doors">'),
 		);
 		expect(head).toContain("9.9.9");
 		expect(head).not.toContain(PREVIEW_LABEL);

@@ -326,3 +326,39 @@ describe("the copy at the old address", () => {
 		expect(html).not.toContain('<meta name="robots" content="noindex" />');
 	});
 });
+
+describe("what it shows since 0.125.0", () => {
+	/** Built from the notes, so the front page cannot go stale between releases. */
+	it("lists the latest minor releases from the release notes", async () => {
+		const { RELEASES } = await import("../src/core/docs/releases.js");
+		const minors = RELEASES.filter((r) => /^\d+\.\d+\.0$/.test(r.version)).slice(0, 8);
+		const list = html.slice(html.indexOf('<ul class="landing-lately">'));
+		for (const release of minors) expect(list).toContain(`>${release.version}</span>`);
+		// Eight for a wide screen; the last two step aside on a tablet or a phone.
+		expect((list.match(/<li class="lately-more">/g) ?? []).length).toBe(2);
+	});
+
+	/** Radio buttons and CSS: the page still has no script of its own to choose with. */
+	it("switches between its examples without a script", () => {
+		const picks = [
+			...html.matchAll(/<input class="landing-pick" type="radio"[^>]*id="(landing-ex-\d)"/g),
+		];
+		expect(picks.length).toBe(3);
+		for (const [, id] of picks) expect(html).toContain(`<label for="${id}">`);
+		expect(html).toContain('id="landing-ex-0" checked');
+		expect(text).toContain("for key, value in pairs(");
+		expect(text).toContain('require("@lune/fs")');
+	});
+
+	/** Every card in the editor's section says which version it arrived in. */
+	it("dates every card inside the editor", () => {
+		const editor = html.slice(
+			html.indexOf("Inside the editor"),
+			html.indexOf("Works with what you have"),
+		);
+		const cards = editor.match(/<div class="landing-card"/g) ?? [];
+		const since = editor.match(/<span class="since" title="Since \d+\.\d+\.\d+">/g) ?? [];
+		expect(cards.length).toBe(8);
+		expect(since.length).toBe(cards.length);
+	});
+});
