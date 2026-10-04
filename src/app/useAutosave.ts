@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { serialiseScript } from "../core/compiler/index.js";
 import type { NodeScript } from "../core/schema.js";
-import { api, type ProjectInfo } from "./api.js";
+import { api, type MapOutcome, type ProjectInfo } from "./api.js";
 import type { MapDocument } from "./centreDocument.js";
 import type { SaveQueue } from "./saveQueue.js";
 import { store } from "./store.js";
@@ -29,6 +29,8 @@ export interface AutosaveContext {
 	hostCompilesOnSave: { readonly current: boolean };
 	mapDoc: MapDocument | null;
 	setMapDoc: React.Dispatch<React.SetStateAction<MapDocument | null>>;
+	/** A map Dynamic mode compiled after saving it: what it said. */
+	onMapCompiled?: (results: MapOutcome[]) => void;
 }
 
 export interface Autosave {
@@ -49,6 +51,7 @@ export function useAutosave(context: AutosaveContext): Autosave {
 		hostCompilesOnSave,
 		mapDoc,
 		setMapDoc,
+		onMapCompiled,
 	} = context;
 
 	// Autosave. The graph on disk is the document; there is no separate "saved"
@@ -63,6 +66,19 @@ export function useAutosave(context: AutosaveContext): Autosave {
 		// here as well did every compile twice.
 		if (project?.config.compileMode === "hot" && !hostCompilesOnSave.current)
 			void runCompile(path, true);
+	};
+	// A node map in Dynamic mode writes its project file as it is saved, as a
+	// graph writes its Luau. Folders are not moved or made here: a path half
+	// typed would drag its folder through every partial name. That waits for
+	// the map's own Compile, and until then a path not on disk keeps the last
+	// project file, which the map's errors say.
+	const compileMapAfterSave = useRef<(path: string) => void>(() => undefined);
+	compileMapAfterSave.current = (path) => {
+		if (project?.config.compileMode !== "hot") return;
+		void api
+			.compileMap({ path, write: true, sync: false })
+			.then(({ results }) => onMapCompiled?.(results))
+			.catch(() => undefined);
 	};
 	/** What this tab last wrote to each graph, to tell its own writes from somebody else's. */
 	const lastWritten = useRef(new Map<string, string>());
@@ -180,6 +196,7 @@ export function useAutosave(context: AutosaveContext): Autosave {
 		saves.put(path, async () => {
 			await api.writeMap(path, map);
 			setMapDoc((d) => (d && d.path === path && d.map === map ? { ...d, dirty: false } : d));
+			compileMapAfterSave.current(path);
 		});
 	}, [mapDoc, saves]);
 

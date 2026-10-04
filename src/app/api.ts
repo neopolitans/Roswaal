@@ -100,6 +100,17 @@ export interface MapOutcome {
 	json: string;
 	/** Folders the map syncs that compiling it made. */
 	made?: string[];
+	/** Synced folders moved to follow their entry's new path, with any file left behind. */
+	moved?: {
+		name: string;
+		from: string;
+		to: string;
+		graphsFrom: string;
+		graphsTo: string;
+		kept: string[];
+	}[];
+	/** Folders not moved because the new path already holds files. */
+	held?: { name: string; from: string; to: string }[];
 }
 
 export interface CompileOutcome {
@@ -337,8 +348,15 @@ export const api = {
 		request<{ ok: true }>("/api/map", { method: "PUT", body: JSON.stringify({ path, map }) }),
 	createMap: (dir: string, name: string) =>
 		post<{ path: string; map: NodeMap }>("/api/map/create", { dir, name }),
-	compileMap: (opts: { path?: string; write?: boolean; force?: boolean }) =>
-		post<{ results: MapOutcome[] }>("/api/map/compile", opts),
+	compileMap: (opts: {
+		path?: string;
+		write?: boolean;
+		force?: boolean;
+		/** False in Dynamic mode: write the project file, but move and make no folders. */
+		sync?: boolean;
+		/** Move a folder into its new path although that already holds files. */
+		merge?: boolean;
+	}) => post<{ results: MapOutcome[] }>("/api/map/compile", opts),
 
 	createFolder: (path: string) => post<{ path: string }>("/api/folder/create", { path }),
 	/** Throws away what the host has stored. The caller reloads afterwards. */
@@ -355,7 +373,8 @@ export const api = {
 			place?: { file: string; report?: PlaceReport };
 		}>(`/api/export${modify ? "?place=modify" : ""}`),
 	/** Generated files whose graph has moved or gone. */
-	orphans: () => request<{ orphans: string[] }>("/api/orphans"),
+	orphans: () =>
+		request<{ orphans: string[]; unsynced?: { graph: string; folder: string }[] }>("/api/orphans"),
 	removeOrphans: (paths: string[]) => post<{ removed: number }>("/api/orphans/remove", { paths }),
 
 	/** The project's node packs, the directory a new one belongs in, and its target. */

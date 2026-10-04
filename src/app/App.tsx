@@ -184,6 +184,7 @@ export function App() {
 	// Generated files whose graph has moved or gone. Rojo cannot tell they are
 	// stale, so it syncs them, and the same module turns up twice.
 	const [orphans, setOrphans] = useState<string[]>([]);
+	const [unsynced, setUnsynced] = useState<{ graph: string; folder: string }[]>([]);
 	const [codeEdit, setCodeEdit] = useState<CodeEditState | null>(null);
 	// The Inspector asks for the editor this way; see `codeEditRequests.ts`.
 	useEffect(() => onCodeEditRequest(setCodeEdit), []);
@@ -614,7 +615,9 @@ export function App() {
 		// Asked here rather than only after a compile. Renaming, moving and
 		// deleting all change what is stale, and none of them compiles anything —
 		// so the count went on describing whatever the last compile saw.
-		setOrphans((await api.orphans().catch(() => ({ orphans: [] }))).orphans);
+		const stale = await api.orphans().catch(() => ({ orphans: [], unsynced: [] }));
+		setOrphans(stale.orphans);
+		setUnsynced(stale.unsynced ?? []);
 		refreshTypes();
 		refreshAliases();
 	}, []);
@@ -731,16 +734,68 @@ export function App() {
 
 	// -- compiling ---------------------------------------------------------
 
+	// Defined further down, by the project actions; read through refs so the
+	// compile can follow a moved folder and ask again with the answer.
+	const followMoveRef = useRef<((from: string, to: string) => Promise<void>) | null>(null);
+	const runCompileMapRef = useRef<
+		((path: string | undefined, force?: boolean, merge?: boolean) => Promise<void>) | null
+	>(null);
+
 	const runCompileMap = useCallback(
-		async (path: string | undefined, force = false) => {
+		async (path: string | undefined, force = false, merge = false): Promise<void> => {
 			setBusy("Writing project file…");
 			try {
-				const { results } = await api.compileMap({ path, write: true, force });
+				// A folder may move under the open graphs: what they hold has to
+				// be on disk first, or a late autosave writes them back where
+				// they were.
+				await saves.flushAll();
+				for (const { path: open, script } of store.unsaved()) await api.writeScript(open, script);
+				const { results } = await api.compileMap({ path, write: true, force, merge });
 				setMapOutcomes(results);
 				setStatusOpen(true);
+				// The tabs and the open file follow a folder that moved.
+				for (const move of results.flatMap((r) => r.moved ?? [])) {
+					await followMoveRef.current?.(move.graphsFrom, move.graphsTo);
+					await followMoveRef.current?.(move.from, move.to);
+				}
 				await refreshTree();
+				const moved = results.flatMap((r) => r.moved ?? []);
+				if (moved.length > 0) {
+					const kept = moved.reduce((n, m) => n + m.kept.length, 0);
+					showToast({
+						title:
+							moved.length === 1
+								? `Moved ${moved[0].name} to ${moved[0].to}`
+								: `Moved ${moved.length} folders to their new paths`,
+						detail:
+							kept > 0
+								? `${kept} file${kept === 1 ? "" : "s"} stayed behind: see Script analysis`
+								: "With its graphs, recompiled there",
+						icon: "folderOpen",
+						tone: kept > 0 ? "warn" : "ok",
+					});
+				}
+				// The new folder had files: moving into it is a decision.
+				const held = results.flatMap((r) => r.held ?? []);
+				if (held.length > 0 && !merge) {
+					const ok = await ask({
+						kind: "confirm",
+						title: "Move into a folder that has files?",
+						message:
+							"These map entries point at folders that already hold files. Moving puts the old " +
+							"folder's files beside them; a file whose name is already there stays where it was.",
+						items: held.map((h) => `${h.name}: ${h.from}/ → ${h.to}/`),
+						confirmLabel: "Move",
+					});
+					if (ok === true) {
+						await runCompileMapRef.current?.(path, force, true);
+						return;
+					}
+				}
 				const one = path && results.length === 1 ? results[0] : undefined;
-				if (one?.written) {
+				if (moved.length > 0) {
+					// Said by the toast above.
+				} else if (one?.written) {
 					const made = one.made?.length ?? 0;
 					showToast({
 						title: `Wrote ${one.outputPath}`,
@@ -757,8 +812,10 @@ export function App() {
 				setBusy(null);
 			}
 		},
-		[refreshTree],
+		[refreshTree, saves, ask],
 	);
+
+	runCompileMapRef.current = runCompileMap;
 
 	const runCompile = useCallback(
 		async (path: string | undefined, write: boolean, force = false) => {
@@ -835,6 +892,7 @@ export function App() {
 		hostCompilesOnSave,
 		mapDoc,
 		setMapDoc,
+		onMapCompiled: setMapOutcomes,
 	});
 
 	const {
@@ -892,6 +950,7 @@ export function App() {
 		reopenFolder,
 		resetProject,
 		setExportOpen,
+		followMove,
 	} = useProjectActions({
 		project,
 		ask,
@@ -908,6 +967,8 @@ export function App() {
 		setAliasDoc,
 		setIntroOpen,
 	});
+
+	followMoveRef.current = followMove;
 
 	// -- render ------------------------------------------------------------
 
@@ -1112,8 +1173,10 @@ export function App() {
 						onNewMap={() => void createMapIn(inDir(targetDir))}
 						onCompileMode={(mode) => void setConfig({ compileMode: mode })}
 						onCompileProject={async () => {
-							await runCompile(undefined, true);
+							// Maps first: a folder that moves takes its graphs with it,
+							// and they then compile where they are going to stay.
 							await runCompileMap(undefined);
+							await runCompile(undefined, true);
 						}}
 						onOpenDocs={() => void openPage("docs")}
 						onOpenDesigner={() => void openPage("designer")}
@@ -1302,6 +1365,7 @@ export function App() {
 							outcomes={outcomes}
 							mapOutcomes={mapOutcomes}
 							orphans={orphans}
+							unsynced={unsynced}
 							onRemoveOrphans={async () => {
 								const ok = await ask({
 									kind: "confirm",

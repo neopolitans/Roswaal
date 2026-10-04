@@ -234,9 +234,17 @@ export function buildingAndRojoPage(): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"A map is written only by **Write project file**, **Compile project** or `roswaal " +
-					"compile` — never by Dynamic. Writing it makes the folders it syncs. A project " +
-					"file Roswaal did not write needs `--force`.",
+					"In Dynamic mode a saved map rewrites its project file. **Write project file**, " +
+					"**Compile project** and `roswaal compile` also make the folders it syncs, and move " +
+					"a folder whose path you changed to the new path, with its graphs. A project file " +
+					"Roswaal did not write needs `--force`.",
+			},
+			{
+				t: "note",
+				kind: "warn",
+				text:
+					"A graph in a folder no map syncs is listed in Script analysis as **unsynced**: " +
+					"its Luau is written, but Rojo never sees it.",
 			},
 
 			{ t: "h", level: 2, text: "Requiring a module" },

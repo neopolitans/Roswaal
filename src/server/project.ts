@@ -55,6 +55,7 @@ export { createFolder, deleteEntry, moveEntry, renameEntry } from "./entries.js"
 export { formatLuau } from "./host.js";
 export { type ExportedType, exportedTypes, locateFile } from "./locate.js";
 export { readLuaurcFiles, writeLuaurcFile } from "./luaurc.js";
+export { unsyncedGraphs } from "./mapFolders.js";
 export { findOrphanOutputs, graphOutputPath, removeOutputs } from "./outputs.js";
 export {
 	copyPackBetween,

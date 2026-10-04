@@ -458,18 +458,30 @@ async function commandCompile(args: Args): Promise<number> {
 	if (!project) return 1;
 
 	const { maps, graph } = await compileTargets(project, target);
-	let results: CompileOutcome[];
-	if (graph !== undefined) results = [await compileScript(project, graph, { write: true, force })];
-	else if (target === undefined) results = await compileAll(project, { write: true, force });
-	else results = [];
+	const merge = args.flags.merge === true;
 
 	// Counted apart, because the summary needs them apart: a skipped script
 	// must not take a written map off the total.
 	let mapFailures = 0;
 	let scriptFailures = 0;
 
+	// Maps before graphs: a synced folder whose path changed moves with its
+	// graphs, and they then compile where they are going to stay.
 	for (const mapPath of maps) {
-		const outcome = await compileMap(project, mapPath, { write: true, force });
+		const outcome = await compileMap(project, mapPath, { write: true, force, merge });
+		for (const move of outcome.moved ?? []) {
+			console.log(
+				`${green("moved   ")} ${move.from}/ -> ${move.to}/ ${dim(`(${move.name}, with its graphs)`)}`,
+			);
+			for (const file of move.kept)
+				console.log(`${yellow("kept    ")} ${file} ${dim("the new folder has one of that name")}`);
+		}
+		for (const move of outcome.held ?? []) {
+			console.log(`${yellow("held    ")} ${move.from}/ -> ${move.to}/ ${dim(`(${move.name})`)}`);
+			console.log(
+				dim("           The new folder already has files. Compile with --merge to move into it."),
+			);
+		}
 		if (outcome.unchanged) {
 			console.log(
 				`${green("same    ")} ${outcome.outputPath} ${dim("already says this; left as it is")}`,
@@ -486,6 +498,11 @@ async function commandCompile(args: Args): Promise<number> {
 			console.log(`${red("error   ")} ${mapPath}: ${diagnostic.message}`);
 		}
 	}
+
+	let results: CompileOutcome[];
+	if (graph !== undefined) results = [await compileScript(project, graph, { write: true, force })];
+	else if (target === undefined) results = await compileAll(project, { write: true, force });
+	else results = [];
 
 	for (const result of results) {
 		// The verdict the editor's compile panel shows, so the two agree.

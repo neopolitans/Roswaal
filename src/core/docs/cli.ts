@@ -113,6 +113,11 @@ export const CLI_OPTIONS: CliOption[] = [
 	// this line against it, which is the cheaper half of the same guarantee.
 	{ flag: "--port <n>", blurb: "HTTP port for the daemon. Default: 4471." },
 	{ flag: "--force", blurb: "For compile: overwrite generated files edited by hand." },
+	{
+		flag: "--merge",
+		blurb:
+			"For compile: move a folder whose map path changed into a new folder that already has files.",
+	},
 	{ flag: "--no-open", blurb: "For serve: do not print the editor URL as a hint." },
 	{ flag: "--yes", blurb: "For prune: delete the files it lists, rather than only listing them." },
 	{

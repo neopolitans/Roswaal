@@ -20,6 +20,8 @@ export interface StatusPanelProps {
 	mapOutcomes: MapOutcome[];
 	orphans: string[];
 	onRemoveOrphans: () => void;
+	/** Graphs whose Luau goes to a folder no node map syncs, so Rojo never sees it. */
+	unsynced: { graph: string; folder: string }[];
 	packErrors: string[];
 	onForce: (path: string) => void;
 }
@@ -67,6 +69,14 @@ export function StatusPanel(props: StatusPanelProps) {
 							</span>
 						</div>
 					)}
+					{props.unsynced.map(({ graph, folder }) => (
+						<div className="entry warning" key={`unsynced:${graph}`}>
+							<span className="sev">unsynced</span>
+							<span>
+								{graph.split("/").pop()} compiles to {folder}, which no node map syncs.
+							</span>
+						</div>
+					))}
 					{props.packErrors.map((message, i) => (
 						<div className="entry error" key={`pack${i}`}>
 							<span className="sev">pack</span>
@@ -88,6 +98,34 @@ export function StatusPanel(props: StatusPanelProps) {
 										made
 									</span>
 									<span>{folder}/</span>
+								</div>
+							))}
+							{/* A synced folder that followed its entry's new path. */}
+							{(outcome.moved ?? []).map((move) => (
+								<Fragment key={`moved:${move.from}`}>
+									<div className="entry">
+										<span className="sev" style={{ color: "var(--ok)" }}>
+											moved
+										</span>
+										<span>
+											{move.name}: {move.from}/ → {move.to}/, and its graphs
+										</span>
+									</div>
+									{move.kept.map((file) => (
+										<div className="entry warning" key={`kept:${file}`}>
+											<span className="sev">kept</span>
+											<span>{file} stayed: the new folder has one of that name.</span>
+										</div>
+									))}
+								</Fragment>
+							))}
+							{(outcome.held ?? []).map((move) => (
+								<div className="entry warning" key={`held:${move.from}`}>
+									<span className="sev">held</span>
+									<span>
+										{move.name} still syncs {move.to}/, but its graphs are in {move.from}/: the new
+										folder already has files.
+									</span>
 								</div>
 							))}
 						</Fragment>
@@ -150,6 +188,7 @@ export function StatusPanel(props: StatusPanelProps) {
 						outcomes.length === 0 &&
 						props.mapOutcomes.length === 0 &&
 						props.orphans.length === 0 &&
+						props.unsynced.length === 0 &&
 						props.packErrors.length === 0 && (
 							<div className="entry clean">
 								<span className="sev" style={{ color: "var(--ok)" }}>

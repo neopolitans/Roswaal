@@ -19,8 +19,8 @@ import { collectScripts, readMap, readScript } from "./documents.js";
 import { errorMessage } from "./errors.js";
 import { formatLuau, fs, path } from "./host.js";
 import { readLuaurcFiles, specifierContext } from "./luaurc.js";
-import { isGenerated, recordGenerated } from "./manifest.js";
-import { makeSyncedFolders } from "./mapFolders.js";
+import { isGenerated, recordGenerated, recordSynced } from "./manifest.js";
+import { makeSyncedFolders, moveSyncedFolders } from "./mapFolders.js";
 import { generatedIndex, outputPathFor, removeEmptyFolders } from "./outputs.js";
 import { safeJoin } from "./paths.js";
 
@@ -353,6 +353,21 @@ export interface MapOutcome {
 	json: string;
 	/** Folders the map syncs that compiling it made, project-relative. */
 	made?: string[];
+	/**
+	 * Synced folders moved to follow their entry's new path: the output
+	 * folder and its graphs, project-relative, and any file left behind
+	 * because the new folder had one of its name.
+	 */
+	moved?: {
+		name: string;
+		from: string;
+		to: string;
+		graphsFrom: string;
+		graphsTo: string;
+		kept: string[];
+	}[];
+	/** Folders not moved because the new one already holds files. Moved with `merge`. */
+	held?: { name: string; from: string; to: string }[];
 }
 
 /**
@@ -366,13 +381,33 @@ export interface MapOutcome {
 export async function compileMap(
 	project: OpenProject,
 	relPath: string,
-	opts: { write?: boolean; force?: boolean } = {},
+	opts: {
+		write?: boolean;
+		force?: boolean;
+		/**
+		 * Move and make the folders the map syncs: on by default when writing.
+		 * Off for Dynamic mode, which compiles a map as it is edited -- a path
+		 * half typed would drag its folder through every partial name.
+		 */
+		sync?: boolean;
+		/** Move a folder into its new path even where that already holds files. */
+		merge?: boolean;
+	} = {},
 ): Promise<MapOutcome> {
 	const map = await readMap(project, relPath);
 	const result = compileNodeMap(map);
+	const sync = opts.write === true && opts.sync !== false;
+	// A folder whose entry now points somewhere else goes with it, before
+	// anything is made: the new path is then the old folder, not an empty one.
+	const shift = sync ? await moveSyncedFolders(project, relPath, map, opts.merge) : null;
+	if (shift) await recordSynced(project.root, relPath, shift.synced);
 	// Before the path check, so a folder the map syncs and nothing has made
 	// yet is made rather than reported missing.
-	const made = opts.write ? await makeSyncedFolders(project, map) : [];
+	const made = sync ? await makeSyncedFolders(project, map) : [];
+	// The moved graphs compile where they are now, so their Luau's header
+	// names the graph at its new path.
+	for (const move of shift?.moves ?? [])
+		for (const graph of move.graphs) await compileScript(project, graph, { write: true });
 	result.diagnostics.push(...(await checkMapPaths(project, map)));
 	// Worked out after the path check, not before. `result.ok` is the map's own
 	// verdict, and a `$path` that is not on disk is an error the map cannot see —
@@ -386,6 +421,27 @@ export async function compileMap(
 		diagnostics: result.diagnostics,
 		json: result.json,
 		...(made.length > 0 ? { made } : {}),
+		...(shift?.moves.some((m) => !m.held)
+			? {
+					moved: shift.moves
+						.filter((m) => !m.held)
+						.map((m) => ({
+							name: m.name,
+							from: m.from.output,
+							to: m.to.output,
+							graphsFrom: m.from.graphs,
+							graphsTo: m.to.graphs,
+							kept: m.kept,
+						})),
+				}
+			: {}),
+		...(shift?.moves.some((m) => m.held)
+			? {
+					held: shift.moves
+						.filter((m) => m.held)
+						.map((m) => ({ name: m.name, from: m.from.output, to: m.to.output })),
+				}
+			: {}),
 	};
 
 	if (!opts.write) return outcome;

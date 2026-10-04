@@ -83,6 +83,7 @@ import {
 	savePackNode,
 	scanProjectPacks,
 	setPackRequires,
+	unsyncedGraphs,
 	writeConfig,
 	writeLuaurcFile,
 	writeMap,
@@ -849,11 +850,15 @@ export class ApiSession {
 					path: relPath,
 					write,
 					force,
-				} = fields<{ path: string; write: boolean; force: boolean }>(req);
+					sync,
+					merge,
+				} = fields<{ path: string; write: boolean; force: boolean; sync: boolean; merge: boolean }>(
+					req,
+				);
 				const targets = relPath ? [relPath] : await collectMaps(project);
 				const results = [];
 				for (const target of targets)
-					results.push(await compileMap(project, target, { write, force }));
+					results.push(await compileMap(project, target, { write, force, sync, merge }));
 				return { results };
 			},
 
@@ -861,7 +866,11 @@ export class ApiSession {
 			 * Generated files whose graph has moved or gone. Reported rather than
 			 * removed: deleting files is not something to do behind somebody's back.
 			 */
-			"GET /orphans": async () => ({ orphans: await findOrphanOutputs(this.project()) }),
+			"GET /orphans": async () => ({
+				orphans: await findOrphanOutputs(this.project()),
+				// And graphs whose Luau goes where no node map syncs it.
+				unsynced: await unsyncedGraphs(this.project()),
+			}),
 
 			"POST /orphans/remove": async (req) => {
 				const { paths } = fields<{ paths: string[] }>(req);

@@ -872,5 +872,6 @@ export function useProjectActions(context: ProjectActionsContext) {
 		reopenFolder,
 		resetProject,
 		setExportOpen,
+		followMove,
 	};
 }

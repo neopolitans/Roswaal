@@ -17,6 +17,12 @@ export interface GeneratedManifest {
 	schemaVersion: number;
 	/** Output path (project-relative) -> the source that produced it. */
 	outputs: Record<string, string>;
+	/**
+	 * Each node map's synced folders as it last compiled them: map path ->
+	 * entry id -> folder. What a changed path is compared with, so the folder
+	 * can follow it. See `moveSyncedFolders`.
+	 */
+	synced?: Record<string, Record<string, string>>;
 }
 
 function empty(): GeneratedManifest {
@@ -28,7 +34,12 @@ export async function readManifest(root: string): Promise<GeneratedManifest> {
 	if (raw === null) return empty();
 	try {
 		const parsed = JSON.parse(raw) as Partial<GeneratedManifest>;
-		return { ...empty(), ...parsed, outputs: parsed.outputs ?? {} };
+		return {
+			...empty(),
+			...parsed,
+			outputs: parsed.outputs ?? {},
+			...(parsed.synced && typeof parsed.synced === "object" ? { synced: parsed.synced } : {}),
+		};
 	} catch {
 		// A corrupt manifest must not block compiling. Losing it costs one
 		// confirmation the next time a file would be overwritten.
@@ -52,9 +63,26 @@ export function recordGenerated(
 	outputPath: string,
 	sourcePath: string,
 ): Promise<void> {
+	return queue(root, () => record(root, outputPath, sourcePath));
+}
+
+/** Records the folders a map synced when it compiled. Through the same queue. */
+export function recordSynced(
+	root: string,
+	mapPath: string,
+	folders: Record<string, string>,
+): Promise<void> {
+	return queue(root, async () => {
+		const manifest = await readManifest(root);
+		const synced = { ...(manifest.synced ?? {}), [mapPath]: folders };
+		await save(root, { ...manifest, synced });
+	});
+}
+
+function queue(root: string, work: () => Promise<void>): Promise<void> {
 	const before = writing.get(root) ?? Promise.resolve();
 	// A failed record is reported to its own caller below; the next one still runs.
-	const next = before.catch(() => undefined).then(() => record(root, outputPath, sourcePath));
+	const next = before.catch(() => undefined).then(work);
 	writing.set(root, next);
 	// Forgotten once it is the last in line, so the map does not keep every root ever seen.
 	const forget = () => {
@@ -69,16 +97,28 @@ async function record(root: string, outputPath: string, sourcePath: string): Pro
 	if (manifest.outputs[outputPath] === sourcePath) return;
 
 	manifest.outputs[outputPath] = sourcePath;
-	const ordered: Record<string, string> = {};
-	for (const key of Object.keys(manifest.outputs).sort()) ordered[key] = manifest.outputs[key];
+	await save(root, manifest);
+}
 
+/** Writes the manifest, its keys sorted so it diffs cleanly. */
+async function save(root: string, manifest: GeneratedManifest): Promise<void> {
+	const sorted = (record: Record<string, string>) => {
+		const out: Record<string, string> = {};
+		for (const key of Object.keys(record).sort()) out[key] = record[key];
+		return out;
+	};
+	const document: GeneratedManifest = {
+		schemaVersion: SCHEMA_VERSION,
+		outputs: sorted(manifest.outputs),
+	};
+	if (manifest.synced) {
+		document.synced = {};
+		for (const key of Object.keys(manifest.synced).sort())
+			document.synced[key] = sorted(manifest.synced[key]);
+	}
 	const file = path.join(root, MANIFEST_PATH);
 	await fs.mkdir(path.dirname(file), { recursive: true });
-	await fs.writeFile(
-		file,
-		JSON.stringify({ schemaVersion: SCHEMA_VERSION, outputs: ordered }, null, 2) + "\n",
-		"utf8",
-	);
+	await fs.writeFile(file, JSON.stringify(document, null, 2) + "\n", "utf8");
 }
 
 export async function isGenerated(root: string, outputPath: string): Promise<boolean> {

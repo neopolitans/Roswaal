@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.123.0",
+		date: "2026-10-04",
+		headline: "A synced folder follows its node map path.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Changing an entry's path in a node map moves its folder** on the next compile: the folder Rojo syncs and the graphs that compile there go to the new path, and the graphs compile there. Open graphs follow. Into a folder that already has files, the editor asks first, and `roswaal compile` takes `--merge`.",
+			"**Script analysis lists unsynced graphs**: a graph whose Luau goes to a folder no node map syncs, such as after its entry was removed.",
+			"**Dynamic mode covers node maps**: saving one rewrites its project file. Folders are moved and made by the map's own compile, so a path still being typed moves nothing.",
+		],
+		changed: [
+			"**Compile project** writes the node maps before the graphs, in the editor and in `roswaal compile`.",
+		],
+	},
+	{
 		version: "0.122.3",
 		date: "2026-10-04",
 		headline: "The published docs' mark sits in its group.",
