@@ -37,6 +37,14 @@
  * `locked` is per project. A compile locks the project: a graph you are not
  * looking at is still being written to disk, and an edit to it would land in the
  * file or not depending on where the walk had got to.
+ *
+ * ## Tabs that are not graphs
+ *
+ * A node map, a Luau file and a `.luaurc` open in tabs of their own, in the same
+ * row. Such a tab carries its document whole (`Tab.side`), since none of them
+ * has history or a selection. While one is in front, the snapshot has no graph
+ * and names it as `side`, so everything that edits "the graph on screen" finds
+ * nothing to edit.
  */
 
 import { useSyncExternalStore } from "react";
@@ -52,6 +60,7 @@ import {
 import type { Registry } from "../core/nodes/index.js";
 import { retypeReroutes } from "../core/reroutes.js";
 import type { NodeScript } from "../core/schema.js";
+import { type MapDocument, type SideDocument, sideName, sidePath } from "./centreDocument.js";
 import type { View } from "./geometry.js";
 import { functionNameOf } from "./nodeConfig.js";
 
@@ -84,6 +93,8 @@ export interface EditorState {
 	 * anything either of us forgets to disable still cannot get through.
 	 */
 	locked: boolean;
+	/** The node map, Luau file or `.luaurc` in front, when a graph is not. */
+	side: SideDocument | null;
 }
 
 /** One open file, and everything that belongs to the file rather than a tab. */
@@ -111,18 +122,30 @@ interface Tab {
 	 * kind of small wrongness that makes tabs feel unreliable.
 	 */
 	view: View;
+	/** What a tab that is not a graph holds. */
+	side?: SideDocument;
 }
+
+/** What a tab is, by the tree's names for files, and `function` for a function's graph. */
+export type TabKind = "nodescript" | "function" | "nodemap" | "luau" | "luaurc";
+
+const SIDE_KIND: Record<SideDocument["kind"], TabKind> = {
+	map: "nodemap",
+	luau: "luau",
+	luaurc: "luaurc",
+};
 
 /** What the tab strip needs, without handing it the undo stacks. */
 export interface OpenDocument {
 	key: string;
 	path: string;
-	/** The function's name on a function tab; otherwise the script's. */
+	/** The function's name on a function tab; otherwise the script's, map's or file's. */
 	name: string;
 	scriptName: string;
 	graph: GraphId;
 	dirty: boolean;
 	active: boolean;
+	kind: TabKind;
 }
 
 type Listener = () => void;
@@ -134,11 +157,17 @@ const NOTHING_OPEN: EditorState = {
 	selection: new Set(),
 	dirty: false,
 	locked: false,
+	side: null,
 };
 
 /** A tab's key: the path for a file's own graph, `path#id` for a function's. */
 export function tabKey(path: string, graph: GraphId): string {
 	return graph === null ? path : `${path}#${graph}`;
+}
+
+/** A side document's tab key: its kind and its file, so it never meets a graph's. */
+export function sideKey(side: SideDocument): string {
+	return `${side.kind}:${sidePath(side)}`;
 }
 
 class Store {
@@ -166,6 +195,7 @@ class Store {
 
 	private snapshot: EditorState = NOTHING_OPEN;
 	private tabs: OpenDocument[] = [];
+	private sides: SideDocument[] = [];
 	/** Each open file's functions, rebuilt only when a name or the set changes. */
 	private outline = new Map<string, FunctionInfo[]>();
 	private outlineKeys = new Map<string, string>();
@@ -184,12 +214,14 @@ class Store {
 
 	getTabs = (): OpenDocument[] => this.tabs;
 
+	getSides = (): SideDocument[] => this.sides;
+
 	getOutline = (): ReadonlyMap<string, FunctionInfo[]> => this.outline;
 
 	/** Rebuilds the derived state and tells everyone. */
 	private changed(): void {
 		const tab = this.activeTab();
-		const doc = tab ? this.docs.get(tab.path) : undefined;
+		const doc = tab && !tab.side ? this.docs.get(tab.path) : undefined;
 		this.snapshot =
 			tab && doc
 				? {
@@ -199,12 +231,29 @@ class Store {
 						selection: tab.selection,
 						dirty: doc.dirty,
 						locked: this.locked,
+						side: null,
 					}
-				: this.locked === NOTHING_OPEN.locked
-					? NOTHING_OPEN
-					: { ...NOTHING_OPEN, locked: this.locked };
+				: tab?.side
+					? { ...NOTHING_OPEN, locked: this.locked, side: tab.side }
+					: this.locked === NOTHING_OPEN.locked
+						? NOTHING_OPEN
+						: { ...NOTHING_OPEN, locked: this.locked };
 
+		this.sides = this.tabList.flatMap((t) => (t.side ? [t.side] : []));
 		this.tabs = this.tabList.map((t) => {
+			if (t.side) {
+				const name = sideName(t.side);
+				return {
+					key: t.key,
+					path: t.path,
+					name,
+					scriptName: name,
+					graph: null,
+					dirty: t.side.kind === "map" && t.side.doc.dirty,
+					active: t.key === this.activeKey,
+					kind: SIDE_KIND[t.side.kind],
+				};
+			}
 			const open = this.docs.get(t.path)!;
 			const fn = t.graph === null ? undefined : open.script.nodes.find((n) => n.id === t.graph);
 			return {
@@ -215,6 +264,7 @@ class Store {
 				graph: t.graph,
 				dirty: open.dirty,
 				active: t.key === this.activeKey,
+				kind: t.graph === null ? "nodescript" : "function",
 			};
 		});
 
@@ -244,7 +294,7 @@ class Store {
 
 	private active(): Doc | null {
 		const tab = this.activeTab();
-		return tab ? (this.docs.get(tab.path) ?? null) : null;
+		return tab && !tab.side ? (this.docs.get(tab.path) ?? null) : null;
 	}
 
 	private setDoc(doc: Doc): void {
@@ -444,7 +494,86 @@ class Store {
 
 	/** Every open file's path, in the order their first tabs appear. */
 	openPaths(): string[] {
-		return [...new Set(this.tabList.map((t) => t.path))];
+		return [...new Set(this.tabList.flatMap((t) => (t.side ? [] : [t.path])))];
+	}
+
+	// -- tabs that are not graphs ---------------------------------------------
+
+	/**
+	 * Opens a node map, a Luau file or a `.luaurc` in its tab, and brings it to
+	 * the front. A tab already open takes what was read, unless it is a map with
+	 * edits not on disk yet: those are kept.
+	 */
+	openSide(side: SideDocument): void {
+		const key = sideKey(side);
+		const at = this.tabList.findIndex((t) => t.key === key);
+		if (at === -1) {
+			this.tabList.push({ ...this.newTab(sidePath(side), null), key, side });
+		} else {
+			const was = this.tabList[at].side;
+			if (!(was?.kind === "map" && was.doc.dirty)) {
+				this.tabList = this.tabList.map((t, i) => (i === at ? { ...t, side } : t));
+			}
+		}
+		this.activeKey = key;
+		this.changed();
+	}
+
+	/** Changes a side document where it is, without bringing its tab forward. */
+	updateSide(key: string, update: (side: SideDocument) => SideDocument): void {
+		const at = this.tabList.findIndex((t) => t.key === key);
+		const side = this.tabList[at]?.side;
+		if (!side) return;
+		const next = update(side);
+		if (next === side) return;
+		this.tabList = this.tabList.map((t, i) => (i === at ? { ...t, side: next } : t));
+		this.changed();
+	}
+
+	/** An edit to an open node map. It is dirty until `markMapSaved`. */
+	editMap(path: string, map: MapDocument["map"]): void {
+		this.updateSide(`map:${path}`, (side) =>
+			side.kind === "map" ? { kind: "map", doc: { ...side.doc, map, dirty: true } } : side,
+		);
+	}
+
+	/** `map` reached disk as `path`: clean only if that is still what the tab holds. */
+	markMapSaved(path: string, map: MapDocument["map"]): void {
+		this.updateSide(`map:${path}`, (side) =>
+			side.kind === "map" && side.doc.map === map && side.doc.dirty
+				? { kind: "map", doc: { ...side.doc, dirty: false } }
+				: side,
+		);
+	}
+
+	/** Every open node map with edits not on disk. */
+	unsavedMaps(): MapDocument[] {
+		return this.sides.flatMap((s) => (s.kind === "map" && s.doc.dirty ? [s.doc] : []));
+	}
+
+	/**
+	 * Points side documents at where their files went, after a move or a
+	 * rename of the file or of a folder above it. `moved` answers null for a
+	 * path the move did not touch.
+	 */
+	moveSides(moved: (path: string) => string | null): void {
+		const renamed = new Map<string, string>();
+		this.tabList = this.tabList.map((t) => {
+			const next = t.side ? moved(t.path) : null;
+			if (!t.side || next === null) return t;
+			const side: SideDocument =
+				t.side.kind === "luaurc"
+					? { kind: "luaurc", doc: { ...t.side.doc, dir: next.split("/").slice(0, -1).join("/") } }
+					: t.side.kind === "map"
+						? { kind: "map", doc: { ...t.side.doc, path: next } }
+						: { kind: "luau", doc: { ...t.side.doc, path: next } };
+			const key = sideKey(side);
+			renamed.set(t.key, key);
+			return { ...t, key, path: next, side };
+		});
+		if (renamed.size === 0) return;
+		if (this.activeKey !== null) this.activeKey = renamed.get(this.activeKey) ?? this.activeKey;
+		this.changed();
 	}
 
 	/**
@@ -810,6 +939,11 @@ export function useEditor(): EditorState {
 /** Every open tab, in order. */
 export function useDocuments(): OpenDocument[] {
 	return useSyncExternalStore(store.subscribe, store.getTabs, store.getTabs);
+}
+
+/** Every open node map, Luau file and `.luaurc`, in tab order. */
+export function useSideDocuments(): SideDocument[] {
+	return useSyncExternalStore(store.subscribe, store.getSides, store.getSides);
 }
 
 /** Each open file's functions, for the project tree. */

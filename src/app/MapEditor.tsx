@@ -8,7 +8,13 @@
  * otherwise be hand-editing.
  */
 
-import { useMemo, useState } from "react";
+import {
+	type CSSProperties,
+	type PointerEvent as ReactPointerEvent,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 
 import {
 	COMMON_SERVICES,
@@ -25,9 +31,46 @@ import {
 import type { TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
+import { trackPointer } from "./pointer.js";
 import { newId } from "./store.js";
 
 const HISTORY_LIMIT = 50;
+
+/**
+ * Where the tree and the Inspector meet: the Inspector's width beside the tree,
+ * or on a phone, where they stack, the tree's height above it. In pixels, kept
+ * per browser, and clamped by the CSS to leave both sides usable.
+ */
+interface MapSplit {
+	side: number;
+	/** Zero until dragged: the CSS default, a share of the height, holds till then. */
+	tree: number;
+}
+
+const SPLIT_KEY = "roswaal.mapSplit";
+const DEFAULT_SPLIT: MapSplit = { side: 380, tree: 0 };
+/** The narrowest either side of the split may get. */
+const SPLIT_MIN = 180;
+
+function readSplit(): MapSplit {
+	try {
+		const raw = JSON.parse(localStorage.getItem(SPLIT_KEY) ?? "null") as Partial<MapSplit> | null;
+		return {
+			side: typeof raw?.side === "number" ? raw.side : DEFAULT_SPLIT.side,
+			tree: typeof raw?.tree === "number" ? raw.tree : DEFAULT_SPLIT.tree,
+		};
+	} catch {
+		return DEFAULT_SPLIT;
+	}
+}
+
+function writeSplit(split: MapSplit): void {
+	try {
+		localStorage.setItem(SPLIT_KEY, JSON.stringify(split));
+	} catch {
+		// Private browsing: the split still moves, it is just not remembered.
+	}
+}
 
 export interface MapEditorProps {
 	map: NodeMap;
@@ -52,6 +95,36 @@ export function MapEditor({ map, dirty, tree, outDir, onChange }: MapEditorProps
 	const [selected, setSelected] = useState<string>(map.root.id);
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	const [history, setHistory] = useState<NodeMap[]>([]);
+	const [split, setSplit] = useState<MapSplit>(readSplit);
+	const editor = useRef<HTMLDivElement>(null);
+
+	/**
+	 * Drags the line between the tree and the Inspector. Sideways while they
+	 * sit side by side; up and down on a phone, where they stack.
+	 */
+	function onSplitDown(e: ReactPointerEvent) {
+		if (e.button !== 0 || !editor.current) return;
+		e.preventDefault();
+		const box = editor.current.getBoundingClientRect();
+		const stacked = getComputedStyle(editor.current).gridTemplateRows.split(" ").length > 1;
+		const clamp = (value: number, room: number) =>
+			Math.round(Math.max(SPLIT_MIN, Math.min(room - SPLIT_MIN, value)));
+		let next = split;
+		trackPointer(e, {
+			move: (ev) => {
+				next = stacked
+					? { ...split, tree: clamp(ev.clientY - box.top, box.height) }
+					: { ...split, side: clamp(box.right - ev.clientX, box.width) };
+				setSplit(next);
+			},
+			end: () => writeSplit(next),
+		});
+	}
+
+	function resetSplit() {
+		setSplit(DEFAULT_SPLIT);
+		writeSplit(DEFAULT_SPLIT);
+	}
 
 	const compiled = useMemo(() => compileNodeMap(map), [map]);
 	const known = useMemo(() => collectPaths(tree), [tree]);
@@ -128,7 +201,16 @@ export function MapEditor({ map, dirty, tree, outDir, onChange }: MapEditorProps
 	}
 
 	return (
-		<div className="map-editor">
+		<div
+			className="map-editor map-editor-resizable"
+			ref={editor}
+			style={
+				{
+					"--map-side-w": `${split.side}px`,
+					"--map-tree-h": split.tree > 0 ? `${split.tree}px` : undefined,
+				} as CSSProperties
+			}
+		>
 			<div className="map-tree">
 				<div className="map-bar">
 					<span className={dirty ? "dirty" : undefined}>{map.name}</span>
@@ -151,6 +233,16 @@ export function MapEditor({ map, dirty, tree, outDir, onChange }: MapEditorProps
 					}}
 				/>
 			</div>
+
+			{/* Drag to move the line; double-click to put it back. */}
+			<div
+				className="map-splitter"
+				role="separator"
+				aria-label="Resize the tree and the Inspector"
+				title="Drag to resize. Double-click to reset."
+				onPointerDown={onSplitDown}
+				onDoubleClick={resetSplit}
+			/>
 
 			<div className="map-side">
 				<h2>This map</h2>

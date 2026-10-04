@@ -169,12 +169,14 @@ export type ToolbarItem = Documented &
 		| { t: "label"; text: string }
 		/** The open document's name, and what kind of document it is. */
 		| { t: "name"; text: string; kind?: string; dirty?: boolean }
-		/** One open graph's tab, in `GraphTabs`' own markup. `on` is the open one. */
+		/** One open document's tab, in `GraphTabs`' own markup. `on` is the open one. */
 		| {
 				t: "tab";
 				text: string;
 				on?: boolean;
 				dirty?: boolean;
+				/** What it is, for its icon: a graph unless it says otherwise. */
+				kind?: "nodescript" | "function" | "nodemap" | "luau";
 				/** A phone draws the open tab without its close button. */
 				closable?: boolean;
 		  }
@@ -509,6 +511,19 @@ function iconSvg(
 	);
 }
 
+/** A tab's kind icon, as `GraphTabs`' `TabIcon` draws it. */
+const TAB_ICONS = {
+	nodescript: "document",
+	function: "function",
+	nodemap: "map",
+	luau: "luauScript",
+} as const;
+
+function tabIcon(kind: keyof typeof TAB_ICONS, art: ToolbarArt): string {
+	const luau = kind === "luau" ? " tree-script-module" : "";
+	return iconSvg(TAB_ICONS[kind], 13, art, `tab-kind tab-kind-${kind}${luau}`);
+}
+
 function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 	// What the linking script matches on, and what it reads out of the picture
 	// when it lights a row from the other side. Only a control the legend lists
@@ -583,10 +598,11 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				`${item.kind ? `<span class="doc-kind">${escapeXml(item.kind)}</span>` : ""}`
 			);
 		case "tab":
-			// `GraphTabs`' markup: the name, and the close button the open tab
-			// always shows and the others show on hover.
+			// `GraphTabs`' markup: the kind's icon, the name, and the close button
+			// the open tab always shows and the others show on hover.
 			return (
 				`<span class="graph-tab${item.on ? " on" : ""}${item.dirty ? " dirty" : ""}"${tie}>` +
+				tabIcon(item.kind ?? "nodescript", art) +
 				`<span class="name">${escapeXml(item.text)}</span>${item.closable === false ? "" : `<span class="close">×</span>`}</span>`
 			);
 		case "badge":
@@ -1153,16 +1169,17 @@ export const GRAPH_BAR: ToolbarSpec = {
 					on: true,
 					name: "Tabs",
 					what:
-						"One per open graph, and one per function graph opened from it; the open one " +
-						"is lit. Drag a tab to move it; middle-click closes it.",
+						"One per open graph, function, node map or Luau file, its icon saying which; " +
+						"the open one is lit. Drag a tab to move it; middle-click closes it.",
 				},
-				{ t: "tab", text: "Occupancy" },
+				{ t: "tab", text: "hide", kind: "function" },
+				{ t: "tab", text: "Game", kind: "nodemap" },
 				{
 					t: "icon",
 					icon: "chevron",
-					name: "Open graphs",
+					name: "Open documents",
 					where: "With two or more open",
-					what: "Every open graph in a list, for when the tabs have outgrown the row.",
+					what: "Every open tab in a list, for when the tabs have outgrown the row.",
 				},
 			],
 		},
@@ -2206,11 +2223,11 @@ export const GRAPH_BAR_TABLET: ToolbarSpec = {
 					on: true,
 					name: "Tabs",
 					what:
-						"One per open graph, and one per function graph opened from it; the open one " +
-						"is lit. Press and hold a tab, then drag, to move it.",
+						"One per open graph, function, node map or Luau file, its icon saying which; " +
+						"the open one is lit. Press and hold a tab, then drag, to move it.",
 				},
-				{ t: "tab", text: "Occupancy" },
-				{ t: "icon", icon: "chevron", ...as(GRAPH_BAR, "Open graphs") },
+				{ t: "tab", text: "Game", kind: "nodemap" },
+				{ t: "icon", icon: "chevron", ...as(GRAPH_BAR, "Open documents") },
 			],
 		},
 		{
@@ -2244,7 +2261,11 @@ export const GRAPH_BAR_PHONE: ToolbarSpec = {
 					name: "Tabs",
 					what: "The open graph's tab alone.",
 				},
-				{ t: "icon", icon: "chevron", ...as(GRAPH_BAR, "Open graphs", "The way to the others.") },
+				{
+					t: "icon",
+					icon: "chevron",
+					...as(GRAPH_BAR, "Open documents", "The way to the others."),
+				},
 			],
 		},
 	],

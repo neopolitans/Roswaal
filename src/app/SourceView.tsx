@@ -31,18 +31,14 @@ import type { TableMember } from "../core/luau/infer.js";
 import { type InstanceNode, indexFromOutline, instanceProblems } from "../core/luau/instances.js";
 import type { Target } from "../core/schema.js";
 import { api } from "./api.js";
+import type { SourceDoc } from "./centreDocument.js";
 import { cx } from "./cx.js";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { luauExtensions } from "./luauExtensions.js";
 import { luauWarnings } from "./luauLint.js";
 import { useMedia } from "./Popout.js";
 
-export interface SourceDoc {
-	path: string;
-	text: string;
-	/** The graph this was compiled from, when Roswaal wrote it. */
-	generatedFrom?: string;
-}
+export type { SourceDoc } from "./centreDocument.js";
 
 export interface SourceViewProps {
 	doc: SourceDoc;

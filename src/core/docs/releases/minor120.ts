@@ -9,6 +9,22 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.127.0",
+		date: "2026-10-04",
+		headline: "Node maps and Luau files open in tabs of their own.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Node maps, Luau files and .luaurc files open in tabs** beside the graphs, instead of in place of them.",
+			"**Every tab shows what it is**: the document icon for a graph, ƒ for a function, the node map icon, and Luau's script icon in the colour of the script it becomes.",
+			"**Resize a node map's tree and Inspector** by dragging the line between them; double-click it to put it back. On a phone the line moves up and down.",
+		],
+		changed: [
+			"A node map's tab is named after its file.",
+			"Node maps with unsaved edits are all saved, not only the one in front.",
+		],
+		fixed: ["Opening a node map with two or more graphs open no longer closes all but the first."],
+	},
+	{
 		version: "0.126.0",
 		date: "2026-10-04",
 		headline: "The release notes, easier to search and to link to.",

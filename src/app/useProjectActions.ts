@@ -10,7 +10,6 @@ import { toBase64 } from "../core/base64.js";
 import { errorMessage } from "../core/errorMessage.js";
 import type { NodeScript } from "../core/schema.js";
 import { api, type ProjectInfo, type TreeEntry, type WallyOutcome } from "./api.js";
-import type { LuaurcDocument, MapDocument } from "./centreDocument.js";
 import type { FormAnswers, FormField } from "./Dialog.jsx";
 import {
 	forgetRememberedFolder,
@@ -20,7 +19,6 @@ import {
 	readZip,
 } from "./host.js";
 import { setBeforeLeaving } from "./pages.js";
-import type { SourceDoc } from "./SourceView.jsx";
 import type { SaveQueue } from "./saveQueue.js";
 import { store } from "./store.js";
 import { findTreeEntry } from "./treeEntry.js";
@@ -36,11 +34,6 @@ export interface ProjectActionsContext {
 	loadProject: (root: string, init?: boolean, quiet?: boolean) => Promise<boolean>;
 	refreshTree: () => Promise<void>;
 	openEntry: (entry: TreeEntry) => Promise<void>;
-	source: SourceDoc | null;
-	setSource: React.Dispatch<React.SetStateAction<SourceDoc | null>>;
-	mapDoc: MapDocument | null;
-	setMapDoc: React.Dispatch<React.SetStateAction<MapDocument | null>>;
-	setAliasDoc: React.Dispatch<React.SetStateAction<LuaurcDocument | null>>;
 	setIntroOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
@@ -54,11 +47,6 @@ export function useProjectActions(context: ProjectActionsContext) {
 		loadProject,
 		refreshTree,
 		openEntry,
-		source,
-		setSource,
-		mapDoc,
-		setMapDoc,
-		setAliasDoc,
 		setIntroOpen,
 	} = context;
 
@@ -346,9 +334,6 @@ export function useProjectActions(context: ProjectActionsContext) {
 	const onTreeOpenFunction = useCallback(
 		async (path: string, id: string) => {
 			try {
-				setSource(null);
-				setAliasDoc(null);
-				setMapDoc(null);
 				if (!store.isOpen(path)) {
 					const { script } = await api.readScript(path);
 					store.open(path, script);
@@ -391,10 +376,10 @@ export function useProjectActions(context: ProjectActionsContext) {
 		setBeforeLeaving(async () => {
 			await saves.flushAll();
 			for (const { path, script } of store.unsaved()) await writeGraph(path, script);
-			if (mapDoc?.dirty) await api.writeMap(mapDoc.path, mapDoc.map);
+			for (const map of store.unsavedMaps()) await api.writeMap(map.path, map.map);
 		});
 		return () => setBeforeLeaving(null);
-	}, [mapDoc, saves, writeGraph]);
+	}, [saves, writeGraph]);
 
 	/**
 	 * Points every open document at where its file went.
@@ -414,14 +399,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			const script = path === from ? (await api.readScript(next)).script : undefined;
 			store.rename(path, next, script);
 		}
-		setMapDoc((doc) => {
-			const next = doc && moved(doc.path);
-			return doc && next ? { ...doc, path: next } : doc;
-		});
-		setSource((doc) => {
-			const next = doc && moved(doc.path);
-			return doc && next ? { ...doc, path: next } : doc;
-		});
+		store.moveSides(moved);
 	}, []);
 
 	const onTreeMove = useCallback(
@@ -734,9 +712,6 @@ export function useProjectActions(context: ProjectActionsContext) {
 				const created = await api.createScript(dir, name, "Script");
 				await refreshTree();
 				store.open(created.path, created.script);
-				setSource(null);
-				setAliasDoc(null);
-				setMapDoc(null);
 			} catch (err) {
 				notify("Could not create that graph", errorMessage(err));
 			}
@@ -756,10 +731,10 @@ export function useProjectActions(context: ProjectActionsContext) {
 			try {
 				const created = await api.createMap(dir, name);
 				await refreshTree();
-				store.close();
-				setSource(null);
-				setAliasDoc(null);
-				setMapDoc({ path: created.path, map: created.map, dirty: false });
+				store.openSide({
+					kind: "map",
+					doc: { path: created.path, map: created.map, dirty: false },
+				});
 			} catch (err) {
 				notify("Could not create that map", errorMessage(err));
 			}
@@ -824,8 +799,6 @@ export function useProjectActions(context: ProjectActionsContext) {
 				danger: true,
 			});
 			if (ok !== true) return;
-			const under = (path: string, target: string) =>
-				path === target || path.startsWith(`${target}/`);
 			try {
 				for (const target of paths) {
 					// A write still waiting for something being deleted would bring
@@ -838,14 +811,12 @@ export function useProjectActions(context: ProjectActionsContext) {
 					// reason to close the graph somebody is looking at.
 					store.closePath(target);
 				}
-				if (mapDoc && paths.some((target) => under(mapDoc.path, target))) setMapDoc(null);
-				if (source && paths.some((target) => under(source.path, target))) setSource(null);
 				await refreshTree();
 			} catch (err) {
 				notify("Something went wrong", errorMessage(err));
 			}
 		},
-		[ask, notify, refreshTree, mapDoc, source, saves],
+		[ask, notify, refreshTree, saves],
 	);
 
 	return {

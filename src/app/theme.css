@@ -622,9 +622,32 @@ select optgroup {
 	margin-left: 5px;
 }
 
-.graph-tab .tab-fn {
+/* A tab's kind, coloured as the project tree colours the same file: graphs
+   and functions in the accent, maps green, Luau by the script it becomes. */
+.tab-kind {
 	flex: none;
+	color: var(--fg-muted);
+}
+
+.tab-kind.tab-kind-nodescript,
+.tab-kind.tab-kind-function {
 	color: var(--accent);
+}
+
+.tab-kind.tab-kind-nodemap {
+	color: var(--ok);
+}
+
+.tab-kind.tree-script-server {
+	color: var(--tree-script-server);
+}
+
+.tab-kind.tree-script-local {
+	color: var(--tree-script-local);
+}
+
+.tab-kind.tree-script-module {
+	color: var(--tree-script-module);
 }
 
 .graph-tab .close {
@@ -3434,6 +3457,43 @@ button.start-tile:disabled {
 	grid-template-columns: 1fr 380px;
 	min-height: 0;
 	overflow: hidden;
+}
+
+/* The editor's own panel has a handle between the tree and the Inspector, in
+   a track of its own with no width. The docs draw the panel without one. Each
+   side keeps at least 180px however the window shrinks. */
+.map-editor.map-editor-resizable {
+	grid-template-columns: minmax(180px, 1fr) 0 min(var(--map-side-w, 380px), calc(100% - 180px));
+}
+
+.map-splitter {
+	position: relative;
+	z-index: 2;
+	cursor: col-resize;
+	touch-action: none;
+}
+
+/* Wider to hit than to see, and drawn only when found. */
+.map-splitter::before {
+	content: "";
+	position: absolute;
+	inset: 0 -6px;
+}
+
+.map-splitter::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -1px;
+	width: 2px;
+	background: transparent;
+	transition: background 120ms ease;
+}
+
+.map-splitter:hover::after,
+.map-splitter:active::after {
+	background: var(--accent);
 }
 
 .map-tree {
@@ -14658,9 +14718,34 @@ html {
 			calc(var(--hit) + var(--edge) * 3 + 46px + env(safe-area-inset-bottom, 0px)) 6px;
 	}
 
-	.map-editor {
+	.map-editor,
+	.map-editor.map-editor-resizable {
 		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: minmax(0, 36%) minmax(0, 1fr);
+	}
+
+	/* Stacked, the handle moves the line between tree and Inspector up and down. */
+	.map-editor.map-editor-resizable {
+		grid-template-rows:
+			min(var(--map-tree-h, 36%), calc(100% - 180px))
+			0 minmax(0, 1fr);
+	}
+
+	.map-splitter {
+		cursor: row-resize;
+	}
+
+	.map-splitter::before {
+		inset: -10px 0;
+	}
+
+	.map-splitter::after {
+		top: -1px;
+		bottom: auto;
+		left: 0;
+		right: 0;
+		width: auto;
+		height: 2px;
 	}
 
 	.map-side {

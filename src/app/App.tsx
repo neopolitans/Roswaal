@@ -32,7 +32,6 @@ import { Canvas } from "./Canvas.jsx";
 import { CanvasStrip } from "./CanvasStrip.jsx";
 import { PanelHead } from "./Cards.jsx";
 import { CompileToast } from "./CompileToast.jsx";
-import type { LuaurcDocument, MapDocument } from "./centreDocument.js";
 import { onCodeEditRequest } from "./codeEditRequests.js";
 import { previewFor } from "./DocsPanel.jsx";
 import { DocsSearch } from "./DocsSearch.jsx";
@@ -68,10 +67,10 @@ import { setProjectAliases } from "./projectAliases.js";
 import { setProjectTypes } from "./projectTypes.js";
 import { forget, lastProject, remember } from "./recents.js";
 import { previewSelection } from "./SelectionPreview.jsx";
-import { type SourceDoc, SourceView } from "./SourceView.jsx";
+import { SourceView } from "./SourceView.jsx";
 import { StatusPanel } from "./StatusPanel.jsx";
 import { SaveQueue } from "./saveQueue.js";
-import { store, useDocuments, useEditor, useOutline } from "./store.js";
+import { sideKey, store, useDocuments, useEditor, useOutline } from "./store.js";
 import { showToast, Toasts } from "./Toast.jsx";
 import { DocumentAction, DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { liveSelection, TouchBar } from "./TouchBar.jsx";
@@ -162,24 +161,24 @@ export function App() {
 	} = useLayoutPrefs();
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	/**
-	 * The `.luaurc` being edited, and every one in the project.
+	 * The node map, Luau file or `.luaurc` in front, if a graph is not. Each has
+	 * a tab of its own, kept by the store beside the graphs'.
 	 *
-	 * All of them because the open file is not the whole story: it inherits from
-	 * the files above it, and a name added here must not collide with one of
-	 * those. Read when a `.luaurc` is opened rather than held, so the document
-	 * cannot be showing a file somebody changed on disk half an hour ago.
+	 * A `.luaurc` carries every one in the project, because the open file
+	 * inherits from the files above it and a name added here must not collide
+	 * with one of those. They are read when it is opened rather than held, so
+	 * the document cannot be showing a file somebody changed on disk half an
+	 * hour ago.
 	 */
-	const [aliasDoc, setAliasDoc] = useState<LuaurcDocument | null>(null);
+	const aliasDoc = editor.side?.kind === "luaurc" ? editor.side.doc : null;
+	const source = editor.side?.kind === "luau" ? editor.side.doc : null;
+	const mapDoc = editor.side?.kind === "map" ? editor.side.doc : null;
 	const layout = prefs.layout;
 
 	/** The selection preview, which is opened deliberately and never sits open. */
 	const [previewOpen, setPreviewOpen] = useState(false);
 	const alignExec = prefs.alignExec;
 
-	const [source, setSource] = useState<SourceDoc | null>(null);
-	// A node map is a tree, not a graph, so it lives beside the graph store
-	// rather than inside it. Nothing about undo or selection carries over.
-	const [mapDoc, setMapDoc] = useState<MapDocument | null>(null);
 	const [mapOutcomes, setMapOutcomes] = useState<MapOutcome[]>([]);
 	// Generated files whose graph has moved or gone. Rojo cannot tell they are
 	// stale, so it syncs them, and the same module turns up twice.
@@ -425,7 +424,7 @@ export function App() {
 				for (const { path, script } of store.unsaved()) {
 					await api.writeScript(path, script);
 				}
-				if (mapDoc?.dirty) await api.writeMap(mapDoc.path, mapDoc.map);
+				for (const map of store.unsavedMaps()) await api.writeMap(map.path, map.map);
 			} catch (err) {
 				notify(
 					"Staying where we are",
@@ -437,12 +436,9 @@ export function App() {
 			}
 
 			store.closeAll();
-			setMapDoc(null);
-			setSource(null);
-			setAliasDoc(null);
 			return loadProject(root, false, quiet);
 		},
-		[loadProject, mapDoc, notify, saves],
+		[loadProject, notify, saves],
 	);
 
 	/**
@@ -487,9 +483,6 @@ export function App() {
 			});
 			if (yes !== true) return;
 			store.closeAll();
-			setMapDoc(null);
-			setSource(null);
-			setAliasDoc(null);
 			await loadProject(chosen, true);
 			return;
 		}
@@ -595,9 +588,6 @@ export function App() {
 			// The tab that asked for the switch has already followed it.
 			if (!root || root === open) return;
 			store.closeAll();
-			setSource(null);
-			setAliasDoc(null);
-			setMapDoc(null);
 			notify(
 				"Following the daemon to another project",
 				`The daemon is now serving ${root}. Anything open here belonged to ${open}, ` +
@@ -639,32 +629,25 @@ export function App() {
 			return;
 		}
 		if (entry.kind === "wally") return;
+		// Each opens in a tab of its own, beside the graphs, and leaves them open.
 		if (entry.kind === "luaurc") {
-			setSource(null);
-			setMapDoc(null);
-			store.close();
 			const { files } = await api.luaurcFiles();
-			setAliasDoc({ dir: dirOf(entry.path), files });
+			store.openSide({ kind: "luaurc", doc: { dir: dirOf(entry.path), files } });
 			return;
 		}
-		setAliasDoc(null);
 		if (entry.kind === "luau") {
-			setMapDoc(null);
-			setSource({
-				path: entry.path,
-				text: (await api.readSource(entry.path)).text,
-				generatedFrom: entry.generatedFrom,
+			const { text } = await api.readSource(entry.path);
+			store.openSide({
+				kind: "luau",
+				doc: { path: entry.path, text, generatedFrom: entry.generatedFrom },
 			});
 			return;
 		}
-		setSource(null);
 		if (entry.kind === "nodemap") {
-			store.close();
 			const { map } = await api.readMap(entry.path);
-			setMapDoc({ path: entry.path, map, dirty: false });
+			store.openSide({ kind: "map", doc: { path: entry.path, map, dirty: false } });
 			return;
 		}
-		setMapDoc(null);
 		// Already loaded: go to its tab rather than re-reading, which would throw
 		// away its undo history and where it was scrolled to. `showGraph` puts
 		// the tab back when only a function's tab is keeping the file open.
@@ -683,9 +666,6 @@ export function App() {
 	const openGraphPath = useCallback(
 		async (path: string) => {
 			try {
-				setSource(null);
-				setAliasDoc(null);
-				setMapDoc(null);
 				if (store.showGraph(path)) return;
 				const { script } = await api.readScript(path);
 				store.open(path, script);
@@ -709,9 +689,6 @@ export function App() {
 			// Every write still waiting is for the project that has gone.
 			saves.drop("");
 			store.closeAll();
-			setSource(null);
-			setAliasDoc(null);
-			setMapDoc(null);
 			notify(
 				"The daemon moved to another project",
 				`${err.message} Nothing was written to either project.`,
@@ -890,8 +867,6 @@ export function App() {
 		onWriteFailed,
 		runCompile,
 		hostCompilesOnSave,
-		mapDoc,
-		setMapDoc,
 		onMapCompiled: setMapOutcomes,
 	});
 
@@ -960,11 +935,6 @@ export function App() {
 		loadProject,
 		refreshTree,
 		openEntry,
-		source,
-		setSource,
-		mapDoc,
-		setMapDoc,
-		setAliasDoc,
 		setIntroOpen,
 	});
 
@@ -1101,18 +1071,13 @@ export function App() {
 						busy={busy}
 						document={
 							<>
-								{/* The open graphs: the active one's name, the others beside
-								    it while there is room, and a list of all of them. A node
-								    map or a source file is not a graph and has no tab, so the
-								    tabs show what would come back if you left them. */}
+								{/* The open documents: the active one's name, the others
+								    beside it while there is room, and a list of all of them.
+								    Graphs, functions, node maps, Luau and .luaurc alike. */}
 								<GraphTabs
 									documents={documents}
 									functionTabs={prefs.functionTabs}
-									onActivate={(key) => {
-										setSource(null);
-										setMapDoc(null);
-										store.activate(key);
-									}}
+									onActivate={(key) => store.activate(key)}
 									onClose={(key) => store.closeDocument(key)}
 									onReorder={(key, before) => store.reorder(key, before)}
 								/>
@@ -1397,26 +1362,35 @@ export function App() {
 						<div className="centre-body">
 							{aliasDoc ? (
 								<AliasDocument
+									key={aliasDoc.dir}
 									dir={aliasDoc.dir}
 									files={aliasDoc.files}
 									target={project.config.target}
 									onWrite={(dir, text) => {
 										void api.writeLuaurc(dir, text).then(
-											(written) => setAliasDoc({ dir: aliasDoc.dir, files: written.files }),
+											(written) => {
+												const side = { kind: "luaurc", doc: aliasDoc } as const;
+												store.updateSide(sideKey(side), () => ({
+													kind: "luaurc",
+													doc: { dir: aliasDoc.dir, files: written.files },
+												}));
+											},
 											(err: unknown) => notify("The .luaurc was not written", errorMessage(err)),
 										);
 									}}
 								/>
 							) : mapDoc ? (
 								<MapEditor
+									key={mapDoc.path}
 									map={mapDoc.map}
 									dirty={mapDoc.dirty}
 									tree={project.tree}
 									outDir={project.config.outDir}
-									onChange={(next) => setMapDoc({ ...mapDoc, map: next, dirty: true })}
+									onChange={(next) => store.editMap(mapDoc.path, next)}
 								/>
 							) : source ? (
 								<SourceView
+									key={source.path}
 									doc={source}
 									onOpenGraph={(path) => void openGraphPath(path)}
 									onEdit={async (path) => {

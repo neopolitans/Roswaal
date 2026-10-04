@@ -340,8 +340,8 @@ describe("pointing between the picture and the list", () => {
 		const handles = [...html.matchAll(/data-control="([^"]+)"/g)].map((m) => m[1]);
 
 		expect(handles).toEqual(legendOf(graph).map((item) => controlKey(item.name)));
-		// The second tab is drawn and is not a control: the first explains both.
-		expect(html).toContain('<span class="graph-tab"><span class="name">');
+		// The other tabs are drawn and are not controls: the first explains them all.
+		expect(html).toContain('<span class="graph-tab"><svg class="icon tab-kind tab-kind-function"');
 	});
 
 	/** A key that is not unique lights two things at once. */

@@ -16,6 +16,11 @@
  * function, then the file it is in. The Function tabs preference can shorten
  * that to either name; the tooltip keeps both.
  *
+ * Node maps, Luau files and `.luaurc` files have tabs in the same row. Every
+ * tab leads with its kind's icon, drawn as the project tree draws it: a graph
+ * the document, a function ƒ, a map the map, and Luau the script icon in the
+ * colour of the script it becomes.
+ *
  * The dirty dot is the same one the document bar uses. It appears for the few
  * hundred milliseconds before autosave catches up, which is short enough that
  * its real job is telling you the editor noticed rather than telling you to act.
@@ -33,11 +38,11 @@ import { type PointerEvent as ReactPointerEvent, useRef, useState } from "react"
 
 import { cx } from "./cx.js";
 import { useDismiss } from "./dismiss.js";
-import { Icon } from "./icons.jsx";
+import { Icon, type IconName } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 import { trackPointer } from "./pointer.js";
 import type { FunctionTabs } from "./preferences.js";
-import type { OpenDocument } from "./store.js";
+import type { OpenDocument, TabKind } from "./store.js";
 
 export interface GraphTabsProps {
 	documents: OpenDocument[];
@@ -57,6 +62,36 @@ export function tabLabel(doc: OpenDocument, functionTabs: FunctionTabs): string 
 	if (functionTabs === "function") return doc.name;
 	if (functionTabs === "script") return doc.scriptName;
 	return `${doc.name} (${doc.scriptName})`;
+}
+
+/** Each kind's icon: the project tree's, so a tab and its row match. */
+const KIND_ICON: Record<TabKind, IconName> = {
+	nodescript: "document",
+	function: "function",
+	nodemap: "map",
+	luau: "luauScript",
+	luaurc: "settings",
+};
+
+/**
+ * A Luau file by the script it becomes, as the tree colours it: a Server
+ * Script, a LocalScript or a ModuleScript.
+ */
+function luauClass(path: string): string {
+	if (/\.server\.luau?$/i.test(path)) return "tree-script-server";
+	if (/\.client\.luau?$/i.test(path)) return "tree-script-local";
+	return "tree-script-module";
+}
+
+/** A tab's icon, coloured by its kind. */
+export function TabIcon({ doc, size }: { doc: OpenDocument; size: number }) {
+	return (
+		<Icon
+			name={KIND_ICON[doc.kind]}
+			size={size}
+			className={cx("tab-kind", `tab-kind-${doc.kind}`, doc.kind === "luau" && luauClass(doc.path))}
+		/>
+	);
 }
 
 /** How far the pointer must travel before a press on a tab becomes a drag. */
@@ -150,10 +185,10 @@ export function GraphTabs({
 						)}
 						role="tab"
 						aria-selected={doc.active}
-						title={doc.graph === null ? doc.path : `ƒ ${full}\n${doc.path}`}
+						title={doc.kind === "function" ? `ƒ ${full}\n${doc.path}` : doc.path}
 						onPointerDown={(e) => onTabPointerDown(e, doc.key)}
 					>
-						{doc.graph !== null && <Icon name="function" size={13} className="tab-fn" />}
+						<TabIcon doc={doc} size={13} />
 						<span className="name">{label}</span>
 						<button
 							className="close"
@@ -226,8 +261,8 @@ function TabList({ documents, functionTabs, open, onOpen, onActivate }: TabListP
 			<button
 				className="tb"
 				ref={button}
-				title={`${documents.length} graphs open`}
-				aria-label="Open graphs"
+				title={`${documents.length} open`}
+				aria-label="Open documents"
 				aria-expanded={open}
 				onClick={() => {
 					const box = button.current?.getBoundingClientRect();
@@ -246,7 +281,7 @@ function TabList({ documents, functionTabs, open, onOpen, onActivate }: TabListP
 							title={doc.path}
 							onClick={() => onActivate(doc.key)}
 						>
-							{doc.graph !== null && <Icon name="function" size={12} className="tab-fn" />}
+							<TabIcon doc={doc} size={12} />
 							<span className="name">{tabLabel(doc, functionTabs)}</span>
 							{doc.dirty && <span className="dot" aria-hidden />}
 						</button>

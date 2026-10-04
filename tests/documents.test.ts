@@ -15,6 +15,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { store } from "../src/app/store.js";
+import { emptyMap } from "../src/core/nodemap.js";
 import { Builder } from "./helpers.js";
 
 function graph(name: string) {
@@ -372,5 +373,84 @@ describe("snapshot identity", () => {
 		const view = store.getView();
 		store.select(["n1"]);
 		expect(store.getView()).toBe(view);
+	});
+});
+
+describe("tabs that are not graphs", () => {
+	const MAP = "Tank.nodemap";
+	let ids = 0;
+	const map = (name = "Tank") => emptyMap(name, `map-${++ids}`, () => `id-${++ids}`);
+
+	/** The report: two graphs open, then a map, and only the leftmost graph survived. */
+	it("opens a node map beside the graphs and closes none of them", () => {
+		store.open(A, graph("A"));
+		store.open(B, graph("B"));
+		store.openSide({ kind: "map", doc: { path: MAP, map: map(), dirty: false } });
+
+		expect(store.getTabs().map((t) => [t.name, t.kind])).toEqual([
+			["A", "nodescript"],
+			["B", "nodescript"],
+			["Tank", "nodemap"],
+		]);
+		expect(store.getSnapshot().side?.kind).toBe("map");
+	});
+
+	it("has no graph in front while a map is, so edits reach nothing", () => {
+		store.open(A, graph("A"));
+		store.openSide({ kind: "map", doc: { path: MAP, map: map(), dirty: false } });
+
+		expect(store.getSnapshot().script).toBeNull();
+		store.edit((s) => ({ ...s, name: "changed" }));
+		store.activate(A);
+		expect(store.getSnapshot().script?.name).toBe("A");
+		expect(store.getSnapshot().side).toBeNull();
+	});
+
+	it("keeps a Luau file and a map open together, each in its own tab", () => {
+		store.openSide({ kind: "luau", doc: { path: "src/Main.server.luau", text: "" } });
+		store.openSide({ kind: "map", doc: { path: MAP, map: map(), dirty: false } });
+
+		expect(store.getTabs().map((t) => t.kind)).toEqual(["luau", "nodemap"]);
+		store.activate("luau:src/Main.server.luau");
+		expect(store.getSnapshot().side?.kind).toBe("luau");
+	});
+
+	it("marks a map's tab dirty until the write that holds its edit lands", () => {
+		store.openSide({ kind: "map", doc: { path: MAP, map: map(), dirty: false } });
+		const edited = map("Renamed");
+		store.editMap(MAP, edited);
+
+		expect(store.getTabs()[0]).toMatchObject({ name: "Tank", dirty: true });
+		expect(store.unsavedMaps().map((m) => m.path)).toEqual([MAP]);
+		store.markMapSaved(MAP, edited);
+		expect(store.getTabs()[0].dirty).toBe(false);
+	});
+
+	it("keeps a map's unsaved edits when it is opened again", () => {
+		store.openSide({ kind: "map", doc: { path: MAP, map: map(), dirty: false } });
+		store.editMap(MAP, map("Edited"));
+		store.openSide({ kind: "map", doc: { path: MAP, map: map("On disk"), dirty: false } });
+
+		expect(store.getTabs()).toHaveLength(1);
+		const [side] = store.getSides();
+		expect(side.kind === "map" && side.doc.map.name).toBe("Edited");
+	});
+
+	it("closes with the folder it was in, and follows a move", () => {
+		store.openSide({ kind: "luau", doc: { path: "src/a/One.luau", text: "" } });
+		store.openSide({ kind: "map", doc: { path: "maps/Tank.nodemap", map: map(), dirty: false } });
+
+		store.moveSides((p) => (p.startsWith("maps/") ? `moved/${p.slice(5)}` : null));
+		expect(store.getTabs().map((t) => t.path)).toEqual(["src/a/One.luau", "moved/Tank.nodemap"]);
+		expect(store.getSnapshot().side?.kind).toBe("map");
+
+		store.closePath("src/a");
+		expect(store.getTabs().map((t) => t.kind)).toEqual(["nodemap"]);
+	});
+
+	it("is not one of the open graphs", () => {
+		store.open(A, graph("A"));
+		store.openSide({ kind: "map", doc: { path: MAP, map: map(), dirty: false } });
+		expect(store.openPaths()).toEqual([A]);
 	});
 });

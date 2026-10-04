@@ -7,13 +7,11 @@
  * answers the daemon's news that a graph's file changed underneath it.
  */
 
-import type React from "react";
 import { useCallback, useEffect, useRef } from "react";
 
 import { serialiseScript } from "../core/compiler/index.js";
 import type { NodeScript } from "../core/schema.js";
 import { api, type MapOutcome, type ProjectInfo } from "./api.js";
-import type { MapDocument } from "./centreDocument.js";
 import type { SaveQueue } from "./saveQueue.js";
 import { store } from "./store.js";
 import type { Dialogs } from "./useDialogs.js";
@@ -27,8 +25,6 @@ export interface AutosaveContext {
 	runCompile: (path: string | undefined, write: boolean, force?: boolean) => Promise<void>;
 	/** Whether the host compiles a graph when it sees it written: the daemon, in Dynamic mode. */
 	hostCompilesOnSave: { readonly current: boolean };
-	mapDoc: MapDocument | null;
-	setMapDoc: React.Dispatch<React.SetStateAction<MapDocument | null>>;
 	/** A map Dynamic mode compiled after saving it: what it said. */
 	onMapCompiled?: (results: MapOutcome[]) => void;
 }
@@ -49,8 +45,6 @@ export function useAutosave(context: AutosaveContext): Autosave {
 		onWriteFailed,
 		runCompile,
 		hostCompilesOnSave,
-		mapDoc,
-		setMapDoc,
 		onMapCompiled,
 	} = context;
 
@@ -185,20 +179,23 @@ export function useAutosave(context: AutosaveContext): Autosave {
 	followDiskRef.current = followDisk;
 
 	/**
-	 * Node maps autosave on the same terms graphs do, through the same queue.
-	 *
-	 * No cleanup on purpose: the write belongs to the file. Opening anything
-	 * else sets the map to null, and that used to cancel the pending write.
+	 * Node maps autosave on the same terms graphs do, through the same queue,
+	 * and every map with edits is queued, not only the one in front.
 	 */
 	useEffect(() => {
-		if (!mapDoc?.dirty) return;
-		const { path, map } = mapDoc;
-		saves.put(path, async () => {
-			await api.writeMap(path, map);
-			setMapDoc((d) => (d && d.path === path && d.map === map ? { ...d, dirty: false } : d));
-			compileMapAfterSave.current(path);
+		const queued = new Map<string, unknown>();
+		return store.subscribe(() => {
+			for (const { path, map } of store.unsavedMaps()) {
+				if (queued.get(path) === map) continue;
+				queued.set(path, map);
+				saves.put(path, async () => {
+					await api.writeMap(path, map);
+					store.markMapSaved(path, map);
+					compileMapAfterSave.current(path);
+				});
+			}
 		});
-	}, [mapDoc, saves]);
+	}, [saves]);
 
 	return { writeGraph, followDiskRef };
 }
