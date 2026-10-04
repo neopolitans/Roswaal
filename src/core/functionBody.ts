@@ -33,7 +33,7 @@
  * with it.
  */
 
-import { FUNCTION_NODES } from "./nodes/flow.js";
+import { FUNCTION_NODES, HANDLER_NODES } from "./nodes/flow.js";
 import { type Registry, resolveNodePins } from "./nodes/index.js";
 import type { Link, NodeScript } from "./schema.js";
 
@@ -70,7 +70,7 @@ export function bodyPinOf(defId: string): string | undefined {
  * there.
  */
 export function bindsParameters(defId: string): boolean {
-	return FUNCTION_NODES.has(defId) || defId === "event.connect" || defId === "event.once";
+	return FUNCTION_NODES.has(defId) || HANDLER_NODES.has(defId);
 }
 
 /**

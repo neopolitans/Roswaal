@@ -16,13 +16,14 @@ import {
 	viewOf,
 	withFunctionGraphs,
 } from "../core/functionGraph.js";
-import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import { FUNCTION_NODES, HANDLER_NODES, signatureOf } from "../core/nodes/flow.js";
 import { currentArity, type GrowthRule, growthRule } from "../core/nodes/growth.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins, resolveNodePins } from "../core/nodes/index.js";
 import { type LocalRef, localNameOf, pinDefaultFor, pinTypeOf } from "../core/nodes/variables.js";
 import { retypeReroutes } from "../core/reroutes.js";
 import { isInstanceClass, isSubclassOf } from "../core/roblox.js";
+import { signalEventOf } from "../core/robloxEvents.js";
 import type {
 	Comment,
 	GraphNode,
@@ -69,7 +70,7 @@ export function addNode(
 	// Function and Connect nodes are useless with no signature, so seed one.
 	if (FUNCTION_NODES.has(def.id)) node.config = { name: "newFunction", params: [], returns: [] };
 	if (def.id === "function.return") node.config = { returns: [] };
-	if (def.id === "event.connect") node.config = { params: [] };
+	if (HANDLER_NODES.has(def.id)) node.config = { params: [] };
 
 	// Reference nodes are useless until they point at something, so default them
 	// to the first candidate rather than spawning an error.
@@ -711,7 +712,46 @@ export function connect(
 		return true;
 	});
 
-	return retypeReroutes({ ...script, links: [...links, { id: newId(), from, to }] }, registry);
+	const wired = { ...script, links: [...links, { id: newId(), from, to }] };
+	return retypeReroutes(withEventParams(wired, registry, to), registry);
+}
+
+/**
+ * A Connect Event or Connect Once with no parameters yet takes its event's
+ * parameters once its signal is Get Event on a known class: when the signal is
+ * wired, or the instance into that Get Event is. One with parameters keeps
+ * them: they may be the author's.
+ */
+function withEventParams(script: NodeScript, registry: Registry, to: PinRef): NodeScript {
+	const target = script.nodes.find((n) => n.id === to.node);
+	const handlers =
+		to.pin === "signal"
+			? [to.node]
+			: target?.def === "roblox.getEvent" && to.pin === "instance"
+				? script.links
+						.filter((l) => l.from.node === to.node && l.to.pin === "signal")
+						.map((l) => l.to.node)
+				: [];
+	const fills = new Map<string, { name: string; type: string }[]>();
+	for (const id of handlers) {
+		const node = script.nodes.find((n) => n.id === id);
+		if (!node || (node.def !== "event.connect" && node.def !== "event.once")) continue;
+		if ((signatureOf(node.config).params ?? []).length > 0) continue;
+		const event = signalEventOf({ script, registry }, id);
+		if (event && event.params.length > 0)
+			fills.set(
+				id,
+				event.params.map((p) => ({ ...p })),
+			);
+	}
+	if (fills.size === 0) return script;
+	return {
+		...script,
+		nodes: script.nodes.map((n) => {
+			const params = fills.get(n.id);
+			return params ? { ...n, config: { ...n.config, params } } : n;
+		}),
+	};
 }
 
 export function disconnectInput(script: NodeScript, to: PinRef): NodeScript {

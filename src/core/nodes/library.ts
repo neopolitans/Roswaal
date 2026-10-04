@@ -24,7 +24,7 @@ import { DATATYPES } from "../robloxData.js";
 import type { Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
 import { ENGINE_TYPES, LUAU, PAIR, SPECIFIER_HINTS } from "../schema.js";
 import { SERVICE_CALL, SERVICE_VALUE, servicePins, serviceSubtitle } from "../serviceCalls.js";
-import { signatureOf } from "./flow.js";
+import { handlerOutputs } from "./flow.js";
 import { pinTypeOf, typedLocalName } from "./variables.js";
 
 /** The category for coordinates brought across from a Z-up tool. */
@@ -1384,15 +1384,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 		],
 		compilesTo: { kind: "builtin", handler: "event.once" },
 		derivePins(config) {
-			const sig = signatureOf(config);
 			return {
 				inputs: [exec("in", ""), d("signal", "Signal", "RBXScriptSignal")],
-				outputs: [
-					exec("then", ""),
-					exec("body", "Body"),
-					d("connection", "Connection", "RBXScriptConnection"),
-					...(sig.params ?? []).map((p, i) => d(`p${i}`, p.name || `arg${i + 1}`, p.type ?? "any")),
-				],
+				outputs: handlerOutputs(config),
 			};
 		},
 	},

@@ -13,6 +13,7 @@
 
 import { aliasScore } from "../core/aliases.js";
 import { categoryLabel } from "../core/categories.js";
+import { bindsParameters } from "../core/functionBody.js";
 import {
 	type GraphId,
 	hoistedFunctions,
@@ -670,7 +671,7 @@ function parameterPresets(
 ): Preset[] {
 	const owners = nodes.filter(
 		(node) =>
-			(FUNCTION_NODES.has(node.def) || node.def === "event.connect" || node.def === "event.once") &&
+			bindsParameters(node.def) &&
 			// A parameter exists only where its body runs, so a function's are
 			// offered in its own graph and a handler's where its Connect is drawn.
 			paramsVisibleFrom(node, graph),

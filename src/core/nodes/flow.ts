@@ -113,6 +113,8 @@ export function signatureText(sig: Signature): string {
  * local under Then 0 really is in scope under Then 1.
  */
 export function continuesEnclosingBlock(defId: string, pinId: string): boolean {
+	// "then" carries on in the block the node sits in, and "body" is the handler's own.
+	if (HANDLER_NODES.has(defId)) return pinId === "then";
 	switch (defId) {
 		// Both arms open a block, and nothing follows the if-statement itself.
 		case "flow.branch":
@@ -122,9 +124,8 @@ export function continuesEnclosingBlock(defId: string, pinId: string): boolean {
 		case "flow.forIndex":
 		case "flow.while":
 			return pinId === "completed";
-		case "event.connect":
-		// Declare Function is the same shape: "then" carries on in the block the
-		// node sits in, and "body" opens the function's own.
+		// Declare Function is the same shape as a handler: "then" carries on in
+		// the block the node sits in, and "body" opens the function's own.
 		case "function.declareHere":
 			return pinId === "then";
 		// A function body is its own scope and has no enclosing block here.
@@ -148,6 +149,17 @@ export function continuesEnclosingBlock(defId: string, pinId: string): boolean {
 export const FUNCTION_NODES: ReadonlySet<string> = new Set([
 	"function.entry",
 	"function.declareHere",
+]);
+
+/**
+ * The nodes that connect a handler to a signal: Connect Event, Connect Once
+ * and On Event. Each has a Body the handler runs, and binds the handler's
+ * parameters for it the way a function binds its own.
+ */
+export const HANDLER_NODES: ReadonlySet<string> = new Set([
+	"event.connect",
+	"event.once",
+	"event.on",
 ]);
 
 /**
@@ -597,18 +609,50 @@ export const FLOW_NODES: NodeDef[] = [
 		],
 		compilesTo: { kind: "builtin", handler: "event.connect" },
 		derivePins(config: NodeConfig) {
-			const sig = signatureOf(config);
 			return {
 				inputs: [exec("in", ""), data("signal", "Signal", "RBXScriptSignal")],
-				outputs: [
-					exec("then", ""),
-					exec("body", "Body"),
-					data("connection", "Connection", "RBXScriptConnection"),
-					...(sig.params ?? []).map((p, i) =>
-						data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type)),
-					),
-				],
+				outputs: handlerOutputs(config),
 			};
 		},
 	},
+	{
+		id: "event.on",
+		title: "On Event",
+		category: "Events",
+		role: "flow",
+		summary:
+			"Runs the Body each time an instance's event fires. Pick the event in the Inspector and its parameters come with it.",
+		targets: ["roblox"],
+		inputs: [exec("in", ""), data("instance", "Instance", "Instance")],
+		outputs: [
+			exec("then", ""),
+			exec("body", "Body"),
+			data("connection", "Connection", "RBXScriptConnection"),
+		],
+		compilesTo: { kind: "builtin", handler: "event.on" },
+		derivePins(config: NodeConfig) {
+			return {
+				inputs: [exec("in", ""), data("instance", "Instance", "Instance")],
+				outputs: handlerOutputs(config),
+			};
+		},
+		subtitle: (config) => {
+			const event = config.event;
+			return typeof event === "string" && event !== "" ? event : undefined;
+		},
+	},
 ];
+
+/**
+ * What a handler node offers: carrying on, the Body the handler runs, the
+ * connection, and one pin per parameter the signal passes it.
+ */
+export function handlerOutputs(config: NodeConfig | undefined): PinDef[] {
+	const sig = signatureOf(config);
+	return [
+		exec("then", ""),
+		exec("body", "Body"),
+		data("connection", "Connection", "RBXScriptConnection"),
+		...(sig.params ?? []).map((p, i) => data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type))),
+	];
+}

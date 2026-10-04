@@ -672,7 +672,25 @@ function breakOrContinue(
 	return undefined;
 }
 
-/** Connect and Once. */
+/**
+ * The signal On Event connects to: the instance's event, by the name the
+ * Inspector chose. Undefined, with an error, when there is no name to write.
+ */
+function instanceSignal(e: Emitter, r: ResolvedNode, scope: Scope): string | undefined {
+	const id = r.node.id;
+	const event = typeof r.node.config?.event === "string" ? r.node.config.event.trim() : "";
+	if (event === "") {
+		e.error("On Event needs an event before it can be written. Pick one in the Inspector.", id);
+		return undefined;
+	}
+	if (!isFieldName(event)) {
+		e.error(notAName(event, "an event"), id);
+		return undefined;
+	}
+	return `${parenPrefix(e.resolveInput(r, e.pin(r, "instance", "in"), scope))}.${event}`;
+}
+
+/** Connect, Once and On Event. */
 function connectHandler(
 	e: Emitter,
 	r: ResolvedNode,
@@ -680,11 +698,15 @@ function connectHandler(
 	handler: string,
 ): string | undefined {
 	const id = r.node.id;
-	// Once is Connect that unbinds itself after one fire. Identical in
-	// every other respect, so it is the same handler with a different
-	// method name rather than a copy that can drift.
+	// Once is Connect that unbinds itself after one fire, and On Event is
+	// Connect on an instance's event by name. Identical in every other
+	// respect, so they are one handler rather than copies that can drift.
 	const method = handler === "event.once" ? "Once" : "Connect";
-	const signal = e.resolveInput(r, e.pin(r, "signal", "in"), scope);
+	const signal =
+		handler === "event.on"
+			? instanceSignal(e, r, scope)
+			: e.resolveInput(r, e.pin(r, "signal", "in"), scope);
+	if (signal === undefined) return e.index.execTarget(id, "then");
 	const sig = signatureOf(r.node.config);
 	const body = new Scope(scope, "function");
 
@@ -744,6 +766,7 @@ const FLOW_HANDLERS = new Map<string, FlowHandler>([
 	["flow.continue", breakOrContinue],
 	["event.connect", connectHandler],
 	["event.once", connectHandler],
+	["event.on", connectHandler],
 ]);
 
 /** Writes a builtin node on the execution chain and returns the next node, if any. */

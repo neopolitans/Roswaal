@@ -310,7 +310,17 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 				nodes: ["event.connect", "event.once", "roblox.getEvent"],
 				note:
 					"Get Event reads a signal off an instance; Connect Event runs a body when it fires " +
-					"and hands the connection back. **Connect Once** unbinds itself after one fire.",
+					"and hands the connection back, with the event's parameters filled in when the " +
+					"instance's class is known. **Connect Once** unbinds itself after one fire.",
+			},
+			{
+				unreal: "OnComponentHit / OnActorBeginOverlap",
+				roswaal: "On Event",
+				nodes: ["event.on"],
+				note:
+					"Wire in the instance and pick the event in the Inspector: a part's **Touched**, a " +
+					"Humanoid's **Died**. The list is what that class fires, its ancestors' included, " +
+					"and the handler's pins arrive typed.",
 			},
 			{
 				unreal: "Unbind Event",
@@ -348,9 +358,11 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 			{
 				unreal: "Tick",
 				roswaal: "RunService, connected",
+				nodes: ["event.on"],
 				note:
-					"No Tick node. Connect to RunService.Heartbeat or RenderStepped — being explicit " +
-					"about which is the point, since they are not interchangeable.",
+					"No Tick node. Wire RunService into **On Event** and pick Heartbeat or " +
+					"RenderStepped — being explicit about which is the point, since they are not " +
+					"interchangeable.",
 			},
 			{
 				unreal: "Interface",

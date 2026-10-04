@@ -12,7 +12,7 @@
  */
 
 import { type ComponentType, type ReactNode, useMemo, useState } from "react";
-
+import { bindsParameters } from "../core/functionBody.js";
 import { checkLuau } from "../core/luau/check.js";
 import { LUNE_ROBLOX_DATATYPES } from "../core/luneApi.js";
 import {
@@ -26,9 +26,22 @@ import {
 	splitLuneCall,
 } from "../core/luneCalls.js";
 import { membersFor } from "../core/members.js";
-import { FUNCTION_NODES, loopTypes, typeShapeOf } from "../core/nodes/flow.js";
+import {
+	FUNCTION_NODES,
+	HANDLER_NODES,
+	loopTypes,
+	signatureOf,
+	typeShapeOf,
+} from "../core/nodes/flow.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
 import { isConstLocal, localNameOf, pinTypeText } from "../core/nodes/variables.js";
+import {
+	eventOf,
+	eventsOf,
+	type InstanceEvent,
+	instanceClassInto,
+	signalEventOf,
+} from "../core/robloxEvents.js";
 import {
 	ENGINE_TYPES,
 	type GraphNode,
@@ -103,7 +116,8 @@ const INSPECTOR_SECTIONS: readonly SectionRule[] = [
 	{ applies: ids("function.return"), Section: ReturnList },
 	{ applies: ids("module.exports"), Section: ExportList },
 	{ applies: ids("value.member"), Section: MemberEditor },
-	{ applies: ids("event.connect"), Section: HandlerParams },
+	{ applies: ids("event.on"), Section: EventPicker },
+	{ applies: (def) => HANDLER_NODES.has(def.id), Section: HandlerParams },
 	{ applies: ids("string.concat"), Section: ConcatStyle },
 	{
 		applies: (def) => def.display === "operator" && !CAST_NODES.has(def.id),
@@ -178,15 +192,110 @@ function ExportList({ node }: SectionProps) {
 	);
 }
 
-/** What a Connect's handler is handed. */
-function HandlerParams({ node }: SectionProps) {
+/** An event's parameters as a signature: `(otherPart: BasePart)`. */
+function eventSignature(event: InstanceEvent): string {
+	return `(${event.params.map((p) => `${p.name}: ${p.type}`).join(", ")})`;
+}
+
+/**
+ * The event an On Event connects to, from the events the wired instance's
+ * class fires, its ancestors' included. Picking one brings its parameters.
+ */
+function EventPicker({ node }: { node: GraphNode }) {
+	const editor = useEditor();
+	const [picking, setPicking] = useState(false);
+	const current = configText(node, "event") ?? "";
+
+	const className = useMemo(() => {
+		const registry = store.getRegistry();
+		if (!editor.script || !registry) return undefined;
+		return instanceClassInto({ script: editor.script, registry }, node.id, "instance");
+	}, [editor.script, node.id]);
+	const events = useMemo(() => eventsOf(className ?? "Instance"), [className]);
+
+	const pick = (name: string) => {
+		const event = events.find((e) => e.name === name);
+		const params = (event?.params ?? []).map((p) => ({ ...p }));
+		store.edit((s) => setConfig(s, node.id, { event: name, params }));
+		setPicking(false);
+	};
+
 	return (
-		<ListEditor
-			node={node}
-			field="params"
-			title="Handler parameters"
-			hint="Whatever the signal passes to its listener."
-		/>
+		<>
+			<Field
+				label="Event"
+				hint={
+					className
+						? `What a ${className} fires.`
+						: "What every instance fires. Wire in an instance of a known class for its own events."
+				}
+			>
+				<button className="tb type-picker" onClick={() => setPicking(true)}>
+					<span className="preview">{current || "choose"}</span>
+					<Icon name="chevron" size={12} />
+				</button>
+			</Field>
+			{picking && (
+				<ValuePicker
+					what="event"
+					options={events.map((e) => e.name)}
+					value={current}
+					detailOf={(name) => {
+						const event = events.find((e) => e.name === name);
+						return event ? eventSignature(event) : "";
+					}}
+					onPick={pick}
+					onClose={() => setPicking(false)}
+				/>
+			)}
+		</>
+	);
+}
+
+/**
+ * What a handler is handed. When the engine knows the event, a button puts its
+ * parameters back: after an edit, or for a Connect wired before its class was.
+ */
+function HandlerParams({ node }: SectionProps) {
+	const editor = useEditor();
+	const known = useMemo(() => {
+		const registry = store.getRegistry();
+		if (!editor.script || !registry) return undefined;
+		const lookup = { script: editor.script, registry };
+		return node.def === "event.on"
+			? eventOf(
+					instanceClassInto(lookup, node.id, "instance") ?? "Instance",
+					configText(node, "event") ?? "",
+				)
+			: signalEventOf(lookup, node.id);
+	}, [editor.script, node]);
+	const params = signatureOf(node.config).params ?? [];
+	const matches =
+		known !== undefined &&
+		known.params.length === params.length &&
+		known.params.every((p, i) => p.name === params[i].name && p.type === params[i].type);
+
+	return (
+		<>
+			<ListEditor
+				node={node}
+				field="params"
+				title="Handler parameters"
+				hint="Whatever the signal passes to its listener."
+			/>
+			{known && !matches && (
+				<button
+					className="tb"
+					onClick={() =>
+						store.edit((s) =>
+							setConfig(s, node.id, { params: known.params.map((p) => ({ ...p })) }),
+						)
+					}
+				>
+					Use {known.name}'s parameters {eventSignature(known)}
+				</button>
+			)}
+		</>
 	);
 }
 
@@ -1204,7 +1313,7 @@ function ParamPicker({ script, node }: { script: NodeScript; node: GraphNode }) 
 	// The function whose graph this node is in comes first: it is nearly always
 	// the one meant.
 	const owners = script.nodes
-		.filter((n) => FUNCTION_NODES.has(n.def) || n.def === "event.connect" || n.def === "event.once")
+		.filter((n) => bindsParameters(n.def))
 		.sort((a, b) => Number(b.id === node.graph) - Number(a.id === node.graph));
 	if (owners.length === 0) {
 		return <p className="summary">This graph has no functions or handlers with parameters yet.</p>;

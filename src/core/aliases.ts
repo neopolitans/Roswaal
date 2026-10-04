@@ -67,7 +67,8 @@ export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = {
 	"roblox.destroy": ["Delete", "Remove Instance"],
 	"module.requirePath": ["Import"],
 	"module.requireTop": ["Import at Top"],
-	"event.connect": ["Bind Event", "Listen", "On Event"],
+	"event.connect": ["Bind Event", "Listen"],
+	"event.on": ["Touched", "Instance Event", "When"],
 	"event.wait": ["Await Event"],
 
 	"task.wait": ["Sleep"],

@@ -370,7 +370,7 @@ export const CURATED: Record<string, () => NodeScript> = {
 		g.link(players, "service", signal, "instance");
 
 		const connect = g.node("event.connect", {
-			config: { params: [{ name: "player", type: "Instance" }] },
+			config: { params: [{ name: "player", type: "Player" }] },
 		});
 		g.link(begin, "then", connect, "in").link(signal, "result", connect, "signal");
 		const p = g.node("debug.print");
@@ -386,10 +386,23 @@ export const CURATED: Record<string, () => NodeScript> = {
 		g.link(players, "service", signal, "instance");
 
 		const once = g.node("event.once", {
-			config: { params: [{ name: "player", type: "Instance" }] },
+			config: { params: [{ name: "player", type: "Player" }] },
 		});
 		g.link(begin, "then", once, "in").link(signal, "result", once, "signal");
 		printAfter(g, once, "body", "First player is in");
+		return g.out();
+	},
+
+	"event.on": () => {
+		const g = new G();
+		const begin = g.node("script.begin");
+		const players = g.node("roblox.getService", { literals: { service: str("Players") } });
+		const on = g.node("event.on", {
+			config: { event: "PlayerAdded", params: [{ name: "player", type: "Player" }] },
+		});
+		g.link(begin, "then", on, "in").link(players, "service", on, "instance");
+		const p = g.node("debug.print");
+		g.link(on, "body", p, "in").link(on, "p0", p, "value");
 		return g.out();
 	},
 

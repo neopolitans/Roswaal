@@ -9,6 +9,23 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_110: Release[] = [
 	{
+		version: "0.119.0",
+		date: "2026-10-04",
+		headline: "On Event, and Connect Event knows its parameters.",
+		affects: ["editor", "docs"],
+		added: [
+			"**On Event** runs its Body each time an instance's event fires. Wire in the instance and pick the event in the Inspector, from what that class fires, its ancestors' included. The handler's pins come typed: a part's Touched hands over otherPart, a BasePart.",
+			"**Connect Event and Connect Once fill in their parameters** when their signal is Get Event on an instance whose class is known, as soon as either wire goes in. Parameters already written are kept, and the Inspector offers the event's own back.",
+		],
+		changed: [
+			"**Connect Once** has a parameter editor in the Inspector, as Connect Event does.",
+			"[Coming from Blueprints](coming-from-blueprints) maps OnComponentHit and Tick to On Event.",
+		],
+		fixed: [
+			"**Connect Once's parameters** can be picked in Get Parameter inside its Body, and what follows Once's Then is in the block around it, as with Connect Event.",
+		],
+	},
+	{
 		version: "0.118.0",
 		date: "2026-10-04",
 		headline: "The rest of the review's fixes, and a new front page.",
