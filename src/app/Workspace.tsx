@@ -543,7 +543,8 @@ export function Workspace({
 		});
 		// Script analysis is the status pill: no tabs either way, and only it
 		// goes along the bottom.
-		const pill = panel === "analysis" || (!alone && membersOf(layout, self).includes("analysis"));
+		const analysis =
+			panel === "analysis" || (!alone && membersOf(layout, self).includes("analysis"));
 
 		for (const element of document.elementsFromPoint(x, y)) {
 			const cardEl = element.closest<HTMLElement>(".workspace .card");
@@ -556,7 +557,7 @@ export function Workspace({
 			}
 			const rect = cardEl.getBoundingClientRect();
 			const onHead = element.closest(".card-head") !== null;
-			if (onHead && !pill && !HEADLESS.has(other))
+			if (onHead && !analysis && !HEADLESS.has(other))
 				return { drop: { kind: "tab", host: other }, rect: local(rect), label: "Add as a tab" };
 			if (cardEl.closest(".dock.left, .dock.right")) {
 				const before = y < rect.top + rect.height / 2;
@@ -574,25 +575,30 @@ export function Workspace({
 			break;
 		}
 
-		const side = dropZone(box, x, y);
-		if (side === "left" || side === "right" || (side === "bottom" && pill)) {
-			const size = layout.docks[side].size;
-			const rect =
-				side === "bottom"
-					? { left: 0, top: box.height - 120, width: Math.min(640, box.width), height: 120 }
-					: {
-							left: side === "left" ? 0 : box.width - size,
-							top: 0,
-							width: size,
-							height: box.height,
-						};
+		// A side docks near its edge, or anywhere over its own column while it
+		// is showing: the room under its cards is still that dock.
+		const column = (side: "left" | "right") => {
+			const element = surface.current?.querySelector<HTMLElement>(`.dock.${side}:not(.drawer)`);
+			if (!element) return false;
+			const r = element.getBoundingClientRect();
+			return x >= r.left && x <= r.right && y >= r.top && y <= box.bottom - pill;
+		};
+		const edge = dropZone(box, x, y);
+		const side = column("left")
+			? "left"
+			: column("right")
+				? "right"
+				: edge === "bottom" && !analysis
+					? null
+					: edge;
+		if (side && (side !== "bottom" || analysis)) {
 			const label =
 				side === "left"
 					? "Dock on the left"
 					: side === "right"
 						? "Dock on the right"
 						: "Back to the foot";
-			return { drop: { kind: "dock", side }, rect, label };
+			return { drop: { kind: "dock", side }, rect: dockRect(side, box), label };
 		}
 		const centre = centreBox.current?.getBoundingClientRect();
 		if (!centre || x < centre.x || x > centre.right || y < centre.y || y > centre.bottom)
@@ -603,6 +609,33 @@ export function Workspace({
 			drop: { kind: "float", frame },
 			rect: { left: x - box.left - 40, top: y - box.top - 10, width: frame.w, height: frame.h },
 			label: "A window over the graph",
+		};
+	}
+
+	/**
+	 * Where a dock would be: its column under the top row, the left one
+	 * stopping above the status pill, or the pill itself at the foot.
+	 */
+	function dockRect(side: DockSide, box: DOMRect) {
+		const edge = 10;
+		const row = surface.current?.querySelector<HTMLElement>(".workspace-chrome .tool-group");
+		const top = row ? row.getBoundingClientRect().bottom - box.top + edge : 58;
+		if (side === "bottom") {
+			const height = Math.max(pill, 40);
+			return {
+				left: edge,
+				top: box.height - edge - height,
+				width: Math.min(640, box.width - edge * 2),
+				height,
+			};
+		}
+		const size = layout.docks[side].size;
+		const bottom = side === "left" ? pill + edge * 2 : edge;
+		return {
+			left: side === "left" ? edge : box.width - edge - size,
+			top,
+			width: size,
+			height: Math.max(80, box.height - top - bottom),
 		};
 	}
 
@@ -726,7 +759,11 @@ function DockCards({
 	const drawn = cards.length > 0;
 	useEffect(() => {
 		const element = column.current;
-		if (!onHeight || !drawn || !element || typeof ResizeObserver === "undefined") return;
+		if (!onHeight || !drawn || !element) return;
+		// Once now, and on every change after: an observer only reports
+		// while the page is being drawn.
+		onHeight(element.offsetHeight);
+		if (typeof ResizeObserver === "undefined") return;
 		const watch = new ResizeObserver(() => onHeight(element.offsetHeight));
 		watch.observe(element);
 		return () => watch.disconnect();

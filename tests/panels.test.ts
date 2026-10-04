@@ -248,13 +248,17 @@ describe("the drop zones", () => {
 	const rect = { x: 0, y: 0, width: 1000, height: 1000 };
 	const at = (x: number, y: number) => dropZone(rect, x, y);
 
-	it("takes the left and right edges", () => {
-		expect(at(100, 500)).toBe("left");
-		expect(at(900, 500)).toBe("right");
+	it("takes the left and right edges, near them", () => {
+		expect(at(40, 500)).toBe("left");
+		expect(at(960, 500)).toBe("right");
+		// A fifth of the way in is the graph, not the dock.
+		expect(at(200, 500)).toBeNull();
+		expect(at(800, 500)).toBeNull();
 	});
 
 	it("takes the bottom of what is left over", () => {
-		expect(at(500, 900)).toBe("bottom");
+		expect(at(500, 960)).toBe("bottom");
+		expect(at(500, 880)).toBeNull();
 	});
 
 	/** The largest target on screen, and the one a drag you thought better of needs. */
@@ -269,8 +273,8 @@ describe("the drop zones", () => {
 	 * cannot flip while the pointer jitters.
 	 */
 	it("gives a corner to the side, consistently", () => {
-		expect(at(50, 950)).toBe("left");
-		expect(at(950, 950)).toBe("right");
+		expect(at(30, 970)).toBe("left");
+		expect(at(970, 970)).toBe("right");
 		expect(at(10, 990)).toBe("left");
 	});
 

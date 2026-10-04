@@ -400,12 +400,17 @@ export function readLayout(stored: unknown): Layout {
 // Moving a panel
 // ---------------------------------------------------------------------------
 
+/** How near an edge the pointer must be for a drop to dock there, in pixels. */
+export const EDGE_REACH = 64;
+
 /**
  * Which dock a drop at this point lands in, or `null` for "leave it alone".
  *
- * Blunt on purpose: the left 22%, the right 22%, the lower 30% of what remains,
- * and the middle changes nothing. Edges win by axis, so a corner is never
- * ambiguous.
+ * Blunt on purpose: within `EDGE_REACH` of the left, the right or the bottom,
+ * and everywhere else changes nothing. Edges win by axis, so a corner is
+ * never ambiguous. A distance rather than a share of the window: a fifth of a
+ * wide monitor is a quarter of a metre, and the band reached halfway to the
+ * middle of the graph.
  *
  * Proximity-weighted rules — nearest edge, weighted by distance — describe
  * better and behave worse. The answer flips under small movements near a
@@ -421,14 +426,15 @@ export function dropZone(
 	rect: { x: number; y: number; width: number; height: number },
 	x: number,
 	y: number,
+	reach = EDGE_REACH,
 ): DockSide | null {
-	const across = (x - rect.x) / rect.width;
-	const down = (y - rect.y) / rect.height;
-	if (across < 0 || across > 1 || down < 0 || down > 1) return null;
+	const left = x - rect.x;
+	const top = y - rect.y;
+	if (left < 0 || left > rect.width || top < 0 || top > rect.height) return null;
 
-	if (across < 0.22) return "left";
-	if (across > 0.78) return "right";
-	if (down > 0.7) return "bottom";
+	if (left < reach) return "left";
+	if (left > rect.width - reach) return "right";
+	if (top > rect.height - reach) return "bottom";
 	return null;
 }
 

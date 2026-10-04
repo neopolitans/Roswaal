@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.122.1",
+		date: "2026-10-04",
+		headline: "A dragged card docks only near an edge.",
+		affects: ["editor"],
+		fixed: [
+			"**A dragged card offers to dock** only within a short reach of the window's edge, or over that dock's own column. It offered from a fifth of the way across.",
+			"**The outline of a dock** a card would land in is drawn where the dock would be, under the top row and above the status pill.",
+		],
+	},
+	{
 		version: "0.122.0",
 		date: "2026-10-04",
 		headline: "Cards share their dock, take tabs, and say which one you are in.",
