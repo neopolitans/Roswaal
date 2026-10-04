@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.128.0",
+		date: "2026-10-04",
+		headline: "Drag an instance from the DataModel into Custom Code.",
+		affects: ["editor", "docs"],
+		added: [
+			'**Drop an instance into Custom Code** and the Luau that reaches it is written where you let go. On a blank line it is a whole local, such as local Tank = game:GetService("ReplicatedStorage").Tank; anywhere else, the path alone.',
+			"**Properties and attributes drop too**, as the property read or a GetAttribute call.",
+		],
+		changed: [
+			"While a code editor is open, the DataModel and Properties stay above it, and the editor moves aside to clear them.",
+		],
+	},
+	{
 		version: "0.127.0",
 		date: "2026-10-04",
 		headline: "Node maps and Luau files open in tabs of their own.",

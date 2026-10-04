@@ -3743,6 +3743,14 @@ button.start-tile:disabled {
 	padding: 40px;
 }
 
+/* While the code editor is open, the cards showing the DataModel and
+   Properties stay above its backdrop, so an instance can be dragged from them
+   into the code. Must match LIFTED in CodeEditor.tsx; 71 is LAYER.menu + 1. */
+.app:has(.code-backdrop)
+	:is(.dock, .float-panel):has(.project-view:not([hidden]) .place-browser, .panel-properties) {
+	z-index: 71;
+}
+
 .code-modal {
 	background: var(--bg-panel);
 	border: 1px solid var(--border-strong);

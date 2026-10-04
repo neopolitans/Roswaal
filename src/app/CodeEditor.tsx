@@ -11,7 +11,7 @@
 import type { Completion } from "@codemirror/autocomplete";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { checkLuau, type LuauFragment } from "../core/luau/check.js";
 import type { ModuleInfo } from "../core/luau/hover.js";
@@ -21,6 +21,7 @@ import type { Registry } from "../core/nodes/index.js";
 import type { NodeScript } from "../core/schema.js";
 import { api } from "./api.js";
 import { cx } from "./cx.js";
+import { instanceDrop } from "./instanceDrop.js";
 import { LAYER } from "./layers.js";
 import {
 	graphTableMembers,
@@ -47,6 +48,11 @@ export interface CodeEditorProps {
 	onCommit: (value: string) => void;
 	onClose: () => void;
 }
+
+/** A card holding one of these is lifted above the backdrop, to drag from. */
+const LIFTED = ".project-view:not([hidden]) .place-browser, .panel-properties";
+/** How wide the window must be for the editor to move aside for those cards. */
+const MODAL_ROOM = 640;
 
 export function CodeEditor({
 	title,
@@ -146,31 +152,35 @@ export function CodeEditor({
 
 		const state = EditorState.create({
 			doc: value,
-			extensions: luauExtensions({
-				completion: luauCompletionSource(
-					() => scopeRef.current,
-					() => targetRef.current,
-					allMembers,
-					() => instancesRef.current,
-				),
-				// The same structural check that runs on every compile, shown here
-				// as you type so a stray `end` is caught in the box you typed it in.
-				lint: (code) => checkLuau(code, kind),
-				hover: {
-					target: () => targetRef.current,
-					members: allMembers,
-					modules: () => modulesRef.current,
-					instances: () => instancesRef.current,
-				},
-				signature: true,
-				// Instance paths the place and the project do not have, from where
-				// the graph's code runs.
-				warnings: (code) =>
-					instancesRef.current && targetRef.current !== "lune"
-						? instanceProblems(code, instancesRef.current.root, instancesRef.current.self)
-						: [],
-				onChange: setText,
-			}),
+			extensions: [
+				luauExtensions({
+					completion: luauCompletionSource(
+						() => scopeRef.current,
+						() => targetRef.current,
+						allMembers,
+						() => instancesRef.current,
+					),
+					// The same structural check that runs on every compile, shown here
+					// as you type so a stray `end` is caught in the box you typed it in.
+					lint: (code) => checkLuau(code, kind),
+					hover: {
+						target: () => targetRef.current,
+						members: allMembers,
+						modules: () => modulesRef.current,
+						instances: () => instancesRef.current,
+					},
+					signature: true,
+					// Instance paths the place and the project do not have, from where
+					// the graph's code runs.
+					warnings: (code) =>
+						instancesRef.current && targetRef.current !== "lune"
+							? instanceProblems(code, instancesRef.current.root, instancesRef.current.self)
+							: [],
+					onChange: setText,
+				}),
+				// An instance dragged in from the DataModel or Properties.
+				instanceDrop(() => kind),
+			],
 		});
 
 		const instance = new EditorView({ state, parent: host.current });
@@ -200,8 +210,30 @@ export function CodeEditor({
 		return () => window.removeEventListener("keydown", onKey, true);
 	}, [text, onCommit, onClose]);
 
+	// The cards showing the DataModel and Properties stay above the backdrop
+	// (see theme.css), so an instance can be dragged from them into the code.
+	// The editor moves over to clear them while it still has room.
+	const [clear, setClear] = useState<{ left?: number; right?: number }>({});
+	useLayoutEffect(() => {
+		let left = 0;
+		let right = 0;
+		for (const card of document.querySelectorAll(".dock, .float-panel")) {
+			if (!card.querySelector(LIFTED)) continue;
+			const box = card.getBoundingClientRect();
+			if (box.width === 0) continue;
+			if (box.left + box.width / 2 < window.innerWidth / 2) left = Math.max(left, box.right);
+			else right = Math.max(right, window.innerWidth - box.left);
+		}
+		if (window.innerWidth - left - right >= MODAL_ROOM)
+			setClear({ left: left ? left + 24 : undefined, right: right ? right + 24 : undefined });
+	}, []);
+
 	return (
-		<div className="code-backdrop" style={{ zIndex: LAYER.menu }} onPointerDown={onClose}>
+		<div
+			className="code-backdrop"
+			style={{ zIndex: LAYER.menu, paddingLeft: clear.left, paddingRight: clear.right }}
+			onPointerDown={onClose}
+		>
 			<div className="code-modal" onPointerDown={(e) => e.stopPropagation()}>
 				<div className="code-head">
 					<span className="title">{title}</span>
