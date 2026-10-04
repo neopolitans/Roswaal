@@ -34,6 +34,8 @@ export interface MapEditorProps {
 	dirty: boolean;
 	/** The project tree, used to tell whether a $path actually resolves. */
 	tree: TreeEntry[];
+	/** Where compiled Luau goes. A folder under it is made when the map compiles. */
+	outDir: string;
 	onChange: (next: NodeMap) => void;
 }
 
@@ -46,7 +48,7 @@ function collectPaths(entries: TreeEntry[], into = new Set<string>()): Set<strin
 	return into;
 }
 
-export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
+export function MapEditor({ map, dirty, tree, outDir, onChange }: MapEditorProps) {
 	const [selected, setSelected] = useState<string>(map.root.id);
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	const [history, setHistory] = useState<NodeMap[]>([]);
@@ -61,6 +63,13 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 	const pathResolves = (value: string | undefined): boolean | null => {
 		if (!value) return null;
 		return known.has(value.replace(/^\.\//, "").replace(/\/+$/, ""));
+	};
+	// A folder under the output directory that is not there yet is made when
+	// the map compiles, so it is not missing, only not made.
+	const madeOnCompile = (value: string | undefined): boolean => {
+		const at = (value ?? "").replace(/^\.\//, "").replace(/\/+$/, "");
+		const out = outDir.replace(/^\.\//, "").replace(/\/+$/, "");
+		return (at === out || at.startsWith(`${out}/`)) && !(at.split("/").pop() ?? "").includes(".");
 	};
 
 	function commit(next: NodeMap) {
@@ -215,7 +224,13 @@ export function MapEditor({ map, dirty, tree, onChange }: MapEditorProps) {
 									title="A directory or file on disk whose contents fill this instance"
 									onChange={(e) => updateNode(current.id, { path: e.target.value || undefined })}
 								/>
-								{pathResolves(current.path) === false && (
+								{pathResolves(current.path) === false && madeOnCompile(current.path) && (
+									<span className="path-pending" title="Compiling the map makes this folder.">
+										<Icon name="newFolder" size={14} />
+										made on compile
+									</span>
+								)}
+								{pathResolves(current.path) === false && !madeOnCompile(current.path) && (
 									<span
 										className="path-missing"
 										title="Nothing is at this path. Rojo will build an empty instance."

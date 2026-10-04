@@ -16,6 +16,7 @@ import { indexVersion, parseWallyToml, REALM_DIRS, thunkTarget } from "../core/w
 import type { OpenProject } from "./config.js";
 import { collectMaps, readMap } from "./documents.js";
 import { fs, path } from "./host.js";
+import { mappedOutputFolders } from "./mapFolders.js";
 import { generatedIndex } from "./outputs.js";
 import { safeJoin, tidyPath, toPosix } from "./paths.js";
 
@@ -57,25 +58,31 @@ export interface TreeEntry {
  *
  * - `service`: a service or container a node map points at -- ReplicatedStorage,
  *   StarterPlayerScripts -- rather than a Folder.
+ * - `synced`: a Folder a node map points at.
  * - `script`: a folder holding an `init` file, which is the script itself in
  *   Studio, with the rest of the folder as its children.
  * - `place`: `place/` and everything in it: scripts only the place holds,
  *   written back by Modify RBXL rather than synced by Rojo.
  * - `packages`: a folder `wally install` fills, `Packages/` and its kin.
  */
-export type FolderRole = "service" | "script" | "place" | "packages";
+export type FolderRole = "service" | "synced" | "script" | "place" | "packages";
 
 export async function buildTree(project: OpenProject): Promise<TreeEntry[]> {
 	const generated = await generatedIndex(project);
 	// Empty folders are noise everywhere except under sourceDir, where one is a
-	// folder the developer just created and is about to put a graph in.
-	const keepEmptyUnder = [project.config.sourceDir, ...project.config.nodePaths];
+	// folder the developer just created and is about to put a graph in, and
+	// where a map syncs one, which writing the map made.
+	const keepEmptyUnder = [
+		project.config.sourceDir,
+		...project.config.nodePaths,
+		...(await mappedOutputFolders(project)),
+	];
 	const tree = await walk(
 		project.root,
 		project.root,
 		generated,
 		keepEmptyUnder,
-		await serviceFolders(project),
+		await mappedFolders(project),
 	);
 	const wally = await wallyEntry(project);
 	if (!wally) return tree;
@@ -162,25 +169,34 @@ export async function resolveWallyPackage(
 	return null;
 }
 
-/** Folders a node map points a service or container at, project-relative. */
-async function serviceFolders(project: OpenProject): Promise<Set<string>> {
-	const out = new Set<string>();
+/** Folders a node map points at, project-relative, by what they are in Studio. */
+async function mappedFolders(project: OpenProject): Promise<Map<string, "service" | "synced">> {
+	const out = new Map<string, "service" | "synced">();
 	const visit = (node: MapNode, parent: MapNode | null) => {
-		if (node.path && node.className !== "Folder") {
+		if (node.path) {
 			const at = tidyPath(node.path);
-			out.add(at);
-			// A container mapped inside a service with no path of its own --
-			// StarterPlayerScripts in StarterPlayer -- makes the folder above it
-			// the service's, when it is named for it.
+			if (!out.has(at)) out.set(at, node.className === "Folder" ? "synced" : "service");
+			// Anything mapped inside a service with no path of its own --
+			// StarterPlayerScripts in StarterPlayer, a Folder in
+			// ReplicatedStorage -- makes the folder above it the service's,
+			// when it is named for it.
 			const above = at.includes("/") ? at.slice(0, at.lastIndexOf("/")) : "";
 			if (parent && !parent.path && !parent.className && above.split("/").pop() === parent.name)
-				out.add(above);
+				out.set(above, "service");
 		}
 		node.children.forEach((child) => visit(child, node));
 	};
 	for (const mapPath of await collectMaps(project)) {
 		const map = await readMap(project, mapPath).catch(() => null);
 		if (map && !isFilesystemMap(map)) map.root.children.forEach((child) => visit(child, null));
+	}
+	// The graphs directory mirrors the output directory, so the folder a
+	// service's graphs sit in is that service's too.
+	const outDir = tidyPath(project.config.outDir);
+	const sourceDir = tidyPath(project.config.sourceDir);
+	for (const [at, role] of [...out]) {
+		if (at.startsWith(`${outDir}/`))
+			out.set(path.posix.join(sourceDir, at.slice(outDir.length + 1)), role);
 	}
 	return out;
 }
@@ -190,11 +206,12 @@ const INIT_FILE = /^init(\.server|\.client)?\.luau?$/;
 function folderRole(
 	rel: string,
 	children: readonly TreeEntry[],
-	services: ReadonlySet<string>,
+	mapped: ReadonlyMap<string, "service" | "synced">,
 ): FolderRole | undefined {
 	if (rel === PLACE_DIR || rel.startsWith(PLACE_DIR + "/")) return "place";
 	if (WALLY_DIRS.has(rel)) return "packages";
-	if (services.has(rel)) return "service";
+	const role = mapped.get(rel);
+	if (role) return role;
 	if (children.some((c) => c.kind !== "directory" && INIT_FILE.test(c.name))) return "script";
 	return undefined;
 }
@@ -204,7 +221,7 @@ async function walk(
 	dir: string,
 	generated: Map<string, string>,
 	keepEmptyUnder: string[],
-	services: ReadonlySet<string> = new Set(),
+	mapped: ReadonlyMap<string, "service" | "synced"> = new Map(),
 ): Promise<TreeEntry[]> {
 	const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
 	const out: TreeEntry[] = [];
@@ -215,14 +232,14 @@ async function walk(
 
 		if (entry.isDirectory()) {
 			if (TREE_SKIP.has(entry.name)) continue;
-			const children = await walk(root, abs, generated, keepEmptyUnder, services);
+			const children = await walk(root, abs, generated, keepEmptyUnder, mapped);
 			const keep =
 				children.length > 0 ||
 				keepEmptyUnder.some(
 					(base) => rel === base || rel.startsWith(base + "/") || base.startsWith(rel + "/"),
 				);
 			if (!keep) continue;
-			const role = folderRole(rel, children, services);
+			const role = folderRole(rel, children, mapped);
 			out.push({
 				path: rel,
 				name: entry.name,

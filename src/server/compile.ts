@@ -20,6 +20,7 @@ import { errorMessage } from "./errors.js";
 import { formatLuau, fs, path } from "./host.js";
 import { readLuaurcFiles, specifierContext } from "./luaurc.js";
 import { isGenerated, recordGenerated } from "./manifest.js";
+import { makeSyncedFolders } from "./mapFolders.js";
 import { generatedIndex, outputPathFor, removeEmptyFolders } from "./outputs.js";
 import { safeJoin } from "./paths.js";
 
@@ -350,6 +351,8 @@ export interface MapOutcome {
 	skipped?: string;
 	diagnostics: MapDiagnostic[];
 	json: string;
+	/** Folders the map syncs that compiling it made, project-relative. */
+	made?: string[];
 }
 
 /**
@@ -367,6 +370,9 @@ export async function compileMap(
 ): Promise<MapOutcome> {
 	const map = await readMap(project, relPath);
 	const result = compileNodeMap(map);
+	// Before the path check, so a folder the map syncs and nothing has made
+	// yet is made rather than reported missing.
+	const made = opts.write ? await makeSyncedFolders(project, map) : [];
 	result.diagnostics.push(...(await checkMapPaths(project, map)));
 	// Worked out after the path check, not before. `result.ok` is the map's own
 	// verdict, and a `$path` that is not on disk is an error the map cannot see —
@@ -379,6 +385,7 @@ export async function compileMap(
 		written: false,
 		diagnostics: result.diagnostics,
 		json: result.json,
+		...(made.length > 0 ? { made } : {}),
 	};
 
 	if (!opts.write) return outcome;

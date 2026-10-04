@@ -358,11 +358,9 @@ export const ProjectTree = memo(function ProjectTree({
 									rotate={collapsed.has(entry.path) ? -90 : 0}
 								/>
 								<Icon
-									name={collapsed.has(entry.path) ? "folder" : "folderOpen"}
+									name={folderIcon(collapsed.has(entry.path), entry.role !== undefined)}
 									size={15}
-									className={
-										groups.isGraph(entry) ? "kind" : `kind ${FOLDER_CLASS[entry.role ?? "plain"]}`
-									}
+									className={folderClass(entry, groups.isGraph(entry))}
 								/>
 							</>
 						) : (
@@ -597,20 +595,42 @@ const SECTIONS: readonly Section[] = [
 ];
 
 /**
- * Compile content's folders, by what they are. Cream for a plain folder; blue
+ * Folders by what they are. Cream for a plain folder or a synced Folder; blue
  * for one that is a service, a container or a script in Studio; red for
  * `place/`, whose scripts only the place holds and only Modify RBXL writes.
  */
 const FOLDER_CLASS: Record<NonNullable<TreeEntry["role"]> | "plain", string> = {
 	plain: "tree-folder-plain",
+	synced: "tree-folder-plain",
 	service: "tree-folder-special",
 	script: "tree-folder-special",
 	place: "tree-folder-place",
 	packages: "tree-folder-packages",
 };
 
+/**
+ * A folder a node map syncs, or one that is a script, the place's or Wally's,
+ * is drawn filled, and a plain one outlined, so what reaches Studio stands out
+ * from what only organises. The colour says what it is there.
+ */
+function folderIcon(collapsed: boolean, filled: boolean): IconName {
+	if (filled) return collapsed ? "folderFilled" : "folderOpenFilled";
+	return collapsed ? "folder" : "folderOpen";
+}
+
+/**
+ * A folder's colour. Graph content keeps its plain folders quiet, since there
+ * every folder is the graphs' own; one mirroring a service is coloured as the
+ * service is.
+ */
+function folderClass(entry: TreeEntry, isGraph: boolean): string {
+	if (isGraph && entry.role === undefined) return "kind";
+	return `kind ${FOLDER_CLASS[entry.role ?? "plain"]}`;
+}
+
 const FOLDER_TITLE: Record<NonNullable<TreeEntry["role"]>, string> = {
 	service: "a service or container in Studio",
+	synced: "a Folder in Studio, synced by a node map",
 	script: "a script in Studio, with the rest of the folder as its children",
 	place: "only in the place; Modify RBXL writes it back",
 	packages: "Wally's packages, installed by wally install; Roswaal never writes here",

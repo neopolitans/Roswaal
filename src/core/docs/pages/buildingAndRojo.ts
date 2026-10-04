@@ -213,7 +213,7 @@ export function buildingAndRojoPage(): DocPage {
 					],
 					[
 						"Path",
-						"The folder or file on disk that fills the instance. Marked when Roswaal cannot find it",
+						"The folder or file on disk that fills the instance. A folder under `src` is made when the map is written, with its mirror under `.roswaal/scripts` for the graphs; anything else is marked when Roswaal cannot find it",
 					],
 					["Ignore unknown", "Rojo leaves alone anything in Studio that it did not put there"],
 					[
@@ -235,7 +235,8 @@ export function buildingAndRojoPage(): DocPage {
 				kind: "info",
 				text:
 					"A map is written only by **Write project file**, **Compile project** or `roswaal " +
-					"compile` — never by Dynamic. A project file Roswaal did not write needs `--force`.",
+					"compile` — never by Dynamic. Writing it makes the folders it syncs. A project " +
+					"file Roswaal did not write needs `--force`.",
 			},
 
 			{ t: "h", level: 2, text: "Requiring a module" },

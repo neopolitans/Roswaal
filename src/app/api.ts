@@ -42,7 +42,7 @@ export interface TreeEntry {
 	functions?: FunctionInfo[];
 	children?: TreeEntry[];
 	/** A folder that is a service or container, a script, place-only, or Wally's. */
-	role?: "service" | "script" | "place" | "packages";
+	role?: "service" | "synced" | "script" | "place" | "packages";
 	/** A package's installed version. */
 	version?: string;
 	/** The file a package opens: its module in `_Index`. */
@@ -98,6 +98,8 @@ export interface MapOutcome {
 	skipped?: string;
 	diagnostics: MapDiagnostic[];
 	json: string;
+	/** Folders the map syncs that compiling it made. */
+	made?: string[];
 }
 
 export interface CompileOutcome {

@@ -2155,7 +2155,7 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 					label: "Packages",
 					depth: 0,
 					twist: "shut",
-					icon: "folder",
+					icon: "folderFilled",
 					tone: "tree-folder-packages",
 					name: "Packages/",
 					what: "What Wally installs, in purple. It starts closed.",
@@ -2228,7 +2228,7 @@ export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 					label: "Packages",
 					depth: 0,
 					twist: "shut",
-					icon: "folder",
+					icon: "folderFilled",
 					tone: "tree-folder-packages",
 				},
 				{

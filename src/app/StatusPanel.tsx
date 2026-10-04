@@ -74,12 +74,23 @@ export function StatusPanel(props: StatusPanelProps) {
 						</div>
 					))}
 					{props.mapOutcomes.map((outcome) => (
-						<div className={`entry ${outcome.written ? "" : "warning"}`} key={outcome.mapPath}>
-							<span className="sev" style={outcome.written ? { color: "var(--ok)" } : undefined}>
-								{outcome.unchanged ? "same" : outcome.written ? "wrote" : "skipped"}
-							</span>
-							<span>{outcome.skipped ?? outcome.outputPath}</span>
-						</div>
+						<Fragment key={outcome.mapPath}>
+							<div className={`entry ${outcome.written ? "" : "warning"}`}>
+								<span className="sev" style={outcome.written ? { color: "var(--ok)" } : undefined}>
+									{outcome.unchanged ? "same" : outcome.written ? "wrote" : "skipped"}
+								</span>
+								<span>{outcome.skipped ?? outcome.outputPath}</span>
+							</div>
+							{/* Folders the map syncs, made so graphs have somewhere to go. */}
+							{(outcome.made ?? []).map((folder) => (
+								<div className="entry" key={folder}>
+									<span className="sev" style={{ color: "var(--ok)" }}>
+										made
+									</span>
+									<span>{folder}/</span>
+								</div>
+							))}
+						</Fragment>
 					))}
 					{outcomes.map((outcome) => {
 						// A graph with errors was held back by them, and overwriting

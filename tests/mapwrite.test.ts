@@ -21,13 +21,18 @@ import { compileMap, openProject } from "../src/server/project.js";
 
 const MAP = ".roswaal/scripts/Game.nodemap";
 
-async function project(): Promise<string> {
+/**
+ * Points ServerScriptService.Source at `source`, which is not there yet. A
+ * folder under `src` is made by compiling, so the one refused is elsewhere.
+ */
+async function project(source = "src"): Promise<string> {
 	const root = await mkdtemp(path.join(os.tmpdir(), "roswaal-map-"));
 	await writeFile(path.join(root, "roswaal.json"), JSON.stringify({ schemaVersion: 1 }));
 	await mkdir(path.join(root, ".roswaal/scripts"), { recursive: true });
 	let n = 0;
-	// Points ServerScriptService.Source at `src`, which is not there yet.
-	await writeFile(path.join(root, MAP), serialiseMap(emptyMap("Game", "map", () => `m${n++}`)));
+	const map = emptyMap("Game", "map", () => `m${n++}`);
+	map.root.children[0].children[0].path = source;
+	await writeFile(path.join(root, MAP), serialiseMap(map));
 	return root;
 }
 
@@ -38,7 +43,7 @@ describe("writing a node map", () => {
 	});
 
 	it("refuses a map whose path is not on disk", async () => {
-		root = await project();
+		root = await project("vendor");
 		const outcome = await compileMap(await openProject(root), MAP, { write: true });
 
 		expect(outcome.written).toBe(false);

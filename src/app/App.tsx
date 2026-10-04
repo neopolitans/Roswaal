@@ -1231,6 +1231,7 @@ export function App() {
 									map={mapDoc.map}
 									dirty={mapDoc.dirty}
 									tree={project.tree}
+									outDir={project.config.outDir}
 									onChange={(next) => setMapDoc({ ...mapDoc, map: next, dirty: true })}
 								/>
 							) : source ? (

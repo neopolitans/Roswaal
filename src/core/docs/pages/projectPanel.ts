@@ -42,10 +42,14 @@ export function projectPanelPage(): DocPage {
 				t: "table",
 				head: ["Under Compile content", "Means"],
 				rows: [
-					["A cream folder", "A plain folder"],
-					["A blue folder", "A service, a container or a script in Studio"],
-					["A red folder", "`place/`: scripts only the place can hold"],
-					["A purple folder", "`Packages/`: Wally's packages"],
+					["A cream outlined folder", "A plain folder"],
+					["A cream filled folder", "A Folder a node map syncs"],
+					[
+						"A blue filled folder",
+						"A service, a container or a script in Studio. Under Graph content too, for the folder mirroring one",
+					],
+					["A red filled folder", "`place/`: scripts only the place can hold"],
+					["A purple filled folder", "`Packages/`: Wally's packages"],
 					["A white or slate script", "A Script: white on a dark theme, slate on a light one"],
 					["A green script", "A LocalScript"],
 					["A blue script", "A ModuleScript"],

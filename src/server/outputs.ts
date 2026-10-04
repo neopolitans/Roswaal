@@ -11,6 +11,7 @@ import type { OpenProject } from "./config.js";
 import { collectScripts, readScript } from "./documents.js";
 import { walkFiles } from "./files.js";
 import { fs, path } from "./host.js";
+import { mappedOutputFolders } from "./mapFolders.js";
 import { safeJoin, toPosix } from "./paths.js";
 
 /** Maps generated Luau back to the graph that produced it, via the header. */
@@ -102,8 +103,11 @@ export async function removeOutputs(project: OpenProject, paths: string[]): Prom
  */
 export async function removeEmptyFolders(project: OpenProject, relPath: string): Promise<void> {
 	const outDir = path.posix.normalize(toPosix(project.config.outDir));
+	// A folder a map syncs stays, empty or not: the map points at it, and
+	// taking it away turns the map's next compile into an error.
+	const mapped = await mappedOutputFolders(project);
 	let dir = path.posix.dirname(path.posix.normalize(toPosix(relPath)));
-	while (dir !== outDir && dir.startsWith(`${outDir}/`)) {
+	while (dir !== outDir && dir.startsWith(`${outDir}/`) && !mapped.has(dir)) {
 		const abs = safeJoin(project.root, dir);
 		let entries: string[];
 		try {
