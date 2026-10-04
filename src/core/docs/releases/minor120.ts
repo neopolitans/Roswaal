@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.132.3",
+		date: "2026-10-04",
+		headline: "Node Design's bottom row lines up, and slimmer pin steppers.",
+		affects: ["designer"],
+		changed: ["The Inputs and Outputs steppers under the node's plate are slimmer."],
+		fixed: [
+			"Node Design's undo and redo row sits above the bottom toolbars wherever it shows, a tablet with a trackpad included, rather than on the pin types.",
+			"The pin types start beside the logic's tools rather than cut off at Execution.",
+			"Written in Luau, the pin types line up with Logic's switch on the bottom row, and the Luau sheet comes down to just above them.",
+		],
+	},
+	{
 		version: "0.132.2",
 		date: "2026-10-04",
 		headline: "Node Design's action row above the pin types on a tablet.",

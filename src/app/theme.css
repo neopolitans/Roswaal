@@ -13373,16 +13373,17 @@ select:not(.literal):not([multiple]) {
 .pin-stepper-track {
 	display: inline-flex;
 	align-items: center;
-	padding: 2px;
+	padding: 1px;
 	background: var(--bg-input);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
 }
 
-.pin-stepper-track .tb.icon-only {
+/* `button` so it outranks the tool group's own button size. */
+.pin-stepper-track button.tb.icon-only {
 	width: calc(var(--hit) - 6px);
 	min-width: 0;
-	height: calc(var(--hit) - 6px);
+	height: calc(var(--hit) - 8px);
 	min-height: 0;
 	padding: 0;
 	border: 0;
@@ -13412,7 +13413,7 @@ select:not(.literal):not([multiple]) {
 	bottom: var(--edge);
 	z-index: 7;
 	justify-content: flex-end;
-	max-width: calc(100% - var(--list-w, 0px) - var(--edge) * 2 - 420px);
+	max-width: calc(100% - var(--list-w, 0px) - var(--edge) * 2 - 200px);
 }
 
 .node-editor.split > .pin-palette {
@@ -13809,25 +13810,32 @@ select:not(.literal):not([multiple]) {
 	display: none;
 }
 
-/* On a touch screen the palette is the bottom row, beside the logic's tools
-   at the bottom left, above the home indicator. The action row the node
-   logic has rises over that row rather than sitting under it. */
-@media (hover: none) and (pointer: coarse) {
-	.node-editor:not(.split) > .pin-palette {
-		bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px));
-	}
+/* The palette is the bottom row, beside the logic's tools at the bottom
+   left, above the home indicator. The action row the node logic has rises
+   over that row rather than sitting on it -- wherever the row shows, not on
+   a touch screen alone: a tablet with a trackpad, or a short window, has it
+   too. */
+.node-editor:not(.split) > .pin-palette {
+	bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px));
+}
 
-	.node-editor:not(.split) .logic-canvas .drawer-toggles {
-		bottom: calc(var(--edge) * 2 + var(--hit) + 8px + env(safe-area-inset-bottom, 0px));
-	}
+.node-editor:not(.split) .logic-canvas .drawer-toggles {
+	bottom: calc(var(--edge) * 2 + var(--hit) + 8px + env(safe-area-inset-bottom, 0px));
+}
 
-	.node-editor:not(.split) > .node-problems {
-		bottom: calc(var(--edge) * 2 + var(--hit) + 8px + env(safe-area-inset-bottom, 0px));
-	}
+/* The bottom row's other clusters keep the same inset, so the row lines up:
+   Logic's switch in Luau, and the logic's tools with nodes. */
+.node-editor:not(.split) .logic-head,
+.node-editor:not(.split) .logic-canvas .floating-tools {
+	bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px));
+}
 
-	.node-editor:not(.split):has(.touch-bar) > .node-problems {
-		bottom: calc(var(--edge) * 3 + var(--hit) * 2 + 16px + env(safe-area-inset-bottom, 0px));
-	}
+.node-editor:not(.split) > .node-problems {
+	bottom: calc(var(--edge) * 2 + var(--hit) + 8px + env(safe-area-inset-bottom, 0px));
+}
+
+.node-editor:not(.split):has(.touch-bar) > .node-problems {
+	bottom: calc(var(--edge) * 3 + var(--hit) * 2 + 16px + env(safe-area-inset-bottom, 0px));
 }
 
 /* On a tablet the node list's bar floats at the top left, so the Luau sheet
@@ -13835,6 +13843,22 @@ select:not(.literal):not([multiple]) {
 .pack-view.compact .node-editor:not(.split) .luau-field,
 .pack-view.compact .node-editor:not(.split) .logic-empty {
 	top: calc(var(--chrome-top) + var(--hit) + 8px + var(--edge));
+}
+
+/* Written in Luau, the bottom row has no logic's tools: the palette keeps
+   room only for Logic's switch where that sits there, upright, and otherwise
+   starts at the left. The sheet comes down to just above the row. */
+.node-editor:not(.split):where(:not(:has(.logic-canvas .floating-tools))) > .pin-palette {
+	max-width: calc(100% - var(--list-w, 0px) - var(--edge) * 2);
+}
+
+.node-editor:not(.split):where(:not(:has(.logic-canvas .floating-tools))):where(:has(.logic-head:not(.logic-head-folded))) > .pin-palette {
+	max-width: calc(100% - var(--list-w, 0px) - var(--edge) * 3 - 180px);
+}
+
+.node-editor:not(.split):where(:not(:has(.logic-head:not(.logic-head-folded)))) .luau-field,
+.node-editor:not(.split):where(:not(:has(.logic-head:not(.logic-head-folded)))) .logic-empty {
+	bottom: calc(var(--edge) * 2 + var(--hit) + 8px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Upright -- a tablet held portrait, or a window taller than it is wide --
@@ -13863,15 +13887,20 @@ select:not(.literal):not([multiple]) {
 	.pack-view.compact .node-editor:not(.split) .logic-empty {
 		top: calc(var(--stack-top) + var(--column-h, 0px) + var(--edge));
 		right: var(--edge);
+		bottom: calc(var(--edge) * 3 + var(--hit) + 48px + env(safe-area-inset-bottom, 0px));
 	}
 }
 
 /* The palette is one row that scrolls sideways, at any width: wrapped, it
-   climbed into the logic it docks over. */
+   climbed into the logic it docks over. As tall as the clusters beside it on
+   the bottom row, its chips centred, so the row reads as one line. */
 .node-editor > .pin-palette {
 	flex-wrap: nowrap;
 	overflow-x: auto;
 	scrollbar-width: none;
+	min-height: calc(var(--hit) + 8px);
+	box-sizing: border-box;
+	align-items: center;
 }
 
 .node-editor > .pin-palette > * {
