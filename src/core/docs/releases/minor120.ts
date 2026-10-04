@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.129.0",
+		date: "2026-10-04",
+		headline: "Building a node map, step by step.",
+		affects: ["docs"],
+		added: [
+			"**Nodemap basics is a walkthrough**, as Getting started is: a map built from New node map to Write project file, with the panel drawn as it stands at each step and the control to press ringed.",
+		],
+		changed: [
+			"The interactive map panel and its legend are under Building a node map.",
+			"The Toolbars page draws a node map's tab in With a node map open.",
+		],
+	},
+	{
 		version: "0.128.0",
 		date: "2026-10-04",
 		headline: "Drag an instance from the DataModel into Custom Code.",

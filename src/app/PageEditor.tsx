@@ -162,7 +162,9 @@ function blockSource(draft: Draft, indent = "\t\t"): string {
 					`${inner}{ text: ${str(step.text)}, ` +
 					(step.window
 						? `window: ${layoutConstant(step.window)}`
-						: `picture: [${(step.picture ?? []).map(toolbarConstant).join(", ")}]`) +
+						: step.map
+							? `map: ${JSON.stringify(step.map)}`
+							: `picture: [${(step.picture ?? []).map(toolbarConstant).join(", ")}]`) +
 					`${step.point ? `, point: ${str(step.point)}` : ""} },`,
 			)
 			.join(NEWLINE);

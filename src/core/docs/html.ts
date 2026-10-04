@@ -21,7 +21,7 @@ import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
 import { graphViews } from "./graphViews.js";
 import { layoutHtml, listedRegions } from "./layouts.js";
 import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
-import { mapFigure, mapFigureHtml } from "./mapFigure.js";
+import { mapFigure, mapFigureHtml, walkMapHtml } from "./mapFigure.js";
 import { nodeCodeHtml } from "./nodeCode.js";
 import { noteHeadHtml } from "./notes.js";
 import { graphSvg, type PreviewOptions, previewSvg } from "./preview.js";
@@ -443,20 +443,22 @@ function renderBlock(
 			const frames = block.steps
 				.map(
 					(step, i) =>
-						`<div class="docs-walk-frame${step.window ? " walk-window" : ""}"` +
+						`<div class="docs-walk-frame${step.window ? " walk-window" : step.map ? " walk-map" : ""}"` +
 						`${step.point ? ` data-point="${escapeHtml(controlKey(step.point))}"` : ""}` +
 						`${i > 0 ? " hidden" : ""}>` +
-						(art
-							? step.window
-								? layoutHtml(
-										step.window,
-										{ ...art, version: options.version },
-										{ preview: options.preview, numbered: false },
-									)
-								: (step.picture ?? [])
-										.map((bar) => toolbarHtml(bar, { ...art, version: options.version }))
-										.join("")
-							: "") +
+						(step.map
+							? walkMapHtml(step.map)
+							: art
+								? step.window
+									? layoutHtml(
+											step.window,
+											{ ...art, version: options.version },
+											{ preview: options.preview, numbered: false },
+										)
+									: (step.picture ?? [])
+											.map((bar) => toolbarHtml(bar, { ...art, version: options.version }))
+											.join("")
+								: "") +
 						`</div>`,
 				)
 				.join("");

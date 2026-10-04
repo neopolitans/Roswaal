@@ -1297,6 +1297,13 @@ export const MAP_BAR: ToolbarSpec = {
 	chrome: "float",
 	groups: [
 		{
+			wrap: "graph-tabs",
+			items: [
+				{ t: "tab", text: "Occupancy" },
+				{ t: "tab", text: "Tank", kind: "nodemap", on: true },
+			],
+		},
+		{
 			wrap: "doc-group",
 			items: [
 				{

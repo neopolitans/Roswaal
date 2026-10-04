@@ -379,6 +379,12 @@ export interface WalkStep {
 	picture?: ToolbarSpec[];
 	/** Or the whole window at this step, drawn as `layouts.ts` draws one, unnumbered. */
 	window?: LayoutSpec;
+	/**
+	 * Or the node map panel, as the map stands at this step, with `select`'s
+	 * row in the Inspector. `point` then names a part of the panel by its
+	 * `mapParts` key -- `tree`, `actions`, `name`, `path`, `preview`.
+	 */
+	map?: { map: NodeMap; select?: string };
 	/** The control to press, by its name in one of the bars. */
 	point?: string;
 }

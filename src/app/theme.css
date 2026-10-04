@@ -10327,8 +10327,15 @@ a.docs-release-version:hover {
    they are the same thing seen twice. `lit` is the row under the pointer;
    `selected` is the row the Inspector is showing, and is the editor's own
    class doing its own job. */
+/* A walkthrough's map sits in the page's narrow column, so its Inspector
+   gives the tree half the room rather than taking 380px of it. */
+.docs-walk-map .map-editor {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
 .docs-map .map-preview-line.lit,
-.docs-map .map-row.lit {
+.docs-map .map-row.lit,
+.docs-walk-map .map-preview-line.lit {
 	background: color-mix(in srgb, var(--accent) 14%, transparent);
 	box-shadow: inset 2px 0 0 var(--accent);
 }

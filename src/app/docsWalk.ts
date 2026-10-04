@@ -80,7 +80,17 @@ export function attachWalkthrough(figure: HTMLElement): () => void {
 		});
 		here?.classList.remove("walk-here");
 		const point = frames[at]!.dataset.point;
-		here = point ? frames[at]!.querySelector<HTMLElement>(`[data-control="${point}"]`) : null;
+		// A control by its name; in a drawn node map, a part of the panel, where
+		// the last of a part's pieces is the one to ring (the project file, not
+		// its heading).
+		const parts = point
+			? Array.from(frames[at]!.querySelectorAll<HTMLElement>(`[data-part="${point}"]`))
+			: [];
+		here = point
+			? (frames[at]!.querySelector<HTMLElement>(`[data-control="${point}"]`) ??
+				parts.at(-1) ??
+				null)
+			: null;
 		here?.classList.add("walk-here");
 		if (count) count.textContent = `Step ${at + 1} of ${steps.length}`;
 		if (back) back.disabled = at === 0;

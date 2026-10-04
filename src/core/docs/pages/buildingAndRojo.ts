@@ -2,8 +2,40 @@
  * The `building-and-rojo` page of the documentation. `buildSite` places it.
  */
 
-import type { NodeMap } from "../../nodemap.js";
+import type { MapNode, NodeMap } from "../../nodemap.js";
 import type { DocPage } from "../site.js";
+import { EDITOR_BAR, MAP_BAR } from "../toolbars.js";
+
+/**
+ * A map partway through being built, for the walkthrough: a new map's
+ * ServerScriptService, then whatever ReplicatedStorage holds by that step.
+ */
+function buildingMap(replicated: MapNode[] | null): NodeMap {
+	const children: MapNode[] = [
+		{
+			id: "sss",
+			name: "ServerScriptService",
+			children: [{ id: "source", name: "Source", className: "Folder", path: "src", children: [] }],
+		},
+	];
+	if (replicated) children.push({ id: "rs", name: "ReplicatedStorage", children: replicated });
+	return {
+		schemaVersion: 1,
+		kind: "map",
+		id: "docs-map-building",
+		name: "Game",
+		output: "default.project.json",
+		root: { id: "dm", name: "DataModel", className: "DataModel", children },
+	};
+}
+
+const folder = (name: string, path?: string): MapNode => ({
+	id: "shared",
+	name,
+	className: "Folder",
+	...(path ? { path } : {}),
+	children: [],
+});
 
 /**
  * The map drawn on the Roblox page.
@@ -81,20 +113,64 @@ export function buildingAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Here is the whole of it. A `.nodemap` is edited in Roswaal rather than as JSON by " +
-					"hand, and this is that editor — the tree on the left, the Inspector on the right, " +
-					"and the project file it writes underneath. Every part is named beside it; the rest " +
-					"of this page explains them in order.",
+					"A `.nodemap` says where your files land in the DataModel, and is edited in Roswaal " +
+					"rather than as JSON by hand. Here is one built from the start:",
 			},
 			{
-				t: "nodemap",
-				map: ROBLOX_MAP,
-				caption:
-					"The real panel. **Select a row** and the Inspector fills with that instance's " +
-					"fields, while the project file scrolls to the lines the row writes. A row lights " +
-					"its own lines and not its children's — they are rows too. The fields are filled " +
-					"rather than editable: this is the editor demonstrating itself, not a scratch " +
-					"project.",
+				t: "walkthrough",
+				steps: [
+					{
+						text:
+							"Press **New node map** on the top row, or right-click a folder in the Project " +
+							"panel, and name the map.",
+						picture: [EDITOR_BAR],
+						point: "New node map",
+					},
+					{
+						text:
+							"It opens in a tab of its own: the tree on the left, the Inspector on the right. " +
+							"A new map starts with ServerScriptService, filled from `src`.",
+						map: { map: buildingMap(null), select: "dm" },
+						point: "tree",
+					},
+					{
+						text:
+							"With **DataModel** selected, **Add service…** adds a service under it. Pick " +
+							"ReplicatedStorage.",
+						map: { map: buildingMap(null), select: "dm" },
+						point: "actions",
+					},
+					{
+						text: "Select ReplicatedStorage and press **Add folder**.",
+						map: { map: buildingMap([]), select: "rs" },
+						point: "actions",
+					},
+					{
+						text: "Name the folder in **Name**.",
+						map: { map: buildingMap([folder("Folder")]), select: "shared" },
+						point: "name",
+					},
+					{
+						text:
+							"Set **Path** to the folder on disk that fills it. A folder under `src` that is " +
+							"not there yet is made when the map is written.",
+						map: { map: buildingMap([folder("Shared")]), select: "shared" },
+						point: "path",
+					},
+					{
+						text:
+							"The project file shows what the map writes, with the selected row's lines " + "lit.",
+						map: { map: buildingMap([folder("Shared", "src/Shared")]), select: "shared" },
+						point: "preview",
+					},
+					{
+						text:
+							"Press **Write project file**, or `Ctrl` + `S`. In Dynamic mode, saving the map " +
+							"writes it.",
+						picture: [MAP_BAR],
+						point: "Write project file",
+					},
+				],
 			},
 			{ t: "h", level: 2, text: "What a graph compiles to" },
 			{
@@ -187,6 +263,16 @@ export function buildingAndRojoPage(): DocPage {
 					"Roswaal rather than the JSON by hand.",
 			},
 			{
+				t: "nodemap",
+				map: ROBLOX_MAP,
+				caption:
+					"The real panel. **Select a row** and the Inspector fills with that instance's " +
+					"fields, while the project file scrolls to the lines the row writes. A row lights " +
+					"its own lines and not its children's — they are rows too. The fields are filled " +
+					"rather than editable: this is the editor demonstrating itself, not a scratch " +
+					"project.",
+			},
+			{
 				t: "p",
 				text:
 					"Two things in that file are worth naming, because both are Roswaal leaving " +
@@ -198,9 +284,8 @@ export function buildingAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Make a map with **New node map** on the top row, or by right-clicking a folder in the " +
-					"project tree. It starts with `src` in ServerScriptService. Select an instance to " +
-					"edit it:",
+					"Select an instance to edit it. Drag the line between the tree and the Inspector to " +
+					"resize them.",
 			},
 			{
 				t: "table",

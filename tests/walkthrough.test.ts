@@ -13,6 +13,7 @@ import { ICONS } from "../src/app/icons.js";
 import { pageSource } from "../src/app/PageEditor.jsx";
 import { renderPage } from "../src/core/docs/html.js";
 import * as layouts from "../src/core/docs/layouts.js";
+import { mapFigure, mapParts } from "../src/core/docs/mapFigure.js";
 import {
 	layoutConstant,
 	layoutControls,
@@ -46,11 +47,25 @@ describe("walkthroughs", () => {
 		expect(walkthroughs().filter((w) => w.page === "getting-started")).toHaveLength(3);
 	});
 
-	it("draw one picture a step: bars, or a window", () => {
+	it("draw one picture a step: bars, a window or a node map", () => {
 		for (const { page, steps } of walkthroughs()) {
 			steps.forEach((step, i) => {
-				const bars = step.picture?.length ?? 0;
-				expect(bars > 0 !== (step.window !== undefined), `${page} step ${i + 1}`).toBe(true);
+				const drawn = [
+					(step.picture?.length ?? 0) > 0,
+					step.window !== undefined,
+					step.map !== undefined,
+				];
+				expect(drawn.filter(Boolean), `${page} step ${i + 1}`).toHaveLength(1);
+			});
+		}
+	});
+
+	it("select a row a node map step's map has", () => {
+		for (const { page, steps } of walkthroughs()) {
+			steps.forEach((step, i) => {
+				if (!step.map?.select) return;
+				const rows = mapFigure(step.map.map).rows.map((row) => row.key);
+				expect(rows, `${page} step ${i + 1}`).toContain(step.map.select);
 			});
 		}
 	});
@@ -61,7 +76,9 @@ describe("walkthroughs", () => {
 				if (!step.point) return;
 				const named = step.window
 					? layoutControls(step.window)
-					: (step.picture ?? []).flatMap((bar) => legendOf(bar).map((item) => item.name));
+					: step.map
+						? mapParts(mapFigure(step.map.map)).map((part) => part.part)
+						: (step.picture ?? []).flatMap((bar) => legendOf(bar).map((item) => item.name));
 				expect(named, `${page} step ${i + 1}`).toContain(step.point);
 			});
 		}

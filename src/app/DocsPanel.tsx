@@ -26,7 +26,7 @@ import { VERSION } from "../cli/version.js";
 import { graphViews } from "../core/docs/graphViews.js";
 import { headingId } from "../core/docs/html.js";
 import { type LayoutSpec, layoutHtml, listedRegions } from "../core/docs/layouts.js";
-import { mapFigure, mapFigureHtml } from "../core/docs/mapFigure.js";
+import { mapFigure, mapFigureHtml, walkMapHtml } from "../core/docs/mapFigure.js";
 import { nodeCodeHtml } from "../core/docs/nodeCode.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
 import { noteHeadHtml } from "../core/docs/notes.js";
@@ -965,9 +965,11 @@ function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
 	const frames = useMemo(
 		() =>
 			block.steps.map((step) => ({
-				__html: step.window
-					? layoutHtml(step.window, TOOLBAR_ART, { preview, numbered: false })
-					: (step.picture ?? []).map((bar) => toolbarHtml(bar, TOOLBAR_ART)).join(""),
+				__html: step.map
+					? walkMapHtml(step.map)
+					: step.window
+						? layoutHtml(step.window, TOOLBAR_ART, { preview, numbered: false })
+						: (step.picture ?? []).map((bar) => toolbarHtml(bar, TOOLBAR_ART)).join(""),
 			})),
 		[block, preview],
 	);
@@ -982,7 +984,13 @@ function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
 				{block.steps.map((step, i) => (
 					<div
 						key={i}
-						className={step.window ? "docs-walk-frame walk-window" : "docs-walk-frame"}
+						className={
+							step.window
+								? "docs-walk-frame walk-window"
+								: step.map
+									? "docs-walk-frame walk-map"
+									: "docs-walk-frame"
+						}
 						data-point={step.point ? controlKey(step.point) : undefined}
 						hidden={i > 0}
 						dangerouslySetInnerHTML={frames[i]}

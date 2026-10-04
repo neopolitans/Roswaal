@@ -525,6 +525,18 @@ export function mapFigureHtml(figure: MapFigure): string {
 }
 
 /**
+ * A walkthrough step's drawing of the panel: the map as it stands at that
+ * step, with no legend. Not `.docs-map`, so the static site's script leaves it
+ * a picture rather than wiring its rows.
+ */
+export function walkMapHtml(step: { map: NodeMap; select?: string }): string {
+	return (
+		`<div class="docs-walk-map docs-map-frame">` +
+		`${mapPanelHtml(mapFigure(step.map), step.select)}</div>`
+	);
+}
+
+/**
  * The legend, as markup.
  *
  * Beside the panel rather than under it: the panel is tall, and a list of
@@ -550,9 +562,13 @@ export function mapLegendHtml(figure: MapFigure): string {
  * set of styles to keep level with it. The only additions are the `data-`
  * hooks the script needs, which the editor does not need because it has React
  * to hand it the same values.
+ *
+ * `picked` is the row the Inspector shows, by its key, and lights the lines
+ * it writes: a walkthrough step drawn partway through building a map. The
+ * first row otherwise.
  */
-export function mapPanelHtml(figure: MapFigure): string {
-	const first = figure.rows[0];
+export function mapPanelHtml(figure: MapFigure, picked?: string): string {
+	const first = figure.rows.find((row) => row.key === picked) ?? figure.rows[0];
 
 	const rows = figure.rows
 		.map((row) => {
@@ -590,8 +606,9 @@ export function mapPanelHtml(figure: MapFigure): string {
 		.map((line) => {
 			const keyed = line.key ? ` data-control="${escapeXml(line.key)}"` : "";
 			const note = line.note ? `<span class="map-reach">${escapeXml(line.note)}</span>` : "";
+			const lit = picked !== undefined && line.key === first.key ? " lit" : "";
 			return (
-				`<span class="map-preview-line"${keyed}>` +
+				`<span class="map-preview-line${lit}"${keyed}>` +
 				`${escapeXml("  ".repeat(line.indent) + line.text)}${note}</span>`
 			);
 		})
