@@ -100,6 +100,24 @@ export { buildSearchIndex } from "./searchIndex.js";
  * release note. A release states them, and an absent one means *not stated*
  * rather than *not affected*: the oldest releases state none.
  */
+/** A release as its card draws it. Built from a `Release` by the release notes page. */
+export interface ReleaseView {
+	version: string;
+	date: string;
+	headline: string;
+	latest?: boolean;
+	tags: ReleaseTag[];
+	watch?: string[];
+	sections: { kind: "added" | "changed" | "fixed"; heading: string; entries: string[] }[];
+	/** Reviewed and Verified Articles: page links, as inline markup. */
+	articles: { heading: string; links: string[] }[];
+}
+
+/** A release's anchor: `v0.125.0`. Landing-page links and the jump bar use it. */
+export function releaseAnchor(version: string): string {
+	return `v${version}`;
+}
+
 export type ReleaseTag = "feature" | "change" | "fix" | "breaking" | "docs" | "editor" | "designer";
 
 /**
@@ -226,6 +244,10 @@ export type Block =
 			t: "details";
 			summary: string;
 			aside?: string;
+			/** A line under the summary, shown while it is closed too: a minor version's headline. */
+			sub?: string;
+			/** An anchor, for a jump bar to open and scroll to. */
+			id?: string;
 			open?: boolean;
 			blocks: Block[];
 			/**
@@ -250,6 +272,19 @@ export type Block =
 	 * survives the page and is the same answer in the editor's own Docs window.
 	 */
 	| { t: "toggle"; pref: "showPreReleaseNotes"; label: string; hint?: string }
+	/**
+	 * One release, as a card: its version, which is also its anchor, its date,
+	 * its tags and headline, and its entries one row each under Added, Changed
+	 * and Fixed. The rows carry their kind so the release notes' filters can
+	 * hide them; see `releaseNotes.ts` in the app, which both renderers wire up.
+	 */
+	| { t: "release"; release: ReleaseView }
+	/**
+	 * The release notes' tools: a search, filter chips over the tags every
+	 * release already carries, and a bar that jumps to a range of versions.
+	 * Markup only; the behaviour is `wireReleaseNotes`, shared by both renderers.
+	 */
+	| { t: "releaseTools"; ranges: { label: string; target: string; prerelease?: boolean }[] }
 	/**
 	 * A whole window as a labelled diagram: where each part of the screen is,
 	 * numbered, with a legend. The page before Toolbars, drawn from a spec in

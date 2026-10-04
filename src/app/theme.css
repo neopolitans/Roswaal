@@ -7973,6 +7973,229 @@ button.tb.danger {
 	color: var(--fg-faint);
 }
 
+/* A fold's title and, under it, what that minor version was: shown closed. */
+.docs-content details.docs-details > summary .docs-details-title:where(:not(.docs-layout-screen *)) {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.docs-content details.docs-details > summary .docs-details-sub:where(:not(.docs-layout-screen *)) {
+	font-size: var(--text-md);
+	font-weight: 400;
+	color: var(--fg-muted);
+	text-wrap: pretty;
+}
+
+.docs-content details.docs-details.with-sub > summary:where(:not(.docs-layout-screen *))::before {
+	align-self: flex-start;
+	margin-top: 5px;
+}
+
+.docs-content details.docs-details[hidden] {
+	display: none;
+}
+
+/* The count and date stay one line; the title and headline take what is left. */
+.docs-content details.docs-details > summary .aside:where(:not(.docs-layout-screen *)) {
+	flex: none;
+	white-space: nowrap;
+}
+
+/* One release: a solid card, tinted towards the accent, its version the
+   anchor a link to it lands on. The latest sits at the top of the page. */
+.docs-release {
+	--release-card: color-mix(in srgb, var(--accent) 5%, var(--bg-panel));
+	margin: 14px 0;
+	padding: 14px 16px 6px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--release-card);
+	scroll-margin-top: calc(var(--chrome-top, 60px) + 12px);
+}
+
+.docs-release[hidden],
+.docs-release-section[hidden],
+.docs-release-entries > li[hidden] {
+	display: none;
+}
+
+.docs-release.is-latest {
+	border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.docs-release-head {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+
+.docs-release-version {
+	font-size: 17px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--fg);
+	text-decoration: none;
+}
+
+a.docs-release-version:hover {
+	color: var(--accent);
+}
+
+.docs-release-head .aside {
+	margin-left: auto;
+	font-size: 12px;
+	color: var(--fg-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+/* New since this browser last read the notes. */
+.docs-release-new {
+	display: none;
+	align-items: center;
+	gap: 5px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--ok);
+}
+
+.docs-release-new::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--ok);
+}
+
+.docs-release.is-new .docs-release-new {
+	display: inline-flex;
+}
+
+.docs-release .docs-tags {
+	margin: 0 0 8px;
+}
+
+.docs-page .docs-content .docs-release-headline {
+	margin: 0 0 8px;
+	font-weight: 600;
+	color: var(--fg);
+}
+
+.docs-page .docs-content .docs-release h4 {
+	margin: 12px 0 4px;
+}
+
+/* One entry a row, with a rule between: a list of separate claims, without
+   the box a table drew around every one. */
+.docs-page .docs-content ul.docs-release-entries {
+	margin: 0 0 8px;
+	padding: 0;
+	list-style: none;
+}
+
+.docs-page .docs-content ul.docs-release-entries > li {
+	margin: 0;
+	padding: 8px 0;
+	border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+	font-size: var(--text-md);
+	line-height: 1.55;
+}
+
+.docs-page .docs-content ul.docs-release-entries > li:first-child {
+	border-top: 0;
+}
+
+/* Search, the filters, and the jump bar, above the history. */
+.docs-release-tools {
+	display: grid;
+	gap: 8px;
+	margin: 16px 0 6px;
+	padding: 10px 12px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--bg-panel);
+	box-shadow: var(--shadow-raised);
+}
+
+.docs-release-filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.docs-release-search {
+	flex: 1 1 220px;
+	min-width: 0;
+	height: 30px;
+	padding: 0 10px;
+	box-sizing: border-box;
+	border: 1px solid var(--border-strong, var(--border));
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+	color: var(--fg);
+	font: inherit;
+	font-size: var(--text-md);
+}
+
+.docs-release-search:focus {
+	outline: none;
+	border-color: var(--accent);
+}
+
+.docs-release-tools .segmented button {
+	font-size: var(--text-sm);
+	padding: 3px 9px;
+}
+
+.docs-release-jump {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 6px;
+	font-size: var(--text-sm);
+	color: var(--fg-faint);
+}
+
+.docs-release-jump a {
+	padding: 1px 7px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	color: var(--fg-muted);
+	text-decoration: none;
+	font-variant-numeric: tabular-nums;
+}
+
+.docs-release-jump a:hover {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+:root[data-showprereleasenotes="off"] .docs-release-jump a[data-prerelease] {
+	display: none;
+}
+
+.docs-release-count {
+	margin: 0;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.docs-release-count:empty {
+	display: none;
+}
+
+@media (max-width: 699px) {
+	.docs-release {
+		padding: 12px 12px 4px;
+	}
+}
+
 /* The current release, right beside its version number. */
 .docs-content .badge.latest:where(:not(.docs-layout-screen *)) {
 	padding: 1px 7px;

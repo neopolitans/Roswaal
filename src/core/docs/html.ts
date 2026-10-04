@@ -25,14 +25,16 @@ import { mapFigure, mapFigureHtml } from "./mapFigure.js";
 import { nodeCodeHtml } from "./nodeCode.js";
 import { noteHeadHtml } from "./notes.js";
 import { graphSvg, type PreviewOptions, previewSvg } from "./preview.js";
+import { RELEASE_KINDS, RELEASE_SURFACES } from "./releaseTags.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, type Review, reviewLine } from "./reviews.js";
-import type { Block, DocPage, DocSection, DocSite } from "./site.js";
+import type { Block, DocPage, DocSection, DocSite, ReleaseView } from "./site.js";
 import {
 	allPages,
 	isPageLink,
 	type Neighbour,
 	neighbours,
 	parseInline,
+	releaseAnchor,
 	stripMarkup,
 	TAG_LABELS,
 } from "./site.js";
@@ -368,6 +370,10 @@ function renderBlock(
 				`<div class="docs-tab-panels">${panels}</div></div>`
 			);
 		}
+		case "release":
+			return releaseHtml(block.release, up);
+		case "releaseTools":
+			return releaseToolsHtml(block.ranges);
 		case "toggle": {
 			// `data-pref` is what the script reads; the checkbox is checked by that
 			// script rather than here, because the answer lives in the reader's own
@@ -525,15 +531,79 @@ function renderBlock(
 		case "details": {
 			// A plain `<details>`: it opens and closes with no script at all.
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
+			const sub = block.sub ? `<span class="docs-details-sub">${inline(block.sub, up)}</span>` : "";
 			const inner = block.blocks.map((b) => renderBlock(b, options, up, page)).join("\n");
 			return (
-				`<details class="docs-details"${block.open ? " open" : ""}` +
+				`<details class="docs-details${sub ? " with-sub" : ""}"${block.open ? " open" : ""}` +
+				`${block.id ? ` id="${escapeHtml(block.id)}"` : ""}` +
 				`${block.prerelease ? " data-prerelease" : ""}>` +
-				`<summary>${inline(block.summary, up)}${aside}</summary>\n` +
+				`<summary><span class="docs-details-title">${inline(block.summary, up)}${sub}</span>${aside}</summary>\n` +
 				`${inner}\n</details>`
 			);
 		}
 	}
+}
+
+/** One release as a card. The same markup the Docs window draws; see `releaseNotes.ts`. */
+function releaseHtml(r: ReleaseView, up: string): string {
+	const anchor = releaseAnchor(r.version);
+	const tags = r.tags
+		.map((tag) => `<span class="docs-tag tag-${tag}">${escapeHtml(TAG_LABELS[tag])}</span>`)
+		.join("");
+	const watch = r.watch
+		? `<div class="docs-note note-warn">${noteHeadHtml("warn")}<div class="docs-note-body">` +
+			`<strong>Worth knowing before you upgrade.</strong><ul>` +
+			r.watch.map((item) => `<li>${inline(item, up)}</li>`).join("") +
+			`</ul></div></div>`
+		: "";
+	const sections = [
+		...r.sections.map((s) => ({ kind: s.kind as string, heading: s.heading, items: s.entries })),
+		...r.articles.map((a) => ({ kind: "articles", heading: a.heading, items: a.links })),
+	]
+		.map(
+			(s) =>
+				`<div class="docs-release-section" data-kind="${s.kind}"><h4>${escapeHtml(s.heading)}</h4>` +
+				`<ul class="docs-release-entries">${s.items.map((i) => `<li>${inline(i, up)}</li>`).join("")}</ul></div>`,
+		)
+		.join("");
+	return (
+		`<section class="docs-release${r.latest ? " is-latest" : ""}" id="${anchor}" data-version="${escapeHtml(r.version)}" data-tags="${r.tags.join(" ")}">` +
+		`<header class="docs-release-head"><a class="docs-release-version" href="#${anchor}">${escapeHtml(r.version)}</a>` +
+		`${r.latest ? `<span class="badge latest">Latest</span>` : ""}` +
+		`<span class="docs-release-new" title="New since your last visit">New</span>` +
+		`<span class="aside">${escapeHtml(r.date)}</span></header>` +
+		`${tags ? `<p class="docs-tags">${tags}</p>` : ""}` +
+		`<p class="docs-release-headline">${inline(r.headline, up)}</p>${watch}${sections}</section>`
+	);
+}
+
+/** The release notes' search, filters and jump bar. Wired by `releaseNotes.ts`. */
+export function releaseToolsHtml(
+	ranges: { label: string; target: string; prerelease?: boolean }[],
+): string {
+	const chips = (attr: string, options: [string, string][]) =>
+		`<span class="segmented">${options
+			.map(
+				([value, label], i) =>
+					`<button type="button" data-${attr}="${value}"${i === 0 ? ' class="on"' : ""}>${label}</button>`,
+			)
+			.join("")}</span>`;
+	return (
+		`<div class="docs-release-tools" data-release-tools>` +
+		`<div class="docs-release-filters">` +
+		`<input type="search" class="docs-release-search" placeholder="Search the release notes" aria-label="Search the release notes">` +
+		chips("kind-filter", RELEASE_KINDS) +
+		chips("surface-filter", RELEASE_SURFACES) +
+		`</div>` +
+		`<nav class="docs-release-jump" aria-label="Jump to a range of versions"><span>Jump to</span>` +
+		ranges
+			.map(
+				(r) =>
+					`<a href="#${escapeHtml(r.target)}" data-jump="${escapeHtml(r.target)}"${r.prerelease ? " data-prerelease" : ""}>${escapeHtml(r.label)}</a>`,
+			)
+			.join("") +
+		`</nav><p class="docs-release-count" aria-live="polite"></p></div>`
+	);
 }
 
 /** Past this many, a pin's values are counted rather than listed. */

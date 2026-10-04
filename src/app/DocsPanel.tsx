@@ -36,6 +36,7 @@ import {
 	type PreviewOptions,
 	previewSvg,
 } from "../core/docs/preview.js";
+import { RELEASE_KINDS, RELEASE_SURFACES } from "../core/docs/releaseTags.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, type Review, reviewLine } from "../core/docs/reviews.js";
 import {
 	type Block,
@@ -49,6 +50,8 @@ import {
 	isPageLink,
 	neighbours,
 	parseInline,
+	type ReleaseView,
+	releaseAnchor,
 	searchDocs,
 	TAG_LABELS,
 } from "../core/docs/site.js";
@@ -74,6 +77,7 @@ import { PageEditor } from "./PageEditor.jsx";
 import { IS_STATIC_HOST } from "./pages.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { type Preferences, readPreferences, wheelAction, writePreferences } from "./preferences.js";
+import { markNewReleases, wireReleaseNotes } from "./releaseNotes.js";
 import { attachToolbarLink } from "./toolbarLink.js";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
@@ -745,15 +749,27 @@ function BlockView({ block }: { block: Block }) {
 		}
 		case "toggle":
 			return <PreferenceToggle pref={block.pref} label={block.label} hint={block.hint} />;
+		case "release":
+			return <ReleaseCard release={block.release} />;
+		case "releaseTools":
+			return <ReleaseTools ranges={block.ranges} />;
 		case "details":
 			return (
 				<details
-					className="docs-details"
+					className={`docs-details${block.sub ? " with-sub" : ""}`}
 					open={block.open}
+					id={block.id}
 					{...(block.prerelease ? { "data-prerelease": "" } : {})}
 				>
 					<summary>
-						<Rich text={block.summary} />
+						<span className="docs-details-title">
+							<Rich text={block.summary} />
+							{block.sub && (
+								<span className="docs-details-sub">
+									<Rich text={block.sub} />
+								</span>
+							)}
+						</span>
 						{block.aside && <span className="aside">{block.aside}</span>}
 					</summary>
 					{block.blocks.map((inner, i) => (
@@ -1031,6 +1047,137 @@ const TOOLBAR_ART = {
  * holds the preferences and re-renders when they change, and the static site
  * has neither.
  */
+/**
+ * One release, as the published site draws it (`releaseHtml` in `html.ts`).
+ * The version is not a link here: in this window the address is the page.
+ */
+function ReleaseCard({ release: r }: { release: ReleaseView }) {
+	const sections = [
+		...r.sections.map((s) => ({ kind: s.kind as string, heading: s.heading, items: s.entries })),
+		...r.articles.map((a) => ({ kind: "articles", heading: a.heading, items: a.links })),
+	];
+	return (
+		<section
+			className={`docs-release${r.latest ? " is-latest" : ""}`}
+			id={releaseAnchor(r.version)}
+			data-version={r.version}
+			data-tags={r.tags.join(" ")}
+		>
+			<header className="docs-release-head">
+				<span className="docs-release-version">{r.version}</span>
+				{r.latest && <span className="badge latest">Latest</span>}
+				<span className="docs-release-new" title="New since your last visit">
+					New
+				</span>
+				<span className="aside">{r.date}</span>
+			</header>
+			{r.tags.length > 0 && (
+				<p className="docs-tags">
+					{r.tags.map((tag) => (
+						<span className={`docs-tag tag-${tag}`} key={tag}>
+							{TAG_LABELS[tag]}
+						</span>
+					))}
+				</p>
+			)}
+			<p className="docs-release-headline">
+				<Rich text={r.headline} />
+			</p>
+			{r.watch && (
+				<div className="docs-note note-warn">
+					<div
+						dangerouslySetInnerHTML={{ __html: noteHeadHtml("warn") }}
+						style={{ display: "contents" }}
+					/>
+					<div className="docs-note-body">
+						<strong>Worth knowing before you upgrade.</strong>
+						<ul>
+							{r.watch.map((item, i) => (
+								<li key={i}>
+									<Rich text={item} />
+								</li>
+							))}
+						</ul>
+					</div>
+				</div>
+			)}
+			{sections.map((s) => (
+				<div className="docs-release-section" data-kind={s.kind} key={s.heading}>
+					<h4>{s.heading}</h4>
+					<ul className="docs-release-entries">
+						{s.items.map((item, i) => (
+							<li key={i}>
+								<Rich text={item} />
+							</li>
+						))}
+					</ul>
+				</div>
+			))}
+		</section>
+	);
+}
+
+/** The release notes' search, filters and jump bar, wired by `wireReleaseNotes`. */
+function ReleaseTools({
+	ranges,
+}: {
+	ranges: { label: string; target: string; prerelease?: boolean }[];
+}) {
+	const self = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const article = self.current?.closest<HTMLElement>(".docs-article");
+		if (!article) return;
+		try {
+			markNewReleases(article, localStorage);
+		} catch {
+			// No storage, no dots.
+		}
+		return wireReleaseNotes(article);
+	}, []);
+	const chips = (attr: "kind-filter" | "surface-filter", options: [string, string][]) => (
+		<span className="segmented">
+			{options.map(([value, label], i) => (
+				<button
+					type="button"
+					key={value}
+					{...{ [`data-${attr}`]: value }}
+					className={i === 0 ? "on" : undefined}
+				>
+					{label}
+				</button>
+			))}
+		</span>
+	);
+	return (
+		<div className="docs-release-tools" data-release-tools="" ref={self}>
+			<div className="docs-release-filters">
+				<input
+					type="search"
+					className="docs-release-search"
+					placeholder="Search the release notes"
+					aria-label="Search the release notes"
+				/>
+				{chips("kind-filter", RELEASE_KINDS)}
+				{chips("surface-filter", RELEASE_SURFACES)}
+			</div>
+			<nav className="docs-release-jump" aria-label="Jump to a range of versions">
+				<span>Jump to</span>
+				{ranges.map((r) => (
+					<a
+						key={r.target}
+						href={`#${r.target}`}
+						data-jump={r.target}
+						{...(r.prerelease ? { "data-prerelease": "" } : {})}
+					>
+						{r.label}
+					</a>
+				))}
+			</nav>
+			<p className="docs-release-count" aria-live="polite" />
+		</div>
+	);
+}
+
 function PreferenceToggle({
 	pref,
 	label,

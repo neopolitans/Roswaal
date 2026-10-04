@@ -9,6 +9,22 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.126.0",
+		date: "2026-10-04",
+		headline: "The release notes, easier to search and to link to.",
+		affects: ["docs"],
+		added: [
+			"**Search the release notes**, and filter them by Added, Changed, Fixed or Breaking, and by Editor, Node Design or Docs. Folds holding a match open; clearing the search closes them again.",
+			"**Jump to** a range of ten minor versions, such as 0.110–0.119.",
+			"**Every release has its own link**, such as release-notes.html#v0.119.0. The front page's Lately cards use them.",
+			"**New since your last visit**: releases newer than the last one this browser saw are marked New.",
+		],
+		changed: [
+			"The latest release is a card at the top of the page, and every older one sits in its minor version's fold, which says what that version brought while closed.",
+			"Each release is a card, with its entries as rows rather than a bordered table.",
+		],
+	},
+	{
 		version: "0.125.0",
 		date: "2026-10-04",
 		headline: "The front page, brought up to date.",

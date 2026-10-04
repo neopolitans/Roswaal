@@ -13,5 +13,6 @@ export async function buildDocsClient() {
 	return bundleBrowser([
 		'import "./scripts/lib/docsSearch.ts";',
 		'import "./scripts/lib/docsChrome.js";',
+		'import "./scripts/lib/releaseNotesChrome.ts";',
 	]);
 }

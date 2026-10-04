@@ -294,27 +294,51 @@ describe("release notes", () => {
 	 * The newest release is read; the rest are looked up, by major and minor
 	 * first. So one in full, and every other inside its minor version's fold.
 	 */
-	it("folds every release into its minor version, the newest open with Latest marked", () => {
+	it("shows the latest release as a card, and folds every other into its minor version", () => {
 		const page = findPage(site, "release-notes")!;
 		const minor = (v: string) => v.split(".").slice(0, 2).join(".") + ".x";
 		const folds = page.blocks.filter((b): b is Block & { t: "details" } => b.t === "details");
+		const top = page.blocks.filter((b): b is Block & { t: "release" } => b.t === "release");
 
-		expect(folds.map((f) => f.summary)).toEqual([
-			...new Set(RELEASES.map((r) => minor(r.version))),
-		]);
-		for (const release of RELEASES) {
+		// The latest, on its own above the folds, and the only one marked.
+		expect(top.map((b) => b.release.version)).toEqual([RELEASES[0].version]);
+		expect(top[0].release.latest).toBe(true);
+
+		const rest = RELEASES.slice(1);
+		expect(folds.map((f) => f.summary)).toEqual([...new Set(rest.map((r) => minor(r.version)))]);
+		for (const release of rest) {
 			const fold = folds.find((f) => f.summary === minor(release.version))!;
-			expect(blockText(fold), release.version).toContain(release.version);
+			const versions = fold.blocks.flatMap((b) => (b.t === "release" ? [b.release.version] : []));
+			expect(versions, release.version).toContain(release.version);
 		}
-		// Only the newest minor version starts open, and nothing sits outside a fold.
-		expect(folds.map((f) => f.open === true)).toEqual(folds.map((_, i) => i === 0));
-		expect(page.blocks.some((b) => b.t === "h")).toBe(false);
-
 		const marked = folds
 			.flatMap((f) => f.blocks)
-			.filter((b) => b.t === "h" && b.badge === "Latest");
-		expect(marked).toHaveLength(1);
-		expect(blockText(marked[0])).toContain(RELEASES[0].version);
+			.filter((b) => b.t === "release" && b.release.latest);
+		expect(marked).toHaveLength(0);
+		// Closed, each saying what its minor version was, with an anchor to jump to.
+		for (const fold of folds) {
+			expect(fold.open, fold.summary).toBeFalsy();
+			expect(fold.sub, fold.summary).toBeTruthy();
+			expect(fold.id).toBe(`releases-${fold.summary}`);
+		}
+	});
+
+	it("jumps only to folds that are there", () => {
+		const page = findPage(site, "release-notes")!;
+		const tools = page.blocks.find(
+			(b): b is Block & { t: "releaseTools" } => b.t === "releaseTools",
+		)!;
+		const ids = new Set(page.blocks.flatMap((b) => (b.t === "details" && b.id ? [b.id] : [])));
+		expect(tools.ranges.length).toBeGreaterThan(5);
+		for (const range of tools.ranges) expect(ids.has(range.target), range.label).toBe(true);
+	});
+
+	it("gives every release an anchor the front page can link to", () => {
+		const notes = findPage(site, "release-notes")!;
+		const html = renderPage(site, notes, { version: VERSION });
+		for (const release of RELEASES.slice(0, 8)) {
+			expect(html).toContain(`id="v${release.version}"`);
+		}
 	});
 
 	/**

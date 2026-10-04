@@ -168,8 +168,21 @@ export function blockStrings(block: Block): BlockString[] {
 			for (const row of mapFigure(block.map).rows) add("plain", row.name);
 			add("inline", block.caption);
 			break;
+		case "release": {
+			const r = block.release;
+			add("plain", r.version);
+			add("inline", r.headline);
+			for (const tag of r.tags) add("plain", TAG_LABELS[tag]);
+			for (const item of r.watch ?? []) add("inline", item);
+			for (const section of r.sections) for (const entry of section.entries) add("inline", entry);
+			for (const group of r.articles) for (const link of group.links) add("inline", link);
+			break;
+		}
+		case "releaseTools":
+			break;
 		case "details":
 			add("inline", block.summary);
+			add("inline", block.sub);
 			add("plain", block.aside);
 			for (const inner of block.blocks) out.push(...blockStrings(inner));
 			break;

@@ -721,7 +721,7 @@ function lately() {
 		.slice(0, 8)
 		.map(
 			(release, i) =>
-				`<li${i >= 6 ? ' class="lately-more"' : ""}><a href="docs/release-notes.html">` +
+				`<li${i >= 6 ? ' class="lately-more"' : ""}><a href="docs/release-notes.html#v${escapeHtml(release.version)}">` +
 				`<span class="lately-version">${escapeHtml(release.version)}</span>` +
 				`<span class="lately-line">${escapeHtml(release.headline)}</span></a></li>`,
 		)

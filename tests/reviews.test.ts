@@ -87,7 +87,11 @@ describe("page reviews", () => {
 		const notes = findPage(site, "release-notes")!;
 		const tableRows = (blocks: Block[]): string[] =>
 			blocks.flatMap((b) =>
-				b.t === "table" ? b.rows.flat() : b.t === "details" ? tableRows(b.blocks) : [],
+				b.t === "release"
+					? b.release.articles.flatMap((a) => a.links)
+					: b.t === "details"
+						? tableRows(b.blocks)
+						: [],
 			);
 		const rows = tableRows(notes.blocks);
 		expect(rows).toContain("[Wires and pins](wires-and-pins)");

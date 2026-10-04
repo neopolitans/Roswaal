@@ -26,6 +26,23 @@ export const TAG_LABELS: Record<ReleaseTag, string> = {
  * change breaks somebody is a judgement about their code rather than a fact
  * about ours.
  */
+/** The release notes' kind filter: value, then label. */
+export const RELEASE_KINDS: [string, string][] = [
+	["all", "Everything"],
+	["added", "Added"],
+	["changed", "Changed"],
+	["fixed", "Fixed"],
+	["breaking", "Breaking"],
+];
+
+/** The release notes' surface filter: value, then label. */
+export const RELEASE_SURFACES: [string, string][] = [
+	["any", "Anywhere"],
+	["editor", "Editor"],
+	["designer", "Node Design"],
+	["docs", "Docs"],
+];
+
 export function releaseTags(release: Release): ReleaseTag[] {
 	const tags: ReleaseTag[] = [];
 	if (release.breaking) tags.push("breaking");
