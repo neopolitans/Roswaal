@@ -610,8 +610,8 @@ describe("the header of a published page", () => {
 
 	it("points the mark at the project picker", () => {
 		expect(page("node/event.connect")).toContain(
-			'class="logo as-chip" href="../../try.html#picker"',
+			'class="logo window-mark" href="../../try.html#picker"',
 		);
-		expect(page("getting-started")).toContain('class="logo as-chip" href="../try.html#picker"');
+		expect(page("getting-started")).toContain('class="logo window-mark" href="../try.html#picker"');
 	});
 });

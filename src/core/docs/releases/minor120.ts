@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.122.3",
+		date: "2026-10-04",
+		headline: "The published docs' mark sits in its group.",
+		affects: ["docs"],
+		fixed: [
+			"**The mark on the published docs** is drawn as the Docs window draws it, the height of the groups beside it, where it had kept its old chip's border inside the new group.",
+		],
+	},
+	{
 		version: "0.122.2",
 		date: "2026-10-04",
 		headline: "The published docs float their contents, as the Docs window does.",

@@ -816,7 +816,7 @@ ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(optio
 <div class="docs-page docs-window">
 ${options.canaryBanner ?? ""}<input type="checkbox" id="docs-nav-open" class="docs-nav-check" aria-label="Show the contents">
 <header class="docs-page-head docs-clusters">
-<div class="tool-group mark-group"><a class="logo as-chip" href="${up}../try.html#picker" title="Your projects">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a></div>
+<div class="tool-group mark-group"><a class="logo window-mark" href="${up}../try.html#picker" title="Your projects">${options.logo?.mark ?? "Roswaal "}<span class="window-glyph" aria-hidden="true">${chromeIcon("document", options)}</span><span class="window-name">Docs</span><span class="version">${escapeHtml(options.version)}</span></a></div>
 <div class="tool-group search-group"><button type="button" class="tb docs-search-field" id="docs-search" title="Search the docs (Ctrl+K)" aria-label="Search the docs" hidden>${chromeIcon("search", options)}<span class="docs-search-label">Search the docs</span><kbd>Ctrl K</kbd></button></div>
 <div class="tool-group contents-group"><label for="docs-nav-open" class="tb docs-nav-toggle">Contents</label></div>
 <span class="spacer"></span>
