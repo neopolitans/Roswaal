@@ -22,8 +22,9 @@ export function projectPanelPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"The Project panel is on the left of the editor. It lists the project's files and, " +
-					"when the project has a place, the place's instances.",
+					"The Project panel is a card on the left of the editor; the button after the mark " +
+					"shows and hides it. It lists the project's files and, when the project has a place, " +
+					"the place's instances.",
 			},
 			{ t: "toolbar", bar: PROJECT_PANEL_HEAD, hint: true },
 

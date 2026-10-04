@@ -24,7 +24,6 @@ import { nilableProperty } from "../core/robloxNilable.js";
 import { propertiesOf } from "../core/robloxProperties.js";
 import type { Comment, Literal, NodeConfig, NodeScript, PinDef, PinRef } from "../core/schema.js";
 import { serviceFromSource } from "../core/serviceCalls.js";
-import { showCanvasNotice } from "./CanvasNotice.jsx";
 import { cx } from "./cx.js";
 import {
 	addNode,
@@ -71,6 +70,7 @@ import { NodeView, type PinDragState } from "./NodeView.jsx";
 import { configText, functionNameOf } from "./nodeConfig.js";
 import { commentColor, pinColor } from "./palette.js";
 import { store, useEditor, useView } from "./store.js";
+import { showToast } from "./Toast.jsx";
 
 /**
  * The smallest a comment may be dragged to.
@@ -804,7 +804,7 @@ export function Canvas({
 			if ("type" in cast) {
 				store.edit((s) => connectThroughCast(s, registry, from, to, cast.type)?.script ?? s);
 			} else {
-				showCanvasNotice(cast.reason);
+				showToast({ title: cast.reason, tone: "warn" });
 			}
 			endGesture();
 			return;

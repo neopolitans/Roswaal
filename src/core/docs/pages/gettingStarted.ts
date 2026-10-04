@@ -223,7 +223,7 @@ export function gettingStartedPage(): DocPage {
 				text:
 					"[The Interface](the-interface) shows what each part of the screen is. Most of the " +
 					"chrome is icons, and [Toolbars](toolbars) draws every bar with its buttons named — " +
-					"including the three at the right-hand end of the top bar, which are Docs, Node " +
+					"including the three at the right-hand end of the top row, which are Docs, Node " +
 					"Design and Settings.",
 			},
 			{

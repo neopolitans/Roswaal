@@ -1,0 +1,63 @@
+/**
+ * Release notes for 0.120.0 to 0.129.x, newest first.
+ *
+ * One of the files `../releases.ts` puts together, a tenth of the minor
+ * versions each, so the newest notes are not at the top of a very long file.
+ */
+
+import type { Release } from "../releases.js";
+
+export const RELEASES_0_120: Release[] = [
+	{
+		version: "0.121.0",
+		date: "2026-10-04",
+		headline: "Every window floats its controls over the work.",
+		affects: ["editor", "designer", "docs"],
+		added: [
+			"**The graph fills the window.** The top bar and the graph's tools are one row of floating groups: the project and the open graph at the left, compiling and the other windows at the right. Where the row is short of room, the less used half folds into More.",
+			"**Project, Variables and the Inspector are cards** over the graph, with the status pill below them. On a tablet they open from the top groups and close when you tap the graph; on a phone they are sheets from a bar along the bottom.",
+			"**The side strip**: zoom, undo, redo and fit, along the bottom with a mouse and down the left edge on a touch screen.",
+			"**Two fingers tapped on the graph undo, and three redo.**",
+			"**Notices** drop from the top of the window and say what happened: what a compile wrote, a wire that was refused.",
+			"**With nothing selected, the Inspector shows the graph's settings**: what it compiles to, its type checking and its target, which have left the toolbar.",
+			"**Node Design** floats too: the logic fills the window, the node's preview is a card in the top right that folds away, with the selected pin's settings and the node's details under it, and the pin types dock at the bottom right.",
+			"**The docs window's search** is beside the mark.",
+		],
+		changed: [
+			"**A node map, a source file and the aliases** open as a sheet on the canvas, between the cards.",
+			"**On a phone**, the mark carries the window's glyph in grey: a graph, the palette, or a page.",
+			"**Switches** are lit with a tint rather than filled, as a held tool is.",
+			"**The docs window's contents and outline** are cards over the page that fold to where you are, and the page scrolls the whole width. Scrollbars are thin everywhere.",
+			"[The interface](the-interface), [Toolbars](toolbars) and [Controls](controls) draw and describe the new layout.",
+			"**Name in the graph tools** is gone from Settings: the graph's tab names it.",
+		],
+	},
+	{
+		version: "0.120.1",
+		date: "2026-10-04",
+		headline: "Plain folders are grey, and DataModel drags onto a graph.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Plain folders** in the project tree and the DataModel list are grey rather than cream. Blue, purple and red are left for services, packages and place/.",
+		],
+		fixed: [
+			"**An instance in the DataModel list** can be dragged onto a graph for an Instance node at its path, as its name in Properties could.",
+		],
+	},
+	{
+		version: "0.120.0",
+		date: "2026-10-04",
+		headline: "A node map makes the folders it syncs.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Writing a node map makes the folders it syncs**: each folder under src the map points at, and the folder mirroring it under .roswaal/scripts, so a graph has somewhere to go. The Status panel lists what was made, and the map's Path field says made on compile until then.",
+		],
+		changed: [
+			"**Folders a node map syncs** are drawn filled, plain ones outlined: blue for a service or container, cream for a Folder. Under Graph content, the folder mirroring one is drawn as it is.",
+			"**Corners, shadows and text sizes** outside the canvas follow one scale: three corners, three shadows and seven text sizes.",
+		],
+		fixed: [
+			"**Removing the last script in a folder a map syncs** leaves the folder, rather than turning the map's next write into an error.",
+		],
+	},
+];

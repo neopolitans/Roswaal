@@ -9,34 +9,6 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_110: Release[] = [
 	{
-		version: "0.120.1",
-		date: "2026-10-04",
-		headline: "Plain folders are grey, and DataModel drags onto a graph.",
-		affects: ["editor", "docs"],
-		changed: [
-			"**Plain folders** in the project tree and the DataModel list are grey rather than cream. Blue, purple and red are left for services, packages and place/.",
-		],
-		fixed: [
-			"**An instance in the DataModel list** can be dragged onto a graph for an Instance node at its path, as its name in Properties could.",
-		],
-	},
-	{
-		version: "0.120.0",
-		date: "2026-10-04",
-		headline: "A node map makes the folders it syncs.",
-		affects: ["editor", "docs"],
-		added: [
-			"**Writing a node map makes the folders it syncs**: each folder under src the map points at, and the folder mirroring it under .roswaal/scripts, so a graph has somewhere to go. The Status panel lists what was made, and the map's Path field says made on compile until then.",
-		],
-		changed: [
-			"**Folders a node map syncs** are drawn filled, plain ones outlined: blue for a service or container, cream for a Folder. Under Graph content, the folder mirroring one is drawn as it is.",
-			"**Corners, shadows and text sizes** outside the canvas follow one scale: three corners, three shadows and seven text sizes.",
-		],
-		fixed: [
-			"**Removing the last script in a folder a map syncs** leaves the folder, rather than turning the map's next write into an error.",
-		],
-	},
-	{
 		version: "0.119.0",
 		date: "2026-10-04",
 		headline: "On Event, and Connect Event knows its parameters.",

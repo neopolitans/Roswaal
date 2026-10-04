@@ -21,18 +21,30 @@ import { Icon } from "./icons.jsx";
  * phone does not, held either way.
  */
 export function usePhone(): boolean {
-	const query = "(max-width: 699px)";
-	const [phone, setPhone] = useState(
+	return useMedia("(max-width: 699px)");
+}
+
+/**
+ * Whether the window is too narrow for the editor's whole top row: an iPad held
+ * upright, or a desktop window half the screen wide. The row then keeps what is
+ * used every minute and folds the rest into a More menu.
+ */
+export function useNarrowBar(): boolean {
+	return useMedia("(max-width: 979px)");
+}
+
+function useMedia(query: string): boolean {
+	const [matches, setMatches] = useState(
 		() => typeof window !== "undefined" && window.matchMedia(query).matches,
 	);
 	useEffect(() => {
 		const list = window.matchMedia(query);
-		const update = () => setPhone(list.matches);
+		const update = () => setMatches(list.matches);
 		update();
 		list.addEventListener("change", update);
 		return () => list.removeEventListener("change", update);
-	}, []);
-	return phone;
+	}, [query]);
+	return matches;
 }
 
 /**

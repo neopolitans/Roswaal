@@ -72,9 +72,16 @@ describe("the rule", () => {
 	 * has no room for a word.
 	 */
 	it("puts every surface of the browser build through one component", () => {
+		// The mark at the top left of a window, which wears the build's tint,
+		// is drawn by WindowMark; a surface that uses it goes through the rule.
+		const mark = source("src/app/WindowMark.tsx");
+		expect(mark).toMatch(/<MarkedLogo/);
+		expect(mark).toContain("previewBuild.jsx");
 		for (const path of SURFACES) {
-			expect(source(path), path).toMatch(/<PreviewChip|<MarkedLogo/);
-			expect(source(path), path).toContain("previewBuild.jsx");
+			const text = source(path);
+			if (text.includes("<WindowMark")) continue;
+			expect(text, path).toMatch(/<PreviewChip|<MarkedLogo/);
+			expect(text, path).toContain("previewBuild.jsx");
 		}
 	});
 

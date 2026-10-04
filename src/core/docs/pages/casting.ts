@@ -315,7 +315,7 @@ function castingBlocks(registry: Registry): Block[] {
 		{
 			t: "p",
 			text:
-				"Annotations follow the graph's **typechecking mode**, in the tools along the top of the canvas. " +
+				"Annotations follow the graph's **typechecking mode**, in the Inspector with nothing selected. " +
 				"*Default* writes no mode line and no annotations; *Nonstrict* and *Strict* write " +
 				"both. So a type you set is a type that appears — in the two modes that asked for " +
 				"types at all.",

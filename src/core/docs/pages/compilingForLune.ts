@@ -50,8 +50,8 @@ export function compilingForLunePage(): DocPage {
 			{
 				t: "p",
 				text:
-					"This page is about graphs whose **Target** is Lune. The bar along the top of the " +
-					"canvas says which, and a new graph takes the project's. For Roblox, the answer is " +
+					"This page is about graphs whose **Target** is Lune. The Inspector says which with " +
+					"nothing selected, and a new graph takes the project's. For Roblox, the answer is " +
 					"a different one and it is on [Compiling and nodemaps for Roblox](building-and-rojo).",
 			},
 			{

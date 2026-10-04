@@ -104,6 +104,24 @@ export const ICONS = {
 	 * a folder. Drawn here, as a stroke like `function`.
 	 */
 	instance: "M480-850L800-670V-290L480-110L160-290V-670ZM160-670L480-490L800-670M480-490V-110",
+
+	/*
+	 * The floating chrome's own glyphs, drawn here as strokes on the same grid:
+	 * the editor's window (two nodes and a wire), zoom in and out, fit, and the
+	 * two side cards.
+	 */
+	graph: "M120-660H360V-460H120ZM600-500H840V-300H600ZM360-560C480-560 480-400 600-400",
+	plus: "M480-200V-760M200-480H760",
+	minus: "M200-480H760",
+	fit: "M160-640V-800H320M640-800H800V-640M800-320V-160H640M320-160H160V-320",
+	/*
+	 * The two side cards: a window with the card's side filled in, so the
+	 * glyph says which side as well as what. Cut by the even-odd rule.
+	 */
+	panelLeft:
+		"M200-160q-33 0-56.5-23.5T120-240v-480q0-33 23.5-56.5T200-800h560q33 0 56.5 23.5T840-720v480q0 33-23.5 56.5T760-160H200Zm200-80h360v-480H400v480Z",
+	panelRight:
+		"M200-160q-33 0-56.5-23.5T120-240v-480q0-33 23.5-56.5T200-800h560q33 0 56.5 23.5T840-720v480q0 33-23.5 56.5T760-160H200Zm0-80h360v-480H200v480Z",
 } as const;
 
 export type IconName = keyof typeof ICONS;
@@ -119,7 +137,11 @@ export interface IconProps {
 }
 
 /** Icons whose holes are drawn by the even-odd rule rather than by winding. */
-export const EVEN_ODD: ReadonlySet<string> = new Set<IconName>(["luauScript"]);
+export const EVEN_ODD: ReadonlySet<string> = new Set<IconName>([
+	"luauScript",
+	"panelLeft",
+	"panelRight",
+]);
 
 export function Icon({ name, size = 16, className, rotate, title }: IconProps) {
 	return (
@@ -153,4 +175,11 @@ export function Icon({ name, size = 16, className, rotate, title }: IconProps) {
 }
 
 /** Glyphs drawn as a centre line, by stroke width in the 960 grid. */
-export const STROKED: Partial<Record<string, number>> = { function: 80, instance: 64 };
+export const STROKED: Partial<Record<string, number>> = {
+	function: 80,
+	instance: 64,
+	graph: 64,
+	plus: 72,
+	minus: 72,
+	fit: 72,
+};

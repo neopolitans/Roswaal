@@ -1,49 +1,47 @@
 /**
- * The dockable workspace: three docks around a centre.
+ * The workspace: a centre that fills the window, with the docks floating over
+ * it as columns of cards.
  *
  * The rendering half of the system designed in `docs/PANELS.md`. It takes a
- * `Layout` and the contents of each panel, and puts them where the layout says.
+ * `Layout` and the contents of each panel, and puts them where the layout says:
+ * the left dock's cards down the left, clear of the side strip, the right
+ * dock's down the right, and the bottom dock as the status pill. A dock's size
+ * is its cards' width; its handle is on the cards' inner edge.
  *
- * ## Panels are placed by `grid-area`, never by position in the tree
+ * ## Each dock is placed by style, never by position in the tree
  *
- * The most important line in the design, and the one place this departs from
- * Beako's docks. Beako moves a panel by `append`-ing the live node, so it keeps
- * its scroll position, its content and its listeners. React cannot: a component
- * moved to a different parent unmounts and remounts, throwing all of that away.
- * A project tree that jumps back to the top whenever you dock it reads as a
- * scrolling bug rather than a layout one, and would be debugged as one.
+ * Beako moves a panel by `append`-ing the live node, so it keeps its scroll
+ * position, its content and its listeners. React cannot: a component moved to
+ * a different parent unmounts and remounts, throwing all of that away. So each
+ * dock is rendered once, in a fixed place, and moving a panel between docks is
+ * a change to which dock lists it.
  *
- * So every panel is rendered **once**, in a fixed place in this tree, and only
- * its `gridArea` changes. Moving a panel between docks is then a style change,
- * which React applies without touching the subtree.
+ * ## On a phone or a tablet, docks are drawers
  *
- * ## Every child is pinned to its track
- *
- * `display: none` does not merely hide a grid child — it stops it being a grid
- * *item*, and auto-placement closes up behind it. Beako lost an afternoon to
- * this: with both docks closed, its centre was auto-placed into the left dock's
- * track and took that track's width, while every piece of state was correct.
- *
- * Every element below therefore names its `gridArea` explicitly. That looks
- * like tidiness and is not.
+ * One panel at a time, over the graph, opened from the top clusters on a tablet
+ * and from the bottom bar on a phone. `WorkspaceControls` is how those buttons,
+ * which are drawn by whoever draws the chrome, reach the drawers.
  */
 
 import {
+	type CSSProperties,
+	createContext,
 	type ReactNode,
 	type PointerEvent as ReactPointerEvent,
+	useContext,
 	useEffect,
 	useRef,
 	useState,
 } from "react";
 
 import { cx } from "./cx.js";
+import { Icon } from "./icons.jsx";
 import {
 	COMPACT_QUERY,
 	type DockSide,
 	dockVisible,
 	dropZone,
 	floatingPanels,
-	gridTemplate,
 	type Layout,
 	MIN_FLOAT,
 	PANEL_IDS,
@@ -107,6 +105,38 @@ export interface WorkspaceProps {
 	 * elsewhere.
 	 */
 	touchBar?: ReactNode;
+	/**
+	 * The floating clusters along the top: drawn over the centre and the docks,
+	 * taking clicks only on the clusters themselves.
+	 */
+	chrome?: ReactNode;
+	/** The side strip, down the left edge, when the centre is a canvas. */
+	strip?: ReactNode;
+}
+
+/** What the chrome's dock buttons need: whether a side is out, and a way to put it out. */
+export interface WorkspaceControlsValue {
+	/** Drawers rather than docks: a phone or a tablet. */
+	compact: boolean;
+	/** The side has a panel with something to show. */
+	has: (side: "left" | "right") => boolean;
+	/** The side's dock is on screen, or its drawer is out. */
+	isOpen: (side: "left" | "right") => boolean;
+	toggle: (side: "left" | "right") => void;
+}
+
+const NO_CONTROLS: WorkspaceControlsValue = {
+	compact: false,
+	has: () => false,
+	isOpen: () => false,
+	toggle: () => {},
+};
+
+const WorkspaceControls = createContext<WorkspaceControlsValue>(NO_CONTROLS);
+
+/** The dock buttons' view of the workspace. */
+export function useWorkspaceControls(): WorkspaceControlsValue {
+	return useContext(WorkspaceControls);
 }
 
 /** How far the pointer must travel before a press becomes a drag. */
@@ -128,6 +158,8 @@ export function Workspace({
 	drawerKey,
 	touchBar,
 	showDrawer,
+	chrome,
+	strip,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
 	// The centre, which a window's coordinates are measured from.
@@ -161,6 +193,11 @@ export function Workspace({
 	// and one panel per drawer: the tree and Variables shared a drawer at
 	// first and each got half of it, which is not enough of either.
 	const [drawer, setDrawer] = useState<PanelId | null>(null);
+	// The panel each side last showed, so its button brings back that one.
+	const lastShown = useRef<Partial<Record<DockSide, PanelId>>>({});
+	useEffect(() => {
+		if (drawer) lastShown.current[layout.panels[drawer].dock] = drawer;
+	}, [drawer, layout]);
 	useEffect(() => setDrawer(null), [drawerKey]);
 	useEffect(() => {
 		if (showDrawer) setDrawer(showDrawer.panel);
@@ -181,13 +218,6 @@ export function Workspace({
 		return () => element.removeEventListener("dragstart", onStart);
 	}, [compact]);
 
-	// A phone has room for the graph or a panel, not both side by side: the
-	// centre's minimum alone is most of its width, which left the tree as a
-	// strip a few letters wide. So the side docks come out of the grid and
-	// slide over the graph instead, one at a time. The layout itself is not
-	// touched, and a wider window gets it back exactly as it was.
-	const full = gridTemplate(effective);
-	const tracks = compact ? { columns: "0px 0px minmax(0, 1fr) 0px 0px", rows: full.rows } : full;
 	// The panels a side's drawers offer, in the order the dock stacks them.
 	//
 	// Floating panels too, by the dock they came from: a window over the graph
@@ -204,99 +234,148 @@ export function Workspace({
 		? { left: drawerPanels("left"), right: drawerPanels("right") }
 		: { left: [], right: [] };
 
+	// Out, or put away: the side's last panel, or its first.
+	const toggleDrawer = (side: "left" | "right") => {
+		const ids = drawers[side];
+		if (openPanel !== null && ids.includes(openPanel)) {
+			setDrawer(null);
+			return;
+		}
+		const last = lastShown.current[side];
+		setDrawer(last && ids.includes(last) ? last : (ids[0] ?? null));
+	};
+	const controls: WorkspaceControlsValue = compact
+		? {
+				compact,
+				has: (side) => drawers[side].length > 0,
+				isOpen: (side) => openPanel !== null && drawers[side].includes(openPanel),
+				toggle: toggleDrawer,
+			}
+		: {
+				compact,
+				has: (side) =>
+					PANEL_IDS.some((id) => layout.panels[id].dock === side && contents[id] !== undefined),
+				isOpen: (side) => dockVisible(effective, side),
+				toggle: (side) => onToggle?.(side),
+			};
+
 	return (
-		<div
-			className={cx("workspace", dragging && "dragging", compact && "compact")}
-			ref={surface}
-			style={{ gridTemplateColumns: tracks.columns, gridTemplateRows: tracks.rows }}
-		>
-			{(["left", "right", "bottom"] as DockSide[]).map((side) =>
-				(compact && side !== "bottom" ? drawers[side].length > 0 : dockVisible(effective, side)) ? (
-					<Dock
-						key={side}
-						side={side}
-						layout={effective}
-						contents={contents}
-						drawer={
-							compact && side !== "bottom" ? { ids: drawers[side], open: openPanel } : undefined
-						}
-						onDragPanel={onMovePanel && !compact ? startDrag : undefined}
-						onFloat={
-							onFloatPanel && !compact
-								? (panel) => onFloatPanel(panel, layout.panels[panel].frame)
-								: undefined
-						}
-					/>
-				) : null,
-			)}
-
-			{compact && openPanel && (
-				<div
-					className="drawer-backdrop"
-					style={{ gridArea: "centre" }}
-					onPointerDown={() => setDrawer(null)}
-				/>
-			)}
-
-			{/* Side docks only. The bottom is content-sized -- see `gridTemplate`
-			    -- so there is nothing for a splitter there to drag. */}
-			{(["left", "right"] as DockSide[]).map((side) =>
-				!compact && dockVisible(effective, side) && onResize && onToggle ? (
-					<Splitter
-						key={`split-${side}`}
-						side={side}
-						size={effective.docks[side].size}
-						onResize={(size) => onResize(side, size)}
-						onResizeEnd={onResizeEnd}
-						onToggle={() => onToggle(side)}
-					/>
-				) : null,
-			)}
-
-			<div className="centre" style={{ gridArea: "centre" }} ref={centreBox}>
-				{centre}
-				{floating}
-				{(drawers.left.length + drawers.right.length > 0 || (compact && touchBar)) && (
-					<div className="drawer-toggles">
-						{compact && touchBar && <div className="touch-bar">{touchBar}</div>}
-						{(["left", "right"] as const).map((side) => (
-							<div key={side} className={cx("drawer-group", `drawer-${side}`)}>
-								{drawers[side].map((id) => (
-									<button
-										key={id}
-										className={cx("tb drawer-toggle", openPanel === id && "on")}
-										aria-expanded={openPanel === id}
-										onClick={() => setDrawer(openPanel === id ? null : id)}
-									>
-										{PANEL_TITLES[id]}
-									</button>
-								))}
-							</div>
-						))}
-					</div>
+		<WorkspaceControls.Provider value={controls}>
+			<div
+				className={cx(
+					"workspace",
+					dragging && "dragging",
+					compact && "compact",
+					strip !== undefined && strip !== null && "has-strip",
 				)}
-				{/* Over the graph rather than beside it. Inside the centre, so a
+				ref={surface}
+				// The cards' widths, for what the centre shows when it is a sheet
+				// rather than a canvas: it keeps clear of them.
+				style={
+					{
+						"--left-w": `${!compact && dockVisible(effective, "left") ? effective.docks.left.size : 0}px`,
+						"--right-w": `${!compact && dockVisible(effective, "right") ? effective.docks.right.size : 0}px`,
+					} as CSSProperties
+				}
+			>
+				<div className="centre" ref={centreBox}>
+					{centre}
+					{strip}
+					{floating}
+					{compact && (touchBar || drawers.left.length + drawers.right.length > 0) && (
+						// A phone's bar along the bottom: the two sides' cards at its ends
+						// and what can be done to the selection between them. On a tablet
+						// the side buttons are on the top clusters instead.
+						<div className="drawer-toggles">
+							{drawers.left.length > 0 && (
+								<button
+									className={cx("tb icon-only drawer-toggle", controls.isOpen("left") && "on")}
+									aria-expanded={controls.isOpen("left")}
+									title={drawers.left.map((id) => PANEL_TITLES[id]).join(" and ")}
+									onClick={() => toggleDrawer("left")}
+								>
+									<Icon name="panelLeft" size={18} />
+								</button>
+							)}
+							{touchBar && <div className="touch-bar">{touchBar}</div>}
+							{drawers.right.length > 0 && (
+								<button
+									className={cx("tb icon-only drawer-toggle", controls.isOpen("right") && "on")}
+									aria-expanded={controls.isOpen("right")}
+									title={drawers.right.map((id) => PANEL_TITLES[id]).join(" and ")}
+									onClick={() => toggleDrawer("right")}
+								>
+									<Icon name="panelRight" size={18} />
+								</button>
+							)}
+						</div>
+					)}
+					{/* Over the graph rather than beside it. Inside the centre, so a
 				    window's coordinates are the graph's and a dock opening does not
 				    drag every window sideways with it. */}
-				{(compact ? [] : floatingPanels(effective)).map((id) => (
-					<FloatingPanel
-						key={id}
-						id={id}
-						frame={effective.panels[id].frame}
-						onFrame={onFramePanel}
-						onFrameEnd={onFramePanelEnd}
-						onDock={onDockPanel}
-					>
-						{contents[id]}
-					</FloatingPanel>
-				))}
-			</div>
+					{(compact ? [] : floatingPanels(effective)).map((id) => (
+						<FloatingPanel
+							key={id}
+							id={id}
+							frame={effective.panels[id].frame}
+							onFrame={onFramePanel}
+							onFrameEnd={onFramePanelEnd}
+							onDock={onDockPanel}
+						>
+							{contents[id]}
+						</FloatingPanel>
+					))}
+				</div>
 
-			{/* The preview, drawn over everything and hit by nothing. It has to be
+				{compact && openPanel && (
+					<div className="drawer-backdrop" onPointerDown={() => setDrawer(null)} />
+				)}
+
+				{(["left", "right", "bottom"] as DockSide[]).map((side) =>
+					(
+						compact && side !== "bottom"
+							? drawers[side].length > 0
+							: dockVisible(effective, side)
+					) ? (
+						<Dock
+							key={side}
+							side={side}
+							layout={effective}
+							contents={contents}
+							drawer={
+								compact && side !== "bottom"
+									? { ids: drawers[side], open: openPanel, onShow: setDrawer }
+									: undefined
+							}
+							onDragPanel={onMovePanel && !compact ? startDrag : undefined}
+							onFloat={
+								onFloatPanel && !compact
+									? (panel) => onFloatPanel(panel, layout.panels[panel].frame)
+									: undefined
+							}
+							splitter={
+								!compact && side !== "bottom" && onResize && onToggle ? (
+									<Splitter
+										side={side}
+										size={effective.docks[side].size}
+										onResize={(size) => onResize(side, size)}
+										onResizeEnd={onResizeEnd}
+										onToggle={() => onToggle(side)}
+									/>
+								) : undefined
+							}
+						/>
+					) : null,
+				)}
+
+				{chrome && <div className="workspace-chrome">{chrome}</div>}
+
+				{/* The preview, drawn over everything and hit by nothing. It has to be
 			    `pointer-events: none` or `elementFromPoint` would answer "the
 			    overlay" for every position under it, which is every position. */}
-			{dragging?.over && <DropPreview side={dragging.over} layout={effective} />}
-		</div>
+				{dragging?.over && <DropPreview side={dragging.over} layout={effective} />}
+			</div>
+		</WorkspaceControls.Provider>
 	);
 
 	// A press on a panel's own heading, which may become a drag.
@@ -542,6 +621,7 @@ function Dock({
 	drawer,
 	onDragPanel,
 	onFloat,
+	splitter,
 }: {
 	side: DockSide;
 	layout: Layout;
@@ -550,9 +630,11 @@ function Dock({
 	 * A dock drawn as drawers, on a phone or a tablet: the panels it offers,
 	 * and which one is out, if any of them. Undefined for a docked dock.
 	 */
-	drawer?: { ids: PanelId[]; open: PanelId | null };
+	drawer?: { ids: PanelId[]; open: PanelId | null; onShow: (panel: PanelId) => void };
 	onDragPanel?: (panel: PanelId, event: ReactPointerEvent<HTMLElement>) => void;
 	onFloat?: (panel: PanelId) => void;
+	/** The handle on the cards' inner edge, for a side dock on a wide screen. */
+	splitter?: ReactNode;
 }) {
 	const ids = drawer?.ids ?? panelsIn(layout, side).filter((id) => contents[id] !== undefined);
 	if (ids.length === 0) return null;
@@ -561,11 +643,30 @@ function Dock({
 	return (
 		<div
 			className={cx("dock", side, drawer !== undefined && "drawer", out && "drawer-open")}
-			style={{ gridArea: side }}
+			// A side dock's size is its cards' width. A drawer sizes itself.
+			style={
+				drawer === undefined && side !== "bottom" ? { width: layout.docks[side].size } : undefined
+			}
 			// Kept mounted while it is in, so the tree keeps what was expanded
 			// and where it was scrolled to -- but out of reach of focus.
 			inert={drawer !== undefined && !out}
 		>
+			{splitter}
+			{/* A drawer holds one panel at a time; with more than one on its side,
+			    a switch at its top says which. */}
+			{drawer !== undefined && ids.length > 1 && (
+				<span className="segmented drawer-tabs">
+					{ids.map((id) => (
+						<button
+							key={id}
+							className={drawer.open === id ? "on" : ""}
+							onClick={() => drawer.onShow(id)}
+						>
+							{PANEL_TITLES[id]}
+						</button>
+					))}
+				</span>
+			)}
 			{ids.map((id) => (
 				<div
 					// The drawer shows the one panel asked for. The others stay
@@ -672,7 +773,6 @@ function Splitter({
 	return (
 		<div
 			className={cx("splitter", side, axis)}
-			style={{ gridArea: `split-${side}` }}
 			role="separator"
 			aria-orientation={axis === "col" ? "vertical" : "horizontal"}
 			title="Drag to resize. Double-click to collapse."

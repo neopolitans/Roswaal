@@ -41,8 +41,9 @@ export function theInterfacePage(): DocPage {
 			{
 				t: "p",
 				text:
-					"On a tablet or a phone the same parts are there, arranged for a finger; a phone " +
-					"folds its bars further still. The **Tablet** and **Phone** tabs show where they go, " +
+					"In both, the graph fills the window and everything else floats over it. On a " +
+					"tablet or a phone the same parts are there, arranged for a finger; a phone folds " +
+					"the top row further still. The **Tablet** and **Phone** tabs show where they go, " +
 					"and what is only there.",
 			},
 			{ t: "h", level: 2, text: "The editor" },
@@ -60,7 +61,7 @@ export function theInterfacePage(): DocPage {
 								t: "note",
 								kind: "info",
 								text:
-									"That is where each panel starts. Drag one by its heading to another edge, " +
+									"That is where each card starts. Drag one by its heading to another edge, " +
 									"or out over the graph as a window.",
 							},
 						],
@@ -92,8 +93,8 @@ export function theInterfacePage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Opened from the editor's top bar. It lists the project's node packs; open one and " +
-					"pick a node to edit it.",
+					"Opened from the palette icon on the editor's top row. It lists the project's node " +
+					"packs; open one and pick a node to edit it.",
 			},
 			{
 				t: "tabs",

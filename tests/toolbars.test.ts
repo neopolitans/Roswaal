@@ -152,19 +152,14 @@ describe("the toolbar specs", () => {
 	});
 
 	/**
-	 * Settings is on both docs headers and is not the same control on each.
-	 *
-	 * In the window it is a button with its name on it, beside one other. On a
-	 * published page it is the gear alone: the header there is mostly the way
-	 * out to the editor and the source, and a page gives its width to what the
-	 * reader came for. Drawn, because that difference is the sort a picture
-	 * settles and a sentence argues about.
+	 * Settings is on both docs headers, and on both it is the gear alone, as it
+	 * is in the editor and Node Design: one glyph for one thing in every window.
 	 */
-	it("spells Settings as a gear on the site and as a button in the window", () => {
-		const site = controlsOf(DOCS_SITE_BAR).find((item) => item.name === "Settings");
-		expect(site?.t).toBe("icon");
-		const window = controlsOf(DOCS_BAR).find((item) => item.name === "Settings");
-		expect(window?.t).toBe("button");
+	it("spells Settings as a gear on the site and in the window", () => {
+		for (const bar of [DOCS_SITE_BAR, DOCS_BAR]) {
+			const gear = controlsOf(bar).find((item) => item.name === "Settings");
+			expect(gear?.t === "icon" && gear.icon, bar.id).toBe("settings");
+		}
 	});
 
 	/** Node Design gained it in 0.64.7, and is a gear for the same reason. */
@@ -198,7 +193,8 @@ describe("drawing one", () => {
 		const editor = TOOLBARS.find((bar) => bar.id === "editor-bar")!;
 		const html = toolbarHtml(editor, art);
 
-		expect(html).toContain('class="toolbar"');
+		// Floating clusters over the graph, as the editor's own row is.
+		expect(html).toContain('class="floating-tools"');
 		expect(html).toContain(ICONS.palette);
 		expect(html).toContain(ICONS.settings);
 		// The flexible gap is what puts them at the right-hand end.
@@ -210,12 +206,13 @@ describe("drawing one", () => {
 		const html = toolbarHtml(graph, art);
 
 		expect(html).toContain('class="floating-tools"');
-		expect(html.match(/class="tool-group"/g)).toHaveLength(graph.groups.length);
+		// `tool-group`, alone or beside a cluster's own class (`graph-tabs`).
+		expect(html.match(/class="tool-group[ "]/g)).toHaveLength(graph.groups.length);
 	});
 
 	/** A page header spells its flexible gap `grow`; the other two `spacer`. */
 	it("uses the header's own spacer on a window header", () => {
-		const docs = TOOLBARS.find((bar) => bar.id === "docs-bar")!;
+		const docs = TOOLBARS.find((bar) => bar.id === "docs-site-bar")!;
 		const html = toolbarHtml(docs, art);
 
 		expect(html).toContain('class="docs-page-head"');
@@ -287,8 +284,8 @@ describe("the Toolbars page", () => {
 	/** Both panels are in the markup, so the page reads with no script at all. */
 	it("puts both editors in the page rather than only the open tab", () => {
 		const html = renderPage(site, page, { version: "test", toolbars: art });
-		expect(html).toContain("The same bar in the browser preview");
-		expect(html).toContain("Everything on it acts on the project.");
+		expect(html).toContain("The same row in the browser preview");
+		expect(html).toContain("Floating along the top of the editor");
 	});
 
 	/**
@@ -343,8 +340,8 @@ describe("pointing between the picture and the list", () => {
 		const handles = [...html.matchAll(/data-control="([^"]+)"/g)].map((m) => m[1]);
 
 		expect(handles).toEqual(legendOf(graph).map((item) => controlKey(item.name)));
-		// The document's name is drawn and is not a control.
-		expect(html).toContain('class="doc-name');
+		// The second tab is drawn and is not a control: the first explains both.
+		expect(html).toContain('<span class="graph-tab"><span class="name">');
 	});
 
 	/** A key that is not unique lights two things at once. */

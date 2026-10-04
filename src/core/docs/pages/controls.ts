@@ -95,6 +95,8 @@ export function controlsPage(): DocPage {
 									["Drag empty space with one finger", "Pan"],
 									["Tap empty space", "Clear the selection"],
 									["Two fingers", "Pinch to zoom, drag to pan"],
+									["Tap with two fingers", "Undo"],
+									["Tap with three fingers", "Redo"],
 									["Press and hold empty space, then drag", "Marquee select"],
 									["Press and hold empty space, then lift", "Node menu, where you held"],
 									[
@@ -114,13 +116,16 @@ export function controlsPage(): DocPage {
 										"Press and hold a variable, a file or a tab, then lift",
 										"Its menu, if it has one",
 									],
-									["**Undo** and **Redo**, under the graph", "As `Ctrl` + `Z` and `Ctrl` + `Y` do"],
 									[
-										"**Align**, **Copy**, **Cut**, **Duplicate**, **Delete**, **Paste**, under the graph",
+										"**Undo** and **Redo**, along the bottom or on the side strip",
+										"As `Ctrl` + `Z` and `Ctrl` + `Y` do",
+									],
+									[
+										"**Align**, **Copy**, **Cut**, **Duplicate**, **Delete**, **Paste**, along the bottom",
 										"What their shortcuts do, to the selection. Node Design's logic graph has the same bar. Icons or words: **Settings → Editor → Action buttons**",
 									],
 									[
-										"**Preview** and **Logic**, in Node Design",
+										"**Preview** and **Logic**, in Node Design on a phone",
 										"Show the node, or its logic, with the whole editor to itself",
 									],
 									[
@@ -130,8 +135,8 @@ export function controlsPage(): DocPage {
 									["Double tap an instance in DataModel", "Slide Properties out with it"],
 									["Drag a node, or from a pin", "As with a mouse"],
 									[
-										"**Project**, **Variables** and **Inspector**, under the graph",
-										"Slide that panel out over the graph, one at a time",
+										"The Project and Inspector buttons: on the top row on a tablet, at the ends of the bottom bar on a phone",
+										"Slide those cards out over the graph, one side at a time",
 									],
 									[
 										"The search button beside **Contents**, in these pages",
@@ -197,7 +202,18 @@ export function controlsPage(): DocPage {
 					["`Shift` or `Ctrl` + drag on empty space", "Marquee adds to the selection"],
 					["Click empty space", "Clear the selection"],
 					["Right-click empty space", "Node menu, at the point you clicked"],
+					[
+						"**+** and **−** on the side strip, or its slider",
+						"Zoom; the percentage goes back to 100%",
+					],
+					["**Fit** on the side strip", "The whole graph, in the window"],
 				],
+			},
+			{
+				t: "p",
+				text:
+					"The side strip is along the bottom of the graph with a mouse, and down its left " +
+					"edge on a touch screen. A phone has none.",
 			},
 			{ t: "h", level: 2, text: "Nodes" },
 			{
@@ -227,10 +243,14 @@ export function controlsPage(): DocPage {
 				t: "table",
 				head: ["Gesture", "What it does"],
 				rows: [
-					["Drag a panel by its heading", "Move it to another edge"],
-					["Drag a panel onto the graph", "It becomes a window there"],
-					["The **⇥** button on a panel", "The same, without the drag"],
-					["Drag the divider beside a dock", "Resize it; double-click to collapse"],
+					[
+						"The Project and Inspector buttons on the top row",
+						"Show or hide the cards on that side",
+					],
+					["Drag a card by its heading", "Move it to another edge"],
+					["Drag a card onto the graph", "It becomes a window there"],
+					["The **⇥** button on a card", "The same, without the drag"],
+					["Drag a card's inner edge", "Resize that side; double-click to put it away"],
 					["**Settings → Variables → Window**", "The same choice, remembered as a preference"],
 					["Drag the window by its heading", "Move it"],
 					[

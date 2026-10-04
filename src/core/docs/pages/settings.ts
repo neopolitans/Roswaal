@@ -159,10 +159,6 @@ export function settingsPage(): DocPage {
 						"Whether a new **And**, **Or**, **Not**, comparison or arithmetic pill starts out bracketing its expression. Only the starting point: whether a node brackets is stored **on the node**, so it travels with the graph and reads the same on everybody's machine. Precedence is handled either way — this is about how the line reads, never about what it means. The casts are pills too and are not offered it: `(value :: T)` brackets itself already.",
 					],
 					[
-						"Name in the graph tools",
-						"**Show** puts the graph's name at the start of the tools over the canvas — `ƒ hide (Occupancy)` in a function's graph. Hidden by default, since the tab and the watermark say it already; unsaved edits are marked with a dot either way.",
-					],
-					[
 						"Shorten function tabs",
 						"What a function's tab says. **None** keeps `ƒ hide (Occupancy)`; **Function name** and **Script name** keep one of the two. The tooltip has both.",
 					],

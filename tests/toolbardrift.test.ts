@@ -11,6 +11,11 @@
  * Read from the source rather than rendered, because the components need a
  * store and a browser to mount. A control the parse cannot see is reported as
  * missing rather than passed over, so a change of shape fails loudly.
+ *
+ * A row on screen can be drawn by more than one component -- the editor's top
+ * row is `ProjectBar` with `DocumentAction` at the end of its compile cluster,
+ * and Node Design's is `DesignerPage` with the open node's actions in a slot
+ * -- so a bar is read from its slices, in the order they sit on screen.
  */
 
 import { readFileSync } from "node:fs";
@@ -20,11 +25,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+	CANVAS_STRIP,
 	controlsOf,
 	DESIGNER_BAR,
 	DOCS_BAR,
 	EDITOR_BAR,
 	GRAPH_BAR,
+	MORE_MENU_PHONE,
 	type ToolbarSpec,
 } from "../src/core/docs/toolbars.js";
 
@@ -36,17 +43,51 @@ interface Control {
 	labels: string[];
 }
 
-/** The source of one component: from its declaration to the next one. */
-function component(file: string, start: string): string {
-	const source = readFileSync(join(ROOT, file), "utf8");
-	const at = source.indexOf(start);
-	if (at < 0) throw new Error(`${file} no longer has ${start}`);
-	const next = source.indexOf("\nexport function ", at + start.length);
-	return next < 0 ? source.slice(at) : source.slice(at, next);
+/**
+ * Part of a component's file: from `start` to `end`, or to the next exported
+ * function when there is no `end`.
+ */
+interface Slice {
+	file: string;
+	start: string;
+	end?: string;
 }
 
-/** The string literals in an attribute, whether written `="…"` or `={…}`. */
-function attributeStrings(element: string, name: string): string[] {
+function readSource(file: string): string {
+	return readFileSync(join(ROOT, file), "utf8");
+}
+
+/** The source of one slice. */
+function component({ file, start, end }: Slice): string {
+	const source = readSource(file);
+	const at = source.indexOf(start);
+	if (at < 0) throw new Error(`${file} no longer has ${start}`);
+	const stop = source.indexOf(end ?? "\nexport function ", at + start.length);
+	if (end !== undefined && stop < 0) throw new Error(`${file} no longer has ${end}`);
+	return stop < 0 ? source.slice(at) : source.slice(at, stop);
+}
+
+/**
+ * The string literals each `const` in a file is set to, by name: a tooltip
+ * written once above the element -- `title={previewTitle}` -- is that
+ * constant's words. Plain declarations only, never a destructured hook.
+ */
+function constants(file: string): Map<string, string[]> {
+	const out = new Map<string, string[]>();
+	for (const m of readSource(file).matchAll(/\bconst (\w+)(?::[^=]+)? =([\s\S]*?);\n/g)) {
+		out.set(
+			m[1],
+			[...m[2].matchAll(/"([^"]*)"/g)].map((s) => s[1]),
+		);
+	}
+	return out;
+}
+
+/**
+ * The string literals in an attribute, whether written `="…"` or `={…}`, and
+ * a constant's when the attribute is one: `title={DOCS_TITLE}`.
+ */
+function attributeStrings(element: string, name: string, consts: Map<string, string[]>): string[] {
 	const out: string[] = [];
 	for (const m of element.matchAll(new RegExp(`\\b${name}="([^"]*)"`, "g"))) out.push(m[1]);
 	for (const m of element.matchAll(new RegExp(`\\b${name}=\\{`, "g"))) {
@@ -57,22 +98,34 @@ function attributeStrings(element: string, name: string): string[] {
 			if (element[i] === "{") depth++;
 			if (element[i] === "}") depth--;
 		}
-		for (const s of element.slice(from, i).matchAll(/"([^"]*)"/g)) out.push(s[1]);
+		const value = element.slice(from, i - 1);
+		const named = /^\s*(\w+)\s*$/.exec(value);
+		if (named) out.push(...(consts.get(named[1]) ?? []));
+		for (const s of value.matchAll(/"([^"]*)"/g)) out.push(s[1]);
 	}
 	return out;
 }
 
-function controls(source: string): Control[] {
+function controls(source: string, consts: Map<string, string[]> = new Map()): Control[] {
 	return [...source.matchAll(/<(button|a)\b[\s\S]*?<\/\1>/g)].map(([element]) => ({
 		glyphs: [...element.matchAll(/<Icon name="(\w+)"/g)].map((m) => m[1]),
 		labels: [
-			...attributeStrings(element, "title"),
-			...attributeStrings(element, "aria-label"),
+			...attributeStrings(element, "title", consts),
+			...attributeStrings(element, "aria-label", consts),
 			...[...element.matchAll(/className="tb-label">([^<]+)</g)].map((m) => m[1].trim()),
 			// Words written straight into the element, as `Open Editor` is.
 			...[...element.matchAll(/>\s*([A-Z][\w ]+?)\s*</g)].map((m) => m[1].trim()),
+			// Words it shows from an expression, as Save shows `dirty ? "Save" :
+			// "Saved"`. Only a literal in a shown position -- after `?`, `:`, `(`
+			// or `{` -- and only words, so no class name or path is read as one.
+			...[...element.matchAll(/[?:({]\s*"([A-Z][\w ]*)"/g)].map((m) => m[1]),
 		],
 	}));
+}
+
+/** Every control of a bar's slices, in screen order, each read with its file's constants. */
+function drawnFrom(slices: Slice[]): Control[] {
+	return slices.flatMap((slice) => controls(component(slice), constants(slice.file)));
 }
 
 /** A tooltip names its control first: "Refresh — re-read the project from disk". */
@@ -80,20 +133,54 @@ function names(label: string, name: string): boolean {
 	return label === name || label.startsWith(`${name} — `);
 }
 
-const BARS: [string, ToolbarSpec, string, string][] = [
-	["the editor's top bar", EDITOR_BAR, "src/app/Toolbar.tsx", "export function ProjectBar("],
-	["the graph's bar", GRAPH_BAR, "src/app/Toolbar.tsx", "export function DocumentBar("],
+const TOOLBAR = "src/app/Toolbar.tsx";
+const PROJECT_BAR: Slice = { file: TOOLBAR, start: "export function ProjectBar(" };
+const DOCUMENT_BAR: Slice = { file: TOOLBAR, start: "export function DocumentBar(" };
+const DESIGNER = "src/app/DesignerPage.tsx";
+const SLOT = '<div className="tool-slot"';
+
+const BARS: [string, ToolbarSpec, Slice[]][] = [
 	[
-		"Node Design's header",
-		DESIGNER_BAR,
-		"src/app/DesignerPage.tsx",
-		"export function DesignerPage(",
+		"the editor's top row",
+		EDITOR_BAR,
+		[PROJECT_BAR, { file: TOOLBAR, start: "export function DocumentAction(" }],
 	],
-	["the docs window's header", DOCS_BAR, "src/app/DocsPage.tsx", "export function DocsPage("],
+	[
+		"the open graph's clusters",
+		GRAPH_BAR,
+		[{ file: "src/app/GraphTabs.tsx", start: "export function GraphTabs(" }, DOCUMENT_BAR],
+	],
+	// The menu holds the project's rows and, on a phone, the graph's.
+	["the More menu on a phone", MORE_MENU_PHONE, [PROJECT_BAR, DOCUMENT_BAR]],
+	[
+		"the side strip",
+		CANVAS_STRIP,
+		[{ file: "src/app/CanvasStrip.tsx", start: "export function CanvasStrip(" }],
+	],
+	[
+		"Node Design's top row",
+		DESIGNER_BAR,
+		[
+			// The mark, then the slot the open node's actions are drawn into...
+			{ file: DESIGNER, start: "export function DesignerPage(", end: SLOT },
+			{
+				file: "src/app/designer/NodeEditor.tsx",
+				start: "const nodeKindGroup = () =>",
+				end: "const nodeActions = nodeKindGroup();",
+			},
+			// ...then the other windows.
+			{ file: DESIGNER, start: SLOT },
+		],
+	],
+	[
+		"the docs window's header",
+		DOCS_BAR,
+		[{ file: "src/app/DocsPage.tsx", start: "export function DocsPage(" }],
+	],
 ];
 
-describe.each(BARS)("%s", (_title, spec, file, start) => {
-	const drawn = controls(component(file, start));
+describe.each(BARS)("%s", (_title, spec, slices) => {
+	const drawn = drawnFrom(slices);
 
 	it("is read from the component, controls and all", () => {
 		expect(drawn.length).toBeGreaterThan(1);
@@ -132,7 +219,7 @@ function misdrawnIcons(spec: ToolbarSpec, drawn: Control[]): string[] {
 }
 
 describe("the check itself", () => {
-	const drawn = controls(component("src/app/Toolbar.tsx", "export function ProjectBar("));
+	const drawn = drawnFrom([PROJECT_BAR]);
 	const one = (items: ToolbarSpec["groups"][number]["items"]): ToolbarSpec => ({
 		...EDITOR_BAR,
 		groups: [{ items }],
@@ -154,5 +241,21 @@ describe("the check itself", () => {
 				drawn,
 			),
 		).toEqual(["refresh Refresh"]);
+	});
+
+	/** A tooltip kept in a constant is read from the constant, not skipped. */
+	it("reads a title written as a constant", () => {
+		const graph = drawnFrom([DOCUMENT_BAR]);
+		expect(
+			graph.some((c) => c.labels.some((l) => names(l, "Preview")) && c.glyphs.includes("terminal")),
+		).toBe(true);
+		expect(drawn.some((c) => c.labels.some((l) => l.startsWith("Docs — ")))).toBe(true);
+	});
+
+	/** The slices of a row are read where they sit, and a missing end is loud. */
+	it("fails loudly when a slice's end has gone", () => {
+		expect(() =>
+			component({ file: DESIGNER, start: "export function DesignerPage(", end: "<NoSuchSlot" }),
+		).toThrow(/no longer has/);
 	});
 });

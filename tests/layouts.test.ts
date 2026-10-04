@@ -13,7 +13,14 @@ import { ICONS, VIEW_BOX } from "../src/app/icons.js";
 import { logoMarkup } from "../src/app/logo.js";
 import { renderPage } from "../src/core/docs/html.js";
 import * as layouts from "../src/core/docs/layouts.js";
-import { LAYOUTS, layoutConstant, layoutHtml, listedRegions } from "../src/core/docs/layouts.js";
+import {
+	LAYOUTS,
+	layoutConstant,
+	layoutHtml,
+	layoutIcons,
+	listedRegions,
+	SCREEN,
+} from "../src/core/docs/layouts.js";
 import { type Block, buildSite, findPage } from "../src/core/docs/site.js";
 import { controlKey } from "../src/core/docs/toolbars.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
@@ -55,13 +62,9 @@ function layoutsIn(blocks: Block[]): string[] {
 describe("the window diagrams", () => {
 	it("draw only glyphs the icon set has", () => {
 		for (const layout of LAYOUTS) {
-			for (const region of layout.regions) {
-				const mixed = (region.endItems ?? []).flatMap((item) =>
-					"icon" in item ? [item.icon] : [],
-				);
-				for (const icon of [...(region.icons ?? []), ...(region.iconsEnd ?? []), ...mixed]) {
-					expect(ICONS, `${layout.id}: ${icon}`).toHaveProperty(icon);
-				}
+			expect(layoutIcons(layout).length, layout.id).toBeGreaterThan(0);
+			for (const icon of layoutIcons(layout)) {
+				expect(ICONS, `${layout.id}: ${icon}`).toHaveProperty(icon);
 			}
 		}
 	});
@@ -93,6 +96,24 @@ describe("the window diagrams", () => {
 		}
 	});
 
+	/**
+	 * The tracks are the real window's, in its pixels, so the fixed ones have to
+	 * fit inside the window they are measured from, with room left for the
+	 * flexible one -- or a card is drawn wider than the screen it is on.
+	 */
+	it("fit their fixed tracks inside the window they draw", () => {
+		const fixed = (template: string) =>
+			[...template.matchAll(/(?:^|s)(d+)px/g)].reduce((sum, m) => sum + Number(m[1]), 0);
+		for (const layout of LAYOUTS) {
+			const screen = SCREEN[layout.device];
+			expect(fixed(layout.columns), layout.id).toBeLessThan(screen.width);
+			expect(fixed(layout.rows), layout.id).toBeLessThan(screen.height);
+			expect(layoutHtml(layout, art), layout.id).toContain(
+				`width:${screen.width}px;height:${screen.height}px`,
+			);
+		}
+	});
+
 	/** *Suggest an edit* writes a diagram as its constant; the name has to exist. */
 	it("derive each spec's exported name from its id", () => {
 		for (const layout of LAYOUTS) {
@@ -104,7 +125,7 @@ describe("the window diagrams", () => {
 		const html = layoutHtml(LAYOUTS[0], art);
 		listedRegions(LAYOUTS[0]).forEach((region, i) => {
 			expect(html).toContain(`data-control="${controlKey(region.name)}"`);
-			expect(html).toContain(`<span class="docs-layout-num">${i + 1}</span>`);
+			expect(html).toMatch(new RegExp(`<span class="docs-layout-num"[^>]*>${i + 1}</span>`));
 		});
 	});
 });

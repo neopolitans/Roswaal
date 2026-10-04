@@ -18,20 +18,21 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { VERSION } from "../cli/version.js";
 import { createRegistry } from "../core/nodes/index.js";
 import type { NodeDef } from "../core/schema.js";
 import { api } from "./api.js";
 import { cx } from "./cx.js";
 import { DocsView } from "./DocsPanel.jsx";
+import { ToolGroup } from "./FloatingTools.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { Icon } from "./icons.jsx";
 import { pageHref, pagesShareTab } from "./pages.js";
 import { usePreferenceSync } from "./preferenceSync.js";
 import { type Preferences, readPreferences, writePreferences } from "./preferences.js";
-import { MarkedLogo, SiteBanner } from "./previewBuild.jsx";
+import { SiteBanner } from "./previewBuild.jsx";
 import { SettingsPanel } from "./SettingsPanel.jsx";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
+import { WindowMark } from "./WindowMark.jsx";
 
 /** The slug in the address bar, so a docs page can be linked and bookmarked. */
 function slugFromHash(): string | undefined {
@@ -97,61 +98,71 @@ export function DocsPage() {
 
 	return (
 		<>
-			<div className={cx("docs-page", navOpen && "nav-open")}>
+			<div className={cx("docs-page docs-window", navOpen && "nav-open")}>
 				{/* The sharper wording: these pages describe a build that is not out. */}
 				<SiteBanner kind="docs" />
-				<header className="docs-page-head">
-					{/* The mark and what this window is. "Roswaal Documentation" said
-				    both of those in six syllables and neither of them quickly. */}
-					<button
-						className="logo as-chip"
-						onClick={() => setIntroOpen(true)}
-						title="Recent projects, the demos, and the other windows"
-					>
-						{/* The build's colour, as the editor's mark wears it. Plain today:
-					    the browser build sends Docs to the published site rather than
-					    to this window. Here anyway, because the rule is every surface
-					    of that build. */}
-						<MarkedLogo height={17} title="Roswaal" />
-						Docs
-						<span className="version">{VERSION}</span>
-					</button>
-					<button
-						className={cx("tb docs-nav-toggle", navOpen && "on")}
-						aria-expanded={navOpen}
-						onClick={() => setNavOpen((open) => !open)}
-					>
-						Contents
-					</button>
-					<button
-						className="tb icon-only docs-search-toggle"
-						title="Search the docs"
-						aria-label="Search the docs"
-						onClick={() => {
-							setNavOpen(false);
-							setSearches((n) => n + 1);
-						}}
-					>
-						<Icon name="search" size={15} />
-					</button>
+				{/* The same floating groups as the editor's and Node Design's: the
+				    mark and the search at the left, the other windows at the right. */}
+				<header className="docs-page-head docs-clusters">
+					<ToolGroup className="mark-group">
+						{/* The build's colour, as the editor's mark wears it, and the
+						    window's name -- or on a phone its glyph. See WindowMark. */}
+						<WindowMark window="docs" onOpen={() => setIntroOpen(true)} />
+					</ToolGroup>
+					{/* Search, beside the mark: the first thing a reader reaches for,
+					    and the same search Ctrl+K opens. */}
+					<ToolGroup className="search-group">
+						<button
+							className="tb docs-search-field"
+							title="Search the docs (Ctrl+K)"
+							aria-label="Search the docs"
+							onClick={() => {
+								setNavOpen(false);
+								setSearches((n) => n + 1);
+							}}
+						>
+							<Icon name="search" size={14} />
+							<span className="docs-search-label">Search the docs</span>
+							<kbd>Ctrl K</kbd>
+						</button>
+					</ToolGroup>
+					{/* The contents as a drawer, where the window is too narrow to hold
+					    them beside the page. */}
+					<ToolGroup className="contents-group">
+						<button
+							className={cx("tb docs-nav-toggle", navOpen && "on")}
+							aria-expanded={navOpen}
+							onClick={() => setNavOpen((open) => !open)}
+						>
+							Contents
+						</button>
+					</ToolGroup>
 					{packsFailed && (
 						<span className="warn" title="Start the daemon and reload to include them">
 							built-in nodes only — no daemon
 						</span>
 					)}
-					<span style={{ flex: 1 }} />
-					<button className="tb" onClick={() => setSettingsOpen(true)} title="Settings">
-						<Icon name="settings" size={15} />
-						Settings
-					</button>
-					<a
-						className="tb"
-						href={pageHref("editor")}
-						target={pagesShareTab() ? "_self" : "_blank"}
-						rel="noreferrer"
-					>
-						Open Editor
-					</a>
+					<span className="spacer" />
+					<ToolGroup>
+						<button
+							className="tb icon-only"
+							onClick={() => setSettingsOpen(true)}
+							title="Settings"
+							aria-label="Settings"
+						>
+							<Icon name="settings" size={16} />
+						</button>
+						<a
+							className="tb icon-only"
+							href={pageHref("editor")}
+							target={pagesShareTab() ? "_self" : "_blank"}
+							rel="noreferrer"
+							title="Open Editor — the graph editor"
+							aria-label="Open Editor"
+						>
+							<Icon name="graph" size={16} />
+						</a>
+					</ToolGroup>
 				</header>
 
 				{introOpen && <IntroPanel surface="docs" onClose={() => setIntroOpen(false)} />}

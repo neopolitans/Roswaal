@@ -14,6 +14,7 @@ import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { errorMessage } from "../core/errorMessage.js";
 import type { InstanceLocation } from "../core/nodemap.js";
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import { AliasDocument } from "./AliasDocument.jsx";
@@ -28,7 +29,7 @@ import {
 	type TreeEntry,
 } from "./api.js";
 import { Canvas } from "./Canvas.jsx";
-import { CanvasNotice } from "./CanvasNotice.jsx";
+import { CanvasStrip } from "./CanvasStrip.jsx";
 import { CompileToast } from "./CompileToast.jsx";
 import type { LuaurcDocument, MapDocument } from "./centreDocument.js";
 import { onCodeEditRequest } from "./codeEditRequests.js";
@@ -36,6 +37,7 @@ import { previewFor } from "./DocsPanel.jsx";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { ExportMenu } from "./ExportMenu.jsx";
 import { type Clipping, disconnectPin, setLiteral, setConfig as setNodeConfig } from "./edits.js";
+import { GraphSettings } from "./GraphSettings.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
 import {
 	useCanImportPlace,
@@ -69,7 +71,8 @@ import { type SourceDoc, SourceView } from "./SourceView.jsx";
 import { StatusPanel } from "./StatusPanel.jsx";
 import { SaveQueue } from "./saveQueue.js";
 import { store, useDocuments, useEditor, useOutline } from "./store.js";
-import { DocumentBar, ProjectBar } from "./Toolbar.jsx";
+import { showToast, Toasts } from "./Toast.jsx";
+import { DocumentAction, DocumentBar, ProjectBar } from "./Toolbar.jsx";
 import { liveSelection, TouchBar } from "./TouchBar.jsx";
 import { useAutosave } from "./useAutosave.js";
 import { useDialogs } from "./useDialogs.js";
@@ -736,6 +739,18 @@ export function App() {
 				setMapOutcomes(results);
 				setStatusOpen(true);
 				await refreshTree();
+				const one = path && results.length === 1 ? results[0] : undefined;
+				if (one?.written) {
+					const made = one.made?.length ?? 0;
+					showToast({
+						title: `Wrote ${one.outputPath}`,
+						detail: made > 0 ? `Made ${made} folder${made === 1 ? "" : "s"} it syncs` : undefined,
+						icon: "build",
+						tone: "ok",
+					});
+				} else if (one?.skipped) {
+					showToast({ title: "Not written", detail: one.skipped, tone: "warn" });
+				}
 			} catch (err) {
 				notify("Something went wrong", errorMessage(err));
 			} finally {
@@ -754,6 +769,24 @@ export function App() {
 				setOutcomes(results);
 				setStatusOpen(true);
 				if (write) await refreshTree();
+				// One graph compiled: say what it wrote, where you are looking.
+				// A project's compile has its own progress toast.
+				const one = path && write && results.length === 1 ? results[0] : undefined;
+				if (one?.written) {
+					const name =
+						(path ?? "")
+							.split("/")
+							.pop()
+							?.replace(/\.nodescript$/, "") ?? "";
+					showToast({
+						title: `Compiled ${name}`,
+						detail: one.outputPath,
+						icon: "build",
+						tone: "ok",
+					});
+				} else if (one?.skipped) {
+					showToast({ title: "Not written", detail: one.skipped, tone: "warn" });
+				}
 			} catch (err) {
 				notify("Something went wrong", errorMessage(err));
 			} finally {
@@ -880,8 +913,17 @@ export function App() {
 
 	if (!project) return <ProjectPicker onOpen={loadProject} busy={busy} />;
 
-	const showInspector =
-		!source && !mapDoc && !aliasDoc && editor.script !== null && editor.selection.size === 1;
+	// A graph is what the centre shows: not a node map, a source file or aliases.
+	const graphOpen = !source && !mapDoc && !aliasDoc && editor.script !== null;
+	const showInspector = graphOpen && editor.selection.size === 1;
+	// Add node, from the graph's tools: the palette, at the middle of the view.
+	const addNodeAtCentre = () => {
+		const view = store.getView();
+		setMenu({
+			screen: { x: 320, y: 120 },
+			world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
+		});
+	};
 	const errorCount = diagnostics.filter((d) => d.severity === "error").length;
 	const warningCount = diagnostics.length - errorCount;
 
@@ -894,23 +936,6 @@ export function App() {
 			    document for every field that names it — and the fields that do
 			    are in two panels and on the canvas. */}
 			<SpecifierHints />
-			{/* The application: what Roswaal is doing, whatever is open. */}
-			<ProjectBar
-				config={project.config}
-				busy={busy}
-				onRefresh={() => void refreshTree()}
-				onNewGraph={() => void createGraphIn(inDir(targetDir))}
-				onNewMap={() => void createMapIn(inDir(targetDir))}
-				onCompileMode={(mode) => void setConfig({ compileMode: mode })}
-				onCompileProject={async () => {
-					await runCompile(undefined, true);
-					await runCompileMap(undefined);
-				}}
-				onOpenDocs={() => void openPage("docs")}
-				onOpenDesigner={() => void openPage("designer")}
-				onOpenSettings={() => setSettingsOpen(true)}
-				onOpenIntro={() => setIntroOpen(true)}
-			/>
 
 			{/* Rendered here rather than in the overlay stack: it is about the
 			    project, not about the graph, and Overlays takes the script. It
@@ -1007,21 +1032,105 @@ export function App() {
 				/>
 			)}
 
-			{/* The document row. Absent when nothing is open, which is what
-			    keeps "everything above is the project, everything here is the
-			    document" true rather than aspirational. */}
-			{mapDoc && (
-				<DocumentBar
-					kind="map"
-					name={mapDoc.map.name}
-					dirty={mapDoc.dirty}
-					busy={busy}
-					onCompile={() => void runCompileMap(mapDoc.path)}
-				/>
-			)}
-
 			<Workspace
 				layout={layout}
+				chrome={
+					<ProjectBar
+						config={project.config}
+						busy={busy}
+						document={
+							<>
+								{/* The open graphs: the active one's name, the others beside
+								    it while there is room, and a list of all of them. A node
+								    map or a source file is not a graph and has no tab, so the
+								    tabs show what would come back if you left them. */}
+								<GraphTabs
+									documents={documents}
+									functionTabs={prefs.functionTabs}
+									onActivate={(key) => {
+										setSource(null);
+										setMapDoc(null);
+										store.activate(key);
+									}}
+									onClose={(key) => store.closeDocument(key)}
+									onReorder={(key, before) => store.reorder(key, before)}
+								/>
+								{mapDoc ? (
+									<DocumentBar kind="map" name={mapDoc.map.name} dirty={mapDoc.dirty} />
+								) : graphOpen ? (
+									<DocumentBar
+										kind="graph"
+										locked={locked}
+										alignExec={alignExec}
+										selected={editor.selection.size}
+										inFunction={editor.graph !== null}
+										onAddNode={addNodeAtCentre}
+										onRealign={realign}
+										onToggleAlignExec={toggleAlignExec}
+										onPreview={() => setPreviewOpen(true)}
+									/>
+								) : null}
+							</>
+						}
+						action={
+							mapDoc ? (
+								<DocumentAction
+									kind="map"
+									busy={busy}
+									hasPath
+									onCompile={() => void runCompileMap(mapDoc.path)}
+								/>
+							) : graphOpen ? (
+								<DocumentAction
+									kind="graph"
+									busy={busy}
+									hasPath={editor.path !== null}
+									onCompile={() => {
+										if (editor.path) void runCompile(editor.path, true);
+									}}
+								/>
+							) : undefined
+						}
+						phoneMenu={
+							graphOpen ? (
+								<DocumentBar
+									kind="graph"
+									asMenu
+									locked={locked}
+									alignExec={alignExec}
+									selected={editor.selection.size}
+									inFunction={editor.graph !== null}
+									onAddNode={addNodeAtCentre}
+									onRealign={realign}
+									onToggleAlignExec={toggleAlignExec}
+									onPreview={() => setPreviewOpen(true)}
+								/>
+							) : undefined
+						}
+						onRefresh={() => void refreshTree()}
+						onNewGraph={() => void createGraphIn(inDir(targetDir))}
+						onNewMap={() => void createMapIn(inDir(targetDir))}
+						onCompileMode={(mode) => void setConfig({ compileMode: mode })}
+						onCompileProject={async () => {
+							await runCompile(undefined, true);
+							await runCompileMap(undefined);
+						}}
+						onOpenDocs={() => void openPage("docs")}
+						onOpenDesigner={() => void openPage("designer")}
+						onOpenSettings={() => setSettingsOpen(true)}
+						onOpenIntro={() => setIntroOpen(true)}
+					/>
+				}
+				strip={
+					graphOpen && editor.script ? (
+						<CanvasStrip
+							script={editor.script}
+							graph={editor.graph}
+							registry={registry}
+							wide={prefs.wideNodes}
+						/>
+					) : undefined
+				}
 				drawerKey={`${editor.path}|${editor.graph}|${source?.path}|${mapDoc?.path}|${aliasDoc ? "alias" : ""}`}
 				showDrawer={showDrawer}
 				touchBar={
@@ -1147,6 +1256,38 @@ export function App() {
 								registry={registry}
 								selection={editor.selection}
 							/>
+						) : graphOpen && editor.script ? (
+							<GraphSettings
+								name={editor.script.name}
+								scriptClass={editor.script.scriptClass}
+								target={editor.script.target}
+								typecheck={editor.script.typecheck}
+								locked={locked}
+								nodes={editor.script.nodes.length}
+								functions={editor.script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).length}
+								onScriptClass={(value) => store.edit((s) => ({ ...s, scriptClass: value }))}
+								onTarget={async (value) => {
+									// Nodes written only for the other target would all become
+									// errors, so say how many and ask before switching. The same
+									// test `validate` reports them with.
+									const off = offTargetNodes(editor.script!, registry, value);
+									if (off.length > 0) {
+										const name = value === "lune" ? "Lune" : "Roblox";
+										const ok = await ask({
+											kind: "confirm",
+											title: `Compile this graph for ${name}?`,
+											message:
+												`${off.length === 1 ? "This node is" : `These ${off.length} nodes are`} ` +
+												`not available for ${name}, and will show as errors until removed:`,
+											items: offTargetNames(editor.script!, registry, value),
+											confirmLabel: `Switch to ${name}`,
+										});
+										if (ok !== true) return;
+									}
+									store.edit((s) => ({ ...s, target: value }));
+								}}
+								onTypecheck={(value) => store.edit((s) => ({ ...s, typecheck: value }))}
+							/>
 						) : undefined,
 					properties:
 						project.place && placeInspect ? (
@@ -1193,26 +1334,10 @@ export function App() {
 				floating={
 					<>
 						<CompileToast progress={progress} />
-						<CanvasNotice />
 					</>
 				}
 				centre={
 					<>
-						{/* Above the centre's content, and only when there is a
-						    choice to make. A node map or a source file is not a
-						    graph and has no tab, so the strip shows what would
-						    come back if you left them. */}
-						<GraphTabs
-							documents={documents}
-							functionTabs={prefs.functionTabs}
-							onActivate={(key) => {
-								setSource(null);
-								setMapDoc(null);
-								store.activate(key);
-							}}
-							onClose={(key) => store.closeDocument(key)}
-							onReorder={(key, before) => store.reorder(key, before)}
-						/>
 						<div className="centre-body">
 							{aliasDoc ? (
 								<AliasDocument
@@ -1250,68 +1375,6 @@ export function App() {
 								/>
 							) : editor.script ? (
 								<>
-									{/* The graph's own tools, floating over the canvas's top edge
-						    rather than a row above it. A node map keeps its bar: it
-						    has no canvas to float over. */}
-									<DocumentBar
-										kind="graph"
-										name={editor.script.name}
-										dirty={editor.dirty}
-										busy={busy}
-										scriptClass={editor.script.scriptClass}
-										target={editor.script.target}
-										typecheck={editor.script.typecheck}
-										locked={locked}
-										alignExec={alignExec}
-										selected={editor.selection.size}
-										inFunction={editor.graph !== null}
-										showName={prefs.toolbarName}
-										functionName={
-											editor.graph === null
-												? undefined
-												: (
-														editor.script.nodes.find((n) => n.id === editor.graph)?.config as
-															| { name?: string }
-															| undefined
-													)?.name?.trim() || "function"
-										}
-										hasPath={editor.path !== null}
-										onScriptClass={(value) => store.edit((s) => ({ ...s, scriptClass: value }))}
-										onTarget={async (value) => {
-											// Nodes written only for the other target would all become
-											// errors, so say how many and ask before switching. The same
-											// test `validate` reports them with.
-											const off = offTargetNodes(editor.script!, registry, value);
-											if (off.length > 0) {
-												const name = value === "lune" ? "Lune" : "Roblox";
-												const ok = await ask({
-													kind: "confirm",
-													title: `Compile this graph for ${name}?`,
-													message:
-														`${off.length === 1 ? "This node is" : `These ${off.length} nodes are`} ` +
-														`not available for ${name}, and will show as errors until removed:`,
-													items: offTargetNames(editor.script!, registry, value),
-													confirmLabel: `Switch to ${name}`,
-												});
-												if (ok !== true) return;
-											}
-											store.edit((s) => ({ ...s, target: value }));
-										}}
-										onTypecheck={(value) => store.edit((s) => ({ ...s, typecheck: value }))}
-										onAddNode={() => {
-											const view = store.getView();
-											setMenu({
-												screen: { x: 320, y: 120 },
-												world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
-											});
-										}}
-										onRealign={realign}
-										onToggleAlignExec={toggleAlignExec}
-										onPreview={() => setPreviewOpen(true)}
-										onCompile={() => {
-											if (editor.path) void runCompile(editor.path, true);
-										}}
-									/>
 									<Canvas
 										script={editor.script}
 										graph={editor.graph}
@@ -1403,6 +1466,8 @@ export function App() {
 			)}
 
 			{exportOpen && <ExportMenu onClose={() => setExportOpen(false)} onError={notify} />}
+
+			<Toasts />
 
 			<Overlays
 				registry={registry}

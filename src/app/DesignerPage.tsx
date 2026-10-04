@@ -15,23 +15,25 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { VERSION } from "../cli/version.js";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import type { Target } from "../core/schema.js";
 import { api, type PackFile } from "./api.js";
-import { cx } from "./cx.js";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { type OpenPack, PackBrowser } from "./designer/PackBrowser.jsx";
 import { PackView } from "./designer/PackView.jsx";
+import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { Icon } from "./icons.jsx";
+import { Popout, usePhone } from "./Popout.jsx";
 import { guardLeave, openPage, pageHref, pagesShareTab, pageTarget } from "./pages.js";
 import { usePreferenceSync } from "./preferenceSync.js";
 import { type Preferences, readPreferences, writePreferences } from "./preferences.js";
-import { MarkedLogo, SiteBanner } from "./previewBuild.jsx";
+import { SiteBanner } from "./previewBuild.jsx";
 import { SettingsPanel } from "./SettingsPanel.jsx";
+import { showToast, Toasts } from "./Toast.jsx";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
+import { WindowMark } from "./WindowMark.jsx";
 
 export function DesignerPage() {
 	const [introOpen, setIntroOpen] = useState(false);
@@ -40,6 +42,10 @@ export function DesignerPage() {
 	const [noProject, setNoProject] = useState(false);
 	const [open, setOpen] = useState<OpenPack | null>(null);
 	const [notice, setNotice] = useState<{ text: string; kind: "ok" | "failed" } | null>(null);
+	// A phone's row folds the other windows into More.
+	const phone = usePhone();
+	// Where the open node's own actions are drawn: a cluster of the chrome.
+	const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
 	const [docsJump, setDocsJump] = useState(false);
 
 	// This browser's preferences, and the panel that changes them.
@@ -105,10 +111,10 @@ export function DesignerPage() {
 		void refresh();
 	}, [refresh]);
 
-	const notify = useCallback(
-		(text: string, kind: "ok" | "failed" = "ok") => setNotice({ text, kind }),
-		[],
-	);
+	const notify = useCallback((text: string, kind: "ok" | "failed" = "ok") => {
+		if (kind === "ok") showToast({ title: text, icon: "palette", tone: "ok" });
+		else setNotice({ text, kind });
+	}, []);
 
 	// A toast that says something worked goes on its own. One that says
 	// something failed stays until it is dismissed, so it cannot be missed.
@@ -124,73 +130,119 @@ export function DesignerPage() {
 	return (
 		<div className="designer">
 			<SiteBanner />
-			<header className="docs-page-head">
-				<button
-					className="logo as-chip"
-					onClick={() => setIntroOpen(true)}
-					title="Recent projects, the demos, and the other windows"
-				>
-					{/* A window of the browser build says so, the same way the editor
-					    does: the mark in the build's colour. See `MarkedLogo`. */}
-					<MarkedLogo height={17} title="Roswaal" />
-					Node Design
-					<span className="version">{VERSION}</span>
-				</button>
-				<span style={{ flex: 1 }} />
-				<a
-					className="tb icon-only"
-					href={pageHref("docs", "creating-custom-nodes")}
-					target={pageTarget("docs")}
-					onClick={guardLeave}
-					title="How custom nodes work"
-					aria-label="How custom nodes work"
-				>
-					<Icon name="help" size={16} />
-				</a>
-				<a
-					className="tb with-icon tb-collapsible"
-					href={pageHref("docs")}
-					target={pageTarget("docs")}
-					onClick={guardLeave}
-					title="The documentation"
-				>
-					<Icon name="document" size={15} />
-					{/* Its icon alone on a phone, so Settings keeps the header's row. */}
-					<span className="tb-label">Docs</span>
-				</a>
-				<a
-					className="tb"
-					href={pageHref("editor")}
-					target={pagesShareTab() ? "_self" : "_blank"}
-					rel="noreferrer"
-					onClick={guardLeave}
-				>
-					Open Editor
-				</a>
-				<button
-					type="button"
-					className="tb icon-only"
-					onClick={() => setSettingsOpen(true)}
-					title="Settings"
-					aria-label="Settings"
-				>
-					<Icon name="settings" size={16} />
-				</button>
-			</header>
+			{/* The window's chrome floats, as the editor's does: the mark and the
+			    pack at the left, the node's own actions and the other windows at
+			    the right. The node's actions are drawn by the node editor into
+			    the slot, so they sit with the rest rather than in a row of their own. */}
+			<div className="window-chrome">
+				<FloatingTools label="Node Design">
+					<ToolGroup className="mark-group">
+						<WindowMark window="designer" onOpen={() => setIntroOpen(true)} />
+					</ToolGroup>
+					<span className="spacer" />
+					<div className="tool-slot" ref={setActionsSlot} />
+					{/* On a phone the other windows fold into More, as the editor's do: the
+					    row has the mark and the node's own actions to hold. */}
+					<ToolGroup>
+						{phone ? (
+							<Popout label={<Icon name="more" size={16} />} title="More" end closeOnPick>
+								<a
+									className="tb with-icon"
+									href={pageHref("docs", "creating-custom-nodes")}
+									target={pageTarget("docs")}
+									onClick={guardLeave}
+								>
+									<Icon name="help" size={15} />
+									How custom nodes work
+								</a>
+								<a
+									className="tb with-icon"
+									href={pageHref("docs")}
+									target={pageTarget("docs")}
+									onClick={guardLeave}
+								>
+									<Icon name="document" size={15} />
+									Docs
+								</a>
+								<a
+									className="tb with-icon"
+									href={pageHref("editor")}
+									target={pagesShareTab() ? "_self" : "_blank"}
+									rel="noreferrer"
+									onClick={guardLeave}
+								>
+									<Icon name="graph" size={15} />
+									Open Editor
+								</a>
+								<button
+									type="button"
+									className="tb with-icon"
+									onClick={() => setSettingsOpen(true)}
+								>
+									<Icon name="settings" size={15} />
+									Settings
+								</button>
+							</Popout>
+						) : (
+							<>
+								<a
+									className="tb icon-only"
+									href={pageHref("docs", "creating-custom-nodes")}
+									target={pageTarget("docs")}
+									onClick={guardLeave}
+									title="How custom nodes work"
+									aria-label="How custom nodes work"
+								>
+									<Icon name="help" size={16} />
+								</a>
+								<a
+									className="tb icon-only"
+									href={pageHref("docs")}
+									target={pageTarget("docs")}
+									onClick={guardLeave}
+									title="Docs — the documentation"
+									aria-label="Docs"
+								>
+									<Icon name="document" size={16} />
+								</a>
+								<a
+									className="tb icon-only"
+									href={pageHref("editor")}
+									target={pagesShareTab() ? "_self" : "_blank"}
+									rel="noreferrer"
+									onClick={guardLeave}
+									title="Open Editor — the graph editor"
+									aria-label="Open Editor"
+								>
+									<Icon name="graph" size={16} />
+								</a>
+								<button
+									type="button"
+									className="tb icon-only"
+									onClick={() => setSettingsOpen(true)}
+									title="Settings"
+									aria-label="Settings"
+								>
+									<Icon name="settings" size={16} />
+								</button>
+							</>
+						)}
+					</ToolGroup>
+				</FloatingTools>
+			</div>
 
 			{introOpen && <IntroPanel surface="designer" onClose={() => setIntroOpen(false)} />}
 
 			{notice && (
-				<div
-					className={cx("designer-notice", notice.kind)}
-					role={notice.kind === "failed" ? "alert" : "status"}
-				>
+				<div className="designer-notice failed" role="alert">
 					<span>{notice.text}</span>
 					<button className="tb" onClick={() => setNotice(null)} aria-label="Dismiss">
 						×
 					</button>
 				</div>
 			)}
+
+			<Toasts />
 
 			{open ? (
 				<PackView
@@ -202,6 +254,7 @@ export function DesignerPage() {
 					prefs={prefs}
 					onPrefs={updatePrefs}
 					notify={notify}
+					actionsSlot={actionsSlot}
 				/>
 			) : (
 				<PackBrowser

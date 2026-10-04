@@ -32,8 +32,9 @@
  * the same class names the editor uses, so it takes the reader's theme, reflows
  * on a narrow page, and goes stale only when somebody changes the bar and not
  * this file — which a test can see, and a stale PNG cannot:
- * `tests/toolbardrift.test.ts` reads the editor's, the graph's, Node Design's
- * and the docs window's bars against the components that draw them.
+ * `tests/toolbardrift.test.ts` reads the editor's top row, the open graph's
+ * clusters, the phone's More menu, the side strip, Node Design's top row and
+ * the docs window's header against the components that draw them.
  *
  * It is inert: `aria-hidden`, no tab stops, and no pointer events. Everything
  * it says is said again in the legend, which is the part a screen reader gets.
@@ -129,6 +130,16 @@ export type ToolbarItem = Documented &
 				 * top bar wears it this way. See `MarkedLogo`.
 				 */
 				tint?: "preview" | "canary";
+				/**
+				 * Drawn as `WindowMark` draws it, at the top left of the editor, Node
+				 * Design and the docs window: `text` is the window's name.
+				 */
+				window?: boolean;
+				/**
+				 * The window's glyph in grey beside the mark, which is how a phone
+				 * names the window: `graph`, `palette` or `document`.
+				 */
+				glyph?: string;
 		  }
 		/** An icon on its own: the shape of most of the chrome. */
 		| { t: "icon"; icon: string; on?: boolean; primary?: boolean }
@@ -151,6 +162,29 @@ export type ToolbarItem = Documented &
 		| { t: "label"; text: string }
 		/** The open document's name, and what kind of document it is. */
 		| { t: "name"; text: string; kind?: string; dirty?: boolean }
+		/** One open graph's tab, in `GraphTabs`' own markup. `on` is the open one. */
+		| {
+				t: "tab";
+				text: string;
+				on?: boolean;
+				dirty?: boolean;
+				/** A phone draws the open tab without its close button. */
+				closable?: boolean;
+		  }
+		/** A word in a badge: Node Design's Pure, Impure or Cannot run. */
+		| { t: "badge"; text: string; warn?: boolean }
+		/** A slider, shown at its middle: the side strip's zoom. */
+		| { t: "slider" }
+		/**
+		 * One of Node Design's pin types, as its palette draws it: a ring in the
+		 * type's colour and the type's name. No `type` is Execution.
+		 */
+		| { t: "pinChip"; text: string; type?: string }
+		/**
+		 * A button that opens a menu, as `Popout` draws one: its word or glyph,
+		 * then the chevron. More, and on a phone a node's kind, Pins and Types.
+		 */
+		| { t: "popout"; text?: string; icon?: string }
 		/** A rule between two clusters inside one group. */
 		| { t: "divider" }
 		/**
@@ -317,11 +351,14 @@ export interface ToolbarGroup {
 	 * legend has to describe them.
 	 */
 	apart?: boolean;
-	/** Starts a second row of the bar, as a phone's top bar wraps into one. */
+	/** Starts a second row of the bar, as the published header wraps into one on a phone. */
 	row?: boolean;
 	/** A dialog's buttons, in its own row at the foot. */
 	actions?: boolean;
-	/** In a dialog: a class to wrap the group in, as the Export panel's form is. */
+	/**
+	 * In a dialog: a class to wrap the group in, as the Export panel's form is.
+	 * On a floating bar: a class beside the cluster's own, as `graph-tabs` is.
+	 */
 	wrap?: string;
 	items: ToolbarItem[];
 }
@@ -330,10 +367,11 @@ export interface ToolbarGroup {
  * How a bar is drawn, which is not a detail: the three shapes are three
  * different promises about where to look.
  *
- * `bar` runs the full width above the workspace and is always there. `head` is
- * a page's own header — Docs and Node Design are windows, not panels. `float`
- * sits over a canvas in panels with the view showing between them, so its
- * groups are separate objects rather than regions of one strip.
+ * `bar` runs the full width above a view and is always there. `head` is the
+ * docs window's own header. `float` sits over a canvas in clusters with the
+ * view showing between them, so its groups are separate objects rather than
+ * regions of one strip — the editor's and Node Design's top rows are drawn
+ * this way.
  */
 /**
  * `popmenu` rather than `menu`: the frame carries the chrome as a class, and
@@ -420,7 +458,11 @@ export function iconsOf(spec: ToolbarSpec): string[] {
 			? [item.icon]
 			: item.t === "treeRow" || item.t === "propHead"
 				? [item.icon]
-				: [],
+				: item.t === "mark" && item.glyph
+					? [item.glyph]
+					: item.t === "popout"
+						? [...(item.icon ? [item.icon] : []), "chevron"]
+						: [],
 	);
 }
 
@@ -461,6 +503,18 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			// The real mark, not a stand-in: on two of these bars it is the only
 			// thing that says which window you are in, and a reader matching the
 			// picture to their screen is matching that shape first.
+			if (item.window) {
+				// `WindowMark`'s own markup. The glyph is hidden by the editor's
+				// stylesheet above a phone's width, and only a phone's picture
+				// draws one, so it is shown here outright.
+				return (
+					`<span class="logo window-mark"${tie}>` +
+					`${item.tint ? `<span class="logo-mark mark-${item.tint}">${art.mark}</span>` : art.mark}` +
+					`${item.glyph ? `<span class="window-glyph" style="display:inline-flex">${iconSvg(item.glyph, 16, art)}</span>` : ""}` +
+					`${item.text ? `<span class="window-name">${escapeXml(item.text)}</span>` : ""}` +
+					`${item.version ? `<span class="version">${escapeXml(art.version)}</span>` : ""}</span>`
+				);
+			}
 			return (
 				`<span class="logo"${tie}>` +
 				`${item.tint ? `<span class="logo-mark mark-${item.tint}">${art.mark}</span>` : art.mark}` +
@@ -503,9 +557,39 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			return `<span class="group-label">${escapeXml(item.text)}</span>`;
 		case "name":
 			return (
-				`<span class="doc-name${item.dirty ? " dirty" : ""}">${escapeXml(item.text)}</span>` +
+				`<span class="doc-name${item.dirty ? " dirty" : ""}"${tie}>${escapeXml(item.text)}</span>` +
 				`${item.kind ? `<span class="doc-kind">${escapeXml(item.kind)}</span>` : ""}`
 			);
+		case "tab":
+			// `GraphTabs`' markup: the name, and the close button the open tab
+			// always shows and the others show on hover.
+			return (
+				`<span class="graph-tab${item.on ? " on" : ""}${item.dirty ? " dirty" : ""}"${tie}>` +
+				`<span class="name">${escapeXml(item.text)}</span>${item.closable === false ? "" : `<span class="close">×</span>`}</span>`
+			);
+		case "badge":
+			return `<span class="badge${item.warn ? " warn" : ""}"${tie}>${escapeXml(item.text)}</span>`;
+		case "slider":
+			// Inert as the rest are, but the handle is on the wrapper: a range input
+			// that took the pointer would be dragged rather than lit.
+			return (
+				`<span class="docs-bar-slider"${tie}>` +
+				`<input type="range" tabindex="-1" min="10" max="300" value="100" style="pointer-events:none;width:110px"></span>`
+			);
+		case "popout":
+			return (
+				`<button type="button" tabindex="-1"${tie} class="tb with-icon">` +
+				`${item.icon ? iconSvg(item.icon, 16, art) : ""}${item.text ? escapeXml(item.text) : ""}` +
+				`${iconSvg("chevron", 14, art)}</button>`
+			);
+		case "pinChip": {
+			const kind = item.type === undefined ? "exec" : "data";
+			const colour = art.pinColor?.(item.type, kind);
+			return (
+				`<span class="pin-chip"${tie}><span class="chip-dot ${kind}"` +
+				`${colour ? ` style="color:${escapeXml(colour)}"` : ""}></span>${escapeXml(item.text)}</span>`
+			);
+		}
 		case "divider":
 			return `<span class="divider"></span>`;
 
@@ -661,6 +745,19 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 }
 
 /**
+ * Items as the editor draws them, for a picture that holds a bar among other
+ * things: a window diagram's clusters and cards, in `layouts.ts`.
+ */
+export function itemsHtml(items: ToolbarItem[], art: ToolbarArt): string {
+	return items.map((item) => itemHtml(item, art)).join("");
+}
+
+/** One glyph as the editor paints it, for markup drawn outside a bar. */
+export function glyphHtml(name: string, size: number, art: ToolbarArt, rotate?: number): string {
+	return iconSvg(name, size, art, undefined, rotate);
+}
+
+/**
  * A panel's items, wrapped one `<div>` per heading.
  *
  * The wrapper is what lets a section be lit or dimmed as a whole: without it
@@ -731,9 +828,17 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 	// right-hand cluster sitting against the mark, which is exactly the layout
 	// the page is trying to explain.
 	const gapClass = spec.chrome === "head" ? "grow" : "spacer";
+	// A row stays one row, as the real one does: drawn at a tablet's or a
+	// phone's width in a narrow column it would otherwise wrap where the
+	// editor never does, and the picture scrolls instead. Only a bar with a
+	// second row of its own (`row`) wraps, and only there.
+	const oneRow =
+		(spec.chrome === "float" || spec.chrome === "head" || spec.chrome === "bar") &&
+		!spec.groups.some((group) => group.row);
 	const frame = (inner: string) =>
 		`<div class="docs-bar-frame ${escapeXml(spec.chrome)}${spec.device ? ` device-${spec.device}` : ""}" aria-hidden="true">` +
-		`<div class="${CHROME_CLASS[spec.chrome]}${spec.className ? ` ${escapeXml(spec.className)}` : ""}">${inner}</div></div>`;
+		`<div class="${CHROME_CLASS[spec.chrome]}${spec.className ? ` ${escapeXml(spec.className)}` : ""}"` +
+		`${oneRow ? ` style="flex-wrap:nowrap"` : ""}>${inner}</div></div>`;
 	const itemsOf = (group: ToolbarGroup) => group.items.map((item) => itemHtml(item, art)).join("");
 
 	// The trees and panels nest the way the editor nests them, rather than
@@ -778,7 +883,14 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 			// A floating bar's groups are separate panels over the canvas; a bar
 			// and a page header are one strip, so their groups are only an
 			// authoring convenience and flatten away.
-			if (spec.chrome === "float") return `${gap}<div class="tool-group">${items}</div>`;
+			if (spec.chrome === "float") {
+				// A cluster keeps its one line, as `.workspace-chrome .tool-group`
+				// keeps it in the editor: a rule scoped to the editor's own chrome
+				// does not reach a picture of it, and without it a long row
+				// squeezed every cluster into two lines of half its buttons.
+				const extra = group.wrap ? ` ${escapeXml(group.wrap)}` : "";
+				return `${gap}<div class="tool-group${extra}" style="flex:none;flex-wrap:nowrap">${items}</div>`;
+			}
 			// A panel's groups are sections down a column rather than clusters
 			// along a row, so there is no flexible gap to push them apart with.
 			// Each heading starts a section that runs to the next one, so the
@@ -801,30 +913,69 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 // ---------------------------------------------------------------------------
 
 /**
- * The editor's top bar: everything that acts on the project.
+ * The open graph's two clusters as the top row draws them: its tab, named
+ * once for the pair, and its tools unnamed, because `GRAPH_BAR` explains each
+ * of them and a legend that said it twice would be a longer legend, not a
+ * clearer one.
+ */
+function openGraph(tab: Documented): ToolbarGroup[] {
+	const tabs: ToolbarGroup = {
+		wrap: "graph-tabs",
+		items: [{ t: "tab", text: "Tank", on: true, ...tab }],
+	};
+	const tools: ToolbarGroup = {
+		items: [
+			{ t: "icon", icon: "search" },
+			{ t: "icon", icon: "layout" },
+			{ t: "icon", icon: "straighten", on: true },
+			{ t: "icon", icon: "terminal" },
+		],
+	};
+	return [tabs, tools];
+}
+
+/**
+ * The editor's top row: everything that acts on the project, and the open
+ * graph between.
  *
- * Written from `src/app/Toolbar.tsx`'s `ProjectBar`, in its order. The three
- * at the right-hand end are the ones this page exists for.
+ * Written from `src/app/Toolbar.tsx`'s `ProjectBar` and `DocumentAction`, in
+ * their order. The three at the right-hand end are the ones this page exists
+ * for.
  */
 export const EDITOR_BAR: ToolbarSpec = {
 	id: "editor-bar",
-	title: "The editor's top bar",
-	summary: "Across the top of the editor. Everything on it acts on the project.",
-	chrome: "bar",
+	title: "The editor's top row",
+	summary:
+		"Floating along the top of the editor: the project and the open graph at the left, " +
+		"compiling and the other windows at the right.",
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
-					text: "",
+					window: true,
 					version: true,
 					name: "The Roswaal mark",
 					where: "far left",
 					what:
-						"Opens the project menu: the project you have open, the ones you opened " +
-						"before, and a folder dialog for anything else. The version beside it is " +
-						"the build you are on, which is the first thing any bug report needs; on a " +
-						"narrow screen it is in the mark's tooltip instead.",
+						"Opens the projects panel: your recent projects, the demos, and the other " +
+						"windows. Beside it is the build you are on, which any bug report needs; in a " +
+						"narrow window it is in the mark's tooltip.",
+				},
+			],
+		},
+		{
+			items: [
+				{
+					t: "icon",
+					icon: "panelLeft",
+					name: "Project",
+					where: "after the mark",
+					what:
+						"Shows or hides the cards on the left: Project and Variables. See " +
+						"[The Project panel](project-panel).",
 				},
 				{
 					t: "icon",
@@ -846,25 +997,52 @@ export const EDITOR_BAR: ToolbarSpec = {
 				},
 			],
 		},
+		...openGraph({
+			name: "The open graph",
+			what: "Its tab, then its tools, both drawn below. A node map shows its name here instead.",
+		}),
 		{
 			apart: true,
 			items: [
-				{ t: "label", text: "Compile" },
 				{
 					t: "segmented",
 					options: ["Manual", "Dynamic"],
 					on: 0,
-					name: "Compile: Manual | Dynamic",
+					name: "Manual | Dynamic",
 					what:
 						"How generated Luau reaches disk. **Manual** writes when you ask; " +
 						"**Dynamic** writes on every edit. Also in [Settings](settings).",
 				},
+				{ t: "divider" },
 				{
 					t: "button",
 					text: "Compile project",
 					name: "Compile project",
 					what: "Compiles every graph and node map in the project.",
 				},
+				{
+					t: "button",
+					text: "Compile script",
+					icon: "build",
+					primary: true,
+					name: "Compile script",
+					what:
+						"Compiles the open graph alone — `Ctrl` + `S`. With a node map open it is " +
+						"**Write project file**.",
+				},
+			],
+		},
+		{
+			items: [
+				{
+					t: "icon",
+					icon: "panelRight",
+					name: "Inspector",
+					what:
+						"Shows or hides the cards on the right: the selected node's settings, or the " +
+						"graph's own with nothing selected.",
+				},
+				{ t: "divider" },
 				{
 					t: "icon",
 					icon: "document",
@@ -880,14 +1058,14 @@ export const EDITOR_BAR: ToolbarSpec = {
 					name: "Node Design",
 					where: "second icon from the right",
 					what:
-						"Opens [Node Design](creating-custom-nodes) in its own window: a form " +
-						"over a node definition, for making nodes of your own.",
+						"Opens [Node Design](creating-custom-nodes) in its own window, for making " +
+						"nodes of your own.",
 				},
 				{
 					t: "icon",
 					icon: "settings",
 					name: "Settings",
-					where: "the last icon on the bar",
+					where: "the last icon on the row",
 					what:
 						"The project's settings, this browser's preferences, and themes. " +
 						"See [Settings](settings).",
@@ -898,37 +1076,38 @@ export const EDITOR_BAR: ToolbarSpec = {
 };
 
 /**
- * The tools over a graph, from `DocumentBar`'s graph arm.
+ * The open graph's clusters, from `GraphTabs` and `DocumentBar`'s graph arm.
  *
- * Three groups rather than one row, because they float over the canvas with
- * the graph showing between them — which is also why the page has to say they
- * are three things: a reader looking for a single strip does not find them.
+ * Two groups rather than one row, because they float over the canvas with
+ * the graph showing between them. The graph's settings are not here: they
+ * are the Inspector's while nothing is selected, `GRAPH_SETTINGS` below.
  */
 export const GRAPH_BAR: ToolbarSpec = {
 	id: "graph-bar",
-	title: "The graph toolbars",
-	summary: "Three floating groups over the canvas: the graph's settings, the tools, and compiling.",
+	title: "The open graph",
+	summary:
+		"Two clusters on the editor's top row, after the Project button: the tabs, and the tools.",
 	chrome: "float",
 	groups: [
 		{
+			wrap: "graph-tabs",
 			items: [
-				{ t: "name", text: "Tank.nodescript", dirty: true },
 				{
-					t: "select",
-					text: "ModuleScript",
-					name: "Script class",
+					t: "tab",
+					text: "Tank",
+					on: true,
+					name: "Tabs",
 					what:
-						"What this graph compiles to: a Script, a LocalScript or a ModuleScript. " +
-						"Absent on a Lune graph, where every file is `.luau`.",
+						"One per open graph, and one per function graph opened from it; the open one " +
+						"is lit. Drag a tab to move it; middle-click closes it.",
 				},
+				{ t: "tab", text: "Occupancy" },
 				{
-					t: "select",
-					text: "Strict Mode",
-					name: "Typechecking mode",
-					what:
-						"Which Luau typechecking mode the generated file declares. **Default** " +
-						"writes no mode line; the other two also annotate the types of generated " +
-						"locals. See [Types](types).",
+					t: "icon",
+					icon: "chevron",
+					name: "Open graphs",
+					where: "With two or more open",
+					what: "Every open graph in a list, for when the tabs have outgrown the row.",
 				},
 			],
 		},
@@ -951,8 +1130,8 @@ export const GRAPH_BAR: ToolbarSpec = {
 						"nodes selected, only those move.",
 				},
 				{
-					t: "button",
-					text: "Straighten",
+					t: "icon",
+					icon: "straighten",
 					on: true,
 					name: "Straighten",
 					what:
@@ -969,24 +1148,60 @@ export const GRAPH_BAR: ToolbarSpec = {
 				},
 			],
 		},
+	],
+};
+
+/**
+ * The graph's own settings, from `GraphSettings.tsx`: what it compiles to,
+ * its typechecking mode and its target, in the Inspector while nothing is
+ * selected.
+ */
+export const GRAPH_SETTINGS: ToolbarSpec = {
+	id: "graph-settings",
+	title: "The graph's settings",
+	summary: "In the Inspector while nothing is selected.",
+	chrome: "inspector",
+	groups: [
 		{
-			apart: true,
 			items: [
 				{
-					t: "select",
-					text: "Roblox",
+					t: "setting",
+					label: "Script",
+					value: "ModuleScript",
+					control: "select",
+					name: "Script",
+					what:
+						"What this graph compiles to: a Script, a LocalScript or a ModuleScript. " +
+						"Absent on a Lune graph, where every file is `.luau`.",
+				},
+			],
+		},
+		{
+			items: [
+				{
+					t: "setting",
+					label: "Type checking",
+					value: "Strict",
+					control: "select",
+					name: "Type checking",
+					what:
+						"Which Luau typechecking mode the generated file declares. **Default** " +
+						"writes no mode line; the other two also annotate the types of generated " +
+						"locals. See [Types](types).",
+				},
+			],
+		},
+		{
+			items: [
+				{
+					t: "setting",
+					label: "Target",
+					value: "Roblox",
+					control: "select",
 					name: "Target",
 					what:
-						"What this graph compiles for. Beside the button that compiles it, because " +
-						"a Roblox-only node being an error in a Lune graph is what it explains.",
-				},
-				{
-					t: "button",
-					text: "Compile script",
-					icon: "build",
-					primary: true,
-					name: "Compile script",
-					what: "Compiles this document alone — `Ctrl` + `S`.",
+						"What this graph compiles for. Lune is marked with a warning triangle: it " +
+						"is experimental, and a Roblox-only node is an error there.",
 				},
 			],
 		},
@@ -994,22 +1209,39 @@ export const GRAPH_BAR: ToolbarSpec = {
 };
 
 /**
- * The node map's row, which is the same slot holding something else.
+ * The same row with a node map open, which is the open graph's slot holding
+ * something else.
  *
- * Kept as its own spec rather than a note under the graph bar: a map has no
- * graph tools at all, and a reader who opens one and finds four of the six
- * things gone needs to be told that is the shape rather than a failure.
+ * Kept as its own spec rather than a note under the graph's: a map has no
+ * graph tools at all, and a reader who opens one and finds them gone needs
+ * to be told that is the shape rather than a failure.
  */
 export const MAP_BAR: ToolbarSpec = {
 	id: "map-bar",
-	title: "A node map's bar",
-	summary: "What the same row holds when the open document is a node map rather than a graph.",
-	chrome: "bar",
+	title: "With a node map open",
+	summary:
+		"The map's name where a graph's tools would be, and Write project file where Compile " +
+		"script would be.",
+	chrome: "float",
 	groups: [
-		{ items: [{ t: "name", text: "Tank.nodemap", kind: "Node Map" }] },
+		{
+			wrap: "doc-group",
+			items: [
+				{
+					t: "name",
+					text: "Tank",
+					kind: "Node map",
+					name: "The map",
+					what: "Its name. A map is a tree rather than a graph, so it has no graph tools.",
+				},
+			],
+		},
 		{
 			apart: true,
 			items: [
+				{ t: "segmented", options: ["Manual", "Dynamic"], on: 0 },
+				{ t: "divider" },
+				{ t: "button", text: "Compile project" },
 				{
 					t: "button",
 					text: "Write project file",
@@ -1025,31 +1257,113 @@ export const MAP_BAR: ToolbarSpec = {
 	],
 };
 
-/**
- * Node Design's header, from `DesignerPage.tsx`.
- *
- * Short, and one of its three is icon-only, which is the one people miss.
- */
-export const DESIGNER_BAR: ToolbarSpec = {
-	id: "designer-bar",
-	title: "Node Design's top bar",
-	summary: "Across the top of the Node Design window.",
-	chrome: "head",
+/** The side strip, from `CanvasStrip.tsx`. */
+export const CANVAS_STRIP: ToolbarSpec = {
+	id: "canvas-strip",
+	title: "The side strip",
+	summary:
+		"Over a graph: along the bottom with a mouse, down the left edge on a touch screen. " +
+		"Not on a phone.",
+	chrome: "float",
 	groups: [
 		{
 			items: [
+				{ t: "icon", icon: "plus", name: "Zoom in", what: "A step closer." },
+				{
+					t: "slider",
+					name: "Zoom",
+					what: "Drag to zoom. The percentage beside it goes back to 100%.",
+				},
+				{ t: "icon", icon: "minus", name: "Zoom out", what: "A step further away." },
+				{ t: "button", text: "100%" },
+				{ t: "divider" },
+				{
+					t: "icon",
+					icon: "undo",
+					name: "Undo",
+					what: "As `Ctrl` + `Z`. On a touch screen, a two-finger tap does the same.",
+				},
+				{
+					t: "icon",
+					icon: "redo",
+					name: "Redo",
+					what: "As `Ctrl` + `Y`. On a touch screen, a three-finger tap does the same.",
+				},
+				{ t: "divider" },
+				{ t: "icon", icon: "fit", name: "Fit", what: "The whole graph, in the window." },
+			],
+		},
+	],
+};
+
+/**
+ * Node Design's top row, from `DesignerPage.tsx`, with the open node's own
+ * actions that `NodeEditor` draws into its slot.
+ */
+export const DESIGNER_BAR: ToolbarSpec = {
+	id: "designer-bar",
+	title: "Node Design's top row",
+	summary:
+		"Floating along the top of the Node Design window. The node's own actions are there " +
+		"while a node is open.",
+	chrome: "float",
+	groups: [
+		{
+			wrap: "mark-group",
+			items: [
 				{
 					t: "mark",
+					window: true,
 					text: "Node Design",
 					version: true,
 					name: "Node Design",
 					where: "far left",
-					what: "Says which window you are in, and which build it is.",
+					what:
+						"Says which window this is, and which build. It opens your projects and the " +
+						"other windows, as the editor's mark does.",
 				},
 			],
 		},
 		{
 			apart: true,
+			items: [
+				{
+					t: "button",
+					text: "Details",
+					icon: "rename",
+					name: "Details",
+					where: "With a node open",
+					what:
+						"The node's id, title, category, what it runs on, and its summary, in a " +
+						"card on the right.",
+				},
+				{ t: "divider" },
+				{
+					t: "badge",
+					text: "Impure",
+					name: "Kind",
+					where: "With a node open",
+					what:
+						"**Pure**, **Impure** or **Cannot run**, from its execution pins. A pure node " +
+						"picks **Normal** or **Pill** beside it. The bin deletes a saved node, and asks " +
+						"first.",
+				},
+				{ t: "divider" },
+				{ t: "icon", icon: "remove" },
+				{
+					t: "button",
+					text: "Save",
+					icon: "build",
+					primary: true,
+					name: "Save",
+					where: "With a node open",
+					what:
+						"Into the pack — `Ctrl` + `S`. Off while there are problems; it reads " +
+						"**Saved** once it is.",
+				},
+			],
+		},
+		{
 			items: [
 				{
 					t: "icon",
@@ -1061,16 +1375,17 @@ export const DESIGNER_BAR: ToolbarSpec = {
 						"what you are looking at, rather than the documentation's front door.",
 				},
 				{
-					t: "button",
-					text: "Docs",
+					t: "icon",
 					icon: "document",
 					name: "Docs",
+					where: "the page",
 					what: "This documentation, in its own window. `Ctrl` + `K` searches it from here.",
 				},
 				{
-					t: "button",
-					text: "Open Editor",
+					t: "icon",
+					icon: "graph",
 					name: "Open Editor",
+					where: "the graph",
 					what: "The editor, in a new tab. Node Design is a window of its own, not a panel.",
 				},
 				{
@@ -1089,25 +1404,41 @@ export const DESIGNER_BAR: ToolbarSpec = {
 	],
 };
 
-/** The documentation window's header, from `DocsPage.tsx`. */
+/** The documentation window's header, from `DocsPage.tsx`: floating clusters, as the editor's are. */
 export const DOCS_BAR: ToolbarSpec = {
 	id: "docs-bar",
-	title: "The documentation's top bar",
-	summary: "Across the top of this window.",
-	chrome: "head",
+	title: "The documentation's top row",
+	summary: "Floating along the top of this window.",
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
+					window: true,
 					text: "Docs",
 					version: true,
 					name: "Docs",
 					where: "far left",
 					what:
-						"Says which window you are in, and which build it is. A warning sits " +
-						"beside it when the daemon is not reachable — the built-in library is " +
-						"still documented, your project's own packs are not.",
+						"Says which window this is, and which build; it opens your projects and the " +
+						"other windows. A warning sits beside it when the daemon is not reachable — " +
+						"the built-in library is still documented, your project's own packs are not.",
+				},
+			],
+		},
+		{
+			wrap: "search-group",
+			items: [
+				{
+					t: "button",
+					text: "Search the docs",
+					icon: "search",
+					name: "Search the docs",
+					what:
+						"Every page and every node — `Ctrl` + `K` opens the same search. In a narrow " +
+						"window a **Contents** button follows it, for the contents as a drawer.",
 				},
 			],
 		},
@@ -1115,19 +1446,20 @@ export const DOCS_BAR: ToolbarSpec = {
 			apart: true,
 			items: [
 				{
-					t: "button",
-					text: "Settings",
+					t: "icon",
 					icon: "settings",
 					name: "Settings",
+					where: "the gear",
 					what:
 						"This browser's preferences and themes, including the ones that change " +
 						"the pictures on these pages. No project settings here: those are the " +
 						"repository's, and they are changed from the editor.",
 				},
 				{
-					t: "button",
-					text: "Open Editor",
+					t: "icon",
+					icon: "graph",
 					name: "Open Editor",
+					where: "the graph, at the end",
 					what: "The editor, in a new tab.",
 				},
 			],
@@ -1153,60 +1485,57 @@ export const DOCS_BAR: ToolbarSpec = {
  */
 export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 	id: "editor-bar-browser",
-	title: "The editor's top bar, in your browser",
+	title: "The editor's top row, in your browser",
 	summary:
-		"The same bar in the browser preview. Same buttons, in the same order — three of them " +
+		"The same row in the browser preview. Same buttons, in the same order — three of them " +
 		"reach something different.",
-	chrome: "bar",
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
-					text: "",
+					window: true,
 					version: true,
 					tint: "preview",
 					name: "The Roswaal mark",
 					where: "far left, in blue",
 					what:
-						"Opens the project menu. Blue means the browser preview: **your project is kept in this browser**, not on " +
+						"Opens the projects panel. Blue means the browser preview: **your project is kept in this browser**, not on " +
 						"your disk — it survives a reload and it is gone if you clear the site's " +
-						"data. The menu offers a folder on your own machine instead, where the " +
+						"data. The panel offers a folder on your own machine instead, where the " +
 						"browser allows it.",
 				},
+			],
+		},
+		{
+			items: [
+				{ t: "icon", icon: "panelLeft", ...as(EDITOR_BAR, "Project") },
 				{
 					t: "icon",
 					icon: "refresh",
 					name: "Refresh",
 					what: "Re-reads the project you have open, node packs included.",
 				},
-				{
-					t: "icon",
-					icon: "newFile",
-					name: "New graph",
-					what: "A new `.nodescript`: one Script, LocalScript or ModuleScript.",
-				},
-				{
-					t: "icon",
-					icon: "map",
-					name: "New node map",
-					what: "A new map of where things live in the DataModel. See [Node maps](building-and-rojo).",
-				},
+				{ t: "icon", icon: "newFile", ...as(EDITOR_BAR, "New graph") },
+				{ t: "icon", icon: "map", ...as(EDITOR_BAR, "New node map") },
 			],
 		},
+		...openGraph(as(EDITOR_BAR, "The open graph")),
 		{
 			apart: true,
 			items: [
-				{ t: "label", text: "Compile" },
 				{
 					t: "segmented",
 					options: ["Manual", "Dynamic"],
 					on: 0,
-					name: "Compile: Manual | Dynamic",
+					name: "Manual | Dynamic",
 					what:
 						"How generated Luau reaches the project. **Manual** writes when you ask; " +
 						"**Dynamic** writes on every edit. Also in [Settings](settings).",
 				},
+				{ t: "divider" },
 				{
 					t: "button",
 					text: "Compile project",
@@ -1215,6 +1544,19 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 						"Compiles every graph and node map. The generated `.luau` appears in the " +
 						"tree beside each graph, to read or copy out.",
 				},
+				{
+					t: "button",
+					text: "Compile script",
+					icon: "build",
+					primary: true,
+					...as(EDITOR_BAR, "Compile script"),
+				},
+			],
+		},
+		{
+			items: [
+				{ t: "icon", icon: "panelRight", ...as(EDITOR_BAR, "Inspector") },
+				{ t: "divider" },
 				{
 					t: "icon",
 					icon: "document",
@@ -1236,15 +1578,7 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 						"the project you have open here. It works the same way it does under the " +
 						"daemon.",
 				},
-				{
-					t: "icon",
-					icon: "settings",
-					name: "Settings",
-					where: "the last icon on the bar",
-					what:
-						"The project's settings, this browser's preferences, and themes. " +
-						"See [Settings](settings).",
-				},
+				{ t: "icon", icon: "settings", ...as(EDITOR_BAR, "Settings") },
 			],
 		},
 	],
@@ -1328,14 +1662,16 @@ export const DOCS_SITE_BAR: ToolbarSpec = {
  */
 export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 	id: "designer-bar-browser",
-	title: "Node Design's top bar, in your browser",
+	title: "Node Design's top row, in your browser",
 	summary: "The same window in the browser preview, marked as one.",
-	chrome: "head",
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
+					window: true,
 					text: "Node Design",
 					version: true,
 					tint: "preview",
@@ -1351,6 +1687,16 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 		{
 			apart: true,
 			items: [
+				{ t: "button", text: "Details", icon: "rename", ...as(DESIGNER_BAR, "Details") },
+				{ t: "divider" },
+				{ t: "badge", text: "Impure", ...as(DESIGNER_BAR, "Kind") },
+				{ t: "divider" },
+				{ t: "icon", icon: "remove" },
+				{ t: "button", text: "Save", icon: "build", primary: true, ...as(DESIGNER_BAR, "Save") },
+			],
+		},
+		{
+			items: [
 				{
 					t: "icon",
 					icon: "help",
@@ -1359,31 +1705,22 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 					what: "Opens [Creating custom nodes](creating-custom-nodes).",
 				},
 				{
-					t: "button",
-					text: "Docs",
+					t: "icon",
 					icon: "document",
 					name: "Docs",
+					where: "the page",
 					what:
 						"The published documentation — the built-in library. `Ctrl` + `K` searches " +
 						"it from here.",
 				},
 				{
-					t: "button",
-					text: "Open Editor",
+					t: "icon",
+					icon: "graph",
 					name: "Open Editor",
+					where: "the graph",
 					what: "The editor, in a new tab.",
 				},
-				{
-					t: "icon",
-					icon: "settings",
-					name: "Settings",
-					where: "the gear at the end",
-					what:
-						"This browser's preferences — node corners, wire style and themes — which " +
-						"is what a window that draws nodes all day wants to hand. No project " +
-						"settings: `roswaal.json` is the repository's and is changed from the " +
-						"editor.",
-				},
+				{ t: "icon", icon: "settings", ...as(DESIGNER_BAR, "Settings") },
 			],
 		},
 	],
@@ -1550,132 +1887,155 @@ export const FUNCTIONS_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
  * A control's name and legend lines, from the bar that already documents it,
  * with `more` said after the line. Throws for a name the bar does not have,
  * so a renamed control cannot quietly lose its description here.
+ *
+ * `where` replaces the bar's own; an empty one drops it, for a control that
+ * sits somewhere else on this screen -- a row of a menu has no "third from
+ * the right".
  */
 function as(from: ToolbarSpec, name: string, more?: string, where?: string): Documented {
 	const item = controlsOf(from).find((one) => one.name === name);
 	if (!item) throw new Error(`${from.id} has no control named "${name}"`);
 	return {
 		name,
-		where: where ?? item.where,
+		where: where === "" ? undefined : (where ?? item.where),
 		what: more ? `${item.what ?? ""} ${more}`.trim() : item.what,
 	};
 }
 
 const SAME_TAB = "On a tablet or a phone it opens in this tab, and the back button returns.";
-const SHORT_OF_ROOM = "Held upright, where the bar is short of room,";
 const NODE_DESIGN_HERE =
 	"Opens [Node Design](creating-custom-nodes) in this tab, on the packs of the project you " +
 	"have open here; the back button returns.";
 
-/** The editor's top bar on a tablet. */
+/** The editor's top row on a tablet held upright, where it folds into More. */
 export const EDITOR_BAR_TABLET: ToolbarSpec = {
 	id: "editor-bar-tablet",
 	device: "tablet",
-	title: "The editor's top bar, on a tablet",
+	title: "The editor's top row, on a tablet",
 	summary:
-		"The web app's bar. Held upright its words fold away so it keeps one row; held sideways " +
-		"it is as on a computer.",
-	chrome: "bar",
+		"The web app's row held upright: what is used less folds into More. Held sideways it is " +
+		"as on a computer.",
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
-					text: "",
+					window: true,
 					tint: "preview",
 					...as(
 						EDITOR_BAR_BROWSER,
 						"The Roswaal mark",
-						`${SHORT_OF_ROOM} the version beside it steps aside; it is in the mark's tooltip.`,
+						"Held upright, the version is in the mark's tooltip.",
 					),
 				},
-				{ t: "icon", icon: "refresh", ...as(EDITOR_BAR_BROWSER, "Refresh") },
-				{ t: "icon", icon: "newFile", ...as(EDITOR_BAR_BROWSER, "New graph") },
-				{ t: "icon", icon: "map", ...as(EDITOR_BAR_BROWSER, "New node map") },
 			],
 		},
+		{
+			items: [
+				{
+					t: "icon",
+					icon: "panelLeft",
+					...as(EDITOR_BAR_BROWSER, "Project", "On a touch screen they slide out over the graph."),
+				},
+			],
+		},
+		...openGraph(as(EDITOR_BAR_BROWSER, "The open graph")),
 		{
 			apart: true,
 			items: [
 				{
-					t: "segmented",
-					options: ["Manual", "Dynamic"],
-					on: 1,
+					t: "icon",
+					icon: "build",
+					primary: true,
+					...as(EDITOR_BAR_BROWSER, "Compile script", "Held upright, it is its icon."),
+				},
+			],
+		},
+		{
+			items: [
+				{
+					t: "icon",
+					icon: "panelRight",
 					...as(
 						EDITOR_BAR_BROWSER,
-						"Compile: Manual | Dynamic",
-						`${SHORT_OF_ROOM} the Compile caption goes.`,
+						"Inspector",
+						"On a touch screen they slide out over the graph.",
 					),
 				},
 				{
-					t: "icon",
-					icon: "build",
-					...as(EDITOR_BAR_BROWSER, "Compile project", `${SHORT_OF_ROOM} it is its icon.`),
+					t: "popout",
+					icon: "more",
+					name: "More",
+					where: "the last icon on the row",
+					what:
+						"The rest of the row: **Manual | Dynamic**, **Compile project**, **Refresh**, " +
+						`**New graph**, **New node map**, **Docs**, **Node Design** and **Settings**. ${SAME_TAB}`,
 				},
-				{ t: "icon", icon: "document", ...as(EDITOR_BAR_BROWSER, "Docs", SAME_TAB) },
-				{
-					t: "icon",
-					icon: "palette",
-					...as(EDITOR_BAR_BROWSER, "Node Design"),
-					what: NODE_DESIGN_HERE,
-				},
-				{ t: "icon", icon: "settings", ...as(EDITOR_BAR_BROWSER, "Settings") },
 			],
 		},
 	],
 };
 
-/** The editor's top bar on a phone: the tablet's, in two rows. */
+/** The editor's top row on a phone: the mark, the open graph, compiling, and More. */
 export const EDITOR_BAR_PHONE: ToolbarSpec = {
 	id: "editor-bar-phone",
 	device: "phone",
-	title: "The editor's top bar, on a phone",
+	title: "The editor's top row, on a phone",
 	summary:
-		"The tablet's bar held upright, in two rows: Docs, Node Design and Settings go under the rest.",
-	chrome: "bar",
+		"The mark, the open graph's tab, Compile script and More. The Project and Inspector " +
+		"buttons are on the bar along the bottom.",
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
-					text: "",
+					window: true,
 					tint: "preview",
-					...as(EDITOR_BAR_BROWSER, "The Roswaal mark", "The version is in its tooltip."),
+					glyph: "graph",
+					...as(
+						EDITOR_BAR_BROWSER,
+						"The Roswaal mark",
+						"The grey graph beside it says this is the editor; the version is in its tooltip.",
+					),
 				},
-				{ t: "icon", icon: "refresh", ...as(EDITOR_BAR_BROWSER, "Refresh") },
-				{ t: "icon", icon: "newFile", ...as(EDITOR_BAR_BROWSER, "New graph") },
-				{ t: "icon", icon: "map", ...as(EDITOR_BAR_BROWSER, "New node map") },
+			],
+		},
+		{
+			wrap: "graph-tabs",
+			items: [
+				{
+					t: "tab",
+					text: "Tank",
+					on: true,
+					name: "The open graph",
+					what: "Its tab alone. The others are in the list beside it.",
+				},
+				{ t: "icon", icon: "chevron" },
 			],
 		},
 		{
 			apart: true,
 			items: [
 				{
-					t: "segmented",
-					options: ["Manual", "Dynamic"],
-					on: 1,
-					...as(EDITOR_BAR_BROWSER, "Compile: Manual | Dynamic"),
+					t: "icon",
+					icon: "build",
+					primary: true,
+					...as(EDITOR_BAR_BROWSER, "Compile script", "As its icon."),
 				},
-				{ t: "icon", icon: "build", ...as(EDITOR_BAR_BROWSER, "Compile project", "As its icon.") },
 			],
 		},
 		{
 			items: [
 				{
-					t: "icon",
-					icon: "document",
-					...as(EDITOR_BAR_BROWSER, "Docs", SAME_TAB, "second row, first"),
-				},
-				{
-					t: "icon",
-					icon: "palette",
-					...as(EDITOR_BAR_BROWSER, "Node Design", undefined, "second row, second"),
-					what: NODE_DESIGN_HERE,
-				},
-				{
-					t: "icon",
-					icon: "settings",
-					...as(EDITOR_BAR_BROWSER, "Settings", undefined, "second row, last"),
+					t: "popout",
+					icon: "more",
+					name: "More",
+					where: "the last icon",
+					what: "Everything else, drawn below.",
 				},
 			],
 		},
@@ -1685,126 +2045,146 @@ export const EDITOR_BAR_PHONE: ToolbarSpec = {
 const HOLD_TO_ADD =
 	"On a touch screen, pressing and holding the graph does the same, where you held.";
 
-/** The graph's tools on a tablet. */
+/** What More holds on a phone, from `ProjectBar`'s menu and `DocumentBar`'s rows. */
+export const MORE_MENU_PHONE: ToolbarSpec = {
+	id: "more-menu-phone",
+	title: "The More menu, on a phone",
+	summary: "What **More** holds on a phone. Tap anywhere else to put it away.",
+	chrome: "popmenu",
+	groups: [
+		{
+			items: [
+				{
+					t: "segmented",
+					options: ["Manual", "Dynamic"],
+					on: 1,
+					...as(EDITOR_BAR_BROWSER, "Manual | Dynamic"),
+				},
+				{
+					t: "button",
+					text: "Compile project",
+					icon: "build",
+					...as(EDITOR_BAR_BROWSER, "Compile project"),
+				},
+				{
+					t: "button",
+					text: "Add node",
+					icon: "search",
+					...as(GRAPH_BAR, "Add node", HOLD_TO_ADD),
+				},
+				{ t: "button", text: "Preview", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
+				{ t: "button", text: "Refresh", icon: "refresh", ...as(EDITOR_BAR_BROWSER, "Refresh") },
+				{
+					t: "button",
+					text: "New graph",
+					icon: "newFile",
+					...as(EDITOR_BAR_BROWSER, "New graph"),
+				},
+				{
+					t: "button",
+					text: "New node map",
+					icon: "map",
+					...as(EDITOR_BAR_BROWSER, "New node map"),
+				},
+				{
+					t: "button",
+					text: "Docs",
+					icon: "document",
+					...as(EDITOR_BAR_BROWSER, "Docs", SAME_TAB, ""),
+				},
+				{
+					t: "button",
+					text: "Node Design",
+					icon: "palette",
+					...as(EDITOR_BAR_BROWSER, "Node Design", undefined, ""),
+					what: NODE_DESIGN_HERE,
+				},
+				{
+					t: "button",
+					text: "Settings",
+					icon: "settings",
+					...as(EDITOR_BAR_BROWSER, "Settings", undefined, ""),
+				},
+			],
+		},
+	],
+};
+
+/** The open graph's clusters on a tablet. */
 export const GRAPH_BAR_TABLET: ToolbarSpec = {
 	id: "graph-bar-tablet",
 	device: "tablet",
-	title: "The graph's tools, on a tablet",
-	summary:
-		"Held upright, Straighten and Compile script are their icons, so the three groups keep " +
-		"one row. Held sideways they are as on a computer.",
+	title: "The open graph, on a tablet",
+	summary: "As on a computer, held either way.",
 	chrome: "float",
 	groups: [
 		{
+			wrap: "graph-tabs",
 			items: [
-				{ t: "select", text: "ModuleScript", ...as(GRAPH_BAR, "Script class") },
-				{ t: "select", text: "Strict Mode", ...as(GRAPH_BAR, "Typechecking mode") },
+				{
+					t: "tab",
+					text: "Tank",
+					on: true,
+					name: "Tabs",
+					what:
+						"One per open graph, and one per function graph opened from it; the open one " +
+						"is lit. Press and hold a tab, then drag, to move it.",
+				},
+				{ t: "tab", text: "Occupancy" },
+				{ t: "icon", icon: "chevron", ...as(GRAPH_BAR, "Open graphs") },
 			],
 		},
 		{
 			items: [
 				{ t: "icon", icon: "search", ...as(GRAPH_BAR, "Add node", HOLD_TO_ADD) },
 				{ t: "icon", icon: "layout", ...as(GRAPH_BAR, "Realign") },
-				{
-					t: "icon",
-					icon: "straighten",
-					on: true,
-					...as(GRAPH_BAR, "Straighten", `${SHORT_OF_ROOM} it is its icon, lit while it is on.`),
-				},
+				{ t: "icon", icon: "straighten", on: true, ...as(GRAPH_BAR, "Straighten") },
 				{ t: "icon", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
-			],
-		},
-		{
-			apart: true,
-			items: [
-				{
-					t: "select",
-					text: "Roblox",
-					...as(GRAPH_BAR, "Target", "Lune shows a warning triangle after its name."),
-				},
-				{
-					t: "icon",
-					icon: "build",
-					primary: true,
-					...as(GRAPH_BAR, "Compile script", `${SHORT_OF_ROOM} it is its icon.`),
-				},
 			],
 		},
 	],
 };
 
-/** The graph's tools on a phone, with the document's settings behind a button each. */
+/** The open graph on a phone: its tab, with the tools moved into More. */
 export const GRAPH_BAR_PHONE: ToolbarSpec = {
 	id: "graph-bar-phone",
 	device: "phone",
-	title: "The graph's tools, on a phone",
-	summary: "The tablet's tools held upright, with the document's settings behind a button each.",
+	title: "The open graph, on a phone",
+	summary:
+		"Its tab, and the list of the others. **Add node** and **Preview** are in **More**; " +
+		"Realign and Straighten are not on a phone.",
 	chrome: "float",
 	groups: [
 		{
+			wrap: "graph-tabs",
 			items: [
 				{
-					t: "select",
-					text: "Script",
-					name: "Script and mode",
-					what:
-						"What this graph compiles to — a Script, a LocalScript or a ModuleScript — and which " +
-						"Luau typechecking mode the file declares, behind one button that names the type in a " +
-						"word — Script, Local or Module — and lists them in full. Tap " +
-						"anywhere else to put them away. See [Types](types).",
-				},
-			],
-		},
-		{
-			items: [
-				{ t: "icon", icon: "search", ...as(GRAPH_BAR, "Add node", HOLD_TO_ADD) },
-				{ t: "icon", icon: "layout", ...as(GRAPH_BAR, "Realign") },
-				{
-					t: "icon",
-					icon: "straighten",
+					t: "tab",
+					text: "Tank",
 					on: true,
-					...as(GRAPH_BAR, "Straighten", "As its icon, lit while it is on."),
+					name: "Tabs",
+					what: "The open graph's tab alone.",
 				},
-				{ t: "icon", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
-			],
-		},
-		{
-			apart: true,
-			items: [
-				{
-					t: "select",
-					text: "Roblox",
-					...as(
-						GRAPH_BAR,
-						"Target",
-						"Behind a button that names it, with a warning triangle after Lune.",
-					),
-				},
-				{
-					t: "icon",
-					icon: "build",
-					primary: true,
-					...as(GRAPH_BAR, "Compile script", "As its icon."),
-				},
+				{ t: "icon", icon: "chevron", ...as(GRAPH_BAR, "Open graphs", "The way to the others.") },
 			],
 		},
 	],
 };
 
-/** Node Design's header on a tablet: the web app's, opening pages in this tab. */
+/** Node Design's top row on a tablet: the web app's, opening pages in this tab. */
 export const DESIGNER_BAR_TABLET: ToolbarSpec = {
 	id: "designer-bar-tablet",
 	device: "tablet",
-	title: "Node Design's top bar, on a tablet",
-	summary:
-		"The web app's bar. Over a node, a second bar switches between its preview and its " +
-		"logic: see **Only on a touch screen** below.",
-	chrome: "head",
+	title: "Node Design's top row, on a tablet",
+	summary: "The web app's row. Under it, the pack's own bar: see **Only on a touch screen** below.",
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
+					window: true,
 					text: "Node Design",
 					tint: "preview",
 					...as(DESIGNER_BAR_BROWSER, "Node Design"),
@@ -1814,17 +2194,23 @@ export const DESIGNER_BAR_TABLET: ToolbarSpec = {
 		{
 			apart: true,
 			items: [
+				{ t: "button", text: "Details", icon: "rename", ...as(DESIGNER_BAR, "Details") },
+				{ t: "divider" },
+				{ t: "badge", text: "Impure", ...as(DESIGNER_BAR, "Kind") },
+				{ t: "divider" },
+				{ t: "icon", icon: "remove" },
+				{ t: "button", text: "Save", icon: "build", primary: true, ...as(DESIGNER_BAR, "Save") },
+			],
+		},
+		{
+			items: [
 				{ t: "icon", icon: "help", ...as(DESIGNER_BAR_BROWSER, "How custom nodes work") },
+				{ t: "icon", icon: "document", ...as(DESIGNER_BAR_BROWSER, "Docs", SAME_TAB) },
 				{
-					t: "button",
-					text: "Docs",
-					icon: "document",
-					...as(DESIGNER_BAR_BROWSER, "Docs", SAME_TAB),
-				},
-				{
-					t: "button",
-					text: "Open Editor",
+					t: "icon",
+					icon: "graph",
 					name: "Open Editor",
+					where: "the graph",
 					what: `The editor. ${SAME_TAB} Leaving a node with unsaved edits asks first.`,
 				},
 				{ t: "icon", icon: "settings", ...as(DESIGNER_BAR_BROWSER, "Settings") },
@@ -1833,40 +2219,62 @@ export const DESIGNER_BAR_TABLET: ToolbarSpec = {
 	],
 };
 
-/** Node Design's header on a phone. */
+/** Node Design's top row on a phone. */
 export const DESIGNER_BAR_PHONE: ToolbarSpec = {
 	id: "designer-bar-phone",
 	device: "phone",
-	title: "Node Design's top bar, on a phone",
-	summary: "The web app's bar, with Docs as its icon so the row holds Settings.",
-	chrome: "head",
+	title: "Node Design's top row, on a phone",
+	summary: "The node's actions as icons, its kind behind a button, and the other windows in More.",
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
-					text: "Node Design",
+					window: true,
 					tint: "preview",
-					...as(DESIGNER_BAR_BROWSER, "Node Design", "The version steps aside on a phone."),
+					glyph: "palette",
+					...as(
+						DESIGNER_BAR_BROWSER,
+						"Node Design",
+						"On a phone the grey palette beside it says which window this is.",
+					),
 				},
 			],
 		},
 		{
 			apart: true,
 			items: [
-				{ t: "icon", icon: "help", ...as(DESIGNER_BAR_BROWSER, "How custom nodes work") },
+				{ t: "icon", icon: "rename", ...as(DESIGNER_BAR, "Details", "As its icon.") },
+				{ t: "divider" },
+				{
+					t: "popout",
+					text: "Impure",
+					...as(DESIGNER_BAR, "Kind"),
+					what:
+						"**Pure**, **Impure** or **Cannot run**, behind a button that names it. In it, " +
+						"**Normal** or **Pill** for a pure node, and the bin for a saved one.",
+				},
 				{
 					t: "icon",
-					icon: "document",
-					...as(DESIGNER_BAR_BROWSER, "Docs", `As its icon. ${SAME_TAB}`),
+					icon: "build",
+					primary: true,
+					...as(DESIGNER_BAR, "Save", "As its icon."),
 				},
+			],
+		},
+		{
+			items: [
 				{
-					t: "button",
-					text: "Open Editor",
-					name: "Open Editor",
-					what: `The editor. ${SAME_TAB} Leaving a node with unsaved edits asks first.`,
+					t: "popout",
+					icon: "more",
+					name: "More",
+					where: "the last button",
+					what:
+						"**How custom nodes work**, **Docs**, **Open Editor** and **Settings**, as rows. " +
+						`Each opens in this tab; leaving a node with unsaved edits asks first.`,
 				},
-				{ t: "icon", icon: "settings", ...as(DESIGNER_BAR_BROWSER, "Settings") },
 			],
 		},
 	],
@@ -2706,7 +3114,7 @@ export const START_PAGE: ToolbarSpec = {
 export const WALK_BARS: ToolbarSpec[] = [PROJECTS_FOOT, PROJECT_MENU, START_PAGE, ...PLACE_BARS];
 
 /**
- * The row of edits under the graph on a phone or a tablet.
+ * The row of edits along the bottom of the graph on a phone or a tablet.
  *
  * Written from `src/app/TouchBar.tsx`, in its order. Each is the keystroke
  * named beside it, sent to the graph's own handler.
@@ -2715,7 +3123,7 @@ export const ACTION_ROW: ToolbarSpec = {
 	id: "action-row",
 	title: "The action row",
 	summary:
-		"Under the graph on a phone or a tablet, and under Node Design's logic graph. Icons or words with **Settings → Editor → Action buttons**; separate buttons or one bar with **Action row**.",
+		"Along the bottom of the graph on a phone or a tablet, and of Node Design's logic. On a phone the Project and Inspector buttons are at its two ends. Icons or words with **Settings → Editor → Action buttons**; separate buttons or one bar with **Action row**.",
 	chrome: "float",
 	groups: [
 		{
@@ -2775,17 +3183,18 @@ export const ACTION_ROW: ToolbarSpec = {
 };
 
 /**
- * Node Design's bar over a node, on a phone or a tablet.
+ * Node Design's pack bar, under the top row on a phone or a tablet.
  *
  * Written from `src/app/designer/PackView.tsx` and the switches `NodeEditor`
- * puts in it.
+ * puts in it on a phone, where the node and its logic take turns.
  */
 export const DESIGNER_TOUCH_BAR: ToolbarSpec = {
 	id: "designer-touch-bar",
-	title: "Node Design's bar, on a phone or a tablet",
+	title: "Node Design's pack bar, on a phone or a tablet",
 	summary:
-		"Above the node on a phone or a tablet: the pack, the node, and which view of it is showing.",
-	chrome: "bar",
+		"Under the top row on a phone or a tablet: the pack and the open node, and on a phone " +
+		"which view of it is showing.",
+	chrome: "float",
 	groups: [
 		{
 			items: [
@@ -2797,25 +3206,23 @@ export const DESIGNER_TOUCH_BAR: ToolbarSpec = {
 					what: "Slides the pack's node list out over the editor. Pick a node and it goes away again.",
 				},
 				{ t: "name", text: "Apply Knockback" },
-			],
-		},
-		{
-			apart: true,
-			items: [
 				{
 					t: "segmented",
 					options: ["Preview", "Logic"],
 					on: 1,
 					name: "Preview and Logic",
-					what: "The node as a graph draws it, or what it does when it runs.",
+					where: "Phones only",
+					what: "The node, or what it does when it runs: each with the screen to itself.",
 				},
 				{
 					t: "segmented",
 					options: ["Luau", "Nodes"],
 					on: 1,
 					name: "Luau and Nodes",
-					what: "Write the logic as Luau, or build it from nodes.",
-					where: "With Logic showing",
+					where: "Phones only, with Logic showing",
+					what:
+						"Write the logic as Luau, or build it from nodes. On a tablet the switch is " +
+						"on the logic's tools.",
 				},
 			],
 		},
@@ -2828,11 +3235,14 @@ export const TOOLBARS: ToolbarSpec[] = [
 	EDITOR_BAR_BROWSER,
 	EDITOR_BAR_TABLET,
 	EDITOR_BAR_PHONE,
+	MORE_MENU_PHONE,
 	PROJECT_PANEL_HEAD,
 	GRAPH_BAR,
 	GRAPH_BAR_TABLET,
 	GRAPH_BAR_PHONE,
+	GRAPH_SETTINGS,
 	MAP_BAR,
+	CANVAS_STRIP,
 	DESIGNER_BAR,
 	DESIGNER_BAR_BROWSER,
 	DESIGNER_BAR_TABLET,

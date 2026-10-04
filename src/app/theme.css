@@ -44,6 +44,13 @@
 	--text-xl: 15px;
 	--text-2xl: 20px;
 	--text-display: 30px;
+	/* Floating chrome: the glass it is made of, the size of a control in it,
+	   the gap it keeps from the window's edge, and how far down the cards and
+	   notices start so they clear the top clusters. A finger gets more. */
+	--glass: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+	--hit: 30px;
+	--edge: 10px;
+	--chrome-top: calc(var(--hit) + 8px + var(--edge) * 2);
 
 	/* Pin geometry. One slot size for every pin, because the slot is what lines
 	   the labels up down the side of a node; the shape inside it varies by kind.
@@ -238,56 +245,82 @@ select optgroup {
 
 /* ------------------------------------------------------------- workspace */
 
-/* Three docks around a centre. The track sizes come from `gridTemplate()` as
-   inline styles, because they are state; only the *shape* is here.
-
-   Every area is named, and every child names the area it sits in. That is not
-   tidiness: `display: none` stops an element being a grid item, and
-   auto-placement then closes up behind it — with both docks hidden, an
-   unpinned centre lands in the left dock's track and takes its width, while
-   every piece of state remains correct. See docs/PANELS.md. */
+/* The canvas fills the window and everything else floats over it. The docks
+   are columns of cards over the centre, placed by Workspace from the layout's
+   sizes; the top clusters and the side strip float over the centre itself.
+   See docs/PANELS.md for the layout model, which this only draws. */
 .workspace {
 	flex: 1;
-	display: grid;
 	position: relative;
-	grid-template-areas:
-		"left        split-left   centre        split-right  right"
-		"split-bottom split-bottom split-bottom split-bottom split-bottom"
-		"bottom      bottom       bottom        bottom       bottom";
 	min-height: 0;
 	min-width: 0;
+	overflow: hidden;
+	--strip-w: 0px;
 }
 
-/* A dock is a container and nothing more: its panels carry their own look, so
-   moving one between docks does not change how it is drawn. The exception is
-   the left dock, below, which inherited the old sidebar's surface. */
-.dock {
+/* Room for the side strip, when the centre shows a canvas that has one. */
+.workspace.has-strip {
+	--strip-w: calc(var(--hit) + 8px + var(--edge));
+}
+
+/* Its own stacking context, so the canvas's layers -- nodes at 50, its menus at
+   70 -- stay inside it and the cards float over all of them. */
+.centre {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	isolation: isolate;
 	display: flex;
 	flex-direction: column;
-	/* Both of these are load-bearing. A grid item's automatic minimum size is
-	   its content, so a dock holding one long path would refuse to shrink below
-	   the width of that path — the splitter would drag outwards and never come
-	   back. */
 	min-width: 0;
 	min-height: 0;
-	overflow: hidden;
+	background: var(--bg-canvas);
+}
+
+/* The graph, node map, source view or placeholder. The floating tools are
+   positioned against it, over whatever it shows. */
+.centre-body {
+	flex: 1;
+	display: grid;
+	grid-template-rows: minmax(0, 1fr);
+	min-width: 0;
+	min-height: 0;
+	position: relative;
+}
+
+/* A dock is a column of cards, and takes no clicks itself: between and below
+   its cards is still the graph. */
+.dock {
+	position: absolute;
+	z-index: 3;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+	min-height: 0;
+	box-sizing: border-box;
+	pointer-events: none;
 }
 
 .dock.left {
-	background: var(--bg-panel);
-	overflow: auto;
+	left: calc(var(--edge) + var(--strip-w));
+	top: var(--chrome-top);
+	/* Clear of the status pill below it. */
+	max-height: calc(100% - var(--chrome-top) - var(--hit) - var(--edge) * 3);
 }
 
-/* The bottom dock is sized by its content -- see `gridTemplate` -- which was
-   safe while its only panel capped its own height. Once panels can be dragged
-   into it, anything can be down there: a graph with thirty variables would grow
-   the row until the centre had nothing left, and the centre's minimum is only
-   enforced for sizes the layout stores.
-   
-   So the row is content-sized up to a share of the window, and scrolls past it. */
+.dock.right {
+	right: var(--edge);
+	top: var(--chrome-top);
+	max-height: calc(100% - var(--chrome-top) - var(--edge));
+}
+
+/* The status pill, and what it opens into. Sized by what it says. */
 .dock.bottom {
-	max-height: 45vh;
-	overflow: auto;
+	left: var(--edge);
+	bottom: var(--edge);
+	max-width: min(640px, calc(100% - var(--edge) * 2));
+	max-height: 45%;
 }
 
 .panel {
@@ -297,95 +330,79 @@ select optgroup {
 	min-height: 0;
 }
 
-/* The tree grows; the variables panel takes what it needs. Without this the
-   two split the column evenly and the tree gets half a screen it does not
-   want. */
-.dock.left .panel-tree {
-	flex: 1;
+/* Each panel is its own card: glass over the graph, as tall as what it shows
+   and no taller, scrolling past its share of the column. */
+.dock > .panel {
+	pointer-events: auto;
+	flex: 0 1 auto;
+	overflow: hidden;
+	/* Nearly solid: a card holds dense text, and the graph showing through
+	   it reads as noise. The small clusters keep the lighter glass. */
+	background: color-mix(in srgb, var(--bg-panel) 98%, transparent);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-raised);
+	backdrop-filter: blur(14px) saturate(1.2);
+	-webkit-backdrop-filter: blur(14px) saturate(1.2);
 }
 
-/* The tree scrolls inside its own panel. Without this the panel could shrink
-   and the tree inside it would not, so a tree taller than its share ran down
-   over the Variables panel beneath -- on an iPad's drawer every time, and on
-   a desktop whenever the window was short enough. Variables keeps the height
-   of what it lists, up to a share of the dock, and scrolls past that. */
+/* The tree scrolls inside its own card, and Variables keeps the height of
+   what it lists up to a share of the column. */
 .dock .panel-tree .tree {
 	min-height: 0;
 	overflow: auto;
 }
 
-.dock.left .panel-variables {
-	flex: 0 1 auto;
-	max-height: 60%;
+.dock .panel-variables,
+.dock .panel-inspector,
+.dock .panel-properties {
 	overflow: auto;
 }
 
-.dock.right .panel,
-.dock.bottom .panel {
-	flex: 1;
-	overflow: hidden;
+.dock.left .panel-variables {
+	max-height: 60%;
 }
 
-/* The grab handle between a dock and the centre. Five pixels wide, with a
-   larger hit area pushed out either side by a transparent border — a strip you
-   can see is thinner than a strip you can reliably hit, and making the visible
-   one wider costs space from the graph. */
-.splitter {
-	background: var(--border);
-	position: relative;
+.dock.bottom > .panel {
+	overflow: auto;
+}
+
+/* The grab handle on a card's inner edge. Invisible until the pointer finds
+   it, and wider to hit than to see. */
+.dock > .splitter {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 12px;
 	z-index: 1;
-	touch-action: none;
-}
-
-.splitter:hover,
-.splitter:active {
-	background: var(--accent);
-}
-
-.splitter.col {
 	cursor: col-resize;
-	border-left: 3px solid transparent;
-	border-right: 3px solid transparent;
-	background-clip: padding-box;
-	margin: 0 -3px;
+	touch-action: none;
+	pointer-events: auto;
 }
 
-.splitter.row {
-	cursor: row-resize;
-	border-top: 3px solid transparent;
-	border-bottom: 3px solid transparent;
-	background-clip: padding-box;
-	margin: -3px 0;
+.dock.left > .splitter {
+	right: -9px;
 }
 
-.splitter.left { grid-area: split-left; }
-.splitter.right { grid-area: split-right; }
-.splitter.bottom { grid-area: split-bottom; }
-
-/* The centre always exists and is what the docks surround. Relative so the
-   compile toast anchors to the graph area itself — which makes "bottom right
-   of the graph" true by construction rather than by subtracting the
-   inspector's width from the workspace. */
-.centre {
-	grid-area: centre;
-	position: relative;
-	display: flex;
-	flex-direction: column;
-	min-width: 0;
-	min-height: 0;
+.dock.right > .splitter {
+	left: -9px;
 }
 
-/* The graph, node map, source view or placeholder — whatever the centre is
-   showing, under the tab strip. Its own element so the strip can come and go
-   without the content needing to know which grid row it is in. */
-.centre-body {
-	flex: 1;
-	display: grid;
-	grid-template-rows: minmax(0, 1fr);
-	min-width: 0;
-	min-height: 0;
-	/* The floating tools are positioned against this, over whatever it shows. */
-	position: relative;
+.dock > .splitter::after {
+	content: "";
+	position: absolute;
+	top: 12px;
+	bottom: 12px;
+	left: 5px;
+	width: 2px;
+	border-radius: 1px;
+	background: transparent;
+	transition: background 120ms ease;
+}
+
+.dock > .splitter:hover::after,
+.dock > .splitter:active::after {
+	background: var(--accent);
 }
 
 /* ---------------------------------------------------------- floating tools */
@@ -394,9 +411,9 @@ select optgroup {
    the gaps between groups are still the canvas. See FloatingTools.tsx. */
 .floating-tools {
 	position: absolute;
-	top: 8px;
-	left: 10px;
-	right: 10px;
+	top: var(--edge);
+	left: var(--edge);
+	right: var(--edge);
 	z-index: 5;
 	display: flex;
 	align-items: flex-start;
@@ -409,23 +426,80 @@ select optgroup {
 	flex: 1;
 }
 
+/* A cluster: glass over the canvas, so the graph still reads through, and the
+   buttons in it bare until the pointer is on one. Procreate's bar is the model:
+   a few small groups at the window's edge, nothing in a full-width strip. */
 .tool-group {
 	pointer-events: auto;
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
-	gap: 6px;
-	padding: 4px 6px;
-	background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+	gap: 2px;
+	padding: 3px;
+	background: var(--glass);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-raised);
+	backdrop-filter: blur(14px) saturate(1.2);
+	-webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.tool-group button.tb,
+.tool-group select.tb {
+	min-height: var(--hit);
+	background: transparent;
+	border-color: transparent;
+}
+
+.tool-group button.tb.icon-only {
+	width: var(--hit);
+	height: var(--hit);
+}
+
+.tool-group button.tb:hover:not(:disabled),
+.tool-group select.tb:hover {
+	background: var(--bg-hover);
+	border-color: transparent;
+}
+
+.tool-group button.tb.on,
+.tool-group button.tb.icon-only.on,
+.tool-group button.tb.on:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--accent) 20%, transparent);
+	border-color: transparent;
+	color: var(--accent);
+}
+
+.tool-group button.tb.primary,
+.tool-group button.tb.primary:hover:not(:disabled) {
+	background: var(--accent);
+	color: #fff;
+}
+
+/* In a cluster, a switch is two of the cluster's own buttons: the same height,
+   corner and padding as the button beside it, lit with the tint. */
+.tool-group .segmented {
+	padding: 0;
+	gap: 2px;
+	background: none;
+	border: 0;
+}
+
+.tool-group .segmented button {
+	min-height: var(--hit);
+	padding: 0 12px;
+	border-radius: var(--radius-sm);
+	font-size: var(--text-md);
+}
+
+.tool-group .segmented button.on {
+	font-weight: 600;
 }
 
 .tool-group .divider {
 	width: 1px;
 	align-self: stretch;
-	margin: 3px 2px;
+	margin: 5px 3px;
 	background: var(--border-strong);
 }
 
@@ -498,24 +572,31 @@ select optgroup {
 
 /* ------------------------------------------------------------- graph tabs */
 
+/* The open graphs, as a group among the floating tools: the active one's name
+   in full, the others beside it while there is room, and the list at the end.
+   The group scrolls sideways rather than growing past its share of the row. */
 .graph-tabs {
-	display: flex;
-	align-items: stretch;
-	gap: 1px;
-	flex: none;
-	background: var(--bg-app);
-	border-bottom: 1px solid var(--border);
+	flex: 0 1 auto;
+	flex-wrap: nowrap;
+	min-width: 0;
+	max-width: min(560px, 46vw);
 	overflow-x: auto;
 	overflow-y: hidden;
+	scrollbar-width: none;
+}
+
+.graph-tabs::-webkit-scrollbar {
+	display: none;
 }
 
 .graph-tab {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	padding: 5px 8px 5px 11px;
-	background: var(--bg-panel);
-	border-right: 1px solid var(--border);
+	flex: none;
+	height: var(--hit);
+	padding: 0 6px 0 10px;
+	border-radius: var(--radius-sm);
 	color: var(--fg-muted);
 	cursor: pointer;
 	white-space: nowrap;
@@ -526,13 +607,11 @@ select optgroup {
 	background: var(--bg-hover);
 }
 
-/* The active tab reads as continuous with the canvas below it — the accent
-   sits on top rather than filling the tab, so a row of tabs does not compete
-   with the graph for attention. */
+/* The open graph: its name, plainly, as the document's title. */
 .graph-tab.on {
-	background: var(--bg-canvas);
 	color: var(--fg);
-	box-shadow: inset 0 2px 0 var(--accent);
+	font-weight: 600;
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .graph-tab .name {
@@ -558,7 +637,7 @@ select optgroup {
 	cursor: pointer;
 	font-size: var(--text-lg);
 	line-height: 1;
-	padding: 0 2px;
+	padding: 0 3px;
 	border-radius: var(--radius-xs);
 	visibility: hidden;
 }
@@ -575,9 +654,9 @@ select optgroup {
 	color: var(--danger);
 }
 
-/* A tab being dragged fades rather than moving: the row is short and the tabs
-   are narrow, so animating positions would be motion nobody can follow. The
-   line marking where it lands is what says what will happen. */
+/* A tab being dragged fades rather than moving: the tabs are narrow, so
+   animating positions would be motion nobody can follow. The line marking
+   where it lands is what says what will happen. */
 .graph-tabs.reordering .graph-tab {
 	cursor: grabbing;
 }
@@ -586,22 +665,17 @@ select optgroup {
 	opacity: 0.45;
 }
 
-/* Drawn inside the leading edge rather than as a margin, so inserting the
-   marker never widens the row and shifts every tab under the pointer. */
 .graph-tab.drop-before,
 .tab-rest.drop-before {
 	box-shadow: inset 2px 0 0 var(--accent);
 }
 
-/* The end of the row: a drop target, and the home of the list button. It grows
-   to fill what the tabs leave, which is also what makes "drop at the end"
-   something you can hit. */
+/* The end of the group: a drop target, and the home of the list button. */
 .tab-rest {
 	display: flex;
 	align-items: center;
-	flex: 1 0 44px;
-	padding-left: 2px;
-	background: var(--bg-app);
+	flex: none;
+	min-width: 8px;
 }
 
 .tab-list {
@@ -610,9 +684,28 @@ select optgroup {
 	align-items: center;
 }
 
-.tab-list > button {
-	padding: 2px 5px;
-	line-height: 1;
+.tab-list > button.tb {
+	width: var(--hit);
+	height: var(--hit);
+	padding: 0;
+	display: grid;
+	place-items: center;
+}
+
+/* On a phone the group is the open graph's name and the list; the others are
+   in the list. */
+@media (max-width: 699px) {
+	.graph-tab:not(.on) {
+		display: none;
+	}
+
+	.graph-tabs {
+		max-width: 44vw;
+	}
+
+	.graph-tab.on .close {
+		display: none;
+	}
 }
 
 /* Fixed to the viewport rather than placed inside the row, because the row
@@ -1152,7 +1245,7 @@ button.tb.icon-only.panel-float {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 6px 10px;
+	padding: 3px 8px;
 	background: var(--bg-panel);
 	border-bottom: 1px solid var(--border);
 	flex-wrap: wrap;
@@ -1213,56 +1306,12 @@ button.tb.icon-only.panel-float {
 	white-space: nowrap;
 }
 
-/* ------------------------------------------------------- the document bar */
-
-/* The second row: the open document, its own settings, and the tools that only
-   mean anything while it is open.
- *
- * Quieter than the bar above it and separated by a rule, because it is a
- * different kind of thing rather than more of the same — the top row acts on
- * the project and is always there, this one acts on what you are looking at and
- * disappears when you are not looking at anything. */
-.docbar {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 5px 10px;
-	background: var(--bg-app);
-	border-bottom: 1px solid var(--border);
-	flex-wrap: wrap;
-}
-
-.docbar .spacer {
-	flex: 1;
-}
-
-/* Separates the document's own settings from the tools that act on it. */
-.docbar .divider {
-	width: 1px;
-	align-self: stretch;
-	margin: 3px 3px;
-	/* The strong border, not the ordinary one: this row sits on the app
-	   background rather than the panel, and `--border` against it is a line
-	   nobody can see. */
-	background: var(--border-strong);
-}
-
-.toolbar .doc-name,
-.docbar .doc-name {
+.toolbar .doc-name {
 	font-weight: 600;
 	margin-right: 2px;
 }
 
-/* What kind of document this is, where it is not already obvious from the
-   controls beside it — a graph says so with its script class, a node map has
-   no settings of its own and would otherwise be a bare name. */
-.docbar .doc-kind {
-	font-size: var(--text-sm);
-	color: var(--fg-faint);
-}
-
-.toolbar .dirty::after,
-.docbar .dirty::after {
+.toolbar .dirty::after {
 	content: "•";
 	color: var(--warning);
 	margin-left: 5px;
@@ -1314,23 +1363,35 @@ button.tb.primary:hover:not(:disabled) {
 	background: var(--accent);
 }
 
+/* A track with the chosen option lit inside it. Lit as a held mode is --
+   `button.tb.on`, Straighten -- with a tint rather than a fill, so a setting
+   does not shout louder than the action beside it. */
 .segmented {
 	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	background: var(--bg-input);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
-	overflow: hidden;
 }
 
 .segmented button {
-	background: var(--bg-input);
+	background: transparent;
 	border: 0;
-	padding: 4px 10px;
+	border-radius: var(--radius-xs);
+	padding: 3px 10px;
+	color: var(--fg-muted);
 	cursor: pointer;
 }
 
+.segmented button:hover {
+	background: var(--bg-hover);
+	color: var(--fg);
+}
+
 .segmented button.on {
-	background: var(--accent);
-	color: #fff;
+	background: color-mix(in srgb, var(--accent) 20%, transparent);
+	color: var(--accent);
 }
 
 /* ------------------------------------------------------------ panel headings */
@@ -4877,7 +4938,7 @@ button.tb.icon-only.on {
 	max-width: 74ch;
 }
 
-.docs-content h1 {
+.docs-content h1:where(:not(.docs-layout-screen *)) {
 	font-size: 22px;
 	margin: 0 0 4px;
 	display: flex;
@@ -4885,26 +4946,26 @@ button.tb.icon-only.on {
 	gap: 8px;
 }
 
-.docs-content .summary {
+.docs-content .summary:where(:not(.docs-layout-screen *)) {
 	margin: 0 0 22px;
 	color: var(--fg-faint);
 }
 
-.docs-content h2 {
+.docs-content h2:where(:not(.docs-layout-screen *)) {
 	font-size: 15px;
 	margin: 28px 0 8px;
 	padding-top: 14px;
 	border-top: 1px solid var(--border);
 }
 
-.docs-content h3 { font-size: 13px; margin: 20px 0 6px; }
-.docs-content p { margin: 0 0 12px; line-height: 1.6; }
-.docs-content ul,
-.docs-content ol { margin: 0 0 12px; padding-left: 20px; line-height: 1.6; }
-.docs-content li { margin-bottom: 4px; }
-.docs-content li::marker { color: var(--fg-faint); }
+.docs-content h3:where(:not(.docs-layout-screen *)) { font-size: 13px; margin: 20px 0 6px; }
+.docs-content p:where(:not(.docs-layout-screen *)) { margin: 0 0 12px; line-height: 1.6; }
+.docs-content ul:where(:not(.docs-layout-screen *)),
+.docs-content ol:where(:not(.docs-layout-screen *)) { margin: 0 0 12px; padding-left: 20px; line-height: 1.6; }
+.docs-content li:where(:not(.docs-layout-screen *)) { margin-bottom: 4px; }
+.docs-content li:where(:not(.docs-layout-screen *))::marker { color: var(--fg-faint); }
 
-.docs-content code {
+.docs-content code:where(:not(.docs-layout-screen *)) {
 	background: var(--bg-input);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-xs);
@@ -4912,7 +4973,7 @@ button.tb.icon-only.on {
 	font-size: 11px;
 }
 
-.docs-content pre {
+.docs-content pre:where(:not(.docs-layout-screen *)) {
 	background: var(--bg-canvas);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
@@ -4925,13 +4986,13 @@ button.tb.icon-only.on {
 
 .docs-table { overflow-x: auto; margin: 0 0 14px; }
 
-.docs-content table {
+.docs-content table:where(:not(.docs-layout-screen *)) {
 	border-collapse: collapse;
 	width: 100%;
 	font-size: 12px;
 }
 
-.docs-content th {
+.docs-content th:where(:not(.docs-layout-screen *)) {
 	text-align: left;
 	font-size: 10px;
 	text-transform: uppercase;
@@ -4942,17 +5003,17 @@ button.tb.icon-only.on {
 	white-space: nowrap;
 }
 
-.docs-content td {
+.docs-content td:where(:not(.docs-layout-screen *)) {
 	padding: 7px 10px 7px 0;
 	border-bottom: 1px solid var(--border);
 	vertical-align: top;
 	line-height: 1.5;
 }
 
-.docs-content td.mono { font-size: 11px; color: var(--fg-muted); white-space: nowrap; }
-.docs-content td em { color: var(--fg-faint); font-style: normal; }
+.docs-content td.mono:where(:not(.docs-layout-screen *)) { font-size: 11px; color: var(--fg-muted); white-space: nowrap; }
+.docs-content td em:where(:not(.docs-layout-screen *)) { color: var(--fg-faint); font-style: normal; }
 
-.docs-content table.pins td.swatch-cell { width: 14px; padding-right: 6px; }
+.docs-content table.pins td.swatch-cell:where(:not(.docs-layout-screen *)) { width: 14px; padding-right: 6px; }
 
 .docs-swatch {
 	display: inline-block;
@@ -5028,13 +5089,42 @@ button.tb.icon-only.on {
  * warning chip and a link, and only two of those are text — an SVG's baseline
  * is its bottom edge, so `baseline` dropped the mark to the floor of the line
  * box and hung everything else off that. */
+/* A floating bar, as the editor's clusters are: glass, inset from the
+   window's edges, its buttons bare until the pointer is on one. In the page's
+   flow rather than over it, so the published site and the docs window lay
+   their pages out the same way under it. */
 .docs-page-head {
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	padding: 8px 14px;
-	background: var(--bg-panel);
-	border-bottom: 1px solid var(--border);
+	gap: 4px;
+	margin: var(--edge) var(--edge) 0;
+	padding: 3px 6px 3px 3px;
+	background: var(--glass);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-raised);
+	backdrop-filter: blur(14px) saturate(1.2);
+	-webkit-backdrop-filter: blur(14px) saturate(1.2);
+	position: relative;
+	z-index: 5;
+}
+
+.docs-page-head button.tb,
+.docs-page-head a.tb {
+	min-height: var(--hit);
+	background: transparent;
+	border-color: transparent;
+}
+
+.docs-page-head button.tb:hover:not(:disabled),
+.docs-page-head a.tb:hover {
+	background: var(--bg-hover);
+	border-color: transparent;
+}
+
+.docs-page-head button.tb.on {
+	background: color-mix(in srgb, var(--accent) 20%, transparent);
+	color: var(--accent);
 }
 
 .docs-page-head .logo {
@@ -5250,7 +5340,7 @@ button.tb.icon-only.on {
 	padding: 26px 40px 80px;
 }
 
-.docs-page .docs-content > * {
+.docs-page .docs-content > *:where(:not(.docs-layout-screen *)) {
 	max-width: 78ch;
 }
 
@@ -5445,7 +5535,7 @@ button.tb.icon-only.on {
 	padding: 30px 44px 90px;
 }
 
-.docs-page .docs-content h1 {
+.docs-page .docs-content h1:where(:not(.docs-layout-screen *)) {
 	font-size: 30px;
 	letter-spacing: -0.015em;
 	margin-bottom: 6px;
@@ -5461,7 +5551,7 @@ button.tb.icon-only.on {
 	margin-bottom: 30px;
 }
 
-.docs-page .docs-content .summary {
+.docs-page .docs-content .summary:where(:not(.docs-layout-screen *)) {
 	font-size: 15px;
 	line-height: 1.55;
 	max-width: none;
@@ -5471,7 +5561,7 @@ button.tb.icon-only.on {
 	color: var(--fg-muted);
 }
 
-.docs-page .docs-content h2 {
+.docs-page .docs-content h2:where(:not(.docs-layout-screen *)) {
 	font-size: 19px;
 	letter-spacing: -0.01em;
 	margin: 36px 0 10px;
@@ -5480,30 +5570,30 @@ button.tb.icon-only.on {
 	scroll-margin-top: 20px;
 }
 
-.docs-page .docs-content h3 {
+.docs-page .docs-content h3:where(:not(.docs-layout-screen *)) {
 	font-size: 14px;
 	margin: 24px 0 8px;
 	color: var(--fg);
 }
 
-.docs-page .docs-content p,
-.docs-page .docs-content li { font-size: 13.5px; line-height: 1.68; }
+.docs-page .docs-content p:where(:not(.docs-layout-screen *)),
+.docs-page .docs-content li:where(:not(.docs-layout-screen *)) { font-size: 13.5px; line-height: 1.68; }
 
 /* Creator Hub rules its tables top and bottom and leaves the inner lines
    light, which is what keeps a long mapping table readable. */
-.docs-page .docs-content table {
+.docs-page .docs-content table:where(:not(.docs-layout-screen *)) {
 	font-size: 13px;
 	border-top: 1px solid var(--border-strong);
 	border-bottom: 1px solid var(--border-strong);
 }
 
-.docs-page .docs-content th {
+.docs-page .docs-content th:where(:not(.docs-layout-screen *)) {
 	padding: 9px 14px 9px 0;
 	border-bottom: 1px solid var(--border-strong);
 }
 
-.docs-page .docs-content td { padding: 10px 14px 10px 0; }
-.docs-page .docs-content tbody tr:last-child td { border-bottom: 0; }
+.docs-page .docs-content td:where(:not(.docs-layout-screen *)) { padding: 10px 14px 10px 0; }
+.docs-page .docs-content tbody tr:last-child td:where(:not(.docs-layout-screen *)) { border-bottom: 0; }
 
 .docs-page .docs-note {
 	border-radius: var(--radius-sm);
@@ -5659,7 +5749,7 @@ button.tb.icon-only.on {
 	height: auto;
 }
 
-.docs-page .docs-content > * {
+.docs-page .docs-content > *:where(:not(.docs-layout-screen *)) {
 	max-width: none;
 }
 
@@ -5696,7 +5786,7 @@ button.tb.icon-only.on {
 /* What the open graph compiles for, beside the button that compiles it.
    Lune takes the warning colour, because it is experimental and it is where
    Roblox nodes fail. */
-.docbar select.doc-target.lune {
+select.doc-target.lune {
 	color: var(--warning);
 	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
 }
@@ -6023,7 +6113,8 @@ button.tb.icon-only.on {
 }
 
 .pack-browser {
-	padding: 16px 24px 32px;
+	/* Below the window's floating chrome. */
+	padding: var(--chrome-top) 24px 32px;
 	overflow: auto;
 	display: flex;
 	flex-direction: column;
@@ -6931,16 +7022,16 @@ button.tb.danger {
 
 /* Release history, folded by minor version: one summary line per fold, its
    count and date at the right where a heading keeps its aside. */
-.docs-content details.docs-details {
+.docs-content details.docs-details:where(:not(.docs-layout-screen *)) {
 	border-top: 1px solid var(--border);
 	padding: 10px 0;
 }
 
-.docs-content details.docs-details:last-child {
+.docs-content details.docs-details:last-child:where(:not(.docs-layout-screen *)) {
 	border-bottom: 1px solid var(--border);
 }
 
-.docs-content details.docs-details > summary {
+.docs-content details.docs-details > summary:where(:not(.docs-layout-screen *)) {
 	display: flex;
 	align-items: baseline;
 	gap: 10px;
@@ -6950,22 +7041,22 @@ button.tb.danger {
 	font-weight: 600;
 }
 
-.docs-content details.docs-details > summary::-webkit-details-marker {
+.docs-content details.docs-details > summary:where(:not(.docs-layout-screen *))::-webkit-details-marker {
 	display: none;
 }
 
-.docs-content details.docs-details > summary::before {
+.docs-content details.docs-details > summary:where(:not(.docs-layout-screen *))::before {
 	content: "▸";
 	font-size: 11px;
 	color: var(--fg-faint);
 }
 
-.docs-content details.docs-details[open] > summary::before {
+.docs-content details.docs-details[open] > summary:where(:not(.docs-layout-screen *))::before {
 	content: "▾";
 }
 
-.docs-content details.docs-details > summary .aside,
-.docs-content h3 .aside {
+.docs-content details.docs-details > summary .aside:where(:not(.docs-layout-screen *)),
+.docs-content h3 .aside:where(:not(.docs-layout-screen *)) {
 	margin-left: auto;
 	font-size: 12px;
 	font-weight: 400;
@@ -6973,7 +7064,7 @@ button.tb.danger {
 }
 
 /* The current release, right beside its version number. */
-.docs-content .badge.latest {
+.docs-content .badge.latest:where(:not(.docs-layout-screen *)) {
 	padding: 1px 7px;
 	border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
 	border-radius: 999px;
@@ -6985,14 +7076,14 @@ button.tb.danger {
 	white-space: nowrap;
 }
 
-.docs-content details.docs-details h3 {
+.docs-content details.docs-details h3:where(:not(.docs-layout-screen *)) {
 	display: flex;
 	align-items: baseline;
 	gap: 10px;
 	margin-top: 22px;
 }
 
-.docs-page .docs-content h4 {
+.docs-page .docs-content h4:where(:not(.docs-layout-screen *)) {
 	margin: 14px 0 6px;
 	font-size: 11.5px;
 	letter-spacing: 0.05em;
@@ -7153,7 +7244,7 @@ button.tb.danger {
 }
 
 /* "Last reviewed", at the foot of the page where GOV.UK puts it. */
-.docs-content p.docs-reviewed {
+.docs-content p.docs-reviewed:where(:not(.docs-layout-screen *)) {
 	margin: 44px 0 0;
 	padding-top: 12px;
 	border-top: 1px solid var(--border);
@@ -7162,7 +7253,7 @@ button.tb.danger {
 }
 
 /* What a verified pass still needs, under the date. */
-.docs-content p.docs-verify {
+.docs-content p.docs-verify:where(:not(.docs-layout-screen *)) {
 	margin: 4px 0 0;
 	font-size: 12.5px;
 	line-height: 1.55;
@@ -7252,13 +7343,13 @@ button.tb.danger {
 
 /* A heading can carry a right-aligned aside — a version's date, a status. The
    heading stays the thing you read; the aside is the thing you check. */
-.docs-page .docs-content h2 {
+.docs-page .docs-content h2:where(:not(.docs-layout-screen *)) {
 	display: flex;
 	align-items: baseline;
 	gap: 14px;
 }
 
-.docs-page .docs-content h2 .aside {
+.docs-page .docs-content h2 .aside:where(:not(.docs-layout-screen *)) {
 	margin-left: auto;
 	font-size: 12px;
 	font-weight: 400;
@@ -7278,13 +7369,13 @@ button.tb.danger {
 
 /* Release entries are ruled apart, the way Roblox rules its own. The version is
    the heading; the date is the aside. */
-.docs-page .docs-content h2 {
+.docs-page .docs-content h2:where(:not(.docs-layout-screen *)) {
 	border-top: 1px solid var(--border);
 	padding-top: 20px;
 	margin-top: 34px;
 }
 
-.docs-page .docs-content h2:first-of-type { border-top: 0; padding-top: 0; }
+.docs-page .docs-content h2:first-of-type:where(:not(.docs-layout-screen *)) { border-top: 0; padding-top: 0; }
 
 /* ---------------------------------------------------------- compile toast */
 
@@ -7297,32 +7388,96 @@ button.tb.danger {
  *
  * It floats rather than taking a row of its own, because it is temporary — the
  * graph underneath is what you were looking at and will be again in a moment. */
-/* Something the canvas did or would not do, said once at the foot of the
-   graph. Centred, so it never sits on the compile toast in the corner. */
-.centre-notice {
-	position: absolute;
-	left: 50%;
-	bottom: 16px;
-	transform: translateX(-50%);
-	z-index: 6;
+/* A notice: what happened and where, dropping from the top centre of the
+   window and gone again. See Toast.tsx. The layer takes no clicks, so the
+   canvas under it stays live. */
+.toast-layer {
+	position: fixed;
+	left: 0;
+	right: 0;
+	top: calc(var(--chrome-top) + env(safe-area-inset-top, 0px));
+	z-index: 69;
 	display: flex;
+	justify-content: center;
+	padding: 0 16px;
+	pointer-events: none;
+}
+
+.toast {
+	display: inline-flex;
 	align-items: center;
 	gap: 10px;
-	max-width: min(460px, calc(100% - 32px));
-	padding: 7px 7px 7px 12px;
-	background: var(--bg-panel);
-	border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--border));
-	border-radius: var(--radius-sm);
-	box-shadow: var(--shadow-raised);
+	max-width: min(520px, 100%);
+	min-height: 40px;
+	box-sizing: border-box;
+	padding: 6px 18px 6px 7px;
+	border-radius: 999px;
+	background: var(--glass);
+	border: 1px solid var(--border);
+	box-shadow: var(--shadow-popover);
+	backdrop-filter: blur(14px) saturate(1.2);
+	-webkit-backdrop-filter: blur(14px) saturate(1.2);
+	opacity: 0;
+	transform: translateY(-10px) scale(0.96);
+	transition:
+		opacity 160ms ease,
+		transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1.25);
+}
+
+.toast.shown {
+	opacity: 1;
+	transform: none;
+}
+
+.toast-icon {
+	flex: none;
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--accent) 18%, transparent);
+	color: var(--accent);
+}
+
+.toast.ok .toast-icon {
+	background: color-mix(in srgb, var(--ok) 18%, transparent);
+	color: var(--ok);
+}
+
+.toast.warn .toast-icon {
+	background: color-mix(in srgb, var(--warning) 20%, transparent);
+	color: var(--warning);
+}
+
+.toast-text {
+	display: grid;
+	min-width: 0;
+	line-height: 1.3;
+}
+
+.toast-text b {
+	font-weight: 600;
 	font-size: var(--text-md);
 }
 
-@keyframes centre-notice-in {
-	from { opacity: 0; transform: translate(-50%, 8px); }
+.toast-text b strong {
+	color: var(--accent);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-	.centre-notice { animation: centre-notice-in 140ms ease-out; }
+.toast-text span {
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.toast {
+		transition: opacity 120ms ease;
+		transform: none;
+	}
 }
 
 .compile-toast {
@@ -7530,7 +7685,7 @@ button.tb.danger {
  *
  * Not on the first: the article's own title rule is directly above it, and two
  * lines a paragraph apart read as a mistake. */
-.docs-content h2:has(+ .docs-tags):not(:first-of-type) {
+.docs-content h2:has(+ .docs-tags):not(:first-of-type):where(:not(.docs-layout-screen *)) {
 	border-top: 1px solid var(--border);
 	padding-top: 26px;
 	margin-top: 34px;
@@ -8500,10 +8655,21 @@ button.tb.danger {
 	cursor: help;
 }
 
-.docs-bar-frame button.tb:hover:not(:disabled),
-.docs-bar-frame .segmented button:hover {
+.docs-bar-frame button.tb:hover:not(:disabled) {
 	background: var(--bg-input);
 	border-color: var(--border);
+}
+
+.docs-bar-frame .tool-group button.tb:hover:not(:disabled),
+.docs-bar-frame .segmented button:hover {
+	background: transparent;
+	border-color: transparent;
+	color: inherit;
+}
+
+.docs-bar-frame .segmented button.on:hover {
+	background: color-mix(in srgb, var(--accent) 20%, transparent);
+	color: var(--accent);
 }
 
 .docs-bar-frame button.tb.primary:hover:not(:disabled) {
@@ -8858,7 +9024,7 @@ button.tb.danger {
    The same fix, and the same reason, as `.docs-bar-frame.panel h2` above:
    qualified enough to match, and restated rather than inherited, because
    inheriting is exactly what did not happen. */
-.docs-page .docs-content .docs-map-frame h2 {
+.docs-page .docs-content .docs-map-frame h2:where(:not(.docs-layout-screen *)) {
 	margin: 0;
 	padding: 10px 12px 6px;
 	border: 0;
@@ -8869,7 +9035,7 @@ button.tb.danger {
 	color: var(--fg-faint);
 }
 
-.docs-page .docs-content .docs-map-frame p.summary {
+.docs-page .docs-content .docs-map-frame p.summary:where(:not(.docs-layout-screen *)) {
 	margin: 0;
 	padding: 0 12px 6px;
 	max-width: none;
@@ -8878,7 +9044,7 @@ button.tb.danger {
 	color: var(--fg-muted);
 }
 
-.docs-page .docs-content .docs-map-frame p.summary code {
+.docs-page .docs-content .docs-map-frame p.summary code:where(:not(.docs-layout-screen *)) {
 	font-size: 10.5px;
 	padding: 0 3px;
 }
@@ -9666,148 +9832,64 @@ button.tb.danger {
 	}
 }
 
-/* ---------------------------------------------------- the editor, on a phone */
+/* ---------------------------------------- the editor, on a tablet or a phone */
 
-/* See `useCompact` in Workspace.tsx: below this the side docks leave the grid
-   and slide over the graph, one at a time. */
+/* See `useCompact` in Workspace.tsx: the side docks become drawers, one panel
+   at a time. On a tablet a drawer is a card hanging under the top clusters, put
+   out by the buttons there; on a phone it is a sheet from the bottom, put out by
+   the bar along the bottom. A tap on the graph puts either away. */
 .dock.drawer {
 	position: absolute;
-	top: 0;
-	bottom: 0;
+	top: var(--chrome-top);
+	bottom: var(--edge);
 	z-index: 67;
 	width: min(340px, 86vw);
+	box-sizing: border-box;
+	padding: 6px;
+	pointer-events: auto;
 	background: var(--bg-panel);
-	box-shadow: var(--shadow-modal);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-popover);
 	overflow: auto;
-	transition: transform 160ms ease-out, visibility 160ms;
+	transition:
+		transform 200ms cubic-bezier(0.2, 0.9, 0.3, 1),
+		opacity 160ms ease,
+		visibility 200ms;
 }
 
 .dock.drawer.left {
-	left: 0;
-	border-right: 1px solid var(--border-strong);
+	left: var(--edge);
 }
 
 .dock.drawer.right {
-	right: 0;
-	border-left: 1px solid var(--border-strong);
+	right: var(--edge);
 }
 
 .dock.drawer:not(.drawer-open) {
 	visibility: hidden;
+	opacity: 0;
 	box-shadow: none;
 }
 
-.dock.drawer.left:not(.drawer-open) { transform: translateX(-100%); }
-.dock.drawer.right:not(.drawer-open) { transform: translateX(100%); }
-
-
-.drawer-backdrop {
-	position: relative;
-	z-index: 66;
-	background: rgba(0, 0, 0, 0.35);
+.dock.drawer.left:not(.drawer-open) {
+	transform: translateX(-16px);
 }
 
-.drawer-toggles {
-	position: absolute;
-	left: 10px;
-	right: 10px;
-	bottom: 10px;
-	/* Above the drawers, so one tap moves from Project to Variables rather
-	   than two. The drawers keep their last 56px clear for them. */
-	z-index: 68;
-	display: flex;
-	justify-content: space-between;
-	gap: 8px;
-	pointer-events: none;
+.dock.drawer.right:not(.drawer-open) {
+	transform: translateX(16px);
 }
 
-.drawer-toggles button.tb {
-	pointer-events: auto;
-	padding: 8px 12px;
-	box-shadow: var(--shadow-raised);
-}
-
-/* What is selected, above the drawer buttons: its own row, centred, so it
-   never has to share a line with them on a phone. */
-.drawer-toggles {
-	flex-wrap: wrap;
-	row-gap: 8px;
-}
-
-.touch-bar {
-	flex-basis: 100%;
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	gap: 6px;
-}
-
-.touch-bar button.tb {
-	pointer-events: auto;
-	padding: 8px 12px;
-	box-shadow: var(--shadow-raised);
-}
-
-.touch-bar-group {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	gap: 6px;
-}
-
-/* One bar, as the graph's floating tools are one: the buttons sit flat on it
-   and the bar carries the edge and the shadow. */
-.touch-bar-group.unified {
-	gap: 4px;
-	padding: 6px 8px;
-	border: 1px solid var(--border);
-	border-radius: var(--radius-md);
-	background: var(--bg-panel);
-	box-shadow: var(--shadow-raised);
-	pointer-events: auto;
-}
-
-.touch-bar-group.unified button.tb {
-	border-color: transparent;
-	background: transparent;
-	box-shadow: none;
-}
-
-/* Where a tap leaves a button hovered, a flat bar keeps its buttons flat. */
-@media (hover: none) {
-	.touch-bar .touch-bar-group.unified button.tb:hover:not(:disabled):not(.on) {
-		border-color: transparent;
-		background: transparent;
-	}
-}
-
-/* A 24px glyph in a 46px square: past the 44pt Apple asks a tap target to be.
-   A size rather than padding, because `.tb.icon-only` fixes its buttons at 28px
-   and padding inside that left the glyph two pixels from each edge. */
-.touch-bar .touch-bar-group button.tb.icon-only {
-	width: 46px;
-	height: 46px;
-	padding: 0;
-	display: inline-grid;
-	place-items: center;
-	line-height: 0;
-}
-
-/* A group per side, so the buttons sit on the edge their drawers slide in
-   from, whichever side has none. */
-.drawer-group {
-	display: flex;
-	gap: 8px;
-}
-
-.dock.drawer {
-	padding-bottom: 56px;
-}
-
-/* One panel to a drawer, and it has the whole height. */
-.dock.drawer .panel {
+/* The drawer is the card, so the panel in it is not another one. */
+.dock.drawer > .panel {
 	flex: 1;
 	min-height: 0;
+	background: none;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	backdrop-filter: none;
+	-webkit-backdrop-filter: none;
 }
 
 .dock.drawer .panel.panel-away {
@@ -9819,8 +9901,149 @@ button.tb.danger {
 	max-height: none;
 }
 
+/* Which of the side's panels is out, when it has more than one. */
+.dock.drawer .drawer-tabs {
+	display: flex;
+	flex: none;
+	margin: 2px 2px 8px;
+}
+
+.dock.drawer .drawer-tabs button {
+	flex: 1;
+	min-height: calc(var(--hit) - 4px);
+}
+
+/* Over the graph, under the drawer: a tap here puts the drawer away. */
+.drawer-backdrop {
+	position: absolute;
+	inset: 0;
+	z-index: 66;
+	background: rgba(0, 0, 0, 0.25);
+}
+
+/* The bar along the bottom: the two sides' cards at its ends, and what can be
+   done to the selection between them. One glass group, as the top clusters are. */
+.drawer-toggles {
+	position: absolute;
+	left: 50%;
+	bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px));
+	transform: translateX(-50%);
+	z-index: 68;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	max-width: calc(100% - var(--edge) * 2);
+	padding: 3px;
+	box-sizing: border-box;
+	background: var(--glass);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-raised);
+	backdrop-filter: blur(14px) saturate(1.2);
+	-webkit-backdrop-filter: blur(14px) saturate(1.2);
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.drawer-toggles button.tb.icon-only {
+	flex: none;
+	width: var(--hit);
+	height: var(--hit);
+	padding: 0;
+	display: inline-grid;
+	place-items: center;
+	background: transparent;
+	border-color: transparent;
+}
+
+.drawer-toggles button.tb.icon-only.on {
+	background: color-mix(in srgb, var(--accent) 20%, transparent);
+	color: var(--accent);
+}
+
+/* On a tablet the cards' buttons are on the top clusters, so the bar is the
+   selection's actions alone, and only while there is a bar of them. */
+@media (min-width: 700px) {
+	.drawer-toggles .drawer-toggle {
+		display: none;
+	}
+
+	.drawer-toggles:not(:has(.touch-bar)) {
+		display: none;
+	}
+}
+
+.touch-bar {
+	display: flex;
+	align-items: center;
+}
+
+.touch-bar-group {
+	display: flex;
+	flex-wrap: nowrap;
+	gap: 2px;
+}
+
+/* In the bar, the touch bar's buttons are the bar's own: flat until pressed. */
+.touch-bar-group.unified {
+	padding: 0;
+	border: 0;
+	background: none;
+	box-shadow: none;
+}
+
+.touch-bar button.tb {
+	flex: none;
+	border-color: transparent;
+	background: transparent;
+	box-shadow: none;
+}
+
+@media (hover: none) {
+	.touch-bar .touch-bar-group button.tb:hover:not(:disabled):not(.on) {
+		border-color: transparent;
+		background: transparent;
+	}
+}
+
+.touch-bar .touch-bar-group button.tb.icon-only {
+	width: var(--hit);
+	height: var(--hit);
+	padding: 0;
+	display: inline-grid;
+	place-items: center;
+	line-height: 0;
+}
+
+/* A phone: the drawers are sheets from the bottom, over the bar, and the
+   status pill sits above the bar rather than on it. */
+@media (max-width: 699px) {
+	.dock.bottom {
+		bottom: calc(var(--edge) * 2 + var(--hit) + 8px + env(safe-area-inset-bottom, 0px));
+	}
+
+	.dock.drawer.left,
+	.dock.drawer.right {
+		left: 6px;
+		right: 6px;
+		top: auto;
+		bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+		width: auto;
+		max-height: 66%;
+		border-radius: 18px;
+		box-shadow: var(--shadow-modal);
+	}
+
+	.dock.drawer.left:not(.drawer-open),
+	.dock.drawer.right:not(.drawer-open) {
+		transform: translateY(24px);
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
-	.dock.drawer { transition: none; }
+	.dock.drawer {
+		transition: none;
+	}
 }
 
 /* Node Design's node list, the same way: a drawer over the node editor on a
@@ -10886,4 +11109,1069 @@ select:not(.literal):not([multiple]) {
 	font-weight: 700;
 	text-decoration: underline;
 	text-underline-offset: 3px;
+}
+
+/* A finger needs a bigger target than a pointer. */
+@media (hover: none) and (pointer: coarse) {
+	:root {
+		--hit: 38px;
+	}
+}
+
+/* ------------------------------------------------------- floating chrome */
+
+/* The clusters along the top of the window: over the centre and the cards,
+   taking clicks only on the clusters themselves. */
+.workspace-chrome {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 5;
+	pointer-events: none;
+}
+
+.workspace {
+	container: workspace / inline-size;
+}
+
+/* One row, always: a cluster that wrapped would land on the cards below. What
+   does not fit is folded into More -- see ProjectBar. */
+.workspace-chrome .floating-tools {
+	flex-wrap: nowrap;
+}
+
+.workspace-chrome .tool-group {
+	flex: none;
+	flex-wrap: nowrap;
+}
+
+.workspace-chrome .tool-group.graph-tabs {
+	flex: 0 1 auto;
+}
+
+/* The mark, as a button in its own cluster. */
+.window-mark {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	height: var(--hit);
+	padding: 0 8px;
+	background: none;
+	border: 0;
+	border-radius: var(--radius-sm);
+	color: var(--fg);
+	font-family: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.window-mark:hover,
+.window-mark:focus-visible {
+	background: var(--bg-hover);
+}
+
+.window-mark .version {
+	font-weight: 400;
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+/* The window's glyph, grey, beside the mark: a phone's name for the window. */
+.window-mark .window-glyph {
+	display: none;
+	align-items: center;
+	padding-left: 7px;
+	border-left: 1px solid var(--border-strong);
+	color: var(--fg-faint);
+}
+
+@media (max-width: 699px) {
+	.window-mark .window-glyph {
+		display: inline-flex;
+	}
+
+	.window-mark .window-name,
+	.window-mark .version {
+		display: none;
+	}
+}
+
+/* The open document's name and kind, where it has no tab: a node map. */
+.tool-group.doc-group {
+	padding: 0 12px;
+	height: calc(var(--hit) + 6px);
+	box-sizing: border-box;
+	gap: 8px;
+}
+
+.tool-group .doc-name {
+	font-weight: 600;
+}
+
+.tool-group .doc-kind {
+	font-size: var(--text-sm);
+	color: var(--fg-faint);
+}
+
+.tool-group .dirty::after {
+	content: "•";
+	color: var(--warning);
+	margin-left: 5px;
+}
+
+/* Where the row is short of room, the buttons that carry a word show only
+   their glyph. The word stays as the button's accessible name. */
+@container workspace (max-width: 1099px) {
+	.workspace-chrome .tb-collapsible .tb-icon-when-narrow {
+		display: inline-block;
+	}
+
+	.workspace-chrome .tb-collapsible .tb-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.workspace-chrome .window-mark .version {
+		display: none;
+	}
+}
+
+/* The More menu, on a phone: the switch fills its row. */
+.tool-popout-panel .segmented {
+	display: flex;
+}
+
+.tool-popout-panel .segmented button {
+	flex: 1;
+	min-height: var(--hit);
+}
+
+/* --------------------------------------------------------------- side strip */
+
+/* Zoom, undo and redo, and fit, down the left edge of the graph. */
+.side-strip {
+	position: absolute;
+	left: var(--edge);
+	top: 50%;
+	transform: translateY(-50%);
+	z-index: 4;
+	flex-direction: column;
+	flex-wrap: nowrap;
+	padding: 4px 3px;
+}
+
+.side-strip .strip-zoom {
+	writing-mode: vertical-lr;
+	direction: rtl;
+	width: 22px;
+	height: 120px;
+	margin: 4px 0;
+	accent-color: var(--accent);
+	cursor: pointer;
+}
+
+.side-strip .strip-percent {
+	background: none;
+	border: 0;
+	padding: 2px 0;
+	font: inherit;
+	font-size: var(--text-xs);
+	color: var(--fg-muted);
+	font-variant-numeric: tabular-nums;
+	cursor: pointer;
+}
+
+.side-strip .strip-percent:hover {
+	color: var(--fg);
+}
+
+.side-strip .strip-rule {
+	width: 60%;
+	height: 1px;
+	margin: 3px 0;
+	background: var(--border);
+}
+
+/* A phone has the bottom bar, and no room down the side. */
+@media (max-width: 699px) {
+	.side-strip {
+		display: none;
+	}
+}
+
+/* With a mouse, the strip lies along the bottom centre instead: a desk's
+   screen is short of width before height, and a thumb has no edge to rest on. */
+@media (hover: hover) and (pointer: fine) and (min-width: 700px) {
+	.workspace.has-strip {
+		--strip-w: 0px;
+	}
+
+	.side-strip {
+		top: auto;
+		left: 50%;
+		bottom: var(--edge);
+		transform: translateX(-50%);
+		flex-direction: row;
+		padding: 3px 6px;
+	}
+
+	.side-strip .strip-zoom {
+		writing-mode: horizontal-tb;
+		direction: ltr;
+		width: 120px;
+		height: 22px;
+		margin: 0 4px;
+	}
+
+	.side-strip .strip-percent {
+		min-width: 3.4em;
+		padding: 0 4px;
+	}
+
+	.side-strip .strip-rule {
+		width: 1px;
+		height: 60%;
+		margin: 0 3px;
+	}
+}
+
+/* ------------------------------------------------------- graph settings */
+
+.graph-settings .graph-heading {
+	background: var(--accent);
+}
+
+.graph-settings .field select.tb,
+.graph-settings .target-pick {
+	width: 100%;
+}
+
+.graph-settings .target-pick {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.graph-settings .target-pick select.tb {
+	flex: 1;
+	font-size: inherit;
+	padding: 4px 9px;
+}
+
+.graph-settings .graph-heading small {
+	display: block;
+	font-weight: 400;
+	opacity: 0.85;
+	font-size: var(--text-sm);
+}
+
+.graph-settings .graph-figures {
+	display: flex;
+	gap: 16px;
+	margin: 10px 0 4px;
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
+}
+
+.graph-settings .graph-figures b {
+	color: var(--fg);
+	font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------------------- views under chrome */
+
+/* What the centre shows when it is not a canvas -- a node map, a source file,
+   the aliases -- is a sheet on the canvas: below the top clusters, clear of the
+   cards either side and of the status pill. */
+.workspace {
+	--left-w: 0px;
+	--right-w: 0px;
+}
+
+.centre-body > .map-editor,
+.centre-body > .source,
+.centre-body > .alias-doc {
+	margin: var(--chrome-top) calc(var(--edge) * 2 + var(--right-w))
+		calc(var(--hit) + var(--edge) * 3) calc(var(--edge) * 2 + var(--left-w));
+	min-width: 0;
+	min-height: 0;
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-raised);
+	overflow: hidden;
+}
+
+/* The canvas's grid behind a sheet, so it reads as on the canvas. */
+.centre-body:has(> .map-editor, > .source, > .alias-doc) {
+	background-image:
+		linear-gradient(var(--grid-fine) 1px, transparent 1px),
+		linear-gradient(90deg, var(--grid-fine) 1px, transparent 1px);
+	background-size: 24px 24px;
+}
+
+.centre-body > .placeholder {
+	margin-top: var(--chrome-top);
+}
+
+/* ------------------------------------------- a window's floating chrome */
+
+/* Node Design's and the docs' clusters along the top, as the editor's are:
+   over everything in the window, taking clicks only on the clusters. */
+.window-chrome {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 30;
+	pointer-events: none;
+}
+
+.window-chrome .floating-tools {
+	flex-wrap: nowrap;
+}
+
+.window-chrome .tool-group {
+	flex: none;
+	flex-wrap: nowrap;
+}
+
+/* The open node's actions are drawn into this, as a cluster of the row. */
+.window-chrome .tool-slot {
+	display: contents;
+}
+
+.window-chrome a.tb.icon-only {
+	display: inline-grid;
+	place-items: center;
+	width: var(--hit);
+	height: var(--hit);
+	padding: 0;
+	box-sizing: border-box;
+}
+
+/* ------------------------------------------------ Node Design, floating */
+
+.designer {
+	position: relative;
+	height: 100%;
+	overflow: hidden;
+}
+
+.designer > .pack-view,
+.designer > .pack-browser {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+}
+
+/* The node list, a card at the left; the editor fills the window behind it. */
+.pack-view:not(.compact) {
+	display: block;
+	--list-w: calc(260px + var(--edge));
+}
+
+.pack-view:not(.compact) > .pack-nodes {
+	position: absolute;
+	left: var(--edge);
+	top: var(--chrome-top);
+	z-index: 10;
+	width: 260px;
+	max-height: calc(100% - var(--chrome-top) - var(--edge));
+	box-sizing: border-box;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-raised);
+}
+
+.pack-view > .node-editor:not(.split),
+.pack-view:not(.compact) > .designer-stage {
+	position: absolute;
+	inset: 0;
+}
+
+.pack-view:not(.compact) > .designer-stage {
+	padding-top: var(--chrome-top);
+	padding-left: calc(var(--list-w) + var(--edge));
+}
+
+/* On a tablet the list is a drawer, opened from a cluster below the chrome. */
+.pack-view.compact {
+	display: block;
+	--list-w: 0px;
+}
+
+.pack-view.compact > .pack-compact-bar {
+	position: absolute;
+	top: var(--chrome-top);
+	left: var(--edge);
+	right: auto;
+	max-width: calc(100% - var(--edge) * 2);
+	box-sizing: border-box;
+	padding: 3px 8px 3px 3px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--glass);
+	box-shadow: var(--shadow-raised);
+	backdrop-filter: blur(14px) saturate(1.2);
+	-webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.pack-view.compact .pack-nodes.drawer {
+	top: calc(var(--chrome-top) + var(--hit) + 18px);
+	bottom: var(--edge);
+	left: var(--edge);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-popover);
+}
+
+.pack-view.compact .pack-nodes.drawer:not(.drawer-open) {
+	transform: translateX(-16px);
+	opacity: 0;
+}
+
+/* The logic fills the window; the node floats over it on its plate. */
+.node-editor:not(.split) {
+	display: block;
+}
+
+.node-editor:not(.split) > .node-logic {
+	position: absolute;
+	inset: 0;
+	background: var(--bg-canvas);
+}
+
+.node-editor:not(.split) .logic-split {
+	position: absolute;
+	inset: 0;
+	display: block;
+}
+
+.node-editor:not(.split) .logic-canvas {
+	position: absolute;
+	inset: 0;
+}
+
+/* The logic's tools, and how it is written, at the bottom left: the top is
+   the window's chrome and the node's plate. */
+.node-editor:not(.split) .logic-canvas .floating-tools {
+	top: auto;
+	bottom: var(--edge);
+	left: calc(var(--list-w, 0px) + var(--edge));
+	right: auto;
+}
+
+.node-editor:not(.split) .logic-head.logic-head-folded {
+	display: none;
+}
+
+/* The how-to is the head's tooltip here: a sentence in a floating group runs
+   into the palette beside it. */
+.node-editor:not(.split) .logic-head .hint {
+	display: none;
+}
+
+.node-editor:not(.split) .logic-head {
+	position: absolute;
+	left: calc(var(--list-w, 0px) + var(--edge));
+	bottom: var(--edge);
+	z-index: 7;
+	padding: 3px 8px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--glass);
+	box-shadow: var(--shadow-raised);
+}
+
+/* The Luau the logic compiles to: a card at the bottom right, when asked for. */
+.node-editor:not(.split) .logic-compiled {
+	position: absolute;
+	right: var(--edge);
+	bottom: calc(var(--edge) * 3 + var(--hit) + 48px);
+	z-index: 6;
+	width: min(420px, 40%);
+	max-height: 40%;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--bg-panel);
+	box-shadow: var(--shadow-popover);
+}
+
+/* Luau written by hand: a sheet below the plate, clear of the list. */
+.node-editor:not(.split) .luau-field,
+.node-editor:not(.split) .logic-empty {
+	position: absolute;
+	top: var(--chrome-top);
+	left: calc(var(--list-w, 0px) + var(--edge));
+	right: calc(var(--plate-w, 0px) + var(--edge) * 2);
+	bottom: calc(var(--edge) * 3 + var(--hit) + 48px);
+	margin: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--bg-panel);
+	box-shadow: var(--shadow-raised);
+}
+
+/* The node's plate: the face, on the grid it is drawn on, floating over the
+   logic at the top centre. */
+/* The top right: the node's plate, the selected pin's settings under it, and
+   the node's details under those -- one column, each as tall as it needs. */
+.node-editor:not(.split) > .plate-column {
+	position: absolute;
+	top: var(--chrome-top);
+	right: var(--edge);
+	z-index: 5;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: var(--edge);
+	width: min(var(--plate-w, 400px), calc(100% - var(--edge) * 2));
+	max-height: calc(100% - var(--chrome-top) - var(--edge) * 4 - var(--hit) - 48px);
+	overflow-y: auto;
+	pointer-events: none;
+}
+
+.node-editor:not(.split) > .plate-column > * {
+	pointer-events: auto;
+	flex: none;
+}
+
+.node-editor.split > .plate-column {
+	display: contents;
+}
+
+.node-editor:not(.split) .plate-column > .pin-popover.docked,
+.node-editor:not(.split) .plate-column > .node-details {
+	position: static;
+	width: auto;
+	max-height: none;
+	box-shadow: var(--shadow-raised);
+}
+
+.pin-popover.folded > :not(.pin-popover-head) {
+	display: none;
+}
+
+.node-editor:not(.split) .plate-column > .node-editor-stage {
+	position: relative;
+	z-index: 5;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-raised);
+}
+
+/* The plate's title bar: the node's name, and the fold. */
+.plate-head {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 6;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	height: 34px;
+	padding: 0 4px 0 12px;
+	box-sizing: border-box;
+	border-bottom: 1px solid var(--border);
+	background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+	border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.plate-head .plate-title {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 600;
+}
+
+.plate-head button.tb.icon-only {
+	width: 28px;
+	height: 28px;
+	background: transparent;
+	border-color: transparent;
+}
+
+/* Folded: the title bar alone. */
+.node-editor-stage.folded {
+	overflow: hidden;
+}
+
+.node-editor-stage.folded > :not(.plate-head) {
+	display: none;
+}
+
+.node-editor-stage.folded .plate-head {
+	border-bottom: 0;
+	border-radius: var(--radius-md);
+}
+
+/* How many inputs and outputs, under the node on its plate. */
+.plate-counts {
+	position: absolute;
+	left: 50%;
+	bottom: 8px;
+	transform: translateX(-50%);
+	z-index: 6;
+}
+
+/* The types to drag onto the node, docked along the foot of the window at
+   the right, as a painting app's colours are; the logic's tools have the left. */
+.node-editor > .pin-palette {
+	position: absolute;
+	right: var(--edge);
+	bottom: var(--edge);
+	z-index: 7;
+	justify-content: flex-end;
+	max-width: calc(100% - var(--list-w, 0px) - var(--edge) * 2 - 420px);
+}
+
+.node-editor.split > .pin-palette {
+	position: static;
+	transform: none;
+	align-self: center;
+	margin: 6px 0;
+	max-width: calc(100% - var(--edge) * 2);
+}
+
+/* The node's details, a card at the right; its problems, a pill below. */
+.node-editor .plate-column > .node-details {
+	box-sizing: border-box;
+}
+
+.node-editor > .node-problems {
+	left: auto;
+	right: var(--edge);
+	bottom: calc(var(--edge) * 2 + var(--hit) + 8px);
+	z-index: 8;
+	max-width: min(360px, calc(100% - var(--edge) * 2));
+}
+
+/* Without the window's chrome to sit in: over the editor's top right. */
+.node-editor > .node-actions {
+	position: absolute;
+	top: var(--edge);
+	right: var(--edge);
+	z-index: 9;
+}
+
+/* On a phone the node and its logic take turns, below the chrome. */
+.node-editor.split {
+	position: absolute;
+	inset: calc(var(--chrome-top) + var(--hit) + 18px) 0 0 0;
+}
+
+/* The docs window's search, beside the mark. Its own box in the contents
+   column would be a second way to the same search. */
+.docs-page-head .tb.docs-search-field {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 220px;
+	margin-left: 4px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	color: var(--fg-faint);
+	cursor: text;
+}
+
+.docs-page-head .tb.docs-search-field:hover {
+	background: var(--bg-input);
+	border-color: var(--border-strong);
+}
+
+.docs-search-field kbd {
+	margin-left: auto;
+	padding: 0 5px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xs);
+	font: inherit;
+	font-size: var(--text-xs);
+}
+
+.docs-window .docs-nav > .search {
+	display: none;
+}
+
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+	.docs-page-head .tb.docs-search-field {
+		min-width: 0;
+	}
+
+	.docs-search-field .docs-search-label,
+	.docs-search-field kbd {
+		display: none;
+	}
+}
+
+/* The docs window's header in the editor's design language: no bar, only the
+   floating groups, each glass, with the page reading under them. */
+.docs-page-head.docs-clusters {
+	gap: 8px;
+	padding: 0;
+	background: none;
+	border: 0;
+	box-shadow: none;
+	backdrop-filter: none;
+	-webkit-backdrop-filter: none;
+}
+
+.docs-clusters .spacer {
+	flex: 1;
+}
+
+.docs-clusters .tool-group a.tb.icon-only {
+	display: inline-grid;
+	place-items: center;
+	width: var(--hit);
+	height: var(--hit);
+	padding: 0;
+	box-sizing: border-box;
+}
+
+/* The search field fills its group. */
+.docs-clusters .search-group {
+	padding: 3px;
+}
+
+.docs-clusters .search-group .tb.docs-search-field {
+	margin-left: 0;
+	min-height: var(--hit);
+}
+
+/* Contents is a drawer's button: absent while the contents are beside the page. */
+.docs-clusters .contents-group {
+	display: none;
+}
+
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+	.docs-clusters .contents-group {
+		display: flex;
+	}
+}
+
+/* ------------------------------------- the docs window's contents and outline */
+
+/* Each a card, as the editor's panels are, with a title bar that folds it. A
+   folded card says where you are: the contents the section and the page, the
+   outline the heading being read. */
+.docs-window .docs-nav,
+.docs-window .docs-toc-card {
+	align-self: start;
+	box-sizing: border-box;
+	max-height: calc(100% - var(--edge) * 2);
+	overflow: auto;
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-raised);
+}
+
+.docs-window .docs-nav {
+	margin: var(--edge) 0 var(--edge) var(--edge);
+	padding: 0 6px 8px;
+}
+
+.docs-window .docs-toc {
+	border-left: 0;
+	padding: var(--edge) var(--edge) var(--edge) 0;
+}
+
+.docs-window .docs-toc-card {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 0 6px 8px;
+}
+
+.docs-card-head {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	margin: 0 -6px 6px;
+	padding: 4px 4px 4px 12px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-panel);
+}
+
+.docs-card-title {
+	flex: none;
+	font-size: var(--text-xs);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	color: var(--fg-faint);
+}
+
+/* Where you are: the card's label, open or folded. */
+.docs-card-where {
+	display: block;
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--text-md);
+}
+
+.docs-card-where .crumb {
+	color: var(--fg-faint);
+}
+
+.docs-card-where .crumb::after {
+	content: " › ";
+}
+
+.docs-card-fold {
+	flex: none;
+	margin-left: auto;
+}
+
+.docs-card-head button.tb.icon-only {
+	width: 28px;
+	height: 28px;
+	background: transparent;
+	border-color: transparent;
+}
+
+.docs-nav.folded .docs-card-where,
+.docs-toc-card.folded .docs-card-where {
+	display: block;
+}
+
+.docs-nav.folded > :not(.docs-card-head),
+.docs-toc-card.folded > :not(.docs-card-head) {
+	display: none;
+}
+
+.docs-nav.folded .docs-card-head,
+.docs-toc-card.folded .docs-card-head {
+	margin-bottom: -8px;
+	border-bottom: 0;
+}
+
+/* The section being read, lit in the outline. */
+.docs-toc-link.on {
+	color: var(--accent);
+	font-weight: 600;
+}
+
+/* The outline's own heading is the card's title bar now. */
+.docs-toc-card .docs-toc-head {
+	display: none;
+}
+
+/* As a drawer, the contents are already a sheet: no second card. */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+	.docs-window .docs-nav {
+		margin: 0;
+		border-radius: 0;
+		box-shadow: none;
+		max-height: none;
+	}
+
+	.docs-window .docs-nav .docs-card-fold {
+		display: none;
+	}
+}
+
+/* The page scrolls the window's whole width, its scrollbar at the right edge,
+   and the contents and the outline float over it as cards. The article keeps
+   clear of them. A drawer's layout, on a touch screen or a narrow window, is
+   left as it was. */
+@media (min-width: 761px) and (pointer: fine) {
+	.docs-window .docs-body {
+		display: block;
+		position: relative;
+		overflow: hidden;
+	}
+
+	.docs-window .docs-content {
+		position: absolute;
+		inset: 0;
+		max-width: none;
+		overflow: auto;
+		box-sizing: border-box;
+		/* The same room both sides, so the page is centred in the window and
+		   both cards sit over its margins, not beside it. */
+		padding: var(--edge) calc(260px + var(--edge) * 3) 60px;
+	}
+
+	.docs-window .docs-nav {
+		position: absolute;
+		left: var(--edge);
+		top: var(--edge);
+		z-index: 5;
+		width: 260px;
+		margin: 0;
+	}
+
+	/* Clear of the page's scrollbar at the right edge. */
+	.docs-window .docs-toc {
+		position: absolute;
+		right: calc(var(--edge) + 12px);
+		top: var(--edge);
+		z-index: 5;
+		width: 220px;
+		max-height: calc(100% - var(--edge) * 2);
+		padding: 0;
+		overflow: visible;
+		pointer-events: none;
+	}
+
+	.docs-window .docs-toc > * {
+		pointer-events: auto;
+	}
+
+	/* As wide as its column and no wider: a long section title is cut short
+	   rather than pushing the card over the page's scrollbar. */
+	.docs-window .docs-toc-card,
+	.docs-window .docs-nav {
+		max-height: 100%;
+		max-width: 100%;
+		min-width: 0;
+		box-sizing: border-box;
+	}
+
+	.docs-window .docs-toc-card {
+		width: 100%;
+	}
+
+	.docs-window .docs-card-head,
+	.docs-window .docs-card-where {
+		min-width: 0;
+	}
+
+	/* With the contents folded, the page has the window. */
+	.docs-window .docs-body:has(> .docs-nav.folded) > .docs-content {
+		padding-left: calc(var(--edge) * 2);
+		padding-right: calc(var(--edge) * 2 + 12px);
+	}
+
+	/* Glass, as the clusters are: what scrolls beneath reads as beneath. */
+	.docs-window .docs-nav,
+	.docs-window .docs-toc-card {
+		background: var(--glass);
+		backdrop-filter: blur(14px) saturate(1.2);
+		-webkit-backdrop-filter: blur(14px) saturate(1.2);
+	}
+
+	/* The title bar stays over the list as it scrolls, so it is solid: the
+	   list sliding through the title read as a clipping fault. */
+	.docs-window .docs-card-head {
+		background: color-mix(in srgb, var(--bg-panel) 97%, transparent);
+		border-radius: var(--radius-md) var(--radius-md) 0 0;
+	}
+}
+
+/* Too narrow for both margins: the contents keep theirs and the outline goes,
+   as it always has below this width. */
+@media (min-width: 761px) and (max-width: 1100px) and (pointer: fine) {
+	.docs-window .docs-content {
+		padding-right: calc(var(--edge) * 2 + 12px);
+	}
+}
+
+/* ---------------------------------------------------------------- scrollbars */
+
+/* Thin, round, and the theme's own grey on a clear track, everywhere: the
+   browser's wide grey bars with arrows were the one piece of chrome nothing
+   else looked like. `scrollbar-color` is inherited; the width is not. */
+:root {
+	scrollbar-color: color-mix(in srgb, var(--fg-faint) 55%, transparent) transparent;
+}
+
+* {
+	scrollbar-width: thin;
+}
+
+/* Where the standard properties are not read. */
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: color-mix(in srgb, var(--fg-faint) 55%, transparent);
+	border: 3px solid transparent;
+	border-radius: 999px;
+	background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background-color: var(--fg-muted);
+}
+
+::-webkit-scrollbar-button {
+	display: none;
+}
+
+/* On a touch screen Node Design's action row runs along the bottom centre, so
+   the palette and the problems pill rise above it rather than meet it. */
+@media (hover: none) and (pointer: coarse) {
+	.node-editor:not(.split) > .pin-palette {
+		bottom: calc(var(--edge) * 2 + var(--hit) + 8px);
+	}
+
+	.node-editor:not(.split) > .node-problems {
+		bottom: calc(var(--edge) * 3 + var(--hit) * 2 + 16px);
+	}
+}
+
+/* The palette is one row that scrolls sideways, at any width: wrapped, it
+   climbed into the logic it docks over. */
+.node-editor > .pin-palette {
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.node-editor > .pin-palette > * {
+	flex: none;
+}
+
+/* On a phone the problems sit at the top of the editor, clear of the node's
+   pin counts at its foot, and the details' switches wrap rather than spill. */
+.node-editor.split > .node-problems {
+	top: var(--edge);
+	bottom: auto;
+	left: var(--edge);
+	right: var(--edge);
+	max-width: none;
+}
+
+@media (max-width: 699px) {
+	.node-details .segmented {
+		flex-wrap: wrap;
+	}
+
+	.node-details .segmented button {
+		white-space: normal;
+	}
+}
+
+/* With a mouse the strip is at the bottom centre: the status pill keeps to its
+   half of the edge and does not slide under it. */
+@media (hover: hover) and (pointer: fine) and (min-width: 700px) {
+	.dock.bottom {
+		max-width: min(640px, calc(50% - 210px));
+	}
 }

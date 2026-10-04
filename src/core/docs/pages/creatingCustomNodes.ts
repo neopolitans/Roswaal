@@ -48,8 +48,8 @@ export function creatingCustomNodesPage(): DocPage {
 							{
 								t: "p",
 								text:
-									"**Build the node by handling it.** Open **Node Design** from the toolbar — the " +
-									"palette icon, second from the right, drawn on [Toolbars](toolbars) — or " +
+									"**Build the node by handling it.** Open **Node Design** from the editor's top " +
+									"row — the palette icon, second from the right, drawn on [Toolbars](toolbars) — or " +
 									"`/designer` on the daemon. It opens on the packs: the project's first, then the " +
 									"built-in library, one card per category, to look at.",
 							},
@@ -67,7 +67,7 @@ export function creatingCustomNodesPage(): DocPage {
 								t: "ul",
 								items: [
 									"**New node** starts with an empty header and one execution pin each side.",
-									"**Drag a type** from the palette onto the node: the left half adds an input, the right half an output. **Execution** adds that side's execution pin.",
+									"**Drag a type** from the palette at the bottom right onto the node: the left half adds an input, the right half an output. **Execution** adds that side's execution pin.",
 									"**Click a pin**, or its label, for its name, type, default and tooltip. Its name is what the logic reads: a pin named Force is `$in.force`.",
 									"**Type the title** on the header. **Details** holds the id, category, what it runs on, and the summary its documentation reads.",
 									"**Pure is decided by the pins**: no execution pins makes a value, an execution input makes a step. A pure node with no inputs and one output can be drawn as a **pill**.",
@@ -78,10 +78,10 @@ export function creatingCustomNodesPage(): DocPage {
 							{
 								t: "p",
 								text:
-									"The Logic panel's **Nodes** tab builds the logic on a canvas of its own, between " +
-									"**Node Inputs** — the node's inputs — and **Node Outputs** — its outputs. " +
-									"Right-click for nodes. It compiles to Luau as you build it, shown beside the graph, " +
-									"and that Luau is what the node is saved as.",
+									"**Nodes**, on the logic's **Luau | Nodes** switch, builds the logic on a canvas " +
+									"that fills the window, between **Node Inputs** — the node's inputs — and **Node " +
+									"Outputs** — its outputs. Right-click for nodes. It compiles to Luau as you build it, " +
+									"which **Preview** shows, and that Luau is what the node is saved as.",
 							},
 							{
 								t: "ul",
@@ -109,7 +109,7 @@ export function creatingCustomNodesPage(): DocPage {
 							{
 								t: "p",
 								text:
-									"**Write the logic as a template**, in the Logic panel's **Luau** tab. The node's " +
+									"**Write the logic as a template**, with **Luau** on the logic's switch. The node's " +
 									"pins decide what kind of template it is, and every placeholder is filled in where " +
 									"the node is placed. Each example below is the template, then the Luau it becomes.",
 							},

@@ -30,9 +30,17 @@ export function FloatingTools({ label, children }: { label: string; children: Re
 }
 
 /** One cluster of tools, drawn as a panel of its own over the view. */
-export function ToolGroup({ children, title }: { children: ReactNode; title?: string }) {
+export function ToolGroup({
+	children,
+	title,
+	className,
+}: {
+	children: ReactNode;
+	title?: string;
+	className?: string;
+}) {
 	return (
-		<div className="tool-group" title={title}>
+		<div className={className ? `tool-group ${className}` : "tool-group"} title={title}>
 			{children}
 		</div>
 	);

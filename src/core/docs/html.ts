@@ -405,7 +405,7 @@ function renderBlock(
 			// legend markup and `data-control` pairing, so the one linking script
 			// lights both. Numbered, because the picture numbers its regions.
 			const art = options.toolbars;
-			const picture = art ? layoutHtml(block.layout, art) : "";
+			const picture = art ? layoutHtml(block.layout, { ...art, version: options.version }) : "";
 			const legend = listedRegions(block.layout)
 				.map(
 					(region, i) =>

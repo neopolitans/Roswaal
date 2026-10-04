@@ -32,6 +32,7 @@ import { RELEASES_0_80 } from "./releases/minor80.js";
 import { RELEASES_0_90 } from "./releases/minor90.js";
 import { RELEASES_0_100 } from "./releases/minor100.js";
 import { RELEASES_0_110 } from "./releases/minor110.js";
+import { RELEASES_0_120 } from "./releases/minor120.js";
 
 /**
  * A part of the tool a release can say it touched.
@@ -112,6 +113,7 @@ export function taglineFor(version: string): string | undefined {
  * rest.
  */
 export const RELEASES: Release[] = [
+	...RELEASES_0_120,
 	...RELEASES_0_110,
 	...RELEASES_0_100,
 	...RELEASES_0_90,

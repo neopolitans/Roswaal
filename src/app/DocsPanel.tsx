@@ -15,6 +15,7 @@
 import {
 	type CSSProperties,
 	createContext,
+	type RefObject,
 	useContext,
 	useEffect,
 	useMemo,
@@ -191,6 +192,11 @@ export function DocsView({
 	const body = useRef<HTMLDivElement>(null);
 
 	const page = findPage(site, slug) ?? findPage(site, HOME)!;
+	// The section the page is in, for the folded contents to say where you are.
+	const where = {
+		section: site.sections.find((s) => s.pages.some((p) => p.slug === page.slug))?.title ?? "",
+	};
+	const [contentsFolded, setContentsFolded] = useState(() => recall(CONTENTS_FOLD));
 	const results = useMemo(() => searchDocs(index, query), [index, query]);
 
 	/**
@@ -258,7 +264,22 @@ export function DocsView({
 							/>
 						)}
 						{/* The nav, the page, and its outline. */}
-						<nav className="docs-nav">
+						<nav className={`docs-nav${contentsFolded ? " folded" : ""}`}>
+							<div className="docs-card-head">
+								{/* Where you are: the card's only label, open or folded. */}
+								<span className="docs-card-where" title={`${where.section} › ${page.title}`}>
+									{where.section && <span className="crumb">{where.section}</span>}
+									<span className="here">{page.title}</span>
+								</span>
+								<button
+									className="tb icon-only docs-card-fold"
+									title={contentsFolded ? "Show the contents" : "Fold the contents away"}
+									aria-expanded={!contentsFolded}
+									onClick={() => setContentsFolded((was) => remember(CONTENTS_FOLD, !was))}
+								>
+									<Icon name="chevron" size={14} rotate={contentsFolded ? -90 : 0} />
+								</button>
+							</div>
 							<input
 								className="search"
 								placeholder="Search the docs (Ctrl+K)"
@@ -361,7 +382,7 @@ export function DocsView({
 						{/* "On this page", as reference documentation usually has. Long
 					    node pages and the longer guides are the ones that need it. */}
 						<aside className="docs-toc">
-							<PageOutline page={page} />
+							<PageOutline page={page} scroller={body} />
 						</aside>
 					</div>
 				</NavigateContext.Provider>
@@ -381,19 +402,59 @@ function groupsOf(sections: DocSection[]): [string, DocSection[]][] {
 	return [...out];
 }
 
-function PageOutline({ page }: { page: DocPage }) {
+function PageOutline({
+	page,
+	scroller,
+}: {
+	page: DocPage;
+	/** The article, which scrolls: the section in view is read from it. */
+	scroller: RefObject<HTMLElement | null>;
+}) {
 	const headings = page.blocks.filter((b) => b.t === "h" && b.level === 2);
+	const [folded, setFolded] = useState(() => recall(OUTLINE_FOLD));
+	// The section being read: the last heading above the top of the view.
+	const [current, setCurrent] = useState(0);
+	useEffect(() => {
+		const element = scroller.current;
+		if (!element) return;
+		const ids = headings.flatMap((h) => (h.t === "h" ? [headingId(h.text)] : []));
+		const update = () => {
+			const top = element.getBoundingClientRect().top + 90;
+			let at = 0;
+			ids.forEach((id, i) => {
+				const heading = document.getElementById(id);
+				if (heading && heading.getBoundingClientRect().top <= top) at = i;
+			});
+			setCurrent(at);
+		};
+		update();
+		element.addEventListener("scroll", update, { passive: true });
+		return () => element.removeEventListener("scroll", update);
+	}, [page.slug, scroller]);
 	if (headings.length < 2) return null;
+	const here = headings[current];
 
 	return (
-		<>
-			<div className="docs-toc-head">On this page</div>
+		<div className={`docs-toc-card${folded ? " folded" : ""}`}>
+			<div className="docs-card-head">
+				<span className="docs-card-where">
+					<span className="here">{here?.t === "h" ? here.text : ""}</span>
+				</span>
+				<button
+					className="tb icon-only docs-card-fold"
+					title={folded ? "Show the outline" : "Fold the outline away"}
+					aria-expanded={!folded}
+					onClick={() => setFolded((was) => remember(OUTLINE_FOLD, !was))}
+				>
+					<Icon name="chevron" size={14} rotate={folded ? -90 : 0} />
+				</button>
+			</div>
 			{headings.map((h, i) =>
 				h.t === "h" ? (
 					<a
 						key={i}
 						href={`#${headingId(h.text)}`}
-						className="docs-toc-link"
+						className={`docs-toc-link${i === current ? " on" : ""}`}
 						onClick={(e) => {
 							// The hash is the *page*, so letting this link write to it
 							// navigated to a slug that does not exist and fell back to
@@ -408,8 +469,30 @@ function PageOutline({ page }: { page: DocPage }) {
 					</a>
 				) : null,
 			)}
-		</>
+		</div>
 	);
+}
+
+/** Where the contents' and the outline's folds are remembered. */
+const CONTENTS_FOLD = "roswaal.docs.contentsFolded";
+const OUTLINE_FOLD = "roswaal.docs.outlineFolded";
+
+function recall(key: string): boolean {
+	try {
+		return localStorage.getItem(key) === "1";
+	} catch {
+		return false;
+	}
+}
+
+/** Stores a fold and hands it back, for a state setter. */
+function remember(key: string, folded: boolean): boolean {
+	try {
+		localStorage.setItem(key, folded ? "1" : "0");
+	} catch {
+		// The fold still applies to this visit.
+	}
+	return folded;
 }
 
 function Page({ page, site, go }: { page: DocPage; site: DocSite; go: (next: string) => void }) {

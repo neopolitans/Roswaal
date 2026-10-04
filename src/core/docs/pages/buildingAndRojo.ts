@@ -101,7 +101,7 @@ export function buildingAndRojoPage(): DocPage {
 				t: "p",
 				text:
 					"The file is named after the graph, and its ending comes from the script kind, " +
-					"chosen in the tools along the top of the canvas. The ending is how Rojo knows " +
+					"chosen in the Inspector with nothing selected. The ending is how Rojo knows " +
 					"which class of instance to make.",
 			},
 			{
@@ -198,7 +198,7 @@ export function buildingAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Make a map with **New map** in the toolbar, or by right-clicking a folder in the " +
+					"Make a map with **New node map** on the top row, or by right-clicking a folder in the " +
 					"project tree. It starts with `src` in ServerScriptService. Select an instance to " +
 					"edit it:",
 			},

@@ -1,5 +1,5 @@
 /**
- * The open graphs, along the top of the centre.
+ * The open graphs, as a group of tabs among the floating tools.
  *
  * Slice 4 of `docs/PANELS.md`, and the half of panelisation the M103 conversion
  * actually needs: a conversion runs over several graphs, and moving between
@@ -74,11 +74,9 @@ export function GraphTabs({
 	const [drag, setDrag] = useState<{ key: string; before: string | null } | null>(null);
 	const [listOpen, setListOpen] = useState(false);
 
-	// One graph is not a choice, and a strip showing it is a row of chrome
-	// saying what the document bar underneath already says. A function's graph
-	// is the exception: the bar names the file, and only the tab says which
-	// graph of it this is.
-	const shown = documents.length >= 2 || documents.some((d) => d.graph !== null);
+	// The tabs are the open document's name as well as the way between graphs,
+	// so one graph still has its tab.
+	const shown = documents.length > 0;
 
 	// Where a tab dropped at this x would land.
 	//
@@ -135,7 +133,7 @@ export function GraphTabs({
 	if (!shown) return null;
 
 	return (
-		<div className={cx("graph-tabs", drag && "reordering")} ref={row} role="tablist">
+		<div className={cx("graph-tabs tool-group", drag && "reordering")} ref={row} role="tablist">
 			{documents.map((doc) => {
 				const label = tabLabel(doc, functionTabs);
 				const full = tabLabel(doc, "full");
@@ -177,7 +175,7 @@ export function GraphTabs({
 			{/* The end of the row is a drop target too, and has to be wide enough
 			    to hit when the row is full. It also holds the list. */}
 			<div className={cx("tab-rest", drag && drag.before === null && "drop-before")}>
-				{documents.length > 2 && (
+				{documents.length > 1 && (
 					<TabList
 						documents={documents}
 						functionTabs={functionTabs}

@@ -58,6 +58,8 @@ export interface PackViewProps {
 	prefs: Preferences;
 	/** Changes preferences, as the page's settings panel does. */
 	onPrefs: (patch: Partial<Preferences>) => void;
+	/** Where the open node's own actions go: a cluster of the window's chrome. */
+	actionsSlot?: HTMLElement | null;
 }
 
 export function PackView({
@@ -67,6 +69,7 @@ export function PackView({
 	onBack,
 	onChanged,
 	notify,
+	actionsSlot = null,
 	prefs,
 	onPrefs,
 }: PackViewProps) {
@@ -398,6 +401,7 @@ export function PackView({
 					prefs={prefs}
 					onPrefs={onPrefs}
 					toolbarSlot={compact ? slot : null}
+					actionsSlot={actionsSlot}
 				/>
 			)}
 		</div>

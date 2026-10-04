@@ -23,6 +23,7 @@
  */
 
 import {
+	type CSSProperties,
 	type DragEvent,
 	type PointerEvent as ReactPointerEvent,
 	useCallback,
@@ -40,16 +41,14 @@ import { LOGIC_NODES } from "../../core/nodes/logic.js";
 import type { GraphNode, Literal, NodeDef, PinDef, Target } from "../../core/schema.js";
 import { api } from "../api.js";
 import { cx } from "../cx.js";
-import { FloatingTools, ToolGroup } from "../FloatingTools.jsx";
+import { ToolGroup } from "../FloatingTools.jsx";
 import { headerHeight, isCompact, nodeBounds, nodeWidth, pinPosition } from "../geometry.js";
 import { Icon } from "../icons.jsx";
 import { NodeView } from "../NodeView.jsx";
 import { Popout, usePhone } from "../Popout.jsx";
 import { pinColor } from "../palette.js";
-import { trackPointer } from "../pointer.js";
 import type { Preferences } from "../preferences.js";
 import { TypePicker } from "../TypePicker.jsx";
-import { useCompact } from "../Workspace.jsx";
 import {
 	addPin,
 	type Draft,
@@ -84,8 +83,10 @@ const NODE_ID = "designer-node";
 /** The registry key the drawn node uses, whatever id is being typed. */
 const DRAW_DEF = "designer.node";
 const PIN_DRAG = "application/x-roswaal-pintype";
-const LOGIC_KEY = "roswaal.designer.logicHeight";
 const DETAILS_KEY = "roswaal.designer.details";
+const PLATE_KEY = "roswaal.designer.plate";
+/** The plate's title bar, which stays when the plate is folded away. */
+const PLATE_HEAD = 34;
 
 /** The palette: execution, then the types a custom node reaches for most. */
 const PALETTE = [
@@ -105,15 +106,6 @@ const PALETTE = [
 const NOOP = () => {};
 const NEVER = () => false;
 const NOTHING_WIRED: ReadonlySet<string> = new Set();
-
-function readLogicHeight(): number {
-	try {
-		const stored = Number(localStorage.getItem(LOGIC_KEY));
-		return Number.isFinite(stored) && stored >= 90 ? stored : 220;
-	} catch {
-		return 220;
-	}
-}
 
 export interface NodeEditorProps {
 	packPath: string;
@@ -135,6 +127,11 @@ export interface NodeEditorProps {
 	 * so the node's controls do not stack another row or two above the node.
 	 */
 	toolbarSlot?: HTMLElement | null;
+	/**
+	 * Where the node's own actions go -- Details, its kind, Save: a cluster of
+	 * the window's floating chrome. Drawn over the editor's top right without one.
+	 */
+	actionsSlot?: HTMLElement | null;
 	/** The ids of the pack's other nodes, which this one's must not repeat. */
 	otherIds: string[];
 	onSaved: (def: NodeDef) => void;
@@ -161,6 +158,7 @@ export function NodeEditor({
 	onDirty,
 	notify,
 	toolbarSlot = null,
+	actionsSlot = null,
 	prefs,
 	onPrefs,
 }: NodeEditorProps) {
@@ -189,14 +187,31 @@ export function NodeEditor({
 			}
 			return !open;
 		});
+	// The node's plate folds to its title bar, to give the logic the corner.
+	const [plateOpen, setPlateOpen] = useState(() => {
+		try {
+			return localStorage.getItem(PLATE_KEY) !== "closed";
+		} catch {
+			return true;
+		}
+	});
+	const togglePlate = () =>
+		setPlateOpen((open) => {
+			try {
+				localStorage.setItem(PLATE_KEY, open ? "closed" : "open");
+			} catch {
+				// The choice still applies to this visit.
+			}
+			return !open;
+		});
+	// The docked pin editor folds to its title, as the plate does.
+	const [pinFolded, setPinFolded] = useState(false);
 	const [saving, setSaving] = useState(false);
-	const [logicHeight, setLogicHeight] = useState(readLogicHeight);
-	// On a phone or a tablet the node and its logic take turns at the whole
-	// editor, switched from a bar at the top, instead of splitting it. Split,
-	// the logic graph was a strip under the node too short to move around in
-	// the way the editor's graph is, and the divider between them was a
-	// five-pixel target for a finger.
-	const split = useCompact();
+	// On a phone the node and its logic take turns at the whole editor,
+	// switched from a bar at the top: the node's plate over the logic would
+	// leave the logic a strip too short to move around in. Everywhere else the
+	// logic fills the window and the node floats over it on its plate.
+	const split = usePhone();
 	// On a phone the node's tools fold behind buttons: see `Popout`.
 	const phone = usePhone();
 	const [view, setView] = useState<"preview" | "logic">("preview");
@@ -278,9 +293,22 @@ export function NodeEditor({
 	const registry = useMemo(() => new Map([[DRAW_DEF, drawDef]]) as Registry, [drawDef]);
 	const node = useMemo<GraphNode>(() => ({ id: NODE_ID, def: DRAW_DEF, x: 0, y: 0 }), []);
 	const bounds = nodeBounds(node, registry);
+	// The plate the node floats on, over the logic: as big as the node at its
+	// scale, its own margin, and the pin counts under it. On a phone the node
+	// has the editor to itself and is centred in it.
+	const plate = split
+		? null
+		: {
+				w: plateOpen ? Math.round(bounds.w * SCALE + PLATE * SCALE * 2 + 96) : 240,
+				h: plateOpen
+					? Math.round(bounds.h * SCALE + PLATE * SCALE * 2 + 84 + PLATE_HEAD)
+					: PLATE_HEAD,
+			};
 	const offset = {
 		x: Math.round(size.w / 2 - (bounds.w * SCALE) / 2),
-		y: Math.round(Math.max(90, (size.h - bounds.h * SCALE) / 2)),
+		y: plate
+			? Math.round(PLATE * SCALE + 22 + PLATE_HEAD)
+			: Math.round(Math.max(90, (size.h - bounds.h * SCALE) / 2)),
 	};
 	const toStage = (p: { x: number; y: number }) => ({
 		x: offset.x + p.x * SCALE,
@@ -380,29 +408,6 @@ export function NodeEditor({
 			: draft.result
 				? "An expression, whose value lands in the result pin. $in.pin reads an input."
 				: "Runs where the node sits. $in.pin reads an input; assign to $out.pin to set an output.";
-
-	const startResize = (e: ReactPointerEvent) => {
-		e.preventDefault();
-		const startY = e.clientY;
-		const startH = logicHeight;
-		let latest = startH;
-		// A cancelled drag keeps the height it reached, as a released one does.
-		trackPointer(e, {
-			move: (ev) => {
-				latest = Math.round(
-					Math.min(window.innerHeight * 0.7, Math.max(90, startH - (ev.clientY - startY))),
-				);
-				setLogicHeight(latest);
-			},
-			end: () => {
-				try {
-					localStorage.setItem(LOGIC_KEY, String(latest));
-				} catch {
-					// The size still applies to this visit.
-				}
-			},
-		});
-	};
 
 	// -- the selected pin's popover ----------------------------------------
 
@@ -521,6 +526,53 @@ export function NodeEditor({
 			</button>
 		</>
 	);
+	const nodeKindGroup = () => (
+		<ToolGroup>
+			<button
+				className={cx("tb with-icon", detailsOpen && "on")}
+				aria-pressed={detailsOpen}
+				title="Details — the node's id, title, category, and the summary its documentation reads"
+				onClick={toggleDetails}
+			>
+				<Icon name="rename" size={15} />
+				{phone ? <span className="visually-hidden">Details</span> : "Details"}
+			</button>
+			<span className="divider" />
+			{phone ? (
+				<Popout
+					label={purity === "pure" ? "Pure" : purity === "impure" ? "Impure" : "Cannot run"}
+					title="What kind of node this is, how it is drawn, and deleting it"
+					end
+				>
+					<div className="pin-counts">{nodeKind}</div>
+				</Popout>
+			) : (
+				nodeKind
+			)}
+			<button
+				className="tb primary with-icon"
+				disabled={problems.length > 0 || saving || !dirty}
+				title={
+					problems.length > 0
+						? "Fix the problems first"
+						: dirty
+							? "Save into the pack (Ctrl+S)"
+							: "Saved"
+				}
+				onClick={() => void save()}
+			>
+				<Icon name="build" size={15} />
+				{phone ? (
+					<span className="visually-hidden">{dirty ? "Save" : "Saved"}</span>
+				) : dirty ? (
+					"Save"
+				) : (
+					"Saved"
+				)}
+			</button>
+		</ToolGroup>
+	);
+
 	const nodeKind = (
 		<>
 			<span
@@ -588,8 +640,79 @@ export function NodeEditor({
 		</>
 	);
 
+	const nodeActions = nodeKindGroup();
+
+	// The selected pin's editor: beside the pin on a phone, and docked under
+	// the plate everywhere else, where it has room and can fold away.
+	const renderPinEditor = (docked: boolean) =>
+		selected && pin && popoverAt ? (
+			<PinPopover
+				key={`${pin.side}:${selected.id}`}
+				pin={selected}
+				side={pin.side}
+				index={pin.index}
+				count={pinsOn(pin.side).length}
+				isResult={pin.side === "out" && draft.result === selected.id}
+				canBeResult={
+					pin.side === "out" &&
+					selected.kind === "data" &&
+					purity === "impure" &&
+					draft.logicMode === "luau"
+				}
+				docked={docked}
+				folded={docked && pinFolded}
+				onFold={() => setPinFolded((was) => !was)}
+				style={
+					docked
+						? undefined
+						: pin.side === "in"
+							? {
+									right: Math.max(8, size.w - popoverAt.x + 18),
+									top: Math.max(8, popoverAt.y - 24),
+								}
+							: {
+									left: Math.min(size.w - 280, popoverAt.x + 18),
+									top: Math.max(8, popoverAt.y - 24),
+								}
+				}
+				onRename={(name) => update((d) => renamePin(d, pin.side, pin.index, name))}
+				onRetype={(type) => update((d) => retypePin(d, pin.side, pin.index, type))}
+				onDefault={(value) => update((d) => setPinDefault(d, pin.index, value))}
+				onDescription={(text) =>
+					update((d) => {
+						const list = pin.side === "in" ? d.inputs : d.outputs;
+						const next = list.map((p, i) =>
+							i === pin.index ? { ...p, description: text || undefined } : p,
+						);
+						return pin.side === "in" ? { ...d, inputs: next } : { ...d, outputs: next };
+					})
+				}
+				onChoices={(text) =>
+					update((d) => {
+						const options = readChoices(text);
+						const next = d.inputs.map((p, i) => (i === pin.index ? { ...p, options } : p));
+						return { ...d, inputs: next };
+					})
+				}
+				onResult={(on) => update((d) => setResult(d, on ? selected.id : undefined))}
+				onMove={(delta) => {
+					update((d) => movePin(d, pin.side, pin.index, delta));
+					setPin({ side: pin.side, index: pin.index + delta });
+				}}
+				onRemove={() => structural((d) => removePin(d, pin.side, pin.index))}
+				onClose={() => setPin(null)}
+			/>
+		) : null;
+
 	return (
-		<div className={cx("node-editor", split && "split", split && `view-${view}`)}>
+		<div
+			className={cx("node-editor", split && "split", split && `view-${view}`)}
+			style={
+				plate
+					? ({ "--plate-h": `${plate.h}px`, "--plate-w": `${plate.w}px` } as CSSProperties)
+					: undefined
+			}
+		>
 			{split &&
 				(() => {
 					// Preview or Logic, and with Logic which way it is written: one
@@ -616,93 +739,93 @@ export function NodeEditor({
 						<div className="node-editor-views">{switches}</div>
 					);
 				})()}
-			<div
-				className="node-editor-stage"
-				ref={stage}
-				onPointerDown={() => setPin(null)}
-				onDragOver={(e) => {
-					if (e.dataTransfer.types.includes(PIN_DRAG)) {
-						e.preventDefault();
-						e.dataTransfer.dropEffect = "copy";
-					}
-				}}
-				onDrop={onDrop}
-			>
+			<div className="plate-column">
 				<div
-					className="node-editor-world"
-					style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${SCALE})` }}
+					className={cx("node-editor-stage", plate && !plateOpen && "folded")}
+					ref={stage}
+					style={
+						// The column it heads is already the plate's width; the plate fills
+						// it, so it lines up with the pin's settings and the details under it.
+						plate ? { width: "100%", height: plate.h } : undefined
+					}
+					onPointerDown={() => setPin(null)}
+					onDragOver={(e) => {
+						if (e.dataTransfer.types.includes(PIN_DRAG)) {
+							e.preventDefault();
+							e.dataTransfer.dropEffect = "copy";
+						}
+					}}
+					onDrop={onDrop}
 				>
-					{/* A plate behind the node: its own bounds and a margin, so the node
+					{plate && (
+						<div className="plate-head" onPointerDown={(e) => e.stopPropagation()}>
+							<span className="plate-title">{draft.title || "New node"}</span>
+							<button
+								className="tb icon-only"
+								title={plateOpen ? "Fold the node away" : "Show the node"}
+								aria-label={plateOpen ? "Fold the node away" : "Show the node"}
+								aria-expanded={plateOpen}
+								onClick={togglePlate}
+							>
+								<Icon name="chevron" size={14} rotate={plateOpen ? 0 : -90} />
+							</button>
+						</div>
+					)}
+					<div
+						className="node-editor-world"
+						style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${SCALE})` }}
+					>
+						{/* A plate behind the node: its own bounds and a margin, so the node
 					    sits on something rather than floating in the grid. It grows and
 					    shrinks with the node as pins come and go. */}
-					<div
-						className="node-plate"
-						style={{
-							left: -PLATE,
-							top: -PLATE,
-							width: bounds.w + PLATE * 2,
-							height: bounds.h + PLATE * 2,
-						}}
-					/>
-					<NodeView
-						node={node}
-						def={drawDef}
-						selected={false}
-						anchor={false}
-						errorCount={0}
-						warningCount={0}
-						connected={NOTHING_WIRED}
-						drag={null}
-						canAccept={NEVER}
-						onNodePointerDown={NOOP}
-						onPinPointerDown={onPinPointerDown}
-						onPinPointerUp={NOOP}
-						onPinContextMenu={NOOP}
-						onLiteralChange={onLiteralChange}
-						onEditCode={NOOP}
-						onContextMenu={NOOP}
-						onGrow={NOOP}
-						growth={null}
-						highlightPin={pin && selected ? `${pin.side}:${selected.id}` : null}
-						onPinRowPointerDown={onPinPointerDown}
-					/>
-					{/* The title is typed on the header itself. A pill has no header,
-					    so its title is in the details instead. */}
-					{!compact && (
-						<input
-							className="node-title-edit"
-							value={draft.title}
-							placeholder="Title"
-							spellCheck={false}
-							style={{ width: nodeWidth(drawDef, node), height: headerHeight(drawDef) }}
-							onPointerDown={(e) => e.stopPropagation()}
-							onChange={(e) => update((d) => ({ ...d, title: e.target.value }))}
+						<div
+							className="node-plate"
+							style={{
+								left: -PLATE,
+								top: -PLATE,
+								width: bounds.w + PLATE * 2,
+								height: bounds.h + PLATE * 2,
+							}}
 						/>
-					)}
-				</div>
-
-				<FloatingTools label="Node">
-					<ToolGroup>
-						<button
-							className={cx("tb with-icon", detailsOpen && "on")}
-							aria-pressed={detailsOpen}
-							title="The node's id, title, category, and the summary its documentation reads"
-							onClick={toggleDetails}
-						>
-							<Icon name="rename" size={15} />
-							{phone ? <span className="visually-hidden">Details</span> : "Details"}
-						</button>
-					</ToolGroup>
-					<ToolGroup title="Drag a type onto the node: the left half adds an input, the right half an output.">
-						{phone ? (
-							<Popout label="Types" title="Types to drag onto the node">
-								<div className="pin-chip-grid">{typeChips}</div>
-							</Popout>
-						) : (
-							typeChips
+						<NodeView
+							node={node}
+							def={drawDef}
+							selected={false}
+							anchor={false}
+							errorCount={0}
+							warningCount={0}
+							connected={NOTHING_WIRED}
+							drag={null}
+							canAccept={NEVER}
+							onNodePointerDown={NOOP}
+							onPinPointerDown={onPinPointerDown}
+							onPinPointerUp={NOOP}
+							onPinContextMenu={NOOP}
+							onLiteralChange={onLiteralChange}
+							onEditCode={NOOP}
+							onContextMenu={NOOP}
+							onGrow={NOOP}
+							growth={null}
+							highlightPin={pin && selected ? `${pin.side}:${selected.id}` : null}
+							onPinRowPointerDown={onPinPointerDown}
+						/>
+						{/* The title is typed on the header itself. A pill has no header,
+					    so its title is in the details instead. */}
+						{!compact && (
+							<input
+								className="node-title-edit"
+								value={draft.title}
+								placeholder="Title"
+								spellCheck={false}
+								style={{ width: nodeWidth(drawDef, node), height: headerHeight(drawDef) }}
+								onPointerDown={(e) => e.stopPropagation()}
+								onChange={(e) => update((d) => ({ ...d, title: e.target.value }))}
+							/>
 						)}
-					</ToolGroup>
-					<ToolGroup>
+					</div>
+
+					{/* How many inputs and outputs, under the node on its plate. */}
+					<div className="plate-counts tool-group">
 						{phone ? (
 							<Popout label="Pins" title="How many inputs and outputs">
 								<div className="pin-counts">{pinCounts}</div>
@@ -710,44 +833,12 @@ export function NodeEditor({
 						) : (
 							pinCounts
 						)}
-					</ToolGroup>
-					<span className="spacer" />
-					<ToolGroup>
-						{phone ? (
-							<Popout
-								label={purity === "pure" ? "Pure" : purity === "impure" ? "Impure" : "Cannot run"}
-								title="What kind of node this is, how it is drawn, and deleting it"
-								end
-							>
-								<div className="pin-counts">{nodeKind}</div>
-							</Popout>
-						) : (
-							nodeKind
-						)}
-						<button
-							className="tb primary with-icon"
-							disabled={problems.length > 0 || saving || !dirty}
-							title={
-								problems.length > 0
-									? "Fix the problems first"
-									: dirty
-										? "Save into the pack (Ctrl+S)"
-										: "Saved"
-							}
-							onClick={() => void save()}
-						>
-							<Icon name="build" size={15} />
-							{phone ? (
-								<span className="visually-hidden">{dirty ? "Save" : "Saved"}</span>
-							) : dirty ? (
-								"Save"
-							) : (
-								"Saved"
-							)}
-						</button>
-					</ToolGroup>
-				</FloatingTools>
+					</div>
 
+					{split && renderPinEditor(false)}
+				</div>
+
+				{!split && renderPinEditor(true)}
 				{detailsOpen && (
 					<div className="node-details" onPointerDown={(e) => e.stopPropagation()}>
 						<div className="node-details-head">
@@ -834,85 +925,57 @@ export function NodeEditor({
 						</label>
 					</div>
 				)}
+			</div>
 
-				<div className={cx("node-problems", problems.length && "bad")}>
-					{problems.length === 0 ? (
-						<span>{dirty ? "Ready to save." : "Saved, and the project loads it."}</span>
-					) : (
-						<ul>
-							{problems.map((problem) => (
-								<li key={problem}>{problem}</li>
-							))}
-						</ul>
-					)}
-					{/* Worth knowing, and no reason not to save. */}
-					{warnings.length > 0 && (
-						<ul className="warnings">
-							{warnings.map((warning) => (
-								<li key={warning}>{warning}</li>
-							))}
-						</ul>
-					)}
-				</div>
-
-				{selected && pin && popoverAt && (
-					<PinPopover
-						key={`${pin.side}:${selected.id}`}
-						pin={selected}
-						side={pin.side}
-						index={pin.index}
-						count={pinsOn(pin.side).length}
-						isResult={pin.side === "out" && draft.result === selected.id}
-						canBeResult={
-							pin.side === "out" &&
-							selected.kind === "data" &&
-							purity === "impure" &&
-							draft.logicMode === "luau"
-						}
-						style={
-							pin.side === "in"
-								? {
-										right: Math.max(8, size.w - popoverAt.x + 18),
-										top: Math.max(8, popoverAt.y - 24),
-									}
-								: {
-										left: Math.min(size.w - 280, popoverAt.x + 18),
-										top: Math.max(8, popoverAt.y - 24),
-									}
-						}
-						onRename={(name) => update((d) => renamePin(d, pin.side, pin.index, name))}
-						onRetype={(type) => update((d) => retypePin(d, pin.side, pin.index, type))}
-						onDefault={(value) => update((d) => setPinDefault(d, pin.index, value))}
-						onDescription={(text) =>
-							update((d) => {
-								const list = pin.side === "in" ? d.inputs : d.outputs;
-								const next = list.map((p, i) =>
-									i === pin.index ? { ...p, description: text || undefined } : p,
-								);
-								return pin.side === "in" ? { ...d, inputs: next } : { ...d, outputs: next };
-							})
-						}
-						onChoices={(text) =>
-							update((d) => {
-								const options = readChoices(text);
-								const next = d.inputs.map((p, i) => (i === pin.index ? { ...p, options } : p));
-								return { ...d, inputs: next };
-							})
-						}
-						onResult={(on) => update((d) => setResult(d, on ? selected.id : undefined))}
-						onMove={(delta) => {
-							update((d) => movePin(d, pin.side, pin.index, delta));
-							setPin({ side: pin.side, index: pin.index + delta });
-						}}
-						onRemove={() => structural((d) => removePin(d, pin.side, pin.index))}
-						onClose={() => setPin(null)}
-					/>
+			<div className={cx("node-problems", problems.length && "bad")}>
+				{problems.length === 0 ? (
+					<span>{dirty ? "Ready to save." : "Saved, and the project loads it."}</span>
+				) : (
+					<ul>
+						{problems.map((problem) => (
+							<li key={problem}>{problem}</li>
+						))}
+					</ul>
+				)}
+				{/* Worth knowing, and no reason not to save. */}
+				{warnings.length > 0 && (
+					<ul className="warnings">
+						{warnings.map((warning) => (
+							<li key={warning}>{warning}</li>
+						))}
+					</ul>
 				)}
 			</div>
 
-			<div className="logic-splitter" onPointerDown={startResize} title="Drag to resize" />
-			<div className="node-logic" style={split ? undefined : { height: logicHeight }}>
-				<div className={cx("logic-head", split && "logic-head-slim")}>
+			{/* The types to drag onto the node, docked along the foot of the window
+			    as a painting app's colours are. */}
+			<div
+				className="pin-palette tool-group"
+				title="Drag a type onto the node: the left half adds an input, the right half an output."
+			>
+				{phone ? (
+					<Popout label="Types" title="Types to drag onto the node" end>
+						<div className="pin-chip-grid">{typeChips}</div>
+					</Popout>
+				) : (
+					typeChips
+				)}
+			</div>
+
+			{actionsSlot ? (
+				createPortal(nodeActions, actionsSlot)
+			) : (
+				<div className="node-actions">{nodeActions}</div>
+			)}
+
+			<div className="node-logic">
+				<div
+					className={cx(
+						"logic-head",
+						split && "logic-head-slim",
+						draft.logicMode === "nodes" && draft.logic && !split && "logic-head-folded",
+					)}
+				>
 					{!split && <strong>Logic</strong>}
 					{!split && modeSwitch}
 					{draft.logicMode === "luau" && purity === "pure" && dataOutputs.length > 1 && (
@@ -949,15 +1012,18 @@ export function NodeEditor({
 							prefs={prefs}
 							onPrefs={onPrefs}
 							tools={
-								<button
-									className={cx("tb icon-only", showLuau && "on")}
-									aria-pressed={showLuau}
-									title="Preview — the Luau this logic compiles to, and what the node is saved as"
-									aria-label="Preview the Luau"
-									onClick={() => setShowLuau((was) => !was)}
-								>
-									<Icon name="terminal" size={16} />
-								</button>
+								<>
+									{!split && modeSwitch}
+									<button
+										className={cx("tb icon-only", showLuau && "on")}
+										aria-pressed={showLuau}
+										title="Preview — the Luau this logic compiles to, and what the node is saved as"
+										aria-label="Preview the Luau"
+										onClick={() => setShowLuau((was) => !was)}
+									>
+										<Icon name="terminal" size={16} />
+									</button>
+								</>
 							}
 						/>
 						{showLuau && (
@@ -1029,7 +1095,11 @@ function PinPopover(props: {
 	count: number;
 	isResult: boolean;
 	canBeResult: boolean;
-	style: React.CSSProperties;
+	style: React.CSSProperties | undefined;
+	/** Under the plate rather than beside the pin, with a fold. */
+	docked?: boolean;
+	folded?: boolean;
+	onFold?: () => void;
 	onRename: (name: string) => void;
 	onRetype: (type: string) => void;
 	onDefault: (value: Literal | undefined) => void;
@@ -1052,7 +1122,11 @@ function PinPopover(props: {
 	const valueKind = value === undefined ? "none" : value.t;
 
 	return (
-		<div className="pin-popover" style={props.style} onPointerDown={(e) => e.stopPropagation()}>
+		<div
+			className={cx("pin-popover", props.docked && "docked", props.folded && "folded")}
+			style={props.style}
+			onPointerDown={(e) => e.stopPropagation()}
+		>
 			<div className="pin-popover-head">
 				<span
 					className={cx("chip-dot", pin.kind)}
@@ -1061,6 +1135,16 @@ function PinPopover(props: {
 				<strong>{pin.kind === "exec" ? "Execution" : pin.name || pin.id}</strong>
 				<span className="hint">{side === "in" ? "input" : "output"}</span>
 				<span style={{ flex: 1 }} />
+				{props.docked && (
+					<button
+						className="tb icon-only"
+						title={props.folded ? "Show the pin's settings" : "Fold the pin's settings away"}
+						aria-expanded={!props.folded}
+						onClick={props.onFold}
+					>
+						<Icon name="chevron" size={14} rotate={props.folded ? -90 : 0} />
+					</button>
+				)}
 				<button className="tb icon-only" title="Close" onClick={props.onClose}>
 					<Icon name="close" size={14} />
 				</button>

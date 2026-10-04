@@ -204,12 +204,6 @@ export interface Preferences {
 	 * one of the two names. The tooltip keeps both either way.
 	 */
 	functionTabs: FunctionTabs;
-	/**
-	 * Show the graph's name at the start of the tools floating over the canvas.
-	 * Off by default: the tab and the watermark already say it. In a function's
-	 * graph it reads `ƒ hide (Occupancy)`.
-	 */
-	toolbarName: boolean;
 	/** The typeface the docs are read in. Code keeps its own monospace either way. */
 	docsFont: DocsFont;
 	/**
@@ -360,7 +354,6 @@ export const DEFAULTS: Preferences = {
 	castNames: false,
 	concatInterpolate: false,
 	functionTabs: "full",
-	toolbarName: false,
 	docsFont: "system",
 	showPreReleaseNotes: false,
 	// Everything the target allows, which is what the menu did before there was
@@ -433,8 +426,6 @@ export function readPreferences(): Preferences {
 		functionTabs: FUNCTION_TAB_CHOICES.some((c) => c.value === stored.functionTabs)
 			? (stored.functionTabs as FunctionTabs)
 			: DEFAULTS.functionTabs,
-		toolbarName:
-			typeof stored.toolbarName === "boolean" ? stored.toolbarName : DEFAULTS.toolbarName,
 		// A filter that is not one of the known ones -- an older build's
 		// preference, or a hand-edited store -- falls back to showing
 		// everything rather than to a filter that hides the whole library.

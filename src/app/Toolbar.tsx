@@ -1,47 +1,55 @@
 /**
- * The two bars above the workspace.
+ * The editor's floating chrome: the clusters along the top of the window.
  *
- * Extracted from `App.tsx` ahead of panelisation, which reshapes the
- * *workspace* — the sidebar, the canvas, the inspector — into dockable panels.
- * These two rows sit outside that area and are not going to be docked, so
- * moving them out first leaves `App.tsx`'s render as very nearly the thing
- * panelisation replaces, rather than that thing buried in two hundred lines of
- * buttons.
+ * There is no bar. The graph fills the window and these float over it in small
+ * groups, Procreate's way: what you work on at the left -- the mark, the
+ * project, the open document and its tools -- and what you work with at the
+ * right -- compiling, the Inspector, and the other windows.
  *
  * ## Why two components rather than one
  *
- * The split is not cosmetic and predates this file. One flat row put "Refresh
- * the project" next to the typechecking mode and left you working out which of
- * twelve controls acted on what. Two rows answer that by position: **everything
- * in `ProjectBar` is about the project**, everything in `DocumentBar` is about
- * the thing you have open, and the document row is simply absent when you have
- * nothing open.
- *
- * Splitting them into two components keeps that honest, because a control can
- * only be added to one of them and the file it lands in says which it is.
+ * **Everything in `ProjectBar` is about the project**, everything in
+ * `DocumentBar` is about the thing you have open, and the document's groups are
+ * simply absent when you have nothing open. A control can only be added to one
+ * of them, and the function it lands in says which it is. `ProjectBar` draws the
+ * row and takes the document's groups as a slot, so the two still read as one
+ * row on screen.
  *
  * ## Commands in, no state
  *
  * Both take their actions as named callbacks and hold nothing. A bar that knew
  * how to create a graph would be a second place that knows, and the first is
- * `App.tsx`, which owns the document. So these are as thick as a set of buttons
- * and no thicker — which is also what makes them safe to move around when the
- * layout changes underneath them.
+ * `App.tsx`, which owns the document. The one thing read from elsewhere is the
+ * workspace, for the buttons that put the Project and Inspector cards out.
+ *
+ * ## On a phone
+ *
+ * The row keeps the mark, the open document, its primary action and a More
+ * menu. The two cards are on the bar along the bottom instead, and a row that
+ * repeated them would run off a 393-point screen.
  */
 
-import { VERSION } from "../cli/version.js";
-import type { RoswaalConfig, ScriptClass, Target, TypecheckMode } from "../core/schema.js";
+import type { ReactNode } from "react";
+
+import type { RoswaalConfig } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
-import { Popout, usePhone } from "./Popout.jsx";
+import { Popout, useNarrowBar, usePhone } from "./Popout.jsx";
 import { IS_STATIC_HOST } from "./pages.js";
-import { MarkedLogo, markTooltip } from "./previewBuild.jsx";
+import { WindowMark } from "./WindowMark.jsx";
+import { useWorkspaceControls } from "./Workspace.jsx";
 
 export interface ProjectBarProps {
 	config: RoswaalConfig;
 	/** Non-null while something long-running is in flight. */
 	busy: string | null;
+	/** The open document's groups: its tab and its tools. */
+	document?: ReactNode;
+	/** The open document's primary action, at the end of the compile group. */
+	action?: ReactNode;
+	/** The document's tools as rows of the More menu, on a phone. */
+	phoneMenu?: ReactNode;
 	onRefresh: () => void;
 	onNewGraph: () => void;
 	onNewMap: () => void;
@@ -59,152 +67,227 @@ export interface ProjectBarProps {
 	onOpenIntro: () => void;
 }
 
+/** Two builds, two destinations: see `onOpenDocs`. */
+const DOCS_TITLE = IS_STATIC_HOST
+	? "Docs — guides, and a page for every built-in node. Opens the published documentation in its own tab; a project's own packs are documented in the editor the daemon serves."
+	: "Docs — guides, and a page for every node including this project's packs. Opens in its own window.";
+
 export function ProjectBar(props: ProjectBarProps) {
+	const phone = usePhone();
+	// Narrower than the whole row: the rarely used half folds into More.
+	const narrow = useNarrowBar();
+	const cards = useWorkspaceControls();
+
+	// The axis, named. Two buttons reading "Manual | Dynamic" say nothing about
+	// what they are manual and dynamic *about*; the group's title says it.
+	const mode = (
+		<span className="segmented" title="How generated Luau reaches disk">
+			<button
+				className={props.config.compileMode === "manual" ? "on" : ""}
+				onClick={() => props.onCompileMode("manual")}
+			>
+				Manual
+			</button>
+			<button
+				className={props.config.compileMode === "hot" ? "on" : ""}
+				onClick={() => props.onCompileMode("hot")}
+			>
+				Dynamic
+			</button>
+		</span>
+	);
+
 	return (
-		<div className="toolbar">
-			{/* The mark alone. The name is on it as a tooltip rather than in
-			    text, because the toolbar is the one screen you are only on
-			    once you have already opened the thing.
+		<FloatingTools label="Editor">
+			{/* The way back out: the mark opens the introduction panel, which is
+			    where an application's own icon is looked for. Its colour says
+			    which build this is -- see `MarkedLogo`. */}
+			<ToolGroup className="mark-group">
+				<WindowMark window="editor" onOpen={props.onOpenIntro} />
+			</ToolGroup>
 
-			    It is also the way back out: the mark opens the introduction
-			    panel, which is where an application's own icon is looked for. */}
-			{/* Which kind of build this is, as the logo's colour: blue for the
-			    browser preview, yellow for the canary, plain for an installed
-			    build -- see `MarkedLogo` for why that is still the rule. The
-			    version beside it goes when the bar is short of room, and is in
-			    the tooltip and the panel the mark opens either way. */}
-			<button
-				className="logo"
-				title={`Roswaal ${VERSION}. ${markTooltip() || "Recent projects, the demos, and the other windows."}`}
-				aria-label={`Roswaal ${VERSION}`}
-				onClick={() => props.onOpenIntro()}
-			>
-				<MarkedLogo height={17} />
-				<span className="version">{VERSION}</span>
-			</button>
+			{!phone && (
+				<ToolGroup>
+					<button
+						className={cx("tb icon-only", cards.isOpen("left") && "on")}
+						title="Project — the files, the DataModel and Variables"
+						aria-label="Show or hide the Project card"
+						aria-pressed={cards.isOpen("left")}
+						disabled={!cards.has("left")}
+						onClick={() => cards.toggle("left")}
+					>
+						<Icon name="panelLeft" size={16} />
+					</button>
+					{!narrow && (
+						<>
+							<button
+								className="tb icon-only"
+								title="Refresh — re-read the project from disk"
+								aria-label="Refresh the project"
+								onClick={props.onRefresh}
+							>
+								<Icon name="refresh" size={16} />
+							</button>
+							<button
+								className="tb icon-only"
+								title="New graph — a .nodescript: one Script, LocalScript or ModuleScript"
+								aria-label="New graph"
+								onClick={props.onNewGraph}
+							>
+								<Icon name="newFile" size={16} />
+							</button>
+							<button
+								className="tb icon-only"
+								title="New node map — where things live in the DataModel"
+								aria-label="New node map"
+								onClick={props.onNewMap}
+							>
+								<Icon name="map" size={16} />
+							</button>
+						</>
+					)}
+				</ToolGroup>
+			)}
 
-			{/* Icons, with the label as the tooltip. A toolbar is read by shape
-			    once it is known, and the words were costing most of the row —
-			    which is why every creative tool spends them only where a click
-			    is consequential. Compile keeps its own. */}
-			<button
-				className="tb icon-only"
-				title="Refresh — re-read the project from disk"
-				aria-label="Refresh the project"
-				onClick={props.onRefresh}
-			>
-				<Icon name="refresh" size={16} />
-			</button>
-			<button
-				className="tb icon-only"
-				title="New graph — a .nodescript: one Script, LocalScript or ModuleScript"
-				aria-label="New graph"
-				onClick={props.onNewGraph}
-			>
-				<Icon name="newFile" size={16} />
-			</button>
-			<button
-				className="tb icon-only"
-				title="New node map — where things live in the DataModel"
-				aria-label="New node map"
-				onClick={props.onNewMap}
-			>
-				<Icon name="map" size={16} />
-			</button>
+			{props.document}
 
 			<span className="spacer" />
 
-			{/* The axis, named. Two buttons reading "Manual | Dynamic" say nothing
-			    about what they are manual and dynamic *about*, and the answer was
-			    only ever in a hover title. */}
-			<span className="group-label">Compile</span>
-			<div className="segmented" title="How generated Luau reaches disk">
-				<button
-					className={props.config.compileMode === "manual" ? "on" : ""}
-					onClick={() => props.onCompileMode("manual")}
-				>
-					Manual
-				</button>
-				<button
-					className={props.config.compileMode === "hot" ? "on" : ""}
-					onClick={() => props.onCompileMode("hot")}
-				>
-					Dynamic
-				</button>
-			</div>
-			<button
-				className="tb with-icon tb-collapsible"
-				title="Compile every graph and node map in the project"
-				disabled={props.busy !== null}
-				onClick={props.onCompileProject}
-			>
-				{/* Drawn only where the bar is short of room: see `tb-collapsible`. */}
-				<Icon name="build" size={15} className="tb-icon-when-narrow" />
-				<span className="tb-label">Compile project</span>
-			</button>
-			{/* Two builds, two destinations. The daemon opens its own /docs, which
-			    is built from the live registry and so has a page for every pack
-			    node as well. The hosted build has no daemon to ask, so it opens
-			    the published site — the built-in library, and nothing of yours.
-			    Promising packs there sent people looking for a page that is not
-			    on that site. */}
-			<button
-				className="tb icon-only"
-				title={
-					IS_STATIC_HOST
-						? "Docs — guides, and a page for every built-in node. Opens the published documentation in its own tab; a project's own packs are documented in the editor the daemon serves."
-						: "Docs — guides, and a page for every node including this project's packs. Opens in its own window."
-				}
-				aria-label="Open the documentation"
-				onClick={props.onOpenDocs}
-			>
-				<Icon name="document" size={16} />
-			</button>
-			<button
-				className="tb icon-only"
-				title="Node Design — make a node of your own, into one of this project's packs"
-				aria-label="Open Node Design"
-				onClick={props.onOpenDesigner}
-			>
-				<Icon name="palette" size={16} />
-			</button>
-			<button
-				className="tb icon-only"
-				title="Settings — the project's, this browser's, and themes"
-				aria-label="Settings"
-				onClick={props.onOpenSettings}
-			>
-				<Icon name="settings" size={16} />
-			</button>
-		</div>
+			{phone || narrow ? (
+				<>
+					{props.action && <ToolGroup>{props.action}</ToolGroup>}
+					<ToolGroup>
+						{!phone && (
+							<button
+								className={cx("tb icon-only", cards.isOpen("right") && "on")}
+								title="Inspector — the selected node, or the graph's own settings"
+								aria-label="Show or hide the Inspector"
+								aria-pressed={cards.isOpen("right")}
+								disabled={!cards.has("right")}
+								onClick={() => cards.toggle("right")}
+							>
+								<Icon name="panelRight" size={16} />
+							</button>
+						)}
+						<Popout label={<Icon name="more" size={16} />} title="More" end closeOnPick>
+							{mode}
+							<button
+								className="tb with-icon"
+								disabled={props.busy !== null}
+								onClick={props.onCompileProject}
+							>
+								<Icon name="build" size={15} />
+								Compile project
+							</button>
+							{phone && props.phoneMenu}
+							<span className="tool-popout-rule" />
+							<button className="tb with-icon" onClick={props.onRefresh}>
+								<Icon name="refresh" size={15} />
+								Refresh
+							</button>
+							<button className="tb with-icon" onClick={props.onNewGraph}>
+								<Icon name="newFile" size={15} />
+								New graph
+							</button>
+							<button className="tb with-icon" onClick={props.onNewMap}>
+								<Icon name="map" size={15} />
+								New node map
+							</button>
+							<span className="tool-popout-rule" />
+							<button className="tb with-icon" onClick={props.onOpenDocs}>
+								<Icon name="document" size={15} />
+								Docs
+							</button>
+							<button className="tb with-icon" onClick={props.onOpenDesigner}>
+								<Icon name="palette" size={15} />
+								Node Design
+							</button>
+							<button className="tb with-icon" onClick={props.onOpenSettings}>
+								<Icon name="settings" size={15} />
+								Settings
+							</button>
+						</Popout>
+					</ToolGroup>
+				</>
+			) : (
+				<>
+					<ToolGroup title="How generated Luau reaches disk">
+						{mode}
+						<span className="divider" />
+						<button
+							className="tb with-icon tb-collapsible"
+							title="Compile project — every graph and node map in the project"
+							disabled={props.busy !== null}
+							onClick={props.onCompileProject}
+						>
+							{/* Drawn only where the row is short of room: see `tb-collapsible`. */}
+							<Icon name="build" size={15} className="tb-icon-when-narrow" />
+							<span className="tb-label">Compile project</span>
+						</button>
+						{props.action}
+					</ToolGroup>
+					<ToolGroup>
+						<button
+							className={cx("tb icon-only", cards.isOpen("right") && "on")}
+							title="Inspector — the selected node, or the graph's own settings"
+							aria-label="Show or hide the Inspector"
+							aria-pressed={cards.isOpen("right")}
+							disabled={!cards.has("right")}
+							onClick={() => cards.toggle("right")}
+						>
+							<Icon name="panelRight" size={16} />
+						</button>
+						<span className="divider" />
+						<button
+							className="tb icon-only"
+							title={DOCS_TITLE}
+							aria-label="Open the documentation"
+							onClick={props.onOpenDocs}
+						>
+							<Icon name="document" size={16} />
+						</button>
+						<button
+							className="tb icon-only"
+							title="Node Design — make a node of your own, into one of this project's packs"
+							aria-label="Open Node Design"
+							onClick={props.onOpenDesigner}
+						>
+							<Icon name="palette" size={16} />
+						</button>
+						<button
+							className="tb icon-only"
+							title="Settings — the project's, this browser's, and themes"
+							aria-label="Settings"
+							onClick={props.onOpenSettings}
+						>
+							<Icon name="settings" size={16} />
+						</button>
+					</ToolGroup>
+				</>
+			)}
+		</FloatingTools>
 	);
 }
 
 /**
  * What is open, and the tools that only mean anything while it is.
  *
- * `kind` decides the whole row. A node map is a tree rather than a graph and
- * shares almost nothing with one, so it gets a name and a compile button and
- * none of the graph tools — rather than a graph row with six things disabled,
- * which reads as "broken" instead of "not applicable".
+ * `kind` decides the whole group. A node map is a tree rather than a graph and
+ * shares almost nothing with one, so it gets its name and none of the graph
+ * tools -- rather than a graph's tools with six things disabled, which reads
+ * as "broken" instead of "not applicable".
+ *
+ * The graph's name is its tab, drawn by `GraphTabs` beside this; its settings
+ * are the Inspector's while nothing is selected. What is left here acts.
  */
 export type DocumentBarProps =
 	| {
 			kind: "map";
 			name: string;
 			dirty: boolean;
-			busy: string | null;
-			onCompile: () => void;
 	  }
 	| {
 			kind: "graph";
-			name: string;
-			dirty: boolean;
-			busy: string | null;
-			scriptClass: ScriptClass;
-			/** What the graph compiles for. A new graph takes the project's. */
-			target: Target;
-			typecheck: TypecheckMode;
 			/** The graph is being compiled and must not be edited. */
 			locked: boolean;
 			alignExec: boolean;
@@ -212,241 +295,138 @@ export type DocumentBarProps =
 			selected: number;
 			/** A function's graph is on screen, so an empty selection previews it. */
 			inFunction: boolean;
-			/** Show the name at the start of the tools. A preference. */
-			showName: boolean;
-			/** The function on screen, when it is a function's graph. */
-			functionName?: string;
-			hasPath: boolean;
-			onScriptClass: (value: ScriptClass) => void;
-			onTarget: (value: Target) => void;
-			onTypecheck: (value: TypecheckMode) => void;
+			/** Rows of the More menu, on a phone, rather than a group of buttons. */
+			asMenu?: boolean;
 			onAddNode: () => void;
 			onRealign: () => void;
 			onToggleAlignExec: () => void;
 			onPreview: () => void;
-			onCompile: () => void;
 	  };
 
 export function DocumentBar(props: DocumentBarProps) {
+	// On a phone the graph's tools are rows of the More menu instead.
 	const phone = usePhone();
 	if (props.kind === "map") {
 		return (
-			<div className="docbar">
+			<ToolGroup className="doc-group">
 				<span className={cx("doc-name", props.dirty && "dirty")}>{props.name}</span>
-				<span className="doc-kind">Node Map</span>
-				<span className="spacer" />
-				<button
-					className="tb primary with-icon"
-					title="Compile just this document (Ctrl+S)"
-					disabled={props.busy !== null}
-					onClick={props.onCompile}
-				>
-					<Icon name="build" size={15} />
-					Write project file
-				</button>
-			</div>
+				<span className="doc-kind">Node map</span>
+			</ToolGroup>
 		);
 	}
 
-	// The document's settings and its compile target, written once and drawn
-	// either inline or, on a phone, behind a button each. See `Popout`.
-	const scriptSettings = (
-		<>
-			{/* Lune has no script classes: every file is .luau, and a Module
-			    Exports node is what makes one a module. */}
-			{props.target !== "lune" && (
-				<select
-					className="tb"
-					title="What this graph compiles to"
-					value={props.scriptClass}
-					onChange={(e) => props.onScriptClass(e.target.value as ScriptClass)}
-				>
-					<option>Script</option>
-					<option>LocalScript</option>
-					<option>ModuleScript</option>
-				</select>
-			)}
-			<select
-				className="tb"
-				title={
-					"Which Luau typechecking mode the generated file declares. Default writes no" +
-					" mode line; the other two also annotate the types of generated locals."
-				}
-				value={props.typecheck}
-				disabled={props.locked}
-				onChange={(e) => props.onTypecheck(e.target.value as TypecheckMode)}
-			>
-				<option value="default">Default</option>
-				<option value="nonstrict">Nonstrict Mode</option>
-				<option value="strict">Strict Mode</option>
-			</select>
-		</>
-	);
-	// The target by name alone; Lune's being experimental is the triangle
-	// after it and the tooltip, rather than a word in every option.
-	const targetSetting = (
-		<span className="target-pick">
-			<select
-				className={cx("tb doc-target", props.target)}
-				title={
-					props.target === "lune"
-						? "Compiles for Lune, which is experimental. Roblox-only nodes are errors here."
-						: "Compiles for Roblox."
-				}
-				value={props.target}
-				disabled={props.locked}
-				onChange={(e) => props.onTarget(e.target.value as Target)}
-			>
-				<option value="roblox">Roblox</option>
-				<option value="lune">Lune</option>
-			</select>
-			{props.target === "lune" && <Icon name="warning" size={14} className="target-warn" />}
-		</span>
-	);
+	const previewTitle =
+		props.selected > 0
+			? "Preview — the Luau these nodes produced, in the generated file (P)"
+			: props.inFunction
+				? "Preview — this function's Luau (P)"
+				: "Preview — the whole script's Luau (P)";
 
-	// Floats over the canvas's top edge in three groups — the document's own
-	// settings, the tools that act on the graph, and compiling — rather than
-	// taking a row above it. See FloatingTools.tsx.
-	return (
-		<FloatingTools label="Graph">
-			<ToolGroup>
-				{/* The name is a preference; the tab and the watermark already say it.
-			    Unsaved edits are marked either way. */}
-				{props.showName ? (
-					<span className={cx("doc-name", props.dirty && "dirty")}>
-						{props.functionName ? (
-							<>
-								ƒ {props.functionName} <span className="doc-of">({props.name})</span>
-							</>
-						) : (
-							props.name
-						)}
-					</span>
-				) : (
-					props.dirty && <span className="doc-dirty" title="Edits not written yet" />
-				)}
-				{phone ? (
-					<Popout
-						label={
-							props.target === "lune"
-								? TYPECHECK_SHORT[props.typecheck]
-								: CLASS_SHORT[props.scriptClass]
-						}
-						title="What this graph compiles to, and its typechecking mode"
-					>
-						{scriptSettings}
-					</Popout>
-				) : (
-					scriptSettings
-				)}
-			</ToolGroup>
-
-			<ToolGroup>
-				<button
-					className="tb icon-only"
-					disabled={props.locked}
-					title="Add node — at the centre of the view. Right-clicking the canvas does the same, where you click."
-					aria-label="Add a node"
-					onClick={props.onAddNode}
-				>
-					<Icon name="search" size={16} />
+	if (phone && !props.asMenu) return null;
+	if (props.asMenu) {
+		return (
+			<>
+				<button className="tb with-icon" disabled={props.locked} onClick={props.onAddNode}>
+					<Icon name="search" size={15} />
+					Add node
+				</button>
+				<button className="tb with-icon" disabled={props.locked} onClick={props.onRealign}>
+					<Icon name="layout" size={15} />
+					Realign
 				</button>
 				<button
-					className="tb icon-only"
-					disabled={props.locked}
-					title="Realign — tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
-					aria-label="Realign the graph"
-					onClick={props.onRealign}
-				>
-					<Icon name="layout" size={16} />
-				</button>
-				<button
-					className={cx("tb with-icon tb-collapsible", props.alignExec && "on")}
+					className={cx("tb with-icon", props.alignExec && "on")}
 					aria-pressed={props.alignExec}
-					title={
-						props.alignExec
-							? "Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
-							: "Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
-					}
 					onClick={props.onToggleAlignExec}
 				>
-					<Icon name="straighten" size={16} className="tb-icon-when-narrow" />
-					<span className="tb-label">Straighten</span>
+					<Icon name="straighten" size={15} />
+					Straighten
 				</button>
+				<button className="tb with-icon" onClick={props.onPreview}>
+					<Icon name="terminal" size={15} />
+					Preview
+				</button>
+			</>
+		);
+	}
 
-				{/* With a selection it picks out what those nodes produced; without
+	return (
+		<ToolGroup>
+			<button
+				className="tb icon-only"
+				disabled={props.locked}
+				title="Add node — at the centre of the view. Right-clicking the canvas does the same, where you click."
+				aria-label="Add a node"
+				onClick={props.onAddNode}
+			>
+				<Icon name="search" size={16} />
+			</button>
+			<button
+				className="tb icon-only"
+				disabled={props.locked}
+				title="Realign — tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
+				aria-label="Realign the graph"
+				onClick={props.onRealign}
+			>
+				<Icon name="layout" size={16} />
+			</button>
+			<button
+				className={cx("tb icon-only", props.alignExec && "on")}
+				aria-pressed={props.alignExec}
+				aria-label="Straighten"
+				title={
+					props.alignExec
+						? "Straighten — Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
+						: "Straighten — Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
+				}
+				onClick={props.onToggleAlignExec}
+			>
+				<Icon name="straighten" size={16} />
+			</button>
+			{/* With a selection it picks out what those nodes produced; without
 			    one it is the whole script. `P` does the same. */}
-				<button
-					className="tb icon-only"
-					title={
-						props.selected > 0
-							? "Preview — the Luau these nodes produced, in the generated file (P)"
-							: props.inFunction
-								? "Preview — this function's Luau (P)"
-								: "Preview — the whole script's Luau (P)"
-					}
-					aria-label={
-						props.selected > 0 ? "Preview the selection's Luau" : "Preview the script's Luau"
-					}
-					onClick={props.onPreview}
-				>
-					<Icon name="terminal" size={16} />
-				</button>
-			</ToolGroup>
-
-			<span className="spacer" />
-
-			<ToolGroup>
-				{/* What the graph compiles for, beside the button that compiles it:
-			    it is a compilation setting, and a Roblox-only node in a Lune graph
-			    being an error is the fact it explains. */}
-				{phone ? (
-					<Popout
-						label={
-							props.target === "lune" ? (
-								<>
-									Lune <Icon name="warning" size={14} className="target-warn-inline" />
-								</>
-							) : (
-								"Roblox"
-							)
-						}
-						title="What this graph compiles for"
-						end
-					>
-						{targetSetting}
-					</Popout>
-				) : (
-					targetSetting
-				)}
-				<button
-					className="tb primary with-icon tb-collapsible"
-					title="Compile just this document (Ctrl+S)"
-					disabled={!props.hasPath || props.busy !== null}
-					onClick={props.onCompile}
-				>
-					<Icon name="build" size={15} />
-					<span className="tb-label">Compile script</span>
-				</button>
-			</ToolGroup>
-		</FloatingTools>
+			<button
+				className="tb icon-only"
+				title={previewTitle}
+				aria-label={
+					props.selected > 0 ? "Preview the selection's Luau" : "Preview the script's Luau"
+				}
+				onClick={props.onPreview}
+			>
+				<Icon name="terminal" size={16} />
+			</button>
+		</ToolGroup>
 	);
 }
 
 /**
- * A phone's folded button names the class in a word, so LocalScript and
- * ModuleScript do not push the tools onto a second row. The list inside still
- * says them in full.
+ * The open document's primary action, at the end of the compile group: a
+ * graph compiles, a node map writes its project file.
  */
-const CLASS_SHORT: Record<ScriptClass, string> = {
-	Script: "Script",
-	LocalScript: "Local",
-	ModuleScript: "Module",
-};
-
-/** A mode's name as a button shows it, where the word "Mode" is room it has not got. */
-const TYPECHECK_SHORT: Record<TypecheckMode, string> = {
-	default: "Default",
-	nonstrict: "Nonstrict",
-	strict: "Strict",
-};
+export function DocumentAction({
+	kind,
+	busy,
+	hasPath,
+	onCompile,
+}: {
+	kind: "graph" | "map";
+	busy: string | null;
+	hasPath: boolean;
+	onCompile: () => void;
+}) {
+	return (
+		<button
+			className="tb primary with-icon tb-collapsible"
+			title={
+				kind === "map"
+					? "Write project file — the Rojo project this map describes (Ctrl+S)"
+					: "Compile script — just this document (Ctrl+S)"
+			}
+			disabled={!hasPath || busy !== null}
+			onClick={onCompile}
+		>
+			<Icon name="build" size={15} />
+			<span className="tb-label">{kind === "map" ? "Write project file" : "Compile script"}</span>
+		</button>
+	);
+}
