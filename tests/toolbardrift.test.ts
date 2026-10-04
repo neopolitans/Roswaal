@@ -54,7 +54,8 @@ interface Slice {
 }
 
 function readSource(file: string): string {
-	return readFileSync(join(ROOT, file), "utf8");
+	// Line endings as git checked the file out: CRLF on a Windows checkout.
+	return readFileSync(join(ROOT, file), "utf8").replace(/\r\n/g, "\n");
 }
 
 /** The source of one slice. */
