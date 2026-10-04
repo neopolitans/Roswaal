@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.131.1",
+		date: "2026-10-04",
+		headline: "Walkthrough pictures fill their frame.",
+		affects: ["docs"],
+		fixed: [
+			"A walkthrough step showing the top row draws the canvas grid behind the whole row, not a strip beside it, and folds its buttons to their glyphs to fit.",
+			"Nodemap basics draws the map panel at the column's width, so steps 2 to 7 no longer scroll sideways.",
+		],
+	},
+	{
 		version: "0.131.0",
 		date: "2026-10-04",
 		headline: "Prompts redrawn, and the tablet drawer brought into line.",

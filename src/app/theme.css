@@ -15005,6 +15005,28 @@ select:not(.literal):not([multiple]) {
 	container: docs-bar / inline-size;
 }
 
+/* Not in a walkthrough, whose frame takes its picture's own width and scales
+   it to fit. A size container gives no width of its own, so the frame shrank
+   to its padding and painted the grid as a strip beside the bar. */
+.docs-walk-frame .docs-bar-frame.float {
+	container-type: normal;
+}
+
+/* Its buttons fold to their glyphs, as they would in a narrow column, so the
+   whole row fits at a scale that can still be read. */
+.docs-walk-frame .docs-bar-frame .tb-collapsible .tb-icon-when-narrow {
+	display: inline-block;
+}
+
+.docs-walk-frame .docs-bar-frame .tb-collapsible .tb-label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
 @container docs-bar (max-width: 1060px) {
 	.docs-bar-frame .tb-collapsible .tb-icon-when-narrow {
 		display: inline-block;
@@ -15023,7 +15045,8 @@ select:not(.literal):not([multiple]) {
 /* A walkthrough that steps through whole windows: the frame takes the
    column's width, which the window diagram measures and fills, and the ring
    on the control to press keeps its weight at the diagram's scale. */
-.docs-walk-frame.walk-window {
+.docs-walk-frame.walk-window,
+.docs-walk-frame.walk-map {
 	width: auto;
 }
 
