@@ -236,6 +236,22 @@ export function NodeEditor({
 		return () => observer.disconnect();
 	}, []);
 
+	// How tall the node's column is: plate, pin settings and details. Upright
+	// on a tablet the column runs across the top and the Luau sheet starts
+	// under it, so the stylesheet needs its height. Measured once on mount as
+	// well, as an observer does not always fire in a tab out of sight.
+	const column = useRef<HTMLDivElement>(null);
+	const [columnH, setColumnH] = useState(0);
+	useEffect(() => {
+		const element = column.current;
+		if (!element) return;
+		const measure = () => setColumnH(element.offsetHeight);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(element);
+		return () => observer.disconnect();
+	}, []);
+
 	const update = useCallback((fn: (d: Draft) => Draft) => setDraft((d) => fn(d)), []);
 
 	const purity = purityOf(draft);
@@ -737,9 +753,10 @@ export function NodeEditor({
 		<div
 			className={cx("node-editor", split && "split", split && `view-${view}`)}
 			style={
-				plate
-					? ({ "--plate-h": `${plate.h}px`, "--plate-w": `${plate.w}px` } as CSSProperties)
-					: undefined
+				{
+					...(plate ? { "--plate-h": `${plate.h}px`, "--plate-w": `${plate.w}px` } : {}),
+					"--column-h": `${columnH}px`,
+				} as CSSProperties
 			}
 		>
 			{split &&
@@ -768,7 +785,7 @@ export function NodeEditor({
 						<div className="node-editor-views">{switches}</div>
 					);
 				})()}
-			<div className="plate-column">
+			<div className="plate-column" ref={column}>
 				<div
 					className={cx("node-editor-stage", plate && !plateOpen && "folded")}
 					ref={stage}

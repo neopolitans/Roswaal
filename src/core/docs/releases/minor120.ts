@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.132.1",
+		date: "2026-10-04",
+		headline: "Node Design held upright, and Contents the height of its neighbours.",
+		affects: ["designer", "docs"],
+		changed: [
+			"Node Design on a tablet held upright, or in a window taller than it is wide: the node runs across the top and the Luau sheet takes the whole width beneath it.",
+		],
+		fixed: ["The docs' Contents button is the height of the buttons beside it on a tablet."],
+	},
+	{
 		version: "0.132.0",
 		date: "2026-10-04",
 		headline: "Shift+click opens or closes everything inside.",

@@ -11824,7 +11824,9 @@ a.docs-release-version:hover {
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
 	padding: 4px 9px;
-	height: 29px;
+	/* The cluster's height, as its buttons are: 30px with a mouse and 38px to
+	   touch. A fixed 29px left Contents short of the rest on an iPad. */
+	height: var(--hit);
 	box-sizing: border-box;
 	align-items: center;
 }
@@ -13834,6 +13836,35 @@ select:not(.literal):not([multiple]) {
 .pack-view.compact .node-editor:not(.split) .luau-field,
 .pack-view.compact .node-editor:not(.split) .logic-empty {
 	top: calc(var(--chrome-top) + var(--hit) + 8px + var(--edge));
+}
+
+/* Upright -- a tablet held portrait, or a window taller than it is wide --
+   the node's column runs across the top, under the node list's bar when
+   there is one, and the Luau sheet takes the whole width beneath it rather
+   than a strip beside it. */
+@media (orientation: portrait) and (min-width: 700px) {
+	.node-editor:not(.split) {
+		--stack-top: var(--chrome-top);
+	}
+
+	.pack-view.compact .node-editor:not(.split) {
+		--stack-top: calc(var(--chrome-top) + var(--hit) + 8px + var(--edge));
+	}
+
+	.node-editor:not(.split) > .plate-column {
+		top: var(--stack-top);
+		left: calc(var(--list-w, 0px) + var(--edge));
+		width: auto;
+		max-height: 55%;
+	}
+
+	.node-editor:not(.split) .luau-field,
+	.node-editor:not(.split) .logic-empty,
+	.pack-view.compact .node-editor:not(.split) .luau-field,
+	.pack-view.compact .node-editor:not(.split) .logic-empty {
+		top: calc(var(--stack-top) + var(--column-h, 0px) + var(--edge));
+		right: var(--edge);
+	}
 }
 
 /* The palette is one row that scrolls sideways, at any width: wrapped, it
