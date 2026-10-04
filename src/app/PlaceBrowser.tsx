@@ -165,6 +165,30 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		[nodes, pick],
 	);
 
+	// Shift+click on an arrow: the instance and every descendant with children
+	// open, or all of them shut, as Studio's Explorer does. Which, by the
+	// instance clicked.
+	const toggleDeep = (index: number) => {
+		const all: number[] = [];
+		const stack = [index];
+		while (stack.length > 0) {
+			const at = stack.pop()!;
+			const kids = children.get(at);
+			if (!kids || kids.length === 0) continue;
+			all.push(at);
+			stack.push(...kids);
+		}
+		setOpen((prev) => {
+			const opening = !prev.has(index);
+			const next = new Set(prev);
+			for (const i of all) {
+				if (opening) next.add(i);
+				else next.delete(i);
+			}
+			return next;
+		});
+	};
+
 	// A reference followed in Properties: shown here, and there.
 	useEffect(() => {
 		if (revealRequest && nodes && revealRequest.index < nodes.length)
@@ -304,9 +328,11 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 							{kids && !row.match ? (
 								<span
 									className="place-twist"
+									title="Shift+click to open or close everything inside"
 									onClick={(e) => {
 										e.stopPropagation();
-										toggle(setOpen, i);
+										if (e.shiftKey) toggleDeep(i);
+										else toggle(setOpen, i);
 									}}
 									onDoubleClick={(e) => e.stopPropagation()}
 								>

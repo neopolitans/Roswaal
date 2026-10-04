@@ -184,6 +184,27 @@ export const ProjectTree = memo(function ProjectTree({
 		setCollapsed(next);
 	}
 
+	/**
+	 * Shift+click on a folder: it and every folder inside it open, or all of
+	 * them shut, as Studio's Explorer does. Which, by the folder clicked.
+	 */
+	function toggleDeep(entry: TreeEntry) {
+		const paths: string[] = [];
+		const walk = (e: TreeEntry) => {
+			if (!e.children) return;
+			paths.push(e.path);
+			for (const child of e.children) walk(child);
+		};
+		walk(entry);
+		const opening = collapsed.has(entry.path);
+		const next = new Set(collapsed);
+		for (const path of paths) {
+			if (opening) next.delete(path);
+			else next.add(path);
+		}
+		setCollapsed(next);
+	}
+
 	function click(e: React.MouseEvent, entry: TreeEntry) {
 		if (entry.kind === "wally") {
 			toggle(entry.path);
@@ -198,7 +219,8 @@ export const ProjectTree = memo(function ProjectTree({
 		// folder it is in, because that is where its siblings go.
 		onTargetDir(parentDirOf(entry));
 		if (entry.kind === "directory") {
-			toggle(entry.path);
+			if (e.shiftKey) toggleDeep(entry);
+			else toggle(entry.path);
 			return;
 		}
 		if (e.shiftKey && anchor) {

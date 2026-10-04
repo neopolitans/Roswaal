@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.132.0",
+		date: "2026-10-04",
+		headline: "Shift+click opens or closes everything inside.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Shift+click a folder** in the Project panel, or an instance's arrow in DataModel, to open or close it with everything inside it, as in Studio's Explorer.",
+		],
+	},
+	{
 		version: "0.131.2",
 		date: "2026-10-04",
 		headline: "Node Design on a tablet: the type palette and the Luau sheet clear their neighbours.",

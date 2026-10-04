@@ -73,6 +73,14 @@ export function projectPanelPage(): DocPage {
 				],
 			},
 
+			{ t: "h", level: 2, text: "Opening everything inside" },
+			{
+				t: "p",
+				text:
+					"`Shift` + click a folder, or an instance's arrow in DataModel, to open or close it " +
+					"with everything inside it, as in Studio's Explorer.",
+			},
+
 			{ t: "h", level: 2, text: "Dragging from the tree" },
 			{
 				t: "p",
