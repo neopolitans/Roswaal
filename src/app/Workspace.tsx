@@ -969,23 +969,16 @@ function DrawerDock({
 			inert={!out}
 		>
 			{splitter}
-			{/* A drawer holds one panel at a time; with more than one on its side,
-			    a switch at its top says which. */}
-			{ids.length > 1 && (
-				<span className="segmented drawer-tabs">
-					{ids.map((id) => (
-						<button
-							key={id}
-							className={drawer.open === id ? "on" : ""}
-							onClick={() => drawer.onShow(id)}
-						>
-							{PANEL_TITLES[id]}
-						</button>
-					))}
-				</span>
-			)}
+			{/* A drawer holds one panel at a time. With more than one on its side,
+			    they are tabs in its header, as a card's are on a computer. */}
 			{ids.map((id) => (
-				<DrawerPanel key={id} id={id} away={drawer.open !== id}>
+				<DrawerPanel
+					key={id}
+					id={id}
+					away={drawer.open !== id}
+					tabs={ids.length > 1 ? ids : undefined}
+					onShow={drawer.onShow}
+				>
 					{contents[id]}
 				</DrawerPanel>
 			))}
@@ -993,13 +986,43 @@ function DrawerDock({
 	);
 }
 
-function DrawerPanel({ id, away, children }: { id: PanelId; away: boolean; children: ReactNode }) {
+function DrawerPanel({
+	id,
+	away,
+	tabs,
+	onShow,
+	children,
+}: {
+	id: PanelId;
+	away: boolean;
+	/** Every panel in this drawer, drawn as tabs, when there is more than one. */
+	tabs?: PanelId[];
+	onShow: (panel: PanelId) => void;
+	children: ReactNode;
+}) {
 	const [slot, setSlot] = useState<HTMLElement | null>(null);
 	return (
 		<div className={cx("panel", `panel-${id}`, away && "panel-away")}>
 			{!HEADLESS.has(id) && (
 				<header className="card-head">
-					<span className="card-title">{PANEL_TITLES[id]}</span>
+					{tabs ? (
+						<span className="card-tabs" role="tablist">
+							{tabs.map((tab) => (
+								<button
+									key={tab}
+									type="button"
+									role="tab"
+									aria-selected={tab === id}
+									className={cx("card-tab", tab === id && "on")}
+									onClick={() => onShow(tab)}
+								>
+									{PANEL_TITLES[tab]}
+								</button>
+							))}
+						</span>
+					) : (
+						<span className="card-title">{PANEL_TITLES[id]}</span>
+					)}
 					<span
 						className="card-slot"
 						ref={(el) => {

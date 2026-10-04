@@ -258,7 +258,7 @@ export const ProjectTree = memo(function ProjectTree({
 						<div
 							key={`${entry.path}#${fn.id}`}
 							className={cx("tree-row function-row", open && "open-doc")}
-							style={depthStyle(depth + fn.depth)}
+							style={depthStyle(depth + fn.depth, 1)}
 							title={`${fn.name} in ${entry.name}. Double-click to open its graph.`}
 							onDoubleClick={() => onOpenFunction(entry.path, fn.id)}
 						>
@@ -302,7 +302,7 @@ export const ProjectTree = memo(function ProjectTree({
 							readonly && "readonly",
 							dropTarget === entry.path && "drop-target",
 						)}
-						style={depthStyle(depth)}
+						style={depthStyle(depth, 1)}
 						draggable={!isDir && !isListed(entry)}
 						onDragStart={(e) => onDragStart(e, entry)}
 						onDragOver={(e) => {

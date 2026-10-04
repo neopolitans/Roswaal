@@ -162,7 +162,8 @@ export function useAutosave(context: AutosaveContext): Autosave {
 			const choice = await ask({
 				kind: "choice",
 				title: "This graph changed on disk",
-				message: `${path} was changed outside this tab while you had edits that were not saved yet.`,
+				message: "It was changed outside this tab while you had edits that were not saved yet.",
+				items: [path],
 				choices: [
 					{ value: "disk", label: "Use the file" },
 					{ value: "mine", label: "Keep my edits", primary: true },

@@ -5,10 +5,16 @@
  * cannot be themed, and — the reason this exists — block the whole renderer
  * while they are open, which makes the app unresponsive to anything but a
  * human hand. An in-app modal is a few lines more and behaves.
+ *
+ * Drawn as the panels are: a header band with a badge in the colour of the
+ * kind of question -- the accent to make or open something, red to delete,
+ * amber when something needs deciding, grey for a notice -- fields beside
+ * bold labels, one of several as rows to pick, and a foot naming the keys.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { cx } from "./cx.js";
+import { Icon, type IconName } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 
 export type DialogRequest =
@@ -16,9 +22,12 @@ export type DialogRequest =
 			kind: "prompt";
 			title: string;
 			label?: string;
+			/** A line under the field: where the thing will be made. */
+			hint?: string;
 			value?: string;
 			placeholder?: string;
 			confirmLabel?: string;
+			icon?: IconName;
 	  }
 	| {
 			kind: "confirm";
@@ -28,6 +37,7 @@ export type DialogRequest =
 			items?: string[];
 			confirmLabel?: string;
 			danger?: boolean;
+			icon?: IconName;
 	  }
 	| { kind: "notice"; title: string; message: string }
 	| {
@@ -35,6 +45,8 @@ export type DialogRequest =
 			kind: "choice";
 			title: string;
 			message: string;
+			/** Listed under the message: what the choice is about, by name. */
+			items?: string[];
 			choices: { value: string; label: string; primary?: boolean }[];
 	  }
 	| {
@@ -44,6 +56,7 @@ export type DialogRequest =
 			message: string;
 			fields: FormField[];
 			confirmLabel?: string;
+			icon?: IconName;
 	  };
 
 export type FormField =
@@ -80,6 +93,24 @@ export type DialogResult = string | boolean | null;
 export interface PendingDialog {
 	request: DialogRequest;
 	resolve: (result: DialogResult) => void;
+}
+
+/** The colour a kind of question is drawn in, and its glyph unless it names one. */
+function toneOf(request: DialogRequest): { tone: string; icon: IconName } {
+	switch (request.kind) {
+		case "prompt":
+			return { tone: "accent", icon: request.icon ?? "rename" };
+		case "form":
+			return { tone: "accent", icon: request.icon ?? "document" };
+		case "confirm":
+			return request.danger
+				? { tone: "danger", icon: request.icon ?? "remove" }
+				: { tone: "accent", icon: request.icon ?? "help" };
+		case "choice":
+			return { tone: "warning", icon: "warning" };
+		case "notice":
+			return { tone: "info", icon: "help" };
+	}
 }
 
 export function Dialog({ request, resolve }: PendingDialog) {
@@ -120,10 +151,17 @@ export function Dialog({ request, resolve }: PendingDialog) {
 		} else resolve(true);
 	}
 
+	const { tone, icon } = toneOf(request);
+	const items = request.kind === "confirm" || request.kind === "choice" ? request.items : undefined;
+
 	return (
 		<div className="dialog-backdrop" style={{ zIndex: LAYER.menu + 1 }} onPointerDown={cancel}>
 			<div
-				className="dialog"
+				className={cx(
+					"dialog dialog-panel",
+					`dialog-${tone}`,
+					request.kind === "choice" && "dialog-wide",
+				)}
 				role="dialog"
 				aria-modal="true"
 				aria-label={request.title}
@@ -139,102 +177,145 @@ export function Dialog({ request, resolve }: PendingDialog) {
 					}
 				}}
 			>
-				<h3>{request.title}</h3>
+				<header className="dialog-head">
+					<span className="dialog-badge">
+						<Icon name={icon} size={17} />
+					</span>
+					<h3>{request.title}</h3>
+					<button
+						type="button"
+						className="tb icon-only dialog-close"
+						aria-label={request.kind === "notice" ? "Close" : "Cancel"}
+						title={request.kind === "notice" ? "Close (Esc)" : "Cancel (Esc)"}
+						onClick={request.kind === "notice" ? accept : cancel}
+					>
+						<Icon name="close" size={14} />
+					</button>
+				</header>
 
-				{request.kind === "prompt" ? (
-					<label className="field">
-						{request.label && <span>{request.label}</span>}
-						<input
-							ref={input}
-							className="tb"
-							value={text}
-							placeholder={request.placeholder}
-							onChange={(e) => setText(e.target.value)}
-						/>
-					</label>
-				) : request.kind === "form" ? (
-					<>
-						<p>{request.message}</p>
-						{request.fields.map((field) => {
-							if (field.kind === "text") {
-								return (
-									<label key={field.id} className="field">
-										<span>{field.label}</span>
-										<input
-											ref={input}
-											className="tb"
-											value={String(answers[field.id])}
-											onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.value })}
-										/>
-									</label>
-								);
-							}
-							if (field.kind === "select") {
-								return (
-									<label key={field.id} className="field">
-										<span>{field.label}</span>
-										<select
-											className="tb"
-											value={String(answers[field.id])}
-											onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.value })}
-										>
+				<div className="dialog-body">
+					{request.kind === "prompt" ? (
+						<label className="field wide">
+							{request.label && <span>{request.label}</span>}
+							<input
+								ref={input}
+								className="tb"
+								value={text}
+								placeholder={request.placeholder}
+								onChange={(e) => setText(e.target.value)}
+							/>
+							{request.hint && (
+								<small>
+									<Icon name="folder" size={12} />
+									{request.hint}
+								</small>
+							)}
+						</label>
+					) : request.kind === "form" ? (
+						<>
+							<p>{request.message}</p>
+							{request.fields.map((field) => {
+								if (field.kind === "text") {
+									return (
+										<label key={field.id} className="field">
+											<span>{field.label}</span>
+											<input
+												ref={input}
+												className="tb"
+												value={String(answers[field.id])}
+												onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.value })}
+											/>
+										</label>
+									);
+								}
+								if (field.kind === "select") {
+									return (
+										<label key={field.id} className="field">
+											<span>{field.label}</span>
+											<select
+												className="tb"
+												value={String(answers[field.id])}
+												onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.value })}
+											>
+												{field.options.map((option) => (
+													<option key={option.value} value={option.value}>
+														{option.label}
+													</option>
+												))}
+											</select>
+										</label>
+									);
+								}
+								if (field.kind === "choice") {
+									return (
+										<fieldset key={field.id} className="dialog-choices">
+											<legend>{field.label}</legend>
 											{field.options.map((option) => (
-												<option key={option.value} value={option.value}>
+												<label
+													key={option.value}
+													className={cx(
+														"dialog-option",
+														answers[field.id] === option.value && "on",
+													)}
+												>
+													<input
+														type="radio"
+														name={field.id}
+														checked={answers[field.id] === option.value}
+														onChange={() => setAnswers({ ...answers, [field.id]: option.value })}
+													/>
 													{option.label}
-												</option>
+												</label>
 											))}
-										</select>
+										</fieldset>
+									);
+								}
+								return (
+									<label
+										key={field.id}
+										className={cx(
+											"dialog-option dialog-check",
+											!offered(field) && "dialog-option-off",
+										)}
+									>
+										<input
+											type="checkbox"
+											disabled={!offered(field)}
+											checked={offered(field) && answers[field.id] === true}
+											onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.checked })}
+										/>
+										{field.label}
 									</label>
 								);
-							}
-							if (field.kind === "choice") {
-								return (
-									<fieldset key={field.id} className="dialog-choices">
-										<legend>{field.label}</legend>
-										{field.options.map((option) => (
-											<label key={option.value} className="dialog-option">
-												<input
-													type="radio"
-													name={field.id}
-													checked={answers[field.id] === option.value}
-													onChange={() => setAnswers({ ...answers, [field.id]: option.value })}
-												/>
-												{option.label}
-											</label>
-										))}
-									</fieldset>
-								);
-							}
-							return (
-								<label
-									key={field.id}
-									className={cx("dialog-option", !offered(field) && "dialog-option-off")}
-								>
-									<input
-										type="checkbox"
-										disabled={!offered(field)}
-										checked={offered(field) && answers[field.id] === true}
-										onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.checked })}
-									/>
-									{field.label}
-								</label>
-							);
-						})}
-					</>
-				) : (
-					<>
+							})}
+						</>
+					) : (
 						<p>{request.message}</p>
-						{request.kind === "confirm" && request.items && request.items.length > 0 && (
-							<ul className="dialog-list">
-								{request.items.map((item) => (
-									<li key={item}>{item}</li>
-								))}
-							</ul>
-						)}
-					</>
-				)}
+					)}
+					{items && items.length > 0 && (
+						<ul className="dialog-list">
+							{items.map((item) => (
+								<li key={item}>
+									<Icon name="document" size={13} />
+									<span>{item}</span>
+								</li>
+							))}
+						</ul>
+					)}
+				</div>
 
 				<div className="dialog-actions">
+					<span className="dialog-keys">
+						{request.kind === "notice" ? (
+							<>
+								<kbd>Enter</kbd> or <kbd>Esc</kbd> to close
+							</>
+						) : (
+							<>
+								<kbd>Enter</kbd> to confirm · <kbd>Esc</kbd> to cancel
+							</>
+						)}
+					</span>
 					{request.kind !== "notice" && (
 						<button className="tb" onClick={cancel}>
 							Cancel

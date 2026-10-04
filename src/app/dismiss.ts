@@ -21,6 +21,11 @@ export interface DismissOptions {
 	enabled?: boolean;
 	/** Escape closes it too. For menus; a field inside may want Escape for itself. */
 	escape?: boolean;
+	/**
+	 * Elsewhere that counts as inside: a menu portalled to the body, which
+	 * the DOM does not place under the element that opened it.
+	 */
+	also?: RefObject<Element | null>;
 }
 
 /**
@@ -32,7 +37,7 @@ export interface DismissOptions {
 export function useDismiss(
 	ref: RefObject<Element | null>,
 	onClose: () => void,
-	{ enabled = true, escape = false }: DismissOptions = {},
+	{ enabled = true, escape = false, also }: DismissOptions = {},
 ): void {
 	const close = useRef(onClose);
 	close.current = onClose;
@@ -41,7 +46,8 @@ export function useDismiss(
 		if (!enabled) return;
 		const away = (e: PointerEvent) => {
 			// A pointer event dispatched to the page always targets a Node.
-			if (!ref.current?.contains(e.target as Node)) close.current();
+			const target = e.target as Node;
+			if (!ref.current?.contains(target) && !also?.current?.contains(target)) close.current();
 		};
 		const key = (e: KeyboardEvent) => {
 			if (e.key === "Escape") close.current();
@@ -52,5 +58,5 @@ export function useDismiss(
 			window.removeEventListener("pointerdown", away, true);
 			window.removeEventListener("keydown", key, true);
 		};
-	}, [ref, enabled, escape]);
+	}, [ref, enabled, escape, also]);
 }

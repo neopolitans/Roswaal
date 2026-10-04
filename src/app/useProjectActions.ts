@@ -704,8 +704,10 @@ export function useProjectActions(context: ProjectActionsContext) {
 			const name = await ask({
 				kind: "prompt",
 				title: "New graph",
-				label: `Name — created in ${dir}`,
+				label: "Name",
+				hint: `Created in ${dir}`,
 				value: "Untitled",
+				icon: "newFile",
 			});
 			if (typeof name !== "string") return;
 			try {
@@ -724,8 +726,10 @@ export function useProjectActions(context: ProjectActionsContext) {
 			const name = await ask({
 				kind: "prompt",
 				title: "New node map",
-				label: `Name — created in ${dir}`,
+				label: "Name",
+				hint: `Created in ${dir}`,
 				value: "Tree",
+				icon: "map",
 			});
 			if (typeof name !== "string") return;
 			try {
@@ -748,7 +752,9 @@ export function useProjectActions(context: ProjectActionsContext) {
 				kind: "prompt",
 				title: "New folder",
 				label: "Name",
+				hint: `Created in ${parentDir || "the project root"}`,
 				value: "NewFolder",
+				icon: "newFolder",
 			});
 			if (typeof name !== "string") return;
 			try {
@@ -790,11 +796,12 @@ export function useProjectActions(context: ProjectActionsContext) {
 
 	const onTreeDelete = useCallback(
 		async (paths: string[]) => {
-			const label = paths.length === 1 ? paths[0] : `${paths.length} items`;
+			const label = paths.length === 1 ? "this" : `these ${paths.length}`;
 			const ok = await ask({
 				kind: "confirm",
 				title: "Delete",
 				message: `Delete ${label}? This cannot be undone from Roswaal.`,
+				items: paths,
 				confirmLabel: "Delete",
 				danger: true,
 			});

@@ -9,6 +9,27 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.131.0",
+		date: "2026-10-04",
+		headline: "Prompts redrawn, and the tablet drawer brought into line.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A prompt says what it is about**: Delete lists what goes by name, and a graph changed on disk names its file.",
+			"**Prompts name their keys**: Enter to confirm and Esc to cancel, at the foot.",
+		],
+		changed: [
+			"Every prompt has a header with a badge in the colour of the question: the accent to make or open something, red to delete, amber when something needs deciding, grey for a notice. Close is at its end.",
+			"Fields in a prompt sit beside bold labels, and New graph, New node map and New folder say under the name where it will be made.",
+			"In a form, one of several is a row to pick, and the picked one is tinted.",
+			"On a tablet, the Project and Variables drawer has its panels as tabs in its header, as a card does on a computer.",
+			"The Project panel's lines under open folders start from the first folder, and stop short of a graph's own fold.",
+		],
+		fixed: [
+			"The list of open tabs opens on an iPad and an iPhone.",
+			"A choice between three answers no longer clips its buttons.",
+		],
+	},
+	{
 		version: "0.130.1",
 		date: "2026-10-04",
 		headline: "The docs' drawn Variables panel, tidied.",

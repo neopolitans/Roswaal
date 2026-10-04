@@ -461,6 +461,7 @@ export function App() {
 				kind: "prompt",
 				title: "Open a project",
 				label: `This machine has no folder dialog (${errorMessage(err)})`,
+				icon: "folderOpen",
 				placeholder: "C:" + SEP + "path" + SEP + "to" + SEP + "project",
 			});
 			chosen = typeof typed === "string" && typed.trim() !== "" ? typed.trim() : null;

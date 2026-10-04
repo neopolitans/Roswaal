@@ -834,7 +834,13 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 		case "message":
 			return `<p${tie}>${escapeXml(item.text)}</p>`;
 		case "list":
-			return `<ul class="dialog-list"${tie}>${item.items.map((line) => `<li>${escapeXml(line)}</li>`).join("")}</ul>`;
+			return (
+				`<ul class="dialog-list"${tie}>` +
+				item.items
+					.map((line) => `<li>${iconSvg("document", 13, art)}<span>${escapeXml(line)}</span></li>`)
+					.join("") +
+				`</ul>`
+			);
 		case "formSection":
 			return `<div class="export-menu-section"${tie}>${escapeXml(item.text)}</div>`;
 		case "formRow": {
@@ -996,6 +1002,45 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 			itemsOf(head) +
 				`<div class="place-props">${before.map(itemsOf).join("")}` +
 				`<div class="place-groups">${groups.map((g) => `<div class="place-group">${itemsOf(g)}</div>`).join("")}</div></div>`,
+		);
+	}
+	// One of Dialog.tsx's prompts, as it draws them: a header band with a
+	// badge in the colour of the question, the body, and a foot naming the
+	// keys. The Export panel, with a class of its own, is laid out on the
+	// plain dialog and keeps it.
+	if (spec.chrome === "modal" && !spec.className) {
+		const danger = spec.groups.some((g) =>
+			g.items.some((item) => item.t === "button" && item.danger === true),
+		);
+		const title = spec.groups
+			.flatMap((g) => g.items)
+			.find((item): item is ToolbarItem & { t: "dialogTitle" } => item.t === "dialogTitle");
+		const bodyOf = (g: ToolbarGroup) =>
+			g.items
+				.filter((item) => item.t !== "dialogTitle")
+				.map((item) => itemHtml(item, art))
+				.join("");
+		const head =
+			`<header class="dialog-head"><span class="dialog-badge">` +
+			`${iconSvg(danger ? "remove" : "document", 17, art)}</span>` +
+			`<h3>${escapeXml(title?.text ?? spec.title)}</h3>` +
+			`<span class="tb icon-only dialog-close">${iconSvg("close", 14, art)}</span></header>`;
+		const body = `<div class="dialog-body">${spec.groups
+			.filter((g) => !g.actions)
+			.map(bodyOf)
+			.join("")}</div>`;
+		const foot = spec.groups
+			.filter((g) => g.actions)
+			.map(
+				(g) =>
+					`<div class="dialog-actions"><span class="dialog-keys"><kbd>Enter</kbd> to confirm \u00b7 ` +
+					`<kbd>Esc</kbd> to cancel</span>${itemsOf(g)}</div>`,
+			)
+			.join("");
+		return (
+			`<div class="docs-bar-frame modal" aria-hidden="true">` +
+			`<div class="${CHROME_CLASS.modal} dialog-panel dialog-${danger ? "danger" : "accent"}">` +
+			`${head}${body}${foot}</div></div>`
 		);
 	}
 	if (spec.chrome === "modal") {

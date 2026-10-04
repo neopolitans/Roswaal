@@ -124,6 +124,6 @@ describe("the two pages", () => {
 		expect(page.blocks.filter((b) => b.t === "walkthrough")).toHaveLength(2);
 		const html = renderPage(site, page, { version: "test", toolbars: art });
 		expect(html).toContain('data-point="add-from-wally"');
-		expect(html).toContain('<div class="dialog docs-dialog-shot">');
+		expect(html).toContain('<div class="dialog docs-dialog-shot dialog-panel dialog-accent">');
 	});
 });

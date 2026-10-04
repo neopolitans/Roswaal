@@ -102,7 +102,15 @@ export function Ident({ name, kind, color, icon, children, className }: IdentPro
 /**
  * A row's indent, and its depth for the guides: a hairline under each open
  * folder, drawn by `.tree-row::before`.
+ *
+ * `from` is the first depth that has a folder row to hang a line from. The
+ * Project panel's top folders sit under a section heading rather than a
+ * folder, so their level draws no line; a place's services are its top rows.
  */
-export function depthStyle(depth: number): CSSProperties {
-	return { paddingLeft: 6 + depth * 13, "--depth": depth } as CSSProperties;
+export function depthStyle(depth: number, from = 0): CSSProperties {
+	return {
+		paddingLeft: 6 + depth * 13,
+		"--depth": Math.max(0, depth - from),
+		"--guide-from": from,
+	} as CSSProperties;
 }
