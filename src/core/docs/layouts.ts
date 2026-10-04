@@ -440,6 +440,16 @@ const INTRO_FOOT = {
 	project: { name: "Project", what: "Opening, exporting and starting again." },
 } satisfies Record<string, LayoutPart>;
 
+/** One side's pin count under the plate, as `NodeEditor`'s `pinStepper` draws it. */
+function stepperHtml(label: string, count: number): string {
+	const button = (text: string) =>
+		`<button type="button" class="tb icon-only"${INERT}>${text}</button>`;
+	return (
+		`<span class="pin-stepper"><span class="group-label">${label}</span>` +
+		`<span class="pin-stepper-track">${button("−")}<span class="pin-stepper-count">${count}</span>${button("+")}</span></span>`
+	);
+}
+
 /** The mark at a size other than a bar's: `art.mark` is drawn 15 high. */
 function markAt(height: number, art: ToolbarArt, tint?: string): string {
 	return (
@@ -648,10 +658,8 @@ function designerCardHtml(card: DesignerCard, art: ToolbarArt, preview?: Preview
 			const counts =
 				card.counts === "popout"
 					? itemsHtml([{ t: "popout", text: "Pins" }], art)
-					: `<span class="tool-label">Inputs</span><button type="button" class="tb icon-only"${INERT}>−</button>` +
-						`<button type="button" class="tb icon-only"${INERT}>+</button><span class="divider"></span>` +
-						`<span class="tool-label">Outputs</span><button type="button" class="tb icon-only"${INERT}>−</button>` +
-						`<button type="button" class="tb icon-only"${INERT}>+</button>`;
+					: `${stepperHtml("Inputs", card.node?.inputs.length ?? 0)}<span class="divider"></span>` +
+						stepperHtml("Outputs", card.node?.outputs.length ?? 0);
 			const head = card.title
 				? `<div class="plate-head"><span class="plate-title">${escapeXml(card.title)}</span>` +
 					`<button type="button" class="tb icon-only"${INERT}>${glyphHtml("chevron", 14, art)}</button></div>`
@@ -1285,6 +1293,7 @@ export const DESIGNER_LAYOUT: LayoutSpec = {
 				},
 				{
 					apart: true,
+					wrap: "logic-mode-group",
 					items: [
 						{ t: "label", text: "Logic" },
 						{ t: "segmented", options: ["Luau", "Nodes"], on: 0 },
@@ -1409,6 +1418,7 @@ export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 				},
 				{
 					apart: true,
+					wrap: "logic-mode-group",
 					items: [
 						{ t: "label", text: "Logic" },
 						{ t: "segmented", options: ["Luau", "Nodes"], on: 0 },

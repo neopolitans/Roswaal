@@ -501,39 +501,44 @@ export function NodeEditor({
 			))}
 		</>
 	);
+	// Each side's count between its − and +, as a stepper: the number is what
+	// the buttons change, so it sits where they do.
+	const pinStepper = (side: Side) => {
+		const word = side === "in" ? "input" : "output";
+		const count = pinsOn(side).length;
+		return (
+			<span className="pin-stepper">
+				<span className="group-label">{side === "in" ? "Inputs" : "Outputs"}</span>
+				<span className="pin-stepper-track">
+					<button
+						className="tb icon-only"
+						title={`Take the last ${word} off`}
+						aria-label={`Take the last ${word} off`}
+						disabled={count === 0}
+						onClick={() => removeLast(side)}
+					>
+						−
+					</button>
+					<span className="pin-stepper-count" aria-live="polite">
+						{count}
+					</span>
+					<button
+						className="tb icon-only"
+						title={`Add an ${word}`}
+						aria-label={`Add an ${word}`}
+						onClick={() => structural((d) => addPin(d, side, "any"))}
+					>
+						+
+					</button>
+				</span>
+			</span>
+		);
+	};
 	const pinCounts = (
 		<>
-			<span className="tool-label">Inputs</span>
-			<button
-				className="tb icon-only"
-				title="Take the last input off"
-				onClick={() => removeLast("in")}
-			>
-				−
-			</button>
-			<button
-				className="tb icon-only"
-				title="Add an input"
-				onClick={() => structural((d) => addPin(d, "in", "any"))}
-			>
-				+
-			</button>
+			{pinStepper("in")}
 			<span className="divider" />
-			<span className="tool-label">Outputs</span>
-			<button
-				className="tb icon-only"
-				title="Take the last output off"
-				onClick={() => removeLast("out")}
-			>
-				−
-			</button>
-			<button
-				className="tb icon-only"
-				title="Add an output"
-				onClick={() => structural((d) => addPin(d, "out", "any"))}
-			>
-				+
-			</button>
+			{pinStepper("out")}
 		</>
 	);
 	const nodeKindGroup = () => (
@@ -657,7 +662,7 @@ export function NodeEditor({
 	) : (
 		<>
 			<ToolGroup className="logic-mode-group">
-				<span className="tool-label">Logic</span>
+				<span className="group-label">Logic</span>
 				{modeSwitch}
 			</ToolGroup>
 			{nodeKindGroup()}

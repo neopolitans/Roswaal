@@ -12496,6 +12496,40 @@ select:not(.literal):not([multiple]) {
 	display: none;
 }
 
+/* How a node's logic is written, in Node Design's top row: drawn as it was
+   in the logic's head -- the word in bold, the switch on its own track --
+   rather than as two of the row's buttons, so it reads as one setting. */
+.tool-group.logic-mode-group {
+	align-items: center;
+	gap: 8px;
+	padding-left: 10px;
+}
+
+.tool-group.logic-mode-group .group-label {
+	margin: 0;
+	font-size: var(--text-md);
+	font-weight: 700;
+	color: var(--fg);
+	white-space: nowrap;
+}
+
+.tool-group.logic-mode-group .segmented {
+	padding: 2px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+}
+
+.tool-group.logic-mode-group .segmented button {
+	min-height: calc(var(--hit) - 6px);
+	padding: 0 10px;
+	border-radius: var(--radius-xs);
+}
+
+.tool-group.logic-mode-group .segmented button.on {
+	font-weight: 400;
+}
+
 .node-editor:not(.split) .logic-head {
 	position: absolute;
 	left: calc(var(--list-w, 0px) + var(--edge));
@@ -12644,6 +12678,56 @@ select:not(.literal):not([multiple]) {
 	   touch screen's 38px buttons it wrapped onto two lines under the node. */
 	width: max-content;
 	flex-wrap: nowrap;
+}
+
+/* Each side's count as a stepper: the word, then − count + on one track, as
+   the Logic switch in the top row is drawn. */
+.pin-stepper {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding-left: 6px;
+}
+
+.pin-stepper .group-label {
+	font-size: var(--text-md);
+	font-weight: 700;
+	color: var(--fg);
+	white-space: nowrap;
+}
+
+.pin-stepper-track {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+}
+
+.pin-stepper-track .tb.icon-only {
+	width: calc(var(--hit) - 6px);
+	min-width: 0;
+	height: calc(var(--hit) - 6px);
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-xs);
+	background: none;
+	font-size: var(--text-lg);
+	line-height: 1;
+}
+
+.pin-stepper-track .tb.icon-only:hover:not(:disabled) {
+	background: var(--bg-hover);
+}
+
+.pin-stepper-count {
+	min-width: 2ch;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	color: var(--accent);
 }
 
 /* The types to drag onto the node, docked along the foot of the window at

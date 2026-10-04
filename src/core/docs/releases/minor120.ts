@@ -30,6 +30,7 @@ export const RELEASES_0_120: Release[] = [
 			"Deleting a pack asks in a dialog.",
 			"Node Design draws the canvas grid behind Luau logic, as it does behind nodes.",
 			"In Node Design on a computer, or a tablet held sideways, the Luau and Nodes switch is beside Details in the top row.",
+			"Under the node's plate, each side shows its pin count between its − and + buttons.",
 		],
 	},
 	{

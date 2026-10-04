@@ -1381,6 +1381,7 @@ export const DESIGNER_BAR: ToolbarSpec = {
 		},
 		{
 			apart: true,
+			wrap: "logic-mode-group",
 			items: [
 				{ t: "label", text: "Logic" },
 				{
@@ -1757,6 +1758,7 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 		},
 		{
 			apart: true,
+			wrap: "logic-mode-group",
 			items: [
 				{ t: "label", text: "Logic" },
 				{ t: "segmented", options: ["Luau", "Nodes"], on: 0, ...as(DESIGNER_BAR, "Luau or Nodes") },
@@ -2270,6 +2272,7 @@ export const DESIGNER_BAR_TABLET: ToolbarSpec = {
 		},
 		{
 			apart: true,
+			wrap: "logic-mode-group",
 			items: [
 				{ t: "label", text: "Logic" },
 				{ t: "segmented", options: ["Luau", "Nodes"], on: 0, ...as(DESIGNER_BAR, "Luau or Nodes") },
