@@ -341,7 +341,9 @@ export interface WalkStep {
 	/** What to do. Inline markup. */
 	text: string;
 	/** The screen at this step: bars drawn top to bottom, as they sit. */
-	picture: ToolbarSpec[];
+	picture?: ToolbarSpec[];
+	/** Or the whole window at this step, drawn as `layouts.ts` draws one, unnumbered. */
+	window?: LayoutSpec;
 	/** The control to press, by its name in one of the bars. */
 	point?: string;
 }

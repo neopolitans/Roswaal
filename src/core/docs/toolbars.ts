@@ -2387,100 +2387,10 @@ export const DOCS_SITE_BAR_PHONE: ToolbarSpec = {
 // Drawn for walkthroughs
 //
 // Pictures a walkthrough points into rather than bars the Toolbars page
-// documents: the projects panel's footer and its Project menu, and the start
-// page the daemon shows with no project open. Named, so a step can point at a
-// control, and described, so what a step points at always says what it is.
+// documents. Named, so a step can point at a control, and described, so what
+// a step points at always says what it is. The windows Getting started steps
+// through are `layouts.ts`'s.
 // ---------------------------------------------------------------------------
-
-/** The foot of the projects panel, which the Roswaal mark opens. */
-export const PROJECTS_FOOT: ToolbarSpec = {
-	id: "projects-foot",
-	title: "The projects panel's footer",
-	summary: "Along the bottom of the projects panel, which the Roswaal mark opens.",
-	chrome: "head",
-	groups: [
-		{
-			items: [
-				{
-					t: "button",
-					text: "Home",
-					icon: "chevron",
-					name: "Home",
-					what: "Closes the project, for the start page.",
-				},
-				{
-					t: "button",
-					text: "Project",
-					name: "Project",
-					what: "Opening, downloading and starting again.",
-				},
-			],
-		},
-		{
-			apart: true,
-			items: [
-				{ t: "button", text: "Node Design", icon: "palette" },
-				{ t: "button", text: "Docs", icon: "document" },
-			],
-		},
-	],
-};
-
-/** The Project menu in the web app, open. */
-export const PROJECT_MENU: ToolbarSpec = {
-	id: "project-menu",
-	title: "The Project menu",
-	summary: "What the Project button holds in the web app.",
-	chrome: "popmenu",
-	groups: [
-		{
-			items: [
-				{
-					t: "button",
-					text: "Open folder…",
-					icon: "folder",
-					name: "Open folder…",
-					what: "A folder on your computer, in Chrome and Edge.",
-				},
-				{
-					t: "button",
-					text: "Open .zip…",
-					icon: "folderOpen",
-					name: "Open .zip…",
-					what: "A project from a zip, in any browser.",
-				},
-				{
-					t: "button",
-					text: "Open place…",
-					icon: "folderOpen",
-					name: "Open place…",
-					what: "A project made from a .rbxl or .rbxlx.",
-				},
-				{
-					t: "button",
-					text: "Import Rojo project…",
-					icon: "map",
-					name: "Import Rojo project…",
-					what: "A node map read from the project's default.project.json.",
-				},
-				{
-					t: "button",
-					text: "Export…",
-					icon: "copy",
-					name: "Export…",
-					what: "The project as a zip, or its place file alone.",
-				},
-				{
-					t: "button",
-					text: "Start again",
-					icon: "refresh",
-					name: "Start again",
-					what: "Back to the demo.",
-				},
-			],
-		},
-	],
-};
 
 /**
  * The Project panel's heading. Written from `App.tsx`'s tree header: the
@@ -3098,36 +3008,8 @@ export const PLACE_BARS: ToolbarSpec[] = [
 	EXPORT_PANEL,
 ];
 
-/** The daemon's start page: a path, Browse, and Open. */
-export const START_PAGE: ToolbarSpec = {
-	id: "start-page",
-	title: "The start page",
-	summary: "What the installed editor shows with no project open.",
-	chrome: "head",
-	groups: [
-		{
-			items: [
-				{ t: "field", text: "C:\\path\\to\\project", name: "Path", what: "The folder to open." },
-				{
-					t: "button",
-					text: "Browse…",
-					name: "Browse…",
-					what: "Chooses the folder with your computer's own dialog.",
-				},
-				{
-					t: "button",
-					text: "Open",
-					primary: true,
-					name: "Open",
-					what: "Opens it, or Initialise for a folder that is not a project yet.",
-				},
-			],
-		},
-	],
-};
-
 /** Every picture a walkthrough draws, for the tests that hold them to the icon set. */
-export const WALK_BARS: ToolbarSpec[] = [PROJECTS_FOOT, PROJECT_MENU, START_PAGE, ...PLACE_BARS];
+export const WALK_BARS: ToolbarSpec[] = [...PLACE_BARS];
 
 /**
  * The row of edits along the bottom of the graph on a phone or a tablet.

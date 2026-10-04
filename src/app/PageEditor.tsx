@@ -152,13 +152,17 @@ function blockSource(draft: Draft, indent = "\t\t"): string {
 		const caption = block.caption ? `, caption: ${str(block.caption)}` : "";
 		return `${indent}{ t: "layout", layout: ${layoutConstant(block.layout)}${hint}${caption} },`;
 	}
-	// Each step's bars by the constants `toolbars.ts` exports them as.
+	// Each step's bars or window by the constants `toolbars.ts` and
+	// `layouts.ts` export them as.
 	if (block.t === "walkthrough") {
 		const inner = `${indent}\t\t`;
 		const steps = block.steps
 			.map(
 				(step) =>
-					`${inner}{ text: ${str(step.text)}, picture: [${step.picture.map(toolbarConstant).join(", ")}]` +
+					`${inner}{ text: ${str(step.text)}, ` +
+					(step.window
+						? `window: ${layoutConstant(step.window)}`
+						: `picture: [${(step.picture ?? []).map(toolbarConstant).join(", ")}]`) +
 					`${step.point ? `, point: ${str(step.point)}` : ""} },`,
 			)
 			.join(NEWLINE);

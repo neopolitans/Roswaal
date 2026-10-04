@@ -13240,3 +13240,23 @@ select:not(.literal):not([multiple]) {
 		white-space: nowrap;
 	}
 }
+
+/* A walkthrough that steps through whole windows: the frame takes the
+   column's width, which the window diagram measures and fills, and the ring
+   on the control to press keeps its weight at the diagram's scale. */
+.docs-walk-frame.walk-window {
+	width: auto;
+}
+
+.docs-layout-screen .walk-here {
+	box-shadow: 0 0 0 calc(3px / var(--z)) var(--accent);
+	animation-name: walk-here-window;
+}
+
+@keyframes walk-here-window {
+	50% {
+		box-shadow:
+			0 0 0 calc(3px / var(--z)) var(--accent),
+			0 0 0 calc(9px / var(--z)) color-mix(in srgb, var(--accent) 35%, transparent);
+	}
+}

@@ -12,6 +12,13 @@ import { stepState } from "../src/app/docsWalk.js";
 import { ICONS } from "../src/app/icons.js";
 import { pageSource } from "../src/app/PageEditor.jsx";
 import { renderPage } from "../src/core/docs/html.js";
+import * as layouts from "../src/core/docs/layouts.js";
+import {
+	layoutConstant,
+	layoutControls,
+	layoutIcons,
+	WALK_WINDOWS,
+} from "../src/core/docs/layouts.js";
 import { type Block, buildSite, type WalkStep } from "../src/core/docs/site.js";
 import * as toolbars from "../src/core/docs/toolbars.js";
 import { iconsOf, legendOf, toolbarConstant, WALK_BARS } from "../src/core/docs/toolbars.js";
@@ -39,21 +46,37 @@ describe("walkthroughs", () => {
 		expect(walkthroughs().filter((w) => w.page === "getting-started")).toHaveLength(3);
 	});
 
+	it("draw one picture a step: bars, or a window", () => {
+		for (const { page, steps } of walkthroughs()) {
+			steps.forEach((step, i) => {
+				const bars = step.picture?.length ?? 0;
+				expect(bars > 0 !== (step.window !== undefined), `${page} step ${i + 1}`).toBe(true);
+			});
+		}
+	});
+
 	it("point every step at a control its own drawing has", () => {
 		for (const { page, steps } of walkthroughs()) {
 			steps.forEach((step, i) => {
-				expect(step.picture.length, `${page} step ${i + 1}`).toBeGreaterThan(0);
 				if (!step.point) return;
-				const named = step.picture.flatMap((bar) => legendOf(bar).map((item) => item.name));
+				const named = step.window
+					? layoutControls(step.window)
+					: (step.picture ?? []).flatMap((bar) => legendOf(bar).map((item) => item.name));
 				expect(named, `${page} step ${i + 1}`).toContain(step.point);
 			});
 		}
 	});
 
-	it("draw only bars that are exported under the name Suggest an edit writes", () => {
+	it("draw only bars and windows exported under the name Suggest an edit writes", () => {
 		for (const { steps } of walkthroughs()) {
-			for (const bar of steps.flatMap((step) => step.picture)) {
+			for (const bar of steps.flatMap((step) => step.picture ?? [])) {
 				expect((toolbars as Record<string, unknown>)[toolbarConstant(bar)], bar.id).toBe(bar);
+			}
+			for (const window of steps.flatMap((step) => (step.window ? [step.window] : []))) {
+				expect((layouts as Record<string, unknown>)[layoutConstant(window)], window.id).toBe(
+					window,
+				);
+				expect(WALK_WINDOWS, window.id).toContain(window);
 			}
 		}
 	});
@@ -62,6 +85,10 @@ describe("walkthroughs", () => {
 		for (const bar of WALK_BARS) {
 			for (const name of iconsOf(bar))
 				expect(ICONS, `${bar.id} draws "${name}"`).toHaveProperty(name);
+		}
+		for (const window of WALK_WINDOWS) {
+			for (const name of layoutIcons(window))
+				expect(ICONS, `${window.id} draws "${name}"`).toHaveProperty(name);
 		}
 	});
 
@@ -80,10 +107,10 @@ describe("a walkthrough on the page", () => {
 	it("draws every step's screen, the first one showing", () => {
 		const figure = html.slice(html.indexOf('<figure class="docs-walk">'));
 		expect(figure).toMatch(
-			/^<figure class="docs-walk"><div class="docs-walk-window"><div class="docs-walk-frame" data-point="[^"]+">/,
+			/^<figure class="docs-walk"><div class="docs-walk-window"><div class="docs-walk-frame walk-window" data-point="[^"]+">/,
 		);
 		expect(figure.slice(0, figure.indexOf("</figure>"))).toContain(
-			'class="docs-walk-frame" data-point="home" hidden',
+			'class="docs-walk-frame walk-window" data-point="home" hidden',
 		);
 	});
 
@@ -97,7 +124,7 @@ describe("a walkthrough on the page", () => {
 			page.blocks.map((block) => ({ block })),
 		);
 		expect(source).toContain('t: "walkthrough"');
-		expect(source).toContain("picture: [PROJECT_MENU, PROJECTS_FOOT]");
+		expect(source).toContain("window: WALK_PROJECT_MENU_WEB");
 		expect(source).toContain('point: "Open .zip…"');
 	});
 });

@@ -405,7 +405,13 @@ function renderBlock(
 			// legend markup and `data-control` pairing, so the one linking script
 			// lights both. Numbered, because the picture numbers its regions.
 			const art = options.toolbars;
-			const picture = art ? layoutHtml(block.layout, { ...art, version: options.version }) : "";
+			const picture = art
+				? layoutHtml(
+						block.layout,
+						{ ...art, version: options.version },
+						{ preview: options.preview },
+					)
+				: "";
 			const legend = listedRegions(block.layout)
 				.map(
 					(region, i) =>
@@ -431,12 +437,19 @@ function renderBlock(
 			const frames = block.steps
 				.map(
 					(step, i) =>
-						`<div class="docs-walk-frame"${step.point ? ` data-point="${escapeHtml(controlKey(step.point))}"` : ""}` +
+						`<div class="docs-walk-frame${step.window ? " walk-window" : ""}"` +
+						`${step.point ? ` data-point="${escapeHtml(controlKey(step.point))}"` : ""}` +
 						`${i > 0 ? " hidden" : ""}>` +
 						(art
-							? step.picture
-									.map((bar) => toolbarHtml(bar, { ...art, version: options.version }))
-									.join("")
+							? step.window
+								? layoutHtml(
+										step.window,
+										{ ...art, version: options.version },
+										{ preview: options.preview, numbered: false },
+									)
+								: (step.picture ?? [])
+										.map((bar) => toolbarHtml(bar, { ...art, version: options.version }))
+										.join("")
 							: "") +
 						`</div>`,
 				)

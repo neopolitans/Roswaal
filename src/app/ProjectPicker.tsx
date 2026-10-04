@@ -8,7 +8,7 @@ import { api } from "./api.js";
 import { useHostCan, useHostFailure } from "./host.js";
 import { IS_STATIC_HOST } from "./pages.js";
 import { MarkedLogo } from "./previewBuild.jsx";
-import { forget, recentProjects } from "./recents.js";
+import { forget, projectName, recentProjects } from "./recents.js";
 
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
@@ -193,7 +193,7 @@ export function ProjectPicker({
 					{recent.map((path) => (
 						<div key={path} className="shell-recent-row">
 							<button className="shell-recent-open" disabled={!!busy} onClick={() => onOpen(path)}>
-								<span className="name">{path.split(/[\/]/).filter(Boolean).pop()}</span>
+								<span className="name">{projectName(path)}</span>
 								<span className="path">{path}</span>
 							</button>
 							<button

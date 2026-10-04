@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.121.2",
+		date: "2026-10-04",
+		headline: "Getting started steps through the whole window.",
+		affects: ["docs", "editor"],
+		changed: [
+			"**Getting started** steps through drawings of the whole window, at the width of the page: the editor, its projects panel, the Project menu and the start page, on a computer or a tablet.",
+			"**Node Design's pictures** on [The interface](the-interface) draw the node on its plate, and the problems line where a phone has it, under the pack bar.",
+		],
+		fixed: [
+			"**No number on a window diagram** is drawn under a card or over another number.",
+			"**The start page** names a recent project by its folder, where on Windows it showed the whole path twice.",
+		],
+	},
+	{
 		version: "0.121.1",
 		date: "2026-10-04",
 		headline: "The docs' window diagrams fill their column.",

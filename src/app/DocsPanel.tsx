@@ -945,12 +945,15 @@ function GraphTabs({ block }: { block: Block & { t: "graphs" } }) {
  */
 function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
 	const figure = useRef<HTMLElement>(null);
+	const preview = useContext(PreviewContext);
 	const frames = useMemo(
 		() =>
 			block.steps.map((step) => ({
-				__html: step.picture.map((bar) => toolbarHtml(bar, TOOLBAR_ART)).join(""),
+				__html: step.window
+					? layoutHtml(step.window, TOOLBAR_ART, { preview, numbered: false })
+					: (step.picture ?? []).map((bar) => toolbarHtml(bar, TOOLBAR_ART)).join(""),
 			})),
-		[block],
+		[block, preview],
 	);
 	useEffect(() => {
 		if (!figure.current) return;
@@ -963,7 +966,7 @@ function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
 				{block.steps.map((step, i) => (
 					<div
 						key={i}
-						className="docs-walk-frame"
+						className={step.window ? "docs-walk-frame walk-window" : "docs-walk-frame"}
 						data-point={step.point ? controlKey(step.point) : undefined}
 						hidden={i > 0}
 						dangerouslySetInnerHTML={frames[i]}
@@ -1165,7 +1168,11 @@ function LayoutFigure({
 	caption?: string;
 	hint?: boolean;
 }) {
-	const html = useMemo(() => ({ __html: layoutHtml(layout, TOOLBAR_ART) }), [layout]);
+	const preview = useContext(PreviewContext);
+	const html = useMemo(
+		() => ({ __html: layoutHtml(layout, TOOLBAR_ART, { preview }) }),
+		[layout, preview],
+	);
 	const figure = useRef<HTMLElement>(null);
 
 	useEffect(() => {

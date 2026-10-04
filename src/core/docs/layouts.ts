@@ -26,6 +26,14 @@
  * handed in, as they are for a toolbar.
  */
 
+import { DEMO_PROJECTS } from "../demoProjects.js";
+import {
+	type NodePreview,
+	type PreviewOptions,
+	pinOverhang,
+	previewSize,
+	previewSvg,
+} from "./preview.js";
 import { controlKey, glyphHtml, itemsHtml, type ToolbarArt, type ToolbarItem } from "./toolbars.js";
 
 /**
@@ -78,8 +86,12 @@ export type LayoutCard =
 	| { t: "packList"; pack: string; nodes: [string, string][] }
 	/** The pack bar on a touch screen: `PackView`'s, with `NodeEditor`'s switches on a phone. */
 	| { t: "packBar"; pack: string; node: string; views?: boolean }
-	/** The node's plate: the title bar and its fold, the plate and the pin counts. */
-	| { t: "plate"; title?: string; counts: "buttons" | "popout" }
+	/**
+	 * The node's plate: the title bar and its fold, the node on its plate, and
+	 * the pin counts. The node is drawn where the picture is given the
+	 * canvas's geometry, as every node picture is.
+	 */
+	| { t: "plate"; title?: string; counts: "buttons" | "popout"; node?: NodePreview }
 	/** The selected pin's editor, docked under the plate: `PinPopover`. */
 	| { t: "pinEditor"; pin: string; type: string; logic: string }
 	/** Logic written as Luau: the sheet it is typed in. */
@@ -87,7 +99,24 @@ export type LayoutCard =
 	/** The logic's head: the word and the Luau | Nodes switch. */
 	| { t: "logicHead" }
 	/** What stops the node saving, or that nothing does: `node-problems`. */
-	| { t: "problems"; text: string };
+	| { t: "problems"; text: string; wide?: boolean }
+	/**
+	 * The projects panel the mark opens, over the dimmed window: `IntroPanel`.
+	 * The projects opened before, the demos, or the line saying there are
+	 * none; and its footer, **Home** and **Project**, with the Project menu
+	 * open when `menu` is given.
+	 */
+	| {
+			t: "intro";
+			recent?: [string, string][];
+			demos?: boolean;
+			empty?: string;
+			menu?: ToolbarItem[];
+			/** The mark in the web app's blue, as `MarkedLogo` draws it there. */
+			tint?: "preview";
+	  }
+	/** The installed editor with no project open: `ProjectPicker`. */
+	| { t: "start"; row: ToolbarItem[]; recent: [string, string][] };
 
 export interface LayoutRegion extends LayoutPart {
 	kind: RegionKind;
@@ -111,6 +140,12 @@ export interface LayoutRegion extends LayoutPart {
 	card?: LayoutCard;
 	/** The canvas's word in its corner, as `.watermark` draws it: Script, Events. */
 	watermark?: [string, string];
+	/**
+	 * Where its number sits, in the screen's pixels from the region's corner,
+	 * where the corner is not where the part shows: a canvas mostly covered
+	 * by cards, a plate in the middle of its stage.
+	 */
+	numberAt?: [number, number];
 }
 
 export interface LayoutSpec {
@@ -168,7 +203,30 @@ export function layoutIcons(spec: LayoutSpec): string[] {
 		...glyphsOf(region.items ?? []),
 		...(region.clusters ?? []).flatMap((cluster) => glyphsOf(cluster.items)),
 		...(region.card?.t === "project" ? glyphsOf(region.card.rows) : []),
+		...(region.card?.t === "intro"
+			? ["chevron", "close", "palette", "document", ...glyphsOf(region.card.menu ?? [])]
+			: []),
+		...(region.card?.t === "start" ? glyphsOf(region.card.row) : []),
 	]);
+}
+
+/**
+ * Every control a window names, for a walkthrough step to point at: its
+ * listed parts, and the named controls inside its cards.
+ */
+export function layoutControls(spec: LayoutSpec): string[] {
+	const named = (items: ToolbarItem[]) =>
+		items.flatMap((item) => (item.name === undefined ? [] : [item.name]));
+	return [
+		...listedRegions(spec).map((part) => part.name),
+		...spec.regions.flatMap((region) =>
+			region.card?.t === "intro"
+				? [INTRO_FOOT.home.name, INTRO_FOOT.project.name, ...named(region.card.menu ?? [])]
+				: region.card?.t === "start"
+					? named(region.card.row)
+					: [],
+		),
+	];
 }
 
 /** The constant a spec is exported as, for *Suggest an edit*. */
@@ -229,9 +287,13 @@ function field(label: string, control: string): string {
 const DOCK_BUTTON = `<button type="button" class="tb icon-only panel-float"${INERT}>⇥</button>`;
 
 /** A card the editor's window draws; Node Design's are `designerCardHtml`. */
-function cardHtml(card: LayoutCard, art: ToolbarArt): string {
+function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): string {
 	const dock = (inner: string) => `<div class="dock" style="${IN_PLACE}">${inner}</div>`;
 	switch (card.t) {
+		case "intro":
+			return introHtml(card, art);
+		case "start":
+			return startHtml(card, art);
 		case "project":
 			return dock(
 				`<div class="panel panel-tree" style="max-height:100%">${DOCK_BUTTON}` +
@@ -321,8 +383,114 @@ function cardHtml(card: LayoutCard, art: ToolbarArt): string {
 			);
 		}
 		default:
-			return designerCardHtml(card, art);
+			return designerCardHtml(card, art, preview);
 	}
+}
+
+/** The projects panel's own two buttons, named so a walkthrough can point at them. */
+const INTRO_FOOT = {
+	home: { name: "Home", what: "Closes the project, for the start page." },
+	project: { name: "Project", what: "Opening, exporting and starting again." },
+} satisfies Record<string, LayoutPart>;
+
+/** The mark at a size other than a bar's: `art.mark` is drawn 15 high. */
+function markAt(height: number, art: ToolbarArt, tint?: string): string {
+	return (
+		`<span class="logo-mark${tint ? ` mark-${tint}` : ""}" style="display:inline-flex;zoom:${(height / 15).toFixed(3)}">` +
+		`${art.mark}</span>`
+	);
+}
+
+/**
+ * The projects panel, centred over the dimmed window as `IntroPanel` draws
+ * it. The backdrop is the screen's rather than the viewport's, and the menu
+ * opens upwards from Project where the real one is placed by measuring.
+ */
+function introHtml(card: Extract<LayoutCard, { t: "intro" }>, art: ToolbarArt): string {
+	const shelf = (label: string, cards: string) =>
+		`<section class="intro-shelf"><div class="intro-shelf-head"><h2>${escapeXml(label)}</h2></div>` +
+		`<div class="intro-rail">${cards}</div></section>`;
+	const recent = (card.recent ?? [])
+		.map(
+			([name, tail], i) =>
+				`<div class="intro-card${i === 0 ? " on" : ""}"><button type="button" class="intro-card-open-it"${INERT}>` +
+				`<span class="intro-card-name">${escapeXml(name)}</span><span class="intro-card-what">${escapeXml(tail)}</span>` +
+				`</button>${i === 0 ? `<span class="intro-card-open">open</span>` : ""}</div>`,
+		)
+		.join("");
+	const demos = card.demos
+		? DEMO_PROJECTS.map(
+				(demo) =>
+					`<button type="button" class="intro-card"${INERT}><span class="intro-card-name">${escapeXml(demo.name)}` +
+					`<span class="badge runtime ${demo.target}">${demo.target === "lune" ? "Lune" : "Roblox"}</span></span>` +
+					`<span class="intro-card-what">${escapeXml(demo.what)}</span>` +
+					`<span class="intro-card-open">${demo.graphs} graphs · take a copy</span></button>`,
+			).join("")
+		: "";
+	const body =
+		(recent ? shelf("Recent", recent) : "") +
+		(demos ? shelf(recent ? "Demos" : "Try it", demos) : "") +
+		(card.empty ? `<p class="intro-empty">${escapeXml(card.empty)}</p>` : "");
+	// The footer as the editor's: Home, and Project as the real popout, its
+	// menu hanging above it when open; the other windows at the far end.
+	const menu = card.menu
+		? `<div class="tool-popout-panel" style="top:auto;bottom:calc(100% + 8px);left:0">` +
+			card.menu
+				.map((entry) =>
+					entry.t === "divider"
+						? `<span class="tool-popout-rule"></span>`
+						: itemsHtml([entry], art),
+				)
+				.join("") +
+			`</div>`
+		: "";
+	const foot =
+		`<button type="button" class="tb with-icon"${INERT}${tie(INTRO_FOOT.home)}>` +
+		`<span class="turn-left">${glyphHtml("chevron", 15, art)}</span>Home</button>` +
+		`<div class="tool-popout tool-popout-up">` +
+		`<button type="button" class="tb with-icon${card.menu ? " on" : ""}"${INERT}${tie(INTRO_FOOT.project)}>` +
+		`Project${glyphHtml("chevron", 14, art)}</button>${menu}</div>` +
+		`<span style="flex:1"></span>` +
+		`<a class="tb with-icon"${INERT}>${glyphHtml("palette", 15, art)}Node Design</a>` +
+		`<a class="tb with-icon"${INERT}>${glyphHtml("document", 15, art)}Docs</a>`;
+	return (
+		`<div class="intro-backdrop" style="position:absolute;inset:0;backdrop-filter:none">` +
+		`<div class="intro-panel" style="overflow:visible">` +
+		`<header class="intro-head"><span class="logo">${markAt(20, art, card.tint)}Roswaal</span>` +
+		`<span class="intro-where">Editor<span class="version">${escapeXml(art.version)}</span></span>` +
+		`<span style="flex:1"></span><button type="button" class="tb icon-only"${INERT}>${glyphHtml("close", 15, art)}</button></header>` +
+		`<div class="intro-body">${body}</div><footer class="intro-foot">${foot}</footer></div></div>`
+	);
+}
+
+/** The start page the installed editor shows with no project open. */
+function startHtml(card: Extract<LayoutCard, { t: "start" }>, art: ToolbarArt): string {
+	const row = card.row
+		.map((item) => {
+			if (item.t !== "field") return itemsHtml([item], art);
+			const tie = item.name
+				? ` data-control="${escapeXml(controlKey(item.name))}" data-name="${escapeXml(item.name)}"`
+				: "";
+			return `<input class="tb"${INERT}${tie} readonly placeholder="${escapeXml(item.text)}" style="width:420px;pointer-events:none">`;
+		})
+		.join("");
+	const recent = card.recent
+		.map(
+			([name, path]) =>
+				`<div class="shell-recent-row"><button type="button" class="shell-recent-open"${INERT}>` +
+				`<span class="name">${escapeXml(name)}</span><span class="path">${escapeXml(path)}</span></button>` +
+				`<button type="button" class="shell-recent-forget"${INERT}>×</button></div>`,
+		)
+		.join("");
+	// The window's own height places it, where the real one takes 12% of the
+	// viewport: the reader's viewport is not the window drawn.
+	return (
+		`<div class="placeholder shell" style="padding-top:108px;height:100%;box-sizing:border-box">` +
+		`<h1 class="logo">${markAt(26, art)} Roswaal</h1>` +
+		`<p>Open a Roblox repository, or a Lune one (experimental). Roswaal writes Luau into it; Rojo does the rest.</p>` +
+		`<div class="row">${row}</div>` +
+		`${recent ? `<div class="shell-recent"><div class="shell-recent-head">Recent</div>${recent}</div>` : ""}</div>`
+	);
 }
 
 type DesignerCard = Extract<
@@ -330,8 +498,38 @@ type DesignerCard = Extract<
 	{ t: "packList" | "packBar" | "plate" | "pinEditor" | "luau" | "logicHead" | "problems" }
 >;
 
+/**
+ * `NodeEditor`'s numbers: the node is drawn at 1.6 times its size on a plate
+ * 22 of its pixels larger all round, under the plate's 34px title bar.
+ */
+const PLATE_SCALE = 1.6;
+const PLATE_MARGIN = 22 * PLATE_SCALE;
+const PLATE_TOP = 22 + 34;
+
+/**
+ * The node on its plate, placed as `NodeEditor` places it: under the title
+ * bar, or in the middle of a phone's screen, which has none. With no node or
+ * no geometry to draw it with, the plate alone.
+ */
+function plateHtml(card: Extract<LayoutCard, { t: "plate" }>, preview?: PreviewOptions): string {
+	if (!card.node || !preview) {
+		return `<div class="node-plate" style="left:8%;right:8%;top:${card.title ? "16%" : "30%"};bottom:${card.title ? "20%" : "32%"};width:auto;height:auto"></div>`;
+	}
+	const { width, height } = previewSize(card.node, preview.geometry);
+	const gutter = pinOverhang(card.node, preview.geometry) * PLATE_SCALE;
+	const at = card.title
+		? `top:${PLATE_TOP + PLATE_MARGIN}px;transform:translateX(-50%)`
+		: "top:50%;transform:translate(-50%, -50%)";
+	return (
+		`<div style="position:absolute;left:50%;${at};line-height:0">` +
+		`<div class="node-plate" style="left:${(gutter - PLATE_MARGIN).toFixed(1)}px;top:${(-PLATE_MARGIN).toFixed(1)}px;` +
+		`width:${(width * PLATE_SCALE + PLATE_MARGIN * 2).toFixed(1)}px;height:${(height * PLATE_SCALE + PLATE_MARGIN * 2).toFixed(1)}px"></div>` +
+		`<div style="position:relative">${previewSvg(card.node, { ...preview, scale: PLATE_SCALE })}</div></div>`
+	);
+}
+
 /** A card Node Design draws, each inside the `.node-editor` its rules are scoped to. */
-function designerCardHtml(card: DesignerCard, art: ToolbarArt): string {
+function designerCardHtml(card: DesignerCard, art: ToolbarArt, preview?: PreviewOptions): string {
 	const editor = (inner: string) =>
 		`<div class="node-editor" style="display:block;position:relative;width:100%;height:100%">${inner}</div>`;
 	switch (card.t) {
@@ -380,7 +578,7 @@ function designerCardHtml(card: DesignerCard, art: ToolbarArt): string {
 			return editor(
 				`<div class="node-editor-stage" style="position:relative;inset:auto;top:auto;right:auto;width:100%;height:100%">` +
 					head +
-					`<div class="node-plate" style="left:8%;right:8%;top:${card.title ? "16%" : "30%"};bottom:${card.title ? "20%" : "32%"};width:auto;height:auto"></div>` +
+					plateHtml(card, preview) +
 					`<div class="plate-counts tool-group">${counts}</div></div>`,
 			);
 		}
@@ -414,10 +612,12 @@ function designerCardHtml(card: DesignerCard, art: ToolbarArt): string {
 					`<button type="button"${INERT}>Nodes</button></div></div></div>`,
 			);
 		case "problems":
-			// At the right of its cell, as the real one sits at the right of the window.
+			// At the right of its cell, as the real one sits at the right of the
+			// window; across a phone's, under the pack bar.
 			return (
 				`<div class="node-editor" style="display:flex;flex-direction:row;justify-content:flex-end;position:relative;width:100%">` +
-				`<div class="node-problems" style="position:relative;left:auto;right:auto;bottom:auto;width:max-content"><span>${escapeXml(card.text)}</span></div></div>`
+				`<div class="node-problems" style="position:relative;left:auto;right:auto;top:auto;bottom:auto;` +
+				`width:${card.wide ? "100%" : "max-content;white-space:nowrap"};max-width:none;box-sizing:border-box"><span>${escapeXml(card.text)}</span></div></div>`
 			);
 	}
 }
@@ -446,15 +646,32 @@ function clusterHtml(
  * `aria-hidden`, as a toolbar's picture is: the legend under it says
  * everything the picture does, in order, and is what a screen reader reads.
  */
-export function layoutHtml(spec: LayoutSpec, art: ToolbarArt): string {
+export function layoutHtml(
+	spec: LayoutSpec,
+	art: ToolbarArt,
+	options: {
+		/** The canvas's geometry and colours, for a node the picture draws. */
+		preview?: PreviewOptions;
+		/** False for a walkthrough's screen, whose steps say what to press. */
+		numbered?: boolean;
+	} = {},
+): string {
 	const screen = SCREEN[spec.device];
-	const numbers = new Map<LayoutPart, number>(listedRegions(spec).map((part, i) => [part, i + 1]));
+	const numbers = new Map<LayoutPart, number>(
+		options.numbered === false ? [] : listedRegions(spec).map((part, i) => [part, i + 1]),
+	);
 	// The number keeps its own size: the screen is scaled, the badge is read.
-	const badgeOf = (part: LayoutPart) => {
+	// Above everything a card stacks inside itself -- the pack bar is at 68 --
+	// so no number is drawn under the part it names. Placed by a holder at the
+	// screen's scale: the badge's own zoom would read its offsets in the
+	// page's pixels, and put it somewhere else at every width.
+	const badgeOf = (part: LayoutPart & { numberAt?: [number, number] }) => {
 		const n = numbers.get(part);
+		const [left, top] = part.numberAt ?? [0, 0];
 		return n === undefined
 			? ""
-			: `<span class="docs-layout-num" style="position:absolute;left:0;top:0;transform:translate(-25%, -25%);z-index:30;zoom:calc(1 / var(--z))">${n}</span>`;
+			: `<span style="position:absolute;left:${left}px;top:${top}px;width:0;height:0;z-index:1000">` +
+					`<span class="docs-layout-num" style="position:absolute;left:0;top:0;transform:translate(-25%, -25%);zoom:calc(1 / var(--z))">${n}</span></span>`;
 	};
 
 	const regions = spec.regions
@@ -473,7 +690,13 @@ export function layoutHtml(spec: LayoutSpec, art: ToolbarArt): string {
 				return (
 					`<div class="docs-layout-region kind-canvas" style="${grid};position:relative;border:0;border-radius:0;` +
 					`align-content:center;justify-content:center"${tie(region)}>` +
-					`${n === undefined ? "" : `<span class="docs-layout-num" style="zoom:calc(1 / var(--z))">${n}</span>`}${watermark}</div>`
+					`${
+						n === undefined
+							? ""
+							: region.numberAt
+								? badgeOf(region)
+								: `<span class="docs-layout-num" style="zoom:calc(1 / var(--z))">${n}</span>`
+					}${watermark}</div>`
 				);
 			}
 			const open = (inner: string, part: LayoutPart | undefined, extra = "") =>
@@ -506,7 +729,10 @@ export function layoutHtml(spec: LayoutSpec, art: ToolbarArt): string {
 					region,
 				);
 			}
-			return open((region.card ? cardHtml(region.card, art) : "") + badgeOf(region), region);
+			return open(
+				(region.card ? cardHtml(region.card, art, options.preview) : "") + badgeOf(region),
+				region,
+			);
 		})
 		.join("");
 
@@ -634,6 +860,33 @@ const PALETTE: ToolbarItem[] = [
 ];
 const WARNING = '"Instance" is not connected to anything that runs.';
 
+/** The node the example pack's copy opens on, as Node Design draws it. */
+const LOG_WITH_PREFIX: NodePreview = {
+	id: "example_copy.logWithPrefix",
+	title: "Log With Prefix",
+	category: "Custom",
+	display: "normal",
+	latent: false,
+	inputs: [
+		{ id: "in", name: "", kind: "exec" },
+		{
+			id: "prefix",
+			name: "Prefix",
+			kind: "data",
+			type: "string",
+			value: { shape: "field", text: "[game]" },
+		},
+		{
+			id: "message",
+			name: "Message",
+			kind: "data",
+			type: "string",
+			value: { shape: "field", text: "hello" },
+		},
+	],
+	outputs: [{ id: "then", name: "", kind: "exec" }],
+};
+
 // ---------------------------------------------------------------------------
 // The windows
 // ---------------------------------------------------------------------------
@@ -705,7 +958,7 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 			name: "Project",
 			kind: "panel",
 			at: [4, 5, 2, 3],
-			card: { t: "project", project: "onevent-proj", rows: DEMO_TREE },
+			card: { t: "project", project: "my-game", rows: DEMO_TREE },
 			what: "The project's files: graphs, node maps, and the Luau compiled from them. With a place, its DataModel too. See [The Project panel](project-panel).",
 		},
 		{
@@ -941,6 +1194,7 @@ export const DESIGNER_LAYOUT: LayoutSpec = {
 			name: "Logic",
 			kind: "canvas",
 			at: [1, 12, 1, 8],
+			numberAt: [24, 700],
 			what: "Behind everything: what the node does when it runs, as the graph its nodes build. Written as Luau, the sheet below is in front of it.",
 		},
 		{
@@ -1005,7 +1259,7 @@ export const DESIGNER_LAYOUT: LayoutSpec = {
 			name: "The node",
 			kind: "panel",
 			at: [4, 5, 6, 7],
-			card: { t: "plate", title: "Log With Prefix", counts: "buttons" },
+			card: { t: "plate", title: "Log With Prefix", counts: "buttons", node: LOG_WITH_PREFIX },
 			what: "On a plate, as a graph will draw it, with its pin counts under it. Click a pin to edit it; the title bar folds the plate away.",
 		},
 		{
@@ -1020,6 +1274,7 @@ export const DESIGNER_LAYOUT: LayoutSpec = {
 			name: "Problems",
 			kind: "panel",
 			at: [8, 9, 6, 7],
+			place: "end",
 			card: { t: "problems", text: "Saved, and the project loads it." },
 			what: "What stops the node saving, or that it is ready to.",
 		},
@@ -1062,6 +1317,7 @@ export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 			name: "Logic",
 			kind: "canvas",
 			at: [1, 12, 1, 6],
+			numberAt: [663, 452],
 			what: "As on a computer, with the touch gestures on [Controls](controls).",
 		},
 		{
@@ -1120,13 +1376,14 @@ export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 			name: "The node",
 			kind: "panel",
 			at: [4, 7, 4, 5],
-			card: { t: "plate", title: "Log With Prefix", counts: "buttons" },
+			card: { t: "plate", title: "Log With Prefix", counts: "buttons", node: LOG_WITH_PREFIX },
 			what: "On its plate, as on a computer.",
 		},
 		{
 			name: "Problems",
 			kind: "panel",
 			at: [8, 9, 4, 5],
+			place: "end",
 			card: { t: "problems", text: "Saved, and the project loads it." },
 			what: "As on a computer.",
 		},
@@ -1169,6 +1426,7 @@ export const DESIGNER_LAYOUT_PHONE: LayoutSpec = {
 			name: "The node, or its logic",
 			kind: "canvas",
 			at: [5, 10, 1, 4],
+			numberAt: [12, 704],
 			what: "One at a time, with the whole screen.",
 		},
 		{
@@ -1212,16 +1470,18 @@ export const DESIGNER_LAYOUT_PHONE: LayoutSpec = {
 			name: "The node",
 			kind: "panel",
 			at: [5, 7, 2, 3],
-			card: { t: "plate", counts: "popout" },
+			numberAt: [4, 230],
+			card: { t: "plate", counts: "popout", node: LOG_WITH_PREFIX },
 			what: "On its plate; **Pins** under it holds the pin counts.",
 			where: "With the node showing",
 		},
 		{
 			name: "Problems",
 			kind: "panel",
-			at: [6, 7, 2, 3],
-			card: { t: "problems", text: "Saved, and the project loads it." },
-			what: "As on a computer, beside **Pins**.",
+			at: [5, 6, 2, 3],
+			align: "start",
+			card: { t: "problems", text: "Saved, and the project loads it.", wide: true },
+			what: "As on a computer, under the pack bar.",
 		},
 		{
 			name: "Pin types",
@@ -1244,4 +1504,195 @@ export const LAYOUTS: LayoutSpec[] = [
 	DESIGNER_LAYOUT,
 	DESIGNER_LAYOUT_TOUCH,
 	DESIGNER_LAYOUT_PHONE,
+];
+
+// ---------------------------------------------------------------------------
+// Drawn for walkthroughs
+//
+// The windows a walkthrough steps through: the editor, the projects panel
+// its mark opens, the Project menu in that panel, and the installed editor's
+// start page. Unnumbered where they are drawn, since the steps say what to
+// press; named, so a step can point at a part.
+// ---------------------------------------------------------------------------
+
+/** The window as the web app draws it: the mark blue, for a project kept in the browser. */
+function inBrowser(spec: LayoutSpec, id: string): LayoutSpec {
+	return {
+		...spec,
+		id,
+		regions: spec.regions.map((region) =>
+			region.clusters
+				? {
+						...region,
+						clusters: region.clusters.map((cluster) => ({
+							...cluster,
+							items: cluster.items.map(
+								(item): ToolbarItem => (item.t === "mark" ? { ...item, tint: "preview" } : item),
+							),
+						})),
+					}
+				: region,
+		),
+	};
+}
+
+/** The window with its slid-out card put away, as it is before the mark is pressed. */
+function closed(spec: LayoutSpec, id: string): LayoutSpec {
+	return { ...spec, id, regions: spec.regions.filter((region) => region.kind !== "drawer") };
+}
+
+/** The window with the projects panel open over it. */
+function withProjects(
+	spec: LayoutSpec,
+	id: string,
+	card: Extract<LayoutCard, { t: "intro" }>,
+): LayoutSpec {
+	return { ...spec, id, regions: [...spec.regions, { kind: "panel", at: [1, -1, 1, -1], card }] };
+}
+
+/** Recent projects, as the panel and the start page list them. */
+const RECENT: [string, string][] = [
+	["my-game", "…\\Projects\\my-game"],
+	["lobby", "…\\Projects\\lobby"],
+];
+
+/** The installed editor's panel: the projects opened before, and the demos. */
+const PROJECTS_LOCAL: Extract<LayoutCard, { t: "intro" }> = {
+	t: "intro",
+	recent: RECENT,
+	demos: true,
+};
+
+/** The web app's panel, with nothing opened yet. */
+const PROJECTS_WEB: Extract<LayoutCard, { t: "intro" }> = {
+	t: "intro",
+	tint: "preview",
+	empty:
+		"Nothing opened yet. Open a folder from your machine, or carry on in the demo — this editor " +
+		"keeps its project in your browser.",
+};
+
+/** The Project menu in the web app, as `App.tsx` fills it there. */
+const PROJECT_MENU_WEB: ToolbarItem[] = [
+	{
+		t: "button",
+		text: "Open folder…",
+		icon: "folder",
+		name: "Open folder…",
+		what: "A folder on your computer, in Chrome and Edge.",
+	},
+	{
+		t: "button",
+		text: "Open .zip…",
+		icon: "folderOpen",
+		name: "Open .zip…",
+		what: "A project from a zip, in any browser.",
+	},
+	{
+		t: "button",
+		text: "Open place…",
+		icon: "folderOpen",
+		name: "Open place…",
+		what: "A project made from a .rbxl or .rbxlx.",
+	},
+	{ t: "button", text: "Import Rojo project…", icon: "map" },
+	{ t: "button", text: "Export…", icon: "copy" },
+	{ t: "divider" },
+	{ t: "button", text: "Start again", icon: "refresh" },
+];
+
+/** The installed editor, on a computer, before the mark is pressed. */
+export const WALK_EDITOR: LayoutSpec = { ...EDITOR_LAYOUT, id: "walk-editor" };
+
+/** The installed editor with its projects panel open. */
+export const WALK_PROJECTS: LayoutSpec = withProjects(
+	EDITOR_LAYOUT,
+	"walk-projects",
+	PROJECTS_LOCAL,
+);
+
+/** The start page the installed editor shows with no project open. */
+export const WALK_START: LayoutSpec = {
+	id: "walk-start",
+	title: "The start page",
+	summary: "What the installed editor shows with no project open.",
+	device: "desktop",
+	columns: "minmax(0, 1fr)",
+	rows: "minmax(0, 1fr)",
+	regions: [
+		{
+			kind: "panel",
+			at: [1, 2, 1, 2],
+			card: {
+				t: "start",
+				row: [
+					{ t: "field", text: "C:\\path\\to\\project", name: "Path", what: "The folder to open." },
+					{
+						t: "button",
+						text: "Browse…",
+						name: "Browse…",
+						what: "Chooses the folder with your computer's own dialog.",
+					},
+					{
+						t: "button",
+						text: "Open",
+						primary: true,
+						name: "Open",
+						what: "Opens it, or Initialise for a folder that is not a project yet.",
+					},
+				],
+				recent: RECENT.map(([name]) => [name, `C:\\Users\\you\\Projects\\${name}`]),
+			},
+		},
+	],
+};
+
+/** The web app, on a computer, before the mark is pressed. */
+export const WALK_EDITOR_WEB: LayoutSpec = inBrowser(EDITOR_LAYOUT, "walk-editor-web");
+
+/** The web app with its projects panel open. */
+export const WALK_PROJECTS_WEB: LayoutSpec = withProjects(
+	WALK_EDITOR_WEB,
+	"walk-projects-web",
+	PROJECTS_WEB,
+);
+
+/** The web app's projects panel with the Project menu open. */
+export const WALK_PROJECT_MENU_WEB: LayoutSpec = withProjects(
+	WALK_EDITOR_WEB,
+	"walk-project-menu-web",
+	{ ...PROJECTS_WEB, menu: PROJECT_MENU_WEB },
+);
+
+/** The web app on a tablet, before the mark is pressed. */
+export const WALK_TABLET: LayoutSpec = inBrowser(
+	closed(EDITOR_LAYOUT_TOUCH, "walk-tablet"),
+	"walk-tablet",
+);
+
+/** The web app on a tablet with its projects panel open. */
+export const WALK_PROJECTS_TABLET: LayoutSpec = withProjects(
+	WALK_TABLET,
+	"walk-projects-tablet",
+	PROJECTS_WEB,
+);
+
+/** The web app on a tablet with the Project menu open. */
+export const WALK_PROJECT_MENU_TABLET: LayoutSpec = withProjects(
+	WALK_TABLET,
+	"walk-project-menu-tablet",
+	{ ...PROJECTS_WEB, menu: PROJECT_MENU_WEB },
+);
+
+/** Every window a walkthrough draws, for the tests that hold them to the icon set. */
+export const WALK_WINDOWS: LayoutSpec[] = [
+	WALK_EDITOR,
+	WALK_PROJECTS,
+	WALK_START,
+	WALK_EDITOR_WEB,
+	WALK_PROJECTS_WEB,
+	WALK_PROJECT_MENU_WEB,
+	WALK_TABLET,
+	WALK_PROJECTS_TABLET,
+	WALK_PROJECT_MENU_TABLET,
 ];

@@ -2,22 +2,24 @@
  * The `getting-started` page of the documentation. `buildSite` places it.
  */
 
+import {
+	WALK_EDITOR,
+	WALK_EDITOR_WEB,
+	WALK_PROJECT_MENU_TABLET,
+	WALK_PROJECT_MENU_WEB,
+	WALK_PROJECTS,
+	WALK_PROJECTS_TABLET,
+	WALK_PROJECTS_WEB,
+	WALK_START,
+	WALK_TABLET,
+} from "../layouts.js";
 import { STABLE_SITE } from "../links.js";
 import type { DocPage } from "../site.js";
-import {
-	EDITOR_BAR,
-	EDITOR_BAR_BROWSER,
-	EDITOR_BAR_TABLET,
-	PROJECT_MENU,
-	PROJECTS_FOOT,
-	START_PAGE,
-} from "../toolbars.js";
 import { code } from "./blocks.js";
 
 export function gettingStartedPage(): DocPage {
 	return {
 		slug: "getting-started",
-		narrow: true,
 		title: "Getting started",
 		summary: "From an empty folder to a script running in Studio.",
 		blocks: [
@@ -76,24 +78,24 @@ export function gettingStartedPage(): DocPage {
 										text:
 											"Click the Roswaal mark at the top left. The projects panel lists the ones " +
 											"you have opened before: click one to switch.",
-										picture: [EDITOR_BAR],
-										point: "The Roswaal mark",
+										window: WALK_EDITOR,
+										point: "The mark",
 									},
 									{
 										text: "For one that is not listed, press **Home** at the bottom of that panel.",
-										picture: [PROJECTS_FOOT],
+										window: WALK_PROJECTS,
 										point: "Home",
 									},
 									{
 										text: "The start page asks for a folder. Type its path, or press **Browse…** to choose it.",
-										picture: [START_PAGE],
+										window: WALK_START,
 										point: "Browse…",
 									},
 									{
 										text:
 											"Press **Open**. For a folder that is not a Roswaal project yet it says " +
 											"**Initialise**, which writes a `roswaal.json` and nothing else.",
-										picture: [START_PAGE],
+										window: WALK_START,
 										point: "Open",
 									},
 								],
@@ -117,26 +119,26 @@ export function gettingStartedPage(): DocPage {
 								steps: [
 									{
 										text: "Click the Roswaal mark at the top left, for the projects panel.",
-										picture: [EDITOR_BAR_BROWSER],
-										point: "The Roswaal mark",
+										window: WALK_EDITOR_WEB,
+										point: "The mark",
 									},
 									{
 										text: "Press **Project** at the bottom of the panel.",
-										picture: [PROJECTS_FOOT],
+										window: WALK_PROJECTS_WEB,
 										point: "Project",
 									},
 									{
 										text:
 											"**Open folder…** works on a folder on your computer and writes into it, as " +
 											"the installed editor does. It is in Chrome and Edge.",
-										picture: [PROJECT_MENU, PROJECTS_FOOT],
+										window: WALK_PROJECT_MENU_WEB,
 										point: "Open folder…",
 									},
 									{
 										text:
 											"Or **Open .zip…**, in any browser, for a project in a zip. It replaces the " +
 											"project kept in the browser, and asks first.",
-										picture: [PROJECT_MENU, PROJECTS_FOOT],
+										window: WALK_PROJECT_MENU_WEB,
 										point: "Open .zip…",
 									},
 									{
@@ -144,7 +146,7 @@ export function gettingStartedPage(): DocPage {
 											"Or **Open place…** for a `.rbxl` or `.rbxlx`. It shows how many scripts " +
 											"Rojo can sync and how many only the place can hold, and asks which to bring " +
 											"in. [Places and Rojo projects](places-and-rojo) has the rest.",
-										picture: [PROJECT_MENU, PROJECTS_FOOT],
+										window: WALK_PROJECT_MENU_WEB,
 										point: "Open place…",
 									},
 								],
@@ -179,17 +181,17 @@ export function gettingStartedPage(): DocPage {
 									{
 										text:
 											`Open [the web app](${STABLE_SITE}try.html) and tap the ` + "Roswaal mark.",
-										picture: [EDITOR_BAR_TABLET],
-										point: "The Roswaal mark",
+										window: WALK_TABLET,
+										point: "The mark",
 									},
 									{
 										text: "Tap **Project** at the bottom of the panel.",
-										picture: [PROJECTS_FOOT],
+										window: WALK_PROJECTS_TABLET,
 										point: "Project",
 									},
 									{
 										text: "Tap **Open .zip…**, and pick the zip in Files.",
-										picture: [PROJECT_MENU, PROJECTS_FOOT],
+										window: WALK_PROJECT_MENU_TABLET,
 										point: "Open .zip…",
 									},
 								],
