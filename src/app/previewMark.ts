@@ -80,27 +80,6 @@ export const MARK_BESIDE_LINK: Record<BuildMark, string> = {
 	canary: "The canary: an unreleased build. Not the one to start from.",
 };
 
-/**
- * The banner, which is not the chip.
- *
- * The chip says which build you are on. It does not say what that means for
- * you, and on a site anyone can reach, the reader who most needs telling is the
- * one who did not choose to be there.
- *
- * Two wordings, because they are two different claims. The app one is about a
- * build that may break. The documentation one is sharper: these pages describe
- * a build that is not out, and documentation is read by people looking for an
- * answer about the version they already have.
- */
-export const CANARY_BANNER = {
-	app: "This is the canary — an unreleased build of Roswaal, and not the one to start from.",
-	docs:
-		"These pages document the canary: an unreleased build. What they describe may not be in" +
-		" the version you have, and may change before it is.",
-	/** Every banner leads somewhere. A warning with no way out gets dismissed. */
-	wayOut: "The stable build",
-} as const;
-
 /** The banner on the copy at the site's old address. See `IS_BACKUP` in `pages.ts`. */
 export const BACKUP_BANNER = {
 	mark: "backup",

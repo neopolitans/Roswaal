@@ -34,7 +34,6 @@ import { ICONS, VIEW_BOX } from "../src/app/icons.js";
 import { logoMarkup } from "../src/app/logo.js";
 import {
 	BACKUP_BANNER,
-	CANARY_BANNER,
 	MARK_BESIDE_LINK,
 	MARK_LABEL,
 	MARK_ON_SURFACE,
@@ -160,20 +159,11 @@ describe("the canary mark", () => {
 		expect(gate.indexOf("IS_CANARY")).toBeLessThan(gate.indexOf("IS_STATIC_HOST"));
 	});
 
-	/** The banner is not the chip, and it says what the chip cannot. */
-	it("warns in two wordings, each leading somewhere", () => {
-		expect(CANARY_BANNER.app).toMatch(/unreleased/);
-		expect(CANARY_BANNER.docs).toMatch(/not be in\s+the version you have|unreleased/);
-		expect(CANARY_BANNER.app).not.toBe(CANARY_BANNER.docs);
-		expect(CANARY_BANNER.wayOut).toBeTruthy();
-	});
-
-	it("puts the banner on every window the canary serves", () => {
-		for (const path of ["src/app/App.tsx", "src/app/DesignerPage.tsx", "src/app/DocsPage.tsx"]) {
-			expect(source(path), path).toContain("<SiteBanner");
-		}
-		// The documentation takes the sharper wording.
-		expect(source("src/app/DocsPage.tsx")).toContain('kind="docs"');
+	/** The yellow mark says it; a banner took three lines of a phone. */
+	it("wears no banner, only the mark", () => {
+		const banner = source("src/app/previewBuild.tsx");
+		expect(banner).not.toMatch(/IS_CANARY\)\s*return null;\s*return \(/);
+		expect(source("scripts/build-docs.mjs")).not.toContain('class="canary-banner" role');
 	});
 
 	it("styles the yellow variant and the banner", () => {
@@ -365,7 +355,7 @@ describe("links into the browser build", () => {
 			version: "test",
 			previewChip: previewChipMarkup(),
 		});
-		expect(rendered).toContain(`Try it in your browser${previewChipMarkup()}`);
+		expect(rendered).toContain(`in your browser</span>${previewChipMarkup()}`);
 	});
 
 	/** Passed in, so a build that forgets it renders a link and not a broken one. */
@@ -373,7 +363,7 @@ describe("links into the browser build", () => {
 		const site = buildSite(createRegistry(), new Set(BUILTIN_NODES.map((d) => d.id)));
 		const page = findPage(site, "toolbars")!;
 		const rendered = renderPage(site, page, { version: "test" });
-		expect(rendered).toContain("Try it in your browser</a>");
+		expect(rendered).toContain("in your browser</span></a>");
 	});
 });
 

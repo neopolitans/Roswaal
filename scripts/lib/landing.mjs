@@ -27,7 +27,6 @@ import { faviconHref, logoMarkup } from "../../src/app/logo.tsx";
 import { nodeColor, pinColor } from "../../src/app/palette.ts";
 import {
 	BACKUP_BANNER,
-	CANARY_BANNER,
 	MARK_BESIDE_LINK,
 	MARK_LABEL,
 	PREVIEW_BESIDE_LINK,
@@ -45,6 +44,13 @@ import {
 	createRegistry,
 } from "../../src/core/nodes/index.ts";
 import { emptyScript } from "../../src/core/schema.ts";
+
+/**
+ * The canary's word on its front page. The windows say it with their yellow
+ * mark alone; this page is where someone arrives without having chosen it.
+ */
+const CANARY_STRIP =
+	"This is the canary — an unreleased build of Roswaal, and not the one to start from.";
 
 /**
  * Which example to show.
@@ -653,8 +659,8 @@ ${
 		? `<div class="landing-strip" role="note">
   <div class="strip-inner">
     <span class="strip-flag">${escapeHtml(MARK_LABEL.canary)}</span>
-    <span class="strip-text">${escapeHtml(CANARY_BANNER.app)}</span>
-    <a class="strip-stable" href="${STABLE_SITE}" title="${escapeHtml(CANARY_BANNER.wayOut)}">
+    <span class="strip-text">${escapeHtml(CANARY_STRIP)}</span>
+    <a class="strip-stable" href="${STABLE_SITE}" title="The stable build">
       Roswaal <span class="flag">stable</span>
     </a>
   </div>

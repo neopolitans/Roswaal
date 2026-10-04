@@ -91,7 +91,14 @@ export type LayoutCard =
 	 * the pin counts. The node is drawn where the picture is given the
 	 * canvas's geometry, as every node picture is.
 	 */
-	| { t: "plate"; title?: string; counts: "buttons" | "popout"; node?: NodePreview }
+	| {
+			t: "plate";
+			title?: string;
+			counts: "buttons" | "popout";
+			node?: NodePreview;
+			/** A phone's stage width: the node is drawn smaller where it would not fit across it. */
+			fit?: number;
+	  }
 	/** The selected pin's editor, docked under the plate: `PinPopover`. */
 	| { t: "pinEditor"; pin: string; type: string; logic: string }
 	/** Logic written as Luau: the sheet it is typed in. */
@@ -503,7 +510,6 @@ type DesignerCard = Extract<
  * 22 of its pixels larger all round, under the plate's 34px title bar.
  */
 const PLATE_SCALE = 1.6;
-const PLATE_MARGIN = 22 * PLATE_SCALE;
 const PLATE_TOP = 22 + 34;
 
 /**
@@ -516,15 +522,20 @@ function plateHtml(card: Extract<LayoutCard, { t: "plate" }>, preview?: PreviewO
 		return `<div class="node-plate" style="left:8%;right:8%;top:${card.title ? "16%" : "30%"};bottom:${card.title ? "20%" : "32%"};width:auto;height:auto"></div>`;
 	}
 	const { width, height } = previewSize(card.node, preview.geometry);
-	const gutter = pinOverhang(card.node, preview.geometry) * PLATE_SCALE;
+	// As `NodeEditor` scales it on a phone: no more than fits across the stage.
+	const scale = card.fit
+		? Math.min(PLATE_SCALE, Math.max(0.8, (card.fit - 16) / (width + 44)))
+		: PLATE_SCALE;
+	const margin = 22 * scale;
+	const gutter = pinOverhang(card.node, preview.geometry) * scale;
 	const at = card.title
-		? `top:${PLATE_TOP + PLATE_MARGIN}px;transform:translateX(-50%)`
+		? `top:${PLATE_TOP + margin}px;transform:translateX(-50%)`
 		: "top:50%;transform:translate(-50%, -50%)";
 	return (
 		`<div style="position:absolute;left:50%;${at};line-height:0">` +
-		`<div class="node-plate" style="left:${(gutter - PLATE_MARGIN).toFixed(1)}px;top:${(-PLATE_MARGIN).toFixed(1)}px;` +
-		`width:${(width * PLATE_SCALE + PLATE_MARGIN * 2).toFixed(1)}px;height:${(height * PLATE_SCALE + PLATE_MARGIN * 2).toFixed(1)}px"></div>` +
-		`<div style="position:relative">${previewSvg(card.node, { ...preview, scale: PLATE_SCALE })}</div></div>`
+		`<div class="node-plate" style="left:${(gutter - margin).toFixed(1)}px;top:${(-margin).toFixed(1)}px;` +
+		`width:${(width * scale + margin * 2).toFixed(1)}px;height:${(height * scale + margin * 2).toFixed(1)}px"></div>` +
+		`<div style="position:relative">${previewSvg(card.node, { ...preview, scale })}</div></div>`
 	);
 }
 
@@ -833,8 +844,9 @@ const TOOLS_CLUSTER: ToolbarItem[] = [
 const COMPILE_CLUSTER: ToolbarItem[] = [
 	{ t: "segmented", options: ["Manual", "Dynamic"], on: 0 },
 	{ t: "divider" },
-	{ t: "button", text: "Compile project" },
-	{ t: "button", text: "Compile script", icon: "build", primary: true },
+	// Their words fold to glyphs where the row is short, as on a tablet.
+	{ t: "button", text: "Compile project", narrowIcon: "build", collapsible: true },
+	{ t: "button", text: "Compile script", icon: "build", primary: true, collapsible: true },
 ];
 const WINDOWS_CLUSTER: ToolbarItem[] = [
 	{ t: "icon", icon: "panelRight", on: true },
@@ -1043,7 +1055,7 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 					apart: true,
 					items: COMPILE_CLUSTER,
 					name: "Compiling",
-					what: "As on a computer. Held upright, only Compile script stays, as its icon.",
+					what: "As on a computer, the two compile buttons as their glyphs. Held upright, only Compile script stays.",
 				},
 				{
 					items: WINDOWS_CLUSTER,
@@ -1471,7 +1483,7 @@ export const DESIGNER_LAYOUT_PHONE: LayoutSpec = {
 			kind: "panel",
 			at: [5, 7, 2, 3],
 			numberAt: [4, 230],
-			card: { t: "plate", counts: "popout", node: LOG_WITH_PREFIX },
+			card: { t: "plate", counts: "popout", node: LOG_WITH_PREFIX, fit: 381 },
 			what: "On its plate; **Pins** under it holds the pin counts.",
 			where: "With the node showing",
 		},

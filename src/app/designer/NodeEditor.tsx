@@ -296,23 +296,29 @@ export function NodeEditor({
 	// The plate the node floats on, over the logic: as big as the node at its
 	// scale, its own margin, and the pin counts under it. On a phone the node
 	// has the editor to itself and is centred in it.
+	// On a phone the node has the screen to itself, and at 1.6 times its size
+	// with its plate it was as wide as an iPhone: its pins hung off both
+	// edges. There it is drawn smaller, only as far as it has to be.
+	const scale = split
+		? Math.min(SCALE, Math.max(0.8, (size.w - 16) / (bounds.w + PLATE * 2)))
+		: SCALE;
 	const plate = split
 		? null
 		: {
-				w: plateOpen ? Math.round(bounds.w * SCALE + PLATE * SCALE * 2 + 96) : 240,
+				w: plateOpen ? Math.round(bounds.w * scale + PLATE * scale * 2 + 96) : 240,
 				h: plateOpen
-					? Math.round(bounds.h * SCALE + PLATE * SCALE * 2 + 84 + PLATE_HEAD)
+					? Math.round(bounds.h * scale + PLATE * scale * 2 + 84 + PLATE_HEAD)
 					: PLATE_HEAD,
 			};
 	const offset = {
-		x: Math.round(size.w / 2 - (bounds.w * SCALE) / 2),
+		x: Math.round(size.w / 2 - (bounds.w * scale) / 2),
 		y: plate
-			? Math.round(PLATE * SCALE + 22 + PLATE_HEAD)
-			: Math.round(Math.max(90, (size.h - bounds.h * SCALE) / 2)),
+			? Math.round(PLATE * scale + 22 + PLATE_HEAD)
+			: Math.round(Math.max(90, (size.h - bounds.h * scale) / 2)),
 	};
 	const toStage = (p: { x: number; y: number }) => ({
-		x: offset.x + p.x * SCALE,
-		y: offset.y + p.y * SCALE,
+		x: offset.x + p.x * scale,
+		y: offset.y + p.y * scale,
 	});
 
 	const pinsOn = (side: Side) => (side === "in" ? draft.inputs : draft.outputs);
@@ -352,7 +358,7 @@ export function NodeEditor({
 		if (!type || !stage.current) return;
 		e.preventDefault();
 		const x = e.clientX - stage.current.getBoundingClientRect().left;
-		const side: Side = x < offset.x + (bounds.w * SCALE) / 2 ? "in" : "out";
+		const side: Side = x < offset.x + (bounds.w * scale) / 2 ? "in" : "out";
 		structural((d) => addPin(d, side, type));
 	};
 
@@ -773,7 +779,7 @@ export function NodeEditor({
 					)}
 					<div
 						className="node-editor-world"
-						style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${SCALE})` }}
+						style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
 					>
 						{/* A plate behind the node: its own bounds and a margin, so the node
 					    sits on something rather than floating in the grid. It grows and

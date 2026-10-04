@@ -575,7 +575,7 @@ describe("the header of a published page", () => {
 
 	it("offers the editor and the source, not just the mark", () => {
 		const html = page("getting-started");
-		expect(html).toContain("Try it in your browser");
+		expect(html).toContain('Try it<span class="docs-try-more"> in your browser</span>');
 		expect(html).toContain('href="https://github.com/neopolitans/Roswaal"');
 	});
 

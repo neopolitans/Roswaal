@@ -804,8 +804,8 @@ ${options.canaryBanner ?? ""}<input type="checkbox" id="docs-nav-open" class="do
 <label for="docs-nav-open" class="tb docs-nav-toggle">Contents</label>
 <button type="button" class="tb icon-only docs-search-toggle" id="docs-search" title="Search the docs" aria-label="Search the docs" hidden>${chromeIcon("search", options)}</button>
 <span class="grow"></span>
-<a class="tb" href="${up}../try.html">Try it in your browser${options.previewChip ?? ""}</a>
-<a class="tb" href="${SOURCE_REPOSITORY}" rel="noreferrer noopener">Source</a>
+<a class="tb docs-try" href="${up}../try.html">Try it<span class="docs-try-more"> in your browser</span>${options.previewChip ?? ""}</a>
+<a class="tb docs-source" href="${SOURCE_REPOSITORY}" rel="noreferrer noopener">Source</a>
 <button type="button" class="tb icon-only" id="prefs" title="Settings" aria-label="Settings">${chromeIcon("settings", options)}</button>
 </header>
 <div class="docs-body">

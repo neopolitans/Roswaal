@@ -33,7 +33,7 @@ export function useNarrowBar(): boolean {
 	return useMedia("(max-width: 979px)");
 }
 
-function useMedia(query: string): boolean {
+export function useMedia(query: string): boolean {
 	const [matches, setMatches] = useState(
 		() => typeof window !== "undefined" && window.matchMedia(query).matches,
 	);

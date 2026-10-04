@@ -151,7 +151,7 @@ export function StatusPanel(props: StatusPanelProps) {
 						props.mapOutcomes.length === 0 &&
 						props.orphans.length === 0 &&
 						props.packErrors.length === 0 && (
-							<div className="entry">
+							<div className="entry clean">
 								<span className="sev" style={{ color: "var(--ok)" }}>
 									ok
 								</span>

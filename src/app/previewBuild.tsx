@@ -15,18 +15,11 @@ import { STABLE_SITE } from "../core/docs/links.js";
 import { cx } from "./cx.js";
 import { Logo } from "./logo.jsx";
 import { IS_BACKUP, IS_CANARY, IS_STATIC_HOST } from "./pages.js";
-import {
-	BACKUP_BANNER,
-	type BuildMark,
-	CANARY_BANNER,
-	MARK_LABEL,
-	MARK_ON_SURFACE,
-} from "./previewMark.js";
+import { BACKUP_BANNER, type BuildMark, MARK_LABEL, MARK_ON_SURFACE } from "./previewMark.js";
 
 export {
 	BACKUP_BANNER,
 	type BuildMark,
-	CANARY_BANNER,
 	MARK_BESIDE_LINK,
 	MARK_LABEL,
 	MARK_ON_SURFACE,
@@ -85,16 +78,10 @@ export function markTooltip(): string {
 }
 
 /**
- * The canary's warning, across the top of every one of its windows.
+ * The banner on the copy at the old address, saying where the site went.
  *
- * Not on the browser preview: that build is finished, it is simply not
- * installed, and its chip already says so. This one is about a build that may
- * be halfway through an idea.
- *
- * `kind` is the claim being made. The app is a build that may break; the
- * documentation is a build that is not out, which is the sharper one.
- *
- * The copy at the old address wears one too, saying where the site went.
+ * The canary wore one too, until its yellow mark was found to say it well
+ * enough: on a phone the banner took three lines from every window.
  */
 export function SiteBanner({ kind = "app" }: { kind?: "app" | "docs" } = {}) {
 	if (IS_BACKUP) {
@@ -108,14 +95,5 @@ export function SiteBanner({ kind = "app" }: { kind?: "app" | "docs" } = {}) {
 			</div>
 		);
 	}
-	if (!IS_CANARY) return null;
-	return (
-		<div className="canary-banner" role="status">
-			<span className="canary-banner-mark">{MARK_LABEL.canary}</span>
-			<span className="canary-banner-text">{CANARY_BANNER[kind]}</span>
-			<a className="canary-banner-out" href={STABLE_SITE} rel="noreferrer noopener">
-				{CANARY_BANNER.wayOut}
-			</a>
-		</div>
-	);
+	return null;
 }

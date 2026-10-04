@@ -9,6 +9,25 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.121.3",
+		date: "2026-10-04",
+		headline: "Phones and tablets get their room back.",
+		affects: ["editor", "designer", "docs"],
+		changed: [
+			"**The canary** is marked by its yellow mark alone: the banner across its editor, Node Design and docs is gone.",
+			"**On a phone**, a node map, a source file and the aliases are one column the width of the screen, ending above the status pill. Source files and the selection preview wrap long lines.",
+			"**On a phone or a tablet**, the status pill is one row when there is nothing to report, and the side strip keeps clear of it and of the top row. On a short screen the strip leaves out its slider.",
+			"**On a tablet**, Compile project and Compile script show their glyphs where the top row is short of room.",
+			"**The docs' header** is one row on a phone.",
+			"**Node Design on a phone** draws the node smaller where it would not fit across the screen.",
+		],
+		fixed: [
+			"**Text on an iPhone** is no longer enlarged in places, such as the selection preview's notes.",
+			"**The pin counts under a node** stay on one line with a touch screen's larger buttons.",
+			"**The docs' window diagrams** keep the device's own button size, fit a phone's column, and no longer draw over the contents drawer.",
+		],
+	},
+	{
 		version: "0.121.2",
 		date: "2026-10-04",
 		headline: "Getting started steps through the whole window.",

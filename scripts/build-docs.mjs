@@ -24,13 +24,7 @@ import { EVEN_ODD, ICONS, STROKED, VIEW_BOX } from "../src/app/icons.tsx";
 import { NODE } from "../src/app/layers.ts";
 import { faviconHref, logoMarkup } from "../src/app/logo.tsx";
 import { nodeColor, pinColor } from "../src/app/palette.ts";
-import {
-	BACKUP_BANNER,
-	CANARY_BANNER,
-	MARK_LABEL,
-	markChipMarkup,
-	previewChipMarkup,
-} from "../src/app/previewMark.ts";
+import { BACKUP_BANNER, markChipMarkup, previewChipMarkup } from "../src/app/previewMark.ts";
 import { VERSION } from "../src/cli/version.ts";
 import { escapeHtml, renderSite } from "../src/core/docs/html.ts";
 import { STABLE_SITE } from "../src/core/docs/links.ts";
@@ -97,14 +91,7 @@ async function main() {
 			`<span class="canary-banner-text">${escapeHtml(BACKUP_BANNER.docs)}</span>` +
 			`<a class="canary-banner-out" href="${STABLE_SITE}">${escapeHtml(BACKUP_BANNER.wayOut)}</a></div>
 `
-		: isCanary
-			? `<div class="canary-banner" role="status">` +
-				`<span class="canary-banner-mark">${escapeHtml(MARK_LABEL.canary)}</span>` +
-				`<span class="canary-banner-text">${escapeHtml(CANARY_BANNER.docs)}</span>` +
-				`<a class="canary-banner-out" href="${STABLE_SITE}"` +
-				` rel="noreferrer noopener">${escapeHtml(CANARY_BANNER.wayOut)}</a></div>
-`
-			: undefined;
+		: undefined;
 	// The glyphs and the mark a drawn toolbar needs. Core cannot import either,
 	// so the build hands them over the same way it hands over the palette.
 	const toolbars = {

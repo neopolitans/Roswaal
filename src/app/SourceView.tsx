@@ -35,6 +35,7 @@ import { cx } from "./cx.js";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { luauExtensions } from "./luauExtensions.js";
 import { luauWarnings } from "./luauLint.js";
+import { useMedia } from "./Popout.js";
 
 export interface SourceDoc {
 	path: string;
@@ -69,6 +70,9 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 	// does, and their titles say where it does it.
 	const canEdit = useHostCan("edit");
 	const canReveal = useHostCan("reveal");
+	// A phone or a tablet wraps long lines: a swipe down the file also
+	// scrolled it sideways, and left every line cut off at the left.
+	const phone = useMedia("(max-width: 699px), (hover: none) and (pointer: coarse)");
 	const host = useRef<HTMLDivElement>(null);
 	const view = useRef<EditorView | null>(null);
 	const [copied, setCopied] = useState(false);
@@ -129,7 +133,7 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 					// Names the place and the project do not have, under the
 					// containers that are settled before the game runs: filled in
 					// once the host answers, without rebuilding the view.
-					extra: [warnings.current.of([])],
+					extra: [warnings.current.of([]), ...(phone ? [EditorView.lineWrapping] : [])],
 				}),
 			}),
 			parent: host.current,
@@ -139,7 +143,7 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 			instance.destroy();
 			view.current = null;
 		};
-	}, [doc.path, doc.text]);
+	}, [doc.path, doc.text, phone]);
 
 	useEffect(() => {
 		const known = instances;
