@@ -10186,6 +10186,14 @@ a.docs-release-version:hover {
 	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
+/* The card's header, when its section is drawn: a band across the top, as
+   the card's own is, held 1px inside the section so a lit section's edge
+   runs unbroken round it rather than under the header's background. */
+.docs-bar-frame.panel .panel-section > .card-head {
+	margin: 0 1px;
+	border-radius: calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px) 0 0;
+}
+
 /* Pointing wins over the scrim. Hovering a dimmed section's explanation lights
    it in the picture, and a lit section the reader cannot read is a highlight
    that hides the thing it is pointing at. */

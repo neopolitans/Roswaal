@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.130.1",
+		date: "2026-10-04",
+		headline: "The docs' drawn Variables panel, tidied.",
+		affects: ["docs"],
+		fixed: [
+			"In the docs' drawing of the Variables panel, the card's header no longer covers the edge of the lit section around it.",
+		],
+	},
+	{
 		version: "0.130.0",
 		date: "2026-10-04",
 		headline: "The panels redrawn: section headings, fields and the type picker.",
