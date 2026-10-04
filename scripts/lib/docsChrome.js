@@ -364,6 +364,76 @@
 	 * button would have nothing behind it. The stylesheet decides where it is
 	 * offered -- beside Contents, wherever Contents is.
 	 */
+	/**
+	 * The contents and the outline fold to their title bars, as the editor's
+	 * Docs window folds them, and remember it under the same keys -- so a
+	 * reader who folded them there finds them folded here.
+	 */
+	function foldable(card, key, open, shut) {
+		if (!card) return;
+		var button = card.querySelector(".docs-card-fold");
+		function apply(folded) {
+			card.classList.toggle("folded", folded);
+			if (button) {
+				button.setAttribute("aria-expanded", String(!folded));
+				button.title = folded ? open : shut;
+			}
+		}
+		var stored = false;
+		try {
+			stored = localStorage.getItem(key) === "1";
+		} catch (e) {
+			// Storage refused: the fold still works for this visit.
+		}
+		apply(stored);
+		if (!button) return;
+		button.addEventListener("click", function () {
+			var folded = !card.classList.contains("folded");
+			apply(folded);
+			try {
+				localStorage.setItem(key, folded ? "1" : "0");
+			} catch (e) {
+				// As above.
+			}
+		});
+	}
+	foldable(
+		document.querySelector(".docs-nav"),
+		"roswaal.docs.contentsFolded",
+		"Show the contents",
+		"Fold the contents away",
+	);
+	foldable(
+		document.querySelector(".docs-toc-card"),
+		"roswaal.docs.outlineFolded",
+		"Show the outline",
+		"Fold the outline away",
+	);
+
+	/** The section being read: lit in the outline, and named on its title bar. */
+	var outline = document.querySelector(".docs-toc-card");
+	var reading = document.querySelector(".docs-content");
+	if (outline && reading) {
+		var scroller = reading;
+		var links = Array.prototype.slice.call(outline.querySelectorAll(".docs-toc-link"));
+		var here = outline.querySelector(".docs-card-where .here");
+		var spy = function () {
+			var top = scroller.getBoundingClientRect().top + 90;
+			var at = 0;
+			links.forEach(function (link, i) {
+				var id = decodeURIComponent((link.getAttribute("href") || "").slice(1));
+				var heading = document.getElementById(id);
+				if (heading && heading.getBoundingClientRect().top <= top) at = i;
+			});
+			links.forEach(function (link, i) {
+				link.classList.toggle("on", i === at);
+			});
+			if (here && links[at]) here.textContent = links[at].textContent;
+		};
+		spy();
+		scroller.addEventListener("scroll", spy, { passive: true });
+	}
+
 	var finder = document.getElementById("docs-search");
 	if (finder) {
 		finder.hidden = false;

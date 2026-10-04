@@ -10330,8 +10330,8 @@ button.tb.danger {
 
 	.docs-page-head .logo .version,
 	.docs-page-head .docs-try-more,
-	.docs-page-head .docs-try .version.preview-chip,
-	.docs-page-head .docs-source {
+	.docs-page-head a.tb.docs-try .version.preview-chip,
+	.docs-page-head a.tb.docs-source {
 		display: none;
 	}
 }
@@ -11805,6 +11805,11 @@ select:not(.literal):not([multiple]) {
 
 .docs-clusters .spacer {
 	flex: 1;
+}
+
+/* Each group keeps its one line, as the editor's do. */
+.docs-clusters .tool-group {
+	flex-wrap: nowrap;
 }
 
 .docs-clusters .tool-group a.tb.icon-only {
@@ -13610,15 +13615,32 @@ html {
 	margin-left: auto;
 }
 
-.card-tools .tb,
+/* The header's controls are a size smaller than a toolbar's, so they sit
+   inside its band rather than filling it: 20px with a mouse, 28px to touch. */
+.card-tools .tb {
+	min-height: 0;
+	height: calc(var(--hit) - 10px);
+	padding: 0 8px;
+	font-size: var(--text-sm);
+	line-height: 1;
+}
+
+.card-tools .segmented {
+	padding: 1px;
+}
+
 .card-tools .segmented button {
-	min-height: calc(var(--hit) - 8px);
+	min-height: 0;
+	height: calc(var(--hit) - 12px);
+	padding: 0 8px;
+	font-size: var(--text-sm);
+	line-height: 1;
 }
 
 .card-head > .tb.icon-only {
 	flex: none;
-	width: calc(var(--hit) - 6px);
-	height: calc(var(--hit) - 6px);
+	width: calc(var(--hit) - 8px);
+	height: calc(var(--hit) - 8px);
 	padding: 0;
 	display: inline-grid;
 	place-items: center;
@@ -13868,6 +13890,22 @@ html {
 @media (prefers-reduced-motion: reduce) {
 	.drop-preview,
 	.card-split.live::after {
+		transition: none;
+	}
+}
+
+/* The published docs' folds: the chevron turns as the Docs window's does. */
+.docs-static .docs-card-fold svg {
+	transition: transform 140ms;
+}
+
+.docs-static .docs-nav.folded .docs-card-fold svg,
+.docs-static .docs-toc-card.folded .docs-card-fold svg {
+	transform: rotate(-90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.docs-static .docs-card-fold svg {
 		transition: none;
 	}
 }

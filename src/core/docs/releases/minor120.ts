@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.122.2",
+		date: "2026-10-04",
+		headline: "The published docs float their contents, as the Docs window does.",
+		affects: ["docs", "editor"],
+		changed: [
+			"**The published docs** have the Docs window's layout: floating groups along the top with the search beside the mark, and the contents and the outline as cards over the page that fold away and say where you are.",
+			"**A card's header controls** are a size smaller, so they sit inside the header rather than filling it.",
+		],
+	},
+	{
 		version: "0.122.1",
 		date: "2026-10-04",
 		headline: "A dragged card docks only near an edge.",

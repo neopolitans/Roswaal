@@ -600,8 +600,14 @@ function renderPins(block: Block & { t: "pins" }, options: RenderOptions, up: st
 // Pages
 // ---------------------------------------------------------------------------
 
-function renderNav(site: DocSite, current: DocPage): string {
+function renderNav(site: DocSite, current: DocPage, options: RenderOptions): string {
 	const up = upTo(current.slug);
+	// Where you are, as the window's contents card says it: open or folded.
+	const section = site.sections.find((s) => s.pages.some((p) => p.slug === current.slug));
+	const where =
+		`<div class="docs-card-head"><span class="docs-card-where" title="${escapeHtml(section ? `${section.title} › ${current.title}` : current.title)}">` +
+		`${section ? `<span class="crumb">${escapeHtml(section.title)}</span>` : ""}<span class="here">${escapeHtml(current.title)}</span></span>` +
+		`<button type="button" class="tb icon-only docs-card-fold" title="Fold the contents away" aria-expanded="true">${chromeIcon("chevron", options)}</button></div>`;
 	const groups = new Map<string, DocSection[]>();
 	for (const section of site.sections) {
 		const list = groups.get(section.group) ?? [];
@@ -644,18 +650,28 @@ function renderNav(site: DocSite, current: DocPage): string {
 		})
 		.join("");
 
-	return `<nav class="docs-nav"><input class="search" id="q" placeholder="Search the docs (Ctrl+K)" autocomplete="off">
+	return `<nav class="docs-nav">${where}<input class="search" id="q" placeholder="Search the docs (Ctrl+K)" autocomplete="off">
 <div class="docs-results" id="results" hidden></div><div id="tree">${html}</div></nav>`;
 }
 
-function renderOutline(page: DocPage): string {
+function renderOutline(page: DocPage, options: RenderOptions): string {
 	const headings = page.blocks.filter((b): b is Block & { t: "h" } => b.t === "h" && b.level === 2);
 	if (headings.length < 2) return `<aside class="docs-toc"></aside>`;
 
 	const links = headings
-		.map((h) => `<a class="docs-toc-link" href="#${headingId(h.text)}">${escapeHtml(h.text)}</a>`)
+		.map(
+			(h, i) =>
+				`<a class="docs-toc-link${i === 0 ? " on" : ""}" href="#${headingId(h.text)}">${escapeHtml(h.text)}</a>`,
+		)
 		.join("");
-	return `<aside class="docs-toc"><div class="docs-toc-head">On this page</div>${links}</aside>`;
+	// A card, as in the Docs window: its title bar names the section being
+	// read, which the page's script keeps up to date as it scrolls.
+	return (
+		`<aside class="docs-toc"><div class="docs-toc-card"><div class="docs-card-head">` +
+		`<span class="docs-card-where"><span class="here">${escapeHtml(headings[0].text)}</span></span>` +
+		`<button type="button" class="tb icon-only docs-card-fold" title="Fold the outline away" aria-expanded="true">${chromeIcon("chevron", options)}</button>` +
+		`</div>${links}</div></aside>`
+	);
 }
 
 /**
@@ -797,20 +813,22 @@ ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(optio
 <script src="${up}theme.js${stamp(options)}"></script>
 </head>
 <body class="docs-static">
-<div class="docs-page">
+<div class="docs-page docs-window">
 ${options.canaryBanner ?? ""}<input type="checkbox" id="docs-nav-open" class="docs-nav-check" aria-label="Show the contents">
-<header class="docs-page-head">
-<a class="logo as-chip" href="${up}../try.html#picker" title="Your projects">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a>
-<label for="docs-nav-open" class="tb docs-nav-toggle">Contents</label>
-<button type="button" class="tb icon-only docs-search-toggle" id="docs-search" title="Search the docs" aria-label="Search the docs" hidden>${chromeIcon("search", options)}</button>
-<span class="grow"></span>
+<header class="docs-page-head docs-clusters">
+<div class="tool-group mark-group"><a class="logo as-chip" href="${up}../try.html#picker" title="Your projects">${options.logo?.mark ?? "Roswaal "}Docs<span class="version">${escapeHtml(options.version)}</span></a></div>
+<div class="tool-group search-group"><button type="button" class="tb docs-search-field" id="docs-search" title="Search the docs (Ctrl+K)" aria-label="Search the docs" hidden>${chromeIcon("search", options)}<span class="docs-search-label">Search the docs</span><kbd>Ctrl K</kbd></button></div>
+<div class="tool-group contents-group"><label for="docs-nav-open" class="tb docs-nav-toggle">Contents</label></div>
+<span class="spacer"></span>
+<div class="tool-group">
 <a class="tb docs-try" href="${up}../try.html">Try it<span class="docs-try-more"> in your browser</span>${options.previewChip ?? ""}</a>
 <a class="tb docs-source" href="${SOURCE_REPOSITORY}" rel="noreferrer noopener">Source</a>
 <button type="button" class="tb icon-only" id="prefs" title="Settings" aria-label="Settings">${chromeIcon("settings", options)}</button>
+</div>
 </header>
 <div class="docs-body">
 <label for="docs-nav-open" class="docs-nav-scrim" aria-hidden="true" hidden></label>
-${renderNav(site, page)}
+${renderNav(site, page, options)}
 <article class="docs-content">
 <div class="docs-article${page.narrow ? " narrow" : ""}">
 <header class="docs-title">
@@ -821,7 +839,7 @@ ${body}
 ${renderNeighbours(site, page)}${page.review ? `<p class="docs-reviewed">${inline(reviewLine(page.review), up)}</p>\n` : ""}${page.review?.verify ? `<p class="docs-verify"><strong>To verify:</strong> ${inline(page.review.verify, up)}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>
 </div>
 </article>
-${renderOutline(page)}
+${renderOutline(page, options)}
 </div>
 </div>
 <script src="${up}docs.js${stamp(options)}" defer></script>
