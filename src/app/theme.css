@@ -13809,16 +13809,15 @@ select:not(.literal):not([multiple]) {
 	display: none;
 }
 
-/* On a touch screen the palette sits at the foot of the window, above the
-   home indicator, and rises over the action row along the bottom centre only
-   while the node logic has one. That row lifts itself by the same inset, so
-   the palette counts it too, or the two met on an iPad. */
+/* On a touch screen the palette is the bottom row, beside the logic's tools
+   at the bottom left, above the home indicator. The action row the node
+   logic has rises over that row rather than sitting under it. */
 @media (hover: none) and (pointer: coarse) {
 	.node-editor:not(.split) > .pin-palette {
 		bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px));
 	}
 
-	.node-editor:not(.split):has(.touch-bar) > .pin-palette {
+	.node-editor:not(.split) .logic-canvas .drawer-toggles {
 		bottom: calc(var(--edge) * 2 + var(--hit) + 8px + env(safe-area-inset-bottom, 0px));
 	}
 

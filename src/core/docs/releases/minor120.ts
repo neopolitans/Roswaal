@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.132.2",
+		date: "2026-10-04",
+		headline: "Node Design's action row above the pin types on a tablet.",
+		affects: ["designer"],
+		fixed: [
+			"On a tablet, the pin types are Node Design's bottom row, beside the logic's tools, and the undo and redo row sits above them rather than under them.",
+		],
+	},
+	{
 		version: "0.132.1",
 		date: "2026-10-04",
 		headline: "Node Design held upright, and Contents the height of its neighbours.",
