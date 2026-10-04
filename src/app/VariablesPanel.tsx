@@ -25,6 +25,7 @@ import type {
 	ScriptVariable,
 } from "../core/schema.js";
 import { SPECIFIER_HINTS } from "../core/schema.js";
+import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import {
 	addModule,
@@ -117,8 +118,7 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 
 	return (
 		<div className={cx("variables", locked && "editing-locked")}>
-			<h2>
-				<span>Variables</span>
+			<PanelHead>
 				<button
 					className="tb"
 					title="Add a variable"
@@ -132,7 +132,7 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 				>
 					Add
 				</button>
-			</h2>
+			</PanelHead>
 
 			<div className="variable-list">
 				{script.variables.map((variable) => (

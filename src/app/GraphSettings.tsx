@@ -8,6 +8,7 @@
  */
 
 import type { ScriptClass, Target, TypecheckMode } from "../core/schema.js";
+import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Field } from "./InspectorSections.jsx";
 import { Icon } from "./icons.jsx";
@@ -31,7 +32,7 @@ export function GraphSettings(props: GraphSettingsProps) {
 	const lune = props.target === "lune";
 	return (
 		<div className={cx("inspector graph-settings", props.locked && "editing-locked")}>
-			<h2>Graph</h2>
+			<PanelHead sub="Graph" />
 			<div className="inspector-body">
 				<div className="node-heading graph-heading">
 					{props.name}

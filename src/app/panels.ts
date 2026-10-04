@@ -61,6 +61,27 @@ export interface PanelState {
 	floating: boolean;
 	/** Where the window sits over the centre, and how big. Pixels. */
 	frame: PanelFrame;
+	/**
+	 * The panel whose card this one is a tab of. Absent, it heads a card of its
+	 * own. A tab's `dock`, `floating` and `frame` follow its head's, so moving
+	 * a card moves every tab in it.
+	 */
+	tabOf?: PanelId;
+	/** A card's share of its dock's height against the other cards. Read on the head. */
+	weight?: number;
+	/** A card folded to its header. Read on the head. */
+	folded?: boolean;
+	/** The tab a card shows. Read on the head; absent, its first. */
+	active?: PanelId;
+}
+
+/** One card: its head, its tabs in order with the head first, and what it shows. */
+export interface Card {
+	head: PanelId;
+	tabs: PanelId[];
+	active: PanelId;
+	weight: number;
+	folded: boolean;
 }
 
 export interface PanelFrame {
@@ -109,12 +130,33 @@ export interface Layout {
  */
 export const DEFAULT_LAYOUT: Layout = {
 	panels: {
-		tree: { dock: "left", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
-		variables: { dock: "left", open: true, order: 1, floating: false, frame: DEFAULT_FRAME },
-		inspector: { dock: "right", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
+		tree: { dock: "left", open: true, order: 0, floating: false, frame: DEFAULT_FRAME, weight: 3 },
+		variables: {
+			dock: "left",
+			open: true,
+			order: 1,
+			floating: false,
+			frame: DEFAULT_FRAME,
+			weight: 2,
+		},
+		inspector: {
+			dock: "right",
+			open: true,
+			order: 0,
+			floating: false,
+			frame: DEFAULT_FRAME,
+			weight: 3,
+		},
 		// A place instance's properties, under the Inspector: there only once
 		// one is opened from the DataModel browser.
-		properties: { dock: "right", open: true, order: 1, floating: false, frame: DEFAULT_FRAME },
+		properties: {
+			dock: "right",
+			open: true,
+			order: 1,
+			floating: false,
+			frame: DEFAULT_FRAME,
+			weight: 2,
+		},
 		analysis: { dock: "bottom", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
 	},
 	docks: {
@@ -326,6 +368,19 @@ export function readLayout(stored: unknown): Layout {
 				h: typeof frame?.h === "number" ? Math.max(MIN_FLOAT.h, frame.h) : fallback.frame.h,
 			},
 		};
+		const card = value as Partial<PanelState> | undefined;
+		if (typeof card?.weight === "number" && card.weight > 0) panels[id].weight = card.weight;
+		else if (fallback.weight !== undefined) panels[id].weight = fallback.weight;
+		if (card?.folded === true) panels[id].folded = true;
+		if (PANEL_IDS.includes(card?.active as PanelId)) panels[id].active = card!.active;
+		if (PANEL_IDS.includes(card?.tabOf as PanelId) && card!.tabOf !== id)
+			panels[id].tabOf = card!.tabOf;
+	}
+	// A tab of a tab, or of a panel that is gone, heads its own card: a card
+	// is one level deep, and a stored loop must not hide a panel for good.
+	for (const id of PANEL_IDS) {
+		const host = panels[id].tabOf;
+		if (host !== undefined && panels[host].tabOf !== undefined) delete panels[id].tabOf;
 	}
 
 	const docks = {} as Record<DockSide, DockState>;
@@ -391,10 +446,13 @@ export function floatingPanels(layout: Layout): PanelId[] {
  * been thrown away.
  */
 export function floatPanel(layout: Layout, panel: PanelId, floating: boolean): Layout {
-	const state = layout.panels[panel];
+	const head = cardOf(layout, panel);
+	const state = layout.panels[head];
 	if (state.floating === floating) return layout;
 
-	const panels = { ...layout.panels, [panel]: { ...state, floating, open: true } };
+	// The card goes as one: its tabs follow its head.
+	const panels = { ...layout.panels };
+	for (const id of membersOf(layout, head)) panels[id] = { ...panels[id], floating, open: true };
 	if (floating) return { ...layout, panels };
 
 	const side = state.dock;
@@ -415,10 +473,10 @@ export function framePanel(layout: Layout, panel: PanelId, frame: PanelFrame): L
 		w: Math.max(MIN_FLOAT.w, Math.round(frame.w)),
 		h: Math.max(MIN_FLOAT.h, Math.round(frame.h)),
 	};
-	return {
-		...layout,
-		panels: { ...layout.panels, [panel]: { ...layout.panels[panel], frame: clamped } },
-	};
+	const panels = { ...layout.panels };
+	for (const id of membersOf(layout, cardOf(layout, panel)))
+		panels[id] = { ...panels[id], frame: clamped };
+	return { ...layout, panels };
 }
 
 /**
@@ -429,6 +487,9 @@ export function framePanel(layout: Layout, panel: PanelId, frame: PanelFrame): L
  */
 export function movePanel(layout: Layout, panel: PanelId, side: DockSide): Layout {
 	if (layout.panels[panel].dock === side && !layout.panels[panel].floating) return layout;
+	// A card moves with its tabs. A lone panel keeps the original rule below.
+	if (membersOf(layout, cardOf(layout, panel)).length > 1)
+		return dropCard(layout, panel, { kind: "dock", side });
 
 	const panels = {
 		...layout.panels,
@@ -452,4 +513,243 @@ export function movePanel(layout: Layout, panel: PanelId, side: DockSide): Layou
 		panels: renumbered,
 		docks: { ...layout.docks, [side]: { ...layout.docks[side], open: true } },
 	};
+}
+
+// ---------------------------------------------------------------------------
+// Cards: panels as tabs, sharing a dock's height
+// ---------------------------------------------------------------------------
+
+/** The panel heading the card this one is in: itself, unless it is a tab. */
+export function cardOf(layout: Layout, panel: PanelId): PanelId {
+	return layout.panels[panel].tabOf ?? panel;
+}
+
+/** A card's panels, its head first and its tabs in their order. */
+export function membersOf(layout: Layout, head: PanelId): PanelId[] {
+	return [
+		head,
+		...PANEL_IDS.filter((id) => layout.panels[id].tabOf === head).sort(
+			(a, b) => layout.panels[a].order - layout.panels[b].order || a.localeCompare(b),
+		),
+	];
+}
+
+/**
+ * A card as it is drawn: only the panels open and with something to show.
+ * Null when none are, so a card whose head has gone quiet still shows its
+ * other tabs, and one with nothing left is not an empty frame.
+ */
+function cardFrom(layout: Layout, head: PanelId, shown: (id: PanelId) => boolean): Card | null {
+	const tabs = membersOf(layout, head).filter((id) => layout.panels[id].open && shown(id));
+	if (tabs.length === 0) return null;
+	const state = layout.panels[head];
+	const active = state.active !== undefined && tabs.includes(state.active) ? state.active : tabs[0];
+	return { head, tabs, active, weight: state.weight ?? 1, folded: state.folded === true };
+}
+
+/** The cards in one dock, in order. */
+export function cardsIn(
+	layout: Layout,
+	side: DockSide,
+	shown: (id: PanelId) => boolean = () => true,
+): Card[] {
+	return PANEL_IDS.filter((id) => {
+		const p = layout.panels[id];
+		return p.tabOf === undefined && p.dock === side && !p.floating;
+	})
+		.sort((a, b) => layout.panels[a].order - layout.panels[b].order || a.localeCompare(b))
+		.map((head) => cardFrom(layout, head, shown))
+		.filter((card): card is Card => card !== null);
+}
+
+/** The cards in a window each, over the centre. */
+export function floatingCards(
+	layout: Layout,
+	shown: (id: PanelId) => boolean = () => true,
+): Card[] {
+	return PANEL_IDS.filter(
+		(id) => layout.panels[id].tabOf === undefined && layout.panels[id].floating,
+	)
+		.map((head) => cardFrom(layout, head, shown))
+		.filter((card): card is Card => card !== null);
+}
+
+/** Changes one panel's state, leaving the rest alone. */
+function patch(layout: Layout, id: PanelId, change: Partial<PanelState>): Layout {
+	return { ...layout, panels: { ...layout.panels, [id]: { ...layout.panels[id], ...change } } };
+}
+
+/** Numbers a dock's cards 0, 1, 2… in the order given. */
+function renumber(layout: Layout, heads: PanelId[]): Layout {
+	let next = layout;
+	heads.forEach((id, i) => {
+		next = patch(next, id, { order: i });
+	});
+	return next;
+}
+
+/** The cards' heads in a dock, in order, whether or not they show. */
+function headsIn(layout: Layout, side: DockSide): PanelId[] {
+	return PANEL_IDS.filter((id) => {
+		const p = layout.panels[id];
+		return p.tabOf === undefined && p.dock === side && !p.floating;
+	}).sort((a, b) => layout.panels[a].order - layout.panels[b].order || a.localeCompare(b));
+}
+
+/**
+ * One panel out of its card, into a card of its own where the card was.
+ *
+ * A tab simply stops being one. A head with tabs hands the card to its first
+ * tab -- its place, its share of the height, its fold and its window -- so
+ * taking the head away does not scatter the rest.
+ */
+export function separate(layout: Layout, panel: PanelId): Layout {
+	const state = layout.panels[panel];
+	if (state.tabOf !== undefined) {
+		const head = layout.panels[state.tabOf];
+		let next = patch(layout, panel, {
+			tabOf: undefined,
+			active: undefined,
+			folded: false,
+			weight: head.weight,
+			dock: head.dock,
+			floating: head.floating,
+			frame: head.frame,
+		});
+		if (head.active === panel) next = patch(next, state.tabOf, { active: undefined });
+		// Beside the card it came from, not at the end of the dock.
+		if (!head.floating) {
+			const heads = headsIn(next, head.dock).filter((id) => id !== panel);
+			heads.splice(heads.indexOf(state.tabOf) + 1, 0, panel);
+			next = renumber(next, heads);
+		}
+		return next;
+	}
+	const [, first, ...rest] = membersOf(layout, panel);
+	if (first === undefined) return layout;
+	let next = patch(layout, first, {
+		tabOf: undefined,
+		order: state.order,
+		weight: state.weight,
+		folded: state.folded,
+		active: state.active === panel ? undefined : state.active,
+		dock: state.dock,
+		floating: state.floating,
+		frame: state.frame,
+	});
+	for (const id of rest) next = patch(next, id, { tabOf: first });
+	next = patch(next, panel, { active: undefined, folded: false });
+	if (!state.floating) {
+		const heads = headsIn(next, state.dock).filter((id) => id !== panel);
+		heads.splice(heads.indexOf(first) + 1, 0, panel);
+		next = renumber(next, heads);
+	}
+	return next;
+}
+
+/** Where a dragged card, or one tab of it, can land. */
+export type CardDrop =
+	| { kind: "tab"; host: PanelId }
+	| { kind: "before" | "after"; card: PanelId }
+	| { kind: "dock"; side: DockSide }
+	| { kind: "float"; frame: PanelFrame };
+
+/**
+ * Moves a card -- its head and every tab -- or, with `alone`, one panel out
+ * of its card on its own. Every move opens the dock it lands in: a card
+ * dropped into a closed dock would read as thrown away.
+ */
+export function dropCard(layout: Layout, panel: PanelId, drop: CardDrop, alone = false): Layout {
+	const solo = alone && membersOf(layout, cardOf(layout, panel)).length > 1;
+	let next = solo ? separate(layout, panel) : layout;
+	const head = solo ? panel : cardOf(next, panel);
+	const group = membersOf(next, head);
+	const follow = (change: Partial<PanelState>) => {
+		for (const id of group) next = patch(next, id, change);
+	};
+
+	if (drop.kind === "tab") {
+		const host = cardOf(next, drop.host);
+		if (group.includes(host)) return layout;
+		const hs = next.panels[host];
+		const base = membersOf(next, host).length;
+		group.forEach((id, i) => {
+			next = patch(next, id, {
+				tabOf: host,
+				dock: hs.dock,
+				floating: hs.floating,
+				frame: hs.frame,
+				order: base + i,
+				active: undefined,
+				folded: false,
+			});
+		});
+		next = patch(next, host, { active: panel, folded: false });
+		return openDock(next, hs.floating ? null : hs.dock);
+	}
+
+	if (drop.kind === "float") {
+		follow({ floating: true, frame: drop.frame });
+		return next;
+	}
+
+	const side = drop.kind === "dock" ? drop.side : next.panels[cardOf(next, drop.card)].dock;
+	follow({ dock: side, floating: false });
+	const heads = headsIn(next, side).filter((id) => id !== head);
+	if (drop.kind === "dock") heads.push(head);
+	else {
+		const target = cardOf(next, drop.card);
+		if (target === head) return layout;
+		// The card it lands beside lends it a matching share, so it arrives at
+		// a sensible height rather than as a sliver or the whole column.
+		next = patch(next, head, { weight: next.panels[target].weight ?? 1 });
+		heads.splice(heads.indexOf(target) + (drop.kind === "after" ? 1 : 0), 0, head);
+	}
+	return openDock(renumber(next, heads), side);
+}
+
+function openDock(layout: Layout, side: DockSide | null): Layout {
+	if (side === null || layout.docks[side].open) return layout;
+	return { ...layout, docks: { ...layout.docks, [side]: { ...layout.docks[side], open: true } } };
+}
+
+/** Which tab a card shows. */
+export function showTab(layout: Layout, panel: PanelId): Layout {
+	const head = cardOf(layout, panel);
+	return patch(layout, head, { active: panel, folded: false });
+}
+
+/** Folds a card to its header, or opens it again. */
+export function foldCard(layout: Layout, panel: PanelId, folded: boolean): Layout {
+	return patch(layout, cardOf(layout, panel), { folded });
+}
+
+/**
+ * Two neighbouring cards' shares of the height, after the line between them
+ * was dragged. The others keep theirs.
+ */
+export function shareHeight(
+	layout: Layout,
+	above: PanelId,
+	below: PanelId,
+	weights: [number, number],
+): Layout {
+	return patch(patch(layout, above, { weight: weights[0] }), below, { weight: weights[1] });
+}
+
+/**
+ * Closes one panel: out of its card, and shut. Its menu's Panels list, or
+ * whatever asks for it, brings it back as a card of its own.
+ */
+export function closePanel(layout: Layout, panel: PanelId): Layout {
+	return patch(separate(layout, panel), panel, { open: false });
+}
+
+/** A closed panel back, as a card of its own at the end of its dock. */
+export function reopenPanel(layout: Layout, panel: PanelId): Layout {
+	const state = layout.panels[panel];
+	let next = patch(layout, panel, { open: true, tabOf: undefined, folded: false });
+	if (!state.floating)
+		next = renumber(next, [...headsIn(next, state.dock).filter((id) => id !== panel), panel]);
+	return openDock(next, state.floating ? null : state.dock);
 }

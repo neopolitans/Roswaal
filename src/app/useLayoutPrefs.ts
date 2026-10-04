@@ -16,10 +16,13 @@ import {
 	type DockSide,
 	floatPanel,
 	framePanel,
+	type Layout,
 	movePanel,
 	type PanelFrame,
 	type PanelId,
+	reopenPanel,
 	resizeDock,
+	showTab,
 	toggleDock,
 } from "./panels.js";
 import { usePreferenceSync } from "./preferenceSync.js";
@@ -39,6 +42,11 @@ export interface LayoutPrefs {
 	onFramePanel: (panel: PanelId, frame: PanelFrame) => void;
 	onFramePanelEnd: () => void;
 	onMovePanel: (panel: PanelId, side: DockSide) => void;
+	/**
+	 * Any change to the cards: moved, tabbed, folded, closed. Written at once,
+	 * unless `persist` is false for a stream, which `onDockResizeEnd` writes.
+	 */
+	onLayout: (change: (layout: Layout) => Layout, persist?: boolean) => void;
 }
 
 export function useLayoutPrefs(): LayoutPrefs {
@@ -143,6 +151,14 @@ export function useLayoutPrefs(): LayoutPrefs {
 		});
 	}, []);
 
+	const onLayout = useCallback((change: (layout: Layout) => Layout, persist = true) => {
+		setPrefs((current) => {
+			const next = { ...current, layout: change(current.layout) };
+			if (persist) writePreferences(next);
+			return next;
+		});
+	}, []);
+
 	/** Collapsing is one decision rather than a stream, so it is written at once. */
 	const onDockToggle = useCallback((side: DockSide) => {
 		setPrefs((current) => {
@@ -179,8 +195,10 @@ export function useLayoutPrefs(): LayoutPrefs {
 		setPrefs((current) => {
 			const panel = current.layout.panels[id];
 			let layout = current.layout;
-			if (!panel.open)
-				layout = { ...layout, panels: { ...layout.panels, [id]: { ...panel, open: true } } };
+			if (!panel.open) layout = reopenPanel(layout, id);
+			// A tab in a card is shown by showing its tab.
+			const head = layout.panels[id].tabOf;
+			if (head !== undefined && layout.panels[head].active !== id) layout = showTab(layout, id);
 			if (!panel.floating && !layout.docks[panel.dock].open)
 				layout = toggleDock(layout, panel.dock);
 			if (layout === current.layout) return current;
@@ -202,5 +220,6 @@ export function useLayoutPrefs(): LayoutPrefs {
 		onFramePanel,
 		onFramePanelEnd,
 		onMovePanel,
+		onLayout,
 	};
 }

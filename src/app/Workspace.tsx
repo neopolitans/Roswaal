@@ -8,6 +8,15 @@
  * dock's down the right, and the bottom dock as the status pill. A dock's size
  * is its cards' width; its handle is on the cards' inner edge.
  *
+ * ## Cards
+ *
+ * A card is one or more panels as tabs, under a header that is its handle:
+ * see `Cards.tsx`. Two or more open cards in a dock share its height, and the
+ * line between two trades height between them. A card is dragged by its
+ * header -- onto another's header for a tab, above or below a card, to an
+ * edge for that dock, or onto the graph for a window -- and its menu does the
+ * same without dragging, and closes it.
+ *
  * ## Each dock is placed by style, never by position in the tree
  *
  * Beako moves a panel by `append`-ing the live node, so it keeps its scroll
@@ -26,6 +35,7 @@
 import {
 	type CSSProperties,
 	createContext,
+	Fragment,
 	type ReactNode,
 	type PointerEvent as ReactPointerEvent,
 	useContext,
@@ -34,21 +44,33 @@ import {
 	useState,
 } from "react";
 
+import { CardMenu, type CardMenuItem, CardView, HEADLESS, PanelBody } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import {
+	type Card,
+	type CardDrop,
 	COMPACT_QUERY,
+	cardOf,
+	cardsIn,
+	closePanel,
 	type DockSide,
 	dockVisible,
+	dropCard,
 	dropZone,
-	floatingPanels,
+	floatingCards,
+	foldCard,
 	type Layout,
 	MIN_FLOAT,
+	membersOf,
 	PANEL_IDS,
 	PANEL_TITLES,
 	type PanelFrame,
 	type PanelId,
-	panelsIn,
+	reopenPanel,
+	separate,
+	shareHeight,
+	showTab,
 } from "./panels.js";
 import { trackPointer } from "./pointer.js";
 
@@ -69,25 +91,26 @@ export interface WorkspaceProps {
 	/** A dock was dragged to a new size. Absent means the splitters are inert. */
 	onResize?: (side: DockSide, size: number) => void;
 	/**
-	 * The drag finished.
+	 * A drag finished: a dock's width, the height two cards share, or a
+	 * window's frame.
 	 *
-	 * Separate from `onResize` so a caller can update as the pointer moves and
-	 * store the result only once, rather than writing sixty intermediate widths
-	 * a second that nobody asked to keep.
+	 * Separate from the change itself so a caller can update as the pointer
+	 * moves and store the result only once, rather than writing sixty
+	 * intermediate sizes a second that nobody asked to keep.
 	 */
 	onResizeEnd?: () => void;
 	/** A splitter was double-clicked: collapse the dock, or bring it back. */
 	onToggle?: (side: DockSide) => void;
-	/** A panel was dragged into another dock. */
-	onMovePanel?: (panel: PanelId, side: DockSide) => void;
+	/**
+	 * A card was moved, tabbed, folded, closed or resized. `persist` is false
+	 * for a stream -- the line between two cards being dragged -- which is
+	 * written by `onResizeEnd` when it settles.
+	 */
+	onLayout?: (change: (layout: Layout) => Layout, persist?: boolean) => void;
 	/** A window was moved or resized over the centre. */
 	onFramePanel?: (panel: PanelId, frame: PanelFrame) => void;
 	/** The drag finished. Separate for the reason `onResizeEnd` is. */
 	onFramePanelEnd?: () => void;
-	/** Its Dock button was pressed: back to the dock it came from. */
-	onDockPanel?: (panel: PanelId) => void;
-	/** Out of its dock and into a window at this point over the centre. */
-	onFloatPanel?: (panel: PanelId, frame: PanelFrame) => void;
 	/**
 	 * On a phone, the side docks are drawers over the graph; a change to this
 	 * shuts them. The open document, so opening one from the tree gets out of
@@ -150,11 +173,9 @@ export function Workspace({
 	onResize,
 	onResizeEnd,
 	onToggle,
-	onMovePanel,
+	onLayout,
 	onFramePanel,
 	onFramePanelEnd,
-	onDockPanel,
-	onFloatPanel,
 	drawerKey,
 	touchBar,
 	showDrawer,
@@ -164,20 +185,30 @@ export function Workspace({
 	const surface = useRef<HTMLDivElement>(null);
 	// The centre, which a window's coordinates are measured from.
 	const centreBox = useRef<HTMLDivElement>(null);
-	// The panel under the pointer, and where it would land if released now.
-	const [dragging, setDragging] = useState<{ panel: PanelId; over: DockSide | null } | null>(null);
+	// The card under the pointer, and where it would land if released now.
+	const [dragging, setDragging] = useState<{
+		panel: PanelId;
+		alone: boolean;
+		windowed: boolean;
+		target: Target | null;
+	} | null>(null);
+	// The card last used, which its header marks.
+	const [focus, setFocus] = useState<PanelId | null>(null);
+	// The status pill's height, which the left column stops above: it is a
+	// row, or two with a line under it, or a list when there are problems.
+	const [pill, setPill] = useState(0);
+	// A card's menu, open by its button.
+	const [menu, setMenu] = useState<{
+		panel: PanelId;
+		at: { x: number; y: number; up: boolean };
+	} | null>(null);
 	// A panel with nothing to draw is not open.
 	//
 	// The inspector only has content while exactly one node is selected, and
-	// the variables panel only while a graph is open. Asking `gridTemplate` for
-	// tracks from the raw layout reserves those columns anyway — 290px of dead
-	// space to the right of the graph whenever nothing is selected, which is
-	// exactly the column the old fixed layout only added when it had something
-	// to put in it.
-	//
-	// Derived here rather than in `panels.ts` because it is a fact about
-	// rendering, not about the layout: the developer did not close the
-	// inspector, and it must come back the moment it has something to say.
+	// the variables panel only while a graph is open. Derived here rather than
+	// in `panels.ts` because it is a fact about rendering, not about the
+	// layout: the developer did not close the inspector, and it must come back
+	// the moment it has something to say.
 	const effective: Layout = {
 		...layout,
 		panels: Object.fromEntries(
@@ -218,18 +249,34 @@ export function Workspace({
 		return () => element.removeEventListener("dragstart", onStart);
 	}, [compact]);
 
+	// A card's menu closes on a press anywhere else, and on Escape.
+	useEffect(() => {
+		if (!menu) return;
+		const close = () => setMenu(null);
+		const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+		window.addEventListener("pointerdown", close);
+		window.addEventListener("keydown", onKey);
+		return () => {
+			window.removeEventListener("pointerdown", close);
+			window.removeEventListener("keydown", onKey);
+		};
+	}, [menu]);
+
 	// The panels a side's drawers offer, in the order the dock stacks them.
 	//
 	// Floating panels too, by the dock they came from: a window over the graph
 	// is a desktop's arrangement, and on a tablet it would sit on top of the
-	// only thing there is room for. And a collapsed dock still offers its
-	// panels -- collapsing is a choice about a wide window, and the splitter
-	// that would undo it is not drawn here.
+	// only thing there is room for. A card's tabs are offered one by one.
 	const drawerPanels = (side: "left" | "right"): PanelId[] =>
 		PANEL_IDS.filter(
 			(id) =>
 				layout.panels[id].dock === side && layout.panels[id].open && contents[id] !== undefined,
-		).sort((a, b) => layout.panels[a].order - layout.panels[b].order || a.localeCompare(b));
+		).sort(
+			(a, b) =>
+				layout.panels[cardOf(layout, a)].order - layout.panels[cardOf(layout, b)].order ||
+				layout.panels[a].order - layout.panels[b].order ||
+				a.localeCompare(b),
+		);
 	const drawers = compact
 		? { left: drawerPanels("left"), right: drawerPanels("right") }
 		: { left: [], right: [] };
@@ -259,6 +306,11 @@ export function Workspace({
 				toggle: (side) => onToggle?.(side),
 			};
 
+	const shown = (id: PanelId) => contents[id] !== undefined;
+	const grabber = onLayout && !compact ? grab : undefined;
+	const menuFor = onLayout && !compact ? openMenu : undefined;
+	const openMenuItems = menu ? menuItems(menu.panel) : null;
+
 	return (
 		<WorkspaceControls.Provider value={controls}>
 			<div
@@ -269,12 +321,18 @@ export function Workspace({
 					strip !== undefined && strip !== null && "has-strip",
 				)}
 				ref={surface}
+				// The card a press lands in is the one in use, which its header marks.
+				onPointerDownCapture={(e) => {
+					const card = (e.target as Element).closest?.<HTMLElement>(".card");
+					if (card) setFocus(card.dataset.active as PanelId);
+				}}
 				// The cards' widths, for what the centre shows when it is a sheet
 				// rather than a canvas: it keeps clear of them.
 				style={
 					{
 						"--left-w": `${!compact && dockVisible(effective, "left") ? effective.docks.left.size : 0}px`,
 						"--right-w": `${!compact && dockVisible(effective, "right") ? effective.docks.right.size : 0}px`,
+						"--pill-h": `${dockVisible(effective, "bottom") ? pill : 0}px`,
 					} as CSSProperties
 				}
 			>
@@ -311,19 +369,21 @@ export function Workspace({
 						</div>
 					)}
 					{/* Over the graph rather than beside it. Inside the centre, so a
-				    window's coordinates are the graph's and a dock opening does not
-				    drag every window sideways with it. */}
-					{(compact ? [] : floatingPanels(effective)).map((id) => (
-						<FloatingPanel
-							key={id}
-							id={id}
-							frame={effective.panels[id].frame}
+					    window's coordinates are the graph's and a dock opening does not
+					    drag every window sideways with it. */}
+					{(compact ? [] : floatingCards(effective, shown)).map((card) => (
+						<FloatingCard
+							key={card.head}
+							card={card}
+							frame={effective.panels[card.head].frame}
+							contents={contents}
+							focus={focus !== null && card.tabs.includes(focus)}
+							onGrab={grabber}
+							onLayout={onLayout}
+							onMenu={menuFor}
 							onFrame={onFramePanel}
 							onFrameEnd={onFramePanelEnd}
-							onDock={onDockPanel}
-						>
-							{contents[id]}
-						</FloatingPanel>
+						/>
 					))}
 				</div>
 
@@ -331,28 +391,29 @@ export function Workspace({
 					<div className="drawer-backdrop" onPointerDown={() => setDrawer(null)} />
 				)}
 
-				{(["left", "right", "bottom"] as DockSide[]).map((side) =>
-					(
-						compact && side !== "bottom"
-							? drawers[side].length > 0
-							: dockVisible(effective, side)
-					) ? (
-						<Dock
+				{(["left", "right"] as const).map((side) =>
+					compact && drawers[side].length > 0 ? (
+						<DrawerDock
+							key={side}
+							side={side}
+							contents={contents}
+							drawer={{ ids: drawers[side], open: openPanel, onShow: setDrawer }}
+						/>
+					) : null,
+				)}
+				{(compact ? (["bottom"] as const) : (["left", "right", "bottom"] as const)).map((side) =>
+					dockVisible(effective, side) ? (
+						<DockCards
 							key={side}
 							side={side}
 							layout={effective}
 							contents={contents}
-							drawer={
-								compact && side !== "bottom"
-									? { ids: drawers[side], open: openPanel, onShow: setDrawer }
-									: undefined
-							}
-							onDragPanel={onMovePanel && !compact ? startDrag : undefined}
-							onFloat={
-								onFloatPanel && !compact
-									? (panel) => onFloatPanel(panel, layout.panels[panel].frame)
-									: undefined
-							}
+							focus={focus}
+							onGrab={grabber}
+							onLayout={onLayout}
+							onLayoutEnd={onResizeEnd}
+							onMenu={menuFor}
+							onHeight={side === "bottom" ? setPill : undefined}
 							splitter={
 								!compact && side !== "bottom" && onResize && onToggle ? (
 									<Splitter
@@ -371,290 +432,509 @@ export function Workspace({
 				{chrome && <div className="workspace-chrome">{chrome}</div>}
 
 				{/* The preview, drawn over everything and hit by nothing. It has to be
-			    `pointer-events: none` or `elementFromPoint` would answer "the
-			    overlay" for every position under it, which is every position. */}
-				{dragging?.over && <DropPreview side={dragging.over} layout={effective} />}
+				    `pointer-events: none` or `elementFromPoint` would answer "the
+				    overlay" for every position under it, which is every position. */}
+				{dragging?.target && <DropPreview target={dragging.target} />}
+
+				{menu && openMenuItems && (
+					<CardMenu
+						at={menu.at}
+						items={openMenuItems.items}
+						closed={openMenuItems.closed}
+						onClose={() => setMenu(null)}
+					/>
+				)}
 			</div>
 		</WorkspaceControls.Provider>
 	);
 
-	// A press on a panel's own heading, which may become a drag.
+	// A press on a card's header, or on one of its tabs, which may become a
+	// drag.
 	//
-	// The heading is the handle rather than a bar the dock adds, because every
-	// panel already has one — the project name, "Variables", "Node", the
-	// diagnostics summary — and a second title strip above those would be a row
-	// of chrome repeating what is directly beneath it.
+	// Nothing happens until the pointer has moved `DRAG_THRESHOLD`, so the
+	// header keeps the jobs it has: a tab still switches, the controls a
+	// panel put there still work (they are not handles at all; see
+	// `onControl`), and a double-click still folds.
 	//
-	// Nothing happens until the pointer has moved `DRAG_THRESHOLD`. That is what
-	// lets the headings keep the jobs they already had: the Add button inside
-	// the Variables heading still adds, and clicking the diagnostics bar still
-	// collapses it, because neither is a drag until you move.
-	function startDrag(panel: PanelId, event: ReactPointerEvent<HTMLElement>) {
-		if (event.button !== 0) return;
-		const target = event.target as HTMLElement;
-		// Only the heading is the handle. Without this, dragging a file in the
-		// project tree would also be dragging the tree out of its dock — and the
-		// tree's own drag-and-drop would be fighting this one for the gesture.
-		if (!target.closest("h2, .bar")) return;
-		// A control inside a heading belongs to the panel, not to the dock.
-		if (target.closest("button, input, select, textarea, a")) return;
-
+	// What it lands on is decided under the pointer, nearest first: another
+	// card's header makes a tab of it; the upper or lower half of a docked card
+	// puts it above or below; a window edge, that dock; the graph, a window.
+	// A window's own card follows the pointer as it goes, and settles where it
+	// is let go unless that is somewhere it docks.
+	function grab(panel: PanelId, alone: boolean, event: ReactPointerEvent<HTMLElement>) {
+		if (event.button !== 0 || compact || !onLayout) return;
+		const head = cardOf(layout, panel);
+		const windowed = layout.panels[head].floating && !alone;
+		const from = layout.panels[head].frame;
 		const startX = event.clientX;
 		const startY = event.clientY;
 		let started = false;
+		let target: Target | null = null;
 
 		const move = (e: PointerEvent) => {
 			if (!started) {
 				if (Math.hypot(e.clientX - startX, e.clientY - startY) < DRAG_THRESHOLD) return;
 				started = true;
-				// A press-and-move over text is a selection gesture as far as the
-				// browser is concerned, so without this the drag leaves half the
-				// editor highlighted behind it. Cleared once, here, rather than
-				// suppressed on the way down -- a press that never becomes a drag
-				// must still be able to select and to focus.
 				window.getSelection()?.removeAllRanges();
+				setMenu(null);
 			}
-			const rect = surface.current?.getBoundingClientRect();
-			setDragging({ panel, over: rect ? dropZone(rect, e.clientX, e.clientY) : null });
+			if (windowed)
+				onFramePanel?.(head, {
+					...from,
+					x: from.x + e.clientX - startX,
+					y: from.y + e.clientY - startY,
+				});
+			target = targetAt(e.clientX, e.clientY, head, panel, alone, windowed);
+			setDragging({ panel, alone, windowed, target });
 		};
 
 		const end = (e: PointerEvent | undefined) => {
 			setDragging(null);
-			// A cancelled pointer was not dropped anywhere.
 			if (!started || !e) return;
-			const rect = surface.current?.getBoundingClientRect();
-			const side = rect ? dropZone(rect, e.clientX, e.clientY) : null;
-			if (side) {
-				onMovePanel?.(panel, side);
+			const drop = targetAt(e.clientX, e.clientY, head, panel, alone, windowed)?.drop ?? null;
+			if (!drop || drop.kind === "float") {
+				if (windowed) {
+					onFramePanelEnd?.();
+					return;
+				}
+				const centre = centreBox.current?.getBoundingClientRect();
+				if (!drop || !centre) return;
+				onLayout((l) =>
+					dropCard(
+						l,
+						panel,
+						{
+							kind: "float",
+							frame: {
+								// Under the pointer by its own header, which is what was grabbed.
+								x: Math.round(e.clientX - centre.x - 40),
+								y: Math.round(e.clientY - centre.y - 10),
+								w: l.panels[head].frame.w,
+								h: l.panels[head].frame.h,
+							},
+						},
+						alone,
+					),
+				);
 				return;
 			}
-			// Dropped over the graph: a window, where it was dropped. A drop in
-			// the middle is not a miss; it is the other place a panel can be.
-			const centre = centreBox.current?.getBoundingClientRect();
-			if (!centre || !onFloatPanel) return;
-			if (
-				e.clientX < centre.x ||
-				e.clientX > centre.right ||
-				e.clientY < centre.y ||
-				e.clientY > centre.bottom
-			)
-				return;
-			onFloatPanel(panel, {
-				// Under the pointer by its own heading, which is what was grabbed.
-				x: Math.round(e.clientX - centre.x - 40),
-				y: Math.round(e.clientY - centre.y - 10),
-				w: layout.panels[panel].frame.w,
-				h: layout.panels[panel].frame.h,
-			});
+			onLayout((l) => dropCard(l, panel, drop, alone));
 		};
 
 		trackPointer(event, { move, end });
 	}
+
+	/** What a release here would do, and where to draw it. */
+	function targetAt(
+		x: number,
+		y: number,
+		self: PanelId,
+		panel: PanelId,
+		alone: boolean,
+		windowed: boolean,
+	): Target | null {
+		const box = surface.current?.getBoundingClientRect();
+		if (!box) return null;
+		const local = (r: DOMRect) => ({
+			left: r.left - box.left,
+			top: r.top - box.top,
+			width: r.width,
+			height: r.height,
+		});
+		// Script analysis is the status pill: no tabs either way, and only it
+		// goes along the bottom.
+		const pill = panel === "analysis" || (!alone && membersOf(layout, self).includes("analysis"));
+
+		for (const element of document.elementsFromPoint(x, y)) {
+			const cardEl = element.closest<HTMLElement>(".workspace .card");
+			if (!cardEl) continue;
+			const other = cardEl.dataset.card as PanelId;
+			if (other === self) {
+				// A tab let go over its own card stays where it is.
+				if (alone || windowed) continue;
+				return null;
+			}
+			const rect = cardEl.getBoundingClientRect();
+			const onHead = element.closest(".card-head") !== null;
+			if (onHead && !pill && !HEADLESS.has(other))
+				return { drop: { kind: "tab", host: other }, rect: local(rect), label: "Add as a tab" };
+			if (cardEl.closest(".dock.left, .dock.right")) {
+				const before = y < rect.top + rect.height / 2;
+				return {
+					drop: { kind: before ? "before" : "after", card: other },
+					rect: {
+						...local(rect),
+						top: local(rect).top + (before ? -6 : rect.height + 2),
+						height: 4,
+					},
+					line: true,
+					label: before ? "Above" : "Below",
+				};
+			}
+			break;
+		}
+
+		const side = dropZone(box, x, y);
+		if (side === "left" || side === "right" || (side === "bottom" && pill)) {
+			const size = layout.docks[side].size;
+			const rect =
+				side === "bottom"
+					? { left: 0, top: box.height - 120, width: Math.min(640, box.width), height: 120 }
+					: {
+							left: side === "left" ? 0 : box.width - size,
+							top: 0,
+							width: size,
+							height: box.height,
+						};
+			const label =
+				side === "left"
+					? "Dock on the left"
+					: side === "right"
+						? "Dock on the right"
+						: "Back to the foot";
+			return { drop: { kind: "dock", side }, rect, label };
+		}
+		const centre = centreBox.current?.getBoundingClientRect();
+		if (!centre || x < centre.x || x > centre.right || y < centre.y || y > centre.bottom)
+			return null;
+		if (windowed) return { drop: { kind: "float", frame: layout.panels[self].frame } };
+		const frame = layout.panels[self].frame;
+		return {
+			drop: { kind: "float", frame },
+			rect: { left: x - box.left - 40, top: y - box.top - 10, width: frame.w, height: frame.h },
+			label: "A window over the graph",
+		};
+	}
+
+	/** The card's menu: where it can go, its tabs, folding and closing, and what is closed. */
+	function openMenu(panel: PanelId, anchor: HTMLElement) {
+		const box = surface.current?.getBoundingClientRect();
+		if (!box || !onLayout) return;
+		const r = anchor.getBoundingClientRect();
+		const up = r.bottom > box.bottom - 260;
+		setMenu({
+			panel,
+			at: { x: box.right - r.right, y: up ? box.bottom - r.top + 4 : r.bottom - box.top + 4, up },
+		});
+	}
+
+	function menuItems(panel: PanelId): { items: CardMenuItem[]; closed: CardMenuItem[] } {
+		if (!onLayout) return { items: [], closed: [] };
+		const head = cardOf(layout, panel);
+		const state = layout.panels[head];
+		const members = membersOf(layout, head).filter((id) => layout.panels[id].open);
+		const title = PANEL_TITLES[panel];
+		const to = (drop: CardDrop) => () => onLayout((l) => dropCard(l, panel, drop));
+		const items: CardMenuItem[] = [];
+		if (!state.floating) {
+			const frame = state.frame;
+			items.push({ label: "Float over the graph", run: to({ kind: "float", frame }) });
+		}
+		if (state.floating || state.dock !== "left")
+			items.push({ label: "Dock on the left", run: to({ kind: "dock", side: "left" }) });
+		if (state.floating || state.dock !== "right")
+			items.push({ label: "Dock on the right", run: to({ kind: "dock", side: "right" }) });
+		if (head === "analysis" && (state.floating || state.dock !== "bottom"))
+			items.push({ label: "Back to the foot", run: to({ kind: "dock", side: "bottom" }) });
+		if (members.length > 1)
+			items.push({ label: `Separate ${title}`, run: () => onLayout((l) => separate(l, panel)) });
+		items.push({
+			label: state.folded ? "Unfold" : "Fold",
+			run: () => onLayout((l) => foldCard(l, head, !state.folded)),
+		});
+		items.push({ label: `Close ${title}`, run: () => onLayout((l) => closePanel(l, panel)) });
+		const closed = PANEL_IDS.filter(
+			(id) => !layout.panels[id].open && contents[id] !== undefined,
+		).map(
+			(id): CardMenuItem => ({
+				label: `Show ${PANEL_TITLES[id]}`,
+				icon: id === "inspector" || id === "properties" ? "panelRight" : "panelLeft",
+				run: () => onLayout((l) => reopenPanel(l, id)),
+			}),
+		);
+		return { items, closed };
+	}
+}
+
+/** What a release under the pointer does, and the outline drawn for it. */
+interface Target {
+	drop: CardDrop;
+	rect?: { left: number; top: number; width: number; height: number };
+	line?: boolean;
+	label?: string;
 }
 
 /**
- * A panel in a window over the graph.
- *
- * Dragged by its title bar and resized from its bottom-right corner, which is
- * the same pair of gestures a comment has — one shape of window in the tool
- * rather than two.
- *
- * The bar is this component's own rather than the panel's heading, unlike a
- * docked panel: a window needs somewhere to put the button that docks it again,
- * and a heading that is already carrying an Add button has no room for it.
+ * Where the card would land, drawn over the place: the card it would join,
+ * the line it would go in at, or the dock or window it would make.
  */
-function FloatingPanel({
-	id,
-	frame,
-	onFrame,
-	onFrameEnd,
-	onDock,
-	children,
+function DropPreview({ target }: { target: Target }) {
+	if (!target.rect) return null;
+	const { left, top, width, height } = target.rect;
+	return (
+		<>
+			<div
+				className={cx(
+					"drop-preview",
+					target.line && "line",
+					target.drop.kind !== "tab" && !target.line && "dashed",
+				)}
+				style={{ left, top, width, height }}
+			/>
+			{target.label && (
+				<div className="drop-label" style={{ left: left + 8, top: Math.max(4, top - 24) }}>
+					{target.label}
+				</div>
+			)}
+		</>
+	);
+}
+
+/**
+ * A dock's cards, top to bottom, with a line between each two.
+ *
+ * Two or more open cards share the column's height, each by its weight, and
+ * the line between two trades height between them. A lone card, or one with
+ * the rest folded, is as tall as what it shows, as a card has always been.
+ */
+function DockCards({
+	side,
+	layout,
+	contents,
+	focus,
+	onGrab,
+	onLayout,
+	onLayoutEnd,
+	onMenu,
+	onHeight,
+	splitter,
 }: {
-	id: PanelId;
-	frame: PanelFrame;
-	onFrame?: (panel: PanelId, frame: PanelFrame) => void;
-	onFrameEnd?: () => void;
-	onDock?: (panel: PanelId) => void;
-	children: ReactNode;
+	side: DockSide;
+	layout: Layout;
+	contents: Partial<Record<PanelId, ReactNode>>;
+	focus: PanelId | null;
+	onGrab?: (panel: PanelId, alone: boolean, event: ReactPointerEvent<HTMLElement>) => void;
+	onLayout?: (change: (layout: Layout) => Layout, persist?: boolean) => void;
+	onLayoutEnd?: () => void;
+	onMenu?: (panel: PanelId, anchor: HTMLElement) => void;
+	/** Told the dock's height as it changes: the status pill's, for the column above it. */
+	onHeight?: (height: number) => void;
+	splitter?: ReactNode;
 }) {
-	// The frame the drag started from.
-	//
-	// Held rather than read per frame, for the reason the comment resize holds
-	// its starting box: working the next frame out from the current one
-	// accumulates rounding, and a window walks away from the pointer.
-	const start = useRef<{ frame: PanelFrame; x: number; y: number } | null>(null);
+	const column = useRef<HTMLDivElement>(null);
+	const cards = cardsIn(layout, side, (id) => contents[id] !== undefined);
+	const drawn = cards.length > 0;
+	useEffect(() => {
+		const element = column.current;
+		if (!onHeight || !drawn || !element || typeof ResizeObserver === "undefined") return;
+		const watch = new ResizeObserver(() => onHeight(element.offsetHeight));
+		watch.observe(element);
+		return () => watch.disconnect();
+	}, [onHeight, drawn]);
+	if (!drawn) return null;
+	const shared = side !== "bottom" && cards.filter((card) => !card.folded).length >= 2;
 
-	function drag(e: ReactPointerEvent<HTMLElement>, mode: "move" | "nw" | "se") {
-		if (e.button !== 0 || !onFrame) return;
-		const target = e.target as HTMLElement;
-		// The same handle rule the docks use: the heading moves the panel, and a
-		// control inside the heading still belongs to the panel.
-		if (mode === "move" && !target.closest("h2, .bar")) return;
-		if (target.closest("button, input, select, textarea, a")) return;
+	// The two cards either side of a line trade height; the rest keep theirs.
+	function share(above: Card, below: Card, e: ReactPointerEvent<HTMLDivElement>) {
+		if (e.button !== 0 || !onLayout) return;
 		e.preventDefault();
-		e.stopPropagation();
-		start.current = { frame, x: e.clientX, y: e.clientY };
-
-		const move = (at: PointerEvent) => {
-			const from = start.current;
-			if (!from) return;
-			// A move with nothing held is a release this never heard. See the
-			// splitter, which has the same check.
-			if (at.buttons === 0) {
-				stop();
-				return;
-			}
-			const dx = at.clientX - from.x;
-			const dy = at.clientY - from.y;
-			if (mode === "move") {
-				onFrame(id, { ...from.frame, x: from.frame.x + dx, y: from.frame.y + dy });
-				return;
-			}
-			if (mode === "se") {
-				onFrame(id, {
-					...from.frame,
-					w: Math.max(MIN_FLOAT.w, from.frame.w + dx),
-					h: Math.max(MIN_FLOAT.h, from.frame.h + dy),
-				});
-				return;
-			}
-			// The top-left moves the window as it shrinks it, by exactly what the
-			// size lost, so the opposite corner stays where it is. Clamped by the
-			// amount *taken* rather than by the size, or the window slides past
-			// its own bottom-right once it has nothing left to give — the same
-			// arithmetic a comment's corner does.
-			const takeX = Math.min(dx, from.frame.w - MIN_FLOAT.w);
-			const takeY = Math.min(dy, from.frame.h - MIN_FLOAT.h);
-			onFrame(id, {
-				x: from.frame.x + takeX,
-				y: from.frame.y + takeY,
-				w: from.frame.w - takeX,
-				h: from.frame.h - takeY,
-			});
-		};
-		const stop = trackPointer(e, {
-			move,
+		const a = column.current?.querySelector<HTMLElement>(`.card[data-card="${above.head}"]`);
+		const b = column.current?.querySelector<HTMLElement>(`.card[data-card="${below.head}"]`);
+		if (!a || !b) return;
+		const ha = a.offsetHeight;
+		const hb = b.offsetHeight;
+		const least = (a.querySelector<HTMLElement>(".card-head")?.offsetHeight ?? 30) + 60;
+		const perWeight = (ha + hb) / (above.weight + below.weight);
+		const startY = e.clientY;
+		const handle = e.currentTarget;
+		handle.classList.add("active");
+		trackPointer(e, {
+			move: (m) => {
+				const next = Math.min(ha + hb - least, Math.max(least, ha + m.clientY - startY));
+				onLayout(
+					(l) =>
+						shareHeight(l, above.head, below.head, [
+							next / perWeight,
+							(ha + hb - next) / perWeight,
+						]),
+					false,
+				);
+			},
 			end: () => {
-				start.current = null;
-				onFrameEnd?.();
+				handle.classList.remove("active");
+				onLayoutEnd?.();
 			},
 		});
 	}
 
 	return (
 		<div
-			className={cx("float-panel", `float-${id}`)}
-			style={{ left: frame.x, top: frame.y, width: frame.w, height: frame.h }}
+			ref={column}
+			className={cx("dock", side, shared && "shared")}
+			style={side !== "bottom" ? { width: layout.docks[side].size } : undefined}
 		>
-			{/* No bar of its own. The panel's heading is the handle, which is the
-			    argument the docks already make: every panel has one — "Variables"
-			    with its Add button, the project name, "Node" — and a strip above
-			    it would be a second title saying the same word.
-
-			    The dock button is the exception, because a window needs somewhere
-			    to put it and a heading carrying an Add button has no room. It sits
-			    over the heading's right end, and the heading makes space for it. */}
-			<div className="float-body" onPointerDown={(e) => drag(e, "move")}>
-				{/* The same wrapper a dock puts round a panel. Without it every rule
-				    written for `.panel` — and every panel that renders a fragment
-				    rather than one element — lands differently in a window than in
-				    a dock, which is the one thing a panel moving between them must
-				    not do. */}
-				<div className={cx("panel", `panel-${id}`)}>{children}</div>
-			</div>
-			{onDock && (
-				<button
-					className="tb icon-only float-dock"
-					title={`Put ${PANEL_TITLES[id]} back in its dock`}
-					onClick={() => onDock(id)}
-				>
-					⇤
-				</button>
-			)}
-			{/* Both corners, for the reason a comment has both: growing a window
-			    upwards or leftwards otherwise means resizing it from the bottom
-			    and then dragging the whole thing back. */}
-			<div className="float-size nw" title="Drag to resize" onPointerDown={(e) => drag(e, "nw")} />
-			<div className="float-size se" title="Drag to resize" onPointerDown={(e) => drag(e, "se")} />
+			{splitter}
+			{cards.map((card, i) => {
+				const above = cards[i - 1];
+				const live = shared && above !== undefined && !above.folded && !card.folded;
+				return (
+					<Fragment key={card.head}>
+						{above && (
+							<div
+								className={cx("card-split", live && "live")}
+								role={live ? "separator" : undefined}
+								aria-orientation={live ? "horizontal" : undefined}
+								title={
+									live ? "Drag to share the height. Double-click to share it evenly." : undefined
+								}
+								onPointerDown={live ? (e) => share(above, card, e) : undefined}
+								onDoubleClick={
+									live
+										? () => {
+												const even = (above.weight + card.weight) / 2;
+												onLayout?.((l) => shareHeight(l, above.head, card.head, [even, even]));
+											}
+										: undefined
+								}
+							/>
+						)}
+						<CardView
+							card={card}
+							contents={contents}
+							focus={focus !== null && card.tabs.includes(focus)}
+							onGrab={onGrab}
+							onShow={(id) => onLayout?.((l) => showTab(l, id))}
+							onFold={(folded) => onLayout?.((l) => foldCard(l, card.head, folded))}
+							onMenu={onMenu}
+							style={shared && !card.folded ? { flex: `${card.weight} 1 0px` } : undefined}
+						/>
+					</Fragment>
+				);
+			})}
 		</div>
 	);
 }
 
 /**
- * Where the panel would land, drawn over the dock it would land in.
- *
- * A rectangle rather than a highlight on the dock itself, because the dock it
- * would land in may not exist yet — dropping into an empty side has to show
- * where that side *would* be, and a dock with no width cannot be highlighted.
+ * A card in a window over the graph: moved by its header, as a docked card
+ * is, and resized from any edge or corner, the opposite one staying put.
  */
-function DropPreview({ side, layout }: { side: DockSide; layout: Layout }) {
-	// The dock's remembered size, whether or not it is currently on screen: an
-	// empty side has to show where it *would* be.
-	const size = layout.docks[side].size;
-	const style =
-		side === "bottom"
-			? { left: 0, right: 0, bottom: 0, height: size }
-			: side === "left"
-				? { left: 0, top: 0, bottom: 0, width: size }
-				: { right: 0, top: 0, bottom: 0, width: size };
+function FloatingCard({
+	card,
+	frame,
+	contents,
+	focus,
+	onGrab,
+	onLayout,
+	onMenu,
+	onFrame,
+	onFrameEnd,
+}: {
+	card: Card;
+	frame: PanelFrame;
+	contents: Partial<Record<PanelId, ReactNode>>;
+	focus: boolean;
+	onGrab?: (panel: PanelId, alone: boolean, event: ReactPointerEvent<HTMLElement>) => void;
+	onLayout?: (change: (layout: Layout) => Layout, persist?: boolean) => void;
+	onMenu?: (panel: PanelId, anchor: HTMLElement) => void;
+	onFrame?: (panel: PanelId, frame: PanelFrame) => void;
+	onFrameEnd?: () => void;
+}) {
+	// Held rather than read per move: working each frame out from the last
+	// accumulates rounding, and a window walks away from the pointer.
+	function resize(e: ReactPointerEvent<HTMLElement>, edge: string) {
+		if (e.button !== 0 || !onFrame) return;
+		e.preventDefault();
+		e.stopPropagation();
+		const from = frame;
+		const x0 = e.clientX;
+		const y0 = e.clientY;
+		trackPointer(e, {
+			move: (m) => {
+				const dx = m.clientX - x0;
+				const dy = m.clientY - y0;
+				const next = { ...from };
+				if (edge.includes("e")) next.w = Math.max(MIN_FLOAT.w, from.w + dx);
+				if (edge.includes("s")) next.h = Math.max(MIN_FLOAT.h, from.h + dy);
+				// Clamped by what is taken rather than by the size, or the window
+				// slides past its own far edge once it has nothing left to give.
+				if (edge.includes("w")) {
+					const take = Math.min(dx, from.w - MIN_FLOAT.w);
+					next.x = from.x + take;
+					next.w = from.w - take;
+				}
+				if (edge.includes("n")) {
+					const take = Math.min(dy, from.h - MIN_FLOAT.h);
+					next.y = from.y + take;
+					next.h = from.h - take;
+				}
+				onFrame(card.head, next);
+			},
+			end: () => onFrameEnd?.(),
+		});
+	}
 
-	return <div className="drop-preview" style={style} />;
+	return (
+		<CardView
+			card={card}
+			contents={contents}
+			focus={focus}
+			onGrab={onGrab}
+			onShow={(id) => onLayout?.((l) => showTab(l, id))}
+			onFold={(folded) => onLayout?.((l) => foldCard(l, card.head, folded))}
+			onMenu={onMenu}
+			className={cx("floating", "float-panel", `float-${card.head}`)}
+			style={{
+				left: frame.x,
+				top: frame.y,
+				width: frame.w,
+				height: card.folded ? undefined : frame.h,
+			}}
+		>
+			{EDGES.map((edge) => (
+				<div
+					key={edge}
+					className={cx("card-size", edge)}
+					title="Drag to resize"
+					onPointerDown={(e) => resize(e, edge)}
+				/>
+			))}
+		</CardView>
+	);
 }
 
+/** A window's edges and corners, each a handle. */
+const EDGES = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+
 /**
- * One dock, holding its panels stacked.
- *
- * **No chrome of its own yet.** Stacked rather than tabbed, and with no title
- * bar, because this slice is meant to be invisible: the panels draw exactly
- * what they drew when the workspace was three hard-coded columns. A title bar
- * added here would be a header appearing above the project tree, which is a
- * change to look at rather than a change to the structure.
- *
- * Titles and tabs arrive together in slice 4, when there is more than one panel
- * per dock and a strip has something to say.
+ * One dock on a phone or a tablet: its panels as drawers, one out at a time,
+ * each with a header saying what it is and carrying its controls.
  */
-function Dock({
+function DrawerDock({
 	side,
-	layout,
 	contents,
 	drawer,
-	onDragPanel,
-	onFloat,
 	splitter,
 }: {
 	side: DockSide;
-	layout: Layout;
 	contents: Partial<Record<PanelId, ReactNode>>;
-	/**
-	 * A dock drawn as drawers, on a phone or a tablet: the panels it offers,
-	 * and which one is out, if any of them. Undefined for a docked dock.
-	 */
-	drawer?: { ids: PanelId[]; open: PanelId | null; onShow: (panel: PanelId) => void };
-	onDragPanel?: (panel: PanelId, event: ReactPointerEvent<HTMLElement>) => void;
-	onFloat?: (panel: PanelId) => void;
-	/** The handle on the cards' inner edge, for a side dock on a wide screen. */
+	drawer: { ids: PanelId[]; open: PanelId | null; onShow: (panel: PanelId) => void };
 	splitter?: ReactNode;
 }) {
-	const ids = drawer?.ids ?? panelsIn(layout, side).filter((id) => contents[id] !== undefined);
+	const ids = drawer.ids;
 	if (ids.length === 0) return null;
-	const out = drawer !== undefined && drawer.open !== null && ids.includes(drawer.open);
-
+	const out = drawer.open !== null && ids.includes(drawer.open);
 	return (
 		<div
-			className={cx("dock", side, drawer !== undefined && "drawer", out && "drawer-open")}
-			// A side dock's size is its cards' width. A drawer sizes itself.
-			style={
-				drawer === undefined && side !== "bottom" ? { width: layout.docks[side].size } : undefined
-			}
+			className={cx("dock", side, "drawer", out && "drawer-open")}
 			// Kept mounted while it is in, so the tree keeps what was expanded
 			// and where it was scrolled to -- but out of reach of focus.
-			inert={drawer !== undefined && !out}
+			inert={!out}
 		>
 			{splitter}
 			{/* A drawer holds one panel at a time; with more than one on its side,
 			    a switch at its top says which. */}
-			{drawer !== undefined && ids.length > 1 && (
+			{ids.length > 1 && (
 				<span className="segmented drawer-tabs">
 					{ids.map((id) => (
 						<button
@@ -668,37 +948,30 @@ function Dock({
 				</span>
 			)}
 			{ids.map((id) => (
-				<div
-					// The drawer shows the one panel asked for. The others stay
-					// mounted beside it, hidden, for the reason the drawer does.
-					className={cx(
-						"panel",
-						`panel-${id}`,
-						drawer !== undefined && drawer.open !== id && "panel-away",
-					)}
-					key={id}
-					title={
-						onDragPanel
-							? `Drag ${PANEL_TITLES[id]} by its heading to another edge, or onto the graph`
-							: undefined
-					}
-					onPointerDown={onDragPanel ? (e) => onDragPanel(id, e) : undefined}
-				>
-					{/* The button the window has, pointing the other way. Dragging the
-					    heading onto the graph does the same thing; a gesture nobody
-					    has been told about needs something visible beside it. */}
-					{onFloat && (
-						<button
-							className="tb icon-only panel-float"
-							title={`Put ${PANEL_TITLES[id]} in a window over the graph`}
-							onClick={() => onFloat(id)}
-						>
-							⇥
-						</button>
-					)}
+				<DrawerPanel key={id} id={id} away={drawer.open !== id}>
 					{contents[id]}
-				</div>
+				</DrawerPanel>
 			))}
+		</div>
+	);
+}
+
+function DrawerPanel({ id, away, children }: { id: PanelId; away: boolean; children: ReactNode }) {
+	const [slot, setSlot] = useState<HTMLElement | null>(null);
+	return (
+		<div className={cx("panel", `panel-${id}`, away && "panel-away")}>
+			{!HEADLESS.has(id) && (
+				<header className="card-head">
+					<span className="card-title">{PANEL_TITLES[id]}</span>
+					<span
+						className="card-slot"
+						ref={(el) => {
+							if (el !== slot) setSlot(el);
+						}}
+					/>
+				</header>
+			)}
+			<PanelBody slot={slot}>{children}</PanelBody>
 		</div>
 	);
 }
@@ -706,16 +979,14 @@ function Dock({
 /**
  * The grab handle between a dock and the centre.
  *
- * Drag to resize; **double-click to collapse the dock, and again to bring it
- * back**. The double-click is how a dock is closed for now: closing belongs on
- * a panel, and a panel has no chrome to put a button in until slice 4 gives it
- * a tab strip. A splitter is the one piece of dock furniture that exists today,
- * so it carries the gesture rather than adding a title bar early purely to hang
- * a button from.
+ * Drag to resize; **double-click to put the dock away**, as its button on the
+ * top row does.
  *
- * The pointer is captured for the duration, so a fast drag that outruns the
- * handle keeps resizing instead of stopping the moment the cursor leaves a
- * five-pixel strip.
+ * Followed on the window rather than captured on the handle: if a capture is
+ * not granted, or is lost, the release happens somewhere the handle never
+ * hears about, and the next time the pointer passes over it with no button
+ * held the dock carries on resizing on its own. A move that arrives with
+ * nothing held ends the drag, for the same failure.
  */
 function Splitter({
 	side,
@@ -732,19 +1003,6 @@ function Splitter({
 }) {
 	const axis = side === "bottom" ? "row" : "col";
 
-	// Drag to resize, on the **window** rather than on the handle.
-	//
-	// A pointer capture on the handle is the tidier shape and has one failure
-	// that matters: if the capture is not granted — or is lost, which a
-	// browser may do for its own reasons — the release happens somewhere else
-	// and the handle never hears about it. The move listener then survives the
-	// drag, and the next time the pointer *passes over* the splitter with no
-	// button held it carries on resizing, which is the dock walking outwards on
-	// its own.
-	//
-	// On the window, the release is heard wherever it happens. `buttons` is
-	// checked as well, so a move that arrives with nothing held ends the drag
-	// rather than acting on it — belt and braces for the same failure.
 	function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
 		if (e.button !== 0) return;
 		e.preventDefault();
@@ -775,7 +1033,7 @@ function Splitter({
 			className={cx("splitter", side, axis)}
 			role="separator"
 			aria-orientation={axis === "col" ? "vertical" : "horizontal"}
-			title="Drag to resize. Double-click to collapse."
+			title="Drag to resize. Double-click to put the dock away."
 			onPointerDown={onPointerDown}
 			onDoubleClick={onToggle}
 		/>

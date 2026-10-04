@@ -16,13 +16,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	cardsIn,
 	clampLayout,
+	closePanel,
 	DEFAULT_FRAME,
 	DEFAULT_LAYOUT,
 	dockVisible,
+	dropCard,
 	dropZone,
+	floatingCards,
 	floatingPanels,
 	floatPanel,
+	foldCard,
 	framePanel,
 	gridTemplate,
 	type Layout,
@@ -32,7 +37,10 @@ import {
 	movePanel,
 	panelsIn,
 	readLayout,
+	reopenPanel,
 	resizeDock,
+	separate,
+	shareHeight,
 	toggleDock,
 } from "../src/app/panels.js";
 
@@ -386,5 +394,99 @@ describe("a panel in a window", () => {
 		});
 		expect(saved.panels.variables.floating).toBe(true);
 		expect(saved.panels.variables.frame).toEqual({ x: 40, y: 60, w: MIN_FLOAT.w, h: 900 });
+	});
+});
+
+describe("cards", () => {
+	it("starts as one card a panel, sharing each column", () => {
+		const cards = cardsIn(base(), "left");
+		expect(cards.map((c) => c.tabs)).toEqual([["tree"], ["variables"]]);
+		expect(cards.map((c) => c.weight)).toEqual([3, 2]);
+	});
+
+	it("makes a tab of a card dropped on another's header, showing the one dropped", () => {
+		const layout = dropCard(base(), "variables", { kind: "tab", host: "tree" });
+		const [card] = cardsIn(layout, "left");
+		expect(card.tabs).toEqual(["tree", "variables"]);
+		expect(card.active).toBe("variables");
+		expect(cardsIn(layout, "left")).toHaveLength(1);
+	});
+
+	it("takes a tab across a dock with its card", () => {
+		let layout = dropCard(base(), "variables", { kind: "tab", host: "tree" });
+		layout = dropCard(layout, "tree", { kind: "dock", side: "right" });
+		expect(cardsIn(layout, "left")).toHaveLength(0);
+		expect(cardsIn(layout, "right").at(-1)?.tabs).toEqual(["tree", "variables"]);
+	});
+
+	it("separates one tab beside the card it left, and hands a head's card to its next tab", () => {
+		let layout = dropCard(base(), "variables", { kind: "tab", host: "tree" });
+		layout = separate(layout, "variables");
+		expect(cardsIn(layout, "left").map((c) => c.tabs)).toEqual([["tree"], ["variables"]]);
+
+		layout = dropCard(base(), "variables", { kind: "tab", host: "tree" });
+		layout = separate(layout, "tree");
+		const heads = cardsIn(layout, "left").map((c) => c.head);
+		expect(heads).toEqual(["variables", "tree"]);
+		expect(layout.panels.variables.tabOf).toBeUndefined();
+	});
+
+	it("drags one tab out alone, leaving the rest", () => {
+		let layout = dropCard(base(), "variables", { kind: "tab", host: "tree" });
+		layout = dropCard(layout, "variables", { kind: "dock", side: "right" }, true);
+		expect(cardsIn(layout, "left").map((c) => c.tabs)).toEqual([["tree"]]);
+		expect(cardsIn(layout, "right").map((c) => c.head)).toContain("variables");
+	});
+
+	it("puts a card above or below another, in that card's dock", () => {
+		const above = dropCard(base(), "variables", { kind: "before", card: "inspector" });
+		expect(cardsIn(above, "right").map((c) => c.head)).toEqual([
+			"variables",
+			"inspector",
+			"properties",
+		]);
+		const below = dropCard(base(), "tree", { kind: "after", card: "inspector" });
+		expect(cardsIn(below, "right").map((c) => c.head)).toEqual(["inspector", "tree", "properties"]);
+	});
+
+	it("floats a card and its tabs together", () => {
+		const frame = { x: 40, y: 80, w: 300, h: 360 };
+		let layout = dropCard(base(), "variables", { kind: "tab", host: "tree" });
+		layout = dropCard(layout, "tree", { kind: "float", frame });
+		expect(floatingCards(layout).map((c) => c.tabs)).toEqual([["tree", "variables"]]);
+		expect(layout.panels.variables.floating).toBe(true);
+	});
+
+	it("shares two cards' height and folds one", () => {
+		let layout = shareHeight(base(), "tree", "variables", [4, 1]);
+		expect(cardsIn(layout, "left").map((c) => c.weight)).toEqual([4, 1]);
+		layout = foldCard(layout, "variables", true);
+		expect(cardsIn(layout, "left")[1].folded).toBe(true);
+	});
+
+	it("closes a panel out of its card, and brings it back as its own", () => {
+		let layout = dropCard(base(), "variables", { kind: "tab", host: "tree" });
+		layout = closePanel(layout, "variables");
+		expect(cardsIn(layout, "left").map((c) => c.tabs)).toEqual([["tree"]]);
+		layout = reopenPanel(layout, "variables");
+		expect(cardsIn(layout, "left").map((c) => c.tabs)).toEqual([["tree"], ["variables"]]);
+	});
+
+	it("shows the next tab when the one showing has nothing to show", () => {
+		const layout = dropCard(base(), "variables", { kind: "tab", host: "tree" });
+		const [card] = cardsIn(layout, "left", (id) => id !== "variables");
+		expect(card.active).toBe("tree");
+	});
+
+	it("reads a stored card back, and breaks a tab of a tab", () => {
+		const stored = dropCard(base(), "variables", { kind: "tab", host: "tree" });
+		expect(readLayout(JSON.parse(JSON.stringify(stored))).panels.variables.tabOf).toBe("tree");
+		const loop = JSON.parse(JSON.stringify(base()));
+		loop.panels.tree.tabOf = "variables";
+		loop.panels.variables.tabOf = "tree";
+		const read = readLayout(loop);
+		expect(read.panels.tree.tabOf === undefined || read.panels.variables.tabOf === undefined).toBe(
+			true,
+		);
 	});
 });

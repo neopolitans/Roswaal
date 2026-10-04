@@ -12,6 +12,7 @@
 
 import { nodeTitle, type Registry } from "../core/nodes/index.js";
 import type { Comment, GraphNode, NodeDef, NodeScript } from "../core/schema.js";
+import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { useEditBurst } from "./editBurst.js";
 import { renameNode, updateComment } from "./edits.js";
@@ -96,7 +97,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 
 	return (
 		<div className={cx("inspector", locked && "editing-locked")}>
-			<h2>Node</h2>
+			<PanelHead sub="Node" />
 			<div className="inspector-body">
 				<div className="node-heading" style={{ background: nodeColor(def) }}>
 					{def.title}
@@ -161,7 +162,7 @@ function CommentInspector({ comment, locked }: { comment: Comment; locked?: bool
 
 	return (
 		<div className={cx("inspector", locked && "editing-locked")}>
-			<h2>Node</h2>
+			<PanelHead sub="Comment" />
 			<div className="inspector-body">
 				<div className="node-heading" style={{ background: commentColor(comment.color) }}>
 					Comment

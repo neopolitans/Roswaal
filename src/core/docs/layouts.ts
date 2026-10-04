@@ -34,7 +34,14 @@ import {
 	previewSize,
 	previewSvg,
 } from "./preview.js";
-import { controlKey, glyphHtml, itemsHtml, type ToolbarArt, type ToolbarItem } from "./toolbars.js";
+import {
+	cardHeadHtml,
+	controlKey,
+	glyphHtml,
+	itemsHtml,
+	type ToolbarArt,
+	type ToolbarItem,
+} from "./toolbars.js";
 
 /**
  * What a region is, which decides how it is drawn: the canvas, a row of
@@ -291,38 +298,59 @@ function field(label: string, control: string): string {
 	return `<label class="field"><span>${escapeXml(label)}</span>${control}</label>`;
 }
 
-const DOCK_BUTTON = `<button type="button" class="tb icon-only panel-float"${INERT}>⇥</button>`;
-
 /** A card the editor's window draws; Node Design's are `designerCardHtml`. */
 function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): string {
+	// The markup `Cards.tsx` renders: a card, its header, and the panel in it.
 	const dock = (inner: string) => `<div class="dock" style="${IN_PLACE}">${inner}</div>`;
+	// Project and Variables share the left column, so each fills its share;
+	// the Inspector alone in its column is as tall as what it shows.
+	const panel = (id: string, head: string, body: string, fill = false) =>
+		dock(
+			`<section class="card card-${id}" style="max-height:100%${fill ? ";flex:1 1 0px" : ""}">${head}` +
+				`<div class="panel panel-${id} card-body">${body}</div></section>`,
+		);
 	switch (card.t) {
 		case "intro":
 			return introHtml(card, art);
 		case "start":
 			return startHtml(card, art);
 		case "project":
-			return dock(
-				`<div class="panel panel-tree" style="max-height:100%">${DOCK_BUTTON}` +
-					`<h2 class="project-head"><span class="project-name">${escapeXml(card.project)}</span>` +
-					`<span class="segmented project-views"><button type="button" class="on"${INERT}>Files</button>` +
-					`<button type="button"${INERT}>DataModel</button></span></h2>` +
-					`<div class="tree">${itemsHtml(card.rows, art)}</div></div>`,
+			return panel(
+				"tree",
+				cardHeadHtml(
+					{
+						title: "Project",
+						sub: card.project,
+						tools:
+							`<span class="segmented project-views"><button type="button" class="on"${INERT}>Files</button>` +
+							`<button type="button"${INERT}>DataModel</button></span>`,
+					},
+					art,
+				),
+				`<div class="tree">${itemsHtml(card.rows, art)}</div>`,
+				true,
 			);
 		case "variables":
-			return dock(
-				`<div class="panel panel-variables">${DOCK_BUTTON}<div class="variables">` +
-					`<h2><span>Variables</span><button type="button" class="tb"${INERT}>Add</button></h2>` +
+			return panel(
+				"variables",
+				cardHeadHtml(
+					{ title: "Variables", tools: `<button type="button" class="tb"${INERT}>Add</button>` },
+					art,
+				),
+				`<div class="variables">` +
 					`<div class="variable-list"><p class="hint">None yet. A variable is a value the whole ` +
 					`script can read and write, as opposed to a local, which only exists inside the block ` +
 					`that declared it.</p>` +
 					`<h3 class="variables-sub"><span>Modules</span><button type="button" class="tb"${INERT}>Add</button></h3>` +
 					`<p class="hint">None. A module is required once at the top of the generated file and ` +
-					`read wherever you drag it — so four uses write one <code>require</code>.</p></div></div></div>`,
+					`read wherever you drag it — so four uses write one <code>require</code>.</p></div></div>`,
+				true,
 			);
 		case "graphSettings":
-			return dock(
-				`<div class="panel panel-inspector">${DOCK_BUTTON}<div class="inspector graph-settings"><h2>Graph</h2>` +
+			return panel(
+				"inspector",
+				cardHeadHtml({ title: "Inspector", sub: "Graph" }, art),
+				`<div class="inspector graph-settings">` +
 					`<div class="inspector-body"><div class="node-heading graph-heading">${escapeXml(card.graph)}` +
 					`<small>${escapeXml(card.scriptClass)} · Roblox</small></div>` +
 					field("Script", select(card.scriptClass)) +
@@ -334,16 +362,17 @@ function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): 
 					`<p class="graph-figures"><span><b>${card.nodes}</b> nodes</span>` +
 					`<span><b>${card.functions}</b> functions</span></p>` +
 					`<p class="summary">Select a node for its settings. With nothing selected, these are the graph's.</p>` +
-					`</div></div></div>`,
+					`</div></div>`,
 			);
 		case "status":
+			// Script analysis has no header: its bar is one.
 			return dock(
-				`<div class="panel panel-analysis">${DOCK_BUTTON}<div class="status"><div class="bar">` +
+				`<section class="card card-analysis headless"><div class="panel panel-analysis card-body"><div class="status"><div class="bar">` +
 					`<span>▾</span><span class="count"${card.errors ? ` style="color:var(--danger)"` : ""}>${card.errors} error${card.errors === 1 ? "" : "s"}</span>` +
 					`<span class="count"${card.warnings ? ` style="color:var(--warning)"` : ""}>${card.warnings} warning${card.warnings === 1 ? "" : "s"}</span>` +
 					`<span class="spacer" style="flex:1"></span></div>` +
 					`${card.entry ? `<div class="list"><div class="entry warning"><span class="sev">warning</span><span>${escapeXml(card.entry)}</span></div></div>` : ""}` +
-					`</div></div>`,
+					`</div></div></section>`,
 			);
 		case "strip": {
 			// Laid out as the editor lays it out on that kind of screen. The
@@ -918,7 +947,8 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 	summary: "The editor on a computer, with a graph open and nothing selected.",
 	device: "desktop",
 	columns: "10px 352px minmax(0, 1fr) 290px 8px",
-	rows: "10px 38px 10px 498px 8px 182px minmax(0, 1fr) 62px 7px",
+	// The two cards share the column three to two, down to the status pill.
+	rows: "10px 38px 10px 451px 8px 301px minmax(0, 1fr) 62px 7px",
 	regions: [
 		{
 			name: "The graph",

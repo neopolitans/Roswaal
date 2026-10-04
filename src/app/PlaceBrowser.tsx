@@ -17,6 +17,7 @@ import {
 	type PlaceProperty,
 } from "../core/rbx/browse.js";
 import { api, type PlaceTree } from "./api.js";
+import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 
@@ -358,12 +359,11 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 	const graph = target.file ? graphFor(target.file) : undefined;
 	return (
 		<div className="place-properties">
-			<h2>
-				<span>Properties</span>
+			<PanelHead sub={target.name}>
 				<button className="tb" title="Stop showing this instance" onClick={onClose}>
 					Close
 				</button>
-			</h2>
+			</PanelHead>
 			<div className="place-props">
 				<div
 					className="place-props-head"

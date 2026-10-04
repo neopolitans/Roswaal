@@ -601,7 +601,10 @@ describe("pointing a section at its own page", () => {
 		for (const [slug, spec, mine] of VARIANTS) {
 			const html = toolbarHtml(spec, art);
 			const sections = [
-				...html.matchAll(/<div class="panel-section( dim| focus)?">.*?<span>([^<]+)<\/span>/g),
+				// A section's heading is an `h3`, or the card's header for the first.
+				...html.matchAll(
+					/<div class="panel-section( dim| focus)?">.*?<span(?: class="card-title")?>([^<]+)<\/span>/g,
+				),
 			];
 			expect(sections.length, slug).toBe(legendOf(VARIABLES_PANEL).length);
 			for (const [, state, text] of sections) {

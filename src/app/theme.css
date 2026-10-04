@@ -305,8 +305,8 @@ select optgroup {
 .dock.left {
 	left: calc(var(--edge) + var(--strip-w));
 	top: var(--chrome-top);
-	/* Clear of the status pill below it. */
-	max-height: calc(100% - var(--chrome-top) - var(--hit) - var(--edge) * 3);
+	/* Clear of the status pill below it, however tall that is. */
+	max-height: calc(100% - var(--chrome-top) - var(--pill-h, var(--hit)) - var(--edge) * 3);
 }
 
 .dock.right {
@@ -330,9 +330,10 @@ select optgroup {
 	min-height: 0;
 }
 
-/* Each panel is its own card: glass over the graph, as tall as what it shows
-   and no taller, scrolling past its share of the column. */
-.dock > .panel {
+/* Each card is glass over the graph: as tall as what it shows and no taller
+   when it is alone in its dock, its share of the column when it is not. See
+   `Cards.tsx`. */
+.dock > .card {
 	pointer-events: auto;
 	flex: 0 1 auto;
 	overflow: hidden;
@@ -359,11 +360,7 @@ select optgroup {
 	overflow: auto;
 }
 
-.dock.left .panel-variables {
-	max-height: 60%;
-}
-
-.dock.bottom > .panel {
+.dock.bottom > .card {
 	overflow: auto;
 }
 
@@ -4030,33 +4027,8 @@ button.tb.primary.danger:hover:not(:disabled) {
 
 /* ------------------------------------------------------- DataModel browser */
 
-/* The Project panel's Files / DataModel switch, right-aligned on the row with
-   the project's name. The row keeps the heading's 32px, which the dock's own
-   button is centred on; the name gives way first when the panel is narrow. */
-.dock h2.project-head,
-.float-panel h2.project-head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	padding-top: 4px;
-	padding-bottom: 4px;
-	min-height: 32px;
-	box-sizing: border-box;
-}
-
-/* A drawer has no undock button to leave room for. */
-.dock.drawer h2.project-head {
-	padding-right: 12px;
-}
-
-.project-head .project-name {
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
+/* The Project panel's Files / DataModel switch, at the end of its card's
+   header. */
 .project-views {
 	flex: none;
 	text-transform: none;
@@ -13533,4 +13505,369 @@ html {
 
 .docs-layout-fit {
 	padding: 6px 12px;
+}
+
+/* ------------------------------------------------------------------- cards */
+
+/* A card: one or more panels as tabs under a header, which is the card's
+   handle and carries what the panel put there. The header is a band of its
+   own, and the card last used is marked: its header in the accent's tint.
+   See `Cards.tsx` and `docs/PANELS.md`. */
+:root {
+	--card-head: color-mix(in srgb, var(--bg-input) 70%, var(--bg-panel));
+	--card-head-focus: color-mix(in srgb, var(--accent) 16%, var(--card-head));
+}
+
+/* The line between two cards is a handle of its own, so the cards sit on it
+   rather than on a gap. */
+.dock:not(.drawer) {
+	gap: 0;
+}
+
+/* Two or more open cards share the column, top to bottom. */
+.dock.left.shared {
+	bottom: calc(var(--pill-h, var(--hit)) + var(--edge) * 2);
+	max-height: none;
+}
+
+.dock.right.shared {
+	bottom: var(--edge);
+	max-height: none;
+}
+
+.card {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+
+.card.folded {
+	flex: none !important;
+}
+
+.card-head {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: var(--hit);
+	padding: 0 3px 0 10px;
+	box-sizing: border-box;
+	background: var(--card-head);
+	border-bottom: 1px solid var(--border);
+	cursor: grab;
+	user-select: none;
+	-webkit-user-select: none;
+	touch-action: none;
+}
+
+.card-head:active {
+	cursor: grabbing;
+}
+
+.card.folded > .card-head {
+	border-bottom-color: transparent;
+}
+
+.card-title {
+	flex: none;
+	font-size: var(--text-md);
+	font-weight: 600;
+	color: var(--fg-muted);
+	white-space: nowrap;
+}
+
+/* What the panel put in its header: a word beside the title, its controls at
+   the far end. */
+.card-slot {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.card-slot[hidden],
+.card-body[hidden] {
+	display: none !important;
+}
+
+.card-sub {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--text-md);
+	color: var(--fg-faint);
+}
+
+.card-tools {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: auto;
+}
+
+.card-tools .tb,
+.card-tools .segmented button {
+	min-height: calc(var(--hit) - 8px);
+}
+
+.card-head > .tb.icon-only {
+	flex: none;
+	width: calc(var(--hit) - 6px);
+	height: calc(var(--hit) - 6px);
+	padding: 0;
+	display: inline-grid;
+	place-items: center;
+	background: transparent;
+	border-color: transparent;
+	color: var(--fg-muted);
+}
+
+.card-head > .tb.icon-only:hover {
+	background: var(--bg-hover);
+	color: var(--fg);
+}
+
+/* Tabs: two or more panels sharing a card. The one showing is underlined. */
+.card-tabs {
+	display: inline-flex;
+	align-self: stretch;
+	gap: 2px;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.card-tab {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	padding: 0 9px;
+	border: 0;
+	border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+	background: none;
+	color: var(--fg-muted);
+	font: inherit;
+	font-size: var(--text-md);
+	font-weight: 600;
+	white-space: nowrap;
+	cursor: grab;
+	touch-action: none;
+}
+
+.card-tab:hover {
+	color: var(--fg);
+}
+
+.card-tab.on {
+	color: var(--fg);
+	background: color-mix(in srgb, var(--bg-panel) 98%, transparent);
+}
+
+.card-tab.on::after {
+	content: "";
+	position: absolute;
+	left: 8px;
+	right: 8px;
+	bottom: 0;
+	height: 2px;
+	border-radius: 1px;
+	background: var(--accent);
+}
+
+/* The card in use. */
+.card.focus {
+	border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.card.focus > .card-head {
+	background: var(--card-head-focus);
+}
+
+.card.focus > .card-head .card-title,
+.card.focus > .card-head .card-tab.on {
+	color: var(--accent);
+}
+
+/* A panel scrolls inside its card. */
+.card-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+}
+
+/* Script analysis's own bar is its header, in the same band. */
+.card.headless .status > .bar {
+	background: var(--card-head);
+}
+
+.card.headless.focus .status > .bar {
+	background: var(--card-head-focus);
+}
+
+/* The line between two cards in a dock: drag to share their height. */
+.card-split {
+	flex: 0 0 8px;
+	position: relative;
+	pointer-events: auto;
+}
+
+.card-split.live {
+	cursor: row-resize;
+	touch-action: none;
+}
+
+.card-split.live::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 44px;
+	height: 4px;
+	border-radius: 2px;
+	transform: translate(-50%, -50%);
+	background: var(--border-strong);
+	opacity: 0;
+	transition: opacity 120ms;
+}
+
+.card-split.live:hover::after,
+.card-split.live.active::after {
+	opacity: 1;
+	background: var(--accent);
+}
+
+/* A card in a window: every edge and corner resizes it. */
+.card-size {
+	position: absolute;
+	z-index: 4;
+	touch-action: none;
+}
+
+.card-size.n,
+.card-size.s {
+	left: 10px;
+	right: 10px;
+	height: 8px;
+	cursor: ns-resize;
+}
+
+.card-size.e,
+.card-size.w {
+	top: 10px;
+	bottom: 10px;
+	width: 8px;
+	cursor: ew-resize;
+}
+
+.card-size.n { top: -2px; }
+.card-size.s { bottom: -2px; }
+.card-size.e { right: -2px; }
+.card-size.w { left: -2px; }
+
+.card-size.ne,
+.card-size.nw,
+.card-size.se,
+.card-size.sw {
+	width: 14px;
+	height: 14px;
+}
+
+.card-size.ne { top: -2px; right: -2px; cursor: nesw-resize; }
+.card-size.sw { bottom: -2px; left: -2px; cursor: nesw-resize; }
+.card-size.nw { top: -2px; left: -2px; cursor: nwse-resize; }
+.card-size.se { bottom: -2px; right: -2px; cursor: nwse-resize; }
+
+/* Where a dragged card would land: a dashed outline for somewhere new, a solid
+   one for the card it would join, a line for where it would go in. */
+.drop-preview {
+	border-radius: var(--radius-md);
+	transition: left 90ms, top 90ms, width 90ms, height 90ms;
+}
+
+.drop-preview.dashed {
+	border-style: dashed;
+	background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.drop-preview.line {
+	border: 0;
+	border-radius: 2px;
+	background: var(--accent);
+}
+
+.drop-label {
+	position: absolute;
+	z-index: 31;
+	pointer-events: none;
+	padding: 2px 8px;
+	border-radius: var(--radius-sm);
+	background: var(--accent);
+	color: var(--bg-panel);
+	font-size: var(--text-sm);
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+/* A card's menu, by its button. */
+.card-menu {
+	position: absolute;
+	z-index: 80;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 190px;
+	padding: 5px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-popover);
+}
+
+.card-menu > button.tb {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	justify-content: flex-start;
+	text-align: left;
+	width: 100%;
+	border-color: transparent;
+	background: none;
+}
+
+.card-menu > button.tb:hover {
+	background: var(--bg-hover);
+}
+
+.card-menu-rule {
+	height: 1px;
+	margin: 3px 2px;
+	background: var(--border);
+}
+
+.card-menu-label {
+	padding: 2px 8px 2px;
+	font-size: var(--text-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+}
+
+/* A drawer's header says which panel is out and carries its controls; it is
+   not a handle, as a drawer does not move. */
+.dock.drawer .card-head {
+	cursor: default;
+	border-radius: var(--radius-sm);
+	margin-bottom: 6px;
+	border-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.drop-preview,
+	.card-split.live::after {
+		transition: none;
+	}
 }

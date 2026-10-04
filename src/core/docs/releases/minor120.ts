@@ -9,6 +9,24 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.122.0",
+		date: "2026-10-04",
+		headline: "Cards share their dock, take tabs, and say which one you are in.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Every card has a header**: its title, what its panel puts there (the project's name and Files | DataModel, Variables' Add), a fold, and a menu. The card you last used has its header lit.",
+			"**Tabs.** Drop a card on another card's header and they share it as tabs. Drag one tab out to move it on its own.",
+			"**Cards share their dock's height.** Drag the line between two to trade height between them; double-click it to share it evenly. A card alone in its dock is as tall as what it shows.",
+			"**Drop a card above or below another**, by its upper or lower half, as well as at an edge or onto the graph.",
+			"**A card's menu** moves it without dragging, separates a tab, folds it, closes it, and shows a closed panel again.",
+			"**A window resizes from any edge or corner.**",
+		],
+		changed: [
+			"**Double-clicking a card's header** folds it to the header.",
+			"**The docs' drawings** of the editor, the Project panel and the Variables panel show the cards' headers, and [Controls](controls) lists the new gestures.",
+		],
+	},
+	{
 		version: "0.121.3",
 		date: "2026-10-04",
 		headline: "Phones and tablets get their room back.",

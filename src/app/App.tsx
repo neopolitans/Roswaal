@@ -30,6 +30,7 @@ import {
 } from "./api.js";
 import { Canvas } from "./Canvas.jsx";
 import { CanvasStrip } from "./CanvasStrip.jsx";
+import { PanelHead } from "./Cards.jsx";
 import { CompileToast } from "./CompileToast.jsx";
 import type { LuaurcDocument, MapDocument } from "./centreDocument.js";
 import { onCodeEditRequest } from "./codeEditRequests.js";
@@ -155,10 +156,9 @@ export function App() {
 		onDockResize,
 		onDockResizeEnd,
 		onDockToggle,
-		onFloatPanel,
+		onLayout,
 		onFramePanel,
 		onFramePanelEnd,
-		onMovePanel,
 	} = useLayoutPrefs();
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	/**
@@ -1147,23 +1147,15 @@ export function App() {
 				onResize={onDockResize}
 				onResizeEnd={onDockResizeEnd}
 				onToggle={onDockToggle}
-				onMovePanel={onMovePanel}
+				onLayout={onLayout}
 				onFramePanel={onFramePanel}
 				onFramePanelEnd={onFramePanelEnd}
-				onDockPanel={(panel) => onFloatPanel(panel, false)}
-				onFloatPanel={(panel, frame) => {
-					onFramePanel(panel, frame);
-					onFloatPanel(panel, true);
-				}}
 				contents={{
 					tree: (
 						<>
-							{/* The switch on the name's row, right-aligned, so the tree
-							    keeps its height on a phone. */}
-							<h2 className={project.place ? "project-head" : undefined}>
-								<span className="project-name" title={project.root.split(/[\\/]/).pop()}>
-									{project.root.split(/[\\/]/).pop()}
-								</span>
+							{/* The project's name beside the card's title, the switch at the
+							    header's end, so the tree keeps its height on a phone. */}
+							<PanelHead sub={project.root.split(/[\\/]/).pop()}>
 								{project.place && (
 									<span className="segmented project-views">
 										<button
@@ -1184,7 +1176,7 @@ export function App() {
 										</button>
 									</span>
 								)}
-							</h2>
+							</PanelHead>
 							{project.place && placeSeen && (
 								<div className="project-view" hidden={projectView !== "datamodel"}>
 									<PlaceBrowser

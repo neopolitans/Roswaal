@@ -208,6 +208,12 @@ export type ToolbarItem = Documented &
 				level?: 2 | 3;
 				action?: string;
 				/**
+				 * A level-2 heading is a card's header, as `Cards.tsx` draws it:
+				 * the word beside its title, and the controls its panel put there.
+				 */
+				sub?: string;
+				tools?: ToolbarItem[];
+				/**
 				 * This section is not what the page is about.
 				 *
 				 * Set by `pointingElsewhere`, never by hand: a section whose words
@@ -416,7 +422,11 @@ export interface ToolbarSpec {
 
 /** Every control on a bar, in the order it is drawn. */
 export function controlsOf(spec: ToolbarSpec): ToolbarItem[] {
-	return spec.groups.flatMap((group) => group.items);
+	return spec.groups.flatMap((group) =>
+		group.items.flatMap((item) =>
+			item.t === "heading" && item.tools ? [item, ...item.tools] : [item],
+		),
+	);
 }
 
 /** The ones the legend lists: everything the reader can press or set. */
@@ -469,7 +479,9 @@ export function iconsOf(spec: ToolbarSpec): string[] {
 					? [item.glyph]
 					: item.t === "popout"
 						? [...(item.icon ? [item.icon] : []), "chevron"]
-						: [],
+						: item.t === "heading" && item.level === 2
+							? ["chevron", "more"]
+							: [],
 	);
 }
 
@@ -605,12 +617,24 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 
 		case "heading":
 			// `h3.variables-sub` is the editor's own subheading, and the Add
-			// button beside it is the editor's own `.tb`.
+			// button beside it is the editor's own `.tb`. A level-2 heading is
+			// the card's header the panel sits under.
 			return item.level === 3 || item.level === undefined
 				? `<h3 class="variables-sub"${tie}><span>${escapeXml(item.text)}</span>` +
 						`${item.action ? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>` : ""}</h3>`
-				: `<h2${tie}><span>${escapeXml(item.text)}</span>` +
-						`${item.action ? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>` : ""}</h2>`;
+				: cardHeadHtml(
+						{
+							title: item.text,
+							sub: item.sub,
+							tools:
+								itemsHtml(item.tools ?? [], art) +
+								(item.action
+									? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>`
+									: ""),
+							tie,
+						},
+						art,
+					);
 
 		case "row": {
 			const colour =
@@ -760,6 +784,24 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
  */
 export function itemsHtml(items: ToolbarItem[], art: ToolbarArt): string {
 	return items.map((item) => itemHtml(item, art)).join("");
+}
+
+/**
+ * A card's header as `Cards.tsx` draws it: the title, the word beside it and
+ * the panel's controls, then fold and the menu. `tools` is markup.
+ */
+export function cardHeadHtml(
+	head: { title: string; sub?: string; tools?: string; tie?: string },
+	art: ToolbarArt,
+): string {
+	const button = (icon: string, size: number) =>
+		`<button type="button" tabindex="-1" class="tb icon-only">${iconSvg(icon, size, art)}</button>`;
+	return (
+		`<header class="card-head"${head.tie ?? ""}><span class="card-title">${escapeXml(head.title)}</span>` +
+		`<span class="card-slot">${head.sub ? `<span class="card-sub">${escapeXml(head.sub)}</span>` : ""}` +
+		`${head.tools ? `<span class="card-tools">${head.tools}</span>` : ""}</span>` +
+		`${button("chevron", 14)}${button("more", 15)}</header>`
+	);
 }
 
 /** One glyph as the editor paints it, for markup drawn outside a bar. */
@@ -2400,19 +2442,25 @@ export const PROJECT_PANEL_HEAD: ToolbarSpec = {
 	id: "project-panel-head",
 	title: "The Project panel's heading",
 	summary: "Over the project tree, with a place open.",
-	chrome: "head",
+	chrome: "panel",
 	groups: [
-		{ items: [{ t: "label", text: "MY-GAME" }] },
 		{
-			apart: true,
 			items: [
 				{
-					t: "segmented",
-					options: ["Files", "DataModel"],
-					on: 0,
-					name: "Files | DataModel",
-					where: "With a place",
-					what: "The project's files, or the place's instances as Studio's Explorer lists them.",
+					t: "heading",
+					level: 2,
+					text: "Project",
+					sub: "my-game",
+					tools: [
+						{
+							t: "segmented",
+							options: ["Files", "DataModel"],
+							on: 0,
+							name: "Files | DataModel",
+							where: "With a place",
+							what: "The project's files, or the place's instances as Studio's Explorer lists them.",
+						},
+					],
 				},
 			],
 		},
@@ -2905,6 +2953,7 @@ export const PROPERTIES_PANEL: ToolbarSpec = (() => {
 						t: "heading",
 						level: 2,
 						text: "Properties",
+						sub: info.name,
 						action: "Close",
 						name: "Close",
 						what: "Stops showing the instance.",
