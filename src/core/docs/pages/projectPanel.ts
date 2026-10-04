@@ -28,12 +28,12 @@ export function projectPanelPage(): DocPage {
 			},
 			{ t: "toolbar", bar: PROJECT_PANEL_HEAD, hint: true },
 
-			{ t: "h", level: 2, text: "Graph content and Compile content" },
+			{ t: "h", level: 2, text: "Graph Content and Compile Content" },
 			{
 				t: "p",
 				text:
-					"**Graph content** is what you edit: `.roswaal/` with its graphs and node maps, " +
-					"`.luaurc` and `wally.toml`. **Compile content** is what they compile to and what " +
+					"**Graph Content** is what you edit: `.roswaal/` with its graphs and node maps, " +
+					"`.luaurc` and `wally.toml`. **Compile Content** is what they compile to and what " +
 					"sits beside it: `src/`, `place/` and `Packages/`. Luau there opens read-only in the " +
 					"Luau viewer.",
 			},
@@ -41,13 +41,13 @@ export function projectPanelPage(): DocPage {
 			{ t: "h", level: 2, text: "Colours and icons" },
 			{
 				t: "table",
-				head: ["Under Compile content", "Means"],
+				head: ["Under Compile Content", "Means"],
 				rows: [
 					["A grey outlined folder", "A plain folder"],
 					["A grey filled folder", "A Folder a node map syncs"],
 					[
 						"A blue filled folder",
-						"A service, a container or a script in Studio. Under Graph content too, for the folder mirroring one",
+						"A service, a container or a script in Studio. Under Graph Content too, for the folder mirroring one",
 					],
 					["A red filled folder", "`place/`: scripts only the place can hold"],
 					["A purple filled folder", "`Packages/`: Wally's packages"],

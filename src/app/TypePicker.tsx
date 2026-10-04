@@ -25,6 +25,7 @@ import { CLASSES, DATATYPES as ENGINE_DATATYPES } from "../core/robloxData.js";
 import type { NodeScript } from "../core/schema.js";
 import { Icon } from "./icons.jsx";
 import { configText } from "./nodeConfig.js";
+import { pinColor } from "./palette.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { useEditor } from "./store.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
@@ -250,6 +251,14 @@ export function useTypeChoices(): {
 	return { options, groupOf, groupsFirst };
 }
 
+/** Every engine class, which share the Instance colour and so carry no dot. */
+const ENGINE_CLASSES: ReadonlySet<string> = new Set(CLASSES);
+
+/** A type's wire colour, for the ones whose colour says something. */
+function typeColor(type: string): string | undefined {
+	return ENGINE_CLASSES.has(type) ? undefined : pinColor(type, "data");
+}
+
 export function TypePicker(props: TypePickerProps) {
 	const { options, groupOf, groupsFirst } = useTypeChoices();
 	const [picking, setPicking] = useState(false);
@@ -264,6 +273,7 @@ export function TypePicker(props: TypePickerProps) {
 				title={props.title ?? "Any Luau type. The list is a shortcut, not a limit."}
 				onClick={() => setPicking(true)}
 			>
+				<span className="type-dot" style={{ background: pinColor(value, "data") }} />
 				<span className="preview">{value}</span>
 				<Icon name="chevron" size={12} />
 			</button>
@@ -275,6 +285,7 @@ export function TypePicker(props: TypePickerProps) {
 					groupOf={groupOf}
 					groupsFirst={groupsFirst}
 					detailOf={classDetail}
+					colorOf={typeColor}
 					onPick={(type) => props.onChange(type.trim() || "any")}
 					onClose={() => setPicking(false)}
 				/>

@@ -140,7 +140,13 @@ export type Block =
 	 * row — and a header saying "Note" over a single column of notes is a row of
 	 * furniture that tells the reader nothing.
 	 */
-	| { t: "table"; head?: string[]; rows: string[][] }
+	| {
+			t: "table";
+			head?: string[];
+			rows: string[][];
+			/** A column of type names, each drawn as the type field draws one. */
+			types?: number;
+	  }
 	/**
 	 * What kind of release this was, at a glance, under its version number.
 	 *

@@ -22,6 +22,7 @@ import { graphViews } from "./graphViews.js";
 import { layoutHtml, listedRegions } from "./layouts.js";
 import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
 import { mapFigure, mapFigureHtml, walkMapHtml } from "./mapFigure.js";
+import { typeCellHtml } from "./typeCell.js";
 import { nodeCodeHtml } from "./nodeCode.js";
 import { noteHeadHtml } from "./notes.js";
 import { graphSvg, type PreviewOptions, previewSvg } from "./preview.js";
@@ -247,7 +248,15 @@ function renderBlock(
 				? `<thead><tr>${block.head.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>`
 				: "";
 			const rows = block.rows
-				.map((row) => `<tr>${row.map((c) => `<td>${inline(c, up)}</td>`).join("")}</tr>`)
+				.map(
+					(row) =>
+						`<tr>${row
+							.map(
+								(c, j) =>
+									`<td>${j === block.types ? typeCellHtml(c, options.toolbars?.pinColor) : inline(c, up)}</td>`,
+							)
+							.join("")}</tr>`,
+				)
 				.join("");
 			const bare = block.head ? "" : " bare";
 			return `<div class="docs-table${bare}"><table>${head}<tbody>${rows}</tbody></table></div>`;

@@ -24,6 +24,11 @@
  * the highlighted row answers "what is this", which is the other half of
  * browsing and the half a flat list cannot give you.
  *
+ * **The groups down the side.** With every group listed beside the list, the
+ * one you want is a press away rather than a scroll past fifty GuiBase
+ * classes; the side follows the list as it scrolls. A phone has no room for
+ * it, so it is left out there.
+ *
  * **It never closes a door.** Whatever is typed can be committed whether or not
  * it is on the list, because every pin this opens for takes a name typed by
  * hand — a class newer than this build has to be reachable.
@@ -36,6 +41,7 @@ import { classChain } from "../core/roblox.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
+import { SectionHead } from "./PanelParts.jsx";
 
 export interface ValuePickerProps {
 	/** What is being chosen, for the heading: "class", "enum". */
@@ -57,6 +63,8 @@ export interface ValuePickerProps {
 	groupsFirst?: readonly string[];
 	/** A line under the highlighted value. Absent shows nothing. */
 	detailOf?: (value: string) => string;
+	/** A dot in a value's colour beside it, where it has one: a type's wire colour. */
+	colorOf?: (value: string) => string | undefined;
 	onPick: (value: string) => void;
 	onClose: () => void;
 }
@@ -73,15 +81,19 @@ function score(name: string, query: string): number {
 /** The inheritance chain, for a class. Anything else has none to show. */
 export function classDetail(name: string): string {
 	const chain = classChain(name);
-	return chain.length > 1 ? chain.join("  ›  ") : "";
+	return chain.length > 1 ? chain.join(" › ") : "";
 }
 
 export function ValuePicker(props: ValuePickerProps) {
-	const { options, groupOf, detailOf, groupsFirst } = props;
+	const { options, groupOf, detailOf, groupsFirst, colorOf } = props;
 	const [query, setQuery] = useState("");
 	const [active, setActive] = useState(props.value);
+	const [shut, setShut] = useState<ReadonlySet<string>>(new Set());
+	// The group at the top of the list, lit in the side's list of groups.
+	const [atGroup, setAtGroup] = useState<string | null>(null);
 	const root = useRef<HTMLDivElement>(null);
 	const field = useRef<HTMLInputElement>(null);
+	const list = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		field.current?.focus();
@@ -140,6 +152,40 @@ export function ValuePicker(props: ValuePickerProps) {
 		node?.scrollIntoView({ block: "nearest", inline: "nearest" });
 	}, [active]);
 
+	/** The group whose heading is at or above the top of the list. */
+	const follow = () => {
+		const box = list.current;
+		if (!box) return;
+		let at: string | null = null;
+		for (const section of box.querySelectorAll<HTMLElement>("[data-group]")) {
+			if (section.offsetTop - box.offsetTop <= box.scrollTop + 8)
+				at = section.dataset.group ?? null;
+		}
+		setAtGroup(at);
+	};
+	useEffect(follow, [groups, active]);
+
+	const jump = (label: string) => {
+		const box = list.current;
+		const section = box?.querySelector<HTMLElement>(`[data-group="${CSS.escape(label)}"]`);
+		if (box && section) box.scrollTop = section.offsetTop - box.offsetTop;
+	};
+
+	// Opens with the current value's group at the top, as a jump would put it.
+	// After the highlight's own scroll, which only brings the value into view.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: once, on opening
+	useEffect(() => {
+		if (groups && groupOf) jump(groupOf(props.value));
+	}, []);
+
+	const toggle = (label: string) =>
+		setShut((was) => {
+			const next = new Set(was);
+			if (next.has(label)) next.delete(label);
+			else next.add(label);
+			return next;
+		});
+
 	const commit = (name: string) => {
 		if (name === "") return;
 		props.onPick(name);
@@ -172,16 +218,21 @@ export function ValuePicker(props: ValuePickerProps) {
 	const detail = detailOf?.(active) ?? "";
 	const nothing = matches !== null && matches.length === 0;
 
-	const option = (name: string) => (
-		<button
-			key={name}
-			className={cx("value-option", name === active && "on", name === props.value && "current")}
-			onPointerEnter={() => setActive(name)}
-			onClick={() => commit(name)}
-		>
-			{name}
-		</button>
-	);
+	const option = (name: string) => {
+		const color = colorOf?.(name);
+		return (
+			<button
+				key={name}
+				className={cx("value-option", name === active && "on", name === props.value && "current")}
+				onPointerEnter={() => setActive(name)}
+				onClick={() => commit(name)}
+			>
+				{color && <span className="value-dot" style={{ background: color }} />}
+				<span className="value-name">{name}</span>
+			</button>
+		);
+	};
+	const rail = groups && groups.length > 1;
 
 	// Through a portal, and not for tidiness.
 	//
@@ -204,40 +255,81 @@ export function ValuePicker(props: ValuePickerProps) {
 				onKeyDown={onKeyDown}
 			>
 				<div className="value-search">
-					<Icon name="search" size={15} />
-					<input
-						ref={field}
-						className="tb"
-						value={query}
-						placeholder={`Search ${props.what}…`}
-						spellCheck={false}
-						onChange={(e) => setQuery(e.target.value)}
-					/>
-					<button className="tb" title="Close (Esc)" onClick={props.onClose}>
+					<span className="value-field">
+						<Icon name="search" size={15} />
+						<input
+							ref={field}
+							className="tb"
+							value={query}
+							placeholder={`Search ${props.what}, or type any`}
+							spellCheck={false}
+							onChange={(e) => setQuery(e.target.value)}
+						/>
+					</span>
+					<button
+						className="tb icon-only"
+						title="Close (Esc)"
+						aria-label="Close"
+						onClick={props.onClose}
+					>
 						<Icon name="close" size={15} />
 					</button>
 				</div>
 
-				<div className="value-list">
-					{nothing ? (
-						<p className="value-empty">
-							Nothing matches “{query}”. <strong>Enter</strong> uses it anyway — the list is what
-							this build knows, not what the pin will take.
-						</p>
-					) : groups ? (
-						groups.map(([label, names]) => (
-							<section key={label} className="value-group">
-								<h3>{label}</h3>
-								<div className="value-options">{names.map(option)}</div>
-							</section>
-						))
-					) : (
-						<div className="value-options">{order.map(option)}</div>
+				<div className={cx("value-main", rail && "with-rail")}>
+					{rail && (
+						<nav className="value-rail" aria-label="Groups">
+							{groups.map(([label, names]) => (
+								<button
+									key={label}
+									type="button"
+									className={cx(label === atGroup && "on")}
+									onClick={() => jump(label)}
+								>
+									<span className="value-rail-name">{label}</span>
+									<span className="value-rail-count">{names.length}</span>
+								</button>
+							))}
+						</nav>
 					)}
+					<div className="value-list" ref={list} onScroll={follow}>
+						{nothing ? (
+							<p className="value-empty">
+								Nothing matches “{query}”. <strong>Enter</strong> uses it anyway — the list is what
+								this build knows, not what the pin will take.
+							</p>
+						) : groups ? (
+							groups.map(([label, names]) => (
+								<section key={label} className="value-group" data-group={label}>
+									<SectionHead
+										title={label}
+										count={names.length}
+										open={!shut.has(label)}
+										onToggle={() => toggle(label)}
+									/>
+									{!shut.has(label) && <div className="value-options">{names.map(option)}</div>}
+								</section>
+							))
+						) : (
+							<div className="value-options">{order.map(option)}</div>
+						)}
+					</div>
 				</div>
 
 				<div className="value-detail">
-					{detail || (nothing ? "" : `${order.length} of ${options.length}`)}
+					{detail.includes(" › ") ? (
+						detail.split(" › ").map((part, i) => (
+							<span key={part} className="value-chain">
+								{i > 0 && <span className="value-chain-sep">›</span>}
+								<span className="chip-type">{part}</span>
+							</span>
+						))
+					) : (
+						<span className="value-detail-text">
+							{detail || (nothing ? "" : `${order.length} of ${options.length}`)}
+						</span>
+					)}
+					<span className="value-keys">Enter picks · Esc closes</span>
 				</div>
 			</div>
 		</div>,

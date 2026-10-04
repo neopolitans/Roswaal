@@ -27,6 +27,7 @@ import { graphViews } from "../core/docs/graphViews.js";
 import { headingId } from "../core/docs/html.js";
 import { type LayoutSpec, layoutHtml, listedRegions } from "../core/docs/layouts.js";
 import { mapFigure, mapFigureHtml, walkMapHtml } from "../core/docs/mapFigure.js";
+import { typeCellHtml } from "../core/docs/typeCell.js";
 import { nodeCodeHtml } from "../core/docs/nodeCode.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
 import { noteHeadHtml } from "../core/docs/notes.js";
@@ -823,11 +824,19 @@ function BlockView({ block }: { block: Block }) {
 						<tbody>
 							{block.rows.map((row, i) => (
 								<tr key={i}>
-									{row.map((cell, j) => (
-										<td key={j}>
-											<Rich text={cell} />
-										</td>
-									))}
+									{row.map((cell, j) =>
+										j === block.types ? (
+											<td
+												key={j}
+												// biome-ignore lint/security/noDangerouslySetInnerHtml: core's markup, escaped there
+												dangerouslySetInnerHTML={{ __html: typeCellHtml(cell, pinColor) }}
+											/>
+										) : (
+											<td key={j}>
+												<Rich text={cell} />
+											</td>
+										),
+									)}
 								</tr>
 							))}
 						</tbody>

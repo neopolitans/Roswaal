@@ -35,9 +35,9 @@ export function wallyPackagesPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"`wally.toml` is under Graph content, with each package it lists and the version " +
+					"`wally.toml` is under Graph Content, with each package it lists and the version " +
 					"installed. Double-click one to open its code; one not installed yet says so. " +
-					"`Packages/` is under Compile content, in purple, and starts closed.",
+					"`Packages/` is under Compile Content, in purple, and starts closed.",
 			},
 			{ t: "toolbar", bar: PROJECT_TREE_WALLY, hint: true },
 

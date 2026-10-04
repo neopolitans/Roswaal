@@ -14,6 +14,7 @@ import { useDismiss } from "./dismiss.js";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { LAYER } from "./layers.js";
+import { depthStyle, SectionHead } from "./PanelParts.jsx";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
 	nodescript: "document",
@@ -257,7 +258,7 @@ export const ProjectTree = memo(function ProjectTree({
 						<div
 							key={`${entry.path}#${fn.id}`}
 							className={cx("tree-row function-row", open && "open-doc")}
-							style={{ paddingLeft: 6 + (depth + fn.depth) * 13 }}
+							style={depthStyle(depth + fn.depth)}
 							title={`${fn.name} in ${entry.name}. Double-click to open its graph.`}
 							onDoubleClick={() => onOpenFunction(entry.path, fn.id)}
 						>
@@ -270,18 +271,18 @@ export const ProjectTree = memo(function ProjectTree({
 					const shut = collapsed.has(sectionKey(section.id));
 					const count = groups[section.id].length;
 					return (
-						<div
-							key={sectionKey(section.id)}
-							className={cx("tree-section", shut && "shut")}
-							title={section.hint}
-							onClick={() => toggle(sectionKey(section.id))}
-						>
-							<span className="twist">{shut ? "▸" : "▾"}</span>
-							<span className="label">{section.label}</span>
-							{/* Only when there is nothing, because a count beside every
-							    heading is a number nobody reads. Empty is the state
-							    worth explaining -- a compile has not run yet. */}
-							{count === 0 && <span className="empty">empty</span>}
+						<div key={sectionKey(section.id)} className={cx("tree-section", shut && "shut")}>
+							<SectionHead
+								title={section.label}
+								hint={section.hint}
+								open={!shut}
+								onToggle={() => toggle(sectionKey(section.id))}
+							>
+								{/* Only when there is nothing, because a count beside every
+								    heading is a number nobody reads. Empty is the state
+								    worth explaining -- a compile has not run yet. */}
+								{count === 0 && <span className="empty">empty</span>}
+							</SectionHead>
 						</div>
 					);
 				}
@@ -301,7 +302,7 @@ export const ProjectTree = memo(function ProjectTree({
 							readonly && "readonly",
 							dropTarget === entry.path && "drop-target",
 						)}
-						style={{ paddingLeft: 6 + depth * 13 }}
+						style={depthStyle(depth)}
 						draggable={!isDir && !isListed(entry)}
 						onDragStart={(e) => onDragStart(e, entry)}
 						onDragOver={(e) => {
@@ -584,12 +585,12 @@ interface Section {
 const SECTIONS: readonly Section[] = [
 	{
 		id: "graph",
-		label: "Graph content",
+		label: "Graph Content",
 		hint: "Graphs, node maps and node packs. Yours to edit; Roswaal reads these.",
 	},
 	{
 		id: "compiled",
-		label: "Compile content",
+		label: "Compile Content",
 		hint: "Everything Roswaal does not author, including the Luau it writes out.",
 	},
 ];

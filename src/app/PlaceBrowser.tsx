@@ -7,7 +7,7 @@
  * holds a list of names however large the place is.
  */
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "../core/errorMessage.js";
 import {
 	classGlyph,
@@ -20,6 +20,7 @@ import { api, type PlaceTree } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
+import { depthStyle, Ident, SectionHead } from "./PanelParts.jsx";
 
 /** Mirrors `TUCKED` in core/rbx/browse.ts, which the editor does not bundle. */
 const TUCKED = 1;
@@ -266,7 +267,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 							<div
 								key={`more-${n}`}
 								className="tree-row place-more"
-								style={{ paddingLeft: 6 + row.depth * 13 + 20 }}
+								style={{ ...depthStyle(row.depth), paddingLeft: 6 + row.depth * 13 + 20 }}
 								onClick={() => {
 									if (row.kind === "tucked") setTucked((t) => !t);
 									else if (row.parent !== undefined) setShowAll((s) => new Set(s).add(row.parent!));
@@ -293,7 +294,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 								selected === i && "selected",
 								inspecting === i && "open-doc",
 							)}
-							style={{ paddingLeft: 6 + row.depth * 13 }}
+							style={depthStyle(row.depth)}
 							title={`${row.match ? pathTo(nodes!, i).join(".") : name} (${cls}). Double-click for its properties; drag onto a graph for an Instance node.`}
 							draggable
 							onDragStart={(e) => dragOut(e, { path: pathTo(nodes!, i), className: cls })}
@@ -360,24 +361,32 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 	return (
 		<div className="place-properties">
 			<PanelHead sub={target.name}>
-				<button className="tb" title="Stop showing this instance" onClick={onClose}>
-					Close
+				<button
+					className="tb icon-only"
+					title="Stop showing this instance"
+					aria-label="Close"
+					onClick={onClose}
+				>
+					<Icon name="close" size={14} />
 				</button>
 			</PanelHead>
 			<div className="place-props">
 				<div
 					className="place-props-head"
 					draggable
-					title="Drag onto a graph for an Instance node at this path"
+					title="Drag onto a graph for an Instance node at this path, or into Custom Code"
 					onDragStart={(e) => dragOut(e, { path: target.path, className: target.className })}
 				>
-					<ClassIcon className={target.className} service={target.service} open={false} />
-					<span className="place-props-name">{target.name}</span>
-					<span className="place-class">{target.className}</span>
+					<Ident
+						name={target.name}
+						kind={target.service ? `${target.className} · service` : target.className}
+						color={badgeColor(target.className, target.service)}
+						icon={classGlyph(target.className, target.service, false).icon as IconName}
+					/>
 				</div>
 				<div className="place-path">{target.path.join(" › ")}</div>
 				{info?.summary && info.index === target.index && (
-					<p className="place-summary">{info.summary}</p>
+					<p className="place-summary">{withCode(info.summary)}</p>
 				)}
 				{target.file ? (
 					<div className="place-owner">
@@ -431,6 +440,42 @@ function pathTo(nodes: readonly [number, string, number, number][], index: numbe
 	return names;
 }
 
+/** A class's badge: the colour the project tree draws its glyph in. */
+function badgeColor(className: string, service: boolean): string {
+	const { tone } = classGlyph(className, service, false);
+	const script = /tree-script-(\w+)/.exec(tone);
+	if (script) return `var(--tree-script-${script[1]})`;
+	if (tone === "tree-folder-special" || tone === "tree-folder-plain") return `var(--${tone})`;
+	return "var(--fg-faint)";
+}
+
+/** Engine summaries mark code with backticks; show it as code rather than as backticks. */
+function withCode(text: string): ReactNode[] {
+	return text.split("`").map((part, i) => (i % 2 === 1 ? <code key={i}>{part}</code> : part));
+}
+
+/** A value as it reads best: true and false as a box, an enum's number set back. */
+function PropValue({ value }: { value: string }) {
+	if (value === "true" || value === "false") {
+		const on = value === "true";
+		return (
+			<span className={cx("place-bool", on && "on")}>
+				<i aria-hidden>{on ? "✓" : ""}</i>
+				{value}
+			</span>
+		);
+	}
+	const item = /^(.+) \((-?\d+)\)$/.exec(value);
+	if (item) {
+		return (
+			<>
+				{item[1]} <span className="place-enum-value">{item[2]}</span>
+			</>
+		);
+	}
+	return <>{value}</>;
+}
+
 /** The glyph the project tree uses for the same thing, and a cube for the rest. */
 function ClassIcon({
 	className,
@@ -473,14 +518,27 @@ function Properties({
 	className: string;
 }) {
 	const groups = useMemo(() => groupProperties(properties), [properties]);
+	const [shut, setShut] = useState<ReadonlySet<string>>(new Set());
 
 	if (properties.length === 0) return <p className="place-note">No properties Roswaal reads.</p>;
 	return (
 		<div className="place-groups">
 			{groups.map(([category, list]) => (
 				<div className="place-group" key={category}>
-					<div className="place-group-name">{category}</div>
-					{category === "Tags" ? (
+					<SectionHead
+						title={category}
+						count={list.length}
+						open={!shut.has(category)}
+						onToggle={() =>
+							setShut((was) => {
+								const next = new Set(was);
+								if (next.has(category)) next.delete(category);
+								else next.add(category);
+								return next;
+							})
+						}
+					/>
+					{shut.has(category) ? null : category === "Tags" ? (
 						<div className="place-tags">
 							{list.map((p) => (
 								<span className="place-tag" key={p.name}>
@@ -509,10 +567,11 @@ function Properties({
 									{p.color && <span className="place-swatch" style={{ background: p.color }} />}
 									{p.ref !== undefined ? (
 										<button className="place-ref" onClick={() => onPick(p.ref!)}>
+											<Icon name="instance" size={12} />
 											{p.value}
 										</button>
 									) : (
-										p.value
+										<PropValue value={p.value} />
 									)}
 								</span>
 							</div>

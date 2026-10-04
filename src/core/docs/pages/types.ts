@@ -23,6 +23,7 @@ export function typesPage(): DocPage {
 			{
 				t: "table",
 				head: ["Type", "Holds", "Notes"],
+				types: 0,
 				rows: [
 					["`boolean`", "true or false", ""],
 					["`number`", "A Luau number", "No integer/float split; Luau has one number type."],

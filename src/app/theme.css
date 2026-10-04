@@ -812,66 +812,175 @@ select optgroup {
 	gap: 8px;
 	padding: 8px 10px;
 	border-bottom: 1px solid var(--border);
-	color: var(--fg-faint);
 	flex: none;
 }
 
-.value-search input {
+/* The search field, with its glyph inside it. The field keeps the glyph's room
+   whatever padding the field style gives it. */
+.value-field {
+	position: relative;
 	flex: 1;
 	min-width: 0;
+	display: flex;
 }
 
-.value-list {
-	flex: 1;
-	overflow-y: auto;
-	padding: 10px 12px;
-}
-
-.value-group {
-	break-inside: avoid;
-	margin-bottom: 10px;
-}
-
-.value-group h3 {
-	margin: 0 0 4px;
-	font-size: var(--text-sm);
-	text-transform: uppercase;
-	letter-spacing: 0.06em;
+.value-field > .icon {
+	position: absolute;
+	left: 10px;
+	top: 50%;
+	transform: translateY(-50%);
 	color: var(--fg-faint);
+	pointer-events: none;
+}
+
+.value-field > input.tb {
+	flex: 1;
+	min-width: 0;
+	padding-left: 32px;
+	min-height: 30px;
+}
+
+.value-search > .tb.icon-only {
+	flex: none;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	display: inline-grid;
+	place-items: center;
+}
+
+/* The groups down the side, and the list beside them. */
+.value-main {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.value-main.with-rail {
+	grid-template-columns: 170px minmax(0, 1fr);
+}
+
+.value-rail {
+	overflow-y: auto;
+	padding: 6px;
+	border-right: 1px solid var(--border);
+	background: color-mix(in srgb, var(--accent) 5%, var(--bg-panel));
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.value-rail button {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	padding: 4px 8px;
+	border: 0;
+	border-radius: var(--radius-xs);
+	background: transparent;
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
+	text-align: left;
+	cursor: pointer;
+}
+
+.value-rail button:hover {
+	background: var(--bg-hover);
+	color: var(--fg);
+}
+
+.value-rail button.on {
+	background: color-mix(in srgb, var(--accent) 16%, transparent);
+	color: var(--fg);
+	font-weight: 600;
+}
+
+.value-rail-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.value-rail-count {
+	margin-left: auto;
+	font-weight: 400;
+	color: var(--fg-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+/* No padding above the groups: a heading held at the top sits flush with the
+   list's edge, so nothing scrolls past above it. */
+.value-list {
+	min-height: 0;
+	overflow-y: auto;
+	padding: 0 12px 10px;
+}
+
+.value-group + .value-group {
+	margin-top: 4px;
+}
+
+.value-group > .pane-head {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	margin-top: 0;
+	background: var(--bg-panel);
 }
 
 /* Columns rather than one tall list, which is what makes six hundred names
    scannable — and what Studio's Insert Object does for the same reason. They
    are sized rather than counted, so a narrow window gets fewer of them. */
 .value-options {
-	column-width: 210px;
-	column-gap: 14px;
+	column-width: 190px;
+	column-gap: 10px;
+	padding: 4px 0 6px;
 }
 
 .value-option {
-	display: block;
+	display: flex;
+	align-items: center;
+	gap: 7px;
 	width: 100%;
 	text-align: left;
-	padding: 2px 6px;
+	padding: 3px 8px;
 	border: 0;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-xs);
 	background: none;
-	color: var(--fg-muted);
+	color: var(--fg);
+	font: var(--text-sm) "Cascadia Mono", Consolas, monospace;
 	cursor: pointer;
 	white-space: nowrap;
+	break-inside: avoid;
+}
+
+.value-name {
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.value-option.on {
-	background: var(--bg-active);
-	color: var(--fg);
+.value-dot {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
 }
 
-/* The value the pin already holds, marked even when the highlight is elsewhere
+.value-option.on {
+	background: var(--bg-hover);
+}
+
+/* The value the pin already holds, ringed even when the highlight is elsewhere
    -- otherwise a picker opened to browse loses track of where it started. */
 .value-option.current {
 	color: var(--accent);
+	font-weight: 600;
+	background: color-mix(in srgb, var(--accent) 16%, transparent);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .value-empty {
@@ -879,17 +988,49 @@ select optgroup {
 	color: var(--fg-muted);
 }
 
-/* The inheritance chain, or the count. A fixed row so the list above it does
-   not jump by a line every time the highlight moves. */
+/* The inheritance chain as chips, or the count, and the keys. A fixed row so
+   the list above it does not jump every time the highlight moves. */
 .value-detail {
 	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 22px;
 	padding: 7px 12px;
 	border-top: 1px solid var(--border);
 	color: var(--fg-faint);
-	font-size: var(--text-md);
+	font-size: var(--text-sm);
 	white-space: nowrap;
 	overflow: hidden;
+}
+
+.value-chain {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.value-detail-text {
+	min-width: 0;
+	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.value-keys {
+	margin-left: auto;
+	padding-left: 12px;
+	font-size: var(--text-xs);
+}
+
+@media (max-width: 699px) {
+	.value-main.with-rail {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.value-rail,
+	.value-keys {
+		display: none;
+	}
 }
 
 /* The pin's own control: what it holds, and a chevron saying there is more. */
@@ -1055,17 +1196,33 @@ button.tb.icon-only.panel-float {
 .tb.type-picker {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 4px;
+	gap: 6px;
 	width: 100%;
 	min-width: 0;
 	text-align: left;
+	font: var(--text-sm) "Cascadia Mono", Consolas, monospace;
+	color: var(--fg);
+}
+
+/* The type's wire colour, so the field reads as a value rather than a menu. */
+.tb.type-picker .type-dot {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
 }
 
 .tb.type-picker .preview {
+	flex: 1;
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.tb.type-picker > .icon {
+	flex: none;
+	color: var(--fg-faint);
 }
 
 /* A constant, marked in the Variables list. Named `const` on the badge because
@@ -1451,13 +1608,31 @@ button.tb.primary:hover:not(:disabled) {
 }
 
 .tree-row {
+	position: relative;
 	display: flex;
 	align-items: center;
 	gap: 6px;
 	padding: 3px 6px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-xs);
 	cursor: default;
 	white-space: nowrap;
+}
+
+/* Indent guides: a hairline under each open folder, one per level of depth,
+   through the middle of that level's chevron. */
+.tree-row::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 1px;
+	width: calc(var(--depth, 0) * 13px);
+	background: repeating-linear-gradient(
+		to right,
+		transparent 0 12px,
+		color-mix(in srgb, var(--fg) 14%, transparent) 12px 13px
+	);
+	pointer-events: none;
 }
 
 .tree-row:hover {
@@ -1465,11 +1640,13 @@ button.tb.primary:hover:not(:disabled) {
 }
 
 .tree-row.selected {
-	background: var(--bg-active);
+	background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
-.tree-row.open-doc {
-	box-shadow: inset 2px 0 0 var(--accent);
+/* The document in front: its name in bold, rather than a rule down the side. */
+.tree-row.open-doc .label {
+	font-weight: 650;
+	color: var(--fg);
 }
 
 .tree-row.drop-target {
@@ -1491,7 +1668,6 @@ button.tb.primary:hover:not(:disabled) {
 
 .tree-row.readonly .label {
 	color: var(--fg-muted);
-	font-style: italic;
 }
 
 .tree-row .badge {
@@ -1499,8 +1675,8 @@ button.tb.primary:hover:not(:disabled) {
 	font-size: var(--text-xs);
 	color: var(--fg-faint);
 	border: 1px solid var(--border);
-	border-radius: var(--radius-xs);
-	padding: 0 4px;
+	border-radius: 999px;
+	padding: 0 6px;
 }
 
 /* ----------------------------------------------------------------- canvas */
@@ -2315,55 +2491,39 @@ button.tb.primary:hover:not(:disabled) {
 	color: var(--danger);
 }
 
-/* The two halves of a project: what you author, and what Roswaal writes. Styled
-   as a heading rather than as a folder, because it is not one -- there is no
-   such directory, and making it look like a row would invite you to right-click
-   it and wonder why nothing is offered. */
+/* The two halves of a project: what you author, and what Roswaal writes. A
+   section heading rather than a folder, because it is not one -- there is no
+   such directory, and making it look like a row would invite you to
+   right-click it and wonder why nothing is offered. The two sit 6px from the
+   top, 6px apart and 6px above the end when both are folded. */
 .tree-section {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	padding: 5px 6px;
-	font-size: var(--text-xs);
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
-	color: var(--fg-muted);
-	cursor: pointer;
-	user-select: none;
-	/* A band rather than a line of small text. These are the only dividers in
-	   the tree and they have to survive being read past -- a heading that looks
-	   like a very quiet row is one the eye scrolls straight over. */
-	background: var(--bg-hover);
-	border-top: 1px solid var(--border);
-	border-bottom: 1px solid var(--border);
+	padding: 0 2px;
 }
 
-/* The first sits against the panel heading, which is already a boundary. */
+.tree-section > .pane-head {
+	margin-top: 0;
+}
+
 .tree-section:first-child {
-	border-top: none;
+	padding-top: 6px;
 }
 
-.tree-section:hover {
-	color: var(--fg);
-	background: var(--bg-active);
-}
-
-.tree-section .twist {
-	font-size: var(--text-xs);
+.tree-section + .tree-row,
+.tree-row + .tree-section,
+.tree-section + .tree-section {
+	margin-top: 6px;
 }
 
 .tree-section .empty {
-	margin-left: auto;
-	text-transform: none;
-	letter-spacing: 0;
-	opacity: 0.7;
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
 }
 
 /* The folder a new graph would go into. Quieter than a selection -- it is
    context, not a choice you made, and it has to sit under the selected and
    open-document styles without fighting them. */
 .tree-row.target-dir {
-	box-shadow: inset 2px 0 0 var(--accent);
+	background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
 /* What is left when a render throws. Deliberately plain: it has to work when
@@ -2539,29 +2699,97 @@ button.tb.primary:hover:not(:disabled) {
 .status .bar {
 	display: flex;
 	align-items: center;
-	gap: 10px;
+	gap: 8px;
 	/* Room on the right for the undock button, as the headings have. */
-	padding: 4px 34px 4px 10px;
+	padding: 5px 34px 5px 10px;
 	font-size: var(--text-md);
 	cursor: pointer;
 }
 
+.status .status-state {
+	font-weight: 650;
+}
+
+.status .status-fold {
+	flex: none;
+	color: var(--fg-faint);
+	transform: rotate(-90deg);
+	transition: transform 120ms;
+}
+
+.status .bar[aria-expanded="true"] .status-fold {
+	transform: none;
+}
+
+/* The counts as chips: red and amber when there are any. */
 .status .bar .count {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
+	padding: 1px 8px;
+	border-radius: 999px;
+	font-size: var(--text-xs);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.status .bar .count.error {
+	background: color-mix(in srgb, var(--danger) 14%, transparent);
+	color: var(--danger);
+}
+
+.status .bar .count.warning {
+	background: color-mix(in srgb, var(--warning) 16%, transparent);
+	color: var(--warning);
+}
+
+.status .bar .count.none {
+	padding: 1px 0;
+	font-weight: 400;
+	color: var(--fg-faint);
+}
+
+/* A severity mark: a tick, or an exclamation in a red or amber disc. */
+.sev-mark,
+.status .entry::before {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	display: inline-grid;
+	place-items: center;
+	font: 700 10px/1 system-ui, sans-serif;
+	color: #fff;
+	background: var(--ok);
+}
+
+.status .entry::before {
+	content: "\2713";
+	margin-top: 1px;
+}
+
+.status .entry.error::before {
+	content: "!";
+	background: var(--danger);
+}
+
+.status .entry.warning::before {
+	content: "!";
+	background: var(--warning);
 }
 
 .status .list {
 	overflow: auto;
 	border-top: 1px solid var(--border);
-	padding: 4px 0;
+	padding: 4px;
 }
 
 .status .entry {
 	display: flex;
+	align-items: flex-start;
 	gap: 8px;
-	padding: 3px 12px;
+	padding: 4px 6px;
+	border-radius: var(--radius-xs);
+	font-size: var(--text-sm);
+	line-height: 1.45;
 	cursor: pointer;
 }
 
@@ -2569,24 +2797,25 @@ button.tb.primary:hover:not(:disabled) {
 	background: var(--bg-hover);
 }
 
+/* What happened, as the sentence's first word rather than a coloured column. */
 .status .entry .sev {
 	flex: none;
 	font-weight: 600;
-	width: 62px;
+	color: var(--fg);
 }
 
-.status .entry.error .sev {
-	color: var(--danger);
+.status .entry .sev::first-letter {
+	text-transform: uppercase;
 }
-
-.status .entry.warning .sev {
-	color: var(--warning);
-}
-
 
 .status .entry .where {
-	color: var(--fg-faint);
 	margin-left: auto;
+	padding: 0 7px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--bg-input);
+	color: var(--fg-muted);
+	font: var(--text-xs) / 1.5 "Cascadia Mono", Consolas, monospace;
 	white-space: nowrap;
 }
 
@@ -3150,18 +3379,10 @@ button.start-tile:disabled {
 }
 
 .inspector-body {
-	padding: 0 12px 20px;
+	padding: 10px 10px 18px;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
-}
-
-.inspector .node-heading {
-	border-radius: var(--radius-sm);
-	padding: 6px 10px;
-	color: #fff;
-	font-weight: 600;
-	text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+	gap: 10px;
 }
 
 .inspector .summary {
@@ -3177,9 +3398,19 @@ button.start-tile:disabled {
 	gap: 4px;
 }
 
-.inspector .field > span {
+.inspector .field > .field-label {
 	font-size: var(--text-sm);
-	color: var(--fg-faint);
+	font-weight: 600;
+	color: var(--fg);
+}
+
+/* A label beside a one-line field, in bold as a switch's is. Anything taller
+   -- a code box, swatches, a segmented switch -- keeps its label above it. */
+.inspector .field:has(> input.tb, > select.tb, > .tb.type-picker, > .target-pick, > .docs-bar-field:not(.docs-bar-code), > .docs-bar-select) {
+	display: grid;
+	grid-template-columns: minmax(70px, 36%) minmax(0, 1fr);
+	align-items: center;
+	gap: 10px;
 }
 
 .inspector .field input {
@@ -3217,60 +3448,88 @@ button.start-tile:disabled {
 }
 
 .inspector .list-editor {
-	border-top: 1px solid var(--border);
-	padding-top: 10px;
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
-}
-
-.inspector .list-title {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	font-size: var(--text-sm);
-	text-transform: uppercase;
-	letter-spacing: 0.06em;
-	color: var(--fg-faint);
-}
-
-.inspector .list-title button {
-	padding: 1px 8px;
-	font-size: var(--text-sm);
-}
-
-/* Name and type share the width 60/40 as the panel is resized, rather than
-   the type staying 90px while the name takes the rest. */
-.inspector .list-row {
-	display: grid;
-	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 24px;
 	gap: 4px;
 }
 
-.inspector .list-row input {
-	cursor: text;
+.inspector .list-editor > .summary {
+	padding-left: 6px;
+}
+
+/* A parameter, field or return: its wire colour, its name, its type, and a
+   quiet remove. Name and type the same height, on the same line. */
+.inspector .list-row {
+	display: grid;
+	grid-template-columns: 10px minmax(0, 1fr) minmax(0, 46%) 24px;
+	gap: 6px;
+	align-items: center;
+	padding-left: 6px;
+}
+
+.inspector .list-row input.tb,
+.inspector .list-row .tb.type-picker {
 	min-width: 0;
+	height: 28px;
+	box-sizing: border-box;
+	padding-block: 0;
 }
 
-/* The remove button. Not the type picker beside it, which is a button too and
-   lost its padding to this. */
-.inspector .list-row button:not(.type-picker) {
+.inspector .list-row .list-remove {
+	width: 24px;
+	height: 24px;
 	padding: 0;
-	text-align: center;
-}
-
-.inspector .pin-summary {
-	display: flex;
-	justify-content: space-between;
-	font-size: var(--text-sm);
-	color: var(--fg-muted);
-	padding: 1px 0;
-}
-
-.inspector .pin-summary .type {
+	display: inline-grid;
+	place-items: center;
+	background: transparent;
+	border-color: transparent;
 	color: var(--fg-faint);
-	font-family: "Cascadia Mono", Consolas, monospace;
+}
+
+.inspector .list-row .list-remove:hover:not(:disabled) {
+	background: var(--bg-hover);
+	border-color: transparent;
+	color: var(--danger);
+}
+
+/* A data pin: its wire colour, filled going in and hollow coming out. */
+.inspector .pin-summary {
+	display: grid;
+	grid-template-columns: 10px minmax(0, 1fr) auto;
+	gap: 8px;
+	align-items: center;
+	padding: 3px 6px;
+	border-radius: var(--radius-xs);
+	font-size: var(--text-sm);
+}
+
+.inspector .pin-summary:hover {
+	background: var(--bg-hover);
+}
+
+.pin-dot {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	background: var(--pin);
+}
+
+.pin-dot.out {
+	background: transparent;
+	box-shadow: inset 0 0 0 2px var(--pin);
+}
+
+.inspector .pin-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.inspector .pin-dir {
+	margin-left: 5px;
 	font-size: var(--text-xs);
+	color: var(--fg-faint);
 }
 
 /* Two-line node headers: a name on top, its signature or target underneath. */
@@ -3332,14 +3591,40 @@ button.start-tile:disabled {
 }
 
 /* A second list under the variables: the graph's locals, and its types. */
+/* A section of the Variables panel, headed as every panel's sections are:
+   the name in the accent colour with a line running on (see .pane-head). */
 .variables-sub {
-	margin: 10px 0 2px;
-	padding: 0 6px;
-	font-size: var(--text-xs);
-	font-weight: 600;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	color: var(--fg-faint);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 24px;
+	margin: 8px 0 2px;
+	padding: 0 4px;
+	font-size: calc(12em / 13);
+	font-weight: 650;
+	letter-spacing: 0;
+	text-transform: none;
+	color: var(--accent);
+}
+
+/* The line running on after the name, before any button at the end. */
+.variables-sub::after {
+	content: "";
+	order: 1;
+	flex: 1;
+	min-width: 12px;
+	height: 1px;
+	background: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.variables-sub > button.tb {
+	order: 2;
+	min-height: 0;
+	height: 22px;
+	margin-left: 0;
+	padding: 0 7px;
+	font-size: var(--text-sm);
+	font-weight: 400;
 }
 
 .variable-head {
@@ -4538,18 +4823,10 @@ button.tb.primary.danger:hover:not(:disabled) {
 	padding: 2px 12px 12px;
 }
 
+/* The instance's name block, which is also a handle to drag it by. */
 .place-props-head {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	min-width: 0;
-}
-
-.place-props-name {
-	font-weight: 600;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	margin-top: 8px;
+	cursor: grab;
 }
 
 .place-path {
@@ -4562,8 +4839,16 @@ button.tb.primary.danger:hover:not(:disabled) {
 .place-summary {
 	margin: 6px 0 0;
 	font-size: var(--text-md);
-	line-height: 1.4;
+	line-height: 1.45;
 	color: var(--fg-muted);
+}
+
+.place-summary code {
+	padding: 0 4px;
+	border-radius: var(--radius-xs);
+	background: var(--bg-input);
+	color: var(--fg);
+	font-size: var(--text-sm);
 }
 
 .place-owner {
@@ -4584,23 +4869,26 @@ button.tb.primary.danger:hover:not(:disabled) {
 	padding: 0;
 }
 
-.place-group-name {
-	margin-top: 10px;
-	padding-bottom: 3px;
-	border-bottom: 1px solid var(--border);
-	font-size: var(--text-xs);
-	font-weight: 600;
-	letter-spacing: 0.07em;
-	text-transform: uppercase;
-	color: var(--fg-faint);
+.place-group {
+	margin-top: 6px;
 }
 
+/* A name and its value. The value a weight above its name, so the two columns
+   do not read as one grey run; the row is a handle for dragging it out. */
 .place-prop {
 	display: grid;
-	grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
-	gap: 8px;
-	padding: 2px 0;
+	grid-template-columns: minmax(0, 46%) minmax(0, 1fr);
+	gap: 10px;
+	align-items: center;
+	min-height: 24px;
+	padding: 1px 6px;
+	border-radius: var(--radius-xs);
 	font-size: var(--text-md);
+	cursor: grab;
+}
+
+.place-prop:hover {
+	background: var(--bg-hover);
 }
 
 .place-prop-name {
@@ -4611,7 +4899,41 @@ button.tb.primary.danger:hover:not(:disabled) {
 }
 
 .place-prop-value {
+	color: var(--fg);
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
 	overflow-wrap: anywhere;
+}
+
+/* An enum's number, set back behind its name. */
+.place-enum-value {
+	color: var(--fg-faint);
+	font-weight: 400;
+}
+
+/* True and false as a box. */
+.place-bool {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.place-bool > i {
+	width: 12px;
+	height: 12px;
+	display: inline-grid;
+	place-items: center;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-xs);
+	font-style: normal;
+	font-size: 9px;
+	line-height: 1;
+}
+
+.place-bool.on > i {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: #fff;
 }
 
 .place-swatch {
@@ -4624,16 +4946,24 @@ button.tb.primary.danger:hover:not(:disabled) {
 	vertical-align: -1px;
 }
 
-/* A reference goes to what it names. */
+/* A reference goes to what it names: a chip to follow. */
 .place-ref {
-	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	max-width: 100%;
+	padding: 0 7px;
 	border: 0;
-	background: none;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--accent) 16%, transparent);
 	color: var(--accent);
 	font: inherit;
 	text-align: left;
-	text-decoration: underline dotted;
 	cursor: pointer;
+}
+
+.place-ref:hover {
+	background: color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 .place-tags {
@@ -9741,16 +10071,27 @@ a.docs-release-version:hover {
 	flex: 1;
 }
 
-.docs-bar-frame.inspector .list-row button {
-	padding: 0;
-	text-align: center;
+/* A drawn list row takes the editor's grid; its boxes are spans, so they
+   give up the drawn field's minimum width to fit it. */
+.docs-bar-frame.inspector .list-row {
+	margin-top: 2px;
 }
 
-.docs-bar-frame.inspector .list-row {
-	display: grid;
-	grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 24px;
-	gap: 4px;
-	margin-top: 4px;
+.docs-bar-frame.inspector .list-row .docs-bar-field {
+	min-width: 0;
+	height: 28px;
+	box-sizing: border-box;
+}
+
+/* The type field, drawn as a span: the button's box, which button.tb gives
+   the real one. */
+.docs-bar-frame.inspector span.tb.type-picker {
+	height: 28px;
+	box-sizing: border-box;
+	padding: 0 9px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
 }
 
 /* The panel's headings, restated in full.
@@ -9763,8 +10104,7 @@ a.docs-release-version:hover {
  *
  * Qualified by the element to match that specificity, and the type is restated
  * rather than inherited, because inheriting is exactly what did not happen. */
-.docs-bar-frame.panel h2,
-.docs-bar-frame.panel h3.variables-sub {
+.docs-bar-frame.panel h2 {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -9777,11 +10117,44 @@ a.docs-release-version:hover {
 	color: var(--fg-faint);
 }
 
-.docs-bar-frame.panel h2 button.tb,
-.docs-bar-frame.panel h3.variables-sub button.tb {
+.docs-bar-frame.panel h2 button.tb {
 	margin-left: auto;
 	font-size: var(--text-sm);
 	padding: 1px 8px;
+}
+
+.docs-bar-frame.panel h3.variables-sub {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 24px;
+	margin: 8px 0 2px;
+	padding: 0 8px;
+	font-size: calc(12em / 13);
+	font-weight: 650;
+	letter-spacing: 0;
+	text-transform: none;
+	color: var(--accent);
+}
+
+/* The line running on after the name, before any button at the end. */
+.docs-bar-frame.panel h3.variables-sub::after {
+	content: "";
+	order: 1;
+	flex: 1;
+	min-width: 12px;
+	height: 1px;
+	background: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.docs-bar-frame.panel h3.variables-sub > button.tb {
+	order: 2;
+	min-height: 0;
+	height: 22px;
+	margin-left: 0;
+	padding: 0 7px;
+	font-size: var(--text-sm);
+	font-weight: 400;
 }
 
 .docs-bar-frame.panel .variable-head {
@@ -12553,10 +12926,6 @@ select:not(.literal):not([multiple]) {
 
 /* ------------------------------------------------------- graph settings */
 
-.graph-settings .graph-heading {
-	background: var(--accent);
-}
-
 .graph-settings .field select.tb,
 .graph-settings .target-pick {
 	width: 100%;
@@ -12572,13 +12941,6 @@ select:not(.literal):not([multiple]) {
 	flex: 1;
 	font-size: inherit;
 	padding: 4px 9px;
-}
-
-.graph-settings .graph-heading small {
-	display: block;
-	font-weight: 400;
-	opacity: 0.85;
-	font-size: var(--text-sm);
 }
 
 .graph-settings .graph-figures {
@@ -14675,14 +15037,6 @@ html {
 	text-size-adjust: 100%;
 }
 
-/* On a touch screen the pill stops at "0 errors 0 warnings": the "ok" row
-   under it said the same thing in a row the screen is short of. */
-@media (max-width: 699px), (hover: none) and (pointer: coarse) {
-	.status .list:has(> .entry.clean:only-child) {
-		display: none;
-	}
-}
-
 /* The pill keeps to the right of the side strip, which stands down the left
    edge on a touch screen; with a mouse the strip is along the bottom and
    `--strip-w` is nothing. */
@@ -15259,4 +15613,288 @@ html {
 	.docs-static .docs-card-fold svg {
 		transition: none;
 	}
+}
+
+/* --------------------------------------------------------- panel parts */
+
+/* A section's heading, shared by the Inspector, Properties, the Project panel
+   and the type picker (PanelParts.tsx; docs/toolbars.ts draws the same): its
+   name in the accent colour with a line running on from it, a count, a fold,
+   and its buttons at the end of the line. 24px tall, 3px corners. */
+.pane-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 24px;
+	margin-top: 4px;
+}
+
+.pane-toggle {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	height: 24px;
+	padding: 0 4px;
+	border: 0;
+	border-radius: var(--radius-xs);
+	background: transparent;
+	color: var(--accent);
+	font: inherit;
+	/* 12px beside the editor's 13px, and in proportion inside a docs drawing,
+	   which draws its text smaller. */
+	font-size: calc(12em / 13);
+	font-weight: 650;
+	text-align: left;
+	white-space: nowrap;
+}
+
+button.pane-toggle {
+	cursor: pointer;
+}
+
+button.pane-toggle:hover {
+	background: var(--bg-hover);
+}
+
+button.pane-toggle:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
+.pane-fold {
+	flex: none;
+	transition: transform 120ms;
+}
+
+.pane-toggle[aria-expanded="false"] .pane-fold {
+	transform: rotate(-90deg);
+}
+
+.pane-title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pane-count {
+	font-weight: 400;
+	color: var(--fg-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+.pane-line {
+	flex: 1;
+	min-width: 12px;
+	height: 1px;
+	background: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.pane-tools {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.tb.pane-add {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	min-height: 0;
+	height: 22px;
+	padding: 0 7px 0 4px;
+	font-size: var(--text-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pane-fold,
+	.status .status-fold {
+		transition: none;
+	}
+}
+
+/* What a panel is showing: a badge in its colour, its name, and its kind.
+   Tinted rather than see-through, as cards over the grid are. */
+.ident {
+	display: grid;
+	grid-template-columns: 30px minmax(0, 1fr) auto;
+	gap: 10px;
+	align-items: center;
+	padding: 8px 8px 8px 9px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--accent) 5%, var(--bg-panel));
+}
+
+.ident-badge {
+	width: 30px;
+	height: 30px;
+	border-radius: 8px;
+	display: grid;
+	place-items: center;
+	color: #fff;
+}
+
+.ident-text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.ident-name {
+	font-weight: 650;
+	font-size: 1em;
+	line-height: 1.25;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ident-kind {
+	font-size: calc(11em / 13);
+	color: var(--fg-faint);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ident-tools {
+	display: inline-flex;
+	gap: 2px;
+}
+
+.ident-tools .tb.icon-only {
+	width: 26px;
+	height: 26px;
+	min-height: 0;
+	padding: 0;
+	display: inline-grid;
+	place-items: center;
+	background: transparent;
+	border-color: transparent;
+	color: var(--fg-muted);
+	text-decoration: none;
+}
+
+.ident-tools .tb.icon-only:hover {
+	background: var(--bg-hover);
+	color: var(--fg);
+}
+
+/* A type, a class or a place, as a small chip. */
+.chip-type {
+	display: inline-block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	padding: 0 7px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--bg-input);
+	color: var(--fg-muted);
+	font: var(--text-xs) / 1.5 "Cascadia Mono", Consolas, monospace;
+}
+
+/* ------------------------------------------------------------ text fields */
+
+/* A field reads as somewhere to type, set into its card rather than raised
+   from it as a button is: a well a shade darker than the input colour, a soft
+   inner shadow along the top, the text cursor, a border that firms on hover,
+   and an accent ring when it has the caret.
+
+   Colour, edge and cursor only. No padding or height here, so a field with a
+   glyph inside it (the place filter, the searches) keeps the inset that
+   clears its glyph. Every condition sits in :where(), so these weigh no more
+   than input.tb itself and a component's own field rules still win. */
+input.tb:where(:not([type="checkbox"], [type="radio"], [type="range"])),
+textarea.tb {
+	background: color-mix(in srgb, var(--bg-input) 72%, var(--bg-canvas));
+	box-shadow: inset 0 1px 2px color-mix(in srgb, #000 14%, transparent);
+	color: var(--fg);
+	cursor: text;
+	outline: none;
+	transition:
+		border-color 120ms,
+		box-shadow 120ms,
+		background 120ms;
+}
+
+input.tb::placeholder,
+textarea.tb::placeholder {
+	color: var(--fg-faint);
+	opacity: 1;
+}
+
+input.tb:where(:hover:not(:disabled, [readonly])),
+textarea.tb:where(:hover:not(:disabled)) {
+	border-color: var(--border-strong);
+}
+
+input.tb:where(:focus:not([readonly])),
+textarea.tb:where(:focus) {
+	background: var(--bg-input);
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+input.tb:where([aria-invalid="true"]) {
+	border-color: var(--danger);
+}
+
+input.tb:where([aria-invalid="true"]:focus) {
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 24%, transparent);
+}
+
+input.tb:where([readonly]) {
+	background: transparent;
+	box-shadow: none;
+	border-style: dashed;
+	cursor: default;
+}
+
+input.tb:where(:disabled),
+textarea.tb:where(:disabled) {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	input.tb,
+	textarea.tb {
+		transition: none;
+	}
+}
+
+/* A type named in the docs, as the type field shows it: its wire colour,
+   then its name in the code face. See docs/typeCell.ts. */
+.type-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: 2px 0;
+	padding: 1px 8px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+	white-space: nowrap;
+	vertical-align: middle;
+}
+
+.type-chip .type-dot {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+}
+
+.docs-content .type-chip code {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--fg);
+	font-size: var(--text-sm);
+	font-weight: 600;
 }

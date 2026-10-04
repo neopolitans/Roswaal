@@ -12,6 +12,7 @@ import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Field } from "./InspectorSections.jsx";
 import { Icon } from "./icons.jsx";
+import { Ident } from "./PanelParts.jsx";
 
 export interface GraphSettingsProps {
 	name: string;
@@ -34,10 +35,12 @@ export function GraphSettings(props: GraphSettingsProps) {
 		<div className={cx("inspector graph-settings", props.locked && "editing-locked")}>
 			<PanelHead sub="Graph" />
 			<div className="inspector-body">
-				<div className="node-heading graph-heading">
-					{props.name}
-					<small>{lune ? "Lune" : `${props.scriptClass} · Roblox`}</small>
-				</div>
+				<Ident
+					name={props.name}
+					kind={lune ? "Lune" : `${props.scriptClass} · Roblox`}
+					color="var(--accent)"
+					icon="document"
+				/>
 				{/* Lune has no script classes: every file is .luau, and a Module
 				    Exports node is what makes one a module. */}
 				{!lune && (

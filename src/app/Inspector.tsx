@@ -10,6 +10,7 @@
  * each kind of node shows below that is `InspectorSections.tsx`.
  */
 
+import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { nodeTitle, type Registry } from "../core/nodes/index.js";
 import type { Comment, GraphNode, NodeDef, NodeScript } from "../core/schema.js";
 import { PanelHead } from "./Cards.jsx";
@@ -17,6 +18,8 @@ import { cx } from "./cx.js";
 import { useEditBurst } from "./editBurst.js";
 import { renameNode, updateComment } from "./edits.js";
 import { Field, InspectorSections } from "./InspectorSections.jsx";
+import { Icon, type IconName } from "./icons.jsx";
+import { Ident } from "./PanelParts.jsx";
 import {
 	COMMENT_COLORS,
 	COMMENT_DEFAULT_COLOR,
@@ -73,6 +76,30 @@ function docsHref(nodeId: string): string {
 	return `/docs#${encodeURIComponent(`node/${nodeId}`)}`;
 }
 
+/** The glyph in a node's badge, by what the node is about. */
+const CATEGORY_ICON: Record<string, IconName> = {
+	Engine: "instance",
+	"Engine Types": "instance",
+	Instances: "instance",
+	Players: "instance",
+	"Z-Up Conversions": "instance",
+	Modules: "document",
+	Tables: "layout",
+	Networking: "external",
+	Debug: "terminal",
+	Lune: "luauScript",
+};
+
+function badgeIcon(def: NodeDef): IconName {
+	if (FUNCTION_NODES.has(def.id)) return "function";
+	return CATEGORY_ICON[def.category] ?? "graph";
+}
+
+/** A node's kind: its category, and Pure when it has no exec pins. */
+function nodeKind(def: NodeDef): string {
+	return def.pure ? `${def.category} · Pure` : def.category;
+}
+
 export interface InspectorProps {
 	/**
 	 * The graph is being compiled and refuses edits. The store is what actually
@@ -99,19 +126,20 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 		<div className={cx("inspector", locked && "editing-locked")}>
 			<PanelHead sub="Node" />
 			<div className="inspector-body">
-				<div className="node-heading" style={{ background: nodeColor(def) }}>
-					{def.title}
-				</div>
-				{def.summary && (
-					<p className="summary">
-						{briefSummary(def.summary)}{" "}
-						{/* Named window, so it reuses the docs the toolbar opens rather
-						    than stacking up a tab per node. */}
-						<a className="docs-link" href={docsHref(def.id)} target="roswaal-docs">
-							See docs page
-						</a>
-					</p>
-				)}
+				<Ident name={def.title} kind={nodeKind(def)} color={nodeColor(def)} icon={badgeIcon(def)}>
+					{/* Named window, so it reuses the docs the toolbar opens rather
+					    than stacking up a tab per node. */}
+					<a
+						className="tb icon-only ident-docs"
+						href={docsHref(def.id)}
+						target="roswaal-docs"
+						title="See docs page"
+						aria-label={`${def.title} in the docs`}
+					>
+						<Icon name="help" size={16} />
+					</a>
+				</Ident>
+				{def.summary && <p className="summary">{briefSummary(def.summary)}</p>}
 
 				<LabelField node={node} def={def} />
 
@@ -164,9 +192,12 @@ function CommentInspector({ comment, locked }: { comment: Comment; locked?: bool
 		<div className={cx("inspector", locked && "editing-locked")}>
 			<PanelHead sub="Comment" />
 			<div className="inspector-body">
-				<div className="node-heading" style={{ background: commentColor(comment.color) }}>
-					Comment
-				</div>
+				<Ident
+					name="Comment"
+					kind="On the canvas"
+					color={commentColor(comment.color)}
+					icon="rename"
+				/>
 				<p className="summary">
 					A note on the canvas. Double-click its header to write in it; drag it to take what it
 					encloses with it.

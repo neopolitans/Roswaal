@@ -7,6 +7,8 @@ import { Fragment } from "react";
 
 import type { Diagnostic } from "../core/compiler/index.js";
 import type { CompileOutcome, MapOutcome } from "./api.js";
+import { cx } from "./cx.js";
+import { Icon } from "./icons.jsx";
 import { store } from "./store.js";
 
 export interface StatusPanelProps {
@@ -28,19 +30,37 @@ export interface StatusPanelProps {
 
 export function StatusPanel(props: StatusPanelProps) {
 	const { diagnostics, outcomes } = props;
+	const errors = `${props.errorCount} error${props.errorCount === 1 ? "" : "s"}`;
+	const warnings = `${props.warningCount} warning${props.warningCount === 1 ? "" : "s"}`;
+	const clean = props.errorCount === 0 && props.warningCount === 0;
+	// Nothing to list: the bar has already said so, so no list under it.
+	const nothing =
+		diagnostics.length === 0 &&
+		outcomes.length === 0 &&
+		props.mapOutcomes.length === 0 &&
+		props.orphans.length === 0 &&
+		props.unsynced.length === 0 &&
+		props.packErrors.length === 0;
 	return (
 		<div className="status">
-			<div className="bar" onClick={props.onToggle}>
-				<span>{props.open ? "▾" : "▸"}</span>
-				<span className="count" style={{ color: props.errorCount ? "var(--danger)" : undefined }}>
-					{props.errorCount} error{props.errorCount === 1 ? "" : "s"}
-				</span>
-				<span
-					className="count"
-					style={{ color: props.warningCount ? "var(--warning)" : undefined }}
-				>
-					{props.warningCount} warning{props.warningCount === 1 ? "" : "s"}
-				</span>
+			{/* The state first: a tick and No problems, or the counts as chips. */}
+			<div className="bar" onClick={props.onToggle} aria-expanded={props.open}>
+				{clean ? (
+					<>
+						<span className="sev-mark ok" aria-hidden>
+							✓
+						</span>
+						<span className="status-state">No problems</span>
+						<span className="count none">
+							{errors} · {warnings}
+						</span>
+					</>
+				) : (
+					<>
+						<span className={cx("count", props.errorCount ? "error" : "none")}>{errors}</span>
+						<span className={cx("count", props.warningCount ? "warning" : "none")}>{warnings}</span>
+					</>
+				)}
 				<span className="spacer" style={{ flex: 1 }} />
 				{props.busy && <span>{props.busy}</span>}
 				{!props.busy && outcomes.length > 0 && (
@@ -48,9 +68,10 @@ export function StatusPanel(props: StatusPanelProps) {
 						{outcomes.filter((o) => o.written).length} of {outcomes.length} written
 					</span>
 				)}
+				<Icon name="chevron" size={14} className="status-fold" />
 			</div>
 
-			{props.open && (
+			{props.open && !nothing && (
 				<div className="list">
 					{props.orphans.length > 0 && (
 						<div className="entry warning">
@@ -184,19 +205,6 @@ export function StatusPanel(props: StatusPanelProps) {
 							{d.pin && <span className="where">{d.pin}</span>}
 						</div>
 					))}
-					{diagnostics.length === 0 &&
-						outcomes.length === 0 &&
-						props.mapOutcomes.length === 0 &&
-						props.orphans.length === 0 &&
-						props.unsynced.length === 0 &&
-						props.packErrors.length === 0 && (
-							<div className="entry clean">
-								<span className="sev" style={{ color: "var(--ok)" }}>
-									ok
-								</span>
-								<span>No problems found.</span>
-							</div>
-						)}
 				</div>
 			)}
 		</div>

@@ -50,8 +50,14 @@ export function attachWalkthrough(figure: HTMLElement): () => void {
 		frame.style.zoom = "";
 		const room = view.clientWidth;
 		const wants = frame.scrollWidth;
-		const scale = wants > room ? Math.max(0.6, room / wants) : 1;
+		let scale = wants > room ? Math.max(0.6, room / wants) : 1;
 		frame.style.zoom = scale === 1 ? "" : String(scale);
+		// Measured again once scaled: the width before scaling leaves out what
+		// zoom rounds up, and a bar 6px over was cut off at its last button.
+		if (scale > 0.6 && view.scrollWidth > view.clientWidth + 1) {
+			scale = Math.max(0.6, (scale * view.clientWidth) / view.scrollWidth - 0.005);
+			frame.style.zoom = String(scale);
+		}
 		// Scaled to fit, it fits: no scrollbar for a pixel of rounding.
 		view.style.overflowX = scale > 0.6 ? "hidden" : "";
 		if (here) {

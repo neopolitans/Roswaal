@@ -9,6 +9,31 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.130.0",
+		date: "2026-10-04",
+		headline: "The panels redrawn: section headings, fields and the type picker.",
+		affects: ["editor", "docs"],
+		added: [
+			"**The type picker lists its groups down the side**: press one to go to it. On a phone the list is left out.",
+			"**Fold a section** of the Inspector, Properties or the type picker from its heading.",
+			"**Roswaal types** draws each type with its wire colour.",
+		],
+		changed: [
+			"Section headings in the Inspector, Properties, the Project panel, Variables and the type picker are the section's name in the accent colour, with a count and a line running on from it.",
+			"The Inspector and Properties show what is selected as its name and kind beside a badge in its colour. The docs link is a button.",
+			"In the Inspector a one-line field sits beside its label, and a parameter, field or return shows its wire colour, its type in the code face, and a remove that turns red on hover.",
+			"Pins show their wire colour, filled going in and hollow coming out, with the type as a chip.",
+			"Text fields are set into their panel, with an accent ring while you type. A read-only field has a dashed edge.",
+			"Properties: values a weight above their names, references as a chip, true and false as a box, and Close is the card's ×.",
+			"The Project panel: Graph Content and Compile Content, lines under open folders, a tinted selection, the open document in bold, and generated files no longer in italics.",
+			"Script analysis shows No problems with a tick, or its counts as red and amber chips. Each entry leads with a mark.",
+		],
+		fixed: [
+			"Properties shows code in a class's description as code rather than between backticks.",
+			"The first step of the node map walkthrough no longer cuts off the end of the top row.",
+		],
+	},
+	{
 		version: "0.129.0",
 		date: "2026-10-04",
 		headline: "Building a node map, step by step.",

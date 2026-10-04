@@ -79,6 +79,8 @@ import { resolvePins } from "./geometry.js";
 import { highlightLuau } from "./highlight.js";
 import { Icon } from "./icons.jsx";
 import { configEntries, configFlag, configText, type NamedEntry, paramsOf } from "./nodeConfig.js";
+import { AddButton, SectionHead, useFold } from "./PanelParts.jsx";
+import { pinColor } from "./palette.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { store, useEditor } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
@@ -463,49 +465,52 @@ function TypeFields({ node }: { node: GraphNode }) {
 	const typing = useEditBurst();
 	const fields = configEntries(node, "fields");
 	const write = (next: NamedEntry[]) => store.edit((s) => setConfig(s, node.id, { fields: next }));
+	const [open, toggle] = useFold();
 
 	return (
 		<div className="list-editor">
-			<div className="list-title">
-				<span>Fields</span>
-				<button
-					className="tb"
+			<SectionHead title="Fields" count={fields.length} open={open} onToggle={toggle}>
+				<AddButton
 					onClick={() => write([...fields, { name: `field${fields.length + 1}`, type: "number" }])}
-				>
-					Add
-				</button>
-			</div>
-			{fields.map((entry, i) => (
-				<div className="list-row" key={i}>
-					<input
-						className="tb"
-						value={entry.name}
-						placeholder="name"
-						onChange={(e) => {
-							const next = [...fields];
-							next[i] = { ...entry, name: e.target.value };
-							typing.edit((s) => setConfig(s, node.id, { fields: next }));
-						}}
-						{...typing.field}
-					/>
-					<TypePicker
-						value={entry.type}
-						onChange={(type) => {
-							const next = [...fields];
-							next[i] = { ...entry, type };
-							write(next);
-						}}
-					/>
-					<button
-						className="tb"
-						title="Remove"
-						onClick={() => write(fields.filter((_, j) => j !== i))}
-					>
-						×
-					</button>
-				</div>
-			))}
-			{fields.length === 0 && <p className="summary">No fields yet.</p>}
+				/>
+			</SectionHead>
+			{open &&
+				fields.map((entry, i) => (
+					<div className="list-row" key={i}>
+						<span
+							className="pin-dot"
+							style={{ "--pin": pinColor(entry.type, "data") } as React.CSSProperties}
+						/>
+						<input
+							className="tb"
+							value={entry.name}
+							placeholder="name"
+							onChange={(e) => {
+								const next = [...fields];
+								next[i] = { ...entry, name: e.target.value };
+								typing.edit((s) => setConfig(s, node.id, { fields: next }));
+							}}
+							{...typing.field}
+						/>
+						<TypePicker
+							value={entry.type}
+							onChange={(type) => {
+								const next = [...fields];
+								next[i] = { ...entry, type };
+								write(next);
+							}}
+						/>
+						<button
+							className="tb list-remove"
+							title="Remove"
+							aria-label={`Remove ${entry.name}`}
+							onClick={() => write(fields.filter((_, j) => j !== i))}
+						>
+							<Icon name="close" size={13} />
+						</button>
+					</div>
+				))}
+			{open && fields.length === 0 && <p className="summary">No fields yet.</p>}
 		</div>
 	);
 }
@@ -1458,73 +1463,90 @@ function ListEditor({ node, field, title, hint }: ListEditorProps) {
 		return updated;
 	};
 	const write = (next: NamedEntry[]) => store.edit(change(next));
+	const [open, toggle] = useFold();
 
 	return (
 		<div className="list-editor">
-			<div className="list-title">
-				<span>{title}</span>
-				<button
-					className="tb"
+			<SectionHead title={title} count={list.length} open={open} onToggle={toggle}>
+				<AddButton
 					onClick={() =>
 						write([
 							...list,
 							{ name: `${field === "returns" ? "value" : "arg"}${list.length + 1}`, type: "any" },
 						])
 					}
-				>
-					Add
-				</button>
-			</div>
-			{hint && <p className="summary">{hint}</p>}
-			{list.map((entry, i) => (
-				<div className="list-row" key={i}>
-					<input
-						className="tb"
-						value={entry.name}
-						onChange={(e) => {
-							const next = [...list];
-							next[i] = { ...entry, name: e.target.value };
-							typing.edit(change(next));
-						}}
-						{...typing.field}
-					/>
-					<TypePicker
-						value={entry.type}
-						onChange={(type) => {
-							const next = [...list];
-							next[i] = { ...entry, type };
-							write(next);
-						}}
-					/>
-					<button
-						className="tb"
-						title="Remove"
-						onClick={() => write(list.filter((_, j) => j !== i))}
-					>
-						×
-					</button>
-				</div>
-			))}
-			{list.length === 0 && <p className="summary">None.</p>}
+				/>
+			</SectionHead>
+			{open && hint && <p className="summary">{hint}</p>}
+			{open &&
+				list.map((entry, i) => (
+					<div className="list-row" key={i}>
+						<span
+							className="pin-dot"
+							style={{ "--pin": pinColor(entry.type, "data") } as React.CSSProperties}
+						/>
+						<input
+							className="tb"
+							value={entry.name}
+							onChange={(e) => {
+								const next = [...list];
+								next[i] = { ...entry, name: e.target.value };
+								typing.edit(change(next));
+							}}
+							{...typing.field}
+						/>
+						<TypePicker
+							value={entry.type}
+							onChange={(type) => {
+								const next = [...list];
+								next[i] = { ...entry, type };
+								write(next);
+							}}
+						/>
+						<button
+							className="tb list-remove"
+							title="Remove"
+							aria-label={`Remove ${entry.name}`}
+							onClick={() => write(list.filter((_, j) => j !== i))}
+						>
+							<Icon name="close" size={13} />
+						</button>
+					</div>
+				))}
+			{open && list.length === 0 && <p className="summary">None.</p>}
 		</div>
 	);
 }
 
+/**
+ * The node's data pins: each with its wire colour, filled going in and hollow
+ * coming out, and its type as a chip.
+ */
 function PinSummary({ def, node }: { def: NodeDef; node: GraphNode }) {
 	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
-	const data = [...inputs, ...outputs].filter((p) => p.kind === "data");
+	const [open, toggle] = useFold();
+	const data = [
+		...inputs.filter((p) => p.kind === "data").map((pin) => ({ pin, out: false })),
+		...outputs.filter((p) => p.kind === "data").map((pin) => ({ pin, out: true })),
+	];
 	if (data.length === 0) return null;
 	return (
 		<div className="list-editor">
-			<div className="list-title">
-				<span>Data pins</span>
-			</div>
-			{data.map((pin) => (
-				<div className="pin-summary" key={`${pin.kind}${pin.id}`}>
-					<span>{pin.name || pin.id}</span>
-					<span className="type">{pinTypeText(pin)}</span>
-				</div>
-			))}
+			<SectionHead title="Pins" count={data.length} open={open} onToggle={toggle} />
+			{open &&
+				data.map(({ pin, out }) => (
+					<div className="pin-summary" key={`${out ? "out" : "in"}${pin.id}`}>
+						<span
+							className={cx("pin-dot", out && "out")}
+							style={{ "--pin": pinColor(pin.type, "data") } as React.CSSProperties}
+						/>
+						<span className="pin-name">
+							{pin.name || pin.id}
+							<span className="pin-dir">{out ? "out" : "in"}</span>
+						</span>
+						<span className="chip-type">{pinTypeText(pin)}</span>
+					</div>
+				))}
 		</div>
 	);
 }
@@ -1541,7 +1563,7 @@ export function Field({
 }) {
 	return (
 		<label className="field" title={hint}>
-			<span>{label}</span>
+			<span className="field-label">{label}</span>
 			{children}
 		</label>
 	);

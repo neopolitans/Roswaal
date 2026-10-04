@@ -285,8 +285,8 @@ export type ToolbarItem = Documented &
 		 */
 		| { t: "listTitle"; text: string; action?: string }
 		/**
-		 * The project tree's heading over one of its lists: Graph content,
-		 * Compile content.
+		 * The project tree's heading over one of its lists: Graph Content,
+		 * Compile Content.
 		 */
 		| { t: "treeSection"; text: string; shut?: boolean }
 		/**
@@ -318,7 +318,7 @@ export type ToolbarItem = Documented &
 		/** The Export panel's foot: what the zip holds. */
 		| { t: "footNote"; text: string }
 		/** One of Studio's headings, starting a group of properties. */
-		| { t: "propGroup"; text: string }
+		| { t: "propGroup"; text: string; count?: number }
 		/** One property: its name, and its value as the panel formats it. */
 		| { t: "prop"; label: string; value: string; color?: string }
 		/** The Tags heading's chips. */
@@ -524,6 +524,62 @@ function tabIcon(kind: keyof typeof TAB_ICONS, art: ToolbarArt): string {
 	return iconSvg(TAB_ICONS[kind], 13, art, `tab-kind tab-kind-${kind}${luau}`);
 }
 
+/**
+ * A section heading as `SectionHead` draws it: the name in the accent colour
+ * with a line running on, a fold when it has one, and buttons at the end.
+ */
+export function paneHeadHtml(
+	title: string,
+	art: ToolbarArt,
+	tie = "",
+	open = true,
+	tools = "",
+	count?: number,
+): string {
+	return (
+		`<div class="pane-head"${tie}><span class="pane-toggle" aria-expanded="${open}">` +
+		iconSvg("chevron", 14, art, "pane-fold") +
+		`<span class="pane-title">${escapeXml(title)}</span>` +
+		`${count === undefined ? "" : `<span class="pane-count">${count}</span>`}</span><span class="pane-line"></span>` +
+		`${tools ? `<span class="pane-tools">${tools}</span>` : ""}</div>`
+	);
+}
+
+/** What a panel shows, as `Ident` draws it. */
+export function identHtml(
+	name: string,
+	kind: string,
+	color: string,
+	icon: string,
+	art: ToolbarArt,
+): string {
+	return (
+		`<div class="ident"><span class="ident-badge" style="background:${escapeXml(color)}">` +
+		iconSvg(icon, 17, art) +
+		`</span><span class="ident-text"><span class="ident-name">${escapeXml(name)}</span>` +
+		`<span class="ident-kind">${escapeXml(kind)}</span></span></div>`
+	);
+}
+
+/** A property's value as `PropValue` in PlaceBrowser.tsx shows it. */
+function propValueHtml(value: string): string {
+	if (value === "true" || value === "false") {
+		const on = value === "true";
+		return `<span class="place-bool${on ? " on" : ""}"><i aria-hidden="true">${on ? "\u2713" : ""}</i>${value}</span>`;
+	}
+	const item = /^(.+) \((-?\d+)\)$/.exec(value);
+	if (item) return `${escapeXml(item[1])} <span class="place-enum-value">${item[2]}</span>`;
+	return escapeXml(value);
+}
+
+/** A tree tone's colour, as `badgeColor` in PlaceBrowser.tsx picks it. */
+function toneColor(tone: string | undefined): string {
+	const script = /tree-script-(\w+)/.exec(tone ?? "");
+	if (script) return `var(--tree-script-${script[1]})`;
+	if (tone === "tree-folder-special" || tone === "tree-folder-plain") return `var(--${tone})`;
+	return "var(--fg-faint)";
+}
+
 function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 	// What the linking script matches on, and what it reads out of the picture
 	// when it lights a row from the other side. Only a control the legend lists
@@ -682,29 +738,39 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 					: item.control === "code"
 						? `<span class="tb docs-bar-field docs-bar-code">${escapeXml(item.value)}</span>`
 						: `<span class="tb docs-bar-field">${escapeXml(item.value)}</span>`;
-			return `<label class="field"${tie}><span>${escapeXml(item.label)}</span>${box}</label>`;
+			return `<label class="field"${tie}><span class="field-label">${escapeXml(item.label)}</span>${box}</label>`;
 		}
 
 		case "listTitle":
-			return (
-				`<div class="list-title"${tie}><span>${escapeXml(item.text)}</span>` +
-				`${item.action ? `<button type="button" tabindex="-1" class="tb">${escapeXml(item.action)}</button>` : ""}` +
-				`</div>`
+			// `SectionHead`'s markup, from PanelParts.tsx.
+			return paneHeadHtml(
+				item.text,
+				art,
+				tie,
+				true,
+				item.action
+					? `<button type="button" tabindex="-1" class="tb pane-add">${iconSvg("plus", 13, art)}${escapeXml(item.action)}</button>`
+					: "",
 			);
 
-		case "pair":
+		case "pair": {
+			// A list row: its wire colour, its name, its type, and remove.
+			const colour = art.pinColor?.(item.right, "data") ?? "var(--fg-faint)";
 			return (
 				`<div class="list-row"${tie}>` +
+				`<span class="pin-dot" style="--pin:${escapeXml(colour)}"></span>` +
 				`<span class="tb docs-bar-field">${escapeXml(item.left)}</span>` +
-				`<span class="tb docs-bar-field">${escapeXml(item.right)}</span>` +
-				`<button type="button" tabindex="-1" class="tb">\u00d7</button></div>`
+				`<span class="tb type-picker"><span class="type-dot" style="background:${escapeXml(colour)}"></span>` +
+				`<span class="preview">${escapeXml(item.right)}</span>${iconSvg("chevron", 12, art)}</span>` +
+				`<button type="button" tabindex="-1" class="tb list-remove">${iconSvg("close", 13, art)}</button></div>`
 			);
+		}
 
 		case "treeSection":
 			return (
-				`<div class="tree-section${item.shut ? " shut" : ""}"${tie}>` +
-				`<span class="twist">${item.shut ? "\u25b8" : "\u25be"}</span>` +
-				`<span class="label">${escapeXml(item.text)}</span></div>`
+				`<div class="tree-section${item.shut ? " shut" : ""}">` +
+				paneHeadHtml(item.text, art, tie, !item.shut, "") +
+				`</div>`
 			);
 
 		case "treeRow": {
@@ -723,7 +789,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				.filter(Boolean)
 				.join(" ");
 			return (
-				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 13}px">` +
+				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 13}px;--depth:${item.depth}">` +
 				twist +
 				iconSvg(item.icon, 15, art, `kind${item.tone ? ` ${item.tone}` : ""}`) +
 				`<span class="label">${escapeXml(item.label)}</span>` +
@@ -734,11 +800,12 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 		}
 
 		case "propHead":
+			// `Ident`'s markup, from PanelParts.tsx, in the badge colour the
+			// project tree draws the class's glyph in.
 			return (
 				`<div class="place-props-head"${tie}>` +
-				iconSvg(item.icon, 15, art, `kind${item.tone ? ` ${item.tone}` : ""}`) +
-				`<span class="place-props-name">${escapeXml(item.label)}</span>` +
-				`<span class="place-class">${escapeXml(item.className)}</span></div>`
+				identHtml(item.label, item.className, toneColor(item.tone), item.icon, art) +
+				`</div>`
 			);
 		case "propPath":
 			return `<div class="place-path"${tie}>${escapeXml(item.text)}</div>`;
@@ -747,13 +814,13 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 		case "footNote":
 			return `<span class="export-menu-note export-menu-contents"${tie}>${escapeXml(item.text)}</span>`;
 		case "propGroup":
-			return `<div class="place-group-name"${tie}>${escapeXml(item.text)}</div>`;
+			return paneHeadHtml(item.text, art, tie, true, "", item.count);
 		case "prop":
 			return (
 				`<div class="place-prop"${tie}><span class="place-prop-name">${escapeXml(item.label)}</span>` +
 				`<span class="place-prop-value">` +
 				`${item.color ? `<span class="place-swatch" style="background:${escapeXml(item.color)}"></span>` : ""}` +
-				`${escapeXml(item.value)}</span></div>`
+				`${propValueHtml(item.value)}</span></div>`
 			);
 		case "tags":
 			return (
@@ -2541,8 +2608,8 @@ const graphFolder = (label: string, depth: number, open: boolean): ToolbarItem =
 });
 
 /**
- * Graph content with `wally.toml` and its packages, as `ProjectTree.tsx` lists
- * them: folders, then `wally.toml`, then files, and Compile content under it.
+ * Graph Content with `wally.toml` and its packages, as `ProjectTree.tsx` lists
+ * them: folders, then `wally.toml`, then files, and Compile Content under it.
  */
 export const PROJECT_TREE_WALLY: ToolbarSpec = {
 	id: "project-tree-wally",
@@ -2552,7 +2619,7 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 	groups: [
 		{
 			items: [
-				{ t: "treeSection", text: "Graph content" },
+				{ t: "treeSection", text: "Graph Content" },
 				graphFolder(".roswaal", 0, true),
 				graphFolder("scripts", 1, false),
 				{
@@ -2587,7 +2654,7 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 					what: "In wally.toml with nothing in Packages/ yet. Right-click it to insert its zip.",
 				},
 				{ t: "treeRow", label: ".luaurc", depth: 0, icon: "settings", tone: "luaurc" },
-				{ t: "treeSection", text: "Compile content" },
+				{ t: "treeSection", text: "Compile Content" },
 				{
 					t: "treeRow",
 					label: "Packages",
@@ -2620,7 +2687,7 @@ export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 	groups: [
 		{
 			items: [
-				{ t: "treeSection", text: "Graph content" },
+				{ t: "treeSection", text: "Graph Content" },
 				graphFolder(".roswaal", 0, true),
 				graphFolder("scripts", 1, false),
 				{
@@ -2660,7 +2727,7 @@ export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 					what: "Its line is in wally.toml, and it is installed in Packages/.",
 				},
 				{ t: "treeRow", label: ".luaurc", depth: 0, icon: "settings", tone: "luaurc" },
-				{ t: "treeSection", text: "Compile content" },
+				{ t: "treeSection", text: "Compile Content" },
 				{
 					t: "treeRow",
 					label: "Packages",
@@ -2966,7 +3033,7 @@ export const PROPERTIES_PANEL: ToolbarSpec = (() => {
 	const glyph = classGlyph(info.className, false, false);
 	const groups: ToolbarGroup[] = groupProperties(info.properties).map(([category, list]) => ({
 		items: [
-			{ t: "propGroup", text: category },
+			{ t: "propGroup", text: category, count: list.length },
 			...(category === "Tags"
 				? [
 						{
@@ -3010,9 +3077,14 @@ export const PROPERTIES_PANEL: ToolbarSpec = (() => {
 						level: 2,
 						text: "Properties",
 						sub: info.name,
-						action: "Close",
-						name: "Close",
-						what: "Stops showing the instance.",
+						tools: [
+							{
+								t: "icon",
+								icon: "close",
+								name: "Close",
+								what: "Stops showing the instance.",
+							},
+						],
 					},
 				],
 			},
@@ -3330,8 +3402,8 @@ export function declarationsPanel(script: NodeScript): ToolbarSpec | undefined {
  * members is a dropdown and what is under it.
  *
  * Drawn with the Inspector's own markup, so the picture inherits the editor's
- * own layout: the label above its box, the field rows two across with the
- * remove button after them.
+ * own layout: a one-line field beside its label, and each field row its wire
+ * colour, its name, its type and the remove button after them.
  */
 export const TYPE_FIELDS_INSPECTOR: ToolbarSpec = {
 	id: "type-fields-inspector",

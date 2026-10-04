@@ -39,6 +39,7 @@ import {
 	cardHeadHtml,
 	controlKey,
 	glyphHtml,
+	identHtml,
 	itemsHtml,
 	type ToolbarArt,
 	type ToolbarItem,
@@ -362,8 +363,8 @@ function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): 
 				"inspector",
 				cardHeadHtml({ title: "Inspector", sub: "Graph" }, art),
 				`<div class="inspector graph-settings">` +
-					`<div class="inspector-body"><div class="node-heading graph-heading">${escapeXml(card.graph)}` +
-					`<small>${escapeXml(card.scriptClass)} · Roblox</small></div>` +
+					`<div class="inspector-body">` +
+					identHtml(card.graph, `${card.scriptClass} · Roblox`, "var(--accent)", "document", art) +
 					field("Script", select(card.scriptClass)) +
 					field("Type checking", select("Strict")) +
 					field(
@@ -378,10 +379,14 @@ function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): 
 		case "status":
 			// Script analysis has no header: its bar is one.
 			return dock(
-				`<section class="card card-analysis headless"><div class="panel panel-analysis card-body"><div class="status"><div class="bar">` +
-					`<span>▾</span><span class="count"${card.errors ? ` style="color:var(--danger)"` : ""}>${card.errors} error${card.errors === 1 ? "" : "s"}</span>` +
-					`<span class="count"${card.warnings ? ` style="color:var(--warning)"` : ""}>${card.warnings} warning${card.warnings === 1 ? "" : "s"}</span>` +
-					`<span class="spacer" style="flex:1"></span></div>` +
+				`<section class="card card-analysis headless"><div class="panel panel-analysis card-body"><div class="status">` +
+					`<div class="bar" aria-expanded="${card.entry ? "true" : "false"}">` +
+					(card.errors || card.warnings
+						? `<span class="count ${card.errors ? "error" : "none"}">${card.errors} error${card.errors === 1 ? "" : "s"}</span>` +
+							`<span class="count ${card.warnings ? "warning" : "none"}">${card.warnings} warning${card.warnings === 1 ? "" : "s"}</span>`
+						: `<span class="sev-mark ok">\u2713</span><span class="status-state">No problems</span>` +
+							`<span class="count none">0 errors \u00b7 0 warnings</span>`) +
+					`<span class="spacer" style="flex:1"></span>${glyphHtml("chevron", 14, art).replace('class="icon"', 'class="icon status-fold"')}</div>` +
 					`${card.entry ? `<div class="list"><div class="entry warning"><span class="sev">warning</span><span>${escapeXml(card.entry)}</span></div></div>` : ""}` +
 					`</div></div></section>`,
 			);
@@ -857,7 +862,7 @@ const folder = (label: string, depth: number, tone?: string): ToolbarItem => ({
 
 /** The demo project's tree, as the Project card lists it with Events open. */
 const DEMO_TREE: ToolbarItem[] = [
-	{ t: "treeSection", text: "Graph content" },
+	{ t: "treeSection", text: "Graph Content" },
 	folder(".roswaal", 1),
 	folder("nodes", 2),
 	{
@@ -882,7 +887,7 @@ const DEMO_TREE: ToolbarItem[] = [
 		current: true,
 	},
 	{ t: "treeRow", label: "Game.nodemap", depth: 3, icon: "map", tone: "nodemap" },
-	{ t: "treeSection", text: "Compile content" },
+	{ t: "treeSection", text: "Compile Content" },
 	folder("src", 1),
 	folder("ReplicatedStorage", 2, "tree-folder-special"),
 	folder("ServerScriptService", 2, "tree-folder-special"),
