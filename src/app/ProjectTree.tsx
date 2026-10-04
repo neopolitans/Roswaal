@@ -595,7 +595,7 @@ const SECTIONS: readonly Section[] = [
 ];
 
 /**
- * Folders by what they are. Cream for a plain folder or a synced Folder; blue
+ * Folders by what they are. Grey for a plain folder or a synced Folder; blue
  * for one that is a service, a container or a script in Studio; red for
  * `place/`, whose scripts only the place holds and only Modify RBXL writes.
  */

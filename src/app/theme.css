@@ -118,7 +118,7 @@
 	--tree-script-server: #4b5563;
 	--tree-script-local: #2e7d47;
 	--tree-script-module: #1f64c4;
-	--tree-folder-plain: #94712f;
+	--tree-folder-plain: var(--fg-muted);
 	--tree-folder-special: #1f64c4;
 	--tree-folder-packages: #7048c0;
 
@@ -139,7 +139,7 @@
 		--tree-script-server: #ffffff;
 		--tree-script-local: #5cb87a;
 		--tree-script-module: #5ea2ee;
-		--tree-folder-plain: #c4a878;
+		--tree-folder-plain: var(--fg-muted);
 		--tree-folder-special: #5ea2ee;
 		--tree-folder-packages: #b48cf0;
 
@@ -3945,7 +3945,7 @@ button.tb.primary.danger:hover:not(:disabled) {
 	color: var(--tree-script-module);
 }
 
-/* Compile content's folders say what they are: cream for a plain folder, blue
+/* Folders say what they are: grey for a plain folder, blue
    for a service, container or script in Studio, red for place/, which only
    the place holds. A shade of each for light schemes and dark; see derivedTokens. */
 .tree-row .kind.tree-folder-plain {

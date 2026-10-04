@@ -356,7 +356,10 @@ export function controlsPage(): DocPage {
 						"Drag an attribute from Properties",
 						"**Get Attribute**, or **Set Attribute** with `Ctrl`",
 					],
-					["Drag the instance's name from Properties", "An Instance node at its path"],
+					[
+						"Drag an instance from DataModel, or its name from Properties",
+						"An Instance node at its path",
+					],
 				],
 			},
 		],

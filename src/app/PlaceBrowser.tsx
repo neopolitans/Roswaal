@@ -293,7 +293,9 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 								inspecting === i && "open-doc",
 							)}
 							style={{ paddingLeft: 6 + row.depth * 13 }}
-							title={`${row.match ? pathTo(nodes!, i).join(".") : name} (${cls}). Double-click for its properties.`}
+							title={`${row.match ? pathTo(nodes!, i).join(".") : name} (${cls}). Double-click for its properties; drag onto a graph for an Instance node.`}
+							draggable
+							onDragStart={(e) => dragOut(e, { path: pathTo(nodes!, i), className: cls })}
 							onClick={() => (row.match ? reveal(i) : pick(i, false))}
 							onDoubleClick={() => (row.match ? reveal(i, true) : pick(i, true))}
 						>

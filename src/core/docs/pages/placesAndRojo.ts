@@ -157,6 +157,10 @@ export function placesAndRojoPage(): DocPage {
 				],
 			},
 			{
+				t: "p",
+				text: "An instance dragged from the DataModel list makes the Instance node alone too.",
+			},
+			{
 				t: "tabs",
 				label: "Dropped from Properties",
 				tabs: [

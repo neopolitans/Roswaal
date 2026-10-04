@@ -220,7 +220,9 @@ export function derivedTokens(dark: boolean): Record<string, string> {
 		"--tree-script-server": dark ? "#ffffff" : "#4b5563",
 		"--tree-script-local": dark ? "#5cb87a" : "#2e7d47",
 		"--tree-script-module": dark ? "#5ea2ee" : "#1f64c4",
-		"--tree-folder-plain": dark ? "#c4a878" : "#94712f",
+		// A plain folder is the tree's own quiet grey, so colour is left to
+		// the folders that are something in Studio.
+		"--tree-folder-plain": "var(--fg-muted)",
 		"--tree-folder-special": dark ? "#5ea2ee" : "#1f64c4",
 		"--tree-folder-packages": dark ? "#b48cf0" : "#7048c0",
 	};

@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_110: Release[] = [
 	{
+		version: "0.120.1",
+		date: "2026-10-04",
+		headline: "Plain folders are grey, and DataModel drags onto a graph.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Plain folders** in the project tree and the DataModel list are grey rather than cream. Blue, purple and red are left for services, packages and place/.",
+		],
+		fixed: [
+			"**An instance in the DataModel list** can be dragged onto a graph for an Instance node at its path, as its name in Properties could.",
+		],
+	},
+	{
 		version: "0.120.0",
 		date: "2026-10-04",
 		headline: "A node map makes the folders it syncs.",

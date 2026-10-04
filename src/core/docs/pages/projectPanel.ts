@@ -42,8 +42,8 @@ export function projectPanelPage(): DocPage {
 				t: "table",
 				head: ["Under Compile content", "Means"],
 				rows: [
-					["A cream outlined folder", "A plain folder"],
-					["A cream filled folder", "A Folder a node map syncs"],
+					["A grey outlined folder", "A plain folder"],
+					["A grey filled folder", "A Folder a node map syncs"],
 					[
 						"A blue filled folder",
 						"A service, a container or a script in Studio. Under Graph content too, for the folder mirroring one",
