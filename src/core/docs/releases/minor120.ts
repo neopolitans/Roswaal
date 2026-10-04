@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.131.2",
+		date: "2026-10-04",
+		headline: "Node Design on a tablet: the type palette and the Luau sheet clear their neighbours.",
+		affects: ["designer"],
+		fixed: [
+			"On a tablet, the pin types sit at the foot of the window, and rise clear of the action row only while the logic is nodes, home indicator included.",
+			"On a tablet, the Luau sheet starts below the bar naming the pack and node, rather than under it.",
+		],
+	},
+	{
 		version: "0.131.1",
 		date: "2026-10-04",
 		headline: "Walkthrough pictures fill their frame.",
