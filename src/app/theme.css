@@ -7925,18 +7925,25 @@ button.tb.danger {
 	padding-top: 5px;
 }
 
+/* Labels as the Inspector's: in bold, beside their fields. */
 .node-details label,
 .pin-popover label {
 	display: grid;
-	grid-template-columns: 70px minmax(0, 1fr);
+	grid-template-columns: min(max(70px, 30%), 110px) minmax(0, 1fr);
 	align-items: center;
-	gap: 8px;
+	gap: 10px;
 }
 
 .node-details label > span,
 .pin-popover label > span {
 	font-size: var(--text-sm);
-	color: var(--fg-faint);
+	font-weight: 600;
+	color: var(--fg);
+}
+
+.pin-popover label.check > span {
+	font-weight: 400;
+	color: var(--fg-muted);
 }
 
 .node-problems {
@@ -7955,14 +7962,17 @@ button.tb.danger {
 	line-height: 1.6;
 }
 
+/* The selected pin's settings, drawn as the Inspector draws a panel: a head
+   band with the pin's name and side, labels in bold beside their fields, and
+   the pin's moves in a foot. Only the body scrolls, so a short column keeps
+   the head and the foot in view. */
 .pin-popover {
 	position: absolute;
 	z-index: 6;
 	width: 270px;
 	display: flex;
 	flex-direction: column;
-	gap: 7px;
-	padding: 8px 10px 10px;
+	overflow: hidden;
 	background: var(--bg-panel);
 	border: 1px solid var(--border-strong);
 	border-radius: var(--radius-md);
@@ -7975,10 +7985,55 @@ button.tb.danger {
 	display: flex;
 	align-items: center;
 	gap: 6px;
+	flex: none;
+}
+
+.pin-popover-head {
+	min-height: calc(var(--hit) + 8px);
+	padding: 4px 4px 4px 10px;
+	border-bottom: 1px solid var(--border);
+	background: var(--card-head);
+}
+
+.pin-popover.folded .pin-popover-head {
+	border-bottom: 0;
+}
+
+.pin-popover-head strong {
+	font-size: 1em;
+}
+
+.pin-popover-kind {
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.pin-popover-body {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-height: 0;
+	padding: 10px;
+	overflow-y: auto;
+}
+
+.pin-popover-body > p.hint {
+	margin: 0;
+}
+
+.pin-popover-actions {
+	padding: 4px 6px;
+	border-top: 1px solid var(--border);
 }
 
 .pin-popover label.check {
 	grid-template-columns: auto 1fr;
+}
+
+/* A line about the field above it, under that field rather than its label. */
+.pin-popover-body > .pin-popover-note.hint {
+	margin: -4px 0 0 calc(min(max(70px, 30%), 110px) + 10px);
+	font-size: var(--text-sm);
 }
 
 .pin-popover .hint code {
@@ -13281,6 +13336,13 @@ select:not(.literal):not([multiple]) {
 	box-shadow: var(--shadow-raised);
 }
 
+/* The pin's card gives way when the column runs out of room, its body
+   scrolling, rather than running off the column's foot. */
+.node-editor:not(.split) .plate-column > .pin-popover.docked {
+	flex: 0 1 auto;
+	min-height: calc(var(--hit) * 3 + 24px);
+}
+
 .pin-popover.folded > :not(.pin-popover-head) {
 	display: none;
 }
@@ -13413,7 +13475,7 @@ select:not(.literal):not([multiple]) {
 	bottom: var(--edge);
 	z-index: 7;
 	justify-content: flex-end;
-	max-width: calc(100% - var(--list-w, 0px) - var(--edge) * 2 - 200px);
+	max-width: calc(100% - var(--list-w, 0px) - var(--edge) * 3 - var(--tools-w, 190px));
 }
 
 .node-editor.split > .pin-palette {
@@ -13830,6 +13892,7 @@ select:not(.literal):not([multiple]) {
 	bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px));
 }
 
+
 .node-editor:not(.split) > .node-problems {
 	bottom: calc(var(--edge) * 2 + var(--hit) + 8px + env(safe-area-inset-bottom, 0px));
 }
@@ -13878,7 +13941,7 @@ select:not(.literal):not([multiple]) {
 		top: var(--stack-top);
 		left: calc(var(--list-w, 0px) + var(--edge));
 		width: auto;
-		max-height: 55%;
+		max-height: 65%;
 	}
 
 	.node-editor:not(.split) .luau-field,

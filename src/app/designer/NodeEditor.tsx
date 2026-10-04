@@ -41,6 +41,7 @@ import { LOGIC_NODES } from "../../core/nodes/logic.js";
 import type { GraphNode, Literal, NodeDef, PinDef, Target } from "../../core/schema.js";
 import { api } from "../api.js";
 import { cx } from "../cx.js";
+import { Dialog } from "../Dialog.jsx";
 import { ToolGroup } from "../FloatingTools.jsx";
 import { headerHeight, isCompact, nodeBounds, nodeWidth, pinPosition } from "../geometry.js";
 import { Icon } from "../icons.jsx";
@@ -49,6 +50,7 @@ import { Popout, useMedia, usePhone } from "../Popout.jsx";
 import { pinColor } from "../palette.js";
 import type { Preferences } from "../preferences.js";
 import { TypePicker } from "../TypePicker.jsx";
+import { useDialogs } from "../useDialogs.js";
 import {
 	addPin,
 	type Draft,
@@ -167,7 +169,9 @@ export function NodeEditor({
 	);
 	const [pin, setPin] = useState<{ side: Side; index: number } | null>(null);
 	const [output, setOutput] = useState<string | null>(null);
-	const [confirmDelete, setConfirmDelete] = useState(false);
+	// Deleting asks in a modal, as the editor does: asked in the toolbar, the
+	// question pushed the row's other buttons off a tablet's screen.
+	const { dialog, ask } = useDialogs();
 	// The node's details — id, title, category, summary — expand out from the
 	// floating tools rather than sitting over the canvas the whole time. The
 	// summary is what the node's documentation reads, so it gets room to write in.
@@ -251,6 +255,24 @@ export function NodeEditor({
 		observer.observe(element);
 		return () => observer.disconnect();
 	}, []);
+
+	// How wide the logic's tools are at the bottom left, so the type palette
+	// beside them starts where they end. Their width changes with the layout:
+	// on a tablet held upright they carry Logic's switch as well.
+	const root = useRef<HTMLDivElement>(null);
+	const [toolsW, setToolsW] = useState(0);
+	useEffect(() => {
+		const tools = root.current?.querySelector<HTMLElement>(".logic-canvas .floating-tools");
+		if (!tools) {
+			setToolsW(0);
+			return;
+		}
+		const measure = () => setToolsW(tools.offsetWidth);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(tools);
+		return () => observer.disconnect();
+	}, [draft.logicMode]);
 
 	const update = useCallback((fn: (d: Draft) => Draft) => setDraft((d) => fn(d)), []);
 
@@ -637,37 +659,33 @@ export function NodeEditor({
 				</div>
 			)}
 			<span className="divider" />
-			{original &&
-				(confirmDelete ? (
-					<>
-						<span className="tool-label">Delete {original.title}?</span>
-						<button
-							className="tb danger"
-							onClick={async () => {
-								try {
-									await api.deletePackNode(packPath, original.id);
-									notify(`${original.title} was deleted.`);
-									onDeleted();
-								} catch (err) {
-									notify(errorMessage(err), "failed");
-								}
-							}}
-						>
-							Delete
-						</button>
-						<button className="tb" onClick={() => setConfirmDelete(false)}>
-							Keep
-						</button>
-					</>
-				) : (
-					<button
-						className="tb icon-only"
-						title="Delete this node…"
-						onClick={() => setConfirmDelete(true)}
-					>
-						<Icon name="remove" size={15} />
-					</button>
-				))}
+			{original && (
+				<button
+					className="tb icon-only"
+					title="Delete this node…"
+					onClick={async () => {
+						const sure = await ask({
+							kind: "confirm",
+							title: `Delete ${original.title}?`,
+							message: "It leaves the pack, and graphs that place it will show it as unknown.",
+							items: [original.id],
+							confirmLabel: "Delete",
+							danger: true,
+						});
+						if (sure !== true) return;
+						try {
+							await api.deletePackNode(packPath, original.id);
+							notify(`${original.title} was deleted.`);
+							onDeleted();
+						} catch (err) {
+							notify(errorMessage(err), "failed");
+						}
+					}}
+				>
+					<Icon name="remove" size={15} />
+				</button>
+			)}
+			{dialog && createPortal(<Dialog {...dialog} />, document.body)}
 		</>
 	);
 
@@ -751,10 +769,12 @@ export function NodeEditor({
 
 	return (
 		<div
+			ref={root}
 			className={cx("node-editor", split && "split", split && `view-${view}`)}
 			style={
 				{
 					...(plate ? { "--plate-h": `${plate.h}px`, "--plate-w": `${plate.w}px` } : {}),
+					...(toolsW > 0 ? { "--tools-w": `${toolsW}px` } : {}),
 					"--column-h": `${columnH}px`,
 				} as CSSProperties
 			}
@@ -1180,7 +1200,7 @@ function PinPopover(props: {
 					style={{ color: pinColor(pin.kind === "exec" ? undefined : pin.type, pin.kind) }}
 				/>
 				<strong>{pin.kind === "exec" ? "Execution" : pin.name || pin.id}</strong>
-				<span className="hint">{side === "in" ? "input" : "output"}</span>
+				<span className="pin-popover-kind">{side === "in" ? "input" : "output"}</span>
 				<span style={{ flex: 1 }} />
 				{props.docked && (
 					<button
@@ -1197,114 +1217,116 @@ function PinPopover(props: {
 				</button>
 			</div>
 
-			{pin.kind === "exec" ? (
-				<p className="hint">
-					{side === "in"
-						? "Where the flow arrives. Without it the node is pure, or — with an execution output — cannot run."
-						: "Where the flow carries on. Without it the node ends the flow it is in."}
-				</p>
-			) : (
-				<>
-					<label>
-						<span>Name</span>
-						<input
-							className="tb"
-							value={name}
-							autoFocus
-							onChange={(e) => setName(e.target.value)}
-							onBlur={commitName}
-							onKeyDown={(e) => e.key === "Enter" && commitName()}
-						/>
-					</label>
-					<div className="hint">
-						In the logic:{" "}
-						<code>
-							${side === "in" ? "in" : "out"}.{pin.id}
-						</code>
-					</div>
-					<label>
-						<span>Type</span>
-						<TypePicker value={pin.type} onChange={props.onRetype} />
-					</label>
-					{side === "in" && (
+			<div className="pin-popover-body">
+				{pin.kind === "exec" ? (
+					<p className="hint">
+						{side === "in"
+							? "Where the flow arrives. Without it the node is pure, or — with an execution output — cannot run."
+							: "Where the flow carries on. Without it the node ends the flow it is in."}
+					</p>
+				) : (
+					<>
 						<label>
-							<span>Default</span>
-							<select
-								className="tb"
-								value={valueKind}
-								onChange={(e) => {
-									const kind = e.target.value;
-									props.onDefault(
-										kind === "none"
-											? undefined
-											: kind === "number"
-												? { t: "number", v: 0 }
-												: kind === "boolean"
-													? { t: "boolean", v: false }
-													: kind === "raw"
-														? { t: "raw", v: "nil" }
-														: { t: "string", v: "" },
-									);
-								}}
-							>
-								<option value="none">None</option>
-								<option value="string">Text</option>
-								<option value="number">Number</option>
-								<option value="boolean">True or false</option>
-								<option value="raw">Luau constant</option>
-							</select>
-						</label>
-					)}
-					{side === "in" && value?.t === "raw" && (
-						<label>
-							<span>Constant</span>
+							<span>Name</span>
 							<input
 								className="tb"
-								value={value.v}
-								spellCheck={false}
-								onChange={(e) => props.onDefault({ t: "raw", v: e.target.value })}
+								value={name}
+								autoFocus
+								onChange={(e) => setName(e.target.value)}
+								onBlur={commitName}
+								onKeyDown={(e) => e.key === "Enter" && commitName()}
 							/>
 						</label>
-					)}
-					{side === "in" && value && value.t !== "raw" && value.t !== "nil" && (
-						<p className="hint">Set the value on the node itself.</p>
-					)}
-					{props.canBeResult && (
-						<label className="check">
-							<input
-								type="checkbox"
-								checked={props.isResult}
-								onChange={(e) => props.onResult(e.target.checked)}
-							/>
-							<span>
-								The call's result — its logic is one expression, and this pin holds its value
-							</span>
-						</label>
-					)}
-					{side === "in" && (
+						<div className="pin-popover-note hint">
+							In the logic:{" "}
+							<code>
+								${side === "in" ? "in" : "out"}.{pin.id}
+							</code>
+						</div>
 						<label>
-							<span>Choices</span>
+							<span>Type</span>
+							<TypePicker value={pin.type} onChange={props.onRetype} />
+						</label>
+						{side === "in" && (
+							<label>
+								<span>Default</span>
+								<select
+									className="tb"
+									value={valueKind}
+									onChange={(e) => {
+										const kind = e.target.value;
+										props.onDefault(
+											kind === "none"
+												? undefined
+												: kind === "number"
+													? { t: "number", v: 0 }
+													: kind === "boolean"
+														? { t: "boolean", v: false }
+														: kind === "raw"
+															? { t: "raw", v: "nil" }
+															: { t: "string", v: "" },
+										);
+									}}
+								>
+									<option value="none">None</option>
+									<option value="string">Text</option>
+									<option value="number">Number</option>
+									<option value="boolean">True or false</option>
+									<option value="raw">Luau constant</option>
+								</select>
+							</label>
+						)}
+						{side === "in" && value?.t === "raw" && (
+							<label>
+								<span>Constant</span>
+								<input
+									className="tb"
+									value={value.v}
+									spellCheck={false}
+									onChange={(e) => props.onDefault({ t: "raw", v: e.target.value })}
+								/>
+							</label>
+						)}
+						{side === "in" && value && value.t !== "raw" && value.t !== "nil" && (
+							<p className="pin-popover-note hint">Set the value on the node itself.</p>
+						)}
+						{props.canBeResult && (
+							<label className="check">
+								<input
+									type="checkbox"
+									checked={props.isResult}
+									onChange={(e) => props.onResult(e.target.checked)}
+								/>
+								<span>
+									The call's result — its logic is one expression, and this pin holds its value
+								</span>
+							</label>
+						)}
+						{side === "in" && (
+							<label>
+								<span>Choices</span>
+								<input
+									className="tb"
+									value={(pin.options ?? []).join(", ")}
+									placeholder="Optional, comma separated"
+									spellCheck={false}
+									title="Offers these in a dropdown on the node. Suggestions rather than a gate: anything else can still be typed."
+									onChange={(e) => props.onChoices(e.target.value)}
+								/>
+							</label>
+						)}
+						<label>
+							<span>Tooltip</span>
 							<input
 								className="tb"
-								value={(pin.options ?? []).join(", ")}
-								placeholder="Optional, comma separated"
-								spellCheck={false}
-								title="Offers these in a dropdown on the node. Suggestions rather than a gate: anything else can still be typed."
-								onChange={(e) => props.onChoices(e.target.value)}
+								value={pin.description ?? ""}
+								placeholder="Optional"
+								onChange={(e) => props.onDescription(e.target.value)}
 							/>
 						</label>
-					)}
-					<label>
-						<span>Tooltip</span>
-						<input
-							className="tb"
-							value={pin.description ?? ""}
-							placeholder="Optional"
-							onChange={(e) => props.onDescription(e.target.value)}
-						/>
-					</label>
-				</>
-			)}
+					</>
+				)}
+			</div>
 
 			<div className="pin-popover-actions">
 				{pin.kind === "data" && (

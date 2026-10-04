@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.132.4",
+		date: "2026-10-04",
+		headline: "The pin's settings in the new style, and deleting a node asks in a window.",
+		affects: ["designer", "docs"],
+		changed: [
+			"The selected pin's settings are drawn as the Inspector's panels are: a head with the pin's name and side, bold labels beside their fields, and the pin's moves in a foot.",
+			"Deleting a node in Node Design asks in a window rather than in the top row.",
+		],
+		fixed: [
+			"The pin's settings no longer run off the foot of the column on a tablet held upright; their fields scroll inside the card.",
+			"On a tablet held upright, the pin types start after the logic's tools rather than under them.",
+		],
+	},
+	{
 		version: "0.132.3",
 		date: "2026-10-04",
 		headline: "Node Design's bottom row lines up, and slimmer pin steppers.",

@@ -680,15 +680,16 @@ function designerCardHtml(card: DesignerCard, art: ToolbarArt, preview?: Preview
 			return editor(
 				`<div class="pin-popover docked" style="position:relative;left:auto;top:auto;width:100%;height:100%;box-sizing:border-box">` +
 					`<div class="pin-popover-head"><span class="chip-dot data" style="color:${escapeXml(art.pinColor?.(card.type, "data") ?? "currentColor")}"></span>` +
-					`<strong>${escapeXml(card.pin)}</strong><span class="hint">input</span><span style="flex:1"></span>` +
+					`<strong>${escapeXml(card.pin)}</strong><span class="pin-popover-kind">input</span><span style="flex:1"></span>` +
 					`<button type="button" class="tb icon-only"${INERT}>${glyphHtml("chevron", 14, art)}</button>` +
 					`<button type="button" class="tb icon-only"${INERT}>${glyphHtml("close", 14, art)}</button></div>` +
+					`<div class="pin-popover-body">` +
 					`<label><span>Name</span>${input(card.pin)}</label>` +
-					`<div class="hint">In the logic: <code>${escapeXml(card.logic)}</code></div>` +
+					`<div class="pin-popover-note hint">In the logic: <code>${escapeXml(card.logic)}</code></div>` +
 					`<label><span>Type</span>${select(card.type)}</label>` +
 					`<label><span>Default</span>${select("Text")}</label>` +
 					`<label><span>Choices</span>${input("Optional, comma separated")}</label>` +
-					`<label><span>Tooltip</span>${input("Optional")}</label>` +
+					`<label><span>Tooltip</span>${input("Optional")}</label></div>` +
 					`<div class="pin-popover-actions"><button type="button" class="tb"${INERT}>↑</button>` +
 					`<button type="button" class="tb"${INERT}>↓</button><span style="flex:1"></span>` +
 					`<button type="button" class="tb danger"${INERT}>Remove</button></div></div>`,
