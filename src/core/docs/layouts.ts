@@ -454,7 +454,7 @@ export function layoutHtml(spec: LayoutSpec, art: ToolbarArt): string {
 		const n = numbers.get(part);
 		return n === undefined
 			? ""
-			: `<span class="docs-layout-num" style="position:absolute;left:0;top:0;transform:translate(-25%, -25%);z-index:9;zoom:${(1 / screen.zoom).toFixed(3)}">${n}</span>`;
+			: `<span class="docs-layout-num" style="position:absolute;left:0;top:0;transform:translate(-25%, -25%);z-index:30;zoom:calc(1 / var(--z))">${n}</span>`;
 	};
 
 	const regions = spec.regions
@@ -473,11 +473,11 @@ export function layoutHtml(spec: LayoutSpec, art: ToolbarArt): string {
 				return (
 					`<div class="docs-layout-region kind-canvas" style="${grid};position:relative;border:0;border-radius:0;` +
 					`align-content:center;justify-content:center"${tie(region)}>` +
-					`${n === undefined ? "" : `<span class="docs-layout-num" style="zoom:${(1 / screen.zoom).toFixed(3)}">${n}</span>`}${watermark}</div>`
+					`${n === undefined ? "" : `<span class="docs-layout-num" style="zoom:calc(1 / var(--z))">${n}</span>`}${watermark}</div>`
 				);
 			}
-			const open = (inner: string, part: LayoutPart | undefined) =>
-				`<div class="docs-layout-region kind-${region.kind}${place}" style="${grid};${BARE}${align}${justify}"` +
+			const open = (inner: string, part: LayoutPart | undefined, extra = "") =>
+				`<div class="docs-layout-region kind-${region.kind}${place}" style="${grid};${BARE}${align}${justify};${extra}"` +
 				`${part ? tie(part) : ""}>${inner}</div>`;
 			if (region.clusters) {
 				const row = region.clusters
@@ -495,6 +495,9 @@ export function layoutHtml(spec: LayoutSpec, art: ToolbarArt): string {
 					`<div class="floating-tools" style="position:relative;inset:auto;top:auto;left:auto;right:auto;` +
 						`width:100%;flex-wrap:nowrap;align-items:center;pointer-events:auto">${row}</div>`,
 					undefined,
+					// Over the cards, as the real chrome is over the docks: a badge on
+					// a cluster was drawn under the card beside it.
+					"position:relative;z-index:6",
 				);
 			}
 			if (region.items) {
@@ -518,12 +521,14 @@ export function layoutHtml(spec: LayoutSpec, art: ToolbarArt): string {
 			: spec.device === "phone"
 				? "border:9px solid var(--border-strong);border-radius:28px;"
 				: "";
-	const corner = spec.device === "tablet" ? 12 : spec.device === "phone" ? 19 : 6;
+	const corner = spec.device === "tablet" ? 12 : spec.device === "phone" ? 19 : 4;
+	// The scale is the stylesheet's `--z`, stepped to the column's width so
+	// a desktop or a tablet fills it; the desktop stands on a monitor.
 	return (
-		`<div style="overflow-x:auto;padding:4px 6px"><div class="docs-layout-frame" aria-hidden="true"` +
+		`<div class="docs-layout-fit"><div class="docs-layout-frame${spec.device === "desktop" ? " monitor" : ""}" aria-hidden="true"` +
 		` style="display:block;width:max-content;max-width:none;aspect-ratio:auto;padding:0;margin:14px auto;${bezel}">` +
-		`<div class="docs-layout-screen${spec.screenClass ? ` ${escapeXml(spec.screenClass)}` : ""}" style="position:relative;overflow:visible;zoom:${screen.zoom};width:${screen.width}px;height:${screen.height}px;` +
-		`border-radius:${Math.round(corner / screen.zoom)}px;display:grid;grid-template-columns:${escapeXml(spec.columns)};grid-template-rows:${escapeXml(spec.rows)};` +
+		`<div class="docs-layout-screen dev-${spec.device}${spec.screenClass ? ` ${escapeXml(spec.screenClass)}` : ""}" style="position:relative;overflow:visible;zoom:var(--z);width:${screen.width}px;height:${screen.height}px;` +
+		`border-radius:calc(${corner}px / var(--z));display:grid;grid-template-columns:${escapeXml(spec.columns)};grid-template-rows:${escapeXml(spec.rows)};` +
 		`background:var(--bg-canvas);font:13px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;color:var(--fg)">` +
 		`${regions}</div></div></div>`
 	);

@@ -151,6 +151,13 @@ export type ToolbarItem = Documented &
 				primary?: boolean;
 				on?: boolean;
 				danger?: boolean;
+				/**
+				 * Its words fold away where the drawing is short of room, as the
+				 * real button's do: `tb-collapsible`, with `narrowIcon` drawn only
+				 * then, for a button whose glyph is not always shown.
+				 */
+				collapsible?: boolean;
+				narrowIcon?: string;
 		  }
 		/** A pair or trio of buttons where one is lit: a setting, not an action. */
 		| { t: "segmented"; options: string[]; on: number }
@@ -529,9 +536,12 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			);
 		case "button":
 			return (
-				`<button type="button" tabindex="-1"${tie} class="tb${item.icon ? " with-icon" : ""}` +
+				`<button type="button" tabindex="-1"${tie} class="tb${item.icon || item.narrowIcon ? " with-icon" : ""}` +
+				`${item.collapsible ? " tb-collapsible" : ""}` +
 				`${item.primary ? " primary" : ""}${item.danger ? " danger" : ""}${item.on ? " on" : ""}">` +
-				`${item.icon ? iconSvg(item.icon, 15, art) : ""}${escapeXml(item.text)}</button>`
+				`${item.icon ? iconSvg(item.icon, 15, art) : ""}` +
+				`${item.narrowIcon ? iconSvg(item.narrowIcon, 15, art, "tb-icon-when-narrow") : ""}` +
+				`${item.collapsible ? `<span class="tb-label">${escapeXml(item.text)}</span>` : escapeXml(item.text)}</button>`
 			);
 		case "segmented":
 			// The pair is one control, so the handle goes on the pair: lighting
@@ -1017,6 +1027,8 @@ export const EDITOR_BAR: ToolbarSpec = {
 				{
 					t: "button",
 					text: "Compile project",
+					narrowIcon: "build",
+					collapsible: true,
 					name: "Compile project",
 					what: "Compiles every graph and node map in the project.",
 				},
@@ -1024,6 +1036,7 @@ export const EDITOR_BAR: ToolbarSpec = {
 					t: "button",
 					text: "Compile script",
 					icon: "build",
+					collapsible: true,
 					primary: true,
 					name: "Compile script",
 					what:
@@ -1539,6 +1552,8 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 				{
 					t: "button",
 					text: "Compile project",
+					narrowIcon: "build",
+					collapsible: true,
 					name: "Compile project",
 					what:
 						"Compiles every graph and node map. The generated `.luau` appears in the " +
@@ -1548,6 +1563,7 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 					t: "button",
 					text: "Compile script",
 					icon: "build",
+					collapsible: true,
 					primary: true,
 					...as(EDITOR_BAR, "Compile script"),
 				},

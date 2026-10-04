@@ -12175,3 +12175,1068 @@ select:not(.literal):not([multiple]) {
 		max-width: min(640px, calc(50% - 210px));
 	}
 }
+
+/* ------------------------------------------------- window diagrams, scaled */
+
+/* A window diagram is the window at its real size, scaled by `--z` to fill
+   the column it is in: the column is measured as a container and the scale
+   stepped every 25px. A phone keeps its own scale, being tall rather than
+   wide. Below the narrowest step the picture scrolls sideways. */
+.docs-layout-fit {
+	container: docs-layout / inline-size;
+	overflow-x: auto;
+	padding: 4px 6px;
+}
+
+.docs-layout-screen.dev-phone {
+	--z: 0.68;
+}
+
+.docs-layout-screen.dev-desktop {
+	--z: 0.5;
+}
+
+.docs-layout-screen.dev-tablet {
+	--z: 0.55;
+}
+
+@container docs-layout (min-width: 400px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.217;
+	}
+}
+
+@container docs-layout (min-width: 425px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.233;
+	}
+}
+
+@container docs-layout (min-width: 450px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.249;
+	}
+}
+
+@container docs-layout (min-width: 475px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.264;
+	}
+}
+
+@container docs-layout (min-width: 500px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.28;
+	}
+}
+
+@container docs-layout (min-width: 525px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.296;
+	}
+}
+
+@container docs-layout (min-width: 550px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.311;
+	}
+}
+
+@container docs-layout (min-width: 575px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.327;
+	}
+}
+
+@container docs-layout (min-width: 600px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.343;
+	}
+}
+
+@container docs-layout (min-width: 625px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.358;
+	}
+}
+
+@container docs-layout (min-width: 650px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.374;
+	}
+}
+
+@container docs-layout (min-width: 675px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.389;
+	}
+}
+
+@container docs-layout (min-width: 700px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.405;
+	}
+}
+
+@container docs-layout (min-width: 725px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.421;
+	}
+}
+
+@container docs-layout (min-width: 750px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.436;
+	}
+}
+
+@container docs-layout (min-width: 775px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.452;
+	}
+}
+
+@container docs-layout (min-width: 800px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.468;
+	}
+}
+
+@container docs-layout (min-width: 825px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.483;
+	}
+}
+
+@container docs-layout (min-width: 850px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.499;
+	}
+}
+
+@container docs-layout (min-width: 875px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.514;
+	}
+}
+
+@container docs-layout (min-width: 900px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.53;
+	}
+}
+
+@container docs-layout (min-width: 925px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.546;
+	}
+}
+
+@container docs-layout (min-width: 950px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.561;
+	}
+}
+
+@container docs-layout (min-width: 975px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.577;
+	}
+}
+
+@container docs-layout (min-width: 1000px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.593;
+	}
+}
+
+@container docs-layout (min-width: 1025px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.608;
+	}
+}
+
+@container docs-layout (min-width: 1050px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.624;
+	}
+}
+
+@container docs-layout (min-width: 1075px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.639;
+	}
+}
+
+@container docs-layout (min-width: 1100px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.655;
+	}
+}
+
+@container docs-layout (min-width: 1125px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.671;
+	}
+}
+
+@container docs-layout (min-width: 1150px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.686;
+	}
+}
+
+@container docs-layout (min-width: 1175px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.702;
+	}
+}
+
+@container docs-layout (min-width: 1200px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.718;
+	}
+}
+
+@container docs-layout (min-width: 1225px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.733;
+	}
+}
+
+@container docs-layout (min-width: 1250px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.749;
+	}
+}
+
+@container docs-layout (min-width: 1275px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.764;
+	}
+}
+
+@container docs-layout (min-width: 1300px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.78;
+	}
+}
+
+@container docs-layout (min-width: 1325px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.796;
+	}
+}
+
+@container docs-layout (min-width: 1350px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.811;
+	}
+}
+
+@container docs-layout (min-width: 1375px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.827;
+	}
+}
+
+@container docs-layout (min-width: 1400px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.843;
+	}
+}
+
+@container docs-layout (min-width: 1425px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.858;
+	}
+}
+
+@container docs-layout (min-width: 1450px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.874;
+	}
+}
+
+@container docs-layout (min-width: 1475px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.889;
+	}
+}
+
+@container docs-layout (min-width: 1500px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.905;
+	}
+}
+
+@container docs-layout (min-width: 1525px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.921;
+	}
+}
+
+@container docs-layout (min-width: 1550px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.936;
+	}
+}
+
+@container docs-layout (min-width: 1575px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.952;
+	}
+}
+
+@container docs-layout (min-width: 1600px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.968;
+	}
+}
+
+@container docs-layout (min-width: 1625px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.983;
+	}
+}
+
+@container docs-layout (min-width: 1650px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 0.999;
+	}
+}
+
+@container docs-layout (min-width: 1675px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1700px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1725px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1750px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1775px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1800px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1825px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1850px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1875px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1900px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1925px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1950px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1975px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2000px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2025px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2050px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2075px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2100px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2125px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2150px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2175px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2200px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2225px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2250px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2275px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2300px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2325px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2350px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2375px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2400px) {
+	.docs-layout-screen.dev-desktop {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 400px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.318;
+	}
+}
+
+@container docs-layout (min-width: 425px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.34;
+	}
+}
+
+@container docs-layout (min-width: 450px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.362;
+	}
+}
+
+@container docs-layout (min-width: 475px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.384;
+	}
+}
+
+@container docs-layout (min-width: 500px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.406;
+	}
+}
+
+@container docs-layout (min-width: 525px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.428;
+	}
+}
+
+@container docs-layout (min-width: 550px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.45;
+	}
+}
+
+@container docs-layout (min-width: 575px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.472;
+	}
+}
+
+@container docs-layout (min-width: 600px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.494;
+	}
+}
+
+@container docs-layout (min-width: 625px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.516;
+	}
+}
+
+@container docs-layout (min-width: 650px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.538;
+	}
+}
+
+@container docs-layout (min-width: 675px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.56;
+	}
+}
+
+@container docs-layout (min-width: 700px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.583;
+	}
+}
+
+@container docs-layout (min-width: 725px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.605;
+	}
+}
+
+@container docs-layout (min-width: 750px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.627;
+	}
+}
+
+@container docs-layout (min-width: 775px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.649;
+	}
+}
+
+@container docs-layout (min-width: 800px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.671;
+	}
+}
+
+@container docs-layout (min-width: 825px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.693;
+	}
+}
+
+@container docs-layout (min-width: 850px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.715;
+	}
+}
+
+@container docs-layout (min-width: 875px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.737;
+	}
+}
+
+@container docs-layout (min-width: 900px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.759;
+	}
+}
+
+@container docs-layout (min-width: 925px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.781;
+	}
+}
+
+@container docs-layout (min-width: 950px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.803;
+	}
+}
+
+@container docs-layout (min-width: 975px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.825;
+	}
+}
+
+@container docs-layout (min-width: 1000px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.847;
+	}
+}
+
+@container docs-layout (min-width: 1025px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.869;
+	}
+}
+
+@container docs-layout (min-width: 1050px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.891;
+	}
+}
+
+@container docs-layout (min-width: 1075px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.914;
+	}
+}
+
+@container docs-layout (min-width: 1100px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.936;
+	}
+}
+
+@container docs-layout (min-width: 1125px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.958;
+	}
+}
+
+@container docs-layout (min-width: 1150px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 0.98;
+	}
+}
+
+@container docs-layout (min-width: 1175px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1200px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1225px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1250px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1275px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1300px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1325px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1350px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1375px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1400px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1425px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1450px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1475px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1500px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1525px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1550px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1575px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1600px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1625px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1650px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1675px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1700px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1725px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1750px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1775px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1800px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1825px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1850px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1875px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1900px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1925px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1950px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 1975px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2000px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2025px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2050px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2075px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2100px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2125px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2150px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2175px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2200px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2225px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2250px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2275px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2300px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2325px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2350px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2375px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+@container docs-layout (min-width: 2400px) {
+	.docs-layout-screen.dev-tablet {
+		--z: 1.0;
+	}
+}
+
+/* The desktop, on a monitor: a bezel with a chin, a neck and a foot. Dark in
+   either theme, as the thing it stands for is. */
+.docs-layout-frame.monitor {
+	position: relative;
+	border: 12px solid #0d0f13;
+	border-bottom-width: 24px;
+	border-radius: 14px;
+	margin-bottom: 64px !important;
+	box-shadow:
+		0 0 0 1px #2a2e36,
+		var(--shadow-raised);
+}
+
+.docs-layout-frame.monitor::before {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: calc(100% + 24px);
+	width: 72px;
+	height: 34px;
+	transform: translateX(-50%);
+	background: linear-gradient(#15181d, #0d0f13);
+	clip-path: polygon(16% 0, 84% 0, 100% 100%, 0 100%);
+}
+
+.docs-layout-frame.monitor::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: calc(100% + 56px);
+	width: 220px;
+	height: 8px;
+	transform: translateX(-50%);
+	border-radius: 4px 4px 2px 2px;
+	background: #15181d;
+	box-shadow: 0 0 0 1px #2a2e36;
+}
+
+/* A lit part keeps its outline's weight at any scale: drawn in the screen's
+   own pixels, a 2px ring came out one pixel wide at half size. */
+.docs-layout-screen [data-control].lit {
+	box-shadow:
+		0 0 0 calc(3px / var(--z)) var(--accent),
+		0 0 0 calc(8px / var(--z)) color-mix(in srgb, var(--accent) 28%, transparent) !important;
+}
+
+/* A drawn floating row measures its own frame, and where it is short of room
+   its buttons fold to their glyphs as the real row's do below 1100px: the
+   editor's row fits a reading column without scrolling, and shows what that
+   window width would show. */
+.docs-bar-frame.float {
+	container: docs-bar / inline-size;
+}
+
+@container docs-bar (max-width: 1060px) {
+	.docs-bar-frame .tb-collapsible .tb-icon-when-narrow {
+		display: inline-block;
+	}
+
+	.docs-bar-frame .tb-collapsible .tb-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}

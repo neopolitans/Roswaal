@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.121.1",
+		date: "2026-10-04",
+		headline: "The docs' window diagrams fill their column.",
+		affects: ["docs"],
+		changed: [
+			"**The window diagrams** on [The interface](the-interface) fill the width of the page, and the desktop stands on a monitor. A lit part has a bolder outline, and every number sits above what it labels.",
+			"**The editor's top row** on [Toolbars](toolbars) fits the page: where it is short of room, Compile project and Compile script show their icons, as the editor does in a narrow window.",
+		],
+	},
+	{
 		version: "0.121.0",
 		date: "2026-10-04",
 		headline: "Every window floats its controls over the work.",
