@@ -39,6 +39,7 @@ export {
 } from "./config.js";
 export {
 	collectMaps,
+	collectScripts,
 	findRojoProjects,
 	graphName,
 	graphNameFor,

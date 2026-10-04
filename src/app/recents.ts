@@ -21,6 +21,8 @@
 
 const LAST_PROJECT_KEY = "roswaal.lastProject";
 const RECENT_KEY = "roswaal.recentProjects";
+/** When each was last opened, by root. Apart from the list, which predates it. */
+const OPENED_KEY = "roswaal.recentOpened";
 
 /**
  * Six. Long enough to hold the projects somebody is actually moving between,
@@ -45,6 +47,11 @@ export function remember(root: string): void {
 		localStorage.setItem(LAST_PROJECT_KEY, root);
 		const next = [root, ...recentProjects().filter((r) => r !== root)].slice(0, RECENT_LIMIT);
 		localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+		const opened = Object.fromEntries(
+			Object.entries(openedTimes()).filter(([key]) => next.includes(key)),
+		);
+		opened[root] = Date.now();
+		localStorage.setItem(OPENED_KEY, JSON.stringify(opened));
 	} catch {
 		// Storage refused. The project is open either way; it just will not be
 		// on the list next time, which is a worse session and not a broken one.
@@ -61,6 +68,42 @@ export function forget(root: string): void {
 	} catch {
 		// As above.
 	}
+}
+
+function openedTimes(): Record<string, number> {
+	try {
+		const raw = JSON.parse(localStorage.getItem(OPENED_KEY) ?? "{}") as unknown;
+		if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+		return Object.fromEntries(
+			Object.entries(raw).filter(
+				(entry): entry is [string, number] => typeof entry[1] === "number",
+			),
+		);
+	} catch {
+		return {};
+	}
+}
+
+/** When a recent project was last opened, or null for one opened before this was kept. */
+export function openedAt(root: string): number | null {
+	return openedTimes()[root] ?? null;
+}
+
+/** How long ago, as a card says it: "just now", "2 hours ago", "yesterday", "3 weeks ago". */
+export function sinceOpened(at: number, now = Date.now()): string {
+	const minutes = Math.max(0, Math.round((now - at) / 60_000));
+	if (minutes < 2) return "just now";
+	if (minutes < 60) return `${minutes} minutes ago`;
+	const hours = Math.round(minutes / 60);
+	if (hours < 24) return hours === 1 ? "an hour ago" : `${hours} hours ago`;
+	const days = Math.round(hours / 24);
+	if (days === 1) return "yesterday";
+	if (days < 7) return `${days} days ago`;
+	const weeks = Math.round(days / 7);
+	if (days < 30) return weeks === 1 ? "last week" : `${weeks} weeks ago`;
+	const months = Math.round(days / 30);
+	if (months < 12) return months === 1 ? "last month" : `${months} months ago`;
+	return "over a year ago";
 }
 
 /** The project open when the tab was last closed, for reopening it. */

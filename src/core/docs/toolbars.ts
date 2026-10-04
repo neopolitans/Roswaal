@@ -1382,6 +1382,19 @@ export const DESIGNER_BAR: ToolbarSpec = {
 		{
 			apart: true,
 			items: [
+				{ t: "label", text: "Logic" },
+				{
+					t: "segmented",
+					options: ["Luau", "Nodes"],
+					on: 0,
+					name: "Luau or Nodes",
+					where: "With a node open, on a computer or a tablet held sideways",
+					what: "Write the logic as Luau, or build it from nodes.",
+				},
+			],
+		},
+		{
+			items: [
 				{
 					t: "button",
 					text: "Details",
@@ -1744,6 +1757,12 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 		},
 		{
 			apart: true,
+			items: [
+				{ t: "label", text: "Logic" },
+				{ t: "segmented", options: ["Luau", "Nodes"], on: 0, ...as(DESIGNER_BAR, "Luau or Nodes") },
+			],
+		},
+		{
 			items: [
 				{ t: "button", text: "Details", icon: "rename", ...as(DESIGNER_BAR, "Details") },
 				{ t: "divider" },
@@ -2251,6 +2270,12 @@ export const DESIGNER_BAR_TABLET: ToolbarSpec = {
 		},
 		{
 			apart: true,
+			items: [
+				{ t: "label", text: "Logic" },
+				{ t: "segmented", options: ["Luau", "Nodes"], on: 0, ...as(DESIGNER_BAR, "Luau or Nodes") },
+			],
+		},
+		{
 			items: [
 				{ t: "button", text: "Details", icon: "rename", ...as(DESIGNER_BAR, "Details") },
 				{ t: "divider" },
@@ -3168,8 +3193,8 @@ export const DESIGNER_TOUCH_BAR: ToolbarSpec = {
 					name: "Luau and Nodes",
 					where: "Phones only, with Logic showing",
 					what:
-						"Write the logic as Luau, or build it from nodes. On a tablet the switch is " +
-						"on the logic's tools.",
+						"Write the logic as Luau, or build it from nodes. On a tablet it is beside " +
+						"**Details** held sideways, and on the logic's tools held upright.",
 				},
 			],
 		},

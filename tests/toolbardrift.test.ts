@@ -164,10 +164,16 @@ const BARS: [string, ToolbarSpec, Slice[]][] = [
 		[
 			// The mark, then the slot the open node's actions are drawn into...
 			{ file: DESIGNER, start: "export function DesignerPage(", end: SLOT },
+			// ...how the logic is written, on a computer...
+			{
+				file: "src/app/designer/NodeEditor.tsx",
+				start: "const modeSwitch = (",
+				end: "// The node's tools, each written once",
+			},
 			{
 				file: "src/app/designer/NodeEditor.tsx",
 				start: "const nodeKindGroup = () =>",
-				end: "const nodeActions = nodeKindGroup();",
+				end: "const nodeActions = !logicUp",
 			},
 			// ...then the other windows.
 			{ file: DESIGNER, start: SLOT },

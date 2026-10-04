@@ -24,10 +24,11 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 
 import { DEMO_PROJECTS } from "../core/demoProjects.js";
+import type { Target } from "../core/schema.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
 import { errorResponse, HttpError } from "./errors.js";
 import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
-import { isInitialised } from "./project.js";
+import { collectScripts, isInitialised, readConfig } from "./project.js";
 import { openInEditor, revealInFileManager } from "./reveal.js";
 import { ApiSession, type HostCapabilities, type RouteRequest } from "./routes.js";
 import { DynamicCompiler } from "./watcher.js";
@@ -346,13 +347,7 @@ function hostCapabilities(): HostCapabilities {
 			}
 			return new Uint8Array(await response.arrayBuffer());
 		},
-		inspect: async (root) => {
-			// Missing and unreadable both answer "not there".
-			const stat = await fs.promises.stat(root).catch(() => null);
-			if (!stat) return { root, exists: false, directory: false, initialised: false };
-			if (!stat.isDirectory()) return { root, exists: true, directory: false, initialised: false };
-			return { root, exists: true, directory: true, initialised: await isInitialised(root) };
-		},
+		inspect: inspectFolder,
 		duplicateDemo,
 		browse: async (startIn) => {
 			try {
@@ -367,6 +362,32 @@ function hostCapabilities(): HostCapabilities {
 		reveal: revealInFileManager,
 		edit: openInEditor,
 	};
+}
+
+/**
+ * What is at a path, for the start page: whether it is a folder, whether it
+ * is a project, and for a project what it compiles for and how many graphs it
+ * has. Missing and unreadable both answer "not there"; a roswaal.json that
+ * does not read leaves the last two out, and the project still opens and says
+ * why.
+ */
+export async function inspectFolder(root: string): Promise<{
+	root: string;
+	exists: boolean;
+	directory: boolean;
+	initialised: boolean;
+	target?: Target;
+	graphs?: number;
+}> {
+	const stat = await fs.promises.stat(root).catch(() => null);
+	if (!stat) return { root, exists: false, directory: false, initialised: false };
+	if (!stat.isDirectory()) return { root, exists: true, directory: false, initialised: false };
+	if (!(await isInitialised(root)))
+		return { root, exists: true, directory: true, initialised: false };
+	const config = await readConfig(root).catch(() => null);
+	if (!config) return { root, exists: true, directory: true, initialised: true };
+	const graphs = (await collectScripts({ root, config })).length;
+	return { root, exists: true, directory: true, initialised: true, target: config.target, graphs };
 }
 
 /**

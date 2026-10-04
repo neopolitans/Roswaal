@@ -9,6 +9,30 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.124.0",
+		date: "2026-10-04",
+		headline: "A new start page, and a new node packs page.",
+		affects: ["editor", "designer", "docs"],
+		added: [
+			"**The start page** wears the floating chrome the other windows do, with Docs and Node Design in reach before a project is open.",
+			"**Recent projects are cards**: what each compiles for, how many graphs it has, and when it was last opened. A project that has gone says so. Past five, a filter.",
+			"**The demos are on the start page**, to take a copy of.",
+			"**Node packs: one search** over packs and the nodes in them. Press `/` to search.",
+			"**Node packs: a filters card**, for this project's packs, the built-in ones, and what they run on.",
+			"**Click a pack to look inside**: its nodes are listed beside the packs, each one to open. Double-click, Enter or **Open pack** opens the pack.",
+			"**A pack's card shows its nodes** in their colours, and has **New node**. The rest is in its menu.",
+			"**Each section folds** from beside its count.",
+		],
+		changed: [
+			"The path field says what is there as you type, with the project's runtime and graph count.",
+			"When the daemon is not answering, the start page shows `roswaal serve`, ready to copy.",
+			"Node packs' cards are solid and tinted, over the canvas grid.",
+			"Deleting a pack asks in a dialog.",
+			"Node Design draws the canvas grid behind Luau logic, as it does behind nodes.",
+			"In Node Design on a computer, or a tablet held sideways, the Luau and Nodes switch is beside Details in the top row.",
+		],
+	},
+	{
 		version: "0.123.0",
 		date: "2026-10-04",
 		headline: "A synced folder follows its node map path.",

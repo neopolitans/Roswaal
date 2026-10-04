@@ -69,6 +69,16 @@ export type PlaceTree =
 	| { file: string; stamp: string; outline: PlaceOutline; scripts: Record<number, string> };
 
 /** A node pack on disk. The daemon's copy is in `src/server/project.ts`. */
+/** What is at a path: whether it is a project, and if so what kind. */
+export interface ProjectLook {
+	root: string;
+	exists: boolean;
+	directory: boolean;
+	initialised: boolean;
+	target?: Target;
+	graphs?: number;
+}
+
 export interface PackFile {
 	path: string;
 	name: string;
@@ -257,9 +267,7 @@ export const api = {
 	currentProject: () => request<{ open: false } | ({ open: true } & ProjectInfo)>("/api/project"),
 	/** What is at a path, before committing to opening it. */
 	inspectProject: (root: string) =>
-		request<{ root: string; exists: boolean; directory: boolean; initialised: boolean }>(
-			`/api/project/inspect?root=${encodeURIComponent(root)}`,
-		),
+		request<ProjectLook>(`/api/project/inspect?root=${encodeURIComponent(root)}`),
 	/**
 	 * Asks the daemon to open the OS folder picker. Resolves with `null` when
 	 * the developer cancels, which is an answer rather than a failure.

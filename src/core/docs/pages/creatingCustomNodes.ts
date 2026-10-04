@@ -56,8 +56,10 @@ export function creatingCustomNodesPage(): DocPage {
 							{
 								t: "ul",
 								items: [
-									"**New pack** makes an empty one. **Import from a project…** copies a pack from another Roswaal project.",
-									"On a pack's card: **Duplicate**, **Copy to another project**, **Copy JSON**, **Show in file manager** and **Delete**, which says which graphs use the pack's nodes first.",
+									"**Search** finds packs and the nodes in them; press `/` to start. The filters card picks this project's packs, the built-in ones, or what runs on Roblox or Lune.",
+									"**Click a pack** to list its nodes beside the packs. **Double-click** it, or press **Open pack**, to open it.",
+									"**New pack** makes an empty one. **Import…** copies a pack from another Roswaal project.",
+									"On a pack's card: **New node**. In its **⋯** menu: **Duplicate**, **Copy to another project**, **Copy JSON**, **Show in file manager** and **Delete**, which says which graphs use the pack's nodes first.",
 									"A Luau pack opens read-only. **Save as JSON pack** makes an editable copy.",
 									"A card says what its nodes run on, and marks it when the project compiles for something else.",
 								],

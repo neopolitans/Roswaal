@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
-import type { Target } from "../core/schema.js";
+import type { NodeDef, Target } from "../core/schema.js";
 import { api, type PackFile } from "./api.js";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { type OpenPack, PackBrowser } from "./designer/PackBrowser.jsx";
@@ -38,6 +38,8 @@ import { WindowMark } from "./WindowMark.jsx";
 export function DesignerPage() {
 	const [introOpen, setIntroOpen] = useState(false);
 	const [packs, setPacks] = useState<PackFile[] | null>(null);
+	// The project's own nodes, for the pack cards' titles and colours.
+	const [customDefs, setCustomDefs] = useState<NodeDef[]>([]);
 	const [target, setTarget] = useState<Target | null>(null);
 	const [noProject, setNoProject] = useState(false);
 	const [open, setOpen] = useState<OpenPack | null>(null);
@@ -100,6 +102,12 @@ export function DesignerPage() {
 			setPacks(found.packs);
 			setTarget(found.target);
 			setNoProject(false);
+			void api.customNodes().then(
+				({ custom }) => setCustomDefs(custom),
+				() => {
+					// Titles only: a pack still lists by id without them.
+				},
+			);
 		} catch {
 			// No daemon, or no project open. The built-in library is still worth looking at.
 			setNoProject(true);
@@ -259,11 +267,13 @@ export function DesignerPage() {
 			) : (
 				<PackBrowser
 					packs={packs}
+					defs={customDefs}
 					target={target}
 					noProject={noProject}
 					onOpen={setOpen}
 					onChanged={refresh}
 					notify={notify}
+					actionsSlot={actionsSlot}
 				/>
 			)}
 

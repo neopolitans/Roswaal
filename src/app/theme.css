@@ -2584,16 +2584,6 @@ button.tb.primary:hover:not(:disabled) {
 	color: var(--fg);
 }
 
-/* The opening screen keeps the name in text beside the mark, so this is the
-   one heading that has to lay two things out. The container is centred by the
-   grid above, so the flex box centres its own contents rather than stretching. */
-.placeholder h1.logo {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 10px;
-}
-
 .placeholder code {
 	background: var(--bg-input);
 	border: 1px solid var(--border);
@@ -2601,120 +2591,457 @@ button.tb.primary:hover:not(:disabled) {
 	padding: 1px 5px;
 }
 
-.placeholder .row {
+/* ------------------------------------------------------------------ start */
+
+/* The start page: a window on the canvas's grid, its chrome floating along the
+   top as every other window's does, and a column of cards in the middle. The
+   cards are solid, tinted towards the accent: the grid behind text made it
+   harder to read. */
+.start-page {
+	--start-card: color-mix(in srgb, var(--accent) 5%, var(--bg-panel));
+	--start-card-hover: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
+	position: relative;
+	height: 100%;
+	overflow: hidden;
+	background-color: var(--bg-canvas);
+	background-image:
+		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
+		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
+	background-size: 16px 16px;
+}
+
+.start-page .window-mark {
+	cursor: default;
+}
+
+.start-scroll {
+	position: absolute;
+	inset: 0;
+	overflow: auto;
+}
+
+.start-column {
+	width: min(820px, calc(100% - 32px));
+	margin: 0 auto;
+	padding: calc(var(--chrome-top) + 24px) 0 60px;
+}
+
+.start-hero {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 18px;
+}
+
+.start-hero .logo-mark {
+	flex: none;
+}
+
+.start-hero h1 {
+	margin: 0;
+	font-size: 26px;
+	line-height: 1.1;
+}
+
+.start-hero p {
+	margin: 4px 0 0;
+	color: var(--fg-muted);
+	font-size: var(--text-md);
+	text-wrap: balance;
+}
+
+.start-card {
+	padding: 14px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--start-card);
+	box-shadow: var(--shadow-raised);
+}
+
+.start-label {
+	display: block;
+	margin: 0 0 8px;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.start-row {
 	display: flex;
 	gap: 8px;
-	justify-content: center;
+	align-items: stretch;
 }
 
-/* ------------------------------------------------------------------ shell */
-
-.placeholder.shell {
-	place-content: start center;
-	padding-top: 12vh;
-	max-width: 640px;
-	margin: 0 auto;
+.start-row > .tb {
+	height: 36px;
+	padding: 0 14px;
 }
 
-.placeholder.shell .shell-note {
-	margin: 0;
-	font-size: var(--text-md);
+.start-field {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 36px;
+	padding: 0 10px;
+	box-sizing: border-box;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
 	color: var(--fg-faint);
-	min-height: 18px;
+}
+
+.start-field:focus-within {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.start-field input {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	border: 0;
+	outline: 0;
+	padding: 0;
+	background: none;
+	color: var(--fg);
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: var(--text-md);
+}
+
+.start-verdict {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 10px 2px 0;
+	min-height: 20px;
+	font-size: var(--text-md);
+	color: var(--fg-muted);
+}
+
+.start-dot {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--fg-faint);
+}
+
+.start-verdict-ok .start-dot {
+	background: var(--ok);
+}
+
+.start-verdict-new .start-dot {
+	background: var(--accent);
+}
+
+.start-verdict-bad {
+	color: var(--danger);
+}
+
+.start-verdict-bad .start-dot {
+	background: var(--danger);
 }
 
 /* The host never answered. This is the screen instead of the folder picker,
    because a picker is an answer to a question nobody asked when the thing that
    would open the folder is the thing that is down. */
-.placeholder.shell .shell-broken {
-	color: var(--danger);
-	margin: 0 0 4px;
+.start-down {
+	display: grid;
+	gap: 10px;
 }
 
-.placeholder.shell .shell-row {
-	display: flex;
-	gap: 8px;
-	justify-content: center;
-	margin-top: 14px;
-}
-
-.shell-recent {
-	margin-top: 18px;
-	text-align: left;
-	border-top: 1px solid var(--border);
-	padding-top: 14px;
-}
-
-.shell-recent-head {
-	font-size: var(--text-xs);
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
-	color: var(--fg-faint);
-	margin-bottom: 6px;
-}
-
-.shell-recent-row {
-	display: flex;
-	align-items: stretch;
-	gap: 4px;
-}
-
-.shell-recent-open {
-	flex: 1;
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 1px;
-	align-items: flex-start;
-	background: none;
-	border: 1px solid transparent;
-	border-radius: var(--radius-sm);
-	padding: 6px 8px;
-	cursor: pointer;
-	text-align: left;
-	color: inherit;
-	font: inherit;
-}
-
-.shell-recent-open:hover {
-	background: var(--bg-hover);
-	border-color: var(--border);
-}
-
-.shell-recent-open .name {
+.start-down h2 {
+	margin: 0;
 	font-size: var(--text-lg);
-	color: var(--fg);
+	color: var(--danger);
 }
 
-/* The full path is the thing that disambiguates two folders with the same
-   name, so it is shown rather than hidden behind a tooltip — and truncated at
-   the left, because the end of a path is the part that identifies it. */
-.shell-recent-open .path {
+.start-down p {
+	margin: 0;
+	color: var(--fg-muted);
+}
+
+.start-down .start-note {
 	font-size: var(--text-sm);
 	color: var(--fg-faint);
-	max-width: 100%;
+}
+
+.start-command {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 6px 6px 10px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+}
+
+.start-command code {
+	flex: 1;
+	font-family: var(--mono, ui-monospace, monospace);
+}
+
+.start-section {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 26px 0 10px;
+	font-size: var(--text-xs);
+	font-weight: 700;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+	color: var(--fg-faint);
+}
+
+.start-section .spacer,
+.start-foot .spacer {
+	flex: 1;
+}
+
+.start-count {
+	font-weight: 400;
+	letter-spacing: 0;
+}
+
+.start-filter {
+	width: 200px;
+	height: 26px;
+	padding: 0 8px;
+	box-sizing: border-box;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+	color: var(--fg);
+	font: inherit;
+	font-size: var(--text-sm);
+	font-weight: 400;
+	letter-spacing: 0;
+	text-transform: none;
+}
+
+.start-cards {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.start-empty {
+	margin: 0;
+	padding: 18px;
+	text-align: center;
+	color: var(--fg-faint);
+	border: 1px dashed var(--border);
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--accent) 3%, var(--bg-canvas));
+}
+
+/* A recent project or a demo. The whole card opens it; Forget sits over its
+   corner, shown on hover and always on touch. */
+.start-tile {
+	position: relative;
+	display: grid;
+	min-width: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--start-card);
+	box-shadow: var(--shadow-raised);
+	color: var(--fg);
+	font: inherit;
+	text-align: left;
+}
+
+.start-tile:hover,
+.start-tile:focus-within {
+	border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+	background: var(--start-card-hover);
+}
+
+.start-tile-open,
+button.start-tile {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+	padding: 11px 12px;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.start-tile-open {
+	border: 0;
+}
+
+button.start-tile {
+	background: var(--start-card);
+}
+
+.start-tile-open:focus-visible,
+button.start-tile:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+	border-radius: var(--radius-md);
+}
+
+.start-tile-name {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	padding-right: 30px;
+	font-weight: 600;
+	font-size: var(--text-lg);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	direction: rtl;
-	text-align: left;
 }
 
-.shell-recent-forget {
-	flex: none;
-	background: none;
-	border: 1px solid transparent;
-	border-radius: var(--radius-sm);
-	padding: 0 8px;
+.start-tile-path {
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: var(--text-sm);
 	color: var(--fg-faint);
-	cursor: pointer;
-	font-size: var(--text-lg);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-.shell-recent-forget:hover {
+.start-tile-what {
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.start-tile-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	min-height: 20px;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.start-faint {
+	color: var(--fg-faint);
+}
+
+.start-missing {
+	color: var(--warning);
+}
+
+.start-tile-gone .start-tile-name {
+	color: var(--fg-muted);
+}
+
+.start-tile-acts {
+	position: absolute;
+	top: 7px;
+	right: 7px;
+	display: flex;
+	gap: 2px;
+	opacity: 0;
+	transition: opacity 120ms;
+}
+
+.start-tile:hover .start-tile-acts,
+.start-tile:focus-within .start-tile-acts {
+	opacity: 1;
+}
+
+@media (hover: none) {
+	.start-tile-acts {
+		opacity: 1;
+	}
+}
+
+.start-tile-acts .tb.icon-only {
+	width: 24px;
+	height: 24px;
+	min-height: 0;
+	padding: 0;
+	display: inline-grid;
+	place-items: center;
+	border-color: transparent;
+	background: none;
+}
+
+.start-tile-acts .tb.icon-only:hover {
 	background: var(--bg-hover);
-	border-color: var(--border);
-	color: var(--fg);
+}
+
+button.start-tile:disabled {
+	cursor: progress;
+	opacity: 0.7;
+}
+
+.start-foot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 16px;
+	margin-top: 30px;
+	font-size: var(--text-sm);
+	color: var(--fg-faint);
+}
+
+.start-foot a {
+	color: var(--fg-muted);
+}
+
+.start-foot code {
+	padding: 1px 6px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xs);
+	background: var(--bg-input);
+	color: var(--fg-muted);
+}
+
+/* What a project or pack compiles for, as a chip. */
+.runtime-chip {
+	display: inline-flex;
+	align-items: center;
+	padding: 1px 8px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	font-size: var(--text-xs);
+	font-weight: 400;
+	color: var(--fg-muted);
+	white-space: nowrap;
+}
+
+.runtime-chip-roblox {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.runtime-chip-lune {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+}
+
+@media (max-width: 699px) {
+	.start-cards {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.start-row {
+		flex-wrap: wrap;
+	}
+
+	.start-field {
+		flex-basis: 100%;
+	}
+
+	.start-filter {
+		width: 150px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.start-tile-acts {
+		transition: none;
+	}
 }
 
 /* ------------------------------------------------------- .luau source view */
@@ -6084,87 +6411,306 @@ select.doc-target.lune {
 	flex: 1;
 }
 
+/* The node packs: the filters card at the left, the packs in the middle, and
+   the picked pack's contents at the right. Three columns of one grid, so each
+   scrolls on its own and the filters never scroll away. The cards are solid,
+   tinted towards the accent, as the start page's are. */
 .pack-browser {
-	/* Below the window's floating chrome. */
-	padding: var(--chrome-top) 24px 32px;
-	overflow: auto;
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	min-height: 0;
+	--packs-card: color-mix(in srgb, var(--accent) 5%, var(--bg-panel));
+	--packs-card-hover: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
+	display: grid;
+	grid-template-columns: 210px minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr);
+	gap: var(--edge);
+	height: 100%;
+	box-sizing: border-box;
+	padding: var(--chrome-top) var(--edge) 0;
+	overflow: hidden;
+	background-color: var(--bg-canvas);
+	background-image:
+		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
+		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
+	background-size: 16px 16px;
 }
 
-.pack-toolbar {
+.pack-browser-peeking {
+	grid-template-columns: 210px minmax(0, 1fr) 320px;
+}
+
+/* The search sits beside the mark, ahead of the spacer that pushes the rest
+   of the row right. */
+.window-chrome .mark-group {
+	order: -2;
+}
+
+.window-chrome .packs-search-group {
+	order: -1;
+}
+
+.packs-search {
 	display: flex;
 	align-items: center;
-	flex-wrap: wrap;
-	gap: 8px;
+	gap: 6px;
+	width: 280px;
+	height: var(--hit);
+	padding: 0 8px 0 10px;
+	box-sizing: border-box;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+	color: var(--fg-faint);
+	cursor: text;
 }
 
-.pack-toolbar h1,
-.pack-nodes h1 {
-	font-size: var(--text-2xl);
-	margin: 0;
+.packs-search:focus-within {
+	border-color: var(--accent);
 }
 
-.pack-toolbar .spacer,
-.pack-import .spacer {
+.packs-search input {
 	flex: 1;
+	min-width: 0;
+	border: 0;
+	outline: 0;
+	padding: 0;
+	background: none;
+	color: var(--fg);
+	font: inherit;
 }
 
-.pack-naming {
+.packs-search kbd {
+	padding: 0 6px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xs);
+	font: inherit;
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+}
+
+.packs-clear {
+	display: inline-grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-xs);
+	background: none;
+	color: var(--fg-faint);
+	cursor: pointer;
+}
+
+.packs-clear:hover {
+	background: var(--bg-hover);
+	color: var(--fg);
+}
+
+.packs-naming {
 	display: flex;
 	gap: 6px;
 }
 
-.pack-grid {
+.packs-filters,
+.packs-peek {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--packs-card);
+	box-shadow: var(--shadow-raised);
+	overflow: hidden;
+}
+
+.packs-filters {
+	align-self: start;
+}
+
+.packs-peek {
+	margin-bottom: var(--edge);
+}
+
+.packs-filters .card-head,
+.packs-peek .card-head {
+	cursor: default;
+}
+
+.packs-filter-groups {
+	display: flex;
+	flex-direction: column;
+	padding: 0 6px 8px;
+}
+
+.packs-filter-head {
+	margin: 10px 6px 4px;
+	font-size: var(--text-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+}
+
+.packs-filter-rule {
+	display: none;
+}
+
+.packs-filter {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 8px;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: none;
+	color: var(--fg-muted);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.packs-filter:hover {
+	background: var(--bg-hover);
+	color: var(--fg);
+}
+
+.packs-filter-on {
+	background: color-mix(in srgb, var(--accent) 14%, transparent);
+	color: var(--accent);
+}
+
+.packs-filter .packs-count {
+	margin-left: auto;
+}
+
+.packs-count {
+	font-size: var(--text-sm);
+	font-weight: 400;
+	letter-spacing: 0;
+	color: var(--fg-faint);
+}
+
+.packs-main {
+	min-width: 0;
+	overflow: auto;
+	padding: 0 2px 40px;
+}
+
+.packs-section {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 4px 0 10px;
+	font-size: var(--text-xs);
+	font-weight: 700;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+	color: var(--fg-faint);
+}
+
+.packs-main > .packs-section ~ .packs-section {
+	margin-top: 26px;
+}
+
+/* Beside the count, where the eye already is. */
+.tb.packs-fold {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 22px;
+	min-height: 0;
+	padding: 0 8px 0 4px;
+	font-size: var(--text-sm);
+	font-weight: 400;
+	letter-spacing: 0;
+	text-transform: none;
+}
+
+.tb.packs-fold svg {
+	transition: transform 120ms;
+}
+
+.tb.packs-fold[aria-expanded="false"] svg {
+	transform: rotate(-90deg);
+}
+
+.packs-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 	gap: 10px;
 }
 
-.pack-grid.list {
-	grid-template-columns: 1fr;
-	gap: 6px;
+.packs-grid-builtin {
+	grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 }
 
-.pack-card {
+.packs-card {
+	position: relative;
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
-	padding: 10px 12px;
-	background: var(--bg-panel);
+	gap: 8px;
+	min-width: 0;
+	padding: 11px 12px;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
+	background: var(--packs-card);
+	box-shadow: var(--shadow-raised);
+	color: var(--fg);
 	cursor: pointer;
+}
+
+.packs-card:hover {
+	border-color: var(--border-strong);
+	background: var(--packs-card-hover);
+}
+
+.packs-card:focus-visible,
+.packs-row:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -1px;
+}
+
+.packs-card.packs-selected {
+	border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+	box-shadow:
+		0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent),
+		var(--shadow-raised);
+}
+
+.packs-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	min-width: 0;
 }
 
-.pack-card:hover,
-.pack-card:focus-visible {
-	border-color: var(--accent);
-	outline: none;
-}
-
-.pack-grid.list .pack-card {
-	flex-direction: row;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 6px 14px;
-}
-
-.pack-card-head {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.pack-card h3 {
-	margin: 0;
+.packs-name {
+	min-width: 0;
+	font-weight: 600;
 	font-size: var(--text-lg);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-.pack-path {
+.tb.icon-only.packs-more {
+	width: 24px;
+	height: 24px;
+	min-height: 0;
+	padding: 0;
+	display: inline-grid;
+	place-items: center;
+	border-color: transparent;
+	background: none;
+}
+
+.packs-head .packs-more {
+	margin-left: auto;
+}
+
+.tb.icon-only.packs-more:hover {
+	background: var(--bg-hover);
+}
+
+.packs-path {
+	font-family: var(--mono, ui-monospace, monospace);
 	font-size: var(--text-sm);
 	color: var(--fg-faint);
 	overflow: hidden;
@@ -6172,12 +6718,436 @@ select.doc-target.lune {
 	white-space: nowrap;
 }
 
-.pack-badges {
+.packs-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+}
+
+.packs-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 100%;
+	padding: 2px 8px 2px 6px;
+	box-sizing: border-box;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.packs-pill i,
+.packs-peek-node i {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+}
+
+.packs-pill-more {
+	color: var(--fg-faint);
+}
+
+.packs-pill.packs-hit,
+.packs-peek-node.packs-hit {
+	border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+	background: color-mix(in srgb, var(--accent) 14%, var(--bg-input));
+	color: var(--fg);
+}
+
+.packs-requires {
+	margin: 0;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.packs-foot,
+.packs-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.packs-foot {
+	margin-top: auto;
+}
+
+.packs-foot .spacer {
+	flex: 1;
+}
+
+.packs-foot .tb {
+	height: 24px;
+	min-height: 0;
+	padding: 0 8px;
+	font-size: var(--text-sm);
+}
+
+.runtime-chip-warn {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 60%, var(--border));
+}
+
+/* The built-in library: smaller tiles, each with its category's colour down
+   its left edge. */
+.packs-card-builtin {
+	gap: 4px;
+	padding-left: 16px;
+}
+
+.packs-card-builtin::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 10px;
+	bottom: 10px;
+	width: 4px;
+	border-radius: 0 3px 3px 0;
+	background: var(--packs-stripe, var(--border-strong));
+}
+
+.packs-line {
+	font-size: var(--text-sm);
+	color: var(--fg-faint);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.packs-line-hit {
+	color: var(--fg);
+	font-weight: 600;
+}
+
+.packs-ghosts {
+	display: grid;
+	grid-template-rows: 1fr 1fr;
+	gap: 8px;
+}
+
+.packs-ghost {
+	display: grid;
+	place-content: center;
+	justify-items: center;
+	gap: 2px;
+	padding: 12px;
+	border: 1px dashed var(--border-strong);
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--accent) 3%, var(--bg-canvas));
+	color: var(--fg-muted);
+	font: inherit;
+	text-align: center;
+	cursor: pointer;
+}
+
+.packs-ghost:hover {
+	border-color: var(--accent);
+	color: var(--accent);
+	background: color-mix(in srgb, var(--accent) 8%, var(--bg-canvas));
+}
+
+.packs-ghost strong {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--text-lg);
+}
+
+.packs-ghost span {
+	font-size: var(--text-sm);
+}
+
+.packs-none {
+	margin: 0;
+	padding: 20px;
+	text-align: center;
+	color: var(--fg-faint);
+	border: 1px dashed var(--border);
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--accent) 3%, var(--bg-canvas));
+}
+
+.packs-grid + .packs-none {
+	margin-top: 10px;
+}
+
+/* The list: one row a pack, in one card. */
+.packs-list {
+	grid-template-columns: minmax(0, 1fr);
+	gap: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+	background: var(--packs-card);
+	box-shadow: var(--shadow-raised);
+}
+
+.packs-row {
+	display: grid;
+	grid-template-columns: 12px minmax(120px, 1.2fr) 90px 80px minmax(0, 1.4fr) minmax(0, 2fr) 28px;
+	align-items: center;
+	gap: 10px;
+	padding: 7px 10px;
+	border-top: 1px solid var(--border);
+	cursor: pointer;
+}
+
+.packs-row:first-child {
+	border-top: 0;
+}
+
+.packs-row:hover {
+	background: var(--packs-card-hover);
+}
+
+.packs-row.packs-selected {
+	background: color-mix(in srgb, var(--accent) 14%, var(--bg-panel));
+}
+
+.packs-row .packs-name {
+	font-size: var(--text-md);
+}
+
+.packs-swatch {
+	width: 10px;
+	height: 10px;
+	border-radius: 3px;
+	background: var(--border-strong);
+}
+
+.packs-row-count {
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.packs-row-runs {
+	display: flex;
+	gap: 4px;
+	min-width: 0;
+	overflow: hidden;
+}
+
+/* The picked pack: everything in it, beside the list. */
+.packs-peek-body {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	display: grid;
+	align-content: start;
+	gap: 8px;
+	padding: 10px 12px;
+}
+
+.packs-peek-about {
+	margin: 0;
+	font-size: var(--text-md);
+	color: var(--fg-muted);
+	overflow-wrap: anywhere;
+}
+
+.packs-peek-node {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+	color: var(--fg);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.packs-peek-node:hover {
+	border-color: var(--accent);
+}
+
+.packs-peek-open {
+	margin-left: auto;
+	font-size: var(--text-sm);
+	color: var(--fg-faint);
+}
+
+.packs-peek-actions {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 6px;
-	font-size: var(--text-sm);
+	padding: 10px 12px;
+	border-top: 1px solid var(--border);
+	background: var(--card-head);
+}
+
+.packs-menu {
+	position: fixed;
+	z-index: 60;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	width: 220px;
+	box-sizing: border-box;
+	padding: 5px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-md);
+	background: var(--bg-panel);
+	box-shadow: var(--shadow-popover);
+}
+
+.packs-menu .tb {
+	justify-content: flex-start;
+	width: 100%;
+	border-color: transparent;
+	background: none;
+	text-align: left;
+}
+
+.packs-menu .tb:hover:not(:disabled) {
+	background: var(--bg-hover);
+}
+
+.packs-menu hr {
+	margin: 3px 2px;
+	border: 0;
+	border-top: 1px solid var(--border);
+}
+
+.pack-dialog {
+	display: grid;
+	gap: 10px;
+	width: min(420px, 92vw);
+	box-sizing: border-box;
+	padding: 14px 16px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--bg-panel);
+	box-shadow: var(--shadow-modal);
+}
+
+.pack-dialog p {
+	margin: 0;
+	color: var(--fg-muted);
+}
+
+.pack-dialog-row {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+/* Narrow: the browser's own row in the page, the filters a row of chips, and
+   the picked pack a sheet from the bottom. */
+.pack-browser-narrow,
+.pack-browser-narrow.pack-browser-peeking {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: var(--chrome-top) 10px 0;
+}
+
+.packs-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	flex: none;
+}
+
+.packs-bar .tool-group {
+	flex-wrap: nowrap;
+}
+
+.packs-bar .packs-search-group {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+.packs-bar .packs-search {
+	width: 100%;
+}
+
+.pack-browser-narrow .packs-filters {
+	flex: none;
+	align-self: stretch;
+}
+
+.pack-browser-narrow .packs-filters .card-head,
+.pack-browser-narrow .packs-filter-head {
+	display: none;
+}
+
+.pack-browser-narrow .packs-filter-groups {
+	flex-direction: row;
+	gap: 2px;
+	padding: 4px;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.pack-browser-narrow .packs-filter {
+	flex: none;
+}
+
+.pack-browser-narrow .packs-filter-rule {
+	display: block;
+	flex: none;
+	width: 1px;
+	margin: 4px 2px;
+	background: var(--border);
+}
+
+.pack-browser-narrow .packs-main {
+	flex: 1;
+}
+
+.pack-browser-narrow .packs-peek {
+	position: absolute;
+	left: 6px;
+	right: 6px;
+	bottom: 6px;
+	z-index: 20;
+	max-height: 62%;
+	margin: 0;
+	box-shadow: var(--shadow-popover);
+}
+
+.pack-browser-narrow .packs-row {
+	grid-template-columns: 12px minmax(0, 1fr) 70px 28px;
+}
+
+.pack-browser-narrow .packs-row-kind,
+.pack-browser-narrow .packs-row-runs,
+.pack-browser-narrow .packs-row .packs-path,
+.pack-browser-narrow .packs-row .packs-line {
+	display: none;
+}
+
+@media (max-width: 699px) {
+	.packs-search kbd {
+		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tb.packs-fold svg {
+		transition: none;
+	}
+}
+
+.pack-nodes h1 {
+	font-size: var(--text-2xl);
+	margin: 0;
+}
+
+.pack-import .spacer {
+	flex: 1;
 }
 
 .designer .badge {
@@ -6202,38 +7172,6 @@ select.doc-target.lune {
 button.tb.danger {
 	color: var(--danger);
 	border-color: color-mix(in srgb, var(--danger) 55%, transparent);
-}
-
-.pack-actions,
-.pack-confirm {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 4px;
-}
-
-.pack-grid:not(.list) .pack-actions,
-.pack-grid:not(.list) .pack-confirm {
-	margin-top: auto;
-	padding-top: 4px;
-}
-
-.pack-grid.list .pack-actions,
-.pack-grid.list .pack-confirm {
-	margin-left: auto;
-}
-
-.pack-actions .tb {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	font-size: var(--text-md);
-}
-
-.pack-confirm p {
-	margin: 0 6px 0 0;
-	font-size: var(--text-md);
-	flex-basis: 100%;
 }
 
 .pack-import {
@@ -11516,10 +12454,16 @@ select:not(.literal):not([multiple]) {
 	display: block;
 }
 
+/* The canvas grid under Luau too, so the window reads the same whichever way
+   the logic is written; the node canvas draws its own over it. */
 .node-editor:not(.split) > .node-logic {
 	position: absolute;
 	inset: 0;
-	background: var(--bg-canvas);
+	background-color: var(--bg-canvas);
+	background-image:
+		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
+		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
+	background-size: 16px 16px;
 }
 
 .node-editor:not(.split) .logic-split {

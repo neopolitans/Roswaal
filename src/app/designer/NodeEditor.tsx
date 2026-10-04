@@ -45,7 +45,7 @@ import { ToolGroup } from "../FloatingTools.jsx";
 import { headerHeight, isCompact, nodeBounds, nodeWidth, pinPosition } from "../geometry.js";
 import { Icon } from "../icons.jsx";
 import { NodeView } from "../NodeView.jsx";
-import { Popout, usePhone } from "../Popout.jsx";
+import { Popout, useMedia, usePhone } from "../Popout.jsx";
 import { pinColor } from "../palette.js";
 import type { Preferences } from "../preferences.js";
 import { TypePicker } from "../TypePicker.jsx";
@@ -212,6 +212,9 @@ export function NodeEditor({
 	// leave the logic a strip too short to move around in. Everywhere else the
 	// logic fills the window and the node floats over it on its plate.
 	const split = usePhone();
+	// Room in the top row for how the logic is written, beside Details: a
+	// computer's window, not a tablet's.
+	const logicUp = useMedia("(min-width: 1000px)");
 	// On a phone the node's tools fold behind buttons: see `Popout`.
 	const phone = usePhone();
 	const [view, setView] = useState<"preview" | "logic">("preview");
@@ -426,8 +429,9 @@ export function NodeEditor({
 	const pill = pillShape(draft);
 	const compact = isCompact(drawDef);
 
-	// Luau or Nodes: how the logic is written. Drawn in the logic's head, or in
-	//  the pack's bar on a touch screen.
+	// Luau or Nodes: how the logic is written. Beside Details in the window's
+	// top row on a computer, in the logic's head on a tablet, and in the pack's
+	// bar on a phone.
 	const modeSwitch = (
 		<div className="segmented">
 			<button
@@ -646,7 +650,21 @@ export function NodeEditor({
 		</>
 	);
 
-	const nodeActions = nodeKindGroup();
+	// On a wide screen, how the logic is written leads the node's actions: one
+	// place for it whichever way the logic is written, where the eye already is.
+	const nodeActions = !logicUp ? (
+		nodeKindGroup()
+	) : (
+		<>
+			<ToolGroup className="logic-mode-group">
+				<span className="tool-label">Logic</span>
+				{modeSwitch}
+			</ToolGroup>
+			{nodeKindGroup()}
+		</>
+	);
+	// Which output's expression is shown, for a pure node with several.
+	const choosesOutput = draft.logicMode === "luau" && purity === "pure" && dataOutputs.length > 1;
 
 	// The selected pin's editor: beside the pin on a phone, and docked under
 	// the plate everywhere else, where it has room and can fold away.
@@ -980,11 +998,12 @@ export function NodeEditor({
 						"logic-head",
 						split && "logic-head-slim",
 						draft.logicMode === "nodes" && draft.logic && !split && "logic-head-folded",
+						logicUp && !choosesOutput && "logic-head-folded",
 					)}
 				>
-					{!split && <strong>Logic</strong>}
-					{!split && modeSwitch}
-					{draft.logicMode === "luau" && purity === "pure" && dataOutputs.length > 1 && (
+					{!split && <strong>{logicUp ? "Output" : "Logic"}</strong>}
+					{!split && !logicUp && modeSwitch}
+					{choosesOutput && (
 						<div className="segmented">
 							{dataOutputs.map((p) => (
 								<button
@@ -1019,7 +1038,7 @@ export function NodeEditor({
 							onPrefs={onPrefs}
 							tools={
 								<>
-									{!split && modeSwitch}
+									{!split && !logicUp && modeSwitch}
 									<button
 										className={cx("tb icon-only", showLuau && "on")}
 										aria-pressed={showLuau}

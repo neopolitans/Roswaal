@@ -185,7 +185,9 @@ export async function collectMaps(project: OpenProject): Promise<string[]> {
 }
 
 /** Every graph under `sourceDir`, project-relative and sorted. */
-export async function collectScripts(project: OpenProject): Promise<string[]> {
+export async function collectScripts(
+	project: Pick<OpenProject, "root" | "config">,
+): Promise<string[]> {
 	return documentsUnder(project, ".nodescript");
 }
 
@@ -196,7 +198,10 @@ export async function collectScripts(project: OpenProject): Promise<string[]> {
  */
 const NOT_GRAPHS: ReadonlySet<string> = new Set(["node_modules", ".git"]);
 
-async function documentsUnder(project: OpenProject, extension: string): Promise<string[]> {
+async function documentsUnder(
+	project: Pick<OpenProject, "root" | "config">,
+	extension: string,
+): Promise<string[]> {
 	const files = await walkFiles(project.root, {
 		from: project.config.sourceDir,
 		skip: NOT_GRAPHS,

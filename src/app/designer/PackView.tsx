@@ -128,11 +128,20 @@ export function PackView({
 		load().then(
 			(found) => {
 				apply(found);
-				if (found.defs[0]) setChosen({ id: found.defs[0].id });
+				// Where the browser asked to land: a new node, a node it showed,
+				// or the pack's first.
+				const at = open.node ? found.defs.find((def) => def.id === open.node) : undefined;
+				if (open.kind === "project" && open.fresh) {
+					setChosen({ fresh: Date.now() });
+					setListOpen(false);
+				} else if (at) {
+					setChosen({ id: at.id });
+					setListOpen(false);
+				} else if (found.defs[0]) setChosen({ id: found.defs[0].id });
 			},
 			(err: Error) => notify(err.message, "failed"),
 		);
-	}, [load, notify]);
+	}, [load, notify, open]);
 
 	const requires = pack?.requires ?? [];
 	const requiresKey = requires.join("|");

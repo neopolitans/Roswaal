@@ -33,7 +33,7 @@ import {
 } from "../core/rbx/browse.js";
 import { type RbxDocument, RbxError, type RbxInstance, readRbx } from "../core/rbx/index.js";
 import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
-import { emptyScript, type NodeDef, type NodeScript } from "../core/schema.js";
+import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
 import { errorMessage, HttpError } from "./errors.js";
 import { path } from "./host.js";
 import { toPosix } from "./paths.js";
@@ -113,6 +113,10 @@ export interface HostCapabilities {
 		exists: boolean;
 		directory: boolean;
 		initialised: boolean;
+		/** What it compiles for, when it is a project whose roswaal.json reads. */
+		target?: Target;
+		/** How many graphs it has, likewise. */
+		graphs?: number;
 	}>;
 	browse?(startIn?: string): Promise<string | null>;
 	/**

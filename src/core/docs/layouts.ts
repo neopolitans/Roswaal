@@ -27,6 +27,7 @@
  */
 
 import { DEMO_PROJECTS } from "../demoProjects.js";
+import type { Target } from "../schema.js";
 import {
 	type NodePreview,
 	type PreviewOptions,
@@ -110,8 +111,6 @@ export type LayoutCard =
 	| { t: "pinEditor"; pin: string; type: string; logic: string }
 	/** Logic written as Luau: the sheet it is typed in. */
 	| { t: "luau"; code: string }
-	/** The logic's head: the word and the Luau | Nodes switch. */
-	| { t: "logicHead" }
 	/** What stops the node saving, or that nothing does: `node-problems`. */
 	| { t: "problems"; text: string; wide?: boolean }
 	/**
@@ -130,7 +129,17 @@ export type LayoutCard =
 			tint?: "preview";
 	  }
 	/** The installed editor with no project open: `ProjectPicker`. */
-	| { t: "start"; row: ToolbarItem[]; recent: [string, string][] };
+	| { t: "start"; row: ToolbarItem[]; recent: StartRecent[] };
+
+/** A recent project's card on the start page. */
+export interface StartRecent {
+	name: string;
+	path: string;
+	target: Target;
+	graphs: number;
+	/** When it was opened, as the card says it: "2 hours ago". */
+	when: string;
+}
 
 export interface LayoutRegion extends LayoutPart {
 	kind: RegionKind;
@@ -220,7 +229,9 @@ export function layoutIcons(spec: LayoutSpec): string[] {
 		...(region.card?.t === "intro"
 			? ["chevron", "close", "palette", "document", ...glyphsOf(region.card.menu ?? [])]
 			: []),
-		...(region.card?.t === "start" ? glyphsOf(region.card.row) : []),
+		...(region.card?.t === "start"
+			? ["folder", "document", "palette", "close", ...glyphsOf(region.card.row)]
+			: []),
 	]);
 }
 
@@ -499,7 +510,12 @@ function introHtml(card: Extract<LayoutCard, { t: "intro" }>, art: ToolbarArt): 
 	);
 }
 
-/** The start page the installed editor shows with no project open. */
+/** The chip saying what a project compiles for, as `RuntimeChip` draws it. */
+function runtimeChipHtml(target: Target): string {
+	return `<span class="runtime-chip runtime-chip-${target}">${target === "lune" ? "Lune" : "Roblox"}</span>`;
+}
+
+/** The start page the installed editor shows with no project open: `ProjectPicker`. */
 function startHtml(card: Extract<LayoutCard, { t: "start" }>, art: ToolbarArt): string {
 	const row = card.row
 		.map((item) => {
@@ -507,31 +523,56 @@ function startHtml(card: Extract<LayoutCard, { t: "start" }>, art: ToolbarArt): 
 			const tie = item.name
 				? ` data-control="${escapeXml(controlKey(item.name))}" data-name="${escapeXml(item.name)}"`
 				: "";
-			return `<input class="tb"${INERT}${tie} readonly placeholder="${escapeXml(item.text)}" style="width:420px;pointer-events:none">`;
+			return (
+				`<span class="start-field"${tie}>${glyphHtml("folder", 16, art)}` +
+				`<input${INERT} readonly placeholder="${escapeXml(item.text)}" style="pointer-events:none"></span>`
+			);
 		})
 		.join("");
+	const icon = (name: string, title: string) =>
+		`<button type="button" class="tb icon-only"${INERT} title="${title}">${glyphHtml(name, 16, art)}</button>`;
+	const chrome =
+		`<div class="window-chrome"><div class="floating-tools"><div class="tool-group mark-group">` +
+		`<span class="logo window-mark">${art.mark}<span class="window-name">Roswaal</span>` +
+		`<span class="version">${escapeXml(art.version)}</span></span></div><span class="spacer"></span>` +
+		`<div class="tool-group">${icon("document", "Docs")}${icon("palette", "Node Design")}</div></div></div>`;
 	const recent = card.recent
 		.map(
-			([name, path]) =>
-				`<div class="shell-recent-row"><button type="button" class="shell-recent-open"${INERT}>` +
-				`<span class="name">${escapeXml(name)}</span><span class="path">${escapeXml(path)}</span></button>` +
-				`<button type="button" class="shell-recent-forget"${INERT}>×</button></div>`,
+			(one) =>
+				`<div class="start-tile"><button type="button" class="start-tile-open"${INERT}>` +
+				`<span class="start-tile-name">${escapeXml(one.name)}</span>` +
+				`<span class="start-tile-path">${escapeXml(one.path)}</span>` +
+				`<span class="start-tile-meta">${runtimeChipHtml(one.target)}<span>${one.graphs} graphs</span>` +
+				`<span class="start-faint">· ${escapeXml(one.when)}</span></span></button></div>`,
 		)
 		.join("");
-	// The window's own height places it, where the real one takes 12% of the
-	// viewport: the reader's viewport is not the window drawn.
+	const demos = DEMO_PROJECTS.map(
+		(demo) =>
+			`<button type="button" class="start-tile start-demo"${INERT}>` +
+			`<span class="start-tile-name">${escapeXml(demo.name)}${runtimeChipHtml(demo.target)}</span>` +
+			`<span class="start-tile-what">${escapeXml(demo.what)}</span>` +
+			`<span class="start-tile-meta">${demo.graphs} graphs<span class="start-faint">· take a copy</span></span></button>`,
+	).join("");
+	const section = (label: string, count?: number) =>
+		`<div class="start-section"><span>${label}</span>${count === undefined ? "" : `<span class="start-count">${count}</span>`}</div>`;
 	return (
-		`<div class="placeholder shell" style="padding-top:108px;height:100%;box-sizing:border-box">` +
-		`<h1 class="logo">${markAt(26, art)} Roswaal</h1>` +
-		`<p>Open a Roblox repository, or a Lune one (experimental). Roswaal writes Luau into it; Rojo does the rest.</p>` +
-		`<div class="row">${row}</div>` +
-		`${recent ? `<div class="shell-recent"><div class="shell-recent-head">Recent</div>${recent}</div>` : ""}</div>`
+		`<div class="start-page">${chrome}<div class="start-scroll" style="overflow:hidden"><div class="start-column">` +
+		`<div class="start-hero">${markAt(44, art)}<div><h1>Roswaal</h1>` +
+		`<p>Visual scripting for Luau. Open a Roblox repository, or a Lune one; Roswaal writes the Luau, and Rojo does the rest.</p></div></div>` +
+		`<div class="start-card start-open"><span class="start-label">Open a project</span>` +
+		`<div class="start-row">${row}</div>` +
+		`<p class="start-verdict"><span class="start-dot"></span>Type a folder's path, or Browse… for your computer's own dialog.</p></div>` +
+		(recent
+			? `${section("Recent", card.recent.length)}<div class="start-cards">${recent}</div>`
+			: "") +
+		`${section("Try a demo")}<div class="start-cards">${demos}</div>` +
+		`</div></div></div>`
 	);
 }
 
 type DesignerCard = Extract<
 	LayoutCard,
-	{ t: "packList" | "packBar" | "plate" | "pinEditor" | "luau" | "logicHead" | "problems" }
+	{ t: "packList" | "packBar" | "plate" | "pinEditor" | "luau" | "problems" }
 >;
 
 /**
@@ -643,13 +684,6 @@ function designerCardHtml(card: DesignerCard, art: ToolbarArt, preview?: Preview
 			return editor(
 				`<div class="luau-field" style="position:relative;inset:auto;left:auto;right:auto;top:auto;bottom:auto;width:100%;height:100%;box-sizing:border-box;margin:0">` +
 					`<div style="padding:8px 12px;font-family:var(--font-mono, monospace)">${escapeXml(card.code)}</div></div>`,
-			);
-		case "logicHead":
-			return editor(
-				`<div class="node-logic" style="position:relative;inset:auto;background:none">` +
-					`<div class="logic-head" style="position:relative;left:auto;bottom:auto;display:inline-flex;align-items:center;gap:8px">` +
-					`<strong>Logic</strong><div class="segmented"><button type="button" class="on"${INERT}>Luau</button>` +
-					`<button type="button"${INERT}>Nodes</button></div></div></div>`,
 			);
 		case "problems":
 			// At the right of its cell, as the real one sits at the right of the
@@ -1252,6 +1286,15 @@ export const DESIGNER_LAYOUT: LayoutSpec = {
 				{
 					apart: true,
 					items: [
+						{ t: "label", text: "Logic" },
+						{ t: "segmented", options: ["Luau", "Nodes"], on: 0 },
+					],
+					name: "Luau or Nodes",
+					what: "Write the logic as Luau, or build it from nodes.",
+					where: "With a node open",
+				},
+				{
+					items: [
 						{ t: "button", text: "Details", icon: "rename" },
 						{ t: "divider" },
 						{ t: "badge", text: "Impure" },
@@ -1321,14 +1364,6 @@ export const DESIGNER_LAYOUT: LayoutSpec = {
 			what: "What stops the node saving, or that it is ready to.",
 		},
 		{
-			name: "Logic head",
-			kind: "float",
-			at: [10, 11, 4, 5],
-			place: "start",
-			card: { t: "logicHead" },
-			what: "Write the logic as Luau, or build it from nodes. Built from nodes, Add node, Realign, Straighten and Preview join it.",
-		},
-		{
 			name: "Pin types",
 			kind: "float",
 			at: [10, 11, 4, 7],
@@ -1374,6 +1409,15 @@ export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 				},
 				{
 					apart: true,
+					items: [
+						{ t: "label", text: "Logic" },
+						{ t: "segmented", options: ["Luau", "Nodes"], on: 0 },
+					],
+					name: "Luau or Nodes",
+					what: "As on a computer.",
+					where: "With a node open",
+				},
+				{
 					items: [
 						{ t: "button", text: "Details", icon: "rename" },
 						{ t: "divider" },
@@ -1427,14 +1471,6 @@ export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 			at: [8, 9, 4, 5],
 			place: "end",
 			card: { t: "problems", text: "Saved, and the project loads it." },
-			what: "As on a computer.",
-		},
-		{
-			name: "Logic head",
-			kind: "float",
-			at: [10, 11, 2, 3],
-			place: "start",
-			card: { t: "logicHead" },
 			what: "As on a computer.",
 		},
 		{
@@ -1672,6 +1708,7 @@ export const WALK_START: LayoutSpec = {
 					{
 						t: "button",
 						text: "Browse…",
+						icon: "folderOpen",
 						name: "Browse…",
 						what: "Chooses the folder with your computer's own dialog.",
 					},
@@ -1683,7 +1720,22 @@ export const WALK_START: LayoutSpec = {
 						what: "Opens it, or Initialise for a folder that is not a project yet.",
 					},
 				],
-				recent: RECENT.map(([name]) => [name, `C:\\Users\\you\\Projects\\${name}`]),
+				recent: [
+					{
+						name: "my-game",
+						path: "C:\\Users\\you\\Projects\\my-game",
+						target: "roblox",
+						graphs: 14,
+						when: "2 hours ago",
+					},
+					{
+						name: "lobby",
+						path: "C:\\Users\\you\\Projects\\lobby",
+						target: "roblox",
+						graphs: 6,
+						when: "yesterday",
+					},
+				],
 			},
 		},
 	],
