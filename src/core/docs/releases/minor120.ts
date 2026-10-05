@@ -9,6 +9,13 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.136.1",
+		date: "2026-10-05",
+		headline: "Roswaal Types reviewed again.",
+		affects: ["docs"],
+		changed: ["Roswaal Types is marked as last reviewed on 5 October 2026."],
+	},
+	{
 		version: "0.136.0",
 		date: "2026-10-05",
 		headline: "Class as String.",

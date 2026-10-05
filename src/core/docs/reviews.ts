@@ -103,7 +103,8 @@ export const REVIEWS: Record<
 	// the setting does; Hand-written Luau once each code node had its own
 	// graph and the Luau it compiles to. Lune is marked experimental on the
 	// pages that mention it, which is what verifying them covers.
-	types: { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
+	// Reviewed again on 5 Oct 2026, after ClassName joined the table (0.135.0).
+	types: { status: "verified", date: "2026-10-05", reviewers: ["neopolitans"] },
 	// Verified for 0.31.4, once it described the picker itself rather than only
 	// the nodes: the grouped list, the field Other… opens for a type the list
 	// cannot show, and the two Declare Type shapes for a type that is a
