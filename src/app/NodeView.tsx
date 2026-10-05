@@ -694,7 +694,11 @@ function OptionEditor({
 					onPointerDown={stop}
 					onClick={() => setPicking(true)}
 				>
-					<span className="preview">{value || known[0]}</span>
+					{/* Empty says so. Showing the list's first entry claimed a
+					    value the pin did not hold: a ClassName pin starts empty. */}
+					<span className={cx("preview", value === "" && "preview-unset")}>
+						{value || "choose"}
+					</span>
 					<Icon name="chevron" size={12} />
 				</button>
 				{picking && (

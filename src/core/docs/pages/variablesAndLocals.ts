@@ -158,8 +158,9 @@ export function variablesAndLocalsPage(): DocPage {
 				t: "p",
 				text:
 					"Leave it blank and the name comes from the output pin. A **pure** node read in " +
-					"one place is spliced into that place instead, binding nothing at all — naming " +
-					"its result is how you ask for the local anyway.",
+					"one place is spliced into that place instead, binding nothing at all, and a step " +
+					"nothing reads is written as a bare call. **Naming the result asks for the local " +
+					'either way**: `local turretModel = need(model, "Turret", "Model")`.',
 			},
 			{
 				t: "note",

@@ -6,8 +6,9 @@
  * express. Custom node packs deliberately cannot reach this category.
  */
 
+import { CLASS_OPTIONS } from "../roblox.js";
 import type { NodeConfig, NodeDef, PinDef } from "../schema.js";
-import { pinDefaultFor, pinTypeOf } from "./variables.js";
+import { isClassNameType, pinDefaultFor, pinTypeOf } from "./variables.js";
 
 /** Config shape for function entry/return and connect bodies. */
 export interface Signature {
@@ -353,7 +354,8 @@ export const FLOW_NODES: NodeDef[] = [
 					// way to give a Return a value was to wire a node in for it.
 					...(sig.returns ?? []).map((r, i) => {
 						const type = pinTypeOf(r.type);
-						return data(`r${i}`, r.name || `value${i + 1}`, type, pinDefaultFor(type));
+						const pin = data(`r${i}`, r.name || `value${i + 1}`, type, pinDefaultFor(type));
+						return isClassNameType(r.type) ? { ...pin, options: CLASS_OPTIONS } : pin;
 					}),
 				],
 				outputs: [],

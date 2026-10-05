@@ -20,6 +20,7 @@ import {
 	LUNE_TYPES,
 	requiresLuneRoblox,
 } from "../core/luneTypes.js";
+import { CLASS_NAME_TYPE, pinTypeOf } from "../core/nodes/variables.js";
 import { INSTANCE_CLASSES, typeGroup } from "../core/roblox.js";
 import { CLASSES, DATATYPES as ENGINE_DATATYPES } from "../core/robloxData.js";
 import type { NodeScript } from "../core/schema.js";
@@ -188,6 +189,12 @@ export interface TypePickerProps {
 	onChange: (type: string) => void;
 	title?: string;
 	disabled?: boolean;
+	/**
+	 * Offer `ClassName` too: a string holding a class name, written as
+	 * `string`. Where a type becomes a pin someone types into, a parameter,
+	 * a return or an input; not a Cast, which writes the type it is given.
+	 */
+	classNames?: boolean;
 }
 
 /**
@@ -260,8 +267,15 @@ function typeColor(type: string): string | undefined {
 }
 
 export function TypePicker(props: TypePickerProps) {
-	const { options, groupOf, groupsFirst } = useTypeChoices();
+	const choices = useTypeChoices();
 	const [picking, setPicking] = useState(false);
+	const withClassNames = props.classNames === true;
+	const options = withClassNames ? [CLASS_NAME_TYPE, ...choices.options] : choices.options;
+	const groupOf = (type: string) =>
+		withClassNames && type === CLASS_NAME_TYPE ? "Luau" : choices.groupOf(type);
+	const detailOf = (type: string) =>
+		type === CLASS_NAME_TYPE ? "A class name, as text. Written as string." : classDetail(type);
+	const { groupsFirst } = choices;
 
 	const value = props.value ?? "any";
 
@@ -273,7 +287,7 @@ export function TypePicker(props: TypePickerProps) {
 				title={props.title ?? "Any Luau type. The list is a shortcut, not a limit."}
 				onClick={() => setPicking(true)}
 			>
-				<span className="type-dot" style={{ background: pinColor(value, "data") }} />
+				<span className="type-dot" style={{ background: pinColor(pinTypeOf(value), "data") }} />
 				<span className="preview">{value}</span>
 				<Icon name="chevron" size={12} />
 			</button>
@@ -284,7 +298,7 @@ export function TypePicker(props: TypePickerProps) {
 					value={value}
 					groupOf={groupOf}
 					groupsFirst={groupsFirst}
-					detailOf={classDetail}
+					detailOf={detailOf}
 					colorOf={typeColor}
 					onPick={(type) => props.onChange(type.trim() || "any")}
 					onClose={() => setPicking(false)}

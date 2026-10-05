@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.135.0",
+		date: "2026-10-05",
+		headline: "ClassName, and a Result name declares its local.",
+		affects: ["editor", "docs"],
+		added: [
+			"ClassName in the type picker for parameters, returns and pins: written as `string`, and every pin of that type offers the engine's classes.",
+			"A Result name declares its local even when nothing reads the result yet. Call Function, Call Method and the Service and Lune Function steps have the field too.",
+		],
+		fixed: [
+			"A tab with unsaved edits shows one dot beside its name, rather than a second one after its close button.",
+		],
+	},
+	{
 		version: "0.134.0",
 		date: "2026-10-05",
 		headline: "Calls take their arguments from the function wired in, and any input can be typed.",

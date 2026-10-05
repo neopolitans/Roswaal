@@ -191,7 +191,13 @@ export function writeCall(
 ): string | undefined {
 	const fallback = how.fallback;
 	const pin = r.baseOutputs.find((p) => p.id === resultPin);
-	const consumed = e.index.readerCount(r.node.id, resultPin, { parts: true }) > 0;
+	const read = e.index.readerCount(r.node.id, resultPin, { parts: true }) > 0;
+	// A name typed into Result name asks for the local, read or not, as it
+	// does on a value node (see `bindForReaders`): naming a result is a request
+	// for the line, and a field that did nothing until something else showed
+	// up was a field you had to experiment on to understand.
+	const named = pin !== undefined && resultNameOf(r.node.config) !== undefined;
+	const consumed = read || named;
 	const next = e.index.execTarget(r.node.id, "then");
 
 	// A step whose one reader is the very next statement is written into it:

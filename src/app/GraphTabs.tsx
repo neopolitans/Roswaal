@@ -191,6 +191,7 @@ export function GraphTabs({
 					>
 						<TabIcon doc={doc} size={13} />
 						<span className="name">{label}</span>
+						{doc.dirty && <span className="tab-dirty" aria-hidden />}
 						<button
 							className="close"
 							title={`Close ${full}`}

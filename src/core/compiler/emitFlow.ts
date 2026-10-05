@@ -9,7 +9,7 @@ import { LUAU_PRIMITIVES } from "../luneTypes.js";
 import { loopNamesOf, loopTypes, signatureOf, typeDeclarationOf } from "../nodes/flow.js";
 import { isConstLocal, localTypeOf, variableRefOf } from "../nodes/variables.js";
 import { scriptCallOf } from "../scriptCalls.js";
-import { isRobloxTypeName, luneCall, serviceCall, writeCall } from "./emitCalls.js";
+import { isRobloxTypeName, luneCall, resultNameOf, serviceCall, writeCall } from "./emitCalls.js";
 import {
 	bodyOf,
 	claimTypeName,
@@ -276,6 +276,8 @@ function scriptStep(e: Emitter, r: ResolvedNode, scope: Scope): string | undefin
 	}
 
 	const read = returns.map((p) => e.index.readerCount(id, p.id, { parts: true }) > 0);
+	// A Result name asks for the first value's local, read or not.
+	if (resultNameOf(r.node.config) !== undefined) read[0] = true;
 	const last = read.lastIndexOf(true);
 	if (last < 0) {
 		e.push(rendered, id);
@@ -283,7 +285,8 @@ function scriptStep(e: Emitter, r: ResolvedNode, scope: Scope): string | undefin
 	}
 	const names = returns.slice(0, last + 1).map((p, i) => {
 		if (!read[i]) return "_";
-		const ident = e.names.unique(p.name || `value${i + 1}`, "value");
+		const hint = i === 0 ? (resultNameOf(r.node.config) ?? p.name) : p.name;
+		const ident = e.names.unique(hint || `value${i + 1}`, "value");
 		scope.bindings.set(`${id}/${p.id}`, ident);
 		return ident;
 	});

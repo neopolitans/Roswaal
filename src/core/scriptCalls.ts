@@ -39,7 +39,8 @@
 
 import { argumentPin, execPin } from "./callNodes.js";
 import { FUNCTION_NODES, type Signature, signatureOf, signatureText } from "./nodes/flow.js";
-import { pinTypeOf } from "./nodes/variables.js";
+import { isClassNameType, pinTypeOf } from "./nodes/variables.js";
+import { CLASS_OPTIONS } from "./roblox.js";
 import type { GraphNode, Link, Literal, NodeConfig, NodeScript, PinDef } from "./schema.js";
 import { parseSplitKey, splitKey, splitPinId, splitsOf } from "./structs.js";
 
@@ -111,15 +112,17 @@ function lossy(type: string | undefined): boolean {
 
 /** The argument pins, in order. */
 export function scriptArgumentPins(params: readonly NamedType[]): PinDef[] {
-	return params.map((param, index) =>
-		argumentPin({
+	return params.map((param, index) => {
+		const pin = argumentPin({
 			index,
 			name: param.name || `arg${index + 1}`,
 			type: pinTypeOf(param.type),
 			optional: isOptional(param.type),
 			description: lossy(param.type) ? `Takes \`${param.type}\`.` : undefined,
-		}),
-	);
+		});
+		// A `ClassName` parameter offers the engine's classes, as Is A does.
+		return isClassNameType(param.type) ? { ...pin, options: CLASS_OPTIONS } : pin;
+	});
 }
 
 /** The id of the pin a return value comes out of: `result`, then `r1`, `r2`. */

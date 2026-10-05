@@ -15,7 +15,7 @@ import {
 	type TypeDeclaration,
 	typeDeclarationOf,
 } from "../nodes/flow.js";
-import { variableRefOf } from "../nodes/variables.js";
+import { isClassNameType, variableRefOf } from "../nodes/variables.js";
 import { isService as isRobloxService } from "../roblox.js";
 import { isModuleScript } from "../schema.js";
 import { Scope } from "./emitScope.js";
@@ -101,6 +101,8 @@ const TYPE_NAME = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/;
  */
 export function luauType(t: string | undefined): string {
 	if (!t) return "any";
+	// Roswaal's name for a string holding a class name; Luau's is `string`.
+	if (isClassNameType(t)) return t.trim().endsWith("?") ? "string?" : "string";
 	if (t === "table") return "{ [any]: any }";
 	if (t === "function") return "(...any) -> ...any";
 	if (EDITOR_ONLY_TYPES.has(t)) return "any";

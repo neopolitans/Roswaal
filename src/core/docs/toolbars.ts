@@ -659,7 +659,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			return (
 				`<span class="graph-tab${item.on ? " on" : ""}${item.dirty ? " dirty" : ""}"${tie}>` +
 				tabIcon(item.kind ?? "nodescript", art) +
-				`<span class="name">${escapeXml(item.text)}</span>${item.closable === false ? "" : `<span class="close">×</span>`}</span>`
+				`<span class="name">${escapeXml(item.text)}</span>${item.dirty ? `<span class="tab-dirty" aria-hidden="true"></span>` : ""}${item.closable === false ? "" : `<span class="close">×</span>`}</span>`
 			);
 		case "badge":
 			return `<span class="badge${item.warn ? " warn" : ""}"${tie}>${escapeXml(item.text)}</span>`;

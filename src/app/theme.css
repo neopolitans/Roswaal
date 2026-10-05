@@ -505,7 +505,9 @@ select optgroup {
 	margin: 0 2px 0 4px;
 }
 
-.tool-group .dirty::after {
+/* Not a graph tab: a tab carries its own dot, `.tab-dirty`, and a second one
+   here landed after its close button. */
+.tool-group .dirty:not(.graph-tab)::after {
 	content: "•";
 	color: var(--warning);
 	margin-left: 5px;
@@ -616,10 +618,20 @@ select optgroup {
 	text-overflow: ellipsis;
 }
 
-.graph-tab.dirty .name::after {
-	content: "•";
-	color: var(--warning);
-	margin-left: 5px;
+/* Unsaved edits: an element of its own beside the name, so the name's
+   ellipsis can never cut it off. */
+/* A picker field with nothing chosen yet. */
+.literal.picker .preview-unset {
+	color: var(--fg-faint);
+	font-style: italic;
+}
+
+.graph-tab .tab-dirty {
+	flex: none;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--warning);
 }
 
 /* A tab's kind, coloured as the project tree colours the same file: graphs
@@ -12867,7 +12879,9 @@ select:not(.literal):not([multiple]) {
 	color: var(--fg-faint);
 }
 
-.tool-group .dirty::after {
+/* Not a graph tab: a tab carries its own dot, `.tab-dirty`, and a second one
+   here landed after its close button. */
+.tool-group .dirty:not(.graph-tab)::after {
 	content: "•";
 	color: var(--warning);
 	margin-left: 5px;

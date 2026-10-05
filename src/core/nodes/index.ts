@@ -1,5 +1,6 @@
 /** Node registry: built-ins plus any custom packs loaded from disk. */
 
+import { CLASS_OPTIONS } from "../roblox.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
 import { ENGINE_TYPES } from "../schema.js";
 import {
@@ -16,7 +17,7 @@ import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
 import { LUNE_NODES } from "./lune.js";
 import { withRuntimes } from "./runtimes.js";
-import { pinDefaultFor, pinTypeOf, VARIABLE_NODES } from "./variables.js";
+import { isClassNameType, pinDefaultFor, pinTypeOf, VARIABLE_NODES } from "./variables.js";
 
 export type { Signature } from "./flow.js";
 export { continuesEnclosingBlock, FLOW_NODES, signatureText } from "./flow.js";
@@ -164,6 +165,7 @@ export function retypedInputs(pins: PinDef[], config: NodeConfig | undefined): P
 			type: pinType,
 			chosenType: type,
 			default: keep ? pin.default : (pinDefaultFor(pinType) ?? pin.default),
+			...(isClassNameType(type) ? { options: CLASS_OPTIONS } : {}),
 		};
 	});
 }

@@ -63,6 +63,22 @@ export function typedLocalName(node: Pick<GraphNode, "literals">): string {
 }
 
 /**
+ * A string that holds an Instance class name: `"Model"`, `"BasePart"`.
+ *
+ * Roswaal's own name, not Luau's. Luau has no type for it, so it is written as
+ * `string` (see `luauType`), and a pin of this type is a string pin offering
+ * the engine's classes, the picker Is A's Class Name has. It exists so a
+ * function like `need(parent, name, class)` can say what its `class` is for,
+ * and every call to it offers classes rather than an empty text field.
+ */
+export const CLASS_NAME_TYPE = "ClassName";
+
+/** `ClassName` or `ClassName?`. */
+export function isClassNameType(type: string | undefined): boolean {
+	return /^ClassName\??$/.test((type ?? "").trim());
+}
+
+/**
  * The pin type for a value declared with this Luau type.
  *
  * A pin type is a name the canvas can colour and compare, and a Luau type can
@@ -73,6 +89,7 @@ export function typedLocalName(node: Pick<GraphNode, "literals">): string {
 export function pinTypeOf(luauType: string | undefined): string {
 	const t = (luauType ?? "").trim();
 	if (t === "") return "any";
+	if (isClassNameType(t)) return "string";
 	const named = /^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\??$/.exec(t);
 	// Anything goes into an `unknown`, and a `never` holds nothing to be
 	// particular about: as a pin, both take any wire. The annotation still

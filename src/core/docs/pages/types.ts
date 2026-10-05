@@ -28,6 +28,11 @@ export function typesPage(): DocPage {
 					["`boolean`", "true or false", ""],
 					["`number`", "A Luau number", "No integer/float split; Luau has one number type."],
 					["`string`", "Text", "Quoted for you when it is emitted."],
+					[
+						"`ClassName`",
+						"A class name, as text",
+						"Roswaal's, written as `string`. A pin of this type offers the engine's classes, as Is A's Class Name does. Choose it for a parameter like `need`'s `class`.",
+					],
 					["`table`", "Any Luau table", "One type for arrays, maps and sets, because Lua has one."],
 					["`function`", "A function value", "Get Function produces one."],
 					[

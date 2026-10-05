@@ -170,10 +170,20 @@ export function InspectorSections(props: SectionProps): ReactNode {
  * so labelling a Find First Child "value" emits `local value = ...` instead of
  * `local Child = ...` followed by a second local to rename it.
  */
+/** Builtin steps that bind their result through `writeCall`. */
+const NAMED_RESULT_CALLS: ReadonlySet<string> = new Set([
+	"call.function",
+	"call.method",
+	SERVICE_CALL,
+	LUNE_CALL,
+]);
+
 function namesResult(def: NodeDef): boolean {
 	if (def.compilesTo.kind === "call") return true;
-	// A Script Function binds its result as a call node does, step or value.
-	if (SCRIPT_CALLS.has(def.id)) return true;
+	// The builtin calls bind their result as a call node does: a Script
+	// Function step or value, Call Function and Call Method, and the Service
+	// and Lune Function steps.
+	if (SCRIPT_CALLS.has(def.id) || NAMED_RESULT_CALLS.has(def.id)) return true;
 	// A pure node binds a local too, as soon as anything reads its value
 	// twice -- Find First Child is one. A pure *builtin* stays out: it
 	// resolves to a bare identifier and is never bound, so a name there would
@@ -424,7 +434,10 @@ function ResultName({ node }: { node: GraphNode }) {
 	const typing = useEditBurst();
 	const current = configText(node, "resultName") ?? "";
 	return (
-		<Field label="Result name" hint="The local this node's result lands in.">
+		<Field
+			label="Result name"
+			hint="The local this node's result lands in. Naming it declares the local, read or not."
+		>
 			<input
 				className="tb"
 				value={current}
@@ -1537,6 +1550,7 @@ function ListEditor({ node, field, title, hint }: ListEditorProps) {
 						/>
 						<TypePicker
 							value={entry.type}
+							classNames={field !== "exports"}
 							onChange={(type) => {
 								const next = [...list];
 								next[i] = { ...entry, type };
@@ -1587,6 +1601,7 @@ function PinSummary({ def, node }: { def: NodeDef; node: GraphNode }) {
 						{!out && (pin.type === "any" || pin.chosenType !== undefined) ? (
 							<TypePicker
 								value={pin.chosenType ?? "any"}
+								classNames
 								title="This pin takes anything. Choose what it should take."
 								onChange={(type) => store.edit((s) => setPinType(s, node.id, pin.id, type))}
 							/>
