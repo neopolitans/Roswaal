@@ -218,13 +218,26 @@ describe("what Roswaal uses, learned from, and writes for", () => {
 });
 /**
  * The Luau logo is the `.luau` icon on the canary only, until Roblox has
- * answered whether the use is permitted. The suite builds as stable, so here
- * the icon must be the code file, and the stable docs must not claim the logo.
+ * answered whether the use is permitted.
+ *
+ * Asserted without asking which channel the suite is in: the test config pins
+ * `ROSWAAL_CHANNEL` to stable, while the Vite define is read when the config
+ * loads and so is canary on the canary's CI. Whether a stable bundle really
+ * holds no copy of the mark was checked by searching every build's output.
  */
 describe("the Luau mark stays on the canary", () => {
-	it("is not drawn by a stable build", () => {
-		expect(SHOWS_LUAU_MARK).toBe(false);
-		expect(ICONS.luauScript).toBe(ICONS.codeFile);
+	it("is drawn exactly when the gate says so", () => {
+		expect(ICONS.luauScript === ICONS.codeFile).toBe(!SHOWS_LUAU_MARK);
+	});
+
+	it("is gated on the canary channel, in the editor and under Node", () => {
+		const source = readFileSync(
+			join(dirname(fileURLToPath(import.meta.url)), "..", "src", "app", "icons.tsx"),
+			"utf8",
+		);
+		expect(source).toContain('__ROSWAAL_CHANNEL__ === "canary"');
+		expect(source).toMatch(/ROSWAAL_CHANNEL === "canary";/);
+		expect(source).toMatch(/luauScript: SHOWS_LUAU_MARK\s*\?/);
 	});
 
 	it("is described as canary-only wherever it is described", () => {
