@@ -120,3 +120,28 @@ describe("ClassName", () => {
 		expect(pin.options).toContain("BasePart");
 	});
 });
+
+describe("Class as String", () => {
+	it("offers the engine's classes and starts at Model", () => {
+		const pin = registry.get("value.className")!.inputs[0];
+		expect(pin.options).toContain("BasePart");
+		expect(pin.default).toEqual({ t: "string", v: "Model" });
+	});
+
+	it("wires a class name into a string argument", () => {
+		const { script, call } = oneCall();
+		const b = new Builder();
+		const cls = b.node("value.className", { id: "class-name" });
+		b.lit(cls, "className", { t: "string", v: "BasePart" });
+		const extra = b.build();
+		const joined: NodeScript = {
+			...script,
+			nodes: [...script.nodes, ...extra.nodes],
+			links: [
+				...script.links,
+				{ id: "cls-link", from: { node: cls, pin: "result" }, to: { node: call, pin: "a2" } },
+			],
+		};
+		expect(code(joined)).toMatch(/^need\(workspace, "Turret", "BasePart"\)$/m);
+	});
+});

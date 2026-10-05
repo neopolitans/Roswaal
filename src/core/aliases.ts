@@ -53,6 +53,7 @@ export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = {
 	"value.boolean": ["Bool"],
 	"value.expression": ["Inline Luau"],
 	"value.typeName": ["Type Name", "Type String", "typeof Name"],
+	"value.className": ["Class Name", "Class String", "ClassName"],
 	"compare.selfNeq": ["NaN", "Is NaN", "Not a Number", "Self Compare"],
 	"code.custom": ["Luau Code", "Raw Luau", "Inline Code"],
 

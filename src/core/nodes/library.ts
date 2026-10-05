@@ -718,6 +718,26 @@ export const LIBRARY_NODES: NodeDef[] = [
 			"rather than typed, since a misspelt one is a check that never matches.",
 	),
 	/**
+	 * An Instance class's name, as a string, chosen rather than spelt.
+	 *
+	 * Type as String's partner, for the other half of the checks a script
+	 * makes: `child:IsA(class)`, `FindFirstChildWhichIsA`, and functions of
+	 * your own that take a class name, as `need(parent, name, class)` does.
+	 * Those take a string, and a String node typed `"Modle"` is found at
+	 * runtime. This offers the engine's classes in the picker Is A's Class
+	 * Name has, and wires into any string input.
+	 */
+	pure(
+		"value.className",
+		"Class as String",
+		"Values",
+		"$in.className",
+		[cls("className", "", "Model")],
+		"string",
+		"An Instance class's name, as a string: `\"Model\"`. Picked from the engine's classes " +
+			"rather than typed, for an argument that takes a class name.",
+	),
+	/**
 	 * `x ~= x`, which is true of exactly one value.
 	 *
 	 * NaN is not equal to itself, and that is the whole test for it: there is

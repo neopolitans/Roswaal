@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.136.0",
+		date: "2026-10-05",
+		headline: "Class as String.",
+		affects: ["editor", "docs"],
+		added: [
+			'**Class as String**, beside Type as String: an Instance class picked from the engine\'s classes, as a string such as `"Model"`, for any argument that takes a class name.',
+		],
+	},
+	{
 		version: "0.135.0",
 		date: "2026-10-05",
 		headline: "ClassName, and a Result name declares its local.",
