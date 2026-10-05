@@ -2424,6 +2424,24 @@ button.tb.primary:hover:not(:disabled) {
 	min-width: 0;
 }
 
+/* A picker beside a text field, as Key Value Pair's Value is: one height, the
+   picker as wide as what it says and the field taking the rest to type in.
+   Centred, the picker sat six pixels shorter than the field beside it. */
+.inspector .field-row:has(> .tb.type-picker) {
+	align-items: stretch;
+}
+
+.inspector .field-row > .tb.type-picker {
+	flex: 0 0 auto;
+	width: auto;
+	min-width: 104px;
+}
+
+.inspector .field-row > input.tb {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
 /* The way out of a shortened description. Underlined rather than only coloured,
    because "See docs page" sitting at the end of a sentence has to read as a
    link on the first glance and not on the second. */

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.139.1",
+		date: "2026-10-06",
+		headline: "Key Value Pair's Value picker and field are one height.",
+		affects: ["editor"],
+		fixed: [
+			"The Value picker in Key Value Pair's Inspector is the height of the field beside it, and only as wide as what it says, leaving the field the room to type in.",
+		],
+	},
+	{
 		version: "0.139.0",
 		date: "2026-10-06",
 		headline: "Key Value Pair's value can be a local or a variable, picked from a list.",
