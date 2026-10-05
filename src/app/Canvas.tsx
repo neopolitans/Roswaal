@@ -462,6 +462,7 @@ export function Canvas({
 		const g = gesture.current;
 		if (g.kind === "move" || g.kind === "resize") store.end();
 		gesture.current = { kind: "none" };
+		store.hold("wire", false);
 		activePointer.current = null;
 		// Cleared with the gesture, so the next wire starts unhandled whichever
 		// way it was picked up. Left set, a wire lifted off a wired input after
@@ -783,6 +784,7 @@ export function Canvas({
 	function startWire(e: ReactPointerEvent, from: PinRef, side: "in" | "out", pin: PinDef) {
 		wireHandled.current = false;
 		gesture.current = { kind: "wire", from, side, pin };
+		store.hold("wire", true);
 		setWireDrag({ from, side, kind: pin.kind, type: pin.type });
 		setPointer(toWorld(e.clientX, e.clientY));
 	}

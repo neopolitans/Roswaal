@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.138.4",
+		date: "2026-10-06",
+		headline: "Dynamic compiling no longer undoes an edit you just made.",
+		affects: ["editor"],
+		fixed: [
+			"With Dynamic compiling, an open graph could take an older copy of its own file back from disk, so a recombined pin came apart on its own and a wire being dragged lost the pin it was going to land on. A graph now knows its recent saves, ignores news of a file it is still saving, and waits for a wire or the menu it was dropped into before taking a change from disk.",
+		],
+	},
+	{
 		version: "0.138.3",
 		date: "2026-10-06",
 		headline: "A named result shows in its node's header.",

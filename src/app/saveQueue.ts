@@ -53,6 +53,11 @@ export class SaveQueue {
 		return this.pending.size > 0 || this.running.size > 0;
 	}
 
+	/** True while a write to `path` is waiting or being written. */
+	has(path: string): boolean {
+		return this.pending.has(path) || this.running.has(path);
+	}
+
 	/** Writes `path` now, if anything is waiting for it, and waits for it to land. */
 	flush(path: string): Promise<void> {
 		const waiting = this.pending.get(path);

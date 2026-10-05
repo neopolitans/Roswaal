@@ -145,6 +145,11 @@ export function App() {
 	const [nodePicker, setNodePicker] = useState<{ x: number; y: number; from?: WireFrom } | null>(
 		null,
 	);
+	// A wire dropped into the menu or the picker is still half-done: a graph
+	// taken from disk now would take the pin it is waiting to land on.
+	useEffect(() => {
+		store.hold("menu", Boolean(menu?.from || nodePicker?.from));
+	}, [menu, nodePicker]);
 	/** The docs page the editor's Ctrl+K jumped to, opened in the docs window. */
 	const [docsJump, setDocsJump] = useState(false);
 	const [pinMenu, setPinMenu] = useState<PinMenuTarget | null>(null);

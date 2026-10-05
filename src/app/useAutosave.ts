@@ -36,6 +36,25 @@ export interface Autosave {
 	followDiskRef: { readonly current: (type: string, path: string) => Promise<void> };
 }
 
+/**
+ * What to do with a graph's file as it now reads on disk.
+ *
+ * - `ours`: it is what this tab wrote, lately or just now, or what is open;
+ * - `later`: somebody else's, but a wire is in the air or waiting in the menu,
+ *   so it is asked again once that has landed;
+ * - `reload`: somebody else's, and the open graph has nothing unsaved;
+ * - `ask`: somebody else's, and the open graph has edits of its own.
+ */
+export function diskVerdict(
+	disk: string,
+	written: readonly string[],
+	open: { text: string; dirty: boolean; busy: boolean },
+): "ours" | "later" | "reload" | "ask" {
+	if (written.includes(disk) || disk === open.text) return "ours";
+	if (open.busy) return "later";
+	return open.dirty ? "ask" : "reload";
+}
+
 export function useAutosave(context: AutosaveContext): Autosave {
 	const {
 		saves,
@@ -74,10 +93,20 @@ export function useAutosave(context: AutosaveContext): Autosave {
 			.then(({ results }) => onMapCompiled?.(results))
 			.catch(() => undefined);
 	};
-	/** What this tab last wrote to each graph, to tell its own writes from somebody else's. */
-	const lastWritten = useRef(new Map<string, string>());
+	/**
+	 * What this tab recently wrote to each graph, newest last, to tell its own
+	 * writes from somebody else's.
+	 *
+	 * Several, not the last one. With Dynamic compiling every save is followed
+	 * by the daemon's news that the file changed, and when saves come quickly
+	 * that news can arrive about one write after the next has been made. Known
+	 * only by the newest, the older one read as somebody else's edit, and a
+	 * clean graph took it: a recombined pin came apart on its own.
+	 */
+	const lastWritten = useRef(new Map<string, string[]>());
 	const writeGraph = useCallback(async (path: string, script: NodeScript) => {
-		lastWritten.current.set(path, serialiseScript(script));
+		const recent = lastWritten.current.get(path) ?? [];
+		lastWritten.current.set(path, [...recent, serialiseScript(script)].slice(-16));
 		await api.writeScript(path, script);
 		store.markSaved(path, script);
 		compileAfterSave.current(path);
@@ -130,6 +159,9 @@ export function useAutosave(context: AutosaveContext): Autosave {
 	const followDisk = useCallback(
 		async (type: string, path: string) => {
 			if (!path.endsWith(".nodescript") || !store.document(path)) return;
+			// A write of this file is waiting or on its way: this news is about
+			// an older one, and the newer one will bring news of its own.
+			if (type !== "removed" && saves.has(path)) return;
 			const disk = await api.readScript(path).then(
 				(reply) => reply.script,
 				() => null,
@@ -151,9 +183,17 @@ export function useAutosave(context: AutosaveContext): Autosave {
 				return;
 			}
 
-			const text = serialiseScript(disk);
-			if (text === lastWritten.current.get(path) || text === serialiseScript(open.script)) return;
-			if (!open.dirty) {
+			const verdict = diskVerdict(
+				serialiseScript(disk),
+				lastWritten.current.get(path) ?? [],
+				{ ...open, text: serialiseScript(open.script) },
+			);
+			if (verdict === "ours") return;
+			if (verdict === "later") {
+				setTimeout(() => void followDiskRef.current(type, path), 400);
+				return;
+			}
+			if (verdict === "reload") {
 				store.reload(path, disk);
 				return;
 			}

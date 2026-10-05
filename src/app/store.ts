@@ -678,9 +678,24 @@ class Store {
 	}
 
 	/** The script open at `path`, and whether it has edits not on disk. */
-	document(path: string): { script: NodeScript; dirty: boolean } | undefined {
+	document(path: string): { script: NodeScript; dirty: boolean; busy: boolean } | undefined {
 		const doc = this.docs.get(path);
-		return doc ? { script: doc.script, dirty: doc.dirty } : undefined;
+		return doc
+			? { script: doc.script, dirty: doc.dirty, busy: doc.pending !== null || this.holds.size > 0 }
+			: undefined;
+	}
+
+	/**
+	 * Something half-done that a graph taken from disk would break: a wire
+	 * being dragged, or the menu it was dropped into. Keyed, so the canvas and
+	 * the menu each say so without knowing about the other. A file changed on
+	 * disk waits until they are done; see `followDisk`.
+	 */
+	private holds = new Set<string>();
+
+	hold(key: string, on: boolean): void {
+		if (on) this.holds.add(key);
+		else this.holds.delete(key);
 	}
 
 	// -- editing -----------------------------------------------------------
