@@ -115,3 +115,47 @@ describe("presets", () => {
 		expect(presets.map((p) => p.title)).toEqual(["Get hp", "Set hp"]);
 	});
 });
+
+/**
+ * Off a pin, the thing itself before its members.
+ *
+ * Typing `wea` with a wire from an Instance input listed `weapon.Archivable`
+ * and five more members above `Get weapon`: a member's title starts with the
+ * query and the getter's only contains it, and the members' own types were
+ * never checked against the wire.
+ */
+describe("a wire asking for a value", async () => {
+	const { buildPresets, libraryItems, searchMenu } = await import("../src/app/menuSearch.js");
+	const { memberPresets } = await import("../src/app/memberPresets.js");
+	const { createRegistry: makeRegistry } = await import("../src/core/nodes/index.js");
+	const { Builder } = await import("./helpers.js");
+
+	const registry = makeRegistry();
+	const b = new Builder();
+	const local = b.node("local.declare", { config: { type: "Instance" } });
+	b.lit(local, "name", { t: "string", v: "weapon" });
+	const script = b.build();
+	const base = buildPresets(script, null, registry);
+	const presets = [...base, ...memberPresets(base, script, registry, [])];
+	const items = libraryItems(registry, "roblox", presets);
+	const from = {
+		ref: { node: "need", pin: "a0" },
+		side: "in" as const,
+		pin: { id: "a0", name: "parent", kind: "data" as const, type: "Instance" },
+	};
+	const results = searchMenu(
+		"wea",
+		{ items, services: [], lune: [], names: [], draggedService: [], draggedMembers: [] },
+		from,
+	).map((item) => item.title);
+
+	it("offers the getter first", () => {
+		expect(results[0]).toBe("Get weapon");
+	});
+
+	it("leaves out members the pin cannot take", () => {
+		expect(results).not.toContain("weapon.Archivable");
+		expect(results).not.toContain("weapon.Name");
+		expect(results).toContain("weapon.Parent");
+	});
+});

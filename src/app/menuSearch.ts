@@ -25,8 +25,9 @@ import { luneMenuItems, lunePins } from "../core/luneCalls.js";
 import { type MemberLookup, membersOfType } from "../core/members.js";
 import { namedResultRef } from "../core/namedResults.js";
 import { FUNCTION_NODES, signatureOf, signatureText } from "../core/nodes/flow.js";
-import { categories, type Registry, subcategories } from "../core/nodes/index.js";
+import { categories, type Registry, resolveNodePins, subcategories } from "../core/nodes/index.js";
 import { classify, classifyFor, runtimeLabelFor } from "../core/nodes/runtimes.js";
+import { pinTypeOf } from "../core/nodes/variables.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
 import {
 	callSignature,
@@ -447,7 +448,11 @@ export function searchMenu(
 	sources: MenuSources,
 	from: WireFrom | undefined,
 ): MenuItem[] {
-	const { items, services, lune, names, draggedService, draggedMembers } = sources;
+	const { services, lune, names, draggedService, draggedMembers } = sources;
+	// The graph's own entries are judged by the pins they would arrive with:
+	// a Get Local declares an `any` output, so the library's own narrowing let
+	// a boolean member through to an Instance pin.
+	const items = from ? sources.items.filter((item) => fitFor(item, from) > 0) : sources.items;
 	const q = query.trim().toLowerCase();
 	if (!q) return [...draggedMembers, ...draggedService, ...items.filter((item) => !item.deep)];
 
@@ -472,11 +477,48 @@ export function searchMenu(
 		...names.filter(reach),
 	];
 
+	// Within one score, what the wire wants first: a result of exactly the
+	// pin's type before one that merely connects, and the thing itself before
+	// a member of it, so `wea` into an Instance pin offers Get weapon first.
 	return searchable
-		.map((item) => ({ item, score: score(item, q) }))
+		.map((item) => ({ item, score: score(item, q), fit: from ? fitFor(item, from) : 1 }))
 		.filter((x) => x.score > 0)
-		.sort((a, b) => b.score - a.score)
+		.sort(
+			(a, b) =>
+				b.score - a.score ||
+				b.fit - a.fit ||
+				Number(a.item.deep === true) - Number(b.item.deep === true),
+		)
 		.map((x) => x.item);
+}
+
+/**
+ * How well an entry takes the wire in flight: 2 for a pin of exactly the
+ * wire's type, 1 for one that connects, 0 for none.
+ *
+ * A member entry lands as the member, whatever its getter gives. Everything
+ * else lands as the pins it arrives with: its own when it carries them, else
+ * its definition's resolved with its config, which is where a Get Local's
+ * type is.
+ */
+export function fitFor(item: MenuItem, from: WireFrom): number {
+	const side = from.side === "out" ? "in" : "out";
+	let list: PinDef[];
+	if (item.member) {
+		if (side === "in") return 0;
+		// Written as Luau (`Instance?`); a pin carries the name it wires as.
+		list = [
+			{ id: "value", name: item.member.name, kind: "data", type: pinTypeOf(item.member.type) },
+		];
+	} else {
+		const pins = item.pins ?? resolveNodePins(item.def, item.config);
+		list = side === "in" ? pins.inputs : pins.outputs;
+	}
+	const landing = landingPins(item.def, list, from.pin, side);
+	if (landing.length === 0) return 0;
+	const wanted = from.pin.type ?? "any";
+	if (from.pin.kind !== "data" || wanted === "any") return 1;
+	return landing.some((pin) => pin.type === wanted) ? 2 : 1;
 }
 
 /**
@@ -555,16 +597,19 @@ export function score(item: MenuItem, query: string): number {
 	// Each, then For Each (Array), which is the order somebody means them in.
 	if (at >= 0) return 1000 - at;
 
-	const title = item.title.toLowerCase();
-	if (title === query) return 500;
+	const full = item.title.toLowerCase();
+	// "Get weapon" is found by "weapon" as well as a "weapon.Name" is: the verb
+	// is the menu's, the name is what somebody types.
+	const title = full.replace(/^(get|set|call) /, "");
+	if (full === query || title === query) return 500;
 	// The library node only: a preset's title is a name somebody chose.
 	const alias = item.title === item.def.title ? aliasScore(item.def.id, query) : 0;
 	if (alias === 450) return alias;
 	// The symbol a pill wears is a name for it: typing `~=` finds Not Equal.
 	if (item.def.operator?.toLowerCase() === query) return 400;
-	if (title.startsWith(query)) return 100;
+	if (title.startsWith(query) || full.startsWith(query)) return 100;
 	if (alias > 0) return alias;
-	if (title.includes(query)) return 60;
+	if (full.includes(query)) return 60;
 	// The label as well as the key: the heading says "Roblox" and typing what
 	// you can see should find what is under it.
 	if (categoryLabel(item.category).toLowerCase().includes(query)) return 30;

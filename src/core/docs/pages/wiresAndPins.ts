@@ -121,7 +121,7 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 					["Drag from a pin", "Start a wire. Pins of other types dim"],
 					[
 						"Drop it on empty space",
-						"The node menu, showing only nodes that can take it. Picking one connects it",
+						"The node menu, showing only nodes that can take it, those of exactly its type first. Picking one connects it",
 					],
 					["`Ctrl` + drop it on empty space", "The node picker, and the same connection"],
 					[

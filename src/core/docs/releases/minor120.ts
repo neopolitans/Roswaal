@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.138.2",
+		date: "2026-10-05",
+		headline: "Off a pin, the node menu offers the value before its members.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"Searching the node menu off a pin lists Get and a local's name before that local's members, and a result of exactly the pin's type before one that only connects.",
+			"Members the pin cannot take, such as a boolean property for an Instance pin, are no longer offered.",
+		],
+	},
+	{
 		version: "0.138.1",
 		date: "2026-10-05",
 		headline: "Go to a local from the Variables panel.",
