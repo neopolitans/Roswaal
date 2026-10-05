@@ -20,6 +20,7 @@ import type { NodeScript } from "../core/schema.js";
 
 import { Icon } from "./icons.jsx";
 import { ZOOM } from "./layers.js";
+import { readPreferences } from "./preferences.js";
 import { store, useView } from "./store.js";
 import { showToast } from "./Toast.jsx";
 
@@ -89,6 +90,27 @@ function canvasBox(): DOMRect | null {
 }
 
 const clamp = (zoom: number) => Math.min(ZOOM.max, Math.max(ZOOM.min, zoom));
+
+/**
+ * Brings one node to the middle of the canvas no card covers, at the zoom the
+ * view is already at. For a list that points at a node from outside the
+ * canvas, after `store.reveal` has opened its graph and selected it.
+ */
+export function frameNode(nodeId: string, registry: Registry): void {
+	const { script, graph } = store.getSnapshot();
+	const box = canvasBox();
+	if (!script || !box) return;
+	const node = viewOf(script, graph).nodes.find((n) => n.id === nodeId);
+	if (!node) return;
+	const r = nodeBounds(node, registry, readPreferences().wideNodes);
+	const free = freeBox(box);
+	const { zoom } = store.getView();
+	store.setView({
+		x: free.x + free.w / 2 - (r.x + r.w / 2) * zoom,
+		y: free.y + free.h / 2 - (r.y + r.h / 2) * zoom,
+		zoom,
+	});
+}
 
 /** Zooms about the middle of the canvas, so what is in the middle stays there. */
 function zoomTo(zoom: number) {

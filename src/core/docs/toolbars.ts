@@ -716,7 +716,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				`<span class="swatch${colour ? "" : " module"}"` +
 				`${colour ? ` style="background:${escapeXml(colour)}"` : ""}></span>` +
 				`<span class="name">${escapeXml(item.label)}</span>` +
-				`${item.badge ? `<span class="badge const">${escapeXml(item.badge)}</span>` : ""}` +
+				`${item.badge ? `<span class="${item.badge === "result" ? "badge-result" : "badge const"}">${escapeXml(item.badge)}</span>` : ""}` +
 				`${item.trailing ? `<span class="type">${escapeXml(item.trailing)}</span>` : ""}` +
 				`</div></div>`
 			);
@@ -1997,13 +1997,14 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 					text: "Locals",
 					name: "Locals",
 					what:
-						"The Declare Locals this graph can see. A local exists inside the block that " +
-						"declared it, so the list changes with the graph you are looking at — and there " +
-						"is no **Add**, because a local is declared by a node on the canvas, where it " +
-						"runs.",
+						"The Declare Locals and named results this graph can see. A local exists inside " +
+						"the block that declared it, so the list changes with the graph you are looking " +
+						"at — and there is no **Add**, because a local is declared by a node on the " +
+						"canvas, where it runs. Double-click one, or `Ctrl` + click it, to go to its node.",
 				},
 				{ t: "row", label: "restores", trailing: "{ [Model]: Restore }", swatch: "table" },
 				{ t: "row", label: "tuning", trailing: "Tuning", swatch: "table", badge: "const" },
+				{ t: "row", label: "hullModel", trailing: "Instance", swatch: "Instance", badge: "result" },
 				{
 					t: "heading",
 					text: "Functions",

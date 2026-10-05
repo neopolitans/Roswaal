@@ -3689,6 +3689,13 @@ button.start-tile:disabled {
 	font-family: "Cascadia Mono", Consolas, monospace;
 }
 
+/* What a named-result row is, in the type's quiet colour so the name reads first. */
+.variable-head .badge-result {
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+	font-family: "Cascadia Mono", Consolas, monospace;
+}
+
 /* Faint until pointed at, so a list of locals does not read as a list of
    deletes; still there for a finger, which cannot hover. */
 .variable-head .variable-delete {

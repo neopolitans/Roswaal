@@ -26,6 +26,7 @@ import type {
 	ScriptVariable,
 } from "../core/schema.js";
 import { SPECIFIER_HINTS } from "../core/schema.js";
+import { frameNode } from "./CanvasStrip.jsx";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import {
@@ -98,6 +99,11 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 	};
 
 	const [open, setOpen] = useState<string | null>(null);
+	// Double-click or Ctrl+click a local: its node, brought into view.
+	const goTo = (id: string) => {
+		store.reveal(id);
+		requestAnimationFrame(() => frameNode(id, registry));
+	};
 	// Both kinds, because a graph's functions are its functions: which one is
 	// hoisted is a property of each, shown on the row rather than sorted on.
 	// The list is not scoped: it is how you move between a file's functions, and
@@ -209,10 +215,17 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 								key={node.id}
 								node={node}
 								onDelete={() => deleteDeclaration(node, "local")}
+								onGoTo={() => goTo(node.id)}
 							/>
 						))}
 						{namedResults.map(({ node, ref }) => (
-							<NamedResultRow key={node.id} node={node} name={ref.name} type={ref.type} />
+							<NamedResultRow
+								key={node.id}
+								node={node}
+								name={ref.name}
+								type={ref.type}
+								onGoTo={() => goTo(node.id)}
+							/>
 						))}
 					</>
 				)}
@@ -444,7 +457,15 @@ function RowDelete({ name, onDelete }: { name: string; onDelete: () => void }) {
 }
 
 /** One Declare Local: drag it for a Get Local, click it to find the node. */
-function LocalRow({ node, onDelete }: { node: GraphNode; onDelete: () => void }) {
+function LocalRow({
+	node,
+	onDelete,
+	onGoTo,
+}: {
+	node: GraphNode;
+	onDelete: () => void;
+	onGoTo: () => void;
+}) {
 	const ref = localRefFor(node);
 	const declared = configText(node, "type")?.trim();
 
@@ -458,9 +479,10 @@ function LocalRow({ node, onDelete }: { node: GraphNode; onDelete: () => void })
 			<div
 				className="variable-head"
 				draggable
-				title="Drag onto the canvas for a Get Local. Click to select its Declare Local."
+				title="Drag onto the canvas for a Get Local. Click to select its Declare Local; double-click or Ctrl+click to go to it."
 				onDragStart={onDragStart}
-				onClick={() => store.reveal(node.id)}
+				onClick={(e) => (e.ctrlKey || e.metaKey ? onGoTo() : store.reveal(node.id))}
+				onDoubleClick={onGoTo}
 			>
 				<span className="swatch" style={{ background: pinColor(ref.type, "data") }} />
 				<span className="name">{ref.name}</span>
@@ -481,7 +503,17 @@ function LocalRow({ node, onDelete }: { node: GraphNode; onDelete: () => void })
  * No delete: the row is a call that does something, and removing its local is
  * clearing its Result name, in the Inspector where the name was typed.
  */
-function NamedResultRow({ node, name, type }: { node: GraphNode; name: string; type: string }) {
+function NamedResultRow({
+	node,
+	name,
+	type,
+	onGoTo,
+}: {
+	node: GraphNode;
+	name: string;
+	type: string;
+	onGoTo: () => void;
+}) {
 	function onDragStart(e: DragEvent) {
 		e.dataTransfer.setData("application/x-roswaal-local", JSON.stringify({ id: node.id }));
 		e.dataTransfer.effectAllowed = "copy";
@@ -491,13 +523,14 @@ function NamedResultRow({ node, name, type }: { node: GraphNode; name: string; t
 			<div
 				className="variable-head"
 				draggable
-				title="A step's named result. Drag onto the canvas for a Get Local. Click to select the step."
+				title="A step's named result. Drag onto the canvas for a Get Local. Click to select the step; double-click or Ctrl+click to go to it."
 				onDragStart={onDragStart}
-				onClick={() => store.reveal(node.id)}
+				onClick={(e) => (e.ctrlKey || e.metaKey ? onGoTo() : store.reveal(node.id))}
+				onDoubleClick={onGoTo}
 			>
 				<span className="swatch" style={{ background: pinColor(type, "data") }} />
 				<span className="name">{name}</span>
-				<span className="badge">result</span>
+				<span className="badge-result">result</span>
 				<span className="type">{type}</span>
 			</div>
 		</div>

@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.138.1",
+		date: "2026-10-05",
+		headline: "Go to a local from the Variables panel.",
+		affects: ["editor", "docs"],
+		changed: [
+			"Double-click a local in the Variables panel, or `Ctrl` + click it, to go to the node that declares it, brought into view.",
+			"A named result's result tag is drawn in the type's quiet colour, so its name reads first.",
+		],
+	},
+	{
 		version: "0.138.0",
 		date: "2026-10-05",
 		headline: "A step's named result is a local you can read by name.",
