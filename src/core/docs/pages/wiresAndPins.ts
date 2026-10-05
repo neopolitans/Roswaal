@@ -123,6 +123,11 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 						"Drop it on empty space",
 						"The node menu, showing only nodes that can take it. Picking one connects it",
 					],
+					["`Ctrl` + drop it on empty space", "The node picker, and the same connection"],
+					[
+						"Drop a wired execution output on empty space",
+						"The new node goes in between: the step leads into it, and it leads on to the next one, from Then 0 on a Sequence and Completed on a loop",
+					],
 					[
 						"Drop a value on Add, Make Dictionary or a call",
 						"Adds an input for it and connects it",

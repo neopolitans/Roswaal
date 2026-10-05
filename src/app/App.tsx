@@ -50,6 +50,7 @@ import { Inspector } from "./Inspector.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { Icon } from "./icons.jsx";
 import { MapEditor } from "./MapEditor.jsx";
+import type { WireFrom } from "./menuSearch.js";
 import type { MenuAnchor } from "./NodeMenu.jsx";
 import { NodePicker } from "./NodePicker.jsx";
 import { functionNameOf } from "./nodeConfig.js";
@@ -141,7 +142,9 @@ export function App() {
 	 * right-click on the canvas, and the node goes where that click was however
 	 * long you spend looking through it.
 	 */
-	const [nodePicker, setNodePicker] = useState<{ x: number; y: number } | null>(null);
+	const [nodePicker, setNodePicker] = useState<{ x: number; y: number; from?: WireFrom } | null>(
+		null,
+	);
 	/** The docs page the editor's Ctrl+K jumped to, opened in the docs window. */
 	const [docsJump, setDocsJump] = useState(false);
 	const [pinMenu, setPinMenu] = useState<PinMenuTarget | null>(null);
@@ -1425,7 +1428,7 @@ export function App() {
 										wheel={wheelAction(prefs.wheel)}
 										wideNodes={prefs.wideNodes}
 										onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
-										onRequestNodePicker={(world) => setNodePicker(world)}
+										onRequestNodePicker={(world, from) => setNodePicker({ ...world, from })}
 										onDropNode={(defId, config, world, member) => {
 											const def = registry.get(defId);
 											if (def) spawn(def, world, config, undefined, member);
@@ -1481,7 +1484,7 @@ export function App() {
 					presets={presets}
 					preview={nodePreview}
 					onPick={(def, config, member) => {
-						spawn(def, nodePicker, config, undefined, member);
+						spawn(def, nodePicker, config, undefined, member, nodePicker.from);
 						setNodePicker(null);
 					}}
 					onClose={() => setNodePicker(null)}

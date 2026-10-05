@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.137.0",
+		date: "2026-10-05",
+		headline: "A node dragged off a wired execution output goes in between.",
+		affects: ["editor", "docs"],
+		added: [
+			"Drag off an execution output that is already wired, drop on empty space and pick a node: it goes in between, leading on to the next step from Then, Then 0 on a Sequence, or Completed on a loop.",
+			"Hold `Ctrl` as you drop a wire on empty space to pick the node from the node picker instead of the menu.",
+		],
+	},
+	{
 		version: "0.136.1",
 		date: "2026-10-05",
 		headline: "Roswaal Types reviewed again.",

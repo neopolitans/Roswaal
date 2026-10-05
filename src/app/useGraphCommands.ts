@@ -22,6 +22,7 @@ import {
 	connect,
 	copySelection,
 	deleteSelection,
+	insertIntoChain,
 	landingPins,
 	pasteClipping,
 	promoteToVariable,
@@ -39,7 +40,7 @@ import { isEditableTarget } from "./keys.js";
 import { NODE } from "./layers.js";
 import { autoLayout } from "./layout.js";
 import { memberPresets } from "./memberPresets.js";
-import { callPresets } from "./menuSearch.js";
+import { callPresets, type WireFrom } from "./menuSearch.js";
 import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
 import { configEntries, configText } from "./nodeConfig.js";
 import type { PinMenuTarget } from "./PinMenu.jsx";
@@ -172,8 +173,10 @@ export function useGraphCommands(context: GraphCommandsContext) {
 			 * holds — the entry saves the placing, not the nodes.
 			 */
 			member?: { name: string; type?: string },
+			/** The wire to land, when it is not the menu's: the visual picker's. */
+			wire?: WireFrom,
 		) => {
-			const from = menu?.from;
+			const from = wire ?? menu?.from;
 			// A hoisted Function is in no flow, so it goes straight into a graph of
 			// its own, and that graph opens.
 			const hoisted = def.id === "function.entry";
@@ -292,6 +295,12 @@ export function useGraphCommands(context: GraphCommandsContext) {
 				if (!landing) return next;
 
 				const target = { node: added.id, pin: landing.id };
+				// Off an execution output that already led somewhere, the new node
+				// goes in between rather than taking the wire and dropping the rest
+				// of the chain. See `insertIntoChain`.
+				if (from.side === "out" && from.pin.kind === "exec" && landing.kind === "exec") {
+					return insertIntoChain(next, registry, from.ref, target);
+				}
 				next =
 					from.side === "out"
 						? connect(next, registry, from.ref, target)

@@ -16,7 +16,12 @@ import {
 	viewOf,
 	withFunctionGraphs,
 } from "../core/functionGraph.js";
-import { FUNCTION_NODES, HANDLER_NODES, signatureOf } from "../core/nodes/flow.js";
+import {
+	continuesEnclosingBlock,
+	FUNCTION_NODES,
+	HANDLER_NODES,
+	signatureOf,
+} from "../core/nodes/flow.js";
 import { currentArity, type GrowthRule, growthRule } from "../core/nodes/growth.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins, pinTypesOf, resolveNodePins } from "../core/nodes/index.js";
@@ -715,6 +720,48 @@ export function landingPins(
  * wire and an execution output leads to one node, so connecting always
  * replaces rather than piling up — which is what makes rewiring feel direct.
  */
+/**
+ * The execution output a node inserted into a chain hands on from: the one
+ * that carries on in the block its input is in.
+ *
+ * `then` for a step, Completed for a loop, Then 0 for a Sequence (all of whose
+ * outputs carry on, so the first). A Branch has none, since both arms open a
+ * block and nothing follows the if-statement itself; there it is the first,
+ * True, which is the only place the rest of the chain can go. Undefined for a
+ * node with no execution output at all, a Return, which ends the chain.
+ */
+export function continuingOutput(defId: string, outputs: readonly PinDef[]): PinDef | undefined {
+	const exec = outputs.filter((p) => p.kind === "exec");
+	return exec.find((p) => continuesEnclosingBlock(defId, p.id)) ?? exec[0];
+}
+
+/**
+ * Wires a node in between two steps: `from` into the new node's input, and the
+ * new node's continuing output on to whatever `from` led to before.
+ *
+ * What dragging a new node off an execution output that is already wired
+ * means. Without it the new node took the wire and the rest of the chain fell
+ * off, to be found and wired back by hand.
+ */
+export function insertIntoChain(
+	script: NodeScript,
+	registry: Registry,
+	from: PinRef,
+	into: PinRef,
+): NodeScript {
+	const before = script.links.find(
+		(l) => l.from.node === from.node && l.from.pin === from.pin && l.to.node !== into.node,
+	);
+	const wired = connect(script, registry, from, into);
+	if (!before || wired === script) return wired;
+	const node = wired.nodes.find((n) => n.id === into.node);
+	const def = node && registry.get(node.def);
+	if (!node || !def) return wired;
+	const out = continuingOutput(def.id, pinsOf(def, node).outputs);
+	if (!out) return wired;
+	return connect(wired, registry, { node: into.node, pin: out.id }, before.to);
+}
+
 export function connect(
 	script: NodeScript,
 	registry: Registry,

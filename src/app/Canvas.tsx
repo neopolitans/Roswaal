@@ -112,7 +112,11 @@ export interface CanvasProps {
 	 * Ctrl and the right mouse button: the node picker, which draws what it
 	 * offers. Absent leaves the gesture as an ordinary right-click.
 	 */
-	onRequestNodePicker?: (world: Vec) => void;
+	/** The visual node picker, carrying the wire it was dropped from when there is one. */
+	onRequestNodePicker?: (
+		world: Vec,
+		from?: { ref: PinRef; side: "in" | "out"; pin: PinDef; service?: string },
+	) => void;
 	/**
 	 * A node dragged off the node picker's list, dropped here. The caller
 	 * places it, since placing one is the picker's job and it closes after.
@@ -641,11 +645,18 @@ export function Canvas({
 					// on that service's methods rather than on everything.
 					const source = script.nodes.find((n) => n.id === g.from.node);
 					const service = g.side === "out" ? serviceFromSource(source, g.pin.type) : undefined;
-					onRequestMenu(
-						{ x: e.clientX - box.left, y: e.clientY - box.top },
-						toWorld(e.clientX, e.clientY),
-						{ ref: g.from, side: g.side, pin: g.pin, service },
-					);
+					const wire = { ref: g.from, side: g.side, pin: g.pin, service };
+					// Ctrl asks the same question the slower way, as it does on the
+					// empty canvas: the picker, which draws each node as you walk it.
+					if ((e.ctrlKey || e.metaKey) && onRequestNodePicker) {
+						onRequestNodePicker(toWorld(e.clientX, e.clientY), wire);
+					} else {
+						onRequestMenu(
+							{ x: e.clientX - box.left, y: e.clientY - box.top },
+							toWorld(e.clientX, e.clientY),
+							wire,
+						);
+					}
 				}
 			}
 			endGesture();
