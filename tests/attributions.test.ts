@@ -19,7 +19,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
-
+import { ICONS, SHOWS_LUAU_MARK } from "../src/app/icons.jsx";
 import {
 	ATTRIBUTIONS,
 	DEPENDENCIES,
@@ -214,5 +214,21 @@ describe("what Roswaal uses, learned from, and writes for", () => {
 	it("says the same in ATTRIBUTIONS.md", () => {
 		expect(NOTICE).toContain("What Roswaal is built on");
 		expect(NOTICE).toContain("What Roswaal is inspired by");
+	});
+});
+/**
+ * The Luau logo is the `.luau` icon on the canary only, until Roblox has
+ * answered whether the use is permitted. The suite builds as stable, so here
+ * the icon must be the code file, and the stable docs must not claim the logo.
+ */
+describe("the Luau mark stays on the canary", () => {
+	it("is not drawn by a stable build", () => {
+		expect(SHOWS_LUAU_MARK).toBe(false);
+		expect(ICONS.luauScript).toBe(ICONS.codeFile);
+	});
+
+	it("is described as canary-only wherever it is described", () => {
+		expect(NOTICE).toContain("In the canary build only");
+		expect(pageText).toContain("In the canary build only");
 	});
 });

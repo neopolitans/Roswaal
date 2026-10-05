@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.133.1",
+		date: "2026-10-05",
+		headline: "The Luau logo stays on the canary for now.",
+		affects: ["editor", "docs"],
+		changed: [
+			"Only the canary draws `.luau` files with the Luau logo. The stable build keeps the code file icon, and its Settings → Licences and Attributions say so.",
+		],
+	},
+	{
 		version: "0.133.0",
 		date: "2026-10-05",
 		headline: "Call a function by its name, with a pin for each parameter.",
@@ -17,8 +26,7 @@ export const RELEASES_0_120: Release[] = [
 			"**Script Function**, a step and a value. Type a function's name into the node search and Call need places one, with need's parameters as named, typed pins and its return values as outputs.",
 			"A required module's exported functions are offered the same way, as Call Config.read.",
 			"The pins follow the function's signature. Rename, reorder or remove a parameter and the wires move with it.",
-			"`.luau` files in the Project panel, tabs and DataModel wear the Luau logo, in the colour of the script they become.",
-			"Settings → Licences carries the Luau logo's licence.",
+			"On the canary, `.luau` files in the Project panel, tabs and DataModel wear the Luau logo, in the colour of the script they become, and Settings → Licences carries its licence.",
 		],
 		fixed: [
 			"Call For Value's arguments grow and shrink from its header and the Inspector, as Call Function's do.",

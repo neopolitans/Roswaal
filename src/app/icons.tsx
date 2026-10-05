@@ -19,6 +19,26 @@
  */
 export const VIEW_BOX = "0 -960 960 960";
 
+declare const __ROSWAAL_CHANNEL__: string | undefined;
+
+/**
+ * Whether this build draws `.luau` files with the Luau logo: the canary only,
+ * until Roblox has answered whether that use is permitted (asked 5 Oct 2026).
+ *
+ * Vite's define in the editor, which the minifier folds, so a stable bundle
+ * holds no copy of the mark. `ROSWAAL_CHANNEL` when the docs build or the
+ * landing page imports this file under Node, where there is no define.
+ */
+export const SHOWS_LUAU_MARK: boolean =
+	typeof __ROSWAAL_CHANNEL__ === "string"
+		? __ROSWAAL_CHANNEL__ === "canary"
+		: (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+				?.ROSWAAL_CHANNEL === "canary";
+
+/** Material's page with its code glyph cut out. See `codeFile` and `luauScript`. */
+const CODE_FILE =
+	"M240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240ZM520-600h200L520-800v200ZM396.8 -205.2 272 -330 396.8 -454.8 426.4 -425.2 330.8 -329.5 425.9 -234.3ZM563.2 -205.2 533.6 -234.8 629.2 -330.5 534.1 -425.7 563.2 -454.8 688 -330Z";
+
 export const ICONS = {
 	chevron: "M480-345 240-585l56-56 184 184 184-184 56 56-240 240Z",
 
@@ -48,17 +68,18 @@ export const ICONS = {
 	 * what makes those holes. Lune's nodes wear it; it was the `.luau` icon
 	 * until 0.133.0.
 	 */
-	codeFile:
-		"M240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240ZM520-600h200L520-800v200ZM396.8 -205.2 272 -330 396.8 -454.8 426.4 -425.2 330.8 -329.5 425.9 -234.3ZM563.2 -205.2 533.6 -234.8 629.2 -330.5 534.1 -425.7 563.2 -454.8 688 -330Z",
+	codeFile: CODE_FILE,
 	/**
-	 * A Luau script: the Luau logo's two squares, without its lettering, from
-	 * `logo.svg` in luau-lang/site (MIT, Roblox Corporation; see
-	 * `notices/luau-logo.txt`). It refers to the file's language, the way an
-	 * editor's file icon does, and is never Roswaal's own mark. The corner
+	 * A Luau script. On the canary, the Luau logo's two squares without its
+	 * lettering, from `logo.svg` in luau-lang/site (MIT, Roblox Corporation; see
+	 * `notices/upstream/luau-site.txt`): it refers to the file's language, the way
+	 * an editor's file icon does, and is never Roswaal's own mark. The corner
 	 * square is cut out, even-odd, so the mark takes the script's colour.
+	 * Everywhere else, the code file. See `SHOWS_LUAU_MARK`.
 	 */
-	luauScript:
-		"M240.5 -848.6Q248.9 -880.2 280.5 -871.8L848.6 -719.5Q880.2 -711.1 871.8 -679.5L719.5 -111.4Q711.1 -79.8 679.5 -88.2L111.4 -240.5Q79.8 -248.9 88.2 -280.5ZM651.8 -679.2Q653.9 -687.1 661.8 -685L772.3 -655.4Q780.2 -653.3 778 -645.4L748.4 -534.9Q746.3 -527 738.4 -529.2L628 -558.8Q620.1 -560.9 622.2 -568.8Z",
+	luauScript: SHOWS_LUAU_MARK
+		? "M240.5 -848.6Q248.9 -880.2 280.5 -871.8L848.6 -719.5Q880.2 -711.1 871.8 -679.5L719.5 -111.4Q711.1 -79.8 679.5 -88.2L111.4 -240.5Q79.8 -248.9 88.2 -280.5ZM651.8 -679.2Q653.9 -687.1 661.8 -685L772.3 -655.4Q780.2 -653.3 778 -645.4L748.4 -534.9Q746.3 -527 738.4 -529.2L628 -558.8Q620.1 -560.9 622.2 -568.8Z"
+		: CODE_FILE,
 	newFile:
 		"M440-240h80v-120h120v-80H520v-120h-80v120H320v80h120v120ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z",
 

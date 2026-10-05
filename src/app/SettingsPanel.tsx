@@ -23,7 +23,7 @@ import { INDENT_WIDTHS, type RoswaalConfig, type Target } from "../core/schema.j
 import { CODE_ROLES, ROLES, type Theme, themeSlug } from "../core/theme.js";
 import { LICENCE_TEXTS } from "../core/themeData.js";
 import { cx } from "./cx.js";
-import { Icon } from "./icons.jsx";
+import { Icon, SHOWS_LUAU_MARK } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { floatPanel } from "./panels.js";
@@ -46,7 +46,11 @@ const TABS = [
 	{ id: "editor", title: "Editor", sub: "This browser" },
 	{ id: "themes", title: "Themes", sub: "This browser" },
 	{ id: "docs", title: "Docs", sub: "This browser" },
-	{ id: "licences", title: "Licences", sub: "What themes and icons carry" },
+	{
+		id: "licences",
+		title: "Licences",
+		sub: SHOWS_LUAU_MARK ? "What themes and icons carry" : "What themes carry",
+	},
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -806,8 +810,8 @@ function Licences() {
 		<>
 			<h2>Licences</h2>
 			<p className="settings-note">
-				Roswaal is 0BSD. These are the schemes and the icon that are somebody else's work, and the
-				terms they came with.
+				Roswaal is 0BSD. These are the schemes{SHOWS_LUAU_MARK ? " and the icon" : ""} that are
+				somebody else's work, and the terms they came with.
 			</p>
 
 			{carried.map((theme) => {
@@ -832,19 +836,22 @@ function Licences() {
 			})}
 
 			{/*
-			 * The `.luau` file icon is the Luau logo's two squares, and the logo
-			 * is MIT. The trademark line is the one luau.org/brand asks for.
+			 * On the canary, the `.luau` file icon is the Luau logo's two squares,
+			 * and the logo is MIT. The trademark line is the one luau.org/brand
+			 * asks for. Only where the mark is drawn: see `SHOWS_LUAU_MARK`.
 			 */}
-			<div className="licence">
-				<h3>
-					Luau logo <span className="spdx">MIT</span>
-				</h3>
-				<p className="settings-note">
-					Roblox Corporation. The <code>.luau</code> file icon. Luau is a trademark of Roblox
-					Corporation.
-				</p>
-				<pre className="licence-text">{LUAU_LOGO_LICENCE}</pre>
-			</div>
+			{SHOWS_LUAU_MARK && (
+				<div className="licence">
+					<h3>
+						Luau logo <span className="spdx">MIT</span>
+					</h3>
+					<p className="settings-note">
+						Roblox Corporation. The <code>.luau</code> file icon. Luau is a trademark of Roblox
+						Corporation.
+					</p>
+					<pre className="licence-text">{LUAU_LOGO_LICENCE}</pre>
+				</div>
+			)}
 
 			<p className="settings-note">
 				The schemes credited to <strong>neopolitans</strong> are the maintainer's own and carry no
