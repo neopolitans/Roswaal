@@ -105,6 +105,45 @@ export function addNode(
 	return { script: { ...script, nodes: [...script.nodes, node] }, id };
 }
 
+/**
+ * A local or a script variable wired into an input: its getter, placed to the
+ * left of the node and in the same graph, wired in.
+ *
+ * What picking one from a value picker means. The value is the getter, as it
+ * would be had it been placed and wired by hand, so it reads the same on the
+ * canvas and compiles the same.
+ */
+export function wireGetterInto(
+	script: NodeScript,
+	registry: Registry,
+	to: PinRef,
+	source: { local: string } | { variable: string },
+): NodeScript {
+	const target = script.nodes.find((n) => n.id === to.node);
+	const isLocal = "local" in source;
+	const def = registry.get(isLocal ? "local.get" : "variable.get");
+	if (!target || !def) return script;
+	const added = addNode(script, def, target.x - 220, target.y + 48);
+	let next: NodeScript = {
+		...added.script,
+		nodes: added.script.nodes.map((n) =>
+			n.id === added.id && target.graph !== undefined ? { ...n, graph: target.graph } : n,
+		),
+	};
+	if (isLocal) {
+		next = bindNodeToLocal(next, added.id, source.local, registry);
+	} else {
+		const variable = next.variables.find((v) => v.id === source.variable);
+		if (!variable) return script;
+		next = setConfig(next, added.id, {
+			variable: variable.id,
+			name: variable.name,
+			type: variable.type,
+		});
+	}
+	return connect(next, registry, { node: added.id, pin: "value" }, to);
+}
+
 /** What a Get Local caches about the Declare Local it reads. */
 export function localRefFor(
 	node: Pick<GraphNode, "id" | "literals" | "label" | "config">,

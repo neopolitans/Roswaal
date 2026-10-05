@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.139.0",
+		date: "2026-10-06",
+		headline: "Key Value Pair's value can be a local or a variable, picked from a list.",
+		affects: ["editor"],
+		added: [
+			"Key Value Pair's Value opens a picker: String, Number, Boolean, Luau or nil to type in, and the locals, named results and variables this graph can see. Picking one places its Get beside the pair and wires it in.",
+		],
+		changed: ["While Value is wired, the field names what is wired into it."],
+	},
+	{
 		version: "0.138.4",
 		date: "2026-10-06",
 		headline: "Dynamic compiling no longer undoes an edit you just made.",

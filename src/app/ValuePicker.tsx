@@ -65,6 +65,11 @@ export interface ValuePickerProps {
 	detailOf?: (value: string) => string;
 	/** A dot in a value's colour beside it, where it has one: a type's wire colour. */
 	colorOf?: (value: string) => string | undefined;
+	/**
+	 * What a value is shown and searched as, when that is not the value itself:
+	 * a local is picked by its node's id and read as its name.
+	 */
+	labelOf?: (value: string) => string;
 	onPick: (value: string) => void;
 	onClose: () => void;
 }
@@ -85,7 +90,7 @@ export function classDetail(name: string): string {
 }
 
 export function ValuePicker(props: ValuePickerProps) {
-	const { options, groupOf, detailOf, groupsFirst, colorOf } = props;
+	const { options, groupOf, detailOf, groupsFirst, colorOf, labelOf } = props;
 	const [query, setQuery] = useState("");
 	const [active, setActive] = useState(props.value);
 	const [shut, setShut] = useState<ReadonlySet<string>>(new Set());
@@ -110,7 +115,7 @@ export function ValuePicker(props: ValuePickerProps) {
 	const matches = useMemo(() => {
 		if (needle === "") return null;
 		return options
-			.map((name) => ({ name, rank: score(name, needle) }))
+			.map((name) => ({ name, rank: score(labelOf?.(name) ?? name, needle) }))
 			.filter((entry) => entry.rank > 0)
 			.sort((a, b) => b.rank - a.rank || a.name.localeCompare(b.name))
 			.map((entry) => entry.name);
@@ -228,7 +233,7 @@ export function ValuePicker(props: ValuePickerProps) {
 				onClick={() => commit(name)}
 			>
 				{color && <span className="value-dot" style={{ background: color }} />}
-				<span className="value-name">{name}</span>
+				<span className="value-name">{labelOf?.(name) ?? name}</span>
 			</button>
 		);
 	};

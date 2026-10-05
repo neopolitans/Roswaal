@@ -13,6 +13,7 @@
 
 import { type ComponentType, type ReactNode, useMemo, useState } from "react";
 import { bindsParameters } from "../core/functionBody.js";
+import { hoistedFunctions, visibleFrom } from "../core/functionGraph.js";
 import { checkLuau } from "../core/luau/check.js";
 import { LUNE_ROBLOX_DATATYPES } from "../core/luneApi.js";
 import {
@@ -34,6 +35,7 @@ import {
 	signatureOf,
 	typeShapeOf,
 } from "../core/nodes/flow.js";
+import { nodeTitle } from "../core/nodes/index.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
 import { isConstLocal, localNameOf, pinTypeText } from "../core/nodes/variables.js";
 import {
@@ -76,6 +78,7 @@ import {
 	bindNodeToLocal,
 	bindNodeToVariable,
 	disconnectInput,
+	localRefFor,
 	setConfig,
 	setLiteral,
 	setPinType,
@@ -83,6 +86,7 @@ import {
 	syncFunctionReturns,
 	syncParamRefs,
 	updateModule,
+	wireGetterInto,
 } from "./edits.js";
 import { resolvePins } from "./geometry.js";
 import { highlightLuau } from "./highlight.js";
@@ -1172,15 +1176,99 @@ const BLANK: Record<string, Literal> = {
  * with the other. The rows are quicker for a short key; the panel has room to
  * say what kind of value it is, which a row's one field cannot.
  */
-function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
+/** The plain kinds a typed-in value can be, as the picker lists them. */
+const VALUE_KINDS: Record<string, string> = {
+	string: "String",
+	number: "Number",
+	boolean: "Boolean",
+	raw: "Luau",
+	nil: "nil",
+};
+
+/**
+ * What a value can be chosen from: a kind to type in, or a local or script
+ * variable to wire in, scoped to what the node's graph can see.
+ *
+ * Keyed rather than named, `kind:string`, `local:<node id>`, `variable:<id>`,
+ * because a local and a variable can share a name; the picker shows the name.
+ */
+function useValueChoices(script: NodeScript, node: GraphNode) {
+	const registry = store.getRegistry();
+	return useMemo(() => {
+		const labels = new Map<string, string>();
+		const types = new Map<string, string>();
+		const groups = new Map<string, string>();
+		for (const [kind, label] of Object.entries(VALUE_KINDS)) {
+			labels.set(`kind:${kind}`, label);
+			groups.set(`kind:${kind}`, "Value");
+			types.set(`kind:${kind}`, kind === "raw" ? "luau" : kind === "nil" ? "any" : kind);
+		}
+		const hoisted = hoistedFunctions(script);
+		const graph = node.graph ?? null;
+		for (const n of script.nodes) {
+			if (!visibleFrom(n, graph, hoisted)) continue;
+			const ref =
+				n.def === "local.declare"
+					? localRefFor(n)
+					: registry
+						? namedResultRef(n, registry)
+						: undefined;
+			if (!ref?.name) continue;
+			labels.set(`local:${n.id}`, ref.name);
+			types.set(`local:${n.id}`, ref.type ?? "any");
+			groups.set(`local:${n.id}`, "Locals");
+		}
+		for (const v of script.variables) {
+			labels.set(`variable:${v.id}`, v.name);
+			types.set(`variable:${v.id}`, v.type);
+			groups.set(`variable:${v.id}`, "Variables");
+		}
+		return {
+			options: [...labels.keys()],
+			labelOf: (key: string) => labels.get(key) ?? key,
+			groupOf: (key: string) => groups.get(key) ?? "Value",
+			colorOf: (key: string) => pinColor(types.get(key) ?? "any", "data"),
+			detailOf: (key: string) => {
+				const group = groups.get(key);
+				if (group === "Value") return "Typed in on the node.";
+				return `${group === "Locals" ? "A local" : "A script variable"} of type ${types.get(key) ?? "any"}, wired in.`;
+			},
+		};
+	}, [script, node.graph, registry]);
+}
+
+function PairEditor({ node, def, script }: { node: GraphNode; def: NodeDef; script: NodeScript }) {
 	const fallback = (pin: string) => def.inputs.find((p) => p.id === pin)?.default;
 	const key = node.literals?.key ?? fallback("key");
 	const value = node.literals?.value ?? fallback("value") ?? BLANK.nil;
 	const typing = useEditBurst();
+	const [picking, setPicking] = useState(false);
 	const set = (pin: string, literal: Literal) =>
 		store.edit((s) => setLiteral(s, node.id, pin, literal));
 	const type = (pin: string, literal: Literal) =>
 		typing.edit((s) => setLiteral(s, node.id, pin, literal));
+	const choices = useValueChoices(script, node);
+	const wiredFrom = script.links.find((l) => l.to.node === node.id && l.to.pin === "value");
+	const wiredNode = wiredFrom && script.nodes.find((n) => n.id === wiredFrom.from.node);
+	const registry = store.getRegistry();
+	const current = wiredNode
+		? nodeTitle(registry?.get(wiredNode.def), wiredNode)
+		: (VALUE_KINDS[value.t] ?? value.t);
+	const pick = (choice: string) => {
+		const to = { node: node.id, pin: "value" };
+		store.edit((s) => {
+			const kind = choice.startsWith("kind:") ? choice.slice(5) : undefined;
+			if (kind !== undefined)
+				return setLiteral(disconnectInput(s, to), node.id, "value", BLANK[kind] ?? BLANK.nil);
+			if (!registry) return s;
+			if (choice.startsWith("local:"))
+				return wireGetterInto(s, registry, to, { local: choice.slice(6) });
+			if (choice.startsWith("variable:"))
+				return wireGetterInto(s, registry, to, { variable: choice.slice(9) });
+			// Typed in and not on the list: written as Luau, as the field would.
+			return setLiteral(disconnectInput(s, to), node.id, "value", { t: "raw", v: choice });
+		});
+	};
 
 	return (
 		<>
@@ -1193,20 +1281,40 @@ function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
 					{...typing.field}
 				/>
 			</Field>
-			<Field label="Value" hint="Ignored while a wire is plugged into Value.">
+			<Field label="Value" hint="A value typed in, or a local or variable wired in.">
 				<div className="field-row">
-					<select
-						className="tb"
-						value={value.t}
-						onChange={(e) => set("value", BLANK[e.target.value] ?? BLANK.nil)}
+					<button
+						className="tb type-picker"
+						title="Choose a kind of value, or a local or variable to wire in"
+						onClick={() => setPicking(true)}
 					>
-						<option value="string">String</option>
-						<option value="number">Number</option>
-						<option value="boolean">Boolean</option>
-						<option value="raw">Luau</option>
-						<option value="nil">nil</option>
-					</select>
-					{value.t === "string" && (
+						<span
+							className="type-dot"
+							style={{
+								// Wired, the getter's own type: what it reads, not the getter.
+								background: wiredNode
+									? pinColor(configText(wiredNode, "type") ?? "any", "data")
+									: choices.colorOf(`kind:${value.t}`),
+							}}
+						/>
+						<span className="preview">{current}</span>
+						<Icon name="chevron" size={12} />
+					</button>
+					{picking && (
+						<ValuePicker
+							what="value"
+							options={choices.options}
+							value={`kind:${value.t}`}
+							labelOf={choices.labelOf}
+							groupOf={choices.groupOf}
+							groupsFirst={["Value", "Locals", "Variables"]}
+							colorOf={choices.colorOf}
+							detailOf={choices.detailOf}
+							onPick={pick}
+							onClose={() => setPicking(false)}
+						/>
+					)}
+					{!wiredNode && value.t === "string" && (
 						<input
 							className="tb"
 							value={value.v}
@@ -1214,7 +1322,7 @@ function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
 							{...typing.field}
 						/>
 					)}
-					{value.t === "number" && (
+					{!wiredNode && value.t === "number" && (
 						<input
 							className="tb"
 							type="number"
@@ -1223,14 +1331,14 @@ function PairEditor({ node, def }: { node: GraphNode; def: NodeDef }) {
 							{...typing.field}
 						/>
 					)}
-					{value.t === "boolean" && (
+					{!wiredNode && value.t === "boolean" && (
 						<input
 							type="checkbox"
 							checked={value.v}
 							onChange={(e) => set("value", { t: "boolean", v: e.target.checked })}
 						/>
 					)}
-					{value.t === "raw" && (
+					{!wiredNode && value.t === "raw" && (
 						<input
 							className="tb"
 							spellCheck={false}
