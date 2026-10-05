@@ -121,6 +121,23 @@ describe("ATTRIBUTIONS.md and the attributions page", () => {
 		expect(NOTICE).toContain("Roblox");
 		expect(pageText).toContain("Roblox");
 	});
+
+	/**
+	 * The `.luau` icon is the Luau logo. luau.org/brand asks for this line from
+	 * any project using the name, and the logo's MIT notice has to travel with
+	 * it, so both are asserted rather than trusted to stay.
+	 */
+	it("carry Luau's trademark line and the logo's licence", () => {
+		const line = "Luau is a trademark of Roblox Corporation.";
+		expect(NOTICE).toContain(line);
+		expect(pageText).toContain(line);
+		const licence = readFileSync(
+			join(dirname(fileURLToPath(import.meta.url)), "..", "notices", "upstream", "luau-site.txt"),
+			"utf8",
+		);
+		expect(licence).toContain("Copyright (c) 2019-2026 Roblox Corporation");
+		expect(licence).toContain("The above copyright notice and this permission notice");
+	});
 });
 
 /**

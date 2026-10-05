@@ -53,6 +53,7 @@ import {
 	deletePack,
 	deletePackNode,
 	duplicatePack,
+	exportedModuleFunctions,
 	exportedTypes,
 	exportPlace,
 	findOrphanOutputs,
@@ -485,7 +486,16 @@ export class ApiSession {
 				};
 			},
 
-			"GET /types": async () => ({ types: await exportedTypes(this.project()) }),
+			// Types and functions together: both are what a module exports, and
+			// both change when somebody edits one.
+			"GET /types": async () => {
+				const project = this.project();
+				const [types, functions] = await Promise.all([
+					exportedTypes(project),
+					exportedModuleFunctions(project),
+				]);
+				return { types, functions };
+			},
 
 			"GET /resolve": async (req) => ({
 				location: await locateFile(this.project(), query(req, "path")),

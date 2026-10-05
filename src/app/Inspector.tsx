@@ -87,7 +87,7 @@ const CATEGORY_ICON: Record<string, IconName> = {
 	Tables: "layout",
 	Networking: "external",
 	Debug: "terminal",
-	Lune: "luauScript",
+	Lune: "codeFile",
 };
 
 function badgeIcon(def: NodeDef): IconName {

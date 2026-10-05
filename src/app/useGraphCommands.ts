@@ -39,11 +39,12 @@ import { isEditableTarget } from "./keys.js";
 import { NODE } from "./layers.js";
 import { autoLayout } from "./layout.js";
 import { memberPresets } from "./memberPresets.js";
+import { callPresets } from "./menuSearch.js";
 import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
 import { configEntries, configText } from "./nodeConfig.js";
 import type { PinMenuTarget } from "./PinMenu.jsx";
 import type { Preferences } from "./preferences.js";
-import { useProjectTypes } from "./projectTypes.js";
+import { requiredModules, useProjectFunctions, useProjectTypes } from "./projectTypes.js";
 import type { SourceDoc } from "./SourceView.jsx";
 import { boundsOf } from "./selectionBounds.js";
 import { type EditorState, store } from "./store.js";
@@ -109,11 +110,16 @@ export function useGraphCommands(context: GraphCommandsContext) {
 	// screen can reach, so "Get health" is searchable by name rather than by node
 	// type — and so nothing is offered that would not compile where it lands.
 	const projectTypes = useProjectTypes();
+	const projectFunctions = useProjectFunctions();
 	const presets = useMemo(() => {
 		if (!editor.script) return [];
 		const base = buildPresets(editor.script, editor.graph);
-		return [...base, ...memberPresets(base, editor.script, registry, projectTypes)];
-	}, [editor.script, editor.graph, registry, projectTypes]);
+		return [
+			...base,
+			...callPresets(editor.script, requiredModules(editor.script, projectFunctions)),
+			...memberPresets(base, editor.script, registry, projectTypes),
+		];
+	}, [editor.script, editor.graph, registry, projectTypes, projectFunctions]);
 
 	/**
 	 * Pastes a clipping where the pointer is.

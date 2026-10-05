@@ -5,6 +5,7 @@
  * Functions of the `Emitter` they write through; see `emitter.ts`.
  */
 
+import { argPinId } from "../callNodes.js";
 import { checkSpecifier } from "../modules.js";
 import { signatureOf } from "../nodes/flow.js";
 import {
@@ -15,6 +16,7 @@ import {
 	variableRefOf,
 } from "../nodes/variables.js";
 import { lastSegment, renderPath } from "../roblox.js";
+import { scriptCallLabel, scriptCallOf } from "../scriptCalls.js";
 import { luneCall, serviceCall } from "./emitCalls.js";
 import {
 	claimModuleName,
@@ -23,16 +25,17 @@ import {
 	specifierName,
 } from "./emitDeclarations.js";
 import type { Scope } from "./emitScope.js";
+import { callArguments } from "./emitTemplates.js";
 import type { Emitter } from "./emitter.js";
 import type { ResolvedNode } from "./graph.js";
-import { quoteString, toIdentifier } from "./luau.js";
+import { parenPrefix, quoteString, toIdentifier } from "./luau.js";
 
 /**
- * Pure builtins whose expression is a call: a Service Function (Value) and a
- * Lune Function (Value). Read twice, a call runs twice, so these are bound to
- * a local by the rule every pure expression follows.
+ * Pure builtins whose expression is a call: a Service, Lune or Script Function
+ * (Value). Read twice, a call runs twice, so these are bound to a local by the
+ * rule every pure expression follows.
  */
-export const CALLING_BUILTINS = new Set(["service.call", "lune.value"]);
+export const CALLING_BUILTINS = new Set(["service.call", "lune.value", "function.call"]);
 
 /**
  * Warns when a client-only node is used somewhere it will be nil.
@@ -381,6 +384,49 @@ function getFunction(e: Emitter, src: ResolvedNode): string {
 	return "nil";
 }
 
+/**
+ * A Script Function's call, as an expression: `need(model, "Hull", "Model")`.
+ *
+ * Shared by both nodes, as `luneCall` is: the value node returns it and the
+ * step binds it. The function is reached the way Get Function reaches it, so
+ * a Declare Function read above itself is the same error here; a module's is
+ * reached through its Require Module, which hoists the one `require` the
+ * script already asked for and never adds one.
+ */
+export function scriptCall(e: Emitter, src: ResolvedNode, scope: Scope): string {
+	const ref = scriptCallOf(src.node.config);
+	if (!ref.name || (!ref.function && !ref.module)) {
+		e.error("This Script Function has no function chosen.", src.node.id);
+		return "nil";
+	}
+
+	let callee: string;
+	if (ref.module) {
+		const through = e.index.get(ref.module);
+		if (!through || through.def.id !== "module.requirePath") {
+			e.error(
+				`This calls \`${scriptCallLabel(src.node.config)}\`, and the Require Module it goes ` +
+					"through is no longer in the graph.",
+				src.node.id,
+			);
+			return "nil";
+		}
+		callee = `${parenPrefix(requireModulePath(e, through))}.${ref.name}`;
+	} else {
+		const fn = getFunction(e, src);
+		if (fn === "nil") return "nil";
+		callee = parenPrefix(fn);
+	}
+
+	const pins = ref.params.map((_param, i) => e.pin(src, argPinId(i), "in"));
+	const args = callArguments(e, src, pins, (pin) => e.resolveInput(src, pin, scope));
+	return `${callee}(${args.join(", ")})`;
+}
+
+function scriptValue(e: Emitter, src: ResolvedNode, scope: Scope): string {
+	return scriptCall(e, src, scope);
+}
+
 /** What each pure builtin node resolves to, by the handler its `compilesTo` names. */
 const VALUE_HANDLERS = new Map<string, ValueHandler>([
 	["flow.reroute", knotValue],
@@ -398,6 +444,7 @@ const VALUE_HANDLERS = new Map<string, ValueHandler>([
 	["module.get", getModule],
 	["module.requirePath", requireModulePath],
 	["function.get", getFunction],
+	["function.call", scriptValue],
 ]);
 
 /** What a pure builtin node resolves to where `consumer` reads it. */

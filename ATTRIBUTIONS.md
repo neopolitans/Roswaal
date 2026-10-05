@@ -38,7 +38,7 @@ names throughout the editor is owed the sentence saying whose they are.
 
 | Platform | By | Licence | Where |
 | --- | --- | --- | --- |
-| [Luau](https://luau.org/) | Roblox Corporation | MIT | Not bundled. Roswaal writes Luau; Luau runs it. |
+| [Luau](https://luau.org/) | Roblox Corporation | MIT | Not bundled. Roswaal writes Luau; Luau runs it. The `.luau` file icon is the Luau logo's two squares, from `logo.svg` in [luau-lang/site](https://github.com/luau-lang/site); its licence is `notices/upstream/luau-site.txt`. |
 | [Roblox](https://create.roblox.com/docs) | Roblox Corporation | not licensed to us | Not bundled. Roswaal compiles graphs to Luau files a Roblox place runs, and knows the engine's class and enum names so a pin can offer them. |
 | [Lune](https://lune-org.github.io/docs) | Filip Tibell and contributors | not licensed to us | Not bundled. A graph whose target is Lune compiles to a standalone `.luau` file Lune runs outside Roblox. |
 
@@ -68,7 +68,10 @@ are:
 > license agreement and include Luau attribution into the user-facing product
 > documentation.
 
-Luau and the Luau logo belong to Roblox Corporation, as above.
+**Luau is a trademark of Roblox Corporation.** That is the line
+[Luau's brand page](https://luau.org/brand/) asks every project using the name to
+carry. The logo appears only as the icon beside a `.luau` file, where it says
+which language the file is in. It is never Roswaal's own mark.
 
 ## What Roswaal is built on
 

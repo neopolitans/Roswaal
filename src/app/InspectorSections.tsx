@@ -49,6 +49,7 @@ import {
 	type NodeDef,
 	type NodeScript,
 } from "../core/schema.js";
+import { SCRIPT_CALLS, scriptCallLabel, scriptCallOf } from "../core/scriptCalls.js";
 import {
 	CALL_OPTIONS,
 	callDetail,
@@ -132,7 +133,8 @@ const INSPECTOR_SECTIONS: readonly SectionRule[] = [
 	{ applies: ids("table.pair"), Section: PairEditor },
 	{ applies: ids("table.dictionary"), Section: TableLayout },
 	{ applies: ids("flow.sequence"), Section: SequenceCount },
-	{ applies: ids("call.function", "call.method"), Section: ArgumentCount },
+	{ applies: ids("call.function", "call.value", "call.method"), Section: ArgumentCount },
+	{ applies: (def) => SCRIPT_CALLS.has(def.id), Section: ScriptCallSource },
 	{ applies: ids(SERVICE_CALL, SERVICE_VALUE), Section: CallPicker },
 	{ applies: ids(LUNE_CALL, LUNE_VALUE), Section: LuneCallPicker },
 	// Every node: it decides for itself, from the graph's target.
@@ -163,6 +165,8 @@ export function InspectorSections(props: SectionProps): ReactNode {
  */
 function namesResult(def: NodeDef): boolean {
 	if (def.compilesTo.kind === "call") return true;
+	// A Script Function binds its result as a call node does, step or value.
+	if (SCRIPT_CALLS.has(def.id)) return true;
 	// A pure node binds a local too, as soon as anything reads its value
 	// twice -- Find First Child is one. A pure *builtin* stays out: it
 	// resolves to a bare identifier and is never bound, so a name there would
@@ -1279,6 +1283,26 @@ function FunctionPicker({ script, node }: { script: NodeScript; node: GraphNode 
 			</select>
 		</Field>
 	);
+}
+
+/**
+ * Which function a Script Function calls.
+ *
+ * One this script declares can be pointed at another, and the pins follow; one
+ * a module exports is named by the module, and is changed by placing the call
+ * again from the node search.
+ */
+function ScriptCallSource({ script, node }: SectionProps) {
+	const ref = scriptCallOf(node.config);
+	if (ref.module) {
+		return (
+			<p className="summary">
+				Calls <code>{scriptCallLabel(node.config)}</code>, exported by the module required as{" "}
+				<code>{ref.moduleName ?? "module"}</code>.
+			</p>
+		);
+	}
+	return <FunctionPicker script={script} node={node} />;
 }
 
 /**

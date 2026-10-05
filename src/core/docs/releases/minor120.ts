@@ -9,6 +9,22 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.133.0",
+		date: "2026-10-05",
+		headline: "Call a function by its name, with a pin for each parameter.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Script Function**, a step and a value. Type a function's name into the node search and Call need places one, with need's parameters as named, typed pins and its return values as outputs.",
+			"A required module's exported functions are offered the same way, as Call Config.read.",
+			"The pins follow the function's signature. Rename, reorder or remove a parameter and the wires move with it.",
+			"`.luau` files in the Project panel, tabs and DataModel wear the Luau logo, in the colour of the script they become.",
+			"Settings → Licences carries the Luau logo's licence.",
+		],
+		fixed: [
+			"Call For Value's arguments grow and shrink from its header and the Inspector, as Call Function's do.",
+		],
+	},
+	{
 		version: "0.132.4",
 		date: "2026-10-04",
 		headline: "The pin's settings in the new style, and deleting a node asks in a window.",
@@ -65,7 +81,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.131.2",
 		date: "2026-10-04",
-		headline: "Node Design on a tablet: the type palette and the Luau sheet clear their neighbours.",
+		headline:
+			"Node Design on a tablet: the type palette and the Luau sheet clear their neighbours.",
 		affects: ["designer"],
 		fixed: [
 			"On a tablet, the pin types sit at the foot of the window, and rise clear of the action row only while the logic is nodes, home indicator included.",

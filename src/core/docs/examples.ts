@@ -428,6 +428,52 @@ export const CURATED: Record<string, () => NodeScript> = {
 		return g.out();
 	},
 
+	/**
+	 * The function is held by the node, so there is no Get Function, and its
+	 * one parameter arrives as a pin named for it.
+	 */
+	"function.call": () => {
+		const g = new G();
+		const sig = { name: "greet", params: [{ name: "who", type: "string" }], returns: [] };
+		const fn = g.node("function.entry", { config: sig });
+		g.inside(fn, printAfter(g, fn, "then", "Hello"));
+
+		const begin = g.node("script.begin", { column: 0 });
+		const call = g.node("function.call", {
+			config: { function: fn, ...sig },
+			literals: { a0: str("world") },
+			column: 1,
+		});
+		g.link(begin, "then", call, "in");
+		return g.out();
+	},
+
+	"function.callValue": () => {
+		const g = new G();
+		const sig = {
+			name: "double",
+			params: [{ name: "n", type: "number" }],
+			returns: [{ name: "result", type: "number" }],
+		};
+		const fn = g.node("function.entry", { config: sig });
+		const times = g.node("math.mul", { config: { args: 2 }, literals: { a1: num(2) } });
+		g.link(fn, "p0", times, "a0");
+		const ret = g.node("function.return", { config: { returns: sig.returns } });
+		g.link(fn, "then", ret, "in").link(times, "result", ret, "r0");
+		g.inside(fn, times, ret);
+
+		const begin = g.node("script.begin", { column: 0 });
+		const call = g.node("function.callValue", {
+			config: { function: fn, ...sig },
+			literals: { a0: num(21) },
+			column: 1,
+			row: 1,
+		});
+		const print = g.node("debug.print", { column: 2 });
+		g.link(begin, "then", print, "in").link(call, "result", print, "value");
+		return g.out();
+	},
+
 	"call.method": () => {
 		const g = new G();
 		const begin = g.node("script.begin");

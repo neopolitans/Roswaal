@@ -2,9 +2,23 @@
  * The `functions` page of the documentation. `buildSite` places it.
  */
 
+import { SCRIPT_CALL, SCRIPT_VALUE } from "../../scriptCalls.js";
+import { previewOf } from "../preview.js";
 import type { DocPage, PageContext } from "../site.js";
 import { FUNCTIONS_PANEL } from "../toolbars.js";
 import { code, previews } from "./blocks.js";
+
+/** `need`, from m103's Rig module: the call the Script Function was made for. */
+const NEED = {
+	function: "need",
+	name: "need",
+	params: [
+		{ name: "parent", type: "Instance" },
+		{ name: "name", type: "string" },
+		{ name: "class", type: "string" },
+	],
+	returns: [{ name: "child", type: "Instance" }],
+};
 
 /** Functions, and the graph each one opens in. */
 export function functionsPage({ registry }: PageContext): DocPage {
@@ -176,10 +190,34 @@ export function functionsPage({ registry }: PageContext): DocPage {
 			{
 				t: "p",
 				text:
-					"A function is reached as a **value** first, and then called. **Get Function** is " +
-					"that value for a function declared in this graph; the **Function** output on " +
-					"either declaration node is the same thing, which is what lets one be handed to " +
-					"**Connect** or returned from a module without a wrapper node.",
+					"Type the function's name into the node search. **Call need** places a **Script " +
+					"Function** already pointed at `need`, with a pin for each parameter, named and " +
+					"typed. **Call need for value** is the same call with no execution wire.",
+			},
+			{
+				t: "preview",
+				nodes: [SCRIPT_CALL, SCRIPT_VALUE].flatMap((id) => {
+					const def = registry.get(id);
+					return def ? [previewOf(def, NEED)] : [];
+				}),
+				caption: "Both, pointed at need(parent: Instance, name: string, class: string): Instance.",
+			},
+			{
+				t: "ul",
+				items: [
+					"The pins follow the signature. Rename, reorder or remove a parameter and the wires move with it.",
+					"A module this script requires offers its exported functions the same way: **Call Config.read**.",
+					"Pick a different function in the Inspector and the pins change to its signature.",
+				],
+			},
+			{
+				t: "p",
+				text:
+					"A function can also be reached as a **value** first, and then called. **Get " +
+					"Function** is that value for a function declared in this graph; the **Function** " +
+					"output on either declaration node is the same thing, which is what lets one be " +
+					"handed to **Connect** or returned from a module without a wrapper node. These " +
+					"nodes call a function value, and know nothing about its signature:",
 			},
 			{
 				t: "table",
@@ -202,8 +240,8 @@ export function functionsPage({ registry }: PageContext): DocPage {
 			...previews(
 				registry,
 				["function.get", "call.function", "call.value"],
-				"Both call nodes take the function on a wire, and the argument count is set in the " +
-					"Inspector rather than fixed by the node.",
+				"Both take the function on a wire. Set the argument count with the − and + on the " +
+					"header, or in the Inspector.",
 			),
 			{
 				t: "code",

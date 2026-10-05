@@ -11,6 +11,7 @@ import {
 	splitKey,
 	splitsOf,
 } from "../structs.js";
+import { CALL_NODES } from "./calls.js";
 import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
 import { LUNE_NODES } from "./lune.js";
@@ -35,6 +36,7 @@ export const BUILTIN_NODES: NodeDef[] = withRuntimes([
 	...FLOW_NODES,
 	...VARIABLE_NODES,
 	...LIBRARY_NODES,
+	...CALL_NODES,
 	...LUNE_NODES,
 ]);
 

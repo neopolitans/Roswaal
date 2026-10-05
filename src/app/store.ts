@@ -60,9 +60,11 @@ import {
 import type { Registry } from "../core/nodes/index.js";
 import { retypeReroutes } from "../core/reroutes.js";
 import type { NodeScript } from "../core/schema.js";
+import { syncScriptCalls } from "../core/scriptCalls.js";
 import { type MapDocument, type SideDocument, sideName, sidePath } from "./centreDocument.js";
 import type { View } from "./geometry.js";
 import { functionNameOf } from "./nodeConfig.js";
+import { syncModuleCallsFor } from "./projectTypes.js";
 
 const HISTORY_LIMIT = 100;
 
@@ -755,6 +757,12 @@ class Store {
 		 */
 		if (this.registry) next = retypeReroutes(next, this.registry);
 		next = retypeClassReads(next);
+		// The same reasoning for a Script Function: its pins are a copy of its
+		// function's signature, and a signature changes from the Inspector,
+		// the node's own − and +, an undo of either, and a paste. Every one of
+		// those arrives here. See `scriptCalls.ts`.
+		next = syncScriptCalls(next);
+		next = syncModuleCallsFor(next);
 
 		this.setDoc({
 			...doc,

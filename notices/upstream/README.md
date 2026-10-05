@@ -8,8 +8,12 @@ is written by hand, edited, reformatted, or reconstructed from a template.
 | `tokyo-night.txt` | [`tokyo-night/tokyo-night-vscode-theme` · `LICENSE.txt`](https://github.com/tokyo-night/tokyo-night-vscode-theme/blob/master/LICENSE.txt) | 2026-08-31 |
 | `catppuccin.txt` | [`catppuccin/catppuccin` · `LICENSE`](https://github.com/catppuccin/catppuccin/blob/main/LICENSE) | 2026-08-31 |
 | `nord.txt` | [`nordtheme/nord` · `license`](https://github.com/nordtheme/nord/blob/develop/license) | 2026-08-31 |
+| `luau-site.txt` | [`luau-lang/site` · `LICENSE.md`](https://github.com/luau-lang/site/blob/master/LICENSE.md) | 2026-10-05 |
 
-All three arrived by way of [Beako](https://github.com/neopolitans/Beako), which vendored them on the
+`luau-site.txt` covers the Luau logo, whose two squares are the `.luau` file icon. It was fetched
+directly, and reaches a user under **Settings → Licences** as the theme licences do.
+
+The three theme licences arrived by way of [Beako](https://github.com/neopolitans/Beako), which vendored them on the
 date above and carries the same three colour schemes. They are copied across rather than re-fetched
 so that the two tools ship the same bytes.
 

@@ -43,12 +43,22 @@ export const ICONS = {
 	document:
 		"M240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z",
 	/**
-	 * A Luau script: Material's page, filled, with the fold and Material's code
-	 * glyph cut out of it. Drawn even-odd, which is what makes those holes, so
-	 * it is one path like every other icon rather than a mask.
+	 * A file that is code but not Luau's own: Material's page, filled, with the
+	 * fold and Material's code glyph cut out of it. Drawn even-odd, which is
+	 * what makes those holes. Lune's nodes wear it; it was the `.luau` icon
+	 * until 0.133.0.
+	 */
+	codeFile:
+		"M240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240ZM520-600h200L520-800v200ZM396.8 -205.2 272 -330 396.8 -454.8 426.4 -425.2 330.8 -329.5 425.9 -234.3ZM563.2 -205.2 533.6 -234.8 629.2 -330.5 534.1 -425.7 563.2 -454.8 688 -330Z",
+	/**
+	 * A Luau script: the Luau logo's two squares, without its lettering, from
+	 * `logo.svg` in luau-lang/site (MIT, Roblox Corporation; see
+	 * `notices/luau-logo.txt`). It refers to the file's language, the way an
+	 * editor's file icon does, and is never Roswaal's own mark. The corner
+	 * square is cut out, even-odd, so the mark takes the script's colour.
 	 */
 	luauScript:
-		"M240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240ZM520-600h200L520-800v200ZM396.8 -205.2 272 -330 396.8 -454.8 426.4 -425.2 330.8 -329.5 425.9 -234.3ZM563.2 -205.2 533.6 -234.8 629.2 -330.5 534.1 -425.7 563.2 -454.8 688 -330Z",
+		"M240.5 -848.6Q248.9 -880.2 280.5 -871.8L848.6 -719.5Q880.2 -711.1 871.8 -679.5L719.5 -111.4Q711.1 -79.8 679.5 -88.2L111.4 -240.5Q79.8 -248.9 88.2 -280.5ZM651.8 -679.2Q653.9 -687.1 661.8 -685L772.3 -655.4Q780.2 -653.3 778 -645.4L748.4 -534.9Q746.3 -527 738.4 -529.2L628 -558.8Q620.1 -560.9 622.2 -568.8Z",
 	newFile:
 		"M440-240h80v-120h120v-80H520v-120h-80v120H320v80h120v120ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z",
 
@@ -138,6 +148,7 @@ export interface IconProps {
 
 /** Icons whose holes are drawn by the even-odd rule rather than by winding. */
 export const EVEN_ODD: ReadonlySet<string> = new Set<IconName>([
+	"codeFile",
 	"luauScript",
 	"panelLeft",
 	"panelRight",

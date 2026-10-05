@@ -76,13 +76,17 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "designed-for",
 		holder: "Roblox Corporation",
 		licence: "MIT",
-		where: "Not bundled. Roswaal writes Luau; Luau runs it.",
+		where:
+			"Not bundled. Roswaal writes Luau; Luau runs it. The `.luau` file icon is " +
+			"the Luau logo's two squares, from `logo.svg` in luau-lang/site, whose MIT " +
+			"licence is vendored in `notices/upstream/` and shown under Settings → Licences.",
 		note:
 			"The language this tool exists to produce. Luau's own README asks that " +
 			"projects integrating it carry an attribution in user-facing " +
-			"documentation, and this page is where Roswaal does that. Luau and the " +
-			"Luau logo belong to Roblox; Roswaal is not affiliated with or endorsed " +
-			"by Roblox.",
+			"documentation, and this page is where Roswaal does that. Luau is a " +
+			"trademark of Roblox Corporation. The logo marks a file as Luau, as a code " +
+			"editor's file icon does, and is never Roswaal's own mark. Roswaal is not " +
+			"affiliated with or endorsed by Roblox.",
 		url: "https://luau.org/",
 		quote:
 			"When Luau is integrated into external projects, we ask that you honor " +

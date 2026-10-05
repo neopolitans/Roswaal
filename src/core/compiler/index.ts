@@ -6,6 +6,7 @@ import { checkLuau } from "../luau/check.js";
 import type { SpecifierContext } from "../modules.js";
 import type { Registry } from "../nodes/index.js";
 import type { Comment, NodeScript, ScriptClass, Target } from "../schema.js";
+import { syncScriptCalls } from "../scriptCalls.js";
 import { type Diagnostic, type EmitResult, emit, hashString } from "./emit.js";
 import { validate } from "./validate.js";
 
@@ -56,11 +57,12 @@ export function compile(
 	registry: Registry,
 	options: CompileOptions = {},
 ): CompileResult {
-	// Hashed as saved; compiled with every wired Class Name followed, so a file
-	// edited by hand cannot carry a stale class into the build.
+	// Hashed as saved; compiled with every wired Class Name followed and every
+	// Script Function on its function's current signature, so a file edited by
+	// hand cannot carry a stale class or signature into the build.
 	const headers = options.comments ? headersByNode(source, registry) : undefined;
 	const sourceHash = hashString(semanticJson(source, { headers }));
-	const script = retypeClassReads(source);
+	const script = syncScriptCalls(retypeClassReads(source));
 	const structural = validate(script, registry);
 	const emitted: EmitResult = emit(script, registry, sourceHash, {
 		indent: options.indent,

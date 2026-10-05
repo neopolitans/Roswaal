@@ -64,7 +64,7 @@ import type { PanelId } from "./panels.js";
 import { readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
 import { setProjectAliases } from "./projectAliases.js";
-import { setProjectTypes } from "./projectTypes.js";
+import { setProjectFunctions, setProjectTypes } from "./projectTypes.js";
 import { forget, lastProject, remember } from "./recents.js";
 import { previewSelection } from "./SelectionPreview.jsx";
 import { SourceView } from "./SourceView.jsx";
@@ -91,8 +91,14 @@ const SEP = String.fromCharCode(92);
  */
 function refreshTypes(): void {
 	void api.exportedTypes().then(
-		({ types }) => setProjectTypes(types),
-		() => setProjectTypes([]),
+		({ types, functions }) => {
+			setProjectTypes(types);
+			setProjectFunctions(functions ?? []);
+		},
+		() => {
+			setProjectTypes([]);
+			setProjectFunctions([]);
+		},
 	);
 }
 

@@ -114,6 +114,14 @@ export const LOGIC_DENIED: ReadonlyMap<string, string> = new Map([
 	["function.declareHere", "a function belongs to a whole script, not a node's logic."],
 	["function.return", "it would return from the script the node is placed in."],
 	["function.get", "a node's logic has no functions to read."],
+	[
+		"function.call",
+		"a node's logic has no functions of its own. Take the function as an input and use Call Function.",
+	],
+	[
+		"function.callValue",
+		"a node's logic has no functions of its own. Take the function as an input and use Call For Value.",
+	],
 	["function.getParam", "a node's logic reads its own inputs from Node Inputs."],
 	["variable.get", "a node's logic has no script variables. Use a Declare Local."],
 	["variable.set", "a node's logic has no script variables. Use a Declare Local."],

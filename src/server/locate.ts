@@ -5,6 +5,7 @@
 
 import { type InstanceLocation, locateInDataModel } from "../core/nodemap.js";
 import { isModuleScript } from "../core/schema.js";
+import { type ExportedFunction, exportedFunctions } from "../core/scriptCalls.js";
 import { fieldsOfDeclaration, type TypeField } from "../core/typeFields.js";
 import type { OpenProject } from "./config.js";
 import { collectMaps, collectScripts, readMap, readScript } from "./documents.js";
@@ -91,6 +92,34 @@ export async function exportedTypes(project: OpenProject): Promise<ExportedType[
 
 		const location = await locateFile(project, relPath).catch(() => null);
 		for (const [name, fields] of declared) out.push({ graph: relPath, name, location, fields });
+	}
+	return out;
+}
+
+/** A function a module in the project exports, and where that module lands. */
+export interface ExportedModuleFunction extends ExportedFunction {
+	location: InstanceLocation | null;
+}
+
+/**
+ * Every function a ModuleScript graph in the project exports.
+ *
+ * What another graph can call after requiring that module — `Config.read` —
+ * with the signature its Script Function node takes its pins from. Sent from
+ * here for the reason the types are: only this side can open the other graph.
+ * See `exportedFunctions` for which functions count as exported.
+ */
+export async function exportedModuleFunctions(
+	project: OpenProject,
+): Promise<ExportedModuleFunction[]> {
+	const out: ExportedModuleFunction[] = [];
+	for (const relPath of await collectScripts(project)) {
+		const script = await readScript(project, relPath).catch(() => null);
+		if (!script || !isModuleScript(script)) continue;
+		const functions = exportedFunctions(script, relPath);
+		if (functions.length === 0) continue;
+		const location = await locateFile(project, relPath).catch(() => null);
+		for (const fn of functions) out.push({ ...fn, location });
 	}
 	return out;
 }

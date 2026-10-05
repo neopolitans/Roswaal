@@ -23,10 +23,17 @@ import {
 import { keywordNodes } from "../core/keywords.js";
 import { luneMenuItems, lunePins } from "../core/luneCalls.js";
 import { type MemberLookup, membersOfType } from "../core/members.js";
-import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import { FUNCTION_NODES, signatureOf, signatureText } from "../core/nodes/flow.js";
 import { categories, type Registry, subcategories } from "../core/nodes/index.js";
 import { classify, classifyFor, runtimeLabelFor } from "../core/nodes/runtimes.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
+import {
+	callSignature,
+	type NamedType,
+	SCRIPT_CALL,
+	SCRIPT_VALUE,
+	scriptCallPins,
+} from "../core/scriptCalls.js";
 import { nameItems, serviceMenuItems, servicePins } from "../core/serviceCalls.js";
 import { landingPins, localRefFor } from "./edits.js";
 import { configText, functionNameOf, paramsOf } from "./nodeConfig.js";
@@ -97,6 +104,8 @@ export interface Preset {
 	 * mind to find.
 	 */
 	deep?: boolean;
+	/** See `MenuItem.pins`: the pins this entry arrives with, where its config decides them. */
+	pins?: { inputs: PinDef[]; outputs: PinDef[] };
 }
 
 /** One row of the palette. */
@@ -204,6 +213,7 @@ export function libraryItems(
 				config: preset.config,
 				member: preset.member,
 				deep: preset.deep,
+				pins: preset.pins,
 			},
 		];
 	});
@@ -648,6 +658,76 @@ export function buildPresets(
 	}
 
 	out.push(...parameterPresets(script.nodes, graph));
+	return out;
+}
+
+/** A module this graph requires and the functions it exports. See `requiredModules`. */
+export interface CallableModule {
+	node: string;
+	local: string;
+	functions: { name: string; params: NamedType[]; returns: NamedType[] }[];
+}
+
+/**
+ * A function by its name, placed as a call already pointed at it: `Call need`.
+ *
+ * Two entries per function, the step and the value, because which one you
+ * want is the thing the name cannot say — and a function that returns nothing
+ * has only the step, since there would be no value to give. A required
+ * module's functions are named as they are written, `Call Config.read`.
+ */
+export function callPresets(
+	script: { nodes: Pick<GraphNode, "id" | "def" | "config">[] },
+	modules: readonly CallableModule[] = [],
+): Preset[] {
+	const out: Preset[] = [];
+	const add = (
+		key: string,
+		label: string,
+		config: NodeConfig,
+		signature: { params: NamedType[]; returns: NamedType[] },
+	) => {
+		const text = signatureText(signature);
+		const color = pinColor("function", "data");
+		out.push({
+			key: `call:${key}`,
+			title: `Call ${label}`,
+			category: "Modules",
+			summary: `Calls ${label}${text}, with a pin for each parameter.`,
+			defId: SCRIPT_CALL,
+			config,
+			color,
+			pins: scriptCallPins(config, false),
+		});
+		if (signature.returns.length === 0) return;
+		out.push({
+			key: `callValue:${key}`,
+			title: `Call ${label} for value`,
+			category: "Modules",
+			summary: `Calls ${label} where its value is wanted. No execution wire.`,
+			defId: SCRIPT_VALUE,
+			config,
+			color,
+			pins: scriptCallPins(config, true),
+		});
+	};
+
+	for (const node of script.nodes) {
+		if (!FUNCTION_NODES.has(node.def)) continue;
+		const signature = callSignature(signatureOf(node.config));
+		add(node.id, signature.name ?? "function", { function: node.id, ...signature }, signature);
+	}
+	for (const module of modules) {
+		for (const fn of module.functions) {
+			const signature = { name: fn.name, params: fn.params, returns: fn.returns };
+			add(
+				`${module.node}:${fn.name}`,
+				`${module.local}.${fn.name}`,
+				{ module: module.node, moduleName: module.local, ...signature },
+				signature,
+			);
+		}
+	}
 	return out;
 }
 

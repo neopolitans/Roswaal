@@ -33,6 +33,7 @@ import {
 	type PinDef,
 	type Target,
 } from "../schema.js";
+import { SCRIPT_CALLS, scriptCallOf } from "../scriptCalls.js";
 import { declaredTypeFields } from "../typeFields.js";
 import type { Diagnostic } from "./emit.js";
 import { GraphIndex } from "./graph.js";
@@ -422,6 +423,24 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				out.push({
 					severity: "error",
 					message: "Get Function points at a function that is no longer in the graph.",
+					node: node.id,
+				});
+			}
+		}
+		// A Script Function's own function. A module's is checked where it is
+		// emitted, since its Require Module is a node like any other.
+		if (SCRIPT_CALLS.has(node.def)) {
+			const ref = scriptCallOf(node.config);
+			if (!ref.function && !ref.module) {
+				out.push({
+					severity: "error",
+					message: "Script Function has no function chosen.",
+					node: node.id,
+				});
+			} else if (ref.function && !functionIds.has(ref.function)) {
+				out.push({
+					severity: "error",
+					message: `"${ref.name ?? "That function"}" is no longer in the graph, so there is nothing for this to call.`,
 					node: node.id,
 				});
 			}

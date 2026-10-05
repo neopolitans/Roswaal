@@ -8,6 +8,7 @@
 import { LUAU_PRIMITIVES } from "../luneTypes.js";
 import { loopNamesOf, loopTypes, signatureOf, typeDeclarationOf } from "../nodes/flow.js";
 import { isConstLocal, localTypeOf, variableRefOf } from "../nodes/variables.js";
+import { scriptCallOf } from "../scriptCalls.js";
 import { isRobloxTypeName, luneCall, serviceCall, writeCall } from "./emitCalls.js";
 import {
 	bodyOf,
@@ -20,6 +21,7 @@ import {
 import { narrowingsOf } from "./emitNarrowing.js";
 import { logicOutputName, Scope, VARIADIC_PIN } from "./emitScope.js";
 import type { Emitter } from "./emitter.js";
+import { scriptCall } from "./emitValues.js";
 import type { ResolvedNode } from "./graph.js";
 import {
 	isFieldName,
@@ -241,6 +243,48 @@ function callInvoke(e: Emitter, r: ResolvedNode, scope: Scope): string | undefin
 	}
 
 	return writeCall(e, r, `${callee}(${args.join(", ")})`, "result", scope, { fallback: "result" });
+}
+
+/**
+ * A Script Function step: the call, and what it gives back bound.
+ *
+ * One return value goes through `writeCall` like every other call, named for
+ * the return value rather than "result". More than one is `local a, b = f()`,
+ * written as far as the last value anything reads, with `_` for the ones
+ * between that nothing does.
+ *
+ * A module's return types are named in that module — `Config.Tuning` is
+ * `Tuning` there — so its results are annotated only when the type is one
+ * every file can name.
+ */
+function scriptStep(e: Emitter, r: ResolvedNode, scope: Scope): string | undefined {
+	const id = r.node.id;
+	const rendered = scriptCall(e, r, scope);
+	const fromModule = scriptCallOf(r.node.config).module !== undefined;
+	const returns = r.baseOutputs.filter((p) => p.kind === "data");
+
+	if (returns.length <= 1) {
+		const type = returns[0]?.type ?? "any";
+		return writeCall(e, r, rendered, "result", scope, {
+			fallback: returns[0]?.name || "result",
+			typed: !fromModule || isRobloxTypeName(type),
+		});
+	}
+
+	const read = returns.map((p) => e.index.readerCount(id, p.id, { parts: true }) > 0);
+	const last = read.lastIndexOf(true);
+	if (last < 0) {
+		e.push(rendered, id);
+		return e.index.execTarget(id, "then");
+	}
+	const names = returns.slice(0, last + 1).map((p, i) => {
+		if (!read[i]) return "_";
+		const ident = e.names.unique(p.name || `value${i + 1}`, "value");
+		scope.bindings.set(`${id}/${p.id}`, ident);
+		return ident;
+	});
+	e.push(`local ${names.join(", ")} = ${rendered}`, id);
+	return e.index.execTarget(id, "then");
 }
 
 /**
@@ -745,6 +789,7 @@ const FLOW_HANDLERS = new Map<string, FlowHandler>([
 	["module.exports", moduleExports],
 	["call.invoke", callInvoke],
 	["lune.call", luneStep],
+	["function.call", scriptStep],
 	["service.call", serviceStep],
 	["function.declareHere", declareFunction],
 	["type.declareHere", declareType],

@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import LUAU_LOGO_LICENCE from "../../notices/upstream/luau-site.txt?raw";
 
 import { INDENT_WIDTHS, type RoswaalConfig, type Target } from "../core/schema.js";
 import { CODE_ROLES, ROLES, type Theme, themeSlug } from "../core/theme.js";
@@ -45,7 +46,7 @@ const TABS = [
 	{ id: "editor", title: "Editor", sub: "This browser" },
 	{ id: "themes", title: "Themes", sub: "This browser" },
 	{ id: "docs", title: "Docs", sub: "This browser" },
-	{ id: "licences", title: "Licences", sub: "What themes carry" },
+	{ id: "licences", title: "Licences", sub: "What themes and icons carry" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -805,8 +806,8 @@ function Licences() {
 		<>
 			<h2>Licences</h2>
 			<p className="settings-note">
-				Roswaal is 0BSD. These are the schemes that are somebody else's work, and the terms they
-				came with.
+				Roswaal is 0BSD. These are the schemes and the icon that are somebody else's work, and the
+				terms they came with.
 			</p>
 
 			{carried.map((theme) => {
@@ -829,6 +830,21 @@ function Licences() {
 					</div>
 				);
 			})}
+
+			{/*
+			 * The `.luau` file icon is the Luau logo's two squares, and the logo
+			 * is MIT. The trademark line is the one luau.org/brand asks for.
+			 */}
+			<div className="licence">
+				<h3>
+					Luau logo <span className="spdx">MIT</span>
+				</h3>
+				<p className="settings-note">
+					Roblox Corporation. The <code>.luau</code> file icon. Luau is a trademark of Roblox
+					Corporation.
+				</p>
+				<pre className="licence-text">{LUAU_LOGO_LICENCE}</pre>
+			</div>
 
 			<p className="settings-note">
 				The schemes credited to <strong>neopolitans</strong> are the maintainer's own and carry no

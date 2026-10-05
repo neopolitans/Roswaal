@@ -52,6 +52,7 @@ export function growthRule(def: NodeDef | undefined): GrowthRule | null {
 	}
 	switch (def.id) {
 		case "call.function":
+		case "call.value":
 		case "call.method":
 			return { field: "args", kind: "count", min: 0, max: 8, prefix: "a", label: "arguments" };
 		case "flow.sequence":

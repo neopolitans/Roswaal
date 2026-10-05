@@ -30,6 +30,7 @@ import type { FunctionInfo } from "../core/functionGraph.js";
 import type { LuaurcSource } from "../core/luaurc.js";
 import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
 import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "../core/schema.js";
+import type { ExportedFunction } from "../core/scriptCalls.js";
 import type { TypeField } from "../core/typeFields.js";
 
 export interface TreeEntry {
@@ -97,6 +98,14 @@ export interface ExportedType {
 	location: InstanceLocation | null;
 	/** Its fields, when it is a table of fixed ones. What Get Member offers. */
 	fields?: TypeField[];
+}
+
+/**
+ * A function a module graph exports, with the signature a Script Function takes
+ * its pins from. The daemon's copy is in `src/server/locate.ts`.
+ */
+export interface ExportedModuleFunction extends ExportedFunction {
+	location: InstanceLocation | null;
 }
 
 export interface MapOutcome {
@@ -424,8 +433,12 @@ export const api = {
 	deletePackNode: (path: string, id: string) =>
 		post<{ pack: PackFile }>("/api/packs/node/delete", { path, id }),
 
-	/** Every type the project's module graphs export, and where each module lands. */
-	exportedTypes: () => request<{ types: ExportedType[] }>("/api/types"),
+	/**
+	 * Every type and function the project's module graphs export, and where each
+	 * module lands. `functions` is absent from a daemon before 0.133.0.
+	 */
+	exportedTypes: () =>
+		request<{ types: ExportedType[]; functions?: ExportedModuleFunction[] }>("/api/types"),
 	/**
 	 * Every `.luaurc` in the project, as text.
 	 *
