@@ -57,6 +57,7 @@ import {
 	graphOf,
 	positionIn,
 } from "../core/functionGraph.js";
+import { syncNamedResultRefs } from "../core/namedResults.js";
 import type { Registry } from "../core/nodes/index.js";
 import { retypeReroutes } from "../core/reroutes.js";
 import type { NodeScript } from "../core/schema.js";
@@ -778,6 +779,9 @@ class Store {
 		// And for Call Function and Call For Value, which learn a signature from
 		// the function wired into them rather than from their own config.
 		next = adoptWiredSignatures(next);
+		// And a Get Local reading a step's named result: its name and type are
+		// the step's Result name and result pin. See `namedResults.ts`.
+		if (this.registry) next = syncNamedResultRefs(next, this.registry);
 
 		this.setDoc({
 			...doc,

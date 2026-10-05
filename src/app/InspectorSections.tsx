@@ -26,6 +26,7 @@ import {
 	splitLuneCall,
 } from "../core/luneCalls.js";
 import { membersFor } from "../core/members.js";
+import { namedResultRef } from "../core/namedResults.js";
 import {
 	FUNCTION_NODES,
 	HANDLER_NODES,
@@ -1436,7 +1437,19 @@ function ParamPicker({ script, node }: { script: NodeScript; node: GraphNode }) 
 
 function LocalPicker({ script, node }: { script: NodeScript; node: GraphNode }) {
 	const current = configText(node, "local") ?? "";
-	const locals = script.nodes.filter((n) => n.def === "local.declare");
+	const registry = store.getRegistry();
+	// Declare Locals, then the steps whose result is named.
+	const locals = [
+		...script.nodes
+			.filter((n) => n.def === "local.declare")
+			.map((n) => ({ id: n.id, name: localNameOf(n) })),
+		...(registry
+			? script.nodes.flatMap((n) => {
+					const ref = n.def === "local.declare" ? undefined : namedResultRef(n, registry);
+					return ref ? [{ id: n.id, name: `${ref.name} (result)` }] : [];
+				})
+			: []),
+	];
 	if (locals.length === 0) {
 		return <p className="summary">This graph declares no locals yet.</p>;
 	}
@@ -1445,12 +1458,14 @@ function LocalPicker({ script, node }: { script: NodeScript; node: GraphNode }) 
 			<select
 				className="tb"
 				value={current}
-				onChange={(e) => store.edit((s) => bindNodeToLocal(s, node.id, e.target.value))}
+				onChange={(e) =>
+					store.edit((s) => bindNodeToLocal(s, node.id, e.target.value, registry ?? undefined))
+				}
 			>
 				{current === "" && <option value="">Choose a local…</option>}
 				{locals.map((local) => (
 					<option key={local.id} value={local.id}>
-						{localNameOf(local)}
+						{local.name}
 					</option>
 				))}
 			</select>

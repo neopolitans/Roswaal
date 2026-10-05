@@ -114,7 +114,7 @@ export function useGraphCommands(context: GraphCommandsContext) {
 	const projectFunctions = useProjectFunctions();
 	const presets = useMemo(() => {
 		if (!editor.script) return [];
-		const base = buildPresets(editor.script, editor.graph);
+		const base = buildPresets(editor.script, editor.graph, registry);
 		return [
 			...base,
 			...callPresets(editor.script, requiredModules(editor.script, projectFunctions)),

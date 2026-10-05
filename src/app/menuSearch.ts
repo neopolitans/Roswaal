@@ -23,6 +23,7 @@ import {
 import { keywordNodes } from "../core/keywords.js";
 import { luneMenuItems, lunePins } from "../core/luneCalls.js";
 import { type MemberLookup, membersOfType } from "../core/members.js";
+import { namedResultRef } from "../core/namedResults.js";
 import { FUNCTION_NODES, signatureOf, signatureText } from "../core/nodes/flow.js";
 import { categories, type Registry, subcategories } from "../core/nodes/index.js";
 import { classify, classifyFor, runtimeLabelFor } from "../core/nodes/runtimes.js";
@@ -599,6 +600,7 @@ export function buildPresets(
 		nodes: Pick<GraphNode, "id" | "def" | "config" | "literals" | "label" | "graph">[];
 	},
 	graph: GraphId = null,
+	registry?: Registry,
 ): Preset[] {
 	const out: Preset[] = [];
 	const hoisted = hoistedFunctions(script);
@@ -641,6 +643,24 @@ export function buildPresets(
 			config: { ...ref },
 			color: pinColor(ref.type, "data"),
 		});
+	}
+
+	// A step's named result is a local as well, scoped the same way.
+	if (registry) {
+		for (const node of script.nodes) {
+			if (node.def === "local.declare" || !visibleFrom(node, graph, hoisted)) continue;
+			const ref = namedResultRef(node, registry);
+			if (!ref) continue;
+			out.push({
+				key: `local:${node.id}`,
+				title: `Get ${ref.name}`,
+				category: "Variables",
+				summary: `Reads the named result "${ref.name}" wherever it is in scope.`,
+				defId: "local.get",
+				config: { ...ref },
+				color: pinColor(ref.type, "data"),
+			});
+		}
 	}
 
 	for (const node of script.nodes) {

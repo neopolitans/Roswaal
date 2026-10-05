@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.138.0",
+		date: "2026-10-05",
+		headline: "A step's named result is a local you can read by name.",
+		affects: ["editor", "docs"],
+		added: [
+			"A step with a Result name is listed under Locals in the Variables panel, and the node search offers Get and its name. Get Local reads it wherever it is in scope, with no wire back to the call.",
+		],
+	},
+	{
 		version: "0.137.1",
 		date: "2026-10-05",
 		headline: "Saving into a folder in the browser stops failing while you work.",

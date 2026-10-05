@@ -1207,7 +1207,7 @@ export function Canvas({
 							world.y - NODE.compactHeight / 2,
 						);
 						queueMicrotask(() => store.select([added.id]));
-						return bindNodeToLocal(added.script, added.id, id);
+						return bindNodeToLocal(added.script, added.id, id, registry);
 					});
 					return;
 				}

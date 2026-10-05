@@ -14,6 +14,7 @@ import {
 	visibleFrom,
 	withFunctionGraphs,
 } from "../core/functionGraph.js";
+import { namedResultRef } from "../core/namedResults.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import type { Registry } from "../core/nodes/index.js";
 import { isConstLocal } from "../core/nodes/variables.js";
@@ -106,6 +107,12 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 	const locals = script.nodes.filter(
 		(n) => n.def === "local.declare" && visibleFrom(n, graph, hoisted),
 	);
+	// Steps whose result is named: locals too, read by name the same way.
+	const namedResults = script.nodes.flatMap((n) => {
+		if (n.def === "local.declare" || !visibleFrom(n, graph, hoisted)) return [];
+		const ref = namedResultRef(n, registry);
+		return ref ? [{ node: n, ref }] : [];
+	});
 	const declaredTypes = script.nodes.filter(
 		(n) =>
 			(n.def === "type.declareTop" || n.def === "type.declareHere") &&
@@ -194,7 +201,7 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 
 				{/* The graph's Declare Locals, so one can be dragged out as a Get
 				    Local instead of wired from where it was made. */}
-				{locals.length > 0 && (
+				{(locals.length > 0 || namedResults.length > 0) && (
 					<>
 						<h3 className="variables-sub">Locals</h3>
 						{locals.map((node) => (
@@ -203,6 +210,9 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 								node={node}
 								onDelete={() => deleteDeclaration(node, "local")}
 							/>
+						))}
+						{namedResults.map(({ node, ref }) => (
+							<NamedResultRow key={node.id} node={node} name={ref.name} type={ref.type} />
 						))}
 					</>
 				)}
@@ -460,6 +470,35 @@ function LocalRow({ node, onDelete }: { node: GraphNode; onDelete: () => void })
 				{isConstLocal(node.config) && <span className="badge const">const</span>}
 				<span className="type">{declared || "any"}</span>
 				<RowDelete name={ref.name || "local"} onDelete={onDelete} />
+			</div>
+		</div>
+	);
+}
+
+/**
+ * One step's named result: drag it for a Get Local, click it to find the step.
+ *
+ * No delete: the row is a call that does something, and removing its local is
+ * clearing its Result name, in the Inspector where the name was typed.
+ */
+function NamedResultRow({ node, name, type }: { node: GraphNode; name: string; type: string }) {
+	function onDragStart(e: DragEvent) {
+		e.dataTransfer.setData("application/x-roswaal-local", JSON.stringify({ id: node.id }));
+		e.dataTransfer.effectAllowed = "copy";
+	}
+	return (
+		<div className="variable">
+			<div
+				className="variable-head"
+				draggable
+				title="A step's named result. Drag onto the canvas for a Get Local. Click to select the step."
+				onDragStart={onDragStart}
+				onClick={() => store.reveal(node.id)}
+			>
+				<span className="swatch" style={{ background: pinColor(type, "data") }} />
+				<span className="name">{name}</span>
+				<span className="badge">result</span>
+				<span className="type">{type}</span>
 			</div>
 		</div>
 	);

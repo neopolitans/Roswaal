@@ -152,6 +152,22 @@ function readParameter(e: Emitter, src: ResolvedNode, scope: Scope): string {
 function readLocal(e: Emitter, src: ResolvedNode, scope: Scope): string {
 	const ref = localRefOf(src.node.config);
 	const declared = ref.local ? e.index.get(ref.local) : undefined;
+	// A step's named result is a local too (see `namedResults.ts`), bound
+	// under its result pin when the step runs.
+	if (declared && declared.def.id !== "local.declare") {
+		const named = typeof declared.node.config?.resultName === "string";
+		const bound =
+			named && !declared.def.pure ? scope.lookup(`${declared.node.id}/result`) : undefined;
+		if (bound) return bound;
+		e.error(
+			named
+				? `"${ref.name ?? "That result"}" is not in scope here. A named result exists after its ` +
+						"step runs, and only inside the block it runs in."
+				: "Get Local points at a node that no longer names its result.",
+			src.node.id,
+		);
+		return "nil";
+	}
 	if (!ref.local || declared?.def.id !== "local.declare") {
 		e.error(
 			ref.local

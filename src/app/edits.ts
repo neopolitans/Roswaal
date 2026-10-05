@@ -16,6 +16,7 @@ import {
 	viewOf,
 	withFunctionGraphs,
 } from "../core/functionGraph.js";
+import { namedResultRef } from "../core/namedResults.js";
 import {
 	continuesEnclosingBlock,
 	FUNCTION_NODES,
@@ -112,11 +113,21 @@ export function localRefFor(
 	return { local: node.id, name: localNameOf(node), type: pinTypeOf(declared) };
 }
 
-/** Points a Get Local at a Declare Local. */
-export function bindNodeToLocal(script: NodeScript, nodeId: string, localId: string): NodeScript {
-	const target = script.nodes.find((n) => n.id === localId && n.def === "local.declare");
+/**
+ * Points a Get Local at a Declare Local, or at a step's named result when the
+ * registry is given to read its type from. See `namedResults.ts`.
+ */
+export function bindNodeToLocal(
+	script: NodeScript,
+	nodeId: string,
+	localId: string,
+	registry?: Registry,
+): NodeScript {
+	const target = script.nodes.find((n) => n.id === localId);
 	if (!target) return script;
-	return setConfig(script, nodeId, { ...localRefFor(target) });
+	if (target.def === "local.declare") return setConfig(script, nodeId, { ...localRefFor(target) });
+	const named = registry ? namedResultRef(target, registry) : undefined;
+	return named ? setConfig(script, nodeId, { ...named }) : script;
 }
 
 /**

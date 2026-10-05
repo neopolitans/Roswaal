@@ -163,6 +163,13 @@ export function variablesAndLocalsPage(): DocPage {
 					'either way**: `local turretModel = need(model, "Turret", "Model")`.',
 			},
 			{
+				t: "p",
+				text:
+					"**A step's named result is a local like any other.** It is listed under Locals in " +
+					"the Variables panel, the node search offers **Get turretModel**, and Get Local " +
+					"reads it wherever it is in scope, with no wire back to the call.",
+			},
+			{
 				t: "note",
 				kind: "good",
 				text:
