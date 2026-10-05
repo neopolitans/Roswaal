@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.134.0",
+		date: "2026-10-05",
+		headline: "Calls take their arguments from the function wired in, and any input can be typed.",
+		affects: ["editor", "docs"],
+		added: [
+			"Call Function and Call For Value wired from a Get Function, or a declaration's Function output, take that function's parameters as named, typed pins, and its first return as the result's type. The pins follow the signature when it changes.",
+			"An input a node declares `any` can be given a type under Pins in the Inspector. It wires, colours and takes a typed-in value as that type; the Luau written does not change.",
+		],
+		fixed: ["An optional argument left empty at the end of Call For Value is left off the call."],
+	},
+	{
 		version: "0.133.1",
 		date: "2026-10-05",
 		headline: "The Luau logo stays on the canary for now.",

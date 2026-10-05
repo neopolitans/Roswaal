@@ -103,7 +103,8 @@ describe("Call For Value", () => {
 	 */
 	it("is the difference between it and Call Function", () => {
 		const wired = code(readerAndCaller("call.function"));
-		expect(wired).toMatch(/local \w+ = readNumber\(tank, "MovementSpeed"\)/);
+		// Typed since 0.134.0: wired from readNumber, the call knows it gives a number.
+		expect(wired).toMatch(/local \w+: number = readNumber\(tank, "MovementSpeed"\)/);
 		expect(wired).not.toContain("{ movementSpeed = readNumber(");
 	});
 

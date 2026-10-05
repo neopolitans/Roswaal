@@ -222,21 +222,30 @@ function movedPin(
 
 /**
  * A call node moved onto a new signature: its config, and the wires, typed
- * values and splits on its argument pins carried to where their parameter is
- * now. Wires into a deleted parameter are dropped with it; left on, they would
- * land on whatever parameter is added at that position next.
+ * values, chosen types and splits on its argument pins carried to where their
+ * parameter is now. Wires into a deleted parameter are dropped with it; left
+ * on, they would land on whatever parameter is added at that position next.
  */
 function moveArguments(
 	node: GraphNode,
 	links: Link[],
 	moves: readonly (number | undefined)[],
-	signature: Pick<ScriptCallRef, "name" | "params" | "returns">,
+	config: NodeConfig,
 ): { node: GraphNode; links: Link[] } {
 	const identity = moves.every((to, i) => to === i);
 
-	const config: NodeConfig = { ...node.config, ...signature };
 	let literals = node.literals;
 	if (!identity) {
+		const chosen = node.config?.pinTypes;
+		if (chosen && typeof chosen === "object") {
+			const next: Record<string, unknown> = {};
+			for (const [pin, type] of Object.entries(chosen as Record<string, unknown>)) {
+				const moved = movedPin(pin, moves);
+				if (moved === undefined) continue;
+				next[moved ?? pin] = type;
+			}
+			config.pinTypes = next;
+		}
 		const splits = splitsOf(node.config);
 		if (Object.keys(splits).length > 0) {
 			const next: Record<string, string> = {};
@@ -291,7 +300,10 @@ function syncCalls(
 		const was = { name: ref.name ?? "function", params: ref.params, returns: ref.returns };
 		if (same(was, now)) return node;
 		changed = true;
-		const moved = moveArguments(node, links, paramMoves(ref.params, now.params), now);
+		const moved = moveArguments(node, links, paramMoves(ref.params, now.params), {
+			...node.config,
+			...now,
+		});
 		links = moved.links;
 		return moved.node;
 	});
@@ -315,6 +327,104 @@ export function syncScriptCalls(script: NodeScript): NodeScript {
 		const target = declared.get(ref.function);
 		return target ? callSignature(signatureOf(target.config)) : undefined;
 	});
+}
+
+/**
+ * Call Function and Call For Value, which take their function on a wire.
+ *
+ * When that wire comes from a function the graph declares — a Get Function,
+ * or a declaration's own Function output, through any knots — the call takes
+ * that function's signature as its pins, exactly as a Script Function does.
+ * Any other wire, or none, and the call is the generic one again, with the
+ * argument count it had.
+ */
+export const WIRED_CALLS: ReadonlySet<string> = new Set(["call.function", "call.value"]);
+
+/** The config key holding the signature a wired call took from its function. */
+const WIRED = "wired";
+
+/** The signature a wired call took from its function, or undefined. */
+export function wiredSignatureOf(
+	config: NodeConfig | undefined,
+): Pick<ScriptCallRef, "name" | "params" | "returns"> | undefined {
+	const raw = config?.[WIRED];
+	if (!raw || typeof raw !== "object") return undefined;
+	const ref = scriptCallOf(raw as NodeConfig);
+	return { name: ref.name ?? "function", params: ref.params, returns: ref.returns };
+}
+
+/** A wired call's arguments as pins, and its result typed as the function's first return. */
+export function wiredCallPins(
+	config: NodeConfig | undefined,
+	resultName: string,
+): { args: PinDef[]; result: PinDef } | undefined {
+	const wired = wiredSignatureOf(config);
+	if (!wired) return undefined;
+	const first = wired.returns[0];
+	const result = first
+		? { ...returnPin(first, 0), name: resultName }
+		: { id: "result", name: resultName, kind: "data" as const, type: "any" };
+	return { args: scriptArgumentPins(wired.params), result };
+}
+
+/** What a pin's wire comes from, following reroute knots back to a real node. */
+function sourceOf(
+	script: Pick<NodeScript, "links">,
+	byId: ReadonlyMap<string, GraphNode>,
+	nodeId: string,
+	pin: string,
+): { node: GraphNode; pin: string } | undefined {
+	const seen = new Set<string>();
+	let link = script.links.find((l) => l.to.node === nodeId && l.to.pin === pin);
+	while (link) {
+		const from = byId.get(link.from.node);
+		if (!from || seen.has(from.id)) return undefined;
+		seen.add(from.id);
+		if (from.def !== "flow.reroute") return { node: from, pin: link.from.pin };
+		const knot = from.id;
+		link = script.links.find((l) => l.to.node === knot && l.to.pin === "in");
+	}
+	return undefined;
+}
+
+/**
+ * Every wired call brought up to date with the function wired into it.
+ *
+ * Beside `syncScriptCalls`, after each edit and before compiling. Wiring a
+ * function in keeps the arguments where they are, by position; a signature
+ * edit afterwards moves them as a Script Function's are moved; unwiring it
+ * leaves the generic pins at the count the node had.
+ */
+export function adoptWiredSignatures(script: NodeScript): NodeScript {
+	if (!script.nodes.some((n) => WIRED_CALLS.has(n.def))) return script;
+	const byId = new Map(script.nodes.map((n) => [n.id, n] as const));
+	let links = script.links;
+	let changed = false;
+	const nodes = script.nodes.map((node) => {
+		if (!WIRED_CALLS.has(node.def)) return node;
+		const source = sourceOf(script, byId, node.id, "fn");
+		let declaration: GraphNode | undefined;
+		if (source && FUNCTION_NODES.has(source.node.def) && source.pin === "self") {
+			declaration = source.node;
+		} else if (source?.node.def === "function.get") {
+			const target = byId.get(text(source.node.config, "function") ?? "");
+			if (target && FUNCTION_NODES.has(target.def)) declaration = target;
+		}
+		const was = wiredSignatureOf(node.config);
+		const now = declaration ? callSignature(signatureOf(declaration.config)) : undefined;
+		if (same(was, now)) return node;
+		changed = true;
+		if (!now) {
+			const { [WIRED]: _gone, ...rest } = node.config ?? {};
+			return { ...node, config: rest };
+		}
+		// Newly wired: the arguments stay where they are. Re-signed: they move.
+		const moves = was ? paramMoves(was.params, now.params) : [];
+		const moved = moveArguments(node, links, moves, { ...node.config, [WIRED]: now });
+		links = moved.links;
+		return moved.node;
+	});
+	return changed ? { ...script, nodes, links } : script;
 }
 
 /** A function a module exports, as the project reports it. */

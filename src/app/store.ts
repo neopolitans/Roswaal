@@ -60,7 +60,7 @@ import {
 import type { Registry } from "../core/nodes/index.js";
 import { retypeReroutes } from "../core/reroutes.js";
 import type { NodeScript } from "../core/schema.js";
-import { syncScriptCalls } from "../core/scriptCalls.js";
+import { adoptWiredSignatures, syncScriptCalls } from "../core/scriptCalls.js";
 import { type MapDocument, type SideDocument, sideName, sidePath } from "./centreDocument.js";
 import type { View } from "./geometry.js";
 import { functionNameOf } from "./nodeConfig.js";
@@ -170,6 +170,16 @@ export function tabKey(path: string, graph: GraphId): string {
 /** A side document's tab key: its kind and its file, so it never meets a graph's. */
 export function sideKey(side: SideDocument): string {
 	return `${side.kind}:${sidePath(side)}`;
+}
+
+/**
+ * A graph as it is read, with every call's copy of its signature brought up
+ * to date, so a call wired from `need` shows need's pins the moment the graph
+ * opens rather than at the first edit. Not marked unsaved: the file catches up
+ * at the next edit, and the compiler settles it the same way regardless.
+ */
+function settledCalls(script: NodeScript): NodeScript {
+	return adoptWiredSignatures(syncModuleCallsFor(syncScriptCalls(script)));
 }
 
 class Store {
@@ -351,6 +361,7 @@ class Store {
 	 * asks it; a dynamic compile must not.
 	 */
 	open(path: string, script: NodeScript): void {
+		script = settledCalls(script);
 		this.setDoc({ path, script, dirty: false, past: [], future: [], pending: null });
 		if (!this.tabList.some((t) => t.key === path)) this.tabList.push(this.newTab(path, null));
 		if (this.activeTab()?.path !== path) this.activeKey = path;
@@ -642,6 +653,7 @@ class Store {
 	 */
 	reload(path: string, script: NodeScript): void {
 		if (!this.docs.has(path)) return;
+		script = settledCalls(script);
 		this.setDoc({ path, script, dirty: false, past: [], future: [], pending: null });
 		this.reconcile(path);
 		this.changed();
@@ -763,6 +775,9 @@ class Store {
 		// those arrives here. See `scriptCalls.ts`.
 		next = syncScriptCalls(next);
 		next = syncModuleCallsFor(next);
+		// And for Call Function and Call For Value, which learn a signature from
+		// the function wired into them rather than from their own config.
+		next = adoptWiredSignatures(next);
 
 		this.setDoc({
 			...doc,

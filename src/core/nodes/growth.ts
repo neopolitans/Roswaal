@@ -6,6 +6,7 @@
  */
 
 import type { GraphNode, NodeDef } from "../schema.js";
+import { WIRED_CALLS, wiredSignatureOf } from "../scriptCalls.js";
 
 /**
  * How a node gains and loses input pins.
@@ -87,6 +88,9 @@ export function growthState(
 ): { canAdd: boolean; canRemove: boolean } | null {
 	const rule = growthRule(def);
 	if (!rule) return null;
+	// A call wired from a declared function has that function's arguments,
+	// and no count of its own to change.
+	if (def && WIRED_CALLS.has(def.id) && wiredSignatureOf(config ?? {})) return null;
 	const arity = currentArity({ config }, def, rule);
 	return { canAdd: arity < rule.max, canRemove: arity > rule.min };
 }

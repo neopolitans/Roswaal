@@ -128,6 +128,12 @@ export interface PinDef {
 	 */
 	nilable?: boolean;
 	/**
+	 * Data inputs only: the Luau type somebody chose for a pin its node declares
+	 * `any`, as written (`BasePart?`). Set by `resolveNodePins` from the node's
+	 * `pinTypes`; `type` is then that type's pin type. See `retypedInputs`.
+	 */
+	chosenType?: string;
+	/**
 	 * Data inputs only: offer these values as a dropdown instead of a free text
 	 * field. Suggestions, not a closed set — anything not listed can still be
 	 * typed, so a value the list has not caught up with is never a dead end.

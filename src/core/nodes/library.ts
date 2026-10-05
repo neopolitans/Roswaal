@@ -23,6 +23,7 @@ import {
 import { DATATYPES } from "../robloxData.js";
 import type { Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
 import { ENGINE_TYPES, LUAU, PAIR, SPECIFIER_HINTS } from "../schema.js";
+import { wiredCallPins } from "../scriptCalls.js";
 import { SERVICE_CALL, SERVICE_VALUE, servicePins, serviceSubtitle } from "../serviceCalls.js";
 import { handlerOutputs } from "./flow.js";
 import { pinTypeOf, typedLocalName } from "./variables.js";
@@ -3098,10 +3099,15 @@ export const LIBRARY_NODES: NodeDef[] = [
 		inputs: [d("fn", "Function", "function"), d("a0", "Argument", "any", { t: "nil" })],
 		outputs: [d("result", "", "any")],
 		compilesTo: { kind: "expr", outputs: { result: "$in.fn($args(, ))" } },
-		derivePins: (config) => ({
-			inputs: [d("fn", "Function", "function"), ...argPins(config)],
-			outputs: [d("result", "", "any")],
-		}),
+		// Wired from a function the graph declares, the arguments are its
+		// parameters and the result its first return. See `adoptWiredSignatures`.
+		derivePins: (config) => {
+			const wired = wiredCallPins(config, "");
+			return {
+				inputs: [d("fn", "Function", "function"), ...(wired?.args ?? argPins(config))],
+				outputs: [wired?.result ?? d("result", "", "any")],
+			};
+		},
 	},
 	{
 		// Argument count is per-instance rather than fixed, because a template
@@ -3114,10 +3120,13 @@ export const LIBRARY_NODES: NodeDef[] = [
 		inputs: [exec("in"), d("fn", "Function", "function"), d("a0", "Argument", "any", { t: "nil" })],
 		outputs: [exec("then"), d("result", "Result", "any")],
 		compilesTo: { kind: "builtin", handler: "call.invoke" },
-		derivePins: (config) => ({
-			inputs: [exec("in"), d("fn", "Function", "function"), ...argPins(config)],
-			outputs: [exec("then"), d("result", "Result", "any")],
-		}),
+		derivePins: (config) => {
+			const wired = wiredCallPins(config, "Result");
+			return {
+				inputs: [exec("in"), d("fn", "Function", "function"), ...(wired?.args ?? argPins(config))],
+				outputs: [exec("then"), wired?.result ?? d("result", "Result", "any")],
+			};
+		},
 	},
 	{
 		id: "call.method",

@@ -240,8 +240,9 @@ export function functionsPage({ registry }: PageContext): DocPage {
 			...previews(
 				registry,
 				["function.get", "call.function", "call.value"],
-				"Both take the function on a wire. Set the argument count with the − and + on the " +
-					"header, or in the Inspector.",
+				"Both take the function on a wire. Wired from a Get Function or a declaration, " +
+					"they take that function's parameters as named, typed pins. Otherwise, set the " +
+					"argument count with the − and + on the header, or in the Inspector.",
 			),
 			{
 				t: "code",

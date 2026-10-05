@@ -20,6 +20,7 @@ import {
 } from "./emitDeclarations.js";
 import { narrowingsOf } from "./emitNarrowing.js";
 import { logicOutputName, Scope, VARIADIC_PIN } from "./emitScope.js";
+import { callArguments } from "./emitTemplates.js";
 import type { Emitter } from "./emitter.js";
 import { scriptCall } from "./emitValues.js";
 import type { ResolvedNode } from "./graph.js";
@@ -221,9 +222,12 @@ function callInvoke(e: Emitter, r: ResolvedNode, scope: Scope): string | undefin
 	const id = r.node.id;
 	// One handler for both call nodes: the only difference is whether
 	// the callee is a wired value or a method name on an object.
-	const args = r.inputs
-		.filter((p) => VARIADIC_PIN.test(p.id))
-		.map((p) => e.resolveInput(r, p, scope));
+	const args = callArguments(
+		e,
+		r,
+		r.inputs.filter((p) => VARIADIC_PIN.test(p.id)),
+		(p) => e.resolveInput(r, p, scope),
+	);
 
 	let callee: string;
 	if (r.def.id === "call.method") {

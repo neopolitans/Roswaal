@@ -19,7 +19,7 @@ import {
 import { FUNCTION_NODES, HANDLER_NODES, signatureOf } from "../core/nodes/flow.js";
 import { currentArity, type GrowthRule, growthRule } from "../core/nodes/growth.js";
 import type { Registry } from "../core/nodes/index.js";
-import { literalOnlyPins, resolveNodePins } from "../core/nodes/index.js";
+import { literalOnlyPins, pinTypesOf, resolveNodePins } from "../core/nodes/index.js";
 import { type LocalRef, localNameOf, pinDefaultFor, pinTypeOf } from "../core/nodes/variables.js";
 import { retypeReroutes } from "../core/reroutes.js";
 import { isInstanceClass, isSubclassOf } from "../core/roblox.js";
@@ -416,6 +416,27 @@ export function setLiteral(
 		}),
 	};
 	return touchesLocal(script, nodeId) ? syncLocalRefs(next) : next;
+}
+
+/**
+ * Chooses the type of an input its node declares `any`; `any` clears it.
+ *
+ * Wires already on the pin stay. A choice that makes one the wrong type is a
+ * choice somebody can see on the canvas and undo, where a wire removed for
+ * them is one they may not notice has gone.
+ */
+export function setPinType(
+	script: NodeScript,
+	nodeId: string,
+	pinId: string,
+	type: string,
+): NodeScript {
+	const node = script.nodes.find((n) => n.id === nodeId);
+	if (!node) return script;
+	const next = { ...pinTypesOf(node.config) };
+	if (type.trim() === "" || type.trim() === "any") delete next[pinId];
+	else next[pinId] = type.trim();
+	return setConfig(script, nodeId, { pinTypes: Object.keys(next).length > 0 ? next : undefined });
 }
 
 export function setConfig(

@@ -49,7 +49,13 @@ import {
 	type NodeDef,
 	type NodeScript,
 } from "../core/schema.js";
-import { SCRIPT_CALLS, scriptCallLabel, scriptCallOf } from "../core/scriptCalls.js";
+import {
+	SCRIPT_CALLS,
+	scriptCallLabel,
+	scriptCallOf,
+	WIRED_CALLS,
+	wiredSignatureOf,
+} from "../core/scriptCalls.js";
 import {
 	CALL_OPTIONS,
 	callDetail,
@@ -71,6 +77,7 @@ import {
 	disconnectInput,
 	setConfig,
 	setLiteral,
+	setPinType,
 	syncFunctionRefs,
 	syncFunctionReturns,
 	syncParamRefs,
@@ -311,7 +318,16 @@ function SequenceCount({ node }: SectionProps) {
 }
 
 /** How many arguments a Call Function or Call Method passes. */
-function ArgumentCount({ node }: SectionProps) {
+function ArgumentCount({ node, def }: SectionProps) {
+	// Wired from a declared function, the arguments are that function's.
+	const wired = WIRED_CALLS.has(def.id) ? wiredSignatureOf(node.config) : undefined;
+	if (wired) {
+		return (
+			<p className="summary">
+				Arguments follow <code>{wired.name}</code>'s parameters while it is wired in.
+			</p>
+		);
+	}
 	return <CountEditor node={node} field="args" label="Arguments" min={0} max={8} fallback={1} />;
 }
 
@@ -1568,7 +1584,15 @@ function PinSummary({ def, node }: { def: NodeDef; node: GraphNode }) {
 							{pin.name || pin.id}
 							<span className="pin-dir">{out ? "out" : "in"}</span>
 						</span>
-						<span className="chip-type">{pinTypeText(pin)}</span>
+						{!out && (pin.type === "any" || pin.chosenType !== undefined) ? (
+							<TypePicker
+								value={pin.chosenType ?? "any"}
+								title="This pin takes anything. Choose what it should take."
+								onChange={(type) => store.edit((s) => setPinType(s, node.id, pin.id, type))}
+							/>
+						) : (
+							<span className="chip-type">{pinTypeText(pin)}</span>
+						)}
 					</div>
 				))}
 		</div>

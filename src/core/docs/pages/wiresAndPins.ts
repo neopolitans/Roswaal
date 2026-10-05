@@ -104,6 +104,14 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 				],
 			},
 			{ t: "p", text: "[Roswaal types](types) lists every type and what it holds." },
+			{
+				t: "note",
+				kind: "good",
+				text:
+					"**An input that takes anything can be given a type.** Select the node, and pick one beside the " +
+					"pin under **Pins** in the Inspector. The pin then wires, colours and takes a " +
+					"typed-in value as that type. The Luau written does not change.",
+			},
 
 			{ t: "h", level: 2, text: "Working with wires" },
 			{

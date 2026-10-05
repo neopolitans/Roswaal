@@ -16,7 +16,7 @@ import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
 import { LUNE_NODES } from "./lune.js";
 import { withRuntimes } from "./runtimes.js";
-import { VARIABLE_NODES } from "./variables.js";
+import { pinDefaultFor, pinTypeOf, VARIABLE_NODES } from "./variables.js";
 
 export type { Signature } from "./flow.js";
 export { continuesEnclosingBlock, FLOW_NODES, signatureText } from "./flow.js";
@@ -81,11 +81,13 @@ export function createRegistry(extra: NodeDef[] = []): Registry {
 /**
  * The pins a node actually shows, for one node instance.
  *
- * Two passes, in this order:
+ * Three passes, in this order:
  *
  * 1. `derivePins`, for builtins whose shape follows their config — a function's
  *    signature, a Sequence's arity.
- * 2. **splitting**, which replaces a struct pin with one pin per component.
+ * 2. **chosen types**, for an input the node declares `any` and somebody has
+ *    given a type. See `retypedInputs`.
+ * 3. **splitting**, which replaces a struct pin with one pin per component.
  *
  * Splitting has to be the second pass and it has to live *here* rather than on
  * `NodeDef`. `derivePins` is documented as builtin-only, and deliberately so:
@@ -105,7 +107,7 @@ export function resolveNodePins(
 	structs: StructRegistry = STRUCTS,
 ): { inputs: PinDef[]; outputs: PinDef[]; baseInputs: PinDef[]; baseOutputs: PinDef[] } {
 	const derived = def.derivePins?.(config ?? {}, literals);
-	const baseInputs = derived?.inputs ?? def.inputs;
+	const baseInputs = retypedInputs(derived?.inputs ?? def.inputs, config);
 	const baseOutputs = derived?.outputs ?? def.outputs;
 
 	const splits = splitsOf(config);
@@ -119,6 +121,51 @@ export function resolveNodePins(
 		baseInputs,
 		baseOutputs,
 	};
+}
+
+/** The node config key holding the chosen types, by input pin id. */
+export const PIN_TYPES = "pinTypes";
+
+/** The types chosen for a node's `any` inputs, as written, by pin id. */
+export function pinTypesOf(config: NodeConfig | undefined): Record<string, string> {
+	const raw = config?.[PIN_TYPES];
+	if (!raw || typeof raw !== "object") return {};
+	const out: Record<string, string> = {};
+	for (const [pin, type] of Object.entries(raw as Record<string, unknown>)) {
+		if (typeof type === "string" && type.trim() !== "") out[pin] = type.trim();
+	}
+	return out;
+}
+
+/**
+ * Inputs the node declares `any`, typed as somebody chose.
+ *
+ * An `any` pin takes every wire and draws no field worth typing into, which is
+ * right for Call Function's arguments until you know what the function wants.
+ * Choosing `string` for one gives it a text field and a string's colour, and
+ * makes a wire of the wrong type the refusal it would be anywhere else.
+ *
+ * Only `any` pins, so a choice can never contradict what a node knows about
+ * itself. The choice changes what can be wired and typed in, never the Luau
+ * written: a pin's type is the editor's, and the call is the same call. A pin
+ * left with no value keeps its own default unless it had none worth keeping
+ * (`nil`), when it takes the chosen type's: a `number` pin starts at 0.
+ */
+export function retypedInputs(pins: PinDef[], config: NodeConfig | undefined): PinDef[] {
+	const chosen = pinTypesOf(config);
+	if (Object.keys(chosen).length === 0) return pins;
+	return pins.map((pin) => {
+		const type = chosen[pin.id];
+		if (type === undefined || pin.kind !== "data" || (pin.type ?? "any") !== "any") return pin;
+		const pinType = pinTypeOf(type);
+		const keep = pin.default !== undefined && pin.default.t !== "nil";
+		return {
+			...pin,
+			type: pinType,
+			chosenType: type,
+			default: keep ? pin.default : (pinDefaultFor(pinType) ?? pin.default),
+		};
+	});
 }
 
 function applySplits(

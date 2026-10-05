@@ -6,7 +6,7 @@ import { checkLuau } from "../luau/check.js";
 import type { SpecifierContext } from "../modules.js";
 import type { Registry } from "../nodes/index.js";
 import type { Comment, NodeScript, ScriptClass, Target } from "../schema.js";
-import { syncScriptCalls } from "../scriptCalls.js";
+import { adoptWiredSignatures, syncScriptCalls } from "../scriptCalls.js";
 import { type Diagnostic, type EmitResult, emit, hashString } from "./emit.js";
 import { validate } from "./validate.js";
 
@@ -62,7 +62,7 @@ export function compile(
 	// hand cannot carry a stale class or signature into the build.
 	const headers = options.comments ? headersByNode(source, registry) : undefined;
 	const sourceHash = hashString(semanticJson(source, { headers }));
-	const script = syncScriptCalls(retypeClassReads(source));
+	const script = adoptWiredSignatures(syncScriptCalls(retypeClassReads(source)));
 	const structural = validate(script, registry);
 	const emitted: EmitResult = emit(script, registry, sourceHash, {
 		indent: options.indent,

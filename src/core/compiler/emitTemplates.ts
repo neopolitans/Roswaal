@@ -253,13 +253,17 @@ export function renderTemplate(
 	// node whose arity is chosen per instance still compiles from a static
 	// template. Each operand is parenthesised, because the separator is
 	// usually an operator and precedence has to survive.
+	//
+	// Through `callArguments`, so an optional argument left empty at the end is
+	// left off, as every call node does. Only a wired call's pins are optional,
+	// so for an operator this is the plain list it always was.
 	template = template.replace(/\$args\(([^)]*)\)/g, (_match, separator: string) => {
 		const args = r.inputs.filter((p) => VARIADIC_PIN.test(p.id));
 		if (args.length === 0) return "";
 		const needed = foldPrecedence(separator);
-		return args
-			.map((p, i) => parenAt(e.resolveInput(r, p, scope), i === 0 ? needed.first : needed.rest))
-			.join(separator);
+		return callArguments(e, r, args, (p, i) =>
+			parenAt(e.resolveInput(r, p, scope), i === 0 ? needed.first : needed.rest),
+		).join(separator);
 	});
 
 	// `$more(<sep>)` is `$args` with a leading separator when there is anything
