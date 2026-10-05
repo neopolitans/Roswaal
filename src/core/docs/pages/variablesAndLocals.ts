@@ -151,8 +151,9 @@ export function variablesAndLocalsPage(): DocPage {
 				text:
 					"A node that hands back a value has a **Result name** in the Inspector: the local " +
 					"its result lands in. A Find First Child named `value` emits " +
-					"`local value = parent:FindFirstChild(name)`. The name shows under the node's " +
-					"header rather than replacing it, so the node goes on saying what it does.",
+					"`local value = parent:FindFirstChild(name)`. The node goes on saying what it does, " +
+					"with the name beside it: under the header, or in it as `need (leftTrack)` when " +
+					"the line under the header is taken. A Label you type replaces both.",
 			},
 			{
 				t: "p",

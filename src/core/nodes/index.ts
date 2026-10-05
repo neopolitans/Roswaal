@@ -253,9 +253,14 @@ export function literalOnlyPins(def: NodeDef): Set<string> {
  */
 export function nodeTitle(def: NodeDef | undefined, node: GraphNode): string {
 	if (node.label) return node.label;
-	const named = def?.defaultLabel?.(node.config ?? {}, node);
-	if (named) return named;
-	return def?.title ?? node.def;
+	const config = node.config ?? {};
+	const base = def?.defaultLabel?.(config, node) || (def?.title ?? node.def);
+	// A named result is part of what the node is, so the header says it:
+	// `need (leftTrack)`. Not where the second line already shows the name,
+	// as a template call's does, which would say it twice.
+	const result = typeof config.resultName === "string" ? config.resultName.trim() : "";
+	if (result !== "" && def?.subtitle?.(config) !== result) return `${base} (${result})`;
+	return base;
 }
 
 const CATEGORY_ORDER = [

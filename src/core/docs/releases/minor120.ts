@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.138.3",
+		date: "2026-10-06",
+		headline: "A named result shows in its node's header.",
+		affects: ["editor", "docs"],
+		changed: [
+			"A call with a Result name and no Label of its own is titled with both, as need (leftTrack). A node that already shows the result name under its header keeps it there.",
+		],
+	},
+	{
 		version: "0.138.2",
 		date: "2026-10-05",
 		headline: "Off a pin, the node menu offers the value before its members.",

@@ -145,3 +145,38 @@ describe("Class as String", () => {
 		expect(code(joined)).toMatch(/^need\(workspace, "Turret", "BasePart"\)$/m);
 	});
 });
+
+describe("a header with a named result", async () => {
+	const { nodeTitle } = await import("../src/core/nodes/index.js");
+
+	it("says the name the result has: need (turretModel)", () => {
+		const node = {
+			id: "c",
+			def: SCRIPT_CALL,
+			x: 0,
+			y: 0,
+			config: { function: "f", ...NEED, resultName: "turretModel" },
+		};
+		expect(nodeTitle(registry.get(SCRIPT_CALL), node)).toBe("need (turretModel)");
+	});
+
+	it("gives way to a label somebody typed", () => {
+		const node = {
+			id: "c",
+			def: SCRIPT_CALL,
+			x: 0,
+			y: 0,
+			label: "Turret",
+			config: { function: "f", ...NEED, resultName: "turretModel" },
+		};
+		expect(nodeTitle(registry.get(SCRIPT_CALL), node)).toBe("Turret");
+	});
+
+	it("does not repeat a name the second line already shows", () => {
+		const def = [...registry.values()].find(
+			(d) => d.compilesTo.kind === "call" && d.subtitle?.({ resultName: "x" }) === "x",
+		)!;
+		const node = { id: "t", def: def.id, x: 0, y: 0, config: { resultName: "x" } };
+		expect(nodeTitle(def, node)).toBe(def.title);
+	});
+});
