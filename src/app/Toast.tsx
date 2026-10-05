@@ -6,6 +6,10 @@
  * simply ending, which reads as the editor missing the drop. A compile says
  * what it wrote. Nothing here needs an answer; a question is a dialog.
  *
+ * A notice may carry more than fits, behind a click: a failed save says so
+ * here and keeps the full error for whoever wants it, rather than stopping
+ * every edit with a window to dismiss.
+ *
  * A module-level channel rather than props, because the component that knows
  * what happened and the layer that draws the notice are several components
  * apart. One notice at a time: a newer one replaces the last.
@@ -24,6 +28,8 @@ export interface Toast {
 	icon?: IconName;
 	/** `ok` for something done, `warn` for something refused. Plain otherwise. */
 	tone?: "ok" | "warn";
+	/** What clicking the notice does: open the details it stands in for. */
+	onClick?: () => void;
 }
 
 type Listener = (toast: Toast | null) => void;
@@ -31,6 +37,8 @@ const listeners = new Set<Listener>();
 
 /** How long a notice stays, in milliseconds. Long enough to read a path. */
 const SHOWN_FOR = 3200;
+/** One that can be clicked stays long enough to be clicked. */
+const CLICKABLE_FOR = 6500;
 
 export function showToast(toast: Toast): void {
 	for (const listener of listeners) listener(toast);
@@ -67,7 +75,10 @@ export function Toasts() {
 		if (!toast) return;
 		setShown(false);
 		const frame = requestAnimationFrame(() => setShown(true));
-		const timer = window.setTimeout(() => setShown(false), SHOWN_FOR);
+		const timer = window.setTimeout(
+			() => setShown(false),
+			toast.toast.onClick ? CLICKABLE_FOR : SHOWN_FOR,
+		);
 		return () => {
 			cancelAnimationFrame(frame);
 			window.clearTimeout(timer);
@@ -75,10 +86,25 @@ export function Toasts() {
 	}, [toast]);
 
 	if (!toast) return null;
-	const { title, detail, icon, tone } = toast.toast;
+	const { title, detail, icon, tone, onClick } = toast.toast;
+	const open = onClick
+		? () => {
+				setShown(false);
+				onClick();
+			}
+		: undefined;
 	return (
 		<div className="toast-layer">
-			<div className={cx("toast", tone, shown && "shown")} role="status" aria-live="polite">
+			<div
+				className={cx("toast", tone, shown && "shown", open && "toast-clickable")}
+				role={open ? "button" : "status"}
+				aria-live="polite"
+				tabIndex={open ? 0 : undefined}
+				onClick={open}
+				onKeyDown={(e) => {
+					if (open && (e.key === "Enter" || e.key === " ")) open();
+				}}
+			>
 				<span className="toast-icon">
 					<Icon name={icon ?? (tone === "warn" ? "warning" : "build")} size={15} />
 				</span>

@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.137.1",
+		date: "2026-10-05",
+		headline: "Saving into a folder in the browser stops failing while you work.",
+		affects: ["editor"],
+		fixed: [
+			"In the browser, with a folder open, a file read just as it was being written is read again rather than failing. Placing nodes quickly with Dynamic compiling no longer reports Could not save.",
+			"A long path in an error wraps inside its window rather than running out of it.",
+		],
+		changed: [
+			"A save that does fail says so in a notice at the top of the window. Click it for the full error.",
+		],
+	},
+	{
 		version: "0.137.0",
 		date: "2026-10-05",
 		headline: "A node dragged off a wired execution output goes in between.",

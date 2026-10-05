@@ -712,7 +712,16 @@ export function App() {
 	const onWriteFailed = useCallback(
 		(err: Error) => {
 			if (err instanceof ProjectChangedError) void onProjectChanged(err);
-			else notify("Could not save", err.message);
+			// A notice rather than a window: a save that fails while you work
+			// should not stop the work. The full error is a click away.
+			else {
+				showToast({
+					title: "Could not save",
+					detail: "Click for details",
+					tone: "warn",
+					onClick: () => notify("Could not save", err.message),
+				});
+			}
 		},
 		[notify, onProjectChanged],
 	);

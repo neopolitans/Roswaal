@@ -9083,6 +9083,16 @@ a.docs-release-version:hover {
 	}
 }
 
+/* A notice that opens its details. The layer takes no clicks; this one does. */
+.toast.toast-clickable {
+	pointer-events: auto;
+	cursor: pointer;
+}
+
+.toast.toast-clickable:hover {
+	border-color: var(--border-strong);
+}
+
 .compile-toast {
 	position: absolute;
 	right: 16px;
@@ -16172,6 +16182,9 @@ textarea.tb:where(:disabled) {
 	display: grid;
 	gap: 12px;
 	padding: 14px 14px 16px;
+	/* An error can carry a path with no spaces in it; it wraps rather than
+	   running out of the box. */
+	overflow-wrap: anywhere;
 }
 
 /* A field beside its label, in bold, as the Inspector's are. A prompt's one

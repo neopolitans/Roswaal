@@ -114,8 +114,9 @@ export class DirectoryFs implements ProjectFs {
 			const asDirectory = await this.directoryAt(target);
 			throw asDirectory ? eisdir("read", resolve(target)) : enoent("open", resolve(target));
 		}
-		const file = await handle.getFile();
-		return encoding === "utf8" ? file.text() : new Uint8Array(await file.arrayBuffer());
+		return readFresh(handle, (file) =>
+			encoding === "utf8" ? file.text() : file.arrayBuffer().then((b) => new Uint8Array(b)),
+		);
 	}
 
 	async writeFile(target: string, data: string, encoding: "utf8"): Promise<void>;
@@ -230,8 +231,9 @@ export class DirectoryFs implements ProjectFs {
 		const handle = await found.parent.getFileHandle(found.name, { create: true }).catch(() => null);
 		if (!handle) throw enoent("copyfile", resolve(to));
 
+		const bytes = await readFresh(source, (file) => file.arrayBuffer());
 		const writable = await handle.createWritable();
-		await writable.write(await (await source.getFile()).arrayBuffer());
+		await writable.write(bytes);
 		await writable.close();
 	}
 
@@ -257,4 +259,33 @@ export function canOpenDirectory(): boolean {
 export function mountFor(handle: FileSystemDirectoryHandle): string {
 	const name = handle.name.replace(/[/\\]/g, "").trim();
 	return "/" + (name === "" ? "project" : name);
+}
+
+/**
+ * Reads a file, taking a fresh snapshot if the one in hand went stale.
+ *
+ * `getFile()` is a snapshot, and reading it after the file has been written
+ * throws "the state had changed since it was read from disk". With Dynamic
+ * compiling that is ordinary: an edit saves the graph and rewrites its Luau,
+ * and a read of either can land between the snapshot and the bytes -- as can
+ * any other program writing the same folder, a daemon serving it among them.
+ * The file is fine; the snapshot is old. So the read is asked again, a few
+ * times, before anything is reported, and the error that is reported is the
+ * last real one.
+ */
+async function readFresh<T>(
+	handle: FileSystemFileHandle,
+	read: (file: File) => Promise<T>,
+): Promise<T> {
+	for (let attempt = 1; ; attempt++) {
+		try {
+			return await read(await handle.getFile());
+		} catch (error) {
+			const stale =
+				error instanceof DOMException &&
+				(error.name === "InvalidStateError" || error.name === "NotReadableError");
+			if (!stale || attempt >= 4) throw error;
+			await new Promise((resolve) => setTimeout(resolve, 25 * attempt));
+		}
+	}
 }
