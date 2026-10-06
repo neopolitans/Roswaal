@@ -189,12 +189,16 @@ function writeValues(w: Writer, type: number, values: unknown[]): void {
 
 /**
  * A binary place holding `roots`, every chunk compressed as asked. `shared` is
- * the SSTR table a SharedString property's index points into.
+ * the SSTR table a SharedString property's index points into. `links`, when
+ * given, is the PRNT chunk's child and parent referents in place of the tree's
+ * -- referents count from 0, parents before children -- for a file that is
+ * not a tree.
  */
 export function buildPlace(
 	roots: FixtureInstance[],
 	compression: Compression = "none",
 	shared?: Uint8Array[],
+	links?: [number, number][],
 ): Uint8Array {
 	const all: { inst: FixtureInstance; ref: number; parent: number }[] = [];
 	const visit = (inst: FixtureInstance, parent: number) => {
@@ -265,11 +269,12 @@ export function buildPlace(
 			chunks.push(chunk("PROP", w.done(), compression));
 		}
 	}
+	const pairs = links ?? all.map((e): [number, number] => [e.ref, e.parent]);
 	const prnt = new Writer();
 	prnt.u8(0);
-	prnt.u32(all.length);
-	prnt.interleaved(deltas(all.map((e) => e.ref)));
-	prnt.interleaved(deltas(all.map((e) => e.parent)));
+	prnt.u32(pairs.length);
+	prnt.interleaved(deltas(pairs.map(([child]) => child)));
+	prnt.interleaved(deltas(pairs.map(([, parent]) => parent)));
 	chunks.push(chunk("PRNT", prnt.done(), compression));
 	chunks.push(chunk("END", utf8.encode("</roblox>"), "none"));
 

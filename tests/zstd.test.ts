@@ -180,6 +180,35 @@ describe("zstd", () => {
 		expect(() => zstdDecompress(frame, 100)).toThrow(RbxError);
 	});
 
+	/** A frame of `blocks` RLE blocks, each `size` copies of one byte. */
+	const rleFrame = (blocks: number, size: number) => {
+		const out = [0x28, 0xb5, 0x2f, 0xfd, 0, 0];
+		for (let i = 0; i < blocks; i++) {
+			const header = (i === blocks - 1 ? 1 : 0) | (1 << 1) | (size << 3);
+			out.push(header & 0xff, (header >> 8) & 0xff, header >> 16, 0x41);
+		}
+		return Uint8Array.from(out);
+	};
+
+	it("reads blocks of the largest size the format allows", () => {
+		const back = zstdDecompress(rleFrame(2, 128 * 1024), 256 * 1024);
+		expect(back.length).toBe(256 * 1024);
+		expect(back.every((b) => b === 0x41)).toBe(true);
+	});
+
+	it("refuses a block larger than 128 KiB, as the format does", () => {
+		expect(() => zstdDecompress(rleFrame(1, 1024 * 1024), 1024 * 1024)).toThrow(
+			/a block larger than 128 KiB/,
+		);
+	});
+
+	it("stops at the length it was given, rather than after", () => {
+		// Eight MiB of blocks, where a thousand bytes were expected.
+		expect(() => zstdDecompress(rleFrame(64, 128 * 1024), 1000)).toThrow(
+			/decompresses to more than it says/,
+		);
+	});
+
 	it("refuses what is not zstd", () => {
 		expect(isZstd(text("<roblox!"))).toBe(false);
 		expect(() => zstdDecompress(text("not a frame at all"))).toThrow(/not a zstd frame/);

@@ -358,9 +358,24 @@ function decodeHuffmanStream(
 // ---------------------------------------------------------------------------
 // Frames and blocks
 
+/**
+ * The most a block may hold, before or after decompression: 128 KiB, the
+ * format's Block_Maximum_Size. A block header can say up to 2 MiB.
+ */
+const LARGEST_BLOCK = 128 * 1024;
+
+/**
+ * The most output a byte of input can stand for: an RLE block, three bytes of
+ * header and one of data, is a whole block. What a frame may decompress to
+ * when the caller gives no length.
+ */
+export const ZSTD_MOST_PER_BYTE = LARGEST_BLOCK / 4;
+
 interface FrameState {
 	out: Uint8Array;
 	length: number;
+	/** The most `out` may grow to. */
+	limit: number;
 	huffman?: HuffmanTable;
 	ll?: FseTable;
 	of?: FseTable;
@@ -371,7 +386,8 @@ interface FrameState {
 function ensure(state: FrameState, more: number): void {
 	const need = state.length + more;
 	if (need <= state.out.length) return;
-	const grown = new Uint8Array(Math.max(need, state.out.length * 2));
+	if (need > state.limit) throw new ZstdError("data that decompresses to more than it says");
+	const grown = new Uint8Array(Math.min(Math.max(need, state.out.length * 2), state.limit));
 	grown.set(state.out.subarray(0, state.length));
 	state.out = grown;
 }
@@ -379,13 +395,17 @@ function ensure(state: FrameState, more: number): void {
 /**
  * Decompresses every frame in `input`, skippable frames included.
  *
- * `sizeHint` presizes the output; the place format gives each chunk's length,
- * so the common case never grows the buffer.
+ * `length` is the most the output may be. The place format gives each chunk's
+ * length, so the output is sized once, and data that would go past it is
+ * refused as it is reached rather than decompressed and then found too long.
+ * Without one, it is the most `input` could stand for.
  */
-export function zstdDecompress(input: Uint8Array, sizeHint = 0): Uint8Array {
+export function zstdDecompress(input: Uint8Array, length?: number): Uint8Array {
+	const limit = length ?? input.length * ZSTD_MOST_PER_BYTE;
 	const state: FrameState = {
-		out: new Uint8Array(sizeHint || input.length * 4),
+		out: new Uint8Array(length ?? Math.min(input.length * 4, limit)),
 		length: 0,
+		limit,
 		reps: [1, 4, 8],
 	};
 	let p = 0;
@@ -437,6 +457,7 @@ function decodeFrame(b: Uint8Array, p: number, state: FrameState): number {
 		const type = (header >> 1) & 3;
 		const size = header >> 3;
 		const length = type === 1 ? 1 : type === 3 ? 0 : size;
+		if (size > LARGEST_BLOCK) throw new ZstdError("a block larger than 128 KiB");
 		if (p + length > b.length) throw new ZstdError("a block that runs past the end of the data");
 		if (type === 0) {
 			ensure(state, size);
@@ -449,7 +470,10 @@ function decodeFrame(b: Uint8Array, p: number, state: FrameState): number {
 			state.length += size;
 			p += 1;
 		} else if (type === 2) {
+			const before = state.length;
 			decodeBlock(b, p, p + size, state);
+			if (state.length - before > LARGEST_BLOCK)
+				throw new ZstdError("a block that decompresses to more than 128 KiB");
 			p += size;
 		} else {
 			throw new ZstdError("a reserved block type");

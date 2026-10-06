@@ -252,6 +252,111 @@ describe("a damaged file", () => {
 	});
 });
 
+describe("a file that says more than it holds", () => {
+	/** The file's 32-byte header, then each chunk given, compressed as `raw` is, then END. */
+	const chunksFile = (chunks: { name: string; raw: Uint8Array; length: number }[]) => {
+		const head = (name: string, compressed: number, length: number) => {
+			const out = new Uint8Array(16);
+			out.set(new TextEncoder().encode(name));
+			new DataView(out.buffer).setUint32(4, compressed, true);
+			new DataView(out.buffer).setUint32(8, length, true);
+			return out;
+		};
+		const parts = [buildPlace([], "none").subarray(0, 32)];
+		for (const { name, raw, length } of chunks) parts.push(head(name, raw.length, length), raw);
+		parts.push(head("END\0", 0, 9), new TextEncoder().encode("</roblox>"));
+		return new Uint8Array(Buffer.concat(parts));
+	};
+
+	it("refuses an LZ4 chunk that says it opens to more than LZ4 could make of it", () => {
+		const bytes = chunksFile([
+			{ name: "META", raw: Uint8Array.of(0x10, 0x61, 0), length: 1024 * 1024 },
+		]);
+		expect(() => readRbx(bytes)).toThrow(
+			"the META chunk says it opens to 1048576 bytes, more than its 3 compressed bytes can",
+		);
+	});
+
+	it("refuses a chunk that says it opens to more than 256 MiB", () => {
+		// Two MiB of LZ4 could stand for 510 MiB, but no place's chunk is that.
+		const bytes = chunksFile([
+			{ name: "META", raw: new Uint8Array(2 * 1024 * 1024), length: 300 * 1024 * 1024 },
+		]);
+		expect(() => readRbx(bytes)).toThrow("more than a place's chunk holds");
+	});
+
+	it("refuses a zstd chunk that says it opens to more than zstd could make of it", () => {
+		// One RLE block of a thousand bytes: ten bytes, which can stand for 320 KiB at most.
+		const header = 1 | (1 << 1) | (1000 << 3);
+		const frame = Uint8Array.of(
+			0x28,
+			0xb5,
+			0x2f,
+			0xfd,
+			0,
+			0,
+			header & 255,
+			(header >> 8) & 255,
+			header >> 16,
+			0x41,
+		);
+		const bytes = chunksFile([{ name: "META", raw: frame, length: 1024 * 1024 }]);
+		expect(() => readRbx(bytes)).toThrow(/the META chunk says it opens to 1048576 bytes/);
+	});
+
+	it("refuses a file whose chunks open to more than 1 GiB together, before opening any", () => {
+		// Each 8 KiB of zstd could stand for 256 MiB; five of them are past the limit.
+		const raw = new Uint8Array(8 * 1024);
+		raw.set([0x28, 0xb5, 0x2f, 0xfd]);
+		const bytes = chunksFile(
+			Array.from({ length: 5 }, () => ({ name: "META", raw, length: 256 * 1024 * 1024 })),
+		);
+		expect(() => readRbx(bytes)).toThrow(/opens to more than 1 GiB/);
+	});
+
+	// Workspace is referent 0, A is 1 and B is 2.
+	const tree = () => [service("Workspace", [folder("A"), folder("B")])];
+
+	it("refuses a PRNT chunk that gives an instance two parents", () => {
+		const bytes = buildPlace(tree(), "none", undefined, [
+			[0, -1],
+			[1, 0],
+			[2, 0],
+			[2, 1],
+		]);
+		expect(() => readRbx(bytes)).toThrow(RbxError);
+		expect(() => readRbx(bytes)).toThrow(/parents B twice/);
+	});
+
+	it("refuses a PRNT chunk whose parents go round in a loop", () => {
+		const loop = buildPlace(tree(), "none", undefined, [
+			[0, -1],
+			[1, 2],
+			[2, 1],
+		]);
+		expect(() => readRbx(loop)).toThrow(/its own ancestor/);
+		const own = buildPlace(tree(), "none", undefined, [
+			[0, -1],
+			[1, 1],
+			[2, 0],
+		]);
+		expect(() => readRbx(own)).toThrow(/A its own ancestor/);
+	});
+
+	it("still reads the tree PRNT describes when it is one", () => {
+		const bytes = buildPlace(tree(), "lz4", undefined, [
+			[0, -1],
+			[1, 0],
+			[2, 1],
+		]);
+		expect([...walk(readRbx(bytes).roots)].map((i) => pathOf(i).join("."))).toEqual([
+			"Workspace",
+			"Workspace.A",
+			"Workspace.A.B",
+		]);
+	});
+});
+
 describe("LZ4 compression", () => {
 	const r = (seed: number) => () =>
 		(seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;

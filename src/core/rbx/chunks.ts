@@ -13,7 +13,7 @@
 
 import { RbxError } from "./dom.js";
 import { lz4Compress, lz4Decompress } from "./lz4.js";
-import { isZstd, zstdDecompress } from "./zstd.js";
+import { isZstd, ZSTD_MOST_PER_BYTE, zstdDecompress } from "./zstd.js";
 
 /** A chunk as it stands in the file. */
 export interface Chunk {
@@ -46,13 +46,36 @@ export function putU32(out: Uint8Array, o: number, v: number): void {
 }
 
 /**
+ * The most one chunk may open to. A chunk's header states its length, and
+ * that much is set aside before any of it is read, so the length is held to
+ * this first. Far past what a real place's chunk holds, and still a size any
+ * machine the daemon or the web app runs on can set aside.
+ */
+export const LARGEST_CHUNK = 256 * 1024 * 1024;
+
+/**
+ * The most all of one file's chunks may open to together. They are opened one
+ * at a time, so this is not what is held at once; it bounds how long reading
+ * one file can take.
+ */
+export const LARGEST_PLACE = 4 * LARGEST_CHUNK;
+
+/**
+ * The most LZ4 can make of a byte: a length byte of 255 adds 255 to a match.
+ * A little more is allowed for what a block's first token says on its own.
+ */
+const LZ4_MOST_PER_BYTE = 255;
+
+/**
  * Every chunk from the header to `END`, which is the last one given. Throws
- * `RbxError` for a chunk that runs past the end of the file, and for a file
- * that stops before its `END`.
+ * `RbxError` for a chunk that runs past the end of the file, for one that
+ * says it opens to more than it could, and for a file that stops before its
+ * `END`.
  */
 export function readChunks(bytes: Uint8Array): Chunk[] {
 	const out: Chunk[] = [];
 	let p = FIRST_CHUNK;
+	let total = 0;
 	while (p + 16 <= bytes.length) {
 		const name = String.fromCharCode(bytes[p], bytes[p + 1], bytes[p + 2], bytes[p + 3]);
 		const compressed = u32(bytes, p + 4);
@@ -60,20 +83,32 @@ export function readChunks(bytes: Uint8Array): Chunk[] {
 		const size = compressed === 0 ? length : compressed;
 		if (p + 16 + size > bytes.length)
 			throw new RbxError(`the ${name.trim()} chunk runs past the end of the file`);
-		out.push({
-			name,
-			whole: bytes.subarray(p, p + 16 + size),
-			raw: bytes.subarray(p + 16, p + 16 + size),
-			compressed,
-			length,
-		});
+		const raw = bytes.subarray(p + 16, p + 16 + size);
+		if (compressed !== 0) {
+			const says = `the ${name.trim()} chunk says it opens to ${length} bytes`;
+			const most = isZstd(raw)
+				? compressed * ZSTD_MOST_PER_BYTE
+				: compressed * LZ4_MOST_PER_BYTE + 64;
+			if (length > LARGEST_CHUNK) throw new RbxError(`${says}, more than a place's chunk holds`);
+			if (length > most)
+				throw new RbxError(`${says}, more than its ${compressed} compressed bytes can`);
+		}
+		total += length;
+		if (total > LARGEST_PLACE)
+			throw new RbxError(
+				`the file opens to more than ${LARGEST_PLACE / 2 ** 30} GiB, far more than a place holds`,
+			);
+		out.push({ name, whole: bytes.subarray(p, p + 16 + size), raw, compressed, length });
 		p += 16 + size;
 		if (name === "END\0") return out;
 	}
 	throw new RbxError("the file stops before its END chunk");
 }
 
-/** A chunk's payload, opened: stored as it is, or LZ4, or zstd, as its own magic says. */
+/**
+ * A chunk's payload, opened: stored as it is, or LZ4, or zstd, as its own magic
+ * says. Neither decompressor makes more than the length `readChunks` allowed.
+ */
 export function chunkData(chunk: Chunk): Uint8Array {
 	if (chunk.compressed === 0) return chunk.raw;
 	const data = isZstd(chunk.raw)

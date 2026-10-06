@@ -408,6 +408,8 @@ function decodeBinary(bytes: Uint8Array): RbxDocument {
 	for (const [childRef, parentRef] of parents) {
 		const child = byRef.get(childRef);
 		if (!child) continue;
+		// Once each: a second parent would put it in the tree twice.
+		if (parented.has(child)) throw new RbxError(`a PRNT chunk that parents ${child.name} twice`);
 		const parent = byRef.get(parentRef);
 		parented.add(child);
 		if (parent) {
@@ -416,6 +418,20 @@ function decodeBinary(bytes: Uint8Array): RbxDocument {
 		} else {
 			roots.push(child);
 		}
+	}
+	// Every parent chain has to reach the top. One that comes back round to
+	// where it started never would, and everything that walks the tree, up or
+	// down, would go round it for ever. Each instance is followed up only as
+	// far as one already known to reach the top.
+	const reachesTop = new Set<RbxInstance>();
+	for (const inst of instances) {
+		const chain = new Set<RbxInstance>();
+		for (let cur: RbxInstance | null = inst; cur && !reachesTop.has(cur); cur = cur.parent) {
+			if (chain.has(cur))
+				throw new RbxError(`a PRNT chunk that makes ${cur.name} its own ancestor`);
+			chain.add(cur);
+		}
+		for (const link of chain) reachesTop.add(link);
 	}
 	// An instance PRNT never mentions is still in the file; keep it at the top.
 	for (const inst of instances) if (!parented.has(inst)) roots.push(inst);
