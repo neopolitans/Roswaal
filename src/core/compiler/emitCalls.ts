@@ -9,6 +9,7 @@
 import { argPinId } from "../callNodes.js";
 import { callOf, luneFunction, moduleOf, specifierFor } from "../luneCalls.js";
 import { LUAU_PRIMITIVES } from "../luneTypes.js";
+import { castCall, castsResult, resultCastOf } from "../nodes/resultCast.js";
 import { isInstanceClass as isRobloxClass, isSubclassOf } from "../roblox.js";
 import { DATATYPES } from "../robloxData.js";
 import type { NodeConfig, PinDef } from "../schema.js";
@@ -198,6 +199,17 @@ export function writeCall(
 	// up was a field you had to experiment on to understand.
 	const named = pin !== undefined && resultNameOf(r.node.config) !== undefined;
 	const consumed = read || named;
+	// A cast on the result is said where the value is made, and the local
+	// takes its type from it, so it needs no annotation of its own. A call
+	// nobody reads is a statement, which a cast cannot be.
+	const cast =
+		consumed && resultPin === "result" && castsResult(r.def)
+			? resultCastOf(r.node.config)
+			: undefined;
+	if (cast !== undefined) {
+		rendered = castCall(rendered, r.node.config);
+		how = { ...how, typed: false };
+	}
 	const next = e.index.execTarget(r.node.id, "then");
 	// A step whose one reader is the very next statement is written into it:
 	// `local copy = model:Clone()`, not a local and then a copy of it. Only

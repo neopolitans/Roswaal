@@ -35,8 +35,9 @@ import {
 	signatureOf,
 	typeShapeOf,
 } from "../core/nodes/flow.js";
-import { nodeTitle } from "../core/nodes/index.js";
+import { nodeTitle, resolveNodePins } from "../core/nodes/index.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
+import { castsResult, RESULT_CAST } from "../core/nodes/resultCast.js";
 import { isConstLocal, localNameOf, pinTypeText } from "../core/nodes/variables.js";
 import {
 	eventOf,
@@ -127,6 +128,7 @@ function ids(...list: string[]): (def: NodeDef) => boolean {
  */
 const INSPECTOR_SECTIONS: readonly SectionRule[] = [
 	{ applies: namesResult, Section: ResultName },
+	{ applies: castsResult, Section: ResultCast },
 	{ applies: (def) => FUNCTION_NODES.has(def.id), Section: FunctionEditor },
 	{ applies: ids("function.return"), Section: ReturnList },
 	{ applies: ids("module.exports"), Section: ExportList },
@@ -1473,6 +1475,29 @@ function ScriptCallSource({ script, node }: SectionProps) {
  * Any Luau type, the way a parameter's is: the list for the everyday ones and
  * Other… for `{ [Model]: Restore }`.
  */
+/**
+ * A cast on what the call returns, written where the value is made:
+ * `need(model, "Hull", "BasePart") :: BasePart`. Only for one result, since
+ * `::` takes one value. See `resultCast.ts`.
+ */
+function ResultCast({ node, def }: SectionProps) {
+	const data = resolveNodePins(def, node.config).outputs.filter((p) => p.kind === "data");
+	if (data.length !== 1 || data[0].id !== "result") return null;
+	const current = configText(node, RESULT_CAST);
+	return (
+		<Field label="Cast result" hint="Writes :: Type after the call. No runtime check.">
+			<TypePicker
+				value={current ?? "any"}
+				onChange={(type) =>
+					store.edit((s) =>
+						setConfig(s, node.id, { [RESULT_CAST]: type === "any" ? undefined : type }),
+					)
+				}
+			/>
+		</Field>
+	);
+}
+
 function LocalType({ node }: { node: GraphNode }) {
 	const current = configText(node, "type");
 	return (

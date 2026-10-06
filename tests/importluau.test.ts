@@ -185,6 +185,19 @@ describe("what becomes a node", () => {
 		expect(roundTrip(src)).toEqual(lines(src));
 	});
 
+	it("puts a cast on a call to a known function onto the call", () => {
+		const src =
+			'--!strict\nlocal function need(name: string): Instance\n\treturn workspace:FindFirstChild(name) :: Instance\nend\nlocal hull = need("Hull") :: BasePart\nprint(hull)\n';
+		const script = imported(src);
+		const call = script.nodes.find((n) => n.def === "function.callValue");
+		expect(call?.config).toMatchObject({ resultCast: "BasePart" });
+		const kept = script.nodes.filter((n) => n.def === "value.expression");
+		expect(kept.map((n) => String(n.literals?.code?.v ?? ""))).not.toContainEqual(
+			expect.stringContaining("need("),
+		);
+		expect(roundTrip(src)).toEqual(lines(src));
+	});
+
 	it("writes a field as Set Property or Set Key by how it is named", () => {
 		const src =
 			'local part = Instance.new("Part")\npart.Anchored = true\nlocal t = {}\nt.count = 1\n';

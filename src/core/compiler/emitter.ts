@@ -24,6 +24,7 @@ import { commentLines, headersByNode } from "../comments.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
 import { CAST_NODES, type CastMode, castModeOf, NILABLE_CLASS_READS } from "../nodes/library.js";
+import { castCall, castsResult } from "../nodes/resultCast.js";
 import { type Comment, type NodeScript, PAIR, type PinDef } from "../schema.js";
 import {
 	modeOf,
@@ -661,7 +662,11 @@ export class Emitter {
 		// Gets would be invisible to the second one. A call is the exception. It
 		// answers once, so two readers share one local as an expression's do.
 		if (spec.kind === "builtin") {
-			const expr = pureBuiltin(this, spec.handler, src, consumer, scope);
+			const expr = this.castResult(
+				src,
+				pinId,
+				pureBuiltin(this, spec.handler, src, consumer, scope),
+			);
 			return CALLING_BUILTINS.has(spec.handler)
 				? this.bindForReaders(src, pinId, expr, scope, { fallback: "result" })
 				: expr;
@@ -730,7 +735,13 @@ export class Emitter {
 			expr = `(${expr} :: ${typed}?)`;
 		}
 
-		return this.bindForReaders(src, pinId, expr, scope, { cast });
+		return this.bindForReaders(src, pinId, this.castResult(src, pinId, expr), scope, { cast });
+	}
+
+	/** A pure call's result, with the cast its node asks for. See `resultCast.ts`. */
+	private castResult(src: ResolvedNode, pinId: string, expr: string): string {
+		if (pinId !== "result" || !castsResult(src.def)) return expr;
+		return castCall(expr, src.node.config);
 	}
 
 	/**

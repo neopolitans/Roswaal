@@ -285,6 +285,22 @@ class Importer {
 				}
 				return this.luau(e, graph, below(0));
 			}
+			case "cast": {
+				// `need(...) :: BasePart`: the call, with its result cast on it.
+				const callee =
+					e.value.kind === "call" && e.value.callee.kind === "name"
+						? e.value.callee.name
+						: undefined;
+				if (e.value.kind === "call" && callee && scope.get(callee)?.kind === "function") {
+					const value = this.expr(e.value, scope, graph, near);
+					const node = value.kind === "wire" ? this.nodeById(value.node) : undefined;
+					if (node?.def === "function.callValue") {
+						node.config = { ...node.config, resultCast: this.text(e.type).trim() };
+						return value;
+					}
+				}
+				return this.luau(e, graph, below(0));
+			}
 			default:
 				return this.luau(e, graph, below(0));
 		}

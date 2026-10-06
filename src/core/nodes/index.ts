@@ -16,6 +16,7 @@ import { CALL_NODES } from "./calls.js";
 import { FLOW_NODES } from "./flow.js";
 import { LIBRARY_NODES, ZUP_CONVERSIONS } from "./library.js";
 import { LUNE_NODES } from "./lune.js";
+import { castsResult, retypedResult } from "./resultCast.js";
 import { withRuntimes } from "./runtimes.js";
 import { isClassNameType, pinDefaultFor, pinTypeOf, VARIABLE_NODES } from "./variables.js";
 
@@ -109,7 +110,8 @@ export function resolveNodePins(
 ): { inputs: PinDef[]; outputs: PinDef[]; baseInputs: PinDef[]; baseOutputs: PinDef[] } {
 	const derived = def.derivePins?.(config ?? {}, literals);
 	const baseInputs = retypedInputs(derived?.inputs ?? def.inputs, config);
-	const baseOutputs = derived?.outputs ?? def.outputs;
+	const outputs = derived?.outputs ?? def.outputs;
+	const baseOutputs = castsResult(def) ? retypedResult(outputs, config) : outputs;
 
 	const splits = splitsOf(config);
 	if (Object.keys(splits).length === 0) {

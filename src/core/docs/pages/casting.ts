@@ -208,6 +208,16 @@ function castingBlocks(registry: Registry): Block[] {
 				"`end`, the cast is written out.",
 		},
 
+		{ t: "h", level: 2, text: "Casting a call's result" },
+		{
+			t: "p",
+			text:
+				"A call node's **Cast result**, in the Inspector, writes the cast after the call: " +
+				"`local hull = need(model, \"Hull\", \"BasePart\") :: BasePart`. Its result pin and " +
+				"its named local take that type, so nothing after it needs a Cast node. It is offered " +
+				"on any call with one result.",
+		},
+
 		{ t: "h", level: 2, text: "Declaring a type" },
 		{
 			t: "p",
