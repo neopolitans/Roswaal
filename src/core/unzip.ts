@@ -54,14 +54,53 @@ const LOCAL_HEADER = 0x04034b50;
 /** Larger than any project file; an entry past it is left in the archive. */
 export const LARGEST_ENTRY = 8 * 1024 * 1024;
 
+/**
+ * The most one archive may unpack to, all its entries together.
+ *
+ * Sixteen of the largest entries. A project is text, a few MiB at most, and so
+ * is a Wally package; even a whole GitHub repository's code is well under
+ * this. Everything read is held at once, and the browser copies it again on
+ * the way to the worker, so the limit is set by what an iPad's tab can hold
+ * rather than by what a computer can.
+ */
+export const LARGEST_ARCHIVE = 16 * LARGEST_ENTRY;
+
 /** What `unzip` throws for an archive it cannot read: not a zip, ZIP64, or damaged. */
 export class ZipError extends Error {}
 
-async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
-	const stream = new Blob([bytes as BlobPart])
+/**
+ * A deflated entry, inflated into exactly the size the archive's index gives.
+ *
+ * Read a piece at a time and counted as it comes, so an entry that inflates to
+ * more than it said stops at that size rather than after all of it has been
+ * made, and one that inflates to less is not taken as whole either.
+ */
+async function inflate(bytes: Uint8Array, size: number, path: string): Promise<Uint8Array> {
+	const damaged = (why: string) =>
+		new ZipError(`This zip is damaged at ${path}: ${why}. Make the zip again and use that one.`);
+	const reader = new Blob([bytes as BlobPart])
 		.stream()
-		.pipeThrough(new DecompressionStream("deflate-raw"));
-	return new Uint8Array(await new Response(stream).arrayBuffer());
+		.pipeThrough(new DecompressionStream("deflate-raw"))
+		.getReader();
+	const out = new Uint8Array(size);
+	let length = 0;
+	try {
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (length + value.length > size) throw damaged("it unpacks to more than its index says");
+			out.set(value, length);
+			length += value.length;
+		}
+	} catch (err) {
+		if (err instanceof ZipError) throw err;
+		throw damaged("its compressed data cannot be read");
+	} finally {
+		// Stops the rest being inflated when it was given up on part way.
+		reader.cancel().catch(() => undefined);
+	}
+	if (length !== size) throw damaged("it unpacks to less than its index says");
+	return out;
 }
 
 /**
@@ -99,6 +138,11 @@ export async function unzip(
 	}
 
 	const out: Unzipped = { files: [], dirs: [], skipped: [] };
+	// Each local header belongs to one entry: two directory entries pointing at
+	// the same one would read the same data twice over.
+	const locals = new Set<number>();
+	const wanted: { path: string; method: number; size: number; body: Uint8Array }[] = [];
+	let total = 0;
 	for (let i = 0; i < count; i++) {
 		if (at + 46 > bytes.length || view.getUint32(at, true) !== DIRECTORY_ENTRY) {
 			throw new ZipError("This zip's index is damaged.");
@@ -137,12 +181,31 @@ export async function unzip(
 			continue;
 		}
 
-		if (local + 30 > bytes.length || view.getUint32(local, true) !== LOCAL_HEADER) {
+		if (
+			local + 30 > bytes.length ||
+			view.getUint32(local, true) !== LOCAL_HEADER ||
+			locals.has(local)
+		) {
 			throw new ZipError(`This zip is damaged at ${path}.`);
 		}
+		locals.add(local);
 		const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
-		const body = bytes.subarray(start, start + compressed);
-		out.files.push({ path, bytes: method === 0 ? body.slice() : await inflate(body) });
+		if (start + compressed > bytes.length || (method === 0 && compressed !== size)) {
+			throw new ZipError(`This zip is damaged at ${path}.`);
+		}
+		total += size;
+		wanted.push({ path, method, size, body: bytes.subarray(start, start + compressed) });
+	}
+
+	// Counted before anything is unpacked: every entry is held at once, and
+	// `inflate` makes no more than the size counted here.
+	if (total > LARGEST_ARCHIVE) {
+		throw new ZipError(
+			`This zip unpacks to more than ${LARGEST_ARCHIVE / 1024 / 1024} MiB, far more than a project or a package. Zip only the folder that is wanted.`,
+		);
+	}
+	for (const { path, method, size, body } of wanted) {
+		out.files.push({ path, bytes: method === 0 ? body.slice() : await inflate(body, size, path) });
 	}
 	return out;
 }
