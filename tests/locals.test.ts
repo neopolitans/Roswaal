@@ -191,6 +191,61 @@ describe("completion inside a function declared after a local", () => {
 		expect(labels).toContain("character");
 	});
 
+	/**
+	 * Rig's shape: calls name their results (`local hull = need(...)`) inside a
+	 * function, and a Luau Expression on a Key Value Pair of the dictionary a
+	 * Declare Local builds reads them. Those locals were all missing, leaving
+	 * `loadstring` and `local` as the only words starting with `l`.
+	 */
+	function rig() {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const fn = b.node("function.declareHere", {
+			config: { name: "resolve", params: [{ name: "model", type: "Model" }], returns: [] },
+		});
+		const hull = b.node("call.function", { config: { args: 0, resultName: "hull" } });
+		b.lit(hull, "fn", { t: "raw", v: "makeHull" });
+		const leftTrack = b.node("call.function", { config: { args: 0, resultName: "leftTrack" } });
+		b.lit(leftTrack, "fn", { t: "raw", v: "makeTrack" });
+		const expr = b.node("value.expression");
+		b.lit(expr, "code", { t: "raw", v: "hull.Position.Y - leftTrack.Position.Y" });
+		const pair = b.node("table.pair", { config: { split: {} } });
+		b.lit(pair, "key", { t: "string", v: "rideHeight" });
+		const dict = b.node("table.dictionary", { config: { args: 1, split: {} } });
+		const rigLocal = b.node("local.declare");
+		b.lit(rigLocal, "name", { t: "string", v: "rig" });
+		const after = b.node("call.function", { config: { args: 0, resultName: "later" } });
+		b.lit(after, "fn", { t: "raw", v: "makeLater" });
+
+		b.link(begin, "then", fn, "in");
+		b.link(fn, "body", hull, "in");
+		b.link(hull, "then", leftTrack, "in");
+		b.link(leftTrack, "then", rigLocal, "in");
+		b.link(rigLocal, "then", after, "in");
+		b.link(expr, "result", pair, "value");
+		b.link(pair, "result", dict, "p0");
+		b.link(dict, "result", rigLocal, "value");
+		return { script: b.build(), expr };
+	}
+
+	it("offers the named results before it, in a function", () => {
+		const { script, expr } = rig();
+		const labels = precedingLocals(script, registry, expr).map((c) => c.label);
+		expect(labels).toEqual(expect.arrayContaining(["hull", "leftTrack", "model"]));
+		// Declared by the statement the expression is part of, and after it.
+		expect(labels).not.toContain("rig");
+		expect(labels).not.toContain("later");
+	});
+
+	it("compiles what it offers, by the same names", () => {
+		const { script } = rig();
+		expect(errors(script)).toEqual([]);
+		const written = code(script);
+		expect(written).toContain("local hull = makeHull()");
+		expect(written).toContain("local leftTrack = makeTrack()");
+		expect(written).toContain("hull.Position.Y - leftTrack.Position.Y");
+	});
+
 	it("offers nothing for an expression nothing reads", () => {
 		const { b } = occupancy();
 		const expr = b.node("value.expression");

@@ -26,6 +26,7 @@ import {
 import { childrenOfChain, type InstanceNode } from "../core/luau/instances.js";
 import { CONTEXTUAL_WORDS, RESERVED_WORDS, significant, tokenize } from "../core/luau/lexer.js";
 import { type LocalKind, localsAt, topLevelLocals } from "../core/luau/scope.js";
+import { namedResultRef } from "../core/namedResults.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import {
 	continuesEnclosingBlock,
@@ -579,6 +580,14 @@ export function precedingLocals(
 		// function declared after it.
 		if (node.def === "local.declare") {
 			add(toIdentifier(localNameOf(node), "local"), "local from Declare Local");
+			return;
+		}
+		// So does a step's named result: `local hull = need(...)`. Leaving it
+		// out hid most of the locals in a converted module, whose calls name
+		// their results rather than feeding a Declare Local.
+		const named = namedResultRef(node, registry);
+		if (named) {
+			add(toIdentifier(named.name, "value"), `named result · ${named.type}`);
 			return;
 		}
 		if (!RAW_STATEMENT_NODES.has(node.def)) return;
