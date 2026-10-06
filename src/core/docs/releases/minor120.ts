@@ -12,7 +12,7 @@ export const RELEASES_0_120: Release[] = [
 		version: "0.144.0",
 		date: "2026-10-06",
 		headline: "Every context menu and dropdown is one menu, and works from the keyboard.",
-		affects: ["editor"],
+		affects: ["editor", "designer", "docs"],
 		added: [
 			"Menus work from the keyboard: Up and Down move through what can be chosen, Home and End jump to either end, Enter chooses, and Escape or Tab closes the menu and puts focus back where it was.",
 		],
@@ -22,6 +22,7 @@ export const RELEASES_0_120: Release[] = [
 			"Menus are divided where their entries are different kinds of thing. The project tree's: making things, then Show in file manager, then Rename and Delete. A pin's: Promote to Variable, then splitting or recombining, then breaking links. More: the project, the graph's tools on a phone, the files, then the other windows. A card's: where it goes, then the card itself, then what is closed. Project: opening, then importing and exporting, then Start again. A pack's: copies, then Show in file manager, then Delete. The node palette sets Comment apart from the nodes, and Node Design's More sets its two pages to read apart from where to go.",
 			"Remove package… is the last entry of a package's menu, below the ways to add one, where every other menu keeps its red entry.",
 			"A pin's dropdown of known values has a rule above Other…, which turns the pin into a field to type into.",
+			"The docs draw More, the Wally menu and the Project menu as the editor draws them, dividers and all. Controls has a section on the menu keys.",
 		],
 	},
 	{

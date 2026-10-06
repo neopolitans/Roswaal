@@ -580,13 +580,41 @@ function toneColor(tone: string | undefined): string {
 	return "var(--fg-faint)";
 }
 
-function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
-	// What the linking script matches on, and what it reads out of the picture
-	// when it lights a row from the other side. Only a control the legend lists
-	// carries one; furniture is drawn and left alone.
-	const tie = item.name
+/**
+ * What the linking script matches on, and what it reads out of the picture
+ * when it lights a row from the other side. Only a control the legend lists
+ * carries one; furniture is drawn and left alone.
+ */
+function tieOf(item: ToolbarItem): string {
+	return item.name
 		? ` data-control="${escapeXml(controlKey(item.name))}" data-name="${escapeXml(item.name)}"`
 		: "";
+}
+
+/**
+ * A menu, open, in the editor's own markup (`Menu.tsx`): a section per group,
+ * the menu's divider between them, and a button as one of its entries. So the
+ * picture takes the menu's stylesheet and looks like the menu on screen.
+ */
+export function menuHtml(sections: readonly (readonly ToolbarItem[])[], art: ToolbarArt): string {
+	const entry = (item: ToolbarItem) =>
+		item.t === "button"
+			? `<button type="button" tabindex="-1"${tieOf(item)} class="menu-item">` +
+				`${item.icon ? iconSvg(item.icon, 15, art, "menu-icon") : ""}` +
+				`<span class="menu-text">${escapeXml(item.text)}</span></button>`
+			: itemHtml(item, art);
+	return (
+		`<div class="menu-body">` +
+		sections
+			.filter((items) => items.length > 0)
+			.map((items) => `<div class="menu-section">${items.map(entry).join("")}</div>`)
+			.join(`<div class="menu-sep"></div>`) +
+		`</div>`
+	);
+}
+
+function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
+	const tie = tieOf(item);
 
 	switch (item.t) {
 		case "mark":
@@ -942,8 +970,8 @@ const CHROME_CLASS: Record<ToolbarChrome, string> = {
 	// a picture of one -- the panel's *contents* are what carry the real class
 	// names, which is where the fidelity comes from.
 	panel: "variables docs-panel-shot",
-	// A pop-out menu, open: the list the projects panel's Project button holds.
-	popmenu: "tool-popout-panel docs-menu-shot",
+	// A menu, open: drawn as the editor's menu draws, one section per group.
+	popmenu: "menu menu--list docs-menu-shot",
 	inspector: "inspector inspector-body",
 	// The project tree, the DataModel browser and the Properties panel, each in
 	// the editor's own class, so its stylesheet draws the rows. `filetree` and
@@ -982,6 +1010,14 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 		`${oneRow ? ` style="flex-wrap:nowrap"` : ""}>${inner}</div></div>`;
 	const itemsOf = (group: ToolbarGroup) => group.items.map((item) => itemHtml(item, art)).join("");
 
+	// A menu's groups are its sections, with its divider between them.
+	if (spec.chrome === "popmenu")
+		return frame(
+			menuHtml(
+				spec.groups.map((group) => group.items),
+				art,
+			),
+		);
 	// The trees and panels nest the way the editor nests them, rather than
 	// running their groups along a row.
 	if (spec.chrome === "filetree")
@@ -2282,13 +2318,23 @@ export const MORE_MENU_PHONE: ToolbarSpec = {
 					icon: "build",
 					...as(EDITOR_BAR_BROWSER, "Compile project"),
 				},
+			],
+		},
+		{
+			items: [
 				{
 					t: "button",
 					text: "Add node",
 					icon: "search",
 					...as(GRAPH_BAR, "Add node", HOLD_TO_ADD),
 				},
+				{ t: "button", text: "Realign", icon: "layout", ...as(GRAPH_BAR, "Realign") },
+				{ t: "button", text: "Straighten", icon: "straighten", ...as(GRAPH_BAR, "Straighten") },
 				{ t: "button", text: "Preview", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
+			],
+		},
+		{
+			items: [
 				{ t: "button", text: "Refresh", icon: "refresh", ...as(EDITOR_BAR_BROWSER, "Refresh") },
 				{
 					t: "button",
@@ -2302,6 +2348,10 @@ export const MORE_MENU_PHONE: ToolbarSpec = {
 					icon: "map",
 					...as(EDITOR_BAR_BROWSER, "New node map"),
 				},
+			],
+		},
+		{
+			items: [
 				{
 					t: "button",
 					text: "Docs",
@@ -2815,14 +2865,10 @@ export const WALLY_MENU: ToolbarSpec = {
 					where: "On a package not installed",
 					what: "Installs that package from a zip you downloaded.",
 				},
-				{
-					t: "button",
-					text: "Remove package…",
-					icon: "remove",
-					name: "Remove package…",
-					where: "On a package",
-					what: "Takes it out of wally.toml and Packages/, after listing what still requires it.",
-				},
+			],
+		},
+		{
+			items: [
 				{
 					t: "button",
 					text: "Add from Wally…",
@@ -2844,6 +2890,18 @@ export const WALLY_MENU: ToolbarSpec = {
 					name: "Insert GitHub repo…",
 					where: "In the installed editor",
 					what: "A repository's module, copied into Packages/.",
+				},
+			],
+		},
+		{
+			items: [
+				{
+					t: "button",
+					text: "Remove package…",
+					icon: "remove",
+					name: "Remove package…",
+					where: "On a package",
+					what: "Takes it out of wally.toml and Packages/, after listing what still requires it.",
 				},
 			],
 		},

@@ -267,6 +267,22 @@ export function controlsPage(): DocPage {
 					["Drag any edge or corner of a window", "Resize it. The opposite edge stays put"],
 				],
 			},
+			{ t: "h", level: 2, text: "Menus" },
+			{
+				t: "p",
+				text: "Every menu and dropdown takes the keyboard the same way. The node menu is the one exception: what you type goes into its search, and the arrow keys move through what it finds.",
+			},
+			{
+				t: "table",
+				head: ["Key", "What it does"],
+				rows: [
+					["`↑`, `↓`", "Move through what can be chosen. Past either end it goes round"],
+					["`Home`, `End`", "The first and the last"],
+					["`Enter` or `Space`", "Choose it"],
+					["`Escape`", "Close the menu, and go back to where you were"],
+					["`Tab`", "Close the menu and move on"],
+				],
+			},
 			{ t: "h", level: 2, text: "Node Design" },
 			{
 				t: "table",

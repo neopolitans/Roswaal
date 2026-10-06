@@ -41,6 +41,7 @@ import {
 	glyphHtml,
 	identHtml,
 	itemsHtml,
+	menuHtml,
 	type ToolbarArt,
 	type ToolbarItem,
 } from "./toolbars.js";
@@ -493,23 +494,23 @@ function introHtml(card: Extract<LayoutCard, { t: "intro" }>, art: ToolbarArt): 
 		(recent ? shelf("Recent", recent) : "") +
 		(demos ? shelf(recent ? "Demos" : "Try it", demos) : "") +
 		(card.empty ? `<p class="intro-empty">${escapeXml(card.empty)}</p>` : "");
-	// The footer as the editor's: Home, and Project as the real popout, its
-	// menu hanging above it when open; the other windows at the far end.
+	// The footer as the editor's: Home, and Project with its menu hanging
+	// above it when open, drawn as the editor's menu; the other windows at the
+	// far end. A divider in the list starts the menu's next section.
+	const sections: ToolbarItem[][] = [[]];
+	for (const entry of card.menu ?? []) {
+		if (entry.t === "divider") sections.push([]);
+		else sections[sections.length - 1].push(entry);
+	}
 	const menu = card.menu
-		? `<div class="tool-popout-panel" style="top:auto;bottom:calc(100% + 8px);left:0">` +
-			card.menu
-				.map((entry) =>
-					entry.t === "divider"
-						? `<span class="tool-popout-rule"></span>`
-						: itemsHtml([entry], art),
-				)
-				.join("") +
+		? `<div class="menu menu--list docs-menu-shot" style="position:absolute;top:auto;bottom:calc(100% + 8px);left:0">` +
+			menuHtml(sections, art) +
 			`</div>`
 		: "";
 	const foot =
 		`<button type="button" class="tb with-icon"${INERT}${tie(INTRO_FOOT.home)}>` +
 		`<span class="turn-left">${glyphHtml("chevron", 15, art)}</span>Home</button>` +
-		`<div class="tool-popout tool-popout-up">` +
+		`<div style="position:relative;display:inline-flex">` +
 		`<button type="button" class="tb with-icon${card.menu ? " on" : ""}"${INERT}${tie(INTRO_FOOT.project)}>` +
 		`Project${glyphHtml("chevron", 14, art)}</button>${menu}</div>` +
 		`<span style="flex:1"></span>` +
@@ -1689,6 +1690,7 @@ const PROJECT_MENU_WEB: ToolbarItem[] = [
 		name: "Open place…",
 		what: "A project made from a .rbxl or .rbxlx.",
 	},
+	{ t: "divider" },
 	{ t: "button", text: "Import Rojo project…", icon: "map" },
 	{ t: "button", text: "Export…", icon: "copy" },
 	{ t: "divider" },
