@@ -748,6 +748,22 @@ export function useProjectActions(context: ProjectActionsContext) {
 
 	const importLuauFile = useCallback(
 		async (entry: TreeEntry) => {
+			// The risks are the developer's to take on, so they are named before
+			// anything is written, every time.
+			const go = await ask({
+				kind: "confirm",
+				title: `Import ${entry.name} as a graph?`,
+				message:
+					"Turning Luau into a graph can be made safer but never certain. Test the graph before you rely on it.",
+				points: [
+					"It can compile and still behave differently, such as a call running at another moment.",
+					"Comments, blank lines and formatting are not kept.",
+					"What has no node stays as Luau text, which the graph does not check.",
+				],
+				confirmLabel: "Import",
+				icon: "graph",
+			});
+			if (go !== true) return;
 			try {
 				const out = await api.importScript(entry.path);
 				await refreshTree();
@@ -763,7 +779,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				notify(`Could not import ${entry.name}`, errorMessage(err));
 			}
 		},
-		[notify, refreshTree],
+		[ask, notify, refreshTree],
 	);
 
 	const onTreeNewFolder = useCallback(

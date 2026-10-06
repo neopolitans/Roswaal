@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.141.2",
+		date: "2026-10-06",
+		headline: "Import as graph names its risks before it starts.",
+		affects: ["editor", "docs"],
+		changed: [
+			"Import as graph asks first, listing what a conversion cannot promise: the same behaviour, the original's comments and formatting, and checks on what stays as Luau text.",
+		],
+	},
+	{
 		version: "0.141.1",
 		date: "2026-10-06",
 		headline: "Luau typed into a graph can see its named results.",

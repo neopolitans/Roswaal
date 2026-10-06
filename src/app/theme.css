@@ -6510,6 +6510,16 @@ button.tb.icon-only.on {
 
 /* What a confirmation is about, listed under its message. Capped, so a graph
    with forty of something scrolls rather than pushing the buttons off screen. */
+/* Sentences under a confirmation's message, where items would be names. */
+.dialog-points {
+	margin: 0 0 14px;
+	padding-left: 18px;
+	display: grid;
+	gap: 6px;
+	font-size: var(--text-md);
+	line-height: 1.45;
+}
+
 .dialog-list {
 	margin: 0 0 14px;
 	padding: 6px 10px 6px 26px;

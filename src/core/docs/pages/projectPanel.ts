@@ -68,7 +68,7 @@ export function projectPanelPage(): DocPage {
 					],
 					[
 						"A `.luau` you wrote",
-						"**Import as graph** as well: a new graph that compiles back to that file. The file stays as it is until you compile over it with force",
+						"**Import as graph** as well: a new graph that compiles back to that file, after a prompt naming what a conversion cannot promise. The file stays as it is until you compile over it with force",
 					],
 					[
 						"`wally.toml`, or a package under it",

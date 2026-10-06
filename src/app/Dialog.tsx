@@ -35,6 +35,8 @@ export type DialogRequest =
 			message: string;
 			/** Listed under the message: what the confirmation is about, by name. */
 			items?: string[];
+			/** Sentences under the message, as plain bullets rather than names. */
+			points?: string[];
 			confirmLabel?: string;
 			danger?: boolean;
 			icon?: IconName;
@@ -291,6 +293,13 @@ export function Dialog({ request, resolve }: PendingDialog) {
 						</>
 					) : (
 						<p>{request.message}</p>
+					)}
+					{request.kind === "confirm" && request.points && request.points.length > 0 && (
+						<ul className="dialog-points">
+							{request.points.map((point) => (
+								<li key={point}>{point}</li>
+							))}
+						</ul>
 					)}
 					{items && items.length > 0 && (
 						<ul className="dialog-list">
