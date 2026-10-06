@@ -14,6 +14,7 @@ import { defaultConfig, type NodeDef, type RoswaalConfig, SCHEMA_VERSION } from 
 import { errorMessage, UserError } from "./errors.js";
 import { exists, writeTextAtomically } from "./files.js";
 import { fs, path } from "./host.js";
+import { safeJoin, staysInside } from "./paths.js";
 
 /** The file that makes a folder a Roswaal project. */
 const CONFIG_FILE = "roswaal.json";
@@ -126,6 +127,9 @@ export function parseConfig(value: unknown): RoswaalConfig {
 
 	for (const key of ["sourceDir", "outDir"]) {
 		if (typeof config[key] !== "string" || config[key] === "") throw wrong(key, "a folder path");
+		// The project's own folders: a roswaal.json that names one elsewhere is
+		// pointing Roswaal at something that is not this project.
+		if (!staysInside(config[key] as string)) throw wrong(key, "a folder inside the project");
 	}
 	for (const key of ["place", "rojoProject"]) {
 		if (config[key] !== undefined && typeof config[key] !== "string")
@@ -140,6 +144,10 @@ export function parseConfig(value: unknown): RoswaalConfig {
 	const nodePaths = config.nodePaths;
 	if (!Array.isArray(nodePaths) || nodePaths.some((dir) => typeof dir !== "string" || dir === "")) {
 		throw wrong("nodePaths", "a list of folder paths");
+	}
+	// Packs are code that ships in the game, so they come from the project only.
+	if (nodePaths.some((dir) => !staysInside(dir))) {
+		throw wrong("nodePaths", "a list of folders inside the project");
 	}
 	if (!TARGETS.includes(config.target as string))
 		throw wrong("target", `one of ${TARGETS.join(", ")}`);
@@ -215,7 +223,7 @@ async function loadNodePacks(
 	const errors: string[] = [];
 
 	for (const dir of config.nodePaths) {
-		const abs = path.join(root, dir);
+		const abs = safeJoin(root, dir);
 		const entries = await fs.readdir(abs, { withFileTypes: true }).catch(() => []);
 		for (const entry of entries) {
 			if (!entry.isFile()) continue;

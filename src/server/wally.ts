@@ -447,13 +447,20 @@ export async function removePackage(
 	}
 	const after = await reachable(project, folder);
 	const removed = [...before].filter((f) => !after.has(f)).sort();
-	for (const index of removed) {
-		await fs.rm(safeJoin(project.root, `${folder}/_Index/${index}`), {
-			recursive: true,
-			force: true,
-		});
+	const index = safeJoin(project.root, `${folder}/_Index`);
+	for (const name of removed) {
+		// `reachable` only follows plain names; this is the second lock, on the
+		// one line that deletes a folder and everything in it.
+		const doomed = safeJoin(project.root, `${folder}/_Index/${name}`);
+		if (path.dirname(doomed) !== index) continue;
+		await fs.rm(doomed, { recursive: true, force: true });
 	}
 	return { removed, uses, ...(kept ? { kept } : {}) };
+}
+
+/** One folder's name: no separator, and not `.` or `..`. */
+function isFolderName(name: string): boolean {
+	return name !== "" && name !== "." && name !== ".." && !/[\\/]/.test(name);
 }
 
 /** The `_Index` folders the realm's thunks reach, following each package's own thunks. */
@@ -469,7 +476,11 @@ async function reachable(project: OpenProject, folder: string): Promise<Set<stri
 		const names = thunkTarget(await read(thunk));
 		// `script.Parent._Index[folder]` from the top, `script.Parent.Parent[folder]` from inside.
 		const target = names?.[0] === "_Index" || names?.[0] === "Parent" ? names[1] : undefined;
-		if (target && !reached.has(target)) {
+		// A thunk is text in the project, and anyone's to write: what it names
+		// is a folder in `_Index` only if it is one plain name. `..` would be
+		// `Packages` itself, and `../..` the project, when the unreached ones
+		// are removed.
+		if (target && isFolderName(target) && !reached.has(target)) {
 			reached.add(target);
 			queue.push(target);
 		}

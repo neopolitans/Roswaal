@@ -7,6 +7,7 @@
  */
 
 import { normalisePath } from "../core/rojoPaths.js";
+import { confineTo } from "./confine.js";
 import { UserError } from "./errors.js";
 import { path } from "./host.js";
 
@@ -47,6 +48,8 @@ export function tidyPath(p: string): string {
 
 /** Refuses any path that would escape the project root. */
 export function safeJoin(root: string, relPath: string): string {
+	// Noted so the filesystem checks, on disk, that links do not lead out of it.
+	confineTo(path.resolve(root));
 	const abs = path.resolve(root, relPath);
 	const rel = path.relative(root, abs);
 	if (rel.startsWith("..") || path.isAbsolute(rel)) {
@@ -73,4 +76,20 @@ export function entryPath(root: string, relPath: string): string {
 export function isInside(abs: string, folder: string): boolean {
 	const rel = path.relative(folder, abs);
 	return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+/**
+ * Whether a folder named in `roswaal.json` stays inside the project: relative,
+ * on any platform's reading of it, and never climbing above where it starts.
+ * `src/../src` stays; `../shared`, `/etc` and `C:\Users` do not.
+ */
+export function staysInside(folder: string): boolean {
+	if (/^[\\/]/.test(folder) || /^[A-Za-z]:/.test(folder)) return false;
+	let depth = 0;
+	for (const segment of folder.split(/[\\/]+/)) {
+		if (segment === "..") depth--;
+		else if (segment !== "" && segment !== ".") depth++;
+		if (depth < 0) return false;
+	}
+	return true;
 }
