@@ -9,6 +9,7 @@
 import { literalToLuau } from "../core/compiler/luau.js";
 import { pinsCompatible } from "../core/compiler/validate.js";
 import {
+	crossingLinks,
 	type GraphId,
 	graphOf,
 	placeIn,
@@ -810,6 +811,62 @@ export function insertIntoChain(
 	const out = continuingOutput(def.id, pinsOf(def, node).outputs);
 	if (!out) return wired;
 	return connect(wired, registry, { node: into.node, pin: out.id }, before.to);
+}
+
+/**
+ * Finishes putting a new node into a data wire: its output on into `reader`,
+ * the input the wire was picked up from.
+ *
+ * The data half of `insertIntoChain`. A data input takes one wire, as an
+ * execution output leads to one node, so it is the end where "in between" has
+ * one meaning: grab a wired input, pull it into empty canvas, pick a node, and
+ * the node lands between the value and the pin that read it. The caller has
+ * already wired the source into the new node; this closes the other side.
+ *
+ * A data **output** never inserts. It fans out, as an execution input fans in,
+ * and dragging a second wire off one is how a value gets a second reader;
+ * turning that into an insert would take the most common data gesture away.
+ * The execution side made the same call for its fan-in end.
+ *
+ * When the new node is a step and the reader is too, the step goes on the
+ * reader's chain just before it, so the value is made where it is used — but
+ * only when the reader has exactly one way in. With none or several, which
+ * one the step belongs on is a guess, so only the data is wired.
+ *
+ * Neither half can close a loop: each wire replaces one that ran the same
+ * way through the same two ends. A wire that would cross into another graph
+ * leaves the node placed and fed, and unjoined to the reader.
+ */
+export function insertIntoWire(
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	reader: PinRef,
+): NodeScript {
+	const node = script.nodes.find((n) => n.id === nodeId);
+	const readerNode = script.nodes.find((n) => n.id === reader.node);
+	const def = node && registry.get(node.def);
+	const readerDef = readerNode && registry.get(readerNode.def);
+	if (!node || !def || !readerNode || !readerDef) return script;
+	const readerPin = pinsOf(readerDef, readerNode).inputs.find((p) => p.id === reader.pin);
+	if (!readerPin || readerPin.kind !== "data") return script;
+
+	const out = landingPins(def, pinsOf(def, node).outputs, readerPin, "out").find(
+		(p) => p.kind === "data",
+	);
+	if (!out) return script;
+	let next = connect(script, registry, { node: nodeId, pin: out.id }, reader);
+	if (next === script) return script;
+
+	const execIn = pinsOf(def, node).inputs.find((p) => p.kind === "exec");
+	const readerExec = pinsOf(readerDef, readerNode).inputs.find((p) => p.kind === "exec");
+	if (execIn && readerExec) {
+		const ways = next.links.filter((l) => l.to.node === reader.node && l.to.pin === readerExec.id);
+		if (ways.length === 1) {
+			next = insertIntoChain(next, registry, ways[0].from, { node: nodeId, pin: execIn.id });
+		}
+	}
+	return crossingLinks(next).length > crossingLinks(script).length ? script : next;
 }
 
 export function connect(

@@ -59,6 +59,11 @@ export interface WireFrom {
 	 * can do.
 	 */
 	service?: string;
+	/**
+	 * The input this wire was picked up from, when it was: a node picked for it
+	 * goes in between, fed by the wire and feeding this. See `insertIntoWire`.
+	 */
+	reader?: { ref: PinRef; pin: PinDef };
 }
 
 /** Where the menu opens, and what it opens for. */
@@ -554,8 +559,19 @@ export function fitFor(item: MenuItem, from: WireFrom): number {
 	const landing = landingPins(item.def, list, from.pin, side);
 	if (landing.length === 0) return 0;
 	const wanted = from.pin.type ?? "any";
-	if (from.pin.kind !== "data" || wanted === "any") return 1;
-	return landing.some((pin) => pin.type === wanted) ? 2 : 1;
+	const fit =
+		from.pin.kind !== "data" || wanted === "any"
+			? 1
+			: landing.some((pin) => pin.type === wanted)
+				? 2
+				: 1;
+	// A wire picked up off an input is going in between, so a node that can
+	// also feed that input is the answer before one that only takes the wire.
+	if (from.reader && !item.member && side === "in") {
+		const pins = item.pins ?? resolveNodePins(item.def, item.config);
+		if (landingPins(item.def, pins.outputs, from.reader.pin, "out").length > 0) return fit + 2;
+	}
+	return fit;
 }
 
 /**

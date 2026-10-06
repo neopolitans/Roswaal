@@ -133,6 +133,10 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 						"Adds an input for it and connects it",
 					],
 					["Drag from a wired input", "Pick the wire up and move it"],
+					[
+						"Drop a wire picked up off a data input on empty space",
+						"The new node goes in between: the value feeds it, and it feeds the input. Nodes that fit both ends come first",
+					],
 					["`Shift` + click a pin", "Disconnect everything on it"],
 					["`Shift` or `Alt` + click a wire", "Disconnect it"],
 					[

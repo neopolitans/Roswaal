@@ -23,6 +23,7 @@ import {
 	copySelection,
 	deleteSelection,
 	insertIntoChain,
+	insertIntoWire,
 	landingPins,
 	pasteClipping,
 	promoteToVariable,
@@ -305,6 +306,11 @@ export function useGraphCommands(context: GraphCommandsContext) {
 					from.side === "out"
 						? connect(next, registry, from.ref, target)
 						: connect(next, registry, target, from.ref);
+				// A wire picked up off a data input goes back into it through the
+				// new node, which sits in between. See `insertIntoWire`.
+				if (from.reader && from.side === "out" && landing.kind === "data") {
+					next = insertIntoWire(next, registry, added.id, from.reader.ref);
+				}
 				return next;
 			});
 			setMenu(null);

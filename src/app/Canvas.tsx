@@ -106,7 +106,13 @@ export interface CanvasProps {
 	onRequestMenu: (
 		screen: Vec,
 		world: Vec,
-		from?: { ref: PinRef; side: "in" | "out"; pin: PinDef; service?: string },
+		from?: {
+			ref: PinRef;
+			side: "in" | "out";
+			pin: PinDef;
+			service?: string;
+			reader?: { ref: PinRef; pin: PinDef };
+		},
 	) => void;
 	/**
 	 * Ctrl and the right mouse button: the node picker, which draws what it
@@ -115,7 +121,13 @@ export interface CanvasProps {
 	/** The visual node picker, carrying the wire it was dropped from when there is one. */
 	onRequestNodePicker?: (
 		world: Vec,
-		from?: { ref: PinRef; side: "in" | "out"; pin: PinDef; service?: string },
+		from?: {
+			ref: PinRef;
+			side: "in" | "out";
+			pin: PinDef;
+			service?: string;
+			reader?: { ref: PinRef; pin: PinDef };
+		},
 	) => void;
 	/**
 	 * A node dragged off the node picker's list, dropped here. The caller
@@ -207,7 +219,14 @@ type Gesture =
 			/** The thing actually grabbed; the group snaps relative to it. */
 			anchor: string;
 	  }
-	| { kind: "wire"; from: PinRef; side: "in" | "out"; pin: PinDef }
+	| {
+			kind: "wire";
+			from: PinRef;
+			side: "in" | "out";
+			pin: PinDef;
+			/** The data input this wire was picked up from, to insert into. */
+			lifted?: { ref: PinRef; pin: PinDef };
+	  }
 	/**
 	 * Resizing a comment, from either corner.
 	 *
@@ -646,7 +665,7 @@ export function Canvas({
 					// on that service's methods rather than on everything.
 					const source = script.nodes.find((n) => n.id === g.from.node);
 					const service = g.side === "out" ? serviceFromSource(source, g.pin.type) : undefined;
-					const wire = { ref: g.from, side: g.side, pin: g.pin, service };
+					const wire = { ref: g.from, side: g.side, pin: g.pin, service, reader: g.lifted };
 					// Ctrl asks the same question the slower way, as it does on the
 					// empty canvas: the picker, which draws each node as you walk it.
 					if ((e.ctrlKey || e.metaKey) && onRequestNodePicker) {
@@ -772,7 +791,11 @@ export function Canvas({
 			if (existing) {
 				const sourcePin = pinDefOf(registry, script, existing.from, "out");
 				store.edit((s) => removeLink(s, existing.id, registry));
-				if (sourcePin) startWire(e, existing.from, "out", sourcePin);
+				// Remembered, so a node picked for the wire on empty canvas goes in
+				// between rather than leaving this input bare. See `insertIntoWire`.
+				const lifted =
+					pin.kind === "data" ? { ref: { node: nodeId, pin: pin.id }, pin } : undefined;
+				if (sourcePin) startWire(e, existing.from, "out", sourcePin, lifted);
 				return;
 			}
 		}
@@ -781,9 +804,15 @@ export function Canvas({
 	}
 
 	// Every wire gesture starts here, so each one starts unhandled.
-	function startWire(e: ReactPointerEvent, from: PinRef, side: "in" | "out", pin: PinDef) {
+	function startWire(
+		e: ReactPointerEvent,
+		from: PinRef,
+		side: "in" | "out",
+		pin: PinDef,
+		lifted?: { ref: PinRef; pin: PinDef },
+	) {
 		wireHandled.current = false;
-		gesture.current = { kind: "wire", from, side, pin };
+		gesture.current = { kind: "wire", from, side, pin, lifted };
 		store.hold("wire", true);
 		setWireDrag({ from, side, kind: pin.kind, type: pin.type });
 		setPointer(toWorld(e.clientX, e.clientY));
