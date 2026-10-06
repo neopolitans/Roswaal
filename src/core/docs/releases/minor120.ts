@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.141.1",
+		date: "2026-10-06",
+		headline: "Luau typed into a graph can see its named results.",
+		affects: ["editor"],
+		fixed: [
+			"Custom Code and Luau Expression offer the named results before them, and a method's self, as they type.",
+			"A named result always declares its local. Folded into a Declare Local straight after it, the name did not exist for Luau further down to read.",
+		],
+	},
+	{
 		version: "0.141.0",
 		date: "2026-10-06",
 		headline: "Declare Function can declare a method.",

@@ -102,10 +102,10 @@ describe("a pure result read by a setter or a table field", () => {
 
 describe("a step's result", () => {
 	/** Clone, then a Declare Local; `adjacent` puts nothing between them. */
-	function cloneInto(adjacent: boolean): string {
+	function cloneInto(adjacent: boolean, named = true): string {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const clone = b.node("instance.clone", { config: { resultName: "copy" } });
+		const clone = b.node("instance.clone", named ? { config: { resultName: "copy" } } : {});
 		b.lit(clone, "instance", { t: "raw", v: "workspace.Model" });
 		const declare = b.node("local.declare");
 		b.lit(declare, "name", { t: "string", v: "tank" });
@@ -123,9 +123,20 @@ describe("a step's result", () => {
 	}
 
 	it("goes into the Declare Local that runs straight after it", () => {
-		const out = cloneInto(true);
+		const out = cloneInto(true, false);
 		expect(out).toMatch(/^local tank(: \w+)? = workspace\.Model:Clone\(\)$/m);
 		expect(locals(out)).toBe(1);
+	});
+
+	/**
+	 * A name asks for the local. Folded, `copy` would not exist, and Luau
+	 * typed into a Custom Code further down that reads it would read a nil
+	 * global instead.
+	 */
+	it("keeps its local when it has a name, even with the Declare Local next", () => {
+		const out = cloneInto(true);
+		expect(out).toMatch(/^local copy(: \w+)? = workspace\.Model:Clone\(\)$/m);
+		expect(out).toMatch(/^local tank(: \w+)? = copy$/m);
 	});
 
 	it("keeps its local when anything runs in between, so the call does not move", () => {

@@ -199,18 +199,14 @@ export function writeCall(
 	const named = pin !== undefined && resultNameOf(r.node.config) !== undefined;
 	const consumed = read || named;
 	const next = e.index.execTarget(r.node.id, "then");
-	// Read by name elsewhere: a Get Local needs the local itself, so the call
-	// is never folded into the next statement, where it would have none.
-	const readByName =
-		named &&
-		e.index.all().some((n) => n.def.id === "local.get" && n.node.config?.local === r.node.id);
-
 	// A step whose one reader is the very next statement is written into it:
 	// `local copy = model:Clone()`, not a local and then a copy of it. Only
 	// the next statement, and only a Declare Local or a setter, so the call
 	// still runs exactly where it did — nothing else happens in between.
 	const reader = consumed ? e.foldsInto(r.node.id, resultPin) : undefined;
-	if (!readByName && reader && reader.node.id === next && STATEMENT_READERS.has(reader.def.id)) {
+	// Never a named one: the name is a local that a Get Local, or Luau typed
+	// into Custom Code, may read later, and folded it would not exist.
+	if (!named && reader && reader.node.id === next && STATEMENT_READERS.has(reader.def.id)) {
 		scope.bindings.set(`${r.node.id}/${resultPin}`, rendered);
 		return next;
 	}

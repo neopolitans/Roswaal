@@ -27,7 +27,7 @@ import { childrenOfChain, type InstanceNode } from "../core/luau/instances.js";
 import { CONTEXTUAL_WORDS, RESERVED_WORDS, significant, tokenize } from "../core/luau/lexer.js";
 import { type LocalKind, localsAt, topLevelLocals } from "../core/luau/scope.js";
 import { namedResultRef } from "../core/namedResults.js";
-import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import { FUNCTION_NODES, isMethod, RECEIVER } from "../core/nodes/flow.js";
 import {
 	continuesEnclosingBlock,
 	type Registry,
@@ -653,6 +653,9 @@ export function precedingLocals(
 		// `character` inside `Occupancy.hide(character, hull)`.
 		if (node && !continuesEnclosingBlock(node.def, previous.pin)) {
 			const params = (node.config as Signature | undefined)?.params ?? [];
+			if (node.def === "function.declareHere" && isMethod(node.config)) {
+				add(RECEIVER, "parameter · the method's table");
+			}
 			params.forEach((param, i) => {
 				add(toIdentifier(param.name || `arg${i + 1}`, `arg${i + 1}`), "parameter");
 			});

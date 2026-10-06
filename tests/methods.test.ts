@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from "vitest";
 
+import { precedingLocals } from "../src/app/luauCompletions.js";
 import { compile } from "../src/core/compiler/index.js";
 import { importLuau } from "../src/core/import/fromLuau.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
@@ -124,6 +125,25 @@ describe("a method", () => {
 			],
 		};
 		expect(code(withRead)).toContain("print(Tank.aim)");
+	});
+});
+
+describe("Luau typed into a method", () => {
+	it("is offered self", () => {
+		const script = aim();
+		const fn = script.nodes.find((n) => n.def === "function.declareHere")!;
+		const custom = { id: "cc", def: "code.custom", x: 0, y: 0, graph: fn.id };
+		const print = script.nodes.find((n) => n.def === "debug.print")!;
+		const withCode: NodeScript = {
+			...script,
+			nodes: [...script.nodes, custom],
+			links: [
+				...script.links,
+				{ id: "lc", from: { node: print.id, pin: "then" }, to: { node: "cc", pin: "in" } },
+			],
+		};
+		const labels = precedingLocals(withCode, registry, "cc").map((c) => c.label);
+		expect(labels).toEqual(expect.arrayContaining(["self", "target"]));
 	});
 });
 
