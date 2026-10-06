@@ -27,7 +27,7 @@ import { childrenOfChain, type InstanceNode } from "../core/luau/instances.js";
 import { CONTEXTUAL_WORDS, RESERVED_WORDS, significant, tokenize } from "../core/luau/lexer.js";
 import { type LocalKind, localsAt, topLevelLocals } from "../core/luau/scope.js";
 import { namedResultRef } from "../core/namedResults.js";
-import { FUNCTION_NODES, isMethod, RECEIVER } from "../core/nodes/flow.js";
+import { FUNCTION_NODES, isMethod, loopNamesOf, loopTypes, RECEIVER } from "../core/nodes/flow.js";
 import {
 	continuesEnclosingBlock,
 	type Registry,
@@ -100,6 +100,74 @@ function classMembers(className: string): Completion[] {
 			info: e.summary,
 		})),
 	];
+}
+
+/**
+ * What the graph knows a name in scope holds: its type as written, and the
+ * fields of that type when the graph declares it as a table.
+ *
+ * Code typed into a node reads the graph's locals by name — a named result, a
+ * Declare Local, a parameter, a loop variable, a script variable — and none of
+ * those is declared in the code, so the code alone cannot say what `hull.`
+ * should offer. The graph can.
+ */
+export interface GraphType {
+	type: string;
+	fields?: string[];
+}
+
+export type GraphTypes = ReadonlyMap<string, GraphType>;
+
+/** `BasePart?` → `BasePart`; `(Vector3)` → `Vector3`. */
+function bareType(text: string): string {
+	return text
+		.trim()
+		.replace(/^\((.*)\)$/, "$1")
+		.replace(/\?$/, "")
+		.trim();
+}
+
+/** The engine's datatype a type names, when it names one: `Vector3`, `CFrame`. */
+function datatypeOf(text: string): string | undefined {
+	const bare = bareType(text);
+	return ENGINE.datatypes[bare] && bare !== "Enum" ? bare : undefined;
+}
+
+/** What a dot reaches on a value of a graph-known type. */
+function typedDotMembers(held: GraphType, roblox: boolean): Completion[] {
+	const className = roblox ? heldBy(held.type, undefined).className : undefined;
+	if (className) return classMembers(className);
+	const datatype = roblox ? datatypeOf(held.type) : undefined;
+	if (datatype) {
+		return ENGINE.datatypes[datatype].properties
+			.filter((p) => !p.deprecated)
+			.map((p) => ({ label: p.name, type: "property", detail: p.type, info: p.summary }));
+	}
+	return (held.fields ?? []).map((name) => ({ label: name, type: "property", detail: "field" }));
+}
+
+/** What a colon reaches on a value of a graph-known type: its methods. */
+function typedColonMembers(held: GraphType): Completion[] {
+	const className = heldBy(held.type, undefined).className;
+	if (className) {
+		return methodsOf(className).map((m) => ({
+			label: m.name,
+			type: "method",
+			detail: `${m.detail}${m.returns ? ` → ${m.returns}` : ""}`,
+			info: m.summary,
+		}));
+	}
+	const datatype = datatypeOf(held.type);
+	if (!datatype) return [];
+	const seen = new Set<string>();
+	return ENGINE.datatypes[datatype].methods
+		.filter((m) => !m.deprecated && !seen.has(m.name) && seen.add(m.name))
+		.map((m) => ({
+			label: m.name,
+			type: "method",
+			detail: `${signatureText(m.params)}${m.returns ? ` → ${m.returns}` : ""}`,
+			info: m.summary,
+		}));
 }
 
 /**
@@ -267,6 +335,7 @@ export function luauCompletionSource(
 	getTarget: () => Target = () => "roblox",
 	getMembers: () => ReadonlyMap<string, TableMember[]> = () => new Map(),
 	getInstances: () => { root: InstanceNode; self?: string[] } | null = () => null,
+	getTypes: () => GraphTypes = () => new Map(),
 ) {
 	return (context: CompletionContext): CompletionResult | null => {
 		// Roblox's classes and datatypes are there only when the graph compiles
@@ -303,12 +372,15 @@ export function luauCompletionSource(
 			const local = localsAt(context.state.doc.toString(), bracket.from).find(
 				(n) => n.name === owner,
 			);
-			if (local) {
-				const held = heldBy(local.typeText, local.value);
+			const graphTyped = local ? undefined : getTypes().get(owner);
+			if (local || graphTyped) {
+				const held = local
+					? heldBy(local.typeText, local.value)
+					: heldBy(graphTyped?.type, undefined);
 				const keys =
 					held.className && roblox
 						? propertiesOf(held.className).map((p) => p.name)
-						: (held.keys ?? []);
+						: (held.keys ?? graphTyped?.fields ?? []);
 				if (keys.length > 0) {
 					return {
 						from: bracket.to - typed.length,
@@ -435,6 +507,17 @@ export function luauCompletionSource(
 							];
 				return options.length > 0 ? { from, options, validFor: /^\w*$/ } : null;
 			}
+			// A name the graph declares and knows the type of: a named result, a
+			// typed Declare Local, parameter, loop variable or script variable.
+			const graphTyped = getTypes().get(owner);
+			if (graphTyped) {
+				const typed = typedDotMembers(graphTyped, roblox);
+				const options = [
+					...typed,
+					...onTable.filter((m) => !typed.some((t) => t.label === m.label)),
+				];
+				if (options.length > 0) return { from, options, validFor: /^\w*$/ };
+			}
 			if (onTable.length > 0) return { from, options: onTable, validFor: /^\w*$/ };
 			// `game.`, `workspace.` and `script.` are instances: their class's
 			// properties and events, as a local holding one offers.
@@ -467,6 +550,13 @@ export function luauCompletionSource(
 			const local = localsAt(context.state.doc.toString(), colon.from).find(
 				(n) => n.name === owner,
 			);
+			const graphTyped = local ? undefined : getTypes().get(owner);
+			if (graphTyped) {
+				const options = typedColonMembers(graphTyped);
+				if (options.length > 0) {
+					return { from: colon.to - written.length, options, validFor: /^\w*$/ };
+				}
+			}
 			const className = local
 				? heldBy(local.typeText, local.value).className
 				: classOfGlobal(owner);
@@ -551,6 +641,73 @@ export function precedingLocals(
 	registry: Registry,
 	nodeId: string | null,
 ): Completion[] {
+	return collectPreceding(script, registry, nodeId).map(({ name, detail }) => ({
+		label: name,
+		type: "variable",
+		detail,
+	}));
+}
+
+/**
+ * What the graph knows each name in scope at a node holds, for member
+ * completion: `hull.` on a named result typed BasePart offers a BasePart's
+ * members, as `local hull: BasePart` typed into the code would.
+ *
+ * Script variables first, then the locals before the node, which hide a
+ * variable of the same name as they do in the file. A type the graph declares
+ * as a table brings its field names.
+ */
+export function graphLocalTypes(
+	script: NodeScript | null,
+	registry: Registry,
+	nodeId: string | null,
+): Map<string, GraphType> {
+	const out = new Map<string, GraphType>();
+	if (!script) return out;
+	const fieldsOf = new Map<string, string[]>();
+	for (const node of script.nodes) {
+		if (node.def !== "type.declareTop" && node.def !== "type.declareHere") continue;
+		const config = (node.config ?? {}) as { name?: unknown; fields?: unknown };
+		if (typeof config.name !== "string" || !Array.isArray(config.fields)) continue;
+		fieldsOf.set(
+			config.name,
+			config.fields.flatMap((f) =>
+				typeof f === "object" && f !== null && typeof (f as { name?: unknown }).name === "string"
+					? [(f as { name: string }).name]
+					: [],
+			),
+		);
+	}
+	const typed = (type: string): GraphType => {
+		const fields = fieldsOf.get(bareType(type));
+		return fields ? { type, fields } : { type };
+	};
+	for (const variable of script.variables ?? []) {
+		if (variable.type && variable.type !== "any") out.set(variable.name, typed(variable.type));
+	}
+	// Nearest first, so the first a name is met is the one in scope.
+	const seen = new Set<string>();
+	for (const local of collectPreceding(script, registry, nodeId)) {
+		if (seen.has(local.name)) continue;
+		seen.add(local.name);
+		if (local.type && local.type !== "any") out.set(local.name, typed(local.type));
+		else out.delete(local.name);
+	}
+	return out;
+}
+
+/** A name the graph has in scope before a node: what to call it, and what it holds if known. */
+interface GraphLocal {
+	name: string;
+	detail: string;
+	type?: string;
+}
+
+function collectPreceding(
+	script: NodeScript | null,
+	registry: Registry,
+	nodeId: string | null,
+): GraphLocal[] {
 	if (!script || !nodeId) return [];
 
 	const execInputs = new Map<string, { node: string; pin: string }[]>();
@@ -562,14 +719,14 @@ export function precedingLocals(
 		else execInputs.set(link.to.node, [entry]);
 	}
 
-	const out: Completion[] = [];
+	const out: GraphLocal[] = [];
 	const seen = new Set<string>();
 	const visited = new Set<string>();
 
-	const add = (name: string, detail: string) => {
+	const add = (name: string, detail: string, type?: string) => {
 		if (name === "" || seen.has(name)) return;
 		seen.add(name);
-		out.push({ label: name, type: "variable", detail });
+		out.push(type ? { name, detail, type } : { name, detail });
 	};
 
 	const collectFrom = (id: string) => {
@@ -579,7 +736,12 @@ export function precedingLocals(
 		// does. Leaving it out is what made `restores` unreachable from a
 		// function declared after it.
 		if (node.def === "local.declare") {
-			add(toIdentifier(localNameOf(node), "local"), "local from Declare Local");
+			const type = (node.config as { type?: unknown } | undefined)?.type;
+			add(
+				toIdentifier(localNameOf(node), "local"),
+				"local from Declare Local",
+				typeof type === "string" ? type : undefined,
+			);
 			return;
 		}
 		// So does a step's named result: `local hull = need(...)`. Leaving it
@@ -587,7 +749,7 @@ export function precedingLocals(
 		// their results rather than feeding a Declare Local.
 		const named = namedResultRef(node, registry);
 		if (named) {
-			add(toIdentifier(named.name, "value"), `named result · ${named.type}`);
+			add(toIdentifier(named.name, "value"), `named result · ${named.type}`, named.type);
 			return;
 		}
 		if (!RAW_STATEMENT_NODES.has(node.def)) return;
@@ -657,8 +819,12 @@ export function precedingLocals(
 				add(RECEIVER, "parameter · the method's table");
 			}
 			params.forEach((param, i) => {
-				add(toIdentifier(param.name || `arg${i + 1}`, `arg${i + 1}`), "parameter");
+				add(toIdentifier(param.name || `arg${i + 1}`, `arg${i + 1}`), "parameter", param.type);
 			});
+			// A loop's variables, named and typed as the loop writes them.
+			if (previous.pin === "body") {
+				for (const loop of loopVariables(node)) add(loop.name, "loop variable", loop.type);
+			}
 		}
 
 		// Reached a Sequence from one of its outputs: everything under the
@@ -673,6 +839,24 @@ export function precedingLocals(
 	}
 
 	return out;
+}
+
+/** What a loop node's body has in scope, as `emitFlow` names and types it. */
+function loopVariables(node: NodeScript["nodes"][number]): { name: string; type?: string }[] {
+	if (node.def === "flow.forRange") {
+		return [{ name: toIdentifier(node.label || "i", "i"), type: "number" }];
+	}
+	if (node.def !== "flow.forEach" && node.def !== "flow.forIndex") return [];
+	const names = loopNamesOf(node.config);
+	const types = loopTypes(node.config ?? {});
+	const array = node.def === "flow.forIndex";
+	return [
+		{
+			name: toIdentifier(names.key ?? (array ? "i" : "key"), "key"),
+			type: array ? "number" : types.key,
+		},
+		{ name: toIdentifier(names.value ?? "value", "value"), type: types.value },
+	];
 }
 
 function isExecPin(

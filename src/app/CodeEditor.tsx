@@ -24,6 +24,7 @@ import { cx } from "./cx.js";
 import { instanceDrop } from "./instanceDrop.js";
 import { LAYER } from "./layers.js";
 import {
+	graphLocalTypes,
 	graphTableMembers,
 	luauCompletionSource,
 	precedingLocals,
@@ -84,6 +85,13 @@ export function CodeEditor({
 	);
 	const scopeRef = useRef<Completion[]>(scope);
 	scopeRef.current = scope;
+	// What those names hold, for `hull.` to offer a BasePart's members.
+	const types = useMemo(
+		() => graphLocalTypes(script, registry, nodeId),
+		[script, registry, nodeId],
+	);
+	const typesRef = useRef(types);
+	typesRef.current = types;
 	// Roblox classes and datatypes are offered only in a graph that compiles
 	// for Roblox. Read through a ref for the same reason as the scope.
 	const targetRef = useRef(script?.target ?? "roblox");
@@ -159,6 +167,7 @@ export function CodeEditor({
 						() => targetRef.current,
 						allMembers,
 						() => instancesRef.current,
+						() => typesRef.current,
 					),
 					// The same structural check that runs on every compile, shown here
 					// as you type so a stray `end` is caught in the box you typed it in.
