@@ -127,6 +127,25 @@ export function gettingStartedPage(): DocPage {
 										],
 									},
 									{
+										id: "install-rokit",
+										title: "With Rokit",
+										blocks: [
+											{
+												t: "p",
+												text:
+													"If you install Rojo with [Rokit](https://github.com/rojo-rbx/rokit), it " +
+													"installs `roswaal` the same way, and picks the file for your computer:",
+											},
+											{
+												t: "code",
+												lang: "sh",
+												text: code`
+													rokit add neopolitans/Roswaal roswaal
+													`,
+											},
+										],
+									},
+									{
 										id: "install-source",
 										title: "From source",
 										blocks: [
