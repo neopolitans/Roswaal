@@ -82,7 +82,15 @@ export function hrefFor(base: string, staticHost: boolean, page: Page, hash?: st
 	const fragment = hash ? `#${hash}` : "";
 
 	if (staticHost) {
-		if (page === "docs") return `${root}docs/${fragment}`;
+		// The built docs are a page per file, and nothing there reads a hash
+		// to find one: `#node/table.dictionary` on the index stayed on the
+		// index. So a page named by the hash is linked to by its file.
+		// A heading inside it stays a hash on that file.
+		if (page === "docs") {
+			if (!hash) return `${root}docs/`;
+			const [slug, ...heading] = decodeURIComponent(hash).split("#");
+			return `${root}docs/${slug}.html${heading.length > 0 ? `#${heading.join("#")}` : ""}`;
+		}
 		if (page === "designer") return `${root}designer.html${fragment}`;
 		return `${root}try.html${fragment}`;
 	}

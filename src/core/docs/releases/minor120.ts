@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.143.4",
+		date: "2026-10-06",
+		headline: "The website's links into the docs open the page they name.",
+		affects: ["editor"],
+		fixed: [
+			"On the website, the Inspector's ? opened the landing page. It opens the node's docs page, as it does under the daemon.",
+			"The website's other links to a docs page, from the start screen, Node Design and Ctrl+K, open that page rather than the first one.",
+		],
+	},
+	{
 		version: "0.143.3",
 		date: "2026-10-06",
 		headline: "A call's cast result shows on its pin.",

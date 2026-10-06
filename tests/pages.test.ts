@@ -60,7 +60,14 @@ describe("where a page is, on a static host", () => {
 	/** Not a page of the bundle at all: the separate static site. */
 	it("sends the documentation to the built site", () => {
 		expect(href("docs")).toBe("/docs/");
-		expect(href("docs", "wires-and-pins")).toBe("/docs/#wires-and-pins");
+		// A page per file: the built docs read no hash to find a page.
+		expect(href("docs", "wires-and-pins")).toBe("/docs/wires-and-pins.html");
+		expect(href("docs", encodeURIComponent("node/table.dictionary"))).toBe(
+			"/docs/node/table.dictionary.html",
+		);
+		expect(href("docs", "casting#casting-a-calls-result")).toBe(
+			"/docs/casting.html#casting-a-calls-result",
+		);
 	});
 });
 

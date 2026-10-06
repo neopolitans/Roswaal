@@ -20,6 +20,7 @@ import { renameNode, updateComment } from "./edits.js";
 import { Field, InspectorSections } from "./InspectorSections.jsx";
 import { Icon, type IconName } from "./icons.jsx";
 import { Ident } from "./PanelParts.jsx";
+import { pageHref, pageTarget } from "./pages.js";
 import {
 	COMMENT_COLORS,
 	COMMENT_DEFAULT_COLOR,
@@ -71,9 +72,13 @@ export function briefSummary(text: string): string {
 	return text;
 }
 
-/** Where a node's page lives in the docs window. */
+/**
+ * Where a node's page lives in the docs: a hash route under the daemon, its
+ * own file on the website. Written out by hand, this sent the website's
+ * button to the landing page.
+ */
 function docsHref(nodeId: string): string {
-	return `/docs#${encodeURIComponent(`node/${nodeId}`)}`;
+	return pageHref("docs", encodeURIComponent(`node/${nodeId}`));
 }
 
 /** The glyph in a node's badge, by what the node is about. */
@@ -132,7 +137,7 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 					<a
 						className="tb icon-only ident-docs"
 						href={docsHref(def.id)}
-						target="roswaal-docs"
+						target={pageTarget("docs")}
 						title="See docs page"
 						aria-label={`${def.title} in the docs`}
 					>
