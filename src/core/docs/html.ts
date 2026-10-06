@@ -19,27 +19,26 @@
 import type { Registry } from "../nodes/index.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
 import { graphViews } from "./graphViews.js";
+import { escapeHtml, inlineHtml, pagePath } from "./inlineHtml.js";
 import { layoutHtml, listedRegions } from "./layouts.js";
 import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
 import { mapFigure, mapFigureHtml, walkMapHtml } from "./mapFigure.js";
-import { typeCellHtml } from "./typeCell.js";
 import { nodeCodeHtml } from "./nodeCode.js";
 import { noteHeadHtml } from "./notes.js";
 import { graphSvg, type PreviewOptions, previewSvg } from "./preview.js";
-import { RELEASE_KINDS, RELEASE_SURFACES } from "./releaseTags.js";
+import { releaseBlockHtml } from "./releaseHtml.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, type Review, reviewLine } from "./reviews.js";
-import type { Block, DocPage, DocSection, DocSite, ReleaseView } from "./site.js";
+import type { Block, DocPage, DocSection, DocSite } from "./site.js";
 import {
 	allPages,
-	isPageLink,
+	listedPages,
 	type Neighbour,
 	neighbours,
-	parseInline,
-	releaseAnchor,
 	stripMarkup,
 	TAG_LABELS,
 } from "./site.js";
 import { controlKey, legendOf, TOOLBAR_HINT, type ToolbarArt, toolbarHtml } from "./toolbars.js";
+import { typeCellHtml } from "./typeCell.js";
 
 export interface RenderOptions {
 	/** Turns Luau into HTML. Returns escaped text when absent. */
@@ -125,18 +124,7 @@ export interface LogoOptions {
 	icon: string;
 }
 
-export function escapeHtml(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
-}
-
-/** Where a page's file goes, relative to the site root. */
-export function pagePath(slug: string): string {
-	return `${slug}.html`;
-}
+export { escapeHtml, pagePath };
 
 /** `../` enough times to climb out of a nested page's folder. */
 function upTo(slug: string): string {
@@ -149,27 +137,7 @@ function upTo(slug: string): string {
 
 /** `up` climbs from the page being written to the site root, for page links. */
 function inline(text: string, up = ""): string {
-	return parseInline(text)
-		.map((run) => {
-			const body = escapeHtml(run.text);
-			switch (run.t) {
-				case "text":
-					return body;
-				case "code":
-					return `<code>${body}</code>`;
-				case "strong":
-					return `<strong>${body}</strong>`;
-				case "em":
-					return `<em>${body}</em>`;
-				case "link":
-					// Another page of these docs is a file beside this one; written
-					// as its bare slug, it resolved to an address that did not exist.
-					return isPageLink(run.href)
-						? `<a href="${escapeHtml(up + pagePath(run.href))}">${body}</a>`
-						: `<a href="${escapeHtml(run.href)}" rel="noreferrer noopener">${body}</a>`;
-			}
-		})
-		.join("");
+	return inlineHtml(text, (slug) => up + pagePath(slug));
 }
 
 function swatchStyle(
@@ -379,22 +347,11 @@ function renderBlock(
 				`<div class="docs-tab-panels">${panels}</div></div>`
 			);
 		}
-		case "release":
-			return releaseHtml(block.release, up);
-		case "releaseTools":
-			return releaseToolsHtml(block.ranges);
-		case "toggle": {
-			// `data-pref` is what the script reads; the checkbox is checked by that
-			// script rather than here, because the answer lives in the reader's own
-			// storage and this markup is the same for everybody.
-			return (
-				`<label class="docs-toggle"><input type="checkbox"` +
-				` data-pref="${escapeHtml(block.pref)}">` +
-				`<span class="docs-toggle-label">${inline(block.label, up)}</span>` +
-				`${block.hint ? `<span class="docs-toggle-hint">${inline(block.hint, up)}</span>` : ""}` +
-				`</label>`
-			);
-		}
+		case "releaseMinor":
+		case "releaseRows":
+		case "releaseVersions":
+		case "releasePager":
+			return releaseBlockHtml(block, (slug) => up + pagePath(slug));
 		case "nodemap": {
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
 			// One string, built in core, for the reason the toolbars are: the
@@ -546,75 +503,12 @@ function renderBlock(
 			const inner = block.blocks.map((b) => renderBlock(b, options, up, page)).join("\n");
 			return (
 				`<details class="docs-details${sub ? " with-sub" : ""}"${block.open ? " open" : ""}` +
-				`${block.id ? ` id="${escapeHtml(block.id)}"` : ""}` +
-				`${block.prerelease ? " data-prerelease" : ""}>` +
+				`${block.id ? ` id="${escapeHtml(block.id)}"` : ""}>` +
 				`<summary><span class="docs-details-title">${inline(block.summary, up)}${sub}</span>${aside}</summary>\n` +
 				`${inner}\n</details>`
 			);
 		}
 	}
-}
-
-/** One release as a card. The same markup the Docs window draws; see `releaseNotes.ts`. */
-function releaseHtml(r: ReleaseView, up: string): string {
-	const anchor = releaseAnchor(r.version);
-	const tags = r.tags
-		.map((tag) => `<span class="docs-tag tag-${tag}">${escapeHtml(TAG_LABELS[tag])}</span>`)
-		.join("");
-	const watch = r.watch
-		? `<div class="docs-note note-warn">${noteHeadHtml("warn")}<div class="docs-note-body">` +
-			`<strong>Worth knowing before you upgrade.</strong><ul>` +
-			r.watch.map((item) => `<li>${inline(item, up)}</li>`).join("") +
-			`</ul></div></div>`
-		: "";
-	const sections = [
-		...r.sections.map((s) => ({ kind: s.kind as string, heading: s.heading, items: s.entries })),
-		...r.articles.map((a) => ({ kind: "articles", heading: a.heading, items: a.links })),
-	]
-		.map(
-			(s) =>
-				`<div class="docs-release-section" data-kind="${s.kind}"><h4>${escapeHtml(s.heading)}</h4>` +
-				`<ul class="docs-release-entries">${s.items.map((i) => `<li>${inline(i, up)}</li>`).join("")}</ul></div>`,
-		)
-		.join("");
-	return (
-		`<section class="docs-release${r.latest ? " is-latest" : ""}" id="${anchor}" data-version="${escapeHtml(r.version)}" data-tags="${r.tags.join(" ")}">` +
-		`<header class="docs-release-head"><a class="docs-release-version" href="#${anchor}">${escapeHtml(r.version)}</a>` +
-		`${r.latest ? `<span class="badge latest">Latest</span>` : ""}` +
-		`<span class="docs-release-new" title="New since your last visit">New</span>` +
-		`<span class="aside">${escapeHtml(r.date)}</span></header>` +
-		`${tags ? `<p class="docs-tags">${tags}</p>` : ""}` +
-		`<p class="docs-release-headline">${inline(r.headline, up)}</p>${watch}${sections}</section>`
-	);
-}
-
-/** The release notes' search, filters and jump bar. Wired by `releaseNotes.ts`. */
-export function releaseToolsHtml(
-	ranges: { label: string; target: string; prerelease?: boolean }[],
-): string {
-	const chips = (attr: string, options: [string, string][]) =>
-		`<span class="segmented">${options
-			.map(
-				([value, label], i) =>
-					`<button type="button" data-${attr}="${value}"${i === 0 ? ' class="on"' : ""}>${label}</button>`,
-			)
-			.join("")}</span>`;
-	return (
-		`<div class="docs-release-tools" data-release-tools>` +
-		`<div class="docs-release-filters">` +
-		`<input type="search" class="docs-release-search" placeholder="Search the release notes" aria-label="Search the release notes">` +
-		chips("kind-filter", RELEASE_KINDS) +
-		chips("surface-filter", RELEASE_SURFACES) +
-		`</div>` +
-		`<nav class="docs-release-jump" aria-label="Jump to a range of versions"><span>Jump to</span>` +
-		ranges
-			.map(
-				(r) =>
-					`<a href="#${escapeHtml(r.target)}" data-jump="${escapeHtml(r.target)}"${r.prerelease ? " data-prerelease" : ""}>${escapeHtml(r.label)}</a>`,
-			)
-			.join("") +
-		`</nav><p class="docs-release-count" aria-live="polite"></p></div>`
-	);
 }
 
 /** Past this many, a pin's values are counted rather than listed. */
@@ -712,17 +606,20 @@ function renderNav(site: DocSite, current: DocPage, options: RenderOptions): str
 					// Open the section the reader is in; everything else is collapsed,
 					// because a flat list of every node is not a table of contents.
 					const isHere = section.pages.some((p) => p.slug === current.slug);
-					const links = section.pages
+					const shown = listedPages(section, current.slug);
+					const links = shown
 						.map(
 							(p) =>
-								`<a class="docs-link${p.slug === current.slug ? " on" : ""}" ` +
-								`href="${up}${pagePath(p.slug)}">${escapeHtml(p.title)}</a>`,
+								`<a class="docs-link${p.slug === current.slug ? " on" : ""}${p.unlisted ? " docs-link--unlisted" : ""}" ` +
+								`href="${up}${pagePath(p.slug)}"` +
+								`${p.releaseNewest ? ` data-release-newest="${escapeHtml(p.releaseNewest)}"` : ""}>` +
+								`${escapeHtml(p.title)}</a>`,
 						)
 						.join("");
 					return (
 						`<details class="docs-section"${isHere ? " open" : ""}>` +
 						`<summary class="docs-section-head">${escapeHtml(section.title)}` +
-						`<span class="count">${section.pages.length}</span></summary>` +
+						`<span class="count">${shown.length}</span></summary>` +
 						`<div class="docs-pages">${links}</div></details>`
 					);
 				})

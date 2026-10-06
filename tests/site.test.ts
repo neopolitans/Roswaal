@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { VERSION } from "../src/cli/version.js";
 import { renderPage } from "../src/core/docs/html.js";
 import { code } from "../src/core/docs/pages/blocks.js";
+import { RECENT_MINORS } from "../src/core/docs/pages/releaseNotes.js";
 import { RELEASES } from "../src/core/docs/releases.js";
 import { reviewLine } from "../src/core/docs/reviews.js";
 import {
@@ -24,6 +25,7 @@ import {
 	GROUPS,
 	isPageLink,
 	parseInline,
+	releasePageSlug,
 	releaseTags,
 	type StringSlot,
 	searchDocs,
@@ -290,55 +292,168 @@ function pageStrings(page: DocPage, slot: StringSlot): string[] {
 }
 
 describe("release notes", () => {
+	const releasePages = site.sections.find((s) => s.slug === "releases")!.pages;
+	const minorBlock = (page: DocPage) =>
+		page.blocks.find((b): b is Block & { t: "releaseMinor" } => b.t === "releaseMinor")!;
+	const minors = [...new Set(RELEASES.map((r) => r.version.split(".").slice(0, 2).join(".")))];
+
 	/**
-	 * The newest release is read; the rest are looked up, by major and minor
-	 * first. So one in full, and every other inside its minor version's fold.
+	 * A minor version is what somebody upgrading moves across, and most releases
+	 * are a few lines: one page each for 0.144.x, 0.143.x, and so on, holding
+	 * every one of its releases, newest first.
 	 */
-	it("shows the latest release as a card, and folds every other into its minor version", () => {
-		const page = findPage(site, "release-notes")!;
-		const minor = (v: string) => v.split(".").slice(0, 2).join(".") + ".x";
-		const folds = page.blocks.filter((b): b is Block & { t: "details" } => b.t === "details");
-		const top = page.blocks.filter((b): b is Block & { t: "release" } => b.t === "release");
-
-		// The latest, on its own above the folds, and the only one marked.
-		expect(top.map((b) => b.release.version)).toEqual([RELEASES[0].version]);
-		expect(top[0].release.latest).toBe(true);
-
-		const rest = RELEASES.slice(1);
-		expect(folds.map((f) => f.summary)).toEqual([...new Set(rest.map((r) => minor(r.version)))]);
-		for (const release of rest) {
-			const fold = folds.find((f) => f.summary === minor(release.version))!;
-			const versions = fold.blocks.flatMap((b) => (b.t === "release" ? [b.release.version] : []));
-			expect(versions, release.version).toContain(release.version);
+	it("gives each minor version a page holding all of its releases, newest first", () => {
+		expect(releasePages[0].slug).toBe("release-notes");
+		expect(releasePages.slice(1).map((p) => p.slug)).toEqual(
+			minors.map((m) => `release-notes/${m}`),
+		);
+		for (const page of releasePages.slice(1)) {
+			const view = minorBlock(page).minor;
+			const own = RELEASES.filter((r) => releasePageSlug(r.version) === page.slug);
+			expect(
+				view.releases.map((r) => r.version),
+				page.slug,
+			).toEqual(own.map((r) => r.version));
+			expect(page.title).toBe(`${view.minor}.x`);
 		}
-		const marked = folds
-			.flatMap((f) => f.blocks)
-			.filter((b) => b.t === "release" && b.release.latest);
-		expect(marked).toHaveLength(0);
-		// Closed, each saying what its minor version was, with an anchor to jump to.
-		for (const fold of folds) {
-			expect(fold.open, fold.summary).toBeFalsy();
-			expect(fold.sub, fold.summary).toBeTruthy();
-			expect(fold.id).toBe(`releases-${fold.summary}`);
+		// The newest is marked once, on the newest minor version and its newest release.
+		const marked = releasePages.slice(1).filter((p) => minorBlock(p).minor.latest);
+		expect(marked.map((p) => p.slug)).toEqual([releasePageSlug(RELEASES[0].version)]);
+		expect(minorBlock(marked[0]).minor.releases[0]).toMatchObject({
+			version: RELEASES[0].version,
+			latest: true,
+		});
+	});
+
+	/**
+	 * Read together, but every line still says which release it shipped in, and
+	 * nothing a release said is lost or moved to another.
+	 */
+	it("badges every line with the release it shipped in", () => {
+		for (const page of releasePages.slice(1)) {
+			const view = minorBlock(page).minor;
+			const own = new Map(
+				RELEASES.filter((r) => releasePageSlug(r.version) === page.slug).map((r) => [r.version, r]),
+			);
+			const lines = [
+				...view.watch.map((l) => ["watch", l] as const),
+				...view.sections.flatMap((s) => s.entries.map((l) => [s.kind, l] as const)),
+			];
+			for (const [kind, line] of lines) {
+				const release = own.get(line.version);
+				expect(release, `${page.slug}: ${line.version}`).toBeDefined();
+				expect(release?.[kind] ?? [], `${line.version} ${kind}`).toContain(line.text);
+			}
+			const expected = [...own.values()].reduce(
+				(n, r) =>
+					n +
+					(r.added?.length ?? 0) +
+					(r.changed?.length ?? 0) +
+					(r.fixed?.length ?? 0) +
+					(r.watch?.length ?? 0),
+				0,
+			);
+			expect(lines.length, page.slug).toBe(expected);
 		}
 	});
 
-	it("jumps only to folds that are there", () => {
-		const page = findPage(site, "release-notes")!;
-		const tools = page.blocks.find(
-			(b): b is Block & { t: "releaseTools" } => b.t === "releaseTools",
+	/**
+	 * The contents list the front page and the recent few; every other version
+	 * is a page the dropdown reaches, the notes from before Roswaal was public in
+	 * a group of their own at the bottom.
+	 */
+	it("lists the recent few in the contents, and every version in the dropdown", () => {
+		const listed = releasePages.filter((p) => !p.unlisted);
+		expect(listed.map((p) => p.slug)).toEqual([
+			"release-notes",
+			...minors.slice(0, RECENT_MINORS).map((m) => `release-notes/${m}`),
+		]);
+		const front = releasePages[0];
+		const versions = front.blocks.find(
+			(b): b is Block & { t: "releaseVersions" } => b.t === "releaseVersions",
 		)!;
-		const ids = new Set(page.blocks.flatMap((b) => (b.t === "details" && b.id ? [b.id] : [])));
-		expect(tools.ranges.length).toBeGreaterThan(5);
-		for (const range of tools.ranges) expect(ids.has(range.target), range.label).toBe(true);
+		const offered = versions.groups.flatMap((g) => g.items.map((i) => i.minor));
+		expect(offered).toEqual(minors);
+		expect(versions.groups.at(-1)?.label).toBe("Before Roswaal was public");
+		expect(versions.groups.at(-1)?.items.at(-1)?.minor).toBe(minors.at(-1));
+		expect(versions.latest).toBe(RELEASES[0].version);
+		// Every slug the dropdown offers is a page that exists.
+		for (const item of versions.groups.flatMap((g) => g.items)) {
+			expect(findPage(site, item.slug), item.slug).toBeDefined();
+		}
 	});
 
-	it("gives every release an anchor the front page can link to", () => {
-		const notes = findPage(site, "release-notes")!;
-		const html = renderPage(site, notes, { version: VERSION });
-		for (const release of RELEASES.slice(0, 8)) {
-			expect(html).toContain(`id="v${release.version}"`);
+	it("keeps the front page to the newest version and a line each for the few before it", () => {
+		const front = releasePages[0];
+		expect(front.blocks.map((b) => b.t)).toEqual([
+			"p",
+			"releaseVersions",
+			"releaseMinor",
+			"releaseRows",
+		]);
+		const newest = minorBlock(front);
+		expect(newest.link).toBe(true);
+		expect(newest.minor.minor).toBe(minors[0]);
+		const rows = front.blocks.find(
+			(b): b is Block & { t: "releaseRows" } => b.t === "releaseRows",
+		)!;
+		expect(rows.rows.map((r) => r.minor)).toEqual(minors.slice(1, RECENT_MINORS));
+	});
+
+	it("links each minor version to the ones either side", () => {
+		const pages = releasePages.slice(1);
+		pages.forEach((page, i) => {
+			const pager = page.blocks.find(
+				(b): b is Block & { t: "releasePager" } => b.t === "releasePager",
+			)!;
+			expect(pager.newer?.slug, page.slug).toBe(pages[i - 1]?.slug);
+			expect(pager.older?.slug, page.slug).toBe(pages[i + 1]?.slug);
+		});
+	});
+
+	/**
+	 * Security fixes are shown, not hidden: the release that made one is
+	 * tagged, and its minor version carries the badge in every place it is
+	 * listed.
+	 */
+	it("marks the releases that fixed a security weakness, and their minor versions", () => {
+		const fixes = RELEASES.filter((r) => r.security);
+		expect(fixes.length).toBeGreaterThan(0);
+		for (const release of fixes) {
+			const page = findPage(site, releasePageSlug(release.version))!;
+			const view = minorBlock(page).minor;
+			expect(view.security, release.version).toBe(true);
+			expect(view.releases.find((r) => r.version === release.version)?.tags).toContain("security");
+			const html = renderPage(site, page, { version: VERSION });
+			expect(html).toContain("Security fixes");
+			expect(html).toContain(`${view.minor}.x · security fixes`);
 		}
+		// And none on a minor version without one.
+		const clean = releasePages.slice(1).find((p) => !minorBlock(p).minor.security)!;
+		expect(renderPage(site, clean, { version: VERSION })).not.toContain('class="badge security"');
+	});
+
+	/**
+	 * A link to one release -- the landing page has eight -- lands on its minor
+	 * version's page, which lights its lines by the anchor.
+	 */
+	it("anchors every release on its minor version's page", () => {
+		for (const release of RELEASES.slice(0, 12)) {
+			const page = findPage(site, releasePageSlug(release.version))!;
+			const html = renderPage(site, page, { version: VERSION });
+			expect(html, release.version).toContain(`id="v${release.version}"`);
+			expect(html, release.version).toContain(`data-version="${release.version}"`);
+		}
+	});
+
+	it("leaves the unlisted versions out of the contents, but not the one being read", () => {
+		const old = releasePages.find((p) => p.unlisted)!;
+		const elsewhere = renderPage(site, releasePages[0], { version: VERSION });
+		const here = renderPage(site, old, { version: VERSION });
+		const nav = (html: string) =>
+			html.slice(html.indexOf('<nav class="docs-nav">'), html.indexOf("</nav>"));
+		expect(nav(elsewhere)).not.toContain(`>${old.title}</a>`);
+		expect(nav(here)).toContain(`>${old.title}</a>`);
 	});
 
 	/**

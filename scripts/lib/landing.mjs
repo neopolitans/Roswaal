@@ -37,7 +37,7 @@ import { escapeHtml } from "../../src/core/docs/html.ts";
 import { SOURCE_REPOSITORY, STABLE_SITE } from "../../src/core/docs/links.ts";
 import { graphSvg } from "../../src/core/docs/preview.ts";
 import { RELEASES, taglineFor } from "../../src/core/docs/releases.ts";
-import { buildSite } from "../../src/core/docs/site.ts";
+import { buildSite, releasePageSlug } from "../../src/core/docs/site.ts";
 import { growthState } from "../../src/core/nodes/growth.ts";
 import {
 	BUILTIN_NODES as ALL_NODES,
@@ -721,7 +721,8 @@ function lately() {
 		.slice(0, 8)
 		.map(
 			(release, i) =>
-				`<li${i >= 6 ? ' class="lately-more"' : ""}><a href="docs/release-notes.html#v${escapeHtml(release.version)}">` +
+				// Straight to the version's own page, the release lit on it.
+				`<li${i >= 6 ? ' class="lately-more"' : ""}><a href="docs/${escapeHtml(releasePageSlug(release.version))}.html#v${escapeHtml(release.version)}">` +
 				`<span class="lately-version">${escapeHtml(release.version)}</span>` +
 				`<span class="lately-line">${escapeHtml(release.headline)}</span></a></li>`,
 		)

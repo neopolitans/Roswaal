@@ -153,12 +153,6 @@ export function blockStrings(block: Block): BlockString[] {
 				for (const node of one.script.nodes) add("key", node.def);
 			}
 			break;
-		case "toggle":
-			// The label, not the hint. Somebody searching for "pre-release" should
-			// land on the page that has the switch for them.
-			add("inline", block.label);
-			add("inline", block.hint, false);
-			break;
 		case "nodemap":
 			// The names in the tree, which is what somebody looks for: they are
 			// the services and folders a reader recognises from their own project.
@@ -168,17 +162,30 @@ export function blockStrings(block: Block): BlockString[] {
 			for (const row of mapFigure(block.map).rows) add("plain", row.name);
 			add("inline", block.caption);
 			break;
-		case "release": {
-			const r = block.release;
-			add("plain", r.version);
-			add("inline", r.headline);
-			for (const tag of r.tags) add("plain", TAG_LABELS[tag]);
-			for (const item of r.watch ?? []) add("inline", item);
-			for (const section of r.sections) for (const entry of section.entries) add("inline", entry);
-			for (const group of r.articles) for (const link of group.links) add("inline", link);
+		case "releaseMinor": {
+			const m = block.minor;
+			add("plain", `${m.minor}.x`);
+			add("inline", m.headline);
+			for (const tag of m.tags) add("plain", TAG_LABELS[tag]);
+			for (const r of m.releases) {
+				add("plain", r.version);
+				add("inline", r.headline);
+			}
+			for (const item of m.watch) add("inline", item.text);
+			for (const section of m.sections)
+				for (const entry of section.entries) add("inline", entry.text);
+			for (const group of m.articles) for (const link of group.links) add("inline", link.text);
 			break;
 		}
-		case "releaseTools":
+		case "releaseRows":
+			for (const row of block.rows) {
+				add("plain", row.newest);
+				add("inline", row.headline);
+			}
+			break;
+		case "releaseVersions":
+		case "releasePager":
+			// Ways to other pages, which say nothing of their own.
 			break;
 		case "details":
 			add("inline", block.summary);

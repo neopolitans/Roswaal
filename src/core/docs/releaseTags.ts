@@ -9,6 +9,7 @@ import type { ReleaseTag } from "./site.js";
 export const SURFACES: readonly ReleaseSurface[] = ["editor", "designer", "docs"];
 
 export const TAG_LABELS: Record<ReleaseTag, string> = {
+	security: "Security",
 	feature: "Feature",
 	change: "Change",
 	fix: "Bugfix",
@@ -22,29 +23,14 @@ export const TAG_LABELS: Record<ReleaseTag, string> = {
  * What to tag a release, from what it actually contains.
  *
  * Derived, so a tag cannot claim something the entries below it do not show.
- * `breaking` is the exception and comes from the release, because whether a
- * change breaks somebody is a judgement about their code rather than a fact
- * about ours.
+ * `breaking` and `security` are the exceptions and come from the release,
+ * because whether a change breaks somebody, or closes a way in, is a judgement
+ * rather than a fact about the shape of the note. They go first: they are what
+ * somebody deciding whether to upgrade looks for.
  */
-/** The release notes' kind filter: value, then label. */
-export const RELEASE_KINDS: [string, string][] = [
-	["all", "Everything"],
-	["added", "Added"],
-	["changed", "Changed"],
-	["fixed", "Fixed"],
-	["breaking", "Breaking"],
-];
-
-/** The release notes' surface filter: value, then label. */
-export const RELEASE_SURFACES: [string, string][] = [
-	["any", "Anywhere"],
-	["editor", "Editor"],
-	["designer", "Node Design"],
-	["docs", "Docs"],
-];
-
 export function releaseTags(release: Release): ReleaseTag[] {
 	const tags: ReleaseTag[] = [];
+	if (release.security) tags.push("security");
 	if (release.breaking) tags.push("breaking");
 	if (release.added?.length) tags.push("feature");
 	if (release.changed?.length) tags.push("change");

@@ -73,6 +73,17 @@ export interface Release {
 	 */
 	breaking?: boolean;
 	/**
+	 * Set when the release fixes a security weakness: something that let a
+	 * file, a page or a package make Roswaal do what the person using it did
+	 * not ask for. It shows as a Security badge on the release, and on the
+	 * minor version it belongs to, so the work is there to be seen.
+	 *
+	 * The entries say what changed, as every entry does, and never how the
+	 * weakness could be used: somebody still on the version before has not had
+	 * the fix yet.
+	 */
+	security?: boolean;
+	/**
 	 * Which surfaces this release touched: the editor, Node Design, the
 	 * documentation.
 	 *

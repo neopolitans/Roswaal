@@ -27,7 +27,6 @@ import { graphViews } from "../core/docs/graphViews.js";
 import { headingId } from "../core/docs/html.js";
 import { type LayoutSpec, layoutHtml, listedRegions } from "../core/docs/layouts.js";
 import { mapFigure, mapFigureHtml, walkMapHtml } from "../core/docs/mapFigure.js";
-import { typeCellHtml } from "../core/docs/typeCell.js";
 import { nodeCodeHtml } from "../core/docs/nodeCode.js";
 import type { PinDoc } from "../core/docs/nodeReference.js";
 import { noteHeadHtml } from "../core/docs/notes.js";
@@ -37,7 +36,10 @@ import {
 	type PreviewOptions,
 	previewSvg,
 } from "../core/docs/preview.js";
-import { RELEASE_KINDS, RELEASE_SURFACES } from "../core/docs/releaseTags.js";
+import {
+	type ReleaseBlock as ReleaseBlockData,
+	releaseBlockHtml,
+} from "../core/docs/releaseHtml.js";
 import { REVIEW_DETAILS, REVIEW_LABELS, type Review, reviewLine } from "../core/docs/reviews.js";
 import {
 	type Block,
@@ -49,15 +51,15 @@ import {
 	findPage,
 	type Inline,
 	isPageLink,
+	listedPages,
 	neighbours,
 	parseInline,
-	type ReleaseView,
-	releaseAnchor,
 	searchDocs,
 	TAG_LABELS,
 } from "../core/docs/site.js";
 import type { ToolbarSpec } from "../core/docs/toolbars.js";
 import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
+import { typeCellHtml } from "../core/docs/typeCell.js";
 import type { NodeMap } from "../core/nodemap.js";
 import { growthState } from "../core/nodes/growth.js";
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
@@ -65,7 +67,6 @@ import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../core/nodes/runtimes.js";
 import type { NodeScript } from "../core/schema.js";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { chosenDevice, pickTab, readerDevice, rememberPick } from "./docsDevice.js";
-import { applyDocsToggle } from "./docsToggle.js";
 import { attachWalkthrough } from "./docsWalk.js";
 import { wirePath } from "./geometry.js";
 import { attachGraphView } from "./graphView.js";
@@ -77,8 +78,14 @@ import { attachMapPanel } from "./mapPanel.js";
 import { PageEditor } from "./PageEditor.jsx";
 import { IS_STATIC_HOST } from "./pages.js";
 import { nodeColor, pinColor } from "./palette.js";
-import { type Preferences, readPreferences, wheelAction, writePreferences } from "./preferences.js";
-import { markNewReleases, wireReleaseNotes } from "./releaseNotes.js";
+import { type Preferences, readPreferences, wheelAction } from "./preferences.js";
+import {
+	markNewReleases,
+	newerVersion,
+	releasesSeen,
+	rememberReleases,
+	wireReleasePages,
+} from "./releaseNotes.js";
 import { attachToolbarLink } from "./toolbarLink.js";
 
 const BUILTIN_IDS = new Set(BUILTIN_NODES.map((d) => d.id));
@@ -183,6 +190,10 @@ export function DocsView({
 	const preview = useMemo(() => previewFor(prefs, registry), [prefs, registry]);
 
 	const [slug, setSlug] = useState(initialSlug ?? HOME);
+	// The newest release this browser has read the notes for, for the dots on
+	// release pages in the contents. Read each render: it is one storage read,
+	// and a release notes page just read is what changes it.
+	const seenRelease = typeof localStorage === "undefined" ? null : releasesSeen(localStorage);
 	const [query, setQuery] = useState("");
 	const [palette, setPalette] = useState(false);
 	/**
@@ -352,14 +363,20 @@ export function DocsView({
 													>
 														<Icon name="chevron" size={12} />
 														{section.title}
-														<span className="count">{section.pages.length}</span>
+														<span className="count">{listedPages(section, slug).length}</span>
 													</button>
 													{expanded && (
 														<div className="docs-pages">
-															{section.pages.map((p) => (
+															{listedPages(section, slug).map((p) => (
 																<button
 																	key={p.slug}
-																	className={`docs-link${p.slug === slug ? " on" : ""}`}
+																	className={`docs-link${p.slug === slug ? " on" : ""}${p.unlisted ? " docs-link--unlisted" : ""}${
+																		p.releaseNewest &&
+																		seenRelease &&
+																		newerVersion(p.releaseNewest, seenRelease)
+																			? " is-new"
+																			: ""
+																	}`}
 																	onClick={() => setSlug(p.slug)}
 																>
 																	{p.title}
@@ -748,19 +765,17 @@ function BlockView({ block }: { block: Block }) {
 				</Heading>
 			);
 		}
-		case "toggle":
-			return <PreferenceToggle pref={block.pref} label={block.label} hint={block.hint} />;
-		case "release":
-			return <ReleaseCard release={block.release} />;
-		case "releaseTools":
-			return <ReleaseTools ranges={block.ranges} />;
+		case "releaseMinor":
+		case "releaseRows":
+		case "releaseVersions":
+		case "releasePager":
+			return <ReleaseBlock block={block} />;
 		case "details":
 			return (
 				<details
 					className={`docs-details${block.sub ? " with-sub" : ""}`}
 					open={block.open}
 					id={block.id}
-					{...(block.prerelease ? { "data-prerelease": "" } : {})}
 				>
 					<summary>
 						<span className="docs-details-title">
@@ -1057,182 +1072,35 @@ const TOOLBAR_ART = {
  * become an `<a href>` that leaves the window.
  */
 /**
- * A checkbox on the page, wired to one of the reader's preferences.
- *
- * React state here, the shared script on the published site — the same split
- * every interactive figure makes, and for the same reason: this window already
- * holds the preferences and re-renders when they change, and the static site
- * has neither.
+ * A release notes block, as the published site draws it (`releaseHtml.ts`),
+ * with the same behaviour wired (`releaseNotes.ts`). The versions dropdown is
+ * on every release notes page, once, so it is the one that wires the page:
+ * the dots, remembering what has been seen, and links and choices going
+ * through this window's own navigation rather than loading a file.
  */
-/**
- * One release, as the published site draws it (`releaseHtml` in `html.ts`).
- * The version is not a link here: in this window the address is the page.
- */
-function ReleaseCard({ release: r }: { release: ReleaseView }) {
-	const sections = [
-		...r.sections.map((s) => ({ kind: s.kind as string, heading: s.heading, items: s.entries })),
-		...r.articles.map((a) => ({ kind: "articles", heading: a.heading, items: a.links })),
-	];
-	return (
-		<section
-			className={`docs-release${r.latest ? " is-latest" : ""}`}
-			id={releaseAnchor(r.version)}
-			data-version={r.version}
-			data-tags={r.tags.join(" ")}
-		>
-			<header className="docs-release-head">
-				<span className="docs-release-version">{r.version}</span>
-				{r.latest && <span className="badge latest">Latest</span>}
-				<span className="docs-release-new" title="New since your last visit">
-					New
-				</span>
-				<span className="aside">{r.date}</span>
-			</header>
-			{r.tags.length > 0 && (
-				<p className="docs-tags">
-					{r.tags.map((tag) => (
-						<span className={`docs-tag tag-${tag}`} key={tag}>
-							{TAG_LABELS[tag]}
-						</span>
-					))}
-				</p>
-			)}
-			<p className="docs-release-headline">
-				<Rich text={r.headline} />
-			</p>
-			{r.watch && (
-				<div className="docs-note note-warn">
-					<div
-						dangerouslySetInnerHTML={{ __html: noteHeadHtml("warn") }}
-						style={{ display: "contents" }}
-					/>
-					<div className="docs-note-body">
-						<strong>Worth knowing before you upgrade.</strong>
-						<ul>
-							{r.watch.map((item, i) => (
-								<li key={i}>
-									<Rich text={item} />
-								</li>
-							))}
-						</ul>
-					</div>
-				</div>
-			)}
-			{sections.map((s) => (
-				<div className="docs-release-section" data-kind={s.kind} key={s.heading}>
-					<h4>{s.heading}</h4>
-					<ul className="docs-release-entries">
-						{s.items.map((item, i) => (
-							<li key={i}>
-								<Rich text={item} />
-							</li>
-						))}
-					</ul>
-				</div>
-			))}
-		</section>
-	);
-}
-
-/** The release notes' search, filters and jump bar, wired by `wireReleaseNotes`. */
-function ReleaseTools({
-	ranges,
-}: {
-	ranges: { label: string; target: string; prerelease?: boolean }[];
-}) {
+function ReleaseBlock({ block }: { block: ReleaseBlockData }) {
+	const navigate = useContext(NavigateContext);
 	const self = useRef<HTMLDivElement>(null);
+	const wires = block.t === "releaseVersions";
 	useEffect(() => {
+		if (!wires) return;
 		const article = self.current?.closest<HTMLElement>(".docs-article");
 		if (!article) return;
 		try {
-			markNewReleases(article, localStorage);
+			markNewReleases(article, releasesSeen(localStorage));
+			rememberReleases(localStorage, block.latest);
 		} catch {
 			// No storage, no dots.
 		}
-		return wireReleaseNotes(article);
-	}, []);
-	const chips = (attr: "kind-filter" | "surface-filter", options: [string, string][]) => (
-		<span className="segmented">
-			{options.map(([value, label], i) => (
-				<button
-					type="button"
-					key={value}
-					{...{ [`data-${attr}`]: value }}
-					className={i === 0 ? "on" : undefined}
-				>
-					{label}
-				</button>
-			))}
-		</span>
-	);
+		return wireReleasePages(article, (target) => navigate(target.slug));
+	}, [wires, block, navigate]);
 	return (
-		<div className="docs-release-tools" data-release-tools="" ref={self}>
-			<div className="docs-release-filters">
-				<input
-					type="search"
-					className="docs-release-search"
-					placeholder="Search the release notes"
-					aria-label="Search the release notes"
-				/>
-				{chips("kind-filter", RELEASE_KINDS)}
-				{chips("surface-filter", RELEASE_SURFACES)}
-			</div>
-			<nav className="docs-release-jump" aria-label="Jump to a range of versions">
-				<span>Jump to</span>
-				{ranges.map((r) => (
-					<a
-						key={r.target}
-						href={`#${r.target}`}
-						data-jump={r.target}
-						{...(r.prerelease ? { "data-prerelease": "" } : {})}
-					>
-						{r.label}
-					</a>
-				))}
-			</nav>
-			<p className="docs-release-count" aria-live="polite" />
-		</div>
-	);
-}
-
-function PreferenceToggle({
-	pref,
-	label,
-	hint,
-}: {
-	pref: "showPreReleaseNotes";
-	label: string;
-	hint?: string;
-}) {
-	const [on, setOn] = useState(() => readPreferences()[pref]);
-
-	// The stylesheet decides what the answer hides, from an attribute on the
-	// document — the same one the published site's script sets, so one rule
-	// serves both.
-	useEffect(() => {
-		applyDocsToggle(document, pref, on);
-	}, [pref, on]);
-
-	return (
-		<label className="docs-toggle">
-			<input
-				type="checkbox"
-				checked={on}
-				onChange={(e) => {
-					const next = e.target.checked;
-					setOn(next);
-					writePreferences({ ...readPreferences(), [pref]: next });
-				}}
-			/>
-			<span className="docs-toggle-label">
-				<Rich text={label} />
-			</span>
-			{hint && (
-				<span className="docs-toggle-hint">
-					<Rich text={hint} />
-				</span>
-			)}
-		</label>
+		<div
+			ref={self}
+			style={{ display: "contents" }}
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: core's markup, escaped there
+			dangerouslySetInnerHTML={{ __html: releaseBlockHtml(block, (slug) => `#${slug}`) }}
+		/>
 	);
 }
 

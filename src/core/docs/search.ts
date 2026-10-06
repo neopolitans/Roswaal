@@ -14,6 +14,14 @@ export interface SearchEntry {
 	/** Everything on the page, lowercased, for substring matching. */
 	body: string;
 	nodeId?: string;
+	/**
+	 * A record of what changed -- a minor version's release notes -- rather
+	 * than a page that explains something. Found by name as any page is, and
+	 * ranked below the explanation when both only mention what was typed:
+	 * somebody searching "node design" wants the page about it, not every
+	 * version that touched it.
+	 */
+	record?: boolean;
 }
 
 /**
@@ -64,7 +72,8 @@ function scoreEntry(entry: SearchEntry, q: string): number {
 	if (title.startsWith(q)) return 100;
 	if (title.includes(q)) return 60;
 	if (entry.nodeId?.toLowerCase().includes(q)) return 40;
-	if (entry.summary.toLowerCase().includes(q)) return 25;
-	if (entry.body.includes(q)) return 10;
+	const quieter = entry.record ? 0.5 : 1;
+	if (entry.summary.toLowerCase().includes(q)) return 25 * quieter;
+	if (entry.body.includes(q)) return 10 * quieter;
 	return 0;
 }

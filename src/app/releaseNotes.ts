@@ -1,25 +1,30 @@
 /**
- * The release notes' tools, on whichever page draws them.
+ * What the release notes pages do, on whichever renderer draws them.
  *
- * Both renderers produce the same markup for the `release` and `releaseTools`
- * blocks -- the published site from `html.ts`, the Docs window from React --
- * and this wires it up for both, so a filter cannot behave one way on the site
- * and another in the editor. Plain DOM, on purpose: the filters only show and
- * hide what is already on the page.
+ * Both renderers write the same markup for the release blocks
+ * (`src/core/docs/releaseHtml.ts`) -- the published site into its files, the
+ * Docs window into its own page -- and this wires it up for both, so the
+ * dropdown cannot go one place on the site and another in the editor. Plain
+ * DOM, on purpose: it only reads and marks what is already on the page.
  *
- * - **Search and filter chips** hide the entries that do not match, then the
- *   releases with none left, then the folds with none left, and open the folds
- *   that still have something in them. Clearing puts the folds back as they were.
- * - **The jump bar** opens a fold and scrolls to it. It never touches the
- *   address: in the Docs window the hash is the page.
- * - **New since your last visit**: releases newer than the one this browser
- *   last saw get a dot, and the newest is then remembered.
+ * - **The versions dropdown** goes to the page chosen, and so do the links
+ *   between release pages; `go` is how the renderer goes to a page.
+ * - **One release on its minor version's page**: `#v0.144.2` marks that
+ *   release's lines and scrolls to them. On the front page, an address from
+ *   when every release was on it -- `release-notes.html#v0.119.0` -- is sent
+ *   on to the page that release is on now.
+ * - **New since your last visit**: what is newer than the release this browser
+ *   last saw gets a dot -- lines, rows, the dropdown and the contents -- and
+ *   the newest is remembered once a release notes page has been seen.
  */
 
 const SEEN_KEY = "roswaal.docs.releasesSeen";
 
-type Kind = "all" | "added" | "changed" | "fixed" | "breaking";
-type Surface = "any" | "editor" | "designer" | "docs";
+/** Where a link or a choice in the release notes leads: the page, and its address on the site. */
+export interface ReleaseTarget {
+	slug: string;
+	href: string;
+}
 
 /** Newer, as versions compare: 0.10.0 after 0.9.3. */
 export function newerVersion(a: string, b: string): boolean {
@@ -33,129 +38,101 @@ export function newerVersion(a: string, b: string): boolean {
 	return false;
 }
 
-/** Opens the folds around an element and scrolls to it. */
-export function revealRelease(target: Element): void {
-	for (let at: Element | null = target; at; at = at.parentElement) {
-		if (at instanceof HTMLDetailsElement) at.open = true;
+/** The newest release this browser has seen the notes for, if it has seen any. */
+export function releasesSeen(storage: Pick<Storage, "getItem">): string | null {
+	try {
+		return storage.getItem(SEEN_KEY);
+	} catch {
+		return null;
 	}
-	target.scrollIntoView({ block: "start" });
 }
 
 /**
- * Marks the releases this browser has not seen, then remembers the newest.
- * A first visit marks none: every release is new to somebody who has never
- * looked, which is the same as none being.
+ * Marks what this browser has not seen: anything with a `data-version` or a
+ * `data-release-newest` newer than the release it saw last, and the dropdown's
+ * options with a dot in their words. A first visit marks nothing: every release
+ * is new to somebody who has never looked, which is the same as none being.
  */
-export function markNewReleases(
-	root: ParentNode,
-	storage: Pick<Storage, "getItem" | "setItem">,
-): void {
-	const releases = [...root.querySelectorAll<HTMLElement>(".docs-release[data-version]")];
-	const newest = releases
-		.map((r) => r.dataset.version ?? "")
-		.reduce((best, v) => (best === "" || newerVersion(v, best) ? v : best), "");
-	if (newest === "") return;
-	let seen: string | null = null;
-	try {
-		seen = storage.getItem(SEEN_KEY);
-	} catch {
-		return;
-	}
-	if (seen) {
-		for (const release of releases) {
-			if (newerVersion(release.dataset.version ?? "", seen)) release.classList.add("is-new");
+export function markNewReleases(root: ParentNode, seen: string | null): void {
+	if (!seen) return;
+	for (const el of root.querySelectorAll<HTMLElement>("[data-version], [data-release-newest]")) {
+		const version = el.dataset.version ?? el.dataset.releaseNewest ?? "";
+		const isNew = version !== "" && newerVersion(version, seen);
+		if (el instanceof HTMLOptionElement) {
+			if (isNew && !el.textContent?.endsWith(" •")) el.textContent = `${el.textContent} •`;
+		} else {
+			el.classList.toggle("is-new", isNew);
 		}
 	}
+}
+
+/** Remembers the newest release as seen, once a release notes page has been read. */
+export function rememberReleases(storage: Pick<Storage, "setItem">, latest: string): void {
 	try {
-		storage.setItem(SEEN_KEY, newest);
+		storage.setItem(SEEN_KEY, latest);
 	} catch {
 		// Private windows and blocked storage: the dots just do not appear.
 	}
 }
 
-/** Wires the tools inside `root` (the article). Returns a function that unwires them. */
-export function wireReleaseNotes(root: HTMLElement): () => void {
-	const tools = root.querySelector<HTMLElement>("[data-release-tools]");
-	if (!tools) return () => {};
-	const search = tools.querySelector<HTMLInputElement>(".docs-release-search");
-	const count = tools.querySelector<HTMLElement>(".docs-release-count");
-	const folds = [...root.querySelectorAll<HTMLDetailsElement>("details.docs-details")];
-	const wasOpen = new Map(folds.map((fold) => [fold, fold.open]));
-	let kind: Kind = "all";
-	let surface: Surface = "any";
+/** The newest release there is, as the release notes page says. */
+export function latestRelease(root: ParentNode): string | null {
+	return root.querySelector<HTMLElement>(".docs-versions[data-latest]")?.dataset.latest ?? null;
+}
 
-	const apply = () => {
-		const query = (search?.value ?? "").trim().toLowerCase();
-		const active = query !== "" || kind !== "all" || surface !== "any";
-		let shown = 0;
-		for (const release of root.querySelectorAll<HTMLElement>(".docs-release")) {
-			const tags = (release.dataset.tags ?? "").split(" ");
-			let visible = surface === "any" || tags.includes(surface);
-			if (kind === "breaking" && !tags.includes("breaking")) visible = false;
-			const head =
-				(release.querySelector(".docs-release-head")?.textContent ?? "").toLowerCase() +
-				" " +
-				(release.querySelector(".docs-release-headline")?.textContent ?? "").toLowerCase();
-			const wholeMatch = query !== "" && head.includes(query);
-			let entries = 0;
-			for (const section of release.querySelectorAll<HTMLElement>(".docs-release-section")) {
-				const sectionKind = section.dataset.kind ?? "";
-				const kindFits = kind === "all" || kind === "breaking" || sectionKind === kind;
-				let inSection = 0;
-				for (const entry of section.querySelectorAll<HTMLElement>("li")) {
-					const fits =
-						visible &&
-						kindFits &&
-						(query === "" || wholeMatch || (entry.textContent ?? "").toLowerCase().includes(query));
-					entry.hidden = !fits;
-					if (fits) inSection++;
-				}
-				section.hidden = inSection === 0;
-				entries += inSection;
-			}
-			const releaseShown = visible && (!active || entries > 0 || (wholeMatch && kind === "all"));
-			release.hidden = !releaseShown;
-			// The notes from before 0.59.2 are hidden by the page's own toggle,
-			// so they are not counted while it is off.
-			const tucked =
-				document.documentElement.dataset.showprereleasenotes === "off" &&
-				!!release.closest("[data-prerelease]");
-			if (releaseShown && !tucked) shown++;
-		}
-		for (const fold of folds) {
-			const any = !!fold.querySelector(".docs-release:not([hidden])");
-			fold.hidden = active && !any;
-			fold.open = active ? any : (wasOpen.get(fold) ?? false);
-		}
-		if (count)
-			count.textContent = active ? `${shown} ${shown === 1 ? "release" : "releases"} match` : "";
-		tools.classList.toggle("is-filtering", active);
+/**
+ * Marks one release's lines on its minor version's page and scrolls to its
+ * line in the list of releases. False when this page does not have it.
+ */
+export function showRelease(root: ParentNode, version: string): boolean {
+	const lines = [...root.querySelectorAll<HTMLElement>(`[data-version="${CSS.escape(version)}"]`)];
+	if (lines.length === 0) return false;
+	for (const line of root.querySelectorAll(".is-target")) line.classList.remove("is-target");
+	for (const line of lines) line.classList.add("is-target");
+	lines[0].scrollIntoView({ block: "center" });
+	return true;
+}
+
+/**
+ * Where an address from before the release notes had a page per minor
+ * version should go: the page `#v0.119.0`'s release is on now, by the
+ * dropdown's own options. Null when the address is not one of those, or the
+ * release is not on any page.
+ */
+export function movedRelease(root: ParentNode, hash: string): ReleaseTarget | null {
+	const old = /^#v(\d+\.\d+)\.\d+$/.exec(hash);
+	if (!old) return null;
+	const option = root.querySelector<HTMLOptionElement>(
+		`select[data-release-versions] option[value$="/${CSS.escape(old[1])}"]`,
+	);
+	if (!option?.dataset.href) return null;
+	return { slug: option.value, href: `${option.dataset.href}${hash}` };
+}
+
+/** Wires the release notes inside `root`. Returns a function that unwires them. */
+export function wireReleasePages(
+	root: HTMLElement,
+	go: (target: ReleaseTarget) => void,
+): () => void {
+	const select = root.querySelector<HTMLSelectElement>("select[data-release-versions]");
+	const onChange = () => {
+		const option = select?.selectedOptions[0];
+		if (option?.value) go({ slug: option.value, href: option.dataset.href ?? "" });
 	};
-
-	const onInput = () => apply();
-	const onClick = (e: Event) => {
-		const target = e.target as HTMLElement;
-		const chip = target.closest<HTMLButtonElement>("[data-kind-filter], [data-surface-filter]");
-		if (chip) {
-			const group = chip.parentElement;
-			for (const other of group?.querySelectorAll("button") ?? [])
-				other.classList.toggle("on", other === chip);
-			if (chip.dataset.kindFilter) kind = chip.dataset.kindFilter as Kind;
-			if (chip.dataset.surfaceFilter) surface = chip.dataset.surfaceFilter as Surface;
-			apply();
+	const onClick = (e: MouseEvent) => {
+		if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
 			return;
-		}
-		const jump = target.closest<HTMLElement>("[data-jump]");
-		if (jump) {
-			e.preventDefault();
-			const fold = root.querySelector(`[id="${jump.dataset.jump}"]`);
-			if (fold) revealRelease(fold);
-		}
+		const link = (e.target as Element).closest<HTMLAnchorElement>(
+			".docs-minor a[data-doc-slug], .docs-minor-rows a[data-doc-slug], .docs-release-pager a[data-doc-slug]",
+		);
+		if (!link) return;
+		e.preventDefault();
+		go({ slug: link.dataset.docSlug ?? "", href: link.getAttribute("href") ?? "" });
 	};
-	search?.addEventListener("input", onInput);
-	tools.addEventListener("click", onClick);
+	select?.addEventListener("change", onChange);
+	root.addEventListener("click", onClick);
 	return () => {
-		search?.removeEventListener("input", onInput);
-		tools.removeEventListener("click", onClick);
+		select?.removeEventListener("change", onChange);
+		root.removeEventListener("click", onClick);
 	};
 }

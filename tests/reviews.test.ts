@@ -28,17 +28,19 @@ const site = buildSite(createRegistry(), builtinIds);
 describe("page reviews", () => {
 	it("gives every built-in page a review but the release notes", () => {
 		for (const page of allPages(site)) {
-			if (page.slug === "release-notes") continue;
+			if (page.slug === "release-notes" || page.slug.startsWith("release-notes/")) continue;
 			expect(page.review, page.slug).toBeDefined();
 		}
 	});
 
 	it("leaves the release notes without a badge or a footer", () => {
-		const notes = findPage(site, "release-notes")!;
-		expect(notes.review).toBeUndefined();
-		const html = renderPage(site, notes, { version: "test" });
-		expect(html).not.toContain("docs-status");
-		expect(html).not.toContain("docs-reviewed");
+		for (const slug of ["release-notes", "release-notes/0.120"]) {
+			const notes = findPage(site, slug)!;
+			expect(notes.review, slug).toBeUndefined();
+			const html = renderPage(site, notes, { version: "test" });
+			expect(html, slug).not.toContain("docs-status");
+			expect(html, slug).not.toContain("docs-reviewed");
+		}
 	});
 
 	it("leaves a node pack's pages out", () => {
@@ -84,16 +86,12 @@ describe("page reviews", () => {
 	});
 
 	it("lists the articles as links in the release notes", () => {
-		const notes = findPage(site, "release-notes")!;
-		const tableRows = (blocks: Block[]): string[] =>
-			blocks.flatMap((b) =>
-				b.t === "release"
-					? b.release.articles.flatMap((a) => a.links)
-					: b.t === "details"
-						? tableRows(b.blocks)
-						: [],
-			);
-		const rows = tableRows(notes.blocks);
+		const pages = site.sections.find((s) => s.slug === "releases")?.pages ?? [];
+		const rows = pages.flatMap((page) =>
+			page.blocks.flatMap((b: Block) =>
+				b.t === "releaseMinor" ? b.minor.articles.flatMap((a) => a.links.map((l) => l.text)) : [],
+			),
+		);
 		expect(rows).toContain("[Wires and pins](wires-and-pins)");
 		expect(rows).toContain("[Coming from Blueprints](coming-from-blueprints)");
 	});

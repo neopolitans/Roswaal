@@ -9,7 +9,24 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.145.0",
+		date: "2026-10-06",
+		headline: "The release notes have a page for each minor version.",
+		affects: ["editor", "docs"],
+		changed: [
+			"The release notes are a page for each minor version: 0.144.x holds 0.144.0 to 0.144.4, with every line saying which release it shipped in. The contents list the newest five, and a versions dropdown reaches every one, with the notes from before Roswaal was public grouped at the bottom.",
+			"The release notes' front page shows the newest version in full, and a line each for the four before it.",
+			"A version that fixed a security weakness says so: a Security fixes badge on the version, and a Security tag on the release that did.",
+			"A link to one release, such as `release-notes.html#v0.119.0`, goes to its version's page with that release's lines marked.",
+			"Searching the docs ranks a guide above release notes that only mention what was typed.",
+		],
+		watch: [
+			"The release notes' own search box, filter chips and jump bar are gone. The docs search finds every release, and the dropdown reaches every version.",
+		],
+	},
+	{
 		version: "0.144.4",
+		security: true,
 		date: "2026-10-06",
 		headline: "Roswaal keeps to the project it has open.",
 		affects: ["editor", "designer"],
@@ -27,6 +44,7 @@ export const RELEASES_0_120: Release[] = [
 	},
 	{
 		version: "0.144.3",
+		security: true,
 		date: "2026-10-06",
 		headline: "The website runs scripts from itself only.",
 		affects: ["editor", "designer", "docs"],
@@ -36,6 +54,7 @@ export const RELEASES_0_120: Release[] = [
 	},
 	{
 		version: "0.144.2",
+		security: true,
 		date: "2026-10-06",
 		headline: "The local editor answers its own pages, and only shows in its own windows.",
 		affects: ["editor"],
@@ -46,6 +65,7 @@ export const RELEASES_0_120: Release[] = [
 	},
 	{
 		version: "0.144.1",
+		security: true,
 		date: "2026-10-06",
 		headline:
 			"Text from a graph lands in the generated Luau as the text it is, and Luau nested too deeply is an error.",

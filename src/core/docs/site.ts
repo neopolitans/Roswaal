@@ -53,7 +53,7 @@ import { nodePage } from "./pages/node.js";
 import { placesAndRojoPage } from "./pages/placesAndRojo.js";
 import { projectPanelPage } from "./pages/projectPanel.js";
 import { readingLuauPage } from "./pages/readingLuau.js";
-import { releaseNotesPage } from "./pages/releaseNotes.js";
+import { releaseNotesPages } from "./pages/releaseNotes.js";
 import { robloxDemosPage } from "./pages/robloxDemos.js";
 import { servicesPage } from "./pages/services.js";
 import { settingsPage } from "./pages/settings.js";
@@ -86,39 +86,101 @@ export { buildSearchIndex } from "./searchIndex.js";
 // Blocks
 // ---------------------------------------------------------------------------
 
-/**
- * What a release carries, and where it lands.
- *
- * Two axes in one row, which is why there are seven of these. The first four
- * are the **kind** of change and three of them are derived: a release with
- * `added` entries is a Feature whether or not anybody says so. `breaking` is the
- * exception, because whether a change breaks somebody is a judgement about their
- * code rather than a property of ours.
- *
- * The last three are the **surface** it touches, and none of them can be
- * derived: "this changed the documentation" is not a fact about the shape of a
- * release note. A release states them, and an absent one means *not stated*
- * rather than *not affected*: the oldest releases state none.
- */
-/** A release as its card draws it. Built from a `Release` by the release notes page. */
-export interface ReleaseView {
+/** One line of a minor version's notes, and the release it shipped in. */
+export interface Shipped {
 	version: string;
-	date: string;
-	headline: string;
-	latest?: boolean;
-	tags: ReleaseTag[];
-	watch?: string[];
-	sections: { kind: "added" | "changed" | "fixed"; heading: string; entries: string[] }[];
-	/** Reviewed and Verified Articles: page links, as inline markup. */
-	articles: { heading: string; links: string[] }[];
+	/** Inline markup. */
+	text: string;
 }
 
-/** A release's anchor: `v0.125.0`. Landing-page links and the jump bar use it. */
+/**
+ * A minor version's releases as one page: 0.144.0 to 0.144.4 together.
+ *
+ * Most releases are a few lines, so a page each would be a page of almost
+ * nothing; a minor version is what somebody upgrading actually moves across.
+ * Every line still says exactly which release it shipped in -- the releases'
+ * own summaries, and each entry under Added, Changed and Fixed -- so nothing a
+ * single release said is lost by being read beside its neighbours.
+ */
+export interface MinorView {
+	/** `0.144`. */
+	minor: string;
+	/** Its page: `release-notes/0.144`. */
+	slug: string;
+	/** What the minor version brought: its `.0`'s headline, or its oldest's. */
+	headline: string;
+	/** Holds the newest release there is. */
+	latest?: boolean;
+	/** Any of its releases fixed a security weakness. */
+	security?: boolean;
+	/** Every tag its releases carry, in the order one release's are. */
+	tags: ReleaseTag[];
+	/** Its oldest and newest release's dates. */
+	from: string;
+	to: string;
+	/** Its releases, newest first: each one's version, date, tags and summary. */
+	releases: {
+		version: string;
+		date: string;
+		headline: string;
+		tags: ReleaseTag[];
+		latest?: boolean;
+	}[];
+	/** What to know before upgrading, from any of its releases. */
+	watch: Shipped[];
+	/** Added, Changed, Fixed: each release's entries, newest release first. */
+	sections: { kind: "added" | "changed" | "fixed"; heading: string; entries: Shipped[] }[];
+	/** Reviewed and Verified Articles, as page links in inline markup. */
+	articles: { heading: string; links: Shipped[] }[];
+}
+
+/** A minor version as one line: the release notes front page lists the recent few. */
+export interface MinorRow {
+	minor: string;
+	slug: string;
+	headline: string;
+	/** Its newest release, which the line leads with. */
+	newest: string;
+	date: string;
+	security?: boolean;
+}
+
+/** Every minor version for the versions dropdown, in groups of ten. */
+export interface VersionChoice {
+	/** `0.140–0.144`, or the notes from before Roswaal was public. */
+	label: string;
+	items: { minor: string; slug: string; newest: string; security?: boolean }[];
+}
+
+/** A release's anchor: `v0.125.0`. On its minor version's page it marks that release's lines. */
 export function releaseAnchor(version: string): string {
 	return `v${version}`;
 }
 
-export type ReleaseTag = "feature" | "change" | "fix" | "breaking" | "docs" | "editor" | "designer";
+/** The page a release's notes are on: `release-notes/0.144` for 0.144.3. */
+export function releasePageSlug(version: string): string {
+	return `release-notes/${version.split(".").slice(0, 2).join(".")}`;
+}
+
+/**
+ * What a release carries, and where it lands.
+ *
+ * Two axes in one row. `security` and `breaking` are judgements a release
+ * states; `feature`, `change` and `fix` follow from which entries it has. The
+ * last three are the **surface** it touches, and none of them can be derived:
+ * "this changed the documentation" is not a fact about the shape of a release
+ * note. A release states them, and an absent one means *not stated* rather
+ * than *not affected*: the oldest releases state none.
+ */
+export type ReleaseTag =
+	| "security"
+	| "feature"
+	| "change"
+	| "fix"
+	| "breaking"
+	| "docs"
+	| "editor"
+	| "designer";
 
 /**
  * What a note is, which its heading says in a word: Info, Tip, Warning, or
@@ -252,45 +314,33 @@ export type Block =
 			aside?: string;
 			/** A line under the summary, shown while it is closed too: a minor version's headline. */
 			sub?: string;
-			/** An anchor, for a jump bar to open and scroll to. */
+			/** An anchor, for a link to open and scroll to. */
 			id?: string;
 			open?: boolean;
 			blocks: Block[];
-			/**
-			 * Part of the history from before Roswaal was public.
-			 *
-			 * Hidden unless the reader asks, by the toggle below. Marked rather
-			 * than left out: the reasoning in those entries is still the reasoning
-			 * behind the tool, and somebody who wants it should not have to go to
-			 * the repository for it.
-			 */
-			prerelease?: boolean;
 	  }
 	| { t: "tabs"; label?: string; tabs: DocTab[] }
 	/**
-	 * A checkbox on the page, wired to one of the reader's preferences.
-	 *
-	 * The settings popover is for what a reader sets once and forgets. This is
-	 * for a choice that belongs beside the thing it changes: the pre-release
-	 * notes are only worth thinking about while looking at the release notes.
-	 *
-	 * `pref` names the preference, which is where the answer is kept, so it
-	 * survives the page and is the same answer in the editor's own Docs window.
+	 * A minor version's releases as one card: its releases' summaries, then
+	 * Added, Changed and Fixed, every line badged with the release it shipped
+	 * in. `link` makes the version a link to its own page, on the front page.
 	 */
-	| { t: "toggle"; pref: "showPreReleaseNotes"; label: string; hint?: string }
+	| { t: "releaseMinor"; minor: MinorView; link?: boolean }
+	/** Minor versions as one line each, for the front page's recent few. */
+	| { t: "releaseRows"; rows: MinorRow[] }
 	/**
-	 * One release, as a card: its version, which is also its anchor, its date,
-	 * its tags and headline, and its entries one row each under Added, Changed
-	 * and Fixed. The rows carry their kind so the release notes' filters can
-	 * hide them; see `releaseNotes.ts` in the app, which both renderers wire up.
+	 * The versions dropdown: every minor version, by tens, the notes from before
+	 * Roswaal was public last. `current` is the page it is on, if any; `latest`
+	 * the newest release there is, which the "new since your last visit" dots
+	 * are measured against.
 	 */
-	| { t: "release"; release: ReleaseView }
-	/**
-	 * The release notes' tools: a search, filter chips over the tags every
-	 * release already carries, and a bar that jumps to a range of versions.
-	 * Markup only; the behaviour is `wireReleaseNotes`, shared by both renderers.
-	 */
-	| { t: "releaseTools"; ranges: { label: string; target: string; prerelease?: boolean }[] }
+	| { t: "releaseVersions"; current?: string; latest: string; groups: VersionChoice[] }
+	/** The minor versions either side of this one. */
+	| {
+			t: "releasePager";
+			newer?: { slug: string; label: string };
+			older?: { slug: string; label: string };
+	  }
 	/**
 	 * A whole window as a labelled diagram: where each part of the screen is,
 	 * numbered, with a legend. The page before Toolbars, drawn from a spec in
@@ -336,6 +386,17 @@ export type Block =
 export interface DocPage {
 	slug: string;
 	title: string;
+	/**
+	 * Built, linked and searchable, and left out of the contents: the release
+	 * notes of every minor version but the recent few, which the versions
+	 * dropdown reaches instead.
+	 */
+	unlisted?: boolean;
+	/**
+	 * The newest release a release notes page holds, so the contents can mark
+	 * a page with something this browser has not seen.
+	 */
+	releaseNewest?: string;
 	/** One line, used in the nav and as the search result's subtitle. */
 	summary: string;
 	blocks: Block[];
@@ -614,7 +675,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				title: "Release notes",
 				slug: "releases",
 				group: GROUPS.learn,
-				pages: [releaseNotesPage(titles)],
+				pages: releaseNotesPages(titles),
 			},
 			{ title: "Attributions", slug: "attributions", group: GROUPS.learn, pages: [attributions] },
 			{ title: "Contributing", slug: "contributing", group: GROUPS.learn, pages: [contributing] },
@@ -638,7 +699,7 @@ function withReviews(sections: DocSection[]): DocSection[] {
 	return sections.map((section) => ({
 		...section,
 		pages: section.pages.map((page) =>
-			page.custom || page.slug === "release-notes"
+			page.custom || page.slug === "release-notes" || page.slug.startsWith("release-notes/")
 				? page
 				: { ...page, review: reviewOf(page.slug) },
 		),
@@ -650,6 +711,15 @@ function slugify(text: string): string {
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-|-$/g, "");
+}
+
+/**
+ * The pages a section's entry in the contents lists: all but the unlisted,
+ * and an unlisted one too while it is the page being read, so the reader can
+ * see where they are.
+ */
+export function listedPages(section: DocSection, current?: string): DocPage[] {
+	return section.pages.filter((p) => !p.unlisted || p.slug === current);
 }
 
 export function allPages(site: DocSite): DocPage[] {
@@ -679,7 +749,11 @@ export function neighbours(
 	site: DocSite,
 	slug: string,
 ): { previous?: Neighbour; next?: Neighbour } {
-	const pages = allPages(site);
+	// A minor version's release notes have their own newer and older; the
+	// walk through the docs steps over them, and over anything unlisted.
+	const pages = allPages(site).filter(
+		(page) => !page.unlisted && !page.slug.startsWith("release-notes/"),
+	);
 	const at = pages.findIndex((page) => page.slug === slug);
 	if (at < 0) return {};
 	const name = (page: DocPage | undefined): Neighbour | undefined =>

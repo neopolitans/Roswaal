@@ -22,6 +22,7 @@ export function buildSearchIndex(site: DocSite): SearchEntry[] {
 				section: section.title,
 				body: page.blocks.map(blockText).join(" ").toLowerCase(),
 				nodeId: page.nodeId,
+				...(page.slug.startsWith("release-notes/") ? { record: true } : {}),
 			});
 		}
 	}
