@@ -154,10 +154,10 @@ export const RELEASES_0_0: Release[] = [
 	{
 		version: "0.2.0",
 		date: "2026-09-03",
-		headline: "The roswaal command, node maps, and variables the way Blueprints has them.",
+		headline: "The roswaal command, node maps, and variables you declare once and use anywhere.",
 		added: [
 			"The `roswaal` command: `init`, `serve`, `stop`, `restart`, `status`, `compile`, `watch`, `prune` and `check`. `roswaal serve` runs the daemon and the built editor together on one port, 4471. It is a pair of shell scripts in `bin/` that you put on your PATH after `npm run build`.",
-			"**Variables** as Blueprints has them: declared once in a list, then read and written with **Get Variable** and **Set Variable** anywhere in the graph, functions included. Drag one onto the canvas for a Get, or hold Ctrl for a Set. The palette lists variables and functions by name: *Get health*, *Set health*, *Get greet*.",
+			"**Variables**, declared once in a list, then read and written with **Get Variable** and **Set Variable** anywhere in the graph, functions included. Drag one onto the canvas for a Get, or hold Ctrl for a Set. The palette lists variables and functions by name: *Get health*, *Set health*, *Get greet*.",
 			"**Get Function** and **Call Function**, so calling a function no longer needs a wire from where it is declared. **Get Event**, typed as a signal so it wires straight into Connect Event. **Get Field**, which reads a field off any value.",
 			"**Instance** and **Require Module** take a root and a dotted path, so a chain of Find First Child nodes is no longer needed. A name that is not an identifier, like `Main Menu`, is bracketed. A module is required once, however many nodes ask for it. Dragging a file from the project tree onto the canvas offers either node with the path already filled in.",
 			"**Node maps**. A `.nodemap` says where each script lives in the DataModel and compiles to the Rojo project file. It is edited as a tree, with the generated JSON beside it. A path that does not exist on disk, or that sits inside another mapping, gets a warning. Ignore paths are set on the instance they belong to.",
@@ -176,7 +176,7 @@ export const RELEASES_0_0: Release[] = [
 			"**Get Service** is pure, and picks from a list of services, with *Other...* for a name the list does not have. However many nodes ask for a service, it becomes one local at the top of the file.",
 			"**Call Method** takes as many arguments as the inspector says, rather than exactly one.",
 			"**Require** is now **Require (Dynamic)**, for a module reached by a wire. Require Module covers a fixed path.",
-			"Getters are drawn as compact capsules, pure nodes have a green edge, and pin colours follow Unreal's where the types match. A Function node shows its signature under its name.",
+			"Getters are drawn as compact capsules, pure nodes have a green edge, and each pin type has a colour of its own. A Function node shows its signature under its name.",
 			"A wire starts only from a pin's dot, so the rest of the row drags the node. While a wire is being dragged, every pin is easier to drop on.",
 			"Creating, renaming or moving anything inside the output folder is refused, with the reason.",
 			"Prompts and confirmations are the editor's own dialogs rather than the browser's.",
@@ -196,7 +196,7 @@ export const RELEASES_0_0: Release[] = [
 		added: [
 			"**Graphs as files.** A `.nodescript` is one Script, LocalScript or ModuleScript, kept under `.roswaal/scripts`. It compiles to plain Luau in your source tree for Rojo to sync, as `Name.luau`, `Name.server.luau` or `Name.client.luau` depending on the script class.",
 			"**An editor in the browser.** `npm run dev` in a clone starts it on port 4470, with the daemon that writes the files on 4471. **Initialise** creates `roswaal.json` and `.roswaal/` in a project that has neither. There is a working example in `examples/demo`.",
-			"**Execution wires and data wires**, as in Blueprints, and 74 nodes: flow and loops, functions, Module Exports, Connect Event, values, maths, logic, strings, tables, Roblox instances and properties, Require, Call Method, Wait, Print and Warn.",
+			"**Execution wires and data wires**, and 74 nodes: flow and loops, functions, Module Exports, Connect Event, values, maths, logic, strings, tables, Roblox instances and properties, Require, Call Method, Wait, Print and Warn.",
 			"**Custom Code** and **Luau Expression**, which put hand-written Luau into a graph exactly as typed.",
 			"**Custom node packs**: `.nodedef.json` files in `.roswaal/nodes/`, made of data only, with `expr`, `call` and `statement` templates. Loading a pack never runs code.",
 			"Diagnostics update as you wire, because the editor runs the same compiler the daemon does. Reading a loop's variable from outside the loop is reported rather than compiled.",

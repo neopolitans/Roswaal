@@ -39,3 +39,9 @@ export const SOURCE_REPOSITORY = "https://github.com/neopolitans/Roswaal";
  * backup: see `IS_BACKUP` in `src/app/pages.ts`.
  */
 export const STABLE_SITE = "https://roswaal.app/";
+
+/**
+ * Where the single-file `roswaal` for each platform is downloaded: the stable
+ * repository's newest release, which `release.yml` attaches them to.
+ */
+export const RELEASES_PAGE = `${SOURCE_REPOSITORY}/releases/latest`;

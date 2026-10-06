@@ -195,7 +195,7 @@ export type Block =
 	| { t: "p"; text: string }
 	| { t: "ul"; items: string[] }
 	| { t: "ol"; items: string[] }
-	| { t: "code"; lang: "luau" | "sh" | "json" | "ts"; text: string }
+	| { t: "code"; lang: "luau" | "sh" | "powershell" | "json" | "ts"; text: string }
 	/**
 	 * `head` is optional. A comparison table wants column names; a list of
 	 * release entries wants the *shape* of a table — ruled rows, one thing per

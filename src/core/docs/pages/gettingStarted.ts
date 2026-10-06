@@ -13,7 +13,7 @@ import {
 	WALK_START,
 	WALK_TABLET,
 } from "../layouts.js";
-import { STABLE_SITE } from "../links.js";
+import { RELEASES_PAGE, SOURCE_REPOSITORY, STABLE_SITE } from "../links.js";
 import type { DocPage } from "../site.js";
 import { code } from "./blocks.js";
 
@@ -46,6 +46,113 @@ export function gettingStartedPage(): DocPage {
 						title: "Desktop (localhost)",
 						device: ["localhost"],
 						blocks: [
+							{ t: "h", level: 3, text: "Install roswaal" },
+							{
+								t: "p",
+								text:
+									"`roswaal` is one file: the command, the daemon and the editor together, with " +
+									`nothing else to install. Download it for your computer from [the latest release](${RELEASES_PAGE}).`,
+							},
+							{
+								t: "tabs",
+								label: "Your computer",
+								tabs: [
+									{
+										id: "install-macos",
+										title: "macOS",
+										blocks: [
+											{
+												t: "p",
+												text:
+													"Download `roswaal-<version>-macos-aarch64.zip`. It is for Apple Silicon: " +
+													"M1 and later. Safari unzips it for you; elsewhere, double-click the zip. " +
+													"Then, in Terminal, put it somewhere your shell looks:",
+											},
+											{
+												t: "code",
+												lang: "sh",
+												text: code`
+													mkdir -p ~/.local/bin
+													mv ~/Downloads/roswaal ~/.local/bin/
+													xattr -d com.apple.quarantine ~/.local/bin/roswaal
+													echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
+													`,
+											},
+											{
+												t: "p",
+												text: "Open a new Terminal window and `roswaal version` prints the version.",
+											},
+											{
+												t: "note",
+												kind: "info",
+												text:
+													"**Why the extra step.** macOS marks every download as *quarantined*, and will not " +
+													"run a quarantined program unless Apple has notarised it. This build is not " +
+													"notarised yet, so macOS says it cannot check it for malicious software and " +
+													"refuses. `xattr -d com.apple.quarantine` takes the mark off this one file, " +
+													"which says you trust it; it changes nothing else. Signing with an Apple " +
+													"Developer ID is planned for late October 2026, and this step goes away then.",
+											},
+										],
+									},
+									{
+										id: "install-windows",
+										title: "Windows",
+										blocks: [
+											{
+												t: "p",
+												text:
+													"Download `roswaal-<version>-windows-x86_64.zip`, for 64-bit Intel and AMD. " +
+													"Then, in PowerShell, from the folder it downloaded to:",
+											},
+											{
+												t: "code",
+												lang: "powershell",
+												text: code`
+													$dir = "$env:LOCALAPPDATA\Programs\roswaal"
+													Expand-Archive .\roswaal-*-windows-x86_64.zip -DestinationPath $dir -Force
+													Unblock-File "$dir\roswaal.exe"
+													$path = [Environment]::GetEnvironmentVariable("Path", "User")
+													[Environment]::SetEnvironmentVariable("Path", "$path;$dir", "User")
+													`,
+											},
+											{
+												t: "p",
+												text:
+													"Open a new terminal and `roswaal version` prints the version. " +
+													"`Unblock-File` takes off the mark Windows puts on downloads, so it does not " +
+													"ask about this file again. The path change is yours alone, and is undone " +
+													"in **Settings → System → About → Advanced system settings → Environment Variables**.",
+											},
+										],
+									},
+									{
+										id: "install-source",
+										title: "From source",
+										blocks: [
+											{
+												t: "p",
+												text:
+													"On any computer with [Node.js](https://nodejs.org) 24, build it from " +
+													"a clone. `npm link` puts `roswaal` on your path, pointing at the clone, " +
+													"so a rebuild takes effect without installing again.",
+											},
+											{
+												t: "code",
+												lang: "sh",
+												text: code`
+													git clone ${SOURCE_REPOSITORY}
+													cd Roswaal
+													npm install
+													npm run build
+													npm link
+													`,
+											},
+										],
+									},
+								],
+							},
+							{ t: "h", level: 3, text: "Start it" },
 							{
 								t: "ol",
 								items: [

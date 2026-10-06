@@ -19,6 +19,14 @@ File System Access API, so that part is Chrome and Edge.
 
 ## Install
 
+Download `roswaal` from the [latest release](https://github.com/neopolitans/Roswaal/releases/latest):
+one file, for macOS on Apple Silicon or Windows on x86-64, with the daemon and
+the editor inside it. [Getting started](https://roswaal.app/docs/getting-started.html)
+has the steps for each, including the one macOS needs until the build is
+notarised.
+
+Or build it from source, on any computer with Node.js 24:
+
 ```sh
 git clone https://github.com/neopolitans/Roswaal
 cd Roswaal
