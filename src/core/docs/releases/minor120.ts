@@ -19,6 +19,9 @@ export const RELEASES_0_120: Release[] = [
 		changed: [
 			"Every context menu and dropdown is drawn by one menu, which opens over everything and stays on screen: the project tree's, a pin's, the node palette, a card's ⋯, the open documents, More, Project, and a pack's ⋯ in Node Design.",
 			"More's dividers show. They were there, and drawn as nothing.",
+			"Menus are divided where their entries are different kinds of thing. The project tree's: making things, then Show in file manager, then Rename and Delete. A pin's: Promote to Variable, then splitting or recombining, then breaking links. More: the project, the graph's tools on a phone, the files, then the other windows. A card's: where it goes, then the card itself, then what is closed. Project: opening, then importing and exporting, then Start again. A pack's: copies, then Show in file manager, then Delete. The node palette sets Comment apart from the nodes, and Node Design's More sets its two pages to read apart from where to go.",
+			"Remove package… is the last entry of a package's menu, below the ways to add one, where every other menu keeps its red entry.",
+			"A pin's dropdown of known values has a rule above Other…, which turns the pin into a field to type into.",
 		],
 	},
 	{

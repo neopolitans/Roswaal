@@ -765,6 +765,9 @@ function OptionEditor({
 					{option}
 				</option>
 			))}
+			{/* Other is not a value: it turns the pin into a field to type one
+			    into. A browser too old to draw a rule in a dropdown leaves it out. */}
+			<hr />
 			<option value={CUSTOM}>Other…</option>
 		</select>
 	);

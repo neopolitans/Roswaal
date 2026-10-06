@@ -230,11 +230,16 @@ export function NodeMenu({
 			/>
 			<div className="items">
 				{query.trim() === "" && (
-					<div className="item" onClick={onAddComment}>
-						<span className="swatch" style={{ background: `#${COMMENT_DEFAULT_COLOR}` }} />
-						<span>Comment</span>
-						<span className="hint">C</span>
-					</div>
+					<>
+						<div className="item" onClick={onAddComment}>
+							<span className="swatch" style={{ background: `#${COMMENT_DEFAULT_COLOR}` }} />
+							<span>Comment</span>
+							<span className="hint">C</span>
+						</div>
+						{/* A comment is not a node, so a divider sets it apart from the
+						    library. The category headings divide the rest already. */}
+						<div className="menu-sep" role="separator" />
+					</>
 				)}
 				{grouped.map((group) => {
 					const row = (item: MenuItem) => (

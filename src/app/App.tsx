@@ -1076,6 +1076,11 @@ export function App() {
 												icon: "folderOpen",
 												run: () => placeInput.current?.click(),
 											},
+										],
+									},
+									{
+										// Into the project, and out of it.
+										entries: [
 											{ label: "Import Rojo project…", icon: "map", run: () => void importRojo() },
 											{ label: "Export…", icon: "copy", run: () => setExportOpen(true) },
 										],

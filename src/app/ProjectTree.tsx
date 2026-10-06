@@ -447,12 +447,10 @@ export const ProjectTree = memo(function ProjectTree({
 										icon: "folderOpen",
 										run: () => onPackage("zip", menu.entry),
 									},
-								menu.entry.kind === "package" && {
-									label: "Remove package…",
-									icon: "remove",
-									danger: true,
-									run: () => onPackage("remove", menu.entry),
-								},
+							],
+						},
+						{
+							entries: [
 								{ label: "Add from Wally…", icon: "instance", run: () => onPackage("wally") },
 								{ label: "Insert package zip…", icon: "folderOpen", run: () => onPackage("zip") },
 								{
@@ -461,6 +459,17 @@ export const ProjectTree = memo(function ProjectTree({
 									disabled: !canGithub,
 									title: canGithub ? undefined : NOT_HERE,
 									run: () => onPackage("github"),
+								},
+							],
+						},
+						{
+							// Last, as every menu's red entry is.
+							entries: [
+								menu.entry.kind === "package" && {
+									label: "Remove package…",
+									icon: "remove",
+									danger: true,
+									run: () => onPackage("remove", menu.entry),
 								},
 							],
 						},
@@ -475,9 +484,9 @@ export const ProjectTree = memo(function ProjectTree({
 					onClose={() => setMenu(null)}
 					sections={[
 						{
-							// Making things first, then finding them, then destroying
-							// them. A menu opened on a folder is nearly always opened to
-							// put something in it.
+							// Making things first, then finding them, then changing and
+							// destroying them. A menu opened on a folder is nearly always
+							// opened to put something in it.
 							entries: [
 								holdsGraphs(parentDirOf(menu.entry)) && {
 									label: "New graph here",
@@ -501,6 +510,10 @@ export const ProjectTree = memo(function ProjectTree({
 									icon: "newFolder",
 									run: () => onNewFolder(parentDirOf(menu.entry)),
 								},
+							],
+						},
+						{
+							entries: [
 								{
 									label: "Show in file manager",
 									icon: "external",
@@ -508,6 +521,10 @@ export const ProjectTree = memo(function ProjectTree({
 									title: canReveal ? undefined : NOT_HERE,
 									run: () => onReveal(menu.entry.path),
 								},
+							],
+						},
+						{
+							entries: [
 								{ label: "Rename", icon: "rename", run: () => onRename(menu.entry.path) },
 								{
 									label: "Delete",

@@ -427,7 +427,8 @@ export function Workspace({
 						at={{ element: menu.button, align: "end" }}
 						label={`${PANEL_TITLES[menu.panel]}: move, separate or close`}
 						sections={[
-							{ entries: openMenuItems.items },
+							{ entries: openMenuItems.moves },
+							{ entries: openMenuItems.card },
 							{ label: "Closed", entries: openMenuItems.closed },
 						]}
 						onClose={() => setMenu(null)}
@@ -637,31 +638,37 @@ export function Workspace({
 		setMenu((open) => (open?.button === button ? null : { panel, button }));
 	}
 
-	function menuItems(panel: PanelId): { items: MenuEntry[]; closed: MenuEntry[] } {
-		if (!onLayout) return { items: [], closed: [] };
+	/** Where the card can go, what can be done to the card, and what is closed to bring back. */
+	function menuItems(panel: PanelId): {
+		moves: MenuEntry[];
+		card: MenuEntry[];
+		closed: MenuEntry[];
+	} {
+		if (!onLayout) return { moves: [], card: [], closed: [] };
 		const head = cardOf(layout, panel);
 		const state = layout.panels[head];
 		const members = membersOf(layout, head).filter((id) => layout.panels[id].open);
 		const title = PANEL_TITLES[panel];
 		const to = (drop: CardDrop) => () => onLayout((l) => dropCard(l, panel, drop));
-		const items: MenuEntry[] = [];
+		const moves: MenuEntry[] = [];
+		const card: MenuEntry[] = [];
 		if (!state.floating) {
 			const frame = state.frame;
-			items.push({ label: "Float over the graph", run: to({ kind: "float", frame }) });
+			moves.push({ label: "Float over the graph", run: to({ kind: "float", frame }) });
 		}
 		if (state.floating || state.dock !== "left")
-			items.push({ label: "Dock on the left", run: to({ kind: "dock", side: "left" }) });
+			moves.push({ label: "Dock on the left", run: to({ kind: "dock", side: "left" }) });
 		if (state.floating || state.dock !== "right")
-			items.push({ label: "Dock on the right", run: to({ kind: "dock", side: "right" }) });
+			moves.push({ label: "Dock on the right", run: to({ kind: "dock", side: "right" }) });
 		if (head === "analysis" && (state.floating || state.dock !== "bottom"))
-			items.push({ label: "Back to the foot", run: to({ kind: "dock", side: "bottom" }) });
+			moves.push({ label: "Back to the foot", run: to({ kind: "dock", side: "bottom" }) });
 		if (members.length > 1)
-			items.push({ label: `Separate ${title}`, run: () => onLayout((l) => separate(l, panel)) });
-		items.push({
+			card.push({ label: `Separate ${title}`, run: () => onLayout((l) => separate(l, panel)) });
+		card.push({
 			label: state.folded ? "Unfold" : "Fold",
 			run: () => onLayout((l) => foldCard(l, head, !state.folded)),
 		});
-		items.push({ label: `Close ${title}`, run: () => onLayout((l) => closePanel(l, panel)) });
+		card.push({ label: `Close ${title}`, run: () => onLayout((l) => closePanel(l, panel)) });
 		const closed = PANEL_IDS.filter(
 			(id) => !layout.panels[id].open && contents[id] !== undefined,
 		).map(
@@ -671,7 +678,7 @@ export function Workspace({
 				run: () => onLayout((l) => reopenPanel(l, id)),
 			}),
 		);
-		return { items, closed };
+		return { moves, card, closed };
 	}
 }
 

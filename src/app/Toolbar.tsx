@@ -185,9 +185,11 @@ export function ProjectBar(props: ProjectBarProps) {
 											disabled: props.busy !== null,
 											run: props.onCompileProject,
 										},
-										...(phone ? (props.phoneMenu ?? []) : []),
 									],
 								},
+								// The open graph's tools, on a phone: they act on the graph
+								// on screen rather than the project.
+								{ entries: phone ? (props.phoneMenu ?? []) : [] },
 								{
 									entries: [
 										{ label: "Refresh", icon: "refresh", run: props.onRefresh },

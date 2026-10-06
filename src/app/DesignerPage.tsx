@@ -176,6 +176,10 @@ export function DesignerPage() {
 												link: { href: pageHref("docs"), target: pageTarget("docs") },
 												run: guardLeave,
 											},
+										],
+									},
+									{
+										entries: [
 											{
 												label: "Open Editor",
 												icon: "graph",

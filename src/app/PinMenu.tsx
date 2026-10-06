@@ -55,10 +55,14 @@ export function PinMenu({
 }: PinMenuProps) {
 	const links = pinLinkCount(script, target.nodeId, target.pin.id, target.side);
 
-	const entries: MenuEntry[] = [];
+	// Three kinds of thing to do, each its own section: make it a variable,
+	// change its shape, take its wires away. The one that undoes work is last.
+	const variable: MenuEntry[] = [];
+	const shape: MenuEntry[] = [];
+	const wires: MenuEntry[] = [];
 
 	if (canPromoteToVariable(script, registry, target.nodeId, target.pin, target.side)) {
-		entries.push({ label: "Promote to Variable", run: onPromote });
+		variable.push({ label: "Promote to Variable", run: onPromote });
 	}
 
 	// Split and Recombine, in the familiar wording. A pin is only ever one
@@ -68,7 +72,7 @@ export function PinMenu({
 
 	if (node && parent === undefined) {
 		for (const mode of splitModesFor(target.pin)) {
-			entries.push({
+			shape.push({
 				key: `split:${mode.id}`,
 				label: "Split Struct Pin",
 				// Only worth naming the mode when there is a choice to make.
@@ -79,11 +83,11 @@ export function PinMenu({
 	}
 
 	if (node && parent !== undefined) {
-		entries.push({ label: "Recombine Struct Pin", run: () => onRecombine(parent) });
+		shape.push({ label: "Recombine Struct Pin", run: () => onRecombine(parent) });
 	}
 
 	if (links > 0) {
-		entries.push({
+		wires.push({
 			label: links === 1 ? "Break Link" : `Break ${links} Links`,
 			hint: "Shift-click",
 			run: onBreakLinks,
@@ -122,7 +126,7 @@ export function PinMenu({
 					<span className="type">{typeLabel}</span>
 				</div>
 			}
-			sections={[{ entries }]}
+			sections={[{ entries: variable }, { entries: shape }, { entries: wires }]}
 			empty={emptyReason()}
 			onClose={onClose}
 		/>

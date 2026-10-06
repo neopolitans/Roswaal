@@ -683,6 +683,10 @@ export function PackBrowser({
 										notify(`${menuPack.name} was copied as JSON.`);
 									}),
 								},
+							],
+						},
+						{
+							entries: [
 								{
 									label: "Show in file manager",
 									icon: "folder",
