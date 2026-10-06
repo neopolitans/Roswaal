@@ -23,6 +23,7 @@ import sea from "node:sea";
 import { fileURLToPath } from "node:url";
 import express from "express";
 
+import { CSP_HEADER } from "../core/csp.js";
 import { DEMO_PROJECTS } from "../core/demoProjects.js";
 import type { Target } from "../core/schema.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
@@ -151,19 +152,8 @@ export function refusesConnection(
  *   image or a script, and a file is read as the type it is served as.
  */
 export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
-	"Content-Security-Policy": [
-		"default-src 'self'",
-		"script-src 'self'",
-		"style-src 'self' 'unsafe-inline'",
-		"img-src 'self' data: blob:",
-		"font-src 'self' data:",
-		"connect-src 'self'",
-		"worker-src 'self' blob:",
-		"object-src 'none'",
-		"base-uri 'self'",
-		"form-action 'self'",
-		"frame-ancestors 'self'",
-	].join("; "),
+	// The website carries the same policy as a <meta> tag: see `csp.ts`.
+	"Content-Security-Policy": CSP_HEADER,
 	"X-Frame-Options": "SAMEORIGIN",
 	"Cross-Origin-Resource-Policy": "same-origin",
 	"X-Content-Type-Options": "nosniff",

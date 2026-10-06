@@ -29,6 +29,8 @@ import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { withCspMeta } from "../src/core/csp.ts";
+
 import { buildGraphViewer } from "./lib/graphViewer.mjs";
 import { LANDING_SCRIPT, landingPage } from "./lib/landing.mjs";
 import { notFoundPage } from "./lib/notFound.mjs";
@@ -114,8 +116,19 @@ async function main() {
 	// directory whose name begins with an underscore.
 	await writeFile(join(out, ".nojekyll"), "", "utf8");
 
+	// Every page carries the policy, here and only here: whichever build wrote
+	// a page, it passes through this tree on its way to the host. Pages sends
+	// no headers, so a <meta> tag is the one way to say it.
+	const html = (await readdir(out, { recursive: true })).filter((f) => f.endsWith(".html"));
+	for (const file of html) {
+		const at = join(out, file);
+		await writeFile(at, withCspMeta(await readFile(at, "utf8")), "utf8");
+	}
+
 	const pages = (await readdir(join(out, "docs", "node")).catch(() => [])).length;
-	console.log(`site: ${base} -> dist-pages/ (editor, ${pages} node pages, docs)`);
+	console.log(
+		`site: ${base} -> dist-pages/ (editor, ${pages} node pages, docs; ${html.length} pages with the policy)`,
+	);
 }
 
 await main();

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.144.3",
+		date: "2026-10-06",
+		headline: "The website runs scripts from itself only.",
+		affects: ["editor", "designer", "docs"],
+		changed: [
+			"Every page of the website -- the editor, Node Design and the docs -- carries a Content-Security-Policy, the same one the local editor sends: scripts and requests from the site itself, and nothing else.",
+		],
+	},
+	{
 		version: "0.144.2",
 		date: "2026-10-06",
 		headline: "The local editor answers its own pages, and only shows in its own windows.",
