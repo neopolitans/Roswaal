@@ -138,6 +138,7 @@ export const RELEASES_0_0: Release[] = [
 		headline: "Split struct pins, and the Vector and CFrame libraries.",
 		added: [
 			"**Split Struct Pin** and **Recombine Struct Pin** on `Vector2`, `Vector3`, `CFrame`, `Color3`, `UDim` and `UDim2`. `CFrame` offers three decompositions.",
+			"**Pins have a right-click menu of their own**, rather than opening the node palette: Promote to Variable, and Break Link (or Break 2 Links, and so on) on a wired pin. A pin that takes only typed text says why it has nothing to offer.",
 			"**Promote to Variable**, which takes the value already typed into the pin rather than resetting it.",
 			"Vectors, CFrames and DateTime — 40 nodes.",
 			"Realign can **straighten the execution spine**, placing each node where its incoming exec wire comes out flat.",
@@ -145,6 +146,9 @@ export const RELEASES_0_0: Release[] = [
 		],
 		changed: [
 			"Execution pins are larger, and empty-versus-wired is drawn as an outline rather than a fade — an unwired exec pin is now as easy to find as a wired one.",
+		],
+		fixed: [
+			"The canvas's menus — the node palette and the drop menu — opened a sidebar's width to the left of the pointer. They open at it.",
 		],
 		watch: [
 			"A pin whose text is pasted into the generated source — a property name, a cast's type — can no longer be wired. The editor refuses the connection during the drag rather than letting the compile fail.",
