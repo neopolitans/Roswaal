@@ -9,6 +9,29 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.146.0",
+		security: true,
+		date: "2026-10-06",
+		headline:
+			"roswaal for macOS, nodes from a pack say so, and files from elsewhere are read to a limit.",
+		affects: ["editor", "docs"],
+		added: [
+			"`roswaal` for macOS on Apple Silicon, built with the Windows one for every release and attached to it. Getting started has the steps for each, with Rokit and from source.",
+			"A node from a node pack says so: the node picker marks it **Pack** and names its file, and the Inspector says which pack it came from and shows the Luau it writes.",
+		],
+		changed: [
+			"A zip is unpacked to the sizes its index gives, and no more than 128 MiB in all. A damaged zip says it is damaged.",
+			"A place file's chunks are opened to the sizes they could have, and its instances are read as a tree.",
+			"Downloads from the Wally registry and from GitHub are read to a limit: 128 MiB for an archive, 4 MiB for a list of versions.",
+			"Adding a Wally package checks its name, alias and version before `wally.toml` is changed.",
+			"The backup copy of the editor on GitHub Pages opens projects from a .zip or a place, not folders, and lets go of any folder it remembered. Folders open on roswaal.app.",
+			"*Creating custom nodes* says that a pack's nodes put their author's Luau into your game.",
+		],
+		watch: [
+			"A Wally version is written as `1.2.3`, `^1.2.3` or `=1.2.3`, which are the forms Roswaal installs from. Anything else is refused with that message.",
+		],
+	},
+	{
 		version: "0.145.0",
 		date: "2026-10-06",
 		headline: "The release notes have a page for each minor version.",
