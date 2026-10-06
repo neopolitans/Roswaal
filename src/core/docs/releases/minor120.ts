@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.143.1",
+		date: "2026-10-06",
+		headline: "Luau typed into a graph is offered a typed local's members.",
+		affects: ["editor"],
+		fixed: [
+			"After `hull.` or `hull:` in Custom Code or Luau Expression, the members and methods of the local's type are offered, for named results, Declare Locals, parameters, script variables and loop variables. A cast result counts as its cast type.",
+			"Loop variables are offered by name too.",
+		],
+	},
+	{
 		version: "0.143.0",
 		date: "2026-10-06",
 		headline: "Import as graph has settings, and an overwrite shows what changes first.",
