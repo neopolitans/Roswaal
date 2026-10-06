@@ -93,6 +93,15 @@ export function gettingStartedPage(): DocPage {
 													"which says you trust it; it changes nothing else. Signing with an Apple " +
 													"Developer ID is planned for late October 2026, and this step goes away then.",
 											},
+											{
+												t: "note",
+												kind: "warn",
+												text:
+													"**Ran it before taking the mark off?** macOS remembers refusing that copy, and " +
+													"removing the mark afterwards does not change its mind: the command waits and " +
+													"does nothing. Delete it, unzip the download again, and do the steps above on " +
+													"the new copy before running it.",
+											},
 										],
 									},
 									{
