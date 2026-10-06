@@ -195,6 +195,8 @@ export interface TypePickerProps {
 	 * a return or an input; not a Cast, which writes the type it is given.
 	 */
 	classNames?: boolean;
+	/** Open the list as soon as the picker appears, for a field just asked for. */
+	openOnMount?: boolean;
 }
 
 /**
@@ -268,7 +270,7 @@ function typeColor(type: string): string | undefined {
 
 export function TypePicker(props: TypePickerProps) {
 	const choices = useTypeChoices();
-	const [picking, setPicking] = useState(false);
+	const [picking, setPicking] = useState(props.openOnMount === true);
 	const withClassNames = props.classNames === true;
 	const options = withClassNames ? [CLASS_NAME_TYPE, ...choices.options] : choices.options;
 	const groupOf = (type: string) =>

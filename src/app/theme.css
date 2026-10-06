@@ -2442,6 +2442,53 @@ button.tb.primary:hover:not(:disabled) {
 	min-width: 0;
 }
 
+/* An optional setting not yet set, as an optional pin's "default" is drawn:
+   dashed, quiet, and one click from being set. */
+.inspector .tb.unset-choice {
+	width: 100%;
+	background: none;
+	border: 1px dashed var(--border-strong);
+	color: var(--fg-faint);
+	font-style: italic;
+	text-align: left;
+	cursor: pointer;
+}
+
+.inspector .tb.unset-choice:hover {
+	border-color: var(--accent);
+	color: var(--fg-muted);
+}
+
+/* A set optional setting, and its way back to unset. */
+.inspector .cast-row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+}
+
+.inspector .cast-row > .tb.type-picker {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.inspector .cast-row > .list-remove {
+	flex: 0 0 auto;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	display: inline-grid;
+	place-items: center;
+	background: transparent;
+	border-color: transparent;
+	color: var(--fg-faint);
+}
+
+.inspector .cast-row > .list-remove:hover {
+	background: var(--bg-hover);
+	color: var(--danger);
+}
+
 /* The way out of a shortened description. Underlined rather than only coloured,
    because "See docs page" sitting at the end of a sentence has to read as a
    link on the first glance and not on the second. */

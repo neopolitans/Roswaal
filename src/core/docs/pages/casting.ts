@@ -215,7 +215,7 @@ function castingBlocks(registry: Registry): Block[] {
 				"A call node's **Cast result**, in the Inspector, writes the cast after the call: " +
 				"`local hull = need(model, \"Hull\", \"BasePart\") :: BasePart`. Its result pin and " +
 				"its named local take that type, so nothing after it needs a Cast node. It is offered " +
-				"on any call with one result.",
+				"on any call with one result: click **No cast** to pick a type, and × to remove it.",
 		},
 
 		{ t: "h", level: 2, text: "Declaring a type" },

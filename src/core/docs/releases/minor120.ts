@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.142.1",
+		date: "2026-10-06",
+		headline: "Cast result reads as optional until it is set.",
+		affects: ["editor", "docs"],
+		changed: [
+			"Cast result shows a dashed No cast, as an optional pin shows default. Clicking it opens the type list, and × beside the chosen type removes the cast.",
+		],
+	},
+	{
 		version: "0.142.0",
 		date: "2026-10-06",
 		headline: "A node can go into a data wire, and a call can cast its result.",

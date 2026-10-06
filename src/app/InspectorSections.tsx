@@ -1480,20 +1480,52 @@ function ScriptCallSource({ script, node }: SectionProps) {
  * `need(model, "Hull", "BasePart") :: BasePart`. Only for one result, since
  * `::` takes one value. See `resultCast.ts`.
  */
-function ResultCast({ node, def }: SectionProps) {
+function ResultCast(props: SectionProps) {
+	// Keyed by node, so a field opened on one call is not open on the next.
+	return <ResultCastField key={props.node.id} {...props} />;
+}
+
+function ResultCastField({ node, def }: SectionProps) {
+	// Opened from "No cast" but not yet given a type: the field shows, with
+	// its way back, until a type is picked or it is closed again.
+	const [adding, setAdding] = useState(false);
 	const data = resolveNodePins(def, node.config).outputs.filter((p) => p.kind === "data");
 	if (data.length !== 1 || data[0].id !== "result") return null;
 	const current = configText(node, RESULT_CAST);
+	const write = (type: string | undefined) =>
+		store.edit((s) => setConfig(s, node.id, { [RESULT_CAST]: type }));
+
+	// Unset, drawn the way an optional pin's "default" is: dashed, and a
+	// click away from being set.
+	if (current === undefined && !adding) {
+		return (
+			<Field label="Cast result" hint="Writes :: Type after the call. No runtime check.">
+				<button className="tb unset-choice" onClick={() => setAdding(true)}>
+					No cast
+				</button>
+			</Field>
+		);
+	}
 	return (
 		<Field label="Cast result" hint="Writes :: Type after the call. No runtime check.">
-			<TypePicker
-				value={current ?? "any"}
-				onChange={(type) =>
-					store.edit((s) =>
-						setConfig(s, node.id, { [RESULT_CAST]: type === "any" ? undefined : type }),
-					)
-				}
-			/>
+			<div className="cast-row">
+				<TypePicker
+					value={current ?? "any"}
+					openOnMount={current === undefined}
+					onChange={(type) => write(type === "any" ? undefined : type)}
+				/>
+				<button
+					className="tb list-remove"
+					title="No cast"
+					aria-label="Remove the cast"
+					onClick={() => {
+						setAdding(false);
+						write(undefined);
+					}}
+				>
+					<Icon name="close" size={13} />
+				</button>
+			</div>
 		</Field>
 	);
 }
