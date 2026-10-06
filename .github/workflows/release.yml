@@ -1,0 +1,131 @@
+# Builds the single-file `roswaal` for each platform and attaches it to a
+# GitHub Release.
+#
+# Node's single-executable support cannot build for another platform, so each
+# binary is built on its own: GitHub's macOS runner (Apple Silicon) and its
+# Windows runner (x86-64). The names are the ones `build-binary.mjs` prints,
+# which is what a toolchain manager looks for.
+#
+# Deliberate, as the site is: run it when a release is made, with that
+# release's tag. A tag with no release yet gets a draft, for the notes to be
+# written into before it is published.
+#
+# The macOS binary is signed ad hoc, which a download does not get past
+# Gatekeeper with; Getting Started says how to let it run. A Developer ID and
+# notarisation are what would remove that step.
+name: Release binaries
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The release's tag, e.g. v0.146.0. It has to name the version in version.json."
+        required: true
+        type: string
+
+# Attaching files to a release is a write to the repository's contents, and
+# that is all this does.
+permissions:
+  contents: write
+
+# One run per tag at a time: two would race to replace each other's files.
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  # Which line of development the binary's editor says it is, as the site does.
+  ROSWAAL_CHANNEL: ${{ github.event.repository.name == 'roswaal-canary' && 'canary' || 'stable' }}
+  TAG: ${{ inputs.tag }}
+
+jobs:
+  release:
+    name: Check the tag and the release
+    runs-on: ubuntu-latest
+    steps:
+      # Every action by the commit it is, not a tag that can be moved: the
+      # comment says which release that commit was.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # A binary built from one commit and attached to another version's
+      # release is a binary nobody can trace.
+      - name: The tag names this version
+        run: |
+          version="$(node -p 'require("./version.json").version')"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::The tag is $TAG, and version.json says $version. Run this from the commit that release is of."
+            exit 1
+          fi
+
+      - name: A release to attach to
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft \
+              --target "$GITHUB_SHA" --title "Roswaal ${TAG#v}" --notes "Notes to follow."
+          fi
+
+  binaries:
+    name: ${{ matrix.name }}
+    needs: release
+    strategy:
+      # One platform failing should not take the other's binary with it.
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple Silicon)
+            runner: macos-14
+            asset: macos-aarch64
+            binary: roswaal
+          - name: Windows (x86-64)
+            runner: windows-latest
+            asset: windows-x86_64
+            binary: roswaal.exe
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      # postject, which writes the editor into the binary, is a pinned
+      # devDependency, so `npm ci` brings the same one on every runner.
+      - run: npm ci
+
+      - name: Build the editor and the binary
+        shell: bash
+        run: |
+          npm run build:themes
+          npm run build:web
+          npm run build:binary
+
+      - name: Smoke-test the binary
+        shell: bash
+        run: |
+          out="$(./dist-binary/${{ matrix.binary }} version)"
+          echo "$out"
+          [ "$out" = "${TAG#v}" ] || { echo "::error::The binary says $out, not ${TAG#v}."; exit 1; }
+
+      - name: Zip it
+        shell: bash
+        run: |
+          asset="roswaal-${TAG#v}-${{ matrix.asset }}.zip"
+          echo "ASSET=$asset" >> "$GITHUB_ENV"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            pwsh -NoProfile -Command "Compress-Archive -Path dist-binary/${{ matrix.binary }} -DestinationPath $asset"
+          else
+            (cd dist-binary && zip -9 "../$asset" "${{ matrix.binary }}")
+          fi
+
+      - name: Attach it to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --clobber

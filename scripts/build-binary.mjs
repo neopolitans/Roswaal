@@ -197,6 +197,14 @@ function codesign(...args) {
 
 if (macos) codesign("--remove-signature");
 
+// A devDependency, pinned, so every machine injects with the same one.
+const postject = join(root, "node_modules", "postject", "dist", "cli.js");
+if (!existsSync(postject)) {
+	console.error("roswaal: postject, which builds the binary, is not installed.");
+	console.error("  Run:  npm ci");
+	process.exit(1);
+}
+
 /**
  * The fuse is Node's own sentinel, and has to match the runtime that is being
  * injected into. It is a published constant rather than a secret.
@@ -204,7 +212,7 @@ if (macos) codesign("--remove-signature");
 const inject = spawnSync(
 	process.execPath,
 	[
-		join(root, "node_modules", "postject", "dist", "cli.js"),
+		postject,
 		binary,
 		"NODE_SEA_BLOB",
 		join(out, "roswaal.blob"),
@@ -214,11 +222,7 @@ const inject = spawnSync(
 	],
 	{ stdio: "inherit" },
 );
-if (inject.status !== 0) {
-	console.error("roswaal: postject is needed to build a binary.");
-	console.error("  Run:  npm install --no-save postject");
-	process.exit(inject.status ?? 1);
-}
+if (inject.status !== 0) process.exit(inject.status ?? 1);
 
 if (macos) codesign("--sign", "-");
 
