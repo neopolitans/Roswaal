@@ -27,6 +27,7 @@ import {
 	useZipImporter,
 	type ZipPreview,
 } from "../app/host.js";
+import { IS_BACKUP } from "../app/pages.js";
 import { unzip } from "../app/unzip.js";
 import { readRbx } from "../core/rbx/index.js";
 import { planImport, surveyPlace } from "../core/rbx/placeImport.js";
@@ -158,7 +159,13 @@ async function readProjectPlace(file: File): Promise<PlacePreview> {
 async function start(): Promise<void> {
 	useZipImporter(readProjectZip);
 	usePlaceImporter(readProjectPlace);
-	if (!canOpenDirectory()) {
+	// The backup copy lives on neopolitans.github.io, and browser storage
+	// belongs to the origin, not the path: every other Pages site on that
+	// account could open the folders it remembered, and write to any still
+	// allowed. So it opens no folders, and forgets the ones it kept; the
+	// banner sends people to roswaal.app, which has an origin of its own.
+	if (IS_BACKUP) await forgetFolder();
+	if (IS_BACKUP || !canOpenDirectory()) {
 		bootEditor();
 		return;
 	}

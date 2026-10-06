@@ -83,7 +83,7 @@ export const MARK_BESIDE_LINK: Record<BuildMark, string> = {
 /** The banner on the copy at the site's old address. See `IS_BACKUP` in `pages.ts`. */
 export const BACKUP_BANNER = {
 	mark: "backup",
-	app: "Roswaal has moved to roswaal.app. A project kept here stays here: download it as a .zip and open it there.",
+	app: "Roswaal has moved to roswaal.app. A project kept here stays here: download it as a .zip and open it there. Folders on your computer open there too.",
 	docs: "Roswaal has moved to roswaal.app. These pages are a backup copy.",
 	wayOut: "Go to roswaal.app",
 } as const;
