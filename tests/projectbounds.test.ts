@@ -155,24 +155,28 @@ describe("folders named in roswaal.json", () => {
 describe("removing a Wally package", () => {
 	it("deletes nothing above _Index, whatever a thunk names", async () => {
 		const packages = path.join(project, "Packages");
-		await mkdir(path.join(packages, "_Index", "real_pkg@1.0.0"), { recursive: true });
+		const real = path.join(packages, "_Index", "real_pkg@1.0.0");
+		await mkdir(real, { recursive: true });
 		await writeFile(
 			path.join(project, "wally.toml"),
 			'[package]\nname = "me/game"\nversion = "0.1.0"\n\n[dependencies]\nTrap = "x/trap@1.0.0"\n',
 		);
-		// A thunk somebody wrote, naming the folder above `_Index`, and above that.
+		// The package removed reaches one whose own thunk names the folder
+		// above `_Index`'s parent: the project. Nothing else reaches either, so
+		// both are "unreached" once it goes.
 		await writeFile(
 			path.join(packages, "Trap.lua"),
-			'return require(script.Parent._Index[".."]["x"])\n',
+			'return require(script.Parent._Index["real_pkg@1.0.0"]["x"])\n',
 		);
 		await writeFile(
-			path.join(packages, "_Index", "real_pkg@1.0.0", "Up.lua"),
+			path.join(real, "Up.lua"),
 			'return require(script.Parent.Parent["../.."]["x"])\n',
 		);
 		const opened = await openProject(project);
-		await removePackage(opened, "Trap");
+		const out = await removePackage(opened, "Trap");
+		expect(out.removed).toEqual(["real_pkg@1.0.0"]);
 		expect(await exists(path.join(project, "roswaal.json"))).toBe(true);
-		expect(await exists(packages)).toBe(true);
-		expect(await exists(path.join(packages, "_Index", "real_pkg@1.0.0"))).toBe(true);
+		expect(await exists(path.join(packages, "_Index"))).toBe(true);
+		expect(await exists(real)).toBe(false);
 	});
 });
